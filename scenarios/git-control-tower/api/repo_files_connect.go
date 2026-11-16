@@ -228,6 +228,7 @@ func (s *Server) savePrecommitConfigConnect(ctx context.Context, req *repov1.Sav
 		return s.precommit.Save(writeCtx, repoPath, PrecommitConfig{
 			Enabled: req.GetEnabled(), Command: req.GetCommand(), WorkingDirectory: req.GetWorkingDirectory(),
 			TimeoutSeconds: int(req.GetTimeoutSeconds()), RunBeforeCommit: req.GetRunBeforeCommit(), AllowOverride: req.GetAllowOverride(),
+			DeclaredInputs: req.GetDeclaredInputs(),
 		})
 	})
 	if err != nil {
@@ -254,10 +255,58 @@ func (s *Server) runPrecommitConnect(ctx context.Context, req *repov1.RunPrecomm
 	return &repov1.PrecommitRunResponse{Success: result.Status == "passed", Result: precommitRunResultProto(result)}, nil
 }
 
+func (s *Server) startPrecommitCandidateCheckConnect(ctx context.Context, req *repov1.StartPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error) {
+	resolved, err := s.resolveRepoForConnect(ctx, req.GetRepositoryId(), "")
+	if err != nil {
+		return nil, connectFileError(err)
+	}
+	check, err := s.precommit.StartCandidateCheck(ctx, resolved.Path, s.git, req.GetRetryTerminal())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return precommitCandidateCheckProto(check), nil
+}
+
+func (s *Server) getPrecommitCandidateCheckConnect(ctx context.Context, req *repov1.GetPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error) {
+	resolved, err := s.resolveRepoForConnect(ctx, req.GetRepositoryId(), "")
+	if err != nil {
+		return nil, connectFileError(err)
+	}
+	check, err := s.precommit.GetCandidateCheck(ctx, resolved.Path, req.GetJobId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return precommitCandidateCheckProto(check), nil
+}
+
+func (s *Server) cancelPrecommitCandidateCheckConnect(ctx context.Context, req *repov1.CancelPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error) {
+	resolved, err := s.resolveRepoForConnect(ctx, req.GetRepositoryId(), "")
+	if err != nil {
+		return nil, connectFileError(err)
+	}
+	check, err := s.precommit.CancelCandidateCheck(ctx, resolved.Path, req.GetJobId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return precommitCandidateCheckProto(check), nil
+}
+
+func precommitCandidateCheckProto(check CandidateCheck) *repov1.PrecommitCandidateCheckResponse {
+	response := &repov1.PrecommitCandidateCheckResponse{
+		JobId: check.JobID, State: check.State,
+		CandidateDigest: check.CandidateDigest, ConfigDigest: check.ConfigDigest,
+	}
+	if check.Result != nil {
+		response.Result = precommitRunResultProto(*check.Result)
+	}
+	return response
+}
+
 func precommitConfigProto(config PrecommitConfig) *repov1.PrecommitConfigResponse {
 	result := &repov1.PrecommitConfigResponse{
 		Enabled: config.Enabled, Command: config.Command, WorkingDirectory: config.WorkingDirectory,
 		TimeoutSeconds: int32(config.TimeoutSeconds), RunBeforeCommit: config.RunBeforeCommit, AllowOverride: config.AllowOverride,
+		DeclaredInputs: config.DeclaredInputs,
 	}
 	if config.LastResult != nil {
 		result.LastResult = precommitRunResultProto(*config.LastResult)

@@ -41,7 +41,248 @@ type Snapshotter interface {
 	Capture(context.Context, string, string) (Captured, error)
 	Identity(context.Context, string, string) (string, error)
 }
-type GitSnapshotter struct{}
+
+// CaptureWorktreeSnapshot binds exactly the requested unstaged paths to their
+// index and worktree contents. It deliberately does not stage or write objects.
+func CaptureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []string) (Captured, error) {
+	return captureWorktreeSnapshot(ctx, repo, dir, paths, time.Now)
+}
+
+func captureWorktreeSnapshot(ctx context.Context, repo, dir string, paths []string, now func() time.Time) (Captured, error) {
+	selected, err := normalizeWorktreePaths(paths)
+	if err != nil {
+		return Captured{}, err
+	}
+	headBytes, err := gitRead(ctx, dir, "rev-parse", "--verify", "HEAD")
+	if err != nil {
+		headBytes = nil
+	}
+	snap := &v1.StagedMessageSnapshot{RepositoryId: repo, BaseHead: strings.TrimSpace(string(headBytes))}
+	captured := Captured{Snapshot: snap, Bytes: map[string]FileBytes{}}
+	total := 0
+	for _, path := range selected {
+		parts := strings.Split(filepath.FromSlash(path), string(os.PathSeparator))
+		parent := dir
+		for _, part := range parts[:len(parts)-1] {
+			parent = filepath.Join(parent, part)
+			info, e := os.Lstat(parent)
+			if errors.Is(e, os.ErrNotExist) {
+				break
+			} // permits a tracked deletion whose parent directory was removed
+			if e != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+				return Captured{}, fmt.Errorf("selected path %q has an unsafe parent", path)
+			}
+		}
+		idx, e := gitRead(ctx, dir, "ls-files", "--stage", "-z", "--", path)
+		if e != nil {
+			return Captured{}, e
+		}
+		var oldID, oldMode string
+		for _, row := range bytes.Split(idx, []byte{0}) {
+			if len(row) == 0 {
+				continue
+			}
+			meta, got, ok := strings.Cut(string(row), "\t")
+			fields := strings.Fields(meta)
+			if !ok || got != path || len(fields) != 3 || fields[2] != "0" {
+				return Captured{}, fmt.Errorf("invalid or unmerged index entry for %q", path)
+			}
+			oldMode, oldID = fields[0], fields[1]
+		}
+		full := filepath.Join(dir, filepath.FromSlash(path))
+		readLimit := int64(maxFileBytes)
+		if remaining := int64(maxTotalBytes - total); remaining < readLimit {
+			readLimit = remaining
+		}
+		after, info, e := readRegularFileBounded(full, readLimit)
+		var newMode, newID, status string
+		if e == nil {
+			total += len(after)
+			newMode = "100644"
+			if info.Mode()&0111 != 0 {
+				newMode = "100755"
+			}
+			newID, e = hashBytes(ctx, dir, after)
+			if e != nil {
+				return Captured{}, e
+			}
+		} else if !errors.Is(e, os.ErrNotExist) {
+			return Captured{}, e
+		}
+		if oldID == "" {
+			status = "A"
+		} else if newID == "" {
+			status = "D"
+		} else {
+			status = "M"
+		}
+		if oldID != "" && oldID == newID && oldMode == newMode {
+			return Captured{}, fmt.Errorf("selected path %q has no index-to-worktree change", path)
+		}
+		if oldID == "" { // New paths must be visible as untracked, not ignored.
+			untracked, e := gitRead(ctx, dir, "ls-files", "--others", "--exclude-standard", "--", path)
+			if e != nil || strings.TrimSuffix(string(untracked), "\n") != path {
+				return Captured{}, fmt.Errorf("selected path %q is not an untracked worktree file", path)
+			}
+		}
+		f := &v1.StagedMessageFile{Path: path, OldPath: path, OldMode: oldMode, NewMode: newMode, OldBlobId: oldID, NewBlobId: newID, Status: status}
+		if f.OldBlobId != "" {
+			before, e := gitRead(ctx, dir, "cat-file", "blob", f.OldBlobId)
+			if e != nil {
+				return Captured{}, e
+			}
+			if len(before) > maxFileBytes || total+len(before) > maxTotalBytes {
+				return Captured{}, fmt.Errorf("selected index content exceeds bounded capture limit")
+			}
+			total += len(before)
+			captured.Bytes[path] = FileBytes{Before: before, After: after}
+		} else {
+			captured.Bytes[path] = FileBytes{After: after}
+		}
+		if bytes.IndexByte(after, 0) >= 0 || !utf8.Valid(after) {
+			f.Binary = true
+			f.OmissionReason = "binary content omitted"
+		} else if patch, e := renderPatch(ctx, path, captured.Bytes[path].Before, after); e != nil {
+			f.OmissionReason = e.Error()
+		} else {
+			f.Patch = patch
+			if len(f.Patch) > maxPatchBytes {
+				f.Patch = ""
+				f.OmissionReason = "patch exceeds per-file detail bound"
+			}
+		}
+		snap.Files = append(snap.Files, f)
+	}
+	encoded, _ := json.Marshal(snap)
+	sum := sha256.Sum256(encoded)
+	snap.Digest = "sha256:" + hex.EncodeToString(sum[:])
+	snap.CapturedAt = snapshotTime(now)
+	return captured, nil
+}
+
+func snapshotTime(now func() time.Time) string {
+	if now == nil {
+		now = time.Now
+	}
+	return now().UTC().Format(time.RFC3339Nano)
+}
+
+func normalizeWorktreePaths(paths []string) ([]string, error) {
+	if len(paths) == 0 || len(paths) > MaxManifestFiles {
+		return nil, fmt.Errorf("select between 1 and %d worktree paths", MaxManifestFiles)
+	}
+	selected := append([]string(nil), paths...)
+	sort.Strings(selected)
+	for index, path := range selected {
+		if path == "" || !utf8.ValidString(path) || filepath.IsAbs(path) || filepath.Clean(path) != path || path == "." || path == ".." || strings.HasPrefix(path, "../") {
+			return nil, fmt.Errorf("invalid selected path")
+		}
+		if index > 0 && selected[index-1] == path {
+			return nil, fmt.Errorf("duplicate selected path %q", path)
+		}
+	}
+	return selected, nil
+}
+
+func sameWorktreePaths(snapshot *v1.StagedMessageSnapshot, selected []string) bool {
+	if snapshot == nil || len(snapshot.Files) != len(selected) {
+		return false
+	}
+	for index, file := range snapshot.Files {
+		if file.GetPath() != selected[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func hashBytes(ctx context.Context, dir string, data []byte) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "--no-optional-locks", "--literal-pathspecs", "-C", dir, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "hash-object", "--stdin")
+	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	cmd.Stdin = bytes.NewReader(data)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// WorktreeSelectionApplicable accepts the captured unstaged state or the same
+// content staged exactly as captured. It scopes identity to selected paths and
+// intentionally ignores HEAD movement.
+func WorktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot) (bool, error) {
+	return worktreeSelectionApplicable(ctx, dir, snapshot, true)
+}
+
+// WorktreeSelectionUnstagedApplicable requires the saved index-to-worktree
+// form, which is the post-unstage condition for staged-selection finalization.
+func WorktreeSelectionUnstagedApplicable(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot) (bool, error) {
+	return worktreeSelectionApplicable(ctx, dir, snapshot, false)
+}
+
+func worktreeSelectionApplicable(ctx context.Context, dir string, snapshot *v1.StagedMessageSnapshot, allowStaged bool) (bool, error) {
+	if snapshot == nil || len(snapshot.Files) == 0 {
+		return false, nil
+	}
+	for _, f := range snapshot.Files {
+		parent := dir
+		parts := strings.Split(filepath.FromSlash(f.Path), string(os.PathSeparator))
+		for _, part := range parts[:len(parts)-1] {
+			parent = filepath.Join(parent, part)
+			info, e := os.Lstat(parent)
+			if errors.Is(e, os.ErrNotExist) {
+				break
+			}
+			if e != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+				return false, nil
+			}
+		}
+		idx, err := gitRead(ctx, dir, "ls-files", "--stage", "-z", "--", f.Path)
+		if err != nil {
+			return false, err
+		}
+		var indexID, indexMode string
+		for _, row := range bytes.Split(idx, []byte{0}) {
+			if len(row) == 0 {
+				continue
+			}
+			meta, path, ok := strings.Cut(string(row), "\t")
+			fields := strings.Fields(meta)
+			if !ok || path != f.Path || len(fields) != 3 || fields[2] != "0" {
+				return false, nil
+			}
+			indexMode, indexID = fields[0], fields[1]
+		}
+		full := filepath.Join(dir, filepath.FromSlash(f.Path))
+		data, info, err := readRegularFileBounded(full, maxFileBytes)
+		var workID, workMode string
+		if err == nil {
+			if len(data) > maxFileBytes {
+				return false, nil
+			}
+			workID, err = hashBytes(ctx, dir, data)
+			if err != nil {
+				return false, err
+			}
+			workMode = "100644"
+			if info.Mode()&0111 != 0 {
+				workMode = "100755"
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return false, err
+		}
+		unstaged := indexID == f.OldBlobId && indexMode == f.OldMode && workID == f.NewBlobId && workMode == f.NewMode
+		staged := indexID == f.NewBlobId && indexMode == f.NewMode && workID == f.NewBlobId && workMode == f.NewMode
+		if !unstaged && !(allowStaged && staged) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// GitSnapshotter captures immutable staged content. Now controls only the
+// descriptive capture timestamp; snapshot identity remains content-derived.
+type GitSnapshotter struct{ Now func() time.Time }
 
 func gitRead(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	all := append([]string{"--no-optional-locks", "--literal-pathspecs", "-C", dir, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null"}, args...)
@@ -252,7 +493,7 @@ func (g GitSnapshotter) Capture(ctx context.Context, repo, dir string) (Captured
 	if after != s.Digest {
 		return Captured{}, fmt.Errorf("staged selection changed during collection; collect again")
 	}
-	s.CapturedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	s.CapturedAt = snapshotTime(g.Now)
 	return c, nil
 }
 

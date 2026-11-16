@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"git-control-tower/internal/reviewjobs"
+	"strings"
 	"testing"
+
+	"git-control-tower/internal/reviewjobs"
 
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -112,15 +114,16 @@ func TestWholeSelectionSynthesisUsesCompleteInventoryAndTwoTargetedPatches(t *te
 		})
 	}
 }
-func TestWholeSelectionSynthesisRejectsMissingInventory(t *testing.T) {
+
+func TestWholeSelectionSynthesisDowngradesWhenInventoryReceiptIsMissing(t *testing.T) {
 	s, _, snapshot, base, prior := continuationFixture(t, 285)
 	s.provider = &synthesisRunnerFixture{evidenceRunnerFixture: base, incompleteInventory: true}
 	job, err := s.Start(t.Context(), "repo", "fixture", &v1.StartStagedMessageRequest{ContinuationOfJobId: prior.ID, SnapshotDigest: snapshot.identity, RequestKey: "unsubstantiated-whole"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if job.Status != "failed" {
-		t.Fatalf("whole scope accepted without complete inventory: status=%s error=%s", job.GetStatus(), job.GetError())
+	if job.Status != "succeeded" || job.Result.MessageScope != v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_LIMITED || !strings.Contains(job.Result.MessageScopeExplanation, "complete immutable inventory") {
+		t.Fatalf("unsupported whole scope was not constrained to limited: status=%s error=%s result=%v", job.GetStatus(), job.GetError(), job.Result)
 	}
 }
 
@@ -215,13 +218,16 @@ func TestSynthesisNoProgressKeepsPriorDraftWithExplicitLimitedExplanation(t *tes
 		t.Fatal("unexplained unchanged synthesis accepted")
 	}
 }
+
 func TestSynthesisRetryPreservesAlreadyAdmittedFormatThree(t *testing.T) {
 	s, store, snapshot, runner, prior := continuationFixture(t, 285)
 	runner.execute = false
 	var input DraftInput
-	if err := json.Unmarshal([]byte(prior.InputJSON), &input); err != nil {
+	decoded, err := decodeDraftInput([]byte(prior.InputJSON))
+	if err != nil {
 		t.Fatal(err)
 	}
+	input = decoded
 	input.FormatVersion = 3
 	input.JobID = "old-deep-job"
 	input.ContinuationOfJobID = prior.ID
@@ -230,7 +236,7 @@ func TestSynthesisRetryPreservesAlreadyAdmittedFormatThree(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(input)
-	_, _, err := store.Create(t.Context(), reviewjobs.Job{ID: input.JobID, IdempotencyKey: key("repo", "old-deep-key"), Operation: operation, RepositoryID: "repo", InputJSON: string(raw), InputDigest: digest(raw), State: reviewjobs.Running})
+	_, _, err = store.Create(t.Context(), reviewjobs.Job{ID: input.JobID, IdempotencyKey: key("repo", "old-deep-key"), Operation: operation, RepositoryID: "repo", InputJSON: string(raw), InputDigest: digest(raw), State: reviewjobs.Running})
 	if err != nil {
 		t.Fatal(err)
 	}

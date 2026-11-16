@@ -7,6 +7,35 @@ the API.
 Run `git-control-tower <group> --help` or `git-control-tower <group>
 <subcommand> --help` for full flag listings.
 
+## `ux-capture` — Freeze a current page for UX work
+
+This command forwards one capture to Browser Automation Studio and prints the
+bundle directory and fidelity manifest. Choose exactly one source:
+
+```sh
+git-control-tower ux-capture --scenario git-control-tower
+git-control-tower ux-capture --scenario web-console --path / --step click:Branches --theme dark
+git-control-tower ux-capture --scenario web-console --wait-selector '[data-testid="pane-grid"]'
+git-control-tower ux-capture --file ./artifact.html
+git-control-tower ux-capture --url https://example.org --width 390 --height 844
+git-control-tower ux-capture --scenario git-control-tower --strict-tokens
+git-control-tower ux-capture --scenario react-component-library --path '/preview/button/harness.html?story=anatomy&version=1.2.3' --evidence-profile componenttests --region-selector '[data-preview-capture-boundary]'
+```
+
+Use `--evidence-profile componenttests` with `--region-selector` to include a
+bounded story crop, accessibility snapshot, count-only console summary, safe
+performance timings, and a visual style sample in the same scenario bundle.
+
+`--file` sends the selected HTML contents to local BAS; the source path itself
+is not sent. Public URL captures are unauthenticated and ephemeral. Inspect the
+printed manifest and README for lens-level limits before using a bundle.
+File capture disables scripts and removes script elements before parsing; its
+L0 image is marked `partial` when that omission may have removed dynamic content.
+For URL captures, failed or blocked resource requests (including scripts, stylesheets,
+images, and fonts) mark L0 `partial`; the manifest reports counts by resource type
+without retaining request URLs. A failed or blocked stylesheet also makes L3
+`partial` because computed style measurements may be incomplete.
+
 ## `repo` — Inspect and change repository state
 
 | Subcommand | Description |

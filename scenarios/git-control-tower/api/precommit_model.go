@@ -9,6 +9,7 @@ type PrecommitConfig struct {
 	TimeoutSeconds   int                 `json:"timeout_seconds"`
 	RunBeforeCommit  bool                `json:"run_before_commit"`
 	AllowOverride    bool                `json:"allow_override"`
+	DeclaredInputs   []string            `json:"declared_inputs,omitempty"`
 	LastResult       *PrecommitRunResult `json:"last_result,omitempty"`
 	Hook             *PrecommitHookState `json:"hook,omitempty"`
 }
@@ -39,6 +40,9 @@ type PrecommitRunResult struct {
 	DurationMs      int64     `json:"duration_ms"`
 	OverrideAllowed bool      `json:"override_allowed"`
 	Timestamp       time.Time `json:"timestamp"`
+	receiptTree     string
+	receiptConfig   string
+	receiptID       string
 }
 
 type PrecommitRunResponse struct {

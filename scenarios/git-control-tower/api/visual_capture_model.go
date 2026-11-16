@@ -1,55 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"time"
 )
-
-// BAS Client Types (mirror browser-automation-studio API contracts)
-
-type BASViewport struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
-type BASExecuteAdhocRequest struct {
-	FlowDefinition json.RawMessage        `json:"flow_definition"`
-	Parameters     map[string]interface{} `json:"parameters,omitempty"`
-	Metadata       map[string]string      `json:"metadata,omitempty"`
-}
-
-type BASExecuteResponse struct {
-	ExecutionID string `json:"execution_id"`
-	Status      string `json:"status"`
-	Error       string `json:"error,omitempty"`
-}
-
-// BASExecutionDetail is the subset of GET /api/v1/executions/{id} we need for polling.
-// BAS responds with protobuf JSON (lowerCamelCase field names).
-type BASExecutionDetail struct {
-	ExecutionID string `json:"executionId"`
-	Status      string `json:"status"`
-	Error       string `json:"error,omitempty"`
-}
-
-type BASExecutionScreenshot struct {
-	Screenshot struct {
-		ArtifactID   string `json:"artifact_id"`
-		Url          string `json:"url"`
-		ThumbnailUrl string `json:"thumbnail_url"`
-		ContentType  string `json:"content_type"`
-		Width        int    `json:"width"`
-		Height       int    `json:"height"`
-	} `json:"screenshot"`
-	StepIndex int    `json:"step_index"`
-	StepLabel string `json:"step_label"`
-	Timestamp string `json:"timestamp"`
-}
-
-type BASScreenshotsResponse struct {
-	Screenshots []BASExecutionScreenshot `json:"screenshots"`
-	Total       int                      `json:"total"`
-}
 
 // CapturePreset defines a named capture configuration with viewport dimensions
 // and theme. Extensible for future properties (e.g. deviceScaleFactor, locale).
@@ -157,18 +110,4 @@ type LighthousePage struct {
 type LighthouseConfig struct {
 	Enabled bool             `json:"enabled"`
 	Pages   []LighthousePage `json:"pages"`
-}
-
-// BAS Recorded Videos Types
-
-type BASVideoArtifact struct {
-	ArtifactID  string `json:"artifact_id"`
-	StorageURL  string `json:"storage_url"`
-	ContentType string `json:"content_type"`
-	SizeBytes   int64  `json:"size_bytes"`
-}
-
-type BASRecordedVideosResponse struct {
-	ExecutionID string             `json:"execution_id"`
-	Videos      []BASVideoArtifact `json:"videos"`
 }

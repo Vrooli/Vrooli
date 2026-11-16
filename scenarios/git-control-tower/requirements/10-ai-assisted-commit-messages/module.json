@@ -1,17 +1,17 @@
 {
   "_metadata": {
     "description": "OT-P1-002 AI-assisted commit messages",
-    "last_validated_at": "2026-10-22T03:47:16Z",
+    "last_validated_at": "2026-11-12T04:30:00-05:00",
     "module": "ai-assisted-commit-messages"
   },
   "requirements": [
     {
       "id": "GCT-OT-P1-002",
       "title": "AI-assisted commit messages",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-002",
       "category": "operational_target.p1",
-      "description": "When an operator requests a commit message, the system SHOULD collect exact staged evidence, offer full or disclosed partial reusable suggestions, and start a durable cancellable read-only drafting agent only on explicit request; accepting a suggestion SHOULD preserve operator edits and MUST NOT stage or commit files.",
+      "description": "When an operator requests a commit message, the system SHOULD collect exact staged evidence, offer full or disclosed partial reusable messages and quick or direct deep read-only suggestions, and bind durable jobs to the immutable selection; when the operator queues follow-up changes, the system SHOULD capture each exact index-to-worktree selection and offer an independent quick or deep suggestion job while the current suggestion remains active, then stage the next unchanged selection only after the current commit succeeds; accepting a suggestion MUST preserve operator edits and MUST NOT stage or commit files.",
       "validation": [
         {
           "type": "test",
@@ -32,21 +32,168 @@
           "ref": "ui/src/features/commit-message/CommitMessageComposer.test.tsx",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Final full UI execution passed 566 tests across 67 files, including explicit start, partial accept without inference, cancellation, reconnect, staged applicability races and human edit/trailer preservation. Global coverage gate remains below its unchanged 85% target; this is not scenario certification."
+          "notes": "The final Test Genie unit phase passed after the staged-message and queue changes, including explicit start, partial accept without inference, cancellation, reconnect, staged applicability races and human edit/trailer preservation. The broader scenario certification phases were not run."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/commit-message/stageQueue.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Pure projection tests cover ordered groups, exact-path commit candidates bound to snapshot digests, explicit stale/commit-pending mapping, staged-to-queued demotion and successful-commit ordering."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/StageDuringSuggestionModal.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Mocked desktop and mobile tests prove queueing starts independent quick/deep suggestions, preserves the active suggestion, and names queued suggestions that immediate staging removes."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/continuation_test.go::TestDirectDeepAdmissionStartsFromImmutableCollectionWithoutParent",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake snapshot/provider and in-memory persistence prove direct deep admission uses the original immutable collection without a shallow parent."
+        },
+        {
+          "type": "test",
+          "ref": "api/staged_message_deep_test.go::TestDirectDeepWorkflowInputHasNoSyntheticParentCoverage",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Workflow input packaging preserves direct deep mode and job-bound evidence identity without fabricated prior coverage."
+        },
+        {
+          "type": "test",
+          "ref": "api/staged_message_deep_test.go::TestDirectDeepResultDecodesFromJobBoundEvidence",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake workflow result decoding accepts direct deep output only for job-bound inspected evidence and rejects unsupported claimed coverage."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/stage-batcher.test.ts::delivers request failures to their callback and still settles",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Mock stage mutation failure reaches the explicit stage-failed state while settlement releases the dispatch guard."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/stage-batcher.test.ts::releases a queued dispatch as retryable when its repository batcher is disposed",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repository-view disposal releases in-flight dispatch ownership and preserves a retry path without duplicating late callbacks."
+        },
+        {
+          "type": "test",
+          "ref": "api/staged_message_agent_test.go::TestStagedMessageResultMustMatchOwnerIdempotencyKey",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake owner result projection rejects a same-ID result whose durable idempotency key differs from the originally observed execution."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/service_test.go::TestNewIDReturnsEntropyFailureWithoutPanicking",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Injected short entropy source proves collection/job ID generation returns a contextual error instead of panicking the API process."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/continuation_test.go::TestEvidenceReadsContinueBeyondFormerReceiptLimit",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake snapshot/provider reads 257 distinct immutable files and confirms eligibility receipts persist beyond the former 256 receipt ceiling."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/features/commit-message/messageSession.test.ts::does not hold without a suggestion, after failure, or once the selection already diverged",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A cached applicable suggestion does not claim to describe a staged selection that is missing one of its files."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/CommitPanel.test.tsx::offers explicit recovery choices when a commit outcome is unresolved",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The commit panel offers separate operator choices for an interrupted outcome; only the selected action resolves the pending queue head."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/snapshot_test.go::TestWorktreeCaptureBindsSelectedIndexDiffAndUntrackedBytes",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Selected index-to-worktree snapshots bind tracked and untracked bytes without staging or mutating the Git index; reads enforce the regular-file and size bounds."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/service_test.go::TestWorktreeSelectionCreatesIndependentJobDuringStagedJob",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A queued selection receives its own durable job while a staged-selection job remains active; retries reconnect by request key and exact selected paths, unchanged content remains applicable across unrelated commits, and changed content becomes stale."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/reviewjobs/worktree_queue_test.go::TestWorktreeQueueRejectsPathOwnershipConflictsTransactionally",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Transactional queue admission rejects overlapping active paths without leaving an orphan job. Queue-store tests also cover revision conflicts, ordering, replay, explicit commit-pending settlement, protected pending entries, stale-reason revision updates and retirement."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/QueuedStageSuggestionStatus.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Focused UI tests pass: responsive cards share one GET/Wait observer, reconnect durable jobs, show stale status and never offer Use for inapplicable results."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/components/QueuedCommitSuggestion.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "A queued result fills an empty editor only after operator action and opens comparison before replacing existing human text."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/settle_test.go::TestSettleDoesNotStarveOlderDispatchedJobsBehindUnclaimedRows",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Fake provider proves background settlement filters unclaimed rows before applying its bounded owner-read batch."
+        },
+        {
+          "type": "test",
+          "ref": "api/staged_message_agent_test.go::TestStagedMessageStartRejectsOwnerExecutionForDifferentIdempotencyKey",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "The workflow owner cannot bind a durable staged-message request to an execution returned under a different idempotency key."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/stagedmessages/settle_test.go::TestSettleRotatesPastDispatchedJobsThatRemainRunning",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Repeated bounded sweeps advance past dispatched executions that remain running and reach an older completed execution."
+        },
+        {
+          "type": "test",
+          "ref": "ui/src/lib/commit-authorization.test.ts",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Commit approval accepts only a preview with the same repository, operation, expected revision, and subject digest."
         },
         {
           "type": "test",
           "ref": "cli/domains/message/register_test.go",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Full CLI tests passed across 12 packages; typed collect/check/start/status/wait/cancel and generated primitive-evidence freshness verified."
+          "notes": "Full CLI tests passed across all packages; typed collect/check/staged start/worktree start/status/wait/cancel and generated primitive-evidence freshness verified."
         },
         {
           "type": "test",
           "ref": "bas/cases/staged-message/composer-observer.json",
-          "phase": "e2e",
+          "phase": "workflow",
           "status": "implemented",
-          "notes": "Final selected browser run f263360d-9b16-4e82-9557-bd8fef239adc passed desktop and companion mobile observer cases. Actual screenshots inspected. Feature interaction is covered by component and API fixtures; no live paid model qualification was performed. AM unit/contracts run 20261022-032302-b40db304 passed; final workflow/profile hashes were read back after lifecycle activation. Implementation is delivered; formal requirement status remains in_progress because the broader GCT suite is not green and no run-coupled requirements-sync snapshot earns complete status."
+          "notes": "Selected browser run f263360d-9b16-4e82-9557-bd8fef239adc passed desktop and companion mobile observer cases; actual screenshots were inspected. Feature interaction is covered by component and API fixtures; no live paid model qualification was performed. AM unit/contracts run 20261022-032302-b40db304 passed; final workflow/profile hashes were read back after lifecycle activation. The latest Test Genie unit phase and requirements sync passed; broader scenario certification and live model qualification were not performed."
         }
       ]
     }

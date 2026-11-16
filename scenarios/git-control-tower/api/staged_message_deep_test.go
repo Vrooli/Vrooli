@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,50 @@ func stagedDeepInput(count int) stagedmessages.DraftInput {
 		in.PriorResult.Coverage.UncoveredPaths = append(in.PriorResult.Coverage.UncoveredPaths, path)
 	}
 	return in
+}
+
+func TestDirectDeepWorkflowInputHasNoSyntheticParentCoverage(t *testing.T) {
+	in := stagedmessages.DraftInput{FormatVersion: 4, Mode: v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP, JobID: "initial-deep-job", Snapshot: &v1.StagedMessageSnapshot{RepositoryId: "repo", Digest: "initial-subject"}}
+	in.Snapshot.Files = []*v1.StagedMessageFile{{Path: "src/one.go", EditCount: 1, OmissionReason: "quick sample omitted detail"}}
+	packed, err := packageStagedMessageInput(in, "/workspace/registered-fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(packed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var projection stagedMessageCompactInput
+	if err := json.Unmarshal(raw, &projection); err != nil {
+		t.Fatal(err)
+	}
+	if projection.FormatVersion != 4 || projection.DraftContext.InvestigationMode != "deep" || projection.DraftContext.EvidenceJobID != in.JobID || projection.DraftContext.PreviousTitle != "" || projection.DraftContext.PreviousBody != "" || len(projection.DraftContext.PreviouslyCoveredIDs) != 0 {
+		t.Fatalf("initial deep workflow input implied a parent draft: %+v", projection.DraftContext)
+	}
+	if len(projection.DraftContext.Files) != 0 {
+		t.Fatal("deep initial admission leaked quick sample details instead of requiring job-bound reads")
+	}
+}
+
+func TestDirectDeepResultDecodesFromJobBoundEvidence(t *testing.T) {
+	in := stagedmessages.DraftInput{FormatVersion: 4, Mode: v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP, JobID: "initial-deep-job", Snapshot: &v1.StagedMessageSnapshot{RepositoryId: "repo", Digest: "initial-subject"}}
+	in.Snapshot.Files = []*v1.StagedMessageFile{{Path: "src/one.go", EditCount: 1, Patch: "@@ -1 +1 @@\n-old\n+new\n"}}
+	execution := deepExecutionFixture(t, in)
+	setCompactOutput(t, execution, stagedMessageCompactResult{
+		Title: "Update the staged behavior", Body: "Describe the inspected change.",
+		Trailers: []any{}, CoveredFileIDs: []int{1}, Unknowns: []string{},
+		MessageScope: "whole_selection", MessageScopeExplanation: "The complete inventory and inspected patch support this summary.",
+	})
+	got, err := decodeStagedMessageSynthesisResult(execution, in, map[int]bool{1: true}, map[int]bool{1: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Title != "Update the staged behavior" || got.Coverage.Partial || len(got.Coverage.CoveredPaths) != 1 {
+		t.Fatalf("direct deep result did not retain job-bound evidence: %+v", got)
+	}
+	if _, err := decodeStagedMessageSynthesisResult(execution, in, nil, map[int]bool{1: true}); err == nil {
+		t.Fatal("direct deep result accepted claimed coverage without job-bound patch evidence")
+	}
 }
 
 func deepExecutionFixture(t *testing.T, in stagedmessages.DraftInput) *ampb.WorkflowExecution {
@@ -46,7 +91,7 @@ func TestDeepResultCanCover4096OnlyWithActualExecutionEvidence(t *testing.T) {
 		ids = append(ids, i)
 		eligible[i] = true
 	}
-	result := map[string]any{"snapshot_digest": in.Snapshot.Digest, "title": "Update behavior across the staged selection", "body": "Describe all examined behavior groups.", "trailers": []any{}, "covered_file_ids": ids, "source_ids": []any{}, "unknowns": []any{}}
+	result := map[string]any{"title": "Update behavior across the staged selection", "body": "Describe all examined behavior groups.", "trailers": []any{}, "covered_file_ids": ids, "source_ids": []any{}, "unknowns": []any{}}
 	execution.Output, _ = structpb.NewValue(map[string]any{"result": result})
 	got, err := decodeStagedMessageResultWithEvidence(execution, in, eligible)
 	if err != nil || got.Coverage.Partial || len(got.Coverage.CoveredPaths) != 4096 {
@@ -125,7 +170,7 @@ func TestSynthesisResultSeparatesWholeMessageFromSelectiveInspection(t *testing.
 				inventory[i] = true
 			}
 			evidence := map[int]bool{1: true, count: true}
-			result := map[string]any{"snapshot_digest": in.Snapshot.Digest, "title": "Summarize the full selection across affected themes", "body": "Use important details without claiming every patch was read.", "trailers": []any{}, "covered_file_ids": []any{1, count}, "source_ids": []any{}, "unknowns": []any{}, "message_scope": "whole_selection", "message_scope_explanation": "The full immutable inventory identifies all scope groups; two important patches support the summary."}
+			result := map[string]any{"title": "Summarize the full selection across affected themes", "body": "Use important details without claiming every patch was read.", "trailers": []any{}, "covered_file_ids": []any{1, count}, "source_ids": []any{}, "unknowns": []any{}, "message_scope": "whole_selection", "message_scope_explanation": "The full immutable inventory identifies all scope groups; two important patches support the summary."}
 			execution.Output, _ = structpb.NewValue(map[string]any{"result": result})
 			got, err := decodeStagedMessageSynthesisResult(execution, in, evidence, inventory)
 			if err != nil {
@@ -135,8 +180,9 @@ func TestSynthesisResultSeparatesWholeMessageFromSelectiveInspection(t *testing.
 				t.Fatalf("message scope inflated inspection: %v", got.Coverage)
 			}
 			delete(inventory, count)
-			if _, err := decodeStagedMessageSynthesisResult(execution, in, evidence, inventory); err == nil {
-				t.Fatal("whole selection accepted absent inventory tail")
+			limited, err := decodeStagedMessageSynthesisResult(execution, in, evidence, inventory)
+			if err != nil || limited.MessageScope != v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_LIMITED || !strings.Contains(limited.MessageScopeExplanation, "complete immutable inventory") {
+				t.Fatalf("unverifiable whole-selection claim was not safely constrained: result=%v err=%v", limited, err)
 			}
 			result["message_scope"] = "limited"
 			result["message_scope_explanation"] = "The final scope group was not available; its intent remains unknown."
@@ -201,10 +247,9 @@ func TestSynthesisKeepsFileInspectionSeparateFromEmptyContextSources(t *testing.
 	}
 	execution := deepExecutionFixture(t, in)
 	result := stagedMessageCompactResult{
-		SnapshotDigest: in.Snapshot.Digest,
-		Title:          "Improve agent execution and inference behavior",
-		Body:           "Coordinate lifecycle, conversation, supervision and inference changes across the staged selection.",
-		Trailers:       []any{}, Unknowns: []string{}, CoveredFileIDs: claimedIDs,
+		Title:    "Improve agent execution and inference behavior",
+		Body:     "Coordinate lifecycle, conversation, supervision and inference changes across the staged selection.",
+		Trailers: []any{}, Unknowns: []string{}, CoveredFileIDs: claimedIDs,
 		SourceIDs:               []string{"45", "51", "109", "170", "191", "273", "275"},
 		MessageScope:            "whole_selection",
 		MessageScopeExplanation: "The complete inventory and selected important patches support a summary of both affected behavior groups.",
@@ -223,8 +268,9 @@ func TestSynthesisKeepsFileInspectionSeparateFromEmptyContextSources(t *testing.
 		t.Fatalf("whole-selection synthesis lost supported sparse inspection: result=%v err=%v", got, err)
 	}
 	delete(inventory, 285)
-	if _, err := decode(); err == nil {
-		t.Fatal("whole-selection synthesis accepted missing inventory tail")
+	limited, err := decode()
+	if err != nil || limited.MessageScope != v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_LIMITED || !strings.Contains(limited.MessageScopeExplanation, "complete immutable inventory") {
+		t.Fatalf("unverifiable whole-selection claim was not safely constrained: result=%v err=%v", limited, err)
 	}
 	inventory[285] = true
 	result.CoveredFileIDs = append(append([]int{}, claimedIDs...), 285)

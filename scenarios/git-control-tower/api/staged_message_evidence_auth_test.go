@@ -30,9 +30,11 @@ type stagedEvidenceReadFixture struct{ reads atomic.Int32 }
 func (*stagedEvidenceReadFixture) Capture(context.Context, string, string) (stagedmessages.Captured, error) {
 	return stagedmessages.Captured{}, errors.New("evidence reads must not recollect the index")
 }
+
 func (*stagedEvidenceReadFixture) Identity(context.Context, string, string) (string, error) {
 	return "", errors.New("evidence reads must not inspect the current index")
 }
+
 func (f *stagedEvidenceReadFixture) EvidenceFile(_ context.Context, _ string, file *v1.StagedMessageFile) (*v1.StagedMessageEvidenceFile, error) {
 	f.reads.Add(1)
 	return &v1.StagedMessageEvidenceFile{Path: file.Path, Patch: "@@ -1 +1 @@\n-original\n+immutable staged bytes\n", CompletePatch: true}, nil
@@ -45,6 +47,7 @@ type stagedEvidenceHumanAuthority struct{}
 func (stagedEvidenceHumanAuthority) Source() identity.AuthSource {
 	return identity.SourceScenarioAuthenticator
 }
+
 func (stagedEvidenceHumanAuthority) VerifyRequest(_ context.Context, req *http.Request) (identity.Principal, error) {
 	switch req.Header.Get("Authorization") {
 	case "Bearer verified-human":
@@ -93,6 +96,9 @@ func TestStagedMessageEvidenceTransportRequiresVerifiedReaderAndOwningWorkflow(t
 			delete(claims.Meta, "workflowExecutionId")
 		case "verified-without-read":
 			claims.Scopes = nil
+		case "other-owner-without-read":
+			claims.Subject = "different-owner"
+			claims.Scopes = nil
 		default:
 			return &cliutil.VerifyResult{Valid: false}, nil
 		}
@@ -115,8 +121,14 @@ func TestStagedMessageEvidenceTransportRequiresVerifiedReaderAndOwningWorkflow(t
 		return client.ReadStagedMessageEvidence(t.Context(), req)
 	}
 	for _, test := range []struct{ name, agent, human string }{
-		{"anonymous", "", ""}, {"invalid child token", "invalid-child", ""}, {"unverified human", "", "unverified-human"},
-		{"foreign verified workflow", "verified-foreign-child", ""}, {"child without workflow binding", "verified-unbound-child", ""}, {"child without read capability", "verified-without-read", ""},
+		{"anonymous", "", ""},
+		{"invalid child token", "invalid-child", ""},
+		{"unverified human", "", "unverified-human"},
+		{"foreign verified workflow", "verified-foreign-child", ""},
+		{"child without workflow binding", "verified-unbound-child", ""},
+		{"child without read capability", "verified-without-read", ""},
+		{"human cannot authorize another owner's child", "other-owner-without-read", "verified-human"},
+		{"human cannot bind unbound child", "verified-unbound-child", "verified-human"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := read(test.agent, test.human); connect.CodeOf(err) != connect.CodePermissionDenied {
@@ -134,6 +146,22 @@ func TestStagedMessageEvidenceTransportRequiresVerifiedReaderAndOwningWorkflow(t
 	observed, err := store.Get(t.Context(), input.JobID)
 	if err != nil || len(observed.Checks) != 0 {
 		t.Fatalf("human read created agent coverage receipts: %v %v", observed.Checks, err)
+	}
+	page, err = read("verified-without-read", "verified-human")
+	if err != nil || page.Msg.Receipt == "" || !page.Msg.Complete {
+		t.Fatalf("verified owner could not authorize its bound child: %v %v", page, err)
+	}
+	observed, err = store.Get(t.Context(), input.JobID)
+	if err != nil || len(observed.Checks) != 1 || observed.Checks[0].Name != page.Msg.Receipt {
+		t.Fatalf("owner-authorized child read did not retain its receipt: %v %v", observed.Checks, err)
+	}
+	page, err = read("verified-own-child", "verified-human")
+	if err != nil || page.Msg.Receipt == "" || !page.Msg.Complete || len(page.Msg.Files) != 1 {
+		t.Fatalf("mixed human/child read was not bound to the owning workflow: %v %v", page, err)
+	}
+	observed, err = store.Get(t.Context(), input.JobID)
+	if err != nil || len(observed.Checks) != 1 || observed.Checks[0].Name != page.Msg.Receipt {
+		t.Fatalf("mixed credential read did not retain the workflow receipt: %v %v", observed.Checks, err)
 	}
 	page, err = read("verified-own-child", "")
 	if err != nil || page.Msg.Receipt == "" || !page.Msg.Complete || len(page.Msg.Files) != 1 {
@@ -185,5 +213,4 @@ func TestStagedMessageEvidenceTransportRequiresVerifiedReaderAndOwningWorkflow(t
 	if _, err := read("verified-own-child", "invalid-browser-proof"); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("valid child bypassed invalid offered browser proof: %v", err)
 	}
-
 }

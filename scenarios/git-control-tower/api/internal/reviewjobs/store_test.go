@@ -158,6 +158,7 @@ func TestCancelRequestSurvivesStaleQueuedReadDuringDispatch(t *testing.T) {
 	}
 	running := stale
 	running.State = Running
+	running.DispatchAttempted = true
 	if changed, e := s.UpdateAdvisory(ctx, stale, running); e != nil || !changed {
 		t.Fatal("dispatch transition", changed, e)
 	}
@@ -176,6 +177,36 @@ func TestCancelRequestSurvivesStaleQueuedReadDuringDispatch(t *testing.T) {
 	}
 }
 
+func TestAdvisoryJobPersistsKnownExecutionStartEvidence(t *testing.T) {
+	s := testStore(t)
+	ctx := t.Context()
+	queued, _, err := s.Create(ctx, Job{ID: "start-evidence", IdempotencyKey: "start-evidence", InputDigest: "input", Operation: "staged-message", RepositoryID: "repo", State: Queued})
+	if err != nil {
+		t.Fatal(err)
+	}
+	failed := queued
+	failed.State = Failed
+	failed.ErrorCode = "provider_admission_maintenance"
+	failed.Error = "Agent execution is paused for Workspace Sandbox maintenance; no agent work started."
+	failed.ExecutionStartedKnown = true
+	failed.ExecutionStarted = false
+	failed.TokensKnown = true
+	failed.TokensUsed = 0
+	failed.ChargeKnown = true
+	failed.ChargeMicroUSD = 0
+	failed.Phase = "draft-message"
+	if changed, err := s.UpdateAdvisory(ctx, queued, failed); err != nil || !changed {
+		t.Fatalf("persist failure receipt: changed=%t err=%v", changed, err)
+	}
+	got, err := s.Get(ctx, queued.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ErrorCode != failed.ErrorCode || !got.ExecutionStartedKnown || got.ExecutionStarted || !got.TokensKnown || got.TokensUsed != 0 || !got.ChargeKnown || got.ChargeMicroUSD != 0 || got.Phase != failed.Phase {
+		t.Fatalf("failure evidence did not survive store round-trip: %+v", got)
+	}
+}
+
 func TestAdmissionClaimReceiptCannotBorrowLaterRetryOrCancellationRevision(t *testing.T) {
 	s := testStore(t)
 	ctx := t.Context()
@@ -184,22 +215,26 @@ func TestAdmissionClaimReceiptCannotBorrowLaterRetryOrCancellationRevision(t *te
 		t.Fatal(err)
 	}
 	first, changed, err := s.ClaimAdvisoryDispatch(ctx, queued)
-	if err != nil || !changed || first.State != Running {
+	if err != nil || !changed || first.State != Dispatching {
 		t.Fatalf("first claim: %v %v", changed, err)
 	}
 	second, changed, err := s.ClaimAdvisoryDispatch(ctx, first)
 	if err != nil || !changed || !second.UpdatedAt.After(first.UpdatedAt) {
 		t.Fatalf("retry did not obtain distinct receipt: %v %v", changed, err)
 	}
+	attempted, changed, err := s.MarkAdvisoryDispatchAttempt(ctx, second)
+	if err != nil || !changed || !attempted.DispatchAttempted {
+		t.Fatalf("dispatch attempt marker: changed=%v err=%v", changed, err)
+	}
 	rejected := first
 	rejected.State = Failed
 	if changed, err := s.UpdateAdvisory(ctx, first, rejected); err != nil || changed {
 		t.Fatalf("old refusal overwrote retry: %v %v", changed, err)
 	}
-	if err := s.RequestAdvisoryCancel(ctx, second.ID, "repo"); err != nil {
+	if err := s.RequestAdvisoryCancel(ctx, attempted.ID, "repo"); err != nil {
 		t.Fatal(err)
 	}
-	if _, changed, err := s.ClaimAdvisoryDispatch(ctx, second); err != nil || changed {
+	if _, changed, err := s.ClaimAdvisoryDispatch(ctx, attempted); err != nil || changed {
 		t.Fatalf("stale dispatch overwrote cancellation: %v %v", changed, err)
 	}
 	got, err := s.Get(ctx, second.ID)

@@ -44,6 +44,9 @@ type GitRunner interface {
 	// Used for repository validation (e.g., --is-inside-work-tree).
 	RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error)
 
+	// WriteTree returns the immutable tree identity of the current index.
+	WriteTree(ctx context.Context, repoDir string) (string, error)
+
 	// LastCommitMessage returns the subject of the last commit.
 	LastCommitMessage(ctx context.Context, repoDir string) (string, error)
 
@@ -143,6 +146,11 @@ type GitRunner interface {
 	// Uses git diff --cached --name-only.
 	ListStagedFiles(ctx context.Context, repoDir string) ([]string, error)
 
+	// ReadStagedCandidate returns exact stage-0 blob bytes for changed paths in
+	// the index. Deletions are omitted; conflicts, submodules, and bounded-read
+	// failures are errors so callers cannot mistake partial coverage for clean.
+	ReadStagedCandidate(ctx context.Context, repoDir string) (map[string][]byte, error)
+
 	// ListTrackedFiles returns all tracked files in the repository.
 	// Uses git ls-files --cached.
 	ListTrackedFiles(ctx context.Context, repoDir string) ([]string, error)
@@ -195,6 +203,10 @@ type CommitOptions struct {
 	// (pre-commit, commit-msg). Used when the caller has explicitly chosen to
 	// override precommit checks.
 	NoVerify bool
+	// PrecommitCandidateTree lets the GCT-managed pre-commit hook avoid repeating
+	// a check already completed for this exact index tree. Other Git hooks remain
+	// enabled, and the managed hook runs its command if the index has changed.
+	PrecommitCandidateTree string
 }
 
 // gitCredentialEnv builds environment variables and a cleanup function for

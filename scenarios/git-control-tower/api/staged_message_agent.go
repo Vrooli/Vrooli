@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +23,7 @@ import (
 	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	advisoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -48,6 +51,7 @@ type stagedMessageSearchAPI interface {
 
 type stagedMessageAgent struct {
 	resolve      func(context.Context) (string, error)
+	httpClient   *http.Client
 	workflow     func(string) stagedMessageWorkflowAPI
 	search       func(string) stagedMessageSearchAPI
 	repository   func(context.Context, string) (string, error)
@@ -73,6 +77,7 @@ func newStagedMessageProvider(s *Server) stagedmessages.Provider {
 	forwardingClient.Transport = provenance.ForwardingTransport{Base: transport}
 	httpClient = &forwardingClient
 	return &stagedMessageAgent{
+		httpClient: httpClient,
 		inventory: func(ctx context.Context, job, repo, digest, execution string) (map[int]bool, error) {
 			if s.stagedMessages == nil {
 				return nil, errors.New("durable evidence owner unavailable")
@@ -104,6 +109,47 @@ func newStagedMessageProvider(s *Server) stagedmessages.Provider {
 			return filepath.Abs(root)
 		},
 	}
+}
+
+func (p *stagedMessageAgent) Readiness(ctx context.Context) stagedmessages.ProviderReadiness {
+	unknown := stagedmessages.ProviderReadiness{Provider: "workspace-sandbox", State: "unknown", Known: false, Message: "Workspace Sandbox readiness could not be confirmed."}
+	if p == nil || p.resolve == nil || p.httpClient == nil {
+		return unknown
+	}
+	readCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+	base, err := p.resolve(readCtx)
+	if err != nil || strings.TrimSpace(base) == "" {
+		return unknown
+	}
+	request, err := http.NewRequestWithContext(readCtx, http.MethodGet, strings.TrimRight(base, "/")+"/api/v1/provider-readiness", nil)
+	if err != nil {
+		return unknown
+	}
+	for name, values := range policygate.VerifiedOwnerHeaders(ctx) {
+		for _, value := range values {
+			request.Header.Add(name, value)
+		}
+	}
+	response, err := p.httpClient.Do(request)
+	if err != nil {
+		return unknown
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return unknown
+	}
+	var readiness stagedmessages.ProviderReadiness
+	if err := json.NewDecoder(io.LimitReader(response.Body, 8<<10)).Decode(&readiness); err != nil {
+		return unknown
+	}
+	if readiness.Provider != "workspace-sandbox" || !readiness.Known || (readiness.State != "open" && readiness.State != "closed") || readiness.ObservedAt == nil || readiness.ObservedAt.IsZero() {
+		return unknown
+	}
+	if age := time.Since(*readiness.ObservedAt); age < -time.Minute || age > 30*time.Second {
+		return unknown
+	}
+	return readiness
 }
 
 func stagedMessageRequest[T any](ctx context.Context, msg *T) *connect.Request[T] {
@@ -152,16 +198,99 @@ func (p *stagedMessageAgent) Start(ctx context.Context, in stagedmessages.DraftI
 	req := stagedMessageRequest(ctx, &apipb.StartWorkflowExecutionRequest{Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(in), Input: value, IdempotencyKey: key})
 	response, err := p.workflow(base).StartWorkflowExecution(ctx, req)
 	if err != nil {
-		invalidInput := connect.CodeOf(err) == connect.CodeInvalidArgument || (connect.CodeOf(err) == connect.CodeInternal && strings.Contains(err.Error(), "workflow input:"))
-		if in.FormatVersion == 0 && invalidInput {
-			return stagedmessages.Execution{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("legacy draft admission could not reconnect to its original workflow; refresh evidence for a new draft"))
-		}
-		if invalidInput {
-			return stagedmessages.Execution{}, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("message workflow input rejected: %w", err))
-		}
 		return stagedmessages.Execution{}, fmt.Errorf("start message workflow: %w", err)
 	}
-	return p.project(ctx, p.workflow(base), response.Msg.GetExecution(), in)
+	if response == nil || response.Msg == nil || response.Msg.GetExecution() == nil {
+		return stagedmessages.Execution{}, errors.New("message workflow returned no execution")
+	}
+	execution := response.Msg.GetExecution()
+	if execution.GetIdempotencyKey() != key {
+		return stagedmessages.Execution{}, errors.New("message workflow returned an execution for a different request key")
+	}
+	return p.project(ctx, p.workflow(base), execution, in)
+}
+
+// CancelByKey atomically installs an owner-side cancellation fence and cancels
+// an execution already admitted with the exact workflow key, if one exists.
+func (p *stagedMessageAgent) CancelByKey(ctx context.Context, key string, in stagedmessages.DraftInput) (stagedmessages.DispatchCancellation, error) {
+	if strings.TrimSpace(key) == "" {
+		return stagedmessages.DispatchCancellation{}, connect.NewError(connect.CodeInvalidArgument, errors.New("workflow idempotency key is required"))
+	}
+	base, err := p.resolve(ctx)
+	if err != nil {
+		return stagedmessages.DispatchCancellation{}, err
+	}
+	workflowKey := stagedMessageInputWorkflowKey(in)
+	body, err := json.Marshal(struct {
+		Owner          string `json:"owner"`
+		WorkflowKey    string `json:"workflowKey"`
+		IdempotencyKey string `json:"idempotencyKey"`
+		OperationKey   string `json:"operationKey"`
+		Reason         string `json:"reason"`
+	}{
+		Owner: "git-control-tower", WorkflowKey: workflowKey, IdempotencyKey: key,
+		OperationKey: stagedMessageCancelOperationKey(key), Reason: "Operator cancelled message drafting",
+	})
+	if err != nil {
+		return stagedmessages.DispatchCancellation{}, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(base, "/")+"/api/v1/workflow-executions/cancel-by-idempotency-key", bytes.NewReader(body))
+	if err != nil {
+		return stagedmessages.DispatchCancellation{}, err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	for name, values := range policygate.VerifiedOwnerHeaders(ctx) {
+		for _, value := range values {
+			request.Header.Add(name, value)
+		}
+	}
+	response, err := p.httpClient.Do(request)
+	if err != nil {
+		return stagedmessages.DispatchCancellation{}, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return stagedmessages.DispatchCancellation{}, fmt.Errorf("Agent Manager workflow cancellation fence returned HTTP %d", response.StatusCode)
+	}
+	raw, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
+	if err != nil {
+		return stagedmessages.DispatchCancellation{}, fmt.Errorf("read Agent Manager workflow cancellation response: %w", err)
+	}
+	var payload struct {
+		Fenced    bool            `json:"fenced"`
+		Execution json.RawMessage `json:"execution"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return stagedmessages.DispatchCancellation{}, fmt.Errorf("decode Agent Manager workflow cancellation response: %w", err)
+	}
+	if !payload.Fenced {
+		return stagedmessages.DispatchCancellation{}, errors.New("Agent Manager did not confirm the cancellation fence")
+	}
+	result := stagedmessages.DispatchCancellation{Fenced: true}
+	if len(payload.Execution) == 0 || string(payload.Execution) == "null" {
+		return result, nil
+	}
+	execution := &ampb.WorkflowExecution{}
+	if err := protojson.Unmarshal(payload.Execution, execution); err != nil {
+		return stagedmessages.DispatchCancellation{}, fmt.Errorf("decode fenced Agent Manager execution: %w", err)
+	}
+	if execution.GetIdempotencyKey() != key {
+		return stagedmessages.DispatchCancellation{}, errors.New("Agent Manager cancellation returned a different idempotency key")
+	}
+	if err := stagedMessageExecutionIdentity(execution, workflowKey); err != nil {
+		return stagedmessages.DispatchCancellation{}, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	projected, err := p.project(ctx, p.workflow(base), execution, in)
+	if err != nil {
+		return stagedmessages.DispatchCancellation{}, err
+	}
+	result.Execution = &projected
+	return result, nil
+}
+
+func stagedMessageCancelOperationKey(key string) string {
+	digest := sha256.Sum256([]byte(key))
+	return "gct/staged-message/cancel-by-key/" + hex.EncodeToString(digest[:])
 }
 
 func (p *stagedMessageAgent) Get(ctx context.Context, id string, in stagedmessages.DraftInput) (stagedmessages.Execution, error) {
@@ -262,43 +391,82 @@ func (p *stagedMessageAgent) project(ctx context.Context, client stagedMessageWo
 	}
 	out := stagedmessages.Execution{ID: e.GetId(), Status: stagedMessageStatus(e.GetStatus()), Phase: e.GetCurrentNodeId()}
 	out.Error = stagedMessageTerminalError(e)
+	if reason := e.GetTerminalReason(); reason != nil {
+		out.ErrorCode = reason.GetCode()
+		out.Retryable = reason.GetRetryable()
+		if reason.GetCode() == "provider_admission_maintenance" {
+			out.Error = "Agent execution is paused for Workspace Sandbox maintenance; no agent work started."
+			out.ExecutionStarted = false
+			out.ExecutionStartedKnown = true
+			out.TokensUsed, out.TokensKnown = 0, true
+		}
+	}
+	if e.GetStatus() == ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED {
+		out.ErrorCode = "budget_exhausted"
+		out.Retryable = false
+	}
+	if charge := e.GetChargeReceipt(); charge != nil && charge.GetMeasured() && charge.AmountMicroUsd != nil {
+		out.ChargeMicroUSD = charge.GetAmountMicroUsd()
+		out.ChargeKnown = true
+	}
+	if usage := e.GetBudgetUsage(); usage != nil {
+		out.TokensUsed = int64(usage.GetTokens())
+		out.TokensKnown = usage.GetAccountingComplete()
+	}
+	if e.GetStatus() == ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+		out.ExecutionStarted, out.ExecutionStartedKnown = true, true
+	}
+	if out.ErrorCode == "provider_admission_maintenance" {
+		// The terminal reason is an owner-issued pre-launch receipt; aggregate
+		// workflow accounting can remain incomplete for charging without making
+		// this provider's known zero token usage unknown.
+		out.ExecutionStarted = false
+		out.TokensUsed, out.TokensKnown = 0, true
+		out.ChargeMicroUSD, out.ChargeKnown = 0, true
+	}
 	if out.Status != "succeeded" {
 		return out, nil
 	}
 	result, err := client.GetWorkflowExecutionResult(ctx, stagedMessageRequest(ctx, &apipb.GetWorkflowExecutionResultRequest{ExecutionId: e.GetId(), ExplicitlyAuthorized: true}))
 	if err != nil {
-		return stagedmessages.Execution{}, fmt.Errorf("read message workflow result: %w", err)
+		return out, stagedmessages.EvidenceReadError{Cause: fmt.Errorf("read message workflow result: %w", err)}
 	}
 	finished := result.Msg.GetExecution()
 	if err := stagedMessageExecutionIdentity(finished, stagedMessageInputWorkflowKey(in)); err != nil {
 		return stagedmessages.Execution{}, err
 	}
-	if finished.GetId() != e.GetId() || finished.GetStatus() != ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+	if finished.GetId() != e.GetId() || finished.GetIdempotencyKey() != e.GetIdempotencyKey() || finished.GetStatus() != ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
 		return stagedmessages.Execution{}, errors.New("message workflow result identity or terminal state changed")
 	}
 	var eligible map[int]bool
 	if in.FormatVersion >= 3 {
 		if p.evidence == nil {
-			return stagedmessages.Execution{}, errors.New("durable supplied evidence reader unavailable")
+			return out, stagedmessages.EvidenceReadError{Cause: errors.New("durable supplied evidence reader unavailable")}
 		}
 		eligible, err = p.evidence(ctx, in.JobID, in.Snapshot.RepositoryId, in.Snapshot.Digest, e.Id)
 		if err != nil {
-			return stagedmessages.Execution{}, err
+			return out, stagedmessages.EvidenceReadError{Cause: err}
 		}
 	}
 	var inventory map[int]bool
 	if in.FormatVersion == 4 {
 		if p.inventory == nil {
-			return stagedmessages.Execution{}, errors.New("durable inventory reader unavailable")
+			return out, stagedmessages.EvidenceReadError{Cause: errors.New("durable inventory reader unavailable")}
 		}
 		inventory, err = p.inventory(ctx, in.JobID, in.Snapshot.RepositoryId, in.Snapshot.Digest, e.Id)
 		if err != nil {
-			return stagedmessages.Execution{}, err
+			return out, stagedmessages.EvidenceReadError{Cause: err}
 		}
 	}
 	suggestion, err := decodeStagedMessageSynthesisResult(finished, in, eligible, inventory)
 	if err != nil {
-		out.Status, out.Error = "failed", "Invalid structured message result: "+err.Error()
+		// The workflow completed successfully, but GCT rejected its draft. Report
+		// the validation failure as its own retryable category instead of leaking
+		// the workflow's successful terminal code (for example, "completed").
+		out.Status = "failed"
+		out.ErrorCode = "invalid_structured_output"
+		out.Retryable = true
+		out.Error = "Invalid structured message result: " + err.Error()
 		return out, nil
 	}
 	out.Result = suggestion
@@ -365,21 +533,30 @@ func stagedMessageStatus(status ampb.WorkflowExecutionStatus) string {
 	switch status {
 	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING:
 		return "queued"
-	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING, ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING:
+	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING:
 		return "running"
+	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING:
+		return "awaiting_input"
 	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLING:
 		return "cancelling"
 	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED:
 		return "succeeded"
 	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED:
 		return "cancelled"
-	default:
+	case ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BLOCKED,
+		ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_ABSTAINED,
+		ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_BUDGET_EXHAUSTED,
+		ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED:
 		return "failed"
+	default:
+		return "unknown"
 	}
 }
 
 type stagedMessageResult struct {
-	SnapshotDigest string   `json:"snapshot_digest"`
+	// Older retained workflow results may still contain this field. Current
+	// workflows bind the result to their immutable input instead of echoing it.
+	SnapshotDigest string   `json:"snapshot_digest,omitempty"`
 	Title          string   `json:"title"`
 	Body           string   `json:"body"`
 	Trailers       []any    `json:"trailers"`
@@ -425,9 +602,6 @@ func decodeStagedMessageResult(e *ampb.WorkflowExecution) (*advisoryv1.StagedMes
 	var result stagedMessageResult
 	if err := decodeStrictStagedMessageJSON(encoded, &result); err != nil {
 		return nil, err
-	}
-	if result.SnapshotDigest == "" || result.SnapshotDigest != snapshot["digest"] {
-		return nil, errors.New("snapshot digest mismatch")
 	}
 	if strings.TrimSpace(result.Title) == "" || len(result.Title) > 200 || strings.ContainsAny(result.Title, "\r\n") || len(result.Body) > 8000 || len(result.Trailers) > 0 || len(result.Unknowns) > 32 || len(result.SourceIDs) > 20 {
 		return nil, errors.New("message fields exceed contract or contain inferred trailers")

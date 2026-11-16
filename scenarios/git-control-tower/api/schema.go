@@ -26,7 +26,30 @@ func ensureRepoSchema(db *sql.DB) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return ensurePrecommitHookColumns(ctx, db)
+	if err := ensurePrecommitHookColumns(ctx, db); err != nil {
+		return err
+	}
+	return ensureCommitCheckIdentityColumns(ctx, db)
+}
+
+func ensureCommitCheckIdentityColumns(ctx context.Context, db *sql.DB) error {
+	cols, err := tableColumns(ctx, db, "git_commit_check_runs")
+	if err != nil {
+		return err
+	}
+	for _, addition := range []struct{ name, ddl string }{
+		{"check_job_id", "ALTER TABLE git_commit_check_runs ADD COLUMN check_job_id TEXT"},
+		{"candidate_digest", "ALTER TABLE git_commit_check_runs ADD COLUMN candidate_digest TEXT"},
+		{"config_digest", "ALTER TABLE git_commit_check_runs ADD COLUMN config_digest TEXT"},
+	} {
+		if cols[addition.name] {
+			continue
+		}
+		if _, err := db.ExecContext(ctx, addition.ddl); err != nil {
+			return fmt.Errorf("add column %s: %w", addition.name, err)
+		}
+	}
+	return nil
 }
 
 func ensureDatabaseSchema(db *sql.DB) error {
@@ -54,6 +77,7 @@ func ensurePrecommitHookColumns(ctx context.Context, db *sql.DB) error {
 		{"hook_install_reason", "ALTER TABLE git_repo_precommit ADD COLUMN hook_install_reason TEXT"},
 		{"hook_existing_kind", "ALTER TABLE git_repo_precommit ADD COLUMN hook_existing_kind TEXT"},
 		{"hook_installed_at", "ALTER TABLE git_repo_precommit ADD COLUMN hook_installed_at TEXT"},
+		{"declared_inputs_json", "ALTER TABLE git_repo_precommit ADD COLUMN declared_inputs_json TEXT NOT NULL DEFAULT '[]'"},
 	}
 	for _, addition := range additions {
 		if cols[addition.name] {

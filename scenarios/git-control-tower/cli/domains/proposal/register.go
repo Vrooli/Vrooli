@@ -44,6 +44,22 @@ const applyOperation = "repo.apply_proposal"
 // configured pre-commit check (up to two runs of at most 30 minutes total).
 const applyClientTimeout = 31 * time.Minute
 
+const creatorRunEnv = "VROOLI_RUN_ID"
+
+type environment interface {
+	Getenv(key string) string
+}
+
+type envLookup func(string) string
+
+func (lookup envLookup) Getenv(key string) string { return lookup(key) }
+
+type processEnvironment struct{}
+
+func (processEnvironment) Getenv(key string) string { return os.Getenv(key) }
+
+var _ environment = processEnvironment{}
+
 // Client factories. Overridable in tests.
 var (
 	repoClientFactory = func(core *cliapp.ScenarioApp) repoconnect.RepoServiceClient {
@@ -62,9 +78,8 @@ var (
 		httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
 		return humancontrolconnect.NewHumanControlServiceClient(httpClient, baseURL, connect.WithInterceptors(callerheader.New()))
 	}
-	confirmInput  io.Reader = os.Stdin
-	output        io.Writer = os.Stdout
-	creatorRunEnv           = "VROOLI_RUN_ID"
+	confirmInput io.Reader = os.Stdin
+	output       io.Writer = os.Stdout
 	// detectCaller classifies the local process. Agents never approve, even
 	// in a session the server would verify as the OS user.
 	detectCaller = cliutil.DetectCallerKind
@@ -118,6 +133,10 @@ func singleID(fs *flag.FlagSet) (string, error) {
 }
 
 func runAnchor(core *cliapp.ScenarioApp, args []string) error {
+	return runAnchorWithEnv(core, args, processEnvironment{})
+}
+
+func runAnchorWithEnv(core *cliapp.ScenarioApp, args []string, env environment) error {
 	fs := newFlagSet("anchor")
 	var scopes repeated
 	effort := fs.String("effort", "", "Agent Manager effort reference, e.g. effort:browser-automation-studio-rehabilitation")
@@ -133,7 +152,7 @@ func runAnchor(core *cliapp.ScenarioApp, args []string) error {
 		return errors.New("usage: git-control-tower proposal anchor --effort REF --epoch E<n> --scope GLOB [--scope GLOB...]")
 	}
 	resp, err := proposalClientFactory(core).AnchorScope(context.Background(), connect.NewRequest(&proposalsv1.AnchorScopeRequest{
-		RepositoryId: *repoID, EffortRef: *effort, Epoch: *epoch, Scopes: scopes, CreatorRunId: os.Getenv(creatorRunEnv),
+		RepositoryId: *repoID, EffortRef: *effort, Epoch: *epoch, Scopes: scopes, CreatorRunId: env.Getenv(creatorRunEnv),
 	}))
 	if err != nil {
 		return err
@@ -147,6 +166,10 @@ func runAnchor(core *cliapp.ScenarioApp, args []string) error {
 }
 
 func runCreate(core *cliapp.ScenarioApp, args []string) error {
+	return runCreateWithEnv(core, args, processEnvironment{})
+}
+
+func runCreateWithEnv(core *cliapp.ScenarioApp, args []string, env environment) error {
 	fs := newFlagSet("create")
 	var paths, runs, plans, trailerFlags, gates repeated
 	requestFile := fs.String("request-file", "", "CreateProposalRequest as proto JSON; flags override its fields")
@@ -218,7 +241,7 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 		req.Trailers = append(req.Trailers, &proposalsv1.ProposalTrailer{Key: strings.TrimSpace(key), Value: strings.TrimSpace(value)})
 	}
 	if req.CreatorRunId == "" {
-		req.CreatorRunId = os.Getenv(creatorRunEnv)
+		req.CreatorRunId = env.Getenv(creatorRunEnv)
 	}
 	if *validateOnly {
 		req.ValidateOnly = true

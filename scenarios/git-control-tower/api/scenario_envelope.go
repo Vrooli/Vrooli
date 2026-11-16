@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -232,7 +231,7 @@ func (s *Server) handleScenarioEnvelope(w http.ResponseWriter, r *http.Request) 
 	if cached, ok := s.envelopeCache.Get(slug); ok {
 		w.Header().Set("Content-Type", "application/json")
 		if err := json.NewEncoder(w).Encode(cached); err != nil {
-			log.Printf("ERROR: encoding cached envelope for %q: %v", slug, err)
+			s.logf("ERROR: encoding cached envelope for %q: %v", slug, err)
 		}
 		return
 	}
@@ -255,14 +254,14 @@ func (s *Server) handleScenarioEnvelope(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, fmt.Sprintf("scenario %q not found (no service.json)", slug), http.StatusNotFound)
 			return
 		}
-		log.Printf("ERROR: reading service.json for %q: %v", slug, err)
+		s.logf("ERROR: reading service.json for %q: %v", slug, err)
 		http.Error(w, "failed to read scenario metadata", http.StatusInternalServerError)
 		return
 	}
 
 	envelope, err := parseServiceJSON(data, repoRoot, slug)
 	if err != nil {
-		log.Printf("ERROR: parsing service.json for %q: %v", slug, err)
+		s.logf("ERROR: parsing service.json for %q: %v", slug, err)
 		http.Error(w, "failed to parse scenario metadata", http.StatusInternalServerError)
 		return
 	}
@@ -272,6 +271,6 @@ func (s *Server) handleScenarioEnvelope(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(envelope); err != nil {
-		log.Printf("ERROR: encoding envelope for %q: %v", slug, err)
+		s.logf("ERROR: encoding envelope for %q: %v", slug, err)
 	}
 }

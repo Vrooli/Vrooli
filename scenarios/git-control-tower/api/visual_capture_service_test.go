@@ -4,149 +4,49 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"connectrpc.com/connect"
-
 	"git-control-tower/internal/testutil/fixtures"
-	"github.com/vrooli/repo-contract-go/repocontracttest"
-
-	httpx "github.com/vrooli/api-core/servertest"
-
-	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/storage"
-
-	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
-	bas_base "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/base"
-	bas_telemetry "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
-	bas_execution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
-// basStubOpts configures the in-memory BAS stub used by visual-capture tests.
-// Each ExecuteAdhocWorkflow call produces a sequentially-numbered exec_id
-// ("exec-1", "exec-2", ...); the same id is then expected by status and
-// screenshot lookups.
-type basStubOpts struct {
-	failExecIDs            map[string]bool // executions that should report FAILED status
-	emptyScreenshotExecIDs map[string]bool // executions whose screenshot list should be empty
-	screenshotURL          string          // absolute URL to return for each screenshot artifact; required when binary fetches happen
-}
+type visualCaptureTestOptions struct{ failOnCall map[int32]bool }
 
-type basStub struct {
-	execCount int32
-	opts      basStubOpts
-}
-
-func (s *basStub) ExecuteAdhocWorkflow(_ context.Context, _ *connect.Request[bas_execution.ExecuteAdhocRequest]) (*connect.Response[bas_execution.ExecuteAdhocResponse], error) {
-	n := atomic.AddInt32(&s.execCount, 1)
-	return connect.NewResponse(&bas_execution.ExecuteAdhocResponse{
-		ExecutionId: fmt.Sprintf("exec-%d", n),
-		Status:      bas_base.ExecutionStatus_EXECUTION_STATUS_RUNNING,
-	}), nil
-}
-
-func (s *basStub) GetExecution(_ context.Context, req *connect.Request[basapi.GetExecutionRequest]) (*connect.Response[basapi.GetExecutionResponse], error) {
-	id := req.Msg.GetExecutionId()
-	exec := &bas_execution.Execution{
-		ExecutionId: id,
-		Status:      bas_base.ExecutionStatus_EXECUTION_STATUS_COMPLETED,
-	}
-	if s.opts.failExecIDs[id] {
-		exec.Status = bas_base.ExecutionStatus_EXECUTION_STATUS_FAILED
-		msg := "step timed out"
-		exec.Error = &msg
-	}
-	return connect.NewResponse(&basapi.GetExecutionResponse{Execution: exec}), nil
-}
-
-func (s *basStub) GetExecutionScreenshots(_ context.Context, req *connect.Request[basapi.GetExecutionScreenshotsRequest]) (*connect.Response[bas_execution.GetScreenshotsResponse], error) {
-	id := req.Msg.GetExecutionId()
-	if s.opts.emptyScreenshotExecIDs[id] {
-		return connect.NewResponse(&bas_execution.GetScreenshotsResponse{ExecutionId: id, Total: 0}), nil
-	}
-	return connect.NewResponse(&bas_execution.GetScreenshotsResponse{
-		ExecutionId: id,
-		Total:       1,
-		Screenshots: []*bas_execution.ExecutionScreenshot{
-			{
-				StepIndex: 0,
-				Screenshot: &bas_telemetry.TimelineScreenshot{
-					ArtifactId:  "ss",
-					Url:         s.opts.screenshotURL,
-					ContentType: "image/png",
-					Width:       1280,
-					Height:      720,
-				},
-			},
-		},
-	}), nil
-}
-
-func (s *basStub) GetExecutionRecordedVideos(_ context.Context, _ *connect.Request[basapi.GetExecutionArtifactsRequest]) (*connect.Response[basapi.GetExecutionVideosResponse], error) {
-	return connect.NewResponse(&basapi.GetExecutionVideosResponse{}), nil
-}
-
-func testCaptureSetup(t *testing.T, opts basStubOpts) (VisualCaptureDeps, string) {
+func testCaptureSetup(t *testing.T, opts visualCaptureTestOptions) VisualCaptureDeps {
 	t.Helper()
-
-	// Binary asset server: serves the screenshot PNG (and would serve videos
-	// in future) at a stable URL the Connect stub points each screenshot at.
-	assetMux := http.NewServeMux()
-	assetMux.HandleFunc("/api/v1/screenshots/artifacts/ss.png", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "image/png")
-		_, _ = w.Write([]byte{0x89, 0x50, 0x4E, 0x47})
-	})
-	server := httpx.NewHandlerServer(t, assetMux)
-
-	if opts.screenshotURL == "" {
-		// Path-only — BrowserAutomationClient.GetScreenshotData prepends the
-		// resolved base URL when fetching the bytes.
-		opts.screenshotURL = "/api/v1/screenshots/artifacts/ss.png"
-	}
-
 	tmpDir := t.TempDir()
 	repoDir := filepath.Join(tmpDir, "repo")
 	repocontracttest.WriteRepoContract(t, repoDir, "scenarios")
 	fixtures.WriteScenarioServiceJSON(t, repoDir, "test-app", `{"service":{"name":"test-app"}}`)
-
 	resolver, err := storage.NewResolver(storage.ResolverConfig{
-		EnvGet:      func(key string) string { return "" },
+		EnvGet:      func(string) string { return "" },
 		UserHomeDir: func() (string, error) { return tmpDir, nil },
 	})
 	if err != nil {
 		t.Fatalf("create storage resolver: %v", err)
 	}
-
-	stub := &basStub{opts: opts}
-	basClient := &BrowserAutomationClient{
-		BaseClient: BaseClient{
-			httpClient:  httpx.TestClient(),
-			resolver:    discovery.NewStaticResolver(server.URL),
-			serviceName: "browser-automation-studio",
-		},
-		workflowsFactory:  func(string) basWorkflowsAPI { return stub },
-		executionsFactory: func(string) basExecutionsAPI { return stub },
-	}
-
+	var captureCount int32
 	return VisualCaptureDeps{
-		BAS:     basClient,
-		Storage: NewVisualCaptureStorage(resolver, OSFileIO{}),
-		FS:      OSFileIO{},
-		RepoDir: repoDir,
-		RepoID:  1,
-	}, server.URL
+		CaptureBundle: func(context.Context, string, string, CapturePreset, string) ([]byte, error) {
+			n := atomic.AddInt32(&captureCount, 1)
+			if opts.failOnCall[n] {
+				return nil, fmt.Errorf("fixture capture failure")
+			}
+			return []byte{0x89, 0x50, 0x4E, 0x47}, nil
+		},
+		Storage: NewVisualCaptureStorage(resolver, OSFileIO{}), FS: OSFileIO{}, RepoDir: repoDir, RepoID: 1,
+	}
 }
 
 func TestCaptureScenario_WithLighthousePages(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, basStubOpts{})
+	deps := testCaptureSetup(t, visualCaptureTestOptions{})
 
 	// Create lighthouse.json
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
@@ -258,7 +158,7 @@ func TestSanitizeFilename(t *testing.T) {
 func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, basStubOpts{emptyScreenshotExecIDs: map[string]bool{"exec-2": true}})
+	deps := testCaptureSetup(t, visualCaptureTestOptions{failOnCall: map[int32]bool{2: true}})
 
 	meta, err := CaptureScenario(context.Background(), deps, VisualCaptureRequest{
 		ScenarioSlug: "test-app",
@@ -278,7 +178,7 @@ func TestCaptureScenario_BASPartialFailure(t *testing.T) {
 func TestCaptureScenario_FullFlow(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, basStubOpts{})
+	deps := testCaptureSetup(t, visualCaptureTestOptions{})
 
 	// Create lighthouse.json with two pages
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")
@@ -318,190 +218,6 @@ func TestCaptureScenario_FullFlow(t *testing.T) {
 	}
 	if len(meta.Pages) != 2 {
 		t.Errorf("expected 2 captured pages, got %d", len(meta.Pages))
-	}
-}
-
-// workflowMap parses buildScreenshotWorkflow output into a generic map for assertion helpers.
-func workflowMap(t *testing.T, scenario string, page LighthousePage, preset CapturePreset) map[string]interface{} {
-	t.Helper()
-	wfJSON, err := buildScreenshotWorkflow(scenario, page, preset)
-	if err != nil {
-		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
-	}
-	var wf map[string]interface{}
-	if err := json.Unmarshal(wfJSON, &wf); err != nil {
-		t.Fatalf("failed to unmarshal workflow JSON: %v", err)
-	}
-	return wf
-}
-
-// workflowNodes extracts the nodes slice from a workflow map.
-func workflowNodes(t *testing.T, wf map[string]interface{}) []map[string]interface{} {
-	t.Helper()
-	raw := wf["nodes"].([]interface{})
-	out := make([]map[string]interface{}, len(raw))
-	for i, r := range raw {
-		out[i] = r.(map[string]interface{})
-	}
-	return out
-}
-
-// nodeAction returns the "action" sub-map for a workflow node.
-func nodeAction(t *testing.T, node map[string]interface{}) map[string]interface{} {
-	t.Helper()
-	return node["action"].(map[string]interface{})
-}
-
-// workflowEdges extracts the edges as typed maps from a workflow map.
-func workflowEdges(t *testing.T, wf map[string]interface{}) []map[string]interface{} {
-	t.Helper()
-	raw := wf["edges"].([]interface{})
-	out := make([]map[string]interface{}, len(raw))
-	for i, r := range raw {
-		out[i] = r.(map[string]interface{})
-	}
-	return out
-}
-
-func TestBuildScreenshotWorkflow(t *testing.T) {
-	t.Parallel()
-
-	wf := workflowMap(t, "my-app", LighthousePage{Path: "/dashboard", Label: "Dashboard"}, CapturePreset{Name: "Desktop Dark", Width: 1920, Height: 1080, Theme: "dark"})
-	nodes := workflowNodes(t, wf)
-	if len(nodes) != 4 {
-		t.Fatalf("expected 4 nodes, got %d", len(nodes))
-	}
-
-	t.Run("settings", func(t *testing.T) {
-		assertWorkflowSettings(t, wf, 1920, "dark")
-	})
-
-	t.Run("navigate node", func(t *testing.T) {
-		assertNavigateNode(t, nodes[0], "my-app", "/dashboard")
-	})
-
-	t.Run("settle node", func(t *testing.T) {
-		assertSettleNode(t, nodes[1])
-	})
-
-	t.Run("theme node", func(t *testing.T) {
-		action := nodeAction(t, nodes[2])
-		expr := action["evaluate"].(map[string]interface{})["expression"].(string)
-		if !strings.Contains(expr, "colorScheme") {
-			t.Errorf("theme expression should set colorScheme, got: %s", expr)
-		}
-	})
-
-	t.Run("screenshot node", func(t *testing.T) {
-		action := nodeAction(t, nodes[3])
-		if action["type"] != "ACTION_TYPE_SCREENSHOT" {
-			t.Errorf("expected ACTION_TYPE_SCREENSHOT, got %v", action["type"])
-		}
-	})
-
-	t.Run("edges", func(t *testing.T) {
-		assertWorkflowEdges(t, wf)
-	})
-}
-
-func assertWorkflowSettings(t *testing.T, wf map[string]interface{}, wantWidth int, wantColorScheme string) {
-	t.Helper()
-	settings := wf["settings"].(map[string]interface{})
-	if int(settings["viewport_width"].(float64)) != wantWidth {
-		t.Errorf("expected viewport_width %d, got %v", wantWidth, settings["viewport_width"])
-	}
-	bp := settings["browser_profile"].(map[string]interface{})
-	fp := bp["fingerprint"].(map[string]interface{})
-	if fp["color_scheme"] != wantColorScheme {
-		t.Errorf("expected color_scheme %s, got %v", wantColorScheme, fp["color_scheme"])
-	}
-}
-
-func assertNavigateNode(t *testing.T, node map[string]interface{}, wantScenario, wantPath string) {
-	t.Helper()
-	nav := nodeAction(t, node)["navigate"].(map[string]interface{})
-	if nav["scenario"] != wantScenario {
-		t.Errorf("expected scenario %s, got %v", wantScenario, nav["scenario"])
-	}
-	if nav["scenario_path"] != wantPath {
-		t.Errorf("expected scenario_path %s, got %v", wantPath, nav["scenario_path"])
-	}
-}
-
-func assertSettleNode(t *testing.T, node map[string]interface{}) {
-	t.Helper()
-	action := nodeAction(t, node)
-	if action["type"] != "ACTION_TYPE_EVALUATE" {
-		t.Errorf("expected ACTION_TYPE_EVALUATE, got %v", action["type"])
-	}
-	expr := action["evaluate"].(map[string]interface{})["expression"].(string)
-	if !strings.Contains(expr, "animate-spin") {
-		t.Errorf("settle expression should check for animate-spin spinners")
-	}
-}
-
-func assertWorkflowEdges(t *testing.T, wf map[string]interface{}) {
-	t.Helper()
-	edges := workflowEdges(t, wf)
-	if len(edges) != 3 {
-		t.Fatalf("expected 3 edges, got %d", len(edges))
-	}
-	wantEdges := []struct{ source, target string }{
-		{"navigate", "wait-settled"},
-		{"wait-settled", "set-theme"},
-		{"set-theme", "screenshot"},
-	}
-	for i, want := range wantEdges {
-		if edges[i]["source"] != want.source || edges[i]["target"] != want.target {
-			t.Errorf("edge %d: got %v->%v, want %v->%v", i, edges[i]["source"], edges[i]["target"], want.source, want.target)
-		}
-	}
-}
-
-func TestBuildScreenshotWorkflow_WithWaitForSelector(t *testing.T) {
-	t.Parallel()
-
-	wfJSON, err := buildScreenshotWorkflow("my-app", LighthousePage{Path: "/", Label: "Home", WaitForSelector: "[data-testid=\"main\"]"}, CapturePreset{Name: "Desktop Light", Width: 1280, Height: 720, Theme: "light"})
-	if err != nil {
-		t.Fatalf("buildScreenshotWorkflow returned error: %v", err)
-	}
-
-	var wf map[string]interface{}
-	if err := json.Unmarshal(wfJSON, &wf); err != nil {
-		t.Fatalf("failed to unmarshal workflow JSON: %v", err)
-	}
-
-	// Settle expression should include the selector check
-	nodes := wf["nodes"].([]interface{})
-	settleAction := nodes[1].(map[string]interface{})["action"].(map[string]interface{})
-	expr := settleAction["evaluate"].(map[string]interface{})["expression"].(string)
-	if !strings.Contains(expr, `data-testid`) {
-		t.Errorf("settle expression should include waitForSelector, got: %s", expr)
-	}
-}
-
-func TestSettleExpression(t *testing.T) {
-	t.Parallel()
-
-	// Without selector: just spinner check
-	expr := settleExpression("")
-	if !strings.Contains(expr, "animate-spin") {
-		t.Error("expected animate-spin check in expression")
-	}
-	if strings.Contains(expr, "querySelector") && strings.Contains(expr, "offsetParent") {
-		t.Error("expected no selector check when waitForSelector is empty")
-	}
-
-	// With selector: spinner check + selector visibility
-	expr = settleExpression("[data-testid=\"app\"]")
-	if !strings.Contains(expr, "animate-spin") {
-		t.Error("expected animate-spin check in expression")
-	}
-	if !strings.Contains(expr, `data-testid`) {
-		t.Error("expected selector in expression")
-	}
-	if !strings.Contains(expr, "offsetParent") {
-		t.Error("expected visibility check in expression")
 	}
 }
 
@@ -652,7 +368,7 @@ func TestPresetSuffix(t *testing.T) {
 func TestCaptureScenario_MultiplePresets(t *testing.T) {
 	t.Parallel()
 
-	deps, _ := testCaptureSetup(t, basStubOpts{})
+	deps := testCaptureSetup(t, visualCaptureTestOptions{})
 
 	// Create lighthouse.json with 2 pages
 	lhDir := filepath.Join(deps.RepoDir, "scenarios", "test-app", ".vrooli")

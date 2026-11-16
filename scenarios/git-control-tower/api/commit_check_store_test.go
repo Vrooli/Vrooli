@@ -23,14 +23,17 @@ func TestCommitCheckStoreSaveAndListForCommits(t *testing.T) {
 	when := time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)
 
 	run := CommitCheckRun{
-		Kind:       CommitCheckKindPrecommit,
-		Status:     CommitCheckStatusPassed,
-		Command:    "custom check",
-		ExitCode:   0,
-		Summary:    "checks passed",
-		Stdout:     "ok",
-		DurationMs: 42,
-		Timestamp:  when,
+		Kind:            CommitCheckKindPrecommit,
+		Status:          CommitCheckStatusPassed,
+		Command:         "custom check",
+		ExitCode:        0,
+		Summary:         "checks passed",
+		Stdout:          "ok",
+		DurationMs:      42,
+		Timestamp:       when,
+		CheckJobID:      "check-1",
+		CandidateDigest: "tree:abc123",
+		ConfigDigest:    "config-456",
 	}
 	if err := store.Save(ctx, "/repo", "abc1234", run); err != nil {
 		t.Fatalf("Save: %v", err)
@@ -46,6 +49,9 @@ func TestCommitCheckStoreSaveAndListForCommits(t *testing.T) {
 	}
 	if runs[0].Kind != CommitCheckKindPrecommit || runs[0].Status != CommitCheckStatusPassed || runs[0].Command != "custom check" {
 		t.Fatalf("run = %#v", runs[0])
+	}
+	if runs[0].CheckJobID != "check-1" || runs[0].CandidateDigest != "tree:abc123" || runs[0].ConfigDigest != "config-456" {
+		t.Fatalf("receipt identity was not retained with commit: %#v", runs[0])
 	}
 	if _, ok := byHash["missing"]; ok {
 		t.Fatalf("missing hash should not have runs")

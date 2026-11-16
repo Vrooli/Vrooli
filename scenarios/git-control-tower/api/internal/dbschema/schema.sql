@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS git_repo_precommit (
     timeout_seconds INTEGER NOT NULL DEFAULT 300,
     run_before_commit INTEGER NOT NULL DEFAULT 1,
     allow_override INTEGER NOT NULL DEFAULT 1,
+    declared_inputs_json TEXT NOT NULL DEFAULT '[]',
     last_status TEXT,
     last_exit_code INTEGER,
     last_summary TEXT,
@@ -67,11 +68,31 @@ CREATE TABLE IF NOT EXISTS git_commit_check_runs (
     stdout TEXT,
     stderr TEXT,
     duration_ms INTEGER NOT NULL DEFAULT 0,
+    check_job_id TEXT,
+    candidate_digest TEXT,
+    config_digest TEXT,
     timestamp TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_hash ON git_commit_check_runs(repo_path, commit_hash);
 CREATE INDEX IF NOT EXISTS idx_commit_check_runs_repo_created ON git_commit_check_runs(repo_path, created_at DESC);
+
+-- Candidate checks are durable, candidate-bound work. A row in `running`
+-- state without a live owner is incomplete and must be restarted, never read
+-- as a passing result.
+CREATE TABLE IF NOT EXISTS git_precommit_candidate_checks (
+    job_id TEXT PRIMARY KEY,
+    repo_path TEXT NOT NULL,
+    candidate_digest TEXT NOT NULL,
+    config_digest TEXT NOT NULL,
+    state TEXT NOT NULL,
+    owner_id TEXT NOT NULL,
+    result_json TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(repo_path, candidate_digest, config_digest)
+);
+CREATE INDEX IF NOT EXISTS idx_candidate_checks_repo_created ON git_precommit_candidate_checks(repo_path, created_at DESC);
 
 -- Mutation intents are durable authorization receipts. The raw opaque intent
 -- ID is never stored; only its SHA-256 digest is persisted so a database dump

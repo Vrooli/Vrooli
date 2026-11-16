@@ -176,7 +176,9 @@ func (o *authenticatedDraftOwner) StartWorkflowExecution(ctx context.Context, re
 	}
 	o.starts++
 	o.header = req.Header().Clone()
-	return connect.NewResponse(&apipb.WorkflowExecutionResponse{Execution: stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)}), nil
+	execution := stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)
+	execution.IdempotencyKey = req.Msg.GetIdempotencyKey()
+	return connect.NewResponse(&apipb.WorkflowExecutionResponse{Execution: execution}), nil
 }
 
 type authenticationSnapshot struct{}

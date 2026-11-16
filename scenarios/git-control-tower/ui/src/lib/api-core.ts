@@ -322,6 +322,7 @@ export async function savePrecommitConfig(config: PrecommitConfig, repoId?: stri
     repositoryId: intent.repositoryId, intentId: intent.intentId,
     enabled: config.enabled, command: config.command, workingDirectory: config.working_directory,
     timeoutSeconds: config.timeout_seconds, runBeforeCommit: config.run_before_commit, allowOverride: config.allow_override,
+    declaredInputs: config.declared_inputs,
   }));
   return precommitConfigFromProto(response);
 }
@@ -359,6 +360,7 @@ function precommitConfigFromProto(response: {
   timeoutSeconds: number;
   runBeforeCommit: boolean;
   allowOverride: boolean;
+  declaredInputs: string[];
   lastResult?: { status: string; command: string; exitCode: number; summary: string; stdout: string; stderr: string; durationMs: bigint | number; overrideAllowed: boolean; timestamp: string };
   hook?: { status: string; reason: string; existingKind: string; existingHookPreview: string; path: string; hooksPath: string; installedAt: string };
 }): PrecommitConfig {
@@ -369,6 +371,7 @@ function precommitConfigFromProto(response: {
     timeout_seconds: response.timeoutSeconds,
     run_before_commit: response.runBeforeCommit,
     allow_override: response.allowOverride,
+    declared_inputs: response.declaredInputs ?? [],
     last_result: response.lastResult ? precommitRunResultFromProto(response.lastResult) : undefined,
     hook: response.hook ? {
       status: response.hook.status,

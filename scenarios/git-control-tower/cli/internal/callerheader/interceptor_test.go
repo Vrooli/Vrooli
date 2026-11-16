@@ -47,7 +47,6 @@ func TestInterceptor_SendsCallerHeader(t *testing.T) {
 }
 
 func TestInterceptor_SendsAuthorizedHeader(t *testing.T) {
-	t.Setenv(EnvAuthorized, "true")
 	h := &recordingHandler{}
 	path, handler := worktreeconnect.NewWorktreeServiceHandler(h)
 	mux := http.NewServeMux()
@@ -55,12 +54,41 @@ func TestInterceptor_SendsAuthorizedHeader(t *testing.T) {
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
 
-	client := worktreeconnect.NewWorktreeServiceClient(srv.Client(), srv.URL, connect.WithInterceptors(New()))
+	client := worktreeconnect.NewWorktreeServiceClient(srv.Client(), srv.URL, connect.WithInterceptors(NewWithEnvLookup(func(key string) string {
+		if key != EnvAuthorized {
+			t.Fatalf("unexpected environment lookup %q", key)
+		}
+		return "true"
+	})))
 	if _, err := client.ListWorktrees(context.Background(), connect.NewRequest(&worktreev1.ListWorktreesRequest{RepoPath: "/x"})); err != nil {
 		t.Fatalf("call: %v", err)
 	}
 	if h.authorized != "true" {
 		t.Errorf("X-Vrooli-Authorized = %q, want true", h.authorized)
+	}
+}
+
+func TestInterceptor_AuthorizedHeaderUsesInjectedEnvironment(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{name: "case insensitive affirmative", value: " YES ", want: true},
+		{name: "numeric affirmative", value: "1", want: true},
+		{name: "false remains absent", value: "false", want: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAuthorized(func(key string) string {
+				if key != EnvAuthorized {
+					t.Fatalf("environment lookup key = %q, want %q", key, EnvAuthorized)
+				}
+				return tc.value
+			}); got != tc.want {
+				t.Errorf("isAuthorized() = %t, want %t", got, tc.want)
+			}
+		})
 	}
 }
 

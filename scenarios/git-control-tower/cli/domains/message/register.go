@@ -27,13 +27,67 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"AdvisoryService.CheckStagedMessage": cliapp.ProtoOperational(check, func(_ cliapp.OperationContext, r *v1.CheckStagedMessageResponse) cliapp.OperationalReport {
 			return cliapp.OperationalReport{Status: []string{fmt.Sprintf("Applicable: %t", r.GetApplicable()), "Current snapshot: " + r.GetCurrentSnapshotDigest(), r.GetReason()}}
 		}),
-		"AdvisoryService.StartStagedMessage":        cliapp.ProtoOperational(start, jobReport),
-		"AdvisoryService.GetStagedMessageJob":       cliapp.ProtoOperational(job("status"), jobReport),
-		"AdvisoryService.WaitStagedMessageJob":      cliapp.ProtoOperational(job("wait"), jobReport),
-		"AdvisoryService.CancelStagedMessageJob":    cliapp.ProtoOperational(job("cancel"), jobReport),
-		"AdvisoryService.ReadStagedMessageEvidence": cliapp.ProtoOperational(evidence, evidenceReport),
+		"AdvisoryService.StartStagedMessage":         cliapp.ProtoOperational(start, jobReport),
+		"AdvisoryService.RetryStagedMessage":         cliapp.ProtoOperational(retry, jobReport),
+		"AdvisoryService.StartWorktreeStagedMessage": cliapp.ProtoOperational(startWorktree, jobReport),
+		"AdvisoryService.GetStagedMessageJob":        cliapp.ProtoOperational(job("status"), jobReport),
+		"AdvisoryService.WaitStagedMessageJob":       cliapp.ProtoOperational(job("wait"), jobReport),
+		"AdvisoryService.CancelStagedMessageJob":     cliapp.ProtoOperational(job("cancel"), jobReport),
+		"AdvisoryService.ReadStagedMessageEvidence":  cliapp.ProtoOperational(evidence, evidenceReport),
 	}
 	return cliapp.LoadFromManifestPrimitives(manifest, "message", bindings)
+}
+
+func retry(ctx cliapp.OperationContext) (*v1.StagedMessageJob, error) {
+	jobID, digest, key := strings.TrimSpace(ctx.Positional("job")), strings.TrimSpace(ctx.Flag("snapshot")), strings.TrimSpace(ctx.Flag("request-key"))
+	if jobID == "" || digest == "" || key == "" {
+		return nil, fmt.Errorf("a saved job ID, --snapshot, and --request-key are required")
+	}
+	mode := v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK
+	switch strings.ToLower(strings.TrimSpace(ctx.Flag("mode"))) {
+	case "quick":
+	case "deep":
+		mode = v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP
+	default:
+		return nil, fmt.Errorf("--mode must be quick or deep")
+	}
+	r, err := clientFactory(ctx.Core()).RetryStagedMessage(context.Background(), connect.NewRequest(&v1.RetryStagedMessageRequest{
+		RepositoryId: ctx.Flag("repo-id"), JobId: jobID, SnapshotDigest: digest, RequestKey: key, Mode: mode,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
+}
+
+func startWorktree(ctx cliapp.OperationContext) (*v1.StagedMessageJob, error) {
+	paths := ctx.FlagValues("path")
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("at least one --path is required")
+	}
+	key := strings.TrimSpace(ctx.Flag("request-key"))
+	if key == "" {
+		return nil, fmt.Errorf("--request-key is required")
+	}
+	mode := v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK
+	switch strings.ToLower(strings.TrimSpace(ctx.Flag("mode"))) {
+	case "quick":
+	case "deep":
+		mode = v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP
+	default:
+		return nil, fmt.Errorf("--mode must be quick or deep")
+	}
+	note := ctx.Flag("note")
+	if len(note) > 4000 {
+		return nil, fmt.Errorf("--note exceeds 4000 UTF-8 bytes")
+	}
+	r, err := clientFactory(ctx.Core()).StartWorktreeStagedMessage(context.Background(), connect.NewRequest(&v1.StartWorktreeStagedMessageRequest{
+		RepositoryId: ctx.Flag("repo-id"), Paths: paths, RequestKey: key, OperatorNote: note, Mode: mode,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return r.Msg, nil
 }
 
 func collect(ctx cliapp.OperationContext) (*v1.StagedMessageCollection, error) {

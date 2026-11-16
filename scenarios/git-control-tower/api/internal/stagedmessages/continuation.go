@@ -22,8 +22,8 @@ func (s *Service) continueDraft(ctx context.Context, repo, dir string, req *v1.S
 	if previous.Operation != operation || previous.RepositoryID != repo || previous.State != reviewjobs.Succeeded || previous.ResultJSON == "" {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("a completed partial draft from this repository is required"))
 	}
-	var input DraftInput
-	if err = json.Unmarshal([]byte(previous.InputJSON), &input); err != nil {
+	input, err := decodeDraftInput([]byte(previous.InputJSON))
+	if err != nil {
 		return nil, err
 	}
 	prior := &v1.StagedMessageSuggestion{}
@@ -50,17 +50,18 @@ func (s *Service) continueDraft(ctx context.Context, repo, dir string, req *v1.S
 		return nil, ErrConflict
 	}
 	input.FormatVersion = 4
+	input.Mode = v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP
 	input.ContinuationOfJobID = previous.ID
 	input.PriorResult = prior
 	if req.OperatorNote != "" && req.OperatorNote != input.OperatorNote {
 		return nil, ErrConflict
 	}
 	if existing, err := s.store.GetByIdempotency(ctx, key(repo, req.RequestKey)); err == nil {
-		var retained DraftInput
-		if json.Unmarshal([]byte(existing.InputJSON), &retained) != nil || retained.ContinuationOfJobID != previous.ID || retained.OperatorNote != input.OperatorNote || existing.RepositoryID != repo || existing.Operation != operation {
+		retained, decodeErr := decodeDraftInput([]byte(existing.InputJSON))
+		if decodeErr != nil || retained.ContinuationOfJobID != previous.ID || retained.OperatorNote != input.OperatorNote || existing.RepositoryID != repo || existing.Operation != operation {
 			return nil, ErrConflict
 		}
-		return s.read(ctx, repo, dir, existing, "get", 0)
+		return s.advanceRead(ctx, repo, dir, existing, "get", 0)
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
@@ -71,7 +72,10 @@ func (s *Service) continueDraft(ctx context.Context, repo, dir string, req *v1.S
 	if !standing.Applicable {
 		return nil, ErrConflict
 	}
-	input.JobID = id("message-")
+	input.JobID, err = s.generateID("message-")
+	if err != nil {
+		return nil, err
+	}
 	raw, err := json.Marshal(input)
 	if err != nil {
 		return nil, err
@@ -83,9 +87,9 @@ func (s *Service) continueDraft(ctx context.Context, repo, dir string, req *v1.S
 	if err != nil {
 		return nil, err
 	}
-	var actual DraftInput
-	if json.Unmarshal([]byte(job.InputJSON), &actual) != nil || actual.ContinuationOfJobID != previous.ID || actual.OperatorNote != input.OperatorNote {
+	actual, decodeErr := decodeDraftInput([]byte(job.InputJSON))
+	if decodeErr != nil || actual.ContinuationOfJobID != previous.ID || actual.OperatorNote != input.OperatorNote {
 		return nil, ErrConflict
 	}
-	return s.read(ctx, repo, dir, job, "get", 0)
+	return s.advanceRead(ctx, repo, dir, job, "get", 0)
 }

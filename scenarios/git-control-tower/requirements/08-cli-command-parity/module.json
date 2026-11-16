@@ -1,8 +1,8 @@
 {
   "_metadata": {
-    "module": "cli-command-parity",
     "description": "OT-P0-008 CLI command parity",
-    "last_validated_at": "2026-07-13T20:02:25-04:00"
+    "last_validated_at": "2026-11-12T03:17:10-05:00",
+    "module": "cli-command-parity"
   },
   "requirements": [
     {
@@ -11,8 +11,16 @@
       "status": "pending",
       "prd_ref": "OT-P0-008",
       "category": "operational_target.p0",
-    "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)",
-    "validation": [{"type":"test","ref":"cli/app_test.go","phase":"unit","status":"implemented","notes":"Covers CLI registration and command wiring for the supported API surface."}]
+      "description": "CLI wrapper commands matching all API functionality (status, diff, stage, unstage, commit, health)",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "cli/app_test.go",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Covers CLI registration and command wiring for the supported API surface."
+        }
+      ]
     },
     {
       "id": "GCT-BASELINE-V2-P0",
@@ -26,28 +34,28 @@
           "type": "test",
           "ref": "api/internal/baseline/service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "TestServiceCapturePersistsOneRichRunAnchor and TestFinalizeCaptureIsIdempotentUnderConcurrentRecovery cover new captures; TestServiceLegacyMigrationReconcilesRetentionPinOnce, TestServiceLegacyMigrationPinFailureRemainsRetryable, and TestServiceListReconcilesEveryLegacyRetentionPin cover crash-safe exactly-once migration retention; TestCopiedBaselineMigrationRehearsal applies the same path twice to copied real manifests; TestServiceForwardsUnknownPhaseAndOpaqueArtifacts covers lossless dynamic evidence."
         },
         {
           "type": "test",
           "ref": "api/internal/baseline/storage_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Covers stable same-run migration plus mixed, empty, partial, skipped, corrupt, already-V2, and concurrent migrate/delete cases."
         },
         {
           "type": "test",
           "ref": "api/internal/baseline/bucketing_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Fails if fixed Test Genie phase routing returns and preserves unknown phase descriptors and typed reasons losslessly."
         },
         {
           "type": "test",
           "ref": "cli/domains/baseline/register_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Proves empty-create and per-surface edit commands are absent from the CLI."
         },
         {
@@ -62,7 +70,7 @@
     {
       "id": "GCT-DURABLE-OPS-P0",
       "title": "Baseline waits detach without changing durable outcomes",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "operational_target.p0",
       "description": "Snapshot, collection capture, and diff intents remain pending when an attachment times out or is canceled; independent children reattach concurrently; terminal cache state is never fabricated from transport failure; and every incomplete wait returns typed exit 3 recovery by the existing durable identity without starting duplicate work.",
@@ -71,14 +79,14 @@
           "type": "test",
           "ref": "api/internal/baseline/service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Proves capture/diff attachment deadlines leave pending intents and no terminal cache or pin side effect."
         },
         {
           "type": "test",
           "ref": "cli/domains/baseline/register_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Proves one blocking read plus one non-blocking recovery read on EOF, with no retry for ordinary inspect or non-EOF errors."
         },
         {
@@ -100,7 +108,7 @@
     {
       "id": "GCT-SOURCE-EVIDENCE-001",
       "title": "Git-aware bounded informational source evidence",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "baseline",
       "description": "Path-snapshot estimates and captures use tracked plus non-ignored untracked Git candidates by default, retain only metadata unless content retention is explicit, and return deterministic scope-repair guidance before source evidence can start behavioral collection work.",
@@ -109,14 +117,14 @@
           "type": "test",
           "ref": "api/internal/baseline/path_snapshot_test.go::TestEstimatePathSnapshotUsesGitCandidatesAndFlagsBroadScopes",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Covers ignored dependency filtering, explicit ignored opt-in, individual-scenario safety, and generated-output repair guidance."
         },
         {
           "type": "test",
           "ref": "api/internal/baseline/path_snapshot_test.go::TestRetainedContentMustFitQuotaWhileMetadataDoesNot",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Covers metadata-only default and explicit retained-content quota preflight."
         }
       ]
@@ -124,7 +132,7 @@
     {
       "id": "GCT-RECEIPT-EVIDENCE-P0",
       "title": "Validation evidence remains attributable to its parent receipt",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "baseline",
       "description": "When Test Genie requests behavioral-before capture or current comparison, Git Control Tower shall persist the parent receipt identifier on the durable collection or diff operation, shall reject an idempotency replay that names a different non-empty parent receipt, and shall expose that attribution through its API and CLI while retaining standalone baseline operation support.",

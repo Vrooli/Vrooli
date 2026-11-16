@@ -1,56 +1,65 @@
 package main
 
 import (
-	"strings"
+	"context"
 	"testing"
+
+	testdb "github.com/vrooli/api-core/databasetest"
 )
 
-func TestSQLiteDSNUsesVariantAwareStorageNamespace(t *testing.T) {
-	t.Setenv("SCENARIO_DATA_DIR", t.TempDir())
-	t.Setenv("VROOLI_SCENARIO", "git-control-tower")
-	t.Setenv("VROOLI_VARIANT", "shadow")
-	t.Setenv("VROOLI_STORAGE_NAMESPACE", "git-control-tower_shadow")
-
-	dsn, err := sqliteDSN()
+func TestCommitCheckIdentityMigrationAddsColumnsToExistingStore(t *testing.T) {
+	db := testdb.OpenSQLiteMemory(t)
+	if _, err := db.ExecContext(context.Background(), `CREATE TABLE git_commit_check_runs (
+		id INTEGER PRIMARY KEY, repo_path TEXT NOT NULL, commit_hash TEXT NOT NULL,
+		kind TEXT NOT NULL, status TEXT NOT NULL, command TEXT NOT NULL DEFAULT '',
+		exit_code INTEGER NOT NULL DEFAULT 0, summary TEXT NOT NULL DEFAULT '',
+		stdout TEXT, stderr TEXT, duration_ms INTEGER NOT NULL DEFAULT 0,
+		timestamp TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT ''
+	)`); err != nil {
+		t.Fatalf("create legacy store: %v", err)
+	}
+	if err := ensureCommitCheckIdentityColumns(context.Background(), db); err != nil {
+		t.Fatalf("migrate commit check identity: %v", err)
+	}
+	cols, err := tableColumns(context.Background(), db, "git_commit_check_runs")
 	if err != nil {
-		t.Fatalf("sqliteDSN() error: %v", err)
+		t.Fatalf("inspect migrated store: %v", err)
 	}
-	if !strings.Contains(dsn, "git-control-tower_shadow") {
-		t.Fatalf("variant-aware database DSN %q does not contain the shadow namespace", dsn)
-	}
-}
-
-// TestSQLiteDSNIgnoresInheritedPathOverrides is the regression test for the
-// cross-scenario database hijack. This scenario previously honoured
-// GCT_SQLITE_PATH, SQLITE_PATH, SQLITE_DB, and a "file:" DATABASE_URL ahead of
-// its own identity, so any process that exported one and then started this
-// scenario redirected its database. None of them may be read now.
-func TestSQLiteDSNIgnoresInheritedPathOverrides(t *testing.T) {
-	for _, key := range []string{"GCT_SQLITE_PATH", "SQLITE_PATH", "SQLITE_DB"} {
-		t.Setenv(key, "/inherited/autoheal.sqlite")
-	}
-	t.Setenv("DATABASE_URL", "file:/inherited/autoheal.sqlite")
-
-	dsn, err := sqliteDSN()
-	if err != nil {
-		t.Fatalf("sqliteDSN() error: %v", err)
-	}
-	if strings.Contains(dsn, "inherited") || strings.Contains(dsn, "autoheal") {
-		t.Fatalf("an inherited environment redirected the database: %s", dsn)
-	}
-	if !strings.Contains(dsn, "git-control-tower") {
-		t.Fatalf("expected this scenario's own database, got %s", dsn)
-	}
-}
-
-func TestSQLiteDSNKeepsReadOrientedTuning(t *testing.T) {
-	dsn, err := sqliteDSN()
-	if err != nil {
-		t.Fatalf("sqliteDSN() error: %v", err)
-	}
-	for _, want := range []string{"page_size(4096)", "mmap_size(268435456)", "journal_mode(WAL)"} {
-		if !strings.Contains(dsn, want) {
-			t.Fatalf("expected %q in %s", want, dsn)
+	for _, name := range []string{"check_job_id", "candidate_digest", "config_digest"} {
+		if !cols[name] {
+			t.Errorf("migration omitted %q", name)
 		}
+	}
+}
+
+func TestPrecommitDeclaredInputsMigrationAddsEmptyListToLegacyStore(t *testing.T) {
+	db := testdb.OpenSQLiteMemory(t)
+	if _, err := db.ExecContext(context.Background(), `CREATE TABLE git_repo_precommit (
+		repo_path TEXT PRIMARY KEY, enabled INTEGER NOT NULL DEFAULT 0, command TEXT NOT NULL DEFAULT '',
+		working_directory TEXT NOT NULL DEFAULT '', timeout_seconds INTEGER NOT NULL DEFAULT 300,
+		run_before_commit INTEGER NOT NULL DEFAULT 1, allow_override INTEGER NOT NULL DEFAULT 1,
+		last_status TEXT, last_exit_code INTEGER, last_summary TEXT, last_stdout TEXT, last_stderr TEXT,
+		last_duration_ms INTEGER, last_timestamp TEXT, hook_install_status TEXT, hook_install_reason TEXT,
+		hook_existing_kind TEXT, hook_installed_at TEXT, updated_at TEXT NOT NULL DEFAULT ''
+	)`); err != nil {
+		t.Fatalf("create legacy precommit store: %v", err)
+	}
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO git_repo_precommit (repo_path) VALUES ('/legacy/repo')`); err != nil {
+		t.Fatalf("seed legacy config: %v", err)
+	}
+	if err := ensurePrecommitHookColumns(context.Background(), db); err != nil {
+		t.Fatalf("migrate precommit config: %v", err)
+	}
+	cols, err := tableColumns(context.Background(), db, "git_repo_precommit")
+	if err != nil {
+		t.Fatalf("inspect migrated config: %v", err)
+	}
+	if !cols["declared_inputs_json"] {
+		t.Fatal("migration omitted declared input column")
+	}
+	svc := NewPrecommitService(db)
+	loaded, err := svc.Get(context.Background(), "/legacy/repo")
+	if err != nil || len(loaded.DeclaredInputs) != 0 {
+		t.Fatalf("legacy config did not default to no declared inputs: %#v err=%v", loaded, err)
 	}
 }

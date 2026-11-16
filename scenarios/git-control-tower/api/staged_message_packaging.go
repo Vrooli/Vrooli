@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"sort"
@@ -45,6 +46,7 @@ type stagedMessageSource struct {
 
 type stagedMessageDraftContext struct {
 	ContractVersion      int                   `json:"contract_version,omitempty"`
+	InvestigationMode    string                `json:"investigation_mode"`
 	EvidenceJobID        string                `json:"evidence_job_id,omitempty"`
 	PreviousTitle        string                `json:"previous_title,omitempty"`
 	PreviousBody         string                `json:"previous_body,omitempty"`
@@ -167,27 +169,46 @@ func packageStagedMessageInput(in stagedmessages.DraftInput, directory string) (
 	if (in.FormatVersion != 2 && in.FormatVersion != 3 && in.FormatVersion != 4) || in.Snapshot == nil || len(in.Snapshot.Files) > stagedmessages.MaxManifestFiles {
 		return nil, errors.New("unsupported immutable draft format or file count")
 	}
+	mode := stagedmessagesMode(in)
+	if mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK && mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		return nil, errors.New("unsupported staged-message investigation mode")
+	}
+	if (in.FormatVersion == 4) != (mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP) {
+		return nil, errors.New("deep mode and synthesis contract do not match")
+	}
 	digest, err := stagedMessageInputDigest(in)
 	if err != nil {
 		return nil, err
 	}
 	input := stagedMessageCompactInput{FormatVersion: in.FormatVersion, DraftInputDigest: digest, RepositoryDirectory: directory}
 	context := &input.DraftContext
+	context.InvestigationMode = "quick"
+	if mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		context.InvestigationMode = "deep"
+	}
 	if in.FormatVersion == 4 {
-		context.ContractVersion = 4
+		context.ContractVersion = 5
 	}
 	context.SnapshotDigest, context.RepositoryID = in.Snapshot.Digest, in.Snapshot.RepositoryId
 	context.FileCount, context.OperatorNote = len(in.Snapshot.Files), in.OperatorNote
 	priorCovered := map[string]bool{}
 	if in.FormatVersion >= 3 {
-		if in.JobID == "" || in.PriorResult == nil || in.ContinuationOfJobID == "" {
-			return nil, errors.New("deep drafting requires its durable parent and evidence job")
+		if in.JobID == "" {
+			return nil, errors.New("deep drafting requires its durable evidence job")
 		}
 		context.EvidenceJobID = in.JobID
-		context.PreviousTitle = in.PriorResult.Title
-		context.PreviousBody = in.PriorResult.Body
-		for _, path := range in.PriorResult.GetCoverage().GetCoveredPaths() {
-			priorCovered[path] = true
+		if in.ContinuationOfJobID != "" {
+			if in.PriorResult == nil {
+				return nil, errors.New("deep continuation requires its successful parent result")
+			}
+			context.InvestigationMode = "continuation"
+			context.PreviousTitle = in.PriorResult.Title
+			context.PreviousBody = in.PriorResult.Body
+			for _, path := range in.PriorResult.GetCoverage().GetCoveredPaths() {
+				priorCovered[path] = true
+			}
+		} else if in.FormatVersion != 4 || mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP || in.PriorResult != nil {
+			return nil, errors.New("only direct deep drafting may omit a parent result")
 		}
 	}
 	context.Files, context.Contexts = []stagedMessageDetail{}, []stagedMessageSource{}
@@ -299,16 +320,74 @@ func packageStagedMessageInput(in stagedmessages.DraftInput, directory string) (
 	return nil, errors.New("bounded source identities and operator note exceed the workflow envelope")
 }
 
+func stagedmessagesMode(in stagedmessages.DraftInput) v1.StagedMessageMode {
+	if in.Mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED && in.FormatVersion == 4 {
+		// Older persisted format-4 jobs were continuations and predate the mode
+		// field; preserve their original deep workflow contract on recovery.
+		return v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP
+	}
+	if in.Mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED {
+		return v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK
+	}
+	return in.Mode
+}
+
 type stagedMessageCompactResult struct {
 	MessageScope            string   `json:"message_scope,omitempty"`
 	MessageScopeExplanation string   `json:"message_scope_explanation,omitempty"`
-	SnapshotDigest          string   `json:"snapshot_digest"`
 	Title                   string   `json:"title"`
 	Body                    string   `json:"body"`
 	Trailers                []any    `json:"trailers"`
 	CoveredFileIDs          []int    `json:"covered_file_ids"`
 	SourceIDs               []string `json:"source_ids"`
 	Unknowns                []string `json:"unknowns"`
+}
+
+type stagedMessageXMLResult struct {
+	XMLName                 xml.Name `xml:"gct_message"`
+	MessageScope            string   `xml:"message_scope"`
+	MessageScopeExplanation string   `xml:"message_scope_explanation"`
+	Title                   string   `xml:"title"`
+	Body                    string   `xml:"body"`
+	Trailers                []string `xml:"trailers>trailer"`
+	CoveredFileIDs          []int    `xml:"covered_file_ids>id"`
+	SourceIDs               []string `xml:"source_ids>id"`
+	Unknowns                []string `xml:"unknowns>item"`
+}
+
+func decodeStagedMessageXMLResult(raw string) (stagedMessageCompactResult, error) {
+	const (
+		rootOpen  = "<gct_message>"
+		rootClose = "</gct_message>"
+	)
+	if len(raw) > 48<<10 {
+		return stagedMessageCompactResult{}, errors.New("XML message result exceeds owner bounds")
+	}
+	start := strings.Index(raw, rootOpen)
+	if start < 0 || strings.Contains(raw[start+len(rootOpen):], rootOpen) {
+		return stagedMessageCompactResult{}, errors.New("XML message result must contain exactly one gct_message element")
+	}
+	close := strings.Index(raw[start+len(rootOpen):], rootClose)
+	if close < 0 || strings.Contains(raw[start+len(rootOpen)+close+len(rootClose):], rootClose) {
+		return stagedMessageCompactResult{}, errors.New("XML message result has an absent or duplicate gct_message closing element")
+	}
+	end := start + len(rootOpen) + close + len(rootClose)
+	var decoded stagedMessageXMLResult
+	if err := xml.Unmarshal([]byte(raw[start:end]), &decoded); err != nil {
+		return stagedMessageCompactResult{}, fmt.Errorf("invalid gct_message XML: %w", err)
+	}
+	if decoded.XMLName.Local != "gct_message" {
+		return stagedMessageCompactResult{}, errors.New("XML message result has the wrong root element")
+	}
+	trailers := make([]any, len(decoded.Trailers))
+	for i, trailer := range decoded.Trailers {
+		trailers[i] = trailer
+	}
+	return stagedMessageCompactResult{
+		MessageScope: decoded.MessageScope, MessageScopeExplanation: decoded.MessageScopeExplanation,
+		Title: decoded.Title, Body: decoded.Body, Trailers: trailers,
+		CoveredFileIDs: decoded.CoveredFileIDs, SourceIDs: decoded.SourceIDs, Unknowns: decoded.Unknowns,
+	}, nil
 }
 
 func decodeBoundStagedMessageResult(execution *ampb.WorkflowExecution, canonical stagedmessages.DraftInput) (*v1.StagedMessageSuggestion, error) {
@@ -318,6 +397,7 @@ func decodeBoundStagedMessageResult(execution *ampb.WorkflowExecution, canonical
 func decodeStagedMessageResultWithEvidence(execution *ampb.WorkflowExecution, canonical stagedmessages.DraftInput, evidence map[int]bool) (*v1.StagedMessageSuggestion, error) {
 	return decodeStagedMessageSynthesisResult(execution, canonical, evidence, nil)
 }
+
 func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canonical stagedmessages.DraftInput, evidence, inventory map[int]bool) (*v1.StagedMessageSuggestion, error) {
 	raw, err := json.Marshal(execution.GetInput().AsInterface())
 	if err != nil {
@@ -357,12 +437,22 @@ func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canon
 	}
 	eligible := map[int]bool{}
 	if canonical.FormatVersion >= 3 {
-		if len(input.DraftContext.Files) != 0 || input.DraftContext.EvidenceJobID != canonical.JobID || canonical.PriorResult == nil || input.DraftContext.PreviousTitle != canonical.PriorResult.Title || input.DraftContext.PreviousBody != canonical.PriorResult.Body {
+		if len(input.DraftContext.Files) != 0 || input.DraftContext.EvidenceJobID != canonical.JobID {
+			return nil, errors.New("deep workflow is not bound to its durable evidence job")
+		}
+		directDeep := canonical.FormatVersion == 4 && canonical.ContinuationOfJobID == "" && canonical.Mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP && canonical.PriorResult == nil
+		if directDeep {
+			if input.DraftContext.InvestigationMode != "deep" || input.DraftContext.PreviousTitle != "" || input.DraftContext.PreviousBody != "" || len(input.DraftContext.PreviouslyCoveredIDs) != 0 {
+				return nil, errors.New("direct deep workflow contains unsupported parent draft evidence")
+			}
+		} else if canonical.PriorResult == nil || input.DraftContext.PreviousTitle != canonical.PriorResult.Title || input.DraftContext.PreviousBody != canonical.PriorResult.Body {
 			return nil, errors.New("deep workflow is not bound to its durable prior draft")
 		}
 		prior := map[string]bool{}
-		for _, path := range canonical.PriorResult.GetCoverage().GetCoveredPaths() {
-			prior[path] = true
+		if canonical.PriorResult != nil {
+			for _, path := range canonical.PriorResult.GetCoverage().GetCoveredPaths() {
+				prior[path] = true
+			}
 		}
 		for i, file := range canonical.Snapshot.Files {
 			if prior[file.Path] || evidence[i+1] {
@@ -429,7 +519,23 @@ func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canon
 		return nil, errors.New("compact message output exceeds owner bounds")
 	}
 	var result stagedMessageCompactResult
-	if err := decodeStrictStagedMessageJSON(resultRaw, &result); err != nil {
+	xmlOutput := false
+	if canonical.FormatVersion == 4 && input.DraftContext.ContractVersion == 5 {
+		resultText, ok := output["result"].(string)
+		if !ok {
+			// The result object fallback keeps a source update safe while the
+			// versioned Agent Manager declaration is being activated.
+			if err := decodeStrictStagedMessageJSON(resultRaw, &result); err != nil {
+				return nil, err
+			}
+		} else {
+			xmlOutput = true
+			result, err = decodeStagedMessageXMLResult(resultText)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else if err := decodeStrictStagedMessageJSON(resultRaw, &result); err != nil {
 		return nil, err
 	}
 	coverageLimit := stagedMessageDetailLimit
@@ -438,22 +544,32 @@ func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canon
 		coverageLimit = stagedmessages.MaxManifestFiles
 		maxBody, maxUnknowns, maxUnknownBytes = 6000, 16, 500
 	}
-	if result.SnapshotDigest != canonical.Snapshot.Digest || strings.TrimSpace(result.Title) == "" || len(result.Title) > 200 || strings.ContainsAny(result.Title, "\r\n") || len(result.Body) > maxBody || len(result.Trailers) != 0 || len(result.CoveredFileIDs) > coverageLimit || len(result.SourceIDs) > 20 || len(result.Unknowns) > maxUnknowns {
-		return nil, errors.New("message fields exceed compact contract or subject binding")
+	switch {
+	case strings.TrimSpace(result.Title) == "":
+		return nil, errors.New("message title is empty")
+	case len(result.Title) > 200:
+		return nil, fmt.Errorf("message title is %d UTF-8 bytes; limit is 200", len(result.Title))
+	case strings.ContainsAny(result.Title, "\r\n"):
+		return nil, errors.New("message title contains a line break")
+	case len(result.Body) > maxBody:
+		return nil, fmt.Errorf("message body is %d UTF-8 bytes; limit is %d", len(result.Body), maxBody)
+	case len(result.Trailers) != 0:
+		return nil, fmt.Errorf("message returned %d trailers; trailers are not accepted", len(result.Trailers))
+	case len(result.CoveredFileIDs) > coverageLimit && !xmlOutput:
+		return nil, fmt.Errorf("message covers %d files; subject permits at most %d", len(result.CoveredFileIDs), coverageLimit)
+	case len(result.SourceIDs) > 20:
+		return nil, fmt.Errorf("message cites %d sources; limit is 20", len(result.SourceIDs))
+	case len(result.Unknowns) > maxUnknowns:
+		return nil, fmt.Errorf("message reports %d unknowns; limit is %d", len(result.Unknowns), maxUnknowns)
 	}
 	scope := v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_UNSPECIFIED
 	if canonical.FormatVersion == 4 {
-		if input.DraftContext.ContractVersion != 4 || strings.TrimSpace(result.MessageScopeExplanation) == "" || len(result.MessageScopeExplanation) > 1000 {
+		if (input.DraftContext.ContractVersion != 4 && input.DraftContext.ContractVersion != 5) || strings.TrimSpace(result.MessageScopeExplanation) == "" || len(result.MessageScopeExplanation) > 1000 {
 			return nil, errors.New("synthesis requires its explicit contract and bounded scope explanation")
 		}
 		switch result.MessageScope {
 		case "whole_selection":
 			scope = v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_WHOLE_SELECTION
-			for i := range canonical.Snapshot.Files {
-				if !inventory[i+1] {
-					return nil, errors.New("whole-selection synthesis requires the complete immutable inventory")
-				}
-			}
 		case "limited":
 			scope = v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_LIMITED
 		default:
@@ -463,9 +579,18 @@ func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canon
 		return nil, errors.New("legacy output cannot reinterpret message scope")
 	}
 	covered := map[int]bool{}
+	invalidCoverageClaims := 0
 	for _, id := range result.CoveredFileIDs {
 		if !eligible[id] || covered[id] {
-			return nil, errors.New("unknown, duplicate or incompletely supplied covered file ID")
+			if !xmlOutput {
+				return nil, errors.New("unknown, duplicate or incompletely supplied covered file ID")
+			}
+			invalidCoverageClaims++
+			continue
+		}
+		if xmlOutput && len(covered) >= coverageLimit {
+			invalidCoverageClaims++
+			continue
 		}
 		covered[id] = true
 	}
@@ -501,5 +626,11 @@ func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canon
 		unknowns = nil
 	}
 	unknowns = append(unknowns, result.Unknowns...)
-	return &v1.StagedMessageSuggestion{MessageScope: scope, MessageScopeExplanation: result.MessageScopeExplanation, Id: execution.Id, Title: result.Title, Body: result.Body, Coverage: coverage, SourceIds: result.SourceIDs, Unknowns: unknowns}, nil
+	if invalidCoverageClaims > 0 {
+		unknowns = append(unknowns, fmt.Sprintf("Ignored %d unsupported or duplicate detailed-coverage claims; only files backed by complete supplied patches are counted as covered.", invalidCoverageClaims))
+	}
+	suggestion := &v1.StagedMessageSuggestion{MessageScope: scope, MessageScopeExplanation: result.MessageScopeExplanation, Id: execution.Id, Title: result.Title, Body: result.Body, Coverage: coverage, SourceIds: result.SourceIDs, Unknowns: unknowns}
+	canonical.InventoryEligibility = inventory
+	stagedmessages.ConstrainSynthesisScope(canonical, suggestion)
+	return suggestion, nil
 }

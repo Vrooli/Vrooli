@@ -22,6 +22,8 @@ type recordingOwner struct {
 	advisory_v1connect.UnimplementedAdvisoryServiceHandler
 	calls    []string
 	start    *v1.StartStagedMessageRequest
+	retry    *v1.RetryStagedMessageRequest
+	worktree *v1.StartWorktreeStagedMessageRequest
 	job      *v1.StagedMessageJobRequest
 	evidence *v1.ReadStagedMessageEvidenceRequest
 	caller   string
@@ -40,6 +42,16 @@ func (o *recordingOwner) StartStagedMessage(_ context.Context, r *connect.Reques
 	o.calls = append(o.calls, "start")
 	o.start = r.Msg
 	return connect.NewResponse(&v1.StagedMessageJob{Id: "job-1", Status: "queued", SnapshotDigest: r.Msg.GetSnapshotDigest()}), nil
+}
+func (o *recordingOwner) RetryStagedMessage(_ context.Context, r *connect.Request[v1.RetryStagedMessageRequest]) (*connect.Response[v1.StagedMessageJob], error) {
+	o.calls = append(o.calls, "retry")
+	o.retry = r.Msg
+	return connect.NewResponse(&v1.StagedMessageJob{Id: "retried-job", Status: "queued", SnapshotDigest: r.Msg.GetSnapshotDigest()}), nil
+}
+func (o *recordingOwner) StartWorktreeStagedMessage(_ context.Context, r *connect.Request[v1.StartWorktreeStagedMessageRequest]) (*connect.Response[v1.StagedMessageJob], error) {
+	o.calls = append(o.calls, "start-worktree")
+	o.worktree = r.Msg
+	return connect.NewResponse(&v1.StagedMessageJob{Id: "worktree-job-1", Status: "queued", SnapshotDigest: "worktree-snapshot"}), nil
 }
 func (o *recordingOwner) GetStagedMessageJob(_ context.Context, r *connect.Request[v1.StagedMessageJobRequest]) (*connect.Response[v1.StagedMessageJob], error) {
 	o.calls = append(o.calls, "status")
@@ -139,6 +151,34 @@ func TestMessageStartRequiresExplicitImmutableInputAndRequestKey(t *testing.T) {
 	}
 	if owner.start.GetRequestKey() != "stable-1" || len(owner.start.GetSelectedContextIds()) != 2 || owner.start.GetOperatorNote() != "why\nchange" || !strings.Contains(out, "queued") {
 		t.Fatalf("explicit input lost: %+v %s", owner.start, out)
+	}
+}
+
+func TestMessageRetryUsesSavedImmutableJobAndExplicitMode(t *testing.T) {
+	owner, group := fixture(t)
+	if _, err := invoke(group, "retry", "failed-job", "--snapshot", "snapshot-1", "--request-key", "retry-1", "--mode", "deep", "--json"); err != nil {
+		t.Fatal(err)
+	}
+	if owner.retry == nil || owner.retry.GetJobId() != "failed-job" || owner.retry.GetSnapshotDigest() != "snapshot-1" || owner.retry.GetRequestKey() != "retry-1" || owner.retry.GetMode() != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		t.Fatalf("retry request lost saved subject or explicit intent: %+v", owner.retry)
+	}
+}
+
+func TestWorktreeSuggestionRequiresPathsAndStartsSelectedMode(t *testing.T) {
+	owner, group := fixture(t)
+	for _, args := range [][]string{{}, {"--request-key", "key"}, {"--path", "a.go"}, {"--path", "a.go", "--request-key", "key", "--mode", "exhaustive"}} {
+		if _, err := invoke(group, "start-worktree", args...); err == nil {
+			t.Fatalf("invalid worktree admission accepted: %v", args)
+		}
+	}
+	if len(owner.calls) != 0 {
+		t.Fatalf("invalid admission reached owner: %v", owner.calls)
+	}
+	if _, err := invoke(group, "start-worktree", "--repo-id", "42", "--path", "a.go", "--path", "b.go", "--request-key", "queue-1", "--mode", "deep", "--note", "follow-up", "--json"); err != nil {
+		t.Fatal(err)
+	}
+	if owner.worktree.GetRepositoryId() != "42" || strings.Join(owner.worktree.GetPaths(), ",") != "a.go,b.go" || owner.worktree.GetRequestKey() != "queue-1" || owner.worktree.GetMode() != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP || owner.worktree.GetOperatorNote() != "follow-up" {
+		t.Fatalf("worktree job input was not preserved: %+v", owner.worktree)
 	}
 }
 

@@ -3,12 +3,12 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { create } from "@bufbuild/protobuf";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { CheckStagedMessageResponseSchema, StagedMessageCollectionSchema, StagedMessageJobSchema, StagedMessageSnapshotSchema, StagedMessageSuggestionSchema } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
+import { CheckStagedMessageResponseSchema, StagedMessageCollectionSchema, StagedMessageJobSchema, StagedMessageMode, StagedMessageSnapshotSchema, StagedMessageSuggestionSchema } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { renderWithProviders } from "../../test-utils/renderWithProviders";
-import { cancelMessageJob, checkMessage, collectMessage, getMessageJob, startMessage, waitMessageJob } from "./api";
+import { cancelMessageJob, checkMessage, collectMessage, getMessageJob, retryMessage, startMessage, waitMessageJob } from "./api";
 import { useMessageSuggestions } from "./useMessageSuggestions";
 
-vi.mock("./api", () => ({ collectMessage: vi.fn(), checkMessage: vi.fn(), startMessage: vi.fn(), getMessageJob: vi.fn(), cancelMessageJob: vi.fn(), waitMessageJob: vi.fn() }));
+vi.mock("./api", () => ({ collectMessage: vi.fn(), checkMessage: vi.fn(), startMessage: vi.fn(), retryMessage: vi.fn(), getMessageJob: vi.fn(), cancelMessageJob: vi.fn(), waitMessageJob: vi.fn() }));
 const snapshot = { repositoryId: "repo", digest: "immutable-selection", files: [{ path: "source.go", newBlobId: "selected" }] };
 const ownerJob = (status = "queued") => create(StagedMessageJobSchema, { id: "owner-job", repositoryId: "repo", snapshotDigest: snapshot.digest, snapshot, status, applicable: true });
 function deferred<T>() {
@@ -58,6 +58,7 @@ beforeEach(() => {
   vi.mocked(collectMessage).mockReset().mockResolvedValue(create(StagedMessageCollectionSchema, { id: "collection", snapshot, status: "no_suggestions" }));
   vi.mocked(checkMessage).mockReset().mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: true }));
   vi.mocked(startMessage).mockReset().mockResolvedValue(ownerJob());
+  vi.mocked(retryMessage).mockReset().mockResolvedValue(ownerJob("running"));
   vi.mocked(getMessageJob).mockReset().mockResolvedValue(ownerJob());
   vi.mocked(cancelMessageJob).mockReset().mockResolvedValue(ownerJob("cancelling"));
   vi.mocked(waitMessageJob).mockReset().mockImplementation((_repo, _id, _key, signal) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true })));
@@ -130,7 +131,7 @@ describe("draft admission and recovery", () => {
     expect(screen.getByTestId("admission")).toHaveTextContent("starting");
     await waitFor(() => expect(screen.getByTestId("previous-draft")).toHaveTextContent("usable partial draft"));
     const continuation = launchedRequest(1);
-    expect(continuation).toEqual({ ...original, collectionId: "", selectedContextIds: [], operatorNote: "", requestKey: expect.any(String), continuationOfJobId: "owner-job" });
+    expect(continuation).toEqual({ ...original, collectionId: "", selectedContextIds: [], operatorNote: "", mode: StagedMessageMode.DEEP, requestKey: expect.any(String), continuationOfJobId: "owner-job" });
     expect(continuation.requestKey).not.toBe(original.requestKey);
     expect(screen.getByTestId("previous-digest")).toHaveTextContent(snapshot.digest);
     fireEvent.click(screen.getByText("Investigate"));

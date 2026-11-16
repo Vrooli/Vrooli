@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"git-control-tower/internal/pushsafety"
 	"sort"
@@ -66,6 +67,7 @@ type FakeGitRunner struct {
 	CheckoutBranchError  error
 	TrackRemoteError     error
 	CheckRefFormatError  error
+	StagedCandidateError error
 
 	// Commit tracking
 	LastCommitMsg         string
@@ -363,6 +365,24 @@ func (f *FakeGitRunner) RevParse(ctx context.Context, repoDir string, args ...st
 	}
 
 	return []byte(""), nil
+}
+
+func (f *FakeGitRunner) WriteTree(ctx context.Context, repoDir string) (string, error) {
+	f.recordCall("WriteTree", repoDir)
+	paths := make([]string, 0, len(f.Staged))
+	for path := range f.Staged {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	var candidate strings.Builder
+	for _, path := range paths {
+		candidate.WriteString(path)
+		candidate.WriteByte(0)
+		candidate.WriteString(f.Staged[path])
+		candidate.WriteByte(0)
+	}
+	sum := sha256.Sum256([]byte(candidate.String()))
+	return fmt.Sprintf("fake-tree-%x", sum[:]), nil
 }
 
 // revParseSingleArg resolves a single rev-parse argument.
@@ -732,6 +752,20 @@ func (f *FakeGitRunner) ListStagedFiles(ctx context.Context, repoDir string) ([]
 		files = append(files, path)
 	}
 	sort.Strings(files)
+	return files, nil
+}
+
+// ReadStagedCandidate returns the fake index bytes without consulting the
+// simulated working tree.
+func (f *FakeGitRunner) ReadStagedCandidate(ctx context.Context, repoDir string) (map[string][]byte, error) {
+	f.recordCall("ReadStagedCandidate", repoDir)
+	if f.StagedCandidateError != nil {
+		return nil, f.StagedCandidateError
+	}
+	files := make(map[string][]byte, len(f.Staged))
+	for path, content := range f.Staged {
+		files[path] = []byte(content)
+	}
 	return files, nil
 }
 

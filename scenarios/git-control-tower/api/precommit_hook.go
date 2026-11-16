@@ -107,7 +107,7 @@ func InstallHook(ctx context.Context, repoDir, command string) (HookInstallResul
 		result.Reason = fmt.Sprintf("read existing hook: %v", err)
 		return result, err
 	}
-	script := buildHookScript(command, repoDir)
+	script := buildHookScript(command)
 	if err := writeHookScript(result.Path, script); err != nil {
 		result.Reason = fmt.Sprintf("write hook: %v", err)
 		return result, err
@@ -218,14 +218,22 @@ func resolveGitDir(repoDir string) (string, error) {
 	return "", fmt.Errorf("gitfile %s has no gitdir entry", gitPath)
 }
 
-func buildHookScript(command, repoDir string) string {
+func buildHookScript(command string) string {
 	var b strings.Builder
 	b.WriteString("#!/usr/bin/env sh\n")
 	b.WriteString(gctHookSentinel)
 	b.WriteString("\n")
 	b.WriteString("# Edit via the git-control-tower UI; manual edits will be overwritten on save.\n")
 	b.WriteString("set -e\n")
-	fmt.Fprintf(&b, "cd %s\n", shellQuote(repoDir))
+	// Git runs hooks from the active worktree root. Resolve that root at
+	// execution time so a hook installed through a linked worktree does not
+	// keep pointing at the checkout that happened to install it.
+	b.WriteString("repo_root=$(git rev-parse --show-toplevel)\n")
+	b.WriteString("cd \"$repo_root\"\n")
+	b.WriteString("if [ -n \"${VROOLI_GCT_PRECOMMIT_TREE:-}\" ]; then\n")
+	b.WriteString("  candidate_tree=$(git write-tree)\n")
+	b.WriteString("  if [ \"$candidate_tree\" = \"$VROOLI_GCT_PRECOMMIT_TREE\" ]; then exit 0; fi\n")
+	b.WriteString("fi\n")
 	b.WriteString("exec ")
 	b.WriteString(command)
 	b.WriteString("\n")
@@ -269,14 +277,4 @@ func capHookPreview(value string) string {
 		return value
 	}
 	return value[:limit] + "\n[preview truncated]"
-}
-
-func shellQuote(value string) string {
-	if value == "" {
-		return "''"
-	}
-	if !strings.ContainsAny(value, " \t\n'\"\\$`(){}[]|&;<>*?!#~") {
-		return value
-	}
-	return "'" + strings.ReplaceAll(value, "'", `'\''`) + "'"
 }

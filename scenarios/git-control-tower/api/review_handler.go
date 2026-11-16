@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -276,7 +275,7 @@ func (s *Server) runSingleCheck(ctx context.Context, jobID, check, scenarioName 
 		return
 	}
 	if err != nil {
-		log.Printf("review run %s check %s failed: %v", jobID, check, err)
+		s.logf("review run %s check %s failed: %v", jobID, check, err)
 		s.reviewJobStore.UpdateCheck(jobID, check, CheckFailed)
 		return
 	}

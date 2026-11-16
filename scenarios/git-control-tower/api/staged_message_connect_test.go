@@ -25,14 +25,19 @@ import (
 )
 
 type messageTransportOwner struct {
-	starts, cancels          int
+	starts, cancels, gets    int
 	status                   string
+	readiness                stagedmessages.ProviderReadiness
 	result                   *v1.StagedMessageSuggestion
 	lastInput, lastReadInput stagedmessages.DraftInput
 }
 
 func (p *messageTransportOwner) Search(context.Context, *v1.StagedMessageSnapshot) ([]*v1.StagedMessageContext, []*v1.Omission, error) {
 	return nil, nil, nil
+}
+
+func (p *messageTransportOwner) Readiness(context.Context) stagedmessages.ProviderReadiness {
+	return p.readiness
 }
 
 func (p *messageTransportOwner) Start(_ context.Context, input stagedmessages.DraftInput, _ string) (stagedmessages.Execution, error) {
@@ -42,8 +47,19 @@ func (p *messageTransportOwner) Start(_ context.Context, input stagedmessages.Dr
 }
 
 func (p *messageTransportOwner) Get(_ context.Context, _ string, input stagedmessages.DraftInput) (stagedmessages.Execution, error) {
+	p.gets++
 	p.lastReadInput = input
 	return stagedmessages.Execution{ID: "owner-1", Status: p.status, Result: p.result}, nil
+}
+
+func TestStagedMessageStorageErrorsAreSafeInternalFailures(t *testing.T) {
+	err := stagedMessageError(fmt.Errorf("%w during read: private database diagnostic", reviewjobs.ErrStorage))
+	if got := connect.CodeOf(err); got != connect.CodeInternal {
+		t.Fatalf("storage error code = %s, want Internal", got)
+	}
+	if strings.Contains(err.Error(), "private database diagnostic") || !strings.Contains(err.Error(), "storage is temporarily unavailable") {
+		t.Fatalf("storage error leaked details or lost recovery guidance: %v", err)
+	}
 }
 
 func TestStagedMessageTypedTransportPreserves4096RealIndexEntriesAndCompleteResults(t *testing.T) {
@@ -101,9 +117,15 @@ func TestStagedMessageTypedTransportPreserves4096RealIndexEntriesAndCompleteResu
 	if len(owner.lastInput.Snapshot.Files) != stagedmessages.MaxManifestFiles || owner.lastInput.FormatVersion != 2 || owner.starts != 1 {
 		t.Fatal("explicit owner admission lost canonical input")
 	}
+	observed := time.Now().UTC()
+	owner.readiness = stagedmessages.ProviderReadiness{Provider: "workspace-sandbox", State: "open", Known: true, ObservedAt: &observed, Message: "Workspace Sandbox is ready for agent runs."}
+	readiness, err := client.GetStagedMessageProviderReadiness(ctx, connect.NewRequest(&v1.StagedMessageProviderReadinessRequest{}))
+	if err != nil || !readiness.Msg.Known || readiness.Msg.State != "open" || readiness.Msg.Provider != "workspace-sandbox" || readiness.Msg.ObservedAt == "" {
+		t.Fatalf("provider readiness projection = %+v, err=%v", readiness, err)
+	}
 	reattached, err := client.GetStagedMessageJob(ctx, connect.NewRequest(&v1.StagedMessageJobRequest{RepositoryId: repoID, RequestKey: "full-selection"}))
-	if err != nil || reattached.Msg.Id != job.Msg.Id || len(owner.lastReadInput.Snapshot.Files) != stagedmessages.MaxManifestFiles {
-		t.Fatal("typed reattachment lost canonical input", err)
+	if err != nil || reattached.Msg.Id != job.Msg.Id || owner.gets != 0 {
+		t.Fatal("observational reattachment called execution owner or lost job identity", err)
 	}
 	cv := &v1.StagedMessageCoverage{TotalEdits: stagedmessages.MaxManifestFiles}
 	for _, file := range collection.Msg.Snapshot.Files {

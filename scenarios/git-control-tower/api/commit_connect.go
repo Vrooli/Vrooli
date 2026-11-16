@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"log"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/projectmeta"
 
 	"git-control-tower/internal/policygate"
 	"github.com/vrooli/cli-core/cliutil"
@@ -67,12 +70,37 @@ func (s *Server) createCommitConnect(ctx context.Context, req *repov1.CreateComm
 		SkipPrecommitOnce:    req.GetSkipPrecommitOnce(),
 	}
 	stagedFiles, _ := s.git.ListStagedFiles(writeCtx, repo.Path)
+	candidateSecurity, fixtureSecurity, fixtureSecurityUnavailable := selectCommitCandidateSecurity(
+		writeCtx, s.candidateSecurity, s.db, s.fileRoots, s.git, repo.Path,
+	)
+	if projectmeta.IsDevelopment() {
+		leaseID := ""
+		if s.db != nil {
+			leaseID = s.db.ActiveLeaseID()
+		}
+		log.Printf("RH3 fixture candidate-security decision test_mode=%t lease_active=%t enabled=%t reason=%q", database.IsTestMode(writeCtx), leaseID != "", fixtureSecurity, fixtureSecurityUnavailable)
+	}
 	result, err := CreateCommit(writeCtx, CommitDeps{
-		Git:       s.git,
-		RepoDir:   repo.Path,
-		Precommit: s.precommit,
-		Checks:    s.commitChecks,
+		Git:               s.git,
+		RepoDir:           repo.Path,
+		Precommit:         s.precommit,
+		CandidateSecurity: candidateSecurity,
+		Checks:            s.commitChecks,
 	}, request)
+	if result != nil && !fixtureSecurity && fixtureSecurityUnavailable != "" && database.IsTestMode(writeCtx) && result.Precommit != nil {
+		result.Precommit.Summary += " (fixture provider not enabled: " + fixtureSecurityUnavailable + ")"
+	}
+	if fixtureSecurity && result != nil && result.Success {
+		if result.Precommit == nil {
+			result.Precommit = &PrecommitRunResult{Status: "passed"}
+		}
+		fixtureLabel := "Fixture-only benign provider passed; this is not staged-secret coverage or later-index revalidation"
+		if result.Precommit.Summary != "" {
+			result.Precommit.Summary += "; " + fixtureLabel
+		} else {
+			result.Precommit.Summary = fixtureLabel
+		}
+	}
 	s.logCommitAudit(repo.Path, request, result, err)
 	s.notifyCommitToSandbox(repo.Path, stagedFiles, result)
 	if err != nil {

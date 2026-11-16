@@ -17,6 +17,19 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+func TestAuthenticatorConfigFromEnvUsesInjectedReader(t *testing.T) {
+	values := map[string]string{"GCT_AUTH_ISSUER": " issuer ", "GCT_AUTH_REALM": " realm ", "GCT_AUTH_AUDIENCE": " audience ", "GCT_AUTH_JWKS_URL": " https://keys.test/jwks "}
+	cfg := AuthenticatorConfigFromEnv(testEnvironment(values))
+	if cfg.Issuer != "issuer" || cfg.Realm != "realm" || cfg.Audience != "audience" || cfg.JWKSURL != "https://keys.test/jwks" {
+		t.Fatalf("unexpected config: %+v", cfg)
+	}
+}
+
+type testEnvironment map[string]string
+
+func (e testEnvironment) Getenv(key string) string { return e[key] }
+func (testEnvironment) Environ() []string          { return nil }
+
 func TestJWTVerifierValidatesAuthenticatorContract(t *testing.T) {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {

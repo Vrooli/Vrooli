@@ -36,7 +36,7 @@
 ### 🟠 P1 – Should have post-launch
 
 - [ ] OT-P1-001 | Branch operations | The system should list, create, and switch branches with uncommitted-change detection and verified human authority.
-- [ ] OT-P1-002 | AI-assisted commit messages | The system should generate commit-message suggestions from bounded evidence with a deterministic fallback when inference is unavailable.
+- [ ] OT-P1-002 | AI-assisted commit messages | When an operator requests a commit message, the system SHOULD offer reusable messages and quick or direct deep drafting for the exact immutable staged selection, preserve the operator's text when inference is unavailable, and capture each queued follow-up selection as an independent immutable subject for concurrent suggestion work; after a successful commit, the system SHOULD stage the next unchanged selection for review.
 - [ ] OT-P1-003 | Conflict detection and reporting | The system should detect active merge conflicts and potential conflicts from local and remote state without performing an agent merge.
 - [ ] OT-P1-004 | Change preview | The system should preview commit impact with bounded line, affected-scope, and deployment-risk evidence.
 - [ ] OT-P1-005 | Trailer and work-reference resolution | The system should parse supported Vrooli trailers, preserve unknown keys, resolve current work references, and disclose unresolved links without rewriting history.

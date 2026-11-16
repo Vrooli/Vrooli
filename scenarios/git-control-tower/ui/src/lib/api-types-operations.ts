@@ -113,6 +113,7 @@ export interface PrecommitConfig {
   timeout_seconds: number;
   run_before_commit: boolean;
   allow_override: boolean;
+  declared_inputs: string[];
   last_result?: PrecommitRunResult;
   hook?: PrecommitHookState;
 }

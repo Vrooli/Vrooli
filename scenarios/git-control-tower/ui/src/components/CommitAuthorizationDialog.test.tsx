@@ -26,6 +26,7 @@ test("renders commit authorization as the shared narrow-viewport sheet", () => {
   renderWithProviders(
     <CommitAuthorizationDialog
       pending={pending}
+      activeRepositoryId="repo-1"
       isAuthorizing={false}
       skipPrecommit={false}
       dontAskAgain={false}
@@ -46,4 +47,24 @@ test("renders commit authorization as the shared narrow-viewport sheet", () => {
   expect(onConfirm).toHaveBeenCalledOnce();
   fireEvent.click(screen.getByTestId("commit-authorization-dialog.grabber"));
   expect(onClose).toHaveBeenCalledOnce();
+});
+
+test("prevents approval when the selected repository changed after preview", () => {
+  renderWithProviders(
+    <CommitAuthorizationDialog
+      pending={pending}
+      activeRepositoryId="repo-2"
+      isAuthorizing={false}
+      skipPrecommit={false}
+      dontAskAgain={false}
+      showPrecommitOption
+      onSkipPrecommitChange={vi.fn()}
+      onDontAskAgainChange={vi.fn()}
+      onConfirm={vi.fn()}
+      onClose={vi.fn()}
+    />,
+  );
+
+  expect(screen.getByRole("alert")).toHaveTextContent("selected repository changed");
+  expect(screen.getByTestId("confirm-commit-authorization")).toBeDisabled();
 });

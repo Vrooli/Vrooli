@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sort"
 	"strings"
 	"time"
 
+	"git-control-tower/internal/envx"
 	"git-control-tower/internal/proposals"
 
 	"github.com/vrooli/api-core/eventbus"
@@ -35,7 +35,14 @@ type domainEventPublisher interface {
 }
 
 func proposalDigestEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(proposalDigestEnv))) {
+	return proposalDigestEnabledWithEnv(envx.OS{})
+}
+
+func proposalDigestEnabledWithEnv(environment envx.Reader) bool {
+	if environment == nil {
+		environment = envx.OS{}
+	}
+	switch strings.ToLower(strings.TrimSpace(environment.Getenv(proposalDigestEnv))) {
 	case "1", "true", "yes", "on":
 		return true
 	}
@@ -43,7 +50,14 @@ func proposalDigestEnabled() bool {
 }
 
 func proposalDigestMinAgeFromEnv() time.Duration {
-	if raw := strings.TrimSpace(os.Getenv(proposalDigestMinAgeEnv)); raw != "" {
+	return proposalDigestMinAgeWithEnv(envx.OS{})
+}
+
+func proposalDigestMinAgeWithEnv(environment envx.Reader) time.Duration {
+	if environment == nil {
+		environment = envx.OS{}
+	}
+	if raw := strings.TrimSpace(environment.Getenv(proposalDigestMinAgeEnv)); raw != "" {
 		if parsed, err := time.ParseDuration(raw); err == nil && parsed >= 0 {
 			return parsed
 		}
@@ -63,7 +77,7 @@ func (s *Server) startProposalDigest() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 			if _, err := s.sendProposalDigest(ctx, publisher, minAge, time.Now().UTC()); err != nil {
-				log.Printf("warn: proposal digest: %v", err)
+				s.logf("warn: proposal digest: %v", err)
 			}
 		}
 		send()

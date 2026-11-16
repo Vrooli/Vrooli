@@ -7,7 +7,7 @@ metadata:
   modes: ["tools"]
   tags: ["git-control-tower", "advisory", "commit-draft"]
   status: "active"
-  revision: 4
+  revision: 5
   requires:
     scenarios: ["git-control-tower"]
     commands: []
@@ -41,8 +41,9 @@ trailers, agent co-authorship, test success, or unstated motivation.
 
 Return one JSON object matching the supplied result schema. Write a concise
 imperative title and an optional body describing resulting behavior across the
-whole selection to the extent the evidence supports it. Preserve the supplied
-snapshot digest exactly. Keep the two ID namespaces separate:
+whole selection to the extent the evidence supports it. GCT binds the result to
+the immutable workflow input; do not echo its snapshot digest. Keep the two ID
+namespaces separate:
 
 - `source_ids` contains only opaque IDs copied exactly from `contexts[].id`.
   Return `source_ids: []` when `contexts` is empty. File IDs, paths, run IDs

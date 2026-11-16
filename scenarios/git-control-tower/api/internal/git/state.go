@@ -11,7 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"git-control-tower/internal/envx"
 	"os/exec"
 	"strings"
 	"time"
@@ -57,7 +57,7 @@ func execRunner(ctx context.Context, repoDir string, args ...string) ([]byte, er
 
 // Capture reads the git state of repoDir using the real git binary.
 func Capture(ctx context.Context, repoDir string) (State, error) {
-	return CaptureWith(ctx, repoDir, execRunner)
+	return CaptureWithEnv(ctx, repoDir, execRunner, envx.OS{})
 }
 
 // CaptureWith reads the git state of repoDir using the provided Runner. It is
@@ -67,6 +67,16 @@ func Capture(ctx context.Context, repoDir string) (State, error) {
 // error — sha/branch/commit fields are left empty and only the dirty summary
 // is populated. A non-repository directory returns ErrNotARepository.
 func CaptureWith(ctx context.Context, repoDir string, run Runner) (State, error) {
+	return CaptureWithEnv(ctx, repoDir, run, envx.OS{})
+}
+
+// CaptureWithEnv is CaptureWith with the environment dependency supplied by
+// the caller. This keeps sandbox detection deterministic in tests and makes
+// the process boundary explicit to production composition roots.
+func CaptureWithEnv(ctx context.Context, repoDir string, run Runner, environment envx.Reader) (State, error) {
+	if environment == nil {
+		environment = envx.OS{}
+	}
 	if _, err := run(ctx, repoDir, "rev-parse", "--is-inside-work-tree"); err != nil {
 		// Keep the stable sentinel for callers that need to classify a
 		// non-repository, but retain the probe failure. The old implementation
@@ -75,7 +85,7 @@ func CaptureWith(ctx context.Context, repoDir string, run Runner) (State, error)
 		return State{}, fmt.Errorf("%w: %w", ErrNotARepository, err)
 	}
 
-	st := State{Sandboxed: os.Getenv("VROOLI_SANDBOX_MERGED") != ""}
+	st := State{Sandboxed: environment.Getenv("VROOLI_SANDBOX_MERGED") != ""}
 
 	// HEAD sha — empty when the repo has no commits yet.
 	if out, err := run(ctx, repoDir, "rev-parse", "HEAD"); err == nil {

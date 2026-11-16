@@ -10,7 +10,6 @@ package worktree
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -29,22 +28,26 @@ const DryRunHeader = "X-Dry-Run"
 // Server implements worktreeconnect.WorktreeServiceHandler.
 type Server struct {
 	svc    *worktree.Service
-	logger *log.Logger
+	logger interface{ Printf(string, ...any) }
 }
 
 // Deps wires the dependencies the Connect server needs.
 type Deps struct {
 	Service *worktree.Service
-	Logger  *log.Logger
+	Logger  interface{ Printf(string, ...any) }
 }
 
 // NewServer returns a fully-constructed Server.
 func NewServer(d Deps) *Server {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		d.Logger = quietLogger{}
 	}
 	return &Server{svc: d.Service, logger: d.Logger}
 }
+
+type quietLogger struct{}
+
+func (quietLogger) Printf(string, ...any) {}
 
 // NewHandler returns the (procedure-prefix, http.Handler) pair the
 // router mounts. Splits NewServer + NewHandler so tests can build a

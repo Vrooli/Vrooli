@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -29,7 +30,10 @@ func gitConfig(t *testing.T, repoDir string, args ...string) {
 }
 
 func TestInstallHookCleanRepo(t *testing.T) {
-	repo := initGitRepo(t)
+	repo := filepath.Join(t.TempDir(), "repo with spaces (worktree)")
+	if err := os.MkdirAll(filepath.Join(repo, ".git", "hooks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	res, err := InstallHook(authorizedHumanContext(), repo, "vrooli hygiene --fail-on error")
 	if err != nil {
 		t.Fatalf("InstallHook: %v", err)
@@ -47,6 +51,12 @@ func TestInstallHookCleanRepo(t *testing.T) {
 	if !strings.Contains(string(data), "vrooli hygiene --fail-on error") {
 		t.Fatalf("hook missing command: %s", data)
 	}
+	if !strings.Contains(string(data), `git rev-parse --show-toplevel`) || !strings.Contains(string(data), `cd "$repo_root"`) {
+		t.Fatalf("hook must resolve its active worktree at execution time: %s", data)
+	}
+	if strings.Contains(string(data), repo) {
+		t.Fatalf("hook must not pin the checkout that installed it: %s", data)
+	}
 	if runtime.GOOS != "windows" {
 		info, err := os.Stat(res.Path)
 		if err != nil {
@@ -55,6 +65,43 @@ func TestInstallHookCleanRepo(t *testing.T) {
 		if info.Mode().Perm()&0o100 == 0 {
 			t.Fatalf("hook not executable: mode=%v", info.Mode())
 		}
+	}
+}
+
+func TestGeneratedHookRunsFromActiveWorktree(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("generated pre-commit hooks use POSIX shell")
+	}
+	activeWorktree := filepath.Join(t.TempDir(), "linked worktree (active)")
+	if err := os.MkdirAll(activeWorktree, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	if err := os.WriteFile(fakeGit, []byte("#!/bin/sh\n[ \"$1\" = rev-parse ] && [ \"$2\" = --show-toplevel ] || exit 2\nprintf '%s' \"$GCT_TEST_ACTIVE_ROOT\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(fakeGit, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	pwdFile := filepath.Join(t.TempDir(), "observed-pwd")
+	hookFile := filepath.Join(t.TempDir(), "pre-commit")
+	command := `printf '%s' "$PWD" > "$GCT_TEST_PWD_FILE"`
+	if err := os.WriteFile(hookFile, []byte(buildHookScript(command)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("/bin/sh", hookFile)
+	cmd.Dir = activeWorktree
+	cmd.Env = append(os.Environ(), "PATH="+fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"), "GCT_TEST_ACTIVE_ROOT="+activeWorktree, "GCT_TEST_PWD_FILE="+pwdFile)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated hook failed: %v (%s)", err, out)
+	}
+	got, err := os.ReadFile(pwdFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != activeWorktree {
+		t.Fatalf("hook ran from %q, want active worktree %q", got, activeWorktree)
 	}
 }
 
@@ -157,7 +204,7 @@ func TestUninstallHookOnlyRemovesGCTManaged(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(hooks, "pre-commit")); err != nil {
 		t.Fatalf("user hook should still exist: %v", err)
 	}
-	gctScript := buildHookScript("echo gct", repo)
+	gctScript := buildHookScript("echo gct")
 	if err := os.WriteFile(filepath.Join(hooks, "pre-commit"), []byte(gctScript), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +230,7 @@ func TestReadInstalledHookGitfileResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 	hookPath := filepath.Join(realGit, "hooks", "pre-commit")
-	if err := os.WriteFile(hookPath, []byte(buildHookScript("echo gct", repo)), 0o755); err != nil {
+	if err := os.WriteFile(hookPath, []byte(buildHookScript("echo gct")), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	info, err := ReadInstalledHook(context.Background(), repo)

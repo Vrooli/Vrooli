@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -19,6 +18,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 
 	"git-control-tower/internal/baseline"
+	"git-control-tower/internal/envx"
 
 	"github.com/vrooli/cli-core/cliutil"
 	runspb "github.com/vrooli/vrooli/packages/proto/gen/go/test-genie/v1/runs"
@@ -509,19 +509,14 @@ func (c baselineRunsClient) CompareRunVisuals(ctx context.Context, scenario, bas
 // capture depth. It is deliberately separate from baselineExecutor.StartRun:
 // a missing-evidence repair must never re-run the comprehensive suite.
 func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario, _ string, kinds []string) (string, error) {
-	if !slices.Contains(kinds, "visual") {
-		return "", fmt.Errorf("unsupported missing evidence kinds: %s", strings.Join(kinds, ", "))
+	request, err := missingEvidenceStartRequest(scenario, kinds)
+	if err != nil {
+		return "", err
 	}
 	cl, err := c.client(ctx)
 	if err != nil {
 		return "", err
 	}
-	request := connect.NewRequest(&runspb.StartRunRequest{
-		Target:         scenario,
-		Phases:         []string{"ui-health"},
-		CaptureProfile: "baseline",
-	})
-	request.Header().Set(cliutil.HeaderCaller, baselineAdmissionCaller+":missing-evidence")
 	started, err := startBaselineRunWithRetry(ctx, func() (*connect.Response[runspb.StartRunResponse], error) {
 		return cl.StartRun(ctx, request)
 	})
@@ -546,6 +541,19 @@ func (c baselineRunsClient) CaptureMissingEvidence(ctx context.Context, scenario
 		return "", fmt.Errorf("missing-evidence run %s ended with status %s", runID, terminal.GetStatus())
 	}
 	return runID, nil
+}
+
+func missingEvidenceStartRequest(scenario string, kinds []string) (*connect.Request[runspb.StartRunRequest], error) {
+	if !slices.Contains(kinds, "visual") {
+		return nil, fmt.Errorf("unsupported missing evidence kinds: %s", strings.Join(kinds, ", "))
+	}
+	request := connect.NewRequest(&runspb.StartRunRequest{
+		Target:         scenario,
+		Phases:         []string{"experience"},
+		CaptureProfile: "baseline",
+	})
+	request.Header().Set(cliutil.HeaderCaller, baselineAdmissionCaller+":missing-evidence")
+	return request, nil
 }
 
 // baselineReachability is a fast, bounded liveness check of the test-genie
@@ -689,7 +697,7 @@ func (s *Server) newBaselineService() *baseline.Service {
 	runs := newBaselineRunsClient(15 * time.Minute)
 
 	return baseline.NewService(baseline.Deps{
-		Storage: baseline.NewStorage(s.storageResolver),
+		Storage: baseline.NewStorageWithEnv(s.storageResolver, envx.OS{}),
 		Exec:    exec,
 		Runs:    runs,
 		Probe:   baselineStalenessProbe{},
@@ -698,7 +706,7 @@ func (s *Server) newBaselineService() *baseline.Service {
 		// launching many member runs at once. A healthy Test Genie must not be
 		// classified unreachable merely because discovery is briefly contended.
 		Reachable: newBaselineReachability(30 * time.Second),
-		ReuseTTL:  diffRunReuseTTL(),
+		ReuseTTL:  diffRunReuseTTL(envx.OS{}),
 	})
 }
 
@@ -710,8 +718,11 @@ const defaultDiffRunReuseTTL = 15 * time.Minute
 
 // diffRunReuseTTL resolves the reuse window. Lever GCT_DIFF_RUN_REUSE_TTL
 // accepts a Go duration ("15m", "1h"); "0" disables reuse entirely.
-func diffRunReuseTTL() time.Duration {
-	if raw := strings.TrimSpace(os.Getenv("GCT_DIFF_RUN_REUSE_TTL")); raw != "" {
+func diffRunReuseTTL(environment envx.Reader) time.Duration {
+	if environment == nil {
+		environment = envx.OS{}
+	}
+	if raw := strings.TrimSpace(environment.Getenv("GCT_DIFF_RUN_REUSE_TTL")); raw != "" {
 		if d, err := time.ParseDuration(raw); err == nil && d >= 0 {
 			return d
 		}

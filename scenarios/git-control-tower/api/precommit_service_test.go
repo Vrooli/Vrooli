@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	testdb "github.com/vrooli/api-core/databasetest"
@@ -57,12 +58,16 @@ func TestPrecommitServiceSaveGetAndRun(t *testing.T) {
 		TimeoutSeconds:  30,
 		RunBeforeCommit: true,
 		AllowOverride:   true,
+		DeclaredInputs:  []string{"scripts/check.sh", ".pre-commit-config.yaml"},
 	})
 	if err != nil {
 		t.Fatalf("Save: %v", err)
 	}
 	if !cfg.Enabled || cfg.Command != "printf ok" || cfg.WorkingDirectory != repo {
 		t.Fatalf("saved config = %#v", cfg)
+	}
+	if len(cfg.DeclaredInputs) != 2 || cfg.DeclaredInputs[0] != ".pre-commit-config.yaml" || cfg.DeclaredInputs[1] != "scripts/check.sh" {
+		t.Fatalf("declared inputs were not normalized and persisted: %#v", cfg.DeclaredInputs)
 	}
 
 	result, err := svc.Run(ctx, repo, PrecommitRunRequest{})
@@ -82,6 +87,9 @@ func TestPrecommitServiceSaveGetAndRun(t *testing.T) {
 	}
 	if loaded.LastResult == nil || loaded.LastResult.Status != "passed" {
 		t.Fatalf("loaded last result = %#v", loaded.LastResult)
+	}
+	if len(loaded.DeclaredInputs) != 2 || loaded.DeclaredInputs[1] != "scripts/check.sh" {
+		t.Fatalf("declared inputs did not survive last-result update: %#v", loaded.DeclaredInputs)
 	}
 }
 
@@ -243,5 +251,8 @@ func TestCreateCommitRecordsPassingPrecommitCheck(t *testing.T) {
 	}
 	if runs[0].Kind != CommitCheckKindPrecommit || runs[0].Status != CommitCheckStatusPassed || runs[0].Command != "custom precommit" {
 		t.Fatalf("run = %#v", runs[0])
+	}
+	if runs[0].CheckJobID == "" || !strings.HasPrefix(runs[0].CandidateDigest, "tree:") || runs[0].ConfigDigest == "" {
+		t.Fatalf("commit-scoped check lost candidate receipt identity: %#v", runs[0])
 	}
 }

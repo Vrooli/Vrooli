@@ -24,7 +24,7 @@ func (s *Server) initStagedMessages() {
 		log.Printf("staged message durable owner unavailable: %v", e)
 		return
 	}
-	s.stagedMessages = stagedmessages.New(store, stagedmessages.GitSnapshotter{}, stagedRetainedReader{s}, newStagedMessageProvider(s))
+	s.stagedMessages = stagedmessages.New(store, stagedmessages.GitSnapshotter{Now: time.Now}, stagedRetainedReader{s}, newStagedMessageProvider(s))
 	s.stagedMessages.SetContinuations(stagedmessages.GitContinuations{})
 }
 
@@ -114,16 +114,22 @@ func stagedMessageError(e error) error {
 		return e
 	}
 	code := connect.CodeFailedPrecondition
-	if errors.Is(e, stagedmessages.ErrNotFound) || errors.Is(e, sql.ErrNoRows) {
+	message := e
+	if errors.Is(e, reviewjobs.ErrStorage) {
+		code = connect.CodeInternal
+		message = errors.New("staged message storage is temporarily unavailable")
+	} else if errors.Is(e, stagedmessages.ErrNotFound) || errors.Is(e, sql.ErrNoRows) {
 		code = connect.CodeNotFound
-	} else if errors.Is(e, stagedmessages.ErrConflict) {
+	} else if errors.Is(e, reviewjobs.ErrQueuePathConflict) {
+		code = connect.CodeAlreadyExists
+	} else if errors.Is(e, stagedmessages.ErrConflict) || errors.Is(e, reviewjobs.ErrQueueConflict) {
 		code = connect.CodeAborted
 	} else if errors.Is(e, context.Canceled) {
 		code = connect.CodeCanceled
 	} else if errors.Is(e, context.DeadlineExceeded) {
 		code = connect.CodeDeadlineExceeded
 	}
-	return connect.NewError(code, e)
+	return connect.NewError(code, message)
 }
 
 func (h advisoryConnectServer) CheckStagedMessage(ctx context.Context, req *connect.Request[v1.CheckStagedMessageRequest]) (*connect.Response[v1.CheckStagedMessageResponse], error) {
@@ -162,19 +168,160 @@ func (h advisoryConnectServer) StartStagedMessage(ctx context.Context, req *conn
 	return connect.NewResponse(out), nil
 }
 
+func (h advisoryConnectServer) RetryStagedMessage(ctx context.Context, req *connect.Request[v1.RetryStagedMessageRequest]) (*connect.Response[v1.StagedMessageJob], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.Retry(ctx, repositoryIDFor(record), record.Path, req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) GetStagedMessageProviderReadiness(ctx context.Context, _ *connect.Request[v1.StagedMessageProviderReadinessRequest]) (*connect.Response[v1.StagedMessageProviderReadiness], error) {
+	if h.server == nil || h.server.stagedMessages == nil {
+		return connect.NewResponse(&v1.StagedMessageProviderReadiness{Provider: "workspace-sandbox", State: "unknown", Message: "Workspace Sandbox readiness could not be confirmed."}), nil
+	}
+	readiness := h.server.stagedMessages.ProviderReadiness(ctx)
+	out := &v1.StagedMessageProviderReadiness{Provider: readiness.Provider, State: readiness.State, Known: readiness.Known, Message: readiness.Message}
+	if readiness.ObservedAt != nil && !readiness.ObservedAt.IsZero() {
+		out.ObservedAt = readiness.ObservedAt.UTC().Format(time.RFC3339Nano)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) StartWorktreeStagedMessage(ctx context.Context, req *connect.Request[v1.StartWorktreeStagedMessageRequest]) (*connect.Response[v1.StagedMessageJob], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.StartWorktree(ctx, repositoryIDFor(record), record.Path, req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) QueueWorktreeSelection(ctx context.Context, req *connect.Request[v1.QueueWorktreeSelectionRequest]) (*connect.Response[v1.QueuedWorktreeSelection], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.QueueWorktreeSelection(ctx, repositoryIDFor(record), record.Path, req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) FinalizeQueuedSelection(ctx context.Context, req *connect.Request[v1.FinalizeQueuedSelectionRequest]) (*connect.Response[v1.QueuedWorktreeSelection], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.FinalizeQueuedSelection(ctx, repositoryIDFor(record), record.Path, req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) StartQueuedSelection(ctx context.Context, req *connect.Request[v1.StartQueuedSelectionRequest]) (*connect.Response[v1.StagedMessageJob], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.StartQueuedSelection(ctx, repositoryIDFor(record), record.Path, req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) ListWorktreeSuggestionQueue(ctx context.Context, req *connect.Request[v1.ListWorktreeSuggestionQueueRequest]) (*connect.Response[v1.WorktreeSuggestionQueue], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.ListWorktreeQueue(ctx, repositoryIDFor(record))
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) EnqueueWorktreeSuggestion(ctx context.Context, req *connect.Request[v1.EnqueueWorktreeSuggestionRequest]) (*connect.Response[v1.WorktreeSuggestionQueueEntry], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.EnqueueWorktreeQueue(ctx, repositoryIDFor(record), req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) UpdateWorktreeSuggestionQueueEntry(ctx context.Context, req *connect.Request[v1.UpdateWorktreeSuggestionQueueEntryRequest]) (*connect.Response[v1.WorktreeSuggestionQueueMutationResponse], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.UpdateWorktreeQueue(ctx, repositoryIDFor(record), req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) RetireWorktreeSuggestionQueueHead(ctx context.Context, req *connect.Request[v1.RetireWorktreeSuggestionQueueHeadRequest]) (*connect.Response[v1.WorktreeSuggestionQueueMutationResponse], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.RetireWorktreeQueueHead(ctx, repositoryIDFor(record), req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
+func (h advisoryConnectServer) RemoveWorktreeSuggestionQueueEntry(ctx context.Context, req *connect.Request[v1.RemoveWorktreeSuggestionQueueEntryRequest]) (*connect.Response[v1.WorktreeSuggestionQueueMutationResponse], error) {
+	record, e := h.stagedRepo(ctx, req.Msg.GetRepositoryId())
+	if e != nil {
+		return nil, e
+	}
+	out, e := h.server.stagedMessages.RemoveWorktreeQueueEntry(ctx, repositoryIDFor(record), req.Msg)
+	if e != nil {
+		return nil, stagedMessageError(e)
+	}
+	return connect.NewResponse(out), nil
+}
+
 func (h advisoryConnectServer) ReadStagedMessageEvidence(ctx context.Context, req *connect.Request[v1.ReadStagedMessageEvidenceRequest]) (*connect.Response[v1.ReadStagedMessageEvidenceResponse], error) {
-	if _, err := authn.RequireCapability(ctx, "git-control-tower:read"); err != nil {
+	principal, err := authn.RequireCapability(ctx, "git-control-tower:read")
+	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("verified staged-evidence read capability required"))
 	}
-	actor, err := authn.RequireHuman(ctx)
+	proof := provenance.FromContext(ctx)
 	execution := ""
-	if err != nil {
-		p := provenance.FromContext(ctx)
-		if !p.IsVerifiedAgent() || p.WorkflowExecutionID == "" {
-			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("evidence requires the owning verified workflow child"))
+	if proof.IsVerifiedAgent() {
+		// Attribute the read to the verified child when it carries a workflow
+		// binding. Its own scope is sufficient. Some local auth providers cannot
+		// forward the human credential to Agent Manager, though, so an explicitly
+		// verified owner may authorize the read when the child token names that
+		// same owner. Never combine one owner's authority with another owner's run.
+		if proof.WorkflowExecutionID == "" {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("evidence requires a verified workflow-bound child identity"))
 		}
-		execution = p.WorkflowExecutionID
-	} else if !actor.IsVerified() {
+		ownerAuthorized := principal.IsVerified() && principal.IsHuman() && principal.Subject != "" && principal.Subject == proof.Subject
+		if proof.RequireScope("git-control-tower:read") != nil && !ownerAuthorized {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("evidence requires the workflow child or its verified owner to hold git-control-tower:read"))
+		}
+		execution = proof.WorkflowExecutionID
+	} else if !principal.IsVerified() || !principal.IsHuman() {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("verified evidence reader required"))
 	}
 	record, err := h.stagedRepo(ctx, req.Msg.RepositoryId)

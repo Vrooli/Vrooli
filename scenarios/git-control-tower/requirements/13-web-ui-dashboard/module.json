@@ -1,8 +1,8 @@
 {
   "_metadata": {
-    "module": "web-ui-dashboard",
     "description": "OT-P2-001 Web UI dashboard",
-    "last_validated_at": "2026-07-11T00:27:07-04:00"
+    "last_validated_at": "2026-11-12T03:17:10-05:00",
+    "module": "web-ui-dashboard"
   },
   "requirements": [
     {
@@ -25,7 +25,7 @@
     {
       "id": "GCT-DESCRIPTOR-REVIEW-P2",
       "title": "Review arbitrary captured phases and typed evidence without phase-specific UI code",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P2-001",
       "category": "operational_target.p2",
       "description": "The review surface renders run-captured descriptors dynamically; Screenshots and Workflows discover artifacts by evidence kind across every producer phase; unknown kinds retain a safe fallback; navigation contains exactly Overview, Baselines, Metrics, Screenshots, Workflows, Tests, AI Changes, and Agent, with Rules and Code Quality absent.",
@@ -34,42 +34,42 @@
           "type": "test",
           "ref": "api/handlers/evidence/connect_handler_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Preserves unknown descriptor and artifact metadata, filters captured descriptor metadata, and discovers kinds across arbitrary producer phases."
         },
         {
           "type": "test",
           "ref": "api/handlers/evidence/phase_agnostic_guard_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Rejects fixed Test Genie phase keys and producer-phase comparisons in the generic production boundary."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ScenarioReviewPanelVisuals.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Proves screenshots and workflow media render from unknown producer phases through opaque IDs; media bytes remain deferred until Preview; unknown and legacy kinds retain metadata, provenance, relationships, authorized actions, and missing-byte states; visual diffs remain advisory; Agent and exact Tests navigation preserve run/phase/artifact identity."
         },
         {
           "type": "test",
           "ref": "ui/src/hooks/useUrlState.test.ts",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Pins the exact eight retained tabs and rejects removed Rules and Code Quality URL state."
         },
         {
           "type": "test",
           "ref": "ui/src/components/ScenarioReviewPanelTests.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Exercises descriptor-driven attention grouping, provider/class/dimension/maturity filters, historical selection, lazy opaque artifacts, zero-phase and legacy degradation, and bounded rendering for a 50-phase catalog."
         },
         {
           "type": "test",
           "ref": "ui/src/features/baselines/BaselinesTab.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Exercises single-run baseline identity, dynamic outcome counts, stale/dirty/catalog-change indicators, comparison reasons, and collapsed clean phases without a phase registry."
         }
       ]
@@ -77,9 +77,9 @@
     {
       "id": "GCT-PROPOSAL-WORKSPACE",
       "title": "When the operator opens proposal review, GCT should provide a full diff-first workspace on desktop and mobile.",
-      "description": "GCT should retain working/history navigation, expose immutable review identity, make closure preservation and replacement omissions explicit, group exact revisions, preserve drafts, explain saved versus latest working versions through contextual help and clickable blocked actions with next steps, allow saved-version approval after later edits, and display full-message trailer relationships in history.",
-      "prd_ref": "OT-P2-001",
       "status": "complete",
+      "prd_ref": "OT-P2-001",
+      "description": "GCT should retain working/history navigation, expose immutable review identity, make closure preservation and replacement omissions explicit, group exact revisions, preserve drafts, explain saved versus latest working versions through contextual help and clickable blocked actions with next steps, allow saved-version approval after later edits, and display full-message trailer relationships in history.",
       "validation": [
         {
           "type": "test",
@@ -107,8 +107,8 @@
           "ref": "bas/cases/proposal-review/inbox-observer.json",
           "phase": "workflow",
           "status": "implemented",
-          "scenario": "browser-automation-studio",
-          "notes": "Given any proposal count, when the inbox opens, then review navigation and preservation guidance are visible; no proposal or repository mutations."
+          "notes": "Given any proposal count, when the inbox opens, then review navigation and preservation guidance are visible; no proposal or repository mutations.",
+          "scenario": "browser-automation-studio"
         }
       ]
     }

@@ -9,13 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
-	"connectrpc.com/connect"
 	"git-control-tower/internal/reviewjobs"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -31,32 +33,41 @@ const (
 )
 
 var (
-	ErrConflict = errors.New("staged message conflict")
-	ErrNotFound = errors.New("staged message not found")
+	ErrConflict         = errors.New("staged message conflict")
+	ErrNotFound         = errors.New("staged message not found")
+	ErrProviderNotReady = errors.New("runner provider readiness is not confirmed")
 )
 
 type Service struct {
-	store         *reviewjobs.Store
-	snapshots     Snapshotter
-	messages      MessageReader
-	provider      Provider
-	continuations ContinuationFinder
+	store          *reviewjobs.Store
+	snapshots      Snapshotter
+	messages       MessageReader
+	provider       Provider
+	continuations  ContinuationFinder
+	now            func() time.Time
+	generateID     func(string) (string, error)
+	settleMu       sync.Mutex
+	settleCursor   string
+	beforeDispatch func(context.Context, reviewjobs.Job)
 }
 
 func New(store *reviewjobs.Store, snapshots Snapshotter, messages MessageReader, provider Provider) *Service {
-	return &Service{store: store, snapshots: snapshots, messages: messages, provider: provider}
+	return &Service{
+		store: store, snapshots: snapshots, messages: messages, provider: provider,
+		now: time.Now, generateID: func(prefix string) (string, error) { return newID(prefix, rand.Reader) },
+	}
 }
 
 // SetContinuations enables continuation suggestions for collections and
 // succeeded drafts. Suggestions are advisory; a lookup failure never blocks.
 func (s *Service) SetContinuations(finder ContinuationFinder) { s.continuations = finder }
 
-func id(prefix string) string {
+func newID(prefix string, source io.Reader) (string, error) {
 	var b [16]byte
-	if _, e := rand.Read(b[:]); e != nil {
-		panic(e)
+	if _, err := io.ReadFull(source, b[:]); err != nil {
+		return "", fmt.Errorf("generate %s identifier: %w", prefix, err)
 	}
-	return prefix + hex.EncodeToString(b[:])
+	return prefix + hex.EncodeToString(b[:]), nil
 }
 
 func digest(data []byte) string {
@@ -82,7 +93,11 @@ func (s *Service) Collect(ctx context.Context, repo, dir string) (*v1.StagedMess
 	if e != nil {
 		return nil, e
 	}
-	c := &v1.StagedMessageCollection{Id: id("collection-"), Snapshot: captured.Snapshot, Status: "no_suggestions", CollectedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	collectionID, e := s.generateID("collection-")
+	if e != nil {
+		return nil, e
+	}
+	c := &v1.StagedMessageCollection{Id: collectionID, Snapshot: captured.Snapshot, Status: "no_suggestions", CollectedAt: s.now().UTC().Format(time.RFC3339Nano)}
 	for _, f := range c.Snapshot.Files {
 		if f.OmissionReason != "" {
 			c.Omissions = append(c.Omissions, &v1.Omission{Path: f.Path, Reason: f.OmissionReason})
@@ -184,6 +199,102 @@ func (s *Service) Collect(ctx context.Context, repo, dir string) (*v1.StagedMess
 	return c, e
 }
 
+// StartWorktree captures the selected index-to-worktree changes and immediately
+// admits an independent durable job whose input contains that immutable manifest.
+func (s *Service) StartWorktree(ctx context.Context, repo, dir string, req *v1.StartWorktreeStagedMessageRequest) (*v1.StagedMessageJob, error) {
+	if req == nil || strings.TrimSpace(req.RequestKey) == "" || len(req.RequestKey) > 200 || len(req.OperatorNote) > MaxOperatorNoteBytes {
+		return nil, fmt.Errorf("bounded request key and operator note are required")
+	}
+	if (req.ReplaceQueueEntryId == "") != (req.ExpectedQueueRevision == 0) {
+		return nil, fmt.Errorf("queue replacement requires both an entry id and expected queue revision")
+	}
+	mode := normalizeMode(req.Mode)
+	if mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK && mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		return nil, fmt.Errorf("unsupported staged message mode")
+	}
+	selected, err := normalizeWorktreePaths(req.Paths)
+	if err != nil {
+		return nil, err
+	}
+	idempotency := "worktree-staged-message:" + repo + ":" + req.RequestKey
+	if existing, e := s.store.GetByIdempotency(ctx, idempotency); e == nil {
+		old, decodeErr := decodeDraftInput([]byte(existing.InputJSON))
+		if decodeErr != nil || existing.Operation != operation || existing.RepositoryID != repo || !old.WorktreeCapture || old.Snapshot == nil || old.OperatorNote != req.OperatorNote || normalizeInputMode(old) != mode || !sameWorktreePaths(old.Snapshot, selected) || old.ReplaceQueueEntryID != req.ReplaceQueueEntryId || old.ExpectedQueueRevision != req.ExpectedQueueRevision {
+			return nil, fmt.Errorf("%w: request key reused for different worktree input", ErrConflict)
+		}
+		if req.ReplaceQueueEntryId != "" {
+			replacement, replaceErr := s.queueEntryForJob(ctx, repo, existing.ID, old.Snapshot.Digest, selected, mode, req.RequestKey)
+			if replaceErr != nil {
+				return nil, replaceErr
+			}
+			if _, _, replaceErr = s.store.ReplaceWorktreeQueueEntry(ctx, repo, req.ReplaceQueueEntryId, req.ExpectedQueueRevision, replacement); replaceErr != nil {
+				return nil, replaceErr
+			}
+		}
+		return s.advanceRead(ctx, repo, dir, existing, "get", 0)
+	} else if !errors.Is(e, sql.ErrNoRows) {
+		return nil, e
+	}
+	captured, err := captureWorktreeSnapshot(ctx, repo, dir, selected, s.now)
+	if err != nil {
+		return nil, err
+	}
+	currentDigest, digestErr := queuedSnapshotDigest(captured.Snapshot)
+	if digestErr != nil {
+		return nil, digestErr
+	}
+	if req.ExpectedSnapshotDigest != "" && currentDigest != req.ExpectedSnapshotDigest {
+		return nil, fmt.Errorf("%w: selected worktree content differs from queued snapshot", ErrConflict)
+	}
+	if len(captured.Snapshot.Files) == 0 {
+		return nil, fmt.Errorf("selected worktree snapshot is empty")
+	}
+	input := DraftInput{FormatVersion: 2, Mode: mode, Snapshot: captured.Snapshot, OperatorNote: req.OperatorNote, WorktreeCapture: true, CapturedWorktree: captured.Bytes, ReplaceQueueEntryID: req.ReplaceQueueEntryId, ExpectedQueueRevision: req.ExpectedQueueRevision}
+	jobID, err := s.generateID("message-")
+	if err != nil {
+		return nil, err
+	}
+	if mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		input.FormatVersion = 4
+		input.JobID = jobID
+	}
+	input.Contexts, input.Omissions = s.searchDraftContexts(ctx, captured.Snapshot)
+	raw, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > MaxDraftInputBytes {
+		return nil, fmt.Errorf("immutable worktree manifest exceeds %d bytes", MaxDraftInputBytes)
+	}
+	// Recompute the selected path identities after context lookup and encoding.
+	standing, err := WorktreeSelectionApplicable(ctx, dir, captured.Snapshot)
+	if err != nil {
+		return nil, err
+	}
+	if !standing {
+		return nil, fmt.Errorf("%w: selected worktree paths changed during capture", ErrConflict)
+	}
+	queueID, err := s.generateID("worktree-queue-")
+	if err != nil {
+		return nil, err
+	}
+	jobSpec := reviewjobs.Job{ID: jobID, IdempotencyKey: idempotency, InputDigest: digest(raw), InputJSON: string(raw), Operation: operation, RepositoryID: repo, PolicyVersion: "staged-message-worktree-v1", State: reviewjobs.Queued}
+	queueSpec := reviewjobs.WorktreeQueueEntry{ID: queueID, RepositoryID: repo, JobID: jobID, SnapshotDigest: input.Snapshot.Digest, Paths: selected, Mode: int32(mode), RequestKey: req.RequestKey}
+	var job reviewjobs.Job
+	if req.ReplaceQueueEntryId != "" {
+		job, _, _, err = s.store.CreateWorktreeJobAndReplaceQueueEntry(ctx, jobSpec, req.ReplaceQueueEntryId, req.ExpectedQueueRevision, queueSpec)
+	} else {
+		job, _, _, err = s.store.CreateWorktreeJobAndEnqueue(ctx, jobSpec, queueSpec)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if job.InputDigest != digest(raw) {
+		return nil, fmt.Errorf("%w: request key reused for different worktree input", ErrConflict)
+	}
+	return s.advanceRead(ctx, repo, dir, job, "get", 0)
+}
+
 // Preserve complete UTF-8 characters when limiting already-valid source text.
 func boundedText(value string, limit int) string {
 	if len(value) <= limit {
@@ -282,7 +393,14 @@ func (s *Service) Start(ctx context.Context, repo, dir string, req *v1.StartStag
 		return nil, fmt.Errorf("bounded request key and operator note are required")
 	}
 	if req.ContinuationOfJobId != "" {
+		if req.Mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED && req.Mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+			return nil, ErrConflict
+		}
 		return s.continueDraft(ctx, repo, dir, req)
+	}
+	mode := normalizeMode(req.Mode)
+	if mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK && mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		return nil, fmt.Errorf("unsupported staged message mode")
 	}
 	collection, e := s.store.Get(ctx, req.CollectionId)
 	if e != nil {
@@ -304,7 +422,15 @@ func (s *Service) Start(ctx context.Context, repo, dir string, req *v1.StartStag
 	}
 	selected := append([]string(nil), req.SelectedContextIds...)
 	sort.Strings(selected)
-	input := DraftInput{FormatVersion: 2, Snapshot: proto.Clone(c.Snapshot).(*v1.StagedMessageSnapshot), OperatorNote: req.OperatorNote}
+	input := DraftInput{FormatVersion: 2, Mode: mode, Snapshot: proto.Clone(c.Snapshot).(*v1.StagedMessageSnapshot), OperatorNote: req.OperatorNote}
+	jobID, e := s.generateID("message-")
+	if e != nil {
+		return nil, e
+	}
+	if mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		input.FormatVersion = 4
+		input.JobID = jobID
+	}
 	seen := map[string]bool{}
 	for _, ref := range selected {
 		source, ok := available[ref]
@@ -318,7 +444,7 @@ func (s *Service) Start(ctx context.Context, repo, dir string, req *v1.StartStag
 		if !sameAdmissionIntent(existing, repo, req.CollectionId, input) {
 			return nil, fmt.Errorf("%w: request key reused for different input", ErrConflict)
 		}
-		return s.read(ctx, repo, dir, existing, "get", 0)
+		return s.advanceRead(ctx, repo, dir, existing, "get", 0)
 	} else if !errors.Is(e, sql.ErrNoRows) {
 		return nil, e
 	}
@@ -337,14 +463,138 @@ func (s *Service) Start(ctx context.Context, repo, dir string, req *v1.StartStag
 	if !standing.Applicable {
 		return nil, fmt.Errorf("%w: %s", ErrConflict, standing.Reason)
 	}
-	job, _, e := s.store.Create(ctx, reviewjobs.Job{ID: id("message-"), IdempotencyKey: key(repo, req.RequestKey), InputDigest: inputDigest, InputJSON: string(raw), ResultRef: req.CollectionId, Operation: operation, RepositoryID: repo, PolicyVersion: "staged-message-v1", State: reviewjobs.Queued})
+	job, _, e := s.store.Create(ctx, reviewjobs.Job{ID: jobID, IdempotencyKey: key(repo, req.RequestKey), InputDigest: inputDigest, InputJSON: string(raw), ResultRef: req.CollectionId, Operation: operation, RepositoryID: repo, PolicyVersion: "staged-message-v1", State: reviewjobs.Queued})
 	if e != nil {
 		return nil, e
 	}
 	if job.InputDigest != inputDigest && !sameAdmissionIntent(job, repo, req.CollectionId, input) {
 		return nil, ErrConflict
 	}
-	return s.read(ctx, repo, dir, job, "get", 0)
+	return s.advanceRead(ctx, repo, dir, job, "get", 0)
+}
+
+// Retry starts a new owner job from a terminal job's saved immutable input.
+// It allows recovery when the browser no longer has the original collection
+// and admission envelope, while preserving the exact staged subject and context.
+func (s *Service) Retry(ctx context.Context, repo, dir string, req *v1.RetryStagedMessageRequest) (*v1.StagedMessageJob, error) {
+	if req == nil || strings.TrimSpace(req.JobId) == "" || strings.TrimSpace(req.SnapshotDigest) == "" || strings.TrimSpace(req.RequestKey) == "" || len(req.RequestKey) > 200 {
+		return nil, fmt.Errorf("job id, snapshot digest, and bounded request key are required")
+	}
+	mode := normalizeMode(req.Mode)
+	if mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK && mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		return nil, fmt.Errorf("unsupported staged message mode")
+	}
+	previous, err := s.store.Get(ctx, req.JobId)
+	if err != nil {
+		return nil, err
+	}
+	if previous.Operation != operation || previous.RepositoryID != repo {
+		return nil, ErrNotFound
+	}
+	if previous.State != reviewjobs.Failed && previous.State != reviewjobs.Cancelled && previous.State != reviewjobs.Interrupted && previous.State != reviewjobs.AwaitingProvider {
+		return nil, fmt.Errorf("only a failed or provider-paused draft can be retried: %w", ErrConflict)
+	}
+	input, err := decodeDraftInput([]byte(previous.InputJSON))
+	if err != nil {
+		return nil, fmt.Errorf("decode saved draft for retry: %w", err)
+	}
+	if input.Snapshot == nil || input.Snapshot.Digest != req.SnapshotDigest || input.WorktreeCapture || input.QueuedSelection {
+		return nil, fmt.Errorf("saved draft does not match the requested staged subject: %w", ErrConflict)
+	}
+	if normalizeInputMode(input) != mode {
+		return nil, fmt.Errorf("retry mode differs from the saved draft: %w", ErrConflict)
+	}
+	idempotencyKey := key(repo, req.RequestKey)
+	if existing, lookupErr := s.store.GetByIdempotency(ctx, idempotencyKey); lookupErr == nil {
+		existingInput, decodeErr := decodeDraftInput([]byte(existing.InputJSON))
+		if decodeErr != nil || existing.Operation != operation || existing.RepositoryID != repo || !sameRetryInput(existingInput, input) {
+			return nil, fmt.Errorf("%w: request key reused for a different saved draft", ErrConflict)
+		}
+		if existing.ID != previous.ID || !canResumeUnconfirmedDispatch(previous) {
+			return s.advanceRead(ctx, repo, dir, existing, "get", 0)
+		}
+	} else if !errors.Is(lookupErr, sql.ErrNoRows) {
+		return nil, lookupErr
+	}
+	if previous.ErrorCode == "provider_admission_maintenance" {
+		readiness := s.ProviderReadiness(ctx)
+		if !readiness.Known || readiness.State != "open" {
+			return nil, fmt.Errorf("%w: %s", ErrProviderNotReady, readiness.Message)
+		}
+	}
+	standing, err := s.Check(ctx, repo, dir, req.SnapshotDigest)
+	if err != nil {
+		return nil, err
+	}
+	if !standing.Applicable {
+		return nil, fmt.Errorf("%w: %s", ErrConflict, standing.Reason)
+	}
+	if canResumeUnconfirmedDispatch(previous) {
+		resumed, changed, resumeErr := s.store.RequeueUnconfirmedDispatch(ctx, previous)
+		if resumeErr != nil {
+			return nil, resumeErr
+		}
+		if changed {
+			return s.advanceRead(ctx, repo, dir, resumed, "get", 0)
+		}
+	}
+	jobID, err := s.generateID("message-")
+	if err != nil {
+		return nil, err
+	}
+	input.JobID = ""
+	if mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP {
+		input.FormatVersion = 4
+		input.JobID = jobID
+	}
+	input.Mode = mode
+	raw, err := json.Marshal(input)
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > MaxDraftInputBytes {
+		return nil, fmt.Errorf("saved retry input exceeds %d bytes", MaxDraftInputBytes)
+	}
+	retried, created, err := s.store.Create(ctx, reviewjobs.Job{
+		ID: jobID, IdempotencyKey: idempotencyKey, InputDigest: digest(raw), InputJSON: string(raw),
+		ResultRef: previous.ResultRef, Operation: operation, RepositoryID: repo,
+		PolicyVersion: previous.PolicyVersion, State: reviewjobs.Queued,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !created {
+		existingInput, decodeErr := decodeDraftInput([]byte(retried.InputJSON))
+		if decodeErr != nil || !sameRetryInput(existingInput, input) {
+			return nil, fmt.Errorf("%w: request key raced with a different saved draft", ErrConflict)
+		}
+	}
+	return s.advanceRead(ctx, repo, dir, retried, "get", 0)
+}
+
+func (s *Service) ProviderReadiness(ctx context.Context) ProviderReadiness {
+	provider, ok := s.provider.(ReadinessProvider)
+	if !ok {
+		return ProviderReadiness{Provider: "workspace-sandbox", State: "unknown", Known: false, Message: "Workspace Sandbox readiness could not be confirmed."}
+	}
+	readiness := provider.Readiness(ctx)
+	if readiness.Provider != "workspace-sandbox" || !readiness.Known || (readiness.State != "open" && readiness.State != "closed") || readiness.ObservedAt == nil || readiness.ObservedAt.IsZero() {
+		return ProviderReadiness{Provider: "workspace-sandbox", State: "unknown", Known: false, Message: "Workspace Sandbox readiness could not be confirmed."}
+	}
+	if age := time.Since(*readiness.ObservedAt); age < -time.Minute || age > 30*time.Second {
+		return ProviderReadiness{Provider: "workspace-sandbox", State: "unknown", Known: false, Message: "Workspace Sandbox readiness could not be confirmed."}
+	}
+	return readiness
+}
+
+func sameRetryInput(left, right DraftInput) bool {
+	left.JobID, right.JobID = "", ""
+	return reflect.DeepEqual(left, right)
+}
+
+func canResumeUnconfirmedDispatch(job reviewjobs.Job) bool {
+	return job.State == reviewjobs.Failed && job.DispatchAttempted && job.ExecutionID == "" &&
+		(job.ErrorCode == "provider_precondition_failed" || job.ErrorCode == "dispatch_unconfirmed")
 }
 
 // Idempotency binds operator intent to immutable collection/source revisions,
@@ -353,8 +603,8 @@ func sameAdmissionIntent(job reviewjobs.Job, repo, collection string, input Draf
 	if job.Operation != operation || job.RepositoryID != repo || job.ResultRef != collection {
 		return false
 	}
-	var old DraftInput
-	if json.Unmarshal([]byte(job.InputJSON), &old) != nil || old.Snapshot == nil || input.Snapshot == nil || old.Snapshot.Digest != input.Snapshot.Digest || old.OperatorNote != input.OperatorNote || len(old.Contexts) != len(input.Contexts) {
+	old, decodeErr := decodeDraftInput([]byte(job.InputJSON))
+	if decodeErr != nil || old.Snapshot == nil || input.Snapshot == nil || old.Snapshot.Digest != input.Snapshot.Digest || old.OperatorNote != input.OperatorNote || old.ContinuationOfJobID != input.ContinuationOfJobID || normalizeInputMode(old) != normalizeInputMode(input) || len(old.Contexts) != len(input.Contexts) {
 		return false
 	}
 	refs := map[string]string{}
@@ -379,246 +629,28 @@ func sameAdmissionIntent(job reviewjobs.Job, repo, collection string, input Draf
 	return true
 }
 
-func (s *Service) Job(ctx context.Context, repo, dir, jobID, requestKey, action string, timeout time.Duration) (*v1.StagedMessageJob, error) {
-	var job reviewjobs.Job
-	var e error
-	if jobID != "" {
-		job, e = s.store.Get(ctx, jobID)
-	} else if requestKey != "" {
-		job, e = s.store.GetByIdempotency(ctx, key(repo, requestKey))
-	} else {
-		return nil, fmt.Errorf("job id or request key is required")
+func normalizeMode(mode v1.StagedMessageMode) v1.StagedMessageMode {
+	if mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED {
+		return v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK
 	}
-	if e != nil {
-		return nil, e
-	}
-	if job.Operation != operation || job.RepositoryID != repo {
-		return nil, ErrNotFound
-	}
-	return s.read(ctx, repo, dir, job, action, timeout)
+	return mode
 }
 
-func terminal(state reviewjobs.State) bool { return state.Terminal() }
-
-func (s *Service) read(ctx context.Context, repo, dir string, job reviewjobs.Job, action string, timeout time.Duration) (*v1.StagedMessageJob, error) {
-	var input DraftInput
-	if e := json.Unmarshal([]byte(job.InputJSON), &input); e != nil {
-		return nil, e
+func normalizeInputMode(input DraftInput) v1.StagedMessageMode {
+	if input.Mode == v1.StagedMessageMode_STAGED_MESSAGE_MODE_UNSPECIFIED && input.supportsSynthesis() {
+		// Format 4 was continuation-only before direct deep admission. Retain
+		// that meaning for durable jobs written before the mode field existed.
+		return v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP
 	}
-	reconciled, e := s.reconcile(ctx, repo, job, input, action, timeout)
-	if e != nil {
-		return nil, e
-	}
-	job = reconciled
-	result := &v1.StagedMessageJob{Id: job.ID, RepositoryId: repo, SnapshotDigest: input.Snapshot.GetDigest(), Status: string(job.State), CreatedAt: job.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: job.UpdatedAt.UTC().Format(time.RFC3339Nano), ExecutionId: job.ExecutionID, CancelRequested: job.CancelRequested, Error: job.Error, Snapshot: input.Snapshot, Phase: string(job.State)}
-	result.ContinuationOfJobId = input.ContinuationOfJobID
-	if input.FormatVersion >= 3 {
-		result.EvidenceFilesRead = uint32(len(suppliedEvidence(job.Checks, input.Snapshot.Digest, job.ExecutionID)))
-		result.EvidenceFilesTotal = uint32(len(input.Snapshot.Files) - len(priorCovered(input)))
-		if input.FormatVersion == 4 {
-			result.EvidenceFilesTotal = uint32(len(input.Snapshot.Files))
-		}
-	}
-	if job.ResultJSON != "" {
-		result.Result = &v1.StagedMessageSuggestion{}
-		if e := protojson.Unmarshal([]byte(job.ResultJSON), result.Result); e != nil {
-			return nil, e
-		}
-	}
-	if job.State == reviewjobs.Succeeded && s.continuations != nil {
-		// Projected against current history, so a commit made meanwhile counts.
-		result.Continuations, _ = s.continuations.Continuations(ctx, dir, input.Snapshot)
-	}
-	standing, e := s.Check(ctx, repo, dir, result.SnapshotDigest)
-	if e != nil {
-		result.ApplicabilityReason = "Current staged selection unavailable: " + e.Error()
-	} else {
-		result.Applicable = standing.Applicable
-		result.ApplicabilityReason = standing.Reason
-	}
-	return result, nil
-}
-
-// reconcile owns exactly one persisted/provider lifecycle step. Projection and
-// applicability checks run once in read, even after a CAS or cancelled admission.
-func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job, input DraftInput, action string, timeout time.Duration) (reviewjobs.Job, error) {
-	if !job.State.Terminal() {
-		if action == "cancel" && !job.CancelRequested {
-			if e := s.store.RequestAdvisoryCancel(ctx, job.ID, repo); e != nil {
-				return reviewjobs.Job{}, e
-			}
-			var e error
-			job, e = s.store.Get(ctx, job.ID)
-			if e != nil {
-				return reviewjobs.Job{}, e
-			}
-		}
-		if job.State.Terminal() {
-			return job, nil
-		}
-		if s.provider == nil {
-			next := job
-			if job.State == reviewjobs.Queued && job.ExecutionID == "" {
-				if e := next.Transition(reviewjobs.Failed); e != nil {
-					return reviewjobs.Job{}, e
-				}
-			}
-			next.Error = "Agent Manager message execution unavailable"
-			if _, e := s.store.UpdateAdvisory(ctx, job, next); e != nil {
-				return reviewjobs.Job{}, e
-			}
-			saved, e := s.store.Get(ctx, job.ID)
-			if e != nil {
-				return reviewjobs.Job{}, e
-			}
-			return saved, nil
-		}
-		attachedAt := time.Now()
-		var ex Execution
-		var err error
-		firstDispatch := false
-		if job.ExecutionID == "" {
-			// Admission is durable before dispatch. A crash/lost acknowledgement is
-			// reconciled with the same owner idempotency key, never a fresh execution.
-			firstDispatch = job.State == reviewjobs.Queued
-			claimed, changed, e := s.store.ClaimAdvisoryDispatch(ctx, job)
-			if e != nil {
-				return reviewjobs.Job{}, e
-			}
-			current, e := s.store.Get(ctx, job.ID)
-			if e != nil {
-				return reviewjobs.Job{}, e
-			}
-			if !changed || current.State.Terminal() || current.ExecutionID != "" || !current.UpdatedAt.Equal(claimed.UpdatedAt) {
-				return current, nil
-			}
-			// Retain this exact claim for the response CAS; a reload must never
-			// lend a later retry's revision to this older owner response.
-			job = claimed
-			ex, err = s.provider.Start(ctx, input, job.IdempotencyKey)
-		} else if job.CancelRequested {
-			ex, err = s.provider.Cancel(ctx, job.ExecutionID, input)
-		} else if action == "wait" {
-			ex, err = s.provider.Wait(ctx, job.ExecutionID, input, timeout)
-		} else {
-			ex, err = s.provider.Get(ctx, job.ExecutionID, input)
-		}
-		if err == nil && job.ExecutionID != "" && ex.ID != "" && ex.ID != job.ExecutionID {
-			err = fmt.Errorf("execution owner returned a different handle; original execution retained")
-		}
-		if err != nil {
-			next := job
-			next.Error = err.Error()
-			switch connect.CodeOf(err) {
-			case connect.CodeInvalidArgument, connect.CodePermissionDenied, connect.CodeUnauthenticated, connect.CodeFailedPrecondition, connect.CodeUnimplemented:
-				if firstDispatch && job.ExecutionID == "" {
-					if e := next.Transition(reviewjobs.Failed); e != nil {
-						return reviewjobs.Job{}, e
-					}
-				}
-			}
-			// Only the first dispatch can establish a definitive admission refusal.
-			// Once Running is durable, a prior lost acknowledgement may conceal an
-			// accepted owner execution. Later auth/outage errors retain its key so
-			// restored credentials can recover that execution rather than replace it.
-			if action == "wait" && !next.State.Terminal() {
-				if e := waitAttachment(ctx, attachedAt, timeout); e != nil {
-					return reviewjobs.Job{}, e
-				}
-			}
-			if _, e := s.store.UpdateAdvisory(ctx, job, next); e != nil {
-				return reviewjobs.Job{}, e
-			}
-		} else {
-			next := job
-			next.ExecutionID = ex.ID
-			if next.ExecutionID == "" {
-				next.ExecutionID = job.ExecutionID
-			}
-			next.Error = ex.Error
-			if next.ExecutionID == "" {
-				if e := next.Transition(reviewjobs.Failed); e != nil {
-					return reviewjobs.Job{}, e
-				}
-				next.Error = "execution owner returned no handle"
-			} else {
-				var target reviewjobs.State
-				if job.CancelRequested {
-					switch ex.Status {
-					case "succeeded":
-						target = reviewjobs.Cancelled
-						next.Error = "Execution completed after cancellation request; result discarded"
-						next.ResultJSON = ""
-					case "failed":
-						target = reviewjobs.Failed
-					case "cancelled":
-						target = reviewjobs.Cancelled
-					default:
-						target = reviewjobs.Cancelling
-					}
-				} else {
-					switch ex.Status {
-					case "queued", "running", string(reviewjobs.Cancelling), "succeeded", "failed", "cancelled":
-						target = reviewjobs.State(ex.Status)
-					default:
-						target = reviewjobs.Failed
-						next.Error = "invalid execution-owner state"
-					}
-				}
-				if target == reviewjobs.Succeeded {
-					if input.FormatVersion >= 3 {
-						current, e := s.store.Get(ctx, job.ID)
-						if e != nil {
-							return reviewjobs.Job{}, e
-						}
-						input.EvidenceEligibility = suppliedEvidence(current.Checks, input.Snapshot.Digest, ex.ID)
-						input.InventoryEligibility = suppliedInventory(current.Checks, input.Snapshot.Digest, ex.ID)
-					}
-					if e := validateResult(input, ex.Result); e != nil {
-						target = reviewjobs.Failed
-						next.Error = e.Error()
-					} else {
-						data, _ := protojson.Marshal(ex.Result)
-						next.ResultJSON = string(data)
-					}
-				}
-				if e := next.Transition(target); e != nil {
-					return reviewjobs.Job{}, e
-				}
-			}
-			if _, e := s.store.UpdateAdvisory(ctx, job, next); e != nil {
-				return reviewjobs.Job{}, e
-			}
-		}
-		var e error
-		job, e = s.store.Get(ctx, job.ID)
-		if e != nil {
-			return reviewjobs.Job{}, e
-		}
-	}
-	return job, nil
-}
-
-func waitAttachment(ctx context.Context, started time.Time, timeout time.Duration) error {
-	remaining := timeout - time.Since(started)
-	if remaining <= 0 {
-		return nil
-	}
-	timer := time.NewTimer(remaining)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return normalizeMode(input.Mode)
 }
 
 func validateResult(input DraftInput, r *v1.StagedMessageSuggestion) error {
 	if r == nil || strings.TrimSpace(r.Title) == "" || strings.ContainsAny(r.Title, "\r\n") || len(r.Title) > 240 || len(r.Body) > 32000 || len(r.Trailers) > 30 || r.Coverage == nil {
 		return fmt.Errorf("invalid structured title/body/trailers/coverage result")
 	}
-	if input.FormatVersion == 4 {
+	semantics := input.semantics()
+	if semantics.synthesis {
 		if r.MessageScope != v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_WHOLE_SELECTION && r.MessageScope != v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_LIMITED {
 			return fmt.Errorf("synthesis must declare whole-selection or limited message scope")
 		}
@@ -662,7 +694,7 @@ func validateResult(input DraftInput, r *v1.StagedMessageSuggestion) error {
 	coveredEdits := int32(0)
 	for _, p := range r.Coverage.CoveredPaths {
 		f, ok := files[p]
-		if !ok || seen[p] || (input.FormatVersion >= 3 && !deepEligible[p]) || (input.FormatVersion < 3 && f.OmissionReason != "") {
+		if !ok || seen[p] || (semantics.deepEvidence && !deepEligible[p]) || (semantics.legacyDraft && f.OmissionReason != "") {
 			return fmt.Errorf("invalid or duplicated covered file")
 		}
 		seen[p] = true
@@ -692,4 +724,20 @@ func validateResult(input DraftInput, r *v1.StagedMessageSuggestion) error {
 		}
 	}
 	return nil
+}
+
+// ConstrainSynthesisScope downgrades an unsupported whole-selection claim to
+// an explicit limited draft. Missing inventory receipts reduce confidence in
+// the scope; they do not make an otherwise valid title/body unusable.
+func ConstrainSynthesisScope(input DraftInput, result *v1.StagedMessageSuggestion) {
+	if !input.supportsSynthesis() || input.Snapshot == nil || result == nil || result.MessageScope != v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_WHOLE_SELECTION {
+		return
+	}
+	for i := range input.Snapshot.Files {
+		if !input.InventoryEligibility[i+1] {
+			result.MessageScope = v1.StagedMessageScope_STAGED_MESSAGE_SCOPE_LIMITED
+			result.MessageScopeExplanation = "The workflow did not provide verifiable evidence of the complete immutable inventory. Treat this as a limited draft and investigate unresolved themes before relying on it."
+			return
+		}
+	}
 }

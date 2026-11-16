@@ -691,7 +691,7 @@ func (s *Service) Close(ctx context.Context, repo Repo, id string, expectedRevis
 		return View{}, fmt.Errorf("%w: proposal %s is %s", ErrNotOpen, id, proposal.State)
 	}
 	now := s.now()
-	proposal.State, proposal.UpdatedAt = StateWithdrawn, now
+	proposal.UpdatedAt = now
 	detail := strings.TrimSpace(reason)
 	if replacementID != "" {
 		if expectedRevision <= 0 || replacementID == id {
@@ -707,7 +707,10 @@ func (s *Service) Close(ctx context.Context, repo Repo, id string, expectedRevis
 		if replacement.State != StateOpen && replacement.State != StateCommitted {
 			return View{}, fmt.Errorf("%w: replacement must be open or committed", ErrInvalid)
 		}
-		proposal.State, proposal.SupersededBy = StateSuperseded, replacement.ID
+		if err := transitionState(&proposal, StateSuperseded); err != nil {
+			return View{}, err
+		}
+		proposal.SupersededBy = replacement.ID
 		detail += fmt.Sprintf("; replaced explicitly by %s r%d", replacement.ID, replacement.Revision)
 		var omitted []string
 		for _, f := range proposal.Files {
@@ -718,6 +721,8 @@ func (s *Service) Close(ctx context.Context, repo Repo, id string, expectedRevis
 		if len(omitted) > 0 {
 			detail += "; replacement does not include: " + strings.Join(omitted, ", ")
 		}
+	} else if err := transitionState(&proposal, StateWithdrawn); err != nil {
+		return View{}, err
 	}
 	proposal.Events = append(proposal.Events, Event{Action: "withdrawn", Actor: actor, Revision: proposal.Revision, Detail: detail + "; working tree and index untouched", Timestamp: now})
 	if err := s.store.Update(ctx, proposal, proposal.Revision, StateOpen); err != nil {
@@ -771,7 +776,9 @@ func (s *Service) Refresh(ctx context.Context, repo Repo, id string, expectedRev
 	now := s.now()
 	proposal.UpdatedAt = now
 	if len(files) == 0 {
-		proposal.State = StateSuperseded
+		if err := transitionState(&proposal, StateSuperseded); err != nil {
+			return View{}, nil, err
+		}
 		proposal.Excluded = excluded
 		proposal.Events = append(proposal.Events, Event{Action: "superseded", Actor: actor, Revision: proposal.Revision, Detail: "every path is clean or unchanged since the anchor", Timestamp: now})
 		if err := s.store.Update(ctx, proposal, previous, StateOpen); err != nil {

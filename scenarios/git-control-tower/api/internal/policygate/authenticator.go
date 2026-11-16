@@ -8,12 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"git-control-tower/internal/envx"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/identity"
@@ -103,24 +103,34 @@ type AuthenticatorConfig struct {
 }
 
 func DefaultAuthenticatorConfig() AuthenticatorConfig {
-	issuer := strings.TrimSpace(os.Getenv("GCT_AUTH_ISSUER"))
+	return AuthenticatorConfigFromEnv(envx.OS{})
+}
+
+// AuthenticatorConfigFromEnv builds the relying-party configuration from the
+// supplied environment reader. Production passes os.Getenv; tests can provide
+// a closed, deterministic configuration without mutating process state.
+func AuthenticatorConfigFromEnv(environment envx.Reader) AuthenticatorConfig {
+	if environment == nil {
+		environment = envx.OS{}
+	}
+	issuer := strings.TrimSpace(environment.Getenv("GCT_AUTH_ISSUER"))
 	if issuer == "" {
 		issuer = DefaultAuthenticatorIssuer
 	}
-	realm := strings.TrimSpace(os.Getenv("GCT_AUTH_REALM"))
+	realm := strings.TrimSpace(environment.Getenv("GCT_AUTH_REALM"))
 	if realm == "" {
 		realm = DefaultAuthenticatorRealm
 	}
-	audience := strings.TrimSpace(os.Getenv("GCT_AUTH_AUDIENCE"))
+	audience := strings.TrimSpace(environment.Getenv("GCT_AUTH_AUDIENCE"))
 	if audience == "" {
-		audience = strings.TrimSpace(os.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE"))
+		audience = strings.TrimSpace(environment.Getenv("VROOLI_AUTH_SCENARIO_AUDIENCE"))
 	}
 	if audience == "" {
 		audience = DefaultAuthenticatorAudience
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
 	jwksTTL := DefaultJWKSCacheTTL
-	if rawTTL := strings.TrimSpace(os.Getenv("GCT_AUTH_JWKS_TTL_SECONDS")); rawTTL != "" {
+	if rawTTL := strings.TrimSpace(environment.Getenv("GCT_AUTH_JWKS_TTL_SECONDS")); rawTTL != "" {
 		if seconds, err := strconv.Atoi(rawTTL); err == nil && seconds > 0 {
 			jwksTTL = time.Duration(seconds) * time.Second
 		}
@@ -129,12 +139,12 @@ func DefaultAuthenticatorConfig() AuthenticatorConfig {
 		Issuer:       issuer,
 		Realm:        realm,
 		Audience:     audience,
-		JWKSURL:      strings.TrimSpace(os.Getenv("GCT_AUTH_JWKS_URL")),
+		JWKSURL:      strings.TrimSpace(environment.Getenv("GCT_AUTH_JWKS_URL")),
 		JWKSCacheTTL: jwksTTL,
 		Client:       client,
 		Now:          time.Now,
 	}
-	if validateURL := strings.TrimSpace(os.Getenv("GCT_AUTH_VALIDATE_URL")); validateURL != "" {
+	if validateURL := strings.TrimSpace(environment.Getenv("GCT_AUTH_VALIDATE_URL")); validateURL != "" {
 		cfg.Validate = RemoteTokenValidator{BaseURL: validateURL, Client: client}.Validate
 	}
 	return cfg

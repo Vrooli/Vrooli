@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"slices"
 	"strings"
@@ -24,9 +23,9 @@ import (
 // audit log.
 const AuditOpApplyProposal AuditOperation = "apply_proposal"
 
-// Commit write budget. The pre-commit check may run twice inside one commit
-// (the explicit run and a GCT-managed git hook), so the budget covers two
-// configured check timeouts plus git work, within the server write timeout.
+// Commit write budget. The exact staged-candidate scan and pre-commit checks
+// can run before Git commit invokes a GCT-managed hook, so reserve time for
+// each operation plus Git work within the server write timeout.
 const (
 	commitBaseTimeout = 30 * time.Second
 	commitMaxTimeout  = 30 * time.Minute
@@ -36,15 +35,19 @@ const (
 // configured pre-commit check. A fixed 30 seconds failed any check slower
 // than that.
 func (s *Server) commitWriteTimeout(ctx context.Context, repoPath string, skipPrecommit bool) time.Duration {
+	candidateCheck := time.Duration(0)
+	if s.candidateSecurity != nil {
+		candidateCheck = candidateSecurityTimeout
+	}
 	if skipPrecommit || s.precommit == nil {
-		return commitBaseTimeout
+		return min(commitBaseTimeout+candidateCheck, commitMaxTimeout)
 	}
 	cfg, err := s.precommit.Get(ctx, repoPath)
 	if err != nil || !cfg.Enabled || !cfg.RunBeforeCommit {
-		return commitBaseTimeout
+		return min(commitBaseTimeout+candidateCheck, commitMaxTimeout)
 	}
 	check := time.Duration(normalizePrecommitConfig(repoPath, cfg).TimeoutSeconds) * time.Second
-	return min(commitBaseTimeout+2*check, commitMaxTimeout)
+	return min(commitBaseTimeout+candidateCheck+2*check, commitMaxTimeout)
 }
 
 // initProposalService opens the proposal store. Without it the proposal
@@ -52,7 +55,7 @@ func (s *Server) commitWriteTimeout(ctx context.Context, repoPath string, skipPr
 func (s *Server) initProposalService() {
 	store, err := proposals.NewStore(s.db)
 	if err != nil {
-		log.Printf("proposal store unavailable: %v", err)
+		s.logf("proposal store unavailable: %v", err)
 		return
 	}
 	s.proposalService = proposals.NewService(store).WithResolver(newTrailerOwners())

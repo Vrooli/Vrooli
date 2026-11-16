@@ -82,6 +82,68 @@ func TestSnapshotReadsIndexNotWorkingTreeAndIgnoresWorktreeDrift(t *testing.T) {
 	}
 }
 
+func TestGitSnapshotterUsesInjectedClockForCaptureMetadata(t *testing.T) {
+	dir, git := fixtureGit(t)
+	writeFixture(t, dir, "file.txt", "staged\n")
+	git("", "add", "file.txt")
+	want := time.Date(2026, time.November, 12, 17, 30, 45, 123456789, time.FixedZone("offset", -5*60*60))
+	captured, err := (GitSnapshotter{Now: func() time.Time { return want }}).Capture(context.Background(), "repo", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, wantUTC := captured.Snapshot.CapturedAt, want.UTC().Format(time.RFC3339Nano); got != wantUTC {
+		t.Fatalf("CapturedAt = %q, want %q", got, wantUTC)
+	}
+}
+
+func TestWorktreeCaptureBindsSelectedIndexDiffAndUntrackedBytes(t *testing.T) {
+	dir, git := fixtureGit(t)
+	writeFixture(t, dir, "file.txt", "indexed\n")
+	git("", "add", "file.txt")
+	writeFixture(t, dir, "file.txt", "unstaged\n")
+	writeFixture(t, dir, "new.txt", "untracked\n")
+	captured, err := CaptureWorktreeSnapshot(context.Background(), "repo", dir, []string{"new.txt", "file.txt"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(captured.Snapshot.Files) != 2 || !bytes.Equal(captured.Bytes["file.txt"].Before, []byte("indexed\n")) || !bytes.Equal(captured.Bytes["file.txt"].After, []byte("unstaged\n")) || len(captured.Bytes["new.txt"].Before) != 0 || !bytes.Equal(captured.Bytes["new.txt"].After, []byte("untracked\n")) {
+		t.Fatalf("incorrect index-to-worktree capture: %#v", captured)
+	}
+	second, err := CaptureWorktreeSnapshot(context.Background(), "repo", dir, []string{"file.txt", "new.txt"})
+	if err != nil || second.Snapshot.Digest != captured.Snapshot.Digest {
+		t.Fatalf("stable capture digest changed: %v", err)
+	}
+	writeFixture(t, dir, "file.txt", "raced\n")
+	third, err := CaptureWorktreeSnapshot(context.Background(), "repo", dir, []string{"file.txt", "new.txt"})
+	if err != nil || third.Snapshot.Digest == captured.Snapshot.Digest {
+		t.Fatalf("worktree mutation did not change digest: %v", err)
+	}
+}
+
+func TestWorktreeCaptureUsesInjectedClockForMetadata(t *testing.T) {
+	dir, git := fixtureGit(t)
+	git("", "add", "file.txt")
+	writeFixture(t, dir, "file.txt", "changed\n")
+	want := time.Date(2026, time.November, 12, 17, 30, 45, 123456789, time.FixedZone("offset", -5*60*60))
+	captured, err := captureWorktreeSnapshot(context.Background(), "repo", dir, []string{"file.txt"}, func() time.Time { return want })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, wantUTC := captured.Snapshot.CapturedAt, want.UTC().Format(time.RFC3339Nano); got != wantUTC {
+		t.Fatalf("CapturedAt = %q, want %q", got, wantUTC)
+	}
+}
+
+func TestWorktreeCaptureRejectsUnchangedAndDuplicateSelections(t *testing.T) {
+	dir, _ := fixtureGit(t)
+	if _, err := CaptureWorktreeSnapshot(context.Background(), "repo", dir, []string{"file.txt"}); err == nil {
+		t.Fatal("unchanged path accepted")
+	}
+	if _, err := CaptureWorktreeSnapshot(context.Background(), "repo", dir, []string{"../outside"}); err == nil {
+		t.Fatal("path traversal accepted")
+	}
+}
+
 func TestSnapshotTouchRefreshDoesNotStaleContent(t *testing.T) {
 	dir, git := fixtureGit(t)
 	writeFixture(t, dir, "file.txt", "staged\n")

@@ -1,14 +1,15 @@
 {
   "_metadata": {
-    "module": "source-distribution",
     "description": "Read-only source distribution visibility backed by scenario-to-repository",
+    "last_validated_at": "2026-11-12T03:17:10-05:00",
+    "module": "source-distribution",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
       "id": "GCT-SOURCE-001",
       "title": "Expose authoritative source distributions without taking ownership",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "source-distribution-integration",
       "category": "capability.source_distribution",
       "description": "The workspace lists and opens durable source-ramp distributions, preserves the complete evidence tuple, distinguishes contents/exclusions/obligations, and keeps approval, publication, destination read-back, freshness, and drift separate. The projection remains read-only and reports unavailable evidence honestly.",

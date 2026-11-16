@@ -35,6 +35,7 @@ function baseConfig(overrides: Partial<PrecommitConfig> = {}): PrecommitConfig {
     timeout_seconds: 300,
     run_before_commit: true,
     allow_override: true,
+    declared_inputs: [],
     ...overrides,
   };
 }

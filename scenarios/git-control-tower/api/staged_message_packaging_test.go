@@ -51,7 +51,7 @@ func compactExecution(t *testing.T, input stagedmessages.DraftInput) (*ampb.Work
 	}
 	execution := stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED)
 	execution.Input, _ = structpb.NewValue(packaged)
-	setCompactOutput(t, execution, stagedMessageCompactResult{SnapshotDigest: input.Snapshot.Digest, Title: "Update coordinated repository behavior and generated outputs", Body: "Apply the retained changes across the complete staged selection. Representative patches support this summary; uninspected files remain explicitly uncovered.", Trailers: []any{}, CoveredFileIDs: []int{}, SourceIDs: []string{input.Contexts[0].Id}, Unknowns: []string{"Per-file implementation details are unavailable for the unsampled changes."}})
+	setCompactOutput(t, execution, stagedMessageCompactResult{Title: "Update coordinated repository behavior and generated outputs", Body: "Apply the retained changes across the complete staged selection. Representative patches support this summary; uninspected files remain explicitly uncovered.", Trailers: []any{}, CoveredFileIDs: []int{}, SourceIDs: []string{input.Contexts[0].Id}, Unknowns: []string{"Per-file implementation details are unavailable for the unsampled changes."}})
 	return execution, projection
 }
 
@@ -114,7 +114,7 @@ func TestStagedMessage4096FilesKeepCompleteSubjectAndBoundModelEnvelope(t *testi
 
 func TestStagedMessageCompactCoverageUsesActualSuppliedEvidence(t *testing.T) {
 	canonical := stagedLargeInput()
-	for _, test := range []string{"valid", "invented", "not supplied", "clipped patch", "wrong path", "changed canonical", "source revision", "other source", "wrong digest", "duplicate"} {
+	for _, test := range []string{"valid", "invented", "not supplied", "clipped patch", "wrong path", "changed canonical", "source revision", "other source", "duplicate"} {
 		t.Run(test, func(t *testing.T) {
 			input := canonical
 			input.Snapshot = proto.Clone(canonical.Snapshot).(*v1.StagedMessageSnapshot)
@@ -127,7 +127,7 @@ func TestStagedMessageCompactCoverageUsesActualSuppliedEvidence(t *testing.T) {
 			}
 			execution, projection := compactExecution(t, input)
 			covered := projection.DraftContext.Files[0].ID
-			result := stagedMessageCompactResult{SnapshotDigest: input.Snapshot.Digest, Title: "Update coordinated behavior", Trailers: []any{}, CoveredFileIDs: []int{covered}, SourceIDs: []string{input.Contexts[0].Id}, Unknowns: []string{}}
+			result := stagedMessageCompactResult{Title: "Update coordinated behavior", Trailers: []any{}, CoveredFileIDs: []int{covered}, SourceIDs: []string{input.Contexts[0].Id}, Unknowns: []string{}}
 			switch test {
 			case "invented":
 				result.CoveredFileIDs = []int{4097}
@@ -143,8 +143,6 @@ func TestStagedMessageCompactCoverageUsesActualSuppliedEvidence(t *testing.T) {
 				projection.DraftContext.Contexts[0].Revision = "other-revision"
 			case "other source":
 				result.SourceIDs = []string{"unselected-source"}
-			case "wrong digest":
-				result.SnapshotDigest = "other-selection"
 			case "duplicate":
 				result.CoveredFileIDs = []int{covered, covered}
 			}

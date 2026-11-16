@@ -21,9 +21,9 @@ import (
 // authConnectServer is a same-origin browser facade. GCT does not own account
 // state, passwords, signing keys, or refresh-token policy; it forwards Login
 // to scenario-authenticator over the typed AccountsService contract.
-type authConnectServer struct{}
+type authConnectServer struct{ client HTTPDoer }
 
-func (authConnectServer) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
+func (s authConnectServer) Login(ctx context.Context, req *connect.Request[authv1.LoginRequest]) (*connect.Response[authv1.LoginResponse], error) {
 	email := strings.TrimSpace(req.Msg.GetEmail())
 	password := req.Msg.GetPassword()
 	if email == "" || password == "" {
@@ -34,10 +34,11 @@ func (authConnectServer) Login(ctx context.Context, req *connect.Request[authv1.
 	if err != nil || strings.TrimSpace(base) == "" {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("scenario-authenticator is unavailable"))
 	}
-	client := accountsconnect.NewAccountsServiceClient(http.DefaultClient, strings.TrimRight(base, "/"))
-	response, err := client.Login(ctx, connect.NewRequest(&accountsv1.LoginRequest{
-		Email: email, Password: password, Realm: "default",
-	}))
+	client := s.client
+	if client == nil {
+		client = &http.Client{Timeout: 5 * time.Second}
+	}
+	response, err := loginWithAuthenticator(ctx, client, base, email, password)
 	if err != nil {
 		switch connect.CodeOf(err) {
 		case connect.CodeUnauthenticated:
@@ -74,6 +75,11 @@ func (authConnectServer) Login(ctx context.Context, req *connect.Request[authv1.
 		HttpOnly: true, Secure: secure, SameSite: http.SameSiteLaxMode,
 	}).String())
 	return out, nil
+}
+
+func loginWithAuthenticator(ctx context.Context, client HTTPDoer, base, email, password string) (*connect.Response[accountsv1.LoginResponse], error) {
+	accountClient := accountsconnect.NewAccountsServiceClient(client, strings.TrimRight(base, "/"))
+	return accountClient.Login(ctx, connect.NewRequest(&accountsv1.LoginRequest{Email: email, Password: password, Realm: "default"}))
 }
 
 var _ authconnect.AuthServiceHandler = authConnectServer{}

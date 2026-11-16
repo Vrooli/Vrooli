@@ -1,8 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { Eye, FileText, Sparkles, X } from "lucide-react";
+import { Eye, FileText, RotateCw, Sparkles, X } from "lucide-react";
 import { getDraftScope, parseMessage, serializeMessage, type MessageFields } from "./message";
 import { useMessageSuggestions, isMessageJobActive } from "./useMessageSuggestions";
+import { workflowExecutionLink } from "./workflowExecutionLink";
+import { formatMicroUSD } from "./charge";
 import { MessageSuggestionDialog } from "./MessageSuggestionDialog";
+import { usePrecommitCandidateCheck } from "./usePrecommitCandidateCheck";
 
 interface Props {
   value: string;
@@ -15,13 +18,15 @@ interface Props {
   amend: boolean;
   stagedPaths?: readonly string[];
   onUnstage?: (paths: string[]) => Promise<void>;
+  onQueueStagedExtras?: (paths: string[]) => Promise<boolean>;
 }
 
-export function CommitMessageComposer({ value, onChange, repoId, stagedCount, statusVersion, updatingIndex, disabled, amend, stagedPaths, onUnstage }: Props) {
+export function CommitMessageComposer({ value, onChange, repoId, stagedCount, statusVersion, updatingIndex, disabled, amend, stagedPaths, onUnstage, onQueueStagedExtras }: Props) {
   const id = useId();
   const [fields, setFields] = useState(() => parseMessage(value));
   const emitted = useRef(value);
   const suggestions = useMessageSuggestions(repoId, statusVersion, updatingIndex);
+  const precommit = usePrecommitCandidateCheck(repoId, true, statusVersion, updatingIndex, stagedCount > 0);
   useEffect(() => {
     if (value !== emitted.current) {
       emitted.current = value;
@@ -35,23 +40,30 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
   };
   const active = isMessageJobActive(suggestions.job?.status);
   const hasWork = suggestions.session.phase !== "idle" || Boolean(suggestions.job) || suggestions.reconnecting || Boolean(suggestions.error);
-  const unknownJob = suggestions.job && !["queued", "running", "cancelling", "succeeded", "failed", "cancelled"].includes(suggestions.job.status);
+  const unknownJob = suggestions.job && !["queued", "dispatching", "running", "awaiting_input", "awaiting_provider", "cancelling", "succeeded", "failed", "cancelled", "stale"].includes(suggestions.job.status);
   const resultScope = suggestions.job?.result ? getDraftScope(suggestions.job.result) : undefined;
   const readyLabel = resultScope === "whole" ? "Whole-selection draft ready" : resultScope === "limited" ? "Limited draft ready" : resultScope === "unknown" ? "Draft ready · scope unavailable" : "Agent suggestion ready";
+  const terminalJob = suggestions.job && ["failed", "cancelled", "stale", "awaiting_provider"].includes(suggestions.job.status) ? suggestions.job : undefined;
+  const failureSummary = terminalJob?.error?.trim().replace(/\s+/g, " ");
+  const elapsedSeconds = terminalJob ? Math.max(0, Math.floor((Date.parse(terminalJob.updatedAt) - Date.parse(terminalJob.createdAt)) / 1000)) : undefined;
   const label = suggestions.action === "cancel" ? "Requesting cancellation…"
     : suggestions.admissionState === "starting" ? "Starting drafting agent…"
     : suggestions.admissionState === "recovering" ? "Checking launch status…"
     : suggestions.admissionState === "unknown" ? "Could not confirm launch"
     : suggestions.staleReason ? "Review staged selection · draft retained"
     : unknownJob ? "Execution status unavailable"
+    : suggestions.job?.status === "awaiting_provider" ? "Waiting for provider admission"
     : suggestions.error ? "Suggestions unavailable · message retained"
     : suggestions.reconnecting ? "Reconnecting to drafting job…"
     : suggestions.session.phase === "collecting" ? "Checking existing evidence…"
+    : suggestions.job?.status === "dispatching" ? "Dispatching to Agent Manager…"
+    : suggestions.job?.status === "awaiting_input" ? "Agent is waiting for input"
     : active && !suggestions.job?.executionId ? "Confirming agent launch"
     : active ? suggestions.job?.status === "cancelling" ? "Stopping drafting agent…" : "Drafting agent in progress"
     : suggestions.session.applied ? "Suggestion applied · editable"
     : suggestions.job?.status === "succeeded" ? suggestions.job.result ? readyLabel : "No completed suggestion"
     : suggestions.job?.status === "failed" ? "Drafting request failed"
+    : suggestions.job?.status === "stale" ? "Saved execution is missing"
     : suggestions.job?.status === "cancelled" || suggestions.session.phase === "cancelled" ? "Suggestion work cancelled"
     : suggestions.session.collection?.suggestions.length ? "Reusable suggestion available" : "No reusable message found";
   return (
@@ -69,9 +81,56 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Suggest
         </button>
       </div>
+      {precommit.state !== "idle" && (
+        <div role={precommit.state === "failed" || precommit.state === "incomplete" || precommit.state === "error" ? "alert" : "status"}
+          className={`rounded-lg border px-3 py-2 text-xs ${precommit.state === "passed" ? "border-emerald-800 bg-emerald-950/30 text-emerald-200" : precommit.state === "failed" || precommit.state === "incomplete" || precommit.state === "error" ? "border-amber-800 bg-amber-950/30 text-amber-200" : "border-slate-700 bg-slate-900 text-slate-300"}`}
+          data-testid="precommit-candidate-status">
+          <div className="font-medium">
+            {precommit.state === "loading" ? "Preparing staged checks…"
+              : precommit.state === "disabled" ? "Staged checks are disabled"
+              : precommit.state === "queued" ? "Commit checks queued · message drafting can continue"
+              : precommit.state === "running" ? "Commit checks running · message drafting can continue"
+              : precommit.state === "cancelling" ? "Cancelling commit checks…"
+              : precommit.state === "cancelled" ? "Commit checks were cancelled"
+              : precommit.state === "passed" ? "Checks passed for this staged candidate"
+              : precommit.state === "failed" || precommit.state === "timeout" ? "Checks did not pass for this staged candidate"
+              : precommit.state === "incomplete" ? "Check result is incomplete"
+              : precommit.state === "error" ? "Could not start or reattach to staged checks"
+              : "Staged checks unavailable"}
+          </div>
+          {precommit.check?.candidateDigest && <div className="mt-1 text-[11px] opacity-80">Candidate {precommit.check.candidateDigest.slice(0, 12)} · final commit checks this identity again</div>}
+          {(precommit.error || precommit.check?.result?.summary) && <div className="mt-1 break-words opacity-90">{precommit.error || precommit.check?.result?.summary}</div>}
+          {precommit.stale && <div className="mt-1">Staged files changed; checking the new candidate.</div>}
+          {["queued", "running", "cancelling"].includes(precommit.state) && (
+            <button type="button" onClick={() => void precommit.cancel()} disabled={precommit.state === "cancelling"}
+              className="mt-2 inline-flex min-h-9 items-center rounded-md border border-slate-600 px-3 text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+              data-testid="precommit-candidate-cancel">
+              {precommit.state === "cancelling" ? "Cancelling…" : "Cancel checks"}
+            </button>
+          )}
+          {["failed", "timeout", "incomplete", "cancelled", "error"].includes(precommit.state) && (
+            <button type="button" onClick={() => void precommit.retry()} disabled={precommit.state === "loading"}
+              className="mt-2 inline-flex min-h-9 items-center rounded-md border border-amber-700 px-3 text-amber-100 hover:bg-amber-950/50 disabled:opacity-50"
+              data-testid="precommit-candidate-retry">
+              Retry checks
+            </button>
+          )}
+        </div>
+      )}
       {hasWork && (
         <div role="status" className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-xs ${suggestions.staleReason ? "border-amber-800 bg-amber-950/30 text-amber-200" : "border-slate-700 bg-slate-900 text-slate-300"}`} data-testid="commit-suggestion-standing">
           <span className="min-w-0 flex-1">{label}</span>
+          {active && suggestions.job?.error && <span className="w-full text-amber-200" role="alert">{suggestions.job.error}</span>}
+          {active && suggestions.job?.error && <button type="button" onClick={() => void suggestions.reconnect()} className="inline-flex min-h-9 items-center gap-1.5 px-2 text-cyan-200"><RotateCw className="h-3.5 w-3.5" aria-hidden="true" />Reconnect to job</button>}
+          {terminalJob && <span className="w-full truncate text-amber-200" title={failureSummary || undefined}>{failureSummary || "Failure details are unavailable."}</span>}
+          {terminalJob?.errorCode && <span className="w-full text-slate-400">Failure category: {terminalJob.errorCode}</span>}
+          {terminalJob?.tokensKnown && <span className="w-full text-slate-400">Agent tokens used: {String(terminalJob.tokensUsed)}</span>}
+          {terminalJob && <span className="w-full text-slate-400">{terminalJob.chargeKnown ? `Marginal charge: ${formatMicroUSD(terminalJob.chargeMicroUsd)} USD` : "Marginal charge unknown; token counts are not a charge estimate"}</span>}
+          {terminalJob && terminalJob.executionStartedKnown === false && <span className="w-full text-slate-400">Agent start status unknown</span>}
+          {terminalJob && terminalJob.executionStartedKnown && terminalJob.executionStarted === false && <span className="w-full text-slate-400">Agent did not start</span>}
+          {terminalJob?.errorCode === "provider_admission_maintenance" && <span className="w-full text-slate-400">Retry is paused until Workspace Sandbox reports ready.</span>}
+          {terminalJob?.phase && <span className="w-full text-slate-400">Last stage: {terminalJob.phase}{elapsedSeconds !== undefined && Number.isFinite(elapsedSeconds) ? ` · elapsed ${elapsedSeconds}s` : ""}</span>}
+          {suggestions.job?.executionId && <a className="w-full text-cyan-200 underline" href={workflowExecutionLink(suggestions.job.executionId, window.location.hostname, window.location.protocol)} target="_blank" rel="noreferrer">Open workflow execution</a>}
           <button type="button" onClick={() => suggestions.setOpen(true)} className="inline-flex min-h-9 items-center gap-1.5 px-2 text-cyan-200"><Eye className="h-3.5 w-3.5" aria-hidden="true" />View</button>
           {active && <button type="button" onClick={() => void suggestions.cancelAgent()} disabled={suggestions.job?.status === "cancelling" || suggestions.action === "cancel"} className="inline-flex min-h-9 items-center gap-1.5 px-2 disabled:opacity-50"><X className="h-3.5 w-3.5" aria-hidden="true" />Cancel agent</button>}
         </div>
@@ -113,7 +172,7 @@ export function CommitMessageComposer({ value, onChange, repoId, stagedCount, st
           data-testid="commit-message-trailers" />
       </details>
       <p className="text-[11px] leading-relaxed text-slate-500">{stagedCount === 0 ? "Stage files to enable suggestions." : updatingIndex ? "Finishing staging before checking suggestions…" : "Suggest checks existing evidence first. An agent starts only when you choose."}</p>
-      <MessageSuggestionDialog suggestions={suggestions} message={value} disabled={disabled || updatingIndex} onApply={next => change(parseMessage(next))} stagedPaths={stagedPaths} onUnstage={onUnstage} />
+      <MessageSuggestionDialog suggestions={suggestions} message={value} disabled={disabled || updatingIndex} onApply={next => change(parseMessage(next))} stagedPaths={stagedPaths} onUnstage={onUnstage} onQueueStagedExtras={onQueueStagedExtras} />
     </div>
   );
 }

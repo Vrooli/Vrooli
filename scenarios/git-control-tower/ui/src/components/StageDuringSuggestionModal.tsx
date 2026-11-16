@@ -3,41 +3,51 @@ import { Sparkles, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
 import type { StagedSuggestionHold } from "../features/commit-message/messageSession";
+import type { QueuedStageSelection } from "../features/commit-message/stageQueue";
 
 interface StageDuringSuggestionModalProps {
   hold: StagedSuggestionHold | null;
   paths: string[];
+  queuedConflicts?: Pick<QueuedStageSelection, "id" | "paths">[];
   onConfirm: () => void;
+  onQueue?: () => void;
+  queuedSelections?: number;
   onCancel: () => void;
 }
 
 /** Staging changes the exact selection a commit suggestion describes. */
-export function StageDuringSuggestionModal({ hold, paths, onConfirm, onCancel }: StageDuringSuggestionModalProps) {
+export function StageDuringSuggestionModal({ hold, paths, queuedConflicts = [], onConfirm, onQueue, queuedSelections = 0, onCancel }: StageDuringSuggestionModalProps) {
   const isMobile = useIsMobile();
-  if (!hold || paths.length === 0) return null;
+  const uniquePaths = [...new Set(paths)];
+  if ((!hold && queuedConflicts.length === 0) || uniquePaths.length === 0) return null;
 
-  const drafting = hold.state === "drafting";
-  const noun = paths.length === 1 ? "file" : "files";
-  const title = drafting ? "A commit suggestion is being drafted" : "A commit suggestion is ready";
-  const described = hold.paths.length ? `${hold.paths.length} staged ${hold.paths.length === 1 ? "file" : "files"}` : "the current staged selection";
+  const drafting = hold?.state === "drafting";
+  const noun = uniquePaths.length === 1 ? "file" : "files";
+  const requestedPaths = new Set(uniquePaths);
+  const queuedPathOverlap = queuedConflicts.some(selection => selection.paths.some(path => requestedPaths.has(path)));
+  const title = hold ? drafting ? "A commit suggestion is being drafted" : "A commit suggestion is ready" : "Queued suggestions use these files";
+  const described = hold?.paths.length ? `${hold.paths.length} staged ${hold.paths.length === 1 ? "file" : "files"}` : "the current staged selection";
   const content = (
     <>
       <div className="flex items-center gap-3 text-amber-300 mb-4">
         <Sparkles className="h-5 w-5 flex-shrink-0" />
-        <span className="font-semibold">Stage {paths.length} more {noun}?</span>
+        <span className="font-semibold">Stage {uniquePaths.length} more {noun}?</span>
       </div>
       <p className="text-sm text-slate-400 mb-4">
-        {drafting ? "The drafting agent is" : "The suggestion is"} describing {described}. Staging more
-        means it will no longer cover everything you commit. You can unstage the extra files from the
-        suggestion later.
+        {hold ? <>{drafting ? "The drafting agent is" : "The suggestion is"} describing {described}. Staging more now changes its subject. Queue these files to keep this draft stable. You can choose a quick or deep suggestion later from the queue.</> : "Staging these files now would change or consume an existing queued selection."} {queuedSelections ? `${queuedSelections} selection${queuedSelections === 1 ? " is" : "s are"} already queued.` : ""}
       </p>
+      {queuedConflicts.length > 0 && <div className="mb-4 rounded-lg border border-amber-800/70 bg-amber-950/30 p-3 text-xs text-amber-100">
+        <p className="font-semibold">Staging now removes {queuedConflicts.length} overlapping queued {queuedConflicts.length === 1 ? "selection" : "selections"}.</p>
+        <ul className="mt-2 space-y-1">{queuedConflicts.map((selection, index) => <li key={selection.id} className="break-all">{index + 1}. Existing selection: {selection.paths.join(", ")}</li>)}</ul>
+      </div>}
       <ul className="max-h-64 overflow-y-auto space-y-1" aria-label="Files to stage">
-        {paths.map((file) => (
-          <li key={file} className="text-sm text-slate-300 font-mono whitespace-nowrap">
+        {uniquePaths.map((file) => (
+          <li key={file} className="break-all text-sm text-slate-300 font-mono">
             {file}
           </li>
         ))}
       </ul>
+      {onQueue && queuedPathOverlap && <p role="status" className="text-xs text-amber-200">Some files are already in the queued selections above. Remove or resolve that overlap before queueing these files.</p>}
     </>
   );
 
@@ -52,12 +62,13 @@ export function StageDuringSuggestionModal({ hold, paths, onConfirm, onCancel }:
         dismissAffordance="close"
         contentClassName="px-4 py-6 space-y-6"
         footer={
-          <div className="flex w-full items-center gap-3">
-            <Button variant="outline" size="sm" onClick={onCancel} className="flex-1 h-12" data-testid="stage-during-suggestion-cancel">
+          <div className="flex w-full flex-col gap-2 sm:flex-row">
+            <Button variant="outline" size="sm" onClick={onCancel} className="h-12 w-full sm:flex-1" data-testid="stage-during-suggestion-cancel">
               Keep selection
             </Button>
-            <Button size="sm" onClick={onConfirm} className="flex-1 h-12" data-testid="stage-during-suggestion-confirm">
-              Stage anyway
+            {onQueue && <Button variant="outline" size="sm" onClick={onQueue} disabled={queuedPathOverlap} className="h-12 w-full sm:flex-1" data-testid="stage-during-suggestion-queue">Queue files</Button>}
+            <Button size="sm" onClick={onConfirm} className="h-12 w-full sm:flex-1" data-testid="stage-during-suggestion-confirm">
+              {queuedConflicts.length ? `Stage + remove ${queuedConflicts.length} queued` : "Stage now"}
             </Button>
           </div>
         }
@@ -77,7 +88,8 @@ export function StageDuringSuggestionModal({ hold, paths, onConfirm, onCancel }:
         <div className="px-4 py-4">{content}</div>
         <div className="flex items-center justify-end gap-2 border-t border-slate-800 px-4 py-3">
           <Button variant="outline" size="sm" onClick={onCancel} data-testid="stage-during-suggestion-cancel">Keep selection</Button>
-          <Button size="sm" onClick={onConfirm} data-testid="stage-during-suggestion-confirm">Stage anyway</Button>
+          {onQueue && <Button variant="outline" size="sm" onClick={onQueue} data-testid="stage-during-suggestion-queue">Queue files</Button>}
+          <Button size="sm" onClick={onConfirm} data-testid="stage-during-suggestion-confirm">{queuedConflicts.length ? `Stage + remove ${queuedConflicts.length} queued` : "Stage now"}</Button>
         </div>
       </div>
     </div>

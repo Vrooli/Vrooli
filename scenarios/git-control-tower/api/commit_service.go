@@ -11,10 +11,11 @@ import (
 
 // CommitDeps contains dependencies for commit operations.
 type CommitDeps struct {
-	Git       GitRunner
-	RepoDir   string
-	Precommit *PrecommitService
-	Checks    CommitCheckRecorder
+	Git               GitRunner
+	RepoDir           string
+	Precommit         *PrecommitService
+	CandidateSecurity CandidateSecurityScanner
+	Checks            CommitCheckRecorder
 }
 
 func commitValidationFailure(errors []string) *CommitResponse {
@@ -98,13 +99,22 @@ func createAuthorizedCommit(ctx context.Context, deps CommitDeps, req CommitRequ
 	if resp := validateCommitRequest(ctx, deps, repoDir, req, message); resp != nil {
 		return resp, nil
 	}
+	if deps.CandidateSecurity != nil {
+		candidateCheck := scanStagedCandidate(ctx, deps.Git, repoDir, deps.CandidateSecurity)
+		if candidateCheck.Status != "passed" {
+			return &CommitResponse{
+				Success: false, Error: "candidate security check did not pass",
+				Precommit: &candidateCheck, Timestamp: time.Now().UTC(),
+			}, nil
+		}
+	}
 	var passedPrecommit *PrecommitRunResult
 	if deps.Precommit != nil && !req.SkipPrecommitOnce {
-		result, ran, err := deps.Precommit.RunBeforeCommit(ctx, repoDir)
+		result, err := deps.Precommit.AwaitCandidateCheck(ctx, repoDir, deps.Git)
 		if err != nil {
 			return nil, err
 		}
-		if ran && result.Status != "passed" {
+		if result.Status != "" && result.Status != "passed" {
 			return &CommitResponse{
 				Success:   false,
 				Error:     "precommit failed",
@@ -112,18 +122,23 @@ func createAuthorizedCommit(ctx context.Context, deps CommitDeps, req CommitRequ
 				Timestamp: time.Now().UTC(),
 			}, nil
 		}
-		if ran {
+		if result.Status == "passed" {
 			passedPrecommit = &result
 		}
 	}
 
 	noEdit := req.Amend && message == ""
+	precommitTree := ""
+	if passedPrecommit != nil {
+		precommitTree = passedPrecommit.receiptTree
+	}
 	hash, err := deps.Git.Commit(ctx, repoDir, message, CommitOptions{
-		AuthorName:  strings.TrimSpace(req.AuthorName),
-		AuthorEmail: strings.TrimSpace(req.AuthorEmail),
-		Amend:       req.Amend,
-		NoEdit:      noEdit,
-		NoVerify:    req.SkipPrecommitOnce,
+		AuthorName:             strings.TrimSpace(req.AuthorName),
+		AuthorEmail:            strings.TrimSpace(req.AuthorEmail),
+		Amend:                  req.Amend,
+		NoEdit:                 noEdit,
+		NoVerify:               req.SkipPrecommitOnce,
+		PrecommitCandidateTree: precommitTree,
 	})
 	if err != nil {
 		return &CommitResponse{

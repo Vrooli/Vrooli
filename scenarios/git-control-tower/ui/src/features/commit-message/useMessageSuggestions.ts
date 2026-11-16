@@ -3,29 +3,32 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Code, ConnectError } from "@connectrpc/connect";
 import { isLimitedDraft } from "./message";
 import {
-  cancelMessageJob, checkMessage, collectMessage, getMessageJob, startMessage, waitMessageJob,
+  cancelMessageJob, checkMessage, collectMessage, getMessageJob, getMessageProviderReadiness, retryMessage, startMessage, waitMessageJob,
   type StagedMessageJob,
 } from "./api";
+import { StagedMessageMode } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { initialSession, messageSessionKey, resetMessageSession, storageKey, type DraftSession } from "./messageSession";
 type AdmissionRequest = Parameters<typeof startMessage>[0];
 
-const activeStates = new Set(["queued", "running", "cancelling"]);
+const activeStates = new Set(["queued", "dispatching", "running", "awaiting_input", "cancelling"]);
 const autoReconnectLimit = 8;
 export function isMessageJobActive(status?: string) { return activeStates.has(status ?? ""); }
 function retainOwnerProgress(current: StagedMessageJob | undefined, next: StagedMessageJob) {
   if (!current || current.id !== next.id) return next;
-  if (["succeeded", "failed", "cancelled"].includes(current.status) && current.status !== next.status) return current;
+  if (["succeeded", "failed", "cancelled", "stale", "awaiting_provider"].includes(current.status) && current.status !== next.status) return current;
   if ((current.cancelRequested || current.status === "cancelling") && isMessageJobActive(next.status) && !next.cancelRequested) return current;
   return next;
 }
 const errorText = (value: unknown) => value instanceof Error ? value.message : "The suggestion request could not finish.";
 function launchError(value: unknown) {
   const failure = ConnectError.from(value);
+  const readiness = failure.code === Code.FailedPrecondition && `${failure.rawMessage} ${failure.message}`.toLowerCase().includes("provider readiness is not confirmed");
   const signIn = failure.code === Code.Unauthenticated || failure.code === Code.FailedPrecondition && failure.rawMessage === "Sign in through a trusted browser session before starting a drafting agent";
-  const message = signIn ? "Sign-in is required to confirm the drafting launch."
+  const message = readiness ? "Workspace Sandbox readiness changed; retry is paused and your saved selection is unchanged."
+    : signIn ? "Sign-in is required to confirm the drafting launch."
     : failure.code === Code.PermissionDenied ? "Your current access could not confirm the drafting launch."
     : "Could not confirm the drafting launch. Reconnect to check whether a job was created.";
-  return { message, detail: errorText(value) };
+  return { message, detail: errorText(value), readinessChanged: readiness };
 }
 function pauseObserver(milliseconds: number, signal: AbortSignal) {
   if (milliseconds <= 0 || signal.aborted) return Promise.resolve();
@@ -69,6 +72,17 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     staleTime: Infinity,
     refetchOnWindowFocus: false,
   });
+  const providerReadiness = useQuery({
+    queryKey: ["commit-message", "provider-readiness"],
+    queryFn: ({ signal }) => getMessageProviderReadiness(signal),
+    enabled: job.data?.errorCode === "provider_admission_maintenance",
+    retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchInterval: 5000,
+  });
+  const maintenancePaused = job.data?.errorCode === "provider_admission_maintenance"
+    && !(providerReadiness.data?.known && providerReadiness.data.state === "open");
   const hasHandle = Boolean(session.jobID || session.requestKey);
   const admissionState = action === "start" ? "starting" : job.data ? "confirmed"
     : !hasHandle ? "idle" : job.isFetching ? "recovering"
@@ -237,7 +251,7 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     }
     finally { actionPending.current = false; if (isCurrentSession()) setAction(null); }
   };
-  const start = async () => {
+  const start = async (mode = StagedMessageMode.QUICK) => {
     // React Query batches notifications. Read the authoritative local selection
     // when the operator clicks so the final keystroke/checkbox is included.
     const selected = client.getQueryData<DraftSession>(key) ?? session;
@@ -250,9 +264,44 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     }
     const request = selected.admissionRequest ?? (selected.collection?.snapshot ? {
       repositoryId: repo, collectionId: selected.collection.id, snapshotDigest: selected.collection.snapshot.digest,
-      selectedContextIds: [...selected.selectedContextIDs], operatorNote: selected.note, requestKey: crypto.randomUUID(),
+      selectedContextIds: [...selected.selectedContextIDs], operatorNote: selected.note, requestKey: crypto.randomUUID(), mode,
     } : undefined);
     if (request) await dispatch(request, selected);
+  };
+  const retryDraft = async () => {
+    const selected = client.getQueryData<DraftSession>(key) ?? session;
+    const failedJob = job.data;
+    if (!failedJob || !["failed", "cancelled", "awaiting_provider"].includes(failedJob.status) || updatingIndex || actionPending.current || unresolvedAdmission || maintenancePaused) return;
+    if (failedJob.status === "failed" && !failedJob.retryable) return;
+    actionPending.current = true;
+    const requestKey = crypto.randomUUID();
+    try {
+      // The owner reuses the immutable failed-job input. Browser storage may
+      // no longer contain the original collection or admission envelope.
+      if (!await verify()) return;
+      const mode = failedJob.evidenceFilesTotal ? StagedMessageMode.DEEP : selected.admissionRequest?.mode ?? StagedMessageMode.QUICK;
+      setAction("start");
+      update({ requestKey, jobID: undefined, admissionRequest: undefined, error: undefined, launchError: undefined, applied: false });
+      try { localStorage.setItem(storageKey(repo), JSON.stringify({ requestKey, initialMessage: selected.initialMessage })); } catch { /* The request key can still reconnect in memory. */ }
+      const created = await retryMessage({ repositoryId: repo, jobId: failedJob.id, snapshotDigest: failedJob.snapshotDigest, requestKey, mode });
+      if (!isCurrentSession()) return;
+      client.setQueryData(["commit-message", "job", repo, created.id], created);
+      // A retry is a new owner job. Clear the previous job's failure before
+      // switching the session so the active view does not inherit stale error
+      // state and present a running job as an unknown/reconnect state.
+      client.setQueryData<DraftSession>(key, current => current?.generation === selected.generation
+        ? { ...current, jobID: created.id, requestKey, error: undefined, launchError: undefined }
+        : current);
+      setAction(null);
+      try { localStorage.setItem(storageKey(repo), JSON.stringify({ jobID: created.id, requestKey, initialMessage: selected.initialMessage })); } catch { /* Durable owner remains authoritative. */ }
+    } catch (error) {
+      const failure = launchError(error);
+      update({ jobID: failedJob.id, requestKey: selected.requestKey, error: failure.message, launchError: failure });
+      setAction(null);
+      if (failure.readinessChanged) void providerReadiness.refetch();
+    } finally {
+      actionPending.current = false;
+    }
   };
   const continuationSource = job.data?.status === "succeeded" && job.data.result ? job.data : previousSuggestion ? previousJob.data : undefined;
   const canInvestigate = Boolean(isLimitedDraft(continuationSource?.result) && job.data && ["succeeded", "failed", "cancelled"].includes(job.data.status) && !unresolvedAdmission);
@@ -262,7 +311,7 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     // The owner derives expanded evidence from this completed immutable job.
     // Never recollect the index or resubmit the original representative sample.
     await dispatch({ repositoryId: repo, collectionId: "", snapshotDigest: continuationSource.snapshotDigest,
-      selectedContextIds: [], operatorNote: "", requestKey: crypto.randomUUID(), continuationOfJobId: continuationSource.id }, selected);
+      selectedContextIds: [], operatorNote: "", requestKey: crypto.randomUUID(), continuationOfJobId: continuationSource.id, mode: StagedMessageMode.DEEP }, selected);
   };
   const cancelAgent = async () => {
     if ((!session.jobID && !session.requestKey) || actionPending.current) return;
@@ -324,5 +373,6 @@ export function useMessageSuggestions(repo: string, statusVersion: number, updat
     };
   }, [lostConnection, following, reconnect]);
   const canAdoptVerified = () => isCurrentSession() && mounted.current && !verificationGeneration.current.updatingIndex && !unresolvedAdmission && !isMessageJobActive(job.data?.status) && action !== "start" && action !== "cancel" && verifiedEpoch.current === verificationGeneration.current.epoch;
-  return { session, job: job.data, snapshot, previousSuggestion, previousSnapshot: previousMatches ? previousJob.data?.snapshot : undefined, canInvestigate, investigateRemaining, staleReason, error: session.error || job.data?.error || job.error?.message || standing.error?.message, action, admissionState, canRetryAdmission: admissionState === "not_found" && Boolean(session.admissionRequest), open, setOpen, update, collect, cancelCollection, start, cancelAgent, verify, canAdoptVerified, discard, reconnect, recheckApplicability, reconnecting: hasHandle && job.isPending };
+  const retryDraftMode = job.data?.evidenceFilesTotal ? StagedMessageMode.DEEP : session.admissionRequest?.mode ?? StagedMessageMode.QUICK;
+  return { session, job: job.data, snapshot, previousSuggestion, previousSnapshot: previousMatches ? previousJob.data?.snapshot : undefined, canInvestigate, investigateRemaining, staleReason, error: session.error || job.data?.error || job.error?.message || standing.error?.message, action, admissionState, providerReadiness: providerReadiness.data, maintenancePaused, canRetryAdmission: admissionState === "not_found" && Boolean(session.admissionRequest), canRetryDraft: Boolean(job.data?.id && job.data.executionId && ["failed", "cancelled", "awaiting_provider"].includes(job.data.status) && (job.data.status !== "failed" || job.data.retryable) && !maintenancePaused && !updatingIndex && !unresolvedAdmission), retryDraftMode, retryDraft, open, setOpen, update, collect, cancelCollection, start, cancelAgent, verify, canAdoptVerified, discard, reconnect, recheckApplicability, reconnecting: hasHandle && job.isPending };
 }

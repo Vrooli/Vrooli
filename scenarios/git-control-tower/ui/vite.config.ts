@@ -1,5 +1,6 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -26,7 +27,7 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     // INTEROP-CRITICAL: Relative asset URLs are required when the UI is embedded behind scenario tunnels/proxies.
     base: "./", // Required for tunnel/proxy contexts
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     resolve: isProfile
       ? {
           alias: {

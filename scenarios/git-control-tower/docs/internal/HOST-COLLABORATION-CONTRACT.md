@@ -4,6 +4,13 @@ Git Control Tower consumes a provider-neutral host seam. Integration Hub owns
 credentials, token refresh, installation identity, transport retries, and
 provider SDKs. GCT receives normalized identities and capability standing.
 
+Current implementation status: the host collaboration endpoint returns
+`unavailable` with reason `Integration Hub host adapter is not active`, and
+the review panel labels the Hub `not active`. This contract describes the
+adapter boundary to implement; it is not evidence that a provider is currently
+connected. See [`collaboration_handler.go`](../../api/collaboration_handler.go)
+and [`ScenarioReviewPanelOverview.tsx`](../../ui/src/components/ScenarioReviewPanelOverview.tsx).
+
 | Capability | GitHub | GitLab | Bitbucket | GCT behavior when unavailable |
 |---|---|---|---|---|
 | Change metadata and base/head | conformance fixture | conformance fixture | conformance fixture | local range draft remains available |

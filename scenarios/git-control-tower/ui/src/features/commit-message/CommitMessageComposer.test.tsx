@@ -13,6 +13,8 @@ import {
   StagedMessageScope,
   StagedMessageSnapshotSchema,
   StagedMessageJobSchema,
+  StagedMessageMode,
+  StagedMessageProviderReadinessSchema,
   StagedMessageSuggestionSchema,
   type CheckStagedMessageResponse,
   type StagedMessageJob,
@@ -24,20 +26,22 @@ import { CommitPanel } from "../../components/CommitPanel";
 import { useCommit } from "../../lib/hooks-core";
 import { createCommit } from "../../lib/api";
 import { CreateCommitResponseSchema } from "@vrooli/proto-types/git-control-tower/v1/repo/repo_pb";
-import { cancelMessageJob, checkMessage, collectMessage, getMessageJob, startMessage, waitMessageJob } from "./api";
+import { cancelMessageJob, checkMessage, collectMessage, getMessageJob, getMessageProviderReadiness, retryMessage, startMessage, waitMessageJob } from "./api";
+import { cancelPrecommitCandidateCheck, getPrecommitCandidateCheck, precommitChecksEnabled, startPrecommitCandidateCheck } from "./precommitCandidateApi";
 
 vi.mock("../../lib/api", async importOriginal => ({ ...await importOriginal<typeof import("../../lib/api")>(), createCommit: vi.fn() }));
 
-vi.mock("./api", () => ({ collectMessage: vi.fn(), checkMessage: vi.fn(), startMessage: vi.fn(), getMessageJob: vi.fn(), cancelMessageJob: vi.fn(), waitMessageJob: vi.fn() }));
+vi.mock("./api", () => ({ collectMessage: vi.fn(), checkMessage: vi.fn(), startMessage: vi.fn(), retryMessage: vi.fn(), getMessageJob: vi.fn(), getMessageProviderReadiness: vi.fn(), cancelMessageJob: vi.fn(), waitMessageJob: vi.fn() }));
+vi.mock("./precommitCandidateApi", () => ({ precommitChecksEnabled: vi.fn(), startPrecommitCandidateCheck: vi.fn(), getPrecommitCandidateCheck: vi.fn(), cancelPrecommitCandidateCheck: vi.fn() }));
 
 const snapshot = { digest: "snapshot-1", repositoryId: "repo-1", baseHead: "head-1", capturedAt: "2026-10-21T12:00:00Z", files: [{ path: "api/source.go", newBlobId: "blob-1" }, { path: "ui/view.tsx", newBlobId: "blob-2" }] };
 const suggestion = () => create(StagedMessageSuggestionSchema, { id: "suggestion-1", title: "fix: retain staged source", body: "Read the selected version and related updates.", coverage: { coveredPaths: ["api/source.go"], uncoveredPaths: ["ui/view.tsx"], matchedEdits: 1, totalEdits: 3, partial: true }, trailers: [{ key: "Vrooli-Proposal", value: "saved-reference" }] });
 const collection = (withMessage = true) => create(StagedMessageCollectionSchema, { id: "collection-1", snapshot, status: withMessage ? "partial" : "no_suggestions", suggestions: withMessage ? [suggestion()] : [], contexts: [{ id: "context-1", title: "Matching saved work", kind: "proposal", detail: "Retained content matches api/source.go", matchedPaths: ["api/source.go"], status: "available" }] });
 const job = (status = "running") => create(StagedMessageJobSchema, { id: "job-1", executionId: "owner-1", repositoryId: "repo-1", snapshotDigest: snapshot.digest, snapshot, status, applicable: true, createdAt: new Date().toISOString(), phase: "Reading staged changes", ...(status === "succeeded" ? { result: suggestion() } : {}) });
 
-function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation, staged, onUnstage }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string; staged?: string[]; onUnstage?: (paths: string[]) => Promise<void> }) {
+function Harness({ initial = "", version = 1, count = 2, pending = false, repo = "repo-1", continuation, staged, onUnstage, onQueueStagedExtras }: { initial?: string; version?: number; count?: number; pending?: boolean; repo?: string; continuation?: string; staged?: string[]; onUnstage?: (paths: string[]) => Promise<void>; onQueueStagedExtras?: (paths: string[]) => Promise<boolean> }) {
   const [message, setMessage] = useState(initial);
-  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} stagedPaths={staged} onUnstage={onUnstage} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
+  return <><CommitMessageComposer key={repo} value={message} onChange={setMessage} repoId={repo} stagedCount={count} statusVersion={version} updatingIndex={pending} disabled={false} amend={false} stagedPaths={staged} onUnstage={onUnstage} onQueueStagedExtras={onQueueStagedExtras} />{continuation && <button onClick={() => setMessage(current => mergeContinuationMessage(current, continuation))}>Continue from history</button>}<output data-testid="serialized-message">{message}</output></>;
 }
 function reviewEvidence() {
   const summary = screen.getByText("Review evidence");
@@ -61,16 +65,98 @@ function CommitLifecycleHarness({ repo = "repo-1", showComposer = true }: { repo
 }
 
 beforeEach(() => {
+  localStorage.clear();
+  vi.mocked(precommitChecksEnabled).mockReset().mockResolvedValue(false);
+  vi.mocked(startPrecommitCandidateCheck).mockReset();
+  vi.mocked(getPrecommitCandidateCheck).mockReset();
+  vi.mocked(cancelPrecommitCandidateCheck).mockReset();
   vi.mocked(createCommit).mockReset().mockResolvedValue(create(CreateCommitResponseSchema, { success: true, hash: "new-commit" }));
   vi.mocked(collectMessage).mockReset().mockResolvedValue(collection());
   vi.mocked(checkMessage).mockReset().mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: true, currentSnapshotDigest: snapshot.digest }));
   vi.mocked(startMessage).mockReset().mockResolvedValue(job());
+  vi.mocked(retryMessage).mockReset().mockResolvedValue(job("running"));
   vi.mocked(getMessageJob).mockReset().mockResolvedValue(job());
+  vi.mocked(getMessageProviderReadiness).mockReset().mockResolvedValue(create(StagedMessageProviderReadinessSchema, { provider: "workspace-sandbox", state: "unknown", known: false, message: "Workspace Sandbox readiness could not be confirmed." }));
   vi.mocked(cancelMessageJob).mockReset().mockResolvedValue(job("cancelling"));
   vi.mocked(waitMessageJob).mockReset().mockImplementation((_repo, _id, _key, signal) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true })));
 });
 
 describe("staged commit message composer", () => {
+  it("drafts while an identity-bound staged check runs, then preserves its receipt across remount", async () => {
+    vi.mocked(precommitChecksEnabled).mockResolvedValue(true);
+    vi.mocked(startPrecommitCandidateCheck).mockResolvedValue({ jobId: "check-1", state: "running", candidateDigest: "candidate-1", configDigest: "config-1" } as never);
+    vi.mocked(getPrecommitCandidateCheck).mockResolvedValue({ jobId: "check-1", state: "passed", candidateDigest: "candidate-1", configDigest: "config-1", result: { status: "passed", summary: "All configured checks passed" } } as never);
+    const first = renderWithProviders(<Harness />);
+    expect(await screen.findByText("Commit checks running · message drafting can continue")).toBeVisible();
+    suggest();
+    await screen.findByText("Partial reusable suggestion");
+    expect(screen.getByTestId("commit-message-input")).toBeEnabled();
+    await screen.findByText("Checks passed for this staged candidate");
+    expect(localStorage.getItem("gct.precommitCandidate.repo-1")).toBe("check-1");
+    first.unmount();
+    vi.mocked(startPrecommitCandidateCheck).mockResolvedValue({ jobId: "check-1", state: "passed", candidateDigest: "candidate-1", configDigest: "config-1", result: { status: "passed", summary: "All configured checks passed" } } as never);
+    renderWithProviders(<Harness />);
+    await screen.findByText("Checks passed for this staged candidate");
+    expect(startPrecommitCandidateCheck).toHaveBeenCalledTimes(2);
+    expect(startPrecommitCandidateCheck).toHaveBeenNthCalledWith(1, "repo-1", false);
+    expect(startPrecommitCandidateCheck).toHaveBeenNthCalledWith(2, "repo-1", false);
+    expect(getPrecommitCandidateCheck).toHaveBeenCalled();
+  });
+
+  it("retries a terminal check once with the terminal-retry flag", async () => {
+    vi.mocked(precommitChecksEnabled).mockResolvedValue(true);
+    vi.mocked(startPrecommitCandidateCheck)
+      .mockResolvedValueOnce({ jobId: "check-1", state: "incomplete", candidateDigest: "candidate-1", configDigest: "config-1", result: { status: "incomplete", summary: "Previous check was unavailable" } } as never)
+      .mockResolvedValueOnce({ jobId: "check-1", state: "passed", candidateDigest: "candidate-1", configDigest: "config-1", result: { status: "passed", summary: "Retry passed" } } as never);
+    renderWithProviders(<Harness />);
+    await screen.findByText("Check result is incomplete");
+    fireEvent.click(screen.getByTestId("precommit-candidate-retry"));
+    await screen.findByText("Checks passed for this staged candidate");
+    expect(startPrecommitCandidateCheck).toHaveBeenCalledTimes(2);
+    expect(startPrecommitCandidateCheck).toHaveBeenNthCalledWith(1, "repo-1", false);
+    expect(startPrecommitCandidateCheck).toHaveBeenNthCalledWith(2, "repo-1", true);
+  });
+
+  it("requests a fresh candidate check after the staged selection changes", async () => {
+    vi.mocked(precommitChecksEnabled).mockResolvedValue(true);
+    vi.mocked(startPrecommitCandidateCheck)
+      .mockResolvedValueOnce({ jobId: "check-1", state: "running", candidateDigest: "candidate-1", configDigest: "config-1" } as never)
+      .mockResolvedValueOnce({ jobId: "check-2", state: "passed", candidateDigest: "candidate-2", configDigest: "config-1", result: { status: "passed", summary: "Fresh candidate passed" } } as never);
+    const view = renderWithProviders(<Harness version={1} />);
+    await screen.findByText("Commit checks running · message drafting can continue");
+    view.rerender(<Harness version={2} />);
+    await screen.findByText("Checks passed for this staged candidate");
+    expect(screen.getByTestId("precommit-candidate-status")).toHaveTextContent("candidate-2");
+    expect(startPrecommitCandidateCheck).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not present a saved pass as current when refresh cannot confirm the staged identity", async () => {
+    localStorage.setItem("gct.precommitCandidate.repo-1", "old-check");
+    vi.mocked(precommitChecksEnabled).mockResolvedValue(true);
+    vi.mocked(startPrecommitCandidateCheck).mockRejectedValue(new Error("owner unavailable"));
+    vi.mocked(getPrecommitCandidateCheck).mockResolvedValue({ jobId: "old-check", state: "passed", candidateDigest: "old-candidate", configDigest: "old-config", result: { status: "passed", summary: "Old candidate passed" } } as never);
+    renderWithProviders(<Harness />);
+    await screen.findByText("Could not start or reattach to staged checks");
+    expect(screen.getByTestId("precommit-candidate-status")).toHaveTextContent("current staged candidate could not be confirmed");
+    expect(screen.getByTestId("precommit-candidate-status")).not.toHaveTextContent("Checks passed for this staged candidate");
+  });
+
+  it("cancels an active candidate check through the durable owner", async () => {
+    vi.mocked(precommitChecksEnabled).mockResolvedValue(true);
+    vi.mocked(startPrecommitCandidateCheck)
+      .mockResolvedValueOnce({ jobId: "check-cancel", state: "running", candidateDigest: "candidate-cancel", configDigest: "config-1" } as never)
+      .mockResolvedValueOnce({ jobId: "check-retry", state: "passed", candidateDigest: "candidate-cancel", configDigest: "config-1", result: { status: "passed", summary: "Retry passed" } } as never);
+    vi.mocked(cancelPrecommitCandidateCheck).mockResolvedValue({ jobId: "check-cancel", state: "cancelled", candidateDigest: "candidate-cancel", configDigest: "config-1", result: { status: "cancelled", summary: "Precommit check was cancelled" } } as never);
+    renderWithProviders(<Harness />);
+    await screen.findByText("Commit checks running · message drafting can continue");
+    fireEvent.click(screen.getByTestId("precommit-candidate-cancel"));
+    await screen.findByText("Commit checks were cancelled");
+    expect(cancelPrecommitCandidateCheck).toHaveBeenCalledWith("repo-1", "check-cancel");
+    fireEvent.click(screen.getByTestId("precommit-candidate-retry"));
+    await screen.findByText("Checks passed for this staged candidate");
+    expect(startPrecommitCandidateCheck).toHaveBeenLastCalledWith("repo-1", true);
+  });
+
   it.each(["history first", "AI first"])("keeps the AI message and history references in either order (%s)", async order => {
     const continuation = "Earlier work p2\n\nVrooli-Effort: effort:work\nVrooli-Continues: abc123";
     renderWithProviders(<Harness continuation={continuation} />);
@@ -468,6 +554,30 @@ describe("staged commit message composer", () => {
     expect(startMessage).not.toHaveBeenCalled();
   });
 
+  it("starts deep investigation directly from the immutable collection without a quick parent", async () => {
+    vi.mocked(collectMessage).mockResolvedValue(collection(false));
+    renderWithProviders(<Harness />);
+    suggest();
+    await screen.findByRole("heading", { name: "No reusable message found" });
+    expect(startMessage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByTestId("commit-message-start-deep"));
+    await waitFor(() => expect(startMessage).toHaveBeenCalledTimes(1));
+    expect(startMessage).toHaveBeenCalledWith(expect.objectContaining({
+      repositoryId: "repo-1", collectionId: "collection-1", snapshotDigest: snapshot.digest,
+      mode: StagedMessageMode.DEEP,
+    }));
+  });
+
+  it("starts the quick draft as an explicit, mode-bound alternative", async () => {
+    vi.mocked(collectMessage).mockResolvedValue(collection(false));
+    renderWithProviders(<Harness />);
+    suggest();
+    await screen.findByRole("heading", { name: "No reusable message found" });
+    fireEvent.click(screen.getByRole("button", { name: "Start quick draft" }));
+    await waitFor(() => expect(startMessage).toHaveBeenCalledTimes(1));
+    expect(startMessage).toHaveBeenCalledWith(expect.objectContaining({ mode: StagedMessageMode.QUICK }));
+  });
+
   it.each([
     ["failed_precondition: Sign in through a trusted browser session before starting a drafting agent", "Sign in through a trusted browser session"],
     ["unauthenticated: 401 Unauthorized", "Drafting could not verify your sign-in"],
@@ -479,7 +589,7 @@ describe("staged commit message composer", () => {
     await screen.findByRole("heading", { name: "Confirming agent launch" });
     expect(screen.getByRole("alert")).toHaveTextContent(guidance);
     expect(screen.getByRole("button", { name: "Reconnect to job" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Start drafting agent" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start quick draft" })).not.toBeInTheDocument();
   });
 
   it("surfaces trusted-browser sign-in guidance from a durable failed job", async () => {
@@ -490,6 +600,58 @@ describe("staged commit message composer", () => {
     await screen.findByRole("heading", { name: "Drafting request failed" });
     expect(screen.getByRole("alert")).toHaveTextContent("Sign in through a trusted browser session before starting a drafting agent");
     expect(screen.getByText("Sign in through a trusted browser session before starting a drafting agent.")).toBeVisible();
+    expect(screen.getByTestId("commit-suggestion-standing")).toHaveTextContent("failed_precondition: Sign in through a trusted browser session");
+    expect(screen.getByTestId("commit-suggestion-standing")).toHaveTextContent("Last stage: Reading staged changes");
+  });
+
+  it("defers retry for a typed Workspace Sandbox maintenance refusal and reports known no-start", async () => {
+    vi.mocked(getMessageProviderReadiness).mockResolvedValue(create(StagedMessageProviderReadinessSchema, { provider: "workspace-sandbox", state: "closed", known: true, observedAt: new Date().toISOString(), message: "Workspace Sandbox is in lifecycle maintenance." }));
+    vi.mocked(startMessage).mockResolvedValue({ ...job("awaiting_provider"), executionId: "workflow-1", errorCode: "provider_admission_maintenance", retryable: true, executionStartedKnown: true, executionStarted: false, tokensKnown: true, tokensUsed: 0n, chargeKnown: true, chargeMicroUsd: 0n, error: "Agent execution is paused for Workspace Sandbox maintenance; no agent work started." });
+    renderWithProviders(<Harness initial="Keep my message" />);
+    await gathered();
+    fireEvent.click(screen.getByRole("button", { name: "Ask agent to complete" }));
+    await screen.findByRole("heading", { name: "Waiting for provider admission" });
+    expect(screen.getByRole("status")).toHaveTextContent("Agent did not start.");
+    expect(screen.getByRole("status")).toHaveTextContent("Agent tokens used: 0.");
+    expect(screen.getByTestId("commit-suggestion-standing")).toHaveTextContent("Marginal charge: $0 USD");
+    expect(screen.getByRole("status")).toHaveTextContent("Retry remains unavailable while the provider is closed or its readiness is unknown.");
+    expect(screen.queryByRole("button", { name: /Retry quick draft/ })).not.toBeInTheDocument();
+    expect(retryMessage).not.toHaveBeenCalled();
+    expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep my message");
+  });
+
+  it("offers an explicit new-job retry for a provider wait after readiness opens", async () => {
+    vi.mocked(getMessageProviderReadiness).mockResolvedValue(create(StagedMessageProviderReadinessSchema, { provider: "workspace-sandbox", state: "open", known: true, observedAt: new Date().toISOString(), message: "Workspace Sandbox is ready for agent runs." }));
+    vi.mocked(startMessage).mockResolvedValue({ ...job("awaiting_provider"), executionId: "workflow-1", errorCode: "provider_admission_maintenance", retryable: true, executionStartedKnown: true, executionStarted: false, tokensKnown: true, tokensUsed: 0n, chargeKnown: true, chargeMicroUsd: 0n, error: "Agent execution is paused for Workspace Sandbox maintenance; no agent work started." });
+    renderWithProviders(<Harness initial="Keep my message" />);
+    await gathered();
+    fireEvent.click(screen.getByRole("button", { name: "Ask agent to complete" }));
+    await screen.findByRole("heading", { name: "Waiting for provider admission" });
+    const retry = await screen.findByRole("button", { name: "Retry quick draft" });
+    expect(screen.getByRole("status")).toHaveTextContent("Workspace Sandbox readiness is confirmed open.");
+    fireEvent.click(retry);
+    await waitFor(() => expect(retryMessage).toHaveBeenCalledTimes(1));
+    expect(retryMessage).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1", snapshotDigest: snapshot.digest, requestKey: expect.any(String), mode: StagedMessageMode.QUICK }));
+    expect(startMessage).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep my message");
+  });
+
+  it("keeps the failed job attached when readiness closes between check and retry", async () => {
+    vi.mocked(getMessageProviderReadiness)
+      .mockResolvedValueOnce(create(StagedMessageProviderReadinessSchema, { provider: "workspace-sandbox", state: "open", known: true, observedAt: new Date().toISOString(), message: "Workspace Sandbox is ready for agent runs." }))
+      .mockResolvedValue(create(StagedMessageProviderReadinessSchema, { provider: "workspace-sandbox", state: "closed", known: true, observedAt: new Date().toISOString(), message: "Workspace Sandbox is in lifecycle maintenance." }));
+    vi.mocked(startMessage).mockResolvedValue({ ...job("awaiting_provider"), executionId: "workflow-1", errorCode: "provider_admission_maintenance", retryable: true, executionStartedKnown: true, executionStarted: false, tokensKnown: true, tokensUsed: 0n, chargeKnown: true, chargeMicroUsd: 0n, error: "Agent execution is paused for Workspace Sandbox maintenance; no agent work started." });
+    vi.mocked(retryMessage).mockRejectedValue(new ConnectError("runner provider readiness is not confirmed: Workspace Sandbox is in lifecycle maintenance", Code.FailedPrecondition));
+    renderWithProviders(<Harness initial="Keep my message" />);
+    await gathered();
+    fireEvent.click(screen.getByRole("button", { name: "Ask agent to complete" }));
+    await screen.findByRole("heading", { name: "Waiting for provider admission" });
+    fireEvent.click(await screen.findByRole("button", { name: "Retry quick draft" }));
+    await waitFor(() => expect(retryMessage).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("Starting drafting agent…")).not.toBeInTheDocument();
+    await screen.findByText(/Retry remains unavailable while the provider is closed/);
+    expect(screen.queryByRole("button", { name: "Retry quick draft" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep my message");
   });
 
   it("prioritizes same-request recovery over refreshing stale evidence after an uncertain launch", async () => {
@@ -518,7 +680,7 @@ describe("staged commit message composer", () => {
     const primary = screen.getByTestId("commit-message-primary");
     expect(primary).toHaveTextContent(frozen ? "Retry same request" : "Reconnect to job");
     fireEvent.click(primary);
-    if (frozen) await waitFor(() => expect(startMessage).toHaveBeenCalledWith(admissionRequest));
+    if (frozen) await waitFor(() => expect(startMessage).toHaveBeenCalledWith({ ...admissionRequest, mode: StagedMessageMode.QUICK }));
     else {
       await waitFor(() => expect(getMessageJob).toHaveBeenCalledTimes(2));
       expect(startMessage).not.toHaveBeenCalled();
@@ -567,7 +729,7 @@ describe("staged commit message composer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask agent to complete" }));
     await screen.findByRole("heading", { name: "Could not confirm launch" });
     expect(screen.getByTestId("commit-message-primary")).toHaveTextContent("Reconnect to job");
-    expect(screen.queryByRole("button", { name: "Start drafting agent" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start quick draft" })).not.toBeInTheDocument();
     vi.mocked(getMessageJob).mockResolvedValue(job());
     fireEvent.click(screen.getByRole("button", { name: "Reconnect to job" }));
     await screen.findByText("Drafting agent is running");
@@ -596,7 +758,7 @@ describe("staged commit message composer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask agent to complete" }));
     await screen.findByRole("heading", { name: "Drafting request failed" });
     expect(screen.getByRole("alert")).toHaveTextContent("We could not confirm whether the agent started");
-    expect(screen.getByRole("button", { name: "Check evidence again" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Recheck staged selection" })).toBeVisible();
     expect(screen.queryByRole("button", { name: "Reconnect to job" })).not.toBeInTheDocument();
     expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep my message");
     expect(startMessage).toHaveBeenCalledTimes(1);
@@ -724,7 +886,7 @@ describe("staged commit message composer", () => {
     fireEvent.click(within(screen.getByRole("dialog", { name: "Commit message suggestions" })).getByRole("button", { name: "Hide suggestions" }));
     expect(startMessage).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "View" }));
-    fireEvent.click(screen.getByRole("button", { name: "Start drafting agent" }));
+    fireEvent.click(screen.getByRole("button", { name: "Start quick draft" }));
     await waitFor(() => expect(startMessage).toHaveBeenCalledTimes(1));
     await screen.findByText("Drafting agent is running");
     expect(screen.getByTestId("commit-message-input")).toHaveValue("");
@@ -931,6 +1093,17 @@ describe("staged commit message composer", () => {
     expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep human text");
   });
 
+  it("surfaces a persisted active-job evidence error and reconnects to that same job", async () => {
+    localStorage.setItem("gct.messageDraft.repo-1", JSON.stringify({ jobID: "job-1", requestKey: "request-1", initialMessage: "Keep human text" }));
+    vi.mocked(getMessageJob).mockResolvedValue({ ...job(), errorCode: "evidence_unavailable", error: "Agent Manager finished the execution, but its saved result evidence could not be read. The job remains attached; reconnect to retrieve the same result." });
+    renderWithProviders(<Harness initial="Keep human text" />);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/saved result evidence could not be read/);
+    fireEvent.click(screen.getByRole("button", { name: "Reconnect to job" }));
+    await waitFor(() => expect(getMessageJob).toHaveBeenCalledTimes(2));
+    expect(startMessage).not.toHaveBeenCalled();
+    expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep human text");
+  });
+
   it("unstages files added after a suggestion so it describes the selection again", async () => {
     const described = snapshot.files.map(file => file.path);
     const onUnstage = vi.fn().mockResolvedValue(undefined);
@@ -946,6 +1119,37 @@ describe("staged commit message composer", () => {
     view.rerender(<Harness version={3} staged={described} onUnstage={onUnstage} />);
     await waitFor(() => expect(screen.queryByTestId("commit-message-stale")).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Use partial suggestion" })).toBeInTheDocument();
+    expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["authentication_required", "Restore access, then reconnect to the same job"],
+    ["policy_denied", "Resolve the policy, then reconnect to the same job"],
+  ])("explains persisted %s without implying the saved execution stopped", async (errorCode, recovery) => {
+    localStorage.setItem("gct.messageDraft.repo-1", JSON.stringify({ jobID: "job-1", requestKey: "request-1", initialMessage: "Keep human text" }));
+    vi.mocked(getMessageJob).mockResolvedValue({ ...job(), errorCode, retryable: true, error: errorCode === "authentication_required" ? "Agent Manager authentication is required to reconnect to this saved execution. Restore access, then reconnect to the same job; no replacement was started." : "Agent Manager policy denied access to this saved execution. Resolve the policy, then reconnect to the same job; no replacement was started." });
+    renderWithProviders(<Harness initial="Keep human text" />);
+    suggest();
+    expect(await screen.findByRole("alert")).toHaveTextContent(recovery);
+    expect(screen.getByRole("alert")).toHaveTextContent("no replacement was started");
+    expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it("offers to queue already staged extras as a separate suggestion", async () => {
+    const described = snapshot.files.map(file => file.path);
+    const onQueueStagedExtras = vi.fn().mockResolvedValue(true);
+    const view = renderWithProviders(<Harness staged={described} onQueueStagedExtras={onQueueStagedExtras} />);
+    await gathered();
+    vi.mocked(checkMessage).mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: false, reason: "Staged selection changed" }));
+    view.rerender(<Harness version={2} staged={[...described, "docs/extra.md"]} onQueueStagedExtras={onQueueStagedExtras} />);
+    await screen.findByRole("button", { name: "Queue extras and use suggestion" });
+    vi.mocked(checkMessage).mockResolvedValue(create(CheckStagedMessageResponseSchema, { applicable: true, currentSnapshotDigest: snapshot.digest }));
+    fireEvent.click(screen.getByRole("button", { name: "Queue extras and use suggestion" }));
+    await waitFor(() => expect(onQueueStagedExtras).toHaveBeenCalledWith(["docs/extra.md"]));
+    await waitFor(() => {
+      expect(screen.getByTestId("commit-message-input")).toHaveValue("fix: retain staged source");
+      expect(screen.getByTestId("commit-message-description")).toHaveValue("Read the selected version and related updates.");
+    });
     expect(startMessage).not.toHaveBeenCalled();
   });
 
@@ -976,7 +1180,7 @@ describe("staged commit message composer", () => {
     expect(screen.getByText("Agent suggestion")).toBeInTheDocument();
     expect(screen.getByTestId("commit-message-partial-coverage")).toHaveTextContent("Some changes are not described by this result");
     expect(screen.queryByRole("button", { name: "Ask agent to complete" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check evidence again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recheck staged selection" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Use partial suggestion" }));
     await screen.findByText("Keep your edits in view");
     fireEvent.click(screen.getByRole("button", { name: "Use replacement" }));
@@ -1066,9 +1270,41 @@ describe("staged commit message composer", () => {
     renderWithProviders(<Harness initial="Keep text" />);
     suggest();
     await screen.findByRole("alert");
-    expect(screen.getByRole("button", { name: "Check evidence again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Recheck staged selection" })).toBeInTheDocument();
     expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep text");
     expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed deep draft as a new job over the same saved selection", async () => {
+    const failed = { ...job("failed"), retryable: true, error: "Invalid structured message result: whole-selection synthesis requires the complete immutable inventory" };
+    vi.mocked(startMessage).mockResolvedValueOnce(failed);
+    vi.mocked(retryMessage).mockResolvedValueOnce({ ...job("running"), id: "retried-job" });
+    vi.mocked(getMessageJob).mockImplementation(async (_repo, id) => id === "retried-job" ? { ...job("running"), id: "retried-job" } : failed);
+    renderWithProviders(<Harness initial="Keep my message" />);
+    await gathered();
+    fireEvent.click(screen.getByRole("button", { name: "Start deep investigation" }));
+    await screen.findByRole("heading", { name: "Drafting failed" });
+    expect(screen.getByRole("button", { name: "Retry deep investigation" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Retry deep investigation" }));
+    await screen.findByText("Drafting agent is running");
+    expect(retryMessage).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1", snapshotDigest: snapshot.digest, mode: StagedMessageMode.DEEP, requestKey: expect.any(String) }));
+    expect(checkMessage).toHaveBeenCalled();
+    expect(screen.getByTestId("commit-message-input")).toHaveValue("Keep my message");
+  });
+
+  it("retries a saved deep draft after reload even when browser admission details are gone", async () => {
+    localStorage.setItem("gct.messageDraft.repo-1", JSON.stringify({
+      jobID: "job-1", requestKey: "original-key", initialMessage: "Keep me",
+    }));
+    const failed = { ...job("failed"), retryable: true, evidenceFilesTotal: 133, error: "Incomplete inventory" };
+    vi.mocked(getMessageJob).mockResolvedValue(failed);
+    renderWithProviders(<Harness initial="Keep me" />);
+    await waitFor(() => expect(getMessageJob).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    await screen.findByRole("heading", { name: "Drafting failed" });
+    fireEvent.click(screen.getByRole("button", { name: "Retry deep investigation" }));
+    await screen.findByText("Drafting agent is running");
+    expect(retryMessage).toHaveBeenCalledWith(expect.objectContaining({ jobId: "job-1", snapshotDigest: snapshot.digest, mode: StagedMessageMode.DEEP }));
   });
 
   it("exposes failed and unknown owner states without inventing a suggestion", async () => {
@@ -1080,6 +1316,19 @@ describe("staged commit message composer", () => {
     await screen.findByText("Execution status unavailable", { selector: "h3" });
     expect(screen.queryByRole("button", { name: "Use suggestion" })).not.toBeInTheDocument();
     expect(startMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a non-retryable failure with the same saved input", async () => {
+    const failed = { ...job("failed"), errorCode: "budget_exhausted", error: "The workflow token budget was exhausted.", retryable: false };
+    localStorage.setItem("gct.messageDraft.repo-1", JSON.stringify({ jobID: failed.id, requestKey: "request-1", initialMessage: "Keep me" }));
+    vi.mocked(getMessageJob).mockResolvedValue(failed);
+    renderWithProviders(<Harness initial="Keep me" />);
+    await waitFor(() => expect(getMessageJob).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "View" }));
+    await screen.findByRole("heading", { name: "Drafting failed" });
+    expect(screen.getByText("The saved mode and input cannot be repeated. Change the mode or selected evidence before starting a different job.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Retry (quick draft|deep investigation)/ })).not.toBeInTheDocument();
+    expect(retryMessage).not.toHaveBeenCalled();
   });
 
   it("keeps suggestions disabled for empty staging and queued staging operations", () => {

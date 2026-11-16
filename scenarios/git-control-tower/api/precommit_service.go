@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"git-control-tower/internal/dbschema"
@@ -23,6 +27,14 @@ const (
 type PrecommitService struct {
 	db     dbschema.DB
 	runner CommandRunner
+
+	// Candidate checks share one bounded lifecycle owner. Durable rows survive
+	// restart; this in-memory map owns only live workers and their cancellation.
+	candidateMu      sync.Mutex
+	candidateRuns    map[string]*candidateCheckRun
+	candidateQueue   []string
+	candidateActive  int
+	candidateMaxWork int
 }
 
 type CommandRunner interface {
@@ -87,7 +99,20 @@ func NewPrecommitServiceWithRunner(db dbschema.DB, runner CommandRunner) *Precom
 	if runner == nil {
 		runner = ShellCommandRunner{}
 	}
-	return &PrecommitService{db: db, runner: runner}
+	limit := defaultCandidateWorkerLimit()
+	return &PrecommitService{db: db, runner: runner, candidateRuns: make(map[string]*candidateCheckRun), candidateMaxWork: limit}
+}
+
+const defaultCandidateWorkers = 2
+
+func defaultCandidateWorkerLimit() int {
+	limit := defaultCandidateWorkers
+	if raw := strings.TrimSpace(os.Getenv("GCT_PRECOMMIT_MAX_WORKERS")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 && parsed <= 16 {
+			limit = parsed
+		}
+	}
+	return limit
 }
 
 func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitConfig, error) {
@@ -96,7 +121,7 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 		return cfg, nil
 	}
 	row := s.db.QueryRowContext(ctx, `
-		SELECT enabled, command, working_directory, timeout_seconds, run_before_commit, allow_override,
+		SELECT enabled, command, working_directory, timeout_seconds, run_before_commit, allow_override, declared_inputs_json,
 			last_status, last_exit_code, last_summary, last_stdout, last_stderr, last_duration_ms, last_timestamp,
 			hook_install_status, hook_install_reason, hook_existing_kind, hook_installed_at
 		FROM git_repo_precommit
@@ -104,13 +129,14 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 	`, repoDir)
 	var (
 		enabled, runBeforeCommit, allowOverride                   int
+		declaredInputsJSON                                        string
 		lastStatus, lastSummary                                   sql.NullString
 		lastStdout, lastStderr                                    sql.NullString
 		lastExitCode, lastDuration                                sql.NullInt64
 		lastTimestamp                                             sql.NullString
 		hookStatus, hookReason, hookExistingKind, hookInstalledAt sql.NullString
 	)
-	err := row.Scan(&enabled, &cfg.Command, &cfg.WorkingDirectory, &cfg.TimeoutSeconds, &runBeforeCommit, &allowOverride,
+	err := row.Scan(&enabled, &cfg.Command, &cfg.WorkingDirectory, &cfg.TimeoutSeconds, &runBeforeCommit, &allowOverride, &declaredInputsJSON,
 		&lastStatus, &lastExitCode, &lastSummary, &lastStdout, &lastStderr, &lastDuration, &lastTimestamp,
 		&hookStatus, &hookReason, &hookExistingKind, &hookInstalledAt)
 	if err != nil {
@@ -122,6 +148,13 @@ func (s *PrecommitService) Get(ctx context.Context, repoDir string) (PrecommitCo
 	cfg.Enabled = enabled != 0
 	cfg.RunBeforeCommit = runBeforeCommit != 0
 	cfg.AllowOverride = allowOverride != 0
+	if err := json.Unmarshal([]byte(declaredInputsJSON), &cfg.DeclaredInputs); err != nil {
+		return PrecommitConfig{}, fmt.Errorf("decode declared precommit inputs: %w", err)
+	}
+	cfg.DeclaredInputs, err = normalizePrecommitInputs(cfg.DeclaredInputs)
+	if err != nil {
+		return PrecommitConfig{}, fmt.Errorf("invalid declared precommit inputs: %w", err)
+	}
 	if lastStatus.Valid {
 		result := PrecommitRunResult{
 			Status:          lastStatus.String,
@@ -175,12 +208,17 @@ func (s *PrecommitService) Save(ctx context.Context, repoDir string, cfg Precomm
 		return PrecommitConfig{}, fmt.Errorf("precommit store not configured")
 	}
 	cfg = normalizePrecommitConfig(repoDir, cfg)
+	declaredInputs, err := normalizePrecommitInputs(cfg.DeclaredInputs)
+	if err != nil {
+		return PrecommitConfig{}, err
+	}
+	cfg.DeclaredInputs = declaredInputs
 	if cfg.Enabled && strings.TrimSpace(cfg.Command) == "" {
 		return PrecommitConfig{}, fmt.Errorf("command is required when precommit is enabled")
 	}
-	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO git_repo_precommit (repo_path, enabled, command, working_directory, timeout_seconds, run_before_commit, allow_override, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO git_repo_precommit (repo_path, enabled, command, working_directory, timeout_seconds, run_before_commit, allow_override, declared_inputs_json, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(repo_path) DO UPDATE SET
 			enabled = excluded.enabled,
 			command = excluded.command,
@@ -188,8 +226,9 @@ func (s *PrecommitService) Save(ctx context.Context, repoDir string, cfg Precomm
 			timeout_seconds = excluded.timeout_seconds,
 			run_before_commit = excluded.run_before_commit,
 			allow_override = excluded.allow_override,
+			declared_inputs_json = excluded.declared_inputs_json,
 			updated_at = excluded.updated_at
-	`, repoDir, boolInt(cfg.Enabled), cfg.Command, cfg.WorkingDirectory, cfg.TimeoutSeconds, boolInt(cfg.RunBeforeCommit), boolInt(cfg.AllowOverride), time.Now().UTC().Format(time.RFC3339Nano))
+	`, repoDir, boolInt(cfg.Enabled), cfg.Command, cfg.WorkingDirectory, cfg.TimeoutSeconds, boolInt(cfg.RunBeforeCommit), boolInt(cfg.AllowOverride), marshalPrecommitInputs(cfg.DeclaredInputs), time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return PrecommitConfig{}, fmt.Errorf("save precommit config: %w", err)
 	}
@@ -255,18 +294,6 @@ func (s *PrecommitService) Run(ctx context.Context, repoDir string, req Precommi
 		cfg.TimeoutSeconds = req.TimeoutSeconds
 	}
 	return s.runConfig(ctx, repoDir, cfg)
-}
-
-func (s *PrecommitService) RunBeforeCommit(ctx context.Context, repoDir string) (PrecommitRunResult, bool, error) {
-	cfg, err := s.Get(ctx, repoDir)
-	if err != nil {
-		return PrecommitRunResult{}, false, err
-	}
-	if !cfg.Enabled || !cfg.RunBeforeCommit {
-		return PrecommitRunResult{}, false, nil
-	}
-	result, err := s.runConfig(ctx, repoDir, cfg)
-	return result, true, err
 }
 
 func (s *PrecommitService) runConfig(ctx context.Context, repoDir string, cfg PrecommitConfig) (PrecommitRunResult, error) {
@@ -382,4 +409,9 @@ func boolInt(value bool) int {
 		return 1
 	}
 	return 0
+}
+
+func marshalPrecommitInputs(inputs []string) string {
+	encoded, _ := json.Marshal(inputs)
+	return string(encoded)
 }

@@ -2,6 +2,130 @@
 
 Known issues, tech debt, and deferred work for the git-control-tower scenario.
 
+## Corrected — workflow admission key binding and settlement sweep fairness (2026-11-12)
+
+- Rung: localized W3 owner identity and queue fairness repairs. On first
+  admission, the workflow owner response could identify a valid execution for
+  the right owner/workflow but carry a different idempotency key than the one
+  sent for the durable staged-message request. The adapter now rejects absent
+  executions and mismatched keys before projecting a handle.
+- A separate bounded-sweep issue remained after filtering undispatched rows:
+  always selecting the newest 20 dispatched jobs could revisit the same
+  nonterminal executions and never reach an older completed execution. Sweeps
+  now rotate over stable execution-job IDs, keeping owner reads bounded while
+  advancing on subsequent passes.
+- Regressions first reproduced both cases with fake workflow/provider owners.
+  Focused Go tests passed for matching and mismatched admission keys, legacy
+  caller-proof behavior, unclaimed-row starvation, rotating settlement, and
+  terminal result durability. No Git/index operation or scenario lifecycle was
+  used.
+- The sweep cursor is process-local and resets after restart; periodic passes
+  continue from the beginning after restart. Terminal job retention remains an
+  open storage policy question and was not changed without a defined recovery
+  window.
+
+## Open — terminal review-job retention policy
+
+- Read-only storage audit found that `gct_review_jobs` has no terminal-row
+  retention bound. Collection pruning does not delete collections referenced by
+  staged-message jobs, and those durable jobs can retain bounded but large
+  immutable inputs and evidence receipts indefinitely.
+- This can cause unbounded database growth across repeated drafts. No deletion
+  or compaction policy was introduced because the supported idempotency and
+  recovery window, and which terminal records must remain inspectable, are not
+  defined. Any future cleanup must preserve active/cancellable jobs and the
+  agreed recovery window.
+
+## Corrected — background settlement starvation and stale commit confirmation (2026-11-12)
+
+- `Settle` previously applied its 20-row limit before skipping jobs with no
+  execution handle or pending cancellation. Those unclaimable rows could
+  permanently keep older dispatched completions outside every pass. The store
+  now filters to dispatched, non-cancelling jobs before applying the bound. A
+  mock regression reproduced starvation and now verifies terminal result
+  durability.
+- A pending commit preview could survive a repository switch. Confirmation
+  then requested an intent for the old preview through the newly selected repo
+  mutation. The dialog now disables approval when repositories differ, and the
+  confirm handler re-fetches the preview before issuing an intent. Repository,
+  operation, revision, or subject changes retire the stale preview and require
+  a fresh review.
+- Targeted fake-provider Go tests and mocked preview/dialog tests passed. No
+  real commit or Git index mutation was used.
+
+## Corrected — cross-tab queue snapshot loss (2026-11-12)
+
+- Rung: localized W3 persistence repair under OT-P1-002. The queue remains a
+  per-repository ordered snapshot, but writes now read and modify the latest
+  snapshot while holding a same-origin Web Lock, so simultaneous appends/removes
+  cannot overwrite a stale copy in browsers that support Web Locks.
+- The active tab listens for `storage` events and refreshes its per-repository
+  queue view when another tab changes the queue. Per-path ownership is resolved
+  inside the lock from the latest stored queue.
+- Fake lock regression interleaves two tab appends, then a remove and another
+  append, and verifies both surviving groups and order. Repository isolation
+  remains covered by the existing storage test.
+- Limitation: browsers without `navigator.locks` use synchronous best-effort
+  localStorage updates, which cannot guarantee cross-tab serialization. Queue
+  writes are also serialized; this change does not claim a cross-tab lease for
+  two tabs dispatching the same queued stage operation at once.
+
+## Corrected — deep receipt capacity and exact staged subject (2026-11-12)
+
+- Rung: localized W3 corrections under OT-P1-002. The fixed manifest bound is
+  4096 files, so durable evidence receipt capacity must support that workload.
+- Reproduced a valid format-4 read failing on page 257 because the shared job
+  store capped all evidence receipts at 256. Raised the finite receipt ceiling
+  to 8192, enough for one receipt per manifest file plus bounded overhead; the
+  257 distinct-target regression verifies receipts and eligibility persist.
+- The staging guard compared only for extra paths. With a cached applicable
+  suggestion for `[a,b]` and current staged `[a]`, it still claimed the ready
+  suggestion described the exact index. It now requires set equality and lets
+  stale-subject recovery own both additions and removals.
+- Simplified stage-batcher callback arguments into a named callback object so
+  success, error, and settlement handlers cannot be confused by positional
+  order.
+- Validation: targeted fake snapshot/provider Go regression and focused UI
+  message-session, stage-batcher, and queue tests passed. No Git operations,
+  index writes, lifecycle actions, or broad tests were run.
+- Cross-tab snapshot overwrite was fixed in the follow-up checkpoint above for
+  browsers with Web Locks. Unsupported browsers and simultaneous cross-tab
+  stage dispatch remain documented limitations.
+
+## Corrected — direct deep result delivery and queued-stage retry (2026-11-12)
+
+- Rung: localized W3 reliability corrections under OT-P1-002. The existing
+  contract requires direct deep suggestions and retained follow-up selections.
+- Backend review found that format-4 direct deep jobs were admitted and
+  packaged without a parent, while result decoding still required continuation
+  metadata. The decoder now accepts parentless output only for explicit direct
+  deep jobs, verifies the evidence job binding, rejects fabricated parent
+  metadata, and derives coverage from actual execution evidence. Continuations
+  still require their successful parent and inherited coverage.
+- UI review found failed queued-stage mutations only released the in-flight
+  guard; they did not set the queue failure ID, leaving the persisted selection
+  without its retry action. The stage batcher now routes mutation errors to the
+  owning selection, which remains queued and exposes retry. The existing global
+  mutation error remains the only toast.
+- Mock validation: direct deep packaging/decoding and deep evidence regressions
+  passed in the API package; 91 focused UI tests passed across four files;
+  TypeScript and scoped ESLint passed. The production build was not rerun for
+  this narrow callback change. No Git operations or lifecycle actions were run.
+- Additional rounds found three adjacent failure boundaries. Switching
+  repositories disposed a pending batcher and dropped its callback, leaving a
+  stale dispatch lock; disposal now reports interruption and settles active and
+  not-yet-started callbacks exactly once, so the still-persisted selection is
+  retryable. A regression exposed and fixed missing settlement of callbacks
+  queued behind an active request. Result projection now requires the durable
+  result's idempotency key to match the owner execution. Random ID generation
+  now returns a contextual error instead of panicking on entropy-source failure.
+- Final mock validation: 98 focused UI tests passed across five files; fake
+  owner idempotency/result projection, direct deep decoding, staged-message
+  admission and injected entropy failure selectors passed. TypeScript, scoped
+  ESLint, gofmt, JSON parsing, and production build passed. Build retains stale
+  Browserslist and large-bundle warnings. No real Git operations, index writes,
+  scenario lifecycle, or Test Genie run were performed.
+
 ## Corrected — history continuation overwrites an existing message (2026-10-22)
 
 Operator: “It should only set the message if not already set, so that I can use
@@ -2036,3 +2160,64 @@ This is the same scenario/behavior and does not change the mutation boundary.
 - Validation: Go formatting and scoped `git diff --check` pass. The scenario
   was restarted through the lifecycle and reported healthy. Tests and a real
   staging mutation were not run in this repair turn.
+
+### Operator follow-up — direct deep drafts and queued staging (2026-11-12)
+
+- Rung: W3 under `OT-P1-002`. The operator wants a deep staged-message
+  investigation selectable before a quick draft finishes, plus ordered future
+  commit selections while the current immutable draft remains active. The
+  contract and design now state these outcomes.
+- UI queue: guarded stage requests can be queued per repository without changing
+  the current index. The queue is visible and editable; after a successful
+  commit, only its next selection is staged for review. A direct stage override
+  remains available. Browser storage and desktop/mobile dialog behavior have
+  focused mocked tests.
+- Direct deep API support now starts a format-4 evidence job from the exact
+  collection, binds mode and job identity into persisted input, and accepts
+  complete-scope claims only with inventory receipts. The Agent Manager
+  workflow distinguishes initial deep from continuation, and the skill now
+  handles both without assuming a previous draft.
+- Evidence: mock-backed API/domain selectors pass (3 staged-message and 3 API
+  tests); the focused UI set passes 94 tests; TypeScript, scoped ESLint,
+  production Vite build, JSON parsing, Go formatting and scoped whitespace
+  checks pass. Proto regeneration and its committed-artifact verifier pass.
+  Scenario setup refreshed the generated package. No staging, commit, push or
+  real repository index mutation was used.
+- The comprehensive Test Genie unit gate was not run because the staged-message
+  package also contains Git-fixture tests and the operator required mock-only
+  validation. Requirements validation still reports pre-existing unearned
+  proposal requirement statuses (`GCT-PROPOSAL-CAPTURE` and
+  `GCT-PROPOSAL-WORKSPACE`) and no fresh requirements-sync snapshot. Agent
+  Manager declaration planning returned 401 (`verified operator required`),
+  so runtime declaration reconciliation was not verified in this session.
+
+### Operator follow-up — server-owned suggestion queue and commit recovery (2026-11-12)
+
+- The earlier follow-up records above describe the initial browser-owned queue
+  and are superseded here. The ordered queue now lives in durable scenario
+  storage. Job admission and queue insertion/replacement are transactional;
+  queue updates use a repository revision, and active file paths have one
+  server-enforced owner across browser tabs and other clients.
+- The queue has named states for queued, staged, failed, stale and
+  commit-pending. Staging state follows the current index in both directions.
+  Before committing the staged queue head, the UI reserves it as
+  commit-pending; successful commits retire that exact entry, confirmed
+  failures restore it, and an interrupted outcome requires an explicit user
+  choice before later selections can advance. Retirement retries against fresh
+  revisions so an unrelated concurrent append cannot strand the queue.
+- Worktree reads are bounded while reading through a checked regular-file
+  handle. The snapshot remains tied to the exact selected index-to-worktree
+  bytes; changed content is reported stale and cannot be staged under an old
+  suggestion.
+- Focused UI tests pass for quick/deep queue choice, job status, interrupted
+  commit recovery choices and preserving human-authored text. Focused API and
+  queue-store tests cover immutable capture, bounded reads, request-key replay,
+  duplicate path rejection, state transitions, commit settlement and queue
+  ordering. Scenario setup refreshed the local generated proto dependency
+  through its owner lifecycle. The final Test Genie unit run
+  `20261112-092953-6a7aa11c` passed after the queue-conflict pause and retry
+  changes; the unit scorecard still reports two existing
+  `MISSING_INJECTABLE_SEAM` warnings and low-coverage advisories.
+- No real repository index mutation, commit, push or discard was used for
+  verification. Queue tombstones remain durable to preserve request-key replay;
+  a finite idempotency-retention horizon is still undefined.

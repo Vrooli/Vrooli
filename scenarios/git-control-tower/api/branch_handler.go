@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"time"
 )
 
@@ -49,7 +48,7 @@ func logBranchAudit(s *Server, repoDir string, op AuditOperation, branch string,
 		logCtx, logCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer logCancel()
 		if logErr := s.audit.Log(logCtx, auditEntry); logErr != nil {
-			log.Printf("audit log failed: %v", logErr)
+			s.logf("audit log failed: %v", logErr)
 		}
 	}()
 }

@@ -85,6 +85,42 @@ func (g GitSnapshotter) EvidenceFile(ctx context.Context, dir string, file *v1.S
 	return out, nil
 }
 
+func capturedWorktreeEvidence(ctx context.Context, dir string, file *v1.StagedMessageFile, captured FileBytes) (*v1.StagedMessageEvidenceFile, error) {
+	out := &v1.StagedMessageEvidenceFile{Path: file.Path, OldPath: file.OldPath, OldBlobId: file.OldBlobId, NewBlobId: file.NewBlobId, Status: file.Status, EditCount: file.EditCount}
+	for _, item := range []struct {
+		id   string
+		data []byte
+	}{{file.OldBlobId, captured.Before}, {file.NewBlobId, captured.After}} {
+		if item.id == "" {
+			if len(item.data) != 0 {
+				return nil, errors.New("captured worktree bytes do not match absent blob")
+			}
+			continue
+		}
+		actual, err := hashBytes(ctx, dir, item.data)
+		if err != nil {
+			return nil, err
+		}
+		if actual != item.id {
+			return nil, errors.New("captured worktree bytes fail immutable blob identity")
+		}
+	}
+	if bytes.IndexByte(captured.Before, 0) >= 0 || bytes.IndexByte(captured.After, 0) >= 0 || !utf8.Valid(captured.Before) || !utf8.Valid(captured.After) {
+		out.OmissionReason = "binary content cannot be supplied as a text patch"
+		return out, nil
+	}
+	patch, err := renderPatch(ctx, file.Path, captured.Before, captured.After)
+	if err != nil {
+		return nil, err
+	}
+	if file.OldMode != file.NewMode {
+		patch = fmt.Sprintf("old mode %s\nnew mode %s\n", file.OldMode, file.NewMode) + patch
+	}
+	out.Patch = patch
+	out.CompletePatch = true
+	return out, nil
+}
+
 func priorCovered(input DraftInput) map[string]bool {
 	paths := map[string]bool{}
 	for _, path := range input.PriorResult.GetCoverage().GetCoveredPaths() {
@@ -103,11 +139,11 @@ func (s *Service) ReadEvidence(ctx context.Context, repo, dir string, req *v1.Re
 	if job.Operation != operation || job.RepositoryID != repo {
 		return nil, ErrNotFound
 	}
-	var input DraftInput
-	if err = json.Unmarshal([]byte(job.InputJSON), &input); err != nil {
+	input, err := decodeDraftInput([]byte(job.InputJSON))
+	if err != nil {
 		return nil, err
 	}
-	if (input.FormatVersion != 3 && input.FormatVersion != 4) || input.Snapshot == nil || input.Snapshot.Digest != req.SnapshotDigest {
+	if !input.supportsDeepEvidence() || input.Snapshot == nil || input.Snapshot.Digest != req.SnapshotDigest {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("deep evidence requires its exact immutable draft subject"))
 	}
 	if execution != "" {
@@ -138,7 +174,7 @@ func (s *Service) ReadEvidence(ctx context.Context, repo, dir string, req *v1.Re
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("evidence cursor exceeds immutable manifest"))
 	}
 	targeted := len(req.FileIds) > 0
-	if (req.InventoryOnly || targeted) && input.FormatVersion != 4 {
+	if (req.InventoryOnly || targeted) && !input.supportsSynthesis() {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("inventory and targeted reads require synthesis format 4"))
 	}
 	if len(req.FileIds) > 64 || (targeted && (req.InventoryOnly || req.Cursor != 0)) {
@@ -154,6 +190,9 @@ func (s *Service) ReadEvidence(ctx context.Context, repo, dir string, req *v1.Re
 		indices = append(indices, int(id)-1)
 	}
 	reader, readable := s.snapshots.(EvidenceSnapshotter)
+	if input.WorktreeCapture {
+		readable = true
+	}
 	if !req.InventoryOnly && !readable {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("immutable blob evidence reader unavailable"))
 	}
@@ -191,7 +230,15 @@ func (s *Service) ReadEvidence(ctx context.Context, repo, dir string, req *v1.Re
 				detail.NewMode = file.NewMode
 			}
 		} else {
-			detail, err = reader.EvidenceFile(ctx, dir, file)
+			if input.WorktreeCapture {
+				captured, ok := input.CapturedWorktree[file.Path]
+				if !ok {
+					return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("immutable selected worktree bytes are unavailable"))
+				}
+				detail, err = capturedWorktreeEvidence(ctx, dir, file, captured)
+			} else {
+				detail, err = reader.EvidenceFile(ctx, dir, file)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -295,6 +342,7 @@ func (s *Service) InventoryEligibility(ctx context.Context, jobID, repo, snapsho
 	}
 	return suppliedInventory(job.Checks, snapshot, execution), nil
 }
+
 func suppliedInventory(checks []reviewjobs.Check, snapshot, execution string) map[int]bool {
 	ids := map[int]bool{}
 	for _, check := range checks {

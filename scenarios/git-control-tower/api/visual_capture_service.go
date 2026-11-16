@@ -9,11 +9,12 @@ import (
 
 // VisualCaptureDeps holds dependencies for visual capture orchestration.
 type VisualCaptureDeps struct {
-	BAS     *BrowserAutomationClient
-	Storage *VisualCaptureStorage
-	FS      FileIO
-	RepoDir string
-	RepoID  int64
+	BAS           *BrowserAutomationClient
+	CaptureBundle func(context.Context, string, string, CapturePreset, string) ([]byte, error)
+	Storage       *VisualCaptureStorage
+	FS            FileIO
+	RepoDir       string
+	RepoID        int64
 }
 
 // resolvePages determines which pages to capture and how they were discovered.
@@ -40,45 +41,17 @@ func capturePageScreenshot(ctx context.Context, deps VisualCaptureDeps, slug str
 	pageCtx, pageCancel := context.WithTimeout(ctx, 60*time.Second)
 	defer pageCancel()
 
-	wfJSON, err := buildScreenshotWorkflow(slug, page, preset)
+	waitSelector := page.WaitForSelector
+	if waitSelector == "" {
+		waitSelector = "#root"
+	}
+	capture := deps.CaptureBundle
+	if capture == nil {
+		capture = deps.BAS.CaptureScenarioBundle
+	}
+	pngData, err := capture(pageCtx, slug, page.Path, preset, waitSelector)
 	if err != nil {
-		log.Printf("WARNING: build workflow failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-
-	execResp, err := deps.BAS.ExecuteAdhocWorkflow(pageCtx, BASExecuteAdhocRequest{
-		FlowDefinition: wfJSON,
-	}, false)
-	if err != nil {
-		log.Printf("WARNING: execute workflow failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-
-	detail, err := deps.BAS.PollExecutionCompletion(pageCtx, execResp.ExecutionID, 500*time.Millisecond)
-	if err != nil {
-		log.Printf("WARNING: poll failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-	if detail.Status != "EXECUTION_STATUS_COMPLETED" {
-		errMsg := fmt.Sprintf("execution %s for %s: %s", detail.Status, label, detail.Error)
-		log.Printf("WARNING: %s", errMsg)
-		return nil, errMsg
-	}
-
-	ssResp, err := deps.BAS.GetScreenshots(pageCtx, execResp.ExecutionID)
-	if err != nil {
-		log.Printf("WARNING: get screenshots failed for %s: %v", label, err)
-		return nil, err.Error()
-	}
-	if len(ssResp.Screenshots) == 0 {
-		log.Printf("WARNING: no screenshots returned for %s", label)
-		return nil, "no screenshots returned"
-	}
-
-	lastSS := ssResp.Screenshots[len(ssResp.Screenshots)-1]
-	pngData, _, err := deps.BAS.GetScreenshotData(pageCtx, lastSS.Screenshot.Url)
-	if err != nil {
-		log.Printf("WARNING: fetch screenshot data failed for %s: %v", label, err)
+		log.Printf("WARNING: UX bundle capture failed for %s: %v", label, err)
 		return nil, err.Error()
 	}
 

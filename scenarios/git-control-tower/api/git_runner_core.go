@@ -232,8 +232,14 @@ func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message stri
 			args = append(args, "-m", message)
 		}
 		cmd := exec.CommandContext(ctx, r.gitPath(), args...)
+		if options.PrecommitCandidateTree != "" {
+			cmd.Env = append(os.Environ(), "VROOLI_GCT_PRECOMMIT_TREE="+options.PrecommitCandidateTree)
+		}
 		if options.AuthorName != "" || options.AuthorEmail != "" {
-			env := os.Environ()
+			env := cmd.Env
+			if env == nil {
+				env = os.Environ()
+			}
 			if options.AuthorName != "" {
 				env = append(env,
 					fmt.Sprintf("GIT_AUTHOR_NAME=%s", options.AuthorName),
@@ -268,6 +274,15 @@ func (r *ExecGitRunner) Commit(ctx context.Context, repoDir string, message stri
 	}
 
 	return strings.TrimSpace(string(hashOut)), nil
+}
+
+func (r *ExecGitRunner) WriteTree(ctx context.Context, repoDir string) (string, error) {
+	cmd := exec.CommandContext(ctx, r.gitPath(), "-C", repoDir, "write-tree")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("git write-tree failed: %w (%s)", err, strings.TrimSpace(string(out)))
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func (r *ExecGitRunner) RevParse(ctx context.Context, repoDir string, args ...string) ([]byte, error) {

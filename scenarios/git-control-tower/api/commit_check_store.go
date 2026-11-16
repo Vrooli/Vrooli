@@ -45,10 +45,11 @@ func (s *CommitCheckStore) Save(ctx context.Context, repoPath, commitHash string
 		INSERT INTO git_commit_check_runs (
 			repo_path, commit_hash, kind, status, command, exit_code, summary,
 			stdout, stderr, duration_ms, timestamp
+			, check_job_id, candidate_digest, config_digest
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`, repoPath, commitHash, run.Kind, run.Status, run.Command, run.ExitCode, run.Summary,
-		run.Stdout, run.Stderr, run.DurationMs, run.Timestamp.UTC().Format(time.RFC3339Nano))
+		run.Stdout, run.Stderr, run.DurationMs, run.Timestamp.UTC().Format(time.RFC3339Nano), run.CheckJobID, run.CandidateDigest, run.ConfigDigest)
 	if err != nil {
 		return fmt.Errorf("save commit check run: %w", err)
 	}
@@ -86,7 +87,8 @@ func (s *CommitCheckStore) ListForCommits(ctx context.Context, repoPath string, 
 	}
 
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT commit_hash, kind, status, command, exit_code, summary, stdout, stderr, duration_ms, timestamp
+		SELECT commit_hash, kind, status, command, exit_code, summary, stdout, stderr, duration_ms, timestamp,
+			check_job_id, candidate_digest, config_digest
 		FROM git_commit_check_runs
 		WHERE repo_path = ? AND commit_hash IN (`+strings.Join(placeholders, ",")+`)
 		ORDER BY id ASC
@@ -103,8 +105,11 @@ func (s *CommitCheckStore) ListForCommits(ctx context.Context, repoPath string, 
 			timestampRaw string
 			stdout       sql.NullString
 			stderr       sql.NullString
+			checkJobID   sql.NullString
+			candidate    sql.NullString
+			config       sql.NullString
 		)
-		if err := rows.Scan(&hash, &run.Kind, &run.Status, &run.Command, &run.ExitCode, &run.Summary, &stdout, &stderr, &run.DurationMs, &timestampRaw); err != nil {
+		if err := rows.Scan(&hash, &run.Kind, &run.Status, &run.Command, &run.ExitCode, &run.Summary, &stdout, &stderr, &run.DurationMs, &timestampRaw, &checkJobID, &candidate, &config); err != nil {
 			return nil, fmt.Errorf("scan commit check run: %w", err)
 		}
 		if stdout.Valid {
@@ -113,6 +118,9 @@ func (s *CommitCheckStore) ListForCommits(ctx context.Context, repoPath string, 
 		if stderr.Valid {
 			run.Stderr = stderr.String
 		}
+		run.CheckJobID = checkJobID.String
+		run.CandidateDigest = candidate.String
+		run.ConfigDigest = config.String
 		if parsed, err := time.Parse(time.RFC3339Nano, timestampRaw); err == nil {
 			run.Timestamp = parsed
 		}

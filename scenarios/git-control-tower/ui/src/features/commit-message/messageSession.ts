@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { StagedMessageCollection, StagedMessageJob, startMessage } from "./api";
+import { StagedMessageMode } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 
 type AdmissionRequest = Parameters<typeof startMessage>[0];
 export interface DraftSession {
@@ -29,9 +30,11 @@ function restoredAdmission(value: unknown, repo: string, requestKey?: string): A
     typeof request.operatorNote !== "string" || request.operatorNote.length > 4000 ||
     !Array.isArray(request.selectedContextIds) || request.selectedContextIds.length > 20 ||
     !request.selectedContextIds.every(id => typeof id === "string" && id.length <= 300) ||
+    request.mode !== undefined && request.mode !== StagedMessageMode.UNSPECIFIED && request.mode !== StagedMessageMode.QUICK && request.mode !== StagedMessageMode.DEEP ||
     request.continuationOfJobId !== undefined && (typeof request.continuationOfJobId !== "string" || request.continuationOfJobId.length > 200)) return;
   return { repositoryId: repo, collectionId: request.collectionId, snapshotDigest: request.snapshotDigest,
     operatorNote: request.operatorNote, selectedContextIds: [...request.selectedContextIds], requestKey,
+    mode: request.mode ?? StagedMessageMode.QUICK,
     ...(request.continuationOfJobId ? { continuationOfJobId: request.continuationOfJobId } : {}) };
 }
 export function initialSession(repo: string): DraftSession {
@@ -77,7 +80,7 @@ export function retireCommittedMessageSession(client: QueryClient, repo: string,
     const job = client.getQueryData<StagedMessageJob>(["commit-message", "job", repo, handle]);
     // A commit does not settle a running/unknown launch. Keep its only handle
     // available for explicit cancellation or reconnect, even when it is stale.
-    if (!job || !["succeeded", "failed", "cancelled"].includes(job.status)) return;
+    if (!job || !["succeeded", "failed", "cancelled", "awaiting_provider"].includes(job.status)) return;
   }
   resetMessageSession(client, repo, current);
 }
@@ -89,15 +92,16 @@ export interface StagedSuggestionHold {
 
 /** A live or ready suggestion describes one exact staged selection. Staging
  * more files silently invalidates it, so callers confirm first. */
-export function stagedSuggestionHold(client: QueryClient, repo: string, staged: readonly string[]): StagedSuggestionHold | undefined {
+export function stagedSuggestionHold(client: QueryClient, repo: string): StagedSuggestionHold | undefined {
   const session = client.getQueryData<DraftSession>(messageSessionKey(repo));
-  if (!session || session.staleReason) return;
+  if (!session) return;
   const handle = session.jobID || session.requestKey;
   const job = handle ? client.getQueryData<StagedMessageJob>(["commit-message", "job", repo, handle]) : undefined;
   const paths = (job?.snapshot ?? session.collection?.snapshot)?.files.map(file => file.path) ?? [];
-  // Already outside the suggestion's selection: the dialog owns that recovery.
-  const described = new Set(paths);
-  if (job && !job.applicable || paths.length && staged.some(path => !described.has(path))) return;
+  // Staleness changes which recovery actions are valid, not whether a saved
+  // suggestion exists. Keep intercepting stage requests until the suggestion
+  // lifecycle is terminal so a newly staged file can be queued instead of
+  // silently making the existing suggestion stale.
   if (session.phase === "collecting" || handle && !job || job && ["queued", "running", "cancelling"].includes(job.status)) return { state: "drafting", paths };
   if (job?.status === "succeeded" && job.result || !job && session.phase === "collected" && session.collection?.suggestions.length) return { state: "ready", paths };
 }

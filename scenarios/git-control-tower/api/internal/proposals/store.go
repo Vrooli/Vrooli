@@ -71,6 +71,9 @@ func (s *Store) LatestAnchor(ctx context.Context, repositoryID, effortRef, epoch
 }
 
 func (s *Store) Insert(ctx context.Context, proposal Proposal) error {
+	if proposal.State != StateOpen {
+		return fmt.Errorf("%w: new proposal must start open", ErrInvalid)
+	}
 	data, err := json.Marshal(proposal)
 	if err != nil {
 		return err
@@ -95,6 +98,9 @@ func (s *Store) Insert(ctx context.Context, proposal Proposal) error {
 // Update replaces a proposal only when the stored revision and state still
 // match what the caller read.
 func (s *Store) Update(ctx context.Context, proposal Proposal, expectedRevision int, expectedState State) error {
+	if err := validateStateTransition(expectedState, proposal.State); err != nil {
+		return err
+	}
 	data, err := json.Marshal(proposal)
 	if err != nil {
 		return err
@@ -174,6 +180,9 @@ func (s *Store) Blob(ctx context.Context, id string) ([]byte, error) {
 // Combine creates the package and closes all exact source revisions in one
 // transaction. A concurrent edit/apply cannot leave a partially combined inbox.
 func (s *Store) Combine(ctx context.Context, p Proposal, sources []Proposal, actor Actor) error {
+	if p.State != StateOpen {
+		return fmt.Errorf("%w: combined proposal must start open", ErrInvalid)
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -187,7 +196,10 @@ func (s *Store) Combine(ctx context.Context, p Proposal, sources []Proposal, act
 		if _, err = tx.ExecContext(ctx, `INSERT OR IGNORE INTO gct_proposal_revisions (proposal_id, revision, record_json) VALUES (?,?,?)`, old.ID, old.Revision, string(original)); err != nil {
 			return err
 		}
-		old.State, old.SupersededBy, old.UpdatedAt = StateSuperseded, p.ID, p.UpdatedAt
+		if old.State != StateOpen || transitionState(&old, StateSuperseded) != nil {
+			return ErrConflict
+		}
+		old.SupersededBy, old.UpdatedAt = p.ID, p.UpdatedAt
 		old.Events = append(old.Events, Event{Action: "superseded", Actor: actor, Revision: old.Revision, Detail: "explicitly combined into " + p.ID, Timestamp: p.UpdatedAt})
 		data, err := json.Marshal(old)
 		if err != nil {
@@ -331,7 +343,10 @@ func (s *Store) Publish(ctx context.Context, reviewed Proposal, actor Actor, pub
 	if oid == "" {
 		return "", p, fmt.Errorf("publisher returned no commit identity")
 	}
-	p.State, p.CommitOID, p.UpdatedAt, p.CommittedAt = StateCommitted, oid, now, &now
+	if err := transitionState(&p, StateCommitted); err != nil {
+		return oid, p, err
+	}
+	p.CommitOID, p.UpdatedAt, p.CommittedAt = oid, now, &now
 	p.Events = append(p.Events, Event{Action: "committed", Actor: actor, Revision: p.Revision, Detail: "published verified candidate " + oid, Timestamp: now})
 	data, err := json.Marshal(p)
 	if err != nil {

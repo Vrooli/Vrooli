@@ -3,6 +3,7 @@ package stagedmessages
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -161,6 +162,72 @@ func TestDeepContinuationExaminesBeyondQuickSampleAndRetainsOriginalIntent(t *te
 			}
 			t.Logf("files=%d fully supplied remaining=%d owner starts=%d", count, job.EvidenceFilesRead, runner.starts)
 		})
+	}
+}
+
+func TestEvidenceReadsContinueBeyondFormerReceiptLimit(t *testing.T) {
+	s, _, snapshot, runner, prior := continuationFixture(t, 300)
+	runner.execute = false
+	job, err := s.Start(t.Context(), "repo", "fixture", &v1.StartStagedMessageRequest{ContinuationOfJobId: prior.ID, SnapshotDigest: snapshot.identity, RequestKey: "many-evidence-pages"})
+	if err != nil || job.Status != "running" {
+		t.Fatalf("start evidence reader job: %+v %v", job, err)
+	}
+	for index := uint32(0); index < 257; index++ {
+		page, readErr := s.ReadEvidence(t.Context(), "repo", "fixture", &v1.ReadStagedMessageEvidenceRequest{
+			JobId: job.Id, SnapshotDigest: snapshot.identity, MaxBytes: 1024, FileIds: []uint32{index + 1},
+		}, "deep-execution")
+		if readErr != nil {
+			t.Fatalf("read immutable file %d after %d prior pages: %v", index+1, index, readErr)
+		}
+		if len(page.Files) != 1 || page.Files[0].FileId != index+1 {
+			t.Fatalf("targeted evidence page %d was not retained: %+v", index+1, page)
+		}
+	}
+	eligible, err := s.EvidenceEligibility(t.Context(), job.Id, "repo", snapshot.identity, "deep-execution")
+	if err != nil || len(eligible) != 257 {
+		t.Fatalf("receipt evidence lost after many pages: eligible=%d err=%v", len(eligible), err)
+	}
+}
+
+func TestDirectDeepAdmissionStartsFromImmutableCollectionWithoutParent(t *testing.T) {
+	s, store, _, _ := serviceFixture(t)
+	snapshot := &v1.StagedMessageSnapshot{RepositoryId: "repo", Digest: "initial-deep-subject"}
+	for i := 0; i < 285; i++ {
+		path := fmt.Sprintf("scenarios/scope-%02d/file-%04d.go", i%12, i)
+		file := &v1.StagedMessageFile{Path: path, EditCount: 1, OldBlobId: fmt.Sprintf("%040x", i+1), NewBlobId: fmt.Sprintf("%040x", i+286)}
+		if i >= 64 {
+			file.OmissionReason = "representative detail omitted by quick collection"
+		}
+		snapshot.Files = append(snapshot.Files, file)
+	}
+	reader := &evidenceSnapshotFixture{snapshot: snapshot, identity: snapshot.Digest}
+	provider := &evidenceRunnerFixture{execute: true}
+	s.snapshots, s.provider = reader, provider
+	provider.s = s
+	collection, err := s.Collect(t.Context(), "repo", "fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := &v1.StartStagedMessageRequest{CollectionId: collection.Id, SnapshotDigest: snapshot.Digest, RequestKey: "initial-deep", Mode: v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP}
+	job, err := s.Start(t.Context(), "repo", "fixture", request)
+	if err != nil || job.Status != "succeeded" {
+		t.Fatalf("initial deep admission: job=%v err=%v", job, err)
+	}
+	if job.ContinuationOfJobId != "" || len(job.Result.Coverage.CoveredPaths) != len(snapshot.Files) || job.EvidenceFilesRead != uint32(len(snapshot.Files)) || provider.input.FormatVersion != 4 || provider.input.Mode != v1.StagedMessageMode_STAGED_MESSAGE_MODE_DEEP || provider.input.ContinuationOfJobID != "" || provider.input.PriorResult != nil {
+		t.Fatalf("initial deep evidence was not parent-free and job-bound: job=%v input=%+v", job, provider.input)
+	}
+	stored, err := store.Get(t.Context(), job.Id)
+	if err != nil || stored.InputDigest != digest([]byte(stored.InputJSON)) || stored.InputJSON == "" {
+		t.Fatalf("immutable initial-deep input was not durably bound: %v", err)
+	}
+	again, err := s.Start(t.Context(), "repo", "fixture", request)
+	if err != nil || again.Id != job.Id || provider.starts != 1 {
+		t.Fatalf("same-key deep retry launched another execution: job=%v starts=%d err=%v", again, provider.starts, err)
+	}
+	quickCollision := *request
+	quickCollision.Mode = v1.StagedMessageMode_STAGED_MESSAGE_MODE_QUICK
+	if _, err = s.Start(t.Context(), "repo", "fixture", &quickCollision); !errors.Is(err, ErrConflict) {
+		t.Fatalf("same request key crossed investigation mode: %v", err)
 	}
 }
 

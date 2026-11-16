@@ -11,6 +11,7 @@ import { CommitAuthorizationDialog, type PendingCommitAuthorization } from "./co
 import { lazy, Suspense, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { create } from "@bufbuild/protobuf";
 import { AuthorityStatusSchema } from "@vrooli/proto-types/git-control-tower/v1/human_control/human_control_pb";
+import { StagedMessageMode, WorktreeSelectionSource } from "@vrooli/proto-types/git-control-tower/v1/advisory/advisory_pb";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { emitShortcutIntent, HOST_SHORTCUT_ACTION_OPEN_GLOBAL_SWITCHER } from "@vrooli/iframe-bridge";
 import { StatusHeader } from "./components/StatusHeader";
@@ -28,7 +29,9 @@ import { DiscardConfirmationModal, type DiscardFile } from "./components/Discard
 import { DeleteConfirmationModal } from "./components/DeleteConfirmationModal";
 import { StageSameNameConfirmationModal } from "./components/StageSameNameConfirmationModal";
 import { StageDuringSuggestionModal } from "./components/StageDuringSuggestionModal";
-import { stagedSuggestionHold, type StagedSuggestionHold } from "./features/commit-message/messageSession";
+import { queuedHeadIncludedInIndex, queuedSelectionAwaitingUnstage, toQueuedStageSelection, type QueuedCommitTarget, type QueuedStageSelection } from "./features/commit-message/stageQueue";
+import { listWorktreeSuggestionQueue } from "./features/commit-message/api";
+import { useWorktreeSuggestionQueue, type PendingSuggestionStage } from "./features/commit-message/useWorktreeSuggestionQueue";
 import { UpstreamInfoModal } from "./components/UpstreamInfoModal";
 import { FileSearchModal } from "./components/FileSearchModal";
 import { MobileFileSearch } from "./components/MobileFileSearch";
@@ -40,15 +43,17 @@ import { SourceDistributionPanel } from "./components/SourceDistributionPanel";
 import { useGlobalKeydown, useIsMobile, useUrlState, parseUrlState, useScenarioReviewState } from "./hooks";
 import type { UrlState, ReviewTab } from "./hooks";
 import type { GroupingRule } from "./components/FileList";
-import { fetchAuthorityStatus, fetchMutationPreview, issueMutationIntent, RemoteOperationError } from "./lib/api";
+import { fetchAuthorityStatus, fetchMutationPreview, fetchRepoStatus, issueMutationIntent, RemoteOperationError } from "./lib/api";
 import type { AuthorityStatus, CommitResponse, RepoHistoryEntry, ViewMode, FileViewMode, GroupingRulesConfig, PrecommitRunResult, CommitRequest, StageResponse } from "./lib/api";
 import { createStageBatcher, type StageBatcher } from "./lib/stage-batcher";
+import { commitPreviewMatchesCurrent } from "./lib/commit-authorization";
 import { getFileTypeInfo } from "./lib/fileTypes";
 import { GCT_CHROME_COLOR } from "./lib/chrome";
 import { buildRunIndex } from "./lib/runAttribution";
 import type { ViewingCommit } from "./components/HistoryModeHeader";
 import { computeNextSelection, selectStackSlots, type SelectionEntry } from "./AppSelection";
 import { ProposalsSection } from "./features/proposals/ProposalsSection";
+import { startPrecommitCandidateCheck } from "./features/commit-message/precommitCandidateApi";
 
 import type { SyncActivity } from "./App.types";
 import {
@@ -70,8 +75,6 @@ import {
   useCommit,
   usePrecommitConfig,
   useSavePrecommitConfig,
-  useRunPrecommit,
-  useStreamPrecommit,
   useDiscardFiles,
   useIgnoreFile,
   usePush,
@@ -315,9 +318,6 @@ export default function App() {
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [skipPrecommitInDialog, setSkipPrecommitInDialog] = useState(false);
   const [skipCommitConfirmation, setSkipCommitConfirmation] = useState(readCommitConfirmationPreference);
-  // Set true right before an intentional pre-commit stream abort (Commit Anyway) so
-  // handleCommit does not surface the resulting AbortError as a commit error.
-  const commitAnywayRef = useRef(false);
   // Survives the mobile Changes-panel unmount so its scroll position is restored
   // when the operator switches away and back (desktop keeps panels mounted).
   const changesScrollTopRef = useRef(0);
@@ -510,6 +510,7 @@ export default function App() {
     capabilities: [],
   }) : undefined);
   const statusQuery = useRepoStatus(repoId);
+  const refreshRepoStatus = statusQuery.refetch;
   // Always fetch entry details for commit viewing and blame mode filtering
   const historyNeedsDetails = true;
   const historyGrepPattern = historyGrepPrefix ? `${historyGrepPrefix} p` : undefined;
@@ -548,8 +549,6 @@ export default function App() {
   const commitMutation = useCommit(repoId);
   const precommitConfigQuery = usePrecommitConfig(repoId);
   const savePrecommitConfigMutation = useSavePrecommitConfig(repoId);
-  const runPrecommitMutation = useRunPrecommit(repoId);
-  const precommitStream = useStreamPrecommit(repoId);
   const discardMutation = useDiscardFiles(repoId);
   const ignoreMutation = useIgnoreFile(repoId);
   const pushMutation = usePush(repoId);
@@ -580,8 +579,8 @@ export default function App() {
   const stageMutate = stageMutation.mutate;
   const stageBatcher = useMemo<StageBatcher<StageResponse>>(
     () => createStageBatcher<StageResponse>(
-      (paths, onSuccess, onSettled) => {
-        stageMutate({ paths }, { onSuccess, onSettled });
+      (paths, { onSuccess, onError, onSettled }) => {
+        stageMutate({ paths }, { onSuccess, onError: error => onError(error), onSettled });
       },
       setQueuedStagePaths,
       { scopeKey: repoId ?? "default" },
@@ -589,26 +588,10 @@ export default function App() {
     [repoId, stageMutate],
   );
   useEffect(() => () => stageBatcher.dispose(), [stageBatcher]);
-  // Every stage entry point confirms while a commit suggestion describes the
-  // current staged selection, so it is not invalidated by accident.
-  const [pendingSuggestionStage, setPendingSuggestionStage] = useState<{
-    hold: StagedSuggestionHold;
-    paths: string[];
-    onSuccess: (data: StageResponse) => void;
-  } | null>(null);
+  const [pendingSuggestionStage, setPendingSuggestionStage] = useState<PendingSuggestionStage>(null);
+  const queueController = useWorktreeSuggestionQueue({ repoId: repoId ?? undefined, notify, stageBatcher, pendingSuggestionStage, setPendingSuggestionStage, statusQuery, refreshRepoStatus });
+  const { stageQueueRepo, suggestionStageQueue, pendingCommitQueueSelectionId, completeQueuedStageSelection, resolveQueuedCommit, stageNextQueuedSelection, retryQueuedSuggestion, refreshQueuedSuggestion, queueSelection, finalizeQueuedSelection, startQueuedSuggestion, requestStage, handleConfirmSuggestionStage, handleQueueSuggestionStage, markQueuedCommitPending, restoreQueuedCommitAfterFailure, stageQueueAfterCommit } = queueController;
   const stagedPaths = statusQuery.data?.files.staged;
-  const requestStage = useCallback(
-    (paths: string[], onSuccess: (data: StageResponse) => void) => {
-      const hold = stagedSuggestionHold(queryClient, repoId ?? "", stagedPaths ?? []);
-      if (hold) setPendingSuggestionStage({ hold, paths, onSuccess });
-      else stageBatcher.enqueue(paths, onSuccess);
-    },
-    [queryClient, repoId, stageBatcher, stagedPaths],
-  );
-  const handleConfirmSuggestionStage = useCallback(() => {
-    if (pendingSuggestionStage) stageBatcher.enqueue(pendingSuggestionStage.paths, pendingSuggestionStage.onSuccess);
-    setPendingSuggestionStage(null);
-  }, [pendingSuggestionStage, stageBatcher]);
   const isStaging = workspaceChanges.count > 0 || queuedStagePaths.length > 0;
   const pendingPaths = useMemo(
     () => new Set([...workspaceChanges.paths, ...queuedStagePaths]),
@@ -1113,6 +1096,61 @@ export default function App() {
     [unstageMutateAsync]
   );
 
+  const handleQueueStagedExtras = useCallback(async (paths: string[]): Promise<boolean> => {
+    const targetRepo = repoId ?? "";
+    let savedSelection: Awaited<ReturnType<typeof queueSelection>> | undefined;
+    try {
+      if (stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Repository changed", message: "Review the staged files in the current repository before queueing them." });
+        return false;
+      }
+      const latestStatus = await fetchRepoStatus(targetRepo);
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Repository changed", message: "The staged selection belongs to a different repository now. Review it before queueing." });
+        return false;
+      }
+      const staged = new Set(latestStatus.files.staged ?? []);
+      if (paths.some(path => !staged.has(path))) {
+        notify({ tone: "warning", title: "Staged selection changed", message: "The extra files are no longer all staged. Refresh the suggestion and review the current index." });
+        return false;
+      }
+      const saved = await queueSelection(paths, WorktreeSelectionSource.HEAD_TO_INDEX);
+      if (!saved || typeof saved === "string") return false;
+      savedSelection = saved;
+      await handleUnstagePathsAsync(paths);
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) {
+        notify({ tone: "warning", title: "Repository changed", message: "The files were unstaged, but the repository changed before they could be queued. Review them in the file list." });
+        return false;
+      }
+      const finalized = await finalizeQueuedSelection(saved.selectionId, saved.snapshotDigest, targetRepo);
+      if (!finalized) notify({ tone: "warning", title: "Selection saved; finish queueing", message: "The files are saved in the queue, but their staged state changed before handoff completed. Use Finish queueing on that selection to recover." });
+      return finalized;
+    } catch (error) {
+      notify({ tone: savedSelection ? "warning" : "error", title: savedSelection ? "Selection saved; finish queueing" : "Could not queue staged files", message: savedSelection ? `The files are saved in the queue, but unstage did not finish. Use Finish queueing on that selection. ${error instanceof Error ? error.message : ""}` : error instanceof Error ? error.message : "The files could not be saved for a follow-up selection." });
+      return false;
+    }
+  }, [finalizeQueuedSelection, handleUnstagePathsAsync, notify, queueSelection, repoId, stageQueueRepo]);
+
+  const handleFinishQueuedUnstage = useCallback(async (selection: QueuedStageSelection) => {
+    const targetRepo = repoId ?? "";
+    if (stageQueueRepo !== targetRepo || !selection.selectionId || !selection.snapshotDigest) return;
+    try {
+      const latest = await fetchRepoStatus(targetRepo);
+      if ((repoId ?? "") !== targetRepo || stageQueueRepo !== targetRepo) return;
+      const staged = new Set(latest.files.staged ?? []);
+      const stillStaged = selection.paths.filter(path => staged.has(path));
+      if (stillStaged.length) await handleUnstagePathsAsync(stillStaged);
+      const finalized = await finalizeQueuedSelection(selection.selectionId, selection.snapshotDigest, targetRepo);
+      if (!finalized) throw new Error("The saved files changed before queue handoff finished. Review them and try again.");
+    } catch (error) {
+      notify({ tone: "error", title: "Could not finish queueing", message: error instanceof Error ? error.message : String(error) });
+    }
+  }, [finalizeQueuedSelection, handleUnstagePathsAsync, notify, repoId, stageQueueRepo]);
+
+  const handleStartQueuedSuggestion = useCallback((selection: QueuedStageSelection, mode: StagedMessageMode) => {
+    void startQueuedSuggestion(selection, mode);
+  }, [startQueuedSuggestion]);
+
   const handleUnstageAll = useCallback(() => {
     const files = statusQuery.data?.files;
     if (!files || (files.staged?.length ?? 0) === 0) return;
@@ -1261,8 +1299,9 @@ export default function App() {
       message: string,
       options: { conventional: boolean; amend: boolean; skipHooks?: boolean; authorName?: string; authorEmail?: string },
       intentID: string,
+      queuedSelection: QueuedCommitTarget | null,
+      stagedPaths: readonly string[],
     ) => {
-      commitAnywayRef.current = false;
       setCommitError(undefined);
       setLastCommitHash(undefined);
       const request: CommitRequest = {
@@ -1275,53 +1314,43 @@ export default function App() {
       };
 
       const precommitCfg = precommitConfigQuery.data;
-      const skipHooks = Boolean(options.skipHooks);
-      if (skipHooks) {
-        // A bypassed commit must not inherit a stale progress surface from a
-        // previous run, including one that was just cancelled by Commit Anyway.
-        precommitStream.reset();
-      }
-      // Skip-hooks bypasses the streamed pre-commit entirely and commits with --no-verify.
-      const shouldStream = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit) && !skipHooks;
-      if (shouldStream) {
-        // Remember the request so a mid-stream "Commit Anyway" (or a post-pass
-        // lock-failure retry) can reuse it without re-running pre-commit.
-        pendingPrecommitCommitRef.current = request;
-        setPendingPrecommitCommit(request);
-        try {
-          const finished = await precommitStream.run({});
-          if (finished.type === "error") {
-            // An intentional abort (Commit Anyway) is handled by that path; don't surface it.
-            if (commitAnywayRef.current) return;
-            setCommitError(finished.error || "precommit stream failed");
-            return;
-          }
-          const result = finished.result;
-          if (!result || result.status !== "passed") {
-            if (result) {
-              setPrecommitFailure(result);
-              setPendingPrecommitCommit(request);
-            }
-            setCommitError(undefined);
-            return;
-          }
-        } catch (err) {
-          if (commitAnywayRef.current) {
-            commitAnywayRef.current = false;
-            return;
-          }
-          setCommitError(err instanceof Error ? err.message : String(err));
+      pendingCommitQueueSelectionId.current = queuedSelection;
+      if (queuedSelection) {
+        try { await markQueuedCommitPending(stageQueueRepo, queuedSelection, stagedPaths); }
+        catch (error) {
+          pendingCommitQueueSelectionId.current = null;
+          setCommitError(error instanceof Error ? error.message : "Could not reserve the queued selection for this commit.");
           return;
+        }
+      }
+      const restoreQueueAfterFailure = () => {
+        if (queuedSelection) {
+          if (pendingCommitQueueSelectionId.current?.entryId === queuedSelection.entryId && pendingCommitQueueSelectionId.current.snapshotDigest === queuedSelection.snapshotDigest) pendingCommitQueueSelectionId.current = null;
+          void restoreQueuedCommitAfterFailure(stageQueueRepo, queuedSelection).catch(error => notify({ tone: "error", title: "Could not restore queued commit state", message: error instanceof Error ? error.message : String(error) }));
+        }
+      };
+      const skipHooks = Boolean(options.skipHooks);
+      // Start or join the durable check while the operator writes the message.
+      // Final commit admission recomputes identity and awaits the same receipt;
+      // this advisory start is never used to bypass the commit hook.
+      const eagerCheckEnabled = Boolean(precommitCfg?.enabled && precommitCfg.run_before_commit);
+      if (eagerCheckEnabled && !skipHooks) {
+        try {
+          await startPrecommitCandidateCheck(repoId ?? "");
+        } catch {
+          // The commit boundary owns the authoritative attempt and failure.
         }
       }
 
       commitMutation.mutate(
-        { ...request, skip_precommit_once: shouldStream || skipHooks || undefined },
+        { ...request, skip_precommit_once: skipHooks || undefined },
         {
           onSuccess: (result) => {
             if (result.success && result.hash) {
               setLastCommitHash(result.hash);
               setCommitMessage("");
+              stageQueueAfterCommit(queuedSelection);
+              pendingCommitQueueSelectionId.current = null;
               setPrecommitFailure(null);
               pendingPrecommitCommitRef.current = null;
               setPendingPrecommitCommit(null);
@@ -1330,13 +1359,14 @@ export default function App() {
                 setSelectedFile(undefined);
               }
             } else if (result.precommit) {
+              restoreQueueAfterFailure();
               setPrecommitFailure(precommitResultForPanel(result.precommit));
               setPendingPrecommitCommit(request);
               setCommitError(undefined);
             } else {
+              restoreQueueAfterFailure();
               // Post-pass failure (e.g. index lock): keep the passed pre-commit reusable
               // so the retry affordance commits without re-streaming.
-              if (shouldStream) setPendingPrecommitCommit(request);
               setCommitError(
                 result.error ||
                   result.validationErrors?.join("; ") ||
@@ -1345,13 +1375,13 @@ export default function App() {
             }
           },
           onError: (error) => {
-            if (shouldStream) setPendingPrecommitCommit(request);
+            restoreQueueAfterFailure();
             setCommitError(error.message);
           }
         }
       );
     },
-    [commitMutation, precommitConfigQuery.data, precommitStream, selectedIsStaged]
+    [commitMutation, markQueuedCommitPending, notify, pendingCommitQueueSelectionId, precommitConfigQuery.data, repoId, restoreQueuedCommitAfterFailure, selectedIsStaged, stageQueueAfterCommit, stageQueueRepo]
   );
 
   const handleCommit = useCallback(
@@ -1373,7 +1403,15 @@ export default function App() {
       commitPreviewPending.current = true;
       setIsAuthorizingCommit(true);
       try {
+        const latestQueue = await listWorktreeSuggestionQueue(repoId ?? "");
         const preview = await fetchMutationPreview({ repositoryId: repoId ?? "", operation: "repo.commit" }, repoId ?? undefined);
+        const queueEntries = latestQueue.entries.map(toQueuedStageSelection);
+        const awaitingUnstage = queuedSelectionAwaitingUnstage(queueEntries, preview.stagedFiles);
+        if (awaitingUnstage) {
+          setCommitError("Finish queueing the saved selection before committing; some of its files are still staged.");
+          return;
+        }
+        const queuedSelection = queuedHeadIncludedInIndex(queueEntries, preview.stagedFiles);
         const pending = {
           message,
           options,
@@ -1388,7 +1426,7 @@ export default function App() {
               expectedRevision: preview.expectedRevision,
               subjectDigest: preview.subjectDigest,
             }, repoId ?? undefined);
-            await executeCommit(message, { ...options, skipHooks: Boolean(options.skipHooks) }, intent.intentId);
+            await executeCommit(message, { ...options, skipHooks: Boolean(options.skipHooks) }, intent.intentId, queuedSelection, preview.stagedFiles);
           } finally {
             setIsAuthorizingCommit(false);
           }
@@ -1410,20 +1448,40 @@ export default function App() {
   const handleConfirmCommit = useCallback(async () => {
     const pending = pendingCommitAuthorization;
     if (!pending) return;
+    const activeRepositoryId = repoId ?? "";
+    if (pending.preview.repositoryId !== activeRepositoryId) {
+      setPendingCommitAuthorization(null);
+      setCommitError("The selected repository changed after this preview. Review the commit again before authorizing it.");
+      return;
+    }
     setIsAuthorizingCommit(true);
     try {
+      const latestQueue = await listWorktreeSuggestionQueue(activeRepositoryId);
+      const currentPreview = await fetchMutationPreview({ repositoryId: activeRepositoryId, operation: "repo.commit" }, activeRepositoryId || undefined);
+      if (!commitPreviewMatchesCurrent(pending.preview, currentPreview)) {
+        setPendingCommitAuthorization(null);
+        setCommitError("The repository changed after this preview. Review the updated commit before authorizing it.");
+        return;
+      }
+      const queuedSelection = queuedHeadIncludedInIndex(latestQueue.entries.map(toQueuedStageSelection), currentPreview.stagedFiles);
+      const awaitingUnstage = queuedSelectionAwaitingUnstage(latestQueue.entries.map(toQueuedStageSelection), currentPreview.stagedFiles);
+      if (awaitingUnstage) {
+        setPendingCommitAuthorization(null);
+        setCommitError("Finish queueing the saved selection before committing; some of its files are still staged.");
+        return;
+      }
       if (dontAskAgain) {
         writeCommitConfirmationPreference(true);
         setSkipCommitConfirmation(true);
       }
       const intent = await issueMutationIntent({
-        repositoryId: pending.preview.repositoryId,
-        operation: pending.preview.operation,
-        expectedRevision: pending.preview.expectedRevision,
-        subjectDigest: pending.preview.subjectDigest,
-      }, repoId ?? undefined);
+        repositoryId: currentPreview.repositoryId,
+        operation: currentPreview.operation,
+        expectedRevision: currentPreview.expectedRevision,
+        subjectDigest: currentPreview.subjectDigest,
+      }, activeRepositoryId || undefined);
       setPendingCommitAuthorization(null);
-      await executeCommit(pending.message, { ...pending.options, skipHooks: skipPrecommitInDialog }, intent.intentId);
+      await executeCommit(pending.message, { ...pending.options, skipHooks: skipPrecommitInDialog }, intent.intentId, queuedSelection, currentPreview.stagedFiles);
     } catch (error) {
       setCommitError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -1431,28 +1489,31 @@ export default function App() {
     }
   }, [dontAskAgain, executeCommit, pendingCommitAuthorization, repoId, skipPrecommitInDialog]);
 
-  const handleRunPrecommitAgain = useCallback(async () => {
+  const handleCommitSkipPrecommit = useCallback(async () => {
+    const request = pendingPrecommitCommitRef.current ?? pendingPrecommitCommit ?? { message: commitMessage.trim() };
+    let commitStagedPaths: readonly string[] = [];
     setPrecommitFailure(null);
     try {
-      const finished = await precommitStream.run({});
-      if (finished.type === "error") {
-        setCommitError(finished.error || "precommit stream failed");
+      const latestStatus = await refreshRepoStatus();
+      commitStagedPaths = latestStatus.data?.files.staged ?? [];
+      const latestQueue = await listWorktreeSuggestionQueue(stageQueueRepo);
+      const awaitingUnstage = queuedSelectionAwaitingUnstage(latestQueue.entries.map(toQueuedStageSelection), commitStagedPaths);
+      if (awaitingUnstage) {
+        setCommitError("Finish queueing the saved selection before committing; some of its files are still staged.");
         return;
       }
-      const result = finished.result;
-      if (result && result.status !== "passed") {
-        setPrecommitFailure(result);
-      }
-    } catch (err) {
-      setCommitError(err instanceof Error ? err.message : String(err));
+      pendingCommitQueueSelectionId.current = queuedHeadIncludedInIndex(latestQueue.entries.map(toQueuedStageSelection), commitStagedPaths);
+    } catch (error) {
+      setCommitError(error instanceof Error ? error.message : "Could not refresh repository status before committing.");
+      return;
     }
-  }, [precommitStream]);
-
-  const handleCommitSkipPrecommit = useCallback(() => {
-    const request = pendingPrecommitCommitRef.current ?? pendingPrecommitCommit ?? { message: commitMessage.trim() };
-    precommitStream.cancel();
-    precommitStream.reset();
-    setPrecommitFailure(null);
+    if (pendingCommitQueueSelectionId.current) {
+      try { await markQueuedCommitPending(stageQueueRepo, pendingCommitQueueSelectionId.current, commitStagedPaths, true); }
+      catch (error) {
+        setCommitError(error instanceof Error ? error.message : "Could not reserve the queued selection for this commit.");
+        return;
+      }
+    }
     commitMutation.mutate(
       {
         ...request,
@@ -1463,24 +1524,33 @@ export default function App() {
           if (result.success && result.hash) {
             setLastCommitHash(result.hash);
             setCommitMessage("");
+            stageQueueAfterCommit(pendingCommitQueueSelectionId.current);
+            pendingCommitQueueSelectionId.current = null;
             pendingPrecommitCommitRef.current = null;
             setPendingPrecommitCommit(null);
             if (selectedIsStaged) {
               setSelectedFile(undefined);
             }
           } else {
+            const failedQueueTarget = pendingCommitQueueSelectionId.current;
+            pendingCommitQueueSelectionId.current = null;
+            if (failedQueueTarget) void restoreQueuedCommitAfterFailure(stageQueueRepo, failedQueueTarget).catch(error => notify({ tone: "error", title: "Could not restore queued commit state", message: error instanceof Error ? error.message : String(error) }));
             setCommitError(result.error || result.validationErrors?.join("; ") || "Commit failed");
           }
         },
-        onError: (error) => setCommitError(error.message),
+        onError: (error) => {
+          const failedQueueTarget = pendingCommitQueueSelectionId.current;
+          pendingCommitQueueSelectionId.current = null;
+          if (failedQueueTarget) void restoreQueuedCommitAfterFailure(stageQueueRepo, failedQueueTarget).catch(restoreError => notify({ tone: "error", title: "Could not restore queued commit state", message: restoreError instanceof Error ? restoreError.message : String(restoreError) }));
+          setCommitError(error.message);
+        },
       },
     );
-  }, [commitMessage, commitMutation, pendingPrecommitCommit, precommitStream, selectedIsStaged]);
+  }, [commitMessage, commitMutation, markQueuedCommitPending, notify, pendingCommitQueueSelectionId, pendingPrecommitCommit, restoreQueuedCommitAfterFailure, selectedIsStaged, stageQueueAfterCommit, stageQueueRepo, refreshRepoStatus]);
 
-  // Commit-anyway trigger reachable both while pre-commit is streaming and from the
-  // failure box: abort any in-flight stream first, then commit with skip_precommit_once.
+  // This is the explicit one-time precommit override offered after a failed check.
+  // It cancels any manual run before sending the operator's chosen override.
   const handleCommitAnyway = useCallback(() => {
-    commitAnywayRef.current = true;
     handleCommitSkipPrecommit();
   }, [handleCommitSkipPrecommit]);
 
@@ -1503,33 +1573,19 @@ export default function App() {
     setPendingPrecommitCommit(null);
   }, []);
 
-  const precommitProgressProps = useMemo(() => ({
-    running: precommitStream.state.running,
-    command: precommitStream.state.command,
-    elapsedMs: precommitStream.state.elapsedMs,
-    tail: precommitStream.state.tail,
-    onCancel: precommitStream.cancel,
+  const precommitNoticeProps = useMemo(() => ({
     failedResult: precommitFailure,
     onDismissFailure: dismissPrecommitFailure,
     onCommitAnyway: handleCommitAnyway,
-    onRunAgain: handleRunPrecommitAgain,
     onDisable: handleDisablePrecommit,
     isCommittingAnyway: commitMutation.isPending,
-    isRunningAgain: runPrecommitMutation.isPending || precommitStream.state.running,
     isDisablingChecks: savePrecommitConfigMutation.isPending,
   }), [
-    precommitStream.state.running,
-    precommitStream.state.command,
-    precommitStream.state.elapsedMs,
-    precommitStream.state.tail,
-    precommitStream.cancel,
     precommitFailure,
     dismissPrecommitFailure,
     handleCommitAnyway,
-    handleRunPrecommitAgain,
     handleDisablePrecommit,
     commitMutation.isPending,
-    runPrecommitMutation.isPending,
     savePrecommitConfigMutation.isPending,
   ]);
 
@@ -2516,12 +2572,13 @@ export default function App() {
               commitMessage={commitMessage}
               onCommitMessageChange={setCommitMessage}
               onCommit={handleCommit}
-              isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
+              isCommitting={isAuthorizingCommit || commitMutation.isPending}
               isUpdatingIndex={isStaging}
               stagedPaths={stagedPaths}
               onUnstagePaths={handleUnstagePathsAsync}
-              commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
-              precommitProgress={precommitProgressProps}
+              onQueueStagedExtras={handleQueueStagedExtras}
+              commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              precommitNotice={precommitNoticeProps}
               commitError={commitError}
               onRetryWithoutPrecommit={handleCommitSkipPrecommit}
               canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
@@ -2543,6 +2600,14 @@ export default function App() {
               historyCommit={viewingCommit}
               authorityStatus={authorityStatus}
               onAuthoritySignedIn={() => void authorityQuery.refetch()}
+              queuedStageSelections={suggestionStageQueue}
+              onRemoveQueuedStageSelection={completeQueuedStageSelection}
+              onResolveQueuedCommit={resolveQueuedCommit}
+              onStageQueuedSelection={stageNextQueuedSelection}
+              onRetryQueuedSuggestion={retryQueuedSuggestion}
+              onRefreshQueuedSuggestion={refreshQueuedSuggestion}
+              onStartQueuedSuggestion={handleStartQueuedSuggestion}
+              onFinishQueuedUnstage={selection => void handleFinishQueuedUnstage(selection)}
             />
           </ProposalsSection>
         );
@@ -2783,12 +2848,13 @@ export default function App() {
               commitMessage={commitMessage}
               onCommitMessageChange={setCommitMessage}
               onCommit={handleCommit}
-              isCommitting={isAuthorizingCommit || commitMutation.isPending || precommitStream.state.running}
+              isCommitting={isAuthorizingCommit || commitMutation.isPending}
               isUpdatingIndex={isStaging}
               stagedPaths={stagedPaths}
               onUnstagePaths={handleUnstagePathsAsync}
-              commitProgressLabel={precommitStream.state.running ? "Running checks…" : isAuthorizingCommit ? "Preparing commit…" : undefined}
-              precommitProgress={precommitProgressProps}
+              onQueueStagedExtras={handleQueueStagedExtras}
+              commitProgressLabel={isAuthorizingCommit ? "Preparing commit…" : undefined}
+              precommitNotice={precommitNoticeProps}
               commitError={commitError}
               onRetryWithoutPrecommit={handleCommitSkipPrecommit}
               canRetryWithoutPrecommit={Boolean(commitError && pendingPrecommitCommit)}
@@ -2812,6 +2878,14 @@ export default function App() {
               historyCommit={viewingCommit}
               authorityStatus={authorityStatus}
               onAuthoritySignedIn={() => void authorityQuery.refetch()}
+              queuedStageSelections={suggestionStageQueue}
+              onRemoveQueuedStageSelection={completeQueuedStageSelection}
+              onResolveQueuedCommit={resolveQueuedCommit}
+              onStageQueuedSelection={stageNextQueuedSelection}
+              onRetryQueuedSuggestion={retryQueuedSuggestion}
+              onRefreshQueuedSuggestion={refreshQueuedSuggestion}
+              onStartQueuedSuggestion={handleStartQueuedSuggestion}
+              onFinishQueuedUnstage={selection => void handleFinishQueuedUnstage(selection)}
             />
           </ProposalsSection>
         );
@@ -2951,6 +3025,7 @@ export default function App() {
         {pendingCommitAuthorization && (
           <CommitAuthorizationDialog
             pending={pendingCommitAuthorization}
+            activeRepositoryId={repoId ?? ""}
             isAuthorizing={isAuthorizingCommit}
             skipPrecommit={skipPrecommitInDialog}
             dontAskAgain={dontAskAgain}
@@ -3019,7 +3094,10 @@ export default function App() {
         <StageDuringSuggestionModal
           hold={pendingSuggestionStage?.hold ?? null}
           paths={pendingSuggestionStage?.paths ?? []}
+          queuedConflicts={pendingSuggestionStage?.queuedConflicts ?? []}
           onConfirm={handleConfirmSuggestionStage}
+          onQueue={pendingSuggestionStage?.hold ? handleQueueSuggestionStage : undefined}
+          queuedSelections={suggestionStageQueue.length}
           onCancel={() => setPendingSuggestionStage(null)}
         />
         <MobileFileSearch
@@ -3115,6 +3193,7 @@ export default function App() {
       {pendingCommitAuthorization && (
         <CommitAuthorizationDialog
           pending={pendingCommitAuthorization}
+          activeRepositoryId={repoId ?? ""}
           isAuthorizing={isAuthorizingCommit}
           skipPrecommit={skipPrecommitInDialog}
           dontAskAgain={dontAskAgain}
@@ -3184,7 +3263,10 @@ export default function App() {
       <StageDuringSuggestionModal
         hold={pendingSuggestionStage?.hold ?? null}
         paths={pendingSuggestionStage?.paths ?? []}
+        queuedConflicts={pendingSuggestionStage?.queuedConflicts ?? []}
         onConfirm={handleConfirmSuggestionStage}
+        onQueue={pendingSuggestionStage?.hold ? handleQueueSuggestionStage : undefined}
+        queuedSelections={suggestionStageQueue.length}
         onCancel={() => setPendingSuggestionStage(null)}
       />
       <FileSearchModal

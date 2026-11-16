@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -89,13 +88,13 @@ func (sl *ScenarioLocator) List(ctx context.Context) ([]ScenarioInfo, error) {
 func (s *Server) handleScenarioList(w http.ResponseWriter, r *http.Request) {
 	scenarios, err := s.scenarioLocator.List(r.Context())
 	if err != nil {
-		log.Printf("ERROR: scenario list failed: %v", err)
+		s.logf("ERROR: scenario list failed: %v", err)
 		http.Error(w, "failed to list scenarios", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(scenarios); err != nil {
-		log.Printf("ERROR: encoding scenario list: %v", err)
+		s.logf("ERROR: encoding scenario list: %v", err)
 	}
 }

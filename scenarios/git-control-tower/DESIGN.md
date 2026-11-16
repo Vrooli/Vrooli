@@ -78,7 +78,10 @@ the interaction, not a backend or a promise about production latency.
    Selecting a partial suggestion MUST NOT force agent invocation.
 5. When no reusable message exists, the UI MUST say so and offer Start drafting
    agent and Cancel. Related context without a reusable message is not a ready
-   suggestion. No stage of collection MAY automatically start an agent.
+   suggestion. No stage of collection MAY automatically start an agent. The
+   operator MUST be able to choose a quick draft or start a deeper investigation
+   directly from the same immutable collection, without waiting for a quick
+   result first.
 6. Starting an agent is explicit. Its job MUST be message-only/read-only, bounded
    to the immutable staged subject plus authorized context, and MUST NOT create
    a commit proposal, stage files, commit, publish or alter agent grants.
@@ -96,6 +99,40 @@ the interaction, not a backend or a promise about production latency.
 9. Staged-content drift MUST retain existing text/results and mark applicability
    stale. Working-tree-only edits MUST NOT stale a staged-content draft. Changed
    staging MUST NOT silently restart inference or adopt a new input subject.
+   While a draft is running or a suggestion remains available, every stage
+   request MUST show an explicit choice even when the draft has become stale or
+   inapplicable. The operator MAY queue ordered follow-up file selections from
+   that confirmation. A stale suggestion with additional staged paths MUST
+   offer one action to save those paths as a separate queued selection and apply
+   the retained suggestion after its original staged snapshot verifies again.
+   Queue admission MUST capture and persist the selected staged content before
+   unstage begins. An interrupted unstage MUST leave an explicit recoverable
+   awaiting-unstage selection; retrying the handoff MUST be idempotent. Queueing
+   MUST NOT start an AI job. Each queued selection MUST capture its exact
+   index-to-worktree changes without writing the Git index, and MUST offer
+   quick or deep generation only after the operator chooses it from the queue.
+   Each job MUST retain its own immutable subject,
+   status and result. Queued files remain unstaged until the current commit
+   succeeds; then the next selection is staged for review only if its captured
+   content still matches. Changed queued content MUST remain queued and be
+   reported stale; it MUST NOT be staged under a suggestion for different
+   content. The queue MUST be visible, editable, repository-scoped and
+   recoverable after navigation or reload. The server owns the ordered queue in
+   durable scenario storage; selection admission MUST persist the immutable
+   capture and exclusive path ownership atomically, while suggestion creation
+   MUST attach a job to that saved selection only after explicit mode choice.
+   Every mutation MUST compare the repository queue revision, and
+   active selections MUST have exclusive path ownership across clients. Queue
+   admission accepts only canonical UTF-8 repository-relative Git paths; corrupt
+   persisted paths fail closed on reads and replays. Confirmation for immediate
+   staging is bound to the originating repository and the exact conflicting
+   queue selections shown to the operator. Queue
+   lifecycle states MUST distinguish queued, awaiting-unstage, staged, failed, stale and
+   commit-pending. A successful commit reserves its exact queue head before
+   execution, retires that head only after success, and restores it after a
+   confirmed failure. An interrupted commit-pending entry MUST offer explicit
+   operator resolution before the queue advances. Staging immediately remains
+   an explicit override and MUST disclose which queued suggestion it invalidates.
 10. Empty staging, partial/unavailable evidence, failed/cancelled agent jobs,
     binary/large-file omissions and source privacy MUST have truthful states.
 

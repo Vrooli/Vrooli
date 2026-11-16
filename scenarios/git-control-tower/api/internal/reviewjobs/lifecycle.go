@@ -2,27 +2,42 @@ package reviewjobs
 
 import "fmt"
 
-const Cancelling State = "cancelling"
+const (
+	Dispatching   State = "dispatching"
+	AwaitingInput State = "awaiting_input"
+	Stale         State = "stale"
+	Cancelling    State = "cancelling"
+)
 
 var lifecycleEdges = map[State]map[State]struct{}{
 	Queued: {
-		Running: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Interrupted: {},
+		Dispatching: {}, Running: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Interrupted: {},
+	},
+	Dispatching: {
+		Queued: {}, Running: {}, AwaitingInput: {}, AwaitingProvider: {}, Succeeded: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Stale: {}, Interrupted: {},
 	},
 	Running: {
-		Queued: {}, Partial: {}, Succeeded: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Interrupted: {},
+		Queued: {}, AwaitingInput: {}, AwaitingProvider: {}, Partial: {}, Succeeded: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Stale: {}, Interrupted: {},
 	},
+	AwaitingInput: {
+		Queued: {}, Running: {}, Succeeded: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Stale: {}, Interrupted: {},
+	},
+	AwaitingProvider: {Cancelled: {}},
 	Partial: {
 		Queued: {}, Running: {}, Succeeded: {}, Failed: {}, Cancelled: {}, Cancelling: {}, Interrupted: {},
 	},
 	Cancelling: {
-		Failed: {}, Cancelled: {},
+		Failed: {}, Cancelled: {}, Stale: {},
 	},
+	// Failed -> Queued is used only by the staged-message owner's guarded
+	// recovery for legacy dispatches whose acceptance was never confirmed.
+	Failed: {Queued: {}},
 }
 
 // Valid reports whether state is part of the durable review-job lifecycle.
 func (state State) Valid() bool {
 	switch state {
-	case Queued, Running, Partial, Succeeded, Failed, Cancelled, Interrupted, Cancelling:
+	case Queued, Dispatching, Running, AwaitingInput, AwaitingProvider, Partial, Succeeded, Failed, Cancelled, Interrupted, Cancelling, Stale:
 		return true
 	default:
 		return false
@@ -31,7 +46,7 @@ func (state State) Valid() bool {
 
 // Terminal reports whether state has no permitted outgoing lifecycle edge.
 func (state State) Terminal() bool {
-	return state == Succeeded || state == Failed || state == Cancelled || state == Interrupted
+	return state == Succeeded || state == Failed || state == Cancelled || state == Interrupted || state == Stale
 }
 
 // Transition changes one job state through the fleet lifecycle owner.

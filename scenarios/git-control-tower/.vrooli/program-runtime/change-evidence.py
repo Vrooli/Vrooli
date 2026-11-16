@@ -3,7 +3,7 @@ import json
 
 inputs = program.inputs()
 
-env = {"program": "git-control-tower.change-evidence", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
+env = program.envelope('git-control-tower.change-evidence', '1', phase="validate", inputs={})
 try:
     if not isinstance(inputs, dict) or not str(inputs.get("operation_id", "")).strip():
         env["errors"].append({"class": "invalid_input", "detail": "operation_id is required", "where": env["phase"]})

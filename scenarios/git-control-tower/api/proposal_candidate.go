@@ -16,10 +16,21 @@ import (
 )
 
 func (s *Server) proposalCandidateCheck(repoPath string, skip bool) proposals.CandidateCheck {
-	if s.precommit == nil || skip {
+	if s.candidateSecurity == nil && (s.precommit == nil || skip) {
 		return nil
 	}
 	return func(ctx context.Context, candidate string) (*proposals.PrecommitOutcome, error) {
+		var candidateOutcome *proposals.PrecommitOutcome
+		if s.candidateSecurity != nil {
+			candidateCheck := scanStagedCandidate(ctx, s.git, candidate, s.candidateSecurity)
+			candidateOutcome = proposalPrecommitOutcome(candidateCheck)
+			if candidateCheck.Status != "passed" {
+				return candidateOutcome, nil
+			}
+		}
+		if s.precommit == nil || skip {
+			return candidateOutcome, nil
+		}
 		cfg, err := s.precommit.Get(ctx, repoPath)
 		if err != nil {
 			return nil, err
@@ -37,6 +48,14 @@ func (s *Server) proposalCandidateCheck(repoPath string, skip bool) proposals.Ca
 		cfg.WorkingDirectory = filepath.Join(candidate, rel)
 		result, err := s.precommit.runConfig(withCandidateEnvironment(ctx, repoPath, candidate), repoPath, cfg)
 		return precommitOutcome(&result), err
+	}
+}
+
+func proposalPrecommitOutcome(result PrecommitRunResult) *proposals.PrecommitOutcome {
+	return &proposals.PrecommitOutcome{
+		Status: result.Status, Command: result.Command, ExitCode: result.ExitCode,
+		Summary: result.Summary, Stdout: result.Stdout, Stderr: result.Stderr,
+		DurationMs: result.DurationMs, Timestamp: result.Timestamp,
 	}
 }
 

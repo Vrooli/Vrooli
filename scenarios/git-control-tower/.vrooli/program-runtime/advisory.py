@@ -3,7 +3,7 @@ import json
 
 inputs = program.inputs()
 
-env = {"program": "git-control-tower.advisory", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
+env = program.envelope('git-control-tower.advisory', '1', phase="validate", inputs={})
 modes = {"summary", "commit-draft", "pr-draft", "review", "release-draft", "provenance"}
 
 try:

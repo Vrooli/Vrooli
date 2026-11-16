@@ -47,19 +47,26 @@ func (s *Server) handleRunArtifact(w http.ResponseWriter, r *http.Request) {
 		url.PathEscape(artifactID),
 	)
 
+	if err := proxyRunArtifact(ctx, w, r, s.httpDoer, target); err != nil {
+		http.Error(w, fmt.Sprintf("fetch video: %v", err), http.StatusBadGateway)
+	}
+}
+
+func proxyRunArtifact(ctx context.Context, w http.ResponseWriter, r *http.Request, doer HTTPDoer, target string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return err
 	}
 	if rng := r.Header.Get("Range"); rng != "" {
 		req.Header.Set("Range", rng)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	if doer == nil {
+		doer = &http.Client{Timeout: 60 * time.Second}
+	}
+	resp, err := doer.Do(req)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("fetch video: %v", err), http.StatusBadGateway)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -70,4 +77,5 @@ func (s *Server) handleRunArtifact(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	_, _ = io.Copy(w, resp.Body)
+	return nil
 }

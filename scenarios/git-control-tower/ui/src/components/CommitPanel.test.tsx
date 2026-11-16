@@ -170,33 +170,7 @@ describe("CommitPanel", () => {
     expect(screen.getByTestId("commit-button")).toBeEnabled();
   });
 
-  it("shows live precommit progress panel with elapsed and tail", () => {
-    renderWithProviders(
-      <CommitPanel
-        stagedCount={1}
-        commitMessage="fix: x"
-        onCommitMessageChange={() => {}}
-        onCommit={vi.fn()}
-        isCommitting={true}
-        precommitProgress={{
-          running: true,
-          command: "vrooli hygiene --fail-on error",
-          elapsedMs: 12500,
-          tail: ["check 1 ok", "check 2 ok", "running drift..."],
-          onCancel: vi.fn(),
-        }}
-      />
-    );
-
-    const progress = screen.getByTestId("commit-precommit-progress");
-    expect(progress).toBeInTheDocument();
-    expect(progress).toHaveTextContent(/Running pre-commit/i);
-    expect(progress).toHaveTextContent(/12\.5s/);
-    expect(progress).toHaveTextContent(/running drift/);
-    expect(screen.getByRole("button", { name: /cancel/i })).toBeInTheDocument();
-  });
-
-  it("hides precommit progress panel when not running and no failure", () => {
+  it("hides the precommit failure panel when there is no failure", () => {
     renderWithProviders(
       <CommitPanel
         stagedCount={1}
@@ -204,17 +178,15 @@ describe("CommitPanel", () => {
         onCommitMessageChange={() => {}}
         onCommit={vi.fn()}
         isCommitting={false}
-        precommitProgress={{ running: false, elapsedMs: 0, tail: [] }}
+        precommitNotice={{}}
       />
     );
-    expect(screen.queryByTestId("commit-precommit-progress")).not.toBeInTheDocument();
     expect(screen.queryByTestId("commit-precommit-failure")).not.toBeInTheDocument();
   });
 
   it("renders persistent failure panel with output and actions when precommit failed", () => {
     const onDismiss = vi.fn();
     const onCommitAnyway = vi.fn();
-    const onRunAgain = vi.fn();
     const onDisable = vi.fn();
     renderWithProviders(
       <CommitPanel
@@ -223,10 +195,7 @@ describe("CommitPanel", () => {
         onCommitMessageChange={() => {}}
         onCommit={vi.fn()}
         isCommitting={false}
-        precommitProgress={{
-          running: false,
-          elapsedMs: 12500,
-          tail: [],
+        precommitNotice={{
           failedResult: {
             status: "failed",
             exit_code: 1,
@@ -239,7 +208,6 @@ describe("CommitPanel", () => {
           },
           onDismissFailure: onDismiss,
           onCommitAnyway,
-          onRunAgain,
           onDisable,
         }}
       />
@@ -251,9 +219,6 @@ describe("CommitPanel", () => {
     expect(failure).toHaveTextContent(/Precommit checks failed/);
     expect(failure).toHaveTextContent(/drift detected/);
     expect(failure).toHaveTextContent(/exit 1/);
-
-    fireEvent.click(screen.getByRole("button", { name: /Run Again/i }));
-    expect(onRunAgain).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: /Commit Anyway/i }));
     expect(onCommitAnyway).toHaveBeenCalledTimes(1);
@@ -273,10 +238,7 @@ describe("CommitPanel", () => {
         onCommitMessageChange={() => {}}
         onCommit={vi.fn()}
         isCommitting={false}
-        precommitProgress={{
-          running: false,
-          elapsedMs: 0,
-          tail: [],
+        precommitNotice={{
           failedResult: {
             status: "failed",
             exit_code: 1,
@@ -294,7 +256,7 @@ describe("CommitPanel", () => {
     expect(screen.queryByRole("button", { name: /Commit Anyway/i })).not.toBeInTheDocument();
   });
 
-  it("does not show the failure panel while the stream is still running", () => {
+  it("keeps an authoritative failure visible until dismissed", () => {
     renderWithProviders(
       <CommitPanel
         stagedCount={1}
@@ -302,10 +264,7 @@ describe("CommitPanel", () => {
         onCommitMessageChange={() => {}}
         onCommit={vi.fn()}
         isCommitting={true}
-        precommitProgress={{
-          running: true,
-          elapsedMs: 1000,
-          tail: ["line"],
+        precommitNotice={{
           failedResult: {
             status: "failed",
             exit_code: 1,
@@ -319,8 +278,7 @@ describe("CommitPanel", () => {
         }}
       />
     );
-    expect(screen.getByTestId("commit-precommit-progress")).toBeInTheDocument();
-    expect(screen.queryByTestId("commit-precommit-failure")).not.toBeInTheDocument();
+    expect(screen.getByTestId("commit-precommit-failure")).toBeInTheDocument();
   });
 
   it("shows commit checks in history mode", () => {
@@ -377,7 +335,7 @@ describe("CommitPanel", () => {
     );
   });
 
-  it("offers Commit Anyway inside the running progress box", () => {
+  it("offers Commit Anyway from the persistent failure notice", () => {
     const onCommitAnyway = vi.fn();
     renderWithProviders(
       <CommitPanel
@@ -385,18 +343,24 @@ describe("CommitPanel", () => {
         commitMessage="fix: x"
         onCommitMessageChange={() => {}}
         onCommit={vi.fn()}
-        isCommitting={true}
-        precommitProgress={{
-          running: true,
-          elapsedMs: 3000,
-          tail: [],
-          onCancel: vi.fn(),
+        isCommitting={false}
+        precommitNotice={{
+          failedResult: {
+            status: "failed",
+            exit_code: 1,
+            summary: "Precommit checks failed",
+            stdout: "",
+            stderr: "",
+            duration_ms: 0,
+            override_allowed: true,
+            timestamp: "2026-05-20T22:14:59Z",
+          },
           onCommitAnyway,
         }}
       />
     );
 
-    fireEvent.click(screen.getByTestId("commit-anyway-running"));
+    fireEvent.click(screen.getByRole("button", { name: /Commit Anyway/i }));
     expect(onCommitAnyway).toHaveBeenCalledTimes(1);
   });
 
@@ -451,4 +415,23 @@ it("names authorization preparation before a commit is submitted", () => {
  renderWithProviders(<CommitPanel stagedCount={1} commitMessage="source change" onCommitMessageChange={()=>{}} onCommit={()=>{}} isCommitting commitProgressLabel="Preparing commit…" />);
  expect(screen.getByTestId("commit-button")).toHaveTextContent("Preparing commit…");
  expect(screen.getByTestId("commit-button")).toBeDisabled();
+});
+
+it("offers explicit recovery choices when a commit outcome is unresolved", () => {
+ const resolve = vi.fn();
+ renderWithProviders(
+   <CommitPanel
+     stagedCount={0}
+     commitMessage=""
+     onCommitMessageChange={() => {}}
+     onCommit={vi.fn()}
+     isCommitting={false}
+     queuedStageSelections={[{ id: "entry", paths: ["src/a.ts"], queuedAt: "now", state: "commit_pending", suggestionMode: "quick", requestKey: "request", jobId: "job" }]}
+     onResolveQueuedCommit={resolve}
+   />,
+ );
+ fireEvent.click(screen.getByRole("button", { name: "I committed these files" }));
+ fireEvent.click(screen.getByRole("button", { name: "The commit did not happen" }));
+ expect(resolve).toHaveBeenNthCalledWith(1, "entry", true);
+ expect(resolve).toHaveBeenNthCalledWith(2, "entry", false);
 });

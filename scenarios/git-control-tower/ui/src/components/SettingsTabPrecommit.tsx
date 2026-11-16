@@ -21,7 +21,8 @@ interface SettingsTabPrecommitProps {
 function textFieldsEqual(a: PrecommitConfig, b: PrecommitConfig): boolean {
   return a.command === b.command
     && a.working_directory === b.working_directory
-    && a.timeout_seconds === b.timeout_seconds;
+    && a.timeout_seconds === b.timeout_seconds
+    && a.declared_inputs.join("\n") === b.declared_inputs.join("\n");
 }
 
 export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPrecommitProps) {
@@ -42,6 +43,7 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
         enabled: fresh.enabled,
         run_before_commit: fresh.run_before_commit,
         allow_override: fresh.allow_override,
+        declared_inputs: fresh.declared_inputs,
         last_result: fresh.last_result,
         hook: fresh.hook,
       };
@@ -112,6 +114,22 @@ export function SettingsTabPrecommit({ repoId, isMobile = false }: SettingsTabPr
             onChange={(event) => setDraft({ ...draft, working_directory: event.target.value })}
           />
         </div>
+      </div>
+
+      <div className="space-y-1">
+        <label className={labelClass} htmlFor="precommit-declared-inputs">Files used by this check</label>
+        <textarea
+          id="precommit-declared-inputs"
+          className={controlClass}
+          rows={3}
+          value={(draft.declared_inputs ?? []).join("\n")}
+          onChange={(event) => setDraft({
+            ...draft,
+            declared_inputs: event.target.value.split("\n").map((path) => path.trim()).filter(Boolean),
+          })}
+          placeholder=".pre-commit-config.yaml&#10;scripts/check.sh"
+        />
+        <p className="text-[11px] text-slate-500">One repository-relative file per line. Changes invalidate matching check receipts; missing, escaping, or oversized inputs block the check.</p>
       </div>
 
       <label className="flex items-center justify-between gap-3 rounded-md border border-slate-800 px-3 py-2">

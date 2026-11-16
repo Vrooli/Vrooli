@@ -17,32 +17,20 @@ import type { AuthorityStatus, CommitCheckRun, PrecommitRunResult, RepoHistoryEn
 import { XCircle } from "lucide-react";
 import { AuthenticatorSignIn } from "./AuthenticatorSignIn";
 import { CommitMessageComposer } from "../features/commit-message/CommitMessageComposer";
-import { parseMessage } from "../features/commit-message/message";
+import { mergeSuggestionTrailers, parseMessage, serializeMessage } from "../features/commit-message/message";
+import type { QueuedStageSelection } from "../features/commit-message/stageQueue";
+import { StagedMessageMode, type StagedMessageSuggestion } from "../features/commit-message/api";
+import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
+import { QueuedStageSuggestionStatus } from "./QueuedStageSuggestionStatus";
 
-export interface CommitPanelPrecommitProgress {
-  running: boolean;
-  command?: string;
-  elapsedMs: number;
-  tail: string[];
-  onCancel?: () => void;
-  // Persistent failure state (shown after the stream finishes with a non-passing status).
+export interface CommitPanelPrecommitNotice {
+  // Persistent failure state from identity-bound final admission.
   failedResult?: PrecommitRunResult | null;
   onDismissFailure?: () => void;
   onCommitAnyway?: () => void;
-  onRunAgain?: () => void;
   onDisable?: () => void;
   isCommittingAnyway?: boolean;
-  isRunningAgain?: boolean;
   isDisablingChecks?: boolean;
-}
-
-function formatElapsedShort(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = ms / 1000;
-  if (seconds < 60) return `${seconds.toFixed(1)}s`;
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m}m ${s.toString().padStart(2, "0")}s`;
 }
 
 interface CommitPanelProps {
@@ -60,6 +48,7 @@ interface CommitPanelProps {
   stagedPaths?: readonly string[];
   /** Narrows the index back to a commit suggestion's staged selection. */
   onUnstagePaths?: (paths: string[]) => Promise<void>;
+  onQueueStagedExtras?: (paths: string[]) => Promise<boolean>;
   commitProgressLabel?: string;
   commitError?: string;
   // Reuse a passed pre-commit after a post-pass failure (e.g. index lock) — commit
@@ -85,10 +74,18 @@ interface CommitPanelProps {
   // History mode - disables the panel
   isHistoryMode?: boolean;
   historyCommit?: Pick<RepoHistoryEntry, "hash" | "subject" | "checks"> | null;
-  // Pre-commit live progress (driven by useStreamPrecommit in the parent)
-  precommitProgress?: CommitPanelPrecommitProgress;
+  // Identity-bound failure notice with retry and explicit override actions.
+  precommitNotice?: CommitPanelPrecommitNotice;
   authorityStatus?: AuthorityStatus;
   onAuthoritySignedIn?: () => void;
+  queuedStageSelections?: QueuedStageSelection[];
+  onRemoveQueuedStageSelection?: (id: string) => void;
+  onResolveQueuedCommit?: (id: string, committed: boolean) => void;
+  onStageQueuedSelection?: () => void;
+  onRetryQueuedSuggestion?: (selection: QueuedStageSelection) => void;
+  onRefreshQueuedSuggestion?: (selection: QueuedStageSelection) => void;
+  onStartQueuedSuggestion?: (selection: QueuedStageSelection, mode: StagedMessageMode) => void;
+  onFinishQueuedUnstage?: (selection: QueuedStageSelection) => void;
 }
 
 function CommitErrorDisplay({ error }: { error: string }) {
@@ -218,6 +215,7 @@ export function CommitPanel({
   isUpdatingIndex = false,
   stagedPaths,
   onUnstagePaths,
+  onQueueStagedExtras,
   commitProgressLabel,
   commitError,
   defaultAuthorName,
@@ -236,11 +234,19 @@ export function CommitPanel({
   sourceBranch,
   isHistoryMode = false,
   historyCommit,
-  precommitProgress,
+  precommitNotice,
   onRetryWithoutPrecommit,
   canRetryWithoutPrecommit = false,
   authorityStatus,
   onAuthoritySignedIn,
+  queuedStageSelections = [],
+  onRemoveQueuedStageSelection,
+  onResolveQueuedCommit,
+  onStageQueuedSelection,
+  onRetryQueuedSuggestion,
+  onRefreshQueuedSuggestion,
+  onStartQueuedSuggestion,
+  onFinishQueuedUnstage,
 }: CommitPanelProps) {
   const [signInOpen, setSignInOpen] = useState(false);
   const [useConventional, setUseConventional] = useState(false);
@@ -250,6 +256,13 @@ export function CommitPanel({
   const [authorEmail, setAuthorEmail] = useState("");
   const [authorTouched, setAuthorTouched] = useState(false);
   const [amendLast, setAmendLast] = useState(false);
+  const [queuedSuggestionToApply, setQueuedSuggestionToApply] = useState<string>();
+
+  const useQueuedSuggestion = (suggestion: StagedMessageSuggestion) => {
+    const message = serializeMessage({ title: suggestion.title, description: suggestion.body, trailers: mergeSuggestionTrailers("", suggestion.trailers) });
+    if (commitMessage.trim()) setQueuedSuggestionToApply(message);
+    else onCommitMessageChange(message);
+  };
 
   const trimmedMessage = commitMessage.trim();
   const hasTitle = Boolean(parseMessage(commitMessage).title.trim());
@@ -337,7 +350,19 @@ export function CommitPanel({
             amend={amendLast}
             stagedPaths={stagedPaths}
             onUnstage={onUnstagePaths}
+            onQueueStagedExtras={onQueueStagedExtras}
           />
+
+          {queuedStageSelections.length > 0 && <section className="space-y-2 rounded-lg border border-cyan-900/70 bg-cyan-950/20 p-3" aria-label="Queued commit selections" data-testid="queued-stage-selections">
+            <div className="flex items-center justify-between gap-2"><p className="text-xs font-semibold text-cyan-100">{queuedStageSelections.length} next commit {queuedStageSelections.length === 1 ? "selection" : "selections"} queued</p>
+              {onStageQueuedSelection && queuedStageSelections[0]?.state === "stage_failed" && <button type="button" disabled={isUpdatingIndex} className="min-h-9 rounded border border-cyan-800 px-2 text-[11px] text-cyan-100 disabled:opacity-50" onClick={onStageQueuedSelection}>Retry staging next</button>}
+            </div>
+            <p className="text-[11px] text-slate-400">Each selection has its own suggestion job and stays unstaged while the current commit is active. After this commit succeeds, the next unchanged selection is staged for review.{queuedStageSelections[0]?.state === "stage_failed" ? " The last staging attempt failed or was incomplete; retry it or remove this selection." : queuedStageSelections[0]?.state === "commit_pending" ? " The commit outcome needs confirmation before this queue can continue." : ""}</p>
+            <ol className="space-y-1">{queuedStageSelections.map((selection, index) => <li key={selection.id} className="flex items-start gap-2 text-[11px] text-slate-300">
+              <span className="shrink-0 font-mono text-cyan-300">{index + 1}.</span><div className="min-w-0 flex-1"><p className="break-all">{selection.paths.join(", ")}</p>{selection.stageError && <p role="alert" className="my-1 text-xs text-amber-200">{selection.stageError}</p>}{selection.state === "commit_pending" && onResolveQueuedCommit && <div className="mt-1 flex flex-wrap gap-2"><button type="button" disabled={isCommitting} className="text-cyan-200 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, true)}>I committed these files</button><button type="button" disabled={isCommitting} className="text-slate-300 underline disabled:opacity-50" onClick={() => onResolveQueuedCommit(selection.id, false)}>The commit did not happen</button></div>}<QueuedStageSuggestionStatus repositoryId={repoId ?? ""} selection={selection} isStaged={selection.state === "staged"} onUse={useQueuedSuggestion} onRetry={onRetryQueuedSuggestion} onRefresh={onRefreshQueuedSuggestion} onStartSuggestion={onStartQueuedSuggestion} onFinishUnstage={onFinishQueuedUnstage} /></div>
+              {onRemoveQueuedStageSelection && selection.state !== "commit_pending" && <button type="button" disabled={isUpdatingIndex} className="min-h-8 shrink-0 px-1 text-slate-400 hover:text-white disabled:opacity-50" onClick={() => onRemoveQueuedStageSelection(selection.id)} aria-label={`Remove queued selection ${index + 1}`}>Remove</button>}
+            </li>)}</ol>
+          </section>}
 
           {authorityStatus && !authorityStatus.canMutate && (
             <div
@@ -532,65 +557,8 @@ export function CommitPanel({
             </div>
           )}
 
-          {/* Pre-commit live progress */}
-          {precommitProgress?.running && (
-            <div
-              className="rounded-md border border-sky-800/60 bg-sky-950/30 p-3 text-xs text-sky-100"
-              role="status"
-              aria-live="polite"
-              data-testid="commit-precommit-progress"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <span className="flex items-center gap-2 font-medium">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Running pre-commit
-                  {precommitProgress.command && (
-                    <code className="text-sky-200 truncate max-w-[16rem]" title={precommitProgress.command}>
-                      {precommitProgress.command}
-                    </code>
-                  )}
-                </span>
-                <span className="tabular-nums">{formatElapsedShort(precommitProgress.elapsedMs)}</span>
-              </div>
-              <p className="mt-2 text-[11px] text-sky-200/70">
-                This is the pre-commit hook running configured checks before the commit. It may take a while…
-              </p>
-              {precommitProgress.tail.length > 0 && (
-                <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px] text-slate-200">
-                  {precommitProgress.tail.join("\n")}
-                </pre>
-              )}
-              {(precommitProgress.onCancel || precommitProgress.onCommitAnyway) && (
-                <div className="mt-2 flex justify-end gap-2">
-                  {precommitProgress.onCommitAnyway && (
-                    <button
-                      type="button"
-                      onClick={precommitProgress.onCommitAnyway}
-                      disabled={precommitProgress.isCommittingAnyway}
-                      className="inline-flex items-center gap-1 rounded border border-amber-700/70 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-900/40 disabled:opacity-60"
-                      data-testid="commit-anyway-running"
-                    >
-                      <GitCommit className="h-3 w-3" />
-                      Commit Anyway
-                    </button>
-                  )}
-                  {precommitProgress.onCancel && (
-                    <button
-                      type="button"
-                      onClick={precommitProgress.onCancel}
-                      className="inline-flex items-center gap-1 rounded border border-red-700/60 px-2 py-1 text-[11px] text-red-200 hover:bg-red-900/40"
-                    >
-                      <XCircle className="h-3 w-3" />
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Pre-commit failure — persistent until user dismisses */}
-          {!precommitProgress?.running && precommitProgress?.failedResult && (
+          {precommitNotice?.failedResult && (
             <div
               className="rounded-md border border-red-800/60 bg-red-950/30 p-3 text-xs text-red-100"
               role="alert"
@@ -605,10 +573,10 @@ export function CommitPanel({
                     The commit was not created. You can fix the issue and try again, or commit anyway if the checks allow it.
                   </div>
                 </div>
-                {precommitProgress.onDismissFailure && (
+                {precommitNotice.onDismissFailure && (
                   <button
                     type="button"
-                    onClick={precommitProgress.onDismissFailure}
+                    onClick={precommitNotice.onDismissFailure}
                     className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-red-800/60 text-red-200 hover:bg-red-900/40"
                     aria-label="Dismiss pre-commit failure"
                   >
@@ -618,41 +586,31 @@ export function CommitPanel({
               </div>
               <div className="mt-3 rounded border border-red-900/60 bg-red-950/50 p-2 text-[11px]">
                 <div className="flex items-center justify-between gap-3">
-                  <span className="font-medium text-red-100">{precommitProgress.failedResult.summary}</span>
-                  <span className="text-red-200/70">exit {precommitProgress.failedResult.exit_code}</span>
+                  <span className="font-medium text-red-100">{precommitNotice.failedResult.summary}</span>
+                  <span className="text-red-200/70">exit {precommitNotice.failedResult.exit_code}</span>
                 </div>
-                {(precommitProgress.failedResult.stdout || precommitProgress.failedResult.stderr) && (
+                {(precommitNotice.failedResult.stdout || precommitNotice.failedResult.stderr) && (
                   <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap rounded bg-slate-950 p-2 text-[11px] text-slate-200">
-                    {[precommitProgress.failedResult.stdout, precommitProgress.failedResult.stderr].filter(Boolean).join("\n")}
+                    {[precommitNotice.failedResult.stdout, precommitNotice.failedResult.stderr].filter(Boolean).join("\n")}
                   </pre>
                 )}
               </div>
               <div className="mt-3 flex flex-wrap justify-end gap-2">
-                {precommitProgress.onRunAgain && (
+                {precommitNotice.onCommitAnyway && precommitNotice.failedResult.override_allowed && (
                   <button
                     type="button"
-                    onClick={precommitProgress.onRunAgain}
-                    disabled={precommitProgress.isRunningAgain}
-                    className="inline-flex items-center gap-1 rounded border border-slate-700 bg-slate-900 px-2 py-1 text-[11px] text-slate-100 hover:bg-slate-800 disabled:opacity-60"
-                  >
-                    Run Again
-                  </button>
-                )}
-                {precommitProgress.onCommitAnyway && precommitProgress.failedResult.override_allowed && (
-                  <button
-                    type="button"
-                    onClick={precommitProgress.onCommitAnyway}
-                    disabled={precommitProgress.isCommittingAnyway}
+                    onClick={precommitNotice.onCommitAnyway}
+                    disabled={precommitNotice.isCommittingAnyway}
                     className="inline-flex items-center gap-1 rounded border border-amber-700/70 bg-amber-950/40 px-2 py-1 text-[11px] text-amber-100 hover:bg-amber-900/40 disabled:opacity-60"
                   >
                     Commit Anyway
                   </button>
                 )}
-                {precommitProgress.onDisable && (
+                {precommitNotice.onDisable && (
                   <button
                     type="button"
-                    onClick={precommitProgress.onDisable}
-                    disabled={precommitProgress.isDisablingChecks}
+                    onClick={precommitNotice.onDisable}
+                    disabled={precommitNotice.isDisablingChecks}
                     className="inline-flex items-center gap-1 rounded border border-red-800/70 px-2 py-1 text-[11px] text-red-200 hover:bg-red-900/40 disabled:opacity-60"
                   >
                     Disable Checks
@@ -694,6 +652,19 @@ export function CommitPanel({
         )}
         </CardContent>
       )}
+      {queuedSuggestionToApply && <ResponsiveDialog
+        open
+        onClose={() => setQueuedSuggestionToApply(undefined)}
+        title="Replace the current commit message?"
+        ariaLabel="Compare current commit message with queued suggestion"
+        closeLabel="Keep current message"
+        size="lg"
+        contentPadding="comfortable"
+        testId="queued-suggestion-comparison"
+        footer={<div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setQueuedSuggestionToApply(undefined)}>Keep current</Button><Button type="button" onClick={() => { onCommitMessageChange(queuedSuggestionToApply); setQueuedSuggestionToApply(undefined); }}>Replace with suggestion</Button></div>}
+      >
+        <div className="grid gap-3 md:grid-cols-2"><section><h3 className="mb-2 text-xs font-semibold text-slate-300">Current message</h3><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-slate-700 bg-slate-950 p-3 text-xs">{commitMessage}</pre></section><section><h3 className="mb-2 text-xs font-semibold text-cyan-200">Queued suggestion</h3><pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-cyan-900 bg-slate-950 p-3 text-xs">{queuedSuggestionToApply}</pre></section></div>
+      </ResponsiveDialog>}
     </Card>
   );
 }

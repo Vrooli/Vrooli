@@ -25,6 +25,28 @@ func TestBaselineStartRequestHasDedicatedAdmissionCaller(t *testing.T) {
 	}
 }
 
+func TestMissingEvidenceRequestSelectsCanonicalExperienceAndRetainsVisualEvidence(t *testing.T) {
+	request, err := missingEvidenceStartRequest("scenario-to-desktop", []string{"visual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := request.Msg.GetTarget(); got != "scenario-to-desktop" {
+		t.Fatalf("target = %q, want scenario-to-desktop", got)
+	}
+	if got := request.Msg.GetPhases(); len(got) != 1 || got[0] != "experience" {
+		t.Fatalf("phases = %v, want only experience", got)
+	}
+	if got := request.Msg.GetCaptureProfile(); got != "baseline" {
+		t.Fatalf("capture profile = %q, want baseline", got)
+	}
+	if got := request.Header().Get(cliutil.HeaderCaller); got != baselineAdmissionCaller+":missing-evidence" {
+		t.Fatalf("X-Vrooli-Caller = %q, want missing-evidence admission identity", got)
+	}
+	if _, err := missingEvidenceStartRequest("scenario-to-desktop", []string{"findings"}); err == nil {
+		t.Fatal("nonvisual missing-evidence request must remain unsupported")
+	}
+}
+
 func TestBaselineStartRequestCarriesCollectionReservation(t *testing.T) {
 	request := baselineStartRequest("calendar", "gct:collection:7:agi:baseline", 12)
 	if got := request.Msg.GetCollectionReservationId(); got != "gct:collection:7:agi:baseline" {

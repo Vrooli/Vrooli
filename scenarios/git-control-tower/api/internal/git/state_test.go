@@ -124,3 +124,24 @@ func TestCaptureEmptyRepoNoCommits(t *testing.T) {
 		t.Fatal("expected dirty (untracked file)")
 	}
 }
+
+func TestCaptureWithEnvControlsSandboxFlag(t *testing.T) {
+	run := fakeRunner(map[string]string{
+		"rev-parse --is-inside-work-tree":          "true\n",
+		"rev-parse HEAD":                           "",
+		"rev-parse --abbrev-ref HEAD":              "main\n",
+		"status --porcelain --untracked-files=all": "",
+	}, map[string]bool{"rev-parse HEAD": true})
+	st, err := CaptureWithEnv(context.Background(), "/repo", run, injectedEnvironment{"VROOLI_SANDBOX_MERGED": "overlay"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.Sandboxed {
+		t.Fatal("expected injected environment to mark state sandboxed")
+	}
+}
+
+type injectedEnvironment map[string]string
+
+func (e injectedEnvironment) Getenv(key string) string { return e[key] }
+func (injectedEnvironment) Environ() []string          { return nil }

@@ -24,7 +24,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'git-control-tower',
-  corsOrigins: '*',
   embeddedProxy: true,
   // Visual capture and workflow capture requests can take minutes when
   // capturing multiple presets/pages via BAS. The default 15s proxy timeout

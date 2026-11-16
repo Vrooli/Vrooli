@@ -9,7 +9,6 @@ package baseline
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"time"
 
@@ -41,7 +40,7 @@ type RepoResolver interface {
 type Server struct {
 	svc    *bl.Service
 	repos  RepoResolver
-	logger *log.Logger
+	logger interface{ Printf(string, ...any) }
 	// finalize, when set, overrides the async snapshot finalize tail (tests run
 	// it synchronously to assert the pin lands).
 	finalize func(ctx context.Context, pending bl.PendingCapture)
@@ -60,18 +59,22 @@ type Server struct {
 type Deps struct {
 	Service *bl.Service
 	Repos   RepoResolver
-	Logger  *log.Logger
+	Logger  interface{ Printf(string, ...any) }
 }
 
 // NewServer builds a Server.
 func NewServer(d Deps) *Server {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		d.Logger = quietLogger{}
 	}
 	s := &Server{svc: d.Service, repos: d.Repos, logger: d.Logger}
 	s.reattachPendingSnapshots()
 	return s
 }
+
+type quietLogger struct{}
+
+func (quietLogger) Printf(string, ...any) {}
 
 // NewHandler returns the (procedure-prefix, http.Handler) pair the router
 // mounts.

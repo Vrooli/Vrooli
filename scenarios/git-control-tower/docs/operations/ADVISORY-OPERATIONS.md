@@ -71,6 +71,19 @@ need not echo thousands of full paths. Older admitted jobs
 retain their input format and owner execution rather than changing subjects or
 launching replacement work.
 
+Durable `DraftInput` JSON has one current schema, format 4. Formats 2 and 3 are
+read-only compatibility inputs: format 2 retains the original representative
+draft and omission rules; format 3 retains deep evidence without synthesis
+scope claims. The persisted-input decoder accepts exactly formats 2, 3, and 4;
+missing, zero, negative, and unsupported future versions are invalid. The
+`DraftInput.semantics()` adapter maps accepted stored versions to runtime
+capabilities. New deep investigations and continuations write format 4. Never
+rewrite a stored input, snapshot, or format number during recovery or retry;
+retry must preserve the original owner key and payload. Remove a legacy mapping
+only after durable-job retention and backup evidence establish that no format
+2 or 3 row can be restored, and remove its oldest-format regression in the same
+change.
+
 The dialog labels the pinned input as "Staged selection: N files". This count
 identifies the files selected for the commit, not the completeness of a draft.
 Whole-selection and limited draft scope, detailed inspection, and evidence
@@ -170,6 +183,15 @@ bounded server wait. Hiding the panel or disconnecting does not cancel it.
 terminal standing. A lost start response must be reconciled using the original
 request key, never by creating a fresh execution.
 
+Public `GetStagedMessageJob` is observational: it projects the last durable
+receipt and does not dispatch, reconcile with Agent Manager, or mutate job
+state. The server-owned settle worker advances active owner executions and
+recovers queued/dispatching rows left by a process restart before dispatch. It
+uses the immutable input and the same durable owner idempotency key; dispatch
+claim and lifecycle revision checks make it safe alongside a live Start or a
+cancellation request. A row with a confirmed maintenance refusal remains
+paused until an explicit operator retry.
+
 The browser retains the exact admission intent before Start. A temporary
 NotFound after a lost response does not authorize a new identity: reconnect or
 retry the same frozen request. Late observer responses cannot clear an observed
@@ -208,6 +230,78 @@ or leave a durable running/interrupted row. SQLite backups must include the
 domain tables and be restored into a disposable validation instance before
 claiming recovery. Provider caches and Search Hub indexes are projections and
 must be rebuilt from owner evidence.
+
+## Reliability verification map
+
+### Failure classification and recovery matrix
+
+The persisted job is authoritative for what GCT has confirmed. `Known` fields
+carry evidence, not defaults: unknown start, token, or charge values stay
+unknown until the owner supplies a receipt. A request or owner-read failure
+does not by itself prove that work did not start. Historical rows without a
+durable cause remain unclassified.
+
+| Failure category | Origin and persisted standing | User-visible explanation and recovery | Source regressions |
+|---|---|---|---|
+| Provider unavailable or closed | An owner-issued Workspace Sandbox maintenance refusal with explicit prelaunch/no-work evidence becomes `awaiting_provider`; the durable receipt proves no start, zero tokens, and zero charge. A generic unavailable response after dispatch remains uncertain with its original request identity. | The UI explains the provider wait and only enables a new job after a separate readiness read is freshly known open. Generic outages reconnect to the existing job. | `TestStagedMessageAgentReadinessAcceptsOnlyFreshOwnerObservation`, `TestStagedMessageAgentProjectsMaintenanceRefusalAsDefinitiveNoStart`, `TestMaintenanceRefusalPersistsAwaitingProviderAndRequiresExplicitNewJobRetry`, `TestOwnerReadAuthenticationFailureDoesNotInventTerminalExecution` |
+| Uncertain dispatch acknowledgement | The job remains `dispatching` with `dispatch_unconfirmed`, no invented execution handle, and no asserted work or charge certainty. Cancellation resolves the same owner key through its fence. | Keep the frozen request; reconnect by its original request key. Do not submit a fresh Start while acceptance is unresolved. | `TestLostAdmissionAcknowledgementReconcilesSameDurableKey`, `TestLostAdmissionAcknowledgementSurvivesLaterAuthenticationFailure`, `TestCancelledAmbiguousDispatchAdoptsHandleAndSettleFinishesCancellation`; UI `recovers an uncertain launch by reconnecting to the same request without redispatch` |
+| Authentication or policy denial | A definitive first admission denial is terminal `failed` with `authentication_required` or `policy_denied`; work and charge remain unknown unless receipts say otherwise. If access fails while reading an already-attached execution, the job stays attached and records the access cause without claiming that execution stopped. | For a first-admission denial, restore access and explicitly start a new suggestion. For an attached execution, restore access and reconnect to the same job; do not create a replacement. | `TestClassifyDispatchErrorsByRecoveryAction`, `TestFirstDefinitiveAdmissionRejectionRemainsTerminal`, `TestOwnerReadAuthenticationFailureDoesNotInventTerminalExecution`; UI `explains persisted authentication_required` and `explains persisted policy_denied without implying the saved execution stopped` |
+| Budget exhaustion | The owner terminal reason is retained as `budget_exhausted` with its budget name/message. Start, tokens, and charge are shown only from measured owner receipts. | The failed job retains its explanation and evidence. Start a new suggestion only after reviewing the limit; no same-key redispatch is implied. | `TestStagedMessageBudgetFailureExplainsActualOwnerReason`, `TestStagedMessageAgentProjectsChargeOnlyFromMeasuredReceipt` |
+| Cancellation | `cancelling` persists until owner confirmation. A fenced pre-start cancellation records known no-start, zero tokens, and zero charge; an accepted execution retains owner work and charge receipts. | The UI says cancellation is pending until confirmation, then shows `cancelled`; reconnect continues the same owner identity. | `TestCancelBeforeOwnerStartDoesNotDispatch`, `TestCancelFenceWinsAgainstBlockedStartBeforeOwnerAdmission`, `TestCancelRacingAcceptedStartAdoptsAndCancelsOwner`, `TestCancelledAmbiguousDispatchAdoptsHandleAndSettleFinishesCancellation`; UI `keeps the owner job while hidden and cancellation pending until owner confirmation` |
+| Invalid output | Malformed or out-of-scope structured output becomes terminal `failed` with `invalid_structured_output`; any known work, token, and measured charge receipt is preserved. No transcript fallback manufactures a result. | The UI shows the failure and offers a separate new suggestion. Deep retries use the retained immutable input; applying a result remains a separate operator action. | `TestMalformedStructuredResultFailsWithoutTranscriptFallback`, `TestResultCoverageRejectsMissingDuplicatedAndInventedScope`; UI `shows failures with retry evidence collection and never restarts an agent automatically`, `retries a failed deep draft as a new job over the same saved selection` |
+| Result or evidence read failure | A typed owner result/evidence read error persists as `evidence_unavailable`. When the owner response includes its handle and receipts, GCT saves them; otherwise it preserves the prior certainty. A successful reconnect clears the transient category. | The active job shows the read failure and a reconnect action that reads the same job; it never creates a replacement execution. | `TestStagedMessageAgentClassifiesResultReadFailureAsEvidenceUnavailable`, `TestEvidenceReadFailureKeepsJobRecoverableAndClearsOnReconnect`, `TestEvidenceReadFailureAtStartPersistsHandleAndWorkReceipt`; UI `surfaces a persisted active-job evidence error and reconnects to that same job`, `shows a persisted active-job failure explanation with same-job recovery` |
+| Stale execution or selection | A saved execution is marked `stale` only when Agent Manager returns typed NotFound. A changed captured selection cannot start or be applied as though still current. | The UI says the saved execution is missing or the selection changed; capture and queue the current files as a new request. | `TestJobStatusMarksStaleOnlyOnOwnerNotFound`, `TestStaleCollectionCannotStartAgent`; UI `retains an inapplicable result as stale and explains how to queue the current files` |
+| Queue conflict | An ownership or revision mismatch returns a conflict and preserves the current queue owner; it does not replace an active job. | Refresh the queue and act on its current entry. A failed/orphaned entry is retried only after its old job is terminal or missing. | `TestWorktreeRefreshReplacesDurableQueueEntryAtomicallyAndReplays`, `TestFailedQueueEntryCanRetryWhenItsSuggestionJobWasDeleted`, `TestWorktreeQueueRejectsPathOwnershipConflictsTransactionally`; UI `surfaces a persisted queue failure without attempting a job lookup` |
+| Storage failure | GCT returns a safe internal error when durable storage fails. No durable failure classification can be promised while the storage owner is unavailable; the last committed row, if any, is the limit of known standing. | Reconnect by the original job ID or request key after storage recovers. If dispatch may have happened, reconcile that identity before considering a new request. | `TestStagedMessageStorageErrorsAreSafeInternalFailures`, `TestQueuedSelectionCanReplaceOrphanedSuggestionJob`, `TestLostAdmissionAcknowledgementReconcilesSameDurableKey` |
+
+The UI regression names in this matrix refer to `CommitMessageComposer.test.tsx`
+or `QueuedStageSuggestionStatus.test.tsx` under `ui/src/`. These tests cover the
+operator-facing path; API and storage tests remain authoritative for durable
+classification and certainty.
+
+These tests are the owning regressions for the staged-message agent reliability
+contract. Run the Agent Manager and Git Control Tower `unit` Test Genie phases
+after changes to these paths. Focused package tests provide faster local
+feedback; the Test Genie receipt is the scenario-level validation record.
+
+| Requirement | Authoritative regression coverage |
+|---|---|
+| Fresh provider readiness, a typed maintenance refusal, and an operator-controlled retry after readiness opens | `TestStagedMessageAgentReadinessAcceptsOnlyFreshOwnerObservation`, `TestStagedMessageAgentProjectsMaintenanceRefusalAsDefinitiveNoStart`, `TestMaintenanceRefusalPersistsAwaitingProviderAndRequiresExplicitNewJobRetry`, `TestMaintenanceRetryRequiresKnownOpenProviderReadiness` |
+| Failure classification, budget feedback, and truthful work/result evidence | `TestClassifyDispatchErrorsByRecoveryAction`, `TestFirstDefinitiveAdmissionRejectionRemainsTerminal`, `TestLostAdmissionAcknowledgementReconcilesSameDurableKey`, `TestLostAdmissionAcknowledgementSurvivesLaterAuthenticationFailure`, `TestOwnerReadAuthenticationFailureDoesNotInventTerminalExecution`, `TestStagedMessageBudgetFailureExplainsActualOwnerReason`, `TestMaintenanceCodeWithStartedReceiptDoesNotClaimProviderWaitOrZeroCharge`, `TestMalformedStructuredResultFailsWithoutTranscriptFallback`, `TestResultCoverageRejectsMissingDuplicatedAndInventedScope`, `TestStagedMessageAgentClassifiesResultReadFailureAsEvidenceUnavailable`, `TestEvidenceReadFailureKeepsJobRecoverableAndClearsOnReconnect`, `TestStagedMessageStorageErrorsAreSafeInternalFailures` |
+| Observational reads, idempotent reconnect, and retry from the saved input | `TestJobGetIsObservationalAndAdvanceDispatches`, `TestDurableAdmissionIsIdempotentAndReattachesByRequestKey`, `TestRetryDraftUsesSavedInputWithoutBrowserAdmission`, `TestLegacyAdmissionRetryUsesOriginalDurableInputAndRejectsChangedIntent` |
+| Stale snapshots, queue ownership, and concurrent admission | `TestStaleCollectionCannotStartAgent`, `TestStagedDriftRetainsResultAndDoesNotRestart`, `TestWorktreeRefreshReplacesDurableQueueEntryAtomicallyAndReplays`, `TestConcurrentAdmissionRetainsOneJobAndOneOwnerIdempotencyIdentity`, `TestConcurrentRetryAdmissionCannotBeTerminatedByOlderAuthenticationRefusal` |
+| Agent Manager run action availability, request validation, owner failures, and response projections | `TestAgentRunEventsBoundsAndProjection`, `TestAgentRunDiffProjectsFiles`, `TestAgentRunEventsRejectInvalidQueryBounds`, `TestAgentRunActionsRejectUnavailableAndMissingRunID`, `TestAgentRunActionResponseProjections`, `TestAgentRunActionsMapOwnerErrors` |
+| Advisory Connect request validation and nested evidence projection | `TestAdvisoryConnectDraftValidatesAndReturnsDraft`, `TestAdvisoryConnectDraftRejectsMissingAndInvalidRequests`, `TestAdvisoryProtoConversionsPreserveNestedEvidenceAndIgnoreNilEntries` |
+| Durable recovery queue paging, cancellation filtering, and stored-state validation | `TestListRecoverableAdvisoryFiltersCancelledRowsBeforePaging`, `TestListAdvisoryUsesRecentFirstAndValidatesStoredState` |
+| Cancellation before, during, and after owner admission, including terminal receipts | `TestCancelBeforeOwnerStartDoesNotDispatch`, `TestCancelAfterAttemptMarkerUsesOwnerFenceWithoutStarting`, `TestCancelFenceWinsAgainstBlockedStartBeforeOwnerAdmission`, `TestCancelRacingAcceptedStartAdoptsAndCancelsOwner`, `TestCancelledAmbiguousDispatchAdoptsHandleAndSettleFinishesCancellation`, `TestCancelFencedStartAdoptsTerminalOwnerReceiptWithoutRecancel`, `TestWorkflowExecutionCancellationFenceSerializesStartAdmission`, `TestCancelWorkflowExecutionByKeyReturnsTerminalStartReceipt` |
+| UI state, elapsed time, and operator-visible failure | `ui/src/components/QueuedStageSuggestionStatus.test.tsx`, `ui/src/features/commit-message/CommitMessageComposer.test.tsx`; the latter also runs under `pnpm type-check` |
+| Durable failure and stuck-work signals | `TestMetricsAggregateDurableLifecycleEvidence`, `TestMetricsTracksDispatchingUntilOwnerHandleIsSaved`, `TestMetricsCountsProviderWaitWithoutCallingItFailedOrStuck`, `TestMetricsClassifiesOnlyProvenLegacyMaintenanceRowsAsProviderWait` |
+| Exact executor identity, bounded inventory, and fail-closed compatibility with an older root CLI | `TestControlPlaneExecutorScopeUsesDurableIdentityAndCompleteProof`, `TestControlPlaneExecutorScopeKeepsOrdinaryCoverageFromOldIncompleteOwner`, `TestControlPlaneExecutorScopeBatchesHistoricalReferences`, `TestControlPlaneExecutorScopeOldCountLimitFallbackIsNonAtomic`, `TestControlPlaneExecutorScopeSplitsOversizedInventoryByJSONBytesAndMarksNonAtomic`, `TestExecutorScopePaginatesReferencesAgainstOneHostSnapshot` |
+| Workspace Sandbox fence recovery and PID-reuse protection | `TestProviderLifecycleFencePersistsAcrossReplacementAndRequiresExactResume`, `TestProviderLifecycleDrainIgnoresExitedProcessWhosePIDWasReused`, `TestStartOperationFenceOwnerFindsExactSuccessfulOwnerAcrossLaterUnlinkedStart` |
+
+These regressions do not make uncertain runtime evidence complete. The installed
+root CLI includes bounded executor-reference paging and one complete systemd
+scope snapshot for gone-scope checks and Web Console session correlation on
+attached runs (binary SHA-256
+`817b5600853d5fa5ab890aac4b1fe4dd19d9c69cb600b353c6a0a67b46a87a16`). A live
+read of 70,187 retained references completed in 3.2 seconds: 29,207 were proven
+absent and 40,980 remain unknown because their old attached-session bindings
+lack current process/scope proof. The former timeout is fixed; the historical
+unknowns are not timeout errors and must not be backfilled as dead.
+
+The current Agent Manager maintenance projection is narrower and reports one
+unresolved attached run, `fffdf89f-ca80-4d20-bbc9-da2908b5a741`. Its durable run
+is complete, its recorded leader PID is absent, and its event stream records an
+exit, but the old record has no established containment provenance to prove
+that descendants are gone. Maintenance therefore still fails closed. Keep the
+run and its uncertainty intact until the lifecycle owner has an authoritative
+scope proof or a supported, compare-and-swap recovery for this legacy case.
+This limits claims that a physical drain is complete; it does not block the
+operator's normal supported Agent Manager restart, which preserves detached
+executors and does not require Agent Manager to self-drain. Record the original
+run IDs and verify their recovery after that restart.
+Historical failures with no durable cause remain unclassified; do not backfill
+a guessed cause.
 
 ## Known external activation gaps
 

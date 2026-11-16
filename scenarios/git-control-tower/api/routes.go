@@ -75,6 +75,7 @@ func (s *Server) setupRoutes() {
 	s.router.HandleFunc("/api/v1/agent/runs/{id}/approve", s.handleAgentRunApprove).Methods("POST")
 	s.router.HandleFunc("/api/v1/agent/runs/{id}/reject", s.handleAgentRunReject).Methods("POST")
 	s.router.HandleFunc("/api/v1/agent/runs/{id}/stop", s.handleAgentRunStop).Methods("POST")
+	s.router.HandleFunc("/api/v1/agent/staged-message/metrics", s.handleStagedMessageMetrics).Methods("GET")
 
 	// Review read endpoints remain REST during the typed migration. Review run
 	// admission is owned by ReviewService.Start.

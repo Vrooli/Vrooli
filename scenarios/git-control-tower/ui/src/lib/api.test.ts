@@ -1,4 +1,4 @@
-import { fetchDiff, fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory, fetchRepoStatus, pushToRemote, pullFromRemote, RemoteOperationError } from "./api";
+import { fetchDiff, fetchHealth, fetchBranches, createBranch, fetchGroupingRules, fetchRepoGroups, fetchRepoHistory, fetchRepoStatus, fetchPrecommitConfig, savePrecommitConfig, pushToRemote, pullFromRemote, RemoteOperationError } from "./api";
 import { mockFetchJson, textResponse } from "../test-utils";
 
 const connectMocks = vi.hoisted(() => ({
@@ -16,6 +16,7 @@ const connectMocks = vi.hoisted(() => ({
   repoClient: {
     createCommit: vi.fn(), getRepoDiff: vi.fn(), getRepoGroups: vi.fn(), getRepoStatus: vi.fn(), getSyncStatus: vi.fn(),
     getGroupingRules: vi.fn(), getRepoHistory: vi.fn(), pushToRemote: vi.fn(), pullFromRemote: vi.fn(),
+    getPrecommitConfig: vi.fn(), savePrecommitConfig: vi.fn(),
   },
 }));
 
@@ -118,6 +119,34 @@ test("fetchRepoGroups uses the typed RepoService response", async () => {
   const result = await fetchRepoGroups("repo-1");
   expect(result.groups[0]?.key).toBe("scenario:x");
   expect(connectMocks.repoClient.getRepoGroups).toHaveBeenCalledOnce();
+});
+
+test("precommit declared inputs roundtrip through the settings API", async () => {
+  const declaredInputs = [".pre-commit-config.yaml", "scripts/check.sh"];
+  connectMocks.repoClient.getPrecommitConfig.mockResolvedValue({
+    enabled: true, command: "./scripts/check.sh", workingDirectory: "/repo", timeoutSeconds: 30,
+    runBeforeCommit: true, allowOverride: false, declaredInputs,
+  });
+  const loaded = await fetchPrecommitConfig("repo-1");
+  expect(loaded.declared_inputs).toEqual(declaredInputs);
+  expect(connectMocks.repoClient.getPrecommitConfig).toHaveBeenCalledOnce();
+
+  connectMocks.humanControlClient.getAuthorityStatus.mockResolvedValue({ canMutate: true, reason: "" });
+  connectMocks.humanControlClient.prepareMutation.mockResolvedValue({
+    repositoryId: "repo-1", operation: "repo.precommit", expectedRevision: "rev-1", subjectDigest: "digest-1",
+  });
+  connectMocks.humanControlClient.confirmMutation.mockResolvedValue({ intentId: "intent-1" });
+  connectMocks.repoClient.savePrecommitConfig.mockResolvedValue({
+    enabled: true, command: "./scripts/check.sh", workingDirectory: "/repo", timeoutSeconds: 30,
+    runBeforeCommit: true, allowOverride: false, declaredInputs,
+  });
+  const saved = await savePrecommitConfig({
+    enabled: true, command: "./scripts/check.sh", working_directory: "/repo", timeout_seconds: 30,
+    run_before_commit: true, allow_override: false, declared_inputs: declaredInputs,
+  }, "repo-1");
+  const saveRequest = connectMocks.repoClient.savePrecommitConfig.mock.calls[0]?.[0] as { declaredInputs?: string[] } | undefined;
+  expect(saveRequest?.declaredInputs).toEqual(declaredInputs);
+  expect(saved.declared_inputs).toEqual(declaredInputs);
 });
 
 test("fetchRepoHistory requests files and checks includes together", async () => {

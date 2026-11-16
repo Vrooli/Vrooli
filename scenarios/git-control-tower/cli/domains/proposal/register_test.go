@@ -207,8 +207,13 @@ func TestCreateMergesRequestFileFlagsAndCreatorRun(t *testing.T) {
 	if err := os.WriteFile(bodyFile, []byte("Outcome.\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv(creatorRunEnv, "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb")
-	err := runCreate(nil, []string{"--request-file", requestFile, "--subject", "bas: from flag (E27)", "--body-file", bodyFile, "--run", "e8c322ca-72e7-434c-9d37-1d2cf853961f", "--trailer", "Vrooli-Plan=plan-1", "b.go", "--validate-only"})
+	env := envLookup(func(key string) string {
+		if key != creatorRunEnv {
+			t.Fatalf("unexpected environment key %q", key)
+		}
+		return "70dd81be-0c15-4ef3-9b05-e18aa6ca7ccb"
+	})
+	err := runCreateWithEnv(nil, []string{"--request-file", requestFile, "--subject", "bas: from flag (E27)", "--body-file", bodyFile, "--run", "e8c322ca-72e7-434c-9d37-1d2cf853961f", "--trailer", "Vrooli-Plan=plan-1", "b.go", "--validate-only"}, env)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -245,6 +250,7 @@ func (s *recordingServer) GetRepoDiff(_ context.Context, req *connect.Request[re
 	s.calls, s.diff = append(s.calls, "diff"), req.Msg
 	return connect.NewResponse(&repov1.GetRepoDiffResponse{Raw: "-base\n+captured\n"}), nil
 }
+
 func TestDiffReviewsExactRevisionWithoutMutation(t *testing.T) {
 	impl := &recordingServer{proposal: openProposal()}
 	out := serve(t, impl, "")
@@ -255,6 +261,7 @@ func TestDiffReviewsExactRevisionWithoutMutation(t *testing.T) {
 		t.Fatalf("calls=%v request=%v output=%s", impl.calls, impl.diff, out.String())
 	}
 }
+
 func TestFailedPublishedCommitReportsRecoveryIdentity(t *testing.T) {
 	out := serve(t, &recordingServer{}, "")
 	err := reportApply(&proposalsv1.ApplyProposalResponse{CommitOid: "abc123", Error: "receipt failed", VerificationNotes: []string{"index not restored because commit exists"}})

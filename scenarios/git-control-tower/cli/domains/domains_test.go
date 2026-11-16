@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
 )
 
 func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
@@ -34,7 +36,7 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 		"review":   3,
 		"audit":    1,
 		"baseline": 15, // 6 record/lifecycle verbs + collection/path evidence + 7 engagement verbs
-		"message":  7, // collection/check, drafting lifecycle and paged immutable evidence
+		"message":  9,  // collection/check, staged/worktree drafting, retry, and paged immutable evidence
 	}
 	for name, count := range want {
 		if got[name] != count {
@@ -43,8 +45,49 @@ func TestSubcommandGroupsRegistersExpectedDomains(t *testing.T) {
 	}
 }
 
-func TestCommandGroupsRemainUnused(t *testing.T) {
-	if got := CommandGroups(nil); got != nil {
-		t.Fatalf("CommandGroups() = %#v, want nil", got)
+func TestCommandGroupsRegisterCanonicalUXCapture(t *testing.T) {
+	groups := CommandGroups(nil)
+	if len(groups) != 1 || groups[0].Title != "UX capture" || len(groups[0].Commands) != 1 || groups[0].Commands[0].Name != "ux-capture" {
+		t.Fatalf("CommandGroups() = %#v, want one ux-capture command", groups)
+	}
+}
+
+func TestLocalManifestCommandsMatchRegisteredFlatCommands(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := cliapp.ParseManifest(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registered := map[string]bool{}
+	for _, group := range CommandGroups(nil) {
+		for _, command := range group.Commands {
+			registered[command.Name] = true
+		}
+	}
+	subcommands, err := SubcommandGroups(nil, raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, group := range subcommands {
+		for _, command := range group.Subcommands {
+			registered[group.Name+" "+command.Name] = true
+		}
+	}
+	for _, group := range manifest.Groups {
+		for _, command := range group.Commands {
+			if command.Binding.Kind != "local" {
+				continue
+			}
+			path := group.Name
+			if !group.Flat {
+				path += " " + command.Name
+			}
+			if !registered[path] {
+				t.Errorf("manifest local command %q has no registered dispatch command", path)
+			}
+		}
 	}
 }

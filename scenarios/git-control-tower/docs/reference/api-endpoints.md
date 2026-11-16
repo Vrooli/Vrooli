@@ -233,6 +233,7 @@ depends on it.
 | POST | `/api/v1/agent/runs/{id}/continue`        | Continue a paused run. |
 | POST | `/api/v1/agent/runs/{id}/reject`          | Reject a run. |
 | POST | `/api/v1/agent/runs/{id}/stop`            | Stop a run. |
+| GET  | `/api/v1/agent/staged-message/metrics`    | Durable staged-message failure, duration, proven zero-work refusal, duplicate retry, and stuck lifecycle aggregates. |
 | POST | `/api/v1/agent/attachments/upload`        | Upload attachment for runs. |
 
 ## Review pipeline

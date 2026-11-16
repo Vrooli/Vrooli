@@ -268,7 +268,58 @@ unit-testable without standing up a full server:
 | Policy config loader | `api/internal/config/config.go::Load` | Reads `<scenarioDir>/.vrooli/config.json` `policy` block, merges over `DefaultConfig()`. | Table-driven `config_test.go` writes synthetic JSON into a `t.TempDir()` directory. | Lets an operator tune `agentAccess`/`callerDetection`/override-flag/message template without rebuilding. |
 | Gate decision (pure) | `api/internal/policygate/policygate.go::Decide` | Pure function over `(CallerKind, CommandSpec, OverrideFlags, PolicyConfig)`. | Matrix tests in `policygate_test.go`. | Single source of truth for the allow/warn/deny/confirm matrix. Importable from both the API interceptor and the (future) CLI gate. |
 | Connect server interceptor | `api/internal/policygate/interceptor.go::NewInterceptor` | Wraps unary Connect handlers; caller headers are attribution only, while verified principal plus exact intent are required for mutating procedures. | `interceptor_test.go` mounts a `UnimplementedWorktreeServiceHandler` shim and asserts fail-closed behavior. | Defense in depth for direct RPC callers and the canonical enforcement layer. |
-| Connect client header stamp | `cli/internal/callerheader/interceptor.go::New` | Stamps attribution headers for diagnostics; it never carries human authority. | `interceptor_test.go` mounts a recording handler. | Preserves caller observability without making a header authoritative. |
+| Connect client header stamp and compatibility env lookup | `cli/internal/callerheader/interceptor.go::NewWithEnvLookup` | `New` wires `os.Getenv`; stamps attribution headers for diagnostics only. | `interceptor_test.go` injects a lookup and mounts a recording handler. | Keeps caller metadata deterministic in tests; this header never carries human authority. |
+
+## Staged-Message Snapshot Clock
+
+`api/internal/stagedmessages.GitSnapshotter.Now` controls the descriptive
+`CapturedAt` timestamp for staged snapshots. Production wires `time.Now` when
+the staged-message service is initialized. Worktree capture uses the owning
+service's existing `now` dependency. Focused snapshot tests inject a fixed
+instant. The timestamp is metadata and is excluded from the content-derived
+snapshot digest.
+
+## Staged-Message Job Ownership and Failure Receipts
+
+Admission persists the immutable input and idempotency key before advancing the
+Agent Manager execution. Explicit Start/Retry and queued-worktree admission may
+advance that durable job; WAIT and CANCEL are explicit lifecycle operations;
+the bounded background settler may reconcile completed owner executions. A
+Get is observational: it projects the saved job and checks whether its captured
+selection is still applicable, without calling Agent Manager or changing job
+state. Reconnect polling must therefore use Get; recovery uses the same durable
+job through Wait or an idempotent admission replay.
+
+Terminal owner reasons cross the workflow adapter as bounded `error_code`,
+`error`, and `retryable` fields. `execution_started_known` is separate from the
+boolean value: only explicit runner evidence can establish no-start, and a
+successful workflow proves that the child started. Unknown owner acknowledgments
+remain attached to the same idempotency key and cannot be treated as a
+definitive refusal. Public messages must not contain raw transcripts or
+transport details. The exact Workspace Sandbox maintenance refusal is a typed
+pre-effect receipt; a generic HTTP 409 is not sufficient evidence.
+
+Agent Manager exposes `GET /api/v1/provider-readiness`, which reads only
+Workspace Sandbox's `LifecycleMaintenanceService.Status`; Agent Manager's own
+lifecycle gate and executor inventory are a different signal. The adapter
+validates provider/scenario identity, phase, and observation timestamp and
+returns unknown on any incomplete or foreign response. GCT polls this read-only
+signal while a maintenance refusal is displayed, enables retry only for a
+fresh known-open observation, and rechecks readiness in the Retry service
+before creating a new owner job. Unknown and closed status defer retry. If the
+provider closes after the observation, dispatch remains authoritative and the
+failed job stays attached to the same saved input.
+
+Failure-rate and time-to-terminal metrics by stable failure code remain an
+operations gap; do not infer provider health from scenario process health
+alone.
+
+Regression seams: `api/internal/stagedmessages/service_test.go` covers
+observational Get, explicit advance, idempotent lost-ack recovery, and safe
+classification of ambiguous/authentication errors;
+`api/staged_message_agent_test.go` covers the typed maintenance no-start
+receipt and projection; `ui/src/features/commit-message/CommitMessageComposer.test.tsx`
+covers user-facing maintenance deferral.
 
 Audit log line shape (emitted by the server interceptor's
 `StdAuditLogger`):

@@ -21,6 +21,7 @@ import (
 	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain/domainconnect"
 	advisoryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/git-control-tower/v1/advisory"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -28,6 +29,7 @@ import (
 
 type stagedWorkflowFake struct {
 	execution                             *ampb.WorkflowExecution
+	resultExecution                       *ampb.WorkflowExecution
 	start                                 *apipb.StartWorkflowExecutionRequest
 	startHeaders                          http.Header
 	starts, gets, waits, cancels, results int
@@ -35,6 +37,57 @@ type stagedWorkflowFake struct {
 	wait                                  *apipb.WaitWorkflowExecutionRequest
 	cancelStatus                          ampb.WorkflowExecutionStatus
 	startErr                              error
+	resultErr                             error
+}
+
+func TestStagedMessageAgentReadinessAcceptsOnlyFreshOwnerObservation(t *testing.T) {
+	observed := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, tc := range []struct {
+		name string
+		body string
+		want string
+	}{
+		{name: "open", body: `{"provider":"workspace-sandbox","state":"open","known":true,"observed_at":"` + observed + `","message":"Workspace Sandbox is ready for agent runs."}`, want: "open"},
+		{name: "closed", body: `{"provider":"workspace-sandbox","state":"closed","known":true,"observed_at":"` + observed + `","message":"Workspace Sandbox is in lifecycle maintenance."}`, want: "closed"},
+		{name: "unknown", body: `{"provider":"workspace-sandbox","state":"unknown","known":false,"message":"Workspace Sandbox readiness could not be confirmed."}`, want: "unknown"},
+		{name: "foreign owner", body: `{"provider":"agent-manager","state":"open","known":true,"observed_at":"` + observed + `"}`, want: "unknown"},
+		{name: "stale", body: `{"provider":"workspace-sandbox","state":"open","known":true,"observed_at":"2020-01-01T00:00:00Z"}`, want: "unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != http.MethodGet || r.URL.Path != "/api/v1/provider-readiness" {
+					t.Errorf("unexpected readiness request: %s %s", r.Method, r.URL.Path)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+			provider := &stagedMessageAgent{resolve: func(context.Context) (string, error) { return server.URL, nil }, httpClient: server.Client()}
+			got := provider.Readiness(context.Background())
+			if got.State != tc.want || got.Known != (tc.want != "unknown") {
+				t.Fatalf("readiness = %+v, want state %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestStagedMessageStatusPreservesDistinctOwnerStates(t *testing.T) {
+	for _, tc := range []struct {
+		status ampb.WorkflowExecutionStatus
+		want   string
+	}{
+		{ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING, "queued"},
+		{ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_WAITING, "awaiting_input"},
+		{ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING, "running"},
+		{ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED, "succeeded"},
+		{ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED, "failed"},
+		{ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_CANCELLED, "cancelled"},
+		{ampb.WorkflowExecutionStatus(999), "unknown"},
+	} {
+		if got := stagedMessageStatus(tc.status); got != tc.want {
+			t.Errorf("status %v = %q, want %q", tc.status, got, tc.want)
+		}
+	}
 }
 
 func (f *stagedWorkflowFake) StartWorkflowExecution(_ context.Context, r *connect.Request[apipb.StartWorkflowExecutionRequest]) (*connect.Response[apipb.WorkflowExecutionResponse], error) {
@@ -43,6 +96,13 @@ func (f *stagedWorkflowFake) StartWorkflowExecution(_ context.Context, r *connec
 	f.startHeaders = r.Header().Clone()
 	if f.startErr != nil {
 		return nil, f.startErr
+	}
+	// The owner binds an execution to the requested idempotency key. Preserve
+	// deliberately mismatched values so identity-rejection tests can exercise
+	// the hostile response path.
+	if f.execution != nil && f.execution.IdempotencyKey == "" {
+		f.execution = proto.Clone(f.execution).(*ampb.WorkflowExecution)
+		f.execution.IdempotencyKey = r.Msg.GetIdempotencyKey()
 	}
 	return connect.NewResponse(&apipb.WorkflowExecutionResponse{Execution: f.execution}), nil
 }
@@ -62,7 +122,53 @@ func (f *stagedWorkflowFake) GetWorkflowExecutionResult(_ context.Context, r *co
 	if !r.Msg.GetExplicitlyAuthorized() {
 		return nil, errors.New("missing explicit authorization")
 	}
-	return connect.NewResponse(&apipb.WorkflowExecutionResponse{Execution: f.execution}), nil
+	if f.resultErr != nil {
+		return nil, f.resultErr
+	}
+	execution := f.resultExecution
+	if execution == nil {
+		execution = f.execution
+	}
+	return connect.NewResponse(&apipb.WorkflowExecutionResponse{Execution: execution}), nil
+}
+
+func TestStagedMessageAgentClassifiesResultReadFailureAsEvidenceUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		format   int
+		failRead string
+	}{
+		{name: "owner result", failRead: "result"},
+		{name: "supplied evidence receipt", format: 3, failRead: "evidence"},
+		{name: "complete inventory receipt", format: 4, failRead: "inventory"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := stagedmessages.DraftInput{FormatVersion: tc.format, JobID: "job-1", Snapshot: &advisoryv1.StagedMessageSnapshot{RepositoryId: "repo-1", Digest: "sha256:subject"}}
+			workflow := &ampb.WorkflowExecution{Id: "workflow-1", Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(input), Status: ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED}
+			fake := &stagedWorkflowFake{execution: workflow, resultExecution: workflow}
+			provider := &stagedMessageAgent{}
+			switch tc.failRead {
+			case "result":
+				fake.resultErr = connect.NewError(connect.CodeUnavailable, errors.New("private result-store detail"))
+			case "evidence":
+				provider.evidence = func(context.Context, string, string, string, string) (map[int]bool, error) {
+					return nil, errors.New("private evidence-store detail")
+				}
+			case "inventory":
+				provider.evidence = func(context.Context, string, string, string, string) (map[int]bool, error) {
+					return map[int]bool{1: true}, nil
+				}
+				provider.inventory = func(context.Context, string, string, string, string) (map[int]bool, error) {
+					return nil, errors.New("private inventory-store detail")
+				}
+			}
+			got, err := provider.project(t.Context(), fake, workflow, input)
+			var evidenceErr stagedmessages.EvidenceReadError
+			if !errors.As(err, &evidenceErr) || !strings.Contains(err.Error(), "private") || fake.results != 1 || got.ID != workflow.GetId() || got.Status != "succeeded" || !got.ExecutionStartedKnown || !got.ExecutionStarted {
+				t.Fatalf("read failure lost its evidence classification, owner handle, or work receipt: execution=%+v err=%v reads=%d", got, err, fake.results)
+			}
+		})
+	}
 }
 
 func (f *stagedWorkflowFake) WaitWorkflowExecution(_ context.Context, r *connect.Request[apipb.WaitWorkflowExecutionRequest]) (*connect.Response[apipb.WaitWorkflowExecutionResponse], error) {
@@ -76,6 +182,68 @@ func (f *stagedWorkflowFake) CancelWorkflowExecution(_ context.Context, r *conne
 	f.cancel = r.Msg
 	f.execution.Status = f.cancelStatus
 	return connect.NewResponse(&apipb.WorkflowExecutionOperationResponse{Execution: f.execution}), nil
+}
+
+func TestStagedMessageAgentProjectsMaintenanceRefusalAsDefinitiveNoStart(t *testing.T) {
+	input := stagedmessages.DraftInput{}
+	workflow := &ampb.WorkflowExecution{Id: "workflow-1", Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(input), Status: ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED, CurrentNodeId: "draft", TerminalReason: &ampb.WorkflowTerminalReason{Code: "provider_admission_maintenance", Message: "Agent execution is paused for Workspace Sandbox maintenance; no agent work started.", Retryable: true}, BudgetUsage: &ampb.WorkflowBudgetUsage{AccountingComplete: false}}
+	got, err := (&stagedMessageAgent{}).project(t.Context(), nil, workflow, input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ErrorCode != "provider_admission_maintenance" || !got.Retryable || !got.ExecutionStartedKnown || got.ExecutionStarted || !got.TokensKnown || got.TokensUsed != 0 || !got.ChargeKnown || got.ChargeMicroUSD != 0 || got.Error != "Agent execution is paused for Workspace Sandbox maintenance; no agent work started." {
+		t.Fatalf("projected maintenance receipt = %+v", got)
+	}
+}
+
+func TestStagedMessageAgentProjectsChargeOnlyFromMeasuredReceipt(t *testing.T) {
+	input := stagedmessages.DraftInput{}
+	for _, tc := range []struct {
+		name    string
+		receipt *ampb.ChargeReceipt
+		known   bool
+		amount  int64
+	}{
+		{name: "unknown", receipt: &ampb.ChargeReceipt{Measured: false}},
+		{name: "measured zero", receipt: &ampb.ChargeReceipt{AmountMicroUsd: proto.Int64(0), Currency: "USD", Measured: true}, known: true},
+		{name: "measured nonzero", receipt: &ampb.ChargeReceipt{AmountMicroUsd: proto.Int64(1250), Currency: "USD", Measured: true}, known: true, amount: 1250},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			workflow := &ampb.WorkflowExecution{Id: "workflow-1", Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(input), Status: ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED, ChargeReceipt: tc.receipt}
+			got, err := (&stagedMessageAgent{}).project(t.Context(), nil, workflow, input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.ChargeKnown != tc.known || got.ChargeMicroUSD != tc.amount {
+				t.Fatalf("charge receipt projection = known:%t amount:%d; want known:%t amount:%d", got.ChargeKnown, got.ChargeMicroUSD, tc.known, tc.amount)
+			}
+		})
+	}
+}
+
+func TestStagedMessageAgentProjectsBoundedChildFailureReceipt(t *testing.T) {
+	for _, tc := range []struct {
+		name, code, message string
+		wantRetryable       bool
+	}{
+		{name: "typed runner", code: "runner_unavailable", message: "Agent runner is unavailable.", wantRetryable: true},
+		{name: "generic internal", code: "agent_execution_failed", message: "Agent run failed."},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := stagedmessages.DraftInput{}
+			workflow := &ampb.WorkflowExecution{Id: "workflow-1", Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(input), Status: ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_FAILED, TerminalReason: &ampb.WorkflowTerminalReason{Code: tc.code, Message: tc.message, Retryable: tc.wantRetryable}}
+			got, err := (&stagedMessageAgent{}).project(t.Context(), nil, workflow, input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != "failed" || got.ErrorCode != tc.code || got.Error != tc.message || got.Retryable != tc.wantRetryable {
+				t.Fatalf("projected failure receipt = %+v", got)
+			}
+			if got.ExecutionStartedKnown || got.TokensKnown {
+				t.Fatalf("projection invented start or accounting certainty: %+v", got)
+			}
+		})
+	}
 }
 
 type stagedSearchFake struct {
@@ -112,7 +280,9 @@ func stagedAgentExecution(status ampb.WorkflowExecutionStatus) *ampb.WorkflowExe
 }
 
 func TestStagedMessageStartPinsInputAndIdempotencyWithoutMutations(t *testing.T) {
-	w := &stagedWorkflowFake{execution: stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)}
+	execution := stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)
+	execution.IdempotencyKey = "request-1"
+	w := &stagedWorkflowFake{execution: execution}
 	p := stagedAgentFixture(w, nil)
 	input := stagedmessages.DraftInput{Snapshot: stagedAgentSnapshot(), OperatorNote: "Explain behavior"}
 	got, err := p.Start(stagedAgentOwnerContext(), input, "request-1")
@@ -138,6 +308,60 @@ func TestStagedMessageStartPinsInputAndIdempotencyWithoutMutations(t *testing.T)
 	}
 }
 
+func TestStagedMessageCancelByKeyUsesOwnerFenceAndDoesNotStartWork(t *testing.T) {
+	input := stagedmessages.DraftInput{FormatVersion: 2}
+	workflow := &ampb.WorkflowExecution{Id: "workflow-lookup", Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(input), IdempotencyKey: "same-owner-key", Status: ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_RUNNING}
+	workflowBody, err := protojson.Marshal(workflow)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(struct {
+		Fenced    bool            `json:"fenced"`
+		Execution json.RawMessage `json:"execution"`
+	}{Fenced: true, Execution: workflowBody})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Owner          string `json:"owner"`
+			WorkflowKey    string `json:"workflowKey"`
+			IdempotencyKey string `json:"idempotencyKey"`
+			OperationKey   string `json:"operationKey"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode owner cancellation request: %v", err)
+		}
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/workflow-executions/cancel-by-idempotency-key" || request.Owner != "git-control-tower" || request.WorkflowKey != stagedMessageInputWorkflowKey(input) || request.IdempotencyKey != "same-owner-key" || request.OperationKey != stagedMessageCancelOperationKey("same-owner-key") {
+			t.Errorf("cancellation did not use exact owner key and fence endpoint: %s %s %+v", r.Method, r.URL.String(), request)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	fake := &stagedWorkflowFake{}
+	provider := &stagedMessageAgent{resolve: func(context.Context) (string, error) { return server.URL, nil }, httpClient: server.Client(), workflow: func(string) stagedMessageWorkflowAPI { return fake }}
+	got, err := provider.CancelByKey(stagedAgentOwnerContext(), "same-owner-key", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Fenced || got.Execution == nil || got.Execution.ID != workflow.GetId() || got.Execution.Status != "running" || fake.starts != 0 {
+		t.Fatalf("cancellation result=%+v starts=%d", got, fake.starts)
+	}
+}
+
+func TestStagedMessageStartRejectsOwnerExecutionForDifferentIdempotencyKey(t *testing.T) {
+	execution := stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)
+	execution.IdempotencyKey = "another-request"
+	w := &stagedWorkflowFake{execution: execution}
+	p := stagedAgentFixture(w, nil)
+
+	got, err := p.Start(stagedAgentOwnerContext(), stagedmessages.DraftInput{Snapshot: stagedAgentSnapshot()}, "request-1")
+	if err == nil || got.ID != "" {
+		t.Fatalf("Start accepted an execution bound to another request: result=%+v err=%v", got, err)
+	}
+}
+
 func TestStagedMessageStartWithoutCallerProofStaysProgrammatic(t *testing.T) {
 	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "ambient-server-identity-is-not-browser-proof")
 	for _, test := range []struct {
@@ -147,7 +371,9 @@ func TestStagedMessageStartWithoutCallerProofStaysProgrammatic(t *testing.T) {
 		return identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "osuser:1001", Source: identity.SourcePersonalLocal, Verified: true})
 	}}} {
 		t.Run(test.name, func(t *testing.T) {
-			w := &stagedWorkflowFake{execution: stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)}
+			execution := stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)
+			execution.IdempotencyKey = "request-programmatic"
+			w := &stagedWorkflowFake{execution: execution}
 			p := stagedAgentFixture(w, nil)
 			if _, err := p.Start(test.ctx(), stagedmessages.DraftInput{Snapshot: stagedAgentSnapshot()}, "request-programmatic"); err != nil || w.starts != 1 {
 				t.Fatalf("programmatic draft was blocked: starts=%d err=%v", w.starts, err)
@@ -251,7 +477,7 @@ func TestStagedMessageResultsRejectUnboundAndInventedEvidence(t *testing.T) {
 	for _, test := range []struct {
 		name   string
 		mutate func(map[string]any)
-	}{{"valid", func(map[string]any) {}}, {"wrong snapshot", func(r map[string]any) { r["snapshot_digest"] = "other" }}, {"unknown path", func(r map[string]any) { r["covered_paths"] = []any{"secrets.go"} }}, {"unknown source", func(r map[string]any) { r["source_ids"] = []any{"other"} }}, {"inferred trailer", func(r map[string]any) { r["trailers"] = []any{map[string]any{"key": "Vrooli-Run", "value": "x"}} }}, {"multiline title", func(r map[string]any) { r["title"] = "first\nsecond" }}, {"coverage omitted", func(r map[string]any) { r["covered_paths"] = []any{} }}} {
+	}{{"valid", func(map[string]any) {}}, {"unknown path", func(r map[string]any) { r["covered_paths"] = []any{"secrets.go"} }}, {"unknown source", func(r map[string]any) { r["source_ids"] = []any{"other"} }}, {"inferred trailer", func(r map[string]any) { r["trailers"] = []any{map[string]any{"key": "Vrooli-Run", "value": "x"}} }}, {"multiline title", func(r map[string]any) { r["title"] = "first\nsecond" }}, {"coverage omitted", func(r map[string]any) { r["covered_paths"] = []any{} }}} {
 		t.Run(test.name, func(t *testing.T) {
 			e := stagedAgentComplete(t)
 			out := e.Output.AsInterface().(map[string]any)
@@ -268,6 +494,34 @@ func TestStagedMessageResultsRejectUnboundAndInventedEvidence(t *testing.T) {
 				}
 			} else if got.Status != "failed" || got.Result != nil {
 				t.Fatalf("unsafe output adopted: %+v", got)
+			}
+		})
+	}
+}
+
+func TestStagedMessageResultMustMatchOwnerIdempotencyKey(t *testing.T) {
+	for _, mismatch := range []bool{false, true} {
+		name := "matching key"
+		if mismatch {
+			name = "different key"
+		}
+		t.Run(name, func(t *testing.T) {
+			e := stagedAgentComplete(t)
+			e.IdempotencyKey = "request-key"
+			finished := proto.Clone(e).(*ampb.WorkflowExecution)
+			if mismatch {
+				finished.IdempotencyKey = "other-request-key"
+			}
+			w := &stagedWorkflowFake{execution: e, resultExecution: finished}
+			got, err := stagedAgentFixture(w, nil).Get(context.Background(), e.Id, stagedLegacyInput(t, e))
+			if mismatch {
+				if err == nil {
+					t.Fatal("result with another idempotency key was accepted")
+				}
+				return
+			}
+			if err != nil || got.Status != "succeeded" || got.Result == nil {
+				t.Fatalf("matching result refused: %+v %v", got, err)
 			}
 		})
 	}
@@ -426,8 +680,8 @@ func TestStagedMessageBudgetFailureExplainsActualOwnerReason(t *testing.T) {
 			e.TerminalReason = &ampb.WorkflowTerminalReason{Code: "budget_exhausted", BudgetName: tc.budget, Message: tc.message}
 			p := stagedAgentFixture(&stagedWorkflowFake{execution: e}, nil)
 			got, err := p.Get(context.Background(), e.Id, stagedmessages.DraftInput{})
-			if err != nil || got.Status != "failed" || got.Error != tc.want {
-				t.Fatalf("owner failure lost: status=%s reason=%q err=%v", got.Status, got.Error, err)
+			if err != nil || got.Status != "failed" || got.Error != tc.want || got.ErrorCode != "budget_exhausted" || got.Retryable {
+				t.Fatalf("owner failure lost: status=%s reason=%q code=%s retryable=%t err=%v", got.Status, got.Error, got.ErrorCode, got.Retryable, err)
 			}
 		})
 	}

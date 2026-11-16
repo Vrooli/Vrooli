@@ -12,8 +12,7 @@ import (
 func TestProductionDoesNotRouteOnTestGeniePhaseKeys(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
 	paths := []string{
 		".",
-		"../../handlers/baseline",
-		"../../handlers/workflowreplay",
+		"../../handlers",
 		"../../../ui/src/features/baselines",
 		"../../../ui/src/components/ScenarioReviewPanelWorkflows.tsx",
 	}

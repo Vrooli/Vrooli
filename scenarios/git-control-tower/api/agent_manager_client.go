@@ -185,25 +185,6 @@ func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*wireSt
 	return &result, nil
 }
 
-// ReconcileProfiles applies Git Control Tower's manifest-declared profile source.
-func (c *AgentManagerClient) ReconcileProfiles(ctx context.Context) error {
-	var result struct {
-		Results []struct {
-			ProfileKey string `json:"profile_key"`
-			ProfileID  string `json:"profile_id"`
-		} `json:"results"`
-	}
-	if err := c.doJSON(ctx, "/api/v1/profiles/reconcile-scenario", map[string]string{"scenario": "git-control-tower"}, &result); err != nil {
-		return err
-	}
-	for _, item := range result.Results {
-		if item.ProfileKey == "git-control-tower/reviewer" && item.ProfileID != "" {
-			return nil
-		}
-	}
-	return fmt.Errorf("profile reconciliation returned no git-control-tower/reviewer profile")
-}
-
 // ListRuns calls GET /api/v1/runs on agent-manager.
 func (c *AgentManagerClient) ListRuns(ctx context.Context, tagPrefix string, limit int) (*wireListRunsResponse, error) {
 	path := fmt.Sprintf("/api/v1/runs?tag_prefix=%s&limit=%d", tagPrefix, limit)

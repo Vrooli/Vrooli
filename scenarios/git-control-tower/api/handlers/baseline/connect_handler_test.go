@@ -100,6 +100,10 @@ func (r *recordingRuns) CompareRunVisuals(_ context.Context, _, _, _ string) ([]
 }
 
 func newServerDeps(t *testing.T, exec bl.Executor, runs bl.RunsClient) (*Server, *bl.Service) {
+	return newServerDepsAt(t, exec, runs, "/repo")
+}
+
+func newServerDepsAt(t *testing.T, exec bl.Executor, runs bl.RunsClient, repoDir string) (*Server, *bl.Service) {
 	t.Helper()
 	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli"})
 	if err != nil {
@@ -114,7 +118,7 @@ func newServerDeps(t *testing.T, exec bl.Executor, runs bl.RunsClient) (*Server,
 			})
 		},
 	})
-	return NewServer(Deps{Service: svc, Repos: fakeRepos{dir: "/repo"}}), svc
+	return NewServer(Deps{Service: svc, Repos: fakeRepos{dir: repoDir}}), svc
 }
 
 func TestSnapshotTailSurvivesClientCancelAndProjectsV2(t *testing.T) { // [REQ:GCT-BASELINE-V2-P0]
@@ -355,12 +359,11 @@ func (b *lifecycleLogBuffer) String() string {
 func TestPathSnapshotHandlersReturnMetadataWithoutContent(t *testing.T) {
 	exec := &recordingExecutor{}
 	runs := &recordingRuns{}
-	srv, _ := newServerDeps(t, exec, runs)
 	repo := t.TempDir()
+	srv, _ := newServerDepsAt(t, exec, runs, repo)
 	if err := os.WriteFile(filepath.Join(repo, "dirty.txt"), []byte("dirty source bytes\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	srv.repos = fakeRepos{dir: repo}
 	before, err := srv.CapturePathSnapshot(context.Background(), connect.NewRequest(&baselinesv1.CapturePathSnapshotRequest{Name: "before", Branch: "agi", Selections: []string{"*.txt"}, RetentionSeconds: 2 * 60 * 60}))
 	if err != nil {
 		t.Fatalf("CapturePathSnapshot: %v", err)

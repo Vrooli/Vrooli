@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"git-control-tower/internal/envx"
 	"github.com/vrooli/api-core/storage"
 
 	"git-control-tower/internal/git"
@@ -66,13 +67,21 @@ type Storage struct {
 
 // NewStorage builds a Storage over the given api-core resolver.
 func NewStorage(resolver *storage.Resolver) *Storage {
-	return &Storage{resolver: resolver, scenarioD: runtimeStorageScenarioID()}
+	return NewStorageWithEnv(resolver, envx.OS{})
 }
 
-func runtimeStorageScenarioID() string {
+// NewStorageWithEnv injects lifecycle environment used to isolate storage namespaces.
+func NewStorageWithEnv(resolver *storage.Resolver, environment envx.Reader) *Storage {
+	return &Storage{resolver: resolver, scenarioD: runtimeStorageScenarioID(environment)}
+}
+
+func runtimeStorageScenarioID(environment envx.Reader) string {
 	const scenario = "git-control-tower"
-	variant := strings.ToLower(strings.TrimSpace(os.Getenv(storage.EnvVariant)))
-	if strings.TrimSpace(os.Getenv(storage.EnvScenario)) != scenario || variant == "" || variant == "live" {
+	if environment == nil {
+		environment = envx.OS{}
+	}
+	variant := strings.ToLower(strings.TrimSpace(environment.Getenv(storage.EnvVariant)))
+	if strings.TrimSpace(environment.Getenv(storage.EnvScenario)) != scenario || variant == "" || variant == "live" {
 		return scenario
 	}
 	namespace, err := storage.ScenarioNamespace(scenario)

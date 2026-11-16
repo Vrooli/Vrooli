@@ -6,7 +6,6 @@ package repo
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 
 	"connectrpc.com/connect"
@@ -19,125 +18,135 @@ import (
 
 // Server implements repoconnect.RepoServiceHandler.
 type Server struct {
-	getPushRecovery      func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
-	preparePushRecovery  func(context.Context, *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
-	inspectPushSafety    func(context.Context, *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error)
-	svc                  *repo.Service
-	logger               *log.Logger
-	listRepositories     func(context.Context, *repov1.ListRepositoriesRequest) (*repov1.ListRepositoriesResponse, error)
-	getActiveRepository  func(context.Context, *repov1.GetActiveRepositoryRequest) (*repov1.GetActiveRepositoryResponse, error)
-	setActiveRepository  func(context.Context, *repov1.SetActiveRepositoryRequest) (*repov1.RepoMutationResponse, error)
-	openRepository       func(context.Context, *repov1.OpenRepositoryRequest) (*repov1.RepoMutationResponse, error)
-	cloneRepository      func(context.Context, *repov1.CloneRepositoryRequest) (*repov1.RepoMutationResponse, error)
-	removeRepository     func(context.Context, *repov1.RemoveRepositoryRequest) (*repov1.RemoveRepositoryResponse, error)
-	getRepoStatus        func(context.Context, *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error)
-	getRepoDiff          func(context.Context, *repov1.GetRepoDiffRequest) (*repov1.GetRepoDiffResponse, error)
-	getRepoGroups        func(context.Context, *repov1.GetRepoGroupsRequest) (*repov1.GetRepoGroupsResponse, error)
-	getSyncStatus        func(context.Context, *repov1.GetSyncStatusRequest) (*repov1.GetSyncStatusResponse, error)
-	getRepoHistory       func(context.Context, *repov1.GetRepoHistoryRequest) (*repov1.GetRepoHistoryResponse, error)
-	getApprovedChanges   func(context.Context, *repov1.GetApprovedChangesRequest) (*repov1.GetApprovedChangesResponse, error)
-	getProvenance        func(context.Context, *repov1.GetProvenanceRequest) (*repov1.GetProvenanceResponse, error)
-	getBlame             func(context.Context, *repov1.GetBlameRequest) (*repov1.GetBlameResponse, error)
-	searchProvenance     func(context.Context, *repov1.SearchProvenanceRequest) (*repov1.SearchProvenanceResponse, error)
-	getFiles             func(context.Context, *repov1.GetFilesRequest) (*repov1.GetFilesResponse, error)
-	getDirectoryContents func(context.Context, *repov1.GetDirectoryContentsRequest) (*repov1.GetDirectoryContentsResponse, error)
-	getRelatedFiles      func(context.Context, *repov1.GetRelatedFilesRequest) (*repov1.GetRelatedFilesResponse, error)
-	searchContent        func(context.Context, *repov1.SearchContentRequest) (*repov1.SearchContentResponse, error)
-	deletePath           func(context.Context, *repov1.DeletePathRequest) (*repov1.DeletePathResponse, error)
-	saveFileContent      func(context.Context, *repov1.SaveFileContentRequest) (*repov1.SaveFileContentResponse, error)
-	discardFiles         func(context.Context, *repov1.DiscardFilesRequest) (*repov1.DiscardFilesResponse, error)
-	ignorePath           func(context.Context, *repov1.IgnorePathRequest) (*repov1.IgnorePathResponse, error)
-	pushToRemote         func(context.Context, *repov1.PushToRemoteRequest) (*repov1.PushToRemoteResponse, error)
-	pullFromRemote       func(context.Context, *repov1.PullFromRemoteRequest) (*repov1.PullFromRemoteResponse, error)
-	runUpstreamAction    func(context.Context, *repov1.RunUpstreamActionRequest) (*repov1.RunUpstreamActionResponse, error)
-	getGroupingRules     func(context.Context, *repov1.GetGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
-	saveGroupingRules    func(context.Context, *repov1.SaveGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
-	getGitignoreHealth   func(context.Context, *repov1.GetGitignoreHealthRequest) (*repov1.GitignoreHealthResponse, error)
-	moveGitignoreEntry   func(context.Context, *repov1.MoveGitignoreEntryRequest) (*repov1.MoveGitignoreEntryResponse, error)
-	getTrackedBinaries   func(context.Context, *repov1.GetTrackedBinariesRequest) (*repov1.TrackedBinariesResponse, error)
-	untrackBinary        func(context.Context, *repov1.UntrackBinaryRequest) (*repov1.UntrackBinaryResponse, error)
-	getPrecommitConfig   func(context.Context, *repov1.GetPrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
-	savePrecommitConfig  func(context.Context, *repov1.SavePrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
-	runPrecommit         func(context.Context, *repov1.RunPrecommitRequest) (*repov1.PrecommitRunResponse, error)
-	stageFiles           func(context.Context, *repov1.StageFilesRequest) (*repov1.StageFilesResponse, error)
-	unstageFiles         func(context.Context, *repov1.UnstageFilesRequest) (*repov1.UnstageFilesResponse, error)
-	createCommit         func(context.Context, *repov1.CreateCommitRequest) (*repov1.CreateCommitResponse, error)
-	listCredentials      func(context.Context, *repov1.ListCredentialsRequest) (*repov1.CredentialsListResponse, error)
-	saveCredential       func(context.Context, *repov1.SaveCredentialRequest) (*repov1.CredentialSaveResponse, error)
-	deleteCredential     func(context.Context, *repov1.DeleteCredentialRequest) (*repov1.CredentialDeleteResponse, error)
-	testCredential       func(context.Context, *repov1.TestCredentialRequest) (*repov1.CredentialTestResponse, error)
-	updateRemoteURL      func(context.Context, *repov1.UpdateRemoteURLRequest) (*repov1.RemoteURLUpdateResponse, error)
-	listSSHKeys          func(context.Context, *repov1.ListSSHKeysRequest) (*repov1.SSHListKeysResponse, error)
-	generateSSHKey       func(context.Context, *repov1.GenerateSSHKeyRequest) (*repov1.SSHGenerateKeyResponse, error)
-	getSSHPublicKey      func(context.Context, *repov1.GetSSHPublicKeyRequest) (*repov1.SSHGetPublicKeyResponse, error)
-	testSSHConnection    func(context.Context, *repov1.TestSSHConnectionRequest) (*repov1.SSHTestConnectionResponse, error)
-	deleteSSHKey         func(context.Context, *repov1.DeleteSSHKeyRequest) (*repov1.SSHDeleteKeyResponse, error)
+	getPushRecovery               func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	preparePushRecovery           func(context.Context, *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	inspectPushSafety             func(context.Context, *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error)
+	svc                           *repo.Service
+	logger                        interface{ Printf(string, ...any) }
+	listRepositories              func(context.Context, *repov1.ListRepositoriesRequest) (*repov1.ListRepositoriesResponse, error)
+	getActiveRepository           func(context.Context, *repov1.GetActiveRepositoryRequest) (*repov1.GetActiveRepositoryResponse, error)
+	setActiveRepository           func(context.Context, *repov1.SetActiveRepositoryRequest) (*repov1.RepoMutationResponse, error)
+	openRepository                func(context.Context, *repov1.OpenRepositoryRequest) (*repov1.RepoMutationResponse, error)
+	cloneRepository               func(context.Context, *repov1.CloneRepositoryRequest) (*repov1.RepoMutationResponse, error)
+	removeRepository              func(context.Context, *repov1.RemoveRepositoryRequest) (*repov1.RemoveRepositoryResponse, error)
+	getRepoStatus                 func(context.Context, *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error)
+	getRepoDiff                   func(context.Context, *repov1.GetRepoDiffRequest) (*repov1.GetRepoDiffResponse, error)
+	getRepoGroups                 func(context.Context, *repov1.GetRepoGroupsRequest) (*repov1.GetRepoGroupsResponse, error)
+	getSyncStatus                 func(context.Context, *repov1.GetSyncStatusRequest) (*repov1.GetSyncStatusResponse, error)
+	getRepoHistory                func(context.Context, *repov1.GetRepoHistoryRequest) (*repov1.GetRepoHistoryResponse, error)
+	getApprovedChanges            func(context.Context, *repov1.GetApprovedChangesRequest) (*repov1.GetApprovedChangesResponse, error)
+	getProvenance                 func(context.Context, *repov1.GetProvenanceRequest) (*repov1.GetProvenanceResponse, error)
+	getBlame                      func(context.Context, *repov1.GetBlameRequest) (*repov1.GetBlameResponse, error)
+	searchProvenance              func(context.Context, *repov1.SearchProvenanceRequest) (*repov1.SearchProvenanceResponse, error)
+	getFiles                      func(context.Context, *repov1.GetFilesRequest) (*repov1.GetFilesResponse, error)
+	getDirectoryContents          func(context.Context, *repov1.GetDirectoryContentsRequest) (*repov1.GetDirectoryContentsResponse, error)
+	getRelatedFiles               func(context.Context, *repov1.GetRelatedFilesRequest) (*repov1.GetRelatedFilesResponse, error)
+	searchContent                 func(context.Context, *repov1.SearchContentRequest) (*repov1.SearchContentResponse, error)
+	deletePath                    func(context.Context, *repov1.DeletePathRequest) (*repov1.DeletePathResponse, error)
+	saveFileContent               func(context.Context, *repov1.SaveFileContentRequest) (*repov1.SaveFileContentResponse, error)
+	discardFiles                  func(context.Context, *repov1.DiscardFilesRequest) (*repov1.DiscardFilesResponse, error)
+	ignorePath                    func(context.Context, *repov1.IgnorePathRequest) (*repov1.IgnorePathResponse, error)
+	pushToRemote                  func(context.Context, *repov1.PushToRemoteRequest) (*repov1.PushToRemoteResponse, error)
+	pullFromRemote                func(context.Context, *repov1.PullFromRemoteRequest) (*repov1.PullFromRemoteResponse, error)
+	runUpstreamAction             func(context.Context, *repov1.RunUpstreamActionRequest) (*repov1.RunUpstreamActionResponse, error)
+	getGroupingRules              func(context.Context, *repov1.GetGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
+	saveGroupingRules             func(context.Context, *repov1.SaveGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
+	getGitignoreHealth            func(context.Context, *repov1.GetGitignoreHealthRequest) (*repov1.GitignoreHealthResponse, error)
+	moveGitignoreEntry            func(context.Context, *repov1.MoveGitignoreEntryRequest) (*repov1.MoveGitignoreEntryResponse, error)
+	getTrackedBinaries            func(context.Context, *repov1.GetTrackedBinariesRequest) (*repov1.TrackedBinariesResponse, error)
+	untrackBinary                 func(context.Context, *repov1.UntrackBinaryRequest) (*repov1.UntrackBinaryResponse, error)
+	getPrecommitConfig            func(context.Context, *repov1.GetPrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
+	savePrecommitConfig           func(context.Context, *repov1.SavePrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
+	runPrecommit                  func(context.Context, *repov1.RunPrecommitRequest) (*repov1.PrecommitRunResponse, error)
+	startPrecommitCandidateCheck  func(context.Context, *repov1.StartPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error)
+	getPrecommitCandidateCheck    func(context.Context, *repov1.GetPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error)
+	cancelPrecommitCandidateCheck func(context.Context, *repov1.CancelPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error)
+	stageFiles                    func(context.Context, *repov1.StageFilesRequest) (*repov1.StageFilesResponse, error)
+	unstageFiles                  func(context.Context, *repov1.UnstageFilesRequest) (*repov1.UnstageFilesResponse, error)
+	createCommit                  func(context.Context, *repov1.CreateCommitRequest) (*repov1.CreateCommitResponse, error)
+	listCredentials               func(context.Context, *repov1.ListCredentialsRequest) (*repov1.CredentialsListResponse, error)
+	saveCredential                func(context.Context, *repov1.SaveCredentialRequest) (*repov1.CredentialSaveResponse, error)
+	deleteCredential              func(context.Context, *repov1.DeleteCredentialRequest) (*repov1.CredentialDeleteResponse, error)
+	testCredential                func(context.Context, *repov1.TestCredentialRequest) (*repov1.CredentialTestResponse, error)
+	updateRemoteURL               func(context.Context, *repov1.UpdateRemoteURLRequest) (*repov1.RemoteURLUpdateResponse, error)
+	listSSHKeys                   func(context.Context, *repov1.ListSSHKeysRequest) (*repov1.SSHListKeysResponse, error)
+	generateSSHKey                func(context.Context, *repov1.GenerateSSHKeyRequest) (*repov1.SSHGenerateKeyResponse, error)
+	getSSHPublicKey               func(context.Context, *repov1.GetSSHPublicKeyRequest) (*repov1.SSHGetPublicKeyResponse, error)
+	testSSHConnection             func(context.Context, *repov1.TestSSHConnectionRequest) (*repov1.SSHTestConnectionResponse, error)
+	deleteSSHKey                  func(context.Context, *repov1.DeleteSSHKeyRequest) (*repov1.SSHDeleteKeyResponse, error)
 }
 
 // Deps wires dependencies.
 type Deps struct {
-	GetPushRecovery      func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
-	PreparePushRecovery  func(context.Context, *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
-	InspectPushSafety    func(context.Context, *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error)
-	Service              *repo.Service
-	Logger               *log.Logger
-	ListRepositories     func(context.Context, *repov1.ListRepositoriesRequest) (*repov1.ListRepositoriesResponse, error)
-	GetActiveRepository  func(context.Context, *repov1.GetActiveRepositoryRequest) (*repov1.GetActiveRepositoryResponse, error)
-	SetActiveRepository  func(context.Context, *repov1.SetActiveRepositoryRequest) (*repov1.RepoMutationResponse, error)
-	OpenRepository       func(context.Context, *repov1.OpenRepositoryRequest) (*repov1.RepoMutationResponse, error)
-	CloneRepository      func(context.Context, *repov1.CloneRepositoryRequest) (*repov1.RepoMutationResponse, error)
-	RemoveRepository     func(context.Context, *repov1.RemoveRepositoryRequest) (*repov1.RemoveRepositoryResponse, error)
-	GetRepoStatus        func(context.Context, *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error)
-	GetRepoDiff          func(context.Context, *repov1.GetRepoDiffRequest) (*repov1.GetRepoDiffResponse, error)
-	GetRepoGroups        func(context.Context, *repov1.GetRepoGroupsRequest) (*repov1.GetRepoGroupsResponse, error)
-	GetSyncStatus        func(context.Context, *repov1.GetSyncStatusRequest) (*repov1.GetSyncStatusResponse, error)
-	GetRepoHistory       func(context.Context, *repov1.GetRepoHistoryRequest) (*repov1.GetRepoHistoryResponse, error)
-	GetApprovedChanges   func(context.Context, *repov1.GetApprovedChangesRequest) (*repov1.GetApprovedChangesResponse, error)
-	GetProvenance        func(context.Context, *repov1.GetProvenanceRequest) (*repov1.GetProvenanceResponse, error)
-	GetBlame             func(context.Context, *repov1.GetBlameRequest) (*repov1.GetBlameResponse, error)
-	SearchProvenance     func(context.Context, *repov1.SearchProvenanceRequest) (*repov1.SearchProvenanceResponse, error)
-	GetFiles             func(context.Context, *repov1.GetFilesRequest) (*repov1.GetFilesResponse, error)
-	GetDirectoryContents func(context.Context, *repov1.GetDirectoryContentsRequest) (*repov1.GetDirectoryContentsResponse, error)
-	GetRelatedFiles      func(context.Context, *repov1.GetRelatedFilesRequest) (*repov1.GetRelatedFilesResponse, error)
-	SearchContent        func(context.Context, *repov1.SearchContentRequest) (*repov1.SearchContentResponse, error)
-	DeletePath           func(context.Context, *repov1.DeletePathRequest) (*repov1.DeletePathResponse, error)
-	SaveFileContent      func(context.Context, *repov1.SaveFileContentRequest) (*repov1.SaveFileContentResponse, error)
-	DiscardFiles         func(context.Context, *repov1.DiscardFilesRequest) (*repov1.DiscardFilesResponse, error)
-	IgnorePath           func(context.Context, *repov1.IgnorePathRequest) (*repov1.IgnorePathResponse, error)
-	PushToRemote         func(context.Context, *repov1.PushToRemoteRequest) (*repov1.PushToRemoteResponse, error)
-	PullFromRemote       func(context.Context, *repov1.PullFromRemoteRequest) (*repov1.PullFromRemoteResponse, error)
-	RunUpstreamAction    func(context.Context, *repov1.RunUpstreamActionRequest) (*repov1.RunUpstreamActionResponse, error)
-	GetGroupingRules     func(context.Context, *repov1.GetGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
-	SaveGroupingRules    func(context.Context, *repov1.SaveGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
-	GetGitignoreHealth   func(context.Context, *repov1.GetGitignoreHealthRequest) (*repov1.GitignoreHealthResponse, error)
-	MoveGitignoreEntry   func(context.Context, *repov1.MoveGitignoreEntryRequest) (*repov1.MoveGitignoreEntryResponse, error)
-	GetTrackedBinaries   func(context.Context, *repov1.GetTrackedBinariesRequest) (*repov1.TrackedBinariesResponse, error)
-	UntrackBinary        func(context.Context, *repov1.UntrackBinaryRequest) (*repov1.UntrackBinaryResponse, error)
-	GetPrecommitConfig   func(context.Context, *repov1.GetPrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
-	SavePrecommitConfig  func(context.Context, *repov1.SavePrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
-	RunPrecommit         func(context.Context, *repov1.RunPrecommitRequest) (*repov1.PrecommitRunResponse, error)
-	StageFiles           func(context.Context, *repov1.StageFilesRequest) (*repov1.StageFilesResponse, error)
-	UnstageFiles         func(context.Context, *repov1.UnstageFilesRequest) (*repov1.UnstageFilesResponse, error)
-	CreateCommit         func(context.Context, *repov1.CreateCommitRequest) (*repov1.CreateCommitResponse, error)
-	ListCredentials      func(context.Context, *repov1.ListCredentialsRequest) (*repov1.CredentialsListResponse, error)
-	SaveCredential       func(context.Context, *repov1.SaveCredentialRequest) (*repov1.CredentialSaveResponse, error)
-	DeleteCredential     func(context.Context, *repov1.DeleteCredentialRequest) (*repov1.CredentialDeleteResponse, error)
-	TestCredential       func(context.Context, *repov1.TestCredentialRequest) (*repov1.CredentialTestResponse, error)
-	UpdateRemoteURL      func(context.Context, *repov1.UpdateRemoteURLRequest) (*repov1.RemoteURLUpdateResponse, error)
-	ListSSHKeys          func(context.Context, *repov1.ListSSHKeysRequest) (*repov1.SSHListKeysResponse, error)
-	GenerateSSHKey       func(context.Context, *repov1.GenerateSSHKeyRequest) (*repov1.SSHGenerateKeyResponse, error)
-	GetSSHPublicKey      func(context.Context, *repov1.GetSSHPublicKeyRequest) (*repov1.SSHGetPublicKeyResponse, error)
-	TestSSHConnection    func(context.Context, *repov1.TestSSHConnectionRequest) (*repov1.SSHTestConnectionResponse, error)
-	DeleteSSHKey         func(context.Context, *repov1.DeleteSSHKeyRequest) (*repov1.SSHDeleteKeyResponse, error)
+	GetPushRecovery               func(context.Context, *repov1.GetPushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	PreparePushRecovery           func(context.Context, *repov1.PreparePushRecoveryRequest) (*repov1.PushRecoveryArtifact, error)
+	InspectPushSafety             func(context.Context, *repov1.InspectPushSafetyRequest) (*repov1.PushSafetyReport, error)
+	Service                       *repo.Service
+	Logger                        interface{ Printf(string, ...any) }
+	ListRepositories              func(context.Context, *repov1.ListRepositoriesRequest) (*repov1.ListRepositoriesResponse, error)
+	GetActiveRepository           func(context.Context, *repov1.GetActiveRepositoryRequest) (*repov1.GetActiveRepositoryResponse, error)
+	SetActiveRepository           func(context.Context, *repov1.SetActiveRepositoryRequest) (*repov1.RepoMutationResponse, error)
+	OpenRepository                func(context.Context, *repov1.OpenRepositoryRequest) (*repov1.RepoMutationResponse, error)
+	CloneRepository               func(context.Context, *repov1.CloneRepositoryRequest) (*repov1.RepoMutationResponse, error)
+	RemoveRepository              func(context.Context, *repov1.RemoveRepositoryRequest) (*repov1.RemoveRepositoryResponse, error)
+	GetRepoStatus                 func(context.Context, *repov1.GetRepoStatusRequest) (*repov1.GetRepoStatusResponse, error)
+	GetRepoDiff                   func(context.Context, *repov1.GetRepoDiffRequest) (*repov1.GetRepoDiffResponse, error)
+	GetRepoGroups                 func(context.Context, *repov1.GetRepoGroupsRequest) (*repov1.GetRepoGroupsResponse, error)
+	GetSyncStatus                 func(context.Context, *repov1.GetSyncStatusRequest) (*repov1.GetSyncStatusResponse, error)
+	GetRepoHistory                func(context.Context, *repov1.GetRepoHistoryRequest) (*repov1.GetRepoHistoryResponse, error)
+	GetApprovedChanges            func(context.Context, *repov1.GetApprovedChangesRequest) (*repov1.GetApprovedChangesResponse, error)
+	GetProvenance                 func(context.Context, *repov1.GetProvenanceRequest) (*repov1.GetProvenanceResponse, error)
+	GetBlame                      func(context.Context, *repov1.GetBlameRequest) (*repov1.GetBlameResponse, error)
+	SearchProvenance              func(context.Context, *repov1.SearchProvenanceRequest) (*repov1.SearchProvenanceResponse, error)
+	GetFiles                      func(context.Context, *repov1.GetFilesRequest) (*repov1.GetFilesResponse, error)
+	GetDirectoryContents          func(context.Context, *repov1.GetDirectoryContentsRequest) (*repov1.GetDirectoryContentsResponse, error)
+	GetRelatedFiles               func(context.Context, *repov1.GetRelatedFilesRequest) (*repov1.GetRelatedFilesResponse, error)
+	SearchContent                 func(context.Context, *repov1.SearchContentRequest) (*repov1.SearchContentResponse, error)
+	DeletePath                    func(context.Context, *repov1.DeletePathRequest) (*repov1.DeletePathResponse, error)
+	SaveFileContent               func(context.Context, *repov1.SaveFileContentRequest) (*repov1.SaveFileContentResponse, error)
+	DiscardFiles                  func(context.Context, *repov1.DiscardFilesRequest) (*repov1.DiscardFilesResponse, error)
+	IgnorePath                    func(context.Context, *repov1.IgnorePathRequest) (*repov1.IgnorePathResponse, error)
+	PushToRemote                  func(context.Context, *repov1.PushToRemoteRequest) (*repov1.PushToRemoteResponse, error)
+	PullFromRemote                func(context.Context, *repov1.PullFromRemoteRequest) (*repov1.PullFromRemoteResponse, error)
+	RunUpstreamAction             func(context.Context, *repov1.RunUpstreamActionRequest) (*repov1.RunUpstreamActionResponse, error)
+	GetGroupingRules              func(context.Context, *repov1.GetGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
+	SaveGroupingRules             func(context.Context, *repov1.SaveGroupingRulesRequest) (*repov1.GroupingRulesResponse, error)
+	GetGitignoreHealth            func(context.Context, *repov1.GetGitignoreHealthRequest) (*repov1.GitignoreHealthResponse, error)
+	MoveGitignoreEntry            func(context.Context, *repov1.MoveGitignoreEntryRequest) (*repov1.MoveGitignoreEntryResponse, error)
+	GetTrackedBinaries            func(context.Context, *repov1.GetTrackedBinariesRequest) (*repov1.TrackedBinariesResponse, error)
+	UntrackBinary                 func(context.Context, *repov1.UntrackBinaryRequest) (*repov1.UntrackBinaryResponse, error)
+	GetPrecommitConfig            func(context.Context, *repov1.GetPrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
+	SavePrecommitConfig           func(context.Context, *repov1.SavePrecommitConfigRequest) (*repov1.PrecommitConfigResponse, error)
+	RunPrecommit                  func(context.Context, *repov1.RunPrecommitRequest) (*repov1.PrecommitRunResponse, error)
+	StartPrecommitCandidateCheck  func(context.Context, *repov1.StartPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error)
+	GetPrecommitCandidateCheck    func(context.Context, *repov1.GetPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error)
+	CancelPrecommitCandidateCheck func(context.Context, *repov1.CancelPrecommitCandidateCheckRequest) (*repov1.PrecommitCandidateCheckResponse, error)
+	StageFiles                    func(context.Context, *repov1.StageFilesRequest) (*repov1.StageFilesResponse, error)
+	UnstageFiles                  func(context.Context, *repov1.UnstageFilesRequest) (*repov1.UnstageFilesResponse, error)
+	CreateCommit                  func(context.Context, *repov1.CreateCommitRequest) (*repov1.CreateCommitResponse, error)
+	ListCredentials               func(context.Context, *repov1.ListCredentialsRequest) (*repov1.CredentialsListResponse, error)
+	SaveCredential                func(context.Context, *repov1.SaveCredentialRequest) (*repov1.CredentialSaveResponse, error)
+	DeleteCredential              func(context.Context, *repov1.DeleteCredentialRequest) (*repov1.CredentialDeleteResponse, error)
+	TestCredential                func(context.Context, *repov1.TestCredentialRequest) (*repov1.CredentialTestResponse, error)
+	UpdateRemoteURL               func(context.Context, *repov1.UpdateRemoteURLRequest) (*repov1.RemoteURLUpdateResponse, error)
+	ListSSHKeys                   func(context.Context, *repov1.ListSSHKeysRequest) (*repov1.SSHListKeysResponse, error)
+	GenerateSSHKey                func(context.Context, *repov1.GenerateSSHKeyRequest) (*repov1.SSHGenerateKeyResponse, error)
+	GetSSHPublicKey               func(context.Context, *repov1.GetSSHPublicKeyRequest) (*repov1.SSHGetPublicKeyResponse, error)
+	TestSSHConnection             func(context.Context, *repov1.TestSSHConnectionRequest) (*repov1.SSHTestConnectionResponse, error)
+	DeleteSSHKey                  func(context.Context, *repov1.DeleteSSHKeyRequest) (*repov1.SSHDeleteKeyResponse, error)
 }
 
 // NewServer constructs a Server.
 func NewServer(d Deps) *Server {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		d.Logger = quietLogger{}
 	}
-	return &Server{getPushRecovery: d.GetPushRecovery, preparePushRecovery: d.PreparePushRecovery, inspectPushSafety: d.InspectPushSafety, svc: d.Service, logger: d.Logger, listRepositories: d.ListRepositories, getActiveRepository: d.GetActiveRepository, setActiveRepository: d.SetActiveRepository, openRepository: d.OpenRepository, cloneRepository: d.CloneRepository, removeRepository: d.RemoveRepository, getRepoStatus: d.GetRepoStatus, getRepoDiff: d.GetRepoDiff, getRepoGroups: d.GetRepoGroups, getSyncStatus: d.GetSyncStatus, getRepoHistory: d.GetRepoHistory, getApprovedChanges: d.GetApprovedChanges, getProvenance: d.GetProvenance, getBlame: d.GetBlame, searchProvenance: d.SearchProvenance, getFiles: d.GetFiles, getDirectoryContents: d.GetDirectoryContents, getRelatedFiles: d.GetRelatedFiles, searchContent: d.SearchContent, deletePath: d.DeletePath, saveFileContent: d.SaveFileContent, discardFiles: d.DiscardFiles, ignorePath: d.IgnorePath, pushToRemote: d.PushToRemote, pullFromRemote: d.PullFromRemote, runUpstreamAction: d.RunUpstreamAction, getGroupingRules: d.GetGroupingRules, saveGroupingRules: d.SaveGroupingRules, getGitignoreHealth: d.GetGitignoreHealth, moveGitignoreEntry: d.MoveGitignoreEntry, getTrackedBinaries: d.GetTrackedBinaries, untrackBinary: d.UntrackBinary, getPrecommitConfig: d.GetPrecommitConfig, savePrecommitConfig: d.SavePrecommitConfig, runPrecommit: d.RunPrecommit, stageFiles: d.StageFiles, unstageFiles: d.UnstageFiles, createCommit: d.CreateCommit, listCredentials: d.ListCredentials, saveCredential: d.SaveCredential, deleteCredential: d.DeleteCredential, testCredential: d.TestCredential, updateRemoteURL: d.UpdateRemoteURL, listSSHKeys: d.ListSSHKeys, generateSSHKey: d.GenerateSSHKey, getSSHPublicKey: d.GetSSHPublicKey, testSSHConnection: d.TestSSHConnection, deleteSSHKey: d.DeleteSSHKey}
+	return &Server{getPushRecovery: d.GetPushRecovery, preparePushRecovery: d.PreparePushRecovery, inspectPushSafety: d.InspectPushSafety, svc: d.Service, logger: d.Logger, listRepositories: d.ListRepositories, getActiveRepository: d.GetActiveRepository, setActiveRepository: d.SetActiveRepository, openRepository: d.OpenRepository, cloneRepository: d.CloneRepository, removeRepository: d.RemoveRepository, getRepoStatus: d.GetRepoStatus, getRepoDiff: d.GetRepoDiff, getRepoGroups: d.GetRepoGroups, getSyncStatus: d.GetSyncStatus, getRepoHistory: d.GetRepoHistory, getApprovedChanges: d.GetApprovedChanges, getProvenance: d.GetProvenance, getBlame: d.GetBlame, searchProvenance: d.SearchProvenance, getFiles: d.GetFiles, getDirectoryContents: d.GetDirectoryContents, getRelatedFiles: d.GetRelatedFiles, searchContent: d.SearchContent, deletePath: d.DeletePath, saveFileContent: d.SaveFileContent, discardFiles: d.DiscardFiles, ignorePath: d.IgnorePath, pushToRemote: d.PushToRemote, pullFromRemote: d.PullFromRemote, runUpstreamAction: d.RunUpstreamAction, getGroupingRules: d.GetGroupingRules, saveGroupingRules: d.SaveGroupingRules, getGitignoreHealth: d.GetGitignoreHealth, moveGitignoreEntry: d.MoveGitignoreEntry, getTrackedBinaries: d.GetTrackedBinaries, untrackBinary: d.UntrackBinary, getPrecommitConfig: d.GetPrecommitConfig, savePrecommitConfig: d.SavePrecommitConfig, runPrecommit: d.RunPrecommit, startPrecommitCandidateCheck: d.StartPrecommitCandidateCheck, getPrecommitCandidateCheck: d.GetPrecommitCandidateCheck, cancelPrecommitCandidateCheck: d.CancelPrecommitCandidateCheck, stageFiles: d.StageFiles, unstageFiles: d.UnstageFiles, createCommit: d.CreateCommit, listCredentials: d.ListCredentials, saveCredential: d.SaveCredential, deleteCredential: d.DeleteCredential, testCredential: d.TestCredential, updateRemoteURL: d.UpdateRemoteURL, listSSHKeys: d.ListSSHKeys, generateSSHKey: d.GenerateSSHKey, getSSHPublicKey: d.GetSSHPublicKey, testSSHConnection: d.TestSSHConnection, deleteSSHKey: d.DeleteSSHKey}
 }
+
+type quietLogger struct{}
+
+func (quietLogger) Printf(string, ...any) {}
 
 // NewHandler returns the procedure prefix and http.Handler for mounting.
 // Extra connect.HandlerOption values (e.g. interceptors wired by main.go)
@@ -488,6 +497,39 @@ func (s *Server) RunPrecommit(ctx context.Context, req *connect.Request[repov1.R
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("repo precommit service is not configured"))
 	}
 	result, err := s.runPrecommit(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (s *Server) StartPrecommitCandidateCheck(ctx context.Context, req *connect.Request[repov1.StartPrecommitCandidateCheckRequest]) (*connect.Response[repov1.PrecommitCandidateCheckResponse], error) {
+	if s.startPrecommitCandidateCheck == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("candidate check service is not configured"))
+	}
+	result, err := s.startPrecommitCandidateCheck(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (s *Server) GetPrecommitCandidateCheck(ctx context.Context, req *connect.Request[repov1.GetPrecommitCandidateCheckRequest]) (*connect.Response[repov1.PrecommitCandidateCheckResponse], error) {
+	if s.getPrecommitCandidateCheck == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("candidate check service is not configured"))
+	}
+	result, err := s.getPrecommitCandidateCheck(ctx, req.Msg)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (s *Server) CancelPrecommitCandidateCheck(ctx context.Context, req *connect.Request[repov1.CancelPrecommitCandidateCheckRequest]) (*connect.Response[repov1.PrecommitCandidateCheckResponse], error) {
+	if s.cancelPrecommitCandidateCheck == nil {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("candidate check cancellation is not configured"))
+	}
+	result, err := s.cancelPrecommitCandidateCheck(ctx, req.Msg)
 	if err != nil {
 		return nil, err
 	}

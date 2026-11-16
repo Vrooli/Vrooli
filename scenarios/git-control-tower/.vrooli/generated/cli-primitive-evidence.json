@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "git-control-tower",
   "generator": "v1.0.0",
-  "manifest_hash": "e2694d29c5c210a8173b47913ebb7227e891888651257b521b442d5f7d13dcaa",
+  "manifest_hash": "03840b8bf5b9b226c32069f1262eee5df8112e5814264e1aab9dc33dac67c51e",
   "commands": [
     {
       "path": "audit list",
@@ -159,10 +159,26 @@
       "observed_primitive": "operational"
     },
     {
+      "path": "message retry",
+      "group": "message",
+      "command": "retry",
+      "binding": "AdvisoryService.RetryStagedMessage",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
       "path": "message start",
       "group": "message",
       "command": "start",
       "binding": "AdvisoryService.StartStagedMessage",
+      "declared_primitive": "operational",
+      "observed_primitive": "operational"
+    },
+    {
+      "path": "message start-worktree",
+      "group": "message",
+      "command": "start-worktree",
+      "binding": "AdvisoryService.StartWorktreeStagedMessage",
       "declared_primitive": "operational",
       "observed_primitive": "operational"
     },

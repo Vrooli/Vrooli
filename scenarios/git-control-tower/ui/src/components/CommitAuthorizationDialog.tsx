@@ -10,6 +10,7 @@ export interface PendingCommitAuthorization {
 
 interface Props {
   pending: PendingCommitAuthorization;
+  activeRepositoryId: string;
   isAuthorizing: boolean;
   skipPrecommit: boolean;
   dontAskAgain: boolean;
@@ -22,6 +23,7 @@ interface Props {
 
 export function CommitAuthorizationDialog({
   pending,
+  activeRepositoryId,
   isAuthorizing,
   skipPrecommit,
   dontAskAgain,
@@ -31,6 +33,7 @@ export function CommitAuthorizationDialog({
   onConfirm,
   onClose,
 }: Props) {
+  const repositoryMatches = pending.preview.repositoryId === activeRepositoryId;
   return (
     <ResponsiveDialog
       open
@@ -66,7 +69,7 @@ export function CommitAuthorizationDialog({
             type="button"
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-950/40 transition hover:bg-blue-500 disabled:opacity-60"
             onClick={onConfirm}
-            disabled={isAuthorizing}
+            disabled={isAuthorizing || !repositoryMatches}
             data-testid="confirm-commit-authorization"
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -76,6 +79,7 @@ export function CommitAuthorizationDialog({
       }
     >
       <div className="space-y-4 p-5">
+        {!repositoryMatches && <p className="rounded-lg border border-amber-700/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200" role="alert">The selected repository changed after this preview. Close this dialog and review the commit again.</p>}
         <p className="text-xs leading-relaxed text-slate-300/80">
           Review the snapshot below before authorizing this commit. The approval is single-use and expires shortly.
         </p>

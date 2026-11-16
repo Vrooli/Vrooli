@@ -13,6 +13,7 @@ import (
 
 	"git-control-tower/internal/baseline"
 	"git-control-tower/internal/config"
+	"git-control-tower/internal/logx"
 	"git-control-tower/internal/policygate"
 	"git-control-tower/internal/proposals"
 	"git-control-tower/internal/stagedmessages"
@@ -40,18 +41,22 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
-	config               *Config
-	policy               config.Config
-	db                   *database.RoutedDB
-	router               *mux.Router
-	git                  GitRunner
-	repoLock             *RepoLock
-	audit                AuditLogger
-	sandbox              WorkspaceSandboxAPI
-	capabilities         *CapabilityRegistry
-	sshDeps              ssh.SSHDeps
-	repos                *RepoService
-	precommit            *PrecommitService
+	httpDoer     HTTPDoer
+	Logger       Logger
+	config       *Config
+	policy       config.Config
+	db           *database.RoutedDB
+	router       *mux.Router
+	git          GitRunner
+	repoLock     *RepoLock
+	audit        AuditLogger
+	sandbox      WorkspaceSandboxAPI
+	capabilities *CapabilityRegistry
+	sshDeps      ssh.SSHDeps
+	repos        *RepoService
+	precommit    *PrecommitService
+	// candidateSecurity remains unset until the RH2 commit-policy proposal is approved.
+	candidateSecurity    *CandidateSecurityClient
 	commitChecks         *CommitCheckStore
 	credStore            *CredentialsStore
 	storageResolver      *storage.Resolver
@@ -100,6 +105,8 @@ func NewServer() (*Server, error) {
 	}
 
 	srv := &Server{
+		httpDoer:     &http.Client{Timeout: 60 * time.Second},
+		Logger:       logx.NewStandard(log.Default()),
 		config:       cfg,
 		policy:       policyCfg,
 		db:           db,
@@ -256,23 +263,6 @@ func (s *Server) initServices() {
 	// background projector, so completion does not depend on a client issuing a
 	// wait/status command after Test Genie reaches terminal state.
 	s.baselineService = s.newBaselineService()
-	// Best-effort: reconcile the manifest-declared agent profile once reachable.
-	go func() {
-		for i := 0; i < 10; i++ {
-			time.Sleep(time.Duration(i*5+5) * time.Second)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			if s.capabilities.IsAvailable(ctx, "agent-manager") {
-				if err := s.agentManagerClient.ReconcileProfiles(ctx); err != nil {
-					log.Printf("warn: reconcile agent profile: %v", err)
-				} else {
-					cancel()
-					return
-				}
-			}
-			cancel()
-		}
-	}()
-
 	if durableReviewStore, err := NewReviewJobStoreWithDB(s.db); err != nil {
 		// Review execution remains available as an explicitly degraded
 		// capability, but do not pretend its lifecycle is durable.
@@ -335,12 +325,19 @@ func (s *Server) startBaselineCollectionReconciler() {
 // Router returns the HTTP handler for use with server.Run
 func (s *Server) Router() http.Handler {
 	rootMux := http.NewServeMux()
+	var application http.Handler = s.router
 	if s.fileRoots == nil {
 		log.Printf("warn: file-routing roots unavailable")
 	} else {
-		devrouting.RegisterWithFileRoots(rootMux, s.db, s.fileRoots)
+		// The same routing owner must install leases and pin their generation
+		// onto application requests. In particular, background candidate checks
+		// inherit this request context so their durable writes cannot fall back
+		// to primary storage after the HTTP request returns.
+		routing := devrouting.NewService(s.db, s.fileRoots)
+		devrouting.RegisterWithFileRootsService(rootMux, s.db, s.fileRoots, routing)
+		application = routing.PinnedTestModeMiddleware(application)
 	}
-	rootMux.Handle("/", authn.UIAvailabilityFallback(s.router))
+	rootMux.Handle("/", authn.UIAvailabilityFallback(application))
 	return gorillahandlers.RecoveryHandler()(securityHeadersMiddleware(apihttp.TestModeMiddleware(rootMux)))
 }
 
@@ -430,6 +427,10 @@ func main() {
 		WriteTimeout: 31 * time.Minute,
 		Cleanup: func(ctx context.Context) error {
 			srv.periodicCapture.Stop()
+			if err := srv.precommit.ShutdownCandidateChecks(ctx); err != nil {
+				_ = srv.db.Close()
+				return err
+			}
 			return srv.db.Close()
 		},
 	}); err != nil {

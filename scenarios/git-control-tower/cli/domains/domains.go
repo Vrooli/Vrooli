@@ -17,6 +17,7 @@ import (
 	"git-control-tower/cli/domains/proposal"
 	"git-control-tower/cli/domains/repo"
 	"git-control-tower/cli/domains/review"
+	"git-control-tower/cli/domains/uxcapture"
 	"git-control-tower/cli/domains/worktree"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -24,7 +25,7 @@ import (
 
 func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
 	_ = core
-	return nil
+	return uxcapture.CommandGroups()
 }
 
 func SubcommandGroups(core *cliapp.ScenarioApp, manifestBytes []byte) ([]cliapp.SubcommandGroup, error) {
