@@ -73,6 +73,9 @@ type Route struct {
 	// manifest-shaped calls). The boundary cannot resolve that target before
 	// the handler, so only unrestricted principals may use them.
 	BodyTarget bool `json:"body_target,omitempty"`
+	// HandlerTargetBound routes carry a deployment id in a typed request body.
+	// Their handler must call Enforcer.AuthorizeTarget before target reach.
+	HandlerTargetBound bool `json:"handler_target_bound,omitempty"`
 	// RemoteReach routes open SSH or other reach to a target.
 	RemoteReach bool `json:"remote_reach,omitempty"`
 	// ServiceAllowed rows may be called by service principals (and verified
@@ -221,6 +224,7 @@ var Table = []Route{
 	{Method: "POST", Path: api + "/operations/reconcile", Effect: EffectWorkloadMutation, Scope: ScopeDestructive, Description: "Run one operation-owner reconciliation pass (reacquire expired leases, resume from receipts)."},
 	{Method: "GET", Path: api + "/operations/{id}", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Read the durable standing of an operation."},
 	{Method: "GET", Path: api + "/operations/{id}/wait", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Block server-side until the operation is terminal or the observer bound elapses; never mutates."},
+	{Method: "GET", Path: api + "/deployments/{id}/operations/{opId}/target-receipts/{step}", Effect: EffectRead, Scope: ScopeRead, TargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "Freshly read one declared operation step receipt from its deployment target owner."},
 	{Method: "POST", Path: api + "/operations/{id}/cancel", Effect: EffectWorkloadMutation, Scope: ScopeDestructive, Description: "Record a cancellation intent honoured at the next declared cancel point."},
 	{Method: "GET", Path: api + "/deployments/{id}/operations", Effect: EffectRead, Scope: ScopeRead, TargetBound: true, ServiceAllowed: true, Description: "List the operations admitted against a deployment."},
 
@@ -295,6 +299,8 @@ var Table = []Route{
 	{Method: "POST", Path: api + "/closure/explain", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Explain a closure decision."},
 
 	// Releases (verified artifacts on this host).
+	{Method: "GET", Path: api + "/certification/matrix", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Read the authoritative target-ground certification matrix."},
+	{Method: "GET", Path: api + "/certification/readiness", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Read candidate readiness across every required cell and proving ground."},
 	{Method: "POST", Path: api + "/releases/build", Effect: EffectWorkloadMutation, Scope: ScopeWrite, Description: "Build a verified release on this host."},
 	{Method: "GET", Path: api + "/releases/{digest}", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Read a release manifest by digest."},
 	{Method: "POST", Path: api + "/releases/{digest}/verify", Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Verify a release against its manifest."},
@@ -324,6 +330,7 @@ var Table = []Route{
 	{Method: "*", Path: DeploymentsServicePrefix, Prefix: true, Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Connect DeploymentsService (resolve, get, list)."},
 	{Method: "*", Path: HealthServicePrefix, Prefix: true, Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Connect HealthService (typed observations)."},
 	{Method: "*", Path: OperationsServicePrefix, Prefix: true, Effect: EffectWorkloadMutation, Scope: ScopeDestructive, Description: "Connect OperationsService (get/wait/list are reads; cancel and reconcile mutate, so the mount requires the destructive scope)."},
+	{Method: "POST", Path: OperationsServicePrefix + "GetTargetReceipt", Effect: EffectRead, Scope: ScopeRead, HandlerTargetBound: true, RemoteReach: true, NoStore: true, Description: "Fresh target receipt read; the typed handler binds and authorizes its deployment_id before target reach."},
 	{Method: "*", Path: PlansServicePrefix, Prefix: true, Effect: EffectWorkloadMutation, Scope: ScopeDestructive, Description: "Connect PlansService (CompilePlan is a read; ApplyPlan admits an operation, so the mount requires the destructive scope)."},
 	{Method: "*", Path: EdgeServicePrefix, Prefix: true, Effect: EffectRead, Scope: ScopeRead, ServiceAllowed: true, Description: "Connect EdgeService (typed edge observations)."},
 	{Method: "*", Path: ReleasesServicePrefix, Prefix: true, Effect: EffectWorkloadMutation, Scope: ScopeWrite, Description: "Connect ReleasesService (build, get, verify)."},
@@ -377,38 +384,64 @@ func Validate() []string {
 			findings = append(findings, "duplicate route "+key)
 		}
 		seen[key] = struct{}{}
-		switch route.Effect {
-		case EffectPublic:
-			if _, ok := PublicAllowlist[key]; !ok {
-				findings = append(findings, "public route outside allowlist: "+key)
-			}
-			if route.Scope != "" {
-				findings = append(findings, "public route with scope: "+key)
-			}
-		case EffectRead, EffectWorkloadMutation, EffectSecret, EffectHost, EffectInteractive:
-			if !isKnownScope(route.Scope) {
-				findings = append(findings, "route without a catalog scope: "+key)
-			}
-		default:
-			findings = append(findings, "unknown effect on "+key)
-		}
-		if route.ServiceAllowed && (route.Effect == EffectSecret || route.Effect == EffectHost || route.Effect == EffectInteractive) {
-			findings = append(findings, "service principals may not use secret/host/interactive routes: "+key)
-		}
-		if route.ServiceAllowed && route.Effectful() {
-			findings = append(findings, "service principals may only use read routes: "+key)
-		}
-		if route.TargetBound && !strings.Contains(route.Path, "{id}") {
-			findings = append(findings, "target-bound route without {id}: "+key)
-		}
-		if route.TargetBound && route.BodyTarget {
-			findings = append(findings, "route cannot be both target-bound and body-target: "+key)
-		}
-		if route.Effect == EffectInteractive && route.Scope != ScopeDestructive {
-			findings = append(findings, "interactive route must require the destructive scope: "+key)
-		}
+		findings = append(findings, validateEffect(route, key)...)
+		findings = append(findings, validateServiceAccess(route, key)...)
+		findings = append(findings, validateTargetBinding(route, key)...)
+		findings = append(findings, validateInteractiveScope(route, key)...)
 	}
 	return findings
+}
+
+func validateEffect(route Route, key string) []string {
+	var findings []string
+	switch route.Effect {
+	case EffectPublic:
+		if _, ok := PublicAllowlist[key]; !ok {
+			findings = append(findings, "public route outside allowlist: "+key)
+		}
+		if route.Scope != "" {
+			findings = append(findings, "public route with scope: "+key)
+		}
+	case EffectRead, EffectWorkloadMutation, EffectSecret, EffectHost, EffectInteractive:
+		if !isKnownScope(route.Scope) {
+			findings = append(findings, "route without a catalog scope: "+key)
+		}
+	default:
+		findings = append(findings, "unknown effect on "+key)
+	}
+	return findings
+}
+
+func validateServiceAccess(route Route, key string) []string {
+	var findings []string
+	if route.ServiceAllowed && (route.Effect == EffectSecret || route.Effect == EffectHost || route.Effect == EffectInteractive) {
+		findings = append(findings, "service principals may not use secret/host/interactive routes: "+key)
+	}
+	if route.ServiceAllowed && route.Effectful() {
+		findings = append(findings, "service principals may only use read routes: "+key)
+	}
+	return findings
+}
+
+func validateTargetBinding(route Route, key string) []string {
+	var findings []string
+	if route.TargetBound && !strings.Contains(route.Path, "{id}") {
+		findings = append(findings, "target-bound route without {id}: "+key)
+	}
+	if route.TargetBound && route.BodyTarget {
+		findings = append(findings, "route cannot be both target-bound and body-target: "+key)
+	}
+	if route.HandlerTargetBound && (route.TargetBound || route.BodyTarget || !route.RemoteReach) {
+		findings = append(findings, "handler-target-bound route must use deferred body binding and remote reach: "+key)
+	}
+	return findings
+}
+
+func validateInteractiveScope(route Route, key string) []string {
+	if route.Effect == EffectInteractive && route.Scope != ScopeDestructive {
+		return []string{"interactive route must require the destructive scope: " + key}
+	}
+	return nil
 }
 
 func isKnownScope(scope string) bool {

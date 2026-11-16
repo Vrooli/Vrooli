@@ -8,7 +8,6 @@ domain is added, renamed, split, merged, or removed.
 product boundary; the scaffold's notes domain remains a temporary reference
 until the first real vertical slice is complete and is then removed.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

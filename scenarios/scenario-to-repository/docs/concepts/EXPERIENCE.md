@@ -1,6 +1,5 @@
 # Experience Design
 
-## Purpose Of This Document
 
 Record the UI decision for Source repository: what people will compare
 it to, which surface matters most, how that surface lays out at each width,

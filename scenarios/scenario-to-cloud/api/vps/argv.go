@@ -110,65 +110,120 @@ func readOnly(step string, verb string, args []string, timeout time.Duration) Ta
 // cloud-side readiness probes) return the verbs they still need (for example
 // the release listing that proves the active pointer) and nothing else.
 func ActionCommands(action execplan.Action, cc CommandContext) ([]TargetCommand, error) {
-	in := action.Inputs
 	timeout := verbTimeout(action.ID)
+	for _, dispatch := range []func(execplan.Action, CommandContext, time.Duration) ([]TargetCommand, bool, error){
+		hostActionCommands, edgeActionCommands, dataActionCommands, releaseActionCommands,
+	} {
+		commands, handled, err := dispatch(action, cc, timeout)
+		if handled {
+			return commands, err
+		}
+	}
+	if hasNoTargetInvocation(action.OwnerOperation) {
+		return nil, nil
+	}
+	return nil, apierrors.Newf(apierrors.CodeUnsupportedCapability, "No target invocation for owner operation %q", action.OwnerOperation)
+}
+
+func hostActionCommands(action execplan.Action, cc CommandContext, timeout time.Duration) ([]TargetCommand, bool, error) {
+	in := action.Inputs
 	switch action.OwnerOperation {
 	case execplan.OpHostPrepare:
 		bootstrapArgs := append([]string{}, cc.fenceArgs(action.ID+".bootstrap")...)
 		subject, err := EncodeJSONArg(map[string]any{"apt": map[string]any{"packages": csv(in["packages"])}})
 		if err != nil {
-			return nil, err
+			return nil, true, err
 		}
 		args := append([]string{"--action", "apt.packages.ensure", "--subject", subject}, cc.fenceArgs(action.ID)...)
 		return []TargetCommand{
 			effectful(action.ID+".bootstrap", "cloud-target host bootstrap", bootstrapArgs, timeout),
 			effectful(action.ID, "cloud-target host repair", args, timeout),
-		}, nil
+		}, true, nil
+	case execplan.OpWorkloadStop:
+		subject, err := EncodeJSONArg(map[string]any{"process": map[string]any{"scenario": in["scenario"], "workdir": in["workdir"]}})
+		if err != nil {
+			return nil, true, err
+		}
+		args := append([]string{"--action", "process.stop.scoped", "--subject", subject}, cc.fenceArgs(action.ID)...)
+		return []TargetCommand{effectful(action.ID, "cloud-target host repair", args, timeout)}, true, nil
+	case execplan.OpConfigApply:
+		// A cloud release is a sealed artifact, not a full source checkout.
+		args := []string{"--yes", "yes", "--environment", in["environment"], "--bootstrap-only"}
+		command := effectful(action.ID, "setup", args, timeout)
+		command.Command.Workdir = strings.TrimSpace(in["workdir"])
+		return []TargetCommand{command}, true, nil
+	case execplan.OpRuntimeStartDeps:
+		var out []TargetCommand
+		for _, res := range csv(in["resources"]) {
+			out = append(out, effectful(action.ID+".resource."+res, "resource start", []string{res}, timeout))
+		}
+		for _, scen := range csv(in["scenarios"]) {
+			out = append(out, effectful(action.ID+".scenario."+scen, "scenario start", []string{scen}, timeout))
+		}
+		return out, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
+func edgeActionCommands(action execplan.Action, cc CommandContext, timeout time.Duration) ([]TargetCommand, bool, error) {
+	in := action.Inputs
+	switch action.OwnerOperation {
 	case execplan.OpEdgeFirewallAllow:
 		var out []TargetCommand
 		for _, port := range csv(in["ports"]) {
 			number, err := strconv.Atoi(port)
 			if err != nil {
-				return nil, apierrors.Newf(apierrors.CodeInvalidRequest, "edge.firewall.allow port %q is not a number", port)
+				return nil, true, apierrors.Newf(apierrors.CodeInvalidRequest, "edge.firewall.allow port %q is not a number", port)
 			}
 			subject, err := EncodeJSONArg(map[string]any{"edge": map[string]any{"port": number}})
 			if err != nil {
-				return nil, err
+				return nil, true, err
 			}
 			step := action.ID + "." + port
 			args := append([]string{"--action", "edge.ufw.allow", "--subject", subject}, cc.fenceArgs(step)...)
 			out = append(out, effectful(step, "cloud-target host repair", args, timeout))
 		}
-		return out, nil
+		return out, true, nil
+	case execplan.OpEdgeRouteApply:
+		spec, err := EdgeSpecFor(cc, in)
+		if err != nil {
+			return nil, true, err
+		}
+		raw, err := edge.TargetSpecJSON(spec)
+		if err != nil {
+			return nil, true, err
+		}
+		encoded := JSONArgPrefix + base64.RawURLEncoding.EncodeToString(raw)
+		args := append(cc.fenceArgs(action.ID), "--spec", encoded)
+		return []TargetCommand{effectful(action.ID, "cloud-target edge route-apply", args, timeout)}, true, nil
+	case execplan.OpEdgeRouteRetire:
+		return []TargetCommand{effectful(action.ID, "cloud-target edge route-rollback", cc.fenceArgs(action.ID), timeout)}, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
+func dataActionCommands(action execplan.Action, cc CommandContext, timeout time.Duration) ([]TargetCommand, bool, error) {
+	in := action.Inputs
+	switch action.OwnerOperation {
 	case execplan.OpDataInventory:
 		bindings := inventoryBindings(in["data_bindings"])
 		var out []TargetCommand
 		for _, scenario := range csv(in["scenarios"]) {
 			encoded, err := EncodeJSONArg(bindings[scenario])
 			if err != nil {
-				return nil, err
+				return nil, true, err
 			}
 			args := []string{"--deployment", cc.DeploymentID, "--workdir", in["workdir"], "--scenario", scenario, "--bindings", encoded}
 			out = append(out, readOnly(action.ID+"."+scenario, "cloud-target data inventory", args, timeout))
 		}
-		return out, nil
-	case execplan.OpReleaseVerify:
-		if err := requireReleaseID(action); err != nil {
-			return nil, err
-		}
-		args := []string{"--deployment", cc.DeploymentID, "--release-manifest", in["release_manifest"], "--archive", in["archive"]}
-		return []TargetCommand{readOnly(action.ID, "cloud-target release verify", args, timeout)}, nil
-	case execplan.OpReleaseStage:
-		if err := requireReleaseID(action); err != nil {
-			return nil, err
-		}
-		args := append(cc.fenceArgs(action.ID), "--release-manifest", in["release_manifest"], "--archive", in["archive"])
-		return []TargetCommand{effectful(action.ID, "cloud-target release stage", args, timeout)}, nil
+		return out, true, nil
 	case execplan.OpDataBackup:
 		args := append([]string{}, cc.fenceArgs(action.ID)...)
 		specs, err := backupBindingArgs(in, cc)
 		if err != nil {
-			return nil, err
+			return nil, true, err
 		}
 		args = append(args, specs...)
 		args = append(args, "--key-ref", in["recovery_key_ref"], "--migration-posture", in["migration_posture"], "--retention-policy", in["retention_policy"])
@@ -178,66 +233,52 @@ func ActionCommands(action execplan.Action, cc CommandContext) ([]TargetCommand,
 		if in["configuration_digest"] != "" {
 			args = append(args, "--configuration-digest", in["configuration_digest"])
 		}
-		return []TargetCommand{effectful(action.ID, "cloud-target data backup", args, timeout)}, nil
-	case execplan.OpWorkloadStop:
-		subject, err := EncodeJSONArg(map[string]any{"process": map[string]any{"scenario": in["scenario"], "workdir": in["workdir"]}})
-		if err != nil {
-			return nil, err
+		return []TargetCommand{effectful(action.ID, "cloud-target data backup", args, timeout)}, true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
+func releaseActionCommands(action execplan.Action, cc CommandContext, timeout time.Duration) ([]TargetCommand, bool, error) {
+	in := action.Inputs
+	switch action.OwnerOperation {
+	case execplan.OpReleaseVerify:
+		if err := requireReleaseID(action); err != nil {
+			return nil, true, err
 		}
-		args := append([]string{"--action", "process.stop.scoped", "--subject", subject}, cc.fenceArgs(action.ID)...)
-		return []TargetCommand{effectful(action.ID, "cloud-target host repair", args, timeout)}, nil
+		args := []string{"--deployment", cc.DeploymentID, "--release-manifest", in["release_manifest"], "--archive", in["archive"]}
+		return []TargetCommand{readOnly(action.ID, "cloud-target release verify", args, timeout)}, true, nil
+	case execplan.OpReleaseStage:
+		if err := requireReleaseID(action); err != nil {
+			return nil, true, err
+		}
+		args := append(cc.fenceArgs(action.ID), "--release-manifest", in["release_manifest"], "--archive", in["archive"])
+		return []TargetCommand{effectful(action.ID, "cloud-target release stage", args, timeout)}, true, nil
 	case execplan.OpReleaseActivate:
 		if err := requireReleaseID(action); err != nil {
-			return nil, err
+			return nil, true, err
 		}
-		return []TargetCommand{effectful(action.ID, "cloud-target release activate", activateArgs(action.ID, in["release_id"], in, cc, false), timeout)}, nil
+		return []TargetCommand{effectful(action.ID, "cloud-target release activate", activateArgs(action.ID, in["release_id"], in, cc, false), timeout)}, true, nil
 	case execplan.OpWorkloadStart:
 		out := []TargetCommand{readOnly(action.ID+".observe", "cloud-target release list", []string{"--deployment", cc.DeploymentID}, timeout)}
 		if in["release_id"] != "" {
 			out = append(out, effectful(action.ID, "cloud-target release activate", activateArgs(action.ID, in["release_id"], in, cc, true), timeout))
 		}
-		return out, nil
-	case execplan.OpConfigApply:
-		// A cloud release is a sealed artifact, not a full source checkout.
-		// Keep target setup limited to the bootstrap contract; resources and
-		// workloads are reconciled by their own typed lifecycle actions below.
-		args := []string{"--yes", "yes", "--environment", in["environment"], "--bootstrap-only"}
-		command := effectful(action.ID, "setup", args, timeout)
-		// Setup resolves the repository contract and service manifest from its
-		// project root. The release staging directory is an artifact location,
-		// not a repository root, so run the delivered CLI from the durable VPS
-		// workdir.
-		command.Command.Workdir = strings.TrimSpace(in["workdir"])
-		return []TargetCommand{command}, nil
-	case execplan.OpRuntimeStartDeps:
-		var out []TargetCommand
-		for _, res := range csv(in["resources"]) {
-			out = append(out, effectful(action.ID+".resource."+res, "resource start", []string{res}, timeout))
-		}
-		for _, scen := range csv(in["scenarios"]) {
-			out = append(out, effectful(action.ID+".scenario."+scen, "scenario start", []string{scen}, timeout))
-		}
-		return out, nil
-	case execplan.OpEdgeRouteApply:
-		spec, err := EdgeSpecFor(cc, in)
-		if err != nil {
-			return nil, err
-		}
-		raw, err := edge.TargetSpecJSON(spec)
-		if err != nil {
-			return nil, err
-		}
-		encoded := JSONArgPrefix + base64.RawURLEncoding.EncodeToString(raw)
-		args := append(cc.fenceArgs(action.ID), "--spec", encoded)
-		return []TargetCommand{effectful(action.ID, "cloud-target edge route-apply", args, timeout)}, nil
-	case execplan.OpEdgeRouteRetire:
-		return []TargetCommand{effectful(action.ID, "cloud-target edge route-rollback", cc.fenceArgs(action.ID), timeout)}, nil
+		return out, true, nil
 	case execplan.OpVerifyReadiness, execplan.OpReleaseRetainPredecesor, execplan.OpArtifactsRetire:
-		return []TargetCommand{readOnly(action.ID+".observe", "cloud-target release list", []string{"--deployment", cc.DeploymentID}, timeout)}, nil
-	case execplan.OpReleaseDeliver, execplan.OpCredentialsProvision, execplan.OpGrantsRevoke, execplan.OpDataRetire, execplan.OpInputResumeHandoff:
-		return nil, nil
+		return []TargetCommand{readOnly(action.ID+".observe", "cloud-target release list", []string{"--deployment", cc.DeploymentID}, timeout)}, true, nil
+	default:
+		return nil, false, nil
 	}
-	return nil, apierrors.Newf(apierrors.CodeUnsupportedCapability, "No target invocation for owner operation %q", action.OwnerOperation)
+}
+
+func hasNoTargetInvocation(operation string) bool {
+	switch operation {
+	case execplan.OpReleaseDeliver, execplan.OpCredentialsProvision, execplan.OpGrantsRevoke, execplan.OpDataRetire, execplan.OpInputResumeHandoff:
+		return true
+	default:
+		return false
+	}
 }
 
 func requireReleaseID(action execplan.Action) error {

@@ -100,7 +100,7 @@ func (p protectionProvisioner) ProvisionProtection(ctx context.Context, in inter
 // Module returns the onboard domain's contribution to the API: the generated
 // Connect-RPC OnboardService handler. It owns its durable op tables, so it
 // re-exports Schema().
-func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk schedule.Clock, sshSvc *ssh.Service, logger *log.Logger) module.Module {
+func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk schedule.Clock, sshSvc *ssh.Service, registrySvc registry.Service, logger *log.Logger) module.Module {
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptLookup)
 	machineService := machines.NewService(machines.NewSQLiteRepository(db, clk))
 	path, handler := onboardconnect.NewOnboardServiceHandler(NewConnectHandler(Deps{
@@ -108,6 +108,7 @@ func Module(svc internalonboard.Service, db internalonboard.SQLExecutor, clk sch
 		SSH:      sshSvc,
 		Attempts: attempts,
 		Machines: machineService,
+		Registry: registrySvc,
 		Resolver: machineService,
 		KeyCheck: func(ctx context.Context, host string, port int, user, keyRef string) (bool, string, string) {
 			keyName := strings.TrimPrefix(strings.TrimSpace(keyRef), "ssh-key://")

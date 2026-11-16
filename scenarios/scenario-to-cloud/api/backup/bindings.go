@@ -60,27 +60,37 @@ func resolveOne(data domain.ClosurePersistentData, in BindingInputs) (domain.Dat
 		return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: binding %q is not <kind>:<locator>", data.ID, data.Binding).WithDetail("persistent_data", data.ID)
 	}
 	binding := domain.DataBinding{ID: data.ID, Owner: data.Owner, MigrationOwner: data.MigrationOwner, ProviderRef: in.ProviderRefs[data.ID]}
+	resolved, err := resolveBindingLocation(data, kind, locator, in)
+	if err != nil {
+		return domain.DataBinding{}, err
+	}
+	binding.Kind, binding.Provider, binding.Locator = resolved.Kind, resolved.Provider, resolved.Locator
+	attachBindingHooks(&binding, data, in)
+	if binding.Kind == domain.DataBindingKindApplication && binding.Quiesce == nil {
+		return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: application binding declares no quiesce hook", data.ID)
+	}
+	return binding, nil
+}
+
+func resolveBindingLocation(data domain.ClosurePersistentData, kind, locator string, in BindingInputs) (domain.DataBinding, error) {
+	binding := domain.DataBinding{}
 	switch kind {
 	case "database", "schema":
 		binding.Kind, binding.Provider, binding.Locator = domain.DataBindingKindSQL, domain.BackupProviderPostgres, locator
 	case "sqlite":
-		if !path.IsAbs(locator) {
-			return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: sqlite locator must be absolute", data.ID)
+		if err := requireAbsoluteLocator(data.ID, locator, "sqlite locator must be absolute"); err != nil {
+			return domain.DataBinding{}, err
 		}
 		binding.Kind, binding.Provider, binding.Locator = domain.DataBindingKindSQL, domain.BackupProviderSQLite, locator
 	case "dir":
-		if strings.TrimSpace(in.Workdir) == "" || strings.TrimSpace(data.Owner) == "" {
-			return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: dir binding needs a workdir and an owner", data.ID)
+		resolved, err := resolveDirBinding(data, locator, in)
+		if err != nil {
+			return domain.DataBinding{}, err
 		}
-		clean := path.Clean("/" + locator)
-		if clean == "/" || strings.Contains(locator, "..") {
-			return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: dir binding %q escapes the owner directory", data.ID, locator)
-		}
-		binding.Kind, binding.Provider = domain.DataBindingKindFiles, domain.BackupProviderObjectStore
-		binding.Locator = path.Join(in.Workdir, "scenarios", data.Owner, clean)
+		return resolved, nil
 	case "bucket":
-		if !path.IsAbs(locator) {
-			return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: bucket locator must be an absolute mount", data.ID)
+		if err := requireAbsoluteLocator(data.ID, locator, "bucket locator must be an absolute mount"); err != nil {
+			return domain.DataBinding{}, err
 		}
 		binding.Kind, binding.Provider, binding.Locator = domain.DataBindingKindFiles, domain.BackupProviderObjectStore, locator
 	case "application":
@@ -88,6 +98,31 @@ func resolveOne(data domain.ClosurePersistentData, in BindingInputs) (domain.Dat
 	default:
 		return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: binding kind %q is not database, schema, sqlite, dir, bucket or application", data.ID, kind)
 	}
+	return binding, nil
+}
+
+func requireAbsoluteLocator(id, locator, message string) error {
+	if path.IsAbs(locator) {
+		return nil
+	}
+	return apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: %s", id, message)
+}
+
+func resolveDirBinding(data domain.ClosurePersistentData, locator string, in BindingInputs) (domain.DataBinding, error) {
+	if strings.TrimSpace(in.Workdir) == "" || strings.TrimSpace(data.Owner) == "" {
+		return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: dir binding needs a workdir and an owner", data.ID)
+	}
+	clean := path.Clean("/" + locator)
+	if clean == "/" || strings.Contains(locator, "..") {
+		return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: dir binding %q escapes the owner directory", data.ID, locator)
+	}
+	return domain.DataBinding{
+		Kind: domain.DataBindingKindFiles, Provider: domain.BackupProviderObjectStore,
+		Locator: path.Join(in.Workdir, "scenarios", data.Owner, clean),
+	}, nil
+}
+
+func attachBindingHooks(binding *domain.DataBinding, data domain.ClosurePersistentData, in BindingInputs) {
 	if data.MigrationOwner == "scenario" || binding.Kind == domain.DataBindingKindApplication {
 		owner := data.DeclaredBy
 		if idx := strings.Index(owner, ":"); idx >= 0 {
@@ -102,10 +137,6 @@ func resolveOne(data domain.ClosurePersistentData, in BindingInputs) (domain.Dat
 			binding.Release = &h
 		}
 	}
-	if binding.Kind == domain.DataBindingKindApplication && binding.Quiesce == nil {
-		return domain.DataBinding{}, apierrors.Newf(apierrors.CodeInvalidRequest, "persistent data %s: application binding declares no quiesce hook", data.ID)
-	}
-	return binding, nil
 }
 
 // EngineBindings converts domain bindings into the engine's shape.

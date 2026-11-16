@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 export default defineConfig(({ mode }) => ({
   // ╔══════════════════════════════════════════════════════════════╗
@@ -14,7 +15,7 @@ export default defineConfig(({ mode }) => ({
   // ║  DO NOT change to '/' or remove this setting.                ║
   // ╚══════════════════════════════════════════════════════════════╝
   base: './',
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   resolve: {
     alias: mode === "profile" ? [
       {

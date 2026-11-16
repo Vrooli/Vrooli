@@ -389,6 +389,7 @@ Durable cloud operations: attach by id across disconnects and owner restarts
 | `operation resume` | read | true | local | Attach to an operation started elsewhere (API, UI) after a disconnect; same contract as wait (WaitOperation) |
 | `operation cancel` | write | true | OperationsService.CancelOperation | Record a cancellation intent, honoured at the next declared cancel point |
 | `operation list` | read | true | OperationsService.ListDeploymentOperations | Operations admitted against a deployment (--deployment <id> \| <id> \| --scenario <id> --environment <env> \| --scenario <id> --domain <domain> \| --scenario <id> --host <host>) |
+| `operation target-receipt` | read | true | OperationsService.GetTargetReceipt | Fresh target-owned receipt for one admitted operation step (read-only) |
 
 Examples:
 
@@ -398,6 +399,7 @@ scenario-to-cloud operation wait "<operation_id>" [--timeout "<value>"]
 scenario-to-cloud operation resume "<operation_id>" [--timeout "<value>"] [--json]
 scenario-to-cloud operation cancel "<operation_id>"
 scenario-to-cloud operation list [deployment_id] [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
+scenario-to-cloud operation target-receipt "<deployment_id>" "<operation_id>" "<step>"
 ```
 
 ### credential
@@ -422,6 +424,24 @@ scenario-to-cloud credential revoke [deployment_id] --binding "<binding>" [--dep
 scenario-to-cloud credential recover [deployment_id] --bundle-ref "<bundle-ref>" --passphrase-stdin [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--request-key "<value>"] [--json]
 scenario-to-cloud credential rotation-get [deployment_id] --rotation "<rotation>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--json]
 scenario-to-cloud credential rotation-resume [deployment_id] --rotation "<rotation>" [--deployment "<value>"] [--scenario "<value>"] [--environment "<value>"] [--domain "<value>"] [--host "<value>"] [--operator-confirmed] [--json]
+```
+
+### wallet-recovery
+
+Off-host Treasury wallet recovery consumed through DBM
+
+| Command | Effect | Agent-runnable | Binding | Description |
+|---|---|---|---|---|
+| `wallet-recovery rotate` | destructive | false | local | Prepare a Treasury tombstone, publish it to a manual S3/SFTP DBM destination, verify the newest scratch restore, then commit key deletion |
+| `wallet-recovery restore` | destructive | false | local | Attach an existing DBM repository, select its newest recovery snapshot, refuse revocation tombstones without fallback, and restore through Treasury. Pipe the operator secret on stdin. |
+| `wallet-recovery prove-after-restart` | write | false | local | Verify the witnessed Treasury address and signature after Treasury has restarted on the replacement node. |
+
+Examples:
+
+```bash
+scenario-to-cloud wallet-recovery rotate --wallet-id "<wallet-id>" --network "<network>" --successor-id "<successor-id>" --destination-id "<destination-id>" --plan-id "<plan-id>" --staging-dir "<staging-dir>" --receipt-file "<receipt-file>"
+scenario-to-cloud wallet-recovery restore --wallet-id "<wallet-id>" --network "<network>" --bridge-node-id "<durable-node-id>" --bridge-machine-id "<durable-machine-id>" --bridge-scope "scenario-to-cloud:read" --destination-id "<destination-id>" --destination-name "<destination-name>" --backend "<backend>" --location "<location>" --created-at "<created-at>" --staging-dir "<staging-dir>" [--secret-stdin]
+scenario-to-cloud wallet-recovery prove-after-restart --wallet-id "<wallet-id>" --network "<network>" --bridge-node-id "<same-durable-node-id>" --bridge-machine-id "<same-durable-machine-id>" --bridge-scope "scenario-to-cloud:read" --expected-address "<expected-address>" --nonce "<nonce>"
 ```
 
 ## RPCs without a direct command

@@ -22,7 +22,6 @@ Bridge has two distinct deployable units:
 > where a convenience (code-signing, automated
 > backup wiring) is still intended-but-unimplemented.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

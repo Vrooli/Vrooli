@@ -149,3 +149,19 @@ func TestListResolvesSelectorAndCancelRecordsIntent(t *testing.T) {
 		t.Fatalf("cancelled = %v", fake.Operations.Cancelled)
 	}
 }
+
+func TestTargetReceiptReadsOneExactOperationStep(t *testing.T) {
+	c, fake := testCommands(t)
+	fake.Operations.TargetReceiptAnswer = &operationsv1.TargetReceiptRead{
+		SchemaVersion: "1", DeploymentId: "dep-1", OperationId: "op-1", PlanDigest: "sha256:plan", Step: "release.activate",
+		Target:  &operationsv1.TargetReceiptTarget{MachineId: "machine-1", NodeId: "node-1", EnrollmentGeneration: 7, Transport: "bridge"},
+		Receipt: &operationsv1.TargetOwnerReceipt{Found: true, Outcome: "succeeded", Fence: 4},
+	}
+	if err := c.Run([]string{"target-receipt", "dep-1", "op-1", "release.activate", "--json"}); err != nil {
+		t.Fatal(err)
+	}
+	got := fake.Operations.TargetReceiptCalls
+	if len(got) != 1 || got[0].GetDeploymentId() != "dep-1" || got[0].GetOperationId() != "op-1" || got[0].GetStep() != "release.activate" {
+		t.Fatalf("target receipt requests = %#v", got)
+	}
+}

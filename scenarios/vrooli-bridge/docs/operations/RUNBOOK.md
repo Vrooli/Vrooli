@@ -54,7 +54,6 @@ manual sudo rule into a scenario terminal. A hostname or `hostname.local` is onl
 DNS for stable LAN addressing. Tunnel and manual URLs are also probed from the
 candidate; Bridge does not silently select a tunnel to evade a blocked firewall.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -257,6 +256,50 @@ Use this command for the normal operator flow:
 vrooli-bridge onboard connect --host mini-01.local --user admin
 ```
 
+For the currently enrolled minimouse, the durable target is Machine
+`451ea636-a80f-4080-82b7-fa65d0e3289a` at `minimouse.local`. The saved local
+SSH password can be selected by its Credential Authority identity; Bridge
+resolves it only if preflight says password recovery is needed, then sends it
+in the one onboarding request body. The value is never printed or stored by
+onboarding:
+
+```bash
+vrooli-bridge onboard connect --host minimouse.local --machine-id 451ea636-a80f-4080-82b7-fa65d0e3289a --user matthalloran8 --password-credential vrooli/minimouse-login --checkout-dir /Users/matthalloran8/.vrooli/fleet/minimouse
+```
+
+After successful first touch, subsequent runs reuse Bridge's per-Machine SSH
+key and do not resolve or prompt for the password.
+
+When Bridge must pair a replacement Node for that same durable Machine, it
+reads the current non-revoked Node's registry-approved execution scopes and
+copies those exact grants into the new pairing request. This preserves the
+Machine's identity and authorization across a repair without upgrading it to
+the current posture defaults. A revoked Node's grants are not restored; the
+replacement starts presence-only until the owner explicitly approves scopes.
+The `machines repair <machine-id>` recovery command follows the same rule.
+
+#### Wallet recovery reconnect contract
+
+For Scenario-to-Cloud wallet recovery, the approved Bridge scope is exactly
+`scenario-to-cloud:read`. The consumer checks `nodes get <node-id> --json`,
+`machines get <machine-id> --json`, and `nodes doctor <node-id> --json` before
+fetching any recovery artifact; it requires the selected Node to be the
+Machine's current lineage entry and the exact scope to be present. It repeats
+these checks before the signed post-restart proof. A mismatch, revoked/old
+lineage, missing scope, stale heartbeat, disconnected channel, or
+non-dispatchable node stops the consumer before DBM restore or Treasury proof.
+
+After any second disconnect, use the canonical `onboard connect` command above
+with the same `--machine-id`. Once it reports success, inspect `machines get`
+and `nodes doctor`, then pass the current Node ID and Machine ID to the
+Scenario-to-Cloud restore/proof commands documented in the
+[portable wallet recovery guide](../../../scenario-to-cloud/docs/guides/treasury-portable-wallet-recovery.md).
+The connect path reuses Bridge's per-Machine key after first touch; it does not
+ask for the stored SSH password again. Recovery still requires the operator to
+provide the off-host wallet secret once through stdin. Connection/readiness is
+not evidence that the remote DBM destination is qualified or that recovery
+completed.
+
 The target must be a remote machine. Bridge rejects its own control-plane
 hostname, loopback address, or local interface address so an operator working
 inside an SSH session cannot accidentally onboard the machine running Bridge.
@@ -273,9 +316,12 @@ If the key is missing or revoked, `connect` stops before starting an operation
 unless an explicit password recovery path is supplied. Ambiguous Machines and
 changed host keys fail closed and require operator review. The SSH password is
 never placed in argv, SQLite, operation events, logs, or evidence. Use
-`--password-stdin` or `$BRIDGE_SSH_PASSWORD` for headless first touch/recovery;
-the lower-level `onboard start` verb remains available for automation and uses
-the same server-owned preflight resolver.
+`--password-credential` with the existing Credential Authority identity shown
+above when one is available; Bridge resolves it only after preflight requires a
+password. Use `--password-stdin` or `$BRIDGE_SSH_PASSWORD` for headless recovery
+when no approved stored credential applies. The lower-level `onboard start`
+verb remains available for automation and uses the same server-owned preflight
+resolver.
 
 CLI path (owner-authenticated; `auth login` first):
 

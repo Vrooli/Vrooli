@@ -14,6 +14,28 @@ import (
 	"github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime/testutil"
 )
 
+func TestServiceOwnerScenario(t *testing.T) {
+	m := &manifest.Manifest{
+		App:                 manifest.App{Scenario: "web-console"},
+		Peers:               []manifest.Peer{{Scenario: "audio-tools"}},
+		ProgramBindingPeers: []manifest.Peer{{Scenario: "ai-gateway"}},
+	}
+	s := &Supervisor{opts: Options{Manifest: m}}
+	for _, tc := range []struct{ service, want string }{
+		{"api", "web-console"},
+		{"audio-tools--api", "audio-tools"},
+		{"ai-gateway--api", "ai-gateway"},
+	} {
+		got, err := s.serviceOwnerScenario(tc.service)
+		if err != nil || got != tc.want {
+			t.Errorf("serviceOwnerScenario(%q) = %q, %v; want %q", tc.service, got, err, tc.want)
+		}
+	}
+	if _, err := s.serviceOwnerScenario("undeclared-peer--api"); err == nil {
+		t.Fatal("serviceOwnerScenario accepted an undeclared peer")
+	}
+}
+
 func TestStartService_WithDataDirs(t *testing.T) {
 	tmp := t.TempDir()
 	binKey := platformBinaryKey()

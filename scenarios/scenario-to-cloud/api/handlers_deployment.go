@@ -140,7 +140,10 @@ func (s *Server) handleCreateDeployment(w http.ResponseWriter, r *http.Request) 
 		existing.Manifest = manifestJSON
 		existing.Environment = environment
 		existing.Target = target
-		existing.Status = domain.StatusPending
+		if err := existing.TransitionStatus(domain.StatusPending); err != nil {
+			apierrors.Write(w, apierrors.New(apierrors.CodeInvalidRequest, "Deployment cannot be reset to pending").WithDetail("cause", err.Error()))
+			return
+		}
 		existing.ErrorMessage = nil
 		existing.ErrorStep = nil
 		existing.UpdatedAt = time.Now()

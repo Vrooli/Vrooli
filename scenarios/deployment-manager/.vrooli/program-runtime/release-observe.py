@@ -1,4 +1,3 @@
-import json
 inputs = program.inputs()
 review_key = str(inputs.get("review_key", "")).strip(); limit = int(inputs.get("limit", 20))
 envelope = {"program": "deployment-manager.release-observe", "version": "1", "status": "failed", "phase": "validate", "inputs": {"review_key": review_key, "limit": limit}, "signals": {}, "errors": [], "evidence": []}; handles = {}
@@ -16,6 +15,6 @@ def step_classify():
     envelope["phase"] = "classify"; fm = handles["findings"].meta() or {}
     envelope["signals"] = {"review_status": fm.get("status"), "comparison_mode": fm.get("comparisonMode"), "goal_ref": fm.get("goalRef"), "evidence_count": handles["evidence"].count(), "finding_count": handles["findings"].count(), "evidence": handles["evidence"].head(limit), "findings": handles["findings"].head(limit)}
     envelope["evidence"] = [review_key]; envelope["status"] = "ok"; return "report"
-def step_report(): envelope["phase"] = "report"; print(json.dumps(envelope, allow_nan=False)); return None
+def step_report(): envelope["phase"] = "report"; program.report(envelope); return None
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}; state = "validate"
 program.run(STATES, state)

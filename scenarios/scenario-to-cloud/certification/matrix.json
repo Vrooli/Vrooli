@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "matrix_revision": "cloud-launch-v1",
+  "matrix_revision": "cloud-launch-v2-two-grounds",
   "status": "required design; evidence not yet collected",
   "source": {
     "path": "plan-artifacts/scenario-to-cloud-professional-vps-delivery-certification/source/mandatory-validation-matrix.json",
@@ -39,7 +39,7 @@
     "unavailable",
     "unsupported"
   ],
-  "readiness_rule": "A required case is satisfied only when every lane in lanes[] holds a passed receipt for the exact candidate release digest. Any other state names the (case, lane) cell.",
+  "readiness_rule": "Each required case/lane pair is explicitly applicable to both target grounds in ground_applicability. Every (case, lane, target_ground) cell requires a passed schema-v2 receipt bound to the exact release, configuration and closure digests plus machine identity, generation, architecture, OS, validation receipt, artifacts and assertions. Historical ungrounded receipts remain readable but cannot satisfy either ground.",
   "cases": [
     {
       "id": "AUTH-01",
@@ -2507,6 +2507,2140 @@
       "classification": "out_of_scope",
       "reason": "Rejected alternative until core certification exists.",
       "policy_ref": "docs/reference/support-policy.md#providers-and-transports"
+    }
+  ],
+  "target_ground_vocabulary": [
+    "qemu",
+    "real_vps"
+  ],
+  "ground_applicability": [
+    {
+      "case_id": "AUTH-01",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-01",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-01",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-02",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-02",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-02",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-03",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-03",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-03",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-04",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-04",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-04",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-05",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-05",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-05",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-06",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-06",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-06",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-07",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-07",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-07",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-08",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-08",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "AUTH-08",
+      "lane": "relay",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-01",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-01",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-01",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-02",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-02",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-02",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-03",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-03",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-03",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-04",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-04",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-04",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-05",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-05",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-05",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-06",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-06",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-06",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-07",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-07",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-07",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-08",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-08",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "PLAN-08",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-01",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-01",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-02",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-02",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-03",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-03",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-04",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-04",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-05",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-05",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-06",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-06",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-07",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-07",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-08",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-08",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-09",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-09",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-09",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-10",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-10",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RUN-10",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-01",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-01",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-02",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-02",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-03",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-03",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-04",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-04",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-05",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-05",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-06",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-06",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-07",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-07",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-08",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-08",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "REACH-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-01",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-01",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-02",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-02",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-03",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-03",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-04",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-04",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-05",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-05",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-06",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-06",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-07",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-07",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-08",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-08",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-09",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-09",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-09",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-10",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-10",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "RELEASE-10",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-01",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-01",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-02",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-02",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-03",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-03",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-04",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-04",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-05",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-05",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-06",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-06",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-07",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-07",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-08",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-08",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-09",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-09",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-09",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-10",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-10",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "DATA-10",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-01",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-01",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-02",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-02",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-03",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-03",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-04",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-04",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-05",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-05",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-06",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-06",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-07",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-07",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-08",
+      "lane": "package",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-08",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "SECRET-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-01",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-02",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-03",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-04",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-05",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-06",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-07",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-08",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "EDGE-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-01",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-01",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-02",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-02",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-03",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-03",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-04",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-04",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-05",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-05",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-06",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-06",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-07",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-07",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-08",
+      "lane": "api",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-08",
+      "lane": "workflow",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "GOV-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-01",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-01",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-02",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-02",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-03",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-03",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-04",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-04",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-05",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-05",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-06",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-06",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-07",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-07",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-08",
+      "lane": "bas_ui",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "UX-08",
+      "lane": "independent_review",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-01",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-01",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-01",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-02",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-02",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-02",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-03",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-03",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-03",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-04",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-04",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-04",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-05",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-05",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-05",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-06",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-06",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-06",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-07",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-07",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-07",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-08",
+      "lane": "real_vps",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-08",
+      "lane": "soak",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
+    },
+    {
+      "case_id": "OPS-08",
+      "lane": "qemu",
+      "grounds": [
+        "qemu",
+        "real_vps"
+      ]
     }
   ]
 }

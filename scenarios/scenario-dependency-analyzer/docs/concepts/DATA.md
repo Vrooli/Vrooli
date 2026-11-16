@@ -1,6 +1,5 @@
 # Data
 
-## Purpose Of This Document
 
 Describe SDA-owned data, persistence boundaries, and import/export behavior.
 

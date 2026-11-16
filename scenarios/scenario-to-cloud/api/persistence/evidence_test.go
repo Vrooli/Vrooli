@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -69,7 +70,14 @@ func TestEvidenceRecordsAreAppendOnlyAndPublicationsAreIdempotent(t *testing.T) 
 	if err != nil || created || stored.ID != "pub-1" {
 		t.Fatalf("replay = %+v created=%v err=%v", stored, created, err)
 	}
-	stored.State = evidence.StatePublished
+	for _, state := range []string{evidence.StateReviewPrepared, evidence.StateApproved, evidence.StateActivating, evidence.StatePublished} {
+		if err := stored.Transition(state); err != nil {
+			t.Fatalf("transition publication to %q: %v", state, err)
+		}
+		if err := repo.UpdatePublication(ctx, *stored); err != nil {
+			t.Fatalf("persist publication transition to %q: %v", state, err)
+		}
+	}
 	published := at.Add(2 * time.Minute)
 	stored.PublishedAt = &published
 	stored.ActivatedReleaseDigest = release
@@ -82,5 +90,24 @@ func TestEvidenceRecordsAreAppendOnlyAndPublicationsAreIdempotent(t *testing.T) 
 	}
 	if got, _ := repo.GetPublication(ctx, "pub-1"); got == nil || got.ActivatedReleaseDigest != release {
 		t.Fatalf("get = %+v", got)
+	}
+	invalidCreate := evidence.Publication{ID: "pub-invalid", DeploymentID: "dep-1", RequestKey: "req-invalid", State: evidence.StatePublished}
+	if _, _, err := repo.CreatePublication(ctx, invalidCreate); !errors.Is(err, evidence.ErrInvalidPublicationTransition) {
+		t.Fatalf("create with terminal initial state error=%v", err)
+	}
+	if err := stored.Transition(evidence.StateActivating); !errors.Is(err, evidence.ErrInvalidPublicationTransition) {
+		t.Fatalf("published -> activating error=%v", err)
+	}
+	badPersisted := *stored
+	badPersisted.State = "future"
+	raw, err := json.Marshal(badPersisted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE cloud_publications SET state = $1, publication = $2 WHERE id = $3`, "future", string(raw), stored.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetPublication(ctx, stored.ID); !errors.Is(err, evidence.ErrInvalidPublicationTransition) {
+		t.Fatalf("reload unknown persisted state error=%v", err)
 	}
 }

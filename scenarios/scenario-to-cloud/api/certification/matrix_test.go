@@ -9,7 +9,11 @@ import (
 	"testing"
 )
 
-const expectedCaseCount = 94
+const (
+	expectedCaseCount             = 94
+	expectedLaneCellCount         = 266
+	expectedTargetGroundCellCount = 532
+)
 
 // TestEmbeddedMatrixMatchesScenarioCopy [REQ:STC-P0-040] proves the embedded
 // matrix is byte-identical to certification/matrix.json at the scenario root.
@@ -37,6 +41,12 @@ func TestMatrixHoldsEveryMandatoryCase(t *testing.T) {
 	}
 	if m.Source.CaseCount != len(m.Cases) {
 		t.Fatalf("source.case_count %d != cases %d", m.Source.CaseCount, len(m.Cases))
+	}
+	if got := len(m.RequiredCells()) / len(m.TargetGroundVocabulary); got != expectedLaneCellCount {
+		t.Fatalf("expected %d case/lane cells before target expansion, got %d", expectedLaneCellCount, got)
+	}
+	if got := len(m.RequiredCells()); got != expectedTargetGroundCellCount {
+		t.Fatalf("expected %d target-ground cells, got %d", expectedTargetGroundCellCount, got)
 	}
 	families := map[string]int{}
 	for _, c := range m.Cases {
@@ -117,5 +127,25 @@ func TestParseRejectsVocabularyDrift(t *testing.T) {
 	m.Cases[1].ID = m.Cases[0].ID
 	if err := m.Validate(); err == nil {
 		t.Fatalf("expected duplicate case id to be rejected")
+	}
+}
+
+func TestGroundApplicabilityFailsClosed(t *testing.T) {
+	m := mustMatrix(t)
+	m.GroundApplicability = m.GroundApplicability[1:]
+	if err := m.Validate(); err == nil {
+		t.Fatal("omitting a case/lane ground map must be rejected")
+	}
+
+	m = mustMatrix(t)
+	m.GroundApplicability[0].Grounds = []TargetGround{TargetGroundQEMU}
+	if err := m.Validate(); err == nil {
+		t.Fatal("omitting a target ground for a required case/lane must be rejected")
+	}
+
+	m = mustMatrix(t)
+	m.GroundApplicability = append(m.GroundApplicability, m.GroundApplicability[0])
+	if err := m.Validate(); err == nil {
+		t.Fatal("duplicating a case/lane ground map must be rejected")
 	}
 }

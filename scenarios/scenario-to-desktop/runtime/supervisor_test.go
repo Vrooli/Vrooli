@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -100,11 +101,11 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 	svc := manifest.Service{
 		ID: "playwright-driver",
 		Env: map[string]string{
-			"PLAYWRIGHT_CHROMIUM_PATH": "resources/playwright/chromium/chrome",
+			"BROWSER_EXECUTABLE_PATH": "resources/playwright/chromium/chrome",
 		},
 	}
 	env := map[string]string{
-		"PLAYWRIGHT_CHROMIUM_PATH": "resources/playwright/chromium/chrome",
+		"BROWSER_EXECUTABLE_PATH": "resources/playwright/chromium/chrome",
 	}
 
 	if err := s.applyPlaywrightConventions(svc, env); err != nil {
@@ -117,7 +118,7 @@ func TestApplyPlaywrightConventionsFallback(t *testing.T) {
 	if got := env["PLAYWRIGHT_DRIVER_URL"]; got != "http://127.0.0.1:48000" {
 		t.Fatalf("expected driver url set, got %q", got)
 	}
-	if got := env["PLAYWRIGHT_CHROMIUM_PATH"]; got != fallbackChrome {
+	if got := env["BROWSER_EXECUTABLE_PATH"]; got != fallbackChrome {
 		t.Fatalf("expected chromium fallback path, got %q", got)
 	}
 	if got := env["ENGINE"]; got != "playwright" {
@@ -763,6 +764,53 @@ func TestPublishPeerRecordUsesAllocatedPorts(t *testing.T) {
 	if record.Tier != 2 || record.Version != "1.2.3" || record.Ports["api"] != 23117 || record.Ports["ipc"] != 23118 || len(record.Ports) != 2 || len(record.Provides) != 1 || record.Provides[0] != "api" {
 		t.Fatalf("published peer record = %#v", record)
 	}
+}
+
+func TestPublishPeerRecordSkipsExistingLiveOwner(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-test.run=^TestPeerRecordLiveOwnerHelper$")
+	cmd.Env = append(os.Environ(), "VROOLI_PEERRECORD_LIVE_OWNER_HELPER=1")
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start peer owner helper: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+
+	home := t.TempDir()
+	if err := peerrecord.Write(home, peerrecord.Record{
+		Scenario: "web-console",
+		Instance: "live",
+		OwnerPID: cmd.Process.Pid,
+		Ports:    map[string]int{"api": 18196},
+	}); err != nil {
+		t.Fatalf("write live peer owner: %v", err)
+	}
+
+	s := &Supervisor{
+		opts:    Options{Manifest: &manifest.Manifest{App: manifest.App{Scenario: "web-console"}}},
+		appData: t.TempDir(), peerHome: home, portAllocator: testutil.NewMockPortAllocator(), startedAt: time.Now(),
+	}
+	if err := s.publishPeerRecord(); err != nil {
+		t.Fatalf("publishPeerRecord() error = %v, want existing owner to be preserved without blocking startup", err)
+	}
+	if s.peerPublished {
+		t.Fatal("peerPublished = true, want false when another live process owns the record")
+	}
+	got, err := peerrecord.Read(home, "web-console")
+	if err != nil {
+		t.Fatalf("read preserved peer record: %v", err)
+	}
+	if got.OwnerPID != cmd.Process.Pid || got.Ports["api"] != 18196 {
+		t.Fatalf("peer record was changed: %#v", got)
+	}
+}
+
+func TestPeerRecordLiveOwnerHelper(t *testing.T) {
+	if os.Getenv("VROOLI_PEERRECORD_LIVE_OWNER_HELPER") != "1" {
+		return
+	}
+	time.Sleep(time.Hour)
 }
 
 func TestTwoBundlesAllocateDistinctIPCPorts(t *testing.T) {

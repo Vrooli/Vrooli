@@ -1,6 +1,7 @@
 package smoketest
 
 import (
+	"fmt"
 	"time"
 
 	deliveryramp "github.com/vrooli/vrooli/packages/delivery-ramp-go"
@@ -92,6 +93,64 @@ func (s State) CanTransitionTo(target State) bool {
 func (s State) IsTerminal() bool {
 	transitions, ok := ValidStateTransitions[s]
 	return ok && len(transitions) == 0
+}
+
+// TransitionState validates and records the persisted run lifecycle transition.
+// Status is the compact API summary of CurrentState: it remains running until a
+// terminal state is reached.
+func (status *Status) TransitionState(next State, now time.Time, message string) error {
+	return status.transitionState(next, now, message, false)
+}
+
+func (status *Status) transitionState(next State, now time.Time, message string, recovery bool) error {
+	if status == nil {
+		return fmt.Errorf("smoke test status is nil")
+	}
+	if _, ok := ValidStateTransitions[next]; !ok {
+		return fmt.Errorf("unknown smoke test state %q", next)
+	}
+	from := status.CurrentState
+	if from != next && !recovery && !from.CanTransitionTo(next) {
+		return fmt.Errorf("invalid smoke test transition %q -> %q", status.CurrentState, next)
+	}
+	if from != next {
+		var durationMs int64
+		if len(status.Transitions) > 0 {
+			durationMs = now.Sub(status.Transitions[len(status.Transitions)-1].Timestamp).Milliseconds()
+		}
+		status.Transitions = append(status.Transitions, StateTransition{
+			From: from, To: next, Timestamp: now, Message: message, DurationMs: durationMs,
+		})
+		if message != "" && !recovery {
+			status.Logs = append(status.Logs, fmt.Sprintf("[%s] %s", next, message))
+		}
+	}
+	status.CurrentState = next
+	if next.IsTerminal() {
+		status.Status = string(next)
+	} else {
+		status.Status = "running"
+	}
+	return nil
+}
+
+// RecoverInterrupted closes a persisted nonterminal run after its process has
+// exited. Recovery is an explicit edge because the recorded CurrentState may be
+// older than the worker process or inconsistent with its compact status.
+func (status *Status) RecoverInterrupted(now time.Time, reason string) error {
+	if status == nil {
+		return fmt.Errorf("smoke test status is nil")
+	}
+	if isTerminal(status.Status) {
+		return fmt.Errorf("cannot recover terminal smoke test status %q", status.Status)
+	}
+	if err := status.transitionState(StateFailed, now, reason, true); err != nil {
+		return err
+	}
+	status.Error = reason
+	status.CompletedAt = &now
+	status.Logs = append(status.Logs, "FAILED: "+reason)
+	return nil
 }
 
 // StateTransition records a state change for debugging.

@@ -1923,7 +1923,7 @@
         },
         {
           "name": "connect",
-          "description": "Connect a remote host through Bridge's durable trust workflow. Prompts once for the SSH password on first touch or recovery, then reconnects without prompting on future runs. Refuses the local Bridge control-plane host to prevent accidental self-onboarding.",
+          "description": "Connect a remote host through Bridge's durable trust workflow. Reuses a managed SSH key on later runs; for first touch or key recovery, an explicit --password-credential reads the SSH password from the local Credential Authority without printing it. Refuses the local Bridge control-plane host to prevent accidental self-onboarding.",
           "flags": [
             { "name": "host", "required": true, "description": "SSH host to connect" },
             { "name": "machine-id", "description": "Existing durable Machine identity; normally inferred by Bridge" },
@@ -1945,6 +1945,7 @@
             { "name": "provision-sudo", "bool": true, "description": "Provision scoped passwordless sudo" },
             { "name": "no-provision-sudo", "bool": true, "description": "Opt out of passwordless sudo" },
             { "name": "source", "description": "pinned or working-tree" },
+            { "name": "password-credential", "description": "Credential Authority identity holding the SSH password (field: password); resolved only if preflight requires it" },
             { "name": "password-stdin", "bool": true, "description": "Read the one-time SSH password from stdin" },
             { "name": "setup-passphrase-stdin", "bool": true, "description": "Read the credential-store passphrase from stdin; on SSH recovery, use --password-stdin too so the SSH password is the first line" }
           ],

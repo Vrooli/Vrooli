@@ -1,4 +1,3 @@
-import json
 
 inputs = program.inputs()
 envelope = {"program": "deployment-manager.setpoint-read", "version": "1", "status": "failed", "phase": "collect", "inputs": {}, "signals": {"rows": [], "readable": 0, "unavailable": 0}, "errors": [], "evidence": []}; handles = {}
@@ -39,7 +38,7 @@ def step_classify():
     row("program-success-rate", None, ">=0.9", None, True, "read_elsewhere:program-runtime.failure-triage")
     classify_learning()
     envelope["status"] = "partial" if envelope["errors"] else "ok"; return "report"
-def step_report(): envelope["phase"] = "report"; print(json.dumps(envelope, allow_nan=False)); return None
+def step_report(): envelope["phase"] = "report"; program.report(envelope); return None
 
 # Learning is a typed sensor projection. This program does not recall or capture.
 def collect_learning(result):

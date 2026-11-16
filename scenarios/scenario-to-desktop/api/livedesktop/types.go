@@ -257,6 +257,15 @@ func (s *Session) SetAppRunning(running bool) {
 	s.AppRunning = running
 }
 
+// SetElectronValidation transfers Electron target ownership to the live
+// desktop session after a validation-owned process restart.
+func (s *Session) SetElectronValidation(targetSession *target.ElectronSession) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ElectronValidation = targetSession
+	s.AppRunning = targetSession != nil
+}
+
 // SetEnvVars sets the environment variables under lock.
 func (s *Session) SetEnvVars(vars map[string]string) {
 	s.mu.Lock()

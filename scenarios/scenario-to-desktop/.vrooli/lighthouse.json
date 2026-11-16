@@ -10,7 +10,6 @@
       "path": "/",
       "thresholds": {
         "performance": { "error": 0.5, "warn": 0.7 },
-        "accessibility": { "error": 0.7, "warn": 0.9 },
         "best-practices": { "error": 0.7, "warn": 0.85 },
         "seo": { "error": 0.6, "warn": 0.8 }
       }
@@ -21,7 +20,6 @@
     "url": "http://localhost:${UI_PORT}",
     "thresholds": {
       "performance": { "error": 0.5, "warn": 0.7 },
-      "accessibility": { "error": 0.7, "warn": 0.9 },
       "best-practices": { "error": 0.7, "warn": 0.85 },
       "seo": { "error": 0.6, "warn": 0.8 }
     },

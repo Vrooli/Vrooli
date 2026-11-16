@@ -7,6 +7,10 @@
 - Blocker: no disposable VPS, delegated DNS zone, QEMU host tools, independent reviewer or soak window is available (plan-artifacts `ledgers/external-inputs.md` EXT-01..11). The only enrolled cloud target is the production LPBS host and is never used as a fixture.
 - Measured: 2026-09-09.
 
+## Current certification profile — 2026-11-15
+
+The September report above is historical and counted the pre-ground matrix as 266 case/lane cells. The current matrix revision `cloud-launch-v2-two-grounds` keeps those 266 obligations and explicitly requires each on both target grounds: **532 case/lane/ground verdicts**. Schema-v1 receipts remain readable as historical evidence but cannot satisfy the new profile. Schema-v2 passes bind the release, configuration and closure digests, proving-ground identity, machine generation, validation receipt, exact matrix requirement refs, at least one operation ref, artifacts and non-empty assertions. The QEMU and Bridge-fenced real-VPS qualification programs now read fresh target-owned operation receipts; they still leave matrix cells pending until owner assertions exist. Current readiness is still not ready: QEMU and disposable VPS resources/images are not provisioned and no current target-ground receipts exist yet.
+
 ## Open Issues
 
 - **Remaining SSH-era surfaces**: the executor runs every effect as typed argv through `api/reach`; the preflight disk routes and their CLI/UI consumers are retired, while the remaining transport, repair, and error-classifier work stays tracked in deletion-ledger rows DL-02/DL-03/DL-08.

@@ -3,7 +3,6 @@
 Operational procedures for running this scenario and responding when
 something goes wrong.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

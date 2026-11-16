@@ -34,7 +34,7 @@ type InvestigationStore interface {
 	GetForPipeline(pipelineID, id string) (*domain.Investigation, error)
 	GetActive(pipelineID string) (*domain.Investigation, error)
 	List(pipelineID string, limit int) ([]*domain.Investigation, error)
-	Update(id string, fn func(inv *domain.Investigation)) error
+	UpdateDetails(id string, details json.RawMessage) error
 	UpdateStatus(id string, status domain.InvestigationStatus) error
 	UpdateProgress(id string, progress int) error
 	UpdateRunID(id, runID string) error
@@ -627,9 +627,7 @@ func (s *Service) updateLoopState(ctx context.Context, invID string, loopState *
 	}
 
 	// Update the investigation details with the current loop state
-	_ = s.invStore.Update(invID, func(inv *domain.Investigation) {
-		inv.Details = stateJSON
-	})
+	_ = s.invStore.UpdateDetails(invID, stateJSON)
 }
 
 // handleTaskError updates the investigation with an error.

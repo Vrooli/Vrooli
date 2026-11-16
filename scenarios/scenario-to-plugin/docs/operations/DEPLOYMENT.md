@@ -4,7 +4,6 @@ This document records how this scenario is deployed and what must be true
 before a release. It covers deploying *the ramp*; the artifacts the ramp
 publishes are covered in [`../concepts/FLOWS.md`](../concepts/FLOWS.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	"scenario-to-cloud/agentmanager"
 	"scenario-to-cloud/authz"
 	"scenario-to-cloud/backup"
@@ -116,6 +118,9 @@ type Server struct {
 	// publicationDeps are the per-server governance seams (governor, receipt
 	// signer, target pointer reader, release resolver); tests substitute fakes.
 	publicationDeps *publicationDeps
+	// certificationEvidenceOverride is a test seam. Production resolves the
+	// evidence directory from the governed repository contract.
+	certificationEvidenceOverride string
 
 	// Optional capabilities are constructed once per server. Keeping their
 	// state here prevents one server instance (or test fixture) from sharing a
@@ -478,6 +483,7 @@ func (s *Server) setupRoutes() {
 	s.registerCredentialRoutes(api)
 	s.registerEdgeRoutes(api)
 	s.registerBackupRoutes(api)
+	s.registerCertificationRoutes(api)
 	// Evidence, exact review binding and governed publication (P17).
 	s.registerPublicationRoutes(api)
 
@@ -493,7 +499,7 @@ func (s *Server) setupRoutes() {
 	s.registerOperationRoutes(api)
 	s.registerReconcileRoutes(api)
 	if s.repo != nil {
-		path, handler := operationsvc.New(s.operations, s.repo).Handler()
+		path, handler := operationsvc.New(s.operations, s.repo, s.authz).Handler()
 		s.router.PathPrefix(path).Handler(handler)
 	}
 
@@ -590,6 +596,7 @@ func main() {
 	}) {
 		return // Process was re-exec'd after rebuild
 	}
+	eventpublishing.Register()
 
 	srv, err := NewServer()
 	if err != nil {

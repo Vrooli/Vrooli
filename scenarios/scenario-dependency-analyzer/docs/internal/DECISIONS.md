@@ -1,6 +1,5 @@
 # Decisions
 
-## Purpose Of This Document
 
 Record durable SDA decisions.
 

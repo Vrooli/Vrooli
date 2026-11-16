@@ -1,5 +1,4 @@
 """Prepare one immutable readiness review through its governed binding."""
-import json
 inputs = program.inputs()
 keys = ("scenario", "profile_id", "candidate_commit", "artifact_digest", "channel")
 resolved = {key: str(inputs.get(key, "")).strip() for key in keys}
@@ -53,7 +52,7 @@ def step_act():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False))
+    program.report(envelope)
     return None
 
 STATES = {"validate": step_validate, "act": step_act, "report": step_report}

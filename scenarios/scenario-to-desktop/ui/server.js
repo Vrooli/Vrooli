@@ -31,7 +31,6 @@ export function startServer() {
     distDir: path.join(__dirname, 'dist'),
     serviceName: SERVICE_NAME,
     version: VERSION,
-    corsOrigins: '*',
     proxyTimeoutMs: Number.isFinite(proxyTimeoutMs) ? proxyTimeoutMs : 120000,
   })
 }

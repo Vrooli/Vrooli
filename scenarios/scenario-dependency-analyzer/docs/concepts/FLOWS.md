@@ -1,6 +1,5 @@
 # Flows
 
-## Purpose Of This Document
 
 Document the main user and system workflows.
 

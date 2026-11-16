@@ -1,14 +1,12 @@
 # Historical progress
 
-Historical execution details are preserved beneath the protected runtime home:
-`plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-cloud/docs/internal/PROGRESS.md`.
-The archive retains exact entries, validation receipts, and unresolved qualifications;
-relocation does not resolve a finding or establish current readiness.
+Historical details: `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-cloud/docs/internal/PROGRESS.md`. See the [runtime-home retention contract](../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract) for backup custody and readiness semantics.
 The table retains selected dated milestones. Other milestones and their limitations
 remain in the archive; consult it before resuming historical work.
 
 | Date       | Author            | Status Snapshot | Notes |
 |------------|-------------------|-----------------|-------|
+| 2026-11-16 | Codex (GPT-6)   | Complexity returned to recorded baseline | Split CL2-owned evidence evaluation, reconciliation decisions, and CLI request/render paths with focused regressions. Tidiness Manager scan `research/topics/web-console-monetization/runs/models-monetization-music-20261115/evidence/cl2/tidiness-scan-20261116T063018Z.json` passes at 187 complexity against the unchanged 187 baseline. Focused `go test` passed in API `evidence`/`reconcile` and CLI `inspect`/`secrets`/`process`; this does not establish a fresh full Test Genie pass or QEMU/VPS target verdicts. |
 | 2026-04-11 | Codex (GPT-5.4)   | Native mini-Vrooli VPS bootstrap cutover | Replaced the old global-CLI/Bash-era VPS assumptions with a deployment-local native CLI contract: setup now uploads a Linux `vrooli` binary to `<workdir>/.vrooli/bin/vrooli`, remote commands execute that exact binary with `--no-stale-check`, the generated mini root manifest no longer preserves legacy project setup wiring, and bundle tests now reject legacy project bootstrap regressions. |
 | 2026-04-11 | Codex (GPT-5.4)   | Native contract validation tightened | Updated VPS setup requirements/docs to describe the deployment-local native CLI contract, added unit coverage for setup/verify/stop command routing and native build command construction, and expanded repo-level validation so scenario-to-cloud docs/requirements/non-test code cannot drift back to Bash-era setup references. |
 | 2026-01-04 | Claude Opus 4.5   | Test suite strengthening (continued) | (1) Fixed requirement test location references: changed 6 playbook refs from invalid `test/playbooks/vps/*.yaml` to valid `bas/cases/<target>/*.json` format (+12pts expected from completeness scoring); (2) Expanded `vps_setup_plan_test.go` from 65→269 LOC with 4 new tests covering bundle_path validation, step order, SSH config, and autoheal configuration for REQ:STC-P0-004 and REQ:STC-P0-010; (3) Expanded `vps_inspect_test.go` from 70→321 LOC with 4 new tests covering options normalization (boundary conditions), plan step validation, SSH error handling, and timestamp verification for REQ:STC-P0-006. |

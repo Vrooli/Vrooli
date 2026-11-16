@@ -16,10 +16,6 @@ PERMANENT_ROWS = [
     ("pipeline-performance", None, "pending_telemetry"),
     ("engineering-quality", "selected provider maturity targets met without regressions", "pending_telemetry")]
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:160], "where": where})
-    return "report"
 
 
 def guarded(call):
@@ -39,7 +35,7 @@ def row(name, reading, target, in_band, reason=None):
 # VALIDATE: the board has one fixed scenario and seven-day observation window.
 def step_validate():
     if not isinstance(inputs, dict) or inputs:
-        return fail("failed", "invalid_input", "This board takes no inputs", "validate")
+        return program.fail("failed", "invalid_input", "This board takes no inputs", "validate", detail_limit=160)
     return "collect"
 
 
@@ -53,7 +49,7 @@ def step_collect():
     result = results[0]
     if isinstance(result, Exception):
         status, klass = program.classify(result)
-        fail("partial", klass, klass, "collect:condition")
+        program.fail("partial", klass, klass, "collect:condition", detail_limit=160)
         handles["reason"] = "scenario_unreachable" if klass == "scenario_unreachable" else "unreliable:" + klass
     else:
         handles["condition"] = result
@@ -139,5 +135,5 @@ while state:
     except Exception as exc:
         if envelope.get("phase") == "report":
             raise
-        fail("failed", "kernel_runtime", str(exc)[:160], envelope.get("phase") or state)
+        program.fail("failed", "kernel_runtime", str(exc)[:160], envelope.get("phase") or state, detail_limit=160)
         state = "report"

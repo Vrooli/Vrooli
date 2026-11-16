@@ -98,44 +98,60 @@ func PlanBindings(in PlanInputs) ([]domain.CredentialBinding, error) {
 	byAddress := map[string]bool{}
 	bindings := make([]domain.CredentialBinding, 0, len(in.Plans))
 	for _, plan := range in.Plans {
-		descriptor := descriptorForPlan(plan)
-		if descriptor.IsZero() {
-			return nil, apierrors.Newf(apierrors.CodeManifestInvalid, "secret %q declares no credential descriptor and no target name", plan.ID)
-		}
-		address := descriptor.Address()
-		if byAddress[address] {
-			return nil, newError(CodeDescriptorCollision, "the same credential descriptor is declared twice").WithDetail("descriptor", address)
-		}
-		byAddress[address] = true
-		target := plan.Target
-		if strings.TrimSpace(target.Name) == "" {
-			target = domain.BundleSecretTarget{Type: "env", Name: descriptor.Field}
-		}
-		key := normalisedTargetKey(target, descriptor)
-		byTarget[key] = append(byTarget[key], descriptor)
-		consumers := append([]string(nil), in.Consumers[address]...)
-		sort.Strings(consumers)
-		class := in.ClassOverrides[address]
-		if class == "" {
-			class = Classify(plan, descriptor, consumers, in.DatabaseResources)
-		}
-		binding := domain.CredentialBinding{
-			ID:           BindingID(in.DeploymentID, descriptor),
-			DeploymentID: in.DeploymentID,
-			Descriptor:   descriptor,
-			Class:        class,
-			SourceClass:  plan.Class,
-			Target:       target,
-			ConsumerRefs: consumers,
-			State:        domain.CredentialBindingPlanned,
-			CreatedAt:    now,
-			UpdatedAt:    now,
-		}
-		if class == domain.CredentialClassEncryptionRecoveryKey {
-			binding.RecoveryKeyRef = descriptor.Address()
+		binding, err := plannedBinding(in, plan, now, byTarget, byAddress)
+		if err != nil {
+			return nil, err
 		}
 		bindings = append(bindings, binding)
 	}
+	if err := validateUniqueTargets(byTarget); err != nil {
+		return nil, err
+	}
+	sort.Slice(bindings, func(i, j int) bool { return bindings[i].ID < bindings[j].ID })
+	return bindings, nil
+}
+
+func plannedBinding(in PlanInputs, plan domain.BundleSecretPlan, now time.Time, byTarget map[string][]domain.CredentialDescriptor, byAddress map[string]bool) (domain.CredentialBinding, error) {
+	descriptor := descriptorForPlan(plan)
+	if descriptor.IsZero() {
+		return domain.CredentialBinding{}, apierrors.Newf(apierrors.CodeManifestInvalid, "secret %q declares no credential descriptor and no target name", plan.ID)
+	}
+	address := descriptor.Address()
+	if byAddress[address] {
+		return domain.CredentialBinding{}, newError(CodeDescriptorCollision, "the same credential descriptor is declared twice").WithDetail("descriptor", address)
+	}
+	byAddress[address] = true
+	target := plan.Target
+	if strings.TrimSpace(target.Name) == "" {
+		target = domain.BundleSecretTarget{Type: "env", Name: descriptor.Field}
+	}
+	key := normalisedTargetKey(target, descriptor)
+	byTarget[key] = append(byTarget[key], descriptor)
+	consumers := append([]string(nil), in.Consumers[address]...)
+	sort.Strings(consumers)
+	class := in.ClassOverrides[address]
+	if class == "" {
+		class = Classify(plan, descriptor, consumers, in.DatabaseResources)
+	}
+	binding := domain.CredentialBinding{
+		ID:           BindingID(in.DeploymentID, descriptor),
+		DeploymentID: in.DeploymentID,
+		Descriptor:   descriptor,
+		Class:        class,
+		SourceClass:  plan.Class,
+		Target:       target,
+		ConsumerRefs: consumers,
+		State:        domain.CredentialBindingPlanned,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	if class == domain.CredentialClassEncryptionRecoveryKey {
+		binding.RecoveryKeyRef = descriptor.Address()
+	}
+	return binding, nil
+}
+
+func validateUniqueTargets(byTarget map[string][]domain.CredentialDescriptor) error {
 	keys := make([]string, 0, len(byTarget))
 	for key := range byTarget {
 		keys = append(keys, key)
@@ -151,13 +167,12 @@ func PlanBindings(in PlanInputs) ([]domain.CredentialBinding, error) {
 			addresses = append(addresses, d.Address())
 		}
 		sort.Strings(addresses)
-		return nil, newError(CodeDescriptorCollision, "two credential descriptors would normalise to the same injection target; refusing ambiguous provisioning").
+		return newError(CodeDescriptorCollision, "two credential descriptors would normalise to the same injection target; refusing ambiguous provisioning").
 			WithDetail("target", key).
 			WithDetail("descriptors", addresses).
 			WithNextAction(apierrors.NextAction{Owner: "secrets-manager", Kind: "declaration", Reference: key, Label: "Give each descriptor a distinct target name"})
 	}
-	sort.Slice(bindings, func(i, j int) bool { return bindings[i].ID < bindings[j].ID })
-	return bindings, nil
+	return nil
 }
 
 // Classify picks the lifecycle class from the manifest class, the descriptor
@@ -166,30 +181,55 @@ func PlanBindings(in PlanInputs) ([]domain.CredentialBinding, error) {
 // database password; operator or fetched values are external credentials.
 func Classify(plan domain.BundleSecretPlan, descriptor domain.CredentialDescriptor, consumers []string, databases map[string]bool) domain.CredentialClass {
 	field := strings.ToLower(descriptor.Field)
-	switch {
-	case strings.Contains(field, "enrollment") || strings.Contains(field, "enroll-token") || strings.Contains(field, "machine-token"):
-		return domain.CredentialClassMachineEnrollment
-	case strings.Contains(field, "recovery-key") || strings.Contains(field, "encryption-key") || strings.Contains(field, "backup-key") || strings.Contains(field, "kek"):
-		return domain.CredentialClassEncryptionRecoveryKey
-	case strings.Contains(field, "signing") || strings.Contains(field, "verification") || strings.Contains(field, "jwt"):
-		return domain.CredentialClassSigningKey
+	if class, ok := classifyCredentialField(field); ok {
+		return class
 	}
 	switch plan.Class {
 	case domain.SecretClassUserPrompt, domain.SecretClassRemoteFetch:
 		return domain.CredentialClassExternalAPICredential
 	case domain.SecretClassPerInstallGenerated:
-		if strings.Contains(field, "password") {
-			for _, consumer := range consumers {
-				if databases[consumer] || databases[strings.TrimPrefix(consumer, "resource:")] {
-					return domain.CredentialClassGeneratedDatabasePassword
-				}
-			}
-			if isDatabaseLogicalID(descriptor.LogicalID) {
-				return domain.CredentialClassGeneratedDatabasePassword
-			}
+		if generatedDatabasePassword(field, descriptor.LogicalID, consumers, databases) {
+			return domain.CredentialClassGeneratedDatabasePassword
 		}
 	}
 	return domain.CredentialClassSharedDependency
+}
+
+func classifyCredentialField(field string) (domain.CredentialClass, bool) {
+	switch {
+	case machineEnrollmentField(field):
+		return domain.CredentialClassMachineEnrollment, true
+	case encryptionRecoveryField(field):
+		return domain.CredentialClassEncryptionRecoveryKey, true
+	case signingKeyField(field):
+		return domain.CredentialClassSigningKey, true
+	default:
+		return "", false
+	}
+}
+
+func machineEnrollmentField(field string) bool {
+	return strings.Contains(field, "enrollment") || strings.Contains(field, "enroll-token") || strings.Contains(field, "machine-token")
+}
+
+func encryptionRecoveryField(field string) bool {
+	return strings.Contains(field, "recovery-key") || strings.Contains(field, "encryption-key") || strings.Contains(field, "backup-key") || strings.Contains(field, "kek")
+}
+
+func signingKeyField(field string) bool {
+	return strings.Contains(field, "signing") || strings.Contains(field, "verification") || strings.Contains(field, "jwt")
+}
+
+func generatedDatabasePassword(field, logicalID string, consumers []string, databases map[string]bool) bool {
+	if !strings.Contains(field, "password") {
+		return false
+	}
+	for _, consumer := range consumers {
+		if databases[consumer] || databases[strings.TrimPrefix(consumer, "resource:")] {
+			return true
+		}
+	}
+	return isDatabaseLogicalID(logicalID)
 }
 
 func isDatabaseLogicalID(logicalID string) bool {

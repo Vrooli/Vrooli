@@ -73,6 +73,15 @@ func TestLoad_EnvFallback(t *testing.T) {
 	require.True(t, cfg.Paired())
 }
 
+func TestLoad_RestoresPairedIdentityFromPersistentStateDirectory(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, nodeIDFileName), []byte("node-minimouse"), 0o600))
+	cfg, err := Load([]string{"--control-plane-url", "https://cp.example", "--state-dir", dir})
+	require.NoError(t, err)
+	require.Equal(t, "node-minimouse", cfg.NodeID, "restart must recover the identity paired in the same state directory")
+	require.True(t, cfg.Paired())
+}
+
 func TestLoad_DiscoverFlagAndEnv(t *testing.T) {
 	dir := t.TempDir()
 

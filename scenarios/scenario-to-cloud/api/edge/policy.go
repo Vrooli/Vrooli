@@ -109,6 +109,17 @@ func Derive(in PolicyInputs) (domain.EdgeSpec, error) {
 
 	scenarioOwner := "scenario:" + spec.ScenarioID
 	routedPorts := map[string]bool{}
+	if err := deriveDeclaredListeners(&spec, in, domainName, scenarioOwner, routedPorts); err != nil {
+		return domain.EdgeSpec{}, err
+	}
+	if len(spec.Routes) == 0 {
+		return domain.EdgeSpec{}, apierrors.New(CodeNoPublicListener, "no listener is declared public_via_edge for "+spec.ScenarioID).WithDetail("scenario_id", spec.ScenarioID)
+	}
+	appendUnroutedPrivateListeners(&spec, in, scenarioOwner, routedPorts)
+	return finalizeEdgeSpec(spec)
+}
+
+func deriveDeclaredListeners(spec *domain.EdgeSpec, in PolicyInputs, domainName, scenarioOwner string, routedPorts map[string]bool) error {
 	if len(in.Listeners) > 0 {
 		listeners := append([]domain.ClosureListener(nil), in.Listeners...)
 		sort.Slice(listeners, func(i, j int) bool { return listeners[i].ID < listeners[j].ID })
@@ -118,10 +129,10 @@ func Derive(in PolicyInputs) (domain.EdgeSpec, error) {
 			switch {
 			case public && listener.Owner == scenarioOwner:
 				if port <= 0 {
-					return domain.EdgeSpec{}, apierrors.New(CodeListenerPortUnknown, fmt.Sprintf("listener %s is declared public_via_edge but the manifest assigns no port to %q", listener.ID, listener.PortName)).WithDetail("listener", listener.ID)
+					return apierrors.New(CodeListenerPortUnknown, fmt.Sprintf("listener %s is declared public_via_edge but the manifest assigns no port to %q", listener.ID, listener.PortName)).WithDetail("listener", listener.ID)
 				}
 				if isManagementPort(port) {
-					return domain.EdgeSpec{}, apierrors.New(CodeListenerPortUnknown, fmt.Sprintf("listener %s cannot be public: port %d is a management listener", listener.ID, port)).WithDetail("listener", listener.ID)
+					return apierrors.New(CodeListenerPortUnknown, fmt.Sprintf("listener %s cannot be public: port %d is a management listener", listener.ID, port)).WithDetail("listener", listener.ID)
 				}
 				spec.Routes = append(spec.Routes, domain.EdgeRoute{Host: routeHost(domainName, listener.PortName, listener.PathPrefix), PathPrefix: listener.PathPrefix, UpstreamPort: port, ListenerID: listener.ID})
 				routedPorts[listener.PortName] = true
@@ -133,9 +144,10 @@ func Derive(in PolicyInputs) (domain.EdgeSpec, error) {
 		spec.Routes = append(spec.Routes, domain.EdgeRoute{Host: domainName, UpstreamPort: port, ListenerID: spec.ScenarioID + "/ui"})
 		routedPorts["ui"] = true
 	}
-	if len(spec.Routes) == 0 {
-		return domain.EdgeSpec{}, apierrors.New(CodeNoPublicListener, "no listener is declared public_via_edge for "+spec.ScenarioID).WithDetail("scenario_id", spec.ScenarioID)
-	}
+	return nil
+}
+
+func appendUnroutedPrivateListeners(spec *domain.EdgeSpec, in PolicyInputs, scenarioOwner string, routedPorts map[string]bool) {
 	// Every manifest port not routed is private by construction.
 	names := make([]string, 0, len(in.Ports))
 	for name := range in.Ports {
@@ -156,6 +168,9 @@ func Derive(in PolicyInputs) (domain.EdgeSpec, error) {
 		}
 		spec.PrivateListeners = append(spec.PrivateListeners, domain.EdgePrivateListener{ID: spec.ScenarioID + "/" + name, Owner: scenarioOwner, PortName: name, Port: in.Ports[name], Reason: reason})
 	}
+}
+
+func finalizeEdgeSpec(spec domain.EdgeSpec) (domain.EdgeSpec, error) {
 	spec.PrivateListeners = append(spec.PrivateListeners,
 		domain.EdgePrivateListener{ID: "management/ssh", Owner: "host", Port: ManagementSSHPort, Reason: ReasonManagement},
 		domain.EdgePrivateListener{ID: "management/bridge", Owner: "vrooli-bridge", Port: ManagementBridgePort, Reason: ReasonManagement},
@@ -261,45 +276,71 @@ func sortedUnique(in []string) []string {
 func ValidateDomain(raw string) (string, error) {
 	name := strings.ToLower(strings.TrimSpace(raw))
 	name = strings.TrimSuffix(name, ".")
-	invalid := func(reason string) (string, error) {
-		return "", apierrors.New(CodeDomainInvalid, fmt.Sprintf("edge domain %q is not usable: %s", raw, reason)).WithDetail("domain", raw)
+	if reason := domainValidationReason(name); reason != "" {
+		return "", invalidDomain(raw, reason)
 	}
+	return name, nil
+}
+
+func invalidDomain(raw, reason string) error {
+	return apierrors.New(CodeDomainInvalid, fmt.Sprintf("edge domain %q is not usable: %s", raw, reason)).WithDetail("domain", raw)
+}
+
+func domainValidationReason(name string) string {
 	if name == "" {
-		return invalid("empty")
+		return "empty"
 	}
 	if strings.ContainsAny(name, "/:?#@ \t") {
-		return invalid("must be a bare host name without scheme, port or path")
+		return "must be a bare host name without scheme, port or path"
 	}
 	if net.ParseIP(name) != nil {
-		return invalid("must be a name, not an IP literal")
+		return "must be a name, not an IP literal"
 	}
 	if strings.Contains(name, "*") {
-		return invalid("wildcards are not routed")
+		return "wildcards are not routed"
 	}
 	labels := strings.Split(name, ".")
 	if len(labels) < 2 {
-		return invalid("needs at least two labels")
+		return "needs at least two labels"
 	}
 	if len(name) > 253 {
-		return invalid("longer than 253 characters")
+		return "longer than 253 characters"
 	}
+	return validateDomainLabels(labels)
+}
+
+func validateDomainLabels(labels []string) string {
 	for _, label := range labels {
-		if label == "" || len(label) > 63 {
-			return invalid("label length must be 1-63")
-		}
-		if strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
-			return invalid("labels cannot start or end with a hyphen")
-		}
-		for _, r := range label {
-			if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
-				return invalid("labels may only contain a-z, 0-9 and hyphen")
-			}
+		if reason := domainLabelReason(label); reason != "" {
+			return reason
 		}
 	}
 	if tld := labels[len(labels)-1]; tld[0] >= '0' && tld[0] <= '9' {
-		return invalid("top-level label cannot be numeric")
+		return "top-level label cannot be numeric"
 	}
-	return name, nil
+	return ""
+}
+
+func domainLabelReason(label string) string {
+	if label == "" || len(label) > 63 {
+		return "label length must be 1-63"
+	}
+	if strings.HasPrefix(label, "-") || strings.HasSuffix(label, "-") {
+		return "labels cannot start or end with a hyphen"
+	}
+	if !validDomainLabelCharacters(label) {
+		return "labels may only contain a-z, 0-9 and hyphen"
+	}
+	return ""
+}
+
+func validDomainLabelCharacters(label string) bool {
+	for _, r := range label {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 // ACMEInputs selects the issuance environment.

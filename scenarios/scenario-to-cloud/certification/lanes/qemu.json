@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "lane": "qemu",
-  "matrix_revision": "cloud-launch-v1",
+  "matrix_revision": "cloud-launch-v2-two-grounds",
   "matrix_source": {
     "path": "certification/matrix.json",
     "sha256": "e277d70d9b25d128892c650abd46f37bd783a01dff798664cf2eedf1e8026af9",
@@ -13,9 +13,28 @@
   "operator_prerequisites": [
     {
       "id": "EXT-06",
-      "requirement": "host tools qemu (qemu-system-x86_64, qemu-system-aarch64, qemu-img) and cloud-localds",
+      "requirement": "host tools qemu (qemu-system-x86_64, qemu-img), qemu-arm (qemu-system-aarch64), and cloud-localds",
       "declared_in": ".vrooli/service.json hostTools",
-      "install_through": "vrooli setup --scenarios scenario-to-cloud",
+      "install_through": [
+        {
+          "tool": "qemu",
+          "apply": "vrooli host install qemu --sudo-mode ask",
+          "preview": "vrooli host install qemu --dry-run --json",
+          "expected_apt": "apt-get install -y qemu-system-x86"
+        },
+        {
+          "tool": "qemu-arm",
+          "apply": "vrooli host install qemu-arm --sudo-mode ask",
+          "preview": "vrooli host install qemu-arm --dry-run --json",
+          "expected_apt": "apt-get install -y qemu-system-arm"
+        },
+        {
+          "tool": "cloud-localds",
+          "apply": "vrooli host install cloud-localds --sudo-mode ask",
+          "preview": "vrooli host install cloud-localds --dry-run --json",
+          "expected_apt": "apt-get install -y cloud-image-utils"
+        }
+      ],
       "standing_on_recording_host": "absent"
     },
     {
@@ -29,7 +48,7 @@
       "id": "EXT-05",
       "requirement": "arm64 execution: qemu-system-aarch64 under TCG on the amd64 host, or an arm64 host with KVM",
       "declared_in": "GET /api/v1/instances/readiness architectures.arm64",
-      "install_through": "vrooli setup (qemu declaration) or an arm64 host",
+      "install_through": "vrooli host install qemu-arm (qemu-arm declaration) or an arm64 host",
       "standing_on_recording_host": "unavailable"
     },
     {
@@ -175,7 +194,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-01.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-01.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-02",
@@ -194,7 +213,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-02.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-02.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-03",
@@ -217,7 +236,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-03.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-03.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-04",
@@ -240,7 +259,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-04.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-04.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-05",
@@ -263,7 +282,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-05.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-05.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-06",
@@ -286,7 +305,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-06.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-06.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-07",
@@ -305,7 +324,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-07.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-07.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-08",
@@ -324,7 +343,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-08.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-08.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-09",
@@ -347,7 +366,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-09.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-09.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RUN-10",
@@ -366,7 +385,7 @@
         "STC-P0-019",
         "STC-P0-020"
       ],
-      "receipt_ref": "certification/evidence/RUN-10.qemu.json"
+      "receipt_ref": "certification/evidence/RUN-10.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-01",
@@ -383,7 +402,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-01.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-01.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-02",
@@ -400,7 +419,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-02.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-02.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-03",
@@ -417,7 +436,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-03.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-03.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-04",
@@ -438,7 +457,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-04.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-04.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-05",
@@ -459,7 +478,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-05.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-05.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-06",
@@ -476,7 +495,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-06.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-06.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-07",
@@ -493,7 +512,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-07.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-07.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "REACH-08",
@@ -510,7 +529,7 @@
       "requirement_refs": [
         "STC-P0-024"
       ],
-      "receipt_ref": "certification/evidence/REACH-08.qemu.json"
+      "receipt_ref": "certification/evidence/REACH-08.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-01",
@@ -528,7 +547,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-01.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-01.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-02",
@@ -546,7 +565,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-02.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-02.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-03",
@@ -564,7 +583,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-03.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-03.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-04",
@@ -583,7 +602,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-04.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-04.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-05",
@@ -601,7 +620,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-05.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-05.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-06",
@@ -623,7 +642,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-06.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-06.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-07",
@@ -642,7 +661,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-07.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-07.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-08",
@@ -660,7 +679,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-08.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-08.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-09",
@@ -678,7 +697,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-09.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-09.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "RELEASE-10",
@@ -696,7 +715,7 @@
         "STC-P0-026",
         "STC-P0-027"
       ],
-      "receipt_ref": "certification/evidence/RELEASE-10.qemu.json"
+      "receipt_ref": "certification/evidence/RELEASE-10.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-01",
@@ -719,7 +738,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-01.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-01.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-02",
@@ -738,7 +757,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-02.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-02.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-03",
@@ -757,7 +776,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-03.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-03.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-04",
@@ -776,7 +795,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-04.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-04.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-05",
@@ -796,7 +815,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-05.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-05.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-06",
@@ -815,7 +834,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-06.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-06.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-07",
@@ -838,7 +857,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-07.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-07.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-08",
@@ -857,7 +876,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-08.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-08.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-09",
@@ -876,7 +895,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-09.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-09.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "DATA-10",
@@ -895,7 +914,7 @@
         "STC-P0-030",
         "STC-P0-031"
       ],
-      "receipt_ref": "certification/evidence/DATA-10.qemu.json"
+      "receipt_ref": "certification/evidence/DATA-10.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-01",
@@ -912,7 +931,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-01.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-01.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-02",
@@ -929,7 +948,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-02.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-02.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-03",
@@ -946,7 +965,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-03.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-03.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-04",
@@ -963,7 +982,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-04.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-04.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-05",
@@ -980,7 +999,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-05.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-05.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-06",
@@ -1002,7 +1021,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-06.json"
+      "receipt_ref": "certification/evidence/EDGE-06.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-07",
@@ -1019,7 +1038,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-07.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-07.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "EDGE-08",
@@ -1036,7 +1055,7 @@
       "requirement_refs": [
         "STC-P0-036"
       ],
-      "receipt_ref": "certification/evidence/EDGE-08.qemu.json"
+      "receipt_ref": "certification/evidence/EDGE-08.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-01",
@@ -1053,7 +1072,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-01.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-01.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-02",
@@ -1074,7 +1093,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-02.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-02.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-03",
@@ -1091,7 +1110,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-03.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-03.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-04",
@@ -1112,7 +1131,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-04.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-04.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-05",
@@ -1129,7 +1148,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-05.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-05.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-06",
@@ -1146,7 +1165,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-06.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-06.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-07",
@@ -1164,7 +1183,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-07.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-07.qemu.{target_ground}.<content-sha256>.json"
     },
     {
       "case_id": "OPS-08",
@@ -1181,7 +1200,7 @@
       "requirement_refs": [
         "STC-P0-043"
       ],
-      "receipt_ref": "certification/evidence/OPS-08.qemu.json"
+      "receipt_ref": "certification/evidence/OPS-08.qemu.{target_ground}.<content-sha256>.json"
     }
   ]
 }

@@ -77,6 +77,50 @@ func (s *SQLStore) CountOutstandingForSubject(ctx context.Context, subject strin
 	return count, nil
 }
 
+// PendingAsks returns every ask still awaiting the operator's answer, whether
+// or not its outstanding window has lapsed.
+func (s *SQLStore) PendingAsks(ctx context.Context) ([]operatordecision.PendingAsk, error) {
+	return s.asksWhere(ctx, `state = $1`, operatordecision.PendingStatePending)
+}
+
+// UnpublishedWithdrawals returns the withdrawn asks whose withdrawal event has
+// not been published yet.
+func (s *SQLStore) UnpublishedWithdrawals(ctx context.Context) ([]operatordecision.PendingAsk, error) {
+	return s.asksWhere(ctx, `state = $1 AND extra LIKE $2`, operatordecision.PendingStateWithdrawn, `%"`+ExtraWithdrawalUnpublished+`"%`)
+}
+
+func (s *SQLStore) asksWhere(ctx context.Context, where string, args ...any) ([]operatordecision.PendingAsk, error) {
+	rows, err := s.conn.QueryContext(ctx, `SELECT id FROM release_decision_asks WHERE `+where+` ORDER BY raised_at, id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	out := make([]operatordecision.PendingAsk, 0, len(ids))
+	for _, id := range ids {
+		ask, err := s.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if ask != nil {
+			out = append(out, *ask)
+		}
+	}
+	return out, nil
+}
+
 func scanAsk(row *sql.Row) (*operatordecision.PendingAsk, error) {
 	var (
 		ask        operatordecision.PendingAsk

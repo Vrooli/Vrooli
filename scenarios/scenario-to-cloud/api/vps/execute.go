@@ -293,96 +293,139 @@ func (e *executor) run(ctx context.Context) *ExecutionError {
 	if e.plan == nil {
 		return &ExecutionError{Err: fmt.Errorf("plan is required")}
 	}
-	switch e.plan.Outcome {
-	case execplan.OutcomeApply:
-	case execplan.OutcomeNoOp:
+	if e.plan.Outcome == execplan.OutcomeNoOp {
 		return nil
-	case execplan.OutcomeNeedsInput:
-		return &ExecutionError{ActionID: execplan.OpInputResumeHandoff, Err: execplan.NeedsInputError(e.plan.Handoff)}
-	default:
-		return &ExecutionError{Err: apierrors.Newf(apierrors.CodeInvalidRequest, "Unknown plan outcome %q", e.plan.Outcome)}
+	}
+	if failure := validateExecutionOutcome(e.plan); failure != nil {
+		return failure
 	}
 	if e.deploymentID == "" {
 		e.deploymentID = e.plan.DeploymentID
 	}
 	completed := map[string]bool{}
 	for _, action := range e.plan.Actions {
-		for _, dep := range action.DependsOn {
-			if !completed[dep] {
-				return &ExecutionError{ActionID: action.ID, Err: fmt.Errorf("action %s depends on %s which has not completed", action.ID, dep)}
-			}
+		if failure := e.runAction(ctx, action, completed); failure != nil {
+			return failure
 		}
-		handler, ok := actionHandlers[action.OwnerOperation]
-		if !ok {
-			return e.fail(action, apierrors.Newf(apierrors.CodeUnsupportedCapability, "No executor for owner operation %q", action.OwnerOperation))
-		}
-		if err := ctx.Err(); err != nil {
-			return e.fail(action, err)
-		}
-		title := execplan.Render(&execplan.Plan{Actions: []execplan.Action{action}}).Changes[0].Summary
-		if e.hooks.Before != nil {
-			skip, err := e.hooks.Before(ctx, action)
-			if err != nil {
-				return e.fail(action, err)
-			}
-			if skip {
-				e.results = append(e.results, domain.VPSActionResult{ID: action.ID, OwnerOperation: action.OwnerOperation, Status: "skipped", Detail: "committed by a previous attempt"})
-				completed[action.ID] = true
-				*e.progress += e.weight(action.ID)
-				e.emit("step_completed", action.ID, title)
-				continue
-			}
-		}
-		e.emit("step_started", action.ID, title)
-		var (
-			result domain.VPSActionResult
-			err    error
-		)
-		for attempt := 0; attempt < 2; attempt++ {
-			started := time.Now()
-			e.reach.enter(action.ID)
-			detail, runErr := handler(ctx, e, action)
-			e.reach.leave()
-			duration := time.Since(started).Milliseconds()
-			if runErr == nil {
-				runErr = faultinject.Hit(ctx, faultinject.WorkerAfterEffect)
-			}
-			if runErr != nil {
-				result = domain.VPSActionResult{ID: action.ID, OwnerOperation: action.OwnerOperation, Status: "failed", DurationMs: duration, Detail: detail, Error: runErr.Error()}
-			} else {
-				result = domain.VPSActionResult{ID: action.ID, OwnerOperation: action.OwnerOperation, Status: "succeeded", DurationMs: duration, Detail: detail}
-			}
-			err = runErr
-			if e.hooks.After != nil {
-				err = e.hooks.After(ctx, action, result, runErr)
-				if errors.Is(err, ErrReplayAction) && attempt == 0 {
-					continue
-				}
-				if errors.Is(err, ErrReplayAction) && attempt > 0 {
-					// Preserve the transport or target error that caused both
-					// attempts to remain unknown. Returning the replay sentinel
-					// alone hides the action and makes recovery needlessly blind.
-					if runErr != nil {
-						err = fmt.Errorf("%w after replay: %v", runErr, ErrReplayAction)
-					}
-				}
-				if err == nil && runErr != nil {
-					result.Status = "succeeded"
-					result.Error = ""
-					result.Detail = "confirmed by target receipt"
-				}
-			}
-			break
-		}
-		e.results = append(e.results, result)
-		if err != nil {
-			return e.fail(action, err)
-		}
-		completed[action.ID] = true
-		*e.progress += e.weight(action.ID)
-		e.emit("step_completed", action.ID, title)
 	}
 	return nil
+}
+
+func validateExecutionOutcome(plan *execplan.Plan) *ExecutionError {
+	switch plan.Outcome {
+	case execplan.OutcomeApply:
+	case execplan.OutcomeNeedsInput:
+		return &ExecutionError{ActionID: execplan.OpInputResumeHandoff, Err: execplan.NeedsInputError(plan.Handoff)}
+	default:
+		return &ExecutionError{Err: apierrors.Newf(apierrors.CodeInvalidRequest, "Unknown plan outcome %q", plan.Outcome)}
+	}
+	return nil
+}
+
+func (e *executor) runAction(ctx context.Context, action execplan.Action, completed map[string]bool) *ExecutionError {
+	if err := validateActionDependencies(action, completed); err != nil {
+		return &ExecutionError{ActionID: action.ID, Err: err}
+	}
+	handler, ok := actionHandlers[action.OwnerOperation]
+	if !ok {
+		return e.fail(action, apierrors.Newf(apierrors.CodeUnsupportedCapability, "No executor for owner operation %q", action.OwnerOperation))
+	}
+	if err := ctx.Err(); err != nil {
+		return e.fail(action, err)
+	}
+	title := execplan.Render(&execplan.Plan{Actions: []execplan.Action{action}}).Changes[0].Summary
+	skip, err := e.shouldSkipAction(ctx, action)
+	if err != nil {
+		return e.fail(action, err)
+	}
+	if skip {
+		e.completeSkippedAction(action, title, completed)
+		return nil
+	}
+	e.emit("step_started", action.ID, title)
+	result, err := e.executeActionWithReplay(ctx, action, handler)
+	e.results = append(e.results, result)
+	if err != nil {
+		return e.fail(action, err)
+	}
+	completed[action.ID] = true
+	*e.progress += e.weight(action.ID)
+	e.emit("step_completed", action.ID, title)
+	return nil
+}
+
+func validateActionDependencies(action execplan.Action, completed map[string]bool) error {
+	for _, dep := range action.DependsOn {
+		if !completed[dep] {
+			return fmt.Errorf("action %s depends on %s which has not completed", action.ID, dep)
+		}
+	}
+	return nil
+}
+
+func (e *executor) shouldSkipAction(ctx context.Context, action execplan.Action) (bool, error) {
+	if e.hooks.Before == nil {
+		return false, nil
+	}
+	return e.hooks.Before(ctx, action)
+}
+
+func (e *executor) completeSkippedAction(action execplan.Action, title string, completed map[string]bool) {
+	e.results = append(e.results, domain.VPSActionResult{ID: action.ID, OwnerOperation: action.OwnerOperation, Status: "skipped", Detail: "committed by a previous attempt"})
+	completed[action.ID] = true
+	*e.progress += e.weight(action.ID)
+	e.emit("step_completed", action.ID, title)
+}
+
+func (e *executor) executeActionWithReplay(ctx context.Context, action execplan.Action, handler actionHandler) (domain.VPSActionResult, error) {
+	var result domain.VPSActionResult
+	var err error
+	for attempt := 0; attempt < 2; attempt++ {
+		result, err = e.executeActionAttempt(ctx, action, handler)
+		if e.hooks.After == nil {
+			return result, err
+		}
+		err = e.applyAfterHook(ctx, action, result, attempt, err)
+		if errors.Is(err, ErrReplayAction) && attempt == 0 {
+			continue
+		}
+		if err == nil && result.Status == "failed" {
+			result.Status = "succeeded"
+			result.Error = ""
+			result.Detail = "confirmed by target receipt"
+		}
+		return result, err
+	}
+	return result, err
+}
+
+func (e *executor) executeActionAttempt(ctx context.Context, action execplan.Action, handler actionHandler) (domain.VPSActionResult, error) {
+	started := time.Now()
+	e.reach.enter(action.ID)
+	detail, err := handler(ctx, e, action)
+	e.reach.leave()
+	if err == nil {
+		err = faultinject.Hit(ctx, faultinject.WorkerAfterEffect)
+	}
+	return actionResult(action, detail, time.Since(started).Milliseconds(), err), err
+}
+
+func actionResult(action execplan.Action, detail string, duration int64, err error) domain.VPSActionResult {
+	result := domain.VPSActionResult{ID: action.ID, OwnerOperation: action.OwnerOperation, Status: "succeeded", DurationMs: duration, Detail: detail}
+	if err != nil {
+		result.Status = "failed"
+		result.Error = err.Error()
+	}
+	return result
+}
+
+func (e *executor) applyAfterHook(ctx context.Context, action execplan.Action, result domain.VPSActionResult, attempt int, runErr error) error {
+	err := e.hooks.After(ctx, action, result, runErr)
+	if !errors.Is(err, ErrReplayAction) || attempt == 0 || runErr == nil {
+		return err
+	}
+	// Preserve the transport or target error that caused both attempts to remain unknown.
+	return fmt.Errorf("%w after replay: %v", runErr, ErrReplayAction)
 }
 
 func (e *executor) weight(actionID string) float64 {

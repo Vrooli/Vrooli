@@ -1,6 +1,5 @@
 # Go To Market
 
-## Purpose Of This Document
 
 Track market-facing positioning when SDA is packaged as a capability.
 

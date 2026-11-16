@@ -50,6 +50,9 @@ func (r *SQLRepository) CreateOrGet(ctx context.Context, review *domain.Review) 
 	if review.Status == "" {
 		review.Status = domain.ReviewCollecting
 	}
+	if review.Status != domain.ReviewCollecting {
+		return false, domain.ErrInvalidReviewStatus{Status: review.Status}
+	}
 	if review.ComparisonMode == "" {
 		review.ComparisonMode = domain.ComparisonFirstRelease
 	}
@@ -113,6 +116,9 @@ func (r *SQLRepository) Get(ctx context.Context, key string) (*domain.Review, er
 		&goalClosed, &approved, &approvedBy, &review.CreatedAt, &review.UpdatedAt)
 	if err != nil {
 		return nil, err
+	}
+	if !domain.ValidReviewStatus(review.Status) {
+		return nil, domain.ErrInvalidReviewStatus{Status: review.Status}
 	}
 	if err := json.Unmarshal([]byte(targets), &review.Identity.Targets); err != nil {
 		return nil, fmt.Errorf("decode review targets: %w", err)
@@ -312,12 +318,12 @@ func (r *SQLRepository) ListWaivers(ctx context.Context, key string, limit int) 
 	return result, rows.Err()
 }
 
-func (r *SQLRepository) ReplaceEvaluation(ctx context.Context, key string, evidence []domain.EvidenceItem, findings []domain.ReviewFinding, status domain.ReviewStatus) error {
+func (r *SQLRepository) ReplaceEvaluation(ctx context.Context, key string, expected domain.ReviewStatus, evidence []domain.EvidenceItem, findings []domain.ReviewFinding, status domain.ReviewStatus) error {
 	if r == nil || r.db == nil {
 		return errors.New("readiness repository is not configured")
 	}
-	if status != domain.ReviewCollecting && status != domain.ReviewBlocked && status != domain.ReviewAgentReview {
-		return errors.New("evaluation can only set collecting, blocked, or agent_review")
+	if !domain.CanReplaceReviewEvaluation(expected, status) {
+		return domain.ErrInvalidReviewTransition{From: expected, To: status}
 	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -373,13 +379,13 @@ func (r *SQLRepository) ReplaceEvaluation(ctx context.Context, key string, evide
 		}
 	}
 	result, err := tx.ExecContext(ctx, fmt.Sprintf(`UPDATE readiness_reviews SET status = %s,
-		goal_closed_at = NULL, approved_at = NULL, approved_by = NULL, updated_at = %s WHERE review_key = %s`, p(1), p(2), p(3)), status, time.Now().UTC(), key)
+		goal_closed_at = NULL, approved_at = NULL, approved_by = NULL, updated_at = %s WHERE review_key = %s AND status = %s`, p(1), p(2), p(3), p(4)), status, time.Now().UTC(), key, expected)
 	if err != nil {
 		return err
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {
-		return sql.ErrNoRows
+		return domain.ErrReviewStatusConflict{ReviewKey: key, Expected: expected}
 	}
 	return tx.Commit()
 }
@@ -408,6 +414,9 @@ func (r *SQLRepository) Approve(ctx context.Context, key string, identity domain
 	}
 	if expected != key {
 		return errors.New("approval identity does not match review key")
+	}
+	if !domain.CanTransitionReviewStatus(domain.ReviewAgentReview, domain.ReviewApproved) {
+		return domain.ErrInvalidReviewTransition{From: domain.ReviewAgentReview, To: domain.ReviewApproved}
 	}
 	p := r.placeholder
 	result, err := r.db.ExecContext(ctx, fmt.Sprintf(`UPDATE readiness_reviews SET status = %s,
@@ -503,6 +512,9 @@ func (r *SQLRepository) MarkPromoted(ctx context.Context, key string, at time.Ti
 	if at.IsZero() {
 		return errors.New("promotion time is required")
 	}
+	if !domain.CanTransitionReviewStatus(domain.ReviewApproved, domain.ReviewPromoted) || !domain.CanTransitionReviewStatus(domain.ReviewPromoted, domain.ReviewSuperseded) {
+		return domain.ErrInvalidReviewTransition{From: domain.ReviewApproved, To: domain.ReviewPromoted}
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -517,7 +529,7 @@ func (r *SQLRepository) MarkPromoted(ctx context.Context, key string, at time.Ti
 	}
 	rows, _ := result.RowsAffected()
 	if rows != 1 {
-		return errors.New("only an approved review can be marked promoted")
+		return domain.ErrReviewStatusConflict{ReviewKey: key, Expected: domain.ReviewApproved}
 	}
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`UPDATE readiness_reviews SET status = %s, updated_at = %s
 		WHERE status = %s AND review_key <> %s

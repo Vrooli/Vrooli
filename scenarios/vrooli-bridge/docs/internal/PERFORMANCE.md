@@ -6,7 +6,6 @@ its node-agents. The control plane and node-agent are implemented; the
 measurements below distinguish observed historical values from targets that
 still need a fresh live run.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

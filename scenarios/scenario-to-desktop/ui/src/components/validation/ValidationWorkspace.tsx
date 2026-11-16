@@ -292,12 +292,11 @@ const EVIDENCE_LAYERS = [
 ];
 
 const PLATFORM_JOURNEY: Journey = {
-  journey_id: "platform-desktop-smoke",
-  display_name: "Platform desktop smoke",
-  source_path: "scenario-to-desktop platform suite",
+  journey_id: "desktop-smoke",
+  display_name: "Desktop platform smoke",
   execution_mode: "platform",
   required: true,
-  category: "platform",
+  category: "desktop-platform-smoke",
 };
 
 function enumKey(value: number | string | undefined): string {

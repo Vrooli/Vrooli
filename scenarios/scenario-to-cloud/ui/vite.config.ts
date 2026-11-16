@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // INTEROP-CRITICAL: base and profile aliases must remain safe in embedded,
 // tunneled, and desktop-hosted surfaces.
@@ -7,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const isProfile = mode === "profile";
   return {
     base: "./",
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     resolve: isProfile
       ? { alias: { "react-dom/client": "react-dom/profiling", "react-dom$": "react-dom/profiling" } }
       : undefined,

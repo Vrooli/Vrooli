@@ -83,12 +83,12 @@ func (m *mockInvStore) List(pipelineID string, limit int) ([]*domain.Investigati
 	return result, nil
 }
 
-func (m *mockInvStore) Update(id string, fn func(inv *domain.Investigation)) error {
+func (m *mockInvStore) UpdateDetails(id string, details json.RawMessage) error {
 	inv, ok := m.investigations[id]
 	if !ok {
 		return fmt.Errorf("not found: %s", id)
 	}
-	fn(inv)
+	inv.Details = details
 	return nil
 }
 

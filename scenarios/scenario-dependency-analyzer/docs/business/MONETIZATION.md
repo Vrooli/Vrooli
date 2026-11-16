@@ -1,6 +1,5 @@
 # Monetization
 
-## Purpose Of This Document
 
 Capture how SDA could contribute to product value.
 

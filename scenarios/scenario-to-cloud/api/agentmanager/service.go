@@ -203,8 +203,29 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		return nil, fmt.Errorf("agent-manager not enabled")
 	}
 
-	// Create task for this investigation
-	task := &domainpb.Task{
+	createdTask, err := s.client.CreateTask(ctx, investigationTask(req))
+	if err != nil {
+		return nil, fmt.Errorf("create task: %w", err)
+	}
+
+	runReq := investigationRunRequest(s, req, createdTask.Id)
+
+	run, err := s.client.CreateRun(ctx, runReq)
+	if err != nil {
+		return nil, fmt.Errorf("create run: %w", err)
+	}
+
+	// Wait for run to complete
+	completedRun, err := s.client.WaitForRun(ctx, run.Id, 2*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("wait for run: %w", err)
+	}
+
+	return investigationResult(completedRun), nil
+}
+
+func investigationTask(req ExecuteRequest) *domainpb.Task {
+	return &domainpb.Task{
 		Title:              fmt.Sprintf("Deployment Investigation %s", req.InvestigationID),
 		Description:        req.Prompt,
 		ScopePath:          req.WorkingDir,
@@ -212,23 +233,18 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		CreatedBy:          "scenario-to-cloud",
 		ContextAttachments: req.ContextAttachments,
 	}
+}
 
-	createdTask, err := s.client.CreateTask(ctx, task)
-	if err != nil {
-		return nil, fmt.Errorf("create task: %w", err)
-	}
-
-	// Create run with tag for tracking
+func investigationRunRequest(s *AgentService, req ExecuteRequest, taskID string) *apipb.CreateRunRequest {
 	tag := buildRunTag(req.InvestigationID, req.AdditionalTag)
 	runReq := &apipb.CreateRunRequest{
-		TaskId:     createdTask.Id,
+		TaskId:     taskID,
 		ProfileRef: s.defaultProfileRef(),
 		Tag:        &tag,
 		RunMode:    domainpb.RunMode_RUN_MODE_IN_PLACE.Enum(),
 		Force:      true, // Bypass capacity limits for investigations
 	}
 
-	// Apply inline config overrides if provided
 	if req.RoleRef != nil || req.Model != "" {
 		runReq.InlineConfig = &domainpb.RunConfigOverrides{}
 		if req.RoleRef != nil {
@@ -251,48 +267,30 @@ func (s *AgentService) Execute(ctx context.Context, req ExecuteRequest) (*Execut
 		runReq.InlineConfig.SandboxConfig = &domainpb.SandboxConfig{}
 	}
 	runReq.InlineConfig.SandboxConfig.ManualReview = true
+	return runReq
+}
 
-	run, err := s.client.CreateRun(ctx, runReq)
-	if err != nil {
-		return nil, fmt.Errorf("create run: %w", err)
-	}
-
-	// Wait for run to complete
-	completedRun, err := s.client.WaitForRun(ctx, run.Id, 2*time.Second)
-	if err != nil {
-		return nil, fmt.Errorf("wait for run: %w", err)
-	}
-
-	// Build result
+func investigationResult(completedRun *domainpb.Run) *ExecuteResult {
 	result := &ExecuteResult{
 		RunID:   completedRun.Id,
 		Success: completedRun.Status == domainpb.RunStatus_RUN_STATUS_COMPLETE,
 	}
-
 	if completedRun.Summary != nil {
 		result.Output = completedRun.Summary.Description
 		result.TokensUsed = completedRun.Summary.TokensUsed
 		result.CostEstimate = completedRun.Summary.CostEstimate
 	}
-
 	if completedRun.ErrorMsg != "" {
 		result.ErrorMessage = completedRun.ErrorMsg
-		// Check for rate limit in error message
-		if strings.Contains(strings.ToLower(completedRun.ErrorMsg), "rate limit") {
-			result.RateLimited = true
-		}
-		if strings.Contains(strings.ToLower(completedRun.ErrorMsg), "timeout") {
-			result.Timeout = true
-		}
+		errorText := strings.ToLower(completedRun.ErrorMsg)
+		result.RateLimited = strings.Contains(errorText, "rate limit")
+		result.Timeout = strings.Contains(errorText, "timeout")
 	}
-
-	// Calculate duration
 	if completedRun.StartedAt != nil && completedRun.EndedAt != nil {
 		duration := completedRun.EndedAt.AsTime().Sub(completedRun.StartedAt.AsTime())
 		result.DurationSeconds = int(duration.Seconds())
 	}
-
-	return result, nil
+	return result
 }
 
 // ExecuteAsync starts an agent run without waiting for completion.

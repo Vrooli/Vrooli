@@ -100,6 +100,20 @@ func (r *ReleaseDecisionResolver) Apply(ctx context.Context, resolution operator
 		return true, nil
 	}
 
+	// A decision closed without an answer (withdrawn by its producer, or by the
+	// Hub when the producer stopped asserting it) is no refusal and no approval:
+	// nothing is recorded in the approvals ledger and nothing ships. One replaced
+	// by a newer revision leaves the ask pending, because a revision of the same
+	// artifact carries this ask's own id; the reconciler closes an ask a request
+	// for another artifact replaced.
+	if resolution.State == operatordecision.StateWithdrawn {
+		if resolution.SupersededByAskID == "" {
+			_ = r.markResolved(ctx, ask, operatordecision.PendingStateWithdrawn, "")
+		}
+		r.log("release decision resolution is a withdrawal; no operator answer applies", map[string]any{"ask_id": askID, "review_key": reviewKey})
+		return true, nil
+	}
+
 	approvedBy := strings.TrimSpace(resolution.AnsweredBy)
 	answer := strings.TrimSpace(resolution.Answer)
 	approvalID := strings.TrimSpace(resolution.Correlation["approval_id"])

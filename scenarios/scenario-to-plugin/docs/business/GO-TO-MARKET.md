@@ -5,7 +5,6 @@ audience. It is deliberately about *what this ramp puts into the world*,
 not about the ramp itself — nobody outside Vrooli will ever run
 Scenario to Plugin.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

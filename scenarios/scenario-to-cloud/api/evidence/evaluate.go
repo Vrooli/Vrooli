@@ -58,7 +58,24 @@ type Summary struct {
 // record that names the failed id and carries a reason.
 func Evaluate(profile *Profile, records []Record, releaseDigest, targetKey string, now time.Time) Summary {
 	releaseDigest = strings.ToLower(strings.TrimSpace(releaseDigest))
-	out := Summary{SchemaVersion: SummarySchemaVersion, ProfileID: profile.ID, ReleaseDigest: releaseDigest, TargetKey: targetKey, ProducerRef: ProducerRef, EvaluatedAt: now.UTC(), RequiredCells: len(profile.Cells)}
+	out := newSummary(profile, releaseDigest, targetKey, now)
+	byCell, foreign, withdrawn := indexRecords(records, releaseDigest, targetKey)
+	for _, id := range profile.Cells {
+		cell := evaluateCell(id, byCell[id], foreign[id], withdrawn)
+		if cell.Disposition != DispositionPassed {
+			out.BlockingCells = append(out.BlockingCells, id.String())
+		}
+		out.Cells = append(out.Cells, cell)
+	}
+	out.Passed = releaseDigest != "" && len(out.BlockingCells) == 0 && out.RequiredCells > 0
+	return out
+}
+
+func newSummary(profile *Profile, releaseDigest, targetKey string, now time.Time) Summary {
+	return Summary{SchemaVersion: SummarySchemaVersion, ProfileID: profile.ID, ReleaseDigest: releaseDigest, TargetKey: targetKey, ProducerRef: ProducerRef, EvaluatedAt: now.UTC(), RequiredCells: len(profile.Cells)}
+}
+
+func indexRecords(records []Record, releaseDigest, targetKey string) (map[CellID][]Record, map[CellID][]Record, map[string]bool) {
 	sorted := append([]Record(nil), records...)
 	SortRecords(sorted)
 	withdrawn := map[string]bool{}
@@ -77,43 +94,44 @@ func Evaluate(profile *Profile, records []Record, releaseDigest, targetKey strin
 		}
 		byCell[id] = append(byCell[id], r)
 	}
-	for _, id := range profile.Cells {
-		cell := Cell{CaseID: id.CaseID, Lane: id.Lane, Required: true, Disposition: DispositionMissing}
-		var failed, passed, other *Record
-		for i := range byCell[id] {
-			r := &byCell[id][i]
-			switch r.Disposition {
-			case DispositionFailed:
-				if !withdrawn[r.ID] {
-					failed = r
-				}
-			case DispositionPassed:
-				passed = r
-			default:
-				other = r
-			}
+	return byCell, foreign, withdrawn
+}
+
+func evaluateCell(id CellID, records, foreign []Record, withdrawn map[string]bool) Cell {
+	cell := Cell{CaseID: id.CaseID, Lane: id.Lane, Required: true, Disposition: DispositionMissing}
+	failed, passed, other := chooseRecords(records, withdrawn)
+	switch {
+	case failed != nil:
+		fill(&cell, failed, "failed record for candidate is in force")
+	case passed != nil:
+		fill(&cell, passed, "")
+	case other != nil:
+		fill(&cell, other, other.Reason)
+	default:
+		cell.Reason = "no evidence record for this release and target"
+		if len(foreign) > 0 {
+			last := foreign[len(foreign)-1]
+			cell.Reason = fmt.Sprintf("evidence exists only for release %s on target %s (incompatible)", short(last.Binding.ReleaseDigest), last.Binding.TargetKey)
 		}
-		switch {
-		case failed != nil:
-			fill(&cell, failed, "failed record for candidate is in force")
-		case passed != nil:
-			fill(&cell, passed, "")
-		case other != nil:
-			fill(&cell, other, other.Reason)
-		default:
-			cell.Reason = "no evidence record for this release and target"
-			if f := foreign[id]; len(f) > 0 {
-				last := f[len(f)-1]
-				cell.Reason = fmt.Sprintf("evidence exists only for release %s on target %s (incompatible)", short(last.Binding.ReleaseDigest), last.Binding.TargetKey)
-			}
-		}
-		if cell.Disposition != DispositionPassed {
-			out.BlockingCells = append(out.BlockingCells, id.String())
-		}
-		out.Cells = append(out.Cells, cell)
 	}
-	out.Passed = releaseDigest != "" && len(out.BlockingCells) == 0 && out.RequiredCells > 0
-	return out
+	return cell
+}
+
+func chooseRecords(records []Record, withdrawn map[string]bool) (failed, passed, other *Record) {
+	for i := range records {
+		record := &records[i]
+		switch record.Disposition {
+		case DispositionFailed:
+			if !withdrawn[record.ID] {
+				failed = record
+			}
+		case DispositionPassed:
+			passed = record
+		default:
+			other = record
+		}
+	}
+	return failed, passed, other
 }
 
 func fill(cell *Cell, r *Record, reason string) {

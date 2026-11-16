@@ -214,7 +214,9 @@ func (s *DefaultService) buildWailsProject(ctx context.Context, buildID, scenari
 			continue
 		}
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "failed"
+			if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+				return
+			}
 			result.ErrorLog = append(result.ErrorLog, "Wails in-process currently supports Linux packaging only")
 			completed := time.Now()
 			result.CompletedAt = &completed
@@ -242,7 +244,9 @@ func (s *DefaultService) buildWailsProject(ctx context.Context, buildID, scenari
 			continue
 		}
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "building"
+			if !s.transitionPlatformResult(result, PlatformBuildBuilding) {
+				return
+			}
 			result.StartedAt = &started
 		})
 		output, err := s.runner.RunWithEnv(ctx, desktopPath, "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux", map[string]string{"EXTRA_TAGS": "gtk3"})
@@ -262,12 +266,16 @@ func (s *DefaultService) buildWailsProject(ctx context.Context, buildID, scenari
 			result.CompletedAt = &completed
 			status.BuildLog = append(status.BuildLog, formatStepLog("wails-package", "go run github.com/wailsapp/wails/v3/cmd/wails3 package GOOS=linux (EXTRA_TAGS=gtk3)", outputStr, err))
 			if err != nil {
-				result.Status = "failed"
+				if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+					return
+				}
 				result.ErrorLog = append(result.ErrorLog, err.Error(), outputStr)
 				status.ErrorLog = append(status.ErrorLog, fmt.Sprintf("Wails package failed for %s", platform))
 				return
 			}
-			result.Status = "ready"
+			if !s.transitionPlatformResult(result, PlatformBuildReady) {
+				return
+			}
 			result.Artifact = artifactPath
 			result.FileSize = info.Size()
 			status.Artifacts[platform] = artifactPath
@@ -342,7 +350,9 @@ func (s *DefaultService) cleanBuildOutputs(buildID, desktopPath string, platform
 		s.store.Update(buildID, func(status *Status) {
 			for _, platform := range platforms {
 				if result, ok := status.PlatformResults[platform]; ok {
-					result.Status = "failed"
+					if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+						continue
+					}
 					result.ErrorLog = append(result.ErrorLog, "Clean step failed (could not remove existing build outputs)")
 					result.ErrorLog = append(result.ErrorLog, strings.Join(cleanErrs, "\n"))
 					now := time.Now()
@@ -389,7 +399,9 @@ func (s *DefaultService) executeCommonBuildSteps(ctx context.Context, buildID, s
 			if err != nil {
 				for _, platform := range platforms {
 					if result, ok := status.PlatformResults[platform]; ok {
-						result.Status = "failed"
+						if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+							continue
+						}
 						result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Common build step '%s' failed", step.name))
 						result.ErrorLog = append(result.ErrorLog, outputStr)
 						now := time.Now()
@@ -545,7 +557,9 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 	builderPlatform, ok := electronBuilderPlatform(platform)
 	if !ok {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "failed"
+			if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+				return
+			}
 			result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Unknown platform: %s", platform))
 			now := time.Now()
 			result.CompletedAt = &now
@@ -556,7 +570,9 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 	// Check platform dependencies
 	if builderPlatform == "win" && runtime.GOOS != "windows" && !s.wineChecker.IsWineInstalled() {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "skipped"
+			if !s.transitionPlatformResult(result, PlatformBuildSkipped) {
+				return
+			}
 			result.SkipReason = "Working host Wine is required for Windows builds on this host; host installation and repair belong to the control plane"
 			now := time.Now()
 			result.CompletedAt = &now
@@ -568,7 +584,9 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 	distCommand, ok := platformDistCommand(builderPlatform)
 	if !ok {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "failed"
+			if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+				return
+			}
 			result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Unknown platform: %s", platform))
 			now := time.Now()
 			result.CompletedAt = &now
@@ -578,7 +596,9 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 
 	// Mark platform build as started
 	s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-		result.Status = "building"
+		if !s.transitionPlatformResult(result, PlatformBuildBuilding) {
+			return
+		}
 		now := time.Now()
 		result.StartedAt = &now
 	})
@@ -591,7 +611,9 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 	signingEnv, cleanupSigning, signingErr := resolveManagedSigningEnvForPlatform(ctx, scenarioName, builderPlatform)
 	if signingErr != nil {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "failed"
+			if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+				return
+			}
 			result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("managed signing key unavailable: %v", signingErr))
 			now := time.Now()
 			result.CompletedAt = &now
@@ -612,7 +634,9 @@ func (s *DefaultService) BuildPlatform(ctx context.Context, buildID, scenarioNam
 			status.PlatformResults[platform] = result
 		}
 		logEntry, resultStatus, skipReason := classifyPlatformResult(platform, distCommand, outputStr, err)
-		result.Status = resultStatus
+		if !s.transitionPlatformResult(result, PlatformBuildStatus(resultStatus)) {
+			return
+		}
 		if skipReason != "" {
 			result.SkipReason = skipReason
 		}
@@ -709,7 +733,9 @@ func (s *DefaultService) recordBuiltPackage(buildID, scenarioName, distPath, pla
 	packagePlatform, ok := electronBuilderPlatform(platform)
 	if !ok {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "failed"
+			if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+				return
+			}
 			result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Built package not found: unknown platform: %s", platform))
 		})
 		return
@@ -717,7 +743,9 @@ func (s *DefaultService) recordBuiltPackage(buildID, scenarioName, distPath, pla
 	packageFile, err := s.packageFinder.FindBuiltPackage(distPath, packagePlatform)
 	if err != nil {
 		s.store.UpdatePlatform(buildID, platform, func(_ *Status, result *PlatformResult) {
-			result.Status = "failed"
+			if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+				return
+			}
 			result.ErrorLog = append(result.ErrorLog, fmt.Sprintf("Built package not found: %v", err))
 		})
 		s.logger.Warn("platform package not found",
@@ -908,11 +936,21 @@ func (s *DefaultService) failBuild(buildID string, messages ...string) {
 		status.CompletedAt = &now
 		for _, result := range status.PlatformResults {
 			if result.Status == "building" || result.Status == "pending" {
-				result.Status = "failed"
+				if !s.transitionPlatformResult(result, PlatformBuildFailed) {
+					continue
+				}
 				result.CompletedAt = &now
 			}
 		}
 	})
+}
+
+func (s *DefaultService) transitionPlatformResult(result *PlatformResult, next PlatformBuildStatus) bool {
+	if err := result.TransitionStatus(next); err != nil {
+		s.logger.Error("invalid platform build transition", "platform", result.Platform, "status", result.Status, "next", next, "error", err)
+		return false
+	}
+	return true
 }
 
 func normalizeDesktopPath(desktopPath string) string {

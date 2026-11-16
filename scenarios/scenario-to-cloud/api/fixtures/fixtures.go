@@ -170,56 +170,83 @@ type Catalog struct {
 // VerifyOracle so callers can distinguish structural from content drift.
 func Load(root string) (*Catalog, error) {
 	cat := &Catalog{Root: root, Workloads: map[string]*Workload{}, Coexistence: map[string]*Coexistence{}}
-	dirs, err := filepath.Glob(filepath.Join(root, "workloads", "*", "fixture.json"))
-	if err != nil {
+	if err := loadWorkloads(root, cat); err != nil {
 		return nil, err
 	}
+	if err := loadCoexistence(root, cat); err != nil {
+		return nil, err
+	}
+	return cat, nil
+}
+
+func loadWorkloads(root string, cat *Catalog) error {
+	dirs, err := filepath.Glob(filepath.Join(root, "workloads", "*", "fixture.json"))
+	if err != nil {
+		return err
+	}
 	if len(dirs) == 0 {
-		return nil, fmt.Errorf("fixtures: no workloads under %s", root)
+		return fmt.Errorf("fixtures: no workloads under %s", root)
 	}
 	sort.Strings(dirs)
 	for _, path := range dirs {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", path, err)
+			return fmt.Errorf("read %s: %w", path, err)
 		}
 		var w Workload
 		if err := json.Unmarshal(data, &w); err != nil {
-			return nil, fmt.Errorf("parse %s: %w", path, err)
+			return fmt.Errorf("parse %s: %w", path, err)
 		}
 		w.Dir = filepath.Dir(path)
 		if err := w.Validate(); err != nil {
-			return nil, fmt.Errorf("%s: %w", path, err)
+			return fmt.Errorf("%s: %w", path, err)
 		}
 		if filepath.Base(w.Dir) != w.ID {
-			return nil, fmt.Errorf("%s: id %q must match directory name", path, w.ID)
+			return fmt.Errorf("%s: id %q must match directory name", path, w.ID)
 		}
 		cat.Workloads[w.ID] = &w
 	}
+	return nil
+}
+
+func loadCoexistence(root string, cat *Catalog) error {
 	coex, err := filepath.Glob(filepath.Join(root, "coexistence", "*.json"))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	sort.Strings(coex)
 	for _, path := range coex {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, fmt.Errorf("read %s: %w", path, err)
+			return fmt.Errorf("read %s: %w", path, err)
 		}
 		var c Coexistence
 		if err := json.Unmarshal(data, &c); err != nil {
-			return nil, fmt.Errorf("parse %s: %w", path, err)
+			return fmt.Errorf("parse %s: %w", path, err)
 		}
 		if err := c.Validate(cat); err != nil {
-			return nil, fmt.Errorf("%s: %w", path, err)
+			return fmt.Errorf("%s: %w", path, err)
 		}
 		cat.Coexistence[c.ID] = &c
 	}
-	return cat, nil
+	return nil
 }
 
 // Validate checks structural invariants of a workload fixture.
 func (w *Workload) Validate() error {
+	if err := w.validateWorkloadMetadata(); err != nil {
+		return err
+	}
+	if err := w.Ownership.Validate(); err != nil {
+		return err
+	}
+	if err := w.validateWorkloadSeedAndOracle(); err != nil {
+		return err
+	}
+	return validateWorkloadPersistentData(w.Declaration.PersistentData)
+}
+
+func (w *Workload) validateWorkloadMetadata() error {
 	if w.SchemaVersion != 1 {
 		return fmt.Errorf("unsupported schema_version %d", w.SchemaVersion)
 	}
@@ -231,22 +258,27 @@ func (w *Workload) Validate() error {
 	default:
 		return fmt.Errorf("classification must be certified or compatibility_only, got %q", w.Classification)
 	}
-	if err := w.Ownership.Validate(); err != nil {
-		return err
-	}
 	if w.Lifecycle.Status == "" {
 		return fmt.Errorf("lifecycle.status is required")
 	}
 	if len(w.Declaration.Listeners) == 0 {
 		return fmt.Errorf("declaration.listeners must declare at least one listener")
 	}
+	return nil
+}
+
+func (w *Workload) validateWorkloadSeedAndOracle() error {
 	if len(w.Seed.Files) == 0 || w.Seed.Version == "" || !strings.HasPrefix(w.Seed.Checksum, "sha256:") {
 		return fmt.Errorf("seed must declare version, files and a sha256 checksum")
 	}
 	if w.Oracle.Algorithm != OracleAlgorithm || !strings.HasPrefix(w.Oracle.Checksum, "sha256:") {
 		return fmt.Errorf("oracle must use %s and declare a sha256 checksum", OracleAlgorithm)
 	}
-	for _, pd := range w.Declaration.PersistentData {
+	return nil
+}
+
+func validateWorkloadPersistentData(data []PersistentData) error {
+	for _, pd := range data {
 		if pd.Binding == "" || pd.Kind == "" {
 			return fmt.Errorf("persistent_data entries need binding and kind")
 		}
@@ -259,6 +291,20 @@ func (w *Workload) Validate() error {
 
 // Validate checks a coexistence journey and that referenced workloads exist.
 func (c *Coexistence) Validate(cat *Catalog) error {
+	if err := c.validateCoexistenceMetadata(); err != nil {
+		return err
+	}
+	subjects, err := validateCoexistenceParticipants(c.Participants, cat)
+	if err != nil {
+		return err
+	}
+	if subjects != 1 {
+		return fmt.Errorf("exactly one subject participant is required, got %d", subjects)
+	}
+	return validateCoexistenceJourney(c.Journey, c.MatrixCases)
+}
+
+func (c *Coexistence) validateCoexistenceMetadata() error {
 	if c.SchemaVersion != 1 || c.ID == "" || c.Kind != "coexistence" {
 		return fmt.Errorf("schema_version=1, id and kind=coexistence are required")
 	}
@@ -268,29 +314,34 @@ func (c *Coexistence) Validate(cat *Catalog) error {
 	if len(c.Participants) < 2 {
 		return fmt.Errorf("a coexistence journey needs at least two participants")
 	}
+	return nil
+}
+
+func validateCoexistenceParticipants(participants []Participant, cat *Catalog) (int, error) {
 	subjects := 0
-	for _, p := range c.Participants {
+	for _, p := range participants {
 		if p.Role == "subject" {
 			subjects++
 		}
 		if p.Deployment != nil {
 			if _, ok := cat.Workloads[p.Workload]; !ok {
-				return fmt.Errorf("participant %s references unknown workload %q", p.Role, p.Workload)
+				return subjects, fmt.Errorf("participant %s references unknown workload %q", p.Role, p.Workload)
 			}
 		}
 	}
-	if subjects != 1 {
-		return fmt.Errorf("exactly one subject participant is required, got %d", subjects)
-	}
-	if len(c.Journey) == 0 {
+	return subjects, nil
+}
+
+func validateCoexistenceJourney(journey []JourneyStep, matrixCases []string) error {
+	if len(journey) == 0 {
 		return fmt.Errorf("journey must have steps")
 	}
-	for i, s := range c.Journey {
+	for i, s := range journey {
 		if s.Step != i+1 || s.Invariant == "" {
 			return fmt.Errorf("journey step %d must be numbered %d and carry an invariant", s.Step, i+1)
 		}
 	}
-	if len(c.MatrixCases) == 0 {
+	if len(matrixCases) == 0 {
 		return fmt.Errorf("matrix_cases must name the certification cases the journey serves")
 	}
 	return nil

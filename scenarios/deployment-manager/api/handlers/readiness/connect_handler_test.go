@@ -154,7 +154,7 @@ func TestApprovalRevalidationRequiresPassingMechanicalAndHumanEvidence(t *testin
 		}
 		evidence = append(evidence, domain.EvidenceItem{ReviewKey: review.Key, CriterionID: criterion.ID, Status: status, Applicability: "applicable", Producer: criterion.Owner, CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest, Target: "linux", Environment: identity.Channel, PolicyVersion: identity.PolicyVersion, ObservedAt: now, Reference: "evidence:" + criterion.ID})
 	}
-	if err := repo.ReplaceEvaluation(context.Background(), review.Key, evidence, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(context.Background(), review.Key, domain.ReviewCollecting, evidence, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 	if err := repo.SetGoal(context.Background(), review.Key, "goal-1"); err != nil {
@@ -180,7 +180,7 @@ func TestApprovalRevalidationRequiresPassingMechanicalAndHumanEvidence(t *testin
 		t.Fatalf("complete independent checks were rejected: %v", err)
 	}
 	evidence[0].Status = domain.SignalFailed
-	if err := repo.ReplaceEvaluation(context.Background(), review.Key, evidence, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(context.Background(), review.Key, domain.ReviewAgentReview, evidence, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 	stored, _ = repo.Get(context.Background(), review.Key)

@@ -34,7 +34,7 @@ func registeredRoutes(t *testing.T, router *mux.Router) []authz.Route {
 			methods = []string{"*"}
 		}
 		for _, method := range methods {
-			out = append(out, authz.Route{Method: method, Path: template})
+			out = append(out, authz.Route{Method: method, Path: template, Prefix: method == "*" && strings.HasSuffix(template, "/")})
 		}
 		return nil
 	})
@@ -72,7 +72,21 @@ func TestRouteCensusMatchesAuthorizationTable(t *testing.T) {
 		if entry.Optional {
 			continue
 		}
-		if _, ok := seen[entry.Key()]; !ok {
+		if _, ok := seen[entry.Key()]; ok {
+			continue
+		}
+		// Connect methods are dispatched beneath a registered service prefix.
+		// The mux census sees that mounted prefix, not each generated RPC path;
+		// authz.Lookup still resolves the more specific method row at request
+		// time, and the generated service tests prove the method exists.
+		mounted := false
+		for _, route := range registered {
+			if route.Prefix && strings.HasPrefix(entry.Path, route.Path) && (route.Method == "*" || route.Method == entry.Method) {
+				mounted = true
+				break
+			}
+		}
+		if !mounted {
 			t.Errorf("table row %s is not registered on the live router", entry.Key())
 		}
 	}

@@ -10,7 +10,6 @@ one clearly fenced worked example domain (never product scope) as a
 copyable reference; `vrooli scenario detemplate <scenario>` removes every
 fenced example once your real domains are green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

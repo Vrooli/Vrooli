@@ -91,6 +91,13 @@
           "notes": "CLI tests assert first-touch prompting, trusted reconnect without prompting, and server-owned Machine resolution."
         },
         {
+          "type": "test",
+          "ref": "api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesPreservesCurrentApprovedGrants; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesDoesNotRestoreRevokedGrants; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesRejectsRegistryIdentityMismatch; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesFailsClosedWhenRegistryUnavailable; api/handlers/onboard/reconnect_scopes_test.go#TestExistingPairingScopesRejectsAmbiguousCurrentLineage; api/handlers/machines/connect_handler_test.go#TestMachineRepairerUsesPersistedSSHTrust; api/handlers/machines/connect_handler_test.go#TestMachineRepairerRejectsRegistryIdentityMismatchBeforePairing; agent/internal/config/config_test.go#TestLoad_RestoresPairedIdentityFromPersistentStateDirectory",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "Connect and repair carry only exact current Registry grants, fail closed when lineage is ambiguous or Registry identity does not match, and never restore revoked Node scopes."
+        },
+        {
           "type": "manual",
           "ref": "docs/operations/RUNBOOK.md#canonical-one-command-connection",
           "phase": "operations",

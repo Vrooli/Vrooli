@@ -3,6 +3,7 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -16,6 +17,30 @@ const (
 	InvestigationStatusFailed    InvestigationStatus = "failed"
 	InvestigationStatusCancelled InvestigationStatus = "cancelled"
 )
+
+var investigationStatusTransitions = map[InvestigationStatus]map[InvestigationStatus]struct{}{
+	InvestigationStatusPending: {
+		InvestigationStatusRunning:   {},
+		InvestigationStatusCancelled: {},
+	},
+	InvestigationStatusRunning: {
+		InvestigationStatusCompleted: {},
+		InvestigationStatusFailed:    {},
+		InvestigationStatusCancelled: {},
+	},
+}
+
+// TransitionStatus applies one legal persisted investigation lifecycle edge.
+func (i *Investigation) TransitionStatus(next InvestigationStatus) error {
+	if i == nil {
+		return fmt.Errorf("cannot transition a nil investigation")
+	}
+	if _, ok := investigationStatusTransitions[i.Status][next]; !ok {
+		return fmt.Errorf("invalid investigation status transition %q -> %q", i.Status, next)
+	}
+	i.Status = next
+	return nil
+}
 
 // Investigation represents an investigation record for a pipeline failure.
 // Investigations are triggered by users to diagnose pipeline issues via an agent.

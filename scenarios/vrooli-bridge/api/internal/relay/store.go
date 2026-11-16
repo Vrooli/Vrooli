@@ -37,7 +37,9 @@ func (s *MemoryCommandStore) Reserve(_ context.Context, request Request) (Comman
 			return CommandRecord{}, ErrCommandConflict
 		}
 		if existing.State == StateNotAdmitted {
-			existing.State = StateReserved
+			if err := existing.Transition(StateReserved); err != nil {
+				return CommandRecord{}, err
+			}
 			existing.UpdatedAt = now
 			s.records[request.CommandID] = existing
 		}
@@ -55,7 +57,9 @@ func (s *MemoryCommandStore) Update(_ context.Context, commandID, nodeID string,
 	if !ok || record.Request.NodeID != nodeID {
 		return ErrCommandNotFound
 	}
-	record.State = state
+	if err := record.Transition(state); err != nil {
+		return err
+	}
 	record.Response = cloneResponse(response)
 	record.UpdatedAt = time.Now().UTC()
 	s.records[commandID] = record
@@ -115,21 +119,32 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', NULL, '', 0, 0, '', 0, 0, ?)`,
 		return CommandRecord{}, ErrCommandConflict
 	}
 	if record.State == StateNotAdmitted {
-		_, err = s.db.ExecContext(ctx, `UPDATE relay_commands SET state = ?, updated_at = ? WHERE command_id = ? AND node_id = ? AND state = ?`, string(StateReserved), now, request.CommandID, request.NodeID, string(StateNotAdmitted))
+		if err := record.Transition(StateReserved); err != nil {
+			return CommandRecord{}, err
+		}
+		_, err = s.db.ExecContext(ctx, `UPDATE relay_commands SET state = ?, updated_at = ? WHERE command_id = ? AND node_id = ? AND state = ?`, string(record.State), now, request.CommandID, request.NodeID, string(StateNotAdmitted))
 		if err != nil {
 			return CommandRecord{}, fmt.Errorf("re-reserve relay command: %w", err)
 		}
-		record.State = StateReserved
 		record.UpdatedAt, _ = time.Parse(time.RFC3339Nano, now)
 	}
 	return record, nil
 }
 
 func (s *SQLiteCommandStore) Update(ctx context.Context, commandID, nodeID string, state CommandState, response Response) error {
+	current, err := s.get(ctx, commandID, nodeID)
+	if err != nil {
+		return err
+	}
+	previous := current.State
+	if err := current.Transition(state); err != nil {
+		return err
+	}
+	updatedAt := time.Now().UTC().Format(time.RFC3339Nano)
 	result, err := s.db.ExecContext(ctx, `UPDATE relay_commands
 SET state = ?, response_kind = ?, response_data = ?, response_reason = ?, response_exit_code = ?, response_total_bytes = ?, route_name = ?, route_cost_units = ?, route_latency_ms = ?, updated_at = ?
-WHERE command_id = ? AND node_id = ?`, string(state), response.Kind, response.Data, response.Reason,
-		response.ExitCode, response.TotalBytes, response.Route, response.RouteCostUnits, response.RouteLatencyMS, time.Now().UTC().Format(time.RFC3339Nano), commandID, nodeID)
+WHERE command_id = ? AND node_id = ? AND state = ?`, string(current.State), response.Kind, response.Data, response.Reason,
+		response.ExitCode, response.TotalBytes, response.Route, response.RouteCostUnits, response.RouteLatencyMS, updatedAt, commandID, nodeID, string(previous))
 	if err != nil {
 		return fmt.Errorf("update relay command: %w", err)
 	}
@@ -137,7 +152,7 @@ WHERE command_id = ? AND node_id = ?`, string(state), response.Kind, response.Da
 		if err != nil {
 			return fmt.Errorf("check relay command update: %w", err)
 		}
-		return ErrCommandNotFound
+		return ErrCommandConflict
 	}
 	return nil
 }
@@ -203,10 +218,6 @@ func cloneRecord(record CommandRecord) CommandRecord {
 	record.Request = cloneRequest(record.Request)
 	record.Response = cloneResponse(record.Response)
 	return record
-}
-
-func terminalState(state CommandState) bool {
-	return state == StateCompleted || state == StateFailed || state == StateOutcomeUnknown
 }
 
 func stateFromResponse(response Response) CommandState {

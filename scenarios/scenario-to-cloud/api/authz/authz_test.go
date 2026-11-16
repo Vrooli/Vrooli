@@ -66,6 +66,54 @@ func TestHumanCredentialCannotBeBorrowedForAgentSecretAccess(t *testing.T) {
 	}
 }
 
+func TestHandlerTargetAuthorizationUsesTheExactDeploymentGrant(t *testing.T) {
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{
+		"reader": {Environments: []string{"staging"}},
+	}}), nil)
+	route := Route{Method: "POST", Path: OperationsServicePrefix + "GetTargetReceipt", Effect: EffectRead, Scope: ScopeRead, HandlerTargetBound: true, RemoteReach: true, ServiceAllowed: true, Description: "test"}
+	request := httptest.NewRequest(http.MethodPost, route.Path, strings.NewReader("{}"))
+	ctx := context.WithValue(request.Context(), decisionKey{}, Decision{Principal: human("reader", ScopeRead), Route: route, request: request})
+	if denied := h.enforcer.AuthorizeTarget(ctx, "dep-stage"); denied != nil {
+		t.Fatalf("matching target grant denied: %v", denied)
+	}
+	if denied := h.enforcer.AuthorizeTarget(ctx, "dep-prod"); denied == nil || denied.Code != apierrors.CodeForbiddenTarget {
+		t.Fatalf("cross-target read was not refused: %v", denied)
+	}
+	if denied := h.enforcer.AuthorizeTarget(ctx, ""); denied == nil || denied.Code != apierrors.CodeInvalidRequest {
+		t.Fatalf("empty deployment was not refused: %v", denied)
+	}
+	ctx = context.WithValue(request.Context(), decisionKey{}, Decision{Principal: human("reader", ScopeRead), Route: Route{}, request: request})
+	if denied := h.enforcer.AuthorizeTarget(ctx, "dep-stage"); denied == nil || denied.Code != apierrors.CodeForbiddenScope {
+		t.Fatalf("route without handler binding permission passed: %v", denied)
+	}
+}
+
+func TestConnectTargetReceiptRouteBindsBodyDeploymentBeforeHandlerReach(t *testing.T) {
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{
+		"reader": {Environments: []string{"staging"}},
+	}}), nil)
+	h.provider.set(human("reader", ScopeRead), nil)
+	path := OperationsServicePrefix + "GetTargetReceipt"
+	reached := ""
+	h.router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		deploymentID := r.Header.Get("X-Test-Deployment")
+		if denied := h.enforcer.AuthorizeTarget(r.Context(), deploymentID); denied != nil {
+			apierrors.Write(w, denied)
+			return
+		}
+		reached = deploymentID
+		w.WriteHeader(http.StatusNoContent)
+	}).Methods(http.MethodPost)
+
+	if rec := h.do(http.MethodPost, path, map[string]string{"X-Test-Deployment": "dep-stage"}); rec.Code != http.StatusNoContent || reached != "dep-stage" || rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("authorized body target was not reached: status=%d reached=%q body=%s", rec.Code, reached, rec.Body.String())
+	}
+	reached = ""
+	if rec := h.do(http.MethodPost, path, map[string]string{"X-Test-Deployment": "dep-prod"}); rec.Code != http.StatusForbidden || reached != "" || codeOf(t, rec) != apierrors.CodeForbiddenTarget {
+		t.Fatalf("cross-target Connect request was not refused before reach: status=%d reached=%q body=%s", rec.Code, reached, rec.Body.String())
+	}
+}
+
 type harness struct {
 	provider *fakeProvider
 	enforcer *Enforcer
@@ -275,6 +323,29 @@ func TestLiveAgentGrantAllowsBoundedDeploymentMutationButNotSecrets(t *testing.T
 	h.provider.set(p, nil)
 	if rec := h.do("POST", "/api/v1/deployments/dep-prod/execute", map[string]string{cliutil.HeaderAgentIdentityToken: "fixture-agent-proof"}); rec.Code != http.StatusForbidden {
 		t.Fatal("expired operation grant admitted")
+	}
+}
+
+func TestExpiredAgentGrantCannotReuseApproverTargetPolicy(t *testing.T) {
+	now := time.Now().Add(48 * time.Hour)
+	h := newHarness(t, NewStaticPolicy(PolicyDocument{Principals: map[string]Grant{
+		"owner": {Environments: []string{"staging"}},
+	}}), func(c *Config) {
+		c.Now = func() time.Time { return now }
+	})
+	p := agent("agent-1", ScopeRead)
+	p.Owner = "owner"
+	p.Grant = &identity.OperationGrant{
+		ID: "grant", Approver: "owner", Operations: []string{"deployment.manage"},
+		Targets: []string{"scenario-to-cloud:*"}, ExpiresAt: now.Add(-time.Hour),
+	}
+	h.provider.set(p, nil)
+
+	if rec := h.do("GET", "/api/v1/deployments/dep-stage", nil); rec.Code != http.StatusForbidden || codeOf(t, rec) != apierrors.CodeForbiddenTarget {
+		t.Fatalf("expired agent grant borrowed approver target policy: status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if reached := h.handledNames(); len(reached) != 0 {
+		t.Fatalf("expired agent grant reached target handler: %v", reached)
 	}
 }
 

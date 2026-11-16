@@ -80,6 +80,42 @@ const (
 	StateOutcomeUnknown CommandState = "outcome_unknown"
 )
 
+var ErrInvalidCommandTransition = errors.New("invalid relay command state transition")
+
+func (state CommandState) Terminal() bool {
+	return state == StateCompleted || state == StateFailed || state == StateOutcomeUnknown
+}
+
+// The command transition table is reserved→submitted, submitted→not_admitted
+// or a terminal result, and not_admitted→reserved for a proven-zero-delivery
+// retry. Terminal states do not transition.
+func (state CommandState) CanTransition(next CommandState) bool {
+	switch state {
+	case StateReserved:
+		return next == StateSubmitted
+	case StateSubmitted:
+		return next == StateNotAdmitted || next.Terminal()
+	case StateNotAdmitted:
+		return next == StateReserved
+	default:
+		return false
+	}
+}
+
+// Transition is the single policy owner for relay command state edges. Stores
+// call it before publishing a durable state update.
+func (record *CommandRecord) Transition(next CommandState) error {
+	if record == nil || !record.State.CanTransition(next) {
+		from := CommandState("")
+		if record != nil {
+			from = record.State
+		}
+		return fmt.Errorf("%w: %s -> %s", ErrInvalidCommandTransition, from, next)
+	}
+	record.State = next
+	return nil
+}
+
 type CommandRecord struct {
 	CommandID string
 	Request   Request

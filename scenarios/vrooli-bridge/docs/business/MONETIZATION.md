@@ -5,7 +5,6 @@ a monetizable Vrooli capability. Keep it honest: Vrooli Bridge is
 infrastructure, not a directly-sold product in v1, and this document
 says so plainly while sketching the realistic future paid angle.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

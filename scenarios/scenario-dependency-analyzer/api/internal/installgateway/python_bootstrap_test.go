@@ -70,6 +70,30 @@ func TestResolveBootstrapsDeclaredResourceLockFromAuthoredInput(t *testing.T) {
 	}
 }
 
+func TestPythonBootstrapAcceptsExactPackageExtrasWithoutWideningVersion(t *testing.T) {
+	requirements, err := parsePythonBootstrapInput([]byte("msst[bs_roformer]==0.1.0\nimageio-ffmpeg==0.8.1\n"))
+	if err != nil {
+		t.Fatalf("exact resource extras should be accepted: %v", err)
+	}
+	if len(requirements) != 2 || requirements[0].Name != "msst" || requirements[0].Version != "0.1.0" {
+		t.Fatalf("base package/exact version were not recognized: %+v", requirements)
+	}
+	repo, root := bootstrapResource(t, "msst[bs_roformer]==0.1.0\nimageio-ffmpeg==0.8.1\n")
+	plan, err := resolvePythonBootstrap(root, "msst", "0.1.0")
+	if err != nil || plan == nil || plan.InputSHA256 == "" {
+		t.Fatalf("approved package trigger did not resolve against exact extras input: plan=%+v err=%v", plan, err)
+	}
+	_ = repo
+	for _, unsafe := range []string{"msst[bs_roformer]>=0.1.0", "msst[bs_roformer]==0.1.0; python_version<='3.12'", "msst[bs roformer]==0.1.0"} {
+		if _, err := parsePythonBootstrapInput([]byte(unsafe)); err == nil {
+			t.Errorf("unsafe or non-exact requirement accepted: %q", unsafe)
+		}
+	}
+	if _, err := parsePythonBootstrapInput([]byte("msst[bs_roformer]==0.1.0\nmsst[other]==1.0.23")); err == nil {
+		t.Fatal("same distribution with multiple extras declarations must be rejected as ambiguous")
+	}
+}
+
 func TestPythonBootstrapRejectsUnsafeOrAmbiguousInputs(t *testing.T) {
 	if _, err := parsePythonBootstrapInput([]byte("foo-bar==1.0\nfoobar==1.0")); err != nil {
 		t.Fatal("distinct Python distribution names collapsed:", err)
@@ -210,6 +234,12 @@ func TestPythonBootstrapPublishesOnlyValidatedNewLock(t *testing.T) {
 	t.Setenv("SDA_BOOTSTRAP_FIXTURE", "1")
 	argv := filepath.Join(bin, "argv.json")
 	t.Setenv("SDA_BOOTSTRAP_ARGV", argv)
+	diskPlan, err := PlanDiskAdmission(context.Background(), r)
+	if err != nil || diskPlan.Unsupported != "" || diskPlan.PythonLockStage == nil {
+		t.Fatalf("first-lock stage was not admitted: plan=%+v err=%v", diskPlan, err)
+	}
+	defer diskPlan.Release()
+	r.DiskPythonLockStage = diskPlan.PythonLockStage
 	if _, err := (ExecInstaller{}).Install(context.Background(), r); err != nil {
 		t.Fatal(err)
 	}

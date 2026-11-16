@@ -23,14 +23,14 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
 
   const navItems: AppShellNavItem[] = [
-    { id: "dashboard", href: "/", label: "Dashboard", icon: <LayoutGrid className="h-4 w-4" />, current: location.pathname === "/" },
-    { id: "profiles", href: "/profiles", label: "Profiles", icon: <Package className="h-4 w-4" />, current: location.pathname.startsWith("/profiles") },
-    { id: "analyze", href: "/analyze", label: "Analyze", icon: <FolderTree className="h-4 w-4" />, current: location.pathname.startsWith("/analyze") },
-    { id: "deployments", href: "/deployments", label: "Deployments", icon: <Rocket className="h-4 w-4" />, current: location.pathname.startsWith("/deployments") },
-    { id: "approvals", href: "/approvals", label: "Approvals", icon: <Shield className="h-4 w-4" />, current: location.pathname.startsWith("/approvals") },
-    { id: "evidence", href: "/evidence", label: "Evidence", icon: <FileCheck className="h-4 w-4" />, current: location.pathname.startsWith("/evidence") },
-    { id: "releases", href: "/releases", label: "Releases", icon: <Package className="h-4 w-4" />, current: location.pathname.startsWith("/releases") },
-    { id: "telemetry", href: "/telemetry", label: "Telemetry", icon: <Monitor className="h-4 w-4" />, current: location.pathname.startsWith("/telemetry") },
+    { id: "dashboard", href: "/", label: "Dashboard", shortLabel: "Home", icon: <LayoutGrid className="h-4 w-4" />, current: location.pathname === "/", mobile: true },
+    { id: "profiles", href: "/profiles", label: "Profiles", icon: <Package className="h-4 w-4" />, current: location.pathname.startsWith("/profiles"), mobile: false },
+    { id: "analyze", href: "/analyze", label: "Analyze", icon: <FolderTree className="h-4 w-4" />, current: location.pathname.startsWith("/analyze"), mobile: true },
+    { id: "deployments", href: "/deployments", label: "Deployments", shortLabel: "Deploy", icon: <Rocket className="h-4 w-4" />, current: location.pathname.startsWith("/deployments"), mobile: true },
+    { id: "approvals", href: "/approvals", label: "Approvals", icon: <Shield className="h-4 w-4" />, current: location.pathname.startsWith("/approvals"), mobile: false },
+    { id: "evidence", href: "/evidence", label: "Evidence", icon: <FileCheck className="h-4 w-4" />, current: location.pathname.startsWith("/evidence"), mobile: false },
+    { id: "releases", href: "/releases", label: "Releases", icon: <Package className="h-4 w-4" />, current: location.pathname.startsWith("/releases"), mobile: true },
+    { id: "telemetry", href: "/telemetry", label: "Telemetry", icon: <Monitor className="h-4 w-4" />, current: location.pathname.startsWith("/telemetry"), mobile: false },
   ];
 
   const renderLink = (item: AppShellNavItem, { href: _href, children, ...props }: AppShellLinkProps) => (
@@ -45,7 +45,7 @@ export function Layout({ children }: LayoutProps) {
       items={navItems}
       renderLink={renderLink}
       density="sidebar"
-      mobileNav="drawer"
+      mobileNav="menu-tabs"
       mainMode="scroll"
       sidebarStorageKey="deployment-manager.sidebar-width"
       navigationLabel="Primary navigation"

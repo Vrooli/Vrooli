@@ -20,7 +20,7 @@ func TestNewAppWiresEveryCommandDomain(t *testing.T) {
 	})
 	for _, domain := range []string{
 		"manifest", "bundle", "deployment", "redeploy", "preflight", "vps",
-		"inspect", "process", "edge", "secrets", "scenario", "task",
+		"inspect", "process", "edge", "secrets", "scenario", "task", "wallet-recovery",
 	} {
 		if !strings.Contains(output, domain) {
 			t.Errorf("help output does not list the %q domain", domain)
@@ -28,6 +28,20 @@ func TestNewAppWiresEveryCommandDomain(t *testing.T) {
 	}
 	if !strings.Contains(output, appName) {
 		t.Errorf("help output does not name the app %q", appName)
+	}
+}
+
+func TestWalletRecoverySubcommandsAreWiredThroughScenarioCLI(t *testing.T) {
+	app := newTestApp(t)
+	output := captureStdout(t, func() {
+		if err := app.Run([]string{"wallet-recovery", "--help"}); err != nil {
+			t.Fatalf("wallet-recovery help failed: %v", err)
+		}
+	})
+	for _, command := range []string{"rotate", "restore", "prove-after-restart"} {
+		if !strings.Contains(output, command) {
+			t.Errorf("wallet-recovery help omits %q: %s", command, output)
+		}
 	}
 }
 

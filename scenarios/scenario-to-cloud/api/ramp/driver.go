@@ -29,6 +29,41 @@ type Driver struct {
 
 // Execute implements deliveryramp.Driver.
 func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest) (deliveryramp.JourneyResult, error) {
+	resolved, err := resolveDriverJourney(d, request)
+	if err != nil {
+		return deliveryramp.JourneyResult{}, err
+	}
+	if d.Executor == nil {
+		resolved.result.Disposition = deliveryramp.DispositionUnavailable
+		resolved.result.DegradedReason = "no cell executor is configured"
+		return resolved.result, nil
+	}
+	requestKey := driverRequestKey(request.RunID, resolved.cell)
+	execution, execErr := d.Executor.Execute(ctx, ExecutionRequest{
+		DeploymentID: resolved.deploymentID, ReleaseDigest: resolved.releaseDigest,
+		CaseID: resolved.cell.CaseID, Lane: string(resolved.cell.Lane), RequestKey: requestKey,
+	})
+	record := evidenceFromExecution(resolved, request, execution)
+	classifyExecutionRecord(&record, execution, execErr, requestKey)
+	if d.Recorder != nil {
+		if err := d.Recorder.AppendEvidenceRecord(ctx, record); err != nil {
+			return deliveryramp.JourneyResult{}, fmt.Errorf("record cell evidence: %w", err)
+		}
+	}
+	return projectJourneyResult(resolved, record), nil
+}
+
+type resolvedDriverJourney struct {
+	now           time.Time
+	profile       *evidence.Profile
+	cell          evidence.CellID
+	deploymentID  string
+	releaseDigest string
+	targetKey     string
+	result        deliveryramp.JourneyResult
+}
+
+func resolveDriverJourney(d Driver, request deliveryramp.DriverRequest) (resolvedDriverJourney, error) {
 	now := time.Now().UTC()
 	if d.Now != nil {
 		now = d.Now().UTC()
@@ -37,55 +72,60 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 	if profile == nil {
 		loaded, err := evidence.LoadProfile(evidence.ProfileCloudLaunchV1)
 		if err != nil {
-			return deliveryramp.JourneyResult{}, err
+			return resolvedDriverJourney{}, err
 		}
 		profile = loaded
 	}
 	cell, err := evidence.ParseCellID(request.Cell.ID)
 	if err != nil {
-		return deliveryramp.JourneyResult{}, err
+		return resolvedDriverJourney{}, err
 	}
 	if !profile.Contains(cell) {
-		return deliveryramp.JourneyResult{}, fmt.Errorf("cell %s is not part of profile %s", cell, profile.ID)
+		return resolvedDriverJourney{}, fmt.Errorf("cell %s is not part of profile %s", cell, profile.ID)
 	}
 	deploymentID := strings.TrimSpace(request.Artifact.Metadata["deployment_id"])
 	if deploymentID == "" {
-		return deliveryramp.JourneyResult{}, fmt.Errorf("driver request artifact does not name a deployment")
+		return resolvedDriverJourney{}, fmt.Errorf("driver request artifact does not name a deployment")
 	}
 	releaseDigest := ReleaseDigestFromRef(request.Artifact.ImmutableRef)
 	if releaseDigest == "" {
-		return deliveryramp.JourneyResult{}, fmt.Errorf("driver request artifact has no release digest")
+		return resolvedDriverJourney{}, fmt.Errorf("driver request artifact has no release digest")
 	}
 	targetKey := strings.TrimSpace(request.Cell.Target.ID)
 	if targetKey == "" {
-		return deliveryramp.JourneyResult{}, fmt.Errorf("driver request cell has no target")
+		return resolvedDriverJourney{}, fmt.Errorf("driver request cell has no target")
 	}
 	result := deliveryramp.JourneyResult{
 		SchemaVersion: deliveryramp.JourneySchemaVersion, EvidenceVersion: deliveryramp.JourneyEvidenceVersion,
 		SmokeTestID: request.RunID, Capability: PlanCapability, PlanID: request.Plan.ID, Profile: profile.ID, Platform: "vps",
 		TargetID: targetKey, CellID: request.Cell.ID, CreatedAt: now,
 	}
-	if d.Executor == nil {
-		result.Disposition = deliveryramp.DispositionUnavailable
-		result.DegradedReason = "no cell executor is configured"
-		return result, nil
-	}
-	requestKey := strings.TrimSpace(request.RunID)
+	return resolvedDriverJourney{now: now, profile: profile, cell: cell, deploymentID: deploymentID, releaseDigest: releaseDigest, targetKey: targetKey, result: result}, nil
+}
+
+func driverRequestKey(runID string, cell evidence.CellID) string {
+	requestKey := strings.TrimSpace(runID)
 	if requestKey == "" {
 		requestKey = uuid.New().String()
 	}
-	execution, execErr := d.Executor.Execute(ctx, ExecutionRequest{DeploymentID: deploymentID, ReleaseDigest: releaseDigest, CaseID: cell.CaseID, Lane: string(cell.Lane), RequestKey: requestKey + ":" + cell.String()})
-	step := deliveryramp.JourneyStep{ID: cell.String(), Name: cell.CaseID, Action: "qualify", StartedAt: now}
+	return requestKey + ":" + cell.String()
+}
+
+func evidenceFromExecution(resolved resolvedDriverJourney, request deliveryramp.DriverRequest, execution ExecutionResult) evidence.Record {
 	record := evidence.Record{
-		SchemaVersion: evidence.RecordSchemaVersion, ID: uuid.New().String(), ProfileID: profile.ID, CaseID: cell.CaseID, Lane: cell.Lane,
-		Binding:             evidence.Binding{ProducerRef: evidence.ProducerRef, DeploymentID: deploymentID, ReleaseDigest: releaseDigest, TargetKey: targetKey, OperationID: execution.OperationID},
+		SchemaVersion: evidence.RecordSchemaVersion, ID: uuid.New().String(), ProfileID: resolved.profile.ID, CaseID: resolved.cell.CaseID, Lane: resolved.cell.Lane,
+		Binding:             evidence.Binding{ProducerRef: evidence.ProducerRef, DeploymentID: resolved.deploymentID, ReleaseDigest: resolved.releaseDigest, TargetKey: resolved.targetKey, OperationID: execution.OperationID},
 		ConfigurationDigest: request.Artifact.Metadata["configuration_digest"],
 		ReceiptRefs:         append([]string(nil), execution.ReceiptRefs...), Assertions: append([]string(nil), execution.Assertions...),
-		ObservedAt: execution.CompletedAt, RecordedAt: now,
+		ObservedAt: execution.CompletedAt, RecordedAt: resolved.now,
 	}
 	if record.ObservedAt.IsZero() {
-		record.ObservedAt = now
+		record.ObservedAt = resolved.now
 	}
+	return record
+}
+
+func classifyExecutionRecord(record *evidence.Record, execution ExecutionResult, execErr error, requestKey string) {
 	switch {
 	case execErr != nil:
 		record.Disposition = evidence.DispositionUnavailable
@@ -109,20 +149,19 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 		record.Disposition = evidence.DispositionUnavailable
 		record.Reason = fmt.Sprintf("owner pipeline reported unknown disposition %q", execution.Outcome)
 	}
-	if d.Recorder != nil {
-		if err := d.Recorder.AppendEvidenceRecord(ctx, record); err != nil {
-			return deliveryramp.JourneyResult{}, fmt.Errorf("record cell evidence: %w", err)
-		}
-	}
+}
+
+func projectJourneyResult(resolved resolvedDriverJourney, record evidence.Record) deliveryramp.JourneyResult {
+	step := deliveryramp.JourneyStep{ID: resolved.cell.String(), Name: resolved.cell.CaseID, Action: "qualify", StartedAt: resolved.now}
 	step.CompletedAt = record.ObservedAt
 	step.ObservedState = string(record.Disposition)
 	step.ExpectedState = string(evidence.DispositionPassed)
-	step.AssertionID = cell.CaseID
+	step.AssertionID = resolved.cell.CaseID
 	step.AssertionStatus = string(record.Disposition)
 	for _, ref := range record.ReceiptRefs {
-		step.Evidence = append(step.Evidence, deliveryramp.EvidenceReference{ID: ref, Kind: "target-receipt", URI: "receipt://" + ref, Checksum: "sha256:" + strings.TrimPrefix(releaseDigest, "sha256:"), Redacted: true})
+		step.Evidence = append(step.Evidence, deliveryramp.EvidenceReference{ID: ref, Kind: "target-receipt", URI: "receipt://" + ref, Checksum: "sha256:" + strings.TrimPrefix(resolved.releaseDigest, "sha256:"), Redacted: true})
 	}
-	step.Evidence = append(step.Evidence, deliveryramp.EvidenceReference{ID: record.ID, Kind: "evidence-record", URI: "evidence://" + record.ID, Checksum: "sha256:" + strings.TrimPrefix(releaseDigest, "sha256:"), Redacted: true})
+	step.Evidence = append(step.Evidence, deliveryramp.EvidenceReference{ID: record.ID, Kind: "evidence-record", URI: "evidence://" + record.ID, Checksum: "sha256:" + strings.TrimPrefix(resolved.releaseDigest, "sha256:"), Redacted: true})
 	switch record.Disposition {
 	case evidence.DispositionPassed:
 		step.Disposition = deliveryramp.StepPassed
@@ -136,13 +175,13 @@ func (d Driver) Execute(ctx context.Context, request deliveryramp.DriverRequest)
 		step.Disposition = deliveryramp.StepUnavailable
 		step.DegradedReason = record.Reason
 	}
-	result.Steps = []deliveryramp.JourneyStep{step}
-	result.Disposition = record.Disposition.ToRamp()
-	if result.Disposition != deliveryramp.DispositionPass {
-		result.DegradedReason = record.Reason
+	resolved.result.Steps = []deliveryramp.JourneyStep{step}
+	resolved.result.Disposition = record.Disposition.ToRamp()
+	if resolved.result.Disposition != deliveryramp.DispositionPass {
+		resolved.result.DegradedReason = record.Reason
 	}
-	result.CompletedAt = record.ObservedAt
-	return result, nil
+	resolved.result.CompletedAt = record.ObservedAt
+	return resolved.result
 }
 
 var _ deliveryramp.Driver = Driver{}

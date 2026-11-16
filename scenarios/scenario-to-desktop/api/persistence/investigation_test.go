@@ -292,56 +292,26 @@ func TestGetActive(t *testing.T) {
 }
 
 // =============================================================================
-// UPDATE
-// =============================================================================
-
-func TestUpdate(t *testing.T) {
-	t.Run("modifies investigation and updates timestamp", func(t *testing.T) {
-		s := newTestStoreMemory(t)
-		inv := newInvestigation("upd-1", "pipe-A", domain.InvestigationStatusPending)
-		require.NoError(t, s.Create(inv))
-
-		originalUpdated := inv.UpdatedAt
-		time.Sleep(time.Millisecond) // Ensure time passes
-
-		err := s.Update("upd-1", func(inv *domain.Investigation) {
-			inv.Progress = 50
-		})
-		require.NoError(t, err)
-
-		got, _ := s.Get("upd-1")
-		assert.Equal(t, 50, got.Progress)
-		assert.True(t, got.UpdatedAt.After(originalUpdated) || got.UpdatedAt.Equal(originalUpdated))
-	})
-
-	t.Run("returns error for missing ID", func(t *testing.T) {
-		s := newTestStoreMemory(t)
-		err := s.Update("nonexistent", func(inv *domain.Investigation) {})
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "not found")
-	})
-}
-
-// =============================================================================
 // UPDATE STATUS
 // =============================================================================
 
 func TestUpdateStatus(t *testing.T) {
 	tests := []struct {
 		name         string
+		fromStatus   domain.InvestigationStatus
 		newStatus    domain.InvestigationStatus
 		wantComplete bool
 	}{
-		{"to running (no CompletedAt)", domain.InvestigationStatusRunning, false},
-		{"to completed (sets CompletedAt)", domain.InvestigationStatusCompleted, true},
-		{"to failed (sets CompletedAt)", domain.InvestigationStatusFailed, true},
-		{"to cancelled (sets CompletedAt)", domain.InvestigationStatusCancelled, true},
+		{"to running (no CompletedAt)", domain.InvestigationStatusPending, domain.InvestigationStatusRunning, false},
+		{"to completed (sets CompletedAt)", domain.InvestigationStatusRunning, domain.InvestigationStatusCompleted, true},
+		{"to failed (sets CompletedAt)", domain.InvestigationStatusRunning, domain.InvestigationStatusFailed, true},
+		{"to cancelled (sets CompletedAt)", domain.InvestigationStatusPending, domain.InvestigationStatusCancelled, true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			s := newTestStoreMemory(t)
-			require.NoError(t, s.Create(newInvestigation("s-"+string(tc.newStatus), "pipe", domain.InvestigationStatusPending)))
+			require.NoError(t, s.Create(newInvestigation("s-"+string(tc.newStatus), "pipe", tc.fromStatus)))
 
 			err := s.UpdateStatus("s-"+string(tc.newStatus), tc.newStatus)
 			require.NoError(t, err)
@@ -356,6 +326,18 @@ func TestUpdateStatus(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateStatusRejectsInvalidTransitionsWithoutPersisting(t *testing.T) {
+	s := newTestStoreMemory(t)
+	require.NoError(t, s.Create(newInvestigation("terminal", "pipe", domain.InvestigationStatusCompleted)))
+
+	err := s.UpdateStatus("terminal", domain.InvestigationStatusRunning)
+	require.Error(t, err)
+
+	got, getErr := s.Get("terminal")
+	require.NoError(t, getErr)
+	assert.Equal(t, domain.InvestigationStatusCompleted, got.Status)
 }
 
 // =============================================================================

@@ -5,7 +5,6 @@ otherwise have to be rediscovered. A decision belongs here when reversing
 it would be expensive or when a future agent would plausibly re-litigate
 it.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

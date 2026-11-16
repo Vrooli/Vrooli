@@ -4,11 +4,11 @@
 
 Measurement record. Read-only investigation; no repository files were changed to
 produce it. This document is the **authoritative evidence source** for the
-implementation plan that follows from it. A rendered HTML version of the same
-material is preserved beneath the protected runtime home at
+implementation plan that follows from it. A rendered HTML copy is retained at
 `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-dependency-analyzer/docs/perf/2026-08-23-sda-freshness-cost.html`
-(published copy: `https://claude.ai/code/artifact/6c0fd1a7-b430-45e5-84e2-e8729b4d5bcd`).
-Read the markdown; the HTML is the same content with a stylesheet.
+(published copy: `https://claude.ai/code/artifact/6c0fd1a7-b430-45e5-84e2-e8729b4d5bcd`); see the
+[runtime-home retention contract](../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract)
+for archive custody. Read the Markdown; the HTML adds only a stylesheet.
 
 ## Scope
 

@@ -6,10 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
-
-	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 func TestManifestValidateRejectsNonLoopbackIPCHost(t *testing.T) {
@@ -524,55 +523,40 @@ func TestPlatformAlias(t *testing.T) {
 // =============================================================================
 
 func TestResolveBinary(t *testing.T) {
-	m := &Manifest{}
-	svc := Service{
-		ID: "api",
-		Binaries: map[string]Binary{
-			"linux-x64":   {Path: "bin/api-linux"},
-			"darwin-x64":  {Path: "bin/api-darwin"},
-			"windows-x64": {Path: "bin/api.exe"},
-		},
+	keys := PlatformKeys(runtime.GOOS, runtime.GOARCH)
+	primary, alias := keys[0], ""
+	if len(keys) > 1 {
+		alias = keys[1]
 	}
-
-	// This test is platform-dependent, so just verify it returns something
-	bin, found := m.ResolveBinary(svc)
-	if !found {
-		repocontracttest.SkipPlatform(t, "No binary for current platform, skipping")
-	}
-	if bin.Path == "" {
-		t.Error("ResolveBinary() returned empty path")
-	}
-}
-
-func TestResolveBinary_NotFound(t *testing.T) {
-	m := &Manifest{}
-	svc := Service{
-		ID: "api",
-		Binaries: map[string]Binary{
-			"freebsd-amd64": {Path: "bin/api-freebsd"},
-		},
-	}
-
-	_, found := m.ResolveBinary(svc)
-	// May or may not find depending on platform, just verify no panic
-	_ = found
-}
-
-func TestResolveBinary_UsesAlias(t *testing.T) {
-	m := &Manifest{}
-
-	// If on darwin, should find mac-arm64 as alias
-	svc := Service{
-		ID: "api",
-		Binaries: map[string]Binary{
-			"mac-arm64": {Path: "bin/api-mac"},
-			"win-x64":   {Path: "bin/api.exe"},
-		},
-	}
-
-	// This is platform-dependent
-	_, _ = m.ResolveBinary(svc)
-	// Just verify no panic
+	manifest := &Manifest{}
+	t.Run("primary wins over alias", func(t *testing.T) {
+		service := Service{Binaries: map[string]Binary{
+			primary: {Path: "bin/current-platform"},
+		}}
+		if alias != "" {
+			service.Binaries[alias] = Binary{Path: "bin/legacy-alias"}
+		}
+		got, found := manifest.ResolveBinary(service)
+		if !found || got.Path != "bin/current-platform" {
+			t.Fatalf("ResolveBinary() = (%#v, %t), want primary binary", got, found)
+		}
+	})
+	t.Run("alias is fallback", func(t *testing.T) {
+		if alias == "" {
+			t.Skip("current platform has no compatibility alias")
+		}
+		got, found := manifest.ResolveBinary(Service{Binaries: map[string]Binary{
+			alias: {Path: "bin/legacy-alias"},
+		}})
+		if !found || got.Path != "bin/legacy-alias" {
+			t.Fatalf("ResolveBinary() = (%#v, %t), want alias binary", got, found)
+		}
+	})
+	t.Run("unavailable binary returns false", func(t *testing.T) {
+		if got, found := manifest.ResolveBinary(Service{}); found {
+			t.Fatalf("ResolveBinary() = (%#v, true), want no binary for empty service", got)
+		}
+	})
 }
 
 // =============================================================================
@@ -630,62 +614,24 @@ func TestGPURequirement(t *testing.T) {
 // ResolvePath Tests
 // =============================================================================
 
-func TestResolvePathNormalizesWindowsSeparators(t *testing.T) {
+func TestResolvePathNormalizesRelativePaths(t *testing.T) {
 	bundleDir := "/opt/app/bundle"
-	rel := `resources\playwright\chromium\chrome.exe`
-
-	got := ResolvePath(bundleDir, rel)
-	want := filepath.Join(bundleDir, "resources", "playwright", "chromium", "chrome.exe")
-
-	if got != want {
-		t.Fatalf("ResolvePath() = %q, want %q", got, want)
-	}
-}
-
-func TestResolvePath_UnixSeparators(t *testing.T) {
-	bundleDir := "/opt/app/bundle"
-	rel := "resources/data/config.json"
-
-	got := ResolvePath(bundleDir, rel)
-	want := filepath.Join(bundleDir, "resources", "data", "config.json")
-
-	if got != want {
-		t.Errorf("ResolvePath() = %q, want %q", got, want)
-	}
-}
-
-func TestResolvePath_EmptyRel(t *testing.T) {
-	bundleDir := "/opt/app/bundle"
-
-	got := ResolvePath(bundleDir, "")
-	want := filepath.Join(bundleDir, ".")
-
-	if got != want {
-		t.Errorf("ResolvePath() = %q, want %q", got, want)
-	}
-}
-
-func TestResolvePath_DotPath(t *testing.T) {
-	bundleDir := "/opt/app/bundle"
-	rel := "./config/app.json"
-
-	got := ResolvePath(bundleDir, rel)
-	want := filepath.Join(bundleDir, "config", "app.json")
-
-	if got != want {
-		t.Errorf("ResolvePath() = %q, want %q", got, want)
-	}
-}
-
-func TestResolvePath_MixedSeparators(t *testing.T) {
-	bundleDir := "/opt/app/bundle"
-	rel := `resources/playwright\browsers/chromium`
-
-	got := ResolvePath(bundleDir, rel)
-	want := filepath.Join(bundleDir, "resources", "playwright", "browsers", "chromium")
-
-	if got != want {
-		t.Errorf("ResolvePath() = %q, want %q", got, want)
+	for _, test := range []struct {
+		name string
+		rel  string
+		want string
+	}{
+		{"Windows separators", `resources\playwright\chromium\chrome.exe`, filepath.Join(bundleDir, "resources", "playwright", "chromium", "chrome.exe")},
+		{"Unix separators", "resources/data/config.json", filepath.Join(bundleDir, "resources", "data", "config.json")},
+		{"empty path", "", bundleDir},
+		{"dot path", "./config/app.json", filepath.Join(bundleDir, "config", "app.json")},
+		{"mixed separators", `resources/playwright\browsers/chromium`, filepath.Join(bundleDir, "resources", "playwright", "browsers", "chromium")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ResolvePath(bundleDir, test.rel); got != test.want {
+				t.Fatalf("ResolvePath(%q) = %q, want %q", test.rel, got, test.want)
+			}
+		})
 	}
 }
 

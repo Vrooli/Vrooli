@@ -31,8 +31,9 @@ const (
 	toolQEMUImg     = "qemu-img"
 	toolCloudLocal  = "cloud-localds"
 	ownerQEMU       = "qemu"
+	ownerQEMUARM    = "qemu-arm"
 	ownerCloudLocal = "cloud-localds"
-	setupReference  = "vrooli setup --scenarios scenario-to-cloud"
+	setupReference  = "docs/guides/qemu-qualification.md#operator-steps"
 )
 
 // Architecture names use the Go/OCI vocabulary.
@@ -149,15 +150,21 @@ type ReadinessOptions struct {
 // an error: a host that cannot run the lane is a valid, explicitly not-ready
 // answer.
 func Readiness(ctx context.Context, opts ReadinessOptions) LaneReadiness {
-	lookPath := opts.LookPath
-	if lookPath == nil {
-		lookPath = defaultLookPath
-	}
-	hostArch := opts.HostArchitecture
+	report := initialReadiness(opts.HostArchitecture)
+	present := inspectHostTools(&report, opts.LookPath)
+	inspectAcceleration(&report, opts.KVMDevice, present)
+	manifestPath := readinessManifestPath(opts.ImageManifestPath)
+	report.ImageManifest, report.Images = loadImages(ctx, manifestPath, opts.VerifyImages)
+	missingTools := collectReadinessLimitations(&report, present)
+	finalizeReadiness(&report, len(missingTools) == 0)
+	return report
+}
+
+func initialReadiness(hostArch string) LaneReadiness {
 	if hostArch == "" {
 		hostArch = goArchToOCI(runtime.GOARCH)
 	}
-	report := LaneReadiness{
+	return LaneReadiness{
 		Provider:         (LocalQEMUProvider{}).Name(),
 		State:            ReadinessUnavailable,
 		HostArchitecture: hostArch,
@@ -165,8 +172,14 @@ func Readiness(ctx context.Context, opts ReadinessOptions) LaneReadiness {
 		Limitations:      []string{},
 		Images:           []ImageRecord{},
 	}
+}
+
+func inspectHostTools(report *LaneReadiness, lookPath func(string) (string, error)) map[string]bool {
+	if lookPath == nil {
+		lookPath = defaultLookPath
+	}
 	tools := []struct{ name, owner string }{
-		{toolQEMUAMD64, ownerQEMU}, {toolQEMUARM64, ownerQEMU}, {toolQEMUImg, ownerQEMU}, {toolCloudLocal, ownerCloudLocal},
+		{toolQEMUAMD64, ownerQEMU}, {toolQEMUARM64, ownerQEMUARM}, {toolQEMUImg, ownerQEMU}, {toolCloudLocal, ownerCloudLocal},
 	}
 	present := map[string]bool{}
 	for _, tool := range tools {
@@ -177,28 +190,33 @@ func Readiness(ctx context.Context, opts ReadinessOptions) LaneReadiness {
 		present[tool.name] = entry.Present
 		report.Tools = append(report.Tools, entry)
 	}
+	return present
+}
 
-	kvmDevice := opts.KVMDevice
+func inspectAcceleration(report *LaneReadiness, kvmDevice string, present map[string]bool) {
 	if kvmDevice == "" {
 		kvmDevice = "/dev/kvm"
 	}
 	report.KVMAvailable, report.KVMDetail = kvmUsable(kvmDevice)
+	report.Architectures[ArchAMD64] = architectureState(present[toolQEMUAMD64], report.HostArchitecture == ArchAMD64 && report.KVMAvailable)
+	report.Architectures[ArchARM64] = architectureState(present[toolQEMUARM64], report.HostArchitecture == ArchARM64 && report.KVMAvailable)
+}
 
-	report.Architectures[ArchAMD64] = architectureState(present[toolQEMUAMD64], hostArch == ArchAMD64 && report.KVMAvailable)
-	report.Architectures[ArchARM64] = architectureState(present[toolQEMUARM64], hostArch == ArchARM64 && report.KVMAvailable)
-
-	manifestPath := opts.ImageManifestPath
+func readinessManifestPath(path string) string {
+	manifestPath := path
 	if manifestPath == "" {
 		manifestPath = strings.TrimSpace(os.Getenv(ImageManifestEnv))
 	}
 	if manifestPath == "" {
 		manifestPath = DefaultImageManifestPath
 	}
-	report.ImageManifest, report.Images = loadImages(ctx, manifestPath, opts.VerifyImages)
+	return manifestPath
+}
 
+func collectReadinessLimitations(report *LaneReadiness, present map[string]bool) []string {
 	missingTools := []string{}
 	for _, tool := range report.Tools {
-		if !tool.Present && tool.Name != toolQEMUARM64 {
+		if !tool.Present {
 			missingTools = append(missingTools, tool.Name+" (hostTools."+tool.DeclaredOwner+")")
 		}
 	}
@@ -208,11 +226,15 @@ func Readiness(ctx context.Context, opts ReadinessOptions) LaneReadiness {
 	if !present[toolQEMUARM64] {
 		report.Limitations = append(report.Limitations, "arm64 lane unavailable (EXT-05): "+toolQEMUARM64+" absent; arm64 needs TCG emulation on this host or an arm64 host")
 	} else if report.Architectures[ArchARM64] == ArchStateTCG {
-		report.Limitations = append(report.Limitations, "arm64 lane runs under TCG emulation on this "+hostArch+" host (slow; budgets from certification/budgets.json still apply)")
+		report.Limitations = append(report.Limitations, "arm64 lane runs under TCG emulation on this "+report.HostArchitecture+" host (slow; budgets from certification/budgets.json still apply)")
 	}
 	if !report.KVMAvailable {
 		report.Limitations = append(report.Limitations, "KVM not usable: "+report.KVMDetail+"; the native architecture falls back to TCG")
 	}
+	return missingTools
+}
+
+func finalizeReadiness(report *LaneReadiness, hasTools bool) {
 	usableImages := 0
 	for _, image := range report.Images {
 		if image.Present && image.DigestState != "mismatch" {
@@ -225,13 +247,12 @@ func Readiness(ctx context.Context, opts ReadinessOptions) LaneReadiness {
 		report.Limitations = append(report.Limitations, "no recorded base image is readable with a matching digest")
 	}
 
-	report.NextAction = nextAction(len(missingTools) > 0, len(report.Images) == 0, usableImages == 0, report.ImageManifest.Path)
-	report.Ready = len(missingTools) == 0 && usableImages > 0
+	report.NextAction = nextAction(!hasTools, len(report.Images) == 0, usableImages == 0, report.ImageManifest.Path)
+	report.Ready = hasTools && usableImages > 0
 	if report.Ready {
 		report.State = ReadinessReady
 	}
 	sort.Strings(report.Limitations)
-	return report
 }
 
 // Readiness reports the lane readiness through the provider's seams.
@@ -242,7 +263,7 @@ func (p LocalQEMUProvider) Readiness(ctx context.Context) LaneReadiness {
 func nextAction(toolsMissing, noImages, noUsableImage bool, manifestPath string) NextAction {
 	switch {
 	case toolsMissing:
-		return NextAction{Owner: "operator", Kind: "host_setup", Reference: setupReference, Label: "Install the declared host tools qemu and cloud-localds through vrooli setup (the sole elevation boundary; EXT-06)"}
+		return NextAction{Owner: "operator", Kind: "host_setup", Reference: setupReference, Label: "Review and install the declared host tools qemu, qemu-arm and cloud-localds with separate Vrooli host-install previews (EXT-06)"}
 	case noImages:
 		return NextAction{Owner: "operator", Kind: "record_image", Reference: manifestPath, Label: "Record an approved Ubuntu 24.04 base image path and sha256 per architecture in the image manifest"}
 	case noUsableImage:

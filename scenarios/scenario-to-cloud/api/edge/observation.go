@@ -55,7 +55,16 @@ func Observe(ctx context.Context, in ObserveInputs) domain.EdgeObservation {
 		now = time.Now()
 	}
 	now = now.UTC()
-	obs := domain.EdgeObservation{
+	obs := initialEdgeObservation(in, now)
+	var actions []domain.NextActionHint
+	allBound := observeRouteStates(ctx, in, now, &obs, &actions)
+	obs.Readiness = observeRouteReadiness(ctx, in, allBound)
+	obs.NextActions = dedupeActions(actions)
+	return obs
+}
+
+func initialEdgeObservation(in ObserveInputs, now time.Time) domain.EdgeObservation {
+	return domain.EdgeObservation{
 		SchemaVersion:    SchemaVersion,
 		DeploymentID:     in.Spec.DeploymentID,
 		Domain:           in.Spec.Domain,
@@ -68,8 +77,10 @@ func Observe(ctx context.Context, in ObserveInputs) domain.EdgeObservation {
 		ObservedAt:       now,
 		ProducerRef:      ProducerRef,
 	}
+}
+
+func observeRouteStates(ctx context.Context, in ObserveInputs, now time.Time, obs *domain.EdgeObservation, actions *[]domain.NextActionHint) bool {
 	allBound := len(in.Spec.Routes) > 0
-	var actions []domain.NextActionHint
 	for _, route := range in.Spec.Routes {
 		var observed []string
 		var lookupErr error
@@ -82,49 +93,65 @@ func Observe(ctx context.Context, in ObserveInputs) domain.EdgeObservation {
 		obs.DNS = append(obs.DNS, binding)
 		if !binding.Match {
 			allBound = false
-			actions = append(actions, NextActionDNS(in.Spec.DeploymentID))
+			*actions = append(*actions, NextActionDNS(in.Spec.DeploymentID))
 		}
-		facts := CertificateFacts{}
-		if in.Certificate != nil {
-			if got, err := in.Certificate(ctx, route.Host); err == nil {
-				facts = got
-			} else {
-				facts = CertificateFacts{Present: false, ValidationError: err.Error()}
-			}
-		}
+		facts := observeCertificate(ctx, in.Certificate, route.Host)
 		tlsState := ObserveTLS(route.Host, facts, in.Journal, now)
 		obs.TLS = append(obs.TLS, tlsState)
 		if warn, fail := TLSNeedsAttention(tlsState); warn || fail {
-			actions = append(actions, NextActionRenew(in.Spec.DeploymentID))
+			*actions = append(*actions, NextActionRenew(in.Spec.DeploymentID))
 		}
 	}
-	var localErr, externalErr error
+	return allBound
+}
+
+func observeCertificate(ctx context.Context, probe CertificateProbe, host string) CertificateFacts {
+	if probe == nil {
+		return CertificateFacts{}
+	}
+	facts, err := probe(ctx, host)
+	if err != nil {
+		return CertificateFacts{Present: false, ValidationError: err.Error()}
+	}
+	return facts
+}
+
+func observeRouteReadiness(ctx context.Context, in ObserveInputs, allBound bool) domain.EdgeReadiness {
 	localChecked, externalChecked := in.Local != nil, in.External != nil
-	if localChecked {
-		for _, route := range in.Spec.Routes {
-			if err := in.Local(ctx, route.Host, route.UpstreamPort); err != nil {
-				localErr = err
-				break
-			}
-		}
-	}
-	if externalChecked && allBound {
-		for _, route := range in.Spec.Routes {
-			if err := in.External(ctx, route.Host, 443); err != nil {
-				externalErr = err
-				break
-			}
-		}
-	}
-	obs.Readiness = Readiness(localErr, externalErr, allBound)
+	localErr := probeLocalRoutes(ctx, in.Local, in.Spec.Routes)
+	externalErr := probeExternalRoutes(ctx, in.External, in.Spec.Routes, allBound)
+	readiness := Readiness(localErr, externalErr, allBound)
 	if !localChecked {
-		obs.Readiness.Local = domain.EdgeReadinessCheck{Status: "not_checked"}
+		readiness.Local = domain.EdgeReadinessCheck{Status: "not_checked"}
 	}
 	if !externalChecked && allBound {
-		obs.Readiness.External = domain.EdgeReadinessCheck{Status: "not_checked"}
+		readiness.External = domain.EdgeReadinessCheck{Status: "not_checked"}
 	}
-	obs.NextActions = dedupeActions(actions)
-	return obs
+	return readiness
+}
+
+func probeLocalRoutes(ctx context.Context, probe ReadinessProbe, routes []domain.EdgeRoute) error {
+	if probe == nil {
+		return nil
+	}
+	for _, route := range routes {
+		if err := probe(ctx, route.Host, route.UpstreamPort); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func probeExternalRoutes(ctx context.Context, probe ReadinessProbe, routes []domain.EdgeRoute, allBound bool) error {
+	if probe == nil || !allBound {
+		return nil
+	}
+	for _, route := range routes {
+		if err := probe(ctx, route.Host, 443); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func dedupeActions(in []domain.NextActionHint) []domain.NextActionHint {

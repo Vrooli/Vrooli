@@ -190,9 +190,13 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 	if op, getErr := s.repo.Get(ctx, opID); getErr == nil && op.CorrelationID != "" {
 		correlationID = op.CorrelationID
 	}
+	pairingScopes := s.defaultScopes
+	if in.PairingScopesSet {
+		pairingScopes = in.PairingScopes
+	}
 	code, err := s.issuer.Issue(ctx, IssueParams{
 		NodeName:      in.NodeName,
-		Scopes:        append([]string(nil), s.defaultScopes...),
+		Scopes:        append([]string(nil), pairingScopes...),
 		CorrelationID: correlationID,
 	})
 	if err != nil {
@@ -212,7 +216,7 @@ func (s *service) runOnboarding(ctx context.Context, opID string, in StartInput)
 		s.handleMarker(ctx, opID, &seq, m)
 	}
 	res, runErr := s.driver.RunBootstrap(ctx, RunParams{
-		Conn: conn, RemotePath: remotePath, Platform: platform, Args: buildBootstrapArgsForScopes(in, wtSourceDir, wtDigest, remoteArtifacts, s.defaultScopes), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
+		Conn: conn, RemotePath: remotePath, Platform: platform, Args: buildBootstrapArgsForScopes(in, wtSourceDir, wtDigest, remoteArtifacts, pairingScopes), PairingCode: code, SetupPassphrase: in.SetupPassphrase,
 	}, onMarker)
 	// The code has served its one purpose — destroy our copy immediately.
 	zeroBytes(code)

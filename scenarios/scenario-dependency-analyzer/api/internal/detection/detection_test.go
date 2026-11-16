@@ -1,6 +1,7 @@
 package detection
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,8 +15,14 @@ func TestResourceHeuristicsPreserveCaseFoldingAndRejectAbsentNames(t *testing.T)
 		source, resource string
 		found            bool
 	}{
+		{"resource-postgres", "postgres", true},
+		{"resource-postgresx", "postgres", false},
+		{"mypostgres://database", "postgres", false},
 		{"POSTGRES_HOST=database", "postgres", true},
+		{"XPOSTGRES_HOST=database", "postgres", false},
 		{"https://POSTGRES:5432", "postgres", true},
+		{"httpſ://example.test/poſtgres/", "postgres", true},
+		{"https://example.test/postgresapi", "postgres", false},
 		{"poſtgres://database", "postgres", true},
 		{"sErViCe://host", "ſervice", true},
 		{"application source without a resource reference", "postgres", false},
@@ -293,6 +300,40 @@ PGHOST=localhost
 
 	// The scanner should find resource references (may or may not depending on catalog state)
 	t.Logf("Found %d resource dependencies", len(deps))
+}
+
+func TestResourceScanUsesCurrentCatalogForEachRun(t *testing.T) {
+	root := t.TempDir()
+	apiDir := filepath.Join(root, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(`package main
+var dsn = "postgres://localhost/app"
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	catalog := &catalogManager{loaded: true, knownResources: map[string]struct{}{"postgres": {}}}
+	scanner := newResourceScanner(catalog)
+	first, err := scanner.scanContext(context.Background(), root, "fixture", nil)
+	if err != nil {
+		t.Fatalf("first scan: %v", err)
+	}
+	if len(first) != 1 || first[0].DependencyName != "postgres" {
+		t.Fatalf("first scan should detect postgres, got %#v", first)
+	}
+
+	catalog.mu.Lock()
+	catalog.knownResources = map[string]struct{}{"redis": {}}
+	catalog.mu.Unlock()
+	second, err := scanner.scanContext(context.Background(), root, "fixture", nil)
+	if err != nil {
+		t.Fatalf("second scan: %v", err)
+	}
+	if len(second) != 0 {
+		t.Fatalf("second scan should reflect the refreshed catalog, got %#v", second)
+	}
 }
 
 func TestScenarioURLResolverDetectionRequiresCanonicalImportedResolverAndLiteralKnownTarget(t *testing.T) {

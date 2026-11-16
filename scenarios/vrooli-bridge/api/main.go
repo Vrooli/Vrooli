@@ -1075,7 +1075,7 @@ func main() {
 		// SSH. Owns its durable op tables; drives SSH first-touch + SCP + remote
 		// bootstrap (streamed VBOOTSTRAP markers), issues the pairing code
 		// server-side (pairingSvc), and confirms the node ONLINE (presenceHub).
-		onboardH.Module(onboardSvc, db, clk, sshSvc, logger),
+		onboardH.Module(onboardSvc, db, clk, sshSvc, registrySvc, logger),
 		// fleet (OT-P1-001): fleet-wide version roll. Enumerates nodes
 		// (registrySvc), gates on presence + protocol compatibility (presenceHub),
 		// and dispatches a privileged provisioning op per eligible node by

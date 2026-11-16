@@ -21,11 +21,13 @@ func TestSQLRepositoryStatusAndPlatformUpdates(t *testing.T) {
 	defer db.Close()
 	repo := NewSQLRepository(db)
 	ctx := context.Background()
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE releases SET status = $2, updated_at = $3 WHERE id = $1")).WithArgs("r1", StatusPublishing, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT status FROM releases WHERE id = $1")).WithArgs("r1").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow(StatusPending))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE releases SET status = $2, updated_at = $3 WHERE id = $1 AND status = $4")).WithArgs("r1", StatusPublishing, sqlmock.AnyArg(), StatusPending).WillReturnResult(sqlmock.NewResult(0, 1))
 	if err := repo.UpdateStatus(ctx, "r1", StatusPublishing); err != nil {
 		t.Fatalf("status: %v", err)
 	}
-	mock.ExpectExec(regexp.QuoteMeta("UPDATE releases\n\t\t\tSET status = $2, updated_at = $3, published_at = COALESCE(published_at, $3)\n\t\t\tWHERE id = $1")).WithArgs("r1", StatusPublished, sqlmock.AnyArg()).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT status FROM releases WHERE id = $1")).WithArgs("r1").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow(StatusPublishing))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE releases SET status = $2, updated_at = $3, published_at = COALESCE(published_at, $3) WHERE id = $1 AND status = $4")).WithArgs("r1", StatusPublished, sqlmock.AnyArg(), StatusPublishing).WillReturnResult(sqlmock.NewResult(0, 1))
 	if err := repo.UpdateStatus(ctx, "r1", StatusPublished); err != nil {
 		t.Fatalf("published status: %v", err)
 	}
@@ -54,6 +56,62 @@ func TestSQLRepositoryStatusAndPlatformUpdates(t *testing.T) {
 	mock.ExpectExec(regexp.QuoteMeta("UPDATE releases")).WithArgs("p1", "stable", "r2", StatusSuperseded, StatusPublished).WillReturnResult(sqlmock.NewResult(0, 1))
 	if err := repo.MarkSuperseded(ctx, "p1", "stable", "r2"); err != nil {
 		t.Fatalf("supersede: %v", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReleaseStatusTransitionsRejectInvalidAndPreserveRecovery(t *testing.T) {
+	for _, tc := range []struct {
+		from, to string
+		wantErr  bool
+	}{
+		{StatusPending, StatusPublishing, false},
+		{StatusPublishing, StatusAmbiguous, false},
+		{StatusPublishing, StatusPublished, false},
+		{StatusFailed, StatusAmbiguous, false},
+		{StatusPublished, StatusVerifyFailed, false},
+		{StatusAmbiguous, StatusVerifyFailed, false},
+		{StatusPublished, StatusSuperseded, false},
+		{StatusSuperseded, StatusPublished, true},
+		{"unrecognized", StatusPublished, true},
+		{StatusPending, "unrecognized", true},
+	} {
+		err := ReleaseStatus(tc.from).ValidateTransition(ReleaseStatus(tc.to))
+		if (err != nil) != tc.wantErr {
+			t.Errorf("transition %q -> %q error = %v, wantErr %v", tc.from, tc.to, err, tc.wantErr)
+		}
+	}
+}
+
+func TestSQLRepositoryRejectsInvalidReleaseTransitionBeforeWrite(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	repo := NewSQLRepository(db)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT status FROM releases WHERE id = $1")).WithArgs("r1").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow(StatusSuperseded))
+	if err := repo.UpdateStatus(context.Background(), "r1", StatusPublished); err == nil {
+		t.Fatal("expected terminal release reopening to fail")
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSQLRepositoryRejectsStaleReleaseStatusWrite(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	repo := NewSQLRepository(db)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT status FROM releases WHERE id = $1")).WithArgs("r1").WillReturnRows(sqlmock.NewRows([]string{"status"}).AddRow(StatusPublishing))
+	mock.ExpectExec(regexp.QuoteMeta("UPDATE releases SET status = $2, updated_at = $3 WHERE id = $1 AND status = $4")).WithArgs("r1", StatusAmbiguous, sqlmock.AnyArg(), StatusPublishing).WillReturnResult(sqlmock.NewResult(0, 0))
+	if err := repo.UpdateStatus(context.Background(), "r1", StatusAmbiguous); err == nil {
+		t.Fatal("expected stale release transition to fail")
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)

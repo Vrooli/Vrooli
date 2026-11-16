@@ -329,6 +329,15 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 	if err != nil {
 		return nil, err
 	}
+	ownerScenario, err := s.serviceOwnerScenario(svc.ID)
+	if err != nil {
+		return nil, err
+	}
+	if ownerScenario != "" {
+		// A bundle may carry API binaries for peer scenarios. Those binaries
+		// need their own lifecycle and storage identity, not the root app's.
+		envMap["VROOLI_SCENARIO"] = ownerScenario
+	}
 	// Bind bundled local-auth consumers to the exact token path declared by the
 	// manifest. The runtime owns this value so a service cannot accidentally
 	// authenticate against a different file or fall back to its OS user.
@@ -362,6 +371,34 @@ func (s *Supervisor) prepareServiceEnv(ctx context.Context, svc manifest.Service
 	}
 
 	return envMap, nil
+}
+
+// serviceOwnerScenario resolves a bundled service to the scenario identity that
+// owns its lifecycle and storage. Peer services use the scenario prefix in the
+// service ID and must be declared by the bundle.
+func (s *Supervisor) serviceOwnerScenario(serviceID string) (string, error) {
+	if s.opts.Manifest == nil {
+		return "", fmt.Errorf("manifest is required to resolve service owner for %s", serviceID)
+	}
+	m := s.opts.Manifest
+	root := strings.TrimSpace(m.App.Scenario)
+	if !strings.Contains(serviceID, "--") {
+		return root, nil
+	}
+	owner := ""
+	for _, peer := range append(append([]manifest.Peer(nil), m.Peers...), m.ProgramBindingPeers...) {
+		scenario := strings.TrimSpace(peer.Scenario)
+		if scenario == "" || !strings.HasPrefix(serviceID, scenario+"--") {
+			continue
+		}
+		if len(scenario) > len(owner) {
+			owner = scenario
+		}
+	}
+	if owner == "" {
+		return "", fmt.Errorf("service %s has no declared scenario owner", serviceID)
+	}
+	return owner, nil
 }
 
 // monitorReadiness watches for service readiness in a background goroutine.

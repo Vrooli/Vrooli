@@ -40,12 +40,12 @@ func TestReadinessNamesSetupWhenToolsAreAbsent(t *testing.T) {
 	if report.Ready || report.State != ReadinessUnavailable {
 		t.Fatalf("report = %+v, want unavailable", report)
 	}
-	if report.NextAction.Kind != "host_setup" || !strings.Contains(report.NextAction.Reference, "vrooli setup") {
-		t.Fatalf("next action = %+v, want vrooli setup", report.NextAction)
+	if report.NextAction.Kind != "host_setup" || !strings.Contains(report.NextAction.Reference, "qemu-qualification") {
+		t.Fatalf("next action = %+v, want the QEMU qualification guide", report.NextAction)
 	}
 	err := report.Err()
-	if !errors.Is(err, ErrProviderUnavailable) || !strings.Contains(err.Error(), "vrooli setup") {
-		t.Fatalf("Err() = %v, want typed provider unavailable naming vrooli setup", err)
+	if !errors.Is(err, ErrProviderUnavailable) || !strings.Contains(err.Error(), "qemu-qualification") {
+		t.Fatalf("Err() = %v, want typed provider unavailable naming the QEMU qualification guide", err)
 	}
 	owners := map[string]string{}
 	for _, tool := range report.Tools {
@@ -54,7 +54,7 @@ func TestReadinessNamesSetupWhenToolsAreAbsent(t *testing.T) {
 		}
 		owners[tool.Name] = tool.DeclaredOwner
 	}
-	if owners["qemu-system-x86_64"] != "qemu" || owners["qemu-img"] != "qemu" || owners["cloud-localds"] != "cloud-localds" {
+	if owners["qemu-system-x86_64"] != "qemu" || owners["qemu-img"] != "qemu" || owners["qemu-system-aarch64"] != "qemu-arm" || owners["cloud-localds"] != "cloud-localds" {
 		t.Fatalf("declared owners = %v, want service.json hostTools names", owners)
 	}
 	if report.Architectures[ArchAMD64] != ArchStateUnavailable || report.Architectures[ArchARM64] != ArchStateUnavailable {

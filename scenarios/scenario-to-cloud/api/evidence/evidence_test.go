@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,41 @@ import (
 	"github.com/vrooli/api-core/receiptsigning"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
+
+func TestPublicationTransitionOwnerRejectsInvalidAndUnknownStates(t *testing.T) {
+	for _, edge := range [][2]string{
+		{StateRequested, StateReviewPrepared},
+		{StateRequested, StateApproved},
+		{StateRequested, StateRefused},
+		{StateReviewPrepared, StateApproved},
+		{StateReviewPrepared, StateRefused},
+		{StateApproved, StateActivating},
+		{StateApproved, StateRefused},
+		{StateRefused, StateApproved},
+		{StateActivating, StatePublished},
+		{StateActivating, StateFailed},
+	} {
+		if err := TransitionPublicationState(edge[0], edge[1]); err != nil {
+			t.Errorf("allowed transition %q -> %q: %v", edge[0], edge[1], err)
+		}
+	}
+	for _, edge := range [][2]string{
+		{StatePublished, StateActivating},
+		{StateFailed, StateApproved},
+		{StateActivating, StateRefused},
+		{"future", StateRequested},
+		{StateRequested, "future"},
+		{StateRequested, StateUnknown},
+	} {
+		if err := TransitionPublicationState(edge[0], edge[1]); !errors.Is(err, ErrInvalidPublicationTransition) {
+			t.Errorf("invalid transition %q -> %q error=%v", edge[0], edge[1], err)
+		}
+	}
+	p := Publication{State: StatePublished}
+	if err := p.Transition(StateActivating); !errors.Is(err, ErrInvalidPublicationTransition) || p.State != StatePublished {
+		t.Fatalf("invalid edge error=%v mutated state to %q", err, p.State)
+	}
+}
 
 var (
 	testNow     = time.Date(2026, 9, 9, 12, 0, 0, 0, time.UTC)
@@ -67,7 +103,7 @@ func TestProfileIsTheReleaseLaneOfTheMatrixWithoutPackagingAssumptions(t *testin
 	if len(CloudLaunchCases) != 17 {
 		t.Fatalf("profile cases = %d", len(CloudLaunchCases))
 	}
-	if p.MatrixRevision != "cloud-launch-v1" {
+	if p.MatrixRevision != "cloud-launch-v2-two-grounds" {
 		t.Fatalf("matrix revision = %q", p.MatrixRevision)
 	}
 	for _, id := range CloudLaunchCases {
@@ -290,17 +326,23 @@ func TestRecordActivationUsesTheTargetReceipt(t *testing.T) {
 	earlier := testNow.Add(-time.Hour)
 	history := []Publication{{ID: "pub-0", State: StatePublished, ActivatedReleaseDigest: releaseB, PublishedAt: &earlier}}
 	pub := &Publication{ID: "pub-1", Identity: identity, IdentityDigest: digest, ReviewRef: "rr-1", ReleaseDigest: releaseA, State: StateActivating}
-	RecordActivation(pub, TargetReceipt{ActiveRelease: strings.TrimPrefix(releaseA, "sha256:"), OperationID: "op-9", Fence: 3}, history, testNow)
+	if err := RecordActivation(pub, TargetReceipt{ActiveRelease: strings.TrimPrefix(releaseA, "sha256:"), OperationID: "op-9", Fence: 3}, history, testNow); err != nil {
+		t.Fatal(err)
+	}
 	if pub.State != StatePublished || pub.ActivatedReleaseDigest != strings.TrimPrefix(releaseA, "sha256:") || pub.PredecessorReleaseDigest != releaseB || pub.TargetReceipt.ReceiptDigest == "" {
 		t.Fatalf("publication = %+v", pub)
 	}
 	pointer := &Publication{ID: "pub-2", Identity: identity, IdentityDigest: digest, ReleaseDigest: releaseA, State: StateActivating}
-	RecordActivation(pointer, TargetReceipt{ActiveRelease: releaseA, PreviousRelease: "prev-from-target"}, history, testNow)
+	if err := RecordActivation(pointer, TargetReceipt{ActiveRelease: releaseA, PreviousRelease: "prev-from-target"}, history, testNow); err != nil {
+		t.Fatal(err)
+	}
 	if pointer.PredecessorReleaseDigest != "prev-from-target" {
 		t.Fatalf("target pointer must win: %q", pointer.PredecessorReleaseDigest)
 	}
 	mismatch := &Publication{ID: "pub-3", Identity: identity, IdentityDigest: digest, ReleaseDigest: releaseA, State: StateActivating}
-	RecordActivation(mismatch, TargetReceipt{ActiveRelease: releaseB}, nil, testNow)
+	if err := RecordActivation(mismatch, TargetReceipt{ActiveRelease: releaseB}, nil, testNow); err != nil {
+		t.Fatal(err)
+	}
 	if mismatch.State != StateFailed || mismatch.Refusal == nil || mismatch.Refusal.Code != RefusalTargetMismatch || mismatch.PublishedAt != nil {
 		t.Fatalf("mismatched target release must fail: %+v", mismatch)
 	}

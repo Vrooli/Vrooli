@@ -52,6 +52,28 @@ func TestElectronSessionWaitForExitUsesProcessCompletionSignal(t *testing.T) {
 	}
 }
 
+func TestEnsurePrivateOfflineWritablePathsStayInsidePrivateRoot(t *testing.T) {
+	root := t.TempDir()
+	if err := ensurePrivateOfflineWritablePaths(root, []string{"profile/app-data"}); err != nil {
+		t.Fatalf("create private app-data path: %v", err)
+	}
+	info, err := os.Stat(filepath.Join(root, "profile", "app-data"))
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0o700 {
+		t.Fatalf("private app-data directory = %v, err=%v", info, err)
+	}
+	for _, invalid := range []string{"../escape", "profile/../escape", ".", "/tmp/s2d-outside"} {
+		if err := ensurePrivateOfflineWritablePaths(root, []string{invalid}); err == nil {
+			t.Errorf("unsafe writable path %q was accepted", invalid)
+		}
+	}
+	if err := os.Symlink(t.TempDir(), filepath.Join(root, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensurePrivateOfflineWritablePaths(root, []string{"linked/child"}); err == nil {
+		t.Fatal("writable path through a symlink was accepted")
+	}
+}
+
 func (p *fakeElectronProcess) PID() int { return p.pid }
 func (p *fakeElectronProcess) Signal(os.Signal) error {
 	p.once.Do(func() {

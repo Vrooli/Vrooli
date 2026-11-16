@@ -36,7 +36,7 @@ func approvableReview(t *testing.T, repo *internalreadiness.SQLRepository, now t
 		}
 		evidence = append(evidence, domain.EvidenceItem{ReviewKey: review.Key, CriterionID: criterion.ID, Status: status, Applicability: "applicable", Producer: criterion.Owner, CandidateCommit: identity.CandidateCommit, ArtifactDigest: identity.ArtifactDigest, Target: "linux", Environment: identity.Channel, PolicyVersion: identity.PolicyVersion, ObservedAt: now, Reference: "evidence:" + criterion.ID})
 	}
-	if err := repo.ReplaceEvaluation(context.Background(), review.Key, evidence, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(context.Background(), review.Key, domain.ReviewCollecting, evidence, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 	for _, criterion := range policy.Items {
@@ -203,7 +203,7 @@ func TestResolverRefusesRegressedEvidence(t *testing.T) {
 			break
 		}
 	}
-	if err := repo.ReplaceEvaluation(context.Background(), review.Key, evidence, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(context.Background(), review.Key, domain.ReviewAgentReview, evidence, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 
@@ -302,4 +302,55 @@ func TestResolverHandlesOnlyReleaseDecisions(t *testing.T) {
 	if !resolver.Handles(operatordecision.DecisionRequestedEventType(ReleaseDecisionSource, ReleaseDecisionKind)) {
 		t.Fatal("resolver did not claim its own event type")
 	}
+}
+
+// A withdrawn resolution is neither a refusal nor an approval: nothing is
+// written to the approvals ledger and the review is not approved. One replaced
+// by a newer revision leaves the ask pending, because the successor carries the
+// same ask id.
+func TestResolverWithdrawnIsNoAnswer(t *testing.T) {
+	now := time.Now().UTC()
+	resolver, repo, store := newResolverFixture(t, now)
+	review, correlation := approvableReview(t, repo, now)
+	askID := seedPending(t, store, correlation, now)
+	ledger := &recordingLedger{}
+	resolver.ledger = ledger
+	correlation["approval_id"] = "approval-1"
+
+	superseded := operatordecision.DecisionResolution{State: operatordecision.StateWithdrawn, SupersededByAskID: "newer-ask", Correlation: correlation}
+	if handled, err := resolver.Apply(context.Background(), superseded); err != nil || !handled {
+		t.Fatalf("handled=%v err=%v", handled, err)
+	}
+	if ask, _ := store.Get(context.Background(), askID); ask.State != operatordecision.PendingStatePending {
+		t.Fatalf("a superseded decision leaves the ask pending for its successor: %q", ask.State)
+	}
+
+	closed := operatordecision.DecisionResolution{State: operatordecision.StateWithdrawn, Correlation: correlation}
+	if handled, err := resolver.Apply(context.Background(), closed); err != nil || !handled {
+		t.Fatalf("handled=%v err=%v", handled, err)
+	}
+	if ask, _ := store.Get(context.Background(), askID); ask.State != operatordecision.PendingStateWithdrawn {
+		t.Fatalf("a withdrawn decision closes the ask: %q", ask.State)
+	}
+	if stored, _ := repo.Get(context.Background(), review.Key); stored.Status == domain.ReviewApproved {
+		t.Fatal("a withdrawn decision never approves the review")
+	}
+	if len(ledger.calls) != 0 {
+		t.Fatalf("a withdrawal is not a rejection in the approvals ledger: %v", ledger.calls)
+	}
+	// A late answer to the withdrawn ask is ignored.
+	late := operatordecision.DecisionResolution{State: operatordecision.StateAnswered, Answer: "approve", AnsweredBy: "operator-human", Correlation: correlation}
+	if handled, err := resolver.Apply(context.Background(), late); err != nil || !handled {
+		t.Fatalf("handled=%v err=%v", handled, err)
+	}
+	if stored, _ := repo.Get(context.Background(), review.Key); stored.Status == domain.ReviewApproved {
+		t.Fatal("an answer after a withdrawal must not approve")
+	}
+}
+
+type recordingLedger struct{ calls []string }
+
+func (l *recordingLedger) UpdateDecision(_ context.Context, id, decision, _, _ string) error {
+	l.calls = append(l.calls, id+":"+decision)
+	return nil
 }

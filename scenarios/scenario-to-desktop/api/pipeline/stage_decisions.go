@@ -101,7 +101,7 @@ func ValidateCanResume(status *Status) error {
 	}
 	if status.Status != StatusCompleted {
 		return errors.ErrPipelineNotResumable(status.PipelineID,
-			"status is "+status.Status+" (must be completed)")
+			"status is "+string(status.Status)+" (must be completed)")
 	}
 	if status.StoppedAfterStage == "" {
 		return errors.ErrPipelineNotResumable(status.PipelineID,

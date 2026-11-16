@@ -129,6 +129,41 @@ func (s selectorFlags) selector() (selector.Selector, error) {
 }
 
 func runSet(client *Client, deploymentClient *deployment.Client, args []string) error {
+	request, err := parseSetRequest(args)
+	if err != nil {
+		return err
+	}
+	value, err := resolveSetValue(request, os.Stdin)
+	if err != nil {
+		return err
+	}
+	targets, err := parseTargets(request.targetsRaw)
+	if err != nil {
+		return err
+	}
+	deploymentIDs, err := resolveDeploymentTargets(deploymentClient, targets["deployment"], &request.selector)
+	if err != nil {
+		return err
+	}
+	results, err := applySetTargets(client, request, value, targets, deploymentIDs)
+	if err != nil {
+		return err
+	}
+	return renderSetResults(request, targets, results)
+}
+
+type setRequest struct {
+	key        string
+	value      string
+	valueStdin bool
+	generate   string
+	targetsRaw string
+	restart    bool
+	jsonOutput bool
+	selector   selectorFlags
+}
+
+func parseSetRequest(args []string) (setRequest, error) {
 	fs := flag.NewFlagSet("secrets set", flag.ContinueOnError)
 	value := fs.String("value", "", "Secret value")
 	valueStdin := fs.Bool("value-stdin", false, "Read the secret value from standard input")
@@ -140,132 +175,158 @@ func runSet(client *Client, deploymentClient *deployment.Client, args []string) 
 	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
+		return setRequest{}, err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud secrets set <KEY> [flags]")
+		return setRequest{}, fmt.Errorf("usage: scenario-to-cloud secrets set <KEY> [flags]")
 	}
-	key := strings.TrimSpace(fs.Arg(0))
-	if *valueStdin && (strings.TrimSpace(*value) != "" || strings.TrimSpace(*generate) != "") {
+	request := setRequest{
+		key: strings.TrimSpace(fs.Arg(0)), value: *value, valueStdin: *valueStdin,
+		generate: *generate, targetsRaw: *targetsRaw, restart: *restart,
+		jsonOutput: *jsonOutput, selector: *sel,
+	}
+	if err := validateSetValueOptions(request); err != nil {
+		return setRequest{}, err
+	}
+	return request, nil
+}
+
+func validateSetValueOptions(request setRequest) error {
+	value := strings.TrimSpace(request.value)
+	generate := strings.TrimSpace(request.generate)
+	if request.valueStdin && (value != "" || generate != "") {
 		return fmt.Errorf("--value-stdin cannot be combined with --value or --generate")
 	}
-	if *valueStdin {
-		stdinValue, readErr := readSecret(os.Stdin)
-		if readErr != nil {
-			return readErr
-		}
-		*value = stdinValue
-	}
-	if strings.TrimSpace(*value) == "" && strings.TrimSpace(*generate) == "" {
+	if !request.valueStdin && value == "" && generate == "" {
 		return fmt.Errorf("either --value or --generate is required")
 	}
-	if strings.TrimSpace(*value) != "" && strings.TrimSpace(*generate) != "" {
+	if !request.valueStdin && value != "" && generate != "" {
 		return fmt.Errorf("--value and --generate are mutually exclusive")
 	}
+	return nil
+}
 
-	targets, err := parseTargets(*targetsRaw)
-	if err != nil {
-		return err
+func resolveSetValue(request setRequest, stdin io.Reader) (string, error) {
+	if request.valueStdin {
+		return readSecret(stdin)
 	}
-
-	deploymentIDs, err := resolveDeploymentTargets(deploymentClient, targets["deployment"], sel)
-	if err != nil {
-		return err
+	if strings.TrimSpace(request.generate) != "" {
+		return generateSecretFromSpec(request.generate)
 	}
+	return request.value, nil
+}
 
+func applySetTargets(client *Client, request setRequest, value string, targets map[string]bool, deploymentIDs []string) ([]map[string]interface{}, error) {
 	results := make([]map[string]interface{}, 0)
-	resolvedValue := *value
-	if strings.TrimSpace(*generate) != "" {
-		generatedValue, genErr := generateSecretFromSpec(*generate)
-		if genErr != nil {
-			return genErr
-		}
-		resolvedValue = generatedValue
-	}
-	localReq := LocalSecretSetRequest{Value: resolvedValue}
-
 	if targets["workspace"] {
-		_, resp, err := client.SetLocal("workspace", key, "", localReq)
+		result, err := setLocalTarget(client, "workspace", "", request.key, value)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		results = append(results, map[string]interface{}{
-			"target": "workspace",
-			"result": resp,
-		})
+		results = append(results, result)
 	}
-
 	if targets["scenario"] {
-		if strings.TrimSpace(sel.scenarioID) == "" {
-			return fmt.Errorf("--scenario is required when targets include scenario")
+		if strings.TrimSpace(request.selector.scenarioID) == "" {
+			return nil, fmt.Errorf("--scenario is required when targets include scenario")
 		}
-		_, resp, err := client.SetLocal("scenario", key, sel.scenarioID, localReq)
+		result, err := setLocalTarget(client, "scenario", request.selector.scenarioID, request.key, value)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		results = append(results, map[string]interface{}{
-			"target": "scenario",
-			"result": resp,
-		})
+		results = append(results, result)
 	}
+	deploymentResults, err := setDeploymentTargets(client, request, value, targets["deployment"], deploymentIDs)
+	if err != nil {
+		return nil, err
+	}
+	return append(results, deploymentResults...), nil
+}
 
-	if targets["deployment"] {
-		for _, deploymentID := range deploymentIDs {
-			createReq := DeploymentSecretCreateRequest{
-				Key:             key,
-				Value:           resolvedValue,
-				RestartScenario: *restart,
-			}
-			_, resp, createErr := client.CreateDeploymentSecret(deploymentID, createReq)
-			if createErr != nil {
-				if !looksLikeHTTPStatus(createErr, 409) {
-					return createErr
-				}
-				_, resp, updateErr := client.UpdateDeploymentSecret(deploymentID, key, DeploymentSecretUpdateRequest{
-					Value:           createReq.Value,
-					RestartScenario: *restart,
-				})
-				if updateErr != nil {
-					return updateErr
-				}
-				results = append(results, map[string]interface{}{
-					"target":        "deployment",
-					"deployment_id": deploymentID,
-					"result":        resp,
-				})
-				continue
-			}
-			results = append(results, map[string]interface{}{
-				"target":        "deployment",
-				"deployment_id": deploymentID,
-				"result":        resp,
-			})
+func setLocalTarget(client *Client, target, scenarioID, key, value string) (map[string]interface{}, error) {
+	_, response, err := client.SetLocal(target, key, scenarioID, LocalSecretSetRequest{Value: value})
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"target": target, "result": response}, nil
+}
+
+func setDeploymentTargets(client *Client, request setRequest, value string, enabled bool, deploymentIDs []string) ([]map[string]interface{}, error) {
+	results := make([]map[string]interface{}, 0, len(deploymentIDs))
+	if !enabled {
+		return results, nil
+	}
+	for _, deploymentID := range deploymentIDs {
+		result, err := setDeploymentTarget(client, request, value, deploymentID)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+func setDeploymentTarget(client *Client, request setRequest, value, deploymentID string) (map[string]interface{}, error) {
+	createRequest := DeploymentSecretCreateRequest{Key: request.key, Value: value, RestartScenario: request.restart}
+	_, response, err := client.CreateDeploymentSecret(deploymentID, createRequest)
+	if err != nil {
+		if !looksLikeHTTPStatus(err, 409) {
+			return nil, err
+		}
+		_, response, err = client.UpdateDeploymentSecret(deploymentID, request.key, DeploymentSecretUpdateRequest{Value: value, RestartScenario: request.restart})
+		if err != nil {
+			return nil, err
 		}
 	}
+	return map[string]interface{}{"target": "deployment", "deployment_id": deploymentID, "result": response}, nil
+}
 
-	if *jsonOutput {
+func renderSetResults(request setRequest, targets map[string]bool, results []map[string]interface{}) error {
+	if request.jsonOutput {
 		cliutil.PrintJSON(mustJSON(map[string]interface{}{
 			"action":    "set",
-			"key":       key,
+			"key":       request.key,
 			"targets":   keys(targets),
 			"results":   results,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}))
 		return nil
 	}
-
 	for _, entry := range results {
 		target := fmt.Sprintf("%v", entry["target"])
 		if depID, ok := entry["deployment_id"].(string); ok && depID != "" {
-			fmt.Printf("[%s:%s] %s\n", target, depID, key)
+			fmt.Printf("[%s:%s] %s\n", target, depID, request.key)
 			continue
 		}
-		fmt.Printf("[%s] %s\n", target, key)
+		fmt.Printf("[%s] %s\n", target, request.key)
 	}
 	return nil
 }
 
 func runGet(client *Client, deploymentClient *deployment.Client, args []string) error {
+	request, err := parseGetRequest(args)
+	if err != nil {
+		return err
+	}
+	targets, deploymentIDs, err := secretCommandTargets(deploymentClient, request.targetsRaw, &request.selector)
+	if err != nil {
+		return err
+	}
+	results, err := getSecretTargets(client, request, targets, deploymentIDs)
+	if err != nil {
+		return err
+	}
+	return renderSecretReadDelete("get", request.key, results, request.jsonOutput)
+}
+
+type secretReadRequest struct {
+	key        string
+	targetsRaw string
+	reveal     bool
+	jsonOutput bool
+	selector   selectorFlags
+}
+
+func parseGetRequest(args []string) (secretReadRequest, error) {
 	fs := flag.NewFlagSet("secrets get", flag.ContinueOnError)
 	targetsRaw := fs.String("targets", "scenario", "Comma-separated targets: workspace,scenario,deployment")
 	reveal := fs.Bool("reveal", false, "Reveal secret value")
@@ -274,75 +335,71 @@ func runGet(client *Client, deploymentClient *deployment.Client, args []string) 
 	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
+		return secretReadRequest{}, err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud secrets get <KEY> [flags]")
+		return secretReadRequest{}, fmt.Errorf("usage: scenario-to-cloud secrets get <KEY> [flags]")
 	}
-	key := strings.TrimSpace(fs.Arg(0))
+	return secretReadRequest{key: strings.TrimSpace(fs.Arg(0)), targetsRaw: *targetsRaw, reveal: *reveal, jsonOutput: *jsonOutput, selector: *sel}, nil
+}
 
-	targets, err := parseTargets(*targetsRaw)
+func secretCommandTargets(client *deployment.Client, targetsRaw string, selector *selectorFlags) (map[string]bool, []string, error) {
+	targets, err := parseTargets(targetsRaw)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	deploymentIDs, err := resolveDeploymentTargets(deploymentClient, targets["deployment"], sel)
+	deploymentIDs, err := resolveDeploymentTargets(client, targets["deployment"], selector)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
+	return targets, deploymentIDs, nil
+}
 
+func getSecretTargets(client *Client, request secretReadRequest, targets map[string]bool, deploymentIDs []string) ([]map[string]interface{}, error) {
 	results := make([]map[string]interface{}, 0)
-
 	if targets["workspace"] {
-		_, resp, err := client.GetLocal("workspace", key, "", *reveal)
+		result, err := getLocalSecret(client, "workspace", request.key, "", request.reveal)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		results = append(results, map[string]interface{}{"target": "workspace", "result": resp})
+		results = append(results, result)
 	}
 	if targets["scenario"] {
-		if strings.TrimSpace(sel.scenarioID) == "" {
-			return fmt.Errorf("--scenario is required when targets include scenario")
+		if strings.TrimSpace(request.selector.scenarioID) == "" {
+			return nil, fmt.Errorf("--scenario is required when targets include scenario")
 		}
-		_, resp, err := client.GetLocal("scenario", key, sel.scenarioID, *reveal)
+		result, err := getLocalSecret(client, "scenario", request.key, request.selector.scenarioID, request.reveal)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		results = append(results, map[string]interface{}{"target": "scenario", "result": resp})
+		results = append(results, result)
 	}
 	if targets["deployment"] {
 		for _, deploymentID := range deploymentIDs {
-			_, resp, err := client.GetDeploymentSecret(deploymentID, key, *reveal)
+			result, err := getDeploymentSecret(client, request.key, deploymentID, request.reveal)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			results = append(results, map[string]interface{}{
-				"target":        "deployment",
-				"deployment_id": deploymentID,
-				"result":        resp,
-			})
+			results = append(results, result)
 		}
 	}
+	return results, nil
+}
 
-	if *jsonOutput {
-		cliutil.PrintJSON(mustJSON(map[string]interface{}{
-			"action":    "get",
-			"key":       key,
-			"results":   results,
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
-		}))
-		return nil
+func getLocalSecret(client *Client, scope, key, scenarioID string, reveal bool) (map[string]interface{}, error) {
+	_, response, err := client.GetLocal(scope, key, scenarioID, reveal)
+	if err != nil {
+		return nil, err
 	}
+	return map[string]interface{}{"target": scope, "result": response}, nil
+}
 
-	for _, entry := range results {
-		target := fmt.Sprintf("%v", entry["target"])
-		if depID, ok := entry["deployment_id"].(string); ok && depID != "" {
-			fmt.Printf("[%s:%s] %s\n", target, depID, key)
-			continue
-		}
-		fmt.Printf("[%s] %s\n", target, key)
+func getDeploymentSecret(client *Client, key, deploymentID string, reveal bool) (map[string]interface{}, error) {
+	_, response, err := client.GetDeploymentSecret(deploymentID, key, reveal)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	return map[string]interface{}{"target": "deployment", "deployment_id": deploymentID, "result": response}, nil
 }
 
 type verifyTargetResult struct {
@@ -377,98 +434,14 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 		return err
 	}
 
-	results := make([]verifyTargetResult, 0, 2+len(deploymentIDs))
-	fingerprints := make([]string, 0, 2+len(deploymentIDs))
-	missing := make([]string, 0)
-
-	if targets["workspace"] {
-		_, resp, err := client.GetLocal("workspace", key, "", true)
-		if err != nil {
-			if !looksLikeHTTPStatus(err, 404) {
-				return err
-			}
-		}
-		result := verifyTargetResult{Target: "workspace", Present: strings.TrimSpace(resp.Value) != ""}
-		if result.Present {
-			result.Fingerprint = fingerprintSecret(resp.Value)
-			fingerprints = append(fingerprints, result.Fingerprint)
-		} else {
-			missing = append(missing, "workspace")
-		}
-		results = append(results, result)
+	results, fingerprints, missing, err := collectVerificationTargets(client, key, targets, sel, deploymentIDs)
+	if err != nil {
+		return err
 	}
 
-	if targets["scenario"] {
-		if strings.TrimSpace(sel.scenarioID) == "" {
-			return fmt.Errorf("--scenario is required when targets include scenario")
-		}
-		_, resp, err := client.GetLocal("scenario", key, sel.scenarioID, true)
-		if err != nil {
-			if !looksLikeHTTPStatus(err, 404) {
-				return err
-			}
-		}
-		result := verifyTargetResult{Target: "scenario", Present: strings.TrimSpace(resp.Value) != ""}
-		if result.Present {
-			result.Fingerprint = fingerprintSecret(resp.Value)
-			fingerprints = append(fingerprints, result.Fingerprint)
-		} else {
-			missing = append(missing, "scenario")
-		}
-		results = append(results, result)
-	}
-
-	if targets["deployment"] {
-		for _, deploymentID := range deploymentIDs {
-			_, resp, err := client.GetDeploymentSecret(deploymentID, key, true)
-			if err != nil {
-				if !looksLikeHTTPStatus(err, 404) {
-					return err
-				}
-			}
-			value := strings.TrimSpace(resp.Secret.Value)
-			result := verifyTargetResult{
-				Target:       "deployment",
-				DeploymentID: deploymentID,
-				Present:      value != "",
-			}
-			if result.Present {
-				result.Fingerprint = fingerprintSecret(value)
-				fingerprints = append(fingerprints, result.Fingerprint)
-			} else {
-				missing = append(missing, fmt.Sprintf("deployment:%s", deploymentID))
-			}
-			results = append(results, result)
-		}
-	}
-
-	consistent := true
-	if len(fingerprints) > 1 {
-		base := fingerprints[0]
-		for _, current := range fingerprints[1:] {
-			if current != base {
-				consistent = false
-				break
-			}
-		}
-	}
+	consistent := fingerprintsMatch(fingerprints)
 	verified := consistent && len(missing) == 0 && len(fingerprints) > 0
-
-	domainArg := "<domain>"
-	if strings.TrimSpace(sel.domain) != "" {
-		domainArg = strings.TrimSpace(sel.domain)
-	}
-	nextSteps := []string{}
-	if !verified {
-		if strings.TrimSpace(sel.scenarioID) != "" {
-			nextSteps = append(nextSteps,
-				fmt.Sprintf("scenario-to-cloud secrets set %s --scenario %s --generate hex:64 --targets scenario,deployment --domain %s --restart", key, sel.scenarioID, domainArg),
-				fmt.Sprintf("scenario-to-cloud secrets verify %s --scenario %s --targets scenario,deployment --domain %s", key, sel.scenarioID, domainArg),
-			)
-		} else {
-			nextSteps = append(nextSteps, "Re-run with --scenario <id> and a deployment selector to sync/verify across targets.")
-		}
-	}
+	nextSteps := verificationNextSteps(verified, key, sel.scenarioID, sel.domain)
 
 	payload := map[string]interface{}{
 		"action":     "verify",
@@ -481,66 +454,203 @@ func runVerify(client *Client, deploymentClient *deployment.Client, args []strin
 		"next_steps": nextSteps,
 	}
 
-	if *jsonOutput {
-		cliutil.PrintJSON(mustJSON(payload))
-		if !verified {
-			return fmt.Errorf("secret verification failed for key %s", key)
-		}
-		return nil
-	}
+	return renderVerification(payload, *jsonOutput, key, verified, consistent, results, missing, nextSteps)
+}
 
+func collectVerificationTargets(client *Client, key string, targets map[string]bool, sel *selectorFlags, deploymentIDs []string) ([]verifyTargetResult, []string, []string, error) {
+	results := make([]verifyTargetResult, 0, 2+len(deploymentIDs))
+	fingerprints := make([]string, 0, 2+len(deploymentIDs))
+	missing := make([]string, 0)
+
+	if targets["workspace"] {
+		result, fingerprint, absent, err := verifyLocalTarget(client, "workspace", key, "")
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		results = append(results, result)
+		fingerprints = appendFingerprint(fingerprints, fingerprint)
+		missing = appendMissing(missing, absent)
+	}
+	if targets["scenario"] {
+		if strings.TrimSpace(sel.scenarioID) == "" {
+			return nil, nil, nil, fmt.Errorf("--scenario is required when targets include scenario")
+		}
+		result, fingerprint, absent, err := verifyLocalTarget(client, "scenario", key, sel.scenarioID)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		results = append(results, result)
+		fingerprints = appendFingerprint(fingerprints, fingerprint)
+		missing = appendMissing(missing, absent)
+	}
+	if targets["deployment"] {
+		for _, deploymentID := range deploymentIDs {
+			result, fingerprint, absent, err := verifyDeploymentTarget(client, deploymentID, key)
+			if err != nil {
+				return nil, nil, nil, err
+			}
+			results = append(results, result)
+			fingerprints = appendFingerprint(fingerprints, fingerprint)
+			missing = appendMissing(missing, absent)
+		}
+	}
+	return results, fingerprints, missing, nil
+}
+
+func verifyLocalTarget(client *Client, target, key, scenarioID string) (verifyTargetResult, string, string, error) {
+	_, response, err := client.GetLocal(target, key, scenarioID, true)
+	if err != nil && !looksLikeHTTPStatus(err, 404) {
+		return verifyTargetResult{}, "", "", err
+	}
+	result := verifyTargetResult{Target: target, Present: strings.TrimSpace(response.Value) != ""}
+	if result.Present {
+		result.Fingerprint = fingerprintSecret(response.Value)
+		return result, result.Fingerprint, "", nil
+	}
+	return result, "", target, nil
+}
+
+func verifyDeploymentTarget(client *Client, deploymentID, key string) (verifyTargetResult, string, string, error) {
+	_, response, err := client.GetDeploymentSecret(deploymentID, key, true)
+	if err != nil && !looksLikeHTTPStatus(err, 404) {
+		return verifyTargetResult{}, "", "", err
+	}
+	value := strings.TrimSpace(response.Secret.Value)
+	result := verifyTargetResult{Target: "deployment", DeploymentID: deploymentID, Present: value != ""}
+	if result.Present {
+		result.Fingerprint = fingerprintSecret(value)
+		return result, result.Fingerprint, "", nil
+	}
+	return result, "", fmt.Sprintf("deployment:%s", deploymentID), nil
+}
+
+func appendFingerprint(fingerprints []string, fingerprint string) []string {
+	if fingerprint != "" {
+		return append(fingerprints, fingerprint)
+	}
+	return fingerprints
+}
+
+func appendMissing(missing []string, absent string) []string {
+	if absent != "" {
+		return append(missing, absent)
+	}
+	return missing
+}
+
+func fingerprintsMatch(fingerprints []string) bool {
+	if len(fingerprints) < 2 {
+		return true
+	}
+	base := fingerprints[0]
+	for _, fingerprint := range fingerprints[1:] {
+		if fingerprint != base {
+			return false
+		}
+	}
+	return true
+}
+
+func verificationNextSteps(verified bool, key, scenarioID, domain string) []string {
+	if verified {
+		return []string{}
+	}
+	if strings.TrimSpace(scenarioID) == "" {
+		return []string{"Re-run with --scenario <id> and a deployment selector to sync/verify across targets."}
+	}
+	if strings.TrimSpace(domain) == "" {
+		domain = "<domain>"
+	}
+	domain = strings.TrimSpace(domain)
+	return []string{
+		fmt.Sprintf("scenario-to-cloud secrets set %s --scenario %s --generate hex:64 --targets scenario,deployment --domain %s --restart", key, scenarioID, domain),
+		fmt.Sprintf("scenario-to-cloud secrets verify %s --scenario %s --targets scenario,deployment --domain %s", key, scenarioID, domain),
+	}
+}
+
+func renderVerification(payload map[string]interface{}, jsonOutput bool, key string, verified, consistent bool, results []verifyTargetResult, missing, nextSteps []string) error {
+	if jsonOutput {
+		cliutil.PrintJSON(mustJSON(payload))
+		return verificationResultError(key, verified)
+	}
+	report := verificationReport(key, verified, consistent, results, missing, nextSteps)
+	if err := cliapp.RenderOperationalReport(os.Stdout, report); err != nil {
+		return err
+	}
+	return verificationResultError(key, verified)
+}
+
+func verificationReport(key string, verified, consistent bool, results []verifyTargetResult, missing, nextSteps []string) cliapp.OperationalReport {
 	status := "PASS"
 	if !verified {
 		status = "FAIL"
 	}
-	report := cliapp.OperationalReport{
-		Status: []string{
-			fmt.Sprintf("Verification: %s", status),
-			fmt.Sprintf("Key: %s", key),
-		},
-	}
+	report := cliapp.OperationalReport{Status: []string{fmt.Sprintf("Verification: %s", status), fmt.Sprintf("Key: %s", key)}}
 	targetItems := make([]string, 0, len(results))
 	for _, result := range results {
-		label := result.Target
-		if result.DeploymentID != "" {
-			label = fmt.Sprintf("%s:%s", result.Target, result.DeploymentID)
-		}
-		state := "present"
-		if !result.Present {
-			state = "missing"
-		}
-		fp := ""
-		if result.Fingerprint != "" {
-			fp = " fingerprint=" + result.Fingerprint
-		}
-		targetItems = append(targetItems, fmt.Sprintf("%s: %s%s", label, state, fp))
+		targetItems = append(targetItems, verificationTargetItem(result))
 	}
 	if len(targetItems) > 0 {
 		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Targets", Items: targetItems})
 	}
 	if len(missing) > 0 {
-		report.Triage = append(report.Triage, cliapp.TriageGroup{
-			Heading: "Missing targets",
-			Items:   []string{strings.Join(missing, ", ")},
-		})
+		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Missing targets", Items: []string{strings.Join(missing, ", ")}})
 	}
 	if !consistent {
-		report.Triage = append(report.Triage, cliapp.TriageGroup{
-			Heading: "Consistency",
-			Items:   []string{"Fingerprint mismatch detected across targets."},
-		})
+		report.Triage = append(report.Triage, cliapp.TriageGroup{Heading: "Consistency", Items: []string{"Fingerprint mismatch detected across targets."}})
 	}
 	report.NextSteps = nextSteps
-	if err := cliapp.RenderOperationalReport(os.Stdout, report); err != nil {
-		return err
+	return report
+}
+
+func verificationTargetItem(result verifyTargetResult) string {
+	label := result.Target
+	if result.DeploymentID != "" {
+		label = fmt.Sprintf("%s:%s", result.Target, result.DeploymentID)
 	}
-	if !verified {
-		return fmt.Errorf("secret verification failed for key %s", key)
+	state := "present"
+	if !result.Present {
+		state = "missing"
 	}
-	return nil
+	fingerprint := ""
+	if result.Fingerprint != "" {
+		fingerprint = " fingerprint=" + result.Fingerprint
+	}
+	return fmt.Sprintf("%s: %s%s", label, state, fingerprint)
+}
+
+func verificationResultError(key string, verified bool) error {
+	if verified {
+		return nil
+	}
+	return fmt.Errorf("secret verification failed for key %s", key)
 }
 
 func runDelete(client *Client, deploymentClient *deployment.Client, args []string) error {
+	request, err := parseDeleteRequest(args)
+	if err != nil {
+		return err
+	}
+	targets, deploymentIDs, err := secretCommandTargets(deploymentClient, request.targetsRaw, &request.selector)
+	if err != nil {
+		return err
+	}
+	results, err := deleteSecretTargets(client, request, targets, deploymentIDs)
+	if err != nil {
+		return err
+	}
+	return renderSecretReadDelete("delete", request.key, results, request.jsonOutput)
+}
+
+type secretDeleteRequest struct {
+	key        string
+	targetsRaw string
+	restart    bool
+	jsonOutput bool
+	selector   selectorFlags
+}
+
+func parseDeleteRequest(args []string) (secretDeleteRequest, error) {
 	fs := flag.NewFlagSet("secrets delete", flag.ContinueOnError)
 	targetsRaw := fs.String("targets", "scenario", "Comma-separated targets: workspace,scenario,deployment")
 	restart := fs.Bool("restart", false, "When targeting deployment, restart scenario after delete")
@@ -549,73 +659,80 @@ func runDelete(client *Client, deploymentClient *deployment.Client, args []strin
 	sel := selectorFlags{}.register(fs)
 
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
-		return err
+		return secretDeleteRequest{}, err
 	}
 	if fs.NArg() != 1 {
-		return fmt.Errorf("usage: scenario-to-cloud secrets delete <KEY> [flags]")
+		return secretDeleteRequest{}, fmt.Errorf("usage: scenario-to-cloud secrets delete <KEY> [flags]")
 	}
-	key := strings.TrimSpace(fs.Arg(0))
+	return secretDeleteRequest{key: strings.TrimSpace(fs.Arg(0)), targetsRaw: *targetsRaw, restart: *restart, jsonOutput: *jsonOutput, selector: *sel}, nil
+}
 
-	targets, err := parseTargets(*targetsRaw)
-	if err != nil {
-		return err
-	}
-
-	deploymentIDs, err := resolveDeploymentTargets(deploymentClient, targets["deployment"], sel)
-	if err != nil {
-		return err
-	}
-
+func deleteSecretTargets(client *Client, request secretDeleteRequest, targets map[string]bool, deploymentIDs []string) ([]map[string]interface{}, error) {
 	results := make([]map[string]interface{}, 0)
-
 	if targets["workspace"] {
-		_, resp, err := client.DeleteLocal("workspace", key, "")
+		result, err := deleteLocalSecret(client, "workspace", request.key, "")
 		if err != nil {
-			return err
+			return nil, err
 		}
-		results = append(results, map[string]interface{}{"target": "workspace", "result": resp})
+		results = append(results, result)
 	}
 	if targets["scenario"] {
-		if strings.TrimSpace(sel.scenarioID) == "" {
-			return fmt.Errorf("--scenario is required when targets include scenario")
+		if strings.TrimSpace(request.selector.scenarioID) == "" {
+			return nil, fmt.Errorf("--scenario is required when targets include scenario")
 		}
-		_, resp, err := client.DeleteLocal("scenario", key, sel.scenarioID)
+		result, err := deleteLocalSecret(client, "scenario", request.key, request.selector.scenarioID)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		results = append(results, map[string]interface{}{"target": "scenario", "result": resp})
+		results = append(results, result)
 	}
 	if targets["deployment"] {
 		for _, deploymentID := range deploymentIDs {
-			_, resp, err := client.DeleteDeploymentSecret(deploymentID, key, *restart)
+			result, err := deleteDeploymentSecret(client, request.key, deploymentID, request.restart)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			results = append(results, map[string]interface{}{
-				"target":        "deployment",
-				"deployment_id": deploymentID,
-				"result":        resp,
-			})
+			results = append(results, result)
 		}
 	}
+	return results, nil
+}
 
-	if *jsonOutput {
+func deleteLocalSecret(client *Client, scope, key, scenarioID string) (map[string]interface{}, error) {
+	_, response, err := client.DeleteLocal(scope, key, scenarioID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"target": scope, "result": response}, nil
+}
+
+func deleteDeploymentSecret(client *Client, key, deploymentID string, restart bool) (map[string]interface{}, error) {
+	_, response, err := client.DeleteDeploymentSecret(deploymentID, key, restart)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"target": "deployment", "deployment_id": deploymentID, "result": response}, nil
+}
+
+func renderSecretReadDelete(action, key string, results []map[string]interface{}, jsonOutput bool) error {
+	if jsonOutput {
 		cliutil.PrintJSON(mustJSON(map[string]interface{}{
-			"action":    "delete",
-			"key":       key,
-			"results":   results,
+			"action": action, "key": key, "results": results,
 			"timestamp": time.Now().UTC().Format(time.RFC3339),
 		}))
 		return nil
 	}
-
+	verb := ""
+	if action == "delete" {
+		verb = "deleted "
+	}
 	for _, entry := range results {
 		target := fmt.Sprintf("%v", entry["target"])
-		if depID, ok := entry["deployment_id"].(string); ok && depID != "" {
-			fmt.Printf("[%s:%s] deleted %s\n", target, depID, key)
+		if deploymentID, ok := entry["deployment_id"].(string); ok && deploymentID != "" {
+			fmt.Printf("[%s:%s] %s%s\n", target, deploymentID, verb, key)
 			continue
 		}
-		fmt.Printf("[%s] deleted %s\n", target, key)
+		fmt.Printf("[%s] %s%s\n", target, verb, key)
 	}
 	return nil
 }
@@ -695,25 +812,40 @@ func resolveDeploymentTargets(client *deployment.Client, needed bool, sel *selec
 		return nil, fmt.Errorf("deployment client is required for deployment target operations")
 	}
 	if sel.all {
-		if strings.TrimSpace(sel.scenarioID) == "" {
-			return nil, apierr.Refused("--all-deployments requires --scenario")
-		}
-		if strings.TrimSpace(sel.domain) != "" || strings.TrimSpace(sel.host) != "" || strings.TrimSpace(sel.deploymentID) != "" {
-			return nil, apierr.Refused("--all-deployments takes --scenario and optionally --environment; use a single selector for one deployment")
-		}
-		resp, err := client.List(context.Background(), &deploymentsv1.ListDeploymentsRequest{ScenarioId: strings.TrimSpace(sel.scenarioID), Environment: strings.TrimSpace(sel.environment)})
-		if err != nil {
-			return nil, err
-		}
-		ids := make([]string, 0, len(resp.GetDeployments()))
-		for _, d := range resp.GetDeployments() {
-			ids = append(ids, d.GetRef().GetId())
-		}
-		if len(ids) == 0 {
-			return nil, fmt.Errorf("no deployments matched --all-deployments selector")
-		}
-		return ids, nil
+		return resolveAllDeploymentTargets(client, sel)
 	}
+	return resolveSingleDeploymentTarget(client, sel)
+}
+
+func resolveAllDeploymentTargets(client *deployment.Client, sel *selectorFlags) ([]string, error) {
+	if err := validateAllDeploymentSelector(sel); err != nil {
+		return nil, err
+	}
+	resp, err := client.List(context.Background(), &deploymentsv1.ListDeploymentsRequest{ScenarioId: strings.TrimSpace(sel.scenarioID), Environment: strings.TrimSpace(sel.environment)})
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(resp.GetDeployments()))
+	for _, deployment := range resp.GetDeployments() {
+		ids = append(ids, deployment.GetRef().GetId())
+	}
+	if len(ids) == 0 {
+		return nil, fmt.Errorf("no deployments matched --all-deployments selector")
+	}
+	return ids, nil
+}
+
+func validateAllDeploymentSelector(sel *selectorFlags) error {
+	if strings.TrimSpace(sel.scenarioID) == "" {
+		return apierr.Refused("--all-deployments requires --scenario")
+	}
+	if strings.TrimSpace(sel.domain) != "" || strings.TrimSpace(sel.host) != "" || strings.TrimSpace(sel.deploymentID) != "" {
+		return apierr.Refused("--all-deployments takes --scenario and optionally --environment; use a single selector for one deployment")
+	}
+	return nil
+}
+
+func resolveSingleDeploymentTarget(client *deployment.Client, sel *selectorFlags) ([]string, error) {
 	chosen, err := sel.selector()
 	if err != nil {
 		return nil, err
@@ -758,54 +890,76 @@ func mustJSON(v interface{}) []byte {
 }
 
 func generateSecretFromSpec(spec string) (string, error) {
+	method, length, err := parseGenerateSpec(spec)
+	if err != nil {
+		return "", err
+	}
+	switch method {
+	case "uuid":
+		return generateUUID(), nil
+	case "hex":
+		return generateHexSecret(length)
+	case "base64":
+		return generateBase64Secret(length)
+	case "alnum":
+		return generateAlnumSecret(length)
+	default:
+		return "", fmt.Errorf("unsupported generate method %q", method)
+	}
+}
+
+func parseGenerateSpec(spec string) (string, int, error) {
 	spec = strings.TrimSpace(spec)
 	if strings.EqualFold(spec, "uuid") {
-		return generateUUID(), nil
+		return "uuid", 0, nil
 	}
 	parts := strings.Split(spec, ":")
 	if len(parts) != 2 {
-		return "", fmt.Errorf("unsupported generate spec %q (expected hex:<n>, base64:<n>, alnum:<n>, or uuid)", spec)
+		return "", 0, fmt.Errorf("unsupported generate spec %q (expected hex:<n>, base64:<n>, alnum:<n>, or uuid)", spec)
 	}
 	method := strings.ToLower(strings.TrimSpace(parts[0]))
 	n, err := strconv.Atoi(strings.TrimSpace(parts[1]))
 	if err != nil || n <= 0 || n > 4096 {
-		return "", fmt.Errorf("invalid generate length %q", parts[1])
+		return "", 0, fmt.Errorf("invalid generate length %q", parts[1])
 	}
-	switch method {
-	case "hex":
-		buf := make([]byte, (n+1)/2)
-		if _, err := rand.Read(buf); err != nil {
-			return "", fmt.Errorf("generate hex secret: %w", err)
-		}
-		out := hex.EncodeToString(buf)
-		if len(out) > n {
-			out = out[:n]
-		}
-		return out, nil
-	case "base64":
-		buf := make([]byte, n)
-		if _, err := rand.Read(buf); err != nil {
-			return "", fmt.Errorf("generate base64 secret: %w", err)
-		}
-		out := base64.RawStdEncoding.EncodeToString(buf)
-		if len(out) > n {
-			out = out[:n]
-		}
-		return out, nil
-	case "alnum":
-		const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-		buf := make([]byte, n)
-		if _, err := rand.Read(buf); err != nil {
-			return "", fmt.Errorf("generate alnum secret: %w", err)
-		}
-		out := make([]byte, n)
-		for i := range buf {
-			out[i] = alphabet[int(buf[i])%len(alphabet)]
-		}
-		return string(out), nil
-	default:
-		return "", fmt.Errorf("unsupported generate method %q", method)
+	return method, n, nil
+}
+
+func generateHexSecret(length int) (string, error) {
+	buf := make([]byte, (length+1)/2)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate hex secret: %w", err)
 	}
+	out := hex.EncodeToString(buf)
+	if len(out) > length {
+		out = out[:length]
+	}
+	return out, nil
+}
+
+func generateBase64Secret(length int) (string, error) {
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate base64 secret: %w", err)
+	}
+	out := base64.RawStdEncoding.EncodeToString(buf)
+	if len(out) > length {
+		out = out[:length]
+	}
+	return out, nil
+}
+
+func generateAlnumSecret(length int) (string, error) {
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		return "", fmt.Errorf("generate alnum secret: %w", err)
+	}
+	out := make([]byte, length)
+	for i := range buf {
+		out[i] = alphabet[int(buf[i])%len(alphabet)]
+	}
+	return string(out), nil
 }
 
 func generateUUID() string {

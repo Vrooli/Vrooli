@@ -4,7 +4,6 @@ This document records how this scenario relates to Vrooli's commercial
 model. Offer Desk is authoritative for live channel and offer state; this
 page keeps the reasoning.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

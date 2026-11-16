@@ -3,7 +3,6 @@
 What this scenario emits, what it is safe to emit, and what is not yet
 measured.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

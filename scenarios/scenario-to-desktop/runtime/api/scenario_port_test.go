@@ -37,10 +37,7 @@ func (f *componentRuntimeFixture) RemoveComponent(_ context.Context, _ string, k
 
 func TestComponentRemovalRequiresAuthenticatedExplicitDataChoice(t *testing.T) {
 	rt := &componentRuntimeFixture{mockRuntime: &mockRuntime{manifest: &manifest.Manifest{}}}
-	s := NewServer(rt, "secret")
-	mux := http.NewServeMux()
-	s.RegisterHandlers(mux)
-	handler := s.AuthMiddleware(mux)
+	handler := testHandler(rt, "secret")
 	for _, tc := range []struct {
 		token, body string
 		status      int
@@ -80,10 +77,7 @@ func TestNativeScenarioPortHonorsPeerPrecedenceAndConstraints(t *testing.T) {
 	t.Setenv("HOME", home)
 	bundle := &manifest.Manifest{App: manifest.App{Scenario: "web-console"}, Peers: []manifest.Peer{{Scenario: "audio-tools", VersionRange: ">=1.0.0 <2.0.0", EmbeddedVersion: "1.2.0"}}, Services: []manifest.Service{{ID: "audio-tools--api", Type: "api-binary", Ports: &manifest.ServicePorts{Requested: []manifest.PortRequest{{Name: "http"}}}}}}
 	rt := &mockRuntime{manifest: bundle, ports: map[string]map[string]int{"audio-tools--api": {"http": 12345}}}
-	server := NewServer(rt, "secret")
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
-	handler := server.AuthMiddleware(mux)
+	handler := testHandler(rt, "secret")
 	lookup := func(token string) (int, int) {
 		req := httptest.NewRequest(http.MethodGet, "/scenario-port?scenario=audio-tools&port_name=API_PORT", nil)
 		req.Header.Set("Authorization", "Bearer "+token)

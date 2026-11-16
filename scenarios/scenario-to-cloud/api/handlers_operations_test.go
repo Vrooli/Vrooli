@@ -48,6 +48,65 @@ func seedOperation(t *testing.T, repo *persistence.Repository, id string) *domai
 	return op
 }
 
+type targetReceiptReaderFunc func(context.Context, *domain.CloudOperation, string) (operations.TargetReceipt, error)
+
+func (f targetReceiptReaderFunc) Read(ctx context.Context, op *domain.CloudOperation, step string) (operations.TargetReceipt, error) {
+	return f(ctx, op, step)
+}
+
+func TestOperationTargetReceiptRESTIsFreshAndOperationScoped(t *testing.T) {
+	srv, repo := newIdentityTestServer(t, "ops-target-receipt-rest")
+	seedDeployment(t, repo, "dep-1", "demo-app", "staging", "203.0.113.10", "demo.example")
+	plan := &execplan.Plan{
+		SchemaVersion: execplan.SchemaVersion, DeploymentID: "dep-1", ScenarioID: "demo-app", Environment: "staging", Scope: execplan.ScopeFull, Outcome: execplan.OutcomeApply,
+		Target:  execplan.Target{MachineID: "disposable-vps:alpha", NodeID: "node-alpha", EnrollmentGeneration: 7, Transport: "bridge"},
+		Actions: []execplan.Action{{ID: "release.activate", OwnerOperation: "release.activate", Retry: execplan.RetrySafeReplay}},
+	}
+	rawPlan, _ := json.Marshal(plan)
+	digest, _ := plan.SemanticDigest()
+	op, err := repo.AdmitOperation(context.Background(), &domain.CloudOperation{ID: "op-target-receipt", DeploymentID: "dep-1", RequestKey: "receipt", PlanDigest: digest, Plan: rawPlan})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reads := 0
+	reader := targetReceiptReaderFunc(func(_ context.Context, got *domain.CloudOperation, step string) (operations.TargetReceipt, error) {
+		reads++
+		if got.ID != op.ID || step != "release.activate" {
+			t.Fatalf("read target receipt for op=%s step=%s", got.ID, step)
+		}
+		return operations.TargetReceipt{Found: true, Outcome: operations.StepSucceeded, Fence: 12, Detail: "activated"}, nil
+	})
+	srv.operations = operations.NewService(operations.Config{WorkerID: "receipt-reader"}, repo, nil, reader, nil)
+	rec := httptest.NewRecorder()
+	srv.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/deployments/dep-1/operations/op-target-receipt/target-receipts/release.activate", nil))
+	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "no-store" || reads != 1 {
+		t.Fatalf("receipt read: status=%d cache=%q reads=%d body=%s", rec.Code, rec.Header().Get("Cache-Control"), reads, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["operation_id"] != op.ID || body["plan_digest"] != digest || body["step"] != "release.activate" {
+		t.Fatalf("receipt identity = %#v", body)
+	}
+	target, ok := body["target"].(map[string]any)
+	if !ok || target["machine_id"] != "disposable-vps:alpha" || target["node_id"] != "node-alpha" || target["enrollment_generation"] != float64(7) || target["transport"] != "bridge" {
+		t.Fatalf("target identity = %#v", body["target"])
+	}
+
+	reads = 0
+	rec = httptest.NewRecorder()
+	srv.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/deployments/other/operations/op-target-receipt/target-receipts/release.activate", nil))
+	if rec.Code != http.StatusNotFound || reads != 0 || rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("cross-deployment read: status=%d reads=%d cache=%q body=%s", rec.Code, reads, rec.Header().Get("Cache-Control"), rec.Body.String())
+	}
+	rec = httptest.NewRecorder()
+	srv.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/deployments/dep-1/operations/op-target-receipt/target-receipts/unplanned", nil))
+	if rec.Code != http.StatusBadRequest || reads != 0 {
+		t.Fatalf("unplanned step read: status=%d reads=%d body=%s", rec.Code, reads, rec.Body.String())
+	}
+}
+
 // gatedRunner executes the single-action plan once its gate opens.
 type gatedRunner struct{ gate chan struct{} }
 

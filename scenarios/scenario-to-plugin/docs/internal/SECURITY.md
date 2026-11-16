@@ -14,7 +14,6 @@ Two consequences shape everything below:
    scanner, a reviewer, a log aggregator, or an agent. This scenario must
    treat its own inputs as hostile.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

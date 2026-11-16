@@ -33,12 +33,12 @@
     "axe-core": "4.11.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "express": "^5.1.0",
+    "express": "^5.3.0",
     "lucide-react": "^0.424.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "15.1.1",
-    "react-router-dom": "^6.30.4",
+    "react-router-dom": "^6.30.6",
     "recharts": "^3.4.1",
     "tailwind-merge": "^2.3.0"
   },
@@ -60,12 +60,12 @@
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.11",
     "jsdom": "^27.2.0",
-    "postcss": "^8.4.44",
+    "postcss": "^8.5.32",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.54.0",
-    "vite": "^5.4.6",
-    "vitest": "^2.1.4"
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
   },
-  "packageManager": "pnpm@9.12.1"
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32"
 }

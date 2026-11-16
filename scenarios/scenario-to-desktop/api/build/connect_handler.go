@@ -85,7 +85,7 @@ func StatusToProto(status *Status) *sharedv1.BuildStatusResponse {
 		result.CompletedAt = timestamppb.New(*status.CompletedAt)
 	}
 	for platform, value := range status.PlatformResults {
-		item := &sharedv1.PlatformBuildResult{Platform: platformProto(platform), Status: platformStatusProto(value.Status), ErrorLog: value.ErrorLog, Artifact: optional(value.Artifact), FileSize: optional(value.FileSize), SkipReason: optional(value.SkipReason)}
+		item := &sharedv1.PlatformBuildResult{Platform: platformProto(platform), Status: platformStatusProto(string(value.Status)), ErrorLog: value.ErrorLog, Artifact: optional(value.Artifact), FileSize: optional(value.FileSize), SkipReason: optional(value.SkipReason)}
 		if value.StartedAt != nil {
 			item.StartedAt = timestamppb.New(*value.StartedAt)
 		}

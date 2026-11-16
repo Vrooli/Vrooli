@@ -10,7 +10,6 @@ completeness, and fail-closed behavior outrank speed at every gate. The
 one place performance genuinely matters is interactive: an operator
 reading a readiness board or a finding list should never wait.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

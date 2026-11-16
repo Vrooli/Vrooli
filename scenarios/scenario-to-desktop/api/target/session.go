@@ -80,6 +80,7 @@ type ElectronSession struct {
 	ownedNetworkRoot bool
 	cdpBridge        *unixCDPBridge
 	apiBridge        *unixCDPBridge
+	upstreamBridges  []*unixUpstreamBridge
 	shutdownLimit    time.Duration
 
 	closeOnce sync.Once
@@ -99,28 +100,53 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 	if opts.ShutdownTimeout <= 0 {
 		opts.ShutdownTimeout = defaultElectronShutdownTimeout
 	}
+	if opts.Launch.PrivateSecretService && !opts.OfflineNetwork {
+		return nil, fmt.Errorf("private fixture Secret Service requires offline Electron isolation")
+	}
 	ownedNetworkRoot := false
 	if opts.OfflineNetwork {
+		if requestedRoot := strings.TrimSpace(opts.Launch.OfflineDataRoot); requestedRoot != "" {
+			if !filepath.IsAbs(requestedRoot) || filepath.Clean(requestedRoot) != requestedRoot {
+				return nil, fmt.Errorf("offline Electron data root must be absolute and clean")
+			}
+			if _, statErr := os.Lstat(requestedRoot); !errors.Is(statErr, os.ErrNotExist) {
+				return nil, fmt.Errorf("offline Electron data root must not already exist")
+			}
+			if err := os.Mkdir(requestedRoot, 0o700); err != nil {
+				return nil, fmt.Errorf("create assigned private offline session root: %w", err)
+			}
+			opts.networkRoot = requestedRoot
+			ownedNetworkRoot = true
+		}
 		root, created, err := prepareOfflineNetworkRoot(opts.networkRoot)
 		if err != nil {
+			if ownedNetworkRoot {
+				_ = os.RemoveAll(opts.networkRoot)
+			}
 			return nil, err
 		}
 		opts.networkRoot = root
-		ownedNetworkRoot = created
+		ownedNetworkRoot = ownedNetworkRoot || created
 		if opts.Launch.UserDataDir == "" {
 			opts.Launch.UserDataDir = filepath.Join(root, "profile")
 		}
 		if !pathWithin(root, opts.Launch.UserDataDir) {
-			if created {
+			if ownedNetworkRoot {
 				_ = os.RemoveAll(root)
 			}
 			return nil, fmt.Errorf("offline Electron profile must stay inside its private session root")
 		}
 		if err := os.MkdirAll(opts.Launch.UserDataDir, 0o700); err != nil {
-			if created {
+			if ownedNetworkRoot {
 				_ = os.RemoveAll(root)
 			}
 			return nil, fmt.Errorf("create offline Electron profile: %w", err)
+		}
+		if err := ensurePrivateOfflineWritablePaths(root, opts.Launch.OfflineWritablePaths); err != nil {
+			if ownedNetworkRoot {
+				_ = os.RemoveAll(root)
+			}
+			return nil, err
 		}
 		if opts.Launch.BundledRuntime {
 			if opts.Environment == nil {
@@ -128,12 +154,30 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 			}
 			descriptorPath := filepath.Join(root, "bundled-target.json")
 			if err := os.Remove(descriptorPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-				if created {
+				if ownedNetworkRoot {
 					_ = os.RemoveAll(root)
 				}
 				return nil, fmt.Errorf("clear previous bundled target descriptor: %w", err)
 			}
 			opts.Environment["S2D_BUNDLED_TARGET_PATH"] = descriptorPath
+		}
+		if len(opts.Launch.OfflineLoopbackUpstreams) > 0 && !opts.Launch.BundledRuntime {
+			if ownedNetworkRoot {
+				_ = os.RemoveAll(opts.networkRoot)
+			}
+			return nil, fmt.Errorf("offline fixture upstreams require a bundled Electron runtime")
+		}
+		if opts.Launch.PrivateSecretService && !opts.Launch.BundledRuntime {
+			if ownedNetworkRoot {
+				_ = os.RemoveAll(opts.networkRoot)
+			}
+			return nil, fmt.Errorf("private fixture secret service requires a bundled Electron runtime")
+		}
+		if err := validateOfflineLoopbackUpstreams(opts.Launch.OfflineLoopbackUpstreams); err != nil {
+			if ownedNetworkRoot {
+				_ = os.RemoveAll(opts.networkRoot)
+			}
+			return nil, err
 		}
 	} else if opts.Launch.CDPPort == 0 {
 		port, err := allocateLoopbackPort()
@@ -189,6 +233,18 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 	for key, value := range scopedEnv {
 		env = append(env, key+"="+value)
 	}
+	if opts.OfflineNetwork {
+		env = scrubOfflineCredentialEnvironment(env)
+		env = append(env,
+			"HOME="+opts.Launch.UserDataDir,
+			"TMPDIR="+filepath.Join(opts.networkRoot, "tmp"),
+			"XDG_CACHE_HOME="+filepath.Join(opts.networkRoot, "cache"),
+			"XDG_DATA_HOME="+filepath.Join(opts.networkRoot, "xdg-data"),
+			"XDG_CONFIG_HOME="+filepath.Join(opts.networkRoot, "xdg-config"),
+			"XDG_STATE_HOME="+filepath.Join(opts.networkRoot, "xdg-state"),
+			"XDG_RUNTIME_DIR="+filepath.Join(opts.networkRoot, "runtime"),
+		)
+	}
 	if opts.Launch.BundledRuntime {
 		env = withoutBundledValidationEndpointOverrides(env)
 	}
@@ -210,8 +266,9 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 		starter = startExecProcess
 	}
 	processPath, processArgs := opts.ArtifactPath, args
+	upstreamBridges := make([]*unixUpstreamBridge, 0, len(opts.Launch.OfflineLoopbackUpstreams))
 	if opts.OfflineNetwork {
-		processPath, processArgs, err = isolatedElectronCommand(opts.networkRoot, opts.Launch.UserDataDir, cdpBridge.socketPath, filepath.Join(opts.networkRoot, "renderer.sock"), opts.Launch.CDPPort, opts.ArtifactPath, args)
+		processPath, processArgs, err = isolatedElectronCommand(opts.networkRoot, opts.Launch.UserDataDir, cdpBridge.socketPath, filepath.Join(opts.networkRoot, "renderer.sock"), opts.Launch.CDPPort, opts.ArtifactPath, args, opts.Launch.OfflineLoopbackUpstreams, opts.Launch.PrivateSecretService)
 		if err != nil {
 			_ = cdpBridge.Close()
 			if ownedNetworkRoot {
@@ -219,9 +276,26 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 			}
 			return nil, err
 		}
+		for index, upstream := range opts.Launch.OfflineLoopbackUpstreams {
+			bridge, bridgeErr := startUnixUpstreamBridge(offlineUpstreamSocketPath(opts.networkRoot, index), upstream.HostURL)
+			if bridgeErr != nil {
+				for _, started := range upstreamBridges {
+					_ = started.Close()
+				}
+				_ = cdpBridge.Close()
+				if ownedNetworkRoot {
+					_ = os.RemoveAll(opts.networkRoot)
+				}
+				return nil, fmt.Errorf("start offline fixture upstream bridge: %w", bridgeErr)
+			}
+			upstreamBridges = append(upstreamBridges, bridge)
+		}
 	}
 	process, err := starter(ctx, processPath, processArgs, env)
 	if err != nil {
+		for _, bridge := range upstreamBridges {
+			_ = bridge.Close()
+		}
 		if cdpBridge != nil {
 			_ = cdpBridge.Close()
 		}
@@ -243,6 +317,7 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 		networkRoot:      opts.networkRoot,
 		ownedNetworkRoot: ownedNetworkRoot,
 		cdpBridge:        cdpBridge,
+		upstreamBridges:  upstreamBridges,
 		shutdownLimit:    opts.ShutdownTimeout,
 	}
 	if cdpBridge != nil {
@@ -340,6 +415,30 @@ func StartElectronSession(ctx context.Context, opts ElectronSessionOptions) (*El
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
+}
+
+func ensurePrivateOfflineWritablePaths(root string, paths []string) error {
+	for _, relative := range paths {
+		clean := filepath.Clean(relative)
+		if relative == "" || filepath.IsAbs(relative) || clean != relative || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("offline writable path must be a private relative directory")
+		}
+		current := root
+		for _, segment := range strings.Split(clean, string(os.PathSeparator)) {
+			current = filepath.Join(current, segment)
+			info, err := os.Lstat(current)
+			if errors.Is(err, os.ErrNotExist) {
+				if err := os.Mkdir(current, 0o700); err != nil {
+					return fmt.Errorf("create private offline writable directory: %w", err)
+				}
+				continue
+			}
+			if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+				return fmt.Errorf("offline writable path must contain only private directories")
+			}
+		}
+	}
+	return nil
 }
 
 func offlineRendererPort(rawURL string) (int, error) {
@@ -547,6 +646,17 @@ func (s *ElectronSession) PID() int {
 // Restart reopens an exited application with the same owner-created profile.
 // It refuses a running process and transfers cleanup ownership only on success.
 func (s *ElectronSession) Restart(ctx context.Context) (*ElectronSession, error) {
+	return s.restart(ctx, false)
+}
+
+// RestartOffline reopens the same exact artifact and private data root with
+// all fixture loopback upstreams removed. It is used to prove that a cached
+// paid session survives after the online fixture endpoint has been torn down.
+func (s *ElectronSession) RestartOffline(ctx context.Context) (*ElectronSession, error) {
+	return s.restart(ctx, true)
+}
+
+func (s *ElectronSession) restart(ctx context.Context, offlineOnly bool) (*ElectronSession, error) {
 	if s == nil {
 		return nil, fmt.Errorf("Electron validation session required")
 	}
@@ -561,6 +671,12 @@ func (s *ElectronSession) Restart(ctx context.Context) (*ElectronSession, error)
 		return nil, fmt.Errorf("Electron application must exit before restart")
 	}
 	opts := s.options
+	if offlineOnly {
+		opts.Launch.OfflineLoopbackUpstreams = nil
+	}
+	// The first launch created and owns this root. Restart reuses it through
+	// networkRoot and must not attempt to allocate it again.
+	opts.Launch.OfflineDataRoot = ""
 	opts.Launch.UserDataDir = s.profileDir
 	opts.Launch.CDPPort = 0
 	opts.Renderer.ID = "" // Renderer identity changes across process lifetimes.
@@ -576,6 +692,12 @@ func (s *ElectronSession) Restart(ctx context.Context) (*ElectronSession, error)
 		}
 		s.apiBridge = nil
 	}
+	for _, bridge := range s.upstreamBridges {
+		if err := bridge.Close(); err != nil {
+			return nil, fmt.Errorf("close prior offline fixture upstream bridge: %w", err)
+		}
+	}
+	s.upstreamBridges = nil
 	next, err := StartElectronSession(ctx, opts)
 	if err != nil {
 		return nil, err
@@ -713,6 +835,11 @@ func (s *ElectronSession) Close(ctx context.Context) error {
 				errs = append(errs, fmt.Errorf("close private offline API bridge: %w", err))
 			}
 		}
+		for _, bridge := range s.upstreamBridges {
+			if err := bridge.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("close offline fixture upstream bridge: %w", err))
+			}
+		}
 		if s.ownedNetworkRoot {
 			if err := os.RemoveAll(s.networkRoot); err != nil {
 				errs = append(errs, fmt.Errorf("remove private offline Electron root: %w", err))
@@ -765,6 +892,28 @@ func allocateLoopbackPort() (int, error) {
 	}
 	defer listener.Close()
 	return listener.Addr().(*net.TCPAddr).Port, nil
+}
+
+func scrubOfflineCredentialEnvironment(environment []string) []string {
+	blocked := map[string]struct{}{
+		"HOME": {}, "TMPDIR": {}, "XDG_CACHE_HOME": {}, "XDG_CONFIG_HOME": {},
+		"XDG_DATA_HOME": {}, "XDG_STATE_HOME": {}, "XDG_RUNTIME_DIR": {},
+		"DBUS_SESSION_BUS_ADDRESS": {}, "DBUS_SYSTEM_BUS_ADDRESS": {},
+		"GNOME_KEYRING_CONTROL": {}, "SSH_AUTH_SOCK": {}, "GPG_AGENT_INFO": {},
+		"VROOLI_CREDENTIAL_BACKEND": {},
+	}
+	filtered := make([]string, 0, len(environment))
+	for _, entry := range environment {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		if _, denied := blocked[key]; denied {
+			continue
+		}
+		filtered = append(filtered, entry)
+	}
+	return filtered
 }
 
 type execElectronProcess struct {

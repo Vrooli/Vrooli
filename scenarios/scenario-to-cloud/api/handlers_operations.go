@@ -13,6 +13,7 @@ import (
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/authz"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/internal/httputil"
 	"scenario-to-cloud/operations"
 )
@@ -24,8 +25,40 @@ func (s *Server) registerOperationRoutes(api *mux.Router) {
 	api.HandleFunc("/operations/reconcile", s.handleReconcileOperations).Methods("POST")
 	api.HandleFunc("/operations/{id}", s.handleGetOperation).Methods("GET")
 	api.HandleFunc("/operations/{id}/wait", s.handleWaitOperation).Methods("GET")
+	api.HandleFunc("/deployments/{id}/operations/{opId}/target-receipts/{step}", s.handleReadOperationTargetReceipt).Methods("GET")
 	api.HandleFunc("/operations/{id}/cancel", s.handleCancelOperation).Methods("POST")
 	api.HandleFunc("/deployments/{id}/operations", s.handleListDeploymentOperations).Methods("GET")
+}
+
+// handleReadOperationTargetReceipt asks the target owner for one step receipt
+// in an operation whose admitted plan belongs to this deployment. This is a
+// fresh read through the configured reach adapter; it is never a cached or
+// certification receipt.
+func (s *Server) handleReadOperationTargetReceipt(w http.ResponseWriter, r *http.Request) {
+	if !s.requireOperations(w) {
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	vars := mux.Vars(r)
+	op, receipt, err := s.operations.ReadTargetReceipt(r.Context(), vars["id"], vars["opId"], vars["step"])
+	if err != nil {
+		apierrors.Write(w, err)
+		return
+	}
+	var plan execplan.Plan
+	if err := json.Unmarshal(op.Plan, &plan); err != nil {
+		apierrors.Write(w, apierrors.Internal("Failed to decode admitted operation plan", err))
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, map[string]any{
+		"schema_version": "1",
+		"deployment_id":  op.DeploymentID,
+		"operation_id":   op.ID,
+		"plan_digest":    op.PlanDigest,
+		"step":           vars["step"],
+		"target":         plan.Target,
+		"receipt":        receipt,
+	})
 }
 
 func (s *Server) requireOperations(w http.ResponseWriter) bool {

@@ -11,7 +11,6 @@ the headline outcome — whether the cross-OS validation gate passes on
 each target OS. No product code exists yet; the signals below describe
 the intended telemetry and are honest about what is not yet built.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

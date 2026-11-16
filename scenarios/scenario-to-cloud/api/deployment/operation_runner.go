@@ -17,6 +17,7 @@ import (
 	"scenario-to-cloud/identity"
 	"scenario-to-cloud/operations"
 	"scenario-to-cloud/reach"
+	"scenario-to-cloud/sshidentity"
 	"scenario-to-cloud/vps"
 	"scenario-to-cloud/vps/preflight"
 )
@@ -32,50 +33,57 @@ var _ operations.Runner = (*Orchestrator)(nil)
 // Execute implements operations.Runner.
 func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionContext) error {
 	op, plan := ec.Operation, ec.Plan
-	dep, err := o.repo.GetDeployment(ctx, op.DeploymentID)
+	dep, manifest, canonicalIdentity, err := o.loadOperationManifest(ctx, op)
 	if err != nil {
-		return fmt.Errorf("load deployment: %w", err)
+		return err
 	}
-	if dep == nil {
-		return apierrors.New(apierrors.CodeDeploymentNotFound, "Deployment of the operation no longer exists").WithDetail("deployment_id", op.DeploymentID)
-	}
-	var manifest domain.CloudManifest
-	if err := json.Unmarshal(dep.Manifest, &manifest); err != nil {
-		return apierrors.Internal("Deployment manifest is not decodable", err)
-	}
-	canonicalIdentity, manifest := o.resolveAndPersistIdentity(ctx, dep.ID, manifest)
 	progress := 0.0
 	emitError := func(step, stepTitle, errMsg string) {
 		o.progressHub.Broadcast(dep.ID, Event{Type: "deployment_error", Step: step, StepTitle: stepTitle, Progress: progress, Error: errMsg, Timestamp: time.Now().UTC().Format(time.RFC3339)})
 	}
+	o.logOperationStarted(dep, op, plan, ec)
+	if err := o.prepareOperationManifest(ctx, dep, &manifest, ec.Options.ProvidedSecrets, emitError); err != nil {
+		return err
+	}
+	bundlePath, bundleSize, err := o.buildOperationBundle(ctx, dep, manifest, plan, ec.Options, emitError)
+	if err != nil {
+		return err
+	}
+	if ec.Options.RunPreflight && !ec.Resumed {
+		if err := o.runPreflightStage(ctx, dep.ID, manifest, ec.Options.ProvidedSecrets, bundleSize, &progress, emitError); err != nil {
+			return err
+		}
+	}
+	trace, execErr, stageStart := o.executeOperationPlan(ctx, ec, dep, manifest, bundlePath, &progress)
+	return o.persistOperationResult(ctx, dep, plan, manifest, canonicalIdentity, trace, execErr, stageStart)
+}
 
+func (o *Orchestrator) loadOperationManifest(ctx context.Context, op *domain.CloudOperation) (*domain.Deployment, domain.CloudManifest, sshidentity.DeploymentSSHIdentity, error) {
+	dep, err := o.repo.GetDeployment(ctx, op.DeploymentID)
+	if err != nil {
+		return nil, domain.CloudManifest{}, sshidentity.DeploymentSSHIdentity{}, fmt.Errorf("load deployment: %w", err)
+	}
+	if dep == nil {
+		return nil, domain.CloudManifest{}, sshidentity.DeploymentSSHIdentity{}, apierrors.New(apierrors.CodeDeploymentNotFound, "Deployment of the operation no longer exists").WithDetail("deployment_id", op.DeploymentID)
+	}
+	var manifest domain.CloudManifest
+	if err := json.Unmarshal(dep.Manifest, &manifest); err != nil {
+		return nil, domain.CloudManifest{}, sshidentity.DeploymentSSHIdentity{}, apierrors.Internal("Deployment manifest is not decodable", err)
+	}
+	canonicalIdentity, manifest := o.resolveAndPersistIdentity(ctx, dep.ID, manifest)
+	return dep, manifest, canonicalIdentity, nil
+}
+
+func (o *Orchestrator) logOperationStarted(dep *domain.Deployment, op *domain.CloudOperation, plan *execplan.Plan, ec *operations.ExecutionContext) {
 	o.log("operation attempt started", map[string]interface{}{
 		"deployment_id": dep.ID, "operation_id": op.ID, "fence": ec.Fence, "scope": plan.Scope, "resumed": ec.Resumed, "plan_digest": op.PlanDigest,
 	})
+}
 
-	// Cloud-local prerequisites. Secrets are the one non-durable input: when
-	// the owner restarted, provided operator secrets are gone, and a plan
-	// that needs them waits for input instead of pretending.
-	if err := o.ensureSecretsAvailable(ctx, &manifest, ec.Options.ProvidedSecrets, dep.ID, emitError); err != nil {
-		var missing []domain.MissingSecretInfo
-		if m, verr := vps.ValidateUserPromptSecrets(manifest, ec.Options.ProvidedSecrets); verr != nil {
-			missing = m
-		}
-		if len(missing) > 0 {
-			names := make([]string, 0, len(missing))
-			for _, m := range missing {
-				names = append(names, m.Key)
-			}
-			typed := apierrors.New(apierrors.CodeNeedsInput, "Operator-supplied secrets are required to continue").
-				WithDetail("missing", names).
-				WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "resume", Reference: "/api/v1/deployments/" + dep.ID + "/execute", Label: "Resubmit with the missing secrets under the same request key"})
-			return operations.WaitingInputError(typed)
-		}
-		return err
+func (o *Orchestrator) prepareOperationManifest(ctx context.Context, dep *domain.Deployment, manifest *domain.CloudManifest, provided map[string]string, emitError func(step, stepTitle, errMsg string)) error {
+	if err := o.ensureSecretsAvailable(ctx, manifest, provided, dep.ID, emitError); err != nil {
+		return missingOperationSecrets(*manifest, provided, dep.ID, err)
 	}
-	// Persist the hydrated, metadata-only manifest so the deployment record
-	// remains an accurate description of the credential bindings that were
-	// actually executed. Secret values are never part of this document.
 	if manifest.Secrets != nil {
 		if hydrated, marshalErr := json.Marshal(manifest); marshalErr == nil {
 			if persistErr := o.repo.UpdateDeploymentManifest(ctx, dep.ID, hydrated); persistErr != nil {
@@ -83,27 +91,60 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 			}
 		}
 	}
-	bundlePath := ""
-	bundleSizeBytes := int64(0)
-	if plan.Scope == execplan.ScopeFull || plan.Scope == execplan.ScopeInstall {
-		path, err := o.ensureBundleBuilt(ctx, manifest, dep.BundlePath, ec.Options.ForceBundleBuild, dep.ID, emitError)
-		if err != nil {
-			return err
-		}
-		bundlePath = path
-		if info, statErr := os.Stat(bundlePath); statErr == nil {
-			bundleSizeBytes = info.Size()
-		}
-	}
-	if ec.Options.RunPreflight && !ec.Resumed {
-		if err := o.runPreflightStage(ctx, dep.ID, manifest, ec.Options.ProvidedSecrets, bundleSizeBytes, &progress, emitError); err != nil {
-			return err
-		}
-	}
+	return nil
+}
 
+func missingOperationSecrets(manifest domain.CloudManifest, provided map[string]string, deploymentID string, original error) error {
+	missing, err := vps.ValidateUserPromptSecrets(manifest, provided)
+	if err != nil && len(missing) > 0 {
+		names := make([]string, 0, len(missing))
+		for _, secret := range missing {
+			names = append(names, secret.Key)
+		}
+		typed := apierrors.New(apierrors.CodeNeedsInput, "Operator-supplied secrets are required to continue").
+			WithDetail("missing", names).
+			WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "resume", Reference: "/api/v1/deployments/" + deploymentID + "/execute", Label: "Resubmit with the missing secrets under the same request key"})
+		return operations.WaitingInputError(typed)
+	}
+	return original
+}
+
+func (o *Orchestrator) buildOperationBundle(ctx context.Context, dep *domain.Deployment, manifest domain.CloudManifest, plan *execplan.Plan, opts operations.ExecuteOptions, emitError func(step, stepTitle, errMsg string)) (string, int64, error) {
+	if plan.Scope != execplan.ScopeFull && plan.Scope != execplan.ScopeInstall {
+		return "", 0, nil
+	}
+	bundlePath, err := o.ensureBundleBuilt(ctx, manifest, dep.BundlePath, opts.ForceBundleBuild, dep.ID, emitError)
+	if err != nil {
+		return "", 0, err
+	}
+	var bundleSize int64
+	if info, statErr := os.Stat(bundlePath); statErr == nil {
+		bundleSize = info.Size()
+	}
+	return bundlePath, bundleSize, nil
+}
+
+func (o *Orchestrator) executeOperationPlan(ctx context.Context, ec *operations.ExecutionContext, dep *domain.Deployment, manifest domain.CloudManifest, bundlePath string, progress *float64) (vps.Trace, *vps.ExecutionError, time.Time) {
 	hubAdapter := &progressHubAdapter{hub: o.progressHub}
 	repoAdapter := &progressRepoAdapter{repo: o.repo}
-	hooks := vps.Hooks{
+	hooks := executionHooks(ec)
+	stageStart := time.Now()
+	o.appendHistoryEvent(ctx, dep.ID, domain.HistoryEvent{Type: domain.EventDeployStarted, Timestamp: stageStart.UTC(), Message: fmt.Sprintf("Operation %s started (%s)", ec.Operation.ID, ec.Plan.Scope)})
+	var weights map[string]float64
+	if ec.Plan.Scope == execplan.ScopeStart {
+		weights = vps.CalculateWeightsForSteps(vps.StartSteps)
+	}
+	runtime := o.operationRuntime(dep, manifest, ec)
+	trace, err := vps.ExecutePlan(ctx, vps.ExecuteRequest{
+		Plan: ec.Plan, Manifest: manifest, BundlePath: bundlePath, Runtime: runtime,
+		Hub: hubAdapter, Repo: repoAdapter, DeploymentID: dep.ID,
+		Progress: progress, Weights: weights, Hooks: hooks,
+	})
+	return trace, err, stageStart
+}
+
+func executionHooks(ec *operations.ExecutionContext) vps.Hooks {
+	return vps.Hooks{
 		Before: func(ctx context.Context, action execplan.Action) (bool, error) {
 			decision, err := ec.Steps.Begin(ctx, action)
 			if err != nil {
@@ -127,27 +168,21 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 			return err
 		},
 	}
-	stageStart := time.Now()
-	o.appendHistoryEvent(ctx, dep.ID, domain.HistoryEvent{Type: domain.EventDeployStarted, Timestamp: stageStart.UTC(), Message: fmt.Sprintf("Operation %s started (%s)", op.ID, plan.Scope)})
-	var weights map[string]float64
-	if plan.Scope == execplan.ScopeStart {
-		weights = vps.CalculateWeightsForSteps(vps.StartSteps)
-	}
+}
+
+func (o *Orchestrator) operationRuntime(dep *domain.Deployment, manifest domain.CloudManifest, ec *operations.ExecutionContext) vps.Runtime {
 	runtime := vps.Runtime{
-		Reach:           o.reach,
-		Target:          targetFor(dep, manifest),
-		Identity:        vps.Identity{OperationID: op.ID, Fence: ec.Fence},
-		Backups:         o.backups,
-		ManagedDNS:      o.managedDNS,
-		SecretsGen:      o.secretsGenerator,
-		ProvidedSecrets: ec.Options.ProvidedSecrets,
-		LocalHandoff:    o.localCredentialHandoff,
+		Reach: o.reach, Target: targetFor(dep, manifest), Identity: vps.Identity{OperationID: ec.Operation.ID, Fence: ec.Fence},
+		Backups: o.backups, ManagedDNS: o.managedDNS, SecretsGen: o.secretsGenerator,
+		ProvidedSecrets: ec.Options.ProvidedSecrets, LocalHandoff: o.localCredentialHandoff,
 	}
 	if o.credentials != nil {
 		runtime.Credentials = &credentialProvisioner{bind: o.credentials, store: o.repo}
 	}
-	trace, execErr := vps.ExecutePlan(ctx, vps.ExecuteRequest{Plan: plan, Manifest: manifest, BundlePath: bundlePath, Runtime: runtime, Hub: hubAdapter, Repo: repoAdapter, DeploymentID: dep.ID, Progress: &progress, Weights: weights, Hooks: hooks})
+	return runtime
+}
 
+func (o *Orchestrator) persistOperationResult(ctx context.Context, dep *domain.Deployment, plan *execplan.Plan, manifest domain.CloudManifest, canonicalIdentity sshidentity.DeploymentSSHIdentity, trace vps.Trace, execErr *vps.ExecutionError, stageStart time.Time) error {
 	digest, _ := plan.SemanticDigest()
 	result := domain.VPSDeployResult{OK: execErr == nil, PlanDigest: digest, Actions: trace.Actions, DurationMs: time.Since(stageStart).Milliseconds(), Timestamp: time.Now().UTC().Format(time.RFC3339)}
 	if execErr != nil {
@@ -156,23 +191,14 @@ func (o *Orchestrator) Execute(ctx context.Context, ec *operations.ExecutionCont
 		result.FailedStep = execErr.ActionID
 	}
 	resultJSON, _ := json.Marshal(result)
-	if err := o.repo.UpdateDeploymentDeployResult(ctx, dep.ID, resultJSON, false); err != nil {
+	if err := o.repo.UpdateDeploymentDeployResult(ctx, dep.ID, resultJSON); err != nil {
 		o.log("failed to save operation result", map[string]interface{}{"error": err.Error()})
 	}
+	o.enforceVPSBundleRetentionBestEffort(ctx, dep.ID, manifest)
 	if execErr == nil {
-		o.enforceVPSBundleRetentionBestEffort(ctx, dep.ID, manifest)
 		o.verifyAndPersistIdentity(ctx, dep.ID, manifest, canonicalIdentity)
 		return nil
 	}
-	// Retention is safety-critical cleanup, not a success-only epilogue.
-	// Failed staging and interrupted operations can otherwise leave complete
-	// release trees behind until the next successful deployment, which is
-	// exactly how a small VPS can fill while every individual operation fails
-	// safely. The target-side prune owner protects active, predecessor and
-	// in-flight releases before deleting anything.
-	o.enforceVPSBundleRetentionBestEffort(ctx, dep.ID, manifest)
-	// Control errors (cancel, unknown effect, recovery) pass through to the
-	// worker untouched; everything else is a failed change.
 	return execErr.Err
 }
 
@@ -219,66 +245,89 @@ func (o *Orchestrator) runPreflightStage(ctx context.Context, id string, manifes
 	o.progressHub.Broadcast(id, Event{Type: "step_started", Step: "preflight", StepTitle: "Running preflight checks", Progress: *progress, Timestamp: time.Now().UTC().Format(time.RFC3339)})
 	preflightOptions := preflight.RunOptions{ProvidedSecrets: providedSecrets, BundleSizeBytes: bundleSizeBytes}
 	resp := preflight.Run(ctx, manifest, o.dnsService, o.reach, preflightTarget, preflightOptions)
-	if !resp.OK && hasFailingPreflightCheck(resp, domain.PreflightDiskFreeID) {
-		cleanupAttempted := false
-		cleanupSucceeded := false
-		if disk := preflightDiskFacts(resp); disk.availableKB >= 0 {
-			cleanup := preflight.CleanupDiskPressure(ctx, o.reach, preflightTarget, disk.availableKB, disk.requiredKB)
-			cleanupAttempted = len(cleanup.Attempted) > 0
-			cleanupSucceeded = len(cleanup.Succeeded) > 0
-			if cleanupAttempted {
-				o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-					Type: domain.EventVPSBundleGC, Timestamp: time.Now().UTC(),
-					Message: "Adaptive VPS disk cleanup attempted before release GC",
-					Details: fmt.Sprintf("attempted=%v succeeded=%v errors=%v", cleanup.Attempted, cleanup.Succeeded, cleanup.Errors),
-					Success: boolPtr(len(cleanup.Succeeded) > 0), StepName: "preflight",
-				})
-			}
-		}
-		gcApplied := o.tryAutoVPSBundleGC(ctx, id, manifest)
-		if gcApplied || cleanupAttempted {
-			resp = preflight.Run(ctx, manifest, o.dnsService, o.reach, preflightTarget, preflightOptions)
-		}
-		if cleanupSucceeded && diskDeficitWithinTolerance(resp, 256*1024) {
-			for i := range resp.Checks {
-				if resp.Checks[i].ID == domain.PreflightDiskFreeID && resp.Checks[i].Status == domain.PreflightFail {
-					resp.Checks[i].Status = domain.PreflightWarn
-					resp.Checks[i].Details += "; continuing after bounded cleanup because the remaining deficit is within 256 MB"
-				}
-			}
-			resp.OK = true
-			o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
-				Type: domain.EventVPSBundleGC, Timestamp: time.Now().UTC(),
-				Message: "Deployment continued after bounded disk cleanup",
-				Details: "remaining disk deficit was within 256 MB and no other preflight check failed",
-				Success: boolPtr(true), StepName: "preflight",
-			})
-		}
-	}
+	resp = o.recoverPreflightDiskPressure(ctx, id, manifest, preflightTarget, preflightOptions, resp)
 	preflightJSON, _ := json.Marshal(resp)
 	if err := o.repo.UpdateDeploymentPreflightResult(ctx, id, preflightJSON); err != nil {
 		o.log("failed to save preflight result", map[string]interface{}{"error": err.Error()})
 	}
 	o.progressHub.Broadcast(id, Event{Type: "preflight_result", Step: "preflight", StepTitle: "Running preflight checks", Progress: *progress, PreflightResult: &resp, Timestamp: time.Now().UTC().Format(time.RFC3339)})
 	if !resp.OK {
-		failCount := 0
-		for _, check := range resp.Checks {
-			if check.Status == domain.PreflightFail {
-				failCount++
-			}
-		}
-		errMsg := "Preflight checks failed"
-		if failCount > 0 {
-			errMsg = fmt.Sprintf("Preflight checks failed (%d issue%s)", failCount, pluralize(failCount))
-		}
-		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{Type: domain.EventPreflightCompleted, Timestamp: time.Now().UTC(), Message: errMsg, Details: FormatPreflightFailureDetails(resp), DurationMs: time.Since(preflightStart).Milliseconds(), Success: boolPtr(false)})
-		emitError("preflight", "Running preflight checks", errMsg)
-		return apierrors.New(apierrors.CodeInvalidRequest, errMsg).WithDetail("step", "preflight")
+		return o.failPreflight(ctx, id, resp, preflightStart, emitError)
 	}
 	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{Type: domain.EventPreflightCompleted, Timestamp: time.Now().UTC(), Message: "Preflight checks passed", DurationMs: time.Since(preflightStart).Milliseconds(), Success: boolPtr(true)})
 	*progress += vps.StepWeights["preflight"]
 	o.progressHub.Broadcast(id, Event{Type: "step_completed", Step: "preflight", StepTitle: "Running preflight checks", Progress: *progress, Timestamp: time.Now().UTC().Format(time.RFC3339)})
 	return nil
+}
+
+func (o *Orchestrator) recoverPreflightDiskPressure(ctx context.Context, id string, manifest domain.CloudManifest, target identity.TargetRef, options preflight.RunOptions, response domain.PreflightResponse) domain.PreflightResponse {
+	if response.OK || !hasFailingPreflightCheck(response, domain.PreflightDiskFreeID) {
+		return response
+	}
+	cleanupAttempted, cleanupSucceeded := o.cleanupPreflightDisk(ctx, id, target, response)
+	if o.tryAutoVPSBundleGC(ctx, id, manifest) || cleanupAttempted {
+		response = preflight.Run(ctx, manifest, o.dnsService, o.reach, target, options)
+	}
+	if cleanupSucceeded && diskDeficitWithinTolerance(response, 256*1024) {
+		response = o.markPreflightDiskWarning(ctx, id, response)
+	}
+	return response
+}
+
+func (o *Orchestrator) cleanupPreflightDisk(ctx context.Context, id string, target identity.TargetRef, response domain.PreflightResponse) (bool, bool) {
+	disk := preflightDiskFacts(response)
+	if disk.availableKB < 0 {
+		return false, false
+	}
+	cleanup := preflight.CleanupDiskPressure(ctx, o.reach, target, disk.availableKB, disk.requiredKB)
+	attempted, succeeded := len(cleanup.Attempted) > 0, len(cleanup.Succeeded) > 0
+	if attempted {
+		o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+			Type: domain.EventVPSBundleGC, Timestamp: time.Now().UTC(),
+			Message: "Adaptive VPS disk cleanup attempted before release GC",
+			Details: fmt.Sprintf("attempted=%v succeeded=%v errors=%v", cleanup.Attempted, cleanup.Succeeded, cleanup.Errors),
+			Success: boolPtr(succeeded), StepName: "preflight",
+		})
+	}
+	return attempted, succeeded
+}
+
+func (o *Orchestrator) markPreflightDiskWarning(ctx context.Context, id string, response domain.PreflightResponse) domain.PreflightResponse {
+	for i := range response.Checks {
+		if response.Checks[i].ID == domain.PreflightDiskFreeID && response.Checks[i].Status == domain.PreflightFail {
+			response.Checks[i].Status = domain.PreflightWarn
+			response.Checks[i].Details += "; continuing after bounded cleanup because the remaining deficit is within 256 MB"
+		}
+	}
+	response.OK = true
+	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{
+		Type: domain.EventVPSBundleGC, Timestamp: time.Now().UTC(),
+		Message: "Deployment continued after bounded disk cleanup",
+		Details: "remaining disk deficit was within 256 MB and no other preflight check failed",
+		Success: boolPtr(true), StepName: "preflight",
+	})
+	return response
+}
+
+func (o *Orchestrator) failPreflight(ctx context.Context, id string, response domain.PreflightResponse, preflightStart time.Time, emitError func(step, stepTitle, errMsg string)) error {
+	failCount := preflightFailureCount(response)
+	errMsg := "Preflight checks failed"
+	if failCount > 0 {
+		errMsg = fmt.Sprintf("Preflight checks failed (%d issue%s)", failCount, pluralize(failCount))
+	}
+	o.appendHistoryEvent(ctx, id, domain.HistoryEvent{Type: domain.EventPreflightCompleted, Timestamp: time.Now().UTC(), Message: errMsg, Details: FormatPreflightFailureDetails(response), DurationMs: time.Since(preflightStart).Milliseconds(), Success: boolPtr(false)})
+	emitError("preflight", "Running preflight checks", errMsg)
+	return apierrors.New(apierrors.CodeInvalidRequest, errMsg).WithDetail("step", "preflight")
+}
+
+func preflightFailureCount(response domain.PreflightResponse) int {
+	count := 0
+	for _, check := range response.Checks {
+		if check.Status == domain.PreflightFail {
+			count++
+		}
+	}
+	return count
 }
 
 // ---- Projection -----------------------------------------------------------
@@ -301,6 +350,19 @@ func (o *Orchestrator) OperationStarted(ctx context.Context, op *domain.CloudOpe
 // from the operation record and never the other way round.
 func (o *Orchestrator) OperationFinished(ctx context.Context, op *domain.CloudOperation, plan *execplan.Plan, to operations.State, result *operations.Result, failure *apierrors.Error) {
 	now := time.Now().UTC()
+	step := operationTerminalStep(op)
+	message := operationResultMessage(result)
+	switch to {
+	case operations.Succeeded:
+		o.projectOperationSuccess(ctx, op, now)
+	case operations.Cancelled:
+		o.projectOperationCancellation(ctx, op, step, message, now)
+	default:
+		o.projectOperationFailure(ctx, op, to, step, message, failure, now)
+	}
+}
+
+func operationTerminalStep(op *domain.CloudOperation) string {
 	step := ""
 	if marker := op.ActiveStepMarker(); marker != nil {
 		step = marker.Step
@@ -311,42 +373,49 @@ func (o *Orchestrator) OperationFinished(ctx context.Context, op *domain.CloudOp
 			step = last.Step
 		}
 	}
-	message := ""
-	if result != nil {
-		message = result.Message
+	return step
+}
+
+func operationResultMessage(result *operations.Result) string {
+	if result == nil {
+		return ""
 	}
-	switch to {
-	case operations.Succeeded:
-		dep, _ := o.repo.GetDeployment(ctx, op.DeploymentID)
-		if dep != nil && dep.DeployResult.Valid {
-			_ = o.repo.UpdateDeploymentDeployResult(ctx, op.DeploymentID, dep.DeployResult.Data, true)
-		} else {
-			_ = o.repo.UpdateDeploymentStatus(ctx, op.DeploymentID, domain.StatusDeployed, nil, nil)
-		}
-		o.appendHistoryEvent(ctx, op.DeploymentID, domain.HistoryEvent{Type: domain.EventDeployCompleted, Timestamp: now, Message: "Operation " + op.ID + " succeeded", Success: boolPtr(true)})
-		o.progressHub.Broadcast(op.DeploymentID, Event{Type: "completed", Progress: 100, Message: "Deployment successful", Timestamp: now.Format(time.RFC3339)})
-	case operations.Cancelled:
-		msg := "operation cancelled"
-		if message != "" {
-			msg = message
-		}
-		_ = o.repo.UpdateDeploymentStatus(ctx, op.DeploymentID, domain.StatusFailed, &msg, stringPtrOrNil(step))
-		o.appendHistoryEvent(ctx, op.DeploymentID, domain.HistoryEvent{Type: domain.EventDeployFailed, Timestamp: now, Message: "Operation " + op.ID + " cancelled", Details: msg, Success: boolPtr(false), StepName: step})
-		o.progressHub.Broadcast(op.DeploymentID, Event{Type: "deployment_error", Step: step, Error: msg, Timestamp: now.Format(time.RFC3339)})
-	default: // failed, failed_recovery
-		msg := "operation failed"
-		if failure != nil {
-			msg = failure.Message
-		} else if message != "" {
-			msg = message
-		}
-		if to == operations.FailedRecovery {
-			msg = "recovery failed: " + msg
-		}
-		_ = o.repo.UpdateDeploymentStatus(ctx, op.DeploymentID, domain.StatusFailed, &msg, stringPtrOrNil(step))
-		o.appendHistoryEvent(ctx, op.DeploymentID, domain.HistoryEvent{Type: domain.EventDeployFailed, Timestamp: now, Message: "Operation " + op.ID + " " + string(to), Details: msg, Success: boolPtr(false), StepName: step})
-		o.progressHub.Broadcast(op.DeploymentID, Event{Type: "deployment_error", Step: step, Error: msg, Timestamp: now.Format(time.RFC3339)})
+	return result.Message
+}
+
+func (o *Orchestrator) projectOperationSuccess(ctx context.Context, op *domain.CloudOperation, now time.Time) {
+	dep, _ := o.repo.GetDeployment(ctx, op.DeploymentID)
+	if dep != nil && dep.DeployResult.Valid {
+		_ = o.repo.UpdateDeploymentDeployResult(ctx, op.DeploymentID, dep.DeployResult.Data)
 	}
+	_ = o.repo.UpdateDeploymentStatus(ctx, op.DeploymentID, domain.StatusDeployed, nil, nil)
+	o.appendHistoryEvent(ctx, op.DeploymentID, domain.HistoryEvent{Type: domain.EventDeployCompleted, Timestamp: now, Message: "Operation " + op.ID + " succeeded", Success: boolPtr(true)})
+	o.progressHub.Broadcast(op.DeploymentID, Event{Type: "completed", Progress: 100, Message: "Deployment successful", Timestamp: now.Format(time.RFC3339)})
+}
+
+func (o *Orchestrator) projectOperationCancellation(ctx context.Context, op *domain.CloudOperation, step, message string, now time.Time) {
+	msg := message
+	if msg == "" {
+		msg = "operation cancelled"
+	}
+	_ = o.repo.UpdateDeploymentStatus(ctx, op.DeploymentID, domain.StatusFailed, &msg, stringPtrOrNil(step))
+	o.appendHistoryEvent(ctx, op.DeploymentID, domain.HistoryEvent{Type: domain.EventDeployFailed, Timestamp: now, Message: "Operation " + op.ID + " cancelled", Details: msg, Success: boolPtr(false), StepName: step})
+	o.progressHub.Broadcast(op.DeploymentID, Event{Type: "deployment_error", Step: step, Error: msg, Timestamp: now.Format(time.RFC3339)})
+}
+
+func (o *Orchestrator) projectOperationFailure(ctx context.Context, op *domain.CloudOperation, to operations.State, step, message string, failure *apierrors.Error, now time.Time) {
+	msg := "operation failed"
+	if failure != nil {
+		msg = failure.Message
+	} else if message != "" {
+		msg = message
+	}
+	if to == operations.FailedRecovery {
+		msg = "recovery failed: " + msg
+	}
+	_ = o.repo.UpdateDeploymentStatus(ctx, op.DeploymentID, domain.StatusFailed, &msg, stringPtrOrNil(step))
+	o.appendHistoryEvent(ctx, op.DeploymentID, domain.HistoryEvent{Type: domain.EventDeployFailed, Timestamp: now, Message: "Operation " + op.ID + " " + string(to), Details: msg, Success: boolPtr(false), StepName: step})
+	o.progressHub.Broadcast(op.DeploymentID, Event{Type: "deployment_error", Step: step, Error: msg, Timestamp: now.Format(time.RFC3339)})
 }
 
 func stringPtrOrNil(s string) *string {
@@ -370,47 +439,72 @@ func ParseTargetReceipt(stdout string, exitCode int, runErr error) (operations.T
 	}
 	trimmed := strings.TrimSpace(stdout)
 	if trimmed == "" {
-		if runErr != nil {
-			return operations.TargetReceipt{}, runErr
-		}
-		return operations.TargetReceipt{}, fmt.Errorf("empty receipt reply")
+		return emptyReceiptReply(runErr)
 	}
 	if err := json.Unmarshal([]byte(trimmed), &payload); err != nil {
 		return operations.TargetReceipt{}, fmt.Errorf("receipt reply is not JSON: %w", err)
 	}
 	if payload.SchemaVersion == 0 {
-		if payload.Error != nil && payload.Error.Code == "receipt_not_found" {
-			return operations.TargetReceipt{Found: false}, nil
-		}
-		if payload.Error != nil {
-			return operations.TargetReceipt{}, fmt.Errorf("target refused receipt read: %s: %s", payload.Error.Code, payload.Error.Message)
-		}
-		if runErr != nil {
-			return operations.TargetReceipt{}, runErr
-		}
+		return missingTargetReceipt(payload.Error, runErr)
+	}
+	out := operations.TargetReceipt{Found: true, Fence: payload.Fence, Outcome: targetReceiptOutcome(payload.Outcome)}
+	attachTargetReceiptError(&out, payload.Error)
+	attachTargetReceiptDetails(&out, payload.Details)
+	_ = exitCode
+	return out, nil
+}
+
+func emptyReceiptReply(runErr error) (operations.TargetReceipt, error) {
+	if runErr != nil {
+		return operations.TargetReceipt{}, runErr
+	}
+	return operations.TargetReceipt{}, fmt.Errorf("empty receipt reply")
+}
+
+func missingTargetReceipt(targetErr *struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}, runErr error) (operations.TargetReceipt, error) {
+	if targetErr != nil && targetErr.Code == "receipt_not_found" {
 		return operations.TargetReceipt{Found: false}, nil
 	}
-	out := operations.TargetReceipt{Found: true, Fence: payload.Fence}
-	switch payload.Outcome {
+	if targetErr != nil {
+		return operations.TargetReceipt{}, fmt.Errorf("target refused receipt read: %s: %s", targetErr.Code, targetErr.Message)
+	}
+	if runErr != nil {
+		return operations.TargetReceipt{}, runErr
+	}
+	return operations.TargetReceipt{Found: false}, nil
+}
+
+func targetReceiptOutcome(value string) operations.StepOutcome {
+	switch value {
 	case "succeeded":
-		out.Outcome = operations.StepSucceeded
+		return operations.StepSucceeded
 	case "unchanged":
-		out.Outcome = operations.StepUnchanged
+		return operations.StepUnchanged
 	case "failed":
-		out.Outcome = operations.StepFailed
+		return operations.StepFailed
 	default:
-		out.Outcome = operations.StepUnknown
+		return operations.StepUnknown
 	}
-	if payload.Error != nil {
-		out.Error = payload.Error.Code + ": " + payload.Error.Message
+}
+
+func attachTargetReceiptError(out *operations.TargetReceipt, targetErr *struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}) {
+	if targetErr != nil {
+		out.Error = targetErr.Code + ": " + targetErr.Message
 	}
-	if payload.Details != nil {
-		if b, err := json.Marshal(payload.Details); err == nil {
+}
+
+func attachTargetReceiptDetails(out *operations.TargetReceipt, details map[string]any) {
+	if details != nil {
+		if b, err := json.Marshal(details); err == nil {
 			out.Detail = string(b)
 		}
 	}
-	_ = exitCode
-	return out, nil
 }
 
 func safeIdentifier(v string) bool {

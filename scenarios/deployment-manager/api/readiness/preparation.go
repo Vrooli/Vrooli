@@ -25,7 +25,7 @@ type PredecessorResolver interface {
 }
 
 type PrepareRequest struct {
-	Identity         ReviewIdentity    `json:"identity"`
+	Identity ReviewIdentity `json:"identity"`
 	// ProvidedEvidence is retained for compatibility with unbound mechanical
 	// callers. Producer-bound and human-review criteria always resolve through
 	// their owner or review repository and ignore request-supplied evidence.
@@ -94,6 +94,10 @@ func (p *Preparer) Prepare(ctx context.Context, request PrepareRequest) (Prepare
 	if err != nil {
 		return PrepareDecision{}, err
 	}
+	if !CanPrepareReview(review.Status) {
+		return PrepareDecision{}, ErrInvalidReviewTransition{From: review.Status, To: ReviewAgentReview}
+	}
+	expectedStatus := review.Status
 	provided := make(map[string]EvidenceItem, len(request.ProvidedEvidence))
 	for _, evidence := range request.ProvidedEvidence {
 		if _, exists := provided[evidence.CriterionID]; exists {
@@ -206,12 +210,14 @@ func (p *Preparer) Prepare(ctx context.Context, request PrepareRequest) (Prepare
 			mechanicalBlocker = true
 		}
 	}
+	status := ReviewAgentReview
 	if mechanicalBlocker {
-		review.Status = ReviewBlocked
-	} else {
-		review.Status = ReviewAgentReview
+		status = ReviewBlocked
 	}
-	if err := p.Repository.ReplaceEvaluation(ctx, review.Key, evidence, findings, review.Status); err != nil {
+	if err := review.ApplyEvaluationStatus(status); err != nil {
+		return PrepareDecision{}, err
+	}
+	if err := p.Repository.ReplaceEvaluation(ctx, review.Key, expectedStatus, evidence, findings, review.Status); err != nil {
 		return PrepareDecision{}, err
 	}
 	decision := PrepareDecision{Review: review, Verdict: verdict, Deduped: deduped}

@@ -358,7 +358,6 @@ func (s *DefaultService) recordTargetObservation(smokeTestID string, target Jour
 func (s *DefaultService) recordTypedFailure(smokeTestID string, err *Error) {
 	s.transitionTo(smokeTestID, StateFailed, err.Message)
 	s.store.Update(smokeTestID, func(status *Status) {
-		status.Status = "failed"
 		status.Error = err.Error()
 		status.ErrorKind = &err.Kind
 		status.ErrorContext = err.Context
@@ -377,24 +376,15 @@ func (s *DefaultService) recordTypedFailure(smokeTestID string, err *Error) {
 }
 
 func (s *DefaultService) transitionTo(smokeTestID string, newState State, message string) {
-	s.store.Update(smokeTestID, func(status *Status) {
-		now := time.Now()
-		var durationMs int64
-		if len(status.Transitions) > 0 {
-			lastTransition := status.Transitions[len(status.Transitions)-1]
-			durationMs = now.Sub(lastTransition.Timestamp).Milliseconds()
-		}
-		transition := StateTransition{
-			From:       status.CurrentState,
-			To:         newState,
-			Timestamp:  now,
-			Message:    message,
-			DurationMs: durationMs,
-		}
-		status.Transitions = append(status.Transitions, transition)
-		status.CurrentState = newState
-		status.Logs = append(status.Logs, fmt.Sprintf("[%s] %s", newState, message))
-	})
+	if err := s.store.TransitionState(smokeTestID, newState, message); err != nil {
+		s.logger.Error("smoke_test_state_transition_rejected",
+			"smoke_test_id", smokeTestID,
+			"from", "current",
+			"to", string(newState),
+			"error", err,
+		)
+		return
+	}
 
 	s.logger.Info("smoke_test_state_transition",
 		"smoke_test_id", smokeTestID,

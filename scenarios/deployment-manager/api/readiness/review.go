@@ -22,6 +22,92 @@ const (
 	ReviewSuperseded  ReviewStatus = "superseded"
 )
 
+// ValidReviewStatus recognizes every status in the persisted readiness vocabulary.
+func ValidReviewStatus(status ReviewStatus) bool {
+	switch status {
+	case ReviewCollecting, ReviewBlocked, ReviewAgentReview, ReviewApproved, ReviewPromoted, ReviewSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionReviewStatus lists lifecycle edges outside evaluation refreshes.
+func CanTransitionReviewStatus(from, to ReviewStatus) bool {
+	switch {
+	case from == ReviewAgentReview && to == ReviewApproved:
+		return true
+	case from == ReviewApproved && to == ReviewPromoted:
+		return true
+	case from == ReviewPromoted && to == ReviewSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanPrepareReview reports whether a review can accept a fresh evaluation.
+// An approved but unpublished review may be re-evaluated, which clears its
+// prior approval. Published and superseded reviews remain terminal.
+func CanPrepareReview(status ReviewStatus) bool {
+	return status == ReviewCollecting || status == ReviewBlocked || status == ReviewAgentReview || status == ReviewApproved
+}
+
+// CanReplaceReviewEvaluation validates status changes produced by preparation.
+func CanReplaceReviewEvaluation(from, to ReviewStatus) bool {
+	if !CanPrepareReview(from) || (to != ReviewBlocked && to != ReviewAgentReview) {
+		return false
+	}
+	return true
+}
+
+// TransitionStatus is the domain owner for approval, publication and supersession.
+func (r *Review) TransitionStatus(to ReviewStatus) error {
+	if r == nil || !CanTransitionReviewStatus(r.Status, to) {
+		from := ReviewStatus("")
+		if r != nil {
+			from = r.Status
+		}
+		return ErrInvalidReviewTransition{From: from, To: to}
+	}
+	r.Status = to
+	return nil
+}
+
+// ApplyEvaluationStatus owns the status result of evidence preparation.
+func (r *Review) ApplyEvaluationStatus(to ReviewStatus) error {
+	if r == nil || !CanReplaceReviewEvaluation(r.Status, to) {
+		from := ReviewStatus("")
+		if r != nil {
+			from = r.Status
+		}
+		return ErrInvalidReviewTransition{From: from, To: to}
+	}
+	r.Status = to
+	return nil
+}
+
+type ErrInvalidReviewTransition struct{ From, To ReviewStatus }
+
+func (e ErrInvalidReviewTransition) Error() string {
+	return fmt.Sprintf("invalid readiness review status transition: %q -> %q", e.From, e.To)
+}
+
+type ErrInvalidReviewStatus struct{ Status ReviewStatus }
+
+func (e ErrInvalidReviewStatus) Error() string {
+	return fmt.Sprintf("invalid persisted readiness review status %q", e.Status)
+}
+
+type ErrReviewStatusConflict struct {
+	ReviewKey string
+	Expected  ReviewStatus
+}
+
+func (e ErrReviewStatusConflict) Error() string {
+	return fmt.Sprintf("readiness review %q no longer has expected status %q", e.ReviewKey, e.Expected)
+}
+
 type ComparisonMode string
 
 const (
@@ -187,7 +273,7 @@ type ReviewRepository interface {
 	ListEvaluation(context.Context, string) ([]EvidenceItem, []ReviewFinding, error)
 	ListActiveWaivers(context.Context, string, time.Time) ([]ReviewWaiver, error)
 	ListWaivers(context.Context, string, int) ([]ReviewWaiver, error)
-	ReplaceEvaluation(context.Context, string, []EvidenceItem, []ReviewFinding, ReviewStatus) error
+	ReplaceEvaluation(context.Context, string, ReviewStatus, []EvidenceItem, []ReviewFinding, ReviewStatus) error
 	SetGoal(context.Context, string, string) error
 	RecordGoalClosure(context.Context, string, time.Time) error
 	Approve(context.Context, string, ReviewIdentity, string, time.Time) error

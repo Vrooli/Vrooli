@@ -86,35 +86,49 @@ func Render(plan *Plan, opts ...RenderOption) Preview {
 	preview.Downtime = Downtime{ExpectedSeconds: totalDowntime(plan.Actions)}
 	recovery := map[string]bool{}
 	for _, action := range plan.Actions {
-		preview.Changes = append(preview.Changes, Change{
-			ActionID:     action.ID,
-			Operation:    action.OwnerOperation,
-			Effect:       action.Effect,
-			Capability:   action.RequiredCapability,
-			Summary:      summarize(action),
-			Verification: action.Verification,
-			Recovery:     action.Recovery,
-			Retry:        action.Retry,
-			CancelPoint:  action.CancelPoint,
-		})
-		if action.Downtime != nil && preview.Downtime.Reason == "" {
-			preview.Downtime.Reason = action.Downtime.Reason
-		}
-		if action.Recovery != "" && action.Recovery != "none_required" {
-			recovery[action.Recovery] = true
-		}
-		preview.DataEffects = append(preview.DataEffects, dataEffects(action)...)
-		if options.shell != nil {
-			if cmd := options.shell(cloneAction(action)); cmd != "" {
-				preview.ShellPreview = append(preview.ShellPreview, ShellPreviewLine{ActionID: action.ID, Command: cmd})
-			}
-		}
+		appendRenderedAction(&preview, action, options.shell, recovery)
 	}
-	preview.RecoveryStrategy = strings.Join(sortedKeys(recovery), ",")
-	if preview.RecoveryStrategy == "" {
-		preview.RecoveryStrategy = "none_required"
-	}
+	preview.RecoveryStrategy = recoveryStrategy(recovery)
 	return preview
+}
+
+func appendRenderedAction(preview *Preview, action Action, shell ShellRenderer, recovery map[string]bool) {
+	preview.Changes = append(preview.Changes, Change{
+		ActionID:     action.ID,
+		Operation:    action.OwnerOperation,
+		Effect:       action.Effect,
+		Capability:   action.RequiredCapability,
+		Summary:      summarize(action),
+		Verification: action.Verification,
+		Recovery:     action.Recovery,
+		Retry:        action.Retry,
+		CancelPoint:  action.CancelPoint,
+	})
+	if action.Downtime != nil && preview.Downtime.Reason == "" {
+		preview.Downtime.Reason = action.Downtime.Reason
+	}
+	if action.Recovery != "" && action.Recovery != "none_required" {
+		recovery[action.Recovery] = true
+	}
+	preview.DataEffects = append(preview.DataEffects, dataEffects(action)...)
+	appendShellPreview(preview, shell, action)
+}
+
+func appendShellPreview(preview *Preview, shell ShellRenderer, action Action) {
+	if shell == nil {
+		return
+	}
+	if cmd := shell(cloneAction(action)); cmd != "" {
+		preview.ShellPreview = append(preview.ShellPreview, ShellPreviewLine{ActionID: action.ID, Command: cmd})
+	}
+}
+
+func recoveryStrategy(recovery map[string]bool) string {
+	strategy := strings.Join(sortedKeys(recovery), ",")
+	if strategy == "" {
+		return "none_required"
+	}
+	return strategy
 }
 
 func targetLabel(t Target) string {
@@ -125,53 +139,105 @@ func targetLabel(t Target) string {
 }
 
 func summarize(action Action) string {
-	switch action.OwnerOperation {
-	case OpHostPrepare:
-		return "Ensure system packages: " + action.Inputs["packages"]
-	case OpEdgeFirewallAllow:
-		return "Allow inbound " + action.Inputs["protocol"] + " ports " + action.Inputs["ports"]
-	case OpDataInventory:
-		return "Inventory persistent data under scenarios " + action.Inputs["scenarios"]
-	case OpReleaseDeliver:
-		return "Deliver release artifact " + action.Inputs["artifact_ref"] + " to " + action.Inputs["destination"]
-	case OpReleaseVerify:
-		return "Verify delivered archive against release " + action.Inputs["release_digest"]
-	case OpReleaseStage:
-		return "Stage release into " + action.Inputs["release_dir"]
-	case OpDataBackup:
-		return "Capture a recovery point of " + action.Inputs["bindings"] + " sealed under " + action.Inputs["recovery_key_ref"] + " (" + action.Inputs["migration_posture"] + ")"
-	case OpReleaseActivate:
-		return "Activate release " + action.Inputs["release_digest"] + " (" + action.Inputs["strategy"] + "; runtime, then pointer)"
-	case OpConfigApply:
-		return "Apply " + action.Inputs["selection"] + " configuration for environment " + action.Inputs["environment"]
-	case OpWorkloadStop:
-		return "Stop scenario " + action.Inputs["scenario"]
-	case OpEdgeRouteApply:
-		return "Route " + action.Inputs["domain"] + " to upstream port " + action.Inputs["upstream_port"]
-	case OpEdgeDNSEnsure:
-		return "Ensure " + action.Inputs["record_type"] + " " + action.Inputs["hostname"] + " via DNS profile " + action.Inputs["provider_profile"]
-	case OpCredentialsProvision:
-		return "Provision credential descriptors: " + action.Inputs["descriptors"]
-	case OpRuntimeStartDeps:
-		return "Start resources [" + action.Inputs["resources"] + "] and scenarios [" + action.Inputs["scenarios"] + "]"
-	case OpWorkloadStart:
-		return "Start scenario " + action.Inputs["scenario"] + " from the active release with ports " + action.Inputs["ports"]
-	case OpVerifyReadiness:
-		return "Verify readiness: " + action.Inputs["checks"]
-	case OpReleaseRetainPredecesor:
-		return "Retain predecessor release " + action.Inputs["predecessor_digest"] + " (rollback eligible: " + action.Inputs["rollback_eligible"] + ", " + action.Inputs["rollback_reason"] + ")"
-	case OpInputResumeHandoff:
-		return "Resume onboarding for missing inputs: " + action.Inputs["missing"]
-	case OpEdgeRouteRetire:
-		return "Remove the public route for " + action.Inputs["domain"]
-	case OpGrantsRevoke:
-		return "Revoke credential grants: " + action.Inputs["descriptors"]
-	case OpDataRetire:
-		return "Persistent data disposition: " + action.Inputs["retention_policy"] + " (" + action.Inputs["bindings"] + ")"
-	case OpArtifactsRetire:
-		return "Retire unreferenced release artifacts; protected: " + action.Inputs["protected"]
+	for _, summarizeGroup := range []func(Action) (string, bool){
+		summarizeInfrastructure,
+		summarizeRelease,
+		summarizeData,
+		summarizeEdge,
+		summarizeRuntime,
+		summarizeCredentials,
+	} {
+		if summary, ok := summarizeGroup(action); ok {
+			return summary
+		}
 	}
 	return action.OwnerOperation
+}
+
+func summarizeInfrastructure(action Action) (string, bool) {
+	switch action.OwnerOperation {
+	case OpHostPrepare:
+		return "Ensure system packages: " + action.Inputs["packages"], true
+	case OpEdgeFirewallAllow:
+		return "Allow inbound " + action.Inputs["protocol"] + " ports " + action.Inputs["ports"], true
+	default:
+		return "", false
+	}
+}
+
+func summarizeRelease(action Action) (string, bool) {
+	switch action.OwnerOperation {
+	case OpReleaseDeliver:
+		return "Deliver release artifact " + action.Inputs["artifact_ref"] + " to " + action.Inputs["destination"], true
+	case OpReleaseVerify:
+		return "Verify delivered archive against release " + action.Inputs["release_digest"], true
+	case OpReleaseStage:
+		return "Stage release into " + action.Inputs["release_dir"], true
+	case OpReleaseActivate:
+		return "Activate release " + action.Inputs["release_digest"] + " (" + action.Inputs["strategy"] + "; runtime, then pointer)", true
+	case OpReleaseRetainPredecesor:
+		return "Retain predecessor release " + action.Inputs["predecessor_digest"] + " (rollback eligible: " + action.Inputs["rollback_eligible"] + ", " + action.Inputs["rollback_reason"] + ")", true
+	case OpArtifactsRetire:
+		return "Retire unreferenced release artifacts; protected: " + action.Inputs["protected"], true
+	default:
+		return "", false
+	}
+}
+
+func summarizeData(action Action) (string, bool) {
+	switch action.OwnerOperation {
+	case OpDataInventory:
+		return "Inventory persistent data under scenarios " + action.Inputs["scenarios"], true
+	case OpDataBackup:
+		return "Capture a recovery point of " + action.Inputs["bindings"] + " sealed under " + action.Inputs["recovery_key_ref"] + " (" + action.Inputs["migration_posture"] + ")", true
+	case OpDataRetire:
+		return "Persistent data disposition: " + action.Inputs["retention_policy"] + " (" + action.Inputs["bindings"] + ")", true
+	default:
+		return "", false
+	}
+}
+
+func summarizeEdge(action Action) (string, bool) {
+	switch action.OwnerOperation {
+	case OpEdgeRouteApply:
+		return "Route " + action.Inputs["domain"] + " to upstream port " + action.Inputs["upstream_port"], true
+	case OpEdgeDNSEnsure:
+		return "Ensure " + action.Inputs["record_type"] + " " + action.Inputs["hostname"] + " via DNS profile " + action.Inputs["provider_profile"], true
+	case OpEdgeRouteRetire:
+		return "Remove the public route for " + action.Inputs["domain"], true
+	default:
+		return "", false
+	}
+}
+
+func summarizeRuntime(action Action) (string, bool) {
+	switch action.OwnerOperation {
+	case OpConfigApply:
+		return "Apply " + action.Inputs["selection"] + " configuration for environment " + action.Inputs["environment"], true
+	case OpWorkloadStop:
+		return "Stop scenario " + action.Inputs["scenario"], true
+	case OpRuntimeStartDeps:
+		return "Start resources [" + action.Inputs["resources"] + "] and scenarios [" + action.Inputs["scenarios"] + "]", true
+	case OpWorkloadStart:
+		return "Start scenario " + action.Inputs["scenario"] + " from the active release with ports " + action.Inputs["ports"], true
+	case OpVerifyReadiness:
+		return "Verify readiness: " + action.Inputs["checks"], true
+	case OpInputResumeHandoff:
+		return "Resume onboarding for missing inputs: " + action.Inputs["missing"], true
+	default:
+		return "", false
+	}
+}
+
+func summarizeCredentials(action Action) (string, bool) {
+	switch action.OwnerOperation {
+	case OpCredentialsProvision:
+		return "Provision credential descriptors: " + action.Inputs["descriptors"], true
+	case OpGrantsRevoke:
+		return "Revoke credential grants: " + action.Inputs["descriptors"], true
+	default:
+		return "", false
+	}
 }
 
 func dataEffects(action Action) []DataEffect {

@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 /**
  * Validation context propagation for generated Electron targets.
  *
@@ -24,6 +26,36 @@ export function readDesktopValidationContext(env: Record<string, string | undefi
     };
     if (Object.values(value).some((part) => part.length === 0)) return null;
     return value;
+}
+
+/**
+ * Resolve the LPBS auth authority for a generated desktop app. Production
+ * builds keep their generated authority. A loopback override is available
+ * only to a fully bound desktop validation launch for the exact artifact.
+ */
+export function resolveValidationLpbsURL(env: Record<string, string | undefined>, productionURL: string): string {
+    const candidate = env.VROOLI_VALIDATION_LPBS_URL?.trim();
+    if (!candidate) return productionURL;
+
+    const context = readDesktopValidationContext(env);
+    if (!context || !/^sha256:[a-f0-9]{64}$/i.test(context.artifactDigest)) {
+        throw new Error("validation LPBS origin requires a complete artifact validation context");
+    }
+
+    let parsed: URL;
+    try {
+        parsed = new URL(candidate);
+    } catch {
+        throw new Error("validation LPBS origin must be a numeric loopback HTTP origin");
+    }
+    const host = parsed.hostname.replace(/^\[|\]$/g, "");
+    const ipVersion = isIP(host);
+    const loopback = host === "127.0.0.1" || host === "::1" || (ipVersion === 4 && host.startsWith("127."));
+    if (parsed.protocol !== "http:" || !loopback || !parsed.port || parsed.username || parsed.password ||
+        parsed.pathname !== "/" || parsed.search || parsed.hash) {
+        throw new Error("validation LPBS origin must be a numeric loopback HTTP origin with an explicit port");
+    }
+    return parsed.origin;
 }
 
 export function validationOrigins(urls: string[]): Set<string> {

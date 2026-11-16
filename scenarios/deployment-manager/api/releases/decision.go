@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"deployment-manager/internal/releasedecision"
+
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/operatordecision"
 )
@@ -120,17 +122,18 @@ func (h *Handler) maybeRaiseReleaseDecision(ctx context.Context, profileID strin
 		ID:      correlationID,
 		Subject: body.ReadinessReviewKey,
 		Extra: map[string]string{
-			"review_key":              body.ReadinessReviewKey,
-			"scenario":                scenario,
-			"profile_id":              profileID,
-			"candidate_commit":        body.GitCommitHash,
-			"artifact_digest":         body.ArtifactDigest,
-			"candidate_id":            body.CandidateID,
-			"destination_revision_id": body.DestinationRevisionID,
-			"channel":                 channel,
-			"targets":                 strings.Join(sortedCopy(platforms), ","),
-			"authorization_epoch":     strconv.FormatUint(body.AuthorizationEpoch, 10),
-			"requesting_agent":        principal.Subject,
+			releasedecision.ExtraSubjectKey: facts.SubjectKey,
+			"review_key":                    body.ReadinessReviewKey,
+			"scenario":                      scenario,
+			"profile_id":                    profileID,
+			"candidate_commit":              body.GitCommitHash,
+			"artifact_digest":               body.ArtifactDigest,
+			"candidate_id":                  body.CandidateID,
+			"destination_revision_id":       body.DestinationRevisionID,
+			"channel":                       channel,
+			"targets":                       strings.Join(sortedCopy(platforms), ","),
+			"authorization_epoch":           strconv.FormatUint(body.AuthorizationEpoch, 10),
+			"requesting_agent":              principal.Subject,
 		},
 	}
 
@@ -173,69 +176,63 @@ type releaseDecisionInputs struct {
 }
 
 // buildReleaseDecisionFacts renders the operator Ask from the readiness-review
-// identity and the gate verdict. A release is NOT reversible, so there is no
-// DefaultAnswer (no silent auto-apply at a deadline). The requesting agent is
-// carried in the correlation DISTINCT from the eventual approver (the resolution
-// carries answered_by), preserving independence.
+// identity and the gate verdict: a cover a stranger can answer from the push,
+// and a page with the release, its readiness and the evidence per target. A
+// release is NOT reversible, so there is no DefaultAnswer (no silent
+// auto-apply at a deadline). The requesting agent is carried in the
+// correlation DISTINCT from the eventual approver (the resolution carries
+// answered_by), preserving independence.
 func buildReleaseDecisionFacts(in releaseDecisionInputs) operatordecision.Facts {
 	commitShort := in.Commit
 	if len(commitShort) > 12 {
 		commitShort = commitShort[:12]
 	}
-	scenarioLabel := in.Scenario
-	if scenarioLabel == "" {
-		scenarioLabel = in.ProfileID
+	app := in.Scenario
+	if app == "" {
+		app = in.ProfileID
 	}
-	recommended := "reject"
-	reason := "the release gate is not ready"
+	targets := strings.Join(sortedCopy(in.Targets), ", ")
+	recommended, reason, readiness := "reject", "the release gate is not ready", "Its readiness check has not passed."
 	if in.GateReason != "" {
 		reason = in.GateReason
 	}
 	if in.GateReady {
-		recommended = "approve"
+		recommended, readiness = "approve", "Its readiness check passed."
 		if in.GateReason == "" {
 			reason = "all required readiness evidence and target approvals are satisfied"
 		}
 	}
 
-	note := strings.Builder{}
-	fmt.Fprintf(&note, "Requesting agent: %s\n", in.RequestingAgent)
-	fmt.Fprintf(&note, "Channel: %s · Targets: %s\n", in.Channel, strings.Join(sortedCopy(in.Targets), ", "))
-	fmt.Fprintf(&note, "Artifact digest: %s\n", in.ArtifactDigest)
+	var tech strings.Builder
+	fmt.Fprintf(&tech, "Requesting agent: %s\nProfile: %s · Commit: %s\nChannel: %s · Targets: %s\nArtifact digest: %s\n", in.RequestingAgent, in.ProfileID, in.Commit, in.Channel, targets, in.ArtifactDigest)
 	if in.CandidateID != "" {
-		fmt.Fprintf(&note, "Candidate: %s · Destination revision: %s · Authorization epoch: %d\n", in.CandidateID, in.DestinationRev, in.Epoch)
+		fmt.Fprintf(&tech, "Candidate: %s · Destination revision: %s · Authorization epoch: %d\n", in.CandidateID, in.DestinationRev, in.Epoch)
 	}
-	fmt.Fprintf(&note, "Readiness review: %s\n", in.ReviewKey)
-	if len(in.PerTarget) > 0 {
-		note.WriteString("Per-target evidence:\n")
-		for _, t := range in.PerTarget {
-			fmt.Fprintf(&note, "  - %s: evidence=%s approval=%s\n", t["target"], t["evidence_disposition"], t["approval_status"])
-		}
+	fmt.Fprintf(&tech, "Readiness review: %s · Policy version: %d\nGate: ready=%t reason=%s\n", in.ReviewKey, in.PolicyVersion, in.GateReady, in.GateReason)
+	for _, t := range in.PerTarget {
+		fmt.Fprintf(&tech, "  - %s: evidence=%s approval=%s\n", t["target"], t["evidence_disposition"], t["approval_status"])
 	}
 
-	noteText := note.String()
-	if len(noteText) > operatordecision.MaxQuestion {
-		noteText = noteText[:operatordecision.MaxQuestion]
-	}
-	gateReason := reason
-	if len(gateReason) > operatordecision.MaxReason {
-		gateReason = gateReason[:operatordecision.MaxReason]
-	}
-
-	return operatordecision.Facts{
-		Subject:  fmt.Sprintf("Release %s %s needs approval", scenarioLabel, commitShort),
-		Question: fmt.Sprintf("Approve shipping %s at commit %s to %s (targets: %s)?", scenarioLabel, commitShort, in.Channel, strings.Join(sortedCopy(in.Targets), ", ")),
+	facts := operatordecision.Facts{
+		// One open decision per profile, channel and target set: a newer release
+		// updates or replaces it, and the reconciler closes it when it lapses or
+		// is approved elsewhere.
+		SubjectKey: releasedecision.SubjectKey(in.ProfileID, in.Channel, in.Targets),
+		Subject:    fmt.Sprintf("Ship %s to %s?", app, in.Channel),
+		Question:   fmt.Sprintf("Ship this build of %s to the %s channel for %s? %s", app, in.Channel, targets, readiness),
 		Options: []operatordecision.Option{
-			{Key: "approve", Label: "Approve and ship"},
-			{Key: "reject", Label: "Do not ship"},
+			{Key: "approve", Label: "Ship it: release this exact build to those targets"},
+			{Key: "reject", Label: "Do not ship: the agent is told no and nothing is released"},
 		},
 		Recommended:          recommended,
-		RecommendationReason: gateReason,
+		RecommendationReason: operatordecision.Clip(reason, operatordecision.MaxReason),
 		// A release cannot be undone: no DefaultAnswer, Reversible stays false so
 		// the hub never auto-applies at a deadline.
 		Reversible: false,
 		Urgency:    "high",
-		Note:       noteText,
+		BigPicture: fmt.Sprintf("An agent wants to release a new build of %s to the %s channel for %s, and its readiness review has not been approved yet, so it asks you. %s A release reaches users and cannot be taken back.\n\n"+
+			"If you approve, Deployment Manager ships this exact build after checking it is still the same artifact. If you say no or do not answer, nothing is released.", app, in.Channel, targets, readiness),
+		TechnicalDetails: tech.String(),
 		Correlation: map[string]string{
 			"review_key":              in.ReviewKey,
 			"scenario":                in.Scenario,
@@ -251,6 +248,42 @@ func buildReleaseDecisionFacts(in releaseDecisionInputs) operatordecision.Facts 
 			"requesting_agent":        in.RequestingAgent,
 		},
 	}
+	tone, strong := "danger", "Not ready:"
+	if in.GateReady {
+		tone, strong = "success", "Ready:"
+	}
+	page := operatordecision.NewPage(fmt.Sprintf("Ship %s to %s?", app, in.Channel)).
+		Lead("An agent asks to release this build. Its readiness review is not approved yet, so the release waits for you.").
+		Facts(
+			operatordecision.Row{Label: "App", Value: app},
+			operatordecision.Row{Label: "Build", Value: "commit " + commitShort},
+			operatordecision.Row{Label: "Channel", Value: in.Channel},
+			operatordecision.Row{Label: "Targets", Value: targets},
+			operatordecision.Row{Label: "Asked by", Value: in.RequestingAgent},
+		).
+		Callout(tone, strong, reason)
+	rows := make([][]string, 0, len(in.PerTarget))
+	for _, t := range in.PerTarget {
+		rows = append(rows, []string{t["target"], plainStatus(t["evidence_disposition"]), plainStatus(t["approval_status"])})
+	}
+	page.Section("Evidence per target", "").Table([]string{"Target", "Readiness evidence", "Approval"}, rows)
+	facts.Explainer = page.Callout("warning", "Cannot be undone:", "a release reaches users. A later fix is a new release.").
+		Options(facts, map[string]string{
+			"approve": "Deployment Manager checks the build is still this exact artifact, then ships it to the listed targets. This approves only this build.",
+			"reject":  "Nothing is released. The agent is told no and can ask again with a new build.",
+		}).
+		IfNoAnswer("Nothing is released. The request closes when it lapses.").
+		HTML()
+	return facts
+}
+
+// plainStatus turns a status key such as "not_found" into "Not found".
+func plainStatus(status string) string {
+	status = strings.TrimSpace(strings.ReplaceAll(status, "_", " "))
+	if status == "" {
+		return "Unknown"
+	}
+	return strings.ToUpper(status[:1]) + status[1:]
 }
 
 func sortedCopy(in []string) []string {

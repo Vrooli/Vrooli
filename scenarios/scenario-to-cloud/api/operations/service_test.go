@@ -77,6 +77,12 @@ type fakeTarget struct {
 	refused  int
 }
 
+type targetReceiptsFunc func(context.Context, *domain.CloudOperation, string) (TargetReceipt, error)
+
+func (f targetReceiptsFunc) Read(ctx context.Context, op *domain.CloudOperation, step string) (TargetReceipt, error) {
+	return f(ctx, op, step)
+}
+
 func newFakeTarget() *fakeTarget { return &fakeTarget{receipts: map[string]TargetReceipt{}} }
 
 func (f *fakeTarget) apply(fence uint64, step string) error {
@@ -263,6 +269,52 @@ func TestTransitionTableRefusesIllegalMoves(t *testing.T) {
 				t.Errorf("%s→%s should be refused, got %v", from, to, err)
 			}
 		}
+	}
+}
+
+func TestReadTargetReceiptIsScopedToDeploymentAndAdmittedStep(t *testing.T) {
+	repo := testRepo(t, "target-receipt-read-scope")
+	target := newFakeTarget()
+	target.receipts["release.stage"] = TargetReceipt{Found: true, Outcome: StepSucceeded, Fence: 9, Detail: "staged"}
+	op := admitPlan(t, repo, "op-receipt-read", "receipt-read", testPlan(execplan.SchemaVersion))
+	svc := NewService(fastConfig("reader"), repo, nil, target, nil)
+
+	gotOp, receipt, err := svc.ReadTargetReceipt(context.Background(), "dep-1", op.ID, "release.stage")
+	if err != nil || gotOp.ID != op.ID || !receipt.Found || receipt.Fence != 9 || receipt.Outcome != StepSucceeded {
+		t.Fatalf("scoped read = (%+v, %+v, %v)", gotOp, receipt, err)
+	}
+	if _, _, err := svc.ReadTargetReceipt(context.Background(), "other-deployment", op.ID, "release.stage"); err == nil || !apierrors.Is(err, apierrors.CodeOperationNotFound) {
+		t.Fatalf("cross-deployment read error = %v", err)
+	}
+	if _, _, err := svc.ReadTargetReceipt(context.Background(), "dep-1", op.ID, "unplanned.step"); err == nil || !apierrors.Is(err, apierrors.CodeInvalidRequest) {
+		t.Fatalf("unplanned-step read error = %v", err)
+	}
+}
+
+func TestReadTargetReceiptBoundsTransportAndReturnsTypedUnavailable(t *testing.T) {
+	repo := testRepo(t, "target-receipt-read-timeout")
+	plan := testPlan(execplan.SchemaVersion)
+	op := admitPlan(t, repo, "op-receipt-timeout", "receipt-timeout", plan)
+	slow := TargetReceipts(targetReceiptsFunc(func(ctx context.Context, _ *domain.CloudOperation, _ string) (TargetReceipt, error) {
+		<-ctx.Done()
+		return TargetReceipt{}, ctx.Err()
+	}))
+	svc := NewService(Config{WorkerID: "reader", TransportTimeout: 5 * time.Millisecond}, repo, nil, slow, nil)
+	_, _, err := svc.ReadTargetReceipt(context.Background(), "dep-1", op.ID, "release.stage")
+	if err == nil || !apierrors.Is(err, apierrors.CodeReachUnavailable) {
+		t.Fatalf("timeout error = %v", err)
+	}
+	var typed *apierrors.Error
+	if !errors.As(err, &typed) || !typed.Retryable {
+		t.Fatalf("timeout should be retryable: %v", err)
+	}
+
+	absent := NewService(Config{WorkerID: "reader"}, repo, nil, TargetReceipts(targetReceiptsFunc(func(context.Context, *domain.CloudOperation, string) (TargetReceipt, error) {
+		return TargetReceipt{}, ErrNativeCLIAbsent
+	})), nil)
+	_, _, err = absent.ReadTargetReceipt(context.Background(), "dep-1", op.ID, "release.stage")
+	if err == nil || !apierrors.Is(err, apierrors.CodeReachUnavailable) {
+		t.Fatalf("absent target owner error = %v", err)
 	}
 }
 

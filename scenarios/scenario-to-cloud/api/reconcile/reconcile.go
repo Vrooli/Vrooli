@@ -124,63 +124,94 @@ const (
 // Detect compares desired and observed state. It is pure.
 func Detect(desired Desired, observed Observed, supervision *domain.ClosureSupervision, now time.Time) DriftReport {
 	report := DriftReport{SchemaVersion: SchemaVersion, DeploymentID: desired.DeploymentID, Desired: desired, Observed: observed, Reasons: []string{}, ComputedAt: now.UTC(), Reboot: Reboot(desired.State, supervision)}
-	state := desired.State.Normalized()
-	switch state {
+	switch desired.State.Normalized() {
 	case domain.DesiredRetired:
 		report.Outcome = Unchanged
 		report.Reasons = append(report.Reasons, ReasonDesiredRetired)
 		return report
 	case domain.DesiredStopped:
-		// An intentional stop is not drift: observation never proposes a
-		// start. A workload still running is the only correction, and it is a
-		// stop.
-		report.Reasons = append(report.Reasons, ReasonDesiredStopped)
-		if observed.WorkloadRunning != nil && *observed.WorkloadRunning {
-			report.Outcome = Changed
-			report.Reasons = append(report.Reasons, ReasonWorkloadRunningStopped)
-			report.Correction = &Correction{Kind: CorrectionStopWorkload, Scope: execplan.ScopeStop, Reason: ReasonWorkloadRunningStopped}
-			return report
-		}
-		report.Outcome = Unchanged
+		return detectStoppedState(report, observed)
+	}
+	if classifyInterruptedActivation(&report, observed) {
 		return report
 	}
-	if observed.ActivationInterrupted {
-		report.Outcome = Blocked
-		report.Reasons = append(report.Reasons, ReasonActivationInterrupted)
-		report.Correction = &Correction{Kind: CorrectionResolveActivate, Scope: execplan.ScopeRuntime, Reason: ReasonActivationInterrupted}
+	if classifyObservationFreshness(&report, observed.Freshness) {
 		return report
 	}
-	switch strings.ToLower(strings.TrimSpace(observed.Freshness)) {
+	if classifyObservedRelease(&report, observed.ReleaseDigest) {
+		return report
+	}
+	if applyObservedDigestDifferences(&report, desired, observed) {
+		return report
+	}
+	return classifyWorkloadStatus(report, observed.Status)
+}
+
+func detectStoppedState(report DriftReport, observed Observed) DriftReport {
+	report.Reasons = append(report.Reasons, ReasonDesiredStopped)
+	if observed.WorkloadRunning != nil && *observed.WorkloadRunning {
+		report.Outcome = Changed
+		report.Reasons = append(report.Reasons, ReasonWorkloadRunningStopped)
+		report.Correction = &Correction{Kind: CorrectionStopWorkload, Scope: execplan.ScopeStop, Reason: ReasonWorkloadRunningStopped}
+		return report
+	}
+	report.Outcome = Unchanged
+	return report
+}
+
+func classifyInterruptedActivation(report *DriftReport, observed Observed) bool {
+	if !observed.ActivationInterrupted {
+		return false
+	}
+	report.Outcome = Blocked
+	report.Reasons = append(report.Reasons, ReasonActivationInterrupted)
+	report.Correction = &Correction{Kind: CorrectionResolveActivate, Scope: execplan.ScopeRuntime, Reason: ReasonActivationInterrupted}
+	return true
+}
+
+func classifyObservationFreshness(report *DriftReport, freshness string) bool {
+	switch strings.ToLower(strings.TrimSpace(freshness)) {
 	case "current":
+		return false
 	case "stale":
 		report.Outcome = Unknown
 		report.Reasons = append(report.Reasons, ReasonObservationStale)
 		report.Correction = &Correction{Kind: CorrectionObserveFirst, Reason: ReasonObservationStale}
-		return report
 	default:
 		report.Outcome = Unknown
 		report.Reasons = append(report.Reasons, ReasonObservationUnknown)
 		report.Correction = &Correction{Kind: CorrectionObserveFirst, Reason: ReasonObservationUnknown}
-		return report
 	}
-	if strings.TrimSpace(observed.ReleaseDigest) == "" {
-		report.Outcome = Unknown
-		report.Reasons = append(report.Reasons, ReasonReleaseUnobserved)
-		report.Correction = &Correction{Kind: CorrectionObserveFirst, Reason: ReasonReleaseUnobserved}
-		return report
+	return true
+}
+
+func classifyObservedRelease(report *DriftReport, releaseDigest string) bool {
+	if strings.TrimSpace(releaseDigest) != "" {
+		return false
 	}
+	report.Outcome = Unknown
+	report.Reasons = append(report.Reasons, ReasonReleaseUnobserved)
+	report.Correction = &Correction{Kind: CorrectionObserveFirst, Reason: ReasonReleaseUnobserved}
+	return true
+}
+
+func applyObservedDigestDifferences(report *DriftReport, desired Desired, observed Observed) bool {
 	if !sameDigest(observed.ReleaseDigest, desired.ReleaseDigest) {
 		report.Reasons = append(report.Reasons, ReasonReleaseDiffers)
 	}
 	if desired.ConfigurationDigest != "" && observed.ConfigurationDigest != "" && !sameDigest(observed.ConfigurationDigest, desired.ConfigurationDigest) {
 		report.Reasons = append(report.Reasons, ReasonConfigurationDiffers)
 	}
-	if len(report.Reasons) > 0 {
-		report.Outcome = Changed
-		report.Correction = &Correction{Kind: CorrectionApplyRelease, Scope: execplan.ScopeRuntime, Reason: strings.Join(report.Reasons, ",")}
-		return report
+	if len(report.Reasons) == 0 {
+		return false
 	}
-	switch strings.ToLower(strings.TrimSpace(observed.Status)) {
+	report.Outcome = Changed
+	report.Correction = &Correction{Kind: CorrectionApplyRelease, Scope: execplan.ScopeRuntime, Reason: strings.Join(report.Reasons, ",")}
+	return true
+}
+
+func classifyWorkloadStatus(report DriftReport, status string) DriftReport {
+	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "healthy", "degraded":
 		report.Outcome = Unchanged
 		report.Reasons = append(report.Reasons, ReasonDesiredSatisfied)
@@ -280,6 +311,17 @@ type RetirementPlan struct {
 // and every recovery point are retained by construction.
 func Retirement(in RetirementInputs) RetirementPlan {
 	plan := RetirementPlan{SchemaVersion: SchemaVersion, DeploymentID: in.DeploymentID, Order: RetirementOrder, RetentionPolicy: in.RetentionPolicy, Deleted: []OwnedObject{}, Retained: []OwnedObject{}, Blocked: []string{}, Outcome: Changed}
+	appendRetirementRevocations(&plan, in)
+	applyDataRetention(&plan, in)
+	applyReleaseRetention(&plan, in)
+	retainRecoveryPoints(&plan, in.RecoveryPoints)
+	if len(plan.Blocked) > 0 {
+		plan.Outcome = Blocked
+	}
+	return plan
+}
+
+func appendRetirementRevocations(plan *RetirementPlan, in RetirementInputs) {
 	if strings.TrimSpace(in.Domain) != "" {
 		plan.Deleted = append(plan.Deleted, OwnedObject{Kind: KindRoute, ID: in.Domain, Reason: "public route removed first so no traffic reaches a retiring workload"})
 	}
@@ -289,23 +331,43 @@ func Retirement(in RetirementInputs) RetirementPlan {
 	for _, ref := range in.CredentialRefs {
 		plan.Deleted = append(plan.Deleted, OwnedObject{Kind: KindGrant, ID: ref, Reason: "credential grant revoked through the authority"})
 	}
+}
+
+func applyDataRetention(plan *RetirementPlan, in RetirementInputs) {
 	hasData := len(in.DataBindings) > 0 || len(in.LegacyData) > 0
 	switch {
 	case hasData && in.RetentionPolicy == execplan.RetentionDelete:
-		for _, id := range append(append([]string{}, in.DataBindings...), in.LegacyData...) {
-			plan.Deleted = append(plan.Deleted, OwnedObject{Kind: KindData, ID: id, Reason: "explicit retention_policy delete (irreversible); requires the target data retire owner"})
-		}
+		appendDataObjects(&plan.Deleted, in, KindData, "explicit retention_policy delete (irreversible); requires the target data retire owner")
 		plan.Blocked = append(plan.Blocked, "irreversible data retirement has no target owner verb yet (cloud-target data retire); the plan refuses at data.retire")
 	case hasData && in.RetentionPolicy == execplan.RetentionRetain:
-		for _, id := range append(append([]string{}, in.DataBindings...), in.LegacyData...) {
-			plan.Retained = append(plan.Retained, OwnedObject{Kind: KindData, ID: id, Reason: "retention_policy retain"})
-		}
+		appendDataObjects(&plan.Retained, in, KindData, "retention_policy retain")
 	case hasData:
-		for _, id := range append(append([]string{}, in.DataBindings...), in.LegacyData...) {
-			plan.Retained = append(plan.Retained, OwnedObject{Kind: KindData, ID: id, Reason: "no retention_policy declared; data is never deleted implicitly"})
-		}
+		appendDataObjects(&plan.Retained, in, KindData, "no retention_policy declared; data is never deleted implicitly")
 		plan.Blocked = append(plan.Blocked, "retention_policy (retain|delete) is required because the deployment holds persistent data")
 	}
+}
+
+func appendDataObjects(target *[]OwnedObject, in RetirementInputs, kind string, reason string) {
+	data := append(append([]string{}, in.DataBindings...), in.LegacyData...)
+	for _, id := range data {
+		*target = append(*target, OwnedObject{Kind: kind, ID: id, Reason: reason})
+	}
+}
+
+func applyReleaseRetention(plan *RetirementPlan, in RetirementInputs) {
+	protected := protectedReleaseReasons(in)
+	releases := append([]string{}, in.Releases...)
+	sort.Strings(releases)
+	for _, digest := range releases {
+		if reason, ok := protected[digest]; ok {
+			plan.Retained = append(plan.Retained, OwnedObject{Kind: KindArtifact, ID: digest, Reason: reason})
+			continue
+		}
+		plan.Deleted = append(plan.Deleted, OwnedObject{Kind: KindArtifact, ID: digest, Reason: "unreferenced staged release"})
+	}
+}
+
+func protectedReleaseReasons(in RetirementInputs) map[string]string {
 	protected := map[string]string{}
 	if in.ActiveRelease != "" {
 		protected[in.ActiveRelease] = "active release"
@@ -320,22 +382,13 @@ func Retirement(in RetirementInputs) RetirementPlan {
 			}
 		}
 	}
-	releases := append([]string{}, in.Releases...)
-	sort.Strings(releases)
-	for _, digest := range releases {
-		if reason, ok := protected[digest]; ok {
-			plan.Retained = append(plan.Retained, OwnedObject{Kind: KindArtifact, ID: digest, Reason: reason})
-			continue
-		}
-		plan.Deleted = append(plan.Deleted, OwnedObject{Kind: KindArtifact, ID: digest, Reason: "unreferenced staged release"})
-	}
-	for _, id := range in.RecoveryPoints {
+	return protected
+}
+
+func retainRecoveryPoints(plan *RetirementPlan, recoveryPoints []string) {
+	for _, id := range recoveryPoints {
 		plan.Retained = append(plan.Retained, OwnedObject{Kind: KindRecoveryPoint, ID: id, Reason: "recovery points survive retirement; prune them through retention"})
 	}
-	if len(plan.Blocked) > 0 {
-		plan.Outcome = Blocked
-	}
-	return plan
 }
 
 // CleanupProtection is the reference set cleanup must honour regardless of
@@ -352,33 +405,48 @@ type CleanupProtection struct {
 // Protect computes the protection set from the target pointer, the
 // recorded recovery points and the non-terminal operations.
 func Protect(active, previous string, points []domain.RecoveryPoint, nonTerminalOperations []string) CleanupProtection {
+	releases := initialProtectedReleases(active, previous)
+	ops := operationSet(nonTerminalOperations)
+	protectedPoints := protectRecoveryPoints(releases, points, ops, active, previous)
+	return CleanupProtection{ReleaseDigests: sortedKeys(releases), RecoveryPoints: sortedKeys(protectedPoints)}
+}
+
+func initialProtectedReleases(active, previous string) map[string]bool {
 	releases := map[string]bool{}
 	for _, digest := range []string{active, previous} {
 		if strings.TrimSpace(digest) != "" {
 			releases[strings.TrimPrefix(digest, "sha256:")] = true
 		}
 	}
-	protectedPoints := map[string]bool{}
-	ops := map[string]bool{}
-	for _, op := range nonTerminalOperations {
-		ops[op] = true
+	return releases
+}
+
+func operationSet(operations []string) map[string]bool {
+	set := make(map[string]bool, len(operations))
+	for _, operation := range operations {
+		set[operation] = true
 	}
+	return set
+}
+
+func protectRecoveryPoints(releases map[string]bool, points []domain.RecoveryPoint, operations map[string]bool, active, previous string) map[string]bool {
+	protectedPoints := map[string]bool{}
 	for _, rp := range points {
 		if rp.ReleaseDigest != "" {
 			releases[strings.TrimPrefix(rp.ReleaseDigest, "sha256:")] = true
 		}
-		if rp.Protected || ops[rp.OperationID] || sameDigest(rp.ReleaseDigest, active) || sameDigest(rp.ReleaseDigest, previous) {
+		if rp.Protected || operations[rp.OperationID] || sameDigest(rp.ReleaseDigest, active) || sameDigest(rp.ReleaseDigest, previous) {
 			protectedPoints[rp.ID] = true
 		}
 	}
-	out := CleanupProtection{ReleaseDigests: []string{}, RecoveryPoints: []string{}}
-	for digest := range releases {
-		out.ReleaseDigests = append(out.ReleaseDigests, digest)
+	return protectedPoints
+}
+
+func sortedKeys(values map[string]bool) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
 	}
-	for id := range protectedPoints {
-		out.RecoveryPoints = append(out.RecoveryPoints, id)
-	}
-	sort.Strings(out.ReleaseDigests)
-	sort.Strings(out.RecoveryPoints)
-	return out
+	sort.Strings(keys)
+	return keys
 }

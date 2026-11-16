@@ -9,6 +9,14 @@ import (
 	"time"
 )
 
+func (o *DefaultOrchestrator) transitionStatus(status *Status, pipelineID string, next PipelineStatus) bool {
+	if err := status.TransitionStatus(next); err != nil {
+		o.logger.Error("invalid pipeline status transition", "pipeline_id", pipelineID, "next", next, "error", err)
+		return false
+	}
+	return true
+}
+
 // runPipelineAsync executes the pipeline stages sequentially.
 func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID string, config *PipelineConfig) {
 	defer o.cancelManager.Clear(pipelineID)
@@ -28,7 +36,9 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 
 	// Update status to running and transition to initializing state
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusRunning
+		if !o.transitionStatus(s, pipelineID, StatusRunning) {
+			return
+		}
 		s.TransitionTo(PipelineStateInitializing, "Pipeline starting execution")
 		s.UpdateProgress()
 	})
@@ -106,7 +116,9 @@ func (o *DefaultOrchestrator) runPipelineAsync(ctx context.Context, pipelineID s
 	// Mark pipeline as completed
 	finalArtifacts := collectArtifacts(input)
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCompleted
+		if !o.transitionStatus(s, pipelineID, StatusCompleted) {
+			return
+		}
 		s.CompletedAt = o.timeProvider.Now()
 		s.CurrentStage = ""
 		s.FinalArtifacts = finalArtifacts
@@ -176,7 +188,9 @@ func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, inp
 
 	if result.Status == StatusFailed && config.GetStopOnFailure() {
 		o.store.Update(pipelineID, func(s *Status) {
-			s.Status = StatusFailed
+			if !o.transitionStatus(s, pipelineID, StatusFailed) {
+				return
+			}
 			s.CompletedAt = o.timeProvider.Now()
 			s.Error = fmt.Sprintf("stage %s failed: %s", stageName, result.Error)
 			s.TransitionTo(PipelineStateFailed, fmt.Sprintf("Stage %s failed", stageName))
@@ -191,7 +205,9 @@ func (o *DefaultOrchestrator) executeStage(ctx context.Context, stage Stage, inp
 
 	if result.Status == StatusCancelled {
 		o.store.Update(pipelineID, func(s *Status) {
-			s.Status = StatusCancelled
+			if !o.transitionStatus(s, pipelineID, StatusCancelled) {
+				return
+			}
 			s.CompletedAt = o.timeProvider.Now()
 			s.Error = "pipeline cancelled"
 			s.TransitionTo(PipelineStateCancelled, fmt.Sprintf("Stage %s cancelled", stageName))
@@ -225,7 +241,9 @@ func (o *DefaultOrchestrator) markStageSkipped(pipelineID, stageName, reason str
 // markPipelineCancelled records the pipeline as cancelled via context.
 func (o *DefaultOrchestrator) markPipelineCancelled(pipelineID string) {
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCancelled
+		if !o.transitionStatus(s, pipelineID, StatusCancelled) {
+			return
+		}
 		s.CompletedAt = o.timeProvider.Now()
 		s.Error = "pipeline cancelled"
 		s.TransitionTo(PipelineStateCancelled, "Pipeline cancelled by context")
@@ -260,7 +278,9 @@ func (o *DefaultOrchestrator) stopAfterStage(pipelineID, stageName string, input
 	finalArtifacts := collectArtifacts(input)
 
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusCompleted
+		if !o.transitionStatus(s, pipelineID, StatusCompleted) {
+			return
+		}
 		s.CompletedAt = o.timeProvider.Now()
 		s.CurrentStage = ""
 		s.StoppedAfterStage = stageName

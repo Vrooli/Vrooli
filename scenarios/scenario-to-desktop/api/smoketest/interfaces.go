@@ -71,6 +71,9 @@ type Store interface {
 	// Update executes fn while holding a write lock on the requested smoke test.
 	// It returns false when the smoke test ID is unknown.
 	Update(id string, fn func(status *Status)) bool
+
+	// TransitionState validates and persists one lifecycle edge.
+	TransitionState(id string, next State, message string) error
 }
 
 // CancelManager manages cancellation of running smoke tests.

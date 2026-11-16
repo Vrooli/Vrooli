@@ -16,6 +16,7 @@ import (
 	secretsdomain "scenario-to-cloud/cli/domains/secrets"
 	taskdomain "scenario-to-cloud/cli/domains/task"
 	vpsdomain "scenario-to-cloud/cli/domains/vps"
+	walletrecoverydomain "scenario-to-cloud/cli/domains/walletrecovery"
 	"scenario-to-cloud/cli/internal/appctx"
 	"scenario-to-cloud/cli/internal/transport"
 
@@ -47,4 +48,10 @@ func Groups(deps appctx.Dependencies) []cliapp.CommandGroup {
 		credentialdomain.Register(deps),
 		publicationdomain.Register(deps),
 	}
+}
+
+// SubcommandGroups registers hierarchical owner workflows that do not map to
+// one remote Connect method.
+func SubcommandGroups(*cliapp.ScenarioApp) []cliapp.SubcommandGroup {
+	return []cliapp.SubcommandGroup{walletrecoverydomain.Register()}
 }

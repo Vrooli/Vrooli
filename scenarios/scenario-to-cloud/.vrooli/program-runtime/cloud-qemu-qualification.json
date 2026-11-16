@@ -5,7 +5,7 @@
   "helpers": {
     "program": "1"
   },
-  "purpose": "Admit one QEMU-lane qualification request, refuse absent authorization, incompatible target, stale artifact or unknown fault before mutation, deploy the fixture via plan, apply and wait, observe health, and return standing.",
+  "purpose": "Qualify required matrix case/lane cells on QEMU through governed deploy, target receipt and health reads; refuse unauthorized or incompatible targets and keep per-case assertions pending.",
   "inputs": {
     "request_id": {
       "type": "string",
@@ -39,19 +39,35 @@
     },
     "matrix_revision": {
       "type": "string",
-      "default": "cloud-launch-v1"
+      "default": "cloud-launch-v2-two-grounds"
     },
     "lane": {
+      "type": "string",
+      "required": true,
+      "enum": [
+        "package",
+        "api",
+        "workflow",
+        "relay",
+        "qemu",
+        "real_vps",
+        "bas_ui",
+        "independent_review",
+        "soak"
+      ]
+    },
+    "target_ground": {
       "type": "string",
       "default": "qemu",
       "enum": [
         "qemu"
-      ]
+      ],
+      "description": "This program is bound only to the QEMU target ground. Every lane is exercised independently on QEMU; VPS evidence must use the separately governed real-VPS qualification program."
     },
     "cases": {
       "type": "array",
       "required": true,
-      "description": "Matrix case ids; every id must be a cell of certification/lanes/qemu.json."
+      "description": "Exactly one matrix case id per target operation; it must be explicitly applicable to the selected lane and QEMU ground in certification/matrix.json. Batches require case-specific fixture and assertion drivers."
     },
     "limits": {
       "type": "object",
@@ -84,8 +100,8 @@
     "scenario-to-cloud is running and its connect-rpc bindings deployment/get, deployment/resolve, deployment/plan, deployment/apply, operation/wait, deployment/health and edge/status are governed",
     "the operator has already created and snapshotted the owned guest with vps instance create / wait-for-ssh / snapshot (REST pre-step) and bound a fixture deployment to it (target machine_id equals target_ref)",
     "the session holds the destructive grant for deployment/apply (effect:destructive or the binding's permission); without it the act phase ends refused/no_grant and nothing was mutated",
-    "certification/lanes/qemu.json is the required-cell set for the lane and api/certification/lanes_test.go keeps this program's QEMU_CASES equal to it",
-    "fault injection arming and target receipt reads have no governed binding yet; fault cells stay pending after the deploy journey and are named in the envelope",
+    "QEMU_LANE_CASES is checked against every matrix case/lane pair applicable to the QEMU ground; qemu.json remains the separate qemu-lane manifest",
+    "fault injection arming remains unbound; fault cells stay pending after the deploy journey and are named in the envelope",
     "host tools qemu and cloud-localds are installed only through vrooli setup (EXT-06); the program never installs anything"
   ],
   "invariants": [
@@ -96,7 +112,8 @@
     "a non-terminal operation after the bounded wait is reported with its id, never converted into a failure",
     "no cell is marked passed by this program; receipts require per-case assertions and target receipts",
     "at most one row is materialized per binding call",
-    "one envelope is printed on every path"
+    "one envelope is printed on every path",
+    "Every admitted cell includes its canonical case/lane/ground assertion driver; deployment, health, and target-owner receipts alone never satisfy the assertion."
   ],
   "bindings": [
     {
@@ -121,6 +138,11 @@
     {
       "id": "scenario-to-cloud/operation/wait",
       "effect": "read"
+    },
+    {
+      "id": "scenario-to-cloud/operation/target-receipt",
+      "effect": "read",
+      "note": "Fresh target-owner receipt read scoped to deployment, operation, admitted step, plan digest and machine generation; never writes certification evidence."
     },
     {
       "id": "scenario-to-cloud/deployment/health",
@@ -160,7 +182,7 @@
     "signals": {
       "qualification_id": "qual:<request_id>",
       "standing": "refused, admitted, ready_to_act, no_op, applied_without_operation, operation_pending, journey_failed, journey_unverified or journey_verified",
-      "cells": "[{case_id, lane, verdict, operation_ref?}] with verdict pending or pending_assertions; never passed",
+      "cells": "[{case_id, lane, target_ground, verdict, operation_ref?, target_receipt_refs[], assertion_driver:{driver_ref, owner, trigger, expected_assertion, status}}]; target receipt refs bind the operation and step and carry a positive fence; owner assertion remains pending until its case-specific receipt and hashed assertion artifact arrive.",
       "release": "release_ref as admitted",
       "target": "target_ref, environment_ref, workload_ref and the bound deployment_id",
       "deployment": "resolved deployment id, scenario, environment, machine_id, transport",

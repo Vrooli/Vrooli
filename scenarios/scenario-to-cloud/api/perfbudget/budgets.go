@@ -211,14 +211,29 @@ func Parse(data []byte) (*Budgets, error) {
 func (b *Budgets) Validate() error {
 	var problems []string
 	add := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }
-
 	if b.SchemaVersion != 1 {
 		add("schema_version %d unsupported", b.SchemaVersion)
 	}
 	if b.MachineProfile.VCPU <= 0 || b.MachineProfile.MemoryGiB <= 0 || b.MachineProfile.DiskGiB <= 0 {
 		add("machine_profile must declare vcpu, memory_gib and disk_gib")
 	}
-	p := b.Phase23
+	validatePhaseMetadata(b.Phase23, add)
+	validateFixtureProfiles(b, add)
+	validateManagementProcess(b.Phase23.ManagementProcess, b.Qualification.IdleManagementOverhead.CPUPercentMax, b.Qualification.IdleManagementOverhead.RSSMiBMax, add)
+	validateDeploymentQueue(b.Phase23.DeploymentQueue, add)
+	validateRetryBudgets(b.Phase23.Retries, add)
+	validateRetentionAndSoak(b, add)
+	validateDetection(b.Phase23.Detection, b.Qualification, add)
+	if len(problems) > 0 {
+		sort.Strings(problems)
+		return fmt.Errorf("budgets invalid: %s", strings.Join(problems, "; "))
+	}
+	return nil
+}
+
+type addProblem func(string, ...any)
+
+func validatePhaseMetadata(p Phase23, add addProblem) {
 	if strings.TrimSpace(p.FrozenAt) == "" {
 		add("phase_23.frozen_at is required")
 	}
@@ -228,48 +243,75 @@ func (b *Budgets) Validate() error {
 	if p.ReaderConcurrency <= 0 {
 		add("phase_23.reader_concurrency must be positive")
 	}
+}
+
+func validateFixtureProfiles(b *Budgets, add addProblem) {
 	for _, name := range RequiredFixtureProfiles() {
-		fp, ok := p.FixtureProfiles[name]
+		fp, ok := b.Phase23.FixtureProfiles[name]
 		if !ok {
 			add("fixture profile %q missing", name)
 			continue
 		}
-		if fp.Latency.P50Max <= 0 || fp.Latency.P95Max <= 0 || fp.Latency.P99Max <= 0 {
-			add("fixture profile %q latency budgets must be positive", name)
-		}
-		if fp.Latency.P50Max > fp.Latency.P95Max || fp.Latency.P95Max > fp.Latency.P99Max {
-			add("fixture profile %q latency budgets must be monotonic p50 <= p95 <= p99", name)
-		}
-		if fp.ErrorRateMax < 0 || fp.ErrorRateMax >= 1 {
-			add("fixture profile %q error_rate_max must be in [0,1)", name)
-		}
-		if fp.TargetResources.CPUPercentMax <= 0 || fp.TargetResources.RSSMiBMax <= 0 || fp.TargetResources.DiskGiBMax <= 0 {
-			add("fixture profile %q target_resources must be positive", name)
-		}
-		if float64(b.MachineProfile.MemoryGiB)*1024 < fp.TargetResources.RSSMiBMax {
-			add("fixture profile %q rss budget exceeds the machine profile", name)
-		}
-		if float64(b.MachineProfile.DiskGiB) < fp.TargetResources.DiskGiBMax {
-			add("fixture profile %q disk budget exceeds the machine profile", name)
-		}
-		if len(fp.ReadEndpoints) == 0 {
-			add("fixture profile %q declares no read endpoints", name)
-		}
+		validateFixtureProfile(name, fp, b.MachineProfile, add)
 	}
-	if p.ManagementProcess.Idle.CPUPercentMax <= 0 || p.ManagementProcess.Idle.RSSMiBMax <= 0 {
+}
+
+func validateFixtureProfile(name string, fp FixtureProfile, machine MachineProfile, add addProblem) {
+	validateFixtureLatency(name, fp.Latency, add)
+	validateFixtureErrorRate(name, fp.ErrorRateMax, add)
+	validateFixtureResources(name, fp.TargetResources, machine, add)
+	validateFixtureEndpoints(name, fp.ReadEndpoints, add)
+}
+
+func validateFixtureLatency(name string, latency LatencyBudget, add addProblem) {
+	if latency.P50Max <= 0 || latency.P95Max <= 0 || latency.P99Max <= 0 {
+		add("fixture profile %q latency budgets must be positive", name)
+	}
+	if latency.P50Max > latency.P95Max || latency.P95Max > latency.P99Max {
+		add("fixture profile %q latency budgets must be monotonic p50 <= p95 <= p99", name)
+	}
+}
+
+func validateFixtureErrorRate(name string, rate float64, add addProblem) {
+	if rate < 0 || rate >= 1 {
+		add("fixture profile %q error_rate_max must be in [0,1)", name)
+	}
+}
+
+func validateFixtureResources(name string, resources ResourceCeiling, machine MachineProfile, add addProblem) {
+	if resources.CPUPercentMax <= 0 || resources.RSSMiBMax <= 0 || resources.DiskGiBMax <= 0 {
+		add("fixture profile %q target_resources must be positive", name)
+	}
+	if float64(machine.MemoryGiB)*1024 < resources.RSSMiBMax {
+		add("fixture profile %q rss budget exceeds the machine profile", name)
+	}
+	if float64(machine.DiskGiB) < resources.DiskGiBMax {
+		add("fixture profile %q disk budget exceeds the machine profile", name)
+	}
+}
+
+func validateFixtureEndpoints(name string, endpoints []string, add addProblem) {
+	if len(endpoints) == 0 {
+		add("fixture profile %q declares no read endpoints", name)
+	}
+}
+
+func validateManagementProcess(m ManagementProcess, qualificationCPU, qualificationRSS float64, add addProblem) {
+	if m.Idle.CPUPercentMax <= 0 || m.Idle.RSSMiBMax <= 0 {
 		add("management_process.idle ceilings must be positive")
 	}
-	if p.ManagementProcess.Idle.RSSMiBMax != b.Qualification.IdleManagementOverhead.RSSMiBMax ||
-		p.ManagementProcess.Idle.CPUPercentMax != b.Qualification.IdleManagementOverhead.CPUPercentMax {
+	if m.Idle.RSSMiBMax != qualificationRSS || m.Idle.CPUPercentMax != qualificationCPU {
 		add("management_process.idle must equal qualification.idle_management_overhead (one number, one owner)")
 	}
-	if p.ManagementProcess.Idle.GoroutinesMax <= 0 || p.ManagementProcess.Idle.OpenFDsMax <= 0 {
+	if m.Idle.GoroutinesMax <= 0 || m.Idle.OpenFDsMax <= 0 {
 		add("management_process.idle must bound goroutines and open fds")
 	}
-	if p.ManagementProcess.PostCleanupGrowth.RSSMiBMaxDelta <= 0 || p.ManagementProcess.PostCleanupGrowth.GoroutinesMaxDelta <= 0 || p.ManagementProcess.PostCleanupGrowth.OpenFDsMaxDelta <= 0 {
+	if m.PostCleanupGrowth.RSSMiBMaxDelta <= 0 || m.PostCleanupGrowth.GoroutinesMaxDelta <= 0 || m.PostCleanupGrowth.OpenFDsMaxDelta <= 0 {
 		add("management_process.post_cleanup_growth deltas must be positive")
 	}
-	q := p.DeploymentQueue
+}
+
+func validateDeploymentQueue(q DeploymentQueue, add addProblem) {
 	if q.DepthMax <= 0 || q.QueueDelaySecondsMax <= 0 || q.WorkerPoolSize <= 0 {
 		add("deployment_queue depth, delay and pool size must be positive")
 	}
@@ -279,17 +321,27 @@ func (b *Budgets) Validate() error {
 	if q.EffectfulOperationsPerHostMax < 1 {
 		add("deployment_queue.effectful_operations_per_host_max must be at least 1")
 	}
+}
+
+func validateRetryBudgets(retries map[string]RetryBudget, add addProblem) {
 	for _, class := range RequiredRetryClasses() {
-		rb, ok := p.Retries[class]
+		budget, ok := retries[class]
 		if !ok {
 			add("retry class %q has no budget", class)
 			continue
 		}
-		if err := rb.Validate(); err != nil {
+		if err := budget.Validate(); err != nil {
 			add("retry class %q: %v", class, err)
 		}
 	}
-	r := p.RetentionBudgets
+}
+
+func validateRetentionAndSoak(b *Budgets, add addProblem) {
+	validateRetention(b.Phase23.RetentionBudgets, add)
+	validateSoak(b.Phase23.Soak, b.Qualification.SoakHoursMin, add)
+}
+
+func validateRetention(r RetentionBudgets, add addProblem) {
 	if r.ReleaseArtifacts.KeepLatestPerScenario < 2 {
 		add("retention_budgets.release_artifacts.keep_latest_per_scenario must keep active + predecessor (>= 2)")
 	}
@@ -299,30 +351,30 @@ func (b *Budgets) Validate() error {
 	if r.RecoveryPoints.KeepLast <= 0 {
 		add("retention_budgets.recovery_points.keep_last must be positive")
 	}
-	if p.Soak.DurationHoursMin < 24 {
+}
+
+func validateSoak(s Soak, qualificationHours int, add addProblem) {
+	if s.DurationHoursMin < 24 {
 		add("soak.duration_hours_min must be at least 24")
 	}
-	if p.Soak.DurationHoursMin != b.Qualification.SoakHoursMin {
+	if s.DurationHoursMin != qualificationHours {
 		add("soak.duration_hours_min must equal qualification.soak_hours_min")
 	}
-	if p.Soak.ScheduledObservationIntervalSeconds <= 0 || p.Soak.ControlledReboots < 1 || p.Soak.SafeUpdates < 1 {
+	if s.ScheduledObservationIntervalSeconds <= 0 || s.ControlledReboots < 1 || s.SafeUpdates < 1 {
 		add("soak must schedule observations and include one controlled reboot and one safe update")
 	}
-	d := p.Detection
-	if d.AlertDetectionSecondsMax <= 0 || d.AlertDetectionSecondsMax != b.Qualification.HealthAlertDetectionSecondsMax {
+}
+
+func validateDetection(d Detection, q Qualification, add addProblem) {
+	if d.AlertDetectionSecondsMax <= 0 || d.AlertDetectionSecondsMax != q.HealthAlertDetectionSecondsMax {
 		add("detection.alert_detection_seconds_max must equal qualification.health_alert_detection_seconds_max")
 	}
 	if d.StaleObservationAfterSeconds <= 0 || d.CertificateExpiryWarningDays <= 0 || d.RecoveryNotificationSecondsMax <= 0 {
 		add("detection stale / certificate / recovery bounds must be positive")
 	}
-	if d.BackupRPOSecondsMax <= 0 || d.BackupRPOSecondsMax != b.Qualification.BackupRecoveryPointSecondsMax {
+	if d.BackupRPOSecondsMax <= 0 || d.BackupRPOSecondsMax != q.BackupRecoveryPointSecondsMax {
 		add("detection.backup_rpo_seconds_max must equal qualification.backup_recovery_point_seconds_max")
 	}
-	if len(problems) > 0 {
-		sort.Strings(problems)
-		return fmt.Errorf("budgets invalid: %s", strings.Join(problems, "; "))
-	}
-	return nil
 }
 
 // Validate refuses an unbounded retry class.

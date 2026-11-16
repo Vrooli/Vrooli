@@ -79,3 +79,14 @@ func (c *Client) List(ctx context.Context, deploymentID string) (*operationsv1.L
 	}
 	return resp.Msg, nil
 }
+
+// TargetReceipt reads a fresh target-owned receipt for one admitted step.
+func (c *Client) TargetReceipt(ctx context.Context, deploymentID, operationID, step string) (*operationsv1.TargetReceiptRead, error) {
+	resp, err := c.service.GetTargetReceipt(ctx, connect.NewRequest(&operationsv1.GetTargetReceiptRequest{
+		DeploymentId: deploymentID, OperationId: operationID, Step: step,
+	}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg, nil
+}

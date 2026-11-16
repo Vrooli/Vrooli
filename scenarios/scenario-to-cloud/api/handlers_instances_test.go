@@ -33,8 +33,9 @@ func TestInstanceReadinessReportsUnavailableWithSetupNextAction(t *testing.T) {
 	if report.Ready || report.State != instance.ReadinessUnavailable {
 		t.Fatalf("report = %+v, want unavailable", report)
 	}
-	if !strings.Contains(report.NextAction.Reference, "vrooli setup") {
-		t.Fatalf("next action = %+v, want vrooli setup", report.NextAction)
+	if report.NextAction.Kind != "host_setup" || !strings.Contains(report.NextAction.Reference, "qemu-qualification") ||
+		!strings.Contains(report.NextAction.Label, "qemu, qemu-arm and cloud-localds") {
+		t.Fatalf("next action = %+v, want the exact QEMU host setup guidance", report.NextAction)
 	}
 	if report.Architectures["arm64"] != instance.ArchStateUnavailable {
 		t.Fatalf("arm64 = %s, want unavailable", report.Architectures["arm64"])

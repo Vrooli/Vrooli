@@ -1,4 +1,3 @@
-import json
 inputs = program.inputs()
 review_key = str(inputs.get("review_key", "")).strip(); release_id = str(inputs.get("release_id", "")).strip(); candidate_id = str(inputs.get("candidate_id", "")).strip(); destination_revision_id = str(inputs.get("destination_revision_id", "")).strip(); action = str(inputs.get("action", "halt")).strip(); execute = bool(inputs.get("execute", False)); confirmation = str(inputs.get("confirmation", "")); dry_run_reference = str(inputs.get("dry_run_reference", "")); expected_predecessor_revision = int(inputs.get("expected_predecessor_revision", 0)); data_compatibility = str(inputs.get("data_compatibility", "")).strip(); repair_artifact_ids = inputs.get("repair_artifact_ids", {}) or {}
 envelope = {"program": "deployment-manager.release-recover", "version": "1", "status": "failed", "phase": "validate", "inputs": {"review_key": review_key, "release_id": release_id, "candidate_id": candidate_id, "destination_revision_id": destination_revision_id, "action": action, "execute": execute, "confirmation": bool(confirmation), "dry_run_reference": dry_run_reference, "expected_predecessor_revision": expected_predecessor_revision, "data_compatibility": data_compatibility, "repair_artifact_ids": repair_artifact_ids}, "signals": {}, "errors": [], "evidence": []}; handle = None
@@ -53,6 +52,6 @@ def step_act():
         if "owner" in lowered and ("unavailable" in lowered or "unsupported" in lowered or "no receipt" in lowered):
             return fail("unavailable", "no_governed_binding", message, "act")
         status, klass = program.classify(exc); return fail(status, klass, exc, "act")
-def step_report(): envelope["phase"] = "report"; envelope["status"] = "ok" if not envelope["errors"] else envelope["status"]; print(json.dumps(envelope, allow_nan=False)); return None
+def step_report(): envelope["phase"] = "report"; envelope["status"] = "ok" if not envelope["errors"] else envelope["status"]; program.report(envelope); return None
 STATES = {"validate": step_validate, "collect": step_collect, "decide": step_decide, "act": step_act, "report": step_report}; state = "validate"
 program.run(STATES, state)

@@ -13,7 +13,7 @@ func Register(deps appctx.Dependencies) cliapp.CommandGroup {
 			{
 				Name:        "operation",
 				NeedsAPI:    true,
-				Description: "Durable cloud operations (get, wait, resume, cancel, list)",
+				Description: "Durable cloud operations (get, wait, resume, cancel, list, target-receipt)",
 				Run:         deps.Operations.Run,
 			},
 		},

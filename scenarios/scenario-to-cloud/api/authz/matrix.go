@@ -47,13 +47,15 @@ func RenderMarkdown() string {
 	b.WriteString("| `secret` | Credential material or its metadata | Human only, `Cache-Control: no-store`, effect recheck |\n")
 	b.WriteString("| `host` | Repair or reconfigure a host | Human only, origin check, effect recheck |\n")
 	b.WriteString("| `interactive` | Long-lived session on a target | Human only, browser Origin required, socket bound to credential expiry |\n\n")
-	b.WriteString("Columns: **target** = `id` (deployment resolved and policy-checked before the handler), `body` (target named in the request body; only unrestricted principals), or `-`; **reach** = the route opens SSH or another reach to a target; **service** = service principals and verified agents may call it; **no-store** = response is never cacheable.\n\n")
+	b.WriteString("Columns: **target** = `id` (deployment resolved and policy-checked before the handler), `body` (only unrestricted principals), `handler-checked` (typed handler must resolve and authorize deployment_id before target reach), or `-`; **reach** = the route opens SSH or another reach to a target; **service** = service principals and verified agents may call it; **no-store** = response is never cacheable.\n\n")
 	b.WriteString("| Method | Path | Effect | Scope | Target | Reach | Service | No-store | Description |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, route := range Sorted() {
 		target := "-"
 		switch {
 		case route.TargetBound:
 			target = "id"
+		case route.HandlerTargetBound:
+			target = "handler-checked"
 		case route.BodyTarget:
 			target = "body"
 		}

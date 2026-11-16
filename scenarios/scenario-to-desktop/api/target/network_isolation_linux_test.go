@@ -9,11 +9,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -26,11 +28,31 @@ func TestOfflineElectronSessionBlocksExternalNetworkAndBridgesLoopbackAcrossRest
 		t.Skip("python3 is unavailable")
 	}
 	artifact := filepath.Join(t.TempDir(), "offline-electron-fixture")
+	var upstreamRequests atomic.Int32
+	upstreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamRequests.Add(1)
+		if r.URL.Path != "/probe" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = io.WriteString(w, "fixture-lpbs-ok")
+	}))
+	defer upstreamServer.Close()
+	upstream, err := NewOfflineLoopbackUpstream(upstreamServer.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/host/credential/session-bus")
+	t.Setenv("GNOME_KEYRING_CONTROL", "/run/user/1000/keyring")
+	t.Setenv("SSH_AUTH_SOCK", "/run/user/1000/keyring/ssh")
+	t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+	t.Setenv("XDG_DATA_HOME", "/home/operator/.local/share")
 	script := `#!/usr/bin/env python3
-import http.server, json, os, signal, socket, sqlite3, sys, tempfile, threading
+import http.server, json, os, signal, socket, sqlite3, subprocess, sys, tempfile, threading, urllib.request
 port = next(int(a.split('=',1)[1]) for a in sys.argv[1:] if a.startswith('--remote-debugging-port='))
 renderer_port = int(os.environ['VROOLI_TEST_RENDERER_PORT'])
 api_port = int(os.environ['VROOLI_TEST_API_PORT'])
+upstream_port = int(os.environ['VROOLI_TEST_UPSTREAM_PORT'])
 db_root = os.path.join(os.path.dirname(os.environ['S2D_BUNDLED_TARGET_PATH']), 'test-database')
 db_path = os.path.join(db_root, 'namespace-write.sqlite')
 db = sqlite3.connect(db_path); db.execute('create table if not exists probe (value text)'); db.execute('insert into probe values (?)', ('written-in-private-network-namespace',)); db.commit(); db.close()
@@ -78,6 +100,23 @@ class RendererHandler(http.server.BaseHTTPRequestHandler):
 renderer_server=http.server.HTTPServer(('127.0.0.1',renderer_port),RendererHandler)
 threading.Thread(target=renderer_server.serve_forever,daemon=True).start()
 with open(probe,'a') as f: f.write('%d %s\n'%(external_result,internal_probe()))
+def probe_upstream():
+ try:
+  upstream_response = urllib.request.urlopen('http://127.0.0.1:%d/probe'%upstream_port, timeout=2).read().decode()
+ except Exception:
+  upstream_response = 'unavailable'
+ with open(os.path.join(os.environ['HOME'], 'upstream-probe.txt'), 'w') as f: f.write(upstream_response)
+with open(os.path.join(os.environ['HOME'], 'credential-env.json'), 'w') as f:
+ json.dump({key:os.environ.get(key,'') for key in ['DBUS_SESSION_BUS_ADDRESS','GNOME_KEYRING_CONTROL','SSH_AUTH_SOCK','XDG_RUNTIME_DIR','XDG_DATA_HOME','HOME']},f)
+secret_attrs = ['s2d-fixture', 'synthetic-only']
+lookup = subprocess.run(['secret-tool', 'lookup'] + secret_attrs, capture_output=True, text=True)
+if lookup.returncode == 0:
+ secret_state = 'restored' if lookup.stdout.strip() == 'synthetic-fixture-credential' else 'unexpected-value'
+else:
+ store = subprocess.run(['secret-tool', 'store', '--label=S2D synthetic fixture'] + secret_attrs, input='synthetic-fixture-credential', capture_output=True, text=True)
+ secret_state = 'created' if store.returncode == 0 else 'store-failed:' + store.stderr[:200]
+with open(os.path.join(os.environ['HOME'], 'secret-service-probe.txt'), 'w') as f: f.write(secret_state)
+threading.Thread(target=probe_upstream,daemon=True).start()
 server.serve_forever()
 `
 	if err := os.WriteFile(artifact, []byte(script), 0o700); err != nil {
@@ -96,6 +135,15 @@ server.serve_forever()
 	rendererURL := fmt.Sprintf("http://127.0.0.1:%d", rendererPort)
 	apiURL := fmt.Sprintf("http://127.0.0.1:%d", apiPort)
 	options.BundledRuntime = true
+	assignedParent, err := os.MkdirTemp("", "s2d-assigned-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(assignedParent)
+	options.OfflineDataRoot = filepath.Join(assignedParent, "root")
+	options.OfflineWritablePaths = []string{"profile/app-data"}
+	options.OfflineLoopbackUpstreams = []OfflineLoopbackUpstream{upstream}
+	options.PrivateSecretService = true
 	start := func() (*ElectronSession, error) {
 		return StartElectronSession(context.Background(), ElectronSessionOptions{
 			ArtifactPath:   artifact,
@@ -103,7 +151,11 @@ server.serve_forever()
 			Renderer:       RendererExpectation{URLPrefix: rendererURL},
 			OfflineNetwork: true,
 			StartupTimeout: 5 * time.Second,
-			Environment:    map[string]string{"VROOLI_TEST_RENDERER_PORT": fmt.Sprint(rendererPort), "VROOLI_TEST_API_PORT": fmt.Sprint(apiPort)},
+			Environment: map[string]string{
+				"VROOLI_TEST_RENDERER_PORT": fmt.Sprint(rendererPort),
+				"VROOLI_TEST_API_PORT":      fmt.Sprint(apiPort),
+				"VROOLI_TEST_UPSTREAM_PORT": fmt.Sprint(upstream.LocalPort),
+			},
 		})
 	}
 	session, err := start()
@@ -111,6 +163,12 @@ server.serve_forever()
 		t.Fatalf("start isolated Electron fixture: %v", err)
 	}
 	root := session.networkRoot
+	if root != options.OfflineDataRoot {
+		t.Fatalf("assigned private runtime root = %q, want %q", root, options.OfflineDataRoot)
+	}
+	if info, err := os.Stat(filepath.Join(root, "profile", "app-data")); err != nil || !info.IsDir() {
+		t.Fatalf("fixture writable directory was not created before launch: info=%v err=%v", info, err)
+	}
 	dbPath := filepath.Join(root, "test-database", "namespace-write.sqlite")
 	if session.Target().GetTestDatabaseRoot() != filepath.Join(root, "test-database") {
 		t.Fatalf("target database root = %q, want private session path", session.Target().GetTestDatabaseRoot())
@@ -204,6 +262,44 @@ server.serve_forever()
 		}
 	}
 	checkProbe()
+	checkFixtureIsolation := func(session *ElectronSession, wantSecretState, wantUpstream string) {
+		t.Helper()
+		upstreamProbe := filepath.Join(session.profileDir, "upstream-probe.txt")
+		var data []byte
+		var err error
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			data, err = os.ReadFile(upstreamProbe)
+			if err == nil {
+				break
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+		if err != nil || string(data) != wantUpstream {
+			t.Fatalf("offline allowlisted upstream result = %q, err=%v, want %q", data, err, wantUpstream)
+		}
+		var env map[string]string
+		data, err = os.ReadFile(filepath.Join(session.profileDir, "credential-env.json"))
+		if err != nil || json.Unmarshal(data, &env) != nil {
+			t.Fatalf("read isolated credential environment: %s err=%v", data, err)
+		}
+		for _, key := range []string{"GNOME_KEYRING_CONTROL", "SSH_AUTH_SOCK"} {
+			if env[key] != "" {
+				t.Fatalf("offline app inherited host credential endpoint %s=%q", key, env[key])
+			}
+		}
+		if env["HOME"] != session.profileDir || env["XDG_RUNTIME_DIR"] != filepath.Join(session.networkRoot, "runtime") || env["XDG_DATA_HOME"] != filepath.Join(session.networkRoot, "xdg-data") {
+			t.Fatalf("offline app data directories escaped fixture root: %+v", env)
+		}
+		if !strings.HasPrefix(env["DBUS_SESSION_BUS_ADDRESS"], "unix:path=/tmp/dbus-") {
+			t.Fatalf("private Secret Service did not provide an isolated D-Bus session: %+v", env)
+		}
+		secretState, err := os.ReadFile(filepath.Join(session.profileDir, "secret-service-probe.txt"))
+		if err != nil || string(secretState) != wantSecretState {
+			t.Fatalf("private synthetic keyring state = %q err=%v, want %q", secretState, err, wantSecretState)
+		}
+	}
+	checkFixtureIsolation(session, "created", "fixture-lpbs-ok")
 	checkBridge(session.Endpoint())
 	checkAPIAndRoutingBridge(session)
 	firstEndpoint := session.Endpoint()
@@ -215,10 +311,14 @@ server.serve_forever()
 	if err != nil {
 		t.Fatalf("wait for first offline process: %v", err)
 	}
+	upstreamServer.Close()
+	if err := os.Remove(filepath.Join(session.profileDir, "upstream-probe.txt")); err != nil {
+		t.Fatalf("remove first-process upstream probe before offline restart: %v", err)
+	}
 	if _, err := http.Post(session.Target().GetApiUrl()+"/api/v1/routing/install", "application/json", strings.NewReader(`{}`)); err == nil {
 		t.Fatal("API bridge remained usable after its isolated service exited")
 	}
-	restarted, err := session.Restart(context.Background())
+	restarted, err := session.RestartOffline(context.Background())
 	if err != nil {
 		t.Fatalf("restart offline Electron session: %v", err)
 	}
@@ -226,6 +326,7 @@ server.serve_forever()
 		t.Fatalf("restart did not retain private root with fresh bridge: root=%q endpoint=%q prior=%q", restarted.networkRoot, restarted.Endpoint(), firstEndpoint)
 	}
 	checkProbe()
+	checkFixtureIsolation(restarted, "restored", "unavailable")
 	checkBridge(restarted.Endpoint())
 	checkAPIAndRoutingBridge(restarted)
 	if err := restarted.Close(context.Background()); err != nil {
@@ -239,6 +340,9 @@ server.serve_forever()
 	}
 	if _, err := os.Stat(dbPath); !os.IsNotExist(err) {
 		t.Fatalf("private namespace SQLite database remains after owner cleanup: %q err=%v", dbPath, err)
+	}
+	if got := upstreamRequests.Load(); got != 1 {
+		t.Fatalf("host fixture upstream received %d requests across online and offline launches, want only the online request", got)
 	}
 }
 

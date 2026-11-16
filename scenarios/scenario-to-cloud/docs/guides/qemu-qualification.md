@@ -1,10 +1,11 @@
-# QEMU lane qualification (phase 20)
+# QEMU proving-ground qualification (phase 20)
 
-The QEMU lane proves real operating-system behaviour on resettable fresh
-hosts: systemd, privilege, headless credential initialisation, reboot and
-failure recovery. Containers are not a substitute (no systemd, no host-bound
-credential wraps, no privilege broker), and operator machines are never
-failure-injection fixtures.
+The QEMU proving ground must exercise all 266 required matrix case/lane pairs
+on resettable fresh hosts, including systemd, privilege, headless credential
+initialisation, reboot and failure recovery. `qemu` is also one lane in that
+matrix; its lane manifest contains 54 rows. Containers are not a substitute
+(no systemd, no host-bound credential wraps, no privilege broker), and
+operator machines are never failure-injection fixtures.
 
 Everything in this guide is owner-managed. Nothing here installs a package or
 downloads an image on its own.
@@ -13,53 +14,61 @@ downloads an image on its own.
 
 | Artifact | Path | Role |
 |---|---|---|
-| Lane manifest | `certification/lanes/qemu.json` | The 54 required (case, qemu) cells with fixture, fault, architectures, budgets and operator prerequisites. `api/certification/lanes_test.go` keeps it equal to the matrix. |
+| Lane manifest | `certification/lanes/qemu.json` | The 54 required `(case, qemu lane)` cells with fixture, fault, architectures, budgets and operator prerequisites. `api/certification/lanes_test.go` keeps it equal to the matrix. |
 | Image manifest | `certification/lanes/qemu-images.json` | Approved base images with path, sha256, os and arch. Empty until EXT-06 is closed. |
 | Readiness report | `GET /api/v1/instances/readiness` (`api/instance.Readiness`) | Typed host observation: tools, KVM, images, architectures, one next action. |
-| Qualification program | `.vrooli/program-runtime/cloud-qemu-qualification.{json,py}` | Governed admission and journey coordinator; returns standing, cells, identities, evidence refs, next action. |
-| Receipts | `certification/evidence/<CASE>.qemu.json` | One receipt per cell. Today every one is `verdict: unavailable`. |
+| Qualification program | `.vrooli/program-runtime/cloud-qemu-qualification.{json,py}` | QEMU-only ground binding; admits every matrix case/lane pair explicitly applicable to QEMU, not only the qemu lane. Returns standing, cell identities, evidence refs and next action. |
+| Receipts | `certification/evidence/<CASE>.<LANE>.qemu.<content-sha256>.json` | One immutable target-bound receipt per case, lane and ground. Historical receipts remain unbound and do not satisfy current readiness. |
 | Evidence | `~/.vrooli/plan-artifacts/scenario-to-cloud-professional-vps-delivery-certification/evidence/P20-qemu-qualification.md` | Phase standing and acceptance table. |
 
 ## Operator steps
 
-### 1. Install the host tools through `vrooli setup`
+### 1. Review and install the three QEMU host tools
 
-`qemu` and `cloud-localds` are declared in
-`scenarios/scenario-to-cloud/.vrooli/service.json` under `hostTools`. Select the
-scenario when resolving setup requirements; global setup inspection omits these
-scenario-owned tools. `vrooli setup` is the only elevation boundary; do not run
-`apt`, `sudo`, or any other package manager by hand.
+`qemu`, `qemu-arm`, and `cloud-localds` are declared in
+`scenarios/scenario-to-cloud/.vrooli/service.json` under `hostTools`. Vrooli host
+requirements are the only install boundary; do not run `apt`, `sudo`, or any
+other package manager by hand.
 
 ```text
-vrooli setup --scenarios scenario-to-cloud --dry-run
-vrooli setup --scenarios scenario-to-cloud --sudo-mode ask
+vrooli host install qemu --dry-run --json
+vrooli host install qemu-arm --dry-run --json
+vrooli host install cloud-localds --dry-run --json
 ```
 
-The dry run inspects the resolved requirements without changing the host. The
-second command applies missing tools and may require operator authentication.
+The reviewed Linux/apt package plans are respectively `qemu-system-x86`,
+`qemu-system-arm`, and `cloud-image-utils`. Apply only the named tools, after
+confirming each preview:
 
-The readiness report needs four binaries: `qemu-system-x86_64`,
-`qemu-system-aarch64`, `qemu-img` and `cloud-localds`. Accelerated amd64 guests
-also need `/dev/kvm` to be openable by the service user (the `kvm` group);
-without it the lane still runs, under TCG emulation, and the report says so.
+```text
+vrooli host install qemu --sudo-mode ask
+vrooli host install qemu-arm --sudo-mode ask
+vrooli host install cloud-localds --sudo-mode ask
+```
+
+Each command may require operator authentication. This avoids applying unrelated
+root host tools or safeguards from a global setup run. The readiness report
+requires four binaries owned by these three tools: `qemu` supplies
+`qemu-system-x86_64` and `qemu-img`, `qemu-arm` supplies
+`qemu-system-aarch64`, and `cloud-localds` supplies `cloud-localds`. Accelerated
+amd64 guests also need `/dev/kvm` to be openable by the service user (the `kvm`
+group); without it the lane still runs as a real VM under TCG emulation.
 
 ### 2. Acquire an approved base image and record its digest
 
-Obtain a pristine Ubuntu 24.04 cloud image per architecture from the
-distribution's own channel, verify it against the distribution's published
-checksum, store it read-only, and record it:
+Acquire the pinned amd64 and arm64 Ubuntu 24.04 cloud images in the CL2 A2 packet from Canonical’s released-image channel. Verify the signed `SHA256SUMS` using Canonical’s Ubuntu cloud-image keyring, verify each image, store both read-only, and record their paths and hashes:
 
 ```json
 {
   "schema_version": 1,
   "images": [
-    {"path": "/var/lib/vm/ubuntu-24.04-amd64.qcow2", "sha256": "<64 hex>", "os": "ubuntu-24.04", "arch": "amd64", "source_url": "<distribution URL>", "recorded_at": "2026-09-10T00:00:00Z"},
-    {"path": "/var/lib/vm/ubuntu-24.04-arm64.qcow2", "sha256": "<64 hex>", "os": "ubuntu-24.04", "arch": "arm64", "source_url": "<distribution URL>", "recorded_at": "2026-09-10T00:00:00Z"}
+    {"path": "/var/lib/vm/ubuntu-24.04-server-cloudimg-amd64.img", "sha256": "<verified 64 hex>", "os": "ubuntu-24.04", "arch": "amd64", "source_url": "<distribution URL>", "recorded_at": "<UTC timestamp>"},
+    {"path": "/var/lib/vm/ubuntu-24.04-server-cloudimg-arm64.img", "sha256": "<verified 64 hex>", "os": "ubuntu-24.04", "arch": "arm64", "source_url": "<distribution URL>", "recorded_at": "<UTC timestamp>"}
   ]
 }
 ```
 
-The provider never mutates a source image: `vps instance create` makes an
+The provider never downloads or mutates a source image: `vps instance create` makes an
 owned copy-on-write `disk.qcow2`, and the digest is verified before the disk is
 created and again after destroy (P20-A05). `VROOLI_QEMU_IMAGE_MANIFEST`
 overrides the manifest path for the API process.
@@ -107,9 +116,9 @@ Admission refuses, before any read or mutation:
 |---|---|---|
 | absent grant | `no_authorization` | `authorization_ref` empty, or a non-zero `limits.spend_ceiling_minor_units` |
 | incompatible target | `incompatible_target` | `target_ref` not `local-qemu:<id>`; `owned_target_count` above 1; no deployment bound to the selector or id (404); the deployment's target `machine_id` or environment differs from the request |
-| stale artifact | `stale_artifact` | `release_ref` not an immutable `sha256:<64 hex>`; `matrix_revision` not `cloud-launch-v1`; closure not `derived`; the compiled plan's release digest differs from `release_ref` |
+| stale artifact | `stale_artifact` | `release_ref` not an immutable `sha256:<64 hex>`; `matrix_revision` not `cloud-launch-v2-two-grounds`; current receipts must bind `target_ground=qemu` or `target_ground=real_vps` and a generation; closure not `derived`; the compiled plan's release digest differs from `release_ref` |
 | unknown fault | `unknown_fault_capability` | a `faults.allowed` entry outside the lane manifest's `fault_capabilities` |
-| case outside the lane | `invalid_input` | a case whose matrix `lanes` do not include `qemu` |
+| case outside the lane | `invalid_input` | a case/lane pair absent from the matrix applicability map, or a target ground outside that pair |
 
 Phases and bindings:
 
@@ -118,16 +127,16 @@ Phases and bindings:
 | validate | none | admission only |
 | collect | `deployment/get` or `deployment/resolve`, `deployment/plan`, `validate("scenario-to-cloud")` | resolves the deployment, checks it is bound to `target_ref`, compiles the plan, reads the latest recorded Test Genie run as evidence |
 | decide | none | refuses a stale closure or release; names fault cells that still lack an arming binding |
-| act | `deployment/apply` (destructive, `request_key = request_id`, confirmed), `operation/wait` (one bounded wait), `deployment/health`, `edge/status` | one admitted operation; a non-terminal operation is reported with its id, never as a failure |
-| classify | none | `journey_verified` only when the operation succeeded and a current healthy observation names `release_ref` |
+| act | `deployment/apply` (destructive, `request_key = request_id`, confirmed), `operation/wait` (one bounded wait), `operation/target_receipt` (fresh target read for each successful target-owned step), `deployment/health`, `edge/status` | one admitted operation; a non-terminal operation is reported with its id, never as a failure |
+| classify | none | `journey_verified` only when the operation succeeded, a target-owner receipt matches the operation/plan/step/target identity, and a current healthy observation names `release_ref` |
 
 Standings: `refused`, `operation_pending`, `journey_failed`, `journey_unverified`,
 `journey_verified`. The program never writes a `passed` receipt: on
 `journey_verified` every requested cell is `pending_assertions` with the
-operation id, and the next action is to collect target receipts and per-case
-assertions. Fault arming (`api/faultinject`) and target receipt reads
-(`vrooli cloud-target receipt get`) have no governed binding yet, so fault
-cells are named as pending in `signals.fault_injection`.
+operation id, and the next action is to collect per-case assertions. A missing
+or mismatched fresh target receipt produces `journey_unverified`. Fault arming
+(`api/faultinject`) still has no governed binding, so fault cells are named as
+pending in `signals.fault_injection`.
 
 **Current standing (2026-09-09).** `programs submit --explain` reports no
 diagnostics. All eight fixtures behave as declared in test provenance, and a
@@ -139,17 +148,30 @@ owned guest.
 
 ### 5. Read the receipts
 
-Each cell's receipt is `certification/evidence/<CASE>.qemu.json` (EDGE-06 keeps
-its earlier `EDGE-06.json`). The shape is the registry's receipt schema
-(`api/certification/evidence.go`): `case_id`, `verdict`, `lane: "qemu"`,
-`candidate`, `target`, `operation_refs`, `validation_receipt_ref`,
-`artifact_refs`, `assertions`, `observed_at`, `limitations`.
+Each cell's target-ground receipt uses the semantic prefix
+`<CASE>.<LANE>.qemu`, where `LANE` is the selected matrix lane and the ground
+is exactly `qemu` for this program. The `qemu` lane itself uses
+`<CASE>.qemu.qemu`.
+`certification.WriteReceipt` appends a content SHA-256 suffix to produce an
+immutable filename. Its schema is v2 and binds the target ground, machine,
+generation, architecture and OS. The shape is the registry's receipt schema
+(`api/certification/evidence.go`): `case_id`, matrix-matching
+`requirement_refs`, `verdict`, `lane: "qemu"`, `candidate`, `target`,
+non-empty `operation_refs`, `validation_receipt_ref`,
+`artifact_refs`, `assertions`, `observed_at`, `limitations`. A v2 receipt must
+also carry at least one `operation:<id>` reference, a `test-genie:<receipt>`
+validation reference, and requirement references that exactly match the matrix
+row.
 
 Readiness precedence per cell is failed > passed > unavailable > stale >
 missing. An `unavailable` receipt keeps the cell open by name; it can never
-satisfy certification. Once the lane runs, the program writes `passed` or
-`failed` receipts bound to the exact release digest; a `failed` receipt is never
-masked by a later pass and must be withdrawn by its owner with a reason.
+satisfy certification. This program verifies one fixture deploy/health journey
+plus the operation's fresh target-owner receipt and returns
+`pending_assertions`; it does not write certification receipts. A separate
+per-case owner assertion and target evidence are required before a v2 verdict
+can be appended. The `real_vps` ground has a separate Bridge-fenced
+qualification program and cannot reuse QEMU evidence. A failed receipt is
+never masked by a later pass and must be withdrawn by its owner with a reason.
 
 The arm64 lane is reported `unavailable` until `qemu-system-aarch64` (TCG on
 this amd64 host) or an arm64 host exists (EXT-05). Certification stays

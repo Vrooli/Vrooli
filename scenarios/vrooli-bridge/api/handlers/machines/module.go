@@ -30,7 +30,7 @@ func Module(db *database.RoutedDB, clk schedule.Clock, sshSvc *ssh.Service, regi
 	svc := internalmachines.NewService(repo)
 	audit, _ := repo.(auditAppender)
 	attempts, _ := internalonboard.NewSQLiteRepository(db, clk).(attemptReader)
-	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc, trust: svc}, StoreRotator: newStoreRotator(onboardSvc, svc, registrySvc, sshSvc), Logger: logger}))
+	path, handler := machinesconnect.NewMachineServiceHandler(NewConnectHandler(Deps{Service: svc, Attempts: attempts, Projection: composedProjection{registry: registrySvc, presence: presenceHub}, Audit: audit, HostKeyResetter: sshSvc, NodeRevoker: nodeRevoker{registry: registrySvc, pairing: pairingSvc, presence: presenceHub}, Repairer: machineRepairer{service: onboardSvc, trust: svc, registry: registrySvc}, StoreRotator: newStoreRotator(onboardSvc, svc, registrySvc, sshSvc), Logger: logger}))
 	return module.Module{
 		Name:      "machines",
 		Mount:     func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) },
@@ -47,8 +47,9 @@ type machineEnrollmentStarter interface {
 }
 
 type machineRepairer struct {
-	service machineEnrollmentStarter
-	trust   machineTrustReader
+	service  machineEnrollmentStarter
+	trust    machineTrustReader
+	registry registry.Service
 }
 
 func (r machineRepairer) Repair(ctx context.Context, machine internalmachines.Machine) (string, string, error) {
@@ -79,10 +80,39 @@ func (r machineRepairer) Repair(ctx context.Context, machine internalmachines.Ma
 	if port == 0 {
 		port = 22
 	}
-	decision, err := r.service.StartMachineEnrollment(ctx, machine.ID, internalonboard.StartInput{
+	input := internalonboard.StartInput{
 		MachineID: machine.ID, Host: host, Port: port, User: trusted.SSHUser, NodeName: machine.ID,
 		TargetRevision: "@cp", ProvisionSudo: true,
-	})
+	}
+	var currentNodeID string
+	for _, lineage := range machine.Lineage {
+		if !lineage.Current {
+			continue
+		}
+		if currentNodeID != "" || strings.TrimSpace(lineage.NodeID) == "" {
+			return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "machine has ambiguous current node identity"}
+		}
+		currentNodeID = strings.TrimSpace(lineage.NodeID)
+	}
+	if currentNodeID != "" {
+		if r.registry == nil {
+			return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: "registry is unavailable while preserving current node grants"}
+		}
+		node, getErr := r.registry.Get(ctx, currentNodeID)
+		if getErr != nil {
+			return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: fmt.Sprintf("current node grants unavailable: %v", getErr)}
+		}
+		if node.ID != currentNodeID {
+			return "", "", internalmachines.ErrInvalid{Field: "repair", Reason: fmt.Sprintf("registry returned node %q when current identity %q was requested", node.ID, currentNodeID)}
+		}
+		input.PairingScopesSet = true
+		if node.RevokedAt.IsZero() {
+			input.PairingScopes = append([]string(nil), node.Scopes...)
+		} else {
+			input.PairingScopes = []string{}
+		}
+	}
+	decision, err := r.service.StartMachineEnrollment(ctx, machine.ID, input)
 	if err != nil {
 		return "", "", err
 	}

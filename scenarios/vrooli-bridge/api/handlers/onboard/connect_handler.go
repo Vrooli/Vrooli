@@ -16,6 +16,7 @@ import (
 	"vrooli-bridge/internal/onboard"
 	internalssh "vrooli-bridge/internal/onboard/ssh"
 	"vrooli-bridge/internal/onboarding"
+	"vrooli-bridge/internal/registry"
 
 	"connectrpc.com/connect"
 
@@ -97,6 +98,7 @@ type Deps struct {
 	SSH      *internalssh.Service
 	Attempts attemptLookup
 	Machines machineReader
+	Registry registryReader
 	Resolver machineResolver
 	KeyCheck func(context.Context, string, int, string, string) (ok bool, status, fingerprint string)
 	// SelfTargetCheck is injectable only for in-process SSHD tests. Production
@@ -130,6 +132,45 @@ type machineReader interface {
 
 type policyApplier interface {
 	ApplyPolicy(context.Context, machines.PolicyChangeInput) (machines.Machine, machines.PolicySnapshot, error)
+}
+
+type registryReader interface {
+	Get(context.Context, string) (registry.Node, error)
+}
+
+// existingPairingScopes carries only the grants currently approved on the
+// Machine's current, non-revoked Node. A re-pair must not silently replace
+// those grants with posture defaults, and a revoked Node must not regain them.
+func (h *connectHandler) existingPairingScopes(ctx context.Context, machine machines.Machine) ([]string, bool, error) {
+	var currentNodeID string
+	for _, item := range machine.Lineage {
+		if item.Current {
+			if currentNodeID != "" {
+				return nil, false, fmt.Errorf("machine %q has multiple current node identities", machine.ID)
+			}
+			if strings.TrimSpace(item.NodeID) == "" {
+				return nil, false, fmt.Errorf("machine %q has an empty current node identity", machine.ID)
+			}
+			currentNodeID = strings.TrimSpace(item.NodeID)
+		}
+	}
+	if currentNodeID == "" {
+		return nil, false, nil
+	}
+	if h.deps.Registry == nil {
+		return nil, false, fmt.Errorf("registry unavailable while preserving current node grants for machine %q", machine.ID)
+	}
+	node, err := h.deps.Registry.Get(ctx, currentNodeID)
+	if err != nil {
+		return nil, false, fmt.Errorf("read current node grants before re-enrollment: %w", err)
+	}
+	if node.ID != currentNodeID {
+		return nil, false, fmt.Errorf("registry returned node %q when current machine identity %q was requested", node.ID, currentNodeID)
+	}
+	if !node.RevokedAt.IsZero() {
+		return []string{}, true, nil
+	}
+	return append([]string(nil), node.Scopes...), true, nil
 }
 
 type machineResolver interface {
@@ -346,11 +387,13 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 	// that document at the Bridge boundary so onboarding does not mirror the
 	// control plane's operator state for every remote node.
 	profile := machines.PolicySnapshot{}
+	var selectedMachine *machines.Machine
 	if !dryRun && h.deps.Machines != nil && req.Msg.GetMachineId() != "" {
 		machine, getErr := h.deps.Machines.Get(ctx, req.Msg.GetMachineId())
 		if getErr != nil {
 			return nil, getErr
 		}
+		selectedMachine = &machine
 		profileID := machine.DesiredProfileID
 		if preset := strings.ToLower(strings.TrimSpace(req.Msg.GetSetupPreset())); preset != "" {
 			profileID, err = profileForSetupPreset(preset)
@@ -429,6 +472,12 @@ func (h *connectHandler) StartOnboarding(ctx context.Context, req *connect.Reque
 		ProvisionServiceUser: req.Msg.GetProvisionServiceUser(),
 		SourceMode:           sourceModeFromProto(req.Msg.GetSourceMode()),
 		DryRun:               dryRun,
+	}
+	if selectedMachine != nil {
+		input.PairingScopes, input.PairingScopesSet, err = h.existingPairingScopes(ctx, *selectedMachine)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 	}
 	var dec onboard.Decision
 	machineID, attemptID := "", ""

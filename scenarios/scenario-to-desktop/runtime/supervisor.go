@@ -595,6 +595,16 @@ func (s *Supervisor) publishPeerRecord() error {
 		Ports:         flattened,
 		AuthTokenPath: tokenPath,
 	}); err != nil {
+		// A bundled app can run beside the same scenario's host instance. The
+		// existing live record remains authoritative; peer discovery is optional
+		// for the app's own control API and must not prevent the bundle starting.
+		if errors.Is(err, peerrecord.ErrLiveOwnerConflict) {
+			_ = s.recordTelemetry("peer_record_skipped", map[string]interface{}{
+				"scenario": scenarioName,
+				"reason":   "another live instance owns the scenario peer record",
+			})
+			return nil
+		}
 		return fmt.Errorf("publish peer record: %w", err)
 	}
 	s.peerPublished = true

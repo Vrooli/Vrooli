@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"deployment-manager/internal/releasedecision"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/operatordecision"
@@ -234,5 +236,81 @@ func TestStartHumanWithUnapprovedReviewUnchanged(t *testing.T) {
 	}
 	if raiser.calls != 0 {
 		t.Fatalf("human must not raise an agent decision, got %d", raiser.calls)
+	}
+}
+
+// A release decision is one decision per profile, channel and target set,
+// whatever the commit: a newer release updates or replaces the open decision, and
+// the ask records the key it was raised with so a withdrawal can name it.
+func TestReleaseDecisionIsKeyedByProfileChannelAndTargets(t *testing.T) {
+	repo, cfg, orch := newMockRepo(), newMockLPBSConfig(), &mockOrch{}
+	raiser := &recordingRaiser{raised: true}
+	handler := NewHandler(repo, cfg, nil, orch, nil).
+		WithExecutionAuthorization(func(context.Context) error { return nil }).
+		WithIdentityRepository(&identityRepoFake{}).
+		WithReadinessLookup(func(context.Context, string) (*ReadinessApproval, error) {
+			return pendingReviewApproval("pending"), nil
+		}).
+		WithReleaseDecisionRaiser(raiser)
+	router := mux.NewRouter()
+	router.HandleFunc("/api/v1/profiles/{id}/releases/start", handler.Start).Methods(http.MethodPost)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, startAgentRequest(agentContext(context.Background()), notYetApprovedBody))
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d body=%s", response.Code, response.Body.String())
+	}
+
+	want := releasedecision.SubjectKey("p1", "stable", []string{"linux-x64"})
+	if raiser.facts.SubjectKey != want || raiser.ask.Extra[releasedecision.ExtraSubjectKey] != want {
+		t.Fatalf("facts key %q, ask key %q, want %q", raiser.facts.SubjectKey, raiser.ask.Extra[releasedecision.ExtraSubjectKey], want)
+	}
+	if err := raiser.facts.Validate(); err != nil {
+		t.Fatalf("keyed facts are valid: %v", err)
+	}
+	// A newer commit of the same release is the same subject, but its own ask.
+	newer := buildReleaseDecisionFacts(releaseDecisionInputs{ProfileID: "p1", Channel: "stable", Targets: []string{"linux-x64"}, Commit: "def", ArtifactDigest: "sha256:newer"})
+	if newer.SubjectKey != want {
+		t.Fatalf("a newer commit keeps the subject: %q", newer.SubjectKey)
+	}
+}
+
+func TestReleaseDecisionArrivesAsAPageTheOperatorCanAnswerCold(t *testing.T) {
+	facts := buildReleaseDecisionFacts(releaseDecisionInputs{
+		Scenario: "landing-page", ProfileID: "profile-9", Commit: "0123456789abcdef0123", ArtifactDigest: "sha256:feedface",
+		Channel: "stable", Targets: []string{"windows-x64", "linux-x64"}, ReviewKey: "rr-7", RequestingAgent: "run-agent-7",
+		GateReady: false, GateReason: "linux-x64 has no smoke-test evidence",
+		PerTarget: []map[string]string{{"target": "linux-x64", "evidence_disposition": "missing", "approval_status": "pending"}, {"target": "windows-x64", "evidence_disposition": "accepted", "approval_status": "approved"}},
+	})
+	if err := facts.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if problems := operatordecision.CoverProblems(facts); len(problems) > 0 {
+		t.Errorf("a cold reader cannot parse the cover: %v", problems)
+	}
+	if facts.Question != "Ship this build of landing-page to the stable channel for linux-x64, windows-x64? Its readiness check has not passed." {
+		t.Errorf("question = %q", facts.Question)
+	}
+	for name, text := range map[string]string{"question": facts.Question, "big picture": facts.BigPicture} {
+		for _, id := range []string{"0123456789ab", "sha256:", "rr-7", "run-agent-7", "profile-9"} {
+			if strings.Contains(text, id) {
+				t.Errorf("%s %q carries %q; ids belong in technical details", name, text, id)
+			}
+		}
+	}
+	for _, want := range []string{
+		"commit 0123456789ab", "run-agent-7", "Not ready:", "linux-x64 has no smoke-test evidence",
+		"Evidence per target", "Missing", "Pending", "Accepted", "Cannot be undone:", `data-od-answer="approve"`, "If you do not answer:",
+	} {
+		if !strings.Contains(facts.Explainer, want) {
+			t.Errorf("page is missing %q", want)
+		}
+	}
+	for _, want := range []string{"0123456789abcdef0123", "sha256:feedface", "rr-7", "linux-x64: evidence=missing approval=pending"} {
+		if !strings.Contains(facts.TechnicalDetails, want) {
+			t.Errorf("technical details are missing %q", want)
+		}
+	}
+	if facts.Recommended != "reject" {
+		t.Errorf("a release whose gate is not ready must recommend not shipping, got %q", facts.Recommended)
 	}
 }

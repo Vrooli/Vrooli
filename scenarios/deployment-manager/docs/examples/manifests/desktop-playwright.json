@@ -181,7 +181,7 @@
       },
       "env": {
         "PLAYWRIGHT_DRIVER_PORT": "${playwright.http}",
-        "PLAYWRIGHT_CHROMIUM_PATH": "resources/playwright/chromium/chrome",
+        "BROWSER_EXECUTABLE_PATH": "resources/playwright/chromium/chrome",
         "NODE_NO_WARNINGS": "1"
       },
       "ports": {

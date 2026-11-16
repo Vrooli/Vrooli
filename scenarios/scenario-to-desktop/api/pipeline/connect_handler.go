@@ -179,7 +179,7 @@ func (s *ConnectService) Cancel(_ context.Context, req *connect.Request[pipeline
 	}
 	if status.IsComplete() {
 		message := "Pipeline has already completed"
-		return connect.NewResponse(&pipelinev1.PipelineCancelResponse{Status: status.Status, Message: &message}), nil
+		return connect.NewResponse(&pipelinev1.PipelineCancelResponse{Status: string(status.Status), Message: &message}), nil
 	}
 	return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("pipeline %q cannot be cancelled", req.Msg.GetPipelineId()))
 }
@@ -197,7 +197,7 @@ func (s *ConnectService) List(_ context.Context, req *connect.Request[pipelinev1
 		if scenario := req.Msg.GetScenarioName(); scenario != "" && status.ScenarioName != scenario {
 			continue
 		}
-		if requested := strings.TrimSpace(strings.ToLower(req.Msg.GetStatus())); requested != "" && !strings.Contains(strings.ToLower(status.Status), requested) {
+		if requested := strings.TrimSpace(strings.ToLower(req.Msg.GetStatus())); requested != "" && !strings.Contains(strings.ToLower(string(status.Status)), requested) {
 			continue
 		}
 		if since := req.Msg.GetSince(); since != nil && status.StartedAt < since.AsTime().Unix() {
@@ -206,7 +206,7 @@ func (s *ConnectService) List(_ context.Context, req *connect.Request[pipelinev1
 		item := &pipelinev1.PipelineListItem{
 			PipelineId:      status.PipelineID,
 			ScenarioName:    status.ScenarioName,
-			Status:          stageStatusToProto(status.Status),
+			Status:          stageStatusToProto(string(status.Status)),
 			ProgressPercent: int32(status.ProgressPercent),
 			CreatedAt:       unixTimestamp(status.StartedAt),
 			CanResume:       status.CanResume(),
@@ -550,7 +550,7 @@ func statusToProto(status *Status) *pipelinev1.PipelineStatus {
 	result := &pipelinev1.PipelineStatus{
 		PipelineId:      status.PipelineID,
 		ScenarioName:    status.ScenarioName,
-		Status:          stageStatusToProto(status.Status),
+		Status:          stageStatusToProto(string(status.Status)),
 		ProgressPercent: int32(status.ProgressPercent),
 		Config:          configToProto(status.Config),
 		StartedAt:       unixTimestamp(status.StartedAt),

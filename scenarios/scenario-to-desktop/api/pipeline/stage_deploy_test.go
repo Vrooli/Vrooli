@@ -29,6 +29,19 @@ func testDeployFactory(serverURL string) LPBSClientFactory {
 	}
 }
 
+// newTestDeployStage supplies the shared deterministic clock and test server
+// client used by deployment-stage integration cases. Per-test collaborators
+// remain explicit at the call site.
+func newTestDeployStage(t *testing.T, serverURL string, extra ...DeployStageOption) *DeployStage {
+	t.Helper()
+	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
+	options := []DeployStageOption{
+		WithDeployClientFactory(testDeployFactory(serverURL)),
+		WithDeployTimeProvider(newMockTP()),
+	}
+	return NewDeployStage(append(options, extra...)...)
+}
+
 func TestVerifyExpectedArtifactDigestBindsFinalBytes(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "artifact.bin")
 	contents := []byte("final-candidate-bytes")
@@ -229,12 +242,7 @@ func TestDeployStage_Execute_InlineConfig(t *testing.T) {
 	artifactPath := filepath.Join(tmpDir, "app.exe")
 	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL)
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -295,8 +303,7 @@ func TestDeployStage_ReleaseBoundDeployFailsWhenUpdateURLCannotBeDerived(t *test
 	}))
 	defer server.Close()
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-	stage := NewDeployStage(WithDeployClientFactory(testDeployFactory(server.URL)), WithDeployTimeProvider(newMockTP()))
+	stage := newTestDeployStage(t, server.URL)
 	result := stage.Execute(context.Background(), &StageInput{Config: &PipelineConfig{
 		Version:                "1.0.0",
 		ArtifactManifestDigest: "sha256:" + strings.Repeat("0", 64),
@@ -311,10 +318,9 @@ func TestDeployStage_ReleaseBoundDeployFailsWhenUpdateURLCannotBeDerived(t *test
 }
 
 func TestDeployStage_ReleaseBoundDeployRejectsConfiguredURLOutsideOwnerDestination(t *testing.T) {
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
 	server := newTestDeployServer(t, "http://unused.example")
 	defer server.Close()
-	stage := NewDeployStage(WithDeployClientFactory(testDeployFactory(server.URL)), WithDeployTimeProvider(newMockTP()))
+	stage := newTestDeployStage(t, server.URL)
 	result := stage.Execute(context.Background(), &StageInput{Config: &PipelineConfig{
 		Version:                "1.0.0",
 		ArtifactManifestDigest: "sha256:" + strings.Repeat("0", 64),
@@ -353,16 +359,13 @@ func TestDeployStage_ReleaseBoundDeploySkipsLegacyApprovalGate(t *testing.T) {
 	defer dmServer.Close()
 	var dmFactoryCalls int
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
 	server := newTestDeployServer(t, "http://unused.example")
 	defer server.Close()
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(server.URL)),
+	stage := newTestDeployStage(t, server.URL,
 		WithDeployDMClientFactory(func(context.Context) (*deploy.DMClient, error) {
 			dmFactoryCalls++
 			return deploy.NewDMClientWithResolver(func(context.Context) (string, error) { return dmServer.URL, nil }, http.DefaultClient), nil
 		}),
-		WithDeployTimeProvider(newMockTP()),
 	)
 
 	result := stage.Execute(context.Background(), &StageInput{Config: &PipelineConfig{
@@ -392,8 +395,7 @@ func TestDeployStage_ReleaseBoundDeploySkipsLegacyApprovalGate(t *testing.T) {
 func TestDeployStage_ReleaseBoundDeployRejectsUnapprovedArtifactTarget(t *testing.T) {
 	server := newTestDeployServer(t, "http://unused.example")
 	defer server.Close()
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-	stage := NewDeployStage(WithDeployClientFactory(testDeployFactory(server.URL)), WithDeployTimeProvider(newMockTP()))
+	stage := newTestDeployStage(t, server.URL)
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
 			Version:                "1.0.0",
@@ -441,13 +443,7 @@ func TestDeployStage_Execute_SavedTarget(t *testing.T) {
 		RemoteProfile: "prod",
 	})
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployTargetRepo(repo),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL, WithDeployTargetRepo(repo))
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -476,12 +472,7 @@ func TestDeployStage_Execute_NoArtifacts(t *testing.T) {
 	lpbsServer := newTestDeployServer(t, s3Server.URL)
 	defer lpbsServer.Close()
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL)
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -605,12 +596,7 @@ func TestDeployStage_Execute_RemoteProfileTestFails(t *testing.T) {
 	}))
 	defer lpbsServer.Close()
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL)
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -694,13 +680,7 @@ func TestDeployStage_Execute_GateReady(t *testing.T) {
 	artifactPath := filepath.Join(tmpDir, "app.exe")
 	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL, WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)))
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -739,13 +719,7 @@ func TestDeployStage_Execute_GateBlocked_Timeout(t *testing.T) {
 	artifactPath := filepath.Join(tmpDir, "app.exe")
 	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL, WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)))
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -786,13 +760,7 @@ func TestDeployStage_Execute_DMUnreachable(t *testing.T) {
 	artifactPath := filepath.Join(tmpDir, "app.exe")
 	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployDMClientFactory(testDMClientFactory("http://127.0.0.1:1")),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL, WithDeployDMClientFactory(testDMClientFactory("http://127.0.0.1:1")))
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -828,12 +796,7 @@ func TestDeployStage_Execute_NoProfileID_SkipsGate(t *testing.T) {
 	artifactPath := filepath.Join(tmpDir, "app.exe")
 	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL)
 
 	result := stage.Execute(context.Background(), &StageInput{
 		Config: &PipelineConfig{
@@ -900,13 +863,7 @@ func TestDeployStage_Execute_GateBlocked_ThenClears(t *testing.T) {
 	artifactPath := filepath.Join(tmpDir, "app.exe")
 	_ = os.WriteFile(artifactPath, []byte("binary"), 0o644)
 
-	t.Setenv("LPBS_SERVICE_SECRET", "test-token")
-
-	stage := NewDeployStage(
-		WithDeployClientFactory(testDeployFactory(lpbsServer.URL)),
-		WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)),
-		WithDeployTimeProvider(newMockTP()),
-	)
+	stage := newTestDeployStage(t, lpbsServer.URL, WithDeployDMClientFactory(testDMClientFactory(dmServer.URL)))
 
 	var gateBlocked bool
 	result := stage.Execute(context.Background(), &StageInput{

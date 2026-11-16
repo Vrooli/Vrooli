@@ -6,7 +6,6 @@ infrastructure first, so its "go to market" is primarily an **internal
 capability rollout**, dogfooded on Vrooli's own scenarios before any
 external angle is considered.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

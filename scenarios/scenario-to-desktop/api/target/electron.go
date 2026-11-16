@@ -30,6 +30,92 @@ type ElectronLaunchOptions struct {
 	IsolationLeaseID string
 	BundledRuntime   bool
 	OfflineNetwork   bool
+	// OfflineDataRoot optionally assigns the private root used by one offline
+	// validation session. It must not exist yet; the target creates and owns it.
+	// This lets fixtures point app data at a known private path before launch.
+	OfflineDataRoot string
+	// OfflineWritablePaths names additional relative directories that the
+	// target creates inside its private root before the artifact starts.
+	OfflineWritablePaths []string
+	// OfflineLoopbackUpstreams permits one or more fixture services hosted by
+	// the S2D owner to be reached from the isolated network namespace. Each
+	// upstream is fixed to a numeric host-loopback HTTP origin and mapped onto
+	// one private in-namespace port; callers cannot choose a destination per
+	// request.
+	OfflineLoopbackUpstreams []OfflineLoopbackUpstream
+	// PrivateSecretService starts an isolated dbus-run-session and GNOME Secret
+	// Service inside the offline target. It is intended for synthetic fixture
+	// credentials only; the host user bus and keyring are masked from the app.
+	PrivateSecretService bool
+}
+
+// OfflineLoopbackUpstream is an explicitly allowlisted test service that a
+// network-isolated bundled app may reach through a private Unix-socket relay.
+// The app connects only to LocalPort; the relay always dials HostURL.
+type OfflineLoopbackUpstream struct {
+	HostURL   string
+	LocalPort int
+}
+
+// LocalURL is the only address the isolated app can use for this upstream.
+func (u OfflineLoopbackUpstream) LocalURL() string {
+	if u.LocalPort < 1 || u.LocalPort > 65535 {
+		return ""
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", u.LocalPort)
+}
+
+// NewOfflineLoopbackUpstream allocates an in-namespace loopback address for a
+// host-owned fixture endpoint. The host endpoint must be a bare HTTP origin
+// on numeric 127.0.0.1; path and destination are fixed for the session.
+func NewOfflineLoopbackUpstream(hostURL string) (OfflineLoopbackUpstream, error) {
+	parsed, err := validateOfflineUpstreamURL(hostURL)
+	if err != nil {
+		return OfflineLoopbackUpstream{}, err
+	}
+	port, err := allocateLoopbackPort()
+	if err != nil {
+		return OfflineLoopbackUpstream{}, fmt.Errorf("allocate isolated upstream loopback port: %w", err)
+	}
+	return OfflineLoopbackUpstream{HostURL: parsed.String(), LocalPort: port}, nil
+}
+
+func validateOfflineUpstreamURL(raw string) (*url.URL, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil || parsed.Scheme != "http" || parsed.User != nil || parsed.Opaque != "" || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
+		return nil, fmt.Errorf("offline fixture upstream must be a bare numeric-loopback HTTP origin")
+	}
+	ip := net.ParseIP(parsed.Hostname())
+	port, portErr := strconv.Atoi(parsed.Port())
+	if ip == nil || !ip.Equal(net.IPv4(127, 0, 0, 1)) || portErr != nil || port < 1 || port > 65535 {
+		return nil, fmt.Errorf("offline fixture upstream must use 127.0.0.1 and an explicit valid port")
+	}
+	parsed.Path = ""
+	parsed.RawPath = ""
+	return parsed, nil
+}
+
+func validateOfflineLoopbackUpstreams(upstreams []OfflineLoopbackUpstream) error {
+	seenPort := make(map[int]struct{}, len(upstreams))
+	seenTarget := make(map[string]struct{}, len(upstreams))
+	for index, upstream := range upstreams {
+		if upstream.LocalPort < 1 || upstream.LocalPort > 65535 {
+			return fmt.Errorf("offline loopback upstream %d has invalid app-side port", index)
+		}
+		if _, exists := seenPort[upstream.LocalPort]; exists {
+			return fmt.Errorf("offline loopback upstream app-side ports must be unique")
+		}
+		seenPort[upstream.LocalPort] = struct{}{}
+		parsed, err := validateOfflineUpstreamURL(upstream.HostURL)
+		if err != nil {
+			return fmt.Errorf("offline loopback upstream %d: %w", index, err)
+		}
+		if _, exists := seenTarget[parsed.String()]; exists {
+			return fmt.Errorf("offline loopback upstream destinations must be unique")
+		}
+		seenTarget[parsed.String()] = struct{}{}
+	}
+	return nil
 }
 
 // BuildElectronLaunchArguments creates the narrow Chromium/Electron launch

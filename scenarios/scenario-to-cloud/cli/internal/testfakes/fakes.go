@@ -205,13 +205,27 @@ func (p *Plans) ApplyPlan(_ context.Context, req *connect.Request[plansv1.ApplyP
 // test can make a wait return still_pending first and succeeded afterwards.
 type Operations struct {
 	operationsv1connect.UnimplementedOperationsServiceHandler
-	mu         sync.Mutex
-	Script     []*operationsv1.OperationStanding
-	WaitCalls  []*operationsv1.WaitOperationRequest
-	GetCalls   []string
-	Cancelled  []string
-	Listed     []string
-	ListAnswer *operationsv1.ListDeploymentOperationsResponse
+	mu                  sync.Mutex
+	Script              []*operationsv1.OperationStanding
+	WaitCalls           []*operationsv1.WaitOperationRequest
+	GetCalls            []string
+	Cancelled           []string
+	Listed              []string
+	ListAnswer          *operationsv1.ListDeploymentOperationsResponse
+	TargetReceiptCalls  []*operationsv1.GetTargetReceiptRequest
+	TargetReceiptAnswer *operationsv1.TargetReceiptRead
+}
+
+// GetTargetReceipt implements the handler.
+func (o *Operations) GetTargetReceipt(_ context.Context, req *connect.Request[operationsv1.GetTargetReceiptRequest]) (*connect.Response[operationsv1.TargetReceiptRead], error) {
+	o.mu.Lock()
+	o.TargetReceiptCalls = append(o.TargetReceiptCalls, req.Msg)
+	answer := o.TargetReceiptAnswer
+	o.mu.Unlock()
+	if answer == nil {
+		answer = &operationsv1.TargetReceiptRead{SchemaVersion: "1", DeploymentId: req.Msg.GetDeploymentId(), OperationId: req.Msg.GetOperationId(), Step: req.Msg.GetStep()}
+	}
+	return connect.NewResponse(answer), nil
 }
 
 func (o *Operations) next() *operationsv1.OperationStanding {

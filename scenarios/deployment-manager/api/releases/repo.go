@@ -446,42 +446,40 @@ func (r *SQLRepository) ListRecoveryReceipts(ctx context.Context, releaseID stri
 
 // UpdateStatus transitions the release status, stamping published_at on terminal success.
 func (r *SQLRepository) UpdateStatus(ctx context.Context, releaseID, status string) error {
+	var current string
+	if err := r.db.QueryRowContext(ctx, `SELECT status FROM releases WHERE id = $1`, releaseID).Scan(&current); err != nil {
+		return fmt.Errorf("load release status: %w", err)
+	}
+	if err := ReleaseStatus(current).ValidateTransition(ReleaseStatus(status)); err != nil {
+		return err
+	}
 	now := time.Now().UTC()
-	if lease, ok := operationLeaseFromContext(ctx); ok {
-		if status == StatusPublished {
-			_, err := r.db.ExecContext(ctx, `
-				UPDATE releases
-				SET status = $2, updated_at = $3, published_at = COALESCE(published_at, $3)
-				WHERE id = $1 AND EXISTS (
-					SELECT 1 FROM release_operations o
-					JOIN release_operation_leases l ON l.operation_id = o.id
-					WHERE o.release_id = releases.id AND l.operation_id = $4 AND l.owner = $5 AND l.fence = $6 AND l.lease_until > CURRENT_TIMESTAMP
-				)
-			`, releaseID, status, now, lease.OperationID, lease.Owner, lease.Fence)
-			return err
-		}
-		_, err := r.db.ExecContext(ctx, `
-			UPDATE releases SET status = $2, updated_at = $3
-			WHERE id = $1 AND EXISTS (
-				SELECT 1 FROM release_operations o
-				JOIN release_operation_leases l ON l.operation_id = o.id
-				WHERE o.release_id = releases.id AND l.operation_id = $4 AND l.owner = $5 AND l.fence = $6 AND l.lease_until > CURRENT_TIMESTAMP
-			)
-		`, releaseID, status, now, lease.OperationID, lease.Owner, lease.Fence)
-		return err
-	}
+	set := `status = $2, updated_at = $3`
 	if status == StatusPublished {
-		_, err := r.db.ExecContext(ctx, `
-			UPDATE releases
-			SET status = $2, updated_at = $3, published_at = COALESCE(published_at, $3)
-			WHERE id = $1
-		`, releaseID, status, now)
+		set += `, published_at = COALESCE(published_at, $3)`
+	}
+	query := fmt.Sprintf(`UPDATE releases SET %s WHERE id = $1 AND status = $4`, set)
+	args := []interface{}{releaseID, status, now, current}
+	if lease, ok := operationLeaseFromContext(ctx); ok {
+		query = fmt.Sprintf(`UPDATE releases SET %s WHERE id = $1 AND status = $4 AND EXISTS (
+			SELECT 1 FROM release_operations o
+			JOIN release_operation_leases l ON l.operation_id = o.id
+			WHERE o.release_id = releases.id AND l.operation_id = $5 AND l.owner = $6 AND l.fence = $7 AND l.lease_until > CURRENT_TIMESTAMP
+		)`, set)
+		args = append(args, lease.OperationID, lease.Owner, lease.Fence)
+	}
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
 		return err
 	}
-	_, err := r.db.ExecContext(ctx, `
-		UPDATE releases SET status = $2, updated_at = $3 WHERE id = $1
-	`, releaseID, status, now)
-	return err
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return fmt.Errorf("release %q status changed from %q before transition", releaseID, current)
+	}
+	return nil
 }
 
 // SetDeploymentID records the exact owner deployment identity only after the
@@ -672,6 +670,9 @@ func (r *SQLRepository) MarkPlatformStatus(ctx context.Context, releaseID, platf
 // MarkSuperseded marks prior published releases for the same profile+channel
 // as superseded so that only one release is current per (profile, channel).
 func (r *SQLRepository) MarkSuperseded(ctx context.Context, profileID, channel, exceptReleaseID string) error {
+	if err := ReleaseStatus(StatusPublished).ValidateTransition(ReleaseStatus(StatusSuperseded)); err != nil {
+		return err
+	}
 	if lease, ok := operationLeaseFromContext(ctx); ok {
 		_, err := r.db.ExecContext(ctx, `
 			UPDATE releases

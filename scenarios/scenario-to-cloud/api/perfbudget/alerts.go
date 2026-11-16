@@ -133,8 +133,16 @@ func Evaluate(in AlertInput, d Detection) []Alert {
 			ObservedAt: observedAt, DetectedAt: now, Reason: reason, Message: message, NextAction: next,
 		}
 	}
-	healthRef := "scenario-to-cloud deployment health --deployment " + deploymentID
+	out = append(out, evaluateHealthAlerts(obs, observedAt, now, d, base, deploymentID)...)
+	out = append(out, evaluateCertificateAlerts(in, now, d, base, deploymentID)...)
+	out = append(out, evaluateBackupAlerts(in, now, d, base, deploymentID)...)
+	out = append(out, evaluateRotationAlerts(in, base, deploymentID)...)
+	return out
+}
 
+func evaluateHealthAlerts(obs *healthv1.HealthObservation, observedAt, now time.Time, d Detection, base func(string, string, string, string, NextAction) Alert, deploymentID string) []Alert {
+	var out []Alert
+	healthRef := "scenario-to-cloud deployment health --deployment " + deploymentID
 	staleAfter := time.Duration(d.StaleObservationAfterSeconds) * time.Second
 	switch {
 	case obs == nil:
@@ -158,42 +166,55 @@ func Evaluate(in AlertInput, d Detection) []Alert {
 			"The current observation carries an unknown status; the service cannot be reported healthy.",
 			NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: healthRef, Label: "Inspect the observation checks"}))
 	}
-
-	if !in.CertificateNotAfter.IsZero() {
-		days := in.CertificateNotAfter.Sub(now).Hours() / 24
-		if days <= float64(d.CertificateExpiryWarningDays) {
-			sev := SeverityWarning
-			if days <= 0 {
-				sev = SeverityCritical
-			}
-			out = append(out, base(CheckCertificateExpiring, sev, "certificate_expiring",
-				fmt.Sprintf("The edge certificate expires in %.0f days (not_after %s).", days, in.CertificateNotAfter.UTC().Format(time.RFC3339)),
-				NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: "scenario-to-cloud edge status --deployment " + deploymentID, Label: "Inspect renewal state"}))
-		}
-	}
-
-	if in.HasProtectedWrites {
-		rpo := time.Duration(d.BackupRPOSecondsMax) * time.Second
-		age := now.Sub(in.LastRecoveryPointAt)
-		if in.LastRecoveryPointAt.IsZero() || age > rpo {
-			reason := "recovery_point_older_than_rpo"
-			msg := fmt.Sprintf("The newest recovery point is %s old; the RPO is %s.", age.Truncate(time.Second), rpo)
-			if in.LastRecoveryPointAt.IsZero() {
-				reason, msg = "no_recovery_point", "No recovery point exists for a deployment with protected writes."
-			}
-			out = append(out, base(CheckBackupFreshness, SeverityCritical, reason, msg,
-				NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: "scenario-to-cloud deployment recovery-points capture --deployment " + deploymentID, Label: "Capture a recovery point"}))
-		}
-	}
-
-	if len(in.RotationPending) > 0 {
-		names := append([]string(nil), in.RotationPending...)
-		sort.Strings(names)
-		out = append(out, base(CheckCredentialRotationPending, SeverityWarning, "rotation_pending",
-			fmt.Sprintf("%d credential binding(s) have a pending rotation.", len(names)),
-			NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: "scenario-to-cloud credential list --deployment " + deploymentID, Label: "Complete the rotation"}))
-	}
 	return out
+}
+
+func evaluateCertificateAlerts(in AlertInput, now time.Time, d Detection, base func(string, string, string, string, NextAction) Alert, deploymentID string) []Alert {
+	if in.CertificateNotAfter.IsZero() {
+		return nil
+	}
+	days := in.CertificateNotAfter.Sub(now).Hours() / 24
+	if days > float64(d.CertificateExpiryWarningDays) {
+		return nil
+	}
+	severity := SeverityWarning
+	if days <= 0 {
+		severity = SeverityCritical
+	}
+	alert := base(CheckCertificateExpiring, severity, "certificate_expiring",
+		fmt.Sprintf("The edge certificate expires in %.0f days (not_after %s).", days, in.CertificateNotAfter.UTC().Format(time.RFC3339)),
+		NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: "scenario-to-cloud edge status --deployment " + deploymentID, Label: "Inspect renewal state"})
+	return []Alert{alert}
+}
+
+func evaluateBackupAlerts(in AlertInput, now time.Time, d Detection, base func(string, string, string, string, NextAction) Alert, deploymentID string) []Alert {
+	if !in.HasProtectedWrites {
+		return nil
+	}
+	rpo := time.Duration(d.BackupRPOSecondsMax) * time.Second
+	age := now.Sub(in.LastRecoveryPointAt)
+	if !in.LastRecoveryPointAt.IsZero() && age <= rpo {
+		return nil
+	}
+	reason := "recovery_point_older_than_rpo"
+	msg := fmt.Sprintf("The newest recovery point is %s old; the RPO is %s.", age.Truncate(time.Second), rpo)
+	if in.LastRecoveryPointAt.IsZero() {
+		reason, msg = "no_recovery_point", "No recovery point exists for a deployment with protected writes."
+	}
+	alert := base(CheckBackupFreshness, SeverityCritical, reason, msg,
+		NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: "scenario-to-cloud deployment recovery-points capture --deployment " + deploymentID, Label: "Capture a recovery point"})
+	return []Alert{alert}
+}
+
+func evaluateRotationAlerts(in AlertInput, base func(string, string, string, string, NextAction) Alert, deploymentID string) []Alert {
+	if len(in.RotationPending) == 0 {
+		return nil
+	}
+	names := append([]string(nil), in.RotationPending...)
+	sort.Strings(names)
+	return []Alert{base(CheckCredentialRotationPending, SeverityWarning, "rotation_pending",
+		fmt.Sprintf("%d credential binding(s) have a pending rotation.", len(names)),
+		NextAction{Owner: "scenario-to-cloud", Kind: "cli", Reference: "scenario-to-cloud credential list --deployment " + deploymentID, Label: "Complete the rotation"})}
 }
 
 // ServiceHealthy reports whether alerts allow the service to be called

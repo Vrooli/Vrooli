@@ -185,6 +185,7 @@ func startSchema() cliapp.ArgSchema {
 		{Name: "provision-sudo", Bool: true},
 		{Name: "no-provision-sudo", Bool: true},
 		{Name: "source"},
+		{Name: "password-credential"},
 		{Name: "password-stdin", Bool: true},
 		{Name: "setup-passphrase-stdin", Bool: true},
 		{Name: "prompt-password", Bool: true},
@@ -244,6 +245,55 @@ func TestConnect_FirstTouchPromptsOnceAndUsesResolvedMachine(t *testing.T) {
 	require.Equal(t, 1, prompts)
 	require.Equal(t, "machine-first", svc.startReq.MachineId)
 	require.Equal(t, "once-only", svc.startReq.SshPassword)
+}
+
+func TestConnect_UsesCredentialAuthorityOnlyAfterPasswordRequired(t *testing.T) {
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECOVERY_REQUIRED, MachineId: "machine-minimouse", Host: "minimouse.local", Port: 22, User: "matthalloran8", PasswordRequired: true, Message: "SSH key recovery required"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-connect", Host: "minimouse.local", Port: 22, User: "matthalloran8"},
+		waitResp:      &onboardv1.WaitOnboardingResponse{Op: terminalConnectResponse().Op},
+		getResps:      []*onboardv1.GetOnboardingResponse{terminalConnectResponse()},
+	}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.password = passwordSource{lookupEnv: func(string) (string, bool) { return "", false }, isTerminal: func() bool { return false }, readSecret: func() ([]byte, error) { t.Fatal("credential authority path must not prompt"); return nil, nil }, prompt: io.Discard}
+	resolved := 0
+	h.resolveCredential = func(identity, field string) (string, error) {
+		resolved++
+		require.Equal(t, "vrooli/minimouse-login", identity)
+		require.Equal(t, "password", field)
+		return "secret-value-that-must-not-be-printed", nil
+	}
+	stdout := new(bytes.Buffer)
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{
+		Flags:  map[string]string{"host": "minimouse.local", "user": "matthalloran8", "machine-id": "machine-minimouse", "password-credential": "vrooli/minimouse-login"},
+		Stdout: stdout,
+	})
+
+	require.NoError(t, h.preflightConnect(ctx))
+	require.Equal(t, 1, resolved)
+	require.Equal(t, "machine-minimouse", svc.startReq.GetMachineId())
+	require.Equal(t, "secret-value-that-must-not-be-printed", svc.startReq.GetSshPassword())
+	require.NotContains(t, stdout.String(), "secret-value-that-must-not-be-printed")
+}
+
+func TestConnect_DoesNotResolveCredentialWhenPreflightTrustsKey(t *testing.T) {
+	svc := &fakeOnboard{
+		preflightResp: &onboardv1.PreflightOnboardingResponse{Decision: onboardv1.ConnectDecision_CONNECT_DECISION_RECONNECT, MachineId: "machine-trusted", Host: "minimouse.local", Port: 22, User: "matthalloran8", ClientKeyFingerprint: "SHA256:client", PasswordRequired: false, Message: "trusted"},
+		startResp:     &onboardv1.StartOnboardingResponse{OpId: "op-connect", Host: "minimouse.local", Port: 22, User: "matthalloran8"},
+		waitResp:      &onboardv1.WaitOnboardingResponse{Op: terminalConnectResponse().Op},
+		getResps:      []*onboardv1.GetOnboardingResponse{terminalConnectResponse()},
+	}
+	core := clitest.NewTestApp(t, connectAPI(svc))
+	h := newHandlers(core)
+	h.resolveCredential = func(string, string) (string, error) {
+		t.Fatal("trusted key must not resolve a password credential")
+		return "", nil
+	}
+	ctx, _ := cliapptest.NewCapturedRunContext(core, startSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"host": "minimouse.local", "password-credential": "vrooli/minimouse-login"}})
+
+	require.NoError(t, h.preflightConnect(ctx))
+	require.Empty(t, svc.startReq.GetSshPassword())
 }
 
 func TestConnect_TrustedReconnectDoesNotPrompt(t *testing.T) {

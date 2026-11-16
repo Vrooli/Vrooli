@@ -26,13 +26,28 @@ const (
 	Interrupted State = "interrupted"
 )
 
+var operationStateTransitions = map[State]map[State]struct{}{
+	Queued:      {Running: {}},
+	Running:     {Succeeded: {}, Partial: {}, Failed: {}, Interrupted: {}},
+	Succeeded:   {},
+	Partial:     {},
+	Failed:      {},
+	Interrupted: {},
+}
+
+func (s State) Valid() bool {
+	_, ok := operationStateTransitions[s]
+	return ok
+}
+
+func (s State) CanTransitionTo(next State) bool {
+	_, ok := operationStateTransitions[s][next]
+	return ok
+}
+
 func (s State) Terminal() bool {
-	switch s {
-	case Succeeded, Partial, Failed, Interrupted:
-		return true
-	default:
-		return false
-	}
+	transitions, ok := operationStateTransitions[s]
+	return ok && len(transitions) == 0
 }
 
 var (

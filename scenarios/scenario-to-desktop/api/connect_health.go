@@ -6,6 +6,7 @@ import (
 
 	"scenario-to-desktop-api/build"
 	"scenario-to-desktop-api/deploy"
+	"scenario-to-desktop-api/desktopoptimize"
 	"scenario-to-desktop-api/evidence"
 	"scenario-to-desktop-api/generation"
 	"scenario-to-desktop-api/pipeline"
@@ -20,6 +21,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain/domainconnect"
+	optimizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/optimization/optimizationconnect"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/pipeline/pipelineconnect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/shared/sharedconnect"
@@ -47,6 +49,9 @@ func (s *Server) registerConnectHandlers() {
 	s.router.PathPrefix(path).Handler(handler)
 
 	path, handler = domainconnect.NewOperationsServiceHandler(operationsConnectService{server: s, scenarioHandler: s.scenarioHandler}, options...)
+	s.router.PathPrefix(path).Handler(handler)
+
+	path, handler = optimizationconnect.NewDesktopOptimizationServiceHandler(desktopoptimize.ConnectService{}, options...)
 	s.router.PathPrefix(path).Handler(handler)
 
 	path, handler = pipelineconnect.NewPipelineServiceHandler(pipeline.NewConnectService(s.pipelineHandler), options...)

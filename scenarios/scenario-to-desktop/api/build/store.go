@@ -55,7 +55,7 @@ func (s *InMemoryStore) UpdatePlatform(buildID, platform string, fn func(status 
 	return s.Update(buildID, func(status *Status) {
 		result, ok := status.PlatformResults[platform]
 		if !ok {
-			result = &PlatformResult{Status: "failed", SkipReason: "platform not initialized"}
+			result = &PlatformResult{Platform: platform, Status: PlatformBuildPending}
 			status.PlatformResults[platform] = result
 		}
 		fn(status, result)

@@ -101,115 +101,148 @@ func CalculateBundleSHA(repoRoot string, manifest domain.CloudManifest) (string,
 // the contract-defined mini_vrooli_bundle profile plus manifest-specific
 // augmentations kept in code.
 func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniBundleSpec, error) {
-	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
-	resourceIDs := stringutil.SortedUnique(manifest.Bundle.Resources)
+	scenarioIDs := selectedMiniBundleScenarios(manifest)
+	contract, profile, err := resolveMiniBundleProfile(repoRoot, manifest)
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
+	roots, err := miniBundleRoots(repoRoot, contract, profile, scenarioIDs)
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
+	excludes := miniBundleExcludes(manifest, scenarioIDs, profile.Exclude)
+	extra, err := miniBundleExtraFiles(repoRoot, manifest, scenarioIDs, roots, excludes)
+	if err != nil {
+		return MiniBundleSpec{}, err
+	}
+	return MiniBundleSpec{IncludeRoots: roots, Excludes: excludes, ExtraFiles: extra}, nil
+}
 
+func selectedMiniBundleScenarios(manifest domain.CloudManifest) []string {
+	scenarioIDs := stringutil.SortedUnique(manifest.Bundle.Scenarios)
 	if manifest.Bundle.IncludeAutoheal && !stringutil.Contains(scenarioIDs, "vrooli-autoheal") {
 		scenarioIDs = append(scenarioIDs, "vrooli-autoheal")
 		sort.Strings(scenarioIDs)
 	}
+	return scenarioIDs
+}
 
+func resolveMiniBundleProfile(repoRoot string, manifest domain.CloudManifest) (*repocontract.Contract, repocontract.ResolvedProfile, error) {
 	contract, err := repocontract.LoadDefault(repoRoot)
 	if err != nil {
-		return MiniBundleSpec{}, fmt.Errorf("load repo contract: %w", err)
+		return nil, repocontract.ResolvedProfile{}, fmt.Errorf("load repo contract: %w", err)
 	}
-	resolvedProfile, err := contract.ResolveProfile("mini_vrooli_bundle", repocontract.ResolveParams{
-		Values: map[string]string{
-			"scenario": manifest.Scenario.ID,
-		},
-		Lists: map[string][]string{
-			"resources": resourceIDs,
-		},
+	profile, err := contract.ResolveProfile("mini_vrooli_bundle", repocontract.ResolveParams{
+		Values: map[string]string{"scenario": manifest.Scenario.ID},
+		Lists:  map[string][]string{"resources": stringutil.SortedUnique(manifest.Bundle.Resources)},
 	})
 	if err != nil {
-		return MiniBundleSpec{}, fmt.Errorf("resolve mini bundle profile: %w", err)
+		return nil, repocontract.ResolvedProfile{}, fmt.Errorf("resolve mini bundle profile: %w", err)
 	}
+	return contract, profile, nil
+}
 
-	roots := existingProfileRoots(repoRoot, resolvedProfile.Include, resolvedProfile.OptionalInclude)
-	// A bundle's scenario list is its explicit root set. The repo-contract
-	// profile supplies shared mini-Vrooli roots; add each selected scenario so
-	// dependency source code and lifecycle manifests travel with the release.
+func miniBundleRoots(repoRoot string, contract *repocontract.Contract, profile repocontract.ResolvedProfile, scenarioIDs []string) ([]string, error) {
+	roots := existingProfileRoots(repoRoot, profile.Include, profile.OptionalInclude)
 	for _, scenarioID := range scenarioIDs {
-		scenarioRoot, err := contract.ScenarioRoot(repoRoot, scenarioID)
-		if err != nil {
-			return MiniBundleSpec{}, fmt.Errorf("resolve selected scenario root %s: %w", scenarioID, err)
-		}
-		rel, err := filepath.Rel(repoRoot, scenarioRoot)
-		if err != nil {
-			return MiniBundleSpec{}, fmt.Errorf("make selected scenario root relative %s: %w", scenarioID, err)
-		}
-		rel = filepath.ToSlash(rel)
-		if dirExists(filepath.Join(repoRoot, filepath.FromSlash(rel))) && !stringutil.Contains(roots, rel) {
-			roots = append(roots, rel)
+		if err := appendSelectedScenarioRoot(repoRoot, contract, scenarioID, &roots); err != nil {
+			return nil, err
 		}
 	}
 	sort.Strings(roots)
+	return roots, nil
+}
 
-	excludes := append([]string(nil), resolvedProfile.Exclude...)
-	// Resource lifecycle owners need their cli/** directories on the target.
-	// The generic profile excludes CLI directories to keep application bundles
-	// small, but that rule must not remove resources/{id}/cli, which is the
-	// executable owner used by `vrooli resource start`.
-	filteredExcludes := excludes[:0]
-	for _, pattern := range excludes {
-		if pattern == "cli/**" {
-			continue
-		}
-		// The primary scenario UI is part of every deployment. Remove generic
-		// UI exclusions here; dependency UIs are re-added below by exact
-		// scenario path when they are not explicitly opted in.
-		if strings.Contains(pattern, "ui/**") {
-			continue
-		}
-		filteredExcludes = append(filteredExcludes, pattern)
+func appendSelectedScenarioRoot(repoRoot string, contract *repocontract.Contract, scenarioID string, roots *[]string) error {
+	scenarioRoot, err := contract.ScenarioRoot(repoRoot, scenarioID)
+	if err != nil {
+		return fmt.Errorf("resolve selected scenario root %s: %w", scenarioID, err)
 	}
+	rel, err := filepath.Rel(repoRoot, scenarioRoot)
+	if err != nil {
+		return fmt.Errorf("make selected scenario root relative %s: %w", scenarioID, err)
+	}
+	rel = filepath.ToSlash(rel)
+	if dirExists(filepath.Join(repoRoot, filepath.FromSlash(rel))) && !stringutil.Contains(*roots, rel) {
+		*roots = append(*roots, rel)
+	}
+	return nil
+}
+
+func miniBundleExcludes(manifest domain.CloudManifest, scenarioIDs, profileExcludes []string) []string {
+	excludes := filterProfileExcludes(profileExcludes)
 	for _, scenarioID := range scenarioIDs {
-		// The deployed scenario owns the primary user experience and must
-		// always carry its UI. Dependency UIs remain opt-in through
-		// Bundle.UIScenarios.
 		if scenarioID != manifest.Scenario.ID && !stringutil.Contains(manifest.Bundle.UIScenarios, scenarioID) {
-			filteredExcludes = append(filteredExcludes, "scenarios/"+scenarioID+"/ui/**")
+			excludes = append(excludes, "scenarios/"+scenarioID+"/ui/**")
 		}
 	}
-	excludes = filteredExcludes
-	// Autoheal must be self-repairable on the target. Its CLI freshness
-	// contract includes cli/**, so the generic profile exclusion cannot apply
-	// to that selected maintenance scenario.
 	if manifest.Bundle.IncludeAutoheal {
-		filtered := excludes[:0]
-		for _, pattern := range excludes {
-			if pattern != "cli/**" {
-				filtered = append(filtered, pattern)
-			}
-		}
-		excludes = filtered
+		excludes = withoutCLIExclude(excludes)
 	}
+	return excludes
+}
 
+func filterProfileExcludes(profileExcludes []string) []string {
+	excludes := make([]string, 0, len(profileExcludes))
+	for _, pattern := range profileExcludes {
+		// Resource owners need cli/** directories; remove generic UI exclusions
+		// so the selected scenario can keep its primary user experience.
+		if pattern == "cli/**" || strings.Contains(pattern, "ui/**") {
+			continue
+		}
+		excludes = append(excludes, pattern)
+	}
+	return excludes
+}
+
+func withoutCLIExclude(excludes []string) []string {
+	filtered := make([]string, 0, len(excludes))
+	for _, pattern := range excludes {
+		if pattern != "cli/**" {
+			filtered = append(filtered, pattern)
+		}
+	}
+	return filtered
+}
+
+func miniBundleExtraFiles(repoRoot string, manifest domain.CloudManifest, scenarioIDs, roots, excludes []string) (map[string][]byte, error) {
+	extra, err := miniBundleBaseFiles(repoRoot, manifest, roots, excludes)
+	if err != nil {
+		return nil, err
+	}
+	if err := addTargetScenarioServiceFile(repoRoot, manifest, extra); err != nil {
+		return nil, err
+	}
+	if err := addScenarioPlansFile(repoRoot, manifest, extra); err != nil {
+		return nil, err
+	}
+	if err := addDependencyServiceFiles(repoRoot, manifest, scenarioIDs, extra); err != nil {
+		return nil, err
+	}
+	return extra, nil
+}
+
+func miniBundleBaseFiles(repoRoot string, manifest domain.CloudManifest, roots, excludes []string) (map[string][]byte, error) {
 	manifestForBundle := manifest
-	// Secrets are fetched/provisioned during deployment execution and do not need to be
-	// embedded in bundle metadata. Excluding them keeps bundle fingerprinting reproducible
-	// for freshness checks that operate on stored deployment manifests.
+	// Secrets are provisioned during execution; omitting them keeps bundle
+	// fingerprinting reproducible for stored deployment manifests.
 	manifestForBundle.Secrets = nil
-
 	manifestBytes, err := json.MarshalIndent(manifestForBundle, "", "  ")
 	if err != nil {
-		return MiniBundleSpec{}, err
+		return nil, err
 	}
-
 	goWork, err := buildMiniGoWork(repoRoot, roots, excludes)
 	if err != nil {
-		return MiniBundleSpec{}, err
+		return nil, err
 	}
 	goWorkSum, err := buildMiniGoWorkSum(repoRoot, roots, excludes)
 	if err != nil {
-		return MiniBundleSpec{}, err
+		return nil, err
 	}
-
 	serviceJSON, err := buildMiniServiceJSON(repoRoot, manifest)
 	if err != nil {
-		return MiniBundleSpec{}, err
+		return nil, err
 	}
-
 	metaBytes, err := json.MarshalIndent(map[string]interface{}{
 		"schema_version": "1.0.0",
 		"scenario_id":    manifest.Scenario.ID,
@@ -218,16 +251,13 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 		"manifest_path":  ".vrooli/cloud/manifest.json",
 	}, "", "  ")
 	if err != nil {
-		return MiniBundleSpec{}, err
+		return nil, err
 	}
-
 	extra := map[string][]byte{
 		".vrooli/cloud/manifest.json":        manifestBytes,
 		".vrooli/cloud/bundle-metadata.json": metaBytes,
-		// Mini bundles intentionally omit the developer template tree, but the
-		// repo contract still requires its root marker for source-root
-		// resolution. Keep the release a valid contract root without shipping
-		// the full template payload.
+		// The contract requires the templates root marker, but mini bundles
+		// intentionally omit its developer template payload.
 		"templates/.keep": {},
 		"go.work":         []byte(goWork),
 		"go.work.sum":     []byte(goWorkSum),
@@ -235,60 +265,70 @@ func MiniVrooliBundleSpec(repoRoot string, manifest domain.CloudManifest) (MiniB
 	if len(serviceJSON) > 0 {
 		extra[".vrooli/service.json"] = serviceJSON
 	}
+	return extra, nil
+}
 
-	// Override the target scenario's service.json with fixed ports from the manifest
-	// This ensures VPS deployments use the exact ports specified in the deployment manifest
-	// rather than dynamically allocating from ranges
-	scenarioServiceJSON, err := buildScenarioServiceJSONWithFixedPorts(repoRoot, manifest)
+func addTargetScenarioServiceFile(repoRoot string, manifest domain.CloudManifest, extra map[string][]byte) error {
+	// Fixed ports from the deployment manifest must override dynamically
+	// allocated ports in the scenario's service.json.
+	serviceJSON, err := buildScenarioServiceJSONWithFixedPorts(repoRoot, manifest)
 	if err != nil {
-		return MiniBundleSpec{}, fmt.Errorf("build scenario service.json with fixed ports: %w", err)
+		return fmt.Errorf("build scenario service.json with fixed ports: %w", err)
 	}
-	if len(scenarioServiceJSON) > 0 {
-		scenarioServicePath, err := ResolveScenarioFileRelative(repoRoot, manifest.Scenario.ID, "service")
-		if err != nil {
-			return MiniBundleSpec{}, fmt.Errorf("resolve scenario service.json path: %w", err)
-		}
-		extra[scenarioServicePath] = scenarioServiceJSON
+	if len(serviceJSON) == 0 {
+		return nil
 	}
-	// Plans are scenario-owned configuration, but the API starts from a
-	// component working directory on some targets. Carry the catalog at its
-	// canonical scenario path explicitly so the runtime path contract remains
-	// true even when a profile or archive implementation changes hidden-file
-	// traversal behavior.
+	path, err := ResolveScenarioFileRelative(repoRoot, manifest.Scenario.ID, "service")
+	if err != nil {
+		return fmt.Errorf("resolve scenario service.json path: %w", err)
+	}
+	extra[path] = serviceJSON
+	return nil
+}
+
+func addScenarioPlansFile(repoRoot string, manifest domain.CloudManifest, extra map[string][]byte) error {
+	// Include the plans catalog at its canonical and runtime lookup paths.
 	plansPath := filepath.Join(repoRoot, "scenarios", manifest.Scenario.ID, ".vrooli", "plans.json")
-	if plansJSON, readErr := os.ReadFile(plansPath); readErr == nil {
-		extra[filepath.ToSlash(filepath.Join("scenarios", manifest.Scenario.ID, ".vrooli", "plans.json"))] = plansJSON
-		extra[".vrooli/plans.json"] = plansJSON
-	} else if !os.IsNotExist(readErr) {
-		return MiniBundleSpec{}, fmt.Errorf("read scenario plans.json: %w", readErr)
+	plansJSON, err := os.ReadFile(plansPath)
+	if os.IsNotExist(err) {
+		return nil
 	}
-	// Dependency UIs are opt-in. Keep their runtime manifests aligned with
-	// the source filter so lifecycle setup cannot start a UI whose sources were
-	// intentionally omitted from the bundle.
+	if err != nil {
+		return fmt.Errorf("read scenario plans.json: %w", err)
+	}
+	canonicalPath := filepath.ToSlash(filepath.Join("scenarios", manifest.Scenario.ID, ".vrooli", "plans.json"))
+	extra[canonicalPath] = plansJSON
+	extra[".vrooli/plans.json"] = plansJSON
+	return nil
+}
+
+func addDependencyServiceFiles(repoRoot string, manifest domain.CloudManifest, scenarioIDs []string, extra map[string][]byte) error {
 	for _, scenarioID := range scenarioIDs {
 		if scenarioID == manifest.Scenario.ID || stringutil.Contains(manifest.Bundle.UIScenarios, scenarioID) {
 			continue
 		}
-		path, err := ResolveScenarioFileRelative(repoRoot, scenarioID, "service")
-		if err != nil {
-			return MiniBundleSpec{}, fmt.Errorf("resolve dependency service.json for %s: %w", scenarioID, err)
+		if err := addDependencyServiceFile(repoRoot, scenarioID, extra); err != nil {
+			return err
 		}
-		bytes, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(path)))
-		if err != nil {
-			return MiniBundleSpec{}, fmt.Errorf("read dependency service.json for %s: %w", scenarioID, err)
-		}
-		filtered, err := withoutUIComponent(bytes)
-		if err != nil {
-			return MiniBundleSpec{}, fmt.Errorf("filter dependency UI for %s: %w", scenarioID, err)
-		}
-		extra[path] = filtered
 	}
+	return nil
+}
 
-	return MiniBundleSpec{
-		IncludeRoots: roots,
-		Excludes:     excludes,
-		ExtraFiles:   extra,
-	}, nil
+func addDependencyServiceFile(repoRoot, scenarioID string, extra map[string][]byte) error {
+	path, err := ResolveScenarioFileRelative(repoRoot, scenarioID, "service")
+	if err != nil {
+		return fmt.Errorf("resolve dependency service.json for %s: %w", scenarioID, err)
+	}
+	data, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(path)))
+	if err != nil {
+		return fmt.Errorf("read dependency service.json for %s: %w", scenarioID, err)
+	}
+	filtered, err := withoutUIComponent(data)
+	if err != nil {
+		return fmt.Errorf("filter dependency UI for %s: %w", scenarioID, err)
+	}
+	extra[path] = filtered
+	return nil
 }
 
 func withoutUIComponent(data []byte) ([]byte, error) {
@@ -422,36 +462,45 @@ func goDirective(path string) (string, bool) {
 }
 
 func newerGoVersion(candidate, current string) bool {
-	parse := func(value string) (major, minor, patch int, ok bool) {
-		parts := strings.Split(strings.TrimSpace(value), ".")
-		if len(parts) < 2 || len(parts) > 3 {
-			return 0, 0, 0, false
-		}
-		if _, err := fmt.Sscanf(parts[0], "%d", &major); err != nil {
-			return 0, 0, 0, false
-		}
-		if _, err := fmt.Sscanf(parts[1], "%d", &minor); err != nil {
-			return 0, 0, 0, false
-		}
-		if len(parts) == 3 {
-			if _, err := fmt.Sscanf(parts[2], "%d", &patch); err != nil {
-				return 0, 0, 0, false
-			}
-		}
-		return major, minor, patch, true
-	}
-	cMajor, cMinor, cPatch, cOK := parse(candidate)
-	vMajor, vMinor, vPatch, vOK := parse(current)
+	cMajor, cMinor, cPatch, cOK := parseGoVersion(candidate)
+	vMajor, vMinor, vPatch, vOK := parseGoVersion(current)
 	if !cOK || !vOK {
 		return false
 	}
-	if cMajor != vMajor {
-		return cMajor > vMajor
+	return compareGoVersion(cMajor, cMinor, cPatch, vMajor, vMinor, vPatch) > 0
+}
+
+func parseGoVersion(value string) (major, minor, patch int, ok bool) {
+	parts := strings.Split(strings.TrimSpace(value), ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, 0, 0, false
 	}
-	if cMinor != vMinor {
-		return cMinor > vMinor
+	if _, err := fmt.Sscanf(parts[0], "%d", &major); err != nil {
+		return 0, 0, 0, false
 	}
-	return cPatch > vPatch
+	if _, err := fmt.Sscanf(parts[1], "%d", &minor); err != nil {
+		return 0, 0, 0, false
+	}
+	if len(parts) == 3 {
+		if _, err := fmt.Sscanf(parts[2], "%d", &patch); err != nil {
+			return 0, 0, 0, false
+		}
+	}
+	return major, minor, patch, true
+}
+
+func compareGoVersion(leftMajor, leftMinor, leftPatch, rightMajor, rightMinor, rightPatch int) int {
+	left := []int{leftMajor, leftMinor, leftPatch}
+	right := []int{rightMajor, rightMinor, rightPatch}
+	for i := range left {
+		if left[i] > right[i] {
+			return 1
+		}
+		if left[i] < right[i] {
+			return -1
+		}
+	}
+	return 0
 }
 
 func parseGoWorkVersion(contents string) string {
@@ -469,64 +518,23 @@ func parseGoWorkVersion(contents string) string {
 
 func discoverGoModDirs(repoRoot string, includeRoots, excludes []string) ([]string, error) {
 	found := map[string]struct{}{}
-	add := func(rel string) {
-		rel = filepath.ToSlash(filepath.Clean(rel))
-		rel = strings.TrimPrefix(rel, "./")
-		if rel == "" || strings.HasPrefix(rel, "..") {
-			return
-		}
-		found[rel] = struct{}{}
-	}
 	// The repository root is a module too. It owns root-level maintenance
 	// commands such as cmd/vrooli-watchdog; omitting it from the generated
 	// workspace makes those commands look like packages outside the workspace
 	// when setup rebuilds them on a target.
 	if info, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err == nil && !info.IsDir() {
-		add(".")
+		addGoModDir(found, ".")
 	} else if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
 
 	for _, root := range includeRoots {
-		root = filepath.Clean(root)
-		absRoot := filepath.Join(repoRoot, root)
-		info, err := os.Lstat(absRoot)
+		modules, err := discoverGoModDirsUnderRoot(repoRoot, root, excludes)
 		if err != nil {
 			return nil, err
 		}
-		if !info.IsDir() {
-			continue
-		}
-
-		err = filepath.WalkDir(absRoot, func(p string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			rel, err := filepath.Rel(repoRoot, p)
-			if err != nil {
-				return err
-			}
-			rel = filepath.ToSlash(rel)
-			if rel == "." {
-				return nil
-			}
-			if IsExcluded(rel, excludes) {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if d.Name() != "go.mod" {
-				return nil
-			}
-			add(filepath.Dir(rel))
-			return nil
-		})
-		if err != nil {
-			return nil, err
+		for _, module := range modules {
+			addGoModDir(found, module)
 		}
 	}
 
@@ -538,20 +546,64 @@ func discoverGoModDirs(repoRoot string, includeRoots, excludes []string) ([]stri
 	return out, nil
 }
 
+func addGoModDir(found map[string]struct{}, rel string) {
+	rel = filepath.ToSlash(filepath.Clean(rel))
+	rel = strings.TrimPrefix(rel, "./")
+	if rel == "" || strings.HasPrefix(rel, "..") {
+		return
+	}
+	found[rel] = struct{}{}
+}
+
+func discoverGoModDirsUnderRoot(repoRoot, root string, excludes []string) ([]string, error) {
+	absoluteRoot := filepath.Join(repoRoot, filepath.Clean(root))
+	info, err := os.Lstat(absoluteRoot)
+	if err != nil {
+		return nil, err
+	}
+	if !info.IsDir() {
+		return nil, nil
+	}
+	var modules []string
+	err = filepath.WalkDir(absoluteRoot, func(path string, entry fs.DirEntry, walkErr error) error {
+		return visitGoModPath(repoRoot, path, entry, walkErr, excludes, &modules)
+	})
+	return modules, err
+}
+
+func visitGoModPath(repoRoot, path string, entry fs.DirEntry, walkErr error, excludes []string, modules *[]string) error {
+	if walkErr != nil {
+		return walkErr
+	}
+	rel, err := filepath.Rel(repoRoot, path)
+	if err != nil {
+		return err
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." {
+		return nil
+	}
+	if IsExcluded(rel, excludes) {
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	}
+	if entry.IsDir() || entry.Name() != "go.mod" {
+		return nil
+	}
+	*modules = append(*modules, filepath.Dir(rel))
+	return nil
+}
+
 // WriteDeterministicTarGz creates a deterministic tar.gz file from a bundle spec.
 // Exported for testing purposes.
 func WriteDeterministicTarGz(w io.Writer, repoRoot string, spec MiniBundleSpec) (int64, error) {
 	var size int64
-
-	gw, err := gzip.NewWriterLevel(countingWriter{w: w, n: &size}, gzip.BestCompression)
+	tw, gw, err := newDeterministicTarWriter(w, &size)
 	if err != nil {
 		return 0, err
 	}
-	gw.Header.ModTime = time.Unix(0, 0).UTC()
-	gw.Header.OS = 255
-	gw.Header.Name = "mini-vrooli.tar"
-
-	tw := tar.NewWriter(gw)
 	defer func() {
 		_ = tw.Close()
 		_ = gw.Close()
@@ -563,86 +615,12 @@ func WriteDeterministicTarGz(w io.Writer, repoRoot string, spec MiniBundleSpec) 
 	}
 
 	for _, rel := range paths {
-		abs := filepath.Join(repoRoot, rel)
-		info, err := os.Lstat(abs)
-		if err != nil {
+		if err := writeFilesystemEntry(tw, repoRoot, rel); err != nil {
 			return 0, err
-		}
-		if info.IsDir() {
-			continue
-		}
-
-		link := ""
-		if info.Mode()&os.ModeSymlink != 0 {
-			link, err = os.Readlink(abs)
-			if err != nil {
-				return 0, err
-			}
-		}
-
-		header, err := tar.FileInfoHeader(info, link)
-		if err != nil {
-			return 0, err
-		}
-		header.Name = toTarPath(rel)
-		header.ModTime = time.Unix(0, 0).UTC()
-		header.AccessTime = time.Unix(0, 0).UTC()
-		header.ChangeTime = time.Unix(0, 0).UTC()
-		header.Uid = 0
-		header.Gid = 0
-		header.Uname = ""
-		header.Gname = ""
-
-		if err := tw.WriteHeader(header); err != nil {
-			return 0, err
-		}
-
-		if header.Typeflag == tar.TypeReg && header.Size > 0 {
-			f, err := os.Open(abs)
-			if err != nil {
-				return 0, err
-			}
-			_, copyErr := io.Copy(tw, f)
-			_ = f.Close()
-			if copyErr != nil {
-				return 0, copyErr
-			}
 		}
 	}
-
-	extraKeys := make([]string, 0, len(spec.ExtraFiles))
-	for rel := range spec.ExtraFiles {
-		extraKeys = append(extraKeys, rel)
-	}
-	sort.Strings(extraKeys)
-
-	for _, rel := range extraKeys {
-		contents := spec.ExtraFiles[rel]
-		rel = filepath.Clean(rel)
-		if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-			return 0, fmt.Errorf("extra file path must be relative: %q", rel)
-		}
-
-		b := contents
-		hdr := &tar.Header{
-			Name:       toTarPath(rel),
-			Size:       int64(len(b)),
-			Mode:       0o644,
-			Typeflag:   tar.TypeReg,
-			ModTime:    time.Unix(0, 0).UTC(),
-			AccessTime: time.Unix(0, 0).UTC(),
-			ChangeTime: time.Unix(0, 0).UTC(),
-			Uid:        0,
-			Gid:        0,
-			Uname:      "",
-			Gname:      "",
-		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			return 0, err
-		}
-		if _, err := io.Copy(tw, bytes.NewReader(b)); err != nil {
-			return 0, err
-		}
+	if err := writeExtraFileEntries(tw, spec.ExtraFiles); err != nil {
+		return 0, err
 	}
 
 	if err := tw.Close(); err != nil {
@@ -654,84 +632,187 @@ func WriteDeterministicTarGz(w io.Writer, repoRoot string, spec MiniBundleSpec) 
 	return size, nil
 }
 
-func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error) {
-	var out []string
-	seen := map[string]struct{}{}
+func newDeterministicTarWriter(w io.Writer, size *int64) (*tar.Writer, *gzip.Writer, error) {
+	compressed, err := gzip.NewWriterLevel(countingWriter{w: w, n: size}, gzip.BestCompression)
+	if err != nil {
+		return nil, nil, err
+	}
+	compressed.Header.ModTime = time.Unix(0, 0).UTC()
+	compressed.Header.OS = 255
+	compressed.Header.Name = "mini-vrooli.tar"
+	return tar.NewWriter(compressed), compressed, nil
+}
 
-	extraFiles := map[string]struct{}{}
+func writeFilesystemEntry(writer *tar.Writer, repoRoot, rel string) error {
+	absolute := filepath.Join(repoRoot, rel)
+	info, err := os.Lstat(absolute)
+	if err != nil || info.IsDir() {
+		return err
+	}
+	link, err := filesystemEntryLink(absolute, info)
+	if err != nil {
+		return err
+	}
+	header, err := tar.FileInfoHeader(info, link)
+	if err != nil {
+		return err
+	}
+	prepareTarHeader(header, rel)
+	if err := writer.WriteHeader(header); err != nil {
+		return err
+	}
+	if header.Typeflag != tar.TypeReg || header.Size <= 0 {
+		return nil
+	}
+	return copyFilesystemEntry(writer, absolute)
+}
+
+func filesystemEntryLink(path string, info os.FileInfo) (string, error) {
+	if info.Mode()&os.ModeSymlink == 0 {
+		return "", nil
+	}
+	return os.Readlink(path)
+}
+
+func prepareTarHeader(header *tar.Header, rel string) {
+	header.Name = toTarPath(rel)
+	header.ModTime = time.Unix(0, 0).UTC()
+	header.AccessTime = time.Unix(0, 0).UTC()
+	header.ChangeTime = time.Unix(0, 0).UTC()
+	header.Uid = 0
+	header.Gid = 0
+	header.Uname = ""
+	header.Gname = ""
+}
+
+func copyFilesystemEntry(writer *tar.Writer, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(writer, file)
+	_ = file.Close()
+	return copyErr
+}
+
+func writeExtraFileEntries(writer *tar.Writer, extraFiles map[string][]byte) error {
+	keys := make([]string, 0, len(extraFiles))
+	for path := range extraFiles {
+		keys = append(keys, path)
+	}
+	sort.Strings(keys)
+	for _, path := range keys {
+		if err := writeExtraFileEntry(writer, path, extraFiles[path]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writeExtraFileEntry(writer *tar.Writer, rel string, contents []byte) error {
+	rel = filepath.Clean(rel)
+	if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return fmt.Errorf("extra file path must be relative: %q", rel)
+	}
+	header := &tar.Header{Name: toTarPath(rel), Size: int64(len(contents)), Mode: 0o644, Typeflag: tar.TypeReg,
+		ModTime: time.Unix(0, 0).UTC(), AccessTime: time.Unix(0, 0).UTC(), ChangeTime: time.Unix(0, 0).UTC(), Uid: 0, Gid: 0, Uname: "", Gname: ""}
+	if err := writer.WriteHeader(header); err != nil {
+		return err
+	}
+	_, err := io.Copy(writer, bytes.NewReader(contents))
+	return err
+}
+
+func collectIncludedPaths(repoRoot string, spec MiniBundleSpec) ([]string, error) {
+	collector := newIncludedPathCollector(repoRoot, spec)
+	for _, root := range spec.IncludeRoots {
+		if err := collector.visitRoot(root); err != nil {
+			return nil, err
+		}
+	}
+	sort.Strings(collector.paths)
+	return collector.paths, nil
+}
+
+type includedPathCollector struct {
+	repoRoot string
+	excludes []string
+	extra    map[string]struct{}
+	seen     map[string]struct{}
+	paths    []string
+}
+
+func newIncludedPathCollector(repoRoot string, spec MiniBundleSpec) *includedPathCollector {
+	extra := make(map[string]struct{}, len(spec.ExtraFiles))
 	for rel := range spec.ExtraFiles {
 		rel = filepath.ToSlash(filepath.Clean(rel))
 		if rel == "." || rel == "" || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
 			continue
 		}
-		extraFiles[rel] = struct{}{}
+		extra[rel] = struct{}{}
 	}
+	return &includedPathCollector{repoRoot: repoRoot, excludes: spec.Excludes, extra: extra, seen: map[string]struct{}{}}
+}
 
-	addPath := func(rel string) {
-		rel = filepath.Clean(rel)
-		if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) || rel == "." {
-			return
-		}
-		if _, ok := seen[rel]; ok {
-			return
-		}
-		seen[rel] = struct{}{}
-		out = append(out, rel)
+func (c *includedPathCollector) visitRoot(root string) error {
+	root = filepath.Clean(root)
+	absolute := filepath.Join(c.repoRoot, root)
+	info, err := os.Lstat(absolute)
+	if err != nil {
+		return err
 	}
-
-	for _, relRoot := range spec.IncludeRoots {
-		relRoot = filepath.Clean(relRoot)
-		absRoot := filepath.Join(repoRoot, relRoot)
-
-		info, err := os.Lstat(absRoot)
-		if err != nil {
-			return nil, err
-		}
-
-		if !info.IsDir() {
-			if _, ok := extraFiles[filepath.ToSlash(relRoot)]; ok {
-				continue
-			}
-			if !IsExcluded(relRoot, spec.Excludes) {
-				addPath(relRoot)
-			}
-			continue
-		}
-
-		err = filepath.WalkDir(absRoot, func(p string, d fs.DirEntry, walkErr error) error {
-			if walkErr != nil {
-				return walkErr
-			}
-			rel, err := filepath.Rel(repoRoot, p)
-			if err != nil {
-				return err
-			}
-			rel = filepath.ToSlash(rel)
-			if rel == "." {
-				return nil
-			}
-			if IsExcluded(rel, spec.Excludes) {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if d.IsDir() {
-				return nil
-			}
-			if _, ok := extraFiles[rel]; ok {
-				return nil
-			}
-			addPath(rel)
-			return nil
-		})
-		if err != nil {
-			return nil, err
-		}
+	if !info.IsDir() {
+		return c.addSingleFileRoot(root)
 	}
+	return filepath.WalkDir(absolute, c.visitPath)
+}
 
-	sort.Strings(out)
-	return out, nil
+func (c *includedPathCollector) addSingleFileRoot(root string) error {
+	if _, isExtra := c.extra[filepath.ToSlash(root)]; isExtra || IsExcluded(root, c.excludes) {
+		return nil
+	}
+	c.add(root)
+	return nil
+}
+
+func (c *includedPathCollector) visitPath(path string, entry fs.DirEntry, walkErr error) error {
+	if walkErr != nil {
+		return walkErr
+	}
+	rel, err := filepath.Rel(c.repoRoot, path)
+	if err != nil {
+		return err
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "." {
+		return nil
+	}
+	if IsExcluded(rel, c.excludes) {
+		if entry.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	}
+	if entry.IsDir() {
+		return nil
+	}
+	if _, isExtra := c.extra[rel]; isExtra {
+		return nil
+	}
+	c.add(rel)
+	return nil
+}
+
+func (c *includedPathCollector) add(rel string) {
+	rel = filepath.Clean(rel)
+	if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) || rel == "." {
+		return
+	}
+	if _, exists := c.seen[rel]; exists {
+		return
+	}
+	c.seen[rel] = struct{}{}
+	c.paths = append(c.paths, rel)
 }
 
 func buildMiniServiceJSON(repoRoot string, manifest domain.CloudManifest) ([]byte, error) {

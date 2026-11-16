@@ -64,6 +64,17 @@ func StandingOf(op *domain.CloudOperation) Standing {
 		CreatedAt:       op.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt:       op.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}
+	applyStandingTimestamps(&s, op)
+	applyStandingProgress(&s, op)
+	applyStandingUnknownEffects(&s, op)
+	applyStandingError(&s, op)
+	if s.NextAction == nil {
+		s.NextAction = defaultNextAction(op, s)
+	}
+	return s
+}
+
+func applyStandingTimestamps(s *Standing, op *domain.CloudOperation) {
 	if op.LeaseExpiresAt != nil {
 		s.LeaseExpiresAt = op.LeaseExpiresAt.UTC().Format(time.RFC3339Nano)
 	}
@@ -73,6 +84,9 @@ func StandingOf(op *domain.CloudOperation) Standing {
 	if op.TerminalAt != nil {
 		s.TerminalAt = op.TerminalAt.UTC().Format(time.RFC3339Nano)
 	}
+}
+
+func applyStandingProgress(s *Standing, op *domain.CloudOperation) {
 	if marker := op.ActiveStepMarker(); marker != nil {
 		s.ActiveStep = marker.Step
 	}
@@ -84,9 +98,15 @@ func StandingOf(op *domain.CloudOperation) Standing {
 			}
 		}
 	}
+}
+
+func applyStandingUnknownEffects(s *Standing, op *domain.CloudOperation) {
 	if effects, err := op.UnknownEffectList(); err == nil && effects != nil {
 		s.UnknownEffects = effects
 	}
+}
+
+func applyStandingError(s *Standing, op *domain.CloudOperation) {
 	s.Result = op.ResultValue()
 	if len(op.Error) > 0 && string(op.Error) != "null" {
 		var typed apierrors.Error
@@ -97,10 +117,6 @@ func StandingOf(op *domain.CloudOperation) Standing {
 			}
 		}
 	}
-	if s.NextAction == nil {
-		s.NextAction = defaultNextAction(op, s)
-	}
-	return s
 }
 
 // defaultNextAction names the one thing a caller should do for a state.

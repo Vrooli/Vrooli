@@ -53,7 +53,7 @@ func (s *SQLRepository) Submit(ctx context.Context, callerID string, spec Spec, 
 	if count >= MaxReceiptKeys {
 		return Operation{}, false, ErrCapacity
 	}
-	err = tx.QueryRowContext(ctx, `SELECT id FROM analysis_operations WHERE signature=? AND state IN ('queued','running')`, spec.signature()).Scan(&id)
+	err = tx.QueryRowContext(ctx, `SELECT id FROM analysis_operations WHERE signature=? AND state IN (?,?)`, spec.signature(), Queued, Running).Scan(&id)
 	reused := err == nil
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return Operation{}, false, err
@@ -123,6 +123,9 @@ func loadOperation(ctx context.Context, reader operationReader, id string) (Oper
 	if err != nil {
 		return Operation{}, err
 	}
+	if !op.State.Valid() {
+		return Operation{}, fmt.Errorf("unknown persisted analysis operation state %q", op.State)
+	}
 	if op.CreatedAt, err = time.Parse(time.RFC3339Nano, created); err != nil {
 		return Operation{}, err
 	}
@@ -167,8 +170,8 @@ func (s *SQLRepository) ClaimNext(ctx context.Context, at time.Time) (Operation,
 	}
 	defer tx.Rollback()
 	var id string
-	err = tx.QueryRowContext(ctx, `UPDATE analysis_operations SET state='running',started_at=?
-WHERE id=(SELECT id FROM analysis_operations WHERE state='queued' ORDER BY rowid LIMIT 1) AND state='queued' RETURNING id`, stamp(at)).Scan(&id)
+	err = tx.QueryRowContext(ctx, `UPDATE analysis_operations SET state=?,started_at=?
+WHERE id=(SELECT id FROM analysis_operations WHERE state=? ORDER BY rowid LIMIT 1) AND state=? RETURNING id`, Running, stamp(at), Queued, Queued).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Operation{}, ErrNotFound
 	}
@@ -200,12 +203,12 @@ func requireChanged(result sql.Result, err error) error {
 }
 
 func (s *SQLRepository) StartScenario(ctx context.Context, id, scenario string) error {
-	return requireChanged(s.db.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state='running' WHERE operation_id=? AND scenario=? AND state='queued'
-AND EXISTS(SELECT 1 FROM analysis_operations WHERE id=? AND state='running')`, id, scenario, id))
+	return requireChanged(s.db.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state=? WHERE operation_id=? AND scenario=? AND state=?
+AND EXISTS(SELECT 1 FROM analysis_operations WHERE id=? AND state=?)`, Running, id, scenario, Queued, id, Running))
 }
 
 func (s *SQLRepository) CompleteScenario(ctx context.Context, id string, item ScenarioOutcome) error {
-	if (item.State != Succeeded && item.State != Failed) || item.DetectedResources < 0 || item.ScenarioDependencies < 0 || item.DeploymentDependencies < 0 || item.Duration < 0 {
+	if (!Running.CanTransitionTo(item.State) || (item.State != Succeeded && item.State != Failed)) || item.DetectedResources < 0 || item.ScenarioDependencies < 0 || item.DeploymentDependencies < 0 || item.Duration < 0 {
 		return ErrInvalid
 	}
 	tx, err := s.db.BeginTx(ctx, nil)
@@ -214,22 +217,22 @@ func (s *SQLRepository) CompleteScenario(ctx context.Context, id string, item Sc
 	}
 	defer tx.Rollback()
 	if err := requireChanged(tx.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state=?,detected_resources=?,scenario_dependencies=?,deployment_dependencies=?,duration_ns=?,error=?
-WHERE operation_id=? AND scenario=? AND state='running' AND EXISTS(SELECT 1 FROM analysis_operations WHERE id=? AND state='running')`, item.State, item.DetectedResources, item.ScenarioDependencies, item.DeploymentDependencies, item.Duration, bounded(item.Error), id, item.Scenario, id)); err != nil {
+WHERE operation_id=? AND scenario=? AND state=? AND EXISTS(SELECT 1 FROM analysis_operations WHERE id=? AND state=?)`, item.State, item.DetectedResources, item.ScenarioDependencies, item.DeploymentDependencies, item.Duration, bounded(item.Error), id, item.Scenario, Running, id, Running)); err != nil {
 		return err
 	}
 	failure := 0
 	if item.State == Failed {
 		failure = 1
 	}
-	if err := requireChanged(tx.ExecContext(ctx, `UPDATE analysis_operations SET completed=completed+1,failures=failures+? WHERE id=? AND state='running'`, failure, id)); err != nil {
+	if err := requireChanged(tx.ExecContext(ctx, `UPDATE analysis_operations SET completed=completed+1,failures=failures+? WHERE id=? AND state=?`, failure, id, Running)); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
 func (s *SQLRepository) Finish(ctx context.Context, id string, state State, message string, graph *GraphOutcome, at time.Time) error {
-	if !state.Terminal() {
-		return fmt.Errorf("terminal state required: %w", ErrInvalid)
+	if !Running.CanTransitionTo(state) {
+		return fmt.Errorf("invalid analysis operation transition running -> %q: %w", state, ErrInvalid)
 	}
 	var graphJSON any
 	if graph != nil {
@@ -244,12 +247,12 @@ func (s *SQLRepository) Finish(ctx context.Context, id string, state State, mess
 		return err
 	}
 	defer tx.Rollback()
-	if err := requireChanged(tx.ExecContext(ctx, `UPDATE analysis_operations SET state=?,completed_at=?,error=?,graph_json=? WHERE id=? AND state='running'
-AND (? != 'succeeded' OR (completed=total AND failures=0))`, state, stamp(at), bounded(message), graphJSON, id, state)); err != nil {
+	if err := requireChanged(tx.ExecContext(ctx, `UPDATE analysis_operations SET state=?,completed_at=?,error=?,graph_json=? WHERE id=? AND state=?
+AND (? != ? OR (completed=total AND failures=0))`, state, stamp(at), bounded(message), graphJSON, id, Running, state, Succeeded)); err != nil {
 		return err
 	}
 	// Items not completed when execution stops remain explicitly unexecuted.
-	if _, err := tx.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state='interrupted',error=? WHERE operation_id=? AND state IN ('queued','running')`, bounded(message), id); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state=?,error=? WHERE operation_id=? AND state IN (?,?)`, Interrupted, bounded(message), id, Queued, Running); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -261,7 +264,11 @@ func (s *SQLRepository) Recover(ctx context.Context, at time.Time) ([]string, er
 		return nil, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM analysis_operations WHERE state='running'`)
+	const message = "server stopped before operation completion; this receipt will not execute again"
+	if _, err := tx.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state=?,error=? WHERE state IN (?,?) AND operation_id IN(SELECT id FROM analysis_operations WHERE state=?)`, Interrupted, message, Queued, Running, Running); err != nil {
+		return nil, err
+	}
+	rows, err := tx.QueryContext(ctx, `UPDATE analysis_operations SET state=?,completed_at=?,error=? WHERE state=? RETURNING id`, Interrupted, stamp(at), message, Running)
 	if err != nil {
 		return nil, err
 	}
@@ -281,13 +288,6 @@ func (s *SQLRepository) Recover(ctx context.Context, at time.Time) ([]string, er
 	if err := rows.Close(); err != nil {
 		return nil, err
 	}
-	const message = "server stopped before operation completion; this receipt will not execute again"
-	if _, err := tx.ExecContext(ctx, `UPDATE analysis_operation_scenarios SET state='interrupted',error=? WHERE state IN ('queued','running') AND operation_id IN(SELECT id FROM analysis_operations WHERE state='running')`, message); err != nil {
-		return nil, err
-	}
-	if _, err := tx.ExecContext(ctx, `UPDATE analysis_operations SET state='interrupted',completed_at=?,error=? WHERE state='running'`, stamp(at), message); err != nil {
-		return nil, err
-	}
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
@@ -300,8 +300,8 @@ func (s *SQLRepository) Prune(ctx context.Context) error {
 		return err
 	}
 	defer tx.Rollback()
-	rows, err := tx.QueryContext(ctx, `SELECT id FROM analysis_operations WHERE details_pruned=0 AND state NOT IN ('queued','running') AND id NOT IN(
-SELECT id FROM analysis_operations WHERE state NOT IN ('queued','running') ORDER BY rowid DESC LIMIT ?)`, RetainedDetails)
+	rows, err := tx.QueryContext(ctx, `SELECT id FROM analysis_operations WHERE details_pruned=0 AND state NOT IN (?,?) AND id NOT IN(
+SELECT id FROM analysis_operations WHERE state NOT IN (?,?) ORDER BY rowid DESC LIMIT ?)`, Queued, Running, Queued, Running, RetainedDetails)
 	if err != nil {
 		return err
 	}

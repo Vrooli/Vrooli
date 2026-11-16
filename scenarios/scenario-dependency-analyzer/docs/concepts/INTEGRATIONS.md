@@ -1,6 +1,5 @@
 # Integrations
 
-## Purpose Of This Document
 
 Document resources, scenario dependencies, and integration contracts.
 

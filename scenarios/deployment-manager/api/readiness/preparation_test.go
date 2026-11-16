@@ -58,7 +58,10 @@ func (m *memoryReviewRepository) ListWaivers(context.Context, string, int) ([]Re
 	return nil, nil
 }
 
-func (m *memoryReviewRepository) ReplaceEvaluation(_ context.Context, key string, evidence []EvidenceItem, findings []ReviewFinding, status ReviewStatus) error {
+func (m *memoryReviewRepository) ReplaceEvaluation(_ context.Context, key string, expected ReviewStatus, evidence []EvidenceItem, findings []ReviewFinding, status ReviewStatus) error {
+	if m.review.Status != expected || !CanReplaceReviewEvaluation(expected, status) {
+		return ErrInvalidReviewTransition{From: expected, To: status}
+	}
 	m.review.Status = status
 	m.review.GoalClosedAt = nil
 	m.review.ApprovedAt = nil

@@ -56,6 +56,20 @@ type BuildInputs struct {
 }
 
 func (in *BuildInputs) normalize() error {
+	if err := in.validateBuildTarget(); err != nil {
+		return err
+	}
+	if err := in.normalizeClosureDigest(); err != nil {
+		return err
+	}
+	if err := in.normalizeTrustPolicy(); err != nil {
+		return err
+	}
+	in.applyBuildDefaults()
+	return nil
+}
+
+func (in *BuildInputs) validateBuildTarget() error {
 	if strings.TrimSpace(in.RepoRoot) == "" || strings.TrimSpace(in.StoreDir) == "" {
 		return apierrors.New(apierrors.CodeInvalidRequest, "release build requires repo_root and store_dir")
 	}
@@ -66,6 +80,10 @@ func (in *BuildInputs) normalize() error {
 		return apierrors.Newf(apierrors.CodeUnsupportedCapability, "no native control plane can be built for %s", in.Platform).
 			WithDetail("artifact", "native_cli").WithDetail("platform", in.Platform.String())
 	}
+	return nil
+}
+
+func (in *BuildInputs) normalizeClosureDigest() error {
 	if in.Closure != nil {
 		in.ClosureDigest = in.Closure.Digest
 	}
@@ -75,6 +93,10 @@ func (in *BuildInputs) normalize() error {
 	if strings.TrimSpace(in.ClosureDigest) == "" {
 		return apierrors.New(apierrors.CodeClosureUnavailable, "release build requires a closure digest; resolve the closure first")
 	}
+	return nil
+}
+
+func (in *BuildInputs) normalizeTrustPolicy() error {
 	if in.TrustMode == "" {
 		mode, err := ResolveTrustMode(nil)
 		if err != nil {
@@ -87,6 +109,10 @@ func (in *BuildInputs) normalize() error {
 	if in.TrustMode == TrustProduction && in.Signer == nil {
 		return apierrors.New(apierrors.CodeReleaseVerificationFailed, "production trust mode requires a release signer; none configured").WithDetail("reason", "signer_unavailable")
 	}
+	return nil
+}
+
+func (in *BuildInputs) applyBuildDefaults() {
 	if in.PublicKeyPath == "" {
 		in.PublicKeyPath = filepath.Join(in.RepoRoot, DefaultPublicKeyRelPath)
 	}
@@ -99,7 +125,6 @@ func (in *BuildInputs) normalize() error {
 	if in.Now == nil {
 		in.Now = time.Now
 	}
-	return nil
 }
 
 // Build produces the release artifact set and stores it under
@@ -118,137 +143,168 @@ func Build(ctx context.Context, in BuildInputs) (Release, error) {
 	if err != nil {
 		return Release{}, apierrors.Internal("create build dir", err)
 	}
-	cleanup := func() { _ = os.RemoveAll(work) }
+	defer func() { _ = os.RemoveAll(work) }()
+	return buildReleaseInDirectory(ctx, in, store, work)
+}
 
-	// 1. Bundle (deterministic tar.gz) and its content manifest.
+type releaseBuildArtifacts struct {
+	spec    bundle.MiniBundleSpec
+	bundle  domain.BundleArtifact
+	content []bundle.ContentEntry
+	native  domain.ReleaseNativeCLI
+	repro   domain.ReleaseReproducibility
+}
+
+func buildReleaseInDirectory(ctx context.Context, in BuildInputs, store Store, work string) (Release, error) {
+	artifacts, err := buildReleaseArtifacts(ctx, in, work)
+	if err != nil {
+		return Release{}, err
+	}
+	manifest, err := releaseManifest(in, artifacts)
+	if err != nil {
+		return Release{}, err
+	}
+	now := in.Now().UTC()
+	if store.Complete(manifest.ReleaseDigest) {
+		return renewExistingRelease(store, manifest.ReleaseDigest, in, now)
+	}
+	manifestBytes, err := writeReleaseManifest(work, manifest)
+	if err != nil {
+		return Release{}, err
+	}
+	provenance, err := writeReleaseProvenance(ctx, in, work, manifest, manifestBytes)
+	if err != nil {
+		return Release{}, err
+	}
+	if err := writeReleaseInputs(ctx, in, manifest, artifacts, provenance, now, work); err != nil {
+		return Release{}, err
+	}
+	return promoteRelease(store, manifest, in, work, now)
+}
+
+func buildReleaseArtifacts(ctx context.Context, in BuildInputs, work string) (releaseBuildArtifacts, error) {
 	spec, err := bundle.MiniVrooliBundleSpec(in.RepoRoot, in.Manifest)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("resolve bundle spec", err)
+		return releaseBuildArtifacts{}, apierrors.Internal("resolve bundle spec", err)
 	}
-	artifact, err := bundle.BuildMiniVrooliBundle(in.RepoRoot, work, in.Manifest)
+	built, err := bundle.BuildMiniVrooliBundle(in.RepoRoot, work, in.Manifest)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("build bundle", err)
+		return releaseBuildArtifacts{}, apierrors.Internal("build bundle", err)
 	}
 	bundlePath := filepath.Join(work, cloudrelease.BundleFileName)
-	if err := os.Rename(artifact.Path, bundlePath); err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("place bundle", err)
+	if err := os.Rename(built.Path, bundlePath); err != nil {
+		return releaseBuildArtifacts{}, apierrors.Internal("place bundle", err)
 	}
 	content, err := bundle.ContentManifest(in.RepoRoot, spec)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("content manifest", err)
+		return releaseBuildArtifacts{}, apierrors.Internal("content manifest", err)
 	}
-
-	// 2. Native control plane for the target platform.
 	nativePath := filepath.Join(work, cloudrelease.NativeCLIFileName(in.Platform.GOOS, in.Platform.GOARCH))
 	native, repro, err := buildNativeCLI(ctx, in.RepoRoot, in.NativeCLI, in.Platform, nativePath)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("build native control plane", err)
+		return releaseBuildArtifacts{}, apierrors.Internal("build native control plane", err)
 	}
+	return releaseBuildArtifacts{spec: spec, bundle: built, content: content, native: native, repro: repro}, nil
+}
 
-	// 3. Configuration digest and release identity.
+func releaseManifest(in BuildInputs, artifacts releaseBuildArtifacts) (cloudrelease.Manifest, error) {
 	configurationDigest, err := ConfigurationDigest(in.Manifest)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("configuration digest", err)
+		return cloudrelease.Manifest{}, apierrors.Internal("configuration digest", err)
 	}
-	policy := cloudrelease.PolicyDevelopmentLocalUnsigned
-	if in.TrustMode == TrustProduction {
-		policy = cloudrelease.PolicyProductionSigned
-	}
+	policy := releasePolicy(in.TrustMode)
 	manifest := cloudrelease.Manifest{
-		SchemaVersion:       cloudrelease.ManifestSchemaVersion,
-		BundleSHA256:        artifact.Sha256,
-		NativeCLI:           cloudrelease.NativeCLI{SHA256: native.SHA256, GOOS: in.Platform.GOOS, GOARCH: in.Platform.GOARCH},
-		ClosureDigest:       in.ClosureDigest,
-		ConfigurationDigest: configurationDigest,
-		Provenance:          cloudrelease.Provenance{Builder: in.Builder, Policy: policy},
-		Limits:              cloudrelease.DefaultLimits(),
+		SchemaVersion: cloudrelease.ManifestSchemaVersion,
+		BundleSHA256:  artifacts.bundle.Sha256,
+		NativeCLI:     cloudrelease.NativeCLI{SHA256: artifacts.native.SHA256, GOOS: in.Platform.GOOS, GOARCH: in.Platform.GOARCH},
+		ClosureDigest: in.ClosureDigest, ConfigurationDigest: configurationDigest,
+		Provenance: cloudrelease.Provenance{Builder: in.Builder, Policy: policy}, Limits: cloudrelease.DefaultLimits(),
 	}
 	manifest.ReleaseDigest, err = cloudrelease.ComputeReleaseDigest(manifest)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("release digest", err)
+		return cloudrelease.Manifest{}, apierrors.Internal("release digest", err)
 	}
-	now := in.Now().UTC()
+	return manifest, nil
+}
 
-	// An identical release already stored is the same release.
-	if store.Complete(manifest.ReleaseDigest) {
-		cleanup()
-		existing, err := store.Load(manifest.ReleaseDigest)
-		if err != nil {
-			return Release{}, err
-		}
-		if _, err := store.Protect(existing.Digest, in.Manifest.Scenario.ID, in.LeaseTTL, now); err != nil {
-			return Release{}, apierrors.Internal("renew release lease", err)
-		}
-		return existing, nil
+func releasePolicy(mode TrustMode) string {
+	if mode == TrustProduction {
+		return cloudrelease.PolicyProductionSigned
 	}
+	return cloudrelease.PolicyDevelopmentLocalUnsigned
+}
 
-	manifestBytes, err := json.MarshalIndent(manifest, "", "  ")
+func renewExistingRelease(store Store, digest string, in BuildInputs, now time.Time) (Release, error) {
+	existing, err := store.Load(digest)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("encode release manifest", err)
+		return Release{}, err
 	}
-	manifestBytes = append(manifestBytes, '\n')
-	if err := os.WriteFile(filepath.Join(work, cloudrelease.ManifestFileName), manifestBytes, 0o644); err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("write release manifest", err)
+	if _, err := store.Protect(existing.Digest, in.Manifest.Scenario.ID, in.LeaseTTL, now); err != nil {
+		return Release{}, apierrors.Internal("renew release lease", err)
 	}
+	return existing, nil
+}
 
-	// 4. Provenance: sign in production, declare unsigned otherwise.
+func writeReleaseManifest(work string, manifest cloudrelease.Manifest) ([]byte, error) {
+	encoded, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return nil, apierrors.Internal("encode release manifest", err)
+	}
+	encoded = append(encoded, '\n')
+	if err := os.WriteFile(filepath.Join(work, cloudrelease.ManifestFileName), encoded, 0o644); err != nil {
+		return nil, apierrors.Internal("write release manifest", err)
+	}
+	return encoded, nil
+}
+
+func writeReleaseProvenance(ctx context.Context, in BuildInputs, work string, manifest cloudrelease.Manifest, manifestBytes []byte) (domain.ReleaseProvenance, error) {
+	policy := releasePolicy(in.TrustMode)
 	provenance := domain.ReleaseProvenance{Policy: policy, TrustMode: string(in.TrustMode)}
-	if in.TrustMode == TrustProduction {
-		stage, err := writeProvenanceStage(work, manifestBytes)
-		if err != nil {
-			cleanup()
-			return Release{}, apierrors.Internal("write provenance stage", err)
-		}
-		signature, err := in.Signer.Sign(ctx, stage)
-		if err != nil {
-			cleanup()
-			return Release{}, apierrors.Newf(apierrors.CodeReleaseVerificationFailed, "sign release manifest: %v", err).WithDetail("reason", "signing_failed")
-		}
-		keyID, err := verifyProvenance(work, manifest, manifestBytes, TrustProduction, in.PublicKeyPath)
-		if err != nil {
-			cleanup()
-			return Release{}, apierrors.Newf(apierrors.CodeReleaseVerificationFailed, "signature does not verify against %s: %v", in.PublicKeyPath, err).WithDetail("reason", "untrusted_signer")
-		}
-		if keyID != signature.KeyID {
-			cleanup()
-			return Release{}, apierrors.New(apierrors.CodeReleaseVerificationFailed, "signer key id does not match the verified signature").WithDetail("reason", "untrusted_signer")
-		}
-		provenance.SignerKeyID = keyID
-		provenance.SignatureFile = filepath.ToSlash(filepath.Join(cloudrelease.ProvenanceDirName, provenanceSignatureFile))
+	if in.TrustMode != TrustProduction {
+		return provenance, nil
 	}
-
-	// 5. inputs.json: every material input, references only.
-	inputs := buildInputsRecord(ctx, in, manifest, artifact, content, spec, native, repro, provenance, now)
-	inputsBytes, err := json.MarshalIndent(inputs, "", "  ")
+	stage, err := writeProvenanceStage(work, manifestBytes)
 	if err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("encode inputs", err)
+		return domain.ReleaseProvenance{}, apierrors.Internal("write provenance stage", err)
 	}
-	if err := os.WriteFile(filepath.Join(work, cloudrelease.InputsFileName), append(inputsBytes, '\n'), 0o644); err != nil {
-		cleanup()
-		return Release{}, apierrors.Internal("write inputs", err)
+	signature, err := in.Signer.Sign(ctx, stage)
+	if err != nil {
+		return domain.ReleaseProvenance{}, apierrors.Newf(apierrors.CodeReleaseVerificationFailed, "sign release manifest: %v", err).WithDetail("reason", "signing_failed")
 	}
+	keyID, err := verifyProvenance(work, manifest, manifestBytes, TrustProduction, in.PublicKeyPath)
+	if err != nil {
+		return domain.ReleaseProvenance{}, apierrors.Newf(apierrors.CodeReleaseVerificationFailed, "signature does not verify against %s: %v", in.PublicKeyPath, err).WithDetail("reason", "untrusted_signer")
+	}
+	if keyID != signature.KeyID {
+		return domain.ReleaseProvenance{}, apierrors.New(apierrors.CodeReleaseVerificationFailed, "signer key id does not match the verified signature").WithDetail("reason", "untrusted_signer")
+	}
+	provenance.SignerKeyID = keyID
+	provenance.SignatureFile = filepath.ToSlash(filepath.Join(cloudrelease.ProvenanceDirName, provenanceSignatureFile))
+	return provenance, nil
+}
 
-	// 6. Promote: rename into place, then the completion marker last.
+func writeReleaseInputs(ctx context.Context, in BuildInputs, manifest cloudrelease.Manifest, artifacts releaseBuildArtifacts, provenance domain.ReleaseProvenance, now time.Time, work string) error {
+	inputs := buildInputsRecord(ctx, in, manifest, artifacts.bundle, artifacts.content, artifacts.spec, artifacts.native, artifacts.repro, provenance, now)
+	encoded, err := json.MarshalIndent(inputs, "", "  ")
+	if err != nil {
+		return apierrors.Internal("encode inputs", err)
+	}
+	if err := os.WriteFile(filepath.Join(work, cloudrelease.InputsFileName), append(encoded, '\n'), 0o644); err != nil {
+		return apierrors.Internal("write inputs", err)
+	}
+	return nil
+}
+
+func promoteRelease(store Store, manifest cloudrelease.Manifest, in BuildInputs, work string, now time.Time) (Release, error) {
 	final, _ := store.Path(manifest.ReleaseDigest)
 	if err := os.RemoveAll(final); err != nil {
-		cleanup()
 		return Release{}, apierrors.Internal("clear incomplete release", err)
 	}
 	if err := os.Rename(work, final); err != nil {
-		cleanup()
 		return Release{}, apierrors.Internal("promote release", err)
 	}
-	if err := os.WriteFile(filepath.Join(final, cloudrelease.CompleteMarker), []byte(now.Format(time.RFC3339Nano)+"\n"), 0o644); err != nil {
+	marker := []byte(now.Format(time.RFC3339Nano) + "\n")
+	if err := os.WriteFile(filepath.Join(final, cloudrelease.CompleteMarker), marker, 0o644); err != nil {
 		return Release{}, apierrors.Internal("write completion marker", err)
 	}
 	if _, err := store.Protect(manifest.ReleaseDigest, in.Manifest.Scenario.ID, in.LeaseTTL, now); err != nil {

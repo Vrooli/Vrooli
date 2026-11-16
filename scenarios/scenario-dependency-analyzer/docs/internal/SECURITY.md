@@ -1,6 +1,5 @@
 # Security
 
-## Purpose Of This Document
 
 Capture SDA security posture and gaps.
 

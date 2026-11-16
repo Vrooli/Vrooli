@@ -221,66 +221,63 @@ func fetchAggregatedLogs(ctx context.Context, manifest domain.CloudManifest, pro
 // parseLogOutput parses log output into structured log entries.
 func parseLogOutput(output, source string) []LogEntry {
 	var entries []LogEntry
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
+	for _, line := range strings.Split(output, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-
-		entry := LogEntry{
-			Source:  source,
-			Message: line,
-			Level:   "INFO",
-		}
-
-		// Try to parse timestamp from common formats
-		// Format 1: "2025-12-30T12:34:56Z ..."
-		if len(line) > 20 && (line[4] == '-' && line[7] == '-') {
-			parts := strings.SplitN(line, " ", 2)
-			if len(parts) == 2 {
-				entry.Timestamp = parts[0]
-				line = parts[1]
-			}
-		}
-
-		// Format 2: journalctl format "Dec 30 12:34:56 hostname ..."
-		if entry.Timestamp == "" && len(line) > 15 {
-			months := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
-			for _, m := range months {
-				if strings.HasPrefix(line, m+" ") {
-					parts := strings.Fields(line)
-					if len(parts) >= 4 {
-						// Construct timestamp
-						entry.Timestamp = parts[0] + " " + parts[1] + " " + parts[2]
-						line = strings.Join(parts[3:], " ")
-						break
-					}
-				}
-			}
-		}
-
-		// If still no timestamp, use current time
-		if entry.Timestamp == "" {
-			entry.Timestamp = time.Now().UTC().Format(time.RFC3339)
-		}
-
-		// Detect log level from content
-		lineLower := strings.ToLower(line)
-		if strings.Contains(lineLower, "error") || strings.Contains(lineLower, "err]") || strings.Contains(lineLower, "[err") {
-			entry.Level = "ERROR"
-		} else if strings.Contains(lineLower, "warn") || strings.Contains(lineLower, "warning") {
-			entry.Level = "WARN"
-		} else if strings.Contains(lineLower, "debug") {
-			entry.Level = "DEBUG"
-		}
-
-		entry.Message = line
-		entries = append(entries, entry)
+		entries = append(entries, parseLogLine(line, source))
 	}
-
 	return entries
+}
+
+func parseLogLine(line, source string) LogEntry {
+	line, timestamp := logLineTimestamp(line)
+	entry := LogEntry{Source: source, Message: line, Timestamp: timestamp, Level: logLineLevel(line)}
+	if entry.Timestamp == "" {
+		entry.Timestamp = time.Now().UTC().Format(time.RFC3339)
+	}
+	return entry
+}
+
+func logLineTimestamp(line string) (string, string) {
+	if len(line) > 20 && line[4] == '-' && line[7] == '-' {
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) == 2 {
+			return parts[1], parts[0]
+		}
+	}
+	return journalLineTimestamp(line)
+}
+
+func journalLineTimestamp(line string) (string, string) {
+	if len(line) <= 15 {
+		return line, ""
+	}
+	for _, month := range []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"} {
+		if !strings.HasPrefix(line, month+" ") {
+			continue
+		}
+		parts := strings.Fields(line)
+		if len(parts) >= 4 {
+			return strings.Join(parts[3:], " "), parts[0] + " " + parts[1] + " " + parts[2]
+		}
+	}
+	return line, ""
+}
+
+func logLineLevel(line string) string {
+	lineLower := strings.ToLower(line)
+	if strings.Contains(lineLower, "error") || strings.Contains(lineLower, "err]") || strings.Contains(lineLower, "[err") {
+		return "ERROR"
+	}
+	if strings.Contains(lineLower, "warn") || strings.Contains(lineLower, "warning") {
+		return "WARN"
+	}
+	if strings.Contains(lineLower, "debug") {
+		return "DEBUG"
+	}
+	return "INFO"
 }
 
 // handleAddHistoryEvent allows manually adding a history event (for testing/admin).

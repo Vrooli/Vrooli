@@ -118,19 +118,13 @@ func (s *service) Call(ctx context.Context, request Request) (Response, error) {
 	if err != nil {
 		return Response{}, err
 	}
-	if record.State == StateCompleted || record.State == StateFailed || record.State == StateOutcomeUnknown {
+	if record.State.Terminal() {
 		return responseForRecord(record), nil
 	}
-	if record.State == StateReserved || record.State == StateSubmitted {
-		// A reserved/submitted command may have crossed the node boundary. A
-		// reconnecting caller must ask Reconcile instead of issuing a second
-		// side effect.
-		if record.Request.CorrelationID != request.CorrelationID && record.State == StateSubmitted {
-			return Response{CorrelationID: record.Request.CorrelationID, Kind: KindOutcomeUnknown, Reason: "command is submitted; reconcile the original receipt"}, ErrCommandInFlight
-		}
-		if record.State == StateSubmitted {
-			return Response{CorrelationID: record.Request.CorrelationID, Kind: KindOutcomeUnknown, Reason: "command is submitted; reconcile the original receipt"}, ErrCommandInFlight
-		}
+	// A submitted command may have crossed the node boundary. Reconcile it
+	// instead of issuing a second side effect.
+	if record.State == StateSubmitted {
+		return Response{CorrelationID: record.Request.CorrelationID, Kind: KindOutcomeUnknown, Reason: "command is submitted; reconcile the original receipt"}, ErrCommandInFlight
 	}
 
 	responses, unregister, err := s.broker.Register(request.CorrelationID, request.NodeID)

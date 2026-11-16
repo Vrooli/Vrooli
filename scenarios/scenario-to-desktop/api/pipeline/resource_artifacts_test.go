@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -8,6 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"os"
 	"path/filepath"
@@ -18,6 +20,64 @@ import (
 	hostreq "github.com/vrooli/vrooli/packages/hostreq"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
+
+type fixtureModelRightsEvaluator struct {
+	decision ModelRightsDecision
+	request  ModelRightsEvaluationRequest
+}
+
+func (f *fixtureModelRightsEvaluator) EvaluateModelRights(_ context.Context, request ModelRightsEvaluationRequest) (ModelRightsDecision, error) {
+	f.request = request
+	return f.decision, nil
+}
+
+func TestBundledModelArtifactRightsFailClosedAndUseDistributionIntent(t *testing.T) {
+	root := t.TempDir()
+	resourceDir := filepath.Join(root, "resources", "music-tools")
+	mustMkdirAll(t, resourceDir)
+	rightsFacts := json.RawMessage(`{"artifact_id":"music-model","classification":"unknown","unverified_reason":"license_source_revision_missing"}`)
+	rightsJSON, err := json.Marshal(map[string]any{
+		"bundling":        "bundled",
+		"model_artifacts": []BundledModelArtifact{{ModelID: "music-model", Kind: "weights", Rights: rightsFacts}},
+	})
+	mustNoError(t, err, "marshal resource manifest")
+	mustWriteFile(t, filepath.Join(resourceDir, "resource.json"), rightsJSON, 0o644)
+
+	item := ResourceDeploymentPlanItem{Resource: "music-tools", Mode: "bundled-client", OS: "linux", Architecture: "amd64", Eligibility: "eligible"}
+	if err := applyBundledModelRights(context.Background(), root, &item, nil); err != nil {
+		t.Fatal(err)
+	}
+	if item.Eligibility != "ineligible" || !strings.Contains(item.EligibilityReason, "music-model") || !strings.Contains(item.EligibilityReason, "shared_model_rights_evaluator_unavailable") {
+		t.Fatalf("missing evaluator decision was not surfaced as a package refusal: %+v", item)
+	}
+
+	evaluator := &fixtureModelRightsEvaluator{decision: ModelRightsDecision{Status: "denied", Reason: "revenue_condition_not_satisfied"}}
+	item = ResourceDeploymentPlanItem{Resource: "music-tools", Mode: "bundled-client", OS: "linux", Architecture: "amd64", Eligibility: "eligible"}
+	if err := applyBundledModelRights(context.Background(), root, &item, evaluator); err != nil {
+		t.Fatal(err)
+	}
+	if evaluator.request.Use != ModelRightsUseRedistributeWeights || evaluator.request.ModelID != "music-model" || string(evaluator.request.ArtifactFacts) != string(rightsFacts) {
+		t.Fatalf("evaluator request = %+v; want exact weight facts and distribution use", evaluator.request)
+	}
+	if item.Eligibility != "ineligible" || !strings.Contains(item.EligibilityReason, "revenue_condition_not_satisfied") || !strings.Contains(strings.Join(item.Evidence, "\n"), "music-model") {
+		t.Fatalf("denial was not recorded in package plan eligibility/evidence: %+v", item)
+	}
+
+	runtimeResource, err := json.Marshal(map[string]any{
+		"bundling":        "bundled",
+		"model_artifacts": []BundledModelArtifact{{ModelID: "music-runtime", Kind: "runtime", Rights: rightsFacts}},
+	})
+	mustNoError(t, err, "marshal runtime resource manifest")
+	mustWriteFile(t, filepath.Join(resourceDir, "resource.json"), runtimeResource, 0o644)
+	runtimeEvaluator := &fixtureModelRightsEvaluator{decision: ModelRightsDecision{Status: "allowed", Reason: "verified_unrestricted_grant"}}
+	item = ResourceDeploymentPlanItem{Resource: "music-tools", Mode: "bundled-client", OS: "linux", Architecture: "amd64", Eligibility: "eligible"}
+	if err := applyBundledModelRights(context.Background(), root, &item, runtimeEvaluator); err != nil {
+		t.Fatal(err)
+	}
+	if runtimeEvaluator.request.Use != ModelRightsUseDistributeRuntime || runtimeEvaluator.request.ModelID != "music-runtime" || item.Eligibility != "eligible" {
+		t.Fatalf("runtime distribution decision was not admitted through the evaluator: request=%+v item=%+v", runtimeEvaluator.request, item)
+	}
+}
 
 func TestStageBundledResourceArtifactsStagesVerifiedArtifactsAndPlan(t *testing.T) {
 	root := t.TempDir()

@@ -1,4 +1,3 @@
-import json
 inputs = program.inputs()
 review_key = str(inputs.get("review_key", "")).strip()
 envelope = {"program": "deployment-manager.release-preflight", "version": "1", "status": "failed", "phase": "validate", "inputs": {"review_key": review_key}, "signals": {}, "errors": [], "evidence": []}
@@ -20,6 +19,6 @@ def step_classify():
         return fail("refused", "not_run_eligible", "the review is not currently approved by the canonical policy projection", "classify")
     envelope["evidence"] = [review_key, f"policy:{policy_row.get('policyVersion', 0)}"]
     envelope["status"] = "ok"; return "report"
-def step_report(): envelope["phase"] = "report"; print(json.dumps(envelope, allow_nan=False)); return None
+def step_report(): envelope["phase"] = "report"; program.report(envelope); return None
 STATES = {"validate": step_validate, "collect": step_collect, "classify": step_classify, "report": step_report}; state = "validate"
 program.run(STATES, state)

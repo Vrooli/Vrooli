@@ -152,11 +152,11 @@ type StepSink interface {
 
 // TargetReceipt is what the target owner recorded for (operation, step).
 type TargetReceipt struct {
-	Found   bool
-	Outcome StepOutcome
-	Fence   uint64
-	Detail  string
-	Error   string
+	Found   bool        `json:"found"`
+	Outcome StepOutcome `json:"outcome,omitempty"`
+	Fence   uint64      `json:"fence,omitempty"`
+	Detail  string      `json:"detail,omitempty"`
+	Error   string      `json:"error,omitempty"`
 }
 
 // TargetReceipts reads receipts from the target owner. ErrNativeCLIAbsent
@@ -467,6 +467,53 @@ func (s *Service) Get(ctx context.Context, opID string) (*domain.CloudOperation,
 		return nil, apierrors.New(apierrors.CodeOperationNotFound, "Operation not found").WithDetail("operation_id", opID)
 	}
 	return op, nil
+}
+
+// ReadTargetReceipt reads one target-owned receipt for a step that belongs to
+// the immutable plan admitted for this operation. The deployment id is
+// repeated at the boundary so callers cannot use an operation id to probe a
+// different target. This is observation only; it never changes operation
+// state or creates evidence.
+func (s *Service) ReadTargetReceipt(ctx context.Context, deploymentID, opID, step string) (*domain.CloudOperation, TargetReceipt, error) {
+	op, err := s.Get(ctx, opID)
+	if err != nil {
+		return nil, TargetReceipt{}, err
+	}
+	if deploymentID == "" || deploymentID != op.DeploymentID {
+		return nil, TargetReceipt{}, apierrors.New(apierrors.CodeOperationNotFound, "Operation not found").WithDetail("operation_id", opID)
+	}
+	if strings.TrimSpace(step) == "" {
+		return nil, TargetReceipt{}, apierrors.New(apierrors.CodeInvalidRequest, "step is required")
+	}
+	var plan execplan.Plan
+	if len(op.Plan) == 0 {
+		return nil, TargetReceipt{}, apierrors.Internal("Admitted operation plan is unavailable", errors.New("empty operation plan"))
+	}
+	if err := json.Unmarshal(op.Plan, &plan); err != nil {
+		return nil, TargetReceipt{}, apierrors.Internal("Admitted operation plan is invalid", err)
+	}
+	if plan.DeploymentID != deploymentID {
+		return nil, TargetReceipt{}, apierrors.Internal("Admitted operation plan does not match its deployment", fmt.Errorf("plan deployment %q, operation deployment %q", plan.DeploymentID, deploymentID))
+	}
+	if plan.Action(step) == nil {
+		return nil, TargetReceipt{}, apierrors.New(apierrors.CodeInvalidRequest, "step is not declared in the admitted operation plan").WithDetail("step", step)
+	}
+	if s.receipts == nil {
+		return nil, TargetReceipt{}, apierrors.New(apierrors.CodeReachUnavailable, "Target receipt owner is not configured")
+	}
+	readCtx, cancel := context.WithTimeout(ctx, s.cfg.TransportTimeout)
+	defer cancel()
+	receipt, err := s.receipts.Read(readCtx, op, step)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, TargetReceipt{}, apierrors.New(apierrors.CodeReachUnavailable, "Target receipt owner did not answer before the read deadline").WithRetryable(true)
+		}
+		if errors.Is(err, ErrNativeCLIAbsent) {
+			return nil, TargetReceipt{}, apierrors.New(apierrors.CodeReachUnavailable, "Target receipt owner is unavailable")
+		}
+		return nil, TargetReceipt{}, err
+	}
+	return op, receipt, nil
 }
 
 // Cancel records the cancellation intent. The worker honours it at the next

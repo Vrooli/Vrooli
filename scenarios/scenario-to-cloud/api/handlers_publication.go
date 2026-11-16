@@ -243,6 +243,21 @@ func (s *Server) RequestPublication(ctx context.Context, deploymentID, requestKe
 		return nil, nil, deploymentNotFound(deploymentID)
 	}
 	targetKey := ramp.TargetKey(dep)
+	canonical, digest, err := canonicalPublicationIdentity(s, dep, targetKey, identity)
+	if err != nil {
+		return nil, nil, err
+	}
+	if existing, summary, found, err := s.existingPublicationRequest(ctx, deploymentID, requestKey, digest); found || err != nil {
+		return existing, summary, err
+	}
+	summary, err := s.ReleaseEvidence(ctx, canonical.ReleaseDigest, deploymentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.createPublicationRequest(ctx, d, deploymentID, requestKey, targetKey, canonical, digest, summary)
+}
+
+func canonicalPublicationIdentity(s *Server, dep *domain.Deployment, targetKey string, identity evidence.ReviewIdentity) (evidence.ReviewIdentity, string, error) {
 	if identity.ScenarioID == "" {
 		identity.ScenarioID = dep.ScenarioID
 	}
@@ -256,39 +271,45 @@ func (s *Server) RequestPublication(ctx context.Context, deploymentID, requestKe
 		identity.ReleaseDigest = s.deploymentRelease(dep, "")
 	}
 	if identity.ConfigurationDigest == "" && dep.BundleSHA256 != nil {
-		identity.ConfigurationDigest = d.releaseFor(*dep.BundleSHA256).ConfigurationDigest
+		identity.ConfigurationDigest = s.publication().releaseFor(*dep.BundleSHA256).ConfigurationDigest
 	}
 	canonical, err := identity.Canonical()
 	if err != nil {
-		return nil, nil, apierrors.New(apierrors.CodeInvalidRequest, err.Error())
+		return evidence.ReviewIdentity{}, "", apierrors.New(apierrors.CodeInvalidRequest, err.Error())
 	}
 	if !containsString(canonical.TargetSet, targetKey) {
-		return nil, nil, apierrors.New(apierrors.CodeInvalidRequest, "review identity target set does not include this deployment's target").WithDetail("target_key", targetKey)
+		return evidence.ReviewIdentity{}, "", apierrors.New(apierrors.CodeInvalidRequest, "review identity target set does not include this deployment's target").WithDetail("target_key", targetKey)
 	}
 	if canonical.ScenarioID != dep.ScenarioID {
-		return nil, nil, apierrors.New(apierrors.CodeInvalidRequest, "review identity scenario does not match the deployment")
+		return evidence.ReviewIdentity{}, "", apierrors.New(apierrors.CodeInvalidRequest, "review identity scenario does not match the deployment")
 	}
 	digest, _ := canonical.Digest()
-	if existing, err := s.repo.GetPublicationByRequestKey(ctx, deploymentID, requestKey); err != nil {
-		return nil, nil, apierrors.Internal("Failed to read publication", err)
-	} else if existing != nil {
-		if existing.IdentityDigest != digest {
-			return nil, nil, apierrors.New(apierrors.CodeRequestKeyConflict, "request_key is bound to a different review identity").WithDetail("identity_digest", existing.IdentityDigest)
-		}
-		summary, serr := s.ReleaseEvidence(ctx, existing.ReleaseDigest, deploymentID)
-		if serr != nil {
-			return nil, nil, serr
-		}
-		return existing, summary, nil
+	return canonical, digest, nil
+}
+
+func (s *Server) existingPublicationRequest(ctx context.Context, deploymentID, requestKey, digest string) (*evidence.Publication, *evidence.Summary, bool, error) {
+	existing, err := s.repo.GetPublicationByRequestKey(ctx, deploymentID, requestKey)
+	if err != nil {
+		return nil, nil, true, apierrors.Internal("Failed to read publication", err)
 	}
-	summary, serr := s.ReleaseEvidence(ctx, canonical.ReleaseDigest, deploymentID)
-	if serr != nil {
-		return nil, nil, serr
+	if existing == nil {
+		return nil, nil, false, nil
 	}
+	if existing.IdentityDigest != digest {
+		return nil, nil, true, apierrors.New(apierrors.CodeRequestKeyConflict, "request_key is bound to a different review identity").WithDetail("identity_digest", existing.IdentityDigest)
+	}
+	summary, err := s.ReleaseEvidence(ctx, existing.ReleaseDigest, deploymentID)
+	if err != nil {
+		return nil, nil, true, err
+	}
+	return existing, summary, true, nil
+}
+
+func (s *Server) createPublicationRequest(ctx context.Context, d *publicationDeps, deploymentID, requestKey, targetKey string, identity evidence.ReviewIdentity, digest string, summary *evidence.Summary) (*evidence.Publication, *evidence.Summary, error) {
 	now := d.now()
 	pub := evidence.Publication{
 		SchemaVersion: evidence.PublicationSchemaVersion, ID: uuid.New().String(), DeploymentID: deploymentID, RequestKey: requestKey,
-		Identity: canonical, IdentityDigest: digest, ReleaseDigest: canonical.ReleaseDigest, State: evidence.StateRequested, TargetKey: targetKey, RequestedAt: now, UpdatedAt: now,
+		Identity: identity, IdentityDigest: digest, ReleaseDigest: identity.ReleaseDigest, State: evidence.StateRequested, TargetKey: targetKey, RequestedAt: now, UpdatedAt: now,
 	}
 	stored, _, err := s.repo.CreatePublication(ctx, pub)
 	if err != nil {
@@ -298,32 +319,49 @@ func (s *Server) RequestPublication(ctx context.Context, deploymentID, requestKe
 	if err != nil {
 		return nil, nil, apierrors.Internal("Failed to build coverage verdict", err)
 	}
-	if err := d.governor.ReportCoverage(ctx, canonical, verdict); err != nil {
-		stored.Refuse(evidence.RefusalReviewUnavailable, err.Error(), now)
-		_ = s.repo.UpdatePublication(ctx, *stored)
-		return stored, summary, apierrors.New(apierrors.CodeGovernanceUnavailable, "Governance owner did not accept the coverage report").WithDetail("cause", err.Error()).WithRetryable(true)
+	if err := d.governor.ReportCoverage(ctx, identity, verdict); err != nil {
+		return s.refuseRequestedPublication(ctx, stored, summary, evidence.RefusalReviewUnavailable, err.Error(), "Governance owner did not accept the coverage report", apierrors.CodeGovernanceUnavailable, true)
 	}
-	review, err := d.governor.PrepareReview(ctx, canonical)
+	review, err := d.governor.PrepareReview(ctx, identity)
 	if err != nil {
-		stored.Refuse(evidence.RefusalReviewUnavailable, err.Error(), now)
-		_ = s.repo.UpdatePublication(ctx, *stored)
-		return stored, summary, apierrors.New(apierrors.CodeGovernanceUnavailable, "Governance owner did not prepare the review").WithDetail("cause", err.Error()).WithRetryable(true)
+		return s.refuseRequestedPublication(ctx, stored, summary, evidence.RefusalReviewUnavailable, err.Error(), "Governance owner did not prepare the review", apierrors.CodeGovernanceUnavailable, true)
 	}
-	if mismatch := review.MatchesIdentity(canonical); mismatch != nil {
-		stored.Refuse(evidence.RefusalReviewMismatch, mismatch.Error(), now)
-		_ = s.repo.UpdatePublication(ctx, *stored)
-		return stored, summary, apierrors.New(apierrors.CodePublicationRefused, "Governance owner prepared a review for a different identity").WithDetail("cause", mismatch.Error())
+	if mismatch := review.MatchesIdentity(identity); mismatch != nil {
+		return s.refuseRequestedPublication(ctx, stored, summary, evidence.RefusalReviewMismatch, mismatch.Error(), "Governance owner prepared a review for a different identity", apierrors.CodePublicationRefused, false)
 	}
 	stored.ReviewRef = review.Key
-	stored.State = evidence.StateReviewPrepared
-	if review.Status == evidence.ReviewApproved {
-		stored.State = evidence.StateApproved
+	if err := finalizeRequestedPublication(stored, review.Status, now); err != nil {
+		return nil, nil, apierrors.Internal("Failed to advance publication", err)
 	}
-	stored.UpdatedAt = now
 	if err := s.repo.UpdatePublication(ctx, *stored); err != nil {
 		return nil, nil, apierrors.Internal("Failed to update publication", err)
 	}
 	return stored, summary, nil
+}
+
+func (s *Server) refuseRequestedPublication(ctx context.Context, publication *evidence.Publication, summary *evidence.Summary, code, cause, message, apiCode string, retryable bool) (*evidence.Publication, *evidence.Summary, error) {
+	if err := publication.Refuse(code, cause, publication.UpdatedAt); err != nil {
+		return nil, nil, apierrors.Internal("Failed to refuse publication", err)
+	}
+	_ = s.repo.UpdatePublication(ctx, *publication)
+	refusal := apierrors.New(apiCode, message).WithDetail("cause", cause)
+	if retryable {
+		refusal = refusal.WithRetryable(true)
+	}
+	return publication, summary, refusal
+}
+
+func finalizeRequestedPublication(publication *evidence.Publication, status string, now time.Time) error {
+	if err := publication.Transition(evidence.StateReviewPrepared); err != nil {
+		return err
+	}
+	if status == evidence.ReviewApproved {
+		if err := publication.Transition(evidence.StateApproved); err != nil {
+			return err
+		}
+	}
+	publication.UpdatedAt = now
+	return nil
 }
 
 // ApplyPublication implements evidencesvc.Publisher: it re-checks the
@@ -335,67 +373,98 @@ func (s *Server) ApplyPublication(ctx context.Context, deploymentID, requestKey,
 	if requestKey == "" || reviewRef == "" || planDigest == "" {
 		return nil, nil, apierrors.New(apierrors.CodeInvalidRequest, "request_key, review_ref and plan_digest are required")
 	}
-	pub, err := s.repo.GetPublicationByRequestKey(ctx, deploymentID, requestKey)
+	publication, err := s.loadPublicationForApply(ctx, deploymentID, requestKey)
 	if err != nil {
-		return nil, nil, apierrors.Internal("Failed to read publication", err)
-	}
-	if pub == nil {
-		return nil, nil, apierrors.New(apierrors.CodePublicationRefused, "No publication was requested under this request_key").WithDetail("refusal", evidence.RefusalReviewUnavailable)
-	}
-	summary, serr := s.ReleaseEvidence(ctx, pub.ReleaseDigest, deploymentID)
-	if serr != nil {
-		return nil, nil, serr
-	}
-	now := d.now()
-	refuse := func(code, reason string) (*evidence.Publication, *evidence.Summary, error) {
-		pub.Refuse(code, reason, now)
-		_ = s.repo.UpdatePublication(ctx, *pub)
-		return pub, summary, apierrors.New(apierrors.CodePublicationRefused, "Publication refused: "+reason).WithDetail("refusal", code).WithDetail("review_ref", pub.ReviewRef)
-	}
-	switch pub.State {
-	case evidence.StatePublished:
-		return pub, summary, nil
-	case evidence.StateActivating:
-		if err := s.reconcilePublication(ctx, pub); err != nil {
-			return nil, nil, err
-		}
-		return pub, summary, nil
-	case evidence.StateFailed:
-		return pub, summary, apierrors.New(apierrors.CodePublicationRefused, "Publication already failed; request a new publication").WithDetail("refusal", pub.Refusal)
-	}
-	if pub.ReviewRef == "" || pub.ReviewRef != reviewRef {
-		return refuse(evidence.RefusalReviewMismatch, fmt.Sprintf("review_ref %s is not the review bound to this request (%s)", reviewRef, pub.ReviewRef))
-	}
-	if !summary.Passed {
-		return refuse(evidence.RefusalEvidenceIncomplete, "required cells are not passed: "+strings.Join(summary.BlockingCells, ", "))
-	}
-	review, reviewErr := d.governor.GetReview(ctx, reviewRef)
-	if refusal := evidence.Decide(pub, review, reviewErr); refusal != nil {
-		return refuse(refusal.Code, refusal.Reason)
-	}
-	pub.State = evidence.StateApproved
-	pub.PlanDigest = planDigest
-	pub.UpdatedAt = now
-	if err := s.repo.UpdatePublication(ctx, *pub); err != nil {
-		return nil, nil, apierrors.Internal("Failed to update publication", err)
-	}
-	applied, aerr := d.activate(ctx, deploymentID, planDigest, "publish:"+requestKey)
-	if aerr != nil {
-		if aerr.Code == apierrors.CodePlanDigestMismatch || aerr.Code == apierrors.CodePlanStale {
-			return refuse(evidence.RefusalPlanMismatch, aerr.Message)
-		}
-		return nil, nil, aerr
-	}
-	pub.OperationID = applied.OperationID
-	pub.State = evidence.StateActivating
-	pub.UpdatedAt = now
-	if err := s.repo.UpdatePublication(ctx, *pub); err != nil {
-		return nil, nil, apierrors.Internal("Failed to update publication", err)
-	}
-	if err := s.reconcilePublication(ctx, pub); err != nil {
 		return nil, nil, err
 	}
-	return pub, summary, nil
+	summary, err := s.ReleaseEvidence(ctx, publication.ReleaseDigest, deploymentID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if result, summary, done, err := s.existingPublicationApply(ctx, publication, summary); done || err != nil {
+		return result, summary, err
+	}
+	now := d.now()
+	if refusal := s.publicationApprovalRefusal(ctx, d, publication, summary, reviewRef); refusal != nil {
+		return s.refuseAppliedPublication(ctx, publication, summary, refusal.Code, refusal.Reason, now)
+	}
+	return s.admitPublicationActivation(ctx, d, publication, summary, deploymentID, requestKey, planDigest, now)
+}
+
+func (s *Server) loadPublicationForApply(ctx context.Context, deploymentID, requestKey string) (*evidence.Publication, error) {
+	publication, err := s.repo.GetPublicationByRequestKey(ctx, deploymentID, requestKey)
+	if err != nil {
+		return nil, apierrors.Internal("Failed to read publication", err)
+	}
+	if publication == nil {
+		return nil, apierrors.New(apierrors.CodePublicationRefused, "No publication was requested under this request_key").WithDetail("refusal", evidence.RefusalReviewUnavailable)
+	}
+	return publication, nil
+}
+
+func (s *Server) existingPublicationApply(ctx context.Context, publication *evidence.Publication, summary *evidence.Summary) (*evidence.Publication, *evidence.Summary, bool, error) {
+	switch publication.State {
+	case evidence.StatePublished:
+		return publication, summary, true, nil
+	case evidence.StateActivating:
+		if err := s.reconcilePublication(ctx, publication); err != nil {
+			return nil, nil, true, err
+		}
+		return publication, summary, true, nil
+	case evidence.StateFailed:
+		return publication, summary, true, apierrors.New(apierrors.CodePublicationRefused, "Publication already failed; request a new publication").WithDetail("refusal", publication.Refusal)
+	default:
+		return nil, nil, false, nil
+	}
+}
+
+func (s *Server) publicationApprovalRefusal(ctx context.Context, d *publicationDeps, publication *evidence.Publication, summary *evidence.Summary, reviewRef string) *evidence.Refusal {
+	if publication.ReviewRef == "" || publication.ReviewRef != reviewRef {
+		return &evidence.Refusal{Code: evidence.RefusalReviewMismatch, Reason: fmt.Sprintf("review_ref %s is not the review bound to this request (%s)", reviewRef, publication.ReviewRef)}
+	}
+	if !summary.Passed {
+		return &evidence.Refusal{Code: evidence.RefusalEvidenceIncomplete, Reason: "required cells are not passed: " + strings.Join(summary.BlockingCells, ", ")}
+	}
+	review, err := d.governor.GetReview(ctx, reviewRef)
+	return evidence.Decide(publication, review, err)
+}
+
+func (s *Server) refuseAppliedPublication(ctx context.Context, publication *evidence.Publication, summary *evidence.Summary, code, reason string, now time.Time) (*evidence.Publication, *evidence.Summary, error) {
+	if err := publication.Refuse(code, reason, now); err != nil {
+		return nil, nil, apierrors.Internal("Failed to refuse publication", err)
+	}
+	_ = s.repo.UpdatePublication(ctx, *publication)
+	return publication, summary, apierrors.New(apierrors.CodePublicationRefused, "Publication refused: "+reason).WithDetail("refusal", code).WithDetail("review_ref", publication.ReviewRef)
+}
+
+func (s *Server) admitPublicationActivation(ctx context.Context, d *publicationDeps, publication *evidence.Publication, summary *evidence.Summary, deploymentID, requestKey, planDigest string, now time.Time) (*evidence.Publication, *evidence.Summary, error) {
+	if err := publication.Transition(evidence.StateApproved); err != nil {
+		return nil, nil, apierrors.Internal("Failed to approve publication", err)
+	}
+	publication.PlanDigest = planDigest
+	publication.UpdatedAt = now
+	if err := s.repo.UpdatePublication(ctx, *publication); err != nil {
+		return nil, nil, apierrors.Internal("Failed to update publication", err)
+	}
+	applied, err := d.activate(ctx, deploymentID, planDigest, "publish:"+requestKey)
+	if err != nil {
+		if err.Code == apierrors.CodePlanDigestMismatch || err.Code == apierrors.CodePlanStale {
+			return s.refuseAppliedPublication(ctx, publication, summary, evidence.RefusalPlanMismatch, err.Message, now)
+		}
+		return nil, nil, err
+	}
+	publication.OperationID = applied.OperationID
+	if err := publication.Transition(evidence.StateActivating); err != nil {
+		return nil, nil, apierrors.Internal("Failed to activate publication", err)
+	}
+	publication.UpdatedAt = now
+	if err := s.repo.UpdatePublication(ctx, *publication); err != nil {
+		return nil, nil, apierrors.Internal("Failed to update publication", err)
+	}
+	if err := s.reconcilePublication(ctx, publication); err != nil {
+		return nil, nil, err
+	}
+	return publication, summary, nil
 }
 
 // GetPublication implements evidencesvc.Publisher. It reconciles an
@@ -451,33 +520,50 @@ func (s *Server) reconcilePublication(ctx context.Context, pub *evidence.Publica
 	now := d.now()
 	switch dep.Status {
 	case domain.StatusFailed, domain.StatusStopped:
-		reason := "deployment ended " + string(dep.Status)
-		if dep.ErrorMessage != nil && *dep.ErrorMessage != "" {
-			reason += ": " + *dep.ErrorMessage
+		if err := failPublicationForDeployment(pub, dep, now); err != nil {
+			return apierrors.Internal("Failed to reconcile publication", err)
 		}
-		pub.State = evidence.StateFailed
-		pub.Refusal = &evidence.Refusal{Code: "activation_failed", Reason: reason}
-		pub.UpdatedAt = now
 	case domain.StatusDeployed:
-		receipt, readErr := d.target.ReadActiveRelease(ctx, pub.DeploymentID)
-		if readErr != nil {
-			// Still activating from the record's point of view; the pointer is
-			// the only proof, so the state stays activating and the cause is
-			// reported without any second effect.
-			pub.Refusal = &evidence.Refusal{Code: "target_receipt_unavailable", Reason: readErr.Error()}
-			pub.UpdatedAt = now
-		} else {
-			history, herr := s.repo.ListPublications(ctx, pub.DeploymentID)
-			if herr != nil {
-				return apierrors.Internal("Failed to list publications", herr)
-			}
-			evidence.RecordActivation(pub, receipt, history, now)
+		if err := s.reconcileDeployedPublication(ctx, d, pub, now); err != nil {
+			return err
 		}
 	default:
 		return nil
 	}
 	if err := s.repo.UpdatePublication(ctx, *pub); err != nil {
 		return apierrors.Internal("Failed to update publication", err)
+	}
+	return nil
+}
+
+func failPublicationForDeployment(pub *evidence.Publication, deployment *domain.Deployment, now time.Time) error {
+	reason := "deployment ended " + string(deployment.Status)
+	if deployment.ErrorMessage != nil && *deployment.ErrorMessage != "" {
+		reason += ": " + *deployment.ErrorMessage
+	}
+	if err := pub.Transition(evidence.StateFailed); err != nil {
+		return err
+	}
+	pub.Refusal = &evidence.Refusal{Code: "activation_failed", Reason: reason}
+	pub.UpdatedAt = now
+	return nil
+}
+
+func (s *Server) reconcileDeployedPublication(ctx context.Context, d *publicationDeps, pub *evidence.Publication, now time.Time) *apierrors.Error {
+	receipt, err := d.target.ReadActiveRelease(ctx, pub.DeploymentID)
+	if err != nil {
+		// The target pointer is the only proof; keep the operation activating
+		// and report the read failure without issuing a second effect.
+		pub.Refusal = &evidence.Refusal{Code: "target_receipt_unavailable", Reason: err.Error()}
+		pub.UpdatedAt = now
+		return nil
+	}
+	history, err := s.repo.ListPublications(ctx, pub.DeploymentID)
+	if err != nil {
+		return apierrors.Internal("Failed to list publications", err)
+	}
+	if err := evidence.RecordActivation(pub, receipt, history, now); err != nil {
+		return apierrors.Internal("Failed to record publication activation", err)
 	}
 	return nil
 }

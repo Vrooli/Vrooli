@@ -271,6 +271,7 @@ func TestSQLiteCommandStorePersistsReceiptAcrossReopen(t *testing.T) {
 	_, err = storeA.Reserve(context.Background(), request)
 	require.NoError(t, err)
 	response := relay.Response{CorrelationID: request.CorrelationID, Kind: relay.KindCompleted, Data: []byte("ok"), ExitCode: 0}
+	require.NoError(t, storeA.Update(context.Background(), request.CommandID, request.NodeID, relay.StateSubmitted, relay.Response{CorrelationID: request.CorrelationID, Kind: relay.KindAccepted}))
 	require.NoError(t, storeA.Update(context.Background(), request.CommandID, request.NodeID, relay.StateCompleted, response))
 
 	storeB, err := relay.NewSQLiteCommandStore(d)
@@ -280,6 +281,71 @@ func TestSQLiteCommandStorePersistsReceiptAcrossReopen(t *testing.T) {
 	require.Equal(t, relay.StateCompleted, record.State)
 	require.Equal(t, []byte("ok"), record.Response.Data)
 	require.Equal(t, []string{"--json"}, record.Request.Args)
+}
+
+func TestCommandStateTransitionMatrixRejectsInvalidEdges(t *testing.T) {
+	states := []relay.CommandState{
+		relay.StateReserved, relay.StateSubmitted, relay.StateNotAdmitted,
+		relay.StateCompleted, relay.StateFailed, relay.StateOutcomeUnknown,
+	}
+	want := map[relay.CommandState]map[relay.CommandState]bool{
+		relay.StateReserved:    {relay.StateSubmitted: true},
+		relay.StateSubmitted:   {relay.StateNotAdmitted: true, relay.StateCompleted: true, relay.StateFailed: true, relay.StateOutcomeUnknown: true},
+		relay.StateNotAdmitted: {relay.StateReserved: true},
+	}
+	for _, from := range states {
+		for _, to := range states {
+			t.Run(string(from)+"->"+string(to), func(t *testing.T) {
+				record := relay.CommandRecord{State: from}
+				err := record.Transition(to)
+				if want[from][to] {
+					require.NoError(t, err)
+					require.Equal(t, to, record.State)
+					return
+				}
+				require.ErrorIs(t, err, relay.ErrInvalidCommandTransition)
+				require.Equal(t, from, record.State, "rejected transition must preserve the old state")
+			})
+		}
+	}
+
+	for _, invalid := range []relay.CommandState{"", "unknown"} {
+		record := relay.CommandRecord{State: relay.StateReserved}
+		require.ErrorIs(t, record.Transition(invalid), relay.ErrInvalidCommandTransition)
+		require.Equal(t, relay.StateReserved, record.State)
+	}
+	record := relay.CommandRecord{State: "unknown"}
+	require.ErrorIs(t, record.Transition(relay.StateReserved), relay.ErrInvalidCommandTransition)
+	require.Equal(t, relay.CommandState("unknown"), record.State)
+}
+
+func TestCommandStoresRejectInvalidTransitionWithoutMutation(t *testing.T) {
+	ctx := context.Background()
+	db := dbtest.NewSQLite(t)
+	_, err := db.ExecContext(ctx, relay.Schema())
+	require.NoError(t, err)
+	sqliteStore, err := relay.NewSQLiteCommandStore(db)
+	require.NoError(t, err)
+	stores := []struct {
+		name  string
+		store relay.CommandStore
+	}{
+		{name: "memory", store: relay.NewMemoryCommandStore()},
+		{name: "sqlite", store: sqliteStore},
+	}
+	for _, item := range stores {
+		t.Run(item.name, func(t *testing.T) {
+			request := relay.Request{CommandID: "invalid-" + item.name, NodeID: "node", Scenario: "demo", Command: "test"}
+			_, err := item.store.Reserve(ctx, request)
+			require.NoError(t, err)
+			response := relay.Response{Kind: relay.KindCompleted}
+			err = item.store.Update(ctx, request.CommandID, request.NodeID, relay.StateCompleted, response)
+			require.ErrorIs(t, err, relay.ErrInvalidCommandTransition)
+			record, err := item.store.Get(ctx, request.CommandID, request.NodeID)
+			require.NoError(t, err)
+			require.Equal(t, relay.StateReserved, record.State)
+		})
+	}
 }
 
 func TestMigrateAddsRouteTelemetryToExistingJournal(t *testing.T) {

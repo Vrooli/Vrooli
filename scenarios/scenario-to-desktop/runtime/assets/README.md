@@ -55,31 +55,26 @@ if err := verifier.EnsureAssets(service); err != nil {
 
 ## Playwright Conventions
 
-Services using Playwright need browser binaries. The package:
-
-1. Detects Playwright usage via `service.playwright_browsers`
-2. Sets `PLAYWRIGHT_BROWSERS_PATH` to bundle's browser directory
-3. Allocates debug port if needed
-4. Falls back to system Chromium if bundled browsers missing
+Services using Playwright can declare a package-local browser closure with
+`PLAYWRIGHT_BROWSERS_PATH`. The runtime resolves that path against the bundle
+root, requires it to be a directory, and passes the absolute path to the
+driver. This keeps the driver's pinned Playwright revision inside the bundle
+instead of inheriting a developer's user cache. Missing declared closures fail
+closed. An explicit `BROWSER_EXECUTABLE_PATH` may name one compatible binary;
+the only runtime fallback is an explicit `ELECTRON_CHROMIUM_PATH` supplied by
+the launcher.
 
 ### Environment Variables Set
 
 | Variable | Description |
 |----------|-------------|
 | `PLAYWRIGHT_BROWSERS_PATH` | Path to browser binaries |
-| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | Fallback Chromium path |
+| `BROWSER_EXECUTABLE_PATH` | Exact browser executable override consumed by BAS |
 | `PWDEBUG_PORT` | Debug protocol port (if allocated) |
 
-### Fallback Detection
-
-If bundled browsers aren't found, the package searches for system Chromium:
-
-```
-/usr/bin/chromium-browser
-/usr/bin/chromium
-/snap/bin/chromium
-/Applications/Chromium.app/Contents/MacOS/Chromium
-```
+Browser acquisition is outside this runtime helper. The browser closure must be
+provisioned by the governed dependency/artifact owner before packaging. No
+system-wide browser search or browser download occurs here.
 
 ## Usage
 

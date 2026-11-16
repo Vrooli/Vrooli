@@ -54,6 +54,8 @@ func (c Commands) Run(args []string) error {
 		return c.runCancel(args[1:])
 	case "list":
 		return c.runList(args[1:])
+	case "target-receipt":
+		return c.runTargetReceipt(args[1:])
 	case "help", "-h", "--help":
 		return printUsage()
 	default:
@@ -74,12 +76,42 @@ Commands:
   resume <operation-id>     Attach to an operation after a disconnect (same as wait)
   cancel <operation-id>     Record a cancellation intent (honoured at the next safe point)
   list <selector>           Operations admitted against a deployment ` + selector.Usage + `
+  target-receipt <deployment-id> <operation-id> <step>  Fresh target-owned step receipt
 
 Exit codes: 0 succeeded, 1 failed/failed_recovery/cancelled, 2 refused,
 3 pending (non-terminal), 124 observer timeout (wait returned still_pending;
 the operation is unchanged and the reattach command is printed).
 
 Run 'scenario-to-cloud operation <command> -h' for command-specific options.`)
+	return nil
+}
+
+func (c Commands) runTargetReceipt(args []string) error {
+	fs := flag.NewFlagSet("operation target-receipt", flag.ContinueOnError)
+	jsonOutput := fs.Bool("json", false, "Output proto JSON")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 3 {
+		return fmt.Errorf("usage: scenario-to-cloud operation target-receipt <deployment-id> <operation-id> <step>")
+	}
+	read, err := c.Client.TargetReceipt(context.Background(), fs.Arg(0), fs.Arg(1), fs.Arg(2))
+	if err != nil {
+		return err
+	}
+	if *jsonOutput {
+		return protoout.Print(read)
+	}
+	fmt.Printf("Target receipt for deployment %s, operation %s, step %s\n", read.GetDeploymentId(), read.GetOperationId(), read.GetStep())
+	if target := read.GetTarget(); target != nil {
+		fmt.Printf("  target: %s (node %s, generation %d, transport %s)\n", target.GetMachineId(), target.GetNodeId(), target.GetEnrollmentGeneration(), target.GetTransport())
+	}
+	if receipt := read.GetReceipt(); receipt != nil {
+		fmt.Printf("  found: %t, outcome: %s, fence: %d\n", receipt.GetFound(), receipt.GetOutcome(), receipt.GetFence())
+		if receipt.GetError() != "" {
+			fmt.Printf("  error: %s\n", receipt.GetError())
+		}
+	}
 	return nil
 }
 

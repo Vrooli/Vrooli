@@ -91,7 +91,12 @@ func (a *fakeActivator) activate(ctx context.Context, deploymentID, planDigest, 
 	if a.err != nil {
 		return nil, a.err
 	}
-	_ = a.repo.UpdateDeploymentStatus(ctx, deploymentID, domain.StatusDeployed, nil, nil)
+	if err := a.repo.BeginDeploymentRun(ctx, deploymentID, domain.StatusSetupRunning); err != nil {
+		return nil, apierrors.Internal("begin deployment run", err)
+	}
+	if err := a.repo.UpdateDeploymentStatus(ctx, deploymentID, domain.StatusDeployed, nil, nil); err != nil {
+		return nil, apierrors.Internal("update deployment status", err)
+	}
 	return &PlanApplyResult{SchemaVersion: "1", OperationID: "op-publish-" + requestKey, PlanDigest: planDigest, State: "admitted"}, nil
 }
 
@@ -375,7 +380,13 @@ func TestPublicationRecordsTheTargetReceiptAndReconcilesLostReplies(t *testing.T
 	}
 	// The signed deployment receipt now binds the release, target and the
 	// publishing operation; asking for another release is refused.
-	if err := repo.UpdateDeploymentDeployResult(context.Background(), "dep-pub", json.RawMessage(`{"ok":true}`), true); err != nil {
+	if err := repo.BeginDeploymentRun(context.Background(), "dep-pub", domain.StatusSetupRunning); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateDeploymentDeployResult(context.Background(), "dep-pub", json.RawMessage(`{"ok":true}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateDeploymentStatus(context.Background(), "dep-pub", domain.StatusDeployed, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	rec, decoded = callJSON(t, srv, http.MethodGet, "/api/v1/deployments/dep-pub/receipt?release_digest="+pubRelease, nil)

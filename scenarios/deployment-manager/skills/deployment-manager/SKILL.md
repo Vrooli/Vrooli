@@ -1,12 +1,12 @@
 ---
 name: "deployment-manager"
-description: "Use Deployment Manager to assess, prepare, release, observe, and recover Vrooli deployments with commit-scoped evidence and explicit safety boundaries."
+description: "Check whether a scenario is ready to deploy or release, run the release preflight, ship it, watch the rollout, and recover a failed deployment, with commit-scoped evidence and explicit safety boundaries. Use Deployment Manager to assess, prepare, release, observe, and recover Vrooli deployments."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["deployment-manager", "deployment", "readiness", "release"]
+  tags: ["deployment-manager", "deployment", "deploy", "readiness", "release", "ship", "production", "preflight", "rollback"]
   icon: "rocket"
   status: "active"
   revision: 3

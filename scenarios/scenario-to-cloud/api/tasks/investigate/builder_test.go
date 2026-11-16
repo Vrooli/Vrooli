@@ -103,6 +103,47 @@ func TestBuildPromptAndContext_EffortDrivesContextSelection(t *testing.T) {
 	}
 }
 
+func TestBuildAttachments_PreservesConfiguredOrder(t *testing.T) {
+	input := validInvestigateInput(domain.EffortTrace)
+	include := []string{
+		"task-metadata",
+		"error-info",
+		"safety-rules",
+		"diagnostic-checklist",
+		"output-format",
+		"vps-connection",
+		"deployment-manifest",
+		"architecture-guide",
+	}
+
+	attachments := buildAttachments(input, include)
+	want := []string{
+		"task-metadata",
+		"error-info",
+		"safety-rules",
+		"diagnostic-checklist",
+		"output-format",
+		"vps-connection",
+		"deployment-manifest",
+		"architecture-guide",
+		"focus-harness",
+		"focus-subject",
+		"user-note",
+	}
+	got := make([]string, 0, len(attachments))
+	for _, attachment := range attachments {
+		got = append(got, attachment.Key)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("attachment keys = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("attachment keys = %v, want %v", got, want)
+		}
+	}
+}
+
 func validInvestigateInput(effort domain.InvestigationEffort) shared.TaskInput {
 	errStep := "preflight"
 	errMsg := "Cannot negotiate ALPN protocol"

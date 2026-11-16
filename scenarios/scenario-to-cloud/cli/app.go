@@ -47,6 +47,7 @@ func NewApp() (*App, error) {
 		DefaultHTTPTimeout: 2 * time.Minute,
 		AllowAnonymous:     true,
 		CommandGroups:      domains.CommandGroups,
+		SubcommandGroups:   domains.SubcommandGroups,
 	})
 	if err != nil {
 		return nil, err
@@ -113,7 +114,7 @@ func isNonAPICommand(args []string) bool {
 		return true
 	}
 	switch strings.TrimSpace(args[0]) {
-	case "help", "--help", "-h", "configure", "version", "--version":
+	case "help", "--help", "-h", "configure", "version", "--version", "wallet-recovery":
 		return true
 	default:
 		return false

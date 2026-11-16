@@ -168,72 +168,101 @@ Flags:
 }
 
 func runDeps(client *Client, args []string) error {
-	var scenarioID string
-	jsonOutput := false
-	impactOutput := false
-	verbose := false
+	options, helpRequested := parseDepsOptions(args)
+	if helpRequested {
+		printDepsUsage()
+		return nil
+	}
+	if options.scenarioID == "" {
+		return fmt.Errorf("usage: scenario-to-cloud scenario deps <scenario-id>")
+	}
 
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
+	body, resp, err := client.Dependencies(options.scenarioID)
+	if err != nil {
+		return err
+	}
+	if options.jsonOutput {
+		cliutil.PrintJSON(body)
+		return nil
+	}
+
+	report, hasImpact := fetchDepsImpact(client, options)
+	printDepsHeader(resp)
+	if len(resp.Resources) == 0 && len(resp.Scenarios) == 0 {
+		fmt.Println("No dependencies.")
+		return nil
+	}
+	directRows, transitiveRows := dependencyRows(resp, report, hasImpact)
+	printDependencyRows(directRows, transitiveRows)
+	if !options.impactOutput {
+		fmt.Println(strings.Repeat("-", 70))
+		fmt.Println("Tip: add --impact for RAM/Disk/CPU summary, or --impact --verbose for per-dependency footprint details.")
+		return nil
+	}
+	printDepsImpact(report, hasImpact, options.verbose, directRows, transitiveRows)
+	return nil
+}
+
+type depsOptions struct {
+	scenarioID   string
+	jsonOutput   bool
+	impactOutput bool
+	verbose      bool
+}
+
+type depRow struct {
+	Scope string
+	Type  string
+	Name  string
+}
+
+func parseDepsOptions(args []string) (depsOptions, bool) {
+	var options depsOptions
+	for _, arg := range args {
+		switch arg {
 		case "-h", "--help":
-			fmt.Println(`Usage: scenario-to-cloud scenario deps <scenario-id> [flags]
+			return options, true
+		case "--json":
+			options.jsonOutput = true
+		case "--impact":
+			options.impactOutput = true
+		case "--verbose":
+			options.impactOutput = true
+			options.verbose = true
+		default:
+			if !strings.HasPrefix(arg, "-") && options.scenarioID == "" {
+				options.scenarioID = arg
+			}
+		}
+	}
+	return options, false
+}
+
+func printDepsUsage() {
+	fmt.Println(`Usage: scenario-to-cloud scenario deps <scenario-id> [flags]
 
 Flags:
   --json      Output raw JSON from /scenarios/:id/dependencies
   --impact    Show resource impact summary and per-dependency requirements
   --verbose   Alias for --impact`)
-			return nil
-		case "--json":
-			jsonOutput = true
-		case "--impact":
-			impactOutput = true
-		case "--verbose":
-			impactOutput = true
-			verbose = true
-		default:
-			if !strings.HasPrefix(args[i], "-") && scenarioID == "" {
-				scenarioID = args[i]
-			}
-		}
-	}
+}
 
-	if scenarioID == "" {
-		return fmt.Errorf("usage: scenario-to-cloud scenario deps <scenario-id>")
+func fetchDepsImpact(client *Client, options depsOptions) (DeploymentReportResponse, bool) {
+	if !options.impactOutput {
+		return DeploymentReportResponse{}, false
 	}
+	_, report, err := client.DeploymentReport(context.Background(), options.scenarioID)
+	return report, err == nil
+}
 
-	body, resp, err := client.Dependencies(scenarioID)
-	if err != nil {
-		return err
-	}
-
-	if jsonOutput {
-		cliutil.PrintJSON(body)
-		return nil
-	}
-
-	var (
-		report    DeploymentReportResponse
-		hasImpact bool
-	)
-	if impactOutput {
-		_, r, err := client.DeploymentReport(context.Background(), scenarioID)
-		if err == nil {
-			report = r
-			hasImpact = true
-		}
-	}
-
-	// Pretty print
+func printDepsHeader(resp DepsResponse) {
 	fmt.Printf("Dependencies for: %s\n", resp.ScenarioID)
 	fmt.Println(strings.Repeat("-", 70))
 	fmt.Printf("Source: %s (analyzer_available=%t)\n", resp.Source, resp.AnalyzerAvailable)
 	fmt.Println(strings.Repeat("-", 70))
+}
 
-	if len(resp.Resources) == 0 && len(resp.Scenarios) == 0 {
-		fmt.Println("No dependencies.")
-		return nil
-	}
-
+func dependencyRows(resp DepsResponse, report DeploymentReportResponse, hasImpact bool) ([]depRow, []depRow) {
 	directSet := make(map[string]struct{}, len(resp.Resources)+len(resp.Scenarios))
 	for _, name := range resp.Resources {
 		directSet[keyForDep("resource", name)] = struct{}{}
@@ -242,11 +271,6 @@ Flags:
 		directSet[keyForDep("scenario", name)] = struct{}{}
 	}
 
-	type depRow struct {
-		Scope string
-		Type  string
-		Name  string
-	}
 	directRows := make([]depRow, 0, len(resp.Resources)+len(resp.Scenarios))
 	for _, name := range resp.Resources {
 		directRows = append(directRows, depRow{Scope: "direct", Type: "resource", Name: name})
@@ -261,33 +285,46 @@ Flags:
 		return directRows[i].Type < directRows[j].Type
 	})
 
-	transitiveRows := make([]depRow, 0)
+	transitiveRows := []depRow{}
 	if hasImpact {
-		seen := make(map[string]struct{})
-		var walk func(nodes []DeploymentDependencyNode, depth int)
-		walk = func(nodes []DeploymentDependencyNode, depth int) {
-			for _, n := range nodes {
-				if depth > 0 {
-					key := keyForDep(n.Type, n.Name)
-					if _, isDirect := directSet[key]; !isDirect {
-						if _, exists := seen[key]; !exists {
-							seen[key] = struct{}{}
-							transitiveRows = append(transitiveRows, depRow{Scope: "transitive", Type: n.Type, Name: n.Name})
-						}
-					}
-				}
-				walk(n.Children, depth+1)
-			}
-		}
-		walk(report.Dependencies, 0)
-		sort.Slice(transitiveRows, func(i, j int) bool {
-			if transitiveRows[i].Type == transitiveRows[j].Type {
-				return transitiveRows[i].Name < transitiveRows[j].Name
-			}
-			return transitiveRows[i].Type < transitiveRows[j].Type
-		})
+		transitiveRows = transitiveDependencyRows(report.Dependencies, directSet)
 	}
+	return directRows, transitiveRows
+}
 
+func transitiveDependencyRows(nodes []DeploymentDependencyNode, directSet map[string]struct{}) []depRow {
+	rows := make([]depRow, 0)
+	seen := make(map[string]struct{})
+	var walk func(nodes []DeploymentDependencyNode, depth int)
+	walk = func(nodes []DeploymentDependencyNode, depth int) {
+		for _, node := range nodes {
+			if depth > 0 {
+				key := keyForDep(node.Type, node.Name)
+				_, isDirect := directSet[key]
+				_, exists := seen[key]
+				if !isDirect && !exists {
+					seen[key] = struct{}{}
+					rows = append(rows, depRow{Scope: "transitive", Type: node.Type, Name: node.Name})
+				}
+			}
+			walk(node.Children, depth+1)
+		}
+	}
+	walk(nodes, 0)
+	sortDepRows(rows)
+	return rows
+}
+
+func sortDepRows(rows []depRow) {
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].Type == rows[j].Type {
+			return rows[i].Name < rows[j].Name
+		}
+		return rows[i].Type < rows[j].Type
+	})
+}
+
+func printDependencyRows(directRows, transitiveRows []depRow) {
 	fmt.Printf("%-12s %-12s %s\n", "SCOPE", "TYPE", "NAME")
 	for _, row := range directRows {
 		fmt.Printf("%-12s %-12s %s\n", row.Scope, row.Type, row.Name)
@@ -295,59 +332,60 @@ Flags:
 	for _, row := range transitiveRows {
 		fmt.Printf("%-12s %-12s %s\n", row.Scope, row.Type, row.Name)
 	}
-	if !impactOutput {
-		fmt.Println(strings.Repeat("-", 70))
-		fmt.Println("Tip: add --impact for RAM/Disk/CPU summary, or --impact --verbose for per-dependency footprint details.")
-	}
+}
 
-	if impactOutput {
-		fmt.Println(strings.Repeat("-", 70))
-		if !hasImpact {
-			fmt.Println("Impact summary unavailable: unable to fetch analyzer deployment report.")
-			return nil
+func printDepsImpact(report DeploymentReportResponse, hasImpact, verbose bool, directRows, transitiveRows []depRow) {
+	fmt.Println(strings.Repeat("-", 70))
+	if !hasImpact {
+		fmt.Println("Impact summary unavailable: unable to fetch analyzer deployment report.")
+		return
+	}
+	tier, aggregate, ok := chooseImpactTier(report.Aggregates)
+	if !ok {
+		fmt.Println("Impact summary unavailable: analyzer report has no aggregate tier requirements.")
+		return
+	}
+	fmt.Printf("Impact Summary (%s): RAM %.0f MB, Disk %.0f MB, CPU %.2f cores\n",
+		tier, aggregate.EstimatedRequirements.RAMMB, aggregate.EstimatedRequirements.DiskMB, aggregate.EstimatedRequirements.CPUCores)
+
+	total, withReq := requirementCoverage(report.Dependencies)
+	confidence := "unknown"
+	if report.MetadataGaps != nil {
+		if report.MetadataGaps.TotalGaps == 0 {
+			confidence = "medium"
+		} else {
+			confidence = "low"
 		}
-		tier, aggregate, ok := chooseImpactTier(report.Aggregates)
+	}
+	fmt.Printf("Coverage: %d/%d dependencies have requirement footprints (confidence: %s)\n", withReq, total, confidence)
+
+	if verbose {
+		printVerboseDeps(report, tier, directRows, transitiveRows)
+	}
+}
+
+func printVerboseDeps(report DeploymentReportResponse, tier string, directRows, transitiveRows []depRow) {
+	fmt.Println(strings.Repeat("-", 70))
+	fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n", "SCOPE", "TYPE", "NAME", "RAM_MB", "DISK_MB", "CPU")
+	nodeByKey := flattenNodeMap(report.Dependencies)
+	for _, row := range append(directRows, transitiveRows...) {
+		node, ok := nodeByKey[keyForDep(row.Type, row.Name)]
 		if !ok {
-			fmt.Println("Impact summary unavailable: analyzer report has no aggregate tier requirements.")
-			return nil
+			printVerboseDepRow(row, nil)
+			continue
 		}
-		fmt.Printf("Impact Summary (%s): RAM %.0f MB, Disk %.0f MB, CPU %.2f cores\n",
-			tier, aggregate.EstimatedRequirements.RAMMB, aggregate.EstimatedRequirements.DiskMB, aggregate.EstimatedRequirements.CPUCores)
-
-		total, withReq := requirementCoverage(report.Dependencies)
-		confidence := "unknown"
-		if report.MetadataGaps != nil {
-			if report.MetadataGaps.TotalGaps == 0 {
-				confidence = "medium"
-			} else {
-				confidence = "low"
-			}
-		}
-		fmt.Printf("Coverage: %d/%d dependencies have requirement footprints (confidence: %s)\n", withReq, total, confidence)
-
-		if verbose {
-			fmt.Println(strings.Repeat("-", 70))
-			fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n", "SCOPE", "TYPE", "NAME", "RAM_MB", "DISK_MB", "CPU")
-			nodeByKey := flattenNodeMap(report.Dependencies)
-			for _, row := range append(directRows, transitiveRows...) {
-				node, ok := nodeByKey[keyForDep(row.Type, row.Name)]
-				if !ok {
-					fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n", row.Scope, row.Type, truncate(row.Name, 28), "-", "-", "-")
-					continue
-				}
-				req := resolveRequirementForTier(node, tier)
-				if req == nil {
-					fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n", row.Scope, row.Type, truncate(row.Name, 28), "-", "-", "-")
-					continue
-				}
-				fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n",
-					row.Scope, row.Type, truncate(row.Name, 28),
-					formatMaybe(req.RAMMB), formatMaybe(req.DiskMB), formatMaybe(req.CPUCores))
-			}
-		}
+		printVerboseDepRow(row, resolveRequirementForTier(node, tier))
 	}
+}
 
-	return nil
+func printVerboseDepRow(row depRow, req *DeploymentRequirements) {
+	if req == nil {
+		fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n", row.Scope, row.Type, truncate(row.Name, 28), "-", "-", "-")
+		return
+	}
+	fmt.Printf("%-12s %-12s %-28s %-8s %-8s %-8s\n",
+		row.Scope, row.Type, truncate(row.Name, 28),
+		formatMaybe(req.RAMMB), formatMaybe(req.DiskMB), formatMaybe(req.CPUCores))
 }
 
 func keyForDep(depType, name string) string {

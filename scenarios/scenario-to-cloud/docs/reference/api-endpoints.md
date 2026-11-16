@@ -18,6 +18,14 @@ Every route except `GET /health` and `GET /api/v1/health` requires a verified pr
 
 Return the route/effect/scope/target table the boundary enforces (read scope). The response has `schema_version`, `scenario`, `scopes` and `routes[]` with `method`, `path`, `effect`, `scope`, `target_bound`, `body_target`, `remote_reach`, `service_allowed`, `no_store` and `description`.
 
+### GET /certification/matrix
+
+Return the authoritative certification matrix, including the explicit fail-closed applicability map for every case/lane pair and the required proving grounds (`qemu`, `real_vps`). Each required pair must be exercised independently on both grounds.
+
+### GET /certification/readiness?release_digest=&configuration_digest=&closure_digest=
+
+Evaluate target-bound v2 receipts against one exact candidate. All three SHA-256 digests are required. Readiness reports 532 required case/lane/ground cells; receipts missing a ground or generation, with mismatched candidate digests, or with an invalid receipt are not counted as passes.
+
 ## Health
 
 ### GET /health
@@ -99,7 +107,7 @@ step and `details.reason` the cause; the partial report is in `details.report`),
 
 > [CODE: api/handlers_publication.go] · [CODE: api/evidence/record.go] · [DOC: reference/governance-binding.md]
 
-Per-cell dispositions of the `cloud-launch-v1` capability profile for one
+Per-cell dispositions of the `cloud-launch-v1` governance capability profile for one
 release (`?deployment_id=` narrows to that deployment's target). Response:
 `{"schema_version": "1", "evidence": {profile_id, release_digest, target_key,
 cells[{case_id, lane, disposition, required, record_id, operation_id,
@@ -140,6 +148,16 @@ Reads (and reconciles) the latest publication or `?request_key=`. States:
 `requested | review_prepared | approved | activating | published | refused |
 failed`. `activated_release_digest` and `predecessor_release_digest` come from
 the target receipt. `operation_not_found` (404) when none exists.
+
+### POST `OperationsService.GetTargetReceipt` (typed Connect)
+
+Body `{"deployment_id", "operation_id", "step"}`. The typed handler binds
+the body deployment id to the caller's target grant before it asks the target
+owner for a fresh receipt. The operation must belong to that deployment and
+the step must exist in its immutable admitted plan. The route is `no-store`;
+service principals cannot call it. The response returns the
+deployment, operation, plan digest, step, target identity and target receipt;
+it does not mutate the operation or create certification evidence.
 
 ### GET /deployments/{id}/receipt
 

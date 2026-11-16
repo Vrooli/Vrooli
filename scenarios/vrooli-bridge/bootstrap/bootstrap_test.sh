@@ -51,7 +51,9 @@ set -euo pipefail
 args=("$@")
 for ((i=0; i<${#args[@]}; i++)); do
   case "${args[$i]}" in
-    clone) dest="${args[-1]}"; mkdir -p "${dest}/.git"; exit 0 ;;
+    clone)
+      printf '%s\n' "$*" >>"${FAKE_GIT_LOG:-/dev/null}"
+      dest="${args[-1]}"; mkdir -p "${dest}/.git"; exit 0 ;;
     rev-parse)
       checkout=""
       has_git_dir=0
@@ -313,6 +315,7 @@ run_bootstrap() { # run_bootstrap <stdout-file> [extra bootstrap args...]
   local out="$1"; shift
   HOME="$TEST_HOME" PATH="${FAKEBIN}:${TOOLBIN}:${PATH}" \
   FAKE_MAKE_LOG="$FAKE_MAKE_LOG" \
+  FAKE_GIT_LOG="${FAKE_GIT_LOG:-$WORKROOT/git.calls}" \
   FAKE_AGENT_LOG="${FAKE_AGENT_LOG:-$WORKROOT/agent.calls}" \
   FAKE_UNAME_S="${FAKE_UNAME_S:-Linux}" FAKE_UNAME_M="${FAKE_UNAME_M:-x86_64}" \
   FAKE_SUDO_MODE="${FAKE_SUDO_MODE:-denied}" \
@@ -365,6 +368,14 @@ check "run 2 setup skipped (sentinel)" "$(marker_is "$OUT2" step-skip setup && e
 check "run 2 service-install skipped (converged)" "$(marker_is "$OUT2" step-skip service-install && echo 0 || echo 1)"
 check "run 2 autostart skipped (linger already on)" "$(marker_is "$OUT2" step-skip autostart && echo 0 || echo 1)"
 check "run 2 verify-online still connected" "$(marker_is "$OUT2" step-ok verify-online && echo 0 || echo 1)"
+
+echo "== pinned fresh clone checks out only the requested revision =="
+rm -rf "$STATE" "$CHECKOUT"; : >"$WORKROOT/git.calls"
+OUTPINNED="${WORKROOT}/pinned-clone.out"
+run_bootstrap "$OUTPINNED" --revision e767613fca
+check "pinned fresh clone exits 0" "$?"
+check "pinned clone uses --no-checkout" "$(grep -q -- 'clone --no-checkout https://github.com/Vrooli/Vrooli.git' "$WORKROOT/git.calls" && echo 0 || echo 1)"
+check "pinned clone reaches run-ok" "$(grep -q 'event=run-ok' "$OUTPINNED" && echo 0 || echo 1)"
 
 echo "== unreadable managed state directory is repaired narrowly =="
 rm -rf "$STATE" "$CHECKOUT"; mkdir -p "$STATE"; chmod 000 "$STATE"

@@ -1,6 +1,5 @@
 # Domains
 
-## Purpose Of This Document
 
 Map SDA bounded contexts and source ownership.
 

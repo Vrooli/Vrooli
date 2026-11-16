@@ -65,8 +65,7 @@ func main() {
 	defer cancel()
 
 	if err := supervisor.Start(ctx); err != nil {
-		log.Printf("start runtime: %v", err)
-		return
+		log.Fatalf("start runtime: %v", err)
 	}
 
 	fmt.Printf("runtime ready — IPC listening on %s:%d (dry-run=%v)\n", m.IPC.Host, m.IPC.Port, dryRun)

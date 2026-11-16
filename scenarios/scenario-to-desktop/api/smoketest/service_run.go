@@ -89,9 +89,9 @@ func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request Sm
 		if exists {
 			target, err := s.targetResolver(ctx, status)
 			if err != nil {
+				s.transitionTo(request.SmokeTestID, StateFailed, "smoke test target unavailable")
 				completed := time.Now().UTC()
 				s.store.Update(request.SmokeTestID, func(status *Status) {
-					status.Status = "failed"
 					status.JourneyDisposition = string(deliveryramp.DispositionUnavailable)
 					status.Error = err.Error()
 					status.CompletedAt = &completed
@@ -101,9 +101,9 @@ func (s *DefaultService) PerformSmokeTestRequest(ctx context.Context, request Sm
 			}
 			if target.Isolation != nil {
 				if err := validateIsolationObservations([]deliveryramp.IsolationObservation{*target.Isolation}); err != nil {
+					s.transitionTo(request.SmokeTestID, StateFailed, err.Error())
 					completed := time.Now().UTC()
 					s.store.Update(request.SmokeTestID, func(status *Status) {
-						status.Status = "failed"
 						status.Error = err.Error()
 						status.CompletedAt = &completed
 						status.Logs = append(status.Logs, err.Error())
@@ -448,12 +448,12 @@ func (s *DefaultService) validatePreconditions(ctx context.Context, smokeTestID,
 func (s *DefaultService) recoverFromPanic(smokeTestID string) {
 	if r := recover(); r != nil {
 		kind := ErrKindExecution
+		panicMessage := fmt.Sprintf("panic: %v", r)
+		s.transitionTo(smokeTestID, StateFailed, panicMessage)
 		s.store.Update(smokeTestID, func(status *Status) {
-			status.Status = "failed"
-			status.Error = fmt.Sprintf("panic: %v", r)
+			status.Error = panicMessage
 			status.ErrorKind = &kind
 			status.SuggestedAction = RecoveryPaths[kind]
-			status.CurrentState = StateFailed
 			now := time.Now()
 			status.CompletedAt = &now
 		})

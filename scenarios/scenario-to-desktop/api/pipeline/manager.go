@@ -546,7 +546,10 @@ func (m *Manager) RecoverStalePipelines() int {
 		updated := false
 		if do, ok := m.orchestrator.(*DefaultOrchestrator); ok && do.store != nil {
 			updated = do.store.Update(pipelineID, func(s *Status) {
-				s.Status = StatusFailed
+				if err := s.TransitionStatus(StatusFailed); err != nil {
+					m.logError("invalid pipeline status transition during stale recovery", "pipeline_id", pipelineID, "error", err)
+					return
+				}
 				s.Error = "Pipeline interrupted by server restart"
 				// Also fail any running stages
 				for _, stage := range s.Stages {

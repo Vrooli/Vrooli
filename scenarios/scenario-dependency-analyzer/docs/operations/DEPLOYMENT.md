@@ -1,6 +1,5 @@
 # Deployment
 
-## Purpose Of This Document
 
 Capture supported deployment tiers and release assumptions.
 

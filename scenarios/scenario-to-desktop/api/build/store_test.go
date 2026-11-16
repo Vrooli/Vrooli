@@ -10,6 +10,38 @@ import (
 	"time"
 )
 
+func TestPlatformBuildStatusTransitions(t *testing.T) {
+	tests := []struct {
+		name string
+		from PlatformBuildStatus
+		next PlatformBuildStatus
+		want PlatformBuildStatus
+		ok   bool
+	}{
+		{name: "starts from legacy empty state", from: "", next: PlatformBuildBuilding, want: PlatformBuildBuilding, ok: true},
+		{name: "build completes", from: PlatformBuildBuilding, next: PlatformBuildReady, want: PlatformBuildReady, ok: true},
+		{name: "build fails", from: PlatformBuildBuilding, next: PlatformBuildFailed, want: PlatformBuildFailed, ok: true},
+		{name: "unavailable platform skips", from: PlatformBuildPending, next: PlatformBuildSkipped, want: PlatformBuildSkipped, ok: true},
+		{name: "failed build retries", from: PlatformBuildFailed, next: PlatformBuildBuilding, want: PlatformBuildBuilding, ok: true},
+		{name: "skipped build retries", from: PlatformBuildSkipped, next: PlatformBuildBuilding, want: PlatformBuildBuilding, ok: true},
+		{name: "cannot complete before building", from: PlatformBuildPending, next: PlatformBuildReady, want: PlatformBuildPending, ok: false},
+		{name: "terminal result cannot be rewritten", from: PlatformBuildReady, next: PlatformBuildFailed, want: PlatformBuildReady, ok: false},
+		{name: "unknown state is rejected", from: "mystery", next: PlatformBuildReady, want: "mystery", ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := &PlatformResult{Platform: "linux", Status: tt.from}
+			err := result.TransitionStatus(tt.next)
+			if (err == nil) != tt.ok {
+				t.Fatalf("TransitionStatus(%q) error = %v, want success=%v", tt.next, err, tt.ok)
+			}
+			if result.Status != tt.want {
+				t.Fatalf("status = %q, want %q", result.Status, tt.want)
+			}
+		})
+	}
+}
+
 func TestNewStore(t *testing.T) {
 	store := NewStore()
 	if store == nil {
@@ -120,7 +152,7 @@ func TestInMemoryStore_UpdatePlatform(t *testing.T) {
 
 	t.Run("update nonexistent platform creates default", func(t *testing.T) {
 		updated := store.UpdatePlatform("build-123", "darwin", func(s *Status, r *PlatformResult) {
-			// Platform should be auto-created with failed status
+			// Platform should be auto-created in its pre-build state.
 		})
 		if !updated {
 			t.Errorf("expected UpdatePlatform to return true")
@@ -131,11 +163,11 @@ func TestInMemoryStore_UpdatePlatform(t *testing.T) {
 		if darwinResult == nil {
 			t.Fatalf("expected darwin platform to be created")
 		}
-		if darwinResult.Status != "failed" {
-			t.Errorf("expected auto-created platform to have failed status")
+		if darwinResult.Status != PlatformBuildPending {
+			t.Errorf("expected auto-created platform to have pending status, got %q", darwinResult.Status)
 		}
-		if darwinResult.SkipReason != "platform not initialized" {
-			t.Errorf("expected skip reason to be set")
+		if darwinResult.SkipReason != "" {
+			t.Errorf("unexpected skip reason on pending platform: %q", darwinResult.SkipReason)
 		}
 	})
 

@@ -609,8 +609,16 @@ step_clone() {
       fail 1 "checkout directory ${CHECKOUT_DIR} already exists and is not a Git checkout; use --source-dir for an intentional working-tree ship or choose an empty --checkout-dir"
     fi
     log "    cloning fresh"
-    git clone "$REPO_URL" "$CHECKOUT_DIR" >&2
-    [ -n "$REVISION" ] && git -C "$CHECKOUT_DIR" checkout --quiet "$REVISION" >&2
+    if [ -n "$REVISION" ]; then
+      # Avoid checking out the repository's default branch before switching to
+      # the requested revision. Generated tracked artifacts can be rewritten by
+      # checkout filters/hooks; a second checkout would then refuse to replace
+      # them even though this is a fresh clone.
+      git clone --no-checkout "$REPO_URL" "$CHECKOUT_DIR" >&2
+      git -C "$CHECKOUT_DIR" checkout --quiet "$REVISION" >&2
+    else
+      git clone "$REPO_URL" "$CHECKOUT_DIR" >&2
+    fi
   fi
   local sha
   sha="$(git -C "$CHECKOUT_DIR" rev-parse HEAD)"

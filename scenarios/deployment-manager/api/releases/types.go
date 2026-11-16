@@ -6,6 +6,7 @@ package releases
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -19,6 +20,55 @@ const (
 	StatusSuperseded   = "superseded"
 	StatusVerifyFailed = "verify_failed"
 )
+
+// ReleaseStatus owns the legal transitions for the durable release lifecycle.
+// Callers persist changes through Repository.UpdateStatus, which checks this
+// graph against the current stored status before writing.
+type ReleaseStatus string
+
+func (s ReleaseStatus) CanTransitionTo(next ReleaseStatus) bool {
+	if s == next {
+		return s.valid()
+	}
+	switch s {
+	case StatusPending:
+		return next == StatusPublishing || next == StatusFailed || next == StatusAmbiguous || next == StatusVerifyFailed
+	case StatusPublishing:
+		return next == StatusPublished || next == StatusFailed || next == StatusAmbiguous || next == StatusVerifyFailed
+	case StatusPublished:
+		return next == StatusAmbiguous || next == StatusSuperseded || next == StatusVerifyFailed
+	case StatusAmbiguous:
+		return next == StatusVerifyFailed
+	case StatusFailed:
+		return next == StatusAmbiguous
+	case StatusVerifyFailed:
+		return next == StatusAmbiguous
+	default:
+		return false
+	}
+}
+
+func (s ReleaseStatus) valid() bool {
+	switch s {
+	case StatusPending, StatusPublishing, StatusPublished, StatusFailed, StatusAmbiguous, StatusSuperseded, StatusVerifyFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s ReleaseStatus) ValidateTransition(next ReleaseStatus) error {
+	if !s.valid() {
+		return fmt.Errorf("unknown current release status %q", s)
+	}
+	if !next.valid() {
+		return fmt.Errorf("unknown next release status %q", next)
+	}
+	if !s.CanTransitionTo(next) {
+		return fmt.Errorf("invalid release status transition %q -> %q", s, next)
+	}
+	return nil
+}
 
 const (
 	OperationQueued    = "queued"

@@ -6,6 +6,7 @@ package operationsvc
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/deploymentsvc"
 	"scenario-to-cloud/domain"
+	"scenario-to-cloud/execplan"
 	"scenario-to-cloud/operations"
 
 	errorsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-cloud/v1/errors"
@@ -27,15 +29,29 @@ type Lister interface {
 	ListOperationsByDeployment(ctx context.Context, deploymentID string) ([]*domain.CloudOperation, error)
 }
 
+// TargetReceiptReader reads the owner-authenticated receipt for one admitted
+// operation step; implementations never infer it from controller state.
+type TargetReceiptReader interface {
+	ReadTargetReceipt(context.Context, string, string, string) (*domain.CloudOperation, operations.TargetReceipt, error)
+}
+
+// TargetAuthorizer applies the deployment-specific policy to a typed request
+// body before the receipt reader opens remote reach.
+type TargetAuthorizer interface {
+	AuthorizeTarget(context.Context, string) *apierrors.Error
+}
+
 // Service implements operationsv1connect.OperationsServiceHandler.
 type Service struct {
-	ops    *operations.Service
-	lister Lister
+	ops              *operations.Service
+	targetReceipts   TargetReceiptReader
+	targetAuthorizer TargetAuthorizer
+	lister           Lister
 }
 
 // New builds the service.
-func New(ops *operations.Service, lister Lister) *Service {
-	return &Service{ops: ops, lister: lister}
+func New(ops *operations.Service, lister Lister, targetAuthorizer TargetAuthorizer) *Service {
+	return &Service{ops: ops, targetReceipts: ops, targetAuthorizer: targetAuthorizer, lister: lister}
 }
 
 // Handler returns the Connect mount path and handler.
@@ -116,6 +132,41 @@ func (s *Service) ListDeploymentOperations(ctx context.Context, req *connect.Req
 		resp.Operations = append(resp.Operations, StandingProto(operations.StandingOf(op)))
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (s *Service) GetTargetReceipt(ctx context.Context, req *connect.Request[operationsv1.GetTargetReceiptRequest]) (*connect.Response[operationsv1.TargetReceiptRead], error) {
+	if s == nil || s.targetReceipts == nil {
+		return nil, notConfigured()
+	}
+	if req == nil || req.Msg == nil || req.Msg.GetDeploymentId() == "" || req.Msg.GetOperationId() == "" || req.Msg.GetStep() == "" {
+		return nil, deploymentsvc.ConnectError(apierrors.New(apierrors.CodeInvalidRequest, "deployment_id, operation_id and step are required"))
+	}
+	if s.targetAuthorizer == nil {
+		return nil, deploymentsvc.ConnectError(apierrors.New(apierrors.CodeForbiddenScope, "Target authorization owner is not configured"))
+	}
+	if denied := s.targetAuthorizer.AuthorizeTarget(ctx, req.Msg.GetDeploymentId()); denied != nil {
+		return nil, deploymentsvc.ConnectError(denied)
+	}
+	op, receipt, err := s.targetReceipts.ReadTargetReceipt(ctx, req.Msg.GetDeploymentId(), req.Msg.GetOperationId(), req.Msg.GetStep())
+	if err != nil {
+		return nil, deploymentsvc.ConnectError(err)
+	}
+	var plan execplan.Plan
+	if err := json.Unmarshal(op.Plan, &plan); err != nil {
+		return nil, deploymentsvc.ConnectError(apierrors.Internal("Failed to decode admitted operation plan", err))
+	}
+	return connect.NewResponse(&operationsv1.TargetReceiptRead{
+		SchemaVersion: "1", DeploymentId: op.DeploymentID, OperationId: op.ID,
+		PlanDigest: op.PlanDigest, Step: req.Msg.GetStep(),
+		Target: &operationsv1.TargetReceiptTarget{
+			MachineId: plan.Target.MachineID, NodeId: plan.Target.NodeID,
+			EnrollmentGeneration: plan.Target.EnrollmentGeneration, Transport: plan.Target.Transport,
+		},
+		Receipt: &operationsv1.TargetOwnerReceipt{
+			Found: receipt.Found, Outcome: string(receipt.Outcome), Fence: receipt.Fence,
+			Detail: receipt.Detail, Error: receipt.Error,
+		},
+	}), nil
 }
 
 func (s *Service) ReconcileOperations(ctx context.Context, _ *connect.Request[operationsv1.ReconcileOperationsRequest]) (*connect.Response[operationsv1.ReconcileOperationsResponse], error) {

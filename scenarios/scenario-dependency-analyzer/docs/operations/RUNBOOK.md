@@ -1,6 +1,5 @@
 # Runbook
 
-## Purpose Of This Document
 
 Provide operator procedures for SDA.
 

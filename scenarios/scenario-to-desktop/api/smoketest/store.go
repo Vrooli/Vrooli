@@ -119,11 +119,9 @@ func (s *FileStore) load() error {
 		if isTerminal(status.Status) {
 			continue
 		}
-		status.Status = "failed"
-		status.Error = interruptedReason
-		status.CurrentState = StateFailed
-		status.CompletedAt = &now
-		status.Logs = append(status.Logs, "FAILED: "+interruptedReason)
+		if err := status.RecoverInterrupted(now, interruptedReason); err != nil {
+			return fmt.Errorf("recover interrupted smoke test %s: %w", status.SmokeTestID, err)
+		}
 		s.interrupted++
 	}
 	trimmed := s.trimFinished()
@@ -240,6 +238,23 @@ func (s *FileStore) Update(id string, fn func(status *Status)) bool {
 		fmt.Fprintf(s.errWriter, "[smoke-test-store] persist failed: %v\n", err)
 	}
 	return true
+}
+
+// TransitionState validates and persists one run lifecycle edge.
+func (s *FileStore) TransitionState(id string, next State, message string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	status, ok := s.statusMap[id]
+	if !ok {
+		return fmt.Errorf("unknown smoke test id %q", id)
+	}
+	if err := status.TransitionState(next, time.Now().UTC(), message); err != nil {
+		return err
+	}
+	if err := s.persist(); err != nil {
+		fmt.Fprintf(s.errWriter, "[smoke-test-store] persist failed: %v\n", err)
+	}
+	return nil
 }
 
 // DefaultCancelManager manages smoke test cancellation functions.

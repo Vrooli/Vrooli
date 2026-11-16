@@ -56,6 +56,24 @@ func DecisionFromContext(ctx context.Context) (Decision, bool) {
 	return decision, ok
 }
 
+// AuthorizeTarget applies the same deployment binding policy as a path-bound
+// route for a target identifier carried in a typed request body. Callers must
+// invoke it before any target reach. This lets Connect RPCs keep typed request
+// bodies without weakening deployment-specific grants to a wildcard.
+func (e *Enforcer) AuthorizeTarget(ctx context.Context, deploymentID string) *apierrors.Error {
+	decision, ok := DecisionFromContext(ctx)
+	if !ok || decision.request == nil || !decision.Route.HandlerTargetBound {
+		return apierrors.New(apierrors.CodeForbiddenScope, "Target authorization context is unavailable")
+	}
+	deploymentID = strings.TrimSpace(deploymentID)
+	if deploymentID == "" {
+		return apierrors.New(apierrors.CodeInvalidRequest, "Deployment id is required")
+	}
+	req := mux.SetURLVars(decision.request, map[string]string{"id": deploymentID})
+	_, _, denied := e.bindTarget(req, decision.Principal)
+	return denied
+}
+
 // Enforcer applies the route table to every request.
 type Enforcer struct {
 	cfg      Config
@@ -126,7 +144,7 @@ func (e *Enforcer) Middleware(next http.Handler) http.Handler {
 			}
 		}
 		if route.BodyTarget {
-			unrestricted, err := e.cfg.Policy.Unrestricted(principal)
+			unrestricted, err := e.cfg.Policy.UnrestrictedAt(principal, e.cfg.now())
 			if err != nil {
 				e.deny(w, r, route, principal, apierrors.Internal("Authorization policy unavailable", err))
 				return
@@ -269,7 +287,7 @@ func (e *Enforcer) bindTarget(r *http.Request, principal identity.Principal) (Ta
 	if id == "" {
 		return Target{}, false, apierrors.New(apierrors.CodeInvalidRequest, "Deployment id is required")
 	}
-	unrestricted, err := e.cfg.Policy.Unrestricted(principal)
+	unrestricted, err := e.cfg.Policy.UnrestrictedAt(principal, e.cfg.now())
 	if err != nil {
 		return Target{}, false, apierrors.Internal("Authorization policy unavailable", err)
 	}
@@ -283,7 +301,7 @@ func (e *Enforcer) bindTarget(r *http.Request, principal identity.Principal) (Ta
 		}
 		return Target{}, false, nil
 	}
-	allowed, err := e.cfg.Policy.Allows(principal, target)
+	allowed, err := e.cfg.Policy.AllowsAt(principal, target, e.cfg.now())
 	if err != nil {
 		return Target{}, false, apierrors.Internal("Authorization policy unavailable", err)
 	}
@@ -391,112 +409,6 @@ func (e *Enforcer) acquire(principal identity.Principal) (func(), bool) {
 		}
 		e.inflight[key]--
 	}, true
-}
-
-// Recheck re-validates the principal's credential and grant. It is called at
-// the effect boundary so a credential or grant revoked after admission cannot
-// carry an effect through.
-func (e *Enforcer) Recheck(ctx context.Context, principal identity.Principal) *apierrors.Error {
-	decision, ok := DecisionFromContext(ctx)
-	if !ok || decision.request == nil {
-		return apierrors.New(apierrors.CodeForbiddenRevoked, "No admission decision for this request")
-	}
-	if decision.Principal.Subject != principal.Subject || decision.Principal.Source != principal.Source {
-		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal does not match the admitted request")
-	}
-	fresh, err := e.cfg.Authn.Authenticate(ctx, decision.request)
-	if principal.Source == identity.SourceAgentProvenance {
-		verifier := e.cfg.AgentVerifier
-		if verifier == nil {
-			verifier = provenance.CLIUtilVerifier{}
-		}
-		result, verifyErr := verifier.Verify(decision.request.Header.Get(cliutil.HeaderAgentIdentityToken))
-		err = verifyErr
-		if err == nil && result != nil && result.Valid && result.Claims != nil {
-			fresh = identity.Principal{Kind: identity.ActorAgent, Subject: result.Claims.RunID, Owner: result.Claims.Subject, Source: identity.SourceAgentProvenance, Verified: true, Scopes: append([]string(nil), result.Claims.Scopes...), ExpiresAt: time.Unix(result.Claims.ExpiresAt, 0), Grant: provenance.OperationGrantFromMeta(result.Claims.Meta)}
-		} else {
-			return apierrors.New(apierrors.CodeForbiddenRevoked, "Agent credential or grant no longer verifies")
-		}
-	}
-
-	if err != nil || fresh.Subject != principal.Subject || fresh.Source != principal.Source {
-		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal credential no longer verifies")
-	}
-	if fresh.Kind == identity.ActorAgent && decision.Route.Effectful() {
-		target := "scenario-to-cloud:*"
-		if decision.Target != nil {
-			target = "scenario-to-cloud:deployment/" + decision.Target.DeploymentID
-		}
-		if !fresh.Grant.Allows("deployment.manage", target, e.cfg.now()) || !scopecatalog.Resolve(fresh.Scopes, decision.Route.Scope) {
-			return apierrors.New(apierrors.CodeForbiddenRevoked, "Agent operation grant no longer permits this effect")
-		}
-	}
-	if e.expired(fresh) {
-		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal credential has expired")
-	}
-	revoked, perr := e.cfg.Policy.Revoked(fresh)
-	if perr != nil {
-		return apierrors.Internal("Authorization policy unavailable", perr)
-	}
-	if revoked {
-		return apierrors.New(apierrors.CodeForbiddenRevoked, "Principal grant has been revoked")
-	}
-	if decision.Target != nil {
-		allowed, perr := e.cfg.Policy.Allows(fresh, *decision.Target)
-		if perr != nil {
-			return apierrors.Internal("Authorization policy unavailable", perr)
-		}
-		if !allowed {
-			return forbiddenTarget()
-		}
-	}
-	return nil
-}
-
-// RequireEffect is called by effectful handlers immediately before their
-// first side effect. It confirms the route was admitted as effectful, that the
-// deployment matches the admitted target, re-validates the principal, and
-// writes the audit line.
-func (e *Enforcer) RequireEffect(ctx context.Context, deploymentID string, effect Effect) *apierrors.Error {
-	decision, ok := DecisionFromContext(ctx)
-	if !ok {
-		return apierrors.New(apierrors.CodeForbiddenScope, "Request was not admitted by the authorization boundary")
-	}
-	if !decision.Route.Effectful() {
-		return apierrors.New(apierrors.CodeForbiddenScope, "Route is not admitted for effects").WithDetail("route", decision.Route.Key())
-	}
-	if decision.Target != nil && strings.TrimSpace(deploymentID) != "" && decision.Target.DeploymentID != deploymentID {
-		e.audit("authz.effect", decision.Route, decision.Principal, decision.Target, "denied", apierrors.CodeForbiddenTarget)
-		return forbiddenTarget()
-	}
-	if denied := e.Recheck(ctx, decision.Principal); denied != nil {
-		e.audit("authz.effect", decision.Route, decision.Principal, decision.Target, "denied", denied.Code)
-		return denied
-	}
-	e.audit("authz.effect", decision.Route, decision.Principal, decision.Target, "admitted", string(effect))
-	return nil
-}
-
-// EffectGate wraps a handler so RequireEffect runs before it. It is used for
-// package-owned handlers that cannot call the enforcer themselves.
-func (e *Enforcer) EffectGate(effect Effect, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if denied := e.RequireEffect(r.Context(), mux.Vars(r)["id"], effect); denied != nil {
-			apierrors.Write(w, denied)
-			return
-		}
-		next(w, r)
-	}
-}
-
-// SessionContext bounds an interactive session by the principal's credential
-// expiry so a socket cannot outlive the grant that opened it.
-func (e *Enforcer) SessionContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	decision, ok := DecisionFromContext(ctx)
-	if !ok || decision.ExpiresAt.IsZero() {
-		return context.WithCancel(ctx)
-	}
-	return context.WithDeadline(ctx, decision.ExpiresAt)
 }
 
 func (e *Enforcer) deny(w http.ResponseWriter, r *http.Request, route Route, principal identity.Principal, err *apierrors.Error) {

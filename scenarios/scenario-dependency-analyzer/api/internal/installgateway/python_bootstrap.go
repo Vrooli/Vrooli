@@ -25,6 +25,7 @@ type PythonRequirement struct {
 }
 
 var exactPythonVersion = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.+!-]*$`)
+var pinnedBootstrapRequirement = regexp.MustCompile(`^\s*([A-Za-z0-9][A-Za-z0-9_.-]*)(?:\[[A-Za-z0-9][A-Za-z0-9_.-]*(?:,[A-Za-z0-9][A-Za-z0-9_.-]*)*\])?==([^\\\s]+)(?:\s*\\)?\s*$`)
 var pythonHash = regexp.MustCompile(`^[a-f0-9]{64}$`)
 var pythonPackageName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 var pythonNameSeparators = regexp.MustCompile(`[-_.]+`)
@@ -106,7 +107,7 @@ func parsePythonBootstrapInput(data []byte) ([]PythonRequirement, error) {
 				return nil, err
 			}
 		} else {
-			match := pinnedRequirement.FindStringSubmatch(line)
+			match := pinnedBootstrapRequirement.FindStringSubmatch(line)
 			if len(match) != 3 || strings.HasSuffix(line, "\\") || !exactPythonVersion.MatchString(match[2]) {
 				return nil, fmt.Errorf("bootstrap input requires exact name==version pins or hash-bound direct wheels; includes/options/ranges are not supported")
 			}

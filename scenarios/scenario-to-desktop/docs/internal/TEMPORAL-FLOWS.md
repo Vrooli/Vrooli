@@ -202,14 +202,18 @@ its signed URL; a test transport supplies the original archive bytes.
 | SliceReturnsWhenFullAppCloses | SM11 selection reuses the verified installed generation |
 | UsageSliceDrivesUsageBars | actual installed slice capability; readiness is separate from staging |
 
-Retained evidence: `~/.vrooli/evidence/agent-connect/J11-latest.log` records all
-nine passing names and archive SHA256
+Retained evidence: `~/.vrooli/evidence/agent-connect/J11-latest.log` is dated
+2026-11-04 and records eight of nine checks passing. The ninth,
+`TestJ11_AddHereOrGetFullAppBothOffered`, failed because its LPBS helper did not
+stop; therefore the all-nine claim above is not established by this receipt.
+The retained archive SHA256 is
 `7a5dbdffaed89f47ea74fc97957307cefb19ab4ded1f506fb268e951a881abe1`.
 Current owner verification and failing-before retry evidence are under
-`~/.vrooli/evidence/agent-connect/t8-sm10/`. No top-level board is run by this
-package lane. The coordinator owns current combined J11 validation and
-independent acceptance; these package traces alone do not certify UI/process
-readiness or the neighboring provider-selection machine.
+`~/.vrooli/evidence/agent-connect/t8-sm10/`, but no later combined J11 receipt
+was found in this audit. No top-level board is run by this package lane. The
+coordinator owns current combined J11 validation and independent acceptance;
+these package traces alone do not certify UI/process readiness or the
+neighboring provider-selection machine.
 
 ## Answering provider selection (SM11)
 

@@ -151,10 +151,11 @@ refused.
 |---|---|
 | `GET /api/v1/operations/{id}` | Typed standing: `state`, `terminal`, `fence`, `active_step`, `completed_steps`, `step_receipts`, `unknown_effects`, `result`, `error`, `next_action`, `reattach_command`, timestamps |
 | `GET /api/v1/operations/{id}/wait?timeout=` | Server-side block until terminal or the observer bound; a timed-out wait returns `still_pending: true` with `recommended_next_check_seconds` and changes nothing |
+| `GET /api/v1/deployments/{id}/operations/{operation_id}/target-receipts/{step}` | Fresh no-store target-owner receipt read for a step declared in that operation's immutable plan; deployment/operation mismatch and undeclared steps are refused |
 | `GET /api/v1/deployments/{id}/operations` | Operations of a deployment, newest first |
 | `GET /api/v1/deployments/{id}/progress?operation_id=` | SSE keyed by operation; a terminal operation replays its outcome and closes |
-| Connect `vrooli.scenario_to_cloud.v1.operations.OperationsService` | Same shapes |
-| CLI `scenario-to-cloud operation get\|wait\|cancel\|list` | Human view via `cli-core/operationstanding`; `--json` is the server body unchanged. Exit codes: 0 succeeded, 1 failed/failed_recovery/cancelled, 2 refused, 3 pending, 124 observer timeout |
+| Connect `vrooli.scenario_to_cloud.v1.operations.OperationsService` | Same status, wait and list shapes; `GetTargetReceipt` performs a fresh no-store target-owner read and authorizes its body `deployment_id` against the caller's exact target grant before reach |
+| CLI `scenario-to-cloud operation get\|wait\|cancel\|list\|target-receipt` | Human view via `cli-core/operationstanding`; `--json` is the server body unchanged. Target receipt reads require deployment, operation and declared step identifiers. Exit codes: 0 succeeded, 1 failed/failed_recovery/cancelled, 2 refused, 3 pending, 124 observer timeout |
 
 ## Deployment status projection
 

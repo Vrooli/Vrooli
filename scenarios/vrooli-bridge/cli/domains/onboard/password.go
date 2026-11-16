@@ -24,10 +24,11 @@ const sshPasswordEnvVar = "BRIDGE_" + "SSH_" + "PASSWORD" //nolint:gosec // name
 type credentialSource string
 
 const (
-	credentialFromStdin  credentialSource = "--password-stdin"
-	credentialFromPrompt credentialSource = "--prompt-password"
-	credentialFromEnv    credentialSource = "$" + sshPasswordEnvVar
-	credentialNone       credentialSource = "none"
+	credentialFromStdin     credentialSource = "--password-stdin"
+	credentialFromPrompt    credentialSource = "--prompt-password"
+	credentialFromEnv       credentialSource = "$" + sshPasswordEnvVar
+	credentialFromAuthority credentialSource = "credential authority"
+	credentialNone          credentialSource = "none"
 )
 
 // passwordSource resolves the SSH password without ever reading it from argv.

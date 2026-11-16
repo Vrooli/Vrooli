@@ -385,7 +385,7 @@ type Status struct {
 	ScenarioName string `json:"scenario_name"`
 
 	// Status is the overall pipeline status.
-	Status string `json:"status"`
+	Status PipelineStatus `json:"status"`
 
 	// CurrentStage is the name of the currently executing stage.
 	CurrentStage string `json:"current_stage,omitempty"`
@@ -447,6 +447,43 @@ type Status struct {
 
 	// lastStateChange tracks when the current state was entered (for duration calculation).
 	lastStateChange time.Time
+}
+
+// PipelineStatus is the persisted lifecycle of a pipeline run. The fine-grained
+// CurrentState remains an independent execution phase for progress reporting.
+type PipelineStatus string
+
+// TransitionStatus applies a legal outcome transition. The empty value is
+// accepted only as a legacy initial state; new records start at idle/pending.
+func (s *Status) TransitionStatus(next PipelineStatus) error {
+	if s == nil {
+		return fmt.Errorf("pipeline status is nil")
+	}
+	if !s.Status.CanTransitionTo(next) {
+		return fmt.Errorf("invalid pipeline status transition %q -> %q", s.Status, next)
+	}
+	s.Status = next
+	return nil
+}
+
+func (s PipelineStatus) CanTransitionTo(next PipelineStatus) bool {
+	if s == next {
+		return true
+	}
+	switch s {
+	case "", StatusIdle:
+		return next == StatusPending
+	case StatusPending:
+		return next == StatusRunning || next == StatusFailed || next == StatusCancelled
+	case StatusRunning:
+		return next == StatusCompleted || next == StatusFailed || next == StatusCancelled
+	case StatusCancelled:
+		// Startup recovery may replace a cancellation recorded by a surviving
+		// worker with the authoritative interrupted-by-restart failure.
+		return next == StatusFailed
+	default:
+		return false
+	}
 }
 
 // TransitionTo transitions the pipeline to a new state with validation.

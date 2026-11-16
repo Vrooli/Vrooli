@@ -59,106 +59,169 @@ type VerifyReport struct {
 // platform mismatch) whose details.check names the failed step.
 func Verify(ctx context.Context, dir string, opts VerifyOptions) (VerifyReport, error) {
 	report := VerifyReport{Checks: []Check{}}
-	fail := func(id string, err *apierrors.Error) (VerifyReport, error) {
-		report.Checks = append(report.Checks, Check{ID: id, Status: "failed", Code: err.Code})
-		return report, err.WithDetail("check", id)
+	mode, err := resolveVerifyTrustMode(opts.TrustMode)
+	if err != nil {
+		return report, err
 	}
-	pass := func(id string) { report.Checks = append(report.Checks, Check{ID: id, Status: "passed"}) }
-	refuse := func(reason, format string, args ...any) *apierrors.Error {
-		return apierrors.Newf(apierrors.CodeReleaseVerificationFailed, format, args...).WithDetail("reason", reason)
-	}
-
-	if opts.TrustMode == "" {
-		mode, err := ResolveTrustMode(nil)
-		if err != nil {
-			return report, err
-		}
-		opts.TrustMode = mode
-	} else if err := opts.TrustMode.Validate(); err != nil {
-		return report, apierrors.Newf(apierrors.CodeInvalidRequest, "%v", err)
-	}
+	opts.TrustMode = mode
 	if opts.PublicKeyPath == "" && opts.RepoRoot != "" {
 		opts.PublicKeyPath = filepath.Join(opts.RepoRoot, DefaultPublicKeyRelPath)
 	}
-	report.TrustMode = string(opts.TrustMode)
-
-	if _, err := os.Stat(filepath.Join(dir, cloudrelease.CompleteMarker)); err != nil {
-		return fail("complete", refuse(ReasonIncomplete, "release at %s has no completion marker; it is not a release", dir))
+	report.TrustMode = string(mode)
+	state := verifyState{ctx: ctx, dir: dir, opts: opts, report: report}
+	if err := state.run(); err != nil {
+		return state.report, err
 	}
-	pass("complete")
+	return state.report, nil
+}
 
-	manifestBytes, err := os.ReadFile(filepath.Join(dir, cloudrelease.ManifestFileName))
+type verifyState struct {
+	ctx           context.Context
+	dir           string
+	opts          VerifyOptions
+	report        VerifyReport
+	manifest      *cloudrelease.Manifest
+	manifestBytes []byte
+}
+
+func resolveVerifyTrustMode(mode TrustMode) (TrustMode, error) {
+	if mode == "" {
+		return ResolveTrustMode(nil)
+	}
+	if err := mode.Validate(); err != nil {
+		return "", apierrors.Newf(apierrors.CodeInvalidRequest, "%v", err)
+	}
+	return mode, nil
+}
+
+func (v *verifyState) run() error {
+	checks := []func() error{
+		v.checkComplete, v.readManifest, v.checkReleaseDigest,
+		v.checkBundle, v.checkPlatform, v.checkNativeCLI,
+		v.checkArchiveBounds, v.checkProvenance,
+	}
+	for _, check := range checks {
+		if err := check(); err != nil {
+			return err
+		}
+	}
+	v.report.Verified = true
+	return nil
+}
+
+func (v *verifyState) pass(id string) {
+	v.report.Checks = append(v.report.Checks, Check{ID: id, Status: "passed"})
+}
+
+func (v *verifyState) fail(id string, err *apierrors.Error) error {
+	v.report.Checks = append(v.report.Checks, Check{ID: id, Status: "failed", Code: err.Code})
+	return err.WithDetail("check", id)
+}
+
+func refuse(reason, format string, args ...any) *apierrors.Error {
+	return apierrors.Newf(apierrors.CodeReleaseVerificationFailed, format, args...).WithDetail("reason", reason)
+}
+
+func (v *verifyState) checkComplete() error {
+	if _, err := os.Stat(filepath.Join(v.dir, cloudrelease.CompleteMarker)); err != nil {
+		return v.fail("complete", refuse(ReasonIncomplete, "release at %s has no completion marker; it is not a release", v.dir))
+	}
+	v.pass("complete")
+	return nil
+}
+
+func (v *verifyState) readManifest() error {
+	data, err := os.ReadFile(filepath.Join(v.dir, cloudrelease.ManifestFileName))
 	if err != nil {
-		return fail("manifest", refuse("release_manifest_invalid", "read release manifest: %v", err))
+		return v.fail("manifest", refuse("release_manifest_invalid", "read release manifest: %v", err))
 	}
-	manifest, err := cloudrelease.ParseManifest(manifestBytes)
+	manifest, err := cloudrelease.ParseManifest(data)
 	if err != nil {
-		return fail("manifest", refuse("release_manifest_invalid", "%v", err))
+		return v.fail("manifest", refuse("release_manifest_invalid", "%v", err))
 	}
-	report.ReleaseDigest = manifest.ReleaseDigest
-	report.Policy = manifest.Provenance.Policy
-	pass("manifest")
+	v.manifestBytes, v.manifest = data, &manifest
+	v.report.ReleaseDigest = manifest.ReleaseDigest
+	v.report.Policy = manifest.Provenance.Policy
+	v.pass("manifest")
+	return nil
+}
 
-	expected, err := cloudrelease.ComputeReleaseDigest(manifest)
+func (v *verifyState) checkReleaseDigest() error {
+	expected, err := cloudrelease.ComputeReleaseDigest(*v.manifest)
 	if err != nil {
-		return fail("release_digest", refuse("release_manifest_invalid", "compute release digest: %v", err))
+		return v.fail("release_digest", refuse("release_manifest_invalid", "compute release digest: %v", err))
 	}
-	if expected != manifest.ReleaseDigest || filepath.Base(dir) != manifest.ReleaseDigest {
-		return fail("release_digest", refuse("release_digest_mismatch", "release_digest does not match the manifest identity").WithDetail("declared", manifest.ReleaseDigest).WithDetail("computed", expected))
+	if expected != v.manifest.ReleaseDigest || filepath.Base(v.dir) != v.manifest.ReleaseDigest {
+		return v.fail("release_digest", refuse("release_digest_mismatch", "release_digest does not match the manifest identity").WithDetail("declared", v.manifest.ReleaseDigest).WithDetail("computed", expected))
 	}
-	pass("release_digest")
+	v.pass("release_digest")
+	return nil
+}
 
-	bundleSum, _, err := fileSHA256(filepath.Join(dir, cloudrelease.BundleFileName))
+func (v *verifyState) checkBundle() error {
+	bundleSum, _, err := fileSHA256(filepath.Join(v.dir, cloudrelease.BundleFileName))
 	if err != nil {
-		return fail("bundle_sha256", refuse("archive_unreadable", "read bundle: %v", err))
+		return v.fail("bundle_sha256", refuse("archive_unreadable", "read bundle: %v", err))
 	}
-	if bundleSum != manifest.BundleSHA256 {
-		return fail("bundle_sha256", refuse("bundle_sha256_mismatch", "bundle sha256 does not match the manifest").WithDetail("declared", manifest.BundleSHA256).WithDetail("observed", bundleSum))
+	if bundleSum != v.manifest.BundleSHA256 {
+		return v.fail("bundle_sha256", refuse("bundle_sha256_mismatch", "bundle sha256 does not match the manifest").WithDetail("declared", v.manifest.BundleSHA256).WithDetail("observed", bundleSum))
 	}
-	pass("bundle_sha256")
+	v.pass("bundle_sha256")
+	return nil
+}
 
-	if opts.Platform != nil && (opts.Platform.GOOS != manifest.NativeCLI.GOOS || opts.Platform.GOARCH != manifest.NativeCLI.GOARCH) {
-		return fail("platform", apierrors.Newf(apierrors.CodeUnsupportedCapability, "release native control plane is %s/%s; the target needs %s", manifest.NativeCLI.GOOS, manifest.NativeCLI.GOARCH, opts.Platform).
-			WithDetail("artifact", cloudrelease.NativeCLIFileName(manifest.NativeCLI.GOOS, manifest.NativeCLI.GOARCH)).WithDetail("declared", manifest.NativeCLI.GOOS+"/"+manifest.NativeCLI.GOARCH).WithDetail("required", opts.Platform.String()))
+func (v *verifyState) checkPlatform() error {
+	platform := v.opts.Platform
+	if platform != nil && (platform.GOOS != v.manifest.NativeCLI.GOOS || platform.GOARCH != v.manifest.NativeCLI.GOARCH) {
+		return v.fail("platform", apierrors.Newf(apierrors.CodeUnsupportedCapability, "release native control plane is %s/%s; the target needs %s", v.manifest.NativeCLI.GOOS, v.manifest.NativeCLI.GOARCH, platform).
+			WithDetail("artifact", cloudrelease.NativeCLIFileName(v.manifest.NativeCLI.GOOS, v.manifest.NativeCLI.GOARCH)).WithDetail("declared", v.manifest.NativeCLI.GOOS+"/"+v.manifest.NativeCLI.GOARCH).WithDetail("required", platform.String()))
 	}
-	pass("platform")
+	v.pass("platform")
+	return nil
+}
 
-	nativeName := cloudrelease.NativeCLIFileName(manifest.NativeCLI.GOOS, manifest.NativeCLI.GOARCH)
-	nativeSum, _, err := fileSHA256(filepath.Join(dir, nativeName))
+func (v *verifyState) checkNativeCLI() error {
+	name := cloudrelease.NativeCLIFileName(v.manifest.NativeCLI.GOOS, v.manifest.NativeCLI.GOARCH)
+	sum, _, err := fileSHA256(filepath.Join(v.dir, name))
 	if err != nil {
-		return fail("native_cli", refuse("native_cli_mismatch", "read %s: %v", nativeName, err).WithDetail("artifact", nativeName))
+		return v.fail("native_cli", refuse("native_cli_mismatch", "read %s: %v", name, err).WithDetail("artifact", name))
 	}
-	if nativeSum != manifest.NativeCLI.SHA256 {
-		return fail("native_cli", refuse("native_cli_mismatch", "%s sha256 does not match native_cli.sha256", nativeName).WithDetail("artifact", nativeName).WithDetail("declared", manifest.NativeCLI.SHA256).WithDetail("observed", nativeSum))
+	if sum != v.manifest.NativeCLI.SHA256 {
+		return v.fail("native_cli", refuse("native_cli_mismatch", "%s sha256 does not match native_cli.sha256", name).WithDetail("artifact", name).WithDetail("declared", v.manifest.NativeCLI.SHA256).WithDetail("observed", sum))
 	}
-	pass("native_cli")
+	v.pass("native_cli")
+	return nil
+}
 
-	budget := opts.TimeBudget
+func (v *verifyState) checkArchiveBounds() error {
+	budget := v.opts.TimeBudget
 	if budget <= 0 {
 		budget = DefaultVerifyBudget
 	}
 	deadline := time.Now().Add(budget)
-	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+	if ctxDeadline, ok := v.ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
 		deadline = ctxDeadline
 	}
-	summary, err := binaryfetch.InspectArchiveBounded(filepath.Join(dir, cloudrelease.BundleFileName), cloudrelease.ArchiveFormat, manifest.ExtractOptions(deadline))
-	report.Archive = summary
+	summary, err := binaryfetch.InspectArchiveBounded(filepath.Join(v.dir, cloudrelease.BundleFileName), cloudrelease.ArchiveFormat, v.manifest.ExtractOptions(deadline))
+	v.report.Archive = summary
 	if err != nil {
 		reason := "archive_unreadable"
 		var archiveErr *binaryfetch.ArchiveError
 		if errors.As(err, &archiveErr) {
 			reason = "archive_" + string(archiveErr.Violation)
 		}
-		return fail("archive_bounds", refuse(reason, "%v", err))
+		return v.fail("archive_bounds", refuse(reason, "%v", err))
 	}
-	pass("archive_bounds")
+	v.pass("archive_bounds")
+	return nil
+}
 
-	keyID, err := verifyProvenance(dir, manifest, manifestBytes, opts.TrustMode, opts.PublicKeyPath)
+func (v *verifyState) checkProvenance() error {
+	keyID, err := verifyProvenance(v.dir, *v.manifest, v.manifestBytes, v.opts.TrustMode, v.opts.PublicKeyPath)
 	if err != nil {
-		return fail("provenance", refuse("untrusted_provenance", "%v", err).WithDetail("policy", manifest.Provenance.Policy).WithDetail("trust_mode", string(opts.TrustMode)))
+		return v.fail("provenance", refuse("untrusted_provenance", "%v", err).WithDetail("policy", v.manifest.Provenance.Policy).WithDetail("trust_mode", string(v.opts.TrustMode)))
 	}
-	report.SignerKeyID = keyID
-	pass("provenance")
-	report.Verified = true
-	return report, nil
+	v.report.SignerKeyID = keyID
+	v.pass("provenance")
+	return nil
 }

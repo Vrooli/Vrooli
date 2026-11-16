@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/privilegedops"
 
 	"github.com/vrooli/cli-core/cliapp"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"google.golang.org/protobuf/encoding/protojson"
 	"vrooli-bridge/cli/internal/operatorauth"
 	"vrooli-bridge/cli/internal/session"
@@ -33,12 +34,13 @@ const defaultRevision = "@cp"
 
 // handlers bundles the Connect client and the (injectable) SSH-password source.
 type handlers struct {
-	core          *cliapp.ScenarioApp
-	client        onboardconnect.OnboardServiceClient
-	machines      machineCreator
-	cleanup       cleanupconnect.CleanupServiceClient
-	password      passwordSource
-	authorization io.Reader
+	core              *cliapp.ScenarioApp
+	client            onboardconnect.OnboardServiceClient
+	machines          machineCreator
+	cleanup           cleanupconnect.CleanupServiceClient
+	password          passwordSource
+	resolveCredential func(string, string) (string, error)
+	authorization     io.Reader
 }
 
 func selectionFromFile(path string) (*setupv1.Selection, error) {
@@ -109,11 +111,18 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 		return fmt.Errorf("--setup-passphrase-stdin is retired: the target setup queues credential-store protection for vrooli-onboarding")
 	}
 	fromStdin := ctx.BoolFlag("password-stdin")
+	credentialIdentity := strings.TrimSpace(ctx.Flag("password-credential"))
+	if fromStdin && credentialIdentity != "" {
+		return fmt.Errorf("--password-stdin and --password-credential are mutually exclusive")
+	}
 	if preflight.Msg.PasswordRequired {
 		var resolveErr error
-		if setupPassphraseStdin {
-			password, resolveErr = h.password.resolveLine()
-			credSource = credentialFromStdin
+		if credentialIdentity != "" {
+			if h.resolveCredential == nil {
+				return fmt.Errorf("credential authority is unavailable for --password-credential")
+			}
+			password, resolveErr = h.resolveCredential(credentialIdentity, "password")
+			credSource = credentialFromAuthority
 		} else if fromStdin {
 			var source credentialSource
 			password, source, resolveErr = h.password.resolve(user, host, true, false)
@@ -127,10 +136,13 @@ func (h *handlers) preflightConnect(ctx cliapp.RunContext) error {
 			password, credSource, resolveErr = h.password.resolve(user, host, false, true)
 		}
 		if resolveErr != nil {
+			if credentialIdentity != "" {
+				return fmt.Errorf("resolve SSH password credential %q: %w", credentialIdentity, resolveErr)
+			}
 			return resolveErr
 		}
 		if strings.TrimSpace(password) == "" {
-			return fmt.Errorf("SSH password is required for %s; use the masked prompt, --password-stdin, or $%s", connectDecisionLabel(decision), sshPasswordEnvVar)
+			return fmt.Errorf("SSH password is required for %s; use --password-credential, the masked prompt, --password-stdin, or $%s", connectDecisionLabel(decision), sshPasswordEnvVar)
 		}
 	}
 
@@ -227,13 +239,30 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	// render the durable terminal result instead of timing out locally.
 	httpClient, baseURL := session.NewConnectHTTPClientWithTimeout(core, 2*time.Hour)
 	return &handlers{
-		core:          core,
-		client:        onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
-		machines:      machinesconnect.NewMachineServiceClient(httpClient, baseURL),
-		cleanup:       cleanupconnect.NewCleanupServiceClient(httpClient, baseURL),
-		password:      newPasswordSource(),
-		authorization: os.Stdin,
+		core:              core,
+		client:            onboardconnect.NewOnboardServiceClient(httpClient, baseURL),
+		machines:          machinesconnect.NewMachineServiceClient(httpClient, baseURL),
+		cleanup:           cleanupconnect.NewCleanupServiceClient(httpClient, baseURL),
+		password:          newPasswordSource(),
+		resolveCredential: resolveCredentialFromAuthority,
+		authorization:     os.Stdin,
 	}
+}
+
+// resolveCredentialFromAuthority reads one explicit credential only after the
+// server preflight has established that SSH password recovery is required.
+// The value stays in this process and is sent only in StartOnboarding's request
+// body; it is never written to stdout or onboarding reports.
+func resolveCredentialFromAuthority(identityRaw, field string) (string, error) {
+	identity, err := credentialauthority.ParseIdentity(identityRaw)
+	if err != nil {
+		return "", fmt.Errorf("invalid credential identity: %w", err)
+	}
+	authority, err := credentialauthority.Default()
+	if err != nil {
+		return "", fmt.Errorf("open credential authority: %w", err)
+	}
+	return authority.Resolve(identity, field)
 }
 
 // protect is the named first-touch protection step. It deliberately runs

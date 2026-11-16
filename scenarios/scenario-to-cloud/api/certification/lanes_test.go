@@ -53,6 +53,11 @@ func TestQEMULaneManifestMatchesMatrix(t *testing.T) {
 	if len(got) == 0 {
 		t.Fatalf("the qemu lane must hold cells")
 	}
+	for _, cell := range manifest.Cells {
+		if !strings.Contains(cell.ReceiptRef, ".qemu.{target_ground}.<content-sha256>.json") {
+			t.Errorf("%s receipt_ref %q must bind target ground and append-only content digest", cell.CaseID, cell.ReceiptRef)
+		}
+	}
 }
 
 // TestQEMULaneRefusesDrift proves the validator names a dropped cell and an
@@ -120,73 +125,129 @@ func TestQEMULaneProgramCaseListMatchesManifest(t *testing.T) {
 	}
 }
 
-// TestQEMULaneReceiptsAreHonestlyUnavailable [REQ:STC-P0-041] P20-A06: every
-// qemu cell holds a receipt, none of them passes, every one names the
-// external inputs that keep it open, and readiness for the candidate stays
-// not_ready with the qemu cells listed as unavailable rather than missing.
-func TestQEMULaneReceiptsAreHonestlyUnavailable(t *testing.T) {
+func TestQEMUProgramReadsFreshTargetReceiptsAndKeepsAssertionsPending(t *testing.T) {
+	source, err := os.ReadFile(qemuProgramPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	wait := strings.Index(text, `scenario_to_cloud.operation.wait`)
+	read := strings.Index(text, `scenario_to_cloud.operation.target_receipt`)
+	classify := strings.Index(text, `if not observed["target_receipts"] or observed["target_receipt_error"]:`)
+	pending := strings.Index(text, `cell["verdict"] = "pending_assertions"`)
+	if wait < 0 || read < 0 || classify < 0 || pending < 0 || !(wait < read && read < classify && classify < pending) {
+		t.Fatal("QEMU runner must read a fresh target receipt after wait, fail closed when missing, and keep per-cell assertions pending")
+	}
+	contractPath := "../../.vrooli/program-runtime/cloud-qemu-qualification.json"
+	contract, err := os.ReadFile(contractPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(contract), `"id": "scenario-to-cloud/operation/target-receipt"`) {
+		t.Fatal("QEMU contract must declare target receipt binding")
+	}
+}
+
+func TestQEMUProgramAdmitsEveryMatrixLaneCellForItsGround(t *testing.T) {
+	m := mustMatrix(t)
+	source, err := os.ReadFile(qemuProgramPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(source)
+	if !strings.Contains(text, `TARGET_GROUND = "qemu"`) {
+		t.Fatal("program must remain bound to the QEMU target ground")
+	}
+	if !strings.Contains(text, `if len(cases) != 1:`) {
+		t.Fatal("one QEMU operation must not be attributed to multiple matrix cases without case-specific fixtures and assertions")
+	}
+	block := strings.SplitN(strings.SplitN(text, "QEMU_LANE_CASES = {\n", 2)[1], "\n}\nFAULT_CAPABILITIES", 2)
+	if len(block) != 2 {
+		t.Fatal("cannot locate QEMU_LANE_CASES")
+	}
+	rows := regexp.MustCompile(`(?m)^\s+"([^"]+)": (\[[^\n]*\]),$`).FindAllStringSubmatch(block[0], -1)
+	got := map[Lane][]string{}
+	for _, row := range rows {
+		var cases []string
+		if err := json.Unmarshal([]byte(row[2]), &cases); err != nil {
+			t.Fatalf("parse QEMU %s cases: %v", row[1], err)
+		}
+		got[Lane(row[1])] = cases
+	}
+	if len(got) != len(m.LaneVocabulary) {
+		t.Fatalf("QEMU program lane sets = %d, matrix vocabulary = %d", len(got), len(m.LaneVocabulary))
+	}
+	for _, lane := range m.LaneVocabulary {
+		want := []string{}
+		for _, c := range m.Cases {
+			if c.Required && containsLane(c.Lanes, lane) && containsGround(m.TargetGroundsFor(c.ID, lane), TargetGroundQEMU) {
+				want = append(want, c.ID)
+			}
+		}
+		actual, ok := got[lane]
+		if !ok {
+			t.Errorf("QEMU runner missing lane %s", lane)
+			continue
+		}
+		sort.Strings(want)
+		sort.Strings(actual)
+		if strings.Join(want, ",") != strings.Join(actual, ",") {
+			t.Errorf("QEMU %s cases differ from ground-applicable matrix cells: got %v want %v", lane, actual, want)
+		}
+	}
+}
+
+// TestUnboundQEMUReceiptsCannotSatisfyGroundCells [REQ:STC-P0-041] P20-A06:
+// historical preflight receipts lack an owned target generation, so none can
+// satisfy either target-ground cell.
+func TestUnboundQEMUReceiptsCannotSatisfyGroundCells(t *testing.T) {
 	m, manifest := loadQEMULane(t)
 	receipts, err := LoadEvidenceDir(filepath.Join("..", "..", "certification", "evidence"), m)
 	if err != nil {
 		t.Fatalf("load evidence: %v", err)
 	}
 	byCase := map[string]Receipt{}
-	var candidate string
 	for _, r := range receipts {
 		if r.Lane != LaneQEMU {
 			continue
 		}
 		if r.Verdict == VerdictPassed {
-			t.Fatalf("receipt %s claims a passed qemu cell on a host without the lane tools", r.Ref)
+			t.Fatalf("receipt %s claims a passed qemu cell without a target-bound run", r.Ref)
 		}
 		if r.Ref != r.CaseID && r.Ref != r.CaseID+".qemu" {
 			t.Fatalf("receipt %s: qemu-lane receipts are stored as <CASE>.json or <CASE>.qemu.json", r.Ref)
 		}
 		if _, dup := byCase[r.CaseID]; dup {
-			t.Fatalf("case %s holds two qemu-lane receipts; keep one per cell", r.CaseID)
+			t.Fatalf("case %s holds two historical qemu-lane receipts", r.CaseID)
 		}
 		joined := strings.Join(r.Limitations, "\n")
 		if !strings.Contains(joined, "EXT-06") || !strings.Contains(joined, "EXT-05") {
 			t.Fatalf("receipt %s must name EXT-05 and EXT-06 in its limitations", r.Ref)
 		}
+		if r.Target.Ground != "" || r.Target.Generation != 0 {
+			t.Fatalf("historical receipt %s unexpectedly claims an owned target: %+v", r.Ref, r.Target)
+		}
 		byCase[r.CaseID] = r
-		candidate = r.Candidate.ReleaseDigest
 	}
-	for _, cell := range manifest.Cells {
-		r, ok := byCase[cell.CaseID]
-		if !ok {
-			t.Fatalf("qemu cell %s has no receipt", cell.CaseID)
-		}
-		if r.Verdict != VerdictUnavailable {
-			t.Fatalf("qemu cell %s verdict %s, want unavailable until the lane runs", cell.CaseID, r.Verdict)
-		}
+	if len(byCase) != len(manifest.Cells) {
+		t.Fatalf("%d historical qemu receipts, want one for each of %d lane cases", len(byCase), len(manifest.Cells))
 	}
-	readiness := Evaluate(m, receipts, Candidate{ReleaseDigest: candidate}, time.Now())
+	readiness := Evaluate(m, receipts, testCandidate(), time.Now())
 	if readiness.Ready {
-		t.Fatalf("unavailable qemu receipts must not certify")
+		t.Fatalf("unbound qemu receipts must not certify")
 	}
-	// Receipts written by different owners may bind to different placeholder
-	// digests; for any candidate a qemu cell is explicit (unavailable or
-	// stale), never missing and never satisfied.
-	explicit := map[string]bool{}
-	for _, cells := range [][]Cell{readiness.UnavailableCells, readiness.StaleCells} {
-		for _, cell := range cells {
-			if cell.Lane == LaneQEMU {
-				explicit[cell.CaseID] = true
-			}
-		}
-	}
+	qemuMissing := 0
 	for _, cell := range readiness.MissingCells {
 		if cell.Lane == LaneQEMU {
-			t.Fatalf("qemu cell %s is reported missing; it must be an explicit unavailable receipt", cell.CaseID)
+			qemuMissing++
 		}
 	}
 	for _, cell := range readiness.SatisfiedCells {
 		if cell.Lane == LaneQEMU {
-			t.Fatalf("qemu cell %s is satisfied without the lane ever running", cell.CaseID)
+			t.Fatalf("qemu cell %s/%s satisfied without a target-bound receipt", cell.CaseID, cell.TargetGround)
 		}
 	}
-	if len(explicit) != len(manifest.Cells) {
-		t.Fatalf("%d qemu cells explicit, want %d", len(explicit), len(manifest.Cells))
+	if want := len(manifest.Cells) * len(m.TargetGroundVocabulary); qemuMissing != want {
+		t.Fatalf("%d qemu ground cells missing, want %d because historical receipts are unbound", qemuMissing, want)
 	}
 }

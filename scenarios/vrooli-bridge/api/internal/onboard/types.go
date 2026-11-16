@@ -328,13 +328,20 @@ type StartInput struct {
 	// zeroed after the bootstrap returns; it is never persisted or logged.
 	SetupPassphrase []byte
 
-	NodeName             string
-	TargetRevision       string
-	RepoURL              string
-	CheckoutDir          string
-	ControlPlaneURL      string
-	ReachabilityMode     string // lan (default) | tunnel | manual
-	Capabilities         []string
+	NodeName         string
+	TargetRevision   string
+	RepoURL          string
+	CheckoutDir      string
+	ControlPlaneURL  string
+	ReachabilityMode string // lan (default) | tunnel | manual
+	Capabilities     []string
+	// PairingScopes carries the existing registry-approved grants when a
+	// durable Machine is re-enrolled. It is deliberately internal to the
+	// owner-authenticated machine/connect paths; ordinary new enrollments use
+	// the posture-selected defaults. PairingScopesSet distinguishes an explicit
+	// empty grant set from the default behavior.
+	PairingScopes        []string
+	PairingScopesSet     bool
 	VerifyTimeoutSeconds int32
 	SkipSetup            bool
 	SkipPrereqs          bool

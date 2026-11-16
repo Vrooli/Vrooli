@@ -88,7 +88,7 @@ func TestEvaluationInvalidatesClosureAndApproval(t *testing.T) {
 	if err := repo.RecordGoalClosure(ctx, review.Key, closed); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.ReplaceEvaluation(ctx, review.Key, []domain.EvidenceItem{{
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, []domain.EvidenceItem{{
 		ReviewKey: review.Key, CriterionID: "suite-state-known", Status: domain.SignalPassed,
 		Applicability: "applicable", Producer: "test-genie", CandidateCommit: "abc",
 		ArtifactDigest: "sha256:candidate", Target: "linux", Environment: "test",
@@ -118,13 +118,13 @@ func TestEvaluationReplacementPreservesPriorEvidenceForAudit(t *testing.T) {
 		ArtifactDigest: "sha256:candidate", Target: "linux", Environment: "test",
 		PolicyVersion: 2, ObservedAt: time.Now().UTC(), Reference: "run:first",
 	}
-	if err := repo.ReplaceEvaluation(ctx, review.Key, []domain.EvidenceItem{first}, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, []domain.EvidenceItem{first}, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 	second := first
 	second.Status = domain.SignalFailed
 	second.Reference = "run:second"
-	if err := repo.ReplaceEvaluation(ctx, review.Key, []domain.EvidenceItem{second}, nil, domain.ReviewBlocked); err != nil {
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewAgentReview, []domain.EvidenceItem{second}, nil, domain.ReviewBlocked); err != nil {
 		t.Fatal(err)
 	}
 	current, _, err := repo.ListEvaluation(ctx, review.Key)
@@ -150,7 +150,7 @@ func TestApprovalRequiresExactIdentityAndGoalClosure(t *testing.T) {
 	if _, err := repo.CreateOrGet(ctx, &review); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.ReplaceEvaluation(ctx, review.Key, nil, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, nil, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 	if err := repo.Approve(ctx, review.Key, review.Identity, "operator", time.Now().UTC()); err == nil {
@@ -187,7 +187,7 @@ func TestNotApplicableEvidenceRequiresReasonAndWaiverExpires(t *testing.T) {
 		t.Fatal(err)
 	}
 	evidence := domain.EvidenceItem{ReviewKey: review.Key, CriterionID: "migration-upgrade-proven", Status: domain.SignalPassed, Applicability: "not_applicable", Producer: "storage-manager", CandidateCommit: "abc", ArtifactDigest: "sha256:candidate", Target: "linux", Environment: "test", PolicyVersion: 2, ObservedAt: time.Now().UTC(), Reference: "schema:no-change"}
-	if err := repo.ReplaceEvaluation(ctx, review.Key, []domain.EvidenceItem{evidence}, nil, domain.ReviewAgentReview); err == nil {
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, []domain.EvidenceItem{evidence}, nil, domain.ReviewAgentReview); err == nil {
 		t.Fatal("expected missing applicability reason refusal")
 	}
 	now := time.Now().UTC()
@@ -261,7 +261,7 @@ func TestOnlyApprovedReviewCanBeMarkedPromoted(t *testing.T) {
 	if err := repo.MarkPromoted(ctx, review.Key, time.Now().UTC()); err == nil {
 		t.Fatal("collecting review was marked promoted")
 	}
-	if err := repo.ReplaceEvaluation(ctx, review.Key, nil, nil, domain.ReviewAgentReview); err != nil {
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, nil, nil, domain.ReviewAgentReview); err != nil {
 		t.Fatal(err)
 	}
 	if err := repo.SetGoal(ctx, review.Key, "goal-1"); err != nil {
@@ -279,5 +279,86 @@ func TestOnlyApprovedReviewCanBeMarkedPromoted(t *testing.T) {
 	got, err := repo.Get(ctx, review.Key)
 	if err != nil || got.Status != domain.ReviewPromoted {
 		t.Fatalf("promoted review=%+v err=%v", got, err)
+	}
+}
+
+func TestEvaluationStatusCASRejectsStaleRefreshWithoutReplacingEvidence(t *testing.T) {
+	repo := openRepository(t)
+	ctx := context.Background()
+	review := testReview()
+	if _, err := repo.CreateOrGet(ctx, &review); err != nil {
+		t.Fatal(err)
+	}
+	first := domain.EvidenceItem{ReviewKey: review.Key, CriterionID: "suite-state-known", Status: domain.SignalPassed, Applicability: "applicable", Producer: "test-genie", CandidateCommit: "abc", ArtifactDigest: "sha256:candidate", Target: "linux", Environment: "test", PolicyVersion: 2, ObservedAt: time.Now().UTC(), Reference: "run:current"}
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, []domain.EvidenceItem{first}, nil, domain.ReviewAgentReview); err != nil {
+		t.Fatal(err)
+	}
+	stale := first
+	stale.Reference = "run:stale"
+	err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, []domain.EvidenceItem{stale}, nil, domain.ReviewBlocked)
+	if _, ok := err.(domain.ErrReviewStatusConflict); !ok {
+		t.Fatalf("stale refresh error = %v, want ErrReviewStatusConflict", err)
+	}
+	got, _, err := repo.ListEvaluation(ctx, review.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := repo.Get(ctx, review.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Status != domain.ReviewAgentReview || len(got) != 1 || got[0].Reference != "run:current" {
+		t.Fatalf("stale refresh changed persisted lifecycle/evidence: status=%q evidence=%+v", record.Status, got)
+	}
+}
+
+func TestGetFailsClosedOnUnknownPersistedStatus(t *testing.T) {
+	repo := openRepository(t)
+	ctx := context.Background()
+	review := testReview()
+	if _, err := repo.CreateOrGet(ctx, &review); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.db.ExecContext(ctx, `UPDATE readiness_reviews SET status = 'mystery' WHERE review_key = ?`, review.Key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Get(ctx, review.Key); err == nil {
+		t.Fatal("unknown persisted status was accepted")
+	} else if _, ok := err.(domain.ErrInvalidReviewStatus); !ok {
+		t.Fatalf("Get error = %v, want ErrInvalidReviewStatus", err)
+	}
+}
+
+func TestEvaluationCannotReopenPromotedReview(t *testing.T) {
+	repo := openRepository(t)
+	ctx := context.Background()
+	review := testReview()
+	if _, err := repo.CreateOrGet(ctx, &review); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewCollecting, nil, nil, domain.ReviewAgentReview); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SetGoal(ctx, review.Key, "goal-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.RecordGoalClosure(ctx, review.Key, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Approve(ctx, review.Key, review.Identity, "operator", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.MarkPromoted(ctx, review.Key, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.ReplaceEvaluation(ctx, review.Key, domain.ReviewPromoted, nil, nil, domain.ReviewAgentReview); err == nil {
+		t.Fatal("promoted review accepted evaluation refresh")
+	}
+	got, err := repo.Get(ctx, review.Key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.ReviewPromoted {
+		t.Fatalf("terminal review status = %q", got.Status)
 	}
 }

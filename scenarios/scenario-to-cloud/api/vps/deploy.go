@@ -45,66 +45,77 @@ func ValidateUserPromptSecrets(manifest domain.CloudManifest, providedSecrets ma
 		if secret.Class != "user_prompt" {
 			continue // Not a user-provided secret
 		}
-		if secret.Descriptor == nil && strings.TrimSpace(secret.DescriptorReason) == "" {
-			return nil, fmt.Errorf("user_prompt secret %q has no credential descriptor address or documented reason", secret.ID)
+		if err := validatePromptDescriptor(secret); err != nil {
+			return nil, err
 		}
 		if !secret.Required {
 			continue // Optional secret
 		}
-
-		key := secret.Target.Name
-		if key == "" {
-			key = secret.ID
+		key := promptSecretKey(secret)
+		if promptSecretProvided(secret, key, providedSecrets) {
+			continue
 		}
-
-		// Check if secret was provided
-		if _, ok := providedSecrets[key]; ok {
-			continue // Secret provided
-		}
-		if secret.Descriptor != nil {
-			address := strings.TrimSpace(secret.Descriptor.LogicalID) + ":" + strings.TrimSpace(secret.Descriptor.Field)
-			if _, ok := providedSecrets[address]; ok {
-				continue
-			}
-		}
-
-		// Secret is missing - collect info for error message
-		label := key
-		description := secret.Description
-		if secret.Prompt != nil {
-			if secret.Prompt.Label != "" {
-				label = secret.Prompt.Label
-			}
-			if secret.Prompt.Description != "" {
-				description = secret.Prompt.Description
-			}
-		}
-
-		missing = append(missing, domain.MissingSecretInfo{
-			ID:          secret.ID,
-			Key:         key,
-			Label:       label,
-			Description: description,
-		})
+		missing = append(missing, missingPromptSecretInfo(secret, key))
 	}
 
 	if len(missing) == 0 {
 		return nil, nil
 	}
 
-	// Build actionable error message
-	var sb strings.Builder
-	sb.WriteString("missing required secrets:\n")
-	for _, m := range missing {
-		sb.WriteString(fmt.Sprintf("  - %s (%s)", m.Label, m.Key))
-		if m.Description != "" {
-			sb.WriteString(": " + m.Description)
-		}
-		sb.WriteString("\n")
-	}
-	sb.WriteString("\nProvide secrets via --secret KEY=VALUE flags or environment variables")
+	return missing, missingPromptSecretsError(missing)
+}
 
-	return missing, fmt.Errorf("%s", sb.String())
+func validatePromptDescriptor(secret domain.BundleSecretPlan) error {
+	if secret.Descriptor == nil && strings.TrimSpace(secret.DescriptorReason) == "" {
+		return fmt.Errorf("user_prompt secret %q has no credential descriptor address or documented reason", secret.ID)
+	}
+	return nil
+}
+
+func promptSecretKey(secret domain.BundleSecretPlan) string {
+	if secret.Target.Name != "" {
+		return secret.Target.Name
+	}
+	return secret.ID
+}
+
+func promptSecretProvided(secret domain.BundleSecretPlan, key string, provided map[string]string) bool {
+	if _, ok := provided[key]; ok {
+		return true
+	}
+	if secret.Descriptor == nil {
+		return false
+	}
+	address := strings.TrimSpace(secret.Descriptor.LogicalID) + ":" + strings.TrimSpace(secret.Descriptor.Field)
+	_, ok := provided[address]
+	return ok
+}
+
+func missingPromptSecretInfo(secret domain.BundleSecretPlan, key string) domain.MissingSecretInfo {
+	label, description := key, secret.Description
+	if secret.Prompt != nil {
+		if secret.Prompt.Label != "" {
+			label = secret.Prompt.Label
+		}
+		if secret.Prompt.Description != "" {
+			description = secret.Prompt.Description
+		}
+	}
+	return domain.MissingSecretInfo{ID: secret.ID, Key: key, Label: label, Description: description}
+}
+
+func missingPromptSecretsError(missing []domain.MissingSecretInfo) error {
+	var message strings.Builder
+	message.WriteString("missing required secrets:\n")
+	for _, secret := range missing {
+		message.WriteString(fmt.Sprintf("  - %s (%s)", secret.Label, secret.Key))
+		if secret.Description != "" {
+			message.WriteString(": " + secret.Description)
+		}
+		message.WriteString("\n")
+	}
+	message.WriteString("\nProvide secrets via --secret KEY=VALUE flags or environment variables")
+	return fmt.Errorf("%s", message.String())
 }
 
 // credentialFieldFor derives the durable field name for a bundle secret.
@@ -141,71 +152,89 @@ func buildUserSecretMap(manifest domain.CloudManifest, providedSecrets map[strin
 	if manifest.Secrets == nil || len(manifest.Secrets.BundleSecrets) == 0 {
 		return nil, nil
 	}
-
-	authority, authErr := credentialauthority.Default()
-	identity, identityErr := credentialauthority.ParseIdentity("vrooli/" + strings.TrimSpace(manifest.Scenario.ID))
-	if authErr != nil {
-		return nil, fmt.Errorf("initialize credential authority: %w", authErr)
+	authority, identity, err := deploymentCredentialIdentity(manifest)
+	if err != nil {
+		return nil, err
 	}
-	if identityErr != nil {
-		return nil, fmt.Errorf("parse deployment identity: %w", identityErr)
-	}
-
 	out := make(map[string]string)
-	descriptorKey := func(address *domain.DescriptorAddress) string {
-		if address == nil {
-			return ""
-		}
-		return strings.TrimSpace(address.LogicalID) + ":" + strings.TrimSpace(address.Field)
-	}
 	for _, secret := range manifest.Secrets.BundleSecrets {
-		if secret.Class != "user_prompt" {
+		key, value, found, err := resolveUserPromptSecret(authority, identity, secret, providedSecrets)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
 			continue
 		}
-		key := secret.Target.Name
-		if key == "" {
-			key = secret.ID
-		}
-		if key == "" {
-			continue
-		}
-		descriptor := descriptorKey(secret.Descriptor)
-		if descriptor != "" {
-			if v, ok := providedSecrets[descriptor]; ok && strings.TrimSpace(v) != "" {
-				out[key] = v
-				continue
-			}
-		}
-		if v, ok := providedSecrets[key]; ok && strings.TrimSpace(v) != "" {
-			out[key] = v
-			continue
-		}
-
-		// Merge precedence (lowest -> highest): the stored credential, then a
-		// value the caller supplied explicitly for this deploy.
-		resolveIdentity := identity
-		if secret.Descriptor != nil {
-			resolveIdentity, identityErr = credentialauthority.ParseIdentity(strings.TrimSpace(secret.Descriptor.LogicalID))
-			if identityErr != nil {
-				return nil, fmt.Errorf("parse descriptor identity for %s: %w", key, identityErr)
-			}
-		}
-		if field := credentialFieldFor(secret); field != "" {
-			// Unconfigured is handled by the caller's missing-secret check, but
-			// provider failures must remain visible and never become empty input.
-			value, resolveErr := authority.Require(resolveIdentity, field)
-			if resolveErr == nil && strings.TrimSpace(value) != "" {
-				out[key] = value
-			} else if resolveErr != nil && !errors.Is(resolveErr, credentialauthority.ErrUnconfigured) {
-				return nil, fmt.Errorf("resolve deployment credential %s:%s: %w", resolveIdentity, field, resolveErr)
-			}
-		}
+		out[key] = value
 	}
 
 	if len(out) == 0 {
 		return nil, nil
 	}
 	return out, nil
+}
+
+func deploymentCredentialIdentity(manifest domain.CloudManifest) (*credentialauthority.Authority, credentialauthority.Identity, error) {
+	authority, authErr := credentialauthority.Default()
+	identity, identityErr := credentialauthority.ParseIdentity("vrooli/" + strings.TrimSpace(manifest.Scenario.ID))
+	if authErr != nil {
+		return nil, "", fmt.Errorf("initialize credential authority: %w", authErr)
+	}
+	if identityErr != nil {
+		return nil, "", fmt.Errorf("parse deployment identity: %w", identityErr)
+	}
+	return authority, identity, nil
+}
+
+func resolveUserPromptSecret(authority *credentialauthority.Authority, identity credentialauthority.Identity, secret domain.BundleSecretPlan, provided map[string]string) (string, string, bool, error) {
+	if secret.Class != "user_prompt" {
+		return "", "", false, nil
+	}
+	key := promptSecretKey(secret)
+	if key == "" {
+		return "", "", false, nil
+	}
+	if value, found := suppliedPromptSecret(secret, key, provided); found {
+		return key, value, true, nil
+	}
+	resolveIdentity, err := credentialIdentityForSecret(identity, secret, key)
+	if err != nil {
+		return "", "", false, err
+	}
+	field := credentialFieldFor(secret)
+	if field == "" {
+		return "", "", false, nil
+	}
+	value, err := authority.Require(resolveIdentity, field)
+	if err == nil && strings.TrimSpace(value) != "" {
+		return key, value, true, nil
+	}
+	if err != nil && !errors.Is(err, credentialauthority.ErrUnconfigured) {
+		return "", "", false, fmt.Errorf("resolve deployment credential %s:%s: %w", resolveIdentity, field, err)
+	}
+	return "", "", false, nil
+}
+
+func suppliedPromptSecret(secret domain.BundleSecretPlan, key string, provided map[string]string) (string, bool) {
+	if secret.Descriptor != nil {
+		address := strings.TrimSpace(secret.Descriptor.LogicalID) + ":" + strings.TrimSpace(secret.Descriptor.Field)
+		if value, ok := provided[address]; ok && strings.TrimSpace(value) != "" {
+			return value, true
+		}
+	}
+	value, ok := provided[key]
+	return value, ok && strings.TrimSpace(value) != ""
+}
+
+func credentialIdentityForSecret(identity credentialauthority.Identity, secret domain.BundleSecretPlan, key string) (credentialauthority.Identity, error) {
+	if secret.Descriptor == nil {
+		return identity, nil
+	}
+	resolved, err := credentialauthority.ParseIdentity(strings.TrimSpace(secret.Descriptor.LogicalID))
+	if err != nil {
+		return "", fmt.Errorf("parse descriptor identity for %s: %w", key, err)
+	}
+	return resolved, nil
 }
 
 // ServiceJSON represents the structure of .vrooli/service.json

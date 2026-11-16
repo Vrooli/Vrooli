@@ -653,7 +653,7 @@ func (a ServiceArtifact) VerifyFileContext(ctx context.Context, path string) err
 		if err != nil {
 			return fmt.Errorf("resolve managed-service host tool: %w", err)
 		}
-		if info.IsDir() || info.Mode()&0o111 == 0 {
+		if !nativeExecutableFile(path, info, runtime.GOOS, runtime.GOARCH) {
 			return fmt.Errorf("managed-service host tool is not executable")
 		}
 		return nil

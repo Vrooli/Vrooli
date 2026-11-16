@@ -3,6 +3,7 @@ package domain
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -16,6 +17,45 @@ const (
 	InvestigationStatusFailed    InvestigationStatus = "failed"
 	InvestigationStatusCancelled InvestigationStatus = "cancelled"
 )
+
+// TransitionStatus advances a persisted investigation through its lifecycle.
+// Repeated writes of the current status are safe; terminal states cannot be
+// reopened or replaced by a different outcome.
+func (i *Investigation) TransitionStatus(next InvestigationStatus) error {
+	if i == nil {
+		return fmt.Errorf("investigation is nil")
+	}
+	if !validInvestigationStatus(i.Status) {
+		return fmt.Errorf("unknown investigation status %q", i.Status)
+	}
+	if !validInvestigationStatus(next) {
+		return fmt.Errorf("unknown investigation status %q", next)
+	}
+	if i.Status == next {
+		return nil
+	}
+	allowed := false
+	switch i.Status {
+	case InvestigationStatusPending:
+		allowed = next == InvestigationStatusRunning || next == InvestigationStatusFailed || next == InvestigationStatusCancelled
+	case InvestigationStatusRunning:
+		allowed = next == InvestigationStatusCompleted || next == InvestigationStatusFailed || next == InvestigationStatusCancelled
+	}
+	if !allowed {
+		return fmt.Errorf("invalid investigation transition %q -> %q", i.Status, next)
+	}
+	i.Status = next
+	return nil
+}
+
+func validInvestigationStatus(status InvestigationStatus) bool {
+	switch status {
+	case InvestigationStatusPending, InvestigationStatusRunning, InvestigationStatusCompleted, InvestigationStatusFailed, InvestigationStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
 
 // Investigation represents an investigation record for a deployment failure.
 // Investigations are triggered by users to diagnose deployment issues via an agent.

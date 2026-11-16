@@ -7,6 +7,8 @@ import (
 	"vrooli-bridge/internal/auth"
 	internalmachines "vrooli-bridge/internal/machines"
 	internalonboard "vrooli-bridge/internal/onboard"
+	"vrooli-bridge/internal/registry"
+	registrymocks "vrooli-bridge/internal/registry/mocks"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -100,13 +102,15 @@ func (f fakeTrustReader) GetTrust(context.Context, string) (internalmachines.Tru
 func TestMachineRepairerUsesPersistedSSHTrust(t *testing.T) {
 	starter := &fakeEnrollmentStarter{}
 	repairer := machineRepairer{
-		service: starter,
-		trust:   fakeTrustReader{trust: internalmachines.TrustRecord{SSHUser: "matthalloran8", SSHPort: 2222}},
+		service:  starter,
+		trust:    fakeTrustReader{trust: internalmachines.TrustRecord{SSHUser: "matthalloran8", SSHPort: 2222}},
+		registry: &registrymocks.FakeService{GetOut: registry.Node{ID: "node-old", Scopes: []string{"vrooli-bridge:read", "scenario-to-cloud:read"}}},
 	}
 
 	opID, attemptID, err := repairer.Repair(context.Background(), internalmachines.Machine{
 		ID:       "m1",
 		Locators: []internalmachines.Locator{{Kind: "hostname", Value: "mini.local"}},
+		Lineage:  []internalmachines.NodeLineage{{NodeID: "node-old", Current: true}},
 	})
 	require.NoError(t, err)
 	require.Equal(t, "op-1", opID)
@@ -114,6 +118,25 @@ func TestMachineRepairerUsesPersistedSSHTrust(t *testing.T) {
 	require.Equal(t, "mini.local", starter.in.Host)
 	require.Equal(t, 2222, starter.in.Port)
 	require.Equal(t, "matthalloran8", starter.in.User)
+	require.True(t, starter.in.PairingScopesSet)
+	require.Equal(t, []string{"vrooli-bridge:read", "scenario-to-cloud:read"}, starter.in.PairingScopes)
+}
+
+func TestMachineRepairerRejectsRegistryIdentityMismatchBeforePairing(t *testing.T) {
+	starter := &fakeEnrollmentStarter{}
+	repairer := machineRepairer{
+		service: starter,
+		trust:   fakeTrustReader{trust: internalmachines.TrustRecord{SSHUser: "matthalloran8"}},
+		registry: &registrymocks.FakeService{GetOut: registry.Node{
+			ID: "unrelated-node", Scopes: []string{"unrelated:write"},
+		}},
+	}
+	_, _, err := repairer.Repair(context.Background(), internalmachines.Machine{
+		ID: "m1", Locators: []internalmachines.Locator{{Kind: "hostname", Value: "mini.local"}},
+		Lineage: []internalmachines.NodeLineage{{NodeID: "current-node", Current: true}},
+	})
+	require.ErrorContains(t, err, "registry returned node")
+	require.Empty(t, starter.in.MachineID, "pairing must not start with unrelated node grants")
 }
 
 type fakeAttemptReader struct {

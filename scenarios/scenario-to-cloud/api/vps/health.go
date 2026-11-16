@@ -186,220 +186,132 @@ func buildDeploymentSection(dep *domain.Deployment) domain.HealthSection {
 }
 
 func buildSSHSection(identity sshidentity.DeploymentSSHIdentity, liveState *domain.LiveStateResult) domain.HealthSection {
-	sec := domain.HealthSection{
-		Category: "ssh",
-		Title:    "SSH & Connectivity",
+	section := domain.HealthSection{Category: "ssh", Title: "SSH & Connectivity"}
+	if unavailable := sshAvailabilityCheck(identity, liveState); unavailable != nil {
+		addCheckToSection(&section, *unavailable)
+		return section
 	}
+	ssh := liveState.System.SSH
+	addCheckToSection(&section, sshConnectionCheck(ssh.LatencyMs))
+	addCheckToSection(&section, sshIdentityCheck(identity, ssh.VerificationState))
+	return section
+}
 
+func sshAvailabilityCheck(identity sshidentity.DeploymentSSHIdentity, liveState *domain.LiveStateResult) *domain.HealthCheck {
 	if liveState == nil || !liveState.OK {
-		msg := "VPS unreachable via SSH"
+		message := "VPS unreachable via SSH"
 		if liveState != nil && liveState.Error != "" {
-			msg = fmt.Sprintf("VPS unreachable: %s", liveState.Error)
+			message = fmt.Sprintf("VPS unreachable: %s", liveState.Error)
 		}
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "ssh_connected",
-			Title:   "SSH connectivity",
-			Status:  domain.HealthCheckFail,
-			Message: msg,
-		})
-		return sec
+		return &domain.HealthCheck{ID: "ssh_connected", Title: "SSH connectivity", Status: domain.HealthCheckFail, Message: message}
 	}
+	if liveState.System == nil {
+		return &domain.HealthCheck{ID: "ssh_connected", Title: "SSH connectivity", Status: domain.HealthCheckFail, Message: "No system data available"}
+	}
+	if !liveState.System.SSH.Connected {
+		return &domain.HealthCheck{ID: "ssh_connected", Title: "SSH connectivity", Status: domain.HealthCheckFail,
+			Message: "VPS unreachable via SSH (connectivity probe failed)", Details: map[string]string{"auth_mode": string(identity.AuthMode)}}
+	}
+	return nil
+}
 
-	system := liveState.System
-	if system == nil {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "ssh_connected",
-			Title:   "SSH connectivity",
-			Status:  domain.HealthCheckFail,
-			Message: "No system data available",
-		})
-		return sec
-	}
-	if !system.SSH.Connected {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "ssh_connected",
-			Title:   "SSH connectivity",
-			Status:  domain.HealthCheckFail,
-			Message: "VPS unreachable via SSH (connectivity probe failed)",
-			Details: map[string]string{"auth_mode": string(identity.AuthMode)},
-		})
-		return sec
-	}
-
-	// Connection check
-	details := map[string]string{
-		"latency_ms": fmt.Sprintf("%d", system.SSH.LatencyMs),
-	}
+func sshConnectionCheck(latency int64) domain.HealthCheck {
 	status := domain.HealthCheckPass
-	msg := fmt.Sprintf("Connected (latency: %dms)", system.SSH.LatencyMs)
-	if system.SSH.LatencyMs > 2000 {
+	message := fmt.Sprintf("Connected (latency: %dms)", latency)
+	if latency > 2000 {
 		status = domain.HealthCheckWarn
-		msg = fmt.Sprintf("Connected but slow (latency: %dms)", system.SSH.LatencyMs)
+		message = fmt.Sprintf("Connected but slow (latency: %dms)", latency)
 	}
-	addCheckToSection(&sec, domain.HealthCheck{
-		ID:      "ssh_connected",
-		Title:   "SSH connectivity",
-		Status:  status,
-		Message: msg,
-		Details: details,
-	})
+	return domain.HealthCheck{ID: "ssh_connected", Title: "SSH connectivity", Status: status, Message: message,
+		Details: map[string]string{"latency_ms": fmt.Sprintf("%d", latency)}}
+}
 
-	// Canonical identity check
-	var keyStatus domain.HealthCheckStatus
-	var keyMsg string
-	keyDetails := map[string]string{
-		"auth_mode":          string(identity.AuthMode),
-		"verification_state": system.SSH.VerificationState,
-	}
-	switch identity.AuthMode {
-	case sshidentity.AuthModeExplicitKey:
-		keyDetails["key_path"] = identity.KeyPath
+func sshIdentityCheck(identity sshidentity.DeploymentSSHIdentity, verification string) domain.HealthCheck {
+	status, message := sshIdentityStatus(identity.AuthMode, sshidentity.VerificationState(verification))
+	details := map[string]string{"auth_mode": string(identity.AuthMode), "verification_state": verification}
+	if identity.AuthMode == sshidentity.AuthModeExplicitKey {
+		details["key_path"] = identity.KeyPath
 		if identity.PublicKeyFingerprint != "" {
-			keyDetails["public_key_fingerprint"] = identity.PublicKeyFingerprint
+			details["public_key_fingerprint"] = identity.PublicKeyFingerprint
 		}
-		switch sshidentity.VerificationState(system.SSH.VerificationState) {
-		case sshidentity.VerificationAuthorized:
-			keyStatus = domain.HealthCheckPass
-			keyMsg = "Explicit SSH key is authorized on VPS"
-		case sshidentity.VerificationUnauthorized:
-			keyStatus = domain.HealthCheckFail
-			keyMsg = "Explicit SSH key is not authorized on VPS"
-		default:
-			keyStatus = domain.HealthCheckFail
-			keyMsg = "Explicit SSH key verification is unknown"
-		}
-	case sshidentity.AuthModeAgent:
-		keyStatus = domain.HealthCheckWarn
-		keyMsg = "Connected via SSH agent; deployment key is not pinned"
-	case sshidentity.AuthModeDefaultSSH:
-		keyStatus = domain.HealthCheckWarn
-		keyMsg = "Connected via default SSH identity; deployment key is not pinned"
-	default:
-		keyStatus = domain.HealthCheckWarn
-		keyMsg = "SSH identity mode is unknown"
 	}
-	addCheckToSection(&sec, domain.HealthCheck{
-		ID:      "ssh_key_auth",
-		Title:   "Key authorization",
-		Status:  keyStatus,
-		Message: keyMsg,
-		Details: keyDetails,
-	})
+	return domain.HealthCheck{ID: "ssh_key_auth", Title: "Key authorization", Status: status, Message: message, Details: details}
+}
 
-	return sec
+func sshIdentityStatus(mode sshidentity.AuthMode, verification sshidentity.VerificationState) (domain.HealthCheckStatus, string) {
+	if mode == sshidentity.AuthModeExplicitKey {
+		switch verification {
+		case sshidentity.VerificationAuthorized:
+			return domain.HealthCheckPass, "Explicit SSH key is authorized on VPS"
+		case sshidentity.VerificationUnauthorized:
+			return domain.HealthCheckFail, "Explicit SSH key is not authorized on VPS"
+		default:
+			return domain.HealthCheckFail, "Explicit SSH key verification is unknown"
+		}
+	}
+	switch mode {
+	case sshidentity.AuthModeAgent:
+		return domain.HealthCheckWarn, "Connected via SSH agent; deployment key is not pinned"
+	case sshidentity.AuthModeDefaultSSH:
+		return domain.HealthCheckWarn, "Connected via default SSH identity; deployment key is not pinned"
+	default:
+		return domain.HealthCheckWarn, "SSH identity mode is unknown"
+	}
 }
 
 func buildProcessesSection(liveState *domain.LiveStateResult, manifest domain.CloudManifest) domain.HealthSection {
-	sec := domain.HealthSection{
-		Category: "processes",
-		Title:    "Processes",
-	}
-
+	sec := domain.HealthSection{Category: "processes", Title: "Processes"}
 	if !LiveStateReachable(liveState) || liveState.Processes == nil {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "processes_unavailable",
-			Title:   "Process state",
-			Status:  domain.HealthCheckSkip,
-			Message: "Process state unavailable (SSH unreachable)",
-		})
+		addCheckToSection(&sec, unavailableProcessesCheck())
 		return sec
 	}
-
 	processes := liveState.Processes
-
-	// Check main scenario
-	scenarioRunning := false
-	for _, s := range processes.Scenarios {
-		if s.ID == manifest.Scenario.ID {
-			scenarioRunning = s.Status == "running"
-			details := map[string]string{
-				"pid":    fmt.Sprintf("%d", s.PID),
-				"cpu":    fmt.Sprintf("%.1f%%", s.Resources.CPUPercent),
-				"memory": fmt.Sprintf("%dMB", s.Resources.MemoryMB),
-			}
-			status := domain.HealthCheckPass
-			msg := fmt.Sprintf("%s running (PID %d)", s.ID, s.PID)
-			if s.Status != "running" {
-				status = domain.HealthCheckFail
-				msg = fmt.Sprintf("%s %s", s.ID, s.Status)
-			}
-			addCheckToSection(&sec, domain.HealthCheck{
-				ID:      "process_scenario_" + s.ID,
-				Title:   s.ID,
-				Status:  status,
-				Message: msg,
-				Details: details,
-			})
-			break
-		}
-	}
-	if !scenarioRunning {
-		// Check if it's not in the list at all
-		found := false
-		for _, s := range processes.Scenarios {
-			if s.ID == manifest.Scenario.ID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			addCheckToSection(&sec, domain.HealthCheck{
-				ID:      "process_scenario_" + manifest.Scenario.ID,
-				Title:   manifest.Scenario.ID,
-				Status:  domain.HealthCheckFail,
-				Message: fmt.Sprintf("%s not running", manifest.Scenario.ID),
-			})
-		}
-	}
-
-	// Check expected resources
-	runningResources := make(map[string]bool)
-	for _, r := range processes.Resources {
-		runningResources[r.ID] = r.Status == "running"
-	}
-
+	addCheckToSection(&sec, scenarioProcessCheck(processes.Scenarios, manifest.Scenario.ID))
 	for _, expectedRes := range manifest.Dependencies.Resources {
-		found := false
-		for _, r := range processes.Resources {
-			if r.ID == expectedRes {
-				found = true
-				details := map[string]string{
-					"pid": fmt.Sprintf("%d", r.PID),
-				}
-				if r.Port > 0 {
-					details["port"] = fmt.Sprintf("%d", r.Port)
-				}
-				status := domain.HealthCheckPass
-				msg := fmt.Sprintf("%s running (PID %d)", r.ID, r.PID)
-				if r.Status != "running" {
-					status = domain.HealthCheckFail
-					msg = fmt.Sprintf("%s %s", r.ID, r.Status)
-				}
-				addCheckToSection(&sec, domain.HealthCheck{
-					ID:      "process_resource_" + r.ID,
-					Title:   r.ID,
-					Status:  status,
-					Message: msg,
-					Details: details,
-				})
-				break
-			}
-		}
-		if !found {
-			addCheckToSection(&sec, domain.HealthCheck{
-				ID:      "process_resource_" + expectedRes,
-				Title:   expectedRes,
-				Status:  domain.HealthCheckFail,
-				Message: fmt.Sprintf("%s not running", expectedRes),
+		addCheckToSection(&sec, resourceProcessCheck(expectedRes, processes.Resources))
+	}
+	sec.Title = fmt.Sprintf("Processes (%d/%d running)", sec.PassCount, 1+len(manifest.Dependencies.Resources))
+	return sec
+}
+
+func unavailableProcessesCheck() domain.HealthCheck {
+	return domain.HealthCheck{ID: "processes_unavailable", Title: "Process state", Status: domain.HealthCheckSkip, Message: "Process state unavailable (SSH unreachable)"}
+}
+
+func scenarioProcessCheck(scenarios []domain.ScenarioProcess, scenarioID string) domain.HealthCheck {
+	for _, scenario := range scenarios {
+		if scenario.ID == scenarioID {
+			return processStatusCheck("process_scenario_", scenario.ID, scenario.Status, scenario.PID, map[string]string{
+				"cpu": fmt.Sprintf("%.1f%%", scenario.Resources.CPUPercent), "memory": fmt.Sprintf("%dMB", scenario.Resources.MemoryMB),
 			})
 		}
 	}
+	return domain.HealthCheck{ID: "process_scenario_" + scenarioID, Title: scenarioID, Status: domain.HealthCheckFail, Message: fmt.Sprintf("%s not running", scenarioID)}
+}
 
-	// Update title with running count
-	totalExpected := 1 + len(manifest.Dependencies.Resources) // scenario + resources
-	sec.Title = fmt.Sprintf("Processes (%d/%d running)", sec.PassCount, totalExpected)
+func resourceProcessCheck(resourceID string, resources []domain.ResourceProcess) domain.HealthCheck {
+	for _, resource := range resources {
+		if resource.ID != resourceID {
+			continue
+		}
+		details := map[string]string{"pid": fmt.Sprintf("%d", resource.PID)}
+		if resource.Port > 0 {
+			details["port"] = fmt.Sprintf("%d", resource.Port)
+		}
+		return processStatusCheck("process_resource_", resource.ID, resource.Status, resource.PID, details)
+	}
+	return domain.HealthCheck{ID: "process_resource_" + resourceID, Title: resourceID, Status: domain.HealthCheckFail, Message: fmt.Sprintf("%s not running", resourceID)}
+}
 
-	return sec
+func processStatusCheck(prefix, id, state string, pid int, details map[string]string) domain.HealthCheck {
+	details["pid"] = fmt.Sprintf("%d", pid)
+	status := domain.HealthCheckPass
+	message := fmt.Sprintf("%s running (PID %d)", id, pid)
+	if state != "running" {
+		status = domain.HealthCheckFail
+		message = fmt.Sprintf("%s %s", id, state)
+	}
+	return domain.HealthCheck{ID: prefix + id, Title: id, Status: status, Message: message, Details: details}
 }
 
 func buildDNSSection(dnsEval *dns.Evaluation, manifest domain.CloudManifest) domain.HealthSection {
@@ -492,53 +404,42 @@ func buildDNSSection(dnsEval *dns.Evaluation, manifest domain.CloudManifest) dom
 }
 
 func buildTLSSection(liveState *domain.LiveStateResult, tlsSnap *tlsinfo.Snapshot, tlsErr error) domain.HealthSection {
-	sec := domain.HealthSection{
-		Category: "tls",
-		Title:    "TLS / Edge",
+	sec := domain.HealthSection{Category: "tls", Title: "TLS / Edge"}
+	if check := caddyHealthCheck(liveState); check != nil {
+		addCheckToSection(&sec, *check)
 	}
-
-	// Caddy status
-	if liveState != nil && liveState.Caddy != nil {
-		caddy := liveState.Caddy
-		if caddy.Running {
-			addCheckToSection(&sec, domain.HealthCheck{
-				ID:      "caddy_running",
-				Title:   "Caddy reverse proxy",
-				Status:  domain.HealthCheckPass,
-				Message: "Caddy: running",
-			})
-		} else {
-			addCheckToSection(&sec, domain.HealthCheck{
-				ID:      "caddy_running",
-				Title:   "Caddy reverse proxy",
-				Status:  domain.HealthCheckFail,
-				Message: "Caddy: not running",
-			})
+	certificate, hasProbe := tlsCertificateHealthCheck(tlsSnap, tlsErr)
+	addCheckToSection(&sec, certificate)
+	if hasProbe {
+		if check := alpnHealthCheck(tlsSnap); check != nil {
+			addCheckToSection(&sec, *check)
 		}
 	}
+	return sec
+}
 
-	// TLS certificate
-	if tlsErr != nil {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_cert",
-			Title:   "TLS certificate",
-			Status:  domain.HealthCheckFail,
-			Message: fmt.Sprintf("TLS probe failed: %v", tlsErr),
-		})
-		return sec
+func caddyHealthCheck(liveState *domain.LiveStateResult) *domain.HealthCheck {
+	if liveState == nil || liveState.Caddy == nil {
+		return nil
 	}
-
-	if tlsSnap == nil {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_cert",
-			Title:   "TLS certificate",
-			Status:  domain.HealthCheckSkip,
-			Message: "TLS check skipped",
-		})
-		return sec
+	status, message := domain.HealthCheckFail, "Caddy: not running"
+	if liveState.Caddy.Running {
+		status, message = domain.HealthCheckPass, "Caddy: running"
 	}
+	return &domain.HealthCheck{ID: "caddy_running", Title: "Caddy reverse proxy", Status: status, Message: message}
+}
 
-	probe := tlsSnap.Probe
+func tlsCertificateHealthCheck(snapshot *tlsinfo.Snapshot, probeErr error) (domain.HealthCheck, bool) {
+	if probeErr != nil {
+		return domain.HealthCheck{ID: "tls_cert", Title: "TLS certificate", Status: domain.HealthCheckFail, Message: fmt.Sprintf("TLS probe failed: %v", probeErr)}, false
+	}
+	if snapshot == nil {
+		return domain.HealthCheck{ID: "tls_cert", Title: "TLS certificate", Status: domain.HealthCheckSkip, Message: "TLS check skipped"}, false
+	}
+	return tlsProbeCertificateHealthCheck(snapshot.Probe), true
+}
+
+func tlsProbeCertificateHealthCheck(probe tlsinfo.ProbeResult) domain.HealthCheck {
 	details := map[string]string{}
 	if probe.Issuer != "" {
 		details["issuer"] = probe.Issuer
@@ -547,176 +448,121 @@ func buildTLSSection(liveState *domain.LiveStateResult, tlsSnap *tlsinfo.Snapsho
 		details["expires"] = probe.NotAfter
 	}
 	details["days_remaining"] = fmt.Sprintf("%d", probe.DaysRemaining)
-
 	if !probe.Valid {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_cert",
-			Title:   "TLS certificate",
-			Status:  domain.HealthCheckFail,
-			Message: "Certificate invalid or expired",
-			Details: details,
-		})
-	} else if probe.DaysRemaining < 30 {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_cert",
-			Title:   "TLS certificate",
-			Status:  domain.HealthCheckWarn,
-			Message: fmt.Sprintf("Certificate valid (%s, expires in %dd)", probe.Issuer, probe.DaysRemaining),
-			Details: details,
-		})
-	} else {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_cert",
-			Title:   "TLS certificate",
-			Status:  domain.HealthCheckPass,
-			Message: fmt.Sprintf("Certificate valid (%s, expires in %dd)", probe.Issuer, probe.DaysRemaining),
-			Details: details,
-		})
+		return domain.HealthCheck{ID: "tls_cert", Title: "TLS certificate", Status: domain.HealthCheckFail, Message: "Certificate invalid or expired", Details: details}
 	}
+	status := domain.HealthCheckPass
+	if probe.DaysRemaining < 30 {
+		status = domain.HealthCheckWarn
+	}
+	message := fmt.Sprintf("Certificate valid (%s, expires in %dd)", probe.Issuer, probe.DaysRemaining)
+	return domain.HealthCheck{ID: "tls_cert", Title: "TLS certificate", Status: status, Message: message, Details: details}
+}
 
-	// ALPN check
-	alpn := tlsSnap.ALPN
+func alpnHealthCheck(snapshot *tlsinfo.Snapshot) *domain.HealthCheck {
+	alpn := snapshot.ALPN
 	if alpn.Status == tlsinfo.ALPNPass {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_alpn",
-			Title:   "TLS-ALPN readiness",
-			Status:  domain.HealthCheckPass,
-			Message: alpn.Message,
-		})
-	} else if alpn.Status == tlsinfo.ALPNWarn {
-		status := domain.HealthCheckWarn
-		message := "TLS-ALPN probe failed"
-		if probe.Valid && probe.DaysRemaining >= tlsALPNWarnDaysThreshold {
-			status = domain.HealthCheckPass
-			message = "TLS-ALPN readiness check is informational while certificate is healthy"
-		} else if probe.Valid && probe.DaysRemaining < tlsALPNFailDaysThreshold {
-			status = domain.HealthCheckFail
-			message = fmt.Sprintf("TLS-ALPN probe failed with certificate near expiry (%dd remaining)", probe.DaysRemaining)
-		} else if probe.Valid && probe.DaysRemaining < tlsALPNWarnDaysThreshold {
-			status = domain.HealthCheckWarn
-			message = fmt.Sprintf("TLS-ALPN probe failed within renewal window (%dd remaining)", probe.DaysRemaining)
-		}
-		if strings.TrimSpace(alpn.Message) != "" {
-			if status == domain.HealthCheckPass {
-				message = fmt.Sprintf("%s (%s)", message, strings.TrimSpace(alpn.Message))
-			} else {
-				message = fmt.Sprintf("%s: %s", message, strings.TrimSpace(alpn.Message))
-			}
-		}
-		details := map[string]string{
-			"cert_days_remaining": fmt.Sprintf("%d", probe.DaysRemaining),
-		}
-		if alpn.Protocol != "" {
-			details["protocol"] = alpn.Protocol
-		}
-		if alpn.Error != "" {
-			details["error"] = alpn.Error
-		}
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "tls_alpn",
-			Title:   "TLS-ALPN readiness",
-			Status:  status,
-			Message: message,
-			Details: details,
-		})
+		return &domain.HealthCheck{ID: "tls_alpn", Title: "TLS-ALPN readiness", Status: domain.HealthCheckPass, Message: alpn.Message}
 	}
+	if alpn.Status != tlsinfo.ALPNWarn {
+		return nil
+	}
+	probe := snapshot.Probe
+	status, message := alpnWarningOutcome(probe)
+	if detail := strings.TrimSpace(alpn.Message); detail != "" {
+		if status == domain.HealthCheckPass {
+			message = fmt.Sprintf("%s (%s)", message, detail)
+		} else {
+			message = fmt.Sprintf("%s: %s", message, detail)
+		}
+	}
+	details := map[string]string{"cert_days_remaining": fmt.Sprintf("%d", probe.DaysRemaining)}
+	if alpn.Protocol != "" {
+		details["protocol"] = alpn.Protocol
+	}
+	if alpn.Error != "" {
+		details["error"] = alpn.Error
+	}
+	return &domain.HealthCheck{ID: "tls_alpn", Title: "TLS-ALPN readiness", Status: status, Message: message, Details: details}
+}
 
-	return sec
+func alpnWarningOutcome(probe tlsinfo.ProbeResult) (domain.HealthCheckStatus, string) {
+	status, message := domain.HealthCheckWarn, "TLS-ALPN probe failed"
+	if !probe.Valid {
+		return status, message
+	}
+	if probe.DaysRemaining >= tlsALPNWarnDaysThreshold {
+		return domain.HealthCheckPass, "TLS-ALPN readiness check is informational while certificate is healthy"
+	}
+	if probe.DaysRemaining < tlsALPNFailDaysThreshold {
+		status = domain.HealthCheckFail
+		message = fmt.Sprintf("TLS-ALPN probe failed with certificate near expiry (%dd remaining)", probe.DaysRemaining)
+	} else if probe.DaysRemaining < tlsALPNWarnDaysThreshold {
+		status = domain.HealthCheckWarn
+		message = fmt.Sprintf("TLS-ALPN probe failed within renewal window (%dd remaining)", probe.DaysRemaining)
+	}
+	return status, message
 }
 
 func buildSystemSection(liveState *domain.LiveStateResult) domain.HealthSection {
-	sec := domain.HealthSection{
-		Category: "system",
-		Title:    "System Resources",
-	}
-
+	sec := domain.HealthSection{Category: "system", Title: "System Resources"}
 	if !LiveStateReachable(liveState) {
-		addCheckToSection(&sec, domain.HealthCheck{
-			ID:      "system_unavailable",
-			Title:   "System metrics",
-			Status:  domain.HealthCheckSkip,
-			Message: "System metrics unavailable (SSH unreachable)",
-		})
+		addCheckToSection(&sec, domain.HealthCheck{ID: "system_unavailable", Title: "System metrics", Status: domain.HealthCheckSkip, Message: "System metrics unavailable (SSH unreachable)"})
 		return sec
 	}
-
 	sys := liveState.System
+	addCheckToSection(&sec, cpuHealthCheck(sys.CPU))
+	addCheckToSection(&sec, memoryHealthCheck(sys.Memory))
+	addCheckToSection(&sec, diskHealthCheck(sys.Disk))
+	return sec
+}
 
-	// CPU
-	cpuDetails := map[string]string{
-		"cores": fmt.Sprintf("%d", sys.CPU.Cores),
-		"usage": fmt.Sprintf("%.1f%%", sys.CPU.UsagePercent),
-	}
+func cpuHealthCheck(cpu domain.CPUInfo) domain.HealthCheck {
+	details := map[string]string{"cores": fmt.Sprintf("%d", cpu.Cores), "usage": fmt.Sprintf("%.1f%%", cpu.UsagePercent)}
 	cpuStatus := domain.HealthCheckPass
-	cpuMsg := fmt.Sprintf("CPU: %.1f%% (%d cores)", sys.CPU.UsagePercent, sys.CPU.Cores)
+	message := fmt.Sprintf("CPU: %.1f%% (%d cores)", cpu.UsagePercent, cpu.Cores)
 	load5PerCore := 0.0
-	hasLoad5PerCore := sys.CPU.Cores > 0 && len(sys.CPU.LoadAverage) >= 2
+	hasLoad5PerCore := cpu.Cores > 0 && len(cpu.LoadAverage) >= 2
 	if hasLoad5PerCore {
-		load5PerCore = sys.CPU.LoadAverage[1] / float64(sys.CPU.Cores)
-		cpuDetails["load5_per_core"] = fmt.Sprintf("%.2f", load5PerCore)
+		load5PerCore = cpu.LoadAverage[1] / float64(cpu.Cores)
+		details["load5_per_core"] = fmt.Sprintf("%.2f", load5PerCore)
 	}
-	if sys.CPU.UsagePercent > 95 {
+	if cpu.UsagePercent > 95 {
 		// High instantaneous CPU can spike briefly; require sustained load pressure before failing.
 		if hasLoad5PerCore && load5PerCore >= 1.0 {
 			cpuStatus = domain.HealthCheckFail
-			cpuMsg = fmt.Sprintf("CPU: %.1f%% (%d cores, load5/core %.2f)", sys.CPU.UsagePercent, sys.CPU.Cores, load5PerCore)
+			message = fmt.Sprintf("CPU: %.1f%% (%d cores, load5/core %.2f)", cpu.UsagePercent, cpu.Cores, load5PerCore)
 		} else {
 			cpuStatus = domain.HealthCheckWarn
 		}
-	} else if sys.CPU.UsagePercent > 90 {
+	} else if cpu.UsagePercent > 90 {
 		cpuStatus = domain.HealthCheckWarn
 	}
-	addCheckToSection(&sec, domain.HealthCheck{
-		ID:      "system_cpu",
-		Title:   "CPU",
-		Status:  cpuStatus,
-		Message: cpuMsg,
-		Details: cpuDetails,
-	})
+	return domain.HealthCheck{ID: "system_cpu", Title: "CPU", Status: cpuStatus, Message: message, Details: details}
+}
 
-	// Memory
-	memDetails := map[string]string{
-		"total_mb": fmt.Sprintf("%d", sys.Memory.TotalMB),
-		"used_mb":  fmt.Sprintf("%d", sys.Memory.UsedMB),
-		"usage":    fmt.Sprintf("%.1f%%", sys.Memory.UsagePercent),
+func memoryHealthCheck(memory domain.MemoryInfo) domain.HealthCheck {
+	status := domain.HealthCheckPass
+	if memory.UsagePercent > 95 {
+		status = domain.HealthCheckFail
+	} else if memory.UsagePercent > 85 {
+		status = domain.HealthCheckWarn
 	}
-	memStatus := domain.HealthCheckPass
-	memMsg := fmt.Sprintf("Memory: %d/%d MB (%.0f%%)", sys.Memory.UsedMB, sys.Memory.TotalMB, sys.Memory.UsagePercent)
-	if sys.Memory.UsagePercent > 95 {
-		memStatus = domain.HealthCheckFail
-	} else if sys.Memory.UsagePercent > 85 {
-		memStatus = domain.HealthCheckWarn
-	}
-	addCheckToSection(&sec, domain.HealthCheck{
-		ID:      "system_memory",
-		Title:   "Memory",
-		Status:  memStatus,
-		Message: memMsg,
-		Details: memDetails,
-	})
+	message := fmt.Sprintf("Memory: %d/%d MB (%.0f%%)", memory.UsedMB, memory.TotalMB, memory.UsagePercent)
+	details := map[string]string{"total_mb": fmt.Sprintf("%d", memory.TotalMB), "used_mb": fmt.Sprintf("%d", memory.UsedMB), "usage": fmt.Sprintf("%.1f%%", memory.UsagePercent)}
+	return domain.HealthCheck{ID: "system_memory", Title: "Memory", Status: status, Message: message, Details: details}
+}
 
-	// Disk
-	diskDetails := map[string]string{
-		"total_gb": fmt.Sprintf("%d", sys.Disk.TotalGB),
-		"used_gb":  fmt.Sprintf("%d", sys.Disk.UsedGB),
-		"usage":    fmt.Sprintf("%.1f%%", sys.Disk.UsagePercent),
+func diskHealthCheck(disk domain.DiskInfo) domain.HealthCheck {
+	status := domain.HealthCheckPass
+	if disk.UsagePercent > 90 {
+		status = domain.HealthCheckFail
+	} else if disk.UsagePercent > 80 {
+		status = domain.HealthCheckWarn
 	}
-	diskStatus := domain.HealthCheckPass
-	diskMsg := fmt.Sprintf("Disk: %d/%d GB (%.0f%%)", sys.Disk.UsedGB, sys.Disk.TotalGB, sys.Disk.UsagePercent)
-	if sys.Disk.UsagePercent > 90 {
-		diskStatus = domain.HealthCheckFail
-	} else if sys.Disk.UsagePercent > 80 {
-		diskStatus = domain.HealthCheckWarn
-	}
-	addCheckToSection(&sec, domain.HealthCheck{
-		ID:      "system_disk",
-		Title:   "Disk",
-		Status:  diskStatus,
-		Message: diskMsg,
-		Details: diskDetails,
-	})
-
-	return sec
+	message := fmt.Sprintf("Disk: %d/%d GB (%.0f%%)", disk.UsedGB, disk.TotalGB, disk.UsagePercent)
+	details := map[string]string{"total_gb": fmt.Sprintf("%d", disk.TotalGB), "used_gb": fmt.Sprintf("%d", disk.UsedGB), "usage": fmt.Sprintf("%.1f%%", disk.UsagePercent)}
+	return domain.HealthCheck{ID: "system_disk", Title: "Disk", Status: status, Message: message, Details: details}
 }
 
 // appDependenciesCategory is the section category for what the deployed
@@ -849,157 +695,140 @@ func buildRecommendations(deploymentID string, manifest domain.CloudManifest, se
 
 // checkToRecommendation maps a failed/warned check to an actionable recommendation.
 func checkToRecommendation(deploymentID string, manifest domain.CloudManifest, category string, check domain.HealthCheck) *domain.Recommendation {
-	sshHost := ""
-	sshUser := "root"
-	if manifest.Target.VPS != nil {
-		sshHost = strings.TrimSpace(manifest.Target.VPS.Host)
-		if strings.TrimSpace(manifest.Target.VPS.User) != "" {
-			sshUser = strings.TrimSpace(manifest.Target.VPS.User)
-		}
+	if rec := sshRecommendation(manifest, category, check); rec != nil {
+		return rec
 	}
-	sshTestCmd := "scenario-to-cloud ssh test <host>"
-	sshBootstrapCmd := "scenario-to-cloud ssh bootstrap <host> --user <user> --non-interactive"
-	if sshHost != "" {
-		sshTestCmd = fmt.Sprintf("scenario-to-cloud ssh test %s --user %s", sshHost, sshUser)
-		sshBootstrapCmd = fmt.Sprintf("scenario-to-cloud ssh bootstrap %s --user %s --non-interactive", sshHost, sshUser)
+	if rec := processRecommendation(deploymentID, category, check); rec != nil {
+		return rec
 	}
+	if rec := tlsRecommendation(deploymentID, check); rec != nil {
+		return rec
+	}
+	if rec := systemRecommendation(deploymentID, check); rec != nil {
+		return rec
+	}
+	return deploymentRecommendation(deploymentID, category, check)
+}
 
-	switch {
-	case category == "ssh" && check.ID == "ssh_connected" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "ssh",
-			Summary:  "VPS unreachable via SSH",
-			Command:  sshTestCmd,
-		}
-	case category == "ssh" && check.ID == "ssh_key_auth" && (check.Status == domain.HealthCheckWarn || check.Status == domain.HealthCheckFail):
-		summary := "SSH transport is not pinned to an explicit deployment key"
-		if strings.TrimSpace(check.Details["auth_mode"]) == string(sshidentity.AuthModeUnknown) {
-			summary = "SSH identity mode is unknown; run bootstrap and redeploy with explicit key"
-		}
-		if check.Status == domain.HealthCheckFail {
-			summary = "Explicit SSH deployment key is not authorized on VPS"
-		}
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "ssh",
-			Summary:  summary,
-			Command:  sshBootstrapCmd,
-		}
-	case category == "processes" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "processes",
-			Summary:  check.Message,
-			// Process control is target-bound and intentionally restricted to
-			// operators with the low-level remediation capability. Deployment
-			// start is the owner-level repair path and also re-runs dependency
-			// startup plus readiness verification.
-			Command: fmt.Sprintf("scenario-to-cloud deployment start %s", deploymentID),
-		}
-	case category == "dns" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 2,
-			Category: "dns",
-			Summary:  check.Message,
-			Command:  fmt.Sprintf("scenario-to-cloud edge dns-check %s", deploymentID),
-		}
-	case check.ID == "tls_cert" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "tls",
-			Summary:  "TLS certificate invalid or expired",
-			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
-		}
-	case check.ID == "tls_cert" && check.Status == domain.HealthCheckWarn:
-		days := check.Details["days_remaining"]
-		return &domain.Recommendation{
-			Priority: 2,
-			Category: "tls",
-			Summary:  fmt.Sprintf("TLS certificate expiring soon (%s days remaining)", days),
-			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
-		}
-	case check.ID == "tls_alpn" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "tls",
-			Summary:  "TLS-ALPN challenge path is failing with certificate near expiry",
-			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
-		}
-	case check.ID == "tls_alpn" && check.Status == domain.HealthCheckWarn:
-		days := strings.TrimSpace(check.Details["cert_days_remaining"])
-		if days == "" {
-			days = "unknown"
-		}
-		return &domain.Recommendation{
-			Priority: 2,
-			Category: "tls",
-			Summary:  fmt.Sprintf("TLS-ALPN challenge path is degraded (%s days remaining)", days),
-			Command:  fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID),
-		}
-	case check.ID == "caddy_running" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "tls",
-			Summary:  "Caddy reverse proxy is not running",
-			Command:  fmt.Sprintf("scenario-to-cloud edge caddy %s restart", deploymentID),
-		}
-	case check.ID == "system_disk" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "system",
-			Summary:  "Disk usage critical (>90%)",
-			Command:  fmt.Sprintf("scenario-to-cloud inspect files %s", deploymentID),
-		}
-	case check.ID == "system_disk" && check.Status == domain.HealthCheckWarn:
-		return &domain.Recommendation{
-			Priority: 3,
-			Category: "system",
-			Summary:  "Disk usage high (>80%)",
-			Command:  fmt.Sprintf("scenario-to-cloud inspect files %s", deploymentID),
-		}
-	case check.ID == "system_cpu" && (check.Status == domain.HealthCheckFail || check.Status == domain.HealthCheckWarn):
-		return &domain.Recommendation{
-			Priority: 2,
-			Category: "system",
-			Summary:  "High CPU usage",
-			Command:  fmt.Sprintf("scenario-to-cloud inspect live %s", deploymentID),
-		}
-	case check.ID == "system_memory" && (check.Status == domain.HealthCheckFail || check.Status == domain.HealthCheckWarn):
-		return &domain.Recommendation{
-			Priority: 2,
-			Category: "system",
-			Summary:  "High memory usage",
-			Command:  fmt.Sprintf("scenario-to-cloud inspect live %s", deploymentID),
-		}
-	case category == "deployment" && check.Status == domain.HealthCheckFail:
-		return &domain.Recommendation{
-			Priority: 1,
-			Category: "deployment",
-			Summary:  "Deployment in failed state",
-			Command:  fmt.Sprintf("scenario-to-cloud deployment history %s", deploymentID),
-		}
-	case category == appDependenciesCategory && check.Status == domain.HealthCheckWarn:
-		// The remedy is the application's own, not this scenario's: point the
-		// operator at the failing dependency by name and at the deployment's
-		// own health report, which carries the application's reason verbatim.
-		return &domain.Recommendation{
-			Priority: 2,
-			Category: appDependenciesCategory,
-			Summary:  "The deployed application reports a failing dependency: " + strings.TrimPrefix(check.ID, appDependencyCheckID),
-			Command:  fmt.Sprintf("scenario-to-cloud deployment health %s", deploymentID),
-		}
-	case category == "deployment" && check.Status == domain.HealthCheckWarn:
-		if strings.Contains(check.Message, "stopped") {
-			return &domain.Recommendation{
-				Priority: 2,
-				Category: "deployment",
-				Summary:  "Deployment is stopped",
-				Command:  fmt.Sprintf("scenario-to-cloud deployment start %s", deploymentID),
-			}
-		}
+func sshRecommendation(manifest domain.CloudManifest, category string, check domain.HealthCheck) *domain.Recommendation {
+	if rec := sshConnectivityRecommendation(manifest, category, check); rec != nil {
+		return rec
+	}
+	return sshIdentityRecommendation(manifest, category, check)
+}
+
+func sshConnectivityRecommendation(manifest domain.CloudManifest, category string, check domain.HealthCheck) *domain.Recommendation {
+	if category != "ssh" || check.ID != "ssh_connected" || check.Status != domain.HealthCheckFail {
 		return nil
 	}
+	sshHost, sshUser := sshTarget(manifest)
+	sshTestCmd := "scenario-to-cloud ssh test <host>"
+	if sshHost != "" {
+		sshTestCmd = fmt.Sprintf("scenario-to-cloud ssh test %s --user %s", sshHost, sshUser)
+	}
+	return &domain.Recommendation{Priority: 1, Category: "ssh", Summary: "VPS unreachable via SSH", Command: sshTestCmd}
+}
 
+func sshIdentityRecommendation(manifest domain.CloudManifest, category string, check domain.HealthCheck) *domain.Recommendation {
+	if category != "ssh" || check.ID != "ssh_key_auth" || (check.Status != domain.HealthCheckWarn && check.Status != domain.HealthCheckFail) {
+		return nil
+	}
+	sshHost, sshUser := sshTarget(manifest)
+	sshBootstrapCmd := "scenario-to-cloud ssh bootstrap <host> --user <user> --non-interactive"
+	if sshHost != "" {
+		sshBootstrapCmd = fmt.Sprintf("scenario-to-cloud ssh bootstrap %s --user %s --non-interactive", sshHost, sshUser)
+	}
+	summary := "SSH transport is not pinned to an explicit deployment key"
+	if strings.TrimSpace(check.Details["auth_mode"]) == string(sshidentity.AuthModeUnknown) {
+		summary = "SSH identity mode is unknown; run bootstrap and redeploy with explicit key"
+	}
+	if check.Status == domain.HealthCheckFail {
+		summary = "Explicit SSH deployment key is not authorized on VPS"
+	}
+	return &domain.Recommendation{Priority: 1, Category: "ssh", Summary: summary, Command: sshBootstrapCmd}
+}
+
+func sshTarget(manifest domain.CloudManifest) (host, user string) {
+	user = "root"
+	if manifest.Target.VPS == nil {
+		return "", user
+	}
+	host = strings.TrimSpace(manifest.Target.VPS.Host)
+	if configured := strings.TrimSpace(manifest.Target.VPS.User); configured != "" {
+		user = configured
+	}
+	return host, user
+}
+
+func processRecommendation(deploymentID, category string, check domain.HealthCheck) *domain.Recommendation {
+	if category == "processes" && check.Status == domain.HealthCheckFail {
+		return &domain.Recommendation{Priority: 1, Category: "processes", Summary: check.Message,
+			// Process control stays target-bound. Deployment start is the owner-level repair path.
+			Command: fmt.Sprintf("scenario-to-cloud deployment start %s", deploymentID)}
+	}
+	if category == "dns" && check.Status == domain.HealthCheckFail {
+		return &domain.Recommendation{Priority: 2, Category: "dns", Summary: check.Message, Command: fmt.Sprintf("scenario-to-cloud edge dns-check %s", deploymentID)}
+	}
 	return nil
+}
+
+func tlsRecommendation(deploymentID string, check domain.HealthCheck) *domain.Recommendation {
+	command := fmt.Sprintf("scenario-to-cloud edge tls-renew %s", deploymentID)
+	switch check.ID {
+	case "tls_cert":
+		switch check.Status {
+		case domain.HealthCheckFail:
+			return &domain.Recommendation{Priority: 1, Category: "tls", Summary: "TLS certificate invalid or expired", Command: command}
+		case domain.HealthCheckWarn:
+			return &domain.Recommendation{Priority: 2, Category: "tls", Summary: fmt.Sprintf("TLS certificate expiring soon (%s days remaining)", check.Details["days_remaining"]), Command: command}
+		}
+	case "tls_alpn":
+		switch check.Status {
+		case domain.HealthCheckFail:
+			return &domain.Recommendation{Priority: 1, Category: "tls", Summary: "TLS-ALPN challenge path is failing with certificate near expiry", Command: command}
+		case domain.HealthCheckWarn:
+			days := strings.TrimSpace(check.Details["cert_days_remaining"])
+			if days == "" {
+				days = "unknown"
+			}
+			return &domain.Recommendation{Priority: 2, Category: "tls", Summary: fmt.Sprintf("TLS-ALPN challenge path is degraded (%s days remaining)", days), Command: command}
+		}
+	case "caddy_running":
+		if check.Status == domain.HealthCheckFail {
+			return &domain.Recommendation{Priority: 1, Category: "tls", Summary: "Caddy reverse proxy is not running", Command: fmt.Sprintf("scenario-to-cloud edge caddy %s restart", deploymentID)}
+		}
+	}
+	return nil
+}
+
+func systemRecommendation(deploymentID string, check domain.HealthCheck) *domain.Recommendation {
+	if check.ID == "system_disk" {
+		if check.Status == domain.HealthCheckFail {
+			return &domain.Recommendation{Priority: 1, Category: "system", Summary: "Disk usage critical (>90%)", Command: fmt.Sprintf("scenario-to-cloud inspect files %s", deploymentID)}
+		}
+		if check.Status == domain.HealthCheckWarn {
+			return &domain.Recommendation{Priority: 3, Category: "system", Summary: "Disk usage high (>80%)", Command: fmt.Sprintf("scenario-to-cloud inspect files %s", deploymentID)}
+		}
+	}
+	if check.ID != "system_cpu" && check.ID != "system_memory" || (check.Status != domain.HealthCheckFail && check.Status != domain.HealthCheckWarn) {
+		return nil
+	}
+	summary := "High CPU usage"
+	if check.ID == "system_memory" {
+		summary = "High memory usage"
+	}
+	return &domain.Recommendation{Priority: 2, Category: "system", Summary: summary, Command: fmt.Sprintf("scenario-to-cloud inspect live %s", deploymentID)}
+}
+
+func deploymentRecommendation(deploymentID, category string, check domain.HealthCheck) *domain.Recommendation {
+	if category == "deployment" && check.Status == domain.HealthCheckFail {
+		return &domain.Recommendation{Priority: 1, Category: "deployment", Summary: "Deployment in failed state", Command: fmt.Sprintf("scenario-to-cloud deployment history %s", deploymentID)}
+	}
+	if category == appDependenciesCategory && check.Status == domain.HealthCheckWarn {
+		return &domain.Recommendation{Priority: 2, Category: appDependenciesCategory, Summary: "The deployed application reports a failing dependency: " + strings.TrimPrefix(check.ID, appDependencyCheckID), Command: fmt.Sprintf("scenario-to-cloud deployment health %s", deploymentID)}
+	}
+	if category != "deployment" || check.Status != domain.HealthCheckWarn || !strings.Contains(check.Message, "stopped") {
+		return nil
+	}
+	return &domain.Recommendation{Priority: 2, Category: "deployment", Summary: "Deployment is stopped", Command: fmt.Sprintf("scenario-to-cloud deployment start %s", deploymentID)}
 }

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,8 @@ const (
 	StateFailed         = "failed"
 	StateUnknown        = "unknown"
 )
+
+var ErrInvalidPublicationTransition = errors.New("invalid publication state transition")
 
 // Refusal codes recorded on a publication.
 const (
@@ -88,10 +91,13 @@ type Publication struct {
 }
 
 // Refuse moves the publication into refused with a typed reason.
-func (p *Publication) Refuse(code, reason string, now time.Time) {
-	p.State = StateRefused
+func (p *Publication) Refuse(code, reason string, now time.Time) error {
+	if err := p.Transition(StateRefused); err != nil {
+		return err
+	}
 	p.Refusal = &Refusal{Code: code, Reason: reason}
 	p.UpdatedAt = now.UTC()
+	return nil
 }
 
 // Decide re-checks the owner's review immediately before an effect. It
@@ -157,22 +163,29 @@ func ResolvePredecessor(receipt *TargetReceipt, history []Publication, current *
 // receipt. A pointer naming a different release than the approved one is a
 // target_release_mismatch: the publication is failed, never reported as
 // published for the approved digest.
-func RecordActivation(p *Publication, receipt TargetReceipt, history []Publication, now time.Time) {
+func RecordActivation(p *Publication, receipt TargetReceipt, history []Publication, now time.Time) error {
 	receipt.ReceiptDigest = receipt.Digest()
-	p.TargetReceipt = &receipt
-	p.UpdatedAt = now.UTC()
 	if !strings.EqualFold(strings.TrimPrefix(receipt.ActiveRelease, "sha256:"), strings.TrimPrefix(p.ReleaseDigest, "sha256:")) {
-		p.State = StateFailed
+		if err := p.Transition(StateFailed); err != nil {
+			return err
+		}
+		p.TargetReceipt = &receipt
+		p.UpdatedAt = now.UTC()
 		p.ActivatedReleaseDigest = receipt.ActiveRelease
 		p.Refusal = &Refusal{Code: RefusalTargetMismatch, Reason: fmt.Sprintf("target reports active release %s, approved release is %s", short(receipt.ActiveRelease), short(p.ReleaseDigest))}
-		return
+		return nil
 	}
-	p.State = StatePublished
+	if err := p.Transition(StatePublished); err != nil {
+		return err
+	}
+	p.TargetReceipt = &receipt
+	p.UpdatedAt = now.UTC()
 	p.ActivatedReleaseDigest = receipt.ActiveRelease
 	p.PredecessorReleaseDigest = ResolvePredecessor(&receipt, history, p)
 	published := now.UTC()
 	p.PublishedAt = &published
 	p.Refusal = nil
+	return nil
 }
 
 // Proto projects the publication onto the wire.

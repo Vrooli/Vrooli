@@ -125,7 +125,10 @@ func NewOrchestrator(opts ...OrchestratorOption) *DefaultOrchestrator {
 			}
 		}
 		o.stages = []Stage{
-			NewResolveDeploymentStage(WithResolveDeploymentScenarioRoot(o.scenarioRoot)),
+			NewResolveDeploymentStage(
+				WithResolveDeploymentScenarioRoot(o.scenarioRoot),
+				WithResolveDeploymentModelRightsEvaluator(NewSharedModelRightsEvaluator()),
+			),
 			NewBundleStage(WithScenarioRoot(o.scenarioRoot)),
 			NewPreflightStage(WithBundleabilityChecker(analyzer)),
 			NewGenerateStage(WithGenerateScenarioRoot(o.scenarioRoot)),
@@ -389,7 +392,9 @@ func (o *DefaultOrchestrator) StartPipeline(ctx context.Context, pipelineID stri
 
 	// Update status to pending
 	o.store.Update(pipelineID, func(s *Status) {
-		s.Status = StatusPending
+		if !o.transitionStatus(s, pipelineID, StatusPending) {
+			return
+		}
 		s.UpdateProgress()
 	})
 

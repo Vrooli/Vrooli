@@ -5,6 +5,7 @@ package target
 import "fmt"
 
 type unixCDPBridge struct{ socketPath string }
+type unixUpstreamBridge struct{}
 
 func prepareOfflineNetworkRoot(string) (string, bool, error) {
 	return "", false, fmt.Errorf("offline Electron network isolation is only supported on Linux")
@@ -16,10 +17,17 @@ func startUnixCDPBridge(string, int) (*unixCDPBridge, error) {
 	return nil, fmt.Errorf("offline Electron CDP bridge is only supported on Linux")
 }
 
-func (*unixCDPBridge) Port() int        { return 0 }
-func (*unixCDPBridge) Endpoint() string { return "" }
-func (*unixCDPBridge) Close() error     { return nil }
+func (*unixCDPBridge) Port() int         { return 0 }
+func (*unixCDPBridge) Endpoint() string  { return "" }
+func (*unixCDPBridge) Close() error      { return nil }
+func (*unixUpstreamBridge) Close() error { return nil }
 
-func isolatedElectronCommand(string, string, string, string, int, string, []string) (string, []string, error) {
+func isolatedElectronCommand(string, string, string, string, int, string, []string, []OfflineLoopbackUpstream, bool) (string, []string, error) {
 	return "", nil, fmt.Errorf("offline Electron network isolation is only supported on Linux")
+}
+
+func offlineUpstreamSocketPath(string, int) string { return "" }
+
+func startUnixUpstreamBridge(string, string) (*unixUpstreamBridge, error) {
+	return nil, fmt.Errorf("offline fixture upstream relay is only supported on Linux")
 }

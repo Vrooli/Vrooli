@@ -7,7 +7,6 @@ It is kept in agreement with `.vrooli/service.json` by hand. If this page
 and that manifest disagree, one of them is a bug: declare the dependency
 or correct the doc, never leave them inconsistent.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

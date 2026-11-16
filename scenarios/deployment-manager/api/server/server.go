@@ -59,6 +59,10 @@ type Server struct {
 	Router   *mux.Router
 	Logger   Logger
 
+	// releaseDecisionReconciler closes open release decisions that lapsed, were
+	// approved elsewhere, or were replaced by a newer release; Start runs it.
+	releaseDecisionReconciler *internalReleaseDecision.Reconciler
+
 	// Domain handlers
 	HealthHandler            *health.Handler
 	FitnessHandler           *fitness.Handler
@@ -485,7 +489,26 @@ func New() (*Server, error) {
 		MaxOutstanding: 3,
 		Window:         24 * time.Hour,
 	}
-	srv.ReleasesHandler.WithReleaseDecisionRaiser(decisionRaiser).WithReleaseGateLookup(releaseGateLookup(approvalsRepo))
+	srv.ReleasesHandler.WithReleaseDecisionRaiser(internalReleaseDecision.KeyedRaiser{Inner: decisionRaiser, Store: decisionStore}).WithReleaseGateLookup(releaseGateLookup(approvalsRepo))
+	srv.releaseDecisionReconciler = &internalReleaseDecision.Reconciler{
+		Store:     decisionStore,
+		Withdrawn: decisionRaiser,
+		Review: func(ctx context.Context, key string) (internalReleaseDecision.ReviewVerdict, error) {
+			review, err := readinessRepo.Get(ctx, key)
+			if err != nil {
+				return internalReleaseDecision.ReviewUnknown, err
+			}
+			switch {
+			case review == nil:
+				return internalReleaseDecision.ReviewUnknown, nil
+			case review.Status == readiness.ReviewApproved || review.Status == readiness.ReviewPromoted:
+				return internalReleaseDecision.ReviewApproved, nil
+			case review.Status == readiness.ReviewSuperseded:
+				return internalReleaseDecision.ReviewSuperseded, nil
+			}
+			return internalReleaseDecision.ReviewOpen, nil
+		},
+	}
 	releaseDecisionResolver := readinesshandler.NewReleaseDecisionResolver(readinessDomainHandler, decisionStore, approvalsRepo, logFn)
 	// The resolution webhook verifies an HMAC signature before any effect runs, so
 	// it is only safe to mount with a non-empty shared secret. Prefer the explicit
@@ -526,6 +549,10 @@ func New() (*Server, error) {
 	}
 	return srv, nil
 }
+
+// releaseDecisionReconcileInterval is how often open release decisions are
+// checked for a lapsed window, a review approved elsewhere, or a newer release.
+const releaseDecisionReconcileInterval = 10 * time.Minute
 
 // systemDecisionClock is the wall-clock the release-decision Raiser uses. A
 // dedicated type keeps the operatordecision.Clock dependency explicit at the
@@ -625,6 +652,16 @@ func (s *Server) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.startReleaseFactPublisher(ctx)
+	if s.releaseDecisionReconciler != nil {
+		go s.releaseDecisionReconciler.Run(ctx, releaseDecisionReconcileInterval, func(res internalReleaseDecision.Result, err error) {
+			switch {
+			case err != nil:
+				LogStructured("release decision reconcile failed", map[string]interface{}{"error": err.Error()})
+			case res != (internalReleaseDecision.Result{}):
+				LogStructured("release decision reconcile", map[string]interface{}{"lapsed": res.Lapsed, "cleared": res.Cleared, "replaced": res.Replaced, "republished": res.Republished})
+			}
+		})
+	}
 
 	LogStructured("starting server", map[string]interface{}{
 		"service": "deployment-manager-api",

@@ -76,11 +76,22 @@ func (e validationMatrixLocalExecutor) Execute(ctx context.Context, request vali
 			return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_FAILED, Reason: fmt.Sprintf("desktop artifact digest mismatch: want %s got %s", digest, actual)}
 		}
 	}
+	if request.Journey.ExecutionMode == "s2d-packaged-fixture" {
+		switch request.Cell.GetJourneyId() {
+		case packagedBASConsentJourneyID:
+			return e.executePackagedBASConsentFixture(ctx, request, artifactPath)
+		case packagedWebConsoleMonetizationJourneyID:
+			return e.executePackagedWebConsoleMonetizationFixture(ctx, request, artifactPath)
+		default:
+			return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_REFUSED, Reason: "packaged scenario fixture is not registered to a scenario-to-desktop owner"}
+		}
+	}
 	if !strings.EqualFold(strings.TrimSpace(request.Journey.ExecutionMode), "platform") {
 		return e.executeProviderJourney(ctx, request, artifactPath)
 	}
 
 	smokeID := "validation-" + request.Cell.GetCellId()
+	deploymentMode := validationSmokeDeploymentMode(request.DeploymentMode, artifactPath)
 	e.smokeStore.Save(&smoketest.Status{
 		SmokeTestID:  smokeID,
 		ScenarioName: request.Cell.GetScenarioName(),
@@ -96,7 +107,7 @@ func (e validationMatrixLocalExecutor) Execute(ctx context.Context, request vali
 	})
 	smoketest.RunSmokeTestRequest(ctx, e.smokeService, smoketest.SmokeTestRequest{
 		SmokeTestID: smokeID, ScenarioName: request.Cell.GetScenarioName(), ArtifactPath: artifactPath,
-		Platform: e.smokeService.CurrentPlatform(), DeploymentMode: "unknown",
+		Platform: e.smokeService.CurrentPlatform(), DeploymentMode: deploymentMode,
 	})
 	status, ok := e.smokeStore.Get(smokeID)
 	if !ok {
@@ -116,6 +127,63 @@ func (e validationMatrixLocalExecutor) Execute(ctx context.Context, request vali
 		return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_DEGRADED, Reason: firstNonEmpty(status.JourneyDegradedReason, status.PerformanceReason, "desktop evidence degraded"), Evidence: smokeEvidence(status, e.captures, request)}
 	}
 	return validationmatrix.CellResult{Disposition: domainv1.ValidationDisposition_VALIDATION_DISPOSITION_PASS, Reason: "desktop smoke and evidence completed", Evidence: smokeEvidence(status, e.captures, request)}
+}
+
+// validationSmokeDeploymentMode preserves an explicit matrix declaration and
+// otherwise infers bundled mode only from the manifest shipped beside the
+// selected AppImage. Unknown and unsupported modes remain targetless so a
+// validation run never falls back to a live scenario instance.
+func validationSmokeDeploymentMode(selected, artifactPath string) string {
+	mode := strings.TrimSpace(strings.ToLower(selected))
+	switch mode {
+	case "bundled", "proxy":
+		return mode
+	case "":
+		if hasBundledAPIService(artifactPath) {
+			return "bundled"
+		}
+	}
+	return "unknown"
+}
+
+func hasBundledAPIService(artifactPath string) bool {
+	if !filepath.IsAbs(artifactPath) || filepath.Clean(artifactPath) != artifactPath {
+		return false
+	}
+	// S2D retains a manifest sibling to the selected package. Search only the
+	// bounded pipeline layout around this exact artifact, never another build.
+	dir := filepath.Dir(artifactPath)
+	for depth := 0; depth < 5; depth++ {
+		candidates := []string{
+			filepath.Join(dir, "..", "bundle", "bundle.json"),
+			filepath.Join(dir, "..", "..", "..", "manifest", "platforms", "electron", "bundle", "bundle.json"),
+		}
+		for _, candidate := range candidates {
+			data, err := os.ReadFile(filepath.Clean(candidate))
+			if err != nil {
+				continue
+			}
+			var manifest struct {
+				Services []struct {
+					ID string `json:"id"`
+				} `json:"services"`
+			}
+			if json.Unmarshal(data, &manifest) != nil {
+				continue
+			}
+			for _, service := range manifest.Services {
+				if strings.EqualFold(strings.TrimSpace(service.ID), "api") {
+					return true
+				}
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return false
 }
 
 func (e validationMatrixLocalExecutor) findValidationArtifact(request validationmatrix.CellRequest) (string, error) {

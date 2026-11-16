@@ -15,7 +15,7 @@ Scopes are the shared coarse vocabulary (`scenario-to-cloud:read`, `scenario-to-
 | `host` | Repair or reconfigure a host | Human only, origin check, effect recheck |
 | `interactive` | Long-lived session on a target | Human only, browser Origin required, socket bound to credential expiry |
 
-Columns: **target** = `id` (deployment resolved and policy-checked before the handler), `body` (target named in the request body; only unrestricted principals), or `-`; **reach** = the route opens SSH or another reach to a target; **service** = service principals and verified agents may call it; **no-store** = response is never cacheable.
+Columns: **target** = `id` (deployment resolved and policy-checked before the handler), `body` (only unrestricted principals), `handler-checked` (typed handler must resolve and authorize deployment_id before target reach), or `-`; **reach** = the route opens SSH or another reach to a target; **service** = service principals and verified agents may call it; **no-store** = response is never cacheable.
 
 | Method | Path | Effect | Scope | Target | Reach | Service | No-store | Description |
 |---|---|---|---|---|---|---|---|---|
@@ -26,6 +26,8 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | POST | `/api/v1/bundles/cleanup` | host | `scenario-to-cloud:destructive` | - | no | no | no | Delete local bundles. |
 | GET | `/api/v1/bundles/stats` | read | `scenario-to-cloud:read` | - | no | yes | no | Local bundle store statistics. |
 | DELETE | `/api/v1/bundles/{sha256}` | host | `scenario-to-cloud:destructive` | - | no | no | no | Delete one local bundle. |
+| GET | `/api/v1/certification/matrix` | read | `scenario-to-cloud:read` | - | no | yes | no | Read the authoritative target-ground certification matrix. |
+| GET | `/api/v1/certification/readiness` | read | `scenario-to-cloud:read` | - | no | yes | no | Read candidate readiness across every required cell and proving ground. |
 | GET | `/api/v1/closure` | read | `scenario-to-cloud:read` | - | no | yes | no | Read the dependency closure. |
 | POST | `/api/v1/closure/explain` | read | `scenario-to-cloud:read` | - | no | yes | no | Explain a closure decision. |
 | GET | `/api/v1/deployments` | read | `scenario-to-cloud:read` | - | no | yes | no | List deployments. |
@@ -76,6 +78,7 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | GET | `/api/v1/deployments/{id}/logs` | read | `scenario-to-cloud:read` | id | yes | yes | no | Read workload logs from the target. |
 | GET | `/api/v1/deployments/{id}/metrics-debug` | read | `scenario-to-cloud:read` | id | yes | no | no | Raw metrics for debugging. |
 | GET | `/api/v1/deployments/{id}/operations` | read | `scenario-to-cloud:read` | id | no | yes | no | List the operations admitted against a deployment. |
+| GET | `/api/v1/deployments/{id}/operations/{opId}/target-receipts/{step}` | read | `scenario-to-cloud:read` | id | yes | yes | no | Freshly read one declared operation step receipt from its deployment target owner. |
 | POST | `/api/v1/deployments/{id}/plan` | read | `scenario-to-cloud:read` | id | no | no | no | Compile and preview the executable plan; no records, no target effects. |
 | POST | `/api/v1/deployments/{id}/plan/apply` | workload_mutation | `scenario-to-cloud:destructive` | id | yes | no | no | Admit the reviewed plan digest as a durable operation and hand off to the pipeline. |
 | GET | `/api/v1/deployments/{id}/progress` | read | `scenario-to-cloud:read` | id | no | yes | no | Stream deployment progress (SSE). |
@@ -150,6 +153,7 @@ Columns: **target** = `id` (deployment resolved and policy-checked before the ha
 | * | `/vrooli.scenario_to_cloud.v1.evidence.EvidenceService/*` | host | `scenario-to-cloud:destructive` | - | no | no | no | Connect EvidenceService (evidence reads are reads; ApplyPublication activates a release, so the mount requires the destructive scope). |
 | * | `/vrooli.scenario_to_cloud.v1.health.HealthService/*` | read | `scenario-to-cloud:read` | - | no | yes | no | Connect HealthService (typed observations). |
 | * | `/vrooli.scenario_to_cloud.v1.operations.OperationsService/*` | workload_mutation | `scenario-to-cloud:destructive` | - | no | no | no | Connect OperationsService (get/wait/list are reads; cancel and reconcile mutate, so the mount requires the destructive scope). |
+| POST | `/vrooli.scenario_to_cloud.v1.operations.OperationsService/GetTargetReceipt` | read | `scenario-to-cloud:read` | handler-checked | yes | no | yes | Fresh target receipt read; the typed handler binds and authorizes its deployment_id before target reach. |
 | * | `/vrooli.scenario_to_cloud.v1.plans.PlansService/*` | workload_mutation | `scenario-to-cloud:destructive` | - | no | no | no | Connect PlansService (CompilePlan is a read; ApplyPlan admits an operation, so the mount requires the destructive scope). |
 | * | `/vrooli.scenario_to_cloud.v1.releases.ReleasesService/*` | workload_mutation | `scenario-to-cloud:write` | - | no | no | no | Connect ReleasesService (build, get, verify). |
 

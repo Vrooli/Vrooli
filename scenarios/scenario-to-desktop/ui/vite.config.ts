@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const UI_PORT = process.env.UI_PORT;
 
@@ -11,7 +12,7 @@ if (!UI_PORT && process.argv.includes("serve")) {
 
 export default defineConfig(({ mode }) => ({
   base: "./",
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),

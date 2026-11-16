@@ -263,6 +263,19 @@ func WritePreview(w io.Writer, ref *identityv1.DeploymentRef, compiled *plansv1.
 	plan := compiled.GetPlan()
 	preview := compiled.GetPreview()
 	fmt.Fprintln(w, selector.Identity(ref))
+	writePreviewPlan(w, compiled, plan, preview)
+	writePreviewChanges(w, plan, preview)
+	writePreviewDataEffects(w, preview)
+	writePreviewDowntime(w, preview)
+	writePreviewPresentation(w, plan)
+	writePreviewAdvisories(w, preview)
+	writePreviewHandoff(w, plan)
+	if showCommands {
+		writePreviewShell(w, preview)
+	}
+}
+
+func writePreviewPlan(w io.Writer, compiled *plansv1.CompilePlanResponse, plan *plansv1.ExecutablePlan, preview *plansv1.Preview) {
 	fmt.Fprintf(w, "plan digest: %s\n", compiled.GetPlanDigest())
 	fmt.Fprintf(w, "scope: %s  outcome: %s  desired revision: %d\n", plan.GetScope(), plan.GetOutcome(), plan.GetDesiredRevision())
 	if plan.GetReleaseDigest() != "" {
@@ -283,6 +296,9 @@ func WritePreview(w io.Writer, ref *identityv1.DeploymentRef, compiled *plansv1.
 	if p := plan.GetPresentation(); p != nil && p.GetSummary() != "" {
 		fmt.Fprintf(w, "summary: %s\n", p.GetSummary())
 	}
+}
+
+func writePreviewChanges(w io.Writer, plan *plansv1.ExecutablePlan, preview *plansv1.Preview) {
 	if len(preview.GetChanges()) > 0 {
 		fmt.Fprintln(w, "changes:")
 		for i, c := range preview.GetChanges() {
@@ -291,22 +307,7 @@ func WritePreview(w io.Writer, ref *identityv1.DeploymentRef, compiled *plansv1.
 				fmt.Fprintf(w, " %s", c.GetSummary())
 			}
 			fmt.Fprintln(w)
-			details := []string{}
-			if c.GetCapability() != "" {
-				details = append(details, "capability="+c.GetCapability())
-			}
-			if c.GetVerification() != "" {
-				details = append(details, "verify="+c.GetVerification())
-			}
-			if c.GetRecovery() != "" {
-				details = append(details, "recovery="+c.GetRecovery())
-			}
-			if c.GetRetry() != "" {
-				details = append(details, "retry="+c.GetRetry())
-			}
-			if c.GetCancelPoint() {
-				details = append(details, "cancel-point")
-			}
+			details := previewChangeDetails(c)
 			if len(details) > 0 {
 				fmt.Fprintf(w, "      %s\n", strings.Join(details, " "))
 			}
@@ -314,12 +315,39 @@ func WritePreview(w io.Writer, ref *identityv1.DeploymentRef, compiled *plansv1.
 	} else if plan.GetOutcome() == OutcomeApply {
 		fmt.Fprintln(w, "changes: none listed")
 	}
-	if len(preview.GetDataEffects()) > 0 {
-		fmt.Fprintln(w, "data effects:")
-		for _, d := range preview.GetDataEffects() {
-			fmt.Fprintf(w, "  %s: %s (%s)\n", d.GetSubject(), d.GetEffect(), d.GetActionId())
-		}
+}
+
+func previewChangeDetails(change *plansv1.Change) []string {
+	details := []string{}
+	if change.GetCapability() != "" {
+		details = append(details, "capability="+change.GetCapability())
 	}
+	if change.GetVerification() != "" {
+		details = append(details, "verify="+change.GetVerification())
+	}
+	if change.GetRecovery() != "" {
+		details = append(details, "recovery="+change.GetRecovery())
+	}
+	if change.GetRetry() != "" {
+		details = append(details, "retry="+change.GetRetry())
+	}
+	if change.GetCancelPoint() {
+		details = append(details, "cancel-point")
+	}
+	return details
+}
+
+func writePreviewDataEffects(w io.Writer, preview *plansv1.Preview) {
+	if len(preview.GetDataEffects()) == 0 {
+		return
+	}
+	fmt.Fprintln(w, "data effects:")
+	for _, d := range preview.GetDataEffects() {
+		fmt.Fprintf(w, "  %s: %s (%s)\n", d.GetSubject(), d.GetEffect(), d.GetActionId())
+	}
+}
+
+func writePreviewDowntime(w io.Writer, preview *plansv1.Preview) {
 	if dt := preview.GetDowntime(); dt != nil && (dt.GetExpectedSeconds() > 0 || dt.GetReason() != "") {
 		fmt.Fprintf(w, "downtime: ~%ds", dt.GetExpectedSeconds())
 		if dt.GetReason() != "" {
@@ -332,45 +360,61 @@ func WritePreview(w io.Writer, ref *identityv1.DeploymentRef, compiled *plansv1.
 	if preview.GetRecoveryStrategy() != "" {
 		fmt.Fprintf(w, "recovery strategy: %s\n", preview.GetRecoveryStrategy())
 	}
-	if p := plan.GetPresentation(); p != nil {
-		if p.GetDowntimeNote() != "" {
-			fmt.Fprintf(w, "downtime note: %s\n", p.GetDowntimeNote())
+}
+
+func writePreviewPresentation(w io.Writer, plan *plansv1.ExecutablePlan) {
+	p := plan.GetPresentation()
+	if p == nil {
+		return
+	}
+	if p.GetDowntimeNote() != "" {
+		fmt.Fprintf(w, "downtime note: %s\n", p.GetDowntimeNote())
+	}
+	if p.GetRecoveryNote() != "" {
+		fmt.Fprintf(w, "recovery note: %s\n", p.GetRecoveryNote())
+	}
+}
+
+func writePreviewAdvisories(w io.Writer, preview *plansv1.Preview) {
+	advisories := preview.GetAdvisories()
+	if len(advisories) == 0 {
+		return
+	}
+	// Warnings come before the handoff so an operator sees dead capabilities before the resume path.
+	fmt.Fprintf(w, "warnings (%d, non-blocking):\n", len(advisories))
+	for _, advisory := range advisories {
+		fmt.Fprintf(w, "  ! %s\n", advisory.GetSummary())
+		if advisory.GetCapability() != "" {
+			fmt.Fprintf(w, "      capability: %s\n", advisory.GetCapability())
 		}
-		if p.GetRecoveryNote() != "" {
-			fmt.Fprintf(w, "recovery note: %s\n", p.GetRecoveryNote())
+		if advisory.GetDetail() != "" {
+			fmt.Fprintf(w, "      detail: %s\n", advisory.GetDetail())
+		}
+		if advisory.GetHint() != "" {
+			fmt.Fprintf(w, "      fix: %s\n", advisory.GetHint())
 		}
 	}
-	// Warnings come before the handoff: an operator reading top-to-bottom
-	// must see a dead capability even when nothing blocks the deploy.
-	if advisories := preview.GetAdvisories(); len(advisories) > 0 {
-		fmt.Fprintf(w, "warnings (%d, non-blocking):\n", len(advisories))
-		for _, advisory := range advisories {
-			fmt.Fprintf(w, "  ! %s\n", advisory.GetSummary())
-			if advisory.GetCapability() != "" {
-				fmt.Fprintf(w, "      capability: %s\n", advisory.GetCapability())
-			}
-			if advisory.GetDetail() != "" {
-				fmt.Fprintf(w, "      detail: %s\n", advisory.GetDetail())
-			}
-			if advisory.GetHint() != "" {
-				fmt.Fprintf(w, "      fix: %s\n", advisory.GetHint())
-			}
-		}
+}
+
+func writePreviewHandoff(w io.Writer, plan *plansv1.ExecutablePlan) {
+	h := plan.GetHandoff()
+	if h == nil || h.GetReference() == "" {
+		return
 	}
-	if h := plan.GetHandoff(); h != nil && h.GetReference() != "" {
-		fmt.Fprintf(w, "handoff: %s (%s) %s\n", h.GetOwner(), h.GetKind(), h.GetReference())
-		if len(h.GetMissing()) > 0 {
-			fmt.Fprintf(w, "  missing: %s\n", strings.Join(h.GetMissing(), ", "))
-		}
+	fmt.Fprintf(w, "handoff: %s (%s) %s\n", h.GetOwner(), h.GetKind(), h.GetReference())
+	if len(h.GetMissing()) > 0 {
+		fmt.Fprintf(w, "  missing: %s\n", strings.Join(h.GetMissing(), ", "))
 	}
-	if showCommands {
-		if len(preview.GetShellPreview()) == 0 {
-			fmt.Fprintln(w, "shell preview: none")
-		} else {
-			fmt.Fprintln(w, "shell preview (derived; execution uses typed verbs, not these strings):")
-			for _, line := range preview.GetShellPreview() {
-				fmt.Fprintf(w, "  [%s] %s\n", line.GetActionId(), line.GetCommand())
-			}
-		}
+}
+
+func writePreviewShell(w io.Writer, preview *plansv1.Preview) {
+	lines := preview.GetShellPreview()
+	if len(lines) == 0 {
+		fmt.Fprintln(w, "shell preview: none")
+		return
+	}
+	fmt.Fprintln(w, "shell preview (derived; execution uses typed verbs, not these strings):")
+	for _, line := range lines {
+		fmt.Fprintf(w, "  [%s] %s\n", line.GetActionId(), line.GetCommand())
 	}
 }

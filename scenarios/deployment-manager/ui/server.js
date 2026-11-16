@@ -29,7 +29,6 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: 'deployment-manager',
   version: '1.0.0',
-  corsOrigins: '*',
   embeddedProxy: true,
   setupRoutes: (expressApp) => {
     // Referer-based API proxy for embedded analyzer requests.

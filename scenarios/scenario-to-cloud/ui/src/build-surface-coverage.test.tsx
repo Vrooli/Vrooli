@@ -52,4 +52,127 @@ describe("bundle build surfaces", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use This Build" }));
     expect(setArtifact).toHaveBeenCalled();
   });
+
+  it("refreshes after local cleanup and keeps failures visible", async () => {
+    api.listBundles
+      .mockResolvedValueOnce({ bundles: [bundle] })
+      .mockResolvedValueOnce({ bundles: [] });
+    api.cleanupBundles.mockResolvedValueOnce({ message: "Removed old bundles" });
+
+    renderWithProviders(<StepBuild deployment={deployment as unknown as ComponentProps<typeof StepBuild>["deployment"]} />);
+    await screen.findByText("demo.tar.gz");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clean up old" }));
+    await screen.findByText("Removed old bundles");
+    await waitFor(() => expect(api.listBundles).toHaveBeenCalled());
+    expect(api.cleanupBundles).toHaveBeenCalledWith({ keep_latest: 3 });
+    expect(screen.getByText(/No existing builds found for "demo"/)).toBeInTheDocument();
+
+    api.listBundles.mockRejectedValueOnce(new Error("local bundle service down"));
+    renderWithProviders(<StepBuild deployment={deployment as unknown as ComponentProps<typeof StepBuild>["deployment"]} />);
+    await screen.findByText("local bundle service down");
+  });
+
+  it("covers VPS bundle loading, removal, cleanup, and connection errors", async () => {
+    const setArtifact = vi.fn();
+    const remoteDeployment = {
+      ...deployment,
+      setBundleArtifact: setArtifact,
+    } as unknown as ComponentProps<typeof StepBuild>["deployment"];
+    renderWithProviders(<StepBuild deployment={remoteDeployment} />);
+    await screen.findByText("demo.tar.gz");
+
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    await screen.findByText("remote.tar.gz");
+    expect(api.listVPSBundles).toHaveBeenCalledWith({
+      host: "vps.example",
+      port: 2222,
+      user: "deploy",
+      key_path: "/tmp/key",
+      workdir: "/opt/app",
+    });
+
+    fireEvent.click(screen.getByTitle("Delete this bundle from VPS"));
+    await waitFor(() => expect(api.deleteVPSBundle).toHaveBeenCalledWith(expect.objectContaining({ filename: "remote.tar.gz" })));
+    expect(screen.queryByText("remote.tar.gz")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    await waitFor(() => expect(api.listVPSBundles).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole("button", { name: "Clean up VPS" }));
+    await screen.findByText("cleaned");
+    expect(api.cleanupBundles).toHaveBeenCalledWith(expect.objectContaining({ clean_vps: true, host: "vps.example" }));
+
+    api.listVPSBundles.mockResolvedValueOnce({ ok: false, error: "remote denied" });
+    fireEvent.click(screen.getByTitle("Delete this bundle from VPS"));
+    await waitFor(() => expect(screen.queryByText("remote.tar.gz")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    await screen.findByText("remote denied");
+  });
+
+  it("shows local and remote operation failures without hiding the current inventory", async () => {
+    api.cleanupBundles.mockRejectedValueOnce("unexpected local cleanup failure");
+    api.deleteBundle.mockRejectedValueOnce(new Error("local delete denied"));
+    renderWithProviders(<StepBuild deployment={deployment as unknown as ComponentProps<typeof StepBuild>["deployment"]} />);
+    await screen.findByText("demo.tar.gz");
+
+    fireEvent.click(screen.getByRole("button", { name: "Clean up old" }));
+    await screen.findByText("Cleanup failed");
+    const localBundleRow = screen.getByText("demo.tar.gz").closest("div.cursor-pointer");
+    expect(localBundleRow).not.toBeNull();
+    fireEvent.click(localBundleRow!.querySelector("button")!);
+    await screen.findByText("local delete denied");
+    expect(screen.getByText("demo.tar.gz")).toBeInTheDocument();
+  });
+
+  it("surfaces remote list and delete fallback errors", async () => {
+    api.listVPSBundles.mockRejectedValueOnce("socket unavailable");
+    const remoteDeployment = {
+      ...deployment,
+      parsedManifest: {
+        ok: true,
+        value: { scenario: { id: "demo" }, target: { vps: { host: "vps.example", key_path: "/tmp/key" } } },
+      },
+    } as unknown as ComponentProps<typeof StepBuild>["deployment"];
+    renderWithProviders(<StepBuild deployment={remoteDeployment} />);
+    await screen.findByText("demo.tar.gz");
+
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    await screen.findByText("Failed to connect to VPS");
+
+    api.listVPSBundles.mockResolvedValueOnce({ ok: true, bundles: [vpsBundle] });
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    fireEvent.click(screen.getByRole("button", { name: "VPS Bundles (vps.example)" }));
+    await screen.findByText("remote.tar.gz");
+    api.deleteVPSBundle.mockResolvedValueOnce({ ok: false, error: "remote delete denied" });
+    fireEvent.click(screen.getByTitle("Delete this bundle from VPS"));
+    await screen.findByText("remote delete denied");
+    expect(screen.getByText("remote.tar.gz")).toBeInTheDocument();
+  });
+
+  it("renders relative build ages for minute, hour, day, and calendar-date ranges", async () => {
+    const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+    api.listBundles.mockResolvedValueOnce({ bundles: [
+      { ...bundle, filename: "now.tar.gz", created_at: ago(0), size_bytes: 0 },
+      { ...bundle, filename: "one-minute.tar.gz", created_at: ago(1) },
+      { ...bundle, filename: "many-minutes.tar.gz", created_at: ago(10) },
+      { ...bundle, filename: "one-hour.tar.gz", created_at: ago(60) },
+      { ...bundle, filename: "many-hours.tar.gz", created_at: ago(180) },
+      { ...bundle, filename: "one-day.tar.gz", created_at: ago(1440) },
+      { ...bundle, filename: "two-days.tar.gz", created_at: ago(2 * 1440) },
+      { ...bundle, filename: "many-days.tar.gz", created_at: ago(8 * 1440) },
+    ] });
+
+    renderWithProviders(<StepBuild deployment={deployment as unknown as ComponentProps<typeof StepBuild>["deployment"]} />);
+    await screen.findByText("now.tar.gz");
+    expect(screen.getByText("just now")).toBeInTheDocument();
+    expect(screen.getByText("1 minute ago")).toBeInTheDocument();
+    expect(screen.getByText("10 minutes ago")).toBeInTheDocument();
+    expect(screen.getByText("1 hour ago")).toBeInTheDocument();
+    expect(screen.getByText("3 hours ago")).toBeInTheDocument();
+    expect(screen.getByText("1 day ago")).toBeInTheDocument();
+    expect(screen.getByText(/2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Total: 8 bundles/)).toBeInTheDocument();
+  });
 });

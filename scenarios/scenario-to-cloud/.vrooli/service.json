@@ -185,6 +185,19 @@
       "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
     },
     {
+      "name": "qemu-arm",
+      "required": true,
+      "reason": "The disposable local-QEMU provider needs a real arm64 Linux VM for matrix cases that exercise architecture behavior.",
+      "when": [
+        "setup",
+        "test"
+      ],
+      "platforms": [
+        "linux"
+      ],
+      "notes": "Install through Vrooli host requirements; do not use an ad-hoc package-manager command."
+    },
+    {
       "name": "cloud-localds",
       "required": true,
       "reason": "The disposable local-QEMU provider uses cloud-init to provision the VM user and SSH key.",

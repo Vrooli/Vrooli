@@ -9,7 +9,6 @@ references; the capture store stores bytes.** No artifact, signature,
 SBOM, or rehearsal log is ever inlined into a table, a proto payload, or
 an emitted verdict.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

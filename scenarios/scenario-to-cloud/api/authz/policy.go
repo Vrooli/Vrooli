@@ -137,12 +137,16 @@ func (p *Policy) Revoked(principal identity.Principal) (bool, error) {
 // personal_local owner without a named grant is unrestricted; every other
 // unnamed principal has no target grant at all.
 func (p *Policy) grantFor(principal identity.Principal) (Grant, bool, error) {
+	return p.grantForAt(principal, time.Now())
+}
+
+func (p *Policy) grantForAt(principal identity.Principal, now time.Time) (Grant, bool, error) {
 	doc, err := p.document()
 	if err != nil {
 		return Grant{}, false, err
 	}
 	subject := strings.TrimSpace(principal.Subject)
-	if principal.Kind == identity.ActorAgent && principal.Grant != nil && principal.Owner == principal.Grant.Approver && time.Now().Before(principal.Grant.ExpiresAt) {
+	if principal.Kind == identity.ActorAgent && principal.Grant != nil && principal.Owner == principal.Grant.Approver && now.Before(principal.Grant.ExpiresAt) {
 		subject = principal.Grant.Approver
 	}
 	if grant, ok := doc.Principals[subject]; ok {
@@ -161,10 +165,30 @@ func (p *Policy) Unrestricted(principal identity.Principal) (bool, error) {
 	return unrestricted, err
 }
 
+// UnrestrictedAt resolves the grant using the caller's admission clock so
+// policy target checks agree with credential and operation-grant expiry.
+func (p *Policy) UnrestrictedAt(principal identity.Principal, now time.Time) (bool, error) {
+	_, unrestricted, err := p.grantForAt(principal, now)
+	return unrestricted, err
+}
+
 // Allows reports whether the principal's grant names the target's environment
 // or its target key.
 func (p *Policy) Allows(principal identity.Principal, target Target) (bool, error) {
 	grant, unrestricted, err := p.grantFor(principal)
+	if err != nil {
+		return false, err
+	}
+	if unrestricted {
+		return true, nil
+	}
+	return grant.covers(target), nil
+}
+
+// AllowsAt resolves the grant using the caller's admission clock so policy
+// target checks agree with credential and operation-grant expiry.
+func (p *Policy) AllowsAt(principal identity.Principal, target Target, now time.Time) (bool, error) {
+	grant, unrestricted, err := p.grantForAt(principal, now)
 	if err != nil {
 		return false, err
 	}

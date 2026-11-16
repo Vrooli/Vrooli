@@ -166,6 +166,12 @@ func (r *Repository) CreatePublication(ctx context.Context, pub evidence.Publica
 	if strings.TrimSpace(pub.ID) == "" || strings.TrimSpace(pub.DeploymentID) == "" || strings.TrimSpace(pub.RequestKey) == "" {
 		return nil, false, fmt.Errorf("publication requires id, deployment and request key")
 	}
+	if err := evidence.TransitionPublicationState(evidence.StateRequested, pub.State); err != nil || pub.State != evidence.StateRequested {
+		if err == nil {
+			err = fmt.Errorf("new publication must start requested")
+		}
+		return nil, false, fmt.Errorf("create publication: %w", err)
+	}
 	now := time.Now().UTC()
 	if pub.RequestedAt.IsZero() {
 		pub.RequestedAt = now
@@ -196,14 +202,30 @@ func (r *Repository) CreatePublication(ctx context.Context, pub evidence.Publica
 
 // UpdatePublication replaces the mutable projection of a publication.
 func (r *Repository) UpdatePublication(ctx context.Context, pub evidence.Publication) error {
+	if err := pub.ValidateState(); err != nil {
+		return err
+	}
+	var current string
+	if err := r.db.QueryRowContext(ctx, `SELECT state FROM cloud_publications WHERE id = $1`, pub.ID).Scan(&current); err != nil {
+		return fmt.Errorf("read publication state: %w", err)
+	}
+	if err := evidence.TransitionPublicationState(current, pub.State); err != nil {
+		return err
+	}
 	pub.UpdatedAt = time.Now().UTC()
 	raw, err := json.Marshal(pub)
 	if err != nil {
 		return fmt.Errorf("encode publication: %w", err)
 	}
-	const q = `UPDATE cloud_publications SET review_ref = $2, state = $3, publication = $4, updated_at = $5, published_at = $6 WHERE id = $1`
-	if _, err := r.db.ExecContext(ctx, q, pub.ID, pub.ReviewRef, pub.State, string(raw), pub.UpdatedAt, nullTime(pub.PublishedAt)); err != nil {
+	const q = `UPDATE cloud_publications SET review_ref = $2, state = $3, publication = $4, updated_at = $5, published_at = $6 WHERE id = $1 AND state = $7`
+	result, err := r.db.ExecContext(ctx, q, pub.ID, pub.ReviewRef, pub.State, string(raw), pub.UpdatedAt, nullTime(pub.PublishedAt), current)
+	if err != nil {
 		return fmt.Errorf("update publication: %w", err)
+	}
+	if changed, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("read publication update result: %w", err)
+	} else if changed != 1 {
+		return fmt.Errorf("%w: publication %s changed from %q before update", evidence.ErrInvalidPublicationTransition, pub.ID, current)
 	}
 	return nil
 }
@@ -235,6 +257,9 @@ func (r *Repository) ListPublications(ctx context.Context, deploymentID string) 
 		if err := json.Unmarshal([]byte(raw), &pub); err != nil {
 			return nil, fmt.Errorf("decode publication: %w", err)
 		}
+		if err := pub.ValidateState(); err != nil {
+			return nil, fmt.Errorf("decode publication: %w", err)
+		}
 		out = append(out, pub)
 	}
 	return out, rows.Err()
@@ -251,6 +276,9 @@ func (r *Repository) scanPublication(row *sql.Row) (*evidence.Publication, error
 	}
 	var pub evidence.Publication
 	if err := json.Unmarshal([]byte(raw), &pub); err != nil {
+		return nil, fmt.Errorf("decode publication: %w", err)
+	}
+	if err := pub.ValidateState(); err != nil {
 		return nil, fmt.Errorf("decode publication: %w", err)
 	}
 	return &pub, nil

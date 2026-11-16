@@ -35,42 +35,8 @@ type (
 // POST /api/v1/deployments/{id}/actions/vps
 func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
-
-	req, err := httputil.DecodeJSON[VPSActionRequest](r.Body, 1<<20)
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_json", Message: "Request body must be valid JSON", Hint: err.Error()})
-		return
-	}
-	validActions := map[string]bool{"reboot": true, "stop_vrooli": true, "cleanup": true}
-	if !validActions[req.Action] {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_action", Message: "Action must be 'reboot', 'stop_vrooli', or 'cleanup'"})
-		return
-	}
-	if req.Action == "cleanup" && (req.CleanupLevel < 1 || req.CleanupLevel > 5) {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_cleanup_level", Message: "Cleanup level must be between 1 and 5"})
-		return
-	}
-	deployment, err := s.repo.GetDeployment(r.Context(), id)
-	if err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "get_failed", Message: "Failed to get deployment", Hint: err.Error()})
-		return
-	}
-	if deployment == nil {
-		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Code: "not_found", Message: "Deployment not found"})
-		return
-	}
-	var m domain.CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
-		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "manifest_parse_failed", Message: "Failed to parse deployment manifest", Hint: err.Error()})
-		return
-	}
-	normalized, _ := manifest.ValidateAndNormalize(m)
-	if normalized.Target.VPS == nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "no_vps_target", Message: "Deployment does not have a VPS target"})
-		return
-	}
-	if err := vps.ValidateActionConfirmation(req.Action, req.CleanupLevel, req.Confirmation, deployment.Name); err != nil {
-		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_confirmation", Message: err.Error()})
+	req, normalized, ok := s.loadVPSAction(w, r, id)
+	if !ok {
 		return
 	}
 
@@ -81,12 +47,70 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	rt := s.executionRuntime(normalized, id, "")
-	response := VPSActionResponse{Action: req.Action, Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	outputs, actErr, message := s.executeVPSAction(ctx, rt, id, req, normalized)
+	if actErr != nil {
+		apierrors.Write(w, actErr)
+		return
+	}
+	response := VPSActionResponse{OK: true, Action: req.Action, Timestamp: time.Now().UTC().Format(time.RFC3339), Message: message, Output: strings.Join(outputs, "\n")}
+	httputil.WriteJSON(w, http.StatusOK, response)
+}
 
-	var (
-		outputs []string
-		actErr  *apierrors.Error
-	)
+func (s *Server) loadVPSAction(w http.ResponseWriter, r *http.Request, id string) (*VPSActionRequest, domain.CloudManifest, bool) {
+	req, err := httputil.DecodeJSON[VPSActionRequest](r.Body, 1<<20)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_json", Message: "Request body must be valid JSON", Hint: err.Error()})
+		return nil, domain.CloudManifest{}, false
+	}
+	if !validateVPSActionRequest(w, req) {
+		return nil, domain.CloudManifest{}, false
+	}
+	deployment, err := s.repo.GetDeployment(r.Context(), id)
+	if err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "get_failed", Message: "Failed to get deployment", Hint: err.Error()})
+		return nil, domain.CloudManifest{}, false
+	}
+	if deployment == nil {
+		httputil.WriteAPIError(w, http.StatusNotFound, httputil.APIError{Code: "not_found", Message: "Deployment not found"})
+		return nil, domain.CloudManifest{}, false
+	}
+	var m domain.CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &m); err != nil {
+		httputil.WriteAPIError(w, http.StatusInternalServerError, httputil.APIError{Code: "manifest_parse_failed", Message: "Failed to parse deployment manifest", Hint: err.Error()})
+		return nil, domain.CloudManifest{}, false
+	}
+	normalized, _ := manifest.ValidateAndNormalize(m)
+	if normalized.Target.VPS == nil {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "no_vps_target", Message: "Deployment does not have a VPS target"})
+		return nil, domain.CloudManifest{}, false
+	}
+	if err := vps.ValidateActionConfirmation(req.Action, req.CleanupLevel, req.Confirmation, deployment.Name); err != nil {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_confirmation", Message: err.Error()})
+		return nil, domain.CloudManifest{}, false
+	}
+	return &req, normalized, true
+}
+
+func validVPSAction(action string) bool {
+	return action == "reboot" || action == "stop_vrooli" || action == "cleanup"
+}
+
+func validateVPSActionRequest(w http.ResponseWriter, req VPSActionRequest) bool {
+	if !validVPSAction(req.Action) {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_action", Message: "Action must be 'reboot', 'stop_vrooli', or 'cleanup'"})
+		return false
+	}
+	if req.Action == "cleanup" && (req.CleanupLevel < 1 || req.CleanupLevel > 5) {
+		httputil.WriteAPIError(w, http.StatusBadRequest, httputil.APIError{Code: "invalid_cleanup_level", Message: "Cleanup level must be between 1 and 5"})
+		return false
+	}
+	return true
+}
+
+func (s *Server) executeVPSAction(ctx context.Context, rt vps.Runtime, id string, req *VPSActionRequest, normalized domain.CloudManifest) ([]string, *apierrors.Error, string) {
+	var outputs []string
+	var actErr *apierrors.Error
+	message := ""
 	switch req.Action {
 	case "reboot":
 		actErr = apierrors.New(apierrors.CodeUnsupportedCapability, "Host reboot has no target owner action; reboot the host through its provider console").
@@ -94,50 +118,47 @@ func (s *Server) handleVPSAction(w http.ResponseWriter, r *http.Request) {
 	case "stop_vrooli":
 		outputs, actErr = s.stopDeploymentWorkloads(ctx, rt, normalized)
 		if actErr == nil {
-			if err := s.repo.UpdateDesiredState(ctx, id, domain.DesiredStopped); err != nil {
-				s.log("failed to record desired state", map[string]interface{}{"deployment_id": id, "error": err.Error()})
-			}
+			s.recordDesiredStopped(ctx, id)
 		}
-		response.Message = "Vrooli workloads stopped through the lifecycle owner; desired state recorded as stopped"
+		message = "Vrooli workloads stopped through the lifecycle owner; desired state recorded as stopped"
 	case "cleanup":
-		switch req.CleanupLevel {
-		case 3:
-			journalOut, journalErr := managementRepair(ctx, rt, "journald.vacuum", map[string]any{"journal": map[string]any{"max_use_bytes": 16 * 1024 * 1024}})
-			outputs = append(outputs, "journald.vacuum: "+journalOut)
-			if journalErr != nil {
-				actErr = journalErr
-			}
-			if actErr != nil {
-				break
-			}
-			// Docker itself selects only volumes not referenced by any container;
-			// the broker refuses arbitrary names and builds the fixed prune argv.
-			out, err := managementRepair(ctx, rt, "docker.prune.unused-images", map[string]any{"docker": map[string]any{}})
-			outputs = append(outputs, "docker.prune.unused-images: "+out)
-			if err != nil {
-				actErr = err
-			}
-			if actErr != nil {
-				break
-			}
-			out, err = managementRepair(ctx, rt, "docker.prune.unused-volumes", map[string]any{"docker": map[string]any{}})
-			outputs = append(outputs, "docker.prune.unused-volumes: "+out)
-			if err != nil {
-				actErr = err
-			}
-			response.Message = "Unused Docker images and unreferenced volumes pruned through the privilege broker"
-		default:
-			actErr = apierrors.Newf(apierrors.CodeUnsupportedCapability, "Cleanup level %d deletes owned files in place; retire the deployment through its retirement plan instead", req.CleanupLevel).
-				WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "retire", Reference: "/api/v1/deployments/" + id + "/retire/plan", Label: "Preview the retirement plan (retained vs deleted objects) and apply it"})
-		}
+		outputs, actErr, message = s.executeVPSCleanup(ctx, rt, id, req.CleanupLevel)
 	}
-	if actErr != nil {
-		apierrors.Write(w, actErr)
-		return
+	return outputs, actErr, message
+}
+
+func (s *Server) executeVPSCleanup(ctx context.Context, rt vps.Runtime, id string, level int) ([]string, *apierrors.Error, string) {
+	if level != 3 {
+		return nil, apierrors.Newf(apierrors.CodeUnsupportedCapability, "Cleanup level %d deletes owned files in place; retire the deployment through its retirement plan instead", level).
+			WithNextAction(apierrors.NextAction{Owner: "scenario-to-cloud", Kind: "retire", Reference: "/api/v1/deployments/" + id + "/retire/plan", Label: "Preview the retirement plan (retained vs deleted objects) and apply it"}), ""
 	}
-	response.OK = true
-	response.Output = strings.Join(outputs, "\n")
-	httputil.WriteJSON(w, http.StatusOK, response)
+	return cleanupUnusedDocker(ctx, rt)
+}
+
+func cleanupUnusedDocker(ctx context.Context, rt vps.Runtime) ([]string, *apierrors.Error, string) {
+	var outputs []string
+	journalOut, err := managementRepair(ctx, rt, "journald.vacuum", map[string]any{"journal": map[string]any{"max_use_bytes": 16 * 1024 * 1024}})
+	outputs = append(outputs, "journald.vacuum: "+journalOut)
+	if err != nil {
+		return outputs, err, ""
+	}
+	imagesOut, err := managementRepair(ctx, rt, "docker.prune.unused-images", map[string]any{"docker": map[string]any{}})
+	outputs = append(outputs, "docker.prune.unused-images: "+imagesOut)
+	if err != nil {
+		return outputs, err, ""
+	}
+	volumesOut, err := managementRepair(ctx, rt, "docker.prune.unused-volumes", map[string]any{"docker": map[string]any{}})
+	outputs = append(outputs, "docker.prune.unused-volumes: "+volumesOut)
+	if err != nil {
+		return outputs, err, ""
+	}
+	return outputs, nil, "Unused Docker images and unreferenced volumes pruned through the privilege broker"
+}
+
+func (s *Server) recordDesiredStopped(ctx context.Context, id string) {
+	if err := s.repo.UpdateDesiredState(ctx, id, domain.DesiredStopped); err != nil {
+		s.log("failed to record desired state", map[string]interface{}{"deployment_id": id, "error": err.Error()})
+	}
 }
 
 // stopDeploymentWorkloads stops the target scenario and its dependent

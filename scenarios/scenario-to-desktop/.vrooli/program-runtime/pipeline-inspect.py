@@ -8,10 +8,6 @@ envelope = {"program": "scenario-to-desktop.pipeline-inspect", "version": "1",
 handles = {}
 selection = {}
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:160], "where": where})
-    return "report"
 
 
 def guarded(call):
@@ -26,11 +22,11 @@ def guarded(call):
 # VALIDATE: reject malformed selectors before any binding is called.
 def step_validate():
     if not isinstance(inputs, dict) or set(inputs) - {"scenario", "pipeline_id"} or not inputs.get("scenario", "").strip() and not inputs.get("pipeline_id", "").strip():
-        return fail("failed", "invalid_input", "Expected scenario and optional pipeline_id", "validate")
+        return program.fail("failed", "invalid_input", "Expected scenario and optional pipeline_id", "validate", detail_limit=160)
     for key in ("scenario", "pipeline_id"):
         value = inputs.get(key, "")
         if not isinstance(value, str) or len(value) > 128:
-            return fail("failed", "invalid_input", "Invalid " + key, "validate")
+            return program.fail("failed", "invalid_input", "Invalid " + key, "validate", detail_limit=160)
         selection[key] = value.strip()
     envelope["inputs"] = dict(selection)
     return "collect"
@@ -48,11 +44,11 @@ def step_collect():
             envelope["evidence"].append("scenario-to-desktop/pipeline/list")
         except Exception as exc:
             status, klass = program.classify(exc)
-            return fail(status, klass, klass, "collect:list")
+            return program.fail(status, klass, klass, "collect:list", detail_limit=160)
         if not chosen:
-            return fail("failed", "pipeline_not_found", "No pipeline for the selected scenario", "collect:list")
+            return program.fail("failed", "pipeline_not_found", "No pipeline for the selected scenario", "collect:list", detail_limit=160)
         if not chosen[0]["id"] or not chosen[0]["created"]:
-            return fail("failed", "invalid_response", "Pipeline selection lacks identity or creation time", "collect:list")
+            return program.fail("failed", "invalid_response", "Pipeline selection lacks identity or creation time", "collect:list", detail_limit=160)
         selection["pipeline_id"] = chosen[0]["id"]
     results = gather(
         guarded(lambda: scenario_to_desktop.pipeline.status(pipeline_id=selection["pipeline_id"])),
@@ -60,7 +56,7 @@ def step_collect():
     for key, result in zip(("pipeline", "tasks"), results):
         if isinstance(result, Exception):
             status, klass = program.classify(result)
-            fail(status, klass, klass, "collect:" + key)
+            program.fail(status, klass, klass, "collect:" + key, detail_limit=160)
         else:
             handles[key] = result
             envelope["evidence"].append("scenario-to-desktop/" + ("pipeline/status" if key == "pipeline" else "tasks/list"))
@@ -77,14 +73,14 @@ def step_classify():
         selection["scenario"] = str(record.get("scenarioName", "")).strip()
         envelope["inputs"]["scenario"] = selection["scenario"]
     if record.get("scenarioName") != selection["scenario"] or record.get("pipelineId") != selection["pipeline_id"]:
-        return fail("failed", "identity_mismatch", "Pipeline identity differs from requested selectors", "classify")
+        return program.fail("failed", "identity_mismatch", "Pipeline identity differs from requested selectors", "classify", detail_limit=160)
     owner_status = record.get("status")
     allowed = ("PENDING", "RUNNING", "COMPLETED", "FAILED", "SKIPPED", "CANCELLED")
     if owner_status not in ["STAGE_STATUS_" + value for value in allowed]:
-        return fail("failed", "invalid_response", "Pipeline status missing or unknown", "classify")
+        return program.fail("failed", "invalid_response", "Pipeline status missing or unknown", "classify", detail_limit=160)
     stages = record.get("stages") or {}
     if not isinstance(stages, dict) or len(stages) > 10:
-        return fail("failed", "invalid_response", "Stage map exceeds declared bound or has wrong shape", "classify")
+        return program.fail("failed", "invalid_response", "Stage map exceeds declared bound or has wrong shape", "classify", detail_limit=160)
     envelope["signals"]["pipeline"] = {
         "id": selection["pipeline_id"], "scenario": selection["scenario"], "status": owner_status,
         "current_stage": record.get("currentStage"), "has_error": bool(record.get("error")),
@@ -94,7 +90,7 @@ def step_classify():
     if "tasks" in handles:
         tasks = handles["tasks"]
         if tasks.filter(lambda item: item.get("pipelineId") != selection["pipeline_id"]).count():
-            return fail("failed", "identity_mismatch", "Task belongs to a different pipeline", "classify")
+            return program.fail("failed", "identity_mismatch", "Task belongs to a different pipeline", "classify", detail_limit=160)
         envelope["signals"]["task_count"] = tasks.count()
         envelope["signals"]["task_sample_saturated"] = tasks.count() >= 100
         envelope["signals"]["task_states"] = dict(tasks.map(lambda item: {"status": item.get("status", "unknown")}).group_by("status"))
@@ -120,5 +116,5 @@ while state:
     except Exception as exc:
         if envelope.get("phase") == "report":
             raise
-        fail("failed", "kernel_runtime", str(exc)[:160], envelope.get("phase") or state)
+        program.fail("failed", "kernel_runtime", str(exc)[:160], envelope.get("phase") or state, detail_limit=160)
         state = "report"

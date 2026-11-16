@@ -414,6 +414,27 @@ func TestStart_ThreadsPostureDefaultScopesIntoPairing(t *testing.T) {
 	requireArgPair(t, driver.CapturedArgs, "--presence-only", "false")
 }
 
+func TestStart_ReEnrollmentUsesExistingApprovedScopesInsteadOfPostureDefaults(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	driver := &mocks.FakeSSHDriver{RunBootstrapMarkers: successMarkers(testNodeID)}
+	issuer := &mocks.FakeCodeIssuer{Code: testCode}
+	confirmer := &mocks.FakeOnlineConfirmer{Online: true}
+	svc := onboard.NewService(repo, driver, issuer, confirmer, schedule.System(),
+		onboard.WithEnrollmentResolver(fixedEnrollmentResolver{nodeID: testNodeID, paired: true}),
+		onboard.WithDefaultScopes([]string{"vrooli-bridge:read", "vrooli-bridge:write"}),
+	)
+
+	in := validInput()
+	in.PairingScopesSet = true
+	in.PairingScopes = []string{"vrooli-bridge:read", "scenario-to-cloud:read"}
+	dec, err := svc.Start(context.Background(), in)
+	require.NoError(t, err)
+	op := waitTerminal(t, svc, dec.OpID)
+	require.Equal(t, onboard.StatePaired, op.State)
+	require.Equal(t, in.PairingScopes, issuer.LastParams.Scopes)
+	requireArgPair(t, driver.CapturedArgs, "--presence-only", "false")
+}
+
 func TestStart_ProvisionSudoThreadsAndNamesOutcome(t *testing.T) {
 	repo := mocks.NewFakeRepository()
 	driver := &mocks.FakeSSHDriver{

@@ -196,7 +196,7 @@ func TestStatusIsComplete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.status, func(t *testing.T) {
-			s := Status{Status: tt.status}
+			s := Status{Status: PipelineStatus(tt.status)}
 			if s.IsComplete() != tt.expected {
 				t.Errorf("IsComplete() = %v, expected %v", s.IsComplete(), tt.expected)
 			}
@@ -252,7 +252,7 @@ func TestStatusCanResume(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := Status{
-				Status:            tt.status,
+				Status:            PipelineStatus(tt.status),
 				StoppedAfterStage: tt.stoppedAfterStage,
 			}
 			if s.CanResume() != tt.expected {
@@ -328,7 +328,7 @@ func TestStatusGetNextResumeStage(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := Status{
-				Status:            tt.status,
+				Status:            PipelineStatus(tt.status),
 				StoppedAfterStage: tt.stoppedAfterStage,
 			}
 			if got := s.GetNextResumeStage(); got != tt.expected {

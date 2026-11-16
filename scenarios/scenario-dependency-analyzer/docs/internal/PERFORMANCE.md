@@ -1,6 +1,5 @@
 # Performance
 
-## Purpose Of This Document
 
 Track performance budgets and known constraints.
 

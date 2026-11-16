@@ -2,6 +2,31 @@ package readiness
 
 import "testing"
 
+func TestReviewStatusOwnerRejectsInvalidAndTerminalReversals(t *testing.T) {
+	for _, edge := range [][2]ReviewStatus{
+		{ReviewCollecting, ReviewApproved},
+		{ReviewAgentReview, ReviewPromoted},
+		{ReviewPromoted, ReviewAgentReview},
+		{ReviewSuperseded, ReviewPromoted},
+		{ReviewBlocked, ReviewBlocked},
+	} {
+		review := Review{Status: edge[0]}
+		if err := review.TransitionStatus(edge[1]); err == nil {
+			t.Errorf("accepted invalid transition %q -> %q", edge[0], edge[1])
+		}
+		if review.Status != edge[0] {
+			t.Errorf("invalid transition mutated status to %q", review.Status)
+		}
+	}
+	review := Review{Status: ReviewApproved}
+	if err := review.ApplyEvaluationStatus(ReviewAgentReview); err != nil || review.Status != ReviewAgentReview {
+		t.Fatalf("approved review refresh should invalidate approval: status=%q err=%v", review.Status, err)
+	}
+	if err := review.ApplyEvaluationStatus(ReviewPromoted); err == nil || review.Status != ReviewAgentReview {
+		t.Fatalf("evaluation accepted terminal promotion: status=%q err=%v", review.Status, err)
+	}
+}
+
 func TestReviewIdentityKeyIsStableAcrossTargetOrder(t *testing.T) {
 	a := ReviewIdentity{Scenario: "demo", ProfileID: "p1", CandidateCommit: "abc", ArtifactDigest: "sha256:one", Targets: []string{"windows", "linux"}, Channel: "stable", PolicyVersion: 2}
 	b := a

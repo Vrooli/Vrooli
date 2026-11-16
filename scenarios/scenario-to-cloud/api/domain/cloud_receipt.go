@@ -66,33 +66,56 @@ func (r CloudDeploymentReceipt) Check(expect ReceiptExpectation) error {
 	if !r.Valid() {
 		return fmt.Errorf("receipt is incomplete or does not describe a healthy deployed effect")
 	}
+	for _, check := range []func() error{
+		r.checkProducer,
+		func() error { return r.checkExpectedIdentity(expect) },
+		func() error { return r.checkFreshness(expect) },
+	} {
+		if err := check(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r CloudDeploymentReceipt) checkProducer() error {
 	if r.ProducerRef != ReceiptProducerRef {
 		return fmt.Errorf("receipt producer_ref %q is not the cloud service principal", r.ProducerRef)
 	}
-	if expect.DeploymentID != "" && r.DeploymentID != expect.DeploymentID {
-		return fmt.Errorf("receipt is bound to deployment %q, expected %q", r.DeploymentID, expect.DeploymentID)
+	return nil
+}
+
+func (r CloudDeploymentReceipt) checkExpectedIdentity(expect ReceiptExpectation) error {
+	checks := []struct{ actual, expected, label string }{
+		{r.DeploymentID, expect.DeploymentID, "deployment"},
+		{r.BundleSHA256, expect.BundleSHA256, "bundle"},
+		{r.TargetKey, expect.TargetKey, "target"},
+	}
+	for _, check := range checks {
+		if check.expected != "" && check.actual != check.expected {
+			return fmt.Errorf("receipt is bound to %s %q, expected %q", check.label, check.actual, check.expected)
+		}
 	}
 	if expect.ReleaseDigest != "" && !strings.EqualFold(strings.TrimPrefix(r.ReleaseDigest, "sha256:"), strings.TrimPrefix(expect.ReleaseDigest, "sha256:")) {
 		return fmt.Errorf("receipt is bound to release %q, expected %q", r.ReleaseDigest, expect.ReleaseDigest)
 	}
-	if expect.BundleSHA256 != "" && !strings.EqualFold(r.BundleSHA256, expect.BundleSHA256) {
-		return fmt.Errorf("receipt is bound to bundle %q, expected %q", r.BundleSHA256, expect.BundleSHA256)
+	return nil
+}
+
+func (r CloudDeploymentReceipt) checkFreshness(expect ReceiptExpectation) error {
+	if expect.MaxAge <= 0 {
+		return nil
 	}
-	if expect.TargetKey != "" && r.TargetKey != expect.TargetKey {
-		return fmt.Errorf("receipt is bound to target %q, expected %q", r.TargetKey, expect.TargetKey)
+	observed, err := time.Parse(time.RFC3339Nano, r.ObservedAt)
+	if err != nil {
+		return fmt.Errorf("receipt observed_at %q is not RFC 3339", r.ObservedAt)
 	}
-	if expect.MaxAge > 0 {
-		observed, err := time.Parse(time.RFC3339Nano, r.ObservedAt)
-		if err != nil {
-			return fmt.Errorf("receipt observed_at %q is not RFC 3339", r.ObservedAt)
-		}
-		now := expect.Now
-		if now.IsZero() {
-			now = time.Now()
-		}
-		if now.Sub(observed) > expect.MaxAge {
-			return fmt.Errorf("receipt observed_at %s is older than the %s policy", r.ObservedAt, expect.MaxAge)
-		}
+	now := expect.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	if now.Sub(observed) > expect.MaxAge {
+		return fmt.Errorf("receipt observed_at %s is older than the %s policy", r.ObservedAt, expect.MaxAge)
 	}
 	return nil
 }
@@ -191,14 +214,21 @@ type RecoveryBinding struct {
 }
 
 func (r CloudRecoveryReceipt) Valid() bool {
-	validOutcome := r.Outcome == "halted" || r.Outcome == "rolled_back" || r.Outcome == "forward_repaired"
-	validHealth := r.Health == "stopped" || r.Health == "healthy"
-	if r.Action != "halt" && (r.OperationID == "" || r.BundleSHA256 == "") {
-		return false
-	}
-	return r.SchemaVersion == 1 && r.DeploymentID != "" && r.Action != "" &&
-		validOutcome && validHealth && r.ExternalReceipt != "" &&
+	return r.SchemaVersion == 1 && r.DeploymentID != "" && r.validRecoveryAction() &&
+		r.validRecoveryOutcome() && r.validRecoveryHealth() && r.ExternalReceipt != "" &&
 		r.ObservedAt != "" && !r.DryRun
+}
+
+func (r CloudRecoveryReceipt) validRecoveryAction() bool {
+	return r.Action != "" && (r.Action == "halt" || (r.OperationID != "" && r.BundleSHA256 != ""))
+}
+
+func (r CloudRecoveryReceipt) validRecoveryOutcome() bool {
+	return r.Outcome == "halted" || r.Outcome == "rolled_back" || r.Outcome == "forward_repaired"
+}
+
+func (r CloudRecoveryReceipt) validRecoveryHealth() bool {
+	return r.Health == "stopped" || r.Health == "healthy"
 }
 
 // RecoveryOperation records the owner-side durable lifecycle for a recovery
@@ -249,69 +279,103 @@ func BuildCloudDeploymentReceipt(deployment *Deployment, observedAt time.Time, r
 	if deployment.Status != StatusDeployed {
 		return nil, fmt.Errorf("deployment %q is not deployed", deployment.ID)
 	}
-	if !deployment.DeployResult.Valid || len(deployment.DeployResult.Data) == 0 {
-		return nil, fmt.Errorf("deployment %q has no persisted deploy result", deployment.ID)
+	if _, err := persistedDeployResult(deployment); err != nil {
+		return nil, err
 	}
-	var result VPSDeployResult
-	if err := json.Unmarshal(deployment.DeployResult.Data, &result); err != nil {
-		return nil, fmt.Errorf("decode deploy result: %w", err)
+	manifest, err := receiptManifest(deployment)
+	if err != nil {
+		return nil, err
 	}
-	if !result.OK {
-		return nil, fmt.Errorf("deployment %q deploy result is not successful", deployment.ID)
+	destination, err := receiptDestination(deployment, manifest, rel)
+	if err != nil {
+		return nil, err
 	}
-	if len(deployment.Manifest) == 0 {
-		return nil, fmt.Errorf("deployment %q has no manifest", deployment.ID)
+	observedAt, err = receiptObservedAt(deployment, observedAt)
+	if err != nil {
+		return nil, err
 	}
-	var manifest CloudManifest
-	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
-		return nil, fmt.Errorf("decode deployment manifest: %w", err)
-	}
-	if manifest.Target.VPS == nil {
-		return nil, fmt.Errorf("deployment %q has no VPS target", deployment.ID)
-	}
-	host := strings.TrimSpace(manifest.Target.VPS.Host)
-	workdir := strings.TrimSpace(manifest.Target.VPS.Workdir)
-	domain := strings.TrimSpace(manifest.Edge.Domain)
-	bundleSHA := ""
-	if deployment.BundleSHA256 != nil {
-		bundleSHA = strings.TrimSpace(*deployment.BundleSHA256)
-	}
-	if host == "" || workdir == "" || domain == "" || bundleSHA == "" {
-		return nil, fmt.Errorf("deployment %q is missing exact destination or bundle identity", deployment.ID)
-	}
-	if observedAt.IsZero() {
-		observedAt = deployment.UpdatedAt
-	}
-	if observedAt.IsZero() {
-		return nil, fmt.Errorf("deployment %q has no deployed-at time", deployment.ID)
-	}
-	targetKey := deployment.Target.Key()
-	if targetKey == "" {
-		targetKey = "host:" + host
-	}
-	operationID := strings.TrimSpace(rel.OperationID)
-	destinationID := destinationIdentity(deployment.ScenarioID, host, workdir, domain)
 	return &CloudDeploymentReceipt{
 		SchemaVersion:       1,
 		DeploymentID:        deployment.ID,
 		ScenarioID:          deployment.ScenarioID,
 		ScenarioVersion:     strings.TrimSpace(manifest.Scenario.Ref),
 		TargetKind:          "vps",
-		DestinationID:       destinationID,
-		DestinationHost:     host,
-		DestinationWorkdir:  workdir,
-		DestinationDomain:   domain,
-		BundleSHA256:        bundleSHA,
+		DestinationID:       destination.id,
+		DestinationHost:     destination.host,
+		DestinationWorkdir:  destination.workdir,
+		DestinationDomain:   destination.domain,
+		BundleSHA256:        destination.bundleSHA,
 		ReleaseDigest:       strings.TrimSpace(rel.ReleaseDigest),
 		ConfigurationDigest: strings.TrimSpace(rel.ConfigurationDigest),
-		TargetKey:           targetKey,
-		OperationID:         operationID,
+		TargetKey:           destination.targetKey,
+		OperationID:         destination.operationID,
 		Outcome:             "deployed",
 		Health:              "healthy",
 		ExternalReceipt:     "scenario-to-cloud:" + deployment.ID,
 		ObservedAt:          observedAt.UTC().Format(time.RFC3339Nano),
 		ProducerRef:         ReceiptProducerRef,
 	}, nil
+}
+
+func persistedDeployResult(deployment *Deployment) (VPSDeployResult, error) {
+	if !deployment.DeployResult.Valid || len(deployment.DeployResult.Data) == 0 {
+		return VPSDeployResult{}, fmt.Errorf("deployment %q has no persisted deploy result", deployment.ID)
+	}
+	var result VPSDeployResult
+	if err := json.Unmarshal(deployment.DeployResult.Data, &result); err != nil {
+		return VPSDeployResult{}, fmt.Errorf("decode deploy result: %w", err)
+	}
+	if !result.OK {
+		return VPSDeployResult{}, fmt.Errorf("deployment %q deploy result is not successful", deployment.ID)
+	}
+	return result, nil
+}
+
+func receiptManifest(deployment *Deployment) (CloudManifest, error) {
+	if len(deployment.Manifest) == 0 {
+		return CloudManifest{}, fmt.Errorf("deployment %q has no manifest", deployment.ID)
+	}
+	var manifest CloudManifest
+	if err := json.Unmarshal(deployment.Manifest, &manifest); err != nil {
+		return CloudManifest{}, fmt.Errorf("decode deployment manifest: %w", err)
+	}
+	return manifest, nil
+}
+
+type deploymentReceiptDestination struct {
+	id, host, workdir, domain, bundleSHA, targetKey, operationID string
+}
+
+func receiptDestination(deployment *Deployment, manifest CloudManifest, release ReceiptRelease) (deploymentReceiptDestination, error) {
+	if manifest.Target.VPS == nil {
+		return deploymentReceiptDestination{}, fmt.Errorf("deployment %q has no VPS target", deployment.ID)
+	}
+	destination := deploymentReceiptDestination{
+		host: strings.TrimSpace(manifest.Target.VPS.Host), workdir: strings.TrimSpace(manifest.Target.VPS.Workdir), domain: strings.TrimSpace(manifest.Edge.Domain),
+		operationID: strings.TrimSpace(release.OperationID),
+	}
+	if deployment.BundleSHA256 != nil {
+		destination.bundleSHA = strings.TrimSpace(*deployment.BundleSHA256)
+	}
+	if destination.host == "" || destination.workdir == "" || destination.domain == "" || destination.bundleSHA == "" {
+		return deploymentReceiptDestination{}, fmt.Errorf("deployment %q is missing exact destination or bundle identity", deployment.ID)
+	}
+	destination.targetKey = deployment.Target.Key()
+	if destination.targetKey == "" {
+		destination.targetKey = "host:" + destination.host
+	}
+	destination.id = destinationIdentity(deployment.ScenarioID, destination.host, destination.workdir, destination.domain)
+	return destination, nil
+}
+
+func receiptObservedAt(deployment *Deployment, observedAt time.Time) (time.Time, error) {
+	if observedAt.IsZero() {
+		observedAt = deployment.UpdatedAt
+	}
+	if observedAt.IsZero() {
+		return time.Time{}, fmt.Errorf("deployment %q has no deployed-at time", deployment.ID)
+	}
+	return observedAt, nil
 }
 
 func destinationIdentity(scenarioID, host, workdir, domain string) string {
@@ -323,8 +387,18 @@ func destinationIdentity(scenarioID, host, workdir, domain string) string {
 // Valid reports whether the receipt has enough owner evidence to be consumed
 // as a successful cloud effect.
 func (r CloudDeploymentReceipt) Valid() bool {
-	return r.SchemaVersion == 1 && r.DeploymentID != "" && r.ScenarioID != "" &&
-		r.TargetKind == "vps" && r.DestinationID != "" && r.DestinationHost != "" &&
-		r.DestinationWorkdir != "" && r.DestinationDomain != "" && r.BundleSHA256 != "" && r.TargetKey != "" &&
-		r.Outcome == "deployed" && r.Health == "healthy" && r.ExternalReceipt != "" && r.ObservedAt != "" && r.ProducerRef != ""
+	return r.validDeploymentIdentity() && r.validDeploymentDestination() && r.validDeploymentOutcome()
+}
+
+func (r CloudDeploymentReceipt) validDeploymentIdentity() bool {
+	return r.SchemaVersion == 1 && r.DeploymentID != "" && r.ScenarioID != "" && r.TargetKind == "vps"
+}
+
+func (r CloudDeploymentReceipt) validDeploymentDestination() bool {
+	return r.DestinationID != "" && r.DestinationHost != "" && r.DestinationWorkdir != "" &&
+		r.DestinationDomain != "" && r.BundleSHA256 != "" && r.TargetKey != ""
+}
+
+func (r CloudDeploymentReceipt) validDeploymentOutcome() bool {
+	return r.Outcome == "deployed" && r.Health == "healthy" && r.ExternalReceipt != "" && r.ObservedAt != "" && r.ProducerRef != ""
 }

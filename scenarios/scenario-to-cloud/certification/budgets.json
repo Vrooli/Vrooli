@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "matrix_revision": "cloud-launch-v1",
+  "matrix_revision": "cloud-launch-v2-two-grounds",
   "policy_ref": "docs/reference/support-policy.md#numeric-budgets-minimal-seeded-fixture",
   "frozen_at": "2026-09-09",
   "frozen_by_phase": 1,

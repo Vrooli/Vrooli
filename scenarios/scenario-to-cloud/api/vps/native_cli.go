@@ -35,158 +35,8 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 	}
 	delivery := reach.Delivery{Files: []reach.ArtifactFile{{Role: "bundle", LocalPath: local, RemotePath: in["destination"], SHA256: in["bundle_sha256"]}}}
 	if in["release_id"] != "" {
-		rel, err := release.LoadDir(filepath.Dir(local))
-		if err != nil {
+		if err := appendBuiltReleaseDelivery(ctx, e, in, local, &delivery); err != nil {
 			return "", err
-		}
-		caps, err := e.reach.Negotiate(ctx, e.rt.Target)
-		if err != nil && !reach.IsKind(err, reach.KindProtocolUnsupported) {
-			return "", err
-		}
-		declared := rel.Manifest.NativeCLI.GOOS + "/" + rel.Manifest.NativeCLI.GOARCH
-		if caps.Platform != "" && caps.Platform != declared {
-			return "", apierrors.Newf(apierrors.CodeUnsupportedCapability, "release %s carries a %s control plane; the target is %s", rel.Digest, declared, caps.Platform).
-				WithDetail("artifact", filepath.Base(rel.NativeCLIPath())).WithDetail("declared", declared).WithDetail("required", caps.Platform)
-		}
-		repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
-		if err != nil {
-			return "", err
-		}
-		delivery.Files = append(delivery.Files,
-			reach.ArtifactFile{Role: "release_manifest", LocalPath: rel.ManifestPath(), RemotePath: in["release_manifest"]},
-			reach.ArtifactFile{Role: "native_cli", LocalPath: rel.NativeCLIPath(), RemotePath: in["native_cli"], Mode: 0o755, SHA256: rel.Manifest.NativeCLI.SHA256},
-			// Setup and safeguard lifecycle hooks resolve the managed launcher
-			// from the operator home, while cloud-target itself lives under the
-			// deployment workdir. Seed both locations during first bootstrap so
-			// setup cannot lose the control plane between those phases.
-			reach.ArtifactFile{Role: "native_cli_managed_launcher", LocalPath: rel.NativeCLIPath(), RemotePath: filepath.Join(remoteUserHome(e.rt.Target.Locator.User), ".vrooli", "bin", "vrooli"), Mode: 0o755, SHA256: rel.Manifest.NativeCLI.SHA256},
-			reach.ArtifactFile{Role: "repo_contract", LocalPath: filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, ".vrooli", "repo-contract.json")},
-			reach.ArtifactFile{Role: "repo_service_manifest", LocalPath: filepath.Join(repoRoot, ".vrooli", "service.json"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, ".vrooli", "service.json")},
-			reach.ArtifactFile{Role: "repo_go_mod", LocalPath: filepath.Join(repoRoot, "go.mod"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "go.mod")},
-			reach.ArtifactFile{Role: "repo_go_sum", LocalPath: filepath.Join(repoRoot, "go.sum"), RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "go.sum")},
-		)
-		autohealService := filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", ".vrooli", "service.json")
-		if fileExists(autohealService) {
-			delivery.Files = append(delivery.Files, reach.ArtifactFile{
-				Role: "autoheal_service_manifest", LocalPath: autohealService,
-				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "vrooli-autoheal", ".vrooli", "service.json"),
-			})
-		}
-		// Setup resolves the selected closure from scenario service manifests at
-		// the durable repository root. Deliver those small declarations even
-		// when the scenario's executable tree lives only in the release archive.
-		for _, scenarioID := range append([]string{e.manifest.Scenario.ID}, e.manifest.Dependencies.Scenarios...) {
-			scenarioID = strings.TrimSpace(scenarioID)
-			if scenarioID == "" || scenarioID == "vrooli-autoheal" {
-				continue
-			}
-			serviceManifest := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
-			if !fileExists(serviceManifest) {
-				continue
-			}
-			delivery.Files = append(delivery.Files, reach.ArtifactFile{
-				Role: "scenario_service_manifest_" + scenarioID, LocalPath: serviceManifest,
-				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", scenarioID, ".vrooli", "service.json"),
-			})
-			// Scenario APIs are independent Go modules. Keep their checksums beside
-			// the staged source so target-side setup can build without consulting a
-			// network-only module resolver or mutating the release checkout.
-			for _, name := range []string{"go.mod", "go.sum"} {
-				local := filepath.Join(repoRoot, "scenarios", scenarioID, "api", name)
-				if !fileExists(local) {
-					continue
-				}
-				delivery.Files = append(delivery.Files, reach.ArtifactFile{
-					Role:       "scenario_api_" + scenarioID + "_" + strings.ReplaceAll(name, ".", "_"),
-					LocalPath:  local,
-					RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", scenarioID, "api", name),
-				})
-			}
-		}
-		for _, dir := range []string{"templates", "cmd", "internal"} {
-			delivery.Files = append(delivery.Files, reach.ArtifactFile{
-				Role:       "repo_marker_" + dir,
-				LocalPath:  filepath.Join(repoRoot, "go.mod"),
-				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, dir, ".cloud-bootstrap"),
-			})
-		}
-		// The emergency watchdog is built before release staging on a fresh
-		// target. Deliver the small source closure it uses so setup can verify
-		// or rebuild the safeguard without depending on an older checkout.
-		for _, dir := range []string{
-			"cmd/vrooli-watchdog",
-			"internal/buildinfo",
-			"internal/hostpressure",
-			"internal/hostinventory",
-			"internal/setpoint",
-			"internal/workloadowner",
-			"internal/tuning",
-			"internal/logx",
-			"packages/platform-go",
-		} {
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, dir), filepath.Join(e.rt.Target.Locator.Workdir, dir), "repo_watchdog_source"); err != nil {
-				return "", err
-			}
-		}
-		for _, resource := range e.manifest.Dependencies.Resources {
-			resourceManifest := filepath.Join(repoRoot, "resources", resource, "resource.json")
-			if _, statErr := os.Stat(resourceManifest); statErr != nil {
-				continue
-			}
-			delivery.Files = append(delivery.Files, reach.ArtifactFile{
-				Role:       "resource_manifest_" + resource,
-				LocalPath:  resourceManifest,
-				RemotePath: filepath.Join(e.rt.Target.Locator.Workdir, "resources", resource, "resource.json"),
-			})
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "resources", resource), filepath.Join(e.rt.Target.Locator.Workdir, "resources", resource), "resource_source"); err != nil {
-				return "", err
-			}
-		}
-		goWorkPath, err := appendBundleFile(&delivery, local, "go.work", filepath.Join(e.rt.Target.Locator.Workdir, "go.work"))
-		if err != nil {
-			return "", err
-		}
-		if goWorkPath != "" {
-			defer os.Remove(goWorkPath)
-			goWorkSumPath, sumErr := appendBundleFile(&delivery, local, "go.work.sum", filepath.Join(e.rt.Target.Locator.Workdir, "go.work.sum"))
-			if sumErr != nil {
-				return "", sumErr
-			}
-			if goWorkSumPath != "" {
-				defer os.Remove(goWorkSumPath)
-			}
-			if err := appendWorkspaceModuleManifests(&delivery, goWorkPath, repoRoot, e.rt.Target.Locator.Workdir); err != nil {
-				return "", err
-			}
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "scenarios", "scenario-to-desktop", "runtime"), filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "scenario-to-desktop", "runtime"), "repo_watchdog_dependency"); err != nil {
-				return "", err
-			}
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", "cli"), filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "vrooli-autoheal", "cli"), "repo_autoheal_cli_source"); err != nil {
-				return "", err
-			}
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", "api"), filepath.Join(e.rt.Target.Locator.Workdir, "scenarios", "vrooli-autoheal", "api"), "repo_autoheal_api_source"); err != nil {
-				return "", err
-			}
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "packages", "cli-core"), filepath.Join(e.rt.Target.Locator.Workdir, "packages", "cli-core"), "repo_cli_core_source"); err != nil {
-				return "", err
-			}
-			if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "packages", "api-core"), filepath.Join(e.rt.Target.Locator.Workdir, "packages", "api-core"), "repo_api_core_source"); err != nil {
-				return "", err
-			}
-			for _, module := range []string{"envkit-go", "repo-contract-go"} {
-				if err := appendDirectoryFiles(&delivery, filepath.Join(repoRoot, "packages", module), filepath.Join(e.rt.Target.Locator.Workdir, "packages", module), "repo_shared_module_source"); err != nil {
-					return "", err
-				}
-			}
-			watchdog, err := prepareWatchdogArtifact(repoRoot)
-			if err != nil {
-				return "", err
-			}
-			defer os.Remove(watchdog)
-			delivery.Files = append(delivery.Files, reach.ArtifactFile{
-				Role: "emergency_watchdog_release_build", LocalPath: watchdog,
-				RemotePath: filepath.Join(remoteUserHome(e.rt.Target.Locator.User), ".vrooli", "libexec", "vrooli-watchdog"), Mode: 0o755,
-			})
 		}
 	}
 	receipt, err := e.reach.Deliver(ctx, e.rt.Target, delivery)
@@ -198,6 +48,155 @@ func runReleaseDeliver(ctx context.Context, e *executor, action execplan.Action)
 		parts = append(parts, f.Role+"="+f.SHA256[:minInt(12, len(f.SHA256))])
 	}
 	return "delivered " + strings.Join(parts, ","), nil
+}
+
+func appendBuiltReleaseDelivery(ctx context.Context, e *executor, in map[string]string, bundlePath string, delivery *reach.Delivery) error {
+	rel, err := release.LoadDir(filepath.Dir(bundlePath))
+	if err != nil {
+		return err
+	}
+	caps, err := e.reach.Negotiate(ctx, e.rt.Target)
+	if err != nil && !reach.IsKind(err, reach.KindProtocolUnsupported) {
+		return err
+	}
+	declared := rel.Manifest.NativeCLI.GOOS + "/" + rel.Manifest.NativeCLI.GOARCH
+	if caps.Platform != "" && caps.Platform != declared {
+		return apierrors.Newf(apierrors.CodeUnsupportedCapability, "release %s carries a %s control plane; the target is %s", rel.Digest, declared, caps.Platform).
+			WithDetail("artifact", filepath.Base(rel.NativeCLIPath())).WithDetail("declared", declared).WithDetail("required", caps.Platform)
+	}
+	repoRoot, err := repocontract.FindRepoRootFromEnvOrCWD()
+	if err != nil {
+		return err
+	}
+	appendReleaseFiles(e, in, rel, repoRoot, delivery)
+	if err := appendScenarioManifests(e, repoRoot, delivery); err != nil {
+		return err
+	}
+	if err := appendWatchdogSource(e, repoRoot, delivery); err != nil {
+		return err
+	}
+	if err := appendResourceFiles(e, repoRoot, delivery); err != nil {
+		return err
+	}
+	return appendWorkspaceDelivery(e, bundlePath, repoRoot, delivery)
+}
+
+func appendReleaseFiles(e *executor, in map[string]string, rel release.Release, repoRoot string, delivery *reach.Delivery) {
+	workdir := e.rt.Target.Locator.Workdir
+	delivery.Files = append(delivery.Files,
+		reach.ArtifactFile{Role: "release_manifest", LocalPath: rel.ManifestPath(), RemotePath: in["release_manifest"]},
+		reach.ArtifactFile{Role: "native_cli", LocalPath: rel.NativeCLIPath(), RemotePath: in["native_cli"], Mode: 0o755, SHA256: rel.Manifest.NativeCLI.SHA256},
+		reach.ArtifactFile{Role: "native_cli_managed_launcher", LocalPath: rel.NativeCLIPath(), RemotePath: filepath.Join(remoteUserHome(e.rt.Target.Locator.User), ".vrooli", "bin", "vrooli"), Mode: 0o755, SHA256: rel.Manifest.NativeCLI.SHA256},
+		reach.ArtifactFile{Role: "repo_contract", LocalPath: filepath.Join(repoRoot, ".vrooli", "repo-contract.json"), RemotePath: filepath.Join(workdir, ".vrooli", "repo-contract.json")},
+		reach.ArtifactFile{Role: "repo_service_manifest", LocalPath: filepath.Join(repoRoot, ".vrooli", "service.json"), RemotePath: filepath.Join(workdir, ".vrooli", "service.json")},
+		reach.ArtifactFile{Role: "repo_go_mod", LocalPath: filepath.Join(repoRoot, "go.mod"), RemotePath: filepath.Join(workdir, "go.mod")},
+		reach.ArtifactFile{Role: "repo_go_sum", LocalPath: filepath.Join(repoRoot, "go.sum"), RemotePath: filepath.Join(workdir, "go.sum")},
+	)
+}
+
+func appendScenarioManifests(e *executor, repoRoot string, delivery *reach.Delivery) error {
+	workdir := e.rt.Target.Locator.Workdir
+	autohealService := filepath.Join(repoRoot, "scenarios", "vrooli-autoheal", ".vrooli", "service.json")
+	if fileExists(autohealService) {
+		delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "autoheal_service_manifest", LocalPath: autohealService, RemotePath: filepath.Join(workdir, "scenarios", "vrooli-autoheal", ".vrooli", "service.json")})
+	}
+	for _, scenarioID := range append([]string{e.manifest.Scenario.ID}, e.manifest.Dependencies.Scenarios...) {
+		scenarioID = strings.TrimSpace(scenarioID)
+		if scenarioID == "" || scenarioID == "vrooli-autoheal" {
+			continue
+		}
+		serviceManifest := filepath.Join(repoRoot, "scenarios", scenarioID, ".vrooli", "service.json")
+		if !fileExists(serviceManifest) {
+			continue
+		}
+		delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "scenario_service_manifest_" + scenarioID, LocalPath: serviceManifest, RemotePath: filepath.Join(workdir, "scenarios", scenarioID, ".vrooli", "service.json")})
+		for _, name := range []string{"go.mod", "go.sum"} {
+			local := filepath.Join(repoRoot, "scenarios", scenarioID, "api", name)
+			if !fileExists(local) {
+				continue
+			}
+			delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "scenario_api_" + scenarioID + "_" + strings.ReplaceAll(name, ".", "_"), LocalPath: local, RemotePath: filepath.Join(workdir, "scenarios", scenarioID, "api", name)})
+		}
+	}
+	return nil
+}
+
+func appendWatchdogSource(e *executor, repoRoot string, delivery *reach.Delivery) error {
+	workdir := e.rt.Target.Locator.Workdir
+	for _, dir := range []string{"templates", "cmd", "internal"} {
+		delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "repo_marker_" + dir, LocalPath: filepath.Join(repoRoot, "go.mod"), RemotePath: filepath.Join(workdir, dir, ".cloud-bootstrap")})
+	}
+	for _, dir := range []string{"cmd/vrooli-watchdog", "internal/buildinfo", "internal/hostpressure", "internal/hostinventory", "internal/setpoint", "internal/workloadowner", "internal/tuning", "internal/logx", "packages/platform-go"} {
+		if err := appendDirectoryFiles(delivery, filepath.Join(repoRoot, dir), filepath.Join(workdir, dir), "repo_watchdog_source"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func appendResourceFiles(e *executor, repoRoot string, delivery *reach.Delivery) error {
+	workdir := e.rt.Target.Locator.Workdir
+	for _, resource := range e.manifest.Dependencies.Resources {
+		resourceRoot := filepath.Join(repoRoot, "resources", resource)
+		resourceManifest := filepath.Join(resourceRoot, "resource.json")
+		if _, err := os.Stat(resourceManifest); err != nil {
+			continue
+		}
+		delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "resource_manifest_" + resource, LocalPath: resourceManifest, RemotePath: filepath.Join(workdir, "resources", resource, "resource.json")})
+		if err := appendDirectoryFiles(delivery, resourceRoot, filepath.Join(workdir, "resources", resource), "resource_source"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func appendWorkspaceDelivery(e *executor, bundlePath, repoRoot string, delivery *reach.Delivery) error {
+	workdir := e.rt.Target.Locator.Workdir
+	goWorkPath, err := appendBundleFile(delivery, bundlePath, "go.work", filepath.Join(workdir, "go.work"))
+	if err != nil || goWorkPath == "" {
+		return err
+	}
+	defer os.Remove(goWorkPath)
+	goWorkSumPath, err := appendBundleFile(delivery, bundlePath, "go.work.sum", filepath.Join(workdir, "go.work.sum"))
+	if err != nil {
+		return err
+	}
+	if goWorkSumPath != "" {
+		defer os.Remove(goWorkSumPath)
+	}
+	if err := appendWorkspaceModuleManifests(delivery, goWorkPath, repoRoot, workdir); err != nil {
+		return err
+	}
+	if err := appendWorkspaceSources(delivery, repoRoot, workdir); err != nil {
+		return err
+	}
+	watchdog, err := prepareWatchdogArtifact(repoRoot)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(watchdog)
+	delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "emergency_watchdog_release_build", LocalPath: watchdog, RemotePath: filepath.Join(remoteUserHome(e.rt.Target.Locator.User), ".vrooli", "libexec", "vrooli-watchdog"), Mode: 0o755})
+	return nil
+}
+
+func appendWorkspaceSources(delivery *reach.Delivery, repoRoot, workdir string) error {
+	for _, source := range []struct{ local, remote, role string }{
+		{"scenarios/scenario-to-desktop/runtime", "scenarios/scenario-to-desktop/runtime", "repo_watchdog_dependency"},
+		{"scenarios/vrooli-autoheal/cli", "scenarios/vrooli-autoheal/cli", "repo_autoheal_cli_source"},
+		{"scenarios/vrooli-autoheal/api", "scenarios/vrooli-autoheal/api", "repo_autoheal_api_source"},
+		{"packages/cli-core", "packages/cli-core", "repo_cli_core_source"},
+		{"packages/api-core", "packages/api-core", "repo_api_core_source"},
+	} {
+		if err := appendDirectoryFiles(delivery, filepath.Join(repoRoot, source.local), filepath.Join(workdir, source.remote), source.role); err != nil {
+			return err
+		}
+	}
+	for _, module := range []string{"envkit-go", "repo-contract-go"} {
+		if err := appendDirectoryFiles(delivery, filepath.Join(repoRoot, "packages", module), filepath.Join(workdir, "packages", module), "repo_shared_module_source"); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // prepareWatchdogArtifact builds the small host safeguard on the control
@@ -367,58 +366,12 @@ func appendMaintenanceSourceFiles(delivery *reach.Delivery, repoRoot, workdir st
 		return nil
 	}
 	paths := map[string]struct{}{}
-	addPackageFiles := func(moduleDir, pattern string) error {
-		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(moduleDir))); err != nil {
-			if os.IsNotExist(err) {
-				return nil
-			}
-			return err
-		}
-		cmd := exec.Command("go", "list", "-deps", "-json", pattern)
-		cmd.Dir = filepath.Join(repoRoot, filepath.FromSlash(moduleDir))
-		out, err := cmd.Output()
-		if err != nil {
-			return err
-		}
-		dec := json.NewDecoder(strings.NewReader(string(out)))
-		for dec.More() {
-			var pkg struct {
-				Dir        string   `json:"Dir"`
-				GoFiles    []string `json:"GoFiles"`
-				CgoFiles   []string `json:"CgoFiles"`
-				SFiles     []string `json:"SFiles"`
-				CFiles     []string `json:"CFiles"`
-				HFiles     []string `json:"HFiles"`
-				EmbedFiles []string `json:"EmbedFiles"`
-			}
-			err := dec.Decode(&pkg)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
-			if !strings.HasPrefix(filepath.Clean(pkg.Dir)+string(os.PathSeparator), filepath.Clean(repoRoot)+string(os.PathSeparator)) {
-				continue
-			}
-			for _, name := range append(append(append(append(append(append([]string{}, pkg.GoFiles...), pkg.CgoFiles...), pkg.SFiles...), pkg.CFiles...), pkg.HFiles...), pkg.EmbedFiles...) {
-				if name == "" {
-					continue
-				}
-				path := filepath.Join(pkg.Dir, name)
-				if _, err := os.Stat(path); err == nil {
-					rel, relErr := filepath.Rel(repoRoot, path)
-					if relErr != nil {
-						return relErr
-					}
-					paths[filepath.ToSlash(rel)] = struct{}{}
-				}
-			}
-		}
-		return nil
-	}
-	if err := addPackageFiles(".", "./cmd/vrooli-watchdog"); err != nil {
+	files, err := maintenancePackageSourcePaths(repoRoot, ".", "./cmd/vrooli-watchdog")
+	if err != nil {
 		return err
+	}
+	for _, file := range files {
+		paths[file] = struct{}{}
 	}
 	for rel := range paths {
 		local := filepath.Join(repoRoot, filepath.FromSlash(rel))
@@ -426,6 +379,80 @@ func appendMaintenanceSourceFiles(delivery *reach.Delivery, repoRoot, workdir st
 		delivery.Files = append(delivery.Files, reach.ArtifactFile{Role: "maintenance_source_" + strings.ReplaceAll(strings.ReplaceAll(rel, "/", "_"), ".", "_"), LocalPath: local, RemotePath: remote})
 	}
 	return nil
+}
+
+type maintenancePackage struct {
+	Dir        string   `json:"Dir"`
+	GoFiles    []string `json:"GoFiles"`
+	CgoFiles   []string `json:"CgoFiles"`
+	SFiles     []string `json:"SFiles"`
+	CFiles     []string `json:"CFiles"`
+	HFiles     []string `json:"HFiles"`
+	EmbedFiles []string `json:"EmbedFiles"`
+}
+
+func maintenancePackageSourcePaths(repoRoot, moduleDir, pattern string) ([]string, error) {
+	localDir := filepath.Join(repoRoot, filepath.FromSlash(moduleDir))
+	if _, err := os.Stat(localDir); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	cmd := exec.Command("go", "list", "-deps", "-json", pattern)
+	cmd.Dir = localDir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	return decodeMaintenanceSourcePaths(out, repoRoot)
+}
+
+func decodeMaintenanceSourcePaths(encoded []byte, repoRoot string) ([]string, error) {
+	decoder := json.NewDecoder(strings.NewReader(string(encoded)))
+	var paths []string
+	for decoder.More() {
+		var pkg maintenancePackage
+		if err := decoder.Decode(&pkg); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		if !maintenancePackageWithinRepo(pkg.Dir, repoRoot) {
+			continue
+		}
+		files, err := existingMaintenanceFiles(pkg, repoRoot)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, files...)
+	}
+	return paths, nil
+}
+
+func maintenancePackageWithinRepo(packageDir, repoRoot string) bool {
+	return strings.HasPrefix(filepath.Clean(packageDir)+string(os.PathSeparator), filepath.Clean(repoRoot)+string(os.PathSeparator))
+}
+
+func existingMaintenanceFiles(pkg maintenancePackage, repoRoot string) ([]string, error) {
+	names := append(append(append(append(append(append([]string{}, pkg.GoFiles...), pkg.CgoFiles...), pkg.SFiles...), pkg.CFiles...), pkg.HFiles...), pkg.EmbedFiles...)
+	var paths []string
+	for _, name := range names {
+		if name == "" {
+			continue
+		}
+		path := filepath.Join(pkg.Dir, name)
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		rel, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return nil, err
+		}
+		paths = append(paths, filepath.ToSlash(rel))
+	}
+	return paths, nil
 }
 
 func minInt(a, b int) int {

@@ -9,10 +9,6 @@ envelope = {"program": "scenario-to-desktop.evidence-inventory", "version": "1",
 handles = {}
 selection = {}
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:160], "where": where})
-    return "report"
 
 
 def guarded(call):
@@ -27,11 +23,11 @@ def guarded(call):
 # VALIDATE: named scenario required; this inventory never accepts artifact claims.
 def step_validate():
     if not isinstance(inputs, dict) or set(inputs) - {"scenario", "pipeline_id"}:
-        return fail("failed", "invalid_input", "Expected only scenario", "validate")
+        return program.fail("failed", "invalid_input", "Expected only scenario", "validate", detail_limit=160)
     value = inputs.get("scenario", "")
     pipeline_id = inputs.get("pipeline_id", "")
     if (not isinstance(value, str) or not value.strip() or len(value) > 128) or (not isinstance(pipeline_id, str) or len(pipeline_id) > 128):
-        return fail("failed", "invalid_input", "scenario must be a nonempty string of at most 128 characters", "validate")
+        return program.fail("failed", "invalid_input", "scenario must be a nonempty string of at most 128 characters", "validate", detail_limit=160)
     selection["scenario"] = value.strip()
     selection["pipeline_id"] = pipeline_id.strip()
     envelope["inputs"] = dict(selection)
@@ -48,7 +44,7 @@ def step_collect():
     for key, result in zip(("list", "summary"), results):
         if isinstance(result, Exception):
             status, klass = program.classify(result)
-            fail(status, klass, klass, "collect:" + key)
+            program.fail(status, klass, klass, "collect:" + key, detail_limit=160)
         else:
             handles[key] = result
             envelope["evidence"].append("scenario-to-desktop/evidence/" + key)
@@ -62,11 +58,11 @@ def step_classify():
     if "list" in handles:
         captures = handles["list"]
         if captures.filter(lambda item: item.get("scenarioName") != selection["scenario"]).count():
-            return fail("failed", "identity_mismatch", "Capture scenario differs from requested scenario", "classify")
+            return program.fail("failed", "identity_mismatch", "Capture scenario differs from requested scenario", "classify", detail_limit=160)
         signals["capture_count"] = captures.count()
         kinds = captures.map(lambda item: {"kind": item.get("kind", "unknown")}).group_by("kind")
         if len(kinds) > 10:
-            return fail("failed", "invalid_response", "Capture kinds exceed output bound", "classify")
+            return program.fail("failed", "invalid_response", "Capture kinds exceed output bound", "classify", detail_limit=160)
         signals["by_kind"] = dict(kinds)
         signals["incomplete_metadata"] = captures.filter(lambda item: not all(item.get(key) for key in
                                                        ("captureId", "checksum", "sourceSessionId", "createdAt"))).count()
@@ -80,10 +76,10 @@ def step_classify():
         signals["summary_count"] = int(summary.get("count", 0))
         signals["total_bytes"] = int(summary.get("totalBytes", 0))
         if signals["summary_count"] < 0 or signals["total_bytes"] < 0:
-            return fail("failed", "invalid_response", "Negative capture summary", "classify")
+            return program.fail("failed", "invalid_response", "Negative capture summary", "classify", detail_limit=160)
     envelope["status"] = "partial" if envelope["errors"] else "ok"
     if "list" in handles and "summary" in handles and signals["capture_count"] != signals["summary_count"]:
-        return fail("partial", "snapshot_changed", "List and summary disagree; neither is a release verdict", "classify")
+        return program.fail("partial", "snapshot_changed", "List and summary disagree; neither is a release verdict", "classify", detail_limit=160)
     return "report"
 
 
@@ -103,5 +99,5 @@ while state:
     except Exception as exc:
         if envelope.get("phase") == "report":
             raise
-        fail("failed", "kernel_runtime", str(exc)[:160], envelope.get("phase") or state)
+        program.fail("failed", "kernel_runtime", str(exc)[:160], envelope.get("phase") or state, detail_limit=160)
         state = "report"

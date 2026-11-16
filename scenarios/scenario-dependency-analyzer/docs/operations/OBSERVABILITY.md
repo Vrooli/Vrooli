@@ -1,6 +1,5 @@
 # Observability
 
-## Purpose Of This Document
 
 Document health signals and operational telemetry.
 

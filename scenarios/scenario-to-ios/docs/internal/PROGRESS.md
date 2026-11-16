@@ -1,9 +1,6 @@
 # Progress — Scenario to iOS
 
-Historical execution details are preserved beneath the protected runtime home:
-`plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-ios/docs/internal/PROGRESS.md`.
-The archive retains exact entries, validation receipts, and unresolved qualifications;
-relocation does not resolve a finding or establish current readiness.
+Historical details: `plan-artifacts/docs-html-progress-20260908/scenarios/scenario-to-ios/docs/internal/PROGRESS.md`. See the [runtime-home retention contract](../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract) for backup custody and readiness semantics.
 Copied July 7 template history was removed from this scenario’s log.
 
 Lifecycle log for meaningful scenario changes. Future agents read this

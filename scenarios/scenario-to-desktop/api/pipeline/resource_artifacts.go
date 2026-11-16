@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -103,6 +104,16 @@ type ResourceDeploymentPlanItem struct {
 	Service           *ResourceDeploymentService   `json:"service,omitempty"`
 }
 
+// BundledModelArtifact declares one model artifact that a resource intends to
+// ship inside a desktop bundle. Rights checks only run for these explicit
+// declarations; ordinary model use and packages without bundled models retain
+// their existing path.
+type BundledModelArtifact struct {
+	ModelID string          `json:"model_id"`
+	Kind    string          `json:"kind"`
+	Rights  json.RawMessage `json:"rights"`
+}
+
 // ResourceDeploymentFallback records the declared replacement selected for a
 // target. Keeping this explicit makes a compatible fallback auditable instead
 // of looking like an accidental resource substitution.
@@ -163,12 +174,17 @@ type resourceArtifactManifest struct {
 	ManagedService *resourcedeployment.ManagedService `json:"managed_service,omitempty"`
 	HealthChecks   []ResourceDeploymentHealthCheck    `json:"health_checks,omitempty"`
 	Ports          []ResourceDeploymentServicePort    `json:"ports,omitempty"`
+	ModelArtifacts []BundledModelArtifact             `json:"model_artifacts,omitempty"`
 }
 
 // resolveResourceDeploymentPlanWithTrust makes every resource selection before
 // any bundle output is written. The artifact hashes are resolved here as well
 // so staging cannot change the deployment choice after the gate has passed.
 func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode, rendererSelections ...[]string) (*ResourceDeploymentPlan, error) {
+	return resolveResourceDeploymentPlanWithRights(context.Background(), scenarioPath, artifactRoot, toolArtifactRoot, platformInputs, trustMode, nil, rendererSelections...)
+}
+
+func resolveResourceDeploymentPlanWithRights(ctx context.Context, scenarioPath, artifactRoot, toolArtifactRoot string, platformInputs []string, trustMode resourcedeployment.ArtifactTrustMode, rightsEvaluator ModelRightsEvaluator, rendererSelections ...[]string) (*ResourceDeploymentPlan, error) {
 	required, fallbacks, err := requiredBundleResources(scenarioPath)
 	if err != nil {
 		return nil, err
@@ -196,6 +212,9 @@ func resolveResourceDeploymentPlanWithTrust(scenarioPath, artifactRoot, toolArti
 		for _, platform := range platforms {
 			item, bundled, err := resolveResourceForTarget(root, requested, requested, fallbacks[requested], platform, map[string]bool{})
 			if err != nil {
+				return nil, err
+			}
+			if err := applyBundledModelRights(ctx, root, &item, rightsEvaluator); err != nil {
 				return nil, err
 			}
 			if item.Eligibility == "ineligible" {

@@ -40,6 +40,57 @@ func Run(
 	target identity.TargetRef,
 	opts RunOptions,
 ) domain.PreflightResponse {
+	configureRunOptions(&opts)
+	if target.Locator.Host == "" {
+		target = domain.TargetRefFromManifest(manifest)
+	}
+	obs := observer{reach: rr, target: target}
+	checks := checkCollector{items: make([]domain.PreflightCheck, 0, 16)}
+	requirements := estimateRequirements(ctx, manifest.Scenario.ID, opts)
+	appendDNSChecks(ctx, dnsService, manifest, target.Locator.Host, opts, &checks)
+	checkPublicPorts(ctx, target.Locator.Host, opts.PortProbe, &checks)
+	checkTLSALPN(ctx, manifest, opts, &checks)
+	if !checkTargetReachability(ctx, obs, target, &checks) {
+		return checks.response()
+	}
+	checkPrivilege(ctx, obs, target, &checks)
+	checkOSRelease(ctx, obs, &checks)
+	checkEdgePorts(ctx, obs, &checks)
+	firewallCheck(ctx, obs, checks.fail, checks.pass, checks.warn)
+	checks.warn(domain.PreflightOutboundNetworkID, "Outbound network",
+		"Outbound reachability is not observed before enrollment",
+		"The read-only observation set cannot open connections; host.prepare reports a blocked egress at apply time (apt.packages.ensure). Ensure outbound HTTPS is allowed.", nil)
+	checkCapacity(ctx, obs, manifest, target.Locator.Host, requirements, &checks)
+	tools := checkHostTools(ctx, obs, target, &checks)
+	checkHostServices(ctx, obs, tools, &checks)
+	checkStaleScenarioProcesses(ctx, obs, manifest, checks.warn, checks.pass)
+	checks.append(RunCredentialValidation(ctx, obs, manifest)...)
+	return checks.response()
+}
+
+type checkCollector struct{ items []domain.PreflightCheck }
+
+func (c *checkCollector) append(checks ...domain.PreflightCheck) {
+	c.items = append(c.items, checks...)
+}
+func (c *checkCollector) fail(id, title, details, hint string, data map[string]string) {
+	c.append(domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightFail, Details: details, Hint: hint, Data: data})
+}
+func (c *checkCollector) pass(id, title, details string, data map[string]string) {
+	c.append(domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightPass, Details: details, Data: data})
+}
+func (c *checkCollector) warn(id, title, details, hint string, data map[string]string) {
+	c.append(domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightWarn, Details: details, Hint: hint, Data: data})
+}
+func (c *checkCollector) response() domain.PreflightResponse { return finish(c.items) }
+
+type requirementBudget struct {
+	diskRequiredKB, diskRecommendedKB int64
+	ramRequiredKB, ramRecommendedKB   int64
+	data                              map[string]string
+}
+
+func configureRunOptions(opts *RunOptions) {
 	if opts.PortProbe == nil {
 		opts.PortProbe = tlsinfo.DefaultPortProbe
 	}
@@ -49,333 +100,299 @@ func Run(
 	if opts.Requirements == nil {
 		opts.Requirements = fetchScenarioRequirementsFromAnalyzer
 	}
-	if target.Locator.Host == "" {
-		target = domain.TargetRefFromManifest(manifest)
-	}
-	host := target.Locator.Host
-	obs := observer{reach: rr, target: target}
+}
 
-	diskRequiredKB := RequiredDiskFreeKB(opts.BundleSizeBytes)
-	diskRecommendedKB := MinDiskFreeKB
-	ramRequiredKB := MinRAMKB
-	ramRecommendedKB := RecommendedRAMKB
-	requirementData := map[string]string{
-		"static_floor_disk_kb":    strconv.FormatInt(MinDiskFreeKB, 10),
-		"static_floor_ram_kb":     strconv.FormatInt(MinRAMKB, 10),
-		"static_floor_ram_rec_kb": strconv.FormatInt(RecommendedRAMKB, 10),
+func estimateRequirements(ctx context.Context, scenarioID string, opts RunOptions) requirementBudget {
+	budget := requirementBudget{
+		diskRequiredKB: RequiredDiskFreeKB(opts.BundleSizeBytes), diskRecommendedKB: MinDiskFreeKB,
+		ramRequiredKB: MinRAMKB, ramRecommendedKB: RecommendedRAMKB,
+		data: map[string]string{
+			"static_floor_disk_kb":    strconv.FormatInt(MinDiskFreeKB, 10),
+			"static_floor_ram_kb":     strconv.FormatInt(MinRAMKB, 10),
+			"static_floor_ram_rec_kb": strconv.FormatInt(RecommendedRAMKB, 10),
+		},
 	}
-	if manifest.Scenario.ID != "" && opts.Requirements != nil {
-		estimate, err := opts.Requirements(ctx, manifest.Scenario.ID)
-		if err != nil {
-			requirementData["requirement_source"] = "static_fallback"
-			requirementData["requirement_error"] = err.Error()
-		} else if estimate != nil {
-			requirementData["requirement_source"] = estimate.Source
-			requirementData["requirement_confidence"] = estimate.Confidence
-			requirementData["requirement_tier"] = estimate.Tier
-			requirementData["required_by_graph_ram_kb"] = strconv.FormatInt(estimate.RAMKB, 10)
-			requirementData["required_by_graph_disk_kb"] = strconv.FormatInt(estimate.DiskKB, 10)
-			requirementData["required_by_graph_cpu_cores"] = strconv.FormatFloat(estimate.CPUCores, 'f', -1, 64)
-			// Analyzer RAM estimates are measured guidance. Only medium/high
-			// confidence estimates may raise the hard RAM floor; low-confidence
-			// estimates remain advisory. Disk estimates are always handled
-			// separately below because they describe persistent footprint rather
-			// than this release's staging transaction.
-			confidence := strings.ToLower(strings.TrimSpace(estimate.Confidence))
-			if confidence != "low" && estimate.RAMKB > ramRequiredKB {
-				ramRequiredKB = estimate.RAMKB
-			}
-			if estimate.RAMKB > ramRecommendedKB {
-				ramRecommendedKB = estimate.RAMKB
-			}
-			if estimate.DiskKB > diskRecommendedKB {
-				diskRecommendedKB = estimate.DiskKB
-			}
-			// DiskKB describes a possible long-lived dependency footprint. It is
-			// recorded and surfaced as advisory below; it is not the free-space
-			// needed to transact this release. The latter comes from the actual
-			// bundle size above.
+	if scenarioID == "" || opts.Requirements == nil {
+		return finalizeRequirementBudget(budget)
+	}
+	estimate, err := opts.Requirements(ctx, scenarioID)
+	if err != nil {
+		budget.data["requirement_source"] = "static_fallback"
+		budget.data["requirement_error"] = err.Error()
+		return finalizeRequirementBudget(budget)
+	}
+	if estimate != nil {
+		budget.data["requirement_source"] = estimate.Source
+		budget.data["requirement_confidence"] = estimate.Confidence
+		budget.data["requirement_tier"] = estimate.Tier
+		budget.data["required_by_graph_ram_kb"] = strconv.FormatInt(estimate.RAMKB, 10)
+		budget.data["required_by_graph_disk_kb"] = strconv.FormatInt(estimate.DiskKB, 10)
+		budget.data["required_by_graph_cpu_cores"] = strconv.FormatFloat(estimate.CPUCores, 'f', -1, 64)
+		confidence := strings.ToLower(strings.TrimSpace(estimate.Confidence))
+		if confidence != "low" && estimate.RAMKB > budget.ramRequiredKB {
+			budget.ramRequiredKB = estimate.RAMKB
 		}
+		budget.ramRecommendedKB = max(budget.ramRecommendedKB, estimate.RAMKB)
+		budget.diskRecommendedKB = max(budget.diskRecommendedKB, estimate.DiskKB)
 	}
-	requirementData["effective_required_ram_kb"] = strconv.FormatInt(ramRequiredKB, 10)
-	requirementData["effective_required_disk_kb"] = strconv.FormatInt(diskRequiredKB, 10)
-	requirementData["effective_recommended_disk_kb"] = strconv.FormatInt(diskRecommendedKB, 10)
-	requirementData["effective_recommended_ram_kb"] = strconv.FormatInt(ramRecommendedKB, 10)
-	requirementData["effective_required_ram_human"] = formatBytes(ramRequiredKB)
-	requirementData["effective_required_disk_human"] = formatBytes(diskRequiredKB)
-	requirementData["effective_recommended_disk_human"] = formatBytes(diskRecommendedKB)
-	requirementData["effective_recommended_ram_human"] = formatBytes(ramRecommendedKB)
+	return finalizeRequirementBudget(budget)
+}
 
-	checks := make([]domain.PreflightCheck, 0, 16)
-	fail := func(id, title, details, hint string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightFail, Details: details, Hint: hint, Data: data})
-	}
-	pass := func(id, title, details string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightPass, Details: details, Data: data})
-	}
-	warn := func(id, title, details, hint string, data map[string]string) {
-		checks = append(checks, domain.PreflightCheck{ID: id, Title: title, Status: domain.PreflightWarn, Details: details, Hint: hint, Data: data})
-	}
+func finalizeRequirementBudget(b requirementBudget) requirementBudget {
+	b.data["effective_required_ram_kb"] = strconv.FormatInt(b.ramRequiredKB, 10)
+	b.data["effective_required_disk_kb"] = strconv.FormatInt(b.diskRequiredKB, 10)
+	b.data["effective_recommended_disk_kb"] = strconv.FormatInt(b.diskRecommendedKB, 10)
+	b.data["effective_recommended_ram_kb"] = strconv.FormatInt(b.ramRecommendedKB, 10)
+	b.data["effective_required_ram_human"] = formatBytes(b.ramRequiredKB)
+	b.data["effective_required_disk_human"] = formatBytes(b.diskRequiredKB)
+	b.data["effective_recommended_disk_human"] = formatBytes(b.diskRecommendedKB)
+	b.data["effective_recommended_ram_human"] = formatBytes(b.ramRecommendedKB)
+	return b
+}
 
-	dnsEval := dns.Evaluate(ctx, dnsService, manifest.Edge.Domain, host)
-	checks = append(checks, dns.PreflightChecksFromEvaluation(dnsEval, manifest.Edge.DNSPolicy)...)
-	mailRequirements := make([]maildns.ProviderRequirement, 0, len(manifest.Edge.MailDNS))
+func appendDNSChecks(ctx context.Context, service dns.Service, manifest domain.CloudManifest, host string, opts RunOptions, checks *checkCollector) {
+	evaluation := dns.Evaluate(ctx, service, manifest.Edge.Domain, host)
+	checks.append(dns.PreflightChecksFromEvaluation(evaluation, manifest.Edge.DNSPolicy)...)
+	requirements := make([]maildns.ProviderRequirement, 0, len(manifest.Edge.MailDNS))
 	for _, requirement := range manifest.Edge.MailDNS {
 		converted := maildns.ProviderRequirement{Name: requirement.Name, SPFMechanism: requirement.SPFMechanism, SPFHost: requirement.SPFHost}
 		for _, dkim := range requirement.DKIM {
 			converted.DKIM = append(converted.DKIM, maildns.DKIMRequirement{Selector: dkim.Selector, Type: dkim.Type, Expected: dkim.Expected})
 		}
-		mailRequirements = append(mailRequirements, converted)
+		requirements = append(requirements, converted)
 	}
-	checks = append(checks, dns.MailDNSChecks(ctx, manifest.Edge.Domain, mailRequirements, manifest.Edge.DNSPolicy)...)
-
+	checks.append(dns.MailDNSChecks(ctx, manifest.Edge.Domain, requirements, manifest.Edge.DNSPolicy)...)
 	if manifest.Edge.Domain != "" {
-		dns01Token := ""
-		if opts.ProvidedSecrets != nil {
-			dns01Token = strings.TrimSpace(opts.ProvidedSecrets[domain.CloudflareAPITokenKey])
-		}
-		checks = append(checks, dns.ProxyModeCheck(dnsEval, manifest.Edge.DNSPolicy, dns01Token))
+		token := strings.TrimSpace(opts.ProvidedSecrets[domain.CloudflareAPITokenKey])
+		checks.append(dns.ProxyModeCheck(evaluation, manifest.Edge.DNSPolicy, token))
 	}
+}
 
-	publicPorts := []int{80, 443}
+func checkPublicPorts(ctx context.Context, host string, probe tlsinfo.PortProbeFunc, checks *checkCollector) {
 	var unreachable []string
-	portTimeout := 3 * time.Second
-	for _, port := range publicPorts {
-		if err := opts.PortProbe(ctx, host, port, portTimeout); err != nil {
+	for _, port := range []int{80, 443} {
+		if probe(ctx, host, port, 3*time.Second) != nil {
 			unreachable = append(unreachable, strconv.Itoa(port))
 		}
 	}
-	if len(unreachable) > 0 {
-		warn(domain.PreflightPublicPortsID, "Public ports 80/443 reachability",
-			fmt.Sprintf("Unable to reach ports %s on %s from the deployment runner", strings.Join(unreachable, ","), host),
-			"This is expected before the edge service is installed. The deployment will configure the edge; verify the ports after activation and open them in the provider security group if they remain unreachable.",
-			map[string]string{"host": host, "ports": strings.Join(unreachable, ",")})
-	} else {
-		pass(domain.PreflightPublicPortsID, "Public ports 80/443 reachability", "Ports 80/443 reachable from the deployment runner", map[string]string{"host": host, "ports": "80,443"})
+	if len(unreachable) == 0 {
+		checks.pass(domain.PreflightPublicPortsID, "Public ports 80/443 reachability", "Ports 80/443 reachable from the deployment runner", map[string]string{"host": host, "ports": "80,443"})
+		return
 	}
+	checks.warn(domain.PreflightPublicPortsID, "Public ports 80/443 reachability",
+		fmt.Sprintf("Unable to reach ports %s on %s from the deployment runner", strings.Join(unreachable, ","), host),
+		"This is expected before the edge service is installed. The deployment will configure the edge; verify the ports after activation and open them in the provider security group if they remain unreachable.",
+		map[string]string{"host": host, "ports": strings.Join(unreachable, ",")})
+}
 
-	if manifest.Edge.Caddy.Enabled && strings.TrimSpace(manifest.Edge.Domain) != "" {
-		domainName := strings.TrimSpace(manifest.Edge.Domain)
-		alpnTimeout := 4 * time.Second
-		alpnCheck := tlsinfo.RunALPNCheck(ctx, domainName, opts.PortProbe, opts.TLSALPNProbe, portTimeout, alpnTimeout)
-		data := map[string]string{"domain": domainName}
-		if alpnCheck.Protocol != "" {
-			data["protocol"] = alpnCheck.Protocol
-		}
-		if alpnCheck.Error != "" {
-			data["error"] = alpnCheck.Error
-		}
-		if alpnCheck.Status == tlsinfo.ALPNPass {
-			pass(domain.PreflightTLSALPNID, "TLS-ALPN compatibility", alpnCheck.Message, data)
-		} else {
-			warn(domain.PreflightTLSALPNID, "TLS-ALPN compatibility", alpnCheck.Message, alpnCheck.Hint, data)
-		}
+func checkTLSALPN(ctx context.Context, manifest domain.CloudManifest, opts RunOptions, checks *checkCollector) {
+	if !manifest.Edge.Caddy.Enabled || strings.TrimSpace(manifest.Edge.Domain) == "" {
+		return
 	}
-
-	connData := map[string]string{"host": host, "user": target.Locator.User, "port": strconv.Itoa(target.Locator.Port), "transport": target.Transport}
-	if res, err := obs.observe(ctx, "uname", "-s"); !ok(res, err) {
-		detail := "Unable to run a remote observation over the bound transport"
-		if err != nil {
-			detail += ": " + err.Error()
-		}
-		fail(domain.PreflightSSHConnectID, "Target reachability", detail,
-			"Confirm the target is enrolled (vrooli-bridge onboard) or that the bound SSH credential and port 22 work.", connData)
-		return finish(checks)
+	domainName := strings.TrimSpace(manifest.Edge.Domain)
+	result := tlsinfo.RunALPNCheck(ctx, domainName, opts.PortProbe, opts.TLSALPNProbe, 3*time.Second, 4*time.Second)
+	data := map[string]string{"domain": domainName}
+	if result.Protocol != "" {
+		data["protocol"] = result.Protocol
 	}
-	pass(domain.PreflightSSHConnectID, "Target reachability", "Remote observation executed successfully", connData)
-
-	if strings.EqualFold(strings.TrimSpace(target.Locator.User), "root") {
-		pass(domain.PreflightPrivilegeID, "Privilege strategy", "The bound SSH user is root; host preparation can use the target owner", map[string]string{"user": target.Locator.User, "strategy": "root"})
-	} else {
-		privilegeRes, privilegeErr := obs.observe(ctx, "sudo", "-n", "-l")
-		if !ok(privilegeRes, privilegeErr) {
-			detail := fmt.Sprintf("Bound SSH user %q does not have verified non-interactive elevation", target.Locator.User)
-			if privilegeErr != nil {
-				detail += ": " + privilegeErr.Error()
-			} else if strings.TrimSpace(privilegeRes.Stderr) != "" {
-				detail += ": " + strings.TrimSpace(privilegeRes.Stderr)
-			}
-			fail(domain.PreflightPrivilegeID, "Privilege strategy", detail,
-				"Grant the bound user the required non-interactive elevation through the target owner, or connect as an approved privileged user before host preparation.",
-				map[string]string{"user": target.Locator.User, "strategy": "sudo_non_interactive"})
-		} else {
-			pass(domain.PreflightPrivilegeID, "Privilege strategy", fmt.Sprintf("Bound SSH user %q has non-interactive elevation", target.Locator.User), map[string]string{"user": target.Locator.User, "strategy": "sudo_non_interactive"})
-		}
+	if result.Error != "" {
+		data["error"] = result.Error
 	}
-
-	osRes, osErr := obs.observe(ctx, "cat", "/etc/os-release")
-	if !ok(osRes, osErr) {
-		fail(domain.PreflightOSReleaseID, "Ubuntu version", "Unable to read /etc/os-release",
-			"Ensure the VPS is running Ubuntu and that /etc/os-release is readable.", map[string]string{"stderr": osRes.Stderr})
-	} else {
-		id, ver := parseOSRelease(osRes.Stdout)
-		switch {
-		case id != SupportedOSID:
-			fail(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Unsupported OS: %s", id),
-				"scenario-to-cloud requires Ubuntu. Non-Ubuntu systems are not supported.", map[string]string{"id": id, "version_id": ver})
-		case ver == RecommendedUbuntuVersion:
-			pass(domain.PreflightOSReleaseID, "Ubuntu version", "Ubuntu 24.04 detected", map[string]string{"id": id, "version_id": ver})
-		case ver == SupportedUbuntuAltVersion || ver == LegacyUbuntuAltVersion:
-			warn(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
-				fmt.Sprintf("Ubuntu %s/%s should work but %s LTS is recommended for best compatibility.", SupportedUbuntuAltVersion, LegacyUbuntuAltVersion, RecommendedUbuntuVersion),
-				map[string]string{"id": id, "version_id": ver})
-		default:
-			warn(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Ubuntu %s detected (%s recommended)", ver, RecommendedUbuntuVersion),
-				fmt.Sprintf("This Ubuntu version is untested. Consider using Ubuntu %s LTS.", RecommendedUbuntuVersion), map[string]string{"id": id, "version_id": ver})
-		}
+	if result.Status == tlsinfo.ALPNPass {
+		checks.pass(domain.PreflightTLSALPNID, "TLS-ALPN compatibility", result.Message, data)
+		return
 	}
+	checks.warn(domain.PreflightTLSALPNID, "TLS-ALPN compatibility", result.Message, result.Hint, data)
+}
 
-	portsRes, portsErr := obs.listeningSockets(ctx, 80, 443)
-	if !ok(portsRes, portsErr) {
-		warn(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Unable to check ports 80/443 via ss",
-			"Ensure ports 80 and 443 are free for Caddy/Let's Encrypt HTTP-01.", map[string]string{"stderr": portsRes.Stderr})
-	} else if strings.TrimSpace(portsRes.Stdout) != "" {
-		bindings := parsePortBindings(portsRes.Stdout)
-		details := "Port 80 and/or 443 appears to already be in use"
-		if len(bindings) > 0 {
-			details = fmt.Sprintf("Ports in use: %s", formatPortBindings(bindings))
-		}
-		data := map[string]string{"ss": portsRes.Stdout}
-		if len(bindings) > 0 {
-			if encoded, err := json.Marshal(bindings); err == nil {
-				data["port_bindings"] = string(encoded)
-			}
-			data["ports_in_use"] = strings.Join(portBindingPorts(bindings), ",")
-			data["processes"] = strings.Join(portBindingProcessList(bindings), ", ")
-		}
-		// Caddy is the expected edge owner for deployed hosts; don't block convergence.
-		allCaddy := len(bindings) > 0
-		for _, binding := range bindings {
-			if !strings.EqualFold(binding.Process, "caddy") && !strings.EqualFold(binding.Service, "caddy") {
-				allCaddy = false
-				break
-			}
-		}
-		if allCaddy {
-			pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", fmt.Sprintf("%s (expected edge owner: caddy)", details), data)
-		} else {
-			hint := "Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges."
-			if len(bindings) > 0 {
-				hint += " Stop the owning scenario through its lifecycle owner (Stop Processes) or the unit through the host's service manager."
-			}
-			fail(domain.PreflightPortsEdgeID, "Ports 80/443 availability", details, hint, data)
-		}
-	} else {
-		pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Ports 80/443 appear free", nil)
+func checkTargetReachability(ctx context.Context, obs observer, target identity.TargetRef, checks *checkCollector) bool {
+	data := map[string]string{"host": target.Locator.Host, "user": target.Locator.User, "port": strconv.Itoa(target.Locator.Port), "transport": target.Transport}
+	result, err := obs.observe(ctx, "uname", "-s")
+	if ok(result, err) {
+		checks.pass(domain.PreflightSSHConnectID, "Target reachability", "Remote observation executed successfully", data)
+		return true
 	}
-
-	firewallCheck(ctx, obs, fail, pass, warn)
-
-	warn(domain.PreflightOutboundNetworkID, "Outbound network",
-		"Outbound reachability is not observed before enrollment",
-		"The read-only observation set cannot open connections; host.prepare reports a blocked egress at apply time (apt.packages.ensure). Ensure outbound HTTPS is allowed.",
-		nil)
-
-	// Remote VPS snapshot command. Local host inventory probing belongs in internal/hostinventory.
-	// hostinventory:remote-snapshot-parser
-	diskRes, diskErr := obs.observe(ctx, "df", "-Pk", "/")
-	if _, _, availKB, _, found := dfRoot(diskRes); !ok(diskRes, diskErr) || !found {
-		warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": diskRes.Stderr})
-	} else {
-		detailsData := map[string]string{
-			"free_kb":            strconv.FormatInt(availKB, 10),
-			"free_human":         formatBytes(availKB),
-			"required_min_kb":    strconv.FormatInt(diskRequiredKB, 10),
-			"required_min_human": formatBytes(diskRequiredKB),
-		}
-		for k, v := range requirementData {
-			detailsData[k] = v
-		}
-		if availKB > 0 && availKB < diskRequiredKB {
-			fail(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Low free disk space: %s", formatBytes(availKB)),
-				fmt.Sprintf("At least %s free space is required for this deployment. Free space with the disk cleanup action (journal vacuum, docker prune) or release garbage collection: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2",
-					formatBytes(diskRequiredKB), host, manifest.Scenario.ID), detailsData)
-		} else if availKB > 0 && availKB < diskRecommendedKB {
-			warn(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s (below the analyzer's advisory estimate of %s)", formatBytes(availKB), formatBytes(diskRecommendedKB)),
-				"The analyzer estimate has low confidence and is advisory. Deployment may proceed, but clean unused releases and package caches before or after activation if space becomes tight.", detailsData)
-		} else {
-			pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(availKB)), detailsData)
-		}
+	detail := "Unable to run a remote observation over the bound transport"
+	if err != nil {
+		detail += ": " + err.Error()
 	}
+	checks.fail(domain.PreflightSSHConnectID, "Target reachability", detail,
+		"Confirm the target is enrolled (vrooli-bridge onboard) or that the bound SSH credential and port 22 work.", data)
+	return false
+}
 
-	// hostinventory:remote-snapshot-parser
-	ramRes, ramErr := obs.observe(ctx, "grep", "MemTotal", "/proc/meminfo")
-	if kb, found := memTotalKB(ramRes); !ok(ramRes, ramErr) || !found {
-		warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": ramRes.Stderr})
-	} else {
-		detailsData := map[string]string{
-			"memtotal_kb":              strconv.FormatInt(kb, 10),
-			"memtotal_human":           formatBytes(kb),
-			"required_min_kb":          strconv.FormatInt(ramRequiredKB, 10),
-			"required_min_human":       formatBytes(ramRequiredKB),
-			"recommended_min_kb":       strconv.FormatInt(ramRecommendedKB, 10),
-			"recommended_min_human":    formatBytes(ramRecommendedKB),
-			"required_by_graph_ram_mb": strconv.FormatFloat(math.Ceil(float64(ramRequiredKB)/1024), 'f', -1, 64),
-		}
-		for k, v := range requirementData {
-			detailsData[k] = v
-		}
-		switch {
-		case kb > 0 && kb < ramRequiredKB:
-			fail(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("Low RAM: %s", formatBytes(kb)),
-				fmt.Sprintf("At least %s RAM is required for this deployment. %s is recommended.", formatBytes(ramRequiredKB), formatBytes(ramRecommendedKB)), detailsData)
-		case kb > 0 && kb < ramRecommendedKB:
-			warn(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s (%s recommended)", formatBytes(kb), formatBytes(ramRecommendedKB)),
-				"Your VPS has limited RAM for this deployment profile. Consider upgrading for better performance.", detailsData)
-		default:
-			pass(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), detailsData)
-		}
+func checkPrivilege(ctx context.Context, obs observer, target identity.TargetRef, checks *checkCollector) {
+	user := target.Locator.User
+	if strings.EqualFold(strings.TrimSpace(user), "root") {
+		checks.pass(domain.PreflightPrivilegeID, "Privilege strategy", "The bound SSH user is root; host preparation can use the target owner", map[string]string{"user": user, "strategy": "root"})
+		return
 	}
-
-	tools := obs.findTools(ctx, "curl", "git", "unzip", "tar", "jq", "apt-get", "docker", "systemctl")
-	for _, cmd := range []struct{ name, id string }{
-		{"curl", domain.PreflightCmdCurlID},
-		{"git", domain.PreflightCmdGitID},
-		{"unzip", domain.PreflightCmdUnzipID},
-		{"tar", domain.PreflightCmdTarID},
-		{"jq", domain.PreflightCmdJqID},
-	} {
-		if path, found := tools[cmd.name]; found {
-			pass(cmd.id, cmd.name+" available", "Found at "+path, nil)
-		} else {
-			warn(cmd.id, cmd.name+" available", cmd.name+" not found on VPS", "host.prepare installs it through apt.packages.ensure", nil)
-		}
+	result, err := obs.observe(ctx, "sudo", "-n", "-l")
+	if ok(result, err) {
+		checks.pass(domain.PreflightPrivilegeID, "Privilege strategy", fmt.Sprintf("Bound SSH user %q has non-interactive elevation", user), map[string]string{"user": user, "strategy": "sudo_non_interactive"})
+		return
 	}
-
-	if _, found := tools["apt-get"]; !found {
-		fail(domain.PreflightAptAccessID, "apt accessible", "apt-get not found on the target",
-			"Bootstrap installs packages through apt.packages.ensure; the target must be Ubuntu.", nil)
-	} else if target.Locator.User != "" && target.Locator.User != "root" {
-		warn(domain.PreflightAptAccessID, "apt accessible", "apt-get present; the bound user is not root",
-			"Package installs run through the privilege broker; the bound user needs its elevation grant.", map[string]string{"user": target.Locator.User})
-	} else {
-		pass(domain.PreflightAptAccessID, "apt accessible", "apt-get is present", nil)
+	detail := fmt.Sprintf("Bound SSH user %q does not have verified non-interactive elevation", user)
+	if err != nil {
+		detail += ": " + err.Error()
+	} else if strings.TrimSpace(result.Stderr) != "" {
+		detail += ": " + strings.TrimSpace(result.Stderr)
 	}
+	checks.fail(domain.PreflightPrivilegeID, "Privilege strategy", detail,
+		"Grant the bound user the required non-interactive elevation through the target owner, or connect as an approved privileged user before host preparation.",
+		map[string]string{"user": user, "strategy": "sudo_non_interactive"})
+}
 
-	// Remote VPS service check. This is not Docker GPU runtime inventory for the local host.
-	switch dockerPath, found := tools["docker"]; {
-	case found && obs.exists(ctx, "/var/run/docker.sock"):
-		pass(domain.PreflightDockerID, "Docker available", "Docker present at "+dockerPath+" (daemon socket present)", nil)
-	case found:
-		warn(domain.PreflightDockerID, "Docker available", "Docker is installed but its daemon socket is absent",
-			"Verify dockerd is running (systemctl status docker).", map[string]string{"path": dockerPath})
+func checkOSRelease(ctx context.Context, obs observer, checks *checkCollector) {
+	result, err := obs.observe(ctx, "cat", "/etc/os-release")
+	if !ok(result, err) {
+		checks.fail(domain.PreflightOSReleaseID, "Ubuntu version", "Unable to read /etc/os-release", "Ensure the VPS is running Ubuntu and that /etc/os-release is readable.", map[string]string{"stderr": result.Stderr})
+		return
+	}
+	id, version := parseOSRelease(result.Stdout)
+	data := map[string]string{"id": id, "version_id": version}
+	switch {
+	case id != SupportedOSID:
+		checks.fail(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Unsupported OS: %s", id), "scenario-to-cloud requires Ubuntu. Non-Ubuntu systems are not supported.", data)
+	case version == RecommendedUbuntuVersion:
+		checks.pass(domain.PreflightOSReleaseID, "Ubuntu version", "Ubuntu 24.04 detected", data)
+	case version == SupportedUbuntuAltVersion || version == LegacyUbuntuAltVersion:
+		checks.warn(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Ubuntu %s detected (%s recommended)", version, RecommendedUbuntuVersion),
+			fmt.Sprintf("Ubuntu %s/%s should work but %s LTS is recommended for best compatibility.", SupportedUbuntuAltVersion, LegacyUbuntuAltVersion, RecommendedUbuntuVersion), data)
 	default:
-		warn(domain.PreflightDockerID, "Docker available", "Docker not found",
-			"Bootstrap will attempt to install Docker through apt.packages.ensure.", nil)
+		checks.warn(domain.PreflightOSReleaseID, "Ubuntu version", fmt.Sprintf("Ubuntu %s detected (%s recommended)", version, RecommendedUbuntuVersion),
+			fmt.Sprintf("This Ubuntu version is untested. Consider using Ubuntu %s LTS.", RecommendedUbuntuVersion), data)
 	}
+}
 
-	if obs.exists(ctx, "/run/systemd/system") {
-		pass(domain.PreflightSystemdID, "systemd available", "systemd is the running init system", nil)
+func checkEdgePorts(ctx context.Context, obs observer, checks *checkCollector) {
+	result, err := obs.listeningSockets(ctx, 80, 443)
+	if !ok(result, err) {
+		checks.warn(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Unable to check ports 80/443 via ss", "Ensure ports 80 and 443 are free for Caddy/Let's Encrypt HTTP-01.", map[string]string{"stderr": result.Stderr})
+		return
+	}
+	if strings.TrimSpace(result.Stdout) == "" {
+		checks.pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", "Ports 80/443 appear free", nil)
+		return
+	}
+	bindings := parsePortBindings(result.Stdout)
+	details := "Port 80 and/or 443 appears to already be in use"
+	if len(bindings) > 0 {
+		details = fmt.Sprintf("Ports in use: %s", formatPortBindings(bindings))
+	}
+	data := map[string]string{"ss": result.Stdout}
+	if len(bindings) > 0 {
+		if encoded, marshalErr := json.Marshal(bindings); marshalErr == nil {
+			data["port_bindings"] = string(encoded)
+		}
+		data["ports_in_use"] = strings.Join(portBindingPorts(bindings), ",")
+		data["processes"] = strings.Join(portBindingProcessList(bindings), ", ")
+	}
+	if allCaddyBindings(bindings) {
+		checks.pass(domain.PreflightPortsEdgeID, "Ports 80/443 availability", fmt.Sprintf("%s (expected edge owner: caddy)", details), data)
+		return
+	}
+	hint := "Ports 80/443 must be free for Caddy to complete Let's Encrypt HTTP-01 challenges."
+	if len(bindings) > 0 {
+		hint += " Stop the owning scenario through its lifecycle owner (Stop Processes) or the unit through the host's service manager."
+	}
+	checks.fail(domain.PreflightPortsEdgeID, "Ports 80/443 availability", details, hint, data)
+}
+
+func allCaddyBindings(bindings []EdgePortBinding) bool {
+	if len(bindings) == 0 {
+		return false
+	}
+	for _, binding := range bindings {
+		if !strings.EqualFold(binding.Process, "caddy") && !strings.EqualFold(binding.Service, "caddy") {
+			return false
+		}
+	}
+	return true
+}
+
+func checkCapacity(ctx context.Context, obs observer, manifest domain.CloudManifest, host string, budget requirementBudget, checks *checkCollector) {
+	checkDiskCapacity(ctx, obs, manifest, host, budget, checks)
+	checkRAMCapacity(ctx, obs, budget, checks)
+}
+
+func checkDiskCapacity(ctx context.Context, obs observer, manifest domain.CloudManifest, host string, budget requirementBudget, checks *checkCollector) {
+	result, err := obs.observe(ctx, "df", "-Pk", "/")
+	_, _, available, _, found := dfRoot(result)
+	if !ok(result, err) || !found {
+		checks.warn(domain.PreflightDiskFreeID, "Disk free space", "Unable to determine free disk space", "Ensure the VPS has sufficient free disk for builds and resources.", map[string]string{"stderr": result.Stderr})
+		return
+	}
+	data := map[string]string{"free_kb": strconv.FormatInt(available, 10), "free_human": formatBytes(available), "required_min_kb": strconv.FormatInt(budget.diskRequiredKB, 10), "required_min_human": formatBytes(budget.diskRequiredKB)}
+	for key, value := range budget.data {
+		data[key] = value
+	}
+	if available > 0 && available < budget.diskRequiredKB {
+		hint := fmt.Sprintf("At least %s free space is required for this deployment. Free space with the disk cleanup action (journal vacuum, docker prune) or release garbage collection: scenario-to-cloud bundle vps-gc --host %s --scenario %s --keep 2", formatBytes(budget.diskRequiredKB), host, manifest.Scenario.ID)
+		checks.fail(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Low free disk space: %s", formatBytes(available)), hint, data)
+	} else if available > 0 && available < budget.diskRecommendedKB {
+		details := fmt.Sprintf("Free space: %s (below the analyzer's advisory estimate of %s)", formatBytes(available), formatBytes(budget.diskRecommendedKB))
+		checks.warn(domain.PreflightDiskFreeID, "Disk free space", details, "The analyzer estimate has low confidence and is advisory. Deployment may proceed, but clean unused releases and package caches before or after activation if space becomes tight.", data)
 	} else {
-		warn(domain.PreflightSystemdID, "systemd available", "systemd is not the running init system",
-			"Deployment expects systemd for service management. Non-systemd systems (Alpine/OpenRC) are not supported.", nil)
+		checks.pass(domain.PreflightDiskFreeID, "Disk free space", fmt.Sprintf("Free space: %s", formatBytes(available)), data)
 	}
+}
 
-	checkStaleScenarioProcesses(ctx, obs, manifest, warn, pass)
+func checkRAMCapacity(ctx context.Context, obs observer, budget requirementBudget, checks *checkCollector) {
+	result, err := obs.observe(ctx, "grep", "MemTotal", "/proc/meminfo")
+	kb, found := memTotalKB(result)
+	if !ok(result, err) || !found {
+		checks.warn(domain.PreflightRAMTotalID, "RAM", "Unable to determine total RAM", "Ensure the VPS has sufficient RAM for the scenario and resources.", map[string]string{"stderr": result.Stderr})
+		return
+	}
+	data := map[string]string{"memtotal_kb": strconv.FormatInt(kb, 10), "memtotal_human": formatBytes(kb), "required_min_kb": strconv.FormatInt(budget.ramRequiredKB, 10), "required_min_human": formatBytes(budget.ramRequiredKB), "recommended_min_kb": strconv.FormatInt(budget.ramRecommendedKB, 10), "recommended_min_human": formatBytes(budget.ramRecommendedKB), "required_by_graph_ram_mb": strconv.FormatFloat(math.Ceil(float64(budget.ramRequiredKB)/1024), 'f', -1, 64)}
+	for key, value := range budget.data {
+		data[key] = value
+	}
+	switch {
+	case kb > 0 && kb < budget.ramRequiredKB:
+		checks.fail(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("Low RAM: %s", formatBytes(kb)), fmt.Sprintf("At least %s RAM is required for this deployment. %s is recommended.", formatBytes(budget.ramRequiredKB), formatBytes(budget.ramRecommendedKB)), data)
+	case kb > 0 && kb < budget.ramRecommendedKB:
+		checks.warn(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s (%s recommended)", formatBytes(kb), formatBytes(budget.ramRecommendedKB)), "Your VPS has limited RAM for this deployment profile. Consider upgrading for better performance.", data)
+	default:
+		checks.pass(domain.PreflightRAMTotalID, "RAM", fmt.Sprintf("RAM: %s", formatBytes(kb)), data)
+	}
+}
 
-	checks = append(checks, RunCredentialValidation(ctx, obs, manifest)...)
+func checkHostTools(ctx context.Context, obs observer, target identity.TargetRef, checks *checkCollector) map[string]string {
+	tools := obs.findTools(ctx, "curl", "git", "unzip", "tar", "jq", "apt-get", "docker", "systemctl")
+	for _, cmd := range []struct{ name, id string }{{"curl", domain.PreflightCmdCurlID}, {"git", domain.PreflightCmdGitID}, {"unzip", domain.PreflightCmdUnzipID}, {"tar", domain.PreflightCmdTarID}, {"jq", domain.PreflightCmdJqID}} {
+		if path, found := tools[cmd.name]; found {
+			checks.pass(cmd.id, cmd.name+" available", "Found at "+path, nil)
+		} else {
+			checks.warn(cmd.id, cmd.name+" available", cmd.name+" not found on VPS", "host.prepare installs it through apt.packages.ensure", nil)
+		}
+	}
+	if _, found := tools["apt-get"]; !found {
+		checks.fail(domain.PreflightAptAccessID, "apt accessible", "apt-get not found on the target", "Bootstrap installs packages through apt.packages.ensure; the target must be Ubuntu.", nil)
+	} else if user := target.Locator.User; user != "" && user != "root" {
+		checks.warn(domain.PreflightAptAccessID, "apt accessible", "apt-get present; the bound user is not root", "Package installs run through the privilege broker; the bound user needs its elevation grant.", map[string]string{"user": user})
+	} else {
+		checks.pass(domain.PreflightAptAccessID, "apt accessible", "apt-get is present", nil)
+	}
+	return tools
+}
 
-	return finish(checks)
+func checkHostServices(ctx context.Context, obs observer, tools map[string]string, checks *checkCollector) {
+	dockerPath, found := tools["docker"]
+	switch {
+	case found && obs.exists(ctx, "/var/run/docker.sock"):
+		checks.pass(domain.PreflightDockerID, "Docker available", "Docker present at "+dockerPath+" (daemon socket present)", nil)
+	case found:
+		checks.warn(domain.PreflightDockerID, "Docker available", "Docker is installed but its daemon socket is absent", "Verify dockerd is running (systemctl status docker).", map[string]string{"path": dockerPath})
+	default:
+		checks.warn(domain.PreflightDockerID, "Docker available", "Docker not found", "Bootstrap will attempt to install Docker through apt.packages.ensure.", nil)
+	}
+	if obs.exists(ctx, "/run/systemd/system") {
+		checks.pass(domain.PreflightSystemdID, "systemd available", "systemd is the running init system", nil)
+	} else {
+		checks.warn(domain.PreflightSystemdID, "systemd available", "systemd is not the running init system", "Deployment expects systemd for service management. Non-systemd systems (Alpine/OpenRC) are not supported.", nil)
+	}
 }
 
 // finish computes the overall verdict: any failing check fails preflight.

@@ -4,12 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"scenario-to-cloud/domain"
 	"scenario-to-cloud/identity"
+)
+
+var (
+	ErrDeploymentStatusChanged        = errors.New("deployment status changed during transition")
+	ErrInvalidInitialDeploymentStatus = errors.New("new deployment must start pending")
 )
 
 // deploymentColumns is the single projection every deployment read uses so a
@@ -143,6 +149,12 @@ func isUniqueViolation(err error) bool {
 // CreateDeployment inserts a new deployment record. A second record for the
 // same (scenario, environment, target) is a typed deployment_identity_conflict.
 func (r *Repository) CreateDeployment(ctx context.Context, d *domain.Deployment) error {
+	if d == nil {
+		return fmt.Errorf("deployment is required")
+	}
+	if !d.Status.Valid() {
+		return fmt.Errorf("%w: %q", ErrInvalidInitialDeploymentStatus, d.Status)
+	}
 	d.Environment = identity.NormalizeEnvironment(d.Environment)
 	binding, targetKey, err := bindingForWrite(d)
 	if err != nil {
@@ -383,11 +395,22 @@ func (r *Repository) ListDeployments(ctx context.Context, filter domain.ListFilt
 	return deployments, nil
 }
 
-// UpdateDeployment updates an existing deployment record. The target binding
-// is rewritten from the record so a manifest host change keeps the locator
-// and the uniqueness key coherent; the ID and fence are never touched here.
+// UpdateDeployment validates the status edge while updating deployment data.
+// The target binding is rewritten from the record so a manifest host change
+// keeps the locator and uniqueness key coherent; the ID and fence are untouched.
 func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment) error {
 	d.Environment = identity.NormalizeEnvironment(d.Environment)
+	current, err := r.GetDeployment(ctx, d.ID)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return fmt.Errorf("deployment not found: %s", d.ID)
+	}
+	previous := current.Status
+	if err := current.TransitionStatus(d.Status); err != nil {
+		return err
+	}
 	binding, targetKey, err := bindingForWrite(d)
 	if err != nil {
 		return err
@@ -414,7 +437,7 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 			updated_at = $19,
 			last_deployed_at = $20,
 			last_inspected_at = $21
-		WHERE id = $1
+		WHERE id = $1 AND status = $22
 	`
 	result, err := r.db.ExecContext(ctx, q,
 		d.ID,
@@ -438,6 +461,7 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 		d.UpdatedAt,
 		d.LastDeployedAt,
 		d.LastInspectedAt,
+		previous,
 	)
 	if isUniqueViolation(err) {
 		return identityConflict(d.ScenarioID, d.Environment, d.Target)
@@ -445,7 +469,7 @@ func (r *Repository) UpdateDeployment(ctx context.Context, d *domain.Deployment)
 	if err != nil {
 		return fmt.Errorf("failed to update deployment: %w", err)
 	}
-	return requireRowsAffected(result, d.ID)
+	return requireDeploymentTransitionApplied(result, d.ID)
 }
 
 func requireRowsAffected(result sql.Result, id string) error {
@@ -459,22 +483,52 @@ func requireRowsAffected(result sql.Result, id string) error {
 	return nil
 }
 
-// UpdateDeploymentStatus updates just the status and optional error fields.
-func (r *Repository) UpdateDeploymentStatus(ctx context.Context, id string, status domain.DeploymentStatus, errorMsg, errorStep *string) error {
-	const q = `
-		UPDATE deployments SET
-			status = $2,
-			error_message = $3,
-			error_step = $4,
-			updated_at = $5
-		WHERE id = $1
-	`
-	now := time.Now()
-	result, err := r.db.ExecContext(ctx, q, id, status, errorMsg, errorStep, now)
+func requireDeploymentTransitionApplied(result sql.Result, id string) error {
+	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to update deployment status: %w", err)
+		return fmt.Errorf("failed to get rows affected: %w", err)
 	}
-	return requireRowsAffected(result, id)
+	if rowsAffected == 0 {
+		return fmt.Errorf("%w: %s", ErrDeploymentStatusChanged, id)
+	}
+	return nil
+}
+
+func (r *Repository) validateDeploymentTransition(ctx context.Context, id string, next domain.DeploymentStatus) (domain.DeploymentStatus, error) {
+	current, err := r.GetDeployment(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if current == nil {
+		return "", fmt.Errorf("deployment not found: %s", id)
+	}
+	previous := current.Status
+	if err := current.TransitionStatus(next); err != nil {
+		return "", err
+	}
+	return previous, nil
+}
+
+func (r *Repository) transitionDeploymentStatus(ctx context.Context, id string, status domain.DeploymentStatus, assignments string, values ...any) error {
+	previous, err := r.validateDeploymentTransition(ctx, id, status)
+	if err != nil {
+		return err
+	}
+	args := []any{id, status, time.Now().UTC()}
+	args = append(args, values...)
+	args = append(args, previous)
+	previousArg := len(args)
+	q := fmt.Sprintf(`UPDATE deployments SET status = $2, updated_at = $3%s WHERE id = $1 AND status = $%d`, assignments, previousArg)
+	result, err := r.db.ExecContext(ctx, q, args...)
+	if err != nil {
+		return fmt.Errorf("failed to transition deployment status: %w", err)
+	}
+	return requireDeploymentTransitionApplied(result, id)
+}
+
+// UpdateDeploymentStatus validates one lifecycle edge before persisting it.
+func (r *Repository) UpdateDeploymentStatus(ctx context.Context, id string, status domain.DeploymentStatus, errorMsg, errorStep *string) error {
+	return r.transitionDeploymentStatus(ctx, id, status, ", error_message = $4, error_step = $5", errorMsg, errorStep)
 }
 
 // UpdateDeploymentSetupResult stores the VPS setup result.
@@ -493,23 +547,11 @@ func (r *Repository) UpdateDeploymentSetupResult(ctx context.Context, id string,
 	return nil
 }
 
-// UpdateDeploymentDeployResult stores the VPS deploy result.
-func (r *Repository) UpdateDeploymentDeployResult(ctx context.Context, id string, result json.RawMessage, success bool) error {
-	const q = `
-		UPDATE deployments SET
-			deploy_result = $2,
-			status = $3,
-			last_deployed_at = $4,
-			updated_at = $4
-		WHERE id = $1
-	`
-	now := time.Now()
-	status := domain.StatusDeployed
-	if !success {
-		status = domain.StatusFailed
-	}
-	_, err := r.db.ExecContext(ctx, q, id, result, status, now)
-	if err != nil {
+// UpdateDeploymentDeployResult stores VPS execution evidence. The operation
+// completion callback owns the deployment's terminal status projection.
+func (r *Repository) UpdateDeploymentDeployResult(ctx context.Context, id string, result json.RawMessage) error {
+	const q = `UPDATE deployments SET deploy_result = $2, last_deployed_at = $3, updated_at = $3 WHERE id = $1`
+	if _, err := r.db.ExecContext(ctx, q, id, result, time.Now().UTC()); err != nil {
 		return fmt.Errorf("failed to update deploy result: %w", err)
 	}
 	return nil
@@ -700,24 +742,9 @@ func (r *Repository) GetDeploymentHistory(ctx context.Context, id string) ([]dom
 }
 
 // BeginDeploymentRun projects "an operation is executing" onto the
-// deployment record: status, cleared error and progress. It is a projection
-// written from the operation state machine, never an ownership claim — the
-// durable operation row (cloud_operations) owns execution, so there is no
-// status CAS here and an owner restart can never wedge a deployment.
+// deployment record: status, cleared error and progress. The operation row
+// owns execution; this projection still validates its lifecycle edge and
+// compare-and-swaps the observed status.
 func (r *Repository) BeginDeploymentRun(ctx context.Context, id string, status domain.DeploymentStatus) error {
-	const q = `
-		UPDATE deployments SET
-			status = $2,
-			error_message = NULL,
-			error_step = NULL,
-			progress_step = NULL,
-			progress_percent = 0,
-			updated_at = $3
-		WHERE id = $1
-	`
-	result, err := r.db.ExecContext(ctx, q, id, status, time.Now().UTC())
-	if err != nil {
-		return fmt.Errorf("failed to begin deployment run: %w", err)
-	}
-	return requireRowsAffected(result, id)
+	return r.transitionDeploymentStatus(ctx, id, status, ", error_message = NULL, error_step = NULL, progress_step = NULL, progress_percent = 0")
 }

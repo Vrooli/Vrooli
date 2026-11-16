@@ -4,6 +4,8 @@ package domain
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	"scenario-to-cloud/identity"
@@ -75,6 +77,59 @@ const (
 	StatusFailed        DeploymentStatus = "failed"
 	StatusStopped       DeploymentStatus = "stopped"
 )
+
+var ErrInvalidDeploymentTransition = errors.New("invalid deployment status transition")
+
+var deploymentStatusTransitions = map[DeploymentStatus]map[DeploymentStatus]struct{}{
+	StatusPending: {
+		StatusPending: {}, StatusSetupRunning: {}, StatusDeploying: {}, StatusFailed: {}, StatusStopped: {},
+	},
+	StatusSetupRunning: {
+		StatusSetupRunning: {}, StatusSetupComplete: {}, StatusDeploying: {}, StatusDeployed: {}, StatusFailed: {}, StatusStopped: {}, StatusPending: {},
+	},
+	StatusSetupComplete: {
+		StatusSetupComplete: {}, StatusSetupRunning: {}, StatusDeploying: {}, StatusFailed: {}, StatusStopped: {}, StatusPending: {},
+	},
+	StatusDeploying: {
+		StatusDeploying: {}, StatusDeployed: {}, StatusFailed: {}, StatusStopped: {},
+	},
+	StatusDeployed: {
+		StatusDeployed: {}, StatusSetupRunning: {}, StatusDeploying: {}, StatusStopped: {}, StatusPending: {},
+	},
+	StatusFailed: {
+		StatusFailed: {}, StatusSetupRunning: {}, StatusDeploying: {}, StatusStopped: {}, StatusPending: {},
+	},
+	StatusStopped: {
+		StatusStopped: {}, StatusSetupRunning: {}, StatusDeploying: {}, StatusPending: {},
+	},
+}
+
+// Valid reports whether the status belongs to the persisted deployment lifecycle.
+func (s DeploymentStatus) Valid() bool {
+	_, ok := deploymentStatusTransitions[s]
+	return ok
+}
+
+// CanTransitionTo is the single policy for changes to a deployment's observed
+// lifecycle. The state is a projection of durable operation outcomes plus the
+// operator stop action; it never grants authority to run target effects.
+func (s DeploymentStatus) CanTransitionTo(next DeploymentStatus) bool {
+	_, ok := deploymentStatusTransitions[s][next]
+	return ok
+}
+
+// TransitionStatus validates and applies one lifecycle edge.
+func (d *Deployment) TransitionStatus(next DeploymentStatus) error {
+	if d == nil || !d.Status.CanTransitionTo(next) {
+		from := DeploymentStatus("")
+		if d != nil {
+			from = d.Status
+		}
+		return fmt.Errorf("%s to %s: %w", from, next, ErrInvalidDeploymentTransition)
+	}
+	d.Status = next
+	return nil
+}
 
 // DesiredState is the operator's intent for a deployment's workload.
 type DesiredState string

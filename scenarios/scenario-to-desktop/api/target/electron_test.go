@@ -1,6 +1,8 @@
 package target
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"runtime"
 	"strings"
@@ -128,5 +130,36 @@ func TestBuildElectronLaunchArgumentsRejectsIncompleteScope(t *testing.T) {
 	_, _, err := BuildElectronLaunchArguments(ElectronLaunchOptions{CDPPort: 9223, UserDataDir: "/tmp/profile"})
 	if err == nil {
 		t.Fatal("expected incomplete scope rejection")
+	}
+}
+
+func TestOfflineLoopbackUpstreamIsFixedToNumericLoopback(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	upstream, err := NewOfflineLoopbackUpstream(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if upstream.LocalPort < 1 || !strings.HasPrefix(upstream.LocalURL(), "http://127.0.0.1:") {
+		t.Fatalf("app-side upstream is not numeric loopback: %+v URL=%q", upstream, upstream.LocalURL())
+	}
+	if err := validateOfflineLoopbackUpstreams([]OfflineLoopbackUpstream{upstream}); err != nil {
+		t.Fatalf("valid fixture upstream rejected: %v", err)
+	}
+	for _, raw := range []string{
+		"https://127.0.0.1:3000",
+		"http://localhost:3000",
+		"http://192.0.2.1:3000",
+		"http://127.0.0.1:3000/path",
+		"http://127.0.0.1:3000?redirect=https://example.com",
+	} {
+		if _, err := NewOfflineLoopbackUpstream(raw); err == nil {
+			t.Errorf("unsafe offline fixture upstream %q was accepted", raw)
+		}
+	}
+	duplicatePort := upstream
+	duplicatePort.HostURL = "http://127.0.0.1:3001"
+	if err := validateOfflineLoopbackUpstreams([]OfflineLoopbackUpstream{upstream, duplicatePort}); err == nil || !strings.Contains(err.Error(), "ports must be unique") {
+		t.Fatalf("duplicate app-side relay ports were not refused: %v", err)
 	}
 }

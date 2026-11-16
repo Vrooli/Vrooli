@@ -209,13 +209,11 @@ func testRuntime(t *testing.T, m *manifest.Manifest) *mockRuntime {
 
 func TestHandleHealth(t *testing.T) {
 	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -244,9 +242,7 @@ func TestHandleProviderObservations(t *testing.T) {
 	rt := &providerObservationRuntime{mockRuntime: base, observations: map[string]resourceplan.ProviderObservation{
 		"vault": {DeploymentMode: "bundled", ProviderTier: "tier1-local-vrooli", Readiness: "ready", SafeRouteClass: "shared-resource"},
 	}}
-	server := NewServer(rt, "test-token")
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/provider-observations", nil))
 	if w.Code != http.StatusOK {
@@ -266,13 +262,11 @@ func TestHandleProviderObservations(t *testing.T) {
 func TestHandleReady(t *testing.T) {
 	t.Run("all services ready", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -306,13 +300,11 @@ func TestHandleReady(t *testing.T) {
 	t.Run("service not ready", func(t *testing.T) {
 		rt := testRuntime(t, nil)
 		rt.statuses["api"] = health.Status{Ready: false, Message: "starting"}
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -332,9 +324,7 @@ func TestHandleReady(t *testing.T) {
 func TestHandleReadyWaitReturnsOnStatusNotification(t *testing.T) {
 	base := testRuntime(t, nil)
 	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1)}
-	server := NewServer(rt, "test-token")
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	req := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms=1000", nil)
 	w := httptest.NewRecorder()
 
@@ -359,9 +349,7 @@ func TestHandleReadyWaitReturnsOnStatusNotification(t *testing.T) {
 func TestHandleReadyWaitValidatesTimeout(t *testing.T) {
 	base := testRuntime(t, nil)
 	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1)}
-	server := NewServer(rt, "test-token")
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	for _, raw := range []string{"0", "120001", "invalid"} {
 		req := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms="+raw, nil)
 		w := httptest.NewRecorder()
@@ -382,9 +370,7 @@ func TestHandleReadyWaitCanReturnWhenCriticalServicesAreReady(t *testing.T) {
 	rt := &readinessEventRuntime{mockRuntime: base, changes: make(chan struct{}, 1), statuses: map[string]health.Status{
 		"api": {Ready: true}, "worker": {Ready: false, Message: "still starting"},
 	}}
-	server := NewServer(rt, "test-token")
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 
 	criticalReq := httptest.NewRequest(http.MethodGet, "/readyz/wait?timeout_ms=100&critical_only=true", nil)
 	criticalResp := httptest.NewRecorder()
@@ -419,14 +405,12 @@ func TestHandleStatus(t *testing.T) {
 			Version: 1, Mode: "personal_local", HumanSignIn: "disabled", Offline: true,
 		},
 	})
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/status", nil)
 	req.Header.Set("Authorization", "Bearer test-token")
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -466,10 +450,7 @@ func TestHandleStatus(t *testing.T) {
 func TestAuthenticationModeRoutesAreProtectedAndExplicit(t *testing.T) {
 	base := testRuntime(t, nil)
 	rt := &authenticationModeRuntime{mockRuntime: base, selected: "personal_local"}
-	server := NewServer(rt, "test-token")
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
-	handler := server.AuthMiddleware(mux)
+	handler := testHandler(rt, "test-token")
 
 	unauthorized := httptest.NewRecorder()
 	handler.ServeHTTP(unauthorized, httptest.NewRequest(http.MethodGet, "/authentication/modes", nil))
@@ -504,13 +485,11 @@ func TestAuthenticationModeRoutesAreProtectedAndExplicit(t *testing.T) {
 
 func TestHandlePorts(t *testing.T) {
 	rt := testRuntime(t, nil)
-	server := NewServer(rt, "test-token")
 
 	req := httptest.NewRequest(http.MethodGet, "/ports", nil)
 	w := httptest.NewRecorder()
 
-	mux := http.NewServeMux()
-	server.RegisterHandlers(mux)
+	mux := testMux(rt, "test-token")
 	mux.ServeHTTP(w, req)
 
 	resp := w.Result()
@@ -539,7 +518,6 @@ func TestHandlePorts(t *testing.T) {
 func TestHandleLogs(t *testing.T) {
 	t.Run("returns log content", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		logPath := filepath.Join(rt.appDataDir, "logs", "api.log")
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
@@ -553,8 +531,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=3", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -565,21 +542,22 @@ func TestHandleLogs(t *testing.T) {
 			t.Fatalf("handleLogs() status = %d, body = %s", resp.StatusCode, string(body))
 		}
 
-		body, _ := io.ReadAll(resp.Body)
-		if !strings.Contains(string(body), "line5") {
-			t.Errorf("handleLogs() should contain last lines, got %q", string(body))
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("read log response: %v", err)
+		}
+		if got, want := string(body), "line3\nline4\nline5"; got != want {
+			t.Errorf("handleLogs() tail = %q, want exactly %q", got, want)
 		}
 	})
 
 	t.Run("rejects unknown service", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=unknown", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -592,7 +570,6 @@ func TestHandleLogs(t *testing.T) {
 
 	t.Run("rejects log dir that is a directory", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		logDir := filepath.Join(rt.appDataDir, "logs", "api.log")
 		if err := os.MkdirAll(logDir, 0o755); err != nil {
@@ -602,8 +579,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=5", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -638,7 +614,6 @@ func TestHandleLogs(t *testing.T) {
 			},
 		}
 		rt := testRuntime(t, m)
-		server := NewServer(rt, "test-token")
 		logPath := filepath.Join(rt.appDataDir, "resources", "api", "logs", "service.log")
 		if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 			t.Fatal(err)
@@ -650,8 +625,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -669,13 +643,11 @@ func TestHandleLogs(t *testing.T) {
 
 	t.Run("rejects when log file missing", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api&lines=5", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
@@ -693,7 +665,6 @@ func TestHandleLogs(t *testing.T) {
 
 	t.Run("defaults to 200 lines when not provided", func(t *testing.T) {
 		rt := testRuntime(t, nil)
-		server := NewServer(rt, "test-token")
 
 		lines := make([]string, 0, 250)
 		for i := 1; i <= 250; i++ {
@@ -712,8 +683,7 @@ func TestHandleLogs(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/logs/tail?serviceId=api", nil)
 		w := httptest.NewRecorder()
 
-		mux := http.NewServeMux()
-		server.RegisterHandlers(mux)
+		mux := testMux(rt, "test-token")
 		mux.ServeHTTP(w, req)
 
 		resp := w.Result()
