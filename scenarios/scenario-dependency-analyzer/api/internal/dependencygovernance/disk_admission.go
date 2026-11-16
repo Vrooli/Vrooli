@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -33,54 +34,121 @@ func WithDiskJobBroker(broker interface {
 	return func(h *connectHandler) { h.diskBroker = broker }
 }
 
-func reserveInstallDiskJob(ctx context.Context, broker diskJobBroker, planner diskAdmissionPlanner, resolution installgateway.Resolution) (capacity.DiskJobLease, installgateway.DiskAdmissionPlan, error) {
+// installDiskPlan is an install's admitted disk requirement: the planner's
+// result with every path canonicalized and merged. Dry-run and apply build it
+// the same way, so a preview never approves what apply would refuse.
+type installDiskPlan struct {
+	plan  installgateway.DiskAdmissionPlan
+	paths []capacity.DiskJobPath
+	total int64
+	// class is capacity.DiskJobClassMetadata when apply downloads nothing and
+	// writes only manifests, lockfiles and module-cache bookkeeping, and empty
+	// for every job that can grow the package store or node_modules.
+	class string
+}
+
+// Release frees what planning staged (for example a pnpm staging directory).
+func (p installDiskPlan) Release() { p.plan.Release() }
+
+// planInstallDisk runs the install's disk-admission planner and validates the
+// result without reserving anything. A shared capacity broker must exist,
+// because apply cannot proceed without one.
+func planInstallDisk(ctx context.Context, broker diskJobBroker, planner diskAdmissionPlanner, resolution installgateway.Resolution) (installDiskPlan, error) {
 	if broker == nil {
-		return nil, installgateway.DiskAdmissionPlan{}, fmt.Errorf("shared host disk admission broker is unavailable")
+		return installDiskPlan{}, fmt.Errorf("shared host disk admission broker is unavailable")
 	}
 	if planner == nil {
 		planner = installgateway.PlanDiskAdmission
 	}
 	plan, err := planner(ctx, resolution)
 	if err != nil {
-		return nil, plan, err
+		plan.Release()
+		return installDiskPlan{}, err
 	}
+	admitted := installDiskPlan{plan: plan}
 	if plan.Unsupported != "" {
-		return nil, plan, fmt.Errorf("install path is not fully covered by disk admission: %s", plan.Unsupported)
+		return admitted, errors.New(plan.Unsupported)
 	}
-	paths := make([]capacity.DiskJobPath, 0, len(plan.Paths))
 	var total int64
+	paths := make([]capacity.DiskJobPath, 0, len(plan.Paths))
 	for _, path := range plan.Paths {
 		if strings.TrimSpace(path.Role) == "" || strings.TrimSpace(path.Path) == "" || path.PeakBytes <= 0 {
-			return nil, plan, fmt.Errorf("disk admission plan contains an incomplete path requirement")
+			return admitted, fmt.Errorf("disk admission plan contains an incomplete path requirement")
 		}
 		if path.PeakBytes > installgateway.DiskJobPlanningCeilingBytes || total > installgateway.DiskJobPlanningCeilingBytes-path.PeakBytes {
-			return nil, plan, fmt.Errorf("disk admission plan exceeds the %d-byte per-job planning ceiling", installgateway.DiskJobPlanningCeilingBytes)
+			return admitted, fmt.Errorf("disk admission plan exceeds the %d-byte per-job planning ceiling", installgateway.DiskJobPlanningCeilingBytes)
 		}
 		total += path.PeakBytes
 		canonical, err := canonicalDiskAdmissionPath(path.Path)
 		if err != nil {
-			return nil, plan, fmt.Errorf("canonicalize disk admission path for %s: %w", path.Role, err)
+			return admitted, fmt.Errorf("canonicalize disk admission path for %s: %w", path.Role, err)
 		}
 		paths = append(paths, capacity.DiskJobPath{Path: canonical, Role: path.Role, PeakBytes: path.PeakBytes})
 	}
-	paths = mergeSameDiskAdmissionPaths(paths)
 	if total <= 0 || total > installgateway.DiskJobPlanningCeilingBytes {
-		return nil, plan, fmt.Errorf("disk admission estimate %d exceeds the %d-byte per-job planning ceiling", total, installgateway.DiskJobPlanningCeilingBytes)
+		return admitted, fmt.Errorf("disk admission estimate %d exceeds the %d-byte per-job planning ceiling", total, installgateway.DiskJobPlanningCeilingBytes)
 	}
+	admitted.paths = mergeSameDiskAdmissionPaths(paths)
+	admitted.total = total
+	// An apply that downloads nothing and writes no package store (inputs
+	// published without linking, a Go install of cached or first-party modules)
+	// is the metadata class: a small, bounded write that is not held to the
+	// install-sized floor. Everything that can fetch or link is not.
+	if plan.WritesInputsOnly && total <= capacity.DiskJobMetadataMaxPeakBytes {
+		admitted.class = capacity.DiskJobClassMetadata
+	}
+	return admitted, nil
+}
+
+// reserve asks the shared broker for the planned paths.
+func (p installDiskPlan) reserve(ctx context.Context, broker diskJobBroker) (capacity.DiskJobLease, error) {
 	var nonce [16]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
-		return nil, plan, fmt.Errorf("create disk admission job identity: %w", err)
+		return nil, fmt.Errorf("create disk admission job identity: %w", err)
 	}
 	lease, err := broker.ReserveDiskJob(ctx, capacity.DiskJobRequest{
 		OwnerID:    diskJobOwnerID,
 		JobID:      "install-" + hex.EncodeToString(nonce[:]),
-		Paths:      paths,
-		FloorBytes: installgateway.DiskJobFloorBytes,
+		Paths:      p.paths,
+		FloorBytes: p.floorBytes(),
+		Class:      p.class,
 	})
 	if err != nil {
-		return nil, plan, fmt.Errorf("host disk admission refused install before writes: %w", err)
+		return nil, fmt.Errorf("host disk admission refused install before writes: %w", err)
 	}
-	return lease, plan, nil
+	return lease, nil
+}
+
+// floorBytes is the floor the job asks to be held to: the install-sized floor,
+// or none of its own for a metadata job, which the capacity owner holds to its
+// metadata floor.
+func (p installDiskPlan) floorBytes() int64 {
+	if p.class == capacity.DiskJobClassMetadata {
+		return 0
+	}
+	return installgateway.DiskJobFloorBytes
+}
+
+// summary is the preview line reviewers see in a dry run.
+func (p installDiskPlan) summary() string {
+	kind := ""
+	if p.class == capacity.DiskJobClassMetadata {
+		kind = " as a metadata job (manifests and lockfiles only; no download, no package-store write)"
+	}
+	return fmt.Sprintf("disk admission (preview): peak %s across %d path(s)%s; the same admission gates --apply", humanBytes(p.total), len(p.paths), kind)
+}
+
+func humanBytes(n int64) string {
+	const unit = 1 << 10
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for value := n / unit; value >= unit; value /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 func canonicalDiskAdmissionPath(path string) (string, error) {

@@ -1,6 +1,10 @@
 package depsapproved
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vrooli/cli-core/cliapp"
+)
 
 func TestParseInstallDependencySpec(t *testing.T) {
 	t.Parallel()
@@ -27,6 +31,20 @@ func TestParseInstallDependencySpec(t *testing.T) {
 			wantEcosystem:   "npm",
 			wantPackage:     "@dnd-kit/core",
 			wantVersion:     "^6.3.1",
+		},
+		{
+			name:          "tarball URL inline version",
+			spec:          "npm/xlsx@https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+			wantEcosystem: "npm",
+			wantPackage:   "xlsx",
+			wantVersion:   "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+		},
+		{
+			name:          "scoped package with inline local file version",
+			spec:          "npm/@vrooli/file-viewer@file:../../../packages/file-viewer",
+			wantEcosystem: "npm",
+			wantPackage:   "@vrooli/file-viewer",
+			wantVersion:   "file:../../../packages/file-viewer",
 		},
 		{
 			name:          "scoped package with inline version",
@@ -67,5 +85,18 @@ func TestParseInstallDependencySpec(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestDepsCommandsExplainTheirPreviewDefaultWhenGivenGlobalDryRun(t *testing.T) {
+	core, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{Name: "scenario-dependency-analyzer", DefaultAPIBase: "http://127.0.0.1:1", AllowAnonymous: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	group := RegisterInstall(core)
+	for _, command := range group.Subcommands {
+		if command.DryRunAlternative == "" {
+			t.Errorf("deps %s rejects global --dry-run without saying what to do instead", command.Name)
+		}
 	}
 }

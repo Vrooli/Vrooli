@@ -36,6 +36,9 @@ type Registry struct {
 	ranker   SemanticRanker
 }
 
+// semanticRankBudget bounds the AI-ranking attempt of one search.
+var semanticRankBudget = 4 * time.Second
+
 // SemanticRanker ranks governance-record IDs (ecosystem/package) by semantic
 // relevance to a free-text query. It is implemented by internal/aisearch.Service
 // over packages/ai-go/search; defining it here (with primitive returns) lets the
@@ -183,6 +186,9 @@ type connectHandler struct {
 	installer    installgateway.PackageInstaller
 	diskBroker   diskJobBroker
 	diskPlanner  diskAdmissionPlanner
+	// advisoryEvidence lists the vulnerability evidence an advisory selector
+	// resolves against; tests replace the Security Health query.
+	advisoryEvidence advisoryEvidenceSource
 }
 
 func (h *connectHandler) ListApprovedDependencies(_ context.Context, req *connect.Request[governancev1.ListApprovedDependenciesRequest]) (*connect.Response[governancev1.ApprovedDependencyListResponse], error) {
@@ -391,7 +397,12 @@ func (r *Registry) Search(ctx context.Context, req *governancev1.SearchApprovedD
 		if fetch < 50 {
 			fetch = 50
 		}
-		ids, scores, available, rankErr := r.ranker.RankIDs(ctx, query, fetch)
+		// A cold embedding model or an unreachable vector store must cost the
+		// caller seconds, not the whole request: past the budget the keyword
+		// path answers.
+		rankCtx, cancelRank := context.WithTimeout(ctx, semanticRankBudget)
+		ids, scores, available, rankErr := r.ranker.RankIDs(rankCtx, query, fetch)
+		cancelRank()
 		if rankErr == nil && available && len(ids) > 0 {
 			byID := make(map[string]*governancev1.ApprovedDependencyRecord, len(candidates))
 			for _, c := range candidates {
@@ -480,6 +491,31 @@ func (r *Registry) ValidateScenario(scenario string, policyModeOverride ...strin
 		return nil, err
 	}
 	return r.ValidateObserved(scenario, observed, policyModeOverride...)
+}
+
+// sharedPackageResponses validates each shared package under packages/ as
+// the pseudo-scenario "packages/<name>". Fleet validation walks scenarios only,
+// so a dependency declared solely by a shared package would otherwise look unused.
+func (r *Registry) sharedPackageResponses(policyMode string) []*governancev1.ApprovedDependencyValidationResponse {
+	root := filepath.Join(r.repoRoot, "packages")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil
+	}
+	var responses []*governancev1.ApprovedDependencyValidationResponse
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		observed, err := ScanScenarioDependencies(filepath.Join(root, entry.Name()))
+		if err != nil || len(observed) == 0 {
+			continue
+		}
+		if resp, err := r.ValidateObserved("packages/"+entry.Name(), observed, policyMode); err == nil {
+			responses = append(responses, resp)
+		}
+	}
+	return responses
 }
 
 func (r *Registry) ValidateFleet(policyModeOverride ...string) (*governancev1.FleetApprovedDependencyValidationResponse, error) {
@@ -643,7 +679,7 @@ func (r *Registry) ValidateObserved(scenario string, observed []*governancev1.Ob
 		annotateDependencySignalCategory(dep)
 		record := byKey[recordKey(dep.GetEcosystem(), dep.GetPackageName())]
 		if record == nil {
-			if isUnrecordedTransitiveDependency(dep) {
+			if isUnrecordedTransitiveDependency(dep) || r.isFirstPartyDeclaration(dep) {
 				continue
 			}
 			severity := "WARNING"
@@ -1006,7 +1042,7 @@ func (r *Registry) ApproveObserved(req *governancev1.ApproveObservedDependencyRe
 	}
 	usage := findUsageGroup(fleet.GetUsageGroups(), ecosystem, packageName)
 	if usage == nil {
-		return nil, fmt.Errorf("no observed fleet usage found for %s/%s", ecosystem, packageName)
+		return nil, fmt.Errorf("no observed fleet usage found for %s/%s: no scenario declares it yet, so there is nothing to record. A package new to the fleet is approved with a rationale: %s deps approved approve %s/%s --range '<range>' --rationale '<why this package>' --apply", ecosystem, packageName, scenarioCLIName(), ecosystem, packageName)
 	}
 	group := triageGroupFromUsage(usage, "decision.approve_observed", "approve_observed", "seeding")
 	record := proposalRecordFromGroup(group, "approved", req.GetRangeStrategy())
@@ -1058,9 +1094,11 @@ func (r *Registry) WidenRange(req *governancev1.WidenApprovedDependencyRangeRequ
 	if err != nil {
 		return nil, err
 	}
-	usage := findUsageGroup(fleet.GetUsageGroups(), ecosystem, packageName)
+	// A shared package (packages/<name>) is fleet usage too: a record only a
+	// shared package declares must be widenable like one a scenario declares.
+	usage := findUsageGroup(buildUsageGroups(append(fleet.GetScenarios(), r.sharedPackageResponses(req.GetPolicyMode())...)), ecosystem, packageName)
 	if usage == nil {
-		return nil, fmt.Errorf("no observed fleet usage found for %s/%s", ecosystem, packageName)
+		return nil, fmt.Errorf("no observed fleet usage found for %s/%s: widening a range follows what scenarios and shared packages use, and none declares it. Change the record's range directly: %s deps approved approve %s/%s --range '<range>' --rationale '<why>' --apply", ecosystem, packageName, scenarioCLIName(), ecosystem, packageName)
 	}
 	group := triageGroupFromUsage(usage, "decision.widen_range", "widen_range", "ranges")
 	nextRange, err := observedSingleMajorRange(group.GetObservedVersions())
@@ -2765,6 +2803,22 @@ func inferSurfaceID(path string) string {
 		}
 	}
 	return ""
+}
+
+// isFirstPartyDeclaration reports whether an unrecorded npm dependency is a
+// file: link to a workspace package of this repository, proved by the same
+// check that admits first-party installs. A recorded dependency never reaches
+// here, so a denial recorded for a package still applies.
+func (r *Registry) isFirstPartyDeclaration(dep *governancev1.ObservedDependency) bool {
+	if r == nil || r.repoRoot == "" || dep.GetFilePath() == "" || !strings.HasPrefix(dep.GetVersion(), "file:") {
+		return false
+	}
+	manifestDir := filepath.Dir(filepath.FromSlash(dep.GetFilePath()))
+	if !filepath.IsAbs(manifestDir) {
+		manifestDir = filepath.Join(r.repoRoot, manifestDir)
+	}
+	_, ok := installgateway.ProveFirstParty(r.repoRoot, manifestDir, dep.GetEcosystem(), dep.GetPackageName(), dep.GetVersion())
+	return ok
 }
 
 func isUnrecordedTransitiveDependency(dep *governancev1.ObservedDependency) bool {

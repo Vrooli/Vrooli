@@ -2,6 +2,7 @@ package health
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"os/exec"
@@ -97,6 +98,100 @@ func TestDiscoverGoModulesSkipsRetainedDocsModules(t *testing.T) {
 			t.Errorf("docs module %q was discovered as active module", module)
 		}
 	}
+}
+
+func TestDiscoverGoModulesRejectsMalformedActiveManifestInsteadOfDroppingCoverage(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios", "broken", "api", "go.mod"), "module\n")
+
+	_, err := discoverGoModules(root)
+	if err == nil || !strings.Contains(err.Error(), "scenarios/broken/api/go.mod") {
+		t.Fatalf("discoverGoModules() error = %v, want malformed active go.mod to fail coverage with its path", err)
+	}
+}
+
+func TestPublicFreshnessHandlerReportsRealTouchedInventoryAndExcludesRetainedEvidence(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "root.go"), "package root\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios", "demo", "api", "go.mod"), "module example.test/demo\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios", "demo", "api", "api.go"), "package api\n")
+	writeFreshnessFile(t, filepath.Join(root, "docs", "evidence", "demo", "go.mod"), "module example.test/retained\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "docs", "evidence", "demo", "retained.go"), "package retained\n")
+	initFreshnessGitRepo(t, root)
+	modulePath := filepath.Join(root, "scenarios", "demo", "api", "go.mod")
+	if err := os.WriteFile(modulePath, []byte("module example.test/demo\n\ngo 1.23\n// touched dependency manifest\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	output, err := runFreshnessJSONForTest(t, "--touched", "--json", "--no-cache", "--repo-root", root)
+	if err != nil {
+		t.Fatalf("public freshness handler: %v", err)
+	}
+	var report freshnessReport
+	if err := json.Unmarshal(output, &report); err != nil {
+		t.Fatalf("decode public freshness output: %v\n%s", err, output)
+	}
+	if !report.Clean || report.Mode != "touched" || report.Summary.Checked != 1 || len(report.Surfaces) != 1 {
+		t.Fatalf("public report = %+v, want one clean touched active surface", report)
+	}
+	if report.Surfaces[0].GoModPath != "scenarios/demo/api/go.mod" {
+		t.Fatalf("reported surface = %+v, want active scenario module", report.Surfaces[0])
+	}
+	for _, excluded := range report.Exclusions {
+		if excluded.GoModPath == "docs/evidence/demo/go.mod" {
+			return
+		}
+	}
+	t.Fatalf("report exclusions = %#v, want retained evidence module attributed as excluded", report.Exclusions)
+}
+
+func TestPublicFreshnessHandlerDoesNotEmitCleanJSONForMalformedActiveManifest(t *testing.T) {
+	root := t.TempDir()
+	writeFreshnessFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.23\n")
+	writeFreshnessFile(t, filepath.Join(root, "scenarios", "broken", "api", "go.mod"), "module\n")
+	initFreshnessGitRepo(t, root)
+
+	output, err := runFreshnessJSONForTest(t, "--touched", "--json", "--repo-root", root)
+	if err == nil || !strings.Contains(err.Error(), "scenarios/broken/api/go.mod") {
+		t.Fatalf("public handler error = %v, want path-attributed active manifest failure", err)
+	}
+	if len(output) != 0 {
+		t.Fatalf("public handler emitted JSON despite incomplete inventory: %s", output)
+	}
+}
+
+func TestPublicFreshnessHandlerAttributesRootWalkFailure(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "missing-repository")
+	output, err := runFreshnessJSONForTest(t, "--touched", "--json", "--repo-root", root)
+	if err == nil || !strings.Contains(err.Error(), root) {
+		t.Fatalf("public handler error = %v, want failed root path in coverage error", err)
+	}
+	if len(output) != 0 {
+		t.Fatalf("public handler emitted JSON after root walk failure: %s", output)
+	}
+}
+
+func runFreshnessJSONForTest(t *testing.T, args ...string) ([]byte, error) {
+	t.Helper()
+	file, err := os.CreateTemp(t.TempDir(), "freshness-output-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	previous := os.Stdout
+	os.Stdout = file
+	err = runFreshness(args)
+	os.Stdout = previous
+	if _, seekErr := file.Seek(0, 0); seekErr != nil {
+		t.Fatal(seekErr)
+	}
+	output, readErr := os.ReadFile(file.Name())
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	return output, err
 }
 
 func TestExcludedGoModSkipsEntireDocsSubtree(t *testing.T) {

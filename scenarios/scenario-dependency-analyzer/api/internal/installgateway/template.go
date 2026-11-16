@@ -70,7 +70,11 @@ func installTemplate(ctx context.Context, r Resolution, installer PackageInstall
 	staged.TemplateVersion = ""
 	staged.SurfaceRoot = ui
 	staged.ManifestPath = filepath.Join(ui, "package.json")
-	staged.Argv = append(append([]string{}, r.Argv...), "--lockfile-only")
+	lockOnly := "--lockfile-only"
+	if r.PackageManager == "npm" {
+		lockOnly = "--package-lock-only"
+	}
+	staged.Argv = append(append([]string{}, r.Argv...), lockOnly)
 	out, err := installer.Install(ctx, staged)
 	if err != nil {
 		return out, err

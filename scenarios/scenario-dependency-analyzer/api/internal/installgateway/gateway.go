@@ -9,16 +9,18 @@ package installgateway
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 
 	"github.com/vrooli/cli-core/cliutil"
-	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	"github.com/vrooli/vrooli/internal/tools/kubo"
@@ -55,8 +57,30 @@ type Resolution struct {
 	DiskPythonWheelBytes  int64  `json:"-"`
 	DiskPythonTarget      string `json:"-"`
 	DiskPythonStage       string `json:"-"`
-	Argv                  []string
-	Profile               InstallProfile
+	// DiskJSStage is the staged pnpm resolution that disk admission sized. An
+	// apply publishes exactly this stage.
+	DiskJSStage *JSStage `json:"-"`
+	// DiskPythonStage is the unpublished lock closure resolved by disk admission.
+	DiskPythonLockStage *PythonLockStage `json:"-"`
+	// RemovedPackages is set when the request takes direct JavaScript
+	// dependencies off a surface instead of adding one.
+	RemovedPackages []string
+	// UpdatedPackages is set when the request moves already-locked packages to
+	// the newest version their declared ranges allow.
+	UpdatedPackages []string
+	// LockOnly asks a staged JavaScript change to publish its manifest and
+	// lockfile without linking node_modules (no download, no package-store write).
+	LockOnly bool
+	// NpmOverride is a pnpm resolver override the staged resolution applies to
+	// its own copy of package.json before resolving, so the published manifest
+	// and lockfile come from the same resolution and a preview shows its effect.
+	NpmOverride *NpmOverride
+	Argv        []string
+	// ThenArgv are further resolution commands of the same staged change, run
+	// in order after Argv in the same staging copy (a lock update that has to
+	// move direct and transitive packages in separate package-manager calls).
+	ThenArgv [][]string
+	Profile  InstallProfile
 }
 
 // InstallProfile records the security properties of a governed mutation. It
@@ -106,7 +130,11 @@ func (r Resolution) Command() string {
 	if len(r.PythonLockfiles) > 0 {
 		return "uv pip compile --only-binary :all: --generate-hashes " + r.PackageName + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
 	}
-	return cliutil.DisplayCommand(r.Argv)
+	command := cliutil.DisplayCommand(r.Argv)
+	for _, then := range r.ThenArgv {
+		command += "; then " + cliutil.DisplayCommand(then)
+	}
+	return command
 }
 
 // PackageInstaller executes a resolved install plan. The real implementation
@@ -161,9 +189,16 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 		return updatePythonLocks(ctx, r)
 	}
 
-	if r.PackageManager == "pnpm" && !r.ExternalWorkspace {
-		if err := ensureReleaseAge(r.SurfaceRoot); err != nil {
-			return "", err
+	if r.PackageManager == "pnpm" || r.PackageManager == "npm" {
+		if !lockOnlyArgv(r.Argv) {
+			return installStaged(ctx, r)
+		}
+		// A lock-only run belongs to a caller that already owns isolation
+		// (template lock generation); pnpm still honours the release-age floor.
+		if r.PackageManager == "pnpm" && !r.ExternalWorkspace {
+			if err := ensureReleaseAge(r.SurfaceRoot); err != nil {
+				return "", err
+			}
 		}
 	}
 	if r.PackageManager == "go" && r.RepositoryRoot != "" && r.PackageName != "" {
@@ -175,39 +210,104 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 			return "", err
 		}
 	}
+	restore := snapshotManifestFiles(r)
 	cmd := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 	cmd.Dir = r.SurfaceRoot
-	cacheEnv := managerCacheEnvironment(r.PackageManager, r.DiskCachePath, r.DiskBuildCachePath)
-	if r.ExternalWorkspace {
-		// Retain the shared pnpm release-age policy without creating workspace
-		// membership/configuration that a later operation could execute.
-		cmd.Env = overlayInstallEnvironment(os.Environ(), append(cacheEnv, "npm_config_minimum_release_age=10080", "npm_config_ignore_pnpmfile=true", "npm_config_manage_package_manager_versions=false"))
-	} else {
-		cmd.Env = overlayInstallEnvironment(os.Environ(), cacheEnv)
+	switch r.PackageManager {
+	case "pnpm":
+		cmd.Env = pnpmEnvironment(r, "")
+	case "npm":
+		cmd.Env = npmEnvironment(r)
+	default:
+		cmd.Env = overlayInstallEnvironment(os.Environ(), managerCacheEnvironment(r.PackageManager, r.DiskCachePath, r.DiskBuildCachePath))
 	}
 	out, err := cmd.CombinedOutput()
-	if err != nil && r.PackageManager == "pnpm" && !r.ExternalWorkspace && strings.Contains(string(out), "ERR_PNPM_UNEXPECTED_STORE") {
-		// A governed install must be able to repair a package workspace whose
-		// node_modules was linked by a different pnpm store configuration. The
-		// frozen, script-disabled relink is intentionally read-only with respect
-		// to dependency versions; it only restores the workspace invariant before
-		// retrying the requested governed mutation.
-		repair := exec.CommandContext(ctx, "pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--ignore-workspace")
-		repair.Dir = r.SurfaceRoot
-		repair.Env = overlayInstallEnvironment(envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{}), cacheEnv)
-		repairOut, repairErr := repair.CombinedOutput()
-		out = append(out, repairOut...)
-		if repairErr != nil {
-			return string(out), repairErr
+	if err != nil {
+		if restoreErr := restore(); restoreErr != nil {
+			return string(out), fmt.Errorf("%w (restoring the previous manifest and lockfile also failed: %v)", err, restoreErr)
 		}
-		retry := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
-		retry.Dir = r.SurfaceRoot
-		retry.Env = overlayInstallEnvironment(os.Environ(), cacheEnv)
-		retryOut, retryErr := retry.CombinedOutput()
-		out = append(out, retryOut...)
-		return string(out), retryErr
+		return string(out), fmt.Errorf("%w (the previous manifest and lockfile were restored)", err)
 	}
-	return string(out), err
+	return string(out), nil
+}
+
+func containsArg(argv []string, want string) bool {
+	for _, arg := range argv {
+		if arg == want {
+			return true
+		}
+	}
+	return false
+}
+
+func lockOnlyArgv(argv []string) bool {
+	return containsArg(argv, "--lockfile-only") || containsArg(argv, "--package-lock-only")
+}
+
+// installStaged publishes a staged pnpm or npm resolution. When the caller did
+// not plan admission first (the stage is nil) it stages here and owns the
+// cleanup.
+func installStaged(ctx context.Context, r Resolution) (string, error) {
+	stage := r.DiskJSStage
+	if stage == nil {
+		var err error
+		if stage, err = stageJSResolution(ctx, r); err != nil {
+			return "", err
+		}
+		defer stage.Release()
+	}
+	out, err := stage.publish(ctx, r)
+	if len(stage.Notes) > 0 {
+		out = strings.TrimSpace(out + "\n" + strings.Join(stage.Notes, "\n"))
+	}
+	return out, err
+}
+
+// snapshotManifestFiles captures the files a single-command package manager
+// rewrites in place and returns a function that restores them. It makes a
+// failed apply leave the manifest and lockfile as they were found.
+func snapshotManifestFiles(r Resolution) func() error {
+	var names []string
+	switch r.PackageManager {
+	case "go":
+		names = []string{"go.mod", "go.sum"}
+	case "yarn":
+		names = []string{"package.json", "yarn.lock"}
+	case "cargo":
+		names = []string{"Cargo.toml", "Cargo.lock"}
+	case "poetry":
+		names = []string{"pyproject.toml", "poetry.lock"}
+	case "uv":
+		names = []string{"pyproject.toml", "uv.lock"}
+	default:
+		return func() error { return nil }
+	}
+	type saved struct {
+		path string
+		data []byte
+	}
+	var files []saved
+	for _, name := range names {
+		path := filepath.Join(r.SurfaceRoot, name)
+		data, err := readOptionalBounded(path, 64<<20)
+		if err != nil {
+			continue // An unreadable or oversized file is not rewritten safely anyway.
+		}
+		files = append(files, saved{path, data})
+	}
+	return func() error {
+		var errs []error
+		for _, file := range files {
+			if file.data == nil {
+				if err := os.Remove(file.path); err != nil && !os.IsNotExist(err) {
+					errs = append(errs, err)
+				}
+				continue
+			}
+			errs = append(errs, writeFileAtomic(file.path, file.data))
+		}
+		return errors.Join(errs...)
+	}
 }
 
 // allowedSurfaces is the closed set of installable top-level scenario surfaces.
@@ -215,6 +315,23 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 // platforms packages are addressed as tools/<package> and platforms/<package>
 // to keep auxiliary and distribution installs scoped.
 var allowedSurfaces = map[string]struct{}{"ui": {}, "api": {}, "cli": {}, "agent": {}, "playwright-driver": {}, "resource": {}, "control-plane": {}}
+
+// CanonicalEcosystem maps the spellings callers use (js, javascript, golang,
+// python, rust, ...) to the ecosystem names the registry and the resolvers use.
+// Unknown names pass through for the resolver to refuse.
+func CanonicalEcosystem(ecosystem string) string {
+	switch ecosystem = strings.ToLower(strings.TrimSpace(ecosystem)); ecosystem {
+	case "npm", "node", "js", "javascript", "ts", "typescript":
+		return "npm"
+	case "go", "golang":
+		return "go"
+	case "pip", "python", "pypi":
+		return "pip"
+	case "cargo", "rust":
+		return "cargo"
+	}
+	return ecosystem
+}
 
 // Resolve maps a request to a Resolution. repoRoot is the Vrooli repo root;
 // surface is ui/api/cli/agent/playwright-driver, resource, tools/<package>, platforms/<package>, or template/<id>.
@@ -230,7 +347,7 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	if err := validatePackageSpec(packageName, version); err != nil {
 		return Resolution{}, err
 	}
-	ecosystem = strings.ToLower(strings.TrimSpace(ecosystem))
+	ecosystem = CanonicalEcosystem(ecosystem)
 	surface, err := normalizedSurface(surface)
 	if err != nil {
 		return Resolution{}, err
@@ -248,7 +365,7 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 	}
 	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
 	if surfaceRoot == "" {
-		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
+		return Resolution{}, surfaceNotFoundError(repoRoot, scenario, surface)
 	}
 	if ecosystem == "pip" || ecosystem == "python" || ecosystem == "pypi" {
 		surfaceRoot, err = pythonLockSurface(surfaceRoot)
@@ -363,8 +480,35 @@ func ApplyExactVersion(r *Resolution, version string) error {
 		r.ExactVersion = true
 		return nil
 	}
+	if strings.HasPrefix(version, "file:") {
+		if r.PackageManager != "pnpm" {
+			return fmt.Errorf("local file package admission is supported only for pnpm surfaces")
+		}
+		if _, err := measureLocalPnpmPackage(r.RepositoryRoot, r.SurfaceRoot, r.PackageName, version); err != nil {
+			return err
+		}
+		r.Argv = append(r.Argv, "--save-exact")
+		r.ExactVersion = true
+		return nil
+	}
+	if strings.HasPrefix(version, "https://") {
+		// A tarball URL names one immutable artifact, so it is exact by
+		// construction. Its content identity is the integrity pnpm records in the
+		// lock, which admission verifies against the downloaded bytes.
+		if r.PackageManager != "pnpm" && r.PackageManager != "npm" {
+			return fmt.Errorf("tarball URL dependencies are supported only for pnpm and npm surfaces")
+		}
+		if err := validateTarballSpec(version); err != nil {
+			return err
+		}
+		r.ExactVersion = true
+		return nil
+	}
 	if !exactNpmVersion.MatchString(version) {
-		return fmt.Errorf("exact version requires a concrete semantic version")
+		if version == "" {
+			return fmt.Errorf("--exact needs a version to pin: name one such as %s@1.2.3, or drop --exact", r.PackageName)
+		}
+		return fmt.Errorf("--exact needs a concrete version such as 1.2.3, but %q is a range or tag; name the exact version, or drop --exact to keep the range", version)
 	}
 	if r.HostToolRefresh {
 		if version != r.HostToolTargetVersion {
@@ -428,6 +572,20 @@ func ApplyDevelopmentDependency(r *Resolution) error {
 	}
 	r.Argv = append(r.Argv, flag)
 	r.Profile = SafeProfileFor(r.PackageManager, r.Argv)
+	return nil
+}
+
+// validateTarballSpec admits only a plain https URL to a versioned tarball. A
+// query string, fragment, or credentials would make the artifact mutable or
+// secret-bearing.
+func validateTarballSpec(spec string) error {
+	parsed, err := url.Parse(spec)
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || len(spec) > 512 {
+		return fmt.Errorf("a tarball URL dependency must be a plain https URL without credentials, query, or fragment")
+	}
+	if !strings.HasSuffix(parsed.Path, ".tgz") && !strings.HasSuffix(parsed.Path, ".tar.gz") {
+		return fmt.Errorf("a tarball URL dependency must end in .tgz or .tar.gz")
+	}
 	return nil
 }
 
@@ -500,7 +658,7 @@ func ResolveNpmOverride(repoRoot, scenario, surface string) (Resolution, error) 
 	}
 	surfaceRoot := resolveSurfaceRoot(repoRoot, scenario, surface)
 	if surfaceRoot == "" {
-		return Resolution{}, fmt.Errorf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
+		return Resolution{}, surfaceNotFoundError(repoRoot, scenario, surface)
 	}
 	if manager := jsManager(surfaceRoot); manager != "pnpm" {
 		return Resolution{}, fmt.Errorf("npm overrides require a pnpm surface, got %s", manager)
@@ -587,6 +745,63 @@ func goResourceModuleRoot(repoRoot, resourceRoot string) string {
 	return resourceRoot
 }
 
+// surfaceNotFoundError names the directories that were tried and, when the
+// "scenario" is really a shared package, the spelling that reaches it.
+func surfaceNotFoundError(repoRoot, scenario, surface string) error {
+	message := fmt.Sprintf("surface directory not found: scenarios/%s/%s or resources/%s/%s", scenario, surface, scenario, surface)
+	if info, err := os.Stat(filepath.Join(repoRoot, "packages", scenario)); err == nil && info.IsDir() {
+		message += fmt.Sprintf("; packages/%s is a shared package, so address it as --scenario <any-scenario> --surface tools/%s", scenario, scenario)
+	}
+	if surfaces := declaredSurfaces(repoRoot, scenario); len(surfaces) > 0 {
+		message += "; " + scenario + " has these surfaces: " + strings.Join(surfaces, ", ")
+	} else if info, err := os.Stat(filepath.Join(repoRoot, "scenarios", scenario)); err != nil || !info.IsDir() {
+		if _, resourceErr := os.Stat(filepath.Join(repoRoot, "resources", scenario)); resourceErr != nil {
+			message += fmt.Sprintf("; there is no scenario or resource named %q", scenario)
+		}
+	}
+	return fmt.Errorf("%s", message)
+}
+
+// surfaceManifests are the files that make a directory an installable surface.
+var surfaceManifests = []string{"go.mod", "package.json", "requirements.txt", "pyproject.toml", "poetry.lock"}
+
+// declaredSurfaces lists the surfaces of a scenario or resource: the directories
+// within two levels of it that hold a package manifest, as --surface spells them.
+func declaredSurfaces(repoRoot, scenario string) []string {
+	var found []string
+	for _, base := range []string{filepath.Join(repoRoot, "scenarios", scenario), filepath.Join(repoRoot, "resources", scenario)} {
+		var walk func(dir, rel string, depth int)
+		walk = func(dir, rel string, depth int) {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				return
+			}
+			for _, name := range surfaceManifests {
+				if fileExists(filepath.Join(dir, name)) && rel != "" {
+					found = append(found, rel)
+					break
+				}
+			}
+			if depth == 0 {
+				return
+			}
+			for _, entry := range entries {
+				if !entry.IsDir() || entry.Name() == "node_modules" || strings.HasPrefix(entry.Name(), ".") {
+					continue
+				}
+				child := entry.Name()
+				if rel != "" {
+					child = rel + "/" + child
+				}
+				walk(filepath.Join(dir, entry.Name()), child, depth-1)
+			}
+		}
+		walk(base, "", 2)
+	}
+	sort.Strings(found)
+	return found
+}
+
 func isSharedPackageRoot(repoRoot, surfaceRoot string) bool {
 	packagesRoot := filepath.Join(repoRoot, "packages")
 	rel, err := filepath.Rel(packagesRoot, surfaceRoot)
@@ -596,9 +811,20 @@ func isSharedPackageRoot(repoRoot, surfaceRoot string) bool {
 // pnpm distinguishes parent selectors from comparison ranges with this delimiter.
 var pnpmParentSelector = regexp.MustCompile(`[^ |@]>`)
 
-// SetNpmOverride records a pnpm override in package.json. It intentionally
+// NpmOverride names one pnpm override selector and the version it pins.
+type NpmOverride struct {
+	Selector string
+	Version  string
+}
+
+// SetNpmOverride records a pnpm override in package.json; selector is the package
+// name for a package-wide override or an exact pnpm selector. It intentionally
 // owns only manifest mutation; ResolveNpmOverride regenerates the lockfile.
-func SetNpmOverride(manifestPath, packageName, version string) error {
+func SetNpmOverride(manifestPath, selector, version string) error {
+	if err := ValidateOverrideSelector(selector); err != nil {
+		return err
+	}
+	packageName := OverridePackage(selector)
 	if err := validatePackageSpec(packageName, version); err != nil {
 		return err
 	}
@@ -620,19 +846,44 @@ func SetNpmOverride(manifestPath, packageName, version string) error {
 		overrides = map[string]any{}
 		pnpm["overrides"] = overrides
 	}
-	// A package-wide replacement must retire the older version-specific policy.
-	// Keep parent-qualified choices, which apply to a separate dependency edge.
-	for selector := range overrides {
-		if strings.HasPrefix(selector, packageName+"@") && !pnpmParentSelector.MatchString(selector) {
-			delete(overrides, selector)
+	if selector == packageName {
+		// A package-wide replacement must retire the older version-specific policy.
+		// Keep parent-qualified choices, which apply to a separate dependency edge.
+		for existing := range overrides {
+			if strings.HasPrefix(existing, packageName+"@") && !pnpmParentSelector.MatchString(existing) {
+				delete(overrides, existing)
+			}
 		}
 	}
-	overrides[packageName] = version
+	// An explicit selector (brace-expansion@1, minimatch@3>brace-expansion) sets
+	// exactly that entry and leaves every other override alone.
+	overrides[selector] = version
 	encoded, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode package manifest: %w", err)
 	}
 	return os.WriteFile(manifestPath, append(encoded, '\n'), 0o644)
+}
+
+var overrideSelectorPattern = regexp.MustCompile(`^[@A-Za-z0-9._/~^*|<=-]+(>[@A-Za-z0-9._/~^*|<=-]+)*$`)
+
+// ValidateOverrideSelector accepts a package name or a pnpm override selector
+// built from package names, version ranges and parent edges (a>b).
+func ValidateOverrideSelector(selector string) error {
+	if !overrideSelectorPattern.MatchString(selector) || strings.Contains(selector, "..") {
+		return fmt.Errorf("override selector %q is not a package name or a pnpm selector such as brace-expansion@1 or minimatch@3>brace-expansion", selector)
+	}
+	return nil
+}
+
+// OverridePackage is the package a selector overrides: its last parent-edge
+// segment without a version range.
+func OverridePackage(selector string) string {
+	last := selector[strings.LastIndex(selector, ">")+1:]
+	if i := strings.LastIndex(last, "@"); i > 0 {
+		last = last[:i]
+	}
+	return last
 }
 
 func normalizedSurface(surface string) (string, error) {
@@ -749,7 +1000,7 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 		}
 		argv = []string{"cargo", "add", spec}
 	default:
-		return "", "", nil, fmt.Errorf("unsupported ecosystem %q (want npm, go, pip, or cargo)", ecosystem)
+		return "", "", nil, fmt.Errorf("unsupported ecosystem %q (want npm, go, pip, or cargo; js, javascript, golang, python and rust are accepted aliases)", ecosystem)
 	}
 	return manager, manifest, argv, nil
 }

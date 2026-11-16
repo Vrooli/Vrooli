@@ -468,7 +468,7 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 	out := map[string]goModule{}
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return fmt.Errorf("discover Go module coverage at %s: %w", path, err)
 		}
 		if d.IsDir() {
 			switch d.Name() {
@@ -485,8 +485,8 @@ func discoverGoModules(root string) (map[string]goModule, error) {
 			return nil
 		}
 		view, err := parseGoModFile(path)
-		if err != nil || view.module == "" {
-			return nil
+		if err != nil {
+			return fmt.Errorf("discover Go module coverage: %w", err)
 		}
 		// Retained fixture/evidence copies must not shadow the repository's
 		// own module, which owns resource CLIs and the control plane.

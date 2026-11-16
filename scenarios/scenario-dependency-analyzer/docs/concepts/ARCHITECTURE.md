@@ -198,6 +198,46 @@ Existing Gin REST endpoints remain during the hybrid migration for UI/operator c
 
 The CLI must expose machine-readable access to the same graph and drift data, with `graph actual --json` and `drift --json` as the intended operator surface.
 
+## Governed installs: stage, admit, publish
+
+`deps install` is one pipeline for every ecosystem, and the same code answers a
+dry run and an apply.
+
+1. **Resolve the request** to a surface, package manager, manifest and argv.
+   Ecosystem aliases (`js`, `javascript`, `golang`, `python`, `rust`) are
+   canonicalized once, before governance and resolution.
+2. **Govern.** Registry state, scenario scope, allowed surface and version range
+   decide `approved` or a refusal that names the unblocking verb. A refusal
+   stops here; nothing is planned or fetched.
+3. **Admit.** The disk planner sizes what the install would write (for pnpm and
+   npm, from the lockfile the package manager itself resolved in a staging copy;
+   for Go, from what `go list -deps` says a repository package imports, or from
+   the module proxy for a published module) and the shared capacity broker must
+   exist. A
+   dry run reports `disk_admission_denied` with the same message `--apply` would
+   return, and an approved dry run states the peak it would reserve.
+4. **Apply** reserves the planned paths, then publishes. JavaScript publishes the
+   staged manifest and lockfile and links from the frozen lock; Go runs
+   `go get`. Every manager that rewrites manifests in place restores them if the
+   command fails. `deps remove` runs the same stage, preview and publish with
+   `pnpm remove` / `npm uninstall` as the resolving command.
+
+Design rules that came out of the 2026-11 reliability pass:
+
+- The package manager is the resolver. SDA does not reimplement semver ranges,
+  overrides, peers or release-age policy to estimate a closure; it measures what
+  the manager decided.
+- Admission sizes the delta, not the closure. A shared `packages/*` package whose
+  dependencies the surface already holds adds one lock entry, however large its
+  dependency tree is.
+- Repairs happen in the staging copy and are shown. A lock entry pnpm refuses (no
+  integrity on a tarball URL, a version younger than the release-age policy) is
+  fixed there, never by relaxing the policy, and the preview reports it.
+- An install never destroys state to proceed. A store mismatch or an
+  unrecoverable lock leaves node_modules alone and says what to run.
+- Identity is explicit. A `file:` package is a real directory under `packages/`; a
+  tarball URL is a plain https URL whose bytes match the lockfile integrity.
+
 ## Package-wide npm override replacement
 
 The governed install gateway's `override:` operation writes one package-wide

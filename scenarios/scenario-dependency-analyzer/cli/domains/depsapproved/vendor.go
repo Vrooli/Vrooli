@@ -32,7 +32,7 @@ func runVendor(_ *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 || strings.TrimSpace(module) == "" || !apply {
-		return fmt.Errorf("usage: %s deps vendor --module <repo-relative-go-module> [--preserve <vendor-subdir,...>] --apply [--json]", support.AppName)
+		return usageError("deps vendor")
 	}
 
 	root := cliutil.ResolveRepoRoot()

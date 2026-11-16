@@ -35,7 +35,7 @@ func runResync(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 || scenario == "" || surface == "" {
-		return fmt.Errorf("usage: %s deps resync --scenario <name> --surface <ui|cli|api> [--apply] [--json]", support.AppName)
+		return usageError("deps resync")
 	}
 
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 90*time.Second)

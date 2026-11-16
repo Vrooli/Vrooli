@@ -1,5 +1,241 @@
 # Problems and Solutions - Scenario Dependency Analyzer
 
+## 2026-11-13 — Install gateway reliability pass
+
+Agents were falling back to raw package managers because the governed gateway
+refused approved installs, said "approved" in a dry run and refused the apply,
+or damaged state. Evidence: QA reports `knw-1794618858815944773` and
+`knw-1794619329121707178`, thirty days of `friction.error_signatures` for this
+owner, and a refusal census over every pnpm, npm and Go surface in the fleet
+(a request to add a small registry package, or to re-require an existing Go
+module, planned through `PlanDiskAdmission`).
+
+Ranked friction and what changed:
+
+1. **Every external Go install was refused at apply** ("not backed by an exact
+   repository-local module"): 216 of 216 Go surfaces in the census. Fixed:
+   a published module is sized from the requirement closure it would add; a
+   module the `go.mod` already requires and the cache already holds costs
+   nothing. Census after: 488 of 488 admitted. `go get` that fails restores
+   `go.mod`/`go.sum`.
+2. **A dry run approved what apply refused.** Disk admission only ran on apply.
+   Fixed: governance, planning and the capacity-broker check are one routine for
+   both, and a preview reports its planned peak.
+3. **pnpm apply wiped `node_modules`.** The gateway pinned `store/v10` while the
+   lifecycle uses `store/v3/v10`, pnpm recreated `node_modules`, and an
+   integrity-less lock entry then made it unrebuildable. Fixed: the store is
+   whatever `pnpm store path` reports in the surface; a store mismatch never
+   reaches pnpm (manifest and lock are updated, `node_modules` is left for
+   `vrooli scenario setup`); the destructive "repair" retry is deleted; a lock
+   entry pnpm refuses for missing tarball integrity is re-resolved in the staging
+   copy. In the fleet census 61 surfaces are still linked by pnpm 9 (`store/v3`).
+4. **Big shared packages could not be adopted** ("registry metadata request or
+   byte budget exceeded"). The gateway re-simulated pnpm's resolver
+   (ranges, overrides, packuments) to size a whole closure. Fixed: pnpm and npm
+   resolve in a staging copy and only the locked packages `node_modules` lacks
+   are sized. Adding `@vrooli/file-viewer` to `web-console` adds one lock entry.
+   The 1,670-line resolver simulation (range parser, packument walk, release-age model) was replaced by a staged resolution that pnpm and npm share.
+5. **A tarball URL could not be exact**, so it was refused. Fixed: a plain https
+   `.tgz` URL is exact by construction; its lock integrity is verified against
+   the downloaded bytes and printed in the preview.
+6. **npm surfaces with dependencies were always refused** (41 `package-lock.json`
+   surfaces). Fixed by the same staging. Two latent bugs surfaced: npm rejects
+   `/dev/null` as both user and global config, and template lock generation
+   passed pnpm's `--lockfile-only` to npm.
+7. **`template/<id>` installs were always refused** (no size probe). Fixed with a
+   fixed lock-only allowance.
+8. **`unrecorded` refusals** (12 calls) were correct but their next step,
+   `approve-observed`, fails for a package no scenario uses yet. The refusal now
+   names `deps approved approve …` as well.
+9. **`--exact` with a range or tag**, **`javascript`/`js` ecosystem**, **shared
+   package named as a scenario**, **global `--dry-run` on a command that already
+   previews**, and a **45 s client timeout** on a slow resolve: each is now a
+   message that says what to do, or accepted.
+10. **`deps approved search` stalled or returned EOF** when semantic ranking hung
+    on a cold embedding model. Ranking now has a four-second budget and falls
+    back to keywords. An EOF during an API restart is expected.
+11. **No governed way to remove a JavaScript dependency.** `deps remove` was the
+    Go root-module verb only, so pruning a surface meant a raw `pnpm remove`.
+    Fixed: `deps remove npm/<pkg>... --scenario --surface` stages the removal like
+    an install, previews the lockfile packages that leave, and applies with the
+    same store, rollback and `source_updated` outcome.
+12. **A Go install of a repository package was refused for four unrelated
+    reasons, one behind another.** (a) The probe walked and sized the whole
+    module tree, and the root module is the whole checkout: it failed on the first
+    symlink or socket and then on the 2 GiB bound. (b) It walked the module's full
+    requirement graph, 300+ modules the build prunes away, and asked the proxy
+    about first-party modules that are never published (404). (c) Module zips were
+    matched against the case-escaped path, so every module with an upper-case
+    letter in its path (`BurntSushi`, `GoogleCloudPlatform`) failed. (d) A
+    dependency whose go.mod carries `replace`/`exclude` was refused, though the
+    go command ignores both outside the main module. Fixed by replacing the
+    closure walker with the question the go command answers: `go list -deps`, run
+    offline and read-only in the owning module, names the external modules the
+    package needs; the module cache makes cached ones free and the rest are sized
+    from the proxy like a published module. A repository module is used in place
+    and adds nothing.
+13. **A lockfile an older or raw pnpm wrote could not be changed through the
+    gateway.** Two shapes, both seen on the first real prune and bump. A tarball
+    URL entry with no integrity (pnpm itself refuses it, and `pnpm remove` re-writes
+    it the same way, so the old "repair" claimed an integrity it never recorded):
+    the URL is now downloaded once, hashed, and the lock gets a one-line
+    `integrity:` edit that a reviewer sees in the preview (the digest matches what
+    a fresh `pnpm add` records). A package locked at a version younger than the
+    seven-day release-age policy (notification-hub/ui held `@napi-rs/canvas`
+    1.1.1, 47 hours old): the policy is not relaxed; pnpm re-resolves that package
+    to a mature version in the staging copy and the preview lists the lockfile
+    change. A requested package that is itself too new is still refused.
+14. **The gateway and the control plane disagreed about the pnpm store.** A package
+    refresh (`vrooli package refresh file-viewer`) aborted with
+    `ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`: `packages/file-viewer/node_modules`
+    was linked against `store/v10` while the user's pnpm config selects
+    `store/v3/v10`. The control plane's package and setup installs now follow the
+    recorded store (`internal/packagegov/pnpm_store.go`), and the gateway does the
+    same when pnpm can select it, instead of skipping the relink. Three related
+    gateway fixes: a flag after the package argument (`-D`, `--save-exact`)
+    no longer hides the requested specifier from the tarball check; a `file:`
+    dependency is compared with its governance record by the package it names,
+    so `file:../react-component-library` (declared from `packages/`) matches the
+    recorded `file:../../../packages/react-component-library`.
+
+15. **`deps approved search` failed with "unavailable: unexpected EOF" or
+    `deadline_exceeded` (13 calls in 30 days).** The deadline was the cold
+    ranking stall fixed in item 10 (search now answers in 1-2 s). The EOF is an API
+    that restarts mid-request. The CLI's governance client now repeats a
+    read-only call (`List*`, `Search*`, `Explain*`, `Validate*`, `Get*`,
+    `Preview*`) up to three times, with a note on stderr, when the API reports
+    itself unavailable. Mutating calls (install, remove, upsert, approve) are never
+    repeated, and a timeout is not retried.
+16. **Two refusals named no next step.** `surface directory not found` now lists the
+    surfaces the scenario has (and says when the scenario does not exist), where
+    agents had guessed `tools/yt-dlp` or an `api` that is a package.
+    `approve-observed` and `widen-range` for a package no scenario declares now
+    say to use `deps approved approve ... --rationale` instead.
+17. **A shared-package build refused with "source changed while the build was
+    running" could not say what changed**, so the last three instances were
+    diagnosed from file mtimes. The refusal and its lifecycle log line now name the
+    changed files (first five, with a count, marked added, modified or removed, or
+    "artifact selection"). The digests are unchanged, so existing freshness stamps
+    stay valid. The build that rewrites its own `package.json` (RCL's materialize
+    step) now declares it as an output so it is not read as an edit.
+
+18. **A legacy-layout consumer could not be started or restarted.** The repair of
+    item 14's mismatch ran only when no registry instance existed, but a start
+    registers its own `starting` instance before it builds and a restart builds
+    while the old instance runs, so both were refused and only a manual `setup`
+    (about a minute of downtime) repaired it. Instances the operation owns are no
+    longer other occupants; the old `node_modules` is renamed aside and restored if
+    the install fails instead of being deleted first.
+19. **Every first build after a proto change failed once** with `(1 changed:
+    artifact selection)`. `protogen generate` publishes and selects the artifact
+    it builds, and that selection move was read as a concurrent edit. A step that
+    declares an artifact selection now has its own selection move accepted
+    (freshness is recorded against it); a source-file change in the window is still
+    refused.
+
+20. **A security fix an existing range already admits could only be taken through
+    an override that needed a per-scenario approval.** notification-hub/ui held
+    `body-parser` 1.20.5 and `proxy-addr` 2.0.7 under two advisories; express 4.22.1
+    asks for `~1.20.3` and `~2.0.7`, so 1.20.9 and 2.0.8 are already in range (both
+    older than the seven-day release-age policy) and about ninety UI lockfiles are
+    simply stale. `deps install npm/body-parser --version override:1.20.9` was refused
+    with `scenario_not_allowed`, and widening that approval would have pinned every
+    manifest to exact versions for good. New verb `deps update` (RPC
+    `UpdateLockedDependency`) refreshes named locked packages inside their ranges in
+    the staging copy, previews the closure change, and applies it with the install's
+    store, admission and rollback. No manifest or approval is involved.
+21. **`deps approved approve --help`, `remediate --help`, `explain --help` and the
+    rest of the legacy commands printed only `Usage: <command>`.** The commands parse
+    their own flag sets, so help had nothing to render. Help now reads each command's
+    flags from its own flag set (`support.DescribeFlags`, run only when help for that
+    command is requested) and adds the usage line and an example from one catalog
+    (`commandDocs`) that the usage errors read too. A test fails for any subcommand of
+    `deps` or `deps-approved` whose help has no flags or no example.
+
+22. **Every first-party package needed its own governance record.** An in-repo
+    package is reviewed by repository review, so the registry added a record per
+    package and no extra safety; a new package could not be installed until
+    someone wrote one. `governInstall` now admits a request the gateway can
+    prove first-party from the repository layout (verdict `first_party`; npm
+    `file:` link to a named package beneath `packages/`, Go package inside a
+    module under `packages/`), writes one audit line per applied install to
+    `.vrooli/dependencies/first-party-installs.jsonl`, and lets a recorded
+    denial or deprecation still win. Validation stops asking for a record of
+    the same proven `file:` links. Scenario modules and anything the layout
+    cannot prove keep ordinary governance.
+
+23. **A fleet security refresh needed package names per scenario.** The fix for an
+    advisory is the same everywhere, but `deps update` only took package names, so a
+    caller had to look up which locked packages each scenario's advisory names.
+    `deps update --advisory <GHSA|CVE>` resolves the names from Security Health's
+    exposure evidence for the scenario and surface, and the command is now a
+    Connect-bound manifest command (`run_eligible`) so a governed program can run it.
+
+24. **A lockfile-only update was held to the install-sized disk floor.** With the host
+    inside its 120 GiB floor (a large unreclaimable build cache), every `--apply` was
+    refused, including the ones that write kilobytes: a surface whose link is skipped
+    publishes only `package.json` and the lockfile (receipts show 4 MiB planned, 0 to
+    77 KB actual). `deps update --lock-only` publishes the inputs without linking, and
+    any apply that will not link is now reserved as a bounded `metadata` disk job in
+    the capacity owner (64 MiB total, 8 GiB floor, never lowering another job's floor).
+    An apply that links node_modules still downloads into the package store and is
+    held to the full floor. The same class admits a Go install that fetches nothing (a
+    first-party `packages/` module or package through a local replace, or modules the
+    cache already holds): it rewrites go.mod and go.sum, so it is reserved at its true
+    size (about 25 MiB, with a 16 MiB build-cache allowance instead of 256 MiB) as
+    `DiskAdmissionPlan.WritesInputsOnly`. A Go install with anything to download keeps
+    the full floor. Note that a package of the root module has the root module's
+    import path (`github.com/vrooli/vrooli/packages/<name>`), not a short one.
+
+25. **`deps update` skipped transitive names named beside a direct one.** pnpm limits
+    one `update` to the direct dependencies as soon as any name it is given is direct,
+    so `deps update npm/postcss npm/qs` moved postcss and reported qs "unchanged" with
+    a newer in-range qs available. The update now splits the names by the manifest and
+    runs the transitive ones as a second command of the same staged resolution
+    (`Resolution.ThenArgv`; the preview shows both commands).
+26. **A fleet refresh needed advisory ids and a table of fixed versions.** The program
+    asked its caller for up to eight ids and a `floors` string. `--advisory all`
+    selects every exposure Security Health reports on the surface, and every update
+    response now names the locked versions still inside an advisory
+    (`exposed: <name>@<version> to <ids> (fix on this line: X | no fix on this line;
+    fixed in ...)`), judged from the same evidence by release line (major, and minor
+    for 0.x). The program reads those notes and the `floors` input is gone. An
+    advisory whose evidence carries no range is never judged exposed. The evidence is
+    one Security Health query per call, which returns at most 200 groups; the busiest
+    scenario has 180, so a scenario near that bound would be judged on a prefix.
+27. **A stale exact pin or override silently blocks a refresh.** An exact manifest
+    pin or `pnpm.overrides` entry set to an earlier fix (brace-expansion 5.0.9,
+    js-yaml 4.3.1, express>body-parser 1.20.6) keeps the lock below the next fix, and
+    `deps update` correctly never changes a manifest. `deps install --version
+    override:` refuses the move with `scenario_not_allowed` when the package's
+    approved record lists scenario exceptions that do not include the scenario, even
+    though an override of an already-locked transitive package adds no dependency.
+    Left as a governance question: whether an override that only raises the pin of a
+    package already in the lock should skip the scenario-exception check (it would
+    still be held to the record's version range and any denial).
+
+28. **`deps install --version override:` could not publish its own lock, and had no
+    lock-only mode.** The override was written to the real `package.json` after
+    admission, but the staged resolution had been made from the manifest without it, so
+    the publish either found nothing to change or refused ("changed after the install
+    was admitted"). The override is now applied to the staged manifest, the preview
+    shows the lockfile effect, `--lock-only` is available (metadata admission), and
+    `--override-selector` raises one exact selector (`brace-expansion@1`,
+    `minimatch@3>brace-expansion`) instead of forcing a package-wide pin that no
+    multi-line package can take.
+
+Left alone, deliberately:
+
+- pip, poetry, uv and cargo installs still have no bounded size probe; the
+  Python path needs a hashed-lock design of its own (see the 2026-10-22 entry).
+- yarn and bun surfaces: none exist in the fleet.
+- Scenario-to-scenario Go module edges still follow the existing local-replace
+  rules; only `packages/*` is first-party for admission.
+- The "CLI rebuilt from current sources; restarting command..." line that
+  friction counts as a failure (13 calls) is cli-core's stale-binary rebuild.
+- `freshness` ambiguity for modules declared from several directories already
+  has an actionable message in the current source.
+
 ## 2026-10-22 — Embedded Python lock forwarding
 
 Image Tools' `api/requirements.txt` forwards to the embedded
@@ -87,7 +323,7 @@ separate work; a repaired route alone does not prove that runtime installed.
 
 ### UI Server CORS Blocked Browser Smoke Assets
 **Problem**: Browser-driven smoke and Lighthouse phases saw `403 Origin not allowed` for built JS/CSS assets because SDA passed an empty default CORS allow-list to `createScenarioServer`. Direct curl checks without an `Origin` header returned `200 OK`, which masked the issue outside browser execution.
-**Status**: Fixed. `ui/server.js` now defaults `corsOrigins` to `*`, matching the other lifecycle-managed scenario UI servers. Origin-bearing asset requests return `200 OK`, and `vrooli scenario test scenario-dependency-analyzer` passes.
+**Status**: Superseded (2026-11-14). The wildcard workaround was removed fleet-wide. API Base now recognizes same-origin requests from Fetch Metadata, or from `Origin` matching `Host`, so origin-bearing asset requests pass without any `corsOrigins` setting, and cross-origin pages are refused. See `packages/api-base/SECURITY.md`.
 
 ### Documentation Manifest Drift
 **Problem**: `knowledge-observatory docs audit scenario-dependency-analyzer --json` reported top-level `docs/api.md`, `docs/cli.md`, and `docs/integration.md` as orphaned docs, and localhost examples in prose were parsed as unknown machine-readable references.
@@ -195,6 +431,15 @@ separate work; a repaired route alone does not prove that runtime installed.
 - Evidence: Indexed goals `search-hub-corpus-buildout` and `search-hub-federation-adoption` direct search capabilities for this scenario, while the P0 PRD targets do not name those search capabilities. The W0 contract therefore remains false for the scenario's broader goal set; this portability plan only consumes SDA's platform-verdict implementation and does not rewrite its product contract.
 - Constraint: Do not substitute the portability plan or dependency-governance evidence for the unresolved search-goal contract mismatch. No lower scenario gate was run under W0.
 - Measured: 2026-08-26.
+
+- Scoped repair, 2026-11-12: W3 synthetic report persistence. Storage census found
+  eight dot-prefixed test subjects with persisted dependency reports above 1 GiB,
+  including three Android subjects at about 8.57 GB each. Their reports predate
+  the bounded owner expansion fix and exceed the 32 MiB read limit. `PersistReport`
+  now keeps dot-prefixed synthetic subjects request-scoped and removes an
+  oversized legacy report only when that exact subject is recomputed. Canonical
+  scenario reports retain their existing persistence path. No tests were run in
+  this pass; no W0–W2 claim is made.
 
 ## 2026-09-07 — Shared selector consolidation
 

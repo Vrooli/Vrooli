@@ -64,10 +64,9 @@ func TestInstallFlagsReachTypedAPIWithApplyModes(t *testing.T) {
 					t.Fatalf("external target lost at RPC boundary: %v", msg)
 				}
 				budget := <-budgets
-				want := 45 * time.Second
-				if msg.GetSurface() == "host-tool" || msg.GetWorkspacePath() != "" {
-					want = 3*time.Minute + 15*time.Second
-				}
+				// Resolution, sizing and linking take as long as the closure needs; a
+				// short client budget only turns a slow success into a failure.
+				want := 3*time.Minute + 15*time.Second
 				if budget <= want-time.Second || budget > want {
 					t.Fatalf("RPC budget = %v, want near %v", budget, want)
 				}

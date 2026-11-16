@@ -8,7 +8,7 @@ import (
 	governanceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance/dependency_governance_v1connect"
 )
 
-// WithInstallTransport gives the typed install RPC its work budget and a bounded
+// WithInstallTransport gives the typed install and removal RPCs its work budget and a bounded
 // response grace. Wrap the raw writer before Gin and the other router middleware.
 // The usual route and its middleware still handle every request.
 func WithInstallTransport(next http.Handler) (http.Handler, error) {
@@ -17,7 +17,7 @@ func WithInstallTransport(next http.Handler) (http.Handler, error) {
 		return nil, err
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost && r.URL.Path == governanceconnect.DependencyGovernanceServiceInstallDependencyProcedure {
+		if r.Method == http.MethodPost && (r.URL.Path == governanceconnect.DependencyGovernanceServiceInstallDependencyProcedure || r.URL.Path == governanceconnect.DependencyGovernanceServiceRemoveDependencyProcedure || r.URL.Path == governanceconnect.DependencyGovernanceServiceUpdateLockedDependencyProcedure) {
 			install.ServeHTTP(w, r)
 			return
 		}

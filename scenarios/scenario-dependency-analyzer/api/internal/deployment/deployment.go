@@ -161,6 +161,18 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 	if report == nil {
 		return nil
 	}
+	if isSyntheticReportSubject(scenarioPath, report) {
+		// Dot-prefixed subjects are isolated test scenarios, not canonical
+		// storage owners. Keep their report request-scoped instead of creating
+		// durable per-run files in the global scenario data root. An oversized
+		// legacy report for this exact subject cannot be loaded or reused, so
+		// retire it only after the caller has successfully rebuilt the report.
+		reportPath, err := reportPathForScenario(scenarioPath)
+		if err != nil {
+			return err
+		}
+		return removeOversizedLegacyReport(reportPath)
+	}
 	reportPath, err := reportPathForScenario(scenarioPath)
 	if err != nil {
 		return err
@@ -193,6 +205,29 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 		return err
 	}
 	return os.Rename(tmpPath, reportPath)
+}
+
+func isSyntheticReportSubject(scenarioPath string, report *types.DeploymentAnalysisReport) bool {
+	pathSubject := filepath.Base(filepath.Clean(scenarioPath))
+	reportSubject := strings.TrimSpace(report.Scenario)
+	return strings.HasPrefix(pathSubject, ".") || strings.HasPrefix(reportSubject, ".")
+}
+
+func removeOversizedLegacyReport(path string) error {
+	info, err := os.Lstat(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect oversized legacy deployment report: %w", err)
+	}
+	if !info.Mode().IsRegular() || info.Size() <= maxReportBytes {
+		return nil
+	}
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("remove oversized legacy deployment report: %w", err)
+	}
+	return nil
 }
 
 // digestManifestInputs hashes the service manifest and every declared resource

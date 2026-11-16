@@ -246,6 +246,47 @@ func TestResolveAddsPnpmWorkspaceRootForSurfaceWorkspace(t *testing.T) {
 	}
 }
 
+func TestApplyExactVersionSupportsValidatedRepositoryLocalPnpmPackage(t *testing.T) {
+	repo := t.TempDir()
+	ui := filepath.Join(repo, "scenarios", "system-monitor", "ui")
+	local := filepath.Join(repo, "packages", "ui-selectors")
+	if err := os.MkdirAll(ui, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(local, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ui, "package.json"), []byte(`{"packageManager":"pnpm@10.34.9"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ui, "pnpm-lock.yaml"), []byte("lockfileVersion: '9.0'\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(local, "package.json"), []byte(`{"name":"@vrooli/ui-selectors","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resolution, err := Resolve(repo, "system-monitor", "ui", "npm", "@vrooli/ui-selectors", "file:../../../packages/ui-selectors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyExactVersion(&resolution, "file:../../../packages/ui-selectors"); err != nil {
+		t.Fatal(err)
+	}
+	if !resolution.ExactVersion || !strings.Contains(resolution.Command(), "@vrooli/ui-selectors@file:../../../packages/ui-selectors") || !strings.Contains(resolution.Command(), "--save-exact") {
+		t.Fatalf("local package install plan is not exact: %+v", resolution)
+	}
+
+	if err := ApplyExactVersion(&resolution, "file:../../../../outside"); err == nil || !strings.Contains(err.Error(), "beneath the repository packages directory") {
+		t.Fatalf("escaping local package path error = %v, want repository boundary refusal", err)
+	}
+	if err := os.WriteFile(filepath.Join(local, "package.json"), []byte(`{"name":"@wrong/name","version":"1.0.0"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := ApplyExactVersion(&resolution, "file:../../../packages/ui-selectors"); err == nil || !strings.Contains(err.Error(), "must be named") {
+		t.Fatalf("mismatched local package identity error = %v, want package-name refusal", err)
+	}
+}
+
 func TestResolveNpmOverrideAndPersistOverride(t *testing.T) {
 	repoRoot := t.TempDir()
 	mkSurface(t, repoRoot, "demo", "ui", map[string]string{
@@ -674,7 +715,7 @@ type templateLockInstaller struct{}
 type npmTemplateLockInstaller struct{}
 
 func (npmTemplateLockInstaller) Install(_ context.Context, r Resolution) (string, error) {
-	if r.PackageManager != "npm" || !strings.Contains(strings.Join(r.Argv, " "), "--lockfile-only") || !strings.Contains(strings.Join(r.Argv, " "), "--ignore-scripts") {
+	if r.PackageManager != "npm" || !strings.Contains(strings.Join(r.Argv, " "), "--package-lock-only") || !strings.Contains(strings.Join(r.Argv, " "), "--ignore-scripts") {
 		return "", fmt.Errorf("unsafe npm template lock plan: %+v", r.Argv)
 	}
 	raw, err := os.ReadFile(r.ManifestPath)
@@ -755,5 +796,74 @@ func TestResolveGoResourceSurfaceUsesTheSharedResourcesModule(t *testing.T) {
 	// An unknown resource still fails.
 	if _, err := Resolve(repoRoot, "nope", "resource", "go", "golang.org/x/mod", "v0.41.0"); err == nil {
 		t.Fatal("unknown resource resolved")
+	}
+}
+
+func TestApplyExactVersionExplainsWhatToDoWithARange(t *testing.T) {
+	resolution := Resolution{PackageManager: "pnpm", PackageName: "react", Argv: []string{"pnpm", "add", "react@^18.3.1"}}
+	err := ApplyExactVersion(&resolution, "^18.3.1")
+	if err == nil || !strings.Contains(err.Error(), `"^18.3.1" is a range or tag`) || !strings.Contains(err.Error(), "drop --exact") {
+		t.Fatalf("exact with a range = %v, want a message that says what to do", err)
+	}
+	err = ApplyExactVersion(&resolution, "")
+	if err == nil || !strings.Contains(err.Error(), "react@1.2.3") {
+		t.Fatalf("exact without a version = %v", err)
+	}
+}
+
+func TestCanonicalEcosystemAcceptsTheSpellingsAgentsUse(t *testing.T) {
+	for input, want := range map[string]string{
+		"javascript": "npm", "JS": "npm", "node": "npm", "typescript": "npm", "npm": "npm",
+		"golang": "go", "go": "go", "python": "pip", "pypi": "pip", "rust": "cargo", "cargo": "cargo", "ruby": "ruby",
+	} {
+		if got := CanonicalEcosystem(input); got != want {
+			t.Errorf("CanonicalEcosystem(%q) = %q, want %q", input, got, want)
+		}
+	}
+	repo := t.TempDir()
+	mkSurface(t, repo, "demo", "ui", map[string]string{"pnpm-lock.yaml": "", "package.json": "{}"})
+	if _, err := Resolve(repo, "demo", "ui", "javascript", "react", "18.3.1"); err != nil {
+		t.Fatalf("javascript alias refused: %v", err)
+	}
+}
+
+func TestSurfaceNotFoundPointsSharedPackagesToTheToolsSurface(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, "packages", "api-core"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Resolve(repo, "api-core", "api", "go", "github.com/google/uuid", "v1.6.0")
+	if err == nil || !strings.Contains(err.Error(), "--surface tools/api-core") {
+		t.Fatalf("shared package named as a scenario = %v, want the tools/<package> spelling", err)
+	}
+	_, err = Resolve(repo, "nope", "api", "go", "github.com/google/uuid", "v1.6.0")
+	if err == nil || strings.Contains(err.Error(), "shared package") {
+		t.Fatalf("unknown scenario = %v, must not suggest a shared package", err)
+	}
+}
+
+func TestSurfaceNotFoundNamesTheSurfacesTheScenarioHas(t *testing.T) {
+	repoRoot := t.TempDir()
+	for path, manifest := range map[string]string{
+		"scenarios/demo/api/go.mod":                     "module demo\n",
+		"scenarios/demo/ui/package.json":                "{}",
+		"scenarios/demo/tools/yt-dlp/go.mod":            "module x\n",
+		"scenarios/demo/ui/node_modules/p/package.json": "{}",
+	} {
+		full := filepath.Join(repoRoot, path)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(manifest), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err := surfaceNotFoundError(repoRoot, "demo", "cli")
+	if err == nil || !strings.Contains(err.Error(), "demo has these surfaces: api, tools/yt-dlp, ui") {
+		t.Fatalf("err = %v, want it to list the scenario's real surfaces and skip node_modules", err)
+	}
+	if err := surfaceNotFoundError(repoRoot, "no-such", "api"); err == nil || !strings.Contains(err.Error(), `there is no scenario or resource named "no-such"`) {
+		t.Fatalf("err = %v, want it to say the scenario does not exist", err)
 	}
 }

@@ -12,6 +12,12 @@ SDA stores analysis and deployment metadata in SQLite. Actual interface graph re
 
 SDA owns graph interpretation, the derived interface graph cache, drift records, deployment reports, and bundle metadata. `proto-health` owns proto surface facts; `code-facts` owns language import facts.
 
+Deployment reports for canonical scenario subjects are persisted in that
+scenario's data namespace. Dot-prefixed synthetic subjects used by isolated
+test runs are request-scoped and are not retained as durable scenario data.
+Reports over the 32 MiB read limit are not reusable; when the same synthetic
+subject is recomputed, its oversized legacy report is removed by this owner.
+
 ## Schema Map
 
 Schema providers live under API domain packages, including `api/internal/store/schema.sql`.

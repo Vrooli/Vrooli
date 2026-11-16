@@ -810,6 +810,146 @@ only that exact root requirement and leaves `go.sum` unchanged.
 
 ---
 
+### deps install
+
+The sanctioned way to add or change a third-party dependency. It previews by
+default; `--apply` performs the install. Both run the same governance and disk
+admission, so a preview that says `approved` is an install that can run.
+
+**Usage:**
+```text
+scenario-dependency-analyzer deps install <ecosystem>/<package>[@version] (--scenario <name> --surface <surface> | --workspace <absolute-path>) [--version <v>] [--exact] [--dev] [--apply] [--json]
+```
+
+Ecosystems are `npm`, `go`, `pip` and `cargo`; `js`, `javascript`, `golang`,
+`python` and `rust` are accepted. Surfaces are `ui`, `api`, `cli`, `agent`,
+`playwright-driver`, `resource`, `host-tool`, `tools/<package>`,
+`platforms/<package>`, `template/<id>` and `control-plane` (Go, scenario `vrooli`).
+
+| Request | Spelling |
+|---|---|
+| Registry release | `npm/react@18.3.1`, `go/gopkg.in/yaml.v3@v3.0.1` (Go needs an exact version) |
+| Shared package under `packages/` (pnpm) | `npm/@vrooli/file-viewer --version file:../../../packages/file-viewer` |
+| Tarball URL (pnpm, npm) | `npm/xlsx --version https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` |
+| Shared package as the target | `--scenario <any scenario> --surface tools/<package>` |
+
+`--exact` pins the version in the manifest. A `file:` path and a plain https
+tarball URL are exact by construction, so `--exact` is accepted and optional for
+them. A tarball URL must have no credentials, query or fragment and end in `.tgz`
+or `.tar.gz`; the lockfile records its sha512 integrity, and a preview shows the
+URL and integrity that identify the artifact.
+
+What a JavaScript install does: pnpm or npm resolves the change in a staging
+copy of `package.json`, the lockfile and the workspace policy; admission sizes the
+locked packages that `node_modules` lacks; apply publishes the staged files and
+links `node_modules` from the frozen lock, restoring the previous files if that
+fails. A surface whose `node_modules` was linked against a different pnpm store
+gets its manifest and lockfile updated and `node_modules` left for
+`vrooli scenario setup <scenario>`; the response is `source_updated`, not
+`installed`.
+
+`--lock-only` (with `--apply`) does the same on purpose: it publishes `package.json` and
+the lockfile without linking `node_modules`, downloading nothing and writing no package
+store, so the apply is a small metadata disk write rather than an install-sized one. It
+applies to JavaScript surfaces; a Go install of first-party or already cached modules
+is admitted the same way without a flag.
+
+`--version override:<v>` pins a transitive package through `pnpm.overrides`. The
+override is applied to the staged `package.json` before resolving, so the preview lists
+the lockfile versions that enter and leave and apply publishes the manifest and its
+lockfile together. By default the override is package-wide. `--override-selector <s>`
+sets one exact pnpm selector instead (`brace-expansion@1`, `minimatch@3>brace-expansion`);
+its last segment must name the package, and only that entry changes. Governance is
+decided on the package, so the same record, scenario exceptions and range apply.
+
+Refusals say what to run next:
+
+| Verdict | Meaning | Next step |
+|---|---|---|
+| `unrecorded` | No governance record | `deps approved approve-observed` if the fleet already uses it, otherwise `deps approved approve <eco>/<pkg> --range … --rationale … --apply` |
+| `first_party` | Not a refusal: the repository layout proves a `packages/*` workspace package (`file:` link to a package of that name, or a Go package in a module under `packages/`), so no record is needed | Nothing; an applied install adds one line to `.vrooli/dependencies/first-party-installs.jsonl`, and a recorded denial still blocks |
+| `out_of_range`, `surface_not_allowed`, `denied` | Governance refused it | The message names the widening or replacement |
+| `disk_admission_denied` | The install cannot be admitted | The message names the cause (unresolvable version, unsized source, missing capacity broker); nothing was changed |
+
+`--help` for any `deps` command lists its flags; global `--dry-run` is not used
+because every `deps` command already previews unless `--apply` is given.
+
+#### Updating locked JavaScript packages
+
+`deps update npm/<package>... --scenario <name> --surface <surface>` moves packages
+that are already in a surface's lockfile, direct or transitive, to the newest version
+their declared ranges allow. It exists for a fix a range already admits: express
+4.22.1 depends on `body-parser ~1.20.3`, so a patched 1.20.9 is in range and only the
+lockfile predates it. It changes the lockfile only, never a manifest range, so it adds
+no dependency and needs no governance approval and no pnpm override. The preview lists
+each locked version that leaves and enters; a lockfile that would not change is
+reported as `current`. `--apply` publishes the lockfile and relinks `node_modules` with
+the same store, admission and rollback as an install.
+
+```text
+scenario-dependency-analyzer deps update npm/body-parser npm/proxy-addr --scenario notification-hub --surface ui
+scenario-dependency-analyzer deps update npm/body-parser npm/proxy-addr --scenario notification-hub --surface ui --apply
+```
+
+Direct and transitive names in one request are updated in order inside one staged
+resolution: the direct names first, then the transitive ones as a second package-manager
+command (pnpm would otherwise update the direct names only and leave the transitive ones
+"unchanged"). The preview's command shows both, joined by `; then`.
+
+`--lock-only` (with `--apply`) publishes the lockfile alone. Without it an apply also
+links `node_modules` from the frozen lock, which downloads the entering packages into
+the pnpm store and is admitted as an ordinary disk job under the install-sized floor.
+With it nothing is downloaded and no store is written, so the write is kilobytes: it is
+admitted as a metadata disk job, a running consumer is untouched, and its next governed
+setup links the new lock. A surface whose `node_modules` is linked against a different
+pnpm store (so the link is skipped anyway) is admitted the same way.
+
+`--advisory <GHSA|CVE>[,<GHSA|CVE>...]` selects the packages by security advisory instead of by name:
+the analyzer asks Security Health which packages the advisory exposes on that
+scenario's surface (an id or any alias matches) and updates exactly those. The
+response says what was selected. An advisory with no exposure on the surface is
+`not_affected`, a clean no-op; a selected package whose declared range admits no
+fix reports `current`. Several comma-separated advisories update the union of their
+packages in one resolution. `--advisory all` selects every package Security Health
+reports as exposed on the surface. Naming packages and `--advisory` together is refused.
+
+Whatever the selection, the response judges the result against the advisories Security
+Health reports for the selected packages: each locked version that still sits inside an
+advisory is a note `exposed: <name>@<version> to <GHSA ids> (fixed in <versions>)`. That
+is how a caller sees what the declared ranges could not fix (the fix needs another
+release line) without keeping its own table of fixed versions.
+
+```text
+scenario-dependency-analyzer deps update --advisory GHSA-27r3-jxmh-p828 --scenario notification-hub --surface ui
+```
+
+For many scenarios use the governed program, which previews each scenario, applies
+with `apply=true`, re-previews to prove the lock converged and reports which packages
+stay inside an advisory:
+
+```text
+program-runtime library run scenario-dependency-analyzer.advisory-lockfile-refresh --input 'scenarios=notes notification-hub' --input parents=express
+```
+
+The envelope has one `[scenario, status, detail]` row per scenario and a count per
+status. Pass `--input apply=true` only after reading the preview of the same inputs.
+
+#### Removing JavaScript dependencies
+
+`deps remove npm/<package> [npm/<package>...] --scenario <name> --surface <surface>`
+takes direct dependencies off a pnpm or npm surface; one request removes any
+number of them with a single resolution. Each name must be declared in
+`dependencies`, `devDependencies` or `optionalDependencies`; a transitive package
+goes away when the package that needs it does, and a name with a version is
+refused. The preview runs the same staged resolution as an install and reports
+how many locked packages leave the closure and which ones. `--apply` publishes the
+staged `package.json` and lockfile and relinks `node_modules` from the frozen
+lock with the lifecycle's store, restoring the previous files if that fails. A
+removal needs no governance verdict; it shares the install's disk admission and
+`source_updated` outcome for surfaces whose `node_modules` belongs to another store.
+
+---
+
 ### deps reconcile
 
 Converge Go modules on their import closure. Each selected module's `go.mod`

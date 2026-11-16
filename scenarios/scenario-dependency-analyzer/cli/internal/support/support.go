@@ -25,6 +25,10 @@ func NewFlagSet(name string) *flag.FlagSet {
 }
 
 func ParseFlags(fs *flag.FlagSet, args []string) error {
+	if hook := describeHook.Load(); hook != nil {
+		(*hook)(fs)
+		return ErrFlagsDescribed
+	}
 	return cliutil.ParseInterspersed(fs, args)
 }
 

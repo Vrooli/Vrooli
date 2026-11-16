@@ -9,14 +9,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/gomodreconcile"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
-	"golang.org/x/mod/semver"
 )
 
 const (
@@ -24,10 +21,12 @@ const (
 	goModuleProbeTotalLimit    = 2 << 30
 	goModuleProbeCountLimit    = 256
 	goBuildCacheFloorBytes     = 256 << 20
+	// goInputsOnlyBuildAllowance is the build-cache reservation of a Go install
+	// that downloads nothing.
+	goInputsOnlyBuildAllowance = 16 << 20
 )
 
 type goModuleProbeResult struct {
-	SourceBytes   int64
 	ArchiveBytes  int64
 	ExpandedBytes int64
 	MetadataBytes int64
@@ -44,41 +43,31 @@ var goModuleHTTPClient = &http.Client{
 	},
 }
 
-// probeGoModuleGrowth supports only exact repository-local Go modules and
-// computes a bounded upper estimate from their source trees and the complete
-// pinned go.mod closure. External modules are streamed from the official Go
-// module proxy with strict per-response and total limits; bytes are counted,
-// never written during planning. Unsupported graph features fail closed.
+// probeGoModuleGrowth computes the bounded size of a governed `go get`. A
+// package of a repository module costs the external modules its import closure
+// needs (go_repo_package.go); a published module costs its requirement closure
+// from the official proxy (go_external_module.go). Bytes are streamed from the
+// proxy with strict limits and counted, never written during planning. Graph
+// features it cannot bound fail closed with the reason.
 func probeGoModuleGrowth(ctx context.Context, r Resolution) (int64, error) {
 	probe, err := probeGoModuleGrowthDetails(ctx, r)
 	if err != nil {
 		return 0, err
 	}
-	return probe.SourceBytes + probe.ArchiveBytes + probe.ExpandedBytes + probe.MetadataBytes, nil
+	return probe.ArchiveBytes + probe.ExpandedBytes + probe.MetadataBytes, nil
 }
 
 func probeGoModuleGrowthDetails(ctx context.Context, r Resolution) (goModuleProbeResult, error) {
 	if r.RepositoryRoot == "" || r.PackageName == "" || r.HostTool || r.HostSource || r.HostToolRefresh || r.TemplateVersion != "" {
-		return goModuleProbeResult{}, fmt.Errorf("Go disk admission requires an exact repository-local module target")
+		return goModuleProbeResult{}, fmt.Errorf("Go disk admission requires a repository root, a package name, and a repository Go module manifest")
 	}
 	proxy, err := goModuleProxyURL()
 	if err != nil {
 		return goModuleProbeResult{}, err
 	}
-	topo, err := gomodreconcile.LoadTopology(r.RepositoryRoot)
+	topo, err := loadGoTopology(r.RepositoryRoot)
 	if err != nil {
 		return goModuleProbeResult{}, fmt.Errorf("load repository Go module topology: %w", err)
-	}
-	modulePath := ""
-	for path := range topo {
-		if r.PackageName == path || strings.HasPrefix(r.PackageName, path+"/") {
-			if len(path) > len(modulePath) {
-				modulePath = path
-			}
-		}
-	}
-	if modulePath == "" {
-		return goModuleProbeResult{}, fmt.Errorf("Go package %q is not backed by an exact repository-local module", r.PackageName)
 	}
 	manifest, err := readBoundedTargetGoModule(r.RepositoryRoot, r.ManifestPath)
 	if err != nil {
@@ -95,11 +84,31 @@ func probeGoModuleGrowthDetails(ctx context.Context, r Resolution) (goModuleProb
 	if targetDir, ok := topo[targetModule]; !ok || filepath.Clean(targetDir) != filepath.Clean(filepath.Dir(manifestAbs)) {
 		return goModuleProbeResult{}, fmt.Errorf("target Go manifest does not match the repository module topology")
 	}
-	probe, err := probeGoModuleClosure(ctx, r.RepositoryRoot, modulePath, targetModule, manifest, topo, proxy, goModuleHTTPClient)
+	modulePath := ""
+	for path := range topo {
+		if r.PackageName == path || strings.HasPrefix(r.PackageName, path+"/") {
+			if len(path) > len(modulePath) {
+				modulePath = path
+			}
+		}
+	}
+	if modulePath == "" {
+		// Not a repository module: a published module fetched through the proxy.
+		return probeExternalGoModuleGrowth(ctx, r, manifest, proxy, goModuleHTTPClient)
+	}
+	modCache, err := goModuleCacheDir()
 	if err != nil {
 		return goModuleProbeResult{}, err
 	}
-	return probe, nil
+	ownerDir := topo[modulePath]
+	if err := verifyWithinRoot(r.RepositoryRoot, ownerDir); err != nil {
+		return goModuleProbeResult{}, err
+	}
+	owner, err := readGoModuleFile(filepath.Join(ownerDir, "go.mod"))
+	if err != nil {
+		return goModuleProbeResult{}, fmt.Errorf("read repository module %s: %w", modulePath, err)
+	}
+	return probeRepositoryPackageGrowth(ctx, r, ownerDir, owner, manifest, proxy, modCache, goModuleHTTPClient)
 }
 
 func goModuleProxyURL() (string, error) {
@@ -124,196 +133,49 @@ func goModuleProxyURL() (string, error) {
 	return "https://proxy.golang.org", nil
 }
 
-func probeGoModuleClosure(ctx context.Context, repoRoot, rootModule, targetModule string, targetManifest *modfile.File, topo gomodreconcile.Topology, proxy string, client *http.Client) (goModuleProbeResult, error) {
-	result := goModuleProbeResult{}
-	seenLocal := map[string]bool{}
-	seenLocalWalk := map[string]bool{}
-	seenRemote := map[string]bool{}
-	var closureBytes int64
-	var visitLocal func(string, bool) error
-	var visitRemote func(string, string) error
-	count := func(size int64) error {
-		if size < 0 || closureBytes > goModuleProbeTotalLimit-size {
-			return fmt.Errorf("Go module dependency closure exceeds the %d-byte bounded probe limit", goModuleProbeTotalLimit)
-		}
-		closureBytes += size
-		return nil
+// goModuleSourceCached reports whether the module cache holds the module's
+// extracted source.
+func goModuleSourceCached(modCache, path, version string) bool {
+	if modCache == "" {
+		return false
 	}
-	localTopology := make(gomodreconcile.Topology, len(topo))
-	explicitLocal := make(map[string]bool, len(targetManifest.Replace))
-	for path, dir := range topo {
-		localTopology[path] = dir
+	escapedPath, pathErr := module.EscapePath(path)
+	escapedVersion, versionErr := module.EscapeVersion(version)
+	if pathErr != nil || versionErr != nil {
+		return false
 	}
-	if len(targetManifest.Exclude) > 0 {
-		return goModuleProbeResult{}, fmt.Errorf("target Go module uses exclude directives unsupported by bounded admission")
+	info, err := os.Stat(filepath.Join(modCache, filepath.FromSlash(escapedPath)+"@"+escapedVersion))
+	return err == nil && info.IsDir()
+}
+
+// goModuleCacheDir is the module cache every governed Go install uses.
+func goModuleCacheDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve Go module cache for disk admission: %w", err)
 	}
-	for _, replacement := range targetManifest.Replace {
-		if replacement.Old.Version != "" || replacement.New.Version != "" || replacement.New.Path == "" {
-			return goModuleProbeResult{}, fmt.Errorf("target Go module has a versioned or empty replace unsupported by bounded admission")
-		}
-		replacementDir := replacement.New.Path
-		if !filepath.IsAbs(replacementDir) {
-			replacementDir = filepath.Join(filepath.Dir(targetManifest.Syntax.Name), replacementDir)
-		}
-		var err error
-		replacementDir, err = filepath.Abs(replacementDir)
-		if err != nil {
-			return goModuleProbeResult{}, fmt.Errorf("resolve target local Go replacement %s: %w", replacement.Old.Path, err)
-		}
-		if err := verifyWithinRoot(repoRoot, replacementDir); err != nil {
-			return goModuleProbeResult{}, fmt.Errorf("target Go replacement %s: %w", replacement.Old.Path, err)
-		}
-		replacementManifest, err := readGoModuleFile(filepath.Join(replacementDir, "go.mod"))
-		if err != nil || replacementManifest.Module == nil || replacementManifest.Module.Mod.Path != replacement.Old.Path {
-			return goModuleProbeResult{}, fmt.Errorf("target Go replacement %s does not resolve to an in-repository module with the same identity", replacement.Old.Path)
-		}
-		localTopology[replacement.Old.Path] = replacementDir
-		explicitLocal[replacement.Old.Path] = true
+	return managerCachePath("go", home)
+}
+
+// cachedGoModule returns a module's go.mod from the module cache when the cache
+// also holds its extracted source, which is what a build needs.
+func cachedGoModule(modCache, path, version string) ([]byte, bool) {
+	if modCache == "" {
+		return nil, false
 	}
-	visitLocal = func(path string, resolveRepositoryModules bool) error {
-		walkKey := fmt.Sprintf("%s|%t", path, resolveRepositoryModules)
-		if seenLocalWalk[walkKey] {
-			return nil
-		}
-		seenLocalWalk[walkKey] = true
-		dir, ok := localTopology[path]
-		if !ok {
-			return fmt.Errorf("repository Go module %q is missing from topology", path)
-		}
-		if err := verifyWithinRoot(repoRoot, dir); err != nil {
-			return err
-		}
-		if !seenLocal[path] {
-			if result.ModuleCount >= goModuleProbeCountLimit {
-				return fmt.Errorf("Go module dependency closure exceeds %d modules", goModuleProbeCountLimit)
-			}
-			bytesOnDisk, err := boundedTreeSize(dir, goModuleProbeTotalLimit-closureBytes)
-			if err != nil {
-				return fmt.Errorf("measure repository module %s: %w", path, err)
-			}
-			if err := count(bytesOnDisk); err != nil {
-				return err
-			}
-			result.SourceBytes += bytesOnDisk
-			result.ModuleCount++
-			if err := count(64 << 10); err != nil {
-				return err
-			}
-			result.MetadataBytes += 64 << 10 // manifest, checksum, and module-cache metadata allowance
-			seenLocal[path] = true
-		}
-		view, err := readGoModuleFile(filepath.Join(dir, "go.mod"))
-		if err != nil {
-			return fmt.Errorf("read repository module %s: %w", path, err)
-		}
-		if view.Module.Mod.Path != path {
-			return fmt.Errorf("repository module identity mismatch: topology %q, go.mod %q", path, view.Module.Mod.Path)
-		}
-		requires := append([]*modfile.Require(nil), view.Require...)
-		sort.Slice(requires, func(i, j int) bool { return requires[i].Mod.Path < requires[j].Mod.Path })
-		for _, req := range requires {
-			if explicitLocal[req.Mod.Path] {
-				if err := visitLocal(req.Mod.Path, false); err != nil {
-					return err
-				}
-				continue
-			}
-			if resolveRepositoryModules {
-				if _, local := topo[req.Mod.Path]; local {
-					if err := visitLocal(req.Mod.Path, true); err != nil {
-						return err
-					}
-					continue
-				}
-			}
-			if err := visitRemote(req.Mod.Path, req.Mod.Version); err != nil {
-				return err
-			}
-		}
-		return nil
+	escapedPath, pathErr := module.EscapePath(path)
+	escapedVersion, versionErr := module.EscapeVersion(version)
+	if pathErr != nil || versionErr != nil {
+		return nil, false
 	}
-	visitRemote = func(path, version string) error {
-		if err := module.CheckPath(path); err != nil {
-			return fmt.Errorf("Go dependency module path %q is invalid", path)
-		}
-		if !semver.IsValid(version) {
-			return fmt.Errorf("Go dependency %s has an unsupported or non-exact version %q", path, version)
-		}
-		key := path + "@" + version
-		if seenRemote[key] {
-			return nil
-		}
-		if result.ModuleCount >= goModuleProbeCountLimit {
-			return fmt.Errorf("Go module dependency closure exceeds %d modules", goModuleProbeCountLimit)
-		}
-		seenRemote[key] = true
-		result.ModuleCount++
-		if err := count(64 << 10); err != nil {
-			return err
-		}
-		result.MetadataBytes += 64 << 10 // .info, list, ziphash, and module-cache metadata allowance
-		modPath, err := module.EscapePath(path)
-		if err != nil {
-			return fmt.Errorf("escape Go module path %q: %w", path, err)
-		}
-		modVersion, err := module.EscapeVersion(version)
-		if err != nil {
-			return fmt.Errorf("escape Go module version %q: %w", version, err)
-		}
-		base := strings.TrimRight(proxy, "/") + "/" + modPath + "/@v/" + modVersion
-		modBytes, err := boundedHTTPGet(ctx, client, base+".mod", 1<<20)
-		if err != nil {
-			return fmt.Errorf("probe Go module metadata %s: %w", key, err)
-		}
-		if err := count(int64(len(modBytes))); err != nil {
-			return err
-		}
-		result.MetadataBytes += int64(len(modBytes))
-		parsed, err := modfile.Parse(path+".mod", modBytes, nil)
-		if err != nil {
-			return fmt.Errorf("parse Go module metadata %s: %w", key, err)
-		}
-		if parsed.Module == nil || parsed.Module.Mod.Path != path || len(parsed.Replace) > 0 || len(parsed.Exclude) > 0 {
-			return fmt.Errorf("Go dependency %s has unsupported identity, replace, or exclude metadata", key)
-		}
-		zipBytes, err := boundedHTTPGet(ctx, client, base+".zip", goModuleProbeResponseLimit)
-		if err != nil {
-			return fmt.Errorf("probe Go module source %s: %w", key, err)
-		}
-		compressed := int64(len(zipBytes))
-		expanded, err := zipExpandedBytes(path, version, zipBytes)
-		if err != nil {
-			return fmt.Errorf("inspect Go module source %s: %w", key, err)
-		}
-		if err := count(compressed + expanded); err != nil {
-			return err
-		}
-		result.ArchiveBytes += compressed
-		result.ExpandedBytes += expanded
-		requires := append([]*modfile.Require(nil), parsed.Require...)
-		sort.Slice(requires, func(i, j int) bool { return requires[i].Mod.Path < requires[j].Mod.Path })
-		for _, req := range requires {
-			if explicitLocal[req.Mod.Path] {
-				if err := visitLocal(req.Mod.Path, false); err != nil {
-					return err
-				}
-				continue
-			}
-			if err := visitRemote(req.Mod.Path, req.Mod.Version); err != nil {
-				return err
-			}
-		}
-		return nil
+	if !goModuleSourceCached(modCache, path, version) {
+		return nil, false
 	}
-	if err := visitLocal(rootModule, true); err != nil {
-		return goModuleProbeResult{}, err
+	mod, err := readRegularBounded(filepath.Join(modCache, "cache", "download", filepath.FromSlash(escapedPath), "@v", escapedVersion+".mod"), 1<<20)
+	if err != nil {
+		return nil, false
 	}
-	if targetModule != rootModule {
-		if err := visitLocal(targetModule, false); err != nil {
-			return goModuleProbeResult{}, err
-		}
-	}
-	return result, nil
+	return mod, true
 }
 
 func readGoModuleFile(path string) (*modfile.File, error) {
@@ -377,37 +239,6 @@ func verifyWithinRoot(root, candidate string) error {
 	return nil
 }
 
-func boundedTreeSize(root string, remaining int64) (int64, error) {
-	var total int64
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			switch entry.Name() {
-			case ".git", ".vrooli", "node_modules", "vendor", "testdata", "data", "dist", "build", ".cache":
-				if path != root {
-					return filepath.SkipDir
-				}
-			}
-			return nil
-		}
-		info, err := entry.Info()
-		if err != nil {
-			return err
-		}
-		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-			return fmt.Errorf("module source contains a non-regular or linked file")
-		}
-		if info.Size() > remaining-total {
-			return fmt.Errorf("module source exceeds bounded probe limit")
-		}
-		total += info.Size()
-		return nil
-	})
-	return total, err
-}
-
 func boundedHTTPGet(ctx context.Context, client *http.Client, endpoint string, limit int64) ([]byte, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
@@ -434,24 +265,22 @@ func boundedHTTPGet(ctx context.Context, client *http.Client, endpoint string, l
 	return body, nil
 }
 
+// zipExpandedBytes totals a module zip's uncompressed bytes. Entries are named
+// with the module path and version exactly as written (case included); only the
+// proxy URL and the on-disk cache escape upper-case letters.
 func zipExpandedBytes(modulePath, version string, raw []byte) (int64, error) {
 	reader, err := zip.NewReader(bytes.NewReader(raw), int64(len(raw)))
 	if err != nil {
 		return 0, err
 	}
-	want, err := module.EscapePath(modulePath)
-	if err != nil {
-		return 0, err
-	}
-	escapedVersion, err := module.EscapeVersion(version)
-	if err != nil {
-		return 0, err
-	}
-	prefix := want + "@" + escapedVersion + "/"
+	prefix := modulePath + "@" + version + "/"
 	var total int64
 	for _, file := range reader.File {
-		if !strings.HasPrefix(file.Name, prefix) || file.UncompressedSize64 > uint64(goModuleProbeTotalLimit-total) {
-			return 0, fmt.Errorf("module zip has an invalid path or exceeds the expanded-size limit")
+		if !strings.HasPrefix(file.Name, prefix) {
+			return 0, fmt.Errorf("module zip entry %q is not under %q", file.Name, prefix)
+		}
+		if file.UncompressedSize64 > uint64(goModuleProbeTotalLimit-total) {
+			return 0, fmt.Errorf("module zip exceeds the %d-byte expanded-size limit", goModuleProbeTotalLimit)
 		}
 		total += int64(file.UncompressedSize64)
 	}

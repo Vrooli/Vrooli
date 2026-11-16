@@ -24,7 +24,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Name:        "deps-approved",
 		Description: "Inspect approved third-party dependency governance records",
 		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
+		Subcommands: documentCommands("deps-approved", []cliapp.Command{
 			{Name: "check", Description: "Run repository dependency consistency checks", Run: func(args []string) error { return runCheck(args) }},
 			{Name: "list", Description: "List approved dependency records", Run: func(args []string) error { return runList(core, args) }},
 			{Name: "search", Description: "Search approved dependency records", Run: func(args []string) error { return runSearch(core, args) }},
@@ -43,7 +43,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{Name: "deny", Description: "Preview or apply a denied dependency governance decision", Run: func(args []string) error { return runDeny(core, args) }},
 			{Name: "deny-vulnerable", Description: "Preview or apply a security-derived denied dependency decision", Run: func(args []string) error { return runDenyVulnerable(core, args) }},
 			{Name: "remediate", Description: "Show remediation guidance for a vulnerable dependency", Run: func(args []string) error { return runRemediate(core, args) }},
-		},
+		}),
 	}
 }
 
@@ -60,7 +60,7 @@ func runList(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 {
-		return fmt.Errorf("usage: %s deps approved list [--ecosystem npm|go] [--state approved] [--json]", support.AppName)
+		return usageError("deps-approved list")
 	}
 	resp, err := governanceClient(core).ListApprovedDependencies(context.Background(), connect.NewRequest(&governancev1.ListApprovedDependenciesRequest{
 		Ecosystem: ecosystem,
@@ -93,7 +93,7 @@ func runSearch(core *cliapp.ScenarioApp, args []string) error {
 	}
 	query := strings.TrimSpace(strings.Join(fs.Args(), " "))
 	if query == "" && framework == "" && ecosystem == "" && surface == "" && state == "" {
-		return fmt.Errorf("usage: %s deps approved search <query> [--ecosystem npm|go|pip] [--framework react] [--surface ui|api|cli|playwright-driver|tools/<package>] [--state approved|denied] [--json]", support.AppName)
+		return usageError("deps-approved search")
 	}
 	resp, err := governanceClient(core).SearchApprovedDependencies(context.Background(), connect.NewRequest(&governancev1.SearchApprovedDependenciesRequest{
 		Query:     query,
@@ -155,7 +155,7 @@ func runExplain(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps approved explain <ecosystem>/<package> [--json]", support.AppName)
+		return usageError("deps-approved explain")
 	}
 	ecosystem, packageName, ok := strings.Cut(positionals[0], "/")
 	if !ok || strings.TrimSpace(ecosystem) == "" || strings.TrimSpace(packageName) == "" {
@@ -194,7 +194,7 @@ func runValidate(core *cliapp.ScenarioApp, args []string) error {
 	positionals := fs.Args()
 	if all {
 		if len(positionals) != 0 {
-			return fmt.Errorf("usage: %s deps approved validate --all [--policy-mode advisory|strict|review_gate] [--json]", support.AppName)
+			return usageError("deps-approved validate")
 		}
 		resp, err := governanceClient(core).ValidateFleetApprovedDependencies(context.Background(), connect.NewRequest(&governancev1.ValidateFleetApprovedDependenciesRequest{
 			PolicyMode: policyMode,
@@ -208,7 +208,7 @@ func runValidate(core *cliapp.ScenarioApp, args []string) error {
 		return printFleetValidation(resp.Msg)
 	}
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps approved validate <scenario> [--policy-mode advisory|strict|review_gate] [--json]", support.AppName)
+		return usageError("deps-approved validate")
 	}
 	resp, err := governanceClient(core).ValidateApprovedDependencies(context.Background(), connect.NewRequest(&governancev1.ValidateApprovedDependenciesRequest{
 		Scenario:   positionals[0],
@@ -258,7 +258,7 @@ func runFindings(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 {
-		return fmt.Errorf("usage: %s deps approved findings [--scenario <name>] [--ecosystem npm|go] [--package <name>] [--severity WARNING|ERROR] [--class <finding-class>] [--json]", support.AppName)
+		return usageError("deps-approved findings")
 	}
 	resp, err := governanceClient(core).ListApprovedDependencyFindings(context.Background(), connect.NewRequest(&governancev1.ListApprovedDependencyFindingsRequest{
 		PolicyMode:   policyMode,
@@ -427,7 +427,7 @@ func runTriage(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 {
-		return fmt.Errorf("usage: %s deps approved triage [--section security|seeding|ranges|hotspots|expired] [--ecosystem npm|go] [--package <name>] [--limit 20] [--json]", support.AppName)
+		return usageError("deps-approved triage")
 	}
 	requestLimit := int32(limit)
 	if jsonOutput {
@@ -460,7 +460,7 @@ func runUsage(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps approved usage <ecosystem>/<package> [--policy-mode advisory|strict|review_gate] [--json]", support.AppName)
+		return usageError("deps-approved usage")
 	}
 	ecosystem, packageName, err := parseDependencyID(positionals[0])
 	if err != nil {
@@ -525,7 +525,7 @@ func runUpsert(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 || strings.TrimSpace(filePath) == "" {
-		return fmt.Errorf("usage: %s deps approved upsert --file <record.json> [--apply] [--json]", support.AppName)
+		return usageError("deps-approved upsert")
 	}
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -559,7 +559,7 @@ func runProposeRecords(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 {
-		return fmt.Errorf("usage: %s deps approved propose-records [--top-unrecorded 25] [--ecosystem npm|go] [--package <name>] [--json]", support.AppName)
+		return usageError("deps-approved propose-records")
 	}
 	resp, err := governanceClient(core).ProposeApprovedDependencyRecords(context.Background(), connect.NewRequest(&governancev1.ProposeApprovedDependencyRecordsRequest{
 		PolicyMode:           policyMode,
@@ -596,7 +596,7 @@ func runUpsertBatch(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 || strings.TrimSpace(filePath) == "" {
-		return fmt.Errorf("usage: %s deps approved upsert-batch --file <proposals.json> [--apply|--dry-run] [--json]", support.AppName)
+		return usageError("deps-approved upsert-batch")
 	}
 	if apply && dryRunFlag {
 		return fmt.Errorf("--apply and --dry-run cannot be used together")
@@ -639,7 +639,7 @@ func runSecurityGaps(core *cliapp.ScenarioApp, args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 0 {
-		return fmt.Errorf("usage: %s deps approved security-gaps [--ecosystem npm|go] [--package <name>] [--scenario <name>] [--vulnerability <id>] [--minimum-severity high] [--limit 25] [--json]", support.AppName)
+		return usageError("deps-approved security-gaps")
 	}
 	requestLimit := int32(limit)
 	if jsonOutput {
@@ -681,7 +681,7 @@ func runApproveObserved(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps approved approve-observed <ecosystem>/<package> [--from-findings] [--range-strategy observed|major_line|wildcard] [--apply] [--json]", support.AppName)
+		return usageError("deps-approved approve-observed")
 	}
 	ecosystem, packageName, err := parseDependencyID(positionals[0])
 	if err != nil {
@@ -724,7 +724,7 @@ func runWidenRange(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 {
-		return fmt.Errorf("usage: %s deps approved widen-range <ecosystem>/<package> --to-major-line [--apply] [--json]", support.AppName)
+		return usageError("deps-approved widen-range")
 	}
 	if !toMajorLine {
 		return fmt.Errorf("--to-major-line is required")
@@ -771,7 +771,7 @@ func runApprove(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 || strings.TrimSpace(rationale) == "" {
-		return fmt.Errorf("usage: %s deps approved approve <ecosystem>/<package> --rationale <text> [--range <range>] [--apply] [--json]", support.AppName)
+		return usageError("deps-approved approve")
 	}
 	ecosystem, packageName, err := parseDependencyID(positionals[0])
 	if err != nil {
@@ -810,7 +810,7 @@ func runDeny(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 || strings.TrimSpace(rationale) == "" {
-		return fmt.Errorf("usage: %s deps approved deny <ecosystem>/<package> --reason <text> [--replacement <text>] [--apply] [--json]", support.AppName)
+		return usageError("deps-approved deny")
 	}
 	ecosystem, packageName, err := parseDependencyID(positionals[0])
 	if err != nil {
@@ -841,7 +841,7 @@ func runRemediate(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 || strings.TrimSpace(vulnerabilityID) == "" {
-		return fmt.Errorf("usage: %s deps approved remediate <ecosystem>/<package> --vulnerability <id> [--json]", support.AppName)
+		return usageError("deps-approved remediate")
 	}
 	ecosystem, packageName, err := parseDependencyID(positionals[0])
 	if err != nil {
@@ -878,7 +878,7 @@ func runDenyVulnerable(core *cliapp.ScenarioApp, args []string) error {
 	}
 	positionals := fs.Args()
 	if len(positionals) != 1 || strings.TrimSpace(vulnerabilityID) == "" {
-		return fmt.Errorf("usage: %s deps approved deny-vulnerable <ecosystem>/<package> --vulnerability <id> [--affected-range <range>] [--fixed-range <range>] [--apply] [--json]", support.AppName)
+		return usageError("deps-approved deny-vulnerable")
 	}
 	ecosystem, packageName, err := parseDependencyID(positionals[0])
 	if err != nil {
@@ -1232,7 +1232,7 @@ func governanceClient(core *cliapp.ScenarioApp) governanceconnect.DependencyGove
 
 func governanceClientWithTimeout(core *cliapp.ScenarioApp, timeout time.Duration) governanceconnect.DependencyGovernanceServiceClient {
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, timeout)
-	return governanceconnect.NewDependencyGovernanceServiceClient(httpClient, baseURL)
+	return governanceconnect.NewDependencyGovernanceServiceClient(httpClient, baseURL, connect.WithInterceptors(retryReadOnlyInterceptor()))
 }
 
 func printProto(msg proto.Message) error {

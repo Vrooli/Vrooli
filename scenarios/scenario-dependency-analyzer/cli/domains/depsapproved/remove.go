@@ -1,6 +1,7 @@
 package depsapproved
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -8,9 +9,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
+	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 	"scenario-dependency-analyzer/cli/internal/support"
@@ -29,28 +33,49 @@ type removeGoRequirementResult struct {
 	AfterSHA  string `json:"after_sha256"`
 }
 
-func runRemove(_ *cliapp.ScenarioApp, args []string) error {
-	fs := support.NewFlagSet("deps remove")
-	var req removeGoRequirementRequest
-	var jsonOutput bool
-	fs.StringVar(&req.Scenario, "scenario", "", "Target scenario (vrooli only)")
-	fs.StringVar(&req.Surface, "surface", "", "Target surface (control-plane only)")
-	fs.StringVar(&req.Ecosystem, "ecosystem", "", "Dependency ecosystem (go only)")
-	fs.StringVar(&req.Module, "module", "", "Exact Go module path to remove from root go.mod")
-	fs.BoolVar(&req.Apply, "apply", false, "Write the change (default is a dry run)")
-	fs.StringVar(&req.ExpectedSHA256, "expected-sha256", "", "Required with --apply; copy before_sha256 from the preview")
-	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
-	if err := support.ParseFlags(fs, args); err != nil {
-		return err
+const removeUsage = "usage: %s deps remove <ecosystem>/<package>... --scenario <name> --surface <surface> [--apply] [--json]\n   or: %s deps remove --scenario vrooli --surface control-plane --ecosystem go --module <module-path> [--apply --expected-sha256 <before-sha256>] [--json]"
+
+func removeArgumentSchema() cliapp.ArgSchema {
+	return cliapp.ArgSchema{
+		Positionals: []cliapp.Positional{{
+			Name:        "dependency",
+			Repeated:    true,
+			Description: "JavaScript dependency to remove, as npm/<package>; name several to remove them with one resolution",
+		}},
+		Flags: []cliapp.Flag{
+			{Name: "scenario", Description: "Target scenario (vrooli for the Go root module)"},
+			{Name: "surface", Description: "Target surface: ui, api, cli, tools/<package>, ... (control-plane for the Go root module)"},
+			{Name: "apply", Bool: true, Description: "Perform the removal; default is a dry-run preview"},
+			{Name: "ecosystem", Description: "Go root-module removal only: go"},
+			{Name: "module", Description: "Go root-module removal only: exact Go module path to drop from the root go.mod"},
+			{Name: "expected-sha256", Description: "Go root-module removal only: required with --apply; copy before_sha256 from the preview"},
+		},
 	}
-	if len(fs.Args()) != 0 {
-		return fmt.Errorf("usage: %s deps remove --scenario vrooli --surface control-plane --ecosystem go --module <module-path> [--apply --expected-sha256 <before-sha256>] [--json]", support.AppName)
+}
+
+// runRemove takes dependencies off a surface. Named npm packages go through the
+// governed gateway (the same staged resolution, store and rollback as install);
+// without a package it is the Go root-module requirement removal, which edits
+// one file locally and so needs no running API.
+func runRemove(core *cliapp.ScenarioApp, args cliapp.RunContext) error {
+	if packages := args.Positionals("dependency"); len(packages) > 0 {
+		if args.Flag("module") != "" || args.Flag("ecosystem") != "" || args.Flag("expected-sha256") != "" {
+			return fmt.Errorf("--module, --ecosystem and --expected-sha256 belong to the Go root-module removal; do not combine them with <ecosystem>/<package> arguments")
+		}
+		return runRemoveDependencies(core, args, packages)
+	}
+	if args.Flag("module") == "" {
+		return fmt.Errorf(removeUsage, support.AppName, support.AppName)
+	}
+	req := removeGoRequirementRequest{
+		Scenario: args.Flag("scenario"), Surface: args.Flag("surface"), Ecosystem: args.Flag("ecosystem"),
+		Module: args.Flag("module"), ExpectedSHA256: args.Flag("expected-sha256"), Apply: args.BoolFlag("apply"),
 	}
 	result, err := removeRootGoRequirement(cliutil.ResolveRepoRoot(), req)
 	if err != nil {
 		return err
 	}
-	if jsonOutput {
+	if args.JSON() {
 		return support.PrintReportJSON(result)
 	}
 	state := "Dry run"
@@ -59,6 +84,67 @@ func runRemove(_ *cliapp.ScenarioApp, args []string) error {
 	}
 	fmt.Printf("%s: remove require %s from %s\nBefore SHA-256: %s\nAfter SHA-256:  %s\n", state, result.Module, result.Target, result.BeforeSHA, result.AfterSHA)
 	return nil
+}
+
+func runRemoveDependencies(core *cliapp.ScenarioApp, args cliapp.RunContext, specs []string) error {
+	scenario, surface := strings.TrimSpace(args.Flag("scenario")), strings.TrimSpace(args.Flag("surface"))
+	if scenario == "" || surface == "" {
+		return fmt.Errorf("--scenario and --surface are required; %s", fmt.Sprintf(removeUsage, support.AppName, support.AppName))
+	}
+	ecosystem, names, err := parseRemoveSpecs(specs)
+	if err != nil {
+		return err
+	}
+	// Resolving the removal, relinking node_modules and rolling back on failure
+	// share the install's three-minute budget.
+	timeout := 3*time.Minute + 15*time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	resp, err := governanceClientWithTimeout(core, timeout).RemoveDependency(ctx, connect.NewRequest(&governancev1.RemoveDependencyRequest{
+		Scenario: scenario, Surface: surface, Ecosystem: ecosystem, PackageNames: names, Apply: args.BoolFlag("apply"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("remove dependency", err, nil)
+	}
+	if args.JSON() {
+		if err := printProto(resp.Msg); err != nil {
+			return err
+		}
+		return removeOutcome(resp.Msg)
+	}
+	msg := resp.Msg
+	summary := []string{msg.GetMessage(), fmt.Sprintf("Verdict: %s", msg.GetVerdict()), fmt.Sprintf("Command: %s", msg.GetCommand())}
+	if msg.GetManifestPath() != "" {
+		summary = append(summary, fmt.Sprintf("Manifest: %s", msg.GetManifestPath()))
+	}
+	summary = append(summary, msg.GetNotes()...)
+	if err := support.PrintList(false, cliapp.ListReport{Summary: summary, ResultsHeading: "Dependency Removal", Results: msg.GetNextSteps()}, nil); err != nil {
+		return err
+	}
+	return removeOutcome(msg)
+}
+
+// parseRemoveSpecs splits npm/<package> arguments. All must name one ecosystem.
+func parseRemoveSpecs(specs []string) (ecosystem string, names []string, err error) {
+	for _, spec := range specs {
+		eco, name, ok := strings.Cut(strings.TrimSpace(spec), "/")
+		if !ok || strings.TrimSpace(eco) == "" || strings.TrimSpace(name) == "" {
+			return "", nil, fmt.Errorf("%q must be formatted as <ecosystem>/<package>, for example npm/three", spec)
+		}
+		if ecosystem != "" && eco != ecosystem {
+			return "", nil, fmt.Errorf("one removal covers one ecosystem; got %q and %q", ecosystem, eco)
+		}
+		ecosystem = eco
+		names = append(names, name)
+	}
+	return ecosystem, names, nil
+}
+
+func removeOutcome(msg *governancev1.RemoveDependencyResponse) error {
+	if !msg.GetBlocked() && (msg.GetDryRun() || msg.GetRemoved() || msg.GetSourceUpdated()) {
+		return nil
+	}
+	return fmt.Errorf("dependency removal did not succeed (verdict=%s, blocked=%t, removed=%t)", msg.GetVerdict(), msg.GetBlocked(), msg.GetRemoved())
 }
 
 func removeRootGoRequirement(root string, req removeGoRequirementRequest) (removeGoRequirementResult, error) {

@@ -38,7 +38,7 @@ func runCheck(args []string) error {
 		return err
 	}
 	if len(fs.Args()) != 1 || fs.Args()[0] != oneVersionCheck {
-		return fmt.Errorf("usage: %s deps check %s [--packages <module,...>] [--json]", support.AppName, oneVersionCheck)
+		return usageError("deps-approved check")
 	}
 	selected := make([]string, 0)
 	for _, item := range strings.Split(packages, ",") {

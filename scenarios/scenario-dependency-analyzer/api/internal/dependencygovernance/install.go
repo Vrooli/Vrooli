@@ -35,6 +35,11 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		msg = proto.Clone(msg).(*governancev1.InstallDependencyRequest)
 		msg.Scenario, msg.Surface = "external-workspace", "workspace"
 	}
+	if canonical := installgateway.CanonicalEcosystem(msg.GetEcosystem()); canonical != msg.GetEcosystem() {
+		// Governance records, resolvers and messages all use one spelling.
+		msg = proto.Clone(msg).(*governancev1.InstallDependencyRequest)
+		msg.Ecosystem = canonical
+	}
 	repoRoot := ""
 	if h != nil && h.scenariosDir != nil {
 		repoRoot = filepath.Dir(h.scenariosDir())
@@ -64,12 +69,21 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("override: requires npm and a version"))
 		}
 		resolution, err = installgateway.ResolveNpmOverride(repoRoot, msg.GetScenario(), msg.GetSurface())
+		selector := strings.TrimSpace(msg.GetOverrideSelector())
+		if selector == "" {
+			selector = msg.GetPackageName()
+		}
+		if err := installgateway.ValidateOverrideSelector(selector); err != nil || installgateway.OverridePackage(selector) != msg.GetPackageName() {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("override selector %q must be a valid pnpm selector whose last segment names %s", selector, msg.GetPackageName()))
+		}
+		resolution.NpmOverride = &installgateway.NpmOverride{Selector: selector, Version: overrideVersion}
 	} else {
 		resolution, err = installgateway.Resolve(repoRoot, msg.GetScenario(), msg.GetSurface(), msg.GetEcosystem(), msg.GetPackageName(), msg.GetVersion())
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
+	resolution.LockOnly = msg.GetLockOnly()
 	if msg.GetDevelopment() {
 		if err := installgateway.ApplyDevelopmentDependency(&resolution); err != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, err)
@@ -86,6 +100,22 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		secNotes = append(secNotes, "lifecycle scripts are disabled by default for this install profile")
 	}
 	secNotes = append(secNotes, fmt.Sprintf("install profile: lifecycle=%s frozen_lockfile=%t governance=%s", resolution.Profile.LifecycleMode, resolution.Profile.FrozenLockfile, resolution.Profile.Governance))
+
+	// Disk admission is part of the verdict, not an apply-time surprise: a
+	// preview plans exactly what apply will reserve, so "approved" means the
+	// install can run. Governance refusals skip planning; nothing would run.
+	var admission installDiskPlan
+	var admissionErr error
+	if !blocked {
+		admission, admissionErr = planInstallDisk(ctx, h.diskBroker, h.diskPlanner, resolution)
+		defer admission.Release()
+		if admissionErr == nil {
+			secNotes = append(secNotes, admission.plan.Notes...)
+			if resolution.NpmOverride != nil {
+				secNotes = append(secNotes, overrideEffectNotes(admission.plan.JSStage, resolution.NpmOverride)...)
+			}
+		}
+	}
 
 	resp := &governancev1.InstallDependencyResponse{
 		DryRun:         !msg.GetApply(),
@@ -122,6 +152,16 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	case blocked:
 		resp.Message = fmt.Sprintf("Blocked (%s): %s/%s is not installable into %s. The install was NOT run.",
 			verdict, msg.GetEcosystem(), msg.GetPackageName(), target)
+	case admissionErr != nil:
+		resp.Blocked = true
+		resp.Verdict = "disk_admission_denied"
+		lead := "Blocked (disk_admission_denied)"
+		if !msg.GetApply() {
+			lead = "Dry run blocked (disk_admission_denied)"
+		}
+		resp.Message = fmt.Sprintf("%s: %v. The install was NOT run and no manifest was changed.", lead, admissionErr)
+		resp.NextSteps = append(resp.NextSteps, admissionNextSteps(admissionErr)...)
+		return connect.NewResponse(resp), nil
 	case !msg.GetApply():
 		action := "install"
 		if resolution.Profile.LifecycleMode == "managed-service-artifact" {
@@ -135,15 +175,19 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		}
 		resp.Message = fmt.Sprintf("Dry run (%s): would run `%s` in %s. Re-run with --apply to %s.",
 			verdict, resolution.Command(), target, action)
+		resp.SecurityNotes = append(resp.SecurityNotes, admission.summary())
 	default:
-		lease, plan, admissionErr := reserveInstallDiskJob(ctx, h.diskBroker, h.diskPlanner, resolution)
-		if admissionErr != nil {
+		lease, reserveErr := admission.reserve(ctx, h.diskBroker)
+		if reserveErr != nil {
 			resp.Blocked = true
 			resp.Verdict = "disk_admission_denied"
-			resp.Message = fmt.Sprintf("Blocked (disk_admission_denied): %v. The install was NOT run and no manifest was changed.", admissionErr)
-			resp.NextSteps = append(resp.NextSteps, "Restore the shared capacity broker or resolve the uncovered path/size estimate, then retry the dry-run and apply request.")
+			resp.Message = fmt.Sprintf("Blocked (disk_admission_denied): %v. The install was NOT run and no manifest was changed.", reserveErr)
+			resp.NextSteps = append(resp.NextSteps, admissionNextSteps(reserveErr)...)
 			return connect.NewResponse(resp), nil
 		}
+		plan := admission.plan
+		resolution.DiskJSStage = plan.JSStage
+		resolution.DiskPythonLockStage = plan.PythonLockStage
 		resolution.DiskCachePath = plan.CachePath
 		resolution.DiskBuildCachePath = plan.BuildCachePath
 		resolution.DiskPythonExecutable = plan.PythonExecutable
@@ -157,11 +201,6 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			installer = installgateway.ExecInstaller{}
 		}
 		job := runWithDiskJob(ctx, lease, resolution, func(installCtx context.Context) (string, error) {
-			if isNpmOverride {
-				if err := installgateway.SetNpmOverride(resolution.ManifestPath, msg.GetPackageName(), overrideVersion); err != nil {
-					return "", err
-				}
-			}
 			return installer.Install(installCtx, resolution)
 		})
 		output, runErr := job.Output, job.RunErr
@@ -175,6 +214,9 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.Message = fmt.Sprintf("Install failed (%s): `%s` — %v\n%s", verdict, resolution.Command(), runErr, strings.TrimSpace(output))
 			resp.NextSteps = append(resp.NextSteps, "Fix the error above and re-run, or run the dry-run first to inspect the command.")
 			return connect.NewResponse(resp), nil
+		}
+		if verdict == verdictFirstParty {
+			resp.SecurityNotes = append(resp.SecurityNotes, h.auditFirstPartyInstall(msg, resolution, overrideVersion))
 		}
 		if resolution.HostToolRefresh {
 			resp.SourceUpdated = true
@@ -204,6 +246,12 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.Installed = true
 			resp.Message = strings.TrimSpace(output)
 			resp.NextSteps = append(resp.NextSteps, "Use the staged source inputs for an isolated build against the exact target kernel headers.")
+			return connect.NewResponse(resp), nil
+		}
+		if stage := resolution.DiskJSStage; stage != nil && stage.LinkSkipped != "" {
+			resp.SourceUpdated = true
+			resp.Message = fmt.Sprintf("Updated the dependency inputs for %s/%s in %s (%s); node_modules was not relinked.\n%s", msg.GetEcosystem(), msg.GetPackageName(), target, verdict, strings.TrimSpace(output))
+			resp.NextSteps = append(resp.NextSteps, fmt.Sprintf("Converge node_modules through the lifecycle: vrooli scenario setup %s (pnpm would otherwise recreate it). Then %s deps approved validate %s", msg.GetScenario(), scenarioCLIName(), msg.GetScenario()))
 			return connect.NewResponse(resp), nil
 		}
 		resp.Installed = true
@@ -239,6 +287,41 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 
 	return connect.NewResponse(resp), nil
 }
+
+// auditFirstPartyInstall records an applied first-party admission and returns
+// the note that tells the caller where the trail is, or that it could not be
+// written (the install itself has already happened by then).
+func (h *connectHandler) auditFirstPartyInstall(msg *governancev1.InstallDependencyRequest, resolution installgateway.Resolution, version string) string {
+	repoRoot := h.repoRoot()
+	proof, _ := installgateway.ProveFirstParty(resolution.RepositoryRoot, resolution.SurfaceRoot, msg.GetEcosystem(), msg.GetPackageName(), version)
+	err := appendFirstPartyAudit(repoRoot, firstPartyAuditEntry{
+		Scenario: msg.GetScenario(), Surface: msg.GetSurface(), Ecosystem: msg.GetEcosystem(),
+		Package: msg.GetPackageName(), Version: strings.TrimSpace(version), Path: proof.Path,
+	})
+	if err != nil {
+		return fmt.Sprintf("first-party admission was NOT recorded in %s: %v", firstPartyAuditFile, err)
+	}
+	return "first-party admission recorded in " + firstPartyAuditFile
+}
+
+// admissionNextSteps says what to do about a disk-admission refusal. The
+// planner's own message names the specific cause; these lines say whether
+// retrying can help.
+func admissionNextSteps(err error) []string {
+	text := err.Error()
+	switch {
+	case strings.Contains(text, "broker is unavailable"):
+		return []string{"The shared capacity broker is not running for this analyzer. Restore it (docs/configuration/host/capacity.md), then repeat the dry run; do not fall back to a raw package manager."}
+	case strings.Contains(text, "host disk admission refused"):
+		return []string{"The host does not have the reserved headroom right now. Free space (see the storage-manager cleanup verbs) and repeat the request; the install changed nothing."}
+	default:
+		return []string{"This refusal is deterministic for the request as written: change what the message names (version, surface state, or source) and repeat the dry run. The install changed nothing."}
+	}
+}
+
+// verdictFirstParty is the verdict of a request the gateway proved to name a
+// workspace package of this repository.
+const verdictFirstParty = "first_party"
 
 // governInstall applies the governance decision for an install request against
 // the resolved surface. It returns the verdict, whether the install is blocked
@@ -292,9 +375,22 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, res
 	if err != nil {
 		return "registry_error", true, []string{fmt.Sprintf("Approved dependency registry unreadable: %v. Run `%s deps approved list` to surface the parse error.", err, scenarioCLIName())}, nil
 	}
+	// A workspace package of this repository is reviewed by repository review,
+	// not by the third-party registry. Only what the gateway proves from the
+	// repository's layout qualifies; a denial or deprecation recorded for the
+	// package still wins below.
+	firstParty, isFirstParty := installgateway.ProveFirstParty(resolution.RepositoryRoot, resolution.SurfaceRoot, ecosystem, pkg, version)
+	firstPartyNote := ""
+	if isFirstParty {
+		firstPartyNote = fmt.Sprintf("first-party %s admitted without a governance record; it is reviewed by repository review, not by the registry", firstParty.Path)
+	}
+	if !found && isFirstParty {
+		return verdictFirstParty, false, nil, []string{firstPartyNote}
+	}
 	if !found {
 		return "unrecorded", true, []string{
-			fmt.Sprintf("Record it first: %s deps approved approve-observed %s/%s --from-findings --apply", scenarioCLIName(), ecosystem, pkg),
+			fmt.Sprintf("Already used somewhere in the fleet? Record that usage: %s deps approved approve-observed %s/%s --from-findings --apply", scenarioCLIName(), ecosystem, pkg),
+			fmt.Sprintf("New to the fleet (approve-observed finds no usage to record)? Approve it with a rationale: %s deps approved approve %s/%s --range '<range>' --rationale '<why this package>' --apply", scenarioCLIName(), ecosystem, pkg),
 			fmt.Sprintf("Or find an approved alternative: %s deps approved search \"%s\"", scenarioCLIName(), pkg),
 		}, nil
 	}
@@ -310,6 +406,10 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, res
 		return "deprecated", true, []string{firstNonEmpty(record.GetReplacement(), "This package is deprecated. Migrate to the recorded replacement.")}, secNotes
 	}
 
+	if isFirstParty {
+		return verdictFirstParty, false, nil, append(secNotes, firstPartyNote)
+	}
+
 	// Apply the same scenario policy used by registry validation before any writes.
 	if violation := scenarioExceptionViolation(msg.GetScenario(), record); violation.reason != "" {
 		return "scenario_not_allowed", true, []string{violation.reason}, secNotes
@@ -321,7 +421,7 @@ func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, res
 			fmt.Sprintf("%s/%s is approved only for surfaces: %s. Install into one of those, or widen the approval.", ecosystem, pkg, strings.Join(allowed, ", ")),
 		}, secNotes
 	}
-	if v := version; v != "" {
+	if v := canonicalFileSpec(resolution, version); v != "" {
 		if decision := evaluateVersionPolicy(ecosystem, v, record.GetVersionRange(), record.GetRangePolicy()); !decision.Allowed {
 			if decision.FindingClass == "VERSION_RANGE_UNPARSEABLE" {
 				return "range_unparseable", true, []string{decision.Description, decision.Remediation}, secNotes
@@ -353,3 +453,40 @@ func npmAliasTarget(version string) (packageName, targetVersion string, ok bool)
 
 // scenarioCLIName is the CLI binary that fronts this service.
 func scenarioCLIName() string { return "scenario-dependency-analyzer" }
+
+// canonicalFileSpec spells a `file:` dependency the way governance records it.
+// A shared package is recorded once, as the path a scenario UI uses
+// (file:../../../packages/x), but other surfaces reach it from other depths
+// (packages/file-viewer names its sibling as file:../react-component-library).
+// The spec is resolved against the declaring surface and re-expressed at the
+// recorded depth, so the package, not the declaring location, is compared. Any
+// other version is returned unchanged.
+func canonicalFileSpec(resolution installgateway.Resolution, version string) string {
+	path, ok := strings.CutPrefix(version, "file:")
+	if !ok || resolution.RepositoryRoot == "" || resolution.SurfaceRoot == "" || filepath.IsAbs(path) {
+		return version
+	}
+	target := filepath.Join(resolution.SurfaceRoot, filepath.FromSlash(path))
+	rel, err := filepath.Rel(resolution.RepositoryRoot, target)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return version
+	}
+	return "file:../../../" + filepath.ToSlash(rel)
+}
+
+// overrideEffectNotes says what a staged override changes in the lockfile, so
+// the preview shows the effect of the pin and not only the command that will run.
+func overrideEffectNotes(stage *installgateway.JSStage, override *installgateway.NpmOverride) []string {
+	if stage == nil {
+		return nil
+	}
+	removed, added, err := stage.LockDelta()
+	if err != nil {
+		return nil
+	}
+	notes := []string{fmt.Sprintf("override %s -> %s is applied to the staged package.json before resolving", override.Selector, override.Version)}
+	if len(removed) == 0 && len(added) == 0 {
+		return append(notes, "the lockfile would not change: the override is already what the lock holds")
+	}
+	return append(notes, lockDeltaNotes(removed, added)...)
+}

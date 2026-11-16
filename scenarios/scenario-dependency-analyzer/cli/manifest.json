@@ -235,17 +235,32 @@
             },
             {
               "name": "version",
-              "description": "Optional explicit version/range"
+              "description": "Optional explicit version/range; also a shared package file:../../../packages/<name> (pnpm) or a plain https tarball URL ending in .tgz"
             },
             {
               "name": "exact",
-              "description": "Persist an exact package version; requires an explicit version",
+              "description": "Persist an exact package version; requires an explicit version (a file: path or tarball URL is exact by construction)",
               "default": "false",
               "bind": {
                 "field": "exact_version"
               }
             },
-        {
+            {
+              "name": "override-selector",
+              "description": "With --version override:<v>, the exact pnpm override selector to set (for example minimatch@3>brace-expansion); default is package-wide",
+              "bind": {
+                "field": "override_selector"
+              }
+            },
+            {
+              "name": "lock-only",
+              "description": "With --apply on a JavaScript surface, publish package.json and the lockfile without linking node_modules (no download, metadata disk write)",
+              "default": "false",
+              "bind": {
+                "field": "lock_only"
+              }
+            },
+            {
               "name": "apply",
               "description": "Perform the install (default is a dry run)",
               "default": "false"
@@ -1150,7 +1165,24 @@
       "commands": [
         {"name": "reconcile", "description": "Converge Go go.mod/go.sum on their import closure through the dependency gate (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
-        {"name": "remove", "description": "Remove one exact Go root requirement (dry-run by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "remove", "description": "Remove JavaScript dependencies from a surface through the governed gateway, or one Go root requirement (dry-run by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {
+          "name": "update",
+          "description": "Update locked JavaScript packages (direct or transitive) to the newest version their declared ranges allow, selected by name or by security advisory (dry-run by default; changes the lockfile only)",
+          "positionals": [
+            {"name": "package", "description": "<ecosystem>/<package> with no version; omit when using --advisory", "repeated": true, "bind": {"field": "package_names"}}
+          ],
+          "flags": [
+            {"name": "scenario", "description": "Target scenario"},
+            {"name": "surface", "description": "Target installable scenario surface"},
+            {"name": "advisory", "description": "Select the packages Security Health reports as exposed to this advisory (GHSA or CVE id; several separated by commas; \"all\" for every advisory) on the surface, instead of naming them"},
+            {"name": "lock-only", "description": "With --apply, publish the lockfile without linking node_modules (no download, no package-store write)", "default": "false", "bind": {"field": "lock_only"}},
+            {"name": "apply", "description": "Perform the update (default is a dry-run preview)", "default": "false"},
+            {"name": "json", "description": "Output raw JSON", "default": "false", "local_only": true}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "DependencyGovernanceService", "method": "UpdateLockedDependency"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal", "filesystem:write"]}
+        },
         {"name": "resync", "description": "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}
       ]
     },

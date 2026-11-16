@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 )
@@ -1102,6 +1103,24 @@ func TestApproveObservedBuildsApprovedRecordFromFleetUsage(t *testing.T) {
 	}
 }
 
+// A package no scenario declares has no usage to record, so the refusal must
+// say what does work instead of leaving the agent to find the other verb.
+func TestApproveObservedRefusalNamesHowToApproveAPackageNewToTheFleet(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"schema_version":"1","policy":{"mode":"advisory"},"records":[]}`)
+	writeScenarioPackage(t, repoRoot, "alpha", `{"dependencies":{"react":"^19.0.0"}}`)
+
+	_, err := NewRegistry(repoRoot).ApproveObserved(&governancev1.ApproveObservedDependencyRequest{
+		Ecosystem: "npm", PackageName: "qrcode.react", DryRun: true, FromFindings: true,
+	})
+
+	if err == nil || !strings.Contains(err.Error(), "no observed fleet usage found for npm/qrcode.react") ||
+		!strings.Contains(err.Error(), "deps approved approve npm/qrcode.react --range") ||
+		!strings.Contains(err.Error(), "--rationale") {
+		t.Fatalf("err = %v, want the refusal to name the approve command for a new package", err)
+	}
+}
+
 func TestWidenRangeUsesObservedSingleMajorLine(t *testing.T) {
 	repoRoot := t.TempDir()
 	writeRegistry(t, repoRoot, `{
@@ -1137,6 +1156,35 @@ func TestWidenRangeUsesObservedSingleMajorLine(t *testing.T) {
 	}
 	if resp.GetMutation() == nil || !resp.GetMutation().GetDryRun() || !resp.GetMutation().GetChanged() {
 		t.Fatalf("mutation = %#v, want changed dry-run", resp.GetMutation())
+	}
+}
+
+func TestWidenRangeCountsASharedPackageAsUsage(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{
+		"schema_version": "1",
+		"policy": {"mode": "advisory"},
+		"records": [
+			{"ecosystem": "npm", "package_name": "music-metadata", "version_range": "11.12.3", "range_policy": "exact", "state": "approved", "rationale": "Approved parser."}
+		]
+	}`)
+	writeScenarioPackage(t, repoRoot, "alpha", `{"dependencies":{"react":"^18.3.1"}}`)
+	sharedRoot := filepath.Join(repoRoot, "packages", "file-viewer")
+	if err := os.MkdirAll(sharedRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sharedRoot, "package.json"), []byte(`{"dependencies":{"music-metadata":"^11.16.0"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := NewRegistry(repoRoot).WidenRange(&governancev1.WidenApprovedDependencyRangeRequest{
+		Ecosystem: "npm", PackageName: "music-metadata", TargetPolicy: "major_line", DryRun: true,
+	})
+	if err != nil {
+		t.Fatalf("a record only a shared package declares must be widenable: %v", err)
+	}
+	if got := resp.GetRecord().GetVersionRange(); got != "^11.16.0" {
+		t.Fatalf("range = %q, want the shared package's major line ^11.16.0", got)
 	}
 }
 
@@ -1428,5 +1476,29 @@ func TestSearchHonorsSemanticRankOrderOverKeyword(t *testing.T) {
 	}
 	if len(records) != 2 || records[0].GetPackageName() != "alpha" {
 		t.Fatalf("keyword-fallback order = %#v, want alpha first", records)
+	}
+}
+
+type stalledRanker struct{}
+
+func (stalledRanker) RankIDs(ctx context.Context, _ string, _ int) ([]string, map[string]float64, bool, error) {
+	<-ctx.Done() // a cold embedding model or unreachable vector store
+	return nil, nil, false, ctx.Err()
+}
+
+func TestSearchFallsBackToKeywordsWhenSemanticRankingStalls(t *testing.T) {
+	previous := semanticRankBudget
+	semanticRankBudget = 50 * time.Millisecond
+	t.Cleanup(func() { semanticRankBudget = previous })
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"records":[{"ecosystem":"npm","package_name":"alpha","version_range":"^1.0.0","state":"approved","rationale":"Approved alpha.","keywords":["forms"]}]}`)
+	registry := NewRegistry(repoRoot).WithRanker(stalledRanker{})
+	started := time.Now()
+	records, _, err := registry.Search(context.Background(), &governancev1.SearchApprovedDependenciesRequest{Query: "forms"})
+	if err != nil || len(records) != 1 || records[0].GetPackageName() != "alpha" {
+		t.Fatalf("stalled ranker search = %#v, %v", records, err)
+	}
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("search waited %s on a stalled ranker", elapsed)
 	}
 }

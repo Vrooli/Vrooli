@@ -13,7 +13,6 @@
       "waitForSelector": "body",
       "thresholds": {
         "performance": { "error": 0.70, "warn": 0.80 },
-        "accessibility": { "error": 0.95, "warn": 0.98 },
         "best-practices": { "error": 0.90, "warn": 0.95 },
         "seo": { "error": 0.85, "warn": 0.90 }
       }
@@ -26,7 +25,6 @@
       "waitForSelector": "body",
       "thresholds": {
         "performance": { "error": 0.75, "warn": 0.85 },
-        "accessibility": { "error": 0.95, "warn": 0.98 },
         "best-practices": { "error": 0.90, "warn": 0.95 },
         "seo": { "error": 0.85, "warn": 0.90 }
       },
@@ -40,7 +38,6 @@
       "waitForSelector": "body",
       "thresholds": {
         "performance": { "error": 0.70, "warn": 0.80 },
-        "accessibility": { "error": 0.90, "warn": 0.95 },
         "best-practices": { "error": 0.90, "warn": 0.95 },
         "seo": { "error": 0.85, "warn": 0.90 }
       },

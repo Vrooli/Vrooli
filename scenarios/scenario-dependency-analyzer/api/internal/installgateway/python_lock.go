@@ -14,6 +14,7 @@ import (
 )
 
 var pinnedRequirement = regexp.MustCompile(`^\s*([A-Za-z0-9][A-Za-z0-9_.-]*)==([^\\\s]+)(?:\s*\\)?\s*$`)
+var directPythonRequirement = regexp.MustCompile(`^\s*([A-Za-z0-9][A-Za-z0-9_.-]*)(?:\[[^]]+\])?(?:\s*(?:[<=>!~].*|;.*))?(?:\s+#.*)?$`)
 
 type pythonIndexSet struct {
 	Lockfile string
@@ -81,6 +82,12 @@ func pythonIndexSetsFromJSON(data []byte) map[string]pythonIndexSet {
 }
 
 func updatePythonLocks(ctx context.Context, resolution Resolution) (string, error) {
+	if resolution.DiskPythonLockStage != nil {
+		if err := resolution.DiskPythonLockStage.Publish(); err != nil {
+			return "", err
+		}
+		return "wheel-only Python locks updated through Scenario Dependency Analyzer", nil
+	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 	ctx = withInstallCacheEnvironment(ctx, resolution.PackageManager, resolution.DiskCachePath, resolution.DiskBuildCachePath)
@@ -169,9 +176,17 @@ func updatePythonLocks(ctx context.Context, resolution Resolution) (string, erro
 }
 
 func compilePythonLock(ctx context.Context, root, input, output string, indexes pythonIndexSet) (string, error) {
+	return runPythonLockCompiler(ctx, root, input, output, indexes, 0)
+}
+
+func compilePythonLockBounded(ctx context.Context, root, input, output string, indexes pythonIndexSet, maxFileBytes int64) (string, error) {
+	return runPythonLockCompiler(ctx, root, input, output, indexes, maxFileBytes)
+}
+
+func runPythonLockCompiler(ctx context.Context, root, input, output string, indexes pythonIndexSet, maxFileBytes int64) (string, error) {
 	// --only-binary :all: already forbids source builds. uv rejects combining
 	// it with the synonymous --no-build option (verified with its real parser).
-	args := []string{"pip", "compile", "--generate-hashes", "--only-binary", ":all:", "--no-config", "--python-version", "3.12", "--python-platform", "x86_64-unknown-linux-gnu", "--index-url", indexes.Primary}
+	args := []string{"pip", "compile", "--generate-hashes", "--only-binary", ":all:", "--no-cache", "--no-config", "--python-version", "3.12", "--python-platform", "x86_64-unknown-linux-gnu", "--index-url", indexes.Primary}
 	for _, index := range indexes.Extras {
 		args = append(args, "--extra-index-url", index)
 	}
@@ -179,7 +194,16 @@ func compilePythonLock(ctx context.Context, root, input, output string, indexes 
 		args = append(args, "--index-strategy", "unsafe-best-match")
 	}
 	args = append(args, "--output-file", output, input)
-	command := exec.CommandContext(ctx, "uv", args...)
+	commandName, commandArgs := "uv", args
+	if maxFileBytes > 0 {
+		prlimit, err := exec.LookPath("prlimit")
+		if err != nil {
+			return "", fmt.Errorf("bounded lock staging requires prlimit support: %w", err)
+		}
+		commandName = prlimit
+		commandArgs = append([]string{fmt.Sprintf("--fsize=%d", maxFileBytes), "--core=0", "--", "uv"}, args...)
+	}
+	command := exec.CommandContext(ctx, commandName, commandArgs...)
 	command.Dir = root
 	command.Env = overlayInstallEnvironment(os.Environ(), installEnvironmentFromContext(ctx))
 	command.WaitDelay = 5 * time.Second
@@ -228,6 +252,26 @@ func replacePythonRequirement(contents, packageName, version string) (string, er
 	}
 	if !found {
 		result = append(result, packageName+"=="+version)
+	}
+	return strings.Join(result, "\n"), nil
+}
+
+// removePythonRequirement removes one direct, pinned requirement and any
+// indented hash continuations. It is used when an approved provider package
+// replaces another distribution that installs the same import namespace.
+func removePythonRequirement(contents, packageName string) (string, error) {
+	target := pythonName(packageName)
+	lines := strings.Split(contents, "\n")
+	result := make([]string, 0, len(lines))
+	for i := 0; i < len(lines); i++ {
+		match := directPythonRequirement.FindStringSubmatch(lines[i])
+		if len(match) == 2 && pythonName(match[1]) == target {
+			for i+1 < len(lines) && (strings.HasPrefix(lines[i+1], " ") || strings.HasPrefix(lines[i+1], "\t")) {
+				i++
+			}
+			continue
+		}
+		result = append(result, lines[i])
 	}
 	return strings.Join(result, "\n"), nil
 }

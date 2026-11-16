@@ -365,3 +365,200 @@ func TestManagedServiceArtifactGovernanceStagesWithoutClaimingActivation(t *test
 		})
 	}
 }
+
+// admissionFixture builds a handler over a pnpm surface whose dependency is
+// approved, with a planner the test controls.
+func admissionFixture(t *testing.T, planner diskAdmissionPlanner) (*connectHandler, *testDiskJobBroker, *recordingInstaller) {
+	t.Helper()
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"records":[{"ecosystem":"npm","package_name":"react-hook-form","version_range":">=7.0.0 <8.0.0","state":"approved","rationale":"Approved.","allowed_surfaces":["ui"]}]}`)
+	uiDir := filepath.Join(repoRoot, "scenarios", "demo", "ui")
+	if err := os.MkdirAll(uiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(uiDir, "pnpm-lock.yaml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	broker := &testDiskJobBroker{}
+	installer := &recordingInstaller{}
+	return &connectHandler{
+		scenariosDir: func() string { return filepath.Join(repoRoot, "scenarios") },
+		installer:    installer, diskBroker: broker, diskPlanner: planner,
+	}, broker, installer
+}
+
+func installRequest(apply bool) *connect.Request[governancev1.InstallDependencyRequest] {
+	return connect.NewRequest(&governancev1.InstallDependencyRequest{
+		Scenario: "demo", Surface: "ui", Ecosystem: "npm", PackageName: "react-hook-form", Version: "7.2.0", Apply: apply,
+	})
+}
+
+func TestDryRunReturnsTheDiskAdmissionVerdictApplyWouldReturn(t *testing.T) {
+	// The evidence case: a dry run said "approved" and --apply was then denied.
+	refuse := func(context.Context, installgateway.Resolution) (installgateway.DiskAdmissionPlan, error) {
+		return installgateway.DiskAdmissionPlan{Unsupported: "Go package \"gopkg.in/yaml.v3\" is not backed by an exact repository-local module"}, nil
+	}
+	h, broker, installer := admissionFixture(t, refuse)
+	var verdicts [2]string
+	for i, apply := range []bool{false, true} {
+		resp, err := h.InstallDependency(context.Background(), installRequest(apply))
+		if err != nil {
+			t.Fatal(err)
+		}
+		msg := resp.Msg
+		if !msg.GetBlocked() || msg.GetVerdict() != "disk_admission_denied" || !strings.Contains(msg.GetMessage(), "not backed by an exact repository-local module") || len(msg.GetNextSteps()) == 0 {
+			t.Fatalf("apply=%t response = %v", apply, msg)
+		}
+		verdicts[i] = msg.GetVerdict()
+	}
+	if verdicts[0] != verdicts[1] || installer.called || len(broker.requests) != 0 {
+		t.Fatalf("dry run and apply disagree or something ran: %v installer=%t reservations=%d", verdicts, installer.called, len(broker.requests))
+	}
+}
+
+func TestDryRunWithoutBrokerIsBlockedLikeApply(t *testing.T) {
+	h, _, _ := admissionFixture(t, func(context.Context, installgateway.Resolution) (installgateway.DiskAdmissionPlan, error) {
+		return installgateway.DiskAdmissionPlan{}, nil
+	})
+	h.diskBroker = nil
+	for _, apply := range []bool{false, true} {
+		resp, err := h.InstallDependency(context.Background(), installRequest(apply))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.Msg.GetVerdict() != "disk_admission_denied" || !strings.Contains(strings.Join(resp.Msg.GetNextSteps(), " "), "capacity broker") {
+			t.Fatalf("apply=%t without a broker = %v", apply, resp.Msg)
+		}
+	}
+}
+
+func TestDryRunPreviewsAdmissionWithoutReserving(t *testing.T) {
+	var released bool
+	h, broker, installer := admissionFixture(t, func(context.Context, installgateway.Resolution) (installgateway.DiskAdmissionPlan, error) {
+		released = true
+		return installgateway.DiskAdmissionPlan{
+			Paths:     []installgateway.DiskPathRequirement{{Path: t.TempDir(), Role: "env", PeakBytes: 3 << 20}},
+			CachePath: t.TempDir(), Manager: "pnpm", Notes: []string{"tarball dependency x: https://cdn.example/x-1.0.0.tgz, lock integrity sha512-ABC"},
+		}, nil
+	})
+	resp, err := h.InstallDependency(context.Background(), installRequest(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	notes := strings.Join(resp.Msg.GetSecurityNotes(), "\n")
+	if resp.Msg.GetBlocked() || !released || !strings.Contains(notes, "disk admission (preview): peak 3.0 MiB") || !strings.Contains(notes, "sha512-ABC") {
+		t.Fatalf("preview = blocked:%t notes:\n%s", resp.Msg.GetBlocked(), notes)
+	}
+	if installer.called || len(broker.requests) != 0 {
+		t.Fatalf("a dry run reserved or installed: installer=%t reservations=%d", installer.called, len(broker.requests))
+	}
+}
+
+func TestGovernanceRefusalSkipsDiskPlanning(t *testing.T) {
+	planned := false
+	h, _, _ := admissionFixture(t, func(context.Context, installgateway.Resolution) (installgateway.DiskAdmissionPlan, error) {
+		planned = true
+		return installgateway.DiskAdmissionPlan{}, nil
+	})
+	request := installRequest(false)
+	request.Msg.Version = "9.0.0" // outside the approved range
+	resp, err := h.InstallDependency(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Msg.GetVerdict() != "out_of_range" || planned {
+		t.Fatalf("verdict=%s planned=%t; a governance refusal must not run network planning", resp.Msg.GetVerdict(), planned)
+	}
+}
+
+func TestUnrecordedRefusalOffersBothApprovalPaths(t *testing.T) {
+	// approve-observed needs observed fleet usage, so a package new to the fleet
+	// needs the plain approve verb; the refusal must name both.
+	h, _, _ := admissionFixture(t, nil)
+	request := installRequest(false)
+	request.Msg.PackageName = "brand-new-package"
+	resp, err := h.InstallDependency(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	steps := strings.Join(resp.Msg.GetNextSteps(), "\n")
+	if resp.Msg.GetVerdict() != "unrecorded" || !strings.Contains(steps, "approve-observed npm/brand-new-package") || !strings.Contains(steps, "deps approved approve npm/brand-new-package --range") {
+		t.Fatalf("unrecorded next steps = %q", steps)
+	}
+}
+
+func TestInstallAcceptsEcosystemAliasesForGovernanceAndResolution(t *testing.T) {
+	h, _, _ := admissionFixture(t, func(context.Context, installgateway.Resolution) (installgateway.DiskAdmissionPlan, error) {
+		return installgateway.DiskAdmissionPlan{Paths: []installgateway.DiskPathRequirement{{Path: t.TempDir(), Role: "env", PeakBytes: 1}}, CachePath: t.TempDir()}, nil
+	})
+	request := installRequest(false)
+	request.Msg.Ecosystem = "javascript"
+	resp, err := h.InstallDependency(context.Background(), request)
+	if err != nil {
+		t.Fatalf("javascript alias: %v", err)
+	}
+	if resp.Msg.GetBlocked() || resp.Msg.GetPackageManager() != "pnpm" {
+		t.Fatalf("javascript alias response = %v", resp.Msg)
+	}
+}
+
+// A shared package is recorded once as file:../../../packages/x, the spelling a
+// scenario UI uses. packages/file-viewer reaches its sibling as
+// file:../react-component-library; both name the same package.
+func TestInstallRecognisesASharedPackageDeclaredFromAnotherDepth(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRegistry(t, repoRoot, `{"records":[{"ecosystem":"npm","package_name":"@vrooli/react-component-library","version_range":"file:../../../packages/react-component-library","range_policy":"exact","state":"approved","rationale":"Shared package.","allowed_surfaces":["ui","tools/file-viewer"]}]}`)
+	for _, dir := range []string{"packages/file-viewer", "packages/react-component-library", "scenarios/demo/ui"} {
+		if err := os.MkdirAll(filepath.Join(repoRoot, dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(repoRoot, "packages", "file-viewer", "pnpm-lock.yaml"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(repoRoot, "scenarios") }, installer: &recordingInstaller{}})
+	for _, test := range []struct {
+		name, version string
+		blocked       bool
+	}{
+		{"the sibling spelling", "file:../react-component-library", false},
+		{"another package", "file:../other", true},
+	} {
+		resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
+			Scenario: "demo", Surface: "tools/file-viewer", Ecosystem: "npm", PackageName: "@vrooli/react-component-library", Version: test.version,
+		}))
+		if err != nil {
+			t.Fatalf("%s: %v", test.name, err)
+		}
+		if resp.Msg.GetBlocked() != test.blocked {
+			t.Errorf("%s: blocked=%t verdict=%s message=%s", test.name, resp.Msg.GetBlocked(), resp.Msg.GetVerdict(), resp.Msg.GetMessage())
+		}
+	}
+}
+
+func TestOverrideSelectorMustNameThePackageBeingGoverned(t *testing.T) {
+	root := t.TempDir()
+	writeRegistry(t, root, `{"records":[{"ecosystem":"npm","package_name":"brace-expansion","version_range":">=1.1.18","state":"approved","rationale":"fixture"}]}`)
+	dir := filepath.Join(root, "scenarios", "demo", "ui")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, body := range map[string]string{"package.json": `{"name":"fixture"}`, "pnpm-lock.yaml": ""} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	installer := &recordingInstaller{}
+	h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer})
+	for selector, ok := range map[string]bool{"minimatch@3>brace-expansion": true, "brace-expansion@1": true, "minimatch@3>left-pad": false, "brace-expansion;x": false} {
+		_, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
+			Scenario: "demo", Surface: "ui", Ecosystem: "npm", PackageName: "brace-expansion", Version: "override:1.1.21", OverrideSelector: selector,
+		}))
+		if (err == nil) != ok {
+			t.Errorf("selector %q: err = %v, want accepted=%v", selector, err, ok)
+		}
+	}
+	if installer.called {
+		t.Fatal("previews never install")
+	}
+}

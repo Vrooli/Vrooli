@@ -227,7 +227,7 @@ func (r reconcileReport) err() error {
 }
 
 func reconcileUsage() error {
-	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --module <dir> | --all | --all-modules) [--surface api|cli|ui] [--apply | --check] [--json]", support.AppName)
+	return usageError("deps reconcile")
 }
 
 func discoverBuildableModules() (map[string]string, error) {

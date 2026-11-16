@@ -1,7 +1,14 @@
 package installgateway
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/sha512"
+	"encoding/base64"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -49,25 +56,114 @@ func TestPlanDiskAdmissionRefusesUnboundedInstallProfiles(t *testing.T) {
 	}
 }
 
-func TestPlanDiskAdmissionRefusesNonemptyNpmDependencyClosure(t *testing.T) {
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"name":"fixture","dependencies":{"old":"1.0.0"}}`), 0o600); err != nil {
-		t.Fatal(err)
+func TestProbePnpmArchiveSizeUsesBoundedRangeFallback(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/redirect" {
+			http.Redirect(w, r, "/package.tgz", http.StatusTemporaryRedirect)
+			return
+		}
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if got := r.Header.Get("Range"); got != "bytes=0-0" {
+			t.Errorf("Range header = %q, want bytes=0-0", got)
+		}
+		w.Header().Set("Content-Range", "bytes 0-0/123456")
+		w.WriteHeader(http.StatusPartialContent)
+		_, _ = w.Write([]byte{0})
+	}))
+	defer server.Close()
+
+	size, err := probePnpmArchiveSize(context.Background(), noRedirectClient(server.Client()), server.URL+"/redirect", server.Listener.Addr().String(), func() error { return nil }, func(int) error { return nil })
+	if err != nil || size != 123456 {
+		t.Fatalf("bounded range probe size=%d err=%v, want size 123456", size, err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "package-lock.json"), []byte(`{"lockfileVersion":3,"packages":{"":{"dependencies":{"old":"1.0.0"}},"node_modules/old":{"version":"1.0.0"}}}`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	plan, err := PlanDiskAdmission(context.Background(), Resolution{
-		SurfaceRoot: root, ManifestPath: filepath.Join(root, "package.json"), PackageManager: "npm",
-		PackageName: "new-leaf", Argv: []string{"npm", "install", "--ignore-scripts", "new-leaf@1.2.3"},
-		Profile: InstallProfile{LifecycleMode: "scripts-disabled-by-default"},
+}
+
+func TestProbePnpmArchiveSizeRefusesIgnoredRangeAndOffRegistryRedirect(t *testing.T) {
+	t.Run("ignored range", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodHead {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			_, _ = w.Write([]byte("full archive"))
+		}))
+		defer server.Close()
+		_, err := probePnpmArchiveSize(context.Background(), noRedirectClient(server.Client()), server.URL+"/package.tgz", server.Listener.Addr().String(), func() error { return nil }, func(int) error { return nil })
+		if err == nil || !strings.Contains(err.Error(), "did not honor") {
+			t.Fatalf("ignored range error = %v, want bounded fail-closed refusal", err)
+		}
 	})
+
+	t.Run("off registry redirect", func(t *testing.T) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "https://registry.attacker.example/package.tgz", http.StatusFound)
+		}))
+		defer server.Close()
+		_, err := probePnpmArchiveSize(context.Background(), noRedirectClient(server.Client()), server.URL+"/package.tgz", server.Listener.Addr().String(), func() error { return nil }, func(int) error { return nil })
+		if err == nil || !strings.Contains(err.Error(), "redirected outside") {
+			t.Fatalf("off-registry redirect error = %v, want registry refusal", err)
+		}
+	})
+}
+
+func TestProbePnpmArchiveContentMeasuresAndVerifiesBoundedTarball(t *testing.T) {
+	archive := testPnpmArchive(t, "payload", "drawer action labels")
+	digest := sha512.Sum512(archive)
+	integrity := "sha512-" + base64.StdEncoding.EncodeToString(digest[:])
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("request method = %s, want GET", r.Method)
+		}
+		_, _ = w.Write(archive)
+	}))
+	defer server.Close()
+	client := noRedirectClient(server.Client())
+	got, err := probePnpmArchiveContent(context.Background(), client, server.URL+"/package.tgz", server.Listener.Addr().String(), integrity)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(plan.Unsupported, "already declares dependencies") || len(plan.Paths) != 0 {
-		t.Fatalf("plan = %+v, want fail-closed for existing npm dependency closure", plan)
+	if !bytes.Equal(got, archive) {
+		t.Fatal("archive probe changed bytes")
 	}
+	size, err := measurePnpmArchive(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != int64(len("drawer action labels")) {
+		t.Fatalf("unpacked size = %d, want %d", size, len("drawer action labels"))
+	}
+	if _, err := probePnpmArchiveContent(context.Background(), client, server.URL+"/package.tgz", server.Listener.Addr().String(), "sha512-invalid"); err == nil {
+		t.Fatal("archive with mismatched integrity was accepted")
+	}
+}
+
+func testPnpmArchive(t *testing.T, name, content string) []byte {
+	t.Helper()
+	var archive bytes.Buffer
+	gz := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gz)
+	if err := tarWriter.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(content)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tarWriter.Write([]byte(content)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return archive.Bytes()
+}
+
+func noRedirectClient(client *http.Client) *http.Client {
+	copy := *client
+	copy.CheckRedirect = func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }
+	return &copy
 }
 
 func TestPlanDiskAdmissionBoundsApprovedLocalYtDlpWheel(t *testing.T) {
@@ -136,5 +232,36 @@ func TestResolveUsesSurfaceScopedYtDlpWheelOnlyForApprovedPin(t *testing.T) {
 	}
 	if unapproved.PackageManager != "pip" {
 		t.Fatalf("unapproved yt-dlp pin unexpectedly resolved to the local wheel route: %+v", unapproved)
+	}
+}
+
+func TestPlanDiskAdmissionAdmitsTemplateDeclarationsWithALockOnlyAllowance(t *testing.T) {
+	// Template installs regenerate a lockfile in a temporary scenario-shaped
+	// surface and install nothing; they were refused for lack of a size probe.
+	for _, manager := range []string{"pnpm", "npm"} {
+		repo := t.TempDir()
+		root := filepath.Join(repo, "scenarios", "scenario-to-desktop", "templates", "vanilla")
+		if err := os.MkdirAll(root, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		plan, err := PlanDiskAdmission(context.Background(), Resolution{
+			RepositoryRoot: repo, SurfaceRoot: root, ManifestPath: filepath.Join(root, "package.json"), PackageManager: manager,
+			PackageName: "electron", TemplateVersion: "42.0.0", ExactVersion: true,
+			Argv:    []string{manager, "install", "--ignore-scripts", "electron@42.0.0"},
+			Profile: InstallProfile{LifecycleMode: "scripts-disabled-by-default"},
+		})
+		if err != nil || plan.Unsupported != "" || plan.JSStage != nil {
+			t.Fatalf("%s template plan = %+v, %v", manager, plan, err)
+		}
+		var staging, total int64
+		for _, path := range plan.Paths {
+			total += path.PeakBytes
+			if path.Role == "template-install-staging-and-cache" {
+				staging = path.PeakBytes
+			}
+		}
+		if staging < templateLockOnlyBytes || total > DiskJobPlanningCeilingBytes {
+			t.Fatalf("%s template reservation staging=%d total=%d", manager, staging, total)
+		}
 	}
 }

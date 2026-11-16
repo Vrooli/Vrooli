@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 	"golang.org/x/mod/modfile"
 )
 
@@ -336,4 +337,32 @@ func cloneToolchain(value *modfile.Toolchain) *modfile.Toolchain {
 	clone := *value
 	clone.Syntax = nil
 	return &clone
+}
+
+func TestParseRemoveSpecsAcceptsOneEcosystemOfPackageNames(t *testing.T) {
+	ecosystem, names, err := parseRemoveSpecs([]string{"npm/three", "npm/@types/three"})
+	if err != nil || ecosystem != "npm" || !reflect.DeepEqual(names, []string{"three", "@types/three"}) {
+		t.Fatalf("got %q %v %v", ecosystem, names, err)
+	}
+	for _, specs := range [][]string{{"three"}, {"npm/"}, {"npm/three", "go/example.com/x"}} {
+		if _, _, err := parseRemoveSpecs(specs); err == nil {
+			t.Errorf("%v must be refused", specs)
+		}
+	}
+}
+
+func TestRemoveOutcomeIsNonZeroForARefusalOrAFailedRemoval(t *testing.T) {
+	for _, msg := range []*governancev1.RemoveDependencyResponse{
+		{DryRun: true, Blocked: true, Verdict: "removal_blocked"},
+		{Verdict: "removal_failed"},
+	} {
+		if err := removeOutcome(msg); err == nil {
+			t.Errorf("%v must be a failing outcome", msg)
+		}
+	}
+	for _, msg := range []*governancev1.RemoveDependencyResponse{{DryRun: true}, {Removed: true}, {SourceUpdated: true}} {
+		if err := removeOutcome(msg); err != nil {
+			t.Errorf("%v: %v", msg, err)
+		}
+	}
 }

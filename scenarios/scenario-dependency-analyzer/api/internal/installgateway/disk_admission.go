@@ -51,11 +51,28 @@ type DiskAdmissionPlan struct {
 	PythonWheelBytes  int64
 	PythonTarget      string
 	PythonStage       string
-	GoSourceBytes     int64
 	GoArchiveBytes    int64
 	GoExpandedBytes   int64
 	GoModuleCount     int64
+	// WritesInputsOnly is set when apply downloads nothing and writes no package
+	// store: it changes manifests, lockfiles and module-cache bookkeeping only (a
+	// JavaScript change whose link is skipped, a Go install whose modules are
+	// all cached or used in place). The capacity owner admits such a plan as a
+	// bounded metadata job instead of holding it to the install-sized floor.
+	WritesInputsOnly bool
+	// JSStage is the resolved, unpublished pnpm change that admission sized.
+	// Apply publishes exactly this stage; every caller must Release the plan.
+	JSStage *JSStage
+	// PythonStage is the bounded wheel-lock resolution that apply publishes.
+	PythonLockStage *PythonLockStage
+	JS              JSMeasurement
+	// Notes are reviewer-facing facts discovered while planning.
+	Notes []string
 }
+
+// Release frees resources a plan holds (staged JavaScript or Python resolution).
+// It is safe to call more than once and on a plan that holds nothing.
+func (p DiskAdmissionPlan) Release() { p.JSStage.Release(); p.PythonLockStage.Release() }
 
 type installEnvironmentContextKey struct{}
 
@@ -75,7 +92,9 @@ func managerCacheEnvironment(manager, cachePath, buildCachePath string) []string
 	var env []string
 	switch manager {
 	case "npm":
-		env = append(env, "npm_config_cache="+cachePath, "npm_config_registry=https://registry.npmjs.org/", "npm_config_userconfig="+os.DevNull, "npm_config_globalconfig="+os.DevNull)
+		// npm refuses to load one file as both the user and the global config, so
+		// the global slot gets its own empty file.
+		env = append(env, "npm_config_cache="+cachePath, "npm_config_registry=https://registry.npmjs.org/", "npm_config_userconfig="+os.DevNull, "npm_config_globalconfig="+emptyNpmGlobalConfig())
 	case "pnpm":
 		env = append(env, "npm_config_store_dir="+cachePath, "npm_config_registry=https://registry.npmjs.org/", "npm_config_userconfig="+os.DevNull, "npm_config_globalconfig="+os.DevNull)
 	case "yarn":
@@ -114,6 +133,17 @@ func managerCacheEnvironment(manager, cachePath, buildCachePath string) []string
 	return env
 }
 
+// emptyNpmGlobalConfig returns the path of a shared, empty npmrc used to
+// neutralize npm's global configuration.
+func emptyNpmGlobalConfig() string {
+	path := filepath.Join(os.TempDir(), "sda-empty-npmrc")
+	if info, err := os.Lstat(path); err == nil && info.Mode().IsRegular() {
+		return path
+	}
+	_ = os.WriteFile(path, nil, 0o644)
+	return path
+}
+
 func overlayInstallEnvironment(base, overlay []string) []string {
 	if len(overlay) == 0 {
 		return base
@@ -138,6 +168,21 @@ func overlayInstallEnvironment(base, overlay []string) []string {
 // exposed as a deterministic path; callers must fail closed instead of
 // running that profile with a partial reservation.
 func PlanDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, error) {
+	plan, err := planDiskAdmission(ctx, r)
+	if err != nil {
+		plan.Release()
+		return DiskAdmissionPlan{}, err
+	}
+	if plan.Unsupported != "" {
+		// A refused plan is never applied, so its staged resolution is waste.
+		plan.Release()
+		plan.JSStage = nil
+		plan.PythonLockStage = nil
+	}
+	return plan, nil
+}
+
+func planDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, error) {
 	if strings.TrimSpace(r.SurfaceRoot) == "" {
 		return DiskAdmissionPlan{}, fmt.Errorf("disk admission requires a resolved surface root")
 	}
@@ -155,11 +200,45 @@ func PlanDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, er
 		return planYtDlpLocalWheel(ctx, r)
 	}
 
-	cache, err := managerCachePath(r.PackageManager, home)
-	if err != nil {
-		return DiskAdmissionPlan{}, err
+	plan := DiskAdmissionPlan{Manager: r.PackageManager}
+	if r.PackageManager == "uv-lock" {
+		stage, stageErr := stagePythonLocks(ctx, r)
+		if stageErr != nil {
+			plan.Unsupported = stageErr.Error()
+			return plan, nil
+		}
+		plan.PythonLockStage = stage
+		plan.WritesInputsOnly = true
+		plan.ProbeBytes = pythonLockStagePeakBytes
+		plan.Paths = []DiskPathRequirement{{Path: r.SurfaceRoot, Role: "python-lock-resolution-and-publication-stage", PeakBytes: pythonLockStagePeakBytes}}
+		return plan, nil
 	}
-	plan := DiskAdmissionPlan{CachePath: cache, Manager: r.PackageManager}
+	var cache string
+	staged := stagedJSInstall(r)
+	if staged {
+		// The manager resolves into a staging copy first; the same resolution
+		// supplies the size admission needs, and for pnpm the store the install
+		// will link against.
+		stage, stageErr := stageJSResolution(ctx, r)
+		if stageErr != nil {
+			plan.Unsupported = stageErr.Error()
+			return plan, nil
+		}
+		plan.JSStage = stage
+		plan.WritesInputsOnly = stage.LinkSkipped != ""
+		plan.Notes = append(plan.Notes, stage.Notes...)
+		if r.PackageManager == "pnpm" {
+			cache = stage.store.Base
+		} else if cache, err = managerCachePath(r.PackageManager, home); err != nil {
+			return DiskAdmissionPlan{}, err
+		}
+	} else {
+		var cacheErr error
+		if cache, cacheErr = managerCachePath(r.PackageManager, home); cacheErr != nil {
+			return DiskAdmissionPlan{}, cacheErr
+		}
+	}
+	plan.CachePath = cache
 	if r.PackageManager == "go" {
 		plan.BuildCachePath = managerBuildCachePath(r.PackageManager, home)
 	} else if r.PackageManager == "cargo" {
@@ -179,11 +258,14 @@ func PlanDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, er
 			plan.Unsupported = err.Error()
 			return plan, nil
 		}
-		plan.GoSourceBytes = probe.SourceBytes
 		plan.GoArchiveBytes = probe.ArchiveBytes
 		plan.GoExpandedBytes = probe.ExpandedBytes
 		plan.GoModuleCount = probe.ModuleCount
-		probeBytes = probe.SourceBytes + probe.ArchiveBytes + probe.ExpandedBytes + probe.MetadataBytes
+		plan.WritesInputsOnly = probe.ArchiveBytes == 0 && probe.ExpandedBytes == 0
+		probeBytes = probe.ArchiveBytes + probe.ExpandedBytes + probe.MetadataBytes
+	} else if staged {
+		plan.JS = plan.JSStage.Measured
+		probeBytes = plan.JS.ProbeBytes
 	} else {
 		var probeErr error
 		probeBytes, probeErr = probePackageGrowth(ctx, r)
@@ -209,6 +291,11 @@ func PlanDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, er
 		buildPeak = goBuildCacheFloorBytes
 		if probeBytes > goBuildCacheFloorBytes/2 {
 			buildPeak = probeBytes * 2
+		}
+		if plan.WritesInputsOnly {
+			// go get loads packages and rewrites go.mod and go.sum; with nothing to
+			// fetch it compiles nothing, so the build cache sees only bookkeeping.
+			buildPeak = goInputsOnlyBuildAllowance
 		}
 	}
 	if envPeak+cachePeak+tempPeak+buildPeak > DiskJobPlanningCeilingBytes {
@@ -252,13 +339,27 @@ func PlanDiskAdmission(ctx context.Context, r Resolution) (DiskAdmissionPlan, er
 			if err := add(filepath.Join(r.RepositoryRoot, "scenarios"), "template-install-staging-and-cache", envPeak); err != nil {
 				return DiskAdmissionPlan{}, err
 			}
-		} else if err := add(r.SurfaceRoot, "package-environment-and-staging", envPeak); err != nil {
+		} else {
+			role := "package-environment-and-staging"
+			if r.PackageManager == "pnpm" || r.PackageManager == "npm" {
+				role = r.PackageManager + "-package-environment-and-lockfile-staging"
+			}
+			if err := add(r.SurfaceRoot, role, envPeak); err != nil {
+				return DiskAdmissionPlan{}, err
+			}
+		}
+		cacheRole := "package-manager-cache"
+		if r.PackageManager == "pnpm" {
+			cacheRole = "pnpm-content-addressable-store"
+		}
+		if err := add(cache, cacheRole, cachePeak); err != nil {
 			return DiskAdmissionPlan{}, err
 		}
-		if err := add(cache, "package-manager-cache", cachePeak); err != nil {
-			return DiskAdmissionPlan{}, err
+		tempRole := "package-download-and-unpack-temp"
+		if r.PackageManager == "pnpm" || r.PackageManager == "npm" {
+			tempRole = r.PackageManager + "-download-and-unpack-temp"
 		}
-		if err := add(os.TempDir(), "package-download-and-unpack-temp", tempPeak); err != nil {
+		if err := add(os.TempDir(), tempRole, tempPeak); err != nil {
 			return DiskAdmissionPlan{}, err
 		}
 		if r.PackageManager == "go" {
@@ -469,10 +570,20 @@ func probeYtDlpWheel(ctx context.Context) (ytDlpWheelMetadata, string, error) {
 	return *selected, python, nil
 }
 
-// probePackageGrowth performs a bounded, non-mutating npm registry metadata
-// request. It admits only exact, dependency-free packages with a published
-// unpacked size. Other ecosystems and dependency closures need their owner to
-// provide an equivalent deterministic probe before they can be applied.
+// templateLockOnlyBytes is the allowance for a template declaration: the
+// lock-only resolution writes registry metadata to the package manager's cache
+// and a regenerated lockfile, but installs no packages.
+const templateLockOnlyBytes int64 = 256 << 20
+
+// stagedJSInstall reports whether a request is a direct pnpm or npm
+// dependency change that is resolved in a staging copy and sized from its
+// resolved lock. Template declarations and host tools take other routes.
+func stagedJSInstall(r Resolution) bool {
+	return (r.PackageManager == "pnpm" || r.PackageManager == "npm") && r.TemplateVersion == "" && !r.HostTool && !r.HostToolRefresh && !r.HostSource
+}
+
+// probePackageGrowth bounds the install shapes that are not staged. Everything
+// it does not recognize is refused with the reason, never guessed.
 func probePackageGrowth(ctx context.Context, r Resolution) (int64, error) {
 	if r.Profile.LifecycleMode != "native-governed" && r.Profile.LifecycleMode != "scripts-disabled-by-default" {
 		return 0, fmt.Errorf("install lifecycle %q has no bounded size probe", r.Profile.LifecycleMode)
@@ -486,184 +597,10 @@ func probePackageGrowth(ctx context.Context, r Resolution) (int64, error) {
 	if r.PackageManager == "uv-lock" || r.PackageManager == "uv" || r.PackageManager == "poetry" {
 		return 0, fmt.Errorf("Python resolver may rewrite or resolve a transitive lock closure; bounded full-closure size is unavailable")
 	}
-	if r.HostTool || r.HostToolRefresh || r.HostSource || r.TemplateVersion != "" || r.PackageManager != "npm" {
-		return 0, fmt.Errorf("%s install has no bounded package size probe", r.PackageManager)
+	if r.TemplateVersion != "" && (r.PackageManager == "pnpm" || r.PackageManager == "npm") && !r.HostTool && !r.HostToolRefresh && !r.HostSource {
+		return templateLockOnlyBytes, nil
 	}
-	if err := validateEmptyNpmInstallSurface(r); err != nil {
-		return 0, err
-	}
-	version := strings.TrimSpace(r.HostToolTargetVersion)
-	for i := len(r.Argv) - 1; i >= 0; i-- {
-		arg := strings.TrimSpace(r.Argv[i])
-		if strings.HasPrefix(arg, r.PackageName+"@") {
-			version = strings.TrimPrefix(arg, r.PackageName+"@")
-			break
-		}
-	}
-	if !exactNpmVersion.MatchString(version) {
-		return 0, fmt.Errorf("install requires an exact package version for a bounded metadata probe")
-	}
-	if err := validateNpmRegistryFiles(r.SurfaceRoot); err != nil {
-		return 0, err
-	}
-	for _, item := range os.Environ() {
-		key, value, ok := strings.Cut(item, "=")
-		lowerKey := strings.ToLower(key)
-		if !ok || !strings.HasPrefix(lowerKey, "npm_config_") || !strings.Contains(lowerKey, "registry") {
-			continue
-		}
-		configured, parseErr := url.Parse(strings.TrimSpace(value))
-		if parseErr != nil || configured.Scheme != "https" || configured.Host != "registry.npmjs.org" || configured.User != nil {
-			return 0, fmt.Errorf("custom npm registry environment setting cannot be covered by the approved bounded size probe")
-		}
-	}
-	registry := strings.TrimSpace(os.Getenv("npm_config_registry"))
-	if registry == "" {
-		registry = strings.TrimSpace(os.Getenv("NPM_CONFIG_REGISTRY"))
-	}
-	if registry == "" {
-		registry = "https://registry.npmjs.org"
-	}
-	parsed, err := url.Parse(registry)
-	if err != nil || parsed.Scheme != "https" || parsed.Host != "registry.npmjs.org" || parsed.User != nil {
-		return 0, fmt.Errorf("package registry is not the approved public HTTPS registry; refusing an unbounded probe")
-	}
-	endpoint := strings.TrimRight(registry, "/") + "/" + url.PathEscape(r.PackageName) + "/" + url.PathEscape(version)
-	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	request, err := http.NewRequestWithContext(probeCtx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return 0, err
-	}
-	request.Header.Set("Accept", "application/vnd.npm.install-v1+json")
-	client := &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}
-	response, err := client.Do(request)
-	if err != nil {
-		return 0, fmt.Errorf("bounded package metadata probe failed: %w", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return 0, fmt.Errorf("bounded package metadata probe returned HTTP %d", response.StatusCode)
-	}
-	const maxProbeBytes = 1 << 20
-	body, err := io.ReadAll(io.LimitReader(response.Body, maxProbeBytes+1))
-	if err != nil || len(body) > maxProbeBytes {
-		return 0, fmt.Errorf("package metadata probe exceeded its 1 MiB response limit")
-	}
-	var metadata struct {
-		Name, Version                                        string
-		Dependencies, OptionalDependencies, PeerDependencies map[string]string
-		Dist                                                 struct {
-			UnpackedSize int64  `json:"unpackedSize"`
-			Tarball      string `json:"tarball"`
-		} `json:"dist"`
-	}
-	if err := json.Unmarshal(body, &metadata); err != nil {
-		return 0, fmt.Errorf("decode bounded package metadata: %w", err)
-	}
-	if metadata.Name != r.PackageName || metadata.Version != version || metadata.Dist.UnpackedSize <= 0 || metadata.Dist.Tarball == "" {
-		return 0, fmt.Errorf("package metadata did not include a matching version, tarball, and positive unpacked size")
-	}
-	if len(metadata.Dependencies)+len(metadata.OptionalDependencies)+len(metadata.PeerDependencies) != 0 {
-		return 0, fmt.Errorf("package metadata has transitive or peer dependencies; bounded closure sizing is unavailable")
-	}
-	if metadata.Dist.UnpackedSize > DiskJobPlanningCeilingBytes/3 {
-		return 0, fmt.Errorf("package unpacked size exceeds the bounded per-job planning ceiling")
-	}
-	// Reserve two unpacked copies for install environment/staging and one
-	// unpacked copy plus compressed tarball for the package cache. The archive
-	// itself is never downloaded by this probe.
-	archiveURL, err := url.Parse(metadata.Dist.Tarball)
-	if err != nil || archiveURL.Scheme != "https" || archiveURL.Host != "registry.npmjs.org" {
-		return 0, fmt.Errorf("package metadata tarball is outside the approved HTTPS registry")
-	}
-	headCtx, headCancel := context.WithTimeout(ctx, 5*time.Second)
-	defer headCancel()
-	headRequest, err := http.NewRequestWithContext(headCtx, http.MethodHead, archiveURL.String(), nil)
-	if err != nil {
-		return 0, err
-	}
-	headResponse, err := client.Do(headRequest)
-	if err != nil {
-		return 0, fmt.Errorf("bounded package archive size probe failed: %w", err)
-	}
-	defer headResponse.Body.Close()
-	archiveBytes := headResponse.ContentLength
-	if headResponse.StatusCode < 200 || headResponse.StatusCode >= 300 || archiveBytes <= 0 || archiveBytes > DiskJobPlanningCeilingBytes/3 {
-		return 0, fmt.Errorf("package tarball size is unavailable or exceeds the bounded probe limit")
-	}
-	return metadata.Dist.UnpackedSize + archiveBytes, nil
-}
-
-// validateEmptyNpmInstallSurface makes the metadata probe's direct package
-// size a complete install closure: existing dependency trees and populated
-// node_modules would let npm reify additional bytes that the probe did not
-// measure, so those surfaces are refused until the owner can size their lock
-// closure.
-func validateEmptyNpmInstallSurface(r Resolution) error {
-	surfaceInfo, err := os.Lstat(r.SurfaceRoot)
-	if err != nil || !surfaceInfo.IsDir() || surfaceInfo.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("npm surface root is unavailable or linked")
-	}
-	manifestData, err := readRegularBounded(r.ManifestPath, 1<<20)
-	if err != nil {
-		return fmt.Errorf("npm manifest is unavailable, linked, or exceeds the 1 MiB bounded admission limit: %w", err)
-	}
-	var manifest struct {
-		Dependencies    map[string]string `json:"dependencies"`
-		DevDependencies map[string]string `json:"devDependencies"`
-		Optional        map[string]string `json:"optionalDependencies"`
-		Peer            map[string]string `json:"peerDependencies"`
-		Workspaces      json.RawMessage   `json:"workspaces"`
-	}
-	if err := json.Unmarshal(manifestData, &manifest); err != nil {
-		return fmt.Errorf("decode npm manifest for bounded install sizing: %w", err)
-	}
-	if len(manifest.Dependencies)+len(manifest.DevDependencies)+len(manifest.Optional)+len(manifest.Peer) != 0 {
-		return fmt.Errorf("npm surface already declares dependencies; complete lock closure sizing is unavailable")
-	}
-	workspaces := strings.TrimSpace(string(manifest.Workspaces))
-	if workspaces != "" && workspaces != "null" && workspaces != "[]" {
-		return fmt.Errorf("npm workspace installs can modify multiple surfaces beyond the bounded disk plan")
-	}
-	lockPath := filepath.Join(r.SurfaceRoot, "package-lock.json")
-	lockData, err := readRegularBounded(lockPath, 1<<20)
-	if err != nil {
-		return fmt.Errorf("npm package-lock is unavailable, linked, or exceeds the 1 MiB bounded admission limit: %w", err)
-	}
-	if _, err := os.Lstat(filepath.Join(r.SurfaceRoot, "npm-shrinkwrap.json")); err == nil {
-		return fmt.Errorf("npm shrinkwrap takes precedence over the sized package-lock and is not admitted")
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("inspect npm shrinkwrap path: %w", err)
-	}
-	var lock struct {
-		Packages     map[string]json.RawMessage `json:"packages"`
-		Dependencies map[string]json.RawMessage `json:"dependencies"`
-	}
-	if err := json.Unmarshal(lockData, &lock); err != nil {
-		return fmt.Errorf("decode npm lockfile for bounded install sizing: %w", err)
-	}
-	for packagePath := range lock.Packages {
-		if packagePath != "" {
-			return fmt.Errorf("npm lockfile already contains packages; complete reification peak sizing is unavailable")
-		}
-	}
-	if len(lock.Dependencies) != 0 {
-		return fmt.Errorf("npm lockfile already contains packages; complete reification peak sizing is unavailable")
-	}
-	nodeModules := filepath.Join(r.SurfaceRoot, "node_modules")
-	info, err := os.Lstat(nodeModules)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("npm node_modules path is not a plain directory")
-	}
-	entries, err := os.ReadDir(nodeModules)
-	if err != nil || len(entries) != 0 {
-		return fmt.Errorf("npm node_modules is populated; complete reification peak sizing is unavailable")
-	}
-	return nil
+	return 0, fmt.Errorf("%s install has no bounded package size probe", r.PackageManager)
 }
 
 func readRegularBounded(path string, limit int64) ([]byte, error) {
