@@ -34,6 +34,7 @@ Persisted run events are the source of truth. WebSocket delivery is an optimizat
 - SQLite sequence allocation is protected by a write transaction, so one run's events receive unique contiguous sequence numbers even under concurrent appenders.
 - `sequence` is the canonical ordering field within a run. Clients should use timestamp only as a defensive tie-breaker for malformed data.
 - `GET /api/v1/runs/{id}/events?after_sequence=N` is the canonical gap-fill API and returns events with `sequence > N`.
+- `GET /api/v1/runs/{id}/events/metadata?after_sequence=N&limit=100` returns a bounded metadata-only page for caller-corpus joins. It carries immutable event/run IDs, sequence, timestamp, event type, and allowlisted scalar role/source/request/consumer/policy/model/capacity metadata. The event payload is never returned; use this route for discovery and joins, not transcript display.
 - Clients should dedupe by event ID first and sequence second when merging REST gap-fill with live WebSocket delivery.
 
 ## Event Types

@@ -103,6 +103,42 @@ func TestDecisionRaiseDryRunContactsNoServerAndWritesNothing(t *testing.T) {
 	}
 }
 
+func TestDecisionRaiseSendsTheAgentsOwnPageOrALaidOutOne(t *testing.T) {
+	home := copyBASGoalHome(t, nil)
+	pagePath := filepath.Join(t.TempDir(), "page.html")
+	ownPage := "<h1>Two ways to finish the browser studio goal</h1><table><tr><td>Quality</td><td>4 of 9 checks pass</td></tr></table>"
+	if err := os.WriteFile(pagePath, []byte(ownPage), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args := []string{
+		"decision", "raise", home, "--home-ref", basGoalHomeRef, "--id", "BAS-D-070", "--question", "Close the BAS goal or re-aim at quality?",
+		"--option", "re-aim=Re-aim at quality", "--option", "close=Close the goal", "--recommend", "re-aim",
+	}
+	services, server := decisionServer(t, decisionFixture(effortdecision.Pending, "", "", "", time.Time{}))
+	if output, code := runEffort(t, &App{services: services}, append(args, "--explainer", pagePath)...); code != 0 {
+		t.Fatalf("raise with a page failed (exit %d):\n%s", code, output)
+	}
+	var stored pb.RaiseEffortDecisionRequest
+	for _, request := range server.Requests() {
+		if request.Path == apiconnect.AgentManagerServiceRaiseEffortDecisionProcedure {
+			if err := protojson.Unmarshal([]byte(request.Body), &stored); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if got := stored.GetDecision().GetExplainerHtml(); got != ownPage {
+		t.Fatalf("the agent's page must reach the record unchanged, got %q", got)
+	}
+
+	output, code := runEffort(t, &App{services: services}, append(args, "--dry-run")...)
+	if code != 0 || !strings.Contains(output, "laid out from the texts") || strings.Contains(output, "<h1") {
+		t.Fatalf("without --explainer the dry run must summarise the generated page, not print it (exit %d):\n%s", code, output)
+	}
+	if _, code := runEffort(t, &App{services: services}, append(args, "--explainer", filepath.Join(home, goalhome.StatusFile))...); code == 0 {
+		t.Fatal("a page that is not an .html file must be refused")
+	}
+}
+
 func TestDecisionRaiseAddsTheNeedsOperatorItemOnce(t *testing.T) {
 	home := copyBASGoalHome(t, nil)
 	services, _ := decisionServer(t, decisionFixture(effortdecision.Pending, "", "", "", time.Time{}))

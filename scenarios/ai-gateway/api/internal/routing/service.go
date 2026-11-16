@@ -33,6 +33,23 @@ type Service struct {
 	resolver      AttachmentResolver
 	clock         func() time.Time
 	rightsContext RightsContextSource
+	consent       RemoteConsentVerifier
+}
+
+const (
+	failureReasonAdapterMissing = "adapter.not_configured"
+	failureReasonRoleResolve    = "provider.role_resolution_failed"
+	failureReasonProfile        = "policy.profile_rejected"
+	failureReasonRights         = "policy.local_rights_rejected"
+	failureReasonSampling       = "policy.sampling_unsupported"
+	failureReasonCapacity       = "capacity.admission_unverified"
+	failureReasonExecute        = "provider.execution_failed"
+	failureReasonNoProvider     = "route.no_eligible_provider"
+	failureReasonUnknown        = "provider.failure"
+)
+
+type RemoteConsentVerifier interface {
+	Verify(context.Context, string, string) error
 }
 
 // Option configures optional Service collaborators without breaking callers
@@ -80,6 +97,10 @@ func WithClock(clock func() time.Time) Option {
 // Nil or unreadable sources fail closed for local model candidates.
 func WithRightsContextSource(source RightsContextSource) Option {
 	return func(s *Service) { s.rightsContext = source }
+}
+
+func WithRemoteConsentVerifier(verifier RemoteConsentVerifier) Option {
+	return func(s *Service) { s.consent = verifier }
 }
 
 func NewService(adapters []providers.Adapter, repo Repository, opts ...Option) *Service {
@@ -273,7 +294,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 
 	plan := s.plan(ctx, req)
 	if plan.selectedProvider == "" {
-		ev := s.evidence(req, plan, "blocked", time.Since(started), false, []string{"no eligible provider route"})
+		ev := s.evidence(req, plan, "blocked", time.Since(started), false, []string{failureReasonNoProvider})
 		ev.RejectionReason = blockedReason(plan)
 		ev.CapacityVerdict = blockedCapacityVerdict(plan)
 		if err := s.repo.Create(ctx, ev); err != nil {
@@ -293,7 +314,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		adapter, ok := s.adapters[candidate.GetProvider()]
 		if !ok {
 			lastFailureClass = FailurePolicyError
-			failures = append(failures, fmt.Sprintf("%s: adapter not configured", candidate.GetProvider()))
+			failures = append(failures, failureReasonAdapterMissing)
 			continue
 		}
 		ctxExec := ctx
@@ -311,7 +332,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			failure := ClassifyProviderFailure(resolveErr)
 			lastFailureClass = failure.Class
 			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
-			failures = append(failures, fmt.Sprintf("%s: resolve role: %v", candidate.GetProvider(), resolveErr))
+			failures = append(failures, failureReasonRoleResolve)
 			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
@@ -321,13 +342,13 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 		// concrete role resolution for every execution attempt. The inventory
 		// used while planning can change before dispatch, and this same loop is
 		// used for retries and fallbacks.
-		if _, reason := profilepolicy.Admits(req.GetProfile().String(), req.GetPrivacyClass().String(), resolvedRole.Locality); reason != "" {
+		if !s.admitsRoute(ctx, req, candidate.GetProvider(), resolvedRole.Locality) {
 			cancel()
 			resolvedProfileRejection = true
 			candidate.RejectionReason = "locality_forbidden"
-			candidate.Reasons = append(candidate.Reasons, "resolved role rejected: "+reason)
+			candidate.Reasons = append(candidate.Reasons, "resolved role rejected by current locality, source-consent, or profile policy")
 			lastFailureClass = FailurePolicyError
-			failures = append(failures, fmt.Sprintf("%s: resolved role violates request profile/privacy policy: %s", candidate.GetProvider(), reason))
+			failures = append(failures, failureReasonProfile)
 			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
@@ -373,7 +394,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			if !found || contextErr != nil || resolvedRole.Model != planned.model || !strings.EqualFold(resolvedRole.Locality, candidate.GetLocality()) || !artifactIdentityValid || rightsErr != nil {
 				cancel()
 				lastFailureClass = FailurePolicyError
-				failures = append(failures, fmt.Sprintf("%s: local model rights, locality, context, or exact model identity changed after planning", candidate.GetProvider()))
+				failures = append(failures, failureReasonRights)
 				if i == 0 && !plan.fallbackAllowed {
 					break
 				}
@@ -390,8 +411,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			// an outcome here would trip a circuit breaker over a policy mismatch
 			// and suppress a provider that has failed nothing.
 			lastFailureClass = FailureUnsupportedSampling
-			failures = append(failures, fmt.Sprintf("%s: temperature not honored by resolved role %s (%s)",
-				candidate.GetProvider(), candidate.GetRole(), resolvedRole.TemperatureSupport()))
+			failures = append(failures, failureReasonSampling)
 			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
@@ -415,7 +435,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 				capacityRejection = &rejected
 				cancel()
 				lastFailureClass = FailurePolicyError
-				failures = append(failures, fmt.Sprintf("%s: execution-time capacity admission is not verified (%s)", candidate.GetProvider(), capacityReason(capEval)))
+				failures = append(failures, failureReasonCapacity)
 				if i == 0 && !plan.fallbackAllowed {
 					break
 				}
@@ -446,7 +466,7 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			failure := ClassifyProviderFailure(err)
 			lastFailureClass = failure.Class
 			s.recordOutcome(ctx, candidate.GetProvider(), candidate.GetRole(), req.GetKind(), failure, false)
-			failures = append(failures, fmt.Sprintf("%s: %v", candidate.GetProvider(), err))
+			failures = append(failures, failureReasonExecute)
 			if i == 0 && !plan.fallbackAllowed {
 				break
 			}
@@ -653,7 +673,8 @@ func hasVerifiedRuntimeArtifactIdentity(provider, model string, rights *policy.A
 // provider breaker state, then local capacity — never opaque scoring.
 func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string) (*routingv1.RouteCandidate, bool) {
 	adapter := s.adapters[providerName]
-	role, rejected := policyCandidate(ctx, req, providerName, adapter)
+	allowConsent := s.remoteConsentAllowed(ctx, req, providerName, adapter.Locality)
+	role, rejected := policyCandidate(ctx, req, providerName, adapter, allowConsent)
 	if rejected != nil {
 		return rejected, false
 	}
@@ -703,7 +724,7 @@ func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRe
 
 // policyCandidate applies the hard policy filters (inventory/role/capability/
 // locality) and returns either the resolved role (ok) or a rejected candidate.
-func policyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string, adapter providers.Adapter) (providers.Role, *routingv1.RouteCandidate) {
+func policyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, providerName string, adapter providers.Adapter, allowConsent bool) (providers.Role, *routingv1.RouteCandidate) {
 	inventory, err := adapter.ListRoles(ctx)
 	if err != nil {
 		return providers.Role{}, rejectedCandidate(providerName, req.GetRole(), adapter.Locality,
@@ -718,7 +739,7 @@ func policyCandidate(ctx context.Context, req *sharedv1.GatewayRequest, provider
 		return providers.Role{}, rejectedCandidate(providerName, role.Role, role.Locality,
 			"role capabilities or input modalities do not satisfy request", "capability_mismatch")
 	}
-	if reason := localityRejection(req, role.Locality); reason != "" {
+	if reason := localityRejection(req, role.Locality, allowConsent); reason != "" {
 		return providers.Role{}, rejectedCandidate(providerName, role.Role, role.Locality, reason, "locality_forbidden")
 	}
 	return role, nil
@@ -768,7 +789,8 @@ func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routeP
 	for _, providerName := range s.order {
 		candidate, ok := s.classifyCandidate(ctx, req, providerName)
 		if ok && strings.EqualFold(candidate.GetLocality(), "local") {
-			role, rejected := policyCandidate(ctx, req, providerName, s.adapters[providerName])
+			allowConsent := s.remoteConsentAllowed(ctx, req, providerName, s.adapters[providerName].Locality)
+			role, rejected := policyCandidate(ctx, req, providerName, s.adapters[providerName], allowConsent)
 			if rejected == nil && !requiresLocalModelRights(providerName, role) {
 				eligible = append(eligible, candidate)
 				continue
@@ -933,7 +955,7 @@ func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status 
 		SelectedLocality:  plan.selectedLocality,
 		Status:            status,
 		PolicyReasons:     append([]string{}, plan.policyReasons...),
-		FailureReasons:    append([]string{}, failures...),
+		FailureReasons:    stableFailureReasons(failures),
 		FallbackUsed:      fallback,
 		// The redacted-evidence seam reflects whether a PII-detection pass ran,
 		// not an unconditional claim. A DETECT_PII request scans its own input
@@ -948,6 +970,33 @@ func (s *Service) evidence(req *sharedv1.GatewayRequest, plan routePlan, status 
 	}
 	populateAttachmentEvidence(ev, req.GetAttachments())
 	return ev
+}
+
+// stableFailureReasons is the durable privacy boundary for adapter failures.
+// Never persist provider errors, stderr, prompts, outputs, or arbitrary future
+// caller strings in route evidence. Unknown values collapse to one stable code.
+func stableFailureReasons(reasons []string) []string {
+	if len(reasons) == 0 {
+		return nil
+	}
+	allowed := map[string]struct{}{
+		failureReasonAdapterMissing: {},
+		failureReasonRoleResolve:    {},
+		failureReasonProfile:        {},
+		failureReasonRights:         {},
+		failureReasonSampling:       {},
+		failureReasonCapacity:       {},
+		failureReasonExecute:        {},
+		failureReasonNoProvider:     {},
+	}
+	result := make([]string, 0, len(reasons))
+	for _, reason := range reasons {
+		if _, ok := allowed[reason]; !ok {
+			reason = failureReasonUnknown
+		}
+		result = append(result, reason)
+	}
+	return result
 }
 
 // detectPassRan reports whether a PII-detection pass was applied to this
@@ -1100,9 +1149,45 @@ func hasAny(set map[string]struct{}, values ...string) bool {
 	return false
 }
 
-func localityRejection(req *sharedv1.GatewayRequest, locality string) string {
-	_, reason := profilepolicy.Admits(req.GetProfile().String(), req.GetPrivacyClass().String(), locality)
+func localityRejection(req *sharedv1.GatewayRequest, locality string, allowConsent bool) string {
+	privacyClass := req.GetPrivacyClass().String()
+	if allowConsent && req.GetPrivacyClass() == sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL && strings.EqualFold(locality, "remote") {
+		privacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL.String()
+	}
+	_, reason := profilepolicy.Admits(req.GetProfile().String(), privacyClass, locality)
 	return reason
+}
+
+func (s *Service) remoteConsentAllowed(ctx context.Context, req *sharedv1.GatewayRequest, provider, locality string) bool {
+	if req.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || !strings.EqualFold(locality, "remote") || s.consent == nil {
+		return false
+	}
+	source := strings.ToLower(strings.TrimSpace(providers.Source(ctx)))
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	switch source {
+	case "own-key":
+		if provider == providers.ProviderMetered || provider == providers.ProviderOllama || provider == providers.ProviderOllaya {
+			return false
+		}
+	case "vrooli-credits":
+		if provider != providers.ProviderMetered {
+			return false
+		}
+	default:
+		return false
+	}
+	return s.consent.Verify(ctx, providers.PrivacyConsent(ctx), source) == nil
+}
+
+func (s *Service) admitsRoute(ctx context.Context, req *sharedv1.GatewayRequest, provider, locality string) bool {
+	if _, reason := profilepolicy.Admits(req.GetProfile().String(), req.GetPrivacyClass().String(), locality); reason == "" {
+		return true
+	}
+	if !s.remoteConsentAllowed(ctx, req, provider, locality) || req.GetProfile() == sharedv1.Profile_PROFILE_LOCAL_ONLY || req.GetProfile() == sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE {
+		return false
+	}
+	allowed, _ := profilepolicy.Admits(req.GetProfile().String(), sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL.String(), locality)
+	return allowed
 }
 
 func rank(profile sharedv1.Profile, locality, provider string) int {

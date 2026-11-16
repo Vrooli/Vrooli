@@ -92,8 +92,10 @@ func (r *Repository) ListToolCallsForChat(ctx context.Context, chatID string) ([
 	`, chatID)
 }
 
-// ListOrphanedToolCalls finds tool calls in pending/running status that may have been
-// orphaned by a server restart or crash. Used during startup reconciliation.
+// ListOrphanedToolCalls finds tool calls in pending, approved, or running status
+// that may have been orphaned by a server restart or crash. Used during startup
+// reconciliation. Approved calls are included because approval is persisted
+// before execution, while the running status currently exists only in memory.
 //
 // TEMPORAL FLOW: This enables recovery from interruptions by identifying work
 // that was in-progress when the server stopped.
@@ -101,7 +103,7 @@ func (r *Repository) ListOrphanedToolCalls(ctx context.Context) ([]domain.ToolCa
 	return r.listToolCalls(ctx, "orphaned tool calls", `
 		SELECT id, message_id, chat_id, tool_name, arguments, result, status, scenario_name, external_run_id, started_at, completed_at, error_message
 		FROM tool_calls
-		WHERE status IN ('pending', 'running')
+		WHERE status IN ('pending', 'approved', 'running')
 		ORDER BY started_at ASC
 	`)
 }

@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -21,10 +22,11 @@ import (
 )
 
 const (
-	researchBudgetSnapshotPath   = "/api/v1/research-budgets/{run_id}/snapshot"
-	researchBudgetSettlementPath = "/api/v1/research-budgets/{run_id}/settlements"
-	researchBudgetOperation      = "research-budget.ingest"
-	researchBudgetMaxBody        = 32 << 10
+	researchBudgetSnapshotPath    = "/api/v1/research-budgets/{run_id}/snapshot"
+	researchBudgetSettlementPath  = "/api/v1/research-budgets/{run_id}/settlements"
+	researchBudgetAlternativePath = "/api/v1/research-budgets/{run_id}/settlements/{settlement_id}/free-alternative"
+	researchBudgetOperation       = "research-budget.ingest"
+	researchBudgetMaxBody         = 32 << 10
 )
 
 // RegisterResearchBudgetIngestion exposes Treasury's narrow, authenticated
@@ -89,6 +91,64 @@ func RegisterResearchBudgetIngestion(router *mux.Router, ledger researchbudget.L
 		err := ledger.RecordSpend(r.Context(), researchbudget.Spend{ID: body.ID, RunID: runID.String(), SettlementID: body.SettlementID, TreasuryReceiptID: body.TreasuryReceiptID, IntegrationID: body.IntegrationID, Category: body.Category, AmountMinor: body.AmountMinor, Currency: body.Currency, UnitCode: body.UnitCode, ResultRef: body.ResultRef, BenefitState: body.BenefitState, BenefitSummary: body.BenefitSummary, SettledAt: body.SettledAt})
 		writeResearchBudgetResult(w, err)
 	}).Methods(http.MethodPost)
+
+	// The paid settlement is Treasury-authored; its free comparator is
+	// separately observed evidence linked to that exact run and settlement.
+	// It uses the same narrow Treasury service identity and run-scoped grant,
+	// and cannot create or alter spend rows.
+	router.HandleFunc(researchBudgetAlternativePath, func(w http.ResponseWriter, r *http.Request) {
+		if !authorizeResearchBudgetAlternative(w, r) {
+			return
+		}
+		runID, ok := researchBudgetRunID(w, r)
+		if !ok {
+			return
+		}
+		var body struct {
+			SourceID      string    `json:"source_id"`
+			Label         string    `json:"label"`
+			ResultRef     string    `json:"result_ref"`
+			SHA256        string    `json:"sha256"`
+			ResponseBytes int64     `json:"response_bytes"`
+			Limitation    string    `json:"limitation"`
+			ObservedAt    time.Time `json:"observed_at"`
+		}
+		if !decodeResearchBudgetBody(w, r, &body) {
+			return
+		}
+		alternative := researchbudget.FreeAlternative{
+			RunID: runID.String(), SettlementID: strings.TrimSpace(mux.Vars(r)["settlement_id"]),
+			SourceID: body.SourceID, Label: body.Label, ResultRef: body.ResultRef, SHA256: body.SHA256,
+			ResponseBytes: body.ResponseBytes, Limitation: body.Limitation, ObservedAt: body.ObservedAt,
+		}
+		err := ledger.RecordFreeAlternative(r.Context(), alternative)
+		writeResearchBudgetResult(w, err)
+	}).Methods(http.MethodPost)
+}
+
+func authorizeResearchBudgetAlternative(w http.ResponseWriter, r *http.Request) bool {
+	p, ok := identity.PrincipalFromContext(r.Context())
+	if !ok || !p.IsVerified() {
+		http.Error(w, "verified run or Treasury service identity required", http.StatusForbidden)
+		return false
+	}
+	runID, err := uuid.Parse(mux.Vars(r)["run_id"])
+	if err != nil {
+		http.Error(w, "valid run UUID required", http.StatusBadRequest)
+		return false
+	}
+	if p.Kind == identity.ActorAgent {
+		if p.Subject != runID.String() {
+			http.Error(w, "verified run identity must match the research budget run", http.StatusForbidden)
+			return false
+		}
+		if _, err := authn.RequireCapability(r.Context(), "agent-manager:write"); err != nil {
+			http.Error(w, "run write capability required", http.StatusForbidden)
+			return false
+		}
+		return true
+	}
+	return authorizeResearchBudgetIngest(w, r)
 }
 
 func authorizeResearchBudgetIngest(w http.ResponseWriter, r *http.Request) bool {
@@ -131,10 +191,10 @@ func requestResearchBudgetIngestApproval(w http.ResponseWriter, r *http.Request,
 		return false
 	}
 	verifier, ok := raiser.(interface {
-		IsCF7ResearchBudgetTestRun(context.Context, uuid.UUID) bool
+		IsResearchBudgetRun(context.Context, uuid.UUID) bool
 	})
-	if !ok || !verifier.IsCF7ResearchBudgetTestRun(r.Context(), runID) {
-		http.Error(w, "CF7 test-only run required for research-budget approval", http.StatusForbidden)
+	if !ok || !verifier.IsResearchBudgetRun(r.Context(), runID) {
+		http.Error(w, "persisted Agent Manager run required for research-budget approval", http.StatusForbidden)
 		return false
 	}
 	target := "agent-manager:run/" + runID.String()
@@ -152,7 +212,7 @@ func requestResearchBudgetIngestApproval(w http.ResponseWriter, r *http.Request,
 	}
 	writeJSON(w, http.StatusAccepted, map[string]string{
 		"status": "approval_pending", "subject": p.Subject, "operation": researchBudgetOperation,
-		"target": target, "detail": "human approval requested for this exact test-run report; no grant has been issued",
+		"target": target, "detail": "human approval requested for this exact run's report; no grant has been issued",
 	})
 	return false
 }
@@ -196,6 +256,10 @@ func writeResearchBudgetResult(w http.ResponseWriter, err error) {
 	}
 	if errors.Is(err, researchbudget.ErrConflict) || strings.Contains(strings.ToLower(err.Error()), "unique constraint") || strings.Contains(strings.ToLower(err.Error()), "does not match run budget unit") {
 		http.Error(w, "research budget evidence conflicts with retained run evidence", http.StatusConflict)
+		return
+	}
+	if errors.Is(err, researchbudget.ErrSettlementMissing) || errors.Is(err, sql.ErrNoRows) {
+		http.Error(w, "Treasury settlement not found for this run", http.StatusNotFound)
 		return
 	}
 	if strings.Contains(strings.ToLower(err.Error()), "no rows") || strings.Contains(strings.ToLower(err.Error()), "foreign key constraint") {

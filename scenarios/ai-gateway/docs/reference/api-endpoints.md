@@ -24,6 +24,29 @@ Canonical REST codes used today: `invalid_request` (400),
 `not_found` (404), `internal` (500). Add to the proto enum when a new
 REST-exception failure mode appears.
 
+## AI remote privacy consent
+
+These authenticated REST endpoints manage consent for sending
+`CONFIDENTIAL` prompt and session context to one account-backed remote source.
+The verified human subject is read from the signed LPBS consumer identity;
+request JSON cannot choose an owner. `source` must be exactly `own-key` or
+`vrooli-credits`. The default grant lifetime is 30 days; callers may request
+1–90 days.
+
+| Method and path | Auth | Result |
+|---|---|---|
+| `GET /api/v1/ai/privacy-consent` | Verified human LPBS consumer | `{ "grants": [{ "id", "source", "created_at", "expires_at", "revoked_at?" }] }`; no receipt is returned. |
+| `POST /api/v1/ai/privacy-consent` | Verified human LPBS consumer | JSON body `{ "source": "own-key" | "vrooli-credits", "lifetime_days"?: number }`; returns `201 { "grant": <metadata>, "receipt": <opaque bearer> }`. The receipt is shown once. |
+| `DELETE /api/v1/ai/privacy-consent/{id}` | Verified human LPBS consumer who owns the grant | Returns `204`; unknown or other-user IDs return `404`. |
+
+Inference callers attach the receipt as `X-Vrooli-AI-Consent-Grant` and the
+selected source as `X-Vrooli-AI-Source`. Gateway checks the receipt digest,
+authenticated subject, exact source, expiry, and revocation state before
+dispatch. A grant for one source cannot authorize another source. Missing,
+invalid, expired, revoked, or wrong-user grants deny remote CONFIDENTIAL
+dispatch. Saved provider credentials and source selection do not create a
+grant. `SECRET` remains local-only regardless of consent.
+
 ---
 
 ## System
@@ -254,6 +277,21 @@ provider/model and usage accounting.
 | **Response** | `RunBatchResponse { results: repeated RunResponse, usage }` |
 | **Sampling** | Intentionally absent. A batch is N inputs against one prompt; per-item sampling has no caller. |
 | **CLI** | `ai-gateway inference run-batch --role <role> --schema <path> --items <path>` |
+
+#### `POST /vrooli.ai_gateway.v1.inference.InferenceService/Embed`
+
+Computes one vector per text through the embedding role. Embeddings are
+local-only and require caller-supplied classification evidence; missing
+profile, privacy class, or valid non-sensitive provenance is rejected before
+role resolution or provider execution.
+
+| | |
+|---|---|
+| **Request** | `EmbedRequest { texts, role, profile: LOCAL_ONLY, privacy_class, privacy_provenance }` |
+| **Response** | `EmbedResponse { vectors, provider, model, dimension, usage, error }` |
+| **Locality** | Any profile other than explicit `LOCAL_ONLY` is refused. There is no remote embedding fallback. |
+| **Privacy** | `privacy_class` must be one of public, internal, confidential, or secret; `privacy_provenance` names the non-sensitive source and basis. Neither is inferred by AI Gateway. |
+| **CLI** | `ai-gateway inference embed --texts <path> --role embedding.default --profile local-only --privacy-class <class> --privacy-provenance <source.basis>` |
 
 ---
 

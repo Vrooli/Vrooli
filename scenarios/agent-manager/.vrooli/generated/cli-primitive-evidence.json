@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "3bf25b104343165331c46955a30855d80f1192694aa7e2bd75901e0a8fbe6c8d",
+  "manifest_hash": "88f9049c74d7e892bbcc53ca652122cb393e1d423a9460af43732a378321e23c",
   "commands": [
     {
       "path": "conversation context",
@@ -854,6 +854,11 @@
       "command": "outcomes",
       "binding": "MeasuresService.UsageOutcomes",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "usage pace",
+      "group": "usage",
+      "command": "pace"
     },
     {
       "path": "usage parity",

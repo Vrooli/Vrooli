@@ -33,13 +33,25 @@ func (a *App) declarationsReconcile(args []string, procedure string, forceDry bo
 	scenario := fs.String("scenario", "", "Owning scenario slug")
 	dry := fs.Bool("dry-run", false, "Validate without writes")
 	validateOnly := fs.Bool("validate-only", false, "Only validate sources")
+	localOwner := fs.Bool("local-owner", false, "Exchange verified local operator authority; unavailable inside an identified agent run")
 	if err := cliutil.ParseInterspersed(fs, args); err != nil {
 		return err
 	}
 	if strings.TrimSpace(*scenario) == "" {
 		return fmt.Errorf("--scenario is required")
 	}
-	body, resp, err := a.services.Declarations.Reconcile(procedure, &apipb.ReconcileScenarioDeclarationsRequest{
+	service := a.services.Declarations
+	if !forceDry {
+		if !*localOwner {
+			return fmt.Errorf("reconciliation requires --local-owner; Web Console browser verification is not inherited by terminal commands")
+		}
+		ownerAPI, err := localOwnerAPIForResource(service.api, standingGrantResource)
+		if err != nil {
+			return err
+		}
+		service = &DeclarationService{api: ownerAPI}
+	}
+	body, resp, err := service.Reconcile(procedure, &apipb.ReconcileScenarioDeclarationsRequest{
 		Scenario:     strings.TrimSpace(*scenario),
 		DryRun:       *dry || forceDry,
 		ValidateOnly: *validateOnly,

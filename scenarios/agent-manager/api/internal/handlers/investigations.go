@@ -19,7 +19,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -344,7 +343,7 @@ func (h *Handler) authorizeInvestigationHeaders(ctx context.Context, headers htt
 		if err != nil || verified == nil || !verified.Valid || verified.Claims == nil {
 			return "", requestidentity.NewFailure(requestidentity.FailureInvalid, requestidentity.SourceAgentProvenance)
 		}
-		p = requestidentity.Principal{Kind: requestidentity.ActorAgent, Subject: verified.Claims.RunID.String(), Owner: verified.Claims.Subject, Verified: true, Scopes: verified.Claims.Scopes, Grant: provenance.OperationGrantFromMeta(verified.Claims.Meta)}
+		p = requestidentity.Principal{Kind: requestidentity.ActorAgent, Subject: verified.Claims.RunID.String(), Owner: verified.Claims.Subject, Verified: true, Scopes: verified.Claims.Scopes, Grant: requestidentity.OperationGrantFromMeta(verified.Claims.Meta, time.Now())}
 		present = true
 	}
 	if !present || p.Kind != requestidentity.ActorAgent {

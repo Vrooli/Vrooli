@@ -24,14 +24,25 @@ func investigationOutputFixture(t *testing.T, raw string) investigationDecisionO
 
 func TestInvestigationDecisionAsksToApplyEveryRecommendation(t *testing.T) {
 	ended := time.Date(2026, 10, 29, 12, 0, 0, 0, time.UTC)
-	run := &domain.Run{ID: uuid.New(), CreatedAt: ended.Add(-time.Hour), EndedAt: &ended}
-	out := investigationOutputFixture(t, `{"summary":"Runs stalled on a missing port.","categories":[{"name":"Env","recommendations":[{"text":"Declare the port"},{"text":"Add a health check"}]},{"name":"Docs","recommendations":[{"text":"  "}]}]}`)
+	run := &domain.Run{ID: uuid.New(), CreatedAt: ended.Add(-time.Hour), EndedAt: &ended, SourceRunIDs: []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}}
+	out := investigationOutputFixture(t, `{"summary":"Runs stalled on a missing port.","categories":[{"name":"Env","recommendations":[{"text":"Declare the port","severity":"High","evidence":"3 runs timed out waiting on port 8080","targetPath":"scenarios/bas/.vrooli/service.json"},{"text":"Add a health check"}]},{"name":"Docs","recommendations":[{"text":"  "}]}]}`)
 	facts := investigationDecisionFacts(run, out, "https://console.example.test")
 	if err := facts.Validate(); err != nil {
 		t.Fatalf("facts invalid: %v", err)
 	}
-	if !strings.Contains(facts.Question, "Apply all 2 recommendation") || facts.Recommended != investigationApplyAllAnswer {
+	if !strings.Contains(facts.Question, "looked into 3 agent runs and suggests 2 changes") || facts.Recommended != investigationApplyAllAnswer {
 		t.Errorf("question %q / recommended %q", facts.Question, facts.Recommended)
+	}
+	if leaks := operatordecision.CoverProblems(facts); len(leaks) > 0 {
+		t.Errorf("cover is not readable cold: %v", leaks)
+	}
+	for _, want := range []string{
+		"Runs stalled on a missing port.", `<td data-label="Change">Declare the port</td>`, `<td data-label="How serious">High</td>`,
+		"3 runs timed out waiting on port 8080", "scenarios/bas/.vrooli/service.json", "Starts one agent run that makes every change above", "If you do not answer:",
+	} {
+		if !strings.Contains(facts.Explainer, want) {
+			t.Errorf("page lacks %q", want)
+		}
 	}
 	for _, want := range []string{"1. Declare the port", "2. Add a health check"} {
 		if !strings.Contains(facts.TechnicalDetails, want) {
@@ -56,7 +67,7 @@ func TestInvestigationDecisionWithNoRecommendationsRecommendsClosing(t *testing.
 	if err := facts.Validate(); err != nil {
 		t.Fatalf("facts invalid: %v", err)
 	}
-	if facts.Recommended != investigationRejectAnswer || facts.Options[0].Label != "Apply nothing" {
+	if facts.Recommended != investigationRejectAnswer || facts.Options[0].Label != "Close it, changing nothing" {
 		t.Errorf("recommended %q options %+v", facts.Recommended, facts.Options)
 	}
 }

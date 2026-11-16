@@ -9,6 +9,7 @@ import {
   Microscope,
 } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Checkbox } from "./ui/checkbox";
 import {
   Dialog,
@@ -461,29 +462,10 @@ Examples:
         </DialogBody>
 
         <DialogFooter>
-          <Button
-            variant="secondary"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || isUploading}
-            className="gap-2"
-          >
-            {loading ? (
-              "Starting..."
-            ) : isUploading ? (
-              "Uploading..."
-            ) : (
-              <>
-                <Search className="h-4 w-4" />
-                {confirmLabel}
-              </>
-            )}
-          </Button>
+          <OverlayActionBar className="flex-row-reverse" actions={[
+            { id: "submit", label: loading ? "Starting..." : isUploading ? "Uploading..." : confirmLabel, onSelect: handleSubmit, disabled: loading || isUploading, primary: true },
+            { id: "cancel", label: "Cancel", onSelect: () => onOpenChange(false), disabled: loading },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -82,6 +82,80 @@ func TestRunBudgetStoresRunBoundTreasuryMandateAndSettlementBenefit(t *testing.T
 	if got.Spend[0].BenefitState != "measured" || got.Spend[0].ResultRef != "result-1" || got.Spend[1].BenefitState != "pending" {
 		t.Fatalf("summary lost benefit evidence: %+v", got.Spend)
 	}
+	alternative := FreeAlternative{RunID: "run-1", SettlementID: "settlement-1", SourceID: "offer-desk:free-sample", Label: "no-signup sample endpoint", ResultRef: "sha256:free-result", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ResponseBytes: 81, Limitation: "shape sample only; not current catalog data", ObservedAt: settledAt.Add(time.Second), RecordedAt: settledAt.Add(2 * time.Second)}
+	if err := ledger.RecordFreeAlternative(ctx, alternative); err != nil {
+		t.Fatal(err)
+	}
+	if err := ledger.RecordFreeAlternative(ctx, alternative); err != nil {
+		t.Fatalf("identical comparator retry should be idempotent: %v", err)
+	}
+	got, err = ledger.Read(ctx, "run-1")
+	if err != nil || got.Spend[0].FreeAlternative == nil {
+		t.Fatalf("free alternative not joined to exact settlement: summary=%+v err=%v", got, err)
+	}
+	if *got.Spend[0].FreeAlternative != alternative {
+		t.Fatalf("free comparator changed on read: got=%+v want=%+v", *got.Spend[0].FreeAlternative, alternative)
+	}
+	conflictingAlternative := alternative
+	conflictingAlternative.SHA256 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	if err := ledger.RecordFreeAlternative(ctx, conflictingAlternative); !errors.Is(err, ErrConflict) {
+		t.Fatalf("same settlement cannot be rebound to different free evidence: %v", err)
+	}
+}
+
+func TestFreeAlternativeEvidenceSurvivesDatabaseReopenAndRejectsForeignSettlement(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "research-budget-reopen.db")
+	open := func() *sql.DB {
+		db, err := sql.Open("sqlite", path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		db.SetMaxOpenConns(1)
+		if _, err := db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+			t.Fatal(err)
+		}
+		return db
+	}
+	db := open()
+	if _, err := db.Exec(runmodel.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO runs(id,status) VALUES('run-1','running')`); err != nil {
+		t.Fatal(err)
+	}
+	ledger := Ledger{DB: db}
+	if err := ledger.PutBudget(ctx, Budget{RunID: "run-1", TreasuryBudgetID: "budget-1", MandateID: "mandate-1", AgentSubject: "agent", CapMinor: 100, Currency: "USD", UnitCode: "USD_MINOR", PolicyRevision: "policy-1"}); err != nil {
+		t.Fatal(err)
+	}
+	settled := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	if err := ledger.RecordSpend(ctx, Spend{ID: "spend-1", RunID: "run-1", SettlementID: "settlement-1", TreasuryReceiptID: "receipt-1", IntegrationID: "x402:offer-desk", Category: "x402_call", AmountMinor: 1, Currency: "USD", UnitCode: "USD_MINOR", BenefitState: "measured", ResultRef: "result-1", BenefitSummary: "paid response observed", SettledAt: settled}); err != nil {
+		t.Fatal(err)
+	}
+	alt := FreeAlternative{RunID: "run-1", SettlementID: "settlement-1", SourceID: "offer-desk:free-sample", Label: "free sample", ResultRef: "free-result", SHA256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", ResponseBytes: 64, Limitation: "format sample only", ObservedAt: settled.Add(time.Second), RecordedAt: settled.Add(2 * time.Second)}
+	if err := ledger.RecordFreeAlternative(ctx, alt); err != nil {
+		t.Fatal(err)
+	}
+	foreign := alt
+	foreign.RunID = "missing-run"
+	if err := ledger.RecordFreeAlternative(ctx, foreign); err == nil {
+		t.Fatal("a comparator for a foreign run must be refused")
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	db = open()
+	t.Cleanup(func() { _ = db.Close() })
+	got, err := (Ledger{DB: db}).Read(ctx, "run-1")
+	if err != nil || len(got.Spend) != 1 || got.Spend[0].FreeAlternative == nil {
+		t.Fatalf("comparison evidence did not survive database reopen: summary=%+v err=%v", got, err)
+	}
+	if got.Spend[0].FreeAlternative.SHA256 != alt.SHA256 || got.Spend[0].FreeAlternative.Limitation != alt.Limitation {
+		t.Fatalf("reopened comparator changed: %+v", got.Spend[0].FreeAlternative)
+	}
 }
 
 func TestRunSpendRequiresExistingBoundBudgetAndBenefitEvidence(t *testing.T) {

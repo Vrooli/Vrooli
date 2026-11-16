@@ -47,9 +47,9 @@ func TestLiveInterventionBenchmark(t *testing.T) {
 	}
 	rows := append(loadRows(t, corpusPath), loadRows(t, validationPath)...)
 	classifier := NewClassifier()
-	classifier.Role = DefaultRole
+	classifier.role = DefaultRole
 	if role := os.Getenv("AGENT_MANAGER_LIVE_DECIDE_ROLE"); role != "" {
-		classifier.Role = role
+		classifier.role = role
 	}
 	messages := make([]Message, len(rows))
 	for i, row := range rows {
@@ -70,7 +70,7 @@ func TestLiveInterventionBenchmark(t *testing.T) {
 		}
 	}
 	t.Logf("role %q: %d/%d answered in %s (%.0f ms/message end to end, %d concurrent batches of <= %d); answering models %v",
-		classifier.Role, answered, len(rows), elapsed.Round(time.Millisecond), float64(elapsed.Milliseconds())/float64(len(rows)), DefaultConcurrency, MaxBatch, models)
+		classifier.role, answered, len(rows), elapsed.Round(time.Millisecond), float64(elapsed.Milliseconds())/float64(len(rows)), DefaultConcurrency, MaxBatch, models)
 	if float64(answered) < 0.95*float64(len(rows)) {
 		t.Fatalf("only %d of %d messages answered; the gateway or its decision models are degraded", answered, len(rows))
 	}

@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"agent-manager/internal/decisionpage"
 	"agent-manager/internal/usageforecast"
-	"agent-manager/internal/usagelabel"
 
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
@@ -36,13 +36,15 @@ const (
 
 // Answer keys.
 const (
-	AnswerStart  = "start"
-	AnswerNotNow = "not_now"
-	AnswerRemind = "remind"
-	AnswerExtend = "extend"
-	AnswerLetEnd = "let_end"
-	AnswerKeepOn = "keep_on"
-	AnswerTurnOf = "turn_off"
+	AnswerStart = "start"
+	// AnswerAutoSave starts the mode now and records an auto-save rule for the runner.
+	AnswerAutoSave = "auto_save"
+	AnswerNotNow   = "not_now"
+	AnswerRemind   = "remind"
+	AnswerExtend   = "extend"
+	AnswerLetEnd   = "let_end"
+	AnswerKeepOn   = "keep_on"
+	AnswerTurnOf   = "turn_off"
 )
 
 // Timings and thresholds.
@@ -141,6 +143,9 @@ type windowOffer struct {
 	// Reopen lets the next run-out projection raise a fresh decision after the
 	// previous one was withdrawn because the window recovered.
 	Reopen bool `json:"reopen,omitempty"`
+	// Auto marks a window an auto-save rule already handled, so the rule starts
+	// at most one mode per window even if the operator ends it early.
+	Auto bool `json:"auto,omitempty"`
 }
 
 type endedNotice struct {
@@ -166,6 +171,10 @@ type notifierState struct {
 	QualityAt   map[string]time.Time `json:"quality_at"`
 	// EvidenceDone holds the modes already told that their evidence is ready.
 	EvidenceDone map[string]bool `json:"evidence_done"`
+	// Standing holds until-off modes the operator chose to keep, so the daily
+	// question stops; AutoSave holds the per-runner auto-save rules.
+	Standing map[string]standingMode  `json:"standing,omitempty"`
+	AutoSave map[string]*AutoSaveRule `json:"auto_save,omitempty"`
 }
 
 // Notifier owns the usage mode decisions and notices: the run-out offer, the
@@ -247,6 +256,12 @@ func (n *Notifier) load() *notifierState {
 	}
 	if st.EvidenceDone == nil {
 		st.EvidenceDone = map[string]bool{}
+	}
+	if st.Standing == nil {
+		st.Standing = map[string]standingMode{}
+	}
+	if st.AutoSave == nil {
+		st.AutoSave = map[string]*AutoSaveRule{}
 	}
 	n.st = st
 	return st
@@ -401,6 +416,9 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 			}
 		}
 	}
+	if handled, err := n.autoSaveFor(ctx, f, runner, until, projected, now); handled || err != nil {
+		return err
+	}
 	st := n.load()
 	scope := w.Scope()
 	offer := st.Offers[scope]
@@ -419,18 +437,24 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 	}
 	offer.Reopen = false
 	id := operatordecision.CorrelationID("umx", scope, strconv.Itoa(offer.Gen))
-	title := usagelabel.Title(w.Provider, w.Window, w.WindowMinutes)
+	allowance, who := allowanceName(w.Provider, w.Window, w.WindowMinutes), runnerTitle(runner)
 	facts := operatordecision.Facts{
-		Subject: fmt.Sprintf("%s may run out about %s", title, usageforecast.Stamp(projected)),
-		Question: fmt.Sprintf("%s is projected to run out about %s, before it resets %s. Start Save usage (one tier down) for new %s work until the reset? It might help; the effect is not measured yet.",
-			title, usageforecast.Stamp(projected), usageforecast.Stamp(w.ResetAt), runnerTitle(runner)),
-		BigPicture: "Save usage moves new work to the next cheaper model until the window resets. Running sessions are not changed. You can end it any time from the Usage page.",
+		Subject: fmt.Sprintf("%s may run out about %s", capitalize(allowance), usageforecast.Stamp(projected)),
+		Question: fmt.Sprintf("%s is on track to run out about %s, %s before it resets. Switch new %s work to cheaper models until the reset?",
+			capitalize(allowance), usageforecast.Stamp(projected), decisionpage.Duration(w.ResetAt.Sub(projected)), who),
+		BigPicture: fmt.Sprintf("Your plan gives %s a fixed allowance per window. When it runs out, %s work stops until the reset at %s. ", who, who, usageforecast.Stamp(w.ResetAt)) +
+			fmt.Sprintf("Switching sends new %s work to the next cheaper model until then, so the allowance lasts longer; work already running is not changed. ", who) +
+			"How much it helps is not measured yet. You can end it any time from the Usage page. " +
+			"This question comes back every time a window is projected to run out. The second choice below ends that: it starts now and makes the switch automatic for " + who + ", with a notice each time instead of a question, until you switch the rule off on the Usage page. " +
+			"If you do not answer, nothing changes.",
 		Options: []operatordecision.Option{
-			{Key: AnswerStart, Label: "Start until reset"},
-			{Key: AnswerNotNow, Label: "Not now"},
-			{Key: AnswerRemind, Label: "Remind me in 30 min"},
+			{Key: AnswerStart, Label: "Use cheaper models until the reset (ask me again next time)"},
+			{Key: AnswerAutoSave, Label: "Use cheaper models now, and do it automatically from now on (I will send a notice, not a question)"},
+			{Key: AnswerNotNow, Label: "Not now: keep the usual models"},
+			{Key: AnswerRemind, Label: "Ask me again in 30 minutes"},
 		},
-		Recommended: AnswerStart,
+		Recommended:          AnswerAutoSave,
+		RecommendationReason: "Running out stops all " + who + " work until the reset and cheaper models keep it going; a rule means you are not asked each time, every automatic start sends you a notice, and you can switch the rule off on the Usage page.",
 		// Reversible, and deliberately no DefaultAnswer: nothing starts unless a person says so.
 		Reversible: true,
 		Urgency:    "high",
@@ -438,11 +462,108 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 		Correlation: map[string]string{
 			"kind": KindRunsOut, "decision_id": id, "scope": scope, "runner": runner, "until": until,
 		},
+		SubjectKey:   subjectFor(KindRunsOut, runner),
+		TemplateName: "usage-mode",
+		TemplateData: usageModeTemplateData(f, projected, runner, until, n.tierMap(ctx, runner)),
 	}
 	if err := n.raise(ctx, n.raiser(), id, subjectFor(KindRunsOut, runner), facts, nil); err != nil {
 		return err
 	}
 	return n.save()
+}
+
+func usageModeTemplateData(f usageforecast.Forecast, projected time.Time, runner, until string, modelMap map[string]string) map[string]any {
+	w := f.Window
+	series := w.Series()
+	readings := make([]map[string]any, 0, len(series))
+	for _, point := range series {
+		readings = append(readings, map[string]any{"t": point.At.UTC().Format(time.RFC3339), "used": point.Percent})
+	}
+	if len(readings) == 0 && w.HasPercent && !w.LastAt.IsZero() {
+		readings = append(readings, map[string]any{"t": w.LastAt.UTC().Format(time.RFC3339), "used": f.Used})
+	}
+	var paceNow map[string]any
+	for i := len(f.Burn) - 1; i >= 0; i-- {
+		if f.Burn[i].Available {
+			paceNow = map[string]any{"ratePerHour": f.Burn[i].Rate, "label": "Pace now (usual models)"}
+			break
+		}
+	}
+	swaps := make([]string, 0, len(modelMap))
+	models := make([]string, 0, len(modelMap))
+	for model := range modelMap {
+		models = append(models, model)
+	}
+	sort.Strings(models)
+	for _, model := range models {
+		swaps = append(swaps, model+" → "+modelMap[model])
+	}
+	now := f.Anchor
+	window := map[string]any{
+		"source": map[string]any{"status": "real", "label": "Agent Manager quota forecast", "asOf": f.AsOf.UTC().Format(time.RFC3339), "note": "Observed provider quota readings. Low-power savings are not measured and are not projected."},
+		"start": w.Start.UTC().Format(time.RFC3339), "reset": w.ResetAt.UTC().Format(time.RFC3339),
+		"now": now.UTC().Format(time.RFC3339), "readings": readings, "safePace": true,
+	}
+	if paceNow != nil {
+		window["paceNow"] = paceNow
+	}
+	fullSegments := []map[string]any{{"from": now.UTC().Format(time.RFC3339), "to": projected.UTC().Format(time.RFC3339), "mode": "full"}}
+	if projected.Before(w.ResetAt) {
+		fullSegments = append(fullSegments, map[string]any{"from": projected.UTC().Format(time.RFC3339), "to": w.ResetAt.UTC().Format(time.RFC3339), "mode": "stopped"})
+	}
+	lowSegments := []map[string]any{{"from": now.UTC().Format(time.RFC3339), "to": w.ResetAt.UTC().Format(time.RFC3339), "mode": "low"}}
+	baseProjection := map[string]any{"runOut": projected.UTC().Format(time.RFC3339)}
+	if f.BandStart != nil || f.BandEnd != nil {
+		rangeData := map[string]any{}
+		if f.BandStart != nil && !f.BandStart.After(w.ResetAt) {
+			rangeData["early"] = f.BandStart.UTC().Format(time.RFC3339)
+		}
+		if f.BandEnd != nil && !f.BandEnd.After(w.ResetAt) {
+			rangeData["late"] = f.BandEnd.UTC().Format(time.RFC3339)
+		}
+		if len(rangeData) > 0 {
+			baseProjection["runOutRange"] = rangeData
+		}
+	}
+	modelSummary := "The lower-cost model mapping could not be read from resource policy."
+	if len(swaps) > 0 {
+		modelSummary = strings.Join(swaps, "; ")
+	}
+	return map[string]any{
+		"meta": map[string]any{
+			"title": "Use lower-cost models until the allowance resets?",
+			"producer": "Agent Manager · model usage", "sentAt": now.UTC().Format(time.RFC3339),
+			"timezone": usageforecast.DigestLocation().String(),
+			"notice": "The provider forecast is measured. Savings from lower-cost models have not been measured, so no low-power run-out number is shown.",
+		},
+		"recommendation": map[string]any{
+			"option": AnswerAutoSave,
+			"headline": "Use lower-cost models now and make this switch automatic for future run-out warnings.",
+			"why": fmt.Sprintf("The usual-model forecast reaches exhaustion about %s before the provider resets. The effect of the lower-cost model mapping is not measured yet.", usageforecast.Stamp(projected)),
+		},
+		"window": window,
+		"options": []map[string]any{
+			{"key": AnswerStart, "title": "Use lower-cost models until reset", "short": "A · Low power", "pill": map[string]any{"text": "Until reset", "tone": "info"}, "bullets": []string{"New work uses the model mapping shown below.", "It returns to the usual models at reset.", "Savings are not measured; no low-power projection is shown."}, "segments": lowSegments},
+			{"key": AnswerAutoSave, "title": "Use low power now and automatically next time", "short": "B · Automatic", "recommended": true, "pill": map[string]any{"text": "Recommended", "tone": "good"}, "bullets": []string{"Starts the same lower-cost mode now.", "Future run-out warnings start it automatically and send a notice.", "You can turn the rule off from the Usage page."}, "segments": lowSegments},
+			{"key": AnswerNotNow, "title": "Keep the usual models", "short": "C · Keep usual", "pill": map[string]any{"text": "No change", "tone": "warn"}, "bullets": []string{"No usage mode starts.", "The current forecast shows when this allowance runs out.", "This decision is not asked again before reset."}, "projection": baseProjection, "segments": fullSegments},
+			{"key": AnswerRemind, "title": "Ask me again in 30 minutes", "short": "D · Remind", "pill": map[string]any{"text": "Ask later", "tone": "info"}, "bullets": []string{"No usage mode starts now.", "The same real forecast remains in effect until then."}, "projection": baseProjection, "segments": fullSegments},
+		},
+		"cause": map[string]any{
+			"title": "Why this question exists",
+			"text": fmt.Sprintf("The provider's recorded quota readings project that the usual models will use this allowance by %s, before its reset. The model policy maps each usual model to a lower-cost option, but the savings from those swaps are not measured yet.", usageforecast.Stamp(projected)),
+		},
+		"recurrence": map[string]any{"stop": "Automatic low power replaces future questions with a notice."},
+		"noAnswer": map[string]any{
+			"text": fmt.Sprintf("Nothing changes. New work stays on the usual models; if the forecast holds, this allowance is used by %s and work on it stops until reset.", usageforecast.Stamp(projected)),
+		},
+		"technical": []map[string]string{
+			{"label": "Runner", "value": runner},
+			{"label": "Quota window", "value": fmt.Sprintf("%s · %s · %d minutes", w.Provider, w.Window, w.WindowMinutes)},
+			{"label": "Forecast status", "value": f.Status + ": " + f.Reason},
+			{"label": "Lower-cost model mapping", "value": modelSummary},
+			{"label": "Mode duration", "value": until},
+		},
+	}
 }
 
 // AskToStart raises one decision to start a Save mode of a fixed length on one
@@ -466,20 +587,27 @@ func (n *Notifier) AskToStart(ctx context.Context, runner string, length time.Du
 	now := n.now()
 	until := length.String()
 	id := operatordecision.CorrelationID("umt", runner, until, now.Format("2006-01-02"))
-	text := fmt.Sprintf("%d-minute", int(length.Minutes()))
-	if length%time.Hour == 0 {
-		text = fmt.Sprintf("%d-hour", int(length.Hours()))
-	}
+	who := runnerTitle(runner)
 	facts := operatordecision.Facts{
-		Subject:  fmt.Sprintf("Usage-mode validation: start a %s Save mode on %s?", text, runnerTitle(runner)),
-		Question: fmt.Sprintf("Usage-mode validation. Start a %s Save mode on %s to test usage modes?", text, runnerTitle(runner)),
-		BigPicture: "This tests the usage mode decision path. Answering Start creates a real mode that moves new " + runnerTitle(runner) +
-			" work to the next cheaper model until it expires. Running sessions are not changed. It can be ended any time from the Usage page.",
-		Options:     []operatordecision.Option{{Key: AnswerStart, Label: "Start the test mode"}, {Key: AnswerNotNow, Label: "Not now"}},
-		Recommended: AnswerStart, Reversible: true, Urgency: "normal",
+		Subject:  fmt.Sprintf("Test cheaper models on %s for %s?", who, decisionpage.Duration(length)),
+		Question: fmt.Sprintf("An agent asks to test usage modes: switch new %s work to cheaper models for %s. Start the test?", who, decisionpage.Duration(length)),
+		BigPicture: "This checks that usage-mode decisions work end to end. Starting creates a real mode: new " + who +
+			" work goes to the next cheaper model until it expires, and work already running is not changed. You can end it any time from the Usage page. If you do not answer, nothing starts.",
+		Options:     []operatordecision.Option{{Key: AnswerStart, Label: "Start the test"}, {Key: AnswerNotNow, Label: "Not now"}},
+		Recommended: AnswerStart, RecommendationReason: "It ends by itself and can be ended early; it only proves the path works.",
+		Reversible: true, Urgency: "normal",
 		ContextURL:  n.link(ctx, ""),
 		Correlation: map[string]string{"kind": KindTimed, "decision_id": id, "runner": runner, "until": until},
 	}
+	facts.Explainer = n.render(ctx, modePage{
+		facts: facts,
+		rows:  []operatordecision.Row{{Label: "Runs on", Value: who}, {Label: "Lasts", Value: decisionpage.Duration(length)}},
+		effects: map[string]string{
+			AnswerStart:  "New " + who + " work uses the cheaper models above until the test ends.",
+			AnswerNotNow: "Nothing starts.",
+		},
+		noReply: "Nothing starts.",
+	}, nil, runner)
 	// The cap is per runner and small: an agent may ask, but it cannot fill the
 	// operator's inbox.
 	if err := n.raise(ctx, n.raiserCap(MaxOutstandingTimedAsks), id, subjectFor(KindTimed, runner), facts, nil); err != nil {
@@ -550,7 +678,7 @@ func (n *Notifier) Apply(ctx context.Context, res operatordecision.DecisionResol
 	// runner, an end time or a mode id.
 	params := ask.Extra
 	kind, answer := params["kind"], strings.TrimSpace(res.Answer)
-	needsHuman := answer == AnswerStart || answer == AnswerExtend || answer == AnswerTurnOf || answer == AnswerApprove
+	needsHuman := answer == AnswerStart || answer == AnswerAutoSave || answer == AnswerKeepOn || answer == AnswerExtend || answer == AnswerTurnOf || answer == AnswerApprove
 	if needsHuman && !verifiedHuman(res) {
 		return finish(operatordecision.PendingStateRejected, "refused: the answer carries no verified human")
 	}
@@ -559,6 +687,22 @@ func (n *Notifier) Apply(ctx context.Context, res operatordecision.DecisionResol
 		// Approval is recorded; the change itself is the operator's to apply.
 		return finish(operatordecision.PendingStateApproved, fmt.Sprintf("approved by %s: make %s the default for %s. Not applied: Agent Manager does not edit resource files. Apply this change:\n%s",
 			by, params["to"], params["role"], ask.Extra["policy_change"]))
+	case kind == KindRunsOut && answer == AnswerAutoSave:
+		result, err := n.Modes.Start(ctx, StartRequest{Preset: PresetOneTierDown, Runner: params["runner"], Until: params["until"], StartedBy: by})
+		if errors.Is(err, ErrInvalid) {
+			return finish(operatordecision.PendingStateRejected, "not started: "+err.Error())
+		}
+		if err != nil {
+			return true, err
+		}
+		st.TapStarted[result.Mode.ID] = true
+		ask.Extra["mode_id"] = result.Mode.ID
+		runner, _ := autoSaveRunner(params["runner"])
+		n.setAutoSave(runner, true, by)
+		if o := st.Offers[params["scope"]]; o != nil {
+			o.Auto = true
+		}
+		return finish(operatordecision.PendingStateApproved, "started "+result.Mode.ID+" and turned on the auto-save rule for "+runner)
 	case (kind == KindRunsOut || kind == KindTimed) && answer == AnswerStart:
 		result, err := n.Modes.Start(ctx, StartRequest{Preset: PresetOneTierDown, Runner: params["runner"], Until: params["until"], StartedBy: by})
 		if errors.Is(err, ErrInvalid) {
@@ -594,6 +738,9 @@ func (n *Notifier) Apply(ctx context.Context, res operatordecision.DecisionResol
 			return true, err
 		}
 		return finish(operatordecision.PendingStateApproved, "ended")
+	case kind == KindUntilOf && answer == AnswerKeepOn:
+		n.keepStanding(params["mode_id"], by)
+		return finish(operatordecision.PendingStateApproved, "kept on; standing, so not asked again")
 	case answer == AnswerLetEnd || answer == AnswerKeepOn:
 		return finish(operatordecision.PendingStateRejected, answer)
 	}
@@ -646,6 +793,7 @@ func (n *Notifier) Observe(_ context.Context, now time.Time) {
 		delete(st.TapStarted, id)
 		st.Seen[id] = m
 	}
+	n.dropEndedStanding(active)
 	cutoff := now.Add(-stateRetention)
 	for id, ask := range st.Asks {
 		if ask.RaisedAt.Before(cutoff) {
@@ -826,38 +974,64 @@ func (n *Notifier) raiseEnding(ctx context.Context, m usagemode.Mode, left time.
 			to, label = ExtendWeeklyReset, "Extend to weekly reset"
 		}
 	}
+	work := modeWork(m)
 	facts := operatordecision.Facts{
-		Subject:     fmt.Sprintf("%s ends in %d minutes", m.Label, int(left.Round(time.Minute).Minutes())),
-		Question:    fmt.Sprintf("%s ends %s. After that, new work goes back to its usual model. Extend it?", m.Label, usageforecast.Stamp(*m.ExpiresAt)),
-		Options:     []operatordecision.Option{{Key: AnswerExtend, Label: label}, {Key: AnswerLetEnd, Label: "Let it end"}},
-		Recommended: AnswerLetEnd, Reversible: true, Urgency: "normal",
+		Subject:  fmt.Sprintf("%s ends in %d minutes", operatordecision.Clip(m.Label, 80), int(left.Round(time.Minute).Minutes())),
+		Question: fmt.Sprintf("%s ends %s. After that, new work goes back to its usual model. Extend it?", operatordecision.Clip(m.Label, 80), usageforecast.Stamp(*m.ExpiresAt)),
+		BigPicture: fmt.Sprintf("%s sends %s to cheaper models so your allowance lasts longer, and it was set to end at %s. ", m.Label, work, usageforecast.Stamp(*m.ExpiresAt)) +
+			"Letting it end returns new work to the usual, stronger models, which use the allowance faster. Extending keeps the cheaper models on longer. If you do not answer, it ends on time.",
+		Options:              []operatordecision.Option{{Key: AnswerExtend, Label: label}, {Key: AnswerLetEnd, Label: "Let it end"}},
+		Recommended:          AnswerLetEnd,
+		RecommendationReason: "It was set to end now; extend only if the allowance is still tight.",
+		Reversible:           true, Urgency: "normal",
 		ContextURL:  n.link(ctx, ""),
 		Correlation: map[string]string{"kind": KindEnding, "decision_id": id, "mode_id": m.ID, "extend_to": to},
 	}
+	facts.Explainer = n.render(ctx, modePage{
+		facts: facts,
+		rows:  modeRows(m),
+		effects: map[string]string{
+			AnswerExtend: "The cheaper models above stay on for new work until the new end time.",
+			AnswerLetEnd: "New work goes back to the usual models at " + usageforecast.Stamp(*m.ExpiresAt) + ".",
+		},
+		noReply: "It ends on time and new work goes back to the usual models.",
+	}, &m, "")
 	return n.raise(ctx, n.raiser(), id, subjectFor(KindEnding, m.Scope.Runner), facts,
 		map[string]string{"label": m.Label, "expires_at": m.ExpiresAt.UTC().Format(time.RFC3339)})
 }
 
 func (n *Notifier) raiseUntilOff(ctx context.Context, m usagemode.Mode, count int, now time.Time) error {
+	if _, standing := n.load().Standing[m.ID]; standing {
+		return nil // the operator chose to keep it on; it is not asked about again
+	}
 	id := operatordecision.CorrelationID("umo", m.ID, strconv.Itoa(count)) // one id per elapsed day
 	if n.alreadyAsked(id, now) {
 		return nil
 	}
 	facts := operatordecision.Facts{
-		Subject:  m.Label + " is still on",
-		Question: fmt.Sprintf("%s has been on for %s with no end time. Keep it on, or turn it off?", m.Label, onFor(now.Sub(m.StartedAt))),
+		Subject:  operatordecision.Clip(m.Label, 80) + " is still on",
+		Question: fmt.Sprintf("%s has been on for %s with no end time. Keep it on, or turn it off?", operatordecision.Clip(m.Label, 80), onFor(now.Sub(m.StartedAt))),
 		Options: []operatordecision.Option{
-			{Key: AnswerKeepOn, Label: "Keep it on — nothing changes"},
+			{Key: AnswerKeepOn, Label: "Keep it on and stop asking — you can turn it off any time on the Usage page"},
 			{Key: AnswerTurnOf, Label: "Turn it off — new work goes back to the usual models"},
 		},
 		Recommended:          AnswerKeepOn,
-		RecommendationReason: "Keeping it on changes nothing and saves quota; turn it off only if cheaper models are hurting the work.",
+		RecommendationReason: "A mode with no end time is a standing choice: keeping it changes nothing and saves quota, and it stays one tap from off on the Usage page; turn it off only if cheaper models are hurting the work.",
 		BigPicture:           untilOffBigPicture(m),
 		TechnicalDetails:     untilOffDetails(m),
 		Reversible:           true, Urgency: "low",
 		ContextURL:  n.link(ctx, ""),
 		Correlation: map[string]string{"kind": KindUntilOf, "decision_id": id, "mode_id": m.ID},
 	}
+	facts.Explainer = n.render(ctx, modePage{
+		facts: facts,
+		rows:  modeRows(m),
+		effects: map[string]string{
+			AnswerKeepOn: "Nothing changes. New work keeps using the cheaper models above, I stop asking about this mode, and it stays listed on the Usage page and in the daily digest with an End now button.",
+			AnswerTurnOf: "New work goes back to the usual, stronger models right away. They use the allowance faster.",
+		},
+		noReply: "It stays on, and I ask again tomorrow.",
+	}, &m, "")
 	return n.raise(ctx, n.raiser(), id, subjectFor(KindUntilOf, m.Scope.Runner), facts, map[string]string{"label": m.Label})
 }
 
@@ -870,21 +1044,42 @@ func onFor(d time.Duration) string {
 	return fmt.Sprintf("about %d days", int(d.Hours()+12)/24)
 }
 
+// modeWork is "new Codex work", or "new agent work" for a mode on every runner.
+func modeWork(m usagemode.Mode) string {
+	if m.Scope.Runner != "" {
+		return "new " + runnerTitle(m.Scope.Runner) + " work"
+	}
+	return "new agent work"
+}
+
+// modeRows are the page facts every decision about an existing mode shows.
+func modeRows(m usagemode.Mode) []operatordecision.Row {
+	end := "When you turn it off"
+	if m.ExpiresAt != nil {
+		end = usageforecast.Stamp(*m.ExpiresAt)
+	}
+	rows := []operatordecision.Row{
+		{Label: "Applies to", Value: capitalize(modeWork(m))},
+		{Label: "Started", Value: usageforecast.Stamp(m.StartedAt)},
+		{Label: "Ends", Value: end},
+	}
+	if m.StartedBy != "" && !strings.Contains(m.StartedBy, "-") {
+		rows = append(rows, operatordecision.Row{Label: "Started by", Value: m.StartedBy})
+	}
+	return rows
+}
+
 // untilOffBigPicture explains an until-off mode to an operator who has
 // forgotten starting it: what it does, what each answer does, and what
 // happens without one.
 func untilOffBigPicture(m usagemode.Mode) string {
-	who := "new agent work"
-	if m.Scope.Runner != "" {
-		who = "new " + runnerTitle(m.Scope.Runner) + " work"
-	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "This setting sends %s to cheaper models so your usage quota lasts longer. ", who)
-	fmt.Fprintf(&b, "It was turned on %s and has no end time, so I check with you once a day. ", usageforecast.Stamp(m.StartedAt))
+	fmt.Fprintf(&b, "This setting sends %s to cheaper models so your usage quota lasts longer. ", modeWork(m))
+	fmt.Fprintf(&b, "It was turned on %s and has no end time, so I check with you once a day until you tell me it is a standing choice. ", usageforecast.Stamp(m.StartedAt))
 	if n := len(m.ExemptRoles); n > 0 {
-		fmt.Fprintf(&b, "%d kinds of work are exempt and keep the usual models (listed in the technical details). ", n)
+		fmt.Fprintf(&b, "%d kinds of work are exempt and keep the usual models. ", n)
 	}
-	b.WriteString("Keep it on and nothing changes. Turn it off and new work goes back to the usual, stronger models, which use quota faster. ")
+	b.WriteString("Keep it on and stop asking: nothing changes, and I do not ask about this mode again; it stays on the Usage page with an End now button. Turn it off and new work goes back to the usual, stronger models, which use quota faster. ")
 	b.WriteString("If you do not answer, it stays on and I ask again tomorrow.")
 	return b.String()
 }
@@ -974,16 +1169,25 @@ func (n *Notifier) checkQuality(ctx context.Context, m usagemode.Mode, now time.
 
 // DigestNote names the active modes in the daily digest.
 func (n *Notifier) DigestNote(now time.Time) string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	var parts []string
 	for _, m := range n.Modes.listAt(now) {
 		end := "until turned off"
 		if m.ExpiresAt != nil {
 			end = "until " + usageforecast.Stamp(*m.ExpiresAt)
 		}
-		parts = append(parts, m.Label+" "+end)
+		parts = append(parts, m.Label+" "+end+n.standingNote(m))
 	}
-	if len(parts) == 0 {
-		return ""
+	note := ""
+	if len(parts) > 0 {
+		note = "Usage mode on: " + strings.Join(parts, "; ")
 	}
-	return "Usage mode on: " + strings.Join(parts, "; ")
+	if rules := n.autoSaveSummary(); rules != "" {
+		if note != "" {
+			note += ". "
+		}
+		note += rules
+	}
+	return note
 }

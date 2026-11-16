@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
@@ -99,6 +100,7 @@ export function ProfilesPage({
   onRefresh,
   rolePolicyCatalog,
 }: ProfilesPageProps) {
+  const profileFormRef = useRef<HTMLFormElement>(null);
   const { isDesktop } = useViewportSize();
 
   // Selection state
@@ -395,7 +397,7 @@ export function ProfilesPage({
                 : "Define how the agent should execute tasks"}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <form ref={profileFormRef} onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               {formError && (
                 <Card className="border-destructive/50 bg-destructive/10">
@@ -557,16 +559,10 @@ export function ProfilesPage({
               </label>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={resetForm}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting
-                  ? "Saving..."
-                  : editingProfile
-                  ? "Update Profile"
-                  : "Create Profile"}
-              </Button>
+              <OverlayActionBar className="flex-row-reverse" actions={[
+                { id: "save-profile", label: submitting ? "Saving..." : editingProfile ? "Update Profile" : "Create Profile", onSelect: () => profileFormRef.current?.requestSubmit(), disabled: submitting, primary: true },
+                { id: "cancel", label: "Cancel", onSelect: resetForm },
+              ]} />
             </DialogFooter>
           </form>
         </DialogContent>

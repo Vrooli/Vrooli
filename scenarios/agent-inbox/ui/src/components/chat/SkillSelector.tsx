@@ -11,7 +11,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Search, Plus, ChevronLeft, RefreshCw } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import type { Skill } from "@/lib/types/templates";
 import { SkillEditorModal } from "@/components/settings/SkillEditorModal";
 import { createSkill as apiCreateSkill } from "@/data/skills";
@@ -46,7 +46,7 @@ export function SkillSelector({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const skillRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const previewRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  const doneButtonRef = useRef<HTMLButtonElement>(null);
+  const doneButtonRef = useRef<HTMLDivElement>(null);
   const [currentModePath, setCurrentModePath] = useState<string[]>([]);
   const [previewSkill, setPreviewSkill] = useState<Skill | null>(null);
   const [previewReadOnly, setPreviewReadOnly] = useState(true);
@@ -138,7 +138,7 @@ export function SkillSelector({
         case "Tab":
           if (!e.shiftKey && focusedIndex === -1) { if (displaySkills.length > 0) { e.preventDefault(); setFocusedIndex(0); setFocusedElement("skill"); } }
           else if (e.shiftKey && focusedIndex === 0) { e.preventDefault(); setFocusedIndex(-1); }
-          else if (!e.shiftKey && focusedIndex === maxIndex) { e.preventDefault(); doneButtonRef.current?.focus(); }
+          else if (!e.shiftKey && focusedIndex === maxIndex) { e.preventDefault(); doneButtonRef.current?.querySelector("button")?.focus(); }
           else if (focusedIndex >= 0) { e.preventDefault(); setFocusedIndex((prev) => e.shiftKey ? prev - 1 : prev + 1); }
           break;
         case "Enter": case " ":
@@ -269,7 +269,9 @@ export function SkillSelector({
         </DialogBody>
 
         <DialogFooter>
-          <Button ref={doneButtonRef} variant="ghost" onClick={handleClose}>Done</Button>
+          <div ref={doneButtonRef} className="w-full">
+            <OverlayActionBar actions={[{ id: "done", label: "Done", onSelect: handleClose, primary: true }]} />
+          </div>
         </DialogFooter>
       </Dialog>
 

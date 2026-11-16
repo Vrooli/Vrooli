@@ -13,6 +13,7 @@ import (
 
 	"ai-gateway/internal/providers"
 	"github.com/vrooli/ai-provider-go/policy"
+	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -101,6 +102,13 @@ type ResourceRepository struct {
 	adapters      map[string]providers.Adapter
 	ledger        AttemptLedger
 	rightsContext func(context.Context) (policy.RightsContext, error)
+	consent       RemoteConsentVerifier
+}
+
+// RemoteConsentVerifier is the Gateway-owned, revocation-aware consent
+// authority. It is consulted at candidate eligibility and again before dispatch.
+type RemoteConsentVerifier interface {
+	Verify(context.Context, string, string) error
 }
 
 // LookupCodeRole returns only a code role declared in this repository's
@@ -138,6 +146,43 @@ func NewResourceRepositoryWithRightsContextSource(catalog RoleCatalog, adapters 
 	}
 	repository.rightsContext = source
 	return repository, nil
+}
+
+func (r *ResourceRepository) SetRemoteConsentVerifier(verifier RemoteConsentVerifier) {
+	if r != nil {
+		r.consent = verifier
+	}
+}
+
+func (r *ResourceRepository) admitsRequest(ctx context.Context, request ProviderRequest, provider, locality string) bool {
+	if profileAdmitsRequest(request.Profile, request.PrivacyClass, locality) {
+		return true
+	}
+	if request.PrivacyClass != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || !strings.EqualFold(locality, "remote") || r == nil || r.consent == nil {
+		return false
+	}
+	selectedSource := strings.ToLower(strings.TrimSpace(providers.Source(ctx)))
+	provider = strings.ToLower(strings.TrimSpace(provider))
+	switch selectedSource {
+	case "own-key":
+		if provider == providers.ProviderMetered || provider == providers.ProviderOllama || provider == providers.ProviderOllaya {
+			return false
+		}
+	case "vrooli-credits":
+		if provider != providers.ProviderMetered {
+			return false
+		}
+	default:
+		return false
+	}
+	if request.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY || request.Profile == sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE {
+		return false
+	}
+	profileAllowed, _ := profilepolicy.Admits(request.Profile.String(), sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL.String(), locality)
+	if !profileAllowed {
+		return false
+	}
+	return r.consent.Verify(ctx, providers.PrivacyConsent(ctx), selectedSource) == nil
 }
 
 func localModelRequiresRights(provider string, resolved providers.ResolvedRole) bool {
@@ -400,7 +445,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			return ProviderResult{}, fmt.Errorf("unsupported AI source")
 		}
 		adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
-		if ok && !profileAdmitsRequest(request.Profile, request.PrivacyClass, adapter.Locality) {
+		if ok && !r.admitsRequest(ctx, request, candidate.Provider, adapter.Locality) {
 			continue
 		}
 		if !ok {
@@ -412,7 +457,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
-		if !profileAdmitsRequest(request.Profile, request.PrivacyClass, resolved.Locality) {
+		if !r.admitsRequest(ctx, request, candidate.Provider, resolved.Locality) {
 			failures = append(failures, fmt.Sprintf("%s: resolved locality %q violates %s", candidate.Provider, resolved.Locality, request.Profile))
 			continue
 		}
@@ -679,6 +724,9 @@ func (r *ResourceRepository) Embed(ctx context.Context, request EmbeddingRequest
 	if request.Profile != sharedv1.Profile_PROFILE_LOCAL_ONLY {
 		return EmbeddingResult{}, fmt.Errorf("%w: typed embeddings require an explicit local-only profile", ErrUnavailable)
 	}
+	if err := validateEmbeddingPrivacy(request.PrivacyClass, request.PrivacyProvenance); err != nil {
+		return EmbeddingResult{}, fmt.Errorf("%w: invalid embedding privacy contract: %v", ErrUnavailable, err)
+	}
 	definition, ok := r.catalog.Roles[role]
 	if !ok {
 		return EmbeddingResult{}, fmt.Errorf("%w: inference role %q is not declared", ErrUnavailable, role)
@@ -703,7 +751,7 @@ func (r *ResourceRepository) Embed(ctx context.Context, request EmbeddingRequest
 				failures = append(failures, err.Error())
 				continue
 			}
-			if !profileAdmits(request.Profile, resolved.Locality) {
+			if !profileAdmitsRequest(request.Profile, request.PrivacyClass, resolved.Locality) {
 				failures = append(failures, fmt.Sprintf("%s: resolved locality %q violates %s", candidate.Provider, resolved.Locality, request.Profile))
 				continue
 			}

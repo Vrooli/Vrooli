@@ -250,7 +250,9 @@ test("QuickRunDialog keeps a profile run on configuration until a profile is sel
   expect(screen.getByText(/No profiles available/)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Next" }));
   expect(screen.getByText(/No profiles available/)).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByRole("group", { name: "Actions" })).toHaveAttribute("data-rcl-overlay-action-bar");
+  await user.click(screen.getByRole("button", { name: /More 1 actions/ }));
+  await user.click(screen.getByRole("menuitem", { name: "Back" }));
   expect(screen.getByLabelText("What should the agent do?")).toBeInTheDocument();
 });
 

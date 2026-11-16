@@ -66,7 +66,7 @@ func TestResearchBudgetIngressRequestsHumanApprovalForOneExactRun(t *testing.T) 
 	db, runID := researchBudgetIngressDB(t)
 	router := mux.NewRouter()
 	RegisterResearchBudgetIngestion(router, researchbudget.Ledger{DB: db})
-	raiser := &testOnlyResearchBudgetRaiser{fakeRaiser: &fakeRaiser{}, testOnly: true}
+	raiser := &researchBudgetRunRaiser{fakeRaiser: &fakeRaiser{}, knownRun: true}
 	authority := NewStandingGrantAuthority(&memStandingGrants{}, nil, nil)
 	h := StandingGrantMiddleware(authority, raiser)(AgentOperationMiddleware(router))
 	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
@@ -89,11 +89,11 @@ func TestResearchBudgetIngressRequestsHumanApprovalForOneExactRun(t *testing.T) 
 	}
 }
 
-func TestResearchBudgetIngressDoesNotRaiseForNonTestRun(t *testing.T) {
+func TestResearchBudgetIngressDoesNotRaiseForUnknownRun(t *testing.T) {
 	db, runID := researchBudgetIngressDB(t)
 	router := mux.NewRouter()
 	RegisterResearchBudgetIngestion(router, researchbudget.Ledger{DB: db})
-	raiser := &testOnlyResearchBudgetRaiser{fakeRaiser: &fakeRaiser{}, testOnly: false}
+	raiser := &researchBudgetRunRaiser{fakeRaiser: &fakeRaiser{}, knownRun: false}
 	h := StandingGrantMiddleware(NewStandingGrantAuthority(&memStandingGrants{}, nil, nil), raiser)(AgentOperationMiddleware(router))
 	principal := identity.Principal{Kind: identity.ActorService, Subject: "treasury-agent-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/research-budgets/"+runID.String()+"/snapshot", bytes.NewBufferString(`{}`))
@@ -101,17 +101,17 @@ func TestResearchBudgetIngressDoesNotRaiseForNonTestRun(t *testing.T) {
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden || len(raiser.raised) != 0 {
-		t.Fatalf("non-test run must not raise an approval: status=%d requests=%+v body=%s", w.Code, raiser.raised, w.Body.String())
+		t.Fatalf("unknown run must not raise an approval: status=%d requests=%+v body=%s", w.Code, raiser.raised, w.Body.String())
 	}
 }
 
-type testOnlyResearchBudgetRaiser struct {
+type researchBudgetRunRaiser struct {
 	*fakeRaiser
-	testOnly bool
+	knownRun bool
 }
 
-func (r *testOnlyResearchBudgetRaiser) IsCF7ResearchBudgetTestRun(context.Context, uuid.UUID) bool {
-	return r.testOnly
+func (r *researchBudgetRunRaiser) IsResearchBudgetRun(context.Context, uuid.UUID) bool {
+	return r.knownRun
 }
 
 func TestResearchBudgetIngressTreasurySnapshotAndSettlementAreIdempotent(t *testing.T) {
@@ -160,9 +160,78 @@ func TestResearchBudgetIngressTreasurySnapshotAndSettlementAreIdempotent(t *test
 	if got := post(base+"/settlements", duplicateReceipt); got != http.StatusConflict {
 		t.Fatalf("duplicate receipt status=%d want 409", got)
 	}
+	alternativePath := base + "/settlements/settlement-1/free-alternative"
+	alternative := `{"source_id":"offer-desk:free-sample","label":"no-signup sample","result_ref":"free-shape-result","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","response_bytes":81,"limitation":"format sample only; not current catalog data","observed_at":"2026-11-13T12:01:01Z"}`
+	if got := post(alternativePath, alternative); got != http.StatusNoContent {
+		t.Fatalf("free alternative status=%d want 204", got)
+	}
+	if got := post(alternativePath, alternative); got != http.StatusNoContent {
+		t.Fatalf("free alternative replay status=%d want 204", got)
+	}
+	changedAlternative := strings.Replace(alternative, "aaaa", "bbbb", 1)
+	if got := post(alternativePath, changedAlternative); got != http.StatusConflict {
+		t.Fatalf("changed free alternative status=%d want 409", got)
+	}
+	if got := post(base+"/settlements/missing-settlement/free-alternative", alternative); got != http.StatusNotFound {
+		t.Fatalf("unmatched free alternative status=%d want 404", got)
+	}
+	malformedAlternative := strings.Replace(alternative, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "short", 1)
+	if got := post(alternativePath, malformedAlternative); got != http.StatusBadRequest {
+		t.Fatalf("malformed comparator digest status=%d want 400", got)
+	}
 	summary, err := (researchbudget.Ledger{DB: db}).Read(t.Context(), runID.String())
-	if err != nil || summary.SpendCount != 1 || summary.SpendMinor != 125 {
+	if err != nil || summary.SpendCount != 1 || summary.SpendMinor != 125 || summary.Spend[0].FreeAlternative == nil || summary.Spend[0].FreeAlternative.SettlementID != "settlement-1" {
 		t.Fatalf("summary=%+v err=%v", summary, err)
+	}
+}
+
+func TestResearchBudgetFreeAlternativeIsBoundToTheVerifiedOrdinaryRun(t *testing.T) {
+	db, runID := researchBudgetIngressDB(t)
+	ledger := researchbudget.Ledger{DB: db}
+	if err := ledger.PutBudget(t.Context(), researchbudget.Budget{RunID: runID.String(), TreasuryBudgetID: "budget-1", MandateID: "mandate-1", AgentSubject: "agent", CapMinor: 100, Currency: "USD", UnitCode: "USD_MINOR", PolicyRevision: "policy-1"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ledger.RecordSpend(t.Context(), researchbudget.Spend{ID: "spend-1", RunID: runID.String(), SettlementID: "settlement-1", TreasuryReceiptID: "receipt-1", IntegrationID: "x402:local", Category: "x402_call", AmountMinor: 1, Currency: "USD", UnitCode: "USD_MINOR", BenefitState: "measured", ResultRef: "paid-result", BenefitSummary: "paid call result", SettledAt: time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)}); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	RegisterResearchBudgetIngestion(router, ledger)
+	h := AgentOperationMiddleware(router)
+	path := "/api/v1/research-budgets/" + runID.String() + "/settlements/settlement-1/free-alternative"
+	body := `{"source_id":"offer-desk:free-sample","label":"no-signup sample","result_ref":"free-result","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","response_bytes":81,"limitation":"shape sample only","observed_at":"2026-11-16T12:00:01Z"}`
+	post := func(principal identity.Principal) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+		req = req.WithContext(identity.WithPrincipal(req.Context(), principal))
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, req)
+		return w
+	}
+	foreign := post(identity.Principal{Kind: identity.ActorAgent, Subject: uuid.NewString(), Verified: true, Scopes: []string{"agent-manager:write"}})
+	if foreign.Code != http.StatusForbidden {
+		t.Fatalf("foreign run could report comparison: status=%d body=%s", foreign.Code, foreign.Body.String())
+	}
+	missingCapability := post(identity.Principal{Kind: identity.ActorAgent, Subject: runID.String(), Verified: true})
+	if missingCapability.Code != http.StatusForbidden {
+		t.Fatalf("run without write capability could report comparison: status=%d body=%s", missingCapability.Code, missingCapability.Body.String())
+	}
+	current := identity.Principal{Kind: identity.ActorAgent, Subject: runID.String(), Verified: true, Scopes: []string{"agent-manager:write"}}
+	identityOverride := strings.TrimSuffix(body, "}") + `,"run_id":"` + uuid.NewString() + `"}`
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(identityOverride))
+	req = req.WithContext(identity.WithPrincipal(req.Context(), current))
+	identityOverrideResponse := httptest.NewRecorder()
+	h.ServeHTTP(identityOverrideResponse, req)
+	if identityOverrideResponse.Code != http.StatusBadRequest {
+		t.Fatalf("request body must not choose the run identity: status=%d body=%s", identityOverrideResponse.Code, identityOverrideResponse.Body.String())
+	}
+	for i := 0; i < 2; i++ {
+		response := post(current)
+		if response.Code != http.StatusNoContent {
+			t.Fatalf("ordinary run comparator attempt %d status=%d body=%s", i+1, response.Code, response.Body.String())
+		}
+	}
+	summary, err := ledger.Read(t.Context(), runID.String())
+	if err != nil || summary.Spend[0].FreeAlternative == nil || summary.Spend[0].FreeAlternative.SettlementID != "settlement-1" {
+		t.Fatalf("ordinary-run comparator was not durably joined: summary=%+v err=%v", summary, err)
 	}
 }
 

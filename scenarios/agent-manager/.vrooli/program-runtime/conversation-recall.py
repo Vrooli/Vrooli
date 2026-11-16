@@ -46,10 +46,8 @@ state_data = {"variants": [], "calls": [], "results": [], "candidates": {}}
 
 
 def fail(status, klass, detail, where):
-    envelope["status"] = status
     # Never include exception text: a transport may echo a raw query.
-    envelope["errors"].append({"class": klass, "detail": klass, "where": where})
-    return "report"
+    return program.fail(status, klass, klass, where)
 
 
 def parse_time(value):

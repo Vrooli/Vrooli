@@ -27,6 +27,7 @@ import (
 
 // ExecuteAgentInput is the explicit input to ExecuteAgent.
 type ExecuteAgentInput struct {
+	PrepareLaunch func(context.Context, *runner.LaunchRequest) (func(), error)
 	Deps          Deps
 	Run           *domain.Run
 	Task          *domain.Task
@@ -116,6 +117,7 @@ func ExecuteAgent(ctx context.Context, in ExecuteAgentInput) ExecuteAgentOutput 
 	out.RunState = runState
 
 	req := runner.ExecuteRequest{
+		PrepareLaunch:  in.PrepareLaunch,
 		RunID:          in.Run.ID,
 		Tag:            in.Run.GetTag(),
 		Profile:        in.Profile,

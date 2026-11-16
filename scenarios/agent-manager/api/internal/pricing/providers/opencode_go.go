@@ -68,59 +68,25 @@ func (p *OpenCodeGoProvider) SupportsModel(canonicalModel string) bool {
 }
 
 func (p *OpenCodeGoProvider) FetchAllPricing(ctx context.Context) ([]*pricing.ModelPricing, error) {
-	p.cacheMu.RLock()
-	if len(p.cache) > 0 && time.Since(p.fetchedAt) < p.ttl {
-		result := make([]*pricing.ModelPricing, 0, len(p.cache))
-		for _, mp := range p.cache {
-			result = append(result, mp.Clone())
-		}
-		p.cacheMu.RUnlock()
-		return result, nil
-	}
-	p.cacheMu.RUnlock()
-
-	if err := p.refresh(ctx); err != nil {
-		p.cacheMu.RLock()
-		defer p.cacheMu.RUnlock()
-		if len(p.cache) > 0 {
-			result := make([]*pricing.ModelPricing, 0, len(p.cache))
-			for _, mp := range p.cache {
-				result = append(result, mp.Clone())
-			}
-			return result, nil
-		}
-		return nil, err
-	}
-
-	p.cacheMu.RLock()
-	defer p.cacheMu.RUnlock()
-	result := make([]*pricing.ModelPricing, 0, len(p.cache))
-	for _, mp := range p.cache {
-		result = append(result, mp.Clone())
-	}
-	return result, nil
+	return fetchAllPricing(ctx, &p.cacheMu, func() (map[string]*pricing.ModelPricing, time.Time, time.Duration) {
+		return p.cache, p.fetchedAt, p.ttl
+	}, p.refresh)
 }
 
 func (p *OpenCodeGoProvider) FetchModelPricing(ctx context.Context, canonicalModel string) (*pricing.ModelPricing, error) {
-	if _, err := p.FetchAllPricing(ctx); err != nil {
-		return nil, err
-	}
-	p.cacheMu.RLock()
-	defer p.cacheMu.RUnlock()
-	if mp, ok := p.cache[canonicalModel]; ok {
-		return mp.Clone(), nil
-	}
-	return nil, nil
+	return fetchModelPricing(ctx, canonicalModel, &p.cacheMu, func() (map[string]*pricing.ModelPricing, time.Time, time.Duration) {
+		return p.cache, p.fetchedAt, p.ttl
+	}, p.refresh)
 }
 
 type goModel struct {
 	ID      string `json:"id"`
 	Pricing struct {
-		Input         string `json:"input"`
-		Output        string `json:"output"`
-		CacheRead     string `json:"cache_read"`
-		CacheWrite    string `json:"cache_write"`
-		MonthlyLimit  string `json:"monthly_limit"`
+		Input        string `json:"input"`
+		Output       string `json:"output"`
+		CacheRead    string `json:"cache_read"`
+		CacheWrite   string `json:"cache_write"`
+		MonthlyLimit string `json:"monthly_limit"`
 	} `json:"pricing"`
 }
 

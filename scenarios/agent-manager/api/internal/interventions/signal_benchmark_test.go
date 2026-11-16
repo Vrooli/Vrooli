@@ -240,11 +240,11 @@ func TestLiveSignalBenchmark(t *testing.T) {
 		rows = rows[:limit] // smoke runs
 	}
 	classifier := NewClassifier()
-	classifier.Role = DefaultRole
+	classifier.role = DefaultRole
 	classifier.Concurrency = 1
 	classifier.HTTPClient = &http.Client{Timeout: 30 * time.Minute}
 	if role := os.Getenv("AGENT_MANAGER_LIVE_DECIDE_ROLE"); role != "" {
-		classifier.Role = role
+		classifier.role = role
 	}
 	// holdout mode reuses the train answers of an earlier train run of the same
 	// signal version (AGENT_MANAGER_LIVE_SIGNAL_TRAIN_DUMP) and sends only the
@@ -310,7 +310,7 @@ func TestLiveSignalBenchmark(t *testing.T) {
 			models[a.Model+" ("+a.Method+")"]++
 		}
 	}
-	t.Logf("version %s role %q: %v in %s", SignalVersion, classifier.Role, models, time.Since(started).Round(time.Millisecond))
+	t.Logf("version %s role %q: %v in %s", SignalVersion, classifier.role, models, time.Since(started).Round(time.Millisecond))
 	if os.Getenv("AGENT_MANAGER_LIVE_SIGNAL_DUMP") != "" {
 		dump, _ := os.Create(os.Getenv("AGENT_MANAGER_LIVE_SIGNAL_DUMP"))
 		defer dump.Close()

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import {
   Dialog,
   DialogBody,
@@ -32,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 import { useAttachments, type PersistedAttachment } from "../hooks/useAttachments";
 import { usePersistedFormState } from "../hooks/usePersistedFormState";
+import { overlayActions } from "../lib/overlayActions";
 import { cn, networkAccessLabel, sandboxModeLabel } from "../lib/utils";
 import type { RolePolicyCatalog } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 import type {
@@ -909,62 +911,17 @@ export function QuickRunDialog({
         </DialogBody>
 
         <DialogFooter>
-          {currentStep > 1 && (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleBack}
-              disabled={submitting}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back
-            </Button>
-          )}
-          <div className="flex-1" />
-          <div className="flex items-center gap-2">
-            {currentStep < 3 && (
-              <>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  data-testid={selectors.quickRun.start}
-                onClick={handleStartRun}
-                  disabled={submitting || isUploading || !canProceedStep1()}
-                  className="gap-2"
-                >
-                  <Play className="h-4 w-4" />
-                  {submitting ? "Starting..." : "Start Run"}
-                </Button>
-                <Button
-                  type="button"
-                  data-testid={selectors.quickRun.next}
-                  onClick={handleNext}
-                  disabled={
-                    (currentStep === 1 && !canProceedStep1()) ||
-                    (currentStep === 2 && !canProceedStep2())
-                  }
-                  className="gap-2"
-                >
-                  Next
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            {currentStep === 3 && (
-              <Button
-                type="button"
-                data-testid={selectors.quickRun.start}
-                onClick={handleStartRun}
-                disabled={submitting || isUploading}
-                className="gap-2"
-              >
-                <Play className="h-4 w-4" />
-                {submitting ? "Starting..." : "Start Run"}
-              </Button>
-            )}
-            <span className="text-xs text-muted-foreground hidden sm:inline">Ctrl+Enter</span>
-          </div>
+          <OverlayActionBar className="flex-row-reverse" actions={currentStep < 3
+            ? overlayActions(
+                { id: "next", label: "Next", onSelect: handleNext, disabled: (currentStep === 1 && !canProceedStep1()) || (currentStep === 2 && !canProceedStep2()), primary: true, testId: selectors.quickRun.next },
+                { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || isUploading || !canProceedStep1(), testId: selectors.quickRun.start },
+                ...(currentStep > 1 ? [{ id: "back", label: "Back", onSelect: handleBack, disabled: submitting }] : []),
+              )
+            : overlayActions(
+                { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || isUploading, primary: true, testId: selectors.quickRun.start },
+                ...(currentStep > 1 ? [{ id: "back", label: "Back", onSelect: handleBack, disabled: submitting }] : []),
+              )} />
+          <span className="text-xs text-muted-foreground hidden sm:inline">Ctrl+Enter</span>
         </DialogFooter>
       </DialogContent>
     </Dialog>

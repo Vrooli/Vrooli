@@ -40,6 +40,9 @@ type RemovalContext struct {
 	// Stat reports whether an existing target is a directory; nil skips the
 	// check, treating every recursive flag as reaching a tree.
 	Stat func(string) (fs.FileInfo, error)
+	// Created resolves, on first need, what the session created. Nil means no
+	// creation evidence: the floor and the declarations decide alone.
+	Created func() CreationEvidence
 }
 
 // HostRemovalContext resolves the context from this process: the user's home,
@@ -70,6 +73,13 @@ func HostRemovalContext(workingDirectory string) RemovalContext {
 		}
 		layout := contract.Layout()
 		ctx.RepoRoot, ctx.ProjectConfigDir, ctx.ScratchDir = root, layout.ProjectConfigDir, layout.ScratchDir
+		// The runtime home's own temporary folder is where agents put scratch
+		// that is not under the system temporary directory, so it counts as one.
+		if ctx.Home != "" {
+			if runtimeHome, err := contract.RuntimeHome(ctx.Home); err == nil {
+				ctx.TempRoots = append(ctx.TempRoots, filepath.Join(runtimeHome, "tmp"))
+			}
+		}
 		break
 	}
 	return ctx
@@ -114,6 +124,8 @@ type removalVerdict struct {
 	source string
 	// provider is the snapshot whose rule decided; empty for the floor.
 	provider string
+	// vouch is set when the creation resolvers loosened this verdict.
+	vouch *Vouch
 }
 
 type resolvedRule struct {
@@ -130,6 +142,8 @@ type removalZones struct {
 	scratch string
 	temps   []string
 	rules   []resolvedRule
+	// created is the creation evidence, resolved once per decision.
+	created *CreationEvidence
 }
 
 // EvaluateRemoval decides a set of removal targets. The strictest target
@@ -161,6 +175,9 @@ func (ctx RemovalContext) EvaluateRemoval(targets []RemovalTarget) Decision {
 		facts := map[string]string{"verb": verdict.target.Verb, "raw": verdict.target.Raw, "zone": verdict.zone, "action": string(verdict.action), "recursive": fmt.Sprint(verdict.target.Recursive)}
 		if verdict.path != "" {
 			facts["path"] = verdict.path
+		}
+		if verdict.vouch != nil {
+			facts["created_by"], facts["certainty"] = verdict.vouch.Source, verdict.vouch.Certainty.String()
 		}
 		decision.Evidence = append(decision.Evidence, Evidence{Code: "REMOVAL_" + strings.ToUpper(strings.ReplaceAll(verdict.zone, "-", "_")), Message: verdict.reason, Source: verdict.source, Facts: facts, Severity: actionSeverity(verdict.action)})
 	}
@@ -195,6 +212,17 @@ func (ctx RemovalContext) zones() *removalZones {
 				continue
 			}
 		}
+		if strings.TrimSpace(rule.Match) != "" {
+			// A declaration of generated names covers each existing child that
+			// matches; the folder itself is not covered.
+			children, _ := os.ReadDir(root)
+			for _, child := range children {
+				if ok, _ := filepath.Match(rule.Match, child.Name()); ok {
+					z.rules = append(z.rules, resolvedRule{PathRule: rule, root: filepath.Join(root, child.Name())})
+				}
+			}
+			continue
+		}
 		z.rules = append(z.rules, resolvedRule{PathRule: rule, root: root})
 	}
 	return z
@@ -228,6 +256,12 @@ func (z *removalZones) classify(target RemovalTarget) removalVerdict {
 	if rule, ok := z.containingRule(path); ok {
 		verdict.action, verdict.zone, verdict.source, verdict.provider = rule.Action, "declared", rule.Source, rule.Provider
 		verdict.reason = subject + ruleClause(rule, "is inside")
+		if rule.Action == ActionAllow && len(rule.Only) > 0 {
+			if stray := z.strayBeyondOnly(rule, path); stray != "" {
+				verdict.action = ActionAsk
+				verdict.reason = fmt.Sprintf("%s is declared disposable by %s only while it holds nothing but %s, and %s is something else", subject, rule.Source, strings.Join(rule.Only, ", "), stray)
+			}
+		}
 	} else {
 		verdict.action, verdict.zone, verdict.reason = z.floorDefault(path, recursive, target.Glob)
 		verdict.reason = subject + verdict.reason
@@ -235,7 +269,51 @@ func (z *removalZones) classify(target RemovalTarget) removalVerdict {
 	if recursive {
 		z.stricterNested(&verdict, path, subject)
 	}
+	if verdict.action != ActionAllow {
+		z.loosenCreated(&verdict, target, path, recursive)
+	}
 	return verdict
+}
+
+// loosenCreated lets the session delete what it created. Only a floor-default
+// ask or deny, or a declared ask an owner left to its confirmation, can be
+// loosened, and only by the certainty its zone needs. A declared deny, the hard
+// floor and anything unresolved or matched by a pattern are never loosened, and
+// neither is a folder that holds a stricter declared location.
+func (z *removalZones) loosenCreated(verdict *removalVerdict, target RemovalTarget, path string, recursive bool) {
+	if z.ctx.Created == nil || target.Glob || target.Unresolved != "" {
+		return
+	}
+	need := CertaintyNone
+	switch verdict.zone {
+	case "repository-tree", "home", "outside":
+		need = NeedForFloorDefault
+	case "declared":
+		if verdict.action == ActionAsk {
+			need = NeedForDeclaredAsk
+		}
+	}
+	if need == CertaintyNone {
+		return
+	}
+	if recursive {
+		for _, rule := range z.rules {
+			if rule.Action != ActionAllow && !z.same(rule.root, path) && z.within(rule.root, path) {
+				return
+			}
+		}
+	}
+	if z.created == nil {
+		evidence := z.ctx.Created()
+		z.created = &evidence
+	}
+	vouch, ok := z.created.Vouch(CreationQuery{Path: path, Recursive: recursive})
+	if !ok || vouch.Certainty < need {
+		return
+	}
+	verdict.action, verdict.zone, verdict.source, verdict.provider = ActionAllow, "run-created", "created-by-run", ""
+	verdict.reason = fmt.Sprintf("%s was created by this session (%s, %s certainty: %s)", path, vouch.Source, vouch.Certainty, vouch.Detail)
+	verdict.vouch = &vouch
 }
 
 // targetPath resolves symlinks in the parent only: deleting a link removes the
@@ -446,4 +524,33 @@ func actionSeverity(action DecisionAction) string {
 		return "warning"
 	}
 	return "info"
+}
+
+// strayBeyondOnly returns the first file below path that no Only glob matches
+// (or a note that the check could not finish), or "" when everything below it
+// matches. The check is bounded, and what it cannot finish counts as a stray.
+func (z *removalZones) strayBeyondOnly(rule resolvedRule, path string) string {
+	budget := treeBudget
+	stray := ""
+	_ = filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			stray = p + " (unreadable)"
+			return fs.SkipAll
+		}
+		if budget--; budget < 0 {
+			stray = "more than " + fmt.Sprint(treeBudget) + " entries"
+			return fs.SkipAll
+		}
+		if d.IsDir() {
+			return nil
+		}
+		for _, glob := range rule.Only {
+			if ok, _ := filepath.Match(glob, d.Name()); ok {
+				return nil
+			}
+		}
+		stray = p
+		return fs.SkipAll
+	})
+	return stray
 }

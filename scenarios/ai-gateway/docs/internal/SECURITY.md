@@ -4,7 +4,6 @@ This document records the scenario's security and privacy posture.
 Update it before adding auth, user data, external APIs, payment flows,
 secrets, or sensitive business data.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -22,16 +21,22 @@ Use this document to answer:
 | Provider inventory | operational metadata | resources | AI Gateway reads resource-owned role/policy output and normalized smoke status. Concrete model catalogs and credentials stay with the resources. |
 | Conformance findings | internal diagnostics | `conformance` | Findings contain file paths, rule ids, redacted messages, and remediation text for target scenarios. Scanner output must not echo secrets or concrete provider identifiers beyond bounded diagnostic categories. |
 | Consumer access tokens | secret, short-lived | `providers` / LPBS | A bearer access token may be forwarded to LPBS metered inference or resolved in memory through the shared credential authority. Refresh tokens never enter gateway requests, logs, or responses. |
+| AI consent receipt | secret, revocable bearer | `privacyconsent` | A random receipt is returned once to the authenticated account and only its SHA-256 digest is stored. It is tied to the verified LPBS subject, one remote source, expiry, and revocation state. |
 
 ## Auth And Authorization
 
-AI Gateway remains an operator-local API by default. Local and BYOK candidates
-do not require subscription auth. The LPBS candidate requires either a caller's
+AI Gateway remains an operator-local API by default. Local and ordinary BYOK
+requests do not require subscription auth. A remote BYOK request carrying
+CONFIDENTIAL data requires a verified human consumer token and matching consent.
+The LPBS candidate requires either a caller's
 verified consumer bearer or a short-lived bearer resolved from the declared
 `vrooli/lpbs-account:refresh-token` credential through the native credential
 authority. LPBS remains the authority for identity, entitlement, and metering.
-Before remote or multi-user exposure, an authenticated edge must be placed in
-front of the gateway; the local credential authority is not an edge auth model.
+Consent lifecycle calls and consent-authorized remote CONFIDENTIAL dispatch
+require a verified human principal from the signed LPBS consumer token. The
+consent authority derives the owner from that principal and refuses a receipt
+presented by a different account. The scenario remains operator-local by
+default; the local credential authority is not a general edge auth model.
 
 ## Secrets
 
@@ -40,6 +45,7 @@ front of the gateway; the local credential authority is not an edge auth model.
 | Provider credentials | `resource-ollama` / `resource-openrouter` | no in AI Gateway | Gateway streaming reads only the resource-declared Credential Authority identity at dispatch; it never stores, logs, or returns the value. Hosted credential custody remains resource-owned. |
 | Prompt text | caller request body | per execution | Prompt text may be sent to a selected resource command through stdin, but it must not be written to route evidence or command argv. |
 | Subscription refresh token | native credential authority | optional | Declared as `vrooli/lpbs-account:refresh-token`; never loaded into browser storage, argv, gateway payloads, or logs. |
+| Consent receipt | Gateway grant response | only when explicitly issued | Browser apps keep the receipt in tab-scoped `sessionStorage`; Gateway stores only its digest. Receipts are not returned by status/list, and revocation or expiry invalidates the bearer before the next provider dispatch. |
 
 ## Threat Model
 
@@ -50,6 +56,9 @@ front of the gateway; the local credential authority is not an edge auth model.
 | Path traversal during conformance scans | Scanner could read outside a target scenario. | Scan files come from `WalkDir` under the target root and are checked with `filepath.Rel` before open. | active |
 | Missing auth for multi-user deployment | Local operator data could be exposed if the scenario is deployed remotely without auth. | Keep deployment local/operator-scoped until API-layer auth is added. | deferred |
 | Metered request without consumer identity | Paid inference could be misattributed or bypass subscription checks. | LPBS candidate requires a forwarded or authority-resolved bearer; LPBS derives identity from verified claims and rejects unauthenticated requests. | active |
+| Stolen or cross-account consent receipt | One user's private context could be sent under another user's remote source. | Gateway requires a verified human principal and matches the receipt row by both digest and subject; checks exact source, expiry, and revocation before dispatch. | active |
+| Provider selection mistaken for data consent | Confidential prompts and session context could leave the device without a separate user choice. | Web Console and BAS consent panels explain the disclosure; saved keys and route selection never issue a grant. Every remote confidential dispatch checks the opaque receipt. | active |
+| Secret content routed remotely despite consent | Secret values could leave the device. | Remote consent exception admits only CONFIDENTIAL. SECRET remains denied for remote candidates even with a valid consent receipt. | active |
 
 ## Security Gaps
 

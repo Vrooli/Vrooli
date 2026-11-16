@@ -29,6 +29,7 @@ import (
 	"agent-manager/internal/maintenance"
 	analyticsmeasures "agent-manager/internal/measures"
 	"agent-manager/internal/metrics"
+	"agent-manager/internal/model_eval"
 	"agent-manager/internal/modelpolicydrift"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/orchestration/obs"
@@ -43,6 +44,7 @@ import (
 	"agent-manager/internal/storagehealth"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/transcriptindex"
+	"agent-manager/internal/usagepace"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
@@ -199,8 +201,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	if service, ok := newFrictionService(deps, usageStore); ok {
 		frictionBoard = service
 	}
-	handler := handlers.New(
-		orchestration.NewHandlerServices(deps.Orchestrator),
+	handlerOptions := []handlers.HandlerOption{
 		handlers.WithStorage(deps.Storage),
 		handlers.WithRuntimeActivityReader(deps.RuntimeActivityReader),
 		handlers.WithRolePolicyState(deps.RolePolicyState),
@@ -211,9 +212,27 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithInvestigationLifecycle(investigationRepository(deps.DB)),
 		handlers.WithEffortEnrollments(deps.SupervisionService),
 		handlers.WithFrictionBoard(frictionBoard),
+	}
+	topicDir, topicErr := model_eval.ResolveTopicDir()
+	if deps.Orchestrator != nil && topicErr == nil {
+		source := model_eval.SQLiteEventSource{Runs: deps.Orchestrator, Events: deps.Orchestrator}
+		runner := model_eval.Runner{
+			Approval: model_eval.TopicFileApprovalSource{TopicDir: topicDir}, Selector: source, Source: source,
+			Privacy:  model_eval.GatewayPrivacyVerifier{},
+			Disk:     model_eval.FilesystemDiskGate{Path: topicDir},
+			Capacity: model_eval.SystemMonitorCapacityGate{}, Gateway: &model_eval.DiscoveredGateway{},
+		}
+		handlerOptions = append(handlerOptions, handlers.WithModelEvalRunner(runner))
+	} else if topicErr != nil {
+		obs.Component("routes").Warn("LM2 model-eval owner path unavailable", obs.KeyError, topicErr.Error())
+	}
+	handler := handlers.New(
+		orchestration.NewHandlerServices(deps.Orchestrator),
+		handlerOptions...,
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	router.HandleFunc("/api/v1/runtime/activity", handler.GetRuntimeActivity).Methods(http.MethodGet)
+	router.HandleFunc("/api/v1/runtime/friction", handler.RuntimeFriction).Methods(http.MethodGet)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
 	connectHandler.SetManagedTeamReader(promptmanager.NewHTTPClient())
 	exactVerifier := deps.ExactVerifier
@@ -351,6 +370,10 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	}
 	router.PathPrefix(strings.TrimRight(conformancePath, "/")).Handler(conformanceHandler)
 	handler.RegisterRoutes(router)
+	if deps.Orchestrator != nil {
+		quotaSource, _ := deps.PricingRepository.(pricing.QuotaReadingSource)
+		usagepace.NewHandler(quotaSource, deps.Orchestrator).RegisterRoutes(router)
+	}
 
 	routesLog := obs.Component("routes")
 	if deps.HealthStore != nil {

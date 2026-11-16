@@ -259,11 +259,6 @@
       "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
     },
     {
-      "path": "scenarios/ai-gateway/api/internal/httpx/errors.go",
-      "class": "infrastructure",
-      "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."
-    },
-    {
       "path": "scenarios/ai-gateway/api/internal/inference/coordinates.go",
       "class": "infrastructure",
       "rationale": "Gateway API/CLI, provider, policy, or shared transport implementation; not a scenario prompt owner."

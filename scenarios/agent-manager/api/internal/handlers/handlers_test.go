@@ -23,6 +23,7 @@ import (
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/testutil/hosthome"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -152,6 +153,7 @@ func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (
 	if err != nil {
 		t.Fatalf("load permission policy state: %v", err)
 	}
+	runStateRoot := t.TempDir()
 	orch := orchestration.New(
 		repos.Profiles,
 		repos.Tasks,
@@ -164,11 +166,12 @@ func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (
 		orchestration.WithEvents(eventStore),
 		orchestration.WithOwnerIdentity(fixtureOwnerVerifier{}),
 		orchestration.WithRunners(registry),
-		orchestration.WithRunStateRoot(t.TempDir()),
+		orchestration.WithRunStateRoot(runStateRoot),
 		orchestration.WithRolePolicyState(roleState, handlerRoleResolver{}),
 		orchestration.WithWorkflowRepository(repos.Workflows),
 		orchestration.WithWorkflowExecutionRepository(repos.WorkflowExecutions),
 	)
+	quiesceRunsBeforeTempCleanup(t, orch, runStateRoot)
 
 	// Create handler
 	handler := New(
@@ -684,3 +687,26 @@ func TestErrorResponse_Format(t *testing.T) {
 // =============================================================================
 
 // TestCreateProfile_MalformedJSON tests profile creation with invalid JSON.
+
+// quiesceRunsBeforeTempCleanup registers a cleanup that runs before the
+// fixture's t.TempDir cleanups (cleanups run last-in-first-out). Endpoint
+// tests start runs that execute on dispatcher goroutines and keep writing into
+// the run-state root, including seeding the run's CODEX_HOME. Removing the
+// root while such a run is still active fails the removal with "directory not
+// empty" and the goroutine then recreates the files, leaving the directory on
+// disk. Waiting for the dispatcher to go idle first makes removal deterministic.
+func quiesceRunsBeforeTempCleanup(t *testing.T, orch *orchestration.Orchestrator, runStateRoot string) {
+	t.Helper()
+	t.Cleanup(func() {
+		deadline := time.Now().Add(15 * time.Second)
+		for orch.SpawnStats().ActiveCount > 0 && time.Now().Before(deadline) {
+			time.Sleep(5 * time.Millisecond)
+		}
+		if active := orch.SpawnStats().ActiveCount; active > 0 {
+			t.Errorf("%d run(s) still executing after the test; the run-state root cannot be removed safely", active)
+		}
+		for _, leak := range hosthome.FindLeaks(runStateRoot, false) {
+			t.Errorf("run-scoped Codex credential is not the dummy login: %s", leak)
+		}
+	})
+}

@@ -8,12 +8,8 @@ import json
 
 inputs = program.inputs()
 
-envelope = {
-    "program": "agent-manager.investigation-evidence", "version": "1",
-    "status": "failed", "phase": "validate", "inputs": {},
-    "signals": {"subjects": [], "subject_count": 0, "available": 0, "unknown": 0},
-    "errors": [], "evidence": [],
-}
+envelope = program.envelope('agent-manager.investigation-evidence', '1', phase='validate', inputs={})
+envelope["signals"] = {"subjects": [], "subject_count": 0, "available": 0, "unknown": 0}
 work = {}
 
 

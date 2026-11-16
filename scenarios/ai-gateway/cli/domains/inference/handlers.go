@@ -311,6 +311,14 @@ func (h *handlers) runBatch(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) embed(ctx cliapp.RunContext) error {
+	profile, privacyClass, err := gatewayreq.InferenceContract(ctx)
+	if err != nil {
+		return err
+	}
+	privacyProvenance, err := gatewayreq.InferencePrivacyProvenance(ctx)
+	if err != nil {
+		return err
+	}
 	path := strings.TrimSpace(ctx.Flag("texts"))
 	if path == "" {
 		return fmt.Errorf("--texts is required")
@@ -327,7 +335,9 @@ func (h *handlers) embed(ctx cliapp.RunContext) error {
 	if role == "" {
 		role = "embedding.default"
 	}
-	resp, err := h.client.Embed(context.Background(), connect.NewRequest(&inferencev1.EmbedRequest{Texts: texts, Role: role}))
+	resp, err := h.client.Embed(context.Background(), connect.NewRequest(&inferencev1.EmbedRequest{
+		Texts: texts, Role: role, Profile: profile, PrivacyClass: privacyClass, PrivacyProvenance: privacyProvenance,
+	}))
 	if err != nil {
 		return cliapp.WrapAPIError("embed texts", err, nil)
 	}

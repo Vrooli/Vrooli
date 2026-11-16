@@ -34,6 +34,7 @@ import (
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/investigation"
+	"agent-manager/internal/model_eval"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/protoconv"
@@ -71,6 +72,7 @@ type Handler struct {
 	frictionBoard         FrictionBoard
 	investigations        investigation.Repository
 	effortEnrollments     EffortEnrollmentReader
+	modelEvalRunner       model_eval.Runner
 }
 
 // TranscriptImportRunner is the operator-triggerable half of the scheduled
@@ -165,6 +167,13 @@ func WithInvestigationLifecycle(repository investigation.Repository) HandlerOpti
 	return func(h *Handler) { h.investigations = repository }
 }
 
+// WithModelEvalRunner installs the owner-composed, approval-gated LM2 batch
+// operation. The transport accepts identity/limit only; prompt content is
+// selected and kept inside Agent Manager.
+func WithModelEvalRunner(runner model_eval.Runner) HandlerOption {
+	return func(h *Handler) { h.modelEvalRunner = runner }
+}
+
 // New creates a new Handler with the given orchestration service.
 func New(svc orchestration.HandlerServices, opts ...HandlerOption) *Handler {
 	validator, err := protovalidate.New()
@@ -192,6 +201,7 @@ func (h *Handler) GetWebSocketHub() *WebSocketHub {
 func (h *Handler) RegisterRoutes(r *mux.Router) {
 	// Apply request ID middleware to all routes
 	r.Use(requestIDMiddleware)
+	r.HandleFunc("/api/v1/model-eval/batch", h.RunModelEvalBatch).Methods(http.MethodPost)
 
 	// NOTE: Health endpoints (/health and /api/v1/health) are now registered in main.go
 	// using api-core/health for standardized response format.
@@ -275,6 +285,7 @@ func (h *Handler) RegisterRoutes(r *mux.Router) {
 	r.HandleFunc("/api/v1/runs/{id}/wake", h.WakeRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/messages/{event_id}/delete", h.DeleteRunMessage).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/events", h.GetRunEvents).Methods("GET")
+	r.HandleFunc("/api/v1/runs/{id}/events/metadata", h.GetRunEventMetadata).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/diff", h.GetRunDiff).Methods("GET")
 	r.HandleFunc("/api/v1/runs/{id}/approve", h.ApproveRun).Methods("POST")
 	r.HandleFunc("/api/v1/runs/{id}/reject", h.RejectRun).Methods("POST")

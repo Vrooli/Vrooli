@@ -67,6 +67,7 @@ func TestNormalizeSpecRejectsUnsupportedAndUnboundedInputs(t *testing.T) {
 		{"undiscriminated union", &domain.ResultSpec{Kind: domain.ResultSpecKindJSONSchema, Schema: json.RawMessage(`{"oneOf":[{"type":"string"},{"type":"number"}]}`)}, "discriminator"},
 		{"empty classification", ClassificationSpec(), "at least one"},
 		{"duplicate classification", ClassificationSpec("yes", "yes"), "duplicate"},
+		{"caller-selected extraction role", &domain.ResultSpec{Kind: domain.ResultSpecKindClassification, ClassificationValues: []string{"yes", "no"}, ExtractionMode: domain.StructuredExtractionConstrained, ExtractionRole: "write.default"}, "policy-owned"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

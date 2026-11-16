@@ -554,6 +554,7 @@ func (s *Server) setupRoutes() {
 	})
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAsk).Methods(http.MethodPost)
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAskState).Methods(http.MethodGet)
+	s.router.HandleFunc(UsageModeAutoSavePath, s.handleUsageModeAutoSave).Methods(http.MethodGet, http.MethodPost)
 	s.registerEvidenceRetentionRoutes(s.router, s.evidenceRetention, s.evidenceApprovals)
 }
 

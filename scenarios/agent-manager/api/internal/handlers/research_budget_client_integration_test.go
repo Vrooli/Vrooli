@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/researchbudget"
+	"agent-manager/internal/supervision"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -37,14 +39,11 @@ const (
 )
 
 // TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision crosses
-// the module internal-package boundary through a Treasury test subprocess. The
-// subprocess runs Treasury's real NewAuthenticatedClient against this local
-// Agent Manager handler and a local authenticator exchange fixture.
+// the module internal-package boundary through Treasury's real authenticated
+// client. It first proves request-only refusal, then applies an explicit Hub
+// resolution and proves the same client can write only the approved run's data.
 func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *testing.T) {
 	db, runID := researchBudgetIngressDB(t)
-	if _, err := db.Exec(`UPDATE runs SET tag=? WHERE id=?`, orchestration.CF7ResearchBudgetTestRunTag, runID.String()); err != nil {
-		t.Fatal(err)
-	}
 	for _, statement := range []string{
 		`CREATE TABLE standing_grants (id TEXT PRIMARY KEY, subject TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT '', state TEXT NOT NULL, body TEXT NOT NULL, approved_by TEXT NOT NULL DEFAULT '', approved_at TEXT NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT)`,
 		`CREATE TABLE pending_authorization_requests (id TEXT PRIMARY KEY, subject TEXT NOT NULL, state TEXT NOT NULL, body TEXT NOT NULL, raised_at TEXT NOT NULL, expires_at TEXT NOT NULL)`,
@@ -87,23 +86,28 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 	server := httptest.NewServer(routes)
 	t.Cleanup(server.Close)
 
-	cmdCtx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
-	defer cancel()
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("resolve test source path")
+	runTreasuryClient := func(approved bool) {
+		t.Helper()
+		cmdCtx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+		defer cancel()
+		_, sourceFile, _, ok := runtime.Caller(0)
+		if !ok {
+			t.Fatal("resolve test source path")
+		}
+		repoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
+		cmd := exec.CommandContext(cmdCtx, "go", "test", "./internal/researchbudget", "-run", "^TestCF7RequestOnlyBridgeClient$", "-count=1")
+		cmd.Dir = filepath.Join(repoRoot, "scenarios/treasury/api")
+		cmd.Env = append(os.Environ(),
+			"CF7_AM_REQUEST_ONLY_URL="+server.URL,
+			"CF7_AM_REQUEST_ONLY_RUN_ID="+runID.String(),
+			"CF7_AM_REQUEST_ONLY_APPROVED="+strconv.FormatBool(approved),
+		)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("Treasury authenticated-client request failed: %v\n%s", err, output)
+		}
 	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(sourceFile), "../../../../.."))
-	cmd := exec.CommandContext(cmdCtx, "go", "test", "./internal/researchbudget", "-run", "^TestCF7RequestOnlyBridgeClient$", "-count=1")
-	cmd.Dir = filepath.Join(repoRoot, "scenarios/treasury/api")
-	cmd.Env = append(os.Environ(),
-		"CF7_AM_REQUEST_ONLY_URL="+server.URL,
-		"CF7_AM_REQUEST_ONLY_RUN_ID="+runID.String(),
-	)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("Treasury authenticated-client request failed: %v\n%s", err, output)
-	}
+	runTreasuryClient(false)
 
 	var pendingRows []string
 	if err := sqlxDB.Select(&pendingRows, `SELECT body FROM pending_authorization_requests WHERE subject='treasury-agent-manager' AND state='pending'`); err != nil {
@@ -118,14 +122,16 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 	}
 	wantTarget := "agent-manager:run/" + runID.String()
 	if pending.Subject != "treasury-agent-manager" || pending.Operation != researchBudgetOperation || pending.Target != wantTarget || pending.Kind != domain.PendingAuthorizationKindOneTime || pending.State != domain.PendingAuthorizationPending {
-		t.Fatalf("pending authorization is not bound to the exact CF7 test run: %+v", pending)
+		t.Fatalf("pending authorization is not bound to the exact persisted research run: %+v", pending)
 	}
 	if len(publisher.events) != 1 || publisher.events[0].EventType != orchestration.AuthorizationDecisionEventType {
 		t.Fatalf("expected one captured authorization decision and no Hub write, got %+v", publisher.events)
 	}
 	question, _ := publisher.events[0].Payload["question"].(string)
-	if !strings.Contains(question, wantTarget) || !strings.Contains(question, "test-only CF7") {
-		t.Fatalf("human decision does not explain the exact test-only target: %s", question)
+	big, _ := publisher.events[0].Payload["big_picture"].(string)
+	technical, _ := publisher.events[0].Payload["technical_details"].(string)
+	if !strings.Contains(question, "one agent run") || !strings.Contains(big, "one-time permission") || !strings.Contains(technical, wantTarget) {
+		t.Fatalf("human decision does not explain a one-time permission and exact run target: %s / %s / %s", question, big, technical)
 	}
 	for table, query := range map[string]string{
 		"standing grants":        `SELECT COUNT(*) FROM standing_grants`,
@@ -142,6 +148,33 @@ func TestResearchBudgetAuthenticatedClientRaisesExactRequestOnlyDecision(t *test
 		if queryErr != nil || count != 0 {
 			t.Fatalf("request-only path created %s before approval: count=%d err=%v", table, count, queryErr)
 		}
+	}
+
+	// The operator's explicit answer is applied through the same canonical Hub
+	// resolution effect that issues the exact one-time grant in production.
+	handled, err := owner.ResolveAuthorizationFromHub(context.Background(), supervision.DecisionResolution{
+		AskID: pending.ID, State: "answered", Answer: "approve", AnsweredBy: "cf7-local-test-operator",
+		SourceEventType: orchestration.AuthorizationDecisionEventType, RequesterRef: pending.EventID,
+		Correlation: map[string]string{"authorization_request_id": pending.ID},
+	})
+	if err != nil || !handled {
+		t.Fatalf("apply explicit exact-run operator resolution: handled=%t err=%v", handled, err)
+	}
+	resolved, err := adb.NewPendingAuthorizationRepository(store).Get(context.Background(), pending.ID)
+	if err != nil || resolved == nil || resolved.State != domain.PendingAuthorizationApproved || resolved.GrantID == "" || resolved.ResolvedBy != "cf7-local-test-operator" {
+		t.Fatalf("operator resolution did not persist the approved exact-run grant: request=%+v err=%v", resolved, err)
+	}
+	runTreasuryClient(true)
+	var grantRows int
+	if err := sqlxDB.Get(&grantRows, `SELECT COUNT(*) FROM standing_grants WHERE id=? AND subject=? AND state='approved'`, resolved.GrantID, orchestration.TreasuryServiceSubject); err != nil || grantRows != 1 {
+		t.Fatalf("exact Treasury run-report grant was not durable: count=%d err=%v", grantRows, err)
+	}
+	var snapshotRows, spendRows int
+	if err := sqlxDB.Get(&snapshotRows, `SELECT COUNT(*) FROM research_run_budgets WHERE run_id=?`, runID.String()); err != nil || snapshotRows != 1 {
+		t.Fatalf("approved Treasury client did not write exactly one run snapshot: count=%d err=%v", snapshotRows, err)
+	}
+	if err := sqlxDB.Get(&spendRows, `SELECT COUNT(*) FROM research_run_spend WHERE run_id=?`, runID.String()); err != nil || spendRows != 1 {
+		t.Fatalf("approved Treasury client did not write exactly one run settlement: count=%d err=%v", spendRows, err)
 	}
 }
 
@@ -161,10 +194,10 @@ type cf7PersistedTestRunRaiser struct {
 	db *sql.DB
 }
 
-func (r *cf7PersistedTestRunRaiser) IsCF7ResearchBudgetTestRun(ctx context.Context, runID uuid.UUID) bool {
-	var tag string
-	err := r.db.QueryRowContext(ctx, `SELECT tag FROM runs WHERE id=?`, runID.String()).Scan(&tag)
-	return err == nil && tag == orchestration.CF7ResearchBudgetTestRunTag
+func (r *cf7PersistedTestRunRaiser) IsResearchBudgetRun(ctx context.Context, runID uuid.UUID) bool {
+	var exists int
+	err := r.db.QueryRowContext(ctx, `SELECT 1 FROM runs WHERE id=?`, runID.String()).Scan(&exists)
+	return err == nil && exists == 1
 }
 
 type cf7AgentManagerCredentialExchange struct {

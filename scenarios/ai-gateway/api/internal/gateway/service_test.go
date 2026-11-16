@@ -13,12 +13,12 @@ import (
 func TestValidateAcceptsProviderNeutralRequest(t *testing.T) { // [REQ:AIGW-CONTRACT-TEXT]
 	svc := gateway.New()
 	issues := svc.Validate(&sharedv1.GatewayRequest{
-		Kind:         sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-		Role:         "chat.default",
-		Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
-		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:              "chat.default",
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
 		PrivacyProvenance: "gateway_test.explicit_internal",
-		TimeoutMs:    5000,
+		TimeoutMs:         5000,
 		Metadata: map[string]string{
 			"trace_id": "req-1",
 		},
@@ -75,12 +75,12 @@ func TestValidateAcceptsProviderNeutralMediaRequests(t *testing.T) { // [REQ:AIG
 	} {
 		t.Run(kind.String(), func(t *testing.T) {
 			issues := svc.Validate(&sharedv1.GatewayRequest{
-				Kind:         kind,
-				Role:         "media.generate",
-				Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
-				PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+				Kind:              kind,
+				Role:              "media.generate",
+				Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+				PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
 				PrivacyProvenance: "gateway_test.explicit_internal",
-				Metadata:     map[string]string{"correlation_id": "media-1"},
+				Metadata:          map[string]string{"correlation_id": "media-1"},
 			})
 			require.Empty(t, issues)
 		})
@@ -105,18 +105,35 @@ func TestValidateRejectsProviderSpecificMetadata(t *testing.T) { // [REQ:AIGW-CO
 	}
 }
 
-func TestValidateRejectsSecretRemoteProfile(t *testing.T) { // [REQ:AIGW-POLICY-CONSTRAINTS]
+func TestValidateAllowsConfidentialRemoteProfileShapeButKeepsSecretLocalOnly(t *testing.T) { // [REQ:AIGW-POLICY-CONSTRAINTS]
 	svc := gateway.New()
-	issues := svc.Validate(&sharedv1.GatewayRequest{
-		Kind:         sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-		Role:         "chat.default",
-		Profile:      sharedv1.Profile_PROFILE_REMOTE_ONLY,
-		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
-		PrivacyProvenance: "gateway_test.secret_user_input",
-	})
-	require.Len(t, issues, 1)
-	require.Equal(t, "profile", issues[0].GetField())
-	require.Equal(t, "privacy_profile_conflict", issues[0].GetCode())
+	for _, privacy := range []sharedv1.PrivacyClass{
+		sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET,
+	} {
+		for _, profile := range []sharedv1.Profile{
+			sharedv1.Profile_PROFILE_REMOTE_ONLY,
+			sharedv1.Profile_PROFILE_QUALITY_FIRST,
+			sharedv1.Profile_PROFILE_CHEAP_FIRST,
+		} {
+			t.Run(privacy.String()+"/"+profile.String(), func(t *testing.T) {
+				issues := svc.Validate(&sharedv1.GatewayRequest{
+					Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+					Role:              "chat.default",
+					Profile:           profile,
+					PrivacyClass:      privacy,
+					PrivacyProvenance: "gateway_test.sensitive_user_input",
+				})
+				if privacy == sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET {
+					require.Len(t, issues, 1)
+					require.Equal(t, "profile", issues[0].GetField())
+					require.Equal(t, "privacy_profile_conflict", issues[0].GetCode())
+				} else {
+					require.Empty(t, issues, "execution performs the source-scoped consent check before any remote dispatch")
+				}
+			})
+		}
+	}
 }
 
 func TestValidateRejectsPublicImageAndAcceptsHeaderMatchedPrivateImage(t *testing.T) { // [REQ:AIGW-MULTIMODAL-CONTRACT]
@@ -184,12 +201,12 @@ func TestValidateRejectsMissingRequiredFieldsAndNegativeBounds(t *testing.T) {
 
 func validRequest(metadata map[string]string) *sharedv1.GatewayRequest {
 	return &sharedv1.GatewayRequest{
-		Kind:         sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
-		Role:         "chat.default",
-		Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
-		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		Kind:              sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION,
+		Role:              "chat.default",
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
 		PrivacyProvenance: "gateway_test.explicit_internal",
-		Metadata:     metadata,
+		Metadata:          metadata,
 	}
 }
 

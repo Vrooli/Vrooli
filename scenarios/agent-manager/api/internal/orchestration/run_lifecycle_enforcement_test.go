@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,9 +15,11 @@ import (
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/adapters/runner/core"
 	"agent-manager/internal/domain"
+	runidentity "agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
 func TestContinuationLifecycleClearsPriorOutcomeFromActiveRun(t *testing.T) {
@@ -179,6 +182,18 @@ func (r *recordingCredentialUseReleaser) RevokeRunCredentialUse(_ context.Contex
 	return nil
 }
 
+type blockingTreasuryCredentialUseReleaser struct {
+	store   *CredentialAuthorityTreasurySessionKeys
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (r *blockingTreasuryCredentialUseReleaser) RevokeRunCredentialUse(ctx context.Context, runID uuid.UUID, reason string) error {
+	close(r.entered)
+	<-r.release
+	return r.store.RevokeRunCredentialUse(ctx, runID, reason)
+}
+
 // TestApplyRunStatusTransition_RejectsIllegalTransition verifies that the single
 // status-mutation helper enforces the run state machine: an illegal transition
 // (here pending → complete) is rejected and the persisted run is left untouched.
@@ -304,5 +319,133 @@ func TestApplyRunStatusTransitionRevokesRunBoundCredentialUseOnTerminalState(t *
 	}
 	if releaser.runID != run.ID || releaser.reason != string(domain.RunStatusCancelled) {
 		t.Fatalf("credential cleanup = run %s reason %q, want run %s reason %q", releaser.runID, releaser.reason, run.ID, domain.RunStatusCancelled)
+	}
+}
+
+func TestTerminalTransitionBlocksTreasuryKeyRequestUntilRevocationCommits(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	tempAuthority := filepath.Join(t.TempDir(), "agent-manager-run-keys.enc")
+	open := func() (*credentialauthority.Authority, error) {
+		return credentialauthority.OpenEncryptedFile(tempAuthority, "test-only-terminal-race-passphrase")
+	}
+	keys := NewCredentialAuthorityTreasurySessionKeysWithOpener(open)
+	now := time.Now()
+	task := &domain.Task{ID: uuid.New(), Title: "terminal key fence", ScopePath: "src", Status: domain.TaskStatusQueued, CreatedAt: now, UpdatedAt: now}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "terminal-key-fence", RunMode: domain.RunModeInPlace, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: now, UpdatedAt: now}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := keys.ResolveOrMint(ctx, run.ID); err != nil {
+		t.Fatalf("mint initial Treasury session key: %v", err)
+	}
+	releaser := &blockingTreasuryCredentialUseReleaser{store: keys, entered: make(chan struct{}), release: make(chan struct{})}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithCredentialUseReleaser(releaser))
+	transitionDone := make(chan error, 1)
+	go func() {
+		_, err := svc.applyRunStatusTransition(ctx, RunStatusTransitionInput{Run: run, NewStatus: domain.RunStatusCancelled, Phase: domain.RunPhaseCompleted})
+		transitionDone <- err
+	}()
+	<-releaser.entered
+	persisted, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil || !persisted.Status.IsTerminal() {
+		close(releaser.release)
+		t.Fatalf("test did not observe the durable terminal commit before key cleanup: status=%v err=%v", persisted, err)
+	}
+	requestDone := make(chan error, 1)
+	go func() {
+		_, err := keys.ResolveOrMint(ctx, run.ID)
+		requestDone <- err
+	}()
+	select {
+	case err := <-requestDone:
+		close(releaser.release)
+		t.Fatalf("Treasury key request crossed a committed terminal transition before revocation: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+	close(releaser.release)
+	if err := <-transitionDone; err != nil {
+		t.Fatalf("terminal transition failed: %v", err)
+	}
+	if err := <-requestDone; err == nil {
+		t.Fatal("Treasury key request returned a value after terminal revocation")
+	}
+}
+
+func TestExplicitContinuationRebindsFreshTreasuryKeyAndSerializesNextRevocation(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	path := filepath.Join(t.TempDir(), "continuation-run-keys.enc")
+	open := func() (*credentialauthority.Authority, error) {
+		return credentialauthority.OpenEncryptedFile(path, "continuation-lifecycle-test-passphrase")
+	}
+	keys := NewCredentialAuthorityTreasurySessionKeysWithOpener(open)
+	now := time.Now().UTC()
+	task := &domain.Task{ID: uuid.New(), Title: "continue treasury run", ScopePath: "src", Status: domain.TaskStatusQueued, CreatedAt: now, UpdatedAt: now}
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	run := &domain.Run{ID: uuid.New(), TaskID: task.ID, Tag: "continue-treasury-run", RunMode: domain.RunModeInPlace, Status: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, CreatedAt: now, UpdatedAt: now}
+	if err := repos.Runs.Create(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	oldKey, err := keys.ResolveOrMint(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithTreasurySessionKeyStore(keys))
+	if _, err := svc.applyRunStatusTransition(ctx, RunStatusTransitionInput{Run: run, NewStatus: domain.RunStatusCancelled, Phase: domain.RunPhaseCompleted}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := keys.ResolveOrMint(ctx, run.ID); err == nil {
+		t.Fatal("ordinary run-key acquisition crossed terminal tombstone")
+	}
+	progress := 0
+	if _, err := svc.applyRunStatusTransition(ctx, RunStatusTransitionInput{Run: run, NewStatus: domain.RunStatusRunning, Phase: domain.RunPhaseExecuting, ProgressPercent: &progress}); err != nil {
+		t.Fatalf("explicit terminal continuation failed: %v", err)
+	}
+	secret := []byte("continuation-lifecycle-test-identity-secret")
+	token, err := runidentity.GenerateToken(&runidentity.Claims{RunID: run.ID, Scopes: []string{"treasury:write"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix()}, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	launchReq := &runner.LaunchRequest{}
+	release, err := treasurySessionContinuationLaunchPreparer(keys, run.ID, token, secret)(ctx, launchReq)
+	if err != nil {
+		t.Fatalf("continuation could not prepare a fresh Treasury identity: %v", err)
+	}
+	continuedKey := strings.TrimPrefix(launchReq.Env[0], treasurySessionKeyEnv+"=")
+	if continuedKey == oldKey {
+		t.Fatal("continuation reused the retired terminal key")
+	}
+	terminalDone := make(chan error, 1)
+	go func() {
+		_, err := svc.applyRunStatusTransition(ctx, RunStatusTransitionInput{Run: run, NewStatus: domain.RunStatusCancelled, Phase: domain.RunPhaseCompleted})
+		terminalDone <- err
+	}()
+	select {
+	case err := <-terminalDone:
+		t.Fatalf("next terminal cleanup overtook continuation process launch: %v", err)
+	case <-time.After(30 * time.Millisecond):
+	}
+	release()
+	select {
+	case err := <-terminalDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("next terminal transition did not proceed after launch")
+	}
+	if _, err := keys.ResolveOrMint(ctx, run.ID); err == nil {
+		t.Fatal("second terminal transition did not revoke continuation key")
+	}
+	if continuedKey == "" {
+		t.Fatal("continuation process received no fresh key")
 	}
 }

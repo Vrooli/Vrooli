@@ -135,7 +135,7 @@ Read `method` before trusting numbers: `DECISION_MODEL` answers carry `confidenc
 | Best answer, cost second | `quality-first` | routes that violate privacy or a `--max-cost-usd` ceiling |
 | Cheapest acceptable | `cheap-first` | routes that lack the role's capability |
 | Only hosted models | `remote-only` | local providers |
-| Confidential or secret content | `privacy-sensitive` | unapproved hosted providers; never falls back remote for capacity |
+| Confidential or secret content | `privacy-sensitive` or `local-only` | all remote providers; fails closed when local capacity is unavailable |
 
 Add `--max-cost-usd` when the caller has a budget; the route refuses instead of overspending. Add `--scenario <slug> --operation <label>` on every routing call from a scenario: evidence and future cost measures group on them. `inference run` accepts none of these; see §3.1.
 
@@ -145,7 +145,7 @@ Add `--max-cost-usd` when the caller has a budget; the route refuses instead of 
 |---|---|---|
 | Public text | `public` | any eligible provider |
 | Internal project text (default) | `internal` | local-first keeps it local when a local role is eligible |
-| Credentials, customer data, unreleased plans | `confidential` | hosted providers only when the profile explicitly approves them |
+| Credentials, customer data, unreleased plans | `confidential` | local providers only; Gateway rejects remote-capable profiles until an explicit remote-approval contract exists |
 | Secrets | `secret` | fails closed unless a local route is eligible; never remote |
 
 ### 4. Reading routes
@@ -182,7 +182,7 @@ Entry kinds: `role-note` when the lesson is about a role or schema; `provider-no
 | Route went remote for internal data | On a routing call, add `--profile local-only` or `--privacy confidential`; on typed inference, pick a role whose catalog entry is local-first (`inventory roles --provider ollama`) | the profile or role and the evidence event id |
 | Cost too high on a repeated call | On a routing call, add `--max-cost-usd` or `--profile cheap-first`; on typed inference, switch to `run-batch` or a cheaper role | the ceiling or role and the resolved model |
 | Many identical schema calls | Switch to `run-batch` with one items file | the item count and wall time |
-| Local role keeps timing out | `routing health` first; if the breaker is open, use `local-first` and let the fallback happen; do not force `remote-only` for internal data | the breaker state and cooldown |
+| Local role keeps timing out | `routing health` first; if the breaker is open, use `local-first` only when the privacy class allows hosted fallback; confidential and secret requests fail closed | the breaker state and cooldown |
 
 ### 7. Debug order
 
@@ -196,7 +196,7 @@ Entry kinds: `role-note` when the lesson is about a role or schema; `provider-no
 
 - Never call `resource-ollama` or `resource-openrouter` directly from a scenario; the conformance scan reports it.
 - Never put a secret in `--source`, `--input-text`, or `--instruction`; evidence redacts prompt bodies, not your shell history.
-- `secret` and `confidential` content stays on `privacy-sensitive` or `local-only`.
+- `secret` and `confidential` content stays on `privacy-sensitive` or `local-only`. The shared Gateway contract blocks all remote candidates for these classes, regardless of caller profile.
 - `--max-cost-usd` is a ceiling, not a budget: a refusal is the correct outcome when nothing fits.
 
 ### 9. Troubleshooting & Edge Cases
@@ -209,7 +209,7 @@ Entry kinds: `role-note` when the lesson is about a role or schema; `provider-no
 | `INFERENCE_ERROR_CODE_VALIDATION_FAILED` with usage present | The provider answered off-schema | `value_json` | Tighten `--instruction`; retry once at most; usage was still charged |
 | `INFERENCE_ERROR_CODE_UNAVAILABLE`, or `ai.*` fails closed naming a bridge or provider | Provider down or breaker open; the gateway does not fall back outside the profile | `routing health` | Wait for cooldown or pick a profile with an eligible provider; never call the provider directly |
 | `capability_mismatch` | Attachment modality not declared by the selected role | `inventory roles` capabilities | Use a role with the modality (`vision.default`, `locate.visual`) |
-| Local route rejected for capacity | Broker verdict `insufficient_capacity` or `advisory_reclaim_unavailable` | `routing evidence-show <id>` `capacity_verdict` | `local-first` falls back remote if the privacy class allows; `local-only` and `privacy-sensitive` fail closed by design |
+| Local route rejected for capacity | Broker verdict `insufficient_capacity` or `advisory_reclaim_unavailable` | `routing evidence-show <id>` `capacity_verdict` | `local-first` falls back remote only if privacy permits; confidential/secret, `local-only`, and `privacy-sensitive` fail closed |
 | `routing execute` ignores temperature | The routing CLI has no `--temperature` flag | `docs/reference/cli-commands.md` | Use `inference run` for sampled typed output |
 | Measures binding in a program says `proto: syntax error ... unexpected token` | `window` passed as a string | the call | Pass `window={"token": "TIME_WINDOW_TOKEN_LAST_7D"}` |
 | `decide` answered with `method=LLM_ENUM` | Every decision-model candidate was skipped or failed | `candidates[].reason` | `unreachable`/`unconfigured` on `decide.local`: `vrooli resource status ollaya`, `resource-ollaya models pull`; provision a hosted key for a hosted fallback |

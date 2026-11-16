@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "@vrooli/react-component-library/Button/2";
 import { Checkbox } from "@vrooli/react-component-library/Checkbox/1";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { RadioGroup } from "@vrooli/react-component-library/RadioGroup/1";
 import { ResponsiveDialog } from "@vrooli/react-component-library/ResponsiveDialog/1";
 import { Select } from "@vrooli/react-component-library/Select/1";
@@ -85,12 +85,12 @@ export function UsageModeSheet({ open, onClose, runner: initialRunner, windowNam
       closeLabel="Close"
       size="lg"
       testId="usage-mode-sheet"
-      footer={
-        <>
-          <Button variant="ghost" onClick={onClose} data-testid={startedId ? "mode-done" : undefined}>{startedId ? "Done" : "Cancel"}</Button>
-          {startedId ? null : <Button variant="primary" disabled={!!blocked || start.isPending} onClick={submit} data-testid="mode-start">{start.isPending ? "Starting" : startLabel}</Button>}
-        </>
-      }
+      footer={startedId
+        ? <OverlayActionBar className="flex-row-reverse" actions={[{ id: "done", label: "Done", onSelect: onClose, primary: true, testId: "mode-done" }]} />
+        : <OverlayActionBar className="flex-row-reverse" actions={[
+            { id: "start", label: start.isPending ? "Starting" : startLabel, onSelect: submit, disabled: !!blocked || start.isPending, primary: true, testId: "mode-start" },
+            { id: "cancel", label: "Cancel", onSelect: onClose },
+          ]} />}
     >
       {startedId ? (
         <div className="space-y-3 p-4">

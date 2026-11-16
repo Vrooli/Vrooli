@@ -1,6 +1,7 @@
 import { ExternalLink, FileCode } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import {
   Dialog,
   DialogContent,
@@ -155,9 +156,7 @@ export function ReviewModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <OverlayActionBar actions={[{ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true }]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

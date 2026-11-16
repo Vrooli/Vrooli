@@ -53,6 +53,7 @@ type Decision struct {
 	BigPicture           string           `json:"big_picture,omitempty"`
 	TechnicalDetails     string           `json:"technical_details,omitempty"`
 	ContextURL           string           `json:"context_url,omitempty"`
+	Explainer            string           `json:"explainer_html,omitempty"`
 	Deadline             time.Time        `json:"deadline,omitempty"`
 	RaisedAt             time.Time        `json:"raised_at,omitempty"`
 	State                string           `json:"state,omitempty"`
@@ -88,7 +89,7 @@ func (d Decision) Facts(subject string, correlation map[string]string) operatord
 	facts := operatordecision.Facts{
 		Subject: subject, Question: d.Question, Recommended: d.Recommended, RecommendationReason: d.RecommendationReason,
 		DefaultAnswer: d.DefaultAnswer, Reversible: d.Reversible, Urgency: d.Urgency, BigPicture: d.BigPicture,
-		TechnicalDetails: d.TechnicalDetails, ContextURL: d.ContextURL, Deadline: d.Deadline, Correlation: correlation,
+		TechnicalDetails: d.TechnicalDetails, ContextURL: d.ContextURL, Explainer: d.Explainer, Deadline: d.Deadline, Correlation: correlation,
 	}
 	if strings.TrimSpace(facts.TechnicalDetails) == "" {
 		facts.TechnicalDetails = strings.TrimSpace(d.Note)

@@ -114,6 +114,16 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 	run.UpdatedAt = now
 
+	// Serialize terminal commits and explicit terminal→running continuations
+	// with run-key delivery. Terminal commits retain the lock through keyless
+	// tombstoning; continuation commits establish the new live run state before
+	// its exclusive fresh-key rebind path can acquire a delivery lease.
+	continuationReopen := previousStatus.IsTerminal() && input.NewStatus == domain.RunStatusRunning
+	if (input.NewStatus.IsTerminal() || continuationReopen) && o.credentialUseReleaser != nil {
+		releaseGate := treasurySessionKeyGate.writeLock(run.ID)
+		defer releaseGate()
+	}
+
 	var updateErr error
 	if input.InteractiveContinuation {
 		updateErr = o.runs.UpdateInteractiveContinuation(ctx, run, previousStatus, input.ExpectedInteractiveInvocationStartedAt)
@@ -138,7 +148,12 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 			// with the publication error so lifecycle owners can finish any
 			// post-commit obligations without treating the transition as rolled
 			// back. Repository update failures still return nil before this point.
-			return o.attachRunActions(ctx, run), err
+			hydrated := o.attachRunActions(ctx, run)
+			if hydrated.Status.IsTerminal() {
+				o.projectTerminalInvocationReadModel(ctx, hydrated)
+				o.revokeTerminalCredentialUse(ctx, hydrated)
+			}
+			return hydrated, err
 		}
 	}
 
@@ -146,8 +161,10 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	if o.broadcaster != nil {
 		o.broadcaster.BroadcastRunStatus(ctx, hydrated)
 	}
-	if previousStatus != input.NewStatus && hydrated.Status.IsTerminal() {
-		o.projectTerminalInvocationReadModel(ctx, hydrated)
+	if hydrated.Status.IsTerminal() {
+		if previousStatus != input.NewStatus {
+			o.projectTerminalInvocationReadModel(ctx, hydrated)
+		}
 		o.revokeTerminalCredentialUse(ctx, hydrated)
 	}
 

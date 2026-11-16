@@ -141,10 +141,10 @@ type RunExecutor struct {
 	skillSource  promptmanager.SourceClient
 
 	// Identity token state
-	identitySecret      []byte
-	identityToken       string
-	treasurySessionKeys TreasurySessionKeyStore
-	treasurySessionKey  string
+	identitySecret         []byte
+	identityToken          string
+	treasurySessionKeys    TreasurySessionKeyStore
+	terminalKeyGateRelease func()
 
 	// onRunning fires exactly once when the run reaches
 	// RunStatusRunning. Wired by the spawn dispatcher to release the
@@ -369,7 +369,10 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 
 	go phases.RunHeartbeatLoop(ctx, e.heartbeatLoopInput())
 	defer e.stopHeartbeat()
-	defer e.finalize(ctx)
+	defer func() {
+		e.finalize(ctx)
+		e.releaseTerminalSessionKeyGate()
+	}()
 
 	if e.isResuming {
 		e.emitSystem(ctx, "info", fmt.Sprintf("resuming from phase: %s", e.checkpoint.Phase))
@@ -525,6 +528,7 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		CurrentModelExclusions: e.currentModelExclusions,
 		CurrentModelAdmission:  e.currentModelAdmission,
 		ExecuteAgentInput: phases.ExecuteAgentInput{
+			PrepareLaunch: treasurySessionLaunchPreparer(e.treasurySessionKeys, e.run.ID, e.identityToken, e.identitySecret),
 			Deps:          e.deps(),
 			Run:           e.run,
 			Task:          e.task,
@@ -577,6 +581,10 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 
 	// Step 5: Handle result.
 	e.advancePhase(execCtx, domain.RunPhaseCollectingResults)
+	// HandleResult persists terminal status before its deferred finalizer runs.
+	// Acquire before that write and retain through deferred revocation so a
+	// broker delivery cannot cross the durable terminal boundary.
+	e.acquireTerminalSessionKeyGate()
 	resultOut := phases.HandleResult(execCtx, phases.HandleResultInput{
 		Deps:      e.deps(),
 		Run:       e.run,
@@ -590,12 +598,8 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 }
 
 func (e *RunExecutor) prepareTreasurySessionKey(ctx context.Context) error {
-	key, err := resolveTreasurySessionKey(ctx, e.treasurySessionKeys, e.run.ID, e.identityToken, e.identitySecret)
-	if err != nil {
-		return err
-	}
-	e.treasurySessionKey = key
-	return nil
+	_, err := resolveTreasurySessionKey(ctx, e.treasurySessionKeys, e.run.ID, e.identityToken, e.identitySecret)
+	return err
 }
 
 // =============================================================================
@@ -650,14 +654,6 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 		env[phases.AgentManagerStoreOwnerEnv] = e.storeOwnerID
 	}
 	delete(env, treasurySessionKeyEnv)
-	if e.treasurySessionKey != "" {
-		if env == nil {
-			env = make(map[string]string)
-		}
-		// This protected value is applied last: caller-supplied CustomEnv cannot
-		// replace the run-owned session key with a chosen signer identity.
-		env[treasurySessionKeyEnv] = e.treasurySessionKey
-	}
 	return env
 }
 
@@ -702,6 +698,7 @@ func (e *RunExecutor) updateStatusToStarting(ctx context.Context) error {
 
 // failWithError delegates to phases.FailWithError and stores the outcome.
 func (e *RunExecutor) failWithError(ctx context.Context, err error) {
+	e.acquireTerminalSessionKeyGate()
 	out := phases.FailWithError(ctx, phases.FailWithErrorInput{
 		Deps: e.deps(),
 		Run:  e.run,
@@ -713,6 +710,7 @@ func (e *RunExecutor) failWithError(ctx context.Context, err error) {
 // handleContextError delegates to phases.HandleContextError and stores
 // the resulting outcome.
 func (e *RunExecutor) handleContextError(ctx context.Context, err error) {
+	e.acquireTerminalSessionKeyGate()
 	sessionID := ""
 	if e.result != nil {
 		sessionID = e.result.SessionID
@@ -831,6 +829,13 @@ func (e *RunExecutor) finalize(parent context.Context) {
 		}
 	}
 	e.finalized = true
+	// Direct finalizer calls (outside Execute's deferred closure) retain the
+	// terminal lock through cleanup. Execute normally acquired it before the
+	// terminal result write and releases it after this method returns.
+	if e.run != nil && e.run.Status.IsTerminal() && e.terminalKeyGateRelease == nil {
+		e.acquireTerminalSessionKeyGate()
+		defer e.releaseTerminalSessionKeyGate()
+	}
 	if e.run != nil && e.run.ResolvedConfig != nil {
 		if err := CleanupCodecSessionHomeCredentials(e.runStateRoot, e.run.ID, e.run.ResolvedConfig.RunnerType); err != nil {
 			e.emitSystem(ctx, "warn", "failed to clean run-scoped session credentials: "+err.Error())
@@ -848,6 +853,22 @@ func (e *RunExecutor) finalize(parent context.Context) {
 	if e.onTerminal != nil && e.run != nil && e.run.Status.IsTerminal() {
 		e.onTerminal(ctx, e.run)
 	}
+}
+
+func (e *RunExecutor) acquireTerminalSessionKeyGate() {
+	if e == nil || e.treasurySessionKeys == nil || e.run == nil || e.terminalKeyGateRelease != nil {
+		return
+	}
+	e.terminalKeyGateRelease = treasurySessionKeyGate.writeLock(e.run.ID)
+}
+
+func (e *RunExecutor) releaseTerminalSessionKeyGate() {
+	if e == nil || e.terminalKeyGateRelease == nil {
+		return
+	}
+	release := e.terminalKeyGateRelease
+	e.terminalKeyGateRelease = nil
+	release()
 }
 
 // =============================================================================

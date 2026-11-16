@@ -41,6 +41,9 @@ type removalWalker struct {
 	// operator collects operator-only commands (operator_only.go) seen while
 	// walking, with the same wrapper and nested-interpreter handling.
 	operator *[]string
+	// creates collects the paths mkdir and touch would create, for the
+	// creation resolvers (created_transcript.go).
+	creates *[]createdTarget
 }
 
 // parseRemovals lists what the command text would delete. It never executes
@@ -67,7 +70,8 @@ func newRemovalWalker(env removalEnv, dialect shellDialect) *removalWalker {
 	targets := []RemovalTarget{}
 	invoked := false
 	operator := []string{}
-	return &removalWalker{env: env, dialect: dialect, vars: map[string]*string{}, cwd: filepath.Clean(env.WorkingDirectory), targets: &targets, invoked: &invoked, operator: &operator}
+	creates := []createdTarget{}
+	return &removalWalker{env: env, dialect: dialect, vars: map[string]*string{}, cwd: filepath.Clean(env.WorkingDirectory), targets: &targets, invoked: &invoked, operator: &operator, creates: &creates}
 }
 
 func quotedWord(text string) shellWord {
@@ -79,7 +83,7 @@ func (w *removalWalker) child() *removalWalker {
 	for name, value := range w.vars {
 		vars[name] = value
 	}
-	return &removalWalker{env: w.env, dialect: w.dialect, vars: vars, cwd: w.cwd, depth: w.depth, targets: w.targets, invoked: w.invoked, operator: w.operator}
+	return &removalWalker{env: w.env, dialect: w.dialect, vars: vars, cwd: w.cwd, depth: w.depth, targets: w.targets, invoked: w.invoked, operator: w.operator, creates: w.creates}
 }
 
 func (w *removalWalker) script(text string) {
@@ -402,6 +406,10 @@ func (w *removalWalker) dispatch(name string, args []shellWord, stdin []string, 
 		w.plainTargets(name, args, map[string]bool{"-n": true, "-s": true, "--iterations": true, "--size": true, "--random-source": true})
 	case "truncate":
 		w.plainTargets(name, args, map[string]bool{"-s": true, "--size": true, "-r": true, "--reference": true})
+	case "mkdir":
+		w.creating(true, args, map[string]bool{"-m": true, "--mode": true, "-Z": true, "--context": true})
+	case "touch":
+		w.creating(false, args, map[string]bool{"-d": true, "--date": true, "-t": true, "-r": true, "--reference": true})
 	case "find":
 		w.find(args)
 	case "rsync":
@@ -1102,4 +1110,43 @@ func excerptText(text string, limit int) string {
 		return string(runes[:limit]) + "…"
 	}
 	return flattened
+}
+
+// creating records the paths a creating command (mkdir, touch) names. A word
+// the walker cannot resolve to one static path is left out: the creation
+// resolvers only ever vouch for what they can name.
+func (w *removalWalker) creating(dir bool, args []shellWord, argOptions map[string]bool) {
+	endOptions := false
+	for j := 0; j < len(args); j++ {
+		t := literalWordText(args[j])
+		switch {
+		case !endOptions && t == "--":
+			endOptions = true
+		case !endOptions && argOptions[t]:
+			j++
+		case !endOptions && len(t) > 1 && t[0] == '-':
+		default:
+			text, glob, dynamic := w.expand(args[j])
+			if glob || dynamic != "" || text == "" {
+				continue
+			}
+			if path, reason := w.absolute(text); reason == "" {
+				*w.creates = append(*w.creates, createdTarget{path: path, dir: dir})
+			}
+		}
+	}
+}
+
+// parseCreations lists the paths the command text would create with mkdir or
+// touch. It never executes anything.
+func parseCreations(script string, dialect shellDialect, env removalEnv) []createdTarget {
+	w := newRemovalWalker(env, dialect)
+	w.script(script)
+	return *w.creates
+}
+
+// createdTarget is one path a mkdir (dir) or touch names.
+type createdTarget struct {
+	path string
+	dir  bool
 }

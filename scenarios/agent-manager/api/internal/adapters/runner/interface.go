@@ -270,6 +270,7 @@ type SpawnCapability struct {
 
 // ExecuteRequest contains everything needed to execute an agent.
 type ExecuteRequest struct {
+	PrepareLaunch func(context.Context, *LaunchRequest) (func(), error)
 	// RunID identifies this execution for tracking and cancellation.
 	RunID uuid.UUID
 
@@ -363,6 +364,7 @@ func (r *ExecuteRequest) GetConfig() *domain.RunConfig {
 
 // ContinueRequest contains parameters for continuing an existing session.
 type ContinueRequest struct {
+	PrepareLaunch func(context.Context, *LaunchRequest) (func(), error)
 	// Tag retains the run's process identity across continuation and restart.
 	Tag string
 	// RunID identifies the run being continued (for tracking).

@@ -290,6 +290,27 @@ func TestMediaRecoveryQuarantinesProviderCompletedWithoutReceipt(t *testing.T) {
 	}
 }
 
+func TestResourceOpenRouterMediaExecutorRefusesVideoBeforeCredentialOrResourceDispatch(t *testing.T) {
+	var resourceCalls, credentialCalls atomic.Int64
+	runner := mediaCommandRunnerFunc(func(context.Context, providers.Command) (providers.Result, error) {
+		resourceCalls.Add(1)
+		return providers.Result{}, nil
+	})
+	executor := NewResourceOpenRouterMediaExecutor(runner)
+	executor.resolveCredential = func(context.Context) (string, error) {
+		credentialCalls.Add(1)
+		return "", errors.New("credential lookup must not run for unsupported media kinds")
+	}
+	request := mediaRequest("video-capability-refusal")
+	request.Request.Kind = sharedv1.RequestKind_REQUEST_KIND_VIDEO_GENERATION
+	request.Request.Role = "video.generate.default"
+
+	_, err := executor.Execute(context.Background(), request)
+	require.ErrorContains(t, err, "does not support REQUEST_KIND_VIDEO_GENERATION")
+	require.Zero(t, resourceCalls.Load(), "unsupported video must fail before resource commands")
+	require.Zero(t, credentialCalls.Load(), "unsupported video must fail before credential authority lookup")
+}
+
 type recordingMediaExecutor struct{ calls, cancels atomic.Int64 }
 
 func (e *recordingMediaExecutor) Execute(ctx context.Context, request *routingv1.SubmitMediaRequest) (*MediaExecutionResult, error) {
@@ -562,13 +583,13 @@ func TestMediaCancellationCannotResumeOrDispatch(t *testing.T) {
 func mediaRequest(key string) *routingv1.SubmitMediaRequest {
 	return &routingv1.SubmitMediaRequest{
 		Request: &sharedv1.GatewayRequest{
-			Kind:         sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION,
-			Role:         "media.generate",
-			Profile:      sharedv1.Profile_PROFILE_LOCAL_FIRST,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			Kind:              sharedv1.RequestKind_REQUEST_KIND_IMAGE_GENERATION,
+			Role:              "media.generate",
+			Profile:           sharedv1.Profile_PROFILE_LOCAL_FIRST,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
 			PrivacyProvenance: "routing_test.generated_media_request",
-			Scenario:     "fixture",
-			Operation:    "generate",
+			Scenario:          "fixture",
+			Operation:         "generate",
 		},
 		Prompt:          "a red square",
 		OutputCount:     1,

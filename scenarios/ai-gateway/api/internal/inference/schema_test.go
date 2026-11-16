@@ -203,23 +203,78 @@ func (r *embeddingTestRepository) Embed(_ context.Context, request EmbeddingRequ
 
 func TestServiceEmbedPreservesTypedProviderEvidence(t *testing.T) {
 	repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1, 0}, {0, 1}}, Provider: "ollama", Model: "nomic", Dimension: 2, InputTokens: 8, CostMicros: 12}}
-	response := NewService(repository).Embed(t.Context(), "embedding.default", []string{"one", "two"}, false)
+	request := EmbeddingRequest{
+		Role: "embedding.default", Texts: []string{"one", "two"},
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		PrivacyProvenance: "gateway_test.synthetic_embedding_fixture",
+	}
+	response := NewService(repository).Embed(t.Context(), request)
 	require.Nil(t, response.GetError())
 	require.Equal(t, "embedding.default", repository.request.Role)
 	require.Equal(t, []string{"one", "two"}, repository.request.Texts)
-	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, repository.request.Profile, "typed embedding has an explicit local-only provider contract")
+	require.Equal(t, request.Profile, repository.request.Profile)
+	require.Equal(t, request.PrivacyClass, repository.request.PrivacyClass)
+	require.Equal(t, request.PrivacyProvenance, repository.request.PrivacyProvenance)
 	require.Equal(t, "ollama", response.GetProvider())
 	require.EqualValues(t, 2, response.GetDimension())
 	require.EqualValues(t, 12, response.GetUsage().GetCostMicros())
 	require.Len(t, response.GetVectors(), 2)
 }
 
+func TestServiceEmbedPreservesSourcedPrivacyContract(t *testing.T) {
+	repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1, 0}}, Provider: "ollama", Model: "nomic", Dimension: 2}}
+	request := EmbeddingRequest{
+		Role: "embedding.default", Texts: []string{"draft"},
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: "prose_studio.private_editorial_content",
+	}
+	response := NewService(repository).Embed(t.Context(), request)
+	require.Nil(t, response.GetError())
+	require.Equal(t, request.Profile, repository.request.Profile)
+	require.Equal(t, request.PrivacyClass, repository.request.PrivacyClass)
+	require.Equal(t, request.PrivacyProvenance, repository.request.PrivacyProvenance)
+}
+
+func TestServiceEmbedRejectsIncompleteOrRemotePrivacyContract(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		mutate func(*EmbeddingRequest)
+	}{
+		{name: "provenance without class", mutate: func(req *EmbeddingRequest) { req.PrivacyProvenance = "caller.private_text" }},
+		{name: "class without provenance", mutate: func(req *EmbeddingRequest) { req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL }},
+		{name: "missing privacy contract", mutate: func(req *EmbeddingRequest) {}},
+		{name: "missing profile", mutate: func(req *EmbeddingRequest) {
+			req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+			req.PrivacyProvenance = "caller.private_text"
+			req.Profile = sharedv1.Profile_PROFILE_UNSPECIFIED
+		}},
+		{name: "remote profile", mutate: func(req *EmbeddingRequest) { req.Profile = sharedv1.Profile_PROFILE_REMOTE_ONLY }},
+		{name: "unknown class", mutate: func(req *EmbeddingRequest) {
+			req.PrivacyClass = sharedv1.PrivacyClass(999)
+			req.PrivacyProvenance = "caller.private_text"
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1}}, Provider: "ollama", Model: "m", Dimension: 1}}
+			request := EmbeddingRequest{Role: "embedding.default", Texts: []string{"draft"}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY}
+			tc.mutate(&request)
+			response := NewService(repository).Embed(t.Context(), request)
+			require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, response.GetError().GetCode())
+			require.Empty(t, repository.request.Role, "invalid embedding contract must stop before provider work")
+		})
+	}
+}
+
 func TestServiceEmbedRejectsSamplingAndDimensionMismatch(t *testing.T) {
 	repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1}, {1, 0}}, Provider: "fake", Model: "m", Dimension: 2}}
 	service := NewService(repository)
-	response := service.Embed(t.Context(), "embedding.default", []string{"one", "two"}, true)
+	response := service.Embed(t.Context(), EmbeddingRequest{Role: "embedding.default", Texts: []string{"one", "two"}, Sampling: true})
 	require.Equal(t, "INFERENCE_ERROR_CODE_INVALID_REQUEST", response.GetError().GetCode().String())
-	response = service.Embed(t.Context(), "embedding.default", []string{"one", "two"}, false)
+	response = service.Embed(t.Context(), EmbeddingRequest{
+		Role: "embedding.default", Texts: []string{"one", "two"}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: "gateway_test.synthetic_embedding_fixture",
+	})
 	require.Equal(t, "INFERENCE_ERROR_CODE_VALIDATION_FAILED", response.GetError().GetCode().String())
 }
 

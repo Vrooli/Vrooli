@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"agent-manager/internal/decisionpage"
 	"agent-manager/internal/domain"
 
 	"github.com/vrooli/api-core/operatordecision"
@@ -125,19 +126,46 @@ func (n *Notifier) ProposeRoleDefault(ctx context.Context, p RoleDefaultProposal
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	id := operatordecision.CorrelationID("umr", p.ModeID, p.Role, p.To)
-	body := fmt.Sprintf("The comparison for %s on %s reads %q. %s\n\nApproving does not change anything by itself: Agent Manager does not edit resource files. It records your approval and keeps this exact change for you to apply:\n%s",
-		p.Role, runnerTitle(usageRunnerName(p.Runner)), p.Verdict, p.Evidence, p.Change.Text())
+	role, who := roleName(p.Role), runnerTitle(usageRunnerName(p.Runner))
 	facts := operatordecision.Facts{
-		Subject:     fmt.Sprintf("Make %s the default for %s?", p.To, p.Role),
-		Question:    fmt.Sprintf("Make %s the default model for %s instead of %s? The evidence is a range, not proof.", p.To, p.Role, p.From),
-		BigPicture:  body,
-		Options:     []operatordecision.Option{{Key: AnswerApprove, Label: "Approve the change"}, {Key: AnswerNotNow, Label: "Not now"}},
-		Recommended: AnswerNotNow, Reversible: true, Urgency: "low",
+		Subject:  fmt.Sprintf("Make %s the usual model for %s?", p.To, role),
+		Question: fmt.Sprintf("A comparison suggests %s could replace %s as the usual %s model for %s work. Make the switch? The evidence is a range, not proof.", p.To, p.From, who, role),
+		BigPicture: fmt.Sprintf("A usage-mode comparison ran %s work on %s and on %s side by side. It reads: %s. ", role, p.From, p.To, p.Verdict) +
+			"Approving does not change anything by itself: Agent Manager records your approval and keeps the exact change for you to apply. " +
+			"Not now leaves the usual model as it is. If you do not answer, nothing changes.",
+		TechnicalDetails: "Role " + p.Role + " on " + p.Runner + ", mode " + p.ModeID + ".\n" + p.Evidence + "\n\nChange to apply:\n" + p.Change.Text(),
+		Options:          []operatordecision.Option{{Key: AnswerApprove, Label: "Approve the switch; I will apply it"}, {Key: AnswerNotNow, Label: "Not now"}},
+		Recommended:      AnswerNotNow, RecommendationReason: "The evidence is a range, not proof; switch only if the range clearly favours " + p.To + ".",
+		Reversible: true, Urgency: "low",
 		ContextURL: n.link(ctx, "?tab=evidence"),
 		Correlation: map[string]string{
 			"kind": KindRoleDefault, "decision_id": id, "mode_id": p.ModeID, "role": p.Role, "from": p.From, "to": p.To,
 		},
 	}
+	changes := [][]string{}
+	for _, op := range p.Change.Ops {
+		changes = append(changes, []string{op.Path, op.From, op.Value})
+	}
+	page := operatordecision.NewPage(facts.Subject).Raw(decisionpage.Style).
+		Lead("Agent Manager compared two models on the same kind of work. You decide whether the cheaper or newer one becomes the usual choice.").
+		Facts(
+			operatordecision.Row{Label: "Kind of work", Value: capitalize(role)},
+			operatordecision.Row{Label: "Usual model now", Value: p.From},
+			operatordecision.Row{Label: "Proposed", Value: p.To},
+			operatordecision.Row{Label: "What the comparison reads", Value: p.Verdict},
+		)
+	if ev := strings.TrimSpace(p.Evidence); ev != "" {
+		page.Section("The evidence", "").Raw(decisionpage.Quote(ev))
+	}
+	if len(changes) > 0 {
+		page.Section("The exact change you would apply", "In "+p.Change.File+":").Table([]string{"Setting", "Now", "Becomes"}, changes)
+	} else if p.Change.Note != "" {
+		page.Callout("warning", "The change could not be worked out:", p.Change.Note)
+	}
+	facts.Explainer = page.Options(facts, map[string]string{
+		AnswerApprove: "Records your approval and keeps the change above. Nothing switches until you apply it.",
+		AnswerNotNow:  "Nothing changes; the usual model stays " + p.From + ".",
+	}).IfNoAnswer("Nothing changes.").HTML()
 	st := n.load()
 	if ask := st.Asks[id]; ask != nil && ask.State == operatordecision.PendingStatePending && !legacyAsk(ask) {
 		return id, nil

@@ -53,6 +53,22 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 )
 
+func launchWithPreparation(ctx context.Context, launcher runner.Launcher, req runner.LaunchRequest) (runner.LaunchedProcess, error) {
+	release := func() {}
+	if req.PrepareLaunch != nil {
+		var err error
+		release, err = req.PrepareLaunch(ctx, &req)
+		if err != nil {
+			return nil, fmt.Errorf("prepare agent launch: %w", err)
+		}
+		if release == nil {
+			release = func() {}
+		}
+	}
+	defer release()
+	return launcher.Launch(ctx, req)
+}
+
 // runnerLog returns the runner-core's component-tagged logger,
 // pre-tagged with codec/runner type so every log line is filterable
 // without per-call boilerplate.
@@ -326,6 +342,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PrepareLaunch = req.PrepareLaunch
 	launchReq.PolicyFiles = req.PolicyFiles
 	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
 		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
@@ -341,7 +358,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 		"workdir", req.WorkingDir,
 	)
 
-	proc, err := launcher.Launch(ctx, launchReq)
+	proc, err := launchWithPreparation(ctx, launcher, launchReq)
 	if err != nil {
 		r.runnerLog().Error("agent launch failed",
 			obs.KeyRunID, req.RunID.String(),
@@ -549,11 +566,12 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 		tag, prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PrepareLaunch = req.PrepareLaunch
 	launchReq.PolicyFiles = req.PolicyFiles
 	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
 		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
 	}
-	proc, err := launcher.Launch(ctx, launchReq)
+	proc, err := launchWithPreparation(ctx, launcher, launchReq)
 	if err != nil {
 		return nil, &domain.RunnerError{
 			RunnerType:            r.codec.Type(),
@@ -943,6 +961,7 @@ func (r *Runner) executeWithDurableTranscript(
 		req.GetTag(), prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PrepareLaunch = req.PrepareLaunch
 	launchReq.PolicyFiles = req.PolicyFiles
 	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
 		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())
@@ -1008,6 +1027,7 @@ func (r *Runner) continueWithDurableTranscript(
 		tag, prompt, env, req.WorkingDir,
 	)
 	launchReq.RunID, launchReq.EventSink = req.RunID, req.EventSink
+	launchReq.PrepareLaunch = req.PrepareLaunch
 	launchReq.PolicyFiles = req.PolicyFiles
 	if cfg := req.GetConfig(); cfg != nil && cfg.SandboxConfig != nil {
 		launchReq.NetworkMode = string(cfg.SandboxConfig.NetworkMode.Effective())

@@ -558,9 +558,15 @@ create an operator decision or claim that work was accepted.
 
 **Decisions (DL-5).** `effort decision raise <home> --id <id> --question <q>
 --option key=label … --recommend <key> [--why …] [--default <key> --reversible]
-[--deadline 24h] [--dry-run]` stores one record per (goal home, id), publishes
-one `agent_manager.effort.decision_requested.v1` event (notification-hub asks
-the operator once) and adds a `[decision <id>]` item under `## Needs operator`.
+[--deadline 24h] [--explainer page.html] [--dry-run]` stores one record per
+(goal home, id), publishes one `agent_manager.effort.decision_requested.v1`
+event (notification-hub asks the operator once) and adds a `[decision <id>]`
+item under `## Needs operator`. Every decision arrives with a page the operator
+reads above the answer buttons: `--explainer` sends the agent's own
+self-contained HTML page (stored as the record's `explainer_html`, counted in
+its content digest, checked against the Hub's size limit at raise); without it,
+and for records stored before pages existed, Agent Manager lays one out from the
+decision's texts (`effortdecision.Page`).
 The goal home is a repository-relative directory, or any absolute directory (a
 research cohort under `~/.vrooli` is keyed by its absolute path); a folder with no
 `STATUS.md` gets no `## Needs operator` item, and its answer is read with
@@ -582,10 +588,10 @@ subscription to the same webhook), and Agent Manager hands it to the raising run
 by that run's state (woken if parked on the operator-decision await, continued
 otherwise). The agent answers by re-raising the same id with the answer in
 `--big-picture` or `--technical-details`. A decision raised from an operator
-shell has no run to ask and does not offer the question. Attachments are not part
-of a decision: an event-sourced ask has no verified sender, so the Hub keeps no
-files for it; an agent that needs to attach files asks directly with
-`notification-hub conversations ask --attach`.
+shell has no run to ask and does not offer the question. Apart from the page,
+attachments are not part of a decision: an event-sourced ask has no verified
+sender, so the Hub keeps no other files for it; an agent that needs to attach
+files asks directly with `notification-hub conversations ask --attach`.
 A decision settled outside its phone ask closes that ask: answering it on the
 desktop, or ending the effort it belongs to, queues a `decision_withdrawn.v1`
 for the request's event id (`supervision_decision_withdrawals`, retried each

@@ -1,6 +1,7 @@
 package effortdecision
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -49,8 +50,9 @@ func TestRequestedEventFallsBackToProducerNoteWhenTechnicalDetailsAreAbsent(t *t
 	}
 	// The event is rebuilt from the stored record on every retry, so its bytes, and
 	// therefore its id, must not change. Decisions publish under a subject key from
-	// 2026-11-14; this pins that shape (a deliberate change from the key-less one).
-	if got := EventID(event); got != "34d89c2494da6d75651987f145274243a730bcadca289c0f133cd567ca571477" {
+	// 2026-11-14 and carry a page and a subject in words from 2026-11-15, whose
+	// options end with how to answer (also 2026-11-15); this pins that shape.
+	if got := EventID(event); got != "bd5369fe098b230498490d5570d265740000bd3bc6e0bdb4251f8b12376f0086" {
 		t.Fatalf("event identity changed: %s", got)
 	}
 }
@@ -98,5 +100,37 @@ func TestAnExternalGoalHomeIsAKeyAndAnEscapingOneIsRefused(t *testing.T) {
 	}
 	if _, err := NormalizeGoalHome("/etc/x"); err == nil {
 		t.Error("an effort's goal home stays repository-relative")
+	}
+}
+
+// Every effort decision reaches the operator as a page: the agent's own page
+// when it sent one, otherwise one laid out from the decision's texts.
+func TestRequestedEventCarriesTheAgentsPageOrAGeneratedOne(t *testing.T) {
+	deadline := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	decision := &pb.EffortDecision{
+		GoalHome: "/home/op/.vrooli/research/experience-engineering/cohorts/ux-redesign-20261115", DecisionId: "D-7",
+		Question:    "Which inbox layout should the redesign build?",
+		BigPicture:  "Two layouts were captured from the live app and redrawn.\n\nThe chosen one becomes the target for the next build.",
+		Options:     []*pb.EffortDecisionOption{{Key: "cards", Label: "Build the card layout"}, {Key: "list", Label: "Build the dense list"}},
+		Recommended: "cards", RecommendationReason: "It tested better on a phone.", DefaultAnswer: "cards", Reversible: true, Deadline: timestamppb.New(deadline),
+		CreatedAt: timestamppb.New(time.Date(2026, 11, 15, 6, 0, 0, 0, time.UTC)),
+	}
+	event := RequestedEvent(decision)
+	if subject := event.Payload["subject"]; subject != "Ux redesign" {
+		t.Errorf("the subject names the work in words, not the folder: %v", subject)
+	}
+	page, _ := event.Payload["explainer_html"].(string)
+	for _, want := range []string{
+		"<h1>Which inbox layout should the redesign build?</h1>", "<p>The chosen one becomes the target for the next build.</p>",
+		"The agent working on Ux redesign", "Build the card layout", "It tested better on a phone.",
+		"&#34;Build the card layout&#34; applies by itself at Mon Nov 16 12:00 UTC",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("generated page lacks %q", want)
+		}
+	}
+	decision.ExplainerHtml = "<!doctype html><title>Layouts</title><p>side by side</p>"
+	if got := RequestedEvent(decision).Payload["explainer_html"]; got != decision.ExplainerHtml {
+		t.Fatalf("the agent's own page was replaced: %v", got)
 	}
 }

@@ -41,6 +41,18 @@ func NewOrchestrationSettingsStore(path string) (*OrchestrationSettingsStore, er
 	if err := json.Unmarshal(data, &settings); err != nil {
 		return nil, NewInvalid("orchestrationSettings", "failed to parse orchestration settings", err)
 	}
+	// Older files have no separate pace baseline. Preserve their configured
+	// concurrency as the baseline rather than silently replacing it with the
+	// current default (10).
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err == nil {
+		var pace map[string]json.RawMessage
+		if value, ok := raw["usagePace"]; !ok || json.Unmarshal(value, &pace) != nil {
+			settings.UsagePace.BaseMaxConcurrentRuns = settings.RunExecution.MaxConcurrentRuns
+		} else if _, hasBaseline := pace["baseMaxConcurrentRuns"]; !hasBaseline {
+			settings.UsagePace.BaseMaxConcurrentRuns = settings.RunExecution.MaxConcurrentRuns
+		}
+	}
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}

@@ -18,10 +18,6 @@ envelope = {
 work = {}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:180], "where": where})
-    return "report"
 
 
 def safe(call):
@@ -37,7 +33,7 @@ def step_validate():
         or set(inputs) - set(KEYS)
         or any(not isinstance(inputs.get(key), str) or not inputs[key].strip() or len(inputs[key]) > 128 for key in KEYS)
     ):
-        return fail("failed", "invalid_input", "Supply the declared bounded nonempty owner ID", "validate")
+        return program.fail("failed", "invalid_input", "Supply the declared bounded nonempty owner ID", "validate", detail_limit=180)
     envelope["inputs"] = dict(inputs)
     return "collect"
 
@@ -65,7 +61,7 @@ def step_classify():
     meta = work["inspection"].meta()
     watch = meta.get("watch") or {}
     if watch.get("watchId") != inputs["watch_id"]:
-        return fail("failed", "identity_mismatch", "watch response mismatch", "classify")
+        return program.fail("failed", "identity_mismatch", "watch response mismatch", "classify", detail_limit=180)
 
     decision = watch.get("lastDecision") or {}
     actions_available = work["actions"] is not None
@@ -135,4 +131,4 @@ while state:
             status, klass = program.classify(exc)
         except (NameError, AttributeError):
             status, klass = "failed", "kernel_runtime"
-        state = fail(status, klass, exc, state)
+        state = program.fail(status, klass, exc, state, detail_limit=180)

@@ -711,6 +711,9 @@ func Text(r *RunReport) string {
 				fmt.Fprintf(&b, " (%s)", spend.BenefitSummary)
 			}
 			b.WriteByte('\n')
+			if alternative := spend.FreeAlternative; alternative != nil {
+				fmt.Fprintf(&b, "    free alternative: %s (%s), bytes=%d sha256=%s result=%s; limit: %s [agent-observed; not independently verified]\n", alternative.Label, alternative.SourceID, alternative.ResponseBytes, alternative.SHA256, alternative.ResultRef, alternative.Limitation)
+			}
 		}
 	} else {
 		fmt.Fprintf(&b, "Research budget: %s (%s)\n", r.ResearchBudget.Availability.State, r.ResearchBudget.Availability.Reason)

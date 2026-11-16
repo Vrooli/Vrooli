@@ -15,7 +15,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/operatordecision"
-	"github.com/vrooli/api-core/retention"
 )
 
 // An agent cannot prune evidence on its own authority. Instead it asks: the
@@ -53,6 +52,9 @@ const (
 	// extraSubjectKey marks an ask raised under a hub subject key. An ask without
 	// it was raised by an older build and can only be closed by its event id.
 	extraSubjectKey = "subject_key"
+	// extraBreakdown is the preview's size, file and path counts per class, for
+	// the page. An ask raised before it existed shows its page without the table.
+	extraBreakdown = "preview_by_class"
 )
 
 // Approval attributes a prune applied on an operator decision.
@@ -269,6 +271,7 @@ func newAsk(id string, efforts []string, classes []Class, preview Receipt, req A
 			extraPreviewBytes: strconv.FormatInt(preview.RemovedBytes, 10),
 			extraPreviewFiles: strconv.Itoa(preview.RemovedFiles),
 			extraSubjectKey:   subjectKeyFor(id),
+			extraBreakdown:    string(mustJSONMap(breakdown(preview))),
 		},
 	}
 }
@@ -282,81 +285,6 @@ func previewFromAsk(ask *operatordecision.PendingAsk) Receipt {
 		r.Removed = append(r.Removed, Removal{Path: p})
 	}
 	return r
-}
-
-// approvalFacts builds the operator ask entirely from the stored ask, so a
-// republish of the same generation yields the same event.
-func approvalFacts(ask *operatordecision.PendingAsk) operatordecision.Facts {
-	x := ask.Extra
-	efforts := decodeList(x[extraEfforts])
-	classes := decodeList(x[extraClasses])
-	paths := decodeList(x[extraPaths])
-	skipped := decodeList(x[extraSkipped])
-	bytes, _ := strconv.ParseInt(x[extraPreviewBytes], 10, 64)
-	files, _ := strconv.Atoi(x[extraPreviewFiles])
-	size := retention.FormatBytes(bytes)
-	classText := "every regenerable class"
-	if len(classes) > 0 {
-		classText = strings.Join(classes, ", ")
-	}
-	effortText := strings.Join(efforts, ", ")
-	if len(efforts) > 1 {
-		effortText = fmt.Sprintf("%d efforts", len(efforts))
-	}
-
-	var tech strings.Builder
-	fmt.Fprintf(&tech, "Requested by: %s\nReason: %s\nEfforts: %s\nClasses: %s\nWould remove: %s in %d files across %d paths\n",
-		x[extraRequestedBy], x[extraReason], strings.Join(efforts, ", "), classText, size, files, len(paths))
-	tech.WriteString("Paths (relative to the evidence home):\n")
-	for i, p := range paths {
-		if i == 200 {
-			fmt.Fprintf(&tech, "  ... and %d more\n", len(paths)-i)
-			break
-		}
-		fmt.Fprintf(&tech, "  - %s\n", p)
-	}
-	if len(skipped) > 0 {
-		tech.WriteString("Kept by the preview:\n")
-		for i, s := range skipped {
-			if i == 50 {
-				fmt.Fprintf(&tech, "  ... and %d more\n", len(skipped)-i)
-				break
-			}
-			fmt.Fprintf(&tech, "  - %s\n", s)
-		}
-	}
-	technical := truncateRunes(tech.String(), operatordecision.MaxTechnicalDetailsCodePoints)
-
-	correlation := map[string]string{
-		correlationRequestID:                      ask.ID,
-		operatordecision.CorrelationAgentAwaitKey: ask.ID,
-	}
-	if x[extraRunID] != "" {
-		correlation[operatordecision.CorrelationRaisedByRunID] = x[extraRunID]
-	}
-	if x[extraSession] != "" {
-		correlation[operatordecision.CorrelationWebConsoleSessionID] = x[extraSession]
-	}
-	return operatordecision.Facts{
-		SubjectKey: subjectKeyFor(ask.ID),
-		Subject:    fmt.Sprintf("Approve pruning %s of evidence from %s?", size, effortText),
-		Question: truncateBytes(fmt.Sprintf("An agent asks Agent Manager to permanently delete %s (%d files, %d paths) of regenerable intermediates (%s) from %s. Approve this prune?",
-			size, files, len(paths), classText, effortText), operatordecision.MaxQuestion),
-		BigPicture: "These are regenerable build intermediates of a finished effort, kept only to rebuild or re-check its evidence. " +
-			"Approving makes Agent Manager delete exactly the listed paths that are still uncited regenerable intermediates when it applies; it never widens to other paths, efforts or classes, and writes a receipt naming you as approver. " +
-			"Deletion cannot be undone. Denying deletes nothing.",
-		TechnicalDetails: technical,
-		Options: []operatordecision.Option{
-			{Key: approveAnswer, Label: "Delete these intermediates"},
-			{Key: "deny", Label: "Keep them"},
-		},
-		// Deletion is irreversible: recommend deny, never auto-apply at a deadline.
-		Recommended:          "deny",
-		RecommendationReason: "Deletion is irreversible; approve only when the effort is finished and its evidence no longer needs a rebuild.",
-		Reversible:           false,
-		Urgency:              "normal",
-		Correlation:          correlation,
-	}
 }
 
 // Handles claims only evidence-prune resolutions.
@@ -595,23 +523,20 @@ func mustJSON[T any](v []T) string {
 	return string(data)
 }
 
+func mustJSONMap[T any](v map[string]T) []byte {
+	data, _ := json.Marshal(v)
+	return data
+}
+
+func decodeJSON(raw string, into any) error {
+	if raw == "" {
+		return nil
+	}
+	return json.Unmarshal([]byte(raw), into)
+}
+
 func decodeList(raw string) []string {
 	var out []string
 	_ = json.Unmarshal([]byte(raw), &out)
 	return out
-}
-
-func truncateBytes(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return strings.ToValidUTF8(s[:n], "")
-}
-
-func truncateRunes(s string, n int) string {
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n])
 }

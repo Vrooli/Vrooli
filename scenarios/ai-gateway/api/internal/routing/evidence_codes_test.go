@@ -115,6 +115,50 @@ func TestExecuteRecordsFailureClassAndRedactsOnFailure(t *testing.T) { // [REQ:A
 	require.NotContains(t, joinReasons(resp.GetEvidence().GetFailureReasons()), "secret prompt")
 }
 
+func TestPersistedAdapterFailureReasonsContainStableCodesOnly(t *testing.T) {
+	const promptSentinel = "LM4_PROMPT_SENTINEL"
+	const outputSentinel = "LM4_OUTPUT_SENTINEL"
+
+	for _, tc := range []struct {
+		name       string
+		command    string
+		wantReason string
+	}{
+		{name: "role resolution", command: " policy resolve ", wantReason: "provider.role_resolution_failed"},
+		{name: "provider execution", command: " gateway generate ", wantReason: "provider.execution_failed"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := roleRunner()
+			runner.ErrorMatch = func(command providers.Command) error {
+				if strings.Contains(command.String(), tc.command) && strings.Contains(command.String(), "resource-ollama") {
+					return &providers.CommandError{
+						Code:    "provider_failed",
+						Command: "resource-ollama",
+						Stderr:  "provider rejected prompt=" + promptSentinel + " response=" + outputSentinel,
+					}
+				}
+				return nil
+			}
+
+			db := newSchemaDB(t)
+			svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
+			response, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), promptSentinel)
+			require.NoError(t, err)
+			require.Equal(t, "failed", response.GetEvidence().GetStatus())
+
+			stored, err := svc.ListEvidence(context.Background(), routing.EvidenceFilter{Limit: 10})
+			require.NoError(t, err)
+			require.Len(t, stored, 1)
+			reasons := stored[0].GetFailureReasons()
+			require.Contains(t, reasons, tc.wantReason)
+			joined := strings.Join(reasons, "\n")
+			require.NotContains(t, joined, promptSentinel)
+			require.NotContains(t, joined, outputSentinel)
+			require.Regexp(t, `^[a-z][a-z0-9_.]*$`, joined, "persisted failure reasons must be stable codes only")
+		})
+	}
+}
+
 func TestExecuteRecordsRejectionReasonWhenBlocked(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE-CODES]
 	runner := roleRunner()
 	db := newSchemaDB(t)

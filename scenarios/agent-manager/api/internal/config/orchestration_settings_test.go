@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // =============================================================================
@@ -20,6 +21,27 @@ func TestDefaultOrchestrationSettings_IsValid(t *testing.T) {
 	// reset install must not refuse the 12-hour goal-mode profiles it sizes.
 	if s.RunExecution.RunTimeoutMinutes != 720 || s.RunExecution.MaxChildDepth != 3 {
 		t.Fatalf("default runExecution = %+v, want the documented runTimeoutMinutes 720 and maxChildDepth 3", s.RunExecution)
+	}
+	if s.UsagePace.BaseMaxConcurrentRuns != s.RunExecution.MaxConcurrentRuns {
+		t.Fatalf("default pace baseline = %d, want configured admission ceiling %d", s.UsagePace.BaseMaxConcurrentRuns, s.RunExecution.MaxConcurrentRuns)
+	}
+}
+
+func TestPaceSettingsValidateTierAndBaseline(t *testing.T) {
+	settings := DefaultOrchestrationSettings()
+	settings.UsagePace.SelectedTier = "use_by_wednesday"
+	settings.UsagePace.TargetRunOutAt = time.Date(2026, 11, 18, 23, 59, 59, 0, time.UTC).Format(time.RFC3339)
+	if err := settings.Validate(); err != nil {
+		t.Fatalf("valid pace settings rejected: %v", err)
+	}
+	settings.UsagePace.SelectedTier = "tomorrowish"
+	if err := settings.Validate(); err == nil {
+		t.Fatal("unsupported pace tier accepted")
+	}
+	settings = DefaultOrchestrationSettings()
+	settings.UsagePace.BaseMaxConcurrentRuns = 0
+	if err := settings.Validate(); err == nil {
+		t.Fatal("zero pace baseline accepted")
 	}
 }
 
@@ -78,6 +100,21 @@ func TestSettingsFileWithoutMaxChildDepthLoadsTheDefault(t *testing.T) {
 	got := store.Get().RunExecution
 	if got.MaxChildDepth != DefaultMaxChildDepth || got.RunTimeoutMinutes != 720 {
 		t.Fatalf("legacy settings loaded runExecution %+v, want maxChildDepth %d and the saved timeout", got, DefaultMaxChildDepth)
+	}
+}
+
+func TestLegacySettingsUseSavedConcurrencyAsPaceBaseline(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "orchestration.json")
+	legacy := []byte(`{"runExecution":{"runTimeoutMinutes":720,"maxConcurrentRuns":4,"maxTurns":1000,"maxChildDepth":3},"safetyIsolation":{"requireSandbox":true,"requireApproval":true,"networkAccess":"localhost"},"healthDetection":{"heartbeatIntervalSeconds":60,"staleThresholdSeconds":1000,"maxRecoveryAgeSeconds":1100,"reconcilerIntervalSeconds":30},"processTermination":{"gracePeriodSeconds":5,"killProcessGroup":true,"killOrphans":true,"orphanGracePeriodSeconds":600,"terminationMaxRetries":3}}`)
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewOrchestrationSettingsStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := store.Get().UsagePace.BaseMaxConcurrentRuns; got != 4 {
+		t.Fatalf("legacy pace baseline = %d, want the saved concurrency 4", got)
 	}
 }
 

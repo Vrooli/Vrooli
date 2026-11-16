@@ -201,11 +201,20 @@ bounds outside the image, so callers never need provider-specific coordinates.
 | Profile | Provider Preference | Fallback | Hard Blocks |
 |---|---|---|---|
 | `local-only` | Ollama only. | none | hosted providers. |
-| `local-first` | Ollama first. | OpenRouter only if constraints permit. | hosted fallback for sensitive data unless explicitly allowed. |
+| `local-first` | Ollama first. | OpenRouter only if constraints permit. | confidential and secret content stays local; no explicit remote-approval contract exists yet. |
 | `remote-only` | OpenRouter only. | none | local providers. |
 | `quality-first` | Highest quality viable role. | lower quality only if caller allows. | routes that violate privacy/cost. |
 | `cheap-first` | Lowest cost viable role. | next cheapest viable route. | routes that violate role/capability needs. |
-| `privacy-sensitive` | Local or explicitly approved private route. | none by default. | unapproved hosted providers. |
+| `privacy-sensitive` | Local providers. | none. | confidential and secret content cannot route to hosted providers. |
+
+Privacy classes are hard routing constraints across every profile: `confidential`
+and `secret` requests are local-only. Remote-only, quality-first, and cheap-first
+requests with either class are rejected before execution. Local-first and
+privacy-sensitive requests may proceed only on local candidates; capacity
+rejection fails closed. `privacy_provenance` records a non-sensitive source
+identifier but does not grant remote consent. A future remote approval flow must
+be explicit, user-visible, and represented in the shared Gateway contract before
+callers can route confidential material remotely.
 
 Profiles should be deterministic and previewable. If routes tie, the
 route preview must say what tie-breaker was used.
@@ -241,9 +250,10 @@ denied attempt is released best-effort.
 Profile behavior when a local candidate is rejected for capacity:
 
 - `local-only` fails closed (no remote fallback exists).
-- `local-first` / `cheap-first` fall back to a permitted remote provider.
-- `privacy-sensitive` / secret-class requests fail closed — they never route
-  remote merely because local capacity is constrained.
+- `local-first` / `cheap-first` fall back only when the request's privacy class
+  permits remote routing (public or internal).
+- `privacy-sensitive` / confidential / secret requests fail closed — they never
+  route remote merely because local capacity is constrained.
 
 An op-scoped capacity claim is held around the local execution attempt and
 released best-effort afterward, including provider failures and execution-time

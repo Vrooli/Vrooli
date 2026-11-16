@@ -321,6 +321,23 @@ func validatePrivacyProvenance(value string) error {
 	return nil
 }
 
+// validateEmbeddingPrivacy requires every embedding request to carry the
+// caller's recognized privacy class and non-sensitive source basis. Embed has
+// no remote route, even for PUBLIC data.
+func validateEmbeddingPrivacy(class sharedv1.PrivacyClass, provenance string) error {
+	switch class {
+	case sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET:
+		return validatePrivacyProvenance(provenance)
+	case sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED:
+		return errors.New("privacy class is required for typed embedding")
+	default:
+		return errors.New("embedding privacy class is unknown")
+	}
+}
+
 func decisionRefusal(err error) *inferencev1.DecideResponse {
 	construct := ""
 	var decisionErr *DecisionError
@@ -330,24 +347,28 @@ func decisionRefusal(err error) *inferencev1.DecideResponse {
 	return decideError(&inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), construct)
 }
 
-func (s *Service) Embed(ctx context.Context, role string, texts []string, sampling bool) *inferencev1.EmbedResponse {
+func (s *Service) Embed(ctx context.Context, request EmbeddingRequest) *inferencev1.EmbedResponse {
 	response := &inferencev1.EmbedResponse{Usage: &inferencev1.Usage{}}
-	if sampling {
+	if request.Sampling {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "embedding roles are deterministic and reject sampling controls", "sampling")
 	}
-	if strings.TrimSpace(role) == "" {
+	if strings.TrimSpace(request.Role) == "" {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "role is required", "role")
 	}
-	if len(texts) == 0 {
+	if len(request.Texts) == 0 {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "texts are required", "texts")
+	}
+	if request.Profile != sharedv1.Profile_PROFILE_LOCAL_ONLY {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, "typed embeddings require an explicit local-only profile", "profile")
+	}
+	if err := validateEmbeddingPrivacy(request.PrivacyClass, request.PrivacyProvenance); err != nil {
+		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "privacy_provenance")
 	}
 	repository, ok := s.repository.(EmbeddingRepository)
 	if !ok {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, "embedding repository is unavailable", "embedding")
 	}
-	result, err := repository.Embed(ctx, EmbeddingRequest{
-		Role: role, Texts: texts, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
-	})
+	result, err := repository.Embed(ctx, request)
 	if err != nil {
 		code := inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_PROVIDER_FAILED
 		if errors.Is(err, ErrUnavailable) {
@@ -358,7 +379,7 @@ func (s *Service) Embed(ctx context.Context, role string, texts []string, sampli
 		}
 		return embedError(response, code, err.Error(), "embedding")
 	}
-	if result.Dimension <= 0 || len(result.Vectors) != len(texts) {
+	if result.Dimension <= 0 || len(result.Vectors) != len(request.Texts) {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_VALIDATION_FAILED, "embedding repository returned an incomplete vector batch", "vectors")
 	}
 	response.Provider, response.Model, response.Dimension = result.Provider, result.Model, int32(result.Dimension)

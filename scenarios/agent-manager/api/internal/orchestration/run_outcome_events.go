@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // RunOutcomeNotificationEventType is the generic notification event a run raises
@@ -68,14 +69,14 @@ func (o *Orchestrator) runOutcomeEvent(ctx context.Context, run *domain.Run) eve
 		urgency = "high"
 		title = "Agent run failed"
 		if reason := firstLine(run.ErrorMsg); reason != "" {
-			title += ": " + truncateRunes(reason, 60)
+			title += ": " + operatordecision.Clip(reason, 60)
 		}
 		body = o.runNoticeLabel(ctx, run) + "\n" + runFailureBody(run)
 	} else {
 		category = runOutcomeCategoryCompleted
 		urgency = "low"
 		title = "Agent run completed"
-		body = o.runNoticeLabel(ctx, run) + "\n" + pluralizeFiles(run.ChangedFiles) + " changed."
+		body = o.runNoticeLabel(ctx, run) + "\n" + operatordecision.Count(run.ChangedFiles, "file", "files") + " changed."
 	}
 
 	payload := map[string]any{
@@ -115,11 +116,7 @@ func runFailureBody(run *domain.Run) string {
 	if msg == "" {
 		return "The run ended in error."
 	}
-	const max = 240
-	if len(msg) > max {
-		msg = msg[:max] + "…"
-	}
-	return msg
+	return operatordecision.Clip(msg, 240)
 }
 
 // runNoticeLabel names a run for a human: its task title, else its custom
@@ -128,12 +125,12 @@ func (o *Orchestrator) runNoticeLabel(ctx context.Context, run *domain.Run) stri
 	if o.tasks != nil && run.TaskID != uuid.Nil {
 		if task, err := o.tasks.Get(ctx, run.TaskID); err == nil && task != nil {
 			if title := strings.TrimSpace(task.Title); title != "" {
-				return truncateRunes(title, 120)
+				return operatordecision.Clip(title, 120)
 			}
 		}
 	}
 	if tag := strings.TrimSpace(run.Tag); tag != "" {
-		return "Run " + truncateRunes(tag, 80)
+		return "Run " + operatordecision.Clip(tag, 80)
 	}
 	return "Run " + shortRunID(run.ID.String())
 }
@@ -141,12 +138,4 @@ func (o *Orchestrator) runNoticeLabel(ctx context.Context, run *domain.Run) stri
 func firstLine(text string) string {
 	line, _, _ := strings.Cut(strings.TrimSpace(text), "\n")
 	return strings.TrimSpace(line)
-}
-
-func truncateRunes(text string, limit int) string {
-	runes := []rune(text)
-	if len(runes) <= limit {
-		return text
-	}
-	return string(runes[:limit]) + "…"
 }

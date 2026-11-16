@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronDown, ChevronRight, Info, Loader2, Paperclip, Search } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Checkbox } from "./ui/checkbox";
 import {
   Dialog,
@@ -287,30 +288,10 @@ export function ApplyInvestigationModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || isUploading || (!findings && !isTerminal) || (!!findings && noneSelected)}
-            className="gap-2"
-          >
-            {loading ? (
-              "Applying..."
-            ) : isUploading ? (
-              "Uploading..."
-            ) : findings ? (
-              <>
-                <Search className="h-4 w-4" />
-                Apply {selectedCount} Recommendation{selectedCount !== 1 ? "s" : ""}
-              </>
-            ) : (
-              <>
-                <Search className="h-4 w-4" />
-                Apply Investigation
-              </>
-            )}
-          </Button>
+          <OverlayActionBar className="flex-row-reverse" actions={[
+            { id: "apply", label: loading ? "Applying..." : isUploading ? "Uploading..." : findings ? `Apply ${selectedCount} Recommendation${selectedCount !== 1 ? "s" : ""}` : "Apply Investigation", onSelect: handleSubmit, disabled: loading || isUploading || (!findings && !isTerminal) || (!!findings && noneSelected), primary: true },
+            { id: "cancel", label: "Cancel", onSelect: () => onOpenChange(false), disabled: loading },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -64,13 +64,22 @@ func researchBudgetJSON(value runreport.ResearchBudgetSummary) map[string]any {
 	if s := value.Summary; s != nil {
 		spend := make([]map[string]any, 0, len(s.Spend))
 		for _, item := range s.Spend {
-			spend = append(spend, map[string]any{
+			row := map[string]any{
 				"id": item.ID, "run_id": item.RunID, "settlement_id": item.SettlementID,
 				"treasury_receipt_id": item.TreasuryReceiptID, "integration_id": item.IntegrationID,
 				"category": item.Category, "amount_minor": item.AmountMinor, "currency": item.Currency,
 				"unit_code": item.UnitCode, "result_ref": item.ResultRef, "benefit_state": item.BenefitState,
 				"benefit_summary": item.BenefitSummary, "settled_at": item.SettledAt,
-			})
+			}
+			if item.FreeAlternative != nil {
+				row["free_alternative"] = map[string]any{
+					"source_id": item.FreeAlternative.SourceID, "label": item.FreeAlternative.Label,
+					"result_ref": item.FreeAlternative.ResultRef, "sha256": item.FreeAlternative.SHA256,
+					"response_bytes": item.FreeAlternative.ResponseBytes, "limitation": item.FreeAlternative.Limitation,
+					"observed_at": item.FreeAlternative.ObservedAt, "evidence_basis": "agent-observed; not independently verified",
+				}
+			}
+			spend = append(spend, row)
 		}
 		summary = map[string]any{
 			"run_id": s.RunID, "treasury_budget_id": s.TreasuryBudgetID, "mandate_id": s.MandateID,
@@ -82,7 +91,7 @@ func researchBudgetJSON(value runreport.ResearchBudgetSummary) map[string]any {
 	return map[string]any{
 		"availability":       map[string]string{"state": string(value.Availability.State), "reason": value.Availability.Reason},
 		"spend_availability": map[string]string{"state": string(value.SpendAvailability.State), "reason": value.SpendAvailability.Reason},
-		"provenance":         "Budget data comes from the run-bound research ledger; spend rows are recorded Treasury settlement evidence. Missing rows do not establish zero spend.",
+		"provenance":         "Budget data comes from the run-bound research ledger; spend rows are recorded Treasury settlement evidence. Free-alternative rows are immutable agent-observed comparator evidence linked to one settlement, not independently verified provider claims. Missing rows do not establish zero spend or prove no free alternative was available.",
 		"summary":            summary,
 	}
 }

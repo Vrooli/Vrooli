@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"ai-gateway/internal/catalog"
+	internalidentity "ai-gateway/internal/identity"
 	inference "ai-gateway/internal/inference"
 	"ai-gateway/internal/modules"
 	"ai-gateway/internal/providers"
@@ -20,6 +21,7 @@ import (
 
 	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/preflight"
@@ -32,7 +34,9 @@ import (
 	inferenceH "ai-gateway/handlers/inference"
 	inventoryH "ai-gateway/handlers/inventory"
 	measuresH "ai-gateway/handlers/measures"
+	privacyconsentH "ai-gateway/handlers/privacyconsent"
 	routingH "ai-gateway/handlers/routing"
+	"ai-gateway/internal/privacyconsent"
 	internalrouting "ai-gateway/internal/routing"
 )
 
@@ -106,6 +110,10 @@ func main() {
 	}
 
 	routeEvidenceRepository := internalrouting.NewSQLRepository(db.Primary())
+	consentStore, err := privacyconsent.New(db.Primary(), nil)
+	if err != nil {
+		log.Fatalf("AI privacy consent authority initialization failed: %v", err)
+	}
 	measuresModule, err := measuresH.Module(routeEvidenceRepository, nil)
 	if err != nil {
 		log.Fatalf("measures module init failed: %v", err)
@@ -146,6 +154,7 @@ func main() {
 			inferenceRepository = inference.UnavailableRepository{Reason: repositoryErr.Error()}
 			roleCatalog = inference.RoleCatalog{}
 		} else {
+			resourceRepository.SetRemoteConsentVerifier(consentStore)
 			inferenceRepository = resourceRepository
 		}
 	}
@@ -160,7 +169,7 @@ func main() {
 		measuresModule,
 		routingH.Module(routingH.Deps{
 			DB:                  db.Primary(),
-			Service:             internalrouting.NewSQLService(db.Primary(), providers.NewDefaultAdapters(nil), internalrouting.WithRightsContextSource(internalrouting.RightsContextSource(rightsContextSource))),
+			Service:             internalrouting.NewSQLService(db.Primary(), providers.NewDefaultAdapters(nil), internalrouting.WithRightsContextSource(internalrouting.RightsContextSource(rightsContextSource)), internalrouting.WithRemoteConsentVerifier(consentStore)),
 			MediaExecutor:       internalrouting.NewResourceOpenRouterMediaExecutor(nil),
 			ProviderDecisionHub: internalrouting.NewDefaultProviderDecisionHubClient(),
 			PrivatePolicy:       internalrouting.NewResourcePrivatePolicyService(db.Primary(), loadPrivateAIFeatures(repoRoot()), repoRoot(), internalrouting.NewDefaultProviderDecisionHubClient()),
@@ -172,6 +181,9 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
+	consentHandler := privacyconsentH.New(consentStore)
+	rootMux.Handle("/api/v1/ai/privacy-consent", consentHandler)
+	rootMux.Handle("/api/v1/ai/privacy-consent/", consentHandler)
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -180,11 +192,17 @@ func main() {
 	// installed test pool. Self-disables in production mode.
 	handler := apihttp.TestModeMiddleware(rootMux)
 
+	// AI consent is user-account scoped through LPBS's signed consumer token.
+	// Do not trust app request JSON or a selected provider to choose the owner.
+	identityConfig := authn.Config{Providers: []authn.Provider{
+		internalidentity.NewLPBSConsumerProvider(os.Getenv("LPBS_CONSUMER_TOKEN_ISSUER")),
+	}}
 	if err := apiserver.Run(apiserver.Config{
-		Handler:      handler,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 2 * time.Minute,
-		Cleanup:      func(ctx context.Context) error { return db.Close() },
+		Handler:        handler,
+		Authentication: &identityConfig,
+		ReadTimeout:    30 * time.Second,
+		WriteTimeout:   2 * time.Minute,
+		Cleanup:        func(ctx context.Context) error { return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

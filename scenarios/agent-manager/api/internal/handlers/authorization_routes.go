@@ -201,6 +201,23 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "service authority does not include this operation", http.StatusForbidden)
 			return
 		}
+		// A run may attach an observed free comparator only to its own
+		// previously retained settlement. The handler verifies this exact run
+		// binding and the ledger's spend foreign key; it cannot write a budget or
+		// settlement. This is run-result evidence, not spend authority.
+		if r.Method == http.MethodPost && isResearchBudgetFreeAlternativeRoute(r) && ok && p.Kind == identity.ActorAgent && p.IsVerified() {
+			runID := researchBudgetFreeAlternativeRunID(r)
+			if runID != "" && p.Subject == runID {
+				if _, err := authn.RequireCapability(r.Context(), "agent-manager:write"); err != nil {
+					http.Error(w, "run write capability required", http.StatusForbidden)
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, "verified run identity must match the research budget run", http.StatusForbidden)
+			return
+		}
 		startEligible, startReason := isGitControlTowerWorkflowStart(r)
 		if r.URL.Path == apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure {
 			log.Printf("workflow-start admission principal_present=%t principal_kind=%s principal_verified=%t gct_fallback=%t reason=%s", ok, p.Kind, p.IsVerified(), startEligible, startReason)
@@ -280,11 +297,39 @@ func isResearchBudgetIngestRoute(r *http.Request) bool {
 		return false
 	}
 	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-	if len(parts) != 5 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "research-budgets" || (parts[4] != "snapshot" && parts[4] != "settlements") {
+	if len(parts) == 5 && parts[0] == "api" && parts[1] == "v1" && parts[2] == "research-budgets" && (parts[4] == "snapshot" || parts[4] == "settlements") {
+		_, err := uuid.Parse(parts[3])
+		return err == nil
+	}
+	if len(parts) != 7 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "research-budgets" || parts[4] != "settlements" || parts[5] == "" || parts[6] != "free-alternative" {
 		return false
 	}
 	_, err := uuid.Parse(parts[3])
 	return err == nil
+}
+
+func isResearchBudgetFreeAlternativeRoute(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 7 || parts[0] != "api" || parts[1] != "v1" || parts[2] != "research-budgets" || parts[4] != "settlements" || parts[5] == "" || parts[6] != "free-alternative" {
+		return false
+	}
+	_, err := uuid.Parse(parts[3])
+	return err == nil
+}
+
+func researchBudgetFreeAlternativeRunID(r *http.Request) string {
+	if !isResearchBudgetFreeAlternativeRoute(r) {
+		return ""
+	}
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	parsed, err := uuid.Parse(parts[3])
+	if err != nil {
+		return ""
+	}
+	return parsed.String()
 }
 
 // isRunCreationPath names the two legs of run creation (the task, then the

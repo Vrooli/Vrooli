@@ -14,6 +14,7 @@ import (
 	conformancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/conformance"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	handler "ai-gateway/handlers/conformance"
@@ -31,6 +32,17 @@ type modelEvalConsumersFunc func(context.Context) ([]string, error)
 
 func (f modelEvalConsumersFunc) ModelEvalConsumers(ctx context.Context) ([]string, error) {
 	return f(ctx)
+}
+
+type modelEvalExecutorStub struct {
+	calls   int
+	receipt handler.ModelEvalExecutionReceipt
+	err     error
+}
+
+func (s *modelEvalExecutorStub) ExecuteAgentManagerModelEval(context.Context) (handler.ModelEvalExecutionReceipt, error) {
+	s.calls++
+	return s.receipt, s.err
 }
 
 func modelEvalRuntimeModels(context.Context) ([]internalrouting.ModelEvalRouteModel, error) {
@@ -118,6 +130,60 @@ func TestModelEvalPhaseReportsMissingEvidenceAndNeverExecutesInference(t *testin
 	require.Contains(t, strings.Join(messages, "\n"), "chat.default=2/20")
 	require.Contains(t, strings.Join(messages, "\n"), "classify.fast=0/20")
 	require.Contains(t, strings.Join(messages, "\n"), "vrooli-memory=1/20")
+}
+
+func TestModelEvalPhaseExecutesOnlyWhenTestGenieRequestsExecutionAndCarriesMetadataOnlyReceipt(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	executor := &modelEvalExecutorStub{receipt: handler.ModelEvalExecutionReceipt{
+		DecisionID: "LM2-INFERENCE-ADMISSION-20261116", CaseSetSHA256: strings.Repeat("a", 64), Denominator: 1, Succeeded: 1,
+		EffectiveModel: "qwen3.5:9b", Cases: []handler.ModelEvalExecutionCase{{SourceEventID: "event-1", SourceRunID: "run-1", RequestID: "request-1", Status: "succeeded", EffectiveModel: "qwen3.5:9b", Locality: "local"}},
+	}}
+	h := handler.NewConnectHandler(handler.Deps{
+		ScenarioDir:            scenarioDir,
+		ModelPolicyPath:        filepath.Join(scenarioDir, "../../resources/ollama/model-policy.json"),
+		TaskRoleCatalogPath:    filepath.Join(scenarioDir, "config/inference-role-catalog.json"),
+		ModelEvalConsumers:     modelEvalConsumersFunc(func(context.Context) ([]string, error) { return []string{"agent-manager"}, nil }),
+		ModelEvalRuntimeModels: modelEvalRuntimeModels,
+		ModelEvalExecutor:      executor,
+		ModelEvalSource: modelEvalReadinessSourceFunc(func(_ context.Context, _ internalconformance.ModelEvalRoleDenominators) (internalconformance.ModelEvalReadiness, error) {
+			return internalconformance.ModelEvalReadiness{RegisteredSuites: 35, RequiredRetrievalSuites: 35, Ready: true}, nil
+		}),
+	})
+	target := &commonv1.ValidationTarget{Id: "ai-gateway", Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}
+	ready, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{Phase: "model-eval", Target: target}))
+	require.NoError(t, err)
+	require.Equal(t, 0, executor.calls)
+	var readyDetail structpb.Struct
+	require.NoError(t, ready.Msg.GetNativeDetail().UnmarshalTo(&readyDetail))
+	require.False(t, readyDetail.GetFields()["live_inference_executed"].GetBoolValue())
+
+	executed, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{Phase: "model-eval", Target: target, IncludeExecution: true}))
+	require.NoError(t, err)
+	require.Equal(t, 1, executor.calls)
+	var executionDetail structpb.Struct
+	require.NoError(t, executed.Msg.GetNativeDetail().UnmarshalTo(&executionDetail))
+	require.True(t, executionDetail.GetFields()["live_inference_executed"].GetBoolValue())
+	require.Equal(t, "terminal_receipt_recorded", executionDetail.GetFields()["execution_state"].GetStringValue())
+	encoded, err := protojson.Marshal(executed.Msg.GetNativeDetail())
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "prompt")
+	require.NotContains(t, string(encoded), "output")
+	require.Contains(t, string(encoded), strings.Repeat("a", 64))
+}
+
+func TestModelEvalPhaseExecutionFailsClosedWithoutOwnerClient(t *testing.T) {
+	scenarioDir := aiGatewayScenarioRoot(t)
+	h := handler.NewConnectHandler(handler.Deps{ScenarioDir: scenarioDir})
+	resp, err := h.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Phase: "model-eval", IncludeExecution: true,
+		Target: &commonv1.ValidationTarget{Id: "ai-gateway", Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO},
+	}))
+	require.NoError(t, err)
+	require.Equal(t, scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED, resp.Msg.GetStatus())
+	var native structpb.Struct
+	require.NoError(t, resp.Msg.GetNativeDetail().UnmarshalTo(&native))
+	require.False(t, native.GetFields()["live_inference_executed"].GetBoolValue())
+	require.Equal(t, "blocked_owner_executor_unavailable", native.GetFields()["execution_state"].GetStringValue())
 }
 
 func TestModelEvalPhaseIdentitySurvivesLegacyScenarioTransport(t *testing.T) {

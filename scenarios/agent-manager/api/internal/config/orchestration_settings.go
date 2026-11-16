@@ -6,6 +6,7 @@ package config
 
 import (
 	"fmt"
+	"time"
 )
 
 // =============================================================================
@@ -16,10 +17,20 @@ import (
 // are executed, isolated, monitored, and terminated.
 type OrchestrationSettings struct {
 	RunExecution       RunExecutionSettings       `json:"runExecution"`
+	UsagePace          UsagePaceSettings          `json:"usagePace"`
 	SafetyIsolation    SafetyIsolationSettings    `json:"safetyIsolation"`
 	OperationApprovals OperationApprovalSettings  `json:"operationApprovals"`
 	HealthDetection    HealthDetectionSettings    `json:"healthDetection"`
 	ProcessTermination ProcessTerminationSettings `json:"processTermination"`
+}
+
+// UsagePaceSettings keeps the operator-selected pace separate from the
+// configured baseline concurrency. RunExecution.MaxConcurrentRuns is the
+// effective admission ceiling while a pace target is active.
+type UsagePaceSettings struct {
+	SelectedTier          string `json:"selectedTier,omitempty"`
+	TargetRunOutAt        string `json:"targetRunOutAt,omitempty"`
+	BaseMaxConcurrentRuns int    `json:"baseMaxConcurrentRuns"`
 }
 
 // OperationApprovalSettings controls additional grants for agent operations.
@@ -165,6 +176,7 @@ func DefaultOrchestrationSettings() OrchestrationSettings {
 			MaxTurns:          1000,
 			MaxChildDepth:     DefaultMaxChildDepth,
 		},
+		UsagePace: UsagePaceSettings{BaseMaxConcurrentRuns: 10},
 		SafetyIsolation: SafetyIsolationSettings{
 			RequireSandbox:  true,
 			RequireApproval: true,
@@ -201,6 +213,24 @@ var validNetworkAccess = map[string]bool{
 func (s *OrchestrationSettings) Validate() error {
 	if err := s.RunExecution.validate(); err != nil {
 		return wrapConfigSection("runExecution", err)
+	}
+	if s.UsagePace.BaseMaxConcurrentRuns < 1 || s.UsagePace.BaseMaxConcurrentRuns > 9999 {
+		return wrapConfigSection("usagePace", NewInvalid("baseMaxConcurrentRuns", fmt.Sprintf("must be between 1 and 9999, got %d", s.UsagePace.BaseMaxConcurrentRuns), nil))
+	}
+	switch s.UsagePace.SelectedTier {
+	case "", "at_reset", "use_by_thursday", "use_by_wednesday", "extra_allowance":
+	default:
+		return wrapConfigSection("usagePace", NewInvalid("selectedTier", fmt.Sprintf("unsupported tier %q", s.UsagePace.SelectedTier), nil))
+	}
+	if s.UsagePace.SelectedTier == "" {
+		if s.UsagePace.TargetRunOutAt != "" {
+			return wrapConfigSection("usagePace", NewInvalid("targetRunOutAt", "must be empty when no pace tier is selected", nil))
+		}
+	} else {
+		target, err := time.Parse(time.RFC3339, s.UsagePace.TargetRunOutAt)
+		if err != nil || target.IsZero() {
+			return wrapConfigSection("usagePace", NewInvalid("targetRunOutAt", "must be a non-zero RFC3339 instant when a pace tier is selected", err))
+		}
 	}
 	if err := s.SafetyIsolation.validate(); err != nil {
 		return wrapConfigSection("safetyIsolation", err)

@@ -57,6 +57,8 @@ func (h *connectHandler) RecoverMedia(ctx context.Context) error {
 }
 
 func (h *connectHandler) PreviewRoute(ctx context.Context, req *connect.Request[routingv1.PreviewRouteRequest]) (*connect.Response[routingv1.PreviewRouteResponse], error) {
+	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	resp, err := h.service.Preview(ctx, req.Msg.GetRequest())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -65,6 +67,8 @@ func (h *connectHandler) PreviewRoute(ctx context.Context, req *connect.Request[
 }
 
 func (h *connectHandler) ExecuteRoute(ctx context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
+	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	resp, err := h.service.Execute(ctx, req.Msg.GetRequest(), req.Msg.GetInputText())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)

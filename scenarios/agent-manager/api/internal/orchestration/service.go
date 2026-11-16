@@ -296,8 +296,10 @@ func (o *Orchestrator) SetCredentialUseReleaser(releaser CredentialUseReleaser) 
 }
 
 // TreasurySessionKeyStore owns the per-run agent signing secret outside the
-// run database. ResolveOrMint returns the same secret for a resumed run;
-// RevokeRunCredentialUse destroys it after the run becomes terminal.
+// run database. ResolveOrMint supports internal continuity checks. Production
+// delivery requires the optional Acquire lease contract implemented by the
+// credential-authority store; it retains the terminal gate through delivery.
+// RevokeRunCredentialUse destroys the secret after terminal status commits.
 type TreasurySessionKeyStore interface {
 	ResolveOrMint(context.Context, uuid.UUID) (string, error)
 	RevokeRunCredentialUse(context.Context, uuid.UUID, string) error

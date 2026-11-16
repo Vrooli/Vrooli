@@ -4,16 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/identity"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 
+	"ai-gateway/internal/privacyconsent"
 	"ai-gateway/internal/providers"
 	"ai-gateway/internal/providers/mocks"
 	"ai-gateway/internal/routing"
@@ -37,6 +41,12 @@ type inventoryMutatingRunner struct {
 
 type policyRevisionMutatingRunner struct {
 	inner *mocks.FakeRunner
+}
+
+type consentVerifierFunc func(context.Context, string, string) error
+
+func (f consentVerifierFunc) Verify(ctx context.Context, receipt, source string) error {
+	return f(ctx, receipt, source)
 }
 
 func (r policyRevisionMutatingRunner) Run(ctx context.Context, command providers.Command) (providers.Result, error) {
@@ -138,6 +148,105 @@ func TestResolvedLocalityIsRecheckedAgainstProfileBeforeExecution(t *testing.T) 
 	require.Equal(t, "locality_forbidden", resp.GetEvidence().GetRejectionReason())
 	for _, command := range runner.Commands {
 		require.NotContains(t, command.String(), "resource-openrouter gateway generate", "resolved local role must not execute under remote-only")
+	}
+}
+
+func TestConfidentialRemoteRouteRequiresCurrentGrantForExactSourceBeforeDispatch(t *testing.T) {
+	t.Run("missing or invalid grant refuses dispatch", func(t *testing.T) {
+		runner := roleRunner()
+		svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)), routing.WithRemoteConsentVerifier(consentVerifierFunc(func(context.Context, string, string) error { return errors.New("not authorized") })))
+		req := baseRequest(sharedv1.Profile_PROFILE_REMOTE_ONLY)
+		req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+		ctx := providers.WithSource(context.Background(), "own-key")
+		resp, err := svc.Execute(ctx, req, "confidential prompt")
+		require.NoError(t, err)
+		require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+		for _, command := range runner.Commands {
+			require.NotContains(t, command.String(), " gateway generate ", "invalid consent must refuse before provider dispatch")
+		}
+	})
+
+	t.Run("valid source grant dispatches only selected remote source", func(t *testing.T) {
+		runner := roleRunner()
+		var checkedSource string
+		verifier := consentVerifierFunc(func(_ context.Context, receipt, source string) error {
+			if receipt != "fixture-valid-consent" || source != "own-key" {
+				return errors.New("not authorized")
+			}
+			checkedSource = source
+			return nil
+		})
+		svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)), routing.WithRemoteConsentVerifier(verifier))
+		req := baseRequest(sharedv1.Profile_PROFILE_REMOTE_ONLY)
+		req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+		ctx := providers.WithPrivacyConsent(providers.WithSource(context.Background(), "own-key"), "fixture-valid-consent")
+		resp, err := svc.Execute(ctx, req, "confidential prompt")
+		require.NoError(t, err)
+		require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+		require.Equal(t, "openrouter", resp.GetEvidence().GetSelectedProvider())
+		require.Equal(t, "own-key", checkedSource)
+		for _, command := range runner.Commands {
+			if strings.Contains(command.String(), " gateway generate ") {
+				require.Equal(t, "resource-openrouter", command.Name)
+			}
+		}
+	})
+}
+
+func TestConfidentialRouteConsentAttackMatrixStopsBeforeFakeProvider(t *testing.T) {
+	db := newSchemaDB(t)
+	now := time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
+	store, err := privacyconsent.New(db, func() time.Time { return now })
+	require.NoError(t, err)
+	valid, _, err := store.Grant(context.Background(), "alice", "own-key", 24*time.Hour)
+	require.NoError(t, err)
+	revoked, revokedGrant, err := store.Grant(context.Background(), "alice", "own-key", 24*time.Hour)
+	require.NoError(t, err)
+	require.NoError(t, store.Revoke(context.Background(), "alice", revokedGrant.ID))
+	expired, _, err := store.Grant(context.Background(), "alice", "own-key", time.Minute)
+	require.NoError(t, err)
+	now = now.Add(time.Hour)
+
+	cases := []struct {
+		name, receipt, source, subject string
+		valid                          bool
+	}{
+		{name: "missing", source: "own-key", subject: "alice"},
+		{name: "forged", receipt: strings.Repeat("x", 48), source: "own-key", subject: "alice"},
+		{name: "wrong source", receipt: valid, source: "vrooli-credits", subject: "alice"},
+		{name: "wrong user", receipt: valid, source: "own-key", subject: "bob"},
+		{name: "revoked", receipt: revoked, source: "own-key", subject: "alice"},
+		{name: "expired", receipt: expired, source: "own-key", subject: "alice"},
+		{name: "valid exact source", receipt: valid, source: "own-key", subject: "alice", valid: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			runner := roleRunner()
+			svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)), routing.WithRemoteConsentVerifier(store))
+			req := baseRequest(sharedv1.Profile_PROFILE_REMOTE_ONLY)
+			req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+			ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: tc.subject, Verified: true})
+			ctx = providers.WithPrivacyConsent(providers.WithSource(ctx, tc.source), tc.receipt)
+			resp, runErr := svc.Execute(ctx, req, "confidential fixture prompt")
+			require.NoError(t, runErr)
+			dispatches := 0
+			for _, command := range runner.Commands {
+				if strings.Contains(command.String(), " generate ") {
+					dispatches++
+					if tc.valid {
+						require.Equal(t, "resource-openrouter", command.Name)
+					}
+				}
+			}
+			if tc.valid {
+				require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+				require.Equal(t, "openrouter", resp.GetEvidence().GetSelectedProvider())
+				require.Equal(t, 1, dispatches)
+			} else {
+				require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+				require.Zero(t, dispatches, "invalid grant must be refused before fake provider dispatch")
+			}
+		})
 	}
 }
 
@@ -291,6 +400,48 @@ func TestPreviewBlocksRemoteFallbackForSecretPrivacy(t *testing.T) { // [REQ:AIG
 	require.False(t, resp.GetFallbackAllowed())
 	require.Len(t, resp.GetCandidates(), 2)
 	require.Contains(t, strings.Join(resp.GetCandidates()[1].GetReasons(), " "), "secret requests")
+}
+
+func TestPreviewBlocksRemoteFallbackForConfidentialPrivacy(t *testing.T) { // [REQ:AIGW-POLICY-CONSTRAINTS]
+	for _, profile := range []sharedv1.Profile{
+		sharedv1.Profile_PROFILE_LOCAL_FIRST,
+		sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE,
+	} {
+		t.Run(profile.String(), func(t *testing.T) {
+			runner := roleRunner()
+			svc := newService(testAdapters(runner), nil)
+
+			req := baseRequest(profile)
+			req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+			resp, err := svc.Preview(context.Background(), req)
+			require.NoError(t, err)
+			require.True(t, resp.GetValid())
+			require.Equal(t, "ollama", resp.GetSelectedProvider())
+			require.False(t, resp.GetFallbackAllowed())
+			require.Len(t, resp.GetCandidates(), 2)
+			require.Contains(t, strings.Join(resp.GetCandidates()[1].GetReasons(), " "), "confidential requests")
+		})
+	}
+}
+
+func TestExecuteConfidentialRequestDoesNotFallBackToRemote(t *testing.T) { // [REQ:AIGW-POLICY-CONSTRAINTS]
+	runner := roleRunner()
+	runner.ErrorMatch = func(command providers.Command) error {
+		if strings.HasPrefix(command.String(), "resource-ollama gateway generate ") {
+			return &providers.CommandError{Code: "provider_failed", Command: command.String(), ExitCode: 1}
+		}
+		return nil
+	}
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST)
+	req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL
+	resp, err := svc.Execute(context.Background(), req, "confidential task")
+	require.NoError(t, err)
+	require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.Equal(t, "ollama", resp.GetEvidence().GetSelectedProvider())
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "resource-openrouter gateway generate", "confidential input must not reach a remote provider after local failure")
+	}
 }
 
 func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE] [REQ:AIGW-PROVIDER-CLI-ONLY]
@@ -593,7 +744,7 @@ func TestExecuteSkipsCandidateThatCannotHonorRequestedTemperature(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
 	require.Equal(t, "openrouter", resp.GetEvidence().GetSelectedProvider())
-	require.Contains(t, strings.Join(resp.GetEvidence().GetFailureReasons(), " "), "temperature not honored")
+	require.Contains(t, resp.GetEvidence().GetFailureReasons(), "policy.sampling_unsupported")
 
 	health, err := svc.ListProviderHealth(context.Background())
 	require.NoError(t, err)

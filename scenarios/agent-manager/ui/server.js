@@ -20,7 +20,6 @@ const app = createScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'agent-manager',
-  corsOrigins: '*',
   verbose: false,
   // Extended timeout for LLM-based operations (recommendation extraction)
   proxyTimeoutMs: 180000, // 3 minutes

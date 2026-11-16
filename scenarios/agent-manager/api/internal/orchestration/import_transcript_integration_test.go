@@ -82,6 +82,13 @@ func TestImportTranscriptPersistsAgainstSQLite(t *testing.T) {
 	if persisted.ImportSourceHarness != request.SourceHarness || persisted.ImportSourceSessionID != "import-test" || persisted.ImportedAt == nil || persisted.TranscriptPath != path {
 		t.Fatalf("import provenance = %+v", persisted)
 	}
+	friction, err := svc.RuntimeFrictionReport(context.Background(), persisted.CreatedAt.Add(-time.Hour), persisted.CreatedAt.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("runtime friction including imported run: %v", err)
+	}
+	if friction.Coverage.ImportedRuns != 1 || !friction.Coverage.ImportedRunsIncluded || friction.Coverage.RunsObserved != 1 || friction.Coverage.UnknownRuns != 1 {
+		t.Fatalf("runtime friction did not include imported run: %+v", friction.Coverage)
+	}
 	before, err := eventStore.Count(context.Background(), run.ID)
 	if err != nil || before == 0 {
 		t.Fatalf("imported events = %d, %v", before, err)

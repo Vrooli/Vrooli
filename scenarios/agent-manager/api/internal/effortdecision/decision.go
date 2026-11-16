@@ -74,7 +74,7 @@ func View(d *pb.EffortDecision) goalhome.Decision {
 		ID: d.GetDecisionId(), Question: d.GetQuestion(), Recommended: d.GetRecommended(),
 		RecommendationReason: d.GetRecommendationReason(), DefaultAnswer: d.GetDefaultAnswer(), Reversible: d.GetReversible(),
 		Urgency: d.GetUrgency(), Note: d.GetNote(), BigPicture: d.GetBigPicture(), TechnicalDetails: d.GetTechnicalDetails(),
-		ContextURL: d.GetContextUrl(), State: d.GetState(),
+		ContextURL: d.GetContextUrl(), Explainer: d.GetExplainerHtml(), State: d.GetState(),
 		Answer: d.GetAnswer(), AnswerLabel: d.GetAnswerLabel(), AnswerNote: d.GetAnswerNote(), AnsweredVia: d.GetAnsweredVia(),
 		ResolutionReason: d.GetResolutionReason(),
 		ResolvedAt:       timestampTime(d.GetResolvedAt()),
@@ -111,23 +111,22 @@ func SubjectKey(goalHome, decisionID string) string {
 
 // RequestedEvent rebuilds the decision_requested event from the stored
 // record alone, so a retry publishes byte-identical content and the same id.
+// The page is the one the raiser sent, or one generated from the record.
 //
 // The decision declares it answers the operator's "I need more context" question
 // only when a verified run raised it: that run is who Agent Manager hands the
 // question to, and the answer is a revised raise under the same decision id.
 func RequestedEvent(d *pb.EffortDecision) eventbus.DomainEvent {
-	subject := d.GetGoalHome()
-	switch parts := strings.Split(subject, "/"); {
-	case path.IsAbs(subject):
-		subject = path.Base(subject)
-	case len(parts) > 1 && parts[0] == "scenarios":
-		subject = parts[1]
-	}
+	subject := HomeName(d.GetGoalHome())
 	correlation := map[string]string{"goal_home": d.GetGoalHome(), "decision_id": d.GetDecisionId()}
 	if d.GetEffortRef() != "" {
 		correlation["effort_ref"] = d.GetEffortRef()
 	}
-	facts := View(d).Facts(subject, correlation)
+	view := View(d)
+	facts := view.Facts(subject, correlation)
+	if facts.Explainer == "" {
+		facts.Explainer = Page(view, facts, d.GetGoalHome())
+	}
 	facts.SubjectKey = SubjectKey(d.GetGoalHome(), d.GetDecisionId())
 	facts.AcceptsContextRequests = d.GetRaisedByRunId() != ""
 	// A revision is a new assertion, so its event is stamped with the revision

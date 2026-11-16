@@ -2072,6 +2072,12 @@
               },
               "obligations": [
                 "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ],
+              "review_triggers": [
+                "license_source_revision_changed",
+                "artifact_revision_changed",
+                "business_context_changed",
+                "use_changed"
               ]
             },
             "runtime_identity": {
@@ -2173,6 +2179,31 @@
                 "observed_at": "2026-08-13",
                 "sample_count": 1
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/mxbai-embed-large:latest",
+              "revision": "ollama-manifest:sha256:468836162de7f81e041c43663fedbbba921dcea9b9fefea135685a39b2d83dd8",
+              "sha256": "468836162de7f81e041c43663fedbbba921dcea9b9fefea135685a39b2d83dd8",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/mxbai-embed-large/blobs/c71d239df917",
+                "revision": "sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+                "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [
+                "When redistributing the artifact, provide a copy of the Apache License 2.0.",
+                "When redistributing the artifact, retain applicable copyright, patent, trademark, and attribution notices from the source distribution.",
+                "Include any source NOTICE file when required by Apache License 2.0 Section 4.",
+                "Mark modified files with prominent notices when required by Apache License 2.0 Section 4."
+              ],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed"
+              ]
             }
           },
           "qwen3.5:4b": {
@@ -2203,7 +2234,7 @@
             "ram_gb_estimate": 6.0,
             "vram_gb_estimate": 6.0,
             "default_eligible": true,
-            "use_case_notes": "Tiny/fast general model \u2014 small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
+            "use_case_notes": "Tiny/fast general model — small chat, routing/classification, and LLM-rerank fallback. Recommended quant Q8_0 (~4.5 GB) when host capacity allows.",
             "caveats": [
               "The bare ':4b' tag pulls Ollama's default quant; pin a quant-specific tag to force Q8_0."
             ],
@@ -2252,6 +2283,12 @@
               ],
               "obligations": [
                 "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ],
+              "review_triggers": [
+                "license_source_revision_changed",
+                "artifact_revision_changed",
+                "business_context_changed",
+                "use_changed"
               ]
             },
             "runtime_identity": {
@@ -2281,6 +2318,12 @@
               },
               "obligations": [
                 "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ],
+              "review_triggers": [
+                "license_source_revision_changed",
+                "artifact_revision_changed",
+                "business_context_changed",
+                "use_changed"
               ]
             },
             "runtime_identity": {
@@ -2399,6 +2442,31 @@
                 "observed_at": "2026-06-23",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/gemma4:12b",
+              "revision": "ollama-manifest:sha256:6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+              "sha256": "6114515d63c17436a7c0417d82820ac65ad643e2806c5a3c89cb62846436ed0b",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/gemma4:12b/blobs/0d542e0c8804",
+                "revision": "sha256:0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+                "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [
+                "When redistributing the artifact, provide a copy of the Apache License 2.0.",
+                "When redistributing the artifact, retain applicable copyright, patent, trademark, and attribution notices from the source distribution.",
+                "Include any source NOTICE file when required by Apache License 2.0 Section 4.",
+                "Mark modified files with prominent notices when required by Apache License 2.0 Section 4."
+              ],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed"
+              ]
             }
           },
           "llama3.2:1b": {
@@ -2444,6 +2512,78 @@
                 "observed_at": "2026-06-10",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/llama3.2:1b",
+              "revision": "ollama-manifest:sha256:baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878",
+              "sha256": "baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878",
+              "license_id": "Meta Llama 3.2 Community License",
+              "classification": "conditional",
+              "evidence": {
+                "url": "https://ollama.com/library/llama3.2:1b/blobs/fcc5a6bec9da",
+                "revision": "sha256:fcc5a6bec9daf9b561a68827b67ab6088e1dba9d1fa2a50d7bbcc8384e0a265d",
+                "sha256": "fcc5a6bec9daf9b561a68827b67ab6088e1dba9d1fa2a50d7bbcc8384e0a265d",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed",
+                "monthly_active_users_fact_added",
+                "700m_monthly_active_user_threshold_crossed"
+              ],
+              "conditions": [
+                {
+                  "id": "meta-llama-3.2-monthly-active-users-at-most-700-million",
+                  "kind": "monthly_active_users",
+                  "comparator": "lte",
+                  "threshold": 700000000,
+                  "unit": "users",
+                  "entity_scope": "operator-group",
+                  "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the September 25, 2024 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                  "period": "2024-08"
+                }
+              ],
+              "conditional_grants": [
+                {
+                  "id": "meta-llama-3.2-all-use-rights-below-700m-monthly-active-users",
+                  "uses": [
+                    "local_inference",
+                    "hosted_inference",
+                    "redistribute_weights",
+                    "redistribute_derivative",
+                    "distribute_runtime"
+                  ],
+                  "conditions": [
+                    {
+                      "id": "meta-llama-3.2-monthly-active-users-at-most-700-million",
+                      "kind": "monthly_active_users",
+                      "comparator": "lte",
+                      "threshold": 700000000,
+                      "unit": "users",
+                      "entity_scope": "operator-group",
+                      "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the September 25, 2024 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                      "period": "2024-08"
+                    }
+                  ],
+                  "obligations": [
+                    "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
+                    "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
+                    "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+                    "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
+                  ]
+                }
+              ],
+              "lineage": [
+                {
+                  "kind": "acceptable_use_policy",
+                  "identity": "Meta Llama 3.2 Community License acceptable use policy",
+                  "revision": "sha256:a70ff7e570d97baaf4e62ac6e6ad9975e04caa6d900d3742d37698494479e0cd",
+                  "sha256": "a70ff7e570d97baaf4e62ac6e6ad9975e04caa6d900d3742d37698494479e0cd"
+                }
+              ]
             }
           },
           "llama3.2:3b": {
@@ -2489,6 +2629,78 @@
                 "observed_at": "2026-06-10",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/llama3.2:3b",
+              "revision": "ollama-manifest:sha256:a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72",
+              "sha256": "a80c4f17acd55265feec403c7aef86be0c25983ab279d83f3bcd3abbcb5b8b72",
+              "license_id": "Meta Llama 3.2 Community License",
+              "classification": "conditional",
+              "evidence": {
+                "url": "https://ollama.com/library/llama3.2:3b/blobs/fcc5a6bec9da",
+                "revision": "sha256:fcc5a6bec9daf9b561a68827b67ab6088e1dba9d1fa2a50d7bbcc8384e0a265d",
+                "sha256": "fcc5a6bec9daf9b561a68827b67ab6088e1dba9d1fa2a50d7bbcc8384e0a265d",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed",
+                "monthly_active_users_fact_added",
+                "700m_monthly_active_user_threshold_crossed"
+              ],
+              "conditions": [
+                {
+                  "id": "meta-llama-3.2-monthly-active-users-at-most-700-million",
+                  "kind": "monthly_active_users",
+                  "comparator": "lte",
+                  "threshold": 700000000,
+                  "unit": "users",
+                  "entity_scope": "operator-group",
+                  "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the September 25, 2024 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                  "period": "2024-08"
+                }
+              ],
+              "conditional_grants": [
+                {
+                  "id": "meta-llama-3.2-all-use-rights-below-700m-monthly-active-users",
+                  "uses": [
+                    "local_inference",
+                    "hosted_inference",
+                    "redistribute_weights",
+                    "redistribute_derivative",
+                    "distribute_runtime"
+                  ],
+                  "conditions": [
+                    {
+                      "id": "meta-llama-3.2-monthly-active-users-at-most-700-million",
+                      "kind": "monthly_active_users",
+                      "comparator": "lte",
+                      "threshold": 700000000,
+                      "unit": "users",
+                      "entity_scope": "operator-group",
+                      "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the September 25, 2024 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                      "period": "2024-08"
+                    }
+                  ],
+                  "obligations": [
+                    "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
+                    "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
+                    "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+                    "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
+                  ]
+                }
+              ],
+              "lineage": [
+                {
+                  "kind": "acceptable_use_policy",
+                  "identity": "Meta Llama 3.2 Community License acceptable use policy",
+                  "revision": "sha256:a70ff7e570d97baaf4e62ac6e6ad9975e04caa6d900d3742d37698494479e0cd",
+                  "sha256": "a70ff7e570d97baaf4e62ac6e6ad9975e04caa6d900d3742d37698494479e0cd"
+                }
+              ]
             }
           },
           "llama3.1:8b": {
@@ -2534,6 +2746,72 @@
                 "observed_at": "2026-06-10",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/llama3.1:8b",
+              "revision": "ollama-manifest:sha256:46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+              "sha256": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+              "license_id": "Meta Llama 3.1 Community License",
+              "classification": "conditional",
+              "evidence": {
+                "url": "https://ollama.com/library/llama3.1:8b/blobs/0ba8f0e314b4",
+                "revision": "sha256:0ba8f0e314b4264dfd19df045cde9d4c394a52474bf92ed6a3de22a4ca31a177",
+                "sha256": "0ba8f0e314b4264dfd19df045cde9d4c394a52474bf92ed6a3de22a4ca31a177",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [
+                "Comply with the incorporated Meta Llama 3.1 Acceptable Use Policy and applicable trade-compliance laws."
+              ],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed",
+                "monthly_active_users_fact_added",
+                "700m_monthly_active_user_threshold_crossed"
+              ],
+              "conditions": [
+                {
+                  "id": "meta-llama-3.1-monthly-active-users-at-most-700-million",
+                  "kind": "monthly_active_users",
+                  "comparator": "lte",
+                  "threshold": 700000000,
+                  "unit": "users",
+                  "entity_scope": "operator-group",
+                  "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the July 23, 2024 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                  "period": "2024-06"
+                }
+              ],
+              "conditional_grants": [
+                {
+                  "id": "meta-llama-3.1-all-use-rights-below-700m-monthly-active-users",
+                  "uses": [
+                    "local_inference",
+                    "hosted_inference",
+                    "redistribute_weights",
+                    "redistribute_derivative",
+                    "distribute_runtime"
+                  ],
+                  "conditions": [
+                    {
+                      "id": "meta-llama-3.1-monthly-active-users-at-most-700-million",
+                      "kind": "monthly_active_users",
+                      "comparator": "lte",
+                      "threshold": 700000000,
+                      "unit": "users",
+                      "entity_scope": "operator-group",
+                      "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the July 23, 2024 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                      "period": "2024-06"
+                    }
+                  ],
+                  "obligations": [
+                    "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
+                    "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
+                    "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+                    "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
+                  ]
+                }
+              ]
             }
           },
           "qwen3:1.7b": {
@@ -2580,6 +2858,31 @@
                 "observed_at": "2026-06-10",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/qwen3:1.7b",
+              "revision": "ollama-manifest:sha256:8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7",
+              "sha256": "8f68893c685c3ddff2aa3fffce2aa60a30bb2da65ca488b61fff134a4d1730e7",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/qwen3:1.7b/blobs/d18a5cc71b84",
+                "revision": "sha256:d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12",
+                "sha256": "d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [
+                "When redistributing the artifact, provide a copy of the Apache License 2.0.",
+                "When redistributing the artifact, retain applicable copyright, patent, trademark, and attribution notices from the source distribution.",
+                "Include any source NOTICE file when required by Apache License 2.0 Section 4.",
+                "Mark modified files with prominent notices when required by Apache License 2.0 Section 4."
+              ],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed"
+              ]
             }
           },
           "qwen3:4b": {
@@ -2626,6 +2929,31 @@
                 "observed_at": "2026-06-10",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/qwen3:4b",
+              "revision": "ollama-manifest:sha256:359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+              "sha256": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/qwen3:4b/blobs/d18a5cc71b84",
+                "revision": "sha256:d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12",
+                "sha256": "d18a5cc71b84bc4af394a31116bd3932b42241de70c77d2b76d69a314ec8aa12",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [
+                "When redistributing the artifact, provide a copy of the Apache License 2.0.",
+                "When redistributing the artifact, retain applicable copyright, patent, trademark, and attribution notices from the source distribution.",
+                "Include any source NOTICE file when required by Apache License 2.0 Section 4.",
+                "Mark modified files with prominent notices when required by Apache License 2.0 Section 4."
+              ],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed"
+              ]
             }
           },
           "codellama:7b": {
@@ -2670,6 +2998,78 @@
                 "observed_at": "2026-06-10",
                 "sample_count": 0
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/codellama:7b",
+              "revision": "ollama-manifest:sha256:8fdf8f752f6e80de33e82f381aba784c025982752cd1ae9377add66449d2225f",
+              "sha256": "8fdf8f752f6e80de33e82f381aba784c025982752cd1ae9377add66449d2225f",
+              "license_id": "Meta Llama 2 Community License + Llama Code Acceptable Use Policy",
+              "classification": "conditional",
+              "evidence": {
+                "url": "https://ollama.com/library/codellama:7b/blobs/8c17c2ebb0ea",
+                "revision": "sha256:8c17c2ebb0ea011be9981cc3922db8ca8fa61e828c5d3f44cb6ae342bf80460b",
+                "sha256": "8c17c2ebb0ea011be9981cc3922db8ca8fa61e828c5d3f44cb6ae342bf80460b",
+                "observed_at": "2026-11-14"
+              },
+              "obligations": [],
+              "review_triggers": [
+                "artifact_revision_changed",
+                "license_source_revision_changed",
+                "business_context_changed",
+                "use_changed",
+                "monthly_active_users_fact_added",
+                "700m_monthly_active_user_threshold_crossed"
+              ],
+              "conditions": [
+                {
+                  "id": "meta-llama-2-monthly-active-users-at-most-700-million",
+                  "kind": "monthly_active_users",
+                  "comparator": "lte",
+                  "threshold": 700000000,
+                  "unit": "users",
+                  "entity_scope": "operator-group",
+                  "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the July 18, 2023 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                  "period": "2023-06"
+                }
+              ],
+              "conditional_grants": [
+                {
+                  "id": "meta-llama-2-all-use-rights-below-700m-monthly-active-users",
+                  "uses": [
+                    "local_inference",
+                    "hosted_inference",
+                    "redistribute_weights",
+                    "redistribute_derivative",
+                    "distribute_runtime"
+                  ],
+                  "conditions": [
+                    {
+                      "id": "meta-llama-2-monthly-active-users-at-most-700-million",
+                      "kind": "monthly_active_users",
+                      "comparator": "lte",
+                      "threshold": 700000000,
+                      "unit": "users",
+                      "entity_scope": "operator-group",
+                      "interpretation": "The applicable Meta Community License Section 2 requires additional express licensing when licensee or affiliate products or services exceed 700 million monthly active users in the preceding calendar month as of the July 18, 2023 release date. The operator-source answer LM5-RIGHTS-01 reports the operator group has never had users; the trusted context records this period as exactly 0 MAU and cites that answer.",
+                      "period": "2023-06"
+                    }
+                  ],
+                  "obligations": [
+                    "Comply with the applicable Meta Acceptable Use Policy and trade-compliance laws.",
+                    "When distributing Llama materials or products/services containing them, provide a copy of the applicable agreement and required attribution/“Built with Llama” notices.",
+                    "When using Llama materials or outputs to improve a distributed AI model, include “Llama” at the beginning of that model name.",
+                    "If the 700-million monthly active user trigger applies, use requires additional express Meta licensing; the existing license alone grants no rights above that threshold."
+                  ]
+                }
+              ],
+              "lineage": [
+                {
+                  "kind": "acceptable_use_policy",
+                  "identity": "Meta Llama 2 Community License + Llama Code Acceptable Use Policy acceptable use policy",
+                  "revision": "sha256:590d74a5569b8a20eb2a8b0aa869d1d1d3faf6a7fdda1955ae827073c7f502fc",
+                  "sha256": "590d74a5569b8a20eb2a8b0aa869d1d1d3faf6a7fdda1955ae827073c7f502fc"
+                }
+              ]
             }
           },
           "llava:7b": {
@@ -2724,6 +3124,17 @@
                 "observed_at": "2026-08-10",
                 "sample_count": 1
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/llava:7b",
+              "classification": "unknown",
+              "unverified_reason": "No exact license-source revision and verified source evidence are recorded for this model; do not infer a grant from provider or family labels; local and distributed uses remain refused until reviewed.",
+              "review_triggers": [
+                "license_source_revision_added",
+                "artifact_digest_captured",
+                "license_terms_changed",
+                "business_context_changed"
+              ]
             }
           },
           "qwen3-vl:2b": {
@@ -2742,6 +3153,12 @@
               },
               "obligations": [
                 "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ],
+              "review_triggers": [
+                "license_source_revision_changed",
+                "artifact_revision_changed",
+                "business_context_changed",
+                "use_changed"
               ]
             },
             "runtime_identity": {
@@ -2816,6 +3233,12 @@
               },
               "obligations": [
                 "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ],
+              "review_triggers": [
+                "license_source_revision_changed",
+                "artifact_revision_changed",
+                "business_context_changed",
+                "use_changed"
               ]
             },
             "runtime_identity": {
@@ -2938,6 +3361,17 @@
                 "sample_count": 1,
                 "ollama_version": "live daemon"
               }
+            },
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/huihui_ai/granite4.1-abliterated:8b",
+              "classification": "unknown",
+              "unverified_reason": "No exact license-source revision and verified source evidence are recorded for this model; do not infer a grant from provider or family labels; local and distributed uses remain refused until reviewed.",
+              "review_triggers": [
+                "license_source_revision_added",
+                "artifact_digest_captured",
+                "license_terms_changed",
+                "business_context_changed"
+              ]
             }
           }
         },
@@ -5375,6 +5809,33 @@
   },
   "roles": {
     "schema_version": 1,
+    "code_roles": {
+      "policy.inventory-reservation": {
+        "handler_id": "inventory-reservation-policy/v1",
+        "max_source_bytes": 4096,
+        "max_output_bytes": 4096,
+        "schema_contract": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "reorder",
+                "hold"
+              ]
+            },
+            "net": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "action",
+            "net"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
     "roles": {
       "embedding.default": {
         "description": "Deterministic text embeddings resolved through the local embedding model role.",
@@ -5506,7 +5967,7 @@
         ]
       },
       "extract.structured": {
-        "description": "Schema-constrained extraction with a mid-size local first candidate.",
+        "description": "Schema-constrained extraction. The incumbent remains active while the compact local lane is qualified on real caller schemas.",
         "timeout_ms": 120000,
         "sampling": {
           "temperature": 0.0,
@@ -5532,6 +5993,16 @@
             "provider": "lpbs",
             "resource_role": "extract.structured",
             "reason": "Subscription-backed metered structured-output fallback."
+          }
+        ],
+        "qualification_candidates": [
+          {
+            "candidate": {
+              "provider": "ollama",
+              "resource_role": "chat.small",
+              "reason": "LM4 compact extraction candidate; not dispatched until a real-caller comparison qualifies it."
+            },
+            "status": "pending"
           }
         ]
       },
@@ -5607,6 +6078,16 @@
             "provider": "ollama",
             "resource_role": "summarize.default",
             "reason": "Resource-owned summarization policy; concrete model and fallback remain governed by resource policy."
+          }
+        ],
+        "qualification_candidates": [
+          {
+            "candidate": {
+              "provider": "ollama",
+              "resource_role": "chat.small",
+              "reason": "LM4 compact faithful-summary candidate; not dispatched until a real caller validates factual fidelity."
+            },
+            "status": "pending"
           }
         ]
       },

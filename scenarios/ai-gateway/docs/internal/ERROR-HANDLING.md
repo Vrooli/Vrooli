@@ -1,7 +1,7 @@
 # Error Handling
 
-The template uses one error path for proto-typed operations and one
-documented exception path for multipart REST.
+The template uses Connect-RPC errors for proto-typed operations. Its
+current API has no multipart REST upload endpoints.
 
 ## Proto-Typed Operations
 
@@ -19,6 +19,12 @@ move through the domain, transport, and client layers:
 The CLI uses the same `connect.Error` values through cli-core. Human
 output is English for now; future CLI i18n should use the same code
 names as the UI catalog instead of string-matching messages.
+
+## Multipart REST Exceptions
+
+There are no multipart REST upload endpoints in the current API. If one
+is added, keep file bytes in REST and return proto-typed metadata; use a
+proto service method for structured Vrooli-owned payloads.
 
 ## Sentinel Mapping
 
@@ -67,24 +73,6 @@ reported as route evidence with `failure_class=unsupported_sampling`. It is
 never recorded against provider health: the provider failed nothing, and
 tripping a circuit breaker over a policy mismatch would suppress a healthy
 route.
-
-## Multipart REST Exceptions
-
-Opaque file bytes are not proto payloads. Upload endpoints use REST
-multipart for bytes and return proto-typed metadata. These endpoints
-still use a stable error envelope through `internal/httpx.WriteError`;
-the UI maps `ApiError.code` through the same `errorMessage(...)`
-utility as Connect errors.
-
-Use this split:
-
-- Connect-RPC for messages that can be described by proto.
-- REST multipart for file bytes.
-- Proto metadata responses for REST upload results.
-
-Do not introduce a second general JSON transport for internal scenario
-calls. If the payload is structured and Vrooli-owned, add a proto
-service method.
 
 ## E6b private plan, execute, and receipt
 

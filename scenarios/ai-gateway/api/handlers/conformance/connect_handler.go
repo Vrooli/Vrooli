@@ -30,6 +30,42 @@ type Deps struct {
 		ModelEvalConsumers(context.Context) ([]string, error)
 	}
 	ModelEvalRuntimeModels func(context.Context) ([]internalrouting.ModelEvalRouteModel, error)
+	ModelEvalExecutor      ModelEvalExecutor
+}
+
+// ModelEvalExecutor is the phase-owned boundary to Agent Manager's
+// approval-gated source operation. The returned shape intentionally contains
+// only metadata; it has no prompt or output field.
+type ModelEvalExecutor interface {
+	ExecuteAgentManagerModelEval(context.Context) (ModelEvalExecutionReceipt, error)
+}
+
+type ModelEvalExecutionCase struct {
+	SourceEventID   string `json:"source_event_id"`
+	SourceRunID     string `json:"source_run_id"`
+	SourceSequence  int64  `json:"source_sequence"`
+	RequestID       string `json:"request_id"`
+	TaskRole        string `json:"task_role"`
+	PolicyRole      string `json:"policy_role"`
+	Consumer        string `json:"consumer"`
+	GatewayEventID  string `json:"gateway_event_id,omitempty"`
+	EffectiveModel  string `json:"effective_model,omitempty"`
+	Locality        string `json:"locality,omitempty"`
+	CapacityClaimID string `json:"capacity_claim_id,omitempty"`
+	Status          string `json:"status"`
+	FailureCode     string `json:"failure_code,omitempty"`
+}
+
+type ModelEvalExecutionReceipt struct {
+	DecisionID     string                   `json:"decision_id"`
+	CaseSetSHA256  string                   `json:"case_set_sha256"`
+	Denominator    int                      `json:"denominator"`
+	Succeeded      int                      `json:"succeeded"`
+	Failed         int                      `json:"failed"`
+	Refused        int                      `json:"refused"`
+	Unattempted    int                      `json:"unattempted"`
+	EffectiveModel string                   `json:"effective_model,omitempty"`
+	Cases          []ModelEvalExecutionCase `json:"cases"`
 }
 
 type connectHandler struct {
@@ -202,6 +238,10 @@ func (h *connectHandler) validateModelEvalTarget(
 		}
 	}
 	findings := make([]assessment.Finding, 0, 4)
+	executionState := "not_requested"
+	liveInferenceExecuted := false
+	executionFailed := false
+	var executionReceipt *ModelEvalExecutionReceipt
 	if readinessErr != nil {
 		findings = append(findings, assessment.Finding{
 			Code: "model_eval.readiness_source_unavailable", Severity: "SEVERITY_ERROR",
@@ -279,10 +319,42 @@ func (h *connectHandler) validateModelEvalTarget(
 				Remediation: "Independently review real caller cases for each observed consumer scenario until each reaches the caller floor.",
 			})
 		}
+	}
+	if req.Msg.GetIncludeExecution() {
+		executionState = "blocked_owner_executor_unavailable"
+		if h.deps.ModelEvalExecutor == nil {
+			executionFailed = true
+			findings = append(findings, assessment.Finding{
+				Code: "model_eval.owner_executor_unavailable", Severity: "SEVERITY_ERROR",
+				Title: "Agent Manager model-eval owner is unavailable", Phase: "model-eval",
+				Message:     "The source-selecting Agent Manager execution owner is not configured; no live inference was attempted.",
+				Location:    "Agent Manager approval-gated model-eval endpoint",
+				Remediation: "Restore the authorized Agent Manager owner client and rerun the model-eval phase.",
+			})
+		} else {
+			receipt, executionErr := h.deps.ModelEvalExecutor.ExecuteAgentManagerModelEval(ctx)
+			executionReceipt = &receipt
+			if executionErr != nil {
+				executionFailed = true
+				executionState = "owner_refused_or_failed"
+				liveInferenceExecuted = receipt.Succeeded+receipt.Failed > 0
+				findings = append(findings, assessment.Finding{
+					Code: "model_eval.owner_execution_refused_or_failed", Severity: "SEVERITY_ERROR",
+					Title: "Agent Manager model-eval batch did not complete", Phase: "model-eval",
+					Message:     "The owner returned a refusal or failed terminal outcome; see its metadata-only receipt.",
+					Location:    "Agent Manager approval-gated model-eval endpoint",
+					Remediation: "Resolve the registered approval or the failed admission gate, then rerun the bounded batch.",
+				})
+			} else {
+				executionState = "terminal_receipt_recorded"
+				liveInferenceExecuted = receipt.Succeeded+receipt.Failed > 0
+			}
+		}
+	} else {
 		findings = append(findings, assessment.Finding{
 			Code: "model_eval.operator_inference_admission_required", Severity: "SEVERITY_ERROR",
 			Title: "Live evaluation awaits operator admission", Phase: "model-eval",
-			Message:     "Readiness inspection never runs inference. The live model-eval execution phase remains waiting-operator.",
+			Message:     "Readiness inspection does not dispatch inference; the separate execution phase is waiting for operator admission.",
 			Location:    "LM2 inference admission",
 			Remediation: "Obtain the separate operator-routed LM2 inference admission before executing any candidate model.",
 		})
@@ -295,6 +367,9 @@ func (h *connectHandler) validateModelEvalTarget(
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build model-eval readiness assessment: %w", err))
 	}
 	status := scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_DEGRADED
+	if executionFailed {
+		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	}
 	if readinessErr == nil && (len(readiness.MissingDenominatorIDs) > 0 || len(readiness.InvalidDenominatorIDs) > 0 || readiness.RegisteredSuites < readiness.RequiredRetrievalSuites) {
 		status = scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
 	}
@@ -333,11 +408,29 @@ func (h *connectHandler) validateModelEvalTarget(
 	}
 	native, err := structpb.NewStruct(map[string]any{
 		"phase": "model-eval", "readiness": readinessDetail, "source_error": errorText(readinessErr),
-		"live_inference_executed": false, "execution_state": modelEvalExecutionState(readiness, readinessErr),
+		"live_inference_executed": liveInferenceExecuted,
+		"execution_state":         modelEvalExecutionState(readiness, readinessErr, executionState),
 	})
 	if err != nil {
 		collector.Stop()
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("encode model-eval readiness detail: %w", err))
+	}
+	if executionReceipt != nil {
+		receiptJSON, marshalErr := json.Marshal(executionReceipt)
+		if marshalErr != nil {
+			collector.Stop()
+			return nil, connect.NewError(connect.CodeInternal, errors.New("encode metadata-only model-eval execution receipt"))
+		}
+		var receiptDetail map[string]any
+		if unmarshalErr := json.Unmarshal(receiptJSON, &receiptDetail); unmarshalErr != nil {
+			collector.Stop()
+			return nil, connect.NewError(connect.CodeInternal, errors.New("decode metadata-only model-eval execution receipt"))
+		}
+		native.Fields["execution_receipt"], err = structpb.NewValue(receiptDetail)
+		if err != nil {
+			collector.Stop()
+			return nil, connect.NewError(connect.CodeInternal, errors.New("build metadata-only model-eval execution receipt"))
+		}
 	}
 	shared, err := assessment.BuildValidationResponse(target.GetId(), maturity, native, collector.Stop(), assessment.WithValidationStatus(status))
 	if err != nil {
@@ -357,7 +450,10 @@ func errorText(err error) string {
 	return err.Error()
 }
 
-func modelEvalExecutionState(readiness internalconformance.ModelEvalReadiness, readinessErr error) string {
+func modelEvalExecutionState(readiness internalconformance.ModelEvalReadiness, readinessErr error, executionState string) string {
+	if executionState != "not_requested" {
+		return executionState
+	}
 	if readinessErr != nil {
 		return "blocked_evidence_source_unavailable"
 	}

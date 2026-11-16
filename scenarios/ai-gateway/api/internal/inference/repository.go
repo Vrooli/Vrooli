@@ -164,14 +164,16 @@ type EmbeddingRepository interface {
 	Embed(context.Context, EmbeddingRequest) (EmbeddingResult, error)
 }
 
-// EmbeddingRequest carries the provider boundary for one typed embedding
-// operation. The public Embed API has no profile field, so Service currently
-// sets the contract to LOCAL_ONLY explicitly; adapters and resources must
-// preserve and enforce that constraint rather than infer locality from rights.
+// EmbeddingRequest carries the caller contract and provider boundary for one
+// typed embedding operation. Embeddings are local-only; legacy callers with an
+// omitted contract are normalized to that strict profile by Service.
 type EmbeddingRequest struct {
-	Role    string
-	Texts   []string
-	Profile sharedv1.Profile
+	Role              string
+	Texts             []string
+	Sampling          bool
+	Profile           sharedv1.Profile
+	PrivacyClass      sharedv1.PrivacyClass
+	PrivacyProvenance string
 }
 
 // UnavailableRepository is the degraded stance used when the role catalog

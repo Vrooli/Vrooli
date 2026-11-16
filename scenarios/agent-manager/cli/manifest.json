@@ -2335,6 +2335,12 @@
               "name": "validate-only",
               "bool": true,
               "description": "Validate sources only"
+            },
+            {
+              "name": "local-owner",
+              "bool": true,
+              "required": true,
+              "description": "Exchange verified local operator authority; unavailable inside an identified agent run"
             }
           ],
           "binding": {

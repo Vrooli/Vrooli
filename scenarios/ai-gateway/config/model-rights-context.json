@@ -2,10 +2,20 @@
   "schema_version": "1",
   "context": {
     "id": "operator-stated-business-context",
-    "version": "2026-11-14",
+    "version": "2026-11-14-rights01",
     "entity_scope": "operator-group",
     "revenue_status": "pre_revenue",
-    "as_of": "2026-11-10",
-    "source": "operator_statement"
+    "as_of": "2026-11-14",
+    "source": "operator_statement",
+    "monthly_active_users": {
+      "2023-06": "0",
+      "2024-06": "0",
+      "2024-08": "0"
+    },
+    "monthly_active_users_evidence": {
+      "2023-06": "history/OPERATOR-ANSWERS-20261114.md#LM5-RIGHTS-01 (received 2026-11-14T21:33:22Z)",
+      "2024-06": "history/OPERATOR-ANSWERS-20261114.md#LM5-RIGHTS-01 (received 2026-11-14T21:33:22Z)",
+      "2024-08": "history/OPERATOR-ANSWERS-20261114.md#LM5-RIGHTS-01 (received 2026-11-14T21:33:22Z)"
+    }
   }
 }

@@ -88,3 +88,15 @@ func TestGatewayExtractorRequiresSourcedPrivacyBeforeGatewayCall(t *testing.T) {
 	require.True(t, response.Abstained)
 	require.Nil(t, client.request, "missing privacy provenance must fail before dispatch")
 }
+
+func TestGatewayExtractorRejectsCallerSelectedRoleBeforeDispatch(t *testing.T) {
+	client := &fakeGatewayClient{response: &inferencev1.RunResponse{ValueJson: `"ignored"`, Validated: true}}
+	extractor := &GatewayExtractor{Client: client}
+	response, err := extractor.Extract(t.Context(), ExtractRequest{
+		RoleRef: "write.default", Source: "source", Schema: []byte(`{"type":"string"}`),
+		PrivacyClass: RunOutputPrivacyClass, PrivacySource: RunOutputPrivacySource,
+	})
+	require.ErrorContains(t, err, "policy-owned role")
+	require.True(t, response.Abstained)
+	require.Nil(t, client.request, "caller-selected role must fail before dispatch")
+}

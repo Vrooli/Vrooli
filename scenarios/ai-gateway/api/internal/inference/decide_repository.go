@@ -88,7 +88,8 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition Infer
 		return
 	}
 	row.Locality = resolved.Locality
-	if !profileAdmitsRequest(request.Profile, request.PrivacyClass, resolved.Locality) {
+	providerRequest := ProviderRequest{Profile: request.Profile, PrivacyClass: request.PrivacyClass}
+	if !r.admitsRequest(ctx, providerRequest, candidate.Provider, resolved.Locality) {
 		skip(row, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", request.Profile, resolved.Locality))
 		return
 	}

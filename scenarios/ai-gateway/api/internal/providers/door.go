@@ -27,6 +27,7 @@ var ErrDeviceKeyGenerationChanged = errors.New("hosted device credential generat
 type (
 	sourceContextKey struct{}
 	gatewayHopKey    struct{}
+	consentGrantKey  struct{}
 )
 
 // WithSource restricts a request to the user's chosen source. It cannot grant
@@ -38,6 +39,17 @@ func WithSource(ctx context.Context, source string) context.Context {
 func Source(ctx context.Context) string {
 	value, _ := ctx.Value(sourceContextKey{}).(string)
 	return value
+}
+
+// WithPrivacyConsent carries the opaque per-user, per-source receipt to the
+// final Gateway policy check. It is never provider-selection authority.
+func WithPrivacyConsent(ctx context.Context, receipt string) context.Context {
+	return context.WithValue(ctx, consentGrantKey{}, strings.TrimSpace(receipt))
+}
+
+func PrivacyConsent(ctx context.Context) string {
+	receipt, _ := ctx.Value(consentGrantKey{}).(string)
+	return receipt
 }
 
 func WithGatewayHop(ctx context.Context, hop string) context.Context {

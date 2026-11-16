@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { statusTone } from "../lib/display";
 import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
@@ -14,6 +14,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Card, CardContent } from "../components/ui/card";
 import {
   Dialog,
@@ -146,6 +147,9 @@ export function TasksPage({
   onRefresh,
   rolePolicyCatalog,
 }: TasksPageProps) {
+  const createTaskFormRef = useRef<HTMLFormElement>(null);
+  const editTaskFormRef = useRef<HTMLFormElement>(null);
+  const createProfileFormRef = useRef<HTMLFormElement>(null);
   const { isDesktop } = useViewportSize();
   const [searchParams] = useSearchParams();
   const taskIdParam = searchParams.get("taskId");
@@ -515,7 +519,7 @@ export function TasksPage({
               Define the work that an agent should perform
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <form ref={createTaskFormRef} onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
@@ -581,12 +585,10 @@ export function TasksPage({
               />
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={resetForm}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Creating..." : "Create Task"}
-              </Button>
+              <OverlayActionBar className="flex-row-reverse" actions={[
+                { id: "create-task", label: submitting ? "Creating..." : "Create Task", onSelect: () => createTaskFormRef.current?.requestSubmit(), disabled: submitting, primary: true },
+                { id: "cancel", label: "Cancel", onSelect: resetForm },
+              ]} />
             </DialogFooter>
           </form>
         </DialogContent>
@@ -601,7 +603,7 @@ export function TasksPage({
               Update task details and scope
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleUpdate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <form ref={editTaskFormRef} onSubmit={handleUpdate} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="editTitle">Title *</Label>
@@ -665,12 +667,10 @@ export function TasksPage({
               />
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={resetEditForm}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Saving..." : "Save Changes"}
-              </Button>
+              <OverlayActionBar className="flex-row-reverse" actions={[
+                { id: "save-task", label: submitting ? "Saving..." : "Save Changes", onSelect: () => editTaskFormRef.current?.requestSubmit(), disabled: submitting, primary: true },
+                { id: "cancel", label: "Cancel", onSelect: resetEditForm },
+              ]} />
             </DialogFooter>
           </form>
         </DialogContent>
@@ -883,23 +883,10 @@ export function TasksPage({
             </Tabs>
           </DialogBody>
           <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={resetRunDialog}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleStartRun}
-              disabled={
-                submitting ||
-                (runConfigMode === "profile" && !selectedProfileId)
-              }
-              className="gap-2"
-            >
-              <Play className="h-4 w-4" />
-              {submitting ? "Starting..." : "Start Run"}
-            </Button>
+            <OverlayActionBar className="flex-row-reverse" actions={[
+              { id: "start-run", label: submitting ? "Starting..." : "Start Run", onSelect: handleStartRun, disabled: submitting || (runConfigMode === "profile" && !selectedProfileId), primary: true },
+              { id: "cancel", label: "Cancel", onSelect: resetRunDialog },
+            ]} />
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -913,7 +900,7 @@ export function TasksPage({
               Create a reusable agent profile for running tasks
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleCreateProfile} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+          <form ref={createProfileFormRef} onSubmit={handleCreateProfile} className="flex flex-col flex-1 min-h-0 overflow-hidden">
             <DialogBody className="space-y-4">
               {profileFormError && (
                 <Card className="border-destructive/50 bg-destructive/10">
@@ -1062,12 +1049,10 @@ export function TasksPage({
               </div>
             </DialogBody>
             <DialogFooter>
-              <Button type="button" variant="secondary" onClick={resetProfileForm}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={submitting}>
-                {submitting ? "Creating..." : "Create & Select"}
-              </Button>
+              <OverlayActionBar className="flex-row-reverse" actions={[
+                { id: "create-profile", label: submitting ? "Creating..." : "Create & Select", onSelect: () => createProfileFormRef.current?.requestSubmit(), disabled: submitting, primary: true },
+                { id: "cancel", label: "Cancel", onSelect: resetProfileForm },
+              ]} />
             </DialogFooter>
           </form>
         </DialogContent>

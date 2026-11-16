@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/operatordecision"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 	"google.golang.org/protobuf/proto"
@@ -232,9 +233,21 @@ func TestDeliveryHardStopCheckpointAndDurableHandback(t *testing.T) {
 		t.Fatalf("operator handback: %v %+v", err, decisions)
 	}
 	decision := decisions[0]
-	for _, want := range []string{e.EffortRef, "Inbox", "close", "Settings", "unassessed", "Accept partial", "Recommission", "Change scope"} {
+	for _, want := range []string{"Accept partial", "Recommission", "Change scope", "2 parts"} {
 		if !strings.Contains(decision.BigPicture, want) {
 			t.Errorf("delivery handback big picture omits %q: %q", want, decision.BigPicture)
+		}
+	}
+	cover := operatordecision.Facts{Question: decision.Question, BigPicture: decision.BigPicture, Recommended: decision.Recommended, RecommendationReason: decision.RecommendationReason}
+	for _, o := range decision.Options {
+		cover.Options = append(cover.Options, operatordecision.Option{Key: o.Key, Label: o.Label})
+	}
+	if problems := operatordecision.CoverProblems(cover); len(problems) > 0 || strings.Contains(decision.BigPicture, e.EffortRef) || strings.Contains(decision.Question, e.EffortRef) {
+		t.Errorf("the effort ref and internal names belong in the technical details, not the cover: %v %q", problems, decision.BigPicture)
+	}
+	for _, want := range []string{`<td data-label="Part">Inbox</td>`, `<td data-label="State">close</td>`, "Settings", "unassessed", "Why it stopped", "Time used", "If you do not answer:"} {
+		if !strings.Contains(decision.ExplainerHtml, want) {
+			t.Errorf("delivery handback page omits %q", want)
 		}
 	}
 	for _, want := range []string{e.Delivery.CommissionId, "1h0m0s", "2h0m0s", "product-1", "Partial product; no independent acceptance.", "delivery/CHARTER.md", "delivery/STATUS.md", "delivery/LOG.md", "unknown"} {
@@ -248,8 +261,8 @@ func TestDeliveryHardStopCheckpointAndDurableHandback(t *testing.T) {
 		}
 	}
 	event := decisionEvent(decision)
-	if event.Payload["big_picture"] != decision.BigPicture || event.Payload["technical_details"] != decision.TechnicalDetails {
-		t.Error("published decision does not retain both explanations")
+	if event.Payload["big_picture"] != decision.BigPicture || event.Payload["technical_details"] != decision.TechnicalDetails || event.Payload["explainer_html"] != decision.ExplainerHtml {
+		t.Error("published decision does not retain both explanations and its page")
 	}
 	if decisions[0].State != DecisionPending || decisions[0].PublishedAt != nil {
 		t.Fatal("unpublished handback claimed an answer or delivery")
@@ -361,13 +374,13 @@ func TestDeliveryHandbackContextPreservesUnknownAndBoundedUnicode(t *testing.T) 
 	e.DisplayName = "Notification Hub redesign"
 	e.Delivery.StoppedAt = timestamppb.New(*now)
 	d := deliveryHandbackDecision(e, "delivery", nil)
-	if !strings.Contains(d.Question, e.DisplayName) || !strings.Contains(d.BigPicture, "progress is unknown") || !strings.Contains(d.BigPicture, "assessment is unavailable") {
+	if !strings.Contains(d.Question, e.DisplayName) || !strings.Contains(d.BigPicture, "progress is unknown") || !strings.Contains(d.BigPicture, "assessment is unavailable") || !strings.Contains(d.ExplainerHtml, "Unknown") {
 		t.Fatalf("unknown outcome was hidden or treated as completion: %+v", d)
 	}
 	zero := 0.0
 	outcome := &pb.EffortGoalHome{CurrentValue: &zero, DestinationMetric: "accepted surfaces", NeedsOperator: []string{"Disposable-recipient authority is required."}, Limitations: []string{"Missing owner receipt."}}
 	d = deliveryHandbackDecision(e, "delivery", outcome)
-	if !strings.Contains(d.BigPicture, "0 accepted surfaces") || !strings.Contains(d.TechnicalDetails, outcome.NeedsOperator[0]) || !strings.Contains(d.TechnicalDetails, outcome.Limitations[0]) {
+	if !strings.Contains(d.BigPicture, "0 accepted surfaces") || !strings.Contains(d.TechnicalDetails, outcome.NeedsOperator[0]) || !strings.Contains(d.ExplainerHtml, outcome.NeedsOperator[0]) || !strings.Contains(d.TechnicalDetails, outcome.Limitations[0]) {
 		t.Fatalf("zero progress, operator requirement or limitation was lost: %+v", d)
 	}
 	e.DisplayName = strings.Repeat("🧭", 500)
@@ -378,7 +391,7 @@ func TestDeliveryHandbackContextPreservesUnknownAndBoundedUnicode(t *testing.T) 
 	if err := DecisionView(d).Validate(); err != nil {
 		t.Fatal("large context is not publishable under the shared decision contract:", err)
 	}
-	if !utf8.ValidString(d.BigPicture) || !utf8.ValidString(d.TechnicalDetails) || !strings.Contains(d.BigPicture, "truncated") || !strings.Contains(d.TechnicalDetails, "truncated") {
+	if !utf8.ValidString(d.BigPicture) || !utf8.ValidString(d.TechnicalDetails) || !strings.Contains(d.TechnicalDetails, "truncated") {
 		t.Fatal("large Unicode context was corrupted or silently omitted")
 	}
 	if !strings.Contains(d.BigPicture, "Accept partial") || !strings.Contains(d.BigPicture, "Recommission") || !strings.Contains(d.BigPicture, "Change scope") || !strings.Contains(d.TechnicalDetails, "delivery/LOG.md") {

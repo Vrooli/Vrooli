@@ -268,7 +268,7 @@ func decisionContentDigest(d *pb.EffortDecision) string {
 		GoalHome: d.GoalHome, DecisionId: d.DecisionId, Question: d.Question, Options: d.Options, Recommended: d.Recommended,
 		RecommendationReason: d.RecommendationReason, DefaultAnswer: d.DefaultAnswer, Reversible: d.Reversible,
 		Urgency: d.Urgency, Note: d.Note, BigPicture: d.BigPicture, TechnicalDetails: d.TechnicalDetails,
-		ContextUrl: d.ContextUrl, Deadline: d.Deadline,
+		ContextUrl: d.ContextUrl, Deadline: d.Deadline, ExplainerHtml: d.ExplainerHtml,
 	}
 	return effortDigest(cut)
 }
@@ -386,7 +386,7 @@ func (s *EffortService) RaiseDecision(ctx context.Context, req *pb.RaiseEffortDe
 		Options: d.Options, Recommended: d.Recommended, RecommendationReason: d.RecommendationReason,
 		DefaultAnswer: d.DefaultAnswer, Reversible: d.Reversible, Urgency: d.Urgency, Note: d.Note,
 		BigPicture: strings.TrimSpace(d.BigPicture), TechnicalDetails: strings.TrimSpace(d.TechnicalDetails),
-		ContextUrl: d.ContextUrl, Deadline: d.Deadline, State: DecisionPending, RaisedByRunId: raisedBy,
+		ContextUrl: d.ContextUrl, Deadline: d.Deadline, ExplainerHtml: d.ExplainerHtml, State: DecisionPending, RaisedByRunId: raisedBy,
 		CreatedAt: timestamppb.New(now),
 	}
 	s.decisionMu.Lock()
@@ -452,7 +452,7 @@ func (s *EffortService) reviseDecision(ctx context.Context, existing, revised *p
 	existing.Question, existing.Options, existing.Recommended = revised.Question, revised.Options, revised.Recommended
 	existing.RecommendationReason, existing.DefaultAnswer, existing.Reversible = revised.RecommendationReason, revised.DefaultAnswer, revised.Reversible
 	existing.Urgency, existing.Note, existing.BigPicture, existing.TechnicalDetails = revised.Urgency, revised.Note, revised.BigPicture, revised.TechnicalDetails
-	existing.ContextUrl, existing.Deadline = revised.ContextUrl, revised.Deadline
+	existing.ContextUrl, existing.Deadline, existing.ExplainerHtml = revised.ContextUrl, revised.Deadline, revised.ExplainerHtml
 	if raisedBy != "" {
 		existing.RaisedByRunId = raisedBy
 	}

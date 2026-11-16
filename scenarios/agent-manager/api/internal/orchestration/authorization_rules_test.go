@@ -88,6 +88,23 @@ func TestNormalizedRulesWildcardForms(t *testing.T) {
 	}
 }
 
+func TestNormalizedRulesRequiresProofBoundExactAgentSessionReapTarget(t *testing.T) {
+	target := "agent-session:reap/vrooli-agent-abc123.scope/proof/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	if _, err := (AuthorizationRequest{Policy: "agent-session-reaping", Targets: []string{target}}).normalizedRules(); err != nil {
+		t.Fatalf("exact proof-bound target refused: %v", err)
+	}
+	for _, invalid := range []string{
+		"agent-session:*",
+		"agent-session:reap/*",
+		"agent-session:reap/vrooli-agent-abc123.scope/proof/*",
+		"agent-session:reap/vrooli-agent-abc123.scope",
+	} {
+		if _, err := (AuthorizationRequest{Policy: "agent-session-reaping", Targets: []string{invalid}}).normalizedRules(); err == nil {
+			t.Errorf("accepted broad or malformed target %q", invalid)
+		}
+	}
+}
+
 func TestOneConsentCarriesSeveralPoliciesWithoutCrossingTargets(t *testing.T) {
 	now := time.Now().UTC()
 	o := authorizationFixture(t, &now)
@@ -321,8 +338,26 @@ func TestRequesterContextIsBoundToPendingAuthorizationGeneration(t *testing.T) {
 	if storedErr != nil || second.ID == first.ID || second.RequesterContext == nil || second.RequesterContext.TechnicalDetails != changed.TechnicalDetails || secondStored.NotificationSnapshot == nil || secondStored.NotificationSnapshot.EventID == firstStored.NotificationSnapshot.EventID {
 		t.Fatalf("changed context did not create its own generation: grant=%+v stored=%+v storedErr=%v", second, secondStored, storedErr)
 	}
-	if len(publisher.events) != 2 || strings.Contains(publisher.events[0].Payload["body"].(string), base.BigPicture) || strings.Contains(publisher.events[1].Payload["body"].(string), changed.TechnicalDetails) {
-		t.Fatalf("requester context leaked into push preview or duplicate publication occurred: events=%+v", publisher.events)
+	// Two decisions and the withdrawal of the replaced one. The push shows the
+	// subject and question; the requester's own words, which are unverified, stay in the cover's big picture and on the page.
+	var decisions, withdrawals int
+	for _, event := range publisher.events {
+		switch event.EventType {
+		case ConsentDecisionEventType:
+			decisions++
+			preview := event.Payload["subject"].(string) + event.Payload["question"].(string)
+			if strings.Contains(preview, base.BigPicture) || strings.Contains(preview, changed.TechnicalDetails) {
+				t.Fatalf("requester context leaked into the push preview: %q", preview)
+			}
+		case "agent_manager.authorization_consent.decision_withdrawn.v1":
+			withdrawals++
+			if event.Payload["subject_key"] != consentSubjectKey(first.ID) {
+				t.Fatalf("withdrew the wrong decision: %#v", event.Payload)
+			}
+		}
+	}
+	if decisions != 2 || withdrawals != 1 || len(publisher.events) != 3 {
+		t.Fatalf("want two decisions and one withdrawal, no duplicate publication: events=%+v", publisher.events)
 	}
 	old, err := o.GetAuthorization(ctx, first.ID)
 	if err != nil || old.State != domain.AuthorizationSuperseded || old.RequesterContext == nil || old.RequesterContext.TechnicalDetails != base.TechnicalDetails {

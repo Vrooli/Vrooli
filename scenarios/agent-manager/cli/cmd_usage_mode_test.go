@@ -191,11 +191,20 @@ func TestUsageModeShowsTheServersRefusalOfAnAgent(t *testing.T) {
 
 func TestUsageModeRejectsUnknownSubcommandsAndPositionals(t *testing.T) {
 	useModeServer(t, &modeServer{})
-	if err := (&App{}).usageMode([]string{"pause"}); err == nil || !strings.Contains(err.Error(), "start, status, end, extend, rebase or ask") {
+	if err := (&App{}).usageMode([]string{"pause"}); err == nil || !strings.Contains(err.Error(), "start, status, end, extend, rebase, ask or auto-save") {
 		t.Fatalf("unknown subcommand err = %v", err)
 	}
 	if err := (&App{}).usageMode([]string{"start", "extra", "--until", "1h"}); err == nil {
 		t.Fatal("start accepted a positional argument")
+	}
+}
+
+func TestUsageModeAutoSaveChecksItsArgumentsBeforeCallingTheServer(t *testing.T) {
+	if err := (&App{}).usageMode([]string{"auto-save", "on"}); err == nil || !strings.Contains(err.Error(), "--runner") {
+		t.Fatalf("on without a runner: %v", err)
+	}
+	if err := (&App{}).usageMode([]string{"auto-save", "pause", "--runner", "codex"}); err == nil || !strings.Contains(err.Error(), "status, on or off") {
+		t.Fatalf("unknown action: %v", err)
 	}
 }
 

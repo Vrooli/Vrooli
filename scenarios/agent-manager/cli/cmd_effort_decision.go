@@ -26,13 +26,16 @@ import (
 )
 
 const decisionUsage = `usage:
-  agent-manager effort decision raise <goal home> --id <id> --question <text> --option key=label --option key=label --recommend <key> [--why <text>] [--default <key> --reversible] [--deadline 24h|<RFC3339>] [--urgency low|normal|high|critical] [--big-picture <text>] [--technical-details <text>] [--note <legacy technical-details fallback>] [--context-url <url>] [--home-ref <repo-relative dir>] [--effort-ref <ref>] [--dry-run] [--json]
+  agent-manager effort decision raise <goal home> --id <id> --question <text> --option key=label --option key=label --recommend <key> [--why <text>] [--default <key> --reversible] [--deadline 24h|<RFC3339>] [--urgency low|normal|high|critical] [--big-picture <text>] [--technical-details <text>] [--note <legacy technical-details fallback>] [--explainer <page.html>] [--context-url <url>] [--home-ref <repo-relative dir>] [--effort-ref <ref>] [--dry-run] [--json]
   agent-manager effort decision answer <goal home> <id> <option key> [--note <text>] [--home-ref <dir>] [--local-owner] [--json]
   agent-manager effort decision list [<goal home>] [--effort-ref <ref>] [--unrecorded] [--home-ref <dir>] [--json]
   agent-manager effort decision sync <goal home> [--home-ref <dir>] [--effort-ref <ref>] [--reconcile-recorded] [--json]
 
 The operator reads a raised decision cold on a phone. Write --question, --big-picture,
---technical-details and option labels by: prompt-manager skill read notification-hub`
+--technical-details and option labels by: prompt-manager skill read notification-hub
+Every decision arrives with a page above its answer buttons. --explainer sends your own
+(one self-contained .html file; see that skill's references/html-explainers.md); without
+it, a page is laid out from the texts.`
 
 // optionFlags collects repeated --option key=label values.
 type optionFlags []goalhome.DecisionOption
@@ -145,6 +148,7 @@ func (a *App) decisionRaise(args []string) error {
 	technicalDetails := fs.String("technical-details", "", "Mechanism, evidence, risks, limits and remaining uncertainty")
 	note := fs.String("note", "", "Legacy technical-details fallback; ignored when --technical-details is set")
 	contextURL := fs.String("context-url", "", "Link for more context")
+	explainer := fs.String("explainer", "", "Your own page for the decision: one self-contained .html file (default: a page laid out from the texts)")
 	homeRef := fs.String("home-ref", "", "Repository-relative goal home (default: the directory relative to the repository root)")
 	effortRef := fs.String("effort-ref", "", "Effort reference (default: the enrollment registered for this goal home)")
 	dryRun := fs.Bool("dry-run", false, "Print the record, event and ## Needs operator item; contact no server and write nothing")
@@ -163,6 +167,10 @@ func (a *App) decisionRaise(args []string) error {
 	if err != nil {
 		return err
 	}
+	page, err := readExplainer(*explainer)
+	if err != nil {
+		return err
+	}
 	now := time.Now().UTC()
 	at, relative, err := parseDecisionDeadline(*deadline, now)
 	if err != nil {
@@ -175,7 +183,7 @@ func (a *App) decisionRaise(args []string) error {
 		ID: strings.TrimSpace(*id), Question: strings.TrimSpace(*question), Options: options, Recommended: strings.TrimSpace(*recommend),
 		RecommendationReason: strings.TrimSpace(*why), DefaultAnswer: strings.TrimSpace(*defaultAnswer), Reversible: *reversible,
 		Urgency: strings.TrimSpace(*urgency), Note: strings.TrimSpace(*note), BigPicture: strings.TrimSpace(*bigPicture),
-		TechnicalDetails: strings.TrimSpace(*technicalDetails), ContextURL: strings.TrimSpace(*contextURL), Deadline: at, RaisedAt: now,
+		TechnicalDetails: strings.TrimSpace(*technicalDetails), ContextURL: strings.TrimSpace(*contextURL), Explainer: page, Deadline: at, RaisedAt: now,
 	}
 	if view.DefaultAnswer != "" && !view.Reversible {
 		return fmt.Errorf("--default needs --reversible: only a decision that can be undone may be settled by a default\n%s", decisionUsage)
@@ -187,6 +195,7 @@ func (a *App) decisionRaise(args []string) error {
 		EffortRef: strings.TrimSpace(*effortRef), GoalHome: ref, DecisionId: view.ID, Question: view.Question, Recommended: view.Recommended,
 		RecommendationReason: view.RecommendationReason, DefaultAnswer: view.DefaultAnswer, Reversible: view.Reversible, Urgency: view.Urgency,
 		Note: view.Note, BigPicture: view.BigPicture, TechnicalDetails: view.TechnicalDetails, ContextUrl: view.ContextURL,
+		ExplainerHtml: view.Explainer,
 	}
 	for _, option := range view.Options {
 		record.Options = append(record.Options, &pb.EffortDecisionOption{Key: option.Key, Label: option.Label})
@@ -225,8 +234,22 @@ func (a *App) decisionRaise(args []string) error {
 		return printDecisionRaise(result, *jsonOut, func() {
 			fmt.Printf("DRY RUN: nothing published, %s not written\n", queuePath)
 			fmt.Printf("Event %s (%s, id %s):\n", event.EventType, event.Source, result.EventID)
-			payload, _ := json.MarshalIndent(event.Payload, "  ", "  ")
-			fmt.Printf("  %s\n", payload)
+			shown := map[string]any{}
+			for key, value := range event.Payload {
+				shown[key] = value
+			}
+			if html, _ := shown["explainer_html"].(string); html != "" {
+				origin := "laid out from the texts"
+				if page != "" {
+					origin = "from " + *explainer
+				}
+				shown["explainer_html"] = fmt.Sprintf("<page, %d bytes, %s; --json prints it>", len(html), origin)
+			}
+			fmt.Print("  ")
+			encoder := json.NewEncoder(os.Stdout)
+			encoder.SetEscapeHTML(false) // the operator reads the texts as written
+			encoder.SetIndent("  ", "  ")
+			_ = encoder.Encode(shown)
 			if !hasQueue {
 				fmt.Printf("%s has no STATUS.md, so there is no ## Needs operator section to list the decision in.\n", dir)
 				return
@@ -302,6 +325,26 @@ func (a *App) decisionRaise(args []string) error {
 			fmt.Printf("## Needs operator in %s already lists it.\n", queuePath)
 		}
 	})
+}
+
+// readExplainer reads an --explainer page. The page must be an HTML file; its
+// size is checked with the rest of the decision against the Hub's limit.
+func readExplainer(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", nil
+	}
+	if ext := strings.ToLower(filepath.Ext(path)); ext != ".html" && ext != ".htm" {
+		return "", fmt.Errorf("--explainer %s must be an .html file", path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("--explainer: %w", err)
+	}
+	if strings.TrimSpace(string(data)) == "" {
+		return "", fmt.Errorf("--explainer %s is empty", path)
+	}
+	return string(data), nil
 }
 
 func printDecisionRaise(result any, jsonOut bool, text func()) error {

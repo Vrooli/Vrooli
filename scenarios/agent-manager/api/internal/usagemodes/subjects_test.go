@@ -347,7 +347,7 @@ func TestUntilOffDecisionExplainsTheModeToAColdReader(t *testing.T) {
 		t.Fatalf("question = %q", q)
 	}
 	big, _ := p["big_picture"].(string)
-	for _, want := range []string{"new Codex work to cheaper models", "Keep it on and nothing changes", "Turn it off", "If you do not answer, it stays on"} {
+	for _, want := range []string{"new Codex work to cheaper models", "Keep it on and stop asking", "Turn it off", "If you do not answer, it stays on"} {
 		if !strings.Contains(big, want) {
 			t.Errorf("big picture lacks %q: %s", want, big)
 		}

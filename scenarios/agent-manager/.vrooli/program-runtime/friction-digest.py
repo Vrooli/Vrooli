@@ -46,11 +46,7 @@ envelope = {
 handles = {"tools": None}
 
 
-def fail(status, klass, detail, where):
-    """The one place a bad path is recorded. Sets status, appends the error, routes to report."""
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
+fail = program.fail
 
 
 # ---- state machine ---------------------------------------------------------------

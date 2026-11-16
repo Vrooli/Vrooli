@@ -76,4 +76,14 @@ func TestManifestExposesPrivacyContractForEveryTypedCaller(t *testing.T) {
 		require.Empty(t, seen["privacy-class"], "privacy classification must never be synthesized by a CLI default")
 		require.True(t, required["privacy-provenance"], "inference %s must require explicit privacy provenance", name)
 	}
+	flags := commands["embed"]
+	seen := map[string]string{}
+	required := map[string]bool{}
+	for _, flag := range flags {
+		seen[flag.Name] = flag.Default
+		required[flag.Name] = flag.Required
+	}
+	require.Equal(t, "local-only", seen["profile"], "embedding CLI must preserve its local-only contract")
+	require.True(t, required["privacy-class"], "embedding CLI must not invent a privacy classification")
+	require.True(t, required["privacy-provenance"], "embedding CLI must require caller source attribution")
 }

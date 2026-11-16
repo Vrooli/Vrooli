@@ -12,7 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"agent-manager/internal/decisionpage"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/effortdecision"
 	"agent-manager/internal/goalhome"
 	"agent-manager/internal/repository"
 
@@ -479,37 +481,31 @@ func (s *EffortService) advanceDelivery(ctx context.Context, e *pb.EffortEnrollm
 func deliveryHandbackDecision(e *pb.EffortEnrollment, home string, outcome *pb.EffortGoalHome) *pb.EffortDecision {
 	name := strings.TrimSpace(e.DisplayName)
 	if name == "" {
-		name = e.EffortRef
+		name = decisionpage.Name(strings.TrimPrefix(e.EffortRef, "effort:"))
 	}
 	// Even four-byte characters must fit the existing 600-byte question limit.
 	name = boundedEffortContext(name, 100)
 	d := e.Delivery
 	clock := DeliveryPressure(d, d.GetStoppedAt().AsTime())
 	var big, technical strings.Builder
-	fmt.Fprintf(&big, "%s (%s) has stopped. Reason: %s. This commission has ended; elapsed time does not establish that the product is finished.\n\n", name, e.EffortRef, boundedEffortContext(d.Reason, 400))
-	big.WriteString("Accept partial keeps only the evidenced result and leaves unfinished requirements open. Recommission requests another explicitly authorized budget for the remaining work. Change scope asks you to revise the destination before another commission. Answering this question does not itself restart delivery or accept unverified work.\n\n")
-	if outcome != nil && outcome.CurrentValue != nil {
+	fmt.Fprintf(&big, "Work on %s has stopped before its goal was reached. Reason: %s. Time alone does not mean the product is finished.\n\n", name, boundedEffortContext(d.Reason, 400))
+	big.WriteString("Accept partial keeps only the proven part and leaves the rest open. Recommission asks for another approved time budget for the remaining work. Change scope means you revise the goal before any more work. Answering does not itself restart work or accept anything unproven.\n\n")
+	switch {
+	case outcome != nil && outcome.CurrentValue != nil:
 		fmt.Fprintf(&big, "Reported progress: %g %s", outcome.GetCurrentValue(), outcome.GetDestinationMetric())
 		if outcome.DestinationTarget != nil {
-			fmt.Fprintf(&big, "; destination %s %g", outcome.DestinationOp, outcome.GetDestinationTarget())
+			fmt.Fprintf(&big, "; the goal is %s %g", outcome.DestinationOp, outcome.GetDestinationTarget())
 		}
 		big.WriteString(". ")
-	} else {
-		big.WriteString("Current destination progress is unknown. ")
+	default:
+		big.WriteString("Current progress is unknown. ")
 	}
 	if len(outcome.GetSurfaceScoreboard()) == 0 {
-		big.WriteString("The product surface assessment is unavailable. ")
+		big.WriteString("The per-part assessment is unavailable. ")
 	} else {
-		big.WriteString("Reported surfaces: ")
-		for i, row := range outcome.SurfaceScoreboard {
-			if i > 0 {
-				big.WriteString("; ")
-			}
-			fmt.Fprintf(&big, "%s — %s", row.Surface, row.State)
-		}
-		big.WriteString(". ")
+		fmt.Fprintf(&big, "The page shows each of the %d parts as the team reported it. ", len(outcome.SurfaceScoreboard))
 	}
-	big.WriteString("These are recorded workspace reports; unverified outcomes remain unverified.")
+	big.WriteString("These are the team's own reports; nothing unproven counts as done. If you do not answer, the work stays stopped.")
 	fmt.Fprintf(&technical, "Effort: %s. Commission: %s. Product home: %s. Target revision: %s. Source revision: %s.\n\n", e.EffortRef, d.CommissionId, home, e.TargetRevision, e.SourceRevision)
 	fmt.Fprintf(&technical, "Clock: budget %s; elapsed %s; paused %s; worker limit %d. Started: %s. Stopped: %s. Stop reason: %s.\n\n", time.Duration(d.BudgetSeconds)*time.Second, time.Duration(clock.ElapsedSeconds)*time.Second, time.Duration(d.PausedSeconds)*time.Second, d.MaxWorkers, deliveryDecisionTime(d.StartedAt), deliveryDecisionTime(d.StoppedAt), d.Reason)
 	fmt.Fprintf(&technical, "Evidence references: %s/CHARTER.md defines the destination; %s/STATUS.md records per-surface gaps and the handoff; %s/LOG.md records accepted work and its evidence. These files may change after the frozen observation.\n\n", home, home, home)
@@ -542,14 +538,59 @@ func deliveryHandbackDecision(e *pb.EffortEnrollment, home string, outcome *pb.E
 		fmt.Fprintf(&technical, "Home findings: %s.\n", strings.Join(outcome.LintFindings, ", "))
 	}
 	technical.WriteString("\nA stopped commission cannot resume; a new commission must pass the native owner and retained-run fences.")
-	return &pb.EffortDecision{
+	decision := &pb.EffortDecision{
 		EffortRef: e.EffortRef, GoalHome: home, DecisionId: "delivery-" + d.CommissionId,
-		Question:    name + ": delivery stopped. Accept the evidenced partial result, recommission, or change scope?",
-		Options:     []*pb.EffortDecisionOption{{Key: "accept-partial", Label: "Accept the evidenced partial result"}, {Key: "recommission", Label: "Recommission with a new budget"}, {Key: "rescope", Label: "Change scope before another commission"}},
-		Recommended: "rescope", RecommendationReason: "Review the remaining outcomes before choosing another commission.",
+		Question:    "Work on " + name + " stopped before its goal was reached. Keep the proven part, fund another round, or change the goal first?",
+		Options:     []*pb.EffortDecisionOption{{Key: "accept-partial", Label: "Keep the proven part and close the rest"}, {Key: "recommission", Label: "Fund another round of work"}, {Key: "rescope", Label: "Change the goal before more work"}},
+		Recommended: "rescope", RecommendationReason: "Review what is left before paying for another round.",
 		BigPicture:       boundedEffortContext(big.String(), operatordecision.MaxBigPictureCodePoints),
 		TechnicalDetails: boundedEffortContext(technical.String(), operatordecision.MaxTechnicalDetailsCodePoints),
 	}
+	decision.ExplainerHtml = deliveryHandbackPage(decision, name, d, outcome, clock)
+	return decision
+}
+
+// deliveryHandbackPage shows a stopped delivery the way the operator judges
+// it: why it stopped, how much time it used, each part's reported state, the
+// team's own handoff and what it still needs from the operator.
+func deliveryHandbackPage(decision *pb.EffortDecision, name string, d *pb.EffortDelivery, outcome *pb.EffortGoalHome, clock *pb.EffortDeliveryPressure) string {
+	page := operatordecision.NewPage(name + " stopped before it finished").Raw(decisionpage.Style).
+		Lead("A team of agents was working toward a goal on a time budget, and its work has stopped. Nothing restarts by itself; you choose what happens next.")
+	progress := "Unknown"
+	if outcome != nil && outcome.CurrentValue != nil {
+		progress = fmt.Sprintf("%g %s", outcome.GetCurrentValue(), outcome.GetDestinationMetric())
+		if outcome.DestinationTarget != nil {
+			progress += fmt.Sprintf(" (goal: %s %g)", outcome.DestinationOp, outcome.GetDestinationTarget())
+		}
+	}
+	page.Facts(
+		operatordecision.Row{Label: "Why it stopped", Value: operatordecision.Clip(d.Reason, 300)},
+		operatordecision.Row{Label: "Time used", Value: decisionpage.Duration(time.Duration(clock.GetElapsedSeconds())*time.Second) + " of a " + decisionpage.Duration(time.Duration(d.BudgetSeconds)*time.Second) + " budget"},
+		operatordecision.Row{Label: "Progress", Value: progress},
+	)
+	if surfaces := outcome.GetSurfaceScoreboard(); len(surfaces) > 0 {
+		rows := [][]string{}
+		for i, row := range surfaces {
+			if i == 30 {
+				rows = append(rows, []string{fmt.Sprintf("… and %d more", len(surfaces)-i), "", ""})
+				break
+			}
+			rows = append(rows, []string{operatordecision.Clip(row.Surface, 120), row.State, operatordecision.Clip(row.Target, 200)})
+		}
+		page.Section("Each part, as the team reported it", "Nobody has checked these reports independently.").Table([]string{"Part", "State", "Aim"}, rows)
+	}
+	if handoff := strings.TrimSpace(outcome.GetHandoff()); handoff != "" {
+		page.Section("What the team handed off", "").Raw(decisionpage.Quote(operatordecision.Clip(handoff, 1500)))
+	}
+	if needs := outcome.GetNeedsOperator(); len(needs) > 0 {
+		page.Section("What it says it needs from you", strings.Join(needs, "\n\n"))
+	}
+	page.Options(effortdecision.View(decision).Facts("", nil), map[string]string{
+		"accept-partial": "Keeps only the proven part of the work and closes the rest as unfinished.",
+		"recommission":   "Asks for a new time budget so a team can continue the remaining work.",
+		"rescope":        "You change the goal first; the next round starts from the goal you set.",
+	})
+	return page.IfNoAnswer("The work stays stopped and nothing is accepted.").HTML()
 }
 
 func deliveryDecisionTime(at *timestamppb.Timestamp) string {

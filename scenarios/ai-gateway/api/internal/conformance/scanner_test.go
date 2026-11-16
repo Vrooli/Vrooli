@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,6 +39,174 @@ const dims = 768 // embedding vector size
 		require.NotContains(t, finding.GetMessage(), "qwen3:4b")
 		require.NotContains(t, finding.GetMessage(), "OPENROUTER_API_KEY")
 	}
+}
+
+func TestScannerRejectsUndeclaredLiteralGatewayRoleAndAcceptsCatalogRole(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, "scenarios/ai-gateway/config/inference-role-catalog.json", `{"roles":{"summarize.faithful":{},"classify.fast":{}}}`)
+	caller := "package caller\nimport \"github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference\"\n"
+	writeFile(t, repo, "scenarios/demo/api/caller.go", caller+"var request = RunRequest{Role: \"summarize.faithful\"}\nconst defaultGatewayRole = \"summary.magic\"\n")
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "demo",
+		Path:     filepath.Join(repo, "scenarios", "demo"),
+	})
+	require.NoError(t, err)
+	var roleFindings []*conformancev1.ConformanceFinding
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.gateway_role_unreachable" {
+			roleFindings = append(roleFindings, finding)
+		}
+	}
+	require.Len(t, roleFindings, 1)
+	require.Equal(t, "api/caller.go:4", roleFindings[0].GetPath())
+
+	writeFile(t, repo, "scenarios/demo/api/unrelated.go", "package caller\n// an unrelated LPBS contract references ai-gateway discovery\nvar role = map[string]string{\"role\": \"chat.default\"}\n")
+	report, err = conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "demo",
+		Path:     filepath.Join(repo, "scenarios", "demo"),
+	})
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		if finding.GetPath() == "api/unrelated.go:3" {
+			t.Fatalf("unrelated role-shaped field was treated as Gateway call: %+v", finding)
+		}
+	}
+}
+
+func TestScannerAuditsRoleConstantsInGenericGatewayRouteCallers(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, "scenarios/ai-gateway/config/inference-role-catalog.json", `{"roles":{"classify.fast":{},"embedding.default":{}}}`)
+	writeFile(t, repo, "scenarios/demo/api/inference.go", `package api
+import routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
+
+const ClassificationRole = "classify.routing"
+func execute(client routingconnect.RoutingServiceClient) {
+    _, _ = client.ExecuteRoute(nil, nil)
+}
+
+func TestSignalInboxGenericRouteRolesAreCatalogReachable(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "signal-inbox"))
+	require.NoError(t, err)
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "signal-inbox",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, "ai.gateway_role_unreachable", finding.GetRuleId(), "%s: %s", finding.GetPath(), finding.GetMessage())
+	}
+}
+`)
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "demo",
+		Path:     filepath.Join(repo, "scenarios", "demo"),
+	})
+	require.NoError(t, err)
+	var findings []*conformancev1.ConformanceFinding
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.gateway_role_unreachable" {
+			findings = append(findings, finding)
+		}
+	}
+	require.Len(t, findings, 1)
+	require.Equal(t, "api/inference.go:4", findings[0].GetPath())
+}
+
+func TestScannerRejectsImplicitSharedRerankRoleOnGatewayAdapter(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, "scenarios/ai-gateway/config/inference-role-catalog.json", `{"roles":{"summarize.faithful":{}}}`)
+	writeFile(t, repo, "scenarios/demo/api/reranker.go", `package api
+import "search-hub/internal/aigateway"
+func makeReranker() { _ = aisearch.NewLLMRerankerWithRunner("", gatewayRunner) }
+func gatewayRunner() { _ = aigateway.NewTextGenerator(resolve, client, "caller.source") }
+`)
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "demo",
+		Path:     filepath.Join(repo, "scenarios", "demo"),
+	})
+	require.NoError(t, err)
+	var findings []*conformancev1.ConformanceFinding
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.gateway_role_implicit" {
+			findings = append(findings, finding)
+		}
+	}
+	require.Len(t, findings, 1)
+	require.Equal(t, "api/reranker.go:3", findings[0].GetPath())
+}
+
+func TestScannerFailsClosedWhenGatewayTaskRoleCatalogIsInvalid(t *testing.T) {
+	repo := t.TempDir()
+	writeFile(t, repo, "scenarios/ai-gateway/config/inference-role-catalog.json", `{broken`)
+	writeFile(t, repo, "scenarios/demo/api/caller.go", `package api
+import "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+var request = inference.RunRequest{Role: "summarize.faithful"}
+`)
+	_, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "demo",
+		Path:     filepath.Join(repo, "scenarios", "demo"),
+	})
+	require.ErrorContains(t, err, "decode AI Gateway task-role catalog")
+}
+
+func TestConcreteModelTagGateBlocksRuntimeLiteralsAndIgnoresEvidence(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "api/model.go", `package api
+const selectedModel = "qwen3.5:9b"
+// An old example: claude-3.5-sonnet
+const runner = "claude-code"
+`)
+	writeFile(t, root, "api/model_test.go", `package api
+const fixtureModel = "gpt-4o-mini"
+`)
+	writeFile(t, root, "api/testdata/request.json", `{"model":"llama3.2:3b"}`)
+	writeFile(t, root, "api/registry.seed.json", `{"model":"gpt-4o"}`)
+	writeFile(t, root, "docs/selection.md", `Example: claude-3.5-sonnet`)
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "fixture",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	var slugFindings []*conformancev1.ConformanceFinding
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.concrete_model_slug" {
+			slugFindings = append(slugFindings, finding)
+		}
+	}
+	require.Len(t, slugFindings, 1)
+	require.Equal(t, "high", slugFindings[0].GetSeverity())
+	require.Equal(t, "api/model.go:2", slugFindings[0].GetPath())
+}
+
+func TestScannerSkipsDocumentationTestsAndLargeEvidenceBeforeOpening(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, root, "api/main.go", `package api
+const endpoint = "https://openrouter.ai/api/v1/chat/completions"
+`)
+	writeFile(t, root, "api/client_test.go", `package api
+const fixture = "https://openrouter.ai/api/v1/chat/completions"
+`)
+	writeFile(t, root, "api/testdata/fixture.json", `{"model":"gpt-4o"}`)
+	writeFile(t, root, "api/registry.seed.json", `{"model":"gpt-4o"}`)
+	writeFile(t, root, "docs/large-evidence.json", `{"payload":"`+strings.Repeat("x", 5*1024*1024)+`"}`)
+	writeFile(t, root, "docs/provider.md", `https://openrouter.ai/api/v1/chat/completions`)
+	writeFile(t, root, "tmp/baseline/providers-list.json", `{"model":"anthropic/claude-3.5-sonnet"}`)
+
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{
+		Scenario: "fixture",
+		Path:     root,
+	})
+	require.NoError(t, err)
+	var directProviderFindings []*conformancev1.ConformanceFinding
+	for _, finding := range report.Findings {
+		if finding.GetRuleId() == "ai.direct_openrouter_http" {
+			directProviderFindings = append(directProviderFindings, finding)
+		}
+	}
+	require.Len(t, directProviderFindings, 1)
+	require.Equal(t, "api/main.go:2", directProviderFindings[0].GetPath())
 }
 
 func TestScannerFindsOpenRouterAPIHostWithoutAPISubdomain(t *testing.T) { // [REQ:AIGW-CONFORMANCE-INVENTORY]
@@ -167,6 +336,18 @@ CREATE TABLE document_vectors (id TEXT PRIMARY KEY, embedding BLOB);
 	requireRule(t, report.Findings, "ai.hardcoded_context_window")
 	requireRule(t, report.Findings, "ai.embedding_metadata_missing")
 	requireRule(t, report.Findings, "ai.unreviewed_exception")
+}
+
+func TestScannerTreatsResourceRuntimeBuildAsMetadata(t *testing.T) { // [REQ:AIGW-CONFORMANCE-MATURITY]
+	root := t.TempDir()
+	writeFile(t, root, "api/encoder.go", `package api
+const resourceRuntimeBuild = "resource-ollama-gateway/0.1.0+ollama-server/0.30.10"
+`)
+	report, err := conformance.NewScanner().Scan(context.Background(), conformance.ScanRequest{Scenario: "fixture", Path: root})
+	require.NoError(t, err)
+	for _, finding := range report.Findings {
+		require.NotEqual(t, "ai.resource_gateway_missing_role", finding.GetRuleId())
+	}
 }
 
 func TestScannerAllowsReviewedExceptionMetadata(t *testing.T) { // [REQ:AIGW-CONFORMANCE-MATURITY]

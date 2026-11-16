@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Badge } from "./ui/badge";
 import { CodeBlock } from "./markdown/components/CodeBlock";
 import { useClipboardFeedback } from "../hooks/useClipboardFeedback";
@@ -158,27 +159,10 @@ export function ContextAttachmentModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button variant="secondary" size="sm" onClick={handleCopy} className="gap-2">
-            {copyStatus === "copied" ? (
-              <>
-                <Check className="h-4 w-4 text-success" />
-                Copied
-              </>
-            ) : copyStatus === "error" ? (
-              <>
-                <Copy className="h-4 w-4" />
-                Copy failed
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4" />
-                Copy JSON
-              </>
-            )}
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <OverlayActionBar className="flex-row-reverse" actions={[
+            { id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true },
+            { id: "copy", label: copyStatus === "copied" ? "Copied" : copyStatus === "error" ? "Copy failed" : "Copy JSON", onSelect: handleCopy },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

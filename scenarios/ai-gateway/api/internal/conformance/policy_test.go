@@ -67,3 +67,61 @@ func TestScanProjectPolicyToleratesLargeSourceLines(t *testing.T) {
 		t.Fatalf("large source line should be scannable: %v", err)
 	}
 }
+
+func TestScanProjectSkipsLargeNonRuntimeArtifactsButScansRuntimeSelectors(t *testing.T) {
+	root := t.TempDir()
+	writePolicyFixture(t, root, "docs/reference/large.json", `{"payload":"`+strings.Repeat("x", 5*1024*1024)+`"}`)
+	writePolicyFixture(t, root, "scenarios/demo/api/testdata/large.json", `{"payload":"`+strings.Repeat("x", 5*1024*1024)+`"}`)
+	writePolicyFixture(t, root, "scenarios/demo/api/main.go", "package main\nconst endpoint = \"/api/chat\"\n")
+	report, err := NewScanner().ScanProject(t.Context(), root)
+	if err != nil {
+		t.Fatalf("non-runtime artifacts should not block policy scan: %v", err)
+	}
+	if !hasPolicyCode(report, "AI_OLLAMA_GATEWAY_ONLY") {
+		t.Fatalf("runtime selector was not scanned: %+v", report.Findings)
+	}
+}
+
+func TestScanProjectExcludesOwnerPolicyAndCatalogSurfaces(t *testing.T) {
+	root := t.TempDir()
+	writePolicyFixture(t, root, "resources/orcarouter/model-policy.json", `{"model":"openai/gpt-4o"}`)
+	writePolicyFixture(t, root, "resources/claude-code/model-policy.json", `{"model":"anthropic/claude-3.5-sonnet"}`)
+	writePolicyFixture(t, root, "scenarios/image-tools/api/internal/models/registry.seed.json", `{"id":"qwen2.5-vl-3b"}`)
+	writePolicyFixture(t, root, "scenarios/vrooli-autoheal/api/vrooli-autoheal-api.freshness.json", `{"size":768}`)
+	report, err := NewScanner().ScanProject(t.Context(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Findings) != 0 {
+		t.Fatalf("owner policy/catalog artifacts should not be reported as callers: %+v", report.Findings)
+	}
+}
+
+func TestScanProjectKeepsScenarioHostedProviderSelectionVisible(t *testing.T) {
+	root := t.TempDir()
+	writePolicyFixture(t, root, "scenarios/landing-page-business-suite/api/internal/intelligence/model_policy.go", `const model = "openai/gpt-4o"`)
+	report, err := NewScanner().ScanProject(t.Context(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasPolicyCode(report, "AI_OPENROUTER_POLICY_FACTS") {
+		t.Fatalf("scenario-owned hosted model selection must stay visible: %+v", report.Findings)
+	}
+}
+
+func TestScanProjectIgnoresCommentsAndNonOllamaCatalogIdentifiers(t *testing.T) {
+	root := t.TempDir()
+	writePolicyFixture(t, root, "scenarios/demo/api/main.go", strings.Join([]string{
+		"package main",
+		"// Previous approach used qwen3:4b and mistral:7b.",
+		`const pdfEngine = "mistral-ocr"`,
+		`const provider = "mistral/"`,
+	}, "\n"))
+	report, err := NewScanner().ScanProject(t.Context(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Findings) != 0 {
+		t.Fatalf("comments and non-Ollama catalog names are not runtime model selection: %+v", report.Findings)
+	}
+}

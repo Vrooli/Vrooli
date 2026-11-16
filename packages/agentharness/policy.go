@@ -120,6 +120,14 @@ type PathRule struct {
 	// Source names the declaration, such as a repo-contract storage root.
 	Source string `json:"source,omitempty"`
 	Owner  string `json:"owner,omitempty"`
+	// Match turns the rule into a declaration of generated names: it applies
+	// to each existing child of Root whose name matches the glob (a name, never
+	// a path), found when the deletion is decided so a leftover made a moment
+	// ago is covered. Root itself is then not covered.
+	Match string `json:"match,omitempty"`
+	// Only limits an allow rule: a folder is allowed only while every file below
+	// it matches one of these name globs, so a folder holding anything else asks.
+	Only []string `json:"only,omitempty"`
 	// Provider is the snapshot that published the rule. The runtime sets it
 	// on load; a provider cannot claim another's name.
 	Provider string `json:"provider,omitempty"`
@@ -191,6 +199,10 @@ type ProviderSnapshot struct {
 	ExpiresAt    time.Time            `json:"expires_at"`
 	Rules        []PolicyRule         `json:"rules,omitempty"`
 	PathRules    []PathRule           `json:"path_rules,omitempty"`
+	// NameRules are declarations of generated names (PathRule.Match). They are
+	// a separate field so a runner older than the name match, which ignores
+	// fields it does not know, never reads one as a rule for the whole Root.
+	NameRules []PathRule `json:"name_rules,omitempty"`
 	// RemovalApproval is the command an agent runs to ask the operator to
 	// approve deleting a location these path rules withhold. The runtime
 	// appends one --path argument per withheld path to the refusal it shows.
@@ -282,6 +294,11 @@ func ValidateSnapshot(snapshot ProviderSnapshot) error {
 			}
 		}
 	}
+	for _, rule := range snapshot.NameRules {
+		if err := validateNameRule(rule); err != nil {
+			return err
+		}
+	}
 	for _, rule := range snapshot.PathRules {
 		if strings.TrimSpace(rule.Root) == "" || !filepath.IsAbs(rule.Root) {
 			return fmt.Errorf("path rule root %q must be absolute", rule.Root)
@@ -295,6 +312,44 @@ func ValidateSnapshot(snapshot ProviderSnapshot) error {
 		if strings.TrimSpace(rule.Reason) == "" {
 			return fmt.Errorf("path rule %q requires a reason", rule.Root)
 		}
+		if err := validatePathRulePatterns(rule); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validatePathRulePatterns checks a rule's name globs.
+func validateNameRule(rule PathRule) error {
+	switch {
+	case strings.TrimSpace(rule.Match) == "":
+		return fmt.Errorf("name rule %q requires a match", rule.Root)
+	case rule.Action != ActionAllow:
+		return fmt.Errorf("name rule %q: only allow rules may match generated names", rule.Root)
+	case strings.TrimSpace(rule.Reason) == "" || !filepath.IsAbs(rule.Root) || filepath.Dir(filepath.Clean(rule.Root)) == filepath.Clean(rule.Root):
+		return fmt.Errorf("name rule %q needs an absolute root below the filesystem root and a reason", rule.Root)
+	case strings.Trim(rule.Match, "*?[]") == "":
+		return fmt.Errorf("name rule %q: match %q names nothing specific", rule.Root, rule.Match)
+	}
+	return validatePathRulePatterns(rule)
+}
+
+func validatePathRulePatterns(rule PathRule) error {
+	if strings.TrimSpace(rule.Match) != "" {
+		if strings.ContainsAny(rule.Match, `/\`) {
+			return fmt.Errorf("path rule %q match %q must be a name, not a path", rule.Root, rule.Match)
+		}
+		if _, err := filepath.Match(rule.Match, "x"); err != nil {
+			return fmt.Errorf("path rule %q match %q: %w", rule.Root, rule.Match, err)
+		}
+	}
+	for _, glob := range rule.Only {
+		if _, err := filepath.Match(glob, "x"); err != nil {
+			return fmt.Errorf("path rule %q only %q: %w", rule.Root, glob, err)
+		}
+	}
+	if len(rule.Only) > 0 && rule.Action != ActionAllow {
+		return fmt.Errorf("path rule %q: only applies to allow rules", rule.Root)
 	}
 	return nil
 }

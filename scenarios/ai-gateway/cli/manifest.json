@@ -1235,6 +1235,21 @@
               "name": "role",
               "description": "Deterministic embedding role",
               "default": "embedding.default"
+            },
+            {
+              "name": "profile",
+              "description": "Embedding locality; embeddings are local-only",
+              "default": "local-only"
+            },
+            {
+              "name": "privacy-class",
+              "required": true,
+              "description": "Explicit privacy class: public, internal, confidential, or secret"
+            },
+            {
+              "name": "privacy-provenance",
+              "required": true,
+              "description": "Non-sensitive source and basis for the caller privacy classification"
             }
           ],
           "binding": {

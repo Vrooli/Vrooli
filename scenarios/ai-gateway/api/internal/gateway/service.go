@@ -123,7 +123,7 @@ func validatePrivacyProfile(req *sharedv1.GatewayRequest) []*sharedv1.Validation
 		sharedv1.Profile_PROFILE_QUALITY_FIRST,
 		sharedv1.Profile_PROFILE_CHEAP_FIRST:
 		return []*sharedv1.ValidationIssue{
-			issue("profile", "privacy_profile_conflict", "secret requests cannot use profiles that may require remote providers"),
+			issue("profile", "privacy_profile_conflict", "secret requests cannot use profiles that may require remote providers; confidential remote candidates require a valid source-scoped consent receipt at dispatch"),
 		}
 	default:
 		return nil

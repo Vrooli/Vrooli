@@ -2,7 +2,9 @@ package orchestration
 
 import (
 	"context"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
@@ -90,6 +92,32 @@ func TestPurgeDataDryRunThenDeletesMatchingDurableRecords(t *testing.T) {
 	}
 	if got, err := repos.Runs.Get(ctx, keepRun.ID); err != nil || got == nil || got.Status != domain.RunStatusPending {
 		t.Fatalf("retained run = %+v err=%v", got, err)
+	}
+}
+
+func TestUsagePaceSelectionChangesLiveAdmissionCeiling(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	settingsStore, err := agentconfig.NewOrchestrationSettingsStore(filepath.Join(t.TempDir(), "orchestration.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 10}),
+		WithOrchestrationSettings(settingsStore),
+	)
+	settings := settingsStore.Get()
+	settings.UsagePace.SelectedTier = "use_by_wednesday"
+	settings.UsagePace.TargetRunOutAt = time.Now().UTC().Add(48 * time.Hour).Format(time.RFC3339)
+	settings.RunExecution.MaxConcurrentRuns = 24
+	if err := o.UpdateOrchestrationSettings(context.Background(), &settings); err != nil {
+		t.Fatalf("update pace selection: %v", err)
+	}
+	if o.config.MaxConcurrentRuns != 24 {
+		t.Fatalf("live admission ceiling = %d, want selected forecast ceiling 24", o.config.MaxConcurrentRuns)
+	}
+	if got := settingsStore.Get().UsagePace.BaseMaxConcurrentRuns; got != 10 {
+		t.Fatalf("persisted baseline = %d, want original configured ceiling 10", got)
 	}
 }
 

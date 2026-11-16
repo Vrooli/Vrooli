@@ -1136,14 +1136,31 @@ copy, are never counted as runs.
   Usage mode **decisions** use the operator-decision contract
   (`agent_manager.usage_mode.decision_requested.v1`, always `Reversible`, never
   a default answer) and are asks, not categories, so they have no per-category
-  preference: run-out offer (Start until reset, Not now, Remind me in 30 min;
+  preference: run-out offer (Start until reset, Start and do it automatically from
+  now on, Not now, Remind me in 30 min;
   raised with the will-exhaust warning, once per window period, a "Not now" or
   no answer is not asked again before the window resets), ending soon 15
   minutes ahead (Extend, Let it end), and an until-off reminder after 24 hours
-  and daily (Keep it on, Turn off). Starting, extending and turning off need an
+  and daily (Keep it on and stop asking, Turn off). Starting, extending, keeping
+  on, setting a rule and turning off need an
   answer carrying a verified human (`answered_by`), which becomes
   `started_by`; any other answer changes nothing. A redelivered answer is a
   no-op. State lives in `notifier.json` beside the mode file.
+
+  **Standing choices, so a repeating question is answered once.** Answering
+  "Keep it on and stop asking" records that until-off mode as standing: the daily
+  question stops for it, it stays on the Usage page (End now) and in the digest as
+  "kept on by you", and the mark is forgotten when the mode ends. Answering
+  "Start and do it automatically" starts the mode and records an **auto-save rule**
+  for that runner: from then on, when one of its windows is projected to run out,
+  Save usage (one tier down until the reset) starts by itself, at most once per
+  window (an operator who ends it early, or answered Not now for the window, is not
+  overridden), and a `usage-mode-started` notice says what started and how to stop
+  the rule instead of a question. If the mode cannot be started the offer falls
+  back to the question. The rule is listed and switched off from the Usage page
+  ("Turn rule off"), `agent-manager usage mode auto-save status|on|off --runner R`,
+  or `GET|POST /api/v1/usage/modes/auto-save`; a write needs a verified independent
+  human with `agent-manager:write`, so an agent can neither set nor clear a rule.
 
   Every window alert's `context_url` is `/usage?window=<provider>/<pool>/<window>`.
   Dedupe state lives in `usage_forecast_alerts`, saved only after a publish

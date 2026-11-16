@@ -32,7 +32,7 @@ func TestStartupReconciliationCancelsUntrackedExecutionsAndPreservesTerminalRows
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, status := range []domain.ToolCallStatus{domain.StatusPending, domain.StatusRunning} {
+	for _, status := range []domain.ToolCallStatus{domain.StatusPending, domain.StatusApproved, domain.StatusRunning} {
 		record := &domain.ToolCallRecord{ID: "orphan-" + string(status), ChatID: chat.ID, ToolName: "local-tool", Status: status, StartedAt: time.Now()}
 		if err := repo.SaveToolCallRecord(ctx, message.ID, record); err != nil {
 			t.Fatalf("insert %s orphan: %v", status, err)
@@ -45,16 +45,19 @@ func TestStartupReconciliationCancelsUntrackedExecutionsAndPreservesTerminalRows
 
 	reconciler := NewReconciliationService(repo)
 	count, err := reconciler.ReconcileOrphanedToolCalls(ctx)
-	if err != nil || count != 2 {
-		t.Fatalf("reconcile returned count=%d err=%v, want two resolved rows", count, err)
+	if err != nil || count != 3 {
+		t.Fatalf("reconcile returned count=%d err=%v, want three resolved rows", count, err)
 	}
-	for _, id := range []string{"orphan-pending", "orphan-running"} {
+	for _, id := range []string{"orphan-pending", "orphan-approved", "orphan-running"} {
 		record, err := repo.GetToolCallByID(ctx, id)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if record.Status != domain.StatusCancelled || record.CompletedAt.IsZero() {
 			t.Errorf("recovered %s = status %q completed_at %v", id, record.Status, record.CompletedAt)
+		}
+		if id == "orphan-approved" && record.ErrorMessage != "Server restarted after tool approval; execution outcome is unknown and the tool was not replayed" {
+			t.Errorf("approved execution recovery message = %q", record.ErrorMessage)
 		}
 	}
 	finished, err := repo.GetToolCallByID(ctx, terminal.ID)

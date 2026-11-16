@@ -35,7 +35,8 @@ const usageModeUsage = `agent-manager usage mode start --preset one-tier-down [-
   agent-manager usage mode end <id> | --all [--json]
   agent-manager usage mode extend <id> --until weekly-reset|off|<duration like 2h> [--json]
   agent-manager usage mode rebase <id> [--confirm] [--json]
-  agent-manager usage mode ask --runner claude|codex --for 30m [--json]`
+  agent-manager usage mode ask --runner claude|codex --for 30m [--json]
+  agent-manager usage mode auto-save [status] | on --runner claude|codex | off --runner claude|codex [--json]`
 
 const usageModeHelp = `A usage mode lowers what NEW work runs on so quota lasts longer; running sessions and resumed runs keep their settings.
 
@@ -45,6 +46,8 @@ end      ends one mode by id, or every mode with --all.
 extend   moves one active mode's end and keeps its id, start and burn history. A duration is added to the later of now and the current end. Needs verified operator authority.
 rebase   shows which running or resumable runs would switch to the mode's settings: switched_at_next_resume, applies_on_next_launch or unable, with the context the next resume re-sends. It changes nothing until --confirm. Needs verified operator authority.
 ask      asks the operator, through a notification-hub decision, to start a fixed-length Save mode on one runner. Any caller may ask; nothing starts until a verified human answers Start, and that human is recorded as started_by.
+
+auto-save  lists, turns on or turns off a runner's standing rule: when one of its quota windows is projected to run out, Save usage (one tier down until the reset) starts by itself and the operator gets a notice instead of a question, at most once per window. Turning it on or off needs verified operator authority; an agent is refused. Answering "do it automatically" on a run-out decision turns the same rule on.
 
 Reach: shim-launched sessions change on their next launch only; desktop apps are unreachable. Points are estimates, and the burn shown is not a saving.`
 
@@ -75,8 +78,10 @@ func (a *App) usageMode(args []string) error {
 		return a.usageModeRebase(args[1:])
 	case "ask":
 		return a.usageModeAsk(args[1:])
+	case "auto-save":
+		return a.usageModeAutoSave(args[1:])
 	}
-	return fmt.Errorf("unknown usage mode subcommand %q; expected start, status, end, extend, rebase or ask", args[0])
+	return fmt.Errorf("unknown usage mode subcommand %q; expected start, status, end, extend, rebase, ask or auto-save", args[0])
 }
 
 // modeClient builds the Measures client. Start and end are operator actions:
@@ -395,5 +400,84 @@ func (a *App) usageModeAsk(args []string) error {
 		out.DecisionID, out.State = fields["decision_id"], fields["state"]
 	}
 	fmt.Printf("Decision %s is %s. A mode starts only when a verified operator answers Start.\n", out.DecisionID, out.State)
+	return nil
+}
+
+// usageModeAutoSave lists the auto-save rules, or turns one on or off. The API
+// requires a verified operator for a change.
+func (a *App) usageModeAutoSave(args []string) error {
+	action := "status"
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		action, args = args[0], args[1:]
+	}
+	fs := flag.NewFlagSet("usage mode auto-save", flag.ContinueOnError)
+	jsonOut := cliutil.JSONFlag(fs)
+	runner := fs.String("runner", "", "claude or codex")
+	if err := cliutil.ParseInterspersed(fs, args); err != nil {
+		return err
+	}
+	var body []byte
+	switch action {
+	case "status", "list":
+	case "on", "off":
+		if strings.TrimSpace(*runner) == "" {
+			return fmt.Errorf("usage: agent-manager usage mode auto-save %s --runner claude|codex [--json]", action)
+		}
+		var err error
+		if body, err = json.Marshal(map[string]any{"runner": strings.TrimSpace(*runner), "enabled": action == "on"}); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown auto-save action %q; expected status, on or off", action)
+	}
+	client, base := cliapp.NewConnectHTTPClient(a.core)
+	url := strings.TrimRight(base, "/") + "/api/v1/usage/modes/auto-save"
+	method := http.MethodGet
+	if body != nil {
+		method = http.MethodPost
+	}
+	request, err := http.NewRequest(method, url, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	if body != nil {
+		request.Header.Set("Content-Type", "application/json")
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(response.Body, 1<<16))
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("auto-save failed (%d): %s", response.StatusCode, strings.TrimSpace(string(raw)))
+	}
+	if *jsonOut {
+		cliutil.PrintJSON(raw)
+		return nil
+	}
+	var out struct {
+		Rules []struct {
+			Runner    string `json:"runner"`
+			Since     string `json:"since"`
+			By        string `json:"by"`
+			Starts    int    `json:"starts"`
+			LastStart string `json:"last_start"`
+		} `json:"rules"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return err
+	}
+	if len(out.Rules) == 0 {
+		fmt.Println("No auto-save rule is on. Window run-out projections are asked as decisions.")
+		return nil
+	}
+	for _, rule := range out.Rules {
+		line := fmt.Sprintf("%s: auto-save on since %s by %s; started %d time(s)", rule.Runner, rule.Since, valueOr(rule.By, "unknown"), rule.Starts)
+		if rule.LastStart != "" {
+			line += ", last " + rule.LastStart
+		}
+		fmt.Println(line)
+	}
 	return nil
 }

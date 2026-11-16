@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ import { RolePolicyTab } from "./RolePolicyTab";
 import { PermissionPolicyTab } from "./PermissionPolicyTab";
 import { useInvestigationSettings, useMaintenance, usePermissionPolicy, useRolePolicyCatalog } from "../../../hooks/useApi";
 import { useOrchestrationSettings } from "../../../hooks/useOrchestrationSettings";
+import { overlayActions } from "../../../lib/overlayActions";
 import { PurgeTarget } from "@vrooli/proto-types/agent-manager/v1/api/service_pb";
 
 const TAB_DESCRIPTIONS: Record<string, string> = {
@@ -181,44 +183,22 @@ export function SettingsDialog({
             </div>
           </Tabs>
 
-          <DialogFooter className="p-4 sm:p-6">
-            {activeTab === "orchestration" && orchestrationDirty && (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => orchestrationRef.current?.reset()}
-                  disabled={orchestrationRef.current?.saving}
-                >
-                  Reset to Defaults
-                </Button>
-                <Button
-                  onClick={() => orchestrationRef.current?.save()}
-                  disabled={orchestrationRef.current?.saving}
-                >
-                  {orchestrationRef.current?.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
-            {activeTab === "investigation" && investigationDirty && (
-              <>
-                <Button
-                  variant="secondary"
-                  onClick={() => investigationRef.current?.reset()}
-                  disabled={investigationRef.current?.saving}
-                >
-                  Reset to Defaults
-                </Button>
-                <Button
-                  onClick={() => investigationRef.current?.save()}
-                  disabled={investigationRef.current?.saving}
-                >
-                  {investigationRef.current?.saving ? "Saving..." : "Save"}
-                </Button>
-              </>
-            )}
-            <Button variant="secondary" className="min-h-11 sm:min-h-10" onClick={() => onOpenChange(false)}>
-              Close
-            </Button>
+          <DialogFooter>
+            <OverlayActionBar className="flex-row-reverse" actions={
+              activeTab === "orchestration" && orchestrationDirty
+                ? overlayActions(
+                    { id: "save", label: orchestrationRef.current?.saving ? "Saving..." : "Save", onSelect: () => orchestrationRef.current?.save(), disabled: orchestrationRef.current?.saving, primary: true },
+                    { id: "reset", label: "Reset to Defaults", onSelect: () => orchestrationRef.current?.reset(), disabled: orchestrationRef.current?.saving },
+                    { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
+                  )
+                : activeTab === "investigation" && investigationDirty
+                  ? overlayActions(
+                      { id: "save", label: investigationRef.current?.saving ? "Saving..." : "Save", onSelect: () => investigationRef.current?.save(), disabled: investigationRef.current?.saving, primary: true },
+                      { id: "reset", label: "Reset to Defaults", onSelect: () => investigationRef.current?.reset(), disabled: investigationRef.current?.saving },
+                      { id: "close", label: "Close", onSelect: () => onOpenChange(false) },
+                    )
+                  : overlayActions({ id: "close", label: "Close", onSelect: () => onOpenChange(false), primary: true })
+            } />
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link2, Loader2, AlertCircle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
-import { Button } from "../ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import type { AgentEvent, AgentRunSummary } from "../../lib/api";
 import { listAgentRuns, getRunEvents } from "../../lib/api";
 import { AgentEventList } from "./agent/AgentEventList";
@@ -188,10 +188,10 @@ export function AttachRunModal({
       </DialogBody>
 
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button>
-        <Button onClick={() => selectedRun && onAttach(selectedRun)} disabled={isLoading || !selectedRun}>
-          {isLoading ? "Attaching..." : "Attach"}
-        </Button>
+        <OverlayActionBar actions={[
+          { id: "attach", label: isLoading ? "Attaching..." : "Attach", onSelect: () => { if (selectedRun) onAttach(selectedRun); }, disabled: isLoading || !selectedRun, primary: true },
+          { id: "cancel", label: "Cancel", onSelect: onClose, disabled: isLoading },
+        ]} />
       </DialogFooter>
     </Dialog>
   );

@@ -18,10 +18,6 @@ envelope = {
 work = {}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:180], "where": where})
-    return "report"
 
 
 def safe(call):
@@ -37,7 +33,7 @@ def step_validate():
         or set(inputs) - set(KEYS)
         or any(not isinstance(inputs.get(key), str) or not inputs[key].strip() or len(inputs[key]) > 128 for key in KEYS)
     ):
-        return fail("failed", "invalid_input", "Supply one bounded nonempty policy version", "validate")
+        return program.fail("failed", "invalid_input", "Supply one bounded nonempty policy version", "validate", detail_limit=180)
     envelope["inputs"] = dict(inputs)
     return "collect"
 
@@ -64,7 +60,7 @@ def step_classify():
     record = work["policy"].meta()
     policy = record.get("policy") or {}
     if policy.get("version") != inputs["policy_version"]:
-        return fail("failed", "identity_mismatch", "policy response mismatch", "classify")
+        return program.fail("failed", "identity_mismatch", "policy response mismatch", "classify", detail_limit=180)
 
     outcomes_available = work["outcomes"] is not None
     rows = work["outcomes"].head(32) if outcomes_available else []
@@ -114,4 +110,4 @@ while state:
             status, klass = program.classify(exc)
         except (NameError, AttributeError):
             status, klass = "failed", "kernel_runtime"
-        state = fail(status, klass, exc, state)
+        state = program.fail(status, klass, exc, state, detail_limit=180)

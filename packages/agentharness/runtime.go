@@ -16,6 +16,11 @@ type Runtime struct {
 	// Removal resolves the host context for filesystem-removal decisions;
 	// nil means HostRemovalContext.
 	Removal func(workingDirectory string) RemovalContext
+	// Creation resolves what the session created, so the guard can let it
+	// delete its own files; nil means HostCreationEvidence for the session the
+	// event and environment identify. A tool event with no creation source
+	// never loosens anything.
+	Creation func(event ToolEvent, now time.Time) CreationEvidence
 }
 
 func (r Runtime) now() time.Time {
@@ -75,8 +80,18 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 	ctx := resolve(event.WorkingDirectory)
 	rules, approval, degraded := r.pathRules(event, now)
 	ctx.Rules, ctx.ApprovalCommand = rules, approval
+	if ctx.Created == nil && r.creationEnabled() {
+		resolve := r.Creation
+		if resolve == nil {
+			resolve = func(event ToolEvent, now time.Time) CreationEvidence {
+				return HostCreationEvidence(RunIdentityFromEvent(event, ctx.Lookup), now)
+			}
+		}
+		ctx.Created = func() CreationEvidence { return resolve(event, now) }
+	}
 	decision := ctx.EvaluateRemoval(removalTargetsFor(event, removalEnv{WorkingDirectory: ctx.WorkingDirectory, Home: ctx.Home, Lookup: ctx.Lookup}))
 	decision.EventID = event.EventID
+	r.auditCreated(event, decision, now)
 	if len(degraded) > 0 {
 		decision.Degraded = true
 		decision.Evidence = append(decision.Evidence, degraded...)
@@ -108,7 +123,7 @@ func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, string, 
 	declared := false
 	for _, id := range snapshotIDs(bundle) {
 		snapshot := bundle.Snapshots[id]
-		if len(snapshot.PathRules) == 0 || !scopeMatches(snapshot.Scope, event, RiskFilesystemRemoval) {
+		if len(snapshot.PathRules)+len(snapshot.NameRules) == 0 || !scopeMatches(snapshot.Scope, event, RiskFilesystemRemoval) {
 			continue
 		}
 		declared = true
@@ -119,7 +134,7 @@ func (r Runtime) pathRules(event ToolEvent, now time.Time) ([]PathRule, string, 
 		if approval == "" {
 			approval = strings.TrimSpace(snapshot.RemovalApproval)
 		}
-		for _, rule := range snapshot.PathRules {
+		for _, rule := range append(append([]PathRule(nil), snapshot.PathRules...), snapshot.NameRules...) {
 			rule.Provider = id
 			if strings.TrimSpace(rule.Source) == "" {
 				rule.Source = id
@@ -372,4 +387,29 @@ func ExitCode(action DecisionAction) int {
 
 func IsUnavailable(err error) bool {
 	return errors.Is(err, os.ErrNotExist) || strings.Contains(strings.ToLower(err.Error()), "unavailable")
+}
+
+// creationEnabled is false only when an operator switched the loosening off.
+func (r Runtime) creationEnabled() bool {
+	if r.Store == nil {
+		return true
+	}
+	return LoadCreationSettings(r.Store.Dir).Enabled
+}
+
+// auditCreated records each path the guard allowed because the session created it.
+func (r Runtime) auditCreated(event ToolEvent, decision Decision, now time.Time) {
+	if r.Store == nil {
+		return
+	}
+	for _, evidence := range decision.Evidence {
+		if evidence.Facts["created_by"] == "" || evidence.Facts["path"] == "" {
+			continue
+		}
+		AppendCreationAudit(r.Store.Dir, CreationAudit{
+			At: now, Path: evidence.Facts["path"], Recursive: evidence.Facts["recursive"] == "true",
+			Source: evidence.Facts["created_by"], Certainty: evidence.Facts["certainty"], Detail: evidence.Message,
+			Session: RunIdentityFromEvent(event, nil).HarnessSession,
+		})
+	}
 }

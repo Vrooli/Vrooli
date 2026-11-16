@@ -27,6 +27,7 @@ func (h *connectHandler) Run(ctx context.Context, req *connect.Request[inference
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	request := internalinference.ProviderRequest{
 		Source: req.Msg.GetSource(), SchemaJSON: req.Msg.GetSchemaJson(), Instruction: req.Msg.GetInstruction(), Role: req.Msg.GetRole(),
@@ -60,6 +61,7 @@ func (h *connectHandler) RunBatch(ctx context.Context, req *connect.Request[infe
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	requests := make([]internalinference.ProviderRequest, 0, len(req.Msg.GetItems()))
 	for _, item := range req.Msg.GetItems() {
@@ -77,7 +79,11 @@ func (h *connectHandler) Embed(ctx context.Context, req *connect.Request[inferen
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
-	response := h.service.Embed(ctx, req.Msg.GetRole(), req.Msg.GetTexts(), req.Msg.GetSampling() != nil)
+	response := h.service.Embed(ctx, internalinference.EmbeddingRequest{
+		Role: req.Msg.GetRole(), Texts: req.Msg.GetTexts(), Sampling: req.Msg.GetSampling() != nil,
+		Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
+		PrivacyProvenance: req.Msg.GetPrivacyProvenance(),
+	})
 	return connect.NewResponse(response), nil
 }
 
@@ -89,6 +95,7 @@ func (h *connectHandler) Decide(ctx context.Context, req *connect.Request[infere
 	// provider on the caller's behalf.
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	return connect.NewResponse(h.service.Decide(ctx, internalinference.DecisionRequest{
 		Role: req.Msg.GetRole(), State: req.Msg.GetState(), StateJSON: req.Msg.GetStateJson(),
@@ -103,6 +110,7 @@ func (h *connectHandler) DecideBatch(ctx context.Context, req *connect.Request[i
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
 	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithPrivacyConsent(ctx, req.Header().Get("X-Vrooli-AI-Consent-Grant"))
 	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	items := make([]internalinference.DecisionRequest, 0, len(req.Msg.GetItems()))
 	for _, item := range req.Msg.GetItems() {

@@ -53,6 +53,31 @@ type BatchReader interface {
 	GetMany(context.Context, []uuid.UUID, GetOptions) (map[uuid.UUID][]*domain.RunEvent, map[uuid.UUID]error, error)
 }
 
+// MetadataReader returns an allowlisted projection of retained event metadata.
+// Implementations must select scalar JSON paths directly and must never load
+// the event payload column into application memory.
+type MetadataReader interface {
+	ListMetadata(context.Context, uuid.UUID, GetOptions) ([]Metadata, bool, error)
+}
+
+// Metadata is the prompt-free identity and routing projection used for caller
+// corpus discovery. Empty routing fields mean the source event did not record
+// that fact; consumers must join authoritative route records by EventID.
+type Metadata struct {
+	EventID          uuid.UUID `json:"event_id"`
+	RunID            uuid.UUID `json:"run_id"`
+	Sequence         int64     `json:"sequence"`
+	EventType        string    `json:"event_type"`
+	Timestamp        time.Time `json:"timestamp"`
+	Role             string    `json:"role,omitempty"`
+	Source           string    `json:"source,omitempty"`
+	RequestID        string    `json:"request_id,omitempty"`
+	Consumer         string    `json:"consumer,omitempty"`
+	PolicyRole       string    `json:"policy_role,omitempty"`
+	Model            string    `json:"model,omitempty"`
+	CapacityEvidence string    `json:"capacity_evidence,omitempty"`
+}
+
 // TranscriptFactsReader reads, for a bounded set of runs, the turn,
 // compaction and spawn facts the transcript step-back triggers use.
 type TranscriptFactsReader interface {

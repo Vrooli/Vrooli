@@ -16,6 +16,9 @@ import (
 	"time"
 
 	"agent-manager/internal/domain"
+	runidentity "agent-manager/internal/identity"
+	"github.com/google/uuid"
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -115,7 +118,10 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				purpose = values[0]
 			}
 			operation, target := strings.TrimSpace(r.URL.Query().Get("operation")), strings.TrimSpace(r.URL.Query().Get("target"))
-			if (operation == "") != (target == "") || (operation != "" && (purpose != "" || len(r.URL.Query()["operation"]) != 1 || len(r.URL.Query()["target"]) != 1)) {
+			rotationRequest, hasRotationRequest := r.URL.Query()["rotation_request"]
+			if (operation == "") != (target == "") || (operation != "" && (purpose != "" || len(r.URL.Query()["operation"]) != 1 || len(r.URL.Query()["target"]) != 1)) ||
+				(purpose == "treasury_session_key" && (operation != "" || len(r.URL.Query()) > 2 || hasRotationRequest && (len(rotationRequest) != 1 || strings.TrimSpace(rotationRequest[0]) == ""))) ||
+				(purpose != "treasury_session_key" && hasRotationRequest) {
 				http.Error(w, "invalid operation target request", http.StatusBadRequest)
 				return
 			}
@@ -147,6 +153,43 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				}
 			case "ordinary_identity":
 				credentials, err = o.resolveOrdinaryRunIdentityCredential(r.Context(), peer.pid, baselineToken)
+			case "treasury_session_key":
+				credentials, err = o.resolveOrdinaryRunIdentityCredential(r.Context(), peer.pid, baselineToken)
+				if err == nil {
+					claims, verifyErr := runidentity.VerifyToken(credentials.BaselineToken, o.identitySecret)
+					if verifyErr != nil || !scopecatalog.MatchCapability(claims.Scopes, "treasury:write") {
+						err = errors.New("current run lacks Treasury write capability")
+					} else if id := claims.RunID; id == uuid.Nil {
+						err = errors.New("verified Treasury identity omits a managed run ID")
+					} else if store, ok := o.treasurySessionKeys.(interface {
+						Acquire(context.Context, uuid.UUID) (string, func(), error)
+					}); !ok {
+						err = errors.New("run-owned Treasury key store is unavailable")
+					} else if len(rotationRequest) == 1 {
+						rotator, rotateOK := o.treasurySessionKeys.(interface {
+							AcquireRotation(context.Context, uuid.UUID, string) (string, func(), error)
+						})
+						if !rotateOK {
+							err = errors.New("run-owned Treasury key rotation is unavailable")
+						} else {
+							value, release, rotateErr := rotator.AcquireRotation(r.Context(), id, rotationRequest[0])
+							if rotateErr != nil {
+								err = rotateErr
+							} else {
+								writeTreasurySessionKeyResponse(w, value, release)
+								return
+							}
+						}
+					} else {
+						value, release, resolveErr := store.Acquire(r.Context(), id)
+						if resolveErr != nil {
+							err = resolveErr
+						} else {
+							writeTreasurySessionKeyResponse(w, value, release)
+							return
+						}
+					}
+				}
 			default:
 				http.Error(w, "unknown credential purpose", http.StatusBadRequest)
 				return
@@ -183,6 +226,14 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 		defer cancel()
 		return server.Shutdown(ctx)
 	}, nil
+}
+
+func writeTreasurySessionKeyResponse(w http.ResponseWriter, value string, release func()) {
+	if release != nil {
+		defer release()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"treasury_session_private_key": value})
 }
 
 func (o *Orchestrator) logAuthorizationBrokerFailure(err error) {

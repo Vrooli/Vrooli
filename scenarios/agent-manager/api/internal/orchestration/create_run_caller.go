@@ -258,7 +258,7 @@ func (o *Orchestrator) authenticateGrantedRunCreate(ctx context.Context, req *Cr
 			return true, domain.NewValidationErrorWithCode("authorization", "run-creation identity is invalid or unavailable", domain.ErrCodePolicyScope)
 		}
 		grantRunID = verified.Claims.RunID
-		grant = provenance.OperationGrantFromMeta(verified.Claims.Meta)
+		grant = coreidentity.OperationGrantFromMeta(verified.Claims.Meta, o.now())
 		grantScopes = slices.Clone(verified.Claims.Scopes)
 		grantExpires = time.Unix(verified.Claims.ExpiresAt, 0).UTC()
 		if verified.Claims.Meta["authorization_id"] == "" || principal.Grant == nil || grant == nil || principal.Grant.ID != grant.ID {

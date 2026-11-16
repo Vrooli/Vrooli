@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strings"
 
+	"agent-manager/internal/decisionpage"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 
@@ -42,8 +43,10 @@ type investigationDecisionOutput struct {
 	Categories []struct {
 		Name            string `json:"name"`
 		Recommendations []struct {
-			Text     string `json:"text"`
-			Severity string `json:"severity"`
+			Text       string `json:"text"`
+			Severity   string `json:"severity"`
+			Evidence   string `json:"evidence"`
+			TargetPath string `json:"targetPath"`
 		} `json:"recommendations"`
 	} `json:"categories"`
 }
@@ -142,45 +145,80 @@ func investigationDecisionEvent(run *domain.Run, out investigationDecisionOutput
 
 func investigationDecisionFacts(run *domain.Run, out investigationDecisionOutput, base string) operatordecision.Facts {
 	recs := out.recommendations()
-	subject := "Investigation " + shortRunID(run.ID.String()) + " is ready"
-	question := fmt.Sprintf("Apply all %d recommendation(s) from this investigation?", len(recs))
+	looked := operatordecision.Count(len(run.SourceRunIDs), "agent run", "agent runs")
+	if len(run.SourceRunIDs) == 0 {
+		looked = "earlier agent work"
+	}
+	changes := operatordecision.Count(len(recs), "change", "changes")
+	f := operatordecision.Facts{
+		Subject:  fmt.Sprintf("Make the %s an investigation suggests?", changes),
+		Question: fmt.Sprintf("An agent looked into %s and suggests %s. Start an agent to make all of them?", looked, changes),
+		Options: []operatordecision.Option{
+			{Key: investigationApplyAllAnswer, Label: fmt.Sprintf("Start an agent to make all %d", len(recs))},
+			{Key: investigationRejectAnswer, Label: "Make none of them"},
+		},
+		Recommended:          investigationApplyAllAnswer,
+		RecommendationReason: "The suggestions come with evidence; to pick only some, choose them in Agent Manager instead.",
+		Reversible:           false,
+		Urgency:              "normal",
+		ContextURL:           reviewURLForBase(base, run),
+		Correlation:          map[string]string{investigationDecisionRunKey: run.ID.String()},
+	}
 	if len(recs) == 0 {
-		question = "This investigation made no recommendations. Close it without applying anything?"
+		f.Subject = "Close an investigation that found nothing to change?"
+		f.Question = fmt.Sprintf("An agent looked into %s and suggests no changes. Close the investigation?", looked)
+		f.Options[0].Label = "Close it, changing nothing"
+		f.Options[1].Label = "Reject its findings"
+		f.Recommended, f.RecommendationReason = investigationRejectAnswer, ""
 	}
-	big := strings.TrimSpace(out.Summary)
-	if big == "" {
-		big = "The investigation finished and is waiting for your decision."
+	summary := operatordecision.Clip(out.Summary, 1500)
+	big := "The investigation finished and is waiting for you."
+	if summary != "" {
+		big = "What it found: " + summary
 	}
-	big += "\n\nApplying starts an agent run that makes the recommended changes. To apply only some of them, choose them in Agent Manager instead."
-	details := strings.Builder{}
+	f.BigPicture = big + "\n\nStarting the agent makes all the suggested changes. To apply only some of them, choose them in Agent Manager instead. Making none closes the investigation. If you do not answer, nothing changes."
+
+	var details strings.Builder
+	fmt.Fprintf(&details, "Investigation run %s.\n", run.ID)
 	for i, text := range recs {
 		if i == investigationDecisionListMax {
 			fmt.Fprintf(&details, "… and %d more\n", len(recs)-i)
 			break
 		}
-		fmt.Fprintf(&details, "%d. %s\n", i+1, truncateRunes(text, 400))
+		fmt.Fprintf(&details, "%d. %s\n", i+1, operatordecision.Clip(text, 400))
 	}
-	options := []operatordecision.Option{
-		{Key: investigationApplyAllAnswer, Label: fmt.Sprintf("Apply all %d", len(recs))},
-		{Key: investigationRejectAnswer, Label: "Reject"},
+	f.TechnicalDetails = operatordecision.Clip(details.String(), operatordecision.MaxTechnicalDetailsCodePoints-1)
+
+	page := operatordecision.NewPage(f.Subject).Raw(decisionpage.Style).
+		Lead(fmt.Sprintf("An agent looked into %s to find what went wrong and how to prevent it.", looked))
+	if summary != "" {
+		page.Section("What it found", "").Raw(decisionpage.Quote(summary))
 	}
-	recommended := investigationApplyAllAnswer
+	rows := [][]string{}
+	for _, category := range out.Categories {
+		for _, rec := range category.Recommendations {
+			if strings.TrimSpace(rec.Text) == "" {
+				continue
+			}
+			severity := strings.TrimSpace(rec.Severity)
+			if severity == "" {
+				severity = "Gap"
+			}
+			rows = append(rows, []string{operatordecision.Clip(rec.Text, 500), category.Name, severity, operatordecision.Clip(rec.Evidence, 400), rec.TargetPath})
+		}
+	}
+	page.Section("What it suggests", "").Table([]string{"Change", "Area", "How serious", "Evidence", "Where"}, rows)
+	effects := map[string]string{
+		investigationApplyAllAnswer: "Starts one agent run that makes every change above.",
+		investigationRejectAnswer:   "Closes the investigation. Nothing is changed.",
+	}
 	if len(recs) == 0 {
-		options[0].Label = "Apply nothing"
-		recommended = investigationRejectAnswer
+		effects[investigationApplyAllAnswer] = "Closes the investigation as finished, with nothing to change."
+		effects[investigationRejectAnswer] = "Closes it and records that you do not accept its findings."
 	}
-	return operatordecision.Facts{
-		Subject:          subject,
-		Question:         question,
-		Options:          options,
-		Recommended:      recommended,
-		Reversible:       false,
-		Urgency:          "normal",
-		BigPicture:       truncateRunes(big, operatordecision.MaxBigPictureCodePoints-1),
-		TechnicalDetails: truncateRunes(details.String(), operatordecision.MaxTechnicalDetailsCodePoints-1),
-		ContextURL:       reviewURLForBase(base, run),
-		Correlation:      map[string]string{investigationDecisionRunKey: run.ID.String()},
-	}
+	page.Options(f, effects)
+	f.Explainer = page.IfNoAnswer("Nothing changes. The investigation waits in Agent Manager.").HTML()
+	return f
 }
 
 // InvestigationDecisionEffect applies the operator's inbox answer to the

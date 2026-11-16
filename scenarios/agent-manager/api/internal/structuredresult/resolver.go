@@ -105,6 +105,9 @@ func NormalizeSpec(in *domain.ResultSpec) (*domain.ResultSpec, error) {
 		if strings.TrimSpace(out.ExtractionRole) == "" {
 			out.ExtractionRole = DefaultExtractRole
 		}
+		if out.ExtractionRole != DefaultExtractRole {
+			return nil, fmt.Errorf("unsupported constrained extraction role %q; Agent Manager uses the policy-owned %q role", out.ExtractionRole, DefaultExtractRole)
+		}
 	} else {
 		out.ExtractionRole = ""
 	}

@@ -160,6 +160,17 @@ func (d *durableRun) launch(ctx context.Context) error {
 	)
 
 	var err error
+	release := func() {}
+	if in.request.PrepareLaunch != nil {
+		release, err = in.request.PrepareLaunch(ctx, &in.request)
+		if err != nil {
+			return fmt.Errorf("prepare agent launch: %w", err)
+		}
+		if release == nil {
+			release = func() {}
+		}
+	}
+	defer release()
 	if durableLauncher, ok := in.launcher.(runner.DurableOutputLauncher); ok && in.transcript.StderrFile != nil && d.stderrPath != "" {
 		d.proc, err = durableLauncher.LaunchDurable(ctx, in.request, in.transcript.StdoutFile, in.transcript.StderrFile)
 		d.directOutput = true

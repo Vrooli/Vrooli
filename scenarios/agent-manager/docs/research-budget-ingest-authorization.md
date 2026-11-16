@@ -16,7 +16,7 @@ Treasury report attempt retries the operation through the canonical
 
 The approval question names the exact run target and says that the grant covers
 reporting only. It cannot spend funds, authorize another run, or broaden the
-Treasury service's capabilities. This path is limited to a persisted Agent
-Manager run carrying the `cf7-test-only` tag, and the approval question names
-the exact target. The operator must still inspect the run before approving.
-The build-path decision itself did not approve a run or issue a grant.
+Treasury service's capabilities. The target must already identify a persisted
+Agent Manager run; special test tags are not an authorization boundary. The
+operator must still inspect the run before approving. A request creates no
+grant until the operator explicitly approves it.

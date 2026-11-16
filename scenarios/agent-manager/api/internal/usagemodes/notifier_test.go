@@ -47,8 +47,13 @@ func (c *clock) now() time.Time { return c.t }
 func exhaustForecast(reset time.Time) usageforecast.Forecast {
 	projected := t0.Add(2 * time.Hour)
 	return usageforecast.Forecast{
-		Window:    &usageforecast.Window{Provider: "openai", Pool: "primary", Window: "w", WindowMinutes: 10080, ResetAt: reset},
+		Window:    &usageforecast.Window{Provider: "openai", Pool: "primary", Window: "w", WindowMinutes: 10080, Start: t0.Add(-24 * time.Hour), ResetAt: reset, HasPercent: true, LastAt: t0},
 		Status:    usageforecast.StatusWillExhaust,
+		Reason:    "real quota readings project exhaustion before reset",
+		Used:      81,
+		AsOf:      t0,
+		Anchor:    t0,
+		Central:   2.5,
 		Projected: &projected,
 	}
 }
@@ -84,14 +89,44 @@ func TestRunsOutOfferIsReversibleWithNoDefaultAndOnePerWindow(t *testing.T) {
 		t.Fatalf("decisions = %d, want one per window", len(got))
 	}
 	p := got[0].Payload
-	if p["reversible"] != true || p["default_answer"] != nil || p["recommended"] != AnswerStart {
+	if p["reversible"] != true || p["default_answer"] != nil || p["recommended"] != AnswerAutoSave {
 		t.Fatalf("payload = %+v", p)
+	}
+	if p["template_name"] != "usage-mode" || !strings.HasPrefix(p["subject_key"].(string), "usage-mode:runs-out:") {
+		t.Fatalf("data-driven page identity missing: %+v", p)
+	}
+	if _, ok := p["explainer_html"]; ok {
+		t.Fatal("usage decision must use the Hub template instead of producer HTML")
+	}
+	templateData := p["template_data"].(map[string]any)
+	window := templateData["window"].(map[string]any)
+	if window["source"].(map[string]any)["status"] != "real" || window["reset"] != f.Window.ResetAt.UTC().Format(time.RFC3339) {
+		t.Fatalf("template data did not identify the observed quota window: %+v", window)
+	}
+	readings := window["readings"].([]map[string]any)
+	if len(readings) == 0 || readings[len(readings)-1]["used"] != float64(81) {
+		t.Fatalf("template data did not carry the real usage reading: %+v", readings)
+	}
+	options := templateData["options"].([]map[string]any)
+	for _, option := range options {
+		if option["key"] == AnswerNotNow || option["key"] == AnswerRemind {
+			projection := option["projection"].(map[string]any)
+			if projection["runOut"] != f.Projected.UTC().Format(time.RFC3339) {
+				t.Fatalf("usual-model projection lost the source forecast: %+v", projection)
+			}
+		}
+		if option["key"] == AnswerAutoSave && option["projection"] != nil {
+			t.Fatalf("unmeasured low-power savings must not have a numeric projection: %+v", option)
+		}
+	}
+	if templateData["technical"].([]map[string]string)[2]["value"] != f.Status+": "+f.Reason {
+		t.Fatalf("template data lost forecast status/reason: %+v", templateData["technical"])
 	}
 	keys := []string{}
 	for _, o := range p["options"].([]any) {
 		keys = append(keys, o.(map[string]any)["key"].(string))
 	}
-	if len(keys) != 3 || keys[0] != AnswerStart || keys[1] != AnswerNotNow || keys[2] != AnswerRemind {
+	if len(keys) != 4 || keys[0] != AnswerStart || keys[1] != AnswerAutoSave || keys[2] != AnswerNotNow || keys[3] != AnswerRemind {
 		t.Fatalf("options = %v", keys)
 	}
 }
@@ -255,7 +290,7 @@ func TestAskedTimedStartIsAnAskOnlyAndStartsOnlyForAVerifiedHuman(t *testing.T) 
 		t.Fatalf("asking must be idempotent and start nothing: %s %s %d", id, again, len(rec.decisions()))
 	}
 	p := rec.decisions()[0].Payload
-	if p["subject"] != "Usage-mode validation: start a 30-minute Save mode on Codex?" || p["default_answer"] != nil || p["reversible"] != true {
+	if p["subject"] != "Test cheaper models on Codex for 30 minutes?" || p["default_answer"] != nil || p["reversible"] != true {
 		t.Fatalf("payload = %+v", p)
 	}
 	if _, err := n.AskToStart(context.Background(), "codex", time.Second); !errors.Is(err, ErrInvalid) {

@@ -129,7 +129,7 @@ func publishedKeylessAsk(t *testing.T, o *Orchestrator, pending *capturingPendin
 		Kind: domain.PendingAuthorizationKindStanding, GrantTTL: standingGrantIssueTTL, MaxConcurrentRuns: req.MaxConcurrentRuns,
 		State: domain.PendingAuthorizationPending, RaisedAt: now, ExpiresAt: now.Add(pendingAuthorizationWindow),
 	}
-	legacy.DecisionBigPicture, legacy.DecisionTechnicalDetails = authorizationDecisionContext(legacy)
+	freezeAuthorizationDecision(legacy)
 	legacy.EventID = operatordecision.EventID(o.authorizationDecisionEvent(context.Background(), legacy))
 	published := now
 	legacy.PublishedAt = &published

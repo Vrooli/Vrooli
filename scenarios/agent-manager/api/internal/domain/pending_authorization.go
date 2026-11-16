@@ -54,11 +54,15 @@ type PendingAuthorizationRequest struct {
 	GrantTTL time.Duration `json:"grant_ttl"`
 	// MaxConcurrentRuns is the concurrency bound the issued grant will carry.
 	MaxConcurrentRuns int `json:"max_concurrent_runs,omitempty"`
-	// Decision context is frozen with this pending generation so a publication
-	// retry or restart rebuilds the exact same event. Legacy rows omit these
-	// fields and therefore retain their original event payload and EventID.
+	// Everything the operator reads is frozen with this pending generation, so a
+	// publication retry or restart rebuilds the exact same event even after the
+	// wording code changes. A row without a frozen question predates the page
+	// and is re-frozen as a new generation before it is published again.
+	DecisionSubject          string    `json:"decision_subject,omitempty"`
+	DecisionQuestion         string    `json:"decision_question,omitempty"`
 	DecisionBigPicture       string    `json:"decision_big_picture,omitempty"`
 	DecisionTechnicalDetails string    `json:"decision_technical_details,omitempty"`
+	DecisionExplainer        string    `json:"decision_explainer,omitempty"`
 	State                    string    `json:"state"`
 	RaisedAt                 time.Time `json:"raised_at"`
 	// ExpiresAt bounds how long this ask stays outstanding before it ages out of

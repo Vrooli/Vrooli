@@ -89,6 +89,9 @@ func (req AuthorizationRequest) normalizedRules() ([]domain.AuthorizationRule, e
 			if !ok || !valid || object == "" || len(target) > 1024 || strings.ContainsAny(object, "\r\n") || (strings.Contains(object, "*") && !wildcardObject) {
 				return nil, domain.NewValidationError("targets", "target is outside policy domains or contains a wildcard expression")
 			}
+			if err := authn.ValidateInteractiveTarget(rule.Policy, target); err != nil {
+				return nil, domain.NewValidationError("targets", err.Error())
+			}
 		}
 		out = append(out, domain.AuthorizationRule{Policy: rule.Policy, Targets: append([]string(nil), rule.Targets...)})
 	}
@@ -481,8 +484,12 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 		old.State = domain.AuthorizationSuperseded
 		old.SupersededBy = &grant.ID
 		// Losing the race to an approval is fine: the approved grant stands.
-		if _, err := o.authorizations.Replace(ctx, old, domain.AuthorizationPending); err != nil {
+		replaced, err := o.authorizations.Replace(ctx, old, domain.AuthorizationPending)
+		if err != nil {
 			return nil, err
+		}
+		if replaced {
+			o.withdrawConsentDecision(ctx, old, "The agent replaced this request with a newer one.")
 		}
 	}
 	// Push the operator to the review UI for this pending interactive request
@@ -783,6 +790,7 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 	if !changed {
 		return nil, errors.New("authorization decision could not be committed")
 	}
+	o.withdrawConsentDecision(ctx, g, "You approved this on Agent Manager's page.")
 	return g, nil
 }
 
@@ -1290,8 +1298,8 @@ func (o *Orchestrator) resolveAuthorizationCredentialForRunTarget(ctx context.Co
 				return "", true, err
 			}
 			if requestedOperation != "" {
-				var operationGrant requestidentity.OperationGrant
-				if json.Unmarshal([]byte(claims.Meta["operation_grant"]), &operationGrant) != nil || !operationGrant.Allows(requestedOperation, requestedTarget, o.now()) {
+				operationGrant := requestidentity.OperationGrantFromMeta(claims.Meta, o.now())
+				if !operationGrant.Allows(requestedOperation, requestedTarget, o.now()) {
 					continue
 				}
 			}

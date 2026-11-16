@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	// DefaultRole walks Winnow, hosted Jev and Clef before local Laya and the
-	// classify.fast fallback, so a better decision model is used as soon as it
-	// is pulled or its key is provisioned. Background classification favours
-	// accuracy over latency.
+	// DefaultRole is the accuracy-first decision policy. Every production call
+	// below is LOCAL_ONLY, so hosted Jev/Clef candidates are ineligible; the
+	// policy can use them only if a future owner changes the privacy contract.
+	// Background classification favours accuracy over latency.
 	DefaultRole = "decide.accurate"
 	// MaxBatch is the most states sent in one DecideBatch call.
 	MaxBatch = 32
@@ -55,7 +55,7 @@ type conversationTaskContract struct {
 }
 
 func (c *Classifier) taskContract() conversationTaskContract {
-	role := strings.TrimSpace(c.Role)
+	role := strings.TrimSpace(c.role)
 	if role == "" {
 		role = DefaultRole
 	}
@@ -117,7 +117,7 @@ type Classifier struct {
 	Client      DecideClient
 	ResolveURL  func(context.Context) (string, error)
 	HTTPClient  connect.HTTPClient
-	Role        string
+	role        string // Package-private override used only by role qualification benchmarks.
 	Concurrency int
 
 	mu       sync.Mutex

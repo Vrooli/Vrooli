@@ -3,7 +3,6 @@ package routing_test
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -214,7 +213,7 @@ func TestExecutionTimeCapacityDenialFallsBackWithCapacityEvidence(t *testing.T) 
 	require.True(t, ev.GetFallbackUsed())
 	require.Equal(t, string(routing.CapacityInsufficient), ev.GetCapacityVerdict())
 	require.Equal(t, int64(1000000), ev.GetCapacityRequiredBytes())
-	require.Contains(t, strings.Join(ev.GetFailureReasons(), "\n"), "execution-time capacity admission is not verified")
+	require.Contains(t, ev.GetFailureReasons(), "capacity.admission_unverified")
 	requireNoGeneration(t, runner)
 	require.Equal(t, []string{"probe-claim"}, fake.releases)
 }

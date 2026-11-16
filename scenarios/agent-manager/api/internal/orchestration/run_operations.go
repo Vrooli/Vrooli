@@ -780,6 +780,9 @@ func (o *Orchestrator) UpdateOrchestrationSettings(_ context.Context, settings *
 	if o.orchestrationSettings == nil {
 		return domain.NewConfigMissingError("orchestrationSettings", "store not configured", nil)
 	}
+	if settings.UsagePace.SelectedTier == "" {
+		settings.UsagePace.BaseMaxConcurrentRuns = settings.RunExecution.MaxConcurrentRuns
+	}
 	if err := o.orchestrationSettings.Update(*settings); err != nil {
 		return err
 	}

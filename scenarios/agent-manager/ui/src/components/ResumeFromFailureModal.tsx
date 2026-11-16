@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { AlertCircle, Paperclip, PlayCircle } from "lucide-react";
 import { Button } from "@vrooli/react-component-library/Button/2";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import {
   Dialog,
   DialogBody,
@@ -150,29 +151,10 @@ export function ResumeFromFailureModal({
         </DialogBody>
 
         <DialogFooter>
-          <Button
-            variant="secondary"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={loading || isUploading || !failedRun}
-            className="gap-2"
-          >
-            {loading ? (
-              "Resuming..."
-            ) : isUploading ? (
-              "Uploading..."
-            ) : (
-              <>
-                <PlayCircle className="h-4 w-4" />
-                Resume Run
-              </>
-            )}
-          </Button>
+          <OverlayActionBar className="flex-row-reverse" actions={[
+            { id: "resume", label: loading ? "Resuming..." : isUploading ? "Uploading..." : "Resume Run", onSelect: handleSubmit, disabled: loading || isUploading || !failedRun, primary: true },
+            { id: "cancel", label: "Cancel", onSelect: () => onOpenChange(false), disabled: loading },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

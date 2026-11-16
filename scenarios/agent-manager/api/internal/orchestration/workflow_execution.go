@@ -43,6 +43,12 @@ const (
 	personaIDEnv          = "VROOLI_PERSONA_ID"
 )
 
+const (
+	gitControlTowerOwner       = "git-control-tower"
+	gitControlTowerStagedDraft = "git-control-tower/staged-message"
+	gitControlTowerDeepDraft   = "git-control-tower/staged-message-deep"
+)
+
 func (l workflowChildLauncher) StartFresh(ctx context.Context, req workflowruntime.ChildRequest) (workflowruntime.ChildState, error) {
 	// A durable workflow attempt outlives the generic creation idempotency TTL.
 	if existing, err := l.o.persistedWorkflowChild(ctx, req.ExecutionID, req.AttemptID); err != nil {
@@ -384,6 +390,16 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 		defer releaseAdmission()
 	}
 	owner, key := strings.TrimSpace(req.Owner), strings.TrimSpace(req.WorkflowKey)
+	if prior == nil && owner == gitControlTowerOwner && (key == gitControlTowerStagedDraft || key == gitControlTowerDeepDraft) {
+		// These owner workflows are launched from Git Control Tower's normal UI
+		// path. Refresh their scenario-owned declarations here so source updates
+		// become active without a separate operator reconcile command. The shared
+		// declaration reconciler still validates source ownership, drift and the
+		// complete profile/workflow batch before activation.
+		if _, err := o.ReconcileScenarioDeclarations(ctx, ReconcileScenarioDeclarationsRequest{Scenario: gitControlTowerOwner}); err != nil {
+			return nil, err
+		}
+	}
 	var revision *domain.WorkflowRevision
 	if key == planFamilyWorkflowKey && owner == "plan-manager" && req.DefinitionDigest == "" {
 		if prior, err := o.workflowExecutions.GetByIdempotencyKey(ctx, strings.TrimSpace(req.IdempotencyKey)); err != nil {
@@ -423,7 +439,18 @@ func (o *Orchestrator) StartWorkflowExecution(ctx context.Context, req StartWork
 	if err != nil {
 		return nil, err
 	}
-	return o.driveWorkflowExecution(ctx, execution.ID)
+	started, err := o.driveWorkflowExecution(ctx, execution.ID)
+	if err != nil {
+		// StartWorkflowExecution acknowledges durable admission. Once the
+		// engine returns this execution, failures while advancing it must not
+		// erase its identity and make callers believe no execution was created.
+		// Callers can use the returned ID to observe the run's actual state.
+		if started != nil {
+			return started, nil
+		}
+		return execution, nil
+	}
+	return started, nil
 }
 
 func (o *Orchestrator) validateExecutionPreferences(preferences *domain.ExecutionPreferences) error {

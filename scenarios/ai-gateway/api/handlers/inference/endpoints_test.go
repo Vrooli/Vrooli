@@ -11,6 +11,7 @@ func TestInferenceEndpointDescriptorsExposeProfileAndPrivacyContract(t *testing.
 		"inference_run_batch":    {"profile", "privacy_class"},
 		"inference_decide":       {"profile", "privacy_class"},
 		"inference_decide_batch": {"profile", "privacy_class"},
+		"inference_embed":        {"profile", "privacy_class", "privacy_provenance"},
 	}
 	for _, endpoint := range Endpoints {
 		properties, required := want[endpoint.ID]
@@ -32,8 +33,8 @@ func TestInferenceEndpointDescriptorsExposeProfileAndPrivacyContract(t *testing.
 func TestInferenceEmbedDescriptorDocumentsLocalOnlyBoundary(t *testing.T) {
 	for _, endpoint := range Endpoints {
 		if endpoint.ID == "inference_embed" {
-			if endpoint.Request.Properties["profile"] != "" {
-				t.Fatal("embedding request must not imply caller-selected locality")
+			if endpoint.Request.Properties["profile"] != "Profile" {
+				t.Fatal("embedding request must expose its explicit profile")
 			}
 			if !strings.Contains(endpoint.Description, "local-only profile") {
 				t.Fatalf("embedding descriptor must explain its local-only boundary: %q", endpoint.Description)

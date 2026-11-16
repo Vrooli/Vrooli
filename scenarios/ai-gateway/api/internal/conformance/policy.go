@@ -29,14 +29,14 @@ func (s *Scanner) ScanProject(ctx context.Context, root string) (ScanReport, err
 		if isPolicyAuthority(rel) {
 			return
 		}
-		if isScenarioRuntime(rel) && (strings.Contains(line, `"/api/embeddings"`) || strings.Contains(line, `"/api/generate"`) || strings.Contains(line, `"/api/chat"`)) {
+		code := codePortion(line)
+		if isScenarioRuntime(rel) && (strings.Contains(code, `"/api/embeddings"`) || strings.Contains(code, `"/api/generate"`) || strings.Contains(code, `"/api/chat"`)) {
 			findings = append(findings, policyFinding("AI_OLLAMA_GATEWAY_ONLY", "high", rel, lineNo, "Raw Ollama endpoint usage bypasses resource-ollama gateway policy.", "Use resource-ollama gateway or AI Gateway role routing."))
 		}
-		if isScenarioRuntime(rel) && (ollamaDimensionPattern.MatchString(line) || ollamaModelPattern.MatchString(line)) {
+		if isScenarioRuntime(rel) && (ollamaDimensionPattern.MatchString(code) || containsOllamaModelFact(code)) {
 			findings = append(findings, policyFinding("AI_OLLAMA_POLICY_FACTS", "high", rel, lineNo, "Local Ollama model or embedding policy fact is hard-coded.", "Resolve model and embedding metadata through resource-ollama policy."))
 		}
 		if isOpenRouterRuntime(rel) && !isPolicyAuthority(rel) {
-			code := codePortion(line)
 			if openRouterSlugPattern.MatchString(code) || openRouterModelEnv.MatchString(code) || (strings.Contains(code, "resource-openrouter") && strings.Contains(code, "generate") && strings.Contains(code, "--model")) {
 				findings = append(findings, policyFinding("AI_OPENROUTER_POLICY_FACTS", "high", rel, lineNo, "Concrete OpenRouter model policy is hard-coded in a runtime surface.", "Resolve a role through resource-openrouter policy instead of selecting a concrete model."))
 			}
@@ -65,10 +65,14 @@ func walkPolicyFiles(ctx context.Context, root string, visit func(string, string
 			if entry.Name() == ".git" || entry.Name() == "node_modules" || entry.Name() == "vendor" || entry.Name() == "build" || entry.Name() == "dist" || entry.Name() == "coverage" || entry.Name() == "data" || strings.HasPrefix(filepath.ToSlash(path), filepath.ToSlash(filepath.Join(root, "resources", "ollama"))) || strings.HasPrefix(filepath.ToSlash(path), filepath.ToSlash(filepath.Join(root, "resources", "openrouter"))) {
 				return filepath.SkipDir
 			}
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil || !policyRuntimeDirectory(rel) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		rel, relErr := filepath.Rel(root, path)
-		if relErr != nil || !policyFile(rel) {
+		if relErr != nil || !policyRuntimeFile(rel) {
 			return nil
 		}
 		file, openErr := os.Open(path)
@@ -85,6 +89,46 @@ func walkPolicyFiles(ctx context.Context, root string, visit func(string, string
 		}
 		return scanner.Err()
 	})
+}
+
+func policyRuntimeDirectory(rel string) bool {
+	rel = filepath.ToSlash(rel)
+	if rel == "." {
+		return true
+	}
+	parts := strings.Split(rel, "/")
+	if parts[0] == "resources" {
+		return true
+	}
+	if parts[0] != "scenarios" {
+		return false
+	}
+	if len(parts) <= 2 {
+		return true
+	}
+	switch parts[2] {
+	case "api", "cli", "ui":
+		return true
+	default:
+		return false
+	}
+}
+
+// policyRuntimeFile narrows the project walk to executable scenario/resource
+// surfaces before opening files. Test fixtures, generated evidence, and docs
+// can contain arbitrarily large lines and do not select production policy.
+func policyRuntimeFile(rel string) bool {
+	if !policyFile(rel) || isPolicyAuthority(rel) || strings.HasSuffix(filepath.ToSlash(rel), ".freshness.json") {
+		return false
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	for _, part := range parts {
+		switch strings.ToLower(part) {
+		case "testdata", "fixtures", "evidence", "reports", "coverage", "docs", "examples":
+			return false
+		}
+	}
+	return isScenarioRuntime(rel) || isOpenRouterRuntime(rel)
 }
 
 func policyFile(rel string) bool {
@@ -110,7 +154,25 @@ func isOpenRouterRuntime(rel string) bool {
 }
 
 func isPolicyAuthority(rel string) bool {
-	return rel == "resources/ollama/model-policy.json" || strings.HasPrefix(rel, "resources/ollama/cli/internal/policy/") || rel == "resources/openrouter/model-policy.json" || strings.HasSuffix(rel, "_test.go") || strings.HasSuffix(rel, ".test.ts") || strings.HasSuffix(rel, ".test.tsx") || strings.HasSuffix(rel, ".spec.ts") || strings.HasSuffix(rel, ".spec.tsx") || strings.HasPrefix(rel, "scenarios/agent-manager/") || strings.HasPrefix(rel, "scenarios/ai-gateway/")
+	if strings.HasPrefix(rel, "resources/") && filepath.Base(rel) == "model-policy.json" {
+		return true
+	}
+	if rel == "scenarios/image-tools/api/internal/models/registry.seed.json" {
+		return true
+	}
+	return strings.HasPrefix(rel, "resources/ollama/cli/internal/policy/") || strings.HasSuffix(rel, "_test.go") || strings.HasSuffix(rel, ".test.ts") || strings.HasSuffix(rel, ".test.tsx") || strings.HasSuffix(rel, ".spec.ts") || strings.HasSuffix(rel, ".spec.tsx") || strings.HasPrefix(rel, "scenarios/agent-manager/") || strings.HasPrefix(rel, "scenarios/ai-gateway/")
+}
+
+func containsOllamaModelFact(line string) bool {
+	for _, match := range ollamaModelPattern.FindAllStringIndex(line, -1) {
+		// Do not treat a provider/model path or a longer catalog slug such as
+		// "mistral-ocr" / "qwen2.5-vl-3b" as an Ollama model identifier.
+		if match[1] < len(line) && (line[match[1]] == '-' || line[match[1]] == '/' || line[match[1]] == '_') {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func codePortion(line string) string {

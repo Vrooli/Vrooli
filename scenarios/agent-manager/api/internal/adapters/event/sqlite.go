@@ -331,7 +331,7 @@ func (s *SQLiteStore) append(ctx context.Context, runID uuid.UUID, requireEmpty 
 	}
 	defer conn.Close()
 
-	if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+	if err := beginImmediate(ctx, conn); err != nil {
 		return dbError("begin_immediate_transaction", err)
 	}
 
@@ -440,6 +440,28 @@ func (s *SQLiteStore) append(ctx context.Context, runID uuid.UUID, requireEmpty 
 	s.notifySubscribers(runID, storedEvents)
 
 	return nil
+}
+
+// beginImmediate retries only the transaction acquisition boundary. No writes
+// have occurred yet, so replaying this statement cannot duplicate event data.
+// SQLite's busy timeout handles ordinary contention; these short retries cover
+// the narrow case where another writer releases its lock just after that wait.
+func beginImmediate(ctx context.Context, conn *sql.Conn) error {
+	delays := [...]time.Duration{25 * time.Millisecond, 75 * time.Millisecond}
+	for attempt := 0; ; attempt++ {
+		if _, err := conn.ExecContext(ctx, "BEGIN IMMEDIATE"); err == nil {
+			return nil
+		} else if !sqlcompat.TransientError(err) || attempt >= len(delays) {
+			return err
+		}
+		timer := time.NewTimer(delays[attempt])
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 }
 
 // DeleteBefore removes at most limit rows older than cutoff. Select candidates
@@ -683,6 +705,64 @@ func (s *SQLiteStore) Summarize(ctx context.Context, runID uuid.UUID, opts GetOp
 		}
 	}
 	return summary, nil
+}
+
+// ListMetadata selects stable event identity and explicitly allowlisted
+// scalar JSON paths. It never selects or decodes the `data` payload, so prompt,
+// assistant, tool and artifact bodies cannot cross this adapter boundary.
+func (s *SQLiteStore) ListMetadata(ctx context.Context, runID uuid.UUID, opts GetOptions) ([]Metadata, bool, error) {
+	where, args := eventSelection(runID, opts)
+	query := `SELECT id,run_id,sequence,event_type,timestamp,
+		COALESCE(CAST(json_extract(data,'$.role') AS TEXT),'') AS role,
+		COALESCE(CAST(json_extract(data,'$.source') AS TEXT),'') AS source,
+		COALESCE(CAST(json_extract(data,'$.requestId') AS TEXT),CAST(json_extract(data,'$.request_id') AS TEXT),'') AS request_id,
+		COALESCE(CAST(json_extract(data,'$.consumer') AS TEXT),CAST(json_extract(data,'$.consumerScenario') AS TEXT),CAST(json_extract(data,'$.scenario') AS TEXT),'') AS consumer,
+		COALESCE(CAST(json_extract(data,'$.policyRole') AS TEXT),CAST(json_extract(data,'$.policy_role') AS TEXT),'') AS policy_role,
+		COALESCE(CAST(json_extract(data,'$.model') AS TEXT),'') AS model,
+		COALESCE(CAST(json_extract(data,'$.capacityEvidence') AS TEXT),CAST(json_extract(data,'$.capacity_evidence') AS TEXT),'') AS capacity_evidence
+		FROM run_events WHERE ` + where + ` ORDER BY sequence ASC`
+	queryArgs := append([]interface{}(nil), args...)
+	if opts.Limit > 0 {
+		query += ` LIMIT ?`
+		queryArgs = append(queryArgs, opts.Limit+1)
+	} else if opts.Offset > 0 {
+		query += ` LIMIT -1`
+	}
+	if opts.Offset > 0 {
+		query += ` OFFSET ?`
+		queryArgs = append(queryArgs, opts.Offset)
+	}
+	type metadataRow struct {
+		EventID          uuid.UUID  `db:"id"`
+		RunID            uuid.UUID  `db:"run_id"`
+		Sequence         int64      `db:"sequence"`
+		EventType        string     `db:"event_type"`
+		Timestamp        sqliteTime `db:"timestamp"`
+		Role             string     `db:"role"`
+		Source           string     `db:"source"`
+		RequestID        string     `db:"request_id"`
+		Consumer         string     `db:"consumer"`
+		PolicyRole       string     `db:"policy_role"`
+		Model            string     `db:"model"`
+		CapacityEvidence string     `db:"capacity_evidence"`
+	}
+	var rows []metadataRow
+	if err := s.db.SelectContext(ctx, &rows, query, queryArgs...); err != nil {
+		return nil, false, dbError("list_event_metadata", err)
+	}
+	items := make([]Metadata, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, Metadata{
+			EventID: row.EventID, RunID: row.RunID, Sequence: row.Sequence, EventType: row.EventType,
+			Timestamp: row.Timestamp.Time(), Role: row.Role, Source: row.Source, RequestID: row.RequestID,
+			Consumer: row.Consumer, PolicyRole: row.PolicyRole, Model: row.Model, CapacityEvidence: row.CapacityEvidence,
+		})
+	}
+	hasMore := opts.Limit > 0 && len(items) > opts.Limit
+	if hasMore {
+		items = items[:opts.Limit]
+	}
+	return items, hasMore, nil
 }
 
 func eventSelection(runID uuid.UUID, opts GetOptions) (string, []interface{}) {

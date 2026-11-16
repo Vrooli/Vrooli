@@ -188,8 +188,11 @@ func TestResearchBudgetAskIsExactRunOnlyAndIssuesNoGrantUntilHumanResolution(t *
 	if row == nil || !isResearchBudgetIngestRequest(row) || row.GrantTTL != time.Hour {
 		t.Fatalf("unexpected exact-run pending request: %+v", row)
 	}
-	if len(pub.events) != 1 || !strings.Contains(pub.events[0].Payload["question"].(string), req.Target) {
-		t.Fatalf("operator decision must present the exact target: %+v", pub.events)
+	if len(pub.events) != 1 || !strings.Contains(pub.events[0].Payload["technical_details"].(string), req.Target) {
+		t.Fatalf("operator decision must keep the exact target for the agent that acts: %+v", pub.events)
+	}
+	if leaks := operatordecision.CoverProblems(authorizationFacts(row)); len(leaks) > 0 || !strings.Contains(row.DecisionQuestion, "one agent run") {
+		t.Fatalf("the cover must say what is granted in words, without the run id: %v %q", leaks, row.DecisionQuestion)
 	}
 	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), generationResolution(id, row.EventID, "approve", "human-operator")); !handled || err != nil {
 		t.Fatalf("human approval resolution: handled=%v err=%v", handled, err)
@@ -232,32 +235,31 @@ func TestResearchBudgetAskRejectsUnrelatedOrBroadScope(t *testing.T) {
 	}
 }
 
-func TestLegacyPendingAuthorizationRetryKeepsOriginalEventBytes(t *testing.T) {
+func TestPendingAuthorizationWithoutAPageIsRefrozenAndPublishedWithOne(t *testing.T) {
 	now := time.Date(2026, 10, 18, 8, 0, 0, 0, time.UTC)
 	pending := newCapturingPending()
 	pub := &capturingAuthPublisher{}
 	o := phase4Orchestrator(pending, &capturingStandingGrants{}, pub, now)
 	req := standingAskRequest()
-	legacy := &domain.PendingAuthorizationRequest{
+	old := &domain.PendingAuthorizationRequest{
 		ID:      authorizationCorrelationID(req.Subject, req.Operation, req.Target),
-		Subject: req.Subject, Operation: req.Operation, Target: req.Target,
+		Subject: req.Subject, Operation: req.Operation, Target: req.Target, SubjectKey: authorizationSubjectKey(authorizationCorrelationID(req.Subject, req.Operation, req.Target)),
 		Kind: domain.PendingAuthorizationKindStanding, GrantTTL: standingGrantIssueTTL,
 		MaxConcurrentRuns: req.MaxConcurrentRuns, State: domain.PendingAuthorizationPending,
-		RaisedAt: now, ExpiresAt: now.Add(pendingAuthorizationWindow),
+		RaisedAt: now, ExpiresAt: now.Add(pendingAuthorizationWindow), EventID: "event-before-pages",
 	}
-	legacy.EventID = operatordecision.EventID(o.authorizationDecisionEvent(context.Background(), legacy))
-	if err := pending.Put(context.Background(), legacy); err != nil {
+	if err := pending.Put(context.Background(), old); err != nil {
 		t.Fatal(err)
 	}
 	if raised, err := o.RaiseAuthorizationApproval(context.Background(), req); err != nil || !raised {
-		t.Fatalf("retry legacy pending request: raised=%v err=%v", raised, err)
+		t.Fatalf("retry pending request: raised=%v err=%v", raised, err)
 	}
-	if len(pub.events) != 1 || operatordecision.EventID(pub.events[0]) != legacy.EventID {
-		t.Fatalf("legacy retry changed the pending EventID: events=%d stored=%q", len(pub.events), legacy.EventID)
+	row := pending.byID[old.ID]
+	if len(pub.events) != 1 || row.DecisionExplainer == "" || operatordecision.EventID(pub.events[0]) != row.EventID {
+		t.Fatalf("the request was not re-frozen with a page and published as its new generation: events=%d row=%+v", len(pub.events), row)
 	}
-	facts := pub.events[0].Payload
-	if facts["big_picture"] != nil || facts["technical_details"] != nil {
-		t.Fatalf("legacy retry must preserve the original context-free payload: %#v", pub.events[0].Payload)
+	if pub.events[0].Payload["explainer_html"] != row.DecisionExplainer || pub.events[0].Payload["question"] != row.DecisionQuestion {
+		t.Fatal("the published decision is not the frozen one")
 	}
 }
 
@@ -289,7 +291,7 @@ func TestRaiseAuthorizationApprovalRetriesFailedPublication(t *testing.T) {
 		t.Fatalf("new context was not persisted and published from the same pending generation: payload=%#v row=%+v", pub.events[0].Payload, pending.byID[id])
 	}
 	for _, required := range []string{
-		"verified caller", "does not execute the requested operation", "Rejection issues no grant", "existing grants are unaffected",
+		"no standing permission", "Approving does not start anything itself", "Refusing gives no permission", "leaves any it already has unchanged",
 	} {
 		if !strings.Contains(bigPicture, required) {
 			t.Fatalf("big picture omitted effect boundary %q: %s", required, bigPicture)
@@ -331,7 +333,7 @@ func TestAuthorizationDecisionContextStatesOneTimeSessionBounds(t *testing.T) {
 	bigPicture, _ := facts["big_picture"].(string)
 	technical, _ := facts["technical_details"].(string)
 	for _, required := range []string{
-		"verified caller", "does not execute the requested operation", "Rejection issues no grant",
+		"has no permission", "Approving does not start anything itself", "Refusing gives no permission",
 	} {
 		if !strings.Contains(bigPicture, required) {
 			t.Fatalf("big picture omitted effect boundary %q: %s", required, bigPicture)
@@ -363,9 +365,15 @@ func TestAuthorizationAskStatesItsScope(t *testing.T) {
 		t.Fatalf("expected one event, got %d", len(pub.events))
 	}
 	q, _ := pub.events[0].Payload["question"].(string)
-	for _, must := range []string{"prompt-manager", "run-creation", "max 3 concurrent runs", "30-day", "revocable"} {
+	for _, must := range []string{"Prompt manager", "start agent runs on its own", "at most 3 at a time", "30 days"} {
 		if !strings.Contains(q, must) {
 			t.Fatalf("ask question does not state %q: %s", must, q)
+		}
+	}
+	page, _ := pub.events[0].Payload["explainer_html"].(string)
+	for _, must := range []string{"Who is asking", "Prompt manager", "Revoke it any time", "It never allows", "Allow it for 30 days", "If you do not answer:"} {
+		if !strings.Contains(page, must) {
+			t.Fatalf("ask page does not state %q", must)
 		}
 	}
 }
@@ -476,8 +484,8 @@ func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient
 	default:
 		t.Fatal("the event server did not receive a decodable event envelope")
 	}
-	if received.EventType != InteractiveAuthorizationNotificationEventType {
-		t.Fatalf("wire event type = %q, want %q", received.EventType, InteractiveAuthorizationNotificationEventType)
+	if received.EventType != ConsentDecisionEventType {
+		t.Fatalf("wire event type = %q, want %q", received.EventType, ConsentDecisionEventType)
 	}
 	var payload structpb.Struct
 	if received.Data == nil {
@@ -487,12 +495,14 @@ func TestNotifyAuthorizationRequestedPublishesFreshSnapshotThroughEventBusClient
 		t.Fatalf("decode event data: %v", err)
 	}
 	fields := payload.AsMap()
-	if fields["title"] != "Agent needs approval: run-creation" {
-		t.Fatalf("wire title = %#v", fields["title"])
+	page, _ := fields["explainer_html"].(string)
+	for _, must := range []string{"run-creation", "agent-manager:*", "Everything in Agent manager, including things made later", "1 hour", "Approving allows", "It never allows"} {
+		if !strings.Contains(page, must) {
+			t.Fatalf("the decision page does not state %q", must)
+		}
 	}
-	body, ok := fields["body"].(string)
-	if !ok || !strings.Contains(body, "run-creation") || !strings.Contains(body, "agent-manager:*") || !strings.Contains(body, "1-hour permission lifetime starts only after you approve") || !strings.Contains(body, "grants no authority") {
-		t.Fatalf("wire body omitted the approved operation bounds or explicit non-authority statement: %#v", fields["body"])
+	if fields["recommended"] != "decline" {
+		t.Fatalf("a whole-domain request must recommend the narrower answer, got %#v", fields["recommended"])
 	}
 	wantURL := "https://agent-manager.example.test/api/v1/authorizations/" + g.ID.String() + "/approve"
 	if fields["context_url"] != wantURL {
@@ -719,6 +729,9 @@ func TestReconcilerKeepsCompletedAuthorizationRetryCheckpointOnCallbackError(t *
 }
 
 func TestReconcilerAuthorizationNotificationRetryIsBoundedFairAndEligibilityChecked(t *testing.T) {
+	// The retry builds a notification link, which needs a public origin. Pin it
+	// instead of resolving the host's live tunnel configuration through HOME.
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
 	repo := database.NewAuthorizationRepository(db)
@@ -870,10 +883,11 @@ func TestReconcilerAuthorizationNotificationRetryAdvancesAfterAttemptCap(t *test
 	}
 }
 
-// Interactive consent is a generic FYI that opens the native authenticated
-// consent page. Its durable snapshot drives retries; Hub answers cannot issue
-// the interactive grant.
-func TestNotifyAuthorizationRequestedPersistsAndPublishesFYI(t *testing.T) {
+// Interactive consent reaches the operator as one decision with a page that
+// says what approving allows, and its approve option is the native consent
+// page. Its durable snapshot drives retries; Hub answers cannot issue the
+// interactive grant.
+func TestNotifyAuthorizationRequestedPersistsAndPublishesItsDecisionPage(t *testing.T) {
 	db, cleanup := testutil.SetupTestDB(t)
 	t.Cleanup(cleanup)
 	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
@@ -891,21 +905,28 @@ func TestNotifyAuthorizationRequestedPersistsAndPublishesFYI(t *testing.T) {
 		t.Fatalf("successful notification receipt must suppress duplicate publication, got %d events", len(pub.events))
 	}
 	ev := pub.events[0]
-	if ev.EventType != InteractiveAuthorizationNotificationEventType || ev.EventType == AuthorizationDecisionEventType {
-		t.Fatalf("interactive push must use generic FYI contract, got %q", ev.EventType)
+	if ev.EventType != ConsentDecisionEventType {
+		t.Fatalf("interactive consent must raise its decision, got %q", ev.EventType)
 	}
 	link, _ := ev.Payload["context_url"].(string)
 	if want := "https://agent-manager.example.test/api/v1/authorizations/" + g.ID.String() + "/approve"; link != want {
 		t.Fatalf("consent link = %q, want %q", link, want)
 	}
-	body, _ := ev.Payload["body"].(string)
-	for _, must := range []string{"codex", "swarm-bookkeeping", "swarm-manager:backlog/execute/obsolete", "16-hour", "starts only after you approve", "grants no authority"} {
-		if !strings.Contains(body, must) {
-			t.Fatalf("FYI body does not state %q: %s", must, body)
+	if ev.Payload["subject_key"] != "consent:"+g.ID.String() || ev.Payload["recommended"] != "approve" {
+		t.Fatalf("an exact-target request is one keyed decision recommending approval: %#v", ev.Payload)
+	}
+	facts := consentFacts(g, link, "")
+	if problems := operatordecision.CoverProblems(facts); len(problems) > 0 {
+		t.Fatalf("the cover fails a cold reader: %v", problems)
+	}
+	page, _ := ev.Payload["explainer_html"].(string)
+	for _, must := range []string{"Codex agent", "Swarm bookkeeping", "Only the backlog Execute/obsolete", "16 hours, starting when you approve", "Decide by", "confirm with your sign-in", "If you do not answer:"} {
+		if !strings.Contains(page, must) {
+			t.Fatalf("the decision page does not state %q", must)
 		}
 	}
-	if ev.Payload["options"] != nil || ev.Payload["question"] != nil {
-		t.Fatalf("FYI notification must not expose Hub decision choices: %#v", ev.Payload)
+	if allows := page[strings.Index(page, "Approving allows"):strings.Index(page, "It never allows")]; strings.Contains(allows, "swarm.") {
+		t.Fatalf("what approving allows is said in operation IDs, not words: %s", allows)
 	}
 	stored, err := repo.Get(context.Background(), g.ID)
 	if err != nil || stored.NotificationSnapshot == nil || stored.NotificationPublishedAt == nil || stored.NotificationSnapshot.EventID != operatordecision.EventID(ev) {
@@ -999,20 +1020,20 @@ func TestNotifyAuthorizationRequestedDoesNotPublishExpiredGrant(t *testing.T) {
 	}
 }
 
-// G3 negative: the interactive decision event is PUSH-ONLY. A hub resolution
-// carrying the interactive event type must NOT be handled by the standing-grant
-// resolver (it would otherwise mint a grant, bypassing the independent-human +
-// process-binding gates of ApproveAuthorization). It falls through unhandled.
-func TestInteractiveAuthorizationEventIsNotHubResolvable(t *testing.T) {
+// G3 negative: a Hub answer to a consent decision grants nothing. It must NOT
+// reach the standing-grant resolver (it would otherwise mint a grant, bypassing
+// the independent-human + process-binding gates of ApproveAuthorization); it is
+// acknowledged so no other resolver acts on it either.
+func TestConsentDecisionAnswersAreAcknowledgedAndGrantNothing(t *testing.T) {
 	now := time.Now()
 	grants := &capturingStandingGrants{}
 	o := phase4Orchestrator(newCapturingPending(), grants, &capturingAuthPublisher{}, now)
 
 	res := askResolution("some-authorization-id", "approve", "operator-human")
-	res.SourceEventType = InteractiveAuthorizationNotificationEventType
+	res.SourceEventType = ConsentDecisionEventType
 	handled, err := o.ResolveAuthorizationFromHub(context.Background(), res)
-	if handled || err != nil {
-		t.Fatalf("interactive event must fall through unhandled (handled=%v err=%v)", handled, err)
+	if !handled || err != nil {
+		t.Fatalf("a consent answer must be acknowledged and stop there (handled=%v err=%v)", handled, err)
 	}
 	if len(grants.put) != 0 {
 		t.Fatalf("no grant may be minted from an interactive push event, got %d", len(grants.put))
@@ -1170,5 +1191,51 @@ func TestResolveAuthorizationStaleIsBenign(t *testing.T) {
 	unknown := askResolution("auth-does-not-exist", "approve", "operator")
 	if handled, err := o.ResolveAuthorizationFromHub(context.Background(), unknown); !handled || err != nil {
 		t.Fatalf("unknown ask should be a benign handled no-op, got handled=%v err=%v", handled, err)
+	}
+}
+
+// A request still pending from before consent decisions existed holds the old
+// notice. It is raised once more as the operator's decision with its page, and
+// never again after that.
+func TestAuthorizationRetryRaisesAPendingRequestsOldNoticeAgainAsItsDecision(t *testing.T) {
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test")
+	db, cleanup := testutil.SetupTestDB(t)
+	t.Cleanup(cleanup)
+	repo := database.NewAuthorizationRepository(db)
+	now := time.Date(2026, 11, 15, 9, 0, 0, 0, time.UTC)
+	binding, err := cliutil.ObserveProcessBinding(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	published := now.Add(-time.Hour)
+	grant := &domain.AuthorizationGrant{
+		ID: uuid.MustParse("42e09570-01a0-4da5-9551-2f3d87c39c61"), State: domain.AuthorizationPending, Policy: "research-management",
+		Targets: []string{"research-desk:commission/w10-wave1-commerce-20261115"}, DurationSeconds: 168 * 3600,
+		Binding: binding, CreatedAt: now.Add(-2 * time.Hour), RequestExpiresAt: now.Add(7 * 24 * time.Hour),
+		NotificationSnapshot: &domain.AuthorizationNotificationSnapshot{
+			Source: runApprovalSource, EventType: "agent_manager.authorization_requested.notification.v1", EventID: "legacy",
+			Occurred: now.Add(-2 * time.Hour), Payload: map[string]any{"title": "Authorization requested"},
+		},
+		NotificationPublishedAt: &published,
+	}
+	if err := repo.Create(context.Background(), grant); err != nil {
+		t.Fatal(err)
+	}
+	pub := &capturingAuthPublisher{}
+	o := &Orchestrator{authorizations: repo, approvalPublisher: pub, clock: func() time.Time { return now }}
+	for range 2 {
+		if _, err := o.retryPendingAuthorizationNotifications(context.Background(), "", authorizationNotificationScanLimit, authorizationNotificationAttemptLimit); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(pub.events) != 1 || pub.events[0].EventType != ConsentDecisionEventType {
+		t.Fatalf("want the request raised once as its decision, got %+v", pub.events)
+	}
+	if page, _ := pub.events[0].Payload["explainer_html"].(string); !strings.Contains(page, "Where it reaches") {
+		t.Fatalf("decision carries no page: %q", page)
+	}
+	stored, err := repo.Get(context.Background(), grant.ID)
+	if err != nil || stored.State != domain.AuthorizationPending || stored.NotificationPublishedAt == nil || stored.NotificationSnapshot.EventType != ConsentDecisionEventType {
+		t.Fatalf("stored request was not moved to its decision, or its state changed: %+v err=%v", stored, err)
 	}
 }

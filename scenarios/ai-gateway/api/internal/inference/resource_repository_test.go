@@ -88,7 +88,10 @@ func TestTypedEmbeddingRequiresLocalOnlyAndCarriesItToResourceBoundary(t *testin
 			}}
 			repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Locality: tc.locality, Runner: runner}}, fixtureRightsContext)
 			require.NoError(t, err)
-			request := EmbeddingRequest{Role: "embedding.default", Texts: []string{"hello"}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY}
+			request := EmbeddingRequest{
+				Role: "embedding.default", Texts: []string{"hello"}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+				PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: "gateway_test.synthetic_embedding_fixture",
+			}
 			_, err = repository.Embed(context.Background(), request)
 			if tc.wantRun {
 				require.NoError(t, err)
@@ -135,6 +138,7 @@ func TestTypedEmbeddingRejectsMissingOrChangedRuntimeDigestBeforeExecute(t *test
 			require.NoError(t, err)
 			_, err = repository.Embed(context.Background(), EmbeddingRequest{
 				Role: "embedding.default", Texts: []string{"hello"}, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+				PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: "gateway_test.synthetic_embedding_fixture",
 			})
 			require.ErrorIs(t, err, ErrUnavailable)
 			require.Len(t, runner.Commands, 2, "digest mismatch must fail before the gateway command")

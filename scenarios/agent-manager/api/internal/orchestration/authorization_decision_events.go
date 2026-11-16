@@ -42,11 +42,6 @@ import (
 // already subscribes to, so no hub change is needed.
 const AuthorizationDecisionEventType = "agent_manager.authorization.decision_requested.v1"
 
-// InteractiveAuthorizationNotificationEventType is a neutral FYI push to the
-// native consent page. Notification Hub answers are never connected to the
-// interactive authorization authority path.
-const InteractiveAuthorizationNotificationEventType = "agent_manager.authorization_requested.notification.v1"
-
 // MaxOutstandingAuthorizationRequestsPerSubject caps how many distinct
 // un-decided asks a single subject may have outstanding at once. It bounds the
 // operator's notification exposure to a buggy or hostile caller: beyond the cap
@@ -79,8 +74,6 @@ const researchBudgetIngestOperation = "research-budget.ingest"
 // `scenario-authenticator service-principals sync --apply` from Treasury's
 // .vrooli/service-principals.json.
 const TreasuryServiceSubject = "treasury-agent-manager"
-
-const CF7ResearchBudgetTestRunTag = "cf7-test-only"
 
 var researchBudgetIngestTargetPattern = regexp.MustCompile(`^agent-manager:run/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
@@ -138,8 +131,8 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		return false, err
 	}
 	if existing != nil && existing.Outstanding(now) {
-		if err := o.rekeyPublishedAsk(ctx, existing); err != nil {
-			approvalLog().Warn("authorization decision subject key upgrade failed", "subject", subject, obs.KeyError, err.Error())
+		if err := o.refreshStaleAsk(ctx, existing); err != nil {
+			approvalLog().Warn("authorization decision refresh failed", "subject", subject, obs.KeyError, err.Error())
 		}
 		// Idempotent: a successful publication is not repeated, but a durable
 		// pending row whose first publication failed remains retryable.
@@ -183,7 +176,7 @@ func (o *Orchestrator) RaiseAuthorizationApproval(ctx context.Context, req Autho
 		RaisedAt:          now.UTC(),
 		ExpiresAt:         now.Add(pendingAuthorizationWindow).UTC(),
 	}
-	pending.DecisionBigPicture, pending.DecisionTechnicalDetails = authorizationDecisionContext(pending)
+	freezeAuthorizationDecision(pending)
 	pending.EventID = operatordecision.EventID(o.authorizationDecisionEvent(ctx, pending))
 	if err := o.pendingAuthorizations.Put(ctx, pending); err != nil {
 		return false, err
@@ -213,14 +206,15 @@ func isResearchBudgetIngestRequest(p *domain.PendingAuthorizationRequest) bool {
 		researchBudgetIngestTargetPattern.MatchString(p.Target) && p.Kind == domain.PendingAuthorizationKindOneTime
 }
 
-// IsCF7ResearchBudgetTestRun checks the persisted owner-side tag before the
-// Treasury request path offers an operator a CF7 report decision.
-func (o *Orchestrator) IsCF7ResearchBudgetTestRun(ctx context.Context, runID uuid.UUID) bool {
+// IsResearchBudgetRun proves that the requested report target names an
+// existing Agent Manager run. The report approval remains exact-run and
+// one-time; a test tag is not an authorization boundary.
+func (o *Orchestrator) IsResearchBudgetRun(ctx context.Context, runID uuid.UUID) bool {
 	if o == nil || runID == uuid.Nil {
 		return false
 	}
 	run, err := o.GetStoredRun(ctx, runID)
-	return err == nil && run.Tag == CF7ResearchBudgetTestRunTag
+	return err == nil && run != nil && run.ID == runID
 }
 
 func (o *Orchestrator) createResearchBudgetIngestGrant(ctx context.Context, pending *domain.PendingAuthorizationRequest, approver string) (*domain.StandingGrant, error) {
@@ -269,79 +263,14 @@ func (o *Orchestrator) publishAuthorizationDecision(ctx context.Context, pending
 // without raising another operator notification.
 var ErrAuthorizationFlood = fmt.Errorf("too many outstanding authorization requests for this subject")
 
-// authorizationDecisionContext explains the effect and exact bounds available
-// from the durable request. It does not invent a caller-specific business reason.
-func authorizationDecisionContext(p *domain.PendingAuthorizationRequest) (string, string) {
-	if p == nil {
-		return "", ""
-	}
-	bigPicture := "The verified caller lacks a covering grant for this operation. Approval creates only the permission described here; it does not execute the requested operation. Rejection issues no grant from this request; existing grants are unaffected."
-	concurrency := "no concurrency limit"
-	if p.MaxConcurrentRuns > 0 {
-		concurrency = fmt.Sprintf("at most %d concurrent runs", p.MaxConcurrentRuns)
-	}
-	technical := fmt.Sprintf(
-		"Subject: %s\nOperation: %s\nTarget: %s\nGrant kind: %s\nGrant lifetime: %s\nConcurrency: %s\nApproval is explicit, owner-attributed, and revocable; no answer issues no grant.",
-		p.Subject, p.Operation, p.Target, p.Kind, humanizeGrantTTL(p.GrantTTL), concurrency,
-	)
-	if p.SessionID != "" {
-		technical += "\nGrant scope: session-scoped."
-	}
-	return bigPicture, technical
-}
-
-// authorizationDecisionEvent builds the operator Ask. The question states
-// exactly what a one-tap approve grants — the grant KIND, subject, bounds and
-// expiry — so the operator can never approve more than they can see.
+// authorizationDecisionEvent builds the operator Ask from the frozen request.
+// The cover states exactly what a one-tap approve grants (who, for how long,
+// how many at once) so the operator can never approve more than they can see.
 func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain.PendingAuthorizationRequest) eventbus.DomainEvent {
-	var question, subjectLine string
-	bound := "no concurrency limit"
-	if p.MaxConcurrentRuns > 0 {
-		bound = fmt.Sprintf("max %d concurrent runs", p.MaxConcurrentRuns)
-	}
-	if isResearchBudgetIngestRequest(p) {
-		subjectLine = "Review one Treasury research-budget report for this exact run?"
-		question = fmt.Sprintf("Approve Treasury's one-time research-budget report grant for exact target %q (maximum lifetime %s)? This is intended for the test-only CF7 loop; verify the run before approving. It records budget evidence only and cannot spend, read another run, or act outside this run.", p.Target, humanizeGrantTTL(p.GrantTTL))
-	} else if p.Kind == domain.PendingAuthorizationKindOneTime {
-		subjectLine = fmt.Sprintf("Approve one run for %s?", p.Subject)
-		question = fmt.Sprintf("Approve a short-lived (%s) run-creation grant for %q (%s)? It expires automatically and is revocable anytime.",
-			humanizeGrantTTL(p.GrantTTL), p.Subject, bound)
-	} else {
-		subjectLine = fmt.Sprintf("Approve run creation for %s?", p.Subject)
-		question = fmt.Sprintf("Approve a bounded %s run-creation standing grant for %q (%s)? It is owner-attributed to you, revocable anytime, and expires automatically.",
-			humanizeGrantTTL(p.GrantTTL), p.Subject, bound)
-	}
-
-	contextURL := ""
+	facts := authorizationFacts(p)
 	if base := strings.TrimRight(o.resolveWebConsoleNoticeBase(ctx), "/"); base != "" {
-		contextURL = base + "/?authorization=" + p.ID
+		facts.ContextURL = base + "/?authorization=" + p.ID
 	}
-
-	facts := operatordecision.Facts{
-		SubjectKey:       p.SubjectKey,
-		Subject:          subjectLine,
-		Question:         question,
-		BigPicture:       p.DecisionBigPicture,
-		TechnicalDetails: p.DecisionTechnicalDetails,
-		Options: []operatordecision.Option{
-			{Key: "approve", Label: "Approve grant"},
-			{Key: "reject", Label: "Reject"},
-		},
-		Recommended: "reject",
-		// Issuing a grant is reversible: it is bounded, revocable, and expires. No
-		// silent default is set, so nothing is granted without an explicit answer.
-		Reversible: true,
-		Urgency:    "normal",
-		ContextURL: contextURL,
-		Correlation: map[string]string{
-			"authorization_request_id": p.ID,
-			"subject":                  p.Subject,
-			"operation":                p.Operation,
-			"target":                   p.Target,
-			"kind":                     p.Kind,
-		},
-	}
-
 	// Deterministic occurrence keeps the event id stable for the pending window,
 	// so a redelivery (or a re-raise inside the window) maps to the same ask
 	// instead of a duplicate notification. Emitted through BuildEventTyped so the
@@ -359,15 +288,15 @@ func (o *Orchestrator) authorizationDecisionEvent(ctx context.Context, p *domain
 // instead of adding a second.
 func authorizationSubjectKey(id string) string { return "authorization:" + id }
 
-// rekeyPublishedAsk replaces a still-pending ask that was published without a
-// subject key: the old request is closed by its event id and the same ask is
-// published again under the key. Idempotent: a keyed ask is left alone. The
-// frozen context stays as raised; only the key and event identity change.
-func (o *Orchestrator) rekeyPublishedAsk(ctx context.Context, p *domain.PendingAuthorizationRequest) error {
-	if p == nil || p.SubjectKey != "" || p.State != domain.PendingAuthorizationPending || o.approvalPublisher == nil || p.PublishedAt == nil {
+// refreshStaleAsk brings a still-pending ask raised by an older build up to
+// date: one published without a subject key is closed by its event id, and one
+// without frozen text (no page) is frozen now. The request is then published
+// again as a new generation under its key. Idempotent: a current ask is left alone.
+func (o *Orchestrator) refreshStaleAsk(ctx context.Context, p *domain.PendingAuthorizationRequest) error {
+	if p == nil || p.State != domain.PendingAuthorizationPending || o.approvalPublisher == nil || (p.SubjectKey != "" && p.DecisionQuestion != "") {
 		return nil
 	}
-	if p.EventID != "" {
+	if p.SubjectKey == "" && p.EventID != "" && p.PublishedAt != nil {
 		withdrawal := operatordecision.BuildWithdrawalEventTyped(runApprovalSource, AuthorizationDecisionEventType, o.now().UTC(), operatordecision.Withdrawal{
 			RequesterRef: p.EventID, Reason: "Replaced by an updated version of this request.",
 		})
@@ -376,6 +305,7 @@ func (o *Orchestrator) rekeyPublishedAsk(ctx context.Context, p *domain.PendingA
 		}
 	}
 	p.SubjectKey = authorizationSubjectKey(p.ID)
+	freezeAuthorizationDecision(p)
 	p.EventID = operatordecision.EventID(o.authorizationDecisionEvent(ctx, p))
 	p.PublishedAt = nil
 	return o.pendingAuthorizations.Put(ctx, p)
@@ -472,14 +402,21 @@ func (o *Orchestrator) retryPendingAuthorizationNotifications(ctx context.Contex
 		if attempts >= attemptLimit {
 			break
 		}
-		if grant.State == domain.AuthorizationPending && grant.EffectiveState(now) == domain.AuthorizationPending && grant.NotificationPublishedAt == nil && grant.Binding.PID > 0 {
+		legacy := grant.NotificationSnapshot != nil && grant.NotificationSnapshot.EventType != ConsentDecisionEventType
+		if grant.State == domain.AuthorizationPending && grant.EffectiveState(now) == domain.AuthorizationPending && (grant.NotificationPublishedAt == nil || legacy) && grant.Binding.PID > 0 {
 			live, err := cliutil.ObserveProcessBinding(grant.Binding.PID)
 			if ctx.Err() != nil {
 				return lastCompletedID, ctx.Err()
 			}
 			if err == nil && live == grant.Binding {
 				attempts++
-				if err := o.notifyAuthorizationRequested(ctx, grant); err != nil {
+				if legacy {
+					err = o.retireLegacyAuthorizationNotice(ctx, grant)
+				}
+				if err == nil {
+					err = o.notifyAuthorizationRequested(ctx, grant)
+				}
+				if err != nil {
 					if ctx.Err() != nil {
 						if recordErr := o.recordCancelledAuthorizationNotificationFailure(ctx, grant.ID, err); recordErr != nil {
 							o.logAuthorizationNotificationError(grant.ID, recordErr)
@@ -502,6 +439,16 @@ func (o *Orchestrator) retryPendingAuthorizationNotifications(ctx context.Contex
 		return "", nil
 	}
 	return lastCompletedID, nil
+}
+
+// retireLegacyAuthorizationNotice clears the stored FYI notice of a request
+// raised before consent decisions existed, so the next publish raises it as the
+// operator's decision with its page. It changes no terms or authority.
+func (o *Orchestrator) retireLegacyAuthorizationNotice(ctx context.Context, g *domain.AuthorizationGrant) error {
+	next := cloneAuthorizationGrant(g)
+	next.NotificationSnapshot, next.NotificationPublishedAt, next.NotificationUnreached = nil, nil, ""
+	_, err := o.authorizations.UpdateNotification(ctx, g, next)
+	return err
 }
 
 func (o *Orchestrator) notifyAuthorizationRequested(ctx context.Context, g *domain.AuthorizationGrant) error {
@@ -598,18 +545,10 @@ func (o *Orchestrator) authorizationNotificationSnapshot(ctx context.Context, g 
 	if err != nil {
 		return nil, fmt.Errorf("native authorization link unavailable: %w", err)
 	}
-	payload := map[string]any{
-		"title":       "Agent needs approval: " + g.Policy,
-		"body":        fmt.Sprintf("%s wants %s on %s.\nThe %s permission lifetime starts only after you approve on the Agent Manager page; this notification grants no authority.", strings.TrimSpace(g.HarnessKind), g.Policy, strings.Join(g.Targets, ", "), humanizeDurationSeconds(g.DurationSeconds)),
-		"category":    "authorization-requested",
-		"urgency":     "normal",
-		"sensitivity": "private",
-		"context_url": consentURL,
-		"dedupe_key":  g.ID.String(),
-		"correlation": map[string]any{"authorization_id": g.ID.String(), "run_id": g.RunID.String(), "policy": g.Policy},
-	}
-	event := eventbus.DomainEvent{Source: runApprovalSource, EventType: InteractiveAuthorizationNotificationEventType, Occurred: g.CreatedAt.UTC(), Payload: payload}
-	return &domain.AuthorizationNotificationSnapshot{Source: event.Source, EventType: event.EventType, EventID: operatordecision.EventID(event), Occurred: event.Occurred, Payload: payload}, nil
+	// The request is the operator's decision, with its page; the consent page
+	// stays the only place it is approved (authorization_consent_decision.go).
+	event := operatordecision.BuildEventTyped(runApprovalSource, ConsentDecisionEventType, g.CreatedAt.UTC(), consentFacts(g, consentURL, o.consentSessionLabel(ctx, g)))
+	return &domain.AuthorizationNotificationSnapshot{Source: event.Source, EventType: event.EventType, EventID: operatordecision.EventID(event), Occurred: event.Occurred, Payload: event.Payload}, nil
 }
 
 func eventFromAuthorizationNotification(snapshot *domain.AuthorizationNotificationSnapshot) eventbus.DomainEvent {
@@ -758,6 +697,13 @@ func humanizeGrantTTL(d time.Duration) string {
 // attributed to the approving human; reject records the refusal; a resolution
 // for an unknown/already-decided ask is a benign no-op.
 func (o *Orchestrator) ResolveAuthorizationFromHub(ctx context.Context, res supervision.DecisionResolution) (bool, error) {
+	if o != nil && res.SourceEventType == ConsentDecisionEventType {
+		// An interactive consent is approved only on Agent Manager's consent
+		// page with the operator's own sign-in; a Hub answer grants nothing.
+		approvalLog().Info("consent decision resolved in notification-hub; no authority changes",
+			"state", res.State, "answer", res.Answer, "authorization_id", res.Correlation["authorization_id"])
+		return true, nil
+	}
 	if o == nil || res.SourceEventType != AuthorizationDecisionEventType {
 		return false, nil
 	}
@@ -838,4 +784,21 @@ func (o *Orchestrator) ResolveAuthorizationFromHub(ctx context.Context, res supe
 	approvalLog().Info("authorization resolution applied from notification-hub",
 		"authorization_request_id", id, "answer", res.Answer, "actor", actor, "subject", pending.Subject)
 	return true, nil
+}
+
+// consentSessionLabel is the label or tag of the run that asked, so the
+// decision says what the session is working on. Empty when the request names no
+// run Agent Manager knows; the decision then names the harness and session.
+func (o *Orchestrator) consentSessionLabel(ctx context.Context, g *domain.AuthorizationGrant) string {
+	if o == nil || o.runs == nil || g == nil || g.RunID == uuid.Nil {
+		return ""
+	}
+	run, err := o.runs.Get(ctx, g.RunID)
+	if err != nil || run == nil {
+		return ""
+	}
+	if strings.TrimSpace(run.Label) != "" {
+		return run.Label
+	}
+	return run.Tag
 }

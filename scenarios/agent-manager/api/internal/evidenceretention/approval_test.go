@@ -338,3 +338,30 @@ func TestWithdrawnResolutionPrunesNothing(t *testing.T) {
 		t.Fatalf("status = %+v", status)
 	}
 }
+
+// The operator decides a prune from the push and the page: the cover names
+// the files in words and says deletion cannot be undone; the page shows how
+// much each kind of file frees and how it comes back.
+func TestPruneDecisionIsReadableColdAndShowsWhatIsDeleted(t *testing.T) {
+	h := newApprovalHarness(t)
+	h.raise(t)
+	p := h.published.events[0].Payload
+	f := operatordecision.Facts{Explainer: p["explainer_html"].(string)}
+	f.Subject, f.Question, f.BigPicture = p["subject"].(string), p["question"].(string), p["big_picture"].(string)
+	f.RecommendationReason, _ = p["recommendation_reason"].(string)
+	for _, o := range p["options"].([]any) {
+		m := o.(map[string]any)
+		f.Options = append(f.Options, operatordecision.Option{Key: m["key"].(string), Label: m["label"].(string)})
+	}
+	if leaks := operatordecision.CoverProblems(f); len(leaks) > 0 {
+		t.Fatalf("cover is not readable cold: %v", leaks)
+	}
+	if !strings.Contains(f.Question, "compiled programs and zipped release copies") || !strings.Contains(f.Question, "the finished Demo project") || !strings.Contains(f.Question, "not restored") {
+		t.Errorf("question = %q", f.Question)
+	}
+	for _, want := range []string{"What would be deleted", "Compiled programs", "Rebuilt from source by the next build.", "effort finished", "writes a receipt naming you", "If you do not answer:"} {
+		if !strings.Contains(f.Explainer, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+}

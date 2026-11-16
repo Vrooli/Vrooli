@@ -1,6 +1,5 @@
 # UI Architecture
 
-## Purpose Of This Document
 
 Describe the AI Gateway operator console and the canonical layout of the
 `ui/` source tree. The UI is now a product surface for gateway operation, not

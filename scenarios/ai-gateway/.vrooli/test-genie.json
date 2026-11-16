@@ -29,7 +29,7 @@
     "default": "not_applicable",
     "any": [
       {
-        "targetKind": "project"
+        "scenarioDependency": "ai-gateway"
       },
       {
         "serviceCapability": "ai"
@@ -343,13 +343,33 @@
         "local_level_impact": "L1",
         "global_impact": "evolvability_gap",
         "dimension": "contracts",
-        "severity_default": "SEVERITY_WARNING",
+        "severity_default": "SEVERITY_ERROR",
         "clean_requirement": "required",
         "recommended_skill_ids": [
           "ecosystem-fit"
         ],
         "fix_class": "manual",
         "reason": "Model role/profile mapping is a policy decision."
+      },
+      "ai.gateway_role_unreachable": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Literal Gateway caller roles must resolve through the authoritative task-role catalog."
+      },
+      "ai.gateway_role_implicit": {
+        "capability_id": "model_policy",
+        "local_level_impact": "L1",
+        "global_impact": "safety_blocker",
+        "dimension": "contracts",
+        "severity_default": "SEVERITY_ERROR",
+        "clean_requirement": "required",
+        "fix_class": "manual",
+        "reason": "Gateway adapters must not inherit a resource compatibility role implicitly."
       },
       "ai.hardcoded_context_window": {
         "capability_id": "model_policy",

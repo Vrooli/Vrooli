@@ -19,6 +19,7 @@ type inferenceCaptureClient struct {
 	inferenceconnect.InferenceServiceClient
 	run      *inferencev1.RunRequest
 	runBatch *inferencev1.RunBatchRequest
+	embed    *inferencev1.EmbedRequest
 }
 
 func (c *inferenceCaptureClient) Run(_ context.Context, req *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
@@ -31,6 +32,11 @@ func (c *inferenceCaptureClient) RunBatch(_ context.Context, req *connect.Reques
 	return connect.NewResponse(&inferencev1.RunBatchResponse{}), nil
 }
 
+func (c *inferenceCaptureClient) Embed(_ context.Context, req *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error) {
+	c.embed = req.Msg
+	return connect.NewResponse(&inferencev1.EmbedResponse{}), nil
+}
+
 func inferenceRunContext(t *testing.T, flags map[string]string) cliapp.RunContext {
 	t.Helper()
 	flagSchema := make([]cliapp.Flag, 0, len(flags))
@@ -40,6 +46,22 @@ func inferenceRunContext(t *testing.T, flags map[string]string) cliapp.RunContex
 	return cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
 		Schema: cliapp.ArgSchema{Flags: flagSchema}, Flags: flags, JSON: true, Stdout: &bytes.Buffer{},
 	})
+}
+
+func TestEmbeddingHandlerCarriesExplicitLocalPrivacyContract(t *testing.T) {
+	textsPath := filepath.Join(t.TempDir(), "texts.json")
+	require.NoError(t, os.WriteFile(textsPath, []byte(`["fixture text"]`), 0o600))
+	client := &inferenceCaptureClient{}
+	ctx := inferenceRunContext(t, map[string]string{
+		"texts": textsPath, "role": "embedding.default", "profile": "local-only",
+		"privacy-class": "internal", "privacy-provenance": "cli_test.operator_supplied_fixture",
+	})
+	require.NoError(t, (&handlers{client: client}).embed(ctx))
+	require.NotNil(t, client.embed)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, client.embed.GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, client.embed.GetPrivacyClass())
+	require.Equal(t, "cli_test.operator_supplied_fixture", client.embed.GetPrivacyProvenance())
+	require.Equal(t, []string{"fixture text"}, client.embed.GetTexts())
 }
 
 func TestTypedInferenceHandlersPreserveExplicitAndUnknownPrivacy(t *testing.T) {

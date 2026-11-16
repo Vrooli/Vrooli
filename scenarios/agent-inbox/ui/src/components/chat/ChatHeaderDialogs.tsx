@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { FileText, FileJson, File } from "lucide-react";
 import { Dialog, DialogHeader, DialogBody, DialogFooter } from "../ui/dialog";
-import { Button } from "../ui/button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1.0.1";
 import { Input } from "../ui/input";
 import { exportChat, type ExportFormat } from "../../lib/api";
 
@@ -44,8 +44,10 @@ export function RenameDialog({ open, onClose, chatName, onRename }: RenameDialog
         />
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleRename} disabled={!newName.trim()}>Save</Button>
+        <OverlayActionBar actions={[
+          { id: "save", label: "Save", onSelect: handleRename, disabled: !newName.trim(), primary: true },
+          { id: "cancel", label: "Cancel", onSelect: onClose },
+        ]} />
       </DialogFooter>
     </Dialog>
   );
@@ -71,8 +73,10 @@ export function DeleteDialog({ open, onClose, chatName, onDelete, confirmTestId 
         </p>
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="destructive" onClick={handleDelete} data-testid={confirmTestId}>Delete</Button>
+        <OverlayActionBar actions={[
+          { id: "delete", label: "Delete", onSelect: handleDelete, testId: confirmTestId, primary: true },
+          { id: "cancel", label: "Cancel", onSelect: onClose },
+        ]} />
       </DialogFooter>
     </Dialog>
   );
@@ -121,7 +125,7 @@ export function ExportDialog({ open, onClose, chatId, chatName }: ExportDialogPr
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <OverlayActionBar actions={[{ id: "cancel", label: "Cancel", onSelect: onClose, primary: true }]} />
       </DialogFooter>
     </Dialog>
   );

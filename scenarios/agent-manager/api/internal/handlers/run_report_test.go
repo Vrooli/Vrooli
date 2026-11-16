@@ -91,7 +91,7 @@ func TestWriteRunReportWithResearchBudgetIncludesRunBoundSpendAndBenefit(t *test
 	report := &runreport.RunReport{RunID: id, Status: "complete", ResearchBudget: runreport.ResearchBudgetSummary{
 		Availability:      runreport.Availability{State: runreport.AvailabilityAvailable},
 		SpendAvailability: runreport.Availability{State: runreport.AvailabilityAvailable},
-		Summary:           &researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "budget-1", MandateID: "mandate-1", Currency: "USDC", UnitCode: "USDC_ATOMS", CapMinor: 500, SpendMinor: 125, RemainingMinor: 375, SpendCount: 1, Spend: []researchbudget.Spend{{ID: "spend-1", RunID: id.String(), TreasuryReceiptID: "receipt-1", IntegrationID: "x402:local", Category: "x402_call", AmountMinor: 125, Currency: "USDC", UnitCode: "USDC_ATOMS", ResultRef: "checkpoint-1", BenefitState: "measured", BenefitSummary: "3 fixture records accepted", SettledAt: time.Date(2026, 11, 13, 1, 0, 0, 0, time.UTC)}}},
+		Summary:           &researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "budget-1", MandateID: "mandate-1", Currency: "USDC", UnitCode: "USDC_ATOMS", CapMinor: 500, SpendMinor: 125, RemainingMinor: 375, SpendCount: 1, Spend: []researchbudget.Spend{{ID: "spend-1", RunID: id.String(), SettlementID: "settlement-1", TreasuryReceiptID: "receipt-1", IntegrationID: "x402:local", Category: "x402_call", AmountMinor: 125, Currency: "USDC", UnitCode: "USDC_ATOMS", ResultRef: "checkpoint-1", BenefitState: "measured", BenefitSummary: "3 fixture records accepted", SettledAt: time.Date(2026, 11, 13, 1, 0, 0, 0, time.UTC), FreeAlternative: &researchbudget.FreeAlternative{RunID: id.String(), SettlementID: "settlement-1", SourceID: "offer-desk:free-sample", Label: "no-signup sample", ResultRef: "free-result", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ResponseBytes: 81, Limitation: "format only", ObservedAt: time.Date(2026, 11, 13, 1, 0, 1, 0, time.UTC)}}}},
 	}}
 	recorder := httptest.NewRecorder()
 	writeRunReportWithResearchBudgetJSON(recorder, report)
@@ -108,7 +108,8 @@ func TestWriteRunReportWithResearchBudgetIncludesRunBoundSpendAndBenefit(t *test
 	}
 	summary := budget["summary"].(map[string]any)
 	spend := summary["spend"].([]any)[0].(map[string]any)
-	if summary["run_id"] != id.String() || summary["spend_minor"] != float64(125) || spend["treasury_receipt_id"] != "receipt-1" || spend["benefit_summary"] != "3 fixture records accepted" || !strings.Contains(budget["provenance"].(string), "Missing rows do not establish zero spend") {
+	free := spend["free_alternative"].(map[string]any)
+	if summary["run_id"] != id.String() || summary["spend_minor"] != float64(125) || spend["treasury_receipt_id"] != "receipt-1" || spend["benefit_summary"] != "3 fixture records accepted" || free["source_id"] != "offer-desk:free-sample" || free["sha256"] != "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" || free["evidence_basis"] != "agent-observed; not independently verified" || !strings.Contains(budget["provenance"].(string), "Missing rows do not establish zero spend") {
 		t.Fatalf("run-bound spend/benefit evidence lost: %#v", budget)
 	}
 }

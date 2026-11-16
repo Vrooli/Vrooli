@@ -3,6 +3,8 @@ package inference_test
 import (
 	"context"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -103,6 +105,67 @@ func (r *sourceCaptureRepository) Decide(ctx context.Context, request inference.
 	r.sources = append(r.sources, providers.Source(ctx))
 	r.privacyProvenances = append(r.privacyProvenances, request.PrivacyProvenance)
 	return &inferencev1.DecideResponse{Usage: &inferencev1.Usage{}}
+}
+
+type embeddingCaptureRepository struct{ requests []inference.EmbeddingRequest }
+
+func (r *embeddingCaptureRepository) Run(context.Context, inference.ProviderRequest) (inference.ProviderResult, error) {
+	return inference.ProviderResult{}, nil
+}
+
+func (r *embeddingCaptureRepository) Embed(_ context.Context, request inference.EmbeddingRequest) (inference.EmbeddingResult, error) {
+	r.requests = append(r.requests, request)
+	return inference.EmbeddingResult{Vectors: [][]float64{{1, 0}}, Provider: "ollama", Model: "nomic", Dimension: 2}, nil
+}
+
+func TestEmbedPreservesSourcedPrivacyAndLocalOnlyContract(t *testing.T) {
+	repository := &embeddingCaptureRepository{}
+	connectHandler := handler.NewConnectHandler(inference.NewService(repository))
+	_, err := connectHandler.Embed(t.Context(), connect.NewRequest(&inferencev1.EmbedRequest{
+		Role: "embedding.default", Texts: []string{"private draft"},
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: "prose_studio.private_editorial_content",
+	}))
+	require.NoError(t, err)
+	require.Len(t, repository.requests, 1)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, repository.requests[0].Profile)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, repository.requests[0].PrivacyClass)
+	require.Equal(t, "prose_studio.private_editorial_content", repository.requests[0].PrivacyProvenance)
+}
+
+func TestEmbedConnectHandlerRejectsMismatchedContractBeforeRepository(t *testing.T) {
+	repository := &embeddingCaptureRepository{}
+	connectHandler := handler.NewConnectHandler(inference.NewService(repository))
+	response, err := connectHandler.Embed(t.Context(), connect.NewRequest(&inferencev1.EmbedRequest{
+		Role: "embedding.default", Texts: []string{"private draft"},
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: "malformed private source !",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, response.Msg.GetError().GetCode())
+	require.Empty(t, repository.requests, "invalid provenance must be refused before embedding dispatch")
+}
+
+func TestEmbedGeneratedConnectRouteRejectsInvalidProvenanceBeforeRepository(t *testing.T) {
+	repository := &embeddingCaptureRepository{}
+	path, route := inferenceconnect.NewInferenceServiceHandler(handler.NewConnectHandler(inference.NewService(repository)))
+	mux := http.NewServeMux()
+	mux.Handle(path, route)
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	client := inferenceconnect.NewInferenceServiceClient(server.Client(), server.URL)
+	response, err := client.Embed(t.Context(), connect.NewRequest(&inferencev1.EmbedRequest{
+		Role: "embedding.default", Texts: []string{"private draft"},
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: "malformed private source !",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, response.Msg.GetError().GetCode())
+	require.Empty(t, repository.requests, "the generated HTTP route must refuse invalid provenance before embedding dispatch")
 }
 
 func TestEveryTypedRoutePreservesCallerSourceAndSharedProfile(t *testing.T) {

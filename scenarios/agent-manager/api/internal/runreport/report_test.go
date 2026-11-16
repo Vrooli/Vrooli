@@ -45,14 +45,20 @@ func (s researchBudgetReportSource) ResearchBudget(context.Context, uuid.UUID) (
 
 func TestBuildIncludesRunBoundResearchSpendAndBenefit(t *testing.T) {
 	id := uuid.New()
-	budget := researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "tb-1", MandateID: "mandate-1", Currency: "USDC", UnitCode: "USDC_ATOMS", CapMinor: 500, SpendMinor: 125, RemainingMinor: 375, SpendCount: 1, Spend: []researchbudget.Spend{{RunID: id.String(), Category: "x402_call", IntegrationID: "x402:mock", AmountMinor: 125, UnitCode: "USDC_ATOMS", BenefitState: "measured", BenefitSummary: "3 local fixture records"}}}
+	benefit := "Paid response: 3 current records. Free alternative: checked-in no-signup sample (format only; no current catalog data)."
+	free := &researchbudget.FreeAlternative{RunID: id.String(), SettlementID: "settlement-1", SourceID: "offer-desk:free-sample", Label: "no-signup sample", ResultRef: "free-result", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ResponseBytes: 81, Limitation: "format only; no current catalog data", ObservedAt: time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)}
+	budget := researchbudget.Summary{RunID: id.String(), TreasuryBudgetID: "tb-1", MandateID: "mandate-1", Currency: "USDC", UnitCode: "USDC_ATOMS", CapMinor: 500, SpendMinor: 125, RemainingMinor: 375, SpendCount: 1, Spend: []researchbudget.Spend{{RunID: id.String(), SettlementID: "settlement-1", Category: "x402_call", IntegrationID: "x402:mock", AmountMinor: 125, UnitCode: "USDC_ATOMS", BenefitState: "measured", BenefitSummary: benefit, FreeAlternative: free}}}
 	report, err := Build(context.Background(), researchBudgetReportSource{reportSource: reportSource{run: &domain.Run{ID: id}}, budget: budget, present: true}, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := report.ResearchBudget
-	if got.Availability.State != AvailabilityAvailable || got.SpendAvailability.State != AvailabilityAvailable || got.Summary == nil || got.Summary.RunID != id.String() || got.Summary.SpendMinor != 125 || got.Summary.RemainingMinor != 375 || len(got.Summary.Spend) != 1 || got.Summary.Spend[0].BenefitSummary != "3 local fixture records" {
+	if got.Availability.State != AvailabilityAvailable || got.SpendAvailability.State != AvailabilityAvailable || got.Summary == nil || got.Summary.RunID != id.String() || got.Summary.SpendMinor != 125 || got.Summary.RemainingMinor != 375 || len(got.Summary.Spend) != 1 || got.Summary.Spend[0].BenefitSummary != benefit || got.Summary.Spend[0].FreeAlternative == nil || got.Summary.Spend[0].FreeAlternative.SettlementID != "settlement-1" {
 		t.Fatalf("research budget projection lost run/spend/benefit: %+v", got)
+	}
+	text := Text(report)
+	if !strings.Contains(text, "Free alternative: checked-in no-signup sample") || !strings.Contains(text, "Paid response: 3 current records") || !strings.Contains(text, "no-signup sample (offer-desk:free-sample)") || !strings.Contains(text, "not independently verified") {
+		t.Fatalf("human run report omitted the paid/free comparison: %s", text)
 	}
 }
 

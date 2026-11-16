@@ -25,6 +25,10 @@ import (
 // degrades within it.
 const detectRole = "pii.small"
 
+// detectProvenance binds this request to the imported conversation transcript
+// that Agent Manager scans before applying its transcript privacy policy.
+const detectProvenance = "agent-manager.transcript_import.pre_storage_pii_detection"
+
 // DefaultGatewayTimeout bounds one DETECT_PII call. PII detection is a local
 // CPU pass (regex/checksum + a small NER model), so this is far shorter than a
 // generation call, but http.DefaultClient must not be used here — it has no
@@ -79,12 +83,13 @@ func (d *GatewayDetector) Detect(ctx context.Context, text string) (DetectResult
 			// PII scanning must never leave the host: the detector is a local
 			// resource and local-only refuses any route that would send the
 			// content to a remote provider.
-			Profile:      sharedv1.Profile_PROFILE_LOCAL_ONLY,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
-			Operation:    "conversation_redact",
-			Scenario:     "agent-manager",
-			TimeoutMs:    int32(DefaultGatewayTimeout.Milliseconds()),
-			RequestId:    uuid.NewString(),
+			Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+			PrivacyProvenance: detectProvenance,
+			Operation:         "conversation_redact",
+			Scenario:          "agent-manager",
+			TimeoutMs:         int32(DefaultGatewayTimeout.Milliseconds()),
+			RequestId:         uuid.NewString(),
 		},
 		InputText: text,
 	}))

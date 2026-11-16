@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/supervision"
 
 	"github.com/google/uuid"
@@ -103,7 +104,7 @@ func TestRunApprovalEventShape(t *testing.T) {
 		clock:            func() time.Time { return time.Unix(1000, 0).UTC() },
 	}
 	sandboxID := uuid.New()
-	run := &domain.Run{ID: runID, SandboxID: &sandboxID, ChangedFiles: 3, Label: "Prepare release notes"}
+	run := &domain.Run{ID: runID, SandboxID: &sandboxID, ChangedFiles: 3, Label: "Prepare release notes", Result: &domain.RunResult{Success: true}}
 
 	ev, err := o.runApprovalEvent(context.Background(), run, approvalTestDiff(sandboxID, "diff v1"))
 	if err != nil {
@@ -124,8 +125,8 @@ func TestRunApprovalEventShape(t *testing.T) {
 	if q, _ := p["question"].(string); strings.TrimSpace(q) == "" || !strings.Contains(q, "3 files") {
 		t.Fatalf("question missing or wrong file count: %q", p["question"])
 	}
-	if subject, _ := p["subject"].(string); !strings.Contains(subject, "Prepare release notes") {
-		t.Fatalf("subject lacks the persisted run label: %q", subject)
+	if subject, _ := p["subject"].(string); !strings.Contains(subject, "3 files") || strings.Contains(subject, runID.String()[:8]) {
+		t.Fatalf("subject must say what approving does, without the run id: %q", subject)
 	}
 	if big, _ := p["big_picture"].(string); !strings.Contains(big, "Prepare release notes") {
 		t.Fatalf("big_picture lacks the persisted run label: %q", big)
@@ -489,5 +490,70 @@ func TestRunApprovalReviewedRejectWithoutProviderLeavesRunPending(t *testing.T) 
 	}
 	if got.Status != domain.RunStatusNeedsReview || got.ApprovalState != domain.ApprovalStatePending {
 		t.Fatalf("provider-unavailable rejection changed run: status=%s approval=%s", got.Status, got.ApprovalState)
+	}
+}
+
+type approvalTaskRepo struct {
+	repository.TaskRepository
+	task *domain.Task
+}
+
+func (r approvalTaskRepo) Get(context.Context, uuid.UUID) (*domain.Task, error) { return r.task, nil }
+
+// The operator answers a run approval from the push and the page alone: the
+// cover says in plain words what approving does, and the page shows the work
+// itself (the brief, the agent's own account, every file and the diff).
+func TestRunApprovalPageShowsTheWorkToAColdReader(t *testing.T) {
+	task := &domain.Task{ID: uuid.New(), Title: "Release notes", Description: "Write the release notes for 2.4 from the merged changes.", ScopePath: "scenarios/agent-inbox"}
+	o := &Orchestrator{tasks: approvalTaskRepo{task: task}, clock: func() time.Time { return time.Unix(1000, 0).UTC() }}
+	sandboxID := uuid.New()
+	ended := time.Date(2026, 11, 15, 6, 0, 0, 0, time.UTC)
+	run := &domain.Run{
+		ID: uuid.New(), TaskID: task.ID, SandboxID: &sandboxID, Label: "Prepare release notes", EndedAt: &ended,
+		Result: &domain.RunResult{Success: true, FinalOutput: "I added RELEASE_NOTES.md covering the inbox filters."},
+	}
+	diff := approvalTestDiff(sandboxID, "diff --git a/docs/RELEASE_NOTES.md b/docs/RELEASE_NOTES.md\n--- /dev/null\n+++ b/docs/RELEASE_NOTES.md\n@@ -0,0 +1 @@\n+# Inbox filters <new>\n")
+	diff.Stats = sandbox.DiffStats{FilesChanged: 1, FilesAdded: 1, LinesAdded: 1}
+	diff.Files = []sandbox.FileChange{{FilePath: "docs/RELEASE_NOTES.md", ChangeType: sandbox.FileChangeAdded, LinesAdded: 1}}
+
+	facts := o.runApprovalFacts(context.Background(), run, diff)
+	if leaks := operatordecision.CoverProblems(facts); len(leaks) > 0 {
+		t.Fatalf("cover is not readable cold: %v", leaks)
+	}
+	if !strings.Contains(facts.Question, "1 file in agent-inbox") || facts.Recommended != "approve" || facts.RecommendationReason == "" {
+		t.Fatalf("cover = %q, recommended %q (%q)", facts.Question, facts.Recommended, facts.RecommendationReason)
+	}
+	page := facts.Explainer
+	for _, want := range []string{
+		"Write the release notes for 2.4", // what the agent was asked
+		"I added RELEASE_NOTES.md",        // what it says it did
+		`<td data-label="File">docs/RELEASE_NOTES.md</td>`, "1 file: 1 new",
+		`<span class="dp-add">+# Inbox filters &lt;new&gt;</span>`, // the change itself, escaped
+		"Copies these changes into the real project", "If you do not answer:",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page lacks %q", want)
+		}
+	}
+	if err := facts.Validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	// A run that did not report success is not recommended for approval.
+	run.Result = &domain.RunResult{Success: false}
+	if f := o.runApprovalFacts(context.Background(), run, diff); f.Recommended != "" || !strings.Contains(f.Explainer, "did not report success") {
+		t.Fatalf("failed run recommended %q", f.Recommended)
+	}
+}
+
+func TestRunApprovalPageFitsADecisionEventWhenTheDiffIsHuge(t *testing.T) {
+	o := &Orchestrator{clock: time.Now}
+	sandboxID := uuid.New()
+	huge := "diff --git a/a.txt b/a.txt\n--- a/a.txt\n+++ b/a.txt\n" + strings.Repeat("+<&>\n", 300_000)
+	diff := approvalTestDiff(sandboxID, huge)
+	diff.Stats.FilesChanged = 1
+	facts := o.runApprovalFacts(context.Background(), &domain.Run{ID: uuid.New(), SandboxID: &sandboxID}, diff)
+	if facts.Explainer == "" || facts.Validate() != nil {
+		t.Fatalf("huge diff: page %d bytes, validate %v", len(facts.Explainer), facts.Validate())
 	}
 }

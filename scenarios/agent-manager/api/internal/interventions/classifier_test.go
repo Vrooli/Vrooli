@@ -178,6 +178,10 @@ func TestFallbackAnswerHasNoDistribution(t *testing.T) {
 	if len(gateway.requests) != 1 || answers[0].Category != EarlyStop || answers[0].Method != "LLM_ENUM" || answers[0].Probability() != nil || len(answers[0].Probabilities) != 0 {
 		t.Fatalf("answer = %+v, want a bare LLM choice and no retry", answers[0])
 	}
+	request := gateway.requests[0]
+	if request.GetRole() != DefaultRole || request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || request.GetPrivacyProvenance() != "agent_manager.operator_and_agent_conversation" {
+		t.Fatalf("LLM-enum fallback escaped the caller's fixed role/privacy contract: %+v", request)
+	}
 }
 
 // Unavailable is unclassified, with the reason, never a category.
@@ -243,6 +247,9 @@ func TestCategoryClassificationRequestsAreLocalOnly(t *testing.T) {
 		t.Fatalf("requests = %d, want the first and the shrunk retry", len(gateway.requests))
 	}
 	for i, request := range gateway.requests {
+		if request.GetRole() != DefaultRole {
+			t.Fatalf("request %d role = %q, want the owner-selected accuracy policy on primary and retry", i, request.GetRole())
+		}
 		if request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY {
 			t.Fatalf("request %d profile = %v, want local-only", i, request.GetProfile())
 		}

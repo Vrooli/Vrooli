@@ -51,6 +51,9 @@ func TestGatewayDetectorSendsDetectPIIRequest(t *testing.T) {
 	if req.GetRole() != detectRole {
 		t.Fatalf("expected role %q, got %q", detectRole, req.GetRole())
 	}
+	if req.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || req.GetPrivacyProvenance() != detectProvenance {
+		t.Fatalf("expected sourced confidential transcript contract, got class=%s provenance=%q", req.GetPrivacyClass(), req.GetPrivacyProvenance())
+	}
 	if client.request.GetInputText() != "mail me at bob@example.com" {
 		t.Fatalf("input text not forwarded: %q", client.request.GetInputText())
 	}

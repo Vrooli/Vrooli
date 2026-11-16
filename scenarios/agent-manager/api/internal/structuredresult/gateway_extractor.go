@@ -65,6 +65,9 @@ func (e *GatewayExtractor) Extract(ctx context.Context, request ExtractRequest) 
 	if role == "" {
 		role = DefaultExtractRole
 	}
+	if role != DefaultExtractRole {
+		return ExtractResponse{Abstained: true}, fmt.Errorf("unsupported Agent Manager extraction role %q; use policy-owned role %q", role, DefaultExtractRole)
+	}
 	instruction := strings.TrimSpace(request.Instruction)
 	if instruction == "" {
 		// The gateway keeps schema descriptions as metadata and never treats

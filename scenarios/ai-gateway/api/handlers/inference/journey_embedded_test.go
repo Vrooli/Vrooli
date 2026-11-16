@@ -2,16 +2,19 @@ package inference
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -27,6 +30,7 @@ import (
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 	_ "modernc.org/sqlite"
 )
 
@@ -70,6 +74,11 @@ func TestJourneyEmbeddedGatewayServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if value := strings.TrimSpace(os.Getenv("VROOLI_JOURNEY_DEVICE_KEY")); value != "" {
+		if err := authority.Put(providers.DeviceKeyIdentity, providers.DeviceKeyField, value); err != nil {
+			t.Fatal(err)
+		}
+	}
 	resolve := func(_ context.Context, id, field string) (string, error) {
 		identity, err := credentialauthority.ParseIdentity(id)
 		if err != nil {
@@ -90,6 +99,11 @@ func TestJourneyEmbeddedGatewayServer(t *testing.T) {
 			return resolve(ctx, providers.DeviceKeyIdentity, providers.DeviceKeyField)
 		}}
 	}
+	if endpoint := strings.TrimSpace(os.Getenv("VROOLI_JOURNEY_OLLAMA_ENDPOINT")); endpoint != "" {
+		local := bundle.Providers["ollama"]
+		local.Endpoint = endpoint
+		bundle.Providers["ollama"] = local
+	}
 	var ledgers []internalinference.AttemptLedger
 	if path := os.Getenv("VROOLI_JOURNEY_LEDGER"); path != "" {
 		db, err := sql.Open("sqlite", path)
@@ -105,6 +119,8 @@ func TestJourneyEmbeddedGatewayServer(t *testing.T) {
 	server := packagedGatewayServer(t, bundle, resolve, door, ledgers...)
 	done := make(chan struct{})
 	var calls atomic.Int32
+	var embedMu sync.Mutex
+	var embedRequests []*inferencev1.EmbedRequest
 	handler := server.Config.Handler
 	server.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/__journey/stop" {
@@ -112,8 +128,33 @@ func TestJourneyEmbeddedGatewayServer(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/__journey/evidence" {
-			_ = json.NewEncoder(w).Encode(map[string]int32{"calls": calls.Load()})
+			embedMu.Lock()
+			embeds := make([]map[string]any, 0, len(embedRequests))
+			for _, request := range embedRequests {
+				embeds = append(embeds, map[string]any{
+					"role": request.GetRole(), "profile": request.GetProfile().String(),
+					"privacy_class": request.GetPrivacyClass().String(), "privacy_provenance": request.GetPrivacyProvenance(),
+				})
+			}
+			embedMu.Unlock()
+			_ = json.NewEncoder(w).Encode(map[string]any{"calls": calls.Load(), "embed_requests": embeds})
 			return
+		}
+		if r.URL.Path == inferenceconnect.InferenceServiceEmbedProcedure {
+			wire, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				t.Errorf("read Embed request at Gateway wire boundary: %v", readErr)
+			} else {
+				message := &inferencev1.EmbedRequest{}
+				if decodeErr := proto.Unmarshal(wire, message); decodeErr != nil {
+					t.Errorf("decode Embed request at Gateway wire boundary: %v", decodeErr)
+				} else {
+					embedMu.Lock()
+					embedRequests = append(embedRequests, proto.Clone(message).(*inferencev1.EmbedRequest))
+					embedMu.Unlock()
+				}
+			}
+			r.Body = io.NopCloser(bytes.NewReader(wire))
 		}
 		calls.Add(1)
 		handler.ServeHTTP(w, r)

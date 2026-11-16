@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/orchestration/spawn"
 	"agent-manager/internal/runreport"
 	"agent-manager/internal/runsignal"
+	"agent-manager/internal/toolfriction"
 
 	agentconfig "agent-manager/internal/config"
 
@@ -162,6 +163,10 @@ type RunReportService interface {
 	BuildRunReport(context.Context, uuid.UUID) (*runreport.RunReport, error)
 }
 
+type RuntimeFrictionService interface {
+	RuntimeFrictionReport(context.Context, time.Time, time.Time) (toolfriction.RuntimeReport, error)
+}
+
 // RunAccountingService reads one run's metered usage for reservation settlement.
 type RunAccountingService interface {
 	RunAccounting(context.Context, uuid.UUID) (RunAccounting, error)
@@ -211,6 +216,7 @@ type HandlerServices struct {
 	IdentityService
 	DelegationService
 	RunReportService
+	RuntimeFrictionService
 	RunAccountingService
 	RunTreeService
 	InvocationFactService
@@ -240,6 +246,7 @@ func NewHandlerServices(orchestrator *Orchestrator) HandlerServices {
 		IdentityService:              orchestrator,
 		DelegationService:            orchestrator,
 		RunReportService:             orchestrator,
+		RuntimeFrictionService:       orchestrator,
 		RunAccountingService:         orchestrator,
 		RunTreeService:               orchestrator,
 		InvocationFactService:        orchestrator,

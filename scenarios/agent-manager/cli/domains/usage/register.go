@@ -34,7 +34,7 @@ func Register(run ...cliapp.Command) cliapp.SubcommandGroup {
 
 // RegisterWithCensus adds a complete read-only running-run census to capacity.
 func RegisterWithCensus(census RunningRunCensus, run ...cliapp.Command) cliapp.SubcommandGroup {
-	commands := []cliapp.Command{capacityCommand(connectClient, census), forecastCommand(connectClient), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(frictionConnectClient), frictionDismissCommand(frictionConnectClient), opportunitiesCommand(registryFetch), coverageCommand(connectClient), compareCommand(connectClient), parityCommand(connectClient), outcomesCommand(connectClient)}
+	commands := []cliapp.Command{capacityCommand(connectClient, census), forecastCommand(connectClient), paceCommand(paceHTTPClient), burnersCommand(connectClient), recommendationsCommand(connectClient), frictionCommand(connectClient), frictionReportCommand(frictionConnectClient), frictionDismissCommand(frictionConnectClient), opportunitiesCommand(registryFetch), coverageCommand(connectClient), compareCommand(connectClient), parityCommand(connectClient), outcomesCommand(connectClient)}
 	return cliapp.SubcommandGroup{Name: "usage", Description: "Provider subscription usage from the provider's own quota readings", NeedsAPI: true, Subcommands: append(commands, run...)}
 }
 

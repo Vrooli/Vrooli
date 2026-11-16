@@ -124,7 +124,8 @@ func (e *RunExecutor) tryCodingBackup(ctx context.Context, selected runner.Runne
 		}
 	}}
 	out := phases.ExecuteAgent(ctx, phases.ExecuteAgentInput{
-		Deps: e.deps(), Run: e.run, Task: e.task, Profile: e.profile, Runner: selected,
+		PrepareLaunch: treasurySessionLaunchPreparer(e.treasurySessionKeys, e.run.ID, e.identityToken, e.identitySecret),
+		Deps:          e.deps(), Run: e.run, Task: e.task, Profile: e.profile, Runner: selected,
 		WorkingDir: e.workDir, RunStateRoot: e.runStateRoot, RunStateWrite: e.runStateWrite,
 		SandboxID: e.sandboxID, Prompt: e.prompt + "\n\n" + summary, SystemPrompt: e.systemPrompt,
 		Attachments: e.attachments, EnvVars: env, PolicyFiles: e.policyFiles, EventSink: notifying,

@@ -93,6 +93,20 @@ func (o *Orchestrator) GetRunEventSummary(ctx context.Context, runID uuid.UUID, 
 	return o.events.Summarize(ctx, runID, opts)
 }
 
+// ListRunEventMetadata serves the payload-free source identity projection.
+// The optional reader keeps alternate event stores source-compatible while
+// ensuring the SQLite owner implements the projection directly in SQL.
+func (o *Orchestrator) ListRunEventMetadata(ctx context.Context, runID uuid.UUID, opts event.GetOptions) ([]event.Metadata, bool, error) {
+	if o.events == nil {
+		return nil, false, domain.NewConfigMissingError("eventStore", "not configured", nil)
+	}
+	reader, ok := o.events.(event.MetadataReader)
+	if !ok {
+		return nil, false, domain.NewConfigMissingError("eventMetadataReader", "not supported by configured event store", nil)
+	}
+	return reader.ListMetadata(ctx, runID, opts)
+}
+
 func (o *Orchestrator) StreamRunEvents(ctx context.Context, runID uuid.UUID, opts event.StreamOptions) (<-chan *domain.RunEvent, error) {
 	if o.events == nil {
 		return nil, domain.NewConfigMissingError("eventStore", "not configured", nil)

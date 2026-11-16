@@ -72,6 +72,9 @@ type PolicyFile struct {
 
 // LaunchRequest carries everything a runner needs to start its agent process.
 type LaunchRequest struct {
+	// PrepareLaunch acquires launch-scoped secrets immediately before process
+	// creation and returns a release function held until the launcher returns.
+	PrepareLaunch func(context.Context, *LaunchRequest) (func(), error)
 	// RunID and EventSink allow infrastructure-level launch failures to be
 	// recorded in the same durable run event stream as runner events.
 	RunID     uuid.UUID

@@ -6,3 +6,4 @@ api/coverage.out
 api/cov.out
 api/agent-manager-api
 *.test
+/api/agent-manager

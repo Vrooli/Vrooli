@@ -11,6 +11,7 @@ import { consequence, isAtRisk, pickWindow } from "./usageFocus";
 import { UsageActions } from "./UsageActions";
 import { effectOfAction, runnerForProvider, type EffectRange, type ModeRunner } from "./modes";
 import { UsageModeBanners } from "./UsageModeBanner";
+import { AutoSaveRules } from "./AutoSaveRules";
 import { UsageModeSheet } from "./UsageModeSheet";
 import { UsageBurners } from "./UsageBurners";
 import { UsageWindows, WindowDetail } from "./UsageWindows";
@@ -78,6 +79,7 @@ export function UsageOverview() {
   return (
     <div className="flex flex-col gap-4">
       <UsageModeBanners modes={modes.data} windows={windows} />
+      <AutoSaveRules />
       {selected && (modes.data?.modes.length ?? 0) === 0 ? (
         <div className="flex justify-end"><Button variant="secondary" onClick={startFromWindow} data-testid="mode-open-sheet">Save usage for a while</Button></div>
       ) : null}

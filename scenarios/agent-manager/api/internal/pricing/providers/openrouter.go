@@ -102,56 +102,16 @@ func (p *OpenRouterProvider) SupportsModel(canonicalModel string) bool {
 
 // FetchAllPricing retrieves pricing for all available models from OpenRouter.
 func (p *OpenRouterProvider) FetchAllPricing(ctx context.Context) ([]*pricing.ModelPricing, error) {
-	// Check cache first
-	p.cacheMu.RLock()
-	if len(p.cache) > 0 && time.Since(p.fetchedAt) < p.ttl {
-		result := make([]*pricing.ModelPricing, 0, len(p.cache))
-		for _, mp := range p.cache {
-			result = append(result, mp.Clone())
-		}
-		p.cacheMu.RUnlock()
-		return result, nil
-	}
-	p.cacheMu.RUnlock()
-
-	// Fetch from API
-	if err := p.refresh(ctx); err != nil {
-		// Return cached data if refresh fails
-		p.cacheMu.RLock()
-		defer p.cacheMu.RUnlock()
-		if len(p.cache) > 0 {
-			result := make([]*pricing.ModelPricing, 0, len(p.cache))
-			for _, mp := range p.cache {
-				result = append(result, mp.Clone())
-			}
-			return result, nil
-		}
-		return nil, err
-	}
-
-	p.cacheMu.RLock()
-	defer p.cacheMu.RUnlock()
-	result := make([]*pricing.ModelPricing, 0, len(p.cache))
-	for _, mp := range p.cache {
-		result = append(result, mp.Clone())
-	}
-	return result, nil
+	return fetchAllPricing(ctx, &p.cacheMu, func() (map[string]*pricing.ModelPricing, time.Time, time.Duration) {
+		return p.cache, p.fetchedAt, p.ttl
+	}, p.refresh)
 }
 
 // FetchModelPricing retrieves pricing for a specific model.
 func (p *OpenRouterProvider) FetchModelPricing(ctx context.Context, canonicalModel string) (*pricing.ModelPricing, error) {
-	// Ensure cache is populated
-	if _, err := p.FetchAllPricing(ctx); err != nil {
-		return nil, err
-	}
-
-	p.cacheMu.RLock()
-	defer p.cacheMu.RUnlock()
-
-	if mp, ok := p.cache[canonicalModel]; ok {
-		return mp.Clone(), nil
-	}
-	return nil, nil
+	return fetchModelPricing(ctx, canonicalModel, &p.cacheMu, func() (map[string]*pricing.ModelPricing, time.Time, time.Duration) {
+		return p.cache, p.fetchedAt, p.ttl
+	}, p.refresh)
 }
 
 // refresh fetches fresh pricing data from the OpenRouter API.

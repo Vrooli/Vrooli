@@ -439,53 +439,12 @@ func (o *Orchestrator) runApprovalEvent(ctx context.Context, run *domain.Run, di
 	if err != nil {
 		return eventbus.DomainEvent{}, err
 	}
-	changedFiles := diff.Stats.FilesChanged
-	if changedFiles == 0 && len(diff.Files) > 0 {
-		changedFiles = len(diff.Files)
-	}
-	changeCount := pluralizeFiles(changedFiles)
-	question := fmt.Sprintf("Apply the changes from this run? %s changed.", changeCount)
-	technicalDetails := fmt.Sprintf("This sandboxed run currently shows %s in its diff. Review the diff and run results before choosing. No changes are applied without an explicit approval, and this decision is not broader task or goal acceptance.", changeCount)
-	if changedFiles <= 0 {
-		// An incomplete empty-looking payload is not verified proof that no
-		// files changed. Keep the review visible without claiming a zero diff.
-		question = "Apply the changes from this run? The complete file count is unavailable."
-		technicalDetails = "This sandboxed run currently has an empty-looking diff payload whose complete file count is unavailable. Review the diff and run results before choosing. No changes are applied without an explicit approval, and this decision is not broader task or goal acceptance."
-	}
-	label := approvalRunLabel(run)
-	subject := "Run " + shortRunID(run.ID.String()) + " needs review"
-	if label != "" {
-		subject += ": " + label
-	}
-	bigPicture := "Review the proposed sandbox changes before they are applied. Approving applies them to the canonical repository; rejecting discards the sandbox changes."
-	if label != "" {
-		bigPicture = fmt.Sprintf("Review the proposed sandbox changes for %q before they are applied. Approving applies them to the canonical repository; rejecting discards the sandbox changes.", label)
-		if changedFiles <= 0 {
-			technicalDetails = fmt.Sprintf("Run %q currently has an empty-looking diff payload whose complete file count is unavailable. Review the diff and run results before choosing. No changes are applied without an explicit approval, and this decision is not broader task or goal acceptance.", label)
-		} else {
-			technicalDetails = fmt.Sprintf("Run %q currently shows %s in its sandbox diff. Review the diff and run results before choosing. No changes are applied without an explicit approval, and this decision is not broader task or goal acceptance.", label, changeCount)
-		}
-	}
-	facts := operatordecision.Facts{
-		Subject:  subject,
-		Question: question,
-		Options: []operatordecision.Option{
-			{Key: "approve", Label: "Approve & apply"},
-			{Key: "reject", Label: "Reject & discard"},
-		},
-		Recommended: "approve",
-		// reversible=true: a reviewed run can be re-run; no silent default is set so
-		// nothing is ever applied without an explicit operator answer.
-		Reversible:       true,
-		Urgency:          "normal",
-		BigPicture:       bigPicture,
-		TechnicalDetails: technicalDetails,
-		ContextURL:       reviewURLForBase(o.resolveWebConsoleNoticeBase(ctx), run),
-		Correlation: map[string]string{
-			"run_id":              run.ID.String(),
-			"review_generation":   generation,
-			"review_patch_sha256": diff.PatchSHA256,
-		},
+	facts := o.runApprovalFacts(ctx, run, diff)
+	facts.ContextURL = reviewURLForBase(o.resolveWebConsoleNoticeBase(ctx), run)
+	facts.Correlation = map[string]string{
+		"run_id":              run.ID.String(),
+		"review_generation":   generation,
+		"review_patch_sha256": diff.PatchSHA256,
 	}
 
 	// A stable occurrence time keeps the event id (SHA-256 of the event)
@@ -576,20 +535,6 @@ func generationArchiveState(state sandbox.ArchiveState) sandbox.ArchiveState {
 	return state
 }
 
-// approvalRunLabel uses the label copied onto the run at admission. It avoids
-// a task lookup during notification and keeps this context stable across retries.
-func approvalRunLabel(run *domain.Run) string {
-	if run == nil {
-		return ""
-	}
-	value := strings.Join(strings.Fields(run.Label), " ")
-	runes := []rune(value)
-	if len(runes) > 140 {
-		return string(runes[:137]) + "…"
-	}
-	return value
-}
-
 // reviewURLForBase builds a browser link to the run's review page in
 // web-console. Empty when base is empty (the notification then omits the link
 // and the operator opens the AI Changes queue directly).
@@ -605,13 +550,6 @@ func shortRunID(id string) string {
 		return id[:8]
 	}
 	return id
-}
-
-func pluralizeFiles(n int) string {
-	if n == 1 {
-		return "1 file"
-	}
-	return fmt.Sprintf("%d files", n)
 }
 
 // ResolveRunApprovalFromHub applies a notification-hub ask resolution that

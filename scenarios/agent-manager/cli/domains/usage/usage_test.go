@@ -150,9 +150,8 @@ func TestRegisterDeclaresTheUsageGroup(t *testing.T) {
 			t.Fatalf("%s: %v", cmd.Name, err)
 		}
 	}
-	// SPEC §4 and P2-D1: usage capacity|forecast|burners|recommendations|friction (with
-	// its report and dismiss actions)|opportunities|coverage|compare|parity|outcomes.
-	if group.Name != "usage" || strings.Join(names, ",") != "capacity,forecast,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare,parity,outcomes" {
+	// SPEC §4 and P2-D1: the read-only pace view joins the existing usage questions.
+	if group.Name != "usage" || strings.Join(names, ",") != "capacity,forecast,pace,burners,recommendations,friction,friction-report,friction-dismiss,opportunities,coverage,compare,parity,outcomes" {
 		t.Fatalf("group %q declares %v", group.Name, names)
 	}
 }
