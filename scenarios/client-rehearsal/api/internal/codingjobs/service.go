@@ -67,12 +67,10 @@ func (s *service) RecordStage(ctx context.Context, in StageInput) (Job, error) {
 	if in.EvidenceSHA256 != "" && !validSHA256(in.EvidenceSHA256) {
 		return Job{}, ErrInvalid{Reason: "evidence_sha256 must be 64 hexadecimal characters"}
 	}
-	next, err := transition(job.State, in.Stage, in.Actor, in.EvidenceRef, in.EvidenceSHA256)
-	if err != nil {
+	if err := job.advance(in.Stage, in.Actor, in.EvidenceRef, in.EvidenceSHA256, ""); err != nil {
 		return Job{}, err
 	}
 	now := s.now().UTC()
-	job.State = next
 	if in.Stage == "solver_completed" {
 		job.SolverRunRef = in.EvidenceRef
 	}
@@ -82,20 +80,44 @@ func (s *service) RecordStage(ctx context.Context, in StageInput) (Job, error) {
 	return s.repo.Update(ctx, job, in.ExpectedRevision)
 }
 
-func transition(state State, stage, actor, ref, digest string) (State, error) {
+func (job *Job) advance(stage, actor, ref, digest, outcome string) error {
+	next, err := transition(job.State, stage, actor, ref, digest, outcome)
+	if err != nil {
+		return err
+	}
+	job.State = next
+	return nil
+}
+
+func transition(state State, stage, actor, ref, digest, outcome string) (State, error) {
 	if ref == "" {
 		return "", ErrInvalid{Reason: "evidence_ref is required for stage transitions"}
+	}
+	if stage == "solver_completed" && !validSHA256(digest) {
+		return "", ErrInvalid{Reason: "evidence_sha256 must be 64 hexadecimal characters"}
 	}
 	switch {
 	case state == StateReady && stage == "solver_started" && actor == "agent-manager-solver":
 		return StateSolving, nil
-	case state == StateSolving && stage == "solver_completed" && actor == "agent-manager-solver" && validSHA256(digest):
+	case state == StateSolving && stage == "solver_completed" && actor == "agent-manager-solver":
 		return StateScoring, nil
 	case state == StateScoring && stage == "scoring_started" && actor == "agent-manager-scorer":
 		return StateScoring, nil
+	case state == StateScoring && stage == "evaluation_recorded" && outcome == "strict_pass":
+		return StateReviewable, nil
+	case state == StateScoring && stage == "evaluation_recorded" && outcome == "non_pass":
+		return StateFailed, nil
 	default:
 		return "", ErrConflict{Reason: fmt.Sprintf("stage %q by %q is not allowed while coding job is %q", stage, actor, state)}
 	}
+}
+
+func evaluationOutcome(score string) string {
+	// RecordEvaluation validates the closed score vocabulary before this mapping.
+	if score == "strict_pass" {
+		return "strict_pass"
+	}
+	return "non_pass"
 }
 
 // CandidateSealDigest binds source review to the durable solver-completion
@@ -134,6 +156,7 @@ func (s *service) RecordEvaluation(ctx context.Context, in EvaluationInput) (Job
 	if in.Score != "strict_pass" && in.Score != "candidate_failed" && in.Score != "reference_failed" && in.Score != "preimage_not_red" && in.Score != "invalid" {
 		return Job{}, ErrInvalid{Reason: "score must be a closed three-way evaluation outcome"}
 	}
+	outcome := evaluationOutcome(in.Score)
 	job, err := s.repo.Get(ctx, in.ID)
 	if err != nil {
 		return Job{}, err
@@ -141,17 +164,16 @@ func (s *service) RecordEvaluation(ctx context.Context, in EvaluationInput) (Job
 	if job.Revision != in.ExpectedRevision {
 		return Job{}, ErrConflict{Reason: "coding job changed; reload its current revision"}
 	}
-	if job.State != StateScoring || job.EvaluatorReceiptRef != "" {
+	if job.EvaluatorReceiptRef != "" {
 		return Job{}, ErrConflict{Reason: "only one evaluation may be recorded after scoring begins"}
+	}
+	if err := job.advance("evaluation_recorded", "", in.ReceiptRef, in.ReceiptSHA256, outcome); err != nil {
+		return Job{}, err
 	}
 	now := s.now().UTC()
 	job.EvaluatorReceiptRef = in.ReceiptRef
 	job.EvaluatorReceiptSHA256 = in.ReceiptSHA256
 	job.Score = in.Score
-	job.State = StateFailed
-	if in.Score == "strict_pass" {
-		job.State = StateReviewable
-	}
 	job.Revision++
 	job.UpdatedAt = now
 	job.Events = append(job.Events, Event{Sequence: uint64(len(job.Events) + 1), Stage: "evaluation_recorded", Actor: "test-genie", EvidenceRef: in.ReceiptRef, EvidenceSHA256: in.ReceiptSHA256, Note: in.Score, OccurredAt: now})

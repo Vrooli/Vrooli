@@ -2,6 +2,8 @@ package rehearsals
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -28,7 +30,7 @@ func TestTaskScopedRunCreatesOwnsStartsAndVerifiesTeardown(t *testing.T) {
 	profile, digest := lifecycleTestProfile(t)
 	var companionHits atomic.Uint64
 	companion := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.Host != "crm.synthetic.invalid:18080" || r.URL.Path != "/v1/contacts" {
+		if r.Method != http.MethodPost || !oneOfFold(r.Host, "crm.synthetic.invalid:18080", "crm.synthetic.invalid:443", "crm.synthetic.invalid") || r.URL.Path != "/v1/contacts" {
 			t.Errorf("unexpected companion request: %s %s host=%q", r.Method, r.URL, r.Host)
 		}
 		companionHits.Add(1)
@@ -43,6 +45,8 @@ func TestTaskScopedRunCreatesOwnsStartsAndVerifiesTeardown(t *testing.T) {
 	var calls []string
 	var eventOrder []string
 	deleted := false
+	var nativeVirtualAPI bool
+	var nativeVirtualDigest string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls = append(calls, r.Method+" "+r.URL.Path)
 		switch {
@@ -50,19 +54,42 @@ func TestTaskScopedRunCreatesOwnsStartsAndVerifiesTeardown(t *testing.T) {
 			eventOrder = append(eventOrder, "sandbox-create")
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": lifecycleSandboxID, "name": "task-rehearsal", "projectRoot": root, "scopePath": scope, "owner": owner, "ownerType": "task", "idempotencyKey": "task-scope:task-1"})
 		case r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, "/companion-services"):
+			var declaration struct {
+				Services []struct {
+					Kind       string            `json:"kind"`
+					VirtualAPI VirtualAPIProfile `json:"virtualAPI"`
+				} `json:"services"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&declaration); err != nil || len(declaration.Services) != 1 {
+				t.Fatalf("decode native companion declaration: services=%#v err=%v", declaration.Services, err)
+			}
+			nativeVirtualAPI = declaration.Services[0].Kind == "virtual-api"
+			if nativeVirtualAPI {
+				nativeVirtualDigest, err = virtualAPIProfileDigest(lifecycleSandboxID, declaration.Services[0].VirtualAPI)
+				if err != nil {
+					t.Fatalf("digest recorded-exchange VirtualAPI profile: %v", err)
+				}
+			}
 			w.WriteHeader(http.StatusOK)
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/workflow-apis/start"):
 			eventOrder = append(eventOrder, "companion-start")
-			_ = json.NewEncoder(w).Encode(WorkspaceSandboxProfileReceipt{Spec: struct {
+			startReceipt := WorkspaceSandboxProfileReceipt{Spec: struct {
 				Name    string `json:"name"`
 				Kind    string `json:"kind"`
 				Version string `json:"version"`
-			}{Name: taskSandboxProfileName, Kind: "http-mock", Version: taskSandboxProfileVersion}, Status: "running", Addresses: map[string]string{"crm.synthetic.invalid": "http://crm.synthetic.invalid:18080"}, OperationAddresses: []HTTPMockOperationAddress{{Selector: profile.Operations[0].Selector, Method: "POST", URL: "http://crm.synthetic.invalid:18080/v1/contacts"}}, ProfileSHA256: digest})
+			}{Name: taskSandboxProfileName, Kind: "http-mock", Version: taskSandboxProfileVersion}, Status: "running", Addresses: map[string]string{"crm.synthetic.invalid": "http://crm.synthetic.invalid:18080"}, OperationAddresses: []HTTPMockOperationAddress{{Selector: profile.Operations[0].Selector, Method: "POST", URL: "http://crm.synthetic.invalid:18080/v1/contacts"}}, ProfileSHA256: digest}
+			if nativeVirtualAPI {
+				startReceipt.Spec.Kind = "virtual-api"
+				startReceipt.Addresses = map[string]string{"crm.synthetic.invalid": "https://crm.synthetic.invalid:443"}
+				startReceipt.OperationAddresses = nil
+				startReceipt.ProfileSHA256 = nativeVirtualDigest
+			}
+			_ = json.NewEncoder(w).Encode(startReceipt)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/sandboxes/"+lifecycleSandboxID && !deleted:
 			_ = json.NewEncoder(w).Encode(map[string]any{"id": lifecycleSandboxID, "name": "task-rehearsal", "projectRoot": root, "scopePath": scope, "owner": owner, "ownerType": "task", "idempotencyKey": "task-scope:task-1", "status": "active"})
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/sandboxes/"+lifecycleSandboxID+"/companion-services/workflow-apis/route-hits":
 			eventOrder = append(eventOrder, "route-hits")
-			_ = json.NewEncoder(w).Encode(HTTPMockRouteHitsReceipt{SandboxID: lifecycleSandboxID, CompanionRuntimeID: "n8n-httpmock:" + lifecycleSandboxID, Status: "available", TotalHits: companionHits.Load(), Routes: []HTTPMockRouteHit{{Host: "crm.synthetic.invalid", Method: "POST", Path: "/v1/contacts", Count: companionHits.Load()}}})
+			_ = json.NewEncoder(w).Encode(HTTPMockRouteHitsReceipt{SandboxID: lifecycleSandboxID, CompanionRuntimeID: "n8n-httpmock:" + lifecycleSandboxID, Status: "available", TotalHits: companionHits.Load(), Routes: []HTTPMockRouteHit{{Host: "crm.synthetic.invalid", Method: "POST", Path: "/v1/contacts", QuerySHA256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", Count: companionHits.Load()}}})
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/workflow-apis/stop"):
 			eventOrder = append(eventOrder, "companion-stop")
 			w.WriteHeader(http.StatusOK)
@@ -107,16 +134,58 @@ func TestTaskScopedRunCreatesOwnsStartsAndVerifiesTeardown(t *testing.T) {
 	companionHits.Store(0)
 	runtime := &taskN8NRuntimeFake{events: &eventOrder, routeClient: sandboxHTTPClient}
 	nativeService := NewServiceWithNativeN8N(newMemoryRepository(), SyntheticEngine{}, time.Now, client, runtime)
-	nativeRun, err := nativeService.CreateAndRunTaskScoped(context.Background(), CreateInput{Title: "Native synthetic contact intake", WorkflowJSON: workflow, SimulatorSourceJSON: `{"kind":"recorded-exchanges","exchanges":[{"method":"POST","host":"crm.synthetic.invalid","path":"/v1/contacts","status":201,"response":{"id":"contact-real-ish","status":"created"}}]}`}, WorkspaceSandboxTaskRequest{TaskID: "task-1", Name: "task-rehearsal"})
+	nativeRun, err := nativeService.CreateAndRunTaskScoped(context.Background(), CreateInput{Title: "Native synthetic contact intake", WorkflowJSON: workflow, TriggerInput: map[string]any{"contactName": "Synthetic contact"}, SimulatorSourceJSON: `{"kind":"recorded-exchanges","exchanges":[{"method":"POST","host":"crm.synthetic.invalid","path":"/v1/contacts","status":201,"response":{"id":"contact-real-ish","status":"created"}}]}`}, WorkspaceSandboxTaskRequest{TaskID: "task-1", Name: "task-rehearsal"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if nativeRun.Rehearsal.State != StateNeedsReview || nativeRun.Lifecycle.N8NRuntimeStatus != "stopped" || nativeRun.Lifecycle.N8NExecution == nil || nativeRun.Lifecycle.RouteHitsStatus != "available" || nativeRun.Lifecycle.RouteHits.TotalHits != 1 || !strings.Contains(nativeRun.Rehearsal.HandoffMarkdown, "Native n8n runtime: `stopped`; execution `completed` (2 nodes, 2 run(s), 1 item(s))") {
+	if nativeRun.Rehearsal.State != StateNeedsReview || nativeRun.Lifecycle.N8NRuntimeStatus != "stopped" || nativeRun.Lifecycle.N8NExecution == nil || nativeRun.Lifecycle.RouteHitsStatus != "available" || nativeRun.Lifecycle.RouteHits.TotalHits != 1 || !strings.Contains(nativeRun.Rehearsal.HandoffMarkdown, "Native n8n runtime: `stopped`; execution `completed` (3 nodes, 3 run(s), 1 item(s))") || !strings.Contains(nativeRun.Rehearsal.Trace[0].RequestSummary, "bounded synthetic input injected") {
 		t.Fatalf("native owner receipts were not retained: %#v", nativeRun.Lifecycle)
 	}
-	wantOrder := []string{"sandbox-create", "n8n-start", "companion-start", "n8n-execute", "route-hits", "n8n-stop", "companion-stop", "sandbox-delete"}
+	// Reserved synthetic.invalid fixtures use the task-local HTTP-mock listener,
+	// which does not need to install CA trust before the n8n runtime starts.
+	wantOrder := []string{"sandbox-create", "n8n-start", "companion-start", "n8n-manual-input", "route-hits", "n8n-stop", "companion-stop", "sandbox-delete"}
 	if strings.Join(eventOrder, ",") != strings.Join(wantOrder, ",") {
 		t.Fatalf("native task ordering = %v, want %v", eventOrder, wantOrder)
+	}
+	deleted = false
+	calls = nil
+	eventOrder = nil
+	companionHits.Store(0)
+	webhookWorkflow := `{"name":"Webhook contact intake","nodes":[{"name":"Webhook","type":"n8n-nodes-base.webhook","parameters":{"httpMethod":"POST","path":"events"}},{"name":"Create contact","type":"n8n-nodes-base.httpRequest","parameters":{"method":"POST","url":"https://crm.synthetic.invalid/v1/contacts"}}],"connections":{"Webhook":{"main":[[{"node":"Create contact"}]]}}}`
+	webhookService := NewServiceWithNativeN8N(newMemoryRepository(), SyntheticEngine{}, time.Now, client, &taskN8NRuntimeFake{events: &eventOrder, routeClient: sandboxHTTPClient})
+	webhookRun, err := webhookService.CreateAndRunTaskScoped(context.Background(), CreateInput{Title: "Native synthetic webhook intake", WorkflowJSON: webhookWorkflow, TriggerInput: map[string]any{"event": "synthetic"}, SimulatorSourceJSON: `{"kind":"recorded-exchanges","exchanges":[{"method":"POST","host":"crm.synthetic.invalid","path":"/v1/contacts","status":201,"response":{"id":"synthetic-contact","status":"created"}}]}`}, WorkspaceSandboxTaskRequest{TaskID: "task-1", Name: "task-rehearsal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if webhookRun.Rehearsal.State != StateNeedsReview || webhookRun.Lifecycle.RouteHits == nil || webhookRun.Lifecycle.RouteHits.TotalHits != 1 || webhookRun.Lifecycle.TeardownStatus != "succeeded" {
+		t.Fatalf("native webhook did not complete its synthetic task lifecycle: run=%#v lifecycle=%#v", webhookRun.Rehearsal, webhookRun.Lifecycle)
+	}
+	if !strings.Contains(webhookRun.Rehearsal.HandoffMarkdown, "Native n8n webhook: runtime `stopped`; dispatch `completed`; HTTP 202") {
+		t.Fatalf("webhook handoff omitted trigger-specific receipt evidence: %s", webhookRun.Rehearsal.HandoffMarkdown)
+	}
+	if got := webhookRun.Rehearsal.Trace[0].RequestSummary; !strings.Contains(got, "webhook trigger") || strings.Contains(got, `{"event":"synthetic"}`) {
+		t.Fatalf("webhook trace should identify trigger and omit input values: %q", got)
+	}
+	wantWebhookOrder := []string{"sandbox-create", "n8n-start", "companion-start", "n8n-webhook", "route-hits", "n8n-stop", "companion-stop", "sandbox-delete"}
+	if strings.Join(eventOrder, ",") != strings.Join(wantWebhookOrder, ",") {
+		t.Fatalf("native webhook task ordering = %v, want %v", eventOrder, wantWebhookOrder)
+	}
+	deleted = false
+	calls = nil
+	eventOrder = nil
+	companionHits.Store(0)
+	scheduledService := NewServiceWithNativeN8N(newMemoryRepository(), SyntheticEngine{}, time.Now, client, &taskN8NRuntimeFake{events: &eventOrder, routeClient: sandboxHTTPClient})
+	scheduledWorkflow := `{"name":"Daily contact sync","nodes":[{"id":"schedule","name":"Schedule","type":"n8n-nodes-base.scheduleTrigger","parameters":{"rule":{"interval":[{"field":"days","daysInterval":1,"triggerAtHour":8,"triggerAtMinute":0}]}}},{"id":"request","name":"Create contact","type":"n8n-nodes-base.httpRequest","parameters":{"method":"POST","url":"https://crm.synthetic.invalid/v1/contacts"}}],"connections":{"Schedule":{"main":[[{"node":"Create contact"}]]}}}`
+	scheduledRun, err := scheduledService.CreateAndRunTaskScoped(context.Background(), CreateInput{Title: "Native scheduled contact sync", WorkflowJSON: scheduledWorkflow, TriggerInput: map[string]any{"contactName": "Scheduled synthetic contact"}, SimulatorSourceJSON: `{"kind":"recorded-exchanges","exchanges":[{"method":"POST","host":"crm.synthetic.invalid","path":"/v1/contacts","status":201,"response":{"id":"synthetic-contact","status":"created"}}]}`}, WorkspaceSandboxTaskRequest{TaskID: "task-1", Name: "task-rehearsal"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if scheduledRun.Rehearsal.State != StateNeedsReview || scheduledRun.Lifecycle.RouteHits == nil || scheduledRun.Lifecycle.RouteHits.TotalHits != 1 || scheduledRun.Lifecycle.N8NExecution == nil || scheduledRun.Lifecycle.N8NExecution.TriggerKind != string(TriggerScheduled) || scheduledRun.Lifecycle.N8NExecution.DispatchMode != "manual-one-shot" || !strings.Contains(scheduledRun.Rehearsal.HandoffMarkdown, "Native n8n schedule graph run: `stopped`; execution `completed`") || !strings.Contains(scheduledRun.Rehearsal.Trace[0].RequestSummary, "bounded synthetic input injected") {
+		t.Fatalf("native schedule run lacks trigger-specific owner/route/handoff evidence: run=%#v lifecycle=%#v", scheduledRun.Rehearsal, scheduledRun.Lifecycle)
+	}
+	wantScheduleOrder := []string{"sandbox-create", "n8n-start", "companion-start", "n8n-scheduled-input", "route-hits", "n8n-stop", "companion-stop", "sandbox-delete"}
+	if strings.Join(eventOrder, ",") != strings.Join(wantScheduleOrder, ",") {
+		t.Fatalf("native scheduled task order = %v, want %v", eventOrder, wantScheduleOrder)
 	}
 	deleted = false
 	calls = nil
@@ -206,11 +275,39 @@ func (f *taskN8NRuntimeFake) Start(_ context.Context, sandboxID string) (N8NTask
 
 func (f *taskN8NRuntimeFake) ImportAndExecuteManual(ctx context.Context, lease N8NTaskRuntimeLease, workflow string) (N8NWorkflowExecutionEvidence, error) {
 	*f.events = append(*f.events, "n8n-execute")
-	if lease.RuntimeID == "" || !strings.Contains(workflow, "manualTrigger") || !strings.Contains(workflow, "crm.synthetic.invalid:18080/v1/contacts") {
-		return N8NWorkflowExecutionEvidence{}, errors.New("native test received invalid workflow/runtime")
+	if err := f.executeSyntheticContact(ctx, lease, workflow, "manualTrigger"); err != nil {
+		return N8NWorkflowExecutionEvidence{}, err
+	}
+	return N8NWorkflowExecutionEvidence{OperationID: "00000000-0000-4000-8000-000000000001", Status: "completed", NodeCount: 2, RunCount: 2, ItemCount: 1}, nil
+}
+
+func (f *taskN8NRuntimeFake) ImportAndExecuteManualWithInput(ctx context.Context, lease N8NTaskRuntimeLease, workflow string, input map[string]any) (N8NWorkflowExecutionEvidence, error) {
+	*f.events = append(*f.events, "n8n-manual-input")
+	taskCopy, err := injectSyntheticInputAfterEntry(workflow, input, TriggerManual)
+	if err != nil || !strings.Contains(taskCopy, `"name":"Vrooli Synthetic Input"`) {
+		return N8NWorkflowExecutionEvidence{}, errors.New("native test manual input adapter did not produce the isolated task copy")
+	}
+	if err := f.executeSyntheticContact(ctx, lease, taskCopy, "manualTrigger"); err != nil {
+		return N8NWorkflowExecutionEvidence{}, err
+	}
+	return N8NWorkflowExecutionEvidence{OperationID: "00000000-0000-4000-8000-000000000004", TriggerKind: string(TriggerManual), Status: "completed", NodeCount: 3, RunCount: 3, ItemCount: 1}, nil
+}
+
+func (f *taskN8NRuntimeFake) ImportAndDispatchWebhook(ctx context.Context, lease N8NTaskRuntimeLease, workflow string, eventJSON []byte) (N8NWorkflowExecutionEvidence, error) {
+	*f.events = append(*f.events, "n8n-webhook")
+	if lease.RuntimeID == "" || !strings.Contains(workflow, "n8n-nodes-base.webhook") || !strings.Contains(workflow, "/v1/contacts") || !strings.Contains(workflow, "crm.synthetic.invalid") {
+		return N8NWorkflowExecutionEvidence{}, errors.New("native webhook test received invalid workflow/runtime")
+	}
+	var event map[string]any
+	if err := json.Unmarshal(eventJSON, &event); err != nil || event["event"] != "synthetic" {
+		return N8NWorkflowExecutionEvidence{}, errors.New("native webhook test received invalid event")
 	}
 	if f.routeClient != nil {
-		request, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://crm.synthetic.invalid:18080/v1/contacts", strings.NewReader(`{"name":"Synthetic contact"}`))
+		targetURL := "http://crm.synthetic.invalid:18080/v1/contacts"
+		if strings.Contains(workflow, "https://crm.synthetic.invalid:443/v1/contacts") {
+			targetURL = "https://crm.synthetic.invalid:443/v1/contacts"
+		}
+		request, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, strings.NewReader(string(eventJSON)))
 		if err != nil {
 			return N8NWorkflowExecutionEvidence{}, err
 		}
@@ -224,7 +321,66 @@ func (f *taskN8NRuntimeFake) ImportAndExecuteManual(ctx context.Context, lease N
 			return N8NWorkflowExecutionEvidence{}, errors.New("synthetic companion route returned a non-success status")
 		}
 	}
-	return N8NWorkflowExecutionEvidence{OperationID: "00000000-0000-4000-8000-000000000001", Status: "completed", NodeCount: 2, RunCount: 2, ItemCount: 1}, nil
+	inputHash, responseHash := sha256.Sum256(eventJSON), sha256.Sum256([]byte("synthetic response"))
+	return N8NWorkflowExecutionEvidence{OperationID: "00000000-0000-4000-8000-000000000002", TriggerKind: string(TriggerWebhook), Status: "completed", HTTPStatus: 202, InputSHA256: hex.EncodeToString(inputHash[:]), InputBytes: len(eventJSON), ResponseSHA256: hex.EncodeToString(responseHash[:]), ResponseBytes: len("synthetic response")}, nil
+}
+
+func (f *taskN8NRuntimeFake) ImportAndExecuteScheduled(ctx context.Context, lease N8NTaskRuntimeLease, workflow string) (N8NWorkflowExecutionEvidence, error) {
+	*f.events = append(*f.events, "n8n-scheduled")
+	if lease.RuntimeID == "" || !strings.Contains(workflow, "n8n-nodes-base.scheduleTrigger") || !strings.Contains(workflow, "/v1/contacts") || !strings.Contains(workflow, "crm.synthetic.invalid") {
+		return N8NWorkflowExecutionEvidence{}, errors.New("native schedule test received invalid workflow/runtime")
+	}
+	if err := f.executeSyntheticContact(ctx, lease, workflow, "scheduleTrigger"); err != nil {
+		return N8NWorkflowExecutionEvidence{}, err
+	}
+	return N8NWorkflowExecutionEvidence{OperationID: "00000000-0000-4000-8000-000000000003", TriggerKind: string(TriggerScheduled), Status: "completed", NodeCount: 2, RunCount: 2, ItemCount: 1}, nil
+}
+
+func (f *taskN8NRuntimeFake) ImportAndExecuteScheduledWithInput(ctx context.Context, lease N8NTaskRuntimeLease, workflow string, input map[string]any) (N8NWorkflowExecutionEvidence, error) {
+	*f.events = append(*f.events, "n8n-scheduled-input")
+	source, _, _, err := normalizeWorkflow(workflow)
+	if err != nil {
+		return N8NWorkflowExecutionEvidence{}, err
+	}
+	taskCopy, err := rewriteScheduledWorkflowForOneShotDispatch(workflow, source)
+	if err != nil {
+		return N8NWorkflowExecutionEvidence{}, err
+	}
+	taskCopy, err = injectSyntheticInputAfterEntry(taskCopy, input, TriggerManual)
+	if err != nil || !strings.Contains(taskCopy, `"type":"n8n-nodes-base.manualTrigger"`) || !strings.Contains(taskCopy, `"name":"Vrooli Synthetic Input"`) {
+		return N8NWorkflowExecutionEvidence{}, errors.New("native test schedule input adapter did not produce the isolated one-shot task copy")
+	}
+	if err := f.executeSyntheticContact(ctx, lease, taskCopy, "manualTrigger"); err != nil {
+		return N8NWorkflowExecutionEvidence{}, err
+	}
+	return N8NWorkflowExecutionEvidence{OperationID: "00000000-0000-4000-8000-000000000005", TriggerKind: string(TriggerScheduled), DispatchMode: "manual-one-shot", Status: "completed", NodeCount: 3, RunCount: 3, ItemCount: 1}, nil
+}
+
+func (f *taskN8NRuntimeFake) executeSyntheticContact(ctx context.Context, lease N8NTaskRuntimeLease, workflow, triggerType string) error {
+	if lease.RuntimeID == "" || !strings.Contains(workflow, triggerType) || !strings.Contains(workflow, "/v1/contacts") || !strings.Contains(workflow, "crm.synthetic.invalid") {
+		return errors.New("native test received invalid workflow/runtime")
+	}
+	if f.routeClient == nil {
+		return nil
+	}
+	targetURL := "http://crm.synthetic.invalid:18080/v1/contacts"
+	if strings.Contains(workflow, "https://crm.synthetic.invalid:443/v1/contacts") {
+		targetURL = "https://crm.synthetic.invalid:443/v1/contacts"
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, strings.NewReader(`{"name":"Synthetic contact"}`))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := f.routeClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return errors.New("synthetic companion route returned a non-success status")
+	}
+	return nil
 }
 
 func (f *taskN8NRuntimeFake) Stop(_ context.Context, _ N8NTaskRuntimeLease) error {

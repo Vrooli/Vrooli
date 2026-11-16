@@ -2,9 +2,12 @@ package rehearsals
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -120,9 +123,6 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		return Rehearsal{}, ErrInvalid{Field: "trigger_node_id", Reason: "required when the imported workflow has more than one trigger"}
 	}
 	if triggerInput != nil {
-		if in.taskSandbox != nil {
-			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "per-run trigger input is supported only by the synthetic in-process engine"}
-		}
 		selected := false
 		for _, entryID := range workflow.EntryNodeIDs {
 			if entryID == triggerNodeID {
@@ -133,16 +133,48 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		if !selected {
 			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "requires exactly one valid selected trigger node"}
 		}
-		if _, ok := s.engine.(TriggerInputEngine); !ok {
-			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "selected execution engine does not support synthetic trigger input"}
+		if in.taskSandbox != nil && s.n8n == nil {
+			return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "task-scoped trigger input requires a configured native n8n runtime"}
+		}
+		if in.taskSandbox == nil {
+			if _, ok := s.engine.(TriggerInputEngine); !ok {
+				return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "selected execution engine does not support synthetic trigger input"}
+			}
 		}
 	}
 	if _, detailed := s.engine.(DetailedEngine); !detailed && len(requiredPaths) > 0 {
 		return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "the selected engine does not return internal assertion output"}
 	}
 	if in.taskSandbox != nil && s.n8n != nil {
-		if !containsTrigger(workflow.TriggerKinds, TriggerManual) {
-			return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: "native n8n execution currently supports only a Manual Trigger"}
+		compatibility := nativeTriggerCompatibility(selectedWorkflowTrigger(workflow, triggerNodeID))
+		if !compatibility.Supported {
+			return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: compatibility.Incompatibility}
+		}
+		switch compatibility.Route {
+		case NativeRouteManual:
+			if triggerInput != nil {
+				if _, ok := s.n8n.(N8NSyntheticTriggerInputRuntime); !ok {
+					return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: "native Manual Trigger runtime does not support bounded task-local input"}
+				}
+			}
+		case NativeRouteWebhook:
+			if triggerInput == nil {
+				return Rehearsal{}, ErrInvalid{Field: "trigger_input", Reason: "native Webhook Trigger runs require one synthetic event object"}
+			}
+			if _, ok := s.n8n.(N8NSyntheticWebhookRuntime); !ok {
+				return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: "the configured native runtime does not support synthetic Webhook dispatch"}
+			}
+		case NativeRouteScheduled:
+			if _, ok := s.n8n.(N8NScheduledWorkflowRuntime); !ok || !nativeScheduledWorkflowSupported(workflow) {
+				return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: "native schedule execution requires one pinned schedule trigger, bounded pure nodes and exact HTTP Request companion routes"}
+			}
+			if triggerInput != nil {
+				if _, ok := s.n8n.(N8NSyntheticTriggerInputRuntime); !ok {
+					return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: "native schedule runtime does not support bounded task-local input"}
+				}
+			}
+		default:
+			return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: compatibility.Incompatibility}
 		}
 		if in.InjectSeededFault {
 			return Rehearsal{}, ErrInvalid{Field: "inject_seeded_fault", Reason: "native n8n execution does not yet have a fault-injection profile"}
@@ -153,15 +185,35 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 	}
 	var taskLease WorkspaceSandboxProfileLease
 	var lifecycle *WorkspaceSandboxLifecycleEvidence
+	var virtualProfile *VirtualAPIProfile
 	if in.taskSandbox != nil {
 		if s.sandbox == nil {
 			return Rehearsal{}, errors.New("task-scoped rehearsal requires a configured Workspace Sandbox client")
 		}
-		exported, exportErr := simulator.ExportHTTPMockProfile()
-		if exportErr != nil {
-			return Rehearsal{}, fmt.Errorf("export synthetic Sandbox profile: %w", exportErr)
+		var lease WorkspaceSandboxProfileLease
+		var evidence WorkspaceSandboxLifecycleEvidence
+		var startErr error
+		if s.n8n != nil {
+			candidate, profileErr := simulator.ExportVirtualAPIProfile()
+			if profileErr == nil && virtualAPIProfileUsesExternalHosts(candidate) && workflowUsesExactVirtualAPIRoutes(workflow, candidate) {
+				virtualProfile = &candidate
+				lease, evidence, startErr = s.beginTaskSandboxVirtualAPI(ctx, *in.taskSandbox, candidate)
+			} else if nativeWorkflowHasUnboundServiceOperation(workflow) {
+				return Rehearsal{}, ErrInvalid{Field: "workflow.native_service_routes", Reason: "native integration nodes require exact OpenAPI-backed VirtualAPI routes before an n8n runtime can start"}
+			} else {
+				var exported HTTPMockProfile
+				exported, startErr = simulator.ExportHTTPMockProfile()
+				if startErr == nil {
+					lease, evidence, startErr = s.beginTaskSandbox(ctx, *in.taskSandbox, exported)
+				}
+			}
+		} else {
+			var exported HTTPMockProfile
+			exported, startErr = simulator.ExportHTTPMockProfile()
+			if startErr == nil {
+				lease, evidence, startErr = s.beginTaskSandbox(ctx, *in.taskSandbox, exported)
+			}
 		}
-		lease, evidence, startErr := s.beginTaskSandbox(ctx, *in.taskSandbox, exported)
 		if startErr != nil {
 			return Rehearsal{}, fmt.Errorf("start task-scoped Workspace Sandbox profile: %w", startErr)
 		}
@@ -179,11 +231,46 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		}
 	}
 	if taskLease.Runtime.RuntimeID != "" {
-		runtimeWorkflow, rewriteErr := rewriteWorkflowHTTPRequestsForSandbox(in.WorkflowJSON, taskLease.Receipt.OperationAddresses)
+		runtimeWorkflow, rewriteErr := in.WorkflowJSON, error(nil)
+		if virtualProfile != nil {
+			runtimeWorkflow, rewriteErr = rewriteWorkflowHTTPRequestsForVirtualAPI(in.WorkflowJSON, workflow, *virtualProfile)
+		} else {
+			runtimeWorkflow, rewriteErr = rewriteWorkflowHTTPRequestsForSandbox(in.WorkflowJSON, taskLease.Receipt.OperationAddresses)
+		}
 		runtimeEvidence := N8NWorkflowExecutionEvidence{}
 		runtimeErr := rewriteErr
+		compatibility := nativeTriggerCompatibility(selectedWorkflowTrigger(workflow, triggerNodeID))
 		if runtimeErr == nil {
-			runtimeEvidence, runtimeErr = s.n8n.ImportAndExecuteManual(ctx, taskLease.Runtime, runtimeWorkflow)
+			switch compatibility.Route {
+			case NativeRouteWebhook:
+				eventJSON, marshalErr := json.Marshal(triggerInput)
+				runtimeErr = marshalErr
+				if marshalErr == nil {
+					runtimeEvidence, runtimeErr = s.n8n.(N8NSyntheticWebhookRuntime).ImportAndDispatchWebhook(ctx, taskLease.Runtime, runtimeWorkflow, eventJSON)
+				}
+			case NativeRouteScheduled:
+				if triggerInput != nil {
+					if inputRuntime, ok := s.n8n.(N8NSyntheticTriggerInputRuntime); ok {
+						runtimeEvidence, runtimeErr = inputRuntime.ImportAndExecuteScheduledWithInput(ctx, taskLease.Runtime, runtimeWorkflow, triggerInput)
+					} else {
+						runtimeErr = errors.New("native scheduled runtime does not support bounded synthetic trigger input")
+					}
+				} else {
+					runtimeEvidence, runtimeErr = s.n8n.(N8NScheduledWorkflowRuntime).ImportAndExecuteScheduled(ctx, taskLease.Runtime, runtimeWorkflow)
+				}
+			case NativeRouteManual:
+				if triggerInput != nil {
+					if inputRuntime, ok := s.n8n.(N8NSyntheticTriggerInputRuntime); ok {
+						runtimeEvidence, runtimeErr = inputRuntime.ImportAndExecuteManualWithInput(ctx, taskLease.Runtime, runtimeWorkflow, triggerInput)
+					} else {
+						runtimeErr = errors.New("native manual runtime does not support bounded synthetic trigger input")
+					}
+				} else {
+					runtimeEvidence, runtimeErr = s.n8n.ImportAndExecuteManual(ctx, taskLease.Runtime, runtimeWorkflow)
+				}
+			default:
+				runtimeErr = errors.New(compatibility.Incompatibility)
+			}
 		}
 		runErr = runtimeErr
 		lifecycle.N8NExecution = &runtimeEvidence
@@ -197,7 +284,8 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		if runtimeErr != nil {
 			status = "failed"
 		}
-		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "n8n owner workflow import and execution", RequestSummary: "manual trigger; credentials replaced by n8n owner", ResponseSummary: string(summary), Status: status, OccurredAt: now})
+		triggerSummary := string(selectedWorkflowTrigger(workflow, triggerNodeID)) + " trigger graph; inactive workflow executed by n8n owner CLI; " + nativeTriggerInputSummary(compatibility, triggerInput != nil)
+		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "n8n owner workflow import and execution", RequestSummary: triggerSummary, ResponseSummary: string(summary), Status: status, OccurredAt: now})
 	} else if runErr == nil {
 		if triggerInput != nil {
 			detailed := s.engine.(TriggerInputEngine)
@@ -211,7 +299,7 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 	missingPaths := missingRequiredOutputs(execution.Output, requiredPaths)
 	for _, path := range requiredPaths {
 		status, summary := "succeeded", "required output path present"
-		if contains(missingPaths, path) {
+		if slices.Contains(missingPaths, path) {
 			status, summary = "failed", "required output path missing"
 		}
 		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "assert output path exists", RequestSummary: path, ResponseSummary: summary, Status: status, OccurredAt: now})
@@ -259,7 +347,7 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 			lifecycle.RouteHitsStatus = "available"
 			lifecycle.RouteHits = &hits
 		}
-		if taskLease.Runtime.RuntimeID != "" && nativeWorkflowRequiresCompanionRoute(workflow) && (hitsErr != nil || !nativeWorkflowHasCompanionRouteHit(workflow, hits)) {
+		if taskLease.Runtime.RuntimeID != "" && nativeWorkflowRequiresCompanionRoute(workflow) && (hitsErr != nil || !nativeWorkflowHasCompanionRouteHit(workflow, hits, virtualProfile)) {
 			gateErr := "native workflow completed without a matching verified request through its Workspace Sandbox companion route"
 			if hitsErr != nil {
 				gateErr = "native companion route evidence is unavailable: " + hitsErr.Error()
@@ -316,22 +404,142 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 
 func nativeWorkflowRequiresCompanionRoute(workflow Workflow) bool {
 	for _, node := range workflow.Nodes {
-		if node.Type == "n8n-nodes-base.httpRequest" && node.Request != nil {
+		if node.Request != nil {
 			return true
 		}
 	}
 	return false
 }
 
-func nativeWorkflowHasCompanionRouteHit(workflow Workflow, hits HTTPMockRouteHitsReceipt) bool {
+func nativeWorkflowHasUnboundServiceOperation(workflow Workflow) bool {
 	for _, node := range workflow.Nodes {
-		if node.Type != "n8n-nodes-base.httpRequest" || node.Request == nil {
+		if node.Request != nil && node.Type != "n8n-nodes-base.httpRequest" && node.Request.Host == "" {
+			return true
+		}
+	}
+	return false
+}
+
+func nativeWorkflowHasCompanionRouteHit(workflow Workflow, hits HTTPMockRouteHitsReceipt, profiles ...*VirtualAPIProfile) bool {
+	hasVirtualProfile := false
+	for _, profile := range profiles {
+		hasVirtualProfile = hasVirtualProfile || profile != nil
+	}
+	for _, node := range workflow.Nodes {
+		if node.Request == nil {
+			continue
+		}
+		if hasVirtualProfile {
+			for _, profile := range profiles {
+				if profile == nil {
+					continue
+				}
+				for _, route := range profile.Routes {
+					exactRequest := node.Request.Host != "" && strings.EqualFold(route.Host, node.Request.Host) && strings.EqualFold(route.Method, node.Request.Method) && route.Path == node.Request.URL && route.Query == node.Request.Query
+					if (exactRequest || virtualAPIRouteBindsNode(route, node)) && virtualAPIRouteWasHit(route, hits) {
+						return true
+					}
+				}
+			}
 			continue
 		}
 		for _, hit := range hits.Routes {
-			if hit.Count > 0 && strings.EqualFold(hit.Host, node.Request.Host) && strings.EqualFold(hit.Method, node.Request.Method) && hit.Path == node.Request.URL {
+			if hit.Count > 0 && strings.EqualFold(hit.Host, node.Request.Host) && strings.EqualFold(hit.Method, node.Request.Method) && hit.Path == node.Request.URL && hit.Query == node.Request.Query {
 				return true
 			}
+		}
+	}
+	return false
+}
+
+// virtualAPIProfileUsesExternalHosts keeps reserved synthetic.invalid API
+// descriptions on the task-local HTTP-mock listener. VirtualAPI is reserved
+// for exact declared provider hosts, so synthetic fixtures cannot be
+// mistaken for publicly routable service aliases.
+func virtualAPIProfileUsesExternalHosts(profile VirtualAPIProfile) bool {
+	if len(profile.Hosts) == 0 {
+		return false
+	}
+	for _, host := range profile.Hosts {
+		host = strings.ToLower(host)
+		if host == "synthetic.invalid" || strings.HasSuffix(host, ".synthetic.invalid") {
+			return false
+		}
+	}
+	return true
+}
+
+func workflowUsesExactVirtualAPIRoutes(workflow Workflow, profile VirtualAPIProfile) bool {
+	count := 0
+	for _, node := range workflow.Nodes {
+		if node.Request == nil {
+			continue
+		}
+		count++
+		if node.Type == "n8n-nodes-base.httpRequest" {
+			if node.Request.Host == "" || node.Request.URL == "" || !virtualAPIRouteMatches(*node.Request, profile) {
+				return false
+			}
+			continue
+		}
+		if node.Request.Host != "" {
+			if !virtualAPIRouteMatches(*node.Request, profile) {
+				return false
+			}
+			continue
+		}
+		matched := false
+		for _, route := range profile.Routes {
+			if virtualAPIRouteBindsNode(route, node) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+	return count > 0
+}
+
+func virtualAPIRouteBindsNode(route VirtualAPIRoute, node WorkflowNode) bool {
+	if node.Request == nil {
+		return false
+	}
+	for _, binding := range route.Bindings {
+		if strings.EqualFold(binding.NodeType, node.Type) && strings.EqualFold(binding.Resource, node.Request.Resource) && strings.EqualFold(binding.Operation, node.Request.Action) && inputMatches(binding.InputMatch, node.Request.Input) {
+			return true
+		}
+	}
+	return false
+}
+
+func virtualAPIRouteWasHit(route VirtualAPIRoute, hits HTTPMockRouteHitsReceipt) bool {
+	query, err := normalizeFixtureQuery(route.Query)
+	if err != nil {
+		return false
+	}
+	queryHash := sha256.Sum256([]byte(query))
+	wantQueryHash := hex.EncodeToString(queryHash[:])
+	for _, hit := range hits.Routes {
+		if hit.Count > 0 && strings.EqualFold(hit.Host, route.Host) && strings.EqualFold(hit.Method, route.Method) && hit.Path == route.Path && hit.QuerySHA256 == wantQueryHash {
+			return true
+		}
+	}
+	return false
+}
+
+func validateWorkflowVirtualAPIProfile(workflow Workflow, profile VirtualAPIProfile) error {
+	if !workflowUsesExactVirtualAPIRoutes(workflow, profile) {
+		return errors.New("workflow HTTP Request nodes do not match exact API-description-backed task routes")
+	}
+	return nil
+}
+
+func virtualAPIRouteMatches(request Step, profile VirtualAPIProfile) bool {
+	for _, route := range profile.Routes {
+		if strings.EqualFold(route.Host, request.Host) && strings.EqualFold(route.Method, request.Method) && route.Path == request.URL && route.Query == request.Query {
+			return true
 		}
 	}
 	return false
@@ -400,22 +608,27 @@ func sameStrings(first, second []string) bool {
 	return true
 }
 
-func contains(values []string, expected string) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
+func selectedWorkflowTrigger(workflow Workflow, nodeID string) TriggerKind {
+	for _, node := range workflow.Nodes {
+		if node.ID == nodeID {
+			return node.Trigger
 		}
 	}
-	return false
+	return ""
 }
 
-func containsTrigger(values []TriggerKind, expected TriggerKind) bool {
-	for _, value := range values {
-		if value == expected {
-			return true
-		}
+func nativeTriggerInputSummary(compatibility NativeTriggerCompatibility, hasInput bool) string {
+	if !hasInput {
+		return "CLI start used its default trigger item"
 	}
-	return false
+	switch compatibility.InputRoute {
+	case "task-local-set-node":
+		return "bounded synthetic input injected into the task-local execution copy"
+	case "owner-dispatched-event-json":
+		return "bounded synthetic event dispatched through the n8n owner route"
+	default:
+		return "bounded synthetic input delivered through the mapped native trigger route"
+	}
 }
 
 func (s *service) List(ctx context.Context, limit int) ([]Rehearsal, error) {
@@ -466,7 +679,15 @@ func handoffSandboxEvidence(trace []TraceEvent) string {
 		"- Sandbox isolation evidence: " + evidence.IsolationClaim + "\n" +
 		"- Sandbox teardown: `" + evidence.TeardownStatus + "` at `" + evidence.CleanupConfirmedAt.UTC().Format(time.RFC3339) + "` " + evidence.TeardownError + "\n"
 	if evidence.N8NExecution != nil {
-		handoff += "- Native n8n runtime: `" + evidence.N8NRuntimeStatus + "`; execution `" + evidence.N8NExecution.Status + "` (" + itoa(uint32(evidence.N8NExecution.NodeCount)) + " nodes, " + itoa(uint32(evidence.N8NExecution.RunCount)) + " run(s), " + itoa(uint32(evidence.N8NExecution.ItemCount)) + " item(s))\n"
+		if evidence.N8NExecution.TriggerKind == string(TriggerWebhook) {
+			handoff += "- Native n8n webhook: runtime `" + evidence.N8NRuntimeStatus + "`; dispatch `" + evidence.N8NExecution.Status + "`; HTTP " + itoa(uint32(evidence.N8NExecution.HTTPStatus)) + "; event " + itoa(uint32(evidence.N8NExecution.InputBytes)) + " bytes SHA-256 `" + evidence.N8NExecution.InputSHA256 + "`; response " + itoa(uint32(evidence.N8NExecution.ResponseBytes)) + " bytes SHA-256 `" + evidence.N8NExecution.ResponseSHA256 + "`\n"
+		} else {
+			label := "Native n8n runtime"
+			if evidence.N8NExecution.TriggerKind == string(TriggerScheduled) {
+				label = "Native n8n schedule graph run"
+			}
+			handoff += "- " + label + ": `" + evidence.N8NRuntimeStatus + "`; execution `" + evidence.N8NExecution.Status + "` (" + itoa(uint32(evidence.N8NExecution.NodeCount)) + " nodes, " + itoa(uint32(evidence.N8NExecution.RunCount)) + " run(s), " + itoa(uint32(evidence.N8NExecution.ItemCount)) + " item(s))\n"
+		}
 	}
 	if evidence.RouteHitsStatus != "" {
 		hits, routes := uint64(0), 0

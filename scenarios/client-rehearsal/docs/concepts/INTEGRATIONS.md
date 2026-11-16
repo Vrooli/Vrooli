@@ -2,7 +2,7 @@
 
 ## Current slice
 
-No external resource is required for ordinary local rehearsal. An opt-in `task_scoped` request uses the configured loopback Workspace Sandbox API. Client Rehearsal mints the logical task ID; Workspace Sandbox resolves the task directory and owner. OpenAPI catalogs and sanitized recorded exchanges export bounded exact routes into the task's HTTP-mock companion. Task-scoped native service calls are sent to the exact returned `*.synthetic.invalid` alias and the route-hit receipt is retained in the handoff. The integration test proves the service path with a fake transport that maps the alias to a local fixture server; the actual API-to-task-network DNS route and deny-by-default egress remain unverified.
+No external resource is required for ordinary local rehearsal. An opt-in `task_scoped` request uses the configured loopback Workspace Sandbox API. Client Rehearsal mints the logical task ID; Workspace Sandbox resolves the task directory and owner. OpenAPI catalogs and sanitized recorded exchanges can export bounded exact routes into a task-scoped companion. The native n8n path uses the HTTPS `virtual-api` companion; the generic simulator path retains the HTTP-mock companion. OpenAPI native service routes require explicit node/resource/operation bindings and a pinned provider host; those bindings remain owner-only and are omitted from the Sandbox declaration. Unbound native service operations fail closed before runtime start. Both companions serve fixed synthetic responses and do not forward requests upstream. Route-hit receipts are retained in the handoff. Source tests exercise the contract, but actual API-to-task-network DNS/TLS routing and deny-by-default egress remain unverified.
 
 ## Planned owner integrations
 

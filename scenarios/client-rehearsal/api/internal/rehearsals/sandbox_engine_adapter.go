@@ -150,6 +150,138 @@ func rewriteWorkflowHTTPRequestsForSandbox(raw string, operations []HTTPMockOper
 	return string(encoded), nil
 }
 
+// syntheticHTTPRouteURL preserves the exact query emitted by an API-description
+// profile. The query is part of the fixture identity; dropping it makes the
+// workflow call a different route even when host, method, and path match.
+func syntheticHTTPRouteURL(route HTTPMockRoute, scheme string, port string) (string, error) {
+	if scheme != "http" && scheme != "https" || !sandboxVirtualAPIHost.MatchString(strings.ToLower(route.Host)) || !strings.HasSuffix(strings.ToLower(route.Host), ".synthetic.invalid") || !validSandboxProfilePath(route.Path) || port != "" && port != "18080" {
+		return "", errors.New("synthetic HTTP route has an invalid host, path, or scheme")
+	}
+	if err := validateSandboxProfileQuery(route.Query); err != nil {
+		return "", errors.New("synthetic HTTP route query is invalid")
+	}
+	host := route.Host
+	if port != "" {
+		host = net.JoinHostPort(host, port)
+	}
+	return (&url.URL{Scheme: scheme, Host: host, Path: route.Path, RawQuery: route.Query}).String(), nil
+}
+
+func rewriteWorkflowHTTPRequestsForVirtualAPI(raw string, workflow Workflow, profile VirtualAPIProfile) (string, error) {
+	if err := validateWorkflowVirtualAPIProfile(workflow, profile); err != nil {
+		return "", err
+	}
+	requests := make(map[string]Step, len(workflow.Nodes))
+	for _, node := range workflow.Nodes {
+		if node.Request != nil {
+			requests["id:"+node.ID] = *node.Request
+			requests["name:"+node.Name] = *node.Request
+		}
+	}
+	var document map[string]any
+	if err := json.Unmarshal([]byte(raw), &document); err != nil || document == nil {
+		return "", errors.New("native task workflow must be a JSON object")
+	}
+	if err := rewriteWorkflowDocumentHTTPURLsForVirtualAPI(document, requests, profile); err != nil {
+		return "", err
+	}
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		return "", errors.New("encode task workflow with VirtualAPI routes")
+	}
+	return string(encoded), nil
+}
+
+func rewriteWorkflowDocumentHTTPURLsForVirtualAPI(document map[string]any, requests map[string]Step, profile VirtualAPIProfile) error {
+	if workflow, ok := document["workflow"].(map[string]any); ok {
+		if err := rewriteWorkflowDocumentHTTPURLsForVirtualAPI(workflow, requests, profile); err != nil {
+			return err
+		}
+	}
+	if workflows, ok := document["workflows"].([]any); ok {
+		for _, rawWorkflow := range workflows {
+			workflow, ok := rawWorkflow.(map[string]any)
+			if !ok {
+				return errors.New("task workflow bundle contains a non-object workflow")
+			}
+			if err := rewriteWorkflowDocumentHTTPURLsForVirtualAPI(workflow, requests, profile); err != nil {
+				return err
+			}
+		}
+	}
+	nodes, ok := document["nodes"].([]any)
+	if !ok {
+		return nil
+	}
+	for _, rawNode := range nodes {
+		node, ok := rawNode.(map[string]any)
+		if !ok {
+			continue
+		}
+		id, _ := node["id"].(string)
+		name, _ := node["name"].(string)
+		request, exists := requests["id:"+id]
+		if !exists {
+			request, exists = requests["name:"+name]
+		}
+		if !exists {
+			continue
+		}
+		typeName, _ := node["type"].(string)
+		var route VirtualAPIRoute
+		if typeName == "n8n-nodes-base.httpRequest" {
+			if !virtualAPIRouteMatches(request, profile) {
+				return errors.New("native HTTP Request node is not bound to an exact API-description route")
+			}
+			route = VirtualAPIRoute{Host: request.Host, Method: request.Method, Path: request.URL, Query: request.Query}
+			// The task companion is no-auth and owns all response data. Do not
+			// import source credentials that the task copy cannot use.
+			delete(node, "credentials")
+		} else {
+			var matched bool
+			for _, candidate := range profile.Routes {
+				if virtualAPIRouteBindsNode(candidate, WorkflowNode{ID: id, Name: name, Type: typeName, Request: &request}) {
+					if matched {
+						return errors.New("native integration node matched more than one API-description route")
+					}
+					route, matched = candidate, true
+				}
+			}
+			if !matched {
+				continue
+			}
+			// Run provider operations through the same no-egress task API alias as
+			// HTTP Request nodes. This adapts the task copy only; the public export
+			// and its integration node remain intact for handoff.
+			node["type"] = "n8n-nodes-base.httpRequest"
+			node["typeVersion"] = 4.2
+			delete(node, "credentials")
+			parameters := map[string]any{"authentication": "none", "method": route.Method, "url": "https://" + route.Host + route.Path, "options": map[string]any{}}
+			if route.Query != "" {
+				parameters["url"] = "https://" + route.Host + route.Path + "?" + route.Query
+			}
+			if route.Method == "POST" || route.Method == "PUT" || route.Method == "PATCH" {
+				parameters["sendBody"] = true
+				parameters["specifyBody"] = "json"
+				parameters["jsonBody"] = "={{ $json }}"
+			}
+			node["parameters"] = parameters
+			continue
+		}
+		parameters, ok := node["parameters"].(map[string]any)
+		if !ok {
+			return errors.New("native HTTP Request node has no parameter object")
+		}
+		resolved := "https://" + route.Host + route.Path
+		if route.Query != "" {
+			resolved += "?" + route.Query
+		}
+		parameters["url"] = resolved
+		parameters["method"] = route.Method
+	}
+	return nil
+}
+
 func rewriteWorkflowDocumentHTTPURLs(document map[string]any, operations []HTTPMockOperationAddress) error {
 	if workflow, ok := document["workflow"].(map[string]any); ok {
 		if err := rewriteWorkflowDocumentHTTPURLs(workflow, operations); err != nil {
@@ -189,7 +321,9 @@ func rewriteWorkflowDocumentHTTPURLs(document map[string]any, operations []HTTPM
 			return errors.New("native HTTP Request URL must use a bounded synthetic.invalid host without credentials or a port")
 		}
 		if original.RawQuery != "" {
-			return errors.New("native HTTP Request query parameters need an exact companion selector before runtime import")
+			if err := validateSandboxProfileQuery(original.RawQuery); err != nil {
+				return errors.New("native HTTP Request URL query is invalid or outside the synthetic profile")
+			}
 		}
 		method, _ := parameters["method"].(string)
 		if method == "" {
@@ -203,7 +337,7 @@ func rewriteWorkflowDocumentHTTPURLs(document map[string]any, operations []HTTPM
 		var selected *url.URL
 		for _, candidate := range operations {
 			address, validateErr := validatedSandboxOperationURL(candidate)
-			if validateErr != nil || address.RawQuery != "" || !strings.EqualFold(candidate.Method, method) || !strings.EqualFold(address.Hostname(), original.Hostname()) || address.EscapedPath() != path {
+			if validateErr != nil || !strings.EqualFold(candidate.Method, method) || !strings.EqualFold(address.Hostname(), original.Hostname()) || address.EscapedPath() != path || address.RawQuery != original.RawQuery {
 				continue
 			}
 			if selected != nil {
@@ -212,7 +346,7 @@ func rewriteWorkflowDocumentHTTPURLs(document map[string]any, operations []HTTPM
 			selected = address
 		}
 		if selected == nil {
-			return errors.New("native HTTP Request URL has no exact task companion route")
+			return fmt.Errorf("native HTTP Request URL has no exact task companion route for %s %s%s", method, original.Hostname(), path)
 		}
 		parameters["url"] = selected.String()
 	}
@@ -221,22 +355,11 @@ func rewriteWorkflowDocumentHTTPURLs(document map[string]any, operations []HTTPM
 
 func validatedSandboxOperationURL(operation HTTPMockOperationAddress) (*url.URL, error) {
 	parsed, err := url.Parse(operation.URL)
-	if err != nil || parsed.Scheme != "http" || parsed.User != nil || parsed.Fragment != "" || !strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".synthetic.invalid") || parsed.Port() != "18080" || !validSandboxProfilePath(parsed.Path) || !operationQueryMatches(parsed.RawQuery, operation.Selector.InputMatch) || !oneOfFold(operation.Method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) {
+	if err != nil || parsed.Scheme != "http" || parsed.User != nil || parsed.Fragment != "" || !strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".synthetic.invalid") || parsed.Port() != "18080" || !validSandboxProfilePath(parsed.Path) || !oneOfFold(operation.Method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) {
 		return nil, errors.New("Sandbox operation address is not a bounded synthetic companion alias")
 	}
+	if err := validateSandboxProfileQuery(parsed.RawQuery); err != nil {
+		return nil, errors.New("Sandbox operation address has an invalid synthetic query")
+	}
 	return parsed, nil
-}
-
-func operationQueryMatches(raw string, match map[string]any) bool {
-	values, err := url.ParseQuery(raw)
-	if err != nil || len(values) != len(match) {
-		return false
-	}
-	for key, expected := range match {
-		items := values[key]
-		if !sandboxProfileQueryKey.MatchString(key) || secretKey(key) || len(items) != 1 || items[0] != fmt.Sprint(expected) || len(items[0]) > 512 || strings.ContainsAny(items[0], "\x00\r\n") || sandboxProfileCredential.MatchString(items[0]) {
-			return false
-		}
-	}
-	return true
 }

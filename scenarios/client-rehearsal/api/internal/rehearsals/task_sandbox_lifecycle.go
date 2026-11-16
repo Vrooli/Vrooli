@@ -130,6 +130,67 @@ func (s *service) beginTaskSandbox(ctx context.Context, task WorkspaceSandboxTas
 	return lease, evidence, nil
 }
 
+func (s *service) beginTaskSandboxVirtualAPI(ctx context.Context, task WorkspaceSandboxTaskRequest, profile VirtualAPIProfile) (WorkspaceSandboxProfileLease, WorkspaceSandboxLifecycleEvidence, error) {
+	if s.n8n == nil {
+		return WorkspaceSandboxProfileLease{}, WorkspaceSandboxLifecycleEvidence{}, errors.New("VirtualAPI-backed workflow routes require native n8n execution")
+	}
+	created, err := s.sandbox.CreateTaskSandbox(ctx, task)
+	if err != nil {
+		return WorkspaceSandboxProfileLease{}, WorkspaceSandboxLifecycleEvidence{}, err
+	}
+	lease, err := s.sandbox.StartTaskVirtualAPIProfileOnSandbox(ctx, created, taskSandboxProfileName, taskSandboxProfileVersion, profile)
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		cleanupErr := s.sandbox.DeleteTaskSandbox(cleanupCtx, created.ID)
+		return WorkspaceSandboxProfileLease{}, WorkspaceSandboxLifecycleEvidence{}, errors.Join(fmt.Errorf("start task VirtualAPI companion: %w", err), cleanupErr)
+	}
+	// The Sandbox VirtualAPI provider establishes task CA trust before it starts
+	// n8n. This subsequent owner call attaches to that already-owned runtime.
+	runtime, err := s.n8n.Start(ctx, created.ID)
+	lease.Runtime = runtime
+	if err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		cleanupErr := s.stopAndDeleteTaskSandbox(cleanupCtx, lease, created)
+		return WorkspaceSandboxProfileLease{}, WorkspaceSandboxLifecycleEvidence{}, errors.Join(fmt.Errorf("attach native n8n owner to task VirtualAPI runtime: %w", err), cleanupErr)
+	}
+	scopeHash := sha256.Sum256([]byte(created.ScopePath))
+	evidence := WorkspaceSandboxLifecycleEvidence{
+		SandboxID:        lease.SandboxID,
+		Owner:            created.Owner,
+		ScopeSHA256:      hex.EncodeToString(scopeHash[:]),
+		ProfileSHA256:    lease.Receipt.ProfileSHA256,
+		OperationCount:   len(profile.Routes),
+		SyntheticTargets: allVirtualAPITargetsTaskBound(lease.Receipt, profile),
+		IsolationClaim:   "Workspace Sandbox owner verified task-bound HTTPS aliases and API-description-backed synthetic routes; no live network isolation claim is inferred",
+		N8NRuntimeStatus: "running",
+		TeardownStatus:   "pending",
+	}
+	if !evidence.SyntheticTargets || evidence.OperationCount != len(profile.Routes) {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		cleanupErr := s.n8n.Stop(cleanupCtx, runtime)
+		if cleanupErr == nil {
+			cleanupErr = s.stopAndDeleteTaskSandbox(cleanupCtx, lease, created)
+		}
+		return lease, evidence, errors.Join(errors.New("Workspace Sandbox VirtualAPI receipt failed exact task-bound HTTPS alias validation"), cleanupErr)
+	}
+	return lease, evidence, nil
+}
+
+func allVirtualAPITargetsTaskBound(receipt WorkspaceSandboxProfileReceipt, profile VirtualAPIProfile) bool {
+	if receipt.Spec.Kind != "virtual-api" || len(receipt.OperationAddresses) != 0 || len(receipt.Addresses) != len(profile.Hosts) {
+		return false
+	}
+	for _, host := range profile.Hosts {
+		if receipt.Addresses[host] != "https://"+host+":443" {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *service) stopAndDeleteTaskSandbox(ctx context.Context, lease WorkspaceSandboxProfileLease, task WorkspaceSandboxTaskRecord) error {
 	if err := s.sandbox.verifyTaskSandbox(ctx, lease.SandboxID, task); err != nil {
 		return fmt.Errorf("verify task ownership before teardown: %w", err)

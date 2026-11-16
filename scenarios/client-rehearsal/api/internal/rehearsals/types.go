@@ -31,6 +31,7 @@ type Step struct {
 	Method     string         `json:"method"`
 	Host       string         `json:"host"`
 	URL        string         `json:"url"`
+	Query      string         `json:"query,omitempty"`
 	Input      map[string]any `json:"input"`
 	InputMatch map[string]any `json:"input_match,omitempty"`
 }

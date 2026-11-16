@@ -25,14 +25,16 @@ const (
 )
 
 var (
-	taskScopeIDPattern       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
-	sandboxIDPattern         = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-	sandboxNamePattern       = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
-	sandboxVersionPattern    = regexp.MustCompile(`^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][A-Za-z0-9.-]+)?$`)
-	sandboxDigestPattern     = regexp.MustCompile(`^[a-f0-9]{64}$`)
-	sandboxProfileQueryKey   = regexp.MustCompile(`^[A-Za-z0-9_.~-]{1,128}$`)
-	sandboxProfileCredential = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,})\b`)
-	sandboxProfileEmail      = regexp.MustCompile(`(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`)
+	taskScopeIDPattern        = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+	sandboxIDPattern          = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+	sandboxNamePattern        = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+	sandboxVersionPattern     = regexp.MustCompile(`^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][A-Za-z0-9.-]+)?$`)
+	sandboxDigestPattern      = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	sandboxProfileQueryKey    = regexp.MustCompile(`^[A-Za-z0-9_.~-]{1,128}$`)
+	sandboxProfileCredential  = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,})\b`)
+	sandboxProfileEmail       = regexp.MustCompile(`(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`)
+	sandboxVirtualAPIHost     = regexp.MustCompile(`^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+	sandboxVirtualAPIPathPart = regexp.MustCompile(`^[A-Za-z0-9._~!$&'()*+,;=:@-]+$`)
 )
 
 // WorkspaceSandboxProfileClient declares and starts a synthetic profile on an
@@ -62,11 +64,12 @@ type WorkspaceSandboxTaskRecord struct {
 }
 
 type WorkspaceSandboxProfileLease struct {
-	SandboxID string
-	Name      string
-	Task      WorkspaceSandboxTaskRecord
-	Runtime   N8NTaskRuntimeLease
-	Receipt   WorkspaceSandboxProfileReceipt
+	SandboxID  string
+	Name       string
+	Task       WorkspaceSandboxTaskRecord
+	Runtime    N8NTaskRuntimeLease
+	Receipt    WorkspaceSandboxProfileReceipt
+	VirtualAPI *VirtualAPIProfile
 }
 
 type WorkspaceSandboxProfileReceipt struct {
@@ -89,11 +92,12 @@ type HTTPMockOperationAddress struct {
 }
 
 type HTTPMockRouteHit struct {
-	Host   string `json:"host"`
-	Method string `json:"method"`
-	Path   string `json:"path"`
-	Query  string `json:"query,omitempty"`
-	Count  uint64 `json:"count"`
+	Host        string `json:"host"`
+	Method      string `json:"method"`
+	Path        string `json:"path"`
+	Query       string `json:"query,omitempty"`
+	QuerySHA256 string `json:"queryHash,omitempty"`
+	Count       uint64 `json:"count"`
 }
 
 type HTTPMockRouteHitsReceipt struct {
@@ -187,6 +191,35 @@ func (c *WorkspaceSandboxProfileClient) StartTaskProfileOnSandbox(ctx context.Co
 	return WorkspaceSandboxProfileLease{SandboxID: task.ID, Name: profileName, Task: task, Receipt: receipt}, nil
 }
 
+func (c *WorkspaceSandboxProfileClient) CreateAndStartTaskVirtualAPIProfile(ctx context.Context, task WorkspaceSandboxTaskRequest, profileName, version string, profile VirtualAPIProfile) (WorkspaceSandboxProfileLease, error) {
+	created, err := c.CreateTaskSandbox(ctx, task)
+	if err != nil {
+		return WorkspaceSandboxProfileLease{}, err
+	}
+	lease, err := c.StartTaskVirtualAPIProfileOnSandbox(ctx, created, profileName, version, profile)
+	if err == nil {
+		return lease, nil
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if cleanupErr := c.DeleteTaskSandbox(cleanupCtx, created.ID); cleanupErr != nil {
+		return WorkspaceSandboxProfileLease{}, fmt.Errorf("start Sandbox virtual API profile failed (%v); task cleanup also failed: %w", err, cleanupErr)
+	}
+	return WorkspaceSandboxProfileLease{}, fmt.Errorf("start Sandbox virtual API profile failed; created task was deleted: %w", err)
+}
+
+func (c *WorkspaceSandboxProfileClient) StartTaskVirtualAPIProfileOnSandbox(ctx context.Context, task WorkspaceSandboxTaskRecord, profileName, version string, profile VirtualAPIProfile) (WorkspaceSandboxProfileLease, error) {
+	if !sandboxIDPattern.MatchString(task.ID) || task.OwnerType != "task" || task.ScopePath == "" || task.ProjectRoot == "" {
+		return WorkspaceSandboxProfileLease{}, errors.New("server-owned Sandbox task record is incomplete")
+	}
+	receipt, err := c.DeclareAndStartVirtualAPIProfile(ctx, task.ID, profileName, version, profile)
+	if err != nil {
+		return WorkspaceSandboxProfileLease{}, err
+	}
+	profileCopy := profile
+	return WorkspaceSandboxProfileLease{SandboxID: task.ID, Name: profileName, Task: task, Receipt: receipt, VirtualAPI: &profileCopy}, nil
+}
+
 func (c *WorkspaceSandboxProfileClient) StopAndDeleteTaskProfile(ctx context.Context, lease WorkspaceSandboxProfileLease) error {
 	if !sandboxIDPattern.MatchString(lease.SandboxID) || !sandboxNamePattern.MatchString(lease.Name) {
 		return errors.New("Sandbox profile lease target is invalid")
@@ -265,6 +298,58 @@ func (c *WorkspaceSandboxProfileClient) DeclareAndStartProfile(ctx context.Conte
 	return receipt, nil
 }
 
+func (c *WorkspaceSandboxProfileClient) DeclareAndStartVirtualAPIProfile(ctx context.Context, sandboxID, name, version string, profile VirtualAPIProfile) (WorkspaceSandboxProfileReceipt, error) {
+	if c == nil || c.baseURL == nil || c.httpClient == nil {
+		return WorkspaceSandboxProfileReceipt{}, errors.New("Workspace Sandbox profile client is not initialized")
+	}
+	if !sandboxIDPattern.MatchString(sandboxID) || !sandboxNamePattern.MatchString(name) || !sandboxVersionPattern.MatchString(version) {
+		return WorkspaceSandboxProfileReceipt{}, errors.New("Sandbox ID, companion name, or pinned version is invalid")
+	}
+	profile, err := normalizeExportedVirtualAPIProfile(profile)
+	if err != nil {
+		return WorkspaceSandboxProfileReceipt{}, err
+	}
+	body, err := json.Marshal(struct {
+		Services []struct {
+			Name       string            `json:"name"`
+			Kind       string            `json:"kind"`
+			Version    string            `json:"version"`
+			VirtualAPI VirtualAPIProfile `json:"virtualAPI"`
+		} `json:"services"`
+	}{Services: []struct {
+		Name       string            `json:"name"`
+		Kind       string            `json:"kind"`
+		Version    string            `json:"version"`
+		VirtualAPI VirtualAPIProfile `json:"virtualAPI"`
+	}{{Name: name, Kind: "virtual-api", Version: version, VirtualAPI: profile}}})
+	if err != nil || len(body) > maxWorkspaceSandboxRequestBytes {
+		return WorkspaceSandboxProfileReceipt{}, errors.New("virtual API companion declaration is invalid or exceeds 2 MiB")
+	}
+	path := "/api/v1/sandboxes/" + url.PathEscape(sandboxID) + "/companion-services"
+	if err := c.requestJSON(ctx, http.MethodPut, path, body, nil); err != nil {
+		return WorkspaceSandboxProfileReceipt{}, fmt.Errorf("declare Sandbox virtual API profile: %w", err)
+	}
+	startPath := path + "/" + url.PathEscape(name) + "/start"
+	var receipt WorkspaceSandboxProfileReceipt
+	if err := c.requestJSON(ctx, http.MethodPost, startPath, []byte(`{}`), &receipt); err != nil {
+		return WorkspaceSandboxProfileReceipt{}, fmt.Errorf("start Sandbox virtual API profile: %w", err)
+	}
+	expectedDigest, err := virtualAPIProfileDigest(sandboxID, profile)
+	if err != nil {
+		return WorkspaceSandboxProfileReceipt{}, err
+	}
+	if receipt.Status != "running" || receipt.Spec.Name != name || receipt.Spec.Kind != "virtual-api" || receipt.Spec.Version != version || receipt.ProfileSHA256 != expectedDigest || len(receipt.OperationAddresses) != 0 || len(receipt.Addresses) != len(profile.Hosts) {
+		return WorkspaceSandboxProfileReceipt{}, errors.New("Sandbox returned an incomplete virtual API profile start receipt")
+	}
+	for _, host := range profile.Hosts {
+		if receipt.Addresses[host] != "https://"+host+":443" {
+			return WorkspaceSandboxProfileReceipt{}, errors.New("Sandbox returned a virtual API address outside the task HTTPS alias map")
+		}
+	}
+	receipt.SandboxID = sandboxID
+	return receipt, nil
+}
+
 func (c *WorkspaceSandboxProfileClient) StopProfile(ctx context.Context, sandboxID, name string) error {
 	if c == nil || c.baseURL == nil || c.httpClient == nil {
 		return errors.New("Workspace Sandbox profile client is not initialized")
@@ -312,6 +397,25 @@ func (c *WorkspaceSandboxProfileClient) requestJSON(ctx context.Context, method,
 		return errors.New("Workspace Sandbox response exceeds 256 KiB")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		var apiError struct {
+			Error string `json:"error"`
+		}
+		message := ""
+		if json.Unmarshal(payload, &apiError) == nil {
+			message = strings.TrimSpace(apiError.Error)
+		}
+		if len(message) > 512 {
+			message = message[:512]
+		}
+		message = strings.Map(func(r rune) rune {
+			if r < 0x20 || r == 0x7f {
+				return ' '
+			}
+			return r
+		}, message)
+		if message != "" {
+			return fmt.Errorf("Workspace Sandbox returned HTTP %d: %s", response.StatusCode, message)
+		}
 		return fmt.Errorf("Workspace Sandbox returned HTTP %d", response.StatusCode)
 	}
 	if output != nil {
@@ -365,6 +469,154 @@ func normalizeExportedHTTPMockProfile(profile HTTPMockProfile) (HTTPMockProfile,
 		return HTTPMockProfile{}, err
 	}
 	return profile, nil
+}
+
+func normalizeExportedVirtualAPIProfile(profile VirtualAPIProfile) (VirtualAPIProfile, error) {
+	if len(profile.Hosts) == 0 || len(profile.Hosts) > 32 || len(profile.Routes) == 0 || len(profile.Routes) > 512 {
+		return VirtualAPIProfile{}, errors.New("virtual API profile requires 1..32 hosts and 1..512 routes")
+	}
+	profile.Hosts = append([]string(nil), profile.Hosts...)
+	hosts := map[string]bool{}
+	for index, raw := range profile.Hosts {
+		host := strings.ToLower(strings.TrimSpace(raw))
+		if host != raw || !sandboxVirtualAPIHost.MatchString(host) || host == "localhost" || net.ParseIP(host) != nil || strings.HasSuffix(host, ".localhost") || strings.HasSuffix(host, ".local") || strings.HasSuffix(host, ".internal") || strings.HasSuffix(host, ".test") || strings.HasSuffix(host, ".example") || hosts[host] {
+			return VirtualAPIProfile{}, errors.New("virtual API host list must contain unique exact public DNS names")
+		}
+		hosts[host] = true
+		profile.Hosts[index] = host
+	}
+	sort.Strings(profile.Hosts)
+	profile.Routes = append([]VirtualAPIRoute(nil), profile.Routes...)
+	seen := map[string]bool{}
+	total := 0
+	for index := range profile.Routes {
+		route := &profile.Routes[index]
+		route.Host = strings.ToLower(strings.TrimSpace(route.Host))
+		route.Method = strings.ToUpper(strings.TrimSpace(route.Method))
+		route.Path = strings.TrimSpace(route.Path)
+		route.ContentType = strings.ToLower(strings.TrimSpace(route.ContentType))
+		if !hosts[route.Host] || !validVirtualAPIPath(route.Path) || !oneOfFold(route.Method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) {
+			return VirtualAPIProfile{}, errors.New("virtual API route host, method, or exact path is invalid")
+		}
+		query, err := normalizeFixtureQuery(route.Query)
+		if err != nil {
+			return VirtualAPIProfile{}, errors.New("virtual API route query is invalid or sensitive")
+		}
+		route.Query = query
+		if route.Status < 200 || route.Status > 599 || route.Status >= 300 && route.Status < 400 || !oneOfFold(route.ContentType, "application/json", "text/plain", "application/xml") {
+			return VirtualAPIProfile{}, errors.New("virtual API route status or content type is unsupported")
+		}
+		body := []byte(route.Body)
+		if len(body) > 1<<20 || strings.ContainsRune(route.Body, '\x00') || sandboxProfileCredential.Match(body) {
+			return VirtualAPIProfile{}, errors.New("virtual API response is oversized or credential-shaped")
+		}
+		for _, email := range sandboxProfileEmail.FindAllString(route.Body, -1) {
+			if !strings.HasSuffix(strings.ToLower(email), ".invalid") {
+				return VirtualAPIProfile{}, errors.New("virtual API response contains a non-synthetic email")
+			}
+		}
+		if route.ContentType == "application/json" {
+			var value any
+			if !json.Valid(body) || json.Unmarshal(body, &value) != nil || containsSecretKey(value) {
+				return VirtualAPIProfile{}, errors.New("virtual API response is malformed or contains sensitive fields")
+			}
+		}
+		total += len(body)
+		if total > 8<<20 {
+			return VirtualAPIProfile{}, errors.New("virtual API responses exceed 8 MiB total")
+		}
+		key := route.Method + " " + route.Host + " " + route.Path + "?" + route.Query
+		if seen[key] {
+			return VirtualAPIProfile{}, errors.New("virtual API profile contains duplicate exact routes")
+		}
+		seen[key] = true
+	}
+	sort.Slice(profile.Routes, func(i, j int) bool {
+		a, b := profile.Routes[i], profile.Routes[j]
+		if a.Host != b.Host {
+			return a.Host < b.Host
+		}
+		if a.Method != b.Method {
+			return a.Method < b.Method
+		}
+		if a.Path != b.Path {
+			return a.Path < b.Path
+		}
+		return a.Query < b.Query
+	})
+	return profile, nil
+}
+
+func validVirtualAPIPath(path string) bool {
+	if len(path) == 0 || len(path) > 2048 || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#%\\\x00") {
+		return false
+	}
+	for _, segment := range strings.Split(path, "/") {
+		if segment == "." || segment == ".." || segment != "" && !sandboxVirtualAPIPathPart.MatchString(segment) {
+			return false
+		}
+	}
+	return true
+}
+
+func normalizeFixtureQuery(raw string) (string, error) {
+	if len(raw) > 2048 {
+		return "", errors.New("query exceeds byte limit")
+	}
+	values, err := url.ParseQuery(raw)
+	if err != nil || len(values) > 32 {
+		return "", errors.New("query is malformed or has too many keys")
+	}
+	keys := make([]string, 0, len(values))
+	for key, items := range values {
+		if key == "" || secretKey(key) || sandboxProfileCredential.MatchString(key) {
+			return "", errors.New("query contains unsafe key")
+		}
+		for _, value := range items {
+			if strings.ContainsAny(key+value, "\x00\r\n\x7f") || sandboxProfileCredential.MatchString(value) || sandboxProfileEmail.MatchString(value) {
+				return "", errors.New("query contains unsafe or credential-like value")
+			}
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	var canonical url.Values = make(url.Values, len(values))
+	for _, key := range keys {
+		items := append([]string(nil), values[key]...)
+		sort.Strings(items)
+		canonical[key] = items
+	}
+	return canonical.Encode(), nil
+}
+
+func virtualAPIProfileDigest(sandboxID string, profile VirtualAPIProfile) (string, error) {
+	profile, err := normalizeExportedVirtualAPIProfile(profile)
+	if err != nil {
+		return "", err
+	}
+	type route struct {
+		Host        string `json:"host"`
+		Method      string `json:"method"`
+		Path        string `json:"path"`
+		Query       string `json:"query,omitempty"`
+		Status      int    `json:"status"`
+		ContentType string `json:"contentType"`
+		Body        []byte `json:"body"`
+	}
+	contract := struct {
+		TaskID string   `json:"taskId"`
+		Hosts  []string `json:"hosts"`
+		Routes []route  `json:"routes"`
+	}{TaskID: sandboxID, Hosts: profile.Hosts, Routes: make([]route, 0, len(profile.Routes))}
+	for _, item := range profile.Routes {
+		contract.Routes = append(contract.Routes, route{Host: item.Host, Method: item.Method, Path: item.Path, Query: item.Query, Status: item.Status, ContentType: item.ContentType, Body: []byte(item.Body)})
+	}
+	encoded, err := json.Marshal(contract)
+	if err != nil {
+		return "", err
+	}
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:]), nil
 }
 
 func workspaceProfileSelectorSortKey(selector HTTPMockProfileSelector) string {

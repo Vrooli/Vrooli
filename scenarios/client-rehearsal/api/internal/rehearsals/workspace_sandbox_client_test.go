@@ -5,9 +5,175 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestVirtualAPIProfileNormalizationIsExactAndFailsClosed(t *testing.T) {
+	profile := VirtualAPIProfile{
+		Hosts:  []string{"api.notion.com"},
+		Routes: []VirtualAPIRoute{{Host: "api.notion.com", Method: "get", Path: "/v1/pages", Query: "z=2&a=1", Status: 200, ContentType: "application/json", Body: `{"id":"page-123"}`}},
+	}
+	normalized, err := normalizeExportedVirtualAPIProfile(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if normalized.Routes[0].Method != "GET" || normalized.Routes[0].Query != "a=1&z=2" {
+		t.Fatalf("profile was not canonicalized: %+v", normalized.Routes[0])
+	}
+	first, err := virtualAPIProfileDigest("00000000-0000-0000-0000-000000000001", profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reordered := profile
+	reordered.Routes = append([]VirtualAPIRoute(nil), profile.Routes...)
+	reordered.Routes[0].Method = "GET"
+	reordered.Routes[0].Query = "a=1&z=2"
+	second, err := virtualAPIProfileDigest("00000000-0000-0000-0000-000000000001", reordered)
+	if err != nil || first != second {
+		t.Fatalf("digest should be canonical and stable: first=%s second=%s err=%v", first, second, err)
+	}
+
+	for name, mutate := range map[string]func(*VirtualAPIProfile){
+		"internal host":       func(p *VirtualAPIProfile) { p.Hosts[0] = "metadata.internal"; p.Routes[0].Host = "metadata.internal" },
+		"credential query":    func(p *VirtualAPIProfile) { p.Routes[0].Query = "access_token=synthetic" },
+		"non synthetic email": func(p *VirtualAPIProfile) { p.Routes[0].Body = `{"email":"person@gmail.com"}` },
+		"credential field":    func(p *VirtualAPIProfile) { p.Routes[0].Body = `{"api_key":"synthetic"}` },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := profile
+			candidate.Hosts = append([]string(nil), profile.Hosts...)
+			candidate.Routes = append([]VirtualAPIRoute(nil), profile.Routes...)
+			mutate(&candidate)
+			if _, err := normalizeExportedVirtualAPIProfile(candidate); err == nil {
+				t.Fatal("unsafe profile was accepted")
+			}
+		})
+	}
+}
+
+func TestWorkspaceSandboxVirtualAPIDeclarationUsesSupportedOpenAPIRouteContract(t *testing.T) {
+	raw := `{"kind":"openapi","document":{"openapi":"3.0.3","servers":[{"url":"https://api.notion.com/v1"}],"paths":{"/pages":{"post":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"create","requestBody":{"content":{"application/json":{"schema":{"type":"object"}}}},"responses":{"200":{"content":{"application/json":{"example":{"id":"source-page-id","object":"page","status":"created"}}}}}}}}}}`
+	simulator, err := NewDescriptionSimulator(raw, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportVirtualAPIProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const sandboxID = "7d5eb3fd-9847-4cf6-ae0f-f4c063443ce9"
+	var expectedDigest string
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method+" "+r.URL.Path)
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/sandboxes/"+sandboxID+"/companion-services":
+			var request struct {
+				Services []struct {
+					Name       string            `json:"name"`
+					Kind       string            `json:"kind"`
+					Version    string            `json:"version"`
+					VirtualAPI VirtualAPIProfile `json:"virtualAPI"`
+				} `json:"services"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+				t.Errorf("decode declaration: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if len(request.Services) != 1 || request.Services[0].Name != "notion-api" || request.Services[0].Kind != "virtual-api" || request.Services[0].Version != "1.0.0" {
+				t.Errorf("unexpected companion service: %#v", request.Services)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			normalized, err := normalizeExportedVirtualAPIProfile(request.Services[0].VirtualAPI)
+			wantWire, wantErr := normalizeExportedVirtualAPIProfile(profile)
+			for index := range wantWire.Routes {
+				wantWire.Routes[index].Bindings = nil // owner-only matching metadata is intentionally not serialized
+			}
+			if err != nil || wantErr != nil || !reflect.DeepEqual(normalized, wantWire) {
+				t.Errorf("wire profile did not match generated allowlisted routes: normalized=%#v err=%v", normalized, err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			expectedDigest, err = virtualAPIProfileDigest(sandboxID, profile)
+			if err != nil {
+				t.Errorf("profile digest: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"services":[]}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID+"/companion-services/notion-api/start":
+			var receipt WorkspaceSandboxProfileReceipt
+			receipt.Spec.Name, receipt.Spec.Kind, receipt.Spec.Version = "notion-api", "virtual-api", "1.0.0"
+			receipt.Status, receipt.Addresses, receipt.ProfileSHA256 = "running", map[string]string{"api.notion.com": "https://api.notion.com:443"}, expectedDigest
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(receipt)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client, err := NewWorkspaceSandboxProfileClient(server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.DeclareAndStartVirtualAPIProfile(context.Background(), sandboxID, "notion-api", "1.0.0", profile); err != nil {
+		t.Fatalf("supported API-description profile failed its Sandbox wire contract: %v", err)
+	}
+	if !reflect.DeepEqual(methods, []string{
+		"PUT /api/v1/sandboxes/" + sandboxID + "/companion-services",
+		"POST /api/v1/sandboxes/" + sandboxID + "/companion-services/notion-api/start",
+	}) {
+		t.Fatalf("unexpected declaration lifecycle: %v", methods)
+	}
+}
+
+func TestWorkspaceSandboxClientPreservesActionableValidationError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"service notion-api virtual API profile: route query is invalid","code":400,"success":false}`))
+	}))
+	defer server.Close()
+	client, err := NewWorkspaceSandboxProfileClient(server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.DeclareAndStartVirtualAPIProfile(context.Background(), "7d5eb3fd-9847-4cf6-ae0f-f4c063443ce9", "notion-api", "1.0.0", VirtualAPIProfile{
+		Hosts: []string{"api.notion.com"}, Routes: []VirtualAPIRoute{{Host: "api.notion.com", Method: "GET", Path: "/v1/pages", Status: 200, ContentType: "application/json", Body: `{}`}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "route query is invalid") || !strings.Contains(err.Error(), "HTTP 400") {
+		t.Fatalf("Sandbox validation reason was lost: %v", err)
+	}
+}
+
+func TestWorkspaceSandboxRouteHitsPreserveContentFreeQueryDigest(t *testing.T) {
+	const sandboxID = "7d5eb3fd-9847-4cf6-ae0f-f4c063443ce9"
+	const digest = "0390155ca70308fc3a6fa796bbc52f7ebc72d791405eba6add3b6b3fc9eb2e8a"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/sandboxes/"+sandboxID+"/companion-services/notion-api/route-hits" {
+			t.Errorf("unexpected route-hit request: %s %s", r.Method, r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(HTTPMockRouteHitsReceipt{SandboxID: sandboxID, Status: "available", TotalHits: 1, Routes: []HTTPMockRouteHit{{Host: "api.notion.com", Method: http.MethodGet, Path: "/v1/pages", QuerySHA256: digest, Count: 1}}})
+	}))
+	defer server.Close()
+	client, err := NewWorkspaceSandboxProfileClient(server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := client.ReadRouteHits(context.Background(), sandboxID, "notion-api")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(receipt.Routes) != 1 || receipt.Routes[0].Query != "" || receipt.Routes[0].QuerySHA256 != digest {
+		t.Fatalf("content-free route query digest was lost or expanded: %#v", receipt.Routes)
+	}
+}
 
 func TestWorkspaceSandboxProfileClientDeclaresStartsAndStopsExactProfile(t *testing.T) {
 	profile, err := NewDescriptionSimulator(readFixture(t, "native_service_catalog.json"), false)

@@ -5,8 +5,15 @@
       "id": "synthetic-attendance-sheet",
       "document": {
         "openapi": "3.0.3",
-        "info": { "title": "Synthetic attendance sheet", "version": "1" },
-        "servers": [{ "url": "https://sheets.synthetic.invalid" }],
+        "info": {
+          "title": "Synthetic attendance sheet",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://sheets.synthetic.invalid"
+          }
+        ],
         "paths": {
           "/v1/attendees/read": {
             "get": {
@@ -14,14 +21,21 @@
                 "200": {
                   "content": {
                     "application/json": {
-                      "example": [{ "email": "prior@synthetic.invalid" }]
+                      "example": [
+                        {
+                          "email": "prior@synthetic.invalid"
+                        }
+                      ]
                     }
                   }
                 }
               },
               "x-n8n-node-type": "n8n-nodes-base.googleSheets",
               "x-n8n-resource": "sheet",
-              "x-n8n-operation": "read"
+              "x-n8n-operation": "read",
+              "x-n8n-input-match": {
+                "documentId": "synthetic-sheet-document"
+              }
             }
           },
           "/v1/attendees/append": {
@@ -30,7 +44,10 @@
                 "200": {
                   "content": {
                     "application/json": {
-                      "example": { "status": "recorded", "rowId": "synthetic-row-1" }
+                      "example": {
+                        "status": "recorded",
+                        "rowId": "synthetic-row-1"
+                      }
                     }
                   }
                 }
@@ -47,8 +64,15 @@
       "id": "synthetic-attendance-mail",
       "document": {
         "openapi": "3.0.3",
-        "info": { "title": "Synthetic attendance mail", "version": "1" },
-        "servers": [{ "url": "https://mail.synthetic.invalid" }],
+        "info": {
+          "title": "Synthetic attendance mail",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://mail.synthetic.invalid"
+          }
+        ],
         "paths": {
           "/v1/messages": {
             "post": {
@@ -56,7 +80,10 @@
                 "200": {
                   "content": {
                     "application/json": {
-                      "example": { "id": "synthetic-message-1", "status": "recorded" }
+                      "example": {
+                        "id": "synthetic-message-1",
+                        "status": "recorded"
+                      }
                     }
                   }
                 }

@@ -578,7 +578,7 @@ func TestSafeCodeSubsetRejectsOversizedItemsAndSource(t *testing.T) {
 func TestPublic21013SanitizedExportRunsThroughSafeInterpreterAndSyntheticServices(t *testing.T) {
 	workflowJSON := readFixture(t, "public-workflows/21013.json")
 	fixtureHash := fmt.Sprintf("%x", sha256.Sum256([]byte(workflowJSON)))
-	if fixtureHash != "f863ec05b5a2011622b1451b56f492c2282ef2c21a80523715fa12954104245c" {
+	if fixtureHash != "6086f7a9c84f37121399be67f4e61ef28213ff7728d8c5e9714efa5399b10fe9" {
 		t.Fatalf("sanitized public fixture changed without provenance update: %s", fixtureHash)
 	}
 	workflow, _, _, err := normalizeWorkflow(workflowJSON)

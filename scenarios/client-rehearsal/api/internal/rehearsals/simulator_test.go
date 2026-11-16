@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -386,6 +387,222 @@ func TestDescriptionSimulatorExportsInputConditionedOperationsAsExactSandboxQuer
 	}
 	if !seen["products"] || !seen["recipients"] {
 		t.Fatalf("profile omitted an input-conditioned Sheets operation: %#v", seen)
+	}
+}
+
+func TestDescriptionSimulatorExportsBoundOpenAPIAsTaskVirtualAPI(t *testing.T) {
+	raw := `{"kind":"openapi","document":{"openapi":"3.0.3","servers":[{"url":"https://api.notion.com/v1"}],"paths":{"/pages":{"post":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"create","requestBody":{"content":{"application/json":{"schema":{"type":"object"}}}},"responses":{"200":{"content":{"application/json":{"example":{"id":"source-page-id","object":"page","status":"created"}}}}}}}}}}`
+	simulator, err := NewDescriptionSimulator(raw, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportVirtualAPIProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(profile.Hosts) != 1 || profile.Hosts[0] != "api.notion.com" || len(profile.Routes) != 1 {
+		t.Fatalf("unexpected virtual API host/route set: %#v", profile)
+	}
+	route := profile.Routes[0]
+	if route.Method != http.MethodPost || route.Path != "/v1/pages" || route.Status != http.StatusOK || !json.Valid([]byte(route.Body)) {
+		t.Fatalf("OpenAPI operation did not become an exact successful fixture: %#v", route)
+	}
+	if strings.Contains(route.Body, "source-page-id") || !strings.Contains(route.Body, "synthetic") {
+		t.Fatalf("OpenAPI example was not syntheticized: %s", route.Body)
+	}
+	if _, err := normalizeExportedVirtualAPIProfile(profile); err != nil {
+		t.Fatalf("description-derived VirtualAPI contract should satisfy the client declaration schema: %v", err)
+	}
+}
+
+func TestOpenAPIProfilesRouteNativeIntegrationNodesAndRetainOwnerBindings(t *testing.T) {
+	const api = `{"kind":"openapi","document":{"openapi":"3.0.3","info":{"title":"Notion API","version":"1"},"servers":[{"url":"https://api.notion.com/v1"}],"paths":{"/pages":{"post":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"create","responses":{"200":{"content":{"application/json":{"example":{"id":"source-page-id","object":"page","status":"created"}}}}}}}}}}`
+	const rawWorkflow = `{"name":"Create a page","nodes":[{"id":"start","name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"id":"create","name":"Create page","type":"n8n-nodes-base.notion","typeVersion":2,"parameters":{"resource":"page","operation":"create"}}],"connections":{"Start":{"main":[[{"node":"Create page"}]]}}}`
+	simulator, err := NewDescriptionSimulator(api, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow, _, _, err := normalizeWorkflow(rawWorkflow)
+	if err != nil {
+		t.Fatalf("normalize native Notion workflow: %v", err)
+	}
+	profile, err := simulator.ExportVirtualAPIProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !workflowUsesExactVirtualAPIRoutes(workflow, profile) {
+		t.Fatal("bound Notion node must select its exact published OpenAPI route")
+	}
+	if len(profile.Routes) != 1 || len(profile.Routes[0].Bindings) != 1 || profile.Routes[0].Host != "api.notion.com" || profile.Routes[0].Path != "/v1/pages" {
+		t.Fatalf("native operation binding was not retained in the owner profile: %#v", profile.Routes)
+	}
+	encoded, err := json.Marshal(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "Bindings") || strings.Contains(string(encoded), "n8n-nodes-base.notion") {
+		t.Fatalf("owner-only operation bindings leaked onto the strict Sandbox wire: %s", encoded)
+	}
+	hits := HTTPMockRouteHitsReceipt{Routes: []HTTPMockRouteHit{{Host: "api.notion.com", Method: http.MethodPost, Path: "/v1/pages", QuerySHA256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", Count: 1}}}
+	if !nativeWorkflowHasCompanionRouteHit(workflow, hits, &profile) {
+		t.Fatal("matching native integration route hit was not accepted")
+	}
+	hits.Routes[0].Path = "/v1/users"
+	if nativeWorkflowHasCompanionRouteHit(workflow, hits, &profile) {
+		t.Fatal("a different provider route must not satisfy the Notion execution receipt")
+	}
+}
+
+func TestVirtualAPIRouteHitMatchesContentFreeExactQueryHash(t *testing.T) {
+	route := VirtualAPIRoute{Host: "api.notion.com", Method: http.MethodGet, Path: "/v1/pages", Query: "z=2&a=1"}
+	hits := HTTPMockRouteHitsReceipt{Routes: []HTTPMockRouteHit{{Host: "api.notion.com", Method: http.MethodGet, Path: "/v1/pages", QuerySHA256: "0390155ca70308fc3a6fa796bbc52f7ebc72d791405eba6add3b6b3fc9eb2e8a", Count: 1}}}
+	if !virtualAPIRouteWasHit(route, hits) {
+		t.Fatal("canonical query hash did not match exact VirtualAPI route")
+	}
+	hits.Routes[0].QuerySHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+	if virtualAPIRouteWasHit(route, hits) {
+		t.Fatal("wrong or content-free empty-query hash must not satisfy a queried route")
+	}
+}
+
+func TestOpenAPIProfileRejectsNativeServiceHostMismatchAndUnknownOperation(t *testing.T) {
+	for name, testCase := range map[string]struct {
+		api             string
+		wantExportError bool
+	}{
+		"host mismatch": {
+			api:             `{"kind":"openapi","document":{"openapi":"3.0.3","servers":[{"url":"https://unrelated.invalid/v1"}],"paths":{"/pages":{"post":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"create","responses":{"200":{"content":{"application/json":{"example":{"id":"synthetic-id"}}}}}}}}}}`,
+			wantExportError: true,
+		},
+		"operation mismatch": {
+			api: `{"kind":"openapi","document":{"openapi":"3.0.3","servers":[{"url":"https://api.notion.com/v1"}],"paths":{"/pages":{"post":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"update","responses":{"200":{"content":{"application/json":{"example":{"id":"synthetic-id"}}}}}}}}}}`,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			simulator, err := NewDescriptionSimulator(testCase.api, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			profile, err := simulator.ExportVirtualAPIProfile()
+			if testCase.wantExportError {
+				if err == nil {
+					t.Fatal("provider host mismatch must be rejected during profile export")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			workflow, _, _, err := normalizeWorkflow(`{"nodes":[{"id":"start","name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"id":"create","name":"Create page","type":"n8n-nodes-base.notion","typeVersion":2,"parameters":{"resource":"page","operation":"create"}}],"connections":{"Start":{"main":[[{"node":"Create page"}]]}}}`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if workflowUsesExactVirtualAPIRoutes(workflow, profile) {
+				t.Fatal("an unbound native operation must fail closed before starting the runtime")
+			}
+		})
+	}
+}
+
+func TestGoogleSheetsAppendProfileSupportsPublishedExactRangePath(t *testing.T) {
+	const api = `{"kind":"openapi","document":{"openapi":"3.0.3","servers":[{"url":"https://sheets.googleapis.com/v4"}],"paths":{"/spreadsheets/synthetic-sheet/values/Leads!A1:Z100:append":{"post":{"x-n8n-node-type":"n8n-nodes-base.googleSheets","x-n8n-resource":"sheet","x-n8n-operation":"append","x-n8n-input-match":{"documentId":"synthetic-sheet","sheetName":"Leads"},"responses":{"200":{"content":{"application/json":{"example":{"spreadsheetId":"source-sheet-id","updates":{"updatedRows":1}}}}}}}}}}}`
+	const workflowJSON = `{"nodes":[{"id":"start","name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"id":"append","name":"Append lead","type":"n8n-nodes-base.googleSheets","typeVersion":4.5,"parameters":{"resource":"sheet","operation":"append","documentId":{"__rl":true,"mode":"id","value":"synthetic-sheet"},"sheetName":{"__rl":true,"mode":"name","value":"Leads"}}}],"connections":{"Start":{"main":[[{"node":"Append lead"}]]}}}`
+	simulator, err := NewDescriptionSimulator(api, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	workflow, _, _, err := normalizeWorkflow(workflowJSON)
+	if err != nil {
+		t.Fatalf("normalize Google Sheets workflow: %v", err)
+	}
+	if got := workflow.Nodes[1].Request.Input; !reflect.DeepEqual(got, map[string]any{"documentId": "synthetic-sheet", "sheetName": "Leads"}) {
+		t.Fatalf("safe static Sheets selectors missing for append operation: %#v", got)
+	}
+	profile, err := simulator.ExportVirtualAPIProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := normalizeExportedVirtualAPIProfile(profile); err != nil {
+		t.Fatalf("Workspace Sandbox source contract rejected published Sheets path characters: %v", err)
+	}
+	if !workflowUsesExactVirtualAPIRoutes(workflow, profile) {
+		t.Fatal("native Sheets append must select its exact API-described route")
+	}
+	if got, want := profile.Routes[0].Path, "/v4/spreadsheets/synthetic-sheet/values/Leads!A1:Z100:append"; got != want {
+		t.Fatalf("exact Google Sheets range path = %q, want %q", got, want)
+	}
+}
+
+func TestRecordedExchangesExportToBoundedTaskVirtualAPI(t *testing.T) {
+	raw := `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/orders","status":200,"response":{"orders":[{"id":"source-order-17","status":"open"}]}},{"method":"POST","host":"api.synthetic.invalid","path":"/v1/orders","status":201,"response":{"id":"source-order-18","status":"created"}}]}`
+	simulator, err := NewDescriptionSimulator(raw, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportVirtualAPIProfile()
+	if err != nil {
+		t.Fatalf("synthetic recorded exchanges should export as exact native TLS routes: %v", err)
+	}
+	if len(profile.Hosts) != 1 || profile.Hosts[0] != "api.synthetic.invalid" || len(profile.Routes) != 2 {
+		t.Fatalf("unexpected recorded-exchange virtual API: %#v", profile)
+	}
+	if profile.Routes[0].Method != http.MethodGet || profile.Routes[1].Method != http.MethodPost || profile.Routes[1].Status != http.StatusCreated {
+		t.Fatalf("recorded exchanges lost their exact method/status: %#v", profile.Routes)
+	}
+	for _, route := range profile.Routes {
+		if route.Host != "api.synthetic.invalid" || route.Path != "/v1/orders" || route.ContentType != "application/json" || !json.Valid([]byte(route.Body)) || strings.Contains(route.Body, "source-order-") {
+			t.Fatalf("recorded exchange was not exact, valid JSON and syntheticized: %#v", route)
+		}
+	}
+	if _, err := normalizeExportedVirtualAPIProfile(profile); err != nil {
+		t.Fatalf("recorded exchange did not satisfy the current Sandbox declaration schema: %v", err)
+	}
+}
+
+func TestRecordedExchangeVirtualAPIExportRejectsEgressErrorsAndSecrets(t *testing.T) {
+	for name, raw := range map[string]string{
+		"public host":      `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.example.com","path":"/v1/orders","status":200,"response":{"orders":[]}}]}`,
+		"redirect status":  `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/orders","status":302,"response":{"location":"https://api.example.com"}}]}`,
+		"credential field": `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/orders","status":200,"response":{"api_key":"source-secret"}}]}`,
+		"variable query":   `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/orders?customer=1","status":200,"response":{"orders":[]}}]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			simulator, err := NewDescriptionSimulator(raw, false)
+			if err != nil {
+				if name == "variable query" {
+					return // The source parser rejects query-bearing recorded paths first.
+				}
+				t.Fatal(err)
+			}
+			if _, err := simulator.ExportVirtualAPIProfile(); err == nil {
+				t.Fatal("unsafe recorded exchange was accepted by the virtual API exporter")
+			}
+		})
+	}
+}
+
+func TestDescriptionSimulatorVirtualAPIExportFailsClosedWithoutBoundExactPublicOperation(t *testing.T) {
+	cases := map[string]struct {
+		raw       string
+		wantError string
+	}{
+		"unbound external host":  {`{"kind":"openapi","document":{"servers":[{"url":"https://api.example.com"}],"paths":{"/v1/contacts":{"get":{"responses":{"200":{"content":{"application/json":{"example":{"items":[]}}}}}}}}}}`, "virtual API export requires 1 to 32 hosts and 1 to 512 bound operations"},
+		"internal metadata host": {`{"kind":"openapi","document":{"servers":[{"url":"https://metadata.google.internal"}],"paths":{"/v1/contacts":{"get":{"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"list","responses":{"200":{"content":{"application/json":{"example":{"items":[]}}}}}}}}}}`, "virtual API export rejects local, IP, wildcard, port-bearing, and reserved hosts"},
+		"parameterized path":     {`{"kind":"openapi","document":{"servers":[{"url":"https://api.notion.com"}],"paths":{"/v1/contacts/{id}":{"get":{"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"get","responses":{"200":{"content":{"application/json":{"example":{"id":"source"}}}}}}}}}}`, "virtual API export requires exact static paths"},
+		"variable query":         {`{"kind":"openapi","document":{"servers":[{"url":"https://api.notion.com"}],"paths":{"/v1/pages":{"get":{"parameters":[{"name":"filter","in":"query","schema":{"type":"string"}}],"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"getAll","responses":{"200":{"content":{"application/json":{"example":{"items":[]}}}}}}}}}}`, "virtual API export does not yet support variable query parameters"},
+		"no response fixture":    {`{"kind":"openapi","document":{"servers":[{"url":"https://api.notion.com"}],"paths":{"/v1/pages":{"get":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"getAll","responses":{}}}}}}`, "virtual API export requires a successful response fixture"},
+		"credential response":    {`{"kind":"openapi","document":{"servers":[{"url":"https://api.notion.com"}],"paths":{"/v1/pages":{"get":{"x-n8n-node-type":"n8n-nodes-base.notion","x-n8n-resource":"page","x-n8n-operation":"getAll","responses":{"200":{"content":{"application/json":{"example":{"api_key":"source-secret"}}}}}}}}}}`, "virtual API response contains a credential-shaped field"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			simulator, err := NewDescriptionSimulator(tc.raw, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := simulator.ExportVirtualAPIProfile(); err == nil || !strings.Contains(err.Error(), tc.wantError) {
+				t.Fatalf("virtual API exporter error=%v, want reason containing %q", err, tc.wantError)
+			}
+		})
 	}
 }
 

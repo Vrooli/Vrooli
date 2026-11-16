@@ -13,7 +13,7 @@ func TestNormalizeWorkflowImportsN8NGraphAndDropsCredentialMaterial(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(workflow.Nodes) != 2 || workflow.Nodes[1].Request == nil || workflow.Nodes[1].Request.Method != "POST" || workflow.Nodes[1].Request.URL != "/v1/contacts" {
+	if len(workflow.Nodes) != 2 || workflow.Nodes[1].Request == nil || workflow.Nodes[1].Request.Method != "POST" || workflow.Nodes[1].Request.URL != "/v1/contacts" || workflow.Nodes[1].Request.Query != "" {
 		t.Fatalf("unexpected normalized graph: %#v", workflow.Nodes)
 	}
 	if len(workflow.Connections) != 1 || replacements == 0 {
@@ -287,6 +287,23 @@ func TestPinnedGoogleSheetsV2Type47SelectsSheetReadDefault(t *testing.T) {
 	}
 	if node.Request == nil || node.Request.Resource != "sheet" || node.Request.Action != "read" || node.Request.Input["sheetName"] != "products" {
 		t.Fatalf("Google Sheets v4.7 default = %#v", node.Request)
+	}
+	if node.Request.Input["documentId"] != "synthetic-sheet" {
+		t.Fatalf("Google Sheets document selector was not retained: %#v", node.Request.Input)
+	}
+	plainName, err := normalizeWorkflowNodeVersion("read-products", "Read products", "n8n-nodes-base.googleSheets", map[string]any{
+		"sheetName":  "Inventory",
+		"documentId": map[string]any{"mode": "id", "value": "synthetic-inventory-sheet"},
+	}, 4.7)
+	if err != nil || plainName.Request.Input["sheetName"] != "Inventory" || plainName.Request.Input["documentId"] != "synthetic-inventory-sheet" {
+		t.Fatalf("static Google Sheets selectors were not retained: node=%#v err=%v", plainName, err)
+	}
+	credential, err := normalizeWorkflowNodeVersion("read-products", "Read products", "n8n-nodes-base.googleSheets", map[string]any{
+		"documentId": map[string]any{"mode": "id", "value": "ghp_12345678901234567890"},
+		"sheetName":  "owner@example.invalid",
+	}, 4.7)
+	if err != nil || len(credential.Request.Input) != 0 {
+		t.Fatalf("credential-shaped selectors must not be retained: node=%#v err=%v", credential, err)
 	}
 }
 

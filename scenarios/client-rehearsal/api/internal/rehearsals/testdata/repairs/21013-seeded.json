@@ -10,7 +10,12 @@
         "options": {},
         "httpMethod": "POST",
         "responseMode": "responseNode"
-      }
+      },
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 2.1
     },
     {
       "id": "a2",
@@ -18,7 +23,12 @@
       "type": "n8n-nodes-base.code",
       "parameters": {
         "jsCode": "// Normalise and validate incoming form data (works with JSON or form-encoded posts)\nconst out = [];\nfor (const item of $input.all()) {\n  const b = item.json.body ?? item.json;\n  const name = String(b.name ?? '').trim();\n  const email = String(b.email ?? '').trim().toLowerCase();\n  const message = String(b.message ?? '').trim();\n  const errors = [];\n  if (!name) errors.push('name is missing');\n  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('email looks invalid');\n  if (message.length > 5000) errors.push('message is too long');\n  out.push({ json: {\n    received_at: new Date().toISOString(),\n    name, email,\n    phone: String(b.phone ?? '').trim(),\n    message,\n    source: String(b.source ?? 'website form'),\n    // seeded omission: valid\n    errors: errors.join('; '),\n  }});\n}\nreturn out;"
-      }
+      },
+      "position": [
+        260,
+        0
+      ],
+      "typeVersion": 2
     },
     {
       "id": "a3",
@@ -46,7 +56,12 @@
             }
           ]
         }
-      }
+      },
+      "position": [
+        520,
+        0
+      ],
+      "typeVersion": 2.2
     },
     {
       "id": "a4",
@@ -58,7 +73,12 @@
         },
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: true, message: 'Thanks ' + $json.name + ', we got your message.' }) }}"
-      }
+      },
+      "position": [
+        780,
+        0
+      ],
+      "typeVersion": 1.5
     },
     {
       "id": "a5",
@@ -80,8 +100,14 @@
           "__rl": true,
           "mode": "id",
           "value": "synthetic-sheet-id"
-        }
-      }
+        },
+        "resource": "sheet"
+      },
+      "position": [
+        1040,
+        0
+      ],
+      "typeVersion": 4.7
     },
     {
       "id": "a6",
@@ -89,8 +115,17 @@
       "type": "n8n-nodes-base.gmail",
       "parameters": {
         "resource": "message",
-        "operation": "send"
-      }
+        "operation": "send",
+        "emailType": "text",
+        "sendTo": "lead@example.invalid",
+        "subject": "Synthetic form received",
+        "message": "Thanks, we received your message."
+      },
+      "position": [
+        1300,
+        0
+      ],
+      "typeVersion": 2.1
     },
     {
       "id": "a7",
@@ -102,7 +137,12 @@
         },
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ ok: false, errors: $json.errors }) }}"
-      }
+      },
+      "position": [
+        1560,
+        0
+      ],
+      "typeVersion": 1.5
     }
   ],
   "connections": {

@@ -919,23 +919,44 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		// Preserve a small, safe set of static service selectors so a published
 		// API description can distinguish the target table/database without
 		// retaining caller data or workflow-specific routing logic.
-		if tableID, ok := params["tableId"].(string); ok && tableID != "" && len(tableID) <= 128 && !strings.Contains(tableID, "={{") && !strings.ContainsAny(tableID, "\x00\r\n") {
+		if tableID, ok := params["tableId"].(string); ok && safeStaticSelector(tableID) {
 			request.Input = map[string]any{"tableId": tableID}
 		}
-		if typeName == "n8n-nodes-base.googleSheets" && resource == "sheet" && action == "read" {
-			if locator, ok := params["sheetName"].(map[string]any); ok {
-				if value, ok := locator["value"].(string); ok && value != "" && len(value) <= 128 && !strings.ContainsAny(value, "\x00\r\n") && !strings.Contains(value, "={{") {
+		if typeName == "n8n-nodes-base.googleSheets" && resource == "sheet" {
+			if sheetName, ok := params["sheetName"].(string); ok && safeStaticSelector(sheetName) {
+				if request.Input == nil {
+					request.Input = map[string]any{}
+				}
+				request.Input["sheetName"] = sheetName
+			} else if locator, ok := params["sheetName"].(map[string]any); ok {
+				if value, ok := locator["value"].(string); ok && safeStaticSelector(value) {
 					if request.Input == nil {
 						request.Input = map[string]any{}
 					}
 					request.Input["sheetName"] = value
 				}
 			}
-			node.RequestReplacesInput = true
+			documentID, _ := params["documentId"].(string)
+			if locator, ok := params["documentId"].(map[string]any); ok {
+				documentID, _ = locator["value"].(string)
+			}
+			if safeStaticSelector(documentID) {
+				if request.Input == nil {
+					request.Input = map[string]any{}
+				}
+				request.Input["documentId"] = documentID
+			}
+			if action == "read" {
+				node.RequestReplacesInput = true
+			}
 		}
 		node.Request = request
 	}
 	return node, nil
+}
+
+func safeStaticSelector(value string) bool {
+	return value != "" && len(value) <= 128 && !strings.ContainsAny(value, "\x00\r\n") && !strings.Contains(value, "={{") && !sandboxProfileCredential.MatchString(value) && !sandboxProfileEmail.MatchString(value)
 }
 
 // boundedModelSelector accepts either the plain model identifier used by older
@@ -1777,7 +1798,37 @@ func normalizeHTTPNode(id, name string, params map[string]any) (Step, string, er
 	if path == "" {
 		path = "/"
 	}
-	return Step{ID: id, Operation: method + " " + path, Method: method, Host: parsed.Hostname(), URL: path}, "", nil
+	query, err := sanitizeImportedRequestQuery(parsed.RawQuery)
+	if err != nil {
+		return Step{}, "", ErrInvalid{Field: "nodes.parameters.url", Reason: "HTTP Request query is unsafe or outside the bounded static query subset"}
+	}
+	return Step{ID: id, Operation: method + " " + path, Method: method, Host: parsed.Hostname(), URL: path, Query: query}, "", nil
+}
+
+func sanitizeImportedRequestQuery(raw string) (string, error) {
+	values, err := url.ParseQuery(raw)
+	if err != nil {
+		return "", err
+	}
+	for key, items := range values {
+		if secretKey(key) || sandboxProfileCredential.MatchString(key) {
+			delete(values, key)
+			continue
+		}
+		filtered := items[:0]
+		for _, item := range items {
+			if sandboxProfileCredential.MatchString(item) || sandboxProfileEmail.MatchString(item) {
+				continue
+			}
+			filtered = append(filtered, item)
+		}
+		if len(filtered) == 0 {
+			delete(values, key)
+		} else {
+			values[key] = filtered
+		}
+	}
+	return normalizeFixtureQuery(values.Encode())
 }
 
 func normalizeCondition(params map[string]any) ([]Condition, string, error) {
@@ -2029,9 +2080,11 @@ func parseConditionJSONExpressionSource(raw string) (path, nodeName, mode string
 	return path, nodeName, mode, true
 }
 
-var dateTimeMinusExpression = regexp.MustCompile(`^\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+)\.toDateTime\(\)\.minus\(\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+), 'minutes'\)$`)
-var dateAfterNowExpression = regexp.MustCompile(`^=\{\{\s*new Date\((\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])+)\)\s*>\s*new Date\(\)\s*\}\}$`)
-var numericRangeExpression = regexp.MustCompile(`^=\{\{\s*(\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])*)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*&&\s*(\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])*)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\}\}$`)
+var (
+	dateTimeMinusExpression = regexp.MustCompile(`^\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+)\.toDateTime\(\)\.minus\(\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+), 'minutes'\)$`)
+	dateAfterNowExpression  = regexp.MustCompile(`^=\{\{\s*new Date\((\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])+)\)\s*>\s*new Date\(\)\s*\}\}$`)
+	numericRangeExpression  = regexp.MustCompile(`^=\{\{\s*(\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])*)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*&&\s*(\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])*)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\}\}$`)
+)
 
 func normalizeSwitch(params map[string]any) ([]SwitchRule, error) {
 	rulesRoot, _ := params["rules"].(map[string]any)

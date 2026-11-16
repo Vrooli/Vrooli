@@ -90,10 +90,40 @@ type HTTPMockRoute struct {
 	Body        string `json:"body"`
 }
 
+// VirtualAPIProfile binds exact OpenAPI-backed responses to the service host
+// used by a native integration node. Workspace Sandbox installs that host as
+// a task-only DNS alias and serves a task CA certificate; the real destination
+// is never contacted.
+type VirtualAPIProfile struct {
+	Hosts  []string          `json:"hosts"`
+	Routes []VirtualAPIRoute `json:"routes"`
+}
+
+type VirtualAPIRoute struct {
+	Host        string `json:"host"`
+	Method      string `json:"method"`
+	Path        string `json:"path"`
+	Query       string `json:"query,omitempty"`
+	Status      int    `json:"status"`
+	ContentType string `json:"contentType"`
+	Body        string `json:"body"`
+	// Bindings stay in the rehearsal owner. They let the source prove that a
+	// native integration node is covered by a declared API operation without
+	// adding workflow selectors to Workspace Sandbox's strict route schema.
+	Bindings []VirtualAPIOperationBinding `json:"-"`
+}
+
+type VirtualAPIOperationBinding struct {
+	NodeType   string         `json:"-"`
+	Resource   string         `json:"-"`
+	Operation  string         `json:"-"`
+	InputMatch map[string]any `json:"-"`
+}
+
 var (
 	sandboxProfileNodeTypePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,127}$`)
 	sandboxProfilePartPattern     = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
-	sandboxProfilePathPartPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+	sandboxProfilePathPartPattern = regexp.MustCompile(`^[A-Za-z0-9._~!$&'()*+,;=:@-]+$`)
 )
 
 type DescriptionSimulator struct {
@@ -107,6 +137,7 @@ type DescriptionSimulator struct {
 type apiDescription struct {
 	id               string
 	hosts            []string
+	httpsHosts       map[string]bool
 	basePaths        map[string]string
 	paths            map[string]map[string]any
 	nativeOperations map[string][]Step
@@ -319,6 +350,225 @@ func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) 
 		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export exceeds the 2 MiB profile bound"}
 	}
 	return profile, nil
+}
+
+// ExportVirtualAPIProfile derives exact TLS routes only from explicit
+// node/resource/operation bindings in OpenAPI documents. The task-local
+// virtual API companion aliases those service hostnames to synthetic fixture
+// responses, with the task CA trusted before n8n starts.
+func (s *DescriptionSimulator) ExportVirtualAPIProfile() (VirtualAPIProfile, error) {
+	if s != nil && s.kind == "recorded-exchanges" {
+		return s.exportRecordedExchangeVirtualAPIProfile()
+	}
+	if s == nil || len(s.services) == 0 {
+		return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "virtual API export requires OpenAPI service descriptions"}
+	}
+	profile := VirtualAPIProfile{}
+	hostSet, routes := map[string]bool{}, map[string]int{}
+	totalResponseBytes := 0
+	for _, service := range s.services {
+		if len(service.nativeOperations) == 0 {
+			continue
+		}
+		if len(service.hosts) != 1 {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.servers", Reason: "virtual API export requires one exact server host per service"}
+		}
+		host := strings.ToLower(service.hosts[0])
+		if !validVirtualAPIServiceHost(host) {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.servers", Reason: "virtual API export rejects local, IP, wildcard, port-bearing, and reserved hosts"}
+		}
+		if !service.httpsHosts[host] {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.servers", Reason: "native virtual API routes require an HTTPS OpenAPI server"}
+		}
+		if !hostSet[host] {
+			hostSet[host] = true
+			profile.Hosts = append(profile.Hosts, host)
+		}
+		for _, candidates := range service.nativeOperations {
+			for _, binding := range candidates {
+				if strings.ContainsAny(binding.URL, "{}?#%\\") || !strings.HasPrefix(binding.URL, "/") {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "virtual API export requires exact static paths"}
+				}
+				pathItem := service.paths[binding.URL]
+				if hasQueryParameter(pathItem) {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.parameters", Reason: "virtual API export does not yet support variable query parameters"}
+				}
+				operation, ok := matchOpenAPIOperation(service.paths, binding.Method, binding.URL)
+				if !ok {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "bound API operation is missing"}
+				}
+				responses, _ := operation["responses"].(map[string]any)
+				status, raw := firstSuccessResponse(responses)
+				if raw == nil {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "virtual API export requires a successful response fixture"}
+				}
+				response, _ := raw.(map[string]any)
+				content, _ := response["content"].(map[string]any)
+				jsonContent, _ := content["application/json"].(map[string]any)
+				var value any
+				if example, exists := jsonContent["example"]; exists {
+					value = example
+				} else if schema, exists := jsonContent["schema"].(map[string]any); exists && len(schema) > 0 {
+					value = syntheticValue(schema)
+				} else if len(jsonContent) > 0 {
+					value = map[string]any{"status": "synthetic-success"}
+				} else {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "virtual API export supports only JSON response fixtures"}
+				}
+				if containsSecretKey(value) {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "virtual API response contains a credential-shaped field"}
+				}
+				body := responseString(syntheticize(value, ""))
+				totalResponseBytes += len(body)
+				if len(body) > 1<<20 || totalResponseBytes > 8<<20 {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "virtual API responses exceed the route or profile bound"}
+				}
+				path := strings.TrimSuffix(service.basePaths[host], "/") + binding.URL
+				key := strings.ToUpper(binding.Method) + " " + host + " " + path
+				operationKey := strings.SplitN(binding.Operation, "|", 3)
+				if len(operationKey) != 3 || !isNativeServiceNode(operationKey[0]) {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "virtual API operation binding is malformed"}
+				}
+				if !nativeVirtualAPIHostAllowed(operationKey[0], host) {
+					return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.servers", Reason: "OpenAPI native operation host is not an approved exact service endpoint for its n8n node type"}
+				}
+				selector := VirtualAPIOperationBinding{NodeType: operationKey[0], Resource: operationKey[1], Operation: operationKey[2], InputMatch: cloneMap(binding.InputMatch)}
+				if index, exists := routes[key]; exists {
+					route := &profile.Routes[index]
+					if route.Status != status || route.Body != body || route.ContentType != "application/json" {
+						return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "duplicate exact API routes have conflicting response fixtures"}
+					}
+					route.Bindings = append(route.Bindings, selector)
+					continue
+				}
+				routes[key] = len(profile.Routes)
+				profile.Routes = append(profile.Routes, VirtualAPIRoute{Host: host, Method: strings.ToUpper(binding.Method), Path: path, Status: status, ContentType: "application/json", Body: body, Bindings: []VirtualAPIOperationBinding{selector}})
+			}
+		}
+	}
+	if len(profile.Hosts) == 0 || len(profile.Hosts) > 32 || len(profile.Routes) == 0 || len(profile.Routes) > 512 {
+		return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "virtual API export requires 1 to 32 hosts and 1 to 512 bound operations"}
+	}
+	sort.Strings(profile.Hosts)
+	sort.Slice(profile.Routes, func(i, j int) bool {
+		a, b := profile.Routes[i], profile.Routes[j]
+		if a.Host != b.Host {
+			return a.Host < b.Host
+		}
+		if a.Method != b.Method {
+			return a.Method < b.Method
+		}
+		return a.Path < b.Path
+	})
+	return profile, nil
+}
+
+// exportRecordedExchangeVirtualAPIProfile converts explicitly recorded,
+// sanitized exchanges to fixed TLS routes. Only synthetic.invalid hosts and
+// successful static responses are admitted; this never forwards requests.
+func (s *DescriptionSimulator) exportRecordedExchangeVirtualAPIProfile() (VirtualAPIProfile, error) {
+	if s == nil || len(s.exchanges) == 0 || len(s.exchanges) > 512 {
+		return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "virtual API export requires 1 to 512 recorded exchanges"}
+	}
+	keys := make([]string, 0, len(s.exchanges))
+	for key := range s.exchanges {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	profile := VirtualAPIProfile{}
+	hosts, routes := map[string]bool{}, map[string]bool{}
+	totalResponseBytes := 0
+	for _, key := range keys {
+		item := s.exchanges[key]
+		parts := strings.SplitN(key, " ", 3)
+		if len(parts) != 3 {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "recorded exchange key is malformed"}
+		}
+		method, host, path := parts[0], parts[1], parts[2]
+		if !strings.HasSuffix(strings.ToLower(host), ".synthetic.invalid") || !validVirtualAPIServiceHost(host) {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.host", Reason: "virtual API export requires exact synthetic.invalid hosts"}
+		}
+		if !validVirtualAPIPath(path) || !oneOfFold(method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "virtual API export requires a bounded exact path and supported method"}
+		}
+		status := http.StatusOK
+		if number, ok := item["status"].(float64); ok {
+			status = int(number)
+		}
+		if status < 200 || status >= 300 {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.status", Reason: "virtual API export supports only successful 2xx exchanges"}
+		}
+		response, exists := item["response"]
+		if !exists || containsSecretKey(response) {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.response", Reason: "virtual API export requires a response without credential-shaped fields"}
+		}
+		body := responseString(syntheticize(response, ""))
+		totalResponseBytes += len(body)
+		if len(body) > 1<<20 || totalResponseBytes > 8<<20 {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.response", Reason: "virtual API responses exceed the route or profile bound"}
+		}
+		routeKey := strings.ToUpper(method) + " " + host + " " + path
+		if routes[routeKey] {
+			return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "recorded exchanges contain duplicate exact routes"}
+		}
+		routes[routeKey] = true
+		hosts[host] = true
+		profile.Routes = append(profile.Routes, VirtualAPIRoute{Host: host, Method: strings.ToUpper(method), Path: path, Status: status, ContentType: "application/json", Body: body})
+	}
+	if len(hosts) == 0 || len(hosts) > 32 {
+		return VirtualAPIProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "virtual API export requires 1 to 32 exact hosts"}
+	}
+	for host := range hosts {
+		profile.Hosts = append(profile.Hosts, host)
+	}
+	sort.Strings(profile.Hosts)
+	sort.Slice(profile.Routes, func(i, j int) bool {
+		a, b := profile.Routes[i], profile.Routes[j]
+		if a.Host != b.Host {
+			return a.Host < b.Host
+		}
+		if a.Method != b.Method {
+			return a.Method < b.Method
+		}
+		return a.Path < b.Path
+	})
+	return profile, nil
+}
+
+func validVirtualAPIServiceHost(host string) bool {
+	if !validSimulatorHost(host) || strings.Contains(host, ":") || net.ParseIP(host) != nil || strings.EqualFold(host, "localhost") {
+		return false
+	}
+	for _, suffix := range []string{".localhost", ".local", ".internal", ".test", ".example"} {
+		if strings.HasSuffix(host, suffix) {
+			return false
+		}
+	}
+	return true
+}
+
+// nativeVirtualAPIHostAllowed limits API-description bindings for n8n's
+// built-in provider nodes to the provider's fixed public HTTPS API endpoint.
+// HTTP Request nodes are separately constrained by their exact static URL and
+// the task-local no-egress companion.
+func nativeVirtualAPIHostAllowed(nodeType, host string) bool {
+	if nodeType == "n8n-nodes-base.httprequest" {
+		return validVirtualAPIServiceHost(host)
+	}
+	allowed := map[string]string{
+		"n8n-nodes-base.discord":          "discord.com",
+		"n8n-nodes-base.github":           "api.github.com",
+		"n8n-nodes-base.gmail":            "gmail.googleapis.com",
+		"n8n-nodes-base.googlesheets":     "sheets.googleapis.com",
+		"n8n-nodes-base.hubspot":          "api.hubapi.com",
+		"n8n-nodes-base.notion":           "api.notion.com",
+		"n8n-nodes-base.openai":           "api.openai.com",
+		"n8n-nodes-base.slack":            "slack.com",
+		"n8n-nodes-base.telegram":         "api.telegram.org",
+		"@n8n/n8n-nodes-langchain.openai": "api.openai.com",
+	}
+	expected, ok := allowed[strings.ToLower(nodeType)]
+	return ok && expected != "" && strings.EqualFold(host, expected)
 }
 
 // exportRecordedExchangeHTTPMockProfile converts explicitly recorded,
@@ -626,7 +876,7 @@ func parseAPIDescription(id string, doc map[string]any) (apiDescription, error) 
 	if len(paths) == 0 {
 		return apiDescription{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "OpenAPI document requires paths"}
 	}
-	service := apiDescription{id: id, paths: map[string]map[string]any{}, basePaths: map[string]string{}, nativeOperations: map[string][]Step{}}
+	service := apiDescription{id: id, paths: map[string]map[string]any{}, httpsHosts: map[string]bool{}, basePaths: map[string]string{}, nativeOperations: map[string][]Step{}}
 	servers, _ := doc["servers"].([]any)
 	for _, raw := range servers {
 		item, _ := raw.(map[string]any)
@@ -637,6 +887,9 @@ func parseAPIDescription(id string, doc map[string]any) (apiDescription, error) 
 		}
 		host := strings.ToLower(parsed.Hostname())
 		service.hosts = append(service.hosts, host)
+		if parsed.Scheme == "https" {
+			service.httpsHosts[host] = true
+		}
 		if parsed.EscapedPath() != "" && parsed.EscapedPath() != "/" {
 			service.basePaths[host] = strings.TrimSuffix(parsed.EscapedPath(), "/")
 		}

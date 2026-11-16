@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"client-rehearsal/internal/capabilities"
 	"client-rehearsal/internal/modules"
@@ -21,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
@@ -83,8 +86,25 @@ func main() {
 		log.Fatalf("bounty case registry initialization failed: %v", err)
 	}
 
+	nativeN8NEnabled := strings.EqualFold(strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_N8N_RUNTIME_ENABLED")), "true")
+	sandboxURL := strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL"))
+	if nativeN8NEnabled && sandboxURL == "" {
+		lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		resolvedURL, lookupErr := resolveWorkspaceSandboxURL(lookupCtx, sandboxURL, discovery.ResolveScenarioPort)
+		cancel()
+		if lookupErr != nil {
+			log.Printf("native n8n task rehearsal is unavailable because Workspace Sandbox port discovery failed: %v; unscoped simulator rehearsals remain available", lookupErr)
+			nativeN8NEnabled = false
+		} else {
+			sandboxURL = resolvedURL
+		}
+	}
 	var sandboxClient *rehearsals.WorkspaceSandboxProfileClient
-	if sandboxURL := strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL")); sandboxURL != "" {
+	if sandboxURL != "" {
+		parsedSandboxURL, parseErr := url.ParseRequestURI(sandboxURL)
+		if parseErr != nil || parsedSandboxURL.Scheme == "" || parsedSandboxURL.Host == "" {
+			log.Fatalf("Workspace Sandbox URL configuration is invalid")
+		}
 		sandboxClient, err = rehearsals.NewWorkspaceSandboxProfileClient(sandboxURL, nil)
 		if err != nil {
 			log.Fatalf("Workspace Sandbox configuration is invalid: %v", err)
@@ -92,7 +112,7 @@ func main() {
 	}
 
 	rehearsalModule := rehearsalsH.ModuleWithWorkspaceSandbox(db, schedule.System(), log.Default(), sandboxClient)
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_N8N_RUNTIME_ENABLED")), "true") {
+	if nativeN8NEnabled {
 		if sandboxClient == nil {
 			log.Fatalf("native n8n rehearsal requires CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL")
 		}

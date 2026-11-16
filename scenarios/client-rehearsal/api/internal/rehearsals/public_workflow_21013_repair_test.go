@@ -11,10 +11,10 @@ import (
 func TestPublic21013SeededValidationOutputDefectIsDetectedAndCorrected(t *testing.T) {
 	publicWorkflow := readFixture(t, "public-workflows/21013.json")
 	seededWorkflow := readFixture(t, "repairs/21013-seeded.json")
-	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(publicWorkflow))); got != "f863ec05b5a2011622b1451b56f492c2282ef2c21a80523715fa12954104245c" {
+	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(publicWorkflow))); got != "6086f7a9c84f37121399be67f4e61ef28213ff7728d8c5e9714efa5399b10fe9" {
 		t.Fatalf("public fixture hash changed: %s", got)
 	}
-	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(seededWorkflow))); got != "164a24007bdddc9e7a4c93454246bc7387d8432c1188488c76428c20f61be9c8" {
+	if got := fmt.Sprintf("%x", sha256.Sum256([]byte(seededWorkflow))); got != "0c2836016ff0092367a667a62d5a45302f13e85bcc5fa94e69f1ba48e357fc43" {
 		t.Fatalf("seeded defect fixture hash changed: %s", got)
 	}
 	workflow, _, _, err := normalizeWorkflow(publicWorkflow)

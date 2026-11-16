@@ -59,9 +59,19 @@
     }
   },
   "dependencies": {
-    "resources": {}
+    "resources": {},
+    "scenarios": {
+      "workspace-sandbox": {
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Optional owner for native task-scoped workflow rehearsals; simulator rehearsals remain available if Sandbox is missing."
+      }
+    }
   },
-  "environment": {},
+  "environment": {
+    "CLIENT_REHEARSAL_N8N_RUNTIME_ENABLED": "true"
+  },
   "generation": {
     "content_sha": "5b674a2c7be4c28d1b68582dea6b40c5eb5b0fe466ba7e025deeaa192282ef2d",
     "design": {

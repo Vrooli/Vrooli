@@ -134,7 +134,7 @@ func TestSandboxEngineAdapterRoutesGenericHTTPRequestThroughCompanion(t *testing
 
 func TestRewriteWorkflowHTTPRequestsToSandboxAliases(t *testing.T) {
 	input := `{"name":"CRM intake","nodes":[{"name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"name":"Request","type":"n8n-nodes-base.httpRequest","parameters":{"method":"POST","url":"https://crm.synthetic.invalid/v1/contacts"}}],"connections":{}}`
-	operations := []HTTPMockOperationAddress{{Selector: HTTPMockProfileSelector{NodeType: "n8n-nodes-base.httpRequest", Resource: "request", Operation: "request"}, Method: http.MethodPost, URL: "http://crm.synthetic.invalid:18080/v1/contacts"}}
+	operations := []HTTPMockOperationAddress{{Selector: HTTPMockProfileSelector{NodeType: "n8n-nodes-base.httpRequest", Resource: "request", Operation: "request", InputMatch: map[string]any{"sheetName": "synthetic-feeds"}}, Method: http.MethodPost, URL: "http://crm.synthetic.invalid:18080/v1/contacts"}}
 	rewritten, err := rewriteWorkflowHTTPRequestsForSandbox(input, operations)
 	if err != nil {
 		t.Fatal(err)
@@ -152,6 +152,41 @@ func TestRewriteWorkflowHTTPRequestsToSandboxAliases(t *testing.T) {
 	}
 	if _, err := rewriteWorkflowHTTPRequestsForSandbox(input, nil); err == nil {
 		t.Fatal("expected unmatched HTTP Request to fail closed")
+	}
+	queryOperation := operations[0]
+	queryOperation.URL += "?q=literal"
+	queryInput := strings.Replace(input, "/v1/contacts", "/v1/contacts?q=literal", 1)
+	for _, trigger := range []string{"n8n-nodes-base.scheduleTrigger", "n8n-nodes-base.webhook"} {
+		t.Run(trigger, func(t *testing.T) {
+			workflow := strings.Replace(queryInput, "n8n-nodes-base.manualTrigger", trigger, 1)
+			rewritten, err := rewriteWorkflowHTTPRequestsForSandbox(workflow, []HTTPMockOperationAddress{queryOperation})
+			if err != nil {
+				t.Fatalf("exact synthetic route query rejected: %v", err)
+			}
+			if !strings.Contains(rewritten, queryOperation.URL) {
+				t.Fatalf("task-local rewrite dropped exact route query: %s", rewritten)
+			}
+		})
+	}
+	wrongQuery := queryOperation
+	wrongQuery.URL = strings.Replace(wrongQuery.URL, "q=literal", "q=other", 1)
+	if _, err := rewriteWorkflowHTTPRequestsForSandbox(queryInput, []HTTPMockOperationAddress{wrongQuery}); err == nil {
+		t.Fatal("query mismatch must fail closed")
+	}
+	if _, err := validatedSandboxOperationURL(HTTPMockOperationAddress{Method: http.MethodGet, URL: "http://crm.synthetic.invalid:18080/v1/x?token=unsafe"}); err == nil {
+		t.Fatal("credential-shaped route query must fail closed")
+	}
+}
+
+func TestSyntheticHTTPRouteURLPreservesProfileQueryForTaskCompiler(t *testing.T) {
+	route := HTTPMockRoute{Host: "f7.synthetic.invalid", Method: http.MethodGet, Path: "/v1/rss/one", Query: "feedUrl=https%3A%2F%2Ffeeds.synthetic.invalid%2Fone"}
+	got, err := syntheticHTTPRouteURL(route, "http", "18080")
+	if err != nil || got != "http://f7.synthetic.invalid:18080/v1/rss/one?feedUrl=https%3A%2F%2Ffeeds.synthetic.invalid%2Fone" {
+		t.Fatalf("synthetic route address = %q, %v", got, err)
+	}
+	workflowURL, err := syntheticHTTPRouteURL(route, "https", "")
+	if err != nil || workflowURL != "https://f7.synthetic.invalid/v1/rss/one?feedUrl=https%3A%2F%2Ffeeds.synthetic.invalid%2Fone" {
+		t.Fatalf("task workflow URL = %q, %v", workflowURL, err)
 	}
 }
 

@@ -5,8 +5,15 @@
       "id": "synthetic-reminder-sheet",
       "document": {
         "openapi": "3.0.3",
-        "info": { "title": "Synthetic reminder sheet", "version": "1" },
-        "servers": [{ "url": "https://sheets.synthetic.invalid" }],
+        "info": {
+          "title": "Synthetic reminder sheet",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://sheets.synthetic.invalid"
+          }
+        ],
         "paths": {
           "/v1/reminders": {
             "get": {
@@ -28,7 +35,10 @@
               },
               "x-n8n-node-type": "n8n-nodes-base.googleSheets",
               "x-n8n-resource": "sheet",
-              "x-n8n-operation": "read"
+              "x-n8n-operation": "read",
+              "x-n8n-input-match": {
+                "sheetName": "YOUR_SHEET_NAME"
+              }
             }
           }
         }
@@ -38,8 +48,15 @@
       "id": "synthetic-reminder-mail",
       "document": {
         "openapi": "3.0.3",
-        "info": { "title": "Synthetic reminder mail", "version": "1" },
-        "servers": [{ "url": "https://mail.synthetic.invalid" }],
+        "info": {
+          "title": "Synthetic reminder mail",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://mail.synthetic.invalid"
+          }
+        ],
         "paths": {
           "/v1/messages": {
             "post": {
@@ -47,7 +64,10 @@
                 "200": {
                   "content": {
                     "application/json": {
-                      "example": { "id": "synthetic-message-1", "status": "recorded" }
+                      "example": {
+                        "id": "synthetic-message-1",
+                        "status": "recorded"
+                      }
                     }
                   }
                 }
