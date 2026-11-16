@@ -33,6 +33,13 @@ export interface PlanInput {
   allowIncompleteCoverage?: boolean;
   protectionTier?: ProtectionTier;
   recoveryDrillSchedule?: string;
+  /**
+   * A plan that selects its targets by rule ("registered": every registered
+   * target except excludedTargetIds). The UI never edits the rule; it carries it
+   * through so saving a plan cannot freeze it into today's list of targets.
+   */
+  targetSelector?: string;
+  excludedTargetIds?: string[];
 }
 
 export async function listPlans(): Promise<Plan[]> {
@@ -56,6 +63,8 @@ export async function createPlan(input: PlanInput): Promise<Plan | undefined> {
     allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
     protectionTier: input.protectionTier ?? ProtectionTier.FULL_PRIMARY,
     recoveryDrillSchedule: input.recoveryDrillSchedule ?? "",
+    targetSelector: input.targetSelector ?? "",
+    excludedTargetIds: input.excludedTargetIds ?? [],
   });
   return res.plan;
 }
@@ -72,6 +81,8 @@ export async function updatePlan(id: string, input: PlanInput): Promise<Plan | u
     allowIncompleteCoverage: input.allowIncompleteCoverage ?? false,
     protectionTier: input.protectionTier ?? ProtectionTier.FULL_PRIMARY,
     recoveryDrillSchedule: input.recoveryDrillSchedule ?? "",
+    targetSelector: input.targetSelector ?? "",
+    excludedTargetIds: input.excludedTargetIds ?? [],
   });
   return res.plan;
 }

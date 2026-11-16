@@ -380,6 +380,8 @@ func TestAcceptDefaults_PartialFailureReported(t *testing.T) {
 	}
 }
 
+// The plan guard is a suggestions-only service (no target catalog). It must
+// answer without one: `plans create` panicked with a nil catalog once.
 func TestUnregisteredDefaultTargets_NonSensitiveOnly(t *testing.T) {
 	svc := coverage.NewService(coverage.Deps{
 		Suggestions: &fakeSuggestions{list: []coverage.Suggestion{

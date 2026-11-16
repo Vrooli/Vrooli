@@ -11,11 +11,13 @@ import { Code, ConnectError } from "@connectrpc/connect";
 
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 import { SourceKind } from "../../api/targets";
 
 vi.mock("../../api/plans", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/plans")>()),
   createPlan: vi.fn(),
+  updatePlan: vi.fn(),
 }));
 vi.mock("../../api/targets", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../api/targets")>()),
@@ -70,5 +72,28 @@ describe("PlanFormDialog incomplete coverage", () => {
     await waitFor(() => expect(plansApi.createPlan).toHaveBeenCalledTimes(2));
     const secondCall = vi.mocked(plansApi.createPlan).mock.calls[1]?.[0];
     expect(secondCall?.allowIncompleteCoverage).toBe(true);
+  });
+});
+
+describe("PlanFormDialog on a plan that follows the catalog", () => {
+  it("saves it without freezing the rule into today's list of targets", async () => {
+    const user = userEvent.setup();
+    vi.mocked(plansApi.updatePlan).mockResolvedValue({ id: "p1" } as never);
+    const plan = {
+      id: "p1", name: "declared-targets", targetIds: ["t1", "t2", "t3"], destinationIds: ["d1"], schedule: "24h",
+      recoveryDrillSchedule: "168h", enabled: true, targetSelector: "registered", excludedTargetIds: ["t9"],
+      retention: { keepLatest: 3 },
+    };
+    renderWithProviders(<PlanFormDialog open plan={plan as never} onClose={() => {}} />);
+
+    const picker = screen.getByTestId(selectors.plans.targetPicker);
+    expect(picker.textContent).toBe(strings.plans.targetsBySelector); // the rule, not a list to edit
+    expect(picker.querySelector("input[type=checkbox]")).toBeNull();
+    await user.click(screen.getByTestId(selectors.plans.formSubmit));
+
+    await waitFor(() => expect(plansApi.updatePlan).toHaveBeenCalledTimes(1));
+    const input = vi.mocked(plansApi.updatePlan).mock.calls[0]?.[1];
+    expect(input?.targetSelector).toBe("registered");
+    expect(input?.excludedTargetIds).toEqual(["t9"]);
   });
 });

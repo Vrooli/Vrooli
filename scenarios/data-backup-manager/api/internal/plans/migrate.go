@@ -39,6 +39,11 @@ func EnsureColumns(ctx context.Context, db SQLExecutor) error {
 			return fmt.Errorf("add plans recovery drill schedule: %w", err)
 		}
 	}
+	if !cols["target_selector"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE plans ADD COLUMN target_selector TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("add plans target selector: %w", err)
+		}
+	}
 	for _, name := range []string{"keep_hourly", "keep_daily", "keep_weekly", "keep_monthly", "keep_annual"} {
 		if cols[name] {
 			continue

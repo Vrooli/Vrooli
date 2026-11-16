@@ -9,15 +9,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"data-backup-manager/internal/repohealth"
 	"data-backup-manager/internal/repositorymigration"
+
 	"github.com/vrooli/api-core/operatordecision"
 )
 
-const freshDestinationDecisionType = "fresh_destination_selection"
-const freshDestinationRegistrationDecisionType = "fresh_destination_registration"
+const (
+	freshDestinationDecisionType             = "fresh_destination_selection"
+	freshDestinationRegistrationDecisionType = "fresh_destination_registration"
+)
 
 const (
 	freshRegistrationPendingCategory  = "fresh-destination-registration-pending"
@@ -172,45 +174,15 @@ func (f *BackupFailureFlow) askFreshDestination(ctx context.Context, inc repohea
 	if len(candidates) > 6 {
 		return false, fmt.Errorf("%d destinations are eligible, more than one decision can present; narrow the registered destination set", len(candidates))
 	}
-	options := make([]operatordecision.Option, 0, len(candidates)+2)
-	for _, candidate := range candidates {
-		id := strings.TrimSpace(candidate.DestinationID)
-		if id == "" || len(id) > 56 {
-			return false, fmt.Errorf("eligible destination has an invalid decision identity")
-		}
-		label := strings.TrimSpace(candidate.Name)
-		if label == "" {
-			label = id
-		}
-		if strings.TrimSpace(candidate.Location) != "" {
-			label += " — " + strings.TrimSpace(candidate.Location)
-		}
-		label = truncateOptionLabel(label, operatordecision.MaxOptionLabel)
-		options = append(options, operatordecision.Option{Key: "dest:" + id, Label: label})
-	}
-	options = append(options,
-		operatordecision.Option{Key: "register-local", Label: "Register a new local filesystem destination"},
-		operatordecision.Option{Key: "defer", Label: "Keep the old repository and decide later"},
-	)
 	selectionGeneration := inc.FreshMigrationSelectionGeneration
 	if selectionGeneration < 1 {
 		selectionGeneration = 1
 	}
-	selectionNote := inc.FreshMigrationDetail
-	selectionQuestion := "You approved a fresh backup set. Select one currently registered destination, or choose Register a new local filesystem destination and put its absolute directory in the note field. A typed path is only a proposal; DBM asks you to confirm before it creates a repository. No migration starts until you select the registered destination afterward."
-	if len(candidates) == 0 {
-		selectionNote = "No currently registered filesystem destination passes the exact 14-target readiness, identity and capacity checks. You may defer or propose a local filesystem directory for DBM's destination owner to validate."
-		selectionQuestion = "No currently registered destination currently passes checks for this 14-target plan. Choose Register a new local filesystem destination and put its absolute directory in the note field, or defer. DBM asks separately before creating a repository, then asks you to select the registered destination before migration starts."
+	facts, err := freshSelectionFacts(inc, plan, candidates)
+	if err != nil {
+		return false, err
 	}
-	facts := operatordecision.Facts{
-		Subject:  "Select a registered destination for the fresh backup set",
-		Question: selectionQuestion,
-		Options:  options, Reversible: false, Urgency: "high",
-		Note:             selectionNote,
-		BigPicture:       "DBM will capture each target to the selected destination, restore every captured snapshot to scratch, and switch plan bindings only after all 14 target receipts pass. The damaged repository remains unchanged.",
-		TechnicalDetails: "Only currently registered, identity-bound filesystem destinations with a passing capacity observation and matching credential-authority reference are offered. Remote destinations and destinations with unknown capacity or identity are not offered. Register a new local filesystem destination accepts only an absolute local filesystem path in the note field and asks a separate verified-human confirmation before the destination owner creates anything. Provider, credential and secret inputs are not accepted.",
-		Correlation:      map[string]string{"decision_type": freshDestinationDecisionType, "incident_id": inc.ID, "generation": fmt.Sprint(inc.Generation), "migration_id": inc.FreshMigrationID, "selection_generation": strconv.Itoa(selectionGeneration)},
-	}
+	facts.Correlation = map[string]string{"decision_type": freshDestinationDecisionType, "incident_id": inc.ID, "generation": fmt.Sprint(inc.Generation), "migration_id": inc.FreshMigrationID, "selection_generation": strconv.Itoa(selectionGeneration)}
 	if err := facts.Validate(); err != nil {
 		return false, fmt.Errorf("validate destination selection decision: %w", err)
 	}
@@ -266,32 +238,13 @@ func (f *BackupFailureFlow) blockFreshPlanChange(ctx context.Context, inc repohe
 	return f.publishPendingResult(ctx, ask)
 }
 
-func truncateOptionLabel(label string, maxBytes int) string {
-	if len(label) <= maxBytes {
-		return label
-	}
-	for len(label) > maxBytes {
-		_, size := utf8.DecodeLastRuneInString(label)
-		label = label[:len(label)-size]
-	}
-	return label
-}
-
 func (f *BackupFailureFlow) askFreshDestinationRegistration(ctx context.Context, inc repohealth.Incident, generation int) error {
 	if f.migrations == nil {
 		return errors.New("destination registration owner is not configured")
 	}
 	askID := freshDestinationRegistrationAskID(inc.FreshMigrationID, generation)
-	facts := operatordecision.Facts{
-		Subject:    "Confirm the new local backup destination",
-		Question:   "Register a new encrypted local filesystem repository at this exact operator-supplied directory?",
-		Options:    []operatordecision.Option{{Key: "register", Label: "Register through DBM destination owner"}, {Key: "defer", Label: "Keep the old repository and decide later"}},
-		Reversible: false, Urgency: "high",
-		Note:             "Local path: " + inc.FreshMigrationProposedLocation,
-		BigPicture:       "DBM will ask its destination owner to validate readiness and provision one local filesystem repository at the path above. The owner manages the credential reference; no provider or secret value is accepted here. Migration still requires a separate selection of the resulting registered destination.",
-		TechnicalDetails: "The previous decision's Other text is only a path proposal. This separate verified-human answer is required before the owner creates anything. The filesystem owner rejects protected-root paths and destinations whose readiness is not proven.",
-		Correlation:      map[string]string{"decision_type": freshDestinationRegistrationDecisionType, "incident_id": inc.ID, "generation": strconv.Itoa(inc.Generation), "migration_id": inc.FreshMigrationID, "selection_generation": strconv.Itoa(generation)},
-	}
+	facts := freshRegistrationFacts(inc)
+	facts.Correlation = map[string]string{"decision_type": freshDestinationRegistrationDecisionType, "incident_id": inc.ID, "generation": strconv.Itoa(inc.Generation), "migration_id": inc.FreshMigrationID, "selection_generation": strconv.Itoa(generation)}
 	if err := facts.Validate(); err != nil {
 		return fmt.Errorf("validate local destination registration decision: %w", err)
 	}
@@ -709,4 +662,101 @@ func (f *BackupFailureFlow) RetryPendingResultNotices(ctx context.Context) error
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// freshSteps is what happens after a destination is chosen, the same for both
+// fresh-set questions.
+var freshSteps = [][]string{
+	{"1", "Copy every item to the new backup set"},
+	{"2", "Restore each copy to a scratch folder to prove it works"},
+	{"3", "Point the backup plan at the new set, only once every item passed"},
+	{"4", "Keep the old backup set untouched, read-only"},
+}
+
+// freshSelectionFacts asks where the fresh backup set should go: each ready
+// destination is one answer; "register-local" takes a new folder in the note.
+func freshSelectionFacts(inc repohealth.Incident, plan FreshMigrationPlan, candidates []FreshMigrationCandidate) (operatordecision.Facts, error) {
+	options := make([]operatordecision.Option, 0, len(candidates)+2)
+	rows := make([][]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		id := strings.TrimSpace(candidate.DestinationID)
+		if id == "" || len(id) > 56 {
+			return operatordecision.Facts{}, fmt.Errorf("eligible destination has an invalid decision identity")
+		}
+		name := strings.TrimSpace(candidate.Name)
+		if name == "" {
+			name = id
+		}
+		label := name
+		if location := strings.TrimSpace(candidate.Location); location != "" {
+			label += " — " + location
+		}
+		options = append(options, operatordecision.Option{Key: "dest:" + id, Label: operatordecision.Clip(label, operatordecision.MaxOptionLabel)})
+		rows = append(rows, []string{name, strings.TrimSpace(candidate.Location), "Ready: writable, enough space, identity checked"})
+	}
+	options = append(options,
+		operatordecision.Option{Key: "register-local", Label: "Use a new folder: type its full path in the note, and I ask you to confirm before creating anything"},
+		operatordecision.Option{Key: "defer", Label: "Keep the old backup set and decide later"},
+	)
+	drive := inc.Diagnosis.DriveSentence()
+	n := len(plan.Targets)
+	question := fmt.Sprintf("Where should the fresh backup set for %s go? Pick a ready destination, or name a new folder.", drive)
+	lead := fmt.Sprintf("You approved a fresh backup set because the old one on %s can't be used. It needs a place to go; %d %s ready.", drive, len(candidates), operatordecision.Plural(len(candidates), "destination is", "destinations are"))
+	if len(candidates) == 0 {
+		question = fmt.Sprintf("No destination is ready for the fresh backup set for %s. Name a new folder for it, or decide later?", drive)
+		lead = fmt.Sprintf("You approved a fresh backup set because the old one on %s can't be used. No registered destination passes the space, identity and readiness checks, so a new folder is the way forward.", drive)
+	}
+	facts := operatordecision.Facts{
+		Subject:  "Choose where the fresh backup set goes",
+		Question: question,
+		Options:  options, Reversible: false, Urgency: "high",
+		BigPicture: fmt.Sprintf("You approved starting a fresh backup set because the old one on %s can't be used. Once you choose a place, I copy all %d items there, test-restore every copy, and switch the backup plan only when all %d pass. The old set is never changed.\n\n"+
+			"A folder you type is only a proposal: I ask you to confirm it before anything is created. If you decide later or do not answer, backups stay as they are and I ask again.", drive, n, n),
+		TechnicalDetails: fmt.Sprintf("Plan %s, %d targets. Only currently registered, identity-bound filesystem destinations with a passing capacity observation and matching credential-authority reference are offered. Remote destinations and destinations with unknown capacity or identity are not offered. register-local accepts only an absolute local filesystem path in the note field and asks a separate verified-human confirmation before the destination owner creates anything. Provider, credential and secret inputs are not accepted. Detail: %s", plan.PlanID, n, inc.FreshMigrationDetail),
+	}
+	page := operatordecision.NewPage("Where should the fresh backup set go?").Lead(lead).
+		Facts(operatordecision.Row{Label: "Items to copy", Value: fmt.Sprint(n)}, operatordecision.Row{Label: "Old backup set", Value: drive + ", kept read-only"})
+	if len(rows) > 0 {
+		page.Section("Ready destinations", "").Table([]string{"Name", "Where", "Checks"}, rows)
+	}
+	effects := map[string]string{
+		"register-local": "Type the folder's full path in the note, for example /media/you/NewDrive/vrooli-backups. I check it and ask you once more before creating anything.",
+		"defer":          "Nothing changes. Backups stay as they are and I ask again later.",
+	}
+	for _, o := range options {
+		if strings.HasPrefix(o.Key, "dest:") {
+			effects[o.Key] = "I start copying to this destination right away, following the steps below."
+		}
+	}
+	facts.Explainer = page.Section("What happens after you choose", "").Table([]string{"Step", "What happens"}, freshSteps).
+		Options(facts, effects).
+		IfNoAnswer("Nothing changes. Backups stay as they are and I ask again later.").
+		HTML()
+	return facts, nil
+}
+
+// freshRegistrationFacts confirms the folder the operator typed before the
+// destination owner creates a backup set there.
+func freshRegistrationFacts(inc repohealth.Incident) operatordecision.Facts {
+	location := inc.FreshMigrationProposedLocation
+	folder := filepath.Base(location)
+	facts := operatordecision.Facts{
+		Subject:    "Confirm the new local backup destination",
+		Question:   fmt.Sprintf("Create a new encrypted backup set in the folder “%s” you named?", folder),
+		Options:    []operatordecision.Option{{Key: "register", Label: "Create it: set up an encrypted backup set in that folder"}, {Key: "defer", Label: "Keep the old backup set and decide later"}},
+		Reversible: false, Urgency: "high",
+		BigPicture:       "You named a new folder for the fresh backup set. Before anything is created, I need your confirmation. If you confirm, the backup engine checks the folder is safe and writable and sets up an encrypted backup set there, with its key kept by Vrooli's credential store. I then ask you once more to choose it before copying starts.\n\nIf you decide later or do not answer, nothing is created.",
+		TechnicalDetails: "Local path: " + location + ". The previous decision's Other text is only a path proposal. This separate verified-human answer is required before the owner creates anything. The filesystem owner rejects protected-root paths and destinations whose readiness is not proven. No provider or secret value is accepted here.",
+	}
+	facts.Explainer = operatordecision.NewPage(fmt.Sprintf("Create a backup set in “%s”?", folder)).
+		Lead("You named this folder for the fresh backup set. Nothing has been created yet.").
+		Facts(operatordecision.Row{Label: "Folder", Value: location}, operatordecision.Row{Label: "Encryption", Value: "On; the key stays in Vrooli's credential store"}).
+		Callout("", "Next:", "after it is created, I ask you to choose it as the destination before any copying starts.").
+		Options(facts, map[string]string{
+			"register": "The folder is checked (not a protected system folder, writable, enough space) and an encrypted backup set is created in it.",
+			"defer":    "Nothing is created. Backups stay as they are.",
+		}).
+		IfNoAnswer("Nothing is created.").
+		HTML()
+	return facts
 }

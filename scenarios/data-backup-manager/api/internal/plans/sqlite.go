@@ -38,8 +38,8 @@ const planTimeFormat = time.RFC3339Nano
 
 const (
 	insertPlanSQL = `
-	INSERT INTO plans (id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO plans (id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, target_selector, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 	insertPlanTargetSQL = `
 INSERT OR IGNORE INTO plan_targets (plan_id, target_id) VALUES (?, ?)
@@ -47,20 +47,25 @@ INSERT OR IGNORE INTO plan_targets (plan_id, target_id) VALUES (?, ?)
 	insertPlanDestSQL = `
 INSERT OR IGNORE INTO plan_destinations (plan_id, destination_id) VALUES (?, ?)
 `
-	deletePlanTargetsSQL = `DELETE FROM plan_targets WHERE plan_id = ?`
-	deletePlanDestsSQL   = `DELETE FROM plan_destinations WHERE plan_id = ?`
+	insertPlanExclusionSQL = `
+INSERT OR IGNORE INTO plan_target_exclusions (plan_id, target_id) VALUES (?, ?)
+`
+	deletePlanExclusionsSQL = `DELETE FROM plan_target_exclusions WHERE plan_id = ?`
+	selectPlanExclusionsSQL = `SELECT target_id FROM plan_target_exclusions WHERE plan_id = ? ORDER BY target_id ASC`
+	deletePlanTargetsSQL    = `DELETE FROM plan_targets WHERE plan_id = ?`
+	deletePlanDestsSQL      = `DELETE FROM plan_destinations WHERE plan_id = ?`
 
 	updatePlanSQL = `
 UPDATE plans
-	SET name = ?, schedule = ?, keep_latest = ?, keep_hourly = ?, keep_daily = ?, keep_weekly = ?, keep_monthly = ?, keep_annual = ?, enabled = ?, protection_tier = ?, recovery_drill_schedule = ?, updated_at = ?
+	SET name = ?, schedule = ?, keep_latest = ?, keep_hourly = ?, keep_daily = ?, keep_weekly = ?, keep_monthly = ?, keep_annual = ?, enabled = ?, protection_tier = ?, recovery_drill_schedule = ?, target_selector = ?, updated_at = ?
 WHERE id = ?
 `
 	selectPlanByIDSQL = `
-	SELECT id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, created_at, updated_at
+	SELECT id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, target_selector, created_at, updated_at
 FROM plans WHERE id = ?
 `
 	listPlansSQL = `
-	SELECT id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, created_at, updated_at
+	SELECT id, name, schedule, keep_latest, keep_hourly, keep_daily, keep_weekly, keep_monthly, keep_annual, enabled, protection_tier, recovery_drill_schedule, target_selector, created_at, updated_at
 FROM plans
 ORDER BY name ASC
 LIMIT ?
@@ -92,7 +97,7 @@ func (s *sqliteRepository) Create(ctx context.Context, p Plan) (Plan, error) {
 	}
 
 	_, err := s.db.ExecContext(ctx, insertPlanSQL,
-		p.ID, p.Name, p.Schedule, p.KeepLatest, p.KeepHourly, p.KeepDaily, p.KeepWeekly, p.KeepMonthly, p.KeepAnnual, enabled, string(p.ProtectionTier), p.RecoveryDrillSchedule,
+		p.ID, p.Name, p.Schedule, p.KeepLatest, p.KeepHourly, p.KeepDaily, p.KeepWeekly, p.KeepMonthly, p.KeepAnnual, enabled, string(p.ProtectionTier), p.RecoveryDrillSchedule, string(p.TargetSelector),
 		p.CreatedAt.Format(planTimeFormat), p.UpdatedAt.Format(planTimeFormat),
 	)
 	if err != nil {
@@ -100,6 +105,9 @@ func (s *sqliteRepository) Create(ctx context.Context, p Plan) (Plan, error) {
 	}
 
 	if err := s.writeMembership(ctx, p.ID, p.TargetIDs, p.DestinationIDs); err != nil {
+		return Plan{}, err
+	}
+	if err := s.writeExclusions(ctx, p.ID, p.ExcludedTargetIDs); err != nil {
 		return Plan{}, err
 	}
 	return p, nil
@@ -114,7 +122,7 @@ func (s *sqliteRepository) Update(ctx context.Context, p Plan) (Plan, error) {
 	}
 
 	_, err := s.db.ExecContext(ctx, updatePlanSQL,
-		p.Name, p.Schedule, p.KeepLatest, p.KeepHourly, p.KeepDaily, p.KeepWeekly, p.KeepMonthly, p.KeepAnnual, enabled, string(p.ProtectionTier), p.RecoveryDrillSchedule, p.UpdatedAt.Format(planTimeFormat), p.ID,
+		p.Name, p.Schedule, p.KeepLatest, p.KeepHourly, p.KeepDaily, p.KeepWeekly, p.KeepMonthly, p.KeepAnnual, enabled, string(p.ProtectionTier), p.RecoveryDrillSchedule, string(p.TargetSelector), p.UpdatedAt.Format(planTimeFormat), p.ID,
 	)
 	if err != nil {
 		return Plan{}, fmt.Errorf("update plan %q: %w", p.ID, err)
@@ -127,7 +135,13 @@ func (s *sqliteRepository) Update(ctx context.Context, p Plan) (Plan, error) {
 	if _, err := s.db.ExecContext(ctx, deletePlanDestsSQL, p.ID); err != nil {
 		return Plan{}, fmt.Errorf("delete plan_destinations for %q: %w", p.ID, err)
 	}
+	if _, err := s.db.ExecContext(ctx, deletePlanExclusionsSQL, p.ID); err != nil {
+		return Plan{}, fmt.Errorf("delete plan_target_exclusions for %q: %w", p.ID, err)
+	}
 	if err := s.writeMembership(ctx, p.ID, p.TargetIDs, p.DestinationIDs); err != nil {
+		return Plan{}, err
+	}
+	if err := s.writeExclusions(ctx, p.ID, p.ExcludedTargetIDs); err != nil {
 		return Plan{}, err
 	}
 	return p, nil
@@ -142,6 +156,15 @@ func (s *sqliteRepository) writeMembership(ctx context.Context, planID string, t
 	for _, did := range destIDs {
 		if _, err := s.db.ExecContext(ctx, insertPlanDestSQL, planID, did); err != nil {
 			return fmt.Errorf("insert plan_destination %q → %q: %w", planID, did, err)
+		}
+	}
+	return nil
+}
+
+func (s *sqliteRepository) writeExclusions(ctx context.Context, planID string, targetIDs []string) error {
+	for _, tid := range targetIDs {
+		if _, err := s.db.ExecContext(ctx, insertPlanExclusionSQL, planID, tid); err != nil {
+			return fmt.Errorf("insert plan_target_exclusion %q → %q: %w", planID, tid, err)
 		}
 	}
 	return nil
@@ -216,8 +239,13 @@ func (s *sqliteRepository) loadMembership(ctx context.Context, p *Plan) error {
 	if err != nil {
 		return fmt.Errorf("load plan_destinations for %q: %w", p.ID, err)
 	}
+	excluded, err := s.loadIDs(ctx, selectPlanExclusionsSQL, p.ID)
+	if err != nil {
+		return fmt.Errorf("load plan_target_exclusions for %q: %w", p.ID, err)
+	}
 	p.TargetIDs = tids
 	p.DestinationIDs = dids
+	p.ExcludedTargetIDs = excluded
 	return nil
 }
 
@@ -248,15 +276,17 @@ func scanPlan(sc rowScanner) (Plan, error) {
 		enabled       int
 		tier          string
 		drillSchedule string
+		selector      string
 		createdRaw    string
 		updatedRaw    string
 	)
-	if err := sc.Scan(&p.ID, &p.Name, &p.Schedule, &p.KeepLatest, &p.KeepHourly, &p.KeepDaily, &p.KeepWeekly, &p.KeepMonthly, &p.KeepAnnual, &enabled, &tier, &drillSchedule, &createdRaw, &updatedRaw); err != nil {
+	if err := sc.Scan(&p.ID, &p.Name, &p.Schedule, &p.KeepLatest, &p.KeepHourly, &p.KeepDaily, &p.KeepWeekly, &p.KeepMonthly, &p.KeepAnnual, &enabled, &tier, &drillSchedule, &selector, &createdRaw, &updatedRaw); err != nil {
 		return Plan{}, err
 	}
 	p.Enabled = enabled != 0
 	p.ProtectionTier = ProtectionTier(tier)
 	p.RecoveryDrillSchedule = drillSchedule
+	p.TargetSelector = TargetSelector(selector)
 	if p.ProtectionTier == "" {
 		p.ProtectionTier = TierFullPrimary
 	}

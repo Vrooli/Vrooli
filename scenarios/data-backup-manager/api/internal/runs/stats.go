@@ -19,6 +19,12 @@ import "sort"
 // ÷ TotalPhysicalBytes. Runs that predate the physical metric (or whose repo
 // stats were unavailable) report 0 and would otherwise inflate the ratio by
 // putting their logical bytes over a physical figure they never contributed to.
+//
+// TotalRuns, Completed, PartialFailed, Failed and SuccessRate count attempts:
+// scheduled and manual runs. Automatic retries are counted apart (RetryRuns,
+// RetryCompleted, RetryFailed) so a retry loop on one blocked plan cannot push
+// the success rate to 0% or bury the real attempts; their bytes and durations
+// still count, because a retry that succeeds really wrote that backup.
 type RunStats struct {
 	TotalRuns                int64
 	Completed                int64
@@ -33,6 +39,9 @@ type RunStats struct {
 	TotalPhysicalBytes       int64   // on-disk (deduped) repo growth over the window
 	DedupRatio               float64 // logical ÷ physical (0 when physical unknown)
 	Window                   int64   // runs the stats were computed over
+	RetryRuns                int64   // terminal automatic retries, not in TotalRuns
+	RetryCompleted           int64
+	RetryFailed              int64 // retries that did not complete (failed or partial)
 }
 
 // computeRunStats aggregates a window of runs (any order) into RunStats. It is
@@ -45,24 +54,40 @@ func computeRunStats(runs []Run) RunStats {
 	var (
 		throughputSum   float64
 		throughputCount int64
-		terminal        int64
+		terminal        int64 // every terminal run, attempts and retries
+		attempts        int64
 		// Logical bytes of only the runs that measured physical growth — the
 		// numerator for an honest dedup ratio (paired with TotalPhysicalBytes).
 		measuredLogical int64
 	)
 	for _, r := range runs {
+		retry := r.Trigger == TriggerRetry
 		switch r.Status {
-		case RunCompleted:
-			st.Completed++
-		case RunPartialFailed:
-			st.PartialFailed++
-		case RunFailed:
-			st.Failed++
+		case RunCompleted, RunPartialFailed, RunFailed:
 		default:
 			continue // non-terminal: not counted
 		}
 		terminal++
-		st.TotalRuns++
+		switch {
+		case retry:
+			st.RetryRuns++
+			if r.Status == RunCompleted {
+				st.RetryCompleted++
+			} else {
+				st.RetryFailed++
+			}
+		default:
+			st.TotalRuns++
+			attempts++
+			switch r.Status {
+			case RunCompleted:
+				st.Completed++
+			case RunPartialFailed:
+				st.PartialFailed++
+			default:
+				st.Failed++
+			}
+		}
 
 		var bytes int64
 		for _, o := range r.Outcomes {
@@ -86,8 +111,10 @@ func computeRunStats(runs []Run) RunStats {
 		}
 	}
 
+	if attempts > 0 {
+		st.SuccessRate = float64(st.Completed) / float64(attempts)
+	}
 	if terminal > 0 {
-		st.SuccessRate = float64(st.Completed) / float64(terminal)
 		st.AvgBytesPerRun = st.TotalBytes / terminal
 	}
 	if throughputCount > 0 {

@@ -38,6 +38,10 @@ type TriggerSource string
 const (
 	TriggerScheduler TriggerSource = "scheduler"
 	TriggerManual    TriggerSource = "manual"
+	// TriggerRetry is an automatic re-run after a failure that looked
+	// transient. It is counted apart from real attempts and backs off when it
+	// keeps failing the same way (see retry_backoff.go).
+	TriggerRetry TriggerSource = "retry"
 )
 
 // OutcomeStatus is the per (target × destination) result within a run.

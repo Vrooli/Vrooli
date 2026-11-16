@@ -51,7 +51,13 @@ func (h *handlers) trigger(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) preflight(ctx cliapp.RunContext) error {
-	resp, err := h.client.PreflightRun(context.Background(), connect.NewRequest(&runsv1.PreflightRunRequest{PlanId: ctx.Flag("plan")}))
+	// Repository health probes can take longer than the normal CLI request
+	// timeout on large or degraded repositories. Keep this read-only check
+	// bounded, but let the API return its incident receipt instead of cutting
+	// the request off while the server is still probing.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 3*time.Minute)
+	client := runsconnect.NewRunsServiceClient(httpClient, baseURL)
+	resp, err := client.PreflightRun(context.Background(), connect.NewRequest(&runsv1.PreflightRunRequest{PlanId: ctx.Flag("plan")}))
 	if err != nil {
 		return cliapp.WrapAPIError("preflight run", err, nil)
 	}
@@ -144,8 +150,9 @@ func (h *handlers) stats(ctx cliapp.RunContext) error {
 		Summary:        []string{fmt.Sprintf("Run metrics over %d run(s) (%s).", s.Window, scope)},
 		ResultsHeading: "Metrics",
 		Results: []string{
-			fmt.Sprintf("runs: %d total — %d completed, %d partial-failed, %d failed", s.TotalRuns, s.Completed, s.PartialFailed, s.Failed),
-			fmt.Sprintf("success rate: %.0f%%", s.SuccessRate*100),
+			fmt.Sprintf("attempts: %d total — %d completed, %d partial-failed, %d failed", s.TotalRuns, s.Completed, s.PartialFailed, s.Failed),
+			fmt.Sprintf("success rate: %.0f%% of attempts", s.SuccessRate*100),
+			fmt.Sprintf("automatic retries: %d (%d completed, %d did not) — counted apart from attempts", s.RetryRuns, s.RetryCompleted, s.RetryFailed),
 			fmt.Sprintf("duration: p50 %s, p95 %s", formatMillis(s.P50DurationMs), formatMillis(s.P95DurationMs)),
 			fmt.Sprintf("bytes: %s total, %s avg/run", formatBytes(s.TotalBytes), formatBytes(s.AvgBytesPerRun)),
 			fmt.Sprintf("throughput: %s/s (logical)", formatBytes(int64(s.AvgThroughputBytesPerSec))),

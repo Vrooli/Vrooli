@@ -59,6 +59,7 @@ type stateProber struct {
 	goos          string
 	sysClassBlock string
 	procFS        string
+	sysFS         string
 	fstabPath     string
 	readFile      func(string) ([]byte, error)
 }
@@ -68,6 +69,7 @@ func newStateProber() *stateProber {
 		goos:          runtime.GOOS,
 		sysClassBlock: "/sys/class/block",
 		procFS:        "/proc/fs",
+		sysFS:         "/sys/fs",
 		fstabPath:     "/etc/fstab",
 		readFile:      os.ReadFile,
 	}
@@ -186,6 +188,24 @@ func (p *stateProber) linuxFilesystemState(m mountInfo, readOnly bool) (Filesyst
 			return FilesystemStateUnknown, path + " (read/write mount; the NTFS dirty flag cannot be distinguished from this mount's in-use marker)", true
 		}
 		return state, path, true
+	case "ext4":
+		// The mounted ext4 driver exposes its accumulated filesystem error
+		// count through sysfs. A zero count is bounded evidence that the kernel
+		// has reported no ext4 errors; a positive count fails closed and keeps
+		// historical errors visible until an offline check resolves them.
+		path := filepath.Join(p.sysFS, "ext4", name, "errors_count")
+		data, err := p.readFile(path)
+		if err != nil {
+			return FilesystemStateUnknown, "", false
+		}
+		count, err := strconv.ParseUint(strings.TrimSpace(string(data)), 10, 64)
+		if err != nil {
+			return FilesystemStateUnknown, "", false
+		}
+		if count > 0 {
+			return FilesystemStateNeedsCheck, path + " (kernel has recorded filesystem errors)", true
+		}
+		return FilesystemStateClean, path + " (kernel reports no filesystem errors)", true
 	default:
 		return FilesystemStateUnknown, "", false
 	}

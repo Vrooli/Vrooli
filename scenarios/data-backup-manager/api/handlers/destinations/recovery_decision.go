@@ -6,14 +6,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/attention"
 	"data-backup-manager/internal/destinationreadiness"
 
 	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/api-core/retention"
 )
 
 const (
@@ -22,39 +23,12 @@ const (
 	recoveryNotificationType     = "data_backup_manager.volume_recovery.notification.v1"
 	recoveryDecisionWebhookPath  = "/api/v1/events/notification-hub"
 	recoveryDecisionAskSubject   = "Backup drive filesystem repair needs approval"
-	operatorActionsFileFullPath  = "/home/matthalloran8/.vrooli/research/ATTENTION.md"
 	volumeRecoveryDecisionWindow = 24 * time.Hour
 )
 
-var actionableAttentionHeading = regexp.MustCompile(`(?m)^###\s+([^\s]+)\s+—\s+(.+?)\s*$`)
-
-func currentOperatorActionsDigest() string {
-	data, err := os.ReadFile(operatorActionsFileFullPath)
-	if err != nil {
-		return "unverified because the supervisor action file could not be read"
-	}
-	content := string(data)
-	start := strings.Index(content, "## Actionable now")
-	if start < 0 {
-		return "unverified because the file has no Actionable now section"
-	}
-	section := content[start+len("## Actionable now"):]
-	if next := strings.Index(section, "\n## "); next >= 0 {
-		section = section[:next]
-	}
-	items := actionableAttentionHeading.FindAllStringSubmatch(section, -1)
-	if len(items) == 0 {
-		if strings.Contains(section, "No actionable items are recorded.") {
-			return "none recorded"
-		}
-		return "unverified because actionable entries could not be parsed"
-	}
-	parts := make([]string, 0, len(items))
-	for _, item := range items {
-		parts = append(parts, item[1]+" — "+item[2])
-	}
-	return strings.Join(parts, "; ")
-}
+// currentOperatorActionsDigest names the other items that need the operator
+// now, for the next agent reading a decision's technical details.
+func currentOperatorActionsDigest() string { return attention.Digest(os.ReadFile, 6) }
 
 // RecoveryDecisionFlow links a durable recovery journal to Notification Hub.
 // It asks only for a destructive repair, and applies an answer only after the
@@ -112,24 +86,7 @@ func (f *RecoveryDecisionFlow) RaiseRepairApproval(ctx context.Context, journal 
 	index := strconv.Itoa(journal.Current)
 	askID := operatordecision.CorrelationID("dbm-repair", journal.ID, plan.ID, index)
 	correlation := map[string]string{"recovery_id": journal.ID, "plan_id": plan.ID, "step_index": index}
-	facts := operatordecision.Facts{
-		Subject:  recoveryDecisionAskSubject,
-		Question: "May Data Backup Manager run the exact filesystem repair below? It can discard filesystem metadata and may not resolve the repository-level I/O error. Approving authorizes one identity-bound attempt, followed by remount and verification; it does not authorize backup writes. Approve only if you accept that risk.",
-		Options: []operatordecision.Option{
-			{Key: "approve_repair", Label: "Approve this filesystem repair"},
-			{Key: "decline_repair", Label: "Do not repair; leave the drive unchanged"},
-		},
-		// Recommend only the single attempt the operator asked to make
-		// available as a risk-acceptance choice; state the uncertain benefit.
-		Recommended:          "approve_repair",
-		RecommendationReason: "This is the requested one-time, identity-bound risk-acceptance path. Prior clean-check and SMART evidence make the benefit uncertain, and the Kopia EIO may remain.",
-		Reversible:           false,
-		Urgency:              "high",
-		Note:                 fmt.Sprintf("Recovery %s, step %d of %d. Destination: %s. Device: %s. Other currently actionable items: %s. Operator-required actions file: %s", journal.ID, journal.Current+1, len(journal.Steps), journal.Location, plan.Identity.StableString(), currentOperatorActionsDigest(), operatorActionsFileFullPath),
-		BigPicture:           "This decision controls whether DBM may alter filesystem metadata on the selected backup drive. Approval authorizes one exact repair attempt; it does not guarantee repository recovery or enable backups. Declining leaves the drive unchanged and the recovery paused.",
-		TechnicalDetails:     fmt.Sprintf("Action: %s. Plan: %s. Filesystem: %s. Stable identity: %s. Recovery pause detail: %s. The callback re-inspects identity and current host state, requires this exact plan to remain valid, and executes only through the control-plane volume owner. No automatic/default approval is configured. Other currently actionable items: %s. Operator actions file: %s", plan.Action, plan.ID, plan.Identity.Filesystem, plan.Identity.StableString(), journal.LastError, currentOperatorActionsDigest(), operatorActionsFileFullPath),
-		Correlation:          correlation,
-	}
+	facts := repairFacts(journal, plan, correlation)
 	if err := facts.Validate(); err != nil {
 		return fmt.Errorf("validate repair decision facts: %w", err)
 	}
@@ -488,4 +445,93 @@ func (f *RecoveryDecisionFlow) verifyMountedRecoveryLocation(ctx context.Context
 		}
 	}
 	return destinationreadiness.Report{}, fmt.Errorf("readiness did not verify the selected volume is mounted read/write")
+}
+
+// driveName names a drive the way a person would: its label, else its model.
+func driveName(id destinationreadiness.DeviceIdentity) string {
+	switch {
+	case strings.TrimSpace(id.Label) != "":
+		return "the " + id.Label + " drive"
+	case strings.TrimSpace(id.Model) != "":
+		return "the " + id.Model + " drive"
+	}
+	return "the backup drive"
+}
+
+var stepWords = map[destinationreadiness.PreparationAction]string{
+	destinationreadiness.ActionUnmount:          "Take the drive offline",
+	destinationreadiness.ActionCheckFilesystem:  "Check the filesystem without changing it",
+	destinationreadiness.ActionRepairFilesystem: "Repair the filesystem",
+	destinationreadiness.ActionMountReadWrite:   "Bring the drive back online, writable",
+}
+
+var stepStatusWords = map[destinationreadiness.RecoveryStepStatus]string{
+	destinationreadiness.RecoveryStepPending:   "Waiting",
+	destinationreadiness.RecoveryStepInFlight:  "Running",
+	destinationreadiness.RecoveryStepBlocked:   "Needs your answer",
+	destinationreadiness.RecoveryStepValidated: "Checked, ready",
+	destinationreadiness.RecoveryStepCompleted: "Done",
+}
+
+// repairFacts asks for one destructive filesystem repair: the cover names the
+// drive and the risk; the page shows which drive, where the recovery stands,
+// and what each answer does.
+func repairFacts(journal destinationreadiness.RecoveryJournal, plan destinationreadiness.Plan, correlation map[string]string) operatordecision.Facts {
+	drive := driveName(plan.Identity)
+	facts := operatordecision.Facts{
+		Subject:  recoveryDecisionAskSubject,
+		Question: fmt.Sprintf("Repair the filesystem on %s? A repair can discard damaged filesystem records, and it may not fix the backup engine's read error.", drive),
+		Options: []operatordecision.Option{
+			{Key: "approve_repair", Label: "Repair it once, then bring the drive back online and check it"},
+			{Key: "decline_repair", Label: "Do not repair: leave the drive unchanged and the recovery paused"},
+		},
+		// Recommend only the single attempt the operator asked to make
+		// available as a risk-acceptance choice; state the uncertain benefit.
+		Recommended:          "approve_repair",
+		RecommendationReason: "It is the one repair attempt that is bound to this exact drive. Earlier clean checks make the benefit uncertain, and the read error may remain.",
+		Reversible:           false,
+		Urgency:              "high",
+		BigPicture: fmt.Sprintf("Backups to %s are paused because the drive has errors. The next recovery step is a filesystem repair, which can delete damaged filesystem records, so it waits for you.\n\n"+
+			"If you approve, it runs once, only if the drive is still the same one, then the drive comes back online and is checked; backups stay off until that check passes. If you decline or do not answer within a day, nothing on the drive changes and the recovery stays paused.", drive),
+		TechnicalDetails: fmt.Sprintf("Recovery %s, step %d of %d. Action: %s. Plan: %s. Destination: %s. Filesystem: %s. Stable identity: %s. Recovery pause detail: %s. The callback re-inspects identity and current host state, requires this exact plan to remain valid, and executes only through the control-plane volume owner. No automatic/default approval is configured. Other currently actionable items: %s. Operator actions file: %s",
+			journal.ID, journal.Current+1, len(journal.Steps), plan.Action, plan.ID, journal.Location, plan.Identity.Filesystem, plan.Identity.StableString(), journal.LastError, currentOperatorActionsDigest(), attention.File()),
+		Correlation: correlation,
+	}
+	id := plan.Identity
+	rows := []operatordecision.Row{{Label: "Drive", Value: strings.TrimPrefix(drive, "the ")}}
+	if id.Model != "" {
+		rows = append(rows, operatordecision.Row{Label: "Model", Value: id.Model})
+	}
+	if id.TotalBytes > 0 {
+		rows = append(rows, operatordecision.Row{Label: "Size", Value: retention.FormatBytes(id.TotalBytes)})
+	}
+	rows = append(rows, operatordecision.Row{Label: "Filesystem", Value: id.Filesystem})
+	if strings.TrimSpace(journal.LastError) != "" {
+		rows = append(rows, operatordecision.Row{Label: "Why it paused", Value: journal.LastError})
+	}
+	steps := make([][]string, 0, len(journal.Steps))
+	for i, step := range journal.Steps {
+		what := stepWords[step.Plan.Action]
+		if what == "" {
+			what = string(step.Plan.Action)
+		}
+		status := stepStatusWords[step.Status]
+		if status == "" {
+			status = string(step.Status)
+		}
+		steps = append(steps, []string{fmt.Sprint(i + 1), what, status})
+	}
+	facts.Explainer = operatordecision.NewPage(fmt.Sprintf("Repair the filesystem on %s?", drive)).
+		Lead(fmt.Sprintf("Backups to %s are paused. The next step of its recovery changes the drive, so it waits for you.", drive)).
+		Facts(rows...).
+		Callout("danger", "The risk:", "a filesystem repair can delete damaged records to make the drive consistent again. It does not touch healthy files, but it cannot be undone, and it may not clear the backup engine's read error.").
+		Section("Where the recovery stands", "").
+		Table([]string{"Step", "What", "Status"}, steps).
+		Options(facts, map[string]string{
+			"approve_repair": "The repair runs once, only if the drive is still this exact one and no backup is writing to it. Then the drive comes back online and is checked. Backups stay off until that check passes.",
+			"decline_repair": "Nothing on the drive changes. The recovery stays paused and backups to this drive stay off.",
+		}).
+		IfNoAnswer("After a day the question closes. Nothing on the drive changes, and backups to it stay off.").
+		HTML()
+	return facts
 }

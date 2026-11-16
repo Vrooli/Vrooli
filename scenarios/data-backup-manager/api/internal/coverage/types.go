@@ -27,6 +27,7 @@ import (
 type Suggestion struct {
 	ID                         string
 	Owner                      string
+	OwnerKind                  string
 	Name                       string
 	SourceKind                 sources.SourceKind
 	Locator                    string
@@ -43,6 +44,9 @@ type Suggestion struct {
 	ReacquisitionEvidence      string
 	ReacquisitionNeedsOperator bool
 	ReacquisitionAuthReason    string
+	// Sidecars are SQLite sidecar suffixes ("-wal", "-shm", "-journal") folded
+	// into this database instead of being offered as items of their own.
+	Sidecars []string
 }
 
 // CatalogTarget is the minimal projection of a registered target the coverage

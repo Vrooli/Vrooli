@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,9 @@ type Service interface {
 	// ListDestinations returns up to pageSize destinations ordered by name.
 	// pageSize <= 0 uses the default.
 	ListDestinations(ctx context.Context, pageSize int) ([]Destination, error)
+	// ListTargetSnapshots returns validated immutable snapshots for a DBM
+	// target identity, newest first. It never guesses a source from a path.
+	ListTargetSnapshots(ctx context.Context, destinationID, owner, name string) ([]engine.Snapshot, error)
 
 	// UpdateDestination updates mutable destination fields. A recovery identity
 	// is accepted only after the readiness owner re-observes the stable UUID or
@@ -670,9 +674,6 @@ func (s *service) ImportExistingDestination(ctx context.Context, in ImportExisti
 	if in.ID == "" || !ValidSlug(in.Name) || in.Location == "" || !in.Backend.Valid() {
 		return Destination{}, ErrInvalidDestination{Field: "descriptor", Reason: "destination id, slug-safe name, supported backend, and location are required"}
 	}
-	if len(in.ExpectedSnapshotIDs) == 0 {
-		return Destination{}, ErrInvalidDestination{Field: "expected_snapshot_ids", Reason: "at least one exact snapshot ID is required to bind an imported repository"}
-	}
 	expectedSnapshots := make(map[string]struct{}, len(in.ExpectedSnapshotIDs))
 	for _, id := range in.ExpectedSnapshotIDs {
 		id = strings.TrimSpace(id)
@@ -807,6 +808,9 @@ func (s *service) ImportExistingDestination(ctx context.Context, in ImportExisti
 	snapshots, err := s.eng.SnapshotList(ctx, in.Name, "")
 	if err != nil {
 		return Destination{}, fmt.Errorf("enumerate existing repository history %q: %w", in.Name, err)
+	}
+	if len(snapshots) == 0 {
+		return Destination{}, ErrInvalidDestination{Field: "repository", Reason: "connected repository contains no readable snapshots"}
 	}
 	present := make(map[string]struct{}, len(snapshots))
 	for _, snapshot := range snapshots {
@@ -1030,6 +1034,49 @@ func (s *service) ListDestinations(ctx context.Context, pageSize int) ([]Destina
 		pageSize = defaultListLimit
 	}
 	return s.repo.List(ctx, pageSize)
+}
+
+func (s *service) ListTargetSnapshots(ctx context.Context, destinationID, owner, name string) ([]engine.Snapshot, error) {
+	destinationID, owner, name = strings.TrimSpace(destinationID), strings.TrimSpace(owner), strings.TrimSpace(name)
+	if destinationID == "" || owner == "" || name == "" || strings.ContainsAny(owner+name, "\x00/\\") {
+		return nil, ErrInvalidDestination{Field: "snapshot identity", Reason: "destination, owner and name are required stable DBM identifiers"}
+	}
+	var snapshots []engine.Snapshot
+	err := s.WithResolvedDestination(ctx, destinationID, func(d Destination) error {
+		var listErr error
+		snapshots, listErr = s.eng.SnapshotList(ctx, d.Name, "dbm://"+owner+"/"+name)
+		return listErr
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list target snapshots: %w", err)
+	}
+	filtered := make([]engine.Snapshot, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		if strings.TrimSpace(snapshot.ID) == "" || snapshot.Source != "dbm://"+owner+"/"+name {
+			return nil, fmt.Errorf("snapshot listing returned an unidentifiable or mismatched snapshot")
+		}
+		ownerTag, nameTag := false, false
+		for _, tag := range snapshot.Tags {
+			ownerTag = ownerTag || tag == "dbm.owner:"+owner
+			nameTag = nameTag || tag == "dbm.name:"+name
+		}
+		if !ownerTag || !nameTag {
+			return nil, fmt.Errorf("snapshot %q is missing exact DBM owner/name tags", snapshot.ID)
+		}
+		if _, parseErr := time.Parse(time.RFC3339Nano, snapshot.StartTime); parseErr != nil {
+			return nil, fmt.Errorf("snapshot %q has an invalid start time", snapshot.ID)
+		}
+		filtered = append(filtered, snapshot)
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		ti, _ := time.Parse(time.RFC3339Nano, filtered[i].StartTime)
+		tj, _ := time.Parse(time.RFC3339Nano, filtered[j].StartTime)
+		if ti.Equal(tj) {
+			return filtered[i].ID < filtered[j].ID
+		}
+		return ti.After(tj)
+	})
+	return filtered, nil
 }
 
 func (s *service) UpdateDestination(ctx context.Context, in UpdateInput) (Destination, error) {

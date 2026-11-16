@@ -24,9 +24,47 @@ func fixtureProber(t *testing.T, files map[string]string) *stateProber {
 	return &stateProber{
 		goos:          "linux",
 		sysClassBlock: filepath.Join(root, "sys", "class", "block"),
+		sysFS:         filepath.Join(root, "sys", "fs"),
 		procFS:        filepath.Join(root, "proc", "fs"),
 		fstabPath:     filepath.Join(root, "etc", "fstab"),
 		readFile:      os.ReadFile,
+	}
+}
+
+func TestProbeUsesMountedExt4ErrorCountAsFilesystemEvidence(t *testing.T) {
+	tests := []struct {
+		name  string
+		count string
+		want  FilesystemState
+	}{
+		{name: "no kernel errors", count: "0\n", want: FilesystemStateClean},
+		{name: "kernel recorded errors", count: "2\n", want: FilesystemStateNeedsCheck},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := fixtureProber(t, map[string]string{"sys/fs/ext4/nvme0n1p2/errors_count": tt.count})
+			m := mountInfo{Device: "/dev/nvme0n1p2", Mountpoint: "/", Fstype: "ext4", Opts: []string{"rw", "relatime"}}
+
+			got := p.probe(m, false)
+
+			if got.FilesystemState != tt.want {
+				t.Fatalf("filesystem state = %q, want %q", got.FilesystemState, tt.want)
+			}
+			if !strings.Contains(got.EvidenceSource, "errors_count") {
+				t.Fatalf("evidence source = %q, want ext4 errors_count", got.EvidenceSource)
+			}
+		})
+	}
+}
+
+func TestProbeKeepsExt4UnknownWhenKernelErrorEvidenceIsUnavailable(t *testing.T) {
+	p := fixtureProber(t, nil)
+	m := mountInfo{Device: "/dev/nvme0n1p2", Mountpoint: "/", Fstype: "ext4", Opts: []string{"rw", "relatime"}}
+
+	got := p.probe(m, false)
+
+	if got.FilesystemState != FilesystemStateUnknown {
+		t.Fatalf("filesystem state = %q, want unknown without kernel evidence", got.FilesystemState)
 	}
 }
 

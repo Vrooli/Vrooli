@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS plans (
   enabled     INTEGER NOT NULL DEFAULT 1,
   protection_tier TEXT NOT NULL DEFAULT 'full_primary',
   recovery_drill_schedule TEXT NOT NULL DEFAULT '',
+  -- target_selector, when set, makes membership a rule evaluated on every read
+  -- (for example "registered": every target in the catalog) instead of a list.
+  target_selector TEXT NOT NULL DEFAULT '',
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
 );
@@ -40,3 +43,11 @@ CREATE TABLE IF NOT EXISTS plan_destinations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_plan_destinations_plan ON plan_destinations(plan_id);
+
+-- plan_target_exclusions keeps named targets out of a selector plan. It is empty
+-- for a plan with an explicit target list.
+CREATE TABLE IF NOT EXISTS plan_target_exclusions (
+  plan_id   TEXT NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+  target_id TEXT NOT NULL,
+  PRIMARY KEY (plan_id, target_id)
+);

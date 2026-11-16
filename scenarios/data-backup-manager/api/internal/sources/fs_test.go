@@ -131,6 +131,41 @@ func TestFilesystemSource_SingleFile(t *testing.T) {
 	assert.Equal(t, content, restored)
 }
 
+// TestFilesystemSource_EncryptedWalletBundleRoundTrip pins the transport shape
+// used by Treasury's portable recovery artifact: one opaque ciphertext file is
+// captured and restored byte-for-byte under the same basename. DBM must not
+// need to parse the bundle or receive its operator-held recovery secret.
+func TestFilesystemSource_EncryptedWalletBundleRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	sourceDir := t.TempDir()
+	source := filepath.Join(sourceDir, "wallet-test.bundle")
+	// Test-only opaque bytes with no key material. This deliberately resembles
+	// ciphertext and contains a recognizable marker that must not be rewritten.
+	bundle := []byte{0x56, 0x52, 0x4f, 0x4f, 0x4c, 0x49, 0x2d, 0x45, 0x4e, 0x43, 0, 0x9a, 0x31, 0xff, 0x0d}
+	require.NoError(t, os.WriteFile(source, bundle, 0o600))
+
+	capturer, err := sources.NewProductionRegistry(sources.ExecRunner{}).Capturer(sources.KindFilesystem)
+	require.NoError(t, err)
+	stageDir := t.TempDir()
+	artifact, err := capturer.Capture(context.Background(), sources.CaptureSpec{Locator: source, StageDir: stageDir})
+	require.NoError(t, err)
+	require.Equal(t, int64(len(bundle)), artifact.Bytes)
+
+	restoredDir := filepath.Join(t.TempDir(), "recovered-portable-recovery")
+	require.NoError(t, capturer.Restore(context.Background(), sources.RestoreSpec{
+		Locator: source, ArtifactPath: artifact.Path, Target: restoredDir,
+	}))
+	restoredPath := filepath.Join(restoredDir, "wallet-test.bundle")
+	restored, err := os.ReadFile(restoredPath)
+	require.NoError(t, err)
+	assert.Equal(t, bundle, restored, "DBM must preserve encrypted bundle bytes exactly")
+
+	info, err := os.Stat(restoredPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "recovered bundle must retain private file mode")
+}
+
 // TestFilesystemSource_PreservesSymlinks asserts a symlink in the source tree —
 // including one pointing at a directory and one pointing OUTSIDE the captured
 // tree — is preserved as a symlink, not followed. Following an out-of-tree link

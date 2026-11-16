@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	coveragev1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage"
 	coverageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/coverage/coverage_v1connect"
@@ -24,6 +26,29 @@ type stubCoverageService struct {
 	accept    *coveragev1.AcceptDefaultTargetsResponse
 	review    *coveragev1.RequestSensitiveReviewResponse
 	gotReview bool
+	policy    *coveragev1.SensitivePolicy
+	gotRevoke *coveragev1.RevokeSensitivePolicyRequest
+	gotExcl   *coveragev1.ExcludeSensitiveTargetRequest
+	gotAdopt  *coveragev1.AdoptSensitiveConsentRequest
+}
+
+func (s *stubCoverageService) GetSensitivePolicy(context.Context, *connect.Request[coveragev1.GetSensitivePolicyRequest]) (*connect.Response[coveragev1.GetSensitivePolicyResponse], error) {
+	return connect.NewResponse(&coveragev1.GetSensitivePolicyResponse{Policy: s.policy}), nil
+}
+
+func (s *stubCoverageService) RevokeSensitivePolicy(_ context.Context, req *connect.Request[coveragev1.RevokeSensitivePolicyRequest]) (*connect.Response[coveragev1.RevokeSensitivePolicyResponse], error) {
+	s.gotRevoke = req.Msg
+	return connect.NewResponse(&coveragev1.RevokeSensitivePolicyResponse{Policy: s.policy}), nil
+}
+
+func (s *stubCoverageService) AdoptSensitiveConsent(_ context.Context, req *connect.Request[coveragev1.AdoptSensitiveConsentRequest]) (*connect.Response[coveragev1.AdoptSensitiveConsentResponse], error) {
+	s.gotAdopt = req.Msg
+	return connect.NewResponse(&coveragev1.AdoptSensitiveConsentResponse{Policy: s.policy, RegisteredCount: 44}), nil
+}
+
+func (s *stubCoverageService) ExcludeSensitiveTarget(_ context.Context, req *connect.Request[coveragev1.ExcludeSensitiveTargetRequest]) (*connect.Response[coveragev1.ExcludeSensitiveTargetResponse], error) {
+	s.gotExcl = req.Msg
+	return connect.NewResponse(&coveragev1.ExcludeSensitiveTargetResponse{Policy: s.policy}), nil
 }
 
 func (s *stubCoverageService) GetCoverageReport(_ context.Context, _ *connect.Request[coveragev1.GetCoverageReportRequest]) (*connect.Response[coveragev1.GetCoverageReportResponse], error) {
@@ -181,7 +206,7 @@ func TestRegisterCoverageLoadsFromManifest(t *testing.T) {
 	for _, c := range group.Subcommands {
 		got[c.Name] = true
 	}
-	for _, want := range []string{"report", "accept-defaults", "review-sensitive"} {
+	for _, want := range []string{"report", "accept-defaults", "review-sensitive", "sensitive-policy", "revoke-sensitive-policy", "exclude-sensitive", "adopt-sensitive-consent"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
 		}
@@ -201,6 +226,90 @@ func TestReviewSensitiveCommand_RaisesOneDecisionOnly(t *testing.T) {
 	for _, want := range []string{"ask-1", "44", "No target was registered"} {
 		if !strings.Contains(stdout.String(), want) {
 			t.Errorf("output missing %q: %s", want, stdout.String())
+		}
+	}
+}
+
+func TestReviewSensitiveCommand_WithTheStandingRuleSaysNothingWasAsked(t *testing.T) {
+	stub := &stubCoverageService{review: &coveragev1.RequestSensitiveReviewResponse{CandidateCount: 2, Pending: false}}
+	hs := newHandlers(newStubApp(t, stub))
+	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	if err := hs.reviewSensitive(ctx); err != nil {
+		t.Fatalf("reviewSensitive: %v", err)
+	}
+	for _, want := range []string{"standing rule is on", "nothing was asked", "2 place"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("output missing %q: %s", want, stdout.String())
+		}
+	}
+}
+
+func TestSensitivePolicyCommand_ShowsWhoConsentedWhenAndWhatItAdded(t *testing.T) {
+	granted := timestamppb.New(time.Date(2026, 11, 15, 9, 30, 0, 0, time.UTC))
+	stub := &stubCoverageService{policy: &coveragev1.SensitivePolicy{
+		Active: true, GrantedBy: "operator", GrantedByIdentityKind: "verified-human", GrantedByIdentitySource: "notification-hub", GrantedAt: granted, GrantAskId: "ask-9", AddedTotal: 3,
+		Excluded:   []*coveragev1.SensitivePolicyExclusion{{Owner: "grok", Name: "home", Reason: "Too large", ExcludedBy: "operator"}},
+		Unreported: []*coveragev1.SensitivePolicyAddition{{Owner: "codex", Name: "home", Group: "AI tools", ApproxBytes: 1 << 20}},
+		History:    []*coveragev1.SensitivePolicyEvent{{At: granted, Kind: "granted", By: "operator", Detail: "Standing rule turned on"}},
+	}}
+	hs := newHandlers(newStubApp(t, stub))
+	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	if err := hs.sensitivePolicy(ctx); err != nil {
+		t.Fatalf("sensitivePolicy: %v", err)
+	}
+	for _, want := range []string{"Standing rule ON", "operator", "verified-human", "2026-11-15T09:30:00Z", "ask-9", "grok/home", "Too large", "codex/home", "revoke-sensitive-policy"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("output missing %q: %s", want, stdout.String())
+		}
+	}
+}
+
+func TestRevokeAndExcludeCommandsSendTheirRequests(t *testing.T) {
+	stub := &stubCoverageService{policy: &coveragev1.SensitivePolicy{Active: false, RevokedBy: "operator via CLI", RevokedAt: timestamppb.New(time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC))}}
+	hs := newHandlers(newStubApp(t, stub))
+	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	if err := hs.revokeSensitivePolicy(ctx); err != nil {
+		t.Fatalf("revoke: %v", err)
+	}
+	if stub.gotRevoke == nil || !strings.Contains(stdout.String(), "Standing rule OFF") || !strings.Contains(stdout.String(), "stay backed up") {
+		t.Fatalf("revoke request=%v output=%s", stub.gotRevoke, stdout.String())
+	}
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "owner"}, {Name: "name"}, {Name: "reason"}}}
+	ctx, stdout = cliapptest.NewCapturedRunContext(hs.core, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"owner": "grok", "name": "home", "reason": "Too large"}})
+	if err := hs.excludeSensitive(ctx); err != nil {
+		t.Fatalf("exclude: %v", err)
+	}
+	if stub.gotExcl == nil || stub.gotExcl.Owner != "grok" || stub.gotExcl.Name != "home" || stub.gotExcl.Reason != "Too large" {
+		t.Fatalf("exclude request = %+v", stub.gotExcl)
+	}
+	if !strings.Contains(stdout.String(), "grok/home is kept out") {
+		t.Errorf("output = %s", stdout.String())
+	}
+}
+
+func TestAdoptSensitiveConsentCommandSendsTheAskAndShowsTheVerbatimWords(t *testing.T) {
+	stub := &stubCoverageService{policy: &coveragev1.SensitivePolicy{Active: true, GrantBasis: "free_text", GrantText: "back up anything that declares storage", GrantedBy: "operator", GrantedByIdentityKind: "verified-human", GrantedByIdentitySource: "notification-hub", GrantAskId: "hub-ask-1"}}
+	hs := newHandlers(newStubApp(t, stub))
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "ask"}}}
+	ctx, stdout := cliapptest.NewCapturedRunContext(hs.core, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"ask": "hub-ask-1"}})
+	if err := hs.adoptSensitiveConsent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if stub.gotAdopt == nil || stub.gotAdopt.HubAskId != "hub-ask-1" {
+		t.Fatalf("request = %+v", stub.gotAdopt)
+	}
+	for _, want := range []string{"given in their own words", "back up anything that declares storage", "Registered 44", "hub-ask-1"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("output missing %q: %s", want, stdout.String())
+		}
+	}
+}
+
+func TestDriveLossLineSaysWhatASameDriveCopyDoesNotProtect(t *testing.T) {
+	line := driveLossLine(&coveragev1.CoverageSummary{RegisteredCount: 244, PhysicallyIndependentTargetCount: 0})
+	for _, want := range []string{"same drive as its source", "deletion and corruption", "not against losing that drive", "0 of 244"} {
+		if !strings.Contains(line, want) {
+			t.Errorf("drive-loss line missing %q: %s", want, line)
 		}
 	}
 }

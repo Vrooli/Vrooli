@@ -753,9 +753,9 @@ func (f *BackupFailureFlow) resumeAccept(ctx context.Context, ask *operatordecis
 	if err := f.incidents.Put(ctx, inc); err != nil {
 		return fmt.Errorf("record applied accept: %w", err)
 	}
-	body := fmt.Sprintf("I recorded your approval to skip %d unreadable leftover %s. Nothing on the drive was touched.", len(recorded), plural(len(recorded), "file", "files"))
+	body := fmt.Sprintf("I recorded your approval to skip %d unreadable leftover %s. Nothing on the drive was touched.", len(recorded), operatordecision.Plural(len(recorded), "file", "files"))
 	if len(changed) > 0 {
-		body += fmt.Sprintf(" %d other %s changed since I asked and %s not covered; if that blocks backups I will ask again.", len(changed), plural(len(changed), "file", "files"), plural(len(changed), "is", "are"))
+		body += fmt.Sprintf(" %d other %s changed since I asked and %s not covered; if that blocks backups I will ask again.", len(changed), operatordecision.Plural(len(changed), "file", "files"), operatordecision.Plural(len(changed), "is", "are"))
 	}
 	if started > 0 {
 		body += " A backup was started now. I will warn you each day while these files remain; any other unreadable file stops backups and I will ask again."
@@ -766,13 +766,6 @@ func (f *BackupFailureFlow) resumeAccept(ctx context.Context, ask *operatordecis
 		title: "Backups to " + inc.Diagnosis.DriveSentence() + " can resume", body: body,
 		category: categoryBackupRecovered, urgency: "normal",
 	})
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }
 
 func (f *BackupFailureFlow) failApplied(ctx context.Context, ask *operatordecision.PendingAsk, inc repohealth.Incident, res operatordecision.DecisionResolution, detail string) error {

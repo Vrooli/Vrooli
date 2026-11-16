@@ -160,6 +160,9 @@ func runStatsToProto(s internalruns.RunStats) *runsv1.RunStats {
 		AvgThroughputBytesPerSec: s.AvgThroughputBytesPerSec,
 		Window:                   s.Window,
 		TotalPhysicalBytes:       s.TotalPhysicalBytes,
+		RetryRuns:                s.RetryRuns,
+		RetryCompleted:           s.RetryCompleted,
+		RetryFailed:              s.RetryFailed,
 		DedupRatio:               s.DedupRatio,
 	}
 }
@@ -284,6 +287,8 @@ func triggerToProto(t internalruns.TriggerSource) runsv1.TriggerSource {
 		return runsv1.TriggerSource_TRIGGER_SOURCE_SCHEDULER
 	case internalruns.TriggerManual:
 		return runsv1.TriggerSource_TRIGGER_SOURCE_MANUAL
+	case internalruns.TriggerRetry:
+		return runsv1.TriggerSource_TRIGGER_SOURCE_RETRY
 	default:
 		return runsv1.TriggerSource_TRIGGER_SOURCE_UNSPECIFIED
 	}

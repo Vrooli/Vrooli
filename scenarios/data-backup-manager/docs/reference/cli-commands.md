@@ -221,6 +221,10 @@ data-backup-manager coverage report
 data-backup-manager coverage accept-defaults --dry-run
 data-backup-manager coverage accept-defaults
 data-backup-manager coverage review-sensitive
+data-backup-manager coverage sensitive-policy
+data-backup-manager coverage adopt-sensitive-consent --ask HUB_ASK_ID
+data-backup-manager coverage revoke-sensitive-policy
+data-backup-manager coverage exclude-sensitive --owner OWNER --name NAME --reason WHY
 ```
 
 `coverage report` separates sensitive targets from the default-coverage score and
@@ -239,12 +243,29 @@ and publishes a result notice. Bulk acceptance remains idempotent and reads no
 file contents — registration stores locators only. Per-item failures are
 reported, never swallowed.
 
+The decision's answers include a **standing rule**: "back up anything that holds
+secrets from now on, and tell me what was added". The verified-human answer is
+the consent, recorded with who answered, through which identity, when and which
+decision (`coverage sensitive-policy` shows it). While it is on, a sweep every
+six hours registers new sensitive candidates itself, never one you excluded, and
+sends one note per week listing what was added; `review-sensitive` then applies
+the rule instead of asking. `revoke-sensitive-policy` ends it (what it added stays
+registered) and `exclude-sensitive` keeps one item out. `adopt-sensitive-consent`
+records the operator's own free-text answer on a review as that consent (verified
+with the Hub, kept verbatim, `grant_basis` free_text). Without a recorded
+consent nothing sensitive is ever added. The decision also offers group-level
+answers (for example everything except host settings); per-item exceptions stay
+available through Other.
+
 ### `data-backup-manager plans ...`
 
 Bind targets to destinations with a schedule and retention.
 
 ```bash
 data-backup-manager plans create --name nightly --targets target-id --destinations destination-id --schedule "24h" --keep-latest 7
+# Membership by rule: every registered target (minus exclusions), evaluated on every read
+data-backup-manager plans create --name declared-targets --target-selector registered --destinations destination-id --schedule "24h"
+data-backup-manager plans update --id plan-id --exclude-targets target-id,target-id
 data-backup-manager plans list
 data-backup-manager plans get plan-id
 data-backup-manager plans update --id plan-id --keep-latest 7

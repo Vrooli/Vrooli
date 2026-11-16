@@ -115,6 +115,16 @@ type Deps struct {
 	// PlatformReceipts persists native runtime outcomes for the receipt-backed
 	// support matrix. Nil keeps narrow tests independent of host state.
 	PlatformReceipts platformreceipts.Sink
+	// WalletRecoveryGate fences every target×destination capture through the
+	// snapshot commit while DBM has issued a wallet-recovery receipt.
+	WalletRecoveryGate SnapshotMutationGate
+}
+
+// SnapshotMutationGate is implemented by DBM's wallet recovery reservation
+// owner. The lock begins before capture so reservation cannot race an already
+// in-flight snapshot whose source read started earlier.
+type SnapshotMutationGate interface {
+	BeginMutation(context.Context, string, string) (release func(), err error)
 }
 
 type DestinationReadiness interface {
@@ -129,7 +139,8 @@ type FileRootPicker interface {
 const (
 	defaultRunListLimit      = 100
 	defaultTargetConcurrency = 4
-	// statsWindow caps how many recent runs GetRunStats aggregates. Run history
+	// statsWindow caps how many recent attempts (plus the retries among them)
+	// GetRunStats aggregates. Run history
 	// is bounded catalog data; the cap keeps the aggregation cheap and is
 	// surfaced as RunStats.Window so the figure is never silently partial.
 	statsWindow = 1000
@@ -184,6 +195,11 @@ func (s *service) TriggerRun(ctx context.Context, planID string, trigger Trigger
 	}
 
 	now := s.deps.Clock.Now().UTC()
+	if trigger == TriggerRetry {
+		if err := s.checkRetryAllowed(ctx, planID, now); err != nil {
+			return Run{}, err
+		}
+	}
 	run, err := s.deps.Repo.CreateRun(ctx, Run{
 		PlanID:    planID,
 		Trigger:   trigger,
@@ -709,6 +725,14 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 		out.FailureCode, out.FailureCategory = cause.Code, cause.Category
 		return finish(OutcomeFailed, cause.Message)
 	}
+	if s.deps.WalletRecoveryGate != nil {
+		release, err := s.deps.WalletRecoveryGate.BeginMutation(ctx, targetID, destID)
+		if err != nil {
+			out.FailureCode, out.FailureCategory = failures.DestinationInaccessible, failures.CategoryDestination
+			return finish(OutcomeBlocked, "wallet recovery reservation blocks snapshot creation")
+		}
+		defer release()
+	}
 
 	stageDir := filepath.Join(stageBase, sanitize(targetID)+"_"+sanitize(destID))
 	if mkErr := os.MkdirAll(stageDir, 0o755); mkErr != nil {
@@ -889,7 +913,16 @@ func isOverdue(s TargetStatus, now time.Time, after time.Duration, scheduled, sc
 }
 
 func (s *service) GetRunStats(ctx context.Context, planID string) (RunStats, error) {
-	runs, err := s.deps.Repo.ListRuns(ctx, strings.TrimSpace(planID), statsWindow)
+	planID = strings.TrimSpace(planID)
+	var (
+		runs []Run
+		err  error
+	)
+	if reader, ok := s.deps.Repo.(StatsWindowReader); ok {
+		runs, err = reader.StatsWindow(ctx, planID, statsWindow)
+	} else {
+		runs, err = s.deps.Repo.ListRuns(ctx, planID, statsWindow)
+	}
 	if err != nil {
 		return RunStats{}, err
 	}

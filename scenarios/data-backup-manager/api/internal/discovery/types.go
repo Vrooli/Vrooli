@@ -47,6 +47,9 @@ type TargetCandidate struct {
 	// Owner/Name are the (owner, name) key a registered target would carry.
 	Owner string
 	Name  string
+	// OwnerKind is what kind of owner declares it (scenario, resource, tool,
+	// safeguard, ...); empty when the scanner does not know.
+	OwnerKind string
 	// SourceKind selects the capture strategy on registration.
 	SourceKind sources.SourceKind
 	// Locator is the absolute source locator (a path for filesystem, a db file

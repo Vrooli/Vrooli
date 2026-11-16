@@ -613,6 +613,11 @@ func checksumDir(dir string) (string, error) {
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
 
+// ChecksumDirectory returns the same deterministic content digest persisted by
+// DBM's terminal verify lifecycle. Callers use it only on bounded private
+// materializations whose extraction limits were checked before restore.
+func ChecksumDirectory(dir string) (string, error) { return checksumDir(dir) }
+
 // sanitize keeps path fragments filesystem-safe.
 func sanitize(s string) string {
 	return strings.Map(func(r rune) rune {

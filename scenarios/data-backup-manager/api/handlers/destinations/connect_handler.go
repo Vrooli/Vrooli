@@ -100,6 +100,22 @@ func (h *connectHandler) ListDestinations(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(resp), nil
 }
 
+func (h *connectHandler) ListTargetSnapshots(ctx context.Context, req *connect.Request[destinationsv1.ListTargetSnapshotsRequest]) (*connect.Response[destinationsv1.ListTargetSnapshotsResponse], error) {
+	snapshots, err := h.deps.Service.ListTargetSnapshots(ctx, req.Msg.DestinationId, req.Msg.Owner, req.Msg.Name)
+	if err != nil {
+		return nil, h.translate("ListTargetSnapshots", err)
+	}
+	resp := &destinationsv1.ListTargetSnapshotsResponse{Snapshots: make([]*destinationsv1.TargetSnapshot, 0, len(snapshots))}
+	for _, snapshot := range snapshots {
+		started, parseErr := time.Parse(time.RFC3339Nano, snapshot.StartTime)
+		if parseErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("snapshot %q has invalid start time", snapshot.ID))
+		}
+		resp.Snapshots = append(resp.Snapshots, &destinationsv1.TargetSnapshot{Id: snapshot.ID, StartedAt: timestamppb.New(started), Source: snapshot.Source})
+	}
+	return connect.NewResponse(resp), nil
+}
+
 func (h *connectHandler) UpdateDestination(ctx context.Context, req *connect.Request[destinationsv1.UpdateDestinationRequest]) (*connect.Response[destinationsv1.UpdateDestinationResponse], error) {
 	d, err := h.deps.Service.UpdateDestination(ctx, destinations.UpdateInput{
 		ID:        req.Msg.Id,
@@ -299,7 +315,7 @@ func (h *connectHandler) ResumeVolumeRecovery(ctx context.Context, req *connect.
 		delete(confirmations, journal.Current)
 		acknowledgeDataLoss = false
 	}
-	updated, resumeErr := h.deps.Readiness.ResumeRecovery(ctx, h.deps.RecoveryStore, journal, confirmations, acknowledgeDataLoss, dryRun)
+	updated, resumeErr := h.deps.Readiness.ResumeRecoveryStep(ctx, h.deps.RecoveryStore, journal, confirmations, acknowledgeDataLoss, dryRun)
 	if resumeErr != nil {
 		return h.handleRecoveryResumeError(ctx, updated, resumeErr, dryRun)
 	}

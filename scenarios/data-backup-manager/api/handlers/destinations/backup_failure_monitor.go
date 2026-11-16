@@ -240,8 +240,10 @@ func (w *BackupFailureWorker) reconcileFailures(ctx context.Context, plans []Pla
 func (w *BackupFailureWorker) handleFailing(ctx context.Context, dest destinations.Destination, items []failingRun, plans []PlanRecord) error {
 	latest := items[0].run
 	planIDs := make([]string, 0, len(items))
+	onlyRetries := true
 	for _, it := range items {
 		planIDs = append(planIDs, it.plan.ID)
+		onlyRetries = onlyRetries && it.run.Retry
 		if it.run.FinishedAt.After(latest.FinishedAt) {
 			latest = it.run
 		}
@@ -253,7 +255,10 @@ func (w *BackupFailureWorker) handleFailing(ctx context.Context, dest destinatio
 	if open != nil && open.DiagnosedRunID == latest.ID {
 		return nil
 	}
-	if open != nil && w.now().Sub(w.lastDiagnosed[dest.ID]) < backupMinDiagnosisGap {
+	// The diagnosis walks the repository. A failed run that is itself one of our
+	// retries has just been diagnosed; diagnosing it again every tick would only
+	// repeat the walk, so it waits for the same gap an open question does.
+	if (open != nil || onlyRetries) && w.now().Sub(w.lastDiagnosed[dest.ID]) < backupMinDiagnosisGap {
 		return nil
 	}
 	w.lastDiagnosed[dest.ID] = w.now()

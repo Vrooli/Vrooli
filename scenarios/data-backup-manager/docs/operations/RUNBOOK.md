@@ -3,7 +3,6 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -98,6 +97,9 @@ Sensitive suggestions (credential/token files such as `codex/auth`,
 `claude-code/credentials`) are **never** registered through bulk acceptance.
 Use `coverage review-sensitive`; the signed callback revalidates the candidate
 set before applying the verified operator decision and publishes a result notice.
+The decision offers a standing rule that covers future sensitive candidates, so
+the question stops recurring; `coverage sensitive-policy` shows who consented and
+when, and `coverage revoke-sensitive-policy` turns it off.
 
 Credential-bearing targets are review-only. The plaintext `~/.vrooli/secrets.json`
 legacy file is never suggested; the encrypted `~/.vrooli/secrets.enc.json` store
@@ -114,6 +116,89 @@ printf '%s' "$PASSPHRASE" | vrooli credentials provision \
 Coverage reads no file contents and registers locators only. Because plan
 creation is guarded (see below), running `coverage accept-defaults` before
 `plans create` is the normal first-backup order.
+
+### Why a backup run used to be interrupted or blocked (fixed 2026-11-15)
+
+- **Health probe timeouts restarted the service mid-run.** `/health` computed the
+  backup posture (every target's last run, every enabled plan) on each probe. While
+  a large backup was writing that took 5 seconds or more, the probe timed out, and
+  the service was restarted in the middle of the run, three times in 25 minutes.
+  The probe is now answered from the last posture result (15 second freshness, a
+  background refresh, never older than 10 minutes), so it returns at once.
+- **One unreadable source stopped every target of a plan.** A source that could
+  not be enumerated (for example a root-owned subdirectory) left the destination's
+  capacity "unknown", which preflight reported as "destination filesystem readiness
+  is unknown" and applied to every target at that destination. The unreadable
+  target is now blocked on its own (`source_missing`) and capacity is judged over
+  the targets that will be written.
+
+### Default plans: "registered" means backed up
+
+A plan can name its targets by rule instead of by list. `--target-selector
+registered` means every registered target, minus `--exclude-targets`, evaluated
+every time the plan is read (runs, the scheduler, coverage, health). A target an
+owner declares is registered by the standing rule's sweep (secrets included, under
+the operator's answer to Hub ask c0d25f0a) and is in the plan on its next run with
+nobody editing anything. Explicit target lists keep working.
+`plans update --targets` turns a selector plan back into a list; `add-destination`
+and `update` keep the rule.
+
+Two default plans use it (created 2026-11-15):
+
+| Plan | Targets | Destination | State |
+|---|---|---|---|
+| `declared-targets` | every registered target | `elements-local` (external drive) | disabled until the Elements drive passes readiness (DB5); enable it with `plans update --id <id> --enabled true` |
+| `declared-targets-local` | every registered target except the left-out list below | `baseline-safety` (this machine's home disk) | enabled, every 24h, keeps the latest 3 snapshots |
+
+Why two: the home disk cannot hold everything. The local plan is sized so its
+first copy keeps the home disk under 92% used (budget = headroom to 92% minus a
+15 GiB margin, measured 2026-11-15 at 89.5% used; secrets and the AI tool homes
+first, then the smallest targets). The Elements plan has no exclusions. It is left
+disabled because enabling it now would fail every target on the same blocked drive
+and turn the health list from a few issues into hundreds.
+
+**The local copy is on the same disk as the source.** It protects against
+deletion and corruption, not against losing the drive. Only a target with a proven
+independent second copy (the Elements plan, once it runs) is protected against
+drive loss; `coverage report` states the count.
+
+Left out of the local plan (kept by `declared-targets` on Elements once it runs;
+a few also have their own baseline-safety plan):
+
+| Target | Size | Where |
+|---|---|---|
+| vrooli / state | 141.0 GiB | `~/.vrooli/state` |
+| web-console / session-rollouts | 133.1 GiB | `~/.vrooli/state/vrooli/web-console/sessions` |
+| vrooli / data | 129.7 GiB | `~/.vrooli/data` |
+| research-desk / research-home | 69.9 GiB | `~/.vrooli/research` |
+| songgen / models | 51.6 GiB | `~/.local/share/vrooli/resources/songgen/models` |
+| research-desk / research_archive_rehearsals | 45.1 GiB | `~/.vrooli/archive/research/rehearsal` |
+| ollama / models | 42.1 GiB | `~/.local/share/vrooli/resources/ollama/models` |
+| image-tools / data | 42.0 GiB | `~/.vrooli/data/vrooli/image-tools` |
+| image-tools / models | 37.8 GiB | `~/.vrooli/data/vrooli/image-tools/models` |
+| plan-manager / plan_artifacts | 25.8 GiB | `~/.vrooli/plan-artifacts` |
+| vrooli / plan_artifacts | 25.8 GiB | `~/.vrooli/plan-artifacts` |
+| browser-automation-studio / data | 25.7 GiB | `~/.vrooli/data/vrooli/browser-automation-studio` |
+| agent-manager / effort_evidence | 25.6 GiB | `~/.vrooli/evidence` |
+| vrooli / evidence | 25.6 GiB | `~/.vrooli/evidence` |
+| browser-automation-studio / recordings | 20.3 GiB | `~/.vrooli/data/vrooli/browser-automation-studio/recordings` |
+| ace-step / models | 15.1 GiB | `~/.local/share/vrooli/resources/ace-step/checkpoints` |
+| stable-audio-3 / models | 9.7 GiB | `~/.local/share/vrooli/resources/stable-audio-3/models` |
+| ollaya / models | 8.9 GiB | `~/.local/share/vrooli/resources/ollaya/models` |
+| agent-manager / data | 6.5 GiB | `~/.vrooli/data/vrooli/agent-manager` |
+| agent-manager / legacy_history | 6.5 GiB | `~/.vrooli/data/vrooli/agent-manager/legacy-history` |
+| browser-automation-studio / captures | 5.2 GiB | `~/.vrooli/data/vrooli/browser-automation-studio/captures` |
+| system-monitor / data | 5.2 GiB | `~/.vrooli/data/vrooli/system-monitor` |
+| postgres / instance_runtime | 5.2 GiB | `~/.local/share/vrooli/resources/postgres/instances/main` |
+| postgres / main_data | 5.2 GiB | `~/.local/share/vrooli/resources/postgres/instances/main/data` |
+| agent-manager / run_state | 4.9 GiB | `~/.vrooli/state/vrooli/agent-manager/runs` |
+| image-tools / adapters | 3.9 GiB | `~/.vrooli/data/vrooli/image-tools/adapters` |
+| vrooli / backups | 3.5 GiB | `~/.vrooli/backups` |
+| vrooli / agent-worktree | 2.8 GiB | `~/Vrooli/.vrooli/work` |
+
+To bring one in, remove its id from the plan's exclusions with
+`plans update --id <local plan id> --exclude-targets <remaining ids>`; check
+`df /` first. `coverage report` lists registered targets bound to no enabled plan.
 
 ### Destination onboarding
 
@@ -433,6 +518,28 @@ scenarios) can trigger a run manually:
 data-backup-manager runs trigger --plan "plan-id"
 data-backup-manager runs list
 ```
+
+When a run is stopped by a destination problem that looks transient, the
+backup-failure monitor asks for one automatic retry. A retry is recorded with
+trigger `retry` (shown as "Automatic retry"), not `manual`, and `runs stats`
+counts retries on their own line so they never lower the success rate of real
+attempts. If the retry fails the same way, the next one for that plan is held
+back: 5 minutes, then 15, 45, 2h15m and never more than 6 hours between
+retries. A held retry creates no run. A scheduled or manual run, a success, or
+a different failure starts the count again; an operator's own `runs trigger` is
+never held. Before this, the monitor re-ran a blocked plan every minute and
+left thousands of failed `manual` runs (2026-11-13 to 2026-11-15, eight
+baseline-safety plans); those rows were relabelled once, as below. Run stats cover the newest 1000
+attempts and only the retries inside that span, so retries cannot crowd real
+attempts out of the window.
+
+One-off, 2026-11-15 (record only; do not repeat): the 3,728 failed rows of that
+loop were relabelled from `manual` to `retry` in one transaction, selected by
+`trigger='manual' AND status='failed' AND error LIKE '%filesystem readiness is
+unknown%' AND started_at` between 2026-11-13T07:11:45Z and 2026-11-15T15:13:37Z.
+Before: 3,728 matching rows, 3,770 `manual`/failed in all. After: 0 matching,
+42 `manual`/failed left, 3,728 `retry`/failed. Only the `trigger` column changed;
+a copy of the database from just before the change is kept with the work notes.
 
 Before target fan-out, each run performs a read-only plan-wide preflight. It
 checks repository connection and enumerates snapshot metadata before source

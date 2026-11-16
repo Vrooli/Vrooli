@@ -21,6 +21,9 @@ every target × destination unit in an enabled plan, so a failed primary does no
 suppress a secondary drill. It checks due work immediately at startup and then
 once per minute. The Drills page lists every configured target × destination
 unit alongside its cadence and latest receipt, including units with no receipt.
+Failed-drill notifications collect for up to 15 seconds. Multiple failures in
+that window produce one summary message; each drill remains available as an
+individual record on the Drills page.
 
 Before starting a drill, use:
 
@@ -37,6 +40,75 @@ linked restore and `next_action` before retrying.
 
 Drills never write to live target locations and never serialize passphrases,
 credential values, or restored file contents.
+
+## Treasury portable key-only bundle transport
+
+Treasury writes each recovery set as a private directory at
+`<SCENARIO_DATA_DIR>/portable-recovery/<wallet-id>.recovery/`. It contains
+`wallet.bundle` (encrypted key-only ciphertext) and `witness.json` (public
+wallet/book metadata authenticated with the operator-held recovery secret).
+Treasury stages `revocation.json`, signed by the retiring wallet key, and
+removes the live `wallet.bundle`. Its rotation path must wait until the owner
+publisher has restore-verified that exact tree as the newest validated
+snapshot; only then may Treasury mark the old wallet revoked or delete its
+scalar. If no healthy writable destination or publisher is configured,
+rotation stays pending and the old key remains active. DBM snapshots the whole
+directory and treats all of its contents as opaque bytes.
+
+On the source node, export the pair, register that directory under its stable
+owner/name, and bind it to a dedicated manual plan and independently reachable
+encrypted destination:
+
+```bash
+treasury wallet export-portable-recovery --id <wallet-id> --network <network> --secret-stdin
+data-backup-manager targets register --owner treasury --name treasury-wallet-recovery-<wallet-id> --kind filesystem --locator '<SCENARIO_DATA_DIR>/portable-recovery/<wallet-id>.recovery'
+data-backup-manager plans create --name treasury-wallet-recovery-<wallet-id> --targets <target-id> --destinations <destination-id> --schedule '' --keep-latest 10 --allow-incomplete-coverage
+data-backup-manager runs trigger --plan <plan-id>
+data-backup-manager runs get <run-id>
+data-backup-manager restores verify --target <target-id> --destination <destination-id> --snapshot <snapshot-id>
+```
+
+The owner publisher must query the repository's stable `dbm://treasury/treasury-wallet-recovery-<wallet-id>`
+history and select only its newest snapshot. It restore-verifies that the
+snapshot contains the signed `revocation.json` and no live `wallet.bundle`
+before returning durable publication evidence to Treasury. A restore consumer
+refuses a tombstone and never falls back to an older active bundle. Keep enough
+snapshots to preserve that newest lineage; the normal retention and
+repository-availability checks still apply.
+
+Use a destination whose repository is independently reachable from both
+machines, such as an already configured S3-compatible or SFTP repository. Keep
+repository credentials in Credential Authority on each node. A filesystem
+destination is suitable only when its mounted volume is physically separate
+from the source host and is also available to the recovery node. A second path
+on the same host is not off-host protection.
+
+On the recovery node, import/attach the existing repository with its exact
+non-secret catalog metadata, then use Scenario-to-Cloud to select and restore
+the newest stable-target snapshot into a new private staging directory:
+
+```bash
+data-backup-manager destinations import-existing --id <destination-id> --name <destination-name> --backend s3 --location '<existing-s3-location>' --created-at <destination-created-at-rfc3339>
+scenario-to-cloud wallet-recovery restore --wallet-id <wallet-id> --network <network> --destination-id <destination-id> --destination-name <destination-name> --backend s3 --location '<existing-s3-location>' --created-at <destination-created-at-rfc3339> --staging-dir '<new-private-empty-directory>' --secret-stdin
+```
+
+Use `--backend sftp` and that repository's existing non-secret location when
+SFTP is the configured independent destination. Its credentials must already
+be available to DBM through Credential Authority. Never put credentials or the
+operator's recovery secret in command arguments. Restore to a private empty
+staging directory, never over Treasury's live data directory. The alternative
+is to restore the snapshot into a clean replacement Treasury
+`<SCENARIO_DATA_DIR>` before starting Treasury; its restore command then reads
+the private artifact automatically.
+
+The S3/SFTP attach, destination readiness, source run, post-rotation tombstone
+snapshot, newest-snapshot verification, clean-node restore, restart and signed
+control proof are required evidence for an off-host recovery claim. A
+successful filesystem source unit test or scratch-only recovery drill proves
+byte handling only; neither proves independent placement or second-node
+retrieval. Do not classify an existing repository as usable while DBM reports
+it unavailable, and do not substitute an emulator or fixture for the fleet
+node in the recovery result.
 
 For credential recovery, this DBM receipt is only the restore half of the
 proof. Secrets Manager must separately inspect and decrypt its authority bundle

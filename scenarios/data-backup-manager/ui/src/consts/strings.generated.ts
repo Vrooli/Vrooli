@@ -144,6 +144,7 @@ export const strings = {
       unknown: "status.trigger.unknown",
       scheduler: "status.trigger.scheduler",
       manual: "status.trigger.manual",
+      retry: "status.trigger.retry",
     },
     driveClass: {
       unknown: "status.driveClass.unknown",
@@ -323,6 +324,7 @@ export const strings = {
     destinations: "plans.destinations",
     nameRequired: "plans.nameRequired",
     needTarget: "plans.needTarget",
+    targetsBySelector: "plans.targetsBySelector",
     needDestination: "plans.needDestination",
     noTargets: "plans.noTargets",
     noDestinations: "plans.noDestinations",

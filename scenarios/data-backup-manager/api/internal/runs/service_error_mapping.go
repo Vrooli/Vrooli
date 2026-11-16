@@ -23,5 +23,9 @@ func ToConnectError(err error) error {
 	if errors.As(err, &active) {
 		return connect.NewError(connect.CodeAlreadyExists, active)
 	}
+	var held ErrRetryBackoff
+	if errors.As(err, &held) {
+		return connect.NewError(connect.CodeFailedPrecondition, held)
+	}
 	return connect.NewError(connect.CodeInternal, err)
 }

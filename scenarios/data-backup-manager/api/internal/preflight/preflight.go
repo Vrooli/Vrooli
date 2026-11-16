@@ -134,8 +134,12 @@ func Check(ctx context.Context, in Input) Result {
 		}
 		bytes, supported, estimateErr := sources.EstimateLocalSourceBytes(target.Kind, target.Locator)
 		if estimateErr != nil {
+			// A source that cannot be enumerated is blocked on its own below
+			// (source_missing, scope target) and will not be captured, so it adds
+			// nothing to what this run writes. It must not make the destination's
+			// capacity unknown: that read as "destination filesystem readiness is
+			// unknown" and stopped every other target of the plan.
 			sourceEstimateErrors[id] = estimateErr
-			capacityEstimateComplete = false
 			continue
 		}
 		if !supported {
@@ -156,10 +160,15 @@ func Check(ctx context.Context, in Input) Result {
 			cause := failures.Classify(err)
 			cause.DestinationID, cause.Scope = id, failures.ScopeDestination
 			if cause.Code == failures.Unknown {
-				cause.Code, cause.Category = failures.DestinationMissing, failures.CategoryDestination
+				cause.Category = failures.CategoryDestination
 			}
-			cause.Message = "destination could not be resolved"
-			cause.NextAction = "inspect the destination catalog and readiness before retrying"
+			if cause.Code == failures.DestinationInaccessible {
+				cause.Message = "destination identity, writable state, or filesystem health could not be proven"
+				cause.NextAction = "inspect destination identity and filesystem readiness before retrying"
+			} else {
+				cause.Message = "destination could not be resolved"
+				cause.NextAction = "inspect the destination catalog and readiness before retrying"
+			}
 			r.add(cause)
 			continue
 		}

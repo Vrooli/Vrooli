@@ -271,22 +271,42 @@ func (s *sqliteRepository) GetRun(ctx context.Context, id string) (Run, error) {
 }
 
 func (s *sqliteRepository) ListRuns(ctx context.Context, planID string, limit int) ([]Run, error) {
+	return s.listRunsWhere(ctx, planID, "1=1", nil, limit)
+}
+
+// StatsWindow returns the runs run stats are computed over: the newest `attempts`
+// scheduled or manual runs, plus the automatic retries that started within that
+// span. Counting the window in attempts keeps a burst of retries from pushing
+// every real attempt out of it.
+func (s *sqliteRepository) StatsWindow(ctx context.Context, planID string, attempts int) ([]Run, error) {
+	window, err := s.listRunsWhere(ctx, planID, "trigger <> ?", []any{string(TriggerRetry)}, attempts)
+	if err != nil {
+		return nil, err
+	}
+	since := ""
+	if len(window) == attempts && attempts > 0 {
+		since = window[len(window)-1].StartedAt.Format(runTimeFormat)
+	}
+	retries, err := s.listRunsWhere(ctx, planID, "trigger = ? AND started_at >= ?", []any{string(TriggerRetry), since}, attempts)
+	if err != nil {
+		return nil, err
+	}
+	return append(window, retries...), nil
+}
+
+func (s *sqliteRepository) listRunsWhere(ctx context.Context, planID, cond string, condArgs []any, limit int) ([]Run, error) {
 	if limit <= 0 {
 		return nil, nil
 	}
-	var (
-		rows *sql.Rows
-		err  error
-	)
+	query := `SELECT id, plan_id, trigger, status, started_at, finished_at, error, failure_code, failure_category, next_action, updated_at, physical_bytes FROM runs WHERE ` + cond
+	args := append([]any(nil), condArgs...)
 	if planID != "" {
-		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, failure_code, failure_category, next_action, updated_at, physical_bytes FROM runs WHERE plan_id = ? ORDER BY started_at DESC, id DESC LIMIT ?`,
-			planID, limit)
-	} else {
-		rows, err = s.db.QueryContext(ctx,
-			`SELECT id, plan_id, trigger, status, started_at, finished_at, error, failure_code, failure_category, next_action, updated_at, physical_bytes FROM runs ORDER BY started_at DESC, id DESC LIMIT ?`,
-			limit)
+		query += ` AND plan_id = ?`
+		args = append(args, planID)
 	}
+	query += ` ORDER BY started_at DESC, id DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list runs: %w", err)
 	}
@@ -319,13 +339,19 @@ func (s *sqliteRepository) ListRuns(ctx context.Context, planID string, limit in
 }
 
 func (s *sqliteRepository) TargetStatuses(ctx context.Context, targetIDs []string) ([]TargetStatus, error) {
-	// Most recent run per target (status + run start), ordered so the first
-	// row seen for a target is its latest run.
+	// The latest run per target, and what happened to that target in it. The
+	// target's own outcome decides its status: a run that failed for another
+	// target (or was cut off by a restart after most targets were captured) is
+	// not "partial-failed" for the targets it backed up. One row per target comes
+	// back from the database, not every outcome ever recorded.
 	query := `
-SELECT ro.target_id, r.status, r.started_at, ro.failure_code, ro.failure_category
-FROM run_outcomes ro JOIN runs r ON ro.run_id = r.id
-%s
-ORDER BY r.started_at DESC, r.id DESC`
+SELECT target_id, outcome_status, run_status, started_at, failure_code, failure_category FROM (
+  SELECT ro.target_id AS target_id, ro.status AS outcome_status, r.status AS run_status, r.started_at AS started_at,
+         ro.failure_code AS failure_code, ro.failure_category AS failure_category,
+         ROW_NUMBER() OVER (PARTITION BY ro.target_id ORDER BY r.started_at DESC, r.id DESC) AS rn
+  FROM run_outcomes ro JOIN runs r ON ro.run_id = r.id
+  %s
+) WHERE rn = 1`
 	where := ""
 	args := []any{}
 	if len(targetIDs) > 0 {
@@ -343,15 +369,12 @@ ORDER BY r.started_at DESC, r.id DESC`
 	byTarget := map[string]*TargetStatus{}
 	order := []string{}
 	for rows.Next() {
-		var targetID, status, startedRaw, failureCode, failureCategory string
-		if err := rows.Scan(&targetID, &status, &startedRaw, &failureCode, &failureCategory); err != nil {
+		var targetID, outcomeStatus, runStatus, startedRaw, failureCode, failureCategory string
+		if err := rows.Scan(&targetID, &outcomeStatus, &runStatus, &startedRaw, &failureCode, &failureCategory); err != nil {
 			return nil, fmt.Errorf("scan target status: %w", err)
 		}
-		if _, seen := byTarget[targetID]; seen {
-			continue // first row per target is the latest run
-		}
 		ts := &TargetStatus{
-			TargetID: targetID, LastRunStatus: RunStatus(status), LastRunAt: parseTime(startedRaw),
+			TargetID: targetID, LastRunStatus: targetRunStatus(OutcomeStatus(outcomeStatus), RunStatus(runStatus)), LastRunAt: parseTime(startedRaw),
 			LastFailureCode: failures.Code(failureCode), LastFailureCategory: failures.Category(failureCategory),
 		}
 		byTarget[targetID] = ts
@@ -541,4 +564,16 @@ func (s *sqliteRepository) PlanSuccess(ctx context.Context, planID string) (Plan
 		return PlanSuccess{}, fmt.Errorf("iterate plan success: %w", err)
 	}
 	return out, nil
+}
+
+// targetRunStatus is a target's status in its latest run: its own outcome when
+// the run recorded one, the run's status otherwise (a run still in flight).
+func targetRunStatus(outcome OutcomeStatus, run RunStatus) RunStatus {
+	switch outcome {
+	case OutcomeSucceeded:
+		return RunCompleted
+	case OutcomeFailed, OutcomeBlocked:
+		return RunFailed
+	}
+	return run
 }

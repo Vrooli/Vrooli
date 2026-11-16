@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/attention"
+
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
@@ -62,7 +64,7 @@ func (f *RecoveryDecisionFlow) publishPendingResult(ctx context.Context, ask *op
 func ptrTime(value time.Time) *time.Time { return &value }
 
 func recoveryNotification(title, body, category, urgency, recoveryID, askID string) eventbus.DomainEvent {
-	body = fmt.Sprintf("%s\nOther currently actionable operator items: %s. Full supervisor action file: %s", body, currentOperatorActionsDigest(), operatorActionsFileFullPath)
+	body = fmt.Sprintf("%s\nOther currently actionable operator items: %s. Full supervisor action file: %s", body, currentOperatorActionsDigest(), attention.File())
 	return eventbus.DomainEvent{
 		Source:    recoveryDecisionSource,
 		EventType: recoveryNotificationType,

@@ -34,11 +34,11 @@ on domain error types inline.
 
 ## Multipart REST Exceptions
 
-Opaque file bytes are not proto payloads. Upload endpoints use REST
-multipart for bytes and return proto-typed metadata. These endpoints
-still use a stable error envelope through `internal/httpx.WriteError`;
-the UI maps `ApiError.code` through the same `errorMessage(...)`
-utility as Connect errors.
+Opaque file bytes are not proto payloads. This scenario has no
+multipart REST edge; REST responses are currently limited to `/health`.
+There is no shared `internal/httpx.WriteError` envelope helper. If a
+multipart endpoint is added, document its response contract at that
+endpoint.
 
 Use this split:
 

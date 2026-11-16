@@ -120,6 +120,7 @@ func (s *ResourceDataScanner) Scan(ctx context.Context) ([]TargetCandidate, erro
 			if !ok {
 				continue
 			}
+			candidate.OwnerKind = string(owner.Kind)
 			candidate.Findings = append(candidate.Findings, findingsByOwner[ownerFindingKey(owner.Kind, owner.ID)]...)
 			candidate.Reacquirable = entry.Regenerable || entry.Reacquisition != nil
 			if entry.Reacquisition != nil {

@@ -81,6 +81,7 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 				s.RegisteredCount, s.RecommendedCount, s.SensitiveCount, s.PlannedCount, s.BackedUpCount, s.VerifiedCount,
 				s.DestinationCopyCount, s.AllDestinationBackedUpCount, s.AllDestinationVerifiedCount, s.MultiDestinationTargetCount, s.PhysicallyIndependentTargetCount),
 			coverageStatusLine(s),
+			driveLossLine(s),
 			reacquisitionStatusLine(rep.ReacquirableTargets),
 		},
 		ResultsHeading: "Coverage detail",
@@ -162,6 +163,15 @@ func coverageStatusLine(s *coveragev1.CoverageSummary) string {
 	}
 }
 
+// driveLossLine says plainly what a backup copy does and does not protect
+// against. A copy on the same drive as its source (the local baseline-safety
+// destination) survives a deleted or corrupted file; it does not survive losing
+// the drive. Only a target with an independent second copy does.
+func driveLossLine(s *coveragev1.CoverageSummary) string {
+	return fmt.Sprintf("Drive loss: a copy on the same drive as its source protects against deletion and corruption, not against losing that drive. %d of %d registered targets have a proven physically independent second copy.",
+		s.PhysicallyIndependentTargetCount, s.RegisteredCount)
+}
+
 func nextSteps(s *coveragev1.CoverageSummary) []string {
 	steps := make([]string, 0, 3)
 	if !s.DefaultCoverageComplete {
@@ -182,12 +192,112 @@ func (h *handlers) reviewSensitive(ctx cliapp.RunContext) error {
 	if err != nil {
 		return cliapp.WrapAPIError("request sensitive coverage review", err, nil)
 	}
-	if resp == nil || resp.Msg == nil || !resp.Msg.Pending {
-		return fmt.Errorf("server returned no pending sensitive review")
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no sensitive review response")
+	}
+	if !resp.Msg.Pending {
+		// A standing rule covers the candidates: nothing needed asking.
+		return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result:      []string{fmt.Sprintf("The standing rule is on, so nothing was asked. It just added %d place(s) that hold secrets.", resp.Msg.CandidateCount)},
+			NextCommand: []string{"`coverage sensitive-policy` — see what the rule has added and kept out"},
+		})
 	}
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result:      []string{fmt.Sprintf("Raised sensitive coverage review %s for %d current target(s). No target was registered by this command.", resp.Msg.AskId, resp.Msg.CandidateCount)},
 		NextCommand: []string{"Open the Notification Hub decision and record one disposition for each listed target.", "`coverage report` — re-check coverage after the callback completes"},
+	})
+}
+
+func (h *handlers) sensitivePolicy(ctx cliapp.RunContext) error {
+	resp, err := h.client.GetSensitivePolicy(context.Background(), connect.NewRequest(&coveragev1.GetSensitivePolicyRequest{}))
+	if err != nil {
+		return cliapp.WrapAPIError("get sensitive coverage policy", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Policy == nil {
+		return fmt.Errorf("server returned no sensitive coverage policy")
+	}
+	p := resp.Msg.Policy
+	summary := policySummary(p)
+	results := make([]string, 0, len(p.Excluded)+len(p.Unreported)+len(p.History))
+	results = append(results, fmt.Sprintf("Kept out of the rule (%d):", len(p.Excluded)))
+	for _, e := range p.Excluded {
+		results = append(results, fmt.Sprintf("  %s/%s — %s (%s, %s)", e.Owner, e.Name, e.Reason, e.ExcludedBy, formatTimestamp(e.ExcludedAt)))
+	}
+	results = append(results, fmt.Sprintf("Added since the last weekly note (%d):", len(p.Unreported)))
+	for _, a := range p.Unreported {
+		results = append(results, fmt.Sprintf("  %s/%s [%s] %s", a.Owner, a.Name, a.Group, humanizeBytes(a.ApproxBytes)))
+	}
+	results = append(results, fmt.Sprintf("History (%d):", len(p.History)))
+	for _, e := range p.History {
+		results = append(results, fmt.Sprintf("  %s %s %s — %s", formatTimestamp(e.At), e.Kind, e.By, e.Detail))
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{summary},
+		ResultsHeading: "Standing rule detail",
+		Results:        results,
+		RetrievalHints: []string{"`coverage revoke-sensitive-policy` — turn the rule off", "`coverage exclude-sensitive --owner O --name N --reason R` — keep one item out"},
+	})
+}
+
+func policySummary(p *coveragev1.SensitivePolicy) string {
+	switch {
+	case p.Active:
+		basis := "chosen from the decision's menu"
+		if p.GrantBasis == "free_text" {
+			basis = "given in their own words"
+		}
+		return fmt.Sprintf("Standing rule ON: consent from %s (%s via %s) on %s, %s, recorded by decision %s. It has added %d place(s).", p.GrantedBy, p.GrantedByIdentityKind, p.GrantedByIdentitySource, formatTimestamp(p.GrantedAt), basis, p.GrantAskId, p.AddedTotal)
+	case p.RevokedAt != nil:
+		return fmt.Sprintf("Standing rule OFF: turned off by %s on %s. New places that hold secrets wait for a decision.", p.RevokedBy, formatTimestamp(p.RevokedAt))
+	}
+	return "No standing rule: places that hold secrets wait for a decision."
+}
+
+func (h *handlers) revokeSensitivePolicy(ctx cliapp.RunContext) error {
+	resp, err := h.client.RevokeSensitivePolicy(context.Background(), connect.NewRequest(&coveragev1.RevokeSensitivePolicyRequest{RevokedBy: "operator via CLI"}))
+	if err != nil {
+		return cliapp.WrapAPIError("revoke sensitive coverage policy", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Policy == nil {
+		return fmt.Errorf("server returned no sensitive coverage policy")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{policySummary(resp.Msg.Policy), "Items the rule already added stay backed up."},
+		NextCommand: []string{"`coverage review-sensitive` — raise a decision for any place that holds secrets and is not backed up"},
+	})
+}
+
+func (h *handlers) adoptSensitiveConsent(ctx cliapp.RunContext) error {
+	resp, err := h.client.AdoptSensitiveConsent(context.Background(), connect.NewRequest(&coveragev1.AdoptSensitiveConsentRequest{HubAskId: ctx.Flag("ask")}))
+	if err != nil {
+		return cliapp.WrapAPIError("adopt sensitive coverage consent", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Policy == nil {
+		return fmt.Errorf("server returned no sensitive coverage policy")
+	}
+	result := []string{policySummary(resp.Msg.Policy), fmt.Sprintf("Registered %d place(s) that hold secrets; %d failed and will be retried by the next sweep.", resp.Msg.RegisteredCount, resp.Msg.FailedCount)}
+	if resp.Msg.Policy.GrantText != "" {
+		result = append(result, "The operator's words, kept verbatim: "+resp.Msg.Policy.GrantText)
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      result,
+		NextCommand: []string{"`coverage sensitive-policy` — see the consent record", "`coverage revoke-sensitive-policy` — turn the rule off"},
+	})
+}
+
+func (h *handlers) excludeSensitive(ctx cliapp.RunContext) error {
+	resp, err := h.client.ExcludeSensitiveTarget(context.Background(), connect.NewRequest(&coveragev1.ExcludeSensitiveTargetRequest{
+		Owner: ctx.Flag("owner"), Name: ctx.Flag("name"), Reason: ctx.Flag("reason"), ExcludedBy: "operator via CLI",
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("exclude sensitive coverage target", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Policy == nil {
+		return fmt.Errorf("server returned no sensitive coverage policy")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+		Result:      []string{fmt.Sprintf("%s/%s is kept out of the standing rule. If it is already registered, remove its target separately.", ctx.Flag("owner"), ctx.Flag("name"))},
+		NextCommand: []string{"`coverage sensitive-policy` — see what the rule keeps out"},
 	})
 }
 

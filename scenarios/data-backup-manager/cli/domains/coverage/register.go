@@ -25,6 +25,10 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"CoverageService.GetCoverageReport":      h.report,
 		"CoverageService.AcceptDefaultTargets":   h.acceptDefaults,
 		"CoverageService.RequestSensitiveReview": h.reviewSensitive,
+		"CoverageService.GetSensitivePolicy":     h.sensitivePolicy,
+		"CoverageService.RevokeSensitivePolicy":  h.revokeSensitivePolicy,
+		"CoverageService.ExcludeSensitiveTarget": h.excludeSensitive,
+		"CoverageService.AdoptSensitiveConsent":  h.adoptSensitiveConsent,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

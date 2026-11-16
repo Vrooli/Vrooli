@@ -40,6 +40,8 @@ func (h *connectHandler) CreatePlan(ctx context.Context, req *connect.Request[pl
 		AllowIncompleteCoverage: req.Msg.AllowIncompleteCoverage,
 		ProtectionTier:          protectionTierFromProto(req.Msg.ProtectionTier),
 		RecoveryDrillSchedule:   req.Msg.RecoveryDrillSchedule,
+		TargetSelector:          plans.TargetSelector(req.Msg.TargetSelector),
+		ExcludedTargetIDs:       req.Msg.ExcludedTargetIds,
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
@@ -84,6 +86,8 @@ func (h *connectHandler) UpdatePlan(ctx context.Context, req *connect.Request[pl
 		AllowIncompleteCoverage: req.Msg.AllowIncompleteCoverage,
 		ProtectionTier:          protectionTierFromProto(req.Msg.ProtectionTier),
 		RecoveryDrillSchedule:   req.Msg.RecoveryDrillSchedule,
+		TargetSelector:          plans.TargetSelector(req.Msg.TargetSelector),
+		ExcludedTargetIDs:       req.Msg.ExcludedTargetIds,
 	}
 	if req.Msg.Retention != nil {
 		in.KeepLatest = req.Msg.Retention.KeepLatest
@@ -127,6 +131,8 @@ func domainToProto(p plans.Plan) *plansv1.Plan {
 		RecoveryDrillSchedule:             p.RecoveryDrillSchedule,
 		DestinationsPhysicallyIndependent: p.DestinationsPhysicallyIndependent,
 		SharedRiskWarnings:                p.SharedRiskWarnings,
+		TargetSelector:                    string(p.TargetSelector),
+		ExcludedTargetIds:                 p.ExcludedTargetIDs,
 		Retention: &plansv1.RetentionPolicy{
 			KeepLatest: p.KeepLatest,
 			KeepHourly: p.KeepHourly, KeepDaily: p.KeepDaily, KeepWeekly: p.KeepWeekly, KeepMonthly: p.KeepMonthly, KeepAnnual: p.KeepAnnual,

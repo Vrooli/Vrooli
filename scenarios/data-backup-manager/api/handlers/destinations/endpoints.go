@@ -22,6 +22,13 @@ var Endpoints = []modulecontract.EndpointDescriptor{
 		[]modulecontract.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Descriptor, bundle, volume identity, credentials, or expected snapshot validation failed"}, {Status: 500, Code: "internal", Description: "Repository connection or catalog persistence failed"}},
 		[]modulecontract.Example{{Name: "Attach an existing filesystem bundle", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ImportExistingDestination -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"name\":\"nightly-local\",\"backendKind\":1,\"location\":\"/mnt/backup/vrooli-backups/nightly-local\",\"createdAt\":\"2026-01-01T00:00:00Z\",\"expectedSnapshotIds\":[\"snap-1\"]}'"}},
 	),
+	modulecontract.ConnectEndpoint(
+		"destinations_target_snapshots", destinationsconnect.DestinationsServiceListTargetSnapshotsProcedure, "List target snapshots", "Lists immutable Kopia snapshots for an exact stable DBM owner/name identity, newest first. Any repository listing, identity or timestamp ambiguity fails closed.", "destinations",
+		&modulecontract.Schema{Type: "object", Properties: map[string]string{"destination_id": "string (required)", "owner": "string (required)", "name": "string (required)"}},
+		&modulecontract.Schema{Type: "object", Properties: map[string]string{"snapshots": "array<TargetSnapshot> (newest first)"}},
+		[]modulecontract.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Destination and stable target identity are required"}, {Status: 500, Code: "internal", Description: "Repository history could not be enumerated or validated"}},
+		[]modulecontract.Example{{Name: "List recovery target history", Curl: "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListTargetSnapshots -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"owner\":\"treasury\",\"name\":\"treasury-wallet-recovery-wallet-1\"}'"}},
+	),
 	{
 		ID:          "destinations_get",
 		Path:        destinationsconnect.DestinationsServiceGetDestinationProcedure,

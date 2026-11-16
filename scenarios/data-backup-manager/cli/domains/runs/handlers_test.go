@@ -21,6 +21,7 @@ import (
 // receives and returns canned responses.
 type stubRunsService struct {
 	gotTrigger *runsv1.TriggerRunRequest
+	stats      *runsv1.RunStats
 }
 
 func (s *stubRunsService) TriggerRun(_ context.Context, req *connect.Request[runsv1.TriggerRunRequest]) (*connect.Response[runsv1.TriggerRunResponse], error) {
@@ -51,6 +52,9 @@ func (s *stubRunsService) BrowseSnapshot(_ context.Context, _ *connect.Request[r
 }
 
 func (s *stubRunsService) GetRunStats(_ context.Context, _ *connect.Request[runsv1.GetRunStatsRequest]) (*connect.Response[runsv1.GetRunStatsResponse], error) {
+	if s.stats != nil {
+		return connect.NewResponse(&runsv1.GetRunStatsResponse{Stats: s.stats}), nil
+	}
 	return connect.NewResponse(&runsv1.GetRunStatsResponse{Stats: &runsv1.RunStats{}}), nil
 }
 
@@ -105,6 +109,34 @@ func TestRegisterRunsLoadsFromManifest(t *testing.T) {
 	for _, want := range []string{"trigger", "get", "list", "status", "browse", "stats"} {
 		if !got[want] {
 			t.Errorf("missing subcommand %q", want)
+		}
+	}
+}
+
+// Retries are reported on their own line, so a retry loop reads as retries and
+// the attempts line and success rate stay about real attempts.
+func TestStatsCommandCountsRetriesApartFromAttempts(t *testing.T) {
+	stub := &stubRunsService{stats: &runsv1.RunStats{
+		Window: 7, TotalRuns: 4, Completed: 3, Failed: 1, SuccessRate: 0.75,
+		RetryRuns: 3, RetryCompleted: 1, RetryFailed: 2,
+	}}
+	mux := http.NewServeMux()
+	path, h := runsconnect.NewRunsServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+
+	ctx, stdout := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "plan"}}}, cliapptest.TestRunContextOptions{})
+	if err := newHandlers(app).stats(ctx); err != nil {
+		t.Fatalf("stats: %v", err)
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"attempts: 4 total — 3 completed, 0 partial-failed, 1 failed",
+		"success rate: 75% of attempts",
+		"automatic retries: 3 (1 completed, 2 did not) — counted apart from attempts",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("stats output missing %q:\n%s", want, out)
 		}
 	}
 }

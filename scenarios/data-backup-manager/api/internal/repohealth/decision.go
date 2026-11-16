@@ -71,7 +71,7 @@ func (o Offers) Askable() bool { return o.Accept || o.KopiaQuarantine || o.Repai
 func Recommended(d Diagnosis, o Offers) (key, reason string) {
 	switch {
 	case o.KopiaQuarantine:
-		return OptKopiaQuarantine, fmt.Sprintf("Kopia can move these %d exact unreadable session %s into same-volume quarantine while preserving their bytes; it will not recreate any final blob.", len(d.Unreadable), plural1(len(d.Unreadable), "temp", "temps"))
+		return OptKopiaQuarantine, fmt.Sprintf("Kopia can move these %d exact unreadable session %s into same-volume quarantine while preserving their bytes; it will not recreate any final blob.", len(d.Unreadable), operatordecision.Plural(len(d.Unreadable), "temp", "temps"))
 	case o.Accept:
 		return OptAccept, fmt.Sprintf("They are unfinished uploads, not saved backup data, and your %d earlier backups still list normally. This restarts protection soonest and changes nothing on the drive.", d.SnapshotCount)
 	case o.Repair:
@@ -81,15 +81,8 @@ func Recommended(d Diagnosis, o Offers) (key, reason string) {
 	}
 }
 
-type letteredOption struct {
-	key, action, label string
-}
-
-func plural1(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
+type offeredOption struct {
+	key, label, effect string
 }
 
 // DriveSentence names the drive the way a person would: "the Elements drive".
@@ -104,9 +97,9 @@ func (d Diagnosis) problemSentence() string {
 	n := len(d.Unreadable)
 	switch d.Cause {
 	case CauseLeftoverTempUnreadable:
-		return fmt.Sprintf("%d unfinished temporary %s on the drive can't be read", n, plural1(n, "file", "files"))
+		return fmt.Sprintf("%d unfinished temporary %s on the drive can't be read", n, operatordecision.Plural(n, "file", "files"))
 	case CauseContentUnreadable:
-		return fmt.Sprintf("%d %s inside the backup set can't be read", n, plural1(n, "file", "files"))
+		return fmt.Sprintf("%d %s inside the backup set can't be read", n, operatordecision.Plural(n, "file", "files"))
 	case CauseSnapshotsUnlistable:
 		return "the backup set's list of saved backups can't be read"
 	case CauseRepositoryUnopenable:
@@ -128,7 +121,7 @@ func (d Diagnosis) stoppedSentence() string {
 	case days <= 0:
 		return "Your last good backup was today."
 	default:
-		return fmt.Sprintf("Your last good backup was %s (%d %s ago).", when, days, plural1(days, "day", "days"))
+		return fmt.Sprintf("Your last good backup was %s (%d %s ago).", when, days, operatordecision.Plural(days, "day", "days"))
 	}
 }
 
@@ -150,21 +143,23 @@ func (d Diagnosis) subject() string {
 	return fmt.Sprintf("Backups to %s are blocked", d.DriveSentence())
 }
 
-// lettered lists the offered options in a fixed order with their letters.
-func lettered(d Diagnosis, o Offers, recommended string) []letteredOption {
-	var opts []letteredOption
+// offered lists the offered options in a fixed order, each with what choosing
+// it does.
+func offered(d Diagnosis, o Offers) []offeredOption {
+	var opts []offeredOption
 	n := len(d.Unreadable)
 	if o.Accept {
-		opts = append(opts, letteredOption{
+		opts = append(opts, offeredOption{
 			key:    OptAccept,
-			action: fmt.Sprintf("skip only %s and resume", plural1(n, "that file", fmt.Sprintf("those %d files", n))),
-			label:  fmt.Sprintf("Skip only %s and resume backups. Low risk; I keep warning you while %s.", plural1(n, "that unreadable file", fmt.Sprintf("those %d unreadable files", n)), plural1(n, "it exists", "they exist")),
+			label:  fmt.Sprintf("Skip only %s and resume backups. Low risk; I keep warning you while %s.", operatordecision.Plural(n, "that unreadable file", fmt.Sprintf("those %d unreadable files", n)), operatordecision.Plural(n, "it exists", "they exist")),
+			effect: "I record an exception for each exact file listed above and start a backup. Nothing on the drive is deleted, renamed or written. Any other unreadable file, or a change to these, stops backups and asks again.",
 		})
 	}
 	if o.KopiaQuarantine {
-		opts = append(opts, letteredOption{
-			key: OptKopiaQuarantine, action: fmt.Sprintf("quarantine these %d exact unreadable Kopia %s", len(d.Unreadable), plural1(len(d.Unreadable), "temp", "temps")),
-			label: fmt.Sprintf("Quarantine only these %d exact unreadable session %s. Kopia preserves their bytes in same-volume quarantine and writes no final blob; backups retry after revalidation.", len(d.Unreadable), plural1(len(d.Unreadable), "temp", "temps")),
+		opts = append(opts, offeredOption{
+			key:    OptKopiaQuarantine,
+			label:  fmt.Sprintf("Quarantine only these %d exact unreadable session %s. Kopia preserves their bytes in same-volume quarantine and writes no final blob; backups retry after revalidation.", n, operatordecision.Plural(n, "temp", "temps")),
+			effect: "The backup engine moves exactly these files into a quarantine folder on the same drive, keeping their bytes, and backups retry after the drive is checked again.",
 		})
 	}
 	if o.Repair {
@@ -174,68 +169,69 @@ func lettered(d Diagnosis, o Offers, recommended string) []letteredOption {
 		} else {
 			label += "."
 		}
-		opts = append(opts, letteredOption{key: OptRepair, action: "take the drive offline and repair it", label: label})
-	}
-	if o.Fresh {
-		opts = append(opts, letteredOption{
-			key: OptFresh, action: "start a fresh backup set",
-			label: "Start a fresh backup set on this drive and keep the old one read-only. Uses more space; an agent has to set it up, so this only asks for that.",
+		opts = append(opts, offeredOption{
+			key: OptRepair, label: label,
+			effect: "The drive is unmounted, its filesystem repaired, and mounted again, only if it is still the same drive and no backup is running to it. A backup starts afterwards.",
 		})
 	}
-	opts = append(opts, letteredOption{
-		key: OptLeave, action: "do nothing for now",
-		label: "Do nothing for now. Backups stay stopped and I ask again tomorrow.",
-	})
-	for i := range opts {
-		letter := string(rune('A' + i))
-		prefix := letter + ": "
-		if opts[i].key == recommended {
-			prefix = letter + " (recommended): "
-		}
-		opts[i].label = prefix + opts[i].label
-		if opts[i].key == recommended {
-			opts[i].action = letter + " (recommended): " + opts[i].action
-		} else {
-			opts[i].action = letter + ": " + opts[i].action
-		}
+	if o.Fresh {
+		opts = append(opts, offeredOption{
+			key:    OptFresh,
+			label:  "Start a fresh backup set on this drive and keep the old one read-only. Uses more space; an agent has to set it up, so this only asks for that.",
+			effect: "Nothing changes yet. The answer records the request, and I then ask you where the new backup set should go.",
+		})
 	}
-	return opts
+	return append(opts, offeredOption{
+		key: OptLeave, label: "Do nothing for now. Backups stay stopped and I ask again tomorrow.",
+		effect: "Nothing changes. Backups stay stopped and this question comes back tomorrow.",
+	})
 }
 
 // BuildFacts is the question the operator reads. The visible text carries no
 // hashes or internal identifiers; those are confined to TechnicalDetails.
 func BuildFacts(d Diagnosis, o Offers, incidentID string, generation int) operatordecision.Facts {
 	recommended, reason := Recommended(d, o)
-	opts := lettered(d, o, recommended)
-
-	parts := []string{fmt.Sprintf("Backups to %s are blocked: %s.", d.DriveSentence(), d.problemSentence()), d.stoppedSentence()}
-	if s := d.unprotectedSentence(); s != "" {
-		parts = append(parts, s)
-	}
-	actions := make([]string, 0, len(opts))
-	for _, opt := range opts {
-		actions = append(actions, opt.action+".")
-	}
-	parts = append(parts, "What should I do? "+strings.Join(actions, " "))
-	question := strings.Join(parts, " ")
-
+	opts := offered(d, o)
+	parts := []string{fmt.Sprintf("Backups to %s have stopped: %s.", d.DriveSentence(), d.problemSentence()), d.lastGoodSentence()}
+	parts = append(parts, "What should I do?")
 	options := make([]operatordecision.Option, 0, len(opts))
+	effects := make(map[string]string, len(opts))
 	for _, opt := range opts {
 		options = append(options, operatordecision.Option{Key: opt.key, Label: opt.label})
+		effects[opt.key] = opt.effect
 	}
-	return operatordecision.Facts{
-		Subject: d.subject(), Question: question, Options: options,
+	facts := operatordecision.Facts{
+		Subject: d.subject(), Question: strings.Join(parts, " "), Options: options,
 		Recommended: recommended, RecommendationReason: reason,
 		Reversible: false, Urgency: "high",
-		BigPicture:       bigPicture(d, opts),
+		BigPicture:       bigPicture(d),
 		TechnicalDetails: technicalDetails(d, o),
 		Correlation: map[string]string{
 			"incident_id": incidentID, "generation": fmt.Sprint(generation), "destination_id": d.DestinationID,
 		},
 	}
+	facts.Explainer = page(d, facts, effects)
+	return facts
 }
 
-func bigPicture(d Diagnosis, opts []letteredOption) string {
+// lastGoodSentence is the short form for the question: when the last backup
+// worked and how much has no other copy.
+func (d Diagnosis) lastGoodSentence() string {
+	s := "No backup has ever succeeded."
+	if !d.LastSuccessAt.IsZero() {
+		if days := d.DaysStopped(); days <= 0 {
+			s = "Last good backup today."
+		} else {
+			s = fmt.Sprintf("Last good backup %s (%d %s ago).", d.LastSuccessAt.Format("2 Jan"), days, operatordecision.Plural(days, "day", "days"))
+		}
+	}
+	if d.Plans.TargetTotal > 0 && d.Plans.Unprotected > 0 {
+		s = strings.TrimSuffix(s, ".") + fmt.Sprintf("; %d of the %d items have no other copy.", d.Plans.Unprotected, d.Plans.TargetTotal)
+	}
+	return s
+}
+
+func bigPicture(d Diagnosis) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "What is wrong: %s.\n\n", Capitalize(d.problemSentence()))
 	b.WriteString(d.stoppedSentence())
@@ -249,12 +245,90 @@ func bigPicture(d Diagnosis, opts []letteredOption) string {
 		}
 		fmt.Fprintf(&b, " For example: %s.", strings.Join(names, ", "))
 	}
-	b.WriteString("\n\nYour options:\n")
-	for _, opt := range opts {
-		b.WriteString("- " + opt.label + "\n")
-	}
-	b.WriteString("\nIf you decline or do not answer, backups stay blocked and I remind you every day until this is fixed. Nothing is changed on the drive until you choose.")
+	b.WriteString("\n\nOnly you can choose, because each fix trades risk to the drive against how soon backups resume. If you decline or do not answer, backups stay blocked and I remind you every day until this is fixed. Nothing is changed on the drive until you choose.")
 	return b.String()
+}
+
+// entryWords names an unreadable file's kind in everyday words.
+func entryWords(e Entry) string {
+	switch {
+	case e.Class == ClassLeftoverTemp:
+		return "Unfinished upload (not saved backup data)"
+	case e.BlobKind == BlobDataPack:
+		return "Saved backup data"
+	case e.BlobKind == BlobMetadataPack, e.BlobKind == BlobIndex:
+		return "The backup set's index"
+	}
+	return "Other file in the backup set"
+}
+
+func problemWords(p Problem) string {
+	switch p {
+	case ProblemIO:
+		return "The drive returns a read error"
+	case ProblemPermission:
+		return "Access is denied"
+	}
+	return "Cannot be read"
+}
+
+// page shows the stopped backups, what has no other copy, the files that
+// cannot be read, and what each answer does.
+func page(d Diagnosis, facts operatordecision.Facts, effects map[string]string) string {
+	p := operatordecision.NewPage(d.subject()).
+		Lead(fmt.Sprintf("%s. %s", Capitalize(d.problemSentence()), d.stoppedSentence()))
+	rows := []operatordecision.Row{{Label: "Drive", Value: d.DriveSentence()}}
+	switch {
+	case !d.Volume.Mounted:
+		rows = append(rows, operatordecision.Row{Label: "Drive state", Value: "Not mounted"})
+	case d.Volume.ReadOnly:
+		rows = append(rows, operatordecision.Row{Label: "Drive state", Value: "Mounted read-only"})
+	default:
+		rows = append(rows, operatordecision.Row{Label: "Drive state", Value: "Mounted and writable"})
+	}
+	if d.SnapshotsListed {
+		rows = append(rows, operatordecision.Row{Label: "Saved backups", Value: fmt.Sprintf("%d still listed", d.SnapshotCount)})
+	}
+	if d.Plans.TargetTotal > 0 {
+		rows = append(rows, operatordecision.Row{Label: "Without another copy", Value: fmt.Sprintf("%d of %d items", d.Plans.Unprotected, d.Plans.TargetTotal)})
+	}
+	rows = append(rows, operatordecision.Row{Label: "Checked", Value: d.CheckedAt.Format("2 Jan 15:04 MST")})
+	p.Facts(rows...)
+	tone := "warning"
+	if d.Plans.Unprotected > 0 && d.DaysStopped() >= 2 {
+		tone = "danger"
+	}
+	p.Callout(tone, "At risk:", d.unprotectedSentence()+" A disk failure now would lose whatever changed since the last good backup.")
+	if names := d.Plans.UnprotectedNames; len(names) > 0 {
+		list := make([][]string, 0, len(names))
+		for _, name := range names {
+			list = append(list, []string{name})
+		}
+		p.Section("Items with no other backup copy", "").Table([]string{"Item"}, list)
+	}
+	if len(d.Unreadable) > 0 {
+		sorted := append([]Entry(nil), d.Unreadable...)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i].RelPath < sorted[j].RelPath })
+		kinds := map[string]int{}
+		order := []string{}
+		for _, e := range sorted {
+			key := entryWords(e) + "\x00" + problemWords(e.Problem)
+			if kinds[key] == 0 {
+				order = append(order, key)
+			}
+			kinds[key]++
+		}
+		table := make([][]string, 0, len(order))
+		for _, key := range order {
+			kind, problem, _ := strings.Cut(key, "\x00")
+			table = append(table, []string{kind, problem, fmt.Sprint(kinds[key])})
+		}
+		p.Section("Files the backup engine cannot read", "Their exact names are in the technical details.").
+			Table([]string{"What it is", "Problem", "Files"}, table)
+	}
+	p.Options(facts, effects).
+		IfNoAnswer("Backups stay blocked and I remind you every day. Nothing on the drive changes.")
+	return p.HTML()
 }
 
 // Capitalize upper-cases the first letter of a sentence.
@@ -307,11 +381,7 @@ func technicalDetails(d Diagnosis, o Offers) string {
 		b.WriteString("- Fresh set: nothing is changed automatically; the answer records a request and an agent must register the new destination and re-point the plan.\n")
 	}
 	b.WriteString("- Do nothing: no change; the question returns after a day.\n")
-	text := b.String()
-	if len([]rune(text)) > operatordecision.MaxTechnicalDetailsCodePoints {
-		text = string([]rune(text)[:operatordecision.MaxTechnicalDetailsCodePoints-40]) + "\n[truncated]"
-	}
-	return text
+	return operatordecision.Clip(b.String(), operatordecision.MaxTechnicalDetailsCodePoints)
 }
 
 func writeEntries(b *strings.Builder, title string, entries []Entry) {

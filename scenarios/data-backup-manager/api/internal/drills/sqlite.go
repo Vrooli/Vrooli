@@ -17,6 +17,7 @@ type SQLExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
 }
 
 type sqliteRepository struct{ db SQLExecutor }
@@ -249,8 +250,41 @@ func (s *sqliteRepository) ListPendingNotifications(ctx context.Context, limit i
 }
 
 func (s *sqliteRepository) MarkNotificationSent(ctx context.Context, id string, sentAt time.Time) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE recovery_drills SET notification_state=?, notification_sent_at=? WHERE id=? AND status=? AND notification_state=?`, string(NotificationSent), formatTime(sentAt), id, string(StatusFailed), string(NotificationPending))
-	return requireDrillWrite(result, err, id, "mark failure notification delivered")
+	return s.MarkNotificationsSent(ctx, []string{id}, sentAt)
+}
+
+// MarkNotificationsSent changes exactly the rows included in a published
+// batch. The transaction prevents a partial commit from changing the batch
+// envelope on retry.
+func (s *sqliteRepository) MarkNotificationsSent(ctx context.Context, ids []string, sentAt time.Time) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin recovery drill notification batch update: %w", err)
+	}
+	rollback := func(cause error) error {
+		_ = tx.Rollback()
+		return cause
+	}
+	for _, id := range ids {
+		result, err := tx.ExecContext(ctx, `UPDATE recovery_drills SET notification_state=?, notification_sent_at=? WHERE id=? AND status=? AND notification_state=?`, string(NotificationSent), formatTime(sentAt), id, string(StatusFailed), string(NotificationPending))
+		if err != nil {
+			return rollback(fmt.Errorf("mark failure notification for drill %q delivered: %w", id, err))
+		}
+		rows, err := result.RowsAffected()
+		if err != nil {
+			return rollback(fmt.Errorf("check failure notification write for drill %q: %w", id, err))
+		}
+		if rows != 1 {
+			return rollback(fmt.Errorf("drill %q was not pending when marking its notification batch delivered", id))
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit recovery drill notification batch update: %w", err)
+	}
+	return nil
 }
 
 func (s *sqliteRepository) Retire(ctx context.Context, id, reason string, retiredAt time.Time) (Drill, error) {

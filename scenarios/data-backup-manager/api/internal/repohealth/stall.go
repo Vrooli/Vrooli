@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 const (
@@ -124,9 +126,9 @@ func stalledNotice(now time.Time, p PlanStatus, since time.Time, key string) Not
 	days := int(now.Sub(since).Hours() / 24)
 	var b strings.Builder
 	if p.LastSuccessAt.IsZero() {
-		fmt.Fprintf(&b, "There is no successful backup on record for %q; it has been waiting %d %s.", p.Name, days, plural1(days, "day", "days"))
+		fmt.Fprintf(&b, "There is no successful backup on record for %q; it has been waiting %d %s.", p.Name, days, operatordecision.Plural(days, "day", "days"))
 	} else {
-		fmt.Fprintf(&b, "%q has not had a successful backup for %d %s (last: %s).", p.Name, days, plural1(days, "day", "days"), p.LastSuccessAt.Format("2 Jan"))
+		fmt.Fprintf(&b, "%q has not had a successful backup for %d %s (last: %s).", p.Name, days, operatordecision.Plural(days, "day", "days"), p.LastSuccessAt.Format("2 Jan"))
 	}
 	if p.TargetCount > 0 {
 		if p.Unprotected > 0 {
@@ -146,7 +148,7 @@ func stalledNotice(now time.Time, p PlanStatus, since time.Time, key string) Not
 	}
 	return Notice{
 		Key: key, Kind: KindStalled, Category: CategoryStalled, Urgency: urgency,
-		Title: fmt.Sprintf("Backups for %s have not succeeded for %d %s", p.Name, days, plural1(days, "day", "days")),
+		Title: fmt.Sprintf("Backups for %s have not succeeded for %d %s", p.Name, days, operatordecision.Plural(days, "day", "days")),
 		Body:  b.String(), PlanName: p.Name, Days: days, Unprotected: p.Unprotected, TargetCount: p.TargetCount, OpenDecision: p.OpenDecision,
 	}
 }
@@ -188,7 +190,7 @@ func BundleStalled(notices []Notice, now time.Time) []Notice {
 	b.WriteString("These backup plans have gone too long without a successful backup. Nothing is waiting on you in the inbox for them; run them or give them a schedule.")
 	for _, n := range bundled {
 		keys = append(keys, n.Key)
-		fmt.Fprintf(&b, "\n- %s: %d %s", n.PlanName, n.Days, plural1(n.Days, "day", "days"))
+		fmt.Fprintf(&b, "\n- %s: %d %s", n.PlanName, n.Days, operatordecision.Plural(n.Days, "day", "days"))
 		if n.TargetCount > 0 && n.Unprotected > 0 {
 			b.WriteString("; " + unprotectedPhrase(n.Unprotected, n.TargetCount, "copy"))
 		}
@@ -234,11 +236,11 @@ func EvaluateDisabledUnprotected(plans []PlanStatus, state NoticeState) (Notice,
 			lines = append(lines, fmt.Sprintf("and %d more", len(rows)-8))
 			break
 		}
-		lines = append(lines, fmt.Sprintf("%s (%d %s)", r.Name, r.Unprotected, plural1(r.Unprotected, "item", "items")))
+		lines = append(lines, fmt.Sprintf("%s (%d %s)", r.Name, r.Unprotected, operatordecision.Plural(r.Unprotected, "item", "items")))
 	}
 	return Notice{
 		Key: key, Kind: KindDisabledUnprotec, Category: CategoryDisabledUnprotec, Urgency: "normal",
-		Title: fmt.Sprintf("%d switched-off backup %s protect things nothing else protects", len(rows), plural1(len(rows), "plan", "plans")),
+		Title: fmt.Sprintf("%d switched-off backup %s protect things nothing else protects", len(rows), operatordecision.Plural(len(rows), "plan", "plans")),
 		Body: "These backup plans are turned off, and the items in them have no other backup copy, so those items are not being backed up at all: " +
 			strings.Join(lines, "; ") + ". I will not repeat this unless the list changes. Turn a plan back on if it should be running.",
 	}, true
@@ -262,8 +264,8 @@ func EvaluateExceptionActive(now time.Time, destinationID, driveName string, act
 	}
 	return Notice{
 		Key: key, Kind: KindExceptionActive, Category: CategoryExceptionActive, Urgency: "low",
-		Title: fmt.Sprintf("Backups to %s run with %d accepted unreadable %s", driveName, len(active), plural1(len(active), "file", "files")),
+		Title: fmt.Sprintf("Backups to %s run with %d accepted unreadable %s", driveName, len(active), operatordecision.Plural(len(active), "file", "files")),
 		Body: fmt.Sprintf("Backups to %s are running, but %d unreadable leftover %s you accepted on %s still %s on the drive. Any other unreadable file, or a change to these, stops backups and I will ask again. A repair or a fresh backup set would remove this warning.",
-			driveName, len(active), plural1(len(active), "file", "files"), first.ApprovedAt.Format("2 Jan"), plural1(len(active), "sits", "sit")),
+			driveName, len(active), operatordecision.Plural(len(active), "file", "files"), first.ApprovedAt.Format("2 Jan"), operatordecision.Plural(len(active), "sits", "sit")),
 	}, true
 }

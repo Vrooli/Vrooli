@@ -142,7 +142,7 @@
       "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/GetCoverageReport",
       "method": "POST",
       "summary": "Get the backup coverage report",
-      "description": "Derives, live, the first-real-backup readiness picture: registered targets annotated with planned/backed-up/verified state, the non-sensitive discovered targets recommended for default coverage but not yet registered, and the sensitive (credential/token) suggestions held for review. Composes the discovery, targets, plans, runs and restores seams; reads no file contents and persists nothing.",
+      "description": "Derives, live, the first-real-backup readiness picture: registered targets annotated with enabled destination bindings, per-copy backup and scratch-restore receipts, and observed physical-independence warnings; the non-sensitive discovered targets recommended for default coverage; and sensitive suggestions held for review. Copy count alone does not imply off-host placement. Composes discovery, targets, plans, runs and restores; reads no file contents and persists nothing.",
       "category": "coverage",
       "request": {
         "type": "object"
@@ -256,6 +256,160 @@
       ]
     },
     {
+      "id": "coverage_get_sensitive_policy",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/GetSensitivePolicy",
+      "method": "POST",
+      "summary": "Show the standing rule for places that hold secrets",
+      "description": "Reads the persisted standing rule: whether it is on, which verified answer consented (who, through which identity, when, and the Hub decision), what it added since the last weekly note, what it keeps out, and its history.",
+      "category": "coverage",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "SensitivePolicy"
+        }
+      },
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The policy store is not configured"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Policy store read failure"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Show the standing rule",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/GetSensitivePolicy -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "coverage_revoke_sensitive_policy",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/RevokeSensitivePolicy",
+      "method": "POST",
+      "summary": "Turn off the standing rule for places that hold secrets",
+      "description": "Ends the standing rule. Items it already added stay registered; new places that hold secrets wait for a verified decision again. Revoking only reduces what is added, so it needs no Hub round trip. The revocation is recorded with who and when.",
+      "category": "coverage",
+      "request": {
+        "type": "object",
+        "properties": {
+          "revoked_by": "string (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "SensitivePolicy"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "There is no standing rule to revoke"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The policy store is not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Turn the standing rule off",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/RevokeSensitivePolicy -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "coverage_exclude_sensitive_target",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/ExcludeSensitiveTarget",
+      "method": "POST",
+      "summary": "Keep one item out of the standing rule",
+      "description": "Records that the standing rule must never add the named owner/name item. Excluding only reduces what is added. An item that is already registered stays registered until its target is removed.",
+      "category": "coverage",
+      "request": {
+        "type": "object",
+        "properties": {
+          "excluded_by": "string (optional)",
+          "name": "string",
+          "owner": "string",
+          "reason": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "policy": "SensitivePolicy"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Owner, name or reason is missing"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The policy store is not configured"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Exclude one item",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/ExcludeSensitiveTarget -H 'Content-Type: application/json' -d '{\"owner\":\"grok\",\"name\":\"home\",\"reason\":\"Too large\"}'"
+        }
+      ]
+    },
+    {
+      "id": "coverage_adopt_sensitive_consent",
+      "path": "/vrooli.data_backup_manager.v1.coverage.CoverageService/AdoptSensitiveConsent",
+      "method": "POST",
+      "summary": "Record the operator's free-text answer as the standing consent",
+      "description": "Reads the named Hub ask back as this scenario's ask-reader principal. It must be this scenario's sensitive coverage decision, answered by a verified human in their own words (Other). The standing rule is then recorded with the Hub ask id, the answer time, the verified identity and the operator's text verbatim, applied to the current candidates, and the stale local review is closed. Nothing is raised at the Hub. A menu answer, an unanswered decision or another scenario's ask is refused.",
+      "category": "coverage",
+      "request": {
+        "type": "object",
+        "properties": {
+          "hub_ask_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "failed_count": "int32",
+          "policy": "SensitivePolicy",
+          "registered_count": "int32"
+        }
+      },
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The answer cannot stand as the consent"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "The policy store or the Hub read-back is not available"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Adopt an answer",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.coverage.CoverageService/AdoptSensitiveConsent -H 'Content-Type: application/json' -d '{\"hubAskId\":\"ASK_ID\"}'"
+        }
+      ]
+    },
+    {
       "id": "destinations_create",
       "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/CreateDestination",
       "method": "POST",
@@ -337,6 +491,46 @@
         {
           "name": "Attach an existing filesystem bundle",
           "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ImportExistingDestination -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"name\":\"nightly-local\",\"backendKind\":1,\"location\":\"/mnt/backup/vrooli-backups/nightly-local\",\"createdAt\":\"2026-01-01T00:00:00Z\",\"expectedSnapshotIds\":[\"snap-1\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "destinations_target_snapshots",
+      "path": "/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListTargetSnapshots",
+      "method": "POST",
+      "summary": "List target snapshots",
+      "description": "Lists immutable Kopia snapshots for an exact stable DBM owner/name identity, newest first. Any repository listing, identity or timestamp ambiguity fails closed.",
+      "category": "destinations",
+      "request": {
+        "type": "object",
+        "properties": {
+          "destination_id": "string (required)",
+          "name": "string (required)",
+          "owner": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "snapshots": "array<TargetSnapshot> (newest first)"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Destination and stable target identity are required"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Repository history could not be enumerated or validated"
+        }
+      ],
+      "examples": [
+        {
+          "name": "List recovery target history",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.data_backup_manager.v1.destinations.DestinationsService/ListTargetSnapshots -H 'Content-Type: application/json' -d '{\"destinationId\":\"dst-1\",\"owner\":\"treasury\",\"name\":\"treasury-wallet-recovery-wallet-1\"}'"
         }
       ]
     },
@@ -857,6 +1051,14 @@
       "method": "POST",
       "summary": "List recovery drills",
       "description": "Lists persisted recovery-drill evidence newest first with an opaque continuation token for complete history.",
+      "category": "drills"
+    },
+    {
+      "id": "drills_retire",
+      "path": "/vrooli.data_backup_manager.v1.drills.RecoveryDrillsService/RetireDrill",
+      "method": "POST",
+      "summary": "Retire a completed recovery drill",
+      "description": "Marks a completed drill as retired while preserving its original status and durable evidence.",
       "category": "drills"
     },
     {

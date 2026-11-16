@@ -13,7 +13,6 @@ vocabulary is fixed: **Target**, **Destination**, **Plan**, **Run**,
 **Restore**, and **Source kind**. Every domain below speaks that
 vocabulary.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

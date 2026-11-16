@@ -104,6 +104,7 @@ describe("status vocabulary completeness", () => {
 		expect(runStatusMeta(RunStatus.UNSPECIFIED).slug).toBe("unknown");
 		expect(triggerSlug(TriggerSource.SCHEDULER)).toBe("scheduler");
 		expect(triggerSlug(TriggerSource.MANUAL)).toBe("manual");
+		expect(triggerSlug(TriggerSource.RETRY)).toBe("retry");
 		expect(isRestoreInFlight(RestoreStatus.REQUESTED)).toBe(true);
 		expect(isRestoreInFlight(RestoreStatus.RESTORING)).toBe(true);
 		expect(isRestoreInFlight(RestoreStatus.VERIFYING)).toBe(true);

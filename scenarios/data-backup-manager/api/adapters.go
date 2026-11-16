@@ -791,6 +791,26 @@ func (a discoveryTargetCatalog) ListAll(ctx context.Context) ([]discoveryint.Exi
 	return out, nil
 }
 
+// plansTargetCatalog lets a selector plan name every registered target. It reads
+// the catalog in full: a silent cap would leave targets out of a plan whose
+// promise is that registered means backed up.
+type plansTargetCatalog struct{ svc targetsint.Service }
+
+func (a plansTargetCatalog) RegisteredTargetIDs(ctx context.Context) ([]string, error) {
+	ts, err := a.svc.List(ctx, "", catalogScanLimit)
+	if err != nil {
+		return nil, err
+	}
+	if len(ts) >= catalogScanLimit {
+		return nil, fmt.Errorf("the target catalog has %d or more targets, which is more than a selector plan reads; raise catalogScanLimit", catalogScanLimit)
+	}
+	ids := make([]string, 0, len(ts))
+	for _, t := range ts {
+		ids = append(ids, t.ID)
+	}
+	return ids, nil
+}
+
 // discoveryDestCatalog adapts destinations.Service to discovery.DestinationCatalog
 // so already-used locations are filtered out of destination suggestions.
 type discoveryDestCatalog struct{ svc destint.Service }
@@ -884,6 +904,7 @@ func (a coverageSuggestions) ListTargetSuggestions(ctx context.Context) ([]cover
 		out = append(out, coverageint.Suggestion{
 			ID:                         s.ID,
 			Owner:                      s.Owner,
+			OwnerKind:                  s.OwnerKind,
 			Name:                       s.Name,
 			SourceKind:                 s.SourceKind,
 			Locator:                    s.Locator,

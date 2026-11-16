@@ -17,9 +17,11 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"path"
 	"path/filepath"
@@ -207,8 +209,12 @@ type SnapshotMetadata struct {
 
 // Snapshot is a kopia snapshot reference produced/listed by the engine.
 type Snapshot struct {
-	ID   string
-	Path string
+	ID             string
+	Path           string
+	FileCount      int64
+	DirCount       int64
+	SymlinkCount   int64
+	StatsTotalSize int64
 	// Tags preserves Kopia's self-identifying metadata for safe idempotent
 	// owner operations that must reconcile an effect after a process restart.
 	Tags []string
@@ -225,6 +231,7 @@ type SnapshotEntry struct {
 	Path      string
 	SizeBytes int64
 	IsDir     bool
+	Type      string
 }
 
 // KopiaEngine is the seam wrapping resource-kopia. The surface is narrow — only
@@ -317,6 +324,61 @@ func (r ExecRunner) Run(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("%s %v: %w", bin, args, err)
 	}
 	return out, nil
+}
+
+// RunLimited bounds stdout for commands whose JSON can be attacker-controlled
+// by repository contents. The process is killed as soon as it exceeds limit.
+func (r ExecRunner) RunLimited(ctx context.Context, limit int64, args ...string) ([]byte, error) {
+	if err := effectguard.Check(ctx); err != nil {
+		return nil, err
+	}
+	bin := r.Binary
+	if bin == "" {
+		bin = kopiaBinary
+	}
+	cmd := exec.CommandContext(ctx, bin, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	var stderr limitedBuffer
+	stderr.limit = 8 << 10
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	out, readErr := io.ReadAll(io.LimitReader(stdout, limit+1))
+	if readErr != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return nil, readErr
+	}
+	if int64(len(out)) > limit {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return nil, fmt.Errorf("%s output exceeded %d-byte limit", bin, limit)
+	}
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("%s %v: %w: %s", bin, args, err, stderr.String())
+	}
+	return out, nil
+}
+
+type limitedBuffer struct {
+	bytes.Buffer
+	limit int
+}
+
+func (b *limitedBuffer) Write(p []byte) (int, error) {
+	original := len(p)
+	remaining := b.limit - b.Len()
+	if remaining > 0 {
+		if remaining < len(p) {
+			p = p[:remaining]
+		}
+		_, _ = b.Buffer.Write(p)
+	}
+	return original, nil
 }
 
 // asExitError is a tiny errors.As shim kept local so kopia.go's import block
@@ -785,13 +847,28 @@ func (k *KopiaCLI) SnapshotList(ctx context.Context, repo, path string) ([]Snaps
 	if path != "" {
 		args = append(args, "--path", path)
 	}
-	out, err := k.Runner.Run(ctx, args...)
+	const maxSnapshotListBytes = 2 << 20
+	var out []byte
+	var err error
+	if limited, ok := k.Runner.(interface {
+		RunLimited(context.Context, int64, ...string) ([]byte, error)
+	}); ok {
+		out, err = limited.RunLimited(ctx, maxSnapshotListBytes, args...)
+	} else {
+		out, err = k.Runner.Run(ctx, args...)
+		if err == nil && len(out) > maxSnapshotListBytes {
+			err = fmt.Errorf("snapshot list output exceeded %d-byte limit", maxSnapshotListBytes)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("snapshot list repo=%q: %w", repo, err)
 	}
 	var manifests []map[string]json.RawMessage
 	if err := json.Unmarshal(out, &manifests); err != nil {
 		return nil, fmt.Errorf("snapshot list repo=%q: parse json: %w", repo, err)
+	}
+	if len(manifests) > 128 {
+		return nil, fmt.Errorf("snapshot list exceeded 128-snapshot limit")
 	}
 	snaps := make([]Snapshot, 0, len(manifests))
 	for _, m := range manifests {
@@ -802,11 +879,15 @@ func (k *KopiaCLI) SnapshotList(ctx context.Context, repo, path string) ([]Snaps
 			_ = json.Unmarshal(raw, &tags)
 		}
 		snaps = append(snaps, Snapshot{
-			ID:        firstString(m, "id", "ID"),
-			Source:    snapshotSource(m),
-			StartTime: firstString(m, "startTime", "StartTime"),
-			SizeBytes: snapshotSize(m),
-			Tags:      tags,
+			ID:             firstString(m, "id", "ID"),
+			Source:         snapshotSource(m),
+			StartTime:      firstString(m, "startTime", "StartTime"),
+			SizeBytes:      snapshotSize(m),
+			FileCount:      snapshotCount(m, "fileCount", "FileCount"),
+			DirCount:       snapshotCount(m, "dirCount", "DirCount"),
+			SymlinkCount:   snapshotRootCount(m, "symlinks", "Symlinks"),
+			StatsTotalSize: snapshotStatsTotalSize(m),
+			Tags:           tags,
 		})
 	}
 	return snaps, nil
@@ -835,10 +916,23 @@ func (k *KopiaCLI) SnapshotVerify(ctx context.Context, repo, snapshotID string, 
 
 func (k *KopiaCLI) BrowseSnapshot(ctx context.Context, repo, snapshotID, path string) ([]SnapshotEntry, error) {
 	args := []string{"snapshot", "browse", "--repo", repo, "--snapshot", snapshotID, "--json"}
+	args = append(args, "--recursive")
 	if path != "" {
 		args = append(args, "--path", path)
 	}
-	out, err := k.Runner.Run(ctx, args...)
+	const maxBrowseJSONBytes = 512 << 10
+	var out []byte
+	var err error
+	if limited, ok := k.Runner.(interface {
+		RunLimited(context.Context, int64, ...string) ([]byte, error)
+	}); ok {
+		out, err = limited.RunLimited(ctx, maxBrowseJSONBytes, args...)
+	} else {
+		out, err = k.Runner.Run(ctx, args...)
+		if err == nil && len(out) > maxBrowseJSONBytes {
+			err = fmt.Errorf("snapshot browse output exceeded %d-byte limit", maxBrowseJSONBytes)
+		}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("snapshot browse repo=%q snapshot=%q: %w", repo, snapshotID, err)
 	}
@@ -846,12 +940,16 @@ func (k *KopiaCLI) BrowseSnapshot(ctx context.Context, repo, snapshotID, path st
 	if err := json.Unmarshal(out, &entries); err != nil {
 		return nil, fmt.Errorf("snapshot browse repo=%q snapshot=%q: parse json: %w", repo, snapshotID, err)
 	}
+	if len(entries) > 128 {
+		return nil, fmt.Errorf("snapshot browse exceeded 128-entry limit")
+	}
 	out2 := make([]SnapshotEntry, 0, len(entries))
 	for _, e := range entries {
 		out2 = append(out2, SnapshotEntry{
 			Path:      firstString(e, "name", "path", "Path"),
 			SizeBytes: firstInt(e, "size", "Size", "sizeBytes"),
 			IsDir:     firstString(e, "type", "Type") == "d",
+			Type:      firstString(e, "type", "Type"),
 		})
 	}
 	return out2, nil
@@ -902,7 +1000,82 @@ func parseSnapshot(out []byte) (Snapshot, error) {
 	if id == "" {
 		return Snapshot{}, fmt.Errorf("snapshot json missing id: %s", string(out))
 	}
-	return Snapshot{ID: id, Source: snapshotSource(m), StartTime: firstString(m, "startTime", "StartTime"), SizeBytes: snapshotSize(m)}, nil
+	return Snapshot{ID: id, Source: snapshotSource(m), StartTime: firstString(m, "startTime", "StartTime"), SizeBytes: snapshotSize(m), FileCount: snapshotCount(m, "fileCount", "FileCount"), DirCount: snapshotCount(m, "dirCount", "DirCount"), SymlinkCount: snapshotRootCount(m, "symlinks", "Symlinks"), StatsTotalSize: snapshotStatsTotalSize(m)}, nil
+}
+
+func snapshotStatsTotalSize(m map[string]json.RawMessage) int64 {
+	raw, ok := m["stats"]
+	if !ok {
+		return -1
+	}
+	var stats map[string]json.RawMessage
+	if json.Unmarshal(raw, &stats) != nil {
+		return -1
+	}
+	value, ok := stats["totalSize"]
+	if !ok {
+		return -1
+	}
+	var n int64
+	if json.Unmarshal(value, &n) != nil || n < 0 {
+		return -1
+	}
+	return n
+}
+
+// snapshotCount reads one of Kopia's aggregate stats. Missing values are -1 so
+// safety-sensitive consumers can distinguish unknown inventory from empty.
+func snapshotCount(m map[string]json.RawMessage, keys ...string) int64 {
+	raw, ok := m["stats"]
+	if !ok {
+		return -1
+	}
+	var stats map[string]json.RawMessage
+	if json.Unmarshal(raw, &stats) != nil {
+		return -1
+	}
+	for _, key := range keys {
+		if value, found := stats[key]; found {
+			var n int64
+			if json.Unmarshal(value, &n) == nil && n >= 0 {
+				return n
+			}
+			return -1
+		}
+	}
+	return -1
+}
+
+func snapshotRootCount(m map[string]json.RawMessage, keys ...string) int64 {
+	rootRaw, ok := m["rootEntry"]
+	if !ok {
+		return -1
+	}
+	var root map[string]json.RawMessage
+	if json.Unmarshal(rootRaw, &root) != nil {
+		return -1
+	}
+	summaryRaw, ok := root["summ"]
+	if !ok {
+		summaryRaw = root["summary"]
+	}
+	var summary map[string]json.RawMessage
+	if !ok && summaryRaw == nil {
+		return -1
+	}
+	if json.Unmarshal(summaryRaw, &summary) != nil {
+		return -1
+	}
+	for _, key := range keys {
+		if value, found := summary[key]; found {
+			var n int64
+			if json.Unmarshal(value, &n) == nil && n >= 0 {
+				return n
+			}
+			return -1
+		}
+	}
+	return -1
 }
 
 // snapshotSource renders a manifest's source block as kopia's canonical

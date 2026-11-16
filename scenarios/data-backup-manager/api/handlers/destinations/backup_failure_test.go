@@ -127,9 +127,11 @@ func (k *backupKopia) RepoRestoreTemp(_ context.Context, repo, root, rel, digest
 	k.listErr = nil
 	source := filepath.Join(root, filepath.FromSlash(rel))
 	final := strings.SplitN(filepath.Base(rel), ".tmp", 2)[0]
-	return engine.RepoTempBlobRestore{Repository: repo, RelativePath: rel, Source: source,
+	return engine.RepoTempBlobRestore{
+		Repository: repo, RelativePath: rel, Source: source,
 		Target: filepath.Join(filepath.Dir(source), final), SHA256: digest, Bytes: k.cacheCandidate.CandidateBytes,
-		SourcePreserved: true, Committed: true}, nil
+		SourcePreserved: true, Committed: true,
+	}, nil
 }
 
 func (k *backupKopia) RepoDamageScan(ctx context.Context, _ string) (engine.RepoDamageScan, error) {
@@ -591,7 +593,7 @@ func TestKopiaQuarantineDecisionRevalidatesOneExactObjectAndPublishesResult(t *t
 		t.Fatalf("exact-object quarantine was not offered for the incident: %+v", inc)
 	}
 	decisions := h.decisions()
-	if len(decisions) != 1 || decisions[0].Payload["recommended"] != repohealth.OptKopiaQuarantine || !strings.Contains(decisions[0].Payload["question"].(string), "quarantine these 1 exact unreadable Kopia temp") {
+	if len(decisions) != 1 || decisions[0].Payload["recommended"] != repohealth.OptKopiaQuarantine || !strings.Contains(fmt.Sprint(decisions[0].Payload["options"]), "Quarantine only these 1 exact unreadable session temp") {
 		t.Fatalf("Notification Hub facts do not carry the exact quarantine option: %+v", decisions)
 	}
 	res := h.resolution(inc, repohealth.OptKopiaQuarantine)
@@ -1009,6 +1011,39 @@ func TestBackupFailureNeverQuestionsAnUnmountedDriveOrAClearedFailure(t *testing
 	}
 }
 
+// The monitor ticks every minute. A retry that ended in the same failure must
+// not be diagnosed (a walk of the whole repository) and re-requested every
+// tick: that loop made a thousand failed runs of one blocked plan.
+func TestBackupFailureDoesNotDiagnoseOrRetryItsOwnFailedRetryEveryTick(t *testing.T) {
+	h := newBackupHarness(t) // every read-only check passes: the failure looks transient
+	run := h.history.runs["plan-elements"]
+	run.Retry = true
+	h.history.runs["plan-elements"] = run
+
+	h.reconcile() // first sight of the failed retry after a restart: one diagnosis, one retry
+	for i := 0; i < 20; i++ {
+		h.now = h.now.Add(time.Minute)
+		h.reconcile()
+	}
+	if len(h.history.triggered) != 1 {
+		t.Fatalf("20 more ticks inside the diagnosis gap asked for %d retries in all, want 1: %v", len(h.history.triggered), h.history.triggered)
+	}
+
+	h.now = h.now.Add(backupMinDiagnosisGap)
+	h.reconcile()
+	if len(h.history.triggered) != 2 {
+		t.Fatalf("after the gap the monitor may look again, retries = %d, want 2", len(h.history.triggered))
+	}
+}
+
+func TestBackupFailureRetriesAFreshFailureAtOnce(t *testing.T) {
+	h := newBackupHarness(t)
+	h.reconcile()
+	if len(h.history.triggered) != 1 {
+		t.Fatalf("a new failed scheduled or manual run is retried straight away, retries = %v", h.history.triggered)
+	}
+}
+
 func TestBackupFailureContentLossIsNeverOfferedForSkipping(t *testing.T) {
 	h := newBackupHarness(t, tempA)
 	h.fs.breakEntry(blobQ)
@@ -1219,8 +1254,10 @@ func TestStandingQBlobRecoveryDoesNotMutateWhenResultRouteIsDisabled(t *testing.
 func TestStandingQBlobApprovalFailsClosedWithoutOwnerCandidateProof(t *testing.T) {
 	h := newBackupHarness(t)
 	h.kopia.listErr = fmt.Errorf(`BLOB not found: blob "q1234"`)
-	h.kopia.cacheCandidate = engine.OrphanBlobCandidate{BlobID: "q1234", CandidateBytes: 17, CandidateSHA256: strings.Repeat("a", 64), FinalBlobAbsent: true,
-		SourceRepositoryRead: true, OverlaySnapshotStatus: "snapshot_list_failed"}
+	h.kopia.cacheCandidate = engine.OrphanBlobCandidate{
+		BlobID: "q1234", CandidateBytes: 17, CandidateSHA256: strings.Repeat("a", 64), FinalBlobAbsent: true,
+		SourceRepositoryRead: true, OverlaySnapshotStatus: "snapshot_list_failed",
+	}
 	h.reconcile()
 	if h.kopia.blobCommitCalls != 0 {
 		t.Fatalf("commit calls = %d, want 0", h.kopia.blobCommitCalls)

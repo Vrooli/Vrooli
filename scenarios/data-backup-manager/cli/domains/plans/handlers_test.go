@@ -115,6 +115,8 @@ func TestCreatePlanCommand(t *testing.T) {
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
 		{Name: "name"},
 		{Name: "targets"},
+		{Name: "target-selector"},
+		{Name: "exclude-targets"},
 		{Name: "destinations"},
 		{Name: "schedule"},
 		{Name: "keep-latest"},
@@ -184,6 +186,8 @@ func updateSchema() cliapp.ArgSchema {
 		{Name: "id"},
 		{Name: "name"},
 		{Name: "targets"},
+		{Name: "target-selector"},
+		{Name: "exclude-targets"},
 		{Name: "destinations"},
 		{Name: "schedule"},
 		{Name: "keep-latest"},
@@ -263,5 +267,44 @@ func TestUpdatePlanAppliesSuppliedFields(t *testing.T) {
 	}
 	if got.Retention.GetKeepLatest() != 3 {
 		t.Fatalf("omitted keep-latest changed to %d", got.Retention.GetKeepLatest())
+	}
+}
+
+// A selector plan is a rule. `plans update` and `add-destination` carry the rule
+// and its exclusions through unchanged; if they sent the resolved list instead,
+// the plan would silently freeze into today's targets.
+func TestSelectorPlanSurvivesUpdateAndAddDestination(t *testing.T) {
+	current := &plansv1.Plan{Id: "plan-1", Name: "declared targets", TargetSelector: "registered", ExcludedTargetIds: []string{"big"},
+		TargetIds: []string{"a", "b"}, DestinationIds: []string{"dst-1"}, Enabled: true}
+	stub := &stubPlansService{current: current, plans: []*plansv1.Plan{current}}
+	mux := http.NewServeMux()
+	path, h := plansconnect.NewPlansServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+
+	ctx, _ := cliapptest.NewCapturedRunContext(app, updateSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"id": "plan-1", "schedule": "12h"}})
+	if err := newHandlers(app).update(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := stub.gotUpdate; got.TargetSelector != "registered" || strings.Join(got.ExcludedTargetIds, ",") != "big" {
+		t.Fatalf("update dropped the rule: %+v", got)
+	}
+
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "plans"}, {Name: "destination"}, {Name: "apply", Bool: true}}}
+	ctx, _ = cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"plans": "plan-1", "destination": "dst-2", "apply": "true"}})
+	if err := newHandlers(app).addDestination(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := stub.updates[len(stub.updates)-1]; got.TargetSelector != "registered" || strings.Join(got.ExcludedTargetIds, ",") != "big" {
+		t.Fatalf("add-destination froze the plan into a list: %+v", got)
+	}
+
+	// An explicit --targets turns it back into a list; "none" does the same.
+	ctx, _ = cliapptest.NewCapturedRunContext(app, updateSchema(), cliapptest.TestRunContextOptions{Flags: map[string]string{"id": "plan-1", "targets": "x"}})
+	if err := newHandlers(app).update(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if got := stub.gotUpdate; got.TargetSelector != "" || len(got.ExcludedTargetIds) != 0 || strings.Join(got.TargetIds, ",") != "x" {
+		t.Fatalf("an explicit list must replace the rule: %+v", got)
 	}
 }

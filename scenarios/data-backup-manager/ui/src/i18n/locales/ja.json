@@ -131,7 +131,8 @@
     "trigger": {
       "unknown": "—",
       "scheduler": "スケジュール",
-      "manual": "手動"
+      "manual": "手動",
+      "retry": "自動再試行"
     },
     "driveClass": {
       "unknown": "不明",
@@ -310,6 +311,7 @@
     "destinations": "保存先",
     "nameRequired": "名前は必須です。",
     "needTarget": "少なくとも1つのターゲットを選択してください。",
+    "targetsBySelector": "登録されているすべてのターゲット(現在{{count}}件、除外{{excluded}}件)。このプランはカタログに従います。ルールの変更はコマンドラインから行ってください。",
     "needDestination": "少なくとも1つの保存先を選択してください。",
     "noTargets": "登録されたターゲットがまだありません。",
     "noDestinations": "保存先がまだありません。",

@@ -54,16 +54,16 @@ func NewService(d Deps) Service { return &service{deps: d} }
 var _ Service = (*service)(nil)
 
 func (s *service) Report(ctx context.Context) (Report, error) {
-	suggestions, err := s.deps.Suggestions.ListTargetSuggestions(ctx)
-	if err != nil {
-		return Report{}, fmt.Errorf("list target suggestions: %w", err)
-	}
-	recommended, sensitive, reacquirable := classifySuggestions(suggestions)
-
 	registered, err := s.deps.Targets.List(ctx)
 	if err != nil {
 		return Report{}, fmt.Errorf("read target catalog: %w", err)
 	}
+	suggestions, err := s.deps.Suggestions.ListTargetSuggestions(ctx)
+	if err != nil {
+		return Report{}, fmt.Errorf("list target suggestions: %w", err)
+	}
+	suggestions = FoldSQLiteSidecars(suggestions, registered)
+	recommended, sensitive, reacquirable := classifySuggestions(suggestions)
 
 	ids := make([]string, 0, len(registered))
 	for _, t := range registered {
@@ -230,6 +230,26 @@ func (s *service) Report(ctx context.Context) (Report, error) {
 	}, nil
 }
 
+// suggestions lists discovery's suggestions with each SQLite database's live
+// sidecar files folded into the database they belong to.
+func (s *service) suggestions(ctx context.Context) ([]Suggestion, error) {
+	// Folding a sidecar into its database needs the catalog of registered
+	// targets; a service built without one (suggestions only) folds against the
+	// suggestions alone.
+	var registered []CatalogTarget
+	if s.deps.Targets != nil {
+		var err error
+		if registered, err = s.deps.Targets.List(ctx); err != nil {
+			return nil, fmt.Errorf("read target catalog: %w", err)
+		}
+	}
+	suggestions, err := s.deps.Suggestions.ListTargetSuggestions(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list target suggestions: %w", err)
+	}
+	return FoldSQLiteSidecars(suggestions, registered), nil
+}
+
 func targetDestinationKey(targetID, destinationID string) string {
 	return targetID + "\x00" + destinationID
 }
@@ -245,9 +265,9 @@ func (s *service) AcceptDefaults(ctx context.Context, opts AcceptOptions) (Accep
 	if opts.IncludeSensitive {
 		return AcceptResult{}, ErrSensitiveReviewRequired
 	}
-	suggestions, err := s.deps.Suggestions.ListTargetSuggestions(ctx)
+	suggestions, err := s.suggestions(ctx)
 	if err != nil {
-		return AcceptResult{}, fmt.Errorf("list target suggestions: %w", err)
+		return AcceptResult{}, err
 	}
 
 	result := AcceptResult{DryRun: opts.DryRun}
@@ -315,9 +335,9 @@ func (s *service) AcceptSensitive(ctx context.Context, suggestionIDs []string) (
 		}
 		wanted[id] = struct{}{}
 	}
-	suggestions, err := s.deps.Suggestions.ListTargetSuggestions(ctx)
+	suggestions, err := s.suggestions(ctx)
 	if err != nil {
-		return AcceptResult{}, fmt.Errorf("list target suggestions: %w", err)
+		return AcceptResult{}, err
 	}
 	current := make(map[string]Suggestion, len(suggestions))
 	for _, suggestion := range suggestions {
@@ -352,9 +372,9 @@ func (s *service) AcceptSensitive(ctx context.Context, suggestionIDs []string) (
 }
 
 func (s *service) UnregisteredDefaultTargets(ctx context.Context) ([]Suggestion, error) {
-	suggestions, err := s.deps.Suggestions.ListTargetSuggestions(ctx)
+	suggestions, err := s.suggestions(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("list target suggestions: %w", err)
+		return nil, err
 	}
 	recommended, _, _ := classifySuggestions(suggestions)
 	return recommended, nil

@@ -9,13 +9,14 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"regexp"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"data-backup-manager/internal/attention"
 	"data-backup-manager/internal/coverage"
 	"data-backup-manager/internal/destinationreadiness"
 
@@ -26,10 +27,7 @@ import (
 const (
 	sensitiveDecisionKind = "sensitive_coverage_review"
 	sensitiveResultEvent  = "data_backup_manager.sensitive_coverage.result.v1"
-	attentionFile         = "/home/matthalloran8/.vrooli/research/ATTENTION.md"
 )
-
-var actionableHeading = regexp.MustCompile(`(?m)^###\s+([^\s]+)\s+—\s+(.+?)\s*$`)
 
 type sensitiveChoice struct {
 	SuggestionID             string `json:"suggestion_id"`
@@ -44,6 +42,7 @@ type sensitiveChoice struct {
 type sensitiveSnapshot struct {
 	ID                         string `json:"id"`
 	Owner                      string `json:"owner"`
+	OwnerKind                  string `json:"owner_kind,omitempty"`
 	Name                       string `json:"name"`
 	Locator                    string `json:"locator"`
 	Kind                       string `json:"kind"`
@@ -62,6 +61,8 @@ type SensitiveDecisionFlow struct {
 	service   coverage.Service
 	tasks     *destinationreadiness.FileDecisionStore
 	publisher operatordecision.Publisher
+	policy    *PolicyStore
+	reader    operatordecision.AskReader
 	enabled   bool
 	logger    *log.Logger
 	now       func() time.Time
@@ -73,7 +74,20 @@ func NewSensitiveDecisionFlow(service coverage.Service, tasks *destinationreadin
 	if logger == nil {
 		logger = log.Default()
 	}
-	return &SensitiveDecisionFlow{service: service, tasks: tasks, publisher: publisher, enabled: enabled, logger: logger, now: time.Now, readFile: os.ReadFile}
+	flow := &SensitiveDecisionFlow{service: service, tasks: tasks, publisher: publisher, enabled: enabled, logger: logger, now: time.Now, readFile: os.ReadFile}
+	if tasks != nil && filepath.IsAbs(tasks.Root) {
+		// The standing rule sits beside the ask ledger, never inside it: the ledger
+		// treats every file in its directory as an ask.
+		flow.policy = &PolicyStore{Path: filepath.Join(filepath.Dir(filepath.Clean(tasks.Root)), "sensitive-coverage-policy", "policy.json")}
+	}
+	return flow
+}
+
+// WithAskReader gives the flow the Hub read-back it needs to adopt an answer as
+// the standing consent.
+func (f *SensitiveDecisionFlow) WithAskReader(reader operatordecision.AskReader) *SensitiveDecisionFlow {
+	f.reader = reader
+	return f
 }
 
 func (f *SensitiveDecisionFlow) Ready() bool {
@@ -86,6 +100,17 @@ func (f *SensitiveDecisionFlow) Request(ctx context.Context) (string, int, error
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.policy != nil {
+		if standing, err := f.policy.Load(); err == nil && standing.Active {
+			// The operator already consented to everything that holds secrets, so there
+			// is nothing to ask: apply the rule and report what it covered.
+			swept, err := f.sweepLocked(ctx)
+			if err != nil {
+				return "", 0, fmt.Errorf("apply the standing sensitive coverage rule: %w", err)
+			}
+			return "", len(swept.Registered), nil
+		}
+	}
 	report, err := f.service.Report(ctx)
 	if err != nil {
 		return "", 0, fmt.Errorf("read sensitive coverage candidates: %w", err)
@@ -122,63 +147,49 @@ func (f *SensitiveDecisionFlow) Request(ctx context.Context) (string, int, error
 	}
 	genText := strconv.Itoa(generation)
 	askID := operatordecision.CorrelationID("dbm-sensitive-coverage", fingerprint, genText)
-	list := make([]string, 0, len(snapshots))
-	for _, row := range snapshots {
-		line := fmt.Sprintf("- %s · %s / %s · %s", row.ID, row.Owner, row.Name, row.Warning)
-		if row.ReacquisitionCommand != "" {
-			line += " · owner reacquisition evidence is declared"
+	var earlier []time.Time
+	for _, prior := range priorAsks {
+		if prior != nil && prior.Subject == "sensitive-coverage" && prior.ID != askID && !prior.RaisedAt.IsZero() {
+			earlier = append(earlier, prior.RaisedAt)
 		}
-		if row.ReacquisitionNeedsOperator {
-			line += " · requires separate owner/operator authorization"
-		}
-		list = append(list, line)
 	}
-	attention := f.currentAttentionContext()
-	technicalDetails := fmt.Sprintf("Attention context: %s. Review the current Actionable now items before choosing.\n\nCurrent sensitive candidates (%d):\n%s\n\nFor a per-target decision, choose Other and provide a JSON array with exactly one item per suggestion, for example [{\"suggestion_id\":\"stable-id\",\"decision\":\"protect\"},{\"suggestion_id\":\"another-id\",\"decision\":\"reacquire\"},{\"suggestion_id\":\"third-id\",\"decision\":\"exclude\",\"reason\":\"Owner confirmed this is ephemeral\"}]. Each decision must be protect, reacquire, or exclude; every exclusion needs a reason. Reacquire is accepted only with owner-declared command and evidence metadata; any separate owner/operator authorization remains required. The callback re-reads and fingerprints all candidates before any registration. The result is recorded and a follow-up notice is published. No locators, owner commands or credential values are included here.", attentionFile, len(snapshots), strings.Join(list, "\n"))
-	facts := operatordecision.Facts{
-		Subject:  "Review sensitive backup coverage",
-		Question: fmt.Sprintf("Choose a decision for the %d current sensitive targets. Protect registers the targets for backup; reacquire records that the data should be restored from its owner; exclude records a reason and leaves it unregistered. For per-target choices, select Other and provide JSON as described below.", len(snapshots)),
-		Options: []operatordecision.Option{
-			{Key: "protect_all", Label: "Protect every listed target"},
-			{Key: "reacquire_all", Label: "Reacquire every listed target when needed"},
-		},
-		Recommended:          "protect_all",
-		RecommendationReason: "These are durable credential or token sources discovered by DBM. Protecting them preserves recovery options; review owner retention and warnings before deciding.",
-		Reversible:           false,
-		Urgency:              "high",
-		Note:                 fmt.Sprintf("Attention context is included in the review details: %s. Current actionable items: %s.", attentionFile, attention),
-		BigPicture:           "This one decision records an explicit disposition for each currently unregistered sensitive suggestion. Protect adds it to DBM's target catalog; reacquire and exclude leave it unregistered and record the disposition. Already-registered targets are outside this review and remain visible in the coverage report. Any changed candidate set invalidates this ask without applying it.",
-		TechnicalDetails:     technicalDetails,
-		Deadline:             f.now().Add(7 * 24 * time.Hour),
-		Correlation:          map[string]string{"ask_id": askID, "candidate_fingerprint": fingerprint, "generation": genText},
-		SubjectKey:           "dbm-sensitive-coverage",
-	}
+	sort.Slice(earlier, func(i, j int) bool { return earlier[i].Before(earlier[j]) })
+	facts := sensitiveReviewFacts(candidates, snapshots, askID, fingerprint, genText, attention.Digest(f.readFile, 6), f.now().Add(7*24*time.Hour), earlier)
 	if err := facts.Validate(); err != nil {
 		return "", 0, fmt.Errorf("validate sensitive coverage decision: %w", err)
 	}
 	raiser := operatordecision.Raiser{Source: "data-backup-manager", Kind: sensitiveDecisionKind, Store: f.tasks, Publisher: f.publisher, Clock: sensitiveFlowClock{f}, MaxOutstanding: 1, Window: 7 * 24 * time.Hour}
+	// A review for a changed candidate set revises the open decision under the same
+	// subject key: the Hub updates it in place when the answer menu is unchanged and
+	// otherwise closes it as superseded by this one, so the operator never holds two.
+	// Locally the stale reviews close first (the raiser allows one outstanding ask),
+	// and reopen if the new one cannot be raised.
+	var closed []*operatordecision.PendingAsk
+	reopen := func() {
+		for _, prior := range closed {
+			prior.State, prior.ResolvedAt = operatordecision.PendingStatePending, nil
+			delete(prior.Extra, "result")
+			if err := f.tasks.Put(ctx, prior); err != nil {
+				f.logger.Printf("sensitive coverage: reopen stale review %s: %v", prior.ID, err)
+			}
+		}
+	}
 	for _, prior := range priorAsks {
 		if prior == nil || prior.Subject != "sensitive-coverage" || prior.ID == askID || prior.State != operatordecision.PendingStatePending {
 			continue
-		}
-		if prior.EventID != "" {
-			if err := raiser.PublishWithdrawal(ctx, operatordecision.Withdrawal{
-				RequesterRef: prior.EventID,
-				Reason:       "The sensitive coverage candidate set changed. A new review is being raised.",
-				AssertedAt:   f.now().UTC(),
-			}); err != nil {
-				return "", 0, fmt.Errorf("withdraw stale sensitive coverage review: %w", err)
-			}
 		}
 		now := f.now().UTC()
 		prior.State, prior.ResolvedAt = operatordecision.PendingStateWithdrawn, &now
 		prior.Extra["result"] = "Candidate set changed; no target was registered under this review."
 		if err := f.tasks.Put(ctx, prior); err != nil {
+			reopen()
 			return "", 0, fmt.Errorf("record stale sensitive coverage review withdrawal: %w", err)
 		}
+		closed = append(closed, prior)
 	}
 	ask := operatordecision.PendingAsk{ID: askID, Subject: "sensitive-coverage", Extra: map[string]string{"candidate_fingerprint": fingerprint, "generation": genText}}
 	if _, err := raiser.Raise(ctx, ask, facts); err != nil {
+		reopen()
 		return "", 0, fmt.Errorf("raise sensitive coverage decision: %w", err)
 	}
 	return askID, len(snapshots), nil
@@ -187,40 +198,6 @@ func (f *SensitiveDecisionFlow) Request(ctx context.Context) (string, int, error
 type sensitiveFlowClock struct{ flow *SensitiveDecisionFlow }
 
 func (c sensitiveFlowClock) Now() time.Time { return c.flow.now() }
-
-func (f *SensitiveDecisionFlow) currentAttentionContext() string {
-	if f.readFile == nil {
-		return "unverified (reader unavailable)"
-	}
-	data, err := f.readFile(attentionFile)
-	if err != nil {
-		return "unverified (file unreadable)"
-	}
-	content := string(data)
-	start := strings.Index(content, "## Actionable now")
-	if start < 0 {
-		return "unverified (no Actionable now section)"
-	}
-	section := content[start+len("## Actionable now"):]
-	if next := strings.Index(section, "\n## "); next >= 0 {
-		section = section[:next]
-	}
-	items := actionableHeading.FindAllStringSubmatch(section, -1)
-	if len(items) == 0 {
-		if strings.Contains(section, "No actionable items are recorded.") {
-			return "none recorded"
-		}
-		return "unverified (entries could not be parsed)"
-	}
-	parts := make([]string, 0, min(len(items), 6))
-	for _, item := range items[:min(len(items), 6)] {
-		parts = append(parts, item[1]+" — "+item[2])
-	}
-	if len(items) > 6 {
-		parts = append(parts, fmt.Sprintf("and %d more", len(items)-6))
-	}
-	return strings.Join(parts, "; ")
-}
 
 func (f *SensitiveDecisionFlow) Handles(eventType string) bool {
 	return eventType == operatordecision.DecisionRequestedEventType("data-backup-manager", sensitiveDecisionKind)
@@ -261,7 +238,10 @@ func (f *SensitiveDecisionFlow) Apply(ctx context.Context, resolution operatorde
 	if fingerprint != task.Extra["candidate_fingerprint"] || fingerprint != resolution.Correlation["candidate_fingerprint"] {
 		return true, f.finishWithoutApply(ctx, task, resolution, "The sensitive coverage candidates changed while the decision was pending. No target was registered; request a new review.")
 	}
-	choices, err := choicesForResolution(resolution, current)
+	if resolution.Answer == answerLater {
+		return true, f.finishWithoutApply(ctx, task, resolution, "You chose not now. No target was registered; request a new review when ready.")
+	}
+	choices, plan, err := choicesForResolution(resolution, current, f.now().UTC())
 	if err != nil {
 		return true, f.finishWithoutApply(ctx, task, resolution, "The answer did not provide a complete, valid disposition for every target. No target was registered. "+err.Error())
 	}
@@ -288,8 +268,26 @@ func (f *SensitiveDecisionFlow) Apply(ctx context.Context, resolution operatorde
 		return true, err
 	}
 	now := f.now().UTC()
+	if plan.standing {
+		// The verified answer is the consent. Recording it after the batch lets a
+		// redelivered answer resume here, and recording it at all means a later
+		// sweep, not another question, covers anything that holds secrets.
+		if f.policy == nil {
+			return true, errors.New("the standing rule cannot be recorded: no policy store is configured")
+		}
+		answeredAt := now
+		if parsed, perr := time.Parse(time.RFC3339, resolution.AnsweredAt); perr == nil {
+			answeredAt = parsed.UTC()
+		}
+		if _, err := f.policy.Update(func(p *StandingPolicy) error {
+			f.grant(p, task.ID, resolution.AnsweredBy, resolution.AnsweredByIdentityKind, resolution.AnsweredByIdentitySource, answeredAt, plan.excluded)
+			return nil
+		}); err != nil {
+			return true, fmt.Errorf("record the standing rule: %w", err)
+		}
+	}
 	task.State, task.ResolvedAt = operatordecision.PendingStateApproved, &now
-	task.Extra["result"] = summarizeSensitiveResult(choices, result)
+	task.Extra["result"] = summarizeSensitiveResult(choices, result, plan.standing)
 	task.Extra["result_notice_pending"] = "true"
 	if err := f.tasks.Put(ctx, task); err != nil {
 		return true, err
@@ -298,27 +296,87 @@ func (f *SensitiveDecisionFlow) Apply(ctx context.Context, resolution operatorde
 }
 
 func verifiedSensitiveApproval(res operatordecision.DecisionResolution) bool {
-	kind := strings.ToLower(strings.TrimSpace(res.AnsweredByIdentityKind))
-	return res.State == operatordecision.StateAnswered && !res.ByDefault && strings.TrimSpace(res.AnsweredBy) != "" && strings.TrimSpace(res.AnsweredByIdentitySource) != "" && (kind == "human" || kind == "verified-human")
+	return res.State == operatordecision.StateAnswered && !res.ByDefault && strings.TrimSpace(res.AnsweredBy) != "" && strings.TrimSpace(res.AnsweredByIdentitySource) != "" && isVerifiedHumanKind(res.AnsweredByIdentityKind)
 }
 
-func choicesForResolution(res operatordecision.DecisionResolution, candidates []sensitiveSnapshot) ([]sensitiveChoice, error) {
+// isVerifiedHumanKind reports the identity kind the Hub records for a person it
+// verified (the same kind the drive-recovery decisions require).
+func isVerifiedHumanKind(kind string) bool {
+	return strings.EqualFold(strings.TrimSpace(kind), "verified_human")
+}
+
+// resolutionPlan is what an answer asks for beyond its per-item choices.
+type resolutionPlan struct {
+	// standing records the operator's consent to cover future candidates too.
+	standing bool
+	// excluded are items a standing answer keeps out of the rule.
+	excluded []PolicyExclusion
+}
+
+// otherAnswer is the object form of Other: per-item decisions plus an optional
+// standing rule. The bare JSON array stays valid and means no standing rule.
+type otherAnswer struct {
+	Standing  bool              `json:"standing"`
+	Decisions []sensitiveChoice `json:"decisions"`
+}
+
+const leftOutOfGroupsReason = "Left out when choosing which groups to back up."
+
+func choicesForResolution(res operatordecision.DecisionResolution, candidates []sensitiveSnapshot, now time.Time) ([]sensitiveChoice, resolutionPlan, error) {
+	var plan resolutionPlan
 	choices := make([]sensitiveChoice, 0, len(candidates))
-	switch res.Answer {
-	case "protect_all", "reacquire_all":
+	switch {
+	case res.Answer == answerStanding:
+		plan.standing = true
+		for _, candidate := range candidates {
+			choices = append(choices, sensitiveChoice{SuggestionID: candidate.ID, Decision: "protect"})
+		}
+	case res.Answer == answerProtectAll || res.Answer == answerReacquireAll:
 		action := strings.TrimSuffix(res.Answer, "_all")
 		for _, candidate := range candidates {
 			choices = append(choices, sensitiveChoice{SuggestionID: candidate.ID, Decision: action})
 		}
-	case "other":
-		if err := json.Unmarshal([]byte(res.Note), &choices); err != nil {
-			return nil, errors.New("Other must contain the documented JSON array")
+	case res.Answer == answerAsRecommended:
+		for _, candidate := range candidates {
+			choices = append(choices, sensitiveChoice{SuggestionID: candidate.ID, Decision: recommendedDisposition(candidate)})
+		}
+	case res.Answer == answerGroups:
+		response, _ := res.Response(groupsQuestionID)
+		kinds := map[string]bool{}
+		for _, key := range response.Selected {
+			kinds[key] = true
+		}
+		if len(kinds) == 0 {
+			return nil, plan, errors.New("no group was switched on")
+		}
+		matched := 0
+		for _, candidate := range candidates {
+			if kinds[groupKey(candidate.OwnerKind)] {
+				matched++
+				choices = append(choices, sensitiveChoice{SuggestionID: candidate.ID, Decision: "protect"})
+			} else {
+				choices = append(choices, sensitiveChoice{SuggestionID: candidate.ID, Decision: "exclude", Reason: leftOutOfGroupsReason})
+			}
+		}
+		if matched == 0 {
+			return nil, plan, errors.New("the chosen groups hold none of the current items")
+		}
+	case res.Answer == "other":
+		note := strings.TrimSpace(res.Note)
+		if strings.HasPrefix(note, "{") {
+			var object otherAnswer
+			if err := json.Unmarshal([]byte(note), &object); err != nil {
+				return nil, plan, errors.New("Other must contain the documented JSON")
+			}
+			choices, plan.standing = object.Decisions, object.Standing
+		} else if err := json.Unmarshal([]byte(note), &choices); err != nil {
+			return nil, plan, errors.New("Other must contain the documented JSON")
 		}
 	default:
-		return nil, errors.New("unknown answer")
+		return nil, plan, errors.New("unknown answer")
 	}
 	if len(choices) != len(candidates) {
-		return nil, errors.New("every current suggestion must have exactly one decision")
+		return nil, plan, errors.New("every current suggestion must have exactly one decision")
 	}
 	wanted := make(map[string]struct{}, len(candidates))
 	for _, c := range candidates {
@@ -327,21 +385,21 @@ func choicesForResolution(res operatordecision.DecisionResolution, candidates []
 	seen := map[string]struct{}{}
 	for i, choice := range choices {
 		if _, ok := wanted[choice.SuggestionID]; !ok {
-			return nil, fmt.Errorf("unknown suggestion id %q", choice.SuggestionID)
+			return nil, plan, fmt.Errorf("unknown suggestion id %q", choice.SuggestionID)
 		}
 		if _, duplicate := seen[choice.SuggestionID]; duplicate {
-			return nil, fmt.Errorf("suggestion %q is repeated", choice.SuggestionID)
+			return nil, plan, fmt.Errorf("suggestion %q is repeated", choice.SuggestionID)
 		}
 		seen[choice.SuggestionID] = struct{}{}
 		switch choice.Decision {
 		case "protect", "reacquire":
 			if strings.TrimSpace(choice.Reason) != "" {
-				return nil, fmt.Errorf("reason is only valid for exclude (%s)", choice.SuggestionID)
+				return nil, plan, fmt.Errorf("reason is only valid for exclude (%s)", choice.SuggestionID)
 			}
 			candidate := candidateByID(candidates, choice.SuggestionID)
 			if choice.Decision == "reacquire" {
 				if candidate.ReacquisitionCommand == "" || candidate.ReacquisitionEvidence == "" {
-					return nil, fmt.Errorf("reacquisition is not supported by owner evidence (%s)", choice.SuggestionID)
+					return nil, plan, fmt.Errorf("reacquisition is not supported by owner evidence (%s)", choice.SuggestionID)
 				}
 			}
 			choices[i].OwnerCommand = candidate.ReacquisitionCommand
@@ -350,14 +408,21 @@ func choicesForResolution(res operatordecision.DecisionResolution, candidates []
 			choices[i].OwnerAuthorizationReason = candidate.ReacquisitionAuthReason
 		case "exclude":
 			if strings.TrimSpace(choice.Reason) == "" {
-				return nil, fmt.Errorf("exclude requires a reason (%s)", choice.SuggestionID)
+				return nil, plan, fmt.Errorf("exclude requires a reason (%s)", choice.SuggestionID)
+			}
+			if plan.standing && res.Answer == "other" {
+				candidate := candidateByID(candidates, choice.SuggestionID)
+				plan.excluded = append(plan.excluded, PolicyExclusion{Owner: candidate.Owner, Name: candidate.Name, Reason: choice.Reason, By: res.AnsweredBy, At: now})
 			}
 		default:
-			return nil, fmt.Errorf("invalid decision %q", choice.Decision)
+			return nil, plan, fmt.Errorf("invalid decision %q", choice.Decision)
+		}
+		if plan.standing && choice.Decision == "reacquire" {
+			return nil, plan, fmt.Errorf("a standing rule backs items up; reacquire is a per-item choice (%s)", choice.SuggestionID)
 		}
 	}
 	sort.Slice(choices, func(i, j int) bool { return choices[i].SuggestionID < choices[j].SuggestionID })
-	return choices, nil
+	return choices, plan, nil
 }
 
 func candidateByID(candidates []sensitiveSnapshot, id string) sensitiveSnapshot {
@@ -398,7 +463,7 @@ func (f *SensitiveDecisionFlow) publishResult(ctx context.Context, task *operato
 	return f.tasks.Put(ctx, task)
 }
 
-func summarizeSensitiveResult(choices []sensitiveChoice, result coverage.AcceptResult) string {
+func summarizeSensitiveResult(choices []sensitiveChoice, result coverage.AcceptResult, standing bool) string {
 	counts := map[string]int{}
 	for _, choice := range choices {
 		counts[choice.Decision]++
@@ -409,14 +474,18 @@ func summarizeSensitiveResult(choices []sensitiveChoice, result coverage.AcceptR
 			operatorGated++
 		}
 	}
-	return fmt.Sprintf("Recorded %d explicit decisions: %d protect, %d reacquire, %d exclude. Registered %d targets; %d registration failures. %d reacquisition decisions still require owner/operator authorization and are not authorized by this review.", len(choices), counts["protect"], counts["reacquire"], counts["exclude"], len(result.Accepted), len(result.Failed), operatorGated)
+	text := fmt.Sprintf("Recorded %d explicit decisions: %d protect, %d reacquire, %d exclude. Registered %d targets; %d registration failures. %d reacquisition decisions still require owner/operator authorization and are not authorized by this review.", len(choices), counts["protect"], counts["reacquire"], counts["exclude"], len(result.Accepted), len(result.Failed), operatorGated)
+	if standing {
+		text += " Standing rule on: new places that hold secrets are backed up automatically and listed in a weekly note. Turn it off with `data-backup-manager coverage revoke-sensitive-policy`."
+	}
+	return text
 }
 
 func snapshotCandidates(candidates []coverage.Suggestion) []sensitiveSnapshot {
 	out := make([]sensitiveSnapshot, 0, len(candidates))
 	for _, c := range candidates {
 		out = append(out, sensitiveSnapshot{
-			ID: c.ID, Owner: c.Owner, Name: c.Name, Locator: c.Locator, Kind: string(c.SourceKind), Critical: c.Critical, Warning: c.Warning,
+			ID: c.ID, Owner: c.Owner, OwnerKind: c.OwnerKind, Name: c.Name, Locator: c.Locator, Kind: string(c.SourceKind), Critical: c.Critical, Warning: c.Warning,
 			ReacquisitionCommand: c.ReacquisitionCommand, ReacquisitionEvidence: c.ReacquisitionEvidence,
 			ReacquisitionNeedsOperator: c.ReacquisitionNeedsOperator, ReacquisitionAuthReason: c.ReacquisitionAuthReason,
 		})

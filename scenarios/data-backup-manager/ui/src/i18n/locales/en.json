@@ -131,7 +131,8 @@
     "trigger": {
       "unknown": "—",
       "scheduler": "Scheduled",
-      "manual": "Manual"
+      "manual": "Manual",
+      "retry": "Automatic retry"
     },
     "driveClass": {
       "unknown": "Unknown",
@@ -311,6 +312,7 @@
     "destinations": "Destinations",
     "nameRequired": "Name is required.",
     "needTarget": "Select at least one target.",
+    "targetsBySelector": "Every registered target ({{count}} now, {{excluded}} left out). This plan follows the catalog; change the rule with the command line.",
     "needDestination": "Select at least one destination.",
     "noTargets": "No targets registered yet.",
     "noDestinations": "No destinations yet.",

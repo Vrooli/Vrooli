@@ -86,11 +86,14 @@ func (h *handlers) importExisting(ctx cliapp.RunContext) error {
 	if err != nil {
 		return fmt.Errorf("--created-at must be RFC3339: %w", err)
 	}
-	snapshotIDs := strings.Split(ctx.Flag("snapshot-ids"), ",")
-	for i := range snapshotIDs {
-		snapshotIDs[i] = strings.TrimSpace(snapshotIDs[i])
-		if snapshotIDs[i] == "" {
-			return fmt.Errorf("--snapshot-ids must be a comma-separated list of non-empty IDs")
+	var snapshotIDs []string
+	if raw := strings.TrimSpace(ctx.Flag("snapshot-ids")); raw != "" {
+		snapshotIDs = strings.Split(raw, ",")
+		for i := range snapshotIDs {
+			snapshotIDs[i] = strings.TrimSpace(snapshotIDs[i])
+			if snapshotIDs[i] == "" {
+				return fmt.Errorf("--snapshot-ids must be a comma-separated list of non-empty IDs")
+			}
 		}
 	}
 	capBytes, err := parseOptionalInt64(ctx.Flag("cap-bytes"))
@@ -114,7 +117,7 @@ func (h *handlers) importExisting(ctx cliapp.RunContext) error {
 	}
 	d := resp.Msg.Destination
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
-		Result: []string{fmt.Sprintf("Imported existing destination %s without creating repository data.", d.Id)},
+		Result:  []string{fmt.Sprintf("Imported existing destination %s without creating repository data.", d.Id)},
 		Changes: []string{formatDestination(d), fmt.Sprintf("existing Kopia repository: %s", d.RepositoryLocation), "expected snapshot IDs were present after connect"},
 		NextCommand: []string{
 			fmt.Sprintf("`destinations get %s` — inspect imported destination", d.Id),
@@ -159,6 +162,29 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 			"`destinations get <id>` — show a single destination",
 			"`destinations create --name <n> --backend <b> --location <l>` — create a destination",
 		},
+	})
+}
+
+func (h *handlers) snapshots(ctx cliapp.RunContext) error {
+	resp, err := h.client.ListTargetSnapshots(context.Background(), connect.NewRequest(&destinationsv1.ListTargetSnapshotsRequest{
+		DestinationId: ctx.Flag("id"), Owner: ctx.Flag("owner"), Name: ctx.Flag("name"),
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("list destination target snapshots", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no snapshot list")
+	}
+	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Found %d snapshot(s) for %s/%s.", len(resp.Msg.Snapshots), ctx.Flag("owner"), ctx.Flag("name"))},
+		ResultsHeading: "Target snapshots",
+		Results: func() []string {
+			out := make([]string, 0, len(resp.Msg.Snapshots))
+			for _, snap := range resp.Msg.Snapshots {
+				out = append(out, fmt.Sprintf("%s — %s — %s", snap.Id, snap.StartedAt.AsTime().Format(time.RFC3339Nano), snap.Source))
+			}
+			return out
+		}(),
 	})
 }
 

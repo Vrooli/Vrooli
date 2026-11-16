@@ -40,6 +40,7 @@ const (
 	RecoveryPause       RecoveryEvent = "pause"
 	RecoveryComplete    RecoveryEvent = "complete"
 	RecoveryDryRunReset RecoveryEvent = "dry_run_reset"
+	RecoveryYield       RecoveryEvent = "yield"
 )
 
 // Transition returns the legal next journal state for an event. Failed
@@ -64,6 +65,10 @@ func (s RecoveryState) Transition(event RecoveryEvent) (RecoveryState, bool) {
 			return RecoveryCompleted, true
 		}
 	case RecoveryDryRunReset:
+		if s == RecoveryRunning {
+			return RecoveryPending, true
+		}
+	case RecoveryYield:
 		if s == RecoveryRunning {
 			return RecoveryPending, true
 		}
@@ -249,6 +254,18 @@ func NewRecoveryJournal(location string, identity DeviceIdentity, plans []Plan, 
 // it never blindly repeats an ambiguous repair. Dry-runs execute all
 // validation but never advance the durable cursor.
 func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journal RecoveryJournal, confirmations map[int]string, acknowledgeDataLoss bool, dryRun bool) (RecoveryJournal, error) {
+	return s.resumeRecovery(ctx, store, journal, confirmations, acknowledgeDataLoss, dryRun, 0)
+}
+
+// ResumeRecoveryStep executes at most the current recovery step. The public
+// recovery RPC uses this bounded form so each caller return is a reviewable
+// checkpoint before another host action can run. Trusted owner callbacks may
+// use ResumeRecovery to complete their already-authorized sequence.
+func (s *Service) ResumeRecoveryStep(ctx context.Context, store RecoveryStore, journal RecoveryJournal, confirmations map[int]string, acknowledgeDataLoss bool, dryRun bool) (RecoveryJournal, error) {
+	return s.resumeRecovery(ctx, store, journal, confirmations, acknowledgeDataLoss, dryRun, 1)
+}
+
+func (s *Service) resumeRecovery(ctx context.Context, store RecoveryStore, journal RecoveryJournal, confirmations map[int]string, acknowledgeDataLoss bool, dryRun bool, maxSteps int) (RecoveryJournal, error) {
 	if store == nil {
 		return journal, errors.New("recovery store is required")
 	}
@@ -280,18 +297,49 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 		return journal, fmt.Errorf("persist recovery start: %w", err)
 	}
 	cursor := journal.Current
+	stepsRun := 0
 	for cursor < len(journal.Steps) {
 		idx := cursor
 		step := &journal.Steps[idx]
 		if step.Status == RecoveryStepInFlight {
-			// The previous process may have completed the host action and
-			// crashed before recording the result. Re-running a repair in that
-			// ambiguous window could modify the filesystem twice. Pause and make
-			// the operator re-inspect/re-plan explicitly.
+			// A process may have completed a mount transition and crashed before
+			// persisting its receipt. Accept only a state that a fresh, strong
+			// device inspection proves is the exact step's postcondition. Checks,
+			// repairs, and every ambiguous state still require inspection.
+			completed, detail, reconcileErr := s.reconcileInterruptedMountStep(ctx, journal, *step)
+			if reconcileErr != nil {
+				journal.LastError = reconcileErr.Error()
+			}
+			if completed {
+				step.Detail = detail
+				if err := step.Transition(RecoveryStepComplete); err != nil {
+					return journal, err
+				}
+				journal.Current++
+				cursor = journal.Current
+				if cursor == len(journal.Steps) {
+					if err := journal.Transition(RecoveryComplete); err != nil {
+						return journal, err
+					}
+				}
+				journal.UpdatedAt = time.Now().UTC()
+				if err := store.Save(ctx, journal); err != nil {
+					return journal, fmt.Errorf("persist reconciled recovery step: %w", err)
+				}
+				stepsRun++
+				if maxSteps > 0 && stepsRun >= maxSteps {
+					break
+				}
+				continue
+			}
+			// Re-running a repair or an unproven transition could alter the
+			// filesystem twice or affect a replacement device. Pause instead.
 			if err := journal.Transition(RecoveryPause); err != nil {
 				return journal, err
 			}
-			journal.LastError = "previous recovery action may have completed; inspect the volume before retrying this step"
+			if journal.LastError == "" {
+				journal.LastError = "previous recovery action may have completed; inspect the volume before retrying this step"
+			}
 			if saveErr := store.Save(ctx, journal); saveErr != nil {
 				return journal, fmt.Errorf("persist recovery ambiguity: %w", saveErr)
 			}
@@ -330,6 +378,10 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 				return journal, err
 			}
 			cursor++
+			stepsRun++
+			if maxSteps > 0 && stepsRun >= maxSteps {
+				break
+			}
 			continue
 		}
 		if err := step.Transition(RecoveryStepComplete); err != nil {
@@ -346,6 +398,10 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 		if err := store.Save(ctx, journal); err != nil {
 			return journal, fmt.Errorf("persist recovery progress: %w", err)
 		}
+		stepsRun++
+		if maxSteps > 0 && stepsRun >= maxSteps {
+			break
+		}
 	}
 	if dryRun {
 		if err := journal.Transition(RecoveryDryRunReset); err != nil {
@@ -354,6 +410,14 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 		journal.UpdatedAt = time.Now().UTC()
 		if err := store.Save(ctx, journal); err != nil {
 			return journal, fmt.Errorf("persist recovery dry-run: %w", err)
+		}
+	} else if maxSteps > 0 && stepsRun > 0 && journal.State == RecoveryRunning {
+		if err := journal.Transition(RecoveryYield); err != nil {
+			return journal, err
+		}
+		journal.UpdatedAt = time.Now().UTC()
+		if err := store.Save(ctx, journal); err != nil {
+			return journal, fmt.Errorf("persist recovery step boundary: %w", err)
 		}
 	}
 	return journal, nil

@@ -108,3 +108,33 @@ func TestComputeRunStatsDedupRatioZeroWhenNoPhysical(t *testing.T) {
 		t.Errorf("physical/ratio = %d/%v, want 0/0 when physical unknown", st.TotalPhysicalBytes, st.DedupRatio)
 	}
 }
+
+// A retry loop on one blocked plan must not turn the success rate into 0% or
+// bury the real attempts: retries are counted apart.
+func TestComputeRunStatsKeepsRetriesApartFromAttempts(t *testing.T) {
+	retry := func(r Run) Run { r.Trigger = TriggerRetry; return r }
+	runs := []Run{
+		run(RunCompleted, 0, 2, 500),
+		run(RunFailed, 10, 2),
+		retry(run(RunFailed, 20, 2)),
+		retry(run(RunFailed, 30, 2)),
+		retry(run(RunPartialFailed, 40, 2, 100)),
+		retry(run(RunCompleted, 50, 2, 300)),
+	}
+	st := computeRunStats(runs)
+	if st.TotalRuns != 2 || st.Completed != 1 || st.Failed != 1 || st.PartialFailed != 0 {
+		t.Errorf("attempts = total%d c%d f%d p%d, want 2/1/1/0", st.TotalRuns, st.Completed, st.Failed, st.PartialFailed)
+	}
+	if st.SuccessRate != 0.5 {
+		t.Errorf("success rate = %v, want 0.5 of attempts (retries excluded)", st.SuccessRate)
+	}
+	if st.RetryRuns != 4 || st.RetryCompleted != 1 || st.RetryFailed != 3 {
+		t.Errorf("retries = %d (%d completed, %d did not), want 4 (1, 3)", st.RetryRuns, st.RetryCompleted, st.RetryFailed)
+	}
+	if st.TotalBytes != 900 {
+		t.Errorf("bytes = %d, want 900: a retry that succeeded really wrote its backup", st.TotalBytes)
+	}
+	if st.AvgBytesPerRun != 150 {
+		t.Errorf("avg bytes/run = %d, want 150 (900 over 6 terminal runs)", st.AvgBytesPerRun)
+	}
+}

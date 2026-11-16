@@ -11,6 +11,7 @@ import (
 	"data-backup-manager/cli/domains/runs"
 	"data-backup-manager/cli/domains/safety"
 	"data-backup-manager/cli/domains/targets"
+	"data-backup-manager/cli/domains/walletrecovery"
 
 	"github.com/vrooli/api-core/spacecli"
 	"github.com/vrooli/api-core/spacedoc"
@@ -86,6 +87,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
+	walletRecoveryGroup, err := walletrecovery.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
 	return []cliapp.SubcommandGroup{
 		targetsGroup,
 		destinationsGroup,
@@ -97,5 +102,6 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		restoresGroup,
 		safetyGroup,
 		auditsGroup,
+		walletRecoveryGroup,
 	}, nil
 }

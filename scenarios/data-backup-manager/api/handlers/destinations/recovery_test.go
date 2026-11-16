@@ -59,13 +59,15 @@ func TestVolumeRecoveryRPCsPersistAndResumeWithoutHostEffectsOnDryRun(t *testing
 		Location: "/media/Elements", TargetPath: "/media/Elements",
 		Identity: identity, RequiresConfirm: true, ConfirmationPhrase: "CHECK", Supported: true,
 	}
+	nextPlan := plan
+	nextPlan.ID = "step-2"
 	store := &recoveryStore{}
 	remediator := &recoveryHandlerRemediator{}
 	readiness := destinationreadiness.NewService(recoveryHandlerInspector{identity: identity}, nil).WithRemediator(remediator)
 	h := NewConnectHandler(Deps{Service: &mocks.FakeService{}, Readiness: readiness, RecoveryStore: store})
 
 	started, err := h.StartVolumeRecovery(context.Background(), connect.NewRequest(&destinationsv1.StartVolumeRecoveryRequest{
-		Location: "/media/Elements", Identity: deviceIdentityToProto(identity), Plans: []*destinationsv1.DestinationPreparationPlan{preparationPlanToProto(plan)},
+		Location: "/media/Elements", Identity: deviceIdentityToProto(identity), Plans: []*destinationsv1.DestinationPreparationPlan{preparationPlanToProto(plan), preparationPlanToProto(nextPlan)},
 	}))
 	if err != nil {
 		t.Fatalf("StartVolumeRecovery: %v", err)
@@ -85,7 +87,7 @@ func TestVolumeRecoveryRPCsPersistAndResumeWithoutHostEffectsOnDryRun(t *testing
 	if err != nil {
 		t.Fatalf("ResumeVolumeRecovery dry-run: %v", err)
 	}
-	if resumed.Msg.Journal.Current != 0 || resumed.Msg.Journal.State != string(destinationreadiness.RecoveryPending) {
+	if resumed.Msg.Journal.Current != 0 || resumed.Msg.Journal.State != string(destinationreadiness.RecoveryPending) || resumed.Msg.Journal.Steps[0].Status != string(destinationreadiness.RecoveryStepValidated) || resumed.Msg.Journal.Steps[1].Status != string(destinationreadiness.RecoveryStepPending) {
 		t.Fatalf("dry-run advanced journal: %+v", resumed.Msg.Journal)
 	}
 	if remediator.calls != 1 {

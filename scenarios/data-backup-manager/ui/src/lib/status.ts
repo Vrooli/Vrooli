@@ -115,7 +115,7 @@ export function outcomeMeta(status: TargetOutcomeStatus): StatusMeta<OutcomeSlug
   }
 }
 
-export type TriggerSlug = "unknown" | "scheduler" | "manual";
+export type TriggerSlug = "unknown" | "scheduler" | "manual" | "retry";
 
 export function triggerSlug(trigger: TriggerSource): TriggerSlug {
   switch (trigger) {
@@ -123,6 +123,8 @@ export function triggerSlug(trigger: TriggerSource): TriggerSlug {
       return "scheduler";
     case TriggerSource.MANUAL:
       return "manual";
+    case TriggerSource.RETRY:
+      return "retry";
     default:
       return "unknown";
   }

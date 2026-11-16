@@ -34,6 +34,8 @@ type RunRecord struct {
 	Failures []DestinationFailure
 	// Terminal reports whether the run has finished.
 	Terminal bool
+	// Retry reports that this run was itself an automatic retry.
+	Retry bool
 }
 
 // FailsDestination reports whether the run was stopped by a destination-level
@@ -81,7 +83,8 @@ type BackupHistory interface {
 	// ActiveRun reports whether any run that writes to the destination is in
 	// flight, so a repair never takes the drive away from a running backup.
 	ActiveRun(ctx context.Context, destinationID string) (bool, error)
-	// TriggerRun asks for a run of a plan now. A run already active is not an
-	// error for the caller.
+	// TriggerRun asks for an automatic retry of a plan now. A run already
+	// active, or a retry held back because earlier retries failed the same way,
+	// is not an error for the caller.
 	TriggerRun(ctx context.Context, planID string) error
 }

@@ -28,24 +28,41 @@ const (
 	TierCriticalSecondary ProtectionTier = "critical_secondary"
 )
 
+// TargetSelector is a rule that decides a plan's targets whenever the plan is
+// read, so a target registered tomorrow is in the plan tomorrow without anyone
+// editing it.
+type TargetSelector string
+
+const (
+	// SelectNone means the plan lists its targets explicitly.
+	SelectNone TargetSelector = ""
+	// SelectRegistered means every target in the catalog, minus the plan's
+	// exclusions.
+	SelectRegistered TargetSelector = "registered"
+)
+
 // Plan is the internal domain shape for a backup plan. Distinct from the proto
 // wire type; handlers translate at the boundary so the domain layer never
 // imports proto.
 type Plan struct {
-	ID                                string
-	Name                              string
-	TargetIDs                         []string
-	DestinationIDs                    []string
-	Schedule                          string
-	KeepLatest                        int32
-	KeepHourly                        int32
-	KeepDaily                         int32
-	KeepWeekly                        int32
-	KeepMonthly                       int32
-	KeepAnnual                        int32
-	Enabled                           bool
-	ProtectionTier                    ProtectionTier
-	RecoveryDrillSchedule             string
+	ID                    string
+	Name                  string
+	TargetIDs             []string
+	DestinationIDs        []string
+	Schedule              string
+	KeepLatest            int32
+	KeepHourly            int32
+	KeepDaily             int32
+	KeepWeekly            int32
+	KeepMonthly           int32
+	KeepAnnual            int32
+	Enabled               bool
+	ProtectionTier        ProtectionTier
+	RecoveryDrillSchedule string
+	// TargetSelector, when set, replaces the explicit TargetIDs: Service reads
+	// return the resolved list in TargetIDs (catalog minus ExcludedTargetIDs).
+	TargetSelector                    TargetSelector
+	ExcludedTargetIDs                 []string
 	DestinationsPhysicallyIndependent bool
 	SharedRiskWarnings                []string
 	CreatedAt                         time.Time
@@ -68,6 +85,10 @@ type CreateInput struct {
 	Enabled               bool
 	ProtectionTier        ProtectionTier
 	RecoveryDrillSchedule string
+	// TargetSelector makes membership a rule (see Plan); TargetIDs is then
+	// ignored. ExcludedTargetIDs is valid only with a selector.
+	TargetSelector    TargetSelector
+	ExcludedTargetIDs []string
 	// AllowIncompleteCoverage bypasses the coverage guard: when false (default)
 	// the service rejects the plan if any non-sensitive discovered durable
 	// target is still unregistered.
@@ -90,6 +111,10 @@ type UpdateInput struct {
 	Enabled               bool
 	ProtectionTier        ProtectionTier
 	RecoveryDrillSchedule string
+	// TargetSelector makes membership a rule (see Plan); TargetIDs is then
+	// ignored. ExcludedTargetIDs is valid only with a selector.
+	TargetSelector    TargetSelector
+	ExcludedTargetIDs []string
 	// AllowIncompleteCoverage — see CreateInput.
 	AllowIncompleteCoverage bool
 }

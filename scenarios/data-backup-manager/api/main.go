@@ -10,7 +10,10 @@ import (
 	"strings"
 	"time"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+	"github.com/vrooli/vrooli/packages/credential-authority-go/hubidentity"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 
 	"data-backup-manager/internal/effectguard"
 
@@ -29,6 +32,7 @@ import (
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	apireceiptsigning "github.com/vrooli/api-core/receiptsigning"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
@@ -60,6 +64,7 @@ import (
 	"data-backup-manager/internal/sources"
 	"data-backup-manager/internal/sysmounts"
 	targetsint "data-backup-manager/internal/targets"
+	"data-backup-manager/internal/walletrecovery"
 )
 
 func lookupEnvTrimmed(name string) (string, bool) {
@@ -296,6 +301,7 @@ func run(ctx context.Context) error {
 	// construction graph acyclic — the full coverage service below reads plans.
 	guardCoverage := coverageint.NewService(coverageint.Deps{
 		Suggestions: coverageSuggestions{svc: discoverySvc},
+		Targets:     coverageTargetCatalog{svc: targetsSvc},
 	})
 	criticalDestinationPolicy := planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness, hostID: strings.TrimSpace(os.Getenv("VROOLI_HOST_ID"))}
 	plansSvc := plansint.NewServiceWithPolicies(
@@ -304,6 +310,7 @@ func run(ctx context.Context) error {
 		planCriticalTargetPolicy{svc: targetsSvc},
 		criticalDestinationPolicy,
 	)
+	plansSvc = plansint.WithTargetCatalog(plansSvc, plansTargetCatalog{svc: targetsSvc})
 
 	// The run orchestration: capture (sources) + snapshot/retention (engine),
 	// cap-block via destinations, reading plans/targets through adapters. Runs
@@ -329,6 +336,12 @@ func run(ctx context.Context) error {
 	// trigger), then assigned into this adapter before any request runs.
 	nextSched := &nextScheduleAdapter{plans: plansSvc}
 	runsRepo := runsint.NewSQLiteRepository(db, clk)
+	walletReservations := walletrecovery.SQLiteReservations{DB: db.Primary()}
+	if err := walletReservations.EnsureSchema(ctx); err != nil {
+		cancelExec()
+		_ = db.Close()
+		return fmt.Errorf("wallet recovery reservation schema failed: %w", err)
+	}
 	platformReceiptSink := platformreceipts.NewFileSink()
 	runsSvc := runsint.NewService(runsint.Deps{
 		Repo:                 runsRepo,
@@ -349,6 +362,7 @@ func run(ctx context.Context) error {
 		Readiness:            planReadiness,
 		RoutedRoots:          fileRoots,
 		PlatformReceipts:     platformReceiptSink,
+		WalletRecoveryGate:   walletReservations,
 	})
 
 	// Startup reconciliation: close any run left non-terminal by a prior
@@ -458,7 +472,10 @@ func run(ctx context.Context) error {
 	// in addition to liveness, and emits a posture event for monitoring. It
 	// reads the same per-target Overdue the runs service computes from
 	// overdueAfterDur, so /health and `runs status` never disagree.
-	posture := backupPosture{runs: runsSvc, plans: plansSvc, destinations: destSvc, engine: kopia}
+	// The probe is answered from the last posture result (see
+	// health.NewCachedPosture): computing it takes seconds while a large backup is
+	// writing, and a probe that times out gets the service restarted mid-run.
+	posture := healthH.NewCachedPosture(backupPosture{runs: runsSvc, plans: plansSvc, destinations: destSvc, engine: kopia}, 15*time.Second, 10*time.Minute)
 
 	// Recovery decisions and ordinary drive notices use the shared Vrooli Events
 	// rail. A signing-secret failure disables decision approvals, while the
@@ -475,6 +492,8 @@ func run(ctx context.Context) error {
 		strings.TrimSpace(eventsWebhookSecret) != "",
 		logger,
 	)
+	coverageDecisions.WithAskReader(hubidentity.NewAskReader("data-backup-manager"))
+	go runSensitiveSweep(ctx, coverageDecisions, logger)
 
 	// Baseline Modes safety substrate: pure orchestration over the
 	// destinations/targets/plans/runs services (no tables of its own) that the
@@ -536,6 +555,48 @@ func run(ctx context.Context) error {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	// The CA-backed signer is only a reference to an existing credential field;
+	// construction never creates a key. The CLI contract remains fail-closed
+	// until the authenticated service authorizer and operator-approved signer
+	// key exist. Evidence is independently rebuilt from DBM's run, snapshot,
+	// restore and source-generation owners. This does not provision a key.
+	var walletRecoverySigner walletrecovery.Signer
+	walletIdentity, walletIdentityErr := credentialauthority.ParseIdentity("scenario/data-backup-manager/wallet-recovery")
+	if walletIdentityErr == nil {
+		ca, caErr := credentialauthority.Default()
+		if caErr == nil {
+			walletRecoverySigner, caErr = credentialauthoritysigning.New(credentialauthoritysigning.Config{
+				Identity: walletIdentity, Field: "rotation-attestation-key-ring", PublicField: "rotation-attestation-public-key-ring", Store: ca,
+				AllowedPurposes: []apireceiptsigning.Purpose{apireceiptsigning.PurposeWalletRecoveryPublicationReceipt},
+			})
+		}
+		if caErr != nil {
+			log.Printf("DBM wallet-recovery signer reference unavailable; no key is created and attestation stays fail-closed: %v", caErr)
+		}
+	} else {
+		log.Printf("DBM wallet-recovery signer identity unavailable; no key is created and attestation stays fail-closed: %v", walletIdentityErr)
+	}
+	walletAttestor := walletrecovery.Service{
+		Evidence: dbmWalletRecoveryEvidenceReader{
+			Runs: runsSvc, Restores: restoresSvc, Plans: plansSvc, Targets: targetsSvc,
+			Destinations: destSvc, Engine: kopia, Generation: walletReservations,
+		},
+		Reservations: walletReservations,
+		Signer:       walletRecoverySigner,
+	}
+	rootMux.Handle("/api/wallet-recovery/attest", walletrecovery.NewHTTPHandler(walletAttestor, nil))
+	rootMux.Handle("/api/wallet-recovery/reservation/finish", walletrecovery.NewReservationFinishHandler(walletReservations, nil))
+	walletReadLease := walletrecovery.ReadLeaseService{
+		Catalog: dbmWalletRecoverySnapshotCatalog{Targets: targetsSvc, Destinations: destSvc, Generation: walletReservations},
+		Store:   walletReservations, TTL: 15 * time.Minute,
+	}
+	readLeaseAuth := walletrecovery.VerifiedHumanAuthorizer{
+		Verifier: walletrecovery.NewDBMReadLeaseVerifier(),
+	}
+	readLeaseHTTP := walletrecovery.ReadLeaseHTTP{Service: walletReadLease, Auth: readLeaseAuth}
+	rootMux.Handle("/api/wallet-recovery/read-lease/acquire", readLeaseHTTP.Handler("acquire"))
+	rootMux.Handle("/api/wallet-recovery/read-lease/renew", readLeaseHTTP.Handler("renew"))
+	rootMux.Handle("/api/wallet-recovery/read-lease/release", readLeaseHTTP.Handler("release"))
 	rootMux.HandleFunc("/health", healthHandler(srv.Handler()))
 	rootMux.Handle("/", srv.Handler())
 
@@ -549,9 +610,11 @@ func run(ctx context.Context) error {
 		// Both backup runs AND restores/verifies are now async: their RPCs persist
 		// a record, schedule the kopia work on a server-lifetime background worker,
 		// and return immediately. Nothing blocks the HTTP handler for the duration
-		// of a kopia operation anymore, so the api-core default WriteTimeout is
-		// sufficient — the 6h override (and the CLI's unlimited-timeout client)
-		// that the synchronous restore path needed are gone.
+		// of a kopia operation anymore. Explicit preflight is still synchronous
+		// and performs read-only repository probes that can take longer than the
+		// shared server's 30s default on large repositories; keep those requests
+		// bounded while allowing them to return a useful readiness receipt.
+		WriteTimeout: 2 * time.Minute,
 		Cleanup: func(cctx context.Context) error {
 			// Interrupt and drain in-flight runs + restores before closing the DB
 			// so no worker can write to a closed handle.

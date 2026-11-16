@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -120,6 +121,65 @@ func TestRepoDamageScanUsesResourceOwnerAndValidatesTypedRelativeEvidence(t *tes
 	if _, err := cli.RepoDamageScan(context.Background(), "primary"); err == nil {
 		t.Fatal("owner scan errors must not become a clean scan")
 	}
+}
+
+func TestBrowseSnapshotRejectsOversizedManifestAndPreservesEntryType(t *testing.T) {
+	t.Run("oversized JSON", func(t *testing.T) {
+		runner := &damageRunner{out: []byte(`[` + strings.Repeat(`{"path":"x","sizeBytes":0,"type":"f"},`, 70000) + `]`)}
+		cli := &KopiaCLI{Runner: runner}
+		if _, err := cli.BrowseSnapshot(context.Background(), "repo", "snap", ""); err == nil {
+			t.Fatal("oversized browse output must refuse before decoding")
+		}
+	})
+	t.Run("special type retained", func(t *testing.T) {
+		runner := &damageRunner{out: []byte(`[{"path":"pipe","sizeBytes":0,"type":"p"}]`)}
+		cli := &KopiaCLI{Runner: runner}
+		entries, err := cli.BrowseSnapshot(context.Background(), "repo", "snap", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(entries) != 1 || entries[0].Type != "p" || entries[0].IsDir {
+			t.Fatalf("entry type was lost: %+v", entries)
+		}
+	})
+}
+
+func TestSnapshotListParsesAggregateEntryCounts(t *testing.T) {
+	runner := &damageRunner{out: []byte(`[{"id":"snap","source":{"host":"h","userName":"u","path":"/p"},"stats":{"totalSize":8,"fileCount":2,"dirCount":3},"rootEntry":{"summ":{"symlinks":4}}}]`)}
+	cli := &KopiaCLI{Runner: runner}
+	snapshots, err := cli.SnapshotList(context.Background(), "repo", "/p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshots) != 1 || snapshots[0].FileCount != 2 || snapshots[0].DirCount != 3 || snapshots[0].SymlinkCount != 4 {
+		t.Fatalf("Kopia aggregate counts were not preserved: %+v", snapshots)
+	}
+}
+
+func TestSnapshotListBoundsInventoryAndRequiresStatsTotalSize(t *testing.T) {
+	t.Run("oversized inventory bytes", func(t *testing.T) {
+		runner := &damageRunner{out: []byte(strings.Repeat(" ", 2<<20+1))}
+		if _, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "/target"); err == nil {
+			t.Fatal("oversized snapshot inventory must refuse")
+		}
+	})
+	t.Run("too many snapshots", func(t *testing.T) {
+		one := `{"id":"s","stats":{"totalSize":1,"fileCount":1,"dirCount":1},"rootEntry":{"summ":{"symlinks":0}}}`
+		runner := &damageRunner{out: []byte("[" + strings.TrimSuffix(strings.Repeat(one+",", 129), ",") + "]")}
+		if _, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "/target"); err == nil {
+			t.Fatal("snapshot count overflow must refuse")
+		}
+	})
+	t.Run("missing total size despite compatibility field", func(t *testing.T) {
+		runner := &damageRunner{out: []byte(`[{"id":"s","totalSize":1,"stats":{"fileCount":1,"dirCount":1},"rootEntry":{"summ":{"symlinks":0}}}]`)}
+		rows, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "/target")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(rows) != 1 || rows[0].StatsTotalSize != -1 {
+			t.Fatalf("stats total size was inferred from fallback: %+v", rows)
+		}
+	})
 }
 
 func TestRepoQuarantineTempRequiresExactSessionPathAndVerifiesOwnerResult(t *testing.T) {

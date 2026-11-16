@@ -90,7 +90,8 @@ export function PlanFormDialog({
 
   const mutation = isEdit ? update : create;
   const nameError = touched && !name.trim() ? t(strings.plans.nameRequired) : undefined;
-  const targetError = touched && targetIds.length === 0 ? t(strings.plans.needTarget) : undefined;
+  const bySelector = (plan?.targetSelector ?? "") !== "";
+  const targetError = touched && !bySelector && targetIds.length === 0 ? t(strings.plans.needTarget) : undefined;
   const destError = touched && destinationIds.length === 0 ? t(strings.plans.needDestination) : undefined;
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>) => (id: string) =>
@@ -129,6 +130,8 @@ export function PlanFormDialog({
       keepAnnual: Number(gfs.annual) || 0,
       enabled,
       allowIncompleteCoverage,
+      targetSelector: plan?.targetSelector ?? "",
+      excludedTargetIds: plan?.excludedTargetIds ?? [],
     };
     if (isEdit && plan) {
       update.mutate({ id: plan.id, input }, { onSuccess: close });
@@ -139,7 +142,7 @@ export function PlanFormDialog({
 
   const submit = () => {
     setTouched(true);
-    if (!name.trim() || targetIds.length === 0 || destinationIds.length === 0) return;
+    if (!name.trim() || (!bySelector && targetIds.length === 0) || destinationIds.length === 0) return;
     runMutation(false);
   };
 
@@ -177,6 +180,15 @@ export function PlanFormDialog({
           <p className="col-span-2 text-xs text-app-muted-foreground">Keep the newest snapshots above, plus the configured number from each time bucket. Zero disables that bucket.</p>
         </fieldset>
 
+        {bySelector ? (
+          <Field label={t(strings.plans.targets)}>
+            {() => (
+              <p data-testid={selectors.plans.targetPicker} className="text-sm text-app-foreground">
+                {t(strings.plans.targetsBySelector, { count: plan?.targetIds.length ?? 0, excluded: plan?.excludedTargetIds.length ?? 0 })}
+              </p>
+            )}
+          </Field>
+        ) : (
         <Field label={t(strings.plans.targets)} error={targetError}>
           {() => (
             <CheckList
@@ -188,6 +200,7 @@ export function PlanFormDialog({
             />
           )}
         </Field>
+        )}
 
         <Field label={t(strings.plans.destinations)} error={destError}>
           {() => (

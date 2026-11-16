@@ -979,3 +979,20 @@ No Elements repository bytes were deleted or replaced. Preflight still blocks
 all 14 targets. The filesystem repair did not resolve this object-level I/O
 failure; a separate authorized-host diagnosis is still needed before another
 repository mutation or backup write.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: Configured destination readiness reports `destination_present` and
+  `mounted_read_write`, while filesystem health is unknown. Destination usage
+  refuses the registered drive because identity, writable state, or filesystem
+  health is not proven ready. Before repair, plan preflight returned
+  `unavailable: unexpected EOF`; API logs showed synchronous `PreflightRun`
+  calls taking 33–67 seconds against api-core's 30-second default
+  `WriteTimeout`. After the timeout and error-classification fixes, preflight
+  completed in 52 seconds and returned `destination_inaccessible` with the
+  correct readiness explanation.
+- Blocker: A fresh scheduled backup remains blocked until destination
+  filesystem readiness is proven. The fix makes the preflight response
+  reliable and accurate; it does not bypass that safety gate.
+- Measured: 2026-11-16

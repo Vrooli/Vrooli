@@ -3,6 +3,7 @@ package destinations
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,16 +23,19 @@ type freshMigrationStub struct {
 func (s *freshMigrationStub) Candidates(context.Context, repohealth.Incident) (FreshMigrationPlan, []FreshMigrationCandidate, error) {
 	return s.plan, s.candidates, nil
 }
+
 func (s *freshMigrationStub) RegisterLocalDestination(_ context.Context, migrationID, planID, oldDestinationID, location string, targets []string) (FreshMigrationCandidate, error) {
 	s.registerArgs = []string{migrationID, planID, oldDestinationID, location, fmt.Sprint(targets)}
 	candidate := FreshMigrationCandidate{DestinationID: "registered-local", Name: "dbm-fresh-test", Location: location}
 	s.candidates = append(s.candidates, candidate)
 	return candidate, nil
 }
+
 func (s *freshMigrationStub) Begin(_ context.Context, id, planID, oldID, newID string, targets []string) error {
 	s.beginArgs = []string{id, planID, oldID, newID, fmt.Sprint(targets)}
 	return nil
 }
+
 func (s *freshMigrationStub) Resume(context.Context, string) (FreshMigrationProgress, error) {
 	s.resumeCalls++
 	return FreshMigrationProgress{Stage: "complete", Complete: true}, s.resumeErr
@@ -56,7 +60,7 @@ func TestFreshMigrationRequiresSecondVerifiedDestinationChoiceAndQueuesCompletio
 	if err != nil || task == nil || task.State != operatordecision.PendingStatePending {
 		t.Fatalf("destination choice ask not persisted: ask=%+v err=%v", task, err)
 	}
-	var selected = operatordecision.DecisionResolution{
+	selected := operatordecision.DecisionResolution{
 		AskID: task.ID, State: operatordecision.StateAnswered, Answer: "dest:new-destination",
 		AnsweredBy: "operator", AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "cloudflare_access",
 		SourceEventType: operatordecision.DecisionRequestedEventType(recoveryDecisionSource, backupFailureKind),
@@ -233,10 +237,12 @@ func TestFreshMigrationLocalRegistrationRejectsProviderAndCredentialText(t *test
 			if ask == nil {
 				t.Fatal("fresh destination ask missing")
 			}
-			proposal := operatordecision.DecisionResolution{AskID: ask.ID, State: operatordecision.StateAnswered, Answer: "register-local", Note: invalid,
+			proposal := operatordecision.DecisionResolution{
+				AskID: ask.ID, State: operatordecision.StateAnswered, Answer: "register-local", Note: invalid,
 				AnsweredBy: "operator", AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "cloudflare_access",
 				SourceEventType: operatordecision.DecisionRequestedEventType(recoveryDecisionSource, backupFailureKind),
-				Correlation:     map[string]string{"decision_type": freshDestinationDecisionType, "incident_id": incident.ID, "generation": fmt.Sprint(incident.Generation), "migration_id": id, "selection_generation": "1"}}
+				Correlation:     map[string]string{"decision_type": freshDestinationDecisionType, "incident_id": incident.ID, "generation": fmt.Sprint(incident.Generation), "migration_id": id, "selection_generation": "1"},
+			}
 			if handled, err := h.flow.Apply(context.Background(), proposal); err != nil || !handled {
 				t.Fatalf("invalid path proposal Apply=(%v,%v)", handled, err)
 			}
@@ -247,5 +253,51 @@ func TestFreshMigrationLocalRegistrationRejectsProviderAndCredentialText(t *test
 				t.Fatal("invalid path text raised a provisioning confirmation")
 			}
 		})
+	}
+}
+
+func TestFreshSetQuestionsArriveAsPagesTheOperatorCanAnswerCold(t *testing.T) {
+	inc := repohealth.Incident{
+		ID: "bf-1", Generation: 2, FreshMigrationID: "fm-1", FreshMigrationProposedLocation: "/media/u/Spare/vrooli-backups",
+		Diagnosis: repohealth.Diagnosis{Volume: repohealth.VolumeState{Label: "Elements"}},
+	}
+	plan := FreshMigrationPlan{PlanID: "plan-1", Targets: make([]string, 14)}
+	facts, err := freshSelectionFacts(inc, plan, []FreshMigrationCandidate{{DestinationID: "dest-spare", Name: "spare-local", Location: "/media/u/Spare"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts.Correlation = map[string]string{"k": "v"}
+	if err := facts.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(facts.Question+facts.BigPicture, "plan-1") || !strings.Contains(facts.Question, "the Elements drive") {
+		t.Errorf("question %q names the plan id or not the drive", facts.Question)
+	}
+	for _, want := range []string{
+		"Items to copy", ">14<", "Ready destinations", "spare-local", "/media/u/Spare",
+		"Restore each copy to a scratch folder", `data-od-answer="dest:dest-spare"`, `data-od-answer="register-local"`, "If you do not answer:",
+	} {
+		if !strings.Contains(facts.Explainer, want) {
+			t.Errorf("selection page is missing %q", want)
+		}
+	}
+
+	confirm := freshRegistrationFacts(inc)
+	confirm.Correlation = map[string]string{"k": "v"}
+	if err := confirm.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(confirm.Question, "“vrooli-backups”") {
+		t.Errorf("confirmation question %q should name the folder", confirm.Question)
+	}
+	for _, f := range []operatordecision.Facts{facts, confirm} {
+		if problems := operatordecision.CoverProblems(f); len(problems) > 0 {
+			t.Errorf("a cold reader cannot parse %q: %v", f.Question, problems)
+		}
+	}
+	for _, want := range []string{"/media/u/Spare/vrooli-backups", "Encryption", `data-od-answer="register"`} {
+		if !strings.Contains(confirm.Explainer, want) {
+			t.Errorf("confirmation page is missing %q", want)
+		}
 	}
 }

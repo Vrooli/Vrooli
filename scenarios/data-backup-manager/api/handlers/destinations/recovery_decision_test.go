@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"data-backup-manager/internal/attention"
+
 	"data-backup-manager/internal/destinationreadiness"
 	destdomain "data-backup-manager/internal/destinations"
 	destmocks "data-backup-manager/internal/destinations/mocks"
@@ -127,8 +129,23 @@ func TestRecoveryDecisionRaisesExactRiskFactsAndOperatorActionsPath(t *testing.T
 	if payload["recommended"] != "approve_repair" || payload["reversible"] != false {
 		t.Fatalf("decision recommendation/risk facts = %#v", payload)
 	}
-	if !strings.Contains(payload["technical_details"].(string), operatorActionsFileFullPath) {
+	if !strings.Contains(payload["technical_details"].(string), attention.File()) {
 		t.Fatalf("decision omits operator actions path: %#v", payload["technical_details"])
+	}
+	if question := payload["question"].(string); !strings.Contains(question, "Repair the filesystem on the backup drive?") {
+		t.Errorf("question %q does not name the drive", question)
+	}
+	if problems := operatordecision.PayloadCoverProblems(payload); len(problems) > 0 {
+		t.Errorf("a cold reader cannot parse the cover: %v", problems)
+	}
+	page, _ := payload["explainer_html"].(string)
+	for _, want := range []string{
+		"ntfs", "100B", "The risk:", "Where the recovery stands", "Repair the filesystem", "Needs your answer",
+		"Bring the drive back online, writable", "Waiting", `data-od-answer="approve_repair"`, "If you do not answer:",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page is missing %q", want)
+		}
 	}
 }
 

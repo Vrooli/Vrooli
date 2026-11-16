@@ -19,6 +19,7 @@ type Repository interface {
 	LatestForUnit(ctx context.Context, planID, targetID, destinationID string) (Drill, bool, error)
 	ListPendingNotifications(ctx context.Context, limit int) ([]Drill, error)
 	MarkNotificationSent(ctx context.Context, id string, sentAt time.Time) error
+	MarkNotificationsSent(ctx context.Context, ids []string, sentAt time.Time) error
 	Retire(ctx context.Context, id, reason string, retiredAt time.Time) (Drill, error)
 }
 

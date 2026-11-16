@@ -131,7 +131,8 @@
     "trigger": {
       "unknown": "—",
       "scheduler": "مجدول",
-      "manual": "يدوي"
+      "manual": "يدوي",
+      "retry": "إعادة محاولة تلقائية"
     },
     "driveClass": {
       "unknown": "غير معروف",
@@ -315,6 +316,7 @@
     "destinations": "الوجهات",
     "nameRequired": "الاسم مطلوب.",
     "needTarget": "اختر هدفًا واحدًا على الأقل.",
+    "targetsBySelector": "كل هدف مسجَّل ({{count}} الآن، {{excluded}} مستبعد). تتبع هذه الخطة الفهرس؛ غيّر القاعدة من سطر الأوامر.",
     "needDestination": "اختر وجهة واحدة على الأقل.",
     "noTargets": "لا توجد أهداف مُسجَّلة بعد.",
     "noDestinations": "لا توجد وجهات بعد.",

@@ -61,7 +61,85 @@ func (h *connectHandler) RequestSensitiveReview(ctx context.Context, _ *connect.
 	if err != nil {
 		return nil, h.translate("RequestSensitiveReview", err)
 	}
-	return connect.NewResponse(&coveragev1.RequestSensitiveReviewResponse{AskId: askID, CandidateCount: int32(count), Pending: true}), nil
+	return connect.NewResponse(&coveragev1.RequestSensitiveReviewResponse{AskId: askID, CandidateCount: int32(count), Pending: askID != ""}), nil
+}
+
+func (h *connectHandler) GetSensitivePolicy(ctx context.Context, _ *connect.Request[coveragev1.GetSensitivePolicyRequest]) (*connect.Response[coveragev1.GetSensitivePolicyResponse], error) {
+	policy, err := h.deps.Decisions.Policy(ctx)
+	if err != nil {
+		return nil, h.policyError("GetSensitivePolicy", err)
+	}
+	return connect.NewResponse(&coveragev1.GetSensitivePolicyResponse{Policy: policyToProto(policy)}), nil
+}
+
+func (h *connectHandler) RevokeSensitivePolicy(ctx context.Context, req *connect.Request[coveragev1.RevokeSensitivePolicyRequest]) (*connect.Response[coveragev1.RevokeSensitivePolicyResponse], error) {
+	policy, err := h.deps.Decisions.Revoke(ctx, req.Msg.RevokedBy)
+	if err != nil {
+		return nil, h.policyError("RevokeSensitivePolicy", err)
+	}
+	return connect.NewResponse(&coveragev1.RevokeSensitivePolicyResponse{Policy: policyToProto(policy)}), nil
+}
+
+func (h *connectHandler) ExcludeSensitiveTarget(ctx context.Context, req *connect.Request[coveragev1.ExcludeSensitiveTargetRequest]) (*connect.Response[coveragev1.ExcludeSensitiveTargetResponse], error) {
+	policy, err := h.deps.Decisions.Exclude(ctx, req.Msg.Owner, req.Msg.Name, req.Msg.Reason, req.Msg.ExcludedBy)
+	if err != nil {
+		return nil, h.policyError("ExcludeSensitiveTarget", err)
+	}
+	return connect.NewResponse(&coveragev1.ExcludeSensitiveTargetResponse{Policy: policyToProto(policy)}), nil
+}
+
+func (h *connectHandler) AdoptSensitiveConsent(ctx context.Context, req *connect.Request[coveragev1.AdoptSensitiveConsentRequest]) (*connect.Response[coveragev1.AdoptSensitiveConsentResponse], error) {
+	policy, swept, err := h.deps.Decisions.AdoptAnswerAsConsent(ctx, req.Msg.HubAskId)
+	if err != nil {
+		if errors.Is(err, ErrConsentNotAdoptable) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+		return nil, h.policyError("AdoptSensitiveConsent", err)
+	}
+	return connect.NewResponse(&coveragev1.AdoptSensitiveConsentResponse{Policy: policyToProto(policy), RegisteredCount: int32(len(swept.Registered)), FailedCount: int32(swept.Failed)}), nil
+}
+
+// policyError separates a refused request (nothing to revoke, a missing field)
+// from a store failure.
+func (h *connectHandler) policyError(op string, err error) error {
+	switch {
+	case h.deps.Decisions == nil || h.deps.Decisions.policy == nil:
+		return connect.NewError(connect.CodeUnavailable, err)
+	case errors.Is(err, ErrPolicyRequest):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	h.deps.Logger.Printf("coverage.%s: %v", op, err)
+	return connect.NewError(connect.CodeInternal, err)
+}
+
+func policyToProto(p StandingPolicy) *coveragev1.SensitivePolicy {
+	out := &coveragev1.SensitivePolicy{
+		Active: p.Active, GrantAskId: p.GrantAskID, GrantedBy: p.GrantedBy,
+		GrantedByIdentityKind: p.GrantedByKind, GrantedByIdentitySource: p.GrantedBySource,
+		RevokedBy: p.RevokedBy, AddedTotal: int32(p.AddedTotal), GrantBasis: p.GrantBasis, GrantText: p.GrantText,
+	}
+	if p.GrantedAt != nil {
+		out.GrantedAt = timestamppb.New(*p.GrantedAt)
+	}
+	if p.RevokedAt != nil {
+		out.RevokedAt = timestamppb.New(*p.RevokedAt)
+	}
+	if p.LastNoteAt != nil {
+		out.LastNoteAt = timestamppb.New(*p.LastNoteAt)
+	}
+	if p.LastSweepAt != nil {
+		out.LastSweepAt = timestamppb.New(*p.LastSweepAt)
+	}
+	for _, e := range p.Excluded {
+		out.Excluded = append(out.Excluded, &coveragev1.SensitivePolicyExclusion{Owner: e.Owner, Name: e.Name, Reason: e.Reason, ExcludedBy: e.By, ExcludedAt: timestamppb.New(e.At)})
+	}
+	for _, a := range p.Unreported {
+		out.Unreported = append(out.Unreported, &coveragev1.SensitivePolicyAddition{Owner: a.Owner, Name: a.Name, Group: a.Group, ApproxBytes: a.Bytes, AddedAt: timestamppb.New(a.At)})
+	}
+	for _, e := range p.Ledger {
+		out.History = append(out.History, &coveragev1.SensitivePolicyEvent{At: timestamppb.New(e.At), Kind: e.Kind, By: e.By, Detail: e.Detail})
+	}
+	return out
 }
 
 // translate maps a domain error to a Connect error, logging only internal ones.

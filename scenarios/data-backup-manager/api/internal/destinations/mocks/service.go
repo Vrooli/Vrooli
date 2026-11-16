@@ -5,6 +5,7 @@ import (
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/destinations"
+	"data-backup-manager/internal/engine"
 )
 
 // FakeService satisfies destinations.Service for handler tests that should not
@@ -114,6 +115,10 @@ func (f *FakeService) ListDestinations(_ context.Context, _ int) ([]destinations
 		return nil, f.ListErr
 	}
 	return f.ListOut, nil
+}
+
+func (f *FakeService) ListTargetSnapshots(context.Context, string, string, string) ([]engine.Snapshot, error) {
+	return nil, nil
 }
 
 func (f *FakeService) UpdateDestination(_ context.Context, in destinations.UpdateInput) (destinations.Destination, error) {

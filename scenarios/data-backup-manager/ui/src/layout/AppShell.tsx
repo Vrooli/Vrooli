@@ -29,6 +29,8 @@ const NAV_ICONS = {
   settings: <Settings aria-hidden className="h-5 w-5" />,
 } as const;
 
+const PHONE_TAB_KEYS = new Set(["overview", "plans", "runs", "restores"]);
+
 /** Library-owned shell adapter for the Data Backup Manager console. */
 export function AppShell() {
   const { t } = useTranslation();
@@ -44,7 +46,7 @@ export function AppShell() {
       </a>
       <LibraryAppShell
         density="sidebar"
-        mobileNav="tabs"
+        mobileNav="menu-tabs"
         mainMode="scroll"
         brand={<span data-testid={selectors.app.title}>{t(strings.app.title)}</span>}
         brandHref="/"
@@ -54,6 +56,7 @@ export function AppShell() {
           label: t(item.labelKey),
           icon: NAV_ICONS[item.key],
           current: item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`),
+          mobile: PHONE_TAB_KEYS.has(item.key),
           testId: selectors.layout.sidebarLink({ key: item.key }),
         }))}
         utility={(

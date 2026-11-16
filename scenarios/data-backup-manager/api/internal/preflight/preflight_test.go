@@ -3,6 +3,8 @@ package preflight
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"data-backup-manager/internal/destinationreadiness"
@@ -316,5 +318,77 @@ func TestDestinationReadinessChangeBlocksRepositoryProbes(t *testing.T) {
 	}
 	if e.statusCalls != 0 || e.listCalls != 0 {
 		t.Fatalf("repository probed after destination gate failed: status=%d list=%d", e.statusCalls, e.listCalls)
+	}
+}
+
+// One source that cannot be enumerated (a root-owned subdirectory) is that
+// target's problem. It used to leave the destination's capacity "unknown", which
+// preflight reported as "destination filesystem readiness is unknown" and so
+// stopped every target of the plan for as long as the directory stayed unreadable.
+type capacityAwareReadiness struct {
+	got destinationreadiness.AnalyzeInput
+}
+
+func (c *capacityAwareReadiness) Analyze(_ context.Context, in destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
+	c.got = in
+	if in.SelectedTargetBytes == 0 {
+		return destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityUnknown, Checks: []destinationreadiness.CheckResult{{
+			Code: "capacity", Severity: destinationreadiness.SeverityUnknown, Message: "target size not selected; capacity fit is unknown"}}}, nil
+	}
+	return destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityPass}, nil
+}
+
+func TestCheckBlocksOnlyTheUnreadableTargetNotTheDestination(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permission denial cannot be produced as root")
+	}
+	root := t.TempDir()
+	good := filepath.Join(root, "good")
+	bad := filepath.Join(root, "bad")
+	for _, dir := range []string{good, filepath.Join(bad, "sealed")} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(good, "data"), make([]byte, 4096), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bad, "sealed", "x"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(bad, "sealed"), 0); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(filepath.Join(bad, "sealed"), 0o755) })
+
+	readiness := &capacityAwareReadiness{}
+	r := Check(context.Background(), Input{
+		Plan: Plan{TargetIDs: []string{"good", "bad"}, DestinationIDs: []string{"d1"}},
+		Targets: targetLookup{targets: map[string]Target{
+			"good": {ID: "good", Kind: sources.KindFilesystem, Locator: good},
+			"bad":  {ID: "bad", Kind: sources.KindFilesystem, Locator: bad},
+		}},
+		Destinations: destLookup{destinations: map[string]Destination{
+			"d1": {ID: "d1", Name: "local", BackendKind: "filesystem", Location: "/mnt/local"},
+		}},
+		Engine: &engineFake{}, Sources: sources.NewRegistry(&captureFake{kind: sources.KindFilesystem}),
+		Readiness: readiness, CheckSourcePaths: true,
+	})
+	if _, blocked := r.BlockedDestinations["d1"]; blocked {
+		t.Fatalf("an unreadable source stopped the destination for every target: %+v", r.Incidents)
+	}
+	if _, blocked := r.BlockedTargets["bad"]; !blocked {
+		t.Fatalf("the unreadable target must be blocked on its own: %+v", r.Incidents)
+	}
+	if _, blocked := r.BlockedTargets["good"]; blocked {
+		t.Fatalf("a readable target was blocked: %+v", r.Incidents)
+	}
+	if readiness.got.SelectedTargetBytes == 0 {
+		t.Fatal("capacity must be judged over the targets that will actually be written")
+	}
+	for _, in := range r.Incidents {
+		if in.Code == failures.DestinationInaccessible {
+			t.Fatalf("unexpected destination incident: %+v", in)
+		}
 	}
 }

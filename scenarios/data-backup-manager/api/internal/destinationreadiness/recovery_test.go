@@ -102,6 +102,32 @@ func TestResumeRecoveryPersistsEachStepAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestResumeRecoveryStepReturnsAtEachDurableBoundary(t *testing.T) {
+	svc, journal, remediator := recoveryFixture(t)
+	store := &memoryRecoveryStore{}
+	confirmations := map[int]string{0: "confirm-unmount", 1: "confirm-mount"}
+
+	first, err := svc.ResumeRecoveryStep(context.Background(), store, journal, confirmations, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Current != 1 || first.State != destinationreadiness.RecoveryPending || first.Steps[0].Status != destinationreadiness.RecoveryStepCompleted || first.Steps[1].Status != destinationreadiness.RecoveryStepPending || remediator.calls != 1 {
+		t.Fatalf("first bounded resume journal=%+v calls=%d", first, remediator.calls)
+	}
+
+	second, err := svc.ResumeRecoveryStep(context.Background(), store, first, confirmations, false, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Current != 2 || second.State != destinationreadiness.RecoveryCompleted || remediator.calls != 2 {
+		t.Fatalf("second bounded resume journal=%+v calls=%d", second, remediator.calls)
+	}
+
+	if _, err := svc.ResumeRecoveryStep(context.Background(), store, second, nil, false, false); err != nil || remediator.calls != 2 {
+		t.Fatalf("completed retry calls=%d err=%v", remediator.calls, err)
+	}
+}
+
 func TestConcurrentResumeRecoveryExecutesEachHostStepOnce(t *testing.T) {
 	svc, journal, remediator := recoveryFixture(t)
 	remediator.entered = make(chan struct{}, 1)
@@ -151,6 +177,15 @@ func TestResumeRecoveryDryRunDoesNotAdvanceCursor(t *testing.T) {
 	}
 }
 
+func TestResumeRecoveryStepDryRunValidatesOnlyCurrentStep(t *testing.T) {
+	svc, journal, remediator := recoveryFixture(t)
+	store := &memoryRecoveryStore{}
+	got, err := svc.ResumeRecoveryStep(context.Background(), store, journal, map[int]string{0: "confirm-unmount", 1: "confirm-mount"}, false, true)
+	if err != nil || got.Current != 0 || got.State != destinationreadiness.RecoveryPending || remediator.calls != 1 || got.Steps[0].Status != destinationreadiness.RecoveryStepValidated || got.Steps[1].Status != destinationreadiness.RecoveryStepPending {
+		t.Fatalf("journal=%+v calls=%d err=%v", got, remediator.calls, err)
+	}
+}
+
 func TestResumeRecoveryPausesAfterAmbiguousInFlightAction(t *testing.T) {
 	svc, journal, remediator := recoveryFixture(t)
 	journal.Steps[0].Status = "in_flight"
@@ -177,6 +212,7 @@ func TestRecoveryStateTransitionMatrix(t *testing.T) {
 		destinationreadiness.RecoveryPause,
 		destinationreadiness.RecoveryComplete,
 		destinationreadiness.RecoveryDryRunReset,
+		destinationreadiness.RecoveryYield,
 	}
 	legal := map[struct {
 		state destinationreadiness.RecoveryState
@@ -189,6 +225,7 @@ func TestRecoveryStateTransitionMatrix(t *testing.T) {
 		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryPause}:       destinationreadiness.RecoveryPaused,
 		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryComplete}:    destinationreadiness.RecoveryCompleted,
 		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryDryRunReset}: destinationreadiness.RecoveryPending,
+		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryYield}:       destinationreadiness.RecoveryPending,
 	}
 	for _, state := range states {
 		for _, event := range events {

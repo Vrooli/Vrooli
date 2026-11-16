@@ -60,7 +60,6 @@ one file at a time. The pattern from wire to render:
 | Wire contract | `packages/proto/schemas/data-backup-manager/v1/targets/targets.proto` | `Target`, `service TargetsService`, `ListTargetsResponse`, `RegisterTargetRequest`, `RegisterTargetResponse`, `GetTargetRequest`, `GetTargetResponse` |
 | REST metadata contract | Not applicable today | Data Backup Manager has no multipart REST edge. Backup/restore bytes move through source capturers and `KopiaEngine`; REST remains only for `/health`. |
 | Connect error mapping | `internal/targets/service_error_mapping.go` | Typed sentinels become Connect codes (`invalid_argument`, `not_found`, `internal`) |
-| REST error envelope | `packages/proto/schemas/data-backup-manager/v1/errors/errors.proto` + `internal/httpx/errors.go::WriteError` | Typed body for REST exceptions, with canonical codes (`invalid_request`, `not_found`, `internal`) |
 | Domain types | `internal/targets/types.go::{Target, RegisterInput, ErrInvalidTarget, ErrTargetNotFound}` | Domain-pure (no proto imports); typed sentinels translate into Connect errors at the handler edge |
 | Repository interface | `internal/targets/repository.go::Repository` | Persistence seam — register/upsert, get, list, and deregister operations |
 | Repository impl | `internal/targets/sqlite.go::NewSQLiteRepository` | sqlite-backed `Repository`; production wires it once in `main.go` |

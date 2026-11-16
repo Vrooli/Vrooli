@@ -61,10 +61,17 @@ Connect service:
 |---|---|---|
 | `GetCoverageReport` | Live first-backup readiness: registered vs recommended vs sensitive targets, plus planned/backed-up/verified posture. | `coverage report` |
 | `AcceptDefaultTargets` | Bulk-register non-sensitive targets; `include_sensitive=true` is rejected and sensitive targets require a verified decision (`dry_run` registers nothing). | `coverage accept-defaults` |
-| `RequestSensitiveReview` | Raise one verified Notification Hub review for current sensitive suggestions; only the signed callback can register approved targets. | `coverage review-sensitive` |
+| `RequestSensitiveReview` | Raise one verified Notification Hub review for current sensitive suggestions; only the signed callback can register approved targets. With the standing rule on it asks nothing: it applies the rule and returns `pending=false`. | `coverage review-sensitive` |
+| `GetSensitivePolicy` | The standing rule: on or off, who consented (verified identity), when, through which Hub decision, what it added, what it keeps out, history. | `coverage sensitive-policy` |
+| `AdoptSensitiveConsent` | Record the operator's own-words answer on a sensitive coverage decision as the standing consent. The ask is read back from the Hub as DBM's ask-reader principal and must be this scenario's decision, answered by a verified human with Other free text; the record keeps the text verbatim, the ask id, the answer time and the identity. The rule is applied at once and the stale local review closed; nothing is raised at the Hub. | `coverage adopt-sensitive-consent` |
+| `RevokeSensitivePolicy` | Turn the standing rule off; what it added stays registered. Recorded with who and when. | `coverage revoke-sensitive-policy` |
+| `ExcludeSensitiveTarget` | Keep one owner/name item out of the standing rule. | `coverage exclude-sensitive` |
 
 Coverage composes the discovery, targets, plans, runs and restores seams; it
-reads no file contents and persists nothing of its own. `AcceptDefaultTargets`
+reads no file contents and persists nothing of its own, apart from the standing
+rule for sensitive items (`sensitive-coverage-policy/policy.json` in the state
+directory). A SQLite database's `-wal`, `-shm` and `-journal` files are folded
+into the database and never listed as items. `AcceptDefaultTargets`
 returns per-item `accepted` / `skipped_sensitive` / `failed` lists so partial
 failures are never swallowed.
 
@@ -75,7 +82,7 @@ Connect service:
 
 | Method | Purpose | CLI |
 |---|---|---|
-| `CreatePlan` | Bind targets to destinations with schedule and retention. Blocked with `failed_precondition` when non-sensitive recommended targets are unregistered unless `allow_incomplete_coverage` is set. | `plans create` |
+| `CreatePlan` | Bind targets to destinations with schedule and retention. Targets are an explicit list or, with `target_selector: "registered"`, every registered target except `excluded_target_ids`, resolved on every read. Blocked with `failed_precondition` when non-sensitive recommended targets are unregistered unless `allow_incomplete_coverage` is set. | `plans create` |
 | `GetPlan` | Fetch a plan by id. | `plans get` |
 | `ListPlans` | List backup plans. | `plans list` |
 | `UpdatePlan` | Replace plan fields and membership. Same coverage guard as create via `allow_incomplete_coverage`. | `plans update` |

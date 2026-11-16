@@ -46,11 +46,13 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 	}
 
 	resp, err := h.client.CreatePlan(context.Background(), connect.NewRequest(&plansv1.CreatePlanRequest{
-		Name:           ctx.Flag("name"),
-		TargetIds:      targetIDs,
-		DestinationIds: destIDs,
-		Schedule:       ctx.Flag("schedule"),
-		Retention:      retention,
+		Name:              ctx.Flag("name"),
+		TargetIds:         targetIDs,
+		TargetSelector:    selectorFlag(ctx.Flag("target-selector")),
+		ExcludedTargetIds: parseCommaSeparated(ctx.Flag("exclude-targets")),
+		DestinationIds:    destIDs,
+		Schedule:          ctx.Flag("schedule"),
+		Retention:         retention,
 		// CreatePlan's contract creates enabled plans. The CLI deliberately
 		// exposes --enabled only on update because proto3 cannot distinguish
 		// omitted false from an explicit request for a disabled new plan.
@@ -209,7 +211,7 @@ func (h *handlers) addDestination(ctx cliapp.RunContext) error {
 		if apply {
 			destinations := append(append([]string(nil), p.DestinationIds...), destination)
 			_, err := h.client.UpdatePlan(context.Background(), connect.NewRequest(&plansv1.UpdatePlanRequest{
-				Id: p.Id, Name: p.Name, TargetIds: p.TargetIds, DestinationIds: destinations,
+				Id: p.Id, Name: p.Name, TargetIds: p.TargetIds, TargetSelector: p.TargetSelector, ExcludedTargetIds: p.ExcludedTargetIds, DestinationIds: destinations,
 				Schedule: p.Schedule, Retention: p.Retention, Enabled: p.Enabled,
 				ProtectionTier: p.ProtectionTier, RecoveryDrillSchedule: p.RecoveryDrillSchedule,
 			}))
@@ -246,6 +248,8 @@ func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanReq
 		Id:                      p.Id,
 		Name:                    p.Name,
 		TargetIds:               p.TargetIds,
+		TargetSelector:          p.TargetSelector,
+		ExcludedTargetIds:       p.ExcludedTargetIds,
 		DestinationIds:          p.DestinationIds,
 		Schedule:                p.Schedule,
 		Retention:               p.Retention,
@@ -259,6 +263,13 @@ func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanReq
 	}
 	if ctx.FlagProvided("targets") {
 		req.TargetIds = parseCommaSeparated(ctx.Flag("targets"))
+		req.TargetSelector, req.ExcludedTargetIds = "", nil // an explicit list replaces the rule
+	}
+	if ctx.FlagProvided("target-selector") {
+		req.TargetSelector = selectorFlag(ctx.Flag("target-selector"))
+	}
+	if ctx.FlagProvided("exclude-targets") {
+		req.ExcludedTargetIds = parseCommaSeparated(ctx.Flag("exclude-targets"))
 	}
 	if ctx.FlagProvided("destinations") {
 		req.DestinationIds = parseCommaSeparated(ctx.Flag("destinations"))
@@ -339,7 +350,7 @@ func formatPlan(p *plansv1.Plan) string {
 	return fmt.Sprintf("%s — %s [tier=%s targets=%s destinations=%s schedule=%q drill-schedule=%q keep-latest=%d GFS(hourly/daily/weekly/monthly/annual)=%d/%d/%d/%d/%d enabled=%v physically-independent=%v warnings=%s created=%s]",
 		p.Id, p.Name,
 		p.ProtectionTier.String(),
-		strings.Join(p.TargetIds, ","),
+		describeTargets(p),
 		strings.Join(p.DestinationIds, ","),
 		p.Schedule, p.RecoveryDrillSchedule, keepLatest, p.Retention.GetKeepHourly(), p.Retention.GetKeepDaily(), p.Retention.GetKeepWeekly(), p.Retention.GetKeepMonthly(), p.Retention.GetKeepAnnual(), p.Enabled, p.DestinationsPhysicallyIndependent, strings.Join(p.SharedRiskWarnings, " | "), created)
 }
@@ -376,4 +387,26 @@ func parseCommaSeparated(s string) []string {
 		}
 	}
 	return result
+}
+
+// selectorFlag reads --target-selector: "none" (or empty) means an explicit list.
+func selectorFlag(v string) string {
+	v = strings.TrimSpace(v)
+	if strings.EqualFold(v, "none") {
+		return ""
+	}
+	return v
+}
+
+// describeTargets names a plan's targets: the list, or for a selector plan the
+// rule and how many targets it names right now (a list of hundreds is no answer).
+func describeTargets(p *plansv1.Plan) string {
+	if p.TargetSelector == "" {
+		return strings.Join(p.TargetIds, ",")
+	}
+	text := fmt.Sprintf("selector:%s (%d now", p.TargetSelector, len(p.TargetIds))
+	if n := len(p.ExcludedTargetIds); n > 0 {
+		text += fmt.Sprintf(", %d excluded: %s", n, strings.Join(p.ExcludedTargetIds, ","))
+	}
+	return text + ")"
 }

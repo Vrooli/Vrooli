@@ -42,7 +42,8 @@ func (a backupHistory) LatestRun(ctx context.Context, planID string) (destinatio
 		return destinationsH.RunRecord{}, false, err
 	}
 	r := runs[0]
-	rec := destinationsH.RunRecord{ID: r.ID, Status: string(r.Status), StartedAt: r.StartedAt, FinishedAt: r.FinishedAt}
+	rec := destinationsH.RunRecord{ID: r.ID, Status: string(r.Status), StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
+		Retry: r.Trigger == runsint.TriggerRetry}
 	switch r.Status {
 	case runsint.RunCompleted, runsint.RunPartialFailed, runsint.RunFailed:
 		rec.Terminal = true
@@ -110,10 +111,14 @@ func (a backupHistory) ActiveRun(ctx context.Context, destinationID string) (boo
 	return false, nil
 }
 
+// TriggerRun asks for an automatic retry. It is recorded as a retry, not a
+// manual run, so run counts keep real attempts apart from retries, and the run
+// service holds it back while earlier retries keep failing the same way.
 func (a backupHistory) TriggerRun(ctx context.Context, planID string) error {
-	_, err := a.runs.TriggerRun(ctx, planID, runsint.TriggerManual)
+	_, err := a.runs.TriggerRun(ctx, planID, runsint.TriggerRetry)
 	var active runsint.ErrRunAlreadyActive
-	if errors.As(err, &active) {
+	var held runsint.ErrRetryBackoff
+	if errors.As(err, &active) || errors.As(err, &held) {
 		return nil
 	}
 	return err

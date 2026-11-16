@@ -3,6 +3,7 @@ package plans
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -54,6 +55,23 @@ type service struct {
 	guard        CoverageGuard
 	critical     CriticalTargetPolicy
 	destinations CriticalDestinationPolicy
+	catalog      TargetCatalog
+}
+
+// TargetCatalog lists every registered target id. A plan with a target selector
+// reads its membership from it on every read.
+type TargetCatalog interface {
+	RegisteredTargetIDs(ctx context.Context) ([]string, error)
+}
+
+// WithTargetCatalog lets svc resolve selector plans. The composition root wires
+// it once; a service without a catalog returns a selector plan with no targets,
+// which Create and Update refuse to save.
+func WithTargetCatalog(svc Service, catalog TargetCatalog) Service {
+	if s, ok := svc.(*service); ok {
+		s.catalog = catalog
+	}
+	return svc
 }
 
 // NewService constructs the production Service. guard may be nil to disable the
@@ -98,8 +116,15 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	if name == "" {
 		return Plan{}, ErrInvalidPlan{Field: "name", Reason: "required"}
 	}
-	if len(in.TargetIDs) == 0 {
-		return Plan{}, ErrInvalidPlan{Field: "target_ids", Reason: "at least one required"}
+	selector, excluded, err := normalizeSelector(in.TargetSelector, in.ExcludedTargetIDs)
+	if err != nil {
+		return Plan{}, err
+	}
+	if selector != SelectNone {
+		in.TargetIDs = nil
+	}
+	if selector == SelectNone && len(in.TargetIDs) == 0 {
+		return Plan{}, ErrInvalidPlan{Field: "target_ids", Reason: "at least one required (or a target selector)"}
 	}
 	if len(in.DestinationIDs) == 0 {
 		return Plan{}, ErrInvalidPlan{Field: "destination_ids", Reason: "at least one required"}
@@ -113,6 +138,9 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	}
 	if !validTier(tier) {
 		return Plan{}, ErrInvalidPlan{Field: "protection_tier", Reason: "must be full_primary, critical_primary, or critical_secondary"}
+	}
+	if selector != SelectNone && tier != TierFullPrimary {
+		return Plan{}, ErrInvalidPlan{Field: "protection_tier", Reason: "a target selector is only valid for full_primary; critical plans name their approved targets"}
 	}
 	if err := s.validateTier(ctx, tier, in.TargetIDs); err != nil {
 		return Plan{}, err
@@ -133,6 +161,7 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 		Schedule:       in.Schedule,
 		KeepLatest:     in.KeepLatest,
 		KeepHourly:     in.KeepHourly, KeepDaily: in.KeepDaily, KeepWeekly: in.KeepWeekly, KeepMonthly: in.KeepMonthly, KeepAnnual: in.KeepAnnual,
+		TargetSelector: selector, ExcludedTargetIDs: excluded,
 		Enabled:               true, // default true on create
 		ProtectionTier:        tier,
 		RecoveryDrillSchedule: in.RecoveryDrillSchedule,
@@ -153,7 +182,7 @@ func (s *service) Create(ctx context.Context, in CreateInput) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	return s.decorateTopology(ctx, saved), nil
+	return s.expose(ctx, saved)
 }
 
 const DefaultRecoveryDrillSchedule = "168h"
@@ -168,7 +197,7 @@ func (s *service) Get(ctx context.Context, id string) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	return s.decorateTopology(ctx, p), nil
+	return s.expose(ctx, p)
 }
 
 func (s *service) List(ctx context.Context, limit int) ([]Plan, error) {
@@ -180,7 +209,9 @@ func (s *service) List(ctx context.Context, limit int) ([]Plan, error) {
 		return nil, err
 	}
 	for i := range list {
-		list[i] = s.decorateTopology(ctx, list[i])
+		if list[i], err = s.expose(ctx, list[i]); err != nil {
+			return nil, err
+		}
 	}
 	return list, nil
 }
@@ -196,8 +227,15 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	if name == "" {
 		return Plan{}, ErrInvalidPlan{Field: "name", Reason: "required"}
 	}
-	if len(in.TargetIDs) == 0 {
-		return Plan{}, ErrInvalidPlan{Field: "target_ids", Reason: "at least one required"}
+	selector, excluded, err := normalizeSelector(in.TargetSelector, in.ExcludedTargetIDs)
+	if err != nil {
+		return Plan{}, err
+	}
+	if selector != SelectNone {
+		in.TargetIDs = nil
+	}
+	if selector == SelectNone && len(in.TargetIDs) == 0 {
+		return Plan{}, ErrInvalidPlan{Field: "target_ids", Reason: "at least one required (or a target selector)"}
 	}
 	if len(in.DestinationIDs) == 0 {
 		return Plan{}, ErrInvalidPlan{Field: "destination_ids", Reason: "at least one required"}
@@ -211,6 +249,9 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	}
 	if !validTier(tier) {
 		return Plan{}, ErrInvalidPlan{Field: "protection_tier", Reason: "must be full_primary, critical_primary, or critical_secondary"}
+	}
+	if selector != SelectNone && tier != TierFullPrimary {
+		return Plan{}, ErrInvalidPlan{Field: "protection_tier", Reason: "a target selector is only valid for full_primary; critical plans name their approved targets"}
 	}
 	if err := s.validateTier(ctx, tier, in.TargetIDs); err != nil {
 		return Plan{}, err
@@ -232,6 +273,7 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 		Schedule:       in.Schedule,
 		KeepLatest:     in.KeepLatest,
 		KeepHourly:     in.KeepHourly, KeepDaily: in.KeepDaily, KeepWeekly: in.KeepWeekly, KeepMonthly: in.KeepMonthly, KeepAnnual: in.KeepAnnual,
+		TargetSelector: selector, ExcludedTargetIDs: excluded,
 		Enabled:               in.Enabled,
 		ProtectionTier:        tier,
 		RecoveryDrillSchedule: in.RecoveryDrillSchedule,
@@ -240,7 +282,66 @@ func (s *service) Update(ctx context.Context, in UpdateInput) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	return s.decorateTopology(ctx, saved), nil
+	return s.expose(ctx, saved)
+}
+
+// normalizeSelector validates a plan's target selector and cleans its exclusions.
+func normalizeSelector(selector TargetSelector, excluded []string) (TargetSelector, []string, error) {
+	switch selector {
+	case SelectNone, SelectRegistered:
+	default:
+		return "", nil, ErrInvalidPlan{Field: "target_selector", Reason: fmt.Sprintf("unknown selector %q (use \"registered\" or leave it empty)", selector)}
+	}
+	seen := map[string]bool{}
+	var clean []string
+	for _, id := range excluded {
+		if id = strings.TrimSpace(id); id != "" && !seen[id] {
+			seen[id] = true
+			clean = append(clean, id)
+		}
+	}
+	if selector == SelectNone && len(clean) > 0 {
+		return "", nil, ErrInvalidPlan{Field: "excluded_target_ids", Reason: "only valid with a target selector"}
+	}
+	sort.Strings(clean)
+	return selector, clean, nil
+}
+
+// expose is every read of a plan: it resolves a selector into the plan's
+// targets, then assesses the destination topology.
+func (s *service) expose(ctx context.Context, p Plan) (Plan, error) {
+	p, err := s.resolve(ctx, p)
+	if err != nil {
+		return Plan{}, err
+	}
+	return s.decorateTopology(ctx, p), nil
+}
+
+// resolve turns a selector into the targets it names right now: the catalog's
+// registered targets minus the plan's exclusions. An explicit plan is unchanged.
+func (s *service) resolve(ctx context.Context, p Plan) (Plan, error) {
+	if p.TargetSelector != SelectRegistered {
+		return p, nil
+	}
+	p.TargetIDs = nil
+	if s.catalog == nil {
+		return p, nil
+	}
+	ids, err := s.catalog.RegisteredTargetIDs(ctx)
+	if err != nil {
+		return Plan{}, fmt.Errorf("resolve targets of plan %q: %w", p.Name, err)
+	}
+	skip := make(map[string]bool, len(p.ExcludedTargetIDs))
+	for _, id := range p.ExcludedTargetIDs {
+		skip[id] = true
+	}
+	for _, id := range ids {
+		if !skip[id] {
+			p.TargetIDs = append(p.TargetIDs, id)
+		}
+	}
+	sort.Strings(p.TargetIDs)
+	return p, nil
 }
 
 func (s *service) decorateTopology(ctx context.Context, p Plan) Plan {
@@ -315,6 +416,9 @@ func (s *service) SchedulablePlans(ctx context.Context) ([]SchedulablePlan, erro
 	}
 	out := make([]SchedulablePlan, 0, len(plans))
 	for _, p := range plans {
+		if p, err = s.resolve(ctx, p); err != nil {
+			return nil, err
+		}
 		out = append(out, SchedulablePlan{
 			ID:             p.ID,
 			Schedule:       p.Schedule,

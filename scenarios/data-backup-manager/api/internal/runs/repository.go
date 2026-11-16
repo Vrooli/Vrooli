@@ -85,3 +85,10 @@ type PlanSuccess struct {
 type PlanSuccessReader interface {
 	PlanSuccess(ctx context.Context, planID string) (PlanSuccess, error)
 }
+
+// StatsWindowReader is implemented by a repository that can bound the run-stats
+// window in attempts (scheduled and manual runs) instead of in rows, so
+// automatic retries do not crowd real attempts out of it.
+type StatsWindowReader interface {
+	StatsWindow(ctx context.Context, planID string, attempts int) ([]Run, error)
+}

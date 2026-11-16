@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -50,11 +51,23 @@ type DestinationReadiness interface {
 }
 
 type service struct {
-	deps   Deps
-	queue  chan Drill
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
+	deps                    Deps
+	queue                   chan Drill
+	ctx                     context.Context
+	cancel                  context.CancelFunc
+	wg                      sync.WaitGroup
+	notificationTimerWG     sync.WaitGroup
+	failureStateMu          sync.Mutex
+	notificationDispatchMu  sync.Mutex
+	notificationTimerMu     sync.Mutex
+	notificationTimer       *time.Timer
+	notificationTimerClosed bool
 }
+
+const (
+	drillNotificationBatchWindow  = 15 * time.Second
+	pendingDrillNotificationLimit = 1000000
+)
 
 func NewService(d Deps) Service {
 	if d.Clock == nil {
@@ -76,7 +89,7 @@ func NewService(d Deps) Service {
 		d.Logger = log.Default()
 	}
 	ctx, cancel := context.WithCancel(d.BaseContext)
-	s := &service{deps: d, queue: make(chan Drill, 128), cancel: cancel}
+	s := &service{deps: d, queue: make(chan Drill, 128), ctx: ctx, cancel: cancel}
 	for i := 0; i < d.Workers; i++ {
 		s.wg.Add(1)
 		go s.worker(ctx)
@@ -176,7 +189,9 @@ func (s *service) runSnapshot(ctx context.Context, plan Plan, targetID, destinat
 		d.Error = "no successful backup snapshot exists for this target and destination"
 		d.NextAction = "run the backup plan successfully, then retry the recovery drill"
 		d.FinishedAt = now
+		s.failureStateMu.Lock()
 		created, createErr := s.deps.Repo.Create(ctx, d)
+		s.failureStateMu.Unlock()
 		if createErr == nil {
 			if notifyErr := s.dispatchPendingNotifications(ctx); notifyErr != nil {
 				s.deps.Logger.Printf("drills: dispatch failed notification %s: %v", created.ID, notifyErr)
@@ -316,7 +331,10 @@ func (s *service) fail(ctx context.Context, id, reason string) {
 }
 
 func (s *service) failWithAction(ctx context.Context, id, reason, nextAction string) {
-	if err := s.deps.Repo.Finish(ctx, id, EventFail, reason, nextAction, s.deps.Clock.Now().UTC()); err != nil {
+	s.failureStateMu.Lock()
+	err := s.deps.Repo.Finish(ctx, id, EventFail, reason, nextAction, s.deps.Clock.Now().UTC())
+	s.failureStateMu.Unlock()
+	if err != nil {
 		s.deps.Logger.Printf("drills: finish %s: %v", id, err)
 		return
 	}
@@ -421,7 +439,10 @@ func (s *service) Reconcile(ctx context.Context) error {
 	now := s.deps.Clock.Now().UTC()
 	for _, d := range list {
 		if IsActive(d.Status) {
-			if err := s.deps.Repo.Finish(ctx, d.ID, EventFail, "reconciled: process restarted while recovery drill was in-flight", "retry the recovery drill after verifying service health", now); err != nil {
+			s.failureStateMu.Lock()
+			err := s.deps.Repo.Finish(ctx, d.ID, EventFail, "reconciled: process restarted while recovery drill was in-flight", "retry the recovery drill after verifying service health", now)
+			s.failureStateMu.Unlock()
+			if err != nil {
 				return err
 			}
 		}
@@ -433,56 +454,182 @@ func (s *service) dispatchPendingNotifications(ctx context.Context) error {
 	if s.deps.Notifications == nil {
 		return nil
 	}
-	pending, err := s.deps.Repo.ListPendingNotifications(ctx, 100)
-	if err != nil {
-		return err
-	}
-	if len(pending) > 0 && !s.deps.Notifications.Enabled() {
-		s.deps.Logger.Printf("drills: %d failed notification(s) remain pending because Vrooli Events delivery is not configured", len(pending))
-		return nil
-	}
-	for _, drill := range pending {
-		title := "Recovery drill failed"
-		if drill.Scheduled {
-			title = "Scheduled recovery drill failed"
+	// Prevent a new failure from entering the just-published time window before
+	// its exact cohort is marked delivered.
+	s.failureStateMu.Lock()
+	defer s.failureStateMu.Unlock()
+	s.notificationDispatchMu.Lock()
+	defer s.notificationDispatchMu.Unlock()
+	for {
+		pending, err := s.deps.Repo.ListPendingNotifications(ctx, pendingDrillNotificationLimit)
+		if err != nil {
+			return err
 		}
-		body := fmt.Sprintf("Recovery drill %s failed for plan %s, target %s and destination %s. %s. Next action: %s.", drill.ID, drill.PlanID, drill.TargetID, drill.DestinationID, strings.TrimSpace(drill.Error), strings.TrimSpace(drill.NextAction))
-		// The domain-event ID is derived from its full envelope. Keep occurrence
-		// time tied to the persisted failure so an outbox retry publishes the
-		// same event ID even after Notification Hub's short dedupe window.
-		occurred := drill.FinishedAt.UTC()
+		if len(pending) == 0 {
+			return nil
+		}
+		if !s.deps.Notifications.Enabled() {
+			s.deps.Logger.Printf("drills: %d failed notification(s) remain pending because Vrooli Events delivery is not configured", len(pending))
+			return nil
+		}
+
+		sort.Slice(pending, func(i, j int) bool {
+			left, right := drillFailureTime(pending[i]), drillFailureTime(pending[j])
+			if left.Equal(right) {
+				return pending[i].ID < pending[j].ID
+			}
+			return left.Before(right)
+		})
+		first := pending[0]
+		occurred := drillFailureTime(first)
 		if occurred.IsZero() {
-			occurred = s.deps.Clock.Now().UTC()
+			occurred = time.Now().UTC()
 		}
-		event := eventbus.DomainEvent{
-			Source:    "data-backup-manager",
-			EventType: "data_backup_manager.backup_health.notification.v1",
-			Occurred:  occurred,
-			Payload: map[string]any{
-				"title": title, "body": body, "category": "backup-recovery-needs-attention",
-				"urgency": "high", "sensitivity": "private",
-				"dedupe_key":  "recovery-drill-failed:" + drill.ID,
-				"correlation": map[string]any{"drill_id": drill.ID, "plan_id": drill.PlanID, "target_id": drill.TargetID, "destination_id": drill.DestinationID},
-			},
+		batchThrough := occurred.Add(drillNotificationBatchWindow)
+		batch := make([]Drill, 0, len(pending))
+		for _, drill := range pending {
+			if !drillFailureTime(drill).After(batchThrough) {
+				batch = append(batch, drill)
+			}
+		}
+		if wait := time.Until(batchThrough); wait > 0 {
+			s.scheduleNotificationDispatch(wait)
+			return nil
+		}
+
+		event := drillFailureNotification(first, batch, occurred, batchThrough)
+		batchIDs := make([]string, 0, len(batch))
+		for _, drill := range batch {
+			batchIDs = append(batchIDs, drill.ID)
 		}
 		if err := s.deps.Notifications.PublishDomainEvent(ctx, event); err != nil {
-			// Leave the durable outbox row pending. Startup reconciliation and
-			// the minute scheduler retry it; Vrooli Events deduplicates by key if
-			// publication succeeded before a process or catalog failure.
-			s.deps.Logger.Printf("drills: publish failure notification %s: %v", drill.ID, err)
-			continue
+			// The event envelope and its member window are deterministic. If the
+			// hub accepted it before this call failed, republishing has the same
+			// event ID and therefore cannot deliver a second message.
+			s.deps.Logger.Printf("drills: publish failure notification batch %s: %v", first.ID, err)
+			return nil
 		}
-		if err := s.deps.Repo.MarkNotificationSent(ctx, drill.ID, s.deps.Clock.Now().UTC()); err != nil {
-			s.deps.Logger.Printf("drills: mark failure notification %s delivered: %v", drill.ID, err)
+		if err := s.deps.Repo.MarkNotificationsSent(ctx, batchIDs, s.deps.Clock.Now().UTC()); err != nil {
+			s.deps.Logger.Printf("drills: mark failure notification batch %s delivered: %v", first.ID, err)
+			return nil
 		}
 	}
-	return nil
+}
+
+func drillFailureTime(drill Drill) time.Time {
+	if !drill.FinishedAt.IsZero() {
+		return drill.FinishedAt.UTC()
+	}
+	return drill.RequestedAt.UTC()
+}
+
+func drillFailureNotification(first Drill, batch []Drill, occurred, batchThrough time.Time) eventbus.DomainEvent {
+	title := "Recovery drill failed"
+	body := fmt.Sprintf("Recovery drill %s failed for plan %s, target %s and destination %s. %s. Next action: %s.", first.ID, first.PlanID, first.TargetID, first.DestinationID, strings.TrimSpace(first.Error), strings.TrimSpace(first.NextAction))
+	dedupeKey := "recovery-drill-failed:" + first.ID
+	correlation := map[string]any{"drill_id": first.ID, "plan_id": first.PlanID, "target_id": first.TargetID, "destination_id": first.DestinationID}
+	if first.Scheduled {
+		title = "Scheduled recovery drill failed"
+	}
+	if len(batch) > 1 {
+		allScheduled := true
+		planCounts := map[string]int{}
+		causeCounts := map[string]int{}
+		for _, drill := range batch {
+			allScheduled = allScheduled && drill.Scheduled
+			planCounts[drill.PlanID]++
+			cause := strings.TrimSpace(drill.Error)
+			if cause == "" {
+				cause = "no failure detail recorded"
+			}
+			causeCounts[cause]++
+		}
+		if allScheduled {
+			title = "Scheduled recovery drills failed"
+		} else {
+			title = "Recovery drills failed"
+		}
+		body = fmt.Sprintf("%d recovery drills failed across %d plans.", len(batch), len(planCounts))
+		causes := make([]string, 0, len(causeCounts))
+		for cause := range causeCounts {
+			causes = append(causes, cause)
+		}
+		sort.Strings(causes)
+		for i, cause := range causes {
+			if i == 8 {
+				body += fmt.Sprintf("\n- %d additional failure causes are in Data Backup Manager.", len(causes)-i)
+				break
+			}
+			body += fmt.Sprintf("\n- %d: %s", causeCounts[cause], cause)
+		}
+		if len(planCounts) == 1 {
+			for planID, count := range planCounts {
+				body += fmt.Sprintf("\nPlan %s has %d failed target/destination unit(s).", planID, count)
+			}
+		} else {
+			body += "\nThe failures span multiple plans."
+		}
+		body += "\nOpen Data Backup Manager's Drills page for each target, destination, and next action."
+		dedupeKey = fmt.Sprintf("recovery-drill-failure-batch:%s:%s", first.ID, batchThrough.Format(time.RFC3339Nano))
+		correlation = map[string]any{
+			"batch_id": first.ID, "failure_count": fmt.Sprint(len(batch)), "plan_count": fmt.Sprint(len(planCounts)),
+		}
+	}
+	return eventbus.DomainEvent{
+		Source:    "data-backup-manager",
+		EventType: "data_backup_manager.backup_health.notification.v1",
+		Occurred:  occurred,
+		Payload: map[string]any{
+			"title": title, "body": body, "category": "backup-recovery-needs-attention",
+			"urgency": "high", "sensitivity": "private",
+			"dedupe_key": dedupeKey, "correlation": correlation,
+		},
+	}
+}
+
+func (s *service) scheduleNotificationDispatch(after time.Duration) {
+	if after < time.Millisecond {
+		after = time.Millisecond
+	}
+	s.notificationTimerMu.Lock()
+	if s.notificationTimerClosed || s.notificationTimer != nil {
+		s.notificationTimerMu.Unlock()
+		return
+	}
+	s.notificationTimerWG.Add(1)
+	s.notificationTimer = time.AfterFunc(after, func() {
+		defer s.notificationTimerWG.Done()
+		s.notificationTimerMu.Lock()
+		s.notificationTimer = nil
+		s.notificationTimerMu.Unlock()
+		if err := s.dispatchPendingNotifications(s.ctx); err != nil {
+			s.deps.Logger.Printf("drills: dispatch batched failure notifications: %v", err)
+		}
+	})
+	s.notificationTimerMu.Unlock()
+}
+
+func (s *service) stopNotificationDispatch() {
+	s.notificationTimerMu.Lock()
+	s.notificationTimerClosed = true
+	if s.notificationTimer != nil {
+		if s.notificationTimer.Stop() {
+			s.notificationTimerWG.Done()
+		}
+		s.notificationTimer = nil
+	}
+	s.notificationTimerMu.Unlock()
 }
 
 func (s *service) Shutdown(ctx context.Context) error {
 	s.cancel()
+	s.stopNotificationDispatch()
 	done := make(chan struct{})
-	go func() { s.wg.Wait(); close(done) }()
+	go func() {
+		s.wg.Wait()
+		s.notificationTimerWG.Wait()
+		close(done)
+	}()
 	select {
 	case <-done:
 		return nil

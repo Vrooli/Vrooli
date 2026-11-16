@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"data-backup-manager/internal/engine"
+
+	"github.com/vrooli/api-core/operatordecision"
 )
 
 // RepoLocator maps a kopia repository name to its destination id and on-disk
@@ -175,7 +177,7 @@ func (u *UsageEngine) RepoStats(ctx context.Context, repo string) (engine.RepoSt
 	verdict := Evaluate(u.Scanner.fsys(), root, scan.Unreadable, exceptions)
 	if len(verdict.Blocking) > 0 {
 		return engine.RepoStats{}, fmt.Errorf("%w; %d unreadable repository entr%s not covered by an approved exception (first: %s)",
-			engineErr, len(verdict.Blocking), plural(len(verdict.Blocking), "y is", "ies are"), verdict.Blocking[0].RelPath)
+			engineErr, len(verdict.Blocking), operatordecision.Plural(len(verdict.Blocking), "y is", "ies are"), verdict.Blocking[0].RelPath)
 	}
 	if !failureNamesExcusedEntry(engineErr, verdict.Excused) {
 		return engine.RepoStats{}, engineErr
@@ -194,11 +196,4 @@ func failureNamesExcusedEntry(err error, excused []Entry) bool {
 		}
 	}
 	return false
-}
-
-func plural(n int, one, many string) string {
-	if n == 1 {
-		return one
-	}
-	return many
 }

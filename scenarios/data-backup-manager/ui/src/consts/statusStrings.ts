@@ -91,6 +91,7 @@ export const TRIGGER_STRINGS = {
   unknown: strings.status.trigger.unknown,
   scheduler: strings.status.trigger.scheduler,
   manual: strings.status.trigger.manual,
+  retry: strings.status.trigger.retry,
 } satisfies Record<TriggerSlug, StringKey>;
 
 export const DRIVE_CLASS_STRINGS = {

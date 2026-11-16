@@ -487,13 +487,12 @@ func TestDecisionIsPlainAndWithinTheHubLimits(t *testing.T) {
 	if facts.Recommended != OptAccept {
 		t.Fatalf("recommended = %s, want the skip option while evidence shows only leftover temp files", facts.Recommended)
 	}
-	visible := []string{facts.Subject, facts.Question, facts.RecommendationReason, facts.BigPicture}
-	for _, o := range facts.Options {
-		visible = append(visible, o.Label)
+	if problems := operatordecision.CoverProblems(facts); len(problems) > 0 {
+		t.Errorf("a cold reader cannot parse the cover: %v", problems)
 	}
-	for _, text := range visible {
-		if hexRun.MatchString(text) || strings.Contains(text, "7ebf6e6c") || strings.Contains(text, ".tmp.") || strings.Contains(text, "/media/") {
-			t.Errorf("operator-facing text leaks an identifier or path: %q", text)
+	for _, text := range []string{facts.Subject, facts.Question, facts.BigPicture} {
+		if strings.Contains(text, "7ebf6e6c") || strings.Contains(text, ".tmp.") {
+			t.Errorf("operator-facing text leaks a blob id or temp-file name: %q", text)
 		}
 	}
 	for _, want := range []string{"82 days", "13 unfinished temporary files", "13 of the 14", "19 Aug"} {
@@ -501,12 +500,28 @@ func TestDecisionIsPlainAndWithinTheHubLimits(t *testing.T) {
 			t.Errorf("the question omits %q:\n%s\n%s", want, facts.Subject, facts.Question)
 		}
 	}
+	if len(facts.Question) > 200 {
+		t.Errorf("question is %d bytes, want under 200 so the push alone answers it: %q", len(facts.Question), facts.Question)
+	}
 	wantKeys := []string{OptAccept, OptRepair, OptFresh, OptLeave}
 	for i, o := range facts.Options {
-		letter := string(rune('A' + i))
-		if o.Key != wantKeys[i] || !strings.HasPrefix(o.Label, letter+":") && !strings.HasPrefix(o.Label, letter+" (recommended):") {
-			t.Errorf("option %d = %+v, want key %s lettered %s", i, o, wantKeys[i], letter)
+		if o.Key != wantKeys[i] {
+			t.Errorf("option %d = %+v, want key %s", i, o, wantKeys[i])
 		}
+	}
+	page := facts.Explainer
+	for _, want := range []string{
+		"Backups to the Elements drive have been stopped for 82 days", "192 still listed", "13 of 14 items", "is-danger",
+		"codex/sessions", "claude-code/file-history", // what has no other copy
+		"Unfinished upload (not saved backup data)", "The drive returns a read error", ">13<", // what cannot be read
+		`data-od-answer="accept_exception"`, "I record an exception for each exact file", "Recommended", "If you do not answer:",
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("page is missing %q", want)
+		}
+	}
+	if hexRun.MatchString(page) || strings.Contains(page, "/media/") || len(page) > operatordecision.MaxExplainerBytes {
+		t.Errorf("page leaks an identifier or path, or is too large (%d bytes)", len(page))
 	}
 	if !strings.Contains(facts.Options[1].Label, "4 Nov did not clear this") {
 		t.Errorf("repair option must say the earlier repair did not clear it: %q", facts.Options[1].Label)
