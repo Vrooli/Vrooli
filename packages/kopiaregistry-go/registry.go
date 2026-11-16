@@ -19,9 +19,14 @@ import (
 )
 
 const (
-	BackendFilesystem = "filesystem"
-	BackendS3         = "s3"
-	PassphraseField   = "repository-passphrase"
+	registryVersion        = 1
+	BackendFilesystem      = "filesystem"
+	BackendS3              = "s3"
+	BackendSFTP            = "sftp"
+	PassphraseField        = "repository-passphrase"
+	S3AccessKeyIDField     = "s3-access-key-id"
+	S3SecretAccessKeyField = "s3-secret-access-key"
+	SFTPPrivateKeyField    = "sftp-private-key"
 )
 
 // Entry describes one registered repository. It contains no credential value.
@@ -36,6 +41,10 @@ type Entry struct {
 	Prefix     string `json:"prefix,omitempty"`
 	Region     string `json:"region,omitempty"`
 	DisableTLS bool   `json:"disable_tls,omitempty"`
+	Host       string `json:"host,omitempty"`
+	Port       int    `json:"port,omitempty"`
+	Username   string `json:"username,omitempty"`
+	KnownHosts string `json:"known_hosts,omitempty"`
 	CreatedAt  string `json:"created_at"`
 }
 
@@ -118,6 +127,9 @@ func (r *Registry) Load() ([]Entry, error) {
 	if err := json.Unmarshal(data, &shape); err != nil {
 		return nil, fmt.Errorf("parse registry %s: %w", r.Path, err)
 	}
+	if shape.Version != registryVersion {
+		return nil, fmt.Errorf("registry %s has unsupported version %d", r.Path, shape.Version)
+	}
 	sort.Slice(shape.Repos, func(i, j int) bool { return shape.Repos[i].Name < shape.Repos[j].Name })
 	return shape.Repos, nil
 }
@@ -189,7 +201,7 @@ func (r *Registry) save(entries []Entry) error {
 	if entries == nil {
 		entries = []Entry{}
 	}
-	data, err := json.MarshalIndent(fileShape{Version: 1, Repos: entries}, "", "  ")
+	data, err := json.MarshalIndent(fileShape{Version: registryVersion, Repos: entries}, "", "  ")
 	if err != nil {
 		return fmt.Errorf("encode registry: %w", err)
 	}

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/tool.schema.json",
   "name": "pnpm",
-  "description": "pnpm package manager — builds and installs scenario UI dependencies. Scenario lifecycle steps invoke `corepack pnpm … || pnpm …`; this tool guarantees the plain `pnpm` fallback exists on hosts where the system Node.js does not ship corepack shims (e.g. Homebrew node on macOS).",
+  "description": "Checksum-pinned standalone pnpm fallback for hosts without a Corepack pnpm shim.",
   "storage": {
     "entries": {
       "store": {
@@ -28,8 +28,9 @@
   "versionArgs": [
     "--version"
   ],
-  "installHint": "Installed as a pinned standalone binary into ~/.vrooli/bin (no sudo). Pinned to the workspace packageManager version in pnpm-workspace.yaml — bump both together.",
-  "notes": "Pinned to pnpm 10.19.0, matching the root pnpm-workspace.yaml packageManager field. Assets are the official standalone executables from the pnpm GitHub release (raw binaries, no archive). sha256 values were computed from downloaded assets; the linux/amd64 binary was executed and reports 10.19.0.",
+  "version": "10.34.9",
+  "installHint": "Installed as an exact, checksum-verified standalone release for the invoking user in ~/.vrooli/bin (no sudo).",
+  "notes": "The exact tool release, root pnpm-workspace.yaml manager pin, project packageManager selectors, and CI use the same patched pnpm 10 release. Scenario dependency lockfiles remain independently owned.",
   "bundling": "vendorable",
   "capability": "package-management",
   "capability_role": "primary",
@@ -41,8 +42,8 @@
           "os": "linux",
           "arch": "amd64"
         },
-        "url": "https://github.com/pnpm/pnpm/releases/download/v10.19.0/pnpm-linux-x64",
-        "sha256": "3685d25c7160ad65f00e26aa14f0a28667c3c5facdd8ad3fb5cb9651c8c2ca46",
+        "url": "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-linux-x64",
+        "sha256": "3ec79240658f0ee4e8977f21ee2c598c7a8b8d06b86dc564f2ec6cb099fd8ac2",
         "layout": "file"
       },
       {
@@ -50,8 +51,8 @@
           "os": "linux",
           "arch": "arm64"
         },
-        "url": "https://github.com/pnpm/pnpm/releases/download/v10.19.0/pnpm-linux-arm64",
-        "sha256": "e5f28a9894b8ca58d063cfa8e5fbb34ee732729a6f1b267c487185df9868f32c",
+        "url": "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-linux-arm64",
+        "sha256": "85abd31b96964e6510cecb3b366ba024287191e0ee5978e5a9e2d3beb4a377d1",
         "layout": "file"
       },
       {
@@ -59,8 +60,8 @@
           "os": "darwin",
           "arch": "amd64"
         },
-        "url": "https://github.com/pnpm/pnpm/releases/download/v10.19.0/pnpm-macos-x64",
-        "sha256": "217fef90d723def5f18185cba9801f11907c1fdc3b9cda339314770d69646c8e",
+        "url": "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-macos-x64",
+        "sha256": "58b35a997d2d5167ef60e24b6ac0d71b76a5e1a4b3346cb1075b1dface50bd32",
         "layout": "file"
       },
       {
@@ -68,8 +69,8 @@
           "os": "darwin",
           "arch": "arm64"
         },
-        "url": "https://github.com/pnpm/pnpm/releases/download/v10.19.0/pnpm-macos-arm64",
-        "sha256": "41fc22ab28eab1031df380e68b37f98a465a39de81b4830c7411be20df0c6f5f",
+        "url": "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-macos-arm64",
+        "sha256": "984b2f4316de371dc314243649e5f9ea392195d541dedbfdb990dc24d6c6e1a2",
         "layout": "file"
       },
       {
@@ -77,8 +78,17 @@
           "os": "windows",
           "arch": "amd64"
         },
-        "url": "https://github.com/pnpm/pnpm/releases/download/v10.19.0/pnpm-win-x64.exe",
-        "sha256": "ed01f887a2752bce1ea975d76d4e5c23661799bfc9208fc5be5be9a7ec057c82",
+        "url": "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-win-x64.exe",
+        "sha256": "e0af8d34dd5319f7e9a6c9838779e7e85caf9cfdedf99a7a4106aa1fdcf16d5c",
+        "layout": "file"
+      },
+      {
+        "when": {
+          "os": "windows",
+          "arch": "arm64"
+        },
+        "url": "https://github.com/pnpm/pnpm/releases/download/v10.34.9/pnpm-win-arm64.exe",
+        "sha256": "ccd563e734c0609c7b8c5b0166eb378d257c47a8dbf863b624f481468c1e0a96",
         "layout": "file"
       }
     ]

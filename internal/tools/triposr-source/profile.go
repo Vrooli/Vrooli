@@ -23,12 +23,16 @@ import (
 )
 
 const (
-	ToolName            = "triposr-source"
-	Commit              = "107cefdc244c39106fa830359024f6a2f1c78871"
-	ArchiveURL          = "https://codeload.github.com/VAST-AI-Research/TripoSR/tar.gz/107cefdc244c39106fa830359024f6a2f1c78871"
-	ArchiveSHA256       = "bcb414550dcfcb9f5ea6a7b9c12f2bbff889f5b4a564a493178393360d9034ec"
-	ArchiveBytes  int64 = 31241354
-	ArchiveRoot         = "TripoSR-107cefdc244c39106fa830359024f6a2f1c78871"
+	sourceProfileFile          = "source-profile.json"
+	sourceProfileLicense       = "MIT"
+	sourceProfileSchema        = 1
+	adapterProfileSchema       = 2
+	ToolName                   = "triposr-source"
+	Commit                     = "107cefdc244c39106fa830359024f6a2f1c78871"
+	ArchiveURL                 = "https://codeload.github.com/VAST-AI-Research/TripoSR/tar.gz/107cefdc244c39106fa830359024f6a2f1c78871"
+	ArchiveSHA256              = "bcb414550dcfcb9f5ea6a7b9c12f2bbff889f5b4a564a493178393360d9034ec"
+	ArchiveBytes         int64 = 31241354
+	ArchiveRoot                = "TripoSR-107cefdc244c39106fa830359024f6a2f1c78871"
 )
 
 type Receipt struct {
@@ -89,14 +93,14 @@ func SelectedInstallation(ctx context.Context) (string, Receipt, error) {
 		return "", Receipt{}, errors.New("TripoSR source tree is not recorded as runtime-owned")
 	}
 	var receipt Receipt
-	b, err := os.ReadFile(filepath.Join(root, "source-profile.json"))
+	b, err := os.ReadFile(filepath.Join(root, sourceProfileFile))
 	if err != nil {
 		return "", Receipt{}, err
 	}
 	if err := json.Unmarshal(b, &receipt); err != nil {
 		return "", Receipt{}, err
 	}
-	if receipt.Schema != 2 || receipt.Commit != Commit || receipt.ArchiveSHA256 != ArchiveSHA256 || receipt.ArchiveBytes != ArchiveBytes || receipt.License != "MIT" || receipt.Adapter != AdapterVersion {
+	if receipt.Schema != adapterProfileSchema || receipt.Commit != Commit || receipt.ArchiveSHA256 != ArchiveSHA256 || receipt.ArchiveBytes != ArchiveBytes || receipt.License != sourceProfileLicense || receipt.Adapter != AdapterVersion {
 		return "", Receipt{}, errors.New("TripoSR source profile adapter is missing or stale; run `vrooli host install triposr-source`")
 	}
 	tree := filepath.Join(root, "adapter", "source")
@@ -123,10 +127,10 @@ func installAdapterLocked(ctx context.Context, root string, receipt Receipt) (Re
 	if err != nil {
 		return Receipt{}, err
 	}
-	if receipt.Commit != Commit || receipt.ArchiveSHA256 != ArchiveSHA256 || receipt.License != "MIT" {
+	if receipt.Commit != Commit || receipt.ArchiveSHA256 != ArchiveSHA256 || receipt.License != sourceProfileLicense {
 		return Receipt{}, errors.New("upstream source identity differs from pinned adapter")
 	}
-	if receipt.Schema == 2 {
+	if receipt.Schema == adapterProfileSchema {
 		adapted := filepath.Join(root, "adapter", "source")
 		digest, e := binaryfetch.TreeDigestContext(ctx, adapted)
 		if e == nil && digest == receipt.AdapterTreeSHA256 && upstreamDigest == receipt.UpstreamTreeSHA256 && receipt.Adapter == AdapterVersion {
@@ -156,12 +160,12 @@ func installAdapterLocked(ctx context.Context, root string, receipt Receipt) (Re
 		if err = os.Rename(filepath.Join(root, "adapter"), quarantine); err != nil {
 			return Receipt{}, err
 		}
-		receipt.Schema = 1
+		receipt.Schema = sourceProfileSchema
 		receipt.Adapter = ""
 		receipt.AdapterTreeSHA256 = ""
 		receipt.TreeSHA256 = upstreamDigest
 	}
-	if receipt.Schema != 1 || upstreamDigest != receipt.TreeSHA256 {
+	if receipt.Schema != sourceProfileSchema || upstreamDigest != receipt.TreeSHA256 {
 		return Receipt{}, errors.New("unrecognized or modified upstream TripoSR source profile")
 	}
 	stage := filepath.Join(root, ".adapter-stage")
@@ -183,7 +187,7 @@ func installAdapterLocked(ctx context.Context, root string, receipt Receipt) (Re
 		_ = os.RemoveAll(stage)
 		return Receipt{}, err
 	}
-	receipt.Schema = 2
+	receipt.Schema = adapterProfileSchema
 	receipt.Adapter = AdapterVersion
 	receipt.UpstreamTreeSHA256 = upstreamDigest
 	receipt.AdapterTreeSHA256 = digest
@@ -192,7 +196,7 @@ func installAdapterLocked(ctx context.Context, root string, receipt Receipt) (Re
 	if err != nil {
 		return Receipt{}, err
 	}
-	if err = writeAtomic(filepath.Join(root, "source-profile.json"), b, 0600); err != nil {
+	if err = writeAtomic(filepath.Join(root, sourceProfileFile), b, 0600); err != nil {
 		return Receipt{}, err
 	}
 	return receipt, nil
@@ -256,7 +260,7 @@ func Provision(ctx context.Context) (string, error) {
 			return "", errors.New("existing TripoSR source profile is not recorded as runtime-owned")
 		}
 		var receipt Receipt
-		b, readErr := os.ReadFile(filepath.Join(root, "source-profile.json"))
+		b, readErr := os.ReadFile(filepath.Join(root, sourceProfileFile))
 		if readErr != nil {
 			return "", readErr
 		}
@@ -289,7 +293,7 @@ func Provision(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	r := Receipt{Schema: 1, Commit: Commit, ArchiveSHA256: ArchiveSHA256, ArchiveBytes: ArchiveBytes, TreeSHA256: digest, License: "MIT"}
+	r := Receipt{Schema: sourceProfileSchema, Commit: Commit, ArchiveSHA256: ArchiveSHA256, ArchiveBytes: ArchiveBytes, TreeSHA256: digest, License: sourceProfileLicense}
 	if _, err = os.Stat(filepath.Join(source, "LICENSE")); err != nil {
 		return "", errors.New("pinned TripoSR source archive is missing its MIT license file")
 	}
@@ -300,7 +304,7 @@ func Provision(ctx context.Context) (string, error) {
 		return "", err
 	}
 	b, _ := json.MarshalIndent(r, "", "  ")
-	if err = os.WriteFile(filepath.Join(candidate, "source-profile.json"), b, 0600); err != nil {
+	if err = os.WriteFile(filepath.Join(candidate, sourceProfileFile), b, 0600); err != nil {
 		return "", err
 	}
 	if r, err = installAdapterLocked(ctx, candidate, r); err != nil {

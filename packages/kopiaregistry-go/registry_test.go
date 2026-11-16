@@ -38,3 +38,21 @@ func TestRegistryRoundTripContainsNoPassphrase(t *testing.T) {
 		t.Fatal("registry contains the credential field")
 	}
 }
+
+func TestRegistryRefusesUnknownVersionWithoutOverwriting(t *testing.T) {
+	path := t.TempDir() + "/registry.json"
+	original := []byte(`{"version":2,"repos":[{"name":"existing","future_field":"keep"}]}`)
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	registry := New(path)
+	if _, err := registry.Load(); err == nil {
+		t.Fatal("unknown version was accepted")
+	}
+	if err := registry.Upsert(Entry{Name: "new"}); err == nil {
+		t.Fatal("unknown version was overwritten")
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != string(original) {
+		t.Fatalf("registry changed: %q, %v", got, err)
+	}
+}

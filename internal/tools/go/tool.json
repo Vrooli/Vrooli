@@ -9,15 +9,19 @@
         "path": "$USER_CACHE_DIR/go-build",
         "kind": "dir",
         "regenerable": true,
+        "reclaim": {
+          "pruner": "custom",
+          "command": "vrooli host go-cache"
+        },
         "relocation": {
           "key": "GOCACHE",
           "scope": "process-tree"
         },
         "budget": {
-          "max_bytes": "182584MiB",
-          "rationale": "Measured at 95726583590 bytes on 2026-08-03; ceiling is two times observed size."
+          "max_bytes": "40GiB",
+          "rationale": "Owner reclaim trims least-recently-used entries down to this size. On 2026-11-14 the cache held 125 GiB, all used within three days (about 40 to 60 GiB of new entries a day), so 40 GiB keeps roughly the last day of builds warm."
         },
-        "rationale": "Rebuildable compiler cache."
+        "rationale": "Rebuildable compiler cache. It is reclaimed only by its owner, `vrooli host go-cache`, through the build-cache protocol (internal/gocache): every go command reaches the store through the vrooli-gocacheprog GOCACHEPROG helper, which pins the outputs it hands out, and reclaim deletes only unpinned, idle entries after auditing that no go command uses the store outside the protocol."
       },
       "module_cache": {
         "rung": "relocatable",

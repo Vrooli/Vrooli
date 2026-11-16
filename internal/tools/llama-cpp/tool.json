@@ -13,15 +13,43 @@
   "versionArgs": [
     "--version"
   ],
-  "manual": true,
-  "installHint": "Build or install llama.cpp and place llama-mtmd-cli (or llama-cli) on PATH or in ~/.vrooli/bin; see https://github.com/ggml-org/llama.cpp. No stable single-binary release is pinned, so it is not auto-fetched.",
+  "installHint": "Installs the official pinned llama.cpp b12224 CPU bundle for Linux amd64 into ~/.vrooli/opt/llama-cpp with a launcher in ~/.vrooli/bin. The upstream multimodal CLI is experimental; caption inference remains unqualified until exercised with the selected model.",
+  "notes": "Pinned to the official ggml-org/llama.cpp b12224 release artifact. The inspected Linux amd64 archive contains both llama-mtmd-cli and llama-cli plus their sibling shared libraries. SHA-256 is pinned from the GitHub release asset digest; archive members and both --version probes were checked locally. This prerelease is an experimental caption runtime, not a production-readiness claim.",
   "bundling": "host-required",
-  "capability": "gpu-driver-health",
+  "capability": "media-processing",
   "capability_role": "primary",
+  "acquisition": {
+    "kind": "url",
+    "targets": [
+      {
+        "when": {
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "url": "https://github.com/ggml-org/llama.cpp/releases/download/b12224/llama-b12224-bin-ubuntu-x64.tar.gz",
+        "sha256": "e3f9e11e61b8bcecccc4b7522d131cc6d3ec18fc3f31f6caa58ddda63801bbd5",
+        "archive": "tar.gz",
+        "layout": "dir",
+        "bin_path": "llama-b12224/llama-mtmd-cli"
+      },
+      {
+        "when": { "os": "linux", "arch": "arm64" },
+        "unsupported": "No Linux arm64 archive was inspected for both caption commands and runtime compatibility; this platform remains unqualified."
+      },
+      {
+        "when": { "os": "darwin" },
+        "unsupported": "No macOS archive was inspected for both caption commands and runtime compatibility; this platform remains unqualified."
+      },
+      {
+        "when": { "os": "windows" },
+        "unsupported": "No Windows archive was inspected for both caption commands and runtime compatibility; this platform remains unqualified."
+      }
+    ]
+  },
   "platform_status": {
     "linux": {
-      "status": "unqualified",
-      "evidence": null
+      "status": "experimental",
+      "evidence": "Official b12224 Linux amd64 archive checksum, member list, both CLI --version probes, and dynamic library resolution were verified on this host; no caption-model inference or other Linux architecture is qualified."
     },
     "macos": {
       "status": "unqualified",

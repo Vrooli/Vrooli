@@ -17,6 +17,7 @@
 package credentialauthority
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -36,6 +37,12 @@ type (
 )
 
 var ParseIdentity = internalcredentialauthority.ParseIdentity
+
+// AcquireCloudflareConnectorLock serializes managed connector launch with
+// authority-backed connector mutation across cooperating processes.
+func AcquireCloudflareConnectorLock(ctx context.Context) (func(), error) {
+	return internalcredentialauthority.AcquireCloudflareConnectorLock(ctx)
+}
 
 var (
 	InspectRecovery                  = internalcredentialauthority.InspectRecovery
