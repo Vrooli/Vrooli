@@ -335,7 +335,7 @@ func TestExecProvider_ONNXRuntimeAvailabilityReportsProviderProbeFailure(t *test
 func TestExecProvider_ONNXRuntimeProviderDetailReportsCUDAAvailable(t *testing.T) {
 	p := &execProvider{backendProcess: backendProcess{program: "python3", imports: []string{"onnxruntime", "PIL", "numpy"}}}
 	detail := p.onnxRuntimeProviderDetail("/usr/bin/python3", []string{"CUDAExecutionProvider", "CPUExecutionProvider"})
-	if !strings.Contains(detail, "CUDAExecutionProvider available") {
+	if !strings.Contains(detail, "CUDAExecutionProvider available; GPU-capable operations require explicit per-job CUDA admission") || strings.Contains(detail, "remains CPU-labeled") {
 		t.Fatalf("detail should report CUDA availability: %q", detail)
 	}
 }
@@ -502,6 +502,9 @@ func TestLlamaCppProvider_AvailabilityAndExecute(t *testing.T) {
 	}
 	if !provider.Available(context.Background()) {
 		t.Fatalf("provider should be available when llama-mtmd-cli resolves")
+	}
+	if provider.GPUCapable() {
+		t.Fatal("the pinned llama-cpp host-tool bundle is CPU-only and must not claim GPU capability")
 	}
 	req := backends.Request{
 		Operation: "caption",

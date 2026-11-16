@@ -184,7 +184,7 @@ func TestCapacity_GrantKeepsGPU(t *testing.T) {
 	if !strings.HasPrefix(broker.claimedFor, "image-tools:") {
 		t.Errorf("owner id %q should be scoped image-tools:<job>", broker.claimedFor)
 	}
-	if broker.claimedPref != modelVRAMClaimBytes(models.Model{Hardware: models.Hardware{MinVRAMGB: 2}}) {
+	if broker.claimedPref != modelVRAMClaimBytes(models.Model{Hardware: models.Hardware{MinVRAMGB: 6}}) {
 		t.Errorf("preferred bytes = %d, want selected model VRAM requirement", broker.claimedPref)
 	}
 	if broker.released != "clm-test" {

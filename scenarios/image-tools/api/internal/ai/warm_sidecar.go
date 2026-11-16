@@ -35,6 +35,7 @@ type warmSidecarRunner struct {
 	activity      uint64
 	resident      *leaseGroup
 	residentModel string
+	residentMeta  map[string]string
 	residencyID   string
 }
 
@@ -47,9 +48,10 @@ type warmRequest struct {
 }
 
 type warmResponse struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
-	Trace string `json:"trace,omitempty"`
+	OK    bool              `json:"ok"`
+	Error string            `json:"error,omitempty"`
+	Trace string            `json:"trace,omitempty"`
+	Meta  map[string]string `json:"meta,omitempty"`
 }
 
 func (r *warmSidecarRunner) Run(ctx context.Context, program string, args []string) error {
@@ -98,6 +100,11 @@ func (r *warmSidecarRunner) Run(ctx context.Context, program string, args []stri
 			done <- fmt.Errorf("%s", resp.Error)
 			return
 		}
+		if meta, _ := ctx.Value(workerResidencyMetadataKey{}).(map[string]string); meta != nil {
+			for key, value := range resp.Meta {
+				meta["inference_"+key] = value
+			}
+		}
 		done <- nil
 	}()
 
@@ -138,6 +145,15 @@ func (r *warmSidecarRunner) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.stopLocked()
+}
+
+func (r *warmSidecarRunner) hasResidency(id string) bool {
+	if id == "" {
+		return false
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.resident != nil && r.resident.ctx.Err() == nil && r.residencyID == id
 }
 
 func (r *warmSidecarRunner) ensureStarted(ctx context.Context, program string) error {
@@ -201,7 +217,7 @@ func (r *warmSidecarRunner) stopLocked() error {
 		if releaseErr != nil {
 			return fmt.Errorf("release warm model residency: %w", releaseErr)
 		}
-		r.resident, r.residentModel, r.residencyID = nil, "", ""
+		r.resident, r.residentModel, r.residencyID, r.residentMeta = nil, "", "", nil
 	}
 	return err
 }
@@ -263,6 +279,16 @@ func (r *warmSidecarRunner) reserve(ctx context.Context, model, jobID string, ac
 		}
 		r.resident, r.residentModel = resident, model
 		r.residencyID = "image-tools-worker-residency:" + jobID
+		r.residentMeta = map[string]string{}
+		for _, key := range []string{"gpu_capacity_claim_id", "gpu_uuid", "gpu_capacity_policy"} {
+			if value := resultMeta[key]; value != "" {
+				r.residentMeta[key] = value
+			}
+		}
+	} else if resultMeta != nil {
+		for key, value := range r.residentMeta {
+			resultMeta[key] = value
+		}
 	}
 	residencyID := r.residencyID
 	residentCtx := r.resident.ctx
@@ -361,6 +387,20 @@ func (r *warmSidecarRunner) recordResidencyPeakRSSLocked(ctx context.Context) {
 	meta[workerResidencyPeakRSSSourceKey] = workerResidencyPeakRSSLinuxSource
 	meta[workerResidencyPeakRSSStatusKey] = "measured"
 	delete(meta, workerResidencyPeakRSSReasonKey)
+}
+
+func workerInferenceMetadata(ctx context.Context) map[string]string {
+	residency, _ := ctx.Value(workerResidencyMetadataKey{}).(map[string]string)
+	if len(residency) == 0 {
+		return nil
+	}
+	metrics := make(map[string]string)
+	for key, value := range residency {
+		if strings.HasPrefix(key, "inference_") {
+			metrics[key] = value
+		}
+	}
+	return metrics
 }
 
 // workerResidencyPeakRSSBytes reads Linux VmHWM for the exact warm worker PID.

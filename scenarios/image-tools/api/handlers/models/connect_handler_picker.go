@@ -83,9 +83,11 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	// flag + reason). A selection error (nothing runnable) leaves it empty.
 	selectedID, selectedReason := "", ""
 	if sel, serr := registry.Select(internalmodels.SelectRequest{
-		Operation: op,
-		Host:      host,
-		ForceCPU:  req.Msg.GetForceCpu(),
+		Operation:       op,
+		Host:            host,
+		ForceCPU:        req.Msg.GetForceCpu(),
+		RightsEvaluator: h.deps.RightsEvaluator,
+		Context:         ctx,
 	}, registry.EnabledWithOverlay(overlay)); serr == nil {
 		selectedID, selectedReason = sel.Model.ID, sel.Reason
 	}
@@ -187,7 +189,7 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 		}
 		adapterEnabled = fn
 	}
-	res, err := internalresolver.New(h.deps.Registry, h.deps.Backends).Resolve(ctx, internalresolver.Request{
+	res, err := internalresolver.New(h.deps.Registry, h.deps.Backends, h.deps.RightsEvaluator).Resolve(ctx, internalresolver.Request{
 		Operation:        op,
 		ModelOverride:    override,
 		Host:             host,

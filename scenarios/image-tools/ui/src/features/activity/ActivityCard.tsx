@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
 import { Cloud, Cpu, Layers, ListOrdered } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
@@ -86,8 +87,8 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
         />
       ) : null}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span data-testid={selectors.jobs.operation} className="truncate font-medium text-app-foreground">
+        <div className="flex flex-wrap items-center gap-2">
+          <span data-testid={selectors.jobs.operation} className="min-w-0 max-w-full flex-1 truncate font-medium text-app-foreground">
             {label}
           </span>
           <span
@@ -120,11 +121,10 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
         ) : null}
         {estimate ? (
           <p data-testid={selectors.jobs.estimate} className="mt-1 text-xs text-app-muted-foreground">
-            {estimate.kind === "unavailable"
-              ? t(strings.jobs.estimate.unavailable)
-              : t(strings.jobs.estimate[estimate.kind], {
-                  duration: formatDuration(estimate.seconds, t),
-                })}
+            {estimate.kind === "unavailable" ? t(strings.jobs.estimate.unavailable) : null}
+            {estimate.kind === "queued" ? t(strings.jobs.estimate.queued, { duration: formatDuration(estimate.seconds, t) }) : null}
+            {estimate.kind === "running" ? t(strings.jobs.estimate.running, { duration: formatDuration(estimate.seconds, t) }) : null}
+            {estimate.kind === "overdue" ? t(strings.jobs.estimate.overdue, { duration: formatDuration(estimate.seconds, t) }) : null}
           </p>
         ) : null}
         {message ? (
@@ -255,11 +255,6 @@ export function ActivityCard() {
           ))}
         </ul>
       ) : null}
-      {cancelJobMutation.error ? (
-        <p data-testid={selectors.activity.error} className="text-app-danger">
-          {errorMessage(cancelJobMutation.error, t)}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -272,7 +267,7 @@ function jobEstimate(job: Job, state: JobState, now: number): JobEstimate | null
   if (![JobState.QUEUED, JobState.ADMITTING, JobState.RUNNING].includes(state)) {
     return null;
   }
-  const estimateSeconds = Number(job.estimatedSeconds);
+  const estimateSeconds = job.estimatedSeconds;
   if (!Number.isFinite(estimateSeconds) || estimateSeconds <= 0) {
     return { kind: "unavailable" };
   }
@@ -295,7 +290,7 @@ function jobEstimate(job: Job, state: JobState, now: number): JobEstimate | null
     : { kind: "overdue", seconds: estimateSeconds };
 }
 
-function formatDuration(seconds: number, t: ReturnType<typeof useTranslation>["t"]): string {
+function formatDuration(seconds: number, t: TFunction): string {
   if (seconds < 60) return t(strings.jobs.estimate.seconds, { count: Math.max(1, Math.ceil(seconds)) });
   const minutes = Math.ceil(seconds / 60);
   if (minutes < 60) return t(strings.jobs.estimate.minutes, { count: minutes });

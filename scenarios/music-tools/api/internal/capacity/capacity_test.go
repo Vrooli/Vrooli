@@ -2,6 +2,7 @@ package capacity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,16 @@ type fakeBroker struct {
 func (f *fakeBroker) Claim(_ context.Context, owner string, _, _ uint64) (Verdict, error) {
 	f.claims = append(f.claims, owner)
 	return f.verdict, nil
+}
+
+type cancelDuringClaimBroker struct {
+	fakeBroker
+	cancel context.CancelFunc
+}
+
+func (f *cancelDuringClaimBroker) Claim(ctx context.Context, owner string, preferred, floor uint64) (Verdict, error) {
+	f.cancel()
+	return f.fakeBroker.Claim(ctx, owner, preferred, floor)
 }
 
 func (f *fakeBroker) Release(_ context.Context, ref ClaimRef) error {
@@ -45,6 +56,21 @@ func TestAdmitReleasesClaimAndReturnsRung(t *testing.T) {
 	release()
 	if len(fake.releases) != 1 || fake.releases[0] != (ClaimRef{ClaimID: "claim-1", Generation: 11}) {
 		t.Fatalf("releases=%v", fake.releases)
+	}
+}
+
+func TestAdmitReleasesClaimCommittedAlongsideJobCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	broker := &cancelDuringClaimBroker{
+		fakeBroker: fakeBroker{verdict: Verdict{Generation: 11, ClaimID: "claim-raced", Granted: true, AppliedRung: "full"}},
+		cancel:     cancel,
+	}
+	release, meta, err := Admit(ctx, func(error) {}, broker, "job-canceled", 7, 6)
+	if !errors.Is(err, context.Canceled) || release != nil || meta != nil {
+		t.Fatalf("canceled admission: release=%v meta=%v err=%v", release != nil, meta, err)
+	}
+	if len(broker.releases) != 1 || broker.releases[0] != (ClaimRef{ClaimID: "claim-raced", Generation: 11}) {
+		t.Fatalf("canceled claim releases=%v", broker.releases)
 	}
 }
 
@@ -303,6 +329,31 @@ func TestMaintainedLeaseNeverSubstitutesIdentityAndReleasesOnce(t *testing.T) {
 	}
 	if ctx.Err() != nil {
 		t.Fatalf("valid heartbeats canceled work: %v", context.Cause(ctx))
+	}
+}
+
+type deadlineReleaseBroker struct{ deadline time.Time }
+
+func (b *deadlineReleaseBroker) Claim(context.Context, string, uint64, uint64) (Verdict, error) {
+	return Verdict{}, nil
+}
+func (b *deadlineReleaseBroker) Heartbeat(context.Context, ClaimRef) error { return nil }
+func (b *deadlineReleaseBroker) Release(ctx context.Context, _ ClaimRef) error {
+	b.deadline, _ = ctx.Deadline()
+	return nil
+}
+
+func TestMaintainedLeaseBoundsDetachedRelease(t *testing.T) {
+	broker := &deadlineReleaseBroker{}
+	ctx, cancel := context.WithCancelCause(context.Background())
+	defer cancel(nil)
+	release := maintain(ctx, cancel, broker, ClaimRef{ClaimID: "owned", Generation: 11}, time.Hour)
+	release()
+	if broker.deadline.IsZero() {
+		t.Fatal("capacity release must have a deadline independent of the completed job context")
+	}
+	if remaining := time.Until(broker.deadline); remaining > 5*time.Second {
+		t.Fatalf("capacity release deadline exceeds owner bound: %s", remaining)
 	}
 }
 

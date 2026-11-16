@@ -4,7 +4,6 @@ The evidence behind every model choice: identifier, disk cost, VRAM, licence, an
 commercial-use lane. [`../internal/DECISIONS.md`](../internal/DECISIONS.md) records
 what was decided; this document records what it was decided *from*.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

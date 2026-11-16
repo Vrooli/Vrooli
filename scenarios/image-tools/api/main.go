@@ -37,6 +37,7 @@ import (
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/pyenv-go"
 
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
@@ -561,9 +562,9 @@ func main() {
 
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
-	// The model-rights adapter is an explicit engine-constructor dependency.
-	// SDA admission for ai-provider-go is currently below the host disk
-	// reserve, so nil is fail-closed until the canonical adapter can be passed.
+	// The shared policy evaluator reads the canonical operator-owned business
+	// context on every evaluation, including execution-time rechecks.
+	rightsEvaluator := internalmodels.AdaptRightsEvaluator(sharedpolicy.NewDefaultRightsEvaluator(os.Getenv))
 	aiEngine, err := internalai.NewEngineWithRightsEvaluator(internalai.Deps{
 		Registry:              registry,
 		Backends:              backendReg,
@@ -588,7 +589,7 @@ func main() {
 		Memory:                internalai.AcquireLocalRAM,
 		CPU:                   internalai.AcquireLocalCPU,
 		Logger:                log.Default(),
-	}, nil)
+	}, rightsEvaluator)
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
 	}
@@ -656,7 +657,7 @@ func main() {
 			ByID:      adapterByID,
 			Enabled:   adapterEnabled,
 			Installed: adapterInstalled,
-		}, log.Default()),
+		}, rightsEvaluator, log.Default()),
 		opsH.Module(blobStore, jobManager, imageCapacity, log.Default()),
 		safetyH.Module(deployTier),
 		selectionH.Module(blobStore, jobManager, log.Default()),

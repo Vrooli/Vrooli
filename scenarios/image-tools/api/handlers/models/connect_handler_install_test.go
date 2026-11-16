@@ -83,12 +83,13 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 	}
 	sub := &fakeSubmitter{}
 	h := NewConnectHandler(Deps{
-		Registry:   reg,
-		Store:      internalmodels.NewStore(d),
-		Probe:      capabilities.FakeProbe{Host: cpuOnlyHost},
-		Installer:  installer,
-		Jobs:       sub,
-		OpDefaults: internalmodels.NewOpDefaultStore(d),
+		Registry:        reg,
+		Store:           internalmodels.NewStore(d),
+		Probe:           capabilities.FakeProbe{Host: cpuOnlyHost},
+		Installer:       installer,
+		Jobs:            sub,
+		OpDefaults:      internalmodels.NewOpDefaultStore(d),
+		RightsEvaluator: allowRightsForHandlerTest,
 	})
 	return h, installer, sub
 }

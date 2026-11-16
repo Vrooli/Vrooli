@@ -180,6 +180,72 @@ func TestExecutionTimeoutFailsInsteadOfReportingUserCancellation(t *testing.T) {
 	}
 }
 
+func TestHeavyJobSnapshotTracksLiveWaitAndWatchConsumers(t *testing.T) {
+	started := make(chan struct{})
+	finish := make(chan struct{})
+	m := startManager(t, Config{Runner: func(ctx context.Context, _ Job, _ func(int, string)) (Result, error) {
+		close(started)
+		select {
+		case <-finish:
+			return Result{}, nil
+		case <-ctx.Done():
+			return Result{}, ctx.Err()
+		}
+	}})
+	job, err := m.Submit(context.Background(), Spec{Operation: "text_to_image", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("heavy job did not start")
+	}
+
+	snapshot := m.HeavyJobSnapshot(context.Background())
+	if !snapshot.Complete || len(snapshot.Jobs) != 1 || snapshot.Jobs[0].JobID != job.ID || snapshot.Jobs[0].OwnerID != "image-tools" || snapshot.Jobs[0].WaiterCount != 0 {
+		t.Fatalf("initial owner snapshot = %+v", snapshot)
+	}
+
+	waitCtx, cancelWait := context.WithCancel(context.Background())
+	waitDone := make(chan struct{})
+	go func() { defer close(waitDone); _, _ = m.Wait(waitCtx, job.ID) }()
+	watch, unsubscribe, err := m.Subscribe(job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if watch == nil {
+		t.Fatal("watch channel is nil")
+	}
+	waitForWaiterCount(t, m, job.ID, 2)
+	cancelWait()
+	select {
+	case <-waitDone:
+	case <-time.After(time.Second):
+		t.Fatal("canceled waiter did not return")
+	}
+	unsubscribe()
+	waitForWaiterCount(t, m, job.ID, 0)
+	close(finish)
+	if final, err := m.Wait(context.Background(), job.ID); err != nil || final.State != StateSucceeded {
+		t.Fatalf("job outcome after waiters left = %+v, %v", final, err)
+	}
+}
+
+func waitForWaiterCount(t *testing.T, m *Manager, id string, want int) {
+	t.Helper()
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		for _, job := range m.HeavyJobSnapshot(context.Background()).Jobs {
+			if job.JobID == id && job.WaiterCount == want {
+				return
+			}
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatalf("waiter count did not reach %d: %+v", want, m.HeavyJobSnapshot(context.Background()))
+}
+
 func TestClientOperationIDSurvivesManagerRestart(t *testing.T) {
 	db := newJobsDB(t)
 	cfg := Config{Runner: func(context.Context, Job, func(int, string)) (Result, error) {

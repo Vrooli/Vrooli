@@ -2,7 +2,6 @@
 
 Sensitivity, trust boundaries, and the controls that hold them.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

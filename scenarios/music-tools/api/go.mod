@@ -26,6 +26,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
+	github.com/vrooli/ai-provider-go v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
@@ -55,3 +56,5 @@ replace github.com/vrooli/platform-go => ../../../packages/platform-go
 replace github.com/vrooli/binaryfetch => ../../../packages/binaryfetch
 
 replace github.com/vrooli/vrooli => ../../..
+
+replace github.com/vrooli/ai-provider-go => ../../../packages/ai-provider-go

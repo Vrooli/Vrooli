@@ -1,0 +1,244 @@
+{
+  "bundling": "host-required",
+  "cli": {
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "command": "resource-music-mir",
+    "distribution": {
+      "artifact_name": "resource-music-mir_${os}_${arch}",
+      "kind": "prebuilt_artifact"
+    },
+    "enabled": true,
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "server/**",
+        "requirements.in",
+        "requirements.lock",
+        "server/model-lock.json",
+        "resource.json",
+        "README.md"
+      ]
+    },
+    "invoke": {
+      "command": "resource-music-mir",
+      "kind": "installed_command"
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "description": "Local-first, capacity-admitted audio analysis and source separation for Music Tools; outputs stay private and preserve provenance and competing estimates.",
+  "display_name": "Music MIR",
+  "driver": "managed-service",
+  "managed_service": {
+    "artifact": {
+      "path": "server/music-mir",
+      "version": "0.1.0",
+      "layout": "dir",
+      "entry_path": "runtime/bin/python",
+      "sha256_by_platform": {"linux-amd64": "17b25a7f5393a0286598ba2ed9df70d733d17c0cff8b54a1b9109a9514ea6fa3"},
+      "bundle_artifact": "resource-music-mir_${os}_${arch}"
+    },
+    "provider_policy": {
+      "allowed_modes": [
+        "managed-private",
+        "attach-only",
+        "remote-vrooli"
+      ],
+      "external_management": "forbidden",
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "shared_reuse_requires_consent": true,
+      "external_access_capabilities": [
+        "read-only",
+        "read-write"
+      ]
+    },
+    "attach_health_path": "/health",
+    "provenance_class": "upstream-digest",
+    "acquisition": {
+      "kind": "composed",
+      "license": "CPython PSF-2.0; MSST code MIT; selected SubRoformer checkpoint license not stated by its model card and limited to local personal analysis. Dependency license inventory is pending the governed resource lock.",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "layout": "dir",
+          "artifact_sha256": "17b25a7f5393a0286598ba2ed9df70d733d17c0cff8b54a1b9109a9514ea6fa3",
+          "compose": [
+            {
+              "role": "runtime",
+              "kind": "url",
+              "dest": "runtime",
+              "bin_path": "python",
+              "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260814/cpython-3.12.14%2B20260814-x86_64-unknown-linux-gnu-install_only.tar.gz",
+              "sha256": "3297691ae34f75fed81ac424e040145fccb0bafe8e581cd5cadbddfa1c0766c0",
+              "archive": "tar.gz"
+            },
+            {
+              "role": "python-wheels",
+              "kind": "python-wheels",
+              "dest": "wheels",
+              "lockfile": "requirements.lock",
+              "index_url": "https://pypi.org/simple",
+              "allow_sdists": false
+            },
+            {
+              "role": "analysis-server",
+              "kind": "local",
+              "dest": "source/server.py",
+              "source": "server/server.py"
+            },
+            {
+              "role": "model-config",
+              "kind": "local",
+              "dest": "source/configs/sbroformer_base_4stem.yaml",
+              "source": "server/configs/sbroformer_base_4stem.yaml"
+            },
+            {
+              "role": "model-lock",
+              "kind": "local",
+              "dest": "source/model-lock.json",
+              "source": "server/model-lock.json"
+            }
+          ]
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "MIR model/runtime paths are not qualified for this target yet."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "MIR model/runtime paths are not qualified for this target yet."
+        }
+      ]
+    },
+    "arguments": ["${RESOURCE_ARTIFACT_DIR}/source/server.py"],
+    "environment": {
+      "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/wheels",
+      "PYTHONNOUSERSITE": "1",
+      "PYTHONDONTWRITEBYTECODE": "1",
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "MUSIC_MIR_HOST": "127.0.0.1",
+      "MUSIC_MIR_PORT": "8898",
+      "MUSIC_MIR_WHISPER_URL": "http://127.0.0.1:8090",
+      "MUSIC_MIR_IDLE_TTL_SECONDS": "900",
+      "MUSIC_MIR_MODEL_TYPE": "sub_roformer",
+      "MUSIC_MIR_MODEL_REVISION": "daeffbe5a4f5e4dc8ac0bb7f68d3a6f7e0088c40",
+      "MUSIC_MIR_CONFIG_PATH": "${RESOURCE_ARTIFACT_DIR}/source/configs/sbroformer_base_4stem.yaml",
+      "MUSIC_MIR_CHECKPOINT_PATH": "${RESOURCE_DATA_DIR}/models/subroformer/subroformer_base_4stem_1400000_ema_fp16.safetensors"
+    },
+    "data_artifacts": [
+      {
+        "name": "subroformer-4stem-fp16",
+        "path": "models/subroformer/subroformer_base_4stem_1400000_ema_fp16.safetensors",
+        "size_bytes": 207349744,
+        "group": "subroformer-4stem",
+        "acquisition_mode": "on-demand",
+        "acquisition": {
+          "kind": "url",
+          "license": "Not stated by model card; for local personal analysis only.",
+          "provenance": {"kind": "none"},
+          "targets": [{
+            "url": "https://huggingface.co/archimickey/SubRoformer/resolve/daeffbe5a4f5e4dc8ac0bb7f68d3a6f7e0088c40/checkpoints/subroformer_base_4stem_1400000_ema_fp16.safetensors",
+            "sha256": "1cdcafa9fd84a0a78df71b159c8896040a57d1ab5d6c783154c078952521ad0b",
+            "layout": "file"
+          }]
+        }
+      }
+    ]
+  },
+  "name": "music-mir",
+  "privilege": "user",
+  "requirements": {
+    "class": "model-runtime",
+    "weight": 3,
+    "source": "estimated",
+    "confidence": "low"
+  },
+  "storage": {
+    "entries": {
+      "models": {
+        "rung": "relocatable",
+        "kind": "dir",
+        "class": "cache",
+        "regenerable": true,
+        "rationale": "Reacquirable model weights are held in a resource-owned relocatable cache; only the owner lifecycle may evict an idle model after capacity quiescence.",
+        "budget": {
+          "max_age": "30d",
+          "rationale": "Idle models may be reacquired from checksum-pinned manifests."
+        },
+        "subpath": "models",
+        "reacquisition": {
+        "command": "vrooli resource acquisition data music-mir --group subroformer-4stem",
+          "evidence": "resource.json#/managed_service/data_artifacts contains model revisions and SHA-256 values"
+        }
+      },
+      "outputs": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": true,
+        "rationale": "Temporary decoded audio, stems and analysis intermediates remain local to the user, are content-hashed, and are removed only after durable Music Tools ownership is established.",
+        "budget": {
+          "max_bytes": "25GiB",
+          "rationale": "Owner cap from the music-quality commission; admission is refused before the 120GiB shared free-space reserve is breached."
+        },
+        "subpath": "outputs"
+      }
+    }
+  },
+  "acceleration": {
+    "backends": ["cuda"],
+    "require": "required",
+    "cuda": {},
+    "claim": {
+      "resource_kind": "vram",
+      "default_preferred_bytes": 16000000000,
+      "floor_bytes": 16000000000,
+      "default_priority": "batch",
+      "confidence": "estimated",
+      "yield_when_idle": true,
+      "idle_grace_seconds": 900,
+      "profile": {
+        "steps": [{"label": "subroformer-fp16", "default_amount_bytes": 16000000000}],
+        "apply": {"verb": "capacity", "argv": ["degrade", "--to", "{label}"]},
+        "upshift": false
+      }
+    }
+  },
+  "ports": [{"name": "http", "host": 8898, "container": 8898}],
+  "health_checks": [
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8898/health",
+      "kind": "readiness",
+      "expected_status": [200],
+      "interval_seconds": 10,
+      "timeout_seconds": 10
+    },
+    {
+      "type": "http",
+      "target": "http://127.0.0.1:8898/health",
+      "kind": "liveness",
+      "expected_status": [200],
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    }
+  ]
+}

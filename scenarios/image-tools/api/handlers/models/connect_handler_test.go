@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -33,12 +34,17 @@ func newTestHandler(t *testing.T, host capabilities.Host) (*connectHandler, *int
 		t.Fatalf("ensure schemas: %v", err)
 	}
 	h := NewConnectHandler(Deps{
-		Registry: reg,
-		Store:    internalmodels.NewStore(d),
-		Probe:    capabilities.FakeProbe{Host: host},
-		Backends: testBackendRegistry(t),
+		Registry:        reg,
+		Store:           internalmodels.NewStore(d),
+		Probe:           capabilities.FakeProbe{Host: host},
+		Backends:        testBackendRegistry(t),
+		RightsEvaluator: allowRightsForHandlerTest,
 	})
 	return h, reg
+}
+
+func allowRightsForHandlerTest(_ context.Context, _ json.RawMessage, _ string) (internalmodels.RightsDecision, error) {
+	return internalmodels.RightsDecision{Status: "allowed", Reason: "test fixture"}, nil
 }
 
 type captureProvisionJob struct {
@@ -322,6 +328,19 @@ func TestSelectModelCPUDefault(t *testing.T) {
 	}
 	if resp.Msg.Reason == "" {
 		t.Fatal("select must surface a reason")
+	}
+}
+
+func TestSelectModelFailsClosedWithoutSharedRightsEvaluator(t *testing.T) {
+	const gib = uint64(1 << 30)
+	h, _ := newTestHandler(t, capabilities.Host{
+		OS: "linux", Arch: "amd64", Cores: 8,
+		GPUs: []capabilities.GPU{{VRAMBytes: 16 * gib, VRAMUsedBytes: 4 * gib}},
+	})
+	h.deps.RightsEvaluator = nil
+	_, err := h.SelectModel(context.Background(), connect.NewRequest(&modelsv1.SelectModelRequest{Operation: "text_to_image"}))
+	if err == nil || !strings.Contains(err.Error(), "rights decision") {
+		t.Fatalf("selection without shared rights evaluator = %v, want fail-closed rights refusal", err)
 	}
 }
 

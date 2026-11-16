@@ -2,7 +2,6 @@
 
 Budgets, what has actually been measured, and the constraints that bound both.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

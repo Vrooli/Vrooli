@@ -56,6 +56,43 @@ func TestSubmitWaitSuccess(t *testing.T) {
 	}
 }
 
+func TestRegisteredOperationInheritsManagerAdmission(t *testing.T) {
+	var admissions atomic.Int32
+	m := startManager(t, Config{
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			return Result{}, nil
+		},
+		Admit: func(context.Context, context.CancelCauseFunc, Job) (func(), map[string]string, error) {
+			admissions.Add(1)
+			return nil, map[string]string{"capacity": "admitted"}, nil
+		},
+	})
+	if err := m.RegisterOperation("analysis", Operation{
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			return Result{Ref: "analysis/result"}, nil
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	queued, err := m.Submit(context.Background(), Spec{Operation: "analysis", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	finished, err := m.Wait(context.Background(), queued.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finished.State != StateSucceeded || finished.ResultRef != "analysis/result" {
+		t.Fatalf("registered runner did not complete: %+v", finished)
+	}
+	if got := admissions.Load(); got != 1 {
+		t.Fatalf("manager capacity admission ran %d times, want 1", got)
+	}
+	if got := finished.Meta["capacity"]; got != "admitted" {
+		t.Fatalf("manager admission metadata missing from durable job: %+v", finished.Meta)
+	}
+}
+
 func TestGPUAdmissionLeaseCoversSuccessAndMergesMetadata(t *testing.T) {
 	released := make(chan struct{})
 	m := startManager(t, Config{

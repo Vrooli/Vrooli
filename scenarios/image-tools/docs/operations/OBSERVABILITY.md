@@ -3,7 +3,6 @@
 This document records logs, metrics, telemetry, health checks, and
 business/product signals for the local-first image toolbox.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

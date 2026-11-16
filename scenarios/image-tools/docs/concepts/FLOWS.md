@@ -1,6 +1,5 @@
 # Flows — Image Tools
 
-## Purpose Of This Document
 
 This document maps the stateful user and system workflows implemented by
 Image Tools. It is not a list of aspirational features: a flow marked

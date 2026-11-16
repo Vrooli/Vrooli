@@ -1,6 +1,7 @@
 """SAM 2.1 prompt contracts, kept independent from model weights."""
 
 import unittest
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -9,6 +10,34 @@ from .sam2 import _prompts
 
 
 class SAM2PromptContracts(unittest.TestCase):
+    def setUp(self):
+        sam2._MODEL_CACHE_KEY = None
+        sam2._MODEL_CACHE = None
+
+    def test_resident_model_reuses_one_checkpoint_for_worker_requests(self):
+        fake_torch = SimpleNamespace(cuda=SimpleNamespace(empty_cache=lambda: None))
+        model = object()
+        with patch.dict(sys.modules, {"torch": fake_torch}), patch.object(sam2, "_load_model", return_value=model) as load:
+            first, hit1, load_ms = sam2._resident_model("/models/base-plus", "cpu")
+            second, hit2, warm_load_ms = sam2._resident_model("/models/base-plus", "cpu")
+        self.assertIs(first, second)
+        self.assertFalse(hit1)
+        self.assertTrue(hit2)
+        self.assertGreaterEqual(load_ms, 0)
+        self.assertEqual(warm_load_ms, 0.0)
+        load.assert_called_once_with("/models/base-plus", "cpu")
+
+    def test_resident_model_replaces_previous_checkpoint_instead_of_accumulating(self):
+        fake_torch = SimpleNamespace(cuda=SimpleNamespace(empty_cache=lambda: None))
+        models = [object(), object()]
+        with patch.dict(sys.modules, {"torch": fake_torch}), patch.object(sam2, "_load_model", side_effect=models) as load:
+            first, _, _ = sam2._resident_model("/models/tiny", "cpu")
+            second, _, _ = sam2._resident_model("/models/base-plus", "cpu")
+        self.assertIsNot(first, second)
+        self.assertIs(sam2._MODEL_CACHE, second)
+        self.assertEqual(sam2._MODEL_CACHE_KEY, ("/models/base-plus", "cpu"))
+        self.assertEqual(load.call_count, 2)
+
     def test_smoke_load_requires_nonempty_checkpoint_parameters(self):
         model = SimpleNamespace(parameters=lambda: [SimpleNamespace(numel=lambda: 38_900_000)])
         with patch.object(sam2, "_load_model", return_value=model) as load:

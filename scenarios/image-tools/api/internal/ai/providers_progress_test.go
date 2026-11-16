@@ -208,3 +208,62 @@ func TestExecProvider_GPUCapableProbe(t *testing.T) {
 		t.Fatal("uninstalled backend must report GPUCapable=false")
 	}
 }
+
+func TestStableDiffusionGPUCapabilityRecoversWhenPreferredExecutableAppears(t *testing.T) {
+	installed := false
+	probeCalls := 0
+	p := &execProvider{backendProcess: backendProcess{
+		name: "stable-diffusion.cpp", program: "sd", programAliases: []string{"sd-gpu"}, gpuCapable: true,
+		lookPath: func(name string) (string, error) {
+			if name == "sd-gpu" {
+				if installed {
+					return "/opt/vrooli/bin/sd-gpu", nil
+				}
+				return "", errors.New("not installed")
+			}
+			if name == "sd" {
+				return "/usr/bin/sd", nil
+			}
+			return "", errors.New("not found")
+		},
+		gpuProbe: func(_ context.Context, program string) bool {
+			probeCalls++
+			return program == "/opt/vrooli/bin/sd-gpu"
+		},
+	}}
+	if p.GPUCapable() {
+		t.Fatal("CPU-only sd executable was reported GPU-capable")
+	}
+	installed = true
+	if !p.GPUCapable() {
+		t.Fatal("installing sd-gpu while image-tools is running did not recover GPU capability")
+	}
+	if probeCalls != 2 {
+		t.Fatalf("GPU probe calls = %d, want one probe per distinct executable", probeCalls)
+	}
+}
+
+func TestExecProviderGPUCapabilityIsRestrictedToGPUQualifiedOperations(t *testing.T) {
+	provider := &execProvider{backendProcess: backendProcess{
+		name: "onnxruntime", program: pythonProgram, pythonInterpreter: "/venv/bin/python", gpuCapable: true,
+		gpuProbe: func(context.Context, string) bool { return true },
+	}}
+	for _, operation := range []string{"background_removal", "segment"} {
+		if !provider.GPUCapableFor(operation) {
+			t.Errorf("ONNX Runtime %s should be GPU-capable when CUDAExecutionProvider is present", operation)
+		}
+	}
+	for _, operation := range []string{"denoise", "depth_map", "object_detection"} {
+		if provider.GPUCapableFor(operation) {
+			t.Errorf("ONNX Runtime %s must not claim GPU support before operation qualification", operation)
+		}
+	}
+
+	sam2 := &execProvider{backendProcess: backendProcess{
+		name: "sam2-transformers", program: pythonProgram, pythonInterpreter: "/venv/bin/python", gpuCapable: true,
+		gpuProbe: func(context.Context, string) bool { return true },
+	}, techniques: technique.Single("segment", technique.SAM2Sidecar)}
+	if !sam2.GPUCapableFor("segment") {
+		t.Fatal("qualified SAM2 segment operation should retain its CUDA path")
+	}
+}

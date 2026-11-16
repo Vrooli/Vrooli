@@ -242,6 +242,7 @@ describe("ActivityCard", () => {
     });
     await user.click(screen.getByTestId(selectors.jobs.cancelButton));
     await waitFor(() => expect(screen.getByTestId(selectors.jobs.cancelError)).toBeInTheDocument());
+    expect(screen.queryByTestId(selectors.activity.error)).not.toBeInTheDocument();
   });
 
   it("open-output reopens a succeeded result in the workspace", async () => {
@@ -283,7 +284,11 @@ describe("ActivityCard", () => {
   it("has no accessibility violations", async () => {
     vi.mocked(jobsClient.listJobs).mockResolvedValue(
       makeListJobsResponse({
-        jobs: [makeJob({ id: "j1", state: JobState.SUCCEEDED, resultRef: "out/a.png", operation: "upscale" })],
+        jobs: [
+          makeJob({ id: "queued", state: JobState.QUEUED, startedAt: undefined }),
+          makeJob({ id: "running", state: JobState.RUNNING, startedAt: timestampFromDate(new Date(Date.now() - 5_000)) }),
+          makeJob({ id: "failed", state: JobState.FAILED, error: "backend unavailable" }),
+        ],
       }),
     );
     const { container } = renderWithProviders(<ActivityCard />);

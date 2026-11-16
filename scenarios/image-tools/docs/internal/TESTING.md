@@ -202,6 +202,50 @@ busy or the runtime has not been provisioned through SDA yet, the target prints 
 single `SKIP gpu-e2e: ...` line and exits cleanly; when ready, it must produce a
 non-empty PNG and report the output path.
 
+`make gpu-capability-check` combines the Stable Diffusion and ONNX checks below
+with the available Diffusers, SAM2, and TripoSR operation inventory. It is the
+reusable deployment/doctor gate for the currently qualified GPU operations. It
+fails closed when an installed runtime is CPU-only and passes once the host has
+the qualified GPU provider. The API unit suite also verifies that an unqualified
+provider cannot be silently labeled `local-gpu`. The pinned `llama-cpp` bundle is
+CPU-only and remains an explicit CPU fallback until a GPU build is installed and
+probed; missing optional IOPaint and Real-ESRGAN tools do not serve operations.
+
+`make gpu-capability-test-genie` runs Test Genie's `unit` phase. That phase also
+executes `TestGPUCapabilityDoctorRejectsCPUOnlyBackendsOnGPUHosts`, which probes
+the installed SD, ONNX, Diffusers, SAM2 and TripoSR runtimes and fails on an
+NVIDIA host if a qualified GPU operation is absent or CPU-only. Hosts without NVIDIA hardware skip this host-specific
+assertion while keeping the pure selector regressions in the ordinary suite.
+
+`make onnx-gpu-backend-check` separately fails closed unless backend doctor reports
+`CUDAExecutionProvider` for both ONNX Runtime `background_removal` and `segment`.
+It prints the provider detail on failure, so a CPU-only ONNX install cannot be
+mistaken for GPU readiness.
+
+For the existing rights-qualified SAM 2.1 Tiny alternative, run
+`make sam2-segment-cpu-e2e SAM2_E2E_OUT=<retained-evidence-dir>`, capture a fresh
+cohort footprint diff, then run
+`make sam2-segment-gpu-e2e SAM2_E2E_OUT=<same-dir>`. Both use the same fixed image
+and point prompt; the GPU step passes `--require-gpu --no-reclaim`, checks the
+released capacity claim receipt, and retains both masks and job JSON. Compare
+`started_at`/`finished_at` in the job receipts for measured runtime; lane labels
+alone are not a GPU proof.
+
+For an ONNX background-removal comparison, set
+`ONNX_BG_REMOVAL_E2E_OUT=<retained-evidence-dir>`,
+`LM17_FOOTPRINT_BASELINE=<cohort BASELINE.json>`, and
+`LM17_FOOTPRINT_KEEP_FILE=<cohort FOOTPRINT-KEEP.txt>`, then run
+`make onnx-bg-removal-speedup-e2e`. It defaults to the installed, rights-qualified
+`u2netp` artifact (override only with `ONNX_BG_REMOVAL_MODEL`), captures host
+footprint diffs before CPU and GPU work and after the run, and refuses when a
+2 GiB peak would cross the 120 GiB free-disk floor or the conservative
+system-wide free-space-decrease 25 GiB ceiling. It runs
+the same fixed fixture through forced CPU and required-GPU jobs, checks the
+released GPU capacity receipt, retains both outputs and receipts, records exact
+job durations, and fails unless CUDA is faster. The target does not install or
+download model weights; an unavailable CUDA provider or rights decision fails
+before either inference job is submitted.
+
 ### Model install gate
 
 Catalog truthfulness is checked by `models doctor`; install truthfulness is

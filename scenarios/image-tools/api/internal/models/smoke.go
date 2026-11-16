@@ -191,6 +191,16 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 	emit(96, "smoke-testing model load")
 	threadLimit := strconv.Itoa(threads)
 	env := []string{"CUDA_VISIBLE_DEVICES=", "IMAGE_TOOLS_DEVICE=cpu", "IMAGE_TOOLS_CPU_THREADS=" + threadLimit}
+	// CUDA-enabled wheels still load CUDA runtime libraries during import even
+	// when this smoke intentionally selects CPU. Those libraries live inside the
+	// scenario venv and are not necessarily on the service's ambient loader path.
+	// Match inference/provider probes by exposing only this venv's NVIDIA dirs.
+	if libraries := pythonRuntimeLibraries(cfg.Python); len(libraries) > 0 {
+		if current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH")); current != "" {
+			libraries = append(libraries, current)
+		}
+		env = append(env, "LD_LIBRARY_PATH="+strings.Join(libraries, string(os.PathListSeparator)))
+	}
 	for _, name := range []string{"OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"} {
 		env = append(env, name+"="+threadLimit)
 	}
@@ -218,6 +228,21 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 	}
 	emit(99, "smoke passed")
 	return nil
+}
+
+func pythonRuntimeLibraries(python string) []string {
+	if strings.TrimSpace(python) == "" {
+		return nil
+	}
+	venv := filepath.Dir(filepath.Dir(python))
+	matches, _ := filepath.Glob(filepath.Join(venv, "lib", "python*", "site-packages", "nvidia", "*", "lib"))
+	var dirs []string
+	for _, path := range matches {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			dirs = append(dirs, path)
+		}
+	}
+	return dirs
 }
 
 func fileExists(p string) bool {

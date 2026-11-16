@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Text and lyrics to song, instrumental, and sound-effect generation with reproducible parameters.",
-    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "last_validated_at": "2026-11-15T15:49:12-05:00",
     "module": "composition",
     "prd_ref": "OT-P0-001",
     "priority": "P0",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/composition/generate_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Generation persistence is covered by the shipped composition tests"
         },
         {
@@ -40,7 +40,7 @@
     {
       "id": "MUS-P0-013",
       "title": "Instrumental and effect generation",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-001",
       "category": "core",
       "criticality": "P0",
@@ -53,7 +53,7 @@
           "type": "test",
           "ref": "api/internal/composition/instrumental_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Instrumental/effect composition behavior is covered by the shipped composition tests"
         }
       ]

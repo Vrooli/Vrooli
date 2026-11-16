@@ -301,5 +301,9 @@ var Endpoints = []module.EndpointDescriptor{
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "adapter id with declared license terms"}},
 		Response:    &module.Schema{Type: "text/plain", Properties: map[string]string{"terms": "full immutable license text"}},
 		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "Adapter has no published versioned license terms"}},
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonBrowserSurface,
+			Note:   "The UI opens versioned license text as immutable text/plain through a direct browser link; no generated Connect procedure currently preserves this response contract.",
+		},
 	},
 }

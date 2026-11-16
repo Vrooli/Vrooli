@@ -11,6 +11,8 @@ import (
 	"music-tools/internal/capabilities"
 	"music-tools/internal/capacity"
 	cleanupdomain "music-tools/internal/cleanup"
+	"music-tools/internal/jobs"
+	"music-tools/internal/librarysync"
 	"music-tools/internal/models"
 	"music-tools/internal/modules"
 	"music-tools/internal/server"
@@ -22,15 +24,19 @@ import (
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	analysisH "music-tools/handlers/analysis"
 	capsH "music-tools/handlers/capabilities"
 	compositionH "music-tools/handlers/composition"
 	healthH "music-tools/handlers/health"
 	modelsH "music-tools/handlers/models"
+	sourcesH "music-tools/handlers/sources"
+	transformationH "music-tools/handlers/transformation"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -100,7 +106,10 @@ func main() {
 	// Scenario Dependency Analyzer admission is currently below the host disk
 	// reserve, so nil deliberately keeps model-backed requests fail-closed until
 	// the canonical policy adapter can be injected here.
-	compositionState, err := compositionH.NewStateWithCapacityStorageAndRightsEvaluator(db.Primary(), capacity.CLICapacityBroker{}, musicBlobs, nil)
+	musicCapacityBroker := capacity.CLICapacityBroker{}
+	compositionState, err := compositionH.NewStateWithCapacityStorageAndRightsEvaluatorAndJobSetup(db.Primary(), musicCapacityBroker, musicBlobs, nil, func(manager *jobs.Manager) error {
+		return transformationH.RegisterOperations(manager, musicBlobs)
+	})
 	if err != nil {
 		log.Fatalf("composition job manager initialization failed: %v", err)
 	}
@@ -108,12 +117,34 @@ func main() {
 	if err != nil {
 		log.Fatalf("model registry initialization failed: %v", err)
 	}
+	librarySync, err := librarysync.New(db.Primary(), musicBlobs, log.Default())
+	if err != nil {
+		log.Fatalf("music-library outbox initialization failed: %v", err)
+	}
+	if err := librarySync.Start(context.Background()); err != nil {
+		log.Fatalf("music-library outbox start failed: %v", err)
+	}
+	analysisModule, err := analysisH.Module(compositionState.JobManager, musicBlobs, musicCapacityBroker, librarySync)
+	if err != nil {
+		log.Fatalf("analysis job registration failed: %v", err)
+	}
+	sourcesModule, err := sourcesH.Module(db.Primary(), musicBlobs)
+	if err != nil {
+		log.Fatalf("managed source initialization failed: %v", err)
+	}
+	transformationModule, err := transformationH.Module(compositionState.JobManager, musicBlobs)
+	if err != nil {
+		log.Fatalf("transformation job registration failed: %v", err)
+	}
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "music-tools-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		compositionH.Module(compositionState),
+		analysisModule,
+		transformationModule,
+		sourcesModule,
 		modelsH.Module(modelRegistry),
 		cleanupdomain.Module(cleanupdomain.Deps{Store: musicBlobs}),
 	)
@@ -132,8 +163,9 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
-		Cleanup: func(ctx context.Context) error { compositionState.Close(); return db.Close() },
+		Handler:        handler,
+		LifecycleHooks: lifecycle.Hooks{Quiesce: librarySync.Quiesce, Resume: librarySync.Resume},
+		Cleanup:        func(ctx context.Context) error { librarySync.Stop(); compositionState.Close(); return db.Close() },
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}

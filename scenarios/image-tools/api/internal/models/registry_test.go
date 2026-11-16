@@ -24,6 +24,17 @@ func TestLoadSeed(t *testing.T) {
 	if r.SchemaVersion() == "" {
 		t.Fatal("missing schema version")
 	}
+	// SD 1.5's 4.27 GB checkpoint cannot be safely admitted with the old
+	// 2 GB catalog estimate. Keep the residency claim above the weight size so
+	// model loading/activations are not silently unaccounted.
+	sd15, ok := r.ByID("sd-1.5")
+	if !ok || sd15.Hardware.MinVRAMGB < 6 {
+		t.Fatalf("sd-1.5 minimum VRAM = %+v, want a conservative >=6 GiB claim", sd15.Hardware)
+	}
+	u2netp, ok := r.ByID("u2netp")
+	if !ok || !u2netp.Hardware.CPUCapable || u2netp.Hardware.MinVRAMGB < 1 {
+		t.Fatalf("u2netp hardware = %+v, want CPU fallback and a positive CUDA admission budget", u2netp.Hardware)
+	}
 
 	// Every operation with an available default must select an enabled,
 	// CPU-capable model. Experimental GPU-only operations may remain unavailable

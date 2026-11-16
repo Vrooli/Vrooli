@@ -1,10 +1,9 @@
 # API Endpoints — Music Tools
 
-> **Status (2026-09-19): composition metadata and REST edges are shipped.**
+> **Status (2026-11-15): composition and analysis REST handlers are registered.**
 > The generated contracts cover composition, jobs, models, styles, and capacity;
-> the current API runtime exposes health, styles, composition jobs, takes, pool
-> transitions, and audio retrieval. Connect handlers for the infrastructure
-> services are staged for the infrastructure-domain port.
+> the API runtime exposes health, composition jobs, analysis/separation jobs,
+> results and stems. The `music-mir` model runtime remains unqualified.
 
 Human-readable reference for the API. The machine-readable
 source of truth is [`.vrooli/endpoints.json`](../../.vrooli/endpoints.json) —
@@ -47,6 +46,91 @@ and mirrors `api-core/health.Response` field-for-field.
 
 ---
 
+## Private source REST endpoints
+
+Sources are imported from local files into content-addressed managed storage;
+the API never downloads or fetches a supplied `source_url`. One source is
+limited to 128 MiB and the private source-owner quota is 1 GiB. Imports require
+a title and may retain artist, uploader, acquisition time and an HTTPS YouTube
+URL as local provenance. The source SHA-256 determines an immutable blob key.
+
+### `POST /api/v1/sources`
+
+Multipart fields: `file`, `title`, optional `artist`, `uploader`, `source_url`,
+and `acquired_at`. Returns the verified SHA-256 and `source_blob_key` used by
+the analysis job endpoints.
+
+```bash
+curl -F 'file=@reference.m4a' -F 'title=Reference' \
+  -F 'source_url=https://www.youtube.com/watch?v=example' "$API/api/v1/sources"
+```
+
+### `GET /api/v1/sources/{sha256}` and `/audio`
+
+The metadata path returns the locally stored provenance. The `/audio` path
+streams private original bytes with byte-range support for review playback;
+responses are `private, no-store` and the stored content is rehashed before
+serving. These handlers never contact the external source URL.
+
+## Analysis REST endpoints
+
+Analysis and source separation are durable Music Tools jobs. They use the
+shared job manager and its serialized GPU lane; a job retains admission until
+the MIR resource confirms cancellation drain. The request names an existing
+Music Tools managed source blob. The server binds its SHA-256 into the durable
+payload so a source changed after submission fails closed. Output artifacts are
+committed to managed blob storage only after digest and type checks.
+
+### `POST /api/v1/analyze`
+
+Queues a partial acoustic analysis. It returns HTTP 202 with `job_id`, `state`,
+`operation`, and the pinned source SHA-256. When the job succeeds,
+`GET /api/v1/analysis/{id}/result` returns the stored provenance envelope and
+analysis object. Current runtime fields include estimated tempo/beat times, key
+candidates and margin, energy curves, stem energy and low-confidence acoustic
+cut candidates, plus best-effort timestamped transcript segments from the
+configurable local Whisper service. Whisper output is a hypothesis, has no
+word-level alignment or confidence value, and remains optional if the service
+is absent. Music MIR accepts only loopback Whisper URLs, keeping reference audio
+local. Semantic section and hook labels and plain-language descriptions are
+not yet implemented.
+
+```bash
+curl -X POST "$API/api/v1/analyze" -H 'Content-Type: application/json' \
+  -d '{"source_blob_key":"library/reference.wav"}'
+```
+
+### `POST /api/v1/separate`
+
+Queues vocals, drums, bass and other separation. The result envelope records
+the four managed blob keys; fetch an individual stem with
+`GET /api/v1/analysis/{id}/stems/{name}` where `name` is one of those four
+values. The local MIR adapter is CUDA-only and currently unqualified because
+its governed dependency lock/runtime installation is pending.
+
+```bash
+curl -X POST "$API/api/v1/separate" -H 'Content-Type: application/json' \
+  -d '{"source_blob_key":"library/reference.wav"}'
+```
+
+These endpoints are REST exceptions registered in the analysis module and
+`.vrooli/endpoints.json`; CLI analyze/separate commands remain planned.
+Requirements: `MUS-P0-009`–`011`, `MUS-P1-001`, `MUS-P1-003`.
+
+### `GET /api/v1/analysis/library-sync`
+
+Reports pending, delivered, and blocked forwarding counts plus the latest
+delivery error. It does not return result payloads. After a job has durably
+reached `succeeded`, Music Tools discovers it from the jobs table and stores an
+outbox row pointing to the immutable result blob. A background worker forwards
+that document to Music Library. Library downtime cannot affect the producer
+job; retry state survives restarts, uses backoff from 10 seconds up to about
+43 minutes, and retries indefinitely. Duplicate posts are idempotent by
+track-SHA plus analysis-job identity. URL resolution uses api-core discovery;
+`MUSIC_LIBRARY_URL` can override it. The worker quiesces during scenario
+maintenance and stops during API cleanup. Invalid result identity is retained
+as blocked; other delivery errors stay pending for retry.
+
 ## Domain endpoints — `<domain>`
 
 Each product domain exposes its endpoints under
@@ -68,6 +152,7 @@ The maintained composition handlers currently expose:
 |---|---|---|
 | `POST /api/v1/compose` | REST JSON, generated `SubmitRequest` proto JSON | Submit a batch; returns job ID, queued state and take count |
 | `GET /api/v1/jobs/{id}`, `/api/v1/jobs`, `/api/v1/jobs/{id}/wait` | REST JSON | Read durable status or block once until terminal |
+| `GET /api/v1/jobs/{id}/derivation-receipt` | REST JSON | Return the owner-validated immutable source/output receipt for a succeeded `transform.remix` or `transform.sample` job; returns 412 when the job has no qualifying receipt |
 | `POST /api/v1/jobs/{id}/cancel` | REST JSON | Request cancellation; read the terminal job for its outcome |
 | `GET /api/v1/takes`, `/api/v1/takes/{id}`, `/api/v1/takes/{id}/audio` | REST JSON / audio bytes | Enumerate peers and retrieve managed WAV output |
 | `/api/v1/styles/*`, `/api/v1/pool/*` | REST JSON | Portable style and pool operations |
@@ -75,6 +160,8 @@ The maintained composition handlers currently expose:
 Generated Connect service declarations do not establish runtime mounting.
 Analysis/reference-audio multipart composition remains outside this implemented
 text/style composition route.
+
+Music Tools now registers deterministic CPU remix and sample operations on the shared durable jobs manager. The submit routes accept only managed source refs with exact SHA-256s, bounded excerpts (0.25 to 120 seconds) and declared inherited-rights scope. Sample passes receive short fades at both ends to reduce loop clicks. A successful job records the exact source/output hashes, ranges, tool version and rights scope; `ffprobe` must report an audio stream whose duration covers the requested excerpt. Consumers retrieve the receipt by job ID. The audio route re-hashes the stored WAV against that receipt before serving private byte ranges. This code path has not yet been run against audio: live behavior and audibility remain gated on the bounded operator decision and resource/rights checks.
 
 Three contract points that follow from recorded decisions rather than taste:
 
@@ -123,6 +210,17 @@ as409; import retains its existing409 decoding/domain response (body-read/size
 errors are400). This source contract needs normal API adoption before claiming
 the running service implements it; deterministic tests alone are not deployment.
 
+## Configurable composition default
+
+`GET /api/v1/styles/default` returns `{"style_id":"launch-instrumental"}` on a
+fresh database. `PUT /api/v1/styles/default` accepts `{"style_id":"<saved-id>"}`
+and refuses missing styles. The selection is stored per database scope; it
+changes only composition requests that omit `style_id`. The CLI surfaces this
+as `music-tools styles default-get` and `styles default-set <style-id>`.
+
+These routes are implemented as REST handlers but are not yet in the generated
+endpoint catalogue. Their typed Connect contract remains a follow-up.
+
 ## Adding a new endpoint
 
 For a new domain, copy the worked vertical slice in the fenced example
@@ -162,8 +260,10 @@ contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
 `Style.lyrics` is optional, belongs to the style, and survives canonical flat and
 supported nested-legacy style import/export. Empty or absent legacy lyrics resolve
 to `[instrumental]`; other text and newlines are preserved. Use separate style IDs
-for songs with vocals and instrumental beds. The current resource language is
-English (`en`); this contract does not claim multilingual or listening quality.
+for songs with vocals and instrumental beds. ACE declares `en` and `ko` for the
+optional `vocal_language` input. Omission records the model-declared default (`en`);
+an explicit language is recorded only after the resource returns the matching
+language receipt. This is a parameter contract, not an audible-language quality claim.
 
 `POST /api/v1/compose` consumes generated `SubmitRequest` proto JSON: snake_case
 or canonical camelCase aliases are accepted, unknown/duplicate fields and trailing

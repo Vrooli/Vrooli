@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -20,8 +21,10 @@ import (
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	compositionpb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition"
+	compositionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition/composition_v1connect"
 	jobspb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/jobs"
 	stylespb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/styles"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -36,6 +39,7 @@ import (
 	"music-tools/internal/module"
 	musicstorage "music-tools/internal/storage"
 	"music-tools/internal/styles"
+	"music-tools/internal/transformation"
 )
 
 type ModuleState struct {
@@ -57,12 +61,22 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 }
 
 // NewStateWithCapacityStorageAndRightsEvaluator is the production constructor
-// for model-backed composition. The shared evaluator is an explicit required
-// dependency for any model route; nil remains fail-closed while the governed
-// ai-provider-go dependency is unavailable to this scenario.
+// for model-backed composition. Tests may inject an isolated evaluator; a nil
+// value wires the shared evaluator to the canonical trusted context source.
 func NewStateWithCapacityStorageAndRightsEvaluator(db jobs.SQLExecutor, broker capacity.Broker, blobs *musicstorage.Store, rightsEvaluator models.RightsEvaluator) (*ModuleState, error) {
+	return NewStateWithCapacityStorageAndRightsEvaluatorAndJobSetup(db, broker, blobs, rightsEvaluator, nil)
+}
+
+// NewStateWithCapacityStorageAndRightsEvaluatorAndJobSetup registers domain
+// operations before manager recovery can resume persisted jobs. This ensures
+// recovered jobs dispatch to their owning worker instead of the composition
+// fallback runner.
+func NewStateWithCapacityStorageAndRightsEvaluatorAndJobSetup(db jobs.SQLExecutor, broker capacity.Broker, blobs *musicstorage.Store, rightsEvaluator models.RightsEvaluator, jobSetup func(*jobs.Manager) error) (*ModuleState, error) {
 	if blobs == nil {
 		return nil, fmt.Errorf("managed audio storage is required")
+	}
+	if rightsEvaluator == nil {
+		rightsEvaluator = models.NewCurrentRightsEvaluator()
 	}
 	state := newState()
 	state.RightsEvaluator = rightsEvaluator
@@ -154,6 +168,11 @@ func NewStateWithCapacityStorageAndRightsEvaluator(db jobs.SQLExecutor, broker c
 		}
 		_ = recorder.Observe(context.Background(), measures.JobLike{Operation: job.Operation, State: string(job.State), DurationMS: duration, QueueMS: queueWait})
 	}})
+	if jobSetup != nil {
+		if err := jobSetup(manager); err != nil {
+			return nil, fmt.Errorf("register durable job operations before recovery: %w", err)
+		}
+	}
 	if err := manager.Start(context.Background()); err != nil {
 		return nil, err
 	}
@@ -216,14 +235,19 @@ func getenv(key, fallback string) string {
 
 func Module(state *ModuleState) module.Module {
 	return module.Module{Name: "composition", Mount: func(r *mux.Router) {
+		candidatePath, candidateHandler := compositionconnect.NewCandidateInventoryServiceHandler(state)
+		r.PathPrefix(candidatePath).Handler(candidateHandler)
 		r.HandleFunc("/api/v1/styles", state.listStyles).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/styles", state.createStyle).Methods(http.MethodPost)
+		r.HandleFunc("/api/v1/styles/default", state.getDefaultStyle).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/styles/default", state.setDefaultStyle).Methods(http.MethodPut)
 		r.HandleFunc("/api/v1/styles/import", state.importStyle).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/styles/{id}", state.deleteStyle).Methods(http.MethodDelete)
 		r.HandleFunc("/api/v1/styles/{id}/export", state.exportStyle).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/styles/{id}/compile", state.compileStyle).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/compose", state.compose).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/jobs/{id}", state.getJob).Methods(http.MethodGet)
+		r.HandleFunc("/api/v1/jobs/{id}/derivation-receipt", state.getDerivationReceipt).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/jobs", state.listJobs).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/jobs/{id}/wait", state.waitJob).Methods(http.MethodGet)
 		r.HandleFunc("/api/v1/jobs/{id}/cancel", state.cancelJob).Methods(http.MethodPost)
@@ -239,6 +263,38 @@ func Module(state *ModuleState) module.Module {
 		r.HandleFunc("/api/v1/pool/draw", state.draw).Methods(http.MethodPost)
 		r.HandleFunc("/api/v1/pool/status", state.poolStatus).Methods(http.MethodGet)
 	}, Endpoints: Endpoints}
+}
+
+func (s *ModuleState) RequestRefill(ctx context.Context, request *connect.Request[compositionpb.CandidateRefillRequest]) (*connect.Response[compositionpb.CandidateRefillResponse], error) {
+	input := request.Msg
+	styleID := strings.TrimSpace(input.StyleId)
+	if styleID == "" {
+		var err error
+		styleID, err = s.Styles.DefaultID(ctx)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	saved, err := s.Pool.QueueCandidateRefill(core.CandidateRefillRequest{RequestID: input.RequestId, ReservationID: input.ReservationId, SHA256: input.Sha256, Purpose: input.Purpose, Project: input.Project, Revision: input.Revision, StyleID: styleID})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&compositionpb.CandidateRefillResponse{RequestId: saved.RequestID, State: saved.State, StyleId: saved.StyleID, JobId: saved.JobID}), nil
+}
+
+func (s *ModuleState) CancelRefill(ctx context.Context, request *connect.Request[compositionpb.CancelCandidateRefillRequest]) (*connect.Response[compositionpb.CandidateRefillResponse], error) {
+	if strings.TrimSpace(request.Msg.RequestId) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request_id is required"))
+	}
+	saved, err := s.Pool.CancelCandidateRefillRequest(request.Msg.RequestId)
+	if err != nil {
+		code := connect.CodeInternal
+		if errors.Is(err, sql.ErrNoRows) {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
+	}
+	return connect.NewResponse(&compositionpb.CandidateRefillResponse{RequestId: saved.RequestID, State: saved.State, StyleId: saved.StyleID, JobId: saved.JobID}), nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
@@ -284,6 +340,30 @@ func (s *ModuleState) listStyles(w http.ResponseWriter, _ *http.Request) {
 		response.Styles = append(response.Styles, wireStyle(style))
 	}
 	writeProtoJSON(w, http.StatusOK, response)
+}
+
+func (s *ModuleState) getDefaultStyle(w http.ResponseWriter, r *http.Request) {
+	id, err := s.Styles.DefaultID(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"style_id": id})
+}
+
+func (s *ModuleState) setDefaultStyle(w http.ResponseWriter, r *http.Request) {
+	var request struct {
+		StyleID string `json:"style_id"`
+	}
+	if err := readJSON(r, &request); err != nil || strings.TrimSpace(request.StyleID) == "" {
+		http.Error(w, "style_id is required", http.StatusBadRequest)
+		return
+	}
+	if err := s.Styles.SetDefault(r.Context(), request.StyleID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"style_id": request.StyleID})
 }
 
 func (s *ModuleState) createStyle(w http.ResponseWriter, r *http.Request) {
@@ -372,11 +452,12 @@ func wireStyleFromCompiled(compiled styles.Compiled) *stylespb.Style {
 }
 
 type composeRequest struct {
-	StyleID  string   `json:"style_id"`
-	Takes    int      `json:"takes"`
-	Duration int      `json:"duration"`
-	Seed     *int64   `json:"seed,omitempty"`
-	Shift    *float64 `json:"shift,omitempty"`
+	StyleID       string   `json:"style_id"`
+	Takes         int      `json:"takes"`
+	Duration      int      `json:"duration"`
+	Seed          *int64   `json:"seed,omitempty"`
+	Shift         *float64 `json:"shift,omitempty"`
+	VocalLanguage *string  `json:"vocal_language,omitempty"`
 }
 
 func (r composeRequest) baseSeed() int64 {
@@ -438,7 +519,14 @@ func (s *ModuleState) compose(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	request := composeRequest{StyleID: wire.StyleId, Takes: int(wire.Takes), Duration: int(wire.Duration), Seed: wire.Seed, Shift: wire.Shift}
+	request := composeRequest{StyleID: wire.StyleId, Takes: int(wire.Takes), Duration: int(wire.Duration), Seed: wire.Seed, Shift: wire.Shift, VocalLanguage: wire.VocalLanguage}
+	if request.StyleID == "" {
+		request.StyleID, err = s.Styles.DefaultID(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 	compiled, err := s.Styles.Compile(request.StyleID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -499,10 +587,8 @@ func (s *ModuleState) runDurableJob(ctx context.Context, queued jobs.Job, emit f
 	if err != nil {
 		return jobs.Result{}, err
 	}
-	if provider != providerACE {
-		if err := validateProviderInput(provider, compiled, request.composeRequest, s.PermissiveOnly); err != nil {
-			return jobs.Result{}, err
-		}
+	if err := validateProviderInput(provider, compiled, request.composeRequest, s.PermissiveOnly); err != nil {
+		return jobs.Result{}, err
 	}
 	planned, err := core.PlanBatch(core.BatchRequest{JobID: queued.ID, StyleID: request.StyleID, Caption: compiled.Caption, Takes: request.Takes, Duration: request.Duration, Seed: request.baseSeed()})
 	if err != nil {
@@ -574,6 +660,14 @@ func (s *ModuleState) generateTake(ctx context.Context, take *core.Take, request
 	if take.Provenance.Seed < 0 || take.Provenance.Seed > math.MaxUint32 {
 		return generationProfile{}, fmt.Errorf("planned effective seed must be uint32")
 	}
+	rightsModel, err := declaredACEModel(compiled.Params.Variant)
+	if err != nil {
+		return generationProfile{}, err
+	}
+	compiled.Params.Variant = rightsModel.Variant
+	if err := s.requireCurrentModelRights(ctx, rightsModel); err != nil {
+		return generationProfile{}, err
+	}
 	var allowed []string
 	switch admittedRung {
 	case "full":
@@ -597,6 +691,9 @@ func (s *ModuleState) generateTake(ctx context.Context, take *core.Take, request
 	if request.Shift != nil {
 		payload["shift"] = *request.Shift
 	}
+	if request.VocalLanguage != nil {
+		payload["vocal_language"] = *request.VocalLanguage
+	}
 	if len(allowed) > 0 {
 		payload["admitted_rungs"] = allowed
 	}
@@ -609,6 +706,11 @@ func (s *ModuleState) generateTake(ctx context.Context, take *core.Take, request
 		return generationProfile{}, err
 	}
 	resourceRequest.Header.Set("Content-Type", "application/json")
+	// Re-evaluate immediately before the resource call. Admission and request
+	// construction can be separated from execution by queueing or context edits.
+	if err := s.requireCurrentModelRights(ctx, rightsModel); err != nil {
+		return generationProfile{}, err
+	}
 	response, err := s.HTTP.Do(resourceRequest)
 	if err != nil {
 		return generationProfile{}, err
@@ -656,6 +758,20 @@ func (s *ModuleState) getJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeProtoJSON(w, http.StatusOK, wireJob(item))
+}
+
+func (s *ModuleState) getDerivationReceipt(w http.ResponseWriter, r *http.Request) {
+	item, err := s.JobManager.Get(r.Context(), mux.Vars(r)["id"])
+	if err != nil {
+		jobError(w, err)
+		return
+	}
+	receipt, err := transformation.ReadJobReceipt(item)
+	if err != nil {
+		http.Error(w, "job has no verified derivation receipt", http.StatusPreconditionFailed)
+		return
+	}
+	writeJSON(w, http.StatusOK, receipt)
 }
 
 func (s *ModuleState) listJobs(w http.ResponseWriter, r *http.Request) {

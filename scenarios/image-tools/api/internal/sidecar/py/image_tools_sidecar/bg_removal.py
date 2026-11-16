@@ -1,8 +1,8 @@
 """background_removal — produce an alpha matte with a U^2-Net / IS-Net family
 ONNX model and composite the subject onto transparency.
 
-CPU-only (onnxruntime CPUExecutionProvider). The preprocessing profile is chosen
-from the model's input size, matching the two dominant rembg session families:
+The admitted device selects ONNX Runtime's CPU or CUDA provider. The preprocessing
+profile is chosen from the model's input size, matching the two dominant rembg session families:
 
   * U^2-Net (u2net, u2netp, silueta): 320x320 input, ImageNet mean/std.
   * IS-Net / DIS / BiRefNet:          >=1024 input, mean 0.5 / std 1.0.

@@ -569,6 +569,23 @@ func TestOnnxRepairRequiresAndRetainsRemovalMask(t *testing.T) {
 	}
 }
 
+func TestOnnxSidecarReceivesExplicitAdmittedDevice(t *testing.T) {
+	for _, tc := range []struct {
+		gpu  bool
+		want string
+	}{{false, "cpu"}, {true, "cuda"}} {
+		req := backends.Request{Operation: "background_removal", GPU: tc.gpu, InputKeys: []string{"/source.png"}, Output: storage.OutputTarget{LocalPath: "/out.png"}}
+		args, err := OnnxSidecar(req, "/models/isnet")
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Join(args, " ")
+		if !strings.Contains(got, "--device "+tc.want) {
+			t.Errorf("GPU=%t args %q missing explicit --device %s", tc.gpu, got, tc.want)
+		}
+	}
+}
+
 func TestOnnxModelPathUsesValidatedBuildProfileOutput(t *testing.T) {
 	req := backends.Request{Model: models.Model{
 		ID:           "big-lama-1024-export",

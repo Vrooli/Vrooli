@@ -3,7 +3,6 @@
 The governed composition runtime this scenario depends on, with acquisition and
 live-service evidence recorded below.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

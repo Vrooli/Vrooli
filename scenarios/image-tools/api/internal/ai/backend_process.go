@@ -61,7 +61,9 @@ type backendProcess struct {
 	run               commandRunner
 	warm              warmRunner
 	gpuProbe          func(context.Context, string) bool
-	gpuProbeOnce      sync.Once
+	gpuProbeMu        sync.Mutex
+	gpuProbeUntil     time.Time
+	gpuProbePath      string
 	gpuProbeValue     bool
 	progressScan      func(string) (float64, string, bool)
 	stream            streamRunner
@@ -205,9 +207,17 @@ func (p *backendProcess) GPUCapable() bool {
 		// Torch is ready must not pin this provider to CPU for its whole lifetime.
 		return p.gpuProbe(context.Background(), program)
 	}
-	p.gpuProbeOnce.Do(func() {
-		p.gpuProbeValue = p.gpuProbe(context.Background(), program)
-	})
+	// Host tools can be installed or replaced while image-tools is serving. Key
+	// the cached probe by the resolved executable and bound its lifetime so a
+	// first CPU-only observation does not pin this backend to CPU until restart.
+	p.gpuProbeMu.Lock()
+	defer p.gpuProbeMu.Unlock()
+	if p.gpuProbePath == program && time.Now().Before(p.gpuProbeUntil) {
+		return p.gpuProbeValue
+	}
+	p.gpuProbePath = program
+	p.gpuProbeValue = p.gpuProbe(context.Background(), program)
+	p.gpuProbeUntil = time.Now().Add(30 * time.Second)
 	return p.gpuProbeValue
 }
 
@@ -241,18 +251,19 @@ func (p *backendProcess) Availability(ctx context.Context) backends.Availability
 		return a
 	}
 	return p.probe.Do(ctx, resolved+"\x00"+strings.Join(p.imports, ","), func() backends.Availability {
+		probeCtx := withPythonRuntimeLibraries(ctx, resolved)
 		check := p.checkPy
 		if check == nil {
 			check = defaultCheckPythonModules
 		}
-		if err := check(ctx, resolved, p.imports); err != nil {
+		if err := check(probeCtx, resolved, p.imports); err != nil {
 			a.Available = false
 			a.Detail = fmt.Sprintf("%s; Python imports failed: %v", a.Detail, err)
 			return a
 		}
 		a.Detail += "; Python imports ready: " + strings.Join(p.imports, ",")
 		if p.name == "onnxruntime" {
-			providers, err := p.onnxRuntimeProviders(ctx, resolved)
+			providers, err := p.onnxRuntimeProviders(probeCtx, resolved)
 			if err != nil {
 				a.Available = false
 				a.Detail = fmt.Sprintf("%s; ONNX Runtime provider probe failed: %v", a.Detail, err)
@@ -281,12 +292,12 @@ func (p *backendProcess) onnxRuntimeProviderDetail(python string, providers []st
 	if !slices.Contains(providers, "CUDAExecutionProvider") {
 		return detail + "; CUDAExecutionProvider unavailable, sidecar remains CPU-only"
 	}
-	return detail + "; CUDAExecutionProvider available, but this registered sidecar remains CPU-labeled until a GPU-capable ONNX provider row is promoted"
+	return detail + "; CUDAExecutionProvider available; GPU-capable operations require explicit per-job CUDA admission"
 }
 
 func defaultCheckPythonModules(ctx context.Context, python string, modules []string) error {
 	script := "import " + strings.Join(modules, ", ")
-	cmd := exec.CommandContext(ctx, python, "-c", script)
+	cmd := inferenceCommand(ctx, python, "-c", script)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)
@@ -296,7 +307,7 @@ func defaultCheckPythonModules(ctx context.Context, python string, modules []str
 
 func defaultCheckONNXRuntimeProviders(ctx context.Context, python string) ([]string, error) {
 	script := "import json, onnxruntime as ort; print(json.dumps(ort.get_available_providers()))"
-	cmd := exec.CommandContext(ctx, python, "-c", script)
+	cmd := inferenceCommand(ctx, python, "-c", script)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", strings.TrimSpace(string(out)), err)

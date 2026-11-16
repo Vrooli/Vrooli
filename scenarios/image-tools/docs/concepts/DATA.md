@@ -1,6 +1,5 @@
 # Data — Image Tools
 
-## Purpose Of This Document
 
 This is the source map for data that Image Tools owns. Domain schemas live
 beside the Go code that interprets them; runtime artifacts and image bytes use

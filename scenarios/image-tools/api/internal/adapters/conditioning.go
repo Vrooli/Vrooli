@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"image-tools/internal/models"
@@ -105,6 +106,9 @@ func ResolveConditioning(
 	for _, rq := range reqs {
 		if rq.ID == "" {
 			return nil, nil, fmt.Errorf("conditioning: an adapter request has an empty id")
+		}
+		if math.IsNaN(rq.Scale) || math.IsInf(rq.Scale, 0) {
+			return nil, nil, fmt.Errorf("conditioning: adapter %q scale must be finite", rq.ID)
 		}
 		if _, dup := seen[rq.ID]; dup {
 			return nil, nil, fmt.Errorf("conditioning: adapter %q requested more than once", rq.ID)

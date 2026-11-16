@@ -29,6 +29,10 @@
             "Qwen3-Embedding-0.6B/special_tokens_map.json",
             "vae/config.json"
           ]
+        },
+        "reacquisition": {
+          "command": "vrooli resource acquisition model-cache ace-step",
+          "evidence": "resource.json#/managed_service/data_artifacts (pinned URLs and SHA-256 hashes; closure hash is asserted by resources/ace-step/cli/main_test.go::TestPinnedModelInputsHaveOneExecutableCodeAuthority)"
         }
       },
       "outputs": {

@@ -214,19 +214,20 @@ def _sampling_headers(audio: dict, seed: int, steps: int, guidance: float, shift
 
 
 def _language_headers(audio: dict, request: ComposeRequest) -> dict[str, str]:
-    if request.vocal_language is None:
-        return {}
     actual = audio.get("params")
-    if not isinstance(actual, dict) or actual.get("vocal_language") != request.vocal_language:
-        raise RuntimeError("upstream resolved vocal language differs from explicit request")
+    expected = request.vocal_language or "en"
+    if not isinstance(actual, dict) or actual.get("vocal_language") != expected:
+        raise RuntimeError("upstream resolved vocal language differs from the requested or declared default language")
+    headers = {
+        "X-ACE-Step-Language-Mode": "explicit-v1" if request.vocal_language is not None else "default-v1",
+        "X-ACE-Step-Vocal-Language": actual["vocal_language"],
+    }
+    if request.vocal_language is None:
+        return headers
     for field in ("use_cot_language", "use_cot_caption", "use_cot_metas"):
         if actual.get(field) is not False:
             raise RuntimeError(f"upstream resolved {field} did not disable rewriting")
-    headers = {
-        "X-ACE-Step-Language-Mode": "explicit-v1",
-        "X-ACE-Step-Vocal-Language": actual["vocal_language"],
-        "X-ACE-Step-CoT-Language": "false",
-    }
+    headers["X-ACE-Step-CoT-Language"] = "false"
     for field in ("caption", "lyrics"):
         if actual.get(field) != getattr(request, field):
             raise RuntimeError(f"upstream resolved {field} differs from exact input")

@@ -206,7 +206,7 @@ flatbuffers==25.12.19 \
     --hash=sha256:7634f50c427838bb021c2d66a3d1168e9d199b0607e6329399f04846d42e20b4
     # via
     #   -r scenarios/image-tools/api/internal/pydeps/requirements.lock
-    #   onnxruntime
+    #   onnxruntime-gpu
 fsspec==2026.6.0 \
     --hash=sha256:02e0b71817df9b2169dc30a16832045764def1191b43dcff5bb85bdee212d2a1 \
     --hash=sha256:f5bac145310fe30e16e1471bd6840b2d990d609e872251d7e674241822abf01a
@@ -510,7 +510,7 @@ numpy==2.5.0 \
     #   kornia
     #   ml-dtypes
     #   onnx
-    #   onnxruntime
+    #   onnxruntime-gpu
     #   peft
     #   scikit-image
     #   scipy
@@ -663,31 +663,17 @@ onnx==1.19.0 \
     --hash=sha256:ee3bbbe88644d2f6b2392d40f9aea42b149705b5b76bcbf5497eb8d01c1bda88 \
     --hash=sha256:efb768299580b786e21abe504e1652ae6189f0beed02ab087cd841cb4bb37e43
     # via -r scenarios/image-tools/api/internal/pydeps/requirements.lock
-onnxruntime==1.27.0 \
-    --hash=sha256:0874edc171f470fc4dd2bbb60bc0989612ed1a8b89b365cda016630a93227f13 \
-    --hash=sha256:1b215aa662c8f983f7d6dedafe65a9be72c26e5338e0fe98b3e0422c32c85428 \
-    --hash=sha256:20c321cf187ba496e648acf6b4cf90b4d398b0d17c2a77fdaeba365b908cc1c1 \
-    --hash=sha256:2eb083321af8a236a84c7c140a7f4cecbfa2a987a18c07c78db471c20cd390ef \
-    --hash=sha256:2fdfa9df40a0ded0028ce6f9cd863264237f3970559dea2b81456e9ac4622b94 \
-    --hash=sha256:370d211e1ceeac4cd5f45301655463ac59e27cdc74d9f7aeb2d19ff4b7a76715 \
-    --hash=sha256:445fb702ea5241ba813a3ce2febe2e9408a64f6ad2eb610924322c536165f7cd \
-    --hash=sha256:48b3d87eb560ff6a772240506f3c78d6d27c63cafedd5c775672e1194f968cfd \
-    --hash=sha256:49e416be0d717338b6d041b99911b716d70c397d277056450724f93bdded3fc2 \
-    --hash=sha256:54c0c4e9202c36c4ecdb1f3443f5dfbfd5ee3b54d1362c4b4c6134110e74fb32 \
-    --hash=sha256:5b51c014cf1a4fcd93c29a97eac8071fa27710dae05a4d0380bb60a66d60a62c \
-    --hash=sha256:6872443f236a554921cda6f318c900e2d0c226792cf3534d00e5057c6926e5d2 \
-    --hash=sha256:75fbc1e1fb43a39a856c8209c544cca7817b5de7ac16b15b1bdf55d1cc67b9df \
-    --hash=sha256:760021bca514d64a811837820d351a08a41741f16f8b4c26450da708fecf14e6 \
-    --hash=sha256:7c65a7438632d55dfbc8a02ee60bd6cf7dd9d1ba05a43d4b851452f32338e194 \
-    --hash=sha256:856032937dd3bc7a7c141909c8d7ae4fde3e3f59bddf061ae627b9a051bda95c \
-    --hash=sha256:8ba14a38c570087f3cdb8cfba33f7a38a1e826c1e5b29e17c28ceda0cc910016 \
-    --hash=sha256:a14c2ce45312def86b77aea651f46565e45960cf5f0721bfdff449165086ab76 \
-    --hash=sha256:b3e5b58b8c89c2b20e086e890aa9527377e5c240dc3ecc1640d18e07705eeb1c \
-    --hash=sha256:c6197a02e3f620c4dc13cff51b80672409fc1ffab3aa2593911b19fd322ff48b \
-    --hash=sha256:c6fddce0539a4898c7bef35b052ffd37935b2190e35488eab99ce91887743ea1 \
-    --hash=sha256:d0d1f68868e2ef30ef70998ba9bbbc5c305e9b17041e3936751c1b8aa6aade06 \
-    --hash=sha256:e4f7b0e90d2d212e2c2deaa6c8291616183ab815d3ec558ea12d3ac8b26d36f4 \
-    --hash=sha256:ff050e4f6bf7f12918fa14dcb047c0b02e295f35e86d42532552be4b3d54e977
+onnxruntime-gpu==1.27.0 \
+    --hash=sha256:209caede76604509fb7451178f56daa5292a933478864aaff87c6c29d1257593 \
+    --hash=sha256:3b5652761f14bc74729ffbc8fdc01767e541e163459f2e10aa65af61d5db64c8 \
+    --hash=sha256:404fb845dc06a04a28df5a2c6d5967bcf3f534e7df0b98507ff81686a1b49594 \
+    --hash=sha256:42696d6137d6974325a67c88a65dd41625e49bf076da79c658514b498b297142 \
+    --hash=sha256:7e6eb554d35706ee154b583dd32e4167a93aa55d3670f59754f43860fd649b92 \
+    --hash=sha256:986b94d513b052dc06b93c5a424f072f07f40d66be40ce2d6320d76d84fa4919 \
+    --hash=sha256:9f92c12578433cffa6017ec843f4b4c500b9ebaf65f6c4497ddec01af5cd5396 \
+    --hash=sha256:ac352199fb6ac3e366b45a690bb47c9b1c92b1be0e3958149dd1a30285832b9f \
+    --hash=sha256:b2b8d6afabf3c23c2c698639a16388816dc7298f388a9ddddf504b283990ea01 \
+    --hash=sha256:c68799b35fc4818e6c1d50f5270681bf5ab8a652ac118e11a987b23f488e18dd
     # via -r scenarios/image-tools/api/internal/pydeps/requirements.lock
 packaging==26.2 \
     --hash=sha256:5fc45236b9446107ff2415ce77c807cee2862cb6fac22b8a73826d0693b0980e \
@@ -697,7 +683,7 @@ packaging==26.2 \
     #   accelerate
     #   huggingface-hub
     #   lazy-loader
-    #   onnxruntime
+    #   onnxruntime-gpu
     #   peft
     #   scikit-image
     #   transformers
@@ -815,7 +801,7 @@ protobuf==7.35.1 \
     # via
     #   -r scenarios/image-tools/api/internal/pydeps/requirements.lock
     #   onnx
-    #   onnxruntime
+    #   onnxruntime-gpu
 psutil==7.2.2 \
     --hash=sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372 \
     --hash=sha256:076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9 \

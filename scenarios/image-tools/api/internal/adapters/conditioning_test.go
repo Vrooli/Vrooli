@@ -1,6 +1,7 @@
 package adapters
 
 import (
+	"math"
 	"testing"
 
 	"image-tools/internal/models"
@@ -102,6 +103,21 @@ func TestResolveConditioningFailsClosed(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, _, err := ResolveConditioning(models.ArchSD15, tc.reqs, byID, tc.enabled, tc.installed); err == nil {
 				t.Fatalf("expected fail-closed for %s", tc.name)
+			}
+		})
+	}
+}
+
+func TestResolveConditioningRejectsNonFiniteScale(t *testing.T) {
+	lora := readyAdapter("lora", KindLoRA, models.ArchSD15, safety.WeightNone)
+	for _, tc := range []struct {
+		name  string
+		scale float64
+	}{{"nan", math.NaN()}, {"positive infinity", math.Inf(1)}, {"negative infinity", math.Inf(-1)}} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, _, err := ResolveConditioning(models.ArchSD15,
+				[]AdapterRequest{{ID: lora.ID, Scale: tc.scale}}, lookup(lora), nil, alwaysInstalled); err == nil {
+				t.Fatalf("non-finite scale %v was accepted", tc.scale)
 			}
 		})
 	}

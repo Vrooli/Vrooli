@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	providerACE = "ace-step"
-	providerSA3 = "stable-audio-3"
+	providerACE       = "ace-step"
+	providerSA3       = "stable-audio-3"
+	aceDefaultVariant = "acestep-v15-turbo"
 )
 
 // Only new admissions resolve defaults. Missing durable provider means the old
@@ -48,6 +49,22 @@ func validateProviderInput(provider string, c styles.Compiled, r composeRequest,
 	registry, err := models.LoadSeed(false)
 	if err != nil {
 		return err
+	}
+	if r.VocalLanguage != nil {
+		language := strings.TrimSpace(*r.VocalLanguage)
+		if language == "" {
+			return fmt.Errorf("vocal_language must be omitted or a model-declared language")
+		}
+		if language != *r.VocalLanguage {
+			return fmt.Errorf("vocal_language must use canonical model-declared spelling without surrounding whitespace")
+		}
+		model, err := declaredCompositionModel(provider, c.Params.Variant)
+		if err != nil {
+			return err
+		}
+		if !slices.Contains(model.VocalLanguages, language) {
+			return fmt.Errorf("model %s does not declare vocal language %q (supported: %s)", model.ID, language, strings.Join(model.VocalLanguages, ", "))
+		}
 	}
 	if err := registry.ValidateComposition(provider, c.Params.Variant, styles.ResolveLyrics(c.Lyrics) != styles.InstrumentalLyrics); err != nil {
 		return err
@@ -195,8 +212,12 @@ func (s *ModuleState) aceAdmission(ctx context.Context, payload composeJobPayloa
 		return nil, nil, fmt.Errorf("ACE job lacks immutable style admission input")
 	}
 	compiled := *payload.ResolvedStyle
-	model, err := declaredCompositionModel(providerACE, compiled.Params.Variant)
+	model, err := declaredACEModel(compiled.Params.Variant)
 	if err != nil {
+		return nil, nil, err
+	}
+	compiled.Params.Variant = model.Variant
+	if err := s.requireCurrentModelRights(ctx, model); err != nil {
 		return nil, nil, err
 	}
 	if err := validateProviderInput(providerACE, compiled, payload.composeRequest, s.PermissiveOnly); err != nil {
@@ -260,6 +281,13 @@ func declaredCompositionModel(engine, variant string) (models.Model, error) {
 		}
 	}
 	return models.Model{}, fmt.Errorf("no declared composition model for engine %q and variant %q", engine, variant)
+}
+
+func declaredACEModel(variant string) (models.Model, error) {
+	if variant == "" {
+		variant = aceDefaultVariant
+	}
+	return declaredCompositionModel(providerACE, variant)
 }
 
 func snapshotModel(model models.Model) *models.Model {

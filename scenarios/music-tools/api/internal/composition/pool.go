@@ -3,8 +3,10 @@ package composition
 import (
 	"context"
 	_ "embed"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +26,18 @@ type Pool struct {
 	db               jobs.SQLExecutor
 	trigger          func(styleID string, needed int)
 	blobPolicy       BlobPolicy
+}
+
+type CandidateRefillRequest struct {
+	RequestID     string
+	ReservationID string
+	SHA256        string
+	Purpose       string
+	Project       string
+	Revision      string
+	StyleID       string
+	State         string
+	JobID         string
 }
 
 type BlobPolicy interface {
@@ -396,6 +410,63 @@ func (p *Pool) ConfigureReplenishment(styleID string) (bool, int) {
 	p.inflight[styleID] = true
 	needed := p.target[styleID] - p.depthLocked(styleID)
 	return true, needed
+}
+
+// QueueCandidateRefill persists an idempotent signal from a consuming bank.
+// It stays held for explicit dispatch so a catalog use cannot start generation
+// before the MQ1 analysis gate and resource admission are satisfied.
+func (p *Pool) QueueCandidateRefill(request CandidateRefillRequest) (CandidateRefillRequest, error) {
+	_, hashErr := hex.DecodeString(request.SHA256)
+	_, requestErr := hex.DecodeString(request.RequestID)
+	if p.db == nil || request.RequestID == "" || request.RequestID != request.ReservationID || len(request.RequestID) != 32 || requestErr != nil || len(request.SHA256) != 64 || hashErr != nil || strings.TrimSpace(request.Purpose) != request.Purpose || request.Purpose == "" || strings.TrimSpace(request.Project) != request.Project || request.Project == "" || strings.TrimSpace(request.Revision) != request.Revision || request.Revision == "" || strings.TrimSpace(request.StyleID) != request.StyleID || request.StyleID == "" {
+		return CandidateRefillRequest{}, fmt.Errorf("candidate refill requires durable storage and complete source identity")
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	_, err := p.db.ExecContext(context.Background(), `INSERT INTO music_candidate_refill_requests (request_id,reservation_id,sha256,purpose,project,revision,style_id,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(request_id) DO NOTHING`, request.RequestID, request.ReservationID, request.SHA256, request.Purpose, request.Project, request.Revision, request.StyleID, "held", now, now)
+	if err != nil {
+		return CandidateRefillRequest{}, fmt.Errorf("store candidate refill request: %w", err)
+	}
+	var saved CandidateRefillRequest
+	err = p.db.QueryRowContext(context.Background(), `SELECT request_id,reservation_id,sha256,purpose,project,revision,style_id,state,job_id FROM music_candidate_refill_requests WHERE request_id=?`, request.RequestID).Scan(&saved.RequestID, &saved.ReservationID, &saved.SHA256, &saved.Purpose, &saved.Project, &saved.Revision, &saved.StyleID, &saved.State, &saved.JobID)
+	if err != nil {
+		return CandidateRefillRequest{}, err
+	}
+	if saved.ReservationID != request.ReservationID || saved.SHA256 != request.SHA256 || saved.Purpose != request.Purpose || saved.Project != request.Project || saved.Revision != request.Revision || saved.StyleID != request.StyleID {
+		return CandidateRefillRequest{}, fmt.Errorf("request id is already bound to a different source identity")
+	}
+	return saved, nil
+}
+
+func (p *Pool) CandidateRefillRequest(requestID string) (CandidateRefillRequest, error) {
+	var request CandidateRefillRequest
+	err := p.db.QueryRowContext(context.Background(), `SELECT request_id,reservation_id,sha256,purpose,project,revision,style_id,state,job_id FROM music_candidate_refill_requests WHERE request_id=?`, requestID).Scan(&request.RequestID, &request.ReservationID, &request.SHA256, &request.Purpose, &request.Project, &request.Revision, &request.StyleID, &request.State, &request.JobID)
+	return request, err
+}
+
+func (p *Pool) CancelCandidateRefillRequest(requestID string) (CandidateRefillRequest, error) {
+	request, err := p.CandidateRefillRequest(requestID)
+	if err != nil {
+		return CandidateRefillRequest{}, err
+	}
+	if request.State == "held" {
+		_, err = p.db.ExecContext(context.Background(), `UPDATE music_candidate_refill_requests SET state='cancelled',updated_at=? WHERE request_id=? AND state='held'`, time.Now().UTC().Format(time.RFC3339Nano), requestID)
+		if err != nil {
+			return CandidateRefillRequest{}, err
+		}
+		request.State = "cancelled"
+	}
+	return request, nil
+}
+
+func (p *Pool) MarkCandidateRefillDispatched(requestID, jobID string) (CandidateRefillRequest, error) {
+	if jobID == "" {
+		return CandidateRefillRequest{}, fmt.Errorf("job id is required")
+	}
+	_, err := p.db.ExecContext(context.Background(), `UPDATE music_candidate_refill_requests SET state='dispatched',job_id=?,updated_at=? WHERE request_id=? AND state='held'`, jobID, time.Now().UTC().Format(time.RFC3339Nano), requestID)
+	if err != nil {
+		return CandidateRefillRequest{}, err
+	}
+	return p.CandidateRefillRequest(requestID)
 }
 
 func (p *Pool) ReplenishmentFinished(styleID string) {

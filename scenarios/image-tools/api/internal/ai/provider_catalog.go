@@ -169,7 +169,7 @@ func providerSpecs() []providerSpec {
 			},
 		},
 		{
-			name: "onnxruntime", program: pythonProgram, gpuCapable: false, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"},
+			name: "onnxruntime", program: pythonProgram, gpuCapable: true, hostTool: "uv", imports: []string{"onnxruntime", "PIL", "numpy"},
 			techniques: []technique.Technique{
 				nativeTechnique("onnx-denoise", "denoise", technique.OnnxSidecar),
 				nativeTechnique("onnx-deblur", "deblur", technique.OnnxSidecar),
@@ -238,6 +238,18 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 		}
 		return torchCUDA
 	}
+	var onnxProbeMu sync.Mutex
+	var onnxProbeUntil time.Time
+	var onnxCUDA bool
+	onnxProbe := func(ctx context.Context, program string) bool {
+		onnxProbeMu.Lock()
+		defer onnxProbeMu.Unlock()
+		if !time.Now().Before(onnxProbeUntil) {
+			onnxCUDA = probeONNXCUDA(ctx, program)
+			onnxProbeUntil = time.Now().Add(30 * time.Second)
+		}
+		return onnxCUDA
+	}
 	for _, s := range providerSpecs() {
 		p := &execProvider{backendProcess: backendProcess{name: s.name, program: s.program, programAliases: s.programAliases, gpuCapable: s.gpuCapable, provision: s.provision(), imports: s.imports, lookPath: lookPath, run: run}, techniques: technique.NewSet(s.techniques...)}
 		if s.isPython() {
@@ -247,7 +259,13 @@ func RegisterProviders(reg *backends.Registry, lookPath lookPathFunc, run comman
 				p.gpuProbe = torchProbe
 			}
 		}
+		if s.name == "onnxruntime" {
+			p.gpuProbe = onnxProbe
+		}
 		if s.name == "onnxruntime" && run == nil {
+			p.warm = newWarmSidecarRunner()
+		}
+		if s.name == "sam2-transformers" && run == nil {
 			p.warm = newWarmSidecarRunner()
 		}
 		if s.name == "stable-diffusion.cpp" {

@@ -20,21 +20,21 @@ Value promise: every music operation runs locally at zero marginal cost, on hard
 ### 🔴 P0 – Must ship for viability
 
 - [ ] OT-P0-001 | Headless capability surface | Every composition, transformation, and analysis operation completes from the CLI with no UI and no ComfyUI dependency, returning report-shaped output.
-- [ ] OT-P0-002 | Governed model registry | Every model is declared with hardware gates, disk cost, licence, and commercial-use lane; installs are checksum-verified and refuse to start when free disk is below the declared floor.
+- [x] OT-P0-002 | Governed model registry | Every model is declared with hardware gates, disk cost, licence, and commercial-use lane; installs are checksum-verified and refuse to start when free disk is below the declared floor.
 - [ ] OT-P0-003 | Arbitrated GPU execution | Every GPU operation uses its owning capacity contract: SA3 resident admission belongs to resource lifecycle; ACE jobs claim, renew, apply supported rungs, and release — never evicting a co-resident tenant implicitly.
 - [x] OT-P0-004 | Uniform decomposition | Any track, owned or generated, yields the same structured description — embeddings, structure and beats, key and tempo, loudness, tags — through a single contract.
-- [ ] OT-P0-005 | Durable async jobs | Long operations are server-owned jobs that survive client disconnect, expose progress, and end in success or an explicit recoverable failure.
-- [ ] OT-P0-006 | Bounded derived storage | Stems, frame-level embeddings, and generated audio live under a declared budget sized for discarded takes, with on-demand production and LRU eviction that prefers unselected takes.
-- [ ] OT-P0-007 | Style library | Data-defined styles compile to a caption plus parameters, so a house sound is captured once and reused as the unit batches and inventories are configured with.
+- [x] OT-P0-005 | Durable async jobs | Long operations are server-owned jobs that survive client disconnect, expose progress, and end in success or an explicit recoverable failure.
+- [x] OT-P0-006 | Bounded derived storage | Stems, frame-level embeddings, and generated audio live under a declared budget sized for discarded takes, with on-demand production and LRU eviction that prefers unselected takes.
+- [ ] OT-P0-007 | Style library | Data-defined styles compile to a caption plus parameters; a configurable composition default identifies the first-class house direction used when callers omit a style, and can be overridden by any saved style.
 - [ ] OT-P0-008 | Batch composition and selection | A composition request returns the requested number of independently seeded takes, each separately addressable and retained, with selection recorded as a fact rather than interpreted as preference.
-- [ ] OT-P0-009 | Honest provenance on every artifact | Every take records model, licence lane, applied capacity rung, seed, and both the caption as authored and the caption as the model received it.
+- [x] OT-P0-009 | Honest provenance on every artifact | Every take records model, licence lane, applied capacity rung, seed, and both the caption as authored and the caption as the model received it.
 
 ### 🟠 P1 – Should have post-launch
 
-- [x] OT-P1-001 | Iterative transformation | Cover, section repaint, stem separation, and vocal-to-accompaniment are first-class operations, so a near-miss is edited rather than regenerated.
+- [ ] OT-P1-001 | Iterative transformation | Stem separation, cover, bounded section repaint, vocal-to-accompaniment, remix, and sample-based arrangement are first-class durable jobs. Every derived audio output carries an immutable operation receipt with exact input and output hashes, time ranges, model/tool revision, and inherited rights so a near-miss is edited and its lineage can be reviewed.
 - [x] OT-P1-002 | Commercial lane isolation | A build configured for the permissive lane excludes every non-commercial model and still produces a working composition and analysis stack.
 - [x] OT-P1-003 | Deterministic delivery ops | Loudness measurement, platform-target normalisation, and reference mastering run without a GPU and without a model download.
-- [ ] OT-P1-005 | Maintained inventory | For a named style the scenario keeps a target number of ready takes and replenishes them as they are consumed. Takes are drawn through an explicit reservation lifecycle so no two consumers ship the same track. The replenish trigger is pluggable; replenish-on-consume is the v1 and requires no platform scheduler.
+- [ ] OT-P1-005 | Maintained inventory | Music Tools keeps generated takes in a named-style candidate queue with an explicit lease lifecycle and pluggable refill trigger. A consuming library owns the approved bank, listener judgment, purpose, project binding and use history; only listener-approved tracks are launch-ready. Library consumption must reach Music Tools through a durable, retryable replenish signal, without duplicate approval or usage ledgers. Replenish-on-consume requires no platform scheduler.
 
 ### 🟢 P2 – Future / expansion
 

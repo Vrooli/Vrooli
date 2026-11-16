@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -12,7 +13,32 @@ import (
 type (
 	gpuDeviceContextKey  struct{}
 	cpuThreadsContextKey struct{}
+	pythonLibrariesKey   struct{}
 )
+
+func pythonRuntimeLibraries(python string) []string {
+	if python == "" {
+		return nil
+	}
+	venv := filepath.Dir(filepath.Dir(python))
+	matches, _ := filepath.Glob(filepath.Join(venv, "lib", "python*", "site-packages", "nvidia", "*", "lib"))
+	var dirs []string
+	for _, path := range matches {
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			dirs = append(dirs, path)
+		}
+	}
+	return dirs
+}
+
+func withPythonRuntimeLibraries(ctx context.Context, python string) context.Context {
+	return context.WithValue(ctx, pythonLibrariesKey{}, pythonRuntimeLibraries(python))
+}
+
+func pythonProbeCommand(ctx context.Context, python string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, python, args...)
+	return withLibraryPath(cmd, pythonRuntimeLibraries(python))
+}
 
 func probeTorchCUDA(ctx context.Context, python string) bool {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -24,12 +50,23 @@ func probeTorchCUDA(ctx context.Context, python string) bool {
 	return err == nil && strings.TrimSpace(string(out)) == "cuda-ready"
 }
 
+func probeONNXCUDA(ctx context.Context, python string) bool {
+	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+	if python == "" {
+		return false
+	}
+	code := "import torch, onnxruntime as ort; print('cuda-ready' if torch.cuda.is_available() and 'CUDAExecutionProvider' in ort.get_available_providers() else 'cpu-only')"
+	out, err := pythonProbeCommand(ctx, python, "-c", code).Output()
+	return err == nil && strings.TrimSpace(string(out)) == "cuda-ready"
+}
+
 // SupportsGPUUUID names backends whose CUDA runtime honors per-process visible
 // devices. Vulkan/NCNN selection must be qualified separately, rather than
 // pretending a CUDA environment variable binds those runtimes too.
 func (p *execProvider) SupportsGPUUUID() bool {
 	switch p.name {
-	case "diffusers", "iopaint", "sam2-transformers", "triposr":
+	case "diffusers", "iopaint", "onnxruntime", "sam2-transformers", "triposr":
 		return true
 	default:
 		return false
@@ -47,7 +84,8 @@ func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cm
 	cmd := exec.CommandContext(ctx, name, args...)
 	uuid, _ := ctx.Value(gpuDeviceContextKey{}).(string)
 	threads := admittedCPUThreads(ctx)
-	if uuid == "" && threads <= 0 {
+	pythonLibraries, _ := ctx.Value(pythonLibrariesKey{}).([]string)
+	if uuid == "" && threads <= 0 && len(pythonLibraries) == 0 {
 		return cmd
 	}
 	// Never mutate the serving process environment: concurrent jobs and probes
@@ -62,6 +100,13 @@ func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cm
 			overrides[key] = strconv.Itoa(threads)
 		}
 	}
+	if len(pythonLibraries) > 0 {
+		current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH"))
+		if current != "" {
+			pythonLibraries = append(pythonLibraries, current)
+		}
+		overrides["LD_LIBRARY_PATH"] = strings.Join(pythonLibraries, string(os.PathListSeparator))
+	}
 	for _, value := range os.Environ() {
 		key, _, _ := strings.Cut(value, "=")
 		if _, overridden := overrides[key]; !overridden {
@@ -71,5 +116,23 @@ func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cm
 	for key, value := range overrides {
 		cmd.Env = append(cmd.Env, key+"="+value)
 	}
+	return cmd
+}
+
+func withLibraryPath(cmd *exec.Cmd, libraries []string) *exec.Cmd {
+	if len(libraries) == 0 {
+		return cmd
+	}
+	current := strings.TrimSpace(os.Getenv("LD_LIBRARY_PATH"))
+	if current != "" {
+		libraries = append(libraries, current)
+	}
+	key := "LD_LIBRARY_PATH="
+	for _, value := range os.Environ() {
+		if !strings.HasPrefix(value, key) {
+			cmd.Env = append(cmd.Env, value)
+		}
+	}
+	cmd.Env = append(cmd.Env, key+strings.Join(libraries, string(os.PathListSeparator)))
 	return cmd
 }

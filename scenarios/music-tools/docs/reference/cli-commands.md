@@ -1,6 +1,6 @@
 # CLI Commands — Music Tools
 
-> **Status (2026-09-19): composition commands are shipped headlessly.** The
+> **Status (2026-11-15): composition commands are shipped headlessly.** The
 > current CLI exposes styles, composition submission, style compilation, jobs
 > wait/get/list/cancel, take listing and transitions, and pool
 > draw/status/configure. Analysis, models, and
@@ -139,15 +139,25 @@ Requirement IDs are from
 
 | Command | Domain | Requirement | Notes |
 |---|---|---|---|
-| `music-tools compose --style <id> --takes <n> [--seed <int64>] [--shift <1..5>]` | composition | `MUS-P0-012`, `MUS-P0-013` | Produces **N takes**, not one track — see the 2026-09-18 batch decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). `--takes` defaults above 1. |
-| `music-tools styles {list,get,create,compile}` | styles | `OT-P0-007` | A style compiles to a caption plus parameters. This is the unit a batch and an inventory are configured with. |
+| `music-tools sources import --file <path> --title <title> [--artist <name>] [--source-url <https>] [--uploader <name>] [--acquired-at <RFC3339>]` | sources | `MUS-P0-009` | Imports a private local audio file into content-addressed managed storage with provenance; 128 MiB per file and 1 GiB total source quota. |
+| `music-tools sources {get,audio}` | sources | `MUS-P0-009` | Reads metadata or exports a source to a new local file by SHA-256; playback endpoint supports byte ranges. |
+| `music-tools compose [--style <id>] --takes <n> [--seed <int64>] [--shift <1..5>] [--vocal-language <code>]` | composition | `MUS-P0-012`, `MUS-P0-013` | Produces **N takes**, not one track — see the 2026-09-18 batch decision in [`../internal/DECISIONS.md`](../internal/DECISIONS.md). Omitting `--style` uses the configured composition default. ACE declares `en` and `ko`; omission uses the model's declared default (`en`). This records a language parameter, not audible-language quality. |
+| `music-tools styles {default-get,default-set,list,get,create,compile}` | styles | `OT-P0-007` | A style compiles to a caption plus parameters. The configured default applies only when the caller omits `--style`; any saved style remains selectable. |
 | `music-tools takes {list,get,reserve,consume,release,discard}` | composition | — | The reservation lifecycle in [`../concepts/DATA.md`](../concepts/DATA.md#the-reservation-lifecycle). `release` is the "give me a different one" path and must be cheap — it regenerates nothing. The scenario records what was reserved and passed over; it does not infer preference from it. |
-| `music-tools pool {status,draw,configure}` | composition | `OT-P1-005` | `draw` is the consumer's one-call path: reserve a ready take in a named style, or say the pool is empty. `configure` sets target depth and replenish threshold per style. |
-| `music-tools analyze <track>` | analysis | `MUS-P0-009`–`011`, `MUS-P1-001` | One decomposition contract: embeddings, structure, beats, tempo/key with retained disagreement, loudness, tags. |
-| `music-tools separate <track>` | transformation | `MUS-P1-003` | Owned by the `music-mir` runtime, never assumed from the composition runtime. |
+| `music-tools pool {status,draw,configure}` | composition | `OT-P1-005` | This is the generated-candidate staging queue. A reservation does not imply listener approval. Music Library owns the purpose-tagged, judged bank and film-use ledger. |
+| `music-tools analyze <source_blob_key>` | analysis | `MUS-P0-009`–`011`, `MUS-P1-001` | Queues an analysis job for an existing Music Tools managed audio blob; read it with `analysis result <job-id>`. Current runtime result is partial. |
+| `music-tools separate <source_blob_key>` | transformation | `MUS-P1-003` | Queues the `music-mir` runtime; export stems with `analysis stem <job-id> <vocals|drums|bass|other> --out NEW.wav`. Runtime remains unqualified. |
 | `music-tools ops {trim,fade,concat,convert,loudness}` | ops | `MUS-P0-002` | Deterministic; no GPU, no model download. |
 | `music-tools models {list,install,remove,doctor,explain}` | models | `MUS-P0-003`–`005` | Must surface licence lane on every row (`experience/pages/models.json` treats lane as decision-critical, not metadata). |
 | `music-tools jobs {get,wait,list,cancel,watch}` | jobs | `MUS-P0-014` | Durable, server-owned, survives client disconnect. |
+
+The analysis and separation CLI/API job surfaces exist and share the durable
+job manager. Import a local track with `music-tools sources import` to obtain
+its `source_blob_key`, then pass that value to `analyze` or `separate`.
+`music-tools analysis result <job-id>` reads the stored result;
+`music-tools analysis stem <job-id> <name> --out NEW.wav` atomically creates a
+new local WAV without overwriting an existing file. The resource runtime is
+still unqualified; see [`resource-music-mir.md`](resource-music-mir.md).
 
 Two shape constraints inherited from decisions, not preferences:
 

@@ -37,6 +37,8 @@ type Model struct {
 	Engine                string              `json:"engine"`
 	CompositionPreference int                 `json:"composition_preference"`
 	SungLyrics            Capability          `json:"sung_lyrics"`
+	VocalLanguages        []string            `json:"vocal_languages,omitempty"`
+	DefaultVocalLanguage  string              `json:"default_vocal_language,omitempty"`
 	VoiceReference        Capability          `json:"voice_reference"`
 	ID                    string              `json:"id"`
 	DisplayName           string              `json:"display_name"`
@@ -52,9 +54,8 @@ type Model struct {
 	CommercialUseNotes    string              `json:"commercial_use_notes"`
 	BaseModelLineage      string              `json:"base_model_lineage"`
 	KnownRisks            string              `json:"known_risks"`
-	// Rights preserves the shared model-rights record from the registry. It is
-	// deliberately raw until the governed ai-provider-go module admission is
-	// available; runtime use still needs the shared evaluator decision.
+	// Rights preserves the shared model-rights record from the registry without
+	// duplicating its policy schema. The shared evaluator decodes it at use time.
 	Rights         json.RawMessage `json:"rights"`
 	Checksum       string          `json:"checksum"`
 	DiskFloorBytes uint64          `json:"disk_floor_bytes"`
@@ -262,6 +263,21 @@ func (r *Registry) Validate() error {
 		}
 		if model.License == "" || model.CommercialUse == "" || model.BaseModelLineage == "" || model.KnownRisks == "" {
 			return fmt.Errorf("models: %s is missing capability labels", model.ID)
+		}
+		seenLanguages := make(map[string]struct{}, len(model.VocalLanguages))
+		for _, language := range model.VocalLanguages {
+			if language == "" || strings.TrimSpace(language) != language {
+				return fmt.Errorf("models: %s has invalid vocal language %q", model.ID, language)
+			}
+			if _, exists := seenLanguages[language]; exists {
+				return fmt.Errorf("models: %s repeats vocal language %q", model.ID, language)
+			}
+			seenLanguages[language] = struct{}{}
+		}
+		if model.DefaultVocalLanguage != "" {
+			if _, supported := seenLanguages[model.DefaultVocalLanguage]; !supported {
+				return fmt.Errorf("models: %s default vocal language %q is not declared", model.ID, model.DefaultVocalLanguage)
+			}
 		}
 		if runtime := model.Runtime; runtime != nil {
 			if runtime.Protocol != "song-v1" || runtime.Resource == "" || runtime.Profile == "" || runtime.URLVariable == "" || runtime.DefaultURL == "" || runtime.SourceRevision == "" || runtime.WeightFiles <= 0 || len(runtime.Versions) == 0 {

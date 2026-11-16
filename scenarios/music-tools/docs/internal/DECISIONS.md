@@ -3,7 +3,6 @@
 This document records durable decisions and tradeoffs future agents
 should not accidentally relitigate.
 
-## Purpose Of This Document
 
 Use this document when a choice:
 
@@ -138,3 +137,13 @@ Generic shard-age deletion is disabled for all three resources. Model weights
 are downloads, not durable takes: retained Music audio and evidence stay outside
 these cache boundaries. This trades cold model load latency for reliable GPU
 release and avoids downloading recent weights repeatedly.
+
+## Candidate pool and judged bank have separate owners — 2026-11-15
+
+Music Tools' pool remains a staging queue for generated candidates. Music Library
+owns listener judgment, purpose tags, ranked bank selection, leases, project/film
+binding, and accepted-use history. A generated take cannot enter the launch-ready
+bank without a listener's liked judgment. This removes duplicated approval and
+usage facts while preserving Music Tools' durable job and take receipts. The
+composition default is configurable per database scope and defaults to the
+operator-approved Aquila-level `launch-instrumental` style on a fresh installation.

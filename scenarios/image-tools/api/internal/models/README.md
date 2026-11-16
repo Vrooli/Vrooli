@@ -53,12 +53,13 @@ and `enabled`.
 
 ## ⚠️ Checksum policy — do NOT fabricate hashes
 
-Every `source.checksum.value` is intentionally **empty** with
+New, unacquired weight entries start with `source.checksum.value` **empty** and
 `status: "unverified-capture-on-download"` (or `"n/a-library"` /
 `"n/a-computed"` / `"n/a-builtin"` where there is no downloadable model weight).
-Hashes are **captured and pinned on first real download**, then `status` flips
-to `"pinned"`; later downloads must match or fail. Hand-written hashes would be
-false verification — never invent them.
+After a real acquisition, the installer captures and pins the digest; an
+upstream-published digest may also be pinned when its immutable source revision
+is recorded and the installed receipt matches it. Later downloads must match or
+fail. Never invent a hash or mark an unverified digest as pinned.
 
 Enabled weight-backed seed models must use `assets[]` with direct artifact URLs,
 artifact `kind`, and positive `min_bytes`. A source repository, model card, or

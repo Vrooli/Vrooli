@@ -1,9 +1,6 @@
 # Progress — Music Tools
 
-Historical execution details are preserved beneath the protected runtime home:
-`plan-artifacts/docs-html-progress-20260908/scenarios/music-tools/docs/internal/PROGRESS.md`.
-The archive retains exact entries, validation receipts, and unresolved qualifications;
-relocation does not resolve a finding or establish current readiness.
+Historical details: `plan-artifacts/docs-html-progress-20260908/scenarios/music-tools/docs/internal/PROGRESS.md`. See the [runtime-home retention contract](../../../../docs/reference/storage-retention.md#control-plane-runtime-home-contract) for backup custody and readiness semantics.
 Copied July 7 template history was removed from this scenario’s log.
 
 Lifecycle log for meaningful scenario changes. Future agents read this
@@ -23,6 +20,7 @@ with the owning plan.
 | 2026-09-19 | agent | partial | Shipped and validated the governed ACE-Step managed resource: checksum-pinned offline closure, activity-edge compose boundary, full/offload lifecycle rungs, eager readiness, stable artifact digest, and live offload WAV receipt. Expanded composition provenance/API/CLI transitions, added styles/audition/pool UI routes with tests, and retired the manual music-generation setup skill. Remaining plan work is infrastructure-domain completion, SFT measurement, and experience/UI-health cleanup. |
 | 2026-09-19 | agent | partial | Measured ten SFT jobs through the shipped pipeline with preserved briefs/seeds and valid WAV receipts; turbo remains default because no grounded quality advantage was established. Reconciled capacity with ACE-Step claimed and healthy. Business and broad Test Genie validation were rerun, but the provider was unavailable for business and the broad suite retained pre-existing UI/proto/quality/provider findings; these remain explicit audit limitations. |
 | 2026-09-19 | agent | done | Closed the composition-slice intent spine: shipped requirement references now resolve to real tests with valid registry statuses, explicitly deferred domains use roadmap/manual validations, and P2 targets have coverage. Business phase passed with zero ERROR/BLOCKER findings. The broad collection passed 16/27 phases; remaining failures are logged as unrelated scaffold/provider debt. |
+| 2026-11-15 | agent | partial | MQ5 adds a configurable Aquila-level composition default, Library reservation/rollback, durable replenish outbox and held Music Tools refill requests; Launch Video uses the judged bank first and now documents rollback after an abandoned committed draft (skill revision 47). Isolated CLI/API and refill contracts, focused package tests, builds, endpoint generation and proto verification pass. Requirements sync ran but auto-completed OT-P0-007/OT-P1-005 from incomplete local evidence; both remain open/in-progress. Test Genie unit and contracts runs failed on stale installed CLIs, broad coverage, an existing duplicated FakeDoer utility and broad CLI manifest/proto mapping findings. Serving Library is the pre-MQ5 build; no supported owner window, restart, live catalog mutation, generation, or taste claim. |
 
 ## 2026-10-17 — Managed MiniMax Music3 and HeartMuLa
 

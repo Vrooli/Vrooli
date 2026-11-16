@@ -1,6 +1,5 @@
 # Integrations — Image Tools
 
-## Purpose Of This Document
 
 This document records integrations present in the current service declaration
 and source. `.vrooli/service.json` and the shared capacity/host-tool contracts

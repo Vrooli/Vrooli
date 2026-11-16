@@ -77,6 +77,15 @@ type Config struct {
 	Admit func(context.Context, context.CancelCauseFunc, Job) (release func(), meta map[string]string, err error)
 }
 
+// Operation configures work that shares this manager's durable store and lane
+// workers. When Admit is nil, the manager-wide admission callback is inherited.
+// This makes newly registered GPU operations safe by default while still
+// allowing an operation to provide a more specific capacity contract.
+type Operation struct {
+	Runner Runner
+	Admit  func(context.Context, context.CancelCauseFunc, Job) (func(), map[string]string, error)
+}
+
 // Manager owns durable jobs: it serializes GPU work, runs CPU work
 // concurrently, and survives client disconnects (work runs under baseCtx).
 type Manager struct {
@@ -87,6 +96,7 @@ type Manager struct {
 	netN       int
 	onComplete func(Job)
 	admit      func(context.Context, context.CancelCauseFunc, Job) (func(), map[string]string, error)
+	operations map[string]Operation
 	baseCtx    context.Context
 	cancel     context.CancelFunc
 
@@ -146,11 +156,29 @@ func New(db SQLExecutor, cfg Config) *Manager {
 		netN:          netN,
 		onComplete:    cfg.OnComplete,
 		admit:         cfg.Admit,
+		operations:    make(map[string]Operation),
 		entries:       make(map[string]*jobEntry),
 		gpuCh:         make(chan *jobEntry, laneQueueCap),
 		cpuCh:         make(chan *jobEntry, laneQueueCap),
 		netCh:         make(chan *jobEntry, laneQueueCap),
 	}
+}
+
+// RegisterOperation adds a runner to this manager without creating another
+// worker pool or durable store. The operation is routed by Job.Operation.
+// Registration may happen after Start during single-threaded server wiring;
+// duplicate or invalid registrations are rejected.
+func (m *Manager) RegisterOperation(name string, operation Operation) error {
+	if name == "" || operation.Runner == nil {
+		return fmt.Errorf("jobs: operation name and runner are required")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if _, exists := m.operations[name]; exists {
+		return fmt.Errorf("jobs: operation %q already registered", name)
+	}
+	m.operations[name] = operation
+	return nil
 }
 
 // Start launches the lane workers and runs restart recovery. ctx is the
@@ -378,11 +406,21 @@ func (m *Manager) execute(entry *jobEntry) {
 	}
 	m.emit(entry, StateRunning, snapshot.Progress, "started")
 
+	m.mu.Lock()
+	operation, hasOperation := m.operations[snapshot.Operation]
+	m.mu.Unlock()
+	runner, admit := m.runner, m.admit
+	if hasOperation {
+		runner = operation.Runner
+		if operation.Admit != nil {
+			admit = operation.Admit
+		}
+	}
 	release, admissionMeta, admissionErr := func() (func(), map[string]string, error) {
-		if m.admit == nil || snapshot.Lane != LaneGPU {
+		if admit == nil || snapshot.Lane != LaneGPU {
 			return nil, nil, nil
 		}
-		return m.admit(jobCtx, cancelCause, snapshot)
+		return admit(jobCtx, cancelCause, snapshot)
 	}()
 	if admissionErr != nil {
 		entry.mu.Lock()
@@ -448,7 +486,7 @@ func (m *Manager) execute(entry *jobEntry) {
 		m.emit(entry, StateRunning, progress, message)
 	}
 
-	result, err := m.runner(jobCtx, snapshot, emit)
+	result, err := runner(jobCtx, snapshot, emit)
 	// Terminal observers must never see success/cancellation while the shared
 	// claim is still held. Cleanup failures cancel with a cause and become failed.
 	cleanup()

@@ -48,7 +48,7 @@ func TestMaterialize_WritesPackage(t *testing.T) {
 
 func TestPythonSidecar_SAM2PromptContracts(t *testing.T) {
 	cmd := exec.Command("python3", "-m", "image_tools_sidecar.test_sam2", "-v")
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("SAM 2 prompt contracts: %v\n%s", err, out)
 	}
@@ -90,7 +90,7 @@ assert first["providers"] == ("CPUExecutionProvider",)
 	}
 
 	cmd := exec.Command("python3", path)
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("python sidecar session cache contract failed: %v\n%s", err, out)
@@ -112,10 +112,10 @@ _common.require_deps = lambda: (None, FakeOrt, None)
 for i in range(10):
     _common.make_session(str(i))
 assert len(_common._SESSION_CACHE) <= 2, len(_common._SESSION_CACHE)
-assert "9" in _common._SESSION_CACHE
+assert any(key.endswith(":9") for key in _common._SESSION_CACHE)
 `
 	cmd := exec.Command("python3", "-c", script)
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("bounded model residency: %v\n%s", err, out)
 	}
@@ -123,7 +123,7 @@ assert "9" in _common._SESSION_CACHE
 
 func TestPythonSidecar_SAMExportContracts(t *testing.T) {
 	cmd := exec.Command("python3", "-m", "image_tools_sidecar.test_segment", "-v")
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("SAM export contracts: %v\n%s", err, out)
 	}
@@ -151,7 +151,7 @@ else:
     raise AssertionError("unavailable GPU silently accepted")
 `
 	cmd := exec.Command("python3", "-c", script)
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("device fallback: %v\n%s", err, out)
 	}
@@ -308,7 +308,7 @@ assert payload["score"] > 0.88
 	}
 
 	cmd := exec.Command("python3", path)
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		if strings.Contains(string(out), "No module named 'numpy'") || strings.Contains(string(out), "No module named 'PIL'") {
@@ -318,9 +318,36 @@ assert payload["score"] > 0.88
 	}
 }
 
+func pythonSidecarEnv(t *testing.T) []string {
+	t.Helper()
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get sidecar test working directory: %v", err)
+	}
+	for current := filepath.Clean(cwd); ; current = filepath.Dir(current) {
+		candidate := filepath.Join(current, "py", "image_tools_sidecar", "__init__.py")
+		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+			path := filepath.Dir(filepath.Dir(candidate))
+			env := make([]string, 0, len(os.Environ())+1)
+			for _, entry := range os.Environ() {
+				if !strings.HasPrefix(entry, "PYTHONPATH=") {
+					env = append(env, entry)
+				}
+			}
+			return append(env, "PYTHONPATH="+path)
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			break
+		}
+	}
+	t.Fatal("locate Python sidecar source directory")
+	return nil
+}
+
 func TestPythonSidecar_SourceRasterAndRepairContracts(t *testing.T) {
 	cmd := exec.Command("python3", "-m", "unittest", "image_tools_sidecar.test_source_raster", "image_tools_sidecar.test_lama", "-v")
-	cmd.Env = append(os.Environ(), "PYTHONPATH="+filepath.Join("py"))
+	cmd.Env = pythonSidecarEnv(t)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("source raster/repair contracts: %v\n%s", err, out)
 	}

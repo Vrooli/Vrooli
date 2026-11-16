@@ -3,7 +3,6 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the local-first image toolbox.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

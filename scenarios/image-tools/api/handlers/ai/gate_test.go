@@ -32,14 +32,14 @@ func newGatedServer(t *testing.T, tier safety.Tier) (*mux.Router, *fakeSubmitter
 		t.Fatalf("register provider: %v", err)
 	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
-	eng, err := internalai.NewEngine(internalai.Deps{
+	eng, err := internalai.NewEngineWithRightsEvaluator(internalai.Deps{
 		Registry:       registry,
 		Backends:       backendReg,
 		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
 		Store:          store,
 		ModelInstalled: func(string) bool { return true },
 		ModelsRoot:     t.TempDir(),
-	})
+	}, allowModelRightsForHandlerTest)
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
 	}

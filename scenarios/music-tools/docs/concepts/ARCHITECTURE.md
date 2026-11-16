@@ -2,7 +2,6 @@
 
 How the scenario is put together, and why.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -33,7 +32,7 @@ hardware. Three constraints drive every structural choice here:
    frame-level embeddings are about four orders of magnitude larger per track than
    pooled ones.
 
-### Runtime boundaries: composition implemented, analysis planned
+### Runtime boundaries: composition implemented, analysis adapter in progress
 
 Isolation is at the process and environment boundary, not the container boundary,
 so the desktop delivery tier does not require a container runtime.
@@ -42,20 +41,24 @@ so the desktop delivery tier does not require a container runtime.
 |---|---|---|---|
 | `stable-audio-3` | Managed-service resource | Default local instrumental composition | Offline pinned Medium model, resource-owned resident admission |
 | `ace-step` | Managed-service resource | Composition and its native edit operations | Pins a newer Python and an aggressive inference backend |
-| `music-mir` (planned; resource not created) | Managed-service resource | Structure and beat analysis, stem separation | Pins an exact torch build and an older NumPy major |
+| `music-mir` (resource scaffold and local API adapter exist; runtime not qualified) | Managed-service resource | Provisional acoustic features and stem separation | Isolates the pinned MIR stack from composition; CUDA-only candidate, installation and runtime behavior still unmeasured |
 | in-scenario sidecar (planned) | Native uv-provisioned virtualenv | Embedding models, notation, loudness | Compatible stack; the always-on hot path, so no process hop |
 
 The implemented ACE-Step resource acquires lockfile-pinned wheels and checksum-verified weights
-natively; the other runtimes remain intended architecture. Because a resource is its own unit with its own environment, this needs
+natively. `music-mir` has an in-progress resource contract, but its dependency lock and
+runtime have not been installed or qualified. Because a resource is its own unit with its own environment, this needs
 no change to the shared single-virtualenv sidecar provisioner.
 
 ### Residency policy
 
 The intended analysis design keeps an embedding pool resident. ACE composition
-claims operation-scoped VRAM through the control-plane broker and renews that claim.
+claims operation-scoped VRAM through the control-plane broker and renews that claim. The
+Music Tools analysis job is wired to the shared serialized GPU lane and claims capacity per
+operation; the MIR resource unloads before returning so it does not retain unaccounted VRAM.
 The broker can be advisory: a claim does not establish exclusive GPU ownership.
 Music applies a supported reduced rung or refuses when the loaded resource cannot
-apply it without a managed restart. Separation/structure runtime policy is planned.
+apply it without a managed restart. The MIR operation floor and preferred VRAM estimate are
+provisional and need real-track measurement before qualification.
 
 ```
 persistent   [ embedding pool ]────────────────────────────────

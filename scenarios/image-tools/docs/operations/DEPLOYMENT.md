@@ -4,7 +4,6 @@ This document records supported delivery tiers, packaging assumptions,
 runtime dependencies, and deployment readiness for the local-first
 image toolbox (Go API + React UI + Go CLI) in Vrooli's `*-tools` family.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

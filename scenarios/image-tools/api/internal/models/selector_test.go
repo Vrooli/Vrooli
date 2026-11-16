@@ -111,6 +111,38 @@ func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
 	}
 }
 
+func TestU2NetpSupportsAdmittedCUDAAndExplicitCPUFallback(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	gpu, err := r.Select(SelectRequest{
+		RightsEvaluator: allowRightsForTest,
+		Operation:       "background_removal",
+		Host:            gpuHost(12),
+		OverrideID:      "u2netp",
+	}, nil)
+	if err != nil {
+		t.Fatalf("CUDA selection: %v", err)
+	}
+	if gpu.Model.ID != "u2netp" || !gpu.GPUViable || !gpu.Model.Hardware.CPUCapable {
+		t.Fatalf("u2netp GPU selection = %+v, want GPU viable with CPU fallback", gpu)
+	}
+	cpu, err := r.Select(SelectRequest{
+		RightsEvaluator: allowRightsForTest,
+		Operation:       "background_removal",
+		Host:            gpuHost(12),
+		OverrideID:      "u2netp",
+		ForceCPU:        true,
+	}, nil)
+	if err != nil {
+		t.Fatalf("CPU selection: %v", err)
+	}
+	if cpu.Model.ID != "u2netp" || cpu.GPUViable {
+		t.Fatalf("forced CPU selection = %+v, want same model on CPU", cpu)
+	}
+}
+
 func TestForceCPUSelectsCPUCapableDefaultEvenOnGpuHost(t *testing.T) {
 	r := testRegistry(t)
 	sel, err := r.Select(SelectRequest{RightsEvaluator: allowRightsForTest, Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(string) bool { return true })

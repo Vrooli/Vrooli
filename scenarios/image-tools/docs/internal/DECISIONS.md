@@ -3,7 +3,6 @@
 This document records durable decisions and tradeoffs future agents
 should not accidentally relitigate.
 
-## Purpose Of This Document
 
 Use this document when a choice:
 
@@ -23,6 +22,7 @@ are **Accepted** as of that date unless a later supersession is recorded.
 
 | Date | Decision | Rationale | Status |
 |---|---|---|---|
+| 2026-11-14 | **Activity treats `estimated_seconds` as an execution-time estimate, separate from queue/capacity wait.** While running, the estimate is compared with `started_at` and labeled approximate; unknown and exceeded estimates stay explicit. Progress is shown only after the job is running. | The Jobs contract says the estimate is an initial runtime estimate, not queue wait or a provider guarantee. Combining those states would promise a completion time the service cannot support. | Agent-authored EX14 refinement; focused UI tests and type-check pass; served browser comparison remains unverified. |
 | 2026-11-09 | **One priority scheduler owns local AI and analysis admission and cleanup.** | Per-device FIFO lanes prevented safe CPU concurrency and synchronous analysis bypassed resource admission. | Shared CPU/RAM/GPU claims and native artifact readers gate execution; queued/admitting/running/canceling are explicit states. Warm residency retains its own RAM/model reader, and terminal jobs follow operation cleanup. This supersedes the 2026-06-17 synchronous-analysis decision and 2026-11-02 local-serialization policy. |
 | 2026-11-02 | **Job APIs report scheduler queue separately from execution device.** The additive `Job.scheduling_queue` field names the local-serial, CPU-pool, or network-pool queue; existing `Job.lane` remains a deprecated wire-compatibility hint. | Local CPU inference was deliberately serialized through the internal GPU-named lane, while GPU capacity claims were separately conditional on the local-gpu tier. Returning that enum directly led the UI and CLI to imply hardware the queue does not prove. | Preserve local serialization; display and document `scheduling_queue`; treat legacy `JOB_LANE_GPU` as local-serial only; derive execution-device claims from backend/runtime evidence. Revisit with a measured queue-capacity redesign or explicit execution-device receipt contract. |
 | 2026-11-02 | **Job APIs report scheduler queue separately from execution device.** The additive `Job.scheduling_queue` field names the local-serial, CPU-pool, or network-pool queue; existing `Job.lane` remains a deprecated wire-compatibility hint. | Local CPU inference was deliberately serialized through the internal GPU-named lane, while GPU capacity claims were separately conditional on the local-gpu tier. Returning that enum directly led the UI and CLI to imply hardware the queue does not prove. | Preserve local serialization; display and document `scheduling_queue`; treat legacy `JOB_LANE_GPU` as local-serial only; derive execution-device claims from backend/runtime evidence. Revisit with a measured queue-capacity redesign or explicit execution-device receipt contract. |

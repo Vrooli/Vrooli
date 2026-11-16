@@ -24,6 +24,12 @@ func (p *execProvider) Name() string                    { return p.name }
 func (p *execProvider) Standalone() bool                { return true }
 func (p *execProvider) IsCloud() bool                   { return false }
 func (p *execProvider) SupportsAdapters(op string) bool { return p.techniques.SupportsAdapters(op) }
+func (p *execProvider) GPUCapableFor(op string) bool {
+	if p.name == "onnxruntime" && op != "background_removal" && op != "segment" {
+		return false
+	}
+	return p.GPUCapable()
+}
 func (p *execProvider) Operations() []string {
 	ops := make([]string, 0, len(p.techniques))
 	for op := range p.techniques {
@@ -34,6 +40,9 @@ func (p *execProvider) Operations() []string {
 }
 
 func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
+	if p.pythonInterpreter != "" {
+		ctx = withPythonRuntimeLibraries(ctx, p.pythonInterpreter)
+	}
 	if req.Output.LocalPath == "" {
 		return backends.Result{}, fmt.Errorf("ai: backend %q requires a local output path", p.name)
 	}
@@ -56,7 +65,7 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 	if req.GPU && req.GPUUUID != "" && p.SupportsGPUUUID() {
 		ctx = context.WithValue(ctx, gpuDeviceContextKey{}, req.GPUUUID)
 	}
-	if p.name == "diffusers" {
+	if p.name == "diffusers" || p.name == "onnxruntime" {
 		device := "cpu"
 		if req.GPU {
 			device = "cuda"
@@ -68,6 +77,9 @@ func (p *execProvider) Execute(ctx context.Context, req backends.Request) (backe
 		return backends.Result{}, fmt.Errorf("ai: backend %q execution failed: %w", p.name, err)
 	}
 	meta := map[string]string{"backend": p.name}
+	for key, value := range workerInferenceMetadata(ctx) {
+		meta[key] = value
+	}
 	if runner != "" {
 		meta["runner"] = runner
 	}
@@ -96,11 +108,15 @@ type llamaCppProvider struct {
 	run      outputRunner
 }
 
-func (p *llamaCppProvider) Name() string                       { return "llama.cpp" }
-func (p *llamaCppProvider) Operations() []string               { return []string{"caption"} }
-func (p *llamaCppProvider) Standalone() bool                   { return true }
-func (p *llamaCppProvider) IsCloud() bool                      { return false }
-func (p *llamaCppProvider) GPUCapable() bool                   { return true }
+func (p *llamaCppProvider) Name() string         { return "llama.cpp" }
+func (p *llamaCppProvider) Operations() []string { return []string{"caption"} }
+func (p *llamaCppProvider) Standalone() bool     { return true }
+func (p *llamaCppProvider) IsCloud() bool        { return false }
+
+// The governed llama-cpp host tool currently installs the official CPU bundle.
+// Keep caption on an explicit CPU fallback until a GPU build is installed and
+// runtime-probed; command availability alone is not GPU qualification.
+func (p *llamaCppProvider) GPUCapable() bool                   { return false }
 func (p *llamaCppProvider) Available(ctx context.Context) bool { return p.Availability(ctx).Available }
 func (p *llamaCppProvider) Availability(context.Context) backends.Availability {
 	program, err := p.resolveProgram()

@@ -10,19 +10,31 @@ import (
 
 // gpuCapableProvider is an optional Provider capability: a backend that can run
 // on the GPU implements it returning true. Backends that do not implement it are
-// assumed GPU-capable (the historical default); a CPU-only backend implements it
-// returning false so the selector never labels its run "local-gpu".
+// treated as unqualified and therefore CPU-only; a CPU-only backend may
+// implement it returning false explicitly.
 type gpuCapableProvider interface {
 	GPUCapable() bool
 }
 
-// providerGPUCapable reports whether p can use a GPU. Defaults to true when the
-// provider does not declare its capability.
+type operationGPUCapableProvider interface {
+	GPUCapableFor(operation string) bool
+}
+
+// providerGPUCapable reports whether p can use a GPU. Unknown capability is
+// CPU-only until explicitly qualified; silently assuming GPU support can hide
+// a CPU-only build behind a local-gpu tier.
 func providerGPUCapable(p Provider) bool {
 	if g, ok := p.(gpuCapableProvider); ok {
 		return g.GPUCapable()
 	}
-	return true
+	return false
+}
+
+func providerGPUCapableFor(p Provider, operation string) bool {
+	if g, ok := p.(operationGPUCapableProvider); ok {
+		return g.GPUCapableFor(operation)
+	}
+	return providerGPUCapable(p)
 }
 
 // adapterCapableProvider is an optional Provider capability: a backend that can
@@ -148,12 +160,12 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 	switch {
 	case matchLocal != nil:
 		sel := Selection{Provider: matchLocal}
-		applyLocalTier(&sel, matchLocal, req.GPUViable)
+		applyLocalTier(&sel, matchLocal, req.Operation, req.GPUViable)
 		return sel, nil
 
 	case otherLocal != nil:
 		sel := Selection{Provider: otherLocal}
-		applyLocalTier(&sel, otherLocal, req.GPUViable)
+		applyLocalTier(&sel, otherLocal, req.Operation, req.GPUViable)
 		switch {
 		case req.RequireAdapters && req.ModelBackend != "" && req.ModelBackend != otherLocal.Name():
 			sel.Warnings = append(sel.Warnings, fmt.Sprintf("conditioning adapters require the %q backend; the model's native backend %q cannot apply them", otherLocal.Name(), req.ModelBackend))
@@ -164,7 +176,7 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 
 	case comfy != nil:
 		sel := Selection{Provider: comfy}
-		applyLocalTier(&sel, comfy, req.GPUViable)
+		applyLocalTier(&sel, comfy, req.Operation, req.GPUViable)
 		sel.Reason = fmt.Sprintf("ComfyUI provider %q (%s)", comfy.Name(), sel.Tier)
 		sel.Warnings = append(sel.Warnings, "no standalone backend available; using the optional ComfyUI plug-in")
 		return sel, nil
@@ -229,17 +241,17 @@ func (r *Registry) RevalidateProvider(ctx context.Context, req SelectRequest, pr
 			return Selection{Provider: p, Tier: TierBYOK, Reason: fmt.Sprintf("BYOK cloud provider %q", p.Name())}, nil
 		}
 		selection := Selection{Provider: p}
-		applyLocalTier(&selection, p, req.GPUViable)
+		applyLocalTier(&selection, p, req.Operation, req.GPUViable)
 		return selection, nil
 	}
 	return Selection{}, fmt.Errorf("%w for %q: pinned provider %q no longer serves this operation", ErrNoneAvailable, req.Operation, providerName)
 }
 
-func applyLocalTier(selection *Selection, provider Provider, gpuViable bool) {
+func applyLocalTier(selection *Selection, provider Provider, operation string, gpuViable bool) {
 	switch {
-	case gpuViable && providerGPUCapable(provider):
+	case gpuViable && providerGPUCapableFor(provider, operation):
 		selection.Tier = TierLocalGPU
-	case gpuViable && !providerGPUCapable(provider):
+	case gpuViable && !providerGPUCapableFor(provider, operation):
 		selection.Tier = TierLocalCPU
 		selection.Warnings = append(selection.Warnings, fmt.Sprintf("backend %q is CPU-only; running on CPU despite an available GPU", provider.Name()))
 	default:

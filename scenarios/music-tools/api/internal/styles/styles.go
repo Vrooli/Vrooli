@@ -54,6 +54,8 @@ var (
 )
 
 const InstrumentalLyrics = "[instrumental]"
+const DefaultStyleScope = "composition"
+const InitialDefaultStyleID = "launch-instrumental"
 
 // ResolveLyrics preserves authored text and supplies the preexisting default
 // only for an absent/empty legacy style. It does not certify audible content.
@@ -74,22 +76,28 @@ var builtins = []Style{{
 }, {
 	ID: "launch-club", Name: "Launch Club", Description: "Original harder club instrumental; SA3 prompt-only tempo intent. New takes require audition.",
 	Caption: "Original instrumental hard dance and glossy club pop, 172 BPM. An immediate, catchy synth hook over distorted rolling bass, tight pounding kick, sharp claps and busy syncopated percussion. Stacked bright synths, punchy edits, short builds and explosive drops; energetic and rhythmically intricate. Clean, wide, polished mix. Instrumental throughout, no vocals.", Lyrics: InstrumentalLyrics, Params: Params{Duration: 48, Steps: 8, Guidance: 1}, Builtin: true,
+}, {
+	ID: "launch-instrumental", Name: "Launch Instrumental", Description: "A long-form original instrumental with an evolving hook, layered counter-melodies and rhythmic detail, based on the operator-approved launch score direction.",
+	Caption: "Original instrumental electronic dance pop with an immediate distinctive interlocking synth melody, bright glassy plucks answering a more rounded low melodic phrase. Fast punchy breakbeat drums, sharply articulated snare, shuffling syncopated hats and a deep elastic bass line. Bold colorful modern club production with layered counter-melodies, unexpected rhythmic fills and crisp transitions. The hook evolves with variations instead of repeating an identical short loop; sections lift, briefly clear space, then return with new layers. Approximately 160–172 BPM energy. Exciting, playful, vivid and confident. No corporate inspiration music, cinematic trailer drums, generic EDM risers, lyrics, singing, speech or vocal samples.",
+	Lyrics:  InstrumentalLyrics, Params: Params{Duration: 110, Steps: 8, Guidance: 1, Variant: "stable-audio-3-medium"}, Builtin: true,
 }}
 
 type SQLExecutor interface {
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 type Store struct {
-	mu     sync.RWMutex
-	custom map[string]Style
-	db     SQLExecutor
+	mu        sync.RWMutex
+	custom    map[string]Style
+	db        SQLExecutor
+	defaultID string
 }
 
-func NewStore() *Store { return &Store{custom: map[string]Style{}} }
+func NewStore() *Store { return &Store{custom: map[string]Style{}, defaultID: InitialDefaultStyleID} }
 func NewStoreWithDB(db SQLExecutor) (*Store, error) {
-	s := &Store{custom: map[string]Style{}, db: db}
+	s := &Store{custom: map[string]Style{}, db: db, defaultID: InitialDefaultStyleID}
 	rows, err := db.QueryContext(context.Background(), `SELECT id, json, created_at, updated_at FROM style`)
 	if err != nil {
 		return nil, err
@@ -158,6 +166,46 @@ func (s *Store) Get(id string) (Style, bool) {
 	return style, ok
 }
 
+// DefaultID returns the currently configured composition style. A missing
+// setting uses the versioned initial default so fresh and upgraded databases
+// share the same behavior without a special migration.
+func (s *Store) DefaultID(ctx context.Context) (string, error) {
+	if s.db == nil {
+		s.mu.RLock()
+		id := s.defaultID
+		s.mu.RUnlock()
+		return id, nil
+	}
+	var id string
+	err := s.db.QueryRowContext(ctx, `SELECT style_id FROM music_style_defaults WHERE scope=?`, DefaultStyleScope).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return InitialDefaultStyleID, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if _, ok := s.Get(id); !ok {
+		return "", fmt.Errorf("configured default style %q no longer exists", id)
+	}
+	return id, nil
+}
+
+func (s *Store) SetDefault(ctx context.Context, id string) error {
+	if _, err := s.Compile(id); err != nil {
+		return err
+	}
+	if s.db != nil {
+		_, err := s.db.ExecContext(ctx, `INSERT INTO music_style_defaults (scope,style_id,updated_at) VALUES (?,?,?) ON CONFLICT(scope) DO UPDATE SET style_id=excluded.style_id,updated_at=excluded.updated_at`, DefaultStyleScope, id, time.Now().UTC().Format(time.RFC3339Nano))
+		if err != nil {
+			return fmt.Errorf("save default style: %w", err)
+		}
+	}
+	s.mu.Lock()
+	s.defaultID = id
+	s.mu.Unlock()
+	return nil
+}
+
 // Delete removes a custom style. Built-ins are intentionally read-only.
 func (s *Store) Delete(id string) error {
 	for _, builtin := range builtins {
@@ -166,6 +214,20 @@ func (s *Store) Delete(id string) error {
 		}
 	}
 	s.mu.Lock()
+	configuredDefault := s.defaultID
+	if s.db != nil {
+		var storedDefault string
+		if err := s.db.QueryRowContext(context.Background(), `SELECT style_id FROM music_style_defaults WHERE scope=?`, DefaultStyleScope).Scan(&storedDefault); err == nil {
+			configuredDefault = storedDefault
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			s.mu.Unlock()
+			return fmt.Errorf("read configured default before delete: %w", err)
+		}
+	}
+	if configuredDefault == id {
+		s.mu.Unlock()
+		return fmt.Errorf("cannot delete the configured default style")
+	}
 	if _, ok := s.custom[id]; !ok {
 		s.mu.Unlock()
 		return fmt.Errorf("style %q not found", id)

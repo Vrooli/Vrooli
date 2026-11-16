@@ -159,6 +159,13 @@ func Admit(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, j
 	if verdict.ClaimID == "" {
 		return nil, nil, fmt.Errorf("capacity admission omitted claim identity")
 	}
+	// A claim can commit just as the job is canceled. Do not hand that lease
+	// to a runner with an already-canceled context; release the exact claim we
+	// captured before returning the cancellation to the job manager.
+	if err := ctx.Err(); err != nil {
+		releaseClaim(broker, ref)
+		return nil, nil, fmt.Errorf("capacity claim canceled after admission: %w", err)
+	}
 	if verdict.AppliedRung != "full" && verdict.AppliedRung != "offload-dit" {
 		releaseClaim(broker, ref)
 		return nil, nil, fmt.Errorf("capacity admission returned unsupported rung %q", verdict.AppliedRung)
@@ -209,7 +216,12 @@ func maintain(ctx context.Context, cancel context.CancelCauseFunc, broker Broker
 		}
 	})
 	return func() {
-		if err := scope.Release(context.Background()); err != nil {
+		// Cleanup runs after normal completion and cancellation, so it cannot
+		// inherit the job context. Bound the detached release attempt so a stuck
+		// control-plane CLI cannot pin the GPU worker or prevent server shutdown.
+		releaseCtx, releaseCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer releaseCancel()
+		if err := scope.Release(releaseCtx); err != nil {
 			log.Printf("music capacity release %s generation %d failed: %v", ref.ClaimID, ref.Generation, err)
 			cancel(fmt.Errorf("capacity lease cleanup failed: %w", err))
 		}

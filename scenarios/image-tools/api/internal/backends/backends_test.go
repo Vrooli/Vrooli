@@ -25,6 +25,7 @@ func (f fakeProvider) Operations() []string           { return f.ops }
 func (f fakeProvider) Standalone() bool               { return f.standalone }
 func (f fakeProvider) IsCloud() bool                  { return f.cloud }
 func (f fakeProvider) Available(context.Context) bool { return f.available }
+func (f fakeProvider) GPUCapable() bool               { return true }
 func (f fakeProvider) Availability(context.Context) Availability {
 	return Availability{Available: f.available, Detail: f.detail, Provision: f.provision}
 }
@@ -60,6 +61,80 @@ func TestRegistryCloseClosesEachMultiOperationProviderOnce(t *testing.T) {
 type cpuOnlyProvider struct{ fakeProvider }
 
 func (cpuOnlyProvider) GPUCapable() bool { return false }
+
+type operationGPUProvider struct {
+	fakeProvider
+	gpuOps map[string]bool
+}
+
+func (operationGPUProvider) GPUCapable() bool               { return true }
+func (p operationGPUProvider) GPUCapableFor(op string) bool { return p.gpuOps[op] }
+
+type unqualifiedGPUProvider struct{ base fakeProvider }
+
+func (p unqualifiedGPUProvider) Name() string                       { return p.base.Name() }
+func (p unqualifiedGPUProvider) Operations() []string               { return p.base.Operations() }
+func (p unqualifiedGPUProvider) Standalone() bool                   { return p.base.Standalone() }
+func (p unqualifiedGPUProvider) IsCloud() bool                      { return p.base.IsCloud() }
+func (p unqualifiedGPUProvider) Available(ctx context.Context) bool { return p.base.Available(ctx) }
+func (p unqualifiedGPUProvider) Execute(ctx context.Context, req Request) (Result, error) {
+	return p.base.Execute(ctx, req)
+}
+
+func TestUnqualifiedProviderIsAnExplicitCPUFallback(t *testing.T) {
+	ctx := context.Background()
+	r := New()
+	p := unqualifiedGPUProvider{base: fakeProvider{name: "new-local-backend", ops: []string{"segment"}, standalone: true, available: true}}
+	if err := r.Register(p); err != nil {
+		t.Fatal(err)
+	}
+
+	selection, err := r.SelectProvider(ctx, SelectRequest{Operation: "segment", GPUViable: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selection.Tier != TierLocalCPU {
+		t.Fatalf("unqualified provider was silently labeled %q, want CPU fallback", selection.Tier)
+	}
+	if len(selection.Warnings) == 0 || !strings.Contains(selection.Warnings[0], "CPU-only") {
+		t.Fatalf("unqualified CPU fallback has no actionable warning: %+v", selection.Warnings)
+	}
+	report := r.Doctor(ctx)
+	row, ok := backendRow(report, "new-local-backend")
+	if !ok || row.GPUCapable {
+		t.Fatalf("doctor must not claim GPU readiness without a provider capability declaration: %+v", report.Backends)
+	}
+}
+
+func TestDoctorDoesNotAdvertiseCPUOnlyOperationAsGPUReady(t *testing.T) {
+	r := New()
+	provider := cpuOnlyProvider{fakeProvider: fakeProvider{
+		name: "stable-diffusion.cpp", ops: []string{"text_to_image"}, standalone: true, available: true,
+	}}
+	if err := r.Register(provider); err != nil {
+		t.Fatal(err)
+	}
+
+	row, ok := backendRow(r.Doctor(context.Background()), "stable-diffusion.cpp")
+	if !ok {
+		t.Fatal("doctor omitted the installed CPU-only provider")
+	}
+	if !row.Available {
+		t.Fatal("CPU-capable provider should remain available for explicit fallback")
+	}
+	if row.GPUCapable || len(row.GPUOperations) != 0 {
+		t.Fatalf("CPU-only build was advertised as GPU-ready: %+v", row)
+	}
+}
+
+func backendRow(report DoctorReport, name string) (BackendStatus, bool) {
+	for _, row := range report.Backends {
+		if row.Name == name {
+			return row, true
+		}
+	}
+	return BackendStatus{}, false
+}
 
 // adapterProvider is a standalone backend that advertises conditioning-adapter
 // support (the diffusers sidecar). It implements the optional SupportsAdapters
@@ -130,6 +205,27 @@ func TestSelectCPUOnlyBackendNeverLabelsGPU(t *testing.T) {
 	}
 	if len(sel.Warnings) == 0 || !strings.Contains(strings.Join(sel.Warnings, " "), "CPU-only") {
 		t.Fatalf("expected a CPU-only warning, got %v", sel.Warnings)
+	}
+}
+
+func TestSelectUsesOperationSpecificGPUCapability(t *testing.T) {
+	ctx := context.Background()
+	r := New()
+	_ = r.Register(operationGPUProvider{
+		fakeProvider: fakeProvider{name: "onnxruntime", ops: []string{"background_removal", "colorize"}, standalone: true, available: true},
+		gpuOps:       map[string]bool{"background_removal": true},
+	})
+	for _, tc := range []struct {
+		op   string
+		want Tier
+	}{{"background_removal", TierLocalGPU}, {"colorize", TierLocalCPU}} {
+		sel, err := r.SelectProvider(ctx, SelectRequest{Operation: tc.op, ModelBackend: "onnxruntime", GPUViable: true})
+		if err != nil {
+			t.Fatalf("select %s: %v", tc.op, err)
+		}
+		if sel.Tier != tc.want {
+			t.Errorf("%s tier = %s, want %s", tc.op, sel.Tier, tc.want)
+		}
 	}
 }
 

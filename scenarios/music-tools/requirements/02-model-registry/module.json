@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Declarative, hardware-aware, licence-aware model registry with checksum-verified installs and a disk floor.",
-    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "last_validated_at": "2026-11-15T15:49:12-05:00",
     "module": "model-registry",
     "prd_ref": "OT-P0-002",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "MUS-P0-003",
       "title": "Declarative registry with hardware gates",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "criticality": "P0",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/models/models_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Schema-backed registry and hardware metadata are covered by the shipped model tests"
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "MUS-P0-004",
       "title": "Capability labels carry licence and lineage",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "criticality": "P0",
@@ -48,7 +48,7 @@
           "type": "test",
           "ref": "api/internal/models/models_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Model capability and licence metadata are covered by the shipped model tests"
         }
       ]
@@ -56,7 +56,7 @@
     {
       "id": "MUS-P0-005",
       "title": "Installs are checksum-verified and disk-gated",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-002",
       "category": "core",
       "criticality": "P0",
@@ -71,7 +71,7 @@
           "type": "test",
           "ref": "api/internal/models/models_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Model install-state and checksum metadata are covered by the shipped model tests"
         }
       ]

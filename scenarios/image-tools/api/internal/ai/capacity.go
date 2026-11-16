@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"image-tools/internal/backends"
@@ -73,6 +74,30 @@ type CapacityBroker interface {
 	Claim(context.Context, string, int64, CapacityClaimOptions) (CapacityLease, error)
 	Release(context.Context, CapacityLease) error
 	Heartbeat(context.Context, CapacityLease) (CapacityLease, error)
+}
+
+// capacityMemoryLease lets a warm worker retain a GPU claim using the same
+// cancellation-safe lease-group lifecycle as its RAM and model-file claims.
+type capacityMemoryLease struct {
+	mu     sync.Mutex
+	broker CapacityBroker
+	lease  CapacityLease
+}
+
+func (l *capacityMemoryLease) Heartbeat(ctx context.Context) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	updated, err := l.broker.Heartbeat(ctx, l.lease)
+	if err == nil {
+		l.lease = updated
+	}
+	return err
+}
+
+func (l *capacityMemoryLease) Release(ctx context.Context) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.broker.Release(ctx, l.lease)
 }
 
 type CLICapacityBroker struct{ Client *vroolicli.Client }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -106,6 +107,7 @@ type subscriber struct {
 type jobEntry struct {
 	mu          sync.Mutex
 	job         Job
+	waiters     int
 	routeValues context.Context
 	cancel      context.CancelFunc
 	done        chan struct{}
@@ -618,6 +620,7 @@ func (m *Manager) finalizeEntry(entry *jobEntry, final Job) {
 			trySend(s.ch, ev)
 			close(s.ch)
 			s.closed = true
+			entry.waiters--
 		}
 	}
 	entry.subs = nil
@@ -689,6 +692,16 @@ func (m *Manager) Wait(ctx context.Context, id string) (Job, error) {
 		}
 		return j, nil
 	}
+	entry.mu.Lock()
+	if !entry.job.State.Terminal() {
+		entry.waiters++
+		defer func() {
+			entry.mu.Lock()
+			entry.waiters--
+			entry.mu.Unlock()
+		}()
+	}
+	entry.mu.Unlock()
 	select {
 	case <-entry.done:
 		entry.mu.Lock()
@@ -747,6 +760,40 @@ func (m *Manager) ListActive(ctx context.Context) ([]Job, error) {
 	return m.st.listNonTerminal(ctx)
 }
 
+// HeavyJobSnapshot reports the in-memory state of heavyweight local model/image
+// queue jobs and their active server-side Wait/Watch consumers. The legacy
+// LaneGPU queue name does not prove physical GPU placement. It is intentionally
+// owner-local: the manager knows which durable jobs it currently executes and
+// whether a response is still attached. The returned snapshot is complete for
+// this manager instance; it does not claim to inventory unrelated processes.
+func (m *Manager) HeavyJobSnapshot(_ context.Context) HeavyJobSnapshot {
+	now := m.clock.Now().UTC()
+	m.mu.Lock()
+	entries := make([]*jobEntry, 0, len(m.entries))
+	for _, entry := range m.entries {
+		entries = append(entries, entry)
+	}
+	m.mu.Unlock()
+
+	snapshot := HeavyJobSnapshot{ObservedAt: now, Complete: true, Jobs: make([]HeavyJobObservation, 0)}
+	for _, entry := range entries {
+		entry.mu.Lock()
+		job := entry.job
+		waiters := entry.waiters
+		entry.mu.Unlock()
+		if job.Lane != LaneGPU || job.StartedAt == nil {
+			continue
+		}
+		snapshot.Jobs = append(snapshot.Jobs, HeavyJobObservation{
+			OwnerID: "image-tools", JobID: job.ID, Operation: job.Operation,
+			State: string(job.State), StartedAt: *job.StartedAt,
+			WaiterCount: waiters, Heavy: true,
+		})
+	}
+	sort.Slice(snapshot.Jobs, func(i, j int) bool { return snapshot.Jobs[i].JobID < snapshot.Jobs[j].JobID })
+	return snapshot
+}
+
 // Subscribe returns a channel of progress events for the job and an unsubscribe
 // function. The last known event (if any) is replayed immediately. The channel
 // is closed when the job reaches a terminal state or unsubscribe is called.
@@ -768,6 +815,7 @@ func (m *Manager) Subscribe(id string) (<-chan ProgressEvent, func(), error) {
 		sub.closed = true
 		return sub.ch, func() {}, nil
 	}
+	entry.waiters++
 	if entry.last != nil {
 		trySend(sub.ch, *entry.last)
 	}
@@ -783,6 +831,7 @@ func (m *Manager) Subscribe(id string) (<-chan ProgressEvent, func(), error) {
 				if !s.closed {
 					close(s.ch)
 					s.closed = true
+					entry.waiters--
 				}
 				break
 			}

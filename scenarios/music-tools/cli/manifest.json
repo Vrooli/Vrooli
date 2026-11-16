@@ -30,6 +30,19 @@
           }
         },
         {
+          "name": "default-get",
+          "description": "Show the configured default composition style",
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true}
+        },
+        {
+          "name": "default-set",
+          "description": "Set the configured default composition style",
+          "positionals": [{"name": "style-id", "required": true, "description": "Style ID"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true}
+        },
+        {
           "name": "export",
           "description": "Export a style",
           "binding": {
@@ -82,6 +95,14 @@
         {
           "name": "run",
           "description": "Queue a composition batch",
+          "flags": [
+            {"name": "style", "type": "string", "required": false, "description": "Style ID"},
+            {"name": "takes", "type": "number", "required": false, "description": "Number of takes"},
+            {"name": "duration", "type": "number", "required": false, "description": "Duration in seconds"},
+            {"name": "seed", "type": "number", "required": false, "description": "Optional repeatable base seed"},
+            {"name": "shift", "type": "number", "required": false, "description": "Optional ACE sampling shift"},
+            {"name": "vocal-language", "type": "string", "required": false, "description": "Optional model-declared sung language"}
+          ],
           "binding": {
             "kind": "local"
           },
@@ -89,6 +110,91 @@
             "effect": "write",
             "run_eligible": true
           }
+        }
+      ]
+    },
+    {
+      "name": "sources",
+      "description": "Manage private audio sources",
+      "commands": [
+        {
+          "name": "import",
+          "description": "Import a local audio file into managed private storage",
+          "flags": [
+            {"name": "file", "type": "string", "required": true, "description": "Local audio path"},
+            {"name": "title", "type": "string", "required": true, "description": "Track title"},
+            {"name": "artist", "type": "string", "required": false, "description": "Artist"},
+            {"name": "uploader", "type": "string", "required": false, "description": "Source uploader/channel"},
+            {"name": "source-url", "type": "string", "required": false, "description": "HTTPS YouTube provenance URL"},
+            {"name": "acquired-at", "type": "string", "required": false, "description": "RFC3339 acquisition timestamp"}
+          ],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true}
+        },
+        {
+          "name": "get",
+          "description": "Read source provenance by SHA-256",
+          "positionals": [{"name": "sha256", "required": true, "description": "Source content SHA-256"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true}
+        },
+        {
+          "name": "audio",
+          "description": "Export private source audio to a new file",
+          "positionals": [{"name": "sha256", "required": true, "description": "Source content SHA-256"}],
+          "flags": [{"name": "out", "type": "string", "required": true, "description": "New audio output path"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true}
+        }
+      ]
+    },
+    {
+      "name": "analyze",
+      "description": "Queue track analysis",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Queue analysis for a managed source blob",
+          "positionals": [{"name": "source_blob_key", "required": true, "description": "Music Tools managed audio blob key"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true}
+        }
+      ]
+    },
+    {
+      "name": "separate",
+      "description": "Queue source separation",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Queue vocals, drums, bass and other stems",
+          "positionals": [{"name": "source_blob_key", "required": true, "description": "Music Tools managed audio blob key"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "write", "run_eligible": true}
+        }
+      ]
+    },
+    {
+      "name": "analysis",
+      "description": "Read analysis jobs and stems",
+      "commands": [
+        {
+          "name": "result",
+          "description": "Read a completed analysis result",
+          "positionals": [{"name": "id", "required": true, "description": "Analysis job ID"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true}
+        },
+        {
+          "name": "stem",
+          "description": "Export one completed separated stem",
+          "positionals": [
+            {"name": "id", "required": true, "description": "Analysis job ID"},
+            {"name": "name", "required": true, "description": "vocals, drums, bass or other"}
+          ],
+          "flags": [{"name": "out", "type": "string", "required": true, "description": "New WAV path"}],
+          "binding": {"kind": "local"},
+          "governance": {"effect": "read", "run_eligible": true}
         }
       ]
     },
@@ -356,6 +462,16 @@
       "service": "ModelsService",
       "method": "Get",
       "reason": "The CLI uses the REST model-registry projection for one-model retrieval."
+    },
+    {
+      "service": "CandidateInventoryService",
+      "method": "RequestRefill",
+      "reason": "Music Library uses this internal Connect contract to persist idempotent candidate refill requests; callers do not operate it as a user CLI command."
+    },
+    {
+      "service": "CandidateInventoryService",
+      "method": "CancelRefill",
+      "reason": "Music Library uses this internal Connect contract to cancel held requests when a draft bank use is rolled back."
     }
   ]
 }

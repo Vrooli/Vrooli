@@ -90,7 +90,7 @@ func TestStyleLyricsFileErrorsAndEmptyInputAreExplicit(t *testing.T) {
 }
 
 func TestComposeOptionalSeedAndShiftWire(t *testing.T) {
-	for name, args := range map[string][]string{"default": {}, "explicit zero": {"--seed", "0"}, "paired shift": {"--seed", "424242", "--shift", "3"}, "negative base": {"--seed", "-7", "--shift", "1"}} {
+	for name, args := range map[string][]string{"default": {}, "explicit zero": {"--seed", "0"}, "paired shift": {"--seed", "424242", "--shift", "3"}, "negative base": {"--seed", "-7", "--shift", "1"}, "vocal language": {"--vocal-language", "ko"}} {
 		t.Run(name, func(t *testing.T) {
 			requests := make(chan map[string]any, 1)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -110,6 +110,7 @@ func TestComposeOptionalSeedAndShiftWire(t *testing.T) {
 			case "default":
 				require.NotContains(t, body, "seed")
 				require.NotContains(t, body, "shift")
+				require.NotContains(t, body, "vocal_language")
 			case "explicit zero":
 				require.Equal(t, float64(0), body["seed"])
 			case "paired shift":
@@ -118,6 +119,8 @@ func TestComposeOptionalSeedAndShiftWire(t *testing.T) {
 			case "negative base":
 				require.Equal(t, float64(-7), body["seed"])
 				require.Equal(t, float64(1), body["shift"])
+			case "vocal language":
+				require.Equal(t, "ko", body["vocal_language"])
 			}
 		})
 	}
@@ -204,7 +207,7 @@ func TestDefaultComposeParserRoutesConvenienceAndRunLeaf(t *testing.T) {
 				var body map[string]any
 				json.NewDecoder(r.Body).Decode(&body)
 				require.Equal(t, "/api/v1/compose", r.URL.Path)
-				require.Equal(t, "launch-club", body["style_id"])
+				require.NotContains(t, body, "style_id", "the API resolves its configured default when callers omit a style")
 				require.Equal(t, float64(0), body["seed"])
 				fmt.Fprint(w, `{"job_id":"test-job"}`)
 			}))

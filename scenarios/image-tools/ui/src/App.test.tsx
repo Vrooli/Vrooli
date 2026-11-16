@@ -65,7 +65,7 @@ describe("App composition", () => {
       </Providers>,
       { withoutRouter: true },
     );
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
     // Let the Home jobs query settle so its resolution doesn't bleed into the
     // next test as an unhandled rejection / console error.
     await waitFor(() => {
@@ -97,7 +97,7 @@ describe("App (real default router at /)", () => {
       </QueryClientProvider>,
     );
     await waitFor(() => {
-      expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+      expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
     });
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.pages.home)).toBeInTheDocument();

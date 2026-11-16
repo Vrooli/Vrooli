@@ -4,8 +4,8 @@ The Go provider sends one JSON object per line:
   {"argv":["-m","image_tools_sidecar.depth","--model","...","--image","...","--out","..."]}
 
 The worker invokes the same module main functions the one-shot path uses. Because
-the process stays alive, _common.make_session() keeps ONNX sessions cached across
-requests for the same model path.
+the process stays alive, ONNX sessions and the bounded SAM2 model/processor stay
+resident across requests for the same model.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ def _run(argv):
     old_argv = sys.argv
     try:
         sys.argv = [module_name] + list(argv[2:])
-        main()
+        return main()
     finally:
         sys.argv = old_argv
 
@@ -47,8 +47,10 @@ def main() -> None:
             if model != active_model:
                 _common._SESSION_CACHE.clear()
                 active_model = model
-            _run(argv)
+            result = _run(argv)
             response = {"ok": True}
+            if isinstance(result, dict):
+                response["meta"] = {str(key): str(value) for key, value in result.items() if value is not None}
         except SystemExit as exc:
             response = {"ok": False, "error": f"sidecar exited with code {exc.code}"}
         except Exception as exc:  # noqa: BLE001 - returned to Go as backend detail

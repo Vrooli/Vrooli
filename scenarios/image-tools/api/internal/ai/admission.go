@@ -18,6 +18,7 @@ import (
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
+	"image-tools/internal/capabilities"
 	"image-tools/internal/jobs"
 	"image-tools/internal/models"
 )
@@ -34,6 +35,12 @@ type (
 )
 
 var ErrDiskOutputCleanupUnverified = errors.New("ai: output temporary-file cleanup is unverified")
+
+type warmGPUCapacityFallbackError struct{ detail string }
+
+func (e *warmGPUCapacityFallbackError) Error() string { return e.detail }
+
+func (e *warmGPUCapacityFallbackError) Unwrap() error { return jobs.ErrCapacityBusy }
 
 // Admit is the single model-work admission boundary. The jobs scheduler owns
 // the returned lease through execution and cleanup; direct engine consumers
@@ -175,20 +182,65 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 	ctx = context.WithValue(group.ctx, cpuThreadsContextKey{}, threads)
 	group.ctx = ctx
 
-	// A warm worker owns RAM and model-file leases for its entire residency,
-	// independently of the per-job CPU lease. A model switch reaps it first.
+	// A warm worker owns every resource its cached model can retain. CUDA model
+	// residency therefore keeps its UUID-bound GPU claim through the same idle
+	// window as RAM; releasing a job must never leave cached weights unclaimed.
 	var warm *warmSidecarRunner
-	if provider, ok := bsel.Provider.(*execProvider); ok && bsel.Tier == backends.TierLocalCPU {
+	if provider, ok := bsel.Provider.(*execProvider); ok && (bsel.Tier == backends.TierLocalCPU || (bsel.Tier == backends.TierLocalGPU && e.deps.Capacity != nil)) {
 		warm, _ = provider.warm.(*warmSidecarRunner)
 	}
+	warmGPUResidency := false
 	if warm != nil && e.deps.Memory != nil {
-		warmAdmission, err := warm.reserve(ctx, model.ID, job.ID, func(residentCtx context.Context) (*leaseGroup, error) {
-			resident := newLeaseGroup(residentCtx)
-			if err := e.admitModelMemory(resident, model, "image-tools:resident:"+model.ID, true); err != nil {
-				return resident, err
+		warmTier := bsel.Tier
+		warmModelKey := model.ID
+		var residentGPU capabilities.GPU
+		if warmTier == backends.TierLocalGPU {
+			residentGPU, err = capacityGPU(host, modelVRAMClaimBytes(model), bsel.Provider)
+			if err != nil {
+				return admission, err
 			}
-			return resident, nil
-		}, meta)
+			warmModelKey += "|gpu:" + residentGPU.UUID
+			pl.GPUUUID = residentGPU.UUID
+		}
+		acquireResidency := func(tier backends.Tier, gpu capabilities.GPU) func(context.Context) (*leaseGroup, error) {
+			return func(residentCtx context.Context) (*leaseGroup, error) {
+				resident := newLeaseGroup(residentCtx)
+				if err := e.admitModelMemory(resident, model, "image-tools:resident:"+model.ID, true); err != nil {
+					return resident, err
+				}
+				if tier == backends.TierLocalGPU {
+					lease, err := e.deps.Capacity.Claim(residentCtx, "image-tools:resident:"+model.ID+":"+gpu.UUID, modelVRAMClaimBytes(model), CapacityClaimOptions{
+						Priority: pl.CapacityPriority, AllowReclaim: pl.AllowReclaim, GPUUUID: gpu.UUID,
+					})
+					if err != nil {
+						return resident, fmt.Errorf("ai: GPU residency admission failed: %w", err)
+					}
+					if lease.DegradeToCPU {
+						return resident, &warmGPUCapacityFallbackError{detail: "GPU capacity denied warm model residency"}
+					}
+					resident.renew("GPU residency", &capacityMemoryLease{broker: e.deps.Capacity, lease: lease})
+					meta["gpu_capacity_claim_id"] = lease.ClaimID
+					meta["gpu_uuid"] = gpu.UUID
+					meta["gpu_capacity_policy"] = "held-for-warm-model-residency"
+				}
+				return resident, nil
+			}
+		}
+		warmAdmission, err := warm.reserve(ctx, warmModelKey, job.ID, acquireResidency(warmTier, residentGPU), meta)
+		var fallback *warmGPUCapacityFallbackError
+		if errors.As(err, &fallback) && warmTier == backends.TierLocalGPU && !pl.RequireGPU && model.Hardware.CPUCapable {
+			bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
+				Operation: job.Operation, ModelBackend: model.Backend, GPUViable: false,
+				AllowBYOK: pl.AllowBYOK, RequireAdapters: len(pl.Adapters) > 0,
+			})
+			if err == nil {
+				pl.GPUUUID = ""
+				meta["capacity_fallback"] = "cpu"
+				meta["capacity_fallback_reason"] = fallback.detail
+				warmAdmission, err = warm.reserve(ctx, model.ID, job.ID, acquireResidency(backends.TierLocalCPU, capabilities.GPU{}), meta)
+				warmTier = backends.TierLocalCPU
+			}
+		}
 		if warmAdmission.Release != nil {
 			group.finish = append(group.finish, warmAdmission.Release)
 		}
@@ -199,6 +251,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		for key, value := range warmAdmission.Meta {
 			meta[key] = value
 		}
+		warmGPUResidency = warmTier == backends.TierLocalGPU
 	} else {
 		if err := e.admitModelMemory(group, model, "image-tools:"+job.ID+":ram", local); err != nil {
 			return admission, err
@@ -260,7 +313,7 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 		group.renew("pose preprocessor RAM", lease)
 		meta["pose_preprocessor_ram_claim_bytes"] = strconv.FormatInt(poseWorkerRAMBytes, 10)
 	}
-	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU {
+	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU && !warmGPUResidency {
 		gpu, err := capacityGPU(host, modelVRAMClaimBytes(model), bsel.Provider)
 		if err != nil {
 			return admission, err
@@ -307,7 +360,13 @@ func (e *Engine) Admit(ctx context.Context, job jobs.Job) (jobs.Admission, error
 			}
 			meta["capacity_release_warning"] = err.Error()
 		} else {
-			meta["capacity_release"] = "released"
+			if warmGPUResidency && warm != nil && warm.hasResidency(meta[workerResidencyIDMetadataKey]) {
+				meta["capacity_release"] = "residency-held"
+				meta["gpu_capacity_release_policy"] = "warm-worker-idle-timeout"
+				meta["gpu_capacity_release_seconds"] = strconv.Itoa(int(warm.idleTimeout.Seconds()))
+			} else {
+				meta["capacity_release"] = "released"
+			}
 		}
 		return err
 	}

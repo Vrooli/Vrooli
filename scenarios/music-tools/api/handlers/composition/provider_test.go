@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/vrooli/ai-provider-go/policy"
+
 	"music-tools/internal/models"
 	"music-tools/internal/styles"
 )
@@ -41,15 +43,20 @@ func TestSA3AdmissionRechecksCurrentRightsBeforeResourceReadiness(t *testing.T) 
 	var allowed atomic.Bool
 	allowed.Store(true)
 	var evaluations atomic.Int32
-	s.RightsEvaluator = func(_ context.Context, raw json.RawMessage, use string) (models.RightsDecision, error) {
+	shared := policy.NewRightsEvaluator(func(context.Context) (policy.RightsContext, error) {
+		status, version := "at_or_above_threshold", "crossed"
+		if allowed.Load() {
+			status, version = "pre_revenue", "below"
+		}
+		return policy.RightsContext{ID: "operator-business-context/current", Version: version, EntityScope: "operator-group", RevenueStatus: status, AsOf: "2026-11-14", Source: "operator_statement"}, nil
+	})
+	wrapped := models.AdaptRightsEvaluator(shared)
+	s.RightsEvaluator = func(ctx context.Context, raw json.RawMessage, use string) (models.RightsDecision, error) {
 		evaluations.Add(1)
 		if use != models.RightsUseLocalInference || len(raw) == 0 {
 			t.Fatalf("shared rights evaluator input: use=%q raw=%q", use, raw)
 		}
-		if allowed.Load() {
-			return models.RightsDecision{Status: "allowed", DecisionSHA256: "current-context"}, nil
-		}
-		return models.RightsDecision{Status: "denied", Reason: "revenue_threshold_exceeded"}, nil
+		return wrapped(ctx, raw, use)
 	}
 	var readinessCalls atomic.Int32
 	var unexpectedPath atomic.Value
@@ -77,8 +84,8 @@ func TestSA3AdmissionRechecksCurrentRightsBeforeResourceReadiness(t *testing.T) 
 		t.Fatalf("unexpected SA3 readiness path %v", unexpected)
 	}
 
-	allowed.Store(false) // Simulate trusted organization context crossing a grant threshold.
-	if _, _, err := s.sa3Admission(context.Background(), payload); err == nil || !strings.Contains(err.Error(), "revenue_threshold_exceeded") {
+	allowed.Store(false) // Hypothetical trusted-context crossing; not an operator fact.
+	if _, _, err := s.sa3Admission(context.Background(), payload); err == nil || !strings.Contains(err.Error(), "revenue_condition_not_satisfied") {
 		t.Fatalf("changed context admission=%v, want current-rights refusal", err)
 	}
 	if readinessCalls.Load() != 1 || evaluations.Load() != 2 {
@@ -115,6 +122,33 @@ func TestCapabilitySelectionAndRecordedProviderValidationPreserveLyrics(t *testi
 	}
 	if compiled.Lyrics != lyrics {
 		t.Fatal("capability filtering rewrote lyrics")
+	}
+}
+
+func TestVocalLanguageUsesModelDeclaredCapabilities(t *testing.T) {
+	compiled := styles.Compiled{Caption: "authored song", Lyrics: "[Verse]\nOriginal words", Params: styles.Params{BPM: 120, Duration: 30, Variant: aceDefaultVariant}}
+	for _, value := range []string{"en", "ko"} {
+		language := value
+		if err := validateProviderInput(providerACE, compiled, composeRequest{Duration: 30, VocalLanguage: &language}, false); err != nil {
+			t.Fatalf("declared language %q rejected: %v", value, err)
+		}
+	}
+	unsupported := "ja"
+	if err := validateProviderInput(providerACE, compiled, composeRequest{Duration: 30, VocalLanguage: &unsupported}, false); err == nil || !strings.Contains(err.Error(), `does not declare vocal language "ja"`) {
+		t.Fatalf("undeclared language accepted or unclear: %v", err)
+	}
+	empty := "  "
+	if err := validateProviderInput(providerACE, compiled, composeRequest{Duration: 30, VocalLanguage: &empty}, false); err == nil || !strings.Contains(err.Error(), "must be omitted") {
+		t.Fatalf("explicit empty language accepted: %v", err)
+	}
+	spaced := " ko "
+	if err := validateProviderInput(providerACE, compiled, composeRequest{Duration: 30, VocalLanguage: &spaced}, false); err == nil || !strings.Contains(err.Error(), "surrounding whitespace") {
+		t.Fatalf("noncanonical language accepted: %v", err)
+	}
+	compiled.Params.Variant = "stable-audio-3-medium"
+	english := "en"
+	if err := validateProviderInput(providerSA3, compiled, composeRequest{Duration: 30, VocalLanguage: &english}, false); err == nil || !strings.Contains(err.Error(), "does not declare vocal language") {
+		t.Fatalf("unsupported provider language accepted: %v", err)
 	}
 }
 

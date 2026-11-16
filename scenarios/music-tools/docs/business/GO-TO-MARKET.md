@@ -11,7 +11,6 @@ validation experiments for the scenario.
 > rewritten on 2026-09-18 to replace generated scaffold that said "define during
 > PRD review" in every field.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

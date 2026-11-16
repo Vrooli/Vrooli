@@ -4,7 +4,6 @@ This document records launch strategy, positioning, channels, and
 validation experiments for the scenario. Everything below is an early,
 pre-implementation hypothesis derived from `PRD.md`, not a committed plan.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

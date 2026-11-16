@@ -39,7 +39,8 @@ export function AppShell() {
   return (
     <LibraryAppShell
       density="sidebar"
-      mobileNav="tabs"
+      // Keep the full tool collection in the phone drawer without a bottom bar.
+      mobileNav="drawer"
       mainMode="scroll"
       brand={<span data-testid={selectors.app.title} className="flex items-center gap-2"><LumeMark size={22} />{t(strings.app.title)}</span>}
       brandHref="/"

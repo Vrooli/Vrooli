@@ -20,21 +20,23 @@ func TestWarmResidencyRetainsClaimsAcrossJobsAndReleasesOnIdle(t *testing.T) {
 	runner.idleTimeout = 20 * time.Millisecond
 	t.Cleanup(func() { _ = runner.Close() })
 	var acquired, released atomic.Int32
+	var lastResidencyID string
 	closed := make(chan struct{}, 2)
-	acquire := func(ctx context.Context) (*leaseGroup, error) {
-		acquired.Add(1)
-		group := newLeaseGroup(ctx)
-		group.renew("RAM", &memoryTestLease{onRelease: func(context.Context) {
-			if runner.cmd != nil || runner.exited != nil {
-				t.Error("resident RAM released before worker reaped")
-			}
-			released.Add(1)
-			closed <- struct{}{}
-		}})
-		return group, nil
-	}
 	for i := range 2 {
-		meta := map[string]string{}
+		meta := map[string]string{"disk_job_attempt_id": fmt.Sprintf("job-%d", i)}
+		acquire := func(ctx context.Context) (*leaseGroup, error) {
+			acquired.Add(1)
+			meta["gpu_capacity_claim_id"] = "resident-claim"
+			group := newLeaseGroup(ctx)
+			group.renew("RAM", &memoryTestLease{onRelease: func(context.Context) {
+				if runner.cmd != nil || runner.exited != nil {
+					t.Error("resident RAM released before worker reaped")
+				}
+				released.Add(1)
+				closed <- struct{}{}
+			}})
+			return group, nil
+		}
 		admitted, err := runner.reserve(context.Background(), "same-model", fmt.Sprintf("job-%d", i), acquire, meta)
 		if err != nil {
 			t.Fatal(err)
@@ -42,12 +44,22 @@ func TestWarmResidencyRetainsClaimsAcrossJobsAndReleasesOnIdle(t *testing.T) {
 		if got := admitted.Meta["warm_reused"]; got != fmt.Sprint(i > 0) {
 			t.Fatalf("reuse %d: %s", i, got)
 		}
+		if got := meta["disk_job_attempt_id"]; got != fmt.Sprintf("job-%d", i) {
+			t.Fatalf("job-scoped metadata leaked across warm jobs: %q", got)
+		}
+		if meta["gpu_capacity_claim_id"] != "resident-claim" {
+			t.Fatalf("resident GPU claim metadata was not retained: %#v", meta)
+		}
+		if !runner.hasResidency(meta[workerResidencyIDMetadataKey]) {
+			t.Fatal("successful request lost its resource-backed warm residency before idle timeout")
+		}
 		if err := runner.Run(admitted.Context, "python3", []string{"-m", "benchmark_sidecar.sleepy", "--out", filepath.Join(outputs, fmt.Sprint(i))}); err != nil {
 			t.Fatal(err)
 		}
 		if meta[workerResidencyIDMetadataKey] == "" || meta[workerResidencyModelMetadataKey] != "same-model" {
 			t.Fatalf("residency identity metadata = %#v", meta)
 		}
+		lastResidencyID = meta[workerResidencyIDMetadataKey]
 		if meta[workerResidencyPeakRSSStatusKey] != "measured" && meta[workerResidencyPeakRSSStatusKey] != "unavailable" {
 			t.Fatalf("worker residency RSS was not explicitly classified: %#v", meta)
 		}
@@ -75,6 +87,21 @@ func TestWarmResidencyRetainsClaimsAcrossJobsAndReleasesOnIdle(t *testing.T) {
 	}
 	if released.Load() != 1 {
 		t.Fatalf("resident release count=%d", released.Load())
+	}
+	if runner.hasResidency(lastResidencyID) {
+		t.Fatal("idle worker still reports its RAM/GPU residency after releasing its claim")
+	}
+}
+
+func TestWarmResidencyDoesNotReportCanceledLeaseGroup(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	runner := newWarmSidecarRunner()
+	runner.resident = newLeaseGroup(ctx)
+	runner.residencyID = "resident-claim"
+	cancel()
+	if runner.hasResidency("resident-claim") {
+		t.Fatal("canceled residency still reports its GPU/RAM claim as held")
 	}
 }
 
@@ -146,6 +173,33 @@ func TestWarmSidecarRunnerMarksStaleResidencyIdentityUnavailable(t *testing.T) {
 	runner.mu.Unlock()
 	if meta[workerResidencyPeakRSSStatusKey] != "unavailable" || !strings.Contains(meta[workerResidencyPeakRSSReasonKey], "identity changed") || meta[workerResidencyPeakRSSBytesKey] != "" {
 		t.Fatalf("stale residency identity was not rejected: %#v", meta)
+	}
+	if err := admitted.Release(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWarmSidecarRunnerReturnsPerRequestInferenceMetrics(t *testing.T) {
+	root, _, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	moduleDir := filepath.Join(root, "benchmark_sidecar")
+	if err := os.WriteFile(filepath.Join(moduleDir, "metrics.py"), []byte("def main():\n    return {'device': 'cuda', 'forward_ms': 17, 'model_cache_hit': True}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runner := newWarmSidecarRunner()
+	t.Cleanup(func() { _ = runner.Close() })
+	meta := map[string]string{}
+	admitted, err := runner.reserve(context.Background(), "metric-model", "metric-job", func(ctx context.Context) (*leaseGroup, error) {
+		return newLeaseGroup(ctx), nil
+	}, meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.Run(admitted.Context, "python3", []string{"-m", "benchmark_sidecar.metrics", "--out", filepath.Join(outputs, "metrics")}); err != nil {
+		t.Fatal(err)
+	}
+	if meta["inference_device"] != "cuda" || meta["inference_forward_ms"] != "17" || meta["inference_model_cache_hit"] != "True" {
+		t.Fatalf("per-request worker metrics missing from admission metadata: %#v", meta)
 	}
 	if err := admitted.Release(context.Background()); err != nil {
 		t.Fatal(err)

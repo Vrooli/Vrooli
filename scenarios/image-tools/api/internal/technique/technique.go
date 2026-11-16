@@ -683,8 +683,8 @@ func llamaCppModelPaths(req backends.Request, modelDir string) (model string, mm
 }
 
 // OnnxSidecar assembles an invocation of the in-repo onnxruntime python sidecar.
-// The sidecar is the CPU-tractable, provisionable backend: onnxruntime + Pillow
-// run real ONNX weights with no GPU. One dispatch per supported op. The model
+// The sidecar supports explicit CPU fallback and an admitted CUDA execution path.
+// One dispatch per supported op. The model
 // argument is the resolved ONNX weight file inside the model dir (from the
 // registry asset list), not the directory, so the sidecar loads it directly.
 func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
@@ -728,6 +728,7 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 		"--model", model,
 		"--image", in,
 		"--out", req.Output.LocalPath,
+		"--device", map[bool]string{true: "cuda", false: "cpu"}[req.GPU],
 	}
 	if req.Operation == "object_removal" {
 		mask, err := MaskPath(req)

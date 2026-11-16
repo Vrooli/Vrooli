@@ -3,6 +3,7 @@ package adapters
 import (
 	"crypto/sha256"
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -182,6 +183,21 @@ func TestScaleRangeClamp(t *testing.T) {
 	// A zero range is treated as no-clamp.
 	if got := (ScaleRange{}).Clamp(42); got != 42 {
 		t.Fatalf("zero range should not clamp: got %v want 42", got)
+	}
+}
+
+func TestScaleRangeRejectsNonFiniteCatalogValues(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		rangeValue ScaleRange
+	}{{"nan minimum", ScaleRange{Min: math.NaN(), Max: 1, Default: 0.5}},
+		{"infinite maximum", ScaleRange{Min: 0, Max: math.Inf(1), Default: 0.5}},
+		{"infinite default", ScaleRange{Min: 0, Max: 1, Default: math.Inf(-1)}}} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateScaleRange(tc.rangeValue); err == nil {
+				t.Fatalf("non-finite scale range was accepted: %+v", tc.rangeValue)
+			}
+		})
 	}
 }
 

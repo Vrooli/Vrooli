@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "All GPU work is admitted, degraded, and released through the control-plane capacity broker.",
-    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "last_validated_at": "2026-11-15T15:49:12-05:00",
     "module": "gpu-arbitration",
     "prd_ref": "OT-P0-003",
     "priority": "P0",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/capacity/capacity_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Capacity claim and release behavior is covered by the shipped capacity tests"
         },
         {
@@ -38,7 +38,7 @@
     {
       "id": "MUS-P0-007",
       "title": "Declared degradation rungs",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "criticality": "P0",
@@ -52,7 +52,7 @@
           "type": "test",
           "ref": "api/internal/capacity/capacity_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Capacity rung and admission behavior is covered by the shipped capacity tests"
         }
       ]
@@ -60,7 +60,7 @@
     {
       "id": "MUS-P0-008",
       "title": "Heavyweight models never co-reside",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-003",
       "category": "core",
       "criticality": "P0",
@@ -74,7 +74,7 @@
           "type": "test",
           "ref": "api/internal/capacity/capacity_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Capacity residency and lease behavior is covered by the shipped capacity tests"
         }
       ]

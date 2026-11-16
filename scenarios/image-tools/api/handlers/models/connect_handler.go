@@ -48,6 +48,9 @@ type Deps struct {
 	Installer *internalmodels.Installer
 	// Backends is the runtime provider registry used by AI selection.
 	Backends *internalbackends.Registry
+	// RightsEvaluator is the shared current-context evaluator used by model
+	// selection previews. A nil value remains fail-closed, matching execution.
+	RightsEvaluator internalmodels.RightsEvaluator
 	// Jobs submits the durable download job (may be nil in read-only wiring).
 	Jobs JobSubmitter
 	// OpDefaults persists per-operation default-model pins (settings surface).
@@ -287,8 +290,10 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		}
 	}
 	sel, err := registry.Select(internalmodels.SelectRequest{
-		Operation: req.Msg.GetOperation(),
-		Host:      host,
+		Operation:       req.Msg.GetOperation(),
+		Host:            host,
+		RightsEvaluator: h.deps.RightsEvaluator,
+		Context:         ctx,
 		// The caller's routing policy, so the preview resolves the model a
 		// submit with the same policy would resolve. Without it a BYOK-routed
 		// caller was previewed the local default's identity and geometry, and

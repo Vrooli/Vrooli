@@ -4,8 +4,26 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "music-tools",
   "generator": "v1.0.0",
-  "manifest_hash": "71d2f2b0438b89816c540bd8bfa85ddba6c1831d596df4d21612fd464427450e",
+  "manifest_hash": "a04078210dc259dbe577ac0b013fe29e41d87a5351e03a02df1aa9c2bc6246f3",
   "commands": [
+    {
+      "path": "analysis result",
+      "group": "analysis",
+      "command": "result",
+      "binding": "."
+    },
+    {
+      "path": "analysis stem",
+      "group": "analysis",
+      "command": "stem",
+      "binding": "."
+    },
+    {
+      "path": "analyze run",
+      "group": "analyze",
+      "command": "run",
+      "binding": "."
+    },
     {
       "path": "compose run",
       "group": "compose",
@@ -73,6 +91,30 @@
       "binding": "."
     },
     {
+      "path": "separate run",
+      "group": "separate",
+      "command": "run",
+      "binding": "."
+    },
+    {
+      "path": "sources audio",
+      "group": "sources",
+      "command": "audio",
+      "binding": "."
+    },
+    {
+      "path": "sources get",
+      "group": "sources",
+      "command": "get",
+      "binding": "."
+    },
+    {
+      "path": "sources import",
+      "group": "sources",
+      "command": "import",
+      "binding": "."
+    },
+    {
       "path": "styles compile",
       "group": "styles",
       "command": "compile",
@@ -82,6 +124,18 @@
       "path": "styles create",
       "group": "styles",
       "command": "create",
+      "binding": "."
+    },
+    {
+      "path": "styles default-get",
+      "group": "styles",
+      "command": "default-get",
+      "binding": "."
+    },
+    {
+      "path": "styles default-set",
+      "group": "styles",
+      "command": "default-set",
       "binding": "."
     },
     {

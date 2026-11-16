@@ -333,7 +333,8 @@ class OutputIdentityTest(unittest.TestCase):
                 self.assertEqual(observed[0]["vocal_language"], language or "en")
                 if language is None:
                     self.assertNotIn("use_cot_language", observed[0])
-                    self.assertNotIn("X-ACE-Step-Language-Mode", response.headers)
+                    self.assertEqual(response.headers["X-ACE-Step-Language-Mode"], "default-v1")
+                    self.assertEqual(response.headers["X-ACE-Step-Vocal-Language"], "en")
                 else:
                     for field in ["use_cot_language", "use_cot_caption", "use_cot_metas"]:
                         self.assertIs(observed[0][field], False)
@@ -367,7 +368,8 @@ class OutputIdentityTest(unittest.TestCase):
             inference.GenerationConfig = types.SimpleNamespace; inference.GenerationParams = types.SimpleNamespace; inference.generate_music = generate
             with patch.dict(sys.modules, {"acestep.inference": inference}):
                 response = namespace["compose"](request_model()(caption="authored", rewrite_caption=True, vocal_language=None))
-            self.assertNotIn("X-ACE-Step-Language-Mode", response.headers)
+            self.assertEqual(response.headers["X-ACE-Step-Language-Mode"], "default-v1")
+            self.assertEqual(response.headers["X-ACE-Step-Vocal-Language"], "en")
 
     def test_fixed_seed_profile_and_code_witness_are_actual(self):
         for variant, planner, steps, guidance, shift in [

@@ -3,7 +3,6 @@
 The music-information-retrieval runtime this scenario depends on, specified at the
 confidence it actually has.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -13,15 +12,18 @@ Use this document to answer:
 
 ## Status
 
-**Nothing in this document has been measured.** Unlike
-[`resource-ace-step.md`](resource-ace-step.md), which records a real spike, this
-resource has never been installed, run, or profiled on the reference host. Every
+**The current implementation has not been measured.** A local resource scaffold,
+Music Tools job adapter, and request/cancellation contract now exist, but the
+resource has not been installed, run, or profiled on the reference host. Every
 figure elsewhere in the docs concerning structure analysis, beat tracking, or stem
-separation is `vendor` or `estimated`.
+separation is `vendor` or `estimated`. The current adapter only provides partial
+acoustic estimates and low-confidence cut candidates. It now calls the
+configurable local Whisper service for timestamped transcript segments when
+available; these are hypotheses, not word-level alignment, and Whisper supplies
+no confidence value. Semantic section labels and descriptions are still absent.
 
-This document exists so the gap is visible rather than implied, and so the
-composition-first launch order has a stated reason: composition is the tier that
-has been measured; this one has not.
+This document keeps the remaining qualification gap visible: composition is the
+tier that has been measured; the MIR runtime has not.
 
 ## Why It Is A Separate Runtime
 

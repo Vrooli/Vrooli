@@ -59,7 +59,10 @@ def parse_io_args(description: str) -> argparse.Namespace:
     p.add_argument("--model", required=True, help="path to the ONNX weight file (or model dir)")
     p.add_argument("--image", required=True, help="input image path")
     p.add_argument("--out", required=True, help="output image path")
-    return p.parse_args()
+    p.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    args = p.parse_args()
+    os.environ["IMAGE_TOOLS_DEVICE"] = args.device
+    return args
 
 
 def fail(msg: str, code: int = 2) -> "None":
@@ -105,10 +108,14 @@ def resolve_onnx_path(model_arg: str) -> str:
 
 
 def make_session(onnx_path: str):
-    """Create or reuse a CPU onnxruntime InferenceSession."""
-    if onnx_path in _SESSION_CACHE:
-        _SESSION_CACHE.move_to_end(onnx_path)
-        return _SESSION_CACHE[onnx_path]
+    """Create/reuse a session for the explicitly admitted device."""
+    device = os.environ.get("IMAGE_TOOLS_DEVICE", "cpu")
+    if device not in {"cpu", "cuda"}:
+        fail(f"unsupported ONNX device {device!r}", code=5)
+    cache_key = f"{device}:{onnx_path}"
+    if cache_key in _SESSION_CACHE:
+        _SESSION_CACHE.move_to_end(cache_key)
+        return _SESSION_CACHE[cache_key]
     _np, ort, _Image = require_deps()
     try:
         # Evict before allocating the next model, rather than exceeding the
@@ -120,8 +127,17 @@ def make_session(onnx_path: str):
         options.intra_op_num_threads = settings["intra_op_num_threads"]
         options.inter_op_num_threads = settings["inter_op_num_threads"]
         options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        session = ort.InferenceSession(onnx_path, sess_options=options, providers=["CPUExecutionProvider"])
-        _SESSION_CACHE[onnx_path] = session
+        if device == "cuda":
+            available = ort.get_available_providers()
+            if "CUDAExecutionProvider" not in available:
+                fail("CUDA was admitted but CUDAExecutionProvider is unavailable; refusing CPU fallback", code=5)
+            providers = ["CUDAExecutionProvider"]
+        else:
+            providers = ["CPUExecutionProvider"]
+        session = ort.InferenceSession(onnx_path, sess_options=options, providers=providers)
+        if device == "cuda" and "CUDAExecutionProvider" not in session.get_providers():
+            fail("CUDA was admitted but ONNX Runtime did not activate CUDAExecutionProvider", code=5)
+        _SESSION_CACHE[cache_key] = session
         return session
     except Exception as exc:  # noqa: BLE001 - surface any load error actionably
         fail(f"failed to load ONNX model {onnx_path!r}: {exc}", code=5)

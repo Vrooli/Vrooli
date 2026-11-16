@@ -7,7 +7,7 @@
     "Every operation has a commercial-clean, CPU-capable DEFAULT plus one higher-quality tier.",
     "Policy (DECISIONS.md): stay gate-free (no Stability $1M-gated SD3.5/Turbo); GFPGAN excluded (RestoreFormer++ only); optional Python sidecar allowed for quality tiers; defaults + one quality tier per op.",
     "Sizes and VRAM are APPROXIMATE (size_mb_approx, min_vram_gb) from public sources; verify at ingest.",
-    "Checksums are intentionally EMPTY: they are captured + pinned on first download (see checksum_policy). Do NOT hand-fabricate hashes.",
+    "New weight entries start with no checksum; after an acquired artifact is independently verified, pin its digest. Do NOT fabricate hashes.",
     "Library-backed ops (Tesseract, goimagehash, gozxing, OpenCV) have no downloadable weights; checksum.status = 'n/a-library'."
   ],
   "checksum_policy": "On first download of a model artifact, compute sha256, store it as source.checksum.value, and flip source.checksum.status to 'pinned'. Subsequent downloads must match the pinned hash or fail. Until then status is 'unverified-capture-on-download'.",
@@ -48,15 +48,15 @@
         "ncnn"
       ],
       "requires_comfyui": false,
-      "size_mb_approx": 2100,
+      "size_mb_approx": 4270,
       "quant_variants": [
-        "fp16 ~2.1GB",
+        "v1-5-pruned-emaonly.safetensors 4.27GB",
         "q4 gguf ~1GB"
       ],
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 2,
+        "min_vram_gb": 6,
         "min_ram_gb": 8,
         "os_arch": [
           "linux/amd64",
@@ -64,7 +64,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "CPU: seconds to ~2 min/image; the only genuinely CPU-viable t2i tier. Add LCM-LoRA to cut steps."
+        "speed_note": "CPU baseline: 18–26 min/render on this host (12 Nov 2026); GPU tier requires capacity admission. Add LCM-LoRA to cut steps."
       },
       "io": {
         "native_resolution": "512x512",
@@ -79,36 +79,55 @@
         "known_risks": "Can generate NSFW; inherent copyright/likeness risk from LAION training data; finetunes are tagged 'license: other' — verify each."
       },
       "source": {
-        "download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5",
+        "download_url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/v1-5-pruned-emaonly.safetensors",
         "source_repo": "https://github.com/leejet/stable-diffusion.cpp",
         "docs_url": "https://github.com/leejet/stable-diffusion.cpp#readme",
         "update_source": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5",
         "assets": [
           {
-            "url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors",
+        "url": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/v1-5-pruned-emaonly.safetensors",
             "filename": "v1-5-pruned-emaonly.safetensors",
             "kind": "safetensors",
-            "min_bytes": 4000000000
+        "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+        "min_bytes": 4000000000
           }
         ],
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
+        "value": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+        "status": "pinned"
         }
       },
       "enabled": true,
       "rights": {
         "artifact_id": "sd-1.5",
-        "revision": "",
-        "sha256": "",
-        "license_id": "CreativeML OpenRAIL-M",
-        "classification": "unknown",
-        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "revision": "451f4fe16113bff5a5d2269ed5ad43b0592e9a14",
+        "sha256": "6ce0161689b3853acaa03779ec93eafe75a02f4ced659bee03f50797806fa2fa",
+        "license_id": "CreativeML Open RAIL-M (2022-08-22)",
+        "classification": "behavioral_restrictions",
         "review_triggers": [
           "artifact_changed",
           "license_source_changed",
+          "use_changed",
           "review_due"
+        ],
+        "evidence": {
+          "url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license/blob/14d42d09bffd871b1666a084fc954a50cff72ac0/license.txt",
+          "revision": "14d42d09bffd871b1666a084fc954a50cff72ac0",
+          "sha256": "be351ebe7ac01bcdbb018639aadcfd38f136b7dc3f2a3d4d3a24db51d1b210ef",
+          "observed_at": "2026-11-15"
+        },
+        "obligations": [
+          "Comply with CreativeML Open RAIL-M Attachment A use restrictions for every local inference request.",
+          "Before hosted access or redistribution of weights or derivatives, enforce the same restrictions in downstream terms, provide a license copy, and retain required notices; the shared evaluator keeps those uses unknown until owner attestation."
+        ],
+        "lineage": [
+          {
+            "kind": "model_card",
+            "identity": "https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/blob/451f4fe16113bff5a5d2269ed5ad43b0592e9a14/README.md",
+            "revision": "451f4fe16113bff5a5d2269ed5ad43b0592e9a14",
+            "sha256": "2079161f9df7524bd9eca5e53ff5911271b8551e0f868b7b5a92b84776df28a3"
+          }
         ]
       }
     },
@@ -760,7 +779,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 2,
         "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
@@ -833,7 +852,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 2,
         "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
@@ -1293,7 +1312,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 1,
         "min_ram_gb": 2,
         "os_arch": [
           "linux/amd64",
@@ -1848,7 +1867,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 2,
         "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
@@ -1922,7 +1941,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 1,
         "min_ram_gb": 2,
         "os_arch": [
           "linux/amd64",
@@ -1930,7 +1949,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Smallest in the zoo; ideal mobile/low-RAM fallback. 320px, lower quality."
+        "speed_note": "Smallest in the zoo; 1 GiB GPU admission budget enables CUDA, with CPU as fallback. 320px, lower quality."
       },
       "io": {},
       "capability_labels": {
@@ -1951,27 +1970,49 @@
             "url": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
             "filename": "u2netp.onnx",
             "kind": "onnx",
+            "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
             "min_bytes": 4000000
           }
         ],
         "checksum": {
           "algo": "sha256",
-          "value": "",
-          "status": "unverified-capture-on-download"
+          "value": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
+          "status": "pinned"
         }
       },
       "enabled": true,
       "rights": {
         "artifact_id": "u2netp",
-        "revision": "",
-        "sha256": "",
+        "revision": "v0.0.0",
+        "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8",
         "license_id": "Apache-2.0",
-        "classification": "unknown",
-        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "classification": "unrestricted",
+        "evidence": {
+          "url": "https://raw.githubusercontent.com/xuebinqin/U-2-Net/ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29/LICENSE",
+          "revision": "ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "observed_at": "2026-11-15"
+        },
+        "obligations": [
+          "Preserve the Apache-2.0 license and required notices if redistributing the model artifact or derivatives."
+        ],
         "review_triggers": [
           "artifact_changed",
           "license_source_changed",
           "review_due"
+        ],
+        "lineage": [
+          {
+            "kind": "onnx_conversion",
+            "identity": "danielgatis/rembg u2netp.onnx release asset",
+            "revision": "v0.0.0",
+            "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8"
+          },
+          {
+            "kind": "source_model",
+            "identity": "xuebinqin/U-2-Net U^2-Net-p",
+            "revision": "ac7e1c817ecab7c7dff5ce6b1abba61cd213ff29"
+          }
         ]
       }
     },
@@ -2077,7 +2118,7 @@
       "hardware": {
         "cpu_capable": true,
         "gpu_required": false,
-        "min_vram_gb": 0,
+        "min_vram_gb": 2,
         "min_ram_gb": 4,
         "os_arch": [
           "linux/amd64",
@@ -2207,11 +2248,15 @@
       "enabled": true,
       "rights": {
         "artifact_id": "sam-2.1-tiny",
-        "revision": "",
-        "sha256": "",
+        "revision": "de431c4043854a71d8101e17995dfe596bf101a5",
+        "sha256": "48c14467e5cf9e51870511feb72c89688e82dd74523142c0538b663e193ac2a7",
         "license_id": "Apache-2.0",
-        "classification": "unknown",
-        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "classification": "unrestricted",
+        "evidence": {
+          "url": "https://github.com/facebookresearch/sam2/blob/2b90b9f5ceec907a1c18123530e92e794ad901a4/LICENSE",
+          "revision": "2b90b9f5ceec907a1c18123530e92e794ad901a4",
+          "observed_at": "2026-11-15"
+        },
         "review_triggers": [
           "artifact_changed",
           "license_source_changed",
@@ -2287,11 +2332,16 @@
       "enabled": false,
       "rights": {
         "artifact_id": "sam-2.1-base-plus",
-        "revision": "",
-        "sha256": "",
+        "revision": "47b9e36ec942f6ff9900555727478a1c96f63225",
+        "sha256": "2012733a0de5d03efd1bba550a2847c4551be9ef2e0d497c83074df66189f780",
         "license_id": "Apache-2.0",
-        "classification": "unknown",
-        "unverified_reason": "exact_license_source_revision_and_weight_digest_not_verified",
+        "classification": "unrestricted",
+        "evidence": {
+          "url": "https://huggingface.co/facebook/sam2.1-hiera-base-plus/blob/47b9e36ec942f6ff9900555727478a1c96f63225/README.md",
+          "revision": "47b9e36ec942f6ff9900555727478a1c96f63225",
+          "sha256": "137fce7aa08774c4110ba8d4982a6ecb1f0d3a26f22426dc1234fc4841e53c50",
+          "observed_at": "2026-11-15"
+        },
         "review_triggers": [
           "artifact_changed",
           "license_source_changed",

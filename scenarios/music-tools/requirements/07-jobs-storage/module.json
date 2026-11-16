@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Server-owned async jobs and a bounded derived-artifact budget.",
-    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "last_validated_at": "2026-11-15T15:49:12-05:00",
     "module": "jobs-storage",
     "prd_ref": "OT-P0-005",
     "priority": "P0",
@@ -11,7 +11,7 @@
     {
       "id": "MUS-P0-014",
       "title": "Jobs survive client disconnect",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-005",
       "category": "core",
       "criticality": "P0",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/jobs/manager_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Durable job lifecycle is covered by the shipped job manager tests"
         }
       ]
@@ -33,7 +33,7 @@
     {
       "id": "MUS-P0-015",
       "title": "Derived artifacts are bounded and evictable",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "criticality": "P0",
@@ -47,7 +47,7 @@
           "type": "test",
           "ref": "api/internal/storage/storage_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Storage budgets and eviction behavior are covered by the shipped storage tests"
         }
       ]
@@ -55,7 +55,7 @@
     {
       "id": "MUS-P0-016",
       "title": "Outputs flow through the shared blob seam",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-006",
       "category": "core",
       "criticality": "P0",
@@ -69,7 +69,7 @@
           "type": "test",
           "ref": "api/internal/storage/storage_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Blob persistence and ownership behavior are covered by the shipped storage tests"
         }
       ]

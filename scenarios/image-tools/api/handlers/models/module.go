@@ -30,7 +30,7 @@ type AdapterSeams struct {
 	Installed func(id string) bool
 }
 
-func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, adapterSeams AdapterSeams, logger *log.Logger) module.Module {
+func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalcaps.Probe, installer *internalmodels.Installer, backendReg *internalbackends.Registry, jobs JobSubmitter, estimateInstallSeconds EstimateInstallSecondsFunc, ensurer BackendEnsurer, adapterSeams AdapterSeams, rightsEvaluator internalmodels.RightsEvaluator, logger *log.Logger) module.Module {
 	store := internalmodels.NewStore(db)
 	connectPath, connectHandler := modelsconnect.NewModelsServiceHandler(NewConnectHandler(Deps{
 		Registry:               reg,
@@ -38,6 +38,7 @@ func Module(db *database.RoutedDB, reg *internalmodels.Registry, probe internalc
 		Probe:                  probe,
 		Installer:              installer,
 		Backends:               backendReg,
+		RightsEvaluator:        rightsEvaluator,
 		Jobs:                   jobs,
 		OpDefaults:             internalmodels.NewOpDefaultStore(db),
 		EstimateInstallSeconds: estimateInstallSeconds,

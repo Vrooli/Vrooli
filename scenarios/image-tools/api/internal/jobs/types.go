@@ -120,6 +120,26 @@ type Job struct {
 	FinishedAt              *time.Time
 }
 
+// HeavyJobObservation is the image-tools owner's report-only view of local
+// model/image queue work. The legacy GPU lane is not observed device placement.
+// WaiterCount counts live server-side WaitJob/WatchJob calls.
+type HeavyJobObservation struct {
+	OwnerID     string    `json:"owner_id"`
+	JobID       string    `json:"job_id"`
+	Operation   string    `json:"operation"`
+	State       string    `json:"state"`
+	StartedAt   time.Time `json:"started_at"`
+	WaiterCount int       `json:"waiter_count"`
+	Heavy       bool      `json:"heavy"`
+}
+
+// HeavyJobSnapshot is complete for the image-tools manager instance only.
+type HeavyJobSnapshot struct {
+	ObservedAt time.Time             `json:"observed_at"`
+	Complete   bool                  `json:"complete"`
+	Jobs       []HeavyJobObservation `json:"jobs"`
+}
+
 // ProgressEvent is one progress update streamed to subscribers (SSE).
 type ProgressEvent struct {
 	JobID    string

@@ -23,6 +23,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -276,6 +277,9 @@ func validateAdapter(a Adapter) error {
 func validateScaleRange(r ScaleRange) error {
 	if r.Min == 0 && r.Max == 0 && r.Default == 0 {
 		return fmt.Errorf("scale_range is required (min/max/default)")
+	}
+	if math.IsNaN(r.Min) || math.IsInf(r.Min, 0) || math.IsNaN(r.Max) || math.IsInf(r.Max, 0) || math.IsNaN(r.Default) || math.IsInf(r.Default, 0) {
+		return fmt.Errorf("scale_range bounds and default must be finite")
 	}
 	if r.Min < 0 || r.Max < 0 {
 		return fmt.Errorf("scale_range has a negative bound")

@@ -29,6 +29,8 @@
       "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
       "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
     },
+    "vocal_languages": ["en", "ko"],
+    "default_vocal_language": "en",
     "rights": {
       "artifact_id": "ACE-Step/Ace-Step1.5:acestep-v15-turbo",
       "revision": "19671f406d603126926c1b7e2adc169acbcade22",
@@ -163,6 +165,8 @@
       "reason": "Pinned generation API accepts authored lyrics as a distinct conditioning input; vocal adherence still requires audition.",
       "source": "https://github.com/ace-step/ACE-Step-1.5/blob/ca1e85fe9430179831e6bc6be790c332190a3866/acestep/inference.py"
     },
+    "vocal_languages": ["en", "ko"],
+    "default_vocal_language": "en",
     "rights": {
       "artifact_id": "ACE-Step/Ace-Step1.5:acestep-v15-sft",
       "revision": "c410d249e71ea9385a7b586865e65b1473e1098d",

@@ -31,7 +31,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	core "music-tools/internal/composition"
 	jobdomain "music-tools/internal/jobs"
+	"music-tools/internal/models"
 	stylesdomain "music-tools/internal/styles"
+	"music-tools/internal/transformation"
 )
 
 func TestStyleCompileExposesLyricsOrInstrumentalDefault(t *testing.T) {
@@ -176,6 +178,68 @@ func TestSeedAndProfileReceiptsRequiredBeforeIngestion(t *testing.T) {
 				t.Fatal("unqualified receipt ingested owned output")
 			}
 		})
+	}
+}
+
+func TestACEVocalLanguageIsPassedAndBoundToResourceReceipt(t *testing.T) {
+	state := testState(t)
+	defer state.JobManager.Close()
+	resource := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fakeGenerationProfile(t, w, r)
+		data, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		var payload map[string]any
+		if err := json.Unmarshal(data, &payload); err != nil {
+			t.Error(err)
+			return
+		}
+		if payload["vocal_language"] != "ko" {
+			t.Errorf("resource vocal_language=%v", payload["vocal_language"])
+		}
+		w.Header().Set("X-ACE-Step-Model-ID", "ACE-Step/Ace-Step1.5:acestep-v15-turbo")
+		w.Header().Set("X-ACE-Step-License-Lane", "permissive")
+		w.Header().Set("X-ACE-Step-Profile-Rung", "full")
+		w.Write(wavFixture())
+	}))
+	defer resource.Close()
+	state.HTTP, state.ResourceURL = resource.Client(), resource.URL
+	compiled, err := state.Styles.Compile("launch-trap")
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned, err := core.PlanBatch(core.BatchRequest{JobID: "vocal-language", StyleID: "launch-trap", Caption: compiled.Caption, Takes: 1, Duration: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	planned[0].Provenance.Seed = 42
+	language := "ko"
+	profile, err := state.generateTake(t.Context(), &planned[0], composeRequest{Duration: 1, VocalLanguage: &language}, compiled, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.VocalLanguage != language || profile.VocalLanguageMode != "explicit-v1" {
+		t.Fatalf("receipt vocal_language=%q mode=%q, want %q explicit-v1", profile.VocalLanguage, profile.VocalLanguageMode, language)
+	}
+}
+
+func TestDefaultVocalLanguageIsCapturedFromModelDeclaration(t *testing.T) {
+	h := make(http.Header)
+	h.Set("X-ACE-Step-Seed", "42")
+	h.Set("X-ACE-Step-Planner", "acestep-5Hz-lm-0.6B")
+	h.Set("X-ACE-Step-Inference-Steps", "8")
+	h.Set("X-ACE-Step-Guidance-Scale", "1")
+	h.Set("X-ACE-Step-Shift", "3")
+	h.Set("X-ACE-Step-Vocal-Language", "en")
+	compiled := stylesdomain.Compiled{Lyrics: "[Verse]\nwords", Params: stylesdomain.Params{Variant: aceDefaultVariant}}
+	profile, err := readGenerationProfile(h, 42, composeRequest{}, compiled)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.VocalLanguage != "en" || profile.VocalLanguageMode != "default-v1" {
+		t.Fatalf("receipt vocal_language=%q mode=%q, want en default-v1", profile.VocalLanguage, profile.VocalLanguageMode)
 	}
 }
 
@@ -628,6 +692,79 @@ func testState(t *testing.T) *ModuleState {
 	return testStateWithBroker(t, nil)
 }
 
+func TestProductionConstructorUsesSharedCurrentRightsEvaluatorByDefault(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	for _, schema := range []string{jobdomain.Schema(), stylesdomain.Schema(), core.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := t.TempDir()
+	blobs := musicstorage.NewWithBlobStore(blobstore.NewFilesystemBlobStore(filepath.Join(root, "blobs")), filepath.Join(root, "blobs"))
+	state, err := NewStateWithCapacityStorageAndRightsEvaluator(db, nil, blobs, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer state.Close()
+	model, err := declaredCompositionModel(providerACE, "acestep-v15-turbo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	decision, err := models.EvaluateCurrentRights(context.Background(), state.RightsEvaluator, model, models.RightsUseLocalInference)
+	if err != nil || decision.Status != "allowed" {
+		t.Fatalf("default production evaluator did not load trusted current context for the seed model: %+v, %v", decision, err)
+	}
+}
+
+func TestJobSetupRegistersOperationsBeforeManagerRecoveryStarts(t *testing.T) {
+	db := testdb.NewSQLite(t)
+	for _, schema := range []string{jobdomain.Schema(), stylesdomain.Schema(), core.Schema()} {
+		if _, err := db.Exec(schema); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := t.TempDir()
+	blobs := musicstorage.NewWithBlobStore(blobstore.NewFilesystemBlobStore(filepath.Join(root, "blobs")), filepath.Join(root, "blobs"))
+	setupCalled := false
+	state, err := NewStateWithCapacityStorageAndRightsEvaluatorAndJobSetup(db, nil, blobs, allowRightsForTest, func(manager *jobdomain.Manager) error {
+		setupCalled = true
+		if _, err := manager.Submit(t.Context(), jobdomain.Spec{Operation: "test.operation"}); err != jobdomain.ErrNotStarted {
+			t.Fatalf("manager became runnable before operation registration; Submit error=%v", err)
+		}
+		return manager.RegisterOperation("test.operation", jobdomain.Operation{Runner: func(context.Context, jobdomain.Job, func(int, string)) (jobdomain.Result, error) {
+			return jobdomain.Result{}, nil
+		}})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer state.Close()
+	if !setupCalled {
+		t.Fatal("job operation setup was not called before manager start")
+	}
+}
+
+func TestACEGenerationRefusesModelWithUnverifiedRightsBeforeResourceCall(t *testing.T) {
+	state := testState(t)
+	defer state.JobManager.Close()
+	state.RightsEvaluator = models.NewCurrentRightsEvaluator()
+	var resourceCalls atomic.Int32
+	resource := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		resourceCalls.Add(1)
+	}))
+	defer resource.Close()
+	state.ResourceURL = resource.URL
+	state.HTTP = resource.Client()
+	compiled := stylesdomain.Compiled{Caption: "authored song", Params: stylesdomain.Params{BPM: 120, Variant: "acestep-v15-sft"}}
+	take := &core.Take{Provenance: core.Provenance{CaptionAsAuthored: "authored song", Seed: 7}}
+	if _, err := state.generateTake(context.Background(), take, composeRequest{Duration: 1}, compiled, ""); err == nil || !strings.Contains(err.Error(), "rights are not allowed") {
+		t.Fatalf("generation with unverified ACE-Step rights = %v; want rights refusal", err)
+	}
+	if resourceCalls.Load() != 0 {
+		t.Fatalf("ACE resource called %d times after rights refusal", resourceCalls.Load())
+	}
+}
+
 func testStateWithBroker(t *testing.T, broker capacity.Broker) *ModuleState {
 	state, _ := testStateWithBrokerDB(t, broker)
 	return state
@@ -652,6 +789,61 @@ func testStateWithBrokerDB(t *testing.T, broker capacity.Broker) (*ModuleState, 
 	}
 	t.Cleanup(state.Close)
 	return state, db
+}
+
+func TestDerivationReceiptEndpointReturnsOnlyOwnerBoundSuccessfulJobEvidence(t *testing.T) {
+	state := testState(t)
+	err := state.JobManager.RegisterOperation("transform.sample", jobdomain.Operation{Runner: func(_ context.Context, job jobdomain.Job, _ func(int, string)) (jobdomain.Result, error) {
+		const resultRef = "outputs/derived.wav"
+		receipt := transformation.DerivationReceipt{
+			SchemaVersion: "1", Kind: "sample",
+			SourceTrackSHA256:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			DerivedTrackSHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			SourceStartSeconds: 1, SourceEndSeconds: 5, DerivedStartSeconds: 8, DerivedEndSeconds: 12,
+			OperationVersion: "1", ToolName: "ffmpeg", ToolVersion: "7.0", InheritedRightsScope: "personal_only",
+		}
+		encoded, err := transformation.EncodeJobReceipt(job.ID, job.Operation, resultRef, receipt)
+		if err != nil {
+			return jobdomain.Result{}, err
+		}
+		return jobdomain.Result{Ref: resultRef, Meta: map[string]string{transformation.ReceiptMetaKey: encoded}}, nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	queued, err := state.JobManager.Submit(t.Context(), jobdomain.Spec{Operation: "transform.sample", Lane: jobdomain.LaneCPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job, err := state.JobManager.Wait(t.Context(), queued.ID)
+	if err != nil || job.State != jobdomain.StateSucceeded {
+		t.Fatalf("transform job=%+v err=%v", job, err)
+	}
+
+	response := httptest.NewRecorder()
+	request := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/jobs/"+job.ID+"/derivation-receipt", nil), map[string]string{"id": job.ID})
+	state.getDerivationReceipt(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("receipt=%d %s", response.Code, response.Body.String())
+	}
+	var actual transformation.DerivationReceipt
+	if err := json.Unmarshal(response.Body.Bytes(), &actual); err != nil || actual.JobID != job.ID || actual.DerivedTrackSHA256 != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+		t.Fatalf("receipt=%+v err=%v", actual, err)
+	}
+}
+
+func TestDerivationReceiptEndpointRejectsJobsWithoutOwnerProof(t *testing.T) {
+	state := testState(t)
+	job, err := state.JobManager.Record(jobdomain.Spec{Operation: "transform.remix", Lane: jobdomain.LaneCPU}, "outputs/unproven.wav", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	request := mux.SetURLVars(httptest.NewRequest(http.MethodGet, "/api/v1/jobs/"+job.ID+"/derivation-receipt", nil), map[string]string{"id": job.ID})
+	state.getDerivationReceipt(response, request)
+	if response.Code != http.StatusPreconditionFailed {
+		t.Fatalf("unproven receipt status=%d body=%s", response.Code, response.Body.String())
+	}
 }
 
 func TestInvalidCompositionRejectedBeforeJobAdmission(t *testing.T) {
@@ -972,6 +1164,11 @@ func fakeGenerationProfile(t *testing.T, w http.ResponseWriter, r *http.Request)
 	if n, ok := p["inference_steps"].(json.Number); ok {
 		steps, _ = strconv.Atoi(n.String())
 	}
+	if language, ok := p["vocal_language"].(string); ok {
+		w.Header().Set("X-ACE-Step-Vocal-Language", language)
+	} else {
+		w.Header().Set("X-ACE-Step-Vocal-Language", "en")
+	}
 	w.Header().Set("X-ACE-Step-Inference-Steps", strconv.Itoa(steps))
 	guidance := "1"
 	if variant, _ := p["expected_variant"].(string); variant == "acestep-v15-sft" {
@@ -1070,7 +1267,8 @@ func TestComposeGeneratedRequestPresenceAndStrictIngress(t *testing.T) {
 	}
 	seed := int64(0)
 	shift := 1.0
-	data, err := protojson.Marshal(&compositionpb.SubmitRequest{StyleId: "launch-trap", Takes: 1, Duration: 1, Seed: &seed, Shift: &shift})
+	vocalLanguage := "ko"
+	data, err := protojson.Marshal(&compositionpb.SubmitRequest{StyleId: "launch-trap", Takes: 1, Duration: 1, Seed: &seed, Shift: &shift, VocalLanguage: &vocalLanguage})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1091,10 +1289,10 @@ func TestComposeGeneratedRequestPresenceAndStrictIngress(t *testing.T) {
 	if err := json.Unmarshal(job.Payload, &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.Seed == nil || *payload.Seed != 0 || payload.Shift == nil || *payload.Shift != 1 {
+	if payload.Seed == nil || *payload.Seed != 0 || payload.Shift == nil || *payload.Shift != 1 || payload.VocalLanguage == nil || *payload.VocalLanguage != "ko" {
 		t.Fatalf("generated explicit zero lost: %+v", payload)
 	}
-	for _, bad := range []string{`{"style_id":"launch-trap","seed":0,"unexpected":1}`, `{"style_id":"launch-trap","lyrics":"override"}`, `{"style_id":"launch-trap","resolved_lyrics":"override"}`, `{"style_id":"launch-trap","shift":"NaN"}`, `{"style_id":"launch-trap","shift":3} {}`, `{"style_id":"launch-trap","seed":0,"seed":1}`, `null`} {
+	for _, bad := range []string{`{"style_id":"launch-trap","seed":0,"unexpected":1}`, `{"style_id":"launch-trap","lyrics":"override"}`, `{"style_id":"launch-trap","resolved_lyrics":"override"}`, `{"style_id":"launch-trap","shift":"NaN"}`, `{"style_id":"launch-trap","shift":3} {}`, `{"style_id":"launch-trap","seed":0,"seed":1}`, `{"style_id":"launch-trap","vocal_language":"ja"}`, `null`} {
 		rec := httptest.NewRecorder()
 		state.compose(rec, httptest.NewRequest("POST", "/api/v1/compose", strings.NewReader(bad)))
 		if rec.Code != http.StatusBadRequest {

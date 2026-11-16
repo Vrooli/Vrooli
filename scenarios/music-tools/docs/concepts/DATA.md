@@ -4,7 +4,6 @@ Storage ownership, schemas, retention, and the size arithmetic that constrains
 the design. Domain ownership is in [`DOMAINS.md`](DOMAINS.md); system structure is
 in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

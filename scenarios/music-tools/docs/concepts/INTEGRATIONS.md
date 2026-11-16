@@ -2,7 +2,6 @@
 
 Everything this scenario depends on, and everything that depends on it.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -41,9 +40,13 @@ fail explicitly rather than silently falling back to a cloud provider.
 
 ### `music-mir` — music-information-retrieval runtime
 
-Owns structure and beat analysis and stem separation. Exists as a separate runtime
-because its dependencies pin an exact torch build and an older NumPy major that
-cannot coexist with the composition stack.
+Owns the provisional analysis and stem-separation adapter. It is a separate
+managed runtime so its pinned MIR environment can evolve independently of the
+composition stack. The `music-tools` analyze/separate operations use the shared
+durable job manager and serialized GPU lane, and retain job admission until the
+resource acknowledges cancellation drain. The resource scaffold and API
+contract exist, but the dependency lock, installation, and reference-track
+analysis are still unqualified.
 
 Degraded behaviour: structure and separation operations become unavailable.
 Embedding, loudness, and notation analysis continue, so a track still yields a
@@ -61,8 +64,11 @@ either, callers supply captions directly and every operation still works.
 
 ## Scenario Dependencies
 
-This scenario depends on **no other scenario**. That is deliberate: a capability
-primitive that depended on a product scenario would invert the layering.
+This scenario has no required scenario dependency: analysis and composition
+remain usable when a consumer is stopped. Successful analysis results are
+optionally forwarded to Music Library through a durable outbox, which retries
+while Library is unavailable without changing the already-terminal producer
+job.
 
 Consumers, in expected order of adoption:
 
@@ -85,9 +91,10 @@ model, not a general speech capability.
 
 ## Third-Party Services
 
-**None at runtime.** Every model runs locally. The only outbound network activity is
-model acquisition — declared sources, checksum-verified — and optional BYOK caption
-assistance if the operator configures it.
+Every model runs locally. Cross-scenario forwarding uses the local Music Library
+API; there is no paid or third-party service in that path. The only external
+network activity is model acquisition — declared sources, checksum-verified —
+and optional BYOK caption assistance if the operator configures it.
 
 This is the property that makes zero marginal cost real: no per-generation royalty,
 no per-request billing, no service that can change its terms.
@@ -100,6 +107,7 @@ no per-request billing, no service that can change its terms.
 | Contention during a claim | Degrade to the next declared rung; applied rung travels with the result |
 | Composition resource stopped | Composition fails explicitly; analysis unaffected |
 | MIR resource stopped | Structure and separation unavailable; other analysis continues |
+| Music Library stopped | Completed analysis remains successful; durable outbox retries until forwarding succeeds |
 | Free disk below the declared floor | Model install refuses to start rather than filling the volume |
 | Derived-artifact budget exhausted | LRU eviction; regenerable artifacts are never the only copy |
 | Model weights fail checksum | Install fails; the model stays unavailable rather than running unverified |

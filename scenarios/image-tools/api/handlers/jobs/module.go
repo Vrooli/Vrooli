@@ -44,6 +44,7 @@ func Module(mgr JobManager, logger *log.Logger) module.Module {
 		Name: "jobs",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: waitDeadlineClearer{next: connectHandler}})
+			r.Handle("/api/v1/jobs/telemetry/heavy", newHeavyJobSnapshotHandler(mgr)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}
@@ -58,6 +59,16 @@ func Schema() string { return internaljobs.Schema() }
 // breaks this file at compile time; the global parity test asserts one endpoint
 // per rpc.
 var Endpoints = []module.EndpointDescriptor{
+	{
+		ID:            "jobs_heavy_telemetry",
+		Path:          "/api/v1/jobs/telemetry/heavy",
+		Method:        http.MethodGet,
+		Summary:       "Read active heavyweight job ownership telemetry",
+		Description:   "Returns a bounded, report-only snapshot of image-tools heavyweight jobs and active server-side WaitJob/WatchJob consumers for system-monitor attribution.",
+		Category:      "jobs",
+		Response:      &module.Schema{Type: "object", Properties: map[string]string{"observed_at": "RFC3339 timestamp", "complete": "boolean", "jobs": "array<HeavyJobObservation>"}},
+		RESTException: &module.RESTException{Reason: module.RESTReasonOpsProbe, Note: "Owner-internal telemetry endpoint for system-monitor. It observes durable job wait edges; it cannot cancel jobs or alter admission."},
+	},
 	{
 		ID:          "jobs_get",
 		Path:        jobsconnect.JobsServiceGetJobProcedure,

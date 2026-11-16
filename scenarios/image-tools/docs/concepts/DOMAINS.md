@@ -1,6 +1,5 @@
 # Domains — Image Tools
 
-## Purpose Of This Document
 
 This is the implementation map for Image Tools' product and infrastructure
 owners. Update it when a public capability, ownership boundary or source path

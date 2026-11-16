@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -13,14 +14,16 @@ import (
 // generationProfile contains bounded facts returned by a completed resource
 // response. LyricsSHA256 records our exact input; it does not classify audio.
 type generationProfile struct {
-	Seed           uint32  `json:"seed"`
-	Planner        string  `json:"planner"`
-	InferenceSteps int     `json:"inference_steps"`
-	GuidanceScale  float64 `json:"guidance_scale"`
-	Shift          float64 `json:"shift"`
-	LMCodeSHA256   string  `json:"lm_code_sha256,omitempty"`
-	LMCodeCount    int     `json:"lm_code_count,omitempty"`
-	LyricsSHA256   string  `json:"lyrics_sha256"`
+	Seed              uint32  `json:"seed"`
+	Planner           string  `json:"planner"`
+	InferenceSteps    int     `json:"inference_steps"`
+	GuidanceScale     float64 `json:"guidance_scale"`
+	Shift             float64 `json:"shift"`
+	LMCodeSHA256      string  `json:"lm_code_sha256,omitempty"`
+	LMCodeCount       int     `json:"lm_code_count,omitempty"`
+	LyricsSHA256      string  `json:"lyrics_sha256"`
+	VocalLanguage     string  `json:"vocal_language,omitempty"`
+	VocalLanguageMode string  `json:"vocal_language_mode,omitempty"`
 }
 
 func readGenerationProfile(h http.Header, seed int64, request composeRequest, compiled styles.Compiled) (generationProfile, error) {
@@ -77,5 +80,18 @@ func readGenerationProfile(h http.Header, seed int64, request composeRequest, co
 		p.LMCodeCount = int(n)
 	}
 	p.LyricsSHA256 = lyricsHash(styles.ResolveLyrics(compiled.Lyrics))
+	model, err := declaredACEModel(compiled.Params.Variant)
+	if err != nil {
+		return p, err
+	}
+	expectedLanguage, mode := model.DefaultVocalLanguage, "default-v1"
+	if request.VocalLanguage != nil {
+		expectedLanguage, mode = *request.VocalLanguage, "explicit-v1"
+	}
+	actualLanguage := h.Get("X-ACE-Step-Vocal-Language")
+	if actualLanguage != expectedLanguage || !slices.Contains(model.VocalLanguages, actualLanguage) {
+		return fail("vocal_language")
+	}
+	p.VocalLanguage, p.VocalLanguageMode = actualLanguage, mode
 	return p, nil
 }

@@ -125,6 +125,43 @@ func TestEnsureSmoke_PassWritesVerdict(t *testing.T) {
 	}
 }
 
+func TestEnsureSmokeIncludesPrivateNvidiaLibrariesForCPUProbe(t *testing.T) {
+	t.Setenv("LD_LIBRARY_PATH", "/host/cuda/lib")
+	venv := t.TempDir()
+	python := filepath.Join(venv, "bin", "python")
+	if err := os.MkdirAll(filepath.Dir(python), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(python, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	private := filepath.Join(venv, "lib", "python3.12", "site-packages", "nvidia", "cuda_runtime", "lib")
+	if err := os.MkdirAll(private, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var probeEnv []string
+	in := &Installer{Smoke: &SmokeConfig{
+		Python: python, LockHash: "l1",
+		Run: func(_ context.Context, _ string, _ []string, env []string) ([]byte, error) {
+			probeEnv = append([]string(nil), env...)
+			return []byte("CPU smoke OK"), nil
+		},
+	}}
+	if err := in.ensureSmoke(context.Background(), diffusersModel(), t.TempDir(), "h1", noEmit); err != nil {
+		t.Fatalf("smoke: %v", err)
+	}
+	for _, entry := range probeEnv {
+		if strings.HasPrefix(entry, "LD_LIBRARY_PATH=") {
+			got := strings.TrimPrefix(entry, "LD_LIBRARY_PATH=")
+			if !strings.HasPrefix(got, private+string(os.PathListSeparator)) || !strings.HasSuffix(got, "/host/cuda/lib") {
+				t.Fatalf("LD_LIBRARY_PATH = %q", got)
+			}
+			return
+		}
+	}
+	t.Fatal("CPU smoke omitted the venv's private CUDA library path")
+}
+
 func TestEnsureSmoke_FailReturnsErrAndCaches(t *testing.T) {
 	dir := t.TempDir()
 	in := &Installer{Smoke: &SmokeConfig{

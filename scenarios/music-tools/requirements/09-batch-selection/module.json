@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Composition as a batch that produces candidate takes, the style library those batches are configured with, the provenance every take carries, and the maintained inventory built on top.",
-    "last_validated_at": "2026-09-19T05:29:54-04:00",
+    "last_validated_at": "2026-11-15T15:49:12-05:00",
     "module": "batch-selection",
     "prd_ref": "OT-P0-008",
     "priority": "P0",
@@ -25,7 +25,7 @@
           "type": "test",
           "ref": "api/internal/composition/batch_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Batch take generation is covered by the shipped composition tests"
         },
         {
@@ -40,7 +40,7 @@
     {
       "id": "MUS-P0-018",
       "title": "Selection is recorded as a fact, never interpreted",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-008",
       "category": "core",
       "criticality": "P0",
@@ -54,7 +54,7 @@
           "type": "test",
           "ref": "api/internal/composition/selection_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Selection persistence and non-ranking behavior are covered by the shipped tests"
         }
       ]
@@ -62,7 +62,7 @@
     {
       "id": "MUS-P0-019",
       "title": "Every take carries the caption the model actually received",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "category": "core",
       "criticality": "P0",
@@ -76,14 +76,14 @@
           "type": "test",
           "ref": "api/internal/composition/provenance_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Caption and take provenance are covered by the shipped tests"
         },
         {
           "type": "test",
           "ref": "api/internal/composition/rung_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Applied degradation rung propagation is covered by the shipped tests"
         }
       ]
@@ -105,7 +105,7 @@
           "type": "test",
           "ref": "api/internal/styles/compile_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Deterministic style compilation is covered by the shipped tests"
         }
       ]
@@ -127,7 +127,7 @@
           "type": "test",
           "ref": "api/internal/composition/inventory_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Inventory depth and replenishment decisions are covered by the shipped tests"
         }
       ]

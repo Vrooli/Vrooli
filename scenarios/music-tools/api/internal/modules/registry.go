@@ -20,12 +20,16 @@ import (
 	"music-tools/internal/module"
 
 	compositionpb "github.com/vrooli/vrooli/packages/proto/gen/go/music-tools/v1/composition"
+	analysisH "music-tools/handlers/analysis"
 	capsH "music-tools/handlers/capabilities"
 	compositionH "music-tools/handlers/composition"
 	modelsH "music-tools/handlers/models"
+	sourcesH "music-tools/handlers/sources"
+	transformationH "music-tools/handlers/transformation"
 	cleanupdomain "music-tools/internal/cleanup"
 	compositiondomain "music-tools/internal/composition"
 	jobdomain "music-tools/internal/jobs"
+	librarysync "music-tools/internal/librarysync"
 	measuredomain "music-tools/internal/measures"
 	modeldomain "music-tools/internal/models"
 	stylesdomain "music-tools/internal/styles"
@@ -46,7 +50,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, compositionH.Endpoints...)
+	out = append(out, analysisH.Endpoints...)
+	out = append(out, transformationH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
+	out = append(out, sourcesH.Endpoints...)
 	out = append(out, cleanupdomain.Endpoints...)
 	return out
 }
@@ -88,8 +95,10 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(jobdomain.Schema),
+		apidb.SchemaProviderFunc(librarysync.Schema),
 		apidb.SchemaProviderFunc(measuredomain.Schema),
 		apidb.SchemaProviderFunc(modeldomain.Schema),
+		apidb.SchemaProviderFunc(sourcesH.Schema),
 		apidb.SchemaProviderFunc(stylesdomain.Schema),
 		apidb.SchemaProviderFunc(compositiondomain.Schema),
 	}

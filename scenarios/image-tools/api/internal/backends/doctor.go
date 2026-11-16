@@ -25,14 +25,15 @@ type availabilityReporter interface {
 
 // BackendStatus is one row in the backend doctor report.
 type BackendStatus struct {
-	Name       string
-	Operations []string
-	Available  bool
-	Standalone bool
-	Cloud      bool
-	GPUCapable bool
-	Detail     string
-	Provision  string
+	Name          string
+	Operations    []string
+	Available     bool
+	Standalone    bool
+	Cloud         bool
+	GPUCapable    bool
+	GPUOperations []string
+	Detail        string
+	Provision     string
 }
 
 // DoctorReport is the complete backend software-availability report.
@@ -114,6 +115,11 @@ func (r *Registry) DoctorForModels(ctx context.Context, catalog []models.Model) 
 			GPUCapable: providerGPUCapable(a.p),
 			Detail:     avail.Detail,
 			Provision:  avail.Provision,
+		}
+		for _, op := range ops {
+			if providerGPUCapableFor(a.p, op) {
+				status.GPUOperations = append(status.GPUOperations, op)
+			}
 		}
 		if !status.Available && !status.Cloud {
 			out.OK = false

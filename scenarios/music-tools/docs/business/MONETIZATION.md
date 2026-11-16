@@ -7,7 +7,6 @@ How this scenario relates to what Vrooli sells.
 > This document *cites* it and records scenario-local implications; it never sets a
 > price or claims a bundle membership that the catalogue does not already record.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -18,11 +18,19 @@ import (
 	"image-tools/internal/models"
 	"image-tools/internal/storage"
 
+	"github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/blobstore"
 )
 
 func allowRightsForTest(context.Context, json.RawMessage, string) (models.RightsDecision, error) {
 	return models.RightsDecision{Status: "allowed", DecisionSHA256: "test"}, nil
+}
+
+func TestRequiredWarmGPUCapacityDenialIsRetryable(t *testing.T) {
+	err := &warmGPUCapacityFallbackError{detail: "GPU capacity denied warm model residency"}
+	if !errors.Is(err, internaljobs.ErrCapacityBusy) {
+		t.Fatalf("warm GPU denial must remain a retryable capacity refusal: %v", err)
+	}
 }
 
 // fakeProvider is a standalone backends.Provider that writes a fixed output and
@@ -56,6 +64,7 @@ func (p *fakeProvider) Operations() []string           { return p.ops }
 func (p *fakeProvider) Standalone() bool               { return true }
 func (p *fakeProvider) IsCloud() bool                  { return false }
 func (p *fakeProvider) Available(context.Context) bool { return true }
+func (p *fakeProvider) GPUCapable() bool               { return true }
 
 type mutableProvider struct {
 	fakeProvider
@@ -490,6 +499,73 @@ func TestExecutionRechecksRightsBetweenVariations(t *testing.T) {
 	}
 	if evaluations.Load() != 3 || fp.execN != 1 {
 		t.Fatalf("rights evaluations=%d provider calls=%d; want initial plan, first call and second-variation recheck", evaluations.Load(), fp.execN)
+	}
+}
+
+func TestProductionRightsAdapterRechecksPersistedContextBeforeProvider(t *testing.T) {
+	fp := &fakeProvider{out: []byte("image")}
+	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
+	registry := eng.deps.Registry
+	model, ok := registry.ByID(modelID)
+	if !ok {
+		t.Fatalf("selected model %q missing", modelID)
+	}
+	model.Rights, _ = json.Marshal(policy.ArtifactRights{
+		ArtifactID: modelID, Revision: "fixture-r1", SHA256: strings.Repeat("a", 64),
+		LicenseID: "fixture-conditional", Classification: policy.RightsConditional,
+		Evidence:          policy.RightsEvidence{URL: "https://example.invalid/license", Revision: "fixture-r1", SHA256: strings.Repeat("b", 64), ObservedAt: "2026-11-14"},
+		ConditionalGrants: []policy.ConditionalGrant{{ID: "revenue-cap", Uses: []policy.RightsUse{policy.RightsUseLocalInference}, Conditions: []policy.RightsCondition{{ID: "under-cap", Kind: "annual_revenue", Comparator: "lt", Threshold: 10_000_000, Unit: "USD", EntityScope: "operator-group", Interpretation: "synthetic test condition"}}}},
+	})
+	modelsInRegistry := registry.Models()
+	for i := range modelsInRegistry {
+		if modelsInRegistry[i].ID == modelID {
+			modelsInRegistry[i] = model
+		}
+	}
+	encoded, err := json.Marshal(struct {
+		SchemaVersion string                  `json:"schema_version"`
+		Models        []models.Model          `json:"models"`
+		Blocklist     []models.BlocklistEntry `json:"blocklist"`
+	}{registry.SchemaVersion(), modelsInRegistry, registry.Blocklist()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry, err = models.Parse(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eng.deps.Registry = registry
+
+	contextPath := filepath.Join(t.TempDir(), "rights-context.json")
+	writeContext := func(version, revenueStatus string) {
+		t.Helper()
+		data, err := json.Marshal(map[string]any{"schema_version": "1", "context": map[string]any{
+			"id": "test-operator", "version": version, "entity_scope": "operator-group",
+			"revenue_status": revenueStatus, "as_of": "2026-11-14", "source": "operator_statement",
+		}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(contextPath, data, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv(policy.RightsContextPathEnv, contextPath)
+	writeContext("below", "pre_revenue")
+	eng.deps.RightsEvaluator = models.AdaptRightsEvaluator(policy.NewDefaultRightsEvaluator(os.Getenv))
+	plan, err := eng.Plan(context.Background(), PlanRequest{Operation: "text_to_image"})
+	if err != nil || plan.ModelID != modelID {
+		t.Fatalf("source-permitted plan = %+v, %v; want selected model %s", plan, err, modelID)
+	}
+	writeContext("above", "at_or_above_threshold")
+	_, _, err = eng.runOnce(context.Background(), "text_to_image", model, backends.Selection{Provider: fp, Tier: backends.TierLocalCPU}, t.TempDir(), inputFiles{}, Payload{Params: map[string]string{"prompt": "test"}}, 0, func(float64, string) {})
+	if err == nil || !strings.Contains(err.Error(), "revenue_condition_not_satisfied") || fp.execN != 0 {
+		t.Fatalf("over-threshold execution error=%v provider calls=%d; want refusal before provider", err, fp.execN)
+	}
+	writeContext("restored", "pre_revenue")
+	_, _, err = eng.runOnce(context.Background(), "text_to_image", model, backends.Selection{Provider: fp, Tier: backends.TierLocalCPU}, t.TempDir(), inputFiles{}, Payload{Params: map[string]string{"prompt": "test"}}, 0, func(float64, string) {})
+	if err != nil || fp.execN != 1 {
+		t.Fatalf("restored permitted execution error=%v provider calls=%d; want one provider call", err, fp.execN)
 	}
 }
 

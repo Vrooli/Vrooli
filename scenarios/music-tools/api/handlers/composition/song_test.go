@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/vrooli/ai-provider-go/policy"
+
 	core "music-tools/internal/composition"
 	"music-tools/internal/jobs"
 	"music-tools/internal/models"
@@ -205,12 +207,17 @@ func TestSongGenerationRechecksRightsAfterReadiness(t *testing.T) {
 	var allowed atomic.Bool
 	allowed.Store(true)
 	var evaluations atomic.Int32
-	state.RightsEvaluator = func(_ context.Context, _ json.RawMessage, _ string) (models.RightsDecision, error) {
-		evaluations.Add(1)
+	shared := policy.NewRightsEvaluator(func(context.Context) (policy.RightsContext, error) {
+		status, version := "at_or_above_threshold", "crossed"
 		if allowed.Load() {
-			return models.RightsDecision{Status: "allowed"}, nil
+			status, version = "pre_revenue", "below"
 		}
-		return models.RightsDecision{Status: "denied", Reason: "revenue_threshold_exceeded"}, nil
+		return policy.RightsContext{ID: "operator-business-context/current", Version: version, EntityScope: "operator-group", RevenueStatus: status, AsOf: "2026-11-14", Source: "operator_statement"}, nil
+	})
+	wrapped := models.AdaptRightsEvaluator(shared)
+	state.RightsEvaluator = func(ctx context.Context, raw json.RawMessage, use string) (models.RightsDecision, error) {
+		evaluations.Add(1)
+		return wrapped(ctx, raw, use)
 	}
 	var composeCalls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +237,7 @@ func TestSongGenerationRechecksRightsAfterReadiness(t *testing.T) {
 	compiled := styles.Compiled{StyleID: "song", Caption: "bright synth pop", Lyrics: "authored words", Params: styles.Params{Variant: model.Variant, Duration: 1, Steps: model.Runtime.DefaultSteps, Guidance: model.Runtime.DefaultGuidance}}
 	take := &core.Take{Provenance: core.Provenance{Seed: 7}}
 	_, err := state.generateSongTake(context.Background(), take, composeRequest{Duration: 1}, compiled, model)
-	if err == nil || !strings.Contains(err.Error(), "revenue_threshold_exceeded") {
+	if err == nil || !strings.Contains(err.Error(), "revenue_condition_not_satisfied") {
 		t.Fatalf("generation after context flip = %v, want rights refusal", err)
 	}
 	if evaluations.Load() != 2 || composeCalls.Load() != 0 {

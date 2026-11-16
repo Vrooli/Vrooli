@@ -31,6 +31,8 @@ func TestGatewayJudgeRequiresLocalRoleCapacityAndStrictResult(t *testing.T) {
 				req := &routingv1.ExecuteRouteRequest{}
 				require.NoError(t, proto.Unmarshal(data, req))
 				require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, req.Request.Profile)
+				require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, req.Request.PrivacyClass)
+				require.Equal(t, judgePrivacyProvenance, req.Request.PrivacyProvenance)
 				require.Equal(t, JudgeRole, req.Request.Role)
 				require.Equal(t, int64(4<<30), req.Request.GetRequiredVramBytes())
 				require.Equal(t, "image-tools", req.Request.Scenario)

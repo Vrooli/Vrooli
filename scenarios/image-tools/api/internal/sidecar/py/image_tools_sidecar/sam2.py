@@ -8,6 +8,7 @@ the SAM 1 ONNX decoder contract from ``segment``.
 from __future__ import annotations
 
 import argparse
+from functools import lru_cache
 import json
 import math
 import platform
@@ -24,6 +25,13 @@ from PIL import Image
 from . import _common
 
 
+# A warm worker serves one model residency at a time. Keep exactly one loaded
+# checkpoint; model switches replace it instead of accumulating VRAM/RAM.
+_MODEL_CACHE_KEY = None
+_MODEL_CACHE = None
+
+
+@lru_cache(maxsize=1)
 def _processor():
     from transformers import Sam2Processor
     from transformers.models.sam2.image_processing_sam2_fast import Sam2ImageProcessorFast
@@ -51,6 +59,24 @@ def _load_model(model_dir: str, device):
     from transformers import Sam2Model
 
     return Sam2Model.from_pretrained(model_dir, local_files_only=True, low_cpu_mem_usage=True).to(device).eval()
+
+
+def _resident_model(model_dir: str, device):
+    global _MODEL_CACHE_KEY, _MODEL_CACHE
+    key = (model_dir, str(device))
+    if key == _MODEL_CACHE_KEY and _MODEL_CACHE is not None:
+        return _MODEL_CACHE, True, 0.0
+    import torch
+
+    previous_device = _MODEL_CACHE_KEY[1] if _MODEL_CACHE_KEY else ""
+    _MODEL_CACHE = None
+    _MODEL_CACHE_KEY = None
+    if previous_device.startswith("cuda"):
+        torch.cuda.empty_cache()
+    started = time.monotonic()
+    model = _load_model(model_dir, device)
+    _MODEL_CACHE, _MODEL_CACHE_KEY = model, key
+    return model, False, (time.monotonic() - started) * 1000
 
 
 def smoke(model_dir: str, deep: bool = False) -> str:
@@ -140,7 +166,7 @@ def _max_rss_kib():
     return peak
 
 
-def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device_name: str) -> None:
+def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device_name: str) -> dict:
     import torch
 
     if device_name not in {"cpu", "cuda"}:
@@ -149,6 +175,7 @@ def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device
         raise RuntimeError("SAM 2 requested CUDA, but CUDA is unavailable")
     device = torch.device(device_name)
     started = time.monotonic()
+    preprocess_started = started
     image, _source_raster = _common.load_oriented_image(image_path, 16_000_000)
     # These preprocessing defaults match the checkpoint's pinned upstream
     # preprocessor_config.json. The small HF metadata files are under Image
@@ -159,10 +186,21 @@ def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device
         return_tensors="pt",
         **_prompts(prompt_json, image.size),
     )
-    model = _load_model(model_dir, device)
+    preprocess_ms = (time.monotonic() - preprocess_started) * 1000
+    model, cache_hit, model_load_ms = _resident_model(model_dir, device)
     inputs = inputs.to(device)
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
+        # CUDA kernels are asynchronous; synchronize before and after the
+        # forward pass so the phase metric represents actual device time.
+        torch.cuda.synchronize(device)
+    forward_started = time.monotonic()
     with torch.inference_mode():
         outputs = model(**inputs, multimask_output=True)
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+    forward_ms = (time.monotonic() - forward_started) * 1000
+    postprocess_started = time.monotonic()
     scores = outputs.iou_scores[0, 0]
     selected = outputs.pred_masks[0, 0, int(torch.argmax(scores).item())].unsqueeze(0).unsqueeze(0)
     masks = processor.post_process_masks(
@@ -173,20 +211,23 @@ def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device
     )
     mask = (masks[0][0, 0].detach().cpu().numpy().astype("uint8") * 255)
     _write_mask(mask, out_path)
-    print(json.dumps({
-        "sam2_metrics": {
+    postprocess_ms = (time.monotonic() - postprocess_started) * 1000
+    metrics = {
             "device": device_name,
             "elapsed_ms": round((time.monotonic() - started) * 1000),
+            "preprocess_ms": round(preprocess_ms),
+            "model_load_ms": round(model_load_ms),
+            "model_cache_hit": cache_hit,
+            "forward_ms": round(forward_ms),
+            "postprocess_ms": round(postprocess_ms),
             "max_rss_kib": _max_rss_kib(),
             "cuda_peak_allocated_bytes": int(torch.cuda.max_memory_allocated(device)) if device.type == "cuda" else 0,
         }
-    }), file=sys.stderr, flush=True)
-    del model, inputs, outputs
-    if device.type == "cuda":
-        torch.cuda.empty_cache()
+    print(json.dumps({"sam2_metrics": metrics}), file=sys.stderr, flush=True)
+    return metrics
 
 
-def main() -> None:
+def main() -> dict | None:
     parser = argparse.ArgumentParser(description="SAM 2.1 image segmentation")
     parser.add_argument("--model", required=True)
     parser.add_argument("--image", required=True)
@@ -195,7 +236,7 @@ def main() -> None:
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cpu")
     args = parser.parse_args()
     try:
-        run(args.model, args.image, args.out, args.prompts, args.device)
+        return run(args.model, args.image, args.out, args.prompts, args.device)
     except Exception as exc:  # noqa: BLE001
         print(f"SAM 2 segmentation failed: {exc}")
         raise SystemExit(1) from exc

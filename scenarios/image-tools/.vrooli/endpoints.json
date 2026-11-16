@@ -400,6 +400,37 @@
       ]
     },
     {
+      "id": "adapter_license_terms",
+      "path": "/api/v1/adapters/{id}/license-terms",
+      "method": "GET",
+      "summary": "Read an adapter's immutable model license terms",
+      "description": "Returns the exact embedded license text for the versioned adapter agreement; for OpenPose ControlNet this is CreativeML OpenRAIL-M dated 2022-08-22.",
+      "category": "adapters",
+      "request": {
+        "type": "object",
+        "properties": {
+          "id": "adapter id with declared license terms"
+        }
+      },
+      "response": {
+        "type": "text/plain",
+        "properties": {
+          "terms": "full immutable license text"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Adapter has no published versioned license terms"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "The UI opens versioned license text as immutable text/plain through a direct browser link; no generated Connect procedure currently preserves this response contract."
+      }
+    },
+    {
       "id": "ai_submit_stored",
       "path": "/vrooli.image_tools.v1.ai.AIService/SubmitStoredAI",
       "method": "POST",
@@ -720,6 +751,26 @@
             "conformance": "protojson"
           }
         }
+      }
+    },
+    {
+      "id": "jobs_heavy_telemetry",
+      "path": "/api/v1/jobs/telemetry/heavy",
+      "method": "GET",
+      "summary": "Read active heavyweight job ownership telemetry",
+      "description": "Returns a bounded, report-only snapshot of image-tools heavyweight jobs and active server-side WaitJob/WatchJob consumers for system-monitor attribution.",
+      "category": "jobs",
+      "response": {
+        "type": "object",
+        "properties": {
+          "complete": "boolean",
+          "jobs": "array<HeavyJobObservation>",
+          "observed_at": "RFC3339 timestamp"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Owner-internal telemetry endpoint for system-monitor. It observes durable job wait edges; it cannot cancel jobs or alter admission."
       }
     },
     {
@@ -1137,7 +1188,7 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/ProvisionModels",
       "method": "POST",
       "summary": "Provision local model capabilities",
-      "description": "Prepares the private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. An empty model_ids list selects every enabled local model.",
+      "description": "Prepares a minimal host-fit model set for every effectively enabled capability, including private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. Unsupported, unready or non-commercial-clean capability routes remain visible as gaps and keep the overall readiness result incomplete. Explicit model_ids prepares only the requested models.",
       "category": "models",
       "request": {
         "type": "object",
@@ -1883,6 +1934,56 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListDefaults -H 'Content-Type: application/json' -d '{}'"
         }
       ]
+    },
+    {
+      "id": "model_usage",
+      "path": "/api/v1/measures/usage",
+      "method": "GET",
+      "summary": "Report each model's successful durable job use",
+      "description": "Returns only recorded successful model-backed job counts and last-success identity; missing models remain unknown.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "model_id": "string query parameter (optional)"
+        }
+      },
+      "response": {
+        "type": "array",
+        "properties": {
+          "last_operation": "string",
+          "last_successful_at": "string",
+          "last_tier": "string",
+          "model_id": "string",
+          "successful_jobs": "integer"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "The successful model-use query could not be read"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Read-only model-use accounting from durable job traces; absent model rows mean use history is unknown.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
     },
     {
       "id": "model_profiles",

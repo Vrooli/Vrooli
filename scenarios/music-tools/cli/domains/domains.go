@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -48,7 +49,31 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	_ = manifest
 	return []cliapp.SubcommandGroup{
 		{Name: "delivery", Description: "Deterministic local music delivery", NeedsAPI: false, Subcommands: []cliapp.Command{{Name: "arrange", Description: "Arrange sample-exact PCM with provenance; never certify taste", Run: arrange}}},
+		{Name: "sources", Description: "Manage private audio sources", NeedsAPI: true, Subcommands: []cliapp.Command{
+			{Name: "import", Description: "Import a local audio file into managed private storage", Run: func(args []string) error { return importSource(core, args) }},
+			{Name: "get", Description: "Read source provenance by SHA-256", Run: func(args []string) error { return oneArgGet(core, args, "/v1/sources/") }},
+			{Name: "audio", Description: "Export private source audio to a new file", Run: func(args []string) error { return exportSourceAudio(core, args) }},
+		}},
+		{Name: "analyze", Description: "Queue track analysis", NeedsAPI: true, DefaultSubcommand: "run", Subcommands: []cliapp.Command{{Name: "run", Description: "Queue analysis for a managed source blob", Run: func(args []string) error { return submitAnalysis(core, args, "analyze") }}}},
+		{Name: "separate", Description: "Queue source separation", NeedsAPI: true, DefaultSubcommand: "run", Subcommands: []cliapp.Command{{Name: "run", Description: "Queue vocals, drums, bass and other stems", Run: func(args []string) error { return submitAnalysis(core, args, "separate") }}}},
+		{Name: "analysis", Description: "Read analysis jobs and stems", NeedsAPI: true, Subcommands: []cliapp.Command{
+			{Name: "result", Description: "Read a completed analysis result", Run: func(args []string) error { return oneArgGet(core, args, "/v1/analysis/", "/result") }},
+			{Name: "stem", Description: "Export one completed separated stem", Run: func(args []string) error { return exportAnalysisStem(core, args) }},
+		}},
 		{Name: "styles", Description: "Manage composition styles", NeedsAPI: true, Subcommands: []cliapp.Command{
+			{Name: "default-get", Description: "Show the configured default style", Run: func(args []string) error {
+				if len(args) != 0 {
+					return fmt.Errorf("usage: styles default-get")
+				}
+				return get(core, "/v1/styles/default")
+			}},
+			{Name: "default-set", Description: "Set the configured default style", Run: func(args []string) error {
+				if len(args) != 1 {
+					return fmt.Errorf("usage: styles default-set <style-id>")
+				}
+				body, _ := json.Marshal(map[string]string{"style_id": args[0]})
+				return request(core, "PUT", "/v1/styles/default", body)
+			}},
 			{Name: "create", Description: "Create a style from a JSON file", Run: func(args []string) error {
 				body, err := styleBody(args)
 				if err != nil {
@@ -95,6 +120,40 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 			{Name: "get", Description: "Get one model", Run: func(args []string) error { return oneArgGet(core, args, "/v1/models/") }},
 		}},
 	}, nil
+}
+
+func importSource(core *cliapp.ScenarioApp, args []string) error {
+	fs := flag.NewFlagSet("sources import", flag.ContinueOnError)
+	filePath := fs.String("file", "", "local audio file to import")
+	title := fs.String("title", "", "track title (required)")
+	artist := fs.String("artist", "", "artist or performer")
+	uploader := fs.String("uploader", "", "source uploader/channel")
+	sourceURL := fs.String("source-url", "", "HTTPS YouTube source URL (provenance only; never fetched)")
+	acquiredAt := fs.String("acquired-at", "", "RFC3339 acquisition timestamp")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 || *filePath == "" || strings.TrimSpace(*title) == "" {
+		return errors.New("--file and --title are required; no positional arguments are accepted")
+	}
+	file, err := os.Open(*filePath)
+	if err != nil {
+		return fmt.Errorf("open source audio: %w", err)
+	}
+	defer file.Close()
+	fields := map[string]string{"title": *title, "artist": *artist, "uploader": *uploader, "source_url": *sourceURL, "acquired_at": *acquiredAt}
+	body, err := cliapp.UploadFile(core, "/sources", fields, cliapp.UploadedFile{Name: filepath.Base(*filePath), Reader: file})
+	if err != nil {
+		return cliapp.WrapAPIError("import private source audio", err, nil)
+	}
+	return printJSON(body)
+}
+
+func submitAnalysis(core *cliapp.ScenarioApp, args []string, operation string) error {
+	if len(args) != 1 || strings.TrimSpace(args[0]) == "" {
+		return errors.New("one managed source_blob_key is required")
+	}
+	return request(core, "POST", "/v1/"+operation, map[string]string{"source_blob_key": args[0]})
 }
 
 func styleBody(args []string) (any, error) {
@@ -148,25 +207,29 @@ func styleBody(args []string) (any, error) {
 func compose(core *cliapp.ScenarioApp, args []string) error {
 	fs := flag.NewFlagSet("compose", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	style := fs.String("style", "launch-club", "style ID (default launch-club; explicit launch-trap retains ACE)")
+	style := fs.String("style", "", "style ID (omitted uses the configured default)")
 	takes := fs.Int("takes", 10, "number of peer takes")
 	duration := fs.Int("duration", 0, "duration in seconds")
 	seed := fs.Int64("seed", 0, "repeatable signed base seed (omitted chooses fresh)")
 	shift := fs.Float64("shift", 0, "optional sampling shift between 1 and 5")
+	vocalLanguage := fs.String("vocal-language", "", "optional sung language declared by the selected model")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if *style == "" {
-		return errors.New("--style is required")
+	body := map[string]any{"takes": *takes}
+	if *style != "" {
+		body["style_id"] = *style
 	}
-	body := map[string]any{"style_id": *style, "takes": *takes}
-	var suppliedSeed, suppliedShift bool
+	var suppliedSeed, suppliedShift, suppliedVocalLanguage bool
 	fs.Visit(func(f *flag.Flag) {
 		if f.Name == "seed" {
 			suppliedSeed = true
 		}
 		if f.Name == "shift" {
 			suppliedShift = true
+		}
+		if f.Name == "vocal-language" {
+			suppliedVocalLanguage = true
 		}
 	})
 	if suppliedSeed {
@@ -177,6 +240,9 @@ func compose(core *cliapp.ScenarioApp, args []string) error {
 			return errors.New("--shift must be finite and between 1 and 5")
 		}
 		body["shift"] = *shift
+	}
+	if suppliedVocalLanguage {
+		body["vocal_language"] = *vocalLanguage
 	}
 	if *duration > 0 {
 		body["duration"] = *duration

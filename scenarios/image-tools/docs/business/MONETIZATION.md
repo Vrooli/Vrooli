@@ -5,7 +5,6 @@ a monetizable Vrooli capability. Keep it honest: `not-applicable` is
 better than inventing a commercial story. Everything below is an early,
 pre-implementation hypothesis derived from `PRD.md`, not a committed plan.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

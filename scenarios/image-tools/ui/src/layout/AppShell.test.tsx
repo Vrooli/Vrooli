@@ -2,8 +2,8 @@
  * AppShell tests — focus on the shell's structural contract and utility seam. Page content is exercised
  * in the per-page tests; this file only verifies the shell composes correctly.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -20,21 +20,39 @@ const renderShell = () =>
 describe("AppShell structure (cimode)", () => {
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("renders the title, navigation, theme utility, and main outlet", async () => {
     renderShell();
     expect(await screen.findByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "drawer");
+    expect(screen.getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
+    expect(screen.getByTestId(`${selectors.layout.shell}-sidebar`)).toHaveAttribute("data-mode", "responsive");
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByTestId(selectors.theme.select)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
   });
 
-  it("renders the canonical nav links in sidebar and mobile tabs", async () => {
+  it("keeps all eight destinations reachable from the phone drawer", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "matchMedia").mockImplementation((media) => ({
+      media,
+      matches: false,
+      onchange: null,
+      addListener() {},
+      removeListener() {},
+      addEventListener() {},
+      removeEventListener() {},
+      dispatchEvent: () => false,
+    }));
     renderShell();
+    await user.click(screen.getByTestId(`${selectors.layout.shell}-menu`));
+
+    const drawer = await screen.findByTestId(`${selectors.layout.shell}-sidebar`);
+    expect(drawer).toHaveAttribute("data-open", "true");
     for (const key of ["home", "workspace", "library", "select", "compare", "activity", "models", "settings"] as const) {
-      expect(await screen.findByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toBeInTheDocument();
+      expect(within(drawer).getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
     }
   });
 });
