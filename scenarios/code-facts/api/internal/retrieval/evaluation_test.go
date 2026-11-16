@@ -20,7 +20,7 @@ func TestLexicalEvaluationMeetsCategoryRecallAndMRR(t *testing.T) {
 	documents := []Document{
 		evalDocument("new-service", "scenarios/code-facts/api/internal/facts/service.go", "NewService", "NewService constructs the Code Facts service and its providers."),
 		evalDocument("search-method", "scenarios/code-facts/api/internal/facts/service.go", "Service.Search", "Search returns bounded implementation evidence."),
-		evalDocument("search-path", "scenarios/code-facts/api/internal/facts/search_lexical.go", "search_lexical.go", "Lexical tokenization and ranking policy."),
+		evalDocument("search-path", "scenarios/code-facts/api/internal/retrieval/sqlite.go", "sqlite.go", "SQLite lexical indexing and ranking policy."),
 		evalDocument("demotion", "scenarios/search-hub/api/internal/metrics/demotion.go", "ProviderDemotion", "Persists provider demotion state and recovery metrics."),
 		evalDocument("reconciler", "packages/ai-go/search/reconciler.go", "Reconciler", "Incrementally reconciles vector search documents."),
 		{ID: "contract-search", SourceFileID: "file:contract-search", SourceHash: "sha256:contract-search", Path: "packages/proto/schemas/code-facts/v1/facts/facts.proto", Language: "protobuf", Role: "contract", Scope: "scenario:code-facts", Authority: "authoritative", Kind: "contract", Title: "CodeFactsService.Search", ExactText: "CodeFactsService.Search", Body: "Code Facts Search RPC request response", ContractText: "rpc Search(SearchRequest) returns (SearchResponse)"},
@@ -33,7 +33,7 @@ func TestLexicalEvaluationMeetsCategoryRecallAndMRR(t *testing.T) {
 	}{
 		{"exact_identifier", "NewService", "new-service"},
 		{"exact_identifier", "Service.Search", "search-method"},
-		{"path", "api/internal/facts/search_lexical.go", "search-path"},
+		{"path", "api/internal/retrieval/sqlite.go", "search-path"},
 		{"natural_language", "where provider demotion state is persisted", "demotion"},
 		{"natural_language", "incrementally reconcile vector search documents", "reconciler"},
 		{"contract", "CodeFactsService Search RPC request response family:contract", "contract-search"},

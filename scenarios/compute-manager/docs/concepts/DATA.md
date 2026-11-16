@@ -1,6 +1,5 @@
 # Data — Compute Manager
 
-## Purpose Of This Document
 
 This document is the data contract: what this scenario stores, which domain is
 the authority over each table, what it deliberately does not store, and how the
@@ -64,7 +63,7 @@ The first write on every provisioning path.
 | `provider` | Identifier of the adapter selected |
 | `spec_json` | Requested size, region, image and lifetime |
 | `reservation_id` | The credit hold obtained before the provider was called |
-| `state` | `open`, `fulfilled`, `abandoned` |
+| `state` | New rows use `open`, then `fulfilled` or `refused`. Legacy `reserving` rows remain recoverable; legacy `abandoned` rows remain terminal and readable. |
 | `instance_id` | Set once the instance exists; null until then |
 | `created_at`, `resolved_at` | |
 

@@ -1,6 +1,5 @@
 # Domains — Compute Manager
 
-## Purpose Of This Document
 
 This document is the domain map: the bounded contexts this scenario owns, what
 each one is responsible for, and which data it is the authority over. Read it

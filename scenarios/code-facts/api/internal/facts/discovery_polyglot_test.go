@@ -85,7 +85,7 @@ func TestDiscoverNestedParseUnitsEmitsPolyglotDependencyEvidence(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	units := discoverNestedParseUnits(root)
+	units, _ := discoverNestedParseUnits(root)
 	seen := map[string]bool{}
 	for _, unit := range units {
 		seen[unit.GetLanguage()] = true
@@ -107,7 +107,7 @@ func TestDiscoverNestedParseUnitsSkipsThrowawayGraphProjects(t *testing.T) {
 	writeFile(t, filepath.Join(root, ".graph-project-123", "tsconfig.json"), `{}`)
 	writeFile(t, filepath.Join(root, "ui", "tsconfig.json"), `{}`)
 
-	units := discoverNestedParseUnits(root)
+	units, _ := discoverNestedParseUnits(root)
 	require.Len(t, units, 1)
 	require.Equal(t, filepath.Join(root, "ui"), units[0].GetRootPath())
 }
@@ -117,18 +117,34 @@ func TestDiscoverNestedParseUnitsRoutesJavaScriptPackageToGraphProvider(t *testi
 	writeFile(t, filepath.Join(root, "ui", "package.json"), `{"name":"ui"}`)
 	writeFile(t, filepath.Join(root, "ui", "src", "app.jsx"), "export function App() { return null; }\n")
 
-	units := discoverNestedParseUnits(root)
+	units, _ := discoverNestedParseUnits(root)
 	require.Len(t, units, 1)
 	require.Equal(t, "javascript", units[0].GetLanguage())
 	require.Equal(t, filepath.Join(root, "ui"), units[0].GetRootPath())
 	require.Equal(t, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, units[0].GetStatus())
 }
 
+func TestDiscoverRootJavaScriptPackagePreservesModuleExtensions(t *testing.T) {
+	for _, extension := range []string{".mjs", ".cjs", ".MJS", ".CJS"} {
+		t.Run(extension, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, filepath.Join(root, "package.json"), `{"name":"ui"}`)
+			writeFile(t, filepath.Join(root, "app"+extension), "export const app = true\n")
+
+			units := discoverParseUnitsAtRoot(&factsv1.TargetContext{RootPath: root})
+			require.Len(t, units, 1)
+			require.Equal(t, "javascript", units[0].GetLanguage())
+			require.Equal(t, root, units[0].GetRootPath())
+		})
+	}
+}
+
 func TestParseUnitPublishesNeutralToolchainObservation(t *testing.T) {
 	root := t.TempDir()
 	writeFileFixture(t, filepath.Join(root, "package.json"), `{"packageManager":"pnpm@9.0.0","scripts":{"test":"vitest run"},"devDependencies":{"vitest":"1.0.0"}}`)
 	writeFileFixture(t, filepath.Join(root, "pnpm-lock.yaml"), "lockfileVersion: '9.0'\n")
-	units := discoverNestedParseUnits(root)
+	writeFileFixture(t, filepath.Join(root, "tests", "smoke.BATS"), "@test \"smoke\" { true; }\n")
+	units, _ := discoverNestedParseUnits(root)
 	var node *factsv1.ParseUnit
 	for _, unit := range units {
 		if unit.GetLanguage() == "node" {
@@ -143,7 +159,8 @@ func TestParseUnitPublishesNeutralToolchainObservation(t *testing.T) {
 	if observation.GetEcosystem() != "node" || observation.GetPackageManager() != "pnpm@9.0.0" {
 		t.Fatalf("toolchain observation = %+v", observation)
 	}
-	if len(observation.GetLockfilePaths()) != 1 || len(observation.GetRunnerIndicators()) != 2 {
+	if len(observation.GetLockfilePaths()) != 1 || len(observation.GetRunnerIndicators()) != 3 {
 		t.Fatalf("toolchain paths/indicators = %+v", observation)
 	}
+	require.Contains(t, observation.GetRunnerIndicators(), "source:.bats")
 }

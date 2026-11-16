@@ -1,6 +1,5 @@
 # Data
 
-## Purpose Of This Document
 
 Describe Code Facts data ownership, storage, and retention.
 

@@ -38,7 +38,7 @@ func TestDiscoverNestedParseUnitsEmitsBashUnit(t *testing.T) {
 	writeFileFixture(t, filepath.Join(root, "api", "go.mod"), "module x\n")
 	writeFileFixture(t, filepath.Join(root, "api", "build.sh"), "go build ./...\n")
 
-	units := discoverNestedParseUnits(root)
+	units, _ := discoverNestedParseUnits(root)
 
 	bash := unitByLanguage(units, "bash")
 	roots := map[string]bool{}

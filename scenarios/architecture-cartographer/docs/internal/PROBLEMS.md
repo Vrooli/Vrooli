@@ -187,9 +187,9 @@ redesign change.
 Specific findings, all out of scope for this plan (per its Risk R5):
 
 - **`HTTP Client Without Timeout` (CRITICAL) → `api/internal/httpc/doer.go:34`** —
-  false positive: line 34 is the compile-time assertion
-  `var _ Doer = (*http.Client)(nil)`, not a constructed client. There is no
-  client to add a timeout to.
+  historical false positive against a compile-time interface assertion, not a
+  constructed client. The unused local alias package has since been retired;
+  this does not assess the separately injected Code Facts Connect clients.
 - **`Security Headers` (HIGH ×8) → `httpx/errors.go`, `middleware/logging_test.go`,
   `module/module_test.go`, `server/server_test.go`** — the OWASP header rule
   wants response security headers from the server scaffold; this is a

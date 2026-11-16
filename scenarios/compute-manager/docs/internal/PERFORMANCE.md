@@ -19,7 +19,6 @@ constraints, and regression procedures.
 > strike the "target" label from every budget that has been measured,
 > leaving the label only where it is still honest.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

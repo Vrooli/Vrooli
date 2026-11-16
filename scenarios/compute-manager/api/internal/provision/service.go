@@ -125,18 +125,21 @@ func (s Service) create(ctx context.Context, req intent.Request, amount float64,
 	}
 	ceilingHold, err := s.Meter.AcquireCeilingHold(ctx, req.RequestedBy, amount, s.Window)
 	if err != nil {
-		record.State = intent.StateRefused
 		record.ResolvedAt = clock.System{}.Now().UTC()
-		_ = s.Intents.Store.Update(ctx, record)
+		if transitionErr := s.Intents.Transition(ctx, &record, intent.StateRefused); transitionErr != nil {
+			err = errors.Join(err, fmt.Errorf("record refused intent: %w", transitionErr))
+		}
 		return record, provider.Instance{}, err
 	}
 	defer func() { _ = s.Meter.ReleaseCeilingHold(ctx, ceilingHold) }()
 	reservation, err := s.Meter.Reserve(ctx, req.RequestedBy, amount, s.Window)
 	if err != nil {
-		record.State = intent.StateRefused
 		record.ResolvedAt = clock.System{}.Now().UTC()
-		_ = s.Intents.Store.Update(ctx, record)
-		return record, provider.Instance{}, fmt.Errorf("capacity refused: %w", err)
+		refusalErr := fmt.Errorf("capacity refused: %w", err)
+		if transitionErr := s.Intents.Transition(ctx, &record, intent.StateRefused); transitionErr != nil {
+			refusalErr = errors.Join(refusalErr, fmt.Errorf("record refused intent: %w", transitionErr))
+		}
+		return record, provider.Instance{}, refusalErr
 	}
 	record.ReservationID = reservation.ID
 	if s.DB != nil {
@@ -149,7 +152,7 @@ func (s Service) create(ctx context.Context, req intent.Request, amount float64,
 			return record, provider.Instance{}, fmt.Errorf("record reservation: %w", err)
 		}
 	}
-	if err := s.Intents.Store.Update(ctx, record); err != nil {
+	if err := s.Intents.SaveOpen(ctx, record); err != nil {
 		_ = s.Meter.Release(ctx, reservation.ID)
 		if s.DB != nil {
 			_, _ = s.DB.ExecContext(ctx, `UPDATE reservations SET state='released',settled_at=? WHERE id=?`, clock.System{}.Now().UTC().Format(time.RFC3339Nano), reservation.ID)
@@ -166,15 +169,15 @@ func (s Service) create(ctx context.Context, req intent.Request, amount float64,
 		if s.DB != nil {
 			_, _ = s.DB.ExecContext(ctx, `UPDATE reservations SET state='released',settled_at=? WHERE id=?`, clock.System{}.Now().UTC().Format(time.RFC3339Nano), reservation.ID)
 		}
-		record.State = intent.StateRefused
 		record.ResolvedAt = time.Now().UTC()
-		_ = s.Intents.Store.Update(ctx, record)
+		if transitionErr := s.Intents.Transition(ctx, &record, intent.StateRefused); transitionErr != nil {
+			err = errors.Join(err, fmt.Errorf("record refused intent: %w", transitionErr))
+		}
 		return record, provider.Instance{}, err
 	}
-	record.State = intent.StateFulfilled
 	record.InstanceID = created.ID
 	record.ResolvedAt = clock.System{}.Now().UTC()
-	if err := s.Intents.Store.Update(ctx, record); err != nil {
+	if err := s.Intents.Transition(ctx, &record, intent.StateFulfilled); err != nil {
 		return record, created, err
 	}
 	if s.DB != nil {

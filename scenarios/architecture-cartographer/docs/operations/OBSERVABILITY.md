@@ -9,7 +9,6 @@ analytics event log (see `analytics` domain in
 [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md)) carries the
 load-bearing signals.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

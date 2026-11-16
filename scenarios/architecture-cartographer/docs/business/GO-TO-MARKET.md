@@ -8,7 +8,6 @@ is deferred per [`MONETIZATION.md`](MONETIZATION.md). This document
 captures the internal rollout plan and the trigger conditions for
 revisiting external positioning.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

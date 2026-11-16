@@ -4,7 +4,7 @@
   "cases": [
     {"id":"exact-new-service","category":"exact_identifier","query":"NewService","scope":"project:","expected":[{"path":"scenarios/code-facts/api/internal/facts/service.go","symbol":"NewService"}]},
     {"id":"exact-search-method","category":"exact_identifier","query":"Service.Search","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/internal/facts/service.go","symbol":"Search"}]},
-    {"id":"path-search-lexical","category":"path","query":"api/internal/facts/search_lexical.go","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/internal/facts/search_lexical.go"}]},
+    {"id":"path-search-lexical","category":"path","query":"api/internal/retrieval/sqlite.go","scope":"scenario:code-facts","expected":[{"path":"scenarios/code-facts/api/internal/retrieval/sqlite.go"}]},
     {"id":"intent-provider-demotion","category":"natural_language","query":"where provider demotion state is persisted","scope":"project:","expected":[{"path":"scenarios/search-hub/api/internal/metrics/demotion.go"}]},
     {"id":"intent-hybrid-reconcile","category":"natural_language","query":"incrementally reconcile vector search documents","scope":"project:","expected":[{"path":"packages/ai-go/search/reconciler.go","symbol":"Reconciler"}]},
     {"id":"contract-search-rpc","category":"contract","query":"CodeFactsService Search RPC request response","scope":"scenario:code-facts","expected":[{"path":"packages/proto/schemas/code-facts/v1/facts/facts.proto","symbol":"Search"}]},

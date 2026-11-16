@@ -8,7 +8,6 @@ The `contract` domain is the keystone: every other domain composes its
 extraction and check engine. `search` federates the same extracted
 intent fleet-wide.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

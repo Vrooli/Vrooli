@@ -9,7 +9,6 @@ runtime dependencies, and deployment readiness.
 > starts is the template worked example, not the product. Everything here
 > is the intended shape and the conditions each tier must meet.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

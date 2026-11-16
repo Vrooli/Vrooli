@@ -16,7 +16,6 @@ the sale as the point would distort the design: it would make the
 bring-your-own-key path feel like a leak to be plugged, when in fact
 that path is permanently free by contract and is the majority use.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

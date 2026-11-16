@@ -1,6 +1,5 @@
 # Integrations — Compute Manager
 
-## Purpose Of This Document
 
 This document records what this scenario depends on, why, and what it does when
 each dependency is unavailable. It is the prose half of a contract whose machine

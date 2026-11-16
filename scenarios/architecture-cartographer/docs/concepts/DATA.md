@@ -4,7 +4,6 @@ This document is the canonical data ownership and storage map for the
 scenario. Update it when domains add tables, files, blobs, external
 records, retention rules, migrations, imports, or exports.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

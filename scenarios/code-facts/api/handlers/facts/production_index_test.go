@@ -73,6 +73,9 @@ func TestDescribeFileMetricsUsesActiveCatalogAndFencesStaleFiles(t *testing.T) {
 		attrs["comment_lines"] != "1" || attrs["todo_count"] != "1" || attrs["fixme_count"] != "1" || attrs["hack_count"] != "1" {
 		t.Fatalf("metric attributes = %#v", facts[0].GetAttributes())
 	}
+	if attrs["test_classification_version"] != "1" || attrs["is_test_file"] != "false" || attrs["has_test_file"] != "false" {
+		t.Fatalf("test classification attributes = %#v", attrs)
+	}
 	writeProductionFixture(t, repoRoot, filePath, "package main\nfunc main() { println(1) }\n")
 	facts, _, warnings, err = index.DescribeFileMetrics(context.Background(), target)
 	if err != nil || len(facts) != 0 || len(warnings) != 1 || warnings[0].GetCode() != "file_metrics_stale_catalog" {

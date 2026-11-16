@@ -8,7 +8,6 @@ domain is added, renamed, split, merged, or removed.
 Keep it as a reference until the first real domain is green, then
 delete it in the same change that proves the replacement pattern.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -25,6 +25,11 @@ fallbacks for JavaScript, Python, and Rust. It bypasses report caching and
 omits files whose content hash no longer matches the active index generation,
 with an explicit warning.
 
+Each file metric also carries `test_classification_version`, `is_test_file`,
+and `has_test_file`. Version `1` classifies common language-specific test
+filenames and companion paths within the requested catalog snapshot. These
+name-based relations do not prove behavioral test coverage.
+
 The only REST exception currently exposed by Code Facts is the operational `/health` probe.
 
 `CheckProtoAdoption` uses normalized generated-proto import facts. `CheckEndpointProof` is static-only: it reads endpoint declarations, asks Code Facts framework adapters to normalize implementation evidence from provider graph facts, then proves route and response/error payload usage only when the selected adapter recognizes helper calls or typed arguments. It returns `unknown`, `missing`, `unsupported`, or `contradicted` rather than treating incomplete static evidence as success.

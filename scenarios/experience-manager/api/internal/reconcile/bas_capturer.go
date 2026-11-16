@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
-	"os"
-	"path/filepath"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -126,7 +126,7 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 		AccessibilityJSONCamel string `json:"accessibilityJson"`
 		Artifacts              []struct {
 			Type      any               `json:"type"`
-			Path      string            `json:"path"`
+			Reference string            `json:"reference"`
 			SizeBytes int64             `json:"size_bytes"`
 			Metadata  map[string]string `json:"metadata"`
 		} `json:"artifacts"`
@@ -158,7 +158,10 @@ func (c BASCapturer) CaptureAccessibility(ctx context.Context, target CaptureTar
 	if snapshot.Contract != snapshotContract {
 		return Snapshot{}, fmt.Errorf("%w: unsupported accessibility snapshot contract %q", ErrCaptureUnavailable, snapshot.Contract)
 	}
-	snapshot.ScreenshotRef = screenshotRefFromArtifacts(decoded.Artifacts)
+	snapshot.ScreenshotRef = screenshotRefFromArtifacts(ctx, baseURL, decoded.Artifacts, c.httpClient())
+	if err := ctx.Err(); err != nil {
+		return Snapshot{}, err
+	}
 	snapshot.Timing = CaptureTiming{
 		TotalMilliseconds:         firstNonZero(parseCaptureMilliseconds(decoded.Readiness.DurationMS), parseCaptureMilliseconds(decoded.Readiness.DurationMSCamel)),
 		NavigationMilliseconds:    firstNonZero(parseCaptureMilliseconds(decoded.Readiness.NavigationDurationMS), parseCaptureMilliseconds(decoded.Readiness.NavigationDurationMSCamel)),
@@ -199,21 +202,21 @@ func firstNonZero(values ...int64) int64 {
 	return 0
 }
 
-func screenshotRefFromArtifacts(artifacts []struct {
+func screenshotRefFromArtifacts(ctx context.Context, baseURL string, artifacts []struct {
 	Type      any               `json:"type"`
-	Path      string            `json:"path"`
+	Reference string            `json:"reference"`
 	SizeBytes int64             `json:"size_bytes"`
 	Metadata  map[string]string `json:"metadata"`
-},
+}, client *http.Client,
 ) string {
 	for _, artifact := range artifacts {
 		if !isScreenshotArtifactType(artifact.Type) {
 			continue
 		}
-		if artifact.SizeBytes == 0 || strings.TrimSpace(artifact.Metadata["unavailable"]) != "" || strings.TrimSpace(artifact.Metadata["reason"]) != "" {
+		if artifact.SizeBytes <= 0 || strings.TrimSpace(artifact.Metadata["unavailable"]) != "" || strings.TrimSpace(artifact.Metadata["reason"]) != "" {
 			continue
 		}
-		if ref := dataURLFromFile(artifact.Path); ref != "" {
+		if ref := dataURLFromArtifact(ctx, baseURL, artifact, client); ref != "" {
 			return ref
 		}
 	}
@@ -232,23 +235,64 @@ func isScreenshotArtifactType(raw any) bool {
 	}
 }
 
-func dataURLFromFile(path string) string {
-	path = strings.TrimSpace(path)
-	if path == "" {
+// dataURLFromArtifact fetches screenshot bytes through BAS's artifact owner.
+// CaptureArtifact.path is a BAS-local filesystem path and must never be opened
+// by this cross-scenario consumer.
+func dataURLFromArtifact(ctx context.Context, baseURL string, artifact struct {
+	Type      any               `json:"type"`
+	Reference string            `json:"reference"`
+	SizeBytes int64             `json:"size_bytes"`
+	Metadata  map[string]string `json:"metadata"`
+}, client *http.Client,
+) string {
+	if strings.TrimSpace(artifact.Reference) == "" || artifact.SizeBytes <= 0 || client == nil {
 		return ""
 	}
-	data, err := os.ReadFile(path)
-	if err != nil || len(data) == 0 {
+	identity, err := url.Parse(artifact.Reference)
+	if err != nil || identity.Scheme != "bas-capture" || identity.Host == "" || identity.Path != "/screenshot" || identity.RawQuery != "" || identity.Fragment != "" {
 		return ""
 	}
-	contentType := "application/octet-stream"
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".png":
-		contentType = "image/png"
-	case ".jpg", ".jpeg":
-		contentType = "image/jpeg"
-	case ".webp":
-		contentType = "image/webp"
+	viewPath := strings.TrimSpace(artifact.Metadata["view_url"])
+	parsed, err := url.Parse(viewPath)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/api/v1/artifacts/") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.EscapedPath() != parsed.Path {
+		return ""
+	}
+	pathParts := strings.Split(strings.TrimPrefix(parsed.Path, "/"), "/")
+	if len(pathParts) < 6 || pathParts[3] != "artifacts" || pathParts[4] != identity.Host {
+		return ""
+	}
+	for _, segment := range strings.Split(parsed.Path, "/") {
+		if segment == "." || segment == ".." {
+			return ""
+		}
+	}
+	requestURL := strings.TrimRight(baseURL, "/") + parsed.EscapedPath()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return ""
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return ""
+	}
+	// Screenshot evidence is small relative to the inline AX cap; bound this
+	// additional transfer so a corrupt or misconfigured artifact cannot exhaust
+	// the reconciliation worker.
+	const maxScreenshotBytes = 16 << 20
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxScreenshotBytes+1))
+	if err != nil || len(data) == 0 || len(data) > maxScreenshotBytes || int64(len(data)) != artifact.SizeBytes {
+		return ""
+	}
+	contentType, _, err := mime.ParseMediaType(artifact.Metadata["content_type"])
+	if err != nil || !strings.HasPrefix(contentType, "image/") {
+		contentType, _, err = mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	}
+	if err != nil || !strings.HasPrefix(contentType, "image/") {
+		return ""
 	}
 	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data)
 }

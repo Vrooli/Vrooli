@@ -115,7 +115,7 @@ func mergeSignals(signals []signal) []Result {
 	for _, a := range order {
 		r := byArchetype[a]
 		if n := counts[a]; n > 1 {
-			r.Confidence = minFloat(0.98, r.Confidence+0.05*float64(n-1)) // corroboration boost
+			r.Confidence = min(0.98, r.Confidence+0.05*float64(n-1)) // corroboration boost
 		}
 		out = append(out, *r)
 	}
@@ -171,11 +171,4 @@ func lowerPaths(paths []string) []string {
 		}
 	}
 	return out
-}
-
-func minFloat(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
 }

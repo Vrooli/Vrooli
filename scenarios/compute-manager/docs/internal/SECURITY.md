@@ -19,7 +19,6 @@ data and no provider credential at rest. What it holds is a record of
 what exists and what it cost. A full compromise of this scenario's
 database yields an inventory, not a key.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

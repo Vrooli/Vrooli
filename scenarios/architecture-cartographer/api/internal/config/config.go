@@ -104,7 +104,7 @@ func Default() Config {
 		BannedVocabulary:      []string{"common", "helpers", "manager", "misc", "stuff", "utils"},
 		LayeringStrict:        true,
 		ValidateConcurrency:   1,
-		SignalWorkers:         minInt(4, maxInt(1, runtime.NumCPU())),
+		SignalWorkers:         min(4, max(1, runtime.NumCPU())),
 		PprofEnabled:          false,
 	}
 }
@@ -170,7 +170,7 @@ func Load(getenv func(string) string) (Config, []Diagnostic) {
 		}
 	}
 	cfg.LayeringStrict = boolLever(getenv, EnvLayeringStrict, cfg.LayeringStrict, &diags)
-	cfg.ValidateConcurrency = intLever(getenv, EnvValidateConcurrency, cfg.ValidateConcurrency, 1, maxInt(1, runtime.NumCPU()), &diags)
+	cfg.ValidateConcurrency = intLever(getenv, EnvValidateConcurrency, cfg.ValidateConcurrency, 1, max(1, runtime.NumCPU()), &diags)
 	cfg.SignalWorkers = intLever(getenv, EnvSignalWorkers, cfg.SignalWorkers, 1, 8, &diags)
 	cfg.PprofEnabled = boolLever(getenv, EnvPprofEnabled, cfg.PprofEnabled, &diags)
 
@@ -258,18 +258,4 @@ func intLever(getenv func(string) string, key string, def, lo, hi int, diags *[]
 		return clamped
 	}
 	return v
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

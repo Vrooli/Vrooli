@@ -8,7 +8,6 @@ detection over potentially large target scenarios. Performance budgets
 exist so an agent running `arch-cart` mid-conversation does not block
 on multi-minute extractions.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

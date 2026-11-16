@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS instance_intents (
   provider TEXT NOT NULL,
   spec_json TEXT NOT NULL DEFAULT '{}',
   reservation_id TEXT NOT NULL DEFAULT '',
-  state TEXT NOT NULL DEFAULT 'reserving',
+  state TEXT NOT NULL DEFAULT 'open',
   instance_id TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   resolved_at TEXT NOT NULL DEFAULT ''

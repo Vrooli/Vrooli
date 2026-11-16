@@ -96,7 +96,7 @@ describe("DomainMapView", () => {
               ],
             },
           ],
-          sharedSubstrate: ["api/internal/httpx"],
+          sharedSubstrate: ["api/internal/httpc"],
           nonDomains: ["tmp"],
           declarations: [
             {
@@ -141,7 +141,7 @@ describe("DomainMapView", () => {
     expect(screen.getByTestId(selectors.features.domains.table.root)).toBeInTheDocument();
     expect(root).toHaveTextContent("graph");
     expect(root).toHaveTextContent("api/internal/graph");
-    expect(root).toHaveTextContent("api/internal/httpx");
+    expect(root).toHaveTextContent("api/internal/httpc");
     expect(root).toHaveTextContent("tmp");
     expect(root).toHaveTextContent("api manifest");
     expect(root).toHaveTextContent("DOMAINS.md");

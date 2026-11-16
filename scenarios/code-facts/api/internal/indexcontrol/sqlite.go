@@ -196,13 +196,6 @@ func (store *SQLitePromotionStore) Transition(ctx context.Context, id, state, fa
 	return nil
 }
 
-func boolInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
-}
-
 var (
 	_ JobStore       = (*SQLiteJobStore)(nil)
 	_ PromotionStore = (*SQLitePromotionStore)(nil)

@@ -14,7 +14,6 @@ own product domains.
 > `Source Paths`. Surface exceptions and the split substrate sections remain
 > human-facing until the zone/slice phases promote them into machine evidence.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

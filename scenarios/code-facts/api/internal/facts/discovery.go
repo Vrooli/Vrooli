@@ -216,7 +216,7 @@ func discoverControlPlaneGoUnit(target *factsv1.TargetContext) *factsv1.ParseUni
 	if len(patterns) == 0 {
 		return nil
 	}
-	unit := goParseUnit(root, gomod)
+	unit := goParseUnit(root, gomod, hasSourceWithExtension(root, ".bats"))
 	unit.PackagePatterns = patterns
 	return unit
 }
@@ -225,34 +225,36 @@ func discoverParseUnitsAtRoot(target *factsv1.TargetContext) []*factsv1.ParseUni
 	root := target.GetRootPath()
 	if isFile(root) {
 		if filepath.Base(root) == "tsconfig.json" {
-			return []*factsv1.ParseUnit{tsParseUnit(filepath.Dir(root), root)}
+			return []*factsv1.ParseUnit{tsParseUnit(filepath.Dir(root), root, hasSourceWithExtension(filepath.Dir(root), ".bats"))}
 		}
 		root = filepath.Dir(root)
 	}
 
 	var units []*factsv1.ParseUnit
+	var sourceByDir map[string]sourceKinds
 	scenarioRoot := ""
 	if target.GetScenarioAware() {
 		scenarioRoot = nearestScenarioRoot(root)
 	}
 	if scenarioRoot == "" || filepath.Clean(root) != scenarioRoot {
 		if goMod := nearestFile(root, "go.mod"); goMod != "" && (scenarioRoot == "" || strings.HasPrefix(goMod, scenarioRoot+string(filepath.Separator))) {
-			units = append(units, goParseUnit(filepath.Dir(goMod), goMod))
+			units = append(units, goParseUnit(filepath.Dir(goMod), goMod, hasSourceWithExtension(filepath.Dir(goMod), ".bats")))
 		}
 		if tsconfig := nearestFile(root, "tsconfig.json"); tsconfig != "" && (scenarioRoot == "" || strings.HasPrefix(tsconfig, scenarioRoot+string(filepath.Separator))) {
-			units = append(units, tsParseUnit(filepath.Dir(tsconfig), tsconfig))
+			units = append(units, tsParseUnit(filepath.Dir(tsconfig), tsconfig, hasSourceWithExtension(filepath.Dir(tsconfig), ".bats")))
 		}
 	}
 
 	if len(units) == 0 && isDir(root) {
-		units = append(units, discoverNestedParseUnits(root)...)
+		units, sourceByDir = discoverNestedParseUnits(root)
 	}
 	if len(units) == 0 && fileExists(filepath.Join(root, "package.json")) {
-		units = append(units, nodePackageUnit(root))
+		kinds := sourceByDir[filepath.Clean(root)]
+		units = append(units, nodePackageUnit(root, kinds.javascript, kinds.bats))
 	}
 	if len(units) == 0 {
 		if manifest, language := dependencyManifest(root); manifest != "" {
-			units = append(units, dependencyParseUnit(root, manifest, language))
+			units = append(units, dependencyParseUnit(root, manifest, language, sourceByDir[filepath.Clean(root)].bats))
 		}
 	}
 	if len(units) == 0 {
@@ -280,13 +282,26 @@ func nearestScenarioRoot(start string) string {
 	}
 }
 
-func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
-	var units []*factsv1.ParseUnit
-	// Bash has no manifest file, so we infer a shell parse unit from the
-	// presence of .sh/.bats sources in a directory not already owned by a
-	// language with a manifest (go.mod/tsconfig/package.json).
+type sourceKinds struct {
+	script     bool
+	javascript bool
+	bats       bool
+}
+
+type parseManifest struct {
+	path string
+	name string
+}
+
+func discoverNestedParseUnits(root string) ([]*factsv1.ParseUnit, map[string]sourceKinds) {
+	// Bash has no manifest file, so infer shell units from source paths not
+	// owned by a manifest language. The same walk also records source kinds for
+	// each ancestor directory; package routing and toolchain observations reuse
+	// that inventory instead of recursively rescanning each package subtree.
 	manifestDirs := map[string]bool{}
 	shellDirs := map[string]bool{}
+	sourceByDir := map[string]sourceKinds{}
+	manifests := []parseManifest{}
 	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -297,37 +312,12 @@ func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
 			}
 			return nil
 		}
+		recordSourceKinds(root, path, sourceByDir)
 		switch d.Name() {
-		case "go.mod":
+		case "go.mod", "tsconfig.json", "package.json", "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "bun.lock", "bun.lockb", "requirements.txt", "Pipfile.lock", "poetry.lock", "pyproject.toml", "Cargo.lock", "Cargo.toml":
 			dir := filepath.Dir(path)
 			manifestDirs[dir] = true
-			units = append(units, goParseUnit(dir, path))
-		case "tsconfig.json":
-			dir := filepath.Dir(path)
-			manifestDirs[dir] = true
-			units = append(units, tsParseUnit(dir, path))
-		case "package.json":
-			dir := filepath.Dir(path)
-			manifestDirs[dir] = true
-			if !fileExists(filepath.Join(dir, "tsconfig.json")) && hasSourceWithExtension(dir, ".ts", ".tsx", ".js", ".jsx") {
-				units = append(units, nodePackageUnit(dir))
-			}
-		case "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json":
-			dir := filepath.Dir(path)
-			manifestDirs[dir] = true
-			units = append(units, dependencyParseUnit(dir, path, "node"))
-		case "yarn.lock", "bun.lock", "bun.lockb":
-			dir := filepath.Dir(path)
-			manifestDirs[dir] = true
-			units = append(units, dependencyParseUnit(dir, path, "node"))
-		case "requirements.txt", "Pipfile.lock", "poetry.lock", "pyproject.toml":
-			dir := filepath.Dir(path)
-			manifestDirs[dir] = true
-			units = append(units, dependencyParseUnit(dir, path, "python"))
-		case "Cargo.lock", "Cargo.toml":
-			dir := filepath.Dir(path)
-			manifestDirs[dir] = true
-			units = append(units, dependencyParseUnit(dir, path, "rust"))
+			manifests = append(manifests, parseManifest{path: path, name: d.Name()})
 		}
 		switch strings.ToLower(filepath.Ext(path)) {
 		case ".sh", ".bats":
@@ -335,14 +325,62 @@ func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
 		}
 		return nil
 	})
-	units = append(units, bashParseUnits(shellDirs, manifestDirs)...)
-	return units
+
+	var units []*factsv1.ParseUnit
+	for _, manifest := range manifests {
+		dir := filepath.Dir(manifest.path)
+		kinds := sourceByDir[dir]
+		switch manifest.name {
+		case "go.mod":
+			units = append(units, goParseUnit(dir, manifest.path, kinds.bats))
+		case "tsconfig.json":
+			units = append(units, tsParseUnit(dir, manifest.path, kinds.bats))
+		case "package.json":
+			if !fileExists(filepath.Join(dir, "tsconfig.json")) && kinds.script {
+				units = append(units, nodePackageUnit(dir, kinds.javascript, kinds.bats))
+			}
+		case "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "bun.lock", "bun.lockb":
+			units = append(units, dependencyParseUnit(dir, manifest.path, "node", kinds.bats))
+		case "requirements.txt", "Pipfile.lock", "poetry.lock", "pyproject.toml":
+			units = append(units, dependencyParseUnit(dir, manifest.path, "python", kinds.bats))
+		case "Cargo.lock", "Cargo.toml":
+			units = append(units, dependencyParseUnit(dir, manifest.path, "rust", kinds.bats))
+		}
+	}
+	units = append(units, bashParseUnits(shellDirs, manifestDirs, sourceByDir)...)
+	return units, sourceByDir
+}
+
+func recordSourceKinds(root, path string, sourceByDir map[string]sourceKinds) {
+	extension := strings.ToLower(filepath.Ext(path))
+	kinds := sourceKinds{
+		script:     extension == ".ts" || extension == ".tsx" || extension == ".js" || extension == ".jsx",
+		javascript: extension == ".js" || extension == ".jsx" || extension == ".mjs" || extension == ".cjs",
+		bats:       extension == ".bats",
+	}
+	if !kinds.script && !kinds.javascript && !kinds.bats {
+		return
+	}
+	for dir := filepath.Dir(path); ; dir = filepath.Dir(dir) {
+		current := sourceByDir[dir]
+		current.script = current.script || kinds.script
+		current.javascript = current.javascript || kinds.javascript
+		current.bats = current.bats || kinds.bats
+		sourceByDir[dir] = current
+		if dir == root {
+			return
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return
+		}
+	}
 }
 
 // bashParseUnits emits one bash parse unit per shell-source directory that is
 // not owned by a manifest language, collapsing nested shell directories to
 // their shallowest ancestor so a tree of scripts reports as a single unit.
-func bashParseUnits(shellDirs, manifestDirs map[string]bool) []*factsv1.ParseUnit {
+func bashParseUnits(shellDirs, manifestDirs map[string]bool, sourceByDir map[string]sourceKinds) []*factsv1.ParseUnit {
 	candidates := make([]string, 0, len(shellDirs))
 	for dir := range shellDirs {
 		if manifestDirs[dir] {
@@ -366,12 +404,12 @@ func bashParseUnits(shellDirs, manifestDirs map[string]bool) []*factsv1.ParseUni
 	}
 	units := make([]*factsv1.ParseUnit, 0, len(roots))
 	for _, dir := range roots {
-		units = append(units, bashParseUnit(dir))
+		units = append(units, bashParseUnit(dir, sourceByDir[dir].bats))
 	}
 	return units
 }
 
-func goParseUnit(root, gomod string) *factsv1.ParseUnit {
+func goParseUnit(root, gomod string, hasBats bool) *factsv1.ParseUnit {
 	return &factsv1.ParseUnit{
 		Id:         "go:" + filepath.ToSlash(root),
 		Language:   "go",
@@ -379,11 +417,11 @@ func goParseUnit(root, gomod string) *factsv1.ParseUnit {
 		ConfigPath: gomod,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Go module discovered from go.mod.", gomod)},
-		Toolchain:  toolchainObservation(root, "go", gomod),
+		Toolchain:  toolchainObservation(root, "go", gomod, hasBats),
 	}
 }
 
-func tsParseUnit(root, tsconfig string) *factsv1.ParseUnit {
+func tsParseUnit(root, tsconfig string, hasBats bool) *factsv1.ParseUnit {
 	return &factsv1.ParseUnit{
 		Id:         "typescript:" + filepath.ToSlash(root),
 		Language:   "typescript",
@@ -391,13 +429,13 @@ func tsParseUnit(root, tsconfig string) *factsv1.ParseUnit {
 		ConfigPath: tsconfig,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "TypeScript project discovered from tsconfig.json.", tsconfig)},
-		Toolchain:  toolchainObservation(root, "node", tsconfig),
+		Toolchain:  toolchainObservation(root, "node", tsconfig, hasBats),
 	}
 }
 
-func nodePackageUnit(root string) *factsv1.ParseUnit {
+func nodePackageUnit(root string, hasJavaScriptFiles, hasBats bool) *factsv1.ParseUnit {
 	packagePath := filepath.Join(root, "package.json")
-	if hasSourceWithExtension(root, ".js", ".jsx", ".mjs", ".cjs") {
+	if hasJavaScriptFiles {
 		return &factsv1.ParseUnit{
 			Id:         "javascript:" + filepath.ToSlash(root),
 			Language:   "javascript",
@@ -405,7 +443,7 @@ func nodePackageUnit(root string) *factsv1.ParseUnit {
 			ConfigPath: packagePath,
 			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 			Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "JavaScript package discovered and routed to the shared TypeScript AST provider.", packagePath)},
-			Toolchain:  toolchainObservation(root, "node", packagePath),
+			Toolchain:  toolchainObservation(root, "node", packagePath, hasBats),
 		}
 	}
 	return &factsv1.ParseUnit{
@@ -415,7 +453,7 @@ func nodePackageUnit(root string) *factsv1.ParseUnit {
 		ConfigPath: packagePath,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Node package has no tsconfig.json, so it cannot route to a supported analyzer.", packagePath)},
-		Toolchain:  toolchainObservation(root, "node", packagePath),
+		Toolchain:  toolchainObservation(root, "node", packagePath, hasBats),
 	}
 }
 
@@ -446,7 +484,7 @@ func dependencyManifest(root string) (string, string) {
 	return "", ""
 }
 
-func dependencyParseUnit(root, manifest, language string) *factsv1.ParseUnit {
+func dependencyParseUnit(root, manifest, language string, hasBats bool) *factsv1.ParseUnit {
 	return &factsv1.ParseUnit{
 		Id:         language + ":dependency:" + filepath.ToSlash(root),
 		Language:   language,
@@ -454,7 +492,7 @@ func dependencyParseUnit(root, manifest, language string) *factsv1.ParseUnit {
 		ConfigPath: manifest,
 		Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "Dependency manifest discovered for downstream typed ecosystem adapters; Code Facts does not parse package vulnerability state.", manifest)},
-		Toolchain:  toolchainObservation(root, language, manifest),
+		Toolchain:  toolchainObservation(root, language, manifest, hasBats),
 	}
 }
 
@@ -462,20 +500,20 @@ func dependencyParseUnit(root, manifest, language string) *factsv1.ParseUnit {
 // analyzer, so the unit is UNSUPPORTED (like a node package without tsconfig):
 // the language and root are proven facts, but no graph is produced. Consumers
 // such as unit-health use the language + root to attribute bats test surfaces.
-func bashParseUnit(root string) *factsv1.ParseUnit {
+func bashParseUnit(root string, hasBats bool) *factsv1.ParseUnit {
 	return &factsv1.ParseUnit{
 		Id:        "bash:" + filepath.ToSlash(root),
 		Language:  "bash",
 		RootPath:  root,
 		Status:    factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED,
 		Evidence:  []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED, "Shell scripts (.sh/.bats) discovered; Code Facts reports the language but has no bash graph analyzer.", root)},
-		Toolchain: toolchainObservation(root, "bash", ""),
+		Toolchain: toolchainObservation(root, "bash", "", hasBats),
 	}
 }
 
 // toolchainObservation reports observed manifests and neutral indicators. It
 // deliberately does not select or validate a framework or adapter.
-func toolchainObservation(root, ecosystem, primaryManifest string) *factsv1.ToolchainObservation {
+func toolchainObservation(root, ecosystem, primaryManifest string, hasBats bool) *factsv1.ToolchainObservation {
 	observation := &factsv1.ToolchainObservation{
 		Ecosystem: ecosystem,
 		Status:    factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
@@ -532,7 +570,7 @@ func toolchainObservation(root, ecosystem, primaryManifest string) *factsv1.Tool
 			}
 		}
 	}
-	if hasSourceWithExtension(root, ".bats") {
+	if hasBats {
 		observation.RunnerIndicators = append(observation.RunnerIndicators, "source:.bats")
 	}
 	if ecosystem == "python" {

@@ -10,7 +10,6 @@ business/product signals for the scenario.
 > the test-genie result. In the tables below, a Status of `intended`
 > describes a signal that must be built, not one that is dark.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

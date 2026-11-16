@@ -28,7 +28,7 @@ UPDATE validation_runs SET
   started_at           = ?,
   ended_at             = ?,
   error_message        = ?
-WHERE id = ?
+WHERE id = ? AND status = ?
 `
 
 const selectRunByIDSQL = `
@@ -88,6 +88,9 @@ func NewSQLiteRepository(db SQLExecutor) Repository {
 var _ Repository = (*sqliteRepository)(nil)
 
 func (s *sqliteRepository) Create(ctx context.Context, r Run) error {
+	if r.Status != StatusQueued {
+		return fmt.Errorf("create validation_run: %w (new runs must be queued)", ErrInvalidTransition)
+	}
 	_, err := s.db.ExecContext(ctx, insertRunSQL,
 		r.ID, int(r.TupleKind), r.SubjectID, r.GoldenSlug,
 		int(r.Status), int(r.TerminalVerdict),
@@ -115,10 +118,20 @@ func (s *sqliteRepository) Get(ctx context.Context, id string) (Run, error) {
 }
 
 func (s *sqliteRepository) UpdateStatus(ctx context.Context, r Run) error {
+	var current Status
+	if err := s.db.QueryRowContext(ctx, `SELECT status FROM validation_runs WHERE id = ?`, r.ID).Scan(&current); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRunNotFound{ID: r.ID}
+		}
+		return fmt.Errorf("read validation_run state %q: %w", r.ID, err)
+	}
+	if err := TransitionStatus(current, r.Status); err != nil {
+		return err
+	}
 	res, err := s.db.ExecContext(ctx, updateRunSQL,
 		int(r.Status), int(r.TerminalVerdict), r.AgentManagerRunID,
 		formatNullable(r.StartedAt), formatNullable(r.EndedAt),
-		r.ErrorMessage, r.ID,
+		r.ErrorMessage, r.ID, int(current),
 	)
 	if err != nil {
 		return fmt.Errorf("update validation_run %q: %w", r.ID, err)
@@ -128,7 +141,7 @@ func (s *sqliteRepository) UpdateStatus(ctx context.Context, r Run) error {
 		return fmt.Errorf("update rows affected %q: %w", r.ID, err)
 	}
 	if n == 0 {
-		return ErrRunNotFound{ID: r.ID}
+		return fmt.Errorf("%w: %s", ErrStateConflict, r.ID)
 	}
 	return nil
 }
@@ -166,6 +179,9 @@ func (s *sqliteRepository) FindRecentMatching(ctx context.Context, kind int, sub
 }
 
 func (s *sqliteRepository) ClaimNextQueued(ctx context.Context) (Run, error) {
+	if err := TransitionStatus(StatusQueued, StatusRunning); err != nil {
+		return Run{}, err
+	}
 	row := s.db.QueryRowContext(ctx, claimQueuedSQL, int(StatusRunning), int(StatusQueued))
 	r, err := scanRun(row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -217,6 +233,9 @@ func scanRun(s rowScanner) (Run, error) {
 	}
 	r.TupleKind = vr.TupleKind(tupleKindInt)
 	r.Status = Status(statusInt)
+	if !r.Status.Valid() {
+		return Run{}, fmt.Errorf("%w: unknown persisted status %d", ErrInvalidTransition, r.Status)
+	}
 	r.TerminalVerdict = vr.Verdict(verdictInt)
 	r.ForceReRun = forceInt != 0
 	t, err := time.Parse(runTimeFormat, createdRaw)

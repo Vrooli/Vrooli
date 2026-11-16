@@ -22,13 +22,6 @@ func TestInventoryFromCodeFacts(t *testing.T) {
 			Path:   "/repo/scenarios/demo/api",
 			Status: factsv1.SurfaceStatus_SURFACE_STATUS_KNOWN,
 		}},
-		ParseUnits: []*factsv1.ParseUnit{{
-			Id:         "api",
-			Language:   "go",
-			RootPath:   "/repo/scenarios/demo/api",
-			ConfigPath: "/repo/scenarios/demo/api/go.mod",
-			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
-		}},
 	}
 	inv := inventoryFromCodeFacts(report)
 	if !reflect.DeepEqual(inv.Surfaces, []Surface{{
@@ -38,15 +31,6 @@ func TestInventoryFromCodeFacts(t *testing.T) {
 		Status: "known",
 	}}) {
 		t.Fatalf("surfaces = %+v", inv.Surfaces)
-	}
-	if !reflect.DeepEqual(inv.ParseUnits, []ParseUnit{{
-		ID:         "api",
-		Language:   "go",
-		RootPath:   "/repo/scenarios/demo/api",
-		ConfigPath: "/repo/scenarios/demo/api/go.mod",
-		Status:     "proven",
-	}}) {
-		t.Fatalf("parse units = %+v", inv.ParseUnits)
 	}
 }
 
@@ -85,7 +69,6 @@ func TestCodeFactsSurfaceProviderRequestsSliceProofFamilies(t *testing.T) {
 	}
 	want := []factsv1.FactFamily{
 		factsv1.FactFamily_FACT_FAMILY_SURFACES,
-		factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS,
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("include = %v, want %v", got, want)

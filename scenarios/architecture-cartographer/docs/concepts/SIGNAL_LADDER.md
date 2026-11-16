@@ -11,7 +11,6 @@ suggested-fix ranking on conflicts, and confidence reporting in the
 CLI workbench. The explainability of every cartographer decision
 flows from this contract.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

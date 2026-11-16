@@ -128,7 +128,10 @@ func (w *Worker) Run(ctx context.Context) {
 func (w *Worker) processRun(ctx context.Context, r Run) {
 	now := w.deps.Clock.Now().UTC()
 	r.StartedAt = now
-	r.Status = StatusRunning
+	if err := r.TransitionStatus(StatusRunning); err != nil {
+		w.deps.Logger.Printf("validation_run.worker: enter running: %v", err)
+		return
+	}
 	if err := w.deps.Repo.UpdateStatus(ctx, r); err != nil {
 		w.deps.Logger.Printf("validation_run.worker: update running: %v", err)
 		return
@@ -186,7 +189,10 @@ func (w *Worker) processSkillRun(ctx context.Context, r Run, materialized Materi
 		return
 	}
 	r.AgentManagerRunID = runID
-	r.Status = StatusEvaluating
+	if err := r.TransitionStatus(StatusEvaluating); err != nil {
+		w.deps.Logger.Printf("validation_run.worker: enter evaluating: %v", err)
+		return
+	}
 	if err := w.deps.Repo.UpdateStatus(ctx, r); err != nil {
 		w.deps.Logger.Printf("validation_run.worker: update evaluating: %v", err)
 	}
@@ -241,7 +247,10 @@ func (w *Worker) persistTerminal(ctx context.Context, r Run, verdict vr.Verdict,
 	if endedAt.IsZero() {
 		endedAt = w.deps.Clock.Now().UTC()
 	}
-	r.Status = StatusTerminal
+	if err := r.TransitionStatus(StatusTerminal); err != nil {
+		w.deps.Logger.Printf("validation_run.worker: enter terminal %q: %v", r.ID, err)
+		return
+	}
 	r.TerminalVerdict = verdict
 	r.EndedAt = endedAt
 	r.ErrorMessage = msg

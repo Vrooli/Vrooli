@@ -2,6 +2,7 @@ package validation_run_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ import (
 	localdb "development-toolchain-validator/internal/database"
 )
 
-func newSvc(t *testing.T) (vrun.Service, vrun.Repository, *scheduletest.FakeClock) {
+func newSvc(t *testing.T) (vrun.Service, vrun.Repository, *scheduletest.FakeClock, *sql.DB) {
 	t.Helper()
 	d := db.NewSQLite(t)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d,
@@ -29,11 +30,11 @@ func newSvc(t *testing.T) (vrun.Service, vrun.Repository, *scheduletest.FakeCloc
 	))
 	clk := scheduletest.New(time.Date(2026, 5, 18, 12, 0, 0, 0, time.UTC))
 	repo := vrun.NewSQLiteRepository(d)
-	return vrun.NewService(repo, clk, nil), repo, clk
+	return vrun.NewService(repo, clk, nil), repo, clk, d
 }
 
 func TestStart_QueuesRun(t *testing.T) {
-	svc, repo, clk := newSvc(t)
+	svc, repo, clk, _ := newSvc(t)
 	r, err := svc.Start(context.Background(), vrun.StartInput{
 		TupleKind:  vr.TupleKindSkill,
 		SubjectID:  "implementation-plan-authoring",
@@ -50,7 +51,7 @@ func TestStart_QueuesRun(t *testing.T) {
 }
 
 func TestStart_RejectsMissing(t *testing.T) {
-	svc, _, _ := newSvc(t)
+	svc, _, _, _ := newSvc(t)
 	_, err := svc.Start(context.Background(), vrun.StartInput{
 		TupleKind: vr.TupleKindSkill, SubjectID: "", GoldenSlug: "g",
 	})
@@ -59,7 +60,7 @@ func TestStart_RejectsMissing(t *testing.T) {
 }
 
 func TestStart_RejectsUnspecifiedKind(t *testing.T) {
-	svc, _, _ := newSvc(t)
+	svc, _, _, _ := newSvc(t)
 	_, err := svc.Start(context.Background(), vrun.StartInput{
 		SubjectID: "s", GoldenSlug: "g",
 	})
@@ -84,19 +85,20 @@ func TestStart_NotifiesWorker(t *testing.T) {
 }
 
 func TestGet_NotFound(t *testing.T) {
-	svc, _, _ := newSvc(t)
+	svc, _, _, _ := newSvc(t)
 	_, err := svc.Get(context.Background(), "missing")
 	require.True(t, vrun.IsNotFound(err))
 }
 
 func TestListActive_ExcludesTerminal(t *testing.T) {
-	svc, repo, _ := newSvc(t)
+	svc, repo, _, _ := newSvc(t)
 	ctx := context.Background()
 	queued, err := svc.Start(ctx, vrun.StartInput{TupleKind: vr.TupleKindSkill, SubjectID: "a", GoldenSlug: "g"})
 	require.NoError(t, err)
 	terminal, err := svc.Start(ctx, vrun.StartInput{TupleKind: vr.TupleKindSkill, SubjectID: "b", GoldenSlug: "g"})
 	require.NoError(t, err)
-	terminal.Status = vrun.StatusTerminal
+	require.NoError(t, terminal.TransitionStatus(vrun.StatusRunning))
+	require.NoError(t, terminal.TransitionStatus(vrun.StatusTerminal))
 	terminal.TerminalVerdict = vr.VerdictPass
 	require.NoError(t, repo.UpdateStatus(ctx, terminal))
 
@@ -104,4 +106,37 @@ func TestListActive_ExcludesTerminal(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, active, 1)
 	require.Equal(t, queued.ID, active[0].ID)
+}
+
+func TestRunLifecycleOwnerAndRepositoryRejectInvalidStates(t *testing.T) {
+	ctx := context.Background()
+	svc, repo, _, d := newSvc(t)
+	run, err := svc.Start(ctx, vrun.StartInput{TupleKind: vr.TupleKindSkill, SubjectID: "skill", GoldenSlug: "golden"})
+	require.NoError(t, err)
+
+	if err := run.TransitionStatus(vrun.StatusTerminal); !errors.Is(err, vrun.ErrInvalidTransition) || run.Status != vrun.StatusQueued {
+		t.Fatalf("queued -> terminal error=%v left status=%d", err, run.Status)
+	}
+	invalidCreate := run
+	invalidCreate.ID = "invalid-create"
+	invalidCreate.Status = vrun.StatusTerminal
+	require.ErrorIs(t, repo.Create(ctx, invalidCreate), vrun.ErrInvalidTransition)
+
+	stale := run
+	require.NoError(t, run.TransitionStatus(vrun.StatusRunning))
+	require.NoError(t, repo.UpdateStatus(ctx, run))
+	current, err := repo.Get(ctx, run.ID)
+	require.NoError(t, err)
+	require.NoError(t, current.TransitionStatus(vrun.StatusEvaluating))
+	require.NoError(t, repo.UpdateStatus(ctx, current))
+	require.NoError(t, current.TransitionStatus(vrun.StatusTerminal))
+	require.NoError(t, repo.UpdateStatus(ctx, current))
+	require.NoError(t, stale.TransitionStatus(vrun.StatusRunning))
+	require.NoError(t, stale.TransitionStatus(vrun.StatusEvaluating))
+	require.ErrorIs(t, repo.UpdateStatus(ctx, stale), vrun.ErrInvalidTransition)
+
+	_, err = d.ExecContext(ctx, `UPDATE validation_runs SET status = ? WHERE id = ?`, 99, run.ID)
+	require.NoError(t, err)
+	_, err = repo.Get(ctx, run.ID)
+	require.ErrorIs(t, err, vrun.ErrInvalidTransition)
 }

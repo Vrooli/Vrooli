@@ -2,8 +2,11 @@ package reconcile
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -181,11 +184,12 @@ func TestActivePagePersistsPerClaimEvidence(t *testing.T) { // [REQ:EXPERIEN-P0-
 	repo := NewSQLiteRepository(db)
 	now := time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
-		Capturer:        fakeCapturer{snapshot: passingSnapshot()},
-		Repository:      repo,
-		Now:             func() time.Time { return now },
-		CaptureProfiles: testProfiles(),
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
+		Capturer:          fakeCapturer{snapshot: passingSnapshot()},
+		Repository:        repo,
+		Now:               func() time.Time { return now },
+		CaptureProfiles:   testProfiles(),
 	}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
@@ -215,10 +219,11 @@ func TestActivePagePersistsViewportMatrixEvidence(t *testing.T) { // [REQ:EXPERI
 	repo := NewSQLiteRepository(db)
 	now := time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
-		Capturer:   fakeCapturer{snapshot: passingSnapshot()},
-		Repository: repo,
-		Now:        func() time.Time { return now },
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
+		Capturer:          fakeCapturer{snapshot: passingSnapshot()},
+		Repository:        repo,
+		Now:               func() time.Time { return now },
 	}.Run(context.Background(), report)
 	if len(findings) != 0 {
 		t.Fatalf("expected active page to reconcile green, got %+v", findings)
@@ -289,7 +294,8 @@ func TestActiveComponentBuildsHarnessTargetsAndPersistsEvidence(t *testing.T) { 
 	var targets []CaptureTarget
 	now := time.Date(2026, 7, 10, 14, 15, 0, 0, time.UTC)
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
 		Capturer: fakeCapturer{
 			snapshot: componentButtonSnapshot(24, 80, 140, 48),
 			targets:  &targets,
@@ -355,9 +361,10 @@ func TestActiveComponentFailuresAreBlocking(t *testing.T) {
 	}}
 	report.Spec.Components["button"] = component
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
-		Capturer:        fakeCapturer{snapshot: componentButtonSnapshot(24, 900, 140, 48)},
-		CaptureProfiles: testProfiles(),
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
+		Capturer:          fakeCapturer{snapshot: componentButtonSnapshot(24, 900, 140, 48)},
+		CaptureProfiles:   testProfiles(),
 	}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 1 || findings[0].Code != spec.CodeClaimFailed {
@@ -381,10 +388,11 @@ func TestViewportScopedClaimCapturesMatchingProfileOnly(t *testing.T) { // [REQ:
 	repo := NewSQLiteRepository(db)
 	var targets []CaptureTarget
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
-		Capturer:   fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
-		Repository: repo,
-		Now:        func() time.Time { return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC) },
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
+		Capturer:          fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
+		Repository:        repo,
+		Now:               func() time.Time { return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC) },
 	}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
@@ -410,8 +418,9 @@ func TestViewportScopedClaimUsesProfileAlias(t *testing.T) { // [REQ:EXPERIEN-P0
 	report.Spec.Pages["home"] = page
 	var targets []CaptureTarget
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
-		Capturer: fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
+		Capturer:          fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
 	}.Run(context.Background(), report)
 	findings = withoutFloorWarnings(findings)
 	if len(findings) != 0 {
@@ -925,14 +934,15 @@ func TestBaselineFloorClaimsFailFromGeometry(t *testing.T) {
 		}},
 	})
 
-	findings := Check{GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
-		{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
-		{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
-		{Code: "visual_chrome_outside_viewport", Severity: spec.SeverityError},
-		{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError},
-		{Code: "visual_multiline_chrome_label", Severity: spec.SeverityWarning},
-		{Code: "visual_touch_target_too_small", Severity: spec.SeverityError},
-	}},
+	findings := Check{
+		GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
+			{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
+			{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
+			{Code: "visual_chrome_outside_viewport", Severity: spec.SeverityError},
+			{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError},
+			{Code: "visual_multiline_chrome_label", Severity: spec.SeverityWarning},
+			{Code: "visual_touch_target_too_small", Severity: spec.SeverityError},
+		}},
 		Capturer:        fakeCapturer{snapshot: snapshot},
 		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
@@ -984,9 +994,10 @@ func TestSafeAreaFloorRecognizesScenarioMobileNavControls(t *testing.T) {
 		}},
 	})
 
-	findings := Check{GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError, Message: "mobile chrome enters unsafe area"}}},
-		Capturer:        fakeCapturer{snapshot: snapshot},
-		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
+	findings := Check{
+		GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{{Code: "visual_unsafe_edge_tap_zone", Severity: spec.SeverityError, Message: "mobile chrome enters unsafe area"}}},
+		Capturer:          fakeCapturer{snapshot: snapshot},
+		CaptureProfiles:   []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
 	if !hasCode(findings, "visual_unsafe_edge_tap_zone") {
 		t.Fatalf("expected safe-area floor to catch scenario mobile nav controls, got %+v", findings)
@@ -1004,10 +1015,11 @@ func TestBaselineFloorOptOutSuppressesOnlyNamedFloor(t *testing.T) {
 	snapshot := passingSnapshot()
 	snapshot.Root.Bounds = &Bounds{Width: 430, Height: 600}
 
-	findings := Check{GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
-		{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
-		{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
-	}},
+	findings := Check{
+		GeometryEvaluator: &fixedGeometryEvaluator{findings: []spec.Finding{
+			{Code: "visual_surface_does_not_fill_viewport", Severity: spec.SeverityError},
+			{Code: "visual_viewport_overflow", Severity: spec.SeverityError},
+		}},
 		Capturer:        fakeCapturer{snapshot: snapshot},
 		CaptureProfiles: []CaptureProfile{{ID: "mobile", Width: 390, Height: 844}},
 	}.Run(context.Background(), report)
@@ -1070,9 +1082,10 @@ func TestNonDefaultStateSetupCapturesStateRoute(t *testing.T) { // [REQ:EXPERIEN
 	}
 	repo := NewSQLiteRepository(db)
 
-	findings := Check{GeometryEvaluator: passingGeometryEvaluator{},
-		Capturer:   fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
-		Repository: repo,
+	findings := Check{
+		GeometryEvaluator: passingGeometryEvaluator{},
+		Capturer:          fakeCapturer{snapshot: passingSnapshot(), targets: &targets},
+		Repository:        repo,
 		Now: func() time.Time {
 			return time.Date(2026, 7, 5, 16, 30, 0, 0, time.UTC)
 		},
@@ -1198,10 +1211,8 @@ func TestCaptureUnavailableIsSkippedInfo(t *testing.T) {
 }
 
 func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
-	screenshotPath := filepath.Join(t.TempDir(), "capture.png")
-	if err := os.WriteFile(screenshotPath, []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
-		t.Fatalf("WriteFile screenshot: %v", err)
-	}
+	const screenshotBytes = "remote-owner-screenshot"
+	artifactGETs := 0
 	mux := http.NewServeMux()
 	mux.HandleFunc("/browser_automation_studio.v1.capture.CaptureService/Capture", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -1268,11 +1279,21 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 			},
 			"artifacts": []map[string]any{{
 				"type":       "CAPTURE_TYPE_SCREENSHOT",
-				"path":       screenshotPath,
-				"size_bytes": 4,
-				"metadata":   map[string]string{"filename": "capture.png"},
+				"path":       "/a/path/that/does/not/exist/on-this-host/capture.png",
+				"reference":  "bas-capture://capture-execution-1/screenshot",
+				"size_bytes": len(screenshotBytes),
+				"metadata": map[string]string{
+					"filename":     "capture.png",
+					"view_url":     "/api/v1/artifacts/artifacts/capture-execution-1/capture-screenshot.png",
+					"content_type": "image/png",
+				},
 			}},
 		})
+	})
+	mux.HandleFunc("/api/v1/artifacts/artifacts/capture-execution-1/capture-screenshot.png", func(w http.ResponseWriter, r *http.Request) {
+		artifactGETs++
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = io.WriteString(w, screenshotBytes)
 	})
 	server := httptest.NewServer(mux)
 	defer server.Close()
@@ -1302,11 +1323,60 @@ func TestBASCapturerPreservesScenarioTargetForDeclaredReadiness(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CaptureAccessibility: %v", err)
 	}
-	if !strings.HasPrefix(snapshot.ScreenshotRef, "data:image/png;base64,") {
-		t.Fatalf("ScreenshotRef = %q, want png data URL", snapshot.ScreenshotRef)
+	if want := "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte(screenshotBytes)); snapshot.ScreenshotRef != want {
+		t.Fatalf("ScreenshotRef = %q, want artifact-owner bytes encoded as %q", snapshot.ScreenshotRef, want)
+	}
+	if artifactGETs != 1 {
+		t.Fatalf("BAS artifact owner GETs = %d, want one", artifactGETs)
 	}
 	if snapshot.Timing.TotalMilliseconds != 210 || snapshot.Timing.ReadinessWaitMilliseconds != 150 || snapshot.Timing.Strategy != "declared-surface" {
 		t.Fatalf("Timing = %+v, want BAS readiness diagnostics", snapshot.Timing)
+	}
+}
+
+func TestBASArtifactFetchHonorsCallerCancellation(t *testing.T) {
+	requestStarted := make(chan struct{})
+	requestCanceled := make(chan struct{})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/browser_automation_studio.v1.capture.CaptureService/Capture", func(w http.ResponseWriter, r *http.Request) {
+		snapshotJSON, err := json.Marshal(passingSnapshot())
+		if err != nil {
+			t.Fatalf("marshal snapshot: %v", err)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"accessibilityJson": string(snapshotJSON),
+			"artifacts": []map[string]any{{
+				"type":       "CAPTURE_TYPE_SCREENSHOT",
+				"reference":  "bas-capture://execution-1/screenshot",
+				"size_bytes": 4,
+				"metadata":   map[string]string{"view_url": "/api/v1/artifacts/artifacts/execution-1/screenshot.png", "content_type": "image/png"},
+			}},
+		})
+	})
+	mux.HandleFunc("/api/v1/artifacts/artifacts/execution-1/screenshot.png", func(w http.ResponseWriter, r *http.Request) {
+		close(requestStarted)
+		<-r.Context().Done()
+		close(requestCanceled)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	result := make(chan error, 1)
+	go func() {
+		_, err := (BASCapturer{Resolve: func(context.Context) (string, error) { return server.URL, nil }, HTTPClient: server.Client()}).CaptureAccessibility(ctx, CaptureTarget{Scenario: "demo", Route: "/"})
+		result <- err
+	}()
+	<-requestStarted
+	cancel()
+	if got := <-result; !errors.Is(got, context.Canceled) {
+		t.Fatalf("CaptureAccessibility error = %v, want caller cancellation", got)
+	}
+	select {
+	case <-requestCanceled:
+	case <-time.After(time.Second):
+		t.Fatal("BAS artifact owner did not observe caller cancellation")
 	}
 }
 

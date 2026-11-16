@@ -6,7 +6,6 @@ domain is added, renamed, split, merged, or removed.
 
 `notes` is a worked example from the template, retained as a reference pattern. All P0 DTV domains (OT-P0-001 through OT-P0-008) are implemented and listed in the Domain Inventory below; the core validate-skill-against-golden loop was proven live end-to-end 2026-05-29 (see [`../internal/PROGRESS.md`](../internal/PROGRESS.md)).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

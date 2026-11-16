@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-var codeFactsDomains = []string{"analysis", "cache", "catalog", "indexcontrol", "proof", "retrieval", "targets"}
+var codeFactsDomains = []string{"catalog", "indexcontrol", "retrieval"}
 
 func TestDomainPackagesAreTransportFreeAndIndependent(t *testing.T) {
 	module := readCodeFactsModule(t)
@@ -58,7 +58,7 @@ func TestDomainPackagesAreTransportFreeAndIndependent(t *testing.T) {
 }
 
 func TestZoneMapMatchesTopLevelPackageTree(t *testing.T) {
-	wantInternal := []string{"analysis", "cache", "catalog", "database", "facts", "fswatch", "httpc", "httpx", "indexcontrol", "logging", "module", "modules", "proof", "registration", "retrieval", "targets", "testutil"}
+	wantInternal := []string{"catalog", "database", "facts", "fswatch", "indexcontrol", "logging", "modules", "registration", "retrieval", "testutil"}
 	wantHandlers := []string{"facts", "health", "validation"}
 	assertDirectorySet(t, "..", wantInternal)
 	assertDirectorySet(t, filepath.Join("..", "..", "handlers"), wantHandlers)
@@ -76,10 +76,10 @@ func TestZoneMapMatchesTopLevelPackageTree(t *testing.T) {
 func TestSeamRegistryMatchesDomainContracts(t *testing.T) {
 	seams := readRelative(t, filepath.Join("..", "..", "..", "docs", "internal", "SEAMS.md"))
 	for _, seam := range []string{
-		"targets.FileSystem", "targets.Resolver", "catalog.Repository", "catalog.Clock",
-		"analysis.Analyzer", "analysis.ProjectionStore", "retrieval.Embedder",
+		"catalog.Repository", "catalog.Clock",
+		"retrieval.Embedder",
 		"retrieval.VectorStore", "retrieval.Reranker", "retrieval.Admission",
-		"proof.ContractSource", "indexcontrol.JobStore", "indexcontrol.ProcessRunner", "cache.Repository",
+		"indexcontrol.JobStore", "indexcontrol.ProcessRunner",
 		"logging.Logger",
 	} {
 		if !strings.Contains(seams, "`"+seam+"`") {

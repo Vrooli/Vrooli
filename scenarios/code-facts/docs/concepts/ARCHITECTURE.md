@@ -1,6 +1,5 @@
 # Architecture
 
-## Purpose Of This Document
 
 This document defines the durable Code Facts architecture. Code Facts is a source-fact broker and evidence synthesizer; language parser implementations belong to shared graph owners.
 
@@ -33,21 +32,18 @@ Out of bounds:
 
 ```mermaid
 flowchart TB
-    H[handlers] --> T[targets]
+    H[handlers] --> F[facts service]
     H --> R[retrieval]
     H --> IC[indexcontrol]
-    H --> P[proof]
-    C[composition root] --> T
+    C[composition root] --> F
     C --> CA[catalog]
-    C --> A[analysis]
     C --> R
     C --> IC
-    C --> P
     CA --> DB[(SQLite catalog and FTS)]
     R --> DB
     R --> VS[vector-store seam]
-    A --> GP[indexed graph projections]
-    P --> GP
+    F --> GP[graph providers]
+    F --> R
 ```
 
 Fact-family filtering is applied at the Code Facts service boundary. Provider-level extraction may still be full graph extraction until providers add selective extraction.
@@ -63,9 +59,9 @@ only the resulting proof statuses and evidence.
 
 | Area | Purpose | Expected Shape |
 |---|---|---|
-| Provider clients | Hide graph-provider transport behind fakes | API internal analyzer seams |
-| Target filesystem | Resolve paths and metadata deterministically | API internal target seams |
-| Cache store | Store graph/report entries, hash evidence, and diagnostics | API internal cache seams with SQLite production repository and in-memory tests |
+| Provider clients | Hide graph-provider transport behind a facts provider seam | `api/internal/facts` provider interfaces |
+| Target resolution | Resolve bounded targets and scenario roots | `api/internal/facts` target validation and discovery |
+| Report cache | Store derived graph/report results and diagnostics | `api/internal/facts` cache repository |
 | Rendering | Keep CLI output thin and proto-shaped for JSON | CLI domain renderers |
 
 ## Zone Map
@@ -75,20 +71,13 @@ only the resulting proof statuses and evidence.
 | `api/handlers/facts/` | Transport edge | generated proto, Connect, domain contracts, module/httpx substrate | architecture tests and endpoint coverage |
 | `api/handlers/health/` | Transport edge | health contract and substrate | architecture tests and endpoint coverage |
 | `api/handlers/validation/` | Shared validation provider | scenario-validation contract and validation policy | provider contract and endpoint coverage |
-| `api/internal/targets/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/catalog/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
-| `api/internal/analysis/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/retrieval/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
-| `api/internal/proof/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/indexcontrol/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
-| `api/internal/cache/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/facts/` | Evidence orchestration | analyzer providers, report cache, and typed Describe APIs | public Search delegates to the generation-fenced retrieval boundary |
 | `api/internal/fswatch/` | Filesystem observation substrate | standard library and native OS watcher APIs | bounded roots, debounce, and backstop tests |
 | `api/internal/database/` | Cross-cutting substrate | database drivers and standard library | package tests |
 | `api/internal/logging/` | Cross-cutting substrate | standard library only | compile-time interface use |
-| `api/internal/httpc/` | Cross-cutting substrate | `net/http` | package tests |
-| `api/internal/httpx/` | Cross-cutting substrate | `net/http` | package tests |
-| `api/internal/module/` | Transport substrate | Gorilla mux and endpoint descriptors | module tests |
 | `api/internal/modules/` | Composition registry | handler modules | registry tests |
 | `api/internal/registration/` | Search Hub integration adapter | HTTP, Connect, generated registry client | integration tests |
 | `api/internal/testutil/` | Test-only substrate | domain contracts and deterministic fakes | no-production-import gate |
@@ -98,10 +87,11 @@ only the resulting proof statuses and evidence.
 | `ui/src/api/` | UI transport edge | generated web clients | UI unit tests |
 | `ui/src/features/` | UI capability domains | UI types and shared components | UI unit and selector tests |
 
-`api/internal/facts/` retains analyzer-provider and Describe orchestration. It
-does not own a query corpus: Search fails closed unless composition injects the
-generation-fenced `ProductionIndex`. Storage, retrieval, proof, index-control,
-and cache policy live in their owning domains.
+`api/internal/facts/` owns analyzer-provider and Describe orchestration,
+including proto-adoption and endpoint-proof synthesis. It does not own a query
+corpus: Search fails closed unless composition injects the generation-fenced
+`ProductionIndex`. Catalog storage, retrieval, and index-control remain separate
+domains; report caching stays with facts orchestration.
 
 ## Boundary Maturity
 
@@ -115,10 +105,11 @@ and cache policy live in their owning domains.
 ## Extension Rules
 
 - Add new fact families as explicit enum/contract values.
-- Add new analyzer providers behind the analyzer seam.
+- Add new analyzer providers behind the facts provider seam.
 - Add new endpoint framework coverage through Code Facts adapters backed by
   generic graph facts.
-- Add new proof families in the proof domain, backed by generic facts.
+- Add new proof families in `facts`, backed by generic facts. Descriptor-image
+  contract indexing remains planned and is tracked by CF-P0-019.
 - Keep provider-specific language details out of shared Code Facts evidence unless normalized.
 - Keep opinion-bearing architecture policy out of Code Facts. The `file_domain`
   fact family is exposed here as a cache/query contract, but Architecture

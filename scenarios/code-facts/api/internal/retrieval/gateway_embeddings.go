@@ -2,7 +2,6 @@ package retrieval
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,11 +9,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/google/uuid"
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/discovery"
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
-	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
@@ -23,24 +21,26 @@ const (
 	codeFactsProvenance = "code-facts.repository-index:catalog-filtered-private-source-text-local-embedding"
 )
 
-type RouteClient interface {
-	ExecuteRoute(context.Context, *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error)
+type EmbeddingClient interface {
+	Embed(context.Context, *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error)
 }
 
 type RouteResolver func(context.Context) (string, error)
 
-// GatewayEmbedder uses the generic text-embedding route. It has no provider or
-// model selector; role policy and LOCAL_ONLY eligibility remain gateway-owned.
+// GatewayEmbedder uses the typed embedding contract. Role selection and
+// LOCAL_ONLY eligibility remain gateway-owned; the resolved policy model is
+// checked against the response before vectors are accepted.
 type GatewayEmbedder struct {
-	Client     RouteClient
-	ResolveURL RouteResolver
-	HTTPClient connect.HTTPClient
-	Dimensions int
-	TaskPrefix string
+	Client        EmbeddingClient
+	ResolveURL    RouteResolver
+	HTTPClient    connect.HTTPClient
+	Dimensions    int
+	ExpectedModel string
+	TaskPrefix    string
 }
 
-func NewGatewayEmbedder(dimensions int, taskPrefix string) *GatewayEmbedder {
-	return &GatewayEmbedder{Dimensions: dimensions, TaskPrefix: taskPrefix,
+func NewGatewayEmbedder(model string, dimensions int, taskPrefix string) *GatewayEmbedder {
+	return &GatewayEmbedder{ExpectedModel: model, Dimensions: dimensions, TaskPrefix: taskPrefix,
 		ResolveURL: func(ctx context.Context) (string, error) {
 			return discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
 		},
@@ -51,58 +51,59 @@ func (e *GatewayEmbedder) Embed(ctx context.Context, texts []string) ([][]float3
 	if e == nil || len(texts) == 0 {
 		return nil, errors.New("embedding requires a configured gateway and non-empty texts")
 	}
+	if strings.TrimSpace(e.ExpectedModel) == "" {
+		return nil, errors.New("embedding requires a model resolved from Code Facts policy")
+	}
 	client, err := e.client(ctx)
 	if err != nil {
 		return nil, err
 	}
-	result := make([][]float32, 0, len(texts))
-	for _, text := range texts {
+	inputs := make([]string, len(texts))
+	for index, text := range texts {
 		if strings.TrimSpace(text) == "" {
 			return nil, errors.New("embedding text is empty")
 		}
-		request := connect.NewRequest(&routingv1.ExecuteRouteRequest{
-			Request: &sharedv1.GatewayRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
-				Role: EmbeddingRole, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
-				PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
-				PrivacyProvenance: codeFactsProvenance, Operation: "repository_index", Scenario: "code-facts",
-				TimeoutMs: 45000, RequestId: uuid.NewString()},
-			InputText: e.TaskPrefix + text,
-		})
-		response, callErr := client.ExecuteRoute(ctx, request)
-		if callErr != nil {
-			return nil, fmt.Errorf("ai-gateway embedding route: %w", callErr)
+		inputs[index] = e.TaskPrefix + text
+	}
+	request := connect.NewRequest(&inferencev1.EmbedRequest{
+		Texts: inputs, Role: EmbeddingRole,
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: codeFactsProvenance,
+	})
+	response, callErr := client.Embed(ctx, request)
+	if callErr != nil {
+		return nil, fmt.Errorf("ai-gateway embedding request: %w", callErr)
+	}
+	if response == nil || response.Msg == nil {
+		return nil, errors.New("ai-gateway returned no embedding response")
+	}
+	msg := response.Msg
+	if gatewayErr := msg.GetError(); gatewayErr != nil {
+		return nil, fmt.Errorf("ai-gateway refused embedding request (code %s)", gatewayErr.GetCode().String())
+	}
+	if msg.GetModel() != e.ExpectedModel {
+		return nil, errors.New("ai-gateway embedding model differs from the resolved Code Facts policy")
+	}
+	if len(msg.GetVectors()) != len(inputs) {
+		return nil, fmt.Errorf("ai-gateway returned %d embedding vectors, expected %d", len(msg.GetVectors()), len(inputs))
+	}
+	result := make([][]float32, 0, len(inputs))
+	for _, item := range msg.GetVectors() {
+		values := item.GetValues()
+		if len(values) == 0 || len(values) != e.Dimensions || int(msg.GetDimension()) != e.Dimensions {
+			return nil, fmt.Errorf("ai-gateway embedding dimensions %d, expected %d", len(values), e.Dimensions)
 		}
-		if response == nil || response.Msg == nil {
-			return nil, errors.New("ai-gateway returned no embedding response")
-		}
-		msg := response.Msg
-		if !msg.GetValid() {
-			return nil, fmt.Errorf("ai-gateway refused local embedding: %s", strings.Join(msg.GetPolicyReasons(), "; "))
-		}
-		evidence := msg.GetEvidence()
-		if evidence == nil || evidence.GetSelectedLocality() != "local" {
-			locality := "unknown"
-			if evidence != nil {
-				locality = evidence.GetSelectedLocality()
-			}
-			return nil, fmt.Errorf("ai-gateway selected non-local embedding locality %q", locality)
-		}
-		var output struct {
-			Embedding []float32 `json:"embedding"`
-		}
-		if err := json.Unmarshal([]byte(msg.GetOutputText()), &output); err != nil {
-			return nil, fmt.Errorf("decode ai-gateway embedding: %w", err)
-		}
-		vector := output.Embedding
-		if len(vector) == 0 || (e.Dimensions > 0 && len(vector) != e.Dimensions) {
-			return nil, fmt.Errorf("ai-gateway embedding dimensions %d, expected %d", len(vector), e.Dimensions)
+		vector := make([]float32, len(values))
+		for i, value := range values {
+			vector[i] = float32(value)
 		}
 		result = append(result, vector)
 	}
 	return result, nil
 }
 
-func (e *GatewayEmbedder) client(ctx context.Context) (RouteClient, error) {
+func (e *GatewayEmbedder) client(ctx context.Context) (EmbeddingClient, error) {
 	if e.Client != nil {
 		return e.Client, nil
 	}
@@ -121,7 +122,7 @@ func (e *GatewayEmbedder) client(ctx context.Context) (RouteClient, error) {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return routingconnect.NewRoutingServiceClient(httpClient, baseURL), nil
+	return inferenceconnect.NewInferenceServiceClient(httpClient, baseURL), nil
 }
 
 type GatewaySemanticSearcher struct {
@@ -139,15 +140,18 @@ func (s GatewaySemanticSearcher) SearchSemantic(ctx context.Context, query Query
 			return aisearch.ResolveEmbeddingPolicy(ctx, EmbeddingRole)
 		}
 	}
-	model, dimensions := query.EmbeddingModel, query.EmbeddingDimensions
-	if model == "" {
-		policy, err := resolve(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("resolve local embedding role %q: %w", EmbeddingRole, err)
-		}
-		model, dimensions = policy.Model, policy.Dimensions
+	policy, err := resolve(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("resolve local embedding role %q: %w", EmbeddingRole, err)
 	}
-	embedder := NewGatewayEmbedder(dimensions, TaskPrefixForEmbeddingModel(model, true))
+	if query.EmbeddingModel != "" && query.EmbeddingModel != policy.Model {
+		return nil, fmt.Errorf("query embedding model %q differs from policy model", query.EmbeddingModel)
+	}
+	if query.EmbeddingDimensions > 0 && query.EmbeddingDimensions != policy.Dimensions {
+		return nil, fmt.Errorf("query embedding dimensions %d differ from policy dimensions", query.EmbeddingDimensions)
+	}
+	model, dimensions := policy.Model, policy.Dimensions
+	embedder := NewGatewayEmbedder(model, dimensions, TaskPrefixForEmbeddingModel(model, true))
 	vectors, err := embedder.Embed(ctx, []string{query.Text})
 	if err != nil {
 		return nil, err

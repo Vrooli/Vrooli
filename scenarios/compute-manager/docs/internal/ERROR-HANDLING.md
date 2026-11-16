@@ -71,7 +71,7 @@ the original idempotency key.
 |---|---|---|---|---|
 | `provider.ErrTimeout` | The call did not return in time | `deadline_exceeded` | **No, not blindly.** | The outcome is unknown, so the instance may exist. Never re-issue a create without the original idempotency key. Mark the intent for reconciliation and let the sweep resolve it. This is the most dangerous error in the file, because it looks transient and is not. |
 | `provider.ErrRateLimited` | The provider is throttling us | `resource_exhausted` | Yes, with backoff | Back off and retry. Carry the original idempotency key on a create. A sweep that trips this should slow down rather than drop the remaining pages, because a partial sweep reads as a clean one. |
-| `provider.ErrQuotaExceeded` | The provider's own account limit is reached | `resource_exhausted` | No | Retrying cannot help; the limit is on their side and needs an operator. Distinct from a rate limit despite sharing a code, because one clears on its own and the other does not. Release the reservation and mark the intent abandoned. |
+| `provider.ErrQuotaExceeded` | The provider's own account limit is reached | `resource_exhausted` | No | Retrying cannot help; the limit is on their side and needs an operator. Distinct from a rate limit despite sharing a code, because one clears on its own and the other does not. Release the reservation and mark the intent refused. |
 | `provider.ErrUnauthenticated` | The credential is missing, expired or revoked | `unauthenticated` | No | Fail fast and loudly. Never log the credential, the request, or a truncated form of either. A revoked token is the expected case, not an exotic one, because credentials resolve per call rather than at boot. |
 | `provider.ErrInvalidSpec` | The requested size or region does not exist at this provider | `invalid_argument` | No | Refuse before any provider call where the adapter's declared facts already make the answer knowable. A validation that only happens at the provider is a round trip spent to learn something we could have known. |
 | `provider.ErrNotFound` | The instance is absent at the provider | `not_found` | No | On `Destroy` this is success, not failure. See the destroy section below. On `Describe` it is a reconciliation finding. |
@@ -231,11 +231,10 @@ wrong in either direction is either an outage or an unmetered bill.
 
 ## Multipart REST Exceptions
 
-Opaque file bytes are not proto payloads, so the template keeps one
-documented exception: REST multipart for bytes, with proto-typed
-metadata in the response. Those endpoints use a stable error envelope
-through `internal/httpx.WriteError`, and the UI maps `ApiError.code`
-through the same `errorMessage(...)` utility as Connect errors.
+Opaque file bytes are not proto payloads, so a future upload would need a
+documented REST multipart exception with proto-typed metadata. Compute Manager
+currently has no multipart route; active endpoint errors use Connect-RPC and
+the UI maps `ApiError.code` through `errorMessage(...)`.
 
 **This scenario has no multipart endpoints and is not expected to grow
 one.** Everything it moves is structured and small: instance records,

@@ -62,7 +62,6 @@ func (p *CodeFactsSurfaceProvider) inspectUncached(ctx context.Context, scenario
 		Target: codeFactsTarget(scenarioDir),
 		Include: []factsv1.FactFamily{
 			factsv1.FactFamily_FACT_FAMILY_SURFACES,
-			factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS,
 		},
 		UseCache: true,
 	}))
@@ -118,8 +117,7 @@ func inventoryFromCodeFacts(report *factsv1.CodeFactsReport) SurfaceInventory {
 		return SurfaceInventory{}
 	}
 	out := SurfaceInventory{
-		Surfaces:   make([]Surface, 0, len(report.GetSurfaces())),
-		ParseUnits: make([]ParseUnit, 0, len(report.GetParseUnits())),
+		Surfaces: make([]Surface, 0, len(report.GetSurfaces())),
 	}
 	for _, surface := range report.GetSurfaces() {
 		out.Surfaces = append(out.Surfaces, Surface{
@@ -127,15 +125,6 @@ func inventoryFromCodeFacts(report *factsv1.CodeFactsReport) SurfaceInventory {
 			Kind:   surfaceKind(surface.GetKind()),
 			Path:   surface.GetPath(),
 			Status: surfaceStatusName(surface.GetStatus()),
-		})
-	}
-	for _, unit := range report.GetParseUnits() {
-		out.ParseUnits = append(out.ParseUnits, ParseUnit{
-			ID:         unit.GetId(),
-			Language:   unit.GetLanguage(),
-			RootPath:   unit.GetRootPath(),
-			ConfigPath: unit.GetConfigPath(),
-			Status:     evidenceStatusName(unit.GetStatus()),
 		})
 	}
 	return out
@@ -168,21 +157,6 @@ func surfaceStatusName(status factsv1.SurfaceStatus) string {
 		return "missing"
 	case factsv1.SurfaceStatus_SURFACE_STATUS_UNSUPPORTED:
 		return "unsupported"
-	default:
-		return ""
-	}
-}
-
-func evidenceStatusName(status factsv1.EvidenceStatus) string {
-	switch status {
-	case factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN:
-		return "proven"
-	case factsv1.EvidenceStatus_EVIDENCE_STATUS_MISSING:
-		return "missing"
-	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED:
-		return "unsupported"
-	case factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN:
-		return "unknown"
 	default:
 		return ""
 	}

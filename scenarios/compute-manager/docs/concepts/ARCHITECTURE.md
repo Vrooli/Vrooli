@@ -9,7 +9,6 @@ Keep this file high-signal. Do not turn it into a warehouse for every
 domain, endpoint, workflow, or decision. If a concern has a dedicated
 document below, update that document and link it here.
 
-## Purpose Of This Document
 
 This document owns:
 
@@ -137,7 +136,6 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 | `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
 | `api/internal/middleware/` | Request logging, recovery and correlation. | Cross-cutting HTTP concerns, not one domain's behaviour. | Server composition. |
 | `api/internal/httpc/` | Outbound HTTP client construction with bounded timeouts. | Every outbound seam needs the same budget discipline. | Provider, metering and bridge clients. |
-| `api/internal/httpx/` | Inbound request decoding and error rendering helpers. | Shared across handlers; carries no product vocabulary. | Handler packages. |
 | `api/internal/capabilities/` | Capability descriptor registry for the describe endpoint. | Platform-level introspection, not a product capability. | Capabilities handler. |
 | `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |

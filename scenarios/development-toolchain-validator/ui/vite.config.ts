@@ -1,6 +1,7 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -40,7 +41,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // ║  DO NOT change to '/' or remove this setting.                ║
     // ╚══════════════════════════════════════════════════════════════╝
     base: './',
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: {
       // @vrooli/api-base pins its own React, router, query, i18n, and Testing
       // Library packages. One instance of each must serve both this UI and

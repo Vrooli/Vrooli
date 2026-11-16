@@ -6,7 +6,6 @@ source code from target scenarios. Most security risk is around what
 the cartographer learns about that code and what it does with that
 knowledge, not network-attack surfaces.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

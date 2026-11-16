@@ -1,6 +1,5 @@
 # Flows — Compute Manager
 
-## Purpose Of This Document
 
 This document is the sequence contract: the order in which domains act, which
 step is allowed to fail, and what must already be durable before the next step
@@ -37,7 +36,7 @@ sequenceDiagram
     participant B as vrooli-bridge
 
     R->>CM: request capacity (size, region, lifetime)
-    CM->>CM: write intent + idempotency key, state=reserving (durable)
+    CM->>CM: write intent + idempotency key, state=open (durable)
     CM->>LPBS: reserve credit
     alt refused
         LPBS-->>CM: out of credit
@@ -45,7 +44,7 @@ sequenceDiagram
         CM-->>R: refuse, naming the ceiling
     else held
         LPBS-->>CM: reservation id
-        CM->>CM: record reservation id on the intent, state=reserved
+        CM->>CM: record reservation id on the open intent
         CM->>B: onboarding public key (cached)
         CM->>P: create(spec, first-boot config, tags)
         P-->>CM: provider instance id
@@ -65,18 +64,19 @@ credit hold with no local record of it anywhere. That is the same class of
 failure the intent-before-action rule exists to prevent, applied to money
 instead of machines, and money is the half nobody notices.
 
-So the intent is written in state `reserving` before the business suite is
-called, carries the reservation id once one is held, and moves to `refused` if
-credit is denied. A refusal therefore does leave a row. That row is cheap, it
-is prunable, and it is the price of never leaking a hold. A crash anywhere in
-this sequence leaves a `reserving` intent the reconciler can find and release.
+The current implementation writes an `open` intent before the business suite
+is called, records the reservation id while it remains open, and moves it to
+`refused` if credit is denied. A refusal therefore does leave a row. That row
+is cheap, it is prunable, and it is the price of never leaking a hold. Older
+`reserving` rows remain readable and included in recovery.
 
 **Enrollment is after running and is allowed to fail.** The instance is real,
 metered and expiring whether or not bridge is reachable. A queued enrollment is
 a flagged instance, not a rollback.
 
 **Nothing partially succeeds silently.** If the provider call fails, the intent
-is marked abandoned and the reservation is released rather than left to expire.
+is marked refused and the reservation is released rather than left to expire.
+Older `abandoned` records remain terminal.
 
 ### Retire
 
@@ -247,8 +247,10 @@ rather than mutated, so the history survives.
 stateDiagram-v2
     [*] --> open: written before any provider call
     open --> fulfilled: instance created and linked
-    open --> abandoned: provider refused, reservation released
+    open --> refused: provider or capacity refused, reservation released
     open --> fulfilled: reconciliation matched a lost response
+    reserving --> fulfilled: legacy intent recovered
+    reserving --> refused: legacy attempt failed
 ```
 
 ## Maturity Ladder

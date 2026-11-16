@@ -19,6 +19,7 @@ import {
 } from "../../lib/verdict";
 import { ROUTES } from "../../routes.generated";
 import { Button } from "../../shared/ui/primitives/Button";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
 import { Badge, type BadgeProps } from "../../shared/ui/primitives/Badge";
 import {
   Dialog,
@@ -272,18 +273,13 @@ export function GoldenDetail() {
         <DialogTitle>{t(strings.goldens.regenerate)}</DialogTitle>
         <DialogDescription>{t(strings.goldens.confirmRegenerate, { slug: golden.slug })}</DialogDescription>
         <DialogFooter>
-          <Button size="sm" variant="ghost" onClick={() => setConfirmRegenerate(false)}>
-            {t(strings.goldens.close)}
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => {
+          <OverlayActionBar actions={[
+            { id: "regenerate", label: t(strings.goldens.regenerate), onSelect: () => {
               setConfirmRegenerate(false);
               regenerateMutation.mutate(golden.slug);
-            }}
-          >
-            {t(strings.goldens.regenerate)}
-          </Button>
+            }, primary: true },
+            { id: "close", label: t(strings.goldens.close), onSelect: () => setConfirmRegenerate(false) },
+          ]} />
         </DialogFooter>
       </Dialog>
 
@@ -295,19 +291,13 @@ export function GoldenDetail() {
         <DialogTitle>{t(strings.goldens.delete)}</DialogTitle>
         <DialogDescription>{t(strings.goldens.confirmDelete, { slug: golden.slug })}</DialogDescription>
         <DialogFooter>
-          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
-            {t(strings.goldens.close)}
-          </Button>
-          <Button
-            size="sm"
-            variant="danger"
-            onClick={() => {
+          <OverlayActionBar actions={[
+            { id: "delete", label: t(strings.goldens.delete), onSelect: () => {
               setConfirmDelete(false);
               deleteMutation.mutate(golden.slug);
-            }}
-          >
-            {t(strings.goldens.delete)}
-          </Button>
+            }, primary: true, tone: "destructive" },
+            { id: "close", label: t(strings.goldens.close), onSelect: () => setConfirmDelete(false) },
+          ]} />
         </DialogFooter>
       </Dialog>
     </section>

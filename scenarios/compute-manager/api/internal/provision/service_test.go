@@ -25,8 +25,9 @@ func (d *ledgerDB) ExecContext(_ context.Context, query string, _ ...any) (sql.R
 func (*ledgerDB) QueryContext(context.Context, string, ...any) (*sql.Rows, error) { return nil, nil }
 
 type store struct {
-	records map[string]intent.Record
-	order   *[]string
+	records       map[string]intent.Record
+	order         *[]string
+	transitionErr error
 }
 
 func (s *store) Create(_ context.Context, r intent.Record) (intent.Record, error) {
@@ -44,7 +45,17 @@ func (s *store) GetByIDOrKey(_ context.Context, key string) (intent.Record, erro
 	}
 	return r, nil
 }
-func (s *store) Update(_ context.Context, r intent.Record) error {
+func (s *store) SaveOpen(_ context.Context, r intent.Record) error {
+	s.records[r.IdempotencyKey] = r
+	return nil
+}
+func (s *store) Transition(_ context.Context, from intent.State, r intent.Record) error {
+	if s.transitionErr != nil {
+		return s.transitionErr
+	}
+	if !intent.CanTransition(from, r.State) {
+		return intent.ErrInvalidTransition
+	}
 	s.records[r.IdempotencyKey] = r
 	return nil
 }
@@ -103,6 +114,19 @@ func TestCreateReleasesHoldWhenProviderFails(t *testing.T) {
 	_, _, err := svc.Create(context.Background(), intent.Request{IdempotencyKey: "two", RequestedBy: "owner", Spec: provider.Spec{Region: "r", Size: "s"}}, 60)
 	if err == nil || !cr.released {
 		t.Fatalf("err=%v released=%t", err, cr.released)
+	}
+}
+
+func TestCreateReportsFailureToPersistRefusedIntent(t *testing.T) {
+	order := []string{}
+	writeErr := errors.New("intent write unavailable")
+	st := &store{records: map[string]intent.Record{}, order: &order, transitionErr: writeErr}
+	cr := &credits{order: &order}
+	p := &orderedProvider{order: &order, fail: true}
+	svc := Service{Intents: intent.Service{Store: st, Provider: p}, Meter: meter.Service{Credits: cr}, Provider: p, Window: time.Hour}
+	_, _, err := svc.Create(context.Background(), intent.Request{IdempotencyKey: "write-fail", RequestedBy: "owner", Spec: provider.Spec{Region: "r", Size: "s"}}, 60)
+	if !errors.Is(err, writeErr) || !cr.released {
+		t.Fatalf("error = %v, write error present = %t, reservation released = %t", err, errors.Is(err, writeErr), cr.released)
 	}
 }
 

@@ -16,12 +16,28 @@ import (
 type State string
 
 const (
+	// StateReserving is retained for durable rows written by older releases.
 	StateReserving State = "reserving"
 	StateOpen      State = "open"
 	StateFulfilled State = "fulfilled"
 	StateRefused   State = "refused"
+	// StateAbandoned is a legacy terminal state; new failures use StateRefused.
 	StateAbandoned State = "abandoned"
 )
+
+var ErrInvalidTransition = errors.New("invalid intent state transition")
+
+func CanTransition(from, to State) bool {
+	if from == StateOpen {
+		return to == StateFulfilled || to == StateRefused
+	}
+	return from == StateReserving &&
+		(to == StateFulfilled || to == StateRefused || to == StateAbandoned)
+}
+
+func validState(state State) bool {
+	return state == StateReserving || state == StateOpen || state == StateFulfilled || state == StateRefused || state == StateAbandoned
+}
 
 type Record struct {
 	ID             string
@@ -39,7 +55,8 @@ type Record struct {
 type Store interface {
 	Create(context.Context, Record) (Record, error)
 	GetByIDOrKey(context.Context, string) (Record, error)
-	Update(context.Context, Record) error
+	SaveOpen(context.Context, Record) error
+	Transition(context.Context, State, Record) error
 }
 
 type OpenStore interface {
@@ -105,10 +122,9 @@ func (s Service) RecoverOpen(ctx context.Context) ([]Record, error) {
 		if !found {
 			continue
 		}
-		record.State = StateFulfilled
 		record.InstanceID = item.ID
 		record.ResolvedAt = now().UTC()
-		if err := s.Store.Update(ctx, record); err != nil {
+		if err := s.Transition(ctx, &record, StateFulfilled); err != nil {
 			return recovered, err
 		}
 		recovered = append(recovered, record)
@@ -153,17 +169,45 @@ func (s Service) Fulfill(ctx context.Context, record Record, spec provider.Spec)
 	if err != nil {
 		return record, provider.Instance{}, err
 	}
-	record.State = StateFulfilled
 	record.InstanceID = instance.ID
 	now := clock.System{}.Now
 	if s.Now != nil {
 		now = s.Now
 	}
 	record.ResolvedAt = now().UTC()
-	if err := s.Store.Update(ctx, record); err != nil {
+	if err := s.Transition(ctx, &record, StateFulfilled); err != nil {
 		return record, instance, err
 	}
 	return record, instance, nil
+}
+
+// Transition is the sole domain owner for persisted intent state changes.
+func (s Service) Transition(ctx context.Context, record *Record, to State) error {
+	if record == nil || !CanTransition(record.State, to) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidTransition, stateOf(record), to)
+	}
+	from := record.State
+	record.State = to
+	if err := s.Store.Transition(ctx, from, *record); err != nil {
+		record.State = from
+		return err
+	}
+	return nil
+}
+
+func stateOf(record *Record) State {
+	if record == nil {
+		return ""
+	}
+	return record.State
+}
+
+// SaveOpen persists reservation metadata without allowing an arbitrary state change.
+func (s Service) SaveOpen(ctx context.Context, record Record) error {
+	if record.State != StateOpen {
+		return fmt.Errorf("%w: open metadata save has state %q", ErrInvalidTransition, record.State)
+	}
+	return s.Store.SaveOpen(ctx, record)
 }
 
 type SQLStore struct {
@@ -176,7 +220,7 @@ type SQLStore struct {
 }
 
 func (s SQLStore) ListOpen(ctx context.Context) ([]Record, error) {
-	rows, err := s.DB.QueryContext(ctx, `SELECT id,idempotency_key,requested_by,provider,spec_json,reservation_id,state,instance_id,created_at,resolved_at FROM instance_intents WHERE state=? ORDER BY created_at`, StateOpen)
+	rows, err := s.DB.QueryContext(ctx, `SELECT id,idempotency_key,requested_by,provider,spec_json,reservation_id,state,instance_id,created_at,resolved_at FROM instance_intents WHERE state IN (?,?) ORDER BY created_at`, StateOpen, StateReserving)
 	if err != nil {
 		return nil, fmt.Errorf("list open intents: %w", err)
 	}
@@ -221,7 +265,10 @@ func (s SQLStore) Create(ctx context.Context, record Record) (Record, error) {
 		record.CreatedAt = now().UTC()
 	}
 	if record.State == "" {
-		record.State = StateReserving
+		record.State = StateOpen
+	}
+	if record.State != StateOpen {
+		return Record{}, fmt.Errorf("%w: create state %q", ErrInvalidTransition, record.State)
 	}
 	spec, err := json.Marshal(record.Spec)
 	if err != nil {
@@ -244,6 +291,9 @@ func (s SQLStore) GetByIDOrKey(ctx context.Context, value string) (Record, error
 	if err != nil {
 		return Record{}, fmt.Errorf("get intent: %w", err)
 	}
+	if !validState(r.State) {
+		return Record{}, fmt.Errorf("invalid persisted intent state %q", r.State)
+	}
 	if r.Spec = map[string]any{}; spec != "" {
 		if err := json.Unmarshal([]byte(spec), &r.Spec); err != nil {
 			return Record{}, fmt.Errorf("decode intent spec: %w", err)
@@ -261,17 +311,38 @@ func (s SQLStore) GetByIDOrKey(ctx context.Context, value string) (Record, error
 	return r, nil
 }
 
-func (s SQLStore) Update(ctx context.Context, r Record) error {
+func (s SQLStore) SaveOpen(ctx context.Context, r Record) error {
+	if r.State != StateOpen {
+		return fmt.Errorf("%w: save-open state %q", ErrInvalidTransition, r.State)
+	}
 	spec, err := json.Marshal(r.Spec)
 	if err != nil {
 		return err
 	}
-	result, err := s.DB.ExecContext(ctx, `UPDATE instance_intents SET reservation_id=?,state=?,instance_id=?,resolved_at=?,spec_json=? WHERE id=?`, r.ReservationID, r.State, r.InstanceID, formatTime(r.ResolvedAt), string(spec), r.ID)
+	result, err := s.DB.ExecContext(ctx, `UPDATE instance_intents SET reservation_id=?,spec_json=? WHERE id=? AND state=?`, r.ReservationID, string(spec), r.ID, StateOpen)
 	if err != nil {
-		return fmt.Errorf("update intent: %w", err)
+		return fmt.Errorf("save open intent: %w", err)
 	}
 	if n, err := result.RowsAffected(); err == nil && n == 0 {
-		return ErrNotFound
+		return fmt.Errorf("save open intent: %w", ErrNotFound)
+	}
+	return nil
+}
+
+func (s SQLStore) Transition(ctx context.Context, from State, r Record) error {
+	if !CanTransition(from, r.State) {
+		return fmt.Errorf("%w: %q -> %q", ErrInvalidTransition, from, r.State)
+	}
+	spec, err := json.Marshal(r.Spec)
+	if err != nil {
+		return err
+	}
+	result, err := s.DB.ExecContext(ctx, `UPDATE instance_intents SET reservation_id=?,state=?,instance_id=?,resolved_at=?,spec_json=? WHERE id=? AND state=?`, r.ReservationID, r.State, r.InstanceID, formatTime(r.ResolvedAt), string(spec), r.ID, from)
+	if err != nil {
+		return fmt.Errorf("transition intent: %w", err)
+	}
+	if n, err := result.RowsAffected(); err == nil && n == 0 {
+		return fmt.Errorf("transition intent: %w", ErrNotFound)
 	}
 	return nil
 }

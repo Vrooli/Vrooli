@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/cliutil"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
@@ -101,7 +102,7 @@ func (h *handlers) surfacesReport(_ cliapp.OperationContext, msg *factsv1.ListSu
 }
 
 func (h *handlers) protoAdoptionCall(ctx cliapp.OperationContext) (*factsv1.ProofReport, error) {
-	resp, err := h.client.CheckProtoAdoption(context.Background(), connect.NewRequest(&factsv1.CheckProtoAdoptionRequest{Target: parseTarget(ctx.Positional("target")), Surfaces: splitCSVValues(ctx.FlagValues("surface")), UseCache: !ctx.BoolFlag("no-cache")}))
+	resp, err := h.client.CheckProtoAdoption(context.Background(), connect.NewRequest(&factsv1.CheckProtoAdoptionRequest{Target: parseTarget(ctx.Positional("target")), Surfaces: cliutil.ParseUniqueCSVValues(ctx.FlagValues("surface")), UseCache: !ctx.BoolFlag("no-cache")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("check proto adoption", err, nil)
 	}
@@ -112,7 +113,7 @@ func (h *handlers) protoAdoptionCall(ctx cliapp.OperationContext) (*factsv1.Proo
 }
 
 func (h *handlers) endpointProofCall(ctx cliapp.OperationContext) (*factsv1.ProofReport, error) {
-	resp, err := h.client.CheckEndpointProof(context.Background(), connect.NewRequest(&factsv1.CheckEndpointProofRequest{Target: parseTarget(ctx.Positional("target")), EndpointIds: splitCSVValues(ctx.FlagValues("endpoint")), UseCache: !ctx.BoolFlag("no-cache")}))
+	resp, err := h.client.CheckEndpointProof(context.Background(), connect.NewRequest(&factsv1.CheckEndpointProofRequest{Target: parseTarget(ctx.Positional("target")), EndpointIds: cliutil.ParseUniqueCSVValues(ctx.FlagValues("endpoint")), UseCache: !ctx.BoolFlag("no-cache")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("check endpoint proof", err, nil)
 	}
@@ -145,7 +146,7 @@ func parseTarget(raw string) *factsv1.CodeTarget {
 }
 
 func parseFamilies(raw string) ([]factsv1.FactFamily, error) {
-	parts := splitCSV(raw)
+	parts := cliutil.ParseUniqueCSVValues([]string{raw})
 	if len(parts) == 0 {
 		return nil, nil
 	}
@@ -160,29 +161,6 @@ func parseFamilies(raw string) ([]factsv1.FactFamily, error) {
 		out = append(out, factsv1.FactFamily(value))
 	}
 	return out, nil
-}
-
-func splitCSV(raw string) []string {
-	return splitCSVValues([]string{raw})
-}
-
-func splitCSVValues(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	seen := map[string]bool{}
-	var out []string
-	for _, raw := range values {
-		for _, part := range strings.Split(raw, ",") {
-			part = strings.TrimSpace(part)
-			if part == "" || seen[part] {
-				continue
-			}
-			seen[part] = true
-			out = append(out, part)
-		}
-	}
-	return out
 }
 
 func evidenceLines(evidence []*factsv1.Evidence) []string {

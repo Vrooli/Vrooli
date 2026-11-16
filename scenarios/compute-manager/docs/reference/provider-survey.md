@@ -12,7 +12,6 @@ before money moves. Every operative claim below carries the document, its own
 version or effective date, the section number, the retrieval date, and enough
 verbatim text to be falsified by reading the source.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

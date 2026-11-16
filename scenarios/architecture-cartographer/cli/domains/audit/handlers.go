@@ -15,6 +15,7 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/shared"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	maturityreport "github.com/vrooli/maturity-go/report"
 
 	"architecture-cartographer/cli/internal/protolabel"
@@ -59,8 +60,8 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		fmt.Fprintf(os.Stderr, "audit run: invalid --fail-on=%q (want info|warn|error|blocker)\n", failOnStr)
 		os.Exit(ExitUsageError)
 	}
-	includeTypes := splitCSV(ctx.Flag("include-types"))
-	excludeTypes := splitCSV(ctx.Flag("exclude-types"))
+	includeTypes := cliutil.ParseCSV(ctx.Flag("include-types"))
+	excludeTypes := cliutil.ParseCSV(ctx.Flag("exclude-types"))
 	asJSON := ctx.JSON()
 	allowLow := ctx.BoolFlag("allow-low-authority")
 
@@ -117,12 +118,12 @@ func (h *handlers) runAll(ctx cliapp.RunContext) error {
 
 	resp, err := h.client.RunAll(context.Background(), connect.NewRequest(&auditv1.AuditRunAllRequest{
 		FailOn:                     failOn,
-		IncludeTypes:               splitCSV(ctx.Flag("include-types")),
-		ExcludeTypes:               splitCSV(ctx.Flag("exclude-types")),
-		IncludeScenarios:           splitCSV(ctx.Flag("include-scenarios")),
-		ExcludeScenarios:           splitCSV(ctx.Flag("exclude-scenarios")),
+		IncludeTypes:               cliutil.ParseCSV(ctx.Flag("include-types")),
+		ExcludeTypes:               cliutil.ParseCSV(ctx.Flag("exclude-types")),
+		IncludeScenarios:           cliutil.ParseCSV(ctx.Flag("include-scenarios")),
+		ExcludeScenarios:           cliutil.ParseCSV(ctx.Flag("exclude-scenarios")),
 		AllowLowAuthority:          allowLow,
-		AllowLowAuthorityScenarios: splitCSV(ctx.Flag("allow-low-authority-scenarios")),
+		AllowLowAuthorityScenarios: cliutil.ParseCSV(ctx.Flag("allow-low-authority-scenarios")),
 		Concurrency:                int32(concurrency),
 	}))
 	if err != nil {
@@ -260,21 +261,6 @@ func parseFailOn(in string) (sharedv1.Severity, bool) {
 	default:
 		return sharedv1.Severity_SEVERITY_UNSPECIFIED, false
 	}
-}
-
-func splitCSV(in string) []string {
-	in = strings.TrimSpace(in)
-	if in == "" {
-		return nil
-	}
-	parts := strings.Split(in, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 func renderHuman(msg *auditv1.AuditRunResponse) {

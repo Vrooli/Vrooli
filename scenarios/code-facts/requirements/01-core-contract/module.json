@@ -24,7 +24,7 @@
         {
           "type": "test",
           "status": "planned",
-          "notes": "Target resolver tests cover scenario:\u003cname\u003e, path-inside-scenario, generic Go module, generic TS project, explicit tsconfig, and unsupported path."
+          "notes": "Target resolver tests cover scenario:<name>, path-inside-scenario, generic Go module, generic TS project, explicit tsconfig, and unsupported path."
         },
         {
           "type": "test",
@@ -392,10 +392,8 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/analysis/sqlite_test.go::TestSQLiteProjectionStoreReturnsOnlyCurrentAnalyzerEvidence",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Indexed relationship expansion returns analyzer name/version and proof status only when generation and source hash remain current; retrieval relevance never manufactures graph proof."
+          "status": "planned",
+          "notes": "Production indexed relationship expansion is not composed. The isolated SQLite projection prototype had no production importer and was retired; preserve the existing graph-facts table and data until an owning production path is implemented."
         }
       ]
     },
@@ -471,7 +469,7 @@
     {
       "id": "CF-P0-019",
       "title": "When protobuf contracts are indexed, the service shall use the descriptor image for structure and `.proto` files for provenance.",
-      "status": "complete",
+      "status": "in_progress",
       "prd_ref": "OT-P0-019",
       "category": "contract-index",
       "criticality": "P0",
@@ -484,10 +482,8 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/proof/descriptor_test.go::TestCommittedDescriptorImageResolvesCodeFactsSearchToAuthoritativeProto",
-          "phase": "integration",
-          "status": "implemented",
-          "notes": "Descriptor fixture and committed-image tests cover resolved services, RPCs, messages, fields, enums, imports, generated aliases, digest/source joins, missing ranges, invalid reloads, and last-known-good retention. Endpoint option projection remains planned."
+          "status": "planned",
+          "notes": "Production contract indexing is not composed. The isolated descriptor adapter had no production importer and was retired; authoritative descriptor-image structure, proto-source provenance, and last-known-good behavior remain unimplemented."
         }
       ]
     },

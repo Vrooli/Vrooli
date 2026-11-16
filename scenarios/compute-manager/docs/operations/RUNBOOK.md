@@ -8,7 +8,6 @@ recovering, and maintaining the scenario.
 > boundary coverage. Provider-live procedures remain pending because the
 > optional Hetzner credential and a target environment are not available.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

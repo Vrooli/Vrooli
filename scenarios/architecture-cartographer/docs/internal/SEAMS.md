@@ -311,16 +311,6 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/analytics/mocks::FakeRecorder` (in-memory event log, query helpers, atomic call counter). Used by every domain's tests to assert event emission without standing up SQLite. |
 | **Why it exists** | Analytics is P0 (OT-P0-009) precisely because override tracking is the highest-value calibration signal. Centralizing capture through a recorder seam ensures the schema stays consistent and the minimum-N threshold for surfaced metrics is enforced in one place. |
 
-### Doer (outbound HTTP)
-
-| | |
-|---|---|
-| **Seam** | Outbound HTTP request boundary |
-| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to the scenario composition root and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `packages/api-core/apihttptest::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
-| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
-
 ### DomainSourceExtractor (domain-derivation ladder rung)
 
 | | |

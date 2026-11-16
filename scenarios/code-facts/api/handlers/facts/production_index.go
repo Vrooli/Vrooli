@@ -62,6 +62,7 @@ func (index *ProductionIndex) DescribeFileMetrics(ctx context.Context, target *f
 	}
 	facts := make([]*factsv1.GenericFact, 0)
 	warnings := make([]*factsv1.Warning, 0)
+	allSourcePaths := make([]string, 0)
 	for token := ""; ; {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, nil, err
@@ -90,6 +91,7 @@ func (index *ProductionIndex) DescribeFileMetrics(ctx context.Context, target *f
 			if rootRel != "" {
 				relPath = strings.TrimPrefix(strings.TrimPrefix(file.Path, rootRel), "/")
 			}
+			allSourcePaths = append(allSourcePaths, relPath)
 			attributes := metrics.attributes()
 			attributes["file_path"] = relPath
 			attributes["file_extension"] = filepath.Ext(file.Path)
@@ -109,6 +111,17 @@ func (index *ProductionIndex) DescribeFileMetrics(ctx context.Context, target *f
 			break
 		}
 		token = page.NextToken
+	}
+	// Test-file classification and companion matching are source facts shared
+	// by all FILE_METRICS consumers. Compute them from the same catalog snapshot
+	// instead of making each consumer maintain its own filename policy.
+	testFiles, sourceFiles := splitTestSourcePaths(allSourcePaths)
+	for _, fact := range facts {
+		path := fact.GetAttributes()["file_path"]
+		isTest := isTestSourcePath(path)
+		fact.Attributes["test_classification_version"] = "1"
+		fact.Attributes["is_test_file"] = strconv.FormatBool(isTest)
+		fact.Attributes["has_test_file"] = strconv.FormatBool(isTest || hasTestCompanion(path, testFiles, sourceFiles))
 	}
 	evidence := []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 1, Analyzer: "code-facts.catalog", Message: fmt.Sprintf("Returned current non-empty line counts for %d catalog source files in generation %s.", len(facts), generation.ID)}}
 	return facts, evidence, warnings, nil
@@ -987,7 +1000,7 @@ func (index *ProductionIndex) buildGeneration(ctx context.Context, job *indexcon
 		return fmt.Errorf("record Code Facts embedding generation policy: %w", err)
 	}
 	cardIndexer := retrieval.CardIndexer{
-		Embedder: retrieval.NewGatewayEmbedder(embeddingPolicy.Dimensions, retrieval.TaskPrefixForEmbeddingModel(embeddingPolicy.Model, false)),
+		Embedder: retrieval.NewGatewayEmbedder(embeddingPolicy.Model, embeddingPolicy.Dimensions, retrieval.TaskPrefixForEmbeddingModel(embeddingPolicy.Model, false)),
 		Store:    index.vectors, Admission: index.admission, BatchSize: 32,
 	}
 	buildRevision, err := index.gitRevision(ctx)

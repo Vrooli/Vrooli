@@ -70,9 +70,8 @@ func inspectSurfaceProvider(ctx context.Context, provider SurfaceProvider, scena
 // SurfaceInventory is the narrow code-facts shape cartographer needs for
 // domain derivation.
 type SurfaceInventory struct {
-	Surfaces   []Surface
-	ParseUnits []ParseUnit
-	Warnings   []ExtractionWarning
+	Surfaces []Surface
+	Warnings []ExtractionWarning
 }
 
 // Surface is one execution surface reported by code-facts.
@@ -83,18 +82,9 @@ type Surface struct {
 	Status string
 }
 
-// ParseUnit is one analyzer unit reported by code-facts.
-type ParseUnit struct {
-	ID         string
-	Language   string
-	RootPath   string
-	ConfigPath string
-	Status     string
-}
-
 // LocalSurfaceProvider is the explicit degraded path used when code-facts is
-// unavailable. It mirrors code-facts' filesystem discovery narrowly enough for
-// domain extraction tests and offline operation.
+// unavailable. It discovers execution surfaces while keeping offline domain
+// extraction available; parse units remain owned by Code Facts.
 type LocalSurfaceProvider struct{}
 
 func NewLocalSurfaceProvider() *LocalSurfaceProvider { return &LocalSurfaceProvider{} }
@@ -138,9 +128,7 @@ func (*LocalSurfaceProvider) Inspect(_ context.Context, scenarioDir string) (Sur
 			})
 		}
 	}
-	inv.ParseUnits = localParseUnits(scenarioDir)
 	sort.Slice(inv.Surfaces, func(i, j int) bool { return inv.Surfaces[i].ID < inv.Surfaces[j].ID })
-	sort.Slice(inv.ParseUnits, func(i, j int) bool { return inv.ParseUnits[i].ID < inv.ParseUnits[j].ID })
 	return inv, nil
 }
 
@@ -149,60 +137,6 @@ func surfaceStatus(path string) string {
 		return "known"
 	}
 	return "missing"
-}
-
-func localParseUnits(root string) []ParseUnit {
-	var out []ParseUnit
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if path != root && shouldSkipSurfaceWalkDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		switch d.Name() {
-		case "go.mod":
-			dir := filepath.Dir(path)
-			out = append(out, ParseUnit{
-				ID:         relSlash(root, dir),
-				Language:   "go",
-				RootPath:   dir,
-				ConfigPath: path,
-				Status:     "proven",
-			})
-		case "tsconfig.json":
-			dir := filepath.Dir(path)
-			out = append(out, ParseUnit{
-				ID:         relSlash(root, dir),
-				Language:   "typescript",
-				RootPath:   dir,
-				ConfigPath: path,
-				Status:     "proven",
-			})
-		}
-		return nil
-	})
-	return out
-}
-
-func shouldSkipSurfaceWalkDir(name string) bool {
-	switch name {
-	case ".git", "node_modules", "dist", "build", "coverage", ".turbo", ".vite":
-		return true
-	default:
-		return false
-	}
-}
-
-func relSlash(root, path string) string {
-	rel, err := filepath.Rel(root, path)
-	if err != nil || rel == "." {
-		return "."
-	}
-	return filepath.ToSlash(rel)
 }
 
 func surfaceByID(inv SurfaceInventory, id string) (Surface, bool) {

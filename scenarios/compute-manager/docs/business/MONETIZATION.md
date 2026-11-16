@@ -17,7 +17,6 @@ evidence behind it; it does not set strategy. Read, do not write:
 `path:../../docs/monetization/strategy/STRATEGY.md`, and the catalog. Wiring a
 paid feature follows `path:../../docs/concepts/PAID_FEATURES.md`.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

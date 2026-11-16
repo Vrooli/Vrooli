@@ -1,6 +1,5 @@
 # Decisions — Compute Manager
 
-## Purpose Of This Document
 
 The durable record of choices that were genuinely contested, why they went the
 way they did, and what would make them worth revisiting. A decision belongs here
