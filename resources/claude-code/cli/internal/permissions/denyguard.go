@@ -97,6 +97,9 @@ type HookEvent struct {
 	Command          string
 	WorkingDirectory string
 	PermissionMode   string
+	// SessionID and TranscriptPath let the delete guard find what the session
+	// created, so it may remove its own files.
+	SessionID, TranscriptPath string
 }
 
 // ExtractHookEvent reads a PreToolUse Bash event. The payload is treated
@@ -106,6 +109,8 @@ func ExtractHookEvent(data []byte) (HookEvent, error) {
 	var payload struct {
 		Cwd            string `json:"cwd"`
 		PermissionMode string `json:"permission_mode"`
+		SessionID      string `json:"session_id"`
+		TranscriptPath string `json:"transcript_path"`
 		ToolInput      struct {
 			Command *string `json:"command"`
 		} `json:"tool_input"`
@@ -116,7 +121,7 @@ func ExtractHookEvent(data []byte) (HookEvent, error) {
 	if payload.ToolInput.Command == nil || *payload.ToolInput.Command == "" {
 		return HookEvent{}, malformed
 	}
-	return HookEvent{Command: *payload.ToolInput.Command, WorkingDirectory: payload.Cwd, PermissionMode: payload.PermissionMode}, nil
+	return HookEvent{Command: *payload.ToolInput.Command, WorkingDirectory: payload.Cwd, PermissionMode: payload.PermissionMode, SessionID: payload.SessionID, TranscriptPath: payload.TranscriptPath}, nil
 }
 
 // GuardDecision is the outcome of one PreToolUse evaluation. Ask continues
@@ -141,8 +146,13 @@ func EvaluateGuard(event HookEvent, patterns []string, env GuardEnv) GuardDecisi
 		return decision
 	}
 	toolEvent := agentharness.ToolEvent{Runner: "claude-code", Tool: "Bash", Shell: event.Command, WorkingDirectory: event.WorkingDirectory}
-	if event.PermissionMode != "" {
-		toolEvent.Context = map[string]string{"permission_mode": event.PermissionMode}
+	for key, value := range map[string]string{"permission_mode": event.PermissionMode, agentharness.ContextSessionID: event.SessionID, agentharness.ContextTranscriptPath: event.TranscriptPath} {
+		if value != "" {
+			if toolEvent.Context == nil {
+				toolEvent.Context = map[string]string{}
+			}
+			toolEvent.Context[key] = value
+		}
 	}
 	decision, err := env.Runtime.Evaluate(toolEvent)
 	if err != nil {

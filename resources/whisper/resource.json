@@ -21,6 +21,10 @@
         "budget": {
           "max_age": "30d",
           "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+        },
+        "reacquisition": {
+          "command": "vrooli resource install whisper",
+          "evidence": "resource.json#/managed_service/data_artifacts[medium-model].acquisition.targets[*].sha256 (checksum-pinned ggml-medium.bin; verified before publication)"
         }
       },
       "uploads": {
@@ -299,7 +303,9 @@
       "cpu"
     ],
     "require": "preferred",
-    "cpu": {},
+    "cpu": {
+      "arguments": ["--no-gpu"]
+    },
     "vulkan": {},
     "claim": {
       "resource_kind": "vram",
@@ -309,7 +315,12 @@
       "confidence": "estimated",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
+      "idle_unload_ttl_seconds": 900,
       "profile": {
+        "model": {
+          "name": "ggml-medium.bin",
+          "digest": "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208"
+        },
         "steps": [
           {
             "label": "vulkan",
@@ -317,6 +328,10 @@
           },
           {
             "label": "cpu",
+            "default_amount_bytes": 0
+          },
+          {
+            "label": "unloaded",
             "default_amount_bytes": 0
           }
         ],
@@ -337,6 +352,14 @@
         "--native"
       ],
       "port": 8090,
+      "required": true
+    },
+    {
+      "name": "upstream-bridge",
+      "command": "resource-whisper",
+      "args": [
+        "upstream-bridge"
+      ],
       "required": true
     }
   ],
@@ -387,15 +410,19 @@
   "ports": [
     {
       "name": "http",
-      "container": 9000,
+      "container": 0,
       "host": 8090
     },
     {
       "name": "upstream",
-      "container": 9000,
-      "host": 18090
+      "container": 18090,
+      "host": 0
     }
   ],
+  "activity_network": {
+    "edge_port": "http",
+    "upstream_port": "upstream"
+  },
   "orchestration": {
     "startup_order": 550,
     "startup_timeout_seconds": 45,
@@ -410,8 +437,7 @@
       "AUDIO_WHISPER_MODEL": "medium"
     },
     "from_ports": {
-      "WHISPER_PORT": "http",
-      "WHISPER_UPSTREAM_PORT": "upstream"
+      "WHISPER_PORT": "http"
     },
     "derived": {
       "WHISPER_URL": {

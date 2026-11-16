@@ -41,6 +41,7 @@ Current internal package boundaries:
 - `cli/internal/status`: richer Qdrant status interpretation
 - `cli/internal/health`: Qdrant-specific probe helpers
 - `cli/internal/env`: environment export and derived-config helpers
+- `cli/internal/collections`: read-only collection, alias, vector-dimension, and count inventory
 
 ## Usage
 
@@ -50,6 +51,9 @@ vrooli resource install qdrant
 
 # Check status through the shared control plane
 resource-qdrant status
+
+# Inspect collection names, aliases, vector dimensions, and counts
+resource-qdrant collections list --json
 ```
 
 Connection defaults:
@@ -58,6 +62,10 @@ Connection defaults:
 - gRPC: `grpc://localhost:6334`
 
 Readiness: `http://localhost:6333/readyz`.
+
+The collection inventory uses only Qdrant GET endpoints. Collection owner and
+generation are not established by this inventory and remain unknown unless a
+higher-level owner supplies that metadata.
 
 ## Notes
 

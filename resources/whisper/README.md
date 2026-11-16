@@ -55,9 +55,12 @@ curl http://localhost:8090/
 
 ## Activity Edge
 
-Whisper clients must use `127.0.0.1:8090`. That port is owned by the host-side
-`activity-edge` companion, which forwards to the supervised native
-`whisper-server` on `127.0.0.1:18090`.
+Whisper clients must use `127.0.0.1:8090`. On Linux, the resource owner uses a
+RootlessKit network namespace for `whisper-server`; it publishes no TCP port.
+The stable host-side `activity-edge` forwards over a protected Unix socket to a
+namespace-side bridge, which accepts only that edge process's PID and owner UID
+before connecting to private port `18090`. No host TCP listener exists for the
+upstream port. Other platforms retain their existing managed-service launch.
 
 The edge is intentionally part of the serving path: it is the only component that
 can see every `POST /asr` request from host dictation and browser clients, so it

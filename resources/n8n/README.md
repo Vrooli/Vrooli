@@ -3,9 +3,14 @@
 This is a task-scoped n8n resource for F7 client workflow rehearsal. It does not
 run as one shared n8n service. `vrooli resource n8n runtime start` creates one
 container for a Workspace Sandbox UUID, with an owner-generated runtime ID, a
-private Docker `internal` network, loopback-only editor/API access, and bounded
-ephemeral `tmpfs` storage. Workflow files, credentials and execution history
-disappear when that task container stops.
+private Docker `internal` network, and bounded ephemeral `tmpfs` storage. When
+Docker reports an active loopback-only port mapping, the runtime exposes that
+loopback editor/API endpoint. On daemons that retain the requested port only in
+`HostConfig` but omit the active mapping from `NetworkSettings.Ports`, the owner
+uses `accessMode: owner-cli`: the runtime has no host endpoint, and health,
+import and execution stay inside the owner CLI. The owner does not widen the
+container network to obtain an editor port. Workflow files, credentials and
+execution history disappear when that task container stops.
 
 Workspace Sandbox calls the existing control-plane command tree:
 
@@ -18,6 +23,7 @@ vrooli resource n8n runtime companion-start --sandbox-id <sandbox-uuid> --compan
 vrooli resource n8n runtime companion-stop --sandbox-id <sandbox-uuid> --companion-runtime-id <owner-issued-id> --json
 cat http-mock-fixtures.json | vrooli resource n8n runtime companion-start-http-mock --sandbox-id <sandbox-uuid> --config-stdin --json
 vrooli resource n8n runtime companion-stop-http-mock --sandbox-id <sandbox-uuid> --companion-runtime-id <owner-issued-http-mock-id> --json
+vrooli resource n8n runtime companion-route-hits --sandbox-id <sandbox-uuid> --companion-runtime-id <owner-issued-http-mock-id> --json
 cat sanitized-workflow.json | vrooli resource n8n runtime import-workflow --sandbox-id <sandbox-uuid> --runtime-id <runtime-id> --operation-id <uuid> [--postgres-companion-runtime-id <sandbox-runtime-id>] --json
 vrooli resource n8n runtime execute-workflow --sandbox-id <sandbox-uuid> --runtime-id <runtime-id> --operation-id <uuid> --json
 vrooli resource n8n runtime execute-manual-workflow --sandbox-id <sandbox-uuid> --runtime-id <runtime-id> --operation-id <uuid> --json
@@ -33,7 +39,8 @@ ID, and applies a fixed five-minute execution deadline. Both commands return
 bounded owner receipts, never raw execution output or synthetic credential
 values. Execution evidence contains only the output SHA-256, byte count, and
 aggregate node, execution, and item counts; node names and output values stay
-inside the resource boundary. Unsupported result shapes fail closed.
+inside the resource boundary. A sorted per-node item-count profile is also
+returned without node identifiers. Unsupported result shapes fail closed.
 
 `execute-manual-workflow` provides an explicit fixed Manual Trigger path. Before
 execution, the owner exports and validates the owner-derived workflow: exactly
@@ -72,12 +79,19 @@ known built-in action node types; arbitrary/custom node types and other trigger
 types fail closed.
 
 The accepted aggregate shape follows the pinned 2.48.0 CLI and workflow types:
-successful `execute --rawOutput` writes `JSON.stringify(data, null, 2)`, with
-`data.resultData.runData` keyed by node name. Each node maps to task records whose
-optional `error`/`executionStatus` and `data` output ports are summarized
-without returning node names or values. Workflow-level `resultData.error` is
-not accepted as success. This is source-derived compatibility, not a live
-container proof.
+`execute --rawOutput` writes `JSON.stringify(data, null, 2)`, with
+`data.resultData.runData` keyed by node name. The CLI may prefix a complete JSON
+envelope with logging text; the owner accepts only a parseable complete object
+at the end of stdout and rejects trailing bytes. Each node maps to task records
+whose optional `error`/`executionStatus` and `data` output ports are summarized
+without returning node names or values. A workflow-level `resultData.error` or
+nonzero CLI exit with a valid run envelope records aggregate node failures as
+`completed-with-node-errors`; an unsupported shape returns only a bounded
+`failureClass`, shape category, diagnostic byte count, and SHA-256. Engine
+stderr and workflow output remain inside the owner boundary. The server and
+`execute` subprocess each start an internal task broker; setting the broker port
+to `0` lets each bind an ephemeral port so their brokers do not contend for the
+same fixed listener. Both behaviors were exercised on the pinned container.
 Source references: [`execute.ts`](https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/cli/src/commands/execute.ts), [`interfaces.ts` (`IRunData`, `ITaskData`)](https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/workflow/src/interfaces.ts), and [`run-execution-data.v1.ts`](https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/workflow/src/run-execution-data/run-execution-data.v1.ts).
 
 `acquire` is the only image-pull path. It uses the shared capacity disk owner on
@@ -124,8 +138,17 @@ egress-denied internal network; no host port is published. It matches exact
 routes, returns fixed bodies, bounds request bodies to 64 KiB, and responds
 404 for unmatched requests without upstream forwarding. The owner returns
 only aliases, runtime identity and a config hash, never fixture response
-bodies. Stop validates owner labels and network membership, then removes only
+bodies. `Owner.ReadHTTPMockRouteHits` reads a bounded owner receipt while the
+mock is running. It reports the static method, host, exact path and normalized
+query for every configured route, plus the aggregate number of exact matches.
+Counts are atomically persisted as a bounded JSON file in the companion's
+private tmpfs; request bodies, headers and payload values are never recorded.
+Read failures or malformed evidence fail closed. Counts are scoped to this
+mock container lifetime and disappear when it is stopped. Stop validates owner
+labels and network membership, then removes only
 the matching task-owned container and its tmpfs.
+The `companion-route-hits` control-plane command exposes this bounded receipt
+using the Sandbox UUID and owner-issued HTTP mock runtime ID.
 
 The n8n container has no host filesystem mounts, no Docker socket, no Linux
 capabilities, a read-only root filesystem, no-new-privileges, a 512-process
@@ -141,10 +164,13 @@ credential data for its explicit allowlist. It never accepts exported
 credential values. Unsupported credential types fail closed. Postgres
 stand-ins require the declared companion to be attached to this task network;
 the Workspace Sandbox companion must use the synthetic database name and
-credentials defined by the owner. OpenAI, Pinecone, GitHub, Notion, Supabase,
-WooCommerce and HTTP auth values are inert, and outbound service access is
-blocked by the internal network. Only backend code may call the privileged
-Server CLI broker because n8n's Server CLI bypasses n8n's access controls.
+credentials defined by the owner. Google OAuth, OpenAI, Pinecone, GitHub,
+GitLab, Notion, Supabase, WooCommerce, Slack, Telegram, Discord webhook,
+n8n API and HTTP auth values are inert; outbound service access is blocked by
+the internal network. These profiles make imports owner-safe but do not imply
+that an API description or companion route exists for an integration. Only
+backend code may call the privileged Server CLI broker because n8n's Server
+CLI bypasses n8n's access controls.
 
 Do not import client credentials, client records, or live webhook destinations.
 Make sure all node parameters, expressions, code and webhook destinations are

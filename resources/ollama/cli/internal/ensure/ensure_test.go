@@ -4,24 +4,33 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
 )
 
 type fakeOllama struct {
-	installed   map[string]bool
-	pullScripts map[string][]string
-	failPull    map[string]string
-	pullCalls   int32
-	tagCalls    int32
+	installed    map[string]bool
+	pullScripts  map[string][]string
+	failPull     map[string]string
+	pullCalls    int32
+	tagCalls     int32
+	pullInsecure bool
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func (f *fakeOllama) handler(t *testing.T) http.Handler {
 	mux := http.NewServeMux()
@@ -31,14 +40,16 @@ func (f *fakeOllama) handler(t *testing.T) http.Handler {
 			t.Errorf("tags: unexpected method %s", r.Method)
 		}
 		type model struct {
-			Name string `json:"name"`
+			Name   string `json:"name"`
+			Size   int64  `json:"size"`
+			Digest string `json:"digest"`
 		}
 		out := struct {
 			Models []model `json:"models"`
 		}{}
 		for name, ok := range f.installed {
 			if ok {
-				out.Models = append(out.Models, model{Name: name})
+				out.Models = append(out.Models, model{Name: name, Size: 64, Digest: "sha256:fixture"})
 			}
 		}
 		_ = json.NewEncoder(w).Encode(out)
@@ -49,14 +60,16 @@ func (f *fakeOllama) handler(t *testing.T) http.Handler {
 			t.Errorf("pull: unexpected method %s", r.Method)
 		}
 		var body struct {
-			Name   string `json:"name"`
-			Stream bool   `json:"stream"`
+			Name     string `json:"name"`
+			Stream   bool   `json:"stream"`
+			Insecure bool   `json:"insecure"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Errorf("pull: decode body: %v", err)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		f.pullInsecure = body.Insecure
 		if msg, shouldFail := f.failPull[body.Name]; shouldFail {
 			_, _ = w.Write([]byte(`{"status":"pulling","error":"` + msg + `"}` + "\n"))
 			return
@@ -66,15 +79,18 @@ func (f *fakeOllama) handler(t *testing.T) http.Handler {
 			script = []string{`{"status":"pulling"}`, `{"status":"success"}`}
 		}
 		flusher, _ := w.(http.Flusher)
+		successful := false
 		for _, line := range script {
 			_, _ = w.Write([]byte(line + "\n"))
+			var progress PullProgress
+			if json.Unmarshal([]byte(line), &progress) == nil && strings.EqualFold(progress.Status, "success") {
+				successful = true
+			}
 			if flusher != nil {
 				flusher.Flush()
 			}
 		}
-		if _, hasSuccess := f.pullScripts[body.Name]; !hasSuccess {
-			// After running a custom script we still mark this pull as applied
-			// so subsequent /api/tags lookups (if any) see it.
+		if successful {
 			if f.installed == nil {
 				f.installed = map[string]bool{}
 			}
@@ -88,6 +104,72 @@ func newTestClient(t *testing.T, fake *fakeOllama) (*Client, *httptest.Server) {
 	t.Helper()
 	srv := httptest.NewServer(fake.handler(t))
 	return &Client{BaseURL: srv.URL, HTTP: http.DefaultClient}, srv
+}
+
+type testPullLease struct {
+	expectedRef   string
+	progressErr   error
+	verifyErr     error
+	cleanupErr    error
+	provenanceErr error
+	remoteErr     error
+	progress      int
+	verified      bool
+	cleanup       bool
+	provenance    bool
+	completed     bool
+	abandoned     bool
+}
+
+func (l *testPullLease) PullReference() string                 { return l.expectedRef }
+func (l *testPullLease) LeaseID() string                       { return "fixture-lease" }
+func (l *testPullLease) Install(context.Context, string) error { return nil }
+func (l *testPullLease) WorkContext() context.Context          { return context.Background() }
+func (l *testPullLease) Abandon()                              { l.abandoned = true }
+func (l *testPullLease) VerifyRemote(context.Context) error    { return l.remoteErr }
+
+func (l *testPullLease) ObserveProgress(context.Context, PullProgress) error {
+	l.progress++
+	return l.progressErr
+}
+func (l *testPullLease) VerifyInstalled(_ context.Context, model ModelInfo) error {
+	if l.verifyErr != nil {
+		return l.verifyErr
+	}
+	if model.Name != l.expectedRef && model.Name != withLatestTag(l.expectedRef) {
+		return fmt.Errorf("unexpected installed model %q", model.Name)
+	}
+	l.verified = true
+	return nil
+}
+func (l *testPullLease) VerifyCleanup(context.Context) error {
+	if l.cleanupErr != nil {
+		return l.cleanupErr
+	}
+	l.cleanup = true
+	return nil
+}
+func (l *testPullLease) RecordInstallProvenance(_ context.Context, model ModelInfo) error {
+	if l.provenanceErr != nil {
+		return l.provenanceErr
+	}
+	if !l.cleanup || model.Digest == "" || model.Size <= 0 {
+		return errors.New("provenance requires a verified cleaned-up install")
+	}
+	l.provenance = true
+	return nil
+}
+func (l *testPullLease) Complete(context.Context) error { l.completed = true; return nil }
+
+// testPullAdmission returns a fake lease; Run still owns pull, verification,
+// cleanup ordering, and the decision to complete.
+func testPullAdmission(_ context.Context, ref string) (PullLease, error) {
+	return &testPullLease{expectedRef: ref}, nil
+}
+
+func runWithPullAdmission(ctx context.Context, cfg Config, client *Client, stdout io.Writer, validator AdmissionValidator, pullAdmission PullAdmission) error {
+	prepare := func(context.Context, *Client) (func(), error) { return func() {}, nil }
+	return runWithPullAdmissionAndEndpoint(ctx, cfg, client, stdout, validator, prepare, pullAdmission)
 }
 
 func TestRun_NoModelsIsNoop(t *testing.T) {
@@ -125,6 +207,83 @@ func TestRun_AllModelsAlreadyInstalled(t *testing.T) {
 	}
 }
 
+func TestRun_MissingModelWithoutAdmissionRefusesBeforePull(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	err := Run(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "missing:latest"}}}, client, &bytes.Buffer{}, nil)
+	if err == nil || !strings.Contains(err.Error(), "shared disk-job admission is unavailable") {
+		t.Fatalf("Run error = %v, want missing-admission refusal", err)
+	}
+	if got := atomic.LoadInt32(&fake.pullCalls); got != 0 {
+		t.Fatalf("pull requests = %d, want none before admission", got)
+	}
+}
+
+func TestRun_MissingModelRequiresLoopbackDaemonBeforeAdmission(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	local, srv := newTestClient(t, fake)
+	defer srv.Close()
+	localURL := local.BaseURL
+	client := &Client{BaseURL: "http://192.0.2.10:11434", HTTP: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		proxyReq := r.Clone(r.Context())
+		proxyReq.URL.Host = strings.TrimPrefix(localURL, "http://")
+		proxyReq.URL.Scheme = "http"
+		proxyReq.Host = proxyReq.URL.Host
+		return http.DefaultTransport.RoundTrip(proxyReq)
+	})}}
+	admitted := false
+	admission := func(context.Context, string) (PullLease, error) {
+		admitted = true
+		return &testPullLease{expectedRef: "model:latest"}, nil
+	}
+	err := runWithPullAdmission(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:latest"}}}, client, &bytes.Buffer{}, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "requires the managed local Ollama endpoint") {
+		t.Fatalf("Run error=%v, want remote endpoint refusal", err)
+	}
+	if admitted || fake.pullCalls != 0 {
+		t.Fatalf("remote endpoint proceeded: admitted=%t pulls=%d", admitted, fake.pullCalls)
+	}
+}
+
+func TestRun_MissingModelWithoutLifecyclePreparationRefusesBeforeAdmission(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	admitted := false
+	admission := func(context.Context, string) (PullLease, error) {
+		admitted = true
+		return &testPullLease{expectedRef: "model:latest"}, nil
+	}
+	err := runWithPullAdmissionAndEndpoint(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:latest"}}}, client, &bytes.Buffer{}, nil, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "lifecycle lock and endpoint preparation") {
+		t.Fatalf("Run error = %v, want lifecycle preparation refusal", err)
+	}
+	if admitted || fake.pullCalls != 0 {
+		t.Fatalf("admitted=%v pull requests=%d; expected refusal before admission and pull", admitted, fake.pullCalls)
+	}
+}
+
+func TestRun_MissingModelRequiresLifecycleLockReleaseHandle(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	admitted := false
+	prepare := func(context.Context, *Client) (func(), error) { return nil, nil }
+	admission := func(context.Context, string) (PullLease, error) {
+		admitted = true
+		return &testPullLease{expectedRef: "model:latest"}, nil
+	}
+	err := runWithPullAdmissionAndEndpoint(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:latest"}}}, client, &bytes.Buffer{}, nil, prepare, admission)
+	if err == nil || !strings.Contains(err.Error(), "no lock release handle") {
+		t.Fatalf("Run error = %v, want missing lock release refusal", err)
+	}
+	if admitted || fake.pullCalls != 0 {
+		t.Fatalf("admitted=%v pull requests=%d; expected refusal before admission and pull", admitted, fake.pullCalls)
+	}
+}
+
 func TestRun_PullsOnlyMissing(t *testing.T) {
 	fake := &fakeOllama{
 		installed: map[string]bool{"qwen3:4b": true},
@@ -136,12 +295,23 @@ func TestRun_PullsOnlyMissing(t *testing.T) {
 	defer srv.Close()
 
 	cfg := Config{Models: []policy.DirectModelRequest{{Name: "qwen3:4b"}, {Name: "nomic-embed-text:latest"}}}
+	var lease *testPullLease
+	admission := func(_ context.Context, ref string) (PullLease, error) {
+		lease = &testPullLease{expectedRef: ref}
+		return lease, nil
+	}
 	var buf bytes.Buffer
-	if err := Run(context.Background(), cfg, client, &buf, nil); err != nil {
+	if err := runWithPullAdmission(context.Background(), cfg, client, &buf, nil, admission); err != nil {
 		t.Fatalf("Run: %v", err)
+	}
+	if lease == nil || !lease.verified || !lease.cleanup || !lease.provenance || !lease.completed {
+		t.Fatalf("install evidence lifecycle = %+v; want verified, cleaned, recorded, and complete", lease)
 	}
 	if fake.pullCalls != 1 {
 		t.Errorf("expected exactly one pull, got %d", fake.pullCalls)
+	}
+	if !fake.pullInsecure {
+		t.Error("pinned pull did not enable the loopback registry transport")
 	}
 	out := buf.String()
 	if !strings.Contains(out, "pull nomic-embed-text:latest OK") {
@@ -149,6 +319,76 @@ func TestRun_PullsOnlyMissing(t *testing.T) {
 	}
 	if strings.Contains(out, "qwen3:4b: ") && strings.Contains(out, "pulling") {
 		t.Errorf("should not have streamed progress for already-installed qwen3:4b: %q", out)
+	}
+}
+
+func TestRun_ProvenanceReceiptFailureDoesNotCompleteDiskLease(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}, pullScripts: map[string][]string{
+		"model:latest": {`{"status":"success"}`},
+	}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	lease := &testPullLease{expectedRef: "model:latest", provenanceErr: errors.New("provenance store unavailable")}
+	admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+	err := runWithPullAdmission(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:latest"}}}, client, io.Discard, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "provenance store unavailable") {
+		t.Fatalf("ensure error = %v, want provenance write failure", err)
+	}
+	if !lease.verified || !lease.cleanup || lease.provenance || lease.completed || !lease.abandoned {
+		t.Fatalf("provenance failure lifecycle = %+v; lease must remain active for owner recovery", lease)
+	}
+}
+
+func TestRun_ManagedDaemonIdentityFailurePreventsPullAndKeepsLease(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	lease := &testPullLease{expectedRef: "model:latest", remoteErr: errors.New("managed daemon identity changed")}
+	admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+	err := runWithPullAdmission(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:latest"}}}, client, &bytes.Buffer{}, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "managed daemon identity changed") {
+		t.Fatalf("Run error = %v, want identity refusal", err)
+	}
+	if fake.pullCalls != 0 {
+		t.Fatalf("pull requests = %d, want zero", fake.pullCalls)
+	}
+	if lease.completed || !lease.abandoned {
+		t.Fatalf("lease completed=%v abandoned=%v; uncertain admission must remain active", lease.completed, lease.abandoned)
+	}
+}
+
+func TestRun_HoldsManagedLifecycleLockForMissingModelWork(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	lockDir := t.TempDir()
+	lockPath := func(string) (string, error) { return filepath.Join(lockDir, "ollama.lock"), nil }
+	prepare := func(ctx context.Context, _ *Client) (func(), error) {
+		return acquireManagedOllamaLifecycleLockWithPath(ctx, lockPath)
+	}
+	admission := func(ctx context.Context, _ string) (PullLease, error) {
+		probeCtx, cancel := context.WithTimeout(ctx, 20*time.Millisecond)
+		defer cancel()
+		if release, err := artifactlock.AcquireWithPathContext(probeCtx, ollamaManagedLifecycleLockKey, lockPath); err == nil {
+			release()
+			t.Fatal("managed lifecycle lock was not held while admission ran")
+		} else if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("competing lifecycle lock error = %v, want context deadline", err)
+		}
+		return nil, errors.New("fixture admission refusal")
+	}
+	if err := runWithPullAdmissionAndEndpoint(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:latest"}}}, client, &bytes.Buffer{}, nil, prepare, admission); err == nil {
+		t.Fatal("Run succeeded after fixture admission refusal")
+	}
+	probeCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	release, err := artifactlock.AcquireWithPathContext(probeCtx, ollamaManagedLifecycleLockKey, lockPath)
+	if err != nil {
+		t.Fatalf("managed lifecycle lock was not released when ensure returned: %v", err)
+	}
+	release()
+	if fake.pullCalls != 0 {
+		t.Fatalf("pull requests = %d, want zero", fake.pullCalls)
 	}
 }
 
@@ -160,9 +400,11 @@ func TestRun_PullFailureIsReported(t *testing.T) {
 	client, srv := newTestClient(t, fake)
 	defer srv.Close()
 
-	cfg := Config{Models: []policy.DirectModelRequest{{Name: "broken:1.0"}}}
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "broken:1.0"}, {Name: "later:1.0"}}}
 	var buf bytes.Buffer
-	err := Run(context.Background(), cfg, client, &buf, nil)
+	lease := &testPullLease{expectedRef: "broken:1.0"}
+	admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+	err := runWithPullAdmission(context.Background(), cfg, client, &buf, nil, admission)
 	if err == nil {
 		t.Fatal("expected error from failed pull")
 	}
@@ -172,11 +414,97 @@ func TestRun_PullFailureIsReported(t *testing.T) {
 	if !strings.Contains(buf.String(), "FAILED") {
 		t.Errorf("expected FAILED log, got %q", buf.String())
 	}
+	if fake.pullCalls != 1 {
+		t.Errorf("pull requests = %d, want stop after uncertain first pull", fake.pullCalls)
+	}
+	if lease.verified || lease.cleanup || lease.completed {
+		t.Fatalf("failed pull advanced lease lifecycle: verified=%t cleanup=%t complete=%t", lease.verified, lease.cleanup, lease.completed)
+	}
+}
+
+func TestRun_ProgressAdmissionFailureRetainsLeaseAndStopsSequence(t *testing.T) {
+	fake := &fakeOllama{
+		installed: map[string]bool{},
+		pullScripts: map[string][]string{
+			"first:1": {`{"status":"downloading","digest":"sha256:first","total":10,"completed":1}`, `{"status":"success"}`},
+		},
+	}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+
+	lease := &testPullLease{expectedRef: "first:1", progressErr: fmt.Errorf("sample denied")}
+	admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+	cfg := Config{Models: []policy.DirectModelRequest{{Name: "first:1"}, {Name: "second:1"}}}
+	err := runWithPullAdmission(context.Background(), cfg, client, &bytes.Buffer{}, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "sample admitted pull progress") {
+		t.Fatalf("Run error = %v, want progress admission failure", err)
+	}
+	if got := atomic.LoadInt32(&fake.pullCalls); got != 1 {
+		t.Fatalf("pull requests = %d, want stop after sample failure", got)
+	}
+	if lease.verified || lease.cleanup || lease.completed {
+		t.Fatalf("sample failure advanced lease lifecycle: verified=%t cleanup=%t complete=%t", lease.verified, lease.cleanup, lease.completed)
+	}
+}
+
+func TestRun_AdmissionDenialRefusesBeforePull(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	admission := func(context.Context, string) (PullLease, error) {
+		return nil, errors.New("disk floor denied")
+	}
+	err := runWithPullAdmission(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "large:1"}}}, client, &bytes.Buffer{}, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "disk floor denied") {
+		t.Fatalf("Run error = %v, want admission denial", err)
+	}
+	if got := atomic.LoadInt32(&fake.pullCalls); got != 0 {
+		t.Fatalf("pull requests = %d, want none after admission denial", got)
+	}
+}
+
+func TestRun_IncompletePullRetainsLease(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		line string
+	}{
+		{name: "malformed", line: `{"status":`},
+		{name: "missing terminal success", line: `{"status":"downloading","digest":"sha256:partial","total":100,"completed":20}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := &fakeOllama{installed: map[string]bool{}, pullScripts: map[string][]string{"model:1": {tc.line}}}
+			client, srv := newTestClient(t, fake)
+			defer srv.Close()
+			lease := &testPullLease{expectedRef: "model:1"}
+			admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+			err := runWithPullAdmission(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:1"}}}, client, &bytes.Buffer{}, nil, admission)
+			if err == nil {
+				t.Fatal("expected incomplete pull to fail")
+			}
+			if lease.verified || lease.cleanup || lease.completed {
+				t.Fatalf("incomplete pull advanced lease: verified=%t cleanup=%t complete=%t", lease.verified, lease.cleanup, lease.completed)
+			}
+		})
+	}
+}
+
+func TestRun_CleanupFailureRetainsLease(t *testing.T) {
+	fake := &fakeOllama{installed: map[string]bool{}, pullScripts: map[string][]string{"model:1": {`{"status":"success"}`}}}
+	client, srv := newTestClient(t, fake)
+	defer srv.Close()
+	lease := &testPullLease{expectedRef: "model:1", cleanupErr: errors.New("partial files remain")}
+	admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+	err := runWithPullAdmission(context.Background(), Config{Models: []policy.DirectModelRequest{{Name: "model:1"}}}, client, &bytes.Buffer{}, nil, admission)
+	if err == nil || !strings.Contains(err.Error(), "partial files remain") {
+		t.Fatalf("Run error = %v, want cleanup failure", err)
+	}
+	if !lease.verified || lease.completed {
+		t.Fatalf("cleanup failure lifecycle: verified=%t completed=%t", lease.verified, lease.completed)
+	}
 }
 
 func TestRun_ContextCancelAbortsPull(t *testing.T) {
 	// Pull handler writes slowly so ctx cancel triggers mid-stream.
-	fake := &fakeOllama{installed: map[string]bool{}}
 	slowMux := http.NewServeMux()
 	slowMux.HandleFunc("/api/tags", func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(struct {
@@ -208,11 +536,15 @@ func TestRun_ContextCancelAbortsPull(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	err := Run(ctx, Config{Models: []policy.DirectModelRequest{{Name: "slow"}}}, client, &bytes.Buffer{}, nil)
+	lease := &testPullLease{expectedRef: "slow"}
+	admission := func(context.Context, string) (PullLease, error) { return lease, nil }
+	err := runWithPullAdmission(ctx, Config{Models: []policy.DirectModelRequest{{Name: "slow"}}}, client, &bytes.Buffer{}, nil, admission)
 	if err == nil {
 		t.Fatal("expected error when ctx is cancelled")
 	}
-	_ = fake
+	if lease.verified || lease.cleanup || lease.completed || !lease.abandoned {
+		t.Fatalf("cancelled uncertain pull advanced lease: verified=%t cleanup=%t complete=%t", lease.verified, lease.cleanup, lease.completed)
+	}
 }
 
 func TestParseConfig_AcceptsStringsAndObjects(t *testing.T) {
@@ -253,7 +585,7 @@ func TestRun_ResolvesRolesBeforePulling(t *testing.T) {
 
 	cfg := Config{ModelRoles: []policy.RoleRequest{{Role: "embedding.default"}}}
 	var buf bytes.Buffer
-	if err := Run(context.Background(), cfg, client, &buf, nil); err != nil {
+	if err := runWithPullAdmission(context.Background(), cfg, client, &buf, nil, testPullAdmission); err != nil {
 		t.Fatalf("Run: %v", err)
 	}
 	if fake.pullCalls != 1 {

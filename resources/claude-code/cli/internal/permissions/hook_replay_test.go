@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vrooli/agentharness"
 )
@@ -228,5 +229,46 @@ func TestGuardIsShellFree(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if got := runGuard(t, h.env, h.repo, "default", "rm -rf /etc", nil); got.exit != GuardExitDeny {
 		t.Fatalf("guard needed an interpreter: exit %d, want %d", got.exit, GuardExitDeny)
+	}
+}
+
+// The hook payload names the session and its transcript. When the transcript
+// shows the session made a folder, and the file system agrees it was born after
+// the session began, the guard lets the session remove its own folder; a folder
+// the session did not make is decided exactly as before.
+func TestGuardLetsASessionRemoveWhatItCreated(t *testing.T) {
+	h := newGuardHost(t)
+	made := filepath.Join(h.repo, "scenarios", "app", "outdir")
+	if err := os.MkdirAll(made, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(made, "r.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now().UTC().Add(-time.Hour).Format(time.RFC3339Nano)
+	transcript := filepath.Join(t.TempDir(), "session.jsonl")
+	lines := []string{
+		`{"type":"user","timestamp":"` + started + `","cwd":"` + h.repo + `","message":{"role":"user","content":"go"}}`,
+		`{"type":"assistant","timestamp":"` + started + `","cwd":"` + h.repo + `","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash","input":{"command":"mkdir -p ` + made + `"}}]}}`,
+		`{"type":"user","timestamp":"` + started + `","toolUseResult":{"type":"create","filePath":"` + filepath.Join(made, "r.json") + `"},"message":{"role":"user","content":[]}}`,
+	}
+	if err := os.WriteFile(transcript, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := func(command string, withSession bool) guardRun {
+		payload := map[string]any{"cwd": h.repo, "permission_mode": "default", "tool_name": "Bash", "tool_input": map[string]string{"command": command}}
+		if withSession {
+			payload["session_id"], payload["transcript_path"] = "s-1", transcript
+		}
+		data, _ := json.Marshal(payload)
+		var stdout, stderr bytes.Buffer
+		exit := RunHookGuard(bytes.NewReader(data), &stdout, &stderr, nil, h.env)
+		return guardRun{exit: exit, stdout: stdout.String(), stderr: stderr.String()}
+	}
+	if got := run("rm -rf "+made, true); got.exit != GuardExitContinue || strings.Contains(got.stdout, `"ask"`) {
+		t.Fatalf("the session's own folder should pass without asking: exit %d stdout %q stderr %q", got.exit, got.stdout, got.stderr)
+	}
+	if got := run("rm -rf "+made, false); !strings.Contains(got.stdout, `"ask"`) {
+		t.Fatalf("without a session the same folder asks: exit %d stdout %q", got.exit, got.stdout)
 	}
 }

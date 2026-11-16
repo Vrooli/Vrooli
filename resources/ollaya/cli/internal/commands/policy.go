@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/policy"
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/upstream"
@@ -27,6 +28,7 @@ func PolicyCommands(h *Handlers) cliapp.SubcommandGroup {
 
 type roleEntry struct {
 	SchemaVersion        string   `json:"schema_version"`
+	PolicySHA256         string   `json:"policy_sha256"`
 	Role                 string   `json:"role"`
 	RequiredCapabilities []string `json:"required_capabilities"`
 	Capabilities         []string `json:"capabilities"`
@@ -38,9 +40,10 @@ type roleEntry struct {
 	Model    string `json:"model"`
 	// Status is "available" or "unconfigured" (credentials absent). Roles
 	// reports configuration only; resolve also proves the local model is pulled.
-	Status             string   `json:"status"`
-	MissingCredentials []string `json:"missing_credentials,omitempty"`
-	Description        string   `json:"description"`
+	Status             string                       `json:"status"`
+	MissingCredentials []string                     `json:"missing_credentials,omitempty"`
+	Description        string                       `json:"description"`
+	Rights             *sharedpolicy.ArtifactRights `json:"rights,omitempty"`
 }
 
 func (h *Handlers) Roles(args []string) error {
@@ -58,10 +61,11 @@ func (h *Handlers) Roles(args []string) error {
 	for _, name := range p.RoleNames() {
 		resolution, _ := p.Resolve(name, h.GetEnv)
 		entry := roleEntry{
-			SchemaVersion: p.SchemaVersion, Role: name,
+			SchemaVersion: p.SchemaVersion, PolicySHA256: p.LoadedSHA256, Role: name,
 			RequiredCapabilities: []string{policy.Capability}, Capabilities: []string{policy.Capability},
 			Locality: resolution.Locality, Upstream: resolution.Upstream, Model: resolution.Model,
 			Status: "available", MissingCredentials: resolution.Missing, Description: p.Roles[name].Description,
+			Rights: resolution.Rights,
 		}
 		entry.Modalities.Input = []string{"text"}
 		if !resolution.Configured() {
@@ -101,13 +105,26 @@ func (h *Handlers) Resolve(args []string) error {
 		return h.fail(&upstream.ProviderError{Code: upstream.CodeUnconfigured, Message: fmt.Sprintf("role %s needs %s", resolution.Role, strings.Join(resolution.Missing, ", "))})
 	}
 	if resolution.Locality == policy.LocalityLocal {
-		if err := h.localModelReady(context.Background(), p, resolution.Model); err != nil {
+		identity, observedDigest, err := h.localModelIdentity(context.Background(), p, resolution.Model)
+		if err != nil {
 			return h.fail(err)
 		}
+		resolution.RuntimeIdentity = identity
+		resolution.ObservedRuntimeDigest = observedDigest
+		resolution.ExpectedArtifactDigest = identity.Digest
 	}
 	payload := map[string]any{
 		"role": resolution.Role, "model": resolution.Model, "canonical_model": resolution.Model,
 		"capabilities": []string{policy.Capability}, "locality": resolution.Locality, "upstream": resolution.Upstream,
+		"schema_version": p.SchemaVersion, "policy_sha256": p.LoadedSHA256,
+	}
+	if resolution.Rights != nil {
+		payload["rights"] = resolution.Rights
+	}
+	if resolution.RuntimeIdentity != nil {
+		payload["runtime_identity"] = resolution.RuntimeIdentity
+		payload["observed_runtime_digest"] = resolution.ObservedRuntimeDigest
+		payload["expected_artifact_digest"] = resolution.ExpectedArtifactDigest
 	}
 	if *jsonOutput {
 		return writeJSON(h.Stdout, payload)

@@ -17,10 +17,11 @@ import (
 
 // Handlers owns the runtime dependencies for the `models` subcommand group.
 type Handlers struct {
-	NewDaemon func() Daemon
-	GetEnv    func(string) string
-	Stdout    io.Writer
-	Stderr    io.Writer
+	NewDaemon         func() Daemon
+	NewLoopbackDaemon func() (Daemon, error)
+	GetEnv            func(string) string
+	Stdout            io.Writer
+	Stderr            io.Writer
 }
 
 // Default returns Handlers wired to the real Ollama daemon client (the gateway
@@ -28,10 +29,20 @@ type Handlers struct {
 func Default() *Handlers {
 	return &Handlers{
 		NewDaemon: func() Daemon { return ensure.NewClient() },
-		GetEnv:    os.Getenv,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
+		NewLoopbackDaemon: func() (Daemon, error) {
+			return ensure.NewLoopbackClient()
+		},
+		GetEnv: os.Getenv,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	}
+}
+
+func (h *Handlers) newLocalDaemon() (Daemon, error) {
+	if h.NewLoopbackDaemon != nil {
+		return h.NewLoopbackDaemon()
+	}
+	return h.NewDaemon(), nil
 }
 
 // Commands returns the `models` subcommand group for registration.
@@ -140,19 +151,39 @@ func (h *Handlers) ProbeTools(args []string) error {
 	if strings.TrimSpace(*model) != "" && strings.TrimSpace(*role) != "" {
 		return errors.New("--model and --role are mutually exclusive")
 	}
+	p, _, err := h.loadPolicy()
+	if err != nil {
+		return err
+	}
 	ref := strings.TrimSpace(*model)
-	if ref == "" {
-		p, _, err := h.loadPolicy()
-		if err != nil {
-			return err
+	if ref != "" {
+		resolved, resolveErr := p.ResolveModelReference(ref)
+		if resolveErr != nil {
+			return resolveErr
 		}
+		ref = resolved.Model
+	} else {
 		resolved, err := p.ResolveRole(*role)
 		if err != nil {
 			return err
 		}
 		ref = resolved.Model
 	}
-	res, probeErr := ProbeTools(context.Background(), h.NewDaemon(), ref)
+	if err := policy.CheckLocalInferenceRights(h.GetEnv, *role, ref); err != nil {
+		return err
+	}
+	daemon, err := h.newLocalDaemon()
+	if err != nil {
+		return fmt.Errorf("verify local Ollama endpoint: %w", err)
+	}
+	authorize := func() error {
+		digest, digestErr := CurrentModelDigest(context.Background(), daemon, ref)
+		if digestErr != nil {
+			return digestErr
+		}
+		return policy.AuthorizeLocalInferenceArtifact(h.GetEnv, *role, ref, digest)
+	}
+	res, probeErr := ProbeTools(context.Background(), daemon, ref, authorize)
 	if *asJSON {
 		if probeErr != nil && res.Error == "" {
 			res.Error = probeErr.Error()
@@ -196,23 +227,43 @@ func (h *Handlers) ProbeVision(args []string) error {
 	if strings.TrimSpace(*image) == "" {
 		return errors.New("--image is required")
 	}
+	p, _, err := h.loadPolicy()
+	if err != nil {
+		return err
+	}
 	ref := strings.TrimSpace(*model)
-	if ref == "" {
-		p, _, err := h.loadPolicy()
-		if err != nil {
-			return err
+	if ref != "" {
+		resolved, resolveErr := p.ResolveModelReference(ref)
+		if resolveErr != nil {
+			return resolveErr
 		}
+		ref = resolved.Model
+	} else {
 		resolved, err := p.ResolveRole(*role)
 		if err != nil {
 			return err
 		}
 		ref = resolved.Model
 	}
+	if err := policy.CheckLocalInferenceRights(h.GetEnv, *role, ref); err != nil {
+		return err
+	}
+	daemon, err := h.newLocalDaemon()
+	if err != nil {
+		return fmt.Errorf("verify local Ollama endpoint: %w", err)
+	}
+	authorize := func() error {
+		digest, digestErr := CurrentModelDigest(context.Background(), daemon, ref)
+		if digestErr != nil {
+			return digestErr
+		}
+		return policy.AuthorizeLocalInferenceArtifact(h.GetEnv, *role, ref, digest)
+	}
 	imageBytes, err := os.ReadFile(*image)
 	if err != nil {
 		return fmt.Errorf("read image: %w", err)
 	}
-	res, probeErr := ProbeVision(context.Background(), h.NewDaemon(), ref, imageBytes)
+	res, probeErr := ProbeVision(context.Background(), daemon, ref, imageBytes, authorize)
 	if *asJSON {
 		if probeErr != nil && res.Error == "" {
 			res.Error = probeErr.Error()
@@ -257,7 +308,14 @@ func (h *Handlers) Doctor(args []string) error {
 	if r := strings.TrimSpace(*role); r != "" {
 		opts.Roles = []string{r}
 	}
-	res, err := Doctor(context.Background(), h.NewDaemon(), p, opts)
+	authorize := func(role, model, digest string) error {
+		return policy.AuthorizeLocalInferenceArtifact(h.GetEnv, role, model, digest)
+	}
+	daemon, err := h.newLocalDaemon()
+	if err != nil {
+		return fmt.Errorf("verify local Ollama endpoint: %w", err)
+	}
+	res, err := Doctor(context.Background(), daemon, p, opts, authorize)
 	if err != nil {
 		return err
 	}

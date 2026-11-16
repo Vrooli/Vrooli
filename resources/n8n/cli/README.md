@@ -6,6 +6,14 @@ control-plane command tree, which validates the manifest image and owns image
 admission, container labels, private networks, loopback binding, and cleanup.
 Keeping resource-local CLI disabled prevents a second path around that owner.
 
+The `start` and `status` receipts include `accessMode`. `host-loopback` means
+Docker reported and health-checked the active loopback endpoint. `owner-cli`
+means the internal bridge retained the requested loopback binding only in
+`HostConfig`; the owner probes `/healthz` inside the pinned task container, and
+the endpoint is blank. Manual workflow import and execution remain owner-run.
+Webhook dispatch requires the active loopback mode and fails before publishing
+when the host endpoint is unavailable.
+
 The control-plane exposes only typed operations. Workflow import reads one
 bounded document from stdin; execution selects the workflow from its Sandbox,
 runtime, and operation UUID. Neither operation accepts a caller path, command,
@@ -72,6 +80,10 @@ forwarding path, caller-provided script, host port, image, path, or command.
 `companion-stop-http-mock` takes the Sandbox UUID and returned owner runtime ID
 and removes only the matching labeled container. Both responses are bounded
 and omit fixture response bodies.
+`companion-route-hits --sandbox-id <UUID> --companion-runtime-id <ID> --json`
+reads the bounded task-owned receipt and returns static exact-route identities
+with aggregate match counts. It is read-only, does not retain request content,
+and fails closed when ownership or persisted evidence cannot be verified.
 
 Each HTTP fixture may include an optional exact `query` string. Resource-side
 validation and matching mirror Workspace Sandbox canonical form encoding: no

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/vrooli/cli-core/cliapp"
 
@@ -54,14 +56,27 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
+	edge.Wake = func(ctx context.Context) error {
+		cmd := exec.CommandContext(ctx, "vrooli", "resource", "start", appName)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
 	groups = append(groups, cliapp.CommandGroup{
 		Title:    "Capability",
-		Commands: []cliapp.Command{recommend.Commands(nil), activityedge.Command(edge)},
+		Commands: []cliapp.Command{recommend.Commands(nil), activityedge.Command(edge), activityedge.BridgeCommand()},
+	})
+	steps := companion.DeviceSteps("vulkan")
+	steps = append(steps, companion.LifecycleStep{
+		Label:       "unloaded",
+		Action:      "stop",
+		Env:         []string{"VROOLI_CAPACITY_UNLOAD=1"},
+		Description: "Stop the model server after a durable, drained, verified residency transition",
 	})
 	app.SetCommandsWithSubgroups(groups, []cliapp.SubcommandGroup{
 		companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
 			Resource: appName,
-			Steps:    companion.DeviceSteps("vulkan"),
+			Steps:    steps,
 		}),
 	})
 	return app, nil

@@ -24,6 +24,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/policy"
@@ -33,21 +34,22 @@ import (
 )
 
 var (
-	defaultParallel      = 2
-	defaultAcquire       = tuning.ResourceHTTPTimeout()
-	charsPerToken        = 4
-	envNumParallel       = "OLLAMA_NUM_PARALLEL"
-	envAcquireTO         = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
-	envLockDir           = "OLLAMA_GATEWAY_LOCK_DIR"
-	envRuntimeDir        = "VROOLI_RUNTIME_DIR"
-	defaultLockChild     = "vrooli/resources/ollama/sem"
-	defaultMaxImageBytes = 10 * 1024 * 1024
-	defaultMaxImages     = 4
-	maxGatewayContext    = 131072
-	maxGatewayThreads    = 128
-	maxGatewayBatch      = 4096
-	envMaxImageBytes     = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
-	envMaxImages         = "OLLAMA_GATEWAY_MAX_IMAGES"
+	defaultParallel        = 1
+	defaultCPUThreadBudget = 4
+	defaultAcquire         = tuning.ResourceHTTPTimeout()
+	charsPerToken          = 4
+	envNumParallel         = "OLLAMA_NUM_PARALLEL"
+	envAcquireTO           = "OLLAMA_GATEWAY_ACQUIRE_TIMEOUT"
+	envLockDir             = "OLLAMA_GATEWAY_LOCK_DIR"
+	envRuntimeDir          = "VROOLI_RUNTIME_DIR"
+	defaultLockChild       = "vrooli/resources/ollama/sem"
+	defaultMaxImageBytes   = 10 * 1024 * 1024
+	defaultMaxImages       = 4
+	maxGatewayContext      = 131072
+	maxGatewayThreads      = 128
+	maxGatewayBatch        = 4096
+	envMaxImageBytes       = "OLLAMA_GATEWAY_MAX_IMAGE_BYTES"
+	envMaxImages           = "OLLAMA_GATEWAY_MAX_IMAGES"
 )
 
 // ImageInputError is a typed, caller-actionable image transport error.
@@ -82,6 +84,10 @@ type Client interface {
 type workerAttestationClient interface {
 	ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error)
 	ListRunning(ctx context.Context) ([]ensure.RunningModel, error)
+}
+
+type modelInventoryClient interface {
+	ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error)
 }
 
 // WorkerAttestation is the resource-owned identity and processor snapshot for
@@ -132,19 +138,19 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 			{
 				Name:        "embed",
 				Description: "Compute an embedding vector for --input (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway embed --role embedding.default [--json] [--input <text> | --input-stdin]",
+				Usage:       "resource-ollama gateway embed --role embedding.default [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--json] [--input <text> | --input-stdin]",
 				Run:         h.Embed,
 			},
 			{
 				Name:        "generate",
 				Description: "Generate a completion for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--require-worker-digest <sha256>] [--one-shot --timeout 90s] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
+				Usage:       "resource-ollama gateway generate --role chat.default [--json] [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--require-worker-digest <sha256>] [--one-shot --timeout 90s] [--cpu-only] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin | --input-json-stdin]",
 				Run:         h.Generate,
 			},
 			{
 				Name:        "chat",
 				Description: "Generate a chat response for --prompt (or stdin) using --role or --model",
-				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin]",
+				Usage:       "resource-ollama gateway chat --role summarize.default --system <text> [--require-loopback] [--expected-model <ref> --expected-artifact-digest <sha256>] [--expected-rights-decision-sha256 <sha256> --expected-rights-evaluated-at <timestamp> --expected-rights-receipt-sha256 <sha256> --expected-policy-file-sha256 <sha256>] [--json] [--think=false] [--max-tokens <n>] [--temperature <f>] [--num-ctx <n>] [--num-thread <n>] [--num-batch <n>] [--prompt <text> | --prompt-stdin]",
 				Run:         h.Chat,
 			},
 		},
@@ -158,6 +164,13 @@ func (h *Handlers) Embed(args []string) error {
 	fs.SetOutput(h.Stderr)
 	model := fs.String("model", "", "Ollama model reference (e.g. nomic-embed-text)")
 	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. embedding.default)")
+	expectedModel := fs.String("expected-model", "", "Require role resolution to match this exact model reference")
+	expectedArtifactDigest := fs.String("expected-artifact-digest", "", "Require current Ollama model contents to match this SHA-256 digest")
+	expectedRightsDecision := fs.String("expected-rights-decision-sha256", "", "Require current resource rights facts/context to match this gateway decision SHA-256")
+	expectedRightsEvaluatedAt := fs.String("expected-rights-evaluated-at", "", "Evaluation timestamp paired with --expected-rights-decision-sha256")
+	expectedRightsReceipt := fs.String("expected-rights-receipt-sha256", "", "Require the current canonical rights receipt SHA-256")
+	expectedPolicyFileSHA256 := fs.String("expected-policy-file-sha256", "", "Require the exact current Ollama model-policy file SHA-256")
+	fs.Bool("require-loopback", false, "Compatibility assertion; gateway inference always requires verified loopback transport")
 	input := fs.String("input", "", "Inline text to embed")
 	fromStdin := fs.Bool("input-stdin", false, "Read input text from stdin")
 	asJSON := fs.Bool("json", false, "Emit a single JSON object {\"embedding\":[...]} on stdout")
@@ -166,6 +179,12 @@ func (h *Handlers) Embed(args []string) error {
 	}
 	selected, err := h.resolveModelSelection(*model, *role, "embedding")
 	if err != nil {
+		return err
+	}
+	if err := requireExpectedModel(*expectedModel, selected.Ref); err != nil {
+		return err
+	}
+	if err := policy.CheckExpectedLocalInferenceEvidence(h.GetEnv, selected.Role, selected.Ref, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
 		return err
 	}
 	text, err := h.resolveInput(*input, *fromStdin, "input")
@@ -179,7 +198,16 @@ func (h *Handlers) Embed(args []string) error {
 	}
 	defer release()
 
-	vec, err := h.NewClient().Embed(ctx, selected.Ref, text)
+	client, err := h.newLoopbackClient()
+	if err != nil {
+		return err
+	}
+	// Re-read current rights after request preparation and semaphore acquisition,
+	// directly before the provider call.
+	if err := h.requireLocalRights(ctx, selected, client, *expectedArtifactDigest, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
+		return err
+	}
+	vec, err := client.Embed(ctx, selected.Ref, text)
 	if err != nil {
 		return err
 	}
@@ -203,10 +231,16 @@ func (h *Handlers) Generate(args []string) error {
 	fs.SetOutput(h.Stderr)
 	model := fs.String("model", "", "Ollama model reference")
 	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. chat.default)")
+	expectedModel := fs.String("expected-model", "", "Require role resolution to match this exact model reference")
+	expectedArtifactDigest := fs.String("expected-artifact-digest", "", "Require current Ollama model contents to match this SHA-256 digest")
+	expectedRightsDecision := fs.String("expected-rights-decision-sha256", "", "Require current resource rights facts/context to match this gateway decision SHA-256")
+	expectedRightsEvaluatedAt := fs.String("expected-rights-evaluated-at", "", "Evaluation timestamp paired with --expected-rights-decision-sha256")
+	expectedRightsReceipt := fs.String("expected-rights-receipt-sha256", "", "Require the current canonical rights receipt SHA-256")
+	expectedPolicyFileSHA256 := fs.String("expected-policy-file-sha256", "", "Require the exact current Ollama model-policy file SHA-256")
 	prompt := fs.String("prompt", "", "Inline prompt text")
 	fromStdin := fs.Bool("prompt-stdin", false, "Read prompt from stdin")
 	inputJSONStdin := fs.Bool("input-json-stdin", false, "Read {prompt,images:[{media_type,data_b64}]} from stdin")
-	requireLoopback := fs.Bool("require-loopback", false, "Refuse unless the effective Ollama endpoint is a direct literal loopback URL")
+	fs.Bool("require-loopback", false, "Compatibility assertion; gateway inference always requires verified loopback transport")
 	requireWorkerDigest := fs.String("require-worker-digest", "", "Require the installed and active GPU worker to match this SHA-256 digest; include worker attestation in JSON output")
 	cpuOnly := fs.Bool("cpu-only", false, "Force Ollama to run this request without GPU layers")
 	maxTokens := fs.Int("max-tokens", 0, "Maximum tokens to generate; omitted when <= 0")
@@ -221,20 +255,18 @@ func (h *Handlers) Generate(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	var client Client
 	var err error
-	if *requireLoopback {
-		if h.NewLoopbackClient == nil {
-			return fmt.Errorf("local-only endpoint verification is unavailable")
-		}
-		client, err = h.NewLoopbackClient()
-		if err != nil {
-			return err
-		}
-	} else {
-		client = h.NewClient()
-	}
 	selected, err := h.resolveModelSelection(*model, *role, "generate")
+	if err != nil {
+		return err
+	}
+	if err := requireExpectedModel(*expectedModel, selected.Ref); err != nil {
+		return err
+	}
+	if err := policy.CheckExpectedLocalInferenceEvidence(h.GetEnv, selected.Role, selected.Ref, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
+		return err
+	}
+	client, err := h.newLoopbackClient()
 	if err != nil {
 		return err
 	}
@@ -259,6 +291,9 @@ func (h *Handlers) Generate(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := applyCPUThreadBudget(&controls); err != nil {
+		return err
+	}
 	if err := validateContextWindow(text, budget, selected, controls.NumCtx); err != nil {
 		return err
 	}
@@ -267,9 +302,6 @@ func (h *Handlers) Generate(args []string) error {
 	}
 	if *requestTimeout > 0 && !*oneShot {
 		return fmt.Errorf("--timeout requires --one-shot so cleanup is verified")
-	}
-	if *oneShot && !*requireLoopback {
-		return fmt.Errorf("--one-shot requires --require-loopback")
 	}
 	var formatJSON json.RawMessage
 	if strings.TrimSpace(*format) != "" {
@@ -343,6 +375,10 @@ func (h *Handlers) Generate(args []string) error {
 		}
 		requestCtx, cancel = context.WithTimeout(requestParent, *requestTimeout)
 	}
+	if err := h.requireLocalRights(requestCtx, selected, client, *expectedArtifactDigest, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
+		cancel()
+		return err
+	}
 	out, generationErr := client.Generate(requestCtx, req)
 	var worker *WorkerAttestation
 	var attestationErr error
@@ -378,6 +414,28 @@ func (h *Handlers) Generate(args []string) error {
 	}
 	_, err = fmt.Fprint(h.Stdout, out.Response)
 	return err
+}
+
+func requireExpectedModel(expected, selected string) error {
+	expected = strings.TrimSpace(expected)
+	if expected != "" && expected != strings.TrimSpace(selected) {
+		return fmt.Errorf("resolved model %q does not match expected model %q", selected, expected)
+	}
+	return nil
+}
+
+func (h *Handlers) newLoopbackClient() (Client, error) {
+	if h.NewLoopbackClient == nil {
+		return nil, fmt.Errorf("local-only endpoint verification is unavailable")
+	}
+	client, err := h.NewLoopbackClient()
+	if err != nil {
+		return nil, fmt.Errorf("verify loopback Ollama endpoint: %w", err)
+	}
+	if client == nil {
+		return nil, fmt.Errorf("verified loopback Ollama client is unavailable")
+	}
+	return client, nil
 }
 
 func containsRunningModel(running []ensure.RunningModel, model string) bool {
@@ -502,6 +560,13 @@ func (h *Handlers) Chat(args []string) error {
 	fs.SetOutput(h.Stderr)
 	model := fs.String("model", "", "Ollama model reference")
 	role := fs.String("role", "", "Ollama model role from model-policy.json (e.g. summarize.default)")
+	expectedModel := fs.String("expected-model", "", "Require role resolution to match this exact model reference")
+	fs.Bool("require-loopback", false, "Compatibility assertion; gateway inference always requires verified loopback transport")
+	expectedArtifactDigest := fs.String("expected-artifact-digest", "", "Require current Ollama model contents to match this SHA-256 digest")
+	expectedRightsDecision := fs.String("expected-rights-decision-sha256", "", "Require current resource rights facts/context to match this gateway decision SHA-256")
+	expectedRightsEvaluatedAt := fs.String("expected-rights-evaluated-at", "", "Evaluation timestamp paired with --expected-rights-decision-sha256")
+	expectedRightsReceipt := fs.String("expected-rights-receipt-sha256", "", "Require the current canonical rights receipt SHA-256")
+	expectedPolicyFileSHA256 := fs.String("expected-policy-file-sha256", "", "Require the exact current Ollama model-policy file SHA-256")
 	system := fs.String("system", "", "System message content")
 	prompt := fs.String("prompt", "", "Inline user prompt text")
 	fromStdin := fs.Bool("prompt-stdin", false, "Read user prompt from stdin")
@@ -519,6 +584,12 @@ func (h *Handlers) Chat(args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := requireExpectedModel(*expectedModel, selected.Ref); err != nil {
+		return err
+	}
+	if err := policy.CheckExpectedLocalInferenceEvidence(h.GetEnv, selected.Role, selected.Ref, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
+		return err
+	}
 	text, err := h.resolveInput(*prompt, *fromStdin, "prompt")
 	if err != nil {
 		return err
@@ -526,6 +597,9 @@ func (h *Handlers) Chat(args []string) error {
 	budget := effectiveMaxTokens(*maxTokens, selected)
 	controls, err := validateRuntimeControls(*numCtx, *numThread, *numBatch, selected)
 	if err != nil {
+		return err
+	}
+	if err := applyCPUThreadBudget(&controls); err != nil {
 		return err
 	}
 	if err := validateContextWindow(*system+"\n"+text, budget, selected, controls.NumCtx); err != nil {
@@ -553,7 +627,14 @@ func (h *Handlers) Chat(args []string) error {
 	req.NumCtx = controls.NumCtx
 	req.NumThread = controls.NumThread
 	req.NumBatch = controls.NumBatch
-	out, err := h.NewClient().Chat(ctx, req)
+	client, err := h.newLoopbackClient()
+	if err != nil {
+		return err
+	}
+	if err := h.requireLocalRights(ctx, selected, client, *expectedArtifactDigest, *expectedRightsDecision, *expectedRightsEvaluatedAt, *expectedRightsReceipt, *expectedPolicyFileSHA256); err != nil {
+		return err
+	}
+	out, err := client.Chat(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -579,6 +660,7 @@ func (h *Handlers) Chat(args []string) error {
 type selectedModel struct {
 	Ref                 string
 	Source              string
+	Role                string
 	ContextWindowTokens int
 	InputModalities     []policy.Modality
 	// RoleMaxTokens is the resolved role's declared output cap, or nil when the
@@ -611,19 +693,18 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 		return selectedModel{}, fmt.Errorf("--role and --model are mutually exclusive")
 	}
 	if model != "" {
-		selected := selectedModel{Ref: model, Source: "model"}
 		p, _, err := policy.LoadDefaultFile(h.GetEnv)
 		if err != nil {
-			return selected, nil
+			return selectedModel{}, fmt.Errorf("load Ollama model policy for direct model %q: %w", model, err)
 		}
-		resolved, err := p.ResolveModel(model)
+		resolved, err := p.ResolveModelReference(model)
 		if err != nil {
-			return selected, nil
+			return selectedModel{}, err
 		}
 		if !hasCapability(resolved.Capabilities, requiredCapability) {
 			return selectedModel{}, fmt.Errorf("model %q does not declare %s capability", model, requiredCapability)
 		}
-		selected.ContextWindowTokens = resolved.ContextWindowTokens
+		selected := selectedModel{Ref: resolved.Model, Source: "model", ContextWindowTokens: resolved.ContextWindowTokens}
 		selected.InputModalities = append([]policy.Modality{}, resolved.Modalities.Input...)
 		return selected, nil
 	}
@@ -632,35 +713,53 @@ func (h *Handlers) resolveModelSelection(model, role, requiredCapability string)
 	if err != nil {
 		return selectedModel{}, err
 	}
-	resolution, err := p.Resolve(policy.ResolveRequest{
-		ModelRoles: []policy.RoleRequest{{Role: role}},
-	})
+	context, err := policy.LoadDefaultRightsContext(h.GetEnv)
+	if err != nil {
+		return selectedModel{}, fmt.Errorf("load trusted rights context for role %q: %w", role, err)
+	}
+	resolved, err := p.ResolveRoleWithRightsFallback(role, sharedpolicy.RightsUseLocalInference, context, time.Now())
 	if err != nil {
 		return selectedModel{}, err
 	}
-	if len(resolution.Models) == 0 {
-		return selectedModel{}, fmt.Errorf("role %q resolved no models", role)
-	}
-	ref := resolution.Models[0].Ref
-	modelPolicy, ok := p.Models[ref]
-	if !ok {
-		return selectedModel{}, fmt.Errorf("role %q resolved unknown model %q", role, ref)
-	}
-	if !hasCapability(modelPolicy.Capabilities, requiredCapability) {
-		return selectedModel{}, fmt.Errorf("role %q resolves to %q without %s capability", role, ref, requiredCapability)
-	}
-	var roleMaxTokens *int
-	if declared, ok := p.Roles[role]; ok && declared.MaxTokens != nil {
-		value := *declared.MaxTokens
-		roleMaxTokens = &value
+	if !hasCapability(resolved.Capabilities, requiredCapability) {
+		return selectedModel{}, fmt.Errorf("role %q resolves to %q without %s capability", role, resolved.Model, requiredCapability)
 	}
 	return selectedModel{
-		Ref:                 ref,
+		Ref:                 resolved.Model,
 		Source:              "role",
-		ContextWindowTokens: modelPolicy.ContextWindowTokens,
-		InputModalities:     append([]policy.Modality{}, modelPolicy.Modalities.Input...),
-		RoleMaxTokens:       roleMaxTokens,
+		Role:                role,
+		ContextWindowTokens: resolved.ContextWindowTokens,
+		InputModalities:     append([]policy.Modality{}, resolved.Modalities.Input...),
+		RoleMaxTokens:       resolved.MaxTokens,
 	}, nil
+}
+
+func (h *Handlers) requireLocalRights(ctx context.Context, selected selectedModel, client Client, expectedDigest, expectedRightsDecision, expectedRightsEvaluatedAt, expectedRightsReceipt, expectedPolicyFileSHA256 string) error {
+	inventoryClient, ok := client.(modelInventoryClient)
+	if !ok {
+		return fmt.Errorf("current Ollama model inventory is unavailable; refusing local inference")
+	}
+	models, err := inventoryClient.ListModelInventory(ctx)
+	if err != nil {
+		return fmt.Errorf("read current Ollama model inventory: %w", err)
+	}
+	var digest string
+	for _, model := range models {
+		if model.Name != selected.Ref {
+			continue
+		}
+		if digest != "" {
+			return fmt.Errorf("current Ollama inventory contains duplicate model identity %q", selected.Ref)
+		}
+		digest = model.Digest
+	}
+	if strings.TrimSpace(expectedDigest) != "" && digest != strings.TrimSpace(expectedDigest) {
+		return fmt.Errorf("local model %q changed from the planned artifact digest; refusing inference", selected.Ref)
+	}
+	if strings.TrimSpace(expectedRightsReceipt) != "" || strings.TrimSpace(expectedPolicyFileSHA256) != "" {
+		return policy.AuthorizeLocalInferenceArtifactEvidence(h.GetEnv, selected.Role, selected.Ref, digest, expectedRightsDecision, expectedRightsEvaluatedAt, expectedRightsReceipt, expectedPolicyFileSHA256)
+	}
+	return policy.AuthorizeLocalInferenceArtifactDecision(h.GetEnv, selected.Role, selected.Ref, digest, expectedRightsDecision, expectedRightsEvaluatedAt)
 }
 
 func (h *Handlers) resolveImageInput(selected selectedModel) (string, []string, error) {
@@ -738,6 +837,20 @@ type runtimeControls struct {
 	NumCtx    *int
 	NumThread *int
 	NumBatch  *int
+}
+
+func applyCPUThreadBudget(controls *runtimeControls) error {
+	if controls == nil {
+		return fmt.Errorf("runtime controls are required")
+	}
+	if controls.NumThread != nil && *controls.NumThread > defaultCPUThreadBudget {
+		return fmt.Errorf("--num-thread %d exceeds the Ollama resource CPU thread budget %d", *controls.NumThread, defaultCPUThreadBudget)
+	}
+	if controls.NumThread == nil {
+		budget := defaultCPUThreadBudget
+		controls.NumThread = &budget
+	}
+	return nil
 }
 
 func validateRuntimeControls(numCtx, numThread, numBatch int, selected selectedModel) (runtimeControls, error) {

@@ -15,7 +15,7 @@ Kopia gives us, for free, the capabilities we would otherwise hand-roll:
 - **client-side encryption, on by default** (AES256-GCM-HMAC-SHA256) — there is
   no plaintext-repo code path
 - incremental snapshots + GFS retention policies
-- multi-destination repositories (filesystem and S3/MinIO today)
+- multi-destination repositories (filesystem, SFTP, and S3/MinIO)
 - integrity verification and repository statistics
 
 ## Capabilities (all via `resource-kopia`)
@@ -24,14 +24,14 @@ Kopia gives us, for free, the capabilities we would otherwise hand-roll:
 |---|---|
 | Lifecycle | `info` `status` `install` `uninstall` `start` `stop` `restart` `logs` |
 | Engine | `version` (wrapper + pinned/installed kopia version, drift warning) |
-| `repo` | `create` `connect` `status` `stats` `list` `disconnect` `validate` `repair-format-plan` `cache-probe` `index-recovery-scan` `index-recovery-commit` `orphan-temp-blob-commit` `quarantine-orphan-temp-blob` |
+| `repo` | `create` `connect` `status` `stats` `list` `disconnect` `validate` `damage-scan` `repair-format-plan` `cache-probe` `index-recovery-scan` `index-recovery-commit` `orphan-temp-blob-commit` `restore-from-temp` `quarantine-orphan-temp-blob` |
 | `snapshot` | `create` `list` `restore` `verify` `delete` |
 | `policy` | `set` `show` `list` |
 | `maintenance` | `run` `set` |
 
 A Vrooli **destination** maps one-to-one to a kopia **repository**, identified
-by `--name`. Backends in this version: `filesystem` and `s3` (MinIO-compatible
-via `--endpoint`).
+by `--name`. Backends: `filesystem`, `sftp`, and `s3` (MinIO-compatible via
+`--endpoint`).
 
 ## Secrets
 
@@ -45,7 +45,13 @@ committed environment files:
   is missing — it never uses a default/empty passphrase)
 - S3 credentials → the same per-repository identity `vrooli/kopia/<name>`, fields `s3-access-key-id`
   and `s3-secret-access-key`
-  (only for `--backend s3`)
+  (only for `--backend s3`; provision through the credential authority before create/connect)
+- SFTP private key → the same identity, field `sftp-private-key`; the Kopia
+  adapter writes it to an owner-only temporary key file for the invocation.
+  Kopia embeds SFTP auth in its repository config for later operations, so that
+  config is forced to mode `0600` on POSIX. The authority value remains the
+  canonical recovery copy. SFTP password auth is unsupported because Kopia
+  exposes it only as a command-line flag.
 
 See [`resource.json`](resource.json) and the platform credential-authority
 documentation in `docs/configuration/secrets.md`.
@@ -53,8 +59,9 @@ documentation in `docs/configuration/secrets.md`.
 ## Disaster recovery
 
 The wrapper adds **no proprietary encoding** — repositories are vanilla kopia
-repositories. With only the plain `kopia` binary + the passphrase (and S3 creds
-for S3 repos), an operator can restore with Vrooli completely down. See
+repositories. With only the plain `kopia` binary + the passphrase (S3 creds for
+S3 repos, or the SFTP private key for SFTP repos), an operator can restore with
+Vrooli completely down. See
 [`docs/RECOVERY.md`](docs/RECOVERY.md); the property is proven by an automated
 integration test.
 
@@ -66,6 +73,11 @@ resource-kopia status                   # binary present, version matches pin
 resource-kopia version                  # wrapper + pinned/installed kopia version
 
 resource-kopia repo create --name nightly --backend filesystem --path /var/backups/nightly
+
+# SFTP backend; provision `sftp-private-key` in credential authority first
+resource-kopia repo create --name offsite-sftp --backend sftp \
+  --host backup.example --port 22 --username vrooli \
+  --remote-path /backups/vrooli --known-hosts ~/.ssh/known_hosts
 resource-kopia policy set --repo nightly --path /data/pg --keep-daily 7 --keep-weekly 4 --compression zstd
 resource-kopia snapshot create --repo nightly --path /data/pg
 resource-kopia snapshot list --repo nightly --path /data/pg --json
@@ -140,20 +152,20 @@ phrase, and runs Kopia's `index recover --commit` without enabling
 then verify snapshot enumeration and destination usage. Index recovery does
 not prove filesystem health or snapshot restorability.
 
-`repo orphan-temp-blob-commit --name <repo> --blob-id <exact-q-blob-id>
---candidate-sha256 <reviewed-sha256>
---confirm-commit restore-orphan-blob:<repo>:<exact-q-blob-id> --json` publishes
-one exact adjacent Kopia temp candidate to an absent blob path. It is restricted
-to registered filesystem repositories, requires exactly one adjacent candidate
-with the reviewed hash, stages and rechecks the bytes, atomically links without
-replacing an existing target, and preserves the candidate. This mutates the
-repository and must follow an exact operator decision; it is not a general
-repository repair and does not prove filesystem health or restore integrity.
+`repo orphan-temp-blob-commit` is the legacy q-blob publishing command. DBM's
+current standing-authorization path uses `repo restore-from-temp` after a
+typed missing-blob probe and disposable-overlay snapshot proof. That operation
+binds repository identity, exact temp path and hash; preserves the source; and
+never replaces an existing final blob. See the repair authority section in
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md#repair-authority-boundary) for the
+authorization predicates. Do not use the legacy command as a shortcut around
+DBM's decision owner.
 
 `repo quarantine-orphan-temp-blob --name <repo>
---relative-temp-path <s/...f.tmp.suffix>
+--relative-temp-path <s/...f.tmp[.hex-suffix]>
 --confirm-quarantine quarantine-orphan-temp:<repo>:<relative-temp-path> --json`
-moves one exact unpaired `s`-blob temp out of the repository shard namespace
+moves one exact unpaired `s`-blob temp (including the suffixless `.f.tmp`
+shape) out of the repository shard namespace
 to a unique sibling quarantine directory on the same volume. It checks that the
 only adjacent temp is the exact named source and that the corresponding final
 blob is absent. It does not read, rewrite, or delete the temp's bytes; the move

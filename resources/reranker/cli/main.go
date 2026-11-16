@@ -63,7 +63,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 				Description: "Keep the reranker VRAM capacity claim alive",
 				Usage:       "resource-reranker capacity-sync [--interval 15s] [--once]",
 				Run:         capacitysync.Command(nil),
-			}, activityedge.Command(edge)},
+			}, activityedge.Command(edge), activityedge.BridgeCommand()},
 		}),
 		[]cliapp.SubcommandGroup{gateway.Commands(nil), models.Commands(nil), companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{Resource: appName, Steps: companion.DeviceSteps("gpu")})},
 	)

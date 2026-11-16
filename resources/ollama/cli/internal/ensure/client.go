@@ -41,6 +41,26 @@ func NewLoopbackClient() (*Client, error) {
 	return newLoopbackClient(client.BaseURL, net.DefaultResolver.LookupIP)
 }
 
+// NewManagedDaemonLoopbackClient returns a direct client for Ollama's
+// owner-managed private listener. Only the exact loopback HTTP endpoint is
+// accepted; callers cannot use this constructor to point owner work at another
+// port, host, scheme, or URL path.
+func NewManagedDaemonLoopbackClient(rawEndpoint string) (*Client, error) {
+	u, err := url.Parse(strings.TrimSpace(rawEndpoint))
+	if err != nil || u.Scheme != "http" || u.Hostname() != "127.0.0.1" || u.Port() != "21434" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" || u.User != nil {
+		return nil, fmt.Errorf("managed Ollama endpoint must be exactly http://127.0.0.1:21434")
+	}
+	endpoint, err := validateLoopbackBaseURL(rawEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	validatedURL, err := url.Parse(endpoint)
+	if err != nil || validatedURL.Scheme != "http" || validatedURL.Hostname() != "127.0.0.1" || validatedURL.Port() != "21434" {
+		return nil, fmt.Errorf("managed Ollama endpoint must be exactly http://127.0.0.1:21434")
+	}
+	return newLoopbackClient(endpoint, net.DefaultResolver.LookupIP)
+}
+
 type loopbackIPLookup func(context.Context, string, string) ([]net.IP, error)
 
 func newLoopbackClient(raw string, lookup loopbackIPLookup) (*Client, error) {
@@ -373,13 +393,18 @@ type PullProgress struct {
 	Error     string `json:"error,omitempty"`
 }
 
-// Pull streams /api/pull for a single model reference, forwarding each
-// progress line to onProgress. Returns once Ollama reports "success" or a
-// fatal error.
-func (c *Client) Pull(ctx context.Context, modelRef string, onProgress func(PullProgress)) error {
+// pullPinned asks Ollama to use the admitted ephemeral loopback registry. Ollama's
+// insecure flag is required because the registry endpoint is HTTP on loopback;
+// its blob redirects remain HTTPS and are restricted by the pin server.
+func (c *Client) pullPinned(ctx context.Context, modelRef string, onProgress func(PullProgress) error) error {
+	return c.pull(ctx, modelRef, true, onProgress)
+}
+
+func (c *Client) pull(ctx context.Context, modelRef string, insecure bool, onProgress func(PullProgress) error) error {
 	body, err := json.Marshal(map[string]any{
-		"name":   modelRef,
-		"stream": true,
+		"name":     modelRef,
+		"stream":   true,
+		"insecure": insecure,
 	})
 	if err != nil {
 		return err
@@ -412,7 +437,9 @@ func (c *Client) Pull(ctx context.Context, modelRef string, onProgress func(Pull
 			return fmt.Errorf("pull %s: decode progress: %w", modelRef, err)
 		}
 		if onProgress != nil {
-			onProgress(prog)
+			if err := onProgress(prog); err != nil {
+				return fmt.Errorf("pull %s: progress admission failed: %w", modelRef, err)
+			}
 		}
 		if prog.Error != "" {
 			return fmt.Errorf("pull %s: %s", modelRef, prog.Error)
@@ -424,6 +451,33 @@ func (c *Client) Pull(ctx context.Context, modelRef string, onProgress func(Pull
 	}
 	if !strings.EqualFold(last.Status, "success") {
 		return fmt.Errorf("pull %s: ended without success status (last=%q)", modelRef, last.Status)
+	}
+	return nil
+}
+
+// DeleteModel removes only the temporary alias after the requested manifest is published.
+func (c *Client) DeleteModel(ctx context.Context, name string) error {
+	return c.modelMutation(ctx, "/api/delete", map[string]string{"name": name})
+}
+
+func (c *Client) modelMutation(ctx context.Context, path string, payload any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return fmt.Errorf("ollama %s: %w", path, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("ollama %s: HTTP %d: %s", path, resp.StatusCode, strings.TrimSpace(string(respBody)))
 	}
 	return nil
 }

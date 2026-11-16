@@ -5,6 +5,8 @@
 package policy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +15,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 )
 
 const (
@@ -43,6 +47,7 @@ type Policy struct {
 	Upstreams     map[string]Upstream `json:"upstreams"`
 	Roles         map[string]Role     `json:"roles"`
 	Models        map[string]Model    `json:"models"`
+	LoadedSHA256  string              `json:"-"`
 }
 
 type Upstream struct {
@@ -73,22 +78,27 @@ type Role struct {
 // Model is a locally served decision model pinned by its registry manifest
 // digest. Hosted models are not listed: the hosted upstream owns them.
 type Model struct {
-	Digest      string   `json:"digest"`
-	Routes      []string `json:"routes"`
-	DefaultPull bool     `json:"default_pull"`
-	License     string   `json:"license"`
-	DiskBytes   int64    `json:"disk_bytes"`
+	Digest      string                       `json:"digest"`
+	Routes      []string                     `json:"routes"`
+	DefaultPull bool                         `json:"default_pull"`
+	License     string                       `json:"license"`
+	DiskBytes   int64                        `json:"disk_bytes"`
+	Rights      *sharedpolicy.ArtifactRights `json:"rights,omitempty"`
 }
 
 // Resolution is one role resolved against the current process environment.
 // Token and AccountID are values, never serialized.
 type Resolution struct {
-	Role     string `json:"role"`
-	Upstream string `json:"upstream"`
-	Protocol string `json:"protocol"`
-	Locality string `json:"locality"`
-	Model    string `json:"model"`
-	Envelope string `json:"envelope,omitempty"`
+	Role                   string                                `json:"role"`
+	Upstream               string                                `json:"upstream"`
+	Protocol               string                                `json:"protocol"`
+	Locality               string                                `json:"locality"`
+	Model                  string                                `json:"model"`
+	Rights                 *sharedpolicy.ArtifactRights          `json:"rights,omitempty"`
+	RuntimeIdentity        *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity,omitempty"`
+	ObservedRuntimeDigest  string                                `json:"observed_runtime_digest,omitempty"`
+	ExpectedArtifactDigest string                                `json:"expected_artifact_digest,omitempty"`
+	Envelope               string                                `json:"envelope,omitempty"`
 	// Endpoint is empty for the local upstream; the daemon URL comes from the
 	// resource's exported environment at call time.
 	Endpoint string `json:"endpoint,omitempty"`
@@ -113,6 +123,8 @@ func Load(path string) (Policy, error) {
 	if err := policy.Validate(); err != nil {
 		return Policy{}, err
 	}
+	sum := sha256.Sum256(data)
+	policy.LoadedSHA256 = hex.EncodeToString(sum[:])
 	return policy, nil
 }
 
@@ -241,6 +253,10 @@ func (p Policy) Resolve(roleName string, getenv func(string) string) (Resolution
 		Role: strings.TrimSpace(roleName), Upstream: role.Upstream, Protocol: upstream.Protocol,
 		Locality: upstream.Locality, Model: role.Model, Envelope: upstream.Envelope, Endpoint: upstream.Endpoint,
 	}
+	if upstream.Locality == LocalityLocal {
+		model := p.Models[role.Model]
+		resolution.Rights = model.Rights
+	}
 	for _, credential := range upstream.Credentials {
 		value := strings.TrimSpace(getenv(credential.Env))
 		if value == "" {
@@ -272,6 +288,13 @@ func PolicyPath(getenv func(string) string) string {
 		}
 	}
 	return filepath.Join("resources", "ollaya", "model-policy.json")
+}
+
+// RightsContextPath resolves only the scenario's canonical operator-owned
+// context file. The caller cannot choose a context path per inference request.
+func RightsContextPath(getenv func(string) string) string {
+	path, _ := sharedpolicy.ResolveRightsContextPath(getenv)
+	return path
 }
 
 func isDigest(value string) bool {

@@ -93,7 +93,7 @@ resource_category: storage
 standard_interfaces:
   management:
     - cli: cli.sh (using CLI framework)
-    - actions: [help, install, uninstall, start, stop, restart, status, validate, test, content]
+    - actions: [help, install, uninstall, start, stop, restart, status, validate, test, collections list]
     - configuration: cli/internal/config/
     - documentation: README.md + docs/
     
@@ -149,8 +149,8 @@ resource-qdrant content get --name <name>     # Get specific content
 resource-qdrant content remove --name <name>  # Remove content
 resource-qdrant content execute --file <path> # Execute operations
 
-# Qdrant-Specific
-resource-qdrant list-collections              # List all collections
+# Qdrant-Specific read-only inventory
+resource-qdrant collections list [--json]     # List collections, aliases, vector dimensions, and point counts
 resource-qdrant create-collection <name>      # Create collection
 resource-qdrant delete-collection <name>      # Delete collection
 resource-qdrant backup [--path <path>]        # Create backup

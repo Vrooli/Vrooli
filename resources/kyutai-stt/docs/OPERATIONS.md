@@ -37,6 +37,12 @@ in the remaining VRAM budget. The `kyutai/stt-2.6b-en` model (~6–8 GB, English
 only, ~2.5 s delay) can be selected by setting `KYUTAI_STT_HF_REPO` but watch
 the VRAM headroom against other resident resources.
 
+The resource reserves 4096 MiB host RAM and 2 CPU cores. PyTorch intra-op
+threads are capped at 2 (`KYUTAI_STT_CPU_THREADS`) and inter-op threads at 1
+(`KYUTAI_STT_INTEROP_THREADS`); both limits are applied before Moshi imports or
+model loading. CPU execution remains a fallback, not a production streaming
+placement.
+
 CPU execution is possible but **not** real-time and is unsupported for
 production streaming; the resource warns and continues if no GPU is present.
 

@@ -163,7 +163,9 @@
         "acquisition": {
           "kind": "url",
           "license": "Kyutai stt-1b-en_fr model license",
-          "provenance": { "kind": "none" },
+          "provenance": {
+            "kind": "none"
+          },
           "targets": [
             {
               "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/config.json",
@@ -179,7 +181,9 @@
         "acquisition": {
           "kind": "url",
           "license": "Kyutai stt-1b-en_fr model license",
-          "provenance": { "kind": "none" },
+          "provenance": {
+            "kind": "none"
+          },
           "targets": [
             {
               "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/model.safetensors",
@@ -195,7 +199,9 @@
         "acquisition": {
           "kind": "url",
           "license": "Kyutai stt-1b-en_fr model license",
-          "provenance": { "kind": "none" },
+          "provenance": {
+            "kind": "none"
+          },
           "targets": [
             {
               "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/mimi-pytorch-e351c8d8@125.safetensors",
@@ -211,7 +217,9 @@
         "acquisition": {
           "kind": "url",
           "license": "Kyutai stt-1b-en_fr model license",
-          "provenance": { "kind": "none" },
+          "provenance": {
+            "kind": "none"
+          },
           "targets": [
             {
               "url": "https://huggingface.co/kyutai/stt-1b-en_fr/resolve/1c34c6b4f7e9299bb61985f145052ff131005dde/tokenizer_en_fr_audio_8000.model",
@@ -235,6 +243,8 @@
       "PYTHONPATH": "${RESOURCE_ARTIFACT_DIR}/source:${RESOURCE_ARTIFACT_DIR}/wheels",
       "PYTHONDONTWRITEBYTECODE": "1",
       "KYUTAI_STT_DEVICE": "cuda",
+      "KYUTAI_STT_CPU_THREADS": "2",
+      "KYUTAI_STT_INTEROP_THREADS": "1",
       "KYUTAI_STT_CONFIG_PATH": "${RESOURCE_DATA_DIR}/kyutai-config.json",
       "KYUTAI_STT_MOSHI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-model.safetensors",
       "KYUTAI_STT_MIMI_WEIGHTS": "${RESOURCE_DATA_DIR}/kyutai-mimi.safetensors",
@@ -266,21 +276,21 @@
             "artifact-checksum"
           ]
         },
-      "macos": {
-        "support": "unsupported",
-        "mode": "bundled-service",
-        "limitations": [
-          "The qualified target is Linux amd64; macOS remains explicitly unsupported until a native runtime and hardware evidence exist."
-        ],
-        "reason": "The qualified target is Linux amd64; macOS has no supported native target."
+        "macos": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "limitations": [
+            "The qualified target is Linux amd64; macOS remains explicitly unsupported until a native runtime and hardware evidence exist."
+          ],
+          "reason": "The qualified target is Linux amd64; macOS has no supported native target."
         },
-      "windows": {
-        "support": "unsupported",
-        "mode": "bundled-service",
-        "limitations": [
-          "The qualified target is Linux amd64; Windows has no supported native target."
-        ],
-        "reason": "The qualified target is Linux amd64; Windows has no supported native target."
+        "windows": {
+          "support": "unsupported",
+          "mode": "bundled-service",
+          "limitations": [
+            "The qualified target is Linux amd64; Windows has no supported native target."
+          ],
+          "reason": "The qualified target is Linux amd64; Windows has no supported native target."
         }
       }
     }
@@ -382,23 +392,37 @@
   "ports": [
     {
       "name": "http",
-      "container": 8000,
+      "container": 0,
       "host": 8094,
       "protocol": "tcp"
     },
     {
       "name": "upstream",
-      "container": 8000,
-      "host": 18094,
+      "container": 18094,
+      "host": 0,
       "protocol": "tcp"
     }
   ],
+  "activity_network": {
+    "edge_port": "http",
+    "upstream_port": "upstream"
+  },
   "companions": [
     {
       "name": "activity-edge",
       "command": "resource-kyutai-stt",
-      "args": ["activity-edge"],
+      "args": [
+        "activity-edge"
+      ],
       "port": 8094,
+      "required": true
+    },
+    {
+      "name": "upstream-bridge",
+      "command": "resource-kyutai-stt",
+      "args": [
+        "upstream-bridge"
+      ],
       "required": true
     }
   ],
@@ -444,7 +468,9 @@
       "type": "http",
       "target": "http://127.0.0.1:8094/ready",
       "kind": "liveness",
-      "expected_status": [200],
+      "expected_status": [
+        200
+      ],
       "interval_seconds": 30,
       "timeout_seconds": 10
     }

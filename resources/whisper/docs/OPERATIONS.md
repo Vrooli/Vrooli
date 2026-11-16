@@ -46,3 +46,38 @@ cross-compile, fetch dependencies, sign the executable, or update
 `resource.json`. The candidate is not a supported acquisition artifact until
 it has a reproducible release checksum, native-secure-store signing, and a
 macOS arm64 managed-service smoke run.
+
+## Capacity residency and wake ownership
+
+The CPU rung starts the managed server with `--no-gpu`; it is CPU execution,
+not an unloaded model. The public `activity-edge` companion is a required
+resource-owned process and owns both the `/asr` demand boundary and the local
+request endpoint. `/detect-language` is a compatibility probe, not
+transcription demand.
+
+The activity edge now owns a private Unix control socket beside its runtime-home
+companion record. The managed-service restart path drains accepted work through
+that socket, waits for the sequenced idle report, and keeps the edge alive while
+the server is replaced. If a matched `/asr` request finds its private Unix
+bridge absent, the edge requests a normal `vrooli resource start whisper` before
+forwarding the body; the start still passes through capacity admission, health
+checks, and observed placement. Health and language-detection probes do not
+wake the model.
+
+The `unloaded` capacity rung drains matched work, writes a durable model-bound
+transition, stops the managed model server while retaining the edge, and
+requires the managed process to be absent plus a fresh owner-attributed zero
+VRAM sample before completing and releasing that exact claim. It can report
+zero freed VRAM when the model was already on CPU; unload verification still
+does not claim memory that was not measured as released. Failed or uncertain
+work leaves the edge drained and the transition fenced. A later explicit start
+replays or refreshes the transition before capacity admission, then resumes the
+edge only after the restarted service passes health and placement checks. The
+Unix control socket cleanup accepts only a stale socket belonging to the
+recorded dead companion; live sockets, symlinks, regular files, and uncertain
+listeners remain untouched.
+
+These paths are source-tested only. No physical start, placement change, unload,
+or wake journey was run in this delivery; actual serving placement, measured
+freed bytes, timing, and recovery against host process/device inventory remain
+unproven until an exact current operation admission exists.

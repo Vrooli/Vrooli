@@ -18,6 +18,7 @@ package models
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -42,6 +43,45 @@ type Daemon interface {
 type InventoryDaemon interface {
 	ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error)
 }
+
+// ModelAuthorizer rechecks current resource-owned artifact rights and trusted
+// operator context for one exact model immediately before an inference call.
+type ModelAuthorizer func(role, model, digest string) error
+
+// CurrentModelDigest resolves one exact installed identity from Ollama's
+// inventory. Rights authorization must bind to this resource-owned digest;
+// policy labels and installed model names alone are not artifact identity.
+func CurrentModelDigest(ctx context.Context, d Daemon, model string) (string, error) {
+	inventory, ok := d.(InventoryDaemon)
+	if !ok {
+		return "", fmt.Errorf("current Ollama model inventory is unavailable")
+	}
+	models, err := inventory.ListModelInventory(ctx)
+	if err != nil {
+		return "", fmt.Errorf("read current Ollama model inventory: %w", err)
+	}
+	var digest string
+	for _, item := range models {
+		if item.Name != model {
+			continue
+		}
+		if digest != "" {
+			return "", fmt.Errorf("current Ollama inventory contains duplicate model identity %q", model)
+		}
+		digest = item.Digest
+	}
+	if strings.TrimSpace(digest) == "" {
+		return "", fmt.Errorf("current Ollama inventory has no digest for model %q", model)
+	}
+	return digest, nil
+}
+
+// ModelRightsError distinguishes a policy denial from an unavailable daemon
+// probe; rights denials must fail admission rather than be treated as a skip.
+type ModelRightsError struct{ Err error }
+
+func (e *ModelRightsError) Error() string { return e.Err.Error() }
+func (e *ModelRightsError) Unwrap() error { return e.Err }
 
 // ToolCapability is the Ollama capability string that signals native
 // tool-calling support on /api/show.
@@ -182,10 +222,17 @@ func Inventory(ctx context.Context, d Daemon, p policy.Policy) (InventoryResult,
 // ProbeTools runs a live /api/chat write-file tool smoke against a model and
 // reports whether it emitted structured tool_calls. This is the behavioral
 // authority for "can this model tool-call".
-func ProbeTools(ctx context.Context, d Daemon, model string) (ToolProbeResult, error) {
+func ProbeTools(ctx context.Context, d Daemon, model string, authorize func() error) (ToolProbeResult, error) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return ToolProbeResult{}, fmt.Errorf("model is required")
+	}
+	if authorize == nil {
+		return ToolProbeResult{}, fmt.Errorf("local model rights authorizer is unavailable")
+	}
+	if err := authorize(); err != nil {
+		rightsErr := &ModelRightsError{Err: err}
+		return ToolProbeResult{Model: model, Evidence: "model rights did not authorize the live tool probe", Error: err.Error()}, rightsErr
 	}
 	resp, err := d.Chat(ctx, toolSmokeRequest(model))
 	if err != nil {
@@ -217,13 +264,20 @@ func ProbeTools(ctx context.Context, d Daemon, model string) (ToolProbeResult, e
 // ProbeVision sends one base64-encoded image through Ollama's native chat
 // image field. Doctor checks /api/show separately; this verifies the full
 // request path accepts and processes an image.
-func ProbeVision(ctx context.Context, d Daemon, model string, image []byte) (VisionProbeResult, error) {
+func ProbeVision(ctx context.Context, d Daemon, model string, image []byte, authorize func() error) (VisionProbeResult, error) {
 	model = strings.TrimSpace(model)
 	if model == "" {
 		return VisionProbeResult{}, fmt.Errorf("model is required")
 	}
 	if len(image) == 0 {
 		return VisionProbeResult{}, fmt.Errorf("image is required")
+	}
+	if authorize == nil {
+		return VisionProbeResult{}, fmt.Errorf("local model rights authorizer is unavailable")
+	}
+	if err := authorize(); err != nil {
+		rightsErr := &ModelRightsError{Err: err}
+		return VisionProbeResult{Model: model, Evidence: "model rights did not authorize the live vision probe", Error: err.Error()}, rightsErr
 	}
 	zero := 0.0
 	maxTokens := 64
@@ -254,6 +308,10 @@ func ProbeVision(ctx context.Context, d Daemon, model string, image []byte) (Vis
 	// /api/generate path while returning no visible message content from
 	// /api/chat. The gateway uses /api/generate for this command surface, so
 	// verify that production path before declaring the model unusable.
+	if err := authorize(); err != nil {
+		rightsErr := &ModelRightsError{Err: err}
+		return VisionProbeResult{Model: model, Evidence: "model rights did not authorize the image-generation fallback", Error: err.Error()}, rightsErr
+	}
 	generateResp, generateErr := d.Generate(ctx, ensure.GenerateRequest{
 		Model:  model,
 		Prompt: "Describe the image in one short sentence.",
@@ -313,7 +371,7 @@ type DoctorOptions struct {
 // Doctor validates roles against the live daemon: required-capability subset,
 // stub-template flag, and (for tool-requiring roles) the live tool-call smoke.
 // The returned DoctorResult.Pass is the AND of every model's Pass.
-func Doctor(ctx context.Context, d Daemon, p policy.Policy, opts DoctorOptions) (DoctorResult, error) {
+func Doctor(ctx context.Context, d Daemon, p policy.Policy, opts DoctorOptions, authorize ModelAuthorizer) (DoctorResult, error) {
 	roles := opts.Roles
 	if opts.All || len(roles) == 0 {
 		roles = p.RoleNames()
@@ -337,7 +395,7 @@ func Doctor(ctx context.Context, d Daemon, p policy.Policy, opts DoctorOptions) 
 		if !ok {
 			return DoctorResult{}, fmt.Errorf("role %q resolves unknown model %q", roleName, role.Model)
 		}
-		mr := doctorRole(ctx, d, roleName, role, model, installedSet)
+		mr := doctorRole(ctx, d, roleName, role, model, installedSet, authorize)
 		if !mr.Pass {
 			result.Pass = false
 		}
@@ -346,7 +404,7 @@ func Doctor(ctx context.Context, d Daemon, p policy.Policy, opts DoctorOptions) 
 	return result, nil
 }
 
-func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role, model policy.Model, installed map[string]bool) DoctorModelResult {
+func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role, model policy.Model, installed map[string]bool, authorize ModelAuthorizer) DoctorModelResult {
 	mr := DoctorModelResult{
 		Role:                 roleName,
 		Model:                role.Model,
@@ -422,11 +480,27 @@ func doctorRole(ctx context.Context, d Daemon, roleName string, role policy.Role
 		mr.Checks = append(mr.Checks, DoctorCheck{Name: "tool_smoke", Status: StatusSkip, Detail: "role does not require tool-calling"})
 		return mr
 	}
-	probe, probeErr := ProbeTools(ctx, d, role.Model)
+	probe, probeErr := ProbeTools(ctx, d, role.Model, func() error {
+		if authorize == nil {
+			return fmt.Errorf("local model rights authorizer is unavailable")
+		}
+		digest, digestErr := CurrentModelDigest(ctx, d, role.Model)
+		if digestErr != nil {
+			return digestErr
+		}
+		return authorize(roleName, role.Model, digest)
+	})
 	switch {
 	case probeErr != nil:
-		// Infra error reaching the daemon — skip, do not fail.
-		mr.Checks = append(mr.Checks, DoctorCheck{Name: "tool_smoke", Status: StatusSkip, Detail: probeErr.Error()})
+		var rightsErr *ModelRightsError
+		if errors.As(probeErr, &rightsErr) {
+			mr.Pass = false
+			mr.Checks = append(mr.Checks, DoctorCheck{Name: "tool_smoke", Status: StatusFail, Detail: probeErr.Error()})
+			mr.Reasons = append(mr.Reasons, fmt.Sprintf("model %q rights do not authorize the tool smoke for role %q: %s", role.Model, roleName, probeErr.Error()))
+		} else {
+			// Infra error reaching the daemon — skip, do not fail.
+			mr.Checks = append(mr.Checks, DoctorCheck{Name: "tool_smoke", Status: StatusSkip, Detail: probeErr.Error()})
+		}
 	case probe.SupportsTools:
 		mr.Checks = append(mr.Checks, DoctorCheck{Name: "tool_smoke", Status: StatusPass, Detail: probe.Evidence})
 	default:

@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/vrooli/resources/kopia/cli/internal/credentials"
 	"github.com/vrooli/vrooli/resources/kopia/cli/internal/env"
 	"github.com/vrooli/vrooli/resources/kopia/cli/internal/kexec"
 	"github.com/vrooli/vrooli/resources/kopia/cli/internal/maintenance"
@@ -230,13 +231,13 @@ func TestIntegrationS3RoundTrip(t *testing.T) {
 	}
 	r := newRig(t)
 	ctx := context.Background()
+	r.store.SeedS3("offsite", credentials.S3Credentials{AccessKeyID: access, SecretAccessKey: secret})
 	fixtureDir := filepath.Join(t.TempDir(), "fixture")
 	want := writeFixture(t, fixtureDir)
 
 	createArgs := []string{
 		"--name", "offsite", "--backend", "s3",
 		"--bucket", bucket, "--endpoint", endpoint,
-		"--access-key", access, "--secret-access-key", secret,
 	}
 	if os.Getenv("KOPIA_TEST_S3_DISABLE_TLS") != "" {
 		createArgs = append(createArgs, "--disable-tls")

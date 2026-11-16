@@ -42,8 +42,12 @@ curl http://localhost:11434/api/tags
 resource-ollama ensure --config-base64 <scenario-model-config>
 ```
 
-Scenarios declare model **roles** in their ollama dependency config; `resource-ollama
-ensure` pulls any missing resolved models into the running managed service.
+Scenarios declare model **roles** in their ollama dependency config. `resource-ollama
+ensure` leaves installed models untouched. For missing models it requires a
+shared disk-job reservation and a frozen default-registry manifest before the
+Ollama pull request. Private registries and remote Ollama endpoints are refused.
+Uncertain pull failures leave the owner lease active until stopped work and
+cleanup can be verified.
 
 ### Key Endpoints
 - **Health**: http://localhost:11434/api/tags

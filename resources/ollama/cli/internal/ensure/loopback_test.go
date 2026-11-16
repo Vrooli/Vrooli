@@ -113,3 +113,32 @@ func TestLoopbackUsesEffectiveHostOverrideAndDefault(t *testing.T) {
 		}
 	})
 }
+
+func TestNewManagedDaemonLoopbackClientRestrictsOwnerEndpoint(t *testing.T) {
+	client, err := NewManagedDaemonLoopbackClient("http://127.0.0.1:21434")
+	if err != nil {
+		t.Fatalf("managed private endpoint rejected: %v", err)
+	}
+	if client.BaseURL != "http://127.0.0.1:21434" {
+		t.Fatalf("managed endpoint = %q", client.BaseURL)
+	}
+	transport, ok := client.HTTP.Transport.(*http.Transport)
+	if !ok || transport.Proxy != nil {
+		t.Fatal("managed endpoint client must use a direct transport without proxy resolution")
+	}
+
+	for _, endpoint := range []string{
+		"https://127.0.0.1:21434",
+		"http://127.0.0.1:11434",
+		"http://127.0.0.1:21434/",
+		"http://127.0.0.1:21434/path",
+		"http://127.0.0.1:21434?query=1",
+		"http://localhost:21434",
+		"http://192.0.2.10:21434",
+		"http://user@127.0.0.1:21434",
+	} {
+		if _, err := NewManagedDaemonLoopbackClient(endpoint); err == nil {
+			t.Errorf("managed endpoint %q was accepted", endpoint)
+		}
+	}
+}

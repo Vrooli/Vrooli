@@ -7,6 +7,7 @@ import kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 const (
 	BackendFilesystem = kopiaregistry.BackendFilesystem
 	BackendS3         = kopiaregistry.BackendS3
+	BackendSFTP       = kopiaregistry.BackendSFTP
 )
 
 type (

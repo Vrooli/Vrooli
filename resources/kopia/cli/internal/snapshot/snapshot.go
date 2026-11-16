@@ -136,6 +136,7 @@ func (s Service) Browse(ctx context.Context, args []string) error {
 	snap := fs.String("snapshot", "", "Snapshot id to browse (required)")
 	path := fs.String("path", "", "Optional snapshot-relative directory path")
 	jsonOut := fs.Bool("json", false, "Emit JSON entries")
+	recursive := fs.Bool("recursive", false, "List all snapshot descendants")
 	if err := cmdutil.Parse(fs, args); err != nil {
 		return err
 	}
@@ -157,17 +158,82 @@ func (s Service) Browse(ctx context.Context, args []string) error {
 	if err != nil {
 		return fmt.Errorf("create browse temp dir: %w", err)
 	}
-	defer func() { _ = os.RemoveAll(tmp) }()
+	defer func() { _ = removeRestoredTree(tmp) }()
 
 	argv := append(target.GlobalArgs(), "snapshot", "restore", *snap, tmp)
 	if err := s.runSilent(ctx, target, argv); err != nil {
 		return err
 	}
-	entries, err := listEntries(tmp, relPath)
+	var entries []browseEntry
+	if *recursive {
+		entries, err = listEntriesRecursive(tmp, relPath)
+	} else {
+		entries, err = listEntries(tmp, relPath)
+	}
 	if err != nil {
 		return err
 	}
 	return cliout.NewCompactEncoder(s.out()).Encode(entries)
+}
+
+func listEntriesRecursive(root, relPath string) ([]browseEntry, error) {
+	base := root
+	if relPath != "" {
+		base = filepath.Join(root, filepath.FromSlash(relPath))
+	}
+	var out []browseEntry
+	err := filepath.WalkDir(base, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if path == base {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		typ := "f"
+		modeType := info.Mode().Type()
+		if entry.IsDir() {
+			typ = "d"
+		} else if modeType&fs.ModeSymlink != 0 {
+			typ = "l"
+		} else if modeType != 0 {
+			typ = "x"
+		}
+		size := info.Size()
+		if typ != "f" {
+			size = 0
+		}
+		out = append(out, browseEntry{Path: filepath.ToSlash(rel), Name: filepath.ToSlash(rel), SizeBytes: size, Type: typ, IsDir: typ == "d"})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("recursive browse path %q: %w", relPath, err)
+	}
+	return out, nil
+}
+
+// removeRestoredTree removes a restored snapshot tree. Kopia preserves source
+// permissions, so read-only directories (0555) make a plain os.RemoveAll fail
+// and leave the whole restored snapshot behind in the temp dir. Owner write
+// and search bits are restored on every real directory first; symlinks are
+// never followed.
+func removeRestoredTree(root string) error {
+	_ = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if entry != nil && entry.IsDir() {
+			if info, statErr := entry.Info(); statErr == nil {
+				_ = os.Chmod(path, info.Mode().Perm()|0o700)
+			}
+		}
+		return nil
+	})
+	return os.RemoveAll(root)
 }
 
 // Verify checks snapshot/content integrity. With --snapshot it verifies a
@@ -316,11 +382,16 @@ func listEntries(root, relPath string) ([]browseEntry, error) {
 			entryRel = filepath.ToSlash(filepath.Join(relPath, child.Name()))
 		}
 		typ := "f"
+		modeType := info.Mode().Type()
 		if child.IsDir() {
 			typ = "d"
+		} else if modeType&fs.ModeSymlink != 0 {
+			typ = "l"
+		} else if modeType != 0 {
+			typ = "x"
 		}
 		size := info.Size()
-		if child.IsDir() || info.Mode().Type()&fs.ModeSymlink != 0 {
+		if typ != "f" {
 			size = 0
 		}
 		out = append(out, browseEntry{

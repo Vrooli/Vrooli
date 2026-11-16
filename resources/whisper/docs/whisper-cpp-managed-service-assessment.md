@@ -27,8 +27,11 @@ smoke evidence is not yet complete.
 
 The active host contract is `POST /asr`, `POST /detect-language`, and `GET /`
 via the activity-edge companion on port 8090. `audio-tools` is the material
-consumer. The native supervisor runs whisper.cpp v1.9.2 on port 18090 and the
-edge maps the historical `audio_file` form to whisper.cpp's `/inference` form.
+consumer. On Linux, RootlessKit publishes no TCP port and isolates the native
+whisper.cpp v1.9.2 server on private port 18090. The stable host-side activity
+edge reaches it through a Unix socket bridge in that namespace; the bridge
+checks the edge's exact peer PID and owner UID. The edge maps the historical
+`audio_file` form to whisper.cpp's `/inference` form.
 
 ## 3. Target archetype
 

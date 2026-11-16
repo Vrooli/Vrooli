@@ -23,7 +23,8 @@ type Handlers struct {
 
 type resolveReport struct {
 	policy.ResolvedPolicyModel
-	PolicyPath string `json:"policy_path"`
+	PolicyPath   string `json:"policy_path"`
+	PolicySHA256 string `json:"policy_sha256"`
 }
 
 type rolesReport struct {
@@ -142,7 +143,7 @@ func (h *Handlers) Resolve(args []string) error {
 	if err != nil {
 		return err
 	}
-	report := resolveReport{ResolvedPolicyModel: resolved, PolicyPath: path}
+	report := resolveReport{ResolvedPolicyModel: resolved, PolicyPath: path, PolicySHA256: p.LoadedSHA256()}
 	if name := strings.TrimSpace(*field); name != "" {
 		return h.printField(report, name)
 	}
@@ -173,7 +174,11 @@ func (h *Handlers) Roles(args []string) error {
 		if err != nil {
 			return err
 		}
-		report.Roles = append(report.Roles, resolveReport{ResolvedPolicyModel: resolved, PolicyPath: path})
+		report.Roles = append(report.Roles, resolveReport{
+			ResolvedPolicyModel: resolved,
+			PolicyPath:          path,
+			PolicySHA256:        p.LoadedSHA256(),
+		})
 	}
 	if *asJSON {
 		return writeJSON(h.Stdout, report)
@@ -207,7 +212,11 @@ func (h *Handlers) Models(args []string) error {
 		if err != nil {
 			return err
 		}
-		report.Models = append(report.Models, resolveReport{ResolvedPolicyModel: resolved, PolicyPath: path})
+		report.Models = append(report.Models, resolveReport{
+			ResolvedPolicyModel: resolved,
+			PolicyPath:          path,
+			PolicySHA256:        p.LoadedSHA256(),
+		})
 	}
 	if *asJSON {
 		return writeJSON(h.Stdout, report)
@@ -371,6 +380,8 @@ func fieldValue(report resolveReport, name string) (string, error) {
 		return report.SchemaVersion, nil
 	case "policy_path":
 		return report.PolicyPath, nil
+	case "policy_sha256":
+		return report.PolicySHA256, nil
 	case "role":
 		return report.Role, nil
 	case "source":

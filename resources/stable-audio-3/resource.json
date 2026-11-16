@@ -69,6 +69,12 @@
         "reclaim": {
           "pruner": "custom",
           "command": "vrooli resource acquisition model-cache stable-audio-3"
+        },
+        "reacquisition": {
+          "command": "vrooli resource acquisition model-cache stable-audio-3",
+          "evidence": "server/model-lock.json (locked upstream model revision and per-file SHA-256 hashes)",
+          "requires_authorization": true,
+          "authorization_rationale": "The model is gated by the upstream provider and license; access depends on an operator-authorized credential in the credential authority."
         }
       },
       "outputs": {

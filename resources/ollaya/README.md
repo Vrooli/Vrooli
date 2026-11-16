@@ -47,7 +47,21 @@ Models live in `${RESOURCE_DATA_DIR}/models` (relocatable, regenerable cache).
 Every model in `model-policy.json` is pinned by its registry manifest digest;
 `models pull` pulls `name@sha256:<digest>` and fails if the daemon then holds a
 different digest. The daemon itself verifies each weight blob's sha256 and
-fetches weights from the model author's Hugging Face repository.
+fetches weights from the model author's Hugging Face repository. Before any
+missing model is pulled, the CLI reserves the estimated peak on the managed
+model-store path through the shared capacity disk-job owner. It samples growth
+while the pull runs and completes the job only after the daemon reports the
+pinned digests installed. JSON output includes the durable disk-job receipt and
+verified model digests. If a pull or verification fails, partial files are
+preserved and the admission stays active for capacity-owner recovery because
+the daemon API does not expose a cleanup proof.
+
+For missing-model pulls, the CLI holds Ollaya's managed-service lifecycle lock
+for the full operation. It verifies the owner record's PID, process incarnation
+and ownership token, checks the service process's `OLLAYA_MODELS` and loopback
+listener against the admitted path, and rejects an `OLLAYA_URL` that does not
+match the managed resource endpoint. Pull and inventory requests then use the
+verified private listener directly.
 
 ## Roles
 

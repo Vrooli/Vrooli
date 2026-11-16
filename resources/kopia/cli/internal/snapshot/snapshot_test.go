@@ -214,6 +214,55 @@ func TestBrowseRestoresSnapshotToTempAndListsOneDirectoryLevel(t *testing.T) {
 	}
 }
 
+func TestBrowseRecursiveListsNestedManifestEntries(t *testing.T) {
+	s, run := newSvc(t)
+	run.Responder = func(c kexec.Call) ([]byte, error) {
+		mustWriteFile(t, filepath.Join(c.Args[5], "root.txt"), "alpha\n")
+		mustWriteFile(t, filepath.Join(c.Args[5], "nested", "child.txt"), "beta\n")
+		return nil, nil
+	}
+	var out strings.Builder
+	s.Out = &out
+	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--snapshot", "abc123", "--json", "--recursive"}); err != nil {
+		t.Fatal(err)
+	}
+	var entries []struct {
+		Path string `json:"path"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal([]byte(out.String()), &entries); err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 3 {
+		t.Fatalf("recursive entries = %+v", entries)
+	}
+}
+
+func TestBrowseCleansUpReadOnlyRestoredDirectories(t *testing.T) {
+	s, run := newSvc(t)
+	var restoredTo string
+	run.Responder = func(c kexec.Call) ([]byte, error) {
+		restoredTo = c.Args[5]
+		mustWriteFile(t, filepath.Join(restoredTo, "locked", "inner", "file.txt"), "x\n")
+		// Kopia preserves source permissions, so restored trees can be read-only.
+		for _, p := range []string{filepath.Join(restoredTo, "locked", "inner"), filepath.Join(restoredTo, "locked"), restoredTo} {
+			if err := os.Chmod(p, 0o555); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return nil, nil
+	}
+	var out strings.Builder
+	s.Out = &out
+	if err := s.Browse(context.Background(), []string{"--repo", "nightly", "--snapshot", "abc123", "--json"}); err != nil {
+		t.Fatalf("Browse: %v", err)
+	}
+	if _, err := os.Stat(restoredTo); !os.IsNotExist(err) {
+		_ = os.Chmod(restoredTo, 0o755)
+		t.Fatalf("read-only restored tree must be removed; stat err = %v", err)
+	}
+}
+
 func TestSnapshotRequiresFlags(t *testing.T) {
 	s, _ := newSvc(t)
 	if err := s.Create(context.Background(), []string{"--repo", "nightly"}); err == nil {

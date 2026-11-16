@@ -98,6 +98,9 @@ func TestConfigDeclaresTheModelPolicyLadder(t *testing.T) {
 	if cfg.Resource != resourceName || cfg.Priority != "service" || !cfg.YieldWhenIdle {
 		t.Fatalf("config = %+v, want ollama/service/yield-when-idle", cfg)
 	}
+	if cfg.IdleGrace != 0 {
+		t.Fatalf("companion IdleGrace = %s, want no owner-local grace timer; resource claim owns the shared reclaim grace", cfg.IdleGrace)
+	}
 	// And it carries a degrade ladder that ends at the floor
 	var profile degradeProfile
 	if err := json.Unmarshal([]byte(cfg.Profile), &profile); err != nil {

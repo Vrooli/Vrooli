@@ -62,8 +62,9 @@ curl http://localhost:11434/api/pull -d '{"name":"llama3.1:8b","stream":false}'
 
 Scenarios should not pull models by hand. They declare model **roles** (resolved
 through [`model-policy.json`](../model-policy.json)) in their ollama dependency
-config, and `resource-ollama ensure` pulls any missing resolved models into the
-running managed service automatically.
+config. `resource-ollama ensure` preserves models already installed and currently
+refuses missing models because a safe shared disk-job adapter cannot yet pin the
+exact manifest Ollama will write.
 
 ## Configuration
 

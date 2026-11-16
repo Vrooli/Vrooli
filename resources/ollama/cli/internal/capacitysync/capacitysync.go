@@ -27,9 +27,8 @@ var (
 	resourceName    = "ollama"
 	defaultInterval = tuning.CompanionCapacitySyncInterval()
 	// intervalEnv lets an operator slow the companion down without a rebuild.
-	intervalEnv     = "OLLAMA_CAPACITY_SYNC_INTERVAL"
-	bytesPerGiB     = int64(1024 * 1024 * 1024)
-	defaultIdleWait = tuning.ResourceLongHTTPTimeout()
+	intervalEnv = "OLLAMA_CAPACITY_SYNC_INTERVAL"
+	bytesPerGiB = int64(1024 * 1024 * 1024)
 )
 
 // psClient is the slice of the Ollama client the observer needs: the
@@ -95,7 +94,6 @@ func (h *Handlers) config() companion.Config {
 		FloorBytes:     floor,
 		Profile:        profile,
 		YieldWhenIdle:  true,
-		IdleGrace:      defaultIdleWait,
 		Log:            h.Stderr,
 	}
 }

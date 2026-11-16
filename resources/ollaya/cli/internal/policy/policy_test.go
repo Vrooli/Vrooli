@@ -20,6 +20,18 @@ func env(values map[string]string) func(string) string {
 	return func(key string) string { return values[key] }
 }
 
+func TestRightsContextPathUsesSharedConfiguredOwnerPath(t *testing.T) {
+	custom := filepath.Join(t.TempDir(), "operator-context.json")
+	if got := RightsContextPath(env(map[string]string{"VROOLI_MODEL_RIGHTS_CONTEXT_PATH": custom})); got != custom {
+		t.Fatalf("configured rights context path=%q, want %q", got, custom)
+	}
+	root := t.TempDir()
+	want := filepath.Join(root, "scenarios", "ai-gateway", "config", "model-rights-context.json")
+	if got := RightsContextPath(env(map[string]string{"VROOLI_SOURCE_ROOT": root})); got != want {
+		t.Fatalf("source-root rights context path=%q, want %q", got, want)
+	}
+}
+
 func TestShippedPolicyDeclaresLocalAndCredentialGatedHostedRoles(t *testing.T) {
 	p := shippedPolicy(t)
 	want := map[string]string{
@@ -40,6 +52,28 @@ func TestShippedPolicyDeclaresLocalAndCredentialGatedHostedRoles(t *testing.T) {
 	}
 	if got := p.DefaultPulls(); len(got) != 3 || got[0] != "laya" {
 		t.Fatalf("default pulls = %v, want the laya router first then its two targets", got)
+	}
+}
+
+func TestEveryOllayaArtifactHasExplicitRightsDisposition(t *testing.T) {
+	p := shippedPolicy(t)
+	if len(p.Models) != 4 {
+		t.Fatalf("shipped Ollaya artifact count=%d, want 4", len(p.Models))
+	}
+	for id, model := range p.Models {
+		if model.Rights == nil {
+			t.Errorf("model %s lacks a rights disposition", id)
+			continue
+		}
+		if model.Rights.ArtifactID != "ollaya/"+id {
+			t.Errorf("model %s rights artifact identity=%q", id, model.Rights.ArtifactID)
+		}
+		if model.Rights.Classification != "unknown" || model.Rights.UnverifiedReason == "" {
+			t.Errorf("model %s must remain explicitly unknown until its exact license scope is verified: %+v", id, model.Rights)
+		}
+		if len(model.Rights.ReviewTriggers) == 0 {
+			t.Errorf("model %s has no rights review trigger", id)
+		}
 	}
 }
 

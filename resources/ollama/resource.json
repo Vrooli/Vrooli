@@ -12,7 +12,7 @@
       "models": {
         "rung": "relocatable",
         "kind": "dir",
-        "regenerable": true,
+        "regenerable": false,
         "budget": {
           "max_bytes": "90423MiB",
           "rationale": "Measured at 62434233666 bytes on 2026-08-15 from Ollama /api/tags; ceiling is two times observed size."
@@ -21,7 +21,7 @@
           "key": "OLLAMA_MODELS",
           "scope": "process-tree"
         },
-        "rationale": "Model weights are large but recoverable from their registry sources. The live model inventory reports each model's name, digest, size, policy reachability, and regeneration rationale; the resource relocates the shared blob store through OLLAMA_MODELS.",
+        "rationale": "Installed model weights are durable state. The live inventory reports names, digests, sizes, and policy reachability, but does not prove that each installed tag can be reacquired from its source. Preserve the model store until an owner-backed per-model reacquisition receipt exists; the resource relocates the shared blob store through OLLAMA_MODELS.",
         "class": "data",
         "subpath": "models"
       },
@@ -218,7 +218,7 @@
       "OLLAMA_NUM_PARALLEL": "1",
       "OLLAMA_MAX_LOADED_MODELS": "2",
       "OLLAMA_FLASH_ATTENTION": "1",
-      "OLLAMA_KEEP_ALIVE": "5m",
+      "OLLAMA_KEEP_ALIVE": "-1",
       "OLLAMA_CONTEXT_LENGTH": "8192",
       "OLLAMA_ORIGINS": "*"
     }
@@ -278,13 +278,6 @@
   },
   "companions": [
     {
-      "name": "capacity-sync",
-      "command": "resource-ollama",
-      "args": [
-        "capacity-sync"
-      ]
-    },
-    {
       "name": "activity-edge",
       "command": "resource-ollama",
       "args": [
@@ -292,6 +285,21 @@
       ],
       "port": 11434,
       "required": true
+    },
+    {
+      "name": "upstream-bridge",
+      "command": "resource-ollama",
+      "args": [
+        "upstream-bridge"
+      ],
+      "required": true
+    },
+    {
+      "name": "capacity-sync",
+      "command": "resource-ollama",
+      "args": [
+        "capacity-sync"
+      ]
     }
   ],
   "acceleration": {
@@ -338,6 +346,7 @@
       "confidence": "estimated",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
+      "idle_unload_ttl_seconds": 900,
       "profile": {
         "steps_source": "model-policy.json",
         "steps": [
@@ -402,15 +411,19 @@
   "ports": [
     {
       "name": "http",
-      "container": 11434,
+      "container": 0,
       "host": 11434
     },
     {
       "name": "upstream",
-      "container": 11434,
-      "host": 21434
+      "container": 21434,
+      "host": 0
     }
   ],
+  "activity_network": {
+    "edge_port": "http",
+    "upstream_port": "upstream"
+  },
   "health_checks": [
     {
       "type": "command",

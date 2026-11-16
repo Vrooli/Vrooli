@@ -76,6 +76,32 @@ MODEL_MIMI_WEIGHTS = os.environ.get("KYUTAI_STT_MIMI_WEIGHTS", "")
 MODEL_TOKENIZER_PATH = os.environ.get("KYUTAI_STT_TOKENIZER", "")
 
 
+def _positive_int_env(name: str, default: int) -> int:
+    """Read a positive resource budget, falling back on malformed values."""
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return value if value > 0 else default
+
+
+TORCH_CPU_THREAD_BUDGET = _positive_int_env("KYUTAI_STT_CPU_THREADS", 2)
+TORCH_INTEROP_THREAD_BUDGET = _positive_int_env("KYUTAI_STT_INTEROP_THREADS", 1)
+_TORCH_THREAD_BUDGET_APPLIED = False
+
+
+def configure_torch_thread_budget(torch) -> None:
+    """Apply the manifest's bounded CPU thread budget before loading Moshi."""
+    global _TORCH_THREAD_BUDGET_APPLIED
+    if _TORCH_THREAD_BUDGET_APPLIED:
+        return
+    torch.set_num_threads(TORCH_CPU_THREAD_BUDGET)
+    # PyTorch only permits setting inter-op threads before its parallel work
+    # starts. Model.load calls this before importing Moshi or loading weights.
+    torch.set_num_interop_threads(TORCH_INTEROP_THREAD_BUDGET)
+    _TORCH_THREAD_BUDGET_APPLIED = True
+
+
 def _enabled(value: str) -> bool:
     """Parse an operator boolean without accepting accidental truthiness."""
     return value.strip().lower() in {"1", "true", "yes", "on"}
@@ -336,6 +362,8 @@ class Model:
 
     def load(self) -> None:
         import torch
+
+        configure_torch_thread_budget(torch)
         from moshi.models import loaders, LMGen
 
         log.info(

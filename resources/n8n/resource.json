@@ -78,5 +78,26 @@
   },
   "template_version": "2",
   "privilege": "user",
-  "bundling": "vendorable"
+  "bundling": "vendorable",
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "The task-scoped n8n runtime is currently available only through the control-plane Docker lifecycle; no desktop bundle contract is defined."
+        }
+      }
+    }
+  }
 }

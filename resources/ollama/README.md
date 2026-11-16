@@ -118,11 +118,12 @@ to `resource-ollama ensure --config-base64 <base64-json>`. The ensure verb:
 2. Emits warnings for deprecated `model` usage and direct `models` exceptions.
 3. Lists installed tags via `GET /api/tags` (fast, ~10ms).
 4. Computes the missing set.
-5. Streams `POST /api/pull` for each missing model, relaying progress to the
-   lifecycle console.
-6. Exits 0 once every requested model is present (or reports which pulls
-   failed while keeping the scenario start best-effort via the usual
-   `startup_policy` semantics).
+5. Preserves installed models without a pull. Missing-model pulls require a
+   shared disk-job admission before the request starts; the production adapter
+   is not yet wired, so `ensure` currently refuses when any model is missing.
+6. An admitted pull must finish its stream and verify installed inventory and
+   cleanup before the disk lease can complete. Scenario startup continues to
+   apply the configured `startup_policy` to an `ensure` refusal.
 
 Direct invocation (e.g. while debugging):
 
@@ -192,13 +193,19 @@ Defaults are tuned for a single-host workstation:
 
 | Setting | Default | Where set | Override path |
 |---|---|---|---|
-| Host memory budget | policy-derived | `requirements` and model policy | Select a smaller model role or adjust the declared policy after measurement |
-| Concurrent requests in-flight | `2` | `managed_service.environment.OLLAMA_NUM_PARALLEL` and the gateway semaphore fallback | Same — edit and restart |
-| Models kept resident | `3` | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS` | Same |
+| Host memory budget | `8192 MiB` | `requirements.ram_mb` and model policy | Select a smaller model role or adjust the declared policy after measurement |
+| Concurrent requests in-flight | `1` | `managed_service.environment.OLLAMA_NUM_PARALLEL` and the gateway semaphore fallback | Same — edit and restart |
+| CPU threads per gateway request | `4` | Gateway resource budget; applied when omitted and larger overrides are rejected | Change the budget constant and tests after measurement |
+| Models kept resident | `2` | `managed_service.environment.OLLAMA_MAX_LOADED_MODELS` | Same |
+| Ollama internal model timeout | `-1` (never unload) | `managed_service.environment.OLLAMA_KEEP_ALIVE` | Shared capacity `idle_unload_ttl_seconds` owns reclaim timing |
 
-The 12 GiB cap is intended to keep one 7-8B model resident plus headroom; raise
-it on hosts with more RAM, lower it on smaller boxes. Keep `OLLAMA_NUM_PARALLEL`
-in step with the gateway semaphore (see below) — they are deliberately tied.
+The 12 GiB VRAM cap is intended to keep one 7-8B model resident plus headroom;
+the separate 8 GiB host RAM requirement is the resource's audited reservation.
+Keep `OLLAMA_NUM_PARALLEL` in step with the gateway semaphore — they are
+deliberately tied. The gateway sends a four-thread default to Ollama for each
+generation request and refuses a larger override unless the resource budget is
+raised explicitly. Ollama's own keep-alive timer is disabled so the shared
+capacity state machine is the only owner of idle model unload timing.
 The shipped policy also supplies conservative default output budgets for every
 generation role (512 for small/vision, 1024 for summarize, 2048 for default
 chat, 256 for routing/rerank, 4096 for code, and 8192 for writing). An explicit
@@ -238,6 +245,11 @@ resource-ollama gateway generate --role chat.default      --json --prompt "say h
 resource-ollama gateway chat     --role summarize.default --json --system "Be concise" --prompt "summarize this"
 ```
 
+These gateway inference commands always verify a direct loopback Ollama
+endpoint, including when called without `--require-loopback`. A configured
+non-loopback `OLLAMA_BASE_URL` or `OLLAMA_HOST` is refused before a provider
+request; the compatibility flag does not enable or disable that check.
+
 For bounded experiments or a known CPU-sensitive workload, the gateway accepts
 per-request Ollama runtime controls. Each is validated before admission;
 context is checked against the selected model policy, while thread and batch
@@ -255,9 +267,9 @@ fields so a benchmark can distinguish model-load cost from token-generation
 cost. The gateway remains serialized by the host-wide semaphore before any
 request reaches Ollama.
 
-For an isolated local inference, add `--one-shot --require-loopback --timeout
-90s`. The command refuses a model already resident, sends `keep_alive: 0`, and
-returns JSON only after confirming the model left `/api/ps`.
+For an isolated local inference, add `--one-shot --timeout 90s`. Loopback is
+verified by default. The command refuses a model already resident, sends
+`keep_alive: 0`, and returns JSON only after confirming the model left `/api/ps`.
 
 Vision callers use the same gateway boundary with a JSON envelope on standard
 input; image bytes never travel in argv or logs:

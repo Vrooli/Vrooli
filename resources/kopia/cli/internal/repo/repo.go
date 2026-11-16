@@ -5,8 +5,9 @@
 // Invariants enforced here:
 //   - Encryption is always on. No handler ever emits a kopia flag that disables
 //     or downgrades encryption (kopia's default is AES256-GCM-HMAC-SHA256).
-//   - Secrets travel only through the env overlay (KOPIA_PASSWORD, AWS_*),
-//     never as argv flags.
+//   - Passphrases and S3 credentials travel only through the env overlay;
+//     SFTP keys are materialized as owner-only runtime files. Secret values
+//     never appear in argv.
 //   - Runtime state (the registry, config files, caches) resolves outside the
 //     repo tree via internal/env.
 package repo
@@ -18,10 +19,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -33,6 +37,7 @@ import (
 	"github.com/vrooli/vrooli/resources/kopia/cli/internal/registry"
 	"github.com/vrooli/vrooli/resources/kopia/cli/internal/repoctx"
 
+	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
@@ -59,17 +64,20 @@ func (s Service) out() io.Writer {
 func (s Service) Create(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("repo create")
 	var (
-		name       = fs.String("name", "", "Destination/repository name (required)")
-		backend    = fs.String("backend", "", "Backend: filesystem | s3 (required)")
-		path       = fs.String("path", "", "Filesystem backend: repository directory")
-		bucket     = fs.String("bucket", "", "S3 backend: bucket name")
-		endpoint   = fs.String("endpoint", "", "S3 backend: endpoint (e.g. minio:9000)")
-		prefix     = fs.String("prefix", "", "S3 backend: key prefix")
-		region     = fs.String("region", "", "S3 backend: region")
-		disableTLS = fs.Bool("disable-tls", false, "S3 backend: disable TLS (local MinIO)")
-		accessKey  = fs.String("access-key", "", "S3 backend: access key id (stored in the credential authority; else read from it)")
-		secretKey  = fs.String("secret-access-key", "", "S3 backend: secret access key (stored in the credential authority)")
-		jsonOut    = fs.Bool("json", false, "Emit kopia's native JSON")
+		name           = fs.String("name", "", "Destination/repository name (required)")
+		backend        = fs.String("backend", "", "Backend: filesystem | sftp | s3 (required)")
+		path           = fs.String("path", "", "Filesystem backend: repository directory")
+		bucket         = fs.String("bucket", "", "S3 backend: bucket name")
+		endpoint       = fs.String("endpoint", "", "S3 backend: endpoint (e.g. minio:9000)")
+		prefix         = fs.String("prefix", "", "S3 backend: key prefix")
+		region         = fs.String("region", "", "S3 backend: region")
+		disableTLS     = fs.Bool("disable-tls", false, "S3 backend: disable TLS (local MinIO)")
+		sftpHost       = fs.String("host", "", "SFTP backend: server hostname")
+		sftpPort       = fs.Int("port", 22, "SFTP backend: server port")
+		sftpUser       = fs.String("username", "", "SFTP backend: server username")
+		sftpPath       = fs.String("remote-path", "", "SFTP backend: repository path")
+		sftpKnownHosts = fs.String("known-hosts", "", "SFTP backend: known_hosts file path")
+		jsonOut        = fs.Bool("json", false, "Emit kopia's native JSON")
 	)
 	if err := cmdutil.Parse(fs, args); err != nil {
 		return err
@@ -115,19 +123,33 @@ func (s Service) Create(ctx context.Context, args []string) error {
 		entry.Prefix = *prefix
 		entry.Region = *region
 		entry.DisableTLS = *disableTLS
-		creds, err := s.resolveS3Creds(ctx, *name, *accessKey, *secretKey)
+		creds, err := s.resolveS3Creds(ctx, *name)
 		if err != nil {
 			return err
 		}
 		secretEnv[repoctx.EnvAWSAccessKey] = creds.AccessKeyID
 		secretEnv[repoctx.EnvAWSSecretKey] = creds.SecretAccessKey
 		verbArgs = append(verbArgs, s3Args(entry)...)
+	case registry.BackendSFTP:
+		entry.Backend = registry.BackendSFTP
+		entry.Host, entry.Port, entry.Username = *sftpHost, *sftpPort, *sftpUser
+		entry.Path, entry.KnownHosts = *sftpPath, *sftpKnownHosts
+		if err := validateSFTPEntry(entry); err != nil {
+			return err
+		}
+		key, err := credentials.SFTPPrivateKeyFor(s.Credentials, *name)
+		if err != nil {
+			return err
+		}
+		secretEnv[repoctx.EnvSFTPPrivateKey] = key
+		verbArgs = append(verbArgs, sftpArgs(entry)...)
 	default:
-		return fmt.Errorf("unsupported --backend %q (use filesystem or s3)", *backend)
+		return fmt.Errorf("unsupported --backend %q (use filesystem, sftp, or s3)", *backend)
 	}
-	passphrase, err := credentials.GeneratePassphrase()
-	if err != nil {
-		return err
+	if entry.Backend == registry.BackendSFTP {
+		if err := protectSFTPConfigDir(filepath.Dir(cfg)); err != nil {
+			return fmt.Errorf("protect SFTP repository config directory: %w", err)
+		}
 	}
 	identity, err := kopiaregistry.PassphraseIdentity(entry.Name)
 	if err != nil {
@@ -136,11 +158,37 @@ func (s Service) Create(ctx context.Context, args []string) error {
 	if s.Credentials == nil {
 		return fmt.Errorf("credential authority is unavailable")
 	}
-	if err := s.Credentials.Put(identity, kopiaregistry.PassphraseField, passphrase); err != nil {
-		return fmt.Errorf("store repository passphrase: %w", err)
+	if s.Registry == nil {
+		return fmt.Errorf("repository registry is unavailable")
+	}
+	if _, found, regErr := s.Registry.Get(entry.Name); regErr != nil {
+		return fmt.Errorf("read repository registry before create: %w", regErr)
+	} else if found {
+		return fmt.Errorf("repository %q is already registered; refusing create; use repo connect to reconcile", entry.Name)
+	}
+	// A prior value means a create may have reached Kopia even if the caller
+	// observed an error, or a prior registry write may have failed. Never rotate
+	// that credential or issue repository create again on an ambiguous retry.
+	// Recovery is an explicit `repo connect --backend ...` using this same key.
+	passphrase, resolveErr := s.Credentials.Resolve(identity, kopiaregistry.PassphraseField)
+	switch {
+	case resolveErr == nil:
+		if strings.TrimSpace(passphrase) == "" {
+			return fmt.Errorf("repository %q already has an empty passphrase record; refusing create; reconcile credentials before retry", entry.Name)
+		}
+		return fmt.Errorf("repository %q has an existing credential from a possibly partial create; refusing to rotate it or create again; use repo connect with the intended backend to reconcile", entry.Name)
+	case errors.Is(resolveErr, credentialauthority.ErrUnconfigured):
+		passphrase, err = credentials.GeneratePassphrase()
+		if err != nil {
+			return err
+		}
+		if err := s.Credentials.Put(identity, kopiaregistry.PassphraseField, passphrase); err != nil {
+			return fmt.Errorf("store repository passphrase: %w", err)
+		}
+	default:
+		return fmt.Errorf("read repository passphrase before create: %w", resolveErr)
 	}
 	if err := credentials.ValidateStoredPassphrase(s.Credentials, identity, passphrase); err != nil {
-		_ = s.Credentials.Delete(identity, kopiaregistry.PassphraseField)
 		return err
 	}
 	secretEnv[repoctx.EnvPassword] = passphrase
@@ -148,12 +196,15 @@ func (s Service) Create(ctx context.Context, args []string) error {
 
 	out, err := s.Runner.Run(ctx, kexec.Call{Args: verbArgs, Env: secretEnv})
 	if err != nil {
-		_ = s.Credentials.Delete(identity, kopiaregistry.PassphraseField)
-		return err
+		return fmt.Errorf("repository create outcome is ambiguous; passphrase retained for safe reconciliation: %w", err)
+	}
+	if entry.Backend == registry.BackendSFTP {
+		if err := protectEmbeddedRepoConfig(cfg); err != nil {
+			return fmt.Errorf("repository created but its embedded SFTP credentials could not be protected; authority copy retained: %w", err)
+		}
 	}
 	if err := s.Registry.Upsert(entry); err != nil {
-		_ = s.Credentials.Delete(identity, kopiaregistry.PassphraseField)
-		return err
+		return fmt.Errorf("repository was created but registry update failed; passphrase retained for safe reconciliation: %w", err)
 	}
 	return s.report(*jsonOut, out, fmt.Sprintf("created repository %q (%s, encryption on)", *name, entry.Backend))
 }
@@ -164,17 +215,20 @@ func (s Service) Create(ctx context.Context, args []string) error {
 func (s Service) Connect(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("repo connect")
 	var (
-		name       = fs.String("name", "", "Repository name (required)")
-		backend    = fs.String("backend", "", "Backend to (re)register before connecting: filesystem | s3")
-		path       = fs.String("path", "", "Filesystem backend: repository directory")
-		bucket     = fs.String("bucket", "", "S3 backend: bucket name")
-		endpoint   = fs.String("endpoint", "", "S3 backend: endpoint")
-		prefix     = fs.String("prefix", "", "S3 backend: key prefix")
-		region     = fs.String("region", "", "S3 backend: region")
-		disableTLS = fs.Bool("disable-tls", false, "S3 backend: disable TLS")
-		accessKey  = fs.String("access-key", "", "S3 backend: access key id (stored in the credential authority)")
-		secretKey  = fs.String("secret-access-key", "", "S3 backend: secret access key (stored in the credential authority)")
-		jsonOut    = fs.Bool("json", false, "Emit kopia's native JSON")
+		name           = fs.String("name", "", "Repository name (required)")
+		backend        = fs.String("backend", "", "Backend to (re)register before connecting: filesystem | sftp | s3")
+		path           = fs.String("path", "", "Filesystem backend: repository directory")
+		bucket         = fs.String("bucket", "", "S3 backend: bucket name")
+		endpoint       = fs.String("endpoint", "", "S3 backend: endpoint")
+		prefix         = fs.String("prefix", "", "S3 backend: key prefix")
+		region         = fs.String("region", "", "S3 backend: region")
+		disableTLS     = fs.Bool("disable-tls", false, "S3 backend: disable TLS")
+		sftpHost       = fs.String("host", "", "SFTP backend: server hostname")
+		sftpPort       = fs.Int("port", 22, "SFTP backend: server port")
+		sftpUser       = fs.String("username", "", "SFTP backend: server username")
+		sftpPath       = fs.String("remote-path", "", "SFTP backend: repository path")
+		sftpKnownHosts = fs.String("known-hosts", "", "SFTP backend: known_hosts file path")
+		jsonOut        = fs.Bool("json", false, "Emit kopia's native JSON")
 	)
 	if err := cmdutil.Parse(fs, args); err != nil {
 		return err
@@ -186,18 +240,37 @@ func (s Service) Connect(ctx context.Context, args []string) error {
 		return err
 	}
 
+	var target repoctx.Target
+	var candidate *registry.Entry
 	if strings.TrimSpace(*backend) != "" {
-		if err := s.registerForConnect(ctx, *name, *backend, *path, *bucket, *endpoint, *prefix, *region, *disableTLS, *accessKey, *secretKey); err != nil {
+		if s.Registry == nil {
+			return fmt.Errorf("repository registry is unavailable; refusing a backend connect with no commit target")
+		}
+		entry, err := s.connectEntry(ctx, *name, *backend, *path, *bucket, *endpoint, *prefix, *region, *disableTLS, *sftpHost, *sftpPort, *sftpUser, *sftpPath, *sftpKnownHosts)
+		if err != nil {
 			return err
 		}
+		resolved, err := s.Resolver.ResolveEntry(ctx, entry)
+		if err != nil {
+			return err
+		}
+		target = resolved
+		candidate = &entry
+	} else {
+		resolved, err := s.Resolver.Resolve(ctx, *name)
+		if err != nil {
+			return err
+		}
+		target = resolved
 	}
-
-	target, err := s.Resolver.Resolve(ctx, *name)
-	if err != nil {
-		return err
-	}
+	var err error
 	if err := os.MkdirAll(filepath.Dir(target.Entry.ConfigFile), 0o700); err != nil {
 		return fmt.Errorf("create repo config dir: %w", err)
+	}
+	if target.Entry.Backend == registry.BackendSFTP {
+		if err := protectSFTPConfigDir(filepath.Dir(target.Entry.ConfigFile)); err != nil {
+			return fmt.Errorf("protect SFTP repository config directory: %w", err)
+		}
 	}
 
 	verbArgs := []string{"--config-file", target.Entry.ConfigFile, "repository", "connect"}
@@ -206,6 +279,8 @@ func (s Service) Connect(ctx context.Context, args []string) error {
 		verbArgs = append(verbArgs, "filesystem", "--path", target.Entry.Path)
 	case registry.BackendS3:
 		verbArgs = append(verbArgs, s3Args(target.Entry)...)
+	case registry.BackendSFTP:
+		verbArgs = append(verbArgs, sftpArgs(target.Entry)...)
 	default:
 		return fmt.Errorf("repository %q has unknown backend %q", *name, target.Entry.Backend)
 	}
@@ -215,7 +290,23 @@ func (s Service) Connect(ctx context.Context, args []string) error {
 
 	out, err := s.Runner.Run(ctx, kexec.Call{Args: verbArgs, Env: target.Env})
 	if err != nil {
+		if candidate != nil {
+			return fmt.Errorf("connect repository %q failed; requested backend was not committed to the registry: %w", *name, err)
+		}
 		return err
+	}
+	if target.Entry.Backend == registry.BackendSFTP {
+		if err := protectEmbeddedRepoConfig(target.Entry.ConfigFile); err != nil {
+			return fmt.Errorf("repository connected but its embedded SFTP credentials could not be protected; authority copy retained: %w", err)
+		}
+	}
+	if candidate != nil {
+		if s.Registry == nil {
+			return fmt.Errorf("repository %q connected but its backend registry entry could not be committed: registry is unavailable", *name)
+		}
+		if err := s.Registry.Upsert(*candidate); err != nil {
+			return fmt.Errorf("repository %q connected but backend registry commit failed: %w", *name, err)
+		}
 	}
 	if err := target.RetireLegacyPassphrase(); err != nil {
 		return err
@@ -363,6 +454,7 @@ func (s Service) CacheProbe(ctx context.Context, args []string) error {
 		CacheIsolated      bool                     `json:"cache_isolated"`
 		RepositoryModified bool                     `json:"repository_modified"`
 		Status             string                   `json:"status"`
+		Blob               *blobInspection          `json:"blob,omitempty"`
 		ConnectOutputSHA   string                   `json:"connect_output_sha256,omitempty"`
 		SnapshotListSHA    string                   `json:"snapshot_list_output_sha256,omitempty"`
 		OrphanTempBlob     *orphanTempBlobCandidate `json:"orphan_temp_blob_candidate,omitempty"`
@@ -397,6 +489,11 @@ func (s Service) CacheProbe(ctx context.Context, args []string) error {
 			if !validKopiaBlobID(blobID) || !strings.HasPrefix(blobID, "q") {
 				return fmt.Errorf("blob ID must be an exact q-blob identifier")
 			}
+			inspection, inspectErr := inspectFilesystemBlob(entry.Path, blobID)
+			if inspectErr != nil {
+				return fmt.Errorf("inspect requested repository blob: %w", inspectErr)
+			}
+			result.Blob = &inspection
 			candidate, overlayStatus, overlayErr := s.probeOrphanTempBlob(ctx, entry.Path, blobID, probeDir, target.Env)
 			if candidate != nil {
 				candidate.OverlaySnapshotStatus = overlayStatus
@@ -408,9 +505,65 @@ func (s Service) CacheProbe(ctx context.Context, args []string) error {
 		}
 		return writeCacheProbeResult(s.out(), *jsonOut, result)
 	}
+	if strings.TrimSpace(*requestedBlobID) != "" {
+		blobID := strings.TrimSpace(*requestedBlobID)
+		if !validKopiaBlobID(blobID) || !strings.HasPrefix(blobID, "q") {
+			return fmt.Errorf("blob ID must be an exact q-blob identifier")
+		}
+		inspection, inspectErr := inspectFilesystemBlob(entry.Path, blobID)
+		if inspectErr != nil {
+			return fmt.Errorf("inspect requested repository blob: %w", inspectErr)
+		}
+		result.Blob = &inspection
+	}
 	result.Status = "snapshot_list_passed"
 	result.SnapshotListSHA = digestText(listOutput)
 	return writeCacheProbeResult(s.out(), *jsonOut, result)
+}
+
+type blobInspection struct {
+	BlobID        string   `json:"blob_id"`
+	RelativePath  string   `json:"relative_path"`
+	State         string   `json:"state"`
+	Problem       string   `json:"problem,omitempty"`
+	OrphanTemp    bool     `json:"orphan_temp"`
+	AdjacentTemps []string `json:"adjacent_temps,omitempty"`
+}
+
+// inspectFilesystemBlob gives callers a typed result for an exact q-blob
+// implicated by Kopia. It reports repository-relative paths and does not read
+// object contents, copy files, or mutate the repository.
+func inspectFilesystemBlob(repoPath, blobID string) (blobInspection, error) {
+	result := blobInspection{BlobID: blobID, State: "unknown"}
+	parts, err := filesystemBlobPath(repoPath, blobID)
+	if err != nil {
+		result.Problem = string(damageProblem(err))
+		return result, nil
+	}
+	fullPath := filepath.Join(append([]string{repoPath}, parts...)...)
+	result.RelativePath, result.State = filepath.ToSlash(filepath.Join(parts...)), "missing"
+	if _, err := os.Lstat(fullPath); err == nil {
+		result.State = "present"
+	} else if !os.IsNotExist(err) {
+		result.State = "unreadable"
+		result.Problem = string(damageProblem(err))
+	}
+	for _, pattern := range []string{fullPath + ".tmp", fullPath + ".tmp.*"} {
+		matches, globErr := filepath.Glob(pattern)
+		if globErr != nil {
+			return blobInspection{}, globErr
+		}
+		for _, match := range matches {
+			rel, relErr := filepath.Rel(repoPath, match)
+			if relErr != nil {
+				return blobInspection{}, relErr
+			}
+			result.AdjacentTemps = append(result.AdjacentTemps, filepath.ToSlash(rel))
+		}
+	}
+	sort.Strings(result.AdjacentTemps)
+	result.OrphanTemp = result.State == "missing" && len(result.AdjacentTemps) > 0
+	return result, nil
 }
 
 type orphanTempBlobCandidate struct {
@@ -463,8 +616,15 @@ func (s Service) probeOrphanTempBlob(ctx context.Context, repoPath, blobID, prob
 	} else if !os.IsNotExist(err) {
 		return nil, "", err
 	}
-	candidates, err := filepath.Glob(expected + ".tmp.*")
-	if err != nil || len(candidates) != 1 {
+	candidates := make([]string, 0, 2)
+	for _, pattern := range []string{expected + ".tmp", expected + ".tmp.*"} {
+		matches, globErr := filepath.Glob(pattern)
+		if globErr != nil {
+			return nil, "", globErr
+		}
+		candidates = append(candidates, matches...)
+	}
+	if len(candidates) != 1 {
 		return nil, "", nil
 	}
 	info, err := os.Stat(candidates[0])
@@ -800,6 +960,169 @@ func (s Service) OrphanTempBlobCommit(ctx context.Context, args []string) error 
 	return nil
 }
 
+// RestoreFromTemp republishes one exact, hash-bound Kopia temp beside its
+// expected final object. It preserves the temp and never replaces a target.
+func (s Service) RestoreFromTemp(ctx context.Context, args []string) error {
+	fs := cmdutil.NewFlagSet("repo restore-from-temp")
+	name := fs.String("name", "", "Registered filesystem repository name (required)")
+	repositoryPath := fs.String("repository-path", "", "Expected canonical filesystem repository path (required)")
+	relativePath := fs.String("relative-temp-path", "", "Exact repository-relative Kopia .f.tmp path (required)")
+	sha := fs.String("temp-sha256", "", "Expected SHA-256 of the named temp (required)")
+	confirm := fs.String("confirm-restore", "", "Must equal restore-temp:<repository>:<canonical-path>:<relative-path>:<sha256>")
+	jsonOut := fs.Bool("json", false, "Emit a structured restore result")
+	if err := cmdutil.Parse(fs, args); err != nil {
+		return err
+	}
+	if err := cmdutil.RequireName(*name); err != nil {
+		return err
+	}
+	rel := filepath.Clean(strings.TrimSpace(*relativePath))
+	if rel == "." || filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("relative-temp-path must stay inside the repository")
+	}
+	slashRel := filepath.ToSlash(rel)
+	class, _ := classifyDamagePath(slashRel)
+	if class != DamageLeftoverTemp || !strings.HasSuffix(filepath.Base(rel), ".f.tmp") && !strings.Contains(filepath.Base(rel), ".f.tmp.") {
+		return fmt.Errorf("relative-temp-path must name one exact Kopia .f.tmp object")
+	}
+	expectedSHA := strings.ToLower(strings.TrimSpace(*sha))
+	if len(expectedSHA) != sha256.Size*2 {
+		return fmt.Errorf("temp SHA-256 must contain 64 hexadecimal characters")
+	}
+	if _, err := hex.DecodeString(expectedSHA); err != nil {
+		return fmt.Errorf("temp SHA-256 is invalid: %w", err)
+	}
+	entry, found, err := s.Registry.Get(*name)
+	if err != nil {
+		return err
+	}
+	if !found || entry.Backend != registry.BackendFilesystem || strings.TrimSpace(entry.Path) == "" {
+		return fmt.Errorf("repository %q is not a registered filesystem repository", *name)
+	}
+	if _, err := s.Resolver.Resolve(ctx, *name); err != nil {
+		return err
+	}
+	repoPath, err := filepath.EvalSymlinks(entry.Path)
+	if err != nil {
+		return fmt.Errorf("resolve repository path: %w", err)
+	}
+	repoPath, err = filepath.Abs(repoPath)
+	if err != nil {
+		return fmt.Errorf("resolve absolute repository path: %w", err)
+	}
+	expectedRepoPath, err := filepath.Abs(filepath.Clean(strings.TrimSpace(*repositoryPath)))
+	if err != nil || strings.TrimSpace(*repositoryPath) == "" || expectedRepoPath != repoPath {
+		return fmt.Errorf("registered repository identity changed: canonical path is %q", repoPath)
+	}
+	wantConfirmation := "restore-temp:" + *name + ":" + repoPath + ":" + slashRel + ":" + expectedSHA
+	if strings.TrimSpace(*confirm) != wantConfirmation {
+		return fmt.Errorf("restore requires --confirm-restore %q", wantConfirmation)
+	}
+	parent := repoPath
+	for _, component := range strings.Split(filepath.Dir(rel), string(filepath.Separator)) {
+		if component == "." || component == "" {
+			continue
+		}
+		parent = filepath.Join(parent, component)
+		info, err := os.Lstat(parent)
+		if err != nil {
+			return fmt.Errorf("inspect temp parent component %q: %w", component, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+			return fmt.Errorf("temp parent component %q is not a real directory", component)
+		}
+	}
+	source := filepath.Join(repoPath, rel)
+	finalName := tempFinalName(filepath.Base(rel))
+	if finalName == "" {
+		return fmt.Errorf("invalid Kopia temp filename")
+	}
+	target := filepath.Join(filepath.Dir(source), finalName)
+	sourceInfo, err := os.Lstat(source)
+	if err != nil {
+		return fmt.Errorf("inspect exact temp source: %w", err)
+	}
+	if sourceInfo.Mode()&os.ModeSymlink != 0 || !sourceInfo.Mode().IsRegular() || sourceInfo.Size() <= 0 {
+		return fmt.Errorf("exact temp source must be a non-empty regular file")
+	}
+	actualSHA, err := fileSHA256(source)
+	if err != nil {
+		return fmt.Errorf("hash exact temp source: %w", err)
+	}
+	if actualSHA != expectedSHA {
+		return fmt.Errorf("temp source hash changed: got %s, expected %s", actualSHA, expectedSHA)
+	}
+	if _, err := os.Lstat(target); err == nil {
+		targetInfo, statErr := os.Lstat(target)
+		if statErr != nil || !targetInfo.Mode().IsRegular() {
+			return fmt.Errorf("target exists and is not a regular file")
+		}
+		targetSHA, hashErr := fileSHA256(target)
+		if hashErr != nil || targetSHA != expectedSHA {
+			return fmt.Errorf("target exists with different or unreadable bytes; refusing replacement")
+		}
+		return emitTempRestore(s.out(), *jsonOut, *name, slashRel, source, target, expectedSHA, sourceInfo.Size(), true)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect final target: %w", err)
+	}
+	staging, err := os.CreateTemp(filepath.Dir(target), filepath.Base(target)+".restore-*")
+	if err != nil {
+		return fmt.Errorf("create same-volume staging object: %w", err)
+	}
+	stagingPath := staging.Name()
+	defer os.Remove(stagingPath)
+	in, err := os.Open(source)
+	if err != nil {
+		_ = staging.Close()
+		return fmt.Errorf("open exact temp source: %w", err)
+	}
+	_, copyErr := io.Copy(staging, in)
+	closeInErr := in.Close()
+	if copyErr != nil {
+		_ = staging.Close()
+		return fmt.Errorf("stage exact temp source: %w", copyErr)
+	}
+	if closeInErr != nil {
+		_ = staging.Close()
+		return closeInErr
+	}
+	if err := staging.Sync(); err != nil {
+		_ = staging.Close()
+		return err
+	}
+	if err := staging.Close(); err != nil {
+		return err
+	}
+	stagedSHA, err := fileSHA256(stagingPath)
+	if err != nil || stagedSHA != expectedSHA {
+		return fmt.Errorf("staged temp failed hash verification")
+	}
+	if err := os.Link(stagingPath, target); err != nil {
+		return fmt.Errorf("publish verified temp without replacement: %w", err)
+	}
+	return emitTempRestore(s.out(), *jsonOut, *name, slashRel, source, target, expectedSHA, sourceInfo.Size(), false)
+}
+
+func emitTempRestore(out io.Writer, jsonOut bool, name, rel, source, target, sha string, size int64, replay bool) error {
+	result := struct {
+		Repository      string `json:"repository"`
+		RelativePath    string `json:"relative_temp_path"`
+		Source          string `json:"source_path"`
+		Target          string `json:"target_path"`
+		SHA256          string `json:"sha256"`
+		Bytes           int64  `json:"bytes"`
+		SourcePreserved bool   `json:"source_preserved"`
+		TargetReplaced  bool   `json:"target_replaced"`
+		Replay          bool   `json:"replay"`
+		Committed       bool   `json:"committed"`
+	}{name, rel, source, target, sha, size, true, false, replay, true}
+	if jsonOut {
+		return json.NewEncoder(out).Encode(result)
+	}
+	fmt.Fprintf(out, "Restored exact Kopia temp for %s\nSource preserved: yes\nTarget replaced: no\nReplay: %t\nSHA-256: %s\n", name, replay, sha)
+	return nil
+}
+
 // QuarantineOrphanTempBlob moves one exact, unpaired Kopia content temp out of
 // the repository's shard namespace without deleting or reading its bytes. This
 // is for a temp entry that prevents directory enumeration but cannot be stat'ed
@@ -824,9 +1147,9 @@ func (s Service) QuarantineOrphanTempBlob(ctx context.Context, args []string) er
 	}
 	slashRel := filepath.ToSlash(rel)
 	base := filepath.Base(rel)
-	tempMarker := strings.LastIndex(base, ".tmp.")
-	if !strings.HasPrefix(slashRel, "s/") || tempMarker <= 0 || !strings.HasSuffix(base[:tempMarker], ".f") || tempMarker+len(".tmp.") >= len(base) {
-		return fmt.Errorf("only an exact s/... .f.tmp.<suffix> path can be quarantined")
+	class, kind := classifyDamagePath(slashRel)
+	if !strings.HasPrefix(slashRel, "s/") || class != DamageLeftoverTemp || kind != DamageSessionMarker {
+		return fmt.Errorf("only an exact s/... Kopia .f.tmp path can be quarantined")
 	}
 	wantConfirmation := "quarantine-orphan-temp:" + *name + ":" + slashRel
 	if strings.TrimSpace(*confirm) != wantConfirmation {
@@ -866,8 +1189,29 @@ func (s Service) QuarantineOrphanTempBlob(ctx context.Context, args []string) er
 	}
 	sourcePath := filepath.Join(repoPath, rel)
 	parentPath := filepath.Dir(sourcePath)
-	finalName := base[:tempMarker]
+	finalName := tempFinalName(base)
 	finalPath := filepath.Join(parentPath, finalName)
+	if _, err := os.Lstat(finalPath); err == nil {
+		return fmt.Errorf("a final blob exists beside the temp; refusing to quarantine it")
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect final blob path: %w", err)
+	}
+	operationID := digestText([]byte(repoPath + "\x00" + slashRel))[:20]
+	quarantineRoot := filepath.Join(filepath.Dir(repoPath), filepath.Base(repoPath)+"-recovery-quarantine-"+operationID)
+	quarantinePath := filepath.Join(quarantineRoot, rel)
+	if _, err := os.Lstat(quarantinePath); err == nil {
+		if _, sourceErr := os.Lstat(sourcePath); !os.IsNotExist(sourceErr) {
+			return fmt.Errorf("both original and quarantine paths exist; refusing ambiguous replay")
+		}
+		result := quarantineResult(*name, sourcePath, quarantinePath, finalPath)
+		if *jsonOut {
+			return json.NewEncoder(s.out()).Encode(result)
+		}
+		fmt.Fprintf(s.out(), "Kopia temp already quarantined for %s\nOriginal: %s\nQuarantine: %s\nFinal blob written: no\nSource data deleted: no\n", result.Repository, result.OriginalPath, result.QuarantinePath)
+		return nil
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("inspect quarantine replay path: %w", err)
+	}
 	entries, err := os.ReadDir(parentPath)
 	if err != nil {
 		return fmt.Errorf("read exact shard directory: %w", err)
@@ -875,7 +1219,7 @@ func (s Service) QuarantineOrphanTempBlob(ctx context.Context, args []string) er
 	matchingTemps := 0
 	sourceListed := false
 	for _, item := range entries {
-		if strings.HasPrefix(item.Name(), finalName+".tmp.") {
+		if itemClass, _ := classifyDamagePath(item.Name()); itemClass == DamageLeftoverTemp && tempFinalName(item.Name()) == finalName {
 			matchingTemps++
 			if item.Name() == base {
 				sourceListed = true
@@ -885,25 +1229,31 @@ func (s Service) QuarantineOrphanTempBlob(ctx context.Context, args []string) er
 	if !sourceListed || matchingTemps != 1 {
 		return fmt.Errorf("expected the exact temp source to be the only adjacent temp; present=%t adjacent=%d", sourceListed, matchingTemps)
 	}
-	if _, err := os.Lstat(finalPath); err == nil {
-		return fmt.Errorf("a final blob exists beside the temp; refusing to quarantine it")
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("inspect final blob path: %w", err)
-	}
-	quarantineRoot, err := os.MkdirTemp(filepath.Dir(repoPath), filepath.Base(repoPath)+"-recovery-quarantine-*")
-	if err != nil {
-		return fmt.Errorf("create unique same-volume quarantine root: %w", err)
-	}
-	quarantinePath := filepath.Join(quarantineRoot, rel)
 	if err := os.MkdirAll(filepath.Dir(quarantinePath), 0o700); err != nil {
-		_ = os.RemoveAll(quarantineRoot)
 		return fmt.Errorf("create same-volume quarantine directory: %w", err)
 	}
 	if err := os.Rename(sourcePath, quarantinePath); err != nil {
-		_ = os.RemoveAll(quarantineRoot)
 		return fmt.Errorf("move exact temp to same-volume quarantine without replacement: %w", err)
 	}
-	result := struct {
+	result := quarantineResult(*name, sourcePath, quarantinePath, finalPath)
+	if *jsonOut {
+		return json.NewEncoder(s.out()).Encode(result)
+	}
+	fmt.Fprintf(s.out(), "Quarantined one orphan Kopia temp for %s\nOriginal: %s\nQuarantine: %s\nFinal blob written: no\nSource data deleted: no\n", result.Repository, result.OriginalPath, result.QuarantinePath)
+	return nil
+}
+
+func quarantineResult(repo, original, quarantine, final string) struct {
+	Repository           string `json:"repository"`
+	OriginalPath         string `json:"original_path"`
+	QuarantinePath       string `json:"quarantine_path"`
+	FinalBlobPath        string `json:"final_blob_path"`
+	SourceDataDeleted    bool   `json:"source_data_deleted"`
+	FinalBlobWritten     bool   `json:"final_blob_written"`
+	QuarantineSameVolume bool   `json:"quarantine_same_volume"`
+	Committed            bool   `json:"committed"`
+} {
+	return struct {
 		Repository           string `json:"repository"`
 		OriginalPath         string `json:"original_path"`
 		QuarantinePath       string `json:"quarantine_path"`
@@ -912,16 +1262,7 @@ func (s Service) QuarantineOrphanTempBlob(ctx context.Context, args []string) er
 		FinalBlobWritten     bool   `json:"final_blob_written"`
 		QuarantineSameVolume bool   `json:"quarantine_same_volume"`
 		Committed            bool   `json:"committed"`
-	}{
-		Repository: *name, OriginalPath: sourcePath, QuarantinePath: quarantinePath,
-		FinalBlobPath: finalPath, SourceDataDeleted: false, FinalBlobWritten: false,
-		QuarantineSameVolume: true, Committed: true,
-	}
-	if *jsonOut {
-		return json.NewEncoder(s.out()).Encode(result)
-	}
-	fmt.Fprintf(s.out(), "Quarantined one orphan Kopia temp for %s\nOriginal: %s\nQuarantine: %s\nFinal blob written: no\nSource data deleted: no\n", result.Repository, result.OriginalPath, result.QuarantinePath)
-	return nil
+	}{Repository: repo, OriginalPath: original, QuarantinePath: quarantine, FinalBlobPath: final, QuarantineSameVolume: true, Committed: true}
 }
 
 func validKopiaBlobID(value string) bool {
@@ -1202,6 +1543,10 @@ func (s Service) Delete(ctx context.Context, args []string) error {
 		if err := credentials.DeleteS3Credentials(s.Credentials, *name); err != nil {
 			return err
 		}
+	} else if entry.Backend == registry.BackendSFTP {
+		if err := credentials.DeleteSFTPPrivateKey(s.Credentials, *name); err != nil {
+			return err
+		}
 	}
 	if err := s.Registry.Remove(*name); err != nil {
 		return err
@@ -1243,6 +1588,8 @@ func (s Service) List(_ context.Context, args []string) error {
 		dest := e.Path
 		if e.Backend == registry.BackendS3 {
 			dest = fmt.Sprintf("s3://%s/%s @ %s", e.Bucket, e.Prefix, e.Endpoint)
+		} else if e.Backend == registry.BackendSFTP {
+			dest = fmt.Sprintf("sftp://%s@%s:%d%s", e.Username, e.Host, e.Port, e.Path)
 		}
 		if _, err := fmt.Fprintf(s.out(), "%-24s %-12s %s\n", e.Name, e.Backend, dest); err != nil {
 			return err
@@ -1285,42 +1632,26 @@ func (s Service) simpleRepoCommand(ctx context.Context, args []string, cmdName s
 	return err
 }
 
-// resolveS3Creds returns the S3 credentials for a new repo: stores
-// flag-provided creds in the credential authority, otherwise reads existing
-// authority-backed creds.
-func (s Service) resolveS3Creds(ctx context.Context, name, accessKey, secretKey string) (credentials.S3Credentials, error) {
-	if strings.TrimSpace(accessKey) != "" || strings.TrimSpace(secretKey) != "" {
-		creds := credentials.S3Credentials{AccessKeyID: accessKey, SecretAccessKey: secretKey}
-		if !creds.Valid() {
-			return credentials.S3Credentials{}, fmt.Errorf("both --access-key and --secret-access-key are required together")
-		}
-		if err := credentials.PutS3Credentials(s.Credentials, name, creds); err != nil {
-			return credentials.S3Credentials{}, err
-		}
-		return creds, nil
-	}
+// resolveS3Creds resolves pre-provisioned S3 credentials from the credential authority.
+func (s Service) resolveS3Creds(_ context.Context, name string) (credentials.S3Credentials, error) {
 	creds, found, err := credentials.S3CredentialsFor(s.Credentials, name)
 	if err != nil {
 		return credentials.S3Credentials{}, err
 	}
 	if !found || !creds.Valid() {
-		return credentials.S3Credentials{}, fmt.Errorf("no S3 credentials for repository %q; pass --access-key/--secret-access-key or provision them in the credential authority", name)
+		return credentials.S3Credentials{}, fmt.Errorf("no S3 credentials for repository %q; provision s3-access-key-id and s3-secret-access-key in the credential authority", name)
 	}
 	return creds, nil
 }
 
-// registerForConnect upserts a registry entry from connect-time backend flags,
-// ensuring the passphrase exists and storing any provided S3 creds.
-func (s Service) registerForConnect(ctx context.Context, name, backend, path, bucket, endpoint, prefix, region string, disableTLS bool, accessKey, secretKey string) error {
+// connectEntry builds an uncommitted registry entry from connect-time backend
+// flags. It accepts an existing S3 credential only when the supplied value is
+// identical; replacing an active credential during a fallible connect could
+// break the repository's prior registered route. Connect commits the entry
+// only after Kopia confirms the requested backend is connected.
+func (s Service) connectEntry(ctx context.Context, name, backend, path, bucket, endpoint, prefix, region string, disableTLS bool, sftpHost string, sftpPort int, sftpUser, sftpPath, knownHosts string) (registry.Entry, error) {
 	if s.Credentials == nil {
-		return fmt.Errorf("credential authority is unavailable")
-	}
-	value, err := credentials.ResolvePassphrase(s.Credentials, name, s.Env.RepoLegacyPasswordFile(name))
-	if err != nil {
-		return fmt.Errorf("cannot connect %q: read repository passphrase: %w", name, err)
-	}
-	if strings.TrimSpace(value) == "" {
-		return fmt.Errorf("cannot connect %q: repository passphrase is not configured", name)
+		return registry.Entry{}, fmt.Errorf("credential authority is unavailable")
 	}
 	entry := registry.Entry{
 		Name:       name,
@@ -1330,13 +1661,13 @@ func (s Service) registerForConnect(ctx context.Context, name, backend, path, bu
 	switch strings.ToLower(strings.TrimSpace(backend)) {
 	case registry.BackendFilesystem:
 		if strings.TrimSpace(path) == "" {
-			return fmt.Errorf("--path is required for the filesystem backend")
+			return registry.Entry{}, fmt.Errorf("--path is required for the filesystem backend")
 		}
 		entry.Backend = registry.BackendFilesystem
 		entry.Path = path
 	case registry.BackendS3:
 		if strings.TrimSpace(bucket) == "" {
-			return fmt.Errorf("--bucket is required for the s3 backend")
+			return registry.Entry{}, fmt.Errorf("--bucket is required for the s3 backend")
 		}
 		entry.Backend = registry.BackendS3
 		entry.Bucket = bucket
@@ -1344,15 +1675,25 @@ func (s Service) registerForConnect(ctx context.Context, name, backend, path, bu
 		entry.Prefix = prefix
 		entry.Region = region
 		entry.DisableTLS = disableTLS
-		if strings.TrimSpace(accessKey) != "" || strings.TrimSpace(secretKey) != "" {
-			if _, err := s.resolveS3Creds(ctx, name, accessKey, secretKey); err != nil {
-				return err
-			}
+		if _, found, err := credentials.S3CredentialsFor(s.Credentials, name); err != nil {
+			return registry.Entry{}, err
+		} else if !found {
+			return registry.Entry{}, fmt.Errorf("S3 credentials for repository %q are not provisioned in the credential authority", name)
+		}
+	case registry.BackendSFTP:
+		entry.Backend = registry.BackendSFTP
+		entry.Host, entry.Port, entry.Username = sftpHost, sftpPort, sftpUser
+		entry.Path, entry.KnownHosts = sftpPath, knownHosts
+		if err := validateSFTPEntry(entry); err != nil {
+			return registry.Entry{}, err
+		}
+		if _, err := credentials.SFTPPrivateKeyFor(s.Credentials, name); err != nil {
+			return registry.Entry{}, err
 		}
 	default:
-		return fmt.Errorf("unsupported --backend %q (use filesystem or s3)", backend)
+		return registry.Entry{}, fmt.Errorf("unsupported --backend %q (use filesystem, sftp, or s3)", backend)
 	}
-	return s.Registry.Upsert(entry)
+	return entry, nil
 }
 
 // s3Args renders the kopia s3 backend flags for an entry. Never includes
@@ -1372,6 +1713,67 @@ func s3Args(e registry.Entry) []string {
 		args = append(args, "--disable-tls")
 	}
 	return args
+}
+
+func validateSFTPEntry(e registry.Entry) error {
+	if strings.TrimSpace(e.Host) == "" || strings.TrimSpace(e.Username) == "" || strings.TrimSpace(e.Path) == "" || strings.TrimSpace(e.KnownHosts) == "" {
+		return fmt.Errorf("SFTP backend requires --host, --username, --remote-path, and --known-hosts")
+	}
+	if e.Port < 1 || e.Port > 65535 {
+		return fmt.Errorf("SFTP --port must be between 1 and 65535")
+	}
+	return nil
+}
+
+// sftpArgs addresses the provider with only non-secret values. Kopia receives
+// the private key through its owner-private runtime file, never argv.
+func sftpArgs(e registry.Entry) []string {
+	args := []string{"sftp", "--host", e.Host, "--port", strconv.Itoa(e.Port), "--username", e.Username, "--path", e.Path, "--keyfile", kexec.SFTPKeyFilePlaceholder, "--embed-credentials"}
+	if strings.TrimSpace(e.KnownHosts) != "" {
+		args = append(args, "--known-hosts", e.KnownHosts)
+	}
+	return args
+}
+
+// Kopia needs embedded SFTP authentication for later commands that operate on
+// its saved config. Keep that config owner-private because it can contain a
+// copy of the private key; the credential authority remains the canonical,
+// escrowable source used to rebuild it.
+func protectEmbeddedRepoConfig(path string) error {
+	if runtime.GOOS == "windows" {
+		return nil
+	} // Windows ACLs are inherited from the private config directory.
+	if err := os.Chmod(path, 0o600); err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("repository config permissions are %04o, expected owner-only", info.Mode().Perm())
+	}
+	return nil
+}
+
+func protectSFTPConfigDir(path string) error {
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		return err
+	}
+	if runtime.GOOS == "windows" {
+		return nil
+	} // Windows ACLs are inherited from the user config root.
+	if err := os.Chmod(path, 0o700); err != nil {
+		return err
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("repository config directory permissions are %04o, expected owner-only", info.Mode().Perm())
+	}
+	return nil
 }
 
 func (s Service) report(jsonOut bool, raw []byte, human string) error {

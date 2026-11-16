@@ -6,7 +6,10 @@ binary serving
 **`BAAI/bge-reranker-v2-m3`** — a multilingual cross-encoder that scores how well
 each candidate passage answers a query. No custom inference code: TEI is the
 engine; the model is auto-pulled from the HuggingFace Hub into the resource-owned
-cache on first start.
+cache on first start. The model source is pinned to Hub commit
+`953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e`, matching the current cache's recorded
+`refs/main`; TEI receives this immutable revision at startup so a fresh cache
+reacquires the same model snapshot.
 
 This resource is the `CrossEncoderReranker` backend for
 [`packages/ai-go/search`](../../packages/ai-go/search) and the shared reranker for
@@ -37,6 +40,9 @@ vrooli resource stop reranker
 First start downloads the model into `${RESOURCE_DATA_DIR}/model-cache`;
 subsequent starts are fully local and fast. The managed-service supervisor owns
 the TEI process and verifies the staged artifact checksum before every launch.
+`vrooli resource start reranker` is the owner reacquisition command; the Hub
+commit is recorded in `resource.json` as `RERANKER_REVISION`. This is a pinned
+source contract, not evidence that the model was re-downloaded in this run.
 
 ## GPU vs CPU
 
@@ -79,6 +85,7 @@ the URL client-side.
 | `RERANKER_URL` | `http://localhost:11453` | base URL (consume this) |
 | `RERANKER_RERANK_ENDPOINT` | `http://localhost:11453/rerank` | rerank endpoint |
 | `RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` | served model id |
+| `RERANKER_REVISION` | `953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e` | immutable Hugging Face Hub commit |
 | `RERANKER_PORT` | `11453` | host port |
 
 ## Testing

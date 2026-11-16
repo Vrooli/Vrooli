@@ -27,8 +27,9 @@ resource-ollama models inventory --json        # named sizes/digests + policy re
 ```
 
 - Scenarios should declare model **roles** in their ollama dependency config
-  rather than naming a model. `resource-ollama ensure` then pulls any missing
-  resolved models automatically.
+  rather than naming a model. `resource-ollama ensure` preserves installed
+  models and reserves the immutable missing-model manifest through the shared
+  disk-job owner before pulling. Admission denial refuses the pull.
 - Use the Ollama API for ad-hoc local experimentation; anything a scenario
   depends on belongs in the policy.
 
@@ -102,6 +103,16 @@ curl http://localhost:11434/api/delete -d '{"name":"<model>"}'
 curl http://localhost:11434/api/pull -d '{"name":"<model>","stream":false}'
 ```
 
+The raw delete example is an upstream API operation, not a Vrooli retention
+workflow. It does not verify the tag digest or serialize policy references and
+active requests; see [Retention owner boundary](#retention-owner-boundary)
+before considering model removal.
+
+The raw pull example also bypasses Vrooli's shared disk admission. Use
+`resource-ollama ensure` for managed model acquisition; direct `/api/pull`
+requests do not receive its preflight reservation, path sampling, or durable
+disk-job receipt.
+
 Model files live in `${RESOURCE_DATA_DIR}/models` and persist across managed
 service restarts.
 
@@ -110,15 +121,46 @@ service restarts.
 Use `resource-ollama models inventory --json` as the authoritative model census.
 It reads `name`, `digest`, and logical `size` from Ollama's `/api/tags` API and
 marks whether each installed tag is reachable from a policy role or fallback.
-Every row is explicitly regenerable because the weights can be re-pulled from
-the Ollama registry, with that reason included in the output. Do not infer
-model identity by walking the `blobs/` directory: Ollama shares blobs between
-models, so filesystem paths cannot safely attribute bytes to a single tag.
+Storage Manager reports policy reachability separately from installation
+provenance. Successful `resource-ollama ensure` pulls write a receipt for the
+pinned public-registry source and verified installed digest; Storage Manager
+reports it as matched only while the current tag digest agrees. Policy
+reachability and this source history do not prove the registry still serves
+the same artifact or authorize deletion, so the inventory keeps
+`regenerable: false` and the cleanup provider holds every model. A future
+owner-authorized deletion must revalidate digest, size, policy references, and
+recent residency. Do not infer model identity by walking the `blobs/`
+directory: Ollama shares blobs between models, so filesystem paths cannot
+safely attribute bytes to a single tag.
 
 Storage Manager exposes the same rows at `GET /api/v1/storage/inventory` under
 `ollama_models`. It also measures the configured model root and reports a
-physical remainder and path when bytes cannot be attributed by the service
-inventory.
+logical file-length remainder and path when file lengths exceed the sum of
+service-reported tag sizes. Allocated physical bytes remain unknown: the walk
+uses file lengths and may count sparse files or hardlinks differently from
+allocated blocks, while Ollama shares blobs across model tags.
+
+### Retention owner boundary
+
+Ollama's documented `POST /api/delete` accepts a model name; it has no expected
+digest, size, or conditional-match field. Reading `/api/tags`, `/api/ps`, and
+`model-policy.json` before that request does not serialize the delete with a
+new load, request, policy change, or pull. The managed
+`resource-lifecycle:ollama` lock serializes Vrooli-managed lifecycle and
+missing-model ensure work, but direct calls to the loopback Ollama API are not
+covered by that lock. It is therefore not a retention fence.
+
+Storage Manager's retention provider is intentionally inventory-only: it has
+no delete method and skips every model at Apply, including operator-approved
+or stale preview items. Do not add name-only deletion as a cleanup fallback.
+Automated retention remains unavailable until the serving owner provides one
+atomic operation that checks the expected installed digest, current policy
+references and active use while excluding competing loads, pulls, policy
+writes, and lifecycle changes, then returns a durable operation receipt and an
+authoritative allocated-byte delta for the model root. Ollama's current API and
+Vrooli's current owner boundary provide none of those together; shared blob
+storage also means tag logical sizes cannot stand in for reclaimed physical
+bytes.
 
 ## Performance by model size
 

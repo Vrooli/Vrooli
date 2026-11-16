@@ -18,6 +18,11 @@
           "scope": "container"
         },
         "rationale": "Text Embeddings Inference downloads the model into the bind-mounted /data cache; the model is re-downloadable.",
+        "reacquisition": {
+          "command": "vrooli resource start reranker",
+          "evidence": "resource.json#/managed_service.arguments (--revision=${RERANKER_REVISION}) pins BAAI/bge-reranker-v2-m3 to Hub commit 953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e; TEI's CLI uses this immutable revision when fetching the model.",
+          "requires_authorization": false
+        },
         "budget": {
           "max_age": "30d",
           "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
@@ -141,7 +146,9 @@
     "attach_health_path": "/health",
     "arguments": [
       "--model-id=${RERANKER_MODEL}",
+      "--revision=${RERANKER_REVISION}",
       "--tokenization-workers=${RERANKER_TOKENIZATION_WORKERS}",
+      "--max-concurrent-requests=${RERANKER_MAX_CONCURRENT_REQUESTS}",
       "--port=${RESOURCE_PORT_UPSTREAM}",
       "--prometheus-port=${RESOURCE_PORT_METRICS}",
       "--hostname=127.0.0.1",
@@ -150,7 +157,10 @@
     "environment_file": "active.env",
     "environment": {
       "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3",
+      "RERANKER_REVISION": "953dc6f6f85a1b2dbfca4c34a2796e7dde08d41e",
       "RERANKER_TOKENIZATION_WORKERS": "4",
+      "RERANKER_MAX_CONCURRENT_REQUESTS": "2",
+      "RAYON_NUM_THREADS": "4",
       "HUGGINGFACE_HUB_CACHE": "${RESOURCE_DATA_DIR}/model-cache",
       "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache"
     }
@@ -221,6 +231,7 @@
       "confidence": "estimated",
       "yield_when_idle": true,
       "idle_grace_seconds": 900,
+      "idle_unload_ttl_seconds": 900,
       "profile": {
         "steps": [
           {
@@ -246,18 +257,28 @@
   },
   "companions": [
     {
+      "name": "activity-edge",
+      "command": "resource-reranker",
+      "args": [
+        "activity-edge"
+      ],
+      "port": 11453,
+      "required": true
+    },
+    {
+      "name": "upstream-bridge",
+      "command": "resource-reranker",
+      "args": [
+        "upstream-bridge"
+      ],
+      "required": true
+    },
+    {
       "name": "capacity-sync",
       "command": "resource-reranker",
       "args": [
         "capacity-sync"
       ]
-    },
-    {
-      "name": "activity-edge",
-      "command": "resource-reranker",
-      "args": ["activity-edge"],
-      "port": 11453,
-      "required": true
     }
   ],
   "category": "ai",
@@ -280,20 +301,24 @@
   "ports": [
     {
       "name": "http",
-      "container": 80,
+      "container": 0,
       "host": 11453
     },
     {
       "name": "metrics",
       "container": 9000,
-      "host": 11454
+      "host": 0
     },
     {
       "name": "upstream",
-      "container": 80,
-      "host": 21453
+      "container": 21453,
+      "host": 0
     }
   ],
+  "activity_network": {
+    "edge_port": "http",
+    "upstream_port": "upstream"
+  },
   "orchestration": {
     "startup_order": 566,
     "startup_timeout_seconds": 180,

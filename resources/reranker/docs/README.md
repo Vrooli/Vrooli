@@ -52,7 +52,15 @@ Environment values exported by the resource and supplied to the supervised proce
 | `RERANKER_PORT` | `11453` | supervised service port |
 | `RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` | served model |
 | `RERANKER_TOKENIZATION_WORKERS` | `4` | tokenizer worker count, independent of GPU batch-token limits |
+| `RERANKER_MAX_CONCURRENT_REQUESTS` | `2` | maximum in-flight TEI requests |
+| `RAYON_NUM_THREADS` | `4` | cap for the Rust Rayon worker pool |
 | `RESOURCE_DATA_DIR` | platform-specific | resource-owned model cache root |
+
+The manifest reserves 3072 MiB RAM and 2 CPU cores. Tokenization and Rayon
+worker pools are capped at four threads, and TEI accepts at most two requests
+at once. These are separate controls: the request limit bounds active inference
+work while the worker settings prevent thread pools from scaling to all host
+cores.
 
 The HF model cache lives under the relocatable `model_cache` storage entry; it
 persists across restarts and is measured by Storage Manager.
@@ -60,7 +68,8 @@ persists across restarts and is measured by Storage Manager.
 ### Tokenizer memory
 
 TEI clones the tokenizer for each worker. The resource explicitly defaults to
-four workers instead of allowing TEI to select the host CPU count. Override
+four workers instead of allowing TEI to select the host CPU count, and limits
+the Rayon pool to the same size. Override
 `RERANKER_TOKENIZATION_WORKERS` in the resource environment when a measured
 workload needs another count, then use `vrooli resource restart reranker`.
 Confirm the effective count with `resource-reranker gateway info --json`.

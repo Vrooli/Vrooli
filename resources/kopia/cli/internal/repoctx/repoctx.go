@@ -18,9 +18,10 @@ import (
 // Env var names kopia reads for the passphrase and S3 credentials. Secrets are
 // passed exclusively through these — never as argv flags.
 const (
-	EnvPassword     = "KOPIA_PASSWORD"
-	EnvAWSAccessKey = "AWS_ACCESS_KEY_ID"
-	EnvAWSSecretKey = "AWS_SECRET_ACCESS_KEY"
+	EnvPassword       = "KOPIA_PASSWORD"
+	EnvAWSAccessKey   = "AWS_ACCESS_KEY_ID"
+	EnvAWSSecretKey   = "AWS_SECRET_ACCESS_KEY"
+	EnvSFTPPrivateKey = "VROOLI_KOPIA_SFTP_PRIVATE_KEY"
 )
 
 // Target bundles a resolved repository's addressing and secret env.
@@ -69,6 +70,13 @@ func (r Resolver) Resolve(ctx context.Context, name string) (Target, error) {
 	return r.targetFor(ctx, entry)
 }
 
+// ResolveEntry builds the same credential-backed runtime target as Resolve,
+// but for an explicit uncommitted backend entry. Connect uses this so it can
+// probe the requested path before committing that entry to the registry.
+func (r Resolver) ResolveEntry(ctx context.Context, entry registry.Entry) (Target, error) {
+	return r.targetFor(ctx, entry)
+}
+
 // targetFor builds the secret env overlay for an entry.
 func (r Resolver) targetFor(ctx context.Context, entry registry.Entry) (Target, error) {
 	if r.Credentials == nil {
@@ -94,6 +102,12 @@ func (r Resolver) targetFor(ctx context.Context, entry registry.Entry) (Target, 
 		}
 		env[EnvAWSAccessKey] = creds.AccessKeyID
 		env[EnvAWSSecretKey] = creds.SecretAccessKey
+	} else if entry.Backend == registry.BackendSFTP {
+		key, err := credentials.SFTPPrivateKeyFor(r.Credentials, entry.Name)
+		if err != nil {
+			return Target{}, err
+		}
+		env[EnvSFTPPrivateKey] = key
 	}
 
 	return Target{Entry: entry, Env: env, Credentials: r.Credentials, LegacyPath: legacyPath}, nil

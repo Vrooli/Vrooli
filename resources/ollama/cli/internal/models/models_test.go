@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/resources/ollama/cli/internal/ensure"
@@ -11,14 +12,18 @@ import (
 
 // fakeDaemon is the injected daemon seam for deterministic tests.
 type fakeDaemon struct {
-	models     []string
-	listErr    error
-	shows      map[string]ensure.ShowResponse
-	showErr    map[string]error
-	toolNames  map[string][]string // model -> tool_call names to return
-	chatErr    map[string]error
-	chatImages []string
-	inventory  []ensure.ModelInfo
+	models               []string
+	listErr              error
+	shows                map[string]ensure.ShowResponse
+	showErr              map[string]error
+	toolNames            map[string][]string // model -> tool_call names to return
+	chatErr              map[string]error
+	chatImages           []string
+	chatCalls            int
+	generateCalls        int
+	emptyChat            bool
+	inventory            []ensure.ModelInfo
+	inventoryUnavailable bool
 }
 
 func (f *fakeDaemon) ListModels(ctx context.Context) ([]string, error) {
@@ -26,6 +31,16 @@ func (f *fakeDaemon) ListModels(ctx context.Context) ([]string, error) {
 }
 
 func (f *fakeDaemon) ListModelInventory(ctx context.Context) ([]ensure.ModelInfo, error) {
+	if f.inventoryUnavailable {
+		return nil, nil
+	}
+	if f.inventory == nil {
+		out := make([]ensure.ModelInfo, 0, len(f.models))
+		for _, model := range f.models {
+			out = append(out, ensure.ModelInfo{Name: model, Digest: strings.Repeat("d", 64)})
+		}
+		return out, nil
+	}
 	return f.inventory, nil
 }
 
@@ -39,6 +54,7 @@ func (f *fakeDaemon) ShowModel(ctx context.Context, model string) (ensure.ShowRe
 }
 
 func (f *fakeDaemon) Chat(ctx context.Context, in ensure.ChatRequest) (ensure.ChatResponse, error) {
+	f.chatCalls++
 	for _, message := range in.Messages {
 		f.chatImages = append(f.chatImages, message.Images...)
 	}
@@ -56,14 +72,63 @@ func (f *fakeDaemon) Chat(ctx context.Context, in ensure.ChatRequest) (ensure.Ch
 	if len(resp.Message.ToolCalls) == 0 {
 		resp.Message.Content = `{"name":"write_file","arguments":{}}` // narrated as text
 	}
+	if f.emptyChat {
+		resp.Message.Content = ""
+	}
 	return resp, nil
 }
 
 func (f *fakeDaemon) Generate(ctx context.Context, in ensure.GenerateRequest) (ensure.GenerateResponse, error) {
+	f.generateCalls++
 	if len(in.Images) > 0 {
 		return ensure.GenerateResponse{Response: "generated vision response"}, nil
 	}
 	return ensure.GenerateResponse{}, nil
+}
+
+func testProbeAuthorization(err error) func() error {
+	return func() error { return err }
+}
+
+func testModelAuthorizer(err error) ModelAuthorizer {
+	return func(_, _, _ string) error { return err }
+}
+
+func TestCurrentModelDigestRequiresExactInventoryEntry(t *testing.T) {
+	want := strings.Repeat("a", 64)
+	d := &fakeDaemon{inventory: []ensure.ModelInfo{{Name: "qwen3.5:9b", Digest: want}}}
+	got, err := CurrentModelDigest(context.Background(), d, "qwen3.5:9b")
+	if err != nil || got != want {
+		t.Fatalf("CurrentModelDigest = %q, %v; want %q", got, err, want)
+	}
+	if _, err := CurrentModelDigest(context.Background(), d, "qwen3.5:4b"); err == nil {
+		t.Fatal("missing exact runtime model identity was accepted")
+	}
+	d.inventoryUnavailable = true
+	if _, err := CurrentModelDigest(context.Background(), d, "qwen3.5:9b"); err == nil {
+		t.Fatal("missing runtime inventory was accepted")
+	}
+}
+
+func TestDoctorRechecksCurrentArtifactDigestBeforeToolSmoke(t *testing.T) {
+	digest := strings.Repeat("e", 64)
+	d := &fakeDaemon{
+		models:    []string{"gemma4:12b"},
+		inventory: []ensure.ModelInfo{{Name: "gemma4:12b", Digest: digest}},
+		shows:     map[string]ensure.ShowResponse{"gemma4:12b": {Template: "{{ .Messages }}", Capabilities: []string{"completion", "tools", "vision"}}},
+		toolNames: map[string][]string{"gemma4:12b": {"write_file"}},
+	}
+	var gotDigest string
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, func(_, _, got string) error {
+		gotDigest = got
+		return nil
+	})
+	if err != nil || !res.Pass {
+		t.Fatalf("Doctor = %+v, %v", res, err)
+	}
+	if gotDigest != digest {
+		t.Fatalf("doctor authorizer digest=%q, want %q", gotDigest, digest)
+	}
 }
 
 func TestList(t *testing.T) {
@@ -102,7 +167,7 @@ func TestInventoryAttributesPolicyReachabilityAndRegeneration(t *testing.T) {
 
 func TestProbeTools_StructuredCallsPass(t *testing.T) {
 	d := &fakeDaemon{toolNames: map[string][]string{"gemma4:12b": {"write_file"}}}
-	res, err := ProbeTools(context.Background(), d, "gemma4:12b")
+	res, err := ProbeTools(context.Background(), d, "gemma4:12b", testProbeAuthorization(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +181,7 @@ func TestProbeTools_StructuredCallsPass(t *testing.T) {
 
 func TestProbeTools_TextOnlyFails(t *testing.T) {
 	d := &fakeDaemon{toolNames: map[string][]string{}} // returns no tool_calls
-	res, err := ProbeTools(context.Background(), d, "weakmodel")
+	res, err := ProbeTools(context.Background(), d, "weakmodel", testProbeAuthorization(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +192,7 @@ func TestProbeTools_TextOnlyFails(t *testing.T) {
 
 func TestProbeTools_InfraErrorPropagates(t *testing.T) {
 	d := &fakeDaemon{chatErr: map[string]error{"m": errors.New("connection refused")}}
-	res, err := ProbeTools(context.Background(), d, "m")
+	res, err := ProbeTools(context.Background(), d, "m", testProbeAuthorization(nil))
 	if err == nil {
 		t.Fatal("expected error to propagate")
 	}
@@ -138,7 +203,7 @@ func TestProbeTools_InfraErrorPropagates(t *testing.T) {
 
 func TestProbeVisionSendsImageAndPassesOnResponse(t *testing.T) {
 	d := &fakeDaemon{}
-	res, err := ProbeVision(context.Background(), d, "gemma4:12b", []byte("image-bytes"))
+	res, err := ProbeVision(context.Background(), d, "gemma4:12b", []byte("image-bytes"), testProbeAuthorization(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,6 +212,36 @@ func TestProbeVisionSendsImageAndPassesOnResponse(t *testing.T) {
 	}
 	if len(d.chatImages) != 1 || d.chatImages[0] == "" {
 		t.Fatalf("expected one base64 image, got %v", d.chatImages)
+	}
+}
+
+func TestProbeToolsRightsDenialStopsBeforeProviderCall(t *testing.T) {
+	d := &fakeDaemon{}
+	res, err := ProbeTools(context.Background(), d, "gemma4:12b", testProbeAuthorization(errors.New("rights unknown")))
+	if err == nil || res.Error != "rights unknown" {
+		t.Fatalf("unqualified probe result=%+v err=%v", res, err)
+	}
+	if d.chatCalls != 0 {
+		t.Fatalf("unqualified tool probe invoked chat %d times", d.chatCalls)
+	}
+}
+
+func TestProbeVisionRechecksRightsBeforeGenerateFallback(t *testing.T) {
+	d := &fakeDaemon{emptyChat: true}
+	checks := 0
+	authorize := func() error {
+		checks++
+		if checks == 1 {
+			return nil
+		}
+		return errors.New("artifact or context changed")
+	}
+	res, err := ProbeVision(context.Background(), d, "gemma4:12b", []byte("image-bytes"), authorize)
+	if err == nil || res.Error != "artifact or context changed" {
+		t.Fatalf("stale fallback rights result=%+v err=%v", res, err)
+	}
+	if checks != 2 || d.chatCalls != 1 || d.generateCalls != 0 {
+		t.Fatalf("checks=%d chat=%d generate=%d", checks, d.chatCalls, d.generateCalls)
 	}
 }
 
@@ -186,7 +281,7 @@ func TestDoctor_StubTemplateButToolsWork(t *testing.T) {
 		shows:     map[string]ensure.ShowResponse{"gemma4:12b": {Template: "{{ .Prompt }}", Capabilities: []string{"completion", "tools", "vision"}}},
 		toolNames: map[string][]string{"gemma4:12b": {"write_file"}},
 	}
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +311,7 @@ func TestDoctor_ToolSmokeFailureFails(t *testing.T) {
 		shows:     map[string]ensure.ShowResponse{"gemma4:12b": {Template: "{{ .Messages }}", Capabilities: []string{"completion", "tools"}}},
 		toolNames: map[string][]string{}, // no tool_calls -> text-only
 	}
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +330,7 @@ func TestDoctor_MissingCapabilityFails(t *testing.T) {
 		shows:     map[string]ensure.ShowResponse{"gemma4:12b": {Template: "{{ .Messages }}", Capabilities: []string{"completion"}}}, // no tools
 		toolNames: map[string][]string{"gemma4:12b": {"write_file"}},
 	}
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +348,7 @@ func TestDoctor_MissingDeclaredImageInputFails(t *testing.T) {
 		shows:     map[string]ensure.ShowResponse{"gemma4:12b": {Template: "{{ .Messages }}", Capabilities: []string{"completion", "tools"}}},
 		toolNames: map[string][]string{"gemma4:12b": {"write_file"}},
 	}
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -268,7 +363,7 @@ func TestDoctor_MissingDeclaredImageInputFails(t *testing.T) {
 // TestDoctor_NotInstalledFails: role model not pulled.
 func TestDoctor_NotInstalledFails(t *testing.T) {
 	d := &fakeDaemon{models: []string{"qwen3.5:9b"}} // gemma4 absent
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +378,7 @@ func TestDoctor_NonToolRoleSkipsSmoke(t *testing.T) {
 		models: []string{"nomic-embed-text:latest"},
 		shows:  map[string]ensure.ShowResponse{"nomic-embed-text:latest": {Template: "{{ .Prompt }}", Capabilities: []string{"embedding"}}},
 	}
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"embedding.default"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"embedding.default"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -302,7 +397,7 @@ func TestDoctor_ShowInfraErrorSkips(t *testing.T) {
 		models:  []string{"gemma4:12b"},
 		showErr: map[string]error{"gemma4:12b": errors.New("connection refused")},
 	}
-	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, testPolicy(), DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +420,7 @@ func TestDoctor_ModelSwapInheritsValidation(t *testing.T) {
 		shows:     map[string]ensure.ShowResponse{"qwen3.5:9b": {Template: "{{ .Messages }}", Capabilities: []string{"completion", "tools"}}},
 		toolNames: map[string][]string{"qwen3.5:9b": {"write_file"}},
 	}
-	res, err := Doctor(context.Background(), d, p, DoctorOptions{Roles: []string{"code.local"}})
+	res, err := Doctor(context.Background(), d, p, DoctorOptions{Roles: []string{"code.local"}}, testModelAuthorizer(nil))
 	if err != nil {
 		t.Fatal(err)
 	}

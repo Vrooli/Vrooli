@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/vrooli/envkit-go"
@@ -28,6 +29,11 @@ type Call struct {
 	// Stdin, when non-nil, is wired to the kopia process stdin.
 	Stdin []byte
 }
+
+const (
+	SFTPPrivateKeyEnv      = "VROOLI_KOPIA_SFTP_PRIVATE_KEY"
+	SFTPKeyFilePlaceholder = "__VROOLI_KOPIA_SFTP_KEYFILE__"
+)
 
 // Runner executes kopia invocations.
 //
@@ -55,12 +61,63 @@ func NewBinaryRunner(binaryPath string) *BinaryRunner {
 // exit, stderr is folded into the returned error so callers never have to read
 // the binary's stderr stream directly.
 func (r *BinaryRunner) Run(ctx context.Context, c Call) ([]byte, error) {
+	callEnv := make(map[string]string, len(c.Env))
+	for key, value := range c.Env {
+		callEnv[key] = value
+	}
+	args := append([]string(nil), c.Args...)
+	if privateKey, ok := callEnv[SFTPPrivateKeyEnv]; ok {
+		delete(callEnv, SFTPPrivateKeyEnv)
+		needsKeyFile := false
+		for _, arg := range args {
+			if arg == SFTPKeyFilePlaceholder {
+				needsKeyFile = true
+				break
+			}
+		}
+		if !needsKeyFile {
+			privateKey = ""
+		} // Saved Kopia config already embeds the key.
+		if strings.TrimSpace(privateKey) == "" && needsKeyFile {
+			return nil, fmt.Errorf("SFTP private key is empty")
+		}
+		if needsKeyFile {
+			keyFile, err := os.CreateTemp("", "vrooli-kopia-sftp-key-*")
+			if err != nil {
+				return nil, fmt.Errorf("create private SFTP runtime key file: %w", err)
+			}
+			keyPath := keyFile.Name()
+			defer os.Remove(keyPath)
+			if err := keyFile.Chmod(0o600); err != nil {
+				keyFile.Close()
+				return nil, fmt.Errorf("protect private SFTP runtime key file: %w", err)
+			}
+			if _, err := keyFile.WriteString(privateKey); err != nil {
+				keyFile.Close()
+				return nil, fmt.Errorf("write private SFTP runtime key file: %w", err)
+			}
+			if err := keyFile.Close(); err != nil {
+				return nil, fmt.Errorf("close private SFTP runtime key file: %w", err)
+			}
+			for i := range args {
+				if args[i] == SFTPKeyFilePlaceholder {
+					args[i] = filepath.Clean(keyPath)
+				}
+			}
+		}
+	} else {
+		for _, arg := range args {
+			if arg == SFTPKeyFilePlaceholder {
+				return nil, fmt.Errorf("SFTP repository requires a credential-authority private key")
+			}
+		}
+	}
 	binary := strings.TrimSpace(r.BinaryPath)
 	if binary == "" {
 		binary = "kopia"
 	}
-	cmd := exec.CommandContext(ctx, binary, c.Args...)
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, mapEnv(c.Env))
+	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, mapEnv(callEnv))
 	if len(c.Stdin) > 0 {
 		cmd.Stdin = bytes.NewReader(c.Stdin)
 	}
@@ -73,9 +130,9 @@ func (r *BinaryRunner) Run(ctx context.Context, c Call) ([]byte, error) {
 			msg = strings.TrimSpace(stdout.String())
 		}
 		if msg != "" {
-			return stdout.Bytes(), fmt.Errorf("kopia %s: %w: %s", strings.Join(c.Args, " "), err, msg)
+			return stdout.Bytes(), fmt.Errorf("kopia %s: %w: %s", strings.Join(args, " "), err, msg)
 		}
-		return stdout.Bytes(), fmt.Errorf("kopia %s: %w", strings.Join(c.Args, " "), err)
+		return stdout.Bytes(), fmt.Errorf("kopia %s: %w", strings.Join(args, " "), err)
 	}
 	if c.CaptureStderr {
 		return append(stdout.Bytes(), stderr.Bytes()...), nil

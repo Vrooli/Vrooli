@@ -92,25 +92,95 @@
       ],
       "default_pull": true,
       "license": "Apache-2.0 (Convai Innovations)",
-      "disk_bytes": 10432
+      "disk_bytes": 10432,
+      "rights": {
+        "artifact_id": "ollaya/laya",
+        "revision": "89aa53ce17e105dc801b899b4c1b6d4fcbee7ea2710a303e149a5129476bc2c6",
+        "sha256": "89aa53ce17e105dc801b899b4c1b6d4fcbee7ea2710a303e149a5129476bc2c6",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "pinned_license_blob_is_not_yet_verified_as_the_applicable_model_license_with_distribution_scope",
+        "evidence": {
+          "url": "https://ollaya.dev/blobs/sha256-ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "revision": "sha256:ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "sha256": "ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "observed_at": "2026-11-11"
+        },
+        "lineage": [
+          {"kind": "registry_manifest", "identity": "ollaya.dev/library/laya/latest", "revision": "89aa53ce17e105dc801b899b4c1b6d4fcbee7ea2710a303e149a5129476bc2c6"},
+          {"kind": "routed_artifact", "identity": "ollaya.dev/library/laya/en", "revision": "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d"},
+          {"kind": "routed_artifact", "identity": "ollaya.dev/library/laya/multilingual", "revision": "2840506e1f978aeb696a6f84af43ecc7fca95754cb63a67bafe6132532d384eb"},
+          {"kind": "license_text", "identity": "ollaya.dev/laya/license", "revision": "sha256:ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9", "sha256": "ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9"}
+        ],
+        "review_triggers": ["artifact_changed", "license_source_changed", "review_due"]
+      }
     },
     "laya:en": {
       "digest": "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d",
       "default_pull": true,
       "license": "Apache-2.0 (Convai Innovations)",
-      "disk_bytes": 852602494
+      "disk_bytes": 852602494,
+      "rights": {
+        "artifact_id": "ollaya/laya:en",
+        "revision": "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d",
+        "sha256": "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "pinned_license_blob_is_not_yet_verified_as_the_applicable_model_license_with_distribution_scope",
+        "evidence": {
+          "url": "https://ollaya.dev/blobs/sha256-ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "revision": "sha256:ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "sha256": "ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "observed_at": "2026-11-11"
+        },
+        "lineage": [
+          {"kind": "registry_manifest", "identity": "ollaya.dev/library/laya/en", "revision": "c305a9276531a47000bf93559d2c94f1ed6cbb67055c9151084682dad7655e9d"},
+          {"kind": "model_weights", "identity": "convaiinnovations/laya/model.safetensors", "revision": "aa8c91ca088ec597df95a0d1c76b3063cb2ae5e8", "sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c"},
+          {"kind": "license_text", "identity": "ollaya.dev/laya/license", "revision": "sha256:ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9", "sha256": "ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9"}
+        ],
+        "review_triggers": ["artifact_changed", "license_source_changed", "review_due"]
+      }
     },
     "laya:multilingual": {
       "digest": "2840506e1f978aeb696a6f84af43ecc7fca95754cb63a67bafe6132532d384eb",
       "default_pull": true,
       "license": "Apache-2.0 (Convai Innovations)",
-      "disk_bytes": 683339997
+      "disk_bytes": 683339997,
+      "rights": {
+        "artifact_id": "ollaya/laya:multilingual",
+        "revision": "2840506e1f978aeb696a6f84af43ecc7fca95754cb63a67bafe6132532d384eb",
+        "sha256": "2840506e1f978aeb696a6f84af43ecc7fca95754cb63a67bafe6132532d384eb",
+        "license_id": "Apache-2.0",
+        "classification": "unknown",
+        "unverified_reason": "pinned_license_blob_is_not_yet_verified_as_the_applicable_model_license_with_distribution_scope",
+        "evidence": {
+          "url": "https://ollaya.dev/blobs/sha256-ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "revision": "sha256:ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "sha256": "ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9",
+          "observed_at": "2026-11-11"
+        },
+        "lineage": [
+          {"kind": "registry_manifest", "identity": "ollaya.dev/library/laya/multilingual", "revision": "2840506e1f978aeb696a6f84af43ecc7fca95754cb63a67bafe6132532d384eb"},
+          {"kind": "model_weights", "identity": "convaiinnovations/laya/model.safetensors", "revision": "aa8c91ca088ec597df95a0d1c76b3063cb2ae5e8", "sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204"},
+          {"kind": "license_text", "identity": "ollaya.dev/laya/license", "revision": "sha256:ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9", "sha256": "ec56c3e69fab09b41de6f1c80fdcc13b83ec1eef1f72d3022baaafde3d9307e9"}
+        ],
+        "review_triggers": ["artifact_changed", "license_source_changed", "review_due"]
+      }
     },
     "winnow:e4b": {
       "digest": "dd4bf88aa50bebb02e7a26fbebed14682befd037e3e89789ee22b9793f82d226",
       "default_pull": false,
       "license": "Gemma Terms of Use (EldanRing Winnow-E4B on Gemma 4)",
-      "disk_bytes": 8005450992
+      "disk_bytes": 8005450992,
+      "rights": {
+        "artifact_id": "ollaya/winnow:e4b",
+        "revision": "dd4bf88aa50bebb02e7a26fbebed14682befd037e3e89789ee22b9793f82d226",
+        "sha256": "dd4bf88aa50bebb02e7a26fbebed14682befd037e3e89789ee22b9793f82d226",
+        "license_id": "Gemma Terms of Use (EldanRing Winnow-E4B on Gemma 4)",
+        "classification": "unknown",
+        "unverified_reason": "exact_model_and_finetune_rights_scope_not_verified",
+        "review_triggers": ["artifact_changed", "license_source_changed", "review_due"]
+      }
     }
   },
   "provider": {

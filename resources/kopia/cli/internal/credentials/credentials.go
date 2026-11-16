@@ -18,9 +18,45 @@ const (
 	// repository passphrase under the per-repository credential identity. They
 	// deliberately use the same authority as filesystem repository credentials;
 	// resource-kopia has no external secret-service dependency.
-	S3AccessKeyIDField     = "s3-access-key-id"
-	S3SecretAccessKeyField = "s3-secret-access-key"
+	S3AccessKeyIDField     = kopiaregistry.S3AccessKeyIDField
+	S3SecretAccessKeyField = kopiaregistry.S3SecretAccessKeyField
+	SFTPPrivateKeyField    = kopiaregistry.SFTPPrivateKeyField
 )
+
+// SFTPPrivateKeyFor resolves the operator-provisioned private key from the
+// credential authority. It is consumed only by kexec's private runtime-file
+// adapter; callers must never add it to argv or the repository registry.
+func SFTPPrivateKeyFor(store Store, repo string) (string, error) {
+	if store == nil {
+		return "", fmt.Errorf("credential authority is unavailable")
+	}
+	identity, err := kopiaregistry.PassphraseIdentity(repo)
+	if err != nil {
+		return "", err
+	}
+	key, err := store.Resolve(identity, SFTPPrivateKeyField)
+	if err != nil {
+		return "", fmt.Errorf("read SFTP private key for repository %q: %w", repo, err)
+	}
+	if strings.TrimSpace(key) == "" {
+		return "", fmt.Errorf("SFTP private key for repository %q is empty", repo)
+	}
+	return key, nil
+}
+
+func DeleteSFTPPrivateKey(store Store, repo string) error {
+	if store == nil {
+		return fmt.Errorf("credential authority is unavailable")
+	}
+	identity, err := kopiaregistry.PassphraseIdentity(repo)
+	if err != nil {
+		return err
+	}
+	if err := store.Delete(identity, SFTPPrivateKeyField); err != nil && !errors.Is(err, credentialauthority.ErrUnconfigured) {
+		return fmt.Errorf("delete SFTP private key for repository %q: %w", repo, err)
+	}
+	return nil
+}
 
 // Store is the minimal authority surface resource-kopia needs. It never
 // exposes a backend or accepts a passphrase through process arguments.

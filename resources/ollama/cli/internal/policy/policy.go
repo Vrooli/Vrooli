@@ -2,6 +2,8 @@
 package policy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +11,15 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
+
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 )
+
+func isSHA256(value string) bool {
+	decoded, err := hex.DecodeString(strings.TrimSpace(value))
+	return err == nil && len(decoded) == 32
+}
 
 type Policy struct {
 	SchemaVersion string                `json:"schema_version"`
@@ -17,7 +27,12 @@ type Policy struct {
 	Models        map[string]Model      `json:"models"`
 	Constraints   Constraints           `json:"constraints"`
 	Provenance    map[string]Provenance `json:"provenance"`
+	loadedSHA256  string
 }
+
+// LoadedSHA256 reports the digest of the exact policy bytes read by the
+// loader. It is empty for Policy values assembled without LoadFile.
+func (p Policy) LoadedSHA256() string { return p.loadedSHA256 }
 
 type Role struct {
 	Model                string            `json:"model"`
@@ -177,20 +192,22 @@ func clampInt(v, lo, hi int) int {
 }
 
 type Model struct {
-	Family               string                `json:"family"`
-	Tags                 []string              `json:"tags"`
-	Capabilities         []string              `json:"capabilities"`
-	Modalities           Modalities            `json:"modalities"`
-	CoordinateConvention string                `json:"coordinate_convention,omitempty"`
-	ContextWindowTokens  int                   `json:"context_window_tokens,omitempty"`
-	EmbeddingDimensions  int                   `json:"embedding_dimensions,omitempty"`
-	DiskSizeGBEstimate   float64               `json:"disk_size_gb_estimate"`
-	RAMGBEstimate        float64               `json:"ram_gb_estimate"`
-	VRAMGBEstimate       float64               `json:"vram_gb_estimate"`
-	DefaultEligible      bool                  `json:"default_eligible"`
-	UseCaseNotes         string                `json:"use_case_notes"`
-	Caveats              []string              `json:"caveats"`
-	Provenance           map[string]Provenance `json:"provenance"`
+	Rights               *sharedpolicy.ArtifactRights          `json:"rights,omitempty"`
+	RuntimeIdentity      *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity,omitempty"`
+	Family               string                                `json:"family"`
+	Tags                 []string                              `json:"tags"`
+	Capabilities         []string                              `json:"capabilities"`
+	Modalities           Modalities                            `json:"modalities"`
+	CoordinateConvention string                                `json:"coordinate_convention,omitempty"`
+	ContextWindowTokens  int                                   `json:"context_window_tokens,omitempty"`
+	EmbeddingDimensions  int                                   `json:"embedding_dimensions,omitempty"`
+	DiskSizeGBEstimate   float64                               `json:"disk_size_gb_estimate"`
+	RAMGBEstimate        float64                               `json:"ram_gb_estimate"`
+	VRAMGBEstimate       float64                               `json:"vram_gb_estimate"`
+	DefaultEligible      bool                                  `json:"default_eligible"`
+	UseCaseNotes         string                                `json:"use_case_notes"`
+	Caveats              []string                              `json:"caveats"`
+	Provenance           map[string]Provenance                 `json:"provenance"`
 }
 
 // Modality is the provider-neutral inference vocabulary shared by local and
@@ -362,10 +379,13 @@ type ResolvedPolicyModel struct {
 	Sampling             *Sampling         `json:"sampling,omitempty"`
 	// SamplingSupport and MaxTokens are role-owned, so they are populated only
 	// by ResolveRole. A direct model reference has no role to declare them.
-	SamplingSupport map[string]SamplingSupportState `json:"sampling_support,omitempty"`
-	MaxTokens       *int                            `json:"max_tokens,omitempty"`
-	RoleProvenance  *Provenance                     `json:"role_provenance,omitempty"`
-	Provenance      map[string]Provenance           `json:"provenance,omitempty"`
+	SamplingSupport map[string]SamplingSupportState       `json:"sampling_support,omitempty"`
+	MaxTokens       *int                                  `json:"max_tokens,omitempty"`
+	RoleProvenance  *Provenance                           `json:"role_provenance,omitempty"`
+	Provenance      map[string]Provenance                 `json:"provenance,omitempty"`
+	Rights          *sharedpolicy.ArtifactRights          `json:"rights,omitempty"`
+	RightsDecision  *sharedpolicy.RightsDecision          `json:"rights_decision,omitempty"`
+	RuntimeIdentity *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity,omitempty"`
 	// Preference is the role's policy ranking. It is zero for a direct model
 	// reference, which has no role to rank.
 	Preference int `json:"preference,omitempty"`
@@ -376,10 +396,25 @@ func LoadFile(path string) (Policy, error) {
 	if err != nil {
 		return Policy{}, err
 	}
+	// Reject the retired experimental context-tier field explicitly. Silently
+	// ignoring it would make a stale configuration look active to operators.
+	var shape struct {
+		Roles map[string]map[string]json.RawMessage `json:"roles"`
+	}
+	if err := json.Unmarshal(raw, &shape); err != nil {
+		return Policy{}, fmt.Errorf("parse model policy: %w", err)
+	}
+	for name, role := range shape.Roles {
+		if _, exists := role["runtime_policy"]; exists {
+			return Policy{}, fmt.Errorf("roles.%s.runtime_policy is unsupported; LM9 must reintroduce context tiers only after measured suites are admitted", name)
+		}
+	}
 	var p Policy
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return Policy{}, fmt.Errorf("parse model policy: %w", err)
 	}
+	policyDigest := sha256.Sum256(raw)
+	p.loadedSHA256 = hex.EncodeToString(policyDigest[:])
 	if err := p.Validate(); err != nil {
 		return Policy{}, err
 	}
@@ -443,6 +478,17 @@ func DefaultPolicyPath(getenv func(string) string) (string, error) {
 		}
 	}
 	return "", errors.New("locate Ollama model policy: set OLLAMA_MODEL_POLICY_PATH, RESOURCE_ROOT, or VROOLI_SOURCE_ROOT")
+}
+
+// LoadDefaultRightsContext reads the same versioned operator-owned context as
+// AI Gateway. The file path comes from deployment configuration or the source
+// tree root; request flags and input data never choose it.
+func LoadDefaultRightsContext(getenv func(string) string) (sharedpolicy.RightsContext, error) {
+	context, err := sharedpolicy.LoadDefaultRightsContext(getenv)
+	if err != nil {
+		return sharedpolicy.RightsContext{}, fmt.Errorf("load trusted model rights context: %w", err)
+	}
+	return context, nil
 }
 
 func (p Policy) Resolve(req ResolveRequest) (Resolution, error) {
@@ -554,6 +600,99 @@ func (p Policy) ResolveRole(roleName string) (ResolvedPolicyModel, error) {
 	return resolved, nil
 }
 
+// ResolveRoleWithRights returns the same resolved model plus a fresh decision
+// for the exact model artifact, use and trusted organization context.
+func (p Policy) ResolveRoleWithRights(roleName string, use sharedpolicy.RightsUse, context sharedpolicy.RightsContext, now time.Time) (ResolvedPolicyModel, error) {
+	resolved, err := p.ResolveRole(roleName)
+	if err != nil {
+		return ResolvedPolicyModel{}, err
+	}
+	decision, err := p.EvaluateModelRights(resolved.Model, use, context, now)
+	if err != nil {
+		return ResolvedPolicyModel{}, err
+	}
+	resolved.RightsDecision = &decision
+	return resolved, nil
+}
+
+// ResolveRoleWithRightsFallback selects the first role candidate whose declared
+// capabilities and current rights both permit the requested use. Rights are
+// evaluated against the caller-supplied trusted context; unknown and denied
+// candidates are skipped, and the complete chain fails closed if none qualify.
+func (p Policy) ResolveRoleWithRightsFallback(roleName string, use sharedpolicy.RightsUse, context sharedpolicy.RightsContext, now time.Time) (ResolvedPolicyModel, error) {
+	roleName = strings.TrimSpace(roleName)
+	role, ok := p.Roles[roleName]
+	if !ok {
+		return ResolvedPolicyModel{}, fmt.Errorf("unknown model role %q", roleName)
+	}
+	candidates := append([]string{role.Model}, role.Fallbacks...)
+	var rejected []string
+	for _, ref := range candidates {
+		model, exists := p.Models[ref]
+		if !exists || !hasAllCapabilities(model.Capabilities, role.RequiredCapabilities) {
+			rejected = append(rejected, fmt.Sprintf("%s: required capabilities unavailable", ref))
+			continue
+		}
+		decision := sharedpolicy.EvaluateRights(model.Rights, use, context, now)
+		if decision.Status != sharedpolicy.RightsAllowed {
+			rejected = append(rejected, fmt.Sprintf("%s: rights decision %s (%s)", ref, decision.Status, decision.Reason))
+			continue
+		}
+		resolved := p.resolvedPolicyModel("role", ref, model)
+		resolved.Role = roleName
+		resolved.Preference = role.Preference
+		resolved.Fallbacks = append([]string{}, role.Fallbacks...)
+		resolved.RequiredCapabilities = append([]string{}, role.RequiredCapabilities...)
+		resolved.SamplingDefaults = role.SamplingDefaults
+		sampling := role.SamplingDefaults.Resolve()
+		resolved.Sampling = &sampling
+		resolved.SamplingSupport = copySamplingSupport(role.SamplingSupport)
+		if role.MaxTokens != nil {
+			maxTokens := *role.MaxTokens
+			resolved.MaxTokens = &maxTokens
+		}
+		roleProvenance := role.Provenance
+		resolved.RoleProvenance = &roleProvenance
+		resolved.RightsDecision = &decision
+		return resolved, nil
+	}
+	return ResolvedPolicyModel{}, fmt.Errorf("role %q has no rights-eligible model for %s: %s", roleName, use, strings.Join(rejected, "; "))
+}
+
+// RoleAllowsModel verifies that modelRef is the exact primary or fallback
+// identity declared for roleName and that it retains all role capabilities.
+func (p Policy) RoleAllowsModel(roleName, modelRef string) bool {
+	role, ok := p.Roles[strings.TrimSpace(roleName)]
+	if !ok {
+		return false
+	}
+	modelRef = strings.TrimSpace(modelRef)
+	if role.Model != modelRef {
+		found := false
+		for _, fallback := range role.Fallbacks {
+			if fallback == modelRef {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	model, ok := p.Models[modelRef]
+	return ok && hasAllCapabilities(model.Capabilities, role.RequiredCapabilities)
+}
+
+func hasAllCapabilities(model, required []string) bool {
+	declared := set(model)
+	for _, capability := range required {
+		if _, ok := declared[capability]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func (p Policy) ResolveModel(modelRef string) (ResolvedPolicyModel, error) {
 	modelRef = strings.TrimSpace(modelRef)
 	if modelRef == "" {
@@ -564,6 +703,235 @@ func (p Policy) ResolveModel(modelRef string) (ResolvedPolicyModel, error) {
 		return ResolvedPolicyModel{}, fmt.Errorf("unknown model %q", modelRef)
 	}
 	return p.resolvedPolicyModel("model", modelRef, model), nil
+}
+
+// ResolveModelReference resolves one exact catalog identity, accepting the
+// standard omitted :latest tag only when that full identity exists.
+func (p Policy) ResolveModelReference(modelRef string) (ResolvedPolicyModel, error) {
+	modelRef = strings.TrimSpace(modelRef)
+	resolved, err := p.ResolveModel(modelRef)
+	if err == nil || strings.Contains(modelRef, ":") {
+		return resolved, err
+	}
+	return p.ResolveModel(modelRef + ":latest")
+}
+
+// EvaluateModelRights evaluates resource-owned facts against trusted context.
+// Request payloads must never supply the organization context.
+func (p Policy) EvaluateModelRights(modelRef string, use sharedpolicy.RightsUse, context sharedpolicy.RightsContext, now time.Time) (sharedpolicy.RightsDecision, error) {
+	modelRef = strings.TrimSpace(modelRef)
+	model, ok := p.Models[modelRef]
+	if !ok {
+		return sharedpolicy.RightsDecision{}, fmt.Errorf("unknown model %q", modelRef)
+	}
+	return sharedpolicy.EvaluateRights(model.Rights, use, context, now), nil
+}
+
+// CheckLocalInferenceRights is an early fail-closed preflight. An allowed
+// result still must be bound to the currently installed Ollama model digest by
+// AuthorizeLocalInferenceArtifact immediately before the inference call.
+func CheckLocalInferenceRights(getenv func(string) string, role, expectedModel string) error {
+	_, err := currentLocalInferenceModel(getenv, role, expectedModel)
+	return err
+}
+
+// CheckExpectedLocalInferenceRights verifies that the current resource-owned
+// policy/context reproduce a gateway decision receipt. The paired timestamp
+// keeps the receipt digest stable while still binding the exact current facts.
+func CheckExpectedLocalInferenceRights(getenv func(string) string, role, expectedModel, expectedDecisionSHA256, expectedEvaluatedAt string) error {
+	expectedDecisionSHA256 = strings.TrimSpace(expectedDecisionSHA256)
+	expectedEvaluatedAt = strings.TrimSpace(expectedEvaluatedAt)
+	if expectedDecisionSHA256 == "" && expectedEvaluatedAt == "" {
+		return CheckLocalInferenceRights(getenv, role, expectedModel)
+	}
+	if expectedDecisionSHA256 == "" || expectedEvaluatedAt == "" || !isSHA256(expectedDecisionSHA256) {
+		return errors.New("expected local rights decision requires both a SHA-256 and evaluation timestamp")
+	}
+	evaluatedAt, err := time.Parse(time.RFC3339Nano, expectedEvaluatedAt)
+	if err != nil || evaluatedAt.UTC().Format(time.RFC3339Nano) != expectedEvaluatedAt {
+		return errors.New("expected local rights decision timestamp is invalid or noncanonical")
+	}
+	_, decision, err := currentLocalInferenceDecision(getenv, role, expectedModel, evaluatedAt)
+	if err != nil {
+		return err
+	}
+	if decision.DecisionSHA256 != expectedDecisionSHA256 {
+		return errors.New("current local rights policy or trusted context differs from the expected decision; refusing inference")
+	}
+	return nil
+}
+
+// CheckExpectedLocalInferenceEvidence checks a plan-time decision against one
+// freshly loaded resource policy/context snapshot. When receipt and file hashes
+// are present, all four values are required and the canonical receipt is
+// recomputed from current owner facts at the plan's timestamp.
+func CheckExpectedLocalInferenceEvidence(getenv func(string) string, role, expectedModel, expectedDecisionSHA256, expectedEvaluatedAt, expectedReceiptSHA256, expectedPolicyFileSHA256 string) error {
+	if strings.TrimSpace(expectedReceiptSHA256) == "" && strings.TrimSpace(expectedPolicyFileSHA256) == "" {
+		return CheckExpectedLocalInferenceRights(getenv, role, expectedModel, expectedDecisionSHA256, expectedEvaluatedAt)
+	}
+	if strings.TrimSpace(expectedReceiptSHA256) == "" || strings.TrimSpace(expectedPolicyFileSHA256) == "" || strings.TrimSpace(expectedDecisionSHA256) == "" || strings.TrimSpace(expectedEvaluatedAt) == "" {
+		return errors.New("expected local rights evidence requires receipt SHA, policy-file SHA, decision SHA, and evaluation timestamp")
+	}
+	evidence, err := readCurrentLocalInferenceEvidence(getenv, role, expectedModel, expectedEvaluatedAt)
+	if err != nil {
+		return err
+	}
+	if evidence.PolicySHA256 != strings.TrimSpace(expectedPolicyFileSHA256) {
+		return errors.New("current Ollama policy-file SHA-256 differs from the planned policy; refusing inference")
+	}
+	if evidence.Receipt.ReceiptSHA256 != strings.TrimSpace(expectedReceiptSHA256) || evidence.Receipt.Decision.DecisionSHA256 != strings.TrimSpace(expectedDecisionSHA256) || evidence.Receipt.Decision.EvaluatedAt != strings.TrimSpace(expectedEvaluatedAt) {
+		return errors.New("current Ollama rights receipt differs from the planned rights decision; refusing inference")
+	}
+	return nil
+}
+
+// AuthorizeLocalInferenceArtifact reloads the current policy and operator
+// context, resolves the exact role/model again, and binds its rights to the
+// digest returned by Ollama's current model inventory. Ollama reports this as
+// the SHA-256 digest of the model contents; an absent or mismatched digest is
+// never an authorization.
+func AuthorizeLocalInferenceArtifact(getenv func(string) string, role, expectedModel, observedDigest string) error {
+	return AuthorizeLocalInferenceArtifactDecision(getenv, role, expectedModel, observedDigest, "", "")
+}
+
+// AuthorizeLocalInferenceArtifactDecision repeats the exact decision check
+// immediately before dispatch and binds it to the live Ollama contents digest.
+func AuthorizeLocalInferenceArtifactDecision(getenv func(string) string, role, expectedModel, observedDigest, expectedDecisionSHA256, expectedEvaluatedAt string) error {
+	var model Model
+	var err error
+	if strings.TrimSpace(expectedDecisionSHA256) == "" && strings.TrimSpace(expectedEvaluatedAt) == "" {
+		model, err = currentLocalInferenceModel(getenv, role, expectedModel)
+	} else {
+		expectedDecisionSHA256 = strings.TrimSpace(expectedDecisionSHA256)
+		expectedEvaluatedAt = strings.TrimSpace(expectedEvaluatedAt)
+		if expectedDecisionSHA256 == "" || expectedEvaluatedAt == "" || !isSHA256(expectedDecisionSHA256) {
+			return errors.New("expected local rights decision requires both a SHA-256 and evaluation timestamp")
+		}
+		evaluatedAt, parseErr := time.Parse(time.RFC3339Nano, expectedEvaluatedAt)
+		if parseErr != nil || evaluatedAt.UTC().Format(time.RFC3339Nano) != expectedEvaluatedAt {
+			return errors.New("expected local rights decision timestamp is invalid or noncanonical")
+		}
+		var decision sharedpolicy.RightsDecision
+		model, decision, err = currentLocalInferenceDecision(getenv, role, expectedModel, evaluatedAt)
+		if err == nil && decision.DecisionSHA256 != expectedDecisionSHA256 {
+			err = errors.New("current local rights policy or trusted context differs from the expected decision; refusing inference")
+		}
+	}
+	if err != nil {
+		return err
+	}
+	binding := model.RuntimeIdentity
+	if binding == nil || binding.Provider != sharedpolicy.RuntimeProviderOllama || binding.Model != expectedModel ||
+		binding.ArtifactID != model.Rights.ArtifactID || binding.ArtifactRevision != model.Rights.Revision ||
+		binding.DigestKind != sharedpolicy.RuntimeDigestOllamaModelContents || binding.Source != sharedpolicy.RuntimeSourceOllamaTags ||
+		strings.TrimSpace(binding.ObservedAt) == "" || strings.TrimSpace(observedDigest) == "" || binding.Digest != observedDigest {
+		return fmt.Errorf("local model %q runtime artifact identity binding is missing or does not match current Ollama inventory; refusing inference", expectedModel)
+	}
+	return nil
+}
+
+// AuthorizeLocalInferenceArtifactEvidence verifies exact plan-time rights,
+// policy-file and model identity from one fresh resource snapshot, then binds
+// the result to the current Ollama inventory immediately before inference.
+func AuthorizeLocalInferenceArtifactEvidence(getenv func(string) string, role, expectedModel, observedDigest, expectedDecisionSHA256, expectedEvaluatedAt, expectedReceiptSHA256, expectedPolicyFileSHA256 string) error {
+	evidence, err := readCurrentLocalInferenceEvidence(getenv, role, expectedModel, expectedEvaluatedAt)
+	if err != nil {
+		return err
+	}
+	if evidence.PolicySHA256 != strings.TrimSpace(expectedPolicyFileSHA256) || evidence.Receipt.ReceiptSHA256 != strings.TrimSpace(expectedReceiptSHA256) || evidence.Receipt.Decision.DecisionSHA256 != strings.TrimSpace(expectedDecisionSHA256) || evidence.Receipt.Decision.EvaluatedAt != strings.TrimSpace(expectedEvaluatedAt) {
+		return errors.New("current Ollama rights receipt, policy-file SHA-256 or decision differs from the planned evidence; refusing inference")
+	}
+	return requireObservedRuntimeIdentity(evidence.Model, expectedModel, observedDigest)
+}
+
+func currentLocalInferenceModel(getenv func(string) string, role, expectedModel string) (Model, error) {
+	model, _, err := currentLocalInferenceDecision(getenv, role, expectedModel, time.Now())
+	return model, err
+}
+
+func currentLocalInferenceDecision(getenv func(string) string, role, expectedModel string, evaluatedAt time.Time) (Model, sharedpolicy.RightsDecision, error) {
+	p, modelFacts, context, err := loadCurrentLocalInferenceFacts(getenv, role, expectedModel)
+	if err != nil {
+		return Model{}, sharedpolicy.RightsDecision{}, err
+	}
+	decision, err := p.EvaluateModelRights(expectedModel, sharedpolicy.RightsUseLocalInference, context, evaluatedAt)
+	if err != nil {
+		return Model{}, sharedpolicy.RightsDecision{}, fmt.Errorf("evaluate local model rights for %q: %w", expectedModel, err)
+	}
+	if decision.Status != sharedpolicy.RightsAllowed {
+		return Model{}, decision, fmt.Errorf("local model %q rights decision %s (%s); refusing inference", expectedModel, decision.Status, decision.Reason)
+	}
+	return modelFacts, decision, nil
+}
+
+type localInferenceEvidenceSnapshot struct {
+	PolicySHA256 string
+	Model        Model
+	Receipt      sharedpolicy.RightsDecisionReceipt
+}
+
+func readCurrentLocalInferenceEvidence(getenv func(string) string, role, expectedModel, expectedEvaluatedAt string) (localInferenceEvidenceSnapshot, error) {
+	evaluatedAt, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(expectedEvaluatedAt))
+	if err != nil || evaluatedAt.UTC().Format(time.RFC3339Nano) != strings.TrimSpace(expectedEvaluatedAt) {
+		return localInferenceEvidenceSnapshot{}, errors.New("expected local rights decision timestamp is invalid or noncanonical")
+	}
+	p, model, context, err := loadCurrentLocalInferenceFacts(getenv, role, expectedModel)
+	if err != nil {
+		return localInferenceEvidenceSnapshot{}, err
+	}
+	receipt := sharedpolicy.NewRightsDecisionReceipt(sharedpolicy.RightsDecisionReceiptExpectation{
+		PolicySchemaVersion: p.SchemaVersion, Role: strings.TrimSpace(role), Provider: sharedpolicy.RuntimeProviderOllama,
+		Model: strings.TrimSpace(expectedModel), Use: sharedpolicy.RightsUseLocalInference,
+		ArtifactRights: model.Rights, RuntimeIdentity: model.RuntimeIdentity, Context: context,
+	}, evaluatedAt)
+	if err := sharedpolicy.RequireAllowedRightsDecisionReceipt(receipt); err != nil {
+		return localInferenceEvidenceSnapshot{}, fmt.Errorf("local model %q rights decision %s (%s); refusing inference", expectedModel, receipt.Decision.Status, receipt.Decision.Reason)
+	}
+	return localInferenceEvidenceSnapshot{PolicySHA256: p.LoadedSHA256(), Model: model, Receipt: receipt}, nil
+}
+
+func loadCurrentLocalInferenceFacts(getenv func(string) string, role, expectedModel string) (Policy, Model, sharedpolicy.RightsContext, error) {
+	p, _, err := LoadDefaultFile(getenv)
+	if err != nil {
+		return Policy{}, Model{}, sharedpolicy.RightsContext{}, fmt.Errorf("load model rights policy: %w", err)
+	}
+	modelRef := strings.TrimSpace(expectedModel)
+	if modelRef == "" {
+		return Policy{}, Model{}, sharedpolicy.RightsContext{}, errors.New("authorized model is required")
+	}
+	if strings.TrimSpace(role) != "" {
+		if !p.RoleAllowsModel(role, modelRef) {
+			return Policy{}, Model{}, sharedpolicy.RightsContext{}, fmt.Errorf("model %q is not an eligible candidate for role %q; refusing inference", modelRef, role)
+		}
+	} else {
+		resolved, resolveErr := p.ResolveModelReference(modelRef)
+		if resolveErr != nil {
+			return Policy{}, Model{}, sharedpolicy.RightsContext{}, fmt.Errorf("resolve model rights identity %q: %w", modelRef, resolveErr)
+		}
+		if resolved.Model != modelRef {
+			return Policy{}, Model{}, sharedpolicy.RightsContext{}, fmt.Errorf("model identity %q is not canonical; current catalog identity is %q", modelRef, resolved.Model)
+		}
+	}
+	context, err := LoadDefaultRightsContext(getenv)
+	if err != nil {
+		return Policy{}, Model{}, sharedpolicy.RightsContext{}, fmt.Errorf("authorize local model %q: %w", modelRef, err)
+	}
+	model, ok := p.Models[modelRef]
+	if !ok {
+		return Policy{}, Model{}, sharedpolicy.RightsContext{}, fmt.Errorf("unknown model %q", modelRef)
+	}
+	return p, model, context, nil
+}
+
+func requireObservedRuntimeIdentity(model Model, expectedModel, observedDigest string) error {
+	binding := model.RuntimeIdentity
+	if binding == nil || binding.Provider != sharedpolicy.RuntimeProviderOllama || binding.Model != expectedModel ||
+		model.Rights == nil || binding.ArtifactID != model.Rights.ArtifactID || binding.ArtifactRevision != model.Rights.Revision ||
+		binding.DigestKind != sharedpolicy.RuntimeDigestOllamaModelContents || binding.Source != sharedpolicy.RuntimeSourceOllamaTags ||
+		strings.TrimSpace(binding.ObservedAt) == "" || strings.TrimSpace(observedDigest) == "" || binding.Digest != observedDigest {
+		return fmt.Errorf("local model %q runtime artifact identity binding is missing or does not match current Ollama inventory; refusing inference", expectedModel)
+	}
+	return nil
 }
 
 func (p Policy) resolvedPolicyModel(source, modelRef string, model Model) ResolvedPolicyModel {
@@ -584,6 +952,8 @@ func (p Policy) resolvedPolicyModel(source, modelRef string, model Model) Resolv
 		VRAMGBEstimate:       model.VRAMGBEstimate,
 		DefaultEligible:      model.DefaultEligible,
 		Provenance:           copyProvenanceMap(model.Provenance),
+		Rights:               model.Rights,
+		RuntimeIdentity:      model.RuntimeIdentity,
 	}
 }
 
@@ -638,6 +1008,17 @@ func (p Policy) Validate() error {
 		validateProvenance(&errs, "roles."+name+".provenance", role.Provenance, sourceKinds)
 	}
 	for name, model := range p.Models {
+		if binding := model.RuntimeIdentity; binding != nil {
+			if model.Rights == nil || binding.Provider != sharedpolicy.RuntimeProviderOllama || binding.Model != name ||
+				binding.ArtifactID != model.Rights.ArtifactID || binding.ArtifactRevision != model.Rights.Revision ||
+				binding.DigestKind != sharedpolicy.RuntimeDigestOllamaModelContents || !isSHA256(binding.Digest) ||
+				binding.Source != sharedpolicy.RuntimeSourceOllamaTags {
+				errs = append(errs, fmt.Errorf("models.%s.runtime_identity must bind matching Ollama model, artifact rights, digest kind, digest and source", name))
+			}
+			if _, err := time.Parse("2006-01-02", binding.ObservedAt); err != nil {
+				errs = append(errs, fmt.Errorf("models.%s.runtime_identity.observed_at must be YYYY-MM-DD", name))
+			}
+		}
 		if strings.TrimSpace(model.Family) == "" {
 			errs = append(errs, fmt.Errorf("models.%s.family is required", name))
 		}

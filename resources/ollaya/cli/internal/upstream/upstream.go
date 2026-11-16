@@ -7,6 +7,7 @@ package upstream
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -120,7 +121,19 @@ func (c Client) Decide(ctx context.Context, resolution policy.Resolution, reques
 	if len(bytes.TrimSpace(request.State)) == 0 || len(bytes.TrimSpace(request.Questions)) == 0 {
 		return Result{}, errors.New("decision request requires state and questions")
 	}
-	body := map[string]any{"model": resolution.Model, "state": request.State, "questions": request.Questions}
+	model := resolution.Model
+	if resolution.Protocol == policy.ProtocolOllaya {
+		digest := strings.TrimSpace(resolution.ExpectedArtifactDigest)
+		decoded, decodeErr := hex.DecodeString(digest)
+		if decodeErr != nil || len(decoded) != 32 {
+			return Result{}, &ProviderError{Code: CodeUnconfigured, Message: "local decision requires an exact manifest digest for immutable execution"}
+		}
+		// Preserve the mutable tag that the policy/runtime inventory checked.
+		// Ollaya resolves this canonical tag+digest only while that tag still
+		// contains exactly the checked manifest.
+		model = InstalledName(model) + "@sha256:" + digest
+	}
+	body := map[string]any{"model": model, "state": request.State, "questions": request.Questions}
 	endpoint := resolution.Endpoint
 	if resolution.Protocol == policy.ProtocolOllaya {
 		endpoint = LocalURL(c.GetEnv) + "/api/decide"

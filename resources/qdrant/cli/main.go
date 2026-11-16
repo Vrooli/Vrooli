@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/resources/qdrant/cli/internal/collections"
 )
 
 const (
@@ -45,6 +46,6 @@ func newApp() (*cliapp.ResourceApp, error) {
 	if err != nil {
 		return nil, err
 	}
-	app.SetCommands(app.StandardLifecycleCommands())
+	app.SetCommandsWithSubgroups(app.StandardLifecycleCommands(), []cliapp.SubcommandGroup{collections.Commands(nil)})
 	return app, nil
 }

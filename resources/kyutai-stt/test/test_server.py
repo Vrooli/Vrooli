@@ -24,6 +24,7 @@ import asyncio
 import contextlib
 import json
 import os
+from pathlib import Path
 import sys
 
 import numpy as np
@@ -43,6 +44,46 @@ def test_torch_compile_is_opt_in_before_moshi_import():
     """
     assert server.TORCH_COMPILE_ENABLED is False
     assert os.environ["NO_TORCH_COMPILE"] == "1"
+
+
+def test_kyutai_thread_budget_is_explicit_and_bounded():
+    """The resource's two-core contract reaches PyTorch before Moshi loads."""
+    calls = []
+
+    class FakeTorch:
+        @staticmethod
+        def set_num_threads(value):
+            calls.append(("intraop", value))
+
+        @staticmethod
+        def set_num_interop_threads(value):
+            calls.append(("interop", value))
+
+    old_applied = server._TORCH_THREAD_BUDGET_APPLIED
+    try:
+        server._TORCH_THREAD_BUDGET_APPLIED = False
+        server.configure_torch_thread_budget(FakeTorch)
+    finally:
+        server._TORCH_THREAD_BUDGET_APPLIED = old_applied
+
+    assert server.TORCH_CPU_THREAD_BUDGET == 2
+    assert server.TORCH_INTEROP_THREAD_BUDGET == 1
+    assert calls == [("intraop", 2), ("interop", 1)]
+
+
+def test_resource_manifest_shares_capacity_ownership_and_host_budgets():
+    manifest_path = Path(__file__).resolve().parents[1] / "resource.json"
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["requirements"]["ram_mb"] == 4096
+    assert manifest["requirements"]["cpu_cores"] == 2
+    environment = manifest["managed_service"]["environment"]
+    assert environment["KYUTAI_STT_CPU_THREADS"] == "2"
+    assert environment["KYUTAI_STT_INTEROP_THREADS"] == "1"
+    claim = manifest["acceleration"]["claim"]
+    assert claim["idle_grace_seconds"] == 900
+    assert claim["idle_unload_ttl_seconds"] == 900
+    upstream = next(port for port in manifest["ports"] if port["name"] == "upstream")
+    assert upstream["host"] == 0
 
 
 def test_readiness_distinguishes_live_process_from_loaded_model():

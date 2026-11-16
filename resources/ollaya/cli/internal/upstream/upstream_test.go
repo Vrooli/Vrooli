@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/policy"
@@ -42,14 +43,15 @@ func TestLocalDecideUsesNativeEndpointAndReportsDaemonTimings(t *testing.T) {
 	var seen captured
 	server := fake(t, 200, `{"model":"laya:en","answers":`+answers+`,"usage":{"input_tokens":41,"output_tokens":0},"state_truncated":false,"eval_duration":16000000,"load_duration":0}`, &seen)
 	client := Client{GetEnv: func(key string) string { return map[string]string{"OLLAYA_URL": server.URL}[key] }}
-	result, err := client.Decide(context.Background(), policy.Resolution{Upstream: "local", Locality: "local", Protocol: policy.ProtocolOllaya, Model: "laya"}, request)
+	digest := strings.Repeat("b", 64)
+	result, err := client.Decide(context.Background(), policy.Resolution{Upstream: "local", Locality: "local", Protocol: policy.ProtocolOllaya, Model: "laya", ExpectedArtifactDigest: digest}, request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if seen.path != "/api/decide" || seen.auth != "" {
 		t.Fatalf("path=%s auth=%q, want /api/decide without credentials", seen.path, seen.auth)
 	}
-	if string(seen.body["questions"]) != string(request.Questions) || string(seen.body["model"]) != `"laya"` {
+	if string(seen.body["questions"]) != string(request.Questions) || string(seen.body["model"]) != `"laya:latest@sha256:`+digest+`"` {
 		t.Fatalf("questions must reach the daemon byte-for-byte in caller order; got %s", seen.body["questions"])
 	}
 	if string(seen.body["state"]) != string(request.State) {
@@ -57,6 +59,26 @@ func TestLocalDecideUsesNativeEndpointAndReportsDaemonTimings(t *testing.T) {
 	}
 	if result.Model != "laya:en" || *result.Usage.InputTokens != 41 || *result.EvalMS != 16 || result.CostUSD != nil {
 		t.Fatalf("result = %+v, want the answering model, reported tokens and daemon eval time", result)
+	}
+}
+
+func TestLocalDecideRequiresDigestQualifiedModelBeforeNetwork(t *testing.T) {
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	client := Client{GetEnv: func(key string) string {
+		if key == "OLLAYA_URL" {
+			return server.URL
+		}
+		return ""
+	}}
+	_, err := client.Decide(context.Background(), policy.Resolution{Upstream: "local", Locality: "local", Protocol: policy.ProtocolOllaya, Model: "laya"}, request)
+	var providerErr *ProviderError
+	if !errors.As(err, &providerErr) || providerErr.Code != CodeUnconfigured || called {
+		t.Fatalf("err=%v; want an unconfigured refusal before sending a mutable model name", err)
 	}
 }
 

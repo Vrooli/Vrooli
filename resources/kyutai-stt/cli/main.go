@@ -54,7 +54,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	app.SetCommandsWithSubgroups(
-		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{activityedge.Command(edge)}}),
+		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{Title: "Capacity", Commands: []cliapp.Command{activityedge.Command(edge), activityedge.BridgeCommand()}}),
 		[]cliapp.SubcommandGroup{companion.LifecycleCapacityCommands(companion.LifecycleVerbsConfig{
 			Resource: "kyutai-stt",
 			Steps:    companion.DeviceSteps("gpu"),

@@ -44,7 +44,7 @@
     }
   },
   "display_name": "Kopia",
-  "description": "Content-addressed, client-side-encrypted backup engine (kopia 0.23.0) wrapped behind the resource-kopia CLI. Provides deduplicated, compressed, encrypted snapshots to filesystem and S3/MinIO repositories for the data-backup-manager scenario.",
+  "description": "Content-addressed, client-side-encrypted backup engine (kopia 0.23.0) wrapped behind the resource-kopia CLI. Provides deduplicated, compressed, encrypted snapshots to filesystem, SFTP, and S3/MinIO repositories for the data-backup-manager scenario.",
   "cli": {
     "enabled": true,
     "command": "resource-kopia",

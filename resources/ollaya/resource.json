@@ -13,16 +13,16 @@
           "windows": "$USER_HOME/AppData/Local/vrooli/resources/ollaya/models"
         },
         "kind": "dir",
-        "class": "cache",
-        "regenerable": true,
+        "class": "data",
+        "regenerable": false,
         "relocation": {
           "key": "RESOURCE_DATA_DIR",
           "scope": "container"
         },
-        "rationale": "The Ollaya daemon pulls digest-pinned decision-model manifests and the authors' weights (sha256-verified) into OLLAYA_MODELS; every blob is re-downloadable.",
+        "rationale": "The managed store can contain installed daemon tags outside model-policy.json. models pull can reacquire only the allowlisted digest-pinned models and does not enumerate/prove every existing tag; preserve the whole store until it is partitioned or complete per-tag provenance exists.",
         "budget": {
-          "max_age": "30d",
-          "rationale": "Regenerable storage is retained for 30 days and reclaimed by age; the window is the workload retention requirement."
+          "max_bytes": "20GiB",
+          "rationale": "Alarm-only planning ceiling for the model store; the current DBM inventory observed about 9.54GB. Capacity pressure never authorizes deletion of installed model data."
         }
       }
     }

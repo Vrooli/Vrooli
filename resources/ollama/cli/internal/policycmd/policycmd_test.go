@@ -2,7 +2,10 @@ package policycmd
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -35,6 +38,28 @@ func TestResolveRoleJSON(t *testing.T) {
 	}
 	if got.PolicyPath == "" {
 		t.Fatal("policy_path is empty")
+	}
+	policyBytes, err := os.ReadFile(got.PolicyPath)
+	if err != nil {
+		t.Fatalf("read resolved policy: %v", err)
+	}
+	wantDigest := sha256.Sum256(policyBytes)
+	if got.PolicySHA256 != hex.EncodeToString(wantDigest[:]) {
+		t.Fatalf("policy_sha256 = %q, want exact loaded bytes %x", got.PolicySHA256, wantDigest)
+	}
+}
+
+func TestResolvePolicySHA256Field(t *testing.T) {
+	h, stdout := testHandlers(t)
+	if err := h.Resolve([]string{"--role", "embedding.default", "--field", "policy_sha256"}); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	got := strings.TrimSpace(stdout.String())
+	if len(got) != 64 {
+		t.Fatalf("policy_sha256 field length = %d, want 64", len(got))
+	}
+	if _, err := hex.DecodeString(got); err != nil {
+		t.Fatalf("policy_sha256 field = %q, not hex: %v", got, err)
 	}
 }
 
@@ -96,6 +121,17 @@ func TestRolesAndModelsJSON(t *testing.T) {
 	if len(roles.Roles) == 0 {
 		t.Fatal("roles list is empty")
 	}
+	policyBytes, err := os.ReadFile(roles.PolicyPath)
+	if err != nil {
+		t.Fatalf("read roles policy: %v", err)
+	}
+	wantDigest := sha256.Sum256(policyBytes)
+	wantSHA := hex.EncodeToString(wantDigest[:])
+	for _, role := range roles.Roles {
+		if role.PolicySHA256 != wantSHA {
+			t.Fatalf("role %q policy_sha256 = %q, want %q", role.Role, role.PolicySHA256, wantSHA)
+		}
+	}
 
 	stdout.Reset()
 	if err := h.Models([]string{"--json"}); err != nil {
@@ -107,6 +143,11 @@ func TestRolesAndModelsJSON(t *testing.T) {
 	}
 	if len(models.Models) == 0 {
 		t.Fatal("models list is empty")
+	}
+	for _, model := range models.Models {
+		if model.PolicySHA256 != wantSHA {
+			t.Fatalf("model %q policy_sha256 = %q, want %q", model.Model, model.PolicySHA256, wantSHA)
+		}
 	}
 }
 
