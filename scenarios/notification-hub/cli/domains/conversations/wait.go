@@ -4,6 +4,7 @@ package conversations
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -140,7 +141,8 @@ func (s *service) awaitAnswer(target waitTarget, deadline string, untilAnswer bo
 			ReturnOnContextRequest: !untilAnswer,
 		}))
 		if callErr != nil {
-			if !transientWaitError(callErr) || !s.now().Before(until) {
+			identityRecovery := connect.CodeOf(callErr) == connect.CodeUnauthenticated && s.identityBrokerUnavailable != nil && s.identityBrokerUnavailable()
+			if (!transientWaitError(callErr) && !identityRecovery) || !s.now().Before(until) {
 				return nil, callErr
 			}
 			s.pause(retry)
@@ -262,6 +264,20 @@ func waitReport(msg *v1.WaitResponse) cliapp.ListReport {
 		results = []string{msg.GetAnswer(), msg.GetNote(), msg.GetReason()}
 		if notes := attachmentNoteLines(msg.GetAttachmentNotes()); len(notes) > 0 {
 			results = append(results, "Notes on files:\n  "+strings.Join(notes, "\n  "))
+		}
+	}
+	if msg.GetChanges() != nil {
+		if changes := msg.GetChanges().AsMap(); len(changes) > 0 {
+			if encoded, err := json.MarshalIndent(changes, "", "  "); err == nil {
+				results = append(results, "Page selections:\n"+string(encoded))
+			}
+		}
+		if images := msg.GetImages(); len(images) > 0 {
+			lines := make([]string, 0, len(images))
+			for _, image := range images {
+				lines = append(lines, fmt.Sprintf("%s (%s, %d bytes, sha256 %s)", image.GetName(), image.GetMediaType(), image.GetSizeBytes(), image.GetSha256()))
+			}
+			results = append(results, "Page images:\n  "+strings.Join(lines, "\n  "))
 		}
 	}
 	if packet := msg.GetPacket(); packet != "" && (msg.GetState() == "answered" || msg.GetState() == "defaulted") {

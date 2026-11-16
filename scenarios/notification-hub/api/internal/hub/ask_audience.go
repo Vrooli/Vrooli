@@ -107,7 +107,16 @@ func (s *Service) GetAskBySubjectKeyFor(ctx context.Context, subjectKey, recipie
 	if recipient == "" || subjectKey == "" {
 		return AskRecord{}, ErrNotFound
 	}
-	ask, err := s.latestDirectSubjectAsk(ctx, recipient, subjectKey)
+	var ask AskRecord
+	var err error
+	if audience.Source != "" {
+		// A verified service source re-derives event-sourced asks by their exact
+		// subject key. Direct asks remain reachable only through their sender or
+		// owner capability.
+		ask, err = s.latestEventSubjectAsk(ctx, recipient, audience.Source, subjectKey)
+	} else {
+		ask, err = s.latestDirectSubjectAsk(ctx, recipient, subjectKey)
+	}
 	if err != nil {
 		return AskRecord{}, err
 	}
@@ -123,6 +132,19 @@ func (s *Service) latestDirectSubjectAsk(ctx context.Context, recipient, subject
 	ask, err := openSubjectAskTx(ctx, s.db, recipient, "", subjectKey)
 	if errors.Is(err, ErrNotFound) {
 		return latestSubjectAskTx(ctx, s.db, recipient, "", subjectKey)
+	}
+	return ask, err
+}
+
+// latestEventSubjectAsk is the open ask for a verified source and subject,
+// regardless of event type, else the latest one. A source identity can only
+// reach event-sourced asks from that source; it cannot use this path to read a
+// direct ask or another scenario's ask.
+func (s *Service) latestEventSubjectAsk(ctx context.Context, recipient, source, subjectKey string) (AskRecord, error) {
+	const where = ` WHERE a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?) AND a.source = ? AND a.source_event_type <> '' AND a.subject_key = ?`
+	ask, err := scanAsk(s.db.QueryRowContext(ctx, askSelect+where+` AND a.state IN ('pending','escalated') ORDER BY a.created_at DESC, a.id DESC LIMIT 1`, recipient, source, subjectKey))
+	if errors.Is(err, ErrNotFound) {
+		return scanAsk(s.db.QueryRowContext(ctx, askSelect+where+` ORDER BY a.created_at DESC, a.id DESC LIMIT 1`, recipient, source, subjectKey))
 	}
 	return ask, err
 }

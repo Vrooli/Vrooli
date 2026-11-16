@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { identityClient, recipientsClient, registerBrowserPushSubscription } from "./notifications";
+import { conversationsClient, identityClient, recipientsClient, registerBrowserPushSubscription } from "./notifications";
 
 describe("browser push registration", () => {
   const register = vi.spyOn(recipientsClient, "registerPushSubscription");
@@ -67,6 +67,19 @@ describe("browser push registration", () => {
       await expect(identityClient.getSession({})).rejects.toBeDefined();
       expect(expired).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ credentials: "same-origin" }));
+    } finally {
+      window.removeEventListener("notification-hub:session-expired", expired);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("does not expire the Hub session when step-up credentials are rejected", async () => {
+    const expired = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", { status: 401 })));
+    window.addEventListener("notification-hub:session-expired", expired);
+    try {
+      await expect(conversationsClient.answerRootWithPassword({})).rejects.toBeDefined();
+      expect(expired).not.toHaveBeenCalled();
     } finally {
       window.removeEventListener("notification-hub:session-expired", expired);
       vi.unstubAllGlobals();

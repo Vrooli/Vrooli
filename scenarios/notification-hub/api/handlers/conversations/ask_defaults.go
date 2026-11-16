@@ -49,8 +49,34 @@ func askSpecFromProto(msg *v1.AskRequest, producer identity.Producer, now time.T
 			options = append(options, hub.AskOption{Key: key, Label: key})
 		}
 	}
+	kind := strings.ToLower(strings.TrimSpace(msg.GetKind()))
+	if kind == "status" && strings.TrimSpace(msg.GetDeadline()) == "" {
+		deadline, deadlineSpecified = time.Time{}, false
+	}
+	var templateData map[string]any
+	if msg.GetTemplateData() != nil {
+		templateData = msg.GetTemplateData().AsMap()
+	}
+	var explainerHTML string
+	if msg.GetTemplateName() != "" {
+		explainerHTML, err = hub.RenderKitTemplate(strings.TrimSpace(msg.GetTemplateName()), templateData)
+		if err != nil {
+			return hub.AskSpec{}, err
+		}
+	}
+	keep := askKeepFromProto(msg)
+	if kind == "status" {
+		keep = hub.AskKeep{}
+	}
+	audience := producer.Audience()
 	return hub.AskSpec{
-		Keep:                    askKeepFromProto(msg),
+		RevisionAudience:        &audience,
+		AllowRelated:            msg.GetAllowRelated(),
+		Keep:                    keep,
+		Kind:                    kind,
+		TemplateName:            msg.GetTemplateName(),
+		TemplateData:            templateData,
+		ExplainerHTML:           explainerHTML,
 		Recipient:               producer.Recipient,
 		Source:                  producer.Source,
 		Question:                msg.GetQuestion(),

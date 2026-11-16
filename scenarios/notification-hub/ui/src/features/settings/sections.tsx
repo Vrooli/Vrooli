@@ -42,7 +42,7 @@ export function useSettingsSections(): SettingsSection[] {
   const devices = useQuery({ ...devicesQuery, enabled: owner });
   const windows = useQuery({ ...quietWindowsQuery, enabled: owner });
   const chain = useQuery({ ...escalationChainQuery, enabled: owner });
-  const catalog = useQuery({ queryKey: ["notification-catalog"], queryFn: fetchNotificationCatalog, enabled: owner });
+  const catalog = useQuery({ queryKey: ["notification-catalog"], queryFn: () => fetchNotificationCatalog(), enabled: owner });
 
   /** A summary for a screen that needs the owner: sign-in prompt, failure, or the value. */
   const ownerSummary = <T,>(query: { data: T | undefined; isError: boolean }, describe: (data: T) => string): string | undefined => {

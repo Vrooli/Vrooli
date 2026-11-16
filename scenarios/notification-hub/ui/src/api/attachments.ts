@@ -15,6 +15,11 @@ export function attachmentUrl(askId: string, name: string, entryPath = ""): stri
   return entryPath ? `${base}?path=${encodeURIComponent(entryPath)}` : base;
 }
 
+/** Same-origin URL for an image saved with the recipient's answer. */
+export function answerImageUrl(askId: string, name: string): string {
+  return buildApiUrl(`/asks/${encodeURIComponent(askId)}/answer-images/${encodeURIComponent(name)}`, { baseUrl: REST_API_BASE });
+}
+
 /** Fetch attachment bytes through the session fetch (routed test headers, sign-in expiry). */
 export async function fetchAttachment(askId: string, name: string, entryPath = "", signal?: AbortSignal): Promise<Response> {
   const response = await sessionFetch(attachmentUrl(askId, name, entryPath), { signal });

@@ -40,4 +40,15 @@ describe("bridge message validation", () => {
     expect(message({ hub: 1, type: "prefill", questionId: "", value: "b" })).toBeNull();
     expect(message({ hub: 1, type: "prefill", questionId: "q", value: "x".repeat(20_000) })).toBeNull();
   });
+
+  it("accepts answer chips only within bounds and validates removals", () => {
+    expect(message({ hub: 1, type: "answer", operation: "set", key: "pace", label: "Use capacity faster", value: { tier: "wednesday" } })).toEqual({
+      type: "answer", operation: "set", key: "pace", label: "Use capacity faster", value: { tier: "wednesday" },
+    });
+    expect(message({ hub: 1, type: "answer", operation: "remove", key: "pace" })).toEqual({ type: "answer", operation: "remove", key: "pace" });
+    expect(message({ hub: 1, type: "answer", operation: "set", key: "", label: "Pace", value: "fast" })).toBeNull();
+    expect(message({ hub: 1, type: "answer", operation: "set", key: "pace", label: "", value: "fast" })).toBeNull();
+    expect(message({ hub: 1, type: "answer", operation: "remove", key: "x".repeat(100) })).toBeNull();
+    expect(message({ hub: 1, type: "answer", operation: "set", key: "pace", label: "Pace", value: "x".repeat(40_000) })).toBeNull();
+  });
 });

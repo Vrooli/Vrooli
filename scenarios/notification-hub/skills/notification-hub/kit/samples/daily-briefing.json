@@ -1,0 +1,3204 @@
+{
+ "template": "daily-briefing",
+ "meta": {
+  "title": "Agent time went to infrastructure this week. Today I move it back onto money.",
+  "lede": "The $1,000 target is 14 days out and no opportunity moved a stage in 7 days. Today's plan puts more agent hours on opportunity work, starts a review of why so little work is landing, and asks you to loosen one permission check that keeps stopping agents. The plan starts at 09:00 unless you steer it.",
+  "producer": "Portfolio steward",
+  "sentAt": "2026-11-16T08:00:00Z",
+  "timezone": "UTC",
+  "notice": "Sample data for previewing the template. Every number on this page is illustrative."
+ },
+ "laneKinds": {
+  "delivery": {
+   "label": "Opportunity work",
+   "tone": 1
+  },
+  "enabling": {
+   "label": "Infrastructure",
+   "tone": 2
+  },
+  "debt": {
+   "label": "Cleanup",
+   "tone": 3
+  },
+  "bugs": {
+   "label": "Bug fixes",
+   "tone": 4
+  },
+  "research": {
+   "label": "Research upkeep",
+   "tone": 5
+  },
+  "planning": {
+   "label": "Planning",
+   "tone": 6
+  },
+  "self": {
+   "label": "Steward upkeep",
+   "tone": 7
+  }
+ },
+ "opportunityLane": "delivery",
+ "target": {
+  "source": {
+   "status": "real",
+   "label": "owner-reported earnings"
+  },
+  "title": "$1,000 earned by 30 November",
+  "amount": 1000,
+  "currency": "USD",
+  "start": "2026-11-01T00:00:00Z",
+  "deadline": "2026-11-30T23:59:00Z",
+  "now": "2026-11-16T08:00:00Z",
+  "earned": [
+   {
+    "t": "2026-11-01T00:00:00Z",
+    "amount": 0
+   },
+   {
+    "t": "2026-11-16T08:00:00Z",
+    "amount": 0
+   }
+  ],
+  "earnedLabel": "Earned (owner-reported)",
+  "pendingLabel": "$10 pending",
+  "flags": [
+   {
+    "text": "Earnings not checked since 30 Oct",
+    "tone": "warn"
+   }
+  ]
+ },
+ "tiles": {
+  "items": [
+   {
+    "value": 0,
+    "text": "opportunity stages moved in the last 7 days",
+    "tone": "crit"
+   },
+   {
+    "value": 52,
+    "unit": "%",
+    "text": "of agent hours went to infrastructure; the plan was 18%",
+    "tone": "warn"
+   },
+   {
+    "value": 4,
+    "unit": " of 4",
+    "text": "agent slots busy, capped by the OpenAI weekly allowance",
+    "tone": "warn"
+   },
+   {
+    "value": 11,
+    "unit": " of 14",
+    "text": "opportunities have no dated plan yet",
+    "tone": "warn"
+   }
+  ]
+ },
+ "lanes": {
+  "source": {
+   "status": "real",
+   "label": "steward window plan"
+  },
+  "period": "Last 7 days",
+  "title": "Where 289 agent hours went, against the plan",
+  "totalHours": 289,
+  "rows": [
+   {
+    "lane": "enabling",
+    "planned": 0.178,
+    "actual": 0.523,
+    "hours": 151.1
+   },
+   {
+    "lane": "delivery",
+    "planned": 0.291,
+    "actual": 0.201,
+    "hours": 58.1
+   },
+   {
+    "lane": "debt",
+    "planned": 0.175,
+    "actual": 0.104,
+    "hours": 30.2
+   },
+   {
+    "lane": "planning",
+    "planned": 0.075,
+    "actual": 0.084,
+    "hours": 24.4
+   },
+   {
+    "lane": "self",
+    "planned": 0.056,
+    "actual": 0.036,
+    "hours": 10.4
+   },
+   {
+    "lane": "bugs",
+    "planned": 0.095,
+    "actual": 0.029,
+    "hours": 8.3
+   },
+   {
+    "lane": "research",
+    "planned": 0.13,
+    "actual": 0.022,
+    "hours": 6.5
+   }
+  ],
+  "summary": "Infrastructure took 151 hours. Opportunity work got 58, about 26 hours short of its planned share. Bug fixes and research upkeep got almost nothing."
+ },
+ "funnel": {
+  "source": {
+   "status": "partial",
+   "label": "job records",
+   "note": "the last step needs job-to-opportunity links"
+  },
+  "title": "289 hours of work, zero opportunity progress",
+  "steps": [
+   {
+    "label": "Jobs started",
+    "value": 64,
+    "tone": "ink"
+   },
+   {
+    "label": "Accepted on review",
+    "value": 41,
+    "note": "23 returned, stopped early or abandoned",
+    "tone": "ink"
+   },
+   {
+    "label": "Aimed at an opportunity's next step",
+    "value": 17,
+    "note": "24 were infrastructure, cleanup or upkeep",
+    "tone": 1
+   },
+   {
+    "label": "Landed where a customer could see it",
+    "value": 6,
+    "note": "11 finished but wait on another step",
+    "tone": 1
+   },
+   {
+    "label": "Moved an opportunity forward a stage",
+    "value": 0,
+    "note": "Nothing reached a gate",
+    "tone": "crit"
+   }
+  ],
+  "zeros": [
+   {
+    "value": 0,
+    "label": "dated gates met"
+   },
+   {
+    "value": 0,
+    "label": "blockers removed"
+   },
+   {
+    "value": 0,
+    "label": "risks reduced"
+   },
+   {
+    "value": 0,
+    "label": "forecasts narrowed"
+   }
+  ],
+  "summary": "The steward expected at least two stage moves this week from the hours it gave opportunity work. Missing that by this much is a signal to look at how the work runs, not only at what was chosen."
+ },
+ "lostHours": {
+  "source": {
+   "status": "real",
+   "label": "Agent Manager friction classification"
+  },
+  "title": "Fewer than half the hours built anything",
+  "parts": [
+   {
+    "label": "Built something",
+    "hours": 131,
+    "tone": "accent"
+   },
+   {
+    "label": "Stopped by permission or identity checks",
+    "hours": 46,
+    "tone": 2
+   },
+   {
+    "label": "Waiting on tests and validation",
+    "hours": 38,
+    "tone": 3
+   },
+   {
+    "label": "Agent Manager failures and retries",
+    "hours": 29,
+    "tone": 4
+   },
+   {
+    "label": "Redoing returned work",
+    "hours": 24,
+    "tone": 5
+   },
+   {
+    "label": "Sandbox and environment problems",
+    "hours": 13,
+    "tone": 1
+   },
+   {
+    "label": "Reporting overhead",
+    "hours": 8,
+    "tone": 7
+   }
+  ]
+ },
+ "friction": {
+  "source": {
+   "status": "real",
+   "label": "Agent Manager run friction"
+  },
+  "title": "The same five problems keep stopping work",
+  "intro": "Individual agents treat each of these as expected and stop. Seen together across runs, they are problems in our own setup, and fixing them is my job.",
+  "periodDays": 14,
+  "rows": [
+   {
+    "title": "Permission or identity check stopped the run",
+    "runs": 23,
+    "hours": 46,
+    "daily": [
+     0,
+     1,
+     1,
+     0,
+     2,
+     1,
+     2,
+     1,
+     2,
+     3,
+     2,
+     3,
+     2,
+     3
+    ],
+    "observation": "In 19 of 23 runs the agent decided the block was expected and stopped.",
+    "response": "I've sent you a decision to loosen these checks for 14 days while a fix team repairs them."
+   },
+   {
+    "title": "Agent Manager unavailable, run gave up",
+    "runs": 11,
+    "hours": 29,
+    "daily": [
+     0,
+     0,
+     1,
+     2,
+     0,
+     1,
+     1,
+     0,
+     2,
+     1,
+     0,
+     1,
+     1,
+     1
+    ],
+    "observation": "Agents waited or quit instead of using the coding agent CLI directly.",
+    "response": "Fallback rule added to every worker brief today. Fix job in today's schedule."
+   },
+   {
+    "title": "Tests queued behind each other",
+    "runs": 17,
+    "hours": 38,
+    "daily": [
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1,
+     2,
+     1,
+     1,
+     1
+    ],
+    "observation": "Validation took 40% longer than the week before.",
+    "response": "Investigation added for Tuesday: why validation got slower."
+   },
+   {
+    "title": "Sandbox blocked a write to the shared work tree",
+    "runs": 8,
+    "hours": 13,
+    "daily": [
+     0,
+     0,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     1,
+     0,
+     1,
+     1,
+     1,
+     1
+    ],
+    "observation": "Agents assumed separate copies of the code, which we don't use.",
+    "response": "Folded into the permission decision; briefs now state the shared-tree design."
+   },
+   {
+    "title": "Two parts of the system disagree about a status",
+    "runs": 6,
+    "hours": 11,
+    "daily": [
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1,
+     0,
+     1
+    ],
+    "observation": "Runs stalled on a state neither owner would change.",
+    "response": "Root-cause job proposed for Thursday."
+   }
+  ]
+ },
+ "pace": {
+  "source": {
+   "status": "real",
+   "label": "Agent Manager forecast"
+  },
+  "title": "How fast to spend this week's allowance",
+  "current": "week",
+  "yMin": 50,
+  "window": {
+   "start": "2026-11-15T08:00:00Z",
+   "now": "2026-11-16T08:00:00Z",
+   "reset": "2026-11-20T09:00:00Z",
+   "readings": [
+    {
+     "t": "2026-11-15T08:00:00Z",
+     "used": 57.7
+    },
+    {
+     "t": "2026-11-15T10:00:00Z",
+     "used": 57.5
+    },
+    {
+     "t": "2026-11-15T12:00:00Z",
+     "used": 57.8
+    },
+    {
+     "t": "2026-11-15T14:00:00Z",
+     "used": 58.6
+    },
+    {
+     "t": "2026-11-15T16:00:00Z",
+     "used": 59.7
+    },
+    {
+     "t": "2026-11-15T18:00:00Z",
+     "used": 61
+    },
+    {
+     "t": "2026-11-15T20:00:00Z",
+     "used": 62.3
+    },
+    {
+     "t": "2026-11-15T22:00:00Z",
+     "used": 63.4
+    },
+    {
+     "t": "2026-11-16T00:00:00Z",
+     "used": 64.1
+    },
+    {
+     "t": "2026-11-16T02:00:00Z",
+     "used": 64.7
+    },
+    {
+     "t": "2026-11-16T04:00:00Z",
+     "used": 65
+    },
+    {
+     "t": "2026-11-16T06:00:00Z",
+     "used": 65.5
+    },
+    {
+     "t": "2026-11-16T08:00:00Z",
+     "used": 66
+    }
+   ]
+  },
+  "tiers": [
+   {
+    "key": "week",
+    "label": "Last the week",
+    "slots": 4,
+    "runOut": null,
+    "endUsed": 94,
+    "extraJobs": 0,
+    "idleHours": 0,
+    "note": "Default. Agents run until Friday's reset and finish at about 94% of the allowance.",
+    "points": [
+     {
+      "t": "2026-11-16T14:00:00Z",
+      "used": 67.7
+     },
+     {
+      "t": "2026-11-16T20:00:00Z",
+      "used": 69.5
+     },
+     {
+      "t": "2026-11-17T02:00:00Z",
+      "used": 71.2
+     },
+     {
+      "t": "2026-11-17T08:00:00Z",
+      "used": 72.9
+     },
+     {
+      "t": "2026-11-17T14:00:00Z",
+      "used": 74.7
+     },
+     {
+      "t": "2026-11-17T20:00:00Z",
+      "used": 76.4
+     },
+     {
+      "t": "2026-11-18T02:00:00Z",
+      "used": 78.1
+     },
+     {
+      "t": "2026-11-18T08:00:00Z",
+      "used": 79.9
+     },
+     {
+      "t": "2026-11-18T14:00:00Z",
+      "used": 81.6
+     },
+     {
+      "t": "2026-11-18T20:00:00Z",
+      "used": 83.3
+     },
+     {
+      "t": "2026-11-19T02:00:00Z",
+      "used": 85.1
+     },
+     {
+      "t": "2026-11-19T08:00:00Z",
+      "used": 86.8
+     },
+     {
+      "t": "2026-11-19T14:00:00Z",
+      "used": 88.5
+     },
+     {
+      "t": "2026-11-19T20:00:00Z",
+      "used": 90.2
+     },
+     {
+      "t": "2026-11-20T02:00:00Z",
+      "used": 92
+     },
+     {
+      "t": "2026-11-20T08:00:00Z",
+      "used": 93.7
+     },
+     {
+      "t": "2026-11-20T09:00:00Z",
+      "used": 94
+     }
+    ]
+   },
+   {
+    "key": "thu",
+    "label": "Use it by Thursday",
+    "slots": 6,
+    "runOut": "2026-11-19T18:00:00Z",
+    "extraJobs": 9,
+    "idleHours": 15,
+    "note": "Six agents at once. About nine more jobs finish, then no OpenAI agents from Thursday 18:00 until Friday 09:00.",
+    "points": [
+     {
+      "t": "2026-11-16T14:00:00Z",
+      "used": 68.5
+     },
+     {
+      "t": "2026-11-16T20:00:00Z",
+      "used": 71
+     },
+     {
+      "t": "2026-11-17T02:00:00Z",
+      "used": 73.5
+     },
+     {
+      "t": "2026-11-17T08:00:00Z",
+      "used": 76
+     },
+     {
+      "t": "2026-11-17T14:00:00Z",
+      "used": 78.4
+     },
+     {
+      "t": "2026-11-17T20:00:00Z",
+      "used": 80.9
+     },
+     {
+      "t": "2026-11-18T02:00:00Z",
+      "used": 83.4
+     },
+     {
+      "t": "2026-11-18T08:00:00Z",
+      "used": 85.9
+     },
+     {
+      "t": "2026-11-18T14:00:00Z",
+      "used": 88.4
+     },
+     {
+      "t": "2026-11-18T20:00:00Z",
+      "used": 90.9
+     },
+     {
+      "t": "2026-11-19T02:00:00Z",
+      "used": 93.4
+     },
+     {
+      "t": "2026-11-19T08:00:00Z",
+      "used": 95.9
+     },
+     {
+      "t": "2026-11-19T14:00:00Z",
+      "used": 98.3
+     },
+     {
+      "t": "2026-11-19T18:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-19T20:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-20T02:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-20T08:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-20T09:00:00Z",
+      "used": 100
+     }
+    ]
+   },
+   {
+    "key": "wed",
+    "label": "Use it by Wednesday",
+    "slots": 8,
+    "runOut": "2026-11-18T18:00:00Z",
+    "extraJobs": 17,
+    "idleHours": 39,
+    "note": "Eight agents at once. Use this when you know a reset or extra allowance is coming. No OpenAI agents from Wednesday 18:00.",
+    "points": [
+     {
+      "t": "2026-11-16T14:00:00Z",
+      "used": 69.5
+     },
+     {
+      "t": "2026-11-16T20:00:00Z",
+      "used": 73
+     },
+     {
+      "t": "2026-11-17T02:00:00Z",
+      "used": 76.6
+     },
+     {
+      "t": "2026-11-17T08:00:00Z",
+      "used": 80.1
+     },
+     {
+      "t": "2026-11-17T14:00:00Z",
+      "used": 83.6
+     },
+     {
+      "t": "2026-11-17T20:00:00Z",
+      "used": 87.1
+     },
+     {
+      "t": "2026-11-18T02:00:00Z",
+      "used": 90.6
+     },
+     {
+      "t": "2026-11-18T08:00:00Z",
+      "used": 94.1
+     },
+     {
+      "t": "2026-11-18T14:00:00Z",
+      "used": 97.7
+     },
+     {
+      "t": "2026-11-18T18:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-18T20:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-19T02:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-19T08:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-19T14:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-19T20:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-20T02:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-20T08:00:00Z",
+      "used": 100
+     },
+     {
+      "t": "2026-11-20T09:00:00Z",
+      "used": 100
+     }
+    ]
+   }
+  ]
+ },
+ "schedule": {
+  "source": {
+   "status": "real",
+   "label": "steward contingency schedules"
+  },
+  "start": "2026-11-16T09:00:00Z",
+  "hours": 24,
+  "steers": [
+   {
+    "key": "o5",
+    "label": "More on the Vrooli release",
+    "weights": {
+     "delivery": 0.4,
+     "enabling": 0.15,
+     "debt": 0.12,
+     "planning": 0.1,
+     "self": 0.05,
+     "bugs": 0.1,
+     "research": 0.08
+    }
+   },
+   {
+    "key": "o3",
+    "label": "More on books",
+    "weights": {
+     "delivery": 0.4,
+     "enabling": 0.15,
+     "debt": 0.12,
+     "planning": 0.1,
+     "self": 0.05,
+     "bugs": 0.1,
+     "research": 0.08
+    }
+   },
+   {
+    "key": "infra",
+    "label": "Fix the machine first",
+    "weights": {
+     "delivery": 0.2,
+     "enabling": 0.35,
+     "debt": 0.15,
+     "planning": 0.07,
+     "self": 0.05,
+     "bugs": 0.12,
+     "research": 0.06
+    }
+   }
+  ]
+ },
+ "schedules": {
+  "week": {
+   "slots": 4,
+   "blocks": [
+    {
+     "slot": 1,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T11:00:00Z",
+     "lane": "enabling",
+     "label": "Back up private research data"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T11:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "delivery",
+     "label": "O5 · release eligibility check"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T20:00:00Z",
+     "lane": "planning",
+     "label": "Plan O3 books"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T20:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "delivery",
+     "label": "O3 · first listing draft"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T15:00:00Z",
+     "lane": "delivery",
+     "label": "Music commission",
+     "running": true
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T15:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "enabling",
+     "label": "Free root disk"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T21:00:00Z",
+     "lane": "bugs",
+     "label": "Fix F196"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T21:00:00Z",
+     "to": "2026-11-17T05:00:00Z",
+     "lane": "delivery",
+     "label": "O8 · application materials"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T14:00:00Z",
+     "lane": "debt",
+     "label": "Host maintainability",
+     "running": true
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T14:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "planning",
+     "label": "Plan O5 release"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-17T01:00:00Z",
+     "lane": "delivery",
+     "label": "O14 · first service listing"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-17T01:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "research",
+     "label": "Audio tools review"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T19:00:00Z",
+     "lane": "enabling",
+     "label": "W10 wave 1",
+     "running": true
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T19:00:00Z",
+     "to": "2026-11-16T22:00:00Z",
+     "lane": "self",
+     "label": "Why isn't work landing? Friction review"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T22:00:00Z",
+     "to": "2026-11-17T00:00:00Z",
+     "lane": "bugs",
+     "label": "Agent Manager fallback fix"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-17T00:00:00Z",
+     "to": "2026-11-17T07:00:00Z",
+     "lane": "delivery",
+     "label": "O1 · freelance profile"
+    }
+   ],
+   "movedLater": [
+    {
+     "label": "Plan O2 medical office IT",
+     "to": "Tue"
+    },
+    {
+     "label": "Fix F131",
+     "to": "Wed"
+    },
+    {
+     "label": "Store ownership audit",
+     "to": "Wed"
+    },
+    {
+     "label": "Plan partner page",
+     "to": "Thu"
+    },
+    {
+     "label": "O1 · second proposal batch",
+     "to": "Thu"
+    }
+   ],
+   "steers": {
+    "o5": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Back up private research data"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release copy",
+       "changed": true
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · staging test run",
+       "changed": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O8 · application materials"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · first service listing"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "bugs",
+       "label": "Agent Manager fallback fix"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · pricing page draft",
+       "changed": true
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "Plan O3 books",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F196",
+       "to": "Wed"
+      },
+      {
+       "label": "O1 · freelance profile",
+       "to": "Wed"
+      },
+      {
+       "label": "Plan O2 medical office IT",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F131",
+       "to": "Wed"
+      },
+      {
+       "label": "Store ownership audit",
+       "to": "Wed"
+      },
+      {
+       "label": "Plan partner page",
+       "to": "Thu"
+      },
+      {
+       "label": "O1 · second proposal batch",
+       "to": "Thu"
+      }
+     ]
+    },
+    "o3": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Back up private research data"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "planning",
+       "label": "Plan O3 books"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F196"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · cover and interior check",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · series page draft",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · keyword research",
+       "changed": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · freelance profile"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "O8 · application materials",
+       "to": "Tue"
+      },
+      {
+       "label": "O14 · first service listing",
+       "to": "Tue"
+      },
+      {
+       "label": "Agent Manager fallback fix",
+       "to": "Tue"
+      },
+      {
+       "label": "Plan O2 medical office IT",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F131",
+       "to": "Wed"
+      },
+      {
+       "label": "Store ownership audit",
+       "to": "Wed"
+      },
+      {
+       "label": "Plan partner page",
+       "to": "Thu"
+      },
+      {
+       "label": "O1 · second proposal batch",
+       "to": "Thu"
+      }
+     ]
+    },
+    "infra": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Test restoring the backup",
+       "changed": true
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "planning",
+       "label": "Plan O3 books"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F196"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "enabling",
+       "label": "Reclaim GPU memory",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · first service listing"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "bugs",
+       "label": "Agent Manager fallback fix"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace",
+       "changed": true
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "Back up private research data",
+       "to": "Tue"
+      },
+      {
+       "label": "O8 · application materials",
+       "to": "Wed"
+      },
+      {
+       "label": "O1 · freelance profile",
+       "to": "Wed"
+      },
+      {
+       "label": "Plan O2 medical office IT",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F131",
+       "to": "Wed"
+      },
+      {
+       "label": "Store ownership audit",
+       "to": "Wed"
+      },
+      {
+       "label": "Plan partner page",
+       "to": "Thu"
+      },
+      {
+       "label": "O1 · second proposal batch",
+       "to": "Thu"
+      }
+     ]
+    }
+   }
+  },
+  "thu": {
+   "slots": 6,
+   "blocks": [
+    {
+     "slot": 1,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T11:00:00Z",
+     "lane": "enabling",
+     "label": "Back up private research data"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T11:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "delivery",
+     "label": "O5 · release eligibility check"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T20:00:00Z",
+     "lane": "planning",
+     "label": "Plan O3 books"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T20:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "delivery",
+     "label": "O3 · first listing draft"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T15:00:00Z",
+     "lane": "delivery",
+     "label": "Music commission",
+     "running": true
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T15:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "enabling",
+     "label": "Free root disk"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T21:00:00Z",
+     "lane": "bugs",
+     "label": "Fix F196"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T21:00:00Z",
+     "to": "2026-11-17T05:00:00Z",
+     "lane": "delivery",
+     "label": "O8 · application materials"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T14:00:00Z",
+     "lane": "debt",
+     "label": "Host maintainability",
+     "running": true
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T14:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "planning",
+     "label": "Plan O5 release"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-17T01:00:00Z",
+     "lane": "delivery",
+     "label": "O14 · first service listing"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-17T01:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "research",
+     "label": "Audio tools review"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T19:00:00Z",
+     "lane": "enabling",
+     "label": "W10 wave 1",
+     "running": true
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T19:00:00Z",
+     "to": "2026-11-16T22:00:00Z",
+     "lane": "self",
+     "label": "Why isn't work landing? Friction review"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T22:00:00Z",
+     "to": "2026-11-17T00:00:00Z",
+     "lane": "bugs",
+     "label": "Agent Manager fallback fix"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-17T00:00:00Z",
+     "to": "2026-11-17T07:00:00Z",
+     "lane": "delivery",
+     "label": "O1 · freelance profile"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T13:00:00Z",
+     "lane": "planning",
+     "label": "Plan O2 medical office IT"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T13:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "bugs",
+     "label": "Fix F131"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T23:00:00Z",
+     "lane": "delivery",
+     "label": "O14 · second service listing"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T23:00:00Z",
+     "to": "2026-11-17T05:00:00Z",
+     "lane": "debt",
+     "label": "Store ownership audit"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T12:00:00Z",
+     "lane": "planning",
+     "label": "Plan partner page"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-16T12:00:00Z",
+     "to": "2026-11-16T19:00:00Z",
+     "lane": "delivery",
+     "label": "O1 · second proposal batch"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-16T19:00:00Z",
+     "to": "2026-11-17T01:00:00Z",
+     "lane": "delivery",
+     "label": "O9 · study sessions"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-17T01:00:00Z",
+     "to": "2026-11-17T07:00:00Z",
+     "lane": "enabling",
+     "label": "Measure the safe pace"
+    }
+   ],
+   "movedLater": [
+    {
+     "label": "O3 · second title outline",
+     "to": "Tue"
+    },
+    {
+     "label": "Fix F210",
+     "to": "Wed"
+    }
+   ],
+   "steers": {
+    "o5": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Back up private research data"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release copy",
+       "changed": true
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · staging test run",
+       "changed": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O8 · application materials"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · first service listing"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "bugs",
+       "label": "Agent Manager fallback fix"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · pricing page draft",
+       "changed": true
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T13:00:00Z",
+       "lane": "planning",
+       "label": "Plan O2 medical office IT"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T13:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F131"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T23:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · second service listing"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T23:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "debt",
+       "label": "Store ownership audit"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T12:00:00Z",
+       "lane": "planning",
+       "label": "Plan partner page"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T12:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · second proposal batch"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O9 · study sessions"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "Plan O3 books",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F196",
+       "to": "Wed"
+      },
+      {
+       "label": "O1 · freelance profile",
+       "to": "Wed"
+      },
+      {
+       "label": "O3 · second title outline",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F210",
+       "to": "Wed"
+      }
+     ]
+    },
+    "o3": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Back up private research data"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "planning",
+       "label": "Plan O3 books"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F196"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · cover and interior check",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · series page draft",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · keyword research",
+       "changed": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · freelance profile"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T13:00:00Z",
+       "lane": "planning",
+       "label": "Plan O2 medical office IT"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T13:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F131"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T23:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · second service listing"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T23:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "debt",
+       "label": "Store ownership audit"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T12:00:00Z",
+       "lane": "planning",
+       "label": "Plan partner page"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T12:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · second proposal batch"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O9 · study sessions"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "O8 · application materials",
+       "to": "Tue"
+      },
+      {
+       "label": "O14 · first service listing",
+       "to": "Tue"
+      },
+      {
+       "label": "Agent Manager fallback fix",
+       "to": "Tue"
+      },
+      {
+       "label": "O3 · second title outline",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F210",
+       "to": "Wed"
+      }
+     ]
+    },
+    "infra": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Test restoring the backup",
+       "changed": true
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "planning",
+       "label": "Plan O3 books"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F196"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "enabling",
+       "label": "Reclaim GPU memory",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · first service listing"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "bugs",
+       "label": "Agent Manager fallback fix"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace",
+       "changed": true
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T13:00:00Z",
+       "lane": "planning",
+       "label": "Plan O2 medical office IT"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T13:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F131"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T23:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · second service listing"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T23:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "debt",
+       "label": "Store ownership audit"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T12:00:00Z",
+       "lane": "planning",
+       "label": "Plan partner page"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T12:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · second proposal batch"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O9 · study sessions"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "Back up private research data",
+       "to": "Tue"
+      },
+      {
+       "label": "O8 · application materials",
+       "to": "Wed"
+      },
+      {
+       "label": "O1 · freelance profile",
+       "to": "Wed"
+      },
+      {
+       "label": "O3 · second title outline",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F210",
+       "to": "Wed"
+      }
+     ]
+    }
+   }
+  },
+  "wed": {
+   "slots": 8,
+   "blocks": [
+    {
+     "slot": 1,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T11:00:00Z",
+     "lane": "enabling",
+     "label": "Back up private research data"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T11:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "delivery",
+     "label": "O5 · release eligibility check"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T20:00:00Z",
+     "lane": "planning",
+     "label": "Plan O3 books"
+    },
+    {
+     "slot": 1,
+     "from": "2026-11-16T20:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "delivery",
+     "label": "O3 · first listing draft"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T15:00:00Z",
+     "lane": "delivery",
+     "label": "Music commission",
+     "running": true
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T15:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "enabling",
+     "label": "Free root disk"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T21:00:00Z",
+     "lane": "bugs",
+     "label": "Fix F196"
+    },
+    {
+     "slot": 2,
+     "from": "2026-11-16T21:00:00Z",
+     "to": "2026-11-17T05:00:00Z",
+     "lane": "delivery",
+     "label": "O8 · application materials"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T14:00:00Z",
+     "lane": "debt",
+     "label": "Host maintainability",
+     "running": true
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T14:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "planning",
+     "label": "Plan O5 release"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-17T01:00:00Z",
+     "lane": "delivery",
+     "label": "O14 · first service listing"
+    },
+    {
+     "slot": 3,
+     "from": "2026-11-17T01:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "research",
+     "label": "Audio tools review"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T19:00:00Z",
+     "lane": "enabling",
+     "label": "W10 wave 1",
+     "running": true
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T19:00:00Z",
+     "to": "2026-11-16T22:00:00Z",
+     "lane": "self",
+     "label": "Why isn't work landing? Friction review"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-16T22:00:00Z",
+     "to": "2026-11-17T00:00:00Z",
+     "lane": "bugs",
+     "label": "Agent Manager fallback fix"
+    },
+    {
+     "slot": 4,
+     "from": "2026-11-17T00:00:00Z",
+     "to": "2026-11-17T07:00:00Z",
+     "lane": "delivery",
+     "label": "O1 · freelance profile"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T13:00:00Z",
+     "lane": "planning",
+     "label": "Plan O2 medical office IT"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T13:00:00Z",
+     "to": "2026-11-16T17:00:00Z",
+     "lane": "bugs",
+     "label": "Fix F131"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T17:00:00Z",
+     "to": "2026-11-16T23:00:00Z",
+     "lane": "delivery",
+     "label": "O14 · second service listing"
+    },
+    {
+     "slot": 5,
+     "from": "2026-11-16T23:00:00Z",
+     "to": "2026-11-17T05:00:00Z",
+     "lane": "debt",
+     "label": "Store ownership audit"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T12:00:00Z",
+     "lane": "planning",
+     "label": "Plan partner page"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-16T12:00:00Z",
+     "to": "2026-11-16T19:00:00Z",
+     "lane": "delivery",
+     "label": "O1 · second proposal batch"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-16T19:00:00Z",
+     "to": "2026-11-17T01:00:00Z",
+     "lane": "delivery",
+     "label": "O9 · study sessions"
+    },
+    {
+     "slot": 6,
+     "from": "2026-11-17T01:00:00Z",
+     "to": "2026-11-17T07:00:00Z",
+     "lane": "enabling",
+     "label": "Measure the safe pace"
+    },
+    {
+     "slot": 7,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T15:00:00Z",
+     "lane": "delivery",
+     "label": "O3 · second title outline"
+    },
+    {
+     "slot": 7,
+     "from": "2026-11-16T15:00:00Z",
+     "to": "2026-11-16T21:00:00Z",
+     "lane": "planning",
+     "label": "Plan O10 store listing"
+    },
+    {
+     "slot": 7,
+     "from": "2026-11-16T21:00:00Z",
+     "to": "2026-11-17T05:00:00Z",
+     "lane": "delivery",
+     "label": "O4 · first issue layout"
+    },
+    {
+     "slot": 8,
+     "from": "2026-11-16T09:00:00Z",
+     "to": "2026-11-16T14:00:00Z",
+     "lane": "bugs",
+     "label": "Fix F210"
+    },
+    {
+     "slot": 8,
+     "from": "2026-11-16T14:00:00Z",
+     "to": "2026-11-16T20:00:00Z",
+     "lane": "self",
+     "label": "Steward self-improvement F189"
+    },
+    {
+     "slot": 8,
+     "from": "2026-11-16T20:00:00Z",
+     "to": "2026-11-17T04:00:00Z",
+     "lane": "delivery",
+     "label": "O6 · campaign engine tests"
+    }
+   ],
+   "movedLater": [],
+   "steers": {
+    "o5": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Back up private research data"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release copy",
+       "changed": true
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · staging test run",
+       "changed": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O8 · application materials"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · first service listing"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "bugs",
+       "label": "Agent Manager fallback fix"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · pricing page draft",
+       "changed": true
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T13:00:00Z",
+       "lane": "planning",
+       "label": "Plan O2 medical office IT"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T13:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F131"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T23:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · second service listing"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T23:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "debt",
+       "label": "Store ownership audit"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T12:00:00Z",
+       "lane": "planning",
+       "label": "Plan partner page"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T12:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · second proposal batch"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O9 · study sessions"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · second title outline"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "planning",
+       "label": "Plan O10 store listing"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O4 · first issue layout"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F210"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "self",
+       "label": "Steward self-improvement F189"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O6 · campaign engine tests"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "Plan O3 books",
+       "to": "Tue"
+      },
+      {
+       "label": "Fix F196",
+       "to": "Wed"
+      },
+      {
+       "label": "O1 · freelance profile",
+       "to": "Wed"
+      }
+     ]
+    },
+    "o3": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Back up private research data"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "planning",
+       "label": "Plan O3 books"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F196"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · cover and interior check",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · series page draft",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · keyword research",
+       "changed": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · freelance profile"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T13:00:00Z",
+       "lane": "planning",
+       "label": "Plan O2 medical office IT"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T13:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F131"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T23:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · second service listing"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T23:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "debt",
+       "label": "Store ownership audit"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T12:00:00Z",
+       "lane": "planning",
+       "label": "Plan partner page"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T12:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · second proposal batch"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O9 · study sessions"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · second title outline"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "planning",
+       "label": "Plan O10 store listing"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O4 · first issue layout"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F210"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "self",
+       "label": "Steward self-improvement F189"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O6 · campaign engine tests"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "O8 · application materials",
+       "to": "Tue"
+      },
+      {
+       "label": "O14 · first service listing",
+       "to": "Tue"
+      },
+      {
+       "label": "Agent Manager fallback fix",
+       "to": "Tue"
+      }
+     ]
+    },
+    "infra": {
+     "blocks": [
+      {
+       "slot": 1,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T11:00:00Z",
+       "lane": "enabling",
+       "label": "Test restoring the backup",
+       "changed": true
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T11:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "delivery",
+       "label": "O5 · release eligibility check"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "planning",
+       "label": "Plan O3 books"
+      },
+      {
+       "slot": 1,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · first listing draft"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "Music commission",
+       "running": true
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "enabling",
+       "label": "Free root disk"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F196"
+      },
+      {
+       "slot": 2,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "enabling",
+       "label": "Reclaim GPU memory",
+       "changed": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "debt",
+       "label": "Host maintainability",
+       "running": true
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "planning",
+       "label": "Plan O5 release"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · first service listing"
+      },
+      {
+       "slot": 3,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "research",
+       "label": "Audio tools review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "enabling",
+       "label": "W10 wave 1",
+       "running": true
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-16T22:00:00Z",
+       "lane": "self",
+       "label": "Why isn't work landing? Friction review"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-16T22:00:00Z",
+       "to": "2026-11-17T00:00:00Z",
+       "lane": "bugs",
+       "label": "Agent Manager fallback fix"
+      },
+      {
+       "slot": 4,
+       "from": "2026-11-17T00:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace",
+       "changed": true
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T13:00:00Z",
+       "lane": "planning",
+       "label": "Plan O2 medical office IT"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T13:00:00Z",
+       "to": "2026-11-16T17:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F131"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T17:00:00Z",
+       "to": "2026-11-16T23:00:00Z",
+       "lane": "delivery",
+       "label": "O14 · second service listing"
+      },
+      {
+       "slot": 5,
+       "from": "2026-11-16T23:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "debt",
+       "label": "Store ownership audit"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T12:00:00Z",
+       "lane": "planning",
+       "label": "Plan partner page"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T12:00:00Z",
+       "to": "2026-11-16T19:00:00Z",
+       "lane": "delivery",
+       "label": "O1 · second proposal batch"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-16T19:00:00Z",
+       "to": "2026-11-17T01:00:00Z",
+       "lane": "delivery",
+       "label": "O9 · study sessions"
+      },
+      {
+       "slot": 6,
+       "from": "2026-11-17T01:00:00Z",
+       "to": "2026-11-17T07:00:00Z",
+       "lane": "enabling",
+       "label": "Measure the safe pace"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T15:00:00Z",
+       "lane": "delivery",
+       "label": "O3 · second title outline"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T15:00:00Z",
+       "to": "2026-11-16T21:00:00Z",
+       "lane": "planning",
+       "label": "Plan O10 store listing"
+      },
+      {
+       "slot": 7,
+       "from": "2026-11-16T21:00:00Z",
+       "to": "2026-11-17T05:00:00Z",
+       "lane": "delivery",
+       "label": "O4 · first issue layout"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T09:00:00Z",
+       "to": "2026-11-16T14:00:00Z",
+       "lane": "bugs",
+       "label": "Fix F210"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T14:00:00Z",
+       "to": "2026-11-16T20:00:00Z",
+       "lane": "self",
+       "label": "Steward self-improvement F189"
+      },
+      {
+       "slot": 8,
+       "from": "2026-11-16T20:00:00Z",
+       "to": "2026-11-17T04:00:00Z",
+       "lane": "delivery",
+       "label": "O6 · campaign engine tests"
+      }
+     ],
+     "movedLater": [
+      {
+       "label": "Back up private research data",
+       "to": "Tue"
+      },
+      {
+       "label": "O8 · application materials",
+       "to": "Wed"
+      },
+      {
+       "label": "O1 · freelance profile",
+       "to": "Wed"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "setAside": {
+  "source": {
+   "status": "real",
+   "label": "steward window plan"
+  },
+  "title": "34 jobs I'm not starting, and why",
+  "groups": [
+   {
+    "key": "share",
+    "label": "Paused: infrastructure is over its share",
+    "count": 5,
+    "tone": 2,
+    "why": "Infrastructure used 52% of hours against 18% planned, so new infrastructure waits until the week rebalances.",
+    "items": [
+     "Decisions channel in Notification Hub",
+     "Direct outreach channel",
+     "Book engine",
+     "Job application pipeline",
+     "Research supervision channel"
+    ]
+   },
+   {
+    "key": "slot",
+    "label": "No free slot",
+    "count": 24,
+    "tone": 7,
+    "why": "All four slots are busy. These run as slots free up, highest value first.",
+    "items": [
+     "17 planning jobs, including plans for O2 and the partner page",
+     "4 bug fixes (F131, F196, F210 and the problem list)",
+     "1 research review (audio tools maturity)",
+     "1 steward self-improvement (F189)",
+     "1 root disk cleanup (now scheduled today)"
+    ]
+   },
+   {
+    "key": "cap",
+    "label": "Weekly strategy budget used",
+    "count": 4,
+    "tone": 5,
+    "why": "Strategy reviews are capped per week; these come back next window.",
+    "items": [
+     "Credential approval strategy",
+     "Direct outreach strategy",
+     "Search presence strategy",
+     "O2 medical office IT strategy"
+    ]
+   },
+   {
+    "key": "you",
+    "label": "Waiting on you",
+    "count": 1,
+    "tone": "accent",
+    "why": "You said on 13 Nov you want credential approval set up without launching a whole mission yet.",
+    "items": [
+     "Agent credential approval: held until you say go"
+    ]
+   }
+  ]
+ },
+ "constraints": {
+  "source": {
+   "status": "real",
+   "label": "steward constraints"
+  },
+  "title": "What is holding work back",
+  "items": [
+   {
+    "title": "Private research data has no backup",
+    "severity": "crit",
+    "pill": {
+     "text": "Risk came back",
+     "tone": "crit"
+    },
+    "text": "59 GB of research outside git. A fix was accepted last week, then the risk fired again.",
+    "doing": "first job at 09:00, two hours, verifies one real snapshot."
+   },
+   {
+    "title": "OpenAI weekly allowance",
+    "severity": "warn",
+    "pill": {
+     "text": "Caps at 4 agents",
+     "tone": "warn"
+    },
+    "text": "No measured safe pace yet, so the cap stays conservative and low power is on.",
+    "tags": [
+     "4 slots instead of 6",
+     "slower model on long jobs"
+    ],
+    "doing": "the pace switch above can raise the cap for this week."
+   },
+   {
+    "title": "11 opportunities have no dated plan",
+    "severity": "warn",
+    "pill": {
+     "text": "Plans ready to write",
+     "tone": "warn"
+    },
+    "text": "Plan packets exist for each, but planning jobs wait behind infrastructure for a slot.",
+    "tags": [
+     "O1",
+     "O2",
+     "O3",
+     "O4",
+     "O5",
+     "O6",
+     "O7",
+     "O8",
+     "O10",
+     "O14",
+     "Partner page"
+    ],
+    "doing": "O3 and O5 plans are in today's schedule."
+   },
+   {
+    "title": "Root disk",
+    "pill": {
+     "text": "Queued"
+    },
+    "text": "Cleanup job is ready and scheduled for this afternoon."
+   }
+  ]
+ },
+ "technical": [
+  {
+   "label": "Steward window",
+   "value": "20261115T2308"
+  },
+  {
+   "label": "Admission ceiling",
+   "value": "4 slots (tier week); the sent pace sets the ceiling for the rest of the window"
+  }
+ ]
+}

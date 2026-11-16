@@ -4,6 +4,7 @@ package conversations
 // everything here is for people and agents reading a terminal.
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -118,6 +119,9 @@ func askDetailReport(ask *v1.Ask) cliapp.ListReport {
 	if ask.GetPacket() != "" {
 		summary = append(summary, "Packet: "+ask.GetPacket())
 	}
+	if ask.GetKind() != "" {
+		summary = append(summary, "Kind: "+ask.GetKind())
+	}
 	var details []string
 	add := func(heading string, lines []string) {
 		if len(lines) > 0 {
@@ -129,6 +133,35 @@ func askDetailReport(ask *v1.Ask) cliapp.ListReport {
 	add("Questions", questionLines(ask.GetQuestions()))
 	add("Responses", responseLines(ask.GetResponses()))
 	add("Attachment notes", attachmentNoteLines(ask.GetAttachmentNotes()))
+	if ask.GetTemplateName() != "" {
+		add("Kit template", []string{ask.GetTemplateName()})
+	}
+	if changes := ask.GetAnswerChanges().AsMap(); len(changes) > 0 {
+		if encoded, err := json.MarshalIndent(changes, "", "  "); err == nil {
+			add("Page selections", []string{string(encoded)})
+		}
+	}
+	if images := ask.GetAnswerImages(); len(images) > 0 {
+		lines := make([]string, 0, len(images))
+		for _, image := range images {
+			lines = append(lines, fmt.Sprintf("%s (%s, %d bytes, sha256 %s)", image.GetName(), image.GetMediaType(), image.GetSizeBytes(), image.GetSha256()))
+		}
+		add("Page images", lines)
+	}
+	if recurrence := ask.GetRecurrence(); recurrence != nil {
+		parts := []string{fmt.Sprintf("%d time(s)", recurrence.GetCount())}
+		if len(recurrence.GetDates()) > 0 {
+			parts = append(parts, "dates: "+strings.Join(recurrence.GetDates(), ", "))
+		}
+		if len(recurrence.GetPreviousAnswers()) > 0 {
+			answers := make([]string, 0, len(recurrence.GetPreviousAnswers()))
+			for _, answer := range recurrence.GetPreviousAnswers() {
+				answers = append(answers, strings.TrimSpace(answer.GetAnswer()+" "+answer.GetNote()))
+			}
+			parts = append(parts, "previous answers: "+strings.Join(answers, "; "))
+		}
+		add("Recurrence", parts)
+	}
 	if summaryText := strings.TrimSpace(ask.GetAnswerSummary()); summaryText != "" {
 		add("Answer summary", strings.Split(summaryText, "\n"))
 	}

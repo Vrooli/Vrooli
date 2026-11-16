@@ -17,7 +17,7 @@ import { emptyDraft, withAttachmentNote } from "./model/draft";
 import { clearAskDrafts, readAskAttempt, readAskDraft, writeAskDraft } from "./model/draftStore";
 
 vi.mock("../../api/notifications", () => ({
-  identityClient: { getSession: vi.fn() },
+  identityClient: { getSession: vi.fn(), login: vi.fn() },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), dismiss: vi.fn(), listAsks: vi.fn(), requestContext: vi.fn() },
 }));
 vi.mock("../../api/client", async (importOriginal) => ({
@@ -90,6 +90,43 @@ afterEach(() => {
   clearAskDrafts();
 });
 
+
+describe("root reauthentication entry", () => {
+  it("opens a protected decision after cold sign-in and MFA", async () => {
+    let signedIn = false;
+    vi.mocked(identityClient.getSession).mockImplementation(async () => (signedIn ? SIGNED_IN : { signedIn: false }) as never);
+    vi.mocked(identityClient.login).mockImplementation(async (request) => {
+      if (!request.mfaChallenge) return { mfaRequired: true, mfaChallenge: "challenge" } as never;
+      signedIn = true;
+      return { mfaRequired: false } as never;
+    });
+    vi.mocked(conversationsClient.getAsk).mockImplementation(async () => {
+      if (!signedIn) throw new ConnectError("sign in", Code.Unauthenticated);
+      return { ask: makeAsk({ source: "root-rebaseline", sourceEventType: "root.rebaseline.decision_requested.v1" }) } as never;
+    });
+    renderAsk();
+    const user = userEvent.setup();
+    await user.type(await screen.findByTestId(selectors.session.email, {}, { timeout: 8000 }), "owner@example.test");
+    await user.type(screen.getByTestId(selectors.session.password), "secret");
+    await user.click(screen.getByTestId(selectors.session.submit));
+    await user.type(await screen.findByLabelText(en.session.totpCode), "123456");
+    await user.click(screen.getByTestId(selectors.session.submit));
+    expect(await screen.findByRole("button", { name: text.rootPassword.openForm })).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.asks.question)).toBeInTheDocument();
+  }, 15000);
+
+  it("offers password verification only for the root decision and keeps the normal answer available", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: makeAsk({ source: "root-rebaseline", sourceEventType: "root.rebaseline.decision_requested.v1" }) } as never);
+    renderAsk();
+    const entry = await screen.findByRole("button", { name: text.rootPassword.openForm });
+    expect(send()).toBeInTheDocument();
+    await userEvent.click(entry);
+    expect(screen.getByRole("heading", { name: text.rootPassword.title })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: text.form.submit })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: text.rootPassword.cancel }));
+    expect(send()).toBeInTheDocument();
+  });
+});
 
 describe("a plain decision", () => {
   it("allows recipient-scoped reads without a session but requires one to answer", async () => {
@@ -228,7 +265,7 @@ describe("a plain decision", () => {
     await user.click(send());
 
     await waitFor(() =>
-      expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "other", note: "Keep it open and narrow the scope.", responses: [], attachmentNotes: [] }),
+      expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "other", note: "Keep it open and narrow the scope.", responses: [], attachmentNotes: [], changes: {}, images: [] }),
     );
     expect(await screen.findByText(text.outcome.recorded.replace("{{option}}", "Other"))).toBeInTheDocument();
   });
@@ -365,7 +402,7 @@ describe("what protects the operator's answer", () => {
     expect(note).toHaveValue("keep this attempt");
     expect(note).toBeDisabled();
     expect(screen.queryByRole("button", { name: text.form.submit })).not.toBeInTheDocument();
-    expect(readAskAttempt("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this attempt", subject: "owner-1", responses: [], attachmentNotes: [] });
+    expect(readAskAttempt("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this attempt", subject: "owner-1", responses: [], attachmentNotes: [], changes: {}, images: [] });
 
     await user.click(screen.getByRole("button", { name: text.outcome.checkStatus }));
     expect(await screen.findByText(text.outcome.stillOpen)).toBeInTheDocument();
@@ -665,7 +702,7 @@ describe("decision states", () => {
     await user.click(await optionByKey("close"));
     expect(conversationsClient.answer).not.toHaveBeenCalled();
     await user.click(send());
-    await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "close", note: "", responses: [], attachmentNotes: [] }));
+    await waitFor(() => expect(conversationsClient.answer).toHaveBeenCalledWith({ askId: "ask-1", answer: "close", note: "", responses: [], attachmentNotes: [], changes: {}, images: [] }));
     expect(screen.queryByTestId(selectors.packet.needContext)).not.toBeInTheDocument();
   });
 
@@ -984,6 +1021,11 @@ describe("a decision packet", () => {
   it("sends the main answer, typed responses and notes pinned to files in one answer", async () => {
     const user = userEvent.setup();
     vi.mocked(conversationsClient.answer).mockResolvedValue({} as never);
+    writeAskDraft("owner-1", "ask-1", {
+      ...emptyDraft(),
+      answerChanges: { pace: { label: "Use Wednesday", value: "wednesday" } },
+      answerImages: [{ name: "pace.png", sha256: "a".repeat(64), mediaType: "image/png", sizeBytes: 4 }],
+    });
     renderAsk();
 
     await user.click(await screen.findByTestId(selectors.packet.acceptRecommended));
@@ -1003,6 +1045,8 @@ describe("a decision packet", () => {
         { questionId: "tone", selected: [], text: "Warmer", sections: [] },
       ],
       attachmentNotes: [],
+      changes: { pace: "wednesday" },
+      images: [{ name: "pace.png", sha256: "a".repeat(64), mediaType: "image/png", sizeBytes: 4n }],
     });
   });
 

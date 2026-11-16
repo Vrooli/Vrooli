@@ -20,7 +20,15 @@ import (
 
 type fakeAuth struct{ refreshed int }
 
-func (f *fakeAuth) Login(_ context.Context, email, password string) (internalidentity.Session, error) {
+func (f *fakeAuth) Login(_ context.Context, email, password, challenge, totpCode, recoveryCode string) (internalidentity.Session, error) {
+	if email == "mfa@example.test" {
+		if challenge == "" {
+			return internalidentity.Session{MFARequired: true, MFAChallenge: "challenge-1"}, nil
+		}
+		if challenge != "challenge-1" || (totpCode != "123456" && recoveryCode != "recovery") {
+			return internalidentity.Session{}, internalidentity.ErrInvalidCredentials
+		}
+	}
 	if password != "right" {
 		return internalidentity.Session{}, internalidentity.ErrInvalidCredentials
 	}
@@ -125,4 +133,21 @@ func TestGetSession_ARefusedAccessAssertionIsNotRenewedFromTheRefreshCookie(t *t
 	session := getSessionThrough(t, h, expired, &http.Cookie{Name: refreshCookieName, Value: "refresh-1"})
 	require.False(t, session.GetSignedIn())
 	require.Zero(t, auth.refreshed)
+}
+
+func TestLoginMFAChallengeDoesNotSetSessionUntilVerified(t *testing.T) {
+	h := &handler{auth: &fakeAuth{}}
+	req := connect.NewRequest(&v1.LoginRequest{Email: "mfa@example.test", Password: "right"})
+	req.Header().Set(browserSessionHeader, "1")
+	first, err := h.Login(context.Background(), req)
+	require.NoError(t, err)
+	require.True(t, first.Msg.GetMfaRequired())
+	require.Equal(t, "challenge-1", first.Msg.GetMfaChallenge())
+	require.Empty(t, first.Header().Values("Set-Cookie"))
+	req.Msg.MfaChallenge = first.Msg.GetMfaChallenge()
+	req.Msg.TotpCode = "123456"
+	completed, err := h.Login(context.Background(), req)
+	require.NoError(t, err)
+	require.NotEmpty(t, completed.Header().Values("Set-Cookie"))
+	require.Empty(t, completed.Msg.GetToken())
 }

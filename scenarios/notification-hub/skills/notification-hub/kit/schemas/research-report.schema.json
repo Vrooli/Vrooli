@@ -1,0 +1,676 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "notification-hub/kit/research-report.schema.json",
+  "title": "Research report",
+  "description": "Data for templates/research-report.html: the research supervisor's status update when a research commission ends or pauses. It shows what the commission accomplished (workstream states, measured results), overall progress per scorecard dimension (judged by the supervisor, with a level and a reason each), the operator's earlier feedback and what changed because of it, and what comes next. Sent with --kind status. The operator can set a weight per workstream (answer key 'weight.<workstream id>' = weight key, removed when set back to the workstream's current weight) and add a note in the Hub's answer bar. Every section carries a source; a section without real data is left out or sent with source.status 'unavailable', and the page says so instead of drawing it. Never fill a section with estimates that are not labelled as estimates.",
+  "type": "object",
+  "required": [
+    "meta"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "const": "research-report",
+      "description": "Optional self-identification; when present must be 'research-report'."
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Page header.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Headline: the commission's outcome in one sentence, e.g. 'GPU image work is live. Most of the rest waited on shared files and on you.'"
+        },
+        "lede": {
+          "type": "string",
+          "description": "Two or three sentences: why the commission ended, what landed, what the next one starts with."
+        },
+        "topic": {
+          "type": "string",
+          "description": "Research topic name, e.g. 'Local model performance'."
+        },
+        "producer": {
+          "type": "string",
+          "description": "Who sends it. Default 'Research supervisor'."
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the data was produced."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA time zone for every date on the page. Default: the device's zone."
+        },
+        "notice": {
+          "type": "string",
+          "description": "Optional note under the header, e.g. that the data is a sample."
+        }
+      }
+    },
+    "commission": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The commission this report closes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Commission or packet ID (shown in technical details)."
+        },
+        "label": {
+          "type": "string",
+          "description": "Short name, e.g. 'Commission 7'."
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When it started."
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When it ended or paused."
+        },
+        "ended": {
+          "enum": [
+            "completed",
+            "paused",
+            "allowance",
+            "time",
+            "stopped"
+          ],
+          "description": "Why it ended: completed its plan, paused by the supervisor, usage allowance ran out, time window ended, stopped by the operator."
+        },
+        "agentHours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Measured agent hours spent in the commission."
+        }
+      }
+    },
+    "states": {
+      "type": "array",
+      "description": "Workstream state vocabulary, in display order. Default: landed (good), running (accent), parked (warn), waiting_on_you (crit), stopped (muted).",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "label"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "description": "State key used by workstreams.items[].state."
+          },
+          "label": {
+            "type": "string",
+            "description": "Plain label, e.g. 'Parked until 17 Nov'."
+          },
+          "tone": {
+            "$ref": "#/$defs/tone"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "This commission at a glance: headline tiles; the state bar is drawn from workstreams.",
+      "required": [],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section heading; a default is used when absent."
+        },
+        "tiles": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/tile"
+          },
+          "description": "Up to four headline numbers, e.g. 1 landed, 4 new measurements."
+        }
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Measured results: each a before/after (or A/B) bar pair whose colour shows good, warning or bad.",
+      "required": [],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section heading; a default is used when absent."
+        },
+        "items": {
+          "type": "array",
+          "description": "Measurements taken in this commission, most important first.",
+          "items": {
+            "type": "object",
+            "required": [
+              "title",
+              "values",
+              "verdict"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "What was measured, e.g. 'Whisper idle GPU memory'."
+              },
+              "unit": {
+                "type": "string",
+                "description": "Unit shown after each value, e.g. 'MiB', 's'. Use 'x' for a ratio (shown as 23.5x)."
+              },
+              "values": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 4,
+                "description": "The compared values, the reference first (earlier, before, CPU) and the result last.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "value"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "description": "e.g. '11 Nov', 'Before', 'GPU'."
+                    },
+                    "value": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "Measured value."
+                    }
+                  }
+                }
+              },
+              "better": {
+                "enum": [
+                  "lower",
+                  "higher"
+                ],
+                "description": "Which direction is better; the page states the change as e.g. '622x less'. Default lower."
+              },
+              "verdict": {
+                "enum": [
+                  "good",
+                  "warn",
+                  "bad"
+                ],
+                "description": "The supervisor's verdict; colours the result bars green, amber or red."
+              },
+              "note": {
+                "type": "string",
+                "description": "One sentence on what it means."
+              },
+              "workstream": {
+                "type": "string",
+                "description": "Workstream id it belongs to."
+              },
+              "evidence": {
+                "type": "string",
+                "description": "Where the number comes from (file, run id); shown on tap."
+              }
+            }
+          }
+        }
+      }
+    },
+    "scorecard": {
+      "type": "object",
+      "additionalProperties": false,
+    "description": "Overall progress toward the topic's target, per scorecard dimension. The supervisor judges each level and records its reason. Include both was and now only when numeric progress is available; omit both when it is not.",
+      "required": [],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section heading; a default is used when absent."
+        },
+        "scale": {
+          "type": "object",
+          "additionalProperties": false,
+        "description": "Common scale for numeric was/now/target values. Omit when numeric progress is unavailable. Default 0-100 percent of target.",
+          "properties": {
+            "max": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Top of the scale. Default 100."
+            },
+            "unit": {
+              "type": "string",
+              "description": "Unit, e.g. '%'. Default '%'."
+            }
+          }
+        },
+        "judgedBy": {
+          "type": "string",
+          "description": "Who judged the levels, e.g. 'Research supervisor review'."
+        },
+        "judgedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the levels were judged."
+        },
+        "levels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The ordered level names the supervisor uses, lowest first, e.g. Not started, Early, Partial, Working, Done. Shown as a ladder."
+        },
+        "dimensions": {
+          "type": "array",
+          "description": "One row per scorecard dimension, in the topic's order.",
+          "items": {
+            "type": "object",
+          "required": [
+            "key",
+            "title",
+            "level",
+            "reason"
+          ],
+          "dependentRequired": {
+            "was": ["now"],
+            "now": ["was"],
+            "target": ["was", "now"]
+          },
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "description": "Dimension key."
+              },
+              "title": {
+                "type": "string",
+                "description": "Plain name, e.g. 'Residency and placement'."
+              },
+              "was": {
+                "type": "number",
+                "minimum": 0,
+              "description": "Numeric progress on the scale when the commission started. Include together with now only when both values are recorded; omit both when unavailable."
+              },
+              "now": {
+                "type": "number",
+                "minimum": 0,
+              "description": "Numeric progress now. Include together with was only when both values are recorded; omit both when unavailable."
+              },
+              "target": {
+                "type": "number",
+                "minimum": 0,
+              "description": "Numeric target on the scale; only use with a recorded was/now pair. Default scale.max."
+              },
+              "level": {
+                "type": "string",
+                "description": "The supervisor's judged level, e.g. 'Partial' (one of levels when given)."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why that level: the evidence the supervisor judged from."
+              },
+              "today": {
+                "type": "string",
+                "description": "What is true today in plain words; revealed on tap."
+              }
+            }
+          }
+        }
+      }
+    },
+    "workstreams": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Every workstream with its state, what it waits for, and a weight the operator can set for the next commission.",
+      "required": [],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section heading; a default is used when absent."
+        },
+        "weights": {
+          "type": "array",
+          "minItems": 2,
+          "description": "Weight choices. Default hold, normal, more.",
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "description": "Weight key; the 'weight.<id>' answer value."
+              },
+              "label": {
+                "type": "string",
+                "description": "e.g. 'Hold'."
+              },
+              "effect": {
+                "type": "string",
+                "description": "What this weight does next commission, e.g. 'Gets an owner first'."
+              }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "description": "Workstreams in the topic's order.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "state"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "description": "Short id, e.g. 'LM17'; used in the answer key."
+              },
+              "title": {
+                "type": "string",
+                "description": "Plain name."
+              },
+              "state": {
+                "type": "string",
+                "description": "A key from states."
+              },
+              "note": {
+                "type": "string",
+                "description": "What happened and what it waits for, one or two sentences."
+              },
+              "weight": {
+                "type": "string",
+              "description": "Current recorded weight key. Omit when the current weight is unknown; the page then leaves all alternatives unselected and reports that no weight was recorded."
+              },
+              "steerable": {
+                "type": "boolean",
+                "description": "Whether a weight can be set. Default true; false for finished workstreams."
+              }
+            }
+          }
+        }
+      }
+    },
+    "feedback": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The operator's earlier feedback and what the supervisor changed because of it (read back at commission start).",
+      "required": [],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section heading; a default is used when absent."
+        },
+        "items": {
+          "type": "array",
+          "description": "Feedback items, newest first.",
+          "items": {
+            "type": "object",
+            "required": [
+              "said",
+              "changed"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "said": {
+                "type": "string",
+                "description": "What the operator said, quoted or closely paraphrased."
+              },
+              "when": {
+                "type": "string",
+                "description": "When or where, e.g. '16 Nov, 05:54' or 'Review, 12 and 14 Nov'."
+              },
+              "changed": {
+                "type": "string",
+                "description": "What changed because of it."
+              },
+              "status": {
+                "enum": [
+                  "applied",
+                  "partly",
+                  "not_yet"
+                ],
+                "description": "Whether the change is in effect. Default applied."
+              },
+              "why": {
+                "type": "string",
+                "description": "When partly or not yet: why."
+              }
+            }
+          }
+        }
+      }
+    },
+    "next": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What comes next: the following lines with agent-hour estimate ranges.",
+      "required": [],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Section heading; a default is used when absent."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Estimate unit. Default 'h' (agent hours)."
+        },
+        "note": {
+          "type": "string",
+          "description": "One line under the bars, e.g. why this order."
+        },
+        "items": {
+          "type": "array",
+          "description": "Next lines in planned order.",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "low",
+              "high"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Line or workstream id."
+              },
+              "title": {
+                "type": "string",
+                "description": "Plain name."
+              },
+              "why": {
+                "type": "string",
+                "description": "One line: why it is next or what it unlocks."
+              },
+              "low": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Low estimate."
+              },
+              "high": {
+                "type": "number",
+                "minimum": 0,
+                "description": "High estimate."
+              },
+              "dimension": {
+                "type": "string",
+                "description": "Scorecard dimension key it moves; shown with its name."
+              }
+            }
+          }
+        }
+      }
+    },
+    "technical": {
+      "$ref": "#/$defs/technical"
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "description": "Data provenance for one section, shown as a badge. 'unavailable' replaces the section's chart with a plain notice.",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "real",
+            "partial",
+            "unavailable"
+          ],
+          "description": "real: measured; partial: some parts measured, the rest missing (say which in note); unavailable: the source is missing."
+        },
+        "label": {
+          "type": "string",
+          "description": "Where the data comes from, e.g. 'Agent Manager forecast'."
+        },
+        "note": {
+          "type": "string",
+          "description": "What is missing or how it was measured; shown on tap and in the unavailable notice."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the source was read."
+        }
+      }
+    },
+    "pill": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A short status label on a card.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Label text, e.g. 'Runs out'."
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "warn",
+            "crit",
+            "info"
+          ],
+          "description": "Colour: good green, warn amber, crit red, info accent."
+        }
+      }
+    },
+    "technical": {
+      "type": "array",
+      "description": "IDs, rules and evidence for the agent that acts, in a collapsed section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Term."
+          },
+          "value": {
+            "type": "string",
+            "description": "Value."
+          }
+        }
+      }
+    },
+    "tone": {
+      "description": "Colour: a series number 1-8 (1 blue, 2 orange, 3 amber, 4 pink, 5 violet, 6 green, 7 slate, 8 teal) or a named tone.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        {
+          "enum": [
+            "accent",
+            "good",
+            "warn",
+            "crit",
+            "muted",
+            "ink"
+          ]
+        }
+      ]
+    },
+    "tile": {
+      "type": "object",
+      "required": [
+        "value",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "One headline number.",
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "The number (or a short value such as '3d 15h')."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Small text after the value, e.g. '%' or ' of 14'."
+        },
+        "text": {
+          "type": "string",
+          "description": "What the number counts."
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "warn",
+            "crit"
+          ],
+          "description": "Side bar colour; omit for neutral."
+        }
+      }
+    }
+  }
+}

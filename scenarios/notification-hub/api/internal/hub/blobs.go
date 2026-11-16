@@ -194,7 +194,8 @@ func (s *Service) checkUnreferencedQuota(ctx context.Context, cfg *attachmentCon
 	var held int64
 	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(SUM(size_bytes), 0) FROM attachment_blobs b
 		WHERE NOT EXISTS (SELECT 1 FROM ask_attachments a WHERE a.sha256 = b.sha256)
-		AND NOT EXISTS (SELECT 1 FROM ask_attachment_entries e WHERE e.sha256 = b.sha256)`).Scan(&held); err != nil {
+		AND NOT EXISTS (SELECT 1 FROM ask_attachment_entries e WHERE e.sha256 = b.sha256)
+		AND NOT EXISTS (SELECT 1 FROM answer_image_refs i WHERE i.sha256 = b.sha256)`).Scan(&held); err != nil {
 		return err
 	}
 	if held+incoming > cfg.unreferencedLimit {
@@ -229,6 +230,25 @@ func (s *Service) ReadAttachmentBlob(ctx context.Context, sha string, max int64)
 		return nil, ErrBlobTooLarge
 	}
 	return data, nil
+}
+
+// AnswerImage reads one image already included in a recipient's stored answer.
+func (s *Service) AnswerImage(ctx context.Context, askID, recipient, name string) (AnswerImage, []byte, error) {
+	ask, err := s.GetAskForRecipient(ctx, askID, recipient)
+	if err != nil {
+		return AnswerImage{}, nil, err
+	}
+	for _, image := range ask.AnswerImages {
+		if image.Name != name {
+			continue
+		}
+		content, err := s.ReadAttachmentBlob(ctx, image.SHA256, maxAnswerImageBytes)
+		if err != nil || int64(len(content)) != image.SizeBytes {
+			return AnswerImage{}, nil, ErrNotFound
+		}
+		return image, content, nil
+	}
+	return AnswerImage{}, nil, ErrNotFound
 }
 
 // sniffBlob returns the first bytes of a blob for content classification.
@@ -316,6 +336,7 @@ func (s *Service) SweepAttachmentBlobs(ctx context.Context) (int, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT sha256 FROM attachment_blobs b WHERE b.last_touched_at < ?
 		AND NOT EXISTS (SELECT 1 FROM ask_attachments a WHERE a.sha256 = b.sha256)
 		AND NOT EXISTS (SELECT 1 FROM ask_attachment_entries e WHERE e.sha256 = b.sha256)
+		AND NOT EXISTS (SELECT 1 FROM answer_image_refs i WHERE i.sha256 = b.sha256)
 		ORDER BY b.last_touched_at LIMIT ?`, cutoff, sweepBlobBatch)
 	if err != nil {
 		return 0, err

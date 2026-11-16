@@ -19,5 +19,10 @@
   "signOutDraftNotice": "続行する前に未保存の設定を確認してください。保存された下書きが自動送信されることはありません。",
   "keepSession": "セッションを維持",
   "signOutSuccess": "Hub セッションの Cookie を消去しました。Cloudflare Access と発行済みトークンは別管理です。",
-  "signOutUnconfirmed": "Hub セッションが消去されたことを確認できませんでした。再試行する前に状態を確認してください。"
+  "signOutUnconfirmed": "Hub セッションが消去されたことを確認できませんでした。再試行する前に状態を確認してください。",
+  "totpCode": "認証コード",
+  "recoveryCode": "リカバリーコード",
+  "useRecovery": "リカバリーコードを使用",
+  "useTotp": "認証コードを使用",
+  "secureRequired": "パスワード認証には安全な接続が必要です。HTTPS またはこのマシンの localhost で Hub を開いてください。"
 }

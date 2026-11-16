@@ -2,6 +2,7 @@ import type {
   Ask,
   AskQuestion,
 } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
+import type { JsonObject, JsonValue } from "@bufbuild/protobuf";
 
 import {
   emptyResponse,
@@ -31,6 +32,15 @@ export interface AnswerPayload {
   note: string;
   responses: ResponsePayload[];
   attachmentNotes: AttachmentNoteDraft[];
+  changes: JsonObject;
+  images: { name: string; sha256: string; mediaType: string; sizeBytes: number }[];
+}
+
+function jsonValue(value: unknown): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (Array.isArray(value)) return value.every(jsonValue);
+  return Boolean(value) && typeof value === "object" && Object.values(value).every(jsonValue);
 }
 
 export const OTHER_ANSWER = "other";
@@ -111,7 +121,10 @@ export function buildAnswer(ask: Ask, draft: PacketDraft): AnswerPayload {
     .filter((item) => known.has(item.attachment) && item.note.trim())
     .slice(0, ANSWER_LIMITS.attachmentNotes)
     .map((item) => ({ ...item, note: item.note.trim().slice(0, ANSWER_LIMITS.attachmentNoteChars) }));
-  return { answer: draft.answer, note: draft.note.trim(), responses, attachmentNotes };
+  const changes: JsonObject = {};
+  for (const [key, change] of Object.entries(draft.answerChanges)) if (jsonValue(change.value)) changes[key] = change.value;
+  const images = draft.answerImages.slice(0, 8).map((image) => ({ ...image }));
+  return { answer: draft.answer, note: draft.note.trim(), responses, attachmentNotes, changes, images };
 }
 
 /**

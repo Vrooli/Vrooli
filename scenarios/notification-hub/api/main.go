@@ -21,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
 
 	"notification-hub/internal/capabilities"
+	"notification-hub/internal/credentialtransport"
 	"notification-hub/internal/hub"
 	internalidentity "notification-hub/internal/identity"
 	"notification-hub/internal/integrations"
@@ -245,6 +246,7 @@ func main() {
 	if providerDecisionAudience != "" {
 		providerDecisionVerifier = authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: providerDecisionAudience})
 	}
+	rootRebaselineVerifier := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{Audience: integrations.RootRebaselineAudience, ExclusiveAudience: true})
 	service.SetEmailSender(hub.NewSMTPSenderFromEnvironment(os.Getenv))
 	service.SetDesktopSender(hub.NewDesktopSender())
 	slog.Info("desktop notification transport selected", "platform", runtime.GOOS)
@@ -372,7 +374,7 @@ func main() {
 		preferencesH.ModuleWithRecipientResolver(preferenceStore, service.ResolveRecipient, ownerVerifier),
 		routingH.ModuleWithVerifier(service, ownerVerifier),
 		deliveryH.ModuleWithVerifier(service, ownerVerifier),
-		conversationH.ModuleWithLinkedArtifacts(service, ownerVerifier, serviceVerifiers, artifactResolver),
+		conversationH.ModuleWithStepUp(service, ownerVerifier, serviceVerifiers, artifactResolver, internalidentity.Forwarder{Resolver: scenarioResolver}),
 		identityH.Module(internalidentity.Forwarder{Resolver: scenarioResolver}, ownerVerifier),
 	)
 
@@ -390,6 +392,10 @@ func main() {
 	rootMux.Handle("/api/v1/integrations/deliveries", integrations.DeliveryProjectionHandler(service))
 	rootMux.Handle(internalidentity.ProviderDecisionRoute, internalidentity.ProviderDecisionLookupHandler(service, providerDecisionVerifier))
 	rootMux.Handle(integrations.ProviderDecisionPublishRoute, integrations.ProviderDecisionPublishHandler(service, providerDecisionVerifier))
+	rootMux.Handle(integrations.RootRebaselinePublishRoute, integrations.RootRebaselineHandler(service, rootRebaselineVerifier, true))
+	rootMux.Handle(integrations.RootRebaselineLookupRoute, integrations.RootRebaselineHandler(service, rootRebaselineVerifier, false))
+	rootMux.Handle(integrations.RootRebaselineConsumeRoute, integrations.RootRebaselineConsumeHandler(service, rootRebaselineVerifier))
+	rootMux.Handle(integrations.RootRebaselineRetireRoute, integrations.RootRebaselineRetireHandler(service, rootRebaselineVerifier))
 	rootMux.Handle("/api/v1/config/event-integration", integrations.Handler(eventConfig, func(config integrations.LiveConfig) error {
 		return integrations.EnsureEventSubscription(context.Background(), config.EventsAPIBase, config.WebhookURL, config.Pattern)
 	}))
@@ -407,7 +413,7 @@ func main() {
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(requireRoutedTestLease(db, rootMux, service))
+	handler := credentialtransport.Middleware(apihttp.TestModeMiddleware(requireRoutedTestLease(db, rootMux, service)))
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

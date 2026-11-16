@@ -226,11 +226,23 @@
       "commands": [
         {
           "name": "ask",
-          "description": "Ask the operator a decision, or revise one you already asked. The minimum is --question and either --yes-no or two --option values; everything else has a default: expires in 24h, sensitivity private, urgency normal, and an idempotency key (printed). The operator sees who is asking: the CLI names the sender from the label of your Web Console session, and --from overrides it. The operator reads it cold on a phone: write it by the guide in `prompt-manager skill read notification-hub` (a plain question, --big-picture for why it matters, --technical-details for IDs and paths), or put all three in one markdown file with --body-file. With --subject-key an ask about an ongoing situation stays one open ask: send it again with only what changes to revise it in place, with no new push. Everything you leave out stays as the open ask has it (question, options, recommendation, texts, attachments, explainer and form), and the CLI prints what it kept on stderr. A text flag replaces that text whole; give it empty ('') to clear it. A file or form question you send replaces the one with the same name or id; --remove-attachment NAME and --remove-question ID drop one, --clear-attachments and --clear-questions drop all. A keyed ask also tells the Hub you will answer the operator's \"I need more context\" question (--no-context-requests turns that off): answer it with --context-response, which the operator reads under their question; it is not part of the ask, so the rest of the ask stays as it is. Attach files, folders and one HTML explainer with --attach and --explainer, and add typed questions to the answer form with --form; the packet check printed to stderr says what the Hub left out or how to improve the packet. See scenarios/notification-hub/docs/concepts/DECISION_PACKETS.md. Output ends with one line `ask_id=... state=... outcome=... next: ...`; --json prints {ask_id, state, outcome, warnings[]}. outcome is created, updated (revised in place), replaced (new options: a new ask took over and pushed once), reasserted (same terms, nothing changed), suppressed (the operator dismissed these exact terms) or returned (just answered; here is that answer's ask). --and-wait waits for the answer in the same command (see --timeout) and exits with the status `wait` uses: Exit status: 0 an answer is available (answered, or the default applied); 3 the operator asked for more context, and the ask is still open; 4 your wait timed out (--timeout), and the ask is still open; 5 the ask closed without an answer (withdrawn, dismissed or expired; by id also when a revision with new options replaced it). Any other status (1) means the command itself failed: bad flags, an unreachable Hub, or a refused read. With --json the same document is printed on 0, 3, 4 and 5.",
+          "description": "Ask the operator a decision, or send a status update, using a Hub kit template with JSON data. For templates give both --template NAME and --data-file object.json (or - for stdin); producers send data, never HTML. Decisions need --question and either --yes-no or two --option values. Status updates use --kind status and have no answer menu or default expiry; the operator can mark them read or send optional steering. Existing explainer, packet and typed-form flags remain available for decisions. --and-wait waits for an answer and returns its structured steering data.",
           "flags": [
             {
               "name": "question",
               "description": "One plain sentence the operator can answer from the push alone: the choice and what it affects. No internal IDs, codes, or file paths. Required unless --body-file gives it, or --subject-key revises an open ask (which keeps its question). On a revision it replaces the question."
+            },
+            {
+              "name": "kind",
+              "description": "decision (default) or status. A status update has no required answer and no default expiry."
+            },
+            {
+              "name": "template",
+              "description": "Hub kit template name. Give this with --data-file; the Hub renders the page from the embedded object."
+            },
+            {
+              "name": "data-file",
+              "description": "JSON object for --template, read from a file or stdin with -; producers do not generate HTML."
             },
             {
               "name": "option",
@@ -313,6 +325,11 @@
             {
               "name": "subject-key",
               "description": "Names the situation this ask is about, for example disk-pressure; always set it. Sending the same key again revises the open ask instead of adding another: identical terms change nothing, new text updates it without a new push, different options replace it, and an ask the operator dismissed is not reopened by identical terms. If the ask has already been answered or closed, a partial revision is refused with what became of the ask (read it with `get --subject-key`), and a whole ask starts a new one. 1-128 of A-Z a-z 0-9 . _ : / @ -, starting with a letter or digit."
+            },
+            {
+              "name": "allow-related",
+              "bool": true,
+              "description": "After reviewing a related-decision conflict, affirm that this is a distinct decision and send it separately. This does not grant access to another conversation's ask."
             },
             {
               "name": "feature-card",
@@ -1138,6 +1155,16 @@
   },
   "exceptions": [],
   "omitted": [
+    {
+      "service": "ConversationsService",
+      "method": "AnswerRootWithPassword",
+      "reason": "Browser-only fresh authentication for an exact root decision; passwords must not enter terminal arguments or output."
+    },
+    {
+      "service": "ConversationsService",
+      "method": "MarkRead",
+      "reason": "Browser-only acknowledgement of a status update in the decision interface."
+    },
     {
       "service": "ConversationsService",
       "method": "ListNativeConsents",

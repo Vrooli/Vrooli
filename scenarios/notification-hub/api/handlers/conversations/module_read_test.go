@@ -2,7 +2,13 @@ package conversations_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -10,15 +16,119 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	conversationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	conversationsH "notification-hub/handlers/conversations"
+	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
 	"notification-hub/internal/testutil/hubtest"
 )
+
+func TestStatusUpdateStoresSteeringImagesAndSubjectRecurrence(t *testing.T) {
+	ctx := context.Background()
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hubtest.New(t, db, nil, nil)
+	service.SetAttachmentStore(hub.StaticBlobStore(blobstore.NewFilesystemBlobStore(t.TempDir())))
+	service.SetDefaultRecipient("alice")
+	router := mux.NewRouter()
+	conversationsH.Module(service).Mount(router)
+	server := httptest.NewServer(router)
+	defer server.Close()
+	client := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL, asSubject("alice"))
+	status := func(ref, summary string) hub.AskRecord {
+		sample, err := os.ReadFile("../../../skills/notification-hub/kit/samples/daily-briefing.json")
+		require.NoError(t, err)
+		var dataObject map[string]any
+		require.NoError(t, json.Unmarshal(sample, &dataObject))
+		dataObject["meta"].(map[string]any)["title"] = summary
+		data, err := structpb.NewStruct(dataObject)
+		require.NoError(t, err)
+		response, err := client.Ask(ctx, connect.NewRequest(&v1.AskRequest{
+			Kind: "status", Question: summary, SubjectKey: "daily-briefing", IdempotencyKey: ref,
+			SensitivityLabel: "private", TemplateName: "daily-briefing", TemplateData: data,
+		}))
+		require.NoError(t, err)
+		record, err := service.GetAsk(ctx, response.Msg.GetAskId())
+		require.NoError(t, err)
+		require.Empty(t, record.Deadline)
+		return record
+	}
+
+	first := status("daily-1", "Today's portfolio status")
+	got, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: first.ID}))
+	require.NoError(t, err)
+	require.Equal(t, "status", got.Msg.GetAsk().GetKind())
+	require.Equal(t, "daily-briefing", got.Msg.GetAsk().GetTemplateName())
+	require.Equal(t, "Today's portfolio status", got.Msg.GetAsk().GetTemplateData().GetFields()["meta"].GetStructValue().GetFields()["title"].GetStringValue())
+	require.Empty(t, got.Msg.GetAsk().GetOptions())
+	require.Equal(t, int32(1), got.Msg.GetAsk().GetRecurrence().GetCount())
+	pageRequest, err := http.NewRequest(http.MethodGet, server.URL+"/api/v1/asks/"+first.ID+"/attachments/decision.html", nil)
+	require.NoError(t, err)
+	pageRequest.Header.Set("X-Vrooli-Identity-Subject", "alice")
+	pageResponse, err := server.Client().Do(pageRequest)
+	require.NoError(t, err)
+	pageBytes, err := io.ReadAll(pageResponse.Body)
+	require.NoError(t, err)
+	require.NoError(t, pageResponse.Body.Close())
+	require.Equal(t, http.StatusOK, pageResponse.StatusCode)
+	require.Contains(t, string(pageBytes), `id="hub-data"`)
+	require.Contains(t, string(pageBytes), `"title":"Today's portfolio status"`)
+	oversizedChanges, err := structpb.NewStruct(map[string]any{"steer": strings.Repeat("x", 70<<10)})
+	require.NoError(t, err)
+	_, err = client.Answer(ctx, connect.NewRequest(&v1.AnswerRequest{AskId: first.ID, Changes: oversizedChanges}))
+	var oversized *connect.Error
+	require.ErrorAs(t, err, &oversized)
+	require.Equal(t, connect.CodeInvalidArgument, oversized.Code())
+
+	changes, err := structpb.NewStruct(map[string]any{"pace": map[string]any{"tier": "wednesday"}, "review": true})
+	require.NoError(t, err)
+	imageBytes := []byte{0x89, 'P', 'N', 'G', 13, 10, 26, 10, 0, 0, 0, 0}
+	imageHash := fmt.Sprintf("%x", sha256.Sum256(imageBytes))
+	_, err = client.PutAttachmentBlob(ctx, connect.NewRequest(&v1.PutAttachmentBlobRequest{Sha256: imageHash, MediaType: "image/png", Content: imageBytes}))
+	require.NoError(t, err)
+	_, err = client.Answer(ctx, connect.NewRequest(&v1.AnswerRequest{
+		AskId: first.ID, Note: "Use the Wednesday capacity tier.", Changes: changes,
+		Images: []*v1.AnswerImage{{Name: "schedule.png", Sha256: imageHash, MediaType: "image/png", SizeBytes: int64(len(imageBytes))}},
+	}))
+	require.NoError(t, err)
+
+	second := status("daily-2", "Updated portfolio status")
+	readback, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: second.ID}))
+	require.NoError(t, err)
+	require.Equal(t, int32(2), readback.Msg.GetAsk().GetRecurrence().GetCount())
+	require.Len(t, readback.Msg.GetAsk().GetRecurrence().GetDates(), 2)
+	require.Len(t, readback.Msg.GetAsk().GetRecurrence().GetPreviousAnswers(), 1)
+	require.Equal(t, "Use the Wednesday capacity tier.", readback.Msg.GetAsk().GetRecurrence().GetPreviousAnswers()[0].GetNote())
+
+	firstReadback, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: first.ID}))
+	require.NoError(t, err)
+	require.Equal(t, "Use the Wednesday capacity tier.", firstReadback.Msg.GetAsk().GetNote())
+	require.Equal(t, map[string]any{"pace": map[string]any{"tier": "wednesday"}, "review": true}, firstReadback.Msg.GetAsk().GetAnswerChanges().AsMap())
+	require.Equal(t, imageHash, firstReadback.Msg.GetAsk().GetAnswerImages()[0].GetSha256())
+
+	imageURL := server.URL + "/api/v1/asks/" + first.ID + "/answer-images/schedule.png"
+	request, err := http.NewRequest(http.MethodGet, imageURL, nil)
+	require.NoError(t, err)
+	request.Header.Set("X-Vrooli-Identity-Subject", "alice")
+	response, err := server.Client().Do(request)
+	require.NoError(t, err)
+	defer response.Body.Close()
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	served, err := io.ReadAll(response.Body)
+	require.NoError(t, err)
+	require.Equal(t, imageBytes, served)
+
+	marked, err := client.MarkRead(ctx, connect.NewRequest(&v1.MarkReadRequest{AskId: second.ID}))
+	require.NoError(t, err)
+	require.Equal(t, "read", marked.Msg.GetState())
+}
 
 // The owner reads every ask addressed to the configured recipient and no one
 // else's. Readers other than the owner are covered by ask_reads_test.go.

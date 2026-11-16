@@ -16,9 +16,19 @@ export function SignInForm() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [challenge, setChallenge] = useState("");
+  const [code, setCode] = useState("");
+  const [recovery, setRecovery] = useState(false);
   const login = useMutation({
-    mutationFn: () => identityClient.login({ email: email.trim(), password }),
-    onSuccess: async () => {
+    mutationFn: () => identityClient.login({ email: email.trim(), password, ...(challenge ? { mfaChallenge: challenge, ...(recovery ? { recoveryCode: code } : { totpCode: code }) } : {}) }),
+    onSuccess: async (response) => {
+      if (response.mfaRequired) {
+        setChallenge(response.mfaChallenge);
+        setCode("");
+        return;
+      }
+      setChallenge("");
+      setCode("");
       setPassword("");
       // Everything read while signed out was refused (a query that failed with the
       // sign-in card on screen) or belongs to nobody. Refetching all of it is what
@@ -29,7 +39,7 @@ export function SignInForm() {
   });
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (email.trim() && password) login.mutate();
+    if (window.isSecureContext === true && email.trim() && password && (!challenge || code.trim())) login.mutate();
   };
   const error = login.error
     ? login.error instanceof ConnectError &&
@@ -37,6 +47,8 @@ export function SignInForm() {
       ? t(strings.session.invalid)
       : t(strings.session.unavailable)
     : null;
+
+  if (window.isSecureContext !== true) return <p role="alert">{t(strings.session.secureRequired)}</p>;
 
   return (
     <form
@@ -71,6 +83,13 @@ export function SignInForm() {
           onChange={(event) => setPassword(event.target.value)}
         />
       </label>
+      {challenge && <>
+        <label className="flex flex-col gap-1 text-sm">
+          {t(recovery ? strings.session.recoveryCode : strings.session.totpCode)}
+          <Input type="text" autoComplete="one-time-code" value={code} onChange={(event) => setCode(event.target.value)} />
+        </label>
+        <button type="button" onClick={() => { setRecovery(!recovery); setCode(""); }}>{t(recovery ? strings.session.useTotp : strings.session.useRecovery)}</button>
+      </>}
       {error && (
         <p
           data-testid={selectors.session.error}

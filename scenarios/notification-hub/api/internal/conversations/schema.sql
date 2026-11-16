@@ -64,7 +64,10 @@ CREATE TABLE IF NOT EXISTS asks (
   sender TEXT NOT NULL DEFAULT '',
   -- Absolute path of the decision's ready-to-run packet (the brief the agent
   -- that receives the answer starts a worker from); '' for none.
-  packet TEXT NOT NULL DEFAULT ''
+  packet TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL DEFAULT 'decision',
+  template_name TEXT NOT NULL DEFAULT '',
+  template_data_json TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
 CREATE INDEX IF NOT EXISTS idx_asks_resolution_outbox ON asks(resolution_published_at, resolved_at, id);
@@ -107,7 +110,9 @@ CREATE TABLE IF NOT EXISTS answers (
   -- The operator's answers to the ask's questions: [AskQuestionResponse] JSON.
   responses_json TEXT NOT NULL DEFAULT '',
   -- Notes the operator pinned to the ask's attachments: [AskAttachmentNote] JSON.
-  attachment_notes_json TEXT NOT NULL DEFAULT ''
+  attachment_notes_json TEXT NOT NULL DEFAULT '',
+  changes_json TEXT NOT NULL DEFAULT '',
+  images_json TEXT NOT NULL DEFAULT ''
 );
 -- Answer attribution is sourced only from the request authenticator. Keeping
 -- it beside the durable Hub answer lets downstream decision verifiers fail
@@ -117,6 +122,24 @@ CREATE TABLE IF NOT EXISTS answer_identity (
   identity_kind TEXT NOT NULL DEFAULT 'unknown' CHECK (identity_kind IN ('verified_human', 'unknown')),
   identity_source TEXT NOT NULL DEFAULT '' CHECK (identity_source IN ('', 'cloudflare_access', 'personal_local'))
 );
+-- Additive evidence for password-authenticated root answers; existing answer
+-- identity tables retain their original CHECK constraint and data.
+CREATE TABLE IF NOT EXISTS root_password_answer_proofs (
+  ask_id TEXT PRIMARY KEY REFERENCES answers(ask_id) ON DELETE CASCADE
+);
+-- A human approval authorizes at most one root rebaseline execution.
+CREATE TABLE IF NOT EXISTS root_rebaseline_consumptions (
+  ask_id TEXT PRIMARY KEY REFERENCES asks(id) ON DELETE CASCADE,
+  consumed_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS answer_image_refs (
+  ask_id TEXT NOT NULL REFERENCES answers(ask_id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  sha256 TEXT NOT NULL REFERENCES attachment_blobs(sha256),
+  PRIMARY KEY (ask_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_answer_image_refs_sha ON answer_image_refs(sha256);
 CREATE TABLE IF NOT EXISTS escalation_steps (
   id TEXT PRIMARY KEY,
   ask_id TEXT NOT NULL REFERENCES asks(id) ON DELETE CASCADE,

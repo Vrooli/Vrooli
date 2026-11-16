@@ -1,4 +1,5 @@
 import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
+import { allowCredentialTransport } from './credential-transport.js'
 
 // Both ports come from the scenario lifecycle. createScenarioServer already
 // rejects either one when it is missing or unparseable, so these guards change
@@ -26,6 +27,15 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'notification-hub',
+  setupBeforeProxy(app) {
+    app.use((req, res, next) => {
+      if (!allowCredentialTransport(req.path, req.socket)) {
+        res.status(403).send('secure connection required')
+        return
+      }
+      next()
+    })
+  },
   setupRoutes(app) {
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {

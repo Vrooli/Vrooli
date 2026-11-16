@@ -1,0 +1,515 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "notification-hub/kit/structural-change.schema.json",
+  "title": "Structural change decision",
+  "description": "Data for templates/structural-change.html: a decision to change how the whole system works (loosen, disable, restructure or delete a check, permission or part of the code) because it keeps stopping work. Sent as a decision. The answer carries 'answer' (an option key, also prefilled into the Hub form) and, when the operator's set of checks differs from the recommended set, 'checks' (array of check ids to loosen); absent 'checks' means the recommended set. Every count must come from real run data; omit a section, or mark its source unavailable, rather than estimating.",
+  "type": "object",
+  "required": [
+    "meta",
+    "options"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "const": "structural-change",
+      "description": "Optional self-identification; when present must be 'structural-change'."
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Page header.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The decision as a question."
+        },
+        "producer": {
+          "type": "string",
+          "description": "Who sends it, e.g. 'Portfolio steward'."
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the data was produced."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA time zone for every time on the page. Default: the device's zone."
+        },
+        "notice": {
+          "type": "string",
+          "description": "Optional note under the header, e.g. that the data is a sample."
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "required": [
+        "headline"
+      ],
+      "additionalProperties": false,
+      "description": "What the producer recommends, shown first.",
+      "properties": {
+        "option": {
+          "type": "string",
+          "description": "Key of the recommended option in options[]."
+        },
+        "headline": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence."
+        },
+        "why": {
+          "type": "string",
+          "description": "Why, with the decisive numbers."
+        }
+      }
+    },
+    "blocked": {
+      "type": "object",
+      "required": [
+        "title",
+        "days"
+      ],
+      "additionalProperties": false,
+      "description": "Runs stopped per day by each check, and what the agent did when stopped.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading, e.g. 'Runs stopped by a check, each day for two weeks'."
+        },
+        "series": {
+          "type": "array",
+          "description": "Stacked series (one per check). Default: the checks recommended for loosening, keyed by their id as a string.",
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "Key used in days[].values."
+              },
+              "label": {
+                "type": "string",
+                "description": "Legend label."
+              },
+              "tone": {
+                "$ref": "#/$defs/tone"
+              }
+            }
+          }
+        },
+        "days": {
+          "type": "array",
+          "description": "One entry per day, oldest first.",
+          "items": {
+            "type": "object",
+            "required": [
+              "t",
+              "values"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "t": {
+                "type": "string",
+                "format": "date-time",
+                "description": "The day (any time on it)."
+              },
+              "values": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "description": "Runs stopped that day, keyed by series key."
+              }
+            }
+          }
+        },
+        "responses": {
+          "type": "array",
+          "description": "What the agent did in the stopped runs: stopped and called it expected, tried a workaround, asked the operator, got around it.",
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "count"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "The response."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Runs."
+              },
+              "tone": {
+                "$ref": "#/$defs/tone"
+              }
+            }
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false,
+      "description": "The checks on the hours-against-harm map. Only checks with a guardId that are not hard stops can be switched; choosing a set different from the recommended one records answer key 'checks' = [guardId, ...].",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "zone": {
+          "type": "object",
+          "required": [
+            "minHours",
+            "maxHarm"
+          ],
+          "additionalProperties": false,
+          "description": "The highlighted corner: costs time, guards little.",
+          "properties": {
+            "minHours": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Hours per week from which a check costs a lot."
+            },
+            "maxHarm": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 10,
+              "description": "Harm up to which a misuse is recoverable."
+            },
+            "label": {
+              "type": "string",
+              "description": "Zone label. Default 'Costs time, guards little'."
+            }
+          }
+        },
+        "groups": {
+          "type": "array",
+          "description": "Card groups in order. Default: restorable ('Guard only things git can restore') then irreversible.",
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "title"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "Group key used by items[].group."
+              },
+              "title": {
+                "type": "string",
+                "description": "Group heading."
+              },
+              "pill": {
+                "$ref": "#/$defs/pill"
+              }
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "title",
+              "hoursPerWeek",
+              "harm",
+              "group",
+              "recommended"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Short number shown on the dot and card (display only; the answer carries guardId)."
+              },
+              "guardId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.:-]+$",
+                "description": "The guard runtime's own check ID (owner: the guard code). The 'checks' answer is the list of guardIds the operator chose to loosen. Omit when a measured check has no mapping to a guard check: it is then shown as evidence only, with no toggle. Never derive it from the title."
+              },
+              "hardStop": {
+                "type": "boolean",
+                "description": "One of the standing hard-stop categories in the effort charter. Shown on the map and as a card, never selectable; 'recommended' is ignored."
+              },
+              "title": {
+                "type": "string",
+                "description": "The check in plain words."
+              },
+              "text": {
+                "type": "string",
+                "description": "What it stops and why that is a problem."
+              },
+              "hoursPerWeek": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Agent hours lost to this check per week (x axis, log scale)."
+              },
+              "harm": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10,
+                "description": "Harm if misused, 0 (git restores it) to 10 (cannot be undone) (y axis)."
+              },
+              "group": {
+                "type": "string",
+                "description": "Group key: 'restorable', 'irreversible' or a key from groups."
+              },
+              "recommended": {
+                "enum": [
+                  "loosen",
+                  "keep"
+                ],
+                "description": "The producer's recommendation; recommended selectable checks start switched on."
+              },
+              "jobs": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Blocked jobs that re-run if loosened."
+              },
+              "worst": {
+                "type": "string",
+                "description": "Worst case if it misfires while loosened."
+              },
+              "tone": {
+                "$ref": "#/$defs/tone"
+              }
+            }
+          },
+          "description": "Every measured check, including hard stops (shown, never selectable)."
+        }
+      }
+    },
+    "steps": {
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false,
+      "description": "What happens when the operator approves, in order.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Heading, e.g. 'Fourteen days, then the checks come back fixed'."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "when",
+              "text"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "when": {
+                "type": "string",
+                "description": "e.g. 'Today', 'Daily', '30 Nov'."
+              },
+              "text": {
+                "type": "string",
+                "description": "What happens."
+              }
+            }
+          },
+          "description": "What happens after the answer, in order."
+        }
+      }
+    },
+    "tripwire": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "The automatic safety stop while the change is in force.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "What triggers it and what it restores."
+        }
+      }
+    },
+    "answerTitle": {
+      "type": "string",
+      "description": "Heading over the answer cards, e.g. 'How long to loosen them'."
+    },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "description": "The answers. Keys must match the ask's --option keys.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "title"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "description": "Option key; the 'answer' value."
+          },
+          "title": {
+            "type": "string",
+            "description": "e.g. 'Loosen for 14 days'."
+          },
+          "recommended": {
+            "type": "boolean",
+            "description": "Marks the recommended option when recommendation.option is absent."
+          },
+          "pill": {
+            "$ref": "#/$defs/pill"
+          },
+          "bullets": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What happens, cost or risk."
+          }
+        }
+      }
+    },
+    "noAnswer": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "What happens with no answer.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "The consequence."
+        }
+      }
+    },
+    "technical": {
+      "$ref": "#/$defs/technical"
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "description": "Data provenance for one section, shown as a badge. 'unavailable' replaces the section's chart with a plain notice.",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "real",
+            "partial",
+            "unavailable"
+          ],
+          "description": "real: measured; partial: some parts measured, the rest missing (say which in note); unavailable: the source is missing."
+        },
+        "label": {
+          "type": "string",
+          "description": "Where the data comes from, e.g. 'Agent Manager forecast'."
+        },
+        "note": {
+          "type": "string",
+          "description": "What is missing or how it was measured; shown on tap and in the unavailable notice."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the source was read."
+        }
+      }
+    },
+    "pill": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A short status label on a card.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Label text, e.g. 'Runs out'."
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "warn",
+            "crit",
+            "info"
+          ],
+          "description": "Colour: good green, warn amber, crit red, info accent."
+        }
+      }
+    },
+    "technical": {
+      "type": "array",
+      "description": "IDs, rules and evidence for the agent that acts, in a collapsed section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Term."
+          },
+          "value": {
+            "type": "string",
+            "description": "Value."
+          }
+        }
+      }
+    },
+    "tone": {
+      "description": "Colour: a series number 1-8 (1 blue, 2 orange, 3 amber, 4 pink, 5 violet, 6 green, 7 slate, 8 teal) or a named tone.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        {
+          "enum": [
+            "accent",
+            "good",
+            "warn",
+            "crit",
+            "muted",
+            "ink"
+          ]
+        }
+      ]
+    }
+  }
+}

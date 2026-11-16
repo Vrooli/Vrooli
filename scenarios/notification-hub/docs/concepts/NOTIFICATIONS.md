@@ -201,23 +201,26 @@ recorded reason** — it is never silently dropped, so the timeline and
 delivery record always explain why nothing was sent. Suppression is a
 delivery outcome, not an absence.
 
-### Endpoints (contract level)
+### Endpoints
 
-Three Connect endpoints serve configuration. They are described here at the
-contract level; shapes live with the service definition.
-
-| Endpoint | Purpose |
-|---|---|
-| `ListNotificationCatalog` | Return the catalog (observed + declared) a recipient can configure |
-| `GetNotificationPreferences` | Return the recipient's current preferences |
-| `SetNotificationPreference` | Upsert one `(source_scenario, category?)` preference |
-
-These are served today as plain REST (`GET /api/v1/notifications/catalog`,
-`GET|PUT /api/v1/notifications/preferences`). Both reads accept an optional
+The catalog and preference surface is an intentional REST exception because
+the payload is operator configuration, not a proto-owned notification event.
+The routes are `GET /api/v1/notifications/catalog`,
+`GET|PUT /api/v1/notifications/preferences`. Both reads accept an optional
 `source_scenario` filter (repeatable or comma-separated). Notification Hub's
-own Settings page reads unfiltered; a producing scenario's settings page MUST
-pass its own slug so it shows only the categories it declared. See
+own Settings page reads unfiltered; a producing scenario's facade pins reads
+and writes to its own slug server-side. The browser filter is only a display
+hint and is never authority. See
 [scenario notification settings](../research/scenario-notification-settings.md).
+
+Preference reads use the configured installation recipient. Writes require a
+verified owner whose resolved subject is that same recipient; when no recipient
+resolver is configured, writes use the verified subject as their own key. The
+Cloudflare Access owner path maps the signed-in human to the configured
+recipient. A bearer or cookie with a different subject receives `403` rather
+than saving into a preference account that the next read will not show. Reads
+remain available without owner authentication for the existing catalog/app
+bootstrap contract; writes remain owner-authenticated.
 
 ## Centralized Delivery (and Why)
 
@@ -323,7 +326,7 @@ be paired as standalone.
 | Step | Where |
 |---|---|
 | `"appDelivery": true` | the scenario's `.vrooli/notifications.json` |
-| `<AppNotificationSettings />` in its settings | `@vrooli/react-component-library/AppNotificationSettings/1` |
+| Category preferences in its settings | `NotificationPreferencesPanel` exported by `@vrooli/react-component-library/AppNotificationSettings/1` and driven by the shared typed API-base client |
 | `initAppNotifications()` once at start-up | same import; it re-confirms the app hourly and opens the screen a tap asked for |
 
 The scenario's web server (`@vrooli/api-base/server`, used by the scenario
@@ -349,7 +352,7 @@ scenario's app.
 | Tier | Status | What the scenario does |
 |---|---|---|
 | T0: publish | Available | Publish `*.notification.v1` facts (above) and declare categories in `.vrooli/notifications.json` |
-| T1: own settings section | Available | `<AppNotificationSettings />` shows only its own categories (the scenario web server pins `source_scenario`) |
+| T1: own settings section | Available | A scenario settings surface shows only its own categories through the server-pinned `/vrooli-notify` facade; the shared RCL panel is presentational and the API-base client owns parsing/state |
 | T2: own identity on web push | Available | Set `"appDelivery": true`; its installed app receives its notifications on paired devices (§"App delivery") |
 | T3: native push | Research; iOS blocked | Native app from `scenario-to-*` receives push via APNs, FCM, or a desktop channel |
 

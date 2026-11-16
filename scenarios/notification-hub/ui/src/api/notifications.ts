@@ -32,7 +32,10 @@ export const sessionFetch: typeof fetch = (input, init) => {
     if (e4Fixture === "decision-links-phone") headers.set(E4_FIXTURE_HEADER, e4Fixture);
   }
   return fetch(input, { ...init, headers, credentials: "same-origin" }).then((response) => {
-    if (response.status === 401 && typeof window !== "undefined") {
+    // A failed step-up is not evidence that the existing Hub session expired.
+    const requestUrl = input instanceof Request ? input.url : String(input);
+    const isStepUp = /\/AnswerRootWithPassword(?:[?#]|$)/.test(requestUrl);
+    if (response.status === 401 && typeof window !== "undefined" && !isStepUp) {
       window.dispatchEvent(new Event("notification-hub:session-expired"));
     }
     return response;

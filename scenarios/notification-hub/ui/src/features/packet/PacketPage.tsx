@@ -30,8 +30,10 @@ import { usePacketDraft } from "./usePacketDraft";
 import { PacketBack } from "./PacketBack";
 import { PacketCover } from "./PacketCover";
 import { Revisions } from "./Revisions";
+import { RootPasswordAnswer } from "./RootPasswordAnswer";
 import { OutcomeNotices } from "./status/OutcomeNotices";
 import { PacketStatus } from "./status/PacketStatus";
+import { StatusPacketBody } from "./status/StatusPacketBody";
 import { useAnswerFlow } from "./useAnswerFlow";
 import { usePacketOrigin } from "./usePacketOrigin";
 import { AttachmentStrip } from "./viewer/AttachmentStrip";
@@ -65,12 +67,13 @@ export function PacketPage() {
     queryKey: ["ask", askId, subject],
     enabled: !session.isPending,
     queryFn: async () => (await conversationsClient.getAsk({ askId })).ask,
-    retry: (count, error) => !(error instanceof ConnectError && error.code === Code.NotFound) && count < 2,
+    retry: (count, error) => !(error instanceof ConnectError && (error.code === Code.NotFound || error.code === Code.Unauthenticated)) && count < 2,
   });
 
   if (session.isPending || ask.isPending) return <SkeletonRows rows={3} />;
   if (ask.error instanceof ConnectError && ask.error.code === Code.Unauthenticated) return <SignInForm />;
   if (!ask.data) return <PacketUnavailable error={ask.error} retrying={ask.isFetching} onRetry={() => void ask.refetch()} />;
+  if (ask.data.kind === "status") return <StatusPacketBody ask={ask.data} subject={subject} signedIn={Boolean(session.data?.signedIn)} />;
   return (
     <PacketBody
       key={`${askId}\u0000${subject}`}
@@ -135,11 +138,13 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
   const [revisionsOpen, setRevisionsOpen] = useState(false);
   const [answering, setAnswering] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
+  const [passwordAnswer, setPasswordAnswer] = useState(false);
+  const isRootDecision = ask.source === "root-rebaseline" && ask.sourceEventType === "root.rebaseline.decision_requested.v1";
 
   const open = ask.state === "pending" || ask.state === "escalated";
   const canAnswer = open || ask.state === "defaulted";
   const explainer = explainerOf(ask.attachments);
-  const hasPacket = ask.attachments.length > 0 || ask.questions.length > 0;
+  const hasPacket = ask.attachments.length > 0 || ask.questions.length > 0 || Boolean(ask.templateName);
   // A sent answer is shown as one stacked, read-only form, never as steps.
   const paged = phone && ask.questions.length >= 2 && !flow.settling;
   const openAttachment = useCallback((target: AttachmentTarget) => {
@@ -232,7 +237,12 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
                       document.getElementById("packet-revisions")?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
                   />
-                  {explainer && <ExplainerFrame askId={ask.id} explainer={explainer} attachments={ask.attachments} onOpen={onExplainerOpen} onPrefill={onExplainerPrefill} />}
+                  {(explainer || ask.templateName) && <ExplainerFrame askId={ask.id} kind={ask.kind} recurrence={ask.recurrence} templateName={ask.templateName} templateData={ask.templateData} explainer={explainer} attachments={ask.attachments} onOpen={onExplainerOpen} onPrefill={onExplainerPrefill} onAnswerChange={(change) => updateDraft((current) => {
+                    const answerChanges = { ...current.answerChanges };
+                    if (change.operation === "remove") delete answerChanges[change.key];
+                    else answerChanges[change.key] = { label: change.label, value: change.value };
+                    return { ...current, answerChanges };
+                  })} />}
                 </>
               }
             />
@@ -272,8 +282,14 @@ function PacketBody({ ask, subject, attemptSubject, signedIn }: PacketBodyProps)
                 {flow.attempt && flow.outcome !== "recorded" && checkStatus}
               </div>
             )}
-            {showForm && prefillNotice}
-            {showForm && form}
+            {showForm && !passwordAnswer && prefillNotice}
+            {showForm && !passwordAnswer && form}
+            {showForm && isRootDecision && !flow.settling && !passwordAnswer && (
+              <Button type="button" variant="outline" onClick={() => setPasswordAnswer(true)}>{t(strings.packet.rootPassword.openForm)}</Button>
+            )}
+            {showForm && isRootDecision && passwordAnswer && (
+              <RootPasswordAnswer ask={ask} email="" onCancel={() => setPasswordAnswer(false)} onRecorded={() => { void refreshAsk(); void queryClient.invalidateQueries({ queryKey: ["asks"] }); }} onChanged={() => { void refreshAsk(); }} />
+            )}
             {signedIn && flow.settling && !settled && (
               <PinnedBar>{checkStatus}</PinnedBar>
             )}

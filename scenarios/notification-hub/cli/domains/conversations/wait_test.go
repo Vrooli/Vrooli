@@ -3,6 +3,9 @@ package conversations
 import (
 	"encoding/json"
 	"errors"
+	"net"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func exitCodeOf(t *testing.T, err error) int {
@@ -19,6 +23,30 @@ func exitCodeOf(t *testing.T, err error) int {
 	var coded interface{ ExitCode() int }
 	require.True(t, errors.As(err, &coded), "error carries no exit status: %v", err)
 	return coded.ExitCode()
+}
+
+func TestWaitReturnsPageSteeringAndImageReferencesToProducer(t *testing.T) {
+	changes, err := structpb.NewStruct(map[string]any{"pace": "thursday", "slots": float64(4)})
+	require.NoError(t, err)
+	stub := &hubStub{
+		waitResp: &v1.WaitResponse{AskId: "ask-7", State: "answered", Answer: "continue", Changes: changes, Images: []*v1.AnswerImage{{Name: "plan.png", Sha256: "abc123", MediaType: "image/png", SizeBytes: 128}}},
+	}
+	stdout, stderr, callErr := runCommand(t, newTestService(t, stub), "wait", "--ask-id", "ask-7", "--timeout", "10m", "--json")
+	require.NoError(t, callErr)
+	require.Empty(t, stderr)
+	var output map[string]any
+	require.NoError(t, json.Unmarshal([]byte(stdout), &output))
+	require.Equal(t, map[string]any{"pace": "thursday", "slots": float64(4)}, output["changes"])
+	images := output["images"].([]any)
+	require.Equal(t, "plan.png", images[0].(map[string]any)["name"])
+	require.Equal(t, "abc123", images[0].(map[string]any)["sha256"])
+	require.Empty(t, stub.gets, "Wait carries the page answer without a follow-up read")
+
+	stdout, _, callErr = runCommand(t, newTestService(t, stub), "wait", "--ask-id", "ask-7", "--timeout", "10m")
+	require.NoError(t, callErr)
+	require.Contains(t, stdout, "Page selections:")
+	require.Contains(t, stdout, `"pace": "thursday"`)
+	require.Contains(t, stdout, "plan.png")
 }
 
 var openWithContextRequest = &v1.WaitResponse{
@@ -358,4 +386,67 @@ func TestWaitGivesUpOnAConnectionFailureOnlyAtTheDeadlineAndNeverOnARefusal(t *t
 	svc.sleep = func(time.Duration) { t.Fatal("a refusal must not be retried") }
 	_, _, err = runCommand(t, svc, "wait", "ask-7", "--timeout", "10m")
 	require.ErrorContains(t, err, "no verified identity")
+}
+
+func TestWaitRetriesUnauthenticatedRunIdentityOnlyWhileItsBrokerIsUnavailable(t *testing.T) {
+	t.Run("broker restart", func(t *testing.T) {
+		t.Setenv(cliutil.EnvIdentityToken, "synthetic-run-identity")
+		t.Setenv("NOTIFICATION_HUB_API_TOKEN", "")
+		t.Setenv("VROOLI_API_TOKEN", "")
+		t.Setenv(SendAsEnv, "agent-manager")
+		refused := connect.NewError(connect.CodeUnauthenticated, errors.New("stale inherited token"))
+		stub := &hubStub{
+			waitErrSeq: []error{refused, nil},
+			waitSeq:    []*v1.WaitResponse{{AskId: "ask-7", State: "answered", Answer: "yes"}},
+		}
+		svc := newTestService(t, stub)
+		checks := 0
+		svc.identityBrokerUnavailable = func() bool {
+			checks++
+			return checks == 1 // the restarted owner becomes reachable before retry
+		}
+		svc.sleep = func(time.Duration) {}
+
+		stdout, _, err := runCommand(t, svc, "wait", "ask-7", "--timeout", "10m")
+		require.NoError(t, err)
+		require.Len(t, stub.waits, 2, "the owner wait is reissued after broker recovery")
+		require.Contains(t, stdout, "state=answered answer=yes")
+	})
+
+	t.Run("foreign owner while broker is live", func(t *testing.T) {
+		t.Setenv(cliutil.EnvIdentityToken, "synthetic-run-identity")
+		refused := connect.NewError(connect.CodeUnauthenticated, errors.New("no verified identity"))
+		stub := &hubStub{waitErrSeq: []error{refused, nil}, waitSeq: []*v1.WaitResponse{{AskId: "ask-7", State: "answered"}}}
+		svc := newTestService(t, stub)
+		svc.identityBrokerUnavailable = func() bool { return false }
+		svc.sleep = func(time.Duration) { t.Fatal("a live broker makes this refusal authoritative") }
+
+		_, _, err := runCommand(t, svc, "wait", "ask-7", "--timeout", "10m")
+		require.ErrorContains(t, err, "no verified identity")
+		require.Len(t, stub.waits, 1, "a foreign-owner refusal is not retried")
+	})
+}
+
+func TestAgentIdentityBrokerUnavailableRequiresInheritedIdentityAndMissingSocket(t *testing.T) {
+	t.Setenv(cliutil.EnvIdentityToken, "synthetic-run-identity")
+	t.Setenv("NOTIFICATION_HUB_API_TOKEN", "")
+	t.Setenv("VROOLI_API_TOKEN", "")
+	t.Setenv(SendAsEnv, "")
+	shortTemp, err := os.MkdirTemp("/tmp", "n4-")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(shortTemp) })
+	t.Setenv("TMPDIR", shortTemp)
+	require.True(t, agentIdentityBrokerUnavailable(""), "a missing owner socket can explain a transient run-auth refusal")
+	t.Setenv(SendAsEnv, "agent-manager")
+	require.True(t, agentIdentityBrokerUnavailable(""), "an inherited run identity takes precedence over the send-as switch")
+
+	socket := cliutil.AgentCredentialSocket()
+	require.NoError(t, os.MkdirAll(filepath.Dir(socket), 0o700))
+	listener, err := net.Listen("unix", socket)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = listener.Close() })
+	require.False(t, agentIdentityBrokerUnavailable(""), "a live owner socket makes Hub refusals authoritative")
+	require.False(t, agentIdentityBrokerUnavailable("saved-owner-token"), "an explicit configured token is not refreshed by the run broker")
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	require.False(t, agentIdentityBrokerUnavailable(""), "anonymous callers do not acquire run-identity retry semantics")
 }

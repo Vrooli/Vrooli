@@ -42,6 +42,7 @@ describe("api/preferences", () => {
               {
                 source_scenario: "git-control-tower",
                 category: "review",
+                scope_key: "",
                 enabled: true,
                 min_urgency: "normal",
                 channel_override: "",
@@ -66,19 +67,17 @@ describe("api/preferences", () => {
       expect(headers.get("X-Vrooli-Browser-Session")).toBe("1");
     });
 
-    it("tolerates a response missing sources/preferences by defaulting to empty arrays", async () => {
+    it("rejects a malformed response instead of disguising it as an empty catalog", async () => {
       fetchSpy.mockResolvedValueOnce(new Response("{}", { status: 200 }));
 
-      const catalog = await fetchNotificationCatalog();
-
-      expect(catalog).toEqual({ sources: [], preferences: [] });
+      await expect(fetchNotificationCatalog()).rejects.toThrow("invalid catalog");
     });
 
     it("raises an error with the status code when the catalog is unavailable", async () => {
       fetchSpy.mockResolvedValueOnce(new Response("", { status: 503 }));
 
       await expect(fetchNotificationCatalog()).rejects.toThrow(
-        "Notification catalog request failed (503)",
+        "Notification Hub is unavailable",
       );
     });
   });
@@ -87,6 +86,7 @@ describe("api/preferences", () => {
     const preference: NotificationPreference = {
       source_scenario: "git-control-tower",
       category: "review",
+      scope_key: "",
       enabled: false,
       min_urgency: "high",
       channel_override: "",
@@ -115,7 +115,7 @@ describe("api/preferences", () => {
       fetchSpy.mockResolvedValueOnce(new Response("", { status: 500 }));
 
       await expect(updateNotificationPreference(preference)).rejects.toThrow(
-        "Notification preference update failed (500)",
+        "Notification request failed (500)",
       );
     });
   });

@@ -161,6 +161,18 @@
       }
     },
     {
+      "id": "conversations_answer_image_content",
+      "path": "/api/v1/asks/{ask_id}/answer-images/{name}",
+      "method": "GET",
+      "summary": "Read one image sent with an answer",
+      "description": "",
+      "category": "conversations",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Streams one image attached to the owner's stored answer. Requires verified owner identity; unknown or foreign answers return 404."
+      }
+    },
+    {
       "id": "conversations_linked_artifact_metadata",
       "path": "/api/v1/asks/{ask_id}/linked-artifact/metadata",
       "method": "GET",
@@ -241,6 +253,22 @@
       "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Answer",
       "method": "POST",
       "summary": "Record an allowed answer",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_answer_root_with_password",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/AnswerRootWithPassword",
+      "method": "POST",
+      "summary": "Authenticate and answer one root decision",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_mark_read",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/MarkRead",
+      "method": "POST",
+      "summary": "Mark a status update as read without sending steering",
       "description": "",
       "category": "conversations"
     },

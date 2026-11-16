@@ -347,6 +347,14 @@ func TestAskWithoutAnIdentityUploadsAndAttachesItsPacket(t *testing.T) {
 	require.Len(t, stub.asks[0].GetAttachments(), 1)
 }
 
+func TestAskAllowsReviewedDistinctDecision(t *testing.T) {
+	stub := &hubStub{}
+	_, _, err := runCommand(t, newTestService(t, stub), "ask", askArgs("--allow-related")...)
+	require.NoError(t, err)
+	require.Len(t, stub.asks, 1)
+	require.True(t, stub.asks[0].GetAllowRelated())
+}
+
 func TestAskDeclaresItAnswersContextRequestsOnlyWhenKeyedAndNotOptedOut(t *testing.T) {
 	for name, tc := range map[string]struct {
 		args []string

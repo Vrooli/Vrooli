@@ -87,10 +87,11 @@ func TestAskJSONIsTheStableShape(t *testing.T) {
 	require.NoError(t, err)
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(stdout), &parsed), "stdout is pure JSON: %q", stdout)
-	require.Len(t, parsed, 4, "exactly ask_id, state, outcome and warnings: %v", parsed)
+	require.Len(t, parsed, 5, "exactly ask_id, state, outcome, kind and warnings: %v", parsed)
 	require.Equal(t, "ask-42", parsed["ask_id"])
 	require.Equal(t, "pending", parsed["state"])
 	require.Equal(t, "", parsed["outcome"], "present even when empty")
+	require.Equal(t, "", parsed["kind"], "present even when empty")
 	warnings := parsed["warnings"].([]any)
 	require.Len(t, warnings, 1, "warnings are in the JSON, not only on stderr")
 	require.Equal(t, "missing_big_picture", warnings[0].(map[string]any)["code"])

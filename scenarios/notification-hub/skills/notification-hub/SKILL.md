@@ -6,7 +6,7 @@ metadata:
   kind: "skill"
   schemaVersion: 1
   status: "active"
-  revision: 11
+  revision: 12
   modes: ["tools"]
   tags: ["notification-hub", "decisions", "asks", "operator", "notifications", "writing", "operator-legibility", "html-explainer"]
   requires:
@@ -97,6 +97,25 @@ Start from the starter that fits and replace every word and number:
 | `batch-by-group.html` | A list or batch: groups the operator switches on (with a `--form` multi_choice), a bar of the split, the cause |
 | `run-a-command.html` | The operator runs a command: where, the line, what it shows first, undo, why only they can |
 | UX redesigns | `~/.vrooli/research/topics/experience-engineering/skills/present-ux-decisions/starter.html` |
+
+Five recurring pages have templates instead: send the template name and one JSON
+object (`--template NAME --data-file data.json`), never HTML. The page draws its
+charts from the data, works on a phone in light and dark, records the operator's
+choices for the answer bar, and marks any section whose data is missing as
+unavailable. Fill every field from real sources and leave out what you do not
+know; the schema documents each field.
+
+| Template (`kit/templates/`) | Use for | Schema, sample data |
+|---|---|---|
+| `usage-mode.html` | Decision: a usage window will run out; burn chart, each option's outcome, how often this came back | `kit/schemas/usage-mode.schema.json`, `kit/samples/usage-mode.json` |
+| `daily-briefing.html` | Status update (`--kind status`): target, hours by lane, friction, pace tiers that switch the slot schedule | `kit/schemas/daily-briefing.schema.json`, `kit/samples/daily-briefing.json` |
+| `opportunity-roadmap.html` | Status update: every line on one timeline, steps, first-income ranges, slip, weights | `kit/schemas/opportunity-roadmap.schema.json`, `kit/samples/opportunity-roadmap.json` |
+| `structural-change.html` | Decision: loosen or keep checks that keep stopping work, on a map of hours lost against harm | `kit/schemas/structural-change.schema.json`, `kit/samples/structural-change.json` |
+| `research-report.html` | Status update when a research commission ends: workstream states, measured results, scorecard progress with judged levels, feedback read-back, next lines; per-workstream weights | `kit/schemas/research-report.schema.json`, `kit/samples/research-report.json` |
+
+Preview with `node kit/tools/render.mjs <template> data.json --out page.html`, then
+`notification-hub pages check page.html`. Answer keys, components and the render
+contract: `kit/README.md`.
 
 A topic that presents one kind of decision often keeps its own presentation skill in
 its `skills/` folder and points back here. Scenario code sets

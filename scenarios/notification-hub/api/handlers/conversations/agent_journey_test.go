@@ -7,10 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -33,12 +36,13 @@ import (
 
 // journey is the CLI built once, and the places it runs.
 type journey struct {
-	t       *testing.T
-	fx      *readerFixture
-	bin     string
-	home    string
-	workdir string
-	pushes  *askPushCounter
+	t          *testing.T
+	fx         *readerFixture
+	bin        string
+	home       string
+	workdir    string
+	brokerTemp string
+	pushes     *askPushCounter
 }
 
 // buildCLI compiles the CLI that agents run.
@@ -54,13 +58,23 @@ func buildCLI(t *testing.T) string {
 
 func newJourney(t *testing.T) *journey {
 	t.Helper()
+	brokerTemp, err := os.MkdirTemp("/tmp", "hub-broker-")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(brokerTemp) })
+	brokerDir := filepath.Join(brokerTemp, "vrooli-agent-manager-"+strconv.Itoa(os.Getuid()))
+	require.NoError(t, os.MkdirAll(brokerDir, 0700))
+	listener, err := net.Listen("unix", filepath.Join(brokerDir, "identity.sock"))
+	require.NoError(t, err)
+	server := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })}
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
 	fx := newReaderFixture(t)
 	pushes := &askPushCounter{}
 	fx.service.SetPushSender(pushes)
 	require.NoError(t, fx.service.RegisterPushSubscription(context.Background(), "alice", hub.PushSubscription{
 		ID: "phone", Endpoint: "https://push.example.test/phone", P256DH: "key", Auth: "secret", Origin: "https://app.example.test",
 	}))
-	return &journey{t: t, fx: fx, bin: buildCLI(t), home: t.TempDir(), workdir: t.TempDir(), pushes: pushes}
+	return &journey{t: t, fx: fx, bin: buildCLI(t), home: t.TempDir(), workdir: t.TempDir(), brokerTemp: brokerTemp, pushes: pushes}
 }
 
 // file writes a file in the agent's working directory and returns its path.
@@ -108,7 +122,9 @@ func (j *journey) start(token string, args ...string) *run {
 	j.t.Helper()
 	cmd := exec.Command(j.bin, append([]string{"--api-base", j.fx.url, "conversations"}, args...)...)
 	cmd.Dir = j.workdir
-	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + j.home, "API_BASE_URL=" + j.fx.url, "VROOLI_AGENT_IDENTITY_TOKEN=" + token}
+	// Keep the fixture's explicit run token while isolating the host's agent
+	// identity broker; a real broker timeout must not contaminate CLI examples.
+	cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + j.home, "TMPDIR=" + j.brokerTemp, "API_BASE_URL=" + j.fx.url, "VROOLI_AGENT_IDENTITY_TOKEN=" + token}
 	r := &run{cmd: cmd, stdout: &lockedOutput{}, stderr: &lockedOutput{}, done: make(chan struct{})}
 	cmd.Stdout, cmd.Stderr = r.stdout, r.stderr
 	require.NoError(j.t, cmd.Start())

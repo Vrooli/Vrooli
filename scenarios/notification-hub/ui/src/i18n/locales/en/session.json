@@ -19,5 +19,10 @@
   "submit": "Sign in",
   "submitting": "Signing in…",
   "title": "Sign in",
-  "unavailable": "Sign-in is unavailable right now. Try again."
+  "unavailable": "Sign-in is unavailable right now. Try again.",
+  "totpCode": "Authentication code",
+  "recoveryCode": "Recovery code",
+  "useRecovery": "Use a recovery code",
+  "useTotp": "Use an authentication code",
+  "secureRequired": "Password verification requires a secure connection. Open the Hub over HTTPS or from localhost on this machine."
 }

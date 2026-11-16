@@ -16,11 +16,12 @@ import { PinnedNotes } from "./PinnedNotes";
 import { QuestionField } from "./QuestionField";
 import { ReviewSummary } from "./ReviewSummary";
 import { TextArea } from "./TextArea";
+import { AnswerImages } from "./AnswerImages";
 
 export interface AnswerPanelProps {
   ask: Ask;
   draft: PacketDraft;
-  onDraftChange: (next: PacketDraft) => void;
+  onDraftChange: (update: PacketDraft | ((current: PacketDraft) => PacketDraft)) => void;
   /** Inputs are disabled: an answer was sent, or a send is in flight. */
   locked: boolean;
   /** An answer was sent: the form stays readable as the record of what was attempted, with no actions. */
@@ -50,6 +51,7 @@ export function AnswerPanel(props: AnswerPanelProps) {
   const { ask, draft, onDraftChange, locked, frozen, paged, open, dismissing, onSubmit, onDismiss, onRequestContext, onOpenAttachment, onBackToCover } = props;
   const { t } = useTranslation();
   const [stepIndex, setStepIndex] = useState(0);
+  const [imageUploading, setImageUploading] = useState(false);
   const stepRoot = useRef<HTMLDivElement>(null);
   const firstRender = useRef(true);
   const steps: Step[] = ["answer", ...ask.questions.map((question) => ({ question: question.id })), "review"];
@@ -95,8 +97,9 @@ export function AnswerPanel(props: AnswerPanelProps) {
     />
   ));
   const pinned = <PinnedNotes ask={ask} draft={draft} disabled={locked} onChange={onDraftChange} />;
+  const answerImages = <AnswerImages images={draft.answerImages} disabled={locked || frozen} onBusyChange={setImageUploading} onChange={onDraftChange} />;
 
-  const send = { label: t(strings.packet.form.submit), onClick: onSubmit, disabled: blocker !== null, testId: selectors.packet.send };
+  const send = { label: t(strings.packet.form.submit), onClick: onSubmit, disabled: blocker !== null || imageUploading, testId: selectors.packet.send };
   const secondary = open && !frozen && <SecondaryActions canRequestContext={ask.canRequestContext} onRequestContext={onRequestContext} onDismiss={onDismiss} dismissing={dismissing} disabled={locked} />;
 
   // The body and the pinned bar are siblings: the bar sticks within the tall
@@ -109,9 +112,10 @@ export function AnswerPanel(props: AnswerPanelProps) {
           {mainOptions}
           {questions.length > 0 && <div className="flex flex-col gap-6 border-t border-app-border pt-5">{questions}</div>}
           {pinned}
+          {answerImages}
           {secondary}
         </div>
-        {!frozen && <ActionBar primary={send} hint={blockedHint} disabled={locked} />}
+        {!frozen && <ActionBar primary={send} hint={blockedHint} disabled={locked || imageUploading} />}
       </>
     );
   }
@@ -162,6 +166,7 @@ export function AnswerPanel(props: AnswerPanelProps) {
           <ReviewSummary ask={ask} draft={draft} onEdit={goTo} />
           {pinned}
           {overallNote}
+          {answerImages}
         </>
       )}
       {last && secondary}
@@ -170,7 +175,7 @@ export function AnswerPanel(props: AnswerPanelProps) {
       primary={last ? send : { label: t(strings.packet.form.next), onClick: () => setStepIndex(index + 1) }}
       back={index > 0 ? { label: t(strings.packet.form.previous), onClick: () => setStepIndex(index - 1) } : undefined}
       hint={last ? blockedHint : undefined}
-      disabled={locked}
+      disabled={locked || imageUploading}
     />
     </>
   );

@@ -1,0 +1,484 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "notification-hub/kit/opportunity-roadmap.schema.json",
+  "title": "Opportunity roadmap",
+  "description": "Data for templates/opportunity-roadmap.html: every portfolio line on one timeline with its recorded steps, dated plans, saved first-money gate ranges and review history. Sent as a status update. The operator can change a line's weight (answer key 'weight.<id>' = weight key) and ask for a decision on a line ('ask.<id>' = true); absent keys mean no change. Weight choices affect the next planning order only; they do not predict dates or capacity. Optional linked elapsed hours are historical trailing-seven-day measurements, not future allocations. Omit what is unknown; never invent dates.",
+  "type": "object",
+  "required": [
+    "meta",
+    "horizon",
+    "lines"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "const": "opportunity-roadmap",
+      "description": "Optional self-identification; when present must be 'opportunity-roadmap'."
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Page header.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Headline, e.g. 'Fourteen opportunities and three money dates'."
+        },
+        "lede": {
+          "type": "string",
+          "description": "What changed since the last roadmap, and how to use the page."
+        },
+        "producer": {
+          "type": "string",
+          "description": "Who sends it."
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the data was produced."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA time zone for every date on the page. Default: the device's zone."
+        },
+        "notice": {
+          "type": "string",
+          "description": "Optional note under the header, e.g. that the data is a sample."
+        }
+      }
+    },
+    "horizon": {
+      "type": "object",
+      "required": [
+        "start",
+        "end"
+      ],
+      "additionalProperties": false,
+      "description": "The timeline's span.",
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Left edge."
+        },
+        "end": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Right edge; ranges past it read 'later'."
+        },
+        "today": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Today marker on the timeline. Default meta.sentAt."
+        }
+      }
+    },
+    "refs": {
+      "type": "array",
+      "description": "Vertical reference lines. kind 'target' dates also feed the summary tiles ('could pay before ...') and the slip charts.",
+      "items": {
+        "type": "object",
+        "required": [
+          "t",
+          "label"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "t": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Date."
+          },
+          "label": {
+            "type": "string",
+            "description": "Short label, e.g. '$1,000'."
+          },
+          "tone": {
+            "$ref": "#/$defs/tone"
+          },
+          "kind": {
+            "enum": [
+              "target",
+              "now",
+              "other"
+            ],
+            "description": "target: a money date; now: replaces the default Today line."
+          }
+        }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 2,
+      "description": "Stage ladder in order, e.g. Idea, Prepared, Offered, Yes, Paid."
+    },
+    "weights": {
+      "type": "array",
+      "minItems": 2,
+      "description": "Weight choices. Default: paused 0, normal 1, more 2, most 3.",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "factor"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+$",
+            "description": "Weight key; the 'weight.<id>' answer value."
+          },
+          "label": {
+            "type": "string",
+            "description": "e.g. 'More'."
+          },
+          "factor": {
+            "type": "number",
+            "minimum": 0,
+          "description": "Relative next-planning-order indicator; 0 means pause. It does not represent hours, capacity or date movement."
+          }
+        }
+      }
+    },
+    "hours": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Historical linked delegation elapsed time over the trailing seven days. It is not weekly capacity or an allocation.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "linkedElapsedHours7d": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Measured historical elapsed hours from linked steward delegations in the trailing seven days."
+        }
+      }
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Provenance for the whole timeline.",
+      "properties": {
+        "plans": {
+          "$ref": "#/$defs/source"
+        }
+      }
+    },
+    "funnel": {
+      "type": "object",
+      "description": "Optional measured opportunity-step funnel. Counts are distinct recorded roadmap steps at each evidence level, not raw job totals or inferred conversion totals. Omit when the source is unavailable; if present with unavailable status, steps must be empty. Partial means unmatched work is explicitly omitted.",
+      "required": ["source", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "$ref": "#/$defs/source" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "label", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "key": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" },
+              "label": { "type": "string", "minLength": 1, "description": "Evidence level in funnel order." },
+              "count": { "type": "integer", "minimum": 0, "description": "Observed distinct recorded roadmap steps at this evidence level; not raw job totals or a guessed conversion rate." },
+              "note": { "type": "string", "description": "Optional explanation of what evidence qualifies at this level." }
+            }
+          }
+        }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "description": "Portfolio lines in rank order (first = rank 1).",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "stage",
+          "plan"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "description": "Short id, e.g. 'O5'; used in answer keys."
+          },
+          "name": {
+            "type": "string",
+            "description": "Plain name."
+          },
+          "stage": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Index into stages."
+          },
+          "plan": {
+            "type": "boolean",
+            "description": "Has a dated plan. Without one, planned phases and the gate are hidden ('Plans as they are') and shown from draft ('Every plan written')."
+          },
+          "weight": {
+            "type": "string",
+            "description": "Current weight key. Default the weight with factor 1."
+          },
+          "linkedElapsedHours7d": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Historical elapsed time from linked steward delegations in the trailing seven days; omit when unknown."
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/phase"
+            },
+            "description": "Dated phases: done, active and (with a plan) planned."
+          },
+          "gate": {
+            "$ref": "#/$defs/gate"
+          },
+          "draft": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The draft plan for a line without a dated plan, shown in 'Every plan written'.",
+            "properties": {
+              "phases": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/phase"
+                },
+                "description": "Draft planned phases."
+              },
+              "gate": {
+                "$ref": "#/$defs/gate"
+              }
+            }
+          },
+          "steps": {
+            "type": "array",
+            "description": "Steps to first money in order.",
+            "items": {
+              "type": "object",
+              "required": [
+                "label"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "description": "Step."
+                },
+                "state": {
+                  "enum": [
+                    "done",
+                    "active",
+                    "blocked"
+                  ],
+                  "description": "Omit for not started."
+                }
+              }
+            }
+          },
+          "blockers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "What blocks or slows it, in plain words."
+          },
+          "noMoneyDate": {
+            "type": "string",
+            "description": "Why there is no money date, when gate is absent by design."
+          },
+          "slip": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The gate forecast at each saved review, oldest first (slip history).",
+            "properties": {
+              "source": {
+                "$ref": "#/$defs/source"
+              },
+              "reviews": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "from",
+                    "to"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string",
+                      "description": "Review label, e.g. '10 Nov'."
+                    },
+                    "from": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Earliest likely date at that review."
+                    },
+                    "to": {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "Latest likely date at that review."
+                    }
+                  }
+                },
+                "description": "One entry per saved review, oldest first; at least two show movement."
+              }
+            }
+          }
+        }
+      }
+    },
+    "technical": {
+      "$ref": "#/$defs/technical"
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "description": "Data provenance for one section, shown as a badge. 'unavailable' replaces the section's chart with a plain notice.",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "real",
+            "partial",
+            "unavailable"
+          ],
+          "description": "real: measured; partial: some parts measured, the rest missing (say which in note); unavailable: the source is missing."
+        },
+        "label": {
+          "type": "string",
+          "description": "Where the data comes from, e.g. 'Agent Manager forecast'."
+        },
+        "note": {
+          "type": "string",
+          "description": "What is missing or how it was measured; shown on tap and in the unavailable notice."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the source was read."
+        }
+      }
+    },
+    "technical": {
+      "type": "array",
+      "description": "IDs, rules and evidence for the agent that acts, in a collapsed section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Term."
+          },
+          "value": {
+            "type": "string",
+            "description": "Value."
+          }
+        }
+      }
+    },
+    "tone": {
+      "description": "Colour: a series number 1-8 (1 blue, 2 orange, 3 amber, 4 pink, 5 violet, 6 green, 7 slate, 8 teal) or a named tone.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        {
+          "enum": [
+            "accent",
+            "good",
+            "warn",
+            "crit",
+            "muted",
+            "ink"
+          ]
+        }
+      ]
+    },
+    "phase": {
+      "type": "object",
+      "required": [
+        "from",
+        "to",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "One dated phase of a line.",
+      "properties": {
+        "from": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start."
+        },
+        "to": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End."
+        },
+        "label": {
+          "type": "string",
+          "description": "What happens."
+        },
+        "state": {
+          "enum": [
+            "done",
+            "active",
+            "planned"
+          ],
+          "description": "Default planned."
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "required": [
+        "label",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false,
+      "description": "The first-money gate as a likely date range.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "e.g. 'First subscriber'."
+        },
+        "from": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Earliest likely date."
+        },
+        "to": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Latest likely date."
+        }
+      }
+    }
+  }
+}

@@ -26,7 +26,7 @@ var notificationDependents = []string{"notification_events", "delivery_attempts"
 // askDependents are the tables whose rows exist only for an ask, leaves first.
 // ask_attachments and ask_attachment_entries are the references that keep an
 // attachment blob alive: once they go, the next attachment sweep reclaims it.
-var askDependents = []string{"answer_identity", "answers", "escalation_steps", "ask_revisions", "ask_event_ids", "ask_context_requests", "ask_attachment_entries", "ask_attachments"}
+var askDependents = []string{"answer_identity", "answer_image_refs", "answers", "escalation_steps", "ask_revisions", "ask_event_ids", "ask_context_requests", "ask_attachment_entries", "ask_attachments"}
 
 // resolvedAskBefore selects the asks Retain removes: resolved ones whose
 // resolution is older than the cutoff. An open ask is never removed, however

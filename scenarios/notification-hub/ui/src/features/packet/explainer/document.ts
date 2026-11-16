@@ -139,6 +139,8 @@ export interface ExplainerDocumentOptions {
   dataUrls: ReadonlyMap<string, string>;
   /** The references that stay placeholders and open the viewer instead. */
   deferred: readonly ReferenceTarget[];
+  /** Read-only host context made available to the sealed page bridge. */
+  context?: { kind: string; recurrence: unknown };
 }
 
 // A script or style body must not be able to close its own element.
@@ -182,6 +184,7 @@ export function buildExplainerDocument(html: string, options: ExplainerDocumentO
     element(doc, "meta", { "http-equiv": "Content-Security-Policy", content: EXPLAINER_CSP }),
     element(doc, "style", { "data-hub": "base" }, EXPLAINER_BASE_CSS),
     ...(kitOff ? [] : [element(doc, "style", { "data-hub": "kit" }, inertStyle(options.kitCss))]),
+    ...(options.context ? [element(doc, "script", { id: "hub-context", type: "application/json" }, JSON.stringify(options.context).replace(/</g, "\\u003c"))] : []),
     element(doc, "script", { "data-hub": "bridge" }, inertScript(options.bridgeJs)),
     ...(kitOff || !options.kitJs ? [] : [element(doc, "script", { "data-hub": "kit" }, inertScript(options.kitJs))]),
   ];

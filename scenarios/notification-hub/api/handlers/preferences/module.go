@@ -5,14 +5,17 @@
 // there are no proto changes and no generated-client dependency.
 //
 // Read-only catalog and preference views use the installation's configured
-// recipient. Preference writes still resolve a verified owner identity. The
-// module mounts behind optional owner-context middleware, which does not itself
-// reject unauthenticated reads.
+// recipient. In production, writes require a verified identity that resolves
+// to the same recipient; this prevents a successful save from landing in a
+// different preference account than the one the UI reads. The module mounts
+// behind optional owner-context middleware, which does not itself reject reads.
 package preferences
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -43,9 +46,9 @@ func ModuleWithVerifier(store *preferences.Storage, verifier identity.Verifier) 
 	return ModuleWithRecipientResolver(store, nil, verifier)
 }
 
-// ModuleWithRecipientResolver scopes read-only preference views to the
-// installation's configured recipient while writes continue to use verified
-// identity.Subject.
+// ModuleWithRecipientResolver scopes reads to the installation's configured
+// recipient and rejects writes by another verified subject. Without a
+// configured recipient, writes use their verified subject as their own key.
 func ModuleWithRecipientResolver(store *preferences.Storage, recipient func(context.Context) string, verifier identity.Verifier) module.Module {
 	h := &handler{store: store, verifier: verifier, recipient: recipient}
 	return module.Module{Name: "preferences", Mount: func(r *mux.Router) {
@@ -198,13 +201,36 @@ func (h *handler) putPreference(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthenticated", http.StatusUnauthorized)
 		return
 	}
+	if recipient := h.configuredRecipient(r.Context()); recipient != "" && subject != recipient {
+		http.Error(w, "verified identity is not the configured notification recipient", http.StatusForbidden)
+		return
+	}
+	rawBody, err := io.ReadAll(io.LimitReader(r.Body, 64*1024+1))
+	if err != nil {
+		http.Error(w, "invalid preference body", http.StatusBadRequest)
+		return
+	}
+	if len(rawBody) > 64*1024 {
+		http.Error(w, "preference body is too large", http.StatusRequestEntityTooLarge)
+		return
+	}
 	var body putPreferenceRequest
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(rawBody))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&body); err != nil {
+		http.Error(w, "invalid preference body", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		http.Error(w, "invalid preference body", http.StatusBadRequest)
 		return
 	}
 	if strings.TrimSpace(body.SourceScenario) == "" {
 		http.Error(w, "source_scenario is required", http.StatusBadRequest)
+		return
+	}
+	if len(body.SourceScenario) > 128 || len(body.Category) > 128 || len(body.ScopeKey) > 256 || len(body.MinUrgency) > 16 || len(body.ChannelOverride) > 128 {
+		http.Error(w, "preference field is too long", http.StatusBadRequest)
 		return
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)

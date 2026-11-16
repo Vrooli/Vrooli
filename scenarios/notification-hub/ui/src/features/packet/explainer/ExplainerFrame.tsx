@@ -14,15 +14,21 @@ import kitCss from "./kit/kit.css?raw";
 import kitJs from "./kit/kit.js?raw";
 import { pageColorScheme, pageTheme } from "./theme";
 import { useExplainerPage } from "./useExplainerPage";
+import { renderKitTemplate } from "./kitTemplate";
 
 interface ExplainerFrameProps {
   askId: string;
-  explainer: AskAttachment;
+  kind?: string;
+  recurrence?: unknown;
+  templateName?: string;
+  templateData?: import("@bufbuild/protobuf").JsonObject;
+  explainer?: AskAttachment;
   attachments: readonly AskAttachment[];
   /** The page asked to open an attachment (already known to be a valid name). */
   onOpen: (name: string, path: string) => void;
   /** The page asked to fill one question of the Hub form; the operator still sends. */
   onPrefill: (questionId: string, value: unknown) => void;
+  onAnswerChange?: (change: { type: "answer"; operation: "set"; key: string; label: string; value: unknown } | { type: "answer"; operation: "remove"; key: string }) => void;
 }
 
 /**
@@ -31,10 +37,12 @@ interface ExplainerFrameProps {
  * the Hub's cookies, storage or API), under a CSP that allows no network. It
  * can inform and pre-fill; only the Hub's own form answers.
  */
-export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefill }: ExplainerFrameProps) {
+export function ExplainerFrame({ askId, kind, recurrence, templateName, templateData, explainer, attachments, onOpen, onPrefill, onAnswerChange }: ExplainerFrameProps) {
   const { t } = useTranslation();
   const { resolved: theme } = useTheme();
   const page = useExplainerPage(askId, explainer, attachments);
+  const kitPage = useMemo(() => templateName ? renderKitTemplate(templateName, templateData) : null, [templateName, templateData]);
+  const pageHtml = templateName && !explainer ? kitPage?.html || "" : page.data?.html || "";
   const frame = useRef<HTMLIFrameElement>(null);
   const [height, setHeight] = useState(MIN_FRAME_HEIGHT * 2);
   // The theme is part of the document only when it is built. A later switch is
@@ -42,22 +50,23 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
   const initialTheme = useRef(theme);
   const srcDoc = useMemo(
     () =>
-      page.data
-        ? buildExplainerDocument(page.data.html, {
+      pageHtml
+        ? buildExplainerDocument(pageHtml, {
             kitCss,
             kitJs,
             bridgeJs: frameBridgeJs,
             theme: initialTheme.current,
-            dataUrls: page.data.dataUrls,
-            deferred: page.data.deferred,
+            dataUrls: templateName ? new Map<string, string>() : page.data?.dataUrls ?? new Map<string, string>(),
+            deferred: templateName ? [] : page.data?.deferred ?? [],
+            context: { kind: kind ?? "decision", recurrence: recurrence ?? { count: 0, dates: [], previousAnswers: [] } },
           })
         : "",
-    [page.data],
+    [page.data, pageHtml, templateName, kind, recurrence],
   );
 
   // The frame's own color-scheme is the theme the page is shown in, so the
   // page's prefers-color-scheme and the canvas behind it agree with its colours.
-  const scheme = useMemo(() => (page.data ? pageColorScheme(page.data.html, kitCss) : "both"), [page.data]);
+  const scheme = useMemo(() => (pageHtml ? pageColorScheme(pageHtml, kitCss) : "both"), [pageHtml]);
   const frameTheme = pageTheme(scheme, theme);
 
   const known = useRef(attachments);
@@ -72,11 +81,12 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
       if (message.type === "height") setHeight(message.height);
       else if (message.type === "open") {
         if (known.current.some((attachment) => attachment.name === message.name)) onOpen(message.name, message.path);
-      } else onPrefill(message.questionId, message.value);
+      } else if (message.type === "prefill") onPrefill(message.questionId, message.value);
+      else onAnswerChange?.(message);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [onOpen, onPrefill]);
+  }, [onOpen, onPrefill, onAnswerChange]);
 
   useEffect(() => {
     frame.current?.contentWindow?.postMessage({ hub: BRIDGE_PROTOCOL, type: "theme", theme }, "*");
@@ -97,15 +107,16 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
           {t(strings.packet.explainer.sealed)}
         </span>
       </header>
-      {page.isPending && <p role="status" className="px-[var(--page-gutter)] py-6 text-sm text-app-muted-foreground md:px-3">{t(strings.packet.explainer.loading)}</p>}
-      {page.isError && (
+      {templateName && kitPage?.error && <p role="alert" className="px-[var(--page-gutter)] py-4 text-sm text-app-danger md:px-3">{kitPage.error}</p>}
+      {!templateName && page.isPending && <p role="status" className="px-[var(--page-gutter)] py-6 text-sm text-app-muted-foreground md:px-3">{t(strings.packet.explainer.loading)}</p>}
+      {!templateName && page.isError && (
         <div role="alert" className="flex flex-col items-start gap-3 px-[var(--page-gutter)] py-4 text-sm md:px-3">
           <p>{t(strings.packet.explainer.failed)}</p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" onClick={() => void page.refetch()}>
               {t(strings.packet.explainer.retry)}
             </Button>
-            <Button type="button" variant="outline" onClick={() => onOpen(explainer.name, "")}>
+            <Button type="button" variant="outline" onClick={() => explainer && onOpen(explainer.name, "")}>
               {t(strings.packet.explainer.openFile)}
             </Button>
           </div>
@@ -114,7 +125,7 @@ export function ExplainerFrame({ askId, explainer, attachments, onOpen, onPrefil
       {srcDoc && (
         <iframe
           ref={frame}
-          title={t(strings.packet.explainer.frameTitle, { name: explainer.label || explainer.name })}
+          title={t(strings.packet.explainer.frameTitle, { name: explainer?.label || explainer?.name || templateName || "page" })}
           sandbox="allow-scripts"
           // The kit's Copy button for a command the operator must run; without
           // it the kit selects the text so a long-press copies it.

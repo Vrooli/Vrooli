@@ -60,3 +60,13 @@ func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
 	require.NotPanics(t, func() { handler.ServeHTTP(rec, req) })
 	require.Equal(t, http.StatusOK, rec.Code)
 }
+
+func TestLoggingMiddlewareDoesNotLogCredentialBody(t *testing.T) {
+	clk := scheduletest.New(time.Now())
+	buf := &bytes.Buffer{}
+	handler := middleware.NewLoggingMiddleware(clk, log.New(buf, "", 0))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	req := httptest.NewRequest(http.MethodPost, "/vrooli.notification_hub.v1.conversations.ConversationsService/AnswerRootWithPassword", bytes.NewBufferString(`{"password":"private-password","totpCode":"123456"}`))
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	require.NotContains(t, buf.String(), "private-password")
+	require.NotContains(t, buf.String(), "123456")
+}

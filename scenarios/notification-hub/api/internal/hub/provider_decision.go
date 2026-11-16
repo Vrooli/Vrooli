@@ -8,13 +8,15 @@ import (
 )
 
 const (
-	ProviderDecisionScopeRule      = "provider_rule"
-	ProviderDecisionScopeAgreement = "provider_agreement"
-	AnswerIdentityKindUnknown      = "unknown"
-	AnswerIdentityKindHuman        = "verified_human"
-	AnswerIdentitySourceAccess     = "cloudflare_access"
-	AnswerIdentitySourceLocal      = "personal_local"
-	providerDecisionCorrelationKey = "notification_hub.provider_decision_context.v1"
+	ProviderDecisionScopeRule           = "provider_rule"
+	ProviderDecisionScopeAgreement      = "provider_agreement"
+	ProviderDecisionScopeRootRebaseline = "root_rebaseline"
+	AnswerIdentityKindUnknown           = "unknown"
+	AnswerIdentityKindHuman             = "verified_human"
+	AnswerIdentitySourceAccess          = "cloudflare_access"
+	AnswerIdentitySourcePassword        = "scenario_authenticator_step_up"
+	AnswerIdentitySourceLocal           = "personal_local"
+	providerDecisionCorrelationKey      = "notification_hub.provider_decision_context.v1"
 )
 
 var providerTermsSHA256 = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -40,7 +42,7 @@ func normalizeProviderDecisionContext(context *ProviderDecisionContext) (*Provid
 	if !providerTermsSHA256.MatchString(normalized.CanonicalTermsSHA256) {
 		return nil, fmt.Errorf("%w: provider decision context requires a lowercase SHA-256 digest", ErrInvalidArgument)
 	}
-	if normalized.Scope != ProviderDecisionScopeRule && normalized.Scope != ProviderDecisionScopeAgreement {
+	if normalized.Scope != ProviderDecisionScopeRule && normalized.Scope != ProviderDecisionScopeAgreement && normalized.Scope != ProviderDecisionScopeRootRebaseline {
 		return nil, fmt.Errorf("%w: provider decision context scope is unsupported", ErrInvalidArgument)
 	}
 	return &normalized, nil

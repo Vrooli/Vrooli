@@ -1,0 +1,1036 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "notification-hub/kit/daily-briefing.schema.json",
+  "title": "Daily steward briefing",
+  "description": "Data for templates/daily-briefing.html: the portfolio steward's daily status update. Sent as a status update (Mark read closes it). The pace switch drives the schedule: choosing a tier swaps the slot schedule, the opportunity share and the moved-later list to schedules[tier], which the steward precomputes for every tier. Changes arrive in the answer as 'pace' (tier key) and 'steer' (steer key); absent keys mean no change. Omit a section, or set its source.status 'unavailable', rather than estimating.",
+  "type": "object",
+  "required": [
+    "meta"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "template": {
+      "const": "daily-briefing",
+      "description": "Optional self-identification; when present must be 'daily-briefing'."
+    },
+    "meta": {
+      "type": "object",
+      "required": [
+        "title"
+      ],
+      "additionalProperties": false,
+      "description": "Page header.",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The day's headline in one sentence."
+        },
+        "lede": {
+          "type": "string",
+          "description": "Two to four sentences: what changed, what today's plan does, when it starts."
+        },
+        "producer": {
+          "type": "string",
+          "description": "Who sends it, e.g. 'Portfolio steward'."
+        },
+        "sentAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the briefing was produced; also the Now marker on the schedule."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "IANA time zone for every time on the page. Default: the device's zone."
+        },
+        "notice": {
+          "type": "string",
+          "description": "Optional note under the header, e.g. that the data is a sample."
+        }
+      }
+    },
+    "laneKinds": {
+      "type": "object",
+      "description": "The kinds of work (lanes), keyed by lane key. Used by the lanes chart, the schedule colours and the share bars.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "label",
+          "tone"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Plain name, e.g. 'Opportunity work'."
+          },
+          "tone": {
+            "$ref": "#/$defs/tone"
+          }
+        }
+      }
+    },
+    "opportunityLane": {
+      "type": "string",
+      "description": "Lane key whose share is reported as the opportunity share. Default 'delivery'."
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "title",
+        "amount",
+        "start",
+        "deadline"
+      ],
+      "additionalProperties": false,
+      "description": "The money target: earned so far against a dated amount, with the pace needed from today.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading, e.g. '$1,000 earned by 30 November'."
+        },
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Target amount."
+        },
+        "currency": {
+          "type": "string",
+          "description": "ISO 4217 code. Default USD."
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Left edge of the chart."
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the target is due (right edge)."
+        },
+        "now": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Today marker. Default meta.sentAt."
+        },
+        "earned": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "t",
+              "amount"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "t": {
+                "type": "string",
+                "format": "date-time",
+                "description": "Date of the cumulative figure."
+              },
+              "amount": {
+                "type": "number",
+                "description": "Cumulative confirmed earnings at t."
+              }
+            }
+          },
+          "description": "Cumulative confirmed earnings, oldest first. The last value is 'earned so far'."
+        },
+        "earnedLabel": {
+          "type": "string",
+          "description": "Legend label for the earned line, e.g. 'Earned (owner-reported)'."
+        },
+        "pendingLabel": {
+          "type": "string",
+          "description": "Short note drawn beside today's value, e.g. '$10 pending'."
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/pill"
+          },
+          "description": "Warnings about the figure, e.g. 'Earnings not checked since 30 Oct'."
+        }
+      }
+    },
+    "tiles": {
+      "type": "object",
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false,
+      "description": "Headline numbers under the target.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tile"
+          },
+          "description": "Two to four tiles."
+        }
+      }
+    },
+    "lanes": {
+      "type": "object",
+      "required": [
+        "title",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "Planned against actual share of agent hours by lane, drawn as a dumbbell chart.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "period": {
+          "type": "string",
+          "description": "Period label, e.g. 'Last 7 days'."
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading, e.g. 'Where 289 agent hours went, against the plan'."
+        },
+        "totalHours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total agent hours in the period (for 'over plan by N h'). Default: sum of rows."
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "lane",
+              "planned",
+              "actual"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "lane": {
+                "type": "string",
+                "description": "Lane key in laneKinds."
+              },
+              "planned": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Planned share, 0 to 1."
+              },
+              "actual": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Actual share, 0 to 1."
+              },
+              "hours": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Actual hours."
+              }
+            }
+          },
+          "description": "One row per lane, largest first."
+        },
+        "summary": {
+          "type": "string",
+          "description": "One or two sentences under the chart."
+        }
+      }
+    },
+    "funnel": {
+      "type": "object",
+      "required": [
+        "title",
+        "steps"
+      ],
+      "additionalProperties": false,
+      "description": "Jobs at each step from started to an opportunity moving forward.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading."
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Step name."
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Jobs that reached this step."
+              },
+              "note": {
+                "type": "string",
+                "description": "Where the rest went."
+              },
+              "tone": {
+                "$ref": "#/$defs/tone"
+              }
+            }
+          },
+          "description": "Steps, widest first."
+        },
+        "zeros": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "value",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "type": "number",
+                "description": "Count (0 is shown in red)."
+              },
+              "label": {
+                "type": "string",
+                "description": "What was counted."
+              }
+            }
+          },
+          "description": "Outcome counts shown under the funnel."
+        },
+        "summary": {
+          "type": "string",
+          "description": "What the funnel means."
+        }
+      }
+    },
+    "lostHours": {
+      "type": "object",
+      "required": [
+        "title",
+        "parts"
+      ],
+      "additionalProperties": false,
+      "description": "Agent hours by what they were spent on (friction classification), drawn as one proportion bar.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading."
+        },
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "hours"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "Category, e.g. 'Stopped by permission or identity checks'."
+              },
+              "hours": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Hours."
+              },
+              "tone": {
+                "$ref": "#/$defs/tone"
+              }
+            }
+          },
+          "description": "Categories, productive work first."
+        }
+      }
+    },
+    "friction": {
+      "type": "object",
+      "required": [
+        "title",
+        "rows"
+      ],
+      "additionalProperties": false,
+      "description": "Recurring friction patterns across runs, each with its daily counts and the steward's response.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading."
+        },
+        "intro": {
+          "type": "string",
+          "description": "One or two sentences above the list."
+        },
+        "periodDays": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Days covered by daily[]."
+        },
+        "responseLabel": {
+          "type": "string",
+          "description": "Label before each response. Default 'My response'."
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "title",
+              "runs"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "The pattern in plain words."
+              },
+              "runs": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Runs affected in the period."
+              },
+              "hours": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Hours lost."
+              },
+              "daily": {
+                "type": "array",
+                "items": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "description": "Runs affected per day, oldest first (sparkline; all rows share one scale)."
+              },
+              "observation": {
+                "type": "string",
+                "description": "What the agents did."
+              },
+              "response": {
+                "type": "string",
+                "description": "What the steward is doing about it."
+              }
+            }
+          },
+          "description": "Patterns, most costly first."
+        }
+      }
+    },
+    "pace": {
+      "type": "object",
+      "required": [
+        "tiers"
+      ],
+      "additionalProperties": false,
+      "description": "How fast to spend the allowance. One tier per pace; a tier with known slots must have schedules[tier] with the same slots. Choosing a tier records answer key 'pace' = tier key. The tiers work without the timeline: omit window (or give window.source status unavailable) when no real readings or projection exist.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading."
+        },
+        "current": {
+          "type": "string",
+          "description": "Tier in force now (selected when the page opens; choosing it again clears the change)."
+        },
+        "yMin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 90,
+          "description": "Bottom of the chart's percent axis, to zoom in. Default 0."
+        },
+        "window": {
+          "type": "object",
+          "required": [
+            "now",
+            "reset"
+          ],
+          "additionalProperties": false,
+          "description": "The allowance timeline. Optional: without it the chart says the timeline is unavailable and the tier choice still works.",
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "start": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Left edge of the chart. Default now."
+            },
+            "now": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Projection anchor."
+            },
+            "reset": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Provider reset (right edge)."
+            },
+            "used": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "description": "Used percent now, when no readings are sent."
+            },
+            "readings": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/reading"
+              },
+              "description": "Recent readings up to now, oldest first."
+            }
+          }
+        },
+        "tiers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "label",
+              "slots"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "description": "Tier key, also the key into schedules and the 'pace' answer value."
+              },
+              "label": {
+                "type": "string",
+                "description": "e.g. 'Use it by Thursday'."
+              },
+              "slots": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "description": "Agents at once (admission ceiling) at this pace; null when the slot forecast is unavailable (the page says so, and that tier has no contingency schedule)."
+              },
+              "runOut": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "Projected run-out, or null when it lasts to the reset."
+              },
+              "endUsed": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Used percent at the reset when it lasts."
+              },
+              "extraJobs": {
+                "type": "integer",
+                "description": "Jobs finished before the reset beyond the default tier."
+              },
+              "idleHours": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Hours with no agents between run-out and reset."
+              },
+              "note": {
+                "type": "string",
+                "description": "One sentence on what this pace means."
+              },
+              "points": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/reading"
+                },
+                "description": "Projected used percent after now at this pace."
+              }
+            }
+          },
+          "description": "One entry per pace tier, slowest first. The tier in force is pace.current."
+        }
+      }
+    },
+    "schedule": {
+      "type": "object",
+      "required": [
+        "start"
+      ],
+      "additionalProperties": false,
+      "description": "Shared settings for the slot schedule.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "start": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Schedule start (left edge)."
+        },
+        "hours": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 72,
+          "description": "Hours shown. Default 24."
+        },
+        "steers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "description": "Steer key; the 'steer' answer value and the key into schedules[tier].steers."
+              },
+              "label": {
+                "type": "string",
+                "description": "e.g. 'More on books'."
+              },
+              "weights": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "description": "Lane weights this steer applies, keyed by lane (sum 1). The page shows them; the producer applies them when the answer's 'steer' is this key."
+              }
+            }
+          },
+          "description": "Steers the operator can preview. 'As planned' is added by the page."
+        }
+      }
+    },
+    "schedules": {
+      "type": "object",
+      "description": "The precomputed contingency schedule for each pace tier, keyed by tier key. Required for every tier with known slots; a tier missing here shows today's plan with a note.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "slots",
+          "blocks"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "slots": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Agent slots at this tier; rows of the schedule."
+          },
+          "blocks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/block"
+            },
+            "description": "Jobs per slot."
+          },
+          "movedLater": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/moved"
+            },
+            "description": "Jobs that do not fit in the window at this tier, and when they run instead."
+          },
+          "steers": {
+            "type": "object",
+            "description": "This tier's schedule under each steer, keyed by steer key. A steer missing here is shown as 'not precomputed at this pace'.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "blocks"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "blocks": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/block"
+                  },
+                  "description": "Jobs per slot under the steer; mark changed blocks with changed: true."
+                },
+                "movedLater": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/moved"
+                  },
+                  "description": "Jobs the steer pushes out, and when they run instead."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "setAside": {
+      "type": "object",
+      "required": [
+        "title",
+        "groups"
+      ],
+      "additionalProperties": false,
+      "description": "Jobs not started, grouped by reason.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading."
+        },
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "label",
+              "count"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": "string",
+                "description": "Group key."
+              },
+              "label": {
+                "type": "string",
+                "description": "The reason."
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Jobs in the group."
+              },
+              "tone": {
+                "$ref": "#/$defs/tone"
+              },
+              "why": {
+                "type": "string",
+                "description": "One sentence."
+              },
+              "items": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "The jobs (or summaries of them)."
+              }
+            }
+          },
+          "description": "Groups, as the reasons split."
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "required": [
+        "title",
+        "items"
+      ],
+      "additionalProperties": false,
+      "description": "What is holding work back, worst first.",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "title": {
+          "type": "string",
+          "description": "Heading."
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "title"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string",
+                "description": "The constraint."
+              },
+              "severity": {
+                "enum": [
+                  "crit",
+                  "warn",
+                  "good"
+                ],
+                "description": "Colour of the side bar; omit for neutral."
+              },
+              "pill": {
+                "$ref": "#/$defs/pill"
+              },
+              "text": {
+                "type": "string",
+                "description": "One or two sentences."
+              },
+              "tags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Short tags (affected items)."
+              },
+              "doing": {
+                "type": "string",
+                "description": "What is being done now."
+              }
+            }
+          },
+          "description": "Constraints in order of how much work they hold back."
+        }
+      }
+    },
+    "technical": {
+      "$ref": "#/$defs/technical"
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "description": "Data provenance for one section, shown as a badge. 'unavailable' replaces the section's chart with a plain notice.",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "real",
+            "partial",
+            "unavailable"
+          ],
+          "description": "real: measured; partial: some parts measured, the rest missing (say which in note); unavailable: the source is missing."
+        },
+        "label": {
+          "type": "string",
+          "description": "Where the data comes from, e.g. 'Agent Manager forecast'."
+        },
+        "note": {
+          "type": "string",
+          "description": "What is missing or how it was measured; shown on tap and in the unavailable notice."
+        },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the source was read."
+        }
+      }
+    },
+    "pill": {
+      "type": "object",
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "A short status label on a card.",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Label text, e.g. 'Runs out'."
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "warn",
+            "crit",
+            "info"
+          ],
+          "description": "Colour: good green, warn amber, crit red, info accent."
+        }
+      }
+    },
+    "technical": {
+      "type": "array",
+      "description": "IDs, rules and evidence for the agent that acts, in a collapsed section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Term."
+          },
+          "value": {
+            "type": "string",
+            "description": "Value."
+          }
+        }
+      }
+    },
+    "tone": {
+      "description": "Colour: a series number 1-8 (1 blue, 2 orange, 3 amber, 4 pink, 5 violet, 6 green, 7 slate, 8 teal) or a named tone.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        {
+          "enum": [
+            "accent",
+            "good",
+            "warn",
+            "crit",
+            "muted",
+            "ink"
+          ]
+        }
+      ]
+    },
+    "tile": {
+      "type": "object",
+      "required": [
+        "value",
+        "text"
+      ],
+      "additionalProperties": false,
+      "description": "One headline number.",
+      "properties": {
+        "value": {
+          "type": [
+            "number",
+            "string"
+          ],
+          "description": "The number (or a short value such as '3d 15h')."
+        },
+        "unit": {
+          "type": "string",
+          "description": "Small text after the value, e.g. '%' or ' of 14'."
+        },
+        "text": {
+          "type": "string",
+          "description": "What the number counts."
+        },
+        "tone": {
+          "enum": [
+            "good",
+            "warn",
+            "crit"
+          ],
+          "description": "Side bar colour; omit for neutral."
+        }
+      }
+    },
+    "reading": {
+      "type": "object",
+      "required": [
+        "t",
+        "used"
+      ],
+      "additionalProperties": false,
+      "description": "One observed or projected used percent.",
+      "properties": {
+        "t": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Time."
+        },
+        "used": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Used percent."
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "required": [
+        "slot",
+        "from",
+        "to",
+        "lane",
+        "label"
+      ],
+      "additionalProperties": false,
+      "description": "One job in the slot schedule.",
+      "properties": {
+        "slot": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Slot row, 1-based."
+        },
+        "from": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start."
+        },
+        "to": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End."
+        },
+        "lane": {
+          "type": "string",
+          "description": "Lane key in laneKinds."
+        },
+        "label": {
+          "type": "string",
+          "description": "The job in plain words."
+        },
+        "running": {
+          "type": "boolean",
+          "description": "Already running at the schedule start."
+        },
+        "changed": {
+          "type": "boolean",
+          "description": "Differs from the plan without the steer (outlined)."
+        }
+      }
+    },
+    "moved": {
+      "type": "object",
+      "required": [
+        "label",
+        "to"
+      ],
+      "additionalProperties": false,
+      "description": "A job pushed out of the window.",
+      "properties": {
+        "label": {
+          "type": "string",
+          "description": "The job."
+        },
+        "to": {
+          "type": "string",
+          "description": "When it runs instead, e.g. 'Tue'."
+        }
+      }
+    }
+  }
+}

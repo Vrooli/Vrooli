@@ -4,15 +4,18 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/hubsender"
+	apiidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/principalrole"
 	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/scopecatalog"
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -228,7 +231,35 @@ func Owner(ctx context.Context, headers http.Header, verifier Verifier) (ownerid
 	if strings.TrimSpace(identity.Subject) == "" {
 		return owneridentity.Identity{}, errors.New("verified identity has no subject")
 	}
+	bindings, err := OwnerBindings()
+	if err != nil {
+		return owneridentity.Identity{}, owneridentity.ErrUnavailable
+	}
+	for _, binding := range bindings {
+		// The legacy owner surface authorizes writes as well as reads. Do not
+		// turn a read-only binding into full owner access by mapping its subject.
+		if binding.Source == apiidentity.SourceScenarioAuthenticator && binding.Subject == identity.Subject && scopecatalog.MatchCapability(binding.Scopes, "notification-hub:write") {
+			identity.Subject = binding.CanonicalSubject
+			break
+		}
+	}
 	return identity, nil
+}
+
+// OwnerBindings uses the shared policy parser and this relying scenario's
+// resource filter. Only exact verified provider subjects can be mapped.
+func OwnerBindings() ([]authn.OwnerBinding, error) {
+	cfg, err := authn.FromEnvironment(func(key string) string {
+		switch key {
+		case "VROOLI_AUTH_PROVIDERS":
+			return ""
+		case "VROOLI_SCENARIO":
+			return "notification-hub"
+		default:
+			return os.Getenv(key)
+		}
+	})
+	return cfg.OwnerBindings, err
 }
 
 // AnsweredBy returns the ACTUAL verified human behind the request — the

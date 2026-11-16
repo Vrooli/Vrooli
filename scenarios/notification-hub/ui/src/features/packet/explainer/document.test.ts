@@ -71,6 +71,15 @@ describe("buildExplainerDocument", () => {
     expect(parse(html).documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
+  it("embeds the host kind and recurrence as inert JSON before the bridge runs", () => {
+    const html = buildExplainerDocument("<p>status</p>", options({ context: { kind: "status", recurrence: { count: 3, dates: ["2026-11-15"] } } }));
+    const doc = parse(html);
+    const context = doc.getElementById("hub-context");
+    expect(context?.getAttribute("type")).toBe("application/json");
+    expect(JSON.parse(context?.textContent ?? "{}")).toEqual({ kind: "status", recurrence: { count: 3, dates: ["2026-11-15"] } });
+    expect(doc.head.querySelector("#hub-context")?.nextElementSibling?.getAttribute("data-hub")).toBe("bridge");
+  });
+
   // A page whose literal colours only work in light is shown in light even when
   // the Hub is dark, and the lock tells the bridge to ignore theme changes.
   it("keeps a page written for one scheme in that scheme and locks it there", () => {

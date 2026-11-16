@@ -36,6 +36,13 @@ function SessionExpiryProbe() {
 }
 
 describe("SessionGate", () => {
+  it("does not offer sign-in credentials in an insecure context", () => {
+    Object.defineProperty(window, "isSecureContext", { configurable: true, value: false });
+    renderWithProviders(<SignInForm />);
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByTestId(selectors.session.password)).not.toBeInTheDocument();
+    expect(identityClient.login).not.toHaveBeenCalled();
+  });
   beforeEach(async () => setLocale("en"));
   afterEach(() => vi.clearAllMocks());
 
@@ -49,6 +56,19 @@ describe("SessionGate", () => {
     await user.click(screen.getByTestId(selectors.session.submit));
 
     await waitFor(() => expect(identityClient.login).toHaveBeenCalledWith({ email: "owner@example.test", password: "secret" }));
+    await waitFor(() => expect(screen.getByTestId(selectors.session.password)).toHaveValue(""));
+  });
+
+  it("completes an MFA challenge before treating login as successful", async () => {
+    const user = userEvent.setup();
+    vi.mocked(identityClient.login).mockResolvedValueOnce({ mfaRequired: true, mfaChallenge: "challenge" } as never).mockResolvedValueOnce({} as never);
+    renderWithProviders(<SignInForm />);
+    await user.type(screen.getByTestId(selectors.session.email), "owner@example.test");
+    await user.type(screen.getByTestId(selectors.session.password), "secret");
+    await user.click(screen.getByTestId(selectors.session.submit));
+    await user.type(await screen.findByLabelText("Authentication code"), "123456");
+    await user.click(screen.getByTestId(selectors.session.submit));
+    await waitFor(() => expect(identityClient.login).toHaveBeenLastCalledWith({ email: "owner@example.test", password: "secret", mfaChallenge: "challenge", totpCode: "123456" }));
     await waitFor(() => expect(screen.getByTestId(selectors.session.password)).toHaveValue(""));
   });
 

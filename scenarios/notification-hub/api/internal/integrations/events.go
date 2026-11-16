@@ -375,7 +375,7 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 			writeJSONError(w, http.StatusBadRequest, fmt.Sprintf("%v: producers cannot provide title, body, or sensitivity_label", ErrProducerOwnedCopy))
 			return
 		}
-		if payload.EventType == providerDecisionRequestedEventType {
+		if payload.EventType == providerDecisionRequestedEventType || payload.EventType == RootRebaselineEventType {
 			writeJSONError(w, http.StatusForbidden, "provider decision proposals require the dedicated service identity")
 			return
 		}

@@ -83,16 +83,17 @@ func newReaderFixtureBehind(t *testing.T, behind func(http.Handler) http.Handler
 	service.SetAttachmentStore(hub.StaticBlobStore(blobstore.NewFilesystemBlobStore(t.TempDir())))
 	router := mux.NewRouter()
 	tokens := serviceTokens{
-		"svc-autoheal":    servicePrincipal("vrooli-autoheal-ask-reader"),
-		"svc-desk":        servicePrincipal("research-desk-ask-reader"),
-		"svc-storage":     servicePrincipal("storage-manager-ask-reader"),
-		"svc-backup":      servicePrincipal("data-backup-manager-ask-reader"),
-		"svc-wrong-aud":   {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: "scenario-authenticator:other", Scopes: []string{askreader.Scope}},
-		"svc-no-scope":    {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: askreader.Audience},
-		"svc-human":       {Kind: apiidentity.ActorHuman, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
-		"svc-unverified":  {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
-		"svc-other-name":  {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
-		"svc-bad-subject": {Kind: apiidentity.ActorService, Subject: "Not A Name", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
+		"svc-agent-manager": servicePrincipal("agent-manager-ask-reader"),
+		"svc-autoheal":      servicePrincipal("vrooli-autoheal-ask-reader"),
+		"svc-desk":          servicePrincipal("research-desk-ask-reader"),
+		"svc-storage":       servicePrincipal("storage-manager-ask-reader"),
+		"svc-backup":        servicePrincipal("data-backup-manager-ask-reader"),
+		"svc-wrong-aud":     {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: "scenario-authenticator:other", Scopes: []string{askreader.Scope}},
+		"svc-no-scope":      {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: askreader.Audience},
+		"svc-human":         {Kind: apiidentity.ActorHuman, Subject: "vrooli-autoheal-ask-reader", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
+		"svc-unverified":    {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal-ask-reader", Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
+		"svc-other-name":    {Kind: apiidentity.ActorService, Subject: "vrooli-autoheal", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
+		"svc-bad-subject":   {Kind: apiidentity.ActorService, Subject: "Not A Name", Verified: true, Audience: askreader.Audience, Scopes: []string{askreader.Scope}},
 		// Sender principals (see sender_test.go). One verifier answers for both
 		// roles here; each role's own audience, scope and name rule tell them apart.
 		"snd-treasury":   senderPrincipal("treasury-notification-hub"),
@@ -152,6 +153,8 @@ func (f *readerFixture) ask(t *testing.T, who, key string, extra ...func(*v1.Ask
 	msg := &v1.AskRequest{
 		Question: "Continue with " + key + "?", AllowedAnswers: []string{"yes", "no"},
 		Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), SensitivityLabel: "private", IdempotencyKey: key,
+		// These fixtures deliberately create distinct asks with similar wording.
+		AllowRelated: true,
 	}
 	for _, apply := range extra {
 		apply(msg)
@@ -324,6 +327,32 @@ func TestAServiceReadsOnlyTheEventAsksItRaised(t *testing.T) {
 	require.Equal(t, "pending", waited.Msg.GetState())
 }
 
+func TestAgentManagerAskReaderReadsSyntheticEventAnswerBySubjectKey(t *testing.T) {
+	ctx := context.Background()
+	f := newReaderFixture(t)
+	const subjectKey = "n3-synthetic:usage-mode-answer-readback"
+	result, err := f.service.AskDecision(ctx, hub.AskSpec{
+		Recipient: "alice", Source: "agent-manager", SourceEventType: "agent_manager.usage_mode.decision_requested.v1",
+		SubjectKey: subjectKey, Question: "Synthetic readback check?",
+		Options:  []hub.AskOption{{Key: "synthetic_yes", Label: "Synthetic yes"}, {Key: "synthetic_no", Label: "Synthetic no"}},
+		Deadline: time.Now().Add(time.Hour), DeadlineSpecified: true, SensitivityLabel: "private", IdempotencyKey: "n3-synthetic-event",
+	}, "")
+	require.NoError(t, err)
+
+	got, err := f.client.GetAsk(ctx, reading("bearer:svc-agent-manager", &v1.GetAskRequest{SubjectKey: subjectKey}))
+	require.NoError(t, err)
+	require.Equal(t, result.Ask.ID, got.Msg.GetAsk().GetId())
+	_, err = f.client.GetAsk(ctx, reading("bearer:svc-autoheal", &v1.GetAskRequest{SubjectKey: subjectKey}))
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "another source cannot read the ask by key")
+
+	_, err = f.client.Answer(ctx, reading("owner", &v1.AnswerRequest{AskId: result.Ask.ID, Answer: "synthetic_yes"}))
+	require.NoError(t, err)
+	readback, err := f.client.GetAsk(ctx, reading("bearer:svc-agent-manager", &v1.GetAskRequest{SubjectKey: subjectKey}))
+	require.NoError(t, err)
+	require.Equal(t, "answered", readback.Msg.GetAsk().GetState())
+	require.Equal(t, "synthetic_yes", readback.Msg.GetAsk().GetAnswer())
+}
+
 func TestAServiceReaderCannotAnswerOrDismiss(t *testing.T) {
 	ctx := context.Background()
 	f := newReaderFixture(t)
@@ -379,7 +408,7 @@ func TestOnlyTheOwnerGetsTheSourceDriftCheck(t *testing.T) {
 	require.Equal(t, "changed", changed.Msg.GetAsk().GetAttachments()[1].GetSourceStatus())
 }
 
-func TestARunThatReusesTheSubjectKeyOfAnotherOwnersAskIsToldItCannotReadIt(t *testing.T) {
+func TestSubjectRevisionRequiresAuthorityOverExistingAsk(t *testing.T) {
 	ctx := context.Background()
 	f := newReaderFixture(t)
 	subject := func(r *v1.AskRequest) { r.SubjectKey = "disk-pressure" }
@@ -406,11 +435,25 @@ func TestARunThatReusesTheSubjectKeyOfAnotherOwnersAskIsToldItCannotReadIt(t *te
 	require.False(t, restricted(revise("run:valid-run-1", "second")), "the creator is not warned about its own ask")
 	require.False(t, restricted(revise("run:valid-run-2", "third")),
 		"an unrelated run of the same owner holds the key, so it can read what it revised and is not warned")
-	require.True(t, restricted(revise("run:valid-run-3+s=another-owner", "fourth")),
-		"a run of another owner revising the ask cannot read it back, and is told so")
+	for _, who := range []string{"run:valid-run-3+s=another-owner", "run:valid-run-4+s="} {
+		_, err := f.client.Ask(ctx, reading(who, &v1.AskRequest{
+			Question: "Unauthorized replacement", AllowedAnswers: []string{"yes", "no"}, SubjectKey: "disk-pressure",
+			Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), SensitivityLabel: "private", IdempotencyKey: "unauthorized-" + who,
+		}))
+		require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	}
 	_, err := f.client.GetAsk(ctx, reading("run:valid-run-3+s=another-owner", &v1.GetAskRequest{AskId: original}))
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
-	require.True(t, restricted(revise("run:valid-run-4+s=", "fifth")), "a run with no verified owner holds no key")
+	stored, err := f.client.GetAsk(ctx, reading("owner", &v1.GetAskRequest{AskId: original}))
+	require.NoError(t, err)
+	require.Equal(t, "Continue with first?", stored.Msg.GetAsk().GetQuestion())
+	_, err = f.client.Answer(ctx, reading("owner", &v1.AnswerRequest{AskId: original, Answer: "yes"}))
+	require.NoError(t, err)
+	_, err = f.client.Ask(ctx, reading("run:valid-run-3+s=another-owner", &v1.AskRequest{
+		Question: "Continue with first?", AllowedAnswers: []string{"yes", "no"}, SubjectKey: "disk-pressure",
+		Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), SensitivityLabel: "private", IdempotencyKey: "third",
+	}))
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "a replay must not disclose a settled decision")
 }
 
 func TestARecoveredRunReadsListsAndWaitsOnItsPredecessorsAsks(t *testing.T) {
@@ -434,6 +477,21 @@ func TestARecoveredRunReadsListsAndWaitsOnItsPredecessorsAsks(t *testing.T) {
 		require.NoError(t, err, name)
 		require.Equal(t, "pending", waited.Msg.GetState(), name)
 	}
+}
+
+func TestRelatedDecisionConflictAndExplicitDistinctDecision(t *testing.T) {
+	ctx := context.Background()
+	f := newReaderFixture(t)
+	first := &v1.AskRequest{Question: "Should we back up private records to the external drive?", AllowedAnswers: []string{"yes", "no"}, IdempotencyKey: "collision-one", SubjectKey: "private-key"}
+	_, err := f.client.Ask(ctx, reading("run:valid-one+c=thread-one", first))
+	require.NoError(t, err)
+	second := &v1.AskRequest{Question: "Should we back up private records to the external disk?", AllowedAnswers: []string{"yes", "no"}, IdempotencyKey: "collision-two", SubjectKey: "different-key"}
+	_, err = f.client.Ask(ctx, reading("run:valid-two+c=thread-two", second))
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(err))
+	require.NotContains(t, err.Error(), "private-key")
+	second.AllowRelated = true
+	_, err = f.client.Ask(ctx, reading("run:valid-two+c=thread-two", second))
+	require.NoError(t, err)
 }
 
 func TestListAsksShowsOnlyTheCallersConversationLineage(t *testing.T) {

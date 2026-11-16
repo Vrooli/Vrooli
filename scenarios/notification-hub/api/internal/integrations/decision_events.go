@@ -154,6 +154,11 @@ type decisionFacts struct {
 	AcceptsContextRequests bool `json:"accepts_context_requests"`
 	// ExplainerHTML is the decision's page (operatordecision.Facts.Explainer).
 	ExplainerHTML string `json:"explainer_html"`
+	// TemplateName and TemplateData are the Notification Hub kit contract. The
+	// Hub renders them through the same schema-validated renderer used by direct
+	// producer asks, then stores the result as the inline explainer attachment.
+	TemplateName string         `json:"template_name"`
+	TemplateData map[string]any `json:"template_data"`
 	// Packet is the decision's ready-to-run packet path (operatordecision.Facts.Packet).
 	Packet string `json:"packet"`
 	// Questions is the decision's answer form (operatordecision.Facts.Questions).
@@ -219,6 +224,17 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 	if strings.TrimSpace(technicalDetails) == "" {
 		technicalDetails = facts.Note
 	}
+	templateName := strings.TrimSpace(facts.TemplateName)
+	explainerHTML := facts.ExplainerHTML
+	if templateName != "" {
+		var renderErr error
+		explainerHTML, renderErr = hub.RenderKitTemplate(templateName, facts.TemplateData)
+		if renderErr != nil {
+			return hub.AskSpec{}, fmt.Errorf("%w: decision template could not be rendered: %v", hub.ErrInvalidArgument, renderErr)
+		}
+	} else if facts.TemplateData != nil {
+		return hub.AskSpec{}, fmt.Errorf("%w: template_data requires template_name", hub.ErrInvalidArgument)
+	}
 	subject := strings.TrimSpace(facts.Subject)
 	if len(subject) > maxDecisionSubjectLength {
 		subject = subject[:maxDecisionSubjectLength]
@@ -251,7 +267,9 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		ReassertWithin:         time.Duration(facts.ReassertWithinSeconds) * time.Second,
 		AssertedAt:             assertedAt,
 		AcceptsContextRequests: facts.AcceptsContextRequests,
-		ExplainerHTML:          facts.ExplainerHTML,
+		ExplainerHTML:          explainerHTML,
+		TemplateName:           templateName,
+		TemplateData:           facts.TemplateData,
 		Packet:                 facts.Packet,
 		Questions:              facts.Questions,
 	}, nil

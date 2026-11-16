@@ -1,4 +1,5 @@
 import type { AnswerPayload, ResponsePayload } from "./answer";
+import type { JsonObject } from "@bufbuild/protobuf";
 import { emptyDraft, normalizeDraft, type AttachmentNoteDraft, type PacketDraft } from "./draft";
 
 /**
@@ -41,7 +42,9 @@ function normalizeAttempt(value: unknown): AskAttempt | undefined {
   }
   const responses = Array.isArray(value.responses) ? (value.responses as ResponsePayload[]) : [];
   const attachmentNotes = Array.isArray(value.attachmentNotes) ? (value.attachmentNotes as AttachmentNoteDraft[]) : [];
-  return { answer: value.answer, note: value.note, subject: value.subject, responses, attachmentNotes };
+  const images = Array.isArray(value.images) ? value.images.flatMap((item) => isRecord(item) && typeof item.name === "string" && typeof item.sha256 === "string" && typeof item.mediaType === "string" && typeof item.sizeBytes === "number" ? [{ name: item.name, sha256: item.sha256, mediaType: item.mediaType, sizeBytes: item.sizeBytes }] : []) : [];
+  const changes = isRecord(value.changes) ? value.changes as JsonObject : {};
+  return { answer: value.answer, note: value.note, subject: value.subject, responses, attachmentNotes, changes, images };
 }
 
 function normalizeState(value: unknown): AskState | null {

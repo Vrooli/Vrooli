@@ -12,12 +12,17 @@ export const MAX_FRAME_HEIGHT = 6000;
 const MAX_PREFILL_BYTES = 16 * 1024;
 const MAX_QUESTION_ID = 96;
 const MAX_ENTRY_PATH = 512;
+const MAX_ANSWER_BYTES = 32 * 1024;
+const MAX_ANSWER_KEY = 96;
+const MAX_ANSWER_LABEL = 160;
 const ATTACHMENT_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$/;
 
 export type BridgeMessage =
   | { type: "height"; height: number }
   | { type: "open"; name: string; path: string }
-  | { type: "prefill"; questionId: string; value: unknown };
+  | { type: "prefill"; questionId: string; value: unknown }
+  | { type: "answer"; operation: "set"; key: string; label: string; value: unknown }
+  | { type: "answer"; operation: "remove"; key: string };
 
 /**
  * The message a frame posted, or null when it must be ignored: it did not
@@ -52,6 +57,16 @@ export function parseBridgeMessage(event: Pick<MessageEvent, "source" | "data">,
         return null;
       }
       return size <= MAX_PREFILL_BYTES ? { type: "prefill", questionId, value } : null;
+    }
+    case "answer": {
+      const { operation, key } = message;
+      if (typeof key !== "string" || !key.trim() || key.length > MAX_ANSWER_KEY) return null;
+      if (operation === "remove") return { type: "answer", operation, key };
+      const { label, value } = message;
+      if (operation !== "set" || typeof label !== "string" || !label.trim() || label.length > MAX_ANSWER_LABEL) return null;
+      let size = 0;
+      try { size = JSON.stringify(value ?? null).length; } catch { return null; }
+      return size <= MAX_ANSWER_BYTES ? { type: "answer", operation, key, label, value } : null;
     }
     default:
       return null;

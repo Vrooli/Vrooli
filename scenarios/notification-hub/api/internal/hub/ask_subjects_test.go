@@ -92,6 +92,38 @@ func TestSubject_NoOpenDecisionCreatesAndDeliversOne(t *testing.T) {
 	require.Equal(t, 1, countAsks(t, db, `subject_key = ?`, subjectKey))
 }
 
+func TestVerifiedSourceReadsItsEventAskBySubjectKeyWithoutReadingDirectOrForeignAsks(t *testing.T) {
+	service, _ := testService(t)
+	registerSubscription(t, service, "alice")
+	now := time.Date(2026, 11, 16, 20, 0, 0, 0, time.UTC)
+	eventAsk := askSubject(t, service, subjectSpec(now, "evt-source-ask"))
+
+	got, err := service.GetAskBySubjectKeyFor(context.Background(), subjectKey, "alice", hub.AskAudience{Source: subjectSource})
+	require.NoError(t, err)
+	require.Equal(t, eventAsk.Ask.ID, got.ID)
+
+	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: eventAsk.Ask.ID, Answer: "retry", Actor: "alice"})
+	require.NoError(t, err)
+	got, err = service.GetAskBySubjectKeyFor(context.Background(), subjectKey, "alice", hub.AskAudience{Source: subjectSource})
+	require.NoError(t, err)
+	require.Equal(t, hub.AskAnswered, got.State)
+	require.Equal(t, "retry", got.Answer)
+
+	_, err = service.GetAskBySubjectKeyFor(context.Background(), subjectKey, "alice", hub.AskAudience{Source: "another-service"})
+	require.ErrorIs(t, err, hub.ErrNotFound)
+
+	direct := decisionSpec(now, "direct-source-ask")
+	direct.Source = subjectSource
+	direct.SourceEventType = ""
+	direct.SubjectKey = subjectKey
+	directAsk, err := service.AskDecision(context.Background(), direct, "")
+	require.NoError(t, err)
+	got, err = service.GetAskBySubjectKeyFor(context.Background(), subjectKey, "alice", hub.AskAudience{Source: subjectSource})
+	require.NoError(t, err)
+	require.Equal(t, eventAsk.Ask.ID, got.ID, "the source reader must resolve the event-sourced ask, not a same-key direct ask")
+	require.NotEqual(t, eventAsk.Ask.ID, directAsk.Ask.ID)
+}
+
 func TestSubject_IdenticalRepeatDeliversNothingAndRecordsTheReassertion(t *testing.T) {
 	service, db := testService(t)
 	sender := &recordingSender{}

@@ -253,7 +253,7 @@ func TestAgentResultsDocumentIsWhatTheCLIPrints(t *testing.T) {
 
 	// exit 0 with every typed shape
 	doc.heading(3, "Exit 0: answered")
-	doc.paragraph("`answer` is the option key the operator chose (or the default that applied), `note` their free text. `answer_summary` is the whole answer as plain text. `responses[]` holds one entry per form question the operator answered, found by `question_id`: `selected` (a list of choice keys) for `single_choice`, `multi_choice` and `variant`; `text` for `text`; `sections` (a list of `{section_key, verdict, note}`, the verdict `approve`, `change` or `drop`) for `section_review`. `attachment_notes[]` are notes the operator pinned to files. The main answer is `answer`, not a `responses[]` entry.")
+	doc.paragraph("`answer` is the option key the operator chose (or the default that applied), `note` their free text. `answer_summary` is the whole answer as plain text. `responses[]` holds one entry per form question the operator answered, found by `question_id`: `selected` (a list of choice keys) for `single_choice`, `multi_choice` and `variant`; `text` for `text`; `sections` (a list of `{section_key, verdict, note}`, the verdict `approve`, `change` or `drop`) for `section_review`. `attachment_notes[]` are notes the operator pinned to files. Page selections are in `changes`, and attached answer images are in `images[]` with their SHA-256 and media type. A status update can be marked read without an answer. The main answer is `answer`, not a `responses[]` entry.")
 	waiting = j.start(runTwo, "wait", "--subject-key", "release-check", "--json")
 	operator.answer(&v1.AnswerRequest{
 		AskId: askID, Answer: "yes", Note: "Go ahead.",

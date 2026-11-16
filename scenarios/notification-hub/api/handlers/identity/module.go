@@ -33,7 +33,7 @@ const (
 // Authenticator is the forwarding seam (internal/identity.Forwarder in
 // production; a fake in tests).
 type Authenticator interface {
-	Login(ctx context.Context, email, password string) (internalidentity.Session, error)
+	Login(ctx context.Context, email, password, challenge, totpCode, recoveryCode string) (internalidentity.Session, error)
 	Refresh(ctx context.Context, refreshToken string) (internalidentity.Session, error)
 }
 
@@ -51,11 +51,14 @@ func Module(auth Authenticator, verifier internalidentity.Verifier) module.Modul
 }
 
 func (h *handler) Login(ctx context.Context, req *connect.Request[v1.LoginRequest]) (*connect.Response[v1.LoginResponse], error) {
-	session, err := h.auth.Login(ctx, req.Msg.GetEmail(), req.Msg.GetPassword())
+	session, err := h.auth.Login(ctx, req.Msg.GetEmail(), req.Msg.GetPassword(), req.Msg.GetMfaChallenge(), req.Msg.GetTotpCode(), req.Msg.GetRecoveryCode())
 	if err != nil {
 		return nil, authError(err)
 	}
-	resp := connect.NewResponse(&v1.LoginResponse{Email: session.Email, UserId: session.UserID})
+	resp := connect.NewResponse(&v1.LoginResponse{Email: session.Email, UserId: session.UserID, MfaRequired: session.MFARequired, MfaChallenge: session.MFAChallenge})
+	if session.MFARequired {
+		return resp, nil
+	}
 	if req.Header().Get(browserSessionHeader) != "1" {
 		resp.Msg.Token = session.AccessToken
 		resp.Msg.RefreshToken = session.RefreshToken
@@ -85,7 +88,8 @@ func (h *handler) GetSession(ctx context.Context, req *connect.Request[v1.GetSes
 		}
 		return resp, nil
 	}
-	owner, err = h.verifier.Validate(ctx, session.AccessToken)
+	// Reuse the same exact provider-subject mapping as ordinary cookie reads.
+	owner, err = internalidentity.Owner(ctx, http.Header{"Authorization": []string{"Bearer " + session.AccessToken}}, h.verifier)
 	if err != nil {
 		return connect.NewResponse(&v1.GetSessionResponse{}), nil
 	}
@@ -137,6 +141,8 @@ func authError(err error) error {
 	switch {
 	case errors.Is(err, internalidentity.ErrInvalidCredentials):
 		return connect.NewError(connect.CodeUnauthenticated, internalidentity.ErrInvalidCredentials)
+	case errors.Is(err, internalidentity.ErrRateLimited):
+		return connect.NewError(connect.CodeResourceExhausted, internalidentity.ErrRateLimited)
 	case errors.Is(err, internalidentity.ErrInvalidInput):
 		return connect.NewError(connect.CodeInvalidArgument, err)
 	default:

@@ -63,7 +63,11 @@ export function useAnswerFlow({ ask, subject, attemptSubject, draft }: { ask: As
   });
   const answer = useMutation({
     retry: false,
-    mutationFn: (payload: AnswerPayload) => conversationsClient.answer({ askId: ask.id, ...payload }),
+    mutationFn: (payload: AnswerPayload) => conversationsClient.answer({
+      askId: ask.id,
+      ...payload,
+      images: payload.images.map((image) => ({ ...image, sizeBytes: BigInt(image.sizeBytes) })),
+    }),
     // A successful mutation response is not the displayed terminal state.
     // Confirm the saved answer from the recipient-scoped read path first.
     onSuccess: () => readback.mutate(),

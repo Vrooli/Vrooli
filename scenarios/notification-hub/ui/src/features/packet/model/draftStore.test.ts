@@ -22,7 +22,7 @@ describe("draft store", () => {
     clearAskDrafts();
     window.sessionStorage.setItem(key, JSON.stringify({ draft: { answer: "close", note: "kept" } }));
     // A draft written before questions existed has no responses or notes.
-    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "kept", responses: {}, attachmentNotes: [] });
+    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "kept", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [] });
   });
 
   it("ignores a corrupt stored draft instead of failing to read the ask", () => {
@@ -34,7 +34,7 @@ describe("draft store", () => {
   });
 
   it("returns an attempt only to the subject that sent it, with its responses intact", () => {
-    const attempt = { subject: "owner-1", answer: "close", note: "", responses: [{ questionId: "q", selected: ["a"], text: "", sections: [] }], attachmentNotes: [] };
+    const attempt = { subject: "owner-1", answer: "close", note: "", responses: [{ questionId: "q", selected: ["a"], text: "", sections: [] }], attachmentNotes: [], changes: {}, images: [] };
     writeAskAttempt("owner-1", "ask-1", attempt);
     expect(readAskAttempt("owner-1", "ask-1")).toEqual(attempt);
     expect(readAskAttempt("owner-2", "ask-1")).toBeNull();

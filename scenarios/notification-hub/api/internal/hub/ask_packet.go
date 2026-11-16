@@ -64,6 +64,7 @@ func (s *Service) checkPacket(ctx context.Context, spec AskSpec, read BlobReader
 	warnings = append(warnings, checkFeatureDecisionCards(ctx, spec, explainer, read)...)
 	warnings = append(warnings, checkRegionFeedbackBundles(ctx, spec, read)...)
 	warnings = append(warnings, s.checkRecurring(ctx, spec, sender, except)...)
+	warnings = append(warnings, s.checkRelatedOpen(ctx, spec, except)...)
 	return warnings
 }
 

@@ -69,7 +69,7 @@
     "strings:check": "node scripts/gen-strings.mjs --check",
     "strings:gen": "node scripts/gen-strings.mjs",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage && node --test credential-transport.node-check.mjs",
     "type-check": "pnpm strings:check && tsc --noEmit"
   },
   "type": "module",

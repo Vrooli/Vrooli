@@ -52,6 +52,8 @@ describe("buildAnswer", () => {
       }),
     );
     expect(payload.note).toBe("keep it short");
+    expect(payload.changes).toEqual({});
+    expect(payload.images).toEqual([]);
     expect(payload.responses.map((response) => response.questionId)).toEqual(["set", "shots", "brief", "why"]);
     expect(payload.responses[0]).toMatchObject({ selected: ["b"], text: "better" });
     expect(payload.responses[1]?.selected).toEqual(["demo"]);

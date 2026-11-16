@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +19,7 @@ import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 // buildPacket reads the decision packet named by --explainer, --attach,
@@ -71,6 +73,33 @@ type askRequest struct {
 // reads of it while a real send uploads the blobs the Hub lacks.
 func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 	featureCardPath := ctx.Flag("feature-card")
+	kind := strings.TrimSpace(ctx.Flag("kind"))
+	if kind != "" && kind != "decision" && kind != "status" {
+		return askRequest{}, fmt.Errorf("--kind must be decision or status, got %q", kind)
+	}
+	if kind == "" {
+		kind = "decision"
+	}
+	isStatus := kind == "status"
+	templateName := strings.TrimSpace(ctx.Flag("template"))
+	dataPath := strings.TrimSpace(ctx.Flag("data-file"))
+	var templateData *structpb.Struct
+	if (templateName == "") != (dataPath == "") {
+		return askRequest{}, fmt.Errorf("--template and --data-file must be given together")
+	}
+	if dataPath != "" {
+		if dataPath == "-" && ctx.Flag("body-file") == "-" {
+			return askRequest{}, fmt.Errorf("--data-file - and --body-file - both read stdin; use a file for one of them")
+		}
+		parsed, err := readTemplateData(dataPath, s.stdin)
+		if err != nil {
+			return askRequest{}, err
+		}
+		templateData, err = structpb.NewStruct(parsed)
+		if err != nil {
+			return askRequest{}, fmt.Errorf("--data-file %q: JSON values must be representable as a Hub data object: %w", dataPath, err)
+		}
+	}
 	var featureCard *featureDecisionCardInput
 	if featureCardPath != "" {
 		var err error
@@ -78,7 +107,7 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		if err != nil {
 			return askRequest{}, err
 		}
-		for _, flag := range []string{"question", "body-file", "big-picture", "technical-details", "option", "yes-no", "recommend", "recommend-reason", "subject-key", "attach", "explainer", "form"} {
+		for _, flag := range []string{"question", "body-file", "big-picture", "technical-details", "option", "yes-no", "recommend", "recommend-reason", "subject-key", "attach", "explainer", "form", "template", "data-file", "kind"} {
 			if ctx.Flag(flag) != "" || len(ctx.FlagValues(flag)) > 0 || ctx.BoolFlag(flag) {
 				return askRequest{}, fmt.Errorf("--feature-card cannot be combined with --%s; edit the card packet itself", flag)
 			}
@@ -112,6 +141,9 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 	if text.Question == "" && !keyed {
 		return askRequest{}, fmt.Errorf("an ask needs a question: --question, or the first paragraph of --body-file")
 	}
+	if isStatus && (len(ctx.FlagValues("option")) > 0 || ctx.BoolFlag("yes-no") || ctx.Flag("default") != "" || ctx.BoolFlag("reversible")) {
+		return askRequest{}, fmt.Errorf("--kind status cannot be combined with answer options, --default, or --reversible")
+	}
 	for _, section := range text.Ignored {
 		fmt.Fprintf(ctx.Stderr(), "Warning: the body file's section %q has no place in an ask and was left out; only the first paragraph, ## Background and ## Details are read.\n", section)
 	}
@@ -121,7 +153,7 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		optionValues = []string{"keep=" + featureCard.Options[0].Label, "drop=" + featureCard.Options[1].Label}
 		yesNo = false
 	}
-	if len(optionValues) > 0 || yesNo || !keyed {
+	if !isStatus && (len(optionValues) > 0 || yesNo || !keyed) {
 		options, err := resolveOptions(optionValues, yesNo)
 		if err != nil {
 			return askRequest{}, err
@@ -171,6 +203,7 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 	// tell "keep what the open ask says" from "set it to this"; giving it an empty
 	// value clears it.
 	req := &v1.AskRequest{
+		AllowRelated:          ctx.BoolFlag("allow-related"),
 		Question:              text.Question,
 		Options:               askOptions,
 		Recommended:           given(ctx, "recommend"),
@@ -194,6 +227,9 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		RemoveQuestions:       ctx.FlagValues("remove-question"),
 		ContextResponse:       strings.TrimSpace(ctx.Flag("context-response")),
 		Packet:                packetPath,
+		Kind:                  kind,
+		TemplateName:          templateName,
+		TemplateData:          templateData,
 	}
 	if featureCard != nil {
 		recommended, reason := featureCard.Recommendation, featureCard.RecommendationReason
@@ -222,6 +258,33 @@ func (s *service) buildAsk(ctx cliapp.RunContext) (askRequest, error) {
 		}
 	}
 	return askRequest{req: req, derived: derived, packet: pkt}, nil
+}
+
+// readTemplateData reads one JSON object for a Hub kit template. A file path is
+// preferred so producer commands do not need shell-escaped JSON; "-" reads
+// stdin for pipeline use.
+func readTemplateData(path string, stdin io.Reader) (map[string]any, error) {
+	var raw []byte
+	var err error
+	if path == "-" {
+		if stdin == nil {
+			stdin = os.Stdin
+		}
+		raw, err = io.ReadAll(stdin)
+	} else {
+		raw, err = os.ReadFile(path)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read --data-file %q: %w", path, err)
+	}
+	var data map[string]any
+	if err := json.Unmarshal(raw, &data); err != nil {
+		return nil, fmt.Errorf("--data-file %q must contain a JSON object: %w", path, err)
+	}
+	if data == nil {
+		return nil, fmt.Errorf("--data-file %q must contain a JSON object, not null", path)
+	}
+	return data, nil
 }
 
 type featureDecisionCardInput struct {

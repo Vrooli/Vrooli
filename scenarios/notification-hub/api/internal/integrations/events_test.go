@@ -21,6 +21,7 @@ import (
 	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/blobstore"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
 	apiidentity "github.com/vrooli/api-core/identity"
@@ -267,7 +268,7 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	db := database.NewFromPrimary(primary)
 	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
-	body := []byte(`{"event_id":"evt-decision","event_type":"agent_manager.effort.decision_requested.v1","source_scenario":"agent-manager","payload":{"subject":"BAS","question":"Close the goal or re-aim at quality?","options":[{"key":"close","label":"Close the goal"},{"key":"re-aim","label":"Re-aim at quality"}],"recommended":"re-aim","recommendation_reason":"quality gaps remain","default_answer":"re-aim","reversible":true,"deadline":"2030-01-01T00:00:00Z","correlation":{"decision_id":"BAS-D-065"}}}`)
+	body := []byte(`{"event_id":"evt-decision","event_type":"agent_manager.effort.decision_requested.v1","source_scenario":"agent-manager","payload":{"subject":"BAS","question":"Close the goal or re-aim at quality?","options":[{"key":"close","label":"Close the goal"},{"key":"re-aim","label":"Re-aim at quality"}],"recommended":"re-aim","recommendation_reason":"quality gaps remain","default_answer":"re-aim","reversible":true,"deadline":"2030-01-01T00:00:00Z","subject_key":"n3-synthetic:usage-mode-ingestion","correlation":{"decision_id":"BAS-D-065"}}}`)
 	handler := EventWebhook(service, secret)
 
 	var askIDs []string
@@ -289,6 +290,7 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	require.True(t, ask.Reversible)
 	require.Equal(t, "agent-manager", ask.Source)
 	require.Equal(t, "evt-decision", ask.RequesterRef)
+	require.Equal(t, "n3-synthetic:usage-mode-ingestion", ask.SubjectKey)
 	n, _, err := service.Get(context.Background(), ask.NotificationID)
 	require.NoError(t, err)
 	require.Equal(t, "Decision needed: BAS", n.Title)
@@ -296,6 +298,65 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	var notifications int
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
 	require.Equal(t, 1, notifications)
+}
+
+func TestDecisionEventRendersAndStoresKitTemplatePage(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hubtest.New(t, db, nil, nil)
+	service.SetAttachmentStore(hub.StaticBlobStore(blobstore.NewFilesystemBlobStore(t.TempDir())))
+	secret := "event-secret"
+	body := []byte(`{"event_id":"evt-template","event_type":"agent_manager.usage_mode.decision_requested.v1","source_scenario":"agent-manager","payload":{"subject":"Usage mode","question":"Choose the usage mode?","options":[{"key":"low","label":"Low power"},{"key":"full","label":"Full power"}],"recommended":"low","subject_key":"usage-mode:runs-out:test","template_name":"usage-mode","template_data":{"meta":{"title":"Usage mode from event"},"options":[{"key":"low","title":"Keep low power"},{"key":"full","title":"Use full power"}]}}}`)
+	handler := EventWebhook(service, secret)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, signedEventRequest(t, secret, "evt-template", body))
+	require.Equal(t, http.StatusAccepted, recorder.Code, recorder.Body.String())
+	var response map[string]string
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	retry := httptest.NewRecorder()
+	handler.ServeHTTP(retry, signedEventRequest(t, secret, "evt-template", body))
+	require.Equal(t, http.StatusAccepted, retry.Code, retry.Body.String())
+	var retryResponse map[string]string
+	require.NoError(t, json.Unmarshal(retry.Body.Bytes(), &retryResponse))
+	require.Equal(t, response["ask_id"], retryResponse["ask_id"], "redelivery keeps event idempotence")
+
+	ask, err := service.GetAsk(context.Background(), response["ask_id"])
+	require.NoError(t, err)
+	require.Equal(t, "usage-mode", ask.TemplateName)
+	require.Equal(t, "Usage mode from event", ask.TemplateData["meta"].(map[string]any)["title"])
+	attachments, err := service.AskAttachments(context.Background(), ask.ID)
+	require.NoError(t, err)
+	require.Len(t, attachments, 1, "stored ask = %#v", ask)
+	require.Equal(t, hub.InlineExplainerName, attachments[0].Name)
+	require.Equal(t, hub.AttachmentRoleExplainer, attachments[0].Role)
+	page, err := service.ReadAttachmentBlob(context.Background(), attachments[0].SHA256, 3<<20)
+	require.NoError(t, err)
+	require.Contains(t, string(page), `"title":"Usage mode from event"`)
+	require.Contains(t, string(page), `id="hub-data"`)
+	var asks, notifications int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&asks))
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
+	require.Equal(t, 1, asks)
+	require.Equal(t, 1, notifications)
+}
+
+func TestDecisionEventRejectsInvalidKitTemplateDataWithoutCreatingAsk(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hubtest.New(t, db, nil, nil)
+	secret := "event-secret"
+	body := []byte(`{"event_id":"evt-template-invalid","event_type":"agent_manager.usage_mode.decision_requested.v1","source_scenario":"agent-manager","payload":{"question":"Choose the usage mode?","options":[{"key":"low","label":"Low power"},{"key":"full","label":"Full power"}],"template_name":"usage-mode","template_data":{"meta":{"title":"Invalid data"},"options":[],"unknown":true}}}`)
+	handler := EventWebhook(service, secret)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, signedEventRequest(t, secret, "evt-template-invalid", body))
+	require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	var asks, notifications int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&asks))
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
+	require.Zero(t, asks)
+	require.Zero(t, notifications)
 }
 
 func TestEventWebhookRejectsProviderDecisionEvenWithSharedHMACAndClaimedGatewaySource(t *testing.T) {
@@ -317,6 +378,145 @@ func TestEventWebhookRejectsProviderDecisionEvenWithSharedHMACAndClaimedGatewayS
 	var count int
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&count))
 	require.Zero(t, count, "shared-HMAC provider decision events must not create asks")
+}
+
+func TestEventWebhookRejectsForgedRootRebaseline(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	db := database.NewFromPrimary(primary)
+	service := hubtest.New(t, db, nil, nil)
+	secret := "event-secret"
+	body := []byte(`{"event_id":"forged","event_type":"root.rebaseline.decision_requested.v1","source_scenario":"root-rebaseline","payload":{}}`)
+	recorder := httptest.NewRecorder()
+	EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, "forged", body))
+	require.Equal(t, http.StatusForbidden, recorder.Code)
+	var count int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&count))
+	require.Zero(t, count)
+}
+
+type rootRebaselineRealStore struct{ *hub.Service }
+
+func (rootRebaselineRealStore) ResolveRecipient(context.Context) string { return "owner" }
+
+func TestRootRebaselineDurablyBindsTermsAndRefusesChangedRetry(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	service := rootRebaselineRealStore{hubtest.New(t, database.NewFromPrimary(primary), nil, nil)}
+	digest := strings.Repeat("a", 64)
+	input := rootRebaselineRequest{Version: 2, Operation: "contract_change", RequesterRef: "root-decision-1", Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), CandidateSHA: digest, ServingSHA: digest, WatchdogSHA: digest, BundleSHA: digest, CandidateContract: strings.Repeat("b", 64), ServingContract: digest, Changes: []string{"A state owner changed"}}
+	input.Digest = rootTestDigest(input)
+	call := func(input rootRebaselineRequest, publish bool) *httptest.ResponseRecorder {
+		body, err := json.Marshal(input)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test")
+		rec := httptest.NewRecorder()
+		RootRebaselineHandler(service, rootVerifier{rootPrincipal()}, publish).ServeHTTP(rec, req)
+		return rec
+	}
+	first := call(input, true)
+	require.Equal(t, http.StatusAccepted, first.Code, first.Body.String())
+	require.Equal(t, http.StatusAccepted, call(input, true).Code)
+	lookup := call(rootRebaselineRequest{RequesterRef: input.RequesterRef, Digest: input.Digest}, false)
+	require.Equal(t, http.StatusOK, lookup.Code, lookup.Body.String())
+	require.Contains(t, lookup.Body.String(), `"state":"pending"`)
+	input.Changes = []string{"Different state owner"}
+	input.Digest = rootTestDigest(input)
+	require.Equal(t, http.StatusConflict, call(input, true).Code)
+}
+
+func TestRootRebaselineConsumeRequiresHumanAndIsSingleUse(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	service := rootRebaselineRealStore{hubtest.New(t, database.NewFromPrimary(primary), nil, nil)}
+	sha := strings.Repeat("a", 64)
+	for _, tc := range []struct {
+		name, answer, kind, source string
+		success, expired           bool
+	}{
+		{"pending", "", "", "", false, false},
+		{"rejected", "reject", "verified_human", "personal_local", false, false},
+		{"unverified", "approve", "unknown", "", false, false},
+		{"local", "approve", "verified_human", "personal_local", false, false},
+		{"expired", "approve", "verified_human", "cloudflare_access", false, true},
+		{"human", "approve", "verified_human", "cloudflare_access", true, false},
+		{"password", "approve", "verified_human", "scenario_authenticator_step_up", true, false},
+		{"human_http", "approve", "verified_human", "cloudflare_access", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := rootRebaselineRequest{Version: 2, Operation: "contract_change", RequesterRef: tc.name, Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), CandidateSHA: sha, ServingSHA: sha, WatchdogSHA: sha, BundleSHA: sha, CandidateContract: strings.Repeat("b", 64), ServingContract: sha, Changes: []string{"A state owner changed"}}
+			input.Digest = rootTestDigest(input)
+			body, err := json.Marshal(input)
+			require.NoError(t, err)
+			req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+			req.Header.Set("Authorization", "Bearer test")
+			published := httptest.NewRecorder()
+			RootRebaselineHandler(service, rootVerifier{rootPrincipal()}, true).ServeHTTP(published, req)
+			require.Equal(t, http.StatusAccepted, published.Code, published.Body.String())
+			var response map[string]string
+			require.NoError(t, json.Unmarshal(published.Body.Bytes(), &response))
+			if tc.answer != "" {
+				_, err := service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: response["ask_id"], Actor: "owner", Answer: tc.answer, AnsweredBy: "owner", AnsweredByIdentityKind: tc.kind, AnsweredByIdentitySource: tc.source})
+				require.NoError(t, err)
+			}
+			if tc.expired {
+				_, err := primary.ExecContext(context.Background(), `UPDATE asks SET deadline = ? WHERE id = ?`, time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), response["ask_id"])
+				require.NoError(t, err)
+			}
+			consume := func(digest string) *httptest.ResponseRecorder {
+				body, err := json.Marshal(rootRebaselineRequest{RequesterRef: tc.name, Digest: digest})
+				require.NoError(t, err)
+				req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+				req.Header.Set("Authorization", "Bearer test")
+				rec := httptest.NewRecorder()
+				RootRebaselineConsumeHandler(service, rootVerifier{rootPrincipal()}).ServeHTTP(rec, req)
+				return rec
+			}
+			lookup := func() map[string]string {
+				body, err := json.Marshal(rootRebaselineRequest{RequesterRef: tc.name, Digest: input.Digest})
+				require.NoError(t, err)
+				req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+				req.Header.Set("Authorization", "Bearer test")
+				rec := httptest.NewRecorder()
+				RootRebaselineHandler(service, rootVerifier{rootPrincipal()}, false).ServeHTTP(rec, req)
+				require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+				var got map[string]string
+				require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+				return got
+			}
+			require.Empty(t, lookup()["consumed_at"])
+			require.Equal(t, http.StatusConflict, consume(strings.Repeat("b", 64)).Code)
+			if tc.name == "human" {
+				start := make(chan struct{})
+				results := make(chan error, 2)
+				for i := 0; i < 2; i++ {
+					go func() {
+						<-start
+						_, _, err := service.ConsumeRootRebaseline(context.Background(), tc.name, input.Digest)
+						results <- err
+					}()
+				}
+				close(start)
+				a, b := <-results, <-results
+				require.True(t, (a == nil) != (b == nil), "exactly one concurrent consumer must succeed: %v / %v", a, b)
+				require.Equal(t, http.StatusConflict, consume(input.Digest).Code)
+				require.NotEmpty(t, lookup()["consumed_at"])
+				return
+			}
+			first := consume(input.Digest)
+			if tc.success {
+				require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+				require.Contains(t, first.Body.String(), `"consumed_at"`)
+				var consumed map[string]string
+				require.NoError(t, json.Unmarshal(first.Body.Bytes(), &consumed))
+				require.Equal(t, consumed["consumed_at"], lookup()["consumed_at"])
+				require.Equal(t, http.StatusConflict, consume(input.Digest).Code)
+			} else {
+				require.Equal(t, http.StatusConflict, first.Code, first.Body.String())
+			}
+		})
+	}
 }
 
 func TestEventWebhookRejectsProviderDecisionEventEvenWhenHeaderIdentityMismatches(t *testing.T) {
@@ -710,4 +910,52 @@ func TestEnsureHeartbeatAttemptSubscriptionAddsExactPatternBesideExistingSubscri
 	require.Equal(t, HeartbeatAttemptEventPattern, created[0]["event_pattern"])
 	require.Equal(t, heartbeatOwnerStateSubscriptionName, created[1]["name"])
 	require.Equal(t, HeartbeatOwnerStateEventPattern, created[1]["event_pattern"])
+}
+
+func TestRootRebaselineRetireSealsOnlyExpiredUnusedDecision(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	service := rootRebaselineRealStore{hubtest.New(t, database.NewFromPrimary(primary), nil, nil)}
+	sha := strings.Repeat("a", 64)
+	for _, consumed := range []bool{false, true} {
+		name := fmt.Sprintf("retire-%t", consumed)
+		input := rootRebaselineRequest{Version: 2, Operation: "contract_change", RequesterRef: name, Deadline: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), CandidateSHA: sha, ServingSHA: sha, WatchdogSHA: sha, BundleSHA: sha, CandidateContract: strings.Repeat("b", 64), ServingContract: sha, Changes: []string{"state"}}
+		input.Digest = rootTestDigest(input)
+		body, err := json.Marshal(input)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test")
+		published := httptest.NewRecorder()
+		RootRebaselineHandler(service, rootVerifier{rootPrincipal()}, true).ServeHTTP(published, req)
+		require.Equal(t, http.StatusAccepted, published.Code)
+		var response map[string]string
+		require.NoError(t, json.Unmarshal(published.Body.Bytes(), &response))
+		if consumed {
+			_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: response["ask_id"], Actor: "owner", Answer: "approve", AnsweredBy: "owner", AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "cloudflare_access"})
+			require.NoError(t, err)
+			_, _, err = service.ConsumeRootRebaseline(context.Background(), name, input.Digest)
+			require.NoError(t, err)
+		}
+		call := func(digest string, principal apiidentity.Principal) int {
+			b, _ := json.Marshal(rootRebaselineRequest{RequesterRef: name, Digest: digest})
+			r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+			r.Header.Set("Authorization", "Bearer test")
+			w := httptest.NewRecorder()
+			RootRebaselineRetireHandler(service, rootVerifier{principal}).ServeHTTP(w, r)
+			return w.Code
+		}
+		require.Equal(t, http.StatusConflict, call(input.Digest, rootPrincipal()))
+		_, err = primary.ExecContext(context.Background(), `UPDATE asks SET deadline = ? WHERE id = ?`, time.Now().Add(-time.Minute).UTC().Format(time.RFC3339), response["ask_id"])
+		require.NoError(t, err)
+		require.Equal(t, http.StatusUnauthorized, call(input.Digest, apiidentity.Principal{}))
+		require.Equal(t, http.StatusConflict, call(strings.Repeat("b", 64), rootPrincipal()))
+		if consumed {
+			require.Equal(t, http.StatusConflict, call(input.Digest, rootPrincipal()))
+		} else {
+			require.Equal(t, http.StatusOK, call(input.Digest, rootPrincipal()))
+			require.Equal(t, http.StatusOK, call(input.Digest, rootPrincipal()))
+			_, _, err = service.ConsumeRootRebaseline(context.Background(), name, input.Digest)
+			require.Error(t, err)
+		}
+	}
 }

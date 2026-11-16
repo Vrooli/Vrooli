@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -116,6 +117,49 @@ func TestPreferenceWriteStillRequiresIdentity(t *testing.T) {
 		"enabled":         true,
 	})
 	require.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestPreferenceWriteRejectsIdentityOutsideConfiguredRecipient(t *testing.T) {
+	r, _ := newServer(t)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences", bytes.NewBufferString(`{"source_scenario":"marketing","category":"","enabled":true}`))
+	req.Header.Set("X-Vrooli-Identity-Subject", "another-owner")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+// Session scope keys are caller supplied and may be known to other users. The
+// recipient check must therefore apply to scoped writes too: knowing a
+// session's scope_key must not let a different authenticated owner change it.
+func TestScopedPreferenceWriteCannotMutateAnotherOwnersSession(t *testing.T) {
+	r, store := newServer(t)
+	require.NoError(t, store.SetPreference(context.Background(), testSubject, "web-console", "session.input_needed", false, "", "", "session-owned-by-operator", "now"))
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences", bytes.NewBufferString(`{"source_scenario":"web-console","category":"session.input_needed","scope_key":"session-owned-by-operator","enabled":true}`))
+	req.Header.Set("X-Vrooli-Identity-Subject", "another-owner")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+
+	effective, err := store.GetPreference(context.Background(), testSubject, "web-console", "session.input_needed", "session-owned-by-operator")
+	require.NoError(t, err)
+	require.False(t, effective.Enabled, "rejected cross-owner write must leave the session override intact")
+}
+
+func TestPutPreferenceRejectsUnknownAndOversizedBodies(t *testing.T) {
+	r, _ := newServer(t)
+	unknown := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences", bytes.NewBufferString(`{"source_scenario":"marketing","enabled":true,"unexpected":true}`))
+	unknown.Header.Set("X-Vrooli-Identity-Subject", testSubject)
+	unknownRec := httptest.NewRecorder()
+	r.ServeHTTP(unknownRec, unknown)
+	require.Equal(t, http.StatusBadRequest, unknownRec.Code)
+
+	largeBody := bytes.NewBufferString(`{"source_scenario":"marketing","category":"` + strings.Repeat("x", 64*1024) + `"}`)
+	large := httptest.NewRequest(http.MethodPut, "/api/v1/notifications/preferences", largeBody)
+	large.Header.Set("X-Vrooli-Identity-Subject", testSubject)
+	largeRec := httptest.NewRecorder()
+	r.ServeHTTP(largeRec, large)
+	require.Equal(t, http.StatusRequestEntityTooLarge, largeRec.Code)
 }
 
 func TestPutPreference_HappyPath(t *testing.T) {

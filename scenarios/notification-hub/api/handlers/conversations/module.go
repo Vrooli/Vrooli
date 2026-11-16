@@ -21,6 +21,7 @@ import (
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
+	"google.golang.org/protobuf/types/known/structpb"
 
 	"notification-hub/internal/hub"
 	identity "notification-hub/internal/identity"
@@ -53,6 +54,7 @@ const ReasonAskRefused = "ask_refused"
 type handler struct {
 	service         *hub.Service
 	verifier        identity.Verifier
+	stepUp          rootPasswordAuthenticator
 	linkedArtifacts *linkedartifact.Resolver
 	// services verifies the service-principal roles: ask readers and senders. A
 	// nil verifier turns its role off.
@@ -86,6 +88,13 @@ func newHandler(service *hub.Service, verifier identity.Verifier, services ident
 	return &handler{service: service, verifier: verifier, services: services, linkedArtifacts: artifacts, uploads: make(chan struct{}, maxConcurrentUploads), uploadWait: uploadSlotWait}
 }
 
+// ModuleWithStepUp wires the authenticator used for a fresh root decision.
+func ModuleWithStepUp(service *hub.Service, verifier identity.Verifier, services identity.ServiceVerifiers, artifacts *linkedartifact.Resolver, forwarder identity.Forwarder) module.Module {
+	h := newHandler(service, verifier, services, artifacts)
+	h.stepUp = forwarder
+	return h.module()
+}
+
 func (h *handler) module() module.Module {
 	return module.Module{Name: "conversations", Mount: func(r *mux.Router) {
 		path, general, upload := h.connectHandlers()
@@ -93,6 +102,7 @@ func (h *handler) module() module.Module {
 		r.Handle(connectv1.ConversationsServiceWaitProcedure, budgetWait(general)).Methods(http.MethodPost)
 		r.PathPrefix(path).Handler(general)
 		r.HandleFunc(attachmentContentPath, h.serveAttachment).Methods(http.MethodGet, http.MethodHead)
+		r.HandleFunc(answerImageContentPath, h.serveAnswerImage).Methods(http.MethodGet, http.MethodHead)
 		r.HandleFunc(linkedArtifactMetadataPath, h.linkedArtifactMetadata).Methods(http.MethodGet)
 		r.HandleFunc(linkedArtifactContentPath, h.serveLinkedArtifact).Methods(http.MethodGet, http.MethodHead)
 	}, Endpoints: Endpoints}
@@ -232,7 +242,7 @@ func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) 
 			Message: "This ask was sent from another conversation and by another owner account, so get and wait will not find it for you.",
 		})
 	}
-	return connect.NewResponse(&v1.AskResponse{AskId: ask.ID, Outcome: result.Outcome, State: ask.State, Warnings: warningsToProto(result.Warnings), Notification: &shared.Notification{Id: notification.ID, RequestedBy: notification.RequestedBy, Title: notification.Title, Body: notification.Body, Urgency: notification.Urgency, SensitivityLabel: notification.SensitivityLabel, IdempotencyKey: notification.IdempotencyKey, DedupeKey: notification.DedupeKey, State: notificationState(notification.State), Reason: notification.Reason, CreatedAt: notification.CreatedAt, UpdatedAt: notification.UpdatedAt}}), nil
+	return connect.NewResponse(&v1.AskResponse{AskId: ask.ID, Outcome: result.Outcome, State: ask.State, Kind: ask.Kind, Warnings: warningsToProto(result.Warnings), Notification: &shared.Notification{Id: notification.ID, RequestedBy: notification.RequestedBy, Title: notification.Title, Body: notification.Body, Urgency: notification.Urgency, SensitivityLabel: notification.SensitivityLabel, IdempotencyKey: notification.IdempotencyKey, DedupeKey: notification.DedupeKey, State: notificationState(notification.State), Reason: notification.Reason, CreatedAt: notification.CreatedAt, UpdatedAt: notification.UpdatedAt}}), nil
 }
 
 func notificationState(state string) shared.NotificationState {
@@ -268,13 +278,27 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[v1.AnswerRequ
 		AnsweredByIdentityKind:   answerIdentityKind,
 		AnsweredByIdentitySource: answerIdentitySource,
 		Note:                     req.Msg.GetNote(),
+		Changes:                  structMap(req.Msg.GetChanges()),
+		Images:                   answerImagesFromProto(req.Msg.GetImages()),
 		Responses:                responsesFromProto(req.Msg.GetResponses()),
 		AttachmentNotes:          attachmentNotesFromProto(req.Msg.GetAttachmentNotes()),
 	})
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&v1.AnswerResponse{AskId: ask.ID, Answer: ask.Answer, AnsweredAt: ask.AnsweredAt, Late: ask.Late}), nil
+	return connect.NewResponse(&v1.AnswerResponse{AskId: ask.ID, Answer: ask.Answer, AnsweredAt: ask.AnsweredAt, Late: ask.Late, Changes: structValue(ask.AnswerChanges), Images: answerImagesToProto(ask.AnswerImages)}), nil
+}
+
+func (h *handler) MarkRead(ctx context.Context, req *connect.Request[v1.MarkReadRequest]) (*connect.Response[v1.MarkReadResponse], error) {
+	actor, err := h.owner(ctx, req.Header())
+	if err != nil {
+		return nil, err
+	}
+	ask, err := h.service.MarkReadStatus(ctx, req.Msg.GetAskId(), actor)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&v1.MarkReadResponse{AskId: ask.ID, State: ask.State}), nil
 }
 
 func (h *handler) Dismiss(ctx context.Context, req *connect.Request[v1.DismissRequest]) (*connect.Response[v1.DismissResponse], error) {
@@ -423,6 +447,7 @@ func (h *handler) Wait(ctx context.Context, req *connect.Request[v1.WaitRequest]
 		AskId: result.Ask.ID, State: result.Ask.State, Answer: result.Ask.Answer, Reason: result.Reason, Note: result.Ask.Note,
 		Responses: responsesToProto(result.Ask.Responses), AnswerSummary: result.Ask.AnswerSummary,
 		AttachmentNotes: attachmentNotesToProto(result.Ask.AttachmentNotes), Packet: result.Ask.Packet,
+		Changes: structValue(result.Ask.AnswerChanges), Images: answerImagesToProto(result.Ask.AnswerImages),
 	}
 	if result.ContextRequest != nil {
 		response.ContextRequest = contextRequestToProto(*result.ContextRequest)
@@ -444,6 +469,11 @@ func (h *handler) GetAsk(ctx context.Context, req *connect.Request[v1.GetAskRequ
 		return nil, connectError(err)
 	}
 	out := h.toProto(ask)
+	recurrence, err := h.service.SubjectRecurrence(ctx, ask)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out.Recurrence = recurrenceToProto(recurrence)
 	out.Questions = questionsToProto(ask.Questions)
 	out.Responses = responsesToProto(ask.Responses)
 	out.AttachmentNotes = attachmentNotesToProto(ask.AttachmentNotes)
@@ -537,7 +567,7 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 	for _, option := range ask.Options {
 		options = append(options, &v1.AskOption{Key: option.Key, Label: option.Label})
 	}
-	if !containsAskOption(ask.Options, "other") {
+	if ask.Kind != "status" && !containsAskOption(ask.Options, "other") {
 		options = append(options, &v1.AskOption{Key: "other", Label: "Other — I have a different answer"})
 	}
 	return &v1.Ask{
@@ -560,7 +590,53 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		Sender:      ask.Sender,
 		ClosingSoon: ask.ClosingSoon,
 		Packet:      ask.Packet, ApprovalUrl: ask.NativeApprovalURL(),
+		Kind: ask.Kind, AnswerChanges: structValue(ask.AnswerChanges), AnswerImages: answerImagesToProto(ask.AnswerImages),
+		TemplateName: ask.TemplateName, TemplateData: structValue(ask.TemplateData),
 	}
+}
+
+func structMap(value *structpb.Struct) map[string]any {
+	if value == nil {
+		return nil
+	}
+	return value.AsMap()
+}
+
+func structValue(value map[string]any) *structpb.Struct {
+	if len(value) == 0 {
+		return nil
+	}
+	result, err := structpb.NewStruct(value)
+	if err != nil {
+		return nil
+	}
+	return result
+}
+
+func answerImagesFromProto(images []*v1.AnswerImage) []hub.AnswerImage {
+	out := make([]hub.AnswerImage, 0, len(images))
+	for _, image := range images {
+		if image != nil {
+			out = append(out, hub.AnswerImage{Name: image.GetName(), SHA256: image.GetSha256(), MediaType: image.GetMediaType(), SizeBytes: image.GetSizeBytes()})
+		}
+	}
+	return out
+}
+
+func answerImagesToProto(images []hub.AnswerImage) []*v1.AnswerImage {
+	out := make([]*v1.AnswerImage, 0, len(images))
+	for _, image := range images {
+		out = append(out, &v1.AnswerImage{Name: image.Name, Sha256: image.SHA256, MediaType: image.MediaType, SizeBytes: image.SizeBytes})
+	}
+	return out
+}
+
+func recurrenceToProto(recurrence hub.SubjectRecurrence) *v1.SubjectRecurrence {
+	out := &v1.SubjectRecurrence{Count: int32(recurrence.Count), Dates: recurrence.Dates}
+	for _, previous := range recurrence.PreviousAnswers {
+		out.PreviousAnswers = append(out.PreviousAnswers, &v1.HistoricalAnswer{Answer: previous.Answer, Note: previous.Note, AnsweredAt: previous.AnsweredAt, Changes: structValue(previous.Changes)})
+	}
+	return out
 }
 
 func containsAskOption(options []hub.AskOption, key string) bool {
@@ -606,6 +682,8 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, hub.ErrAskResolved), errors.Is(err, hub.ErrAskWithdrawn), errors.Is(err, hub.ErrAskStale):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
+	case errors.Is(err, hub.ErrRelatedDecision):
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	case errors.Is(err, hub.ErrAskChanged):
 		// FailedPrecondition like a resolved ask, but a client tells them apart by
 		// this reason: the ask is still open and should be reloaded, keeping the
@@ -636,12 +714,15 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "conversations_stat_attachment_blobs", Path: connectv1.ConversationsServiceStatAttachmentBlobsProcedure, Method: http.MethodPost, Summary: "Report which attachment content hashes the Hub does not hold (verified sender)", Category: "conversations"},
 	{ID: "conversations_put_attachment_blob", Path: connectv1.ConversationsServicePutAttachmentBlobProcedure, Method: http.MethodPost, Summary: "Store one attachment file under its SHA-256 (at most 64 MiB; sender identity is optional)", Category: "conversations"},
 	attachmentContentEndpoint,
+	answerImageContentEndpoint,
 	{ID: "conversations_linked_artifact_metadata", Path: linkedArtifactMetadataPath, Method: http.MethodGet, Summary: "Resolve one decision-linked artifact inside an allowed local root", Category: "conversations", RESTException: linkedArtifactRESTException},
 	{ID: "conversations_linked_artifact_content", Path: linkedArtifactContentPath, Method: http.MethodGet, Summary: "Stream one owner-authorized decision-linked artifact", Category: "conversations", RESTException: linkedArtifactRESTException},
 	{ID: "conversations_list_native_consents", Path: connectv1.ConversationsServiceListNativeConsentsProcedure, Method: http.MethodPost, Summary: "Read source-owned native consent without approving or creating an ask", Category: "conversations"},
 	{ID: "conversations_ask", Path: connectv1.ConversationsServiceAskProcedure, Method: http.MethodPost, Summary: "Ask a question and persist its deadline", Category: "conversations"},
 	{ID: "conversations_check_ask", Path: connectv1.ConversationsServiceCheckAskProcedure, Method: http.MethodPost, Summary: "Run the packet check and preview the notification for an ask without storing it", Category: "conversations"},
 	{ID: "conversations_answer", Path: connectv1.ConversationsServiceAnswerProcedure, Method: http.MethodPost, Summary: "Record an allowed answer", Category: "conversations"},
+	{ID: "conversations_answer_root_with_password", Path: connectv1.ConversationsServiceAnswerRootWithPasswordProcedure, Method: http.MethodPost, Summary: "Authenticate and answer one root decision", Category: "conversations"},
+	{ID: "conversations_mark_read", Path: connectv1.ConversationsServiceMarkReadProcedure, Method: http.MethodPost, Summary: "Mark a status update as read without sending steering", Category: "conversations"},
 	{ID: "conversations_dismiss", Path: connectv1.ConversationsServiceDismissProcedure, Method: http.MethodPost, Summary: "Dismiss an ask without answering", Category: "conversations"},
 	{ID: "conversations_withdraw", Path: connectv1.ConversationsServiceWithdrawProcedure, Method: http.MethodPost, Summary: "Withdraw a direct ask you created", Category: "conversations"},
 	{ID: "conversations_wait", Path: connectv1.ConversationsServiceWaitProcedure, Method: http.MethodPost, Summary: "Block until an ask is resolved or the caller's wait runs out", Category: "conversations"},

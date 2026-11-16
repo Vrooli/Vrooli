@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +13,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
 )
@@ -39,12 +42,19 @@ type service struct {
 	stdin io.Reader
 	// sleep waits between attempts to reach the Hub; nil means time.Sleep.
 	sleep func(time.Duration)
+	// identityBrokerUnavailable is replaceable in tests. It is consulted only
+	// after an unauthenticated wait response from an inherited run identity.
+	identityBrokerUnavailable func() bool
 }
 
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	var defaultTimeout time.Duration
 	if core != nil && core.HTTPClient != nil {
 		defaultTimeout = core.HTTPClient.Timeout()
+	}
+	configuredToken := ""
+	if core != nil {
+		configuredToken = strings.TrimSpace(core.Config.Token)
 	}
 	h, base := cliapp.NewConnectHTTPClient(core)
 	waitHTTP, waitBase := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
@@ -55,12 +65,31 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	waitHTTP = hubHTTPClient(core, waitHTTP, waitBase, 0)
 	uploadHTTP = hubHTTPClient(core, uploadHTTP, uploadBase, uploadTimeout)
 	return register(&service{
-		client:       connectv1.NewConversationsServiceClient(h, base),
-		waitClient:   connectv1.NewConversationsServiceClient(waitHTTP, waitBase),
-		uploadClient: connectv1.NewConversationsServiceClient(uploadHTTP, uploadBase),
-		now:          time.Now,
-		senderSource: senderOfThisRun,
+		client:                    connectv1.NewConversationsServiceClient(h, base),
+		waitClient:                connectv1.NewConversationsServiceClient(waitHTTP, waitBase),
+		uploadClient:              connectv1.NewConversationsServiceClient(uploadHTTP, uploadBase),
+		now:                       time.Now,
+		senderSource:              senderOfThisRun,
+		identityBrokerUnavailable: func() bool { return agentIdentityBrokerUnavailable(configuredToken) },
 	}, manifest)
+}
+
+// agentIdentityBrokerUnavailable only marks the retryable case where an
+// inherited run identity could not be refreshed because its local authority is
+// offline. A live authority or an explicit owner/service token makes a Hub
+// refusal authoritative and non-retryable.
+func agentIdentityBrokerUnavailable(configuredToken string) bool {
+	if strings.TrimSpace(os.Getenv(cliutil.EnvIdentityToken)) == "" ||
+		os.Getenv("NOTIFICATION_HUB_API_TOKEN") != "" || os.Getenv("VROOLI_API_TOKEN") != "" ||
+		strings.TrimSpace(configuredToken) != "" {
+		return false
+	}
+	conn, err := net.DialTimeout("unix", cliutil.AgentCredentialSocket(), 100*time.Millisecond)
+	if err != nil {
+		return true
+	}
+	_ = conn.Close()
+	return false
 }
 
 func register(s *service, manifest []byte) (cliapp.SubcommandGroup, error) {

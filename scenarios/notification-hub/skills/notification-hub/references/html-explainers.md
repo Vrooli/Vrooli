@@ -100,6 +100,9 @@ check for it.
 | `hub.open(name, path?)` | Opens an attachment (or a file inside an attached folder) in the Hub viewer. Any element with `data-hub-open="name"` does this on tap. Use it for videos, 3D models (`.glb`), PDFs and long files that should not sit in the page. |
 | `hub.prefill(questionId, response)` | Fills one form question in the draft. `hub.prefill("answer", "key")` fills the main option with an option key. For a form question, give a choice key or an answer in the same JSON form the form uses. The operator still presses send. |
 | `hub.theme` | `"light"` or `"dark"`. The page root also gets `data-theme`, so CSS can use `:root[data-theme="dark"]`. |
+| `hub.answer.set(key, label, value)` | Records one choice made on the page; the Hub's answer bar shows `label` and sends `{changes: {key: value}}` with the answer. Check that `hub.answer` exists first. |
+| `hub.answer.remove(key)` | Takes that choice back out (for example when the operator returns to the starting state). |
+| `hub.context` | Read-only `{kind, recurrence: {count, dates, previousAnswers}}`: `count` includes this ask, `dates` lists every ask on the subject key with this one last, `previousAnswers` are `{answer, note, answeredAt}`. |
 
 ```html
 <button type="button" id="pick">Choose B</button>
@@ -111,6 +114,16 @@ check for it.
 ```
 
 Use the same keys as your `--option` and `--form` question ids.
+
+## 5. Templates and the chart kit
+
+The usage-mode decision, the daily briefing, the opportunity roadmap, the
+structural-change decision and the research report are templates in `kit/templates/`, drawn by the chart
+kit `kit/hub-charts.js` from one JSON object (`kit/schemas/<template>.schema.json`).
+Send them with `--template NAME --data-file data.json`; do not write their HTML.
+Each template keeps the rules above: no network, no form controls, Hub tokens in
+both themes, under 2 MiB, and it renders read-only when the bridge is missing.
+Components, answer keys and the render contract: `kit/README.md`.
 
 ## After you send
 

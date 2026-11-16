@@ -25,7 +25,7 @@ func (s *Service) ProcessEscalations(ctx context.Context) error {
 		return err
 	}
 	now := s.clock.Now().UTC()
-	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.notification_id, a.default_answer, a.reversible, n.urgency FROM asks a JOIN notifications n ON n.id=a.notification_id WHERE a.state IN ('pending', 'escalated') AND a.deadline <= ? ORDER BY a.deadline`, storedTime(now))
+	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.notification_id, a.default_answer, a.reversible, n.urgency FROM asks a JOIN notifications n ON n.id=a.notification_id WHERE a.kind <> 'status' AND a.state IN ('pending', 'escalated') AND a.deadline <> '' AND a.deadline <= ? ORDER BY a.deadline`, storedTime(now))
 	if err != nil {
 		return err
 	}

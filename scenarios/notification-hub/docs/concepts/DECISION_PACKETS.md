@@ -596,6 +596,18 @@ one carried over from the open ask stays advice.
 | `page_no_picture` | advice | The page shows nothing: no `img`, `svg`, `canvas` or `video`, no `role="img"` or `role="figure"` element, no table of two or more rows, and none of the kit's decision blocks (`.hub-proportion`, `.hub-groups`, `.hub-matrix`, `.hub-timeline`, `.hub-compare`, `.hub-recurrence`, `.hub-command`). Option cards, callouts and chips arrange words and do not count. Not reported when `explainer_restates` is. |
 | `page_picture_uncropped` | advice | Two or more images are shown whole: no `height` or `max-height` length, `aspect-ratio` or `height` attribute bounds them, so each full screenshot takes a phone screen. The fix crops each to the part the decision is about. |
 | `recurring_subject` | advice | The third ask from one sender within 14 days on the same subject key or a similar question (numbers ignored), and no option stops the repeats (a standing rule, a policy, "from now on", a root-cause fix). The fix names the earlier dates and the kit's `.hub-recurrence` block. |
+| `related_open_decision` | advice | A similar question is open. A verified producer sees identifiers only for asks in its normal read audience; an owner can see matches across sources. A verified agent run may instead receive a content-free signal for another conversation of the same owner. Anonymous requests receive no advice. The advisory check considers at most 200 recent open decisions and reports up to three visible matches. |
+
+For a new direct decision by a verified run, the Hub also checks all open direct
+decisions of the same owner and recipient inside the write transaction. A similar
+question from another conversation causes a generic failed-precondition response
+before an ask or notification is stored. The sender should have the owner review
+the existing decision and provide its subject key for a revision, or, after
+determining the choices really are distinct, retry with `--allow-related`
+(`allow_related` in the API). This is a sender's explicit judgment, not a grant
+to read or revise another ask. Similarity does not merge decisions, transfer an
+answer, or change an approval's scope. Revisions of an existing subject and
+event-sourced requests follow their existing lifecycle rules.
 
 A refused ask returns `FailedPrecondition` with the header
 `Hub-Error-Reason: ask_refused` and the message `refused, nothing was sent:

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import daily from "../../../../../skills/notification-hub/kit/samples/daily-briefing.json?raw";
 
 import { fetchAttachment } from "../../../api/attachments";
 import { selectors } from "../../../consts/selectors";
@@ -69,6 +70,33 @@ describe("ExplainerFrame", () => {
     post(frame, { hub: BRIDGE_PROTOCOL, type: "submit", answer: "close" });
     expect(onOpen).toHaveBeenCalledTimes(1);
     expect(onPrefill).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a Hub kit template without fetching producer HTML and supplies real Hub context", async () => {
+    const onAnswerChange = vi.fn();
+    const templateData = JSON.parse(daily);
+    renderWithProviders(<ExplainerFrame
+      askId="ask-1"
+      kind="status"
+      recurrence={{ count: 3, dates: ["2026-11-14", "2026-11-15", "2026-11-16"], previousAnswers: [] }}
+      templateName="daily-briefing"
+      templateData={templateData}
+      attachments={[]}
+      onOpen={vi.fn()}
+      onPrefill={vi.fn()}
+      onAnswerChange={onAnswerChange}
+    />);
+    const frame = await screen.findByTitle<HTMLIFrameElement>(strings.packet.explainer.frameTitle);
+    const doc = new DOMParser().parseFromString(frame.getAttribute("srcdoc") ?? "", "text/html");
+    expect(fetchAttachment).not.toHaveBeenCalled();
+    expect(JSON.parse(doc.getElementById("hub-data")?.textContent ?? "null")).toEqual(templateData);
+    expect(JSON.parse(doc.getElementById("hub-context")?.textContent ?? "null")).toEqual({
+      kind: "status",
+      recurrence: { count: 3, dates: ["2026-11-14", "2026-11-15", "2026-11-16"], previousAnswers: [] },
+    });
+
+    post(frame, { hub: BRIDGE_PROTOCOL, type: "answer", operation: "set", key: "pace", label: "Use Wednesday", value: { tier: "wednesday" } });
+    expect(onAnswerChange).toHaveBeenCalledWith({ type: "answer", operation: "set", key: "pace", label: "Use Wednesday", value: { tier: "wednesday" } });
   });
 
   it("sizes the frame to the height the page reports", async () => {

@@ -41,7 +41,7 @@ func renderAsk(ctx cliapp.RunContext, resp *v1.AskResponse, built askRequest) er
 	state := askState(resp)
 	if ctx.JSON() {
 		return cliapp.RenderProtoListWithJSONOptions(ctx, &v1.AskResponse{
-			AskId: resp.GetAskId(), State: state, Outcome: resp.GetOutcome(), Warnings: resp.GetWarnings(),
+			AskId: resp.GetAskId(), State: state, Outcome: resp.GetOutcome(), Warnings: resp.GetWarnings(), Kind: resp.GetKind(),
 		}, cliapp.ListReport{}, askJSON)
 	}
 	waiting := ctx.BoolFlag("and-wait")

@@ -7,6 +7,9 @@
  *   hub.open(name, path?)            open an attachment in the Hub's viewer
  *   hub.prefill(questionId, value)   fill one question of the Hub form (the
  *                                    operator still sends the answer)
+ *   hub.answer.set(key,label,value)  put one decision in the Hub answer bar
+ *   hub.answer.remove(key)           remove one decision from that bar
+ *   hub.context                       read-only kind and recurrence history
  *   hub.theme                        "light" | "dark"
  *   [data-hub-open="name"]           tap = hub.open("name"); "name/path/in/folder" also works
  */
@@ -35,7 +38,29 @@
     post({ type: "prefill", questionId: questionId, value: value });
   }
 
-  var hub = { open: open, prefill: prefill };
+  var answer = {
+    set: function (key, label, value) {
+      if (typeof key !== "string" || typeof label !== "string") return;
+      post({ type: "answer", operation: "set", key: key, label: label, value: value });
+    },
+    remove: function (key) {
+      if (typeof key !== "string") return;
+      post({ type: "answer", operation: "remove", key: key });
+    },
+  };
+  var context = {};
+  try {
+    var contextNode = document.getElementById("hub-context");
+    if (contextNode) context = JSON.parse(contextNode.textContent || "{}");
+  } catch (_) {}
+  function freeze(value) {
+    if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+    Object.keys(value).forEach(function (key) { freeze(value[key]); });
+    return Object.freeze(value);
+  }
+  freeze(context);
+
+  var hub = { open: open, prefill: prefill, answer: Object.freeze(answer), context: context };
   Object.defineProperty(hub, "theme", {
     enumerable: true,
     get: function () {

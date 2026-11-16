@@ -381,6 +381,11 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 		`ALTER TABLE asks ADD COLUMN created_subject TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE asks ADD COLUMN sender TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE asks ADD COLUMN packet TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN kind TEXT NOT NULL DEFAULT 'decision'`,
+		`ALTER TABLE asks ADD COLUMN template_name TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN template_data_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE answers ADD COLUMN changes_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE answers ADD COLUMN images_json TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE ask_context_requests ADD COLUMN response TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {

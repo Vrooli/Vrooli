@@ -29,11 +29,13 @@ export interface PacketDraft {
   note: string;
   responses: Record<string, ResponseDraft>;
   attachmentNotes: AttachmentNoteDraft[];
+  answerChanges: Record<string, { label: string; value: unknown }>;
+  answerImages: { name: string; sha256: string; mediaType: string; sizeBytes: number }[];
 }
 
 export const emptyResponse = (): ResponseDraft => ({ selected: [], text: "", sections: {} });
 
-export const emptyDraft = (): PacketDraft => ({ answer: "", note: "", responses: {}, attachmentNotes: [] });
+export const emptyDraft = (): PacketDraft => ({ answer: "", note: "", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [] });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -70,7 +72,18 @@ export function normalizeDraft(value: unknown): PacketDraft | null {
           ? [{ attachment: item.attachment, path: textOf(item.path), note: textOf(item.note) }]
           : [])
     : [];
-  return { answer: value.answer, note: value.note, responses, attachmentNotes };
+  const answerChanges: PacketDraft["answerChanges"] = {};
+  if (isRecord(value.answerChanges)) {
+    for (const [key, change] of Object.entries(value.answerChanges)) {
+      if (isRecord(change) && typeof change.label === "string") answerChanges[key] = { label: change.label, value: change.value };
+    }
+  }
+  const answerImages = Array.isArray(value.answerImages)
+    ? value.answerImages.flatMap((item) => isRecord(item) && typeof item.name === "string" && typeof item.sha256 === "string" && typeof item.mediaType === "string" && typeof item.sizeBytes === "number"
+      ? [{ name: item.name, sha256: item.sha256, mediaType: item.mediaType, sizeBytes: item.sizeBytes }]
+      : [])
+    : [];
+  return { answer: value.answer, note: value.note, responses, attachmentNotes, answerChanges, answerImages };
 }
 
 /** The draft with one question's response replaced. */

@@ -32,7 +32,8 @@ $ notification-hub conversations ask --subject-key release-check --yes-no --ques
       "carried_over": false
     }
   ],
-  "state": "pending"
+  "state": "pending",
+  "kind": "decision"
 }
 # stderr
 Packet check: 1 advice. The ask was sent; nothing here blocked it.
@@ -72,7 +73,8 @@ $ notification-hub conversations ask --subject-key disk-low --yes-no --question 
       "carried_over": false
     }
   ],
-  "state": "pending"
+  "state": "pending",
+  "kind": "decision"
 }
 # stderr
 Packet check: 3 advice. The ask was sent; nothing here blocked it.
@@ -112,7 +114,8 @@ $ notification-hub conversations ask --subject-key disk-low --technical-details 
       "carried_over": false
     }
   ],
-  "state": "pending"
+  "state": "pending",
+  "kind": "decision"
 }
 # stderr
 Kept as the open ask has them: the question, the options, the recommendation, the big picture, the context link, the urgency, the sender, the attachments, the form.
@@ -265,7 +268,8 @@ $ notification-hub conversations ask --subject-key release-check --context-respo
       "carried_over": true
     }
   ],
-  "state": "pending"
+  "state": "pending",
+  "kind": "decision"
 }
 # stderr
 Kept as the open ask has them: the question, the options, the recommendation, the big picture, the technical details, the context link, the urgency, the sender, the attachments, the form.
@@ -295,7 +299,7 @@ Error: your wait timed out (exit status 4): the operator has not answered yet, a
 
 ### Exit 0: answered
 
-`answer` is the option key the operator chose (or the default that applied), `note` their free text. `answer_summary` is the whole answer as plain text. `responses[]` holds one entry per form question the operator answered, found by `question_id`: `selected` (a list of choice keys) for `single_choice`, `multi_choice` and `variant`; `text` for `text`; `sections` (a list of `{section_key, verdict, note}`, the verdict `approve`, `change` or `drop`) for `section_review`. `attachment_notes[]` are notes the operator pinned to files. The main answer is `answer`, not a `responses[]` entry.
+`answer` is the option key the operator chose (or the default that applied), `note` their free text. `answer_summary` is the whole answer as plain text. `responses[]` holds one entry per form question the operator answered, found by `question_id`: `selected` (a list of choice keys) for `single_choice`, `multi_choice` and `variant`; `text` for `text`; `sections` (a list of `{section_key, verdict, note}`, the verdict `approve`, `change` or `drop`) for `section_review`. `attachment_notes[]` are notes the operator pinned to files. Page selections are in `changes`, and attached answer images are in `images[]` with their SHA-256 and media type. A status update can be marked read without an answer. The main answer is `answer`, not a `responses[]` entry.
 
 ```text
 $ notification-hub conversations wait --subject-key release-check --json
@@ -399,7 +403,8 @@ $ notification-hub conversations ask --subject-key dessert-order --yes-no --ques
       "carried_over": false
     }
   ],
-  "state": "pending"
+  "state": "pending",
+  "kind": "decision"
 }
 {
   "ask_id": "<ask-id>",
@@ -526,7 +531,14 @@ $ notification-hub conversations get --subject-key old-volume --json
         "source_status": "unknown"
       }
     ],
-    "sender": "Agent run"
+    "sender": "Agent run",
+    "kind": "decision",
+    "recurrence": {
+      "count": 1,
+      "dates": [
+        "<time>"
+      ]
+    }
   }
 }
 ```
@@ -753,7 +765,14 @@ $ notification-hub conversations get --subject-key release-check --json
       }
     ],
     "sender": "Agent run",
-    "packet": "<home>/work/RELEASE-CHECK/BRIEF.md"
+    "packet": "<home>/work/RELEASE-CHECK/BRIEF.md",
+    "kind": "decision",
+    "recurrence": {
+      "count": 1,
+      "dates": [
+        "<time>"
+      ]
+    }
   }
 }
 ```

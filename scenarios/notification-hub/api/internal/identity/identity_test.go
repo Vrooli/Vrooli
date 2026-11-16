@@ -210,3 +210,36 @@ func TestReaderForAdmitsASenderOnlyToItsOwnAsks(t *testing.T) {
 		t.Fatal("without a sender verifier a service bearer reads nothing")
 	}
 }
+
+func TestOwnerMapsOnlyExactBoundAuthenticatorSubject(t *testing.T) {
+	t.Setenv("VROOLI_AUTH_OWNER_BINDINGS", `[{"source":"scenario_authenticator","subject":"account","canonical_subject":"owner","scopes":["*"]}]`)
+	verifier := verifierFunc(func(_ context.Context, _ string) (owneridentity.Identity, error) {
+		return owneridentity.Identity{Subject: "account"}, nil
+	})
+	headers := http.Header{"Authorization": []string{"Bearer valid"}}
+	got, err := Owner(context.Background(), headers, verifier)
+	if err != nil || got.Subject != "owner" {
+		t.Fatalf("bound owner = %+v, %v", got, err)
+	}
+	t.Setenv("VROOLI_AUTH_OWNER_BINDINGS", `[{"source":"scenario_authenticator","subject":"account","canonical_subject":"owner","scopes":["notification-hub:read"]}]`)
+	got, err = Owner(context.Background(), headers, verifier)
+	if err != nil || got.Subject != "account" {
+		t.Fatalf("read-only binding acquired owner writes: %+v, %v", got, err)
+	}
+	verifier = verifierFunc(func(_ context.Context, _ string) (owneridentity.Identity, error) {
+		return owneridentity.Identity{Subject: "other"}, nil
+	})
+	got, err = Owner(context.Background(), headers, verifier)
+	if err != nil || got.Subject != "other" {
+		t.Fatalf("unbound owner = %+v, %v", got, err)
+	}
+}
+
+func TestDecisionProofVerifierOutageIsNotInvalidCredentials(t *testing.T) {
+	if !errors.Is(decisionVerificationError(owneridentity.ErrUnavailable), ErrAuthUnavailable) {
+		t.Fatal("outage presented as invalid credentials")
+	}
+	if !errors.Is(decisionVerificationError(owneridentity.ErrUnauthenticated), ErrInvalidCredentials) {
+		t.Fatal("invalid proof accepted")
+	}
+}

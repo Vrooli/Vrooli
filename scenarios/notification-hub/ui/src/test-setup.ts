@@ -36,6 +36,8 @@ let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
 
 beforeEach(async () => {
+  // jsdom omits this browser security signal; tests start in an HTTPS context.
+  Object.defineProperty(window, "isSecureContext", { configurable: true, value: true });
   window.localStorage.clear();
   await i18n.changeLanguage("cimode");
   consoleError = vi.spyOn(console, "error").mockImplementation(() => {});

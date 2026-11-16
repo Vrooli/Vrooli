@@ -196,5 +196,29 @@
     "composited": "Composited",
     "rendered": "Rendered",
     "sketch": "Sketch"
+  },
+  "rootPassword": {
+    "title": "Verify and answer this decision",
+    "intro": "Review the decision above. This verification applies only to this decision. This path sends your choice without notes or attachments.",
+    "choice": "Your choice",
+    "email": "Email",
+    "password": "Password",
+    "recovery": "Use a recovery code",
+    "recoveryCode": "Recovery code",
+    "authenticatorCode": "Authenticator code",
+    "recorded": "Your answer was recorded.",
+    "open": "The decision is still open. You can try again.",
+    "changed": "This decision changed or is no longer open. Return to review its current state.",
+    "checkFailed": "Could not check the decision. Try checking again before sending another answer.",
+    "unclear": "The result is unclear. Check the decision before trying again.",
+    "invalid": "Authentication failed. Check your credentials and try again.",
+    "unavailable": "The decision changed or is no longer available. Return to review it again.",
+    "uncertain": "The answer may or may not have been recorded. Check its status before trying again.",
+    "check": "Check decision status",
+    "checking": "Checking…",
+    "verifyCode": "Verify code and send answer",
+    "verify": "Verify and send answer",
+    "cancel": "Return to decision",
+    "openForm": "Verify with password instead"
   }
 }

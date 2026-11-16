@@ -213,6 +213,8 @@ a migration handoff with a planned retirement path back into
 
 ## Work ladder
 
+- Rung: W3 (scoped overlapping-decision safeguard, 2026-11-16). Existing subject-key handling updates the open decision or replaces it when its menu changes, but packet checks did not flag a similar open decision under a different key. Added advisory matching scoped to the canonical ask-list audience; similarity never merges choices or transfers authority. Focused subject and related-decision regressions pass; scoped unit phase is recorded separately.
+
 - Rung: W3
 - Evidence: current managed NH13.5 light/dark phone captures use the identity-verified selected originals, 390×844 CSS viewport, zero insets, asserted header top, and byte-matched served build. The header is present; current header weight/color and dark disclosure rail remain visible mismatches. Current audit is in `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/selected-original-identity-audit.json`.
 - Result: focused UI suite passed 76/76; type-check, string/selector freshness and managed freshness passed. All 17 registered current E22 order/quiet cases and the five focused E21 readback journeys have passing durable runs; current combined owner journey `bc619f5d-aaa4-448f-b963-ca1d32dd198a` also passed (150 lease-pool requests, zero primary/test-root writes); the empty-draft case now waits for editor readiness before saved-readback assertions. Its critical-only disclosure and vertical content remain an honest visual mismatch. E43 remains rough with 47 captures, 0 matches, 47 mismatches, 61 unavailable rows; do not infer surface acceptance.
@@ -595,3 +597,30 @@ linked and its result is actionable end to end.
   owner-route tests, endpoint generation, and Test Genie unit run
   `20261115-111450-cec587f6` passed. A real live ask was unavailable in the
   owner context, so mobile capture of a real decision remains for the steward.
+
+## Work ladder — operator steering Hub host (2026-11-16)
+
+- Rung: scoped W3; the supplied steering contract and obligations were not
+  changed.
+- Result: producers can send a status or decision with a stable kit name and
+  JSON data. The API validates against the kit schema, embeds escaped data in
+  the single `hub-data` slot, and stores the result as the ask's sealed explainer.
+  The host exposes kind and subject-history recurrence to the page bridge, stores
+  page selections with either answer kind, and supports notes and image answers.
+  Status updates have no deadline and can be marked read without an answer.
+- Evidence: Go renderer tests accept all four published samples and reject bad
+  schema data; `TestStatusUpdateStoresSteeringImagesAndSubjectRecurrence` covers
+  template delivery, recurrence, steering, image upload/readback and Mark read.
+  UI type-check and 111 focused packet tests passed. Production UI build passed.
+  Test Genie unit run `20261116-174553-d70e90b2` passed; its findings retain two
+  warning classes, including `MISSING_INJECTABLE_SEAM`, and 40 existing low
+  coverage file findings. Protobuf freshness verifier passed.
+- Visual review: `notification-hub pages shoot` produced phone-width light and
+  dark previews for all four kit pages (plus 320 px usage-mode previews). These
+  render the kit's clearly marked illustrative sample JSON outside the live Hub
+  bridge; they are visual evidence only, not producer data or delivery evidence.
+- Remaining: H recorded the kit `READY` marker in shared STATUS, and the Hub
+  host resolves those published files. N has no live producer-to-Hub operator
+  delivery or answer/readback identifier. A/S/G own those producer integrations.
+  A live sample page still needs a host-context visual pass after the shared
+  integration run.

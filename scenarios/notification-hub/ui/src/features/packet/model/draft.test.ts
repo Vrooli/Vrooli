@@ -9,12 +9,14 @@ describe("normalizeDraft", () => {
       note: "ship it",
       responses: { q1: { selected: ["a"], text: "because", sections: { s1: { verdict: "ok", note: "fine" } } } },
       attachmentNotes: [{ attachment: "plan", path: "a.md", note: "see this" }],
+      answerChanges: { pace: { label: "Use faster", value: { tier: "wednesday" } } },
+      answerImages: [{ name: "chart.png", sha256: "a".repeat(64), mediaType: "image/png", sizeBytes: 20 }],
     };
     expect(normalizeDraft(stored)).toEqual(stored);
   });
 
   it("accepts a draft saved before questions and attachment notes existed", () => {
-    expect(normalizeDraft({ answer: "hold", note: "" })).toEqual({ answer: "hold", note: "", responses: {}, attachmentNotes: [] });
+    expect(normalizeDraft({ answer: "hold", note: "" })).toEqual({ answer: "hold", note: "", responses: {}, attachmentNotes: [], answerChanges: {}, answerImages: [] });
   });
 
   it("refuses anything that is not a draft, so a corrupt entry never reaches the form", () => {
