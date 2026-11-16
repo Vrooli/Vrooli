@@ -18,6 +18,7 @@ import {
 } from '../shared/constants.js'
 import { buildProxyMetadata, injectProxyMetadata, injectBaseTag } from './inject.js'
 import { proxyToApi, proxyWebSocketUpgrade } from './proxy.js'
+import { isCorsResponseHeader, withoutBrowserContext } from './origin-policy.js'
 import { resolveProxyAgent } from './agent.js'
 import { RequestTimer, NOOP_TIMER, ProxyMetrics, PHASE } from './perf.js'
 
@@ -482,7 +483,9 @@ async function streamProxiedHtml(options: {
         path: options.targetUrl,
         method: 'GET',
         headers: {
-          ...options.requestHeaders,
+          // The hosted app is a different origin; the host's origin policy
+          // already admitted this request, so the browser context is dropped.
+          ...withoutBrowserContext(options.requestHeaders),
           host: `${options.upstreamHost}:${options.upstreamPort}`,
           // HTML must be decoded before metadata/base-tag injection. Ask for
           // identity, while still handling servers that insist on compression.
@@ -599,6 +602,7 @@ function forwardHttpRequest(
     timeout: options.timeout,
     verbose: options.verbose,
     agent: options.agent,
+    crossOriginRelay: true,
   })
 }
 
@@ -610,7 +614,8 @@ function cloneHeaders(headers: http.IncomingHttpHeaders): Record<string, string 
     }
     // These validators describe upstream wire bytes. Injection changes those
     // bytes, and decompression means the downstream body is now identity HTML.
-    if (['content-length', 'content-encoding', 'content-md5', 'etag'].includes(key.toLowerCase())) {
+    // CORS headers belong to the host's origin policy, not the hosted app.
+    if (['content-length', 'content-encoding', 'content-md5', 'etag'].includes(key.toLowerCase()) || isCorsResponseHeader(key)) {
       continue
     }
     result[key] = value
@@ -1234,6 +1239,7 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
           apiPort: targetPort,
           apiHost: upstreamHost,
           verbose,
+          crossOriginRelay: true,
         })
         return true
       }
@@ -1266,6 +1272,7 @@ function setCachedHtmlEntry(appId: string, path: string, payload: Omit<HtmlCache
           apiPort: targetPort,
           apiHost: upstreamHost,
           verbose,
+          crossOriginRelay: true,
         })
         return true
       }

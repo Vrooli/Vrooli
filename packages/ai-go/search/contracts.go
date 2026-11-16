@@ -237,6 +237,8 @@ type CollectionSpec struct {
 	Model               string // embedding model, recorded in metadata
 	Role                string // embedding policy role, recorded in metadata
 	PolicySchemaVersion string // Ollama policy schema version, recorded in metadata
+	RecipeID            string // immutable canonical recipe digest, recorded in metadata
+	RecipeCanonical     string // canonical embedding recipe JSON, recorded in metadata
 	Storage             StorageProfile
 }
 

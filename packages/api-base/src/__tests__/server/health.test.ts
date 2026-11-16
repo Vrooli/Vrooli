@@ -31,6 +31,28 @@ describe('createHealthEndpoint', () => {
     expect(result.json.timestamp).toBeDefined()
   })
 
+  it('reports lifecycle identity supplied to the managed UI process', async () => {
+    vi.stubEnv('VROOLI_BUILD_IDENTITY', 'sha256:build-current')
+    vi.stubEnv('VROOLI_RUNTIME_RELEASE_ID', 'release-current')
+    vi.stubEnv('VROOLI_RUNTIME_RELEASE_OPERATION_ID', 'select-current')
+    vi.stubEnv('VROOLI_START_OPERATION_ID', 'start-current')
+    try {
+      const middleware = createHealthEndpoint({ serviceName: 'test-ui' })
+      const { res, getResult } = mockResponse()
+
+      await middleware(mockRequest(), res, vi.fn())
+
+      expect(getResult().json).toMatchObject({
+        build_identity: 'sha256:build-current',
+        runtime_release_id: 'release-current',
+        runtime_release_operation_id: 'select-current',
+        start_operation_id: 'start-current',
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('includes API connectivity check when apiPort configured', async () => {
     const options: HealthOptions = {
       serviceName: 'test-scenario',

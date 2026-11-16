@@ -23,6 +23,57 @@ type fleetTestGate struct {
 	enteredOnce sync.Once
 }
 
+type fleetLifecycleTestGate struct {
+	fleetTestGate
+	completed []bool
+}
+
+type fleetAdmissionScopeTest struct {
+	mu        sync.Mutex
+	issued    []FleetAdmission
+	completed []bool
+}
+
+type failingFleetAdmissionCatalog struct {
+	FleetGenerationCatalog
+	err error
+}
+
+func (c failingFleetAdmissionCatalog) RecordFleetAdmissionReceipt(context.Context, FleetAdmissionReceipt) error {
+	return c.err
+}
+
+func (s *fleetAdmissionScopeTest) AdmitQdrantFleetOperation(_ context.Context, operation FleetOperation, arm, target string, peak int64) (FleetAdmission, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if operation == "" || arm == "" || target == "" || peak <= 0 {
+		return FleetAdmission{}, errors.New("invalid scoped admission request")
+	}
+	proof := FleetAdmission{OperationID: fmt.Sprintf("scope-op-%d", len(s.issued)+1), ReceiptID: "parent-lease-receipt", TargetID: target, PeakBytes: peak, ObservedAt: time.Now().Add(-time.Second), ExpiresAt: time.Now().Add(time.Minute)}
+	s.issued = append(s.issued, proof)
+	return proof, nil
+}
+
+func (s *fleetAdmissionScopeTest) CompleteQdrantFleetOperation(_ context.Context, admission FleetAdmission, succeeded bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if admission.ReceiptID != "parent-lease-receipt" {
+		return errors.New("scoped operation did not retain its parent lease receipt")
+	}
+	s.completed = append(s.completed, succeeded)
+	return nil
+}
+
+func (g *fleetLifecycleTestGate) CompleteQdrantFleetOperation(_ context.Context, admission FleetAdmission, successful bool) error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if admission.OperationID == "" || admission.ReceiptID == "" {
+		return errors.New("missing operation receipt")
+	}
+	g.completed = append(g.completed, successful)
+	return nil
+}
+
 type fleetTestAliasBoundary struct {
 	mu      sync.Mutex
 	byAlias map[string]FleetAliasOperation
@@ -49,6 +100,7 @@ func (b *fleetTestAliasBoundary) AcquireFleetAliasMutation(_ context.Context, op
 	}
 	return &fleetTestAliasFence{boundary: b, key: key, operationID: operation.OperationID}, nil
 }
+
 func (f *fleetTestAliasFence) Release(context.Context) error {
 	f.boundary.mu.Lock()
 	defer f.boundary.mu.Unlock()
@@ -231,12 +283,14 @@ func (c *fleetTestCatalog) ReleaseFleetAliasOperation(_ context.Context, operati
 	delete(c.locks, key)
 	return nil
 }
+
 func (c *fleetTestCatalog) LoadFleetGeneration(_ context.Context, id string) (FleetGeneration, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	value, ok := c.byArm[id]
 	return value, ok, nil
 }
+
 func (c *fleetTestCatalog) LoadFleetGenerationByCollection(_ context.Context, collection string) (FleetGeneration, bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -247,6 +301,7 @@ func (c *fleetTestCatalog) LoadFleetGenerationByCollection(_ context.Context, co
 	}
 	return FleetGeneration{}, false, nil
 }
+
 func (c *fleetTestCatalog) SaveFleetGenerationCAS(_ context.Context, value FleetGeneration, expected int64) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -262,6 +317,7 @@ func (c *fleetTestCatalog) SaveFleetGenerationCAS(_ context.Context, value Fleet
 	c.byArm[value.ArmID] = value
 	return nil
 }
+
 func (c *fleetTestCatalog) ListFleetGenerations(_ context.Context, owner, alias string) ([]FleetGeneration, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -273,6 +329,7 @@ func (c *fleetTestCatalog) ListFleetGenerations(_ context.Context, owner, alias 
 	}
 	return records, nil
 }
+
 func (c *fleetTestCatalog) RecordFleetAdmissionReceipt(_ context.Context, receipt FleetAdmissionReceipt) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -282,6 +339,7 @@ func (c *fleetTestCatalog) RecordFleetAdmissionReceipt(_ context.Context, receip
 	c.receipts[receipt.OperationID] = receipt
 	return nil
 }
+
 func (c *fleetTestCatalog) ListFleetAdmissionReceipts(_ context.Context, armID string) ([]FleetAdmissionReceipt, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -304,12 +362,14 @@ type fleetTestSource struct {
 func (s *fleetTestSource) PinFleetSnapshot(_ context.Context, id string) (FleetSnapshot, error) {
 	return FleetSnapshot{ID: id, Watermark: s.watermark}, nil
 }
+
 func (s *fleetTestSource) ReadFleetSnapshotPage(_ context.Context, _ string, _ FleetSnapshot, cursor string, _ int) ([]FleetPoint, string, bool, error) {
 	if cursor == "" {
 		return s.pages["first"], "done", true, nil
 	}
 	return nil, cursor, true, nil
 }
+
 func (s *fleetTestSource) ReadFleetChanges(_ context.Context, _, snapshot, after string, _ int) ([]FleetChange, string, error) {
 	if snapshot == "" {
 		return nil, after, errors.New("snapshot required")
@@ -325,6 +385,7 @@ func (s *fleetTestSource) ReadFleetChanges(_ context.Context, _, snapshot, after
 	}
 	return out, out[len(out)-1].Sequence, nil
 }
+
 func (s *fleetTestSource) CompareFleetSequence(_ context.Context, before, after string) (int, error) {
 	return strings.Compare(after, before), nil
 }
@@ -332,6 +393,7 @@ func (s *fleetTestSource) FleetWatermark(context.Context) (string, error) { retu
 func (s *fleetTestSource) ExpectedFleetPointCount(context.Context, string, string, string) (uint64, error) {
 	return s.pointCount, nil
 }
+
 func (s *fleetTestSource) AcquireFleetCutover(_ context.Context, expected string) (FleetCutoverFence, error) {
 	if s.watermark != expected {
 		return nil, errors.New("watermark conflict")
@@ -738,6 +800,23 @@ func TestQdrantFleetRejectsMissingOrStaleAdmissionBeforeWrites(t *testing.T) {
 	}
 }
 
+func TestQdrantFleetAdmissionLifecycleCompletesOnlyKnownSuccessfulEffects(t *testing.T) {
+	gate := &fleetLifecycleTestGate{}
+	adapter := &QdrantFleetAdapter{gate: gate, catalog: newFleetTestCatalog(), now: time.Now}
+	if err := adapter.withAdmission(context.Background(), FleetStage, "arm-a", "generation-a", 4096, func() error { return nil }); err != nil {
+		t.Fatalf("successful admitted effect: %v", err)
+	}
+	effectErr := errors.New("provider response lost; effect uncertain")
+	if err := adapter.withAdmission(context.Background(), FleetCatchUp, "arm-a", "generation-a", 4096, func() error { return effectErr }); !errors.Is(err, effectErr) {
+		t.Fatalf("uncertain admitted effect error=%v", err)
+	}
+	gate.mu.Lock()
+	defer gate.mu.Unlock()
+	if len(gate.completed) != 2 || !gate.completed[0] || gate.completed[1] {
+		t.Fatalf("completion outcomes=%v, want [success, unresolved]", gate.completed)
+	}
+}
+
 func TestQdrantFleetRequiresAdmissionAndSourceIdentity(t *testing.T) {
 	if _, err := NewQdrantFleetAdapter(QdrantFleetOptions{OwnerID: "owner", Alias: "owner_docs", Source: &fleetTestSource{}, Catalog: newFleetTestCatalog()}); !errors.Is(err, ErrFleetAdmissionRequired) {
 		t.Fatalf("missing gate error=%v", err)
@@ -772,6 +851,85 @@ func TestCanonicalQdrantEndpointIDNormalizesSharedLockIdentity(t *testing.T) {
 		if _, err := CanonicalQdrantEndpointID(raw); err == nil {
 			t.Errorf("endpoint with forbidden or unsupported identity %q was accepted", raw)
 		}
+	}
+}
+
+func TestQdrantFleetOperationConsumesOneProviderAdmissionScope(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	underlying := &fleetTestGate{}
+	catalog := newFleetTestCatalog()
+	adapter, err := NewQdrantFleetAdapter(QdrantFleetOptions{BaseURL: server.URL, OwnerID: "owner", Alias: "owner_docs", Client: server.Client(), Admission: underlying, Source: &fleetTestSource{}, Catalog: catalog})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := &fleetAdmissionScopeTest{}
+	ctx, err := WithFleetAdmissionScope(context.Background(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = adapter.withAdmission(ctx, FleetStage, "arm-a", "owner_docs_arm-a", 4096, func() error { return nil })
+	if err != nil {
+		t.Fatalf("withAdmission() error = %v", err)
+	}
+	if underlying.calls != 0 {
+		t.Fatalf("shared adapter performed a second owner admission: calls=%d", underlying.calls)
+	}
+	if len(scope.issued) != 1 || len(scope.completed) != 1 || !scope.completed[0] {
+		t.Fatalf("provider admission scope did not own the complete Qdrant effect: issued=%+v completed=%v", scope.issued, scope.completed)
+	}
+	if len(catalog.receipts) != 1 {
+		t.Fatal("shared adapter did not persist the scoped operation receipt")
+	}
+}
+
+func TestQdrantFleetOperationReportsUncertainEffectToParentScope(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer server.Close()
+	underlying := &fleetTestGate{}
+	adapter, err := NewQdrantFleetAdapter(QdrantFleetOptions{BaseURL: server.URL, OwnerID: "owner", Alias: "owner_docs", Client: server.Client(), Admission: underlying, Source: &fleetTestSource{}, Catalog: newFleetTestCatalog()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := &fleetAdmissionScopeTest{}
+	ctx, err := WithFleetAdmissionScope(context.Background(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := errors.New("provider write outcome is uncertain")
+	err = adapter.withAdmission(ctx, FleetStage, "arm-a", "owner_docs_arm-a", 4096, func() error { return expected })
+	if !errors.Is(err, expected) {
+		t.Fatalf("withAdmission() error = %v, want uncertain provider error", err)
+	}
+	if underlying.calls != 0 || len(scope.completed) != 1 || scope.completed[0] {
+		t.Fatalf("uncertain effect was not reported to its original scope: base calls=%d completed=%v", underlying.calls, scope.completed)
+	}
+}
+
+func TestQdrantFleetAdmissionReceiptFailureRetainsParentScope(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Error("Qdrant request should not begin before its admission receipt is durable")
+	}))
+	defer server.Close()
+
+	underlying := &fleetTestGate{}
+	want := errors.New("receipt catalog unavailable")
+	catalog := failingFleetAdmissionCatalog{FleetGenerationCatalog: newFleetTestCatalog(), err: want}
+	adapter, err := NewQdrantFleetAdapter(QdrantFleetOptions{BaseURL: server.URL, OwnerID: "owner", Alias: "owner_docs", Client: server.Client(), Admission: underlying, Source: &fleetTestSource{}, Catalog: catalog})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := &fleetAdmissionScopeTest{}
+	ctx, err := WithFleetAdmissionScope(context.Background(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = adapter.withAdmission(ctx, FleetStage, "arm-a", "owner_docs_arm-a", 4096, func() error { return nil })
+	if !errors.Is(err, want) {
+		t.Fatalf("withAdmission() error = %v, want receipt failure", err)
+	}
+	if underlying.calls != 0 || len(scope.issued) != 1 || len(scope.completed) != 1 || scope.completed[0] {
+		t.Fatalf("failed receipt was not retained by the parent scope: base calls=%d issued=%+v completed=%v", underlying.calls, scope.issued, scope.completed)
 	}
 }
 

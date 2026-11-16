@@ -71,6 +71,14 @@ type FleetAdmissionGate interface {
 	AdmitQdrantFleetOperation(context.Context, FleetOperation, string, string, int64) (FleetAdmission, error)
 }
 
+// FleetAdmissionLifecycle is an optional completion contract for owner gates
+// that reserve real capacity for each provider operation. A successful Qdrant
+// request releases the reservation; an uncertain/failed request remains held
+// for owner recovery so partial physical effects are never under-reserved.
+type FleetAdmissionLifecycle interface {
+	CompleteQdrantFleetOperation(context.Context, FleetAdmission, bool) error
+}
+
 // FleetAliasMutationBoundary is owner supplied and must be shared by every
 // in-process writer for the endpoint+alias. Qdrant applies alias action batches
 // atomically but does not condition them on the prior target; arbitrary
@@ -1051,10 +1059,9 @@ func (a *QdrantFleetAdapter) Stage(ctx context.Context, armID string, recipe Emb
 			return FleetGeneration{}, err
 		}
 	}
-	if _, err := a.admitAndRecord(ctx, FleetStage, armID, collection, peakBytes); err != nil {
-		return record, err
-	}
-	if err := a.createCollection(ctx, collection, indexSpec); err != nil {
+	if err := a.withAdmission(ctx, FleetStage, armID, collection, peakBytes, func() error {
+		return a.createCollection(ctx, collection, indexSpec)
+	}); err != nil {
 		return record, err
 	}
 	snapshot := FleetSnapshot{ID: record.SnapshotID, Watermark: record.SnapshotWatermark}
@@ -1067,10 +1074,9 @@ func (a *QdrantFleetAdapter) Stage(ctx context.Context, armID string, recipe Emb
 			return record, err
 		}
 		if len(points) > 0 {
-			if _, err := a.admitAndRecord(ctx, FleetStage, armID, collection, peakBytes); err != nil {
-				return record, err
-			}
-			if err := a.upsertPoints(ctx, record.ArmID, collection, points, record.RecipeID, indexSpec); err != nil {
+			if err := a.withAdmission(ctx, FleetStage, armID, collection, peakBytes, func() error {
+				return a.upsertPoints(ctx, record.ArmID, collection, points, record.RecipeID, indexSpec)
+			}); err != nil {
 				return record, err
 			}
 			record.DataVersion++
@@ -1145,18 +1151,16 @@ func (a *QdrantFleetAdapter) CatchUp(ctx context.Context, armID string, peakByte
 				return record, err
 			}
 			if len(change.Deletes) > 0 {
-				if _, err := a.admitAndRecord(ctx, FleetCatchUp, record.ArmID, record.Collection, peakBytes); err != nil {
-					return record, err
-				}
-				if err := a.deleteSources(ctx, record.Collection, change.Deletes); err != nil {
+				if err := a.withAdmission(ctx, FleetCatchUp, record.ArmID, record.Collection, peakBytes, func() error {
+					return a.deleteSources(ctx, record.Collection, change.Deletes)
+				}); err != nil {
 					return record, err
 				}
 			}
 			if len(change.Upserts) > 0 {
-				if _, err := a.admitAndRecord(ctx, FleetCatchUp, record.ArmID, record.Collection, peakBytes); err != nil {
-					return record, err
-				}
-				if err := a.upsertPoints(ctx, record.ArmID, record.Collection, change.Upserts, record.RecipeID, spec); err != nil {
+				if err := a.withAdmission(ctx, FleetCatchUp, record.ArmID, record.Collection, peakBytes, func() error {
+					return a.upsertPoints(ctx, record.ArmID, record.Collection, change.Upserts, record.RecipeID, spec)
+				}); err != nil {
 					return record, err
 				}
 			}
@@ -1413,10 +1417,9 @@ func (a *QdrantFleetAdapter) Promote(ctx context.Context, armID string, peakByte
 			return record, err
 		}
 	}
-	if _, err := a.admitAndRecord(ctx, FleetPromote, record.ArmID, record.Collection, peakBytes); err != nil {
-		return record, err
-	}
-	if err := a.setAlias(ctx, record.Collection, previous, hasPrevious); err != nil {
+	if err := a.withAdmission(ctx, FleetPromote, record.ArmID, record.Collection, peakBytes, func() error {
+		return a.setAlias(ctx, record.Collection, previous, hasPrevious)
+	}); err != nil {
 		return record, err
 	}
 	oldVersion := record.Version
@@ -1574,9 +1577,6 @@ func (a *QdrantFleetAdapter) Rollback(ctx context.Context, armID string, peakByt
 	if fencedWatermark != rollback.CatchupWatermark {
 		return record, errors.New("source changed while acquiring the rollback fence; catch up again")
 	}
-	if _, err := a.admitAndRecord(ctx, FleetRollback, record.ArmID, record.RollbackTo, peakBytes); err != nil {
-		return record, err
-	}
 	currentAlias, hasAlias, err = a.aliasTarget(ctx)
 	if err != nil {
 		return record, err
@@ -1585,7 +1585,9 @@ func (a *QdrantFleetAdapter) Rollback(ctx context.Context, armID string, peakByt
 		return record, errors.New("refusing rollback: expected stable alias disappeared before cutover")
 	}
 	if currentAlias == record.Collection {
-		if err := a.setAlias(ctx, record.RollbackTo, record.Collection, true); err != nil {
+		if err := a.withAdmission(ctx, FleetRollback, record.ArmID, record.RollbackTo, peakBytes, func() error {
+			return a.setAlias(ctx, record.RollbackTo, record.Collection, true)
+		}); err != nil {
 			return record, err
 		}
 	} else if currentAlias != record.RollbackTo {
@@ -1709,10 +1711,9 @@ func (a *QdrantFleetAdapter) Collect(ctx context.Context, armIDs []string, peakB
 			if err != nil {
 				return err
 			}
-			if _, err := a.admitAndRecord(ctx, FleetCollect, record.ArmID, record.Collection, peakBytes); err != nil {
-				return err
-			}
-			if err := a.deleteCollection(ctx, record.Collection); err != nil {
+			if err := a.withAdmission(ctx, FleetCollect, record.ArmID, record.Collection, peakBytes, func() error {
+				return a.deleteCollection(ctx, record.Collection)
+			}); err != nil {
 				return err
 			}
 			old := record.Version
@@ -1735,7 +1736,13 @@ func (a *QdrantFleetAdapter) admit(ctx context.Context, operation FleetOperation
 	if peak <= 0 {
 		return FleetAdmission{}, errors.New("qdrant fleet operation peak-byte estimate must be positive")
 	}
-	decision, err := a.gate.AdmitQdrantFleetOperation(ctx, operation, arm, target, peak)
+	var decision FleetAdmission
+	var err error
+	if scope, scoped := FleetAdmissionScopeFromContext(ctx); scoped {
+		decision, err = scope.AdmitQdrantFleetOperation(ctx, operation, arm, target, peak)
+	} else {
+		decision, err = a.gate.AdmitQdrantFleetOperation(ctx, operation, arm, target, peak)
+	}
 	if err != nil {
 		return FleetAdmission{}, err
 	}
@@ -1753,9 +1760,39 @@ func (a *QdrantFleetAdapter) admitAndRecord(ctx context.Context, operation Fleet
 	}
 	receipt := FleetAdmissionReceipt{OperationID: decision.OperationID, ReceiptID: decision.ReceiptID, Operation: operation, ArmID: arm, TargetID: target, PeakBytes: decision.PeakBytes, ObservedAt: decision.ObservedAt, ExpiresAt: decision.ExpiresAt}
 	if err := a.catalog.RecordFleetAdmissionReceipt(ctx, receipt); err != nil {
+		if scope, scoped := FleetAdmissionScopeFromContext(ctx); scoped {
+			return FleetAdmission{}, errors.Join(err, scope.CompleteQdrantFleetOperation(context.WithoutCancel(ctx), decision, false))
+		}
+		if lifecycle, ok := a.gate.(FleetAdmissionLifecycle); ok {
+			return FleetAdmission{}, errors.Join(err, lifecycle.CompleteQdrantFleetOperation(context.WithoutCancel(ctx), decision, true))
+		}
 		return FleetAdmission{}, err
 	}
 	return decision, nil
+}
+
+func (a *QdrantFleetAdapter) withAdmission(ctx context.Context, operation FleetOperation, arm, target string, peak int64, effect func() error) error {
+	decision, err := a.admitAndRecord(ctx, operation, arm, target, peak)
+	if err != nil {
+		return err
+	}
+	effectErr := effect()
+	if scope, scoped := FleetAdmissionScopeFromContext(ctx); scoped {
+		completionErr := scope.CompleteQdrantFleetOperation(context.WithoutCancel(ctx), decision, effectErr == nil)
+		if completionErr != nil {
+			completionErr = fmt.Errorf("report Qdrant fleet effect to provider admission scope %s: %w", decision.OperationID, completionErr)
+		}
+		return errors.Join(effectErr, completionErr)
+	}
+	lifecycle, ok := a.gate.(FleetAdmissionLifecycle)
+	if !ok {
+		return effectErr
+	}
+	completionErr := lifecycle.CompleteQdrantFleetOperation(context.WithoutCancel(ctx), decision, effectErr == nil)
+	if completionErr != nil {
+		completionErr = fmt.Errorf("complete Qdrant fleet capacity operation %s: %w", decision.OperationID, completionErr)
+	}
+	return errors.Join(effectErr, completionErr)
 }
 
 func (a *QdrantFleetAdapter) markGenerationRetired(record *FleetGeneration) {
@@ -1793,10 +1830,9 @@ func (a *QdrantFleetAdapter) catchUpCollection(ctx context.Context, collection, 
 		}
 		for _, c := range changes {
 			if len(c.Deletes) > 0 {
-				if _, err := a.admitAndRecord(ctx, FleetRollback, armID, collection, peakBytes); err != nil {
-					return "", err
-				}
-				if err := a.deleteSources(ctx, collection, c.Deletes); err != nil {
+				if err := a.withAdmission(ctx, FleetRollback, armID, collection, peakBytes, func() error {
+					return a.deleteSources(ctx, collection, c.Deletes)
+				}); err != nil {
 					return "", err
 				}
 			}
@@ -1808,10 +1844,9 @@ func (a *QdrantFleetAdapter) catchUpCollection(ctx context.Context, collection, 
 				if err := validateFleetPoints(c.Upserts, dimensions, spec.Sparse); err != nil {
 					return "", err
 				}
-				if _, err := a.admitAndRecord(ctx, FleetRollback, armID, collection, peakBytes); err != nil {
-					return "", err
-				}
-				if err := a.upsertPoints(ctx, armID, collection, c.Upserts, recipeID, spec); err != nil {
+				if err := a.withAdmission(ctx, FleetRollback, armID, collection, peakBytes, func() error {
+					return a.upsertPoints(ctx, armID, collection, c.Upserts, recipeID, spec)
+				}); err != nil {
 					return "", err
 				}
 			}
@@ -1955,6 +1990,7 @@ func (a *QdrantFleetAdapter) upsertPoints(ctx context.Context, armID, name strin
 	}
 	return batch.UpsertBatch(ctx, prepared, batchSize)
 }
+
 func (a *QdrantFleetAdapter) deleteSources(ctx context.Context, name string, sourceIDs []string) error {
 	return a.request(ctx, http.MethodPost, "/collections/"+url.PathEscape(name)+"/points/delete?wait=true", map[string]any{"filter": map[string]any{"must": []any{map[string]any{"key": sourceIDKey, "match": map[string]any{"any": sourceIDs}}}}}, http.StatusOK)
 }
@@ -1995,9 +2031,11 @@ func (a *QdrantFleetAdapter) requestReadJSON(ctx context.Context, method, path s
 	}
 	return json.NewDecoder(resp.Body).Decode(target)
 }
+
 func (a *QdrantFleetAdapter) deleteCollection(ctx context.Context, name string) error {
 	return a.request(ctx, http.MethodDelete, "/collections/"+url.PathEscape(name), nil, http.StatusOK, http.StatusNotFound)
 }
+
 func (a *QdrantFleetAdapter) aliasTarget(ctx context.Context) (string, bool, error) {
 	var response struct {
 		Result struct {
@@ -2058,6 +2096,7 @@ func (a *QdrantFleetAdapter) physicalCollectionExists(ctx context.Context, name 
 	}
 	return true, nil
 }
+
 func (a *QdrantFleetAdapter) setAlias(ctx context.Context, target, previous string, hasPrevious bool) error {
 	current, exists, err := a.aliasTarget(ctx)
 	if err != nil {
@@ -2087,6 +2126,7 @@ func (a *QdrantFleetAdapter) setAlias(ctx context.Context, target, previous stri
 	}
 	return nil
 }
+
 func (a *QdrantFleetAdapter) request(ctx context.Context, method, path string, body any, statuses ...int) error {
 	var reader *bytes.Reader
 	if body != nil {
@@ -2118,6 +2158,7 @@ func (a *QdrantFleetAdapter) request(ctx context.Context, method, path string, b
 	}
 	return fmt.Errorf("Qdrant %s %s returned HTTP %d", method, path, resp.StatusCode)
 }
+
 func (a *QdrantFleetAdapter) read(ctx context.Context, path string, target any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+path, nil)
 	if err != nil {

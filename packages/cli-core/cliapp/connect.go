@@ -72,8 +72,15 @@ func (c *scenarioConnectHTTPClient) Do(req *http.Request) (*http.Response, error
 		}
 	}
 	if c.app.HTTPClient != nil {
+		// A credential the caller put on this one request (an owner session a
+		// command exchanged for, say) is the identity it chose to present; the
+		// configured default token must not silently replace it.
+		explicit := req.Header.Get("Authorization")
 		c.app.HTTPClient.SetToken(strings.TrimSpace(c.app.tokenSource()))
 		c.app.HTTPClient.ApplyRequestHeaders(req)
+		if explicit != "" {
+			req.Header.Set("Authorization", explicit)
+		}
 	}
 	// Connect clients use a private http.Client, so do not rely solely on the
 	// process-wide identity forwarding transport. Apply the run token directly

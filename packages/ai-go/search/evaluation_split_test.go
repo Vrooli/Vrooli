@@ -35,3 +35,24 @@ func TestFixedEvaluationSplitDoesNotInventHeldoutFromUntaggedCases(t *testing.T)
 		t.Fatalf("untagged cases must be tuning and no cases excluded, got tuning=%v excluded=%v", tuning, excluded)
 	}
 }
+
+func TestSplitFixedDenominatorUsesSealedMembership(t *testing.T) {
+	denominator, err := NewFixedDenominator("docs.primary", []TestCase{
+		{ID: "a", Query: "a", ExpectIDs: []string{"doc/a"}},
+		{ID: "b", Query: "b", ExpectIDs: []string{"doc/b"}},
+	}, "reviewer", "audit://docs-primary")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tuning, heldout, excluded, err := SplitFixedDenominator(denominator, map[string]bool{"b": true}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(tuning, []string{"a"}) || !reflect.DeepEqual(heldout, []string{"b"}) || len(excluded) != 0 {
+		t.Fatalf("unexpected fixed split: tuning=%v heldout=%v excluded=%v", tuning, heldout, excluded)
+	}
+	denominator.Cases = denominator.Cases[:1]
+	if _, _, _, err := SplitFixedDenominator(denominator, nil, nil); err == nil {
+		t.Fatal("modified denominator membership should fail the seal")
+	}
+}

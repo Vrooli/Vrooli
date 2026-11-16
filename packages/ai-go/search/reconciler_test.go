@@ -449,6 +449,22 @@ func (s *fakeGenerationStore) CleanupGenerations(context.Context, int) error {
 	return nil
 }
 
+func TestStreamingReconcilerCanLeaveValidatedCandidateUnpromoted(t *testing.T) {
+	store := &fakeGenerationStore{}
+	result, err := NewStreamingReconciler(&countingEmbedder{}).RunFullStaged(context.Background(), StreamingBinding{
+		Kind: "fixture", Store: store, Source: generatedPagedSource{total: 3}, PageSize: 2,
+	}, GenerationMetadata{ID: "candidate-only"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Promoted || store.promoted || store.rolledBack || store.cleaned {
+		t.Fatalf("successful staged generation must remain available without promotion or cleanup: result=%+v store=%+v", result, store)
+	}
+	if !result.Validation.Valid || result.Validation.SourceCount != 3 {
+		t.Fatalf("staged generation should be validated: %+v", result.Validation)
+	}
+}
+
 func TestStreamingReconcilerBoundsLargeCorpusByPage(t *testing.T) {
 	const (
 		// Exceeds Agent Manager's measured 28,749-message operator corpus so

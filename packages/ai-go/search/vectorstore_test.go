@@ -14,6 +14,18 @@ import (
 
 const fixtureDenseSize = 1234
 
+func fixtureEmbeddingRecipe(t *testing.T, model string, dimensions int) EmbeddingRecipe {
+	t.Helper()
+	input := validEmbeddingRecipeInput()
+	input.ModelID = model
+	input.Dimensions = dimensions
+	recipe, err := NewEmbeddingRecipe(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return recipe
+}
+
 // capturingDoer records every request and replies with a scripted response.
 type capturingDoer struct {
 	requests []capturedReq
@@ -86,6 +98,69 @@ func TestEnsureCollectionHybridShape(t *testing.T) {
 	s, _ := sparse["sparse"].(map[string]any)
 	if s["modifier"] != "idf" {
 		t.Fatalf("expected idf modifier, got %v", sparse["sparse"])
+	}
+}
+
+func TestEnsureCollectionWritesCanonicalRecipeToSentinel(t *testing.T) {
+	const model = "local/e5-small"
+	recipe := fixtureEmbeddingRecipe(t, model, 384)
+	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
+		if req.method == http.MethodGet {
+			return http.StatusNotFound, "{}"
+		}
+		return http.StatusOK, "{}"
+	}}
+	store := NewVectorStoreWithClient("http://q", "", "recipe-collection", doer)
+	err := store.EnsureCollection(context.Background(), CollectionSpec{
+		DenseSize: 384, DenseDistance: "Cosine", Model: model, Role: "embedding.default",
+		PolicySchemaVersion: "policy-v1", RecipeID: recipe.ID(), RecipeCanonical: string(recipe.Canonical()),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := doer.last().body["points"].([]any)[0].(map[string]any)["payload"].(map[string]any)
+	if payload[metaRecipeIDKey] != recipe.ID() || payload[metaRecipeCanonicalKey] != string(recipe.Canonical()) {
+		t.Fatalf("sentinel omitted immutable recipe identity: %+v", payload)
+	}
+}
+
+func TestEnsureCollectionRejectsRecipeFieldDisagreementBeforeWriting(t *testing.T) {
+	recipe := fixtureEmbeddingRecipe(t, "local/e5-small", 384)
+	doer := &capturingDoer{}
+	store := NewVectorStoreWithClient("http://q", "", "recipe-collection", doer)
+	err := store.EnsureCollection(context.Background(), CollectionSpec{
+		DenseSize: 384, Model: "different-model", RecipeID: recipe.ID(), RecipeCanonical: string(recipe.Canonical()),
+	})
+	if err == nil || len(doer.requests) != 0 {
+		t.Fatalf("mismatched recipe/model must fail before Qdrant access: err=%v requests=%+v", err, doer.requests)
+	}
+}
+
+func TestEnsureCollectionSchemaGuardChecksSentinelRecipeIdentity(t *testing.T) {
+	const model = "local/e5-small"
+	recipe := fixtureEmbeddingRecipe(t, model, fixtureDenseSize)
+	other := fixtureEmbeddingRecipe(t, "local/other-small", fixtureDenseSize)
+	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
+		switch {
+		case isCollectionInfoGet(req):
+			return http.StatusOK, matchingDenseInfo(fixtureDenseSize, "Cosine")
+		case isPointGet(req):
+			payload, _ := json.Marshal(map[string]any{
+				metaMarkerKey: true, metaModelKey: model, metaRoleKey: "embedding.default",
+				metaDenseSizeKey: fixtureDenseSize, metaDenseDistanceKey: "Cosine", metaPolicySchemaKey: "policy-v1",
+				metaRecipeIDKey: other.ID(), metaRecipeCanonicalKey: string(other.Canonical()),
+			})
+			return http.StatusOK, fmt.Sprintf(`{"result":{"payload":%s}}`, payload)
+		}
+		return http.StatusOK, "{}"
+	}}
+	store := NewVectorStoreWithClient("http://q", "", "recipe-collection", doer)
+	err := store.EnsureCollection(context.Background(), CollectionSpec{
+		DenseSize: fixtureDenseSize, DenseDistance: "Cosine", Model: model, Role: "embedding.default",
+		PolicySchemaVersion: "policy-v1", RecipeID: recipe.ID(), RecipeCanonical: string(recipe.Canonical()),
+	})
+	if !errors.Is(err, ErrCollectionSchemaMismatch) {
+		t.Fatalf("expected immutable recipe sentinel mismatch, got %v", err)
 	}
 }
 

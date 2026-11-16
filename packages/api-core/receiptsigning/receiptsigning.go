@@ -19,6 +19,9 @@ const (
 	// PurposeCloudEvidenceReceipt binds scenario-to-cloud evidence records
 	// and deployment receipts to their producer.
 	PurposeCloudEvidenceReceipt Purpose = "cloud-evidence-receipt-v1"
+	// PurposeWalletRecoveryPublicationReceipt binds a DBM-owned attestation to
+	// the exact off-host wallet-revocation snapshot and restore verification.
+	PurposeWalletRecoveryPublicationReceipt Purpose = "wallet-recovery-publication-receipt-v1"
 )
 
 // Purpose domain-separates a signature so evidence of one kind cannot be
@@ -26,7 +29,7 @@ const (
 type Purpose string
 
 func (p Purpose) Valid() bool {
-	return p == PurposeExperimentAuditReceipt || p == PurposeExperimentHoldoutReceipt || p == PurposeCloudEvidenceReceipt
+	return p == PurposeExperimentAuditReceipt || p == PurposeExperimentHoldoutReceipt || p == PurposeCloudEvidenceReceipt || p == PurposeWalletRecoveryPublicationReceipt
 }
 
 // SignatureEnvelope is stored alongside evidence, never instead of evidence.
@@ -87,12 +90,18 @@ type Health struct {
 	Description string `json:"description,omitempty"`
 }
 
-// ReceiptSigner owns signature custody. Implementations must reject unsupported
-// purposes and must never expose key material through this interface.
-type ReceiptSigner interface {
-	Sign(context.Context, Purpose, []byte) (SignatureEnvelope, error)
+// ReceiptVerifier verifies a signed receipt without granting access to the
+// signing key. Implementations must reject unsupported purposes.
+type ReceiptVerifier interface {
 	Verify(context.Context, SignatureEnvelope, []byte) error
 	Health(context.Context) (Health, error)
+}
+
+// ReceiptSigner owns signature custody and verification. Verification-only
+// consumers should depend on ReceiptVerifier to avoid gaining signing access.
+type ReceiptSigner interface {
+	ReceiptVerifier
+	Sign(context.Context, Purpose, []byte) (SignatureEnvelope, error)
 }
 
 // RequireHealthy verifies a signer is truly ready for the requested trust tier.

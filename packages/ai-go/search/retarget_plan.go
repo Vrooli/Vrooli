@@ -7,6 +7,8 @@ type EmbeddingMetadata struct {
 	Model               string `json:"model"`
 	Dimensions          int    `json:"dimensions"`
 	PolicySchemaVersion string `json:"policy_schema_version,omitempty"`
+	RecipeID            string `json:"recipe_id,omitempty"`
+	RecipeCanonical     string `json:"recipe_canonical,omitempty"`
 }
 
 type EmbeddingStoreKind string
@@ -69,7 +71,9 @@ func PlanEmbeddingRetarget(oldMeta, newMeta EmbeddingMetadata, stores []string) 
 	case plan.Old.Model == plan.New.Model &&
 		plan.Old.Dimensions == plan.New.Dimensions &&
 		plan.Old.Role == plan.New.Role &&
-		plan.Old.PolicySchemaVersion == plan.New.PolicySchemaVersion:
+		plan.Old.PolicySchemaVersion == plan.New.PolicySchemaVersion &&
+		plan.Old.RecipeID == plan.New.RecipeID &&
+		plan.Old.RecipeCanonical == plan.New.RecipeCanonical:
 		plan.Compatibility = RetargetNoop
 		plan.RequiredAction = "none"
 	case plan.Old.Dimensions == plan.New.Dimensions:
@@ -143,6 +147,8 @@ func normalizeEmbeddingMetadata(meta EmbeddingMetadata) EmbeddingMetadata {
 	meta.Role = strings.TrimSpace(meta.Role)
 	meta.Model = strings.TrimSpace(meta.Model)
 	meta.PolicySchemaVersion = strings.TrimSpace(meta.PolicySchemaVersion)
+	meta.RecipeID = strings.TrimSpace(meta.RecipeID)
+	meta.RecipeCanonical = strings.TrimSpace(meta.RecipeCanonical)
 	return meta
 }
 

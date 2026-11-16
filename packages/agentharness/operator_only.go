@@ -50,6 +50,11 @@ func rootUpdateOperatorCommand(args []string) string {
 	}
 	switch words[2] {
 	case "rebaseline":
+		// This exact form obtains a fresh verified-human Hub decision for the
+		// qualified images before the transition. Other forms remain operator-only.
+		if len(args) == 5 && args[3] != "" && !strings.HasPrefix(args[3], "-") && args[4] == "--hub" {
+			return ""
+		}
 		return "`vrooli runtime update rebaseline` crosses a root persistent-state contract change without automatic rollback; that is the operator's decision"
 	case "enroll", "disable":
 		return "`vrooli runtime update " + words[2] + "` changes automatic root update enrollment; that is the operator's decision"

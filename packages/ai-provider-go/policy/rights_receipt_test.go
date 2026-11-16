@@ -52,18 +52,32 @@ func TestRightsDecisionReceiptPersistsAndRechecksExactInputs(t *testing.T) {
 	}
 }
 
-func TestRightsDecisionReceiptPreservesUnknownAndRefusesExecution(t *testing.T) {
+func TestRightsDecisionReceiptAllowsUnrestrictedGrantWithoutEntityScope(t *testing.T) {
 	expectation := receiptExpectationFixture()
 	expectation.Context.EntityScope = ""
 	receipt := NewRightsDecisionReceipt(expectation, time.Date(2026, 11, 11, 21, 0, 0, 0, time.UTC))
-	if receipt.Eligibility != RightsUnknown || receipt.Decision.Status != RightsUnknown {
-		t.Fatalf("receipt=%+v; absent entity_scope must remain unknown", receipt)
+	if receipt.Eligibility != RightsAllowed || receipt.Decision.Status != RightsAllowed {
+		t.Fatalf("receipt=%+v; an unrestricted grant should not require conditional entity scope", receipt)
 	}
 	if err := VerifyRightsDecisionReceipt(receipt, expectation); err != nil {
 		t.Fatalf("unknown receipt remains internally/current-input verifiable: %v", err)
 	}
+	if err := RequireAllowedRightsDecisionReceipt(receipt); err != nil {
+		t.Fatalf("unrestricted grant receipt should authorize inference: %v", err)
+	}
+}
+
+func TestConditionalRightsDecisionReceiptRequiresMatchingEntityScope(t *testing.T) {
+	expectation := receiptExpectationFixture()
+	expectation.ArtifactRights.Classification = RightsConditional
+	expectation.ArtifactRights.Conditions = []RightsCondition{{ID: "revenue-v1", Kind: "annual_revenue", Comparator: "lt", Threshold: 10000000, Unit: "USD", EntityScope: "fixture-entity", Interpretation: "re-evaluate at threshold"}}
+	expectation.Context.EntityScope = ""
+	receipt := NewRightsDecisionReceipt(expectation, time.Date(2026, 11, 11, 21, 0, 0, 0, time.UTC))
+	if receipt.Eligibility != RightsUnknown || receipt.Decision.Status != RightsUnknown {
+		t.Fatalf("receipt=%+v; conditional license without entity scope must remain unknown", receipt)
+	}
 	if err := RequireAllowedRightsDecisionReceipt(receipt); err == nil {
-		t.Fatal("unknown receipt must not authorize inference")
+		t.Fatal("unknown conditional receipt must not authorize inference")
 	}
 }
 

@@ -2,6 +2,7 @@ package authn
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -29,6 +30,30 @@ func TestOperationGrantCannotApproveHumanDecisionsOrOtherObjects(t *testing.T) {
 	g.ExpiresAt = time.Now().Add(-time.Second)
 	if _, err := RequireOperation(ctx, "swarm-manager:write", "swarm.bookkeeping", "swarm-manager:backlog/execute/obsolete"); err == nil {
 		t.Fatal("expired grant accepted")
+	}
+}
+
+func TestEvaluateOperationGrantSharesCapabilityAndTypedTargetDecision(t *testing.T) {
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	grant := &identity.OperationGrant{ID: "grant", Approver: "operator", Operations: []string{"treasury.spend"}, Targets: []string{"treasury:budget/research/*"}, ExpiresAt: now.Add(time.Minute)}
+	if got := EvaluateOperationGrant([]string{"treasury:write"}, grant, "treasury:write", "treasury.spend", "treasury:budget/research/ci", now); !got.Allowed() {
+		t.Fatalf("scoped wildcard grant refused: %+v", got)
+	}
+	for name, args := range map[string]struct {
+		scopes     []string
+		grant      *identity.OperationGrant
+		op, target string
+	}{
+		"missing capability": {scopes: []string{"treasury:read"}, grant: grant, op: "treasury.spend", target: "treasury:budget/research/ci"},
+		"wrong target":       {scopes: []string{"treasury:write"}, grant: grant, op: "treasury.spend", target: "treasury:budget/private"},
+		"wrong operation":    {scopes: []string{"treasury:write"}, grant: grant, op: "treasury.read", target: "treasury:budget/research/ci"},
+		"expired grant":      {scopes: []string{"treasury:write"}, grant: &identity.OperationGrant{ID: grant.ID, Approver: grant.Approver, Operations: grant.Operations, Targets: grant.Targets, ExpiresAt: now}, op: "treasury.spend", target: "treasury:budget/research/ci"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := EvaluateOperationGrant(args.scopes, args.grant, "treasury:write", args.op, args.target, now); got.Allowed() {
+				t.Fatalf("unauthorized request accepted: %+v", got)
+			}
+		})
 	}
 }
 
@@ -151,6 +176,38 @@ func TestOwnerBindingRequiresExactVerifiedProviderSubject(t *testing.T) {
 	p, err = cfg.Authenticate(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil))
 	if err != nil || p.Subject != "cf-sub" || len(p.Scopes) != 0 {
 		t.Fatal("a different provider supplied owner authority")
+	}
+}
+
+// A configured installation owner must not need a new enumerated scope every
+// time a reviewed capability is added. The wildcard belongs only to the exact
+// verified human subject; it does not grant an agent permission to act for them.
+func TestWildcardOwnerBindingCoversFutureCapabilitiesWithoutElevatingAgents(t *testing.T) {
+	provider := TokenProvider{ProviderSource: identity.SourceCloudflareAccess, Extract: func(*http.Request) string { return "proof" }, Verifier: operationVerifier{}}
+	cfg := Config{Providers: []Provider{provider}, OwnerBindings: []OwnerBinding{{Source: identity.SourceCloudflareAccess, Subject: "cf-sub", CanonicalSubject: "owner", Scopes: []string{"*"}}}}
+	p, err := cfg.Authenticate(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := identity.WithPrincipal(context.Background(), p)
+	for _, scope := range []string{"research-desk:read", "research-desk:write", "future-scenario:destructive"} {
+		if _, err := RequireCapability(ctx, scope); err != nil {
+			t.Fatalf("owner lacks %s: %v", scope, err)
+		}
+	}
+	// An exact-subject mismatch remains unprivileged.
+	cfg.OwnerBindings[0].Subject = "another-subject"
+	p, err = cfg.Authenticate(context.Background(), httptest.NewRequest(http.MethodGet, "/", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := RequireCapability(identity.WithPrincipal(context.Background(), p), "research-desk:write"); err == nil {
+		t.Fatal("unbound human inherited owner authority")
+	}
+	// Even an agent with wildcard capabilities still needs a live operation grant.
+	agent := identity.Principal{Kind: identity.ActorAgent, Subject: "run", Owner: "owner", Verified: true, Scopes: []string{"*"}}
+	if _, err := RequireOperation(identity.WithPrincipal(context.Background(), agent), "research-desk:write", "research.launch", "research-desk:commission/example"); !errors.Is(err, ErrOperation) {
+		t.Fatalf("owner capabilities erased agent operation boundary: %v", err)
 	}
 }
 

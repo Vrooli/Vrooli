@@ -60,6 +60,25 @@ func TestResolveRoleShellsOutToPolicyCommand(t *testing.T) {
 	}
 }
 
+func TestResolveRoleCarriesDigestBoundArtifactEvidence(t *testing.T) {
+	runner := &fakeRunner{out: []byte(`{
+		"model":"nomic-embed-text:latest",
+		"policy_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"rights":{"artifact_id":"registry.ollama.ai/library/nomic-embed-text:latest","revision":"ollama-manifest:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","license_id":"Apache-2.0","classification":"unrestricted","evidence":{"url":"https://ollama.com/library/nomic-embed-text:latest","revision":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","sha256":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","observed_at":"2026-11-12"}},
+		"runtime_identity":{"provider":"ollama","model":"nomic-embed-text:latest","artifact_id":"registry.ollama.ai/library/nomic-embed-text:latest","artifact_revision":"ollama-manifest:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","digest_kind":"ollama_model_contents","digest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","source":"ollama /api/tags","observed_at":"2026-11-12"}
+	}`)}
+	resolved, err := (Resolver{Run: runner}).ResolveRole(context.Background(), "embedding.default")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.PolicySHA256 != strings.Repeat("a", 64) || resolved.Rights == nil || resolved.RuntimeIdentity == nil {
+		t.Fatalf("resolver lost trusted artifact evidence: %+v", resolved)
+	}
+	if resolved.RuntimeIdentity.Digest != resolved.Rights.SHA256 || resolved.RuntimeIdentity.ArtifactID != resolved.Rights.ArtifactID {
+		t.Fatalf("runtime identity is not bound to rights: rights=%+v identity=%+v", resolved.Rights, resolved.RuntimeIdentity)
+	}
+}
+
 func TestResolveModelShellsOutToPolicyCommand(t *testing.T) {
 	runner := &fakeRunner{out: []byte(`{"model":"fixture-embed-model:latest","source":"model","capabilities":["embedding"]}`)}
 	_, err := (Resolver{Bin: "custom-ollama", Run: runner}).ResolveModel(context.Background(), fixtureEmbeddingModel)

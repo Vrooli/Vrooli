@@ -13,18 +13,27 @@ import (
 // GenerationMetadata identifies one immutable candidate index generation.
 // SourceDigest, Model, and ChunkPolicy make freshness decisions inspectable.
 type GenerationMetadata struct {
-	ID              string    `json:"id"`
-	CreatedAt       time.Time `json:"createdAt"`
-	SourceDigest    string    `json:"sourceDigest,omitempty"`
-	Model           string    `json:"model,omitempty"`
-	ChunkPolicy     string    `json:"chunkPolicy,omitempty"`
-	Owner           string    `json:"owner,omitempty"`
-	Namespace       string    `json:"namespace,omitempty"`
-	Alias           string    `json:"alias,omitempty"`
-	ContentIdentity string    `json:"contentIdentity,omitempty"`
-	LeaseID         string    `json:"leaseId,omitempty"`
-	LeaseExpiresAt  time.Time `json:"leaseExpiresAt,omitempty"`
-	Full            bool      `json:"full"`
+	ID                  string    `json:"id"`
+	CreatedAt           time.Time `json:"createdAt"`
+	SourceDigest        string    `json:"sourceDigest,omitempty"`
+	Model               string    `json:"model,omitempty"`
+	ChunkPolicy         string    `json:"chunkPolicy,omitempty"`
+	EmbeddingRole       string    `json:"embeddingRole,omitempty"`
+	EmbeddingDimensions int       `json:"embeddingDimensions,omitempty"`
+	PolicySchemaVersion string    `json:"policySchemaVersion,omitempty"`
+	RecipeID            string    `json:"recipeId,omitempty"`
+	RecipeCanonical     string    `json:"recipeCanonical,omitempty"`
+	EmbeddingTaskPrefix bool      `json:"embeddingTaskPrefix,omitempty"`
+	MigrationPhase      string    `json:"migrationPhase,omitempty"`
+	MigrationSources    int       `json:"migrationSources,omitempty"`
+	MigrationPoints     int       `json:"migrationPoints,omitempty"`
+	Owner               string    `json:"owner,omitempty"`
+	Namespace           string    `json:"namespace,omitempty"`
+	Alias               string    `json:"alias,omitempty"`
+	ContentIdentity     string    `json:"contentIdentity,omitempty"`
+	LeaseID             string    `json:"leaseId,omitempty"`
+	LeaseExpiresAt      time.Time `json:"leaseExpiresAt,omitempty"`
+	Full                bool      `json:"full"`
 }
 
 // StoredSourceState is the bounded projection needed to reconcile one source.
@@ -165,6 +174,17 @@ func NewStreamingReconciler(embedder Embedder) *StreamingReconciler {
 
 // RunFull reconciles the complete paged source into a shadow generation.
 func (r *StreamingReconciler) RunFull(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata) (*StreamingResult, error) {
+	return r.runFull(ctx, binding, metadata, true)
+}
+
+// RunFullStaged builds and validates a durable full generation but leaves the
+// serving alias untouched. A successful candidate remains available for an
+// explicit later promotion; failed or canceled builds are rolled back.
+func (r *StreamingReconciler) RunFullStaged(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata) (*StreamingResult, error) {
+	return r.runFull(ctx, binding, metadata, false)
+}
+
+func (r *StreamingReconciler) runFull(ctx context.Context, binding StreamingBinding, metadata GenerationMetadata, promote bool) (*StreamingResult, error) {
 	if err := validateStreamingBinding(binding, r.Embedder); err != nil {
 		return nil, err
 	}
@@ -178,9 +198,9 @@ func (r *StreamingReconciler) RunFull(ctx context.Context, binding StreamingBind
 	if err := binding.Store.BeginGeneration(ctx, metadata); err != nil {
 		return nil, fmt.Errorf("begin generation %q: %w", metadata.ID, err)
 	}
-	promoted := false
+	completed := false
 	defer func() {
-		if !promoted {
+		if !completed {
 			_ = binding.Store.RollbackGeneration(context.WithoutCancel(ctx), metadata.ID)
 		}
 	}()
@@ -270,10 +290,14 @@ func (r *StreamingReconciler) RunFull(ctx context.Context, binding StreamingBind
 			return result, fmt.Errorf("generation %q pre-promotion check: %w", metadata.ID, err)
 		}
 	}
+	if !promote {
+		completed = true
+		return result, nil
+	}
 	if err := binding.Store.PromoteGeneration(ctx, metadata.ID); err != nil {
 		return result, fmt.Errorf("promote generation %q: %w", metadata.ID, err)
 	}
-	promoted = true
+	completed = true
 	result.Promoted = true
 	if err := binding.Store.CleanupGenerations(ctx, retainedGenerations); err != nil {
 		result.CleanupError = err.Error()

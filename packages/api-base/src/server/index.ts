@@ -35,6 +35,24 @@ export {
   proxyWebSocketUpgrade,
 } from './proxy.js'
 
+// Browser origin policy
+export {
+  BROWSER_CONTEXT_HEADERS,
+  SAME_ORIGIN_POLICY,
+  canonicalOrigin,
+  createOriginPolicy,
+  isCorsResponseHeader,
+  normalizeAllowedOrigins,
+  refuseUpgrade,
+  withoutBrowserContext,
+} from './origin-policy.js'
+export type {
+  OriginDecision,
+  OriginPolicy,
+  OriginPolicyRequest,
+  OriginVerdict,
+} from './origin-policy.js'
+
 // Config endpoint
 export {
   buildScenarioConfig,
@@ -74,6 +92,9 @@ export {
   createScenarioProxyHost,
 } from './host.js'
 
+export { createLocalPortProxy } from './local-port-proxy.js'
+export type { LocalPortProxyController } from './local-port-proxy.js'
+
 // Embedded scenario proxy
 export {
   createEmbeddedProxyRouter,
@@ -96,6 +117,8 @@ export type {
   ScenarioConfig,
   PortEntry,
   ProxyOptions,
+  WebSocketProxyOptions,
+  OriginPolicyOptions,
   ConfigEndpointOptions,
   HealthOptions,
   HealthCheckResult,
@@ -105,4 +128,5 @@ export type {
   ScenarioProxyAppMetadata,
   HostEndpointDefinition,
   EmbeddedProxyOptions,
+  LocalPortProxyOptions,
 } from '../shared/types.js'

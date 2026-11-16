@@ -16,18 +16,40 @@ import (
 // CollectionSpec: inventory must never imply that an observed collection is
 // safe to mutate.
 type EmbeddingInventoryEntry struct {
-	Store           EmbeddingStore    `json:"store"`
-	Metadata        EmbeddingMetadata `json:"metadata"`
-	Distance        string            `json:"distance,omitempty"`
-	PointCount      int64             `json:"point_count"`
-	SentinelPresent bool              `json:"sentinel_present"`
+	Store                EmbeddingStore    `json:"store"`
+	Metadata             EmbeddingMetadata `json:"metadata"`
+	Distance             string            `json:"distance,omitempty"`
+	PointCount           int64             `json:"point_count"`
+	SentinelPresent      bool              `json:"sentinel_present"`
+	SentinelStatus       string            `json:"sentinel_status"`
+	RecipeIdentityStatus string            `json:"recipe_identity_status"`
+	PhysicalGenerationID string            `json:"physical_generation_id,omitempty"`
+	QdrantAliases        []string          `json:"qdrant_aliases,omitempty"`
+	AliasTarget          bool              `json:"alias_target"`
 }
+
+const (
+	SentinelAbsent         = "absent"
+	SentinelIncomplete     = "incomplete"
+	SentinelComplete       = "complete"
+	RecipeIdentityUnknown  = "unknown"
+	RecipeIdentityVerified = "verified"
+)
 
 type qdrantCollectionsResponse struct {
 	Result struct {
 		Collections []struct {
 			Name string `json:"name"`
 		} `json:"collections"`
+	} `json:"result"`
+}
+
+type qdrantAliasesResponse struct {
+	Result struct {
+		Aliases []struct {
+			AliasName      string `json:"alias_name"`
+			CollectionName string `json:"collection_name"`
+		} `json:"aliases"`
 	} `json:"result"`
 }
 
@@ -63,6 +85,24 @@ func InventoryQdrantCollections(ctx context.Context, baseURL, apiKey string) ([]
 		baseURL = DefaultQdrantURL
 	}
 	client := &http.Client{}
+	aliases, err := qdrantGET[qdrantAliasesResponse](ctx, client, baseURL+"/aliases", apiKey, "collection aliases")
+	if err != nil {
+		return nil, err
+	}
+	if aliases.Result.Aliases == nil {
+		return nil, fmt.Errorf("read Qdrant collection aliases: response is missing the aliases array")
+	}
+	aliasesByCollection := make(map[string][]string, len(aliases.Result.Aliases))
+	for _, alias := range aliases.Result.Aliases {
+		collection := strings.TrimSpace(alias.CollectionName)
+		name := strings.TrimSpace(alias.AliasName)
+		if collection != "" && name != "" {
+			aliasesByCollection[collection] = append(aliasesByCollection[collection], name)
+		}
+	}
+	for collection := range aliasesByCollection {
+		sort.Strings(aliasesByCollection[collection])
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/collections", nil)
 	if err != nil {
 		return nil, fmt.Errorf("create Qdrant collection request: %w", err)
@@ -91,10 +131,23 @@ func InventoryQdrantCollections(ctx context.Context, baseURL, apiKey string) ([]
 		if err != nil {
 			return nil, err
 		}
+		entry.PhysicalGenerationID = physicalGenerationID(name)
+		entry.QdrantAliases = append([]string(nil), aliasesByCollection[name]...)
+		entry.AliasTarget = len(entry.QdrantAliases) > 0
 		out = append(out, entry)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Store.ID < out[j].Store.ID })
 	return out, nil
+}
+
+func physicalGenerationID(collection string) string {
+	const marker = "--generation--"
+	_, generationID, ok := strings.Cut(collection, marker)
+	if !ok {
+		return ""
+	}
+	generationID = strings.TrimSpace(generationID)
+	return generationID
 }
 
 func inspectQdrantCollection(ctx context.Context, client *http.Client, baseURL, apiKey, collection string) (EmbeddingInventoryEntry, error) {
@@ -112,6 +165,8 @@ func inspectQdrantCollection(ctx context.Context, client *http.Client, baseURL, 
 	model := stringPayload(payload, metaModelKey)
 	role := stringPayload(payload, metaRoleKey)
 	policy := stringPayload(payload, metaPolicySchemaKey)
+	recipeID := stringPayload(payload, metaRecipeIDKey)
+	recipeCanonical := stringPayload(payload, metaRecipeCanonicalKey)
 	metaSize := intPayload(payload, metaDenseSizeKey)
 	if metaSize > 0 {
 		size = metaSize
@@ -120,15 +175,29 @@ func inspectQdrantCollection(ctx context.Context, client *http.Client, baseURL, 
 	if err != nil {
 		return EmbeddingInventoryEntry{}, err
 	}
-	if count > 0 {
+	sentinelPresent := payload != nil && payload[metaMarkerKey] == true
+	if sentinelPresent && count > 0 {
 		count-- // the engine sentinel is not a corpus point
 	}
+	sentinelStatus := SentinelAbsent
+	if sentinelPresent {
+		sentinelStatus = SentinelIncomplete
+		if strings.TrimSpace(model) != "" && strings.TrimSpace(role) != "" && metaSize > 0 && strings.TrimSpace(policy) != "" && strings.TrimSpace(firstNonEmpty(stringPayload(payload, metaDenseDistanceKey), distance)) != "" {
+			sentinelStatus = SentinelComplete
+		}
+	}
+	recipeIdentityStatus := RecipeIdentityUnknown
+	if sentinelPresent && validateSentinelRecipe(recipeID, recipeCanonical, model, metaSize) == nil {
+		recipeIdentityStatus = RecipeIdentityVerified
+	}
 	return EmbeddingInventoryEntry{
-		Store:           NewQdrantEmbeddingStore(collection),
-		Metadata:        EmbeddingMetadata{Role: role, Model: model, Dimensions: size, PolicySchemaVersion: policy},
-		Distance:        firstNonEmpty(stringPayload(payload, metaDenseDistanceKey), distance),
-		PointCount:      count,
-		SentinelPresent: payload != nil && payload[metaMarkerKey] == true,
+		Store:                NewQdrantEmbeddingStore(collection),
+		Metadata:             EmbeddingMetadata{Role: role, Model: model, Dimensions: size, PolicySchemaVersion: policy, RecipeID: recipeID, RecipeCanonical: recipeCanonical},
+		Distance:             firstNonEmpty(stringPayload(payload, metaDenseDistanceKey), distance),
+		PointCount:           count,
+		SentinelPresent:      sentinelPresent,
+		SentinelStatus:       sentinelStatus,
+		RecipeIdentityStatus: recipeIdentityStatus,
 	}, nil
 }
 

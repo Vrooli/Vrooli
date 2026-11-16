@@ -40,13 +40,15 @@ const engineSchemaVersion = 1
 // from reconcile drift (ScrollIDs) by the presence of metaMarkerKey, so it is
 // invisible to consumers and never ghost-deleted.
 const (
-	metaMarkerKey        = "__aisearch_meta__" // bool true; marks the sentinel
-	metaModelKey         = "model"
-	metaRoleKey          = "role"
-	metaDenseSizeKey     = "dense_size"
-	metaDenseDistanceKey = "dense_distance"
-	metaPolicySchemaKey  = "policy_schema_version"
-	metaSchemaVersionKey = "engine_schema_version"
+	metaMarkerKey          = "__aisearch_meta__" // bool true; marks the sentinel
+	metaModelKey           = "model"
+	metaRoleKey            = "role"
+	metaDenseSizeKey       = "dense_size"
+	metaDenseDistanceKey   = "dense_distance"
+	metaPolicySchemaKey    = "policy_schema_version"
+	metaRecipeIDKey        = "embedding_recipe_id"
+	metaRecipeCanonicalKey = "embedding_recipe_canonical"
+	metaSchemaVersionKey   = "engine_schema_version"
 	// metaIDPrefix derives the deterministic sentinel point ID from the
 	// collection name; reserved so it can never collide with a real source key.
 	metaIDPrefix = "__aisearch_meta__:"
@@ -306,13 +308,15 @@ func (v *qdrantVectorStore) writeMetaSentinel(ctx context.Context, spec Collecti
 		dense[0] = 1
 	}
 	payload := map[string]any{
-		metaMarkerKey:        true,
-		metaModelKey:         strings.TrimSpace(spec.Model),
-		metaRoleKey:          strings.TrimSpace(spec.Role),
-		metaDenseSizeKey:     size,
-		metaDenseDistanceKey: distance,
-		metaPolicySchemaKey:  strings.TrimSpace(spec.PolicySchemaVersion),
-		metaSchemaVersionKey: engineSchemaVersion,
+		metaMarkerKey:          true,
+		metaModelKey:           strings.TrimSpace(spec.Model),
+		metaRoleKey:            strings.TrimSpace(spec.Role),
+		metaDenseSizeKey:       size,
+		metaDenseDistanceKey:   distance,
+		metaPolicySchemaKey:    strings.TrimSpace(spec.PolicySchemaVersion),
+		metaRecipeIDKey:        strings.TrimSpace(spec.RecipeID),
+		metaRecipeCanonicalKey: strings.TrimSpace(spec.RecipeCanonical),
+		metaSchemaVersionKey:   engineSchemaVersion,
 	}
 	return v.Upsert(ctx, Point{ID: v.metaPointID(), Dense: dense, Payload: payload})
 }
@@ -323,6 +327,8 @@ type collectionMeta struct {
 	DenseSize           int
 	DenseDistance       string
 	PolicySchemaVersion string
+	RecipeID            string
+	RecipeCanonical     string
 	EngineSchemaVersion int
 }
 
@@ -367,6 +373,8 @@ func (v *qdrantVectorStore) readMeta(ctx context.Context) (collectionMeta, bool,
 		DenseSize:           intPayload(decoded.Result.Payload, metaDenseSizeKey),
 		DenseDistance:       stringPayload(decoded.Result.Payload, metaDenseDistanceKey),
 		PolicySchemaVersion: stringPayload(decoded.Result.Payload, metaPolicySchemaKey),
+		RecipeID:            stringPayload(decoded.Result.Payload, metaRecipeIDKey),
+		RecipeCanonical:     stringPayload(decoded.Result.Payload, metaRecipeCanonicalKey),
 		EngineSchemaVersion: intPayload(decoded.Result.Payload, metaSchemaVersionKey),
 	}
 	return meta, true, nil
@@ -418,6 +426,9 @@ func (v *qdrantVectorStore) EnsureCollectionFrom(ctx context.Context, spec Colle
 }
 
 func (v *qdrantVectorStore) ensureCollection(ctx context.Context, spec CollectionSpec, initFrom string) error {
+	if err := validateCollectionRecipe(spec); err != nil {
+		return err
+	}
 	if err := validateStorageProfile(spec.Storage); err != nil {
 		return err
 	}
@@ -588,8 +599,49 @@ func (v *qdrantVectorStore) checkLayout(ctx context.Context, spec CollectionSpec
 	if want := strings.TrimSpace(spec.PolicySchemaVersion); want != "" && meta.PolicySchemaVersion != want {
 		return mismatch("policy schema version", want, meta.PolicySchemaVersion)
 	}
+	if want := strings.TrimSpace(spec.RecipeID); want != "" {
+		if meta.RecipeID != want {
+			return mismatch("embedding recipe id", want, meta.RecipeID)
+		}
+		if meta.RecipeCanonical != strings.TrimSpace(spec.RecipeCanonical) {
+			return mismatch("embedding recipe canonical JSON", "matching canonical recipe", "different or absent canonical recipe")
+		}
+		if err := validateSentinelRecipe(meta.RecipeID, meta.RecipeCanonical, meta.Model, meta.DenseSize); err != nil {
+			return mismatch("embedding recipe identity", "valid digest and matching model/dimensions", err.Error())
+		}
+	}
 	if meta.EngineSchemaVersion > 0 && meta.EngineSchemaVersion != engineSchemaVersion {
 		return mismatch("engine schema version", fmt.Sprintf("%d", engineSchemaVersion), fmt.Sprintf("%d", meta.EngineSchemaVersion))
+	}
+	return nil
+}
+
+func validateCollectionRecipe(spec CollectionSpec) error {
+	recipeID := strings.TrimSpace(spec.RecipeID)
+	canonical := strings.TrimSpace(spec.RecipeCanonical)
+	if recipeID == "" && canonical == "" {
+		return nil
+	}
+	if recipeID == "" || canonical == "" {
+		return errors.New("aisearch: collection recipe id and canonical JSON must be provided together")
+	}
+	if err := validateSentinelRecipe(recipeID, canonical, spec.Model, spec.DenseSize); err != nil {
+		return fmt.Errorf("aisearch: invalid collection embedding recipe: %w", err)
+	}
+	return nil
+}
+
+func validateSentinelRecipe(recipeID, canonical, model string, dimensions int) error {
+	recipe, err := EmbeddingRecipeFromCanonical([]byte(canonical), recipeID)
+	if err != nil {
+		return err
+	}
+	input, err := recipe.Input()
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(model) != input.ModelID || dimensions != input.Dimensions {
+		return fmt.Errorf("recipe model/dimensions %q/%d disagree with sentinel %q/%d", input.ModelID, input.Dimensions, model, dimensions)
 	}
 	return nil
 }

@@ -31,6 +31,6 @@
       "strategy": "scenario_setup",
       "restart_running_consumers": true
     },
-    "docs": ["packages/api-base/README.md", "docs/package-governance.md"]
+    "docs": ["packages/api-base/README.md", "packages/api-base/SECURITY.md", "docs/package-governance.md"]
   }
 }

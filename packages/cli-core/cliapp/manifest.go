@@ -146,9 +146,20 @@ type ManifestGovernance struct {
 }
 
 type ManifestOmission struct {
-	Service string `json:"service"`
-	Method  string `json:"method"`
-	Reason  string `json:"reason"`
+	Service     string               `json:"service"`
+	Method      string               `json:"method"`
+	Reason      string               `json:"reason"`
+	ProgramOnly *ManifestProgramOnly `json:"program_only,omitempty"`
+}
+
+// ManifestProgramOnly grants a private Connect operation to one exact pinned
+// Program Runtime contract. It does not add a CLI command or a public binding.
+type ManifestProgramOnly struct {
+	BindingID   string   `json:"binding_id"`
+	Program     string   `json:"program"`
+	Digest      string   `json:"digest"`
+	Effect      string   `json:"effect"`
+	Permissions []string `json:"permissions"`
 }
 
 // ParseManifest decodes raw JSON manifest bytes into a *Manifest and

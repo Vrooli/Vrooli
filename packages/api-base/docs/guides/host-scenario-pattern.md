@@ -195,7 +195,6 @@ const app = createScenarioServer({
   apiPort: process.env.API_PORT,
   distDir: './dist',
   serviceName: 'app-monitor',
-  corsOrigins: '*',
   verbose: true,
 
   setupRoutes: (app) => {

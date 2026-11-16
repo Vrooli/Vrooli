@@ -13,6 +13,9 @@ const (
 	PendingStatePending  = "pending"
 	PendingStateApproved = "approved"
 	PendingStateRejected = "rejected"
+	// PendingStateWithdrawn records that the producer closed its own ask because
+	// the situation cleared (Raiser.Withdraw); no operator answer applies.
+	PendingStateWithdrawn = "withdrawn"
 )
 
 // PendingAsk is the domain-neutral durable record of a raised decision. It

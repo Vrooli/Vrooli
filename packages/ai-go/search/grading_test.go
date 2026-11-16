@@ -99,6 +99,80 @@ func TestGradeSuiteUsesFixedReviewedPositiveDenominator(t *testing.T) {
 	}
 }
 
+func TestGradeSuiteOnFixedDenominatorCountsOmittedCasesAsMisses(t *testing.T) {
+	denominator, err := NewFixedDenominator("docs.primary", []TestCase{
+		{ID: "kept", Query: "kept document", ExpectIDs: []string{"doc/kept"}},
+		{ID: "omitted", Query: "omitted document", ExpectIDs: []string{"doc/omitted"}},
+	}, "independent-reviewer", "audit://docs-primary/2026-11-12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	live := TestSuite{SuiteID: "docs.primary", Cases: []TestCase{{ID: "kept", Query: "kept document", ExpectIDs: []string{"doc/kept"}}}}
+	report, err := GradeSuiteOnFixedDenominator(context.Background(), fakeSuiteSearcher{
+		"kept document": {{ID: "doc/kept", Score: 0.9}},
+	}, live, denominator, DefaultScoringPolicy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.GradeablePositives != 2 || report.Hits != 1 || len(report.Misses) != 1 || report.Misses[0].CaseID != "omitted" {
+		t.Fatalf("fixed denominator did not retain omitted case as a miss: %+v", report)
+	}
+}
+
+func TestFixedDenominatorRequiresAuditAndUniquePositiveCases(t *testing.T) {
+	base, err := NewFixedDenominator("docs.primary", []TestCase{{ID: "a", Query: "query", ExpectIDs: []string{"doc/a"}}}, "reviewer", "audit://receipt")
+	if err != nil {
+		t.Fatalf("valid denominator rejected: %v", err)
+	}
+	missingAudit := base
+	missingAudit.ReviewEvidence = ""
+	if err := missingAudit.Validate(); err == nil {
+		t.Fatal("expected missing independent review evidence to fail")
+	}
+	duplicate := base
+	duplicate.Cases = append(append([]TestCase(nil), base.Cases...), base.Cases[0])
+	if err := duplicate.Validate(); err == nil {
+		t.Fatal("expected duplicate denominator ID to fail")
+	}
+	if _, err := NewFixedDenominator("docs.primary", []TestCase{{ID: "g", Query: "query", ExpectIDs: []string{"doc/g"}, Tags: []string{TagGenerated}}}, "reviewer", "audit://receipt"); err == nil {
+		t.Fatal("generated fixture must not enter the fixed acceptance denominator")
+	}
+	if _, err := NewFixedDenominator("docs.primary", []TestCase{{ID: "pending", Query: "query", Status: "unreviewed", ExpectIDs: []string{"doc/pending"}}}, "reviewer", "audit://receipt"); err == nil {
+		t.Fatal("explicitly unreviewed case must not enter the fixed acceptance denominator")
+	}
+	if _, err := NewFixedDenominator("docs.primary", []TestCase{{ID: "heldout", Query: "query", Tags: []string{TagGenerated, TagHeldout}, ExpectIDs: []string{"doc/heldout"}}}, "reviewer", "audit://receipt"); err != nil {
+		t.Fatalf("owner-reviewed heldout generated case rejected: %v", err)
+	}
+	tampered := base
+	tampered.Cases = cloneTestCases(base.Cases)
+	tampered.Cases[0].ExpectIDs[0] = "doc/changed"
+	if err := tampered.Validate(); err == nil {
+		t.Fatal("mutated denominator must fail its frozen digest")
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("mutation affected sealed source denominator: %v", err)
+	}
+}
+
+func TestFreezeReviewedPositiveDenominatorExcludesCandidatesButKeepsMissingLabels(t *testing.T) {
+	suite := TestSuite{SuiteID: "docs.primary", Cases: []TestCase{
+		{ID: "present", Query: "found", ExpectIDs: []string{"doc/a"}},
+		{ID: "currently-missed", Query: "not found", ExpectIDs: []string{"doc/missing"}},
+		{ID: "candidate", Query: "pending", Status: CaseStatusCandidate, ExpectIDs: []string{"doc/pending"}},
+		{ID: "unreviewed", Query: "not reviewed", Status: "unreviewed", ExpectIDs: []string{"doc/unreviewed"}},
+		{ID: "generated", Query: "generated", Tags: []string{TagGenerated}, ExpectIDs: []string{"doc/generated"}},
+		{ID: "heldout", Query: "reviewed generated", Tags: []string{TagGenerated, TagHeldout}, ExpectIDs: []string{"doc/heldout"}},
+		{ID: "negative", Query: "junk", ExpectNoStrongHit: true},
+	}}
+	frozen, err := FreezeReviewedPositiveDenominator(suite, "reviewer", "audit://docs-primary")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(frozen.Cases) != 3 || frozen.Cases[1].ID != "currently-missed" || frozen.Cases[2].ID != "heldout" {
+		t.Fatalf("unexpected frozen denominator cases: %+v", frozen.Cases)
+	}
+}
+
 func TestWeakArmCannotImproveByOmittingKnownPositive(t *testing.T) {
 	suite := TestSuite{Cases: []TestCase{
 		{ID: "ordinary", Query: "ordinary", ExpectIDs: []string{"ordinary-id"}},

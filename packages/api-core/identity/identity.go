@@ -5,6 +5,7 @@ package identity
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -31,6 +32,7 @@ const (
 	SourcePersonalLocal         AuthSource = "personal_local"
 	SourceAgentProvenance       AuthSource = "agent_provenance"
 	SourceUIFailOpen            AuthSource = "ui_fail_open"
+	SourceConsumerAccessToken   AuthSource = "consumer_access_token"
 )
 
 type FailureClass string
@@ -133,6 +135,18 @@ type OperationRule struct {
 	Policy     string   `json:"policy"`
 	Operations []string `json:"operations"`
 	Targets    []string `json:"targets"`
+}
+
+// OperationGrantFromMeta decodes a verified Agent Manager claim's supplemental
+// operation grant. Invalid, incomplete, or expired grants grant no authority.
+// Callers must still evaluate the returned typed grant against the exact
+// operation and target with OperationGrant.Allows.
+func OperationGrantFromMeta(meta map[string]string, now time.Time) *OperationGrant {
+	var grant OperationGrant
+	if err := json.Unmarshal([]byte(meta["operation_grant"]), &grant); err != nil || grant.ID == "" || grant.Approver == "" || !now.Before(grant.ExpiresAt) {
+		return nil
+	}
+	return &grant
 }
 
 // Allows uses exact operations and explicit domain-wide or exact object

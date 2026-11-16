@@ -6,9 +6,22 @@ import (
 	"net/http"
 	"strings"
 
+	"connectrpc.com/connect"
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/mux"
 )
+
+// WrapError keeps the Connect envelope consistent while leaving domain code
+// responsible for mapping its typed errors to canonical status codes.
+func WrapError(err error, codeFor func(error) connect.Code) error {
+	if err == nil {
+		return nil
+	}
+	if codeFor == nil {
+		return connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewError(codeFor(err), err)
+}
 
 // ServiceMount is one Connect service handler returned by generated code.
 //

@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -24,14 +25,16 @@ import (
 const entitlementHTTPTimeout = 15 * time.Second
 
 var (
-	ErrLeaseMalformed       = errors.New("entitlement lease is malformed")
-	ErrLeaseSignature       = errors.New("entitlement lease signature is invalid")
-	ErrLeaseUnknownKey      = errors.New("entitlement lease key is unpublished")
-	ErrLeaseExpired         = errors.New("entitlement lease has expired")
-	ErrLeaseUnavailable     = errors.New("entitlement service is unavailable")
-	ErrLeaseUnauthorized    = errors.New("entitlement request was unauthorized")
-	ErrLeaseIdentityMissing = errors.New("entitlement identity is missing")
-	ErrLeaseBinding         = errors.New("entitlement lease binding does not match")
+	ErrLeaseMalformed         = errors.New("entitlement lease is malformed")
+	ErrLeaseSignature         = errors.New("entitlement lease signature is invalid")
+	ErrLeaseUnknownKey        = errors.New("entitlement lease key is unpublished")
+	ErrLeaseExpired           = errors.New("entitlement lease has expired")
+	ErrLeaseUnavailable       = errors.New("entitlement service is unavailable")
+	ErrLeaseUnauthorized      = errors.New("entitlement request was unauthorized")
+	ErrLeaseIdentityMissing   = errors.New("entitlement identity is missing")
+	ErrLeaseBinding           = errors.New("entitlement lease binding does not match")
+	ErrLeaseTrustUnavailable  = errors.New("trusted lease issuer keys are unavailable")
+	ErrLeaseInsecureAuthority = errors.New("remote entitlement authority requires HTTPS")
 )
 
 const algorithm = "RS256"
@@ -43,25 +46,38 @@ type Limit struct {
 	BundleKey string `json:"bundle_key,omitempty"`
 }
 
+// AppEntitlement is the effective grant for exactly one application. LPBS
+// expands standalone and bundle subscriptions into these signed per-app
+// records, so clients never infer one app's access from another app's offer.
+type AppEntitlement struct {
+	AppKey    string   `json:"app_key"`
+	BundleKey string   `json:"bundle_key,omitempty"`
+	Status    string   `json:"status"`
+	PlanRank  int32    `json:"plan_rank,omitempty"`
+	Features  []string `json:"features,omitempty"`
+	Limits    []Limit  `json:"limits,omitempty"`
+}
+
 // Payload is the signed, time-boxed entitlement contract.
 type Payload struct {
-	UserIdentity      string    `json:"user_identity"`
-	BusinessAccountID string    `json:"business_account_id,omitempty"`
-	LinkID            string    `json:"link_id,omitempty"`
-	InstallationID    string    `json:"installation_id,omitempty"`
-	Resource          string    `json:"resource,omitempty"`
-	Audience          string    `json:"audience,omitempty"`
-	Scopes            []string  `json:"scopes,omitempty"`
-	Status            string    `json:"status"`
-	PlanTier          string    `json:"plan_tier,omitempty"`
-	PlanRank          int32     `json:"plan_rank"`
-	PriceID           string    `json:"price_id,omitempty"`
-	Features          []string  `json:"features,omitempty"`
-	Limits            []Limit   `json:"limits,omitempty"`
-	NotAfter          time.Time `json:"not_after"`
-	BillingCycleStart int       `json:"billing_cycle_start,omitempty"`
-	Credits           any       `json:"credits,omitempty"`
-	Subscription      any       `json:"subscription,omitempty"`
+	UserIdentity      string           `json:"user_identity"`
+	BusinessAccountID string           `json:"business_account_id,omitempty"`
+	LinkID            string           `json:"link_id,omitempty"`
+	InstallationID    string           `json:"installation_id,omitempty"`
+	Resource          string           `json:"resource,omitempty"`
+	Audience          string           `json:"audience,omitempty"`
+	Scopes            []string         `json:"scopes,omitempty"`
+	Status            string           `json:"status"`
+	PlanTier          string           `json:"plan_tier,omitempty"`
+	PlanRank          int32            `json:"plan_rank"`
+	PriceID           string           `json:"price_id,omitempty"`
+	Features          []string         `json:"features,omitempty"`
+	Limits            []Limit          `json:"limits,omitempty"`
+	AppEntitlements   []AppEntitlement `json:"app_entitlements,omitempty"`
+	NotAfter          time.Time        `json:"not_after"`
+	BillingCycleStart int              `json:"billing_cycle_start,omitempty"`
+	Credits           any              `json:"credits,omitempty"`
+	Subscription      any              `json:"subscription,omitempty"`
 }
 
 // LeaseBinding identifies the desktop context in which a lease may be used.
@@ -91,6 +107,9 @@ func Sign(payload Payload, keyID string, key *rsa.PrivateKey) (string, error) {
 	}
 	if payload.NotAfter.IsZero() || !payload.NotAfter.After(time.Now().UTC()) {
 		return "", fmt.Errorf("lease not_after must be in the future")
+	}
+	if err := validateAppEntitlements(payload.AppEntitlements); err != nil {
+		return "", fmt.Errorf("invalid app entitlements: %w", err)
 	}
 	header, err := json.Marshal(tokenHeader{Algorithm: algorithm, Type: "ENTITLEMENT_LEASE", KeyID: keyID})
 	if err != nil {
@@ -148,6 +167,9 @@ func VerifyFor(token string, keys *consumeridentity.KeySet, now time.Time, bindi
 	if json.Unmarshal(bodyBytes, &payload) != nil || strings.TrimSpace(payload.UserIdentity) == "" || payload.NotAfter.IsZero() {
 		return Payload{}, ErrLeaseMalformed
 	}
+	if validateAppEntitlements(payload.AppEntitlements) != nil {
+		return Payload{}, ErrLeaseMalformed
+	}
 	if now.IsZero() {
 		now = time.Now()
 	}
@@ -158,6 +180,46 @@ func VerifyFor(token string, keys *consumeridentity.KeySet, now time.Time, bindi
 		return Payload{}, err
 	}
 	return payload, nil
+}
+
+func validateAppEntitlements(entitlements []AppEntitlement) error {
+	seen := make(map[string]struct{}, len(entitlements))
+	for _, entitlement := range entitlements {
+		appKey := strings.TrimSpace(entitlement.AppKey)
+		if appKey == "" || appKey != entitlement.AppKey || strings.TrimSpace(entitlement.Status) == "" || strings.TrimSpace(entitlement.Status) != entitlement.Status || entitlement.PlanRank < 0 {
+			return errors.New("app key, canonical status, and nonnegative plan rank are required")
+		}
+		if _, exists := seen[appKey]; exists {
+			return errors.New("duplicate app key")
+		}
+		seen[appKey] = struct{}{}
+		features := make(map[string]struct{}, len(entitlement.Features))
+		for _, feature := range entitlement.Features {
+			trimmed := strings.TrimSpace(feature)
+			if trimmed == "" || trimmed != feature {
+				return errors.New("app feature key must be canonical and nonempty")
+			}
+			if _, exists := features[trimmed]; exists {
+				return errors.New("duplicate app feature")
+			}
+			features[trimmed] = struct{}{}
+		}
+		limits := make(map[string]struct{}, len(entitlement.Limits))
+		for _, limit := range entitlement.Limits {
+			key := strings.TrimSpace(limit.Key)
+			if key == "" || key != limit.Key {
+				return errors.New("app limit key must be canonical and nonempty")
+			}
+			if limit.Value < -1 {
+				return errors.New("app limit values must be -1 (unlimited) or nonnegative")
+			}
+			if _, exists := limits[key]; exists {
+				return errors.New("duplicate app limit")
+			}
+			limits[key] = struct{}{}
+		}
+	}
+	return nil
 }
 
 func validateLeaseBinding(payload Payload, binding LeaseBinding) error {
@@ -216,9 +278,13 @@ type Client struct {
 	ResolveAccess func(context.Context, string) (string, error)
 	Now           func() time.Time
 
-	mu    sync.RWMutex
-	cache map[string]Payload
-	keys  *consumeridentity.KeySet
+	mu                  sync.RWMutex
+	cache               map[string]Payload
+	keys                *consumeridentity.KeySet
+	store               LeaseStore
+	issuerKeyStore      IssuerKeyStore
+	issuerKeysPersisted bool
+	generation          uint64
 }
 
 func NewClient(baseURL string, resolve func(context.Context, string) (string, error), httpClient *http.Client) *Client {
@@ -242,9 +308,20 @@ func (c *Client) GetFor(ctx context.Context, identity string, binding LeaseBindi
 	if identity == "" {
 		return Payload{}, ErrLeaseIdentityMissing
 	}
+	if err := validateAuthorityTransport(c.BaseURL); err != nil {
+		return Payload{}, err
+	}
 	now := time.Now()
 	if c.Now != nil {
 		now = c.Now()
+	}
+	var storedErr error
+	if c.leaseStore() != nil {
+		if _, ok := c.cachedPayload(identity); !ok {
+			// A failed disk restore is never an authorization result. The normal
+			// authority request below may replace an expired or stale record.
+			storedErr = c.restore(ctx, identity, binding, now)
+		}
 	}
 	c.mu.RLock()
 	cached, ok := c.cache[identity]
@@ -261,6 +338,9 @@ func (c *Client) GetFor(ctx context.Context, identity string, binding LeaseBindi
 		if cachedBindingErr != nil {
 			return Payload{}, cachedBindingErr
 		}
+		if storedErr != nil && !errors.Is(storedErr, ErrLeaseUnavailable) {
+			return Payload{}, storedErr
+		}
 		return Payload{}, ErrLeaseUnavailable
 	}
 	token, err := c.ResolveAccess(ctx, c.BaseURL)
@@ -268,6 +348,57 @@ func (c *Client) GetFor(ctx context.Context, identity string, binding LeaseBindi
 		return Payload{}, fmt.Errorf("%w: resolve access: %v", ErrLeaseUnavailable, err)
 	}
 	return c.getWithAccess(ctx, identity, token, now, binding)
+}
+
+// SetStore enables restart-persistent lease caching. Stored leases remain
+// untrusted: restore verifies the signature and binding before exposing one.
+func (c *Client) SetStore(store LeaseStore) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.store = store
+	c.mu.Unlock()
+}
+
+// SetIssuerKeyStore configures trusted key persistence independent from the
+// mutable lease record. A lease cache must not nominate its own verification
+// keys.
+func (c *Client) SetIssuerKeyStore(store IssuerKeyStore) {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	c.issuerKeyStore = store
+	c.issuerKeysPersisted = false
+	c.mu.Unlock()
+}
+
+func (c *Client) leaseStore() LeaseStore {
+	if c == nil {
+		return nil
+	}
+	c.mu.RLock()
+	store := c.store
+	c.mu.RUnlock()
+	return store
+}
+
+// Clear removes every in-memory and persistent lease for an explicit sign-out.
+func (c *Client) Clear() error {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	clear(c.cache)
+	c.keys = nil
+	c.generation++
+	store := c.store
+	if store != nil {
+		return store.Clear()
+	}
+	return nil
 }
 
 // GetWithAccess verifies a lease using an already-resolved short-lived access
@@ -282,6 +413,9 @@ func (c *Client) GetWithAccessFor(ctx context.Context, identity, accessToken str
 	identity = strings.ToLower(strings.TrimSpace(identity))
 	if identity == "" {
 		return Payload{}, ErrLeaseIdentityMissing
+	}
+	if err := validateAuthorityTransport(c.BaseURL); err != nil {
+		return Payload{}, err
 	}
 	now := time.Now()
 	if c.Now != nil {
@@ -299,15 +433,19 @@ func (c *Client) Cached(identity string) (Payload, error) {
 }
 
 // CachedAt is the deterministic form of Cached used by boundary checks and
-// tests. It never refreshes or changes the cache.
+// tests. It may restore from disk, but never contacts the entitlement service.
 func (c *Client) CachedAt(identity string, now time.Time) (Payload, error) {
 	identity = strings.ToLower(strings.TrimSpace(identity))
 	if identity == "" {
 		return Payload{}, ErrLeaseIdentityMissing
 	}
-	c.mu.RLock()
-	payload, ok := c.cache[identity]
-	c.mu.RUnlock()
+	payload, ok := c.cachedPayload(identity)
+	if !ok && c.leaseStore() != nil {
+		if err := c.restore(context.Background(), identity, LeaseBinding{}, now); err != nil {
+			return Payload{}, err
+		}
+		payload, ok = c.cachedPayload(identity)
+	}
 	if !ok {
 		return Payload{}, ErrLeaseUnavailable
 	}
@@ -318,6 +456,66 @@ func (c *Client) CachedAt(identity string, now time.Time) (Payload, error) {
 		return Payload{}, ErrLeaseExpired
 	}
 	return payload, nil
+}
+
+func (c *Client) cachedPayload(identity string) (Payload, bool) {
+	c.mu.RLock()
+	payload, ok := c.cache[identity]
+	c.mu.RUnlock()
+	return payload, ok
+}
+
+func (c *Client) restore(ctx context.Context, identity string, binding LeaseBinding, now time.Time) error {
+	if err := validateAuthorityTransport(c.BaseURL); err != nil {
+		return err
+	}
+	c.mu.RLock()
+	generation := c.generation
+	c.mu.RUnlock()
+	store := c.leaseStore()
+	if store == nil {
+		return ErrLeaseUnavailable
+	}
+	record, err := store.Load(identity)
+	if err != nil {
+		return err
+	}
+	if record.Lease == "" {
+		return ErrLeaseUnavailable
+	}
+	c.mu.RLock()
+	issuerKeyStore := c.issuerKeyStore
+	c.mu.RUnlock()
+	if issuerKeyStore == nil {
+		return ErrLeaseTrustUnavailable
+	}
+	trustedJWKS, err := issuerKeyStore.Load(ctx, c.BaseURL)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrLeaseTrustUnavailable, err)
+	}
+	if len(trustedJWKS) == 0 {
+		return ErrLeaseTrustUnavailable
+	}
+	keys, err := consumeridentity.ParseJWKS(trustedJWKS)
+	if err != nil {
+		return fmt.Errorf("%w: cached key set: %v", ErrLeaseMalformed, err)
+	}
+	payload, err := VerifyFor(record.Lease, keys, now, binding)
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(payload.UserIdentity, identity) {
+		return ErrLeaseUnauthorized
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.generation != generation {
+		return ErrLeaseUnavailable
+	}
+	c.keys = keys
+	c.issuerKeysPersisted = true
+	c.cache[identity] = payload
+	return nil
 }
 
 // CachedFor returns a valid cached lease only when it matches the supplied
@@ -340,6 +538,9 @@ func (c *Client) CachedForAt(identity string, binding LeaseBinding, now time.Tim
 }
 
 func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string, now time.Time, binding LeaseBinding) (Payload, error) {
+	c.mu.RLock()
+	generation := c.generation
+	c.mu.RUnlock()
 	if strings.TrimSpace(accessToken) == "" {
 		return Payload{}, ErrLeaseUnauthorized
 	}
@@ -366,7 +567,7 @@ func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string
 	if err := json.NewDecoder(response.Body).Decode(&responseBody); err != nil || responseBody.Lease == "" {
 		return Payload{}, fmt.Errorf("%w: malformed lease response", ErrLeaseUnavailable)
 	}
-	if err := c.refreshKeys(ctx); err != nil {
+	if err := c.refreshKeys(ctx, generation); err != nil {
 		return Payload{}, err
 	}
 	payload, err := VerifyFor(responseBody.Lease, c.keys, now, binding)
@@ -377,12 +578,23 @@ func (c *Client) getWithAccess(ctx context.Context, identity, accessToken string
 		return Payload{}, ErrLeaseUnauthorized
 	}
 	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.generation != generation {
+		return Payload{}, ErrLeaseUnavailable
+	}
+	if store := c.store; store != nil && c.issuerKeysPersisted {
+		if err := store.Save(identity, LeaseRecord{Lease: responseBody.Lease}); err != nil {
+			return Payload{}, fmt.Errorf("%w: persist verified lease: %v", ErrLeaseUnavailable, err)
+		}
+	}
 	c.cache[identity] = payload
-	c.mu.Unlock()
 	return payload, nil
 }
 
-func (c *Client) refreshKeys(ctx context.Context) error {
+func (c *Client) refreshKeys(ctx context.Context, generation uint64) error {
+	if err := validateAuthorityTransport(c.BaseURL); err != nil {
+		return err
+	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/.well-known/jwks.json", nil)
 	if err != nil {
 		return fmt.Errorf("%w: create key request: %v", ErrLeaseUnavailable, err)
@@ -404,25 +616,48 @@ func (c *Client) refreshKeys(ctx context.Context) error {
 		return fmt.Errorf("%w: parse key response: %v", ErrLeaseUnavailable, err)
 	}
 	c.mu.Lock()
+	if c.generation != generation {
+		c.mu.Unlock()
+		return ErrLeaseUnavailable
+	}
+	issuerKeyStore := c.issuerKeyStore
 	c.keys = keys
+	c.issuerKeysPersisted = false
 	c.mu.Unlock()
+	var persistErr error
+	if issuerKeyStore != nil {
+		persistErr = issuerKeyStore.Save(ctx, c.BaseURL, raw)
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.generation != generation {
+		return ErrLeaseUnavailable
+	}
+	c.issuerKeysPersisted = issuerKeyStore != nil && persistErr == nil
 	return nil
 }
 
-func (c *Client) HasFeature(payload Payload, feature string) bool {
-	for _, candidate := range payload.Features {
-		if candidate == feature {
-			return true
-		}
+func validateAuthorityTransport(raw string) error {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
 	}
-	return false
-}
-
-func (c *Client) Limit(payload Payload, key, bundle string) (int64, bool) {
-	for _, limit := range payload.Limits {
-		if limit.Key == key && (limit.BundleKey == "" || limit.BundleKey == bundle) {
-			return limit.Value, true
-		}
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Host == "" || parsed.User != nil {
+		return ErrLeaseUnavailable
 	}
-	return 0, false
+	if strings.EqualFold(parsed.Scheme, "https") {
+		return nil
+	}
+	if !strings.EqualFold(parsed.Scheme, "http") {
+		return ErrLeaseUnavailable
+	}
+	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
+	if host == "localhost" {
+		return nil
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsLoopback() {
+		return nil
+	}
+	return ErrLeaseInsecureAuthority
 }

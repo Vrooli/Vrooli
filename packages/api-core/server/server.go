@@ -198,12 +198,10 @@ func Run(cfg Config) error {
 	if cfg.Handler == nil {
 		return errors.New("server.Config.Handler is required (or provide StartServer/ShutdownServer for custom servers)")
 	}
-	if !cfg.LifecycleConfiguredExternally && (cfg.getenv("VROOLI_SCENARIO") != "" || cfg.getenv("SCENARIO_NAME") != "") {
-		provider, err := lifecycle.NewProviderFromEnv(cfg.getenv, cfg.LifecycleHooks)
-		if err != nil {
-			return err
-		}
-		cfg.Handler = provider.Mount(cfg.Handler)
+	var err error
+	cfg, err = mountLifecycleProvider(cfg)
+	if err != nil {
+		return err
 	}
 	// Standard clients used while handling this request inherit verified identity
 	// forwarding through api-core. Field scenarios do not attach workflow tokens
@@ -234,6 +232,22 @@ func Run(cfg Config) error {
 	cfg.Handler = recoverPanics(cfg.log, cfg.Handler)
 
 	return runStandardServer(cfg)
+}
+
+// mountLifecycleProvider applies the shared process-local lifecycle provider
+// only when the application has not installed its own domain-specific owner.
+// Keeping this decision in one seam lets scenario servers verify that a
+// durable lifecycle handler cannot be silently shadowed by the default.
+func mountLifecycleProvider(cfg Config) (Config, error) {
+	if cfg.LifecycleConfiguredExternally || (cfg.getenv("VROOLI_SCENARIO") == "" && cfg.getenv("SCENARIO_NAME") == "") {
+		return cfg, nil
+	}
+	provider, err := lifecycle.NewProviderFromEnv(cfg.getenv, cfg.LifecycleHooks)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Handler = provider.Mount(cfg.Handler)
+	return cfg, nil
 }
 
 type statusWriter struct {

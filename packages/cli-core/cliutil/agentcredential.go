@@ -36,6 +36,19 @@ func (e *AgentAuthorizationError) Error() string {
 	return "agent authorization " + e.Code + "; inspect with vrooli agent authorization <session-or-run>"
 }
 
+// ErrInvalidAuthorityResponse is a local credential authority answer this
+// client cannot use.
+var ErrInvalidAuthorityResponse = errors.New("invalid agent credential authority response")
+
+// CredentialNotResolved reports that a request failed while resolving this
+// session's credential, before anything was sent: the authority refused or
+// answered with a credential the CLI cannot accept. A caller may safely take
+// a local path for a read-only operation; nothing reached the API.
+func CredentialNotResolved(err error) bool {
+	var refused *AgentAuthorizationError
+	return errors.Is(err, ErrInvalidAuthorityResponse) || errors.As(err, &refused)
+}
+
 // ResolveAgentCredential consults the live authority for every request. An
 // unavailable broker preserves a structurally ordinary inherited run token;
 // grant-only credentials remain unavailable until the broker can perform its
@@ -211,7 +224,7 @@ func resolveAgentCredentialsWithRequest(ctx context.Context, socket, inherited, 
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 256*1024)).Decode(&body); err != nil || body.Token == "" {
 		if err != nil {
-			return AgentCredentials{}, false, errors.New("invalid agent credential authority response")
+			return AgentCredentials{}, false, ErrInvalidAuthorityResponse
 		}
 	}
 	credentials := AgentCredentials{
@@ -222,23 +235,25 @@ func resolveAgentCredentialsWithRequest(ctx context.Context, socket, inherited, 
 		(credentials.LegacyToken != "" && credentials.OperationToken != "") ||
 		(credentials.BaselineToken != "" && inherited == "") ||
 		(credentials.BaselineToken != "" && !isSameRunBaselineRenewal(inherited, credentials.BaselineToken)) {
-		return AgentCredentials{}, false, errors.New("invalid agent credential authority response")
+		return AgentCredentials{}, false, ErrInvalidAuthorityResponse
 	}
 	return credentials, false, nil
 }
 
 type ordinaryIdentityClaims struct {
-	Purpose     string            `json:"purpose,omitempty"`
-	RunID       string            `json:"run_id"`
-	TaskID      string            `json:"task_id"`
-	Subject     string            `json:"subject,omitempty"`
-	WorkspaceID string            `json:"workspace_id,omitempty"`
-	Scopes      []string          `json:"scopes"`
-	ProfileKey  string            `json:"profile_key"`
-	ScopePath   string            `json:"scope_path"`
-	IssuedAt    int64             `json:"iat"`
-	ExpiresAt   int64             `json:"exp"`
-	Meta        map[string]string `json:"meta"`
+	Purpose string `json:"purpose,omitempty"`
+	RunID   string `json:"run_id"`
+	TaskID  string `json:"task_id"`
+	// ConversationID is the agent thread; a renewal keeps it unchanged.
+	ConversationID string            `json:"conversation_id,omitempty"`
+	Subject        string            `json:"subject,omitempty"`
+	WorkspaceID    string            `json:"workspace_id,omitempty"`
+	Scopes         []string          `json:"scopes"`
+	ProfileKey     string            `json:"profile_key"`
+	ScopePath      string            `json:"scope_path"`
+	IssuedAt       int64             `json:"iat"`
+	ExpiresAt      int64             `json:"exp"`
+	Meta           map[string]string `json:"meta"`
 }
 
 func isSameRunBaselineRenewal(previous, replacement string) bool {
@@ -252,7 +267,7 @@ func isSameRunBaselineRenewal(previous, replacement string) bool {
 		oldClaims.Meta["authorization_id"] != "" || newClaims.Meta["authorization_id"] != "" ||
 		oldClaims.ExpiresAt > now || oldClaims.ExpiresAt > oldClaims.IssuedAt+int64(defaultAgentIdentityTTL/time.Second) ||
 		oldClaims.RunID == "" || oldClaims.RunID != newClaims.RunID ||
-		oldClaims.TaskID != newClaims.TaskID || oldClaims.Subject != newClaims.Subject ||
+		oldClaims.TaskID != newClaims.TaskID || oldClaims.ConversationID != newClaims.ConversationID || oldClaims.Subject != newClaims.Subject ||
 		oldClaims.WorkspaceID != newClaims.WorkspaceID || oldClaims.ProfileKey != newClaims.ProfileKey ||
 		oldClaims.ScopePath != newClaims.ScopePath || len(newClaims.Scopes) != 0 ||
 		!sameStringMap(oldClaims.Meta, newClaims.Meta) || newClaims.IssuedAt <= oldClaims.IssuedAt || newClaims.IssuedAt > now ||

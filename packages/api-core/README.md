@@ -9,11 +9,29 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Storage path resolution** - Profile-aware runtime directories with safe joins and atomic writes
 - **Marked references** - Shared parser for typed inline references such as `path:...` and `topic:...`
 - **Relationship references** - Shared parser for `[CODE:]`, `[DOC:]`, and `[REQ:]` documentation edges
+- **Code Facts graph projection** - Shared, path-safe index for per-file language, symbol and import evidence used by scanners and graph consumers
+- **Go graph extraction** - Shared deterministic Go module parser, graph normalization, cache and wire projection used directly by Code Facts and by Go Code Graph's RPC/rewrite surface
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
 - **Runtime CPU diagnostics** - Bounded CPU profiles through an owner-only Unix
   socket, collected by `vrooli scenario profile`; see [the contract](runtimediagnostics/README.md)
 - **Verified request identity** - Provider-neutral human, agent, service, and
   conflict states with passive standard-server middleware
+- **Service principals** - `servicetoken`: the one client a scenario uses to act as an
+  operator-issued scenario-authenticator service principal: it reads the credential from the
+  credential authority on every exchange, caches the short-lived token, and presents it only if
+  its subject, audience and scopes are exactly the expected identity.
+- **Notification Hub ask reading** - `askreader`: the principal naming, audience and scope a
+  scenario presents to read back the decisions it raised as events, and the one token client
+  (`askreader.Tokens`, a `servicetoken` configuration) every reading scenario uses; the Hub verifies with the same constants
+- **Operator decisions** - `operatordecision`: raise a decision as an event and apply the operator's answer. Its
+  resolution `Webhook` reads each ask back from the Hub as the scenario's own ask-reader before any effect
+  runs and applies the Hub's record, not the event body; see [the README](operatordecision/README.md)
+- **Service-principal roles** - `principalrole` holds what the Hub's service-principal roles share
+  (the `<source><suffix>` name rule, credential address, exclusive-audience verifier, `Source` with a
+  named refusal, token client); `askreader` (`<source>-ask-reader`, reads back asks), `hubsender`
+  (`<source>-notification-hub`, sends notices and asks as that source) and `eventpublisher`
+  (`<source>-event-publisher`, proves the source of an event published to vrooli-events; `eventbus.Client`
+  presents it once a scenario registers `credential-authority-go/eventpublishing`) are one `Role` each
 
 ### Shared authentication
 
@@ -48,6 +66,20 @@ and token fields are preserved (refresh tokens may be empty). The helper neither
 persists nor prints credentials. Callers must not log returned tokens or responses.
 For connection failures, check the explicit socket override and listener ownership;
 do not reinterpret refusal as permission to use a different identity.
+
+A scenario web UI signs its owner in through `browsersession`, never by holding
+a bearer in page script. `browsersession.New(resource)` forwards email, password
+and any second factor to Scenario Authenticator for the
+`scenario-authenticator:<resource>` audience. It keeps the session in the HttpOnly
+`vrooli_access_token` / `vrooli_refresh_token` cookies, which are the names the
+`authn` scenario-authenticator provider already reads. `Renew` rotates an expired
+session from the refresh cookie. `SignOut` clears the cookies even when revocation
+cannot be confirmed. The edge is transport-neutral: it reads request headers and
+writes response headers, so a Connect handler and a plain HTTP handler use it
+alike. It grants nothing. The scenario still decides what the verified person may
+do; Money Ledger, for example, also requires an owner binding. Notification Hub,
+Device Sync Hub, Git Control Tower and Lighting Control predate it and still carry
+their own copies.
 
 Compatibility checks use isolated Unix-socket fixtures in `authn` and scoped Go
 tests for `vrooli-bridge/cli/internal/session` and
@@ -107,6 +139,16 @@ vrooli package refresh api-core all --no-restart
 ```
 
 Scenarios adopting `api-core` must keep local `replace` directives explicit and must not rely on workspace coupling. The root-module replacement is required because shared package tests and helper packages may resolve `github.com/vrooli/vrooli/...` paths during `GOWORK=off go mod tidy` and builds. See [docs/package-governance.md](../../docs/package-governance.md) for the canonical policy.
+
+### Go graph extraction
+
+`gograph` owns Go module loading, extraction profiles, deterministic node and
+edge normalization, warnings, hashes, file-cache behavior, and the common graph
+protobuf projection. Code Facts calls this package in-process for Go sources.
+Go Code Graph keeps its Connect API, diagnostics, fixtures, and rewrite service;
+its graph package is a thin adapter to `gograph` and its handler continues to
+shape the scenario-specific response. Add direct Go parsing behavior to
+`gograph`, not to either consumer.
 
 ## Test Companions
 

@@ -9,7 +9,7 @@ import (
 // Search Hub reindex wire contract. Keeping this value type independent of the
 // generated proto lets every owner use the same validation without coupling
 // this shared search package to the proto module.
-const ReindexMigrationProtocolVersion uint32 = 1
+const ReindexMigrationProtocolVersion uint32 = 2
 
 // NormalizeReindexMigrationAction canonicalizes the legacy promote alias so
 // providers negotiate and execute one pointer-switch vocabulary.
@@ -29,6 +29,8 @@ type ReindexMigrationRequest struct {
 	EmbeddingRole                string
 	EmbeddingDimensions          int32
 	EmbeddingPolicySchemaVersion string
+	EmbeddingRecipeID            string
+	EmbeddingRecipeCanonical     string
 	DryRun                       bool
 }
 
@@ -65,6 +67,23 @@ func ValidateReindexMigrationRequest(req *ReindexMigrationRequest, allowedAction
 	case "shadow":
 		if strings.TrimSpace(req.ShadowCollection) == "" || strings.TrimSpace(req.EmbeddingModel) == "" || strings.TrimSpace(req.EmbeddingRole) == "" || req.EmbeddingDimensions <= 0 || strings.TrimSpace(req.EmbeddingPolicySchemaVersion) == "" {
 			return fmt.Errorf("shadow requires a collection and complete embedding target (model, role, positive dimensions, and policy schema version)")
+		}
+		if strings.TrimSpace(req.EmbeddingRecipeID) == "" || strings.TrimSpace(req.EmbeddingRecipeCanonical) == "" {
+			return fmt.Errorf("shadow requires the canonical embedding recipe and its digest")
+		}
+		if len(req.EmbeddingRecipeCanonical) > 16*1024 {
+			return fmt.Errorf("shadow embedding recipe exceeds 16 KiB")
+		}
+		recipe, err := EmbeddingRecipeFromCanonical([]byte(req.EmbeddingRecipeCanonical), req.EmbeddingRecipeID)
+		if err != nil {
+			return fmt.Errorf("shadow embedding recipe is invalid: %w", err)
+		}
+		input, err := recipe.Input()
+		if err != nil {
+			return err
+		}
+		if input.ModelID != strings.TrimSpace(req.EmbeddingModel) || input.Dimensions != int(req.EmbeddingDimensions) {
+			return fmt.Errorf("shadow embedding recipe model or dimensions do not match migration target")
 		}
 		if !validMigrationCollection(req.ShadowCollection) {
 			return fmt.Errorf("shadow_collection has an invalid collection name")
@@ -118,5 +137,5 @@ func hasMigrationTarget(req *ReindexMigrationRequest) bool {
 }
 
 func hasEmbeddingRecipe(req *ReindexMigrationRequest) bool {
-	return strings.TrimSpace(req.EmbeddingModel) != "" || strings.TrimSpace(req.EmbeddingRole) != "" || req.EmbeddingDimensions != 0 || strings.TrimSpace(req.EmbeddingPolicySchemaVersion) != ""
+	return strings.TrimSpace(req.EmbeddingModel) != "" || strings.TrimSpace(req.EmbeddingRole) != "" || req.EmbeddingDimensions != 0 || strings.TrimSpace(req.EmbeddingPolicySchemaVersion) != "" || strings.TrimSpace(req.EmbeddingRecipeID) != "" || strings.TrimSpace(req.EmbeddingRecipeCanonical) != ""
 }

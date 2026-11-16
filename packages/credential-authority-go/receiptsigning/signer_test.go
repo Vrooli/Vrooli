@@ -10,14 +10,73 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
 
-type memoryStore struct{ values map[string]string }
+type memoryStore struct {
+	values map[string]string
+	reads  []string
+}
 
 func (s *memoryStore) Require(identity credentialauthority.Identity, field string) (string, error) {
+	s.reads = append(s.reads, field)
 	value, ok := s.values[string(identity)+"/"+field]
 	if !ok {
 		return "", credentialauthority.ErrUnconfigured
 	}
 	return value, nil
+}
+
+func TestPublicVerifierNeverReadsPrivateKeyRing(t *testing.T) {
+	identity, err := credentialauthority.ParseIdentity("scenario/data-backup-manager/wallet-recovery-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &memoryStore{}
+	purpose := receiptsigning.PurposeWalletRecoveryPublicationReceipt
+	signer, err := New(Config{Identity: identity, Field: "rotation-private", PublicField: "rotation-public", Store: store, AllowedPurposes: []receiptsigning.Purpose{purpose}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := signer.Rotate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	canonical := []byte(`{"snapshot":"latest"}`)
+	envelope, err := signer.Sign(context.Background(), purpose, canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicRing := store.values[string(identity)+"/rotation-public"]
+	if strings.Contains(publicRing, "privateKey") || strings.Contains(publicRing, "rotation-private") {
+		t.Fatal("public verifier field contains private key material or private field metadata")
+	}
+	store.reads = nil
+	verifier, err := NewPublicVerifier(identity, "rotation-public", store, []receiptsigning.Purpose{purpose})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verifier.Verify(context.Background(), envelope, canonical); err != nil {
+		t.Fatalf("public Verify() error = %v", err)
+	}
+	if len(store.reads) != 1 || store.reads[0] != "rotation-public" {
+		t.Fatalf("public verifier read fields %#v; want only rotation-public", store.reads)
+	}
+}
+
+func TestConfiguredSignerReferenceDoesNotProvisionAbsentKey(t *testing.T) {
+	identity, err := credentialauthority.ParseIdentity("scenario/data-backup-manager/wallet-recovery")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &memoryStore{}
+	purpose := receiptsigning.PurposeWalletRecoveryPublicationReceipt
+	signer, err := New(Config{Identity: identity, Field: "rotation-attestation-key-ring", PublicField: "rotation-attestation-public-key-ring", Store: store, AllowedPurposes: []receiptsigning.Purpose{purpose}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := signer.Sign(context.Background(), purpose, []byte(`{"fixture":true}`)); !errors.Is(err, credentialauthority.ErrUnconfigured) {
+		t.Fatalf("Sign() without an operator-provisioned key = %v, want unconfigured refusal", err)
+	}
+	if len(store.values) != 0 {
+		t.Fatalf("constructing/using the signer reference provisioned fields: %#v", store.values)
+	}
 }
 
 func (s *memoryStore) Put(identity credentialauthority.Identity, field, value string) error {

@@ -31,6 +31,9 @@ func TestRequireOperationRefusalCarriesTheExactRequest(t *testing.T) {
 		{"team archive", "prompt-manager:write", "team.manage", "prompt-manager:team/desktop-packaging-delivery", "team-management"},
 		{"narrowest policy wins", "agent-manager:write", "agent.investigate", "agent-manager:run/abc", "agent-investigation"},
 		{"swarm", "swarm-manager:write", "swarm.bookkeeping", "swarm-manager:backlog/execute/x", "swarm-bookkeeping"},
+		{"research launch", "research-desk:write", "research.launch", "research-desk:commission/new", "research-management"},
+		{"research control", "research-desk:write", "research.control", "research-desk:commission/old", "research-management"},
+		{"exact session reap", "agent-session:reap", "agent-session.reap", "agent-session:reap/vrooli-agent-abc123.scope/proof/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "agent-session-reaping"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := RequireOperation(agentWithoutGrant(tc.capability), tc.capability, tc.operation, tc.target)
@@ -52,6 +55,30 @@ func TestRequireOperationRefusalCarriesTheExactRequest(t *testing.T) {
 				t.Fatalf("the error text must lead with the sentinel text and carry the command: %q", err.Error())
 			}
 		})
+	}
+}
+
+func TestAgentSessionReapingTargetIsExactAndProofBound(t *testing.T) {
+	target := "agent-session:reap/vrooli-agent-abc123.scope/proof/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	if err := ValidateInteractiveTarget("agent-session-reaping", target); err != nil {
+		t.Fatalf("valid exact target refused: %v", err)
+	}
+	for _, invalid := range []string{
+		"agent-session:*",
+		"agent-session:reap/*/proof/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"agent-session:reap/vrooli-agent-abc123.scope/proof/*",
+		"agent-session:reap/vrooli-agent-abc123.scope",
+		"agent-session:reap/../../other.scope/proof/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	} {
+		if err := ValidateInteractiveTarget("agent-session-reaping", invalid); err == nil {
+			t.Errorf("accepted non-exact target %q", invalid)
+		}
+	}
+
+	grant := &identity.OperationGrant{ID: "g", Approver: "owner", Operations: []string{"agent-session.reap"}, Targets: []string{target}, ExpiresAt: time.Now().Add(time.Hour)}
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: []string{"agent-session:reap"}, Grant: grant})
+	if _, err := RequireOperation(ctx, "agent-session:reap", "agent-session.reap", target); err != nil {
+		t.Fatalf("canonical evaluator refused exact proof-bound grant: %v", err)
 	}
 }
 
@@ -172,7 +199,7 @@ func TestAuthorizationDocPolicyTableMatchesCatalogue(t *testing.T) {
 		t.Fatal("the reviewed-policy table is missing from AUTHORIZATION.md")
 	}
 	token := regexp.MustCompile("`([a-z-]+)`")
-	operation := regexp.MustCompile("`([a-z]+\\.[a-z]+)`")
+	operation := regexp.MustCompile("`([a-z][a-z-]*\\.[a-z][a-z-]*)`")
 	documented := map[string][]string{}
 	for _, line := range lines[start+2:] {
 		if !strings.HasPrefix(line, "|") {

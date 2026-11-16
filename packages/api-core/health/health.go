@@ -106,6 +106,10 @@ type Response struct {
 	// that belongs to an older source revision.
 	BuildIdentity string `json:"build_identity,omitempty"`
 
+	RuntimeReleaseID          string `json:"runtime_release_id,omitempty"`
+	RuntimeReleaseOperationID string `json:"runtime_release_operation_id,omitempty"`
+	StartOperationID          string `json:"start_operation_id,omitempty"`
+
 	// UptimeSeconds is the service uptime in seconds (optional).
 	UptimeSeconds float64 `json:"uptime_seconds,omitempty"`
 
@@ -183,14 +187,17 @@ type Checker interface {
 
 // Builder constructs a health handler with configuration and checks.
 type Builder struct {
-	service       string
-	version       string
-	buildIdentity string
-	checks        []checkerEntry
-	metrics       []metricEntry
-	functional    func(context.Context) FunctionalStatus
-	timeout       time.Duration
-	startTime     time.Time
+	service                   string
+	version                   string
+	buildIdentity             string
+	runtimeReleaseID          string
+	runtimeReleaseOperationID string
+	startOperationID          string
+	checks                    []checkerEntry
+	metrics                   []metricEntry
+	functional                func(context.Context) FunctionalStatus
+	timeout                   time.Duration
+	startTime                 time.Time
 
 	// For testing
 	nowFunc func() time.Time
@@ -237,11 +244,14 @@ func New(service ...string) *Builder {
 		svc = service[0]
 	}
 	return &Builder{
-		service:       svc,
-		buildIdentity: os.Getenv(buildIdentityEnv),
-		timeout:       5 * time.Second,
-		startTime:     processStart,
-		nowFunc:       time.Now,
+		service:                   svc,
+		buildIdentity:             os.Getenv(buildIdentityEnv),
+		runtimeReleaseID:          os.Getenv(runtimeReleaseIDEnv),
+		runtimeReleaseOperationID: os.Getenv(runtimeReleaseOperationIDEnv),
+		startOperationID:          os.Getenv(startOperationIDEnv),
+		timeout:                   5 * time.Second,
+		startTime:                 processStart,
+		nowFunc:                   time.Now,
 	}
 }
 
@@ -258,12 +268,23 @@ func (b *Builder) Version(v string) *Builder {
 // per scenario is deliberate: the value has exactly one source, and a handler
 // that silently omits it turns that check into a no-op without saying so.
 const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+const runtimeReleaseIDEnv = "VROOLI_RUNTIME_RELEASE_ID"
+const runtimeReleaseOperationIDEnv = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
+const startOperationIDEnv = "VROOLI_START_OPERATION_ID"
 
 // BuildIdentity overrides the source/build identity reported by the health
 // handler. It defaults to the lifecycle-injected environment value, so calling
 // this is only necessary when a service resolves its identity some other way.
 func (b *Builder) BuildIdentity(identity string) *Builder {
 	b.buildIdentity = identity
+	return b
+}
+
+// RuntimeRelease overrides immutable runtime provenance reported by /health.
+func (b *Builder) RuntimeRelease(id, selectionOperationID, startOperationID string) *Builder {
+	b.runtimeReleaseID = id
+	b.runtimeReleaseOperationID = selectionOperationID
+	b.startOperationID = startOperationID
 	return b
 }
 
@@ -334,14 +355,17 @@ func (b *Builder) buildResponse(ctx context.Context) Response {
 	now := b.nowFunc()
 
 	resp := Response{
-		Status:        StatusHealthy,
-		Service:       b.resolveService(),
-		Timestamp:     now.UTC().Format(time.RFC3339),
-		Readiness:     true,
-		Version:       b.version,
-		BuildIdentity: b.buildIdentity,
-		UptimeSeconds: now.Sub(b.startTime).Seconds(),
-		Metrics:       b.collectMetrics(now),
+		Status:                    StatusHealthy,
+		Service:                   b.resolveService(),
+		Timestamp:                 now.UTC().Format(time.RFC3339),
+		Readiness:                 true,
+		Version:                   b.version,
+		BuildIdentity:             b.buildIdentity,
+		RuntimeReleaseID:          b.runtimeReleaseID,
+		RuntimeReleaseOperationID: b.runtimeReleaseOperationID,
+		StartOperationID:          b.startOperationID,
+		UptimeSeconds:             now.Sub(b.startTime).Seconds(),
+		Metrics:                   b.collectMetrics(now),
 	}
 	for _, metric := range b.metrics {
 		resp.Metrics[metric.name] = metric.value(now)

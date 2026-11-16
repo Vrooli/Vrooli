@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/provenance"
 )
 
 // ResolveScenarioFeatureURLDefault resolves a feature for this call. Desktop
@@ -42,7 +44,10 @@ func (r *Resolver) ResolveScenarioFeatureURLDefault(ctx context.Context, scenari
 	if err != nil || strings.TrimSpace(string(token)) == "" {
 		return "", fmt.Errorf("desktop runtime credential unavailable")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	// The lookup is this process finding where a feature lives, under the
+	// runtime's own credential; the identity of an agent whose request led here
+	// is not forwarded to the runtime.
+	ctx, cancel := context.WithTimeout(provenance.WithoutCallerIdentity(ctx), 15*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {

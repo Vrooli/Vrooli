@@ -197,38 +197,14 @@ describe('createConfigEndpoint', () => {
     expect(result.json.apiPort).toBeDefined()
   })
 
-  it('handles CORS headers when enabled', async () => {
-    const options: ConfigEndpointOptions = {
-      apiPort: 8080,
-      uiPort: 3000,
-      cors: true,
-    }
-
-    const middleware = createConfigEndpoint(options)
+  it('never grants CORS itself; the scenario origin policy owns browser access', async () => {
+    const middleware = createConfigEndpoint({ apiPort: 8080, uiPort: 3000 })
     const req = mockRequest()
     const { res, getResult } = mockResponse()
 
     middleware(req, res, vi.fn())
 
-    const result = getResult()
-    expect(result.headers['access-control-allow-origin']).toBe('*')
-  })
-
-  it('does not set CORS headers when disabled', async () => {
-    const options: ConfigEndpointOptions = {
-      apiPort: 8080,
-      uiPort: 3000,
-      cors: false,
-    }
-
-    const middleware = createConfigEndpoint(options)
-    const req = mockRequest()
-    const { res, getResult } = mockResponse()
-
-    middleware(req, res, vi.fn())
-
-    const result = getResult()
-    expect(result.headers['access-control-allow-origin']).toBeUndefined()
+    expect(getResult().headers['access-control-allow-origin']).toBeUndefined()
   })
 
   it('uses custom configBuilder if provided', async () => {

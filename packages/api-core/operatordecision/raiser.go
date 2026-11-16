@@ -120,6 +120,18 @@ func (r Raiser) Raise(ctx context.Context, ask PendingAsk, facts Facts) (bool, e
 		return false, err
 	}
 	if existing != nil && existing.Outstanding(now) {
+		// A subject-keyed ask may change its facts within a generation: the hub
+		// updates (same answer menu) or replaces (new menu) the one open decision
+		// for the subject, so the new facts are published under a new event id.
+		if strings.TrimSpace(facts.SubjectKey) != "" {
+			if eventID := EventID(r.event(existing, facts)); eventID != existing.EventID {
+				existing.EventID = eventID
+				existing.Published = false
+				if err := r.Store.Put(ctx, existing); err != nil {
+					return true, err
+				}
+			}
+		}
 		// Idempotent: the same ask is already outstanding. Retry publication only
 		// while this generation has no successful publication receipt.
 		if !existing.Published {
@@ -176,9 +188,11 @@ func (r Raiser) event(ask *PendingAsk, facts Facts) eventbus.DomainEvent {
 	// Keep occurrence attached to the stored generation so every retry publishes
 	// the same event identity, even after the clock advances.
 	occurred := ask.RaisedAt.UTC().Truncate(r.window())
-	eventType := r.EventType
-	if eventType == "" {
-		eventType = DecisionRequestedEventType(r.Source, r.Kind)
+	if strings.TrimSpace(facts.SubjectKey) != "" && facts.AssertedAt.IsZero() {
+		// Order this generation against the subject's withdrawals at the hub.
+		// Whole seconds, so a store that keeps second precision rebuilds the same
+		// event id on retry.
+		facts.AssertedAt = ask.RaisedAt.UTC().Truncate(time.Second)
 	}
-	return BuildEventTyped(r.Source, eventType, occurred, facts)
+	return BuildEventTyped(r.Source, r.requestEventType(), occurred, facts)
 }

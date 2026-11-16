@@ -41,6 +41,9 @@ type ConsumerSessionResolver struct {
 	refreshMu     sync.Mutex
 	access        ConsumerAccess
 	accessBaseURL string
+	identityToken string
+	identityBase  string
+	identity      string
 }
 
 // Resolve refreshes a shared device session when needed. The refresh token is
@@ -64,6 +67,32 @@ func (r *ConsumerSessionResolver) ResolveAt(ctx context.Context, lpbsBaseURL str
 	return r.resolve(ctx, lpbsBaseURL)
 }
 
+// ResolveIdentityAt uses the LPBS authenticated account response. The result
+// is cached only for the exact short-lived token and issuer, so callers do not
+// repeat /auth/me for every request in a session.
+func (r *ConsumerSessionResolver) ResolveIdentityAt(ctx context.Context, lpbsBaseURL, accessToken string) (string, error) {
+	if r == nil {
+		return ResolveConsumerIdentity(ctx, lpbsBaseURL, accessToken, nil)
+	}
+	base := strings.TrimRight(strings.TrimSpace(lpbsBaseURL), "/")
+	token := strings.TrimSpace(accessToken)
+	r.mu.Lock()
+	if r.identity != "" && r.identityBase == base && r.identityToken == token {
+		identity := r.identity
+		r.mu.Unlock()
+		return identity, nil
+	}
+	r.mu.Unlock()
+	identity, err := ResolveConsumerIdentity(ctx, base, token, r.HTTPClient)
+	if err != nil {
+		return "", err
+	}
+	r.mu.Lock()
+	r.identityBase, r.identityToken, r.identity = base, token, identity
+	r.mu.Unlock()
+	return identity, nil
+}
+
 func (r *ConsumerSessionResolver) resolve(ctx context.Context, lpbsBaseURL string) (ConsumerAccess, error) {
 	if r == nil || r.Credentials == nil {
 		return ConsumerAccess{}, ErrCredentialAuthorityUnavailable
@@ -71,6 +100,9 @@ func (r *ConsumerSessionResolver) resolve(ctx context.Context, lpbsBaseURL strin
 	base := strings.TrimRight(strings.TrimSpace(lpbsBaseURL), "/")
 	if base == "" {
 		return ConsumerAccess{}, fmt.Errorf("%w: LPBS base URL is empty", ErrSubscriptionUnavailable)
+	}
+	if err := validateSubscriptionAuthority(base); err != nil {
+		return ConsumerAccess{}, fmt.Errorf("%w: %v", ErrSubscriptionUnavailable, err)
 	}
 
 	// Refresh-token rotation is single-use. Serialize the complete refresh
@@ -171,5 +203,6 @@ func (r *ConsumerSessionResolver) Clear() {
 	r.mu.Lock()
 	r.access = ConsumerAccess{}
 	r.accessBaseURL = ""
+	r.identityBase, r.identityToken, r.identity = "", "", ""
 	r.mu.Unlock()
 }

@@ -95,9 +95,9 @@ func TestFactsValidate(t *testing.T) {
 		want   string
 	}{
 		{"too few options", func(f *Facts) { f.Options = f.Options[:1] }, "needs 2-"},
-		{"missing recommended", func(f *Facts) { f.Recommended = "" }, "recommended"},
 		{"recommended not an option", func(f *Facts) { f.Recommended = "maybe" }, "recommended"},
 		{"default on non-reversible", func(f *Facts) { f.DefaultAnswer = "approve"; f.Reversible = false }, "reversible"},
+		{"context requests without a subject key", func(f *Facts) { f.AcceptsContextRequests = true }, "subject_key"},
 		{"default not an option", func(f *Facts) { f.DefaultAnswer = "maybe"; f.Reversible = true }, "default"},
 		{"empty question", func(f *Facts) { f.Question = "" }, "question"},
 		{"bad urgency", func(f *Facts) { f.Urgency = "immediate" }, "urgency"},
@@ -512,7 +512,7 @@ func TestWebhookFanOutFirstHandledWins(t *testing.T) {
 	var firstApplied, secondApplied bool
 	first := &recordingEffect{owns: "agent-manager.run.decision_requested.v1", handled: true, applied: &firstApplied}
 	second := &recordingEffect{owns: "agent-manager.run.decision_requested.v1", handled: true, applied: &secondApplied}
-	h := Webhook(secret, first, second)
+	h := legacyWebhook(secret, first, second)
 
 	rec := postResolution(t, h, secret, AskResolvedEventType, "agent-manager.run.decision_requested.v1")
 	if rec.Code != http.StatusOK {
@@ -534,7 +534,7 @@ func TestWebhookPreservesVerifiedHumanIdentityForOwnerEffect(t *testing.T) {
 	effect := &recordingEffect{
 		owns: "data_backup_manager.volume_recovery.decision_requested.v1", handled: true, got: &got,
 	}
-	h := Webhook(secret, effect)
+	h := legacyWebhook(secret, effect)
 	envelope := map[string]any{
 		"event_id": "e1", "event_type": AskResolvedEventType, "source_scenario": "notification-hub",
 		"payload": map[string]any{
@@ -568,7 +568,7 @@ func TestWebhookFallThroughOnHandlesAndUnhandled(t *testing.T) {
 	first := &recordingEffect{owns: "other.kind.decision_requested.v1", handled: true, applied: &ranFirst}
 	// Second owns it and handles it.
 	second := &recordingEffect{owns: "agent-manager.run.decision_requested.v1", handled: true, applied: &ranSecond}
-	h := Webhook(secret, first, second)
+	h := legacyWebhook(secret, first, second)
 	rec := postResolution(t, h, secret, AskResolvedEventType, "agent-manager.run.decision_requested.v1")
 	if ranFirst {
 		t.Fatalf("effect that does not own the source type must be skipped")
@@ -580,7 +580,7 @@ func TestWebhookFallThroughOnHandlesAndUnhandled(t *testing.T) {
 
 func TestWebhookUnclaimedResolutionIgnored(t *testing.T) {
 	secret := "whsec"
-	h := Webhook(secret, &recordingEffect{owns: "nobody", handled: false})
+	h := legacyWebhook(secret, &recordingEffect{owns: "nobody", handled: false})
 	rec := postResolution(t, h, secret, AskResolvedEventType, "unknown.kind.decision_requested.v1")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status: %d", rec.Code)
@@ -594,7 +594,7 @@ func TestWebhookUnclaimedResolutionIgnored(t *testing.T) {
 
 func TestWebhookNonResolutionEventIgnored(t *testing.T) {
 	secret := "whsec"
-	h := Webhook(secret, &recordingEffect{handled: true})
+	h := legacyWebhook(secret, &recordingEffect{handled: true})
 	rec := postResolution(t, h, secret, "some.other.event.v1", "agent-manager.run.decision_requested.v1")
 	var out map[string]any
 	_ = json.Unmarshal(rec.Body.Bytes(), &out)
@@ -605,7 +605,7 @@ func TestWebhookNonResolutionEventIgnored(t *testing.T) {
 
 func TestWebhookEffectErrorIs500(t *testing.T) {
 	secret := "whsec"
-	h := Webhook(secret, &recordingEffect{owns: "agent-manager.run.decision_requested.v1", err: errors.New("boom")})
+	h := legacyWebhook(secret, &recordingEffect{owns: "agent-manager.run.decision_requested.v1", err: errors.New("boom")})
 	rec := postResolution(t, h, secret, AskResolvedEventType, "agent-manager.run.decision_requested.v1")
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("effect error must be 500, got %d", rec.Code)
@@ -614,7 +614,7 @@ func TestWebhookEffectErrorIs500(t *testing.T) {
 
 func TestWebhookRejectsBadSignatureAndMethod(t *testing.T) {
 	secret := "whsec"
-	h := Webhook(secret, &recordingEffect{handled: true})
+	h := legacyWebhook(secret, &recordingEffect{handled: true})
 
 	body := []byte(`{"event_type":"notification_hub.ask.resolved.v1"}`)
 	req := httptest.NewRequest(http.MethodPost, "/webhook", strings.NewReader(string(body)))
@@ -638,7 +638,7 @@ func TestWebhookRejectsBadSignatureAndMethod(t *testing.T) {
 // truncated body would fail the HMAC check and masquerade as a permanent 401.
 func TestWebhookOverCapBodyIs413(t *testing.T) {
 	secret := "whsec"
-	h := Webhook(secret, &recordingEffect{handled: true})
+	h := legacyWebhook(secret, &recordingEffect{handled: true})
 
 	// Build a correctly-signed body that is > 1 MiB by padding the note field.
 	envelope := map[string]any{

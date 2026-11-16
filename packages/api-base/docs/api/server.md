@@ -26,6 +26,8 @@ import {
 - [Server Template](#server-template)
   - [createScenarioServer](#createscenarioserver)
   - [startScenarioServer](#startscenarioserver)
+- [Browser Origin Policy](#browser-origin-policy)
+  - [createOriginPolicy](#createoriginpolicy)
 - [Scenario Proxy Host](#scenario-proxy-host)
   - [createScenarioProxyHost](#createscenarioproxyhost)
 - [Metadata Injection](#metadata-injection)
@@ -68,7 +70,9 @@ function createScenarioServer(options: ServerTemplateOptions): Express.Applicati
 | `distDir` | `string` | ❌ | Static files directory (default: `./dist`) |
 | `serviceName` | `string` | ❌ | Service name for logging |
 | `version` | `string` | ❌ | Service version |
-| `corsOrigins` | `string \| string[]` | ❌ | Allowed CORS origins. Use `'*'` for all origins, or specify patterns like `['https://*.example.com']`. Default: localhost + auto-detected tunnels |
+| `allowedOrigins` | `readonly string[]` | ❌ | Exact origins (`scheme://host[:port]`) that may call the server cross-origin with credentials. Default: none (same-origin only). Wildcards, `null`, paths and comma-joined strings are refused at startup. See [SECURITY.md](../../SECURITY.md) |
+| `publicPaths` | `ReadonlyArray<string \| RegExp>` | ❌ | Path prefixes or patterns whose GET/HEAD responses any origin may read without credentials (`Access-Control-Allow-Origin: *`), e.g. runtime modules imported by opaque-origin sandbox frames |
+| `corsOrigins` | — | — | **Removed and refused.** It accepted `'*'`, which let any visited page read and change scenario data. Delete it, or move exact origins to `allowedOrigins` |
 | `verbose` | `boolean` | ❌ | Enable verbose logging (default: `false`) |
 | `configBuilder` | `(env: NodeJS.ProcessEnv) => ScenarioConfig` | ❌ | Custom config builder |
 | `setupRoutes` | `(app: Express.Application) => void` | ❌ | Custom route setup |
@@ -79,7 +83,7 @@ function createScenarioServer(options: ServerTemplateOptions): Express.Applicati
 
 **Features:**
 - ✅ JSON body parsing (10MB limit)
-- ✅ CORS middleware
+- ✅ Browser origin policy: Fetch Metadata + CORS, same-origin by default ([Browser Origin Policy](#browser-origin-policy))
 - ✅ API request proxying (`/api/*` → API server)
 - ✅ `/config` endpoint (runtime configuration)
 - ✅ `/health` endpoint (with API connectivity check)
@@ -123,9 +127,10 @@ const app = createScenarioServer({
   // Static files
   distDir: path.join(__dirname, '../dist'),
 
-  // CORS - allow all origins (recommended for scenarios accessible via tunnels)
-  corsOrigins: '*',
-  // Or specify patterns: ['http://localhost:*', 'https://*.example.com']
+  // Browser access. Same-origin (including the tunnel and Web Console) needs
+  // nothing; list exact cross-origin callers and uncredentialed public paths.
+  allowedOrigins: ['chrome-extension://abcdefghijklmnopabcdefghijklmnop'],
+  publicPaths: ['/preview/runtime/'],
 
   // Debugging
   verbose: process.env.NODE_ENV === 'development',
@@ -247,6 +252,61 @@ startScenarioServer({
 
 **See Also:**
 - [createScenarioServer](#createscenarioserver) (for more control)
+
+---
+
+## Browser Origin Policy
+
+`createScenarioServer` refuses cross-origin browser requests before any route,
+proxy, static file or SPA fallback runs. The full rule table, threat model and
+relay semantics are in [SECURITY.md](../../SECURITY.md).
+
+| Request | Result |
+|---------|--------|
+| `Sec-Fetch-Site: same-origin` or `none`; or no Fetch Metadata and `Origin` equal to `Host` | Served |
+| No `Sec-Fetch-Site` and no `Origin` (CLI, service, relay) | Served |
+| `Origin` in `allowedOrigins` | Served, credentialed CORS (exact echo, `Vary: Origin`) |
+| GET/HEAD to a `publicPaths` match | Served, `Access-Control-Allow-Origin: *` |
+| GET/HEAD navigation (link or frame; not `object`/`embed`) | Served |
+| Anything else | `403 {"error":"Cross-origin request refused","detail","remedy"}` |
+
+WebSocket handshakes follow the same rules, without the navigation and
+public-path exemptions. Upstream `Access-Control-*` response headers are dropped
+by every API Base proxy, so an API's own wildcard cannot widen the policy.
+
+### createOriginPolicy
+
+Builds the policy `createScenarioServer` uses, for servers that terminate
+WebSockets or route requests themselves.
+
+```typescript
+function createOriginPolicy(options?: OriginPolicyOptions): OriginPolicy
+
+interface OriginPolicy {
+  readonly allowedOrigins: ReadonlySet<string>
+  evaluate(request: { method: string; path: string; headers: IncomingHttpHeaders }): OriginDecision
+  evaluateUpgrade(request: { headers: IncomingHttpHeaders }): OriginDecision
+  middleware(options?: { verbose?: boolean }): RequestHandler
+}
+
+type OriginVerdict = 'same-origin' | 'no-browser-context' | 'navigation' | 'allowed-origin' | 'public-path' | 'refused'
+```
+
+`SAME_ORIGIN_POLICY` is the policy with no declarations. Related exports:
+`withoutBrowserContext(headers)` (drop `Origin`, `Referer` and `Sec-Fetch-*` for
+a relay to another origin), `refuseUpgrade(socket, reason)`,
+`isCorsResponseHeader(name)`, `canonicalOrigin(value)` and
+`normalizeAllowedOrigins(value)`.
+
+```typescript
+import { SAME_ORIGIN_POLICY, refuseUpgrade } from '@vrooli/api-base/server'
+
+server.on('upgrade', (req, socket, head) => {
+  const decision = SAME_ORIGIN_POLICY.evaluateUpgrade(req)
+  if (decision.verdict === 'refused') return refuseUpgrade(socket, decision.reason)
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
+})
+```
 
 ---
 
@@ -721,6 +781,10 @@ async function proxyToApi(
 | `verbose` | `boolean` | `false` | Enable logging |
 | `keepAlive` | `boolean` | `true` | Reuse HTTP connections |
 | `agent` | `http.Agent` | - | Custom HTTP agent |
+| `crossOriginRelay` | `boolean` | `false` | The upstream is a different browser origin (another scenario UI, a loopback service). Drops `Origin`, `Referer` and `Sec-Fetch-*` after this server's own policy admitted the request. Leave `false` for the scenario's own API, which may run its own Fetch Metadata checks |
+
+Upstream `Access-Control-*` response headers are always dropped: the browser-facing
+server's origin policy owns CORS. Upstream `Vary` is merged with the policy's.
 
 **Example:**
 
@@ -778,6 +842,8 @@ function proxyWebSocketUpgrade(
 | `options.apiPort` | `number \| string` | Yes | Target port for the WebSocket server |
 | `options.apiHost` | `string` | No | Target host (default: `'127.0.0.1'`) |
 | `options.verbose` | `boolean` | No | Enable logging (default: `false`) |
+| `options.originPolicy` | `OriginPolicy` | No | Policy applied to the browser handshake before upstream is contacted (default: `SAME_ORIGIN_POLICY`). Browsers do not apply CORS to WebSockets |
+| `options.crossOriginRelay` | `boolean` | No | Drop `Origin`, `Referer` and `Sec-Fetch-*` before forwarding to a different origin (default: `false`) |
 
 **How it works:**
 
@@ -786,10 +852,11 @@ Client socket  <--> net.connect(port, host) <--> Upstream socket
                     (bidirectional pipe)
 ```
 
-1. Opens TCP connection to upstream via `net.connect()`
-2. Forwards the HTTP upgrade request with **all** headers preserved (including `Sec-WebSocket-*`)
-3. Pipes data bidirectionally between client and upstream sockets
-4. Tears down both sockets on error or close
+1. Refuses a cross-origin browser handshake with `403 Forbidden` (see `originPolicy`)
+2. Opens TCP connection to upstream via `net.connect()`
+3. Forwards the HTTP upgrade request with its headers preserved (including `Sec-WebSocket-*`; browser context dropped when `crossOriginRelay`)
+4. Pipes data bidirectionally between client and upstream sockets
+5. Tears down both sockets on error or close
 
 **Example:**
 
@@ -813,6 +880,7 @@ server.on('upgrade', (req, socket, head) => {
 
 | Condition | Response |
 |-----------|----------|
+| Cross-origin browser handshake | HTTP 403 written to socket, then closed; upstream never contacted |
 | Invalid port | HTTP 502 written to socket, then destroyed |
 | Upstream connect error | Both sockets torn down, error logged |
 | Client disconnect | Upstream socket ended gracefully |
@@ -1094,9 +1162,6 @@ const app = createScenarioServer({
   // Service info
   serviceName: 'my-scenario-ui',
   version: process.env.npm_package_version || '1.0.0',
-
-  // CORS - allow all origins for simplicity
-  corsOrigins: '*',
 
   // Verbose logging in development
   verbose: process.env.NODE_ENV === 'development',

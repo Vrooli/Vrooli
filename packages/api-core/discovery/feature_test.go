@@ -9,6 +9,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 func TestFeatureResolutionUsesAuthenticatedRuntimePerCall(t *testing.T) {
@@ -80,5 +83,47 @@ func TestFeatureResolutionFailsClosedForInvalidRuntimeAndResponse(t *testing.T) 
 	_, err := ResolveScenarioFeatureURLDefault(context.Background(), "agent-manager", "usage")
 	if err == nil || !strings.Contains(err.Error(), "credential unavailable") {
 		t.Fatalf("missing credential: %v", err)
+	}
+}
+
+// The lookup runs under the runtime's own credential. When it runs inside a
+// request an agent run made, the runtime must not see that run's identity: a
+// receiver that intersects the two would refuse the lookup, and the lookup is
+// this process finding an address, not the agent acting.
+func TestFeatureLookupNeverForwardsTheIdentityOfTheRunWhoseRequestLedToIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(path, []byte("runtime-token"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("VROOLI_AUTH_LOCAL_TOKEN_FILE", path)
+	seen := map[string]string{}
+	runtime := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		seen[req.URL.Path] = req.Header.Get(cliutil.HeaderAgentIdentityToken)
+		fmt.Fprint(w, `{"url":"http://127.0.0.1:3001","source":"component","component_id":"agent-manager-usage"}`)
+	}))
+	defer runtime.Close()
+	t.Setenv("VROOLI_RUNTIME_URL", runtime.URL)
+	resolver := NewResolver(ResolverConfig{StaticBaseURL: "http://127.0.0.1:9999"})
+
+	inbound := provenance.Middleware(provenance.VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "run-a"}}, nil
+	}))(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		control, _ := http.NewRequestWithContext(r.Context(), http.MethodGet, runtime.URL+"/control", nil)
+		if response, err := http.DefaultClient.Do(control); err == nil {
+			_ = response.Body.Close()
+		}
+		if _, err := resolver.ResolveScenarioFeatureURLDefault(r.Context(), "agent-manager", "usage"); err != nil {
+			t.Errorf("lookup: %v", err)
+		}
+	}))
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "run-a-credential")
+	inbound.ServeHTTP(httptest.NewRecorder(), req)
+
+	if seen["/control"] == "" {
+		t.Fatal("fixture: a plain call inside the agent's request should forward its identity")
+	}
+	if got, ok := seen["/features"]; !ok || got != "" {
+		t.Fatalf("the feature lookup forwarded the agent identity %q (reached: %v)", got, ok)
 	}
 }

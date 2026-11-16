@@ -44,6 +44,15 @@ permit replacement when process identity is non-authoritative.
 override eligible blockers. It never substitutes for identifying the target
 process in the control plane.
 
+The provider keeps every admitted request in an inventory until its handler
+returns. The standing's `admitting` counts those requests and `remaining`
+counts only detached owner work from the `Snapshot` hook; the two are never
+summed. Each running request also appears as a `http_request` work item (route
+and start time, longest-running first, capped at 16). A `Drain` that exceeds its
+timeout fails with `deadline_exceeded` and names the requests still running.
+A `Drain` request without a timeout uses `DefaultDrainTimeout` (15 minutes), so
+a handler that never returns cannot hold admission closed forever.
+
 The loopback `Drain` RPC follows its operation/request context, including a
 request timeout when supplied. Its transport clears the ordinary HTTP response
 write deadline so a long quiescence wait can return its receipt after ingress

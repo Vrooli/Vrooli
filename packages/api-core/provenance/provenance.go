@@ -5,7 +5,6 @@ package provenance
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"net/http"
 	"path"
@@ -43,13 +42,18 @@ type Invocation struct {
 // value with ActorAgent and VerificationVerified may be used as evidence that
 // an Agent Manager run performed an attributed mutation.
 type Provenance struct {
-	Actor              string   `json:"actor"`
-	VerificationStatus string   `json:"verification_status"`
-	RunID              string   `json:"run_id,omitempty"`
-	TaskID             string   `json:"task_id,omitempty"`
-	Subject            string   `json:"subject,omitempty"`
-	WorkspaceID        string   `json:"workspace_id,omitempty"`
-	Scopes             []string `json:"scopes,omitempty"`
+	Actor              string `json:"actor"`
+	VerificationStatus string `json:"verification_status"`
+	RunID              string `json:"run_id,omitempty"`
+	TaskID             string `json:"task_id,omitempty"`
+	// ConversationID is the agent conversation the run continues: a recovered or
+	// child run shares its source's, and a re-attached harness session keeps its
+	// own. Empty when the token carries no conversation claim; a reader then
+	// treats RunID as the whole lineage.
+	ConversationID string   `json:"conversation_id,omitempty"`
+	Subject        string   `json:"subject,omitempty"`
+	WorkspaceID    string   `json:"workspace_id,omitempty"`
+	Scopes         []string `json:"scopes,omitempty"`
 	// ExpiresAt is copied only from the verified baseline identity claims.
 	ExpiresAt           time.Time                `json:"-"`
 	ProfileKey          string                   `json:"profile_key,omitempty"`
@@ -69,16 +73,6 @@ type Provenance struct {
 	OperationExpiresAt time.Time                `json:"-"`
 	OperationRunID     string                   `json:"-"`
 	OperationGrantID   string                   `json:"-"`
-}
-
-// OperationGrantFromMeta interprets signed metadata only after the authority
-// has verified the current grant and run. Malformed metadata grants nothing.
-func OperationGrantFromMeta(meta map[string]string) *identity.OperationGrant {
-	var grant identity.OperationGrant
-	if err := json.Unmarshal([]byte(meta["operation_grant"]), &grant); err != nil || grant.ID == "" || grant.Approver == "" || !time.Now().Before(grant.ExpiresAt) {
-		return nil
-	}
-	return &grant
 }
 
 // ScopeDeniedError is returned when a verified agent token lacks a required
@@ -183,6 +177,42 @@ type requestIdentity struct {
 	operationVerifier PairVerifier
 }
 
+// serviceBearers holds the access tokens this process obtained for its own
+// service principals (servicetoken marks each one it exchanges). A request that
+// presents one is the service speaking as itself, so ForwardingTransport never
+// adds the identity of an agent whose request led to it: a receiver that
+// resolves an agent before a service token would answer as if the run had
+// asked, and authn.Middleware refuses an agent beside a non-human principal.
+// Only tokens marked here qualify, so an owner credential presented for an
+// agent's request still carries that agent and keeps its grant's limits.
+var serviceBearers sync.Map // token -> expiry (time.Time)
+
+// MarkServiceBearer records an access token this process obtained for one of
+// its own service principals. Expired entries are dropped as new ones arrive.
+func MarkServiceBearer(token string, expires time.Time) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return
+	}
+	now := time.Now()
+	serviceBearers.Range(func(key, value any) bool {
+		if at, ok := value.(time.Time); ok && !at.IsZero() && at.Before(now) {
+			serviceBearers.Delete(key)
+		}
+		return true
+	})
+	serviceBearers.Store(token, expires)
+}
+
+func presentsServiceBearer(request *http.Request) bool {
+	token, ok := strings.CutPrefix(strings.TrimSpace(request.Header.Get("Authorization")), "Bearer ")
+	if !ok {
+		return false
+	}
+	_, marked := serviceBearers.Load(strings.TrimSpace(token))
+	return marked
+}
+
 // ForwardingTransport copies a verified inbound Agent Manager identity to an
 // outbound request. It intentionally ignores unverified request headers: only
 // Middleware can place a forwardable token in the request context.
@@ -197,6 +227,18 @@ func (t ForwardingTransport) RoundTrip(request *http.Request) (*http.Response, e
 	}
 	if request == nil {
 		return base.RoundTrip(request)
+	}
+	if presentsServiceBearer(request) {
+		// The service speaks as itself: no caller identity rides along, however
+		// the request was built.
+		if request.Header.Get(cliutil.HeaderAgentIdentityToken) == "" && request.Header.Get(cliutil.HeaderAgentOperationToken) == "" {
+			return base.RoundTrip(request)
+		}
+		clone := request.Clone(request.Context())
+		clone.Header = request.Header.Clone()
+		clone.Header.Del(cliutil.HeaderAgentIdentityToken)
+		clone.Header.Del(cliutil.HeaderAgentOperationToken)
+		return base.RoundTrip(clone)
 	}
 	if !cliutil.TrustedIdentityDestination(request) && (request.Header.Get(cliutil.HeaderAgentIdentityToken) != "" || request.Header.Get(cliutil.HeaderAgentOperationToken) != "") {
 		clone := request.Clone(request.Context())
@@ -255,6 +297,18 @@ func InstallDefaultForwardingTransport() {
 
 func NewContext(ctx context.Context, provenance Provenance) context.Context {
 	return context.WithValue(ctx, contextKey{}, requestIdentity{provenance: provenance})
+}
+
+// WithoutCallerIdentity returns ctx with no agent identity to forward. A server
+// that calls another service as itself, with its own service token, uses it so
+// the caller of the inbound request is not forwarded as well: a receiver that
+// resolves an agent identity before a service token would then read the call as
+// that run, and answer as if the run, not the service, had asked.
+func WithoutCallerIdentity(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, contextKey{}, requestIdentity{provenance: Provenance{Actor: ActorOperator, VerificationStatus: VerificationAbsent}})
 }
 
 func FromContext(ctx context.Context) Provenance {
@@ -396,7 +450,7 @@ func ReverifyOperationProof(ctx context.Context) (*OperationProof, error) {
 		return nil, nil
 	}
 	claims := result.Operation.Claims
-	grant := OperationGrantFromMeta(claims.Meta)
+	grant := identity.OperationGrantFromMeta(claims.Meta, time.Now())
 	if grant == nil {
 		return nil, nil
 	}
@@ -468,13 +522,14 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			provenance.VerificationStatus = VerificationVerified
 			provenance.RunID = strings.TrimSpace(result.Claims.RunID)
 			provenance.TaskID = strings.TrimSpace(result.Claims.TaskID)
+			provenance.ConversationID = strings.TrimSpace(result.Claims.ConversationID)
 			provenance.Subject = strings.TrimSpace(result.Claims.Subject)
 			provenance.WorkspaceID = strings.TrimSpace(result.Claims.WorkspaceID)
 			provenance.Scopes = append([]string(nil), result.Claims.Scopes...)
 			if result.Claims.ExpiresAt > 0 {
 				provenance.ExpiresAt = time.Unix(result.Claims.ExpiresAt, 0).UTC()
 			}
-			provenance.Grant = OperationGrantFromMeta(result.Claims.Meta)
+			provenance.Grant = identity.OperationGrantFromMeta(result.Claims.Meta, time.Now())
 			provenance.ProfileKey = strings.TrimSpace(result.Claims.ProfileKey)
 			provenance.ScopePath = strings.TrimSpace(result.Claims.ScopePath)
 			// Claims.Meta is part of the verified identity response. These optional
@@ -496,7 +551,7 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 						slog.Warn("agent operation credential verification unavailable", "error", pairErr)
 					} else if pair != nil && pair.Valid && pair.Operation != nil && pair.Operation.Valid && pair.Operation.Claims != nil {
 						operationClaims := pair.Operation.Claims
-						provenance.OperationGrant = OperationGrantFromMeta(operationClaims.Meta)
+						provenance.OperationGrant = identity.OperationGrantFromMeta(operationClaims.Meta, time.Now())
 						if provenance.OperationGrant != nil {
 							provenance.OperationScopes = append([]string(nil), operationClaims.Scopes...)
 							provenance.OperationExpiresAt = time.Unix(operationClaims.ExpiresAt, 0).UTC()

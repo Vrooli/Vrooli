@@ -96,6 +96,25 @@ func TestHandler_Minimal(t *testing.T) {
 	}
 }
 
+func TestHealthResponseReportsLifecycleReleaseIdentity(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:release-abc")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_ID", "release-abc")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID", "selection-42")
+	t.Setenv("VROOLI_START_OPERATION_ID", "start-73")
+	handler := New("browser-api").Handler()
+	w := httptest.NewRecorder()
+	handler(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	var resp Response
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if resp.BuildIdentity != "sha256:release-abc" || resp.RuntimeReleaseID != "release-abc" ||
+		resp.RuntimeReleaseOperationID != "selection-42" || resp.StartOperationID != "start-73" {
+		t.Fatalf("health identity = build %q/release %q/selection %q/start %q",
+			resp.BuildIdentity, resp.RuntimeReleaseID, resp.RuntimeReleaseOperationID, resp.StartOperationID)
+	}
+}
+
 func TestHandler_FunctionalFailureDegradesWithoutChangingReadiness(t *testing.T) {
 	handler := New("test").Functional(func(context.Context) FunctionalStatus {
 		return FunctionalStatus{Healthy: false, Reason: "lifecycle refusals exceeded"}

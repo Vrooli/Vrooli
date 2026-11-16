@@ -316,6 +316,26 @@ func TestUnreachedProviderReportsUnknown(t *testing.T) {
 	}
 }
 
+func TestResolveOneDoesNotWaitForUnrelatedDependencies(t *testing.T) {
+	var unrelatedCalls atomic.Int32
+	reg := New([]Def{{ID: "slow", DependencySlug: "slow", Name: "Slow"}, {ID: "target", DependencySlug: "target", Name: "Target"}}, map[string]Checker{
+		"slow": checkerFunc(func(ctx context.Context) (Status, string) {
+			unrelatedCalls.Add(1)
+			<-ctx.Done()
+			return StatusUnknown, "slow"
+		}),
+		"target": checkerFunc(func(context.Context) (Status, string) { return StatusAvailable, "healthy" }),
+	}, time.Minute)
+
+	state, ok := reg.ResolveOne(context.Background(), "target")
+	if !ok || state.Status != StatusAvailable || unrelatedCalls.Load() != 0 {
+		t.Fatalf("ResolveOne = (%+v, %t), unrelated calls = %d", state, ok, unrelatedCalls.Load())
+	}
+	if _, ok := reg.ResolveOne(context.Background(), "missing"); ok {
+		t.Fatal("ResolveOne found an undeclared dependency")
+	}
+}
+
 func TestFullRefreshDoesNotBlockLivenessChecks(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})

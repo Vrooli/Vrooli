@@ -3,7 +3,7 @@
  *
  * Provides a complete Express server implementation that handles all common
  * scenario needs: static files, API proxy, config endpoint, health endpoint,
- * CORS, metadata injection, etc.
+ * browser origin policy, metadata injection, etc.
  */
 
 import express, { type Express, type Request, type Response, type NextFunction } from 'express'
@@ -18,6 +18,8 @@ import { createProxyMiddleware, proxyToApi, proxyWebSocketUpgrade } from './prox
 import { injectProxyMetadata, injectScenarioConfig, injectBaseTag } from './inject.js'
 import { resolveProxyAgent } from './agent.js'
 import { createEmbeddedProxyRouter } from './embedded.js'
+import { createLocalPortProxy } from './local-port-proxy.js'
+import { createOriginPolicy } from './origin-policy.js'
 import { APP_NOTIFICATIONS_PREFIX, createAppNotificationsRouter, resolveAppNotifications } from './app-notifications.js'
 import { assertLifecycleManagedUI } from './lifecycle.js'
 import { parsePort, isAssetRequest } from '../shared/utils.js'
@@ -176,151 +178,6 @@ function gzipStaticResponseMiddleware(req: Request, res: Response, next: NextFun
 }
 
 /**
- * Default allowed CORS origins
- *
- * Includes localhost and loopback addresses with any port.
- * Auto-detects tunnel environments and allows HTTPS origins.
- *
- * @internal
- */
-function buildDefaultCorsOrigins(uiPort?: string): string[] {
-  const origins = [
-    'http://localhost',
-    'http://127.0.0.1',
-    'http://[::1]',
-    'null', // For file:// protocol
-  ]
-
-  if (uiPort) {
-    origins.push(`http://localhost:${uiPort}`)
-    origins.push(`http://127.0.0.1:${uiPort}`)
-  }
-
-  // Auto-allow tunnel/proxy contexts
-  // Detect common tunnel environment variables or presence of HTTPS connections
-  const isTunnelEnv = Boolean(
-    process.env.TUNNEL_URL ||
-    process.env.CLOUDFLARE_TUNNEL ||
-    process.env.CLOUDFLARED_TUNNEL_ID ||
-    process.env.NGROK_URL ||
-    process.env.CLOUDFLARE_TUNNEL_TOKEN
-  )
-
-  if (isTunnelEnv) {
-    // When tunnel is detected, allow all HTTPS origins
-    origins.push('https://*')
-  }
-
-  return origins
-}
-
-/**
- * Check if origin is allowed
- *
- * @param origin - Origin to check
- * @param allowedOrigins - List of allowed origins (supports wildcards)
- * @returns Whether origin is allowed
- *
- * @internal
- */
-function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
-  // Check for exact match
-  if (allowedOrigins.includes(origin)) {
-    return true
-  }
-
-  // Check for wildcard match
-  if (allowedOrigins.includes('*')) {
-    return true
-  }
-
-  // Check for pattern match (e.g., "http://localhost:*")
-  for (const pattern of allowedOrigins) {
-    if (pattern.includes('*')) {
-      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-      if (regex.test(origin)) {
-        return true
-      }
-    }
-  }
-
-  // Check if origin starts with any allowed origin (for port wildcards)
-  const originLower = origin.toLowerCase()
-  for (const allowed of allowedOrigins) {
-    const allowedLower = allowed.toLowerCase()
-    if (allowedLower.endsWith(':*')) {
-      const baseAllowed = allowedLower.slice(0, -2)
-      if (originLower.startsWith(baseAllowed)) {
-        return true
-      }
-    }
-  }
-
-  return false
-}
-
-/**
- * Create CORS middleware
- *
- * @param corsOrigins - Allowed origins (supports wildcards, defaults to localhost)
- * @param verbose - Whether to log CORS decisions
- * @returns CORS middleware
- *
- * @internal
- */
-function createCorsMiddleware(corsOrigins: string | string[] | undefined, verbose: boolean) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    const origin = req.headers.origin
-
-    // Normalize cors origins
-    let allowedOrigins: string[]
-    if (corsOrigins === '*') {
-      allowedOrigins = ['*']
-    } else if (Array.isArray(corsOrigins)) {
-      allowedOrigins = corsOrigins
-    } else if (typeof corsOrigins === 'string') {
-      allowedOrigins = corsOrigins.split(',').map(o => o.trim())
-    } else {
-      // Default: build from UI port
-      allowedOrigins = buildDefaultCorsOrigins()
-    }
-
-    // Handle wildcard
-    if (allowedOrigins.includes('*')) {
-      res.setHeader('Access-Control-Allow-Origin', '*')
-      res.setHeader('Access-Control-Allow-Credentials', 'false')
-    } else if (origin && isOriginAllowed(origin, allowedOrigins)) {
-      res.setHeader('Access-Control-Allow-Origin', origin)
-      res.setHeader('Access-Control-Allow-Credentials', 'true')
-      res.setHeader('Vary', 'Origin')
-    } else if (origin) {
-      if (verbose) {
-        console.log(`[cors] Blocked origin: ${origin}`)
-      }
-      res.status(403).json({ error: 'Origin not allowed' })
-      return
-    }
-
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      req.headers['access-control-request-headers'] || 'Accept,Authorization,Content-Type,X-CSRF-Token,X-Requested-With'
-    )
-    res.setHeader('Access-Control-Expose-Headers', 'Link, Server-Timing')
-    res.setHeader('Access-Control-Max-Age', '300')
-
-    // Handle preflight
-    if (req.method === 'OPTIONS') {
-      res.status(204).end()
-      return
-    }
-
-    next()
-  }
-}
-
-/**
  * Create HTML injection middleware
  *
  * Intercepts HTML responses and injects proxy metadata and/or config.
@@ -409,7 +266,7 @@ function createIndexHtmlLoader(indexPath: string, useCache: boolean, verbose: bo
  * Create a complete scenario server
  *
  * Returns a configured Express application with all standard middleware:
- * - CORS handling
+ * - Browser origin policy (same-origin by default; see origin-policy.ts)
  * - API proxying
  * - Config endpoint
  * - Health endpoint
@@ -457,6 +314,18 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     disableLifecycleGuard: options.disableLifecycleGuard,
   })
 
+  if ('corsOrigins' in options) {
+    throw new Error(
+      `${options.serviceName ?? 'scenario-ui'}: the corsOrigins option was removed. ` +
+      'Scenario UI servers are same-origin by default, including through the tunnel and Web Console; ' +
+      'delete the option, or list exact cross-origin callers in allowedOrigins. See packages/api-base/SECURITY.md.',
+    )
+  }
+  const originPolicy = createOriginPolicy({
+    allowedOrigins: options.allowedOrigins,
+    publicPaths: options.publicPaths,
+  })
+
   const {
     uiPort,
     apiPort,
@@ -466,7 +335,6 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     distDir = './dist',
     serviceName = 'scenario-ui',
     version,
-    corsOrigins,
     verbose = false,
     configBuilder,
     setupRoutes,
@@ -474,6 +342,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     scenarioConfig,
     wsPathPrefix,
     wsPathTransform,
+    localPortProxy: localPortProxyOption,
     proxyHeaders,
     proxyTimeoutMs,
     proxyKeepAlive,
@@ -494,14 +363,33 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     throw new Error('Invalid API_PORT configuration')
   }
 
+  const localPortProxy = localPortProxyOption
+    ? createLocalPortProxy({
+      ...(localPortProxyOption === true ? {} : localPortProxyOption),
+      excludedPorts: [parsedUiPort, parsedApiPort, parsedWsPort ?? parsedApiPort, ...(localPortProxyOption === true ? [] : localPortProxyOption.excludedPorts ?? [])],
+    })
+    : null
+  const configuredLocalPortPathPrefix = localPortProxyOption && typeof localPortProxyOption === 'object' ? localPortProxyOption.pathPrefix : undefined
+  const localPortPathPrefix = (configuredLocalPortPathPrefix || '/_local').trim().replace(/\/+$/, '') || '/_local'
+
   // Create Express app
   const app = express()
 
   // Disable X-Powered-By header for security
   app.disable('x-powered-by')
 
-  // CORS middleware
-  app.use(createCorsMiddleware(corsOrigins, verbose))
+  // The loopback proxy has its own opaque-origin capability policy: its
+  // sandboxed documents send `Origin: null` by design. Mount it before the
+  // scenario origin policy, which would refuse them, and keep the two
+  // policies independent.
+  if (localPortProxy) {
+    app.use(localPortPathPrefix, localPortProxy.router)
+    ;(app as any).__localPortProxyDestroy = localPortProxy.destroy
+  }
+
+  // Browser origin policy: refuse cross-origin browser requests before any
+  // route, proxy or static handler runs (see origin-policy.ts).
+  app.use(originPolicy.middleware({ verbose }))
 
   // HTML injection middleware (if needed)
   if (proxyMetadata || scenarioConfig) {
@@ -631,7 +519,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
 
     // CRITICAL: Skip proxy routes - they should be handled by custom route handlers
     // Proxy routes contain '/proxy' in the path (e.g., /apps/scenario/proxy/*)
-    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/') || requestPath.startsWith(`${APP_NOTIFICATIONS_PREFIX}/`)) {
+    if (requestPath.includes('/proxy') || requestPath.startsWith('/embedded/') || requestPath.startsWith(`${APP_NOTIFICATIONS_PREFIX}/`) || (localPortProxy && requestPath.startsWith(`${localPortPathPrefix}/`))) {
       // Don't serve index.html for proxy routes - let them 404 or be handled by custom routes
       if (verbose) {
         console.log(`[server] Skipping SPA fallback for proxy route: ${requestPath}`)
@@ -691,18 +579,19 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     if (wsPathPrefix) {
       console.log(`  WebSocket Proxy: ${wsPathPrefix} -> API server`)
     }
+    if (localPortProxy) console.log(`  Local Port Proxy: ${localPortPathPrefix}/<port>/ -> loopback`)
   }
 
   // Attach WebSocket upgrade handler if configured
-  if (wsPathPrefix) {
+  if (wsPathPrefix || localPortProxy) {
     // Express has no upgrade hook, so the handler is stored on the app and
     // bound to whichever http.Server ends up serving it. Both start paths bind
     // it: startScenarioServer binds its own server explicitly, and app.listen
     // is wrapped below so a caller that starts the app itself is not silently
     // left without WebSocket proxying.
     ;(app as any).__wsUpgradeHandler = (req: any, socket: any, head: any) => {
-      if (!req.url || !req.url.startsWith(wsPathPrefix)) {
-        socket.destroy()
+      if (!req.url || !wsPathPrefix || !req.url.startsWith(wsPathPrefix)) {
+        if (!localPortProxy?.handleUpgrade(req, socket, head)) socket.destroy()
         return
       }
 
@@ -730,6 +619,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
         apiHost: wsHost || apiHost,
         verbose,
         headers,
+        originPolicy,
       })
     }
 
@@ -767,7 +657,10 @@ export function attachWsUpgradeHandler(server: http.Server, app: Express): void 
 
   bound.add(server)
   server.on('upgrade', handler)
-  server.once('close', () => bound.delete(server))
+  server.once('close', () => {
+    bound.delete(server)
+    ;(app as any).__localPortProxyDestroy?.()
+  })
 }
 
 /**

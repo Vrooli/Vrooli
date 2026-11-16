@@ -9,6 +9,7 @@
 import * as http from 'node:http'
 import { execSync } from 'node:child_process'
 import { Router, type Request, type Response } from 'express'
+import { isCorsResponseHeader, withoutBrowserContext } from './origin-policy.js'
 
 /**
  * Options for the embedded scenario proxy
@@ -187,8 +188,10 @@ export function createEmbeddedProxyRouter(options: EmbeddedProxyOptions = {}): R
       return
     }
 
+    // The embedded scenario is a different origin; this server's origin
+    // policy already admitted the request, so the browser context is dropped.
     const headers: http.OutgoingHttpHeaders = {
-      ...req.headers,
+      ...withoutBrowserContext(req.headers),
       host: `${upstreamHost}:${port}`,
     }
     let parsedBody: Buffer | undefined
@@ -228,7 +231,13 @@ export function createEmbeddedProxyRouter(options: EmbeddedProxyOptions = {}): R
         headers,
       },
       (proxyRes) => {
-        res.writeHead(proxyRes.statusCode || 502, proxyRes.headers)
+        // CORS headers already written by this server's origin policy win;
+        // the embedded scenario's answer describes its own origin.
+        const responseHeaders: http.OutgoingHttpHeaders = {}
+        for (const [key, value] of Object.entries(proxyRes.headers)) {
+          if (value !== undefined && !isCorsResponseHeader(key)) responseHeaders[key] = value
+        }
+        res.writeHead(proxyRes.statusCode || 502, responseHeaders)
         proxyRes.pipe(res, { end: true })
       },
     )

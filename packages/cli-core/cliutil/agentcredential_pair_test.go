@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -146,7 +148,7 @@ func TestResolveAgentCredentialsAcceptsOnlySameRunBaselineRenewal(t *testing.T) 
 func TestSameRunBaselineRenewalAttenuatesExpiredOwnerDelegation(t *testing.T) {
 	now := time.Now().Unix()
 	old := ordinaryIdentityClaims{
-		RunID: "run-one", Subject: "owner-one", Scopes: []string{"prompt-manager:write"},
+		RunID: "run-one", ConversationID: "claude-code:thread", Subject: "owner-one", Scopes: []string{"prompt-manager:write"},
 		ProfileKey: "codex", IssuedAt: now - 8*60*60, ExpiresAt: now - 4*60*60,
 		Meta: map[string]string{"execution_mode": "attached", "harness_kind": "codex", "harness_session": "same"},
 	}
@@ -162,6 +164,7 @@ func TestSameRunBaselineRenewalAttenuatesExpiredOwnerDelegation(t *testing.T) {
 		"changed owner":       func(c *ordinaryIdentityClaims) { c.Subject = "owner-two" },
 		"removed owner":       func(c *ordinaryIdentityClaims) { c.Subject = "" },
 		"changed task":        func(c *ordinaryIdentityClaims) { c.TaskID = "other" },
+		"changed thread":      func(c *ordinaryIdentityClaims) { c.ConversationID = "other" },
 		"changed workspace":   func(c *ordinaryIdentityClaims) { c.WorkspaceID = "other" },
 		"changed scope path":  func(c *ordinaryIdentityClaims) { c.ScopePath = "/other" },
 		"changed profile":     func(c *ordinaryIdentityClaims) { c.ProfileKey = "other" },
@@ -277,5 +280,16 @@ func TestPinnedAgentCredentialChecksExactPairAndRemoteRequestsStripBoth(t *testi
 	}
 	if remote.Header.Get(HeaderAgentIdentityToken) != "" || remote.Header.Get(HeaderAgentOperationToken) != "" {
 		t.Fatal("credential pair left the trusted scenario boundary")
+	}
+}
+
+func TestCredentialNotResolvedSurvivesTransportWrapping(t *testing.T) {
+	socket := credentialSocketResponse(t, map[string]string{"baseline_token": "not-a-renewal"}, nil)
+	_, err := resolveAgentCredentials(context.Background(), socket, "inherited")
+	if err == nil || !CredentialNotResolved(fmt.Errorf("post: %w", err)) {
+		t.Fatalf("an unacceptable authority response must be recognisable through wrapping: %v", err)
+	}
+	if !CredentialNotResolved(fmt.Errorf("x: %w", &AgentAuthorizationError{Code: "revoked"})) || CredentialNotResolved(errors.New("connection reset")) {
+		t.Fatal("refusals count; transport failures do not")
 	}
 }

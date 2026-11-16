@@ -25,6 +25,24 @@ type OwnerBinding struct {
 // command; test with errors.Is, never ==.
 var ErrOperation = errors.New("operation or target is outside the approved agent grant")
 
+// OperationGrantEvaluation is the shared decision for the capability and the
+// typed operation grant that must both cover an operation.
+type OperationGrantEvaluation struct {
+	Capability bool
+	Grant      bool
+}
+
+func (e OperationGrantEvaluation) Allowed() bool { return e.Capability && e.Grant }
+
+// EvaluateOperationGrant is the one pure combination point used by API-core
+// and scenario owners. Domain owners still enforce their own object rules.
+func EvaluateOperationGrant(scopes []string, grant *identity.OperationGrant, capability, operation, target string, now time.Time) OperationGrantEvaluation {
+	return OperationGrantEvaluation{
+		Capability: scopecatalog.Resolve(scopes, capability),
+		Grant:      grant != nil && grant.Allows(operation, target, now),
+	}
+}
+
 // RequireOperation admits a capable human, an agent with an explicitly approved
 // live operation grant, or a verified service principal whose operator-approved
 // standing grant covers the operation. Domain owners retain their object rules.
@@ -61,17 +79,18 @@ func RequireOperation(ctx context.Context, capability, operation, target string)
 		return p, nil
 	}
 	if p.Kind == identity.ActorAgent {
+		now := time.Now()
 		// A paired operation proof remains distinct from the ordinary principal.
 		// It can satisfy only this exact operation check; its scopes are never
 		// copied into p.Scopes or used by the bounded-route classifier.
 		verified, verifyErr := provenance.ReverifyOperationProof(ctx)
-		if verifyErr == nil && verified != nil && time.Now().Before(verified.ExpiresAt) &&
-			scopecatalog.Resolve(verified.Scopes, capability) && verified.Grant.Allows(operation, target, time.Now()) {
+		if verifyErr == nil && verified != nil && now.Before(verified.ExpiresAt) &&
+			EvaluateOperationGrant(verified.Scopes, verified.Grant, capability, operation, target, now).Allowed() {
 			return p, nil
 		}
 		// Preserve the existing grant-only credential contract. Its token scopes
 		// and grant remain one bounded principal as before.
-		if scopecatalog.Resolve(p.Scopes, capability) && p.Grant.Allows(operation, target, time.Now()) {
+		if EvaluateOperationGrant(p.Scopes, p.Grant, capability, operation, target, now).Allowed() {
 			return p, nil
 		}
 		// The refusal names the exact request that would let the operator approve

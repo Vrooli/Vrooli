@@ -307,42 +307,6 @@ describe('createScenarioServer', () => {
     expect(app).toBeDefined()
   })
 
-  it('accepts CORS configuration', () => {
-    const options: ServerTemplateOptions = {
-      uiPort: 3000,
-      apiPort: 8080,
-      distDir: './dist',
-      cors: '*',
-    }
-
-    const app = createScenarioServer(options)
-    expect(app).toBeDefined()
-  })
-
-  it('accepts custom CORS origins array', () => {
-    const options: ServerTemplateOptions = {
-      uiPort: 3000,
-      apiPort: 8080,
-      distDir: './dist',
-      cors: ['http://example.com', 'http://test.com'],
-    }
-
-    const app = createScenarioServer(options)
-    expect(app).toBeDefined()
-  })
-
-  it('disables CORS when set to false', () => {
-    const options: ServerTemplateOptions = {
-      uiPort: 3000,
-      apiPort: 8080,
-      distDir: './dist',
-      cors: false,
-    }
-
-    const app = createScenarioServer(options)
-    expect(app).toBeDefined()
-  })
-
   it('enables verbose logging', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -492,7 +456,6 @@ describe('createScenarioServer', () => {
       apiProxyPath: '/api',
       configEndpoint: '/config',
       healthEndpoint: '/health',
-      cors: '*',
       verbose: true,
       injectMetadata: false,
       injectConfig: true,
@@ -658,21 +621,6 @@ describe('createScenarioServer HTTP endpoints', () => {
     expect(result.body).toHaveProperty('timestamp')
     expect(result.body).toHaveProperty('api_connectivity')
     expect(result.body.api_connectivity.connected).toBe(false)
-  })
-
-  it('CORS headers are set for localhost by default', async () => {
-    const app = createScenarioServer({
-      uiPort: 33005,
-      apiPort: 8080,
-      distDir: './dist',
-    })
-
-    server = app.listen(0)
-    const result = await makeRequest(server, '/health')
-
-    // CORS headers are only set when origin is sent, but middleware exists
-    // Health returns 503 when API is unreachable
-    expect(result.status).toBe(503)
   })
 
   it('custom setupRoutes is called', async () => {

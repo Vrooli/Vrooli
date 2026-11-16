@@ -47,6 +47,42 @@ func TestNewConnectHTTPClientCallsConnectHandler(t *testing.T) {
 	}
 }
 
+// A credential the caller sets on one request wins over the configured
+// default token, so a command that exchanged for a narrower session presents
+// that session and not whatever token the environment holds.
+func TestConnectRequestCredentialWinsOverConfiguredToken(t *testing.T) {
+	handler := connect.NewUnaryHandlerSimple(
+		"/test.v1.Echo/Echo",
+		func(ctx context.Context, req *wrapperspb.StringValue) (*wrapperspb.StringValue, error) {
+			return req, nil
+		},
+	)
+	var got []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Header.Get("Authorization"))
+		handler.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	app := callTestApp(t, server)
+	app.tokenSource = func() string { return "configured-token" }
+	httpClient, baseURL := NewConnectHTTPClient(app)
+	client := connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+"/test.v1.Echo/Echo")
+
+	owned := connect.NewRequest(wrapperspb.String("owned"))
+	owned.Header().Set("Authorization", "Bearer per-request-session")
+	if _, err := client.CallUnary(context.Background(), owned); err != nil {
+		t.Fatalf("CallUnary: %v", err)
+	}
+	if _, err := client.CallUnary(context.Background(), connect.NewRequest(wrapperspb.String("default"))); err != nil {
+		t.Fatalf("CallUnary: %v", err)
+	}
+	want := []string{"Bearer per-request-session", "Bearer configured-token"}
+	if len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("Authorization headers = %q, want %q", got, want)
+	}
+}
+
 // ordinaryRunToken is structurally an Agent Manager run token. With no
 // credential broker reachable (the package runs detached from any agent
 // session), cli-core forwards only such a token.

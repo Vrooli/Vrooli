@@ -23,23 +23,58 @@ type Provenance struct {
 	SampleCount     int    `json:"sample_count"`
 }
 
+// ArtifactRights and RuntimeArtifactIdentity are the owner-resolved JSON
+// evidence carried by `resource-ollama policy resolve`. They are transport
+// shapes here so consumers can inspect provenance without importing the
+// resource's policy evaluator or duplicating its authority.
+type ArtifactRights struct {
+	ArtifactID     string         `json:"artifact_id"`
+	Revision       string         `json:"revision"`
+	SHA256         string         `json:"sha256"`
+	LicenseID      string         `json:"license_id"`
+	Classification string         `json:"classification"`
+	Evidence       RightsEvidence `json:"evidence"`
+	Obligations    []string       `json:"obligations,omitempty"`
+}
+
+type RightsEvidence struct {
+	URL        string `json:"url"`
+	Revision   string `json:"revision"`
+	SHA256     string `json:"sha256"`
+	ObservedAt string `json:"observed_at"`
+}
+
+type RuntimeArtifactIdentity struct {
+	Provider         string `json:"provider"`
+	Model            string `json:"model"`
+	ArtifactID       string `json:"artifact_id"`
+	ArtifactRevision string `json:"artifact_revision"`
+	DigestKind       string `json:"digest_kind"`
+	Digest           string `json:"digest"`
+	Source           string `json:"source"`
+	ObservedAt       string `json:"observed_at"`
+}
+
 type ResolvedRole struct {
-	SchemaVersion        string                `json:"schema_version"`
-	PolicyPath           string                `json:"policy_path"`
-	Role                 string                `json:"role,omitempty"`
-	Source               string                `json:"source"`
-	Model                string                `json:"model"`
-	Fallbacks            []string              `json:"fallbacks,omitempty"`
-	RequiredCapabilities []string              `json:"required_capabilities,omitempty"`
-	Capabilities         []string              `json:"capabilities"`
-	ContextWindowTokens  int                   `json:"context_window_tokens,omitempty"`
-	EmbeddingDimensions  int                   `json:"embedding_dimensions,omitempty"`
-	DiskSizeGBEstimate   float64               `json:"disk_size_gb_estimate"`
-	RAMGBEstimate        float64               `json:"ram_gb_estimate"`
-	VRAMGBEstimate       float64               `json:"vram_gb_estimate"`
-	DefaultEligible      bool                  `json:"default_eligible"`
-	RoleProvenance       *Provenance           `json:"role_provenance,omitempty"`
-	Provenance           map[string]Provenance `json:"provenance,omitempty"`
+	SchemaVersion        string                   `json:"schema_version"`
+	PolicyPath           string                   `json:"policy_path"`
+	PolicySHA256         string                   `json:"policy_sha256"`
+	Role                 string                   `json:"role,omitempty"`
+	Source               string                   `json:"source"`
+	Model                string                   `json:"model"`
+	Fallbacks            []string                 `json:"fallbacks,omitempty"`
+	RequiredCapabilities []string                 `json:"required_capabilities,omitempty"`
+	Capabilities         []string                 `json:"capabilities"`
+	ContextWindowTokens  int                      `json:"context_window_tokens,omitempty"`
+	EmbeddingDimensions  int                      `json:"embedding_dimensions,omitempty"`
+	DiskSizeGBEstimate   float64                  `json:"disk_size_gb_estimate"`
+	RAMGBEstimate        float64                  `json:"ram_gb_estimate"`
+	VRAMGBEstimate       float64                  `json:"vram_gb_estimate"`
+	DefaultEligible      bool                     `json:"default_eligible"`
+	Rights               *ArtifactRights          `json:"rights,omitempty"`
+	RuntimeIdentity      *RuntimeArtifactIdentity `json:"runtime_identity,omitempty"`
+	RoleProvenance       *Provenance              `json:"role_provenance,omitempty"`
+	Provenance           map[string]Provenance    `json:"provenance,omitempty"`
 }
 
 // CommandRunner is the process-exec seam for resource-ollama.

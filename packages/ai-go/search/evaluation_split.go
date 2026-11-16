@@ -1,6 +1,24 @@
 package aisearch
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
+
+// SplitFixedDenominator partitions the digest-validated acceptance set. It
+// cannot accidentally shrink the tuning or heldout denominator by using the
+// current mutable suite's case list.
+func SplitFixedDenominator(denominator FixedDenominator, explicitlyHeldout, excluded map[string]bool) (tuning, heldout, notEvaluated []string, err error) {
+	if err := denominator.Validate(); err != nil {
+		return nil, nil, nil, fmt.Errorf("invalid fixed denominator: %w", err)
+	}
+	ids := make([]string, 0, len(denominator.Cases))
+	for _, c := range denominator.Cases {
+		ids = append(ids, c.ID)
+	}
+	tuning, heldout, notEvaluated = FixedEvaluationSplit(ids, explicitlyHeldout, excluded)
+	return tuning, heldout, notEvaluated, nil
+}
 
 // FixedEvaluationSplit partitions a frozen denominator using owner-authored
 // membership only. Explicitly held-out IDs are validation cases; generated or

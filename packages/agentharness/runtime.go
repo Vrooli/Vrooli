@@ -12,7 +12,10 @@ import (
 type Runtime struct {
 	Profile RolloutProfile
 	Store   *BundleStore
-	Now     func() time.Time
+	// GuardModes stores temporary, audited check-level log-only modes. When nil,
+	// the runtime uses the store directory so every hook shares one mode set.
+	GuardModes *GuardModeStore
+	Now        func() time.Time
 	// Removal resolves the host context for filesystem-removal decisions;
 	// nil means HostRemovalContext.
 	Removal func(workingDirectory string) RemovalContext
@@ -42,19 +45,26 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 	if !validProfile(profile) {
 		return Decision{}, fmt.Errorf("unsupported rollout profile %q", profile)
 	}
+	risk := ClassifyToolEvent(event)
+	if hardStop := hardStopForEvent(event); hardStop != "" {
+		return r.hardStopDecision(event, risk, hardStop, now)
+	}
 	if reasons := operatorOnlyReasons(event, r.operatorEnv(event)); len(reasons) > 0 {
 		return operatorOnlyDecision(event, reasons), nil
 	}
-	risk := ClassifyToolEvent(event)
 	if risk == RiskFilesystemRemoval {
 		return r.evaluateRemoval(event, now), nil
 	}
 	if r.Store == nil {
-		return fallbackDecision(profile, event, risk, "snapshot bundle store is not configured"), nil
+		decision := fallbackDecision(profile, event, risk, "snapshot bundle store is not configured")
+		r.applyLogOnly(event, risk, now, &decision)
+		return decision, nil
 	}
 	bundle, err := r.Store.Load()
 	if err != nil {
-		return fallbackDecision(profile, event, risk, "snapshot bundle unavailable: "+err.Error()), nil
+		decision := fallbackDecision(profile, event, risk, "snapshot bundle unavailable: "+err.Error())
+		r.applyLogOnly(event, risk, now, &decision)
+		return decision, nil
 	}
 	decisions := make([]Decision, 0, len(bundle.Snapshots))
 	for _, id := range snapshotIDs(bundle) {
@@ -65,9 +75,13 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 		decisions = append(decisions, evaluateSnapshot(profile, snapshot, event, risk, now))
 	}
 	if len(decisions) == 0 {
-		return fallbackDecision(profile, event, risk, "no provider snapshot covers this event"), nil
+		decision := fallbackDecision(profile, event, risk, "no provider snapshot covers this event")
+		r.applyLogOnly(event, risk, now, &decision)
+		return decision, nil
 	}
-	return combineDecisions(decisions), nil
+	decision := combineDecisions(decisions)
+	r.applyLogOnly(event, risk, now, &decision)
+	return decision, nil
 }
 
 // evaluateRemoval decides a deletion from the floor plus the path rules of
@@ -78,6 +92,14 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 		resolve = HostRemovalContext
 	}
 	ctx := resolve(event.WorkingDirectory)
+	targets := removalTargetsFor(event, removalEnv{WorkingDirectory: ctx.WorkingDirectory, Home: ctx.Home, Lookup: ctx.Lookup})
+	var restored []RiskClass
+	var restoreErr error
+	if outsideRepositoryDeletion(ctx, targets) {
+		restored, restoreErr = r.restoreGuardModes(HardStopOutsideDelete, event, now)
+		// The filesystem floor still owns the deletion verdict and explanation.
+		// The portfolio tripwire only withdraws temporary log-only modes.
+	}
 	rules, approval, degraded := r.pathRules(event, now)
 	ctx.Rules, ctx.ApprovalCommand = rules, approval
 	if ctx.Created == nil && r.creationEnabled() {
@@ -89,12 +111,20 @@ func (r Runtime) evaluateRemoval(event ToolEvent, now time.Time) Decision {
 		}
 		ctx.Created = func() CreationEvidence { return resolve(event, now) }
 	}
-	decision := ctx.EvaluateRemoval(removalTargetsFor(event, removalEnv{WorkingDirectory: ctx.WorkingDirectory, Home: ctx.Home, Lookup: ctx.Lookup}))
+	decision := ctx.EvaluateRemoval(targets)
 	decision.EventID = event.EventID
 	r.auditCreated(event, decision, now)
 	if len(degraded) > 0 {
 		decision.Degraded = true
 		decision.Evidence = append(decision.Evidence, degraded...)
+	}
+	if outsideRepositoryDeletion(ctx, targets) {
+		decision.Evidence = append(decision.Evidence, tripwireEvidence(HardStopOutsideDelete, restored, restoreErr))
+		if restoreErr != nil {
+			decision.Degraded = true
+			decision.Action = ActionDeny
+			decision.Reason = "outside-repository deletion was denied because temporary check restoration could not be confirmed"
+		}
 	}
 	return decision
 }

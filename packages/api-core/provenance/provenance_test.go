@@ -256,3 +256,36 @@ func TestVerifyOwnWebConsoleSessionUsesVerifiedInboundToken(t *testing.T) {
 		t.Fatalf("session %q token-match %t error %v", id, gotToken == "verified-token", err)
 	}
 }
+
+// The conversation comes only from the verified claims of an active identity:
+// an unverified token, or one that carries no conversation claim, projects none.
+func TestConversationLineageComesOnlyFromVerifiedClaims(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		valid        bool
+		conversation string
+		header       string
+		want         string
+	}{
+		{"verified claim", true, " thread-1 ", "", "thread-1"},
+		{"older token without the claim", true, "", "", ""},
+		{"invalid token cannot project", false, "thread-1", "", ""},
+		{"a caller header is not proof", true, "", "thread-evil", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got Provenance
+			handler := Middleware(VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
+				return &cliutil.VerifyResult{Valid: tc.valid, Claims: &cliutil.VerifiedClaims{RunID: "run-a", ConversationID: tc.conversation}}, nil
+			}))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { got = FromContext(r.Context()) }))
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, "fixture-credential")
+			if tc.header != "" {
+				req.Header.Set("X-Vrooli-Conversation-Id", tc.header)
+			}
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+			if got.ConversationID != tc.want {
+				t.Fatalf("ConversationID = %q, want %q", got.ConversationID, tc.want)
+			}
+		})
+	}
+}

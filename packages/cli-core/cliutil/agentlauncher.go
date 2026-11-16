@@ -743,12 +743,14 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	// Generic for every coding agent — this is the one shared launcher path.
 	if delegation := strings.TrimSpace(os.Getenv(HumanOwnerDelegationEnv)); delegation != "" {
 		req.Header.Set(HumanOwnerDelegationHeader, delegation)
-		// The delegation's wc_session_id claim is the web-console session id; forward
-		// it so agent-manager binds the delegation against the right identifier (the
-		// harness session id differs). Not a secret — purely a correlation id.
-		if wcSession := strings.TrimSpace(os.Getenv(webConsoleSessionIDEnv)); wcSession != "" {
-			req.Header.Set(WebConsoleSessionIDHeader, wcSession)
-		}
+	}
+	// Forward the Web Console session independently of the optional human
+	// delegation. It is also the stable owner key used to recover attached
+	// session containment after the recorded leader exits. The value is a
+	// correlation id, not authority; an absent or invalid delegation remains
+	// unattributed and zero-scope at the owner.
+	if wcSession := strings.TrimSpace(os.Getenv(webConsoleSessionIDEnv)); wcSession != "" {
+		req.Header.Set(WebConsoleSessionIDHeader, wcSession)
 	}
 	client := request.HTTPClient
 	if client == nil {

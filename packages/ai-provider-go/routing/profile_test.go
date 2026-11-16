@@ -1,6 +1,9 @@
 package routing
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAdmitsUnifiesPrivacyAndProfileRules(t *testing.T) {
 	tests := []struct {
@@ -8,6 +11,11 @@ func TestAdmitsUnifiesPrivacyAndProfileRules(t *testing.T) {
 		want                             bool
 	}{
 		{"secret blocks remote under any profile", "PROFILE_LOCAL_FIRST", "PRIVACY_CLASS_SECRET", "remote", false},
+		{"confidential blocks remote under local-first", "PROFILE_LOCAL_FIRST", "PRIVACY_CLASS_CONFIDENTIAL", "remote", false},
+		{"confidential blocks remote under quality-first", "PROFILE_QUALITY_FIRST", "PRIVACY_CLASS_CONFIDENTIAL", "remote", false},
+		{"confidential blocks remote under cheap-first", "PROFILE_CHEAP_FIRST", "PRIVACY_CLASS_CONFIDENTIAL", "remote", false},
+		{"confidential blocks remote under remote-only", "PROFILE_REMOTE_ONLY", "PRIVACY_CLASS_CONFIDENTIAL", "remote", false},
+		{"remote-only still forbids local for confidential data", "PROFILE_REMOTE_ONLY", "PRIVACY_CLASS_CONFIDENTIAL", "local", false},
 		{"secret permits local", "PROFILE_QUALITY_FIRST", "PRIVACY_CLASS_SECRET", "local", true},
 		{"unspecified privacy blocks remote by default", "PROFILE_UNSPECIFIED", "PRIVACY_CLASS_UNSPECIFIED", "remote", false},
 		{"unspecified privacy blocks remote even with remote-only profile", "PROFILE_REMOTE_ONLY", "PRIVACY_CLASS_UNSPECIFIED", "remote", false},
@@ -45,6 +53,19 @@ func TestRankUsesLocalityPolicyAndStableProviderTieBreak(t *testing.T) {
 	for _, test := range tests {
 		if got := Rank(test.profile, test.locality, test.provider); got != test.want {
 			t.Errorf("Rank(%q, %q, %q) = %d, want %d", test.profile, test.locality, test.provider, got, test.want)
+		}
+	}
+}
+
+func TestValidPrivacyProvenanceRequiresShortNonSensitiveIdentifier(t *testing.T) {
+	for _, value := range []string{"agent_manager.operator_and_agent_conversation", "user-input/document-42", "policy:public-source"} {
+		if !ValidPrivacyProvenance(value) {
+			t.Errorf("ValidPrivacyProvenance(%q) = false, want true", value)
+		}
+	}
+	for _, value := range []string{"", " spaces are not identifiers", "private user name", "path\nwith-newline", "a/" + strings.Repeat("x", 128)} {
+		if ValidPrivacyProvenance(value) {
+			t.Errorf("ValidPrivacyProvenance(%q) = true, want false", value)
 		}
 	}
 }

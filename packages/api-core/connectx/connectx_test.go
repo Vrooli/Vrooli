@@ -1,13 +1,39 @@
 package connectx
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 )
+
+func TestWrapErrorUsesDomainCodeAndPreservesCause(t *testing.T) {
+	cause := errors.New("invalid request")
+	wrapped := WrapError(cause, func(err error) connect.Code {
+		if err != cause {
+			t.Fatalf("mapper received %v, want original cause", err)
+		}
+		return connect.CodeInvalidArgument
+	})
+	if wrapped == nil || connect.CodeOf(wrapped) != connect.CodeInvalidArgument || !errors.Is(wrapped, cause) {
+		t.Fatalf("wrapped error = %v, code = %v", wrapped, connect.CodeOf(wrapped))
+	}
+}
+
+func TestWrapErrorHandlesNilAndMissingMapper(t *testing.T) {
+	if WrapError(nil, nil) != nil {
+		t.Fatal("nil error must remain nil")
+	}
+	cause := errors.New("missing mapper")
+	wrapped := WrapError(cause, nil)
+	if wrapped == nil || connect.CodeOf(wrapped) != connect.CodeInternal || !errors.Is(wrapped, cause) {
+		t.Fatalf("wrapped error = %v, code = %v", wrapped, connect.CodeOf(wrapped))
+	}
+}
 
 func TestRegisterServicesMountsPathPrefix(t *testing.T) {
 	router := mux.NewRouter()

@@ -72,14 +72,18 @@ func (l GenerationLease) Active(now time.Time) bool {
 // shared Qdrant substrate. Bytes are optional because Qdrant's collection API
 // exposes logical counts, not physical filesystem allocation.
 type GenerationRecord struct {
-	Metadata       GenerationMetadata       `json:"metadata"`
-	CollectionName string                   `json:"collectionName"`
-	State          GenerationLifecycleState `json:"state"`
-	Lease          GenerationLease          `json:"lease,omitempty"`
-	Points         int                      `json:"points,omitempty"`
-	Bytes          int64                    `json:"bytes,omitempty"`
-	CleanupOutcome string                   `json:"cleanupOutcome,omitempty"`
-	UpdatedAt      time.Time                `json:"updatedAt"`
+	Metadata       GenerationMetadata `json:"metadata"`
+	CollectionName string             `json:"collectionName"`
+	// PreviousCollection is the alias target observed before this generation
+	// was promoted. It is written before the alias mutation so a reconstructed
+	// store can undo a promotion whose process died before catalog commit.
+	PreviousCollection string                   `json:"previousCollection,omitempty"`
+	State              GenerationLifecycleState `json:"state"`
+	Lease              GenerationLease          `json:"lease,omitempty"`
+	Points             int                      `json:"points,omitempty"`
+	Bytes              int64                    `json:"bytes,omitempty"`
+	CleanupOutcome     string                   `json:"cleanupOutcome,omitempty"`
+	UpdatedAt          time.Time                `json:"updatedAt"`
 }
 
 // GenerationCatalog is deliberately an adapter seam. Durable ownership stays

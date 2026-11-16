@@ -331,6 +331,39 @@ func TestLaunchCodingAgentForwardsHumanOwnerDelegation(t *testing.T) {
 	}
 }
 
+func TestLaunchCodingAgentForwardsWebConsoleSessionWithoutDelegation(t *testing.T) {
+	t.Setenv(AgentManagerIdentityTokenEnv, "")
+	t.Setenv(HumanOwnerDelegationEnv, "")
+	t.Setenv(webConsoleSessionIDEnv, "wc-session-abc")
+	var gotSession string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/runs/attach":
+			gotSession = r.Header.Get(WebConsoleSessionIDHeader)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"run":{"id":"safe-run-id"},"identity_token":"safe-token"}`)
+		case "/api/v1/runs/safe-run-id/detach":
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	err := LaunchCodingAgent(context.Background(), AgentLaunchRequest{
+		Agent:       "codex",
+		APIBase:     server.URL,
+		Environment: []string{"PATH=/safe"},
+		LookPath:    func(string) (string, error) { return "/safe/fixture/codex", nil },
+		RunChild:    func(context.Context, string, []string, []string, io.Reader, io.Writer, io.Writer) error { return nil },
+	})
+	if err != nil {
+		t.Fatalf("LaunchCodingAgent() error = %v", err)
+	}
+	if gotSession != "wc-session-abc" {
+		t.Fatalf("attach Web Console session header = %q, want wc-session-abc", gotSession)
+	}
+}
+
 // The human-owner delegation is single-use: consumed by the attach header, it
 // must never reach the spawned agent's environment, even when it arrived via the
 // inherited request environment. A leaked raw operator credential in the child

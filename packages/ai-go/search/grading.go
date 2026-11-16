@@ -2,7 +2,11 @@ package aisearch
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type CaseOutcome string
@@ -49,6 +53,126 @@ type SuiteReport struct {
 	Stale              []CaseReport
 	ExcludedCandidate  []TestCase
 	PerCase            []CaseReport
+}
+
+// FixedDenominator is an owner-reviewed snapshot of the positive cases used
+// for comparisons. The audit fields identify the independent review that
+// established the labels; they are required so callers cannot silently turn a
+// smaller live suite into a more favorable denominator.
+type FixedDenominator struct {
+	SuiteID        string     `json:"suite_id"`
+	Cases          []TestCase `json:"cases"`
+	Reviewer       string     `json:"reviewer"`
+	ReviewEvidence string     `json:"review_evidence"`
+	SHA256         string     `json:"sha256"`
+}
+
+// NewFixedDenominator snapshots the exact reviewed cases and seals their
+// membership with a digest. The caller must supply the independent review
+// receipt; the digest makes later changes or omissions detectable.
+func NewFixedDenominator(suiteID string, cases []TestCase, reviewer, reviewEvidence string) (FixedDenominator, error) {
+	if strings.TrimSpace(reviewer) == "" || strings.TrimSpace(reviewEvidence) == "" {
+		return FixedDenominator{}, fmt.Errorf("fixed denominator requires reviewer and independent review evidence")
+	}
+	d := FixedDenominator{SuiteID: suiteID, Cases: cloneTestCases(cases), Reviewer: reviewer, ReviewEvidence: reviewEvidence}
+	if err := d.validateCases(); err != nil {
+		return FixedDenominator{}, err
+	}
+	d.SHA256 = d.digest()
+	return d, nil
+}
+
+// FreezeReviewedPositiveDenominator snapshots the active suite's owner-reviewed
+// positives. Candidates, negatives, and generated proposals are deliberately
+// omitted; retrieval misses are never omitted because search output lacks them.
+func FreezeReviewedPositiveDenominator(suite TestSuite, reviewer, reviewEvidence string) (FixedDenominator, error) {
+	if suite.SuiteID == "" {
+		return FixedDenominator{}, fmt.Errorf("cannot freeze denominator for a suite without suite_id")
+	}
+	positive := make([]TestCase, 0, len(suite.Cases))
+	for _, c := range suite.Cases {
+		if !isPositiveCase(c) || c.ResolvedStatus() != CaseStatusReviewed || (c.HasTag(TagGenerated) && !c.HasTag(TagHeldout)) {
+			continue
+		}
+		positive = append(positive, c)
+	}
+	return NewFixedDenominator(suite.SuiteID, positive, reviewer, reviewEvidence)
+}
+
+// Validate rejects incomplete or mutable-by-omission acceptance snapshots.
+// Each case must be a positive, non-candidate reviewed label with a unique ID.
+func (d FixedDenominator) Validate() error {
+	if d.SuiteID == "" || d.Reviewer == "" || d.ReviewEvidence == "" {
+		return fmt.Errorf("fixed denominator requires suite id, reviewer, and review evidence")
+	}
+	if err := d.validateCases(); err != nil {
+		return err
+	}
+	if d.SHA256 == "" || d.digest() != d.SHA256 {
+		return fmt.Errorf("fixed denominator digest is missing or does not match its reviewed cases")
+	}
+	return nil
+}
+
+func (d FixedDenominator) validateCases() error {
+	if d.SuiteID == "" {
+		return fmt.Errorf("fixed denominator suite id is required")
+	}
+	if err := (TestSuite{SuiteID: d.SuiteID, Cases: d.Cases}).Validate(); err != nil {
+		return fmt.Errorf("fixed denominator suite is invalid: %w", err)
+	}
+	seen := make(map[string]struct{}, len(d.Cases))
+	for _, c := range d.Cases {
+		if c.ID == "" || c.Query == "" || !isPositiveCase(c) || c.ResolvedStatus() != CaseStatusReviewed || (c.HasTag(TagGenerated) && !c.HasTag(TagHeldout)) {
+			return fmt.Errorf("fixed denominator case %q must be a reviewed positive", c.ID)
+		}
+		if _, ok := seen[c.ID]; ok {
+			return fmt.Errorf("fixed denominator contains duplicate case %q", c.ID)
+		}
+		seen[c.ID] = struct{}{}
+	}
+	if len(d.Cases) == 0 {
+		return fmt.Errorf("fixed denominator has no positive cases")
+	}
+	return nil
+}
+
+func (d FixedDenominator) digest() string {
+	payload, _ := json.Marshal(struct {
+		SuiteID        string
+		Cases          []TestCase
+		Reviewer       string
+		ReviewEvidence string
+	}{d.SuiteID, d.Cases, d.Reviewer, d.ReviewEvidence})
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
+}
+
+func cloneTestCases(cases []TestCase) []TestCase {
+	cloned := append([]TestCase(nil), cases...)
+	for i := range cloned {
+		cloned[i].Tags = append([]string(nil), cloned[i].Tags...)
+		cloned[i].ExpectIDs = append([]string(nil), cloned[i].ExpectIDs...)
+	}
+	return cloned
+}
+
+// GradeSuiteOnFixedDenominator grades the frozen reviewed cases even if a
+// caller's current suite has dropped one. This makes omission a retrieval miss
+// (and keeps the denominator stable) rather than silently shrinking the exam.
+// The live suite is used only to validate provider/suite identity.
+func GradeSuiteOnFixedDenominator(ctx context.Context, searcher SuiteSearcher, suite TestSuite, denominator FixedDenominator, policy ScoringPolicy) (SuiteReport, error) {
+	if err := denominator.Validate(); err != nil {
+		return SuiteReport{}, err
+	}
+	if err := suite.Validate(); err != nil {
+		return SuiteReport{}, fmt.Errorf("live suite invalid: %w", err)
+	}
+	if suite.SuiteID != denominator.SuiteID {
+		return SuiteReport{}, fmt.Errorf("fixed denominator suite %q does not match live suite %q", denominator.SuiteID, suite.SuiteID)
+	}
+	frozen := TestSuite{SuiteID: denominator.SuiteID, Cases: cloneTestCases(denominator.Cases)}
+	return GradeSuite(ctx, searcher, frozen, policy)
 }
 
 func (r SuiteReport) MeetsTarget() bool {

@@ -52,6 +52,12 @@ var interactivePolicies = []struct {
 	// domain preserves enrollment authority and owns clock, revision and
 	// retained-run checks.
 	{"delivery-management", Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"effort.delivery"}, []string{"agent-manager"}}},
+	// Session reclamation is one exact scope plus the digest of its current
+	// owner/process-incarnation proof. A grant cannot name a wildcard target.
+	{"agent-session-reaping", Policy{[]string{"agent-session:reap"}, []string{"agent-session.reap"}, []string{"agent-session"}}},
+	// Research commission effects stay bounded to named commission targets;
+	// this never authorizes answers, verdicts or grant issuance.
+	{"research-management", Policy{[]string{"research-desk:read", "research-desk:write"}, []string{"research.launch", "research.control"}, []string{"research-desk"}}},
 	{"deployment-operations", Policy{[]string{"deployment-manager:read", "deployment-manager:write", "deployment-manager:destructive", "scenario-to-cloud:read", "scenario-to-cloud:write", "scenario-to-cloud:destructive"}, []string{"deployment.manage"}, []string{"deployment-manager", "scenario-to-cloud"}}},
 	{"nutrition-management", Policy{[]string{"nutrition-planner:read", "nutrition-planner:write", "nutrition-planner:destructive"}, []string{"nutrition.manage"}, []string{"nutrition-planner"}}},
 	// Treasury still evaluates its signed mandate, exact amount, recipient,
@@ -61,6 +67,56 @@ var interactivePolicies = []struct {
 	// Agents need a separate read rule for the derived wallet while their
 	// spend rule remains bound to one authorization ID.
 	{"treasury-wallet-reading", Policy{[]string{"treasury:read"}, []string{"treasury.read"}, []string{"treasury"}}},
+}
+
+// ValidateInteractiveTarget enforces policy-specific target shapes at the
+// authorization request boundary. Most policies rely on the reviewed domain
+// list; exact agent-session reclamation also binds a scope to one proof digest.
+func ValidateInteractiveTarget(policyName, target string) error {
+	policy, ok := InteractivePolicy(policyName)
+	if !ok {
+		return errors.New("unknown reviewed policy")
+	}
+	domain, object, ok := strings.Cut(target, ":")
+	if !ok || object == "" || !slices.Contains(policy.Domains, domain) {
+		return errors.New("target is outside the reviewed policy domain")
+	}
+	if policyName != "agent-session-reaping" {
+		return nil
+	}
+	parts := strings.Split(object, "/")
+	if len(parts) != 4 || parts[0] != "reap" || parts[2] != "proof" || !validExactScope(parts[1]) || !validProofDigest(parts[3]) {
+		return errors.New("agent-session-reaping requires agent-session:reap/<exact-scope>/proof/<sha256>")
+	}
+	return nil
+}
+
+func validExactScope(scope string) bool {
+	if !strings.HasPrefix(scope, "vrooli-agent-") || !strings.HasSuffix(scope, ".scope") {
+		return false
+	}
+	body := strings.TrimSuffix(strings.TrimPrefix(scope, "vrooli-agent-"), ".scope")
+	if body == "" {
+		return false
+	}
+	for _, r := range body {
+		if !(r >= 'a' && r <= 'z') && !(r >= 'A' && r <= 'Z') && !(r >= '0' && r <= '9') && r != '_' && r != '-' && r != '.' {
+			return false
+		}
+	}
+	return true
+}
+
+func validProofDigest(digest string) bool {
+	if len(digest) != 64 {
+		return false
+	}
+	for _, r := range digest {
+		if !(r >= '0' && r <= '9') && !(r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // InteractivePolicy returns the named reviewed policy. The result is a copy.

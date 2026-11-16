@@ -55,6 +55,9 @@ func (c Client) PublishDomainEvent(ctx context.Context, event DomainEvent) error
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	if authorization := PublisherAuthorization(ctx, event.Source); authorization != "" {
+		request.Header.Set("Authorization", authorization)
+	}
 	client := c.HTTPClient
 	if client == nil {
 		client = http.DefaultClient

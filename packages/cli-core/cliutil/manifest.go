@@ -19,6 +19,10 @@ import (
 // "no usable manifest" (stale-once, self-healing) by EvaluateFreshness callers.
 const freshnessManifestVersion = 1
 
+// FreshnessManifestVersion exposes the persisted format for compatibility
+// inventories without exposing the implementation's version constant.
+func FreshnessManifestVersion() int { return freshnessManifestVersion }
+
 // FileManifestEntry records one input file's fingerprint at the time the
 // artifact was built. mtime is stored (as Unix nanoseconds) so the stat-cache
 // can skip re-hashing files whose (size, mtime) are unchanged.
@@ -111,8 +115,8 @@ func ComputeFreshnessManifest(spec FreshnessSpec, checkType string, keyInputs ma
 // filesystems), is re-hashed and compared. A key-input change, an added or
 // removed input, or a content change all yield a stale verdict naming the cause.
 //
-// A manifest with the wrong version or a mismatched check type is reported stale
-// so callers bootstrap a fresh stamp (self-healing).
+// A manifest with the wrong version is reported stale so callers bootstrap a
+// fresh stamp. Callers must verify the recorded check type against their own.
 func EvaluateFreshness(spec FreshnessSpec, manifest FreshnessManifest, keyInputs map[string]string) (FreshnessVerdict, error) {
 	if manifest.Version != freshnessManifestVersion {
 		return staleVerdict("manifest version mismatch", ""), nil

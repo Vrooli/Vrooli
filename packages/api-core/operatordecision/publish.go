@@ -54,22 +54,33 @@ func BuildEventTyped(source, eventType string, occurred time.Time, facts Facts) 
 // human, where the hub carries one), SourceEventType (which producer event this
 // resolves), and Correlation (the verbatim map that locates the durable record).
 type DecisionResolution struct {
-	AskID                    string            `json:"ask_id"`
-	State                    string            `json:"state"`
-	Answer                   string            `json:"answer"`
-	AnswerLabel              string            `json:"answer_label"`
-	Note                     string            `json:"note"`
-	AnsweredBy               string            `json:"answered_by"`
-	AnsweredByIdentityKind   string            `json:"answered_by_identity_kind"`
-	AnsweredByIdentitySource string            `json:"answered_by_identity_source"`
-	AnsweredAt               string            `json:"answered_at"`
-	ResolvedAt               string            `json:"resolved_at"`
-	ByDefault                bool              `json:"by_default"`
-	Late                     bool              `json:"late"`
-	Reason                   string            `json:"reason"`
-	SourceEventType          string            `json:"source_event_type"`
-	RequesterRef             string            `json:"requester_ref"`
-	Correlation              map[string]string `json:"correlation"`
+	AskID                    string `json:"ask_id"`
+	State                    string `json:"state"`
+	Answer                   string `json:"answer"`
+	AnswerLabel              string `json:"answer_label"`
+	Note                     string `json:"note"`
+	AnsweredBy               string `json:"answered_by"`
+	AnsweredByIdentityKind   string `json:"answered_by_identity_kind"`
+	AnsweredByIdentitySource string `json:"answered_by_identity_source"`
+	AnsweredAt               string `json:"answered_at"`
+	ResolvedAt               string `json:"resolved_at"`
+	ByDefault                bool   `json:"by_default"`
+	Late                     bool   `json:"late"`
+	Reason                   string `json:"reason"`
+	// Source is the scenario that raised the decision (the Hub's Ask.Source).
+	Source          string            `json:"source"`
+	SourceEventType string            `json:"source_event_type"`
+	RequesterRef    string            `json:"requester_ref"`
+	Correlation     map[string]string `json:"correlation"`
+	// SubjectKey is the producer's subject key when the decision carried one.
+	SubjectKey string `json:"subject_key"`
+	// SupersededByAskID names the newer decision that replaced this one, on a
+	// withdrawn resolution caused by a re-send with a different answer menu.
+	SupersededByAskID string `json:"superseded_by_ask_id"`
+	// Responses are the operator's answers to the decision's form questions
+	// (Facts.Questions); AnswerSummary is the whole answer as one text.
+	Responses     []Response `json:"responses"`
+	AnswerSummary string     `json:"answer_summary"`
 }
 
 // Resolution states carried on a DecisionResolution.State.
@@ -78,4 +89,9 @@ const (
 	StateDefaulted = "defaulted"
 	StateExpired   = "expired"
 	StateDismissed = "dismissed"
+	// StateWithdrawn closes a decision without an answer: its producer withdrew
+	// it, the hub closed it because the producer stopped re-asserting it, or a
+	// newer revision superseded it (SupersededByAskID). A DomainEffect treats it
+	// as "no operator answer applies" and never as approval.
+	StateWithdrawn = "withdrawn"
 )

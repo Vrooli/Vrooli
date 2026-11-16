@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/vrooli/cli-core/guardmodes"
 )
 
 var ErrStoreBusy = errors.New("agent policy snapshot store is busy")
@@ -28,14 +30,7 @@ func NewBundleStore(dir string) *BundleStore {
 }
 
 func DefaultDataDir() (string, error) {
-	if override := strings.TrimSpace(os.Getenv("VROOLI_AGENT_POLICY_HOME")); override != "" {
-		return filepath.Clean(override), nil
-	}
-	root, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("resolve application config directory: %w", err)
-	}
-	return filepath.Join(root, "vrooli", "agent-policy"), nil
+	return guardmodes.DefaultDataDir()
 }
 
 func (s *BundleStore) bundlePath() string { return filepath.Join(s.Dir, "snapshot-bundle.json") }

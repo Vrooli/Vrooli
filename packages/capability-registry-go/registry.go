@@ -500,6 +500,48 @@ func (r *Registry) Resolve(ctx context.Context) []State {
 	return out
 }
 
+// ResolveOne evaluates one declared dependency without spending time checking
+// unrelated dependencies first. Request paths that need a specific peer use
+// this so a slow optional service cannot exhaust their reachability budget.
+func (r *Registry) ResolveOne(ctx context.Context, id string) (State, bool) {
+	if r == nil {
+		return State{}, false
+	}
+	r.mu.RLock()
+	var selected Def
+	var checker Checker
+	found := false
+	for _, def := range r.defs {
+		if def.ID != id && def.DependencySlug != id {
+			continue
+		}
+		selected, checker, found = def, r.checkers[def.ID], true
+		break
+	}
+	now := r.now
+	r.mu.RUnlock()
+	if !found {
+		return State{}, false
+	}
+	state := stateFor(selected, now().UTC().Format(time.RFC3339))
+	if selected.Platform.Support == PlatformUnsupported {
+		state.Status = StatusUnavailable
+		state.Message = "unavailable by design"
+		if selected.Platform.Reason != "" {
+			state.Message += ": " + selected.Platform.Reason
+		}
+		return state, true
+	}
+	if err := ctx.Err(); err != nil {
+		state.Message = "not evaluated: " + err.Error()
+		return state, true
+	}
+	if checker != nil {
+		apply(&state, checkWithBudget(ctx, checker, fullCheckerBudget))
+	}
+	return state, true
+}
+
 func (r *Registry) ResolveLiveness(ctx context.Context) []State {
 	r.mu.Lock()
 	fresh := r.liveness.states != nil && (r.cacheTTL <= 0 || r.now().Sub(r.liveness.at) < r.cacheTTL)

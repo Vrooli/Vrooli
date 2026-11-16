@@ -9,7 +9,7 @@ import (
 func TestLoadOwnerInventoryDiscoversAllOwnerKindsDeterministically(t *testing.T) {
 	root := t.TempDir()
 	writeOwnerFixture(t, filepath.Join(root, "scenarios", "alpha", ".vrooli", "service.json"), `{"service":{"name":"alpha"},"storage":{"entries":{"data":{"rung":"owned","path":"db","kind":"file","class":"data"}}},"retention":{"budgets":{"events":{"target":{"kind":"directory","path":"events"},"max_bytes":"1MiB"}}}}`)
-	writeOwnerFixture(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","storage":{"entries":{"main":{"rung":"pinned","path":{"linux":"$USER_HOME/data","windows":"%USERPROFILE%\\data"},"kind":"dir"}}},"durable_data":{"base":"$USER_HOME","entries":{"config":{"path":"config","regenerable":false}}}}`)
+	writeOwnerFixture(t, filepath.Join(root, "resources", "postgres", "resource.json"), `{"name":"postgres","storage":{"entries":{"main":{"rung":"pinned","path":{"linux":"$USER_HOME/data","windows":"%USERPROFILE%\\data"},"kind":"dir","reacquisition":{"command":"resource postgres acquire","evidence":"resource.json#/artifacts","requires_authorization":true,"authorization_rationale":"operator credential"}}}},"durable_data":{"base":"$USER_HOME","entries":{"config":{"path":"config","regenerable":false}}}}`)
 	writeOwnerFixture(t, filepath.Join(root, "internal", "tools", "go", "tool.json"), `{"name":"go","storage":{"entries":{"cache":{"rung":"relocatable","path":"$USER_CACHE_DIR/go-build","kind":"dir","relocation":{"key":"GOCACHE","scope":"process-tree"}}}}}`)
 	writeOwnerFixture(t, filepath.Join(root, "internal", "safeguards", "clock", "safeguard.json"), `{"name":"clock","description":"clock","handler":"clock","privilege":"none","bundling":"prohibited","deployment":{"profiles":{}}}`)
 	writeOwnerFixture(t, filepath.Join(root, "internal", "safeguards", "unmanifested", "handler.go"), "package unmanifested")
@@ -35,6 +35,13 @@ func TestLoadOwnerInventoryDiscoversAllOwnerKindsDeterministically(t *testing.T)
 	resource := ownerByKind(first.Owners, OwnerResource)
 	if resource == nil || !resource.StorageDeclared || len(resource.StorageEntries) != 1 || resource.StorageEntries[0].Path.ByOS[PlatformLinux] == nil {
 		t.Fatalf("resource storage declaration was not normalized: %#v", resource)
+	}
+	reacquisition := resource.StorageEntries[0].Reacquisition
+	if reacquisition == nil || reacquisition.Command != "resource postgres acquire" || reacquisition.Evidence != "resource.json#/artifacts" || !reacquisition.RequiresAuthorization || reacquisition.AuthorizationRationale != "operator credential" {
+		t.Fatalf("reacquisition decision was not normalized: %#v", reacquisition)
+	}
+	if resource.StorageEntries[0].Regenerable {
+		t.Fatal("reacquisition evidence must not change the generic cleanup-safety flag")
 	}
 	if len(resource.DurableData) != 1 || resource.DurableData[0].Regenerable {
 		t.Fatalf("durable_data was not normalized: %#v", resource.DurableData)
@@ -64,6 +71,25 @@ func TestLoadOwnerInventoryPreservesExplicitEmptyDeclaration(t *testing.T) {
 	}
 	if len(inventory.Findings) != 0 {
 		t.Fatalf("explicit empty declaration findings = %#v", inventory.Findings)
+	}
+}
+
+func TestLoadOwnerInventoryRejectsIncompleteReacquisitionEvidence(t *testing.T) {
+	root := t.TempDir()
+	writeOwnerFixture(t, filepath.Join(root, "resources", "partial", "resource.json"), `{"name":"partial","storage":{"entries":{"models":{"rung":"pinned","path":"models","kind":"dir","class":"data","reacquisition":{"command":"resource partial acquire","evidence":"model-lock.json","requires_authorization":true}}}}}`)
+	inventory, err := LoadOwnerInventory(InventoryOptions{RepoRoot: root, Platform: PlatformLinux})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := ownerByKind(inventory.Owners, OwnerResource)
+	if owner == nil || len(owner.StorageEntries) != 1 {
+		t.Fatalf("owner = %#v", owner)
+	}
+	if owner.StorageEntries[0].Reacquisition != nil {
+		t.Fatalf("incomplete authorization evidence must fail closed: %#v", owner.StorageEntries[0].Reacquisition)
+	}
+	if !hasFinding(inventory.Findings, "invalid_reacquisition", OwnerResource, "partial") {
+		t.Fatalf("invalid reacquisition finding absent: %#v", inventory.Findings)
 	}
 }
 

@@ -6,6 +6,7 @@
  */
 
 import type { Agent } from 'node:http'
+import type { OriginPolicy } from '../server/origin-policy.js'
 
 /**
  * Browser-like window environment
@@ -241,6 +242,47 @@ export interface ProxyOptions {
   keepAlive?: boolean
   /** Custom HTTP agent to use for proxying */
   agent?: Agent
+  /**
+   * Set when the upstream is a different browser origin than the server the
+   * browser called: another scenario's UI or a loopback service. The relay
+   * has applied its own origin policy, so the browser's Origin, Referer and
+   * Fetch Metadata headers are dropped instead of being judged by the
+   * upstream as if the relay's origin were its own. Defaults to false (the
+   * scenario's own API, which may apply its own Fetch Metadata checks).
+   */
+  crossOriginRelay?: boolean
+}
+
+/** Options for proxying a WebSocket upgrade. */
+export interface WebSocketProxyOptions extends ProxyOptions {
+  /**
+   * Origin policy applied to the browser handshake before the upstream is
+   * contacted. Express middleware never sees upgrades, so the WebSocket proxy
+   * enforces the policy itself. Defaults to same-origin only.
+   */
+  originPolicy?: OriginPolicy
+}
+
+/**
+ * Browser origin policy for a scenario UI server (server/origin-policy.ts).
+ * With no options, only same-origin pages and non-browser callers are served.
+ */
+export interface OriginPolicyOptions {
+  /**
+   * Exact origins (`scheme://host[:port]`) that may call the server
+   * cross-origin with credentials, e.g. `chrome-extension://<id>`. Wildcards,
+   * `*`, `null`, paths and comma-joined strings are refused at startup.
+   */
+  allowedOrigins?: readonly string[]
+  /**
+   * Paths whose GET/HEAD responses any origin may load and read without
+   * credentials (`Access-Control-Allow-Origin: *`). Strings are path prefixes
+   * (`"/preview/runtime/"`); regular expressions are tested against the path.
+   * Use only for content that is the same for every caller, or for capability
+   * URLs whose unguessable path is the authorization, such as resources
+   * imported by opaque-origin sandbox frames.
+   */
+  publicPaths?: ReadonlyArray<string | RegExp>
 }
 
 export interface LifecycleGuardConfig {
@@ -372,8 +414,6 @@ export interface ConfigEndpointOptions {
   additionalConfig?: Record<string, unknown>
   /** Custom config builder that overrides default behavior */
   configBuilder?: () => ScenarioConfig
-  /** Enable CORS headers */
-  cors?: boolean
   /** Add timestamp to response */
   includeTimestamp?: boolean
   /** Add cache control headers */
@@ -390,6 +430,12 @@ export interface HealthOptions {
   version?: string
   /** Authored build identity reported by the managed process */
   buildIdentity?: string
+  /** Runtime release selected by the lifecycle supervisor */
+  runtimeReleaseId?: string
+  /** Operation that selected the runtime release */
+  runtimeReleaseOperationId?: string
+  /** Lifecycle start operation currently served by this process */
+  startOperationId?: string
   /** API port for connectivity check */
   apiPort?: number | string
   /** API host for connectivity check */
@@ -451,8 +497,20 @@ export interface ServerTemplateOptions extends LifecycleGuardConfig {
   serviceName?: string
   /** Service version */
   version?: string
-  /** CORS allowed origins */
-  corsOrigins?: string | string[]
+  /**
+   * Exact browser origins that may call this server cross-origin, with
+   * credentials. Same-origin access, including through the tunnel and Web
+   * Console's `/_local` proxy, needs no entry. See OriginPolicyOptions.
+   */
+  allowedOrigins?: OriginPolicyOptions['allowedOrigins']
+  /** Paths any origin may read without credentials. See OriginPolicyOptions. */
+  publicPaths?: OriginPolicyOptions['publicPaths']
+  /**
+   * Removed. Wildcard CORS let any page the operator visited read and change
+   * scenario data. createScenarioServer refuses this option; use
+   * `allowedOrigins` for exact origins, or nothing for same-origin access.
+   */
+  corsOrigins?: never
   /** Enable/disable logging */
   verbose?: boolean
   /** Custom config builder */
@@ -496,12 +554,30 @@ export interface ServerTemplateOptions extends LifecycleGuardConfig {
   /** Enable built-in embedded scenario proxy at /embedded. Pass true for defaults or an options object */
   embeddedProxy?: EmbeddedProxyOptions | boolean
   /**
+   * Opt-in same-origin proxy for arbitrary HTTP services on this host's
+   * loopback interface. Destinations are selected only by a validated port;
+   * UI/API/WebSocket listener ports are excluded automatically.
+   */
+  localPortProxy?: LocalPortProxyOptions | boolean
+  /**
    * Built-in app notifications at /vrooli-notify (shared push worker plus a
    * route to Notification Hub). On by default when the scenario's
    * .vrooli/notifications.json sets "appDelivery": true; pass false to turn
    * it off or an options object to override.
    */
   appNotifications?: AppNotificationsOptions | boolean
+}
+
+/** Options for the opt-in arbitrary loopback-port proxy. */
+export interface LocalPortProxyOptions {
+  /** URL path prefix (default: /_local). */
+  pathPrefix?: string
+  /** Ports owned by the proxy host that must never be proxied. */
+  excludedPorts?: Array<number | string>
+  /** Upstream request timeout in milliseconds (default: 30000). */
+  timeoutMs?: number
+  /** Enable proxy diagnostics (default: false). */
+  verbose?: boolean
 }
 
 /**
@@ -518,6 +594,12 @@ export interface HealthCheckResult {
   version?: string
   /** Authored build identity reported by the managed process */
   build_identity?: string
+  /** Runtime release selected by the lifecycle supervisor */
+  runtime_release_id?: string
+  /** Operation that selected the runtime release */
+  runtime_release_operation_id?: string
+  /** Lifecycle start operation currently served by this process */
+  start_operation_id?: string
   /** Whether service is ready to accept traffic */
   readiness: boolean
   /** API connectivity status */

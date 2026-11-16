@@ -421,24 +421,65 @@ func (s *qdrantGenerationStore) PromoteGeneration(ctx context.Context, generatio
 	}
 	previous, hasAlias, err := s.activeCollection(ctx)
 	if err != nil {
-		return err
+		return errors.Join(err, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
 	}
-	if err := s.switchAlias(ctx, candidate, previous, hasAlias); err != nil {
-		return err
+	var record GenerationRecord
+	priorCollection := previous
+	if s.catalog != nil {
+		var found bool
+		record, found, err = s.loadRecord(ctx, generationID)
+		if err != nil {
+			return errors.Join(fmt.Errorf("load candidate generation record before promotion: %w", err), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+		}
+		if !found {
+			return errors.Join(fmt.Errorf("candidate generation %q has no durable catalog record", generationID), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+		}
+		// After an alias switch, the active target is the candidate. On replay,
+		// recover the original target from the durable promotion intent.
+		if previous == candidate && record.PreviousCollection != "" {
+			priorCollection = record.PreviousCollection
+		}
+		// Persist the rollback target before touching Qdrant. If the process
+		// dies after the atomic alias switch, RollbackGeneration can reconstruct
+		// the intended prior target from this record.
+		if previous != candidate {
+			record.PreviousCollection = previous
+		}
+		record.UpdatedAt = s.clock()
+		if err := s.saveRecord(ctx, record); err != nil {
+			return errors.Join(fmt.Errorf("persist promotion rollback target: %w", err), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+		}
+	}
+	if previous != candidate {
+		if err := s.switchAlias(ctx, candidate, previous, hasAlias); err != nil {
+			return errors.Join(err, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+		}
 	}
 	s.mu.Lock()
 	s.promoted[generationID] = struct{}{}
 	s.mu.Unlock()
 	if s.catalog != nil {
-		if previous != "" && previous != candidate {
-			_ = s.saveRecord(ctx, GenerationRecord{Metadata: GenerationMetadata{ID: generationIDFromCollection(previous), Owner: s.owner, Namespace: s.namespace, Alias: s.alias}, CollectionName: previous, State: GenerationStateRetired, UpdatedAt: s.clock()})
-		}
-		if record, found, loadErr := s.loadRecord(ctx, generationID); loadErr == nil && found {
-			record.State = GenerationStateActive
-			record.UpdatedAt = s.clock()
-			if saveErr := s.saveRecord(ctx, record); saveErr != nil {
-				return saveErr
+		if priorCollection != "" && priorCollection != candidate {
+			previousRecord, found, loadErr := s.loadRecord(ctx, generationIDFromCollection(priorCollection))
+			if loadErr != nil {
+				return errors.Join(fmt.Errorf("load previous generation record after promotion: %w", loadErr), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
 			}
+			if !found {
+				previousRecord = GenerationRecord{
+					Metadata:       GenerationMetadata{ID: generationIDFromCollection(priorCollection), Owner: s.owner, Namespace: s.namespace, Alias: s.alias},
+					CollectionName: priorCollection,
+				}
+			}
+			previousRecord.State = GenerationStateRetired
+			previousRecord.UpdatedAt = s.clock()
+			if err := s.saveRecord(ctx, previousRecord); err != nil {
+				return errors.Join(err, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+			}
+		}
+		record.State = GenerationStateActive
+		record.UpdatedAt = s.clock()
+		if saveErr := s.saveRecord(ctx, record); saveErr != nil {
+			return errors.Join(saveErr, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
 		}
 	}
 	return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
@@ -449,33 +490,128 @@ func (s *qdrantGenerationStore) RollbackGeneration(ctx context.Context, generati
 	if err != nil {
 		return nil
 	}
-	operation, fence, err := s.acquireAliasMutation(ctx, FleetRollback, generationID, candidate)
-	if err != nil {
-		return err
-	}
 	active, _, activeErr := s.activeCollection(ctx)
 	if activeErr != nil {
 		return activeErr
 	}
-	if candidate == active {
-		return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
-	}
-	err = s.writeJSON(ctx, http.MethodDelete, s.baseURL+"/collections/"+url.PathEscape(candidate), nil, http.StatusOK)
-	if err == nil {
-		s.mu.Lock()
-		delete(s.candidates, generationID)
-		s.mu.Unlock()
-		if record, found, loadErr := s.loadRecord(ctx, generationID); loadErr == nil && found {
-			record.State = GenerationStateDeleted
-			record.CleanupOutcome = "rollback"
-			record.UpdatedAt = s.clock()
-			_ = s.saveRecord(ctx, record)
+	var record GenerationRecord
+	var found bool
+	if s.catalog != nil {
+		record, found, err = s.loadRecord(ctx, generationID)
+		if err != nil {
+			return fmt.Errorf("load generation record before rollback: %w", err)
 		}
+	}
+	if candidate == active {
+		if !found {
+			return errors.New("cannot roll back promoted generation without a durable previous alias target")
+		}
+	}
+	target := active
+	if candidate == active {
+		target = record.PreviousCollection
+	} else if found && record.PreviousCollection != "" {
+		if active != record.PreviousCollection {
+			return fmt.Errorf("refusing rollback replay: alias points to %q, durable prior target is %q", active, record.PreviousCollection)
+		}
+		// Alias restoration completed before the process died. Continue the
+		// catalog reconciliation and candidate deletion below.
+		target = record.PreviousCollection
+	}
+	operation, fence, err := s.acquireAliasMutation(ctx, FleetRollback, generationID, target)
+	if err != nil && candidate == active {
+		// A dead promoter may still own the durable alias fence. Replay its
+		// idempotent promotion to reconcile catalog state and release that exact
+		// fence, then retry the rollback acquisition once.
+		if reconcileErr := s.PromoteGeneration(ctx, generationID); reconcileErr != nil {
+			return errors.Join(err, fmt.Errorf("reconcile interrupted generation promotion before rollback: %w", reconcileErr))
+		}
+		operation, fence, err = s.acquireAliasMutation(ctx, FleetRollback, generationID, target)
 	}
 	if err != nil {
 		return err
 	}
-	return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
+	if candidate == active {
+		if target == "" {
+			err = s.clearAlias(ctx, candidate)
+		} else {
+			err = s.switchAlias(ctx, target, candidate, true)
+		}
+		if err != nil {
+			return errors.Join(err, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+		}
+		if s.catalog != nil && target != "" {
+			previousRecord, previousFound, loadErr := s.loadRecord(ctx, generationIDFromCollection(target))
+			if loadErr != nil {
+				return errors.Join(fmt.Errorf("load restored generation record: %w", loadErr), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+			}
+			if previousFound {
+				previousRecord.State = GenerationStateActive
+				previousRecord.UpdatedAt = s.clock()
+				if saveErr := s.saveRecord(ctx, previousRecord); saveErr != nil {
+					return errors.Join(fmt.Errorf("mark restored generation active: %w", saveErr), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+				}
+			}
+		}
+	} else if target != "" && s.catalog != nil {
+		previousRecord, previousFound, loadErr := s.loadRecord(ctx, generationIDFromCollection(target))
+		if loadErr != nil {
+			return errors.Join(fmt.Errorf("load restored generation record: %w", loadErr), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+		}
+		if previousFound {
+			previousRecord.State = GenerationStateActive
+			previousRecord.UpdatedAt = s.clock()
+			if saveErr := s.saveRecord(ctx, previousRecord); saveErr != nil {
+				return errors.Join(fmt.Errorf("mark restored generation active: %w", saveErr), releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+			}
+		}
+	}
+	exists, inspectErr := s.physicalCollectionExists(ctx, candidate)
+	if inspectErr != nil {
+		return errors.Join(inspectErr, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+	}
+	if exists {
+		err = s.writeJSON(ctx, http.MethodDelete, s.baseURL+"/collections/"+url.PathEscape(candidate), nil, http.StatusOK)
+	}
+	if err == nil {
+		s.mu.Lock()
+		delete(s.candidates, generationID)
+		s.mu.Unlock()
+		if found {
+			record.State = GenerationStateDeleted
+			record.CleanupOutcome = "rollback"
+			record.UpdatedAt = s.clock()
+			err = s.saveRecord(ctx, record)
+		}
+	}
+	if err != nil {
+		return errors.Join(err, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+	}
+	return errors.Join(err, releaseAliasMutation(context.WithoutCancel(ctx), fence, operation))
+}
+
+func (s *qdrantGenerationStore) clearAlias(ctx context.Context, expected string) error {
+	current, exists, err := s.activeCollection(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	if current != expected {
+		return fmt.Errorf("refusing Qdrant alias clear: alias %q maps to %q, expected %q", s.alias, current, expected)
+	}
+	if err := s.writeJSON(ctx, http.MethodPost, s.baseURL+"/collections/aliases", map[string]any{"actions": []map[string]any{{"delete_alias": map[string]any{"alias_name": s.alias}}}}, http.StatusOK); err != nil {
+		return err
+	}
+	_, exists, err = s.activeCollection(ctx)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("Qdrant alias clear outcome is ambiguous: alias %q still exists", s.alias)
+	}
+	return nil
 }
 
 // CleanupGenerations deletes retired generations beyond the newest keep,

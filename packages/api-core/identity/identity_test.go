@@ -81,6 +81,27 @@ func TestOperationGrantRulesNeverCrossPolicies(t *testing.T) {
 	}
 }
 
+func TestOperationGrantFromMetaUsesOneTypedParserAndClock(t *testing.T) {
+	now := time.Date(2026, 11, 16, 0, 0, 0, 0, time.UTC)
+	meta := map[string]string{"operation_grant": `{"id":"grant","approver":"owner","operations":["treasury.read"],"targets":["treasury:*"] ,"expires_at":"2026-11-16T01:00:00Z"}`}
+	grant := OperationGrantFromMeta(meta, now)
+	if grant == nil || !grant.Allows("treasury.read", "treasury:budget/b1", now) {
+		t.Fatal("valid typed grant metadata was not parsed and evaluated")
+	}
+	if OperationGrantFromMeta(meta, now.Add(time.Hour)) != nil {
+		t.Fatal("expired grant metadata remained authoritative at its expiry")
+	}
+	for _, invalid := range []map[string]string{
+		{},
+		{"operation_grant": "not-json"},
+		{"operation_grant": `{"id":"grant","operations":["treasury.read"],"targets":["treasury:*"] ,"expires_at":"2026-11-16T01:00:00Z"}`},
+	} {
+		if got := OperationGrantFromMeta(invalid, now); got != nil {
+			t.Fatalf("invalid metadata produced authority: %#v", got)
+		}
+	}
+}
+
 func TestOperationGrantScopedPrefixWildcard(t *testing.T) {
 	now := time.Now()
 	g := &OperationGrant{

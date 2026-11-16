@@ -138,7 +138,14 @@ function buildHealthCheckResult(
   },
   customHealth?: Record<string, unknown>
 ): HealthCheckResult {
-  const { serviceName, version, buildIdentity } = options
+  const {
+    serviceName,
+    version,
+    buildIdentity,
+    runtimeReleaseId,
+    runtimeReleaseOperationId,
+    startOperationId,
+  } = options
   const timestamp = new Date().toISOString()
 
   // Determine overall status
@@ -160,6 +167,15 @@ function buildHealthCheckResult(
   }
   if (buildIdentity) {
     result.build_identity = buildIdentity
+  }
+  if (runtimeReleaseId) {
+    result.runtime_release_id = runtimeReleaseId
+  }
+  if (runtimeReleaseOperationId) {
+    result.runtime_release_operation_id = runtimeReleaseOperationId
+  }
+  if (startOperationId) {
+    result.start_operation_id = startOperationId
   }
 
   // Add API connectivity info if checked
@@ -250,7 +266,17 @@ export function createHealthEndpoint(options: HealthOptions): RequestHandler {
     }
 
     const result = buildHealthCheckResult(
-      { serviceName, version, buildIdentity: process.env.VROOLI_BUILD_IDENTITY, apiPort, apiHost, timeout },
+      {
+        serviceName,
+        version,
+        buildIdentity: process.env.VROOLI_BUILD_IDENTITY,
+        runtimeReleaseId: process.env.VROOLI_RUNTIME_RELEASE_ID,
+        runtimeReleaseOperationId: process.env.VROOLI_RUNTIME_RELEASE_OPERATION_ID,
+        startOperationId: process.env.VROOLI_START_OPERATION_ID,
+        apiPort,
+        apiHost,
+        timeout,
+      },
       apiConnectivity,
       customHealth
     )
@@ -287,6 +313,10 @@ export function createSimpleHealthEndpoint(
       service: serviceName,
       timestamp: new Date().toISOString(),
       readiness: true,
+      build_identity: process.env.VROOLI_BUILD_IDENTITY,
+      runtime_release_id: process.env.VROOLI_RUNTIME_RELEASE_ID,
+      runtime_release_operation_id: process.env.VROOLI_RUNTIME_RELEASE_OPERATION_ID,
+      start_operation_id: process.env.VROOLI_START_OPERATION_ID,
     }
 
     if (version) {

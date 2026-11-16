@@ -86,8 +86,8 @@ func EmbeddingRecipeFromCanonical(canonical []byte, digest string) (EmbeddingRec
 	if err != nil {
 		return EmbeddingRecipe{}, err
 	}
-	if digest != recipe.digest {
-		return EmbeddingRecipe{}, fmt.Errorf("embedding recipe digest mismatch: got %q, computed %q", digest, recipe.digest)
+	if digest != recipe.digest && digest != recipe.ID() {
+		return EmbeddingRecipe{}, fmt.Errorf("embedding recipe digest mismatch: got %q, computed %q", digest, recipe.ID())
 	}
 	return recipe, nil
 }

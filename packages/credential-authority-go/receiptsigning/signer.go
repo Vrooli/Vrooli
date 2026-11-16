@@ -22,12 +22,13 @@ import (
 )
 
 const (
-	defaultField     = "key-ring"
-	keyRingVersion   = 1
-	keyIDSeparator   = ":"
-	keyVersionPrefix = "v"
-	signingDomain    = "vrooli.receipt-signing.ed25519.v1\x00"
-	providerName     = "credential-authority-ed25519"
+	defaultField       = "key-ring"
+	defaultPublicField = "public-key-ring"
+	keyRingVersion     = 1
+	keyIDSeparator     = ":"
+	keyVersionPrefix   = "v"
+	signingDomain      = "vrooli.receipt-signing.ed25519.v1\x00"
+	providerName       = "credential-authority-ed25519"
 )
 
 var allowedPurposes = []receiptsigning.Purpose{
@@ -46,6 +47,7 @@ type Store interface {
 type Config struct {
 	Identity        credentialauthority.Identity
 	Field           string
+	PublicField     string
 	Store           Store
 	AllowedPurposes []receiptsigning.Purpose
 }
@@ -54,11 +56,12 @@ type Config struct {
 // retained key version in the authority key ring. Rotation appends a key; it
 // never destroys old public verifiers, so existing evidence remains valid.
 type Signer struct {
-	identity credentialauthority.Identity
-	field    string
-	store    Store
-	allowed  map[receiptsigning.Purpose]struct{}
-	rotateMu sync.Mutex
+	identity    credentialauthority.Identity
+	field       string
+	publicField string
+	store       Store
+	allowed     map[receiptsigning.Purpose]struct{}
+	rotateMu    sync.Mutex
 }
 
 type keyRing struct {
@@ -74,6 +77,16 @@ type keyPair struct {
 	CreatedAt  string `json:"createdAt"`
 }
 
+type publicKeyRing struct {
+	Version int              `json:"version"`
+	Keys    []publicKeyEntry `json:"keys"`
+}
+
+type publicKeyEntry struct {
+	ID        string `json:"id"`
+	PublicKey string `json:"publicKey"`
+}
+
 func New(config Config) (*Signer, error) {
 	identity, err := credentialauthority.ParseIdentity(string(config.Identity))
 	if err != nil {
@@ -85,6 +98,13 @@ func New(config Config) (*Signer, error) {
 	}
 	if strings.ContainsAny(field, "/\\") {
 		return nil, fmt.Errorf("receipt signing authority field cannot contain a path separator")
+	}
+	publicField := strings.TrimSpace(config.PublicField)
+	if publicField == "" {
+		publicField = defaultPublicField
+	}
+	if strings.ContainsAny(publicField, "/\\") || publicField == field {
+		return nil, fmt.Errorf("receipt signing public-key field must be a distinct field without path separators")
 	}
 	if config.Store == nil {
 		return nil, fmt.Errorf("receipt signing credential authority is unavailable")
@@ -99,7 +119,7 @@ func New(config Config) (*Signer, error) {
 		}
 		allowed[purpose] = struct{}{}
 	}
-	return &Signer{identity: identity, field: field, store: config.Store, allowed: allowed}, nil
+	return &Signer{identity: identity, field: field, publicField: publicField, store: config.Store, allowed: allowed}, nil
 }
 
 func NewDefault(identity string, field string) (*Signer, error) {
@@ -112,6 +132,74 @@ func NewDefault(identity string, field string) (*Signer, error) {
 		return nil, fmt.Errorf("create credential authority: %w", err)
 	}
 	return New(Config{Identity: parsed, Field: field, Store: authority})
+}
+
+// PublicVerifier reads only the retained public-key ring from Credential
+// Authority. It has no signing method and never resolves the private key ring.
+type PublicVerifier struct {
+	identity credentialauthority.Identity
+	field    string
+	store    Store
+	allowed  map[receiptsigning.Purpose]struct{}
+}
+
+func NewPublicVerifier(identity credentialauthority.Identity, field string, store Store, allowedPurposes []receiptsigning.Purpose) (*PublicVerifier, error) {
+	parsed, err := credentialauthority.ParseIdentity(string(identity))
+	if err != nil {
+		return nil, err
+	}
+	field = strings.TrimSpace(field)
+	if field == "" {
+		field = defaultPublicField
+	}
+	if strings.ContainsAny(field, "/\\") || store == nil {
+		return nil, fmt.Errorf("receipt public verifier requires a valid public field and credential authority")
+	}
+	if len(allowedPurposes) == 0 {
+		allowedPurposes = allowedPurposesDefault
+	}
+	allowed := make(map[receiptsigning.Purpose]struct{}, len(allowedPurposes))
+	for _, purpose := range allowedPurposes {
+		if !purpose.Valid() {
+			return nil, fmt.Errorf("unsupported receipt verification purpose %q", purpose)
+		}
+		allowed[purpose] = struct{}{}
+	}
+	return &PublicVerifier{identity: parsed, field: field, store: store, allowed: allowed}, nil
+}
+
+var allowedPurposesDefault = []receiptsigning.Purpose{
+	receiptsigning.PurposeExperimentAuditReceipt,
+	receiptsigning.PurposeExperimentHoldoutReceipt,
+}
+
+func (v *PublicVerifier) Verify(_ context.Context, envelope receiptsigning.SignatureEnvelope, canonical []byte) error {
+	return verifyEnvelope(v.identity, v.allowed, envelope, canonical, func() (publicKeyRing, error) {
+		return v.loadPublic()
+	})
+}
+
+func (v *PublicVerifier) Health(_ context.Context) (receiptsigning.Health, error) {
+	ring, err := v.loadPublic()
+	if err != nil {
+		return receiptsigning.Health{Provider: providerName + "-public"}, err
+	}
+	return receiptsigning.Health{Ready: len(ring.Keys) > 0, Provider: providerName + "-public", Production: true, RotationOK: true, Description: "receipt verification uses only public keys retained by the credential authority"}, nil
+}
+
+func (v *PublicVerifier) loadPublic() (publicKeyRing, error) {
+	encoded, err := v.store.Require(v.identity, v.field)
+	if err != nil {
+		return publicKeyRing{}, err
+	}
+	var ring publicKeyRing
+	if err := json.Unmarshal([]byte(encoded), &ring); err != nil {
+		return publicKeyRing{}, fmt.Errorf("parse receipt public-key ring: %w", err)
+	}
+	if err := validatePublicRing(ring); err != nil {
+		return publicKeyRing{}, err
+	}
+	return ring, nil
 }
 
 func (s *Signer) Sign(_ context.Context, purpose receiptsigning.Purpose, canonical []byte) (receiptsigning.SignatureEnvelope, error) {
@@ -143,49 +231,9 @@ func (s *Signer) Sign(_ context.Context, purpose receiptsigning.Purpose, canonic
 }
 
 func (s *Signer) Verify(_ context.Context, envelope receiptsigning.SignatureEnvelope, canonical []byte) error {
-	if err := envelope.Validate(); err != nil {
-		return err
-	}
-	if envelope.Algorithm != receiptsigning.AlgorithmCredentialAuthorityEd25519 {
-		return fmt.Errorf("receipt signer cannot verify algorithm %q", envelope.Algorithm)
-	}
-	if err := s.checkPurpose(envelope.Purpose); err != nil {
-		return err
-	}
-	digest := receiptsigning.Digest(canonical)
-	if envelope.Digest != digest {
-		return fmt.Errorf("receipt digest does not match canonical content")
-	}
-	version, ok := strings.CutPrefix(envelope.KeyID, s.identityString()+keyIDSeparator)
-	if !ok || version == "" {
-		return fmt.Errorf("receipt signature key ID does not belong to this authority identity")
-	}
-	ring, err := s.load()
-	if err != nil {
-		return err
-	}
-	var key *keyPair
-	for i := range ring.Keys {
-		if ring.Keys[i].ID == version {
-			key = &ring.Keys[i]
-			break
-		}
-	}
-	if key == nil {
-		return fmt.Errorf("receipt signature key version %q is not retained", version)
-	}
-	publicKey, err := decodeKey(key.PublicKey, ed25519.PublicKeySize)
-	if err != nil {
-		return fmt.Errorf("decode receipt signing public key: %w", err)
-	}
-	signature, err := base64.StdEncoding.DecodeString(envelope.Signature)
-	if err != nil || len(signature) != ed25519.SignatureSize {
-		return fmt.Errorf("receipt signature is not a valid Ed25519 signature")
-	}
-	if !ed25519.Verify(ed25519.PublicKey(publicKey), signingMessage(envelope.Purpose, digest), signature) {
-		return fmt.Errorf("receipt signature verification failed")
-	}
-	return nil
+	return verifyEnvelope(s.identity, s.allowed, envelope, canonical, func() (publicKeyRing, error) {
+		return s.loadPublic()
+	})
 }
 
 func (s *Signer) Health(_ context.Context) (receiptsigning.Health, error) {
@@ -196,6 +244,13 @@ func (s *Signer) Health(_ context.Context) (receiptsigning.Health, error) {
 	active, err := ring.activeKey()
 	if err != nil {
 		return receiptsigning.Health{Provider: providerName, Production: true, RotationOK: true}, err
+	}
+	publicRing, err := s.loadPublic()
+	if err != nil {
+		return receiptsigning.Health{Provider: providerName, Production: true, RotationOK: true}, err
+	}
+	if _, ok := publicRing.entry(active.ID); !ok {
+		return receiptsigning.Health{Provider: providerName, Production: true, RotationOK: true}, fmt.Errorf("active receipt signing key %q is absent from public verifier ring", active.ID)
 	}
 	return receiptsigning.Health{
 		Ready:       true,
@@ -238,6 +293,17 @@ func (s *Signer) Rotate(_ context.Context) (receiptsigning.Health, error) {
 	})
 	if err := validateRing(ring); err != nil {
 		return receiptsigning.Health{}, err
+	}
+	publicRing := publicRingFromPrivate(ring)
+	publicEncoded, err := json.Marshal(publicRing)
+	if err != nil {
+		return receiptsigning.Health{}, fmt.Errorf("encode receipt public-key ring: %w", err)
+	}
+	// Publish the non-secret verifier ring first. A failure writing the private
+	// ring can leave an extra unused public key, but can never activate an
+	// unverifiable private signer.
+	if err := s.store.Put(s.identity, s.publicField, string(publicEncoded)); err != nil {
+		return receiptsigning.Health{}, fmt.Errorf("store receipt public-key ring: %w", err)
 	}
 	encoded, err := json.Marshal(ring)
 	if err != nil {
@@ -285,6 +351,21 @@ func (s *Signer) loadOptional() (keyRing, error) {
 	return ring, nil
 }
 
+func (s *Signer) loadPublic() (publicKeyRing, error) {
+	encoded, err := s.store.Require(s.identity, s.publicField)
+	if err != nil {
+		return publicKeyRing{}, err
+	}
+	var ring publicKeyRing
+	if err := json.Unmarshal([]byte(encoded), &ring); err != nil {
+		return publicKeyRing{}, fmt.Errorf("parse receipt public-key ring: %w", err)
+	}
+	if err := validatePublicRing(ring); err != nil {
+		return publicKeyRing{}, err
+	}
+	return ring, nil
+}
+
 func (s *Signer) identityString() string { return string(s.identity) }
 
 func (s *Signer) keyID(version string) string { return s.identityString() + keyIDSeparator + version }
@@ -296,6 +377,83 @@ func (ring keyRing) activeKey() (*keyPair, error) {
 		}
 	}
 	return nil, fmt.Errorf("receipt signing key ring has no active key")
+}
+
+func publicRingFromPrivate(ring keyRing) publicKeyRing {
+	result := publicKeyRing{Version: keyRingVersion, Keys: make([]publicKeyEntry, 0, len(ring.Keys))}
+	for _, key := range ring.Keys {
+		result.Keys = append(result.Keys, publicKeyEntry{ID: key.ID, PublicKey: key.PublicKey})
+	}
+	return result
+}
+
+func validatePublicRing(ring publicKeyRing) error {
+	if ring.Version != keyRingVersion || len(ring.Keys) == 0 {
+		return fmt.Errorf("receipt public-key ring is invalid")
+	}
+	seen := make(map[string]struct{}, len(ring.Keys))
+	for _, key := range ring.Keys {
+		if key.ID == "" {
+			return fmt.Errorf("receipt public-key ring contains an empty key ID")
+		}
+		if _, ok := seen[key.ID]; ok {
+			return fmt.Errorf("receipt public-key ring contains duplicate key ID %q", key.ID)
+		}
+		seen[key.ID] = struct{}{}
+		if _, err := decodeKey(key.PublicKey, ed25519.PublicKeySize); err != nil {
+			return fmt.Errorf("receipt public-key ring key %q is invalid: %w", key.ID, err)
+		}
+	}
+	return nil
+}
+
+func (ring publicKeyRing) entry(id string) (*publicKeyEntry, bool) {
+	for i := range ring.Keys {
+		if ring.Keys[i].ID == id {
+			return &ring.Keys[i], true
+		}
+	}
+	return nil, false
+}
+
+func verifyEnvelope(identity credentialauthority.Identity, allowed map[receiptsigning.Purpose]struct{}, envelope receiptsigning.SignatureEnvelope, canonical []byte, loadPublic func() (publicKeyRing, error)) error {
+	if err := envelope.Validate(); err != nil {
+		return err
+	}
+	if envelope.Algorithm != receiptsigning.AlgorithmCredentialAuthorityEd25519 {
+		return fmt.Errorf("receipt signer cannot verify algorithm %q", envelope.Algorithm)
+	}
+	if _, ok := allowed[envelope.Purpose]; !ok {
+		return fmt.Errorf("receipt verification purpose %q is not allowed", envelope.Purpose)
+	}
+	digest := receiptsigning.Digest(canonical)
+	if envelope.Digest != digest {
+		return fmt.Errorf("receipt digest does not match canonical content")
+	}
+	version, ok := strings.CutPrefix(envelope.KeyID, string(identity)+keyIDSeparator)
+	if !ok || version == "" {
+		return fmt.Errorf("receipt signature key ID does not belong to this authority identity")
+	}
+	ring, err := loadPublic()
+	if err != nil {
+		return err
+	}
+	key, ok := ring.entry(version)
+	if !ok {
+		return fmt.Errorf("receipt signature key version %q is not retained", version)
+	}
+	publicKey, err := decodeKey(key.PublicKey, ed25519.PublicKeySize)
+	if err != nil {
+		return fmt.Errorf("decode receipt signing public key: %w", err)
+	}
+	signature, err := base64.StdEncoding.DecodeString(envelope.Signature)
+	if err != nil || len(signature) != ed25519.SignatureSize {
+		return fmt.Errorf("receipt signature is not a valid Ed25519 signature")
+	}
+	if !ed25519.Verify(ed25519.PublicKey(publicKey), signingMessage(envelope.Purpose, digest), signature) {
+		return fmt.Errorf("receipt signature verification failed")
+	}
+	return nil
 }
 
 func validateRing(ring keyRing) error {

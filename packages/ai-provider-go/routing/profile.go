@@ -17,6 +17,9 @@ func Admits(profile, privacyClass, locality string) (bool, string) {
 	if privacyClass == "SECRET" && locality == "remote" {
 		return false, "secret requests cannot route to remote providers"
 	}
+	if privacyClass == "CONFIDENTIAL" && locality == "remote" {
+		return false, "confidential requests require a local provider unless an explicit privacy-sensitive remote approval contract is implemented"
+	}
 	if locality == "remote" && privacyClass != "PUBLIC" && privacyClass != "INTERNAL" && privacyClass != "CONFIDENTIAL" && privacyClass != "SECRET" {
 		return false, "remote providers require a recognized explicit privacy classification"
 	}
@@ -77,6 +80,26 @@ func Rank(profile, locality, provider string) int {
 		return base
 	}
 	return base + 1
+}
+
+// ValidPrivacyProvenance accepts a short, non-sensitive source/basis
+// identifier. It is attribution for the caller's privacy classification, not
+// evidence that can lower the classification or relax routing.
+func ValidPrivacyProvenance(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) == 0 || len(value) > 128 {
+		return false
+	}
+	for i, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			continue
+		}
+		if (r == '_' || r == '-' || r == '.' || r == ':' || r == '/') && i > 0 {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func normalize(value, prefix string) string {

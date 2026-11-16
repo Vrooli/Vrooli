@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 )
 
-const RightsEvaluatorVersion = "model-rights/v1"
+const RightsEvaluatorVersion = "model-rights/v2"
 
 const (
 	RuntimeProviderOllama            = "ollama"
@@ -44,8 +46,13 @@ type RightsClassification string
 const (
 	RightsUnrestricted RightsClassification = "unrestricted"
 	RightsConditional  RightsClassification = "conditional"
-	RightsProhibited   RightsClassification = "prohibited"
-	RightsUnverified   RightsClassification = "unknown"
+	// RightsBehavioralRestrictions permits only uses that remain subject to
+	// publisher-defined behavioral terms. Those terms are surfaced as
+	// obligations; redistribution stays unknown until its owner attests to the
+	// downstream terms and notices.
+	RightsBehavioralRestrictions RightsClassification = "behavioral_restrictions"
+	RightsProhibited             RightsClassification = "prohibited"
+	RightsUnverified             RightsClassification = "unknown"
 )
 
 type RightsEvidence struct {
@@ -63,6 +70,17 @@ type RightsCondition struct {
 	Unit           string  `json:"unit"`
 	EntityScope    string  `json:"entity_scope"`
 	Interpretation string  `json:"interpretation"`
+	Period         string  `json:"period,omitempty"`
+}
+
+// ConditionalGrant states which uses a source license permits when every
+// listed condition is satisfied. Keeping the uses and conditions together
+// prevents a condition for one use from silently granting another.
+type ConditionalGrant struct {
+	ID          string            `json:"id"`
+	Uses        []RightsUse       `json:"uses"`
+	Conditions  []RightsCondition `json:"conditions"`
+	Obligations []string          `json:"obligations,omitempty"`
 }
 
 type ArtifactComponent struct {
@@ -75,15 +93,18 @@ type ArtifactComponent struct {
 // ArtifactRights are publisher/source facts attached to one concrete model
 // artifact. They do not contain operator business context or a cached verdict.
 type ArtifactRights struct {
-	ArtifactID     string               `json:"artifact_id"`
-	Revision       string               `json:"revision"`
-	SHA256         string               `json:"sha256"`
-	LicenseID      string               `json:"license_id"`
-	Classification RightsClassification `json:"classification"`
-	Evidence       RightsEvidence       `json:"evidence"`
-	Conditions     []RightsCondition    `json:"conditions,omitempty"`
-	Obligations    []string             `json:"obligations,omitempty"`
-	Lineage        []ArtifactComponent  `json:"lineage,omitempty"`
+	ArtifactID        string               `json:"artifact_id"`
+	Revision          string               `json:"revision"`
+	SHA256            string               `json:"sha256"`
+	LicenseID         string               `json:"license_id"`
+	Classification    RightsClassification `json:"classification"`
+	UnverifiedReason  string               `json:"unverified_reason,omitempty"`
+	Evidence          RightsEvidence       `json:"evidence"`
+	Conditions        []RightsCondition    `json:"conditions,omitempty"`
+	ConditionalGrants []ConditionalGrant   `json:"conditional_grants,omitempty"`
+	Obligations       []string             `json:"obligations,omitempty"`
+	ReviewTriggers    []string             `json:"review_triggers,omitempty"`
+	Lineage           []ArtifactComponent  `json:"lineage,omitempty"`
 }
 
 // RuntimeArtifactIdentity is an owner-supplied mapping from the publisher's
@@ -102,15 +123,19 @@ type RuntimeArtifactIdentity struct {
 }
 
 // RightsContext is supplied by a trusted owner, never by an inference request.
-// RevenueStatus deliberately represents the operator's stated category without
-// fabricating a numeric amount or accounting period.
+// RevenueStatus preserves the operator's stated category. AnnualRevenueUSD is
+// optional and is set only when an exact, owner-sourced amount is available;
+// it lets different license thresholds be evaluated against the same context.
 type RightsContext struct {
-	ID            string `json:"id"`
-	Version       string `json:"version"`
-	EntityScope   string `json:"entity_scope"`
-	RevenueStatus string `json:"revenue_status"`
-	AsOf          string `json:"as_of"`
-	Source        string `json:"source"`
+	ID                         string            `json:"id"`
+	Version                    string            `json:"version"`
+	EntityScope                string            `json:"entity_scope"`
+	RevenueStatus              string            `json:"revenue_status"`
+	AnnualRevenueUSD           *float64          `json:"annual_revenue_usd,omitempty"`
+	MonthlyActiveUsers         map[string]string `json:"monthly_active_users,omitempty"`
+	MonthlyActiveUsersEvidence map[string]string `json:"monthly_active_users_evidence,omitempty"`
+	AsOf                       string            `json:"as_of"`
+	Source                     string            `json:"source"`
 }
 
 type RightsDecision struct {
@@ -120,8 +145,10 @@ type RightsDecision struct {
 	ArtifactSHA256    string              `json:"artifact_sha256,omitempty"`
 	RightsFactsSHA256 string              `json:"rights_facts_sha256,omitempty"`
 	LicenseID         string              `json:"license_id,omitempty"`
+	UnverifiedReason  string              `json:"unverified_reason,omitempty"`
 	Evidence          RightsEvidence      `json:"evidence,omitempty"`
 	Conditions        []RightsCondition   `json:"conditions,omitempty"`
+	ConditionalGrants []ConditionalGrant  `json:"conditional_grants,omitempty"`
 	Lineage           []ArtifactComponent `json:"lineage,omitempty"`
 	Use               RightsUse           `json:"use"`
 	ContextID         string              `json:"context_id,omitempty"`
@@ -145,8 +172,13 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 		return bindDecision(d)
 	}
 	d.ArtifactID, d.ArtifactSHA256, d.LicenseID, d.Evidence = artifact.ArtifactID, artifact.SHA256, artifact.LicenseID, artifact.Evidence
+	d.UnverifiedReason = strings.TrimSpace(artifact.UnverifiedReason)
 	d.RightsFactsSHA256 = canonicalDigest(artifact)
 	d.Conditions = append([]RightsCondition(nil), artifact.Conditions...)
+	d.ConditionalGrants = cloneConditionalGrants(artifact.ConditionalGrants)
+	if len(artifact.ReviewTriggers) > 0 {
+		d.ReviewTriggers = append([]string(nil), artifact.ReviewTriggers...)
+	}
 	d.Lineage = append([]ArtifactComponent(nil), artifact.Lineage...)
 	d.Obligations = append([]string(nil), artifact.Obligations...)
 	if validRightsContext(context) {
@@ -156,7 +188,7 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 		return bindDecision(d)
 	}
 	for _, condition := range artifact.Conditions {
-		if strings.TrimSpace(condition.ID) == "" || strings.TrimSpace(condition.Interpretation) == "" {
+		if !validRightsCondition(condition) {
 			return bindDecision(d)
 		}
 	}
@@ -165,13 +197,56 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 		return bindDecision(d)
 	}
 	if artifact.Classification == RightsUnverified {
+		d.Reason = "rights_evidence_unverified"
 		return bindDecision(d)
 	}
 	if artifact.Classification == RightsUnrestricted {
 		d.Status, d.Reason = RightsAllowed, "verified_unrestricted_grant"
 		return bindDecision(d)
 	}
+	if artifact.Classification == RightsBehavioralRestrictions {
+		if len(artifact.Obligations) == 0 {
+			return bindDecision(d)
+		}
+		if use == RightsUseLocalInference {
+			d.Status, d.Reason = RightsAllowed, "behavioral_use_restrictions_apply"
+			return bindDecision(d)
+		}
+		if use == RightsUseRedistributeWeights || use == RightsUseRedistributeDerived || use == RightsUseDistributeRuntime {
+			d.Reason = "distribution_obligations_require_owner_attestation"
+		}
+		return bindDecision(d)
+	}
 	if artifact.Classification != RightsConditional {
+		return bindDecision(d)
+	}
+	if len(artifact.ConditionalGrants) > 0 {
+		matchedUse := false
+		unknownCondition := false
+		for _, grant := range artifact.ConditionalGrants {
+			if !containsRightsUse(grant.Uses, use) {
+				continue
+			}
+			matchedUse = true
+			grantStatus, reason := evaluateConditions(grant.Conditions, context)
+			if grantStatus == RightsAllowed {
+				d.Status, d.Reason = RightsAllowed, reason
+				d.Obligations = appendUniqueStrings(d.Obligations, grant.Obligations...)
+				return bindDecision(d)
+			}
+			if grantStatus == RightsUnknown {
+				unknownCondition = true
+			} else {
+				d.Reason = reason
+			}
+		}
+		if !matchedUse {
+			d.Status, d.Reason = RightsDenied, "conditional_grant_does_not_cover_use"
+		} else if unknownCondition {
+			d.Status, d.Reason = RightsUnknown, "conditional_grant_condition_unknown"
+		} else {
+			d.Status = RightsDenied
+		}
 		return bindDecision(d)
 	}
 	if use == RightsUseRedistributeWeights || use == RightsUseRedistributeDerived || use == RightsUseDistributeRuntime {
@@ -182,8 +257,17 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 		return bindDecision(d)
 	}
 	for _, condition := range artifact.Conditions {
-		if condition.Kind != "annual_revenue" || condition.Comparator != "lt" || condition.Unit != "USD" || condition.Threshold <= 0 || condition.EntityScope != context.EntityScope {
+		if condition.Kind != "annual_revenue" || condition.Comparator != "lt" || condition.Unit != "USD" || condition.Threshold <= 0 || strings.TrimSpace(condition.EntityScope) == "" || condition.EntityScope != context.EntityScope {
 			return bindDecision(d)
+		}
+		if context.AnnualRevenueUSD != nil {
+			if *context.AnnualRevenueUSD < condition.Threshold {
+				d.Status, d.Reason = RightsAllowed, "annual_revenue_condition_satisfied"
+			} else {
+				d.Status, d.Reason = RightsDenied, "revenue_condition_not_satisfied"
+				return bindDecision(d)
+			}
+			continue
 		}
 		switch context.RevenueStatus {
 		case "pre_revenue", "below_threshold":
@@ -199,25 +283,204 @@ func EvaluateRights(artifact *ArtifactRights, use RightsUse, context RightsConte
 	return bindDecision(d)
 }
 
+func evaluateConditions(conditions []RightsCondition, context RightsContext) (RightsStatus, string) {
+	if len(conditions) == 0 {
+		return RightsUnknown, "conditional_grant_has_no_conditions"
+	}
+	for _, condition := range conditions {
+		if strings.TrimSpace(condition.ID) == "" || strings.TrimSpace(condition.Interpretation) == "" ||
+			condition.Threshold <= 0 || strings.TrimSpace(condition.EntityScope) == "" || condition.EntityScope != context.EntityScope {
+			return RightsUnknown, "conditional_grant_condition_unknown"
+		}
+		switch condition.Kind {
+		case "annual_revenue":
+			if condition.Comparator != "lt" || condition.Unit != "USD" || condition.Period != "" {
+				return RightsUnknown, "conditional_grant_condition_unknown"
+			}
+			if context.AnnualRevenueUSD != nil {
+				if *context.AnnualRevenueUSD < condition.Threshold {
+					continue
+				}
+				return RightsDenied, "revenue_condition_not_satisfied"
+			}
+			switch context.RevenueStatus {
+			case "pre_revenue", "below_threshold":
+			case "at_or_above_threshold":
+				return RightsDenied, "revenue_condition_not_satisfied"
+			default:
+				return RightsUnknown, "conditional_grant_condition_unknown"
+			}
+		case "monthly_active_users":
+			if condition.Comparator != "lte" || condition.Unit != "users" || !validYearMonth(condition.Period) {
+				return RightsUnknown, "conditional_grant_condition_unknown"
+			}
+			fact := context.MonthlyActiveUsers[condition.Period]
+			switch fact {
+			case "at_or_below_threshold", "below_threshold":
+			case "above_threshold":
+				return RightsDenied, "monthly_active_users_condition_not_satisfied"
+			default:
+				users, err := strconv.ParseUint(fact, 10, 64)
+				if err != nil {
+					return RightsUnknown, "conditional_grant_condition_unknown"
+				}
+				if float64(users) > condition.Threshold {
+					return RightsDenied, "monthly_active_users_condition_not_satisfied"
+				}
+			}
+		default:
+			return RightsUnknown, "conditional_grant_condition_unknown"
+		}
+	}
+	return RightsAllowed, "condition_satisfied_by_current_stated_context"
+}
+
+func validYearMonth(value string) bool {
+	_, err := time.Parse("2006-01", strings.TrimSpace(value))
+	return err == nil
+}
+
+func containsRightsUse(uses []RightsUse, target RightsUse) bool {
+	for _, use := range uses {
+		if use == target {
+			return true
+		}
+	}
+	return false
+}
+
+func appendUniqueStrings(target []string, values ...string) []string {
+	seen := make(map[string]struct{}, len(target)+len(values))
+	for _, value := range target {
+		seen[value] = struct{}{}
+	}
+	for _, value := range values {
+		if _, ok := seen[value]; !ok {
+			target = append(target, value)
+			seen[value] = struct{}{}
+		}
+	}
+	return target
+}
+
+func cloneConditionalGrants(grants []ConditionalGrant) []ConditionalGrant {
+	if len(grants) == 0 {
+		return nil
+	}
+	cloned := make([]ConditionalGrant, len(grants))
+	for i, grant := range grants {
+		cloned[i] = grant
+		cloned[i].Uses = append([]RightsUse(nil), grant.Uses...)
+		cloned[i].Conditions = append([]RightsCondition(nil), grant.Conditions...)
+		cloned[i].Obligations = append([]string(nil), grant.Obligations...)
+	}
+	return cloned
+}
+
 func validRightsArtifact(a *ArtifactRights) bool {
+	if a.Classification == RightsUnverified && strings.TrimSpace(a.UnverifiedReason) != "" {
+		// Preserve a sourced unknown without inventing an artifact digest or
+		// license revision. This shape can only return RightsUnknown below.
+		if strings.TrimSpace(a.ArtifactID) == "" || len(a.Conditions) != 0 || len(a.ConditionalGrants) != 0 {
+			return false
+		}
+		for _, trigger := range a.ReviewTriggers {
+			if strings.TrimSpace(trigger) == "" {
+				return false
+			}
+		}
+		return true
+	}
+	if a.Classification == RightsBehavioralRestrictions && len(a.Obligations) == 0 {
+		return false
+	}
 	if strings.TrimSpace(a.ArtifactID) == "" || strings.TrimSpace(a.Revision) == "" || strings.TrimSpace(a.LicenseID) == "" || !isSHA256(a.SHA256) {
 		return false
 	}
-	if strings.TrimSpace(a.Evidence.URL) == "" || strings.TrimSpace(a.Evidence.Revision) == "" || !isSHA256(a.Evidence.SHA256) {
+	if strings.TrimSpace(a.Evidence.URL) == "" || strings.TrimSpace(a.Evidence.Revision) == "" ||
+		(!isSHA256(a.Evidence.SHA256) && !isImmutableRevision(a.Evidence.Revision)) {
 		return false
 	}
 	if _, err := time.Parse("2006-01-02", a.Evidence.ObservedAt); err != nil {
 		return false
 	}
+	for _, trigger := range a.ReviewTriggers {
+		if strings.TrimSpace(trigger) == "" {
+			return false
+		}
+	}
+	for _, grant := range a.ConditionalGrants {
+		if strings.TrimSpace(grant.ID) == "" || len(grant.Uses) == 0 || len(grant.Conditions) == 0 {
+			return false
+		}
+		for _, use := range grant.Uses {
+			if !validRightsUse(use) {
+				return false
+			}
+		}
+		for _, condition := range grant.Conditions {
+			if !validRightsCondition(condition) {
+				return false
+			}
+		}
+	}
 	return true
 }
 
+func validRightsCondition(condition RightsCondition) bool {
+	if strings.TrimSpace(condition.ID) == "" || strings.TrimSpace(condition.Interpretation) == "" || condition.Threshold <= 0 || strings.TrimSpace(condition.EntityScope) == "" {
+		return false
+	}
+	switch condition.Kind {
+	case "annual_revenue":
+		return condition.Comparator == "lt" && condition.Unit == "USD" && condition.Period == ""
+	case "monthly_active_users":
+		return condition.Comparator == "lte" && condition.Unit == "users" && validYearMonth(condition.Period)
+	default:
+		return false
+	}
+}
+
+// isImmutableRevision accepts full Git object revisions and explicit SHA-256
+// revision identifiers. A revision-pinned source URL remains exact evidence
+// even when a separate content digest has not been captured.
+func isImmutableRevision(value string) bool {
+	value = strings.TrimSpace(value)
+	value = strings.TrimPrefix(value, "sha256:")
+	if len(value) != 40 && len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
 func validRightsContext(c RightsContext) bool {
-	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.Version) == "" || strings.TrimSpace(c.EntityScope) == "" || strings.TrimSpace(c.RevenueStatus) == "" || strings.TrimSpace(c.Source) == "" {
+	if strings.TrimSpace(c.ID) == "" || strings.TrimSpace(c.Version) == "" || strings.TrimSpace(c.RevenueStatus) == "" || strings.TrimSpace(c.Source) == "" {
+		return false
+	}
+	if (c.RevenueStatus == "exact_value") != (c.AnnualRevenueUSD != nil) {
+		return false
+	}
+	if c.AnnualRevenueUSD != nil && (*c.AnnualRevenueUSD < 0 || math.IsNaN(*c.AnnualRevenueUSD) || math.IsInf(*c.AnnualRevenueUSD, 0)) {
 		return false
 	}
 	_, err := time.Parse("2006-01-02", c.AsOf)
-	return err == nil
+	if err != nil {
+		return false
+	}
+	for period, status := range c.MonthlyActiveUsers {
+		if !validYearMonth(period) {
+			return false
+		}
+		switch status {
+		case "below_threshold", "at_or_below_threshold", "above_threshold":
+		default:
+			if _, err := strconv.ParseUint(status, 10, 64); err != nil || strings.TrimSpace(c.MonthlyActiveUsersEvidence[period]) == "" {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func validRightsUse(use RightsUse) bool {

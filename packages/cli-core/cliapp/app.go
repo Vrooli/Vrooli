@@ -308,7 +308,7 @@ func (a *App) run(args []string) error {
 		return nil
 	}
 
-	remaining, err := ParseGlobalFlags(args, &a.global, a.opts.APIOverride)
+	remaining, err := ParseGlobalFlags(hoistTrailingAPIBase(args), &a.global, a.opts.APIOverride)
 	if err != nil {
 		return err
 	}
@@ -687,6 +687,22 @@ func isGlobalFlagName(name string) bool {
 	default:
 		return false
 	}
+}
+
+// hoistTrailingAPIBase moves an `--api-base <url>` written after the command
+// to the front, where global flags belong; no command declares its own
+// --api-base, so the meaning is never ambiguous. Arguments after `--` stay.
+func hoistTrailingAPIBase(args []string) []string {
+	for i := 1; i < len(args)-1; i++ {
+		if args[i] == "--" {
+			break
+		}
+		if args[i] == "--api-base" && !strings.HasPrefix(args[i-1], "-") {
+			out := append([]string{"--api-base", args[i+1]}, args[:i]...)
+			return append(out, args[i+2:]...)
+		}
+	}
+	return args
 }
 
 // ParseGlobalFlags extracts shared flags from args, updating global options and an optional API override target.

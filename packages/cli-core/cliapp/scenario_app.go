@@ -642,10 +642,10 @@ func (a *ScenarioApp) ensureAPIReachable(cmd Command, autoStart bool) error {
 	}
 
 	probeErr := a.probeAPIHealth()
-	var refused *cliutil.AgentAuthorizationError
-	if errors.As(probeErr, &refused) {
-		// The API may be healthy; this session's own authority was refused.
-		return refused
+	if cliutil.CredentialNotResolved(probeErr) {
+		// The API may be healthy; this session's own credential was refused or
+		// could not be resolved. Say so instead of reporting an outage.
+		return probeErr
 	}
 	if probeErr == nil {
 		return nil

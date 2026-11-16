@@ -1078,3 +1078,17 @@ func TestAppRun_RunCtxHelpDoesNotShortCircuitBeforeParser(t *testing.T) {
 		t.Error("handler ran on --help; help should short-circuit before RunCtx")
 	}
 }
+
+func TestTrailingAPIBaseIsAGlobalFlag(t *testing.T) {
+	for _, tc := range []struct{ in, want []string }{
+		{[]string{"files", "feeds", "--api-base", "http://x"}, []string{"--api-base", "http://x", "files", "feeds"}},
+		{[]string{"files", "search", "q", "--api-base", "http://x", "--json"}, []string{"--api-base", "http://x", "files", "search", "q", "--json"}},
+		{[]string{"run", "--", "--api-base", "http://x"}, []string{"run", "--", "--api-base", "http://x"}},
+		{[]string{"--api-base", "http://x", "files"}, []string{"--api-base", "http://x", "files"}},
+		{[]string{"files", "--topic", "--api-base"}, []string{"files", "--topic", "--api-base"}},
+	} {
+		if got := hoistTrailingAPIBase(tc.in); strings.Join(got, " ") != strings.Join(tc.want, " ") {
+			t.Errorf("hoist(%v) = %v, want %v", tc.in, got, tc.want)
+		}
+	}
+}

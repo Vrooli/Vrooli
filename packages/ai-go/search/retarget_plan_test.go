@@ -39,6 +39,17 @@ func TestPlanEmbeddingRetargetClassifiesUnchangedMetadata(t *testing.T) {
 	}
 }
 
+func TestPlanEmbeddingRetargetTreatsCanonicalRecipeChangeAsReembed(t *testing.T) {
+	oldMeta := EmbeddingMetadata{Role: "embedding.default", Model: "same-model", Dimensions: fixtureEmbeddingDimensions, PolicySchemaVersion: "v1", RecipeID: "sha256:old", RecipeCanonical: `{"id":"old"}`}
+	newMeta := oldMeta
+	newMeta.RecipeID = "sha256:new"
+	newMeta.RecipeCanonical = `{"id":"new"}`
+	plan := PlanEmbeddingRetarget(oldMeta, newMeta, nil)
+	if plan.Compatibility != RetargetReembed {
+		t.Fatalf("changed immutable recipe must require re-embedding, got %+v", plan)
+	}
+}
+
 func TestPlanEmbeddingRetargetForStoresIncludesPgvectorDetails(t *testing.T) {
 	plan := PlanEmbeddingRetargetForStores(
 		EmbeddingMetadata{Role: "embedding.default", Model: "old-model", Dimensions: fixtureEmbeddingDimensions},

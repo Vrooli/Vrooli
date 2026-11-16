@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,24 @@ import (
 )
 
 const maintenanceServicePath = "/common.v1.LifecycleMaintenanceService/"
+
+const (
+	// DefaultDrainTimeout bounds a Drain request that carries no timeout of its
+	// own. A handler that never returns would otherwise hold the fence closed
+	// forever: every non-health request is refused while the replacement waits.
+	// The bound exceeds the longest request budget any scenario sets today, so
+	// a legitimate slow request still drains, and the control plane's
+	// force-lifecycle path applies a much shorter bound of its own.
+	DefaultDrainTimeout = 15 * time.Minute
+
+	// admittedRequestKind labels the standing's work items that describe an
+	// admitted HTTP request still running.
+	admittedRequestKind = "http_request"
+
+	// maxReportedRequests caps how many admitted requests one standing or
+	// timeout message names, longest-running first. The count stays exact.
+	maxReportedRequests = 16
+)
 
 // Hooks represent scenario-owned work that continues outside an HTTP request.
 // The shared provider tracks request admission itself. A scenario with
@@ -53,10 +72,14 @@ type Provider struct {
 	instance string
 	hooks    Hooks
 
-	mu          sync.Mutex
-	quiesceMu   sync.Mutex
-	changed     chan struct{}
-	active      int32
+	mu        sync.Mutex
+	quiesceMu sync.Mutex
+	changed   chan struct{}
+	// inflight holds every admitted request until its handler returns, so a
+	// hung handler can be named instead of only counted.
+	inflight    map[uint64]admittedRequest
+	nextRequest uint64
+	now         func() time.Time
 	closed      bool
 	quiesced    bool
 	operationID string
@@ -88,6 +111,8 @@ func NewProvider(scenario, instanceID string, hooks Hooks) (*Provider, error) {
 		instance: instanceID,
 		hooks:    hooks,
 		changed:  make(chan struct{}),
+		inflight: make(map[uint64]admittedRequest),
+		now:      time.Now,
 		quiesced: hooks.Quiesce == nil,
 		revision: 1,
 	}, nil
@@ -119,6 +144,17 @@ func (p *Provider) Mount(application http.Handler) http.Handler {
 	return p.Middleware(mux)
 }
 
+// admittedRequest identifies one request the provider let in.
+type admittedRequest struct {
+	method  string
+	path    string
+	started time.Time
+}
+
+func (r admittedRequest) describe(now time.Time) string {
+	return fmt.Sprintf("%s %s (running %s since %s)", r.method, r.path, now.Sub(r.started).Round(time.Second), r.started.UTC().Format(time.RFC3339))
+}
+
 // Middleware closes scenario application admission atomically with Prepare
 // and accounts for every admitted request until its handler returns. Health
 // probes remain readable while maintenance is closed and are not counted.
@@ -128,7 +164,7 @@ func (p *Provider) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		leave, err := p.admit()
+		leave, err := p.admit(r)
 		if err != nil {
 			http.Error(w, "service unavailable: lifecycle admission closed", http.StatusServiceUnavailable)
 			return
@@ -142,22 +178,55 @@ func isHealthPath(path string) bool {
 	return path == "/health" || path == "/api/v1/health"
 }
 
-func (p *Provider) admit() (func(), error) {
+func (p *Provider) admit(r *http.Request) (func(), error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.closed {
 		return nil, errors.New("lifecycle admission closed")
 	}
-	p.active++
+	p.nextRequest++
+	id := p.nextRequest
+	p.inflight[id] = admittedRequest{method: r.Method, path: r.URL.Path, started: p.now()}
 	var once sync.Once
 	return func() {
 		once.Do(func() {
 			p.mu.Lock()
-			p.active--
+			delete(p.inflight, id)
 			p.signalLocked()
 			p.mu.Unlock()
 		})
 	}, nil
+}
+
+// runningRequestsLocked returns the admitted requests, longest-running first.
+func (p *Provider) runningRequestsLocked() []admittedRequest {
+	running := make([]admittedRequest, 0, len(p.inflight))
+	for _, request := range p.inflight {
+		running = append(running, request)
+	}
+	sort.Slice(running, func(i, j int) bool { return running[i].started.Before(running[j].started) })
+	return running
+}
+
+// describeRunning names the longest-running admitted requests for an error
+// message, so a drain that cannot finish says which handlers are holding it.
+func (p *Provider) describeRunning() string {
+	p.mu.Lock()
+	running := p.runningRequestsLocked()
+	now := p.now()
+	p.mu.Unlock()
+	if len(running) == 0 {
+		return "no admitted requests"
+	}
+	parts := make([]string, 0, maxReportedRequests)
+	for i, request := range running {
+		if i == maxReportedRequests {
+			parts = append(parts, fmt.Sprintf("and %d more", len(running)-maxReportedRequests))
+			break
+		}
+		parts = append(parts, request.describe(now))
+	}
+	return fmt.Sprintf("%d admitted request(s) still running: %s", len(running), strings.Join(parts, "; "))
 }
 
 func (p *Provider) Prepare(ctx context.Context, req *connect.Request[commonv1.LifecyclePrepareRequest]) (*connect.Response[commonv1.LifecyclePrepareResponse], error) {
@@ -218,11 +287,12 @@ func (p *Provider) Drain(ctx context.Context, req *connect.Request[commonv1.Life
 	if len(req.Msg.GetComponentExits()) != 0 {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("shared ingress provider has no external managed components"))
 	}
-	if timeout := req.Msg.GetTimeout(); timeout != nil && timeout.AsDuration() > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout.AsDuration())
-		defer cancel()
+	timeout := DefaultDrainTimeout
+	if requested := req.Msg.GetTimeout(); requested != nil && requested.AsDuration() > 0 {
+		timeout = requested.AsDuration()
 	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	if req.Msg.GetQuiesceComponents() {
 		if err := p.quiesce(ctx); err != nil {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("quiesce owner work: %w", err))
@@ -241,7 +311,7 @@ func (p *Provider) Drain(ctx context.Context, req *connect.Request[commonv1.Life
 		p.mu.Unlock()
 		select {
 		case <-ctx.Done():
-			return nil, connect.NewError(connect.CodeDeadlineExceeded, fmt.Errorf("lifecycle drain timed out: %w", ctx.Err()))
+			return nil, connect.NewError(connect.CodeDeadlineExceeded, fmt.Errorf("lifecycle drain timed out after %s: %s: %w", timeout, p.describeRunning(), ctx.Err()))
 		case <-changed:
 		case <-time.After(100 * time.Millisecond):
 		}
@@ -319,7 +389,10 @@ func (p *Provider) validateFence(operation, token string, revision int64) error 
 
 func (p *Provider) standing(ctx context.Context) (*commonv1.LifecycleStanding, error) {
 	p.mu.Lock()
-	closed, operation, token, revision, active, quiesced := p.closed, p.operationID, p.token, p.revision, p.active, p.quiesced
+	closed, operation, token, revision, quiesced := p.closed, p.operationID, p.token, p.revision, p.quiesced
+	active := int32(len(p.inflight))
+	running := p.runningRequestsLocked()
+	now := p.now()
 	p.mu.Unlock()
 	if ctx == nil {
 		ctx = context.Background()
@@ -340,9 +413,23 @@ func (p *Provider) standing(ctx context.Context) (*commonv1.LifecycleStanding, e
 	if owner.Remaining < 0 {
 		owner.Complete = false
 	}
-	remaining := active + owner.Remaining
+	// Remaining counts detached owner work only. Admitted requests are
+	// reported separately in Admitting; every provider reports the two counters
+	// apart so a control plane never has to guess which kind of work is left.
+	remaining := owner.Remaining
 	if !owner.Complete {
 		remaining = -1
+	}
+	work := append([]*commonv1.LifecycleWorkItem(nil), owner.Work...)
+	for i, request := range running {
+		if i == maxReportedRequests {
+			break
+		}
+		work = append(work, &commonv1.LifecycleWorkItem{
+			Id:     request.method + " " + request.path,
+			Kind:   admittedRequestKind,
+			Status: fmt.Sprintf("running %s since %s", now.Sub(request.started).Round(time.Second), request.started.UTC().Format(time.RFC3339)),
+		})
 	}
 	drained := closed && active == 0 && owner.Complete && owner.Remaining == 0 && len(owner.Blockers) == 0 && quiesced
 	phase := commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_OPEN
@@ -371,7 +458,7 @@ func (p *Provider) standing(ctx context.Context) (*commonv1.LifecycleStanding, e
 		FencePersistence:   commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL,
 		ComponentStopReady: closed && quiesced && active == 0 && owner.Complete && owner.Remaining == 0 && len(owner.Blockers) == 0,
 		QuiescencePending:  closed && p.hooks.Quiesce != nil && !quiesced,
-		Work:               append([]*commonv1.LifecycleWorkItem(nil), owner.Work...),
+		Work:               work,
 		Blockers:           append([]*commonv1.LifecycleBlocker(nil), owner.Blockers...),
 	}
 	return standing, nil

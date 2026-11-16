@@ -543,6 +543,28 @@ func TestParseCSVAndMergeArgs(t *testing.T) {
 	}
 }
 
+func TestParseCSVValuesPreservesOrderAndDuplicates(t *testing.T) {
+	got := ParseCSVValues([]string{"a, b,,", "b, c"})
+	want := []string{"a", "b", "b", "c"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("ParseCSVValues = %v, want %v", got, want)
+	}
+	if got := ParseCSVValues(nil); got != nil {
+		t.Fatalf("ParseCSVValues(nil) = %v, want nil", got)
+	}
+}
+
+func TestParseUniqueCSVValuesKeepsFirstTrimmedOccurrence(t *testing.T) {
+	got := ParseUniqueCSVValues([]string{"a, b,,", "b, c", " a "})
+	want := []string{"a", "b", "c"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("ParseUniqueCSVValues = %v, want %v", got, want)
+	}
+	if got := ParseUniqueCSVValues(nil); got != nil {
+		t.Fatalf("ParseUniqueCSVValues(nil) = %v, want nil", got)
+	}
+}
+
 func TestReadFileString(t *testing.T) {
 	temp := t.TempDir()
 	path := filepath.Join(temp, "file.txt")

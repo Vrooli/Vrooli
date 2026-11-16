@@ -92,6 +92,7 @@ Each context requires different API URL resolution strategies. Writing this logi
 - **Zero configuration** for standard cases
 - **Full customization** when needed
 - **Server utilities** for hosting and proxying
+- **Same-origin browser policy** so a page the operator visits cannot read or change scenario data ([SECURITY.md](../SECURITY.md))
 
 ## 📦 Package Structure
 
@@ -145,6 +146,7 @@ app.listen(process.env.UI_PORT)
 - **Migrating existing code?** → Read the [Migration Guide](./guides/migration.md)
 - **Need complete reference?** → Check the [API Documentation](./api/)
 - **Want to understand deeply?** → Explore the [Concepts](./concepts/)
+- **Exposing a scenario to another origin?** → Read [SECURITY.md](../SECURITY.md) first
 
 ## 🤝 Contributing
 

@@ -1,6 +1,7 @@
 package operatordecision
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -26,8 +27,9 @@ type Facts struct {
 	// Options is the answer menu; >=2 required. Key is what the handler receives,
 	// Label what the operator sees.
 	Options []Option
-	// Recommended is the option key the producer suggests; required and must be one
-	// of Options.
+	// Recommended is the option key the producer suggests; optional, and when set
+	// it must be one of Options. Leave it empty when there is no honest
+	// preference: the operator then sees the options unranked.
 	Recommended string
 	// RecommendationReason optionally explains the recommendation.
 	RecommendationReason string
@@ -37,7 +39,10 @@ type Facts struct {
 	// Reversible declares that acting on the decision can be undone; it is the gate
 	// for allowing a silent DefaultAnswer.
 	Reversible bool
-	// Urgency is "", "low", "normal", "high" or "critical".
+	// Urgency is "", "low", "normal", "high" or "critical". Empty takes the Hub's
+	// default for a decision request, which is normal, the same as the CLI's.
+	// Set "high" when work is blocked on the answer right now, and "low" when
+	// it is not blocking anything.
 	Urgency string
 	// Note is optional free text carried to the operator.
 	Note string
@@ -53,7 +58,69 @@ type Facts struct {
 	// Correlation is returned verbatim on notification_hub.ask.resolved.v1, so the
 	// resolver can find the durable record the ask belongs to.
 	Correlation map[string]string
+	// SubjectKey names the situation this decision is about, for example
+	// "backup-failure:<destination-id>". With a key, the hub keeps at most ONE
+	// open decision per (source, event type, subject key):
+	//   - a re-send whose answer menu is unchanged (options, recommended, default,
+	//     reversible, urgency) updates the open decision in place, without a new
+	//     push; its text and Correlation become the new revision's;
+	//   - a re-send with a different answer menu replaces the open decision: the
+	//     old one closes as superseded and the new one is delivered;
+	//   - the producer closes it with a withdrawal (see Withdrawal) when the
+	//     situation clears.
+	// A decision the operator dismissed is not re-opened by a re-send with the
+	// same terms. Leave it empty for a one-off decision that never changes.
+	SubjectKey string
+	// ReassertWithin, when positive, tells the hub to close the open decision if
+	// the producer has not re-sent it for this long: each re-send is the "still
+	// needed" signal. Set it only when the producer re-sends on a cadence (and
+	// then set AssertedAt on each re-send). Requires SubjectKey.
+	ReassertWithin time.Duration
+	// AcceptsContextRequests declares that the producer will answer the operator's
+	// "I need more context" question: it receives
+	// notification_hub.ask.context_requested.v1 (see ContextResponder) and re-sends
+	// the decision under the same SubjectKey with the answer in its text. The hub
+	// offers the button only when this is set, so the operator is never left
+	// waiting on a sender that cannot reply. Requires SubjectKey.
+	AcceptsContextRequests bool
+	// Explainer is the decision's page: one self-contained HTML document the Hub
+	// shows above the answer buttons, the way an agent's `ask --explainer` page
+	// is shown. Build it with Page (page.go) or write your own; it must load
+	// nothing from the network (embed images as data: URIs). The question, big
+	// picture and options still carry the whole decision, because the push and
+	// the decision list never show the page. At most MaxExplainerBytes.
+	Explainer string
+	// TemplateName and TemplateData identify a Hub-owned page template and its
+	// producer supplied JSON data. They are the data driven page contract: the
+	// producer does not send markup. Set both fields together.
+	TemplateName string
+	TemplateData map[string]any
+	// Packet is the absolute path of the decision's ready-to-run packet: the
+	// brief (work/<ID>/BRIEF.md, see docs/agent-system/LEVELS.md) that says what
+	// executes on each answer, so the agent that receives the answer starts a
+	// worker from it and re-derives nothing. The Hub shows it to that agent on
+	// the ask and in the resolution; the operator never needs it.
+	Packet string
+	// Questions is the decision's answer form, shown under the options (see
+	// Question). A page's Groups block fills the multi_choice question it names;
+	// the answers come back on DecisionResolution.Responses.
+	Questions []Question
+	// AssertedAt is when the producer last observed that the decision is still
+	// needed. The hub uses it only to order events for one subject: a request
+	// asserted before the subject's last withdrawal is stale and is ignored. A
+	// Raiser fills it with the generation's RaisedAt when it is zero.
+	AssertedAt time.Time
 }
+
+// SubjectKeyRule is the hub's subject-key rule: 1-128 letters, digits, '.', '_',
+// ':', '/', '@' or '-', starting with a letter or digit.
+var SubjectKeyRule = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/@-]{0,127}$`)
+
+// Reassert window bounds the hub accepts.
+const (
+	MinReassertWithin = time.Minute
+	MaxReassertWithin = 30 * 24 * time.Hour
+)
 
 // Option is one answer in a decision's menu. Key is the stable machine key the
 // resolution carries; Label is the human-facing text.
@@ -104,6 +171,15 @@ const (
 	MaxOptionLabel                = 200
 	MaxBigPictureCodePoints       = 4_000
 	MaxTechnicalDetailsCodePoints = 12_000
+	// MaxExplainerBytes keeps a decision event, page included, under the 1 MiB
+	// request limit of vrooli-events and of the Hub's event intake. It bounds the
+	// page as JSON encodes it (each '<', '>' and '&' becomes six bytes).
+	MaxExplainerBytes = 720 << 10
+	// MaxTemplateDataBytes bounds producer supplied JSON while leaving room for
+	// the Hub's decision envelope and event metadata in its 1 MiB intake limit.
+	MaxTemplateDataBytes = 256 << 10
+	// MaxPacketPath bounds Facts.Packet, as the Hub does.
+	MaxPacketPath = 1024
 )
 
 var (
@@ -112,8 +188,8 @@ var (
 )
 
 // Validate checks Facts against the notification-hub ask contract: a non-empty
-// bounded question, 2-8 options with unique valid keys, a recommended option that
-// exists, and a default that is allowed only for a reversible decision and is one
+// bounded question, 2-8 options with unique valid keys, a recommended option (if
+// any) that exists, and a default that is allowed only for a reversible decision and is one
 // of the options. It ports goalhome.Decision.Validate, minus the decision-id rule
 // (correlation here is generic, not a goal-home-scoped id).
 func (f Facts) Validate() error {
@@ -128,8 +204,25 @@ func (f Facts) Validate() error {
 		return fmt.Errorf("big_picture must be valid UTF-8 and at most %d Unicode code points", MaxBigPictureCodePoints)
 	case !utf8.ValidString(f.TechnicalDetails) || utf8.RuneCountInString(f.TechnicalDetails) > MaxTechnicalDetailsCodePoints:
 		return fmt.Errorf("technical_details must be valid UTF-8 and at most %d Unicode code points", MaxTechnicalDetailsCodePoints)
+	case !utf8.ValidString(f.Explainer) || EncodedLen(f.Explainer) > MaxExplainerBytes:
+		return fmt.Errorf("the explainer page must be valid UTF-8 and at most %d bytes; put large images in fewer, smaller files", MaxExplainerBytes)
+	case (f.TemplateName == "") != (f.TemplateData == nil):
+		return fmt.Errorf("template_name and template_data must be set together")
+	case len(f.TemplateName) > 80:
+		return fmt.Errorf("template_name exceeds 80 bytes")
+	case f.Packet != "" && PacketPathProblem(f.Packet) != "":
+		return fmt.Errorf("packet %s", PacketPathProblem(f.Packet))
 	case !factsUrgency[f.Urgency]:
 		return fmt.Errorf("urgency must be low, normal, high or critical")
+	}
+	if f.TemplateData != nil {
+		encoded, err := json.Marshal(f.TemplateData)
+		if err != nil {
+			return fmt.Errorf("template_data must be JSON encodable: %w", err)
+		}
+		if len(encoded) > MaxTemplateDataBytes {
+			return fmt.Errorf("template_data exceeds %d bytes", MaxTemplateDataBytes)
+		}
 	}
 	seen := map[string]bool{}
 	for _, option := range f.Options {
@@ -147,7 +240,7 @@ func (f Facts) Validate() error {
 		}
 		seen[option.Key] = true
 	}
-	if !seen[f.Recommended] {
+	if f.Recommended != "" && !seen[f.Recommended] {
 		return fmt.Errorf("the recommended option %q is not one of the options", f.Recommended)
 	}
 	if f.DefaultAnswer != "" {
@@ -161,7 +254,39 @@ func (f Facts) Validate() error {
 	if err := validateContextURL(f.ContextURL); err != nil {
 		return err
 	}
+	if f.SubjectKey != "" && !SubjectKeyRule.MatchString(f.SubjectKey) {
+		return fmt.Errorf("subject_key %q must be 1-128 letters, digits, '.', '_', ':', '/', '@' or '-'", f.SubjectKey)
+	}
+	if err := validateQuestions(f.Questions); err != nil {
+		return err
+	}
+	if f.AcceptsContextRequests && f.SubjectKey == "" {
+		return fmt.Errorf("accepts_context_requests needs a subject_key: the answer is a re-send under the same key")
+	}
+	if f.ReassertWithin != 0 {
+		if f.SubjectKey == "" {
+			return fmt.Errorf("reassert_within needs a subject_key")
+		}
+		if f.ReassertWithin < MinReassertWithin || f.ReassertWithin > MaxReassertWithin {
+			return fmt.Errorf("reassert_within must be between %s and %s", MinReassertWithin, MaxReassertWithin)
+		}
+	}
 	return nil
+}
+
+// PacketPathProblem says what is wrong with a packet path, or "" when it is a
+// usable one: absolute, one line, valid UTF-8, at most MaxPacketPath bytes. The
+// Hub applies the same rule to every ask.
+func PacketPathProblem(path string) string {
+	switch {
+	case !utf8.ValidString(path) || len(path) > MaxPacketPath:
+		return fmt.Sprintf("must be valid UTF-8 and at most %d bytes", MaxPacketPath)
+	case !strings.HasPrefix(path, "/"):
+		return "must be an absolute path (the brief the executing agent reads, for example /home/me/.vrooli/research/topics/t/work/ID/BRIEF.md)"
+	case strings.ContainsAny(path, "\x00\n\r"):
+		return "must be one line"
+	}
+	return ""
 }
 
 // validateContextURL refuses a context_url whose scheme could execute or embed
@@ -251,6 +376,33 @@ func (f Facts) Payload() map[string]any {
 	}
 	if !f.Deadline.IsZero() {
 		payload["deadline"] = f.Deadline.UTC().Format(time.RFC3339)
+	}
+	// subject_key, reassert_within_seconds and asserted_at are omitted when unset
+	// so a producer without a subject emits the bytes it always did.
+	if f.SubjectKey != "" {
+		payload["subject_key"] = f.SubjectKey
+	}
+	if f.ReassertWithin > 0 {
+		payload["reassert_within_seconds"] = int64(f.ReassertWithin / time.Second)
+	}
+	if f.AcceptsContextRequests {
+		payload["accepts_context_requests"] = true
+	}
+	if f.Explainer != "" {
+		payload["explainer_html"] = f.Explainer
+	}
+	if f.TemplateName != "" {
+		payload["template_name"] = f.TemplateName
+		payload["template_data"] = f.TemplateData
+	}
+	if f.Packet != "" {
+		payload["packet"] = f.Packet
+	}
+	if len(f.Questions) > 0 {
+		payload["questions"] = questionsPayload(f.Questions)
+	}
+	if !f.AssertedAt.IsZero() {
+		payload["asserted_at"] = f.AssertedAt.UTC().Format(time.RFC3339Nano)
 	}
 	if len(f.Correlation) > 0 {
 		values := make(map[string]any, len(f.Correlation))

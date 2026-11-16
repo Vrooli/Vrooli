@@ -72,8 +72,12 @@ type StorageEntry struct {
 	Sensitive   bool                   `json:"sensitive,omitempty"`
 	Relocation  *RelocationDeclaration `json:"relocation,omitempty"`
 	Reclaim     *ReclaimDeclaration    `json:"reclaim,omitempty"`
-	Budget      *BudgetDeclaration     `json:"budget,omitempty"`
-	Rationale   string                 `json:"rationale,omitempty"`
+	// Reacquisition records a distinct recovery route for data that remains
+	// non-regenerable for cleanup policy. It does not authorize deletion or
+	// imply that the route is currently available without operator credentials.
+	Reacquisition *ReacquisitionDeclaration `json:"reacquisition,omitempty"`
+	Budget        *BudgetDeclaration        `json:"budget,omitempty"`
+	Rationale     string                    `json:"rationale,omitempty"`
 	// AgentRemoval is the owner's explicit answer to whether a coding agent
 	// may delete here: allow, ask, or deny. Empty leaves the agent-policy
 	// bridge to infer it from Regenerable and Sensitive, which answer a
@@ -112,6 +116,16 @@ type ReclaimDeclaration struct {
 	// entry stays over budget. Storage-manager never deletes such data itself;
 	// this is how its backstop asks the owner to reclaim instead.
 	Operation string `json:"operation,omitempty"`
+}
+
+// ReacquisitionDeclaration is owner evidence that a durable artifact can be
+// reacquired after loss. It is a coverage decision only; cleanup still uses
+// the separate reclaim policy and its owner-fenced safeguards.
+type ReacquisitionDeclaration struct {
+	Command                string `json:"command"`
+	Evidence               string `json:"evidence"`
+	RequiresAuthorization  bool   `json:"requires_authorization,omitempty"`
+	AuthorizationRationale string `json:"authorization_rationale,omitempty"`
 }
 
 // BudgetDeclaration is the legacy/storage-surface budget shape. Retention's
@@ -398,20 +412,21 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 		names := sortedRawKeys(raw.Storage.Entries)
 		for _, name := range names {
 			var entry struct {
-				Platforms    []string               `json:"platforms"`
-				Rung         Rung                   `json:"rung"`
-				Path         json.RawMessage        `json:"path"`
-				Subpath      string                 `json:"subpath"`
-				Kind         string                 `json:"kind"`
-				Class        Class                  `json:"class"`
-				Format       string                 `json:"format"`
-				Regenerable  bool                   `json:"regenerable"`
-				Sensitive    bool                   `json:"sensitive"`
-				Relocation   *RelocationDeclaration `json:"relocation"`
-				Reclaim      *ReclaimDeclaration    `json:"reclaim"`
-				Budget       *BudgetDeclaration     `json:"budget"`
-				Rationale    string                 `json:"rationale"`
-				AgentRemoval string                 `json:"agent_removal"`
+				Platforms     []string                  `json:"platforms"`
+				Rung          Rung                      `json:"rung"`
+				Path          json.RawMessage           `json:"path"`
+				Subpath       string                    `json:"subpath"`
+				Kind          string                    `json:"kind"`
+				Class         Class                     `json:"class"`
+				Format        string                    `json:"format"`
+				Regenerable   bool                      `json:"regenerable"`
+				Sensitive     bool                      `json:"sensitive"`
+				Relocation    *RelocationDeclaration    `json:"relocation"`
+				Reclaim       *ReclaimDeclaration       `json:"reclaim"`
+				Reacquisition *ReacquisitionDeclaration `json:"reacquisition"`
+				Budget        *BudgetDeclaration        `json:"budget"`
+				Rationale     string                    `json:"rationale"`
+				AgentRemoval  string                    `json:"agent_removal"`
 			}
 			if err := json.Unmarshal(raw.Storage.Entries[name], &entry); err != nil {
 				findings = append(findings, ownerFinding(owner, "malformed_storage_entry", "storage entry "+name+": "+err.Error()))
@@ -450,6 +465,15 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 			if entry.Rung == RungRelocatable && entry.Relocation == nil {
 				findings = append(findings, ownerFinding(owner, "missing_relocation", "relocatable storage entry "+name+" has no relocation lever"))
 			}
+			if entry.Reacquisition != nil {
+				entry.Reacquisition.Command = strings.TrimSpace(entry.Reacquisition.Command)
+				entry.Reacquisition.Evidence = strings.TrimSpace(entry.Reacquisition.Evidence)
+				entry.Reacquisition.AuthorizationRationale = strings.TrimSpace(entry.Reacquisition.AuthorizationRationale)
+				if entry.Reacquisition.Command == "" || entry.Reacquisition.Evidence == "" || (entry.Reacquisition.RequiresAuthorization && entry.Reacquisition.AuthorizationRationale == "") {
+					findings = append(findings, ownerFinding(owner, "invalid_reacquisition", "storage entry "+name+" must declare an owner command, pin evidence, and an authorization rationale when authorization is required"))
+					entry.Reacquisition = nil
+				}
+			}
 			switch entry.AgentRemoval {
 			case "", "allow", "ask", "deny":
 			default:
@@ -457,7 +481,7 @@ func parseOwnerManifest(kind OwnerKind, path string, platform Platform, seams Pl
 				// An unreadable answer must not open the location.
 				entry.AgentRemoval = "deny"
 			}
-			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Subpath: entry.Subpath, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Budget: entry.Budget, Rationale: entry.Rationale, AgentRemoval: entry.AgentRemoval}
+			storageEntry := StorageEntry{Name: name, Platforms: entryPlatforms, Rung: entry.Rung, Path: portable, Kind: entry.Kind, Class: entry.Class, Subpath: entry.Subpath, Format: entry.Format, Regenerable: entry.Regenerable, Sensitive: entry.Sensitive, Relocation: entry.Relocation, Reclaim: entry.Reclaim, Reacquisition: entry.Reacquisition, Budget: entry.Budget, Rationale: entry.Rationale, AgentRemoval: entry.AgentRemoval}
 			if platform != "" && platformIncluded(EffectivePlatforms(owner, storageEntry), platform) {
 				if _, resolveErr := ResolveOwnerStoragePath(filepath.Dir(filepath.Dir(path)), owner, storageEntry, platform, seams); resolveErr != nil {
 					if _, notApplicable := resolveErr.(*NotApplicable); !notApplicable {

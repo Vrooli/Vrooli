@@ -15,9 +15,70 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
+	apilifecycle "github.com/vrooli/api-core/lifecycle"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
+
+type durableLifecycleMountStub struct {
+	commonconnect.UnimplementedLifecycleMaintenanceServiceHandler
+}
+
+func (durableLifecycleMountStub) Status(context.Context, *connect.Request[commonv1.LifecycleStatusRequest]) (*connect.Response[commonv1.LifecycleStatusResponse], error) {
+	return connect.NewResponse(&commonv1.LifecycleStatusResponse{Standing: &commonv1.LifecycleStanding{
+		Provider: "workspace-sandbox", ProviderInstanceId: "durable-instance", Scenario: "workspace-sandbox",
+		Interlock: "scenario-lock-v1", InventoryComplete: true,
+		FencePersistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE,
+	}}), nil
+}
+
+func TestLifecycleConfiguredExternallyPreventsDefaultProviderShadow(t *testing.T) {
+	path, customHandler := commonconnect.NewLifecycleMaintenanceServiceHandler(durableLifecycleMountStub{})
+	application := http.NewServeMux()
+	application.Handle(path, customHandler)
+	values := map[string]string{
+		"VROOLI_SCENARIO":            "workspace-sandbox",
+		"VROOLI_RUNTIME_INSTANCE_ID": "default-instance",
+	}
+	for _, tc := range []struct {
+		name          string
+		external      bool
+		wantFence     commonv1.LifecycleFencePersistence
+		wantInterlock string
+	}{
+		{name: "external durable owner", external: true, wantFence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE, wantInterlock: "scenario-lock-v1"},
+		{name: "default process-local owner", external: false, wantFence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL, wantInterlock: apilifecycle.ProtocolVersion},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := withDefaults(Config{
+				Handler:                       application,
+				LifecycleConfiguredExternally: tc.external,
+				EnvGetter:                     func(key string) string { return values[key] },
+			})
+			mounted, err := mountLifecycleProvider(cfg)
+			if err != nil {
+				t.Fatalf("mountLifecycleProvider: %v", err)
+			}
+			server := httptest.NewServer(mounted.Handler)
+			defer server.Close()
+			client, err := apilifecycle.NewClient(server.Client(), server.URL)
+			if err != nil {
+				t.Fatal(err)
+			}
+			status, err := client.Status(t.Context(), &commonv1.LifecycleStatusRequest{})
+			if err != nil {
+				t.Fatalf("Status: %v", err)
+			}
+			standing := status.GetStanding()
+			if standing.GetFencePersistence() != tc.wantFence || standing.GetInterlock() != tc.wantInterlock {
+				t.Fatalf("mounted lifecycle handler = persistence %s interlock %q; want %s / %q", standing.GetFencePersistence(), standing.GetInterlock(), tc.wantFence, tc.wantInterlock)
+			}
+		})
+	}
+}
 
 type serverTestAuthProvider struct{}
 

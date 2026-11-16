@@ -63,6 +63,7 @@ func TestOrdinaryCommandsAreNotOperatorOnly(t *testing.T) {
 		`grep -n "make rebaseline" docs/resources/deployment-contract.md`,
 		"vrooli runtime update status --json",
 		"vrooli runtime update apply ./candidate",
+		"vrooli runtime update rebaseline ./candidate --hub",
 		"vrooli version --state-manifest",
 		"echo rebaseline",
 		"~/.vrooli/bin/vrooli runtime update status",

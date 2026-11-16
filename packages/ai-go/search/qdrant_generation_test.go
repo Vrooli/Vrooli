@@ -3,6 +3,7 @@ package aisearch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,6 +32,53 @@ type fakeQdrant struct {
 
 type fakeCollection struct {
 	points int
+}
+
+type generationCatalogFixture struct {
+	mu      sync.Mutex
+	records map[string]GenerationRecord
+	fail    func(GenerationRecord) error
+}
+
+func (c *generationCatalogFixture) ListGenerationRecords(_ context.Context, _, _ string) ([]GenerationRecord, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	out := make([]GenerationRecord, 0, len(c.records))
+	for _, record := range c.records {
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+func (c *generationCatalogFixture) SaveGenerationRecord(_ context.Context, record GenerationRecord) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.fail != nil {
+		if err := c.fail(record); err != nil {
+			return err
+		}
+	}
+	if c.records == nil {
+		c.records = map[string]GenerationRecord{}
+	}
+	c.records[record.Metadata.ID] = record
+	return nil
+}
+
+func (c *generationCatalogFixture) record(id string) GenerationRecord {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.records[id]
+}
+
+func makeCatalogGenerationStore(t *testing.T, serverURL, alias string, fake *fakeQdrant, catalog GenerationCatalog) *qdrantGenerationStore {
+	t.Helper()
+	owner := strings.SplitN(alias, "_", 2)[0] + ".test"
+	store, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: serverURL, Alias: alias, Owner: owner, Catalog: catalog, AliasBoundary: &fleetTestAliasBoundary{}, Spec: CollectionSpec{DenseSize: 4, DenseDistance: "Cosine"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store.(*qdrantGenerationStore)
 }
 
 func newFakeQdrant() *fakeQdrant {
@@ -230,6 +278,156 @@ func TestQdrantGenerationStoreCleanupRetiresBeyondKeep(t *testing.T) {
 	}
 	if fake.aliases[alias] != generationCollectionName(alias, "gen-9") {
 		t.Fatalf("alias must point at the promoted candidate, got %q", fake.aliases[alias])
+	}
+}
+
+func TestQdrantGenerationStoreRollbackRestoresPreviousAliasAfterReconstruction(t *testing.T) {
+	fake := newFakeQdrant()
+	const alias = "fixture_search"
+	previous := generationCollectionName(alias, "gen-1")
+	candidate := generationCollectionName(alias, "gen-2")
+	fake.collections[previous] = &fakeCollection{points: 1}
+	fake.collections[candidate] = &fakeCollection{points: 2}
+	fake.aliases[alias] = previous
+	catalog := &generationCatalogFixture{records: map[string]GenerationRecord{
+		"gen-1": {Metadata: GenerationMetadata{ID: "gen-1", Owner: "fixture.test", Namespace: alias, Alias: alias, Model: "nomic-embed-text:latest", EmbeddingRole: "embedding.default", EmbeddingDimensions: 768, PolicySchemaVersion: "policy/v4", MigrationPhase: "active"}, CollectionName: previous, State: GenerationStateActive},
+		"gen-2": {Metadata: GenerationMetadata{ID: "gen-2", Owner: "fixture.test", Namespace: alias, Alias: alias}, CollectionName: candidate, State: GenerationStateCandidate},
+	}}
+	server := httptest.NewServer(fake.handler())
+	defer server.Close()
+	store := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+
+	// Simulate process death after Qdrant switched aliases but before the
+	// catalog's active-state commit succeeded.
+	catalog.fail = func(record GenerationRecord) error {
+		if record.Metadata.ID == "gen-2" && record.State == GenerationStateActive {
+			return errors.New("injected post-switch catalog failure")
+		}
+		return nil
+	}
+	if err := store.PromoteGeneration(context.Background(), "gen-2"); err == nil {
+		t.Fatal("promotion should surface the interrupted catalog commit")
+	}
+	if got := catalog.record("gen-2").PreviousCollection; got != previous {
+		t.Fatalf("promotion intent stored previous target %q, want %q", got, previous)
+	}
+	retired := catalog.record("gen-1")
+	if retired.Metadata.Model != "nomic-embed-text:latest" || retired.Metadata.EmbeddingRole != "embedding.default" || retired.Metadata.EmbeddingDimensions != 768 || retired.Metadata.PolicySchemaVersion != "policy/v4" || retired.Metadata.MigrationPhase != "active" {
+		t.Fatalf("promotion discarded previous recipe identity: %+v", retired.Metadata)
+	}
+	catalog.fail = nil
+
+	// A newly constructed store has no in-memory promoted/candidate history.
+	restarted := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+	if err := restarted.RollbackGeneration(context.Background(), "gen-2"); err != nil {
+		t.Fatal(err)
+	}
+	if got := fake.aliases[alias]; got != previous {
+		t.Fatalf("rollback alias target = %q, want previous generation %q", got, previous)
+	}
+	if _, exists := fake.collections[candidate]; exists {
+		t.Fatal("rollback should delete the promoted candidate after restoring the old alias")
+	}
+	restored := catalog.record("gen-1")
+	if restored.State != GenerationStateActive || restored.Metadata.Model != "nomic-embed-text:latest" || restored.Metadata.EmbeddingDimensions != 768 || restored.Metadata.PolicySchemaVersion != "policy/v4" {
+		t.Fatalf("rollback did not restore the prior recipe record as active: %+v", restored)
+	}
+}
+
+func TestQdrantGenerationStorePromotionReplayRetiresDurablePriorRecord(t *testing.T) {
+	fake := newFakeQdrant()
+	const alias = "fixture_search"
+	previous := generationCollectionName(alias, "gen-1")
+	candidate := generationCollectionName(alias, "gen-2")
+	fake.collections[previous] = &fakeCollection{points: 1}
+	fake.collections[candidate] = &fakeCollection{points: 2}
+	fake.aliases[alias] = previous
+	catalog := &generationCatalogFixture{records: map[string]GenerationRecord{
+		"gen-1": {Metadata: GenerationMetadata{ID: "gen-1", Model: "nomic-embed-text:latest", EmbeddingRole: "embedding.default", EmbeddingDimensions: 768, PolicySchemaVersion: "policy/v4"}, CollectionName: previous, State: GenerationStateActive},
+		"gen-2": {Metadata: GenerationMetadata{ID: "gen-2"}, CollectionName: candidate, State: GenerationStateCandidate},
+	}}
+	server := httptest.NewServer(fake.handler())
+	defer server.Close()
+	catalog.fail = func(record GenerationRecord) error {
+		if record.Metadata.ID == "gen-1" && record.State == GenerationStateRetired {
+			return errors.New("injected prior-retirement failure")
+		}
+		return nil
+	}
+	store := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+	if err := store.PromoteGeneration(context.Background(), "gen-2"); err == nil {
+		t.Fatal("promotion should surface prior-record failure")
+	}
+	if fake.aliases[alias] != candidate {
+		t.Fatalf("alias = %q, want switched candidate %q", fake.aliases[alias], candidate)
+	}
+	catalog.fail = nil
+	restarted := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+	if err := restarted.PromoteGeneration(context.Background(), "gen-2"); err != nil {
+		t.Fatal(err)
+	}
+	prior := catalog.record("gen-1")
+	if prior.State != GenerationStateRetired || prior.Metadata.Model != "nomic-embed-text:latest" || prior.Metadata.EmbeddingRole != "embedding.default" || prior.Metadata.EmbeddingDimensions != 768 || prior.Metadata.PolicySchemaVersion != "policy/v4" {
+		t.Fatalf("replay lost prior record identity/state: %+v", prior)
+	}
+}
+
+func TestQdrantGenerationStoreRollbackReplayFinishesPriorCatalogRestore(t *testing.T) {
+	fake := newFakeQdrant()
+	const alias = "fixture_search"
+	previous := generationCollectionName(alias, "gen-1")
+	candidate := generationCollectionName(alias, "gen-2")
+	fake.collections[previous] = &fakeCollection{points: 1}
+	fake.collections[candidate] = &fakeCollection{points: 2}
+	fake.aliases[alias] = candidate
+	catalog := &generationCatalogFixture{records: map[string]GenerationRecord{
+		"gen-1": {Metadata: GenerationMetadata{ID: "gen-1"}, CollectionName: previous, State: GenerationStateRetired},
+		"gen-2": {Metadata: GenerationMetadata{ID: "gen-2"}, CollectionName: candidate, PreviousCollection: previous, State: GenerationStateActive},
+	}}
+	server := httptest.NewServer(fake.handler())
+	defer server.Close()
+	// Simulate death after alias restoration but before catalog restoration.
+	fake.aliases[alias] = previous
+	store := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+	if err := store.RollbackGeneration(context.Background(), "gen-2"); err != nil {
+		t.Fatal(err)
+	}
+	if got := catalog.record("gen-1").State; got != GenerationStateActive {
+		t.Fatalf("replayed prior state = %q, want active", got)
+	}
+	if _, exists := fake.collections[candidate]; exists {
+		t.Fatal("replayed rollback should remove candidate")
+	}
+}
+
+func TestQdrantGenerationStoreRollbackRetryFinishesInterruptedDelete(t *testing.T) {
+	fake := newFakeQdrant()
+	const alias = "fixture_search"
+	previous := generationCollectionName(alias, "gen-1")
+	candidate := generationCollectionName(alias, "gen-2")
+	fake.collections[previous] = &fakeCollection{points: 1}
+	fake.collections[candidate] = &fakeCollection{points: 2}
+	fake.aliases[alias] = candidate
+	catalog := &generationCatalogFixture{records: map[string]GenerationRecord{
+		"gen-2": {Metadata: GenerationMetadata{ID: "gen-2", Owner: "fixture.test", Namespace: alias, Alias: alias}, CollectionName: candidate, PreviousCollection: previous, State: GenerationStateActive},
+	}}
+	server := httptest.NewServer(fake.handler())
+	defer server.Close()
+	fake.failDelete[candidate] = true
+	store := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+	if err := store.RollbackGeneration(context.Background(), "gen-2"); err == nil {
+		t.Fatal("first rollback should report the injected delete failure")
+	}
+	if got := fake.aliases[alias]; got != previous {
+		t.Fatalf("alias should be restored even when candidate deletion fails, got %q", got)
+	}
+	delete(fake.failDelete, candidate)
+	restarted := makeCatalogGenerationStore(t, server.URL, alias, fake, catalog)
+	if err := restarted.RollbackGeneration(context.Background(), "gen-2"); err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := fake.collections[candidate]; exists {
+		t.Fatal("reconstructed retry should finish candidate deletion")
 	}
 }
 
