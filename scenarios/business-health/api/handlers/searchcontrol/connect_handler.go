@@ -129,6 +129,13 @@ func (h *connectHandler) Reindex(ctx context.Context, req *connect.Request[contr
 	if err := h.deps.Gate.authorize(h.deps.Logger, r.GetControlToken()); err != nil {
 		return nil, err
 	}
+	if err := aisearchpkg.ValidateReindexMigrationRequest(&aisearchpkg.ReindexMigrationRequest{
+		Action: r.GetAction(), ShadowCollection: r.GetShadowCollection(), RollbackCollection: r.GetRollbackCollection(),
+		EmbeddingModel: r.GetEmbeddingModel(), EmbeddingRole: r.GetEmbeddingRole(), EmbeddingDimensions: r.GetEmbeddingDimensions(),
+		EmbeddingPolicySchemaVersion: r.GetEmbeddingPolicySchemaVersion(), DryRun: r.GetDryRun(),
+	}); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if h.deps.Reindexer == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("reindex backend not configured"))
 	}

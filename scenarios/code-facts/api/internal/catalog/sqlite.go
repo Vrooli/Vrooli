@@ -29,6 +29,8 @@ func Migrate(ctx context.Context, db *sql.DB) error {
 		{Version: 3, SQL: IndexControlSchema()},
 		{Version: 4, SQL: MetricsSchema()},
 		{Version: 5, SQL: RevisionSchema()},
+		{Version: 6, SQL: IndexJobLifecycleSchema()},
+		{Version: 7, SQL: SemanticSchema()},
 	})
 }
 

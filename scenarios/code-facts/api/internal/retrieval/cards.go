@@ -20,9 +20,12 @@ type CardPolicy struct {
 }
 
 func DefaultCardPolicy() CardPolicy {
+	// The role is the caller contract. Production generation resolves the current
+	// role-owned model and dimensions before extraction; this constructor keeps
+	// the checked-in bake-off fixture usable without choosing a provider model.
 	return CardPolicy{
-		Version: "code-card-v1", Model: "nomic-embed-text:latest", Dimensions: 768,
-		MaxTextBytes: 4096, Storage: "qdrant-on-disk-scalar-quantized",
+		Version: "code-card-v1", Model: EmbeddingRole, Dimensions: 768,
+		MaxTextBytes: 4096, Storage: "sqlite-binary-float32",
 		EligibleRoles: map[string]bool{"implementation": true, "contract": true, "generated_alias": true},
 		EligibleKinds: map[string]bool{"file": true, "symbol": true, "contract": true, "route": true, "persistence": true, "relationship": true},
 	}
@@ -80,7 +83,7 @@ func (extractor CardExtractor) Extract(generation string, documents []Document) 
 			"aliases: " + strings.Join(document.Aliases, " "),
 			"evidence: " + document.Body,
 		}, "\n"), policy.MaxTextBytes)
-		hash := sha256.Sum256([]byte(strings.Join([]string{policy.Version, policy.Model, document.SourceHash, embedding}, "\x00")))
+		hash := sha256.Sum256([]byte(strings.Join([]string{policy.Version, policy.Model, fmt.Sprint(policy.Dimensions), document.SourceHash, embedding}, "\x00")))
 		card := Card{
 			ID: "card:" + document.ID, DocumentID: document.ID, SourceFileID: document.SourceFileID,
 			SourceHash: document.SourceHash, Generation: generation, Kind: document.Kind, Role: document.Role,

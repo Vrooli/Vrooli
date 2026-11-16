@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +25,8 @@ import (
 	"code-facts/internal/indexcontrol"
 	"code-facts/internal/retrieval"
 
+	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/pathfilter"
 	repocontract "github.com/vrooli/repo-contract-go"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
@@ -39,6 +42,102 @@ type wallClock struct{}
 
 func (wallClock) Now() time.Time { return time.Now().UTC() }
 
+// DescribeFileMetrics projects per-file line counts from the active Code Facts
+// catalog. Content hashes fence the output to the generation; changed files are
+// reported as unknown until catalog reconciliation completes.
+func (index *ProductionIndex) DescribeFileMetrics(ctx context.Context, target *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
+	if target == nil || strings.TrimSpace(target.GetRootPath()) == "" {
+		return nil, nil, []*factsv1.Warning{{Code: "file_metrics_target_required", Message: "FILE_METRICS requires a bounded target path.", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED}}, nil
+	}
+	rootRel, err := filepath.Rel(index.repoRoot, filepath.Clean(target.GetRootPath()))
+	if err != nil || rootRel == ".." || strings.HasPrefix(rootRel, ".."+string(filepath.Separator)) || filepath.IsAbs(rootRel) {
+		return nil, nil, []*factsv1.Warning{{Code: "file_metrics_target_outside_catalog", Message: "FILE_METRICS target is outside the active repository catalog.", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED}}, nil
+	}
+	if rootRel == "." {
+		rootRel = ""
+	}
+	generation, err := index.catalog.Active(ctx)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read active Code Facts catalog for file metrics: %w", err)
+	}
+	facts := make([]*factsv1.GenericFact, 0)
+	warnings := make([]*factsv1.Warning, 0)
+	for token := ""; ; {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, nil, err
+		}
+		page, pageErr := index.catalog.PageFiles(ctx, generation.ID, token, 1024)
+		if pageErr != nil {
+			return nil, nil, nil, pageErr
+		}
+		for _, file := range page.Files {
+			if rootRel != "" && file.Path != rootRel && !strings.HasPrefix(file.Path, rootRel+"/") {
+				continue
+			}
+			if !pathfilter.IsSourceExt(filepath.Ext(file.Path)) || excludedCatalogPath(file.Path) {
+				continue
+			}
+			metrics, hash, countErr := inspectCatalogFile(ctx, filepath.Join(index.repoRoot, filepath.FromSlash(file.Path)), file.Language)
+			if countErr != nil {
+				warnings = append(warnings, &factsv1.Warning{Code: "file_metrics_unavailable", Message: fmt.Sprintf("%s: %v", file.Path, countErr), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
+				continue
+			}
+			if hash != file.Hash {
+				warnings = append(warnings, &factsv1.Warning{Code: "file_metrics_stale_catalog", Message: file.Path + " changed after the active catalog generation; reconcile Code Facts before using its metrics.", Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
+				continue
+			}
+			relPath := file.Path
+			if rootRel != "" {
+				relPath = strings.TrimPrefix(strings.TrimPrefix(file.Path, rootRel), "/")
+			}
+			attributes := metrics.attributes()
+			attributes["file_path"] = relPath
+			attributes["file_extension"] = filepath.Ext(file.Path)
+			attributes["language"] = file.Language
+			attributes["role"] = string(file.Role)
+			attributes["size_bytes"] = strconv.FormatInt(file.Size, 10)
+			attributes["source_hash"] = file.Hash
+			attributes["generation"] = generation.ID
+			facts = append(facts, &factsv1.GenericFact{
+				Id: "code-facts:file-metrics:" + file.ID, Family: factsv1.FactFamily_FACT_FAMILY_FILE_METRICS,
+				Kind: "catalog_lexical_file_metrics", Subject: relPath,
+				Attributes: attributes,
+				Evidence:   []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 1, Analyzer: "code-facts.catalog", Message: "Lexical file metrics were computed from a file whose content hash matches the active catalog."}},
+			})
+		}
+		if page.NextToken == "" {
+			break
+		}
+		token = page.NextToken
+	}
+	evidence := []*factsv1.Evidence{{Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, Confidence: 1, Analyzer: "code-facts.catalog", Message: fmt.Sprintf("Returned current non-empty line counts for %d catalog source files in generation %s.", len(facts), generation.ID)}}
+	return facts, evidence, warnings, nil
+}
+
+func excludedCatalogPath(path string) bool {
+	parts := strings.Split(filepath.ToSlash(path), "/")
+	for _, part := range parts[:max(0, len(parts)-1)] {
+		if pathfilter.SkipDir(part) {
+			return true
+		}
+	}
+	return false
+}
+
+func inspectCatalogFile(ctx context.Context, path, language string) (lexicalFileMetrics, string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return lexicalFileMetrics{}, "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	metrics, err := inspectLexicalFile(ctx, io.TeeReader(file, hash), language)
+	if err != nil {
+		return lexicalFileMetrics{}, "", err
+	}
+	return metrics, "sha256:" + hex.EncodeToString(hash.Sum(nil)), nil
+}
+
 // ProductionIndex owns the durable build path and the source-free query path.
 // Source files are opened only by buildGeneration; Search uses the active
 // SQLite generation and cannot fall through to repository scanning.
@@ -48,6 +147,8 @@ type ProductionIndex struct {
 	catalog   *catalog.SQLiteRepository
 	inspector catalog.FileInspector
 	lexical   *retrieval.SQLiteIndex
+	vectors   *retrieval.SQLiteVectorStore
+	admission *internalfacts.WeightedAdmission
 	engine    retrieval.HybridEngine
 	jobs      indexcontrol.JobStore
 	clock     wallClock
@@ -77,11 +178,12 @@ func newProductionIndex(db *sql.DB, repoRoot string, admission *internalfacts.We
 	lexical := retrieval.NewSQLiteIndex(db)
 	index := &ProductionIndex{
 		db: db, repoRoot: filepath.Clean(repoRoot), catalog: catalog.NewSQLiteRepository(db, clock),
-		inspector: catalog.OSFileInspector{}, lexical: lexical, jobs: indexcontrol.NewSQLiteJobStore(db), clock: clock,
+		inspector: catalog.OSFileInspector{}, lexical: lexical, vectors: retrieval.NewSQLiteVectorStore(db), admission: admission,
+		jobs: indexcontrol.NewSQLiteJobStore(db), clock: clock,
 		cancels: map[string]context.CancelFunc{},
 	}
 	index.engine = retrieval.HybridEngine{
-		Planner: retrieval.QueryPlanner{}, Lexical: lexical, Freshness: lexical,
+		Planner: retrieval.QueryPlanner{}, Lexical: lexical, Semantic: retrieval.GatewaySemanticSearcher{Store: retrieval.NewSQLiteVectorStore(db)}, Freshness: lexical,
 		Admission: admission, Cache: retrieval.NewResultCache(128, 8*1024*1024),
 		Flights: retrieval.NewQueryFlights(), RRFK: 60,
 	}
@@ -99,7 +201,7 @@ func (index *ProductionIndex) Bootstrap() {
 		ctx := context.Background()
 		interrupted, _ := index.jobs.RecoverInterrupted(ctx, index.clock.Now())
 		for _, job := range interrupted {
-			job.State = "failed"
+			job.State = indexcontrol.JobFailed
 			job.Error = "process restarted before completion; start a fresh shadow generation"
 			job.UpdatedAt = index.clock.Now()
 			_ = index.jobs.Update(ctx, job)
@@ -140,7 +242,18 @@ func (index *ProductionIndex) Search(ctx context.Context, req *factsv1.SearchReq
 		query.Target = "packages/proto/schemas/" + strings.TrimPrefix(query.Scope, "scenario:")
 		query.Scope = ""
 	}
-	response, err := index.engine.Search(ctx, query)
+	engine := index.engine
+	if engine.Planner.Plan(query).UseSemantic {
+		policy, policyErr := aisearch.ResolveEmbeddingPolicy(ctx, retrieval.EmbeddingRole)
+		if policyErr != nil {
+			// Force a separate cache identity and leave the lexical leg available.
+			query.EmbeddingModel = "policy-unavailable"
+			engine.Semantic = nil
+		} else {
+			query.EmbeddingModel, query.EmbeddingDimensions = policy.Model, policy.Dimensions
+		}
+	}
+	response, err := engine.Search(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +367,7 @@ func (index *ProductionIndex) start(generation string, promote bool) (indexcontr
 	if err := index.catalog.BeginGeneration(context.Background(), catalog.Generation{ID: generation, Policy: indexPolicy, DescriptorDigest: descriptorDigest, CreatedAt: now}); err != nil {
 		return indexcontrol.Job{}, err
 	}
-	job := indexcontrol.Job{ID: "reindex-" + fmt.Sprint(now.UnixNano()), Kind: "reindex", State: "queued", Generation: generation, CreatedAt: now, UpdatedAt: now}
+	job := indexcontrol.Job{ID: "reindex-" + fmt.Sprint(now.UnixNano()), Kind: "reindex", State: indexcontrol.JobQueued, Generation: generation, CreatedAt: now, UpdatedAt: now}
 	if err := index.jobs.Create(context.Background(), job); err != nil {
 		_ = index.catalog.FailGeneration(context.Background(), generation, err.Error())
 		return indexcontrol.Job{}, err
@@ -273,7 +386,7 @@ func (index *ProductionIndex) runBuild(ctx context.Context, job indexcontrol.Job
 		delete(index.cancels, job.ID)
 		index.mu.Unlock()
 	}()
-	job.State, job.UpdatedAt = "running", index.clock.Now()
+	job.State, job.UpdatedAt = indexcontrol.JobRunning, index.clock.Now()
 	_ = index.jobs.Update(context.Background(), job)
 	err := index.buildGeneration(ctx, &job)
 	if err == nil && promote {
@@ -294,19 +407,17 @@ func (index *ProductionIndex) runBuild(ctx context.Context, job indexcontrol.Job
 		}
 	}
 	if err == nil && promote {
-		job.State, job.UpdatedAt = "succeeded", index.clock.Now()
-		_ = index.jobs.Update(context.Background(), job)
 		err = index.Promote(ctx, job.Generation)
 	}
 	switch {
 	case errors.Is(err, context.Canceled):
-		job.State, job.CancellationRequested = "cancelled", true
+		job.State = indexcontrol.JobCancelled
 		_ = index.catalog.FailGeneration(context.Background(), job.Generation, "index build cancelled")
 	case err != nil:
-		job.State, job.Error = "failed", err.Error()
+		job.State, job.Error = indexcontrol.JobFailed, err.Error()
 		_ = index.catalog.FailGeneration(context.Background(), job.Generation, job.Error)
 	default:
-		job.State = "succeeded"
+		job.State = indexcontrol.JobSucceeded
 	}
 	job.UpdatedAt = index.clock.Now()
 	_ = index.jobs.Update(context.Background(), job)
@@ -497,13 +608,13 @@ func (index *ProductionIndex) refreshBatchLocked(ctx context.Context, generation
 		return nil
 	}
 	now := index.clock.Now()
-	job := indexcontrol.Job{ID: fmt.Sprintf("reconcile-%d", now.UnixNano()), Kind: "reconcile", State: "running", Generation: generation, Total: int64(len(paths)), CreatedAt: now, UpdatedAt: now}
+	job := indexcontrol.Job{ID: fmt.Sprintf("reconcile-%d", now.UnixNano()), Kind: "reconcile", State: indexcontrol.JobRunning, Generation: generation, Total: int64(len(paths)), CreatedAt: now, UpdatedAt: now}
 	if err := index.jobs.Create(ctx, job); err != nil {
 		return err
 	}
 	for _, path := range paths {
 		if err := index.refreshPath(ctx, generation, path); err != nil {
-			job.State, job.Error, job.UpdatedAt = "failed", err.Error(), index.clock.Now()
+			job.State, job.Error, job.UpdatedAt = indexcontrol.JobFailed, err.Error(), index.clock.Now()
 			_ = index.jobs.Update(context.WithoutCancel(ctx), job)
 			return err
 		}
@@ -511,7 +622,7 @@ func (index *ProductionIndex) refreshBatchLocked(ctx context.Context, generation
 		job.UpdatedAt = index.clock.Now()
 		_ = index.jobs.Update(ctx, job)
 	}
-	job.State, job.UpdatedAt = "succeeded", index.clock.Now()
+	job.State, job.UpdatedAt = indexcontrol.JobSucceeded, index.clock.Now()
 	return index.jobs.Update(ctx, job)
 }
 
@@ -863,6 +974,22 @@ func sortedPathSet(seen map[string]struct{}) []string {
 }
 
 func (index *ProductionIndex) buildGeneration(ctx context.Context, job *indexcontrol.Job) error {
+	embeddingPolicy, err := aisearch.ResolveEmbeddingPolicy(ctx, retrieval.EmbeddingRole)
+	if err != nil {
+		return fmt.Errorf("resolve Code Facts embedding role %q: %w", retrieval.EmbeddingRole, err)
+	}
+	cardPolicy := retrieval.DefaultCardPolicy()
+	cardPolicy.Model, cardPolicy.Dimensions = embeddingPolicy.Model, embeddingPolicy.Dimensions
+	cardPolicy.Version = fmt.Sprintf("%s:%s:%s", cardPolicy.Version, embeddingPolicy.Role, embeddingPolicy.PolicySchemaVersion)
+	generationPolicy := fmt.Sprintf("%s|embedding_role=%s|embedding_model=%s|embedding_dimensions=%d|embedding_policy_schema=%s",
+		indexPolicy, embeddingPolicy.Role, embeddingPolicy.Model, embeddingPolicy.Dimensions, embeddingPolicy.PolicySchemaVersion)
+	if _, err := index.db.ExecContext(ctx, `UPDATE code_facts_generations SET policy=?,updated_at_unix=? WHERE id=? AND state='shadow'`, generationPolicy, index.clock.Now().Unix(), job.Generation); err != nil {
+		return fmt.Errorf("record Code Facts embedding generation policy: %w", err)
+	}
+	cardIndexer := retrieval.CardIndexer{
+		Embedder: retrieval.NewGatewayEmbedder(embeddingPolicy.Dimensions, retrieval.TaskPrefixForEmbeddingModel(embeddingPolicy.Model, false)),
+		Store:    index.vectors, Admission: index.admission, BatchSize: 32,
+	}
 	buildRevision, err := index.gitRevision(ctx)
 	if err != nil {
 		return err
@@ -908,6 +1035,15 @@ func (index *ProductionIndex) buildGeneration(ctx context.Context, job *indexcon
 		if len(documents) > 0 {
 			if err := index.lexical.Upsert(ctx, job.Generation, documents); err != nil {
 				return err
+			}
+			cardDocuments := make([]retrieval.Document, len(documents))
+			copy(cardDocuments, documents)
+			cards, _, extractErr := (retrieval.CardExtractor{Policy: cardPolicy}).Extract(job.Generation, cardDocuments)
+			if extractErr != nil {
+				return fmt.Errorf("extract semantic cards: %w", extractErr)
+			}
+			if _, err := cardIndexer.Index(ctx, cards); err != nil {
+				return fmt.Errorf("index semantic cards through AI Gateway: %w", err)
 			}
 		}
 		job.Cursor, job.UpdatedAt = page.NextToken, index.clock.Now()

@@ -4,8 +4,9 @@
 
 - Vrooli repository setup is complete.
 - `code-facts` is installed through the scenario lifecycle.
-- Provider-backed facts require `go-code-graph` and `typescript-code-graph`
-  running when cache is bypassed or cold.
+- Provider-backed Go facts use the shared API Core `gograph` package. TypeScript
+  and JavaScript facts require `typescript-code-graph` running when cache is
+  bypassed or cold.
 
 ## 1 — Setup
 

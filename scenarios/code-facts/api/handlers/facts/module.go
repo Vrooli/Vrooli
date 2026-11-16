@@ -24,7 +24,7 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 	var jobs indexcontrol.JobStore
 	opts := []internalfacts.ServiceOption{
 		internalfacts.WithBroker(internalfacts.NewBroker(
-			internalfacts.NewGoGraphProvider(resolver, http.DefaultClient),
+			internalfacts.NewGoGraphProvider(),
 			internalfacts.NewTypeScriptGraphProvider(resolver, http.DefaultClient),
 			internalfacts.NewJavaScriptGraphProvider(resolver, http.DefaultClient),
 		)),
@@ -39,6 +39,7 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 				logger.Printf("code-facts indexed runtime unavailable: %v", err)
 			}
 		} else {
+			opts = append(opts, internalfacts.WithFileMetricsProvider(productionIndex))
 			opts = append(opts, internalfacts.WithSearchBackend(productionIndex))
 			jobs = productionIndex.jobs
 			indexController = NewRuntimeIndexController(indexcontrol.NewSQLiteStatusReader(db, jobs), productionIndex)

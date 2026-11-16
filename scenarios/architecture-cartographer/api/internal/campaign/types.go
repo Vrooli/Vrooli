@@ -28,11 +28,11 @@ import (
 // mirror the conflict lifecycle verbatim; the campaign domain is the
 // canonical owner of this state machine.
 //
-// Transitions:
-//
-//	detected ── resolve ──> resolved ── reaudit(absent) ──> validated ── close ──> committed
-//	    ^                       │
-//	    └── reaudit(present) ───┘   (a resolved finding that reappears is a regression)
+// Current operations allow detected/assigned/split -> resolved or validated,
+// resolved/force-resolved -> validated, and terminal -> detected only when a
+// re-audit finds a regression. Committed and force-resolved remain recognized
+// terminal values for stored/API compatibility; same-state writes are not
+// transitions.
 type FindingStatus string
 
 const (
@@ -59,6 +59,47 @@ func (s FindingStatus) IsTerminal() bool {
 // IsOpen reports whether a finding still needs work (the inverse of
 // terminal). Used to build the Next worklist.
 func (s FindingStatus) IsOpen() bool { return !s.IsTerminal() }
+
+// ValidFindingStatus preserves the complete stored vocabulary, including the
+// assigned/split states accepted by the public campaign contract.
+func ValidFindingStatus(s FindingStatus) bool {
+	switch s {
+	case StatusDetected, StatusAssigned, StatusSplit, StatusResolved, StatusValidated, StatusCommitted, StatusForceResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// CanTransitionFindingStatus reports edges produced by campaign operations.
+func CanTransitionFindingStatus(from, to FindingStatus) bool {
+	if !ValidFindingStatus(from) || !ValidFindingStatus(to) || from == to {
+		return false
+	}
+	switch to {
+	case StatusResolved:
+		return from == StatusDetected || from == StatusAssigned || from == StatusSplit
+	case StatusValidated:
+		return from == StatusDetected || from == StatusAssigned || from == StatusSplit || from == StatusResolved || from == StatusForceResolved
+	case StatusDetected:
+		return from == StatusResolved || from == StatusValidated || from == StatusCommitted || from == StatusForceResolved
+	default:
+		return false
+	}
+}
+
+// TransitionStatus is the domain owner for finding-state changes.
+func (f *Finding) TransitionStatus(to FindingStatus) error {
+	if f == nil || !CanTransitionFindingStatus(f.Status, to) {
+		from := FindingStatus("")
+		if f != nil {
+			from = f.Status
+		}
+		return ErrInvalidFindingTransition{From: from, To: to}
+	}
+	f.Status = to
+	return nil
+}
 
 // CampaignLifecycle is the lifecycle of a whole campaign.
 type CampaignLifecycle string

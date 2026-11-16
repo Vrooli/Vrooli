@@ -3,6 +3,7 @@ package campaign
 import (
 	"context"
 	"testing"
+	"time"
 
 	localdb "architecture-cartographer/internal/database"
 
@@ -46,6 +47,72 @@ func findingByCode(findings []Finding, code string) (Finding, bool) {
 	return Finding{}, false
 }
 
+func TestFindingTransitionGraphAndSQLiteCAS(t *testing.T) {
+	for _, tc := range []struct {
+		from, to FindingStatus
+		want     bool
+	}{
+		{StatusDetected, StatusResolved, true},
+		{StatusResolved, StatusValidated, true},
+		{StatusValidated, StatusDetected, true},
+		{StatusCommitted, StatusDetected, true},
+		{StatusResolved, StatusCommitted, false},
+		{StatusDetected, StatusDetected, false},
+		{FindingStatus("unknown"), StatusDetected, false},
+	} {
+		if got := CanTransitionFindingStatus(tc.from, tc.to); got != tc.want {
+			t.Errorf("CanTransitionFindingStatus(%q, %q) = %t, want %t", tc.from, tc.to, got, tc.want)
+		}
+	}
+
+	db := testdb.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), db,
+		apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(Schema)); err != nil {
+		t.Fatal(err)
+	}
+	repo := NewSQLiteRepository(db, schedule.System())
+	ctx := context.Background()
+	campaignID := "transition-cas"
+	if err := repo.CreateCampaign(ctx, Campaign{ID: campaignID, Scenario: "example", Status: CampaignOpen}); err != nil {
+		t.Fatal(err)
+	}
+	f := Finding{StableID: "afid:transition", Scenario: "example", Source: "test-source", Code: "test-code", Severity: "warning", Status: StatusDetected}
+	if err := repo.CreateFinding(ctx, campaignID, f); err != nil {
+		t.Fatal(err)
+	}
+	resolved := f
+	resolved.Status = StatusResolved
+	if err := repo.TransitionFinding(ctx, campaignID, StatusDetected, resolved); err != nil {
+		t.Fatalf("valid transition: %v", err)
+	}
+	stale := f
+	stale.Status = StatusValidated
+	if err := repo.TransitionFinding(ctx, campaignID, StatusDetected, stale); err == nil {
+		t.Fatal("stale state CAS unexpectedly succeeded")
+	} else if _, ok := err.(ErrFindingWriteConflict); !ok {
+		t.Fatalf("stale transition error = %T %v, want ErrFindingWriteConflict", err, err)
+	}
+	invalid := resolved
+	invalid.Status = StatusCommitted
+	if err := repo.TransitionFinding(ctx, campaignID, StatusResolved, invalid); err == nil {
+		t.Fatal("invalid edge unexpectedly succeeded")
+	} else if _, ok := err.(ErrInvalidFindingTransition); !ok {
+		t.Fatalf("invalid transition error = %T %v, want ErrInvalidFindingTransition", err, err)
+	}
+	stored, err := repo.GetFinding(ctx, campaignID, f.StableID)
+	if err != nil || stored.Status != StatusResolved {
+		t.Fatalf("stored state after rejected writes = %q, err=%v; want resolved", stored.Status, err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO campaign_items (campaign_id,stable_id,scenario,source,code,severity,status,first_seen_at,updated_at) VALUES (?,?,'example','test-source','test-code','warning','unknown',?,?)`, campaignID, "afid:unknown-state", time.Now().Format(campaignTimeFormat), time.Now().Format(campaignTimeFormat)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.GetFinding(ctx, campaignID, "afid:unknown-state"); err == nil {
+		t.Fatal("repository accepted an unknown persisted status")
+	} else if _, ok := err.(ErrInvalidFindingStatus); !ok {
+		t.Fatalf("unknown status error = %T %v, want ErrInvalidFindingStatus", err, err)
+	}
+}
+
 func TestCreateIngestsFindings(t *testing.T) {
 	svc := newTestService(t)
 	ctx := context.Background()
@@ -69,6 +136,18 @@ func TestCreateIngestsFindings(t *testing.T) {
 		if f.StableID == "" {
 			t.Errorf("finding missing stable id: %+v", f)
 		}
+	}
+}
+
+func TestCreateDeduplicatesRepeatedFindingIdentity(t *testing.T) {
+	svc := newTestService(t)
+	item := pf("alpha", "duplicate", architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING, "api/internal/example.go")
+	status, err := svc.Create(context.Background(), "alpha", "duplicates", []*architecturev1.ArchitectureFinding{item, item})
+	if err != nil {
+		t.Fatalf("Create repeated finding: %v", err)
+	}
+	if status.Total != 1 {
+		t.Fatalf("campaign total = %d, want one stable finding", status.Total)
 	}
 }
 

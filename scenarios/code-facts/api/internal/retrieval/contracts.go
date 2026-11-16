@@ -13,14 +13,16 @@ const (
 )
 
 type Query struct {
-	Text       string
-	Target     string
-	Scope      string
-	Roles      []string
-	Families   []string
-	Languages  []string
-	Generation string
-	Limit      int
+	Text           string
+	Target         string
+	Scope          string
+	Roles          []string
+	Families       []string
+	Languages      []string
+	Generation     string
+	EmbeddingModel string
+	EmbeddingDimensions int
+	Limit          int
 }
 
 type RankEvidence struct {

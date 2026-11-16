@@ -2,6 +2,7 @@ import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import { fileURLToPath } from "node:url";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const protoTypesPath = fileURLToPath(new URL("../../../packages/proto/gen/typescript", import.meta.url));
 const protobufPath = fileURLToPath(new URL("./node_modules/@bufbuild/protobuf/dist/esm", import.meta.url));
@@ -33,7 +34,7 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: {
       alias: {
         "@vrooli/proto-types": protoTypesPath,

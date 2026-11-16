@@ -23,7 +23,7 @@ workflow model.
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Migration lifecycle | apply, conflicts | `arch-cart migrate start <scenario>` | Per-domain plans applied, build-green at each step, migration finalized. | Multi-stage with baseline capture, conflict resolution gate, per-domain commits, finalize transition. | Level 4 declarative contract planned for v1; Level 5 (Quint model) planned for v2. |
-| Campaign item lifecycle | campaign | A finding is ingested into a campaign from a test-genie audit. | CampaignItem transitions detected → resolved/applied → (re-audit) validated, or regresses back to detected. | Stateful per-item lifecycle; the `conflicts` domain is detection-only and owns no lifecycle. | Level 4 declarative contract planned for v1. |
+| Campaign item lifecycle | campaign | A finding is ingested into a campaign from a test-genie audit. | Campaign items transition detected/assigned/split → resolved or validated; resolved → validated; reappearing terminal items return to detected. | Stateful per-item lifecycle; the campaign domain owns its graph and SQLite state compare-and-swap; `conflicts` remains detection-only. | Level 4 declarative contract planned for v1. |
 | Auto-placement verdict | signals | Chunk needs domain assignment during graph-vs-manifest comparison. | Verdict produced (`auto_place`, `suggest`, `conflict`) with Reason + Evidence. | Pure scoring; no statefulness within a single verdict but logged for analytics. | Level 3 (matrix + replay traces against fixture chunks) for v1. |
 | Per-domain apply | apply | `arch-cart apply <domain>` | File moves + import rewrites land in one atomic commit if build-green; otherwise reverted. | Stateful: baseline → plan → execute → verify → commit-or-revert. | Level 4 declarative contract; build-green guard is invariant. |
 | Attachment upload (template placeholder) | notes | User/CLI uploads a file for a note. | Blob is stored and metadata is persisted. | Stateful upload request with validation and failure paths. | Level 5 workflow tests (template reference). Removed when notes domain is deleted. |
@@ -57,14 +57,17 @@ workflow model.
 > "Campaign item lifecycle" flow above and
 > `ui/src/features/campaign/flow/flow.json`.
 
-- Owner domain: `migration` (lifecycle); `conflicts` (detection only).
+- Owner domain: `campaign` (lifecycle); `conflicts` (detection only).
 - Detection trigger: any detector returns a non-empty `[]Conflict` during
   graph comparison. `arch-cart conflicts detect|list|show|validate` read
   this photograph; they no longer mutate any state.
-- Lifecycle states (per tracked finding, owned by migration):
-  `detected` → (`resolve` / `apply`) → `resolved` → (re-audit absent)
-  `validated`; a re-audit that re-surfaces a terminal finding flags it
-  `regressed` and returns it to `detected`.
+- Lifecycle states (per tracked finding, owned by campaign):
+  `detected` / `assigned` / `split` → `resolved` (operator) or `validated`
+  (re-audit absent); `resolved` → `validated` on absence. A re-audit that
+  re-surfaces any terminal finding flags it `regressed` and returns it to
+  `detected`. `committed` and `force_resolved` remain terminal except for
+  that regression edge; there is no per-finding `validated → committed`
+  transition in the current campaign service.
 - Requirements: OT-P0-003, OT-P0-005, OT-P0-006.
 
 ### Auto-placement verdict

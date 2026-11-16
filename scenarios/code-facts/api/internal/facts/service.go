@@ -21,6 +21,7 @@ type Service struct {
 	broker       *Broker
 	cache        CacheRepository
 	fileDomains  FileDomainProvider
+	fileMetrics  FileMetricsProvider
 	search       SearchBackend
 	admission    *WeightedAdmission
 	graphFlights *graphFlightGroup
@@ -64,6 +65,10 @@ func WithFileDomainProvider(provider FileDomainProvider) ServiceOption {
 	}
 }
 
+func WithFileMetricsProvider(provider FileMetricsProvider) ServiceOption {
+	return func(s *Service) { s.fileMetrics = provider }
+}
+
 func WithAdmission(admission *WeightedAdmission) ServiceOption {
 	return func(s *Service) {
 		if admission != nil {
@@ -88,12 +93,13 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		return nil, err
 	}
 	include := normalizeFamilies(req.GetInclude())
+	cacheAllowed := req.GetUseCache() && !hasFamily(include, factsv1.FactFamily_FACT_FAMILY_FILE_METRICS)
 	parseUnits := filterParseUnits(discoverParseUnits(target), req.GetTarget().GetLanguageFilter())
 	sourceHash, configHash := sourceFingerprint(target, parseUnits)
 	reportPlan := reportCachePlan(req.GetTarget(), target, parseUnits, include, sourceHash, configHash, req.GetMaxDepth(), req.GetIncludeGraphs())
 	// Language graphs already have a source-keyed cache. Storing them again in
 	// a report duplicates the payload and can freeze a partial provider result.
-	if req.GetUseCache() && !req.GetIncludeGraphs() {
+	if cacheAllowed && !req.GetIncludeGraphs() {
 		if paged, ok := s.cache.(PagedReportCache); ok && req.GetPageSize() > 0 {
 			offset, err := pageOffset(req.GetPageToken())
 			if err != nil {
@@ -131,7 +137,7 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 
 	report := &factsv1.CodeFactsReport{
 		Target: target,
-		Cache:  reportPlan.metadata(cacheState(req.GetUseCache()), cacheReason(req.GetUseCache())),
+		Cache:  reportPlan.metadata(cacheState(cacheAllowed), cacheReason(cacheAllowed)),
 	}
 	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_SURFACES) {
 		report.Surfaces = discoverSurfaces(target)
@@ -176,6 +182,15 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		report.Evidence = append(report.Evidence, fileDomainEvidence...)
 		report.Warnings = append(report.Warnings, fileDomainWarnings...)
 	}
+	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_FILE_METRICS) {
+		fileFacts, fileEvidence, fileWarnings, fileErr := s.describeFileMetrics(ctx, target)
+		if fileErr != nil {
+			return nil, fileErr
+		}
+		report.Facts = append(report.Facts, fileFacts...)
+		report.Evidence = append(report.Evidence, fileEvidence...)
+		report.Warnings = append(report.Warnings, fileWarnings...)
+	}
 	for _, family := range include {
 		if isImplementedFamily(family) {
 			continue
@@ -187,9 +202,11 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	if req.GetIncludeGraphs() {
 		return report, nil
 	}
-	if err := s.cache.PutReport(ctx, reportPlan, report); err != nil {
-		report.Cache = reportPlan.metadata("write_failed", err.Error())
-		report.Warnings = append(report.Warnings, &factsv1.Warning{Code: "report_cache_write_failed", Message: err.Error(), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
+	if cacheAllowed {
+		if err := s.cache.PutReport(ctx, reportPlan, report); err != nil {
+			report.Cache = reportPlan.metadata("write_failed", err.Error())
+			report.Warnings = append(report.Warnings, &factsv1.Warning{Code: "report_cache_write_failed", Message: err.Error(), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
+		}
 	}
 	return pageReport(report, req.GetPageSize(), req.GetPageToken())
 }
@@ -705,6 +722,13 @@ func (s *Service) describeFileDomains(ctx context.Context, target *factsv1.Targe
 	return s.fileDomains.DescribeFileDomains(ctx, target)
 }
 
+func (s *Service) describeFileMetrics(ctx context.Context, target *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
+	if s.fileMetrics == nil {
+		return []*factsv1.GenericFact{unsupportedFact(factsv1.FactFamily_FACT_FAMILY_FILE_METRICS)}, nil, []*factsv1.Warning{unsupportedWarning(factsv1.FactFamily_FACT_FAMILY_FILE_METRICS)}, nil
+	}
+	return s.fileMetrics.DescribeFileMetrics(ctx, target)
+}
+
 func needsAnalyzer(families []factsv1.FactFamily) bool {
 	for _, family := range families {
 		switch family {
@@ -731,6 +755,7 @@ func isImplementedFamily(family factsv1.FactFamily) bool {
 		factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION,
 		factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+		factsv1.FactFamily_FACT_FAMILY_FILE_METRICS,
 		factsv1.FactFamily_FACT_FAMILY_STACK:
 		return true
 	default:
@@ -835,6 +860,7 @@ func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {
 			factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 			factsv1.FactFamily_FACT_FAMILY_UI_WIDGET_PROOFS,
 			factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+			factsv1.FactFamily_FACT_FAMILY_FILE_METRICS,
 			factsv1.FactFamily_FACT_FAMILY_STACK,
 		}
 	}
@@ -851,6 +877,7 @@ func normalizeFamilies(in []factsv1.FactFamily) []factsv1.FactFamily {
 		factsv1.FactFamily_FACT_FAMILY_CLI_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_UI_WIDGET_PROOFS,
 		factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN,
+		factsv1.FactFamily_FACT_FAMILY_FILE_METRICS,
 		factsv1.FactFamily_FACT_FAMILY_STACK,
 	}
 	for _, f := range order {

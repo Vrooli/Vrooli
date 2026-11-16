@@ -10,7 +10,7 @@ This document names the real Code Facts bounded contexts before implementation.
 |---|---|---|---|---|---|---|
 | targets | Turns caller input into a bounded code target. | API, CLI, UI | Policy/rules | Filesystem metadata | `api/internal/targets` | Resolves path/scenario/module/project/package inputs. |
 | catalog | Owns governed source identity, roles, scopes, hashes, and generations. | API, CLI, UI | Persistence/workflow | Corpus discovery | `api/internal/catalog` | SQLite is the authority for every derived retrieval leg. |
-| analysis | Coordinates graph providers and normalized projections. | API | Integration/client | Graceful degradation | `api/internal/analysis` | Brokers analyzers; never parses supported languages itself. |
+| analysis | Coordinates shared graph extraction and normalized projections. | API | Integration/client | Graceful degradation | `api/internal/analysis` | Calls API Core `gograph` in-process and brokers the TypeScript graph service; owns no parser implementation. |
 | retrieval | Plans exact, semantic, relationship, and contract queries. | API, CLI, UI | Reporting/query | Fusion and ranking | `api/internal/retrieval` | Owns FTS, vector seams, fusion, freshness fences, and explanations. |
 | proof | Synthesizes explicit contract and relationship evidence. | API, CLI, UI | Policy/rules | Evidence synthesis | `api/internal/proof` | Keeps proof status independent from retrieval relevance. |
 | indexcontrol | Owns reconciliation jobs and generation lifecycle. | API, CLI, UI | Workflow | Authorization and cancellation | `api/internal/indexcontrol` | Reconcile, reindex, cancel, promote, rollback, and cleanup. |
@@ -64,7 +64,7 @@ benchmark have been removed.
 ## Non-Domains
 
 - `notes` is generated template residue.
-- Graph parsing belongs to provider scenarios.
+- Parser implementations belong to shared graph owners; Code Facts owns provider orchestration and normalized facts.
 - Proto validation policy belongs to `proto-health`.
 
 ## Debt discovery ownership
@@ -78,7 +78,7 @@ language parser through a parallel client.
 | Owner | Computation retained | Live caller / interface | Consolidation boundary |
 | --- | --- | --- | --- |
 | code-facts | Target resolution, source inventory, parse-unit discovery, graph brokering, fact projection, freshness and caching | `api/internal/facts.Service` and `api/internal/analysis.Broker`; `CodeFactsService.DescribeCodeFacts`; Cartographer graph projection; RCL graph reconciliation | Sole entry point for source facts and language graphs |
-| go-code-graph | Go syntax/type analysis and mechanical Go rewrites | `code-facts/api/internal/analysis` provider; Code Facts broker selects it for Go parse units | Parser provider behind Code Facts; public rewrite operations remain |
+| api-core/gograph + go-code-graph | API Core owns Go syntax/type analysis; Go Code Graph retains its public RPC, fixtures and mechanical rewrites | Code Facts calls `api-core/gograph` in-process; Go Code Graph calls it through its scenario adapter | One shared Go parser/extractor with Code Facts and Go Code Graph consumers; rewrite operations remain in Go Code Graph |
 | typescript-code-graph | TypeScript/JavaScript compiler analysis, comments, mechanical rewrites and sidecar supervision | `code-facts/api/internal/analysis` provider; Code Facts broker selects it for TypeScript projects and JavaScript packages | Sole TS/JS parser provider behind Code Facts; public rewrite operations remain |
 | architecture-cartographer | Domain inference, coupling signals, architectural conflicts, immutable audit snapshots | `api/internal/graph/codefacts` and graph service; signal and audit modules consume those graphs | Consume Code Facts graphs; private Go/TypeScript clients and source scanner are retired |
 | tidiness-manager | Maintainability metrics, reduction detectors, calibrated estimates, ranked opportunities and cleanup campaigns | Light scan → `ComplexityAnalyzer` / `DuplicationDetector`; `/recommend-refactors` → `recommendReductions` → `internal/discovery.Registry` | One detector registry and recommendation ranking over shared facts; Go/TypeScript/JavaScript exact-body and Go complexity scan adapters use Code Facts. A separate audit ledger covers 48 debt runs and 110 hunt entries. Corpus v2 has selected Go duplicate and CLI-migration evidence (9 and 8 positives, no historical negatives), so precision and recall remain unknown. TypeScript and JavaScript have synthetic regressions only. |

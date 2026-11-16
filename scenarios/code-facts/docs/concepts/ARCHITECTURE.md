@@ -2,7 +2,7 @@
 
 ## Purpose Of This Document
 
-This document defines the durable Code Facts architecture before implementation. Code Facts is a broker and evidence synthesizer; it is not a language parser.
+This document defines the durable Code Facts architecture. Code Facts is a source-fact broker and evidence synthesizer; language parser implementations belong to shared graph owners.
 
 ## Scenario Shape
 
@@ -18,13 +18,13 @@ In bounds:
 
 - Resolve bounded targets.
 - Read shallow Vrooli metadata such as `.vrooli/service.json`, `.vrooli/endpoints.json`, `cli/manifest.json`, and `.vrooli/testing.json`.
-- Call `go-code-graph` and `typescript-code-graph` through provider seams.
+- Call API Core `gograph` and the TypeScript Code Graph service through provider seams.
 - Normalize provider output into Code Facts fact families.
 - Synthesize higher-level evidence such as proto adoption and endpoint proof.
 
 Out of bounds:
 
-- Parsing Go or TypeScript source directly.
+- Owning Go or TypeScript parser implementations.
 - Owning proto-health policy.
 - Mutating target source code.
 - Running unbounded monorepo analysis.

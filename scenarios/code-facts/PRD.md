@@ -5,7 +5,7 @@
 - **Purpose**: Code Facts provides target-aware, reusable code evidence for Vrooli scenarios and bounded generic code roots. It resolves targets, brokers language graph providers, enriches scenario-aware surface facts when available, and returns selective fact families that downstream validators can trust without parsing source code themselves.
 - **Primary users/verticals**: Vrooli validation scenarios (`proto-health`, future `test-genie`, `cli-health`, `ui-health`, `swarm-manager`), migration agents, scenario maintainers, and operators investigating evidence behind health findings.
 - **Deployment surfaces**: Connect-RPC API and Go CLI are the primary programmatic surfaces. The React UI is an operator workbench for target inspection, fact-family filtering, warnings, evidence, and cache diagnostics.
-- **Value promise**: Replace duplicated grep/source-scanning logic across health and validation scenarios with one deterministic evidence substrate. Language parsing stays in `go-code-graph` and `typescript-code-graph`; Code Facts owns target resolution, brokering, scenario enrichment, proof synthesis, and cache semantics.
+- **Value promise**: Replace duplicated grep/source-scanning logic across health and validation scenarios with one deterministic evidence substrate. Go parsing lives in the shared API Core `gograph` package used by Code Facts and Go Code Graph; TypeScript parsing remains in `typescript-code-graph`. Code Facts owns target resolution, provider orchestration, scenario enrichment, proof synthesis, and report caching.
 
 ## 🎯 Operational Targets
 
@@ -50,13 +50,13 @@
 
 - Preferred stacks / frameworks: Generated React-Vite scenario with Go API, Go CLI, Connect-RPC, protobuf contracts in `packages/proto/schemas/code-facts/v1`, and the `vrooli-default` design kit.
 - Data + storage expectations: SQLite is the authority for the source catalog, FTS index, generation state, normalized projections, jobs, and bounded derived cache data. Qdrant stores selective semantic code cards as optional derived data. The active SQLite generation remains queryable without AI resources.
-- Integration strategy: Code Facts calls `go-code-graph` for Go parse units and `typescript-code-graph` for TypeScript projects. It reads Vrooli repo/scenario metadata shallowly (`.vrooli/service.json`, `.vrooli/endpoints.json`, CLI manifests, testing metadata) but does not parse supported source languages itself.
+- Integration strategy: Code Facts calls API Core `gograph` in-process for Go parse units and `typescript-code-graph` for TypeScript projects. It reads Vrooli repo/scenario metadata shallowly (`.vrooli/service.json`, `.vrooli/endpoints.json`, CLI manifests, testing metadata) but owns no language parser implementation.
 - Non-goals / guardrails: No language parser logic in Code Facts for Go or TypeScript. No proto-health policy inside graph providers. No compatibility aliases for greenfield contracts. No unbounded in-memory repository index, per-query global source scan, line-by-line embedding corpus, or mandatory AI dependency for exact search.
 
 ## 🤝 Dependencies & Launch Plan
 
 - Required resources: SQLite and local filesystem access are required. Qdrant, Ollama, and the reranker are optional acceleration and relevance resources; their loss must preserve lexical service with explicit degradation.
-- Scenario dependencies: `go-code-graph` and `typescript-code-graph` are production provider dependencies once analyzer brokering is implemented. `proto-health` is the first planned consumer after Code Facts exposes proto adoption and endpoint proof families.
+- Scenario dependencies: `typescript-code-graph` is required for TypeScript and JavaScript provider facts. Go extraction uses API Core `gograph`; Go Code Graph remains an independent Connect, fixture and rewrite capability. `proto-health` is the first planned consumer after Code Facts exposes proto adoption and endpoint proof families.
 - Operational risks: Provider outages must degrade to typed `unsupported` or `unknown` evidence instead of silent success. Catalog, vector, and graph freshness must be fenced by source hash and generation. Long shadow builds must replay bounded later changes before promotion. Scenario metadata may be incomplete, so surface inventory must distinguish `missing`, `ambiguous`, and `unknown`.
 - Launch sequencing: Establish the measured corpus and evaluation contract; introduce capability boundaries; build the shared reconciliation substrate; ship the authoritative catalog and FTS index; add selective semantic and graph retrieval; expose generation controls; adopt Search Hub `local_index`; harden resource governance; complete the evidence workspace; then remove the streaming scan and transitional implementations after scale proof.
 

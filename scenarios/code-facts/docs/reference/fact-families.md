@@ -21,6 +21,7 @@ capabilities.
 | `cli_proofs` | Planned CLI implementation evidence. |
 | `ui_widget_proofs` | Planned UI widget evidence. |
 | `file_domain` | Architecture Cartographer's per-file domain verdicts. Code Facts delegates verdict production to cartographer, normalizes returned verdicts into this family, and returns typed unsupported evidence when cartographer is not configured or reachable. |
+| `file_metrics` | Active-catalog-backed lexical metrics for recognized source extensions: non-empty, code and comment lines; TODO/FIXME/HACK markers; and TypeScript/JavaScript type-safety patterns. Each fact carries file path, extension, language, role, byte size, source hash, and generation. A file changed since cataloging is omitted with an unknown warning; targets outside the indexed repository are unsupported. |
 | `all` | All supported families for the target. |
 
 Generic facts include provider-specific metadata in `attributes`. Code Facts treats those attributes as evidence payload, not policy conclusions. Proof families interpret a small, documented subset of those attributes and emit `unknown` instead of `proven` when the provider graph lacks enough detail.
@@ -31,6 +32,16 @@ repo-relative file path, `kind` is `file_domain`, and attributes carry
 `runner_up_value`, `tied`, and `authority_confidence`. The producing policy
 belongs to Architecture Cartographer so Code Facts remains a broker/cache
 surface rather than a second domain classifier.
+
+`file_metrics` facts use `GenericFact`: `subject` and `file_path` are relative
+to the requested target, and attributes include `lexical_metrics_version`,
+`line_count`, `code_lines`,
+`comment_lines`, `todo_count`, `fixme_count`, `hack_count`, and the TypeScript/
+JavaScript assertion counts and syntax-only import/function fallbacks for
+JavaScript, Python, and Rust, as well as `file_extension`, `language`, `role`,
+`size_bytes`, `source_hash`, and `generation`. `line_count` retains Tidiness
+Manager's non-empty physical-line meaning. The family bypasses report caching
+because catalog generation freshness is checked at query time.
 
 ## Endpoint Proof Support Matrix
 

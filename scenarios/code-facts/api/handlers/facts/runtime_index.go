@@ -135,10 +135,10 @@ func controlResponse(ctx context.Context, message string, job indexcontrol.Job, 
 
 func protoIndexJob(job indexcontrol.Job) *factsv1.IndexJob {
 	return &factsv1.IndexJob{
-		Id: job.ID, Kind: job.Kind, State: protoJobState(job.State), Generation: job.Generation,
+		Id: job.ID, Kind: job.Kind, State: protoJobState(string(job.State)), Generation: job.Generation,
 		Processed: job.Progress, Total: job.Total, Cursor: job.Cursor, Error: job.Error,
 		CreatedAtUnix: job.CreatedAt.Unix(), UpdatedAtUnix: job.UpdatedAt.Unix(),
-		CancellationRequested: job.CancellationRequested,
+		CancellationRequested: job.State == indexcontrol.JobCancellationRequested || job.State == indexcontrol.JobCancelled,
 	}
 }
 
@@ -228,7 +228,7 @@ func (handler *SearchControlHandler) ReindexStatus(ctx context.Context, req *con
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 	return connect.NewResponse(&controlv1.ReindexStatusResponse{
-		JobId: job.ID, State: sharedJobState(job.State), Processed: boundedInt32(job.Progress), Total: boundedInt32(job.Total), Error: job.Error,
+		JobId: job.ID, State: sharedJobState(string(job.State)), Processed: boundedInt32(job.Progress), Total: boundedInt32(job.Total), Error: job.Error,
 	}), nil
 }
 

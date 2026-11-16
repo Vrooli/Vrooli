@@ -47,7 +47,7 @@ type Reindexer interface {
 // migration rehearsal. Providers that do not implement it keep the ordinary
 // Reindex contract and the migration command refuses to operate on them.
 type MigrationReindexer interface {
-	ReindexShadow(ctx context.Context, collection, model, role string, dimensions int, policySchemaVersion, scope string, dryRun bool) (jobID string, plannedUpserts, plannedDeletes int, err error)
+	ReindexShadow(ctx context.Context, collection, model, role string, dimensions int, policySchemaVersion, recipeID, recipeCanonical, scope string, dryRun bool) (jobID string, plannedUpserts, plannedDeletes int, err error)
 	ActivateShadow(ctx context.Context, shadowCollection string) error
 	RollbackShadow(ctx context.Context, oldCollection string) error
 }
@@ -119,6 +119,7 @@ func (h *connectHandler) Reindex(ctx context.Context, req *connect.Request[contr
 		Action: action, ShadowCollection: r.GetShadowCollection(), RollbackCollection: r.GetRollbackCollection(),
 		EmbeddingModel: r.GetEmbeddingModel(), EmbeddingRole: r.GetEmbeddingRole(), EmbeddingDimensions: r.GetEmbeddingDimensions(),
 		EmbeddingPolicySchemaVersion: r.GetEmbeddingPolicySchemaVersion(), DryRun: r.GetDryRun(),
+		EmbeddingRecipeID: r.GetEmbeddingRecipeId(), EmbeddingRecipeCanonical: r.GetEmbeddingRecipeCanonical(),
 	}, "capabilities", "shadow", "cutover", "rollback"); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -141,7 +142,7 @@ func (h *connectHandler) Reindex(ctx context.Context, req *connect.Request[contr
 		}
 		switch action {
 		case "shadow":
-			jobID, up, del, err := migration.ReindexShadow(ctx, r.GetShadowCollection(), r.GetEmbeddingModel(), r.GetEmbeddingRole(), int(r.GetEmbeddingDimensions()), r.GetEmbeddingPolicySchemaVersion(), r.GetScope(), r.GetDryRun())
+			jobID, up, del, err := migration.ReindexShadow(ctx, r.GetShadowCollection(), r.GetEmbeddingModel(), r.GetEmbeddingRole(), int(r.GetEmbeddingDimensions()), r.GetEmbeddingPolicySchemaVersion(), r.GetEmbeddingRecipeId(), r.GetEmbeddingRecipeCanonical(), r.GetScope(), r.GetDryRun())
 			if err != nil {
 				return nil, connect.NewError(connect.CodeInternal, err)
 			}
@@ -314,14 +315,16 @@ func (a ServiceAdapter) ReindexStatus(jobID string) (string, int, int, string, b
 
 func (a ServiceAdapter) ReindexCancel(jobID string) bool { return a.Service.ReindexCancel(jobID) }
 
-func (a ServiceAdapter) ReindexShadow(ctx context.Context, collection, model, role string, dimensions int, policySchemaVersion, scope string, dryRun bool) (string, int, int, error) {
+func (a ServiceAdapter) ReindexShadow(ctx context.Context, collection, model, role string, dimensions int, policySchemaVersion, recipeID, recipeCanonical, scope string, dryRun bool) (string, int, int, error) {
 	job, err := a.Service.ReindexShadow(ctx, aisearch.ShadowRequest{
 		Collection: collection,
 		Embedding: aisearchpkg.EmbeddingPolicy{
 			Model: model, Role: role, Dimensions: dimensions, PolicySchemaVersion: policySchemaVersion,
 		},
-		Scope:  scope,
-		DryRun: dryRun,
+		EmbeddingRecipeID:        recipeID,
+		EmbeddingRecipeCanonical: recipeCanonical,
+		Scope:                    scope,
+		DryRun:                   dryRun,
 	})
 	if err != nil {
 		return "", 0, 0, err

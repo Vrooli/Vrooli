@@ -2,6 +2,7 @@ package searchcontrol
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -25,13 +26,27 @@ func (*migrationFake) ReindexCancel(string) bool { return false }
 func (*migrationFake) ApplyTuning(context.Context, aisearch.TuningConfig) (string, int, int, error) {
 	return "", 0, 0, nil
 }
-func (f *migrationFake) ReindexShadow(_ context.Context, collection, model, role string, dimensions int, policySchemaVersion, scope string, dryRun bool) (string, int, int, error) {
+func (f *migrationFake) ReindexShadow(_ context.Context, collection, model, role string, dimensions int, policySchemaVersion, recipeID, recipeCanonical, scope string, dryRun bool) (string, int, int, error) {
 	f.calls++
-	f.shadowArgs = []any{collection, model, role, dimensions, policySchemaVersion, scope, dryRun}
+	f.shadowArgs = []any{collection, model, role, dimensions, policySchemaVersion, recipeID, recipeCanonical, scope, dryRun}
 	return "shadow-job", 1, 0, nil
 }
 func (f *migrationFake) ActivateShadow(context.Context, string) error { f.calls++; return nil }
 func (f *migrationFake) RollbackShadow(context.Context, string) error { f.calls++; return nil }
+
+func handlerTestRecipe(t *testing.T, model string, dimensions int) (string, string) {
+	t.Helper()
+	recipe, err := aisearch.NewEmbeddingRecipe(aisearch.EmbeddingRecipeInput{
+		SchemaVersion: "1", ModelID: model, ModelRevision: "revision-1", ArtifactSHA256: strings.Repeat("b", 64),
+		TokenizerRevision: "tokenizer-1", Runtime: "test-runtime", RuntimeBuild: "build-1", Precision: "fp32",
+		QueryInstruction: "none", DocumentInstruction: "none", Pooling: "mean", Normalization: "l2",
+		Dimensions: dimensions, OutputDType: "float32", Truncation: "truncate-1", ChunkerVersion: "chunk-1", ComposerVersion: "cartographer-domain-v1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return recipe.ID(), string(recipe.Canonical())
+}
 
 func TestReindexRejectsUnsupportedAndIncompleteMigrationBeforeProviderCalls(t *testing.T) {
 	fake := &migrationFake{}
@@ -58,9 +73,11 @@ func TestReindexPreservesLegacyAndCompletedShadowRequest(t *testing.T) {
 	if err != nil || legacy.Msg.GetJobId() != "legacy-job" {
 		t.Fatalf("legacy reindex response=%+v err=%v", legacy, err)
 	}
+	recipeID, recipeCanonical := handlerTestRecipe(t, "model@sha256:abc", 768)
 	shadow, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{
 		ControlToken: "secret", Action: "shadow", ShadowCollection: "candidate-a", EmbeddingModel: "model@sha256:abc",
 		EmbeddingRole: "embedding.default", EmbeddingDimensions: 768, EmbeddingPolicySchemaVersion: "v1",
+		EmbeddingRecipeId: recipeID, EmbeddingRecipeCanonical: recipeCanonical,
 	}))
 	if err != nil || shadow.Msg.GetJobId() != "shadow-job" {
 		t.Fatalf("shadow response=%+v err=%v", shadow, err)
@@ -68,7 +85,7 @@ func TestReindexPreservesLegacyAndCompletedShadowRequest(t *testing.T) {
 	if fake.calls != 2 {
 		t.Fatalf("provider calls=%d, want legacy reindex plus shadow build", fake.calls)
 	}
-	want := []any{"candidate-a", "model@sha256:abc", "embedding.default", 768, "v1", "", false}
+	want := []any{"candidate-a", "model@sha256:abc", "embedding.default", 768, "v1", recipeID, recipeCanonical, "", false}
 	if len(fake.shadowArgs) != len(want) {
 		t.Fatalf("shadow adapter args=%v, want %v", fake.shadowArgs, want)
 	}

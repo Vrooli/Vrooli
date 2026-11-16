@@ -21,6 +21,32 @@ func MetricsSchema() string { return metricsSchemaSQL }
 // re-reading every governed file.
 func RevisionSchema() string { return revisionSchemaSQL }
 
+func IndexJobLifecycleSchema() string { return indexJobLifecycleSchemaSQL }
+
+func SemanticSchema() string { return semanticSchemaSQL }
+
+const semanticSchemaSQL = `
+CREATE TABLE IF NOT EXISTS code_facts_semantic_vectors (
+  generation_id TEXT NOT NULL REFERENCES code_facts_generations(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  document_id TEXT NOT NULL,
+  model TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  dimensions INTEGER NOT NULL,
+  vector BLOB NOT NULL,
+  PRIMARY KEY(generation_id,id),
+  FOREIGN KEY(generation_id,document_id) REFERENCES code_facts_search_documents(generation_id,id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS code_facts_semantic_generation ON code_facts_semantic_vectors(generation_id);
+UPDATE code_facts_generation_stats SET semantic_cards=(SELECT COUNT(*) FROM code_facts_semantic_vectors v WHERE v.generation_id=code_facts_generation_stats.generation_id);
+CREATE TRIGGER IF NOT EXISTS code_facts_semantic_vectors_ai AFTER INSERT ON code_facts_semantic_vectors BEGIN
+  UPDATE code_facts_generation_stats SET semantic_cards=semantic_cards+1 WHERE generation_id=new.generation_id;
+END;
+CREATE TRIGGER IF NOT EXISTS code_facts_semantic_vectors_ad AFTER DELETE ON code_facts_semantic_vectors BEGIN
+  UPDATE code_facts_generation_stats SET semantic_cards=semantic_cards-1 WHERE generation_id=old.generation_id;
+END;
+`
+
 const searchSchemaSQL = `
 CREATE TABLE IF NOT EXISTS code_facts_search_documents (
   rowid INTEGER PRIMARY KEY,
@@ -89,6 +115,10 @@ CREATE TABLE IF NOT EXISTS code_facts_promotions (
   created_at_unix INTEGER NOT NULL,
   updated_at_unix INTEGER NOT NULL
 );
+`
+
+const indexJobLifecycleSchemaSQL = `
+ALTER TABLE code_facts_index_jobs DROP COLUMN cancellation_requested;
 `
 
 const metricsSchemaSQL = `

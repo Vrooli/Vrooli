@@ -13,13 +13,13 @@
     "@vrooli/ui-selectors": "file:../../../packages/ui-selectors",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
-    "express": "^4.18.2",
+    "express": "^4.22.3",
     "i18next": "^23.16.4",
     "lucide-react": "^0.424.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.1.1",
-    "react-router-dom": "^6.28.0",
+    "react-router-dom": "^6.30.6",
     "tailwind-merge": "^2.3.0"
   },
   "description": "React + Vite front-end for Architecture Cartographer",
@@ -45,19 +45,19 @@
     "eslint-plugin-react-refresh": "^0.4.11",
     "globals": "^15.15.0",
     "jsdom": "^25.0.1",
-    "postcss": "^8.4.44",
+    "postcss": "^8.5.32",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.3",
     "typescript-eslint": "^8.54.0",
-    "vite": "^5.4.6",
-    "vitest": "^2.1.4"
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
   },
   "name": "architecture-cartographer-ui",
-  "packageManager": "pnpm@9.12.1",
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest \u0026\u0026 pnpm strings:gen \u0026\u0026 vite build",
-    "build:profile": "pnpm selector:manifest \u0026\u0026 pnpm strings:gen \u0026\u0026 vite build --mode profile",
+    "build": "pnpm selector:manifest && pnpm strings:gen && vite build",
+    "build:profile": "pnpm selector:manifest && pnpm strings:gen && vite build --mode profile",
     "dev": "vrooli lifecycle protect -- vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -68,7 +68,7 @@
     "strings:gen": "node scripts/gen-strings.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "type-check": "pnpm strings:check \u0026\u0026 tsc --noEmit"
+    "type-check": "pnpm strings:check && tsc --noEmit"
   },
   "type": "module",
   "version": "1.0.0"

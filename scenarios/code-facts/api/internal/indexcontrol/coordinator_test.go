@@ -56,23 +56,65 @@ func TestSQLiteJobStorePersistsCancellationAndRestartEvidence(t *testing.T) {
 	db := openControlDB(t)
 	store := NewSQLiteJobStore(db)
 	now := time.Unix(200, 0)
-	job := Job{ID: "job-1", Kind: "reconcile", State: "running", Generation: "g1", Cursor: "c1", Progress: 2, Total: 9, CreatedAt: now, UpdatedAt: now}
+	job := Job{ID: "job-1", Kind: "reconcile", State: JobRunning, Generation: "g1", Cursor: "c1", Progress: 2, Total: 9, CreatedAt: now, UpdatedAt: now}
 	if err := store.Create(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	queued := Job{ID: "job-queued", Kind: "reindex", State: JobQueued, Generation: "g1", CreatedAt: now.Add(time.Second), UpdatedAt: now.Add(time.Second)}
+	if err := store.Create(context.Background(), queued); err != nil {
 		t.Fatal(err)
 	}
 	recovered, err := store.RecoverInterrupted(context.Background(), now.Add(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(recovered) != 1 || recovered[0].State != "interrupted" || recovered[0].Cursor != "c1" || recovered[0].Error == "" {
+	if len(recovered) != 2 || recovered[0].State != JobInterrupted || recovered[0].Cursor != "c1" || recovered[0].Error == "" || recovered[1].State != JobInterrupted {
 		t.Fatalf("restart evidence mismatch: %+v", recovered)
 	}
 	if err := store.RequestCancel(context.Background(), job.ID, now.Add(2*time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	got, err := store.Get(context.Background(), job.ID)
-	if err != nil || got.State != "cancellation_requested" || !got.CancellationRequested {
+	if err != nil || got.State != JobCancellationRequested {
 		t.Fatalf("durable cancellation mismatch: %+v err=%v", got, err)
+	}
+}
+
+func TestSQLiteJobStoreRejectsUnknownAndStaleLifecycleWrites(t *testing.T) {
+	db := openControlDB(t)
+	store := NewSQLiteJobStore(db)
+	now := time.Unix(300, 0)
+	invalid := Job{ID: "invalid", Kind: "reconcile", State: JobState("mystery"), Generation: "g1", CreatedAt: now, UpdatedAt: now}
+	if err := store.Create(context.Background(), invalid); err == nil {
+		t.Fatal("Create accepted an unknown lifecycle state")
+	}
+	terminal := invalid
+	terminal.ID, terminal.State = "terminal-on-create", JobSucceeded
+	if err := store.Create(context.Background(), terminal); err == nil {
+		t.Fatal("Create accepted a terminal state")
+	}
+	job := Job{ID: "guarded", Kind: "reconcile", State: JobRunning, Generation: "g1", CreatedAt: now, UpdatedAt: now}
+	if err := store.Create(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	job.State, job.UpdatedAt = JobSucceeded, now.Add(time.Second)
+	if err := store.Update(context.Background(), job); err != nil {
+		t.Fatal(err)
+	}
+	job.State, job.UpdatedAt = JobFailed, now.Add(2*time.Second)
+	if err := store.Update(context.Background(), job); err == nil {
+		t.Fatal("stale writer changed a terminal job")
+	}
+	got, err := store.Get(context.Background(), "guarded")
+	if err != nil || got.State != JobSucceeded {
+		t.Fatalf("terminal state changed: %+v err=%v", got, err)
+	}
+	var hasCancellationFlag int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('code_facts_index_jobs') WHERE name='cancellation_requested'`).Scan(&hasCancellationFlag); err != nil {
+		t.Fatal(err)
+	}
+	if hasCancellationFlag != 0 {
+		t.Fatal("legacy cancellation flag column remains")
 	}
 }
 
@@ -80,7 +122,7 @@ func TestSQLiteStatusReaderReportsDurableGenerationCountsAndJobs(t *testing.T) {
 	db := openControlDB(t)
 	jobs := NewSQLiteJobStore(db)
 	now := time.Unix(200, 0)
-	if err := jobs.Create(context.Background(), Job{ID: "status-job", Kind: "reconcile", State: "running", Generation: "g1", CreatedAt: now, UpdatedAt: now}); err != nil {
+	if err := jobs.Create(context.Background(), Job{ID: "status-job", Kind: "reconcile", State: JobRunning, Generation: "g1", CreatedAt: now, UpdatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
 	status, err := NewSQLiteStatusReader(db, jobs).Status(context.Background())
@@ -147,8 +189,7 @@ func (store *memoryJobs) RequestCancel(_ context.Context, id string, _ time.Time
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	job := store.jobs[id]
-	job.CancellationRequested = true
-	job.State = "cancellation_requested"
+	job.State = JobCancellationRequested
 	store.jobs[id] = job
 	return nil
 }
@@ -263,7 +304,7 @@ func TestCoordinatorBoundsDeduplicatesAndCompletesShadow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if job.State != "succeeded" || job.Progress != 2 || len(processor.batches) != 2 || processor.batches[0][0].Hash != "new" {
+	if job.State != JobSucceeded || job.Progress != 2 || len(processor.batches) != 2 || processor.batches[0][0].Hash != "new" {
 		t.Fatalf("bounded reconcile mismatch: job=%+v batches=%+v", job, processor.batches)
 	}
 	if !reflect.DeepEqual(lifecycle.begun, []string{"g2"}) || !reflect.DeepEqual(lifecycle.completed, []string{"g2"}) {
@@ -276,7 +317,7 @@ func TestCoordinatorNoChangeIsBoundedAndPromotionFailurePreservesActive(t *testi
 	processor := &recordingProcessor{}
 	coordinator, _, lifecycle, aliases, promotions := testCoordinator(source, processor)
 	job, err := coordinator.Reconcile(context.Background(), "")
-	if err != nil || job.State != "succeeded" || source.calls != 1 || len(processor.batches) != 0 {
+	if err != nil || job.State != JobSucceeded || source.calls != 1 || len(processor.batches) != 0 {
 		t.Fatalf("no-change reconcile mismatch: job=%+v calls=%d batches=%d err=%v", job, source.calls, len(processor.batches), err)
 	}
 	lifecycle.activateErr = errors.New("catalog promotion failed")
@@ -294,10 +335,10 @@ func TestCoordinatorCancellationAndRollbackAreTruthful(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	job, err := coordinator.Reconcile(ctx, "g1")
-	if !errors.Is(err, context.Canceled) || job.State != "cancelled" {
+	if !errors.Is(err, context.Canceled) || job.State != JobCancelled {
 		t.Fatalf("cancelled job mismatch: %+v err=%v", job, err)
 	}
-	if stored := jobs.jobs[job.ID]; stored.State != "cancelled" || !stored.CancellationRequested {
+	if stored := jobs.jobs[job.ID]; stored.State != JobCancelled {
 		t.Fatalf("cancelled job was not durable: %+v", stored)
 	}
 	lifecycle.active = "g2"

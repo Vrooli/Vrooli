@@ -30,6 +30,9 @@ func TestGenerationCensusReportsActiveRetainedAndShadowWithoutInventingRecipe(t 
 		if entry.RecipeID != "" || entry.RecipeIdentityState != "unknown" {
 			t.Fatalf("census fabricated a complete recipe identity: %+v", entry)
 		}
+		if entry.SentinelID == "" || entry.SentinelIdentityState != "expected_from_owner_spec_unverified" || entry.SentinelSchemaVersion != 1 {
+			t.Fatalf("census lost the expected sentinel identity or overstated its physical verification: %+v", entry)
+		}
 		if entry.Durability != "in_process_only" || entry.RestartRecovery != "unsupported" || entry.PhysicalState != "unobserved" {
 			t.Fatalf("census overstated restart or physical-store evidence: %+v", entry)
 		}

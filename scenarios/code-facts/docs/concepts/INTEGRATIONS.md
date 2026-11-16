@@ -8,7 +8,7 @@ Track provider, resource, and consumer relationships for Code Facts.
 
 | Dependency | Kind | Phase | Purpose |
 |---|---|---|---|
-| go-code-graph | scenario provider | Phase 8 | Go module graph and usage facts. |
+| api-core/gograph | shared package | active | Go module loading, extraction profiles, deterministic graph facts, hashing, and common graph projection used in-process. |
 | typescript-code-graph | scenario provider | Phase 8 | TypeScript project graph and usage facts. |
 | proto-health | consumer | Phase 12 | Consumes proto adoption and endpoint proof facts. |
 | descriptorimage | shared package | active | Loads the committed protobuf descriptor image and preserves last known-good snapshots. |
@@ -23,7 +23,7 @@ Qdrant stores selective code-card vectors under generation-specific collections 
 
 ## Scenario Dependencies
 
-Provider dependencies are called through Connect-RPC clients hidden behind analyzer seams. Unit tests use fakes and must not require live providers.
+The Go provider calls API Core `gograph` in-process. TypeScript and JavaScript providers use Connect-RPC clients hidden behind analyzer seams. Unit tests use local modules or fakes and must not require live graph services.
 
 ## Third-Party Services
 

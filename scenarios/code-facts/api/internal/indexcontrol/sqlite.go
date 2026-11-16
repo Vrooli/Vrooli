@@ -18,8 +18,8 @@ func (store *SQLiteJobStore) Create(ctx context.Context, job Job) error {
 	if err := store.ready(); err != nil {
 		return err
 	}
-	if job.ID == "" || job.Generation == "" || job.Kind == "" || job.State == "" {
-		return fmt.Errorf("index job requires id, generation, kind, and state")
+	if job.ID == "" || job.Generation == "" || job.Kind == "" || (job.State != JobQueued && job.State != JobRunning) {
+		return fmt.Errorf("index job requires id, generation, kind, and an initial queued or running state")
 	}
 	created := job.CreatedAt.UTC()
 	if created.IsZero() {
@@ -30,9 +30,9 @@ func (store *SQLiteJobStore) Create(ctx context.Context, job Job) error {
 		updated = created
 	}
 	_, err := store.db.ExecContext(ctx, `INSERT INTO code_facts_index_jobs(
- id,generation_id,kind,state,cursor,processed,total,created_at_unix,updated_at_unix,error,cancellation_requested
-) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, job.ID, job.Generation, job.Kind, job.State, job.Cursor, job.Progress, job.Total,
-		created.Unix(), updated.Unix(), job.Error, boolInt(job.CancellationRequested))
+ id,generation_id,kind,state,cursor,processed,total,created_at_unix,updated_at_unix,error
+) VALUES(?,?,?,?,?,?,?,?,?,?)`, job.ID, job.Generation, job.Kind, job.State, job.Cursor, job.Progress, job.Total,
+		created.Unix(), updated.Unix(), job.Error)
 	if err != nil {
 		return fmt.Errorf("create index job: %w", err)
 	}
@@ -43,14 +43,21 @@ func (store *SQLiteJobStore) Update(ctx context.Context, job Job) error {
 	if err := store.ready(); err != nil {
 		return err
 	}
+	current, err := store.Get(ctx, job.ID)
+	if err != nil {
+		return err
+	}
+	if !current.State.CanTransitionTo(job.State) {
+		return fmt.Errorf("invalid index job transition %q -> %q", current.State, job.State)
+	}
 	result, err := store.db.ExecContext(ctx, `UPDATE code_facts_index_jobs SET
- state=?,cursor=?,processed=?,total=?,updated_at_unix=?,error=?,cancellation_requested=? WHERE id=?`,
-		job.State, job.Cursor, job.Progress, job.Total, job.UpdatedAt.UTC().Unix(), job.Error, boolInt(job.CancellationRequested), job.ID)
+ state=?,cursor=?,processed=?,total=?,updated_at_unix=?,error=? WHERE id=? AND state=?`,
+		job.State, job.Cursor, job.Progress, job.Total, job.UpdatedAt.UTC().Unix(), job.Error, job.ID, current.State)
 	if err != nil {
 		return fmt.Errorf("update index job: %w", err)
 	}
 	if affected, _ := result.RowsAffected(); affected != 1 {
-		return ErrJobNotFound
+		return fmt.Errorf("index job %q changed concurrently", job.ID)
 	}
 	return nil
 }
@@ -91,12 +98,19 @@ func (store *SQLiteJobStore) RequestCancel(ctx context.Context, id string, now t
 	if err := store.ready(); err != nil {
 		return err
 	}
-	result, err := store.db.ExecContext(ctx, `UPDATE code_facts_index_jobs SET state='cancellation_requested',cancellation_requested=1,updated_at_unix=? WHERE id=? AND state IN ('queued','running','interrupted')`, now.UTC().Unix(), id)
+	current, err := store.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if !current.State.CanTransitionTo(JobCancellationRequested) {
+		return fmt.Errorf("invalid index job transition %q -> %q", current.State, JobCancellationRequested)
+	}
+	result, err := store.db.ExecContext(ctx, `UPDATE code_facts_index_jobs SET state='cancellation_requested',updated_at_unix=? WHERE id=? AND state=?`, now.UTC().Unix(), id, current.State)
 	if err != nil {
 		return err
 	}
 	if affected, _ := result.RowsAffected(); affected != 1 {
-		return ErrJobNotFound
+		return fmt.Errorf("index job %q changed concurrently", id)
 	}
 	return nil
 }
@@ -105,8 +119,31 @@ func (store *SQLiteJobStore) RecoverInterrupted(ctx context.Context, now time.Ti
 	if err := store.ready(); err != nil {
 		return nil, err
 	}
-	if _, err := store.db.ExecContext(ctx, `UPDATE code_facts_index_jobs SET state='interrupted',updated_at_unix=?,error='process restarted before completion' WHERE state='running'`, now.UTC().Unix()); err != nil {
+	rows, err := store.db.QueryContext(ctx, `SELECT id FROM code_facts_index_jobs WHERE state IN ('queued','running','cancellation_requested') ORDER BY created_at_unix,id`)
+	if err != nil {
 		return nil, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		job, err := store.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		job.State, job.UpdatedAt, job.Error = JobInterrupted, now.UTC(), "process restarted before completion"
+		if err := store.Update(ctx, job); err != nil {
+			return nil, err
+		}
 	}
 	return store.ListActive(ctx)
 }
@@ -118,19 +155,20 @@ func (store *SQLiteJobStore) ready() error {
 	return nil
 }
 
-const jobSelect = `SELECT id,kind,state,generation_id,processed,total,error,cursor,cancellation_requested,created_at_unix,updated_at_unix FROM code_facts_index_jobs`
+const jobSelect = `SELECT id,kind,state,generation_id,processed,total,error,cursor,created_at_unix,updated_at_unix FROM code_facts_index_jobs`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanJob(row rowScanner) (Job, error) {
 	var job Job
-	var cancelled int
 	var created, updated int64
-	err := row.Scan(&job.ID, &job.Kind, &job.State, &job.Generation, &job.Progress, &job.Total, &job.Error, &job.Cursor, &cancelled, &created, &updated)
+	err := row.Scan(&job.ID, &job.Kind, &job.State, &job.Generation, &job.Progress, &job.Total, &job.Error, &job.Cursor, &created, &updated)
 	if err != nil {
 		return Job{}, err
 	}
-	job.CancellationRequested = cancelled == 1
+	if !job.State.Valid() {
+		return Job{}, fmt.Errorf("stored index job has invalid state %q", job.State)
+	}
 	job.CreatedAt, job.UpdatedAt = time.Unix(created, 0).UTC(), time.Unix(updated, 0).UTC()
 	return job, nil
 }

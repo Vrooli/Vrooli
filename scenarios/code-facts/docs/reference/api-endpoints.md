@@ -1,6 +1,6 @@
 # API Endpoints
 
-`CodeFactsService` exposes the target resolver, fact query, proof, and cache diagnostics contract. Target/surface discovery, analyzer brokering, generic fact normalization, cache reuse, proto adoption proof, and REST exception endpoint proof are active.
+`CodeFactsService` exposes the target resolver, fact query, proof, and cache diagnostics contract. Target/surface discovery, analyzer brokering, generic fact normalization, cache reuse, catalog-backed file metrics, proto adoption proof, and REST exception endpoint proof are active.
 
 | Operation | Purpose | Primary Requirement |
 |---|---|---|
@@ -17,6 +17,13 @@
 response's `next_page_token` is an offset token for the next page and
 `total_facts` describes the unpaged report. A zero page size retains the
 single-response contract.
+
+`DescribeCodeFacts` with `FACT_FAMILY_FILE_METRICS` pages catalog-backed
+lexical metrics: non-empty, code and comment lines; TODO/FIXME/HACK markers;
+TypeScript/JavaScript type-safety patterns; and syntax-only import/function
+fallbacks for JavaScript, Python, and Rust. It bypasses report caching and
+omits files whose content hash no longer matches the active index generation,
+with an explicit warning.
 
 The only REST exception currently exposed by Code Facts is the operational `/health` probe.
 

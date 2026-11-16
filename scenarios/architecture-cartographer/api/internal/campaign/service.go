@@ -101,12 +101,21 @@ func (s *service) Create(ctx context.Context, scenario, name string, findings []
 	}
 	s.record(ctx, scenario, EventCampaignCreated, "", map[string]any{"campaign_id": c.ID, "name": c.Name})
 
+	items := make([]Finding, 0, len(findings))
+	lastOccurrence := make(map[string]int, len(findings))
 	for _, pf := range findings {
 		f := fromProto(scenario, pf)
 		if f.StableID == "" {
 			continue
 		}
-		if err := s.repo.UpsertFinding(ctx, c.ID, f); err != nil {
+		lastOccurrence[f.StableID] = len(items)
+		items = append(items, f)
+	}
+	for i, f := range items {
+		if lastOccurrence[f.StableID] != i {
+			continue
+		}
+		if err := s.repo.CreateFinding(ctx, c.ID, f); err != nil {
 			return Status{}, err
 		}
 		s.record(ctx, scenario, EventFindingIngested, f.StableID, map[string]any{
@@ -163,9 +172,12 @@ func (s *service) Resolve(ctx context.Context, id, stableID, note string) (Findi
 	if err != nil {
 		return Finding{}, err
 	}
-	f.Status = StatusResolved
+	from := f.Status
+	if err := f.TransitionStatus(StatusResolved); err != nil {
+		return Finding{}, err
+	}
 	f.ResolutionNote = strings.TrimSpace(note)
-	if err := s.repo.UpsertFinding(ctx, id, f); err != nil {
+	if err := s.repo.TransitionFinding(ctx, id, from, f); err != nil {
 		return Finding{}, err
 	}
 	s.record(ctx, c.Scenario, EventFindingResolved, f.StableID, map[string]any{"note": f.ResolutionNote})
@@ -277,9 +289,12 @@ func (s *service) handleStillPresentFinding(
 		result.StillOpen = append(result.StillOpen, f)
 		return nil
 	}
-	f.Status = StatusDetected
+	from := f.Status
+	if err := f.TransitionStatus(StatusDetected); err != nil {
+		return err
+	}
 	f.Regressed = true
-	if err := s.repo.UpsertFinding(ctx, campaignID, f); err != nil {
+	if err := s.repo.TransitionFinding(ctx, campaignID, from, f); err != nil {
 		return err
 	}
 	s.record(ctx, scenario, EventFindingRegressed, f.StableID, map[string]any{"reason": "reappeared_after_terminal"})
@@ -297,9 +312,12 @@ func (s *service) validateAbsentFinding(
 	if f.Status == StatusValidated || f.Status == StatusCommitted {
 		return nil
 	}
-	f.Status = StatusValidated
+	from := f.Status
+	if err := f.TransitionStatus(StatusValidated); err != nil {
+		return err
+	}
 	f.Regressed = false
-	if err := s.repo.UpsertFinding(ctx, campaignID, f); err != nil {
+	if err := s.repo.TransitionFinding(ctx, campaignID, from, f); err != nil {
 		return err
 	}
 	s.record(ctx, scenario, EventFindingValidated, f.StableID, nil)
@@ -319,9 +337,8 @@ func (s *service) ingestNewFreshFindings(
 		if _, known := trackedByID[sid]; known {
 			continue
 		}
-		f.Status = StatusDetected
 		f.Regressed = true
-		if err := s.repo.UpsertFinding(ctx, campaignID, f); err != nil {
+		if err := s.repo.CreateFinding(ctx, campaignID, f); err != nil {
 			return err
 		}
 		s.record(ctx, scenario, EventFindingRegressed, sid, map[string]any{"reason": "new_during_campaign"})

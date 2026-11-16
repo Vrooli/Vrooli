@@ -39,7 +39,7 @@ func (coordinator *Coordinator) Reconcile(ctx context.Context, generation string
 		}
 	}
 	now := coordinator.Clock.Now().UTC()
-	job := Job{ID: "reconcile-" + strconv.FormatInt(now.UnixNano(), 10), Kind: "reconcile", State: "running", Generation: generation, CreatedAt: now, UpdatedAt: now}
+	job := Job{ID: "reconcile-" + strconv.FormatInt(now.UnixNano(), 10), Kind: "reconcile", State: JobRunning, Generation: generation, CreatedAt: now, UpdatedAt: now}
 	if err := coordinator.Jobs.Create(ctx, job); err != nil {
 		return Job{}, err
 	}
@@ -61,7 +61,7 @@ func (coordinator *Coordinator) StartShadow(ctx context.Context, generation stri
 		return job, err
 	}
 	if err := coordinator.Validator.Validate(ctx, generation); err != nil {
-		job.State, job.Error, job.UpdatedAt = "failed", err.Error(), coordinator.Clock.Now().UTC()
+		job.State, job.Error, job.UpdatedAt = JobFailed, err.Error(), coordinator.Clock.Now().UTC()
 		_ = coordinator.Jobs.Update(context.WithoutCancel(ctx), job)
 		return job, err
 	}
@@ -84,7 +84,7 @@ func (coordinator *Coordinator) run(ctx context.Context, job Job) (Job, error) {
 		if err != nil {
 			return job, err
 		}
-		if current.CancellationRequested {
+		if current.State == JobCancellationRequested {
 			return coordinator.finishCancelled(current, context.Canceled)
 		}
 		batch, err := coordinator.Source.Changes(ctx, job.Cursor, batchSize)
@@ -105,7 +105,7 @@ func (coordinator *Coordinator) run(ctx context.Context, job Job) (Job, error) {
 		job.Cursor = batch.NextCursor
 		job.UpdatedAt = coordinator.Clock.Now().UTC()
 		if batch.Done {
-			job.State = "succeeded"
+			job.State = JobSucceeded
 		}
 		if err := coordinator.Jobs.Update(ctx, job); err != nil {
 			return job, err
@@ -179,7 +179,7 @@ func (coordinator *Coordinator) Cancel(ctx context.Context, id string) error {
 func (coordinator *Coordinator) Cleanup(context.Context) error { return nil }
 
 func (coordinator *Coordinator) finishCancelled(job Job, cause error) (Job, error) {
-	job.State, job.CancellationRequested, job.Error, job.UpdatedAt = "cancelled", true, cause.Error(), coordinator.Clock.Now().UTC()
+	job.State, job.Error, job.UpdatedAt = JobCancelled, cause.Error(), coordinator.Clock.Now().UTC()
 	if err := coordinator.Jobs.Update(context.Background(), job); err != nil {
 		return job, errors.Join(cause, err)
 	}
@@ -187,7 +187,7 @@ func (coordinator *Coordinator) finishCancelled(job Job, cause error) (Job, erro
 }
 
 func (coordinator *Coordinator) finishFailed(job Job, cause error) (Job, error) {
-	job.State, job.Error, job.UpdatedAt = "failed", cause.Error(), coordinator.Clock.Now().UTC()
+	job.State, job.Error, job.UpdatedAt = JobFailed, cause.Error(), coordinator.Clock.Now().UTC()
 	if err := coordinator.Jobs.Update(context.Background(), job); err != nil {
 		return job, errors.Join(cause, err)
 	}

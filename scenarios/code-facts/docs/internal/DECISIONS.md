@@ -1,8 +1,8 @@
 # Decisions
 
-## D-001 — Broker, Do Not Parse
+## D-001 — Reuse Parser Owners, Do Not Duplicate Them
 
-Code Facts will broker `go-code-graph` and `typescript-code-graph` instead of parsing supported source languages. This preserves clear ownership and prevents every validator from reinventing parser logic.
+Code Facts does not implement language parsers. Its Go provider calls the shared API Core `gograph` owner in-process; its TypeScript and JavaScript providers call `typescript-code-graph`. This keeps each parser implementation singular while avoiding an unnecessary Go service hop.
 
 ## D-002 — Explicit Evidence Statuses
 

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 
+	"github.com/vrooli/api-core/gograph"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
-	gographv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
-	gographconnect "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
 	tsgraphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
 	tsgraphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"
 )
@@ -105,52 +105,49 @@ func errNoProvider(language string) ProviderUnavailableError {
 }
 
 type goGraphProvider struct {
-	resolver   URLResolver
-	httpClient connect.HTTPClient
+	service *gograph.Service
 }
 
-func NewGoGraphProvider(resolver URLResolver, httpClient connect.HTTPClient) GraphProvider {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	return &goGraphProvider{resolver: resolver, httpClient: httpClient}
+func NewGoGraphProvider() GraphProvider {
+	cache := gograph.NewMemoryExtractionCache()
+	service := gograph.NewServiceWithCache(gograph.NewPackagesLoader(), gograph.NewPathMutex(), gograph.DefaultMaxConcurrentExtracts, cache)
+	return &goGraphProvider{service: service}
 }
 
 func (p *goGraphProvider) Language() string     { return "go" }
 func (p *goGraphProvider) AnalyzerName() string { return goProviderScenario }
 
 func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
-	return p.extract(ctx, unit, gographv1.ExtractionProfile_EXTRACTION_PROFILE_FULL)
+	return p.extract(ctx, unit, gograph.ExtractionProfileFull)
 }
 
 func (p *goGraphProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	return p.extract(ctx, unit, goExtractionProfile(families))
 }
 
-func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, profile gographv1.ExtractionProfile) (*factsv1.LanguageGraph, error) {
-	if p.resolver == nil {
-		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: errors.New("missing URL resolver")}
+func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, profile gograph.ExtractionProfile) (*factsv1.LanguageGraph, error) {
+	if p.service == nil {
+		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: errors.New("missing shared Go graph service")}
 	}
-	baseURL, err := p.resolver.ResolveScenarioURLDefault(ctx, goProviderScenario)
+	started := time.Now()
+	graph, warnings, err := p.service.Extract(ctx, gograph.ExtractInput{
+		ModulePath: unit.GetRootPath(), Profile: profile, PackagePatterns: unit.GetPackagePatterns(),
+	})
 	if err != nil {
-		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: err}
-	}
-	resp, err := gographconnect.NewGoCodeGraphServiceClient(p.httpClient, baseURL).Extract(ctx, connect.NewRequest(&gographv1.ExtractRequest{
-		ModulePath:      unit.GetRootPath(),
-		Profile:         profile,
-		PackagePatterns: unit.GetPackagePatterns(),
-	}))
-	if err != nil {
-		return nil, classifyProviderError(p.AnalyzerName(), err)
+		var extractErr gograph.ExtractError
+		if errors.As(err, &extractErr) && extractErr.Kind == gograph.ExtractErrorWorkspaceUnsupported {
+			return nil, ProviderUnsupportedError{Analyzer: p.AnalyzerName(), Err: err}
+		}
+		return nil, err
 	}
 	result := &factsv1.LanguageGraph{
-		Graph: resp.Msg.GetGraph(), Warnings: resp.Msg.GetWarnings(),
-		GraphHash: resp.Msg.GetGraphHash(), ExtractionMs: resp.Msg.GetExtractionMs(),
-		ExtractionProfile: strings.ToLower(strings.TrimPrefix(resp.Msg.GetProfile().String(), "EXTRACTION_PROFILE_")),
+		Graph: gograph.ToProtoGraph(graph), Warnings: gograph.WarningsToProto(warnings),
+		GraphHash: gograph.GraphHash(graph), ExtractionMs: time.Since(started).Milliseconds(),
+		ExtractionProfile: string(profile),
 	}
-	for _, omission := range resp.Msg.GetOmittedInformation() {
+	for _, omission := range profile.OmittedInformation() {
 		result.OmittedInformation = append(result.OmittedInformation, &factsv1.GraphInformationOmission{
-			Capability: omission.GetCapability(), Reason: omission.GetReason(),
+			Capability: omission.Capability, Reason: omission.Reason,
 		})
 	}
 	return result, nil
@@ -161,16 +158,16 @@ func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, 
 // syntax only. References, calls, and endpoint proof synthesis require
 // resolved semantic usage facts. Code Facts has no test-only fact family, so
 // it never needs the full compatibility profile.
-func goExtractionProfile(families []factsv1.FactFamily) gographv1.ExtractionProfile {
+func goExtractionProfile(families []factsv1.FactFamily) gograph.ExtractionProfile {
 	for _, family := range families {
 		switch family {
 		case factsv1.FactFamily_FACT_FAMILY_REFERENCES,
 			factsv1.FactFamily_FACT_FAMILY_CALLS,
 			factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS:
-			return gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC
+			return gograph.ExtractionProfileSemantic
 		}
 	}
-	return gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL
+	return gograph.ExtractionProfileStructural
 }
 
 func extractForFamilies(ctx context.Context, provider GraphProvider, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
@@ -186,7 +183,7 @@ func providerExtractionProfile(provider GraphProvider, families []factsv1.FactFa
 	}
 	switch provider.Language() {
 	case "go":
-		return goExtractionProfile(families).String()
+		return string(goExtractionProfile(families))
 	case "typescript", "javascript":
 		// The provider now emits normalized body identity, includes owned JS
 		// sources in TS projects, and discovers standalone JavaScript packages.

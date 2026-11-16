@@ -16,9 +16,9 @@ import (
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
 
+	"github.com/vrooli/api-core/gograph"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
-	gographv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	_ "modernc.org/sqlite"
 )
 
@@ -27,14 +27,14 @@ func TestGoExtractionProfileUsesCheapestCompatibleProfile(t *testing.T) {
 	tests := []struct {
 		name     string
 		families []factsv1.FactFamily
-		want     gographv1.ExtractionProfile
+		want     gograph.ExtractionProfile
 	}{
-		{name: "imports", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL},
-		{name: "symbols", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL},
-		{name: "proto adoption", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL},
-		{name: "references", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_REFERENCES}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC},
-		{name: "calls", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_CALLS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC},
-		{name: "endpoint proofs", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS}, want: gographv1.ExtractionProfile_EXTRACTION_PROFILE_SEMANTIC},
+		{name: "imports", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS}, want: gograph.ExtractionProfileStructural},
+		{name: "symbols", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS}, want: gograph.ExtractionProfileStructural},
+		{name: "proto adoption", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION}, want: gograph.ExtractionProfileStructural},
+		{name: "references", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_REFERENCES}, want: gograph.ExtractionProfileSemantic},
+		{name: "calls", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_CALLS}, want: gograph.ExtractionProfileSemantic},
+		{name: "endpoint proofs", families: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_ENDPOINT_PROOFS}, want: gograph.ExtractionProfileSemantic},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -352,14 +352,31 @@ func TestDescribeFileDomainFamilyUsesProvider(t *testing.T) {
 	}
 }
 
-func TestNormalizeFamiliesAllIncludesFileDomain(t *testing.T) {
+func TestNormalizeFamiliesAllIncludesFileMetrics(t *testing.T) {
 	got := normalizeFamilies([]factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_ALL})
 	for _, family := range got {
-		if family == factsv1.FactFamily_FACT_FAMILY_FILE_DOMAIN {
+		if family == factsv1.FactFamily_FACT_FAMILY_FILE_METRICS {
 			return
 		}
 	}
-	t.Fatalf("FACT_FAMILY_ALL did not include FILE_DOMAIN: %+v", got)
+	t.Fatalf("FACT_FAMILY_ALL did not include FILE_METRICS: %+v", got)
+}
+
+func TestDescribeFileMetricsDelegatesToCatalogProvider(t *testing.T) {
+	repo, _ := writeScenarioFixture(t, "file-metrics")
+	want := &factsv1.GenericFact{Id: "file-metrics:main", Family: factsv1.FactFamily_FACT_FAMILY_FILE_METRICS, Attributes: map[string]string{"file_path": "api/main.go", "line_count": "3"}}
+	provider := fakeFileMetricsProvider{facts: []*factsv1.GenericFact{want}}
+	service := NewService(WithFileMetricsProvider(provider))
+	report, err := service.Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
+		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_SCENARIO, Scenario: "file-metrics", RepoRoot: repo},
+		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_FILE_METRICS},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.GetFacts()) != 1 || report.GetFacts()[0].GetAttributes()["line_count"] != "3" {
+		t.Fatalf("file metrics facts = %#v", report.GetFacts())
+	}
 }
 
 func TestDescribePathInsideScenarioSurface(t *testing.T) {
@@ -2252,6 +2269,17 @@ type fakeFileDomainProvider struct {
 	evidence []*factsv1.Evidence
 	warnings []*factsv1.Warning
 	err      error
+}
+
+type fakeFileMetricsProvider struct {
+	facts    []*factsv1.GenericFact
+	evidence []*factsv1.Evidence
+	warnings []*factsv1.Warning
+	err      error
+}
+
+func (f fakeFileMetricsProvider) DescribeFileMetrics(context.Context, *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
+	return f.facts, f.evidence, f.warnings, f.err
 }
 
 func (f fakeFileDomainProvider) DescribeFileDomains(context.Context, *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {

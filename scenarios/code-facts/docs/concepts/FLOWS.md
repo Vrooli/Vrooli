@@ -51,7 +51,7 @@ workflow model.
 |---|---|---|---|
 | facts / describe request | validated, described, unsupported, failed | report before validation, silent unsupported family omission | handler/service tests and CLI/UI smoke tests |
 | catalog / generation | shadow, active, retired, failed | empty shadow to active, retired to active, writes to retired, partial failure to active | `catalog.SQLiteRepository` transaction guards and tests |
-| indexcontrol / job | queued, running, cancellation_requested, succeeded, failed, cancelled, interrupted | terminal job to running, cancellation without durable state, non-advancing cursor | `indexcontrol.Coordinator` and `SQLiteJobStore` tests |
+| indexcontrol / job | queued, running, cancellation_requested, succeeded, failed, cancelled, interrupted | unknown states, terminal job to running, illegal source/target edges, stale writes, non-advancing cursor | `JobState` transition graph, SQLite source-state compare-and-swap, and `indexcontrol` tests |
 | indexcontrol / promotion | prepared, alias_promoted, committed, rolled_back, failed | commit before alias, active pointer after failed alias, split generation left unrecorded | durable promotion ledger and compensation tests |
 
 ### Catalog generation
@@ -79,6 +79,12 @@ Cancellation or a discovery/write failure marks the shadow generation failed. It
 8. Validate a shadow generation before any alias or catalog promotion.
 9. Record promotion intent, move the vector alias, and then activate SQLite. If SQLite activation fails, restore the former alias and record `rolled_back`.
 10. Keep the previous complete generation until confirmed rollback or cleanup.
+
+The durable job row's `state` is the only cancellation marker. A request moves
+queued, running, or interrupted jobs to `cancellation_requested`; completion,
+failure, cancellation, and restart recovery then follow the `JobState` graph.
+SQLite rejects unknown stored states and prevents stale writers from replacing
+a newer state.
 
 Typed Connect RPCs and the `code-facts index` CLI group expose status,
 reconcile, reindex, cancel, promote, rollback, and cleanup. Reindex, promote,

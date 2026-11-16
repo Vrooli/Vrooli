@@ -26,11 +26,13 @@ describe("AppShell structure (cimode)", () => {
   it("renders the title, sidebar, bottom nav, and main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "menu-tabs");
+    expect(screen.getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
     expect(screen.getByTestId(`${selectors.layout.shell}-header`)).toBeInTheDocument();
     expect(screen.getByTestId(`${selectors.layout.shell}-sidebar`)).toBeInTheDocument();
     expect(screen.getByTestId(`${selectors.layout.shell}-tabs`)).toBeInTheDocument();
     expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.app.title)).toBeInTheDocument();
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
   });
 
   it("renders the locale switcher with toggles for every supported locale", () => {
@@ -45,8 +47,11 @@ describe("AppShell structure (cimode)", () => {
     renderShell();
     for (const key of ["dashboard", "brands", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
+    }
+    for (const key of ["dashboard", "brands", "assets", "generation"] as const) {
       expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
     }
+    expect(screen.queryByTestId(`${selectors.layout.sidebarLink({ key: "settings" })}-tab`)).not.toBeInTheDocument();
   });
 });
 

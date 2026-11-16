@@ -7,17 +7,57 @@ import (
 )
 
 type Job struct {
-	ID                    string
-	Kind                  string
-	State                 string
-	Generation            string
-	Progress              int64
-	Total                 int64
-	Error                 string
-	Cursor                string
-	CancellationRequested bool
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
+	ID         string
+	Kind       string
+	State      JobState
+	Generation string
+	Progress   int64
+	Total      int64
+	Error      string
+	Cursor     string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
+// JobState is the durable index job lifecycle. All changes are checked against
+// this graph by the SQLite owner before they are committed.
+type JobState string
+
+const (
+	JobQueued                JobState = "queued"
+	JobRunning               JobState = "running"
+	JobCancellationRequested JobState = "cancellation_requested"
+	JobSucceeded             JobState = "succeeded"
+	JobFailed                JobState = "failed"
+	JobCancelled             JobState = "cancelled"
+	JobInterrupted           JobState = "interrupted"
+)
+
+func (state JobState) Valid() bool {
+	switch state {
+	case JobQueued, JobRunning, JobCancellationRequested, JobSucceeded, JobFailed, JobCancelled, JobInterrupted:
+		return true
+	default:
+		return false
+	}
+}
+
+func (state JobState) CanTransitionTo(next JobState) bool {
+	if state == next {
+		return state.Valid()
+	}
+	switch state {
+	case JobQueued:
+		return next == JobRunning || next == JobCancellationRequested || next == JobInterrupted || next == JobFailed
+	case JobRunning:
+		return next == JobSucceeded || next == JobFailed || next == JobCancelled || next == JobCancellationRequested || next == JobInterrupted
+	case JobCancellationRequested:
+		return next == JobCancelled || next == JobFailed || next == JobInterrupted
+	case JobInterrupted:
+		return next == JobCancelled || next == JobFailed || next == JobRunning || next == JobCancellationRequested
+	default:
+		return false
+	}
 }
 
 type JobStore interface {

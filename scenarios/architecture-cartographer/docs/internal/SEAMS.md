@@ -119,6 +119,18 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `api-core/connectxtest::StartTestServer` is the canonical in-process server harness for handler tests. `connectxtest.NewLogger` is the canonical logger capture helper. Module tests can still mount the module on a mux router and issue real HTTP requests. No hand-written request JSON ribbon is needed in tests. |
 | **Why it exists** | The proto service descriptor becomes the single wire contract for UI, CLI, and API. Handler path, method, request type, response type, and Connect error envelope all come from generated code instead of parallel route tables. |
 
+### SearchControl migration lifecycle (provider-owned, process-local)
+
+| | |
+|---|---|
+| **Seam** | The Search Hub provider control token authorizes owner reindex, shadow-stage, cutover, and rollback calls. |
+| **Interface** | `handlers/searchcontrol.MigrationReindexer` delegates to `internal/aisearch.Service` (`ReindexShadow`, `ActivateShadow`, `RollbackShadow`). |
+| **Production wiring** | A shadow uses a separate collection-scoped engine with explicit model, role, dimensions, and policy-schema version. Within one process, a repeated identical stage request returns the recorded reindex job; concurrent duplicate stages and conflicting requests for the same collection are refused. Dry-run skips collection ensure and cannot be activated. Cutover requires a successful recorded build job, verifies the collection through the vector-store owner, switches the in-process read pointer, and retains one previous engine. Rollback switches that pointer back. Each successful switch advances an in-process pointer epoch. |
+| **Census** | `internal/aisearch.Service.GenerationCensus` reports active, retained, and shadow collection pointers, build-job identity/state, and pointer epochs. The current owner does not persist a complete embedding recipe, so `recipe_identity=unknown`. The census explicitly reports `durability=in_process_only`, `restart_recovery=unsupported`, and `physical_state=unobserved`; it does not count points or enumerate Qdrant collections. |
+| **Restart and crash limits** | The shadow engine map, build-job association, retained pointer, and epoch are volatile. Restart rebuilds the configured active engine and cannot recover an in-flight build, previous pointer, or rollback window. If the process exits after Qdrant collection ensure or during reindex, physical partial data may remain without a surviving local receipt. No restart-safe journal, durable cutover fence, alias operation, cleanup receipt, or crash-recovery owner is wired here. |
+| **Test proof** | `internal/aisearch/service_test.go` uses a fake `VectorStore` to exercise duplicate-stage serialization, retry identity, dry-run refusal, successful pointer cutover, and rollback. These tests do not make a live Qdrant or restart-safety claim. |
+| **Why it exists** | This is a bounded in-process rehearsal toward LM3's all-store lifecycle. Its volatile evidence is deliberately explicit so it cannot be mistaken for the required durable fleet cutover. |
+
 ### cliapp RunContext (CLI handler test context)
 
 | | |

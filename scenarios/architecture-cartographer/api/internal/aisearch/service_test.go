@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -126,6 +127,20 @@ func newMigrationPackageService(source pkg.Source, store *migrationVectorStore, 
 		Kind: "doc", Store: store, Source: source, Chunker: pkg.NewIdentityChunker(), IDPrefix: "migration-test:",
 	}}, 1)
 	return pkg.NewService(pkg.ServiceOptions{VectorStore: store, Reconciler: reconciler})
+}
+
+func testCartographerRecipe(t *testing.T, model string, dimensions int) (string, string) {
+	t.Helper()
+	recipe, err := pkg.NewEmbeddingRecipe(pkg.EmbeddingRecipeInput{
+		SchemaVersion: "1", ModelID: model, ModelRevision: "revision-1", ArtifactSHA256: strings.Repeat("a", 64),
+		TokenizerRevision: "tokenizer-1", Runtime: "test-runtime", RuntimeBuild: "build-1", Precision: "fp32",
+		QueryInstruction: "none", DocumentInstruction: "none", Pooling: "mean", Normalization: "l2",
+		Dimensions: dimensions, OutputDType: "float32", Truncation: "truncate-1", ChunkerVersion: "chunk-1", ComposerVersion: "cartographer-domain-v1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return recipe.ID(), string(recipe.Canonical())
 }
 
 func newMigrationService(shadowSvc *pkg.Service, shadowName string, jobID string) (*Service, *engine, *engine) {
@@ -256,7 +271,8 @@ func TestShadowStageSerializesCollectionsAndRetriesIdempotently(t *testing.T) {
 			}}
 		},
 	}
-	request := ShadowRequest{Collection: "candidate-v2", Embedding: pkg.EmbeddingPolicy{Model: "model-v2", Role: "embedding.default", Dimensions: 768, PolicySchemaVersion: "v2"}}
+	recipeID, recipeCanonical := testCartographerRecipe(t, "model-v2", 768)
+	request := ShadowRequest{Collection: "candidate-v2", Embedding: pkg.EmbeddingPolicy{Model: "model-v2", Role: "embedding.default", Dimensions: 768, PolicySchemaVersion: "v2"}, EmbeddingRecipeID: recipeID, EmbeddingRecipeCanonical: recipeCanonical}
 	result := make(chan struct {
 		job *pkg.ReindexJob
 		err error
@@ -322,5 +338,130 @@ func TestShadowStageSerializesCollectionsAndRetriesIdempotently(t *testing.T) {
 		if entry.Collection == dryRun.Collection && (entry.LifecycleState != "shadow_dry_run" || entry.BuildJobID != dryJob.ID) {
 			t.Fatalf("dry-run census lost its state or job identity: %+v", entry)
 		}
+	}
+}
+
+func TestShadowStageValidatesCanonicalRecipeBeforeStoreMutation(t *testing.T) {
+	store := newMigrationVectorStore()
+	builds := 0
+	service := &Service{
+		eng: &engine{svc: pkg.NewService(pkg.ServiceOptions{VectorStore: newMigrationVectorStore()}), vectorStore: newMigrationVectorStore(), spec: pkg.CollectionSpec{Name: "live"}},
+		buildShadow: func(policy pkg.EmbeddingPolicy, collection string) *engine {
+			builds++
+			return &engine{svc: newMigrationPackageService(migrationSource{}, store), vectorStore: store, spec: pkg.CollectionSpec{
+				Name: collection, DenseDistance: pkg.DefaultDenseDistance, Model: policy.Model, Role: policy.Role,
+				DenseSize: policy.Dimensions, PolicySchemaVersion: policy.PolicySchemaVersion,
+			}}
+		},
+		lifecycleEpoch: 1, shadows: make(map[string]*engine), shadowJobs: make(map[string]*pkg.Service),
+	}
+	recipeID, recipeCanonical := testCartographerRecipe(t, "model", 2)
+	valid := ShadowRequest{Collection: "candidate", Embedding: pkg.EmbeddingPolicy{Model: "model", Role: "embedding.default", Dimensions: 2, PolicySchemaVersion: "v1"}, EmbeddingRecipeID: recipeID, EmbeddingRecipeCanonical: recipeCanonical}
+	invalid := []ShadowRequest{
+		{Collection: "candidate", Embedding: valid.Embedding},
+		{Collection: "candidate", Embedding: valid.Embedding, EmbeddingRecipeID: recipeID, EmbeddingRecipeCanonical: `{ "schema_version":"1" }`},
+		{Collection: "candidate", Embedding: valid.Embedding, EmbeddingRecipeID: recipeID, EmbeddingRecipeCanonical: recipeCanonical + " "},
+		{Collection: "candidate", Embedding: valid.Embedding, EmbeddingRecipeID: "sha256:" + strings.Repeat("0", 64), EmbeddingRecipeCanonical: recipeCanonical},
+	}
+	for _, request := range invalid {
+		if _, err := service.ReindexShadow(context.Background(), request); err == nil {
+			t.Fatalf("invalid recipe request was accepted: %+v", request)
+		}
+	}
+	if builds != 0 || store.collectionEnsures() != 0 || len(service.shadows) != 0 {
+		t.Fatalf("invalid recipes reached the builder/store: builds=%d ensures=%d shadows=%d", builds, store.collectionEnsures(), len(service.shadows))
+	}
+	wrongModel := valid
+	wrongModel.Embedding.Model = "other-model"
+	if _, err := service.ReindexShadow(context.Background(), wrongModel); err == nil {
+		t.Fatal("recipe whose model disagrees with the target was accepted")
+	}
+	wrongDimensions := valid
+	wrongDimensions.Embedding.Dimensions = 3
+	if _, err := service.ReindexShadow(context.Background(), wrongDimensions); err == nil {
+		t.Fatal("recipe whose dimensions disagree with the target were accepted")
+	}
+	if builds != 0 || store.collectionEnsures() != 0 {
+		t.Fatalf("mismatched recipes reached the builder/store: builds=%d ensures=%d", builds, store.collectionEnsures())
+	}
+}
+
+func TestShadowLifecyclePersistsStageCutoverRestartAndRollback(t *testing.T) {
+	path := t.TempDir() + "/embedding-lifecycle.json"
+	source := migrationSource{docs: []pkg.SourceDoc{{ID: "doc", Kind: "doc", Body: "candidate"}}}
+	makeService := func() *Service {
+		store := newMigrationVectorStore()
+		makeEngine := func(policy pkg.EmbeddingPolicy, collection string) *engine {
+			spec := pkg.CollectionSpec{
+				Name: collection, DenseDistance: pkg.DefaultDenseDistance, Model: policy.Model,
+				Role: policy.Role, DenseSize: policy.Dimensions, PolicySchemaVersion: policy.PolicySchemaVersion,
+			}
+			service := newMigrationPackageService(source, store)
+			return &engine{svc: service, vectorStore: store, spec: spec}
+		}
+		activePolicy := pkg.EmbeddingPolicy{Model: "live-model", Role: "embedding.default", Dimensions: 2, PolicySchemaVersion: "policy-v1"}
+		active := makeEngine(activePolicy, "live")
+		active.lastActiveEpoch = 1
+		return &Service{
+			eng: active, buildShadow: makeEngine, lifecyclePath: path,
+			shadows: make(map[string]*engine), shadowJobs: make(map[string]*pkg.Service),
+			lifecycleEpoch: 1,
+		}
+	}
+
+	original := makeService()
+	recipeID, recipeCanonical := testCartographerRecipe(t, "candidate-model", 2)
+	request := ShadowRequest{
+		Collection: "candidate", Scope: "", Embedding: pkg.EmbeddingPolicy{
+			Model: "candidate-model", Role: "embedding.default", Dimensions: 2, PolicySchemaVersion: "policy-v2",
+		},
+		EmbeddingRecipeID: recipeID, EmbeddingRecipeCanonical: recipeCanonical,
+	}
+	job, err := original.ReindexShadow(context.Background(), request)
+	if err != nil {
+		t.Fatalf("stage candidate: %v", err)
+	}
+	awaitMigrationJob(t, original.shadows[request.Collection].svc, job.ID, "succeeded")
+	if err := original.ActivateShadow(context.Background(), request.Collection); err != nil {
+		t.Fatalf("cut over to candidate: %v", err)
+	}
+
+	restarted := makeService()
+	if err := restarted.RestoreLifecycle(); err != nil {
+		t.Fatalf("restore after process restart: %v", err)
+	}
+	if restarted.current().spec.Name != "candidate" || restarted.retained == nil || restarted.retained.spec.Name != "live" {
+		t.Fatalf("restart did not recover active and retained generations: active=%+v retained=%+v", restarted.current().spec, restarted.retained)
+	}
+	entries := restarted.GenerationCensus()
+	if len(entries) != 2 {
+		t.Fatalf("restart census returned %d entries, want active + retained: %+v", len(entries), entries)
+	}
+	byCollection := make(map[string]GenerationCensusEntry, len(entries))
+	for _, entry := range entries {
+		byCollection[entry.Collection] = entry
+		if entry.Durability != "durable_manifest" || entry.RestartRecovery != "recoverable" || entry.SentinelID == "" {
+			t.Fatalf("recovered census must report durable pointer and expected sentinel identity: %+v", entry)
+		}
+	}
+	if live := byCollection["live"]; live.RecipeIdentityState != "unknown" || live.RecipeID != "" {
+		t.Fatalf("legacy live generation must remain unclaimed: %+v", live)
+	}
+	if candidate := byCollection["candidate"]; candidate.RecipeIdentityState != "verified_canonical" || candidate.RecipeID != recipeID {
+		t.Fatalf("recovered candidate lost its verified recipe identity: %+v", candidate)
+	}
+	if err := restarted.RollbackShadow(context.Background(), "live"); err != nil {
+		t.Fatalf("rollback after restart: %v", err)
+	}
+	if restarted.current().spec.Name != "live" || restarted.retained == nil || restarted.retained.spec.Name != "candidate" {
+		t.Fatalf("rollback did not restore prior generation: active=%+v retained=%+v", restarted.current().spec, restarted.retained)
+	}
+
+	afterRollbackRestart := makeService()
+	if err := afterRollbackRestart.RestoreLifecycle(); err != nil {
+		t.Fatalf("restore after rollback restart: %v", err)
+	}
+	if afterRollbackRestart.current().spec.Name != "live" || afterRollbackRestart.retained == nil || afterRollbackRestart.retained.spec.Name != "candidate" {
+		t.Fatalf("rollback pointer was not durable: active=%+v retained=%+v", afterRollbackRestart.current().spec, afterRollbackRestart.retained)
 	}
 }

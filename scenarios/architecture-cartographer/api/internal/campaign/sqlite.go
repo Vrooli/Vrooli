@@ -53,25 +53,19 @@ ORDER BY created_at DESC, id DESC`
 	updateCampaignStatusSQL = `
 UPDATE campaigns SET status = ?, updated_at = ? WHERE id = ?`
 
-	upsertItemSQL = `
+	insertItemSQL = `
 INSERT INTO campaign_items
   (campaign_id, stable_id, scenario, source, code, severity, locations, domains,
    message, suggestion, status, resolution_note, regressed, effort, first_seen_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(campaign_id, stable_id) DO UPDATE SET
-  scenario = excluded.scenario,
-  source = excluded.source,
-  code = excluded.code,
-  severity = excluded.severity,
-  locations = excluded.locations,
-  domains = excluded.domains,
-  message = excluded.message,
-  suggestion = excluded.suggestion,
-  status = excluded.status,
-  resolution_note = excluded.resolution_note,
-  regressed = excluded.regressed,
-  effort = excluded.effort,
-  updated_at = excluded.updated_at`
+`
+
+	transitionItemSQL = `
+UPDATE campaign_items SET
+  scenario = ?, source = ?, code = ?, severity = ?, locations = ?, domains = ?,
+  message = ?, suggestion = ?, status = ?, resolution_note = ?, regressed = ?,
+  effort = ?, updated_at = ?
+WHERE campaign_id = ? AND stable_id = ? AND status = ?`
 
 	selectItemSQL = `
 SELECT campaign_id, stable_id, scenario, source, code, severity, locations, domains,
@@ -162,7 +156,42 @@ func (r *sqliteRepository) UpdateCampaignStatus(ctx context.Context, id string, 
 	return nil
 }
 
-func (r *sqliteRepository) UpsertFinding(ctx context.Context, campaignID string, f Finding) error {
+func (r *sqliteRepository) CreateFinding(ctx context.Context, campaignID string, f Finding) error {
+	if f.Status != StatusDetected {
+		return ErrInvalidFindingTransition{From: "", To: f.Status}
+	}
+	args, err := findingWriteArgs(r, f)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.ExecContext(ctx, insertItemSQL, append([]any{campaignID}, args...)...)
+	return err
+}
+
+func (r *sqliteRepository) TransitionFinding(ctx context.Context, campaignID string, expected FindingStatus, f Finding) error {
+	if f.Status == expected || !CanTransitionFindingStatus(expected, f.Status) {
+		return ErrInvalidFindingTransition{From: expected, To: f.Status}
+	}
+	args, err := findingWriteArgs(r, f)
+	if err != nil {
+		return err
+	}
+	transitionArgs := append(append([]any{}, args[1:13]...), args[14])
+	transitionArgs = append(transitionArgs, campaignID, f.StableID, string(expected))
+	res, err := r.db.ExecContext(ctx, transitionItemSQL, transitionArgs...)
+	if err != nil {
+		return err
+	}
+	if n, err := res.RowsAffected(); err == nil && n == 0 {
+		return ErrFindingWriteConflict{CampaignID: campaignID, StableID: f.StableID, Expected: expected}
+	}
+	return nil
+}
+
+func findingWriteArgs(r *sqliteRepository, f Finding) ([]any, error) {
+	if !ValidFindingStatus(f.Status) {
+		return nil, ErrInvalidFindingTransition{From: "", To: f.Status}
+	}
 	if f.FirstSeenAt.IsZero() {
 		f.FirstSeenAt = r.now()
 	}
@@ -172,18 +201,17 @@ func (r *sqliteRepository) UpsertFinding(ctx context.Context, campaignID string,
 	}
 	locs, err := json.Marshal(nonNil(f.Locations))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	doms, err := json.Marshal(nonNil(f.Domains))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = r.db.ExecContext(ctx, upsertItemSQL,
-		campaignID, f.StableID, f.Scenario, f.Source, f.Code, f.Severity,
-		string(locs), string(doms), f.Message, f.Suggestion, string(f.Status),
-		f.ResolutionNote, boolToInt(f.Regressed), f.Effort,
-		f.FirstSeenAt.Format(campaignTimeFormat), f.UpdatedAt.Format(campaignTimeFormat))
-	return err
+	return []any{
+		f.StableID, f.Scenario, f.Source, f.Code, f.Severity, string(locs), string(doms),
+		f.Message, f.Suggestion, string(f.Status), f.ResolutionNote, boolToInt(f.Regressed),
+		f.Effort, f.FirstSeenAt.Format(campaignTimeFormat), f.UpdatedAt.Format(campaignTimeFormat),
+	}, nil
 }
 
 func (r *sqliteRepository) GetFinding(ctx context.Context, campaignID, stableID string) (Finding, error) {
@@ -237,6 +265,9 @@ func scanFinding(row rowScanner) (Finding, error) {
 	_ = json.Unmarshal([]byte(locs), &f.Locations)
 	_ = json.Unmarshal([]byte(doms), &f.Domains)
 	f.Status = FindingStatus(status)
+	if !ValidFindingStatus(f.Status) {
+		return Finding{}, ErrInvalidFindingStatus{Status: f.Status}
+	}
 	f.Regressed = regressed != 0
 	if f.Effort == "" {
 		f.Effort = EffortUnspecified

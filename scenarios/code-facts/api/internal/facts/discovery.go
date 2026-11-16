@@ -309,7 +309,7 @@ func discoverNestedParseUnits(root string) []*factsv1.ParseUnit {
 		case "package.json":
 			dir := filepath.Dir(path)
 			manifestDirs[dir] = true
-			if !fileExists(filepath.Join(dir, "tsconfig.json")) && hasScriptSource(dir) {
+			if !fileExists(filepath.Join(dir, "tsconfig.json")) && hasSourceWithExtension(dir, ".ts", ".tsx", ".js", ".jsx") {
 				units = append(units, nodePackageUnit(dir))
 			}
 		case "pnpm-lock.yaml", "package-lock.json", "npm-shrinkwrap.json":
@@ -397,7 +397,7 @@ func tsParseUnit(root, tsconfig string) *factsv1.ParseUnit {
 
 func nodePackageUnit(root string) *factsv1.ParseUnit {
 	packagePath := filepath.Join(root, "package.json")
-	if hasJavaScriptSource(root) {
+	if hasSourceWithExtension(root, ".js", ".jsx", ".mjs", ".cjs") {
 		return &factsv1.ParseUnit{
 			Id:         "javascript:" + filepath.ToSlash(root),
 			Language:   "javascript",
@@ -532,7 +532,7 @@ func toolchainObservation(root, ecosystem, primaryManifest string) *factsv1.Tool
 			}
 		}
 	}
-	if hasFilesWithSuffix(root, ".bats") {
+	if hasSourceWithExtension(root, ".bats") {
 		observation.RunnerIndicators = append(observation.RunnerIndicators, "source:.bats")
 	}
 	if ecosystem == "python" {
@@ -557,26 +557,6 @@ func containsPath(paths []string, candidate string) bool {
 		}
 	}
 	return false
-}
-
-func hasFilesWithSuffix(root, suffix string) bool {
-	found := false
-	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil || found {
-			return nil
-		}
-		if entry.IsDir() {
-			if path != root && shouldPruneDir(entry.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if strings.EqualFold(filepath.Ext(path), suffix) {
-			found = true
-		}
-		return nil
-	})
-	return found
 }
 
 func unknownUnit(root string) *factsv1.ParseUnit {
@@ -618,41 +598,23 @@ func nearestFile(start, name string) string {
 	}
 }
 
-func hasScriptSource(root string) bool {
+func hasSourceWithExtension(root string, extensions ...string) bool {
+	wanted := make(map[string]struct{}, len(extensions))
+	for _, extension := range extensions {
+		wanted[strings.ToLower(extension)] = struct{}{}
+	}
 	found := false
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+	_ = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil || found {
 			return nil
 		}
-		if d.IsDir() {
-			if path != root && shouldPruneDir(d.Name()) {
+		if entry.IsDir() {
+			if path != root && shouldPruneDir(entry.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		switch strings.ToLower(filepath.Ext(path)) {
-		case ".ts", ".tsx", ".js", ".jsx":
-			found = true
-		}
-		return nil
-	})
-	return found
-}
-
-func hasJavaScriptSource(root string) bool {
-	found := false
-	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
-		if err != nil || found {
-			return nil
-		}
-		if d.IsDir() {
-			if path != root && shouldPruneDir(d.Name()) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		switch strings.ToLower(filepath.Ext(path)) {
-		case ".js", ".jsx", ".mjs", ".cjs":
+		if _, ok := wanted[strings.ToLower(filepath.Ext(path))]; ok {
 			found = true
 		}
 		return nil

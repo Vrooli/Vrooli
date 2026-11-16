@@ -3,32 +3,36 @@ package aisearch
 import (
 	"sort"
 	"strings"
+
+	pkg "github.com/vrooli/ai-go/search"
 )
 
 // GenerationCensusEntry describes the runtime collection pointers currently
-// held by Architecture Cartographer. The owner has exact collection, model,
-// dimensions, role and policy-schema facts; its pre-W9 metadata does not
-// contain a complete immutable recipe digest, so RecipeID intentionally stays
-// empty and RecipeIdentityState remains unknown.
+// held by Architecture Cartographer. Recipe identity is verified from the
+// persisted canonical recipe bytes for generations staged with the v2
+// migration contract; legacy generations remain explicitly unknown.
 type GenerationCensusEntry struct {
-	Owner               string `json:"owner"`
-	StoreKind           string `json:"store_kind"`
-	Collection          string `json:"collection"`
-	GenerationID        string `json:"generation_id"`
-	LifecycleState      string `json:"lifecycle_state"`
-	PointerEpoch        uint64 `json:"pointer_epoch"`
-	ActivationEpoch     uint64 `json:"activation_epoch,omitempty"`
-	BuildJobID          string `json:"build_job_id,omitempty"`
-	BuildJobState       string `json:"build_job_state,omitempty"`
-	Model               string `json:"model,omitempty"`
-	Role                string `json:"role,omitempty"`
-	Dimensions          int    `json:"dimensions,omitempty"`
-	PolicySchemaVersion string `json:"policy_schema_version,omitempty"`
-	RecipeID            string `json:"recipe_id,omitempty"`
-	RecipeIdentityState string `json:"recipe_identity_state"`
-	Durability          string `json:"durability"`
-	RestartRecovery     string `json:"restart_recovery"`
-	PhysicalState       string `json:"physical_state"`
+	Owner                 string `json:"owner"`
+	StoreKind             string `json:"store_kind"`
+	Collection            string `json:"collection"`
+	GenerationID          string `json:"generation_id"`
+	LifecycleState        string `json:"lifecycle_state"`
+	PointerEpoch          uint64 `json:"pointer_epoch"`
+	ActivationEpoch       uint64 `json:"activation_epoch,omitempty"`
+	BuildJobID            string `json:"build_job_id,omitempty"`
+	BuildJobState         string `json:"build_job_state,omitempty"`
+	Model                 string `json:"model,omitempty"`
+	Role                  string `json:"role,omitempty"`
+	Dimensions            int    `json:"dimensions,omitempty"`
+	PolicySchemaVersion   string `json:"policy_schema_version,omitempty"`
+	RecipeID              string `json:"recipe_id,omitempty"`
+	RecipeIdentityState   string `json:"recipe_identity_state"`
+	SentinelID            string `json:"sentinel_id,omitempty"`
+	SentinelIdentityState string `json:"sentinel_identity_state"`
+	SentinelSchemaVersion int    `json:"sentinel_schema_version,omitempty"`
+	Durability            string `json:"durability"`
+	RestartRecovery       string `json:"restart_recovery"`
+	PhysicalState         string `json:"physical_state"`
 }
 
 // GenerationCensus returns an in-process inventory of Architecture
@@ -61,6 +65,11 @@ func (s *Service) GenerationCensus() []GenerationCensusEntry {
 			return
 		}
 		seen[collection] = struct{}{}
+		durability, recovery := "in_process_only", "unsupported"
+		if strings.TrimSpace(s.lifecyclePath) != "" {
+			durability, recovery = "durable_manifest", "recoverable"
+		}
+		recipeID, recipeState := verifiedRecipeIdentity(candidate)
 		entry := GenerationCensusEntry{
 			Owner: "architecture-cartographer", StoreKind: "qdrant",
 			Collection: collection, GenerationID: collection,
@@ -68,8 +77,9 @@ func (s *Service) GenerationCensus() []GenerationCensusEntry {
 			LifecycleState: state, Model: candidate.spec.Model,
 			Role: candidate.spec.Role, Dimensions: candidate.spec.DenseSize,
 			PolicySchemaVersion: candidate.spec.PolicySchemaVersion,
-			RecipeIdentityState: "unknown", Durability: "in_process_only",
-			RestartRecovery: "unsupported", PhysicalState: "unobserved",
+			RecipeID:            recipeID, RecipeIdentityState: recipeState, SentinelID: pkg.PointIDFor("__aisearch_meta__:", collection, 0, 1),
+			SentinelIdentityState: "expected_from_owner_spec_unverified", SentinelSchemaVersion: 1,
+			Durability: durability, RestartRecovery: recovery, PhysicalState: "unobserved",
 		}
 		if candidate.shadowJobID != "" {
 			entry.BuildJobID = candidate.shadowJobID
@@ -78,6 +88,8 @@ func (s *Service) GenerationCensus() []GenerationCensusEntry {
 			} else {
 				entry.BuildJobState = "unavailable"
 			}
+		} else if candidate.shadowRequest.Collection != "" && durability == "durable_manifest" {
+			entry.BuildJobState = "recovered_pending"
 		}
 		entries = append(entries, entry)
 	}
@@ -101,6 +113,21 @@ func (s *Service) GenerationCensus() []GenerationCensusEntry {
 		return entries[i].Collection < entries[j].Collection
 	})
 	return entries
+}
+
+func verifiedRecipeIdentity(candidate *engine) (string, string) {
+	if candidate == nil || candidate.recipeID == "" || candidate.recipeCanonical == "" {
+		return "", "unknown"
+	}
+	recipe, err := pkg.EmbeddingRecipeFromCanonical([]byte(candidate.recipeCanonical), candidate.recipeID)
+	if err != nil {
+		return "", "unknown"
+	}
+	input, err := recipe.Input()
+	if err != nil || input.ModelID != candidate.spec.Model || input.Dimensions != candidate.spec.DenseSize {
+		return "", "unknown"
+	}
+	return candidate.recipeID, "verified_canonical"
 }
 
 func sortedEngineKeys(engines map[string]*engine) []string {

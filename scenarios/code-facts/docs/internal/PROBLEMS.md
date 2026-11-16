@@ -12,7 +12,7 @@ Initial `make test` failed on generated scaffold drift: missing REST `proto_payl
 
 ## Provider Availability
 
-Code Facts does not require live graph providers in unit tests; Phase 8 added fake-provider broker coverage and maps unavailable live providers to typed `unknown` warnings unless strict mode is requested. As of 2026-06-13, provider `unimplemented` and `workspace_unsupported` failures are also downgraded to typed `unsupported` warnings in non-strict mode. Explicit integration tests against running `go-code-graph` and `typescript-code-graph` are still needed before consumers depend on live provider availability.
+Code Facts does not require live graph services in unit tests. Its Go provider now calls API Core `gograph` directly, with source tests for extraction and workspace-unsupported classification; it no longer depends on a running Go Code Graph service. TypeScript and JavaScript still use the TypeScript Code Graph service, so live integration coverage for that provider remains open. Provider failures continue to map to typed `unknown` or `unsupported` evidence unless strict mode is requested.
 
 Phase 13 manually validated the live provider path against `proto-health` with `code-facts facts describe scenario:proto-health --include all --no-cache --json`. The TypeScript provider currently returns typed `typescript-code-graph.type_check_failure` warnings with `[object Object]` messages for many generated UI files; Code Facts preserves those as `unknown` warnings and `proto-health` filters noisy non-proof diagnostics. A future TypeScript Code Graph hardening pass should make those diagnostics human-readable.
 

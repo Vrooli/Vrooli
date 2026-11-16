@@ -264,7 +264,7 @@ func normalizedQueryKey(query Query) string {
 	sort.Strings(roles)
 	sort.Strings(families)
 	sort.Strings(languages)
-	return strings.Join([]string{query.Generation, query.Text, query.Target, query.Scope, strings.Join(roles, ","), strings.Join(families, ","), strings.Join(languages, ","), fmt.Sprint(query.Limit)}, "\x00")
+	return strings.Join([]string{query.Generation, query.Text, query.Target, query.Scope, strings.Join(roles, ","), strings.Join(families, ","), strings.Join(languages, ","), fmt.Sprint(query.Limit), query.EmbeddingModel, fmt.Sprint(query.EmbeddingDimensions)}, "\x00")
 }
 
 func estimateHybridBytes(response HybridResponse) int64 {

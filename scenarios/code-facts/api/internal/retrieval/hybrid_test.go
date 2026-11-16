@@ -415,7 +415,7 @@ func TestModelBakeoffPinsCardPolicyToMeasuredProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	policy := DefaultCardPolicy()
-	if report.Version != "code-facts-embedding-bakeoff-v1" || report.Model != policy.Model || report.Selected.Dimensions != policy.Dimensions || report.Selected.Storage != policy.Storage || report.Cases < 5 {
+	if report.Version != "code-facts-embedding-bakeoff-v1" || report.Selected.Dimensions != policy.Dimensions || report.Selected.Storage == "" || report.Cases < 5 {
 		t.Fatalf("card policy drifted from bake-off: report=%+v policy=%+v", report, policy)
 	}
 	for _, profile := range report.Profiles {

@@ -25,6 +25,9 @@ type engine struct {
 	shadowRequest   ShadowRequest
 	shadowJobID     string
 	lastActiveEpoch uint64
+	tuning          pkg.TuningConfig
+	recipeID        string
+	recipeCanonical string
 }
 
 // Service is the cartographer's domain-search surface. It adds the domain-domain
@@ -45,11 +48,15 @@ type Service struct {
 	// collection. It is intentionally kept beside rebuild so the migration path
 	// uses the same source, embedding and schema construction as production.
 	buildShadow    func(pkg.EmbeddingPolicy, string) *engine
+	buildPersisted func(pkg.EmbeddingPolicy, string, pkg.TuningConfig) *engine
 	shadowJobs     map[string]*pkg.Service
 	shadows        map[string]*engine
 	shadowBuilds   map[string]ShadowRequest
 	retained       *engine
 	lifecycleEpoch uint64
+	// lifecyclePath is an owner-controlled atomic manifest. It stores pointers
+	// and immutable collection identity, never vectors or corpus data.
+	lifecyclePath string
 }
 
 // current returns the live engine under the read lock.
@@ -180,6 +187,7 @@ type TunedOptions struct {
 	Compose          func(DomainRecord) string
 	Collection       string
 	EngineDeps       pkg.EngineDeps
+	LifecyclePath    string
 }
 
 // NewTunedService builds the production Service: its engine is assembled FROM a
@@ -203,6 +211,7 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 			Collection:       collection,
 		})
 		eng.spec = te.Spec
+		eng.tuning = t.WithDefaults()
 		return eng
 	}
 	build := func(t pkg.TuningConfig) *engine { return buildWith(t, opts.EngineDeps, opts.Collection) }
@@ -216,14 +225,27 @@ func NewTunedService(tuning pkg.TuningConfig, opts TunedOptions) *Service {
 		shadowTuning.EmbedModel = target.Model
 		return buildWith(shadowTuning, deps, collection)
 	}
+	buildPersisted := func(target pkg.EmbeddingPolicy, collection string, storedTuning pkg.TuningConfig) *engine {
+		deps := opts.EngineDeps
+		deps.Collection = collection
+		deps.EmbedRole = target.Role
+		deps.EmbedModel = target.Model
+		deps.EmbedDimensions = target.Dimensions
+		deps.EmbedPolicySchemaVersion = target.PolicySchemaVersion
+		storedTuning = storedTuning.WithDefaults()
+		storedTuning.EmbedModel = target.Model
+		return buildWith(storedTuning, deps, collection)
+	}
 	return &Service{
 		eng:            initialEngine(build(tuning)),
 		rebuild:        build,
 		buildShadow:    shadow,
+		buildPersisted: buildPersisted,
 		shadowJobs:     make(map[string]*pkg.Service),
 		shadows:        make(map[string]*engine),
 		shadowBuilds:   make(map[string]ShadowRequest),
 		lifecycleEpoch: 1,
+		lifecyclePath:  opts.LifecyclePath,
 	}
 }
 
@@ -237,10 +259,12 @@ func initialEngine(value *engine) *engine {
 // ShadowRequest describes a provider-owned, additive reindex. The live engine
 // is never modified by this operation.
 type ShadowRequest struct {
-	Collection string
-	Embedding  pkg.EmbeddingPolicy
-	Scope      string
-	DryRun     bool
+	Collection               string
+	Embedding                pkg.EmbeddingPolicy
+	EmbeddingRecipeID        string
+	EmbeddingRecipeCanonical string
+	Scope                    string
+	DryRun                   bool
 }
 
 // ReindexShadow creates and reconciles a suffixed collection using the target
@@ -255,8 +279,25 @@ func (s *Service) ReindexShadow(ctx context.Context, req ShadowRequest) (*pkg.Re
 	req.Embedding.Model = strings.TrimSpace(req.Embedding.Model)
 	req.Embedding.Role = strings.TrimSpace(req.Embedding.Role)
 	req.Embedding.PolicySchemaVersion = strings.TrimSpace(req.Embedding.PolicySchemaVersion)
-	if req.Collection == "" || req.Embedding.Dimensions <= 0 || req.Embedding.Model == "" || req.Embedding.Role == "" || req.Embedding.PolicySchemaVersion == "" {
-		return nil, errors.New("aisearch: shadow reindex requires collection, model, role, policy schema and positive dimensions")
+	contract := &pkg.ReindexMigrationRequest{
+		Action: "shadow", ShadowCollection: req.Collection, EmbeddingModel: req.Embedding.Model,
+		EmbeddingRole: req.Embedding.Role, EmbeddingDimensions: int32(req.Embedding.Dimensions),
+		EmbeddingPolicySchemaVersion: req.Embedding.PolicySchemaVersion,
+		EmbeddingRecipeID:            req.EmbeddingRecipeID, EmbeddingRecipeCanonical: req.EmbeddingRecipeCanonical,
+	}
+	if err := pkg.ValidateReindexMigrationRequest(contract, "shadow"); err != nil {
+		return nil, fmt.Errorf("aisearch: invalid shadow migration request: %w", err)
+	}
+	recipe, err := pkg.EmbeddingRecipeFromCanonical([]byte(req.EmbeddingRecipeCanonical), req.EmbeddingRecipeID)
+	if err != nil {
+		return nil, fmt.Errorf("aisearch: invalid shadow embedding recipe: %w", err)
+	}
+	input, err := recipe.Input()
+	if err != nil {
+		return nil, fmt.Errorf("aisearch: read shadow embedding recipe: %w", err)
+	}
+	if input.ModelID != req.Embedding.Model || input.Dimensions != req.Embedding.Dimensions {
+		return nil, errors.New("aisearch: shadow embedding recipe model and dimensions must match the migration target")
 	}
 	s.mu.RLock()
 	build := s.buildShadow
@@ -275,32 +316,54 @@ func (s *Service) ReindexShadow(ctx context.Context, req ShadowRequest) (*pkg.Re
 		return nil, errors.New("aisearch: shadow builder returned an engine that does not match the requested collection and embedding identity")
 	}
 	next.shadowRequest = req
+	next.recipeID, next.recipeCanonical = req.EmbeddingRecipeID, req.EmbeddingRecipeCanonical
 	s.mu.Lock()
 	if s.eng != nil && s.eng.spec.Name == shadowCollection || s.retained != nil && s.retained.spec.Name == shadowCollection {
 		s.mu.Unlock()
 		return nil, fmt.Errorf("aisearch: collection %q became active or retained while the shadow was being assembled", shadowCollection)
+	}
+	if s.shadowBuilds == nil {
+		s.shadowBuilds = make(map[string]ShadowRequest)
 	}
 	if existing := s.shadows[shadowCollection]; existing != nil {
 		if !sameShadowRequest(existing.shadowRequest, req) {
 			s.mu.Unlock()
 			return nil, fmt.Errorf("aisearch: shadow collection %q already names a different lifecycle request", shadowCollection)
 		}
-		job, ok := existing.svc.ReindexStatus(existing.shadowJobID)
-		s.mu.Unlock()
-		if !ok || job == nil {
-			return nil, fmt.Errorf("aisearch: staged shadow collection %q has no readable reindex job", shadowCollection)
+		if existing.shadowJobID != "" {
+			job, ok := existing.svc.ReindexStatus(existing.shadowJobID)
+			if ok && job != nil {
+				s.mu.Unlock()
+				return job, nil
+			}
 		}
-		return job, nil
-	}
-	if s.shadowBuilds == nil {
-		s.shadowBuilds = make(map[string]ShadowRequest)
-	}
-	if pending, ok := s.shadowBuilds[shadowCollection]; ok {
-		s.mu.Unlock()
-		if sameShadowRequest(pending, req) {
-			return nil, fmt.Errorf("aisearch: shadow collection %q already has a stage in progress", shadowCollection)
+		// A recovered staged generation has no trustworthy process-local job
+		// receipt. Rebuild that receipt by re-running its idempotent reconcile.
+		next = existing
+	} else {
+		if s.shadowBuilds == nil {
+			s.shadowBuilds = make(map[string]ShadowRequest)
 		}
-		return nil, fmt.Errorf("aisearch: shadow collection %q has a conflicting stage in progress", shadowCollection)
+		if pending, ok := s.shadowBuilds[shadowCollection]; ok {
+			s.mu.Unlock()
+			if sameShadowRequest(pending, req) {
+				return nil, fmt.Errorf("aisearch: shadow collection %q already has a stage in progress", shadowCollection)
+			}
+			return nil, fmt.Errorf("aisearch: shadow collection %q has a conflicting stage in progress", shadowCollection)
+		}
+		if s.shadows == nil {
+			s.shadows = make(map[string]*engine)
+		}
+		s.shadows[shadowCollection] = next
+		if err := s.persistLifecycleLocked(); err != nil {
+			delete(s.shadows, shadowCollection)
+			s.mu.Unlock()
+			return nil, fmt.Errorf("aisearch: persist shadow stage intent: %w", err)
+		}
+	}
+	if _, pending := s.shadowBuilds[shadowCollection]; pending {
+		s.mu.Unlock()
+		return nil, fmt.Errorf("aisearch: shadow collection %q already has a stage in progress", shadowCollection)
 	}
 	s.shadowBuilds[shadowCollection] = req
 	s.mu.Unlock()
@@ -311,6 +374,7 @@ func (s *Service) ReindexShadow(ctx context.Context, req ShadowRequest) (*pkg.Re
 		}
 		s.mu.Lock()
 		delete(s.shadowBuilds, shadowCollection)
+		_ = s.persistLifecycleLocked()
 		s.mu.Unlock()
 	}()
 	if !req.DryRun {
@@ -322,15 +386,11 @@ func (s *Service) ReindexShadow(ctx context.Context, req ShadowRequest) (*pkg.Re
 	if err != nil {
 		return nil, err
 	}
-	next.shadowJobID = job.ID
 	s.mu.Lock()
-	if s.shadows == nil {
-		s.shadows = make(map[string]*engine)
-	}
+	next.shadowJobID = job.ID
 	if s.shadowJobs == nil {
 		s.shadowJobs = make(map[string]*pkg.Service)
 	}
-	s.shadows[shadowCollection] = next
 	s.shadowJobs[job.ID] = next.svc
 	delete(s.shadowBuilds, shadowCollection)
 	s.mu.Unlock()
@@ -339,7 +399,7 @@ func (s *Service) ReindexShadow(ctx context.Context, req ShadowRequest) (*pkg.Re
 }
 
 func sameShadowRequest(left, right ShadowRequest) bool {
-	return left.Collection == right.Collection && left.Embedding == right.Embedding && left.Scope == right.Scope && left.DryRun == right.DryRun
+	return left.Collection == right.Collection && left.Embedding == right.Embedding && left.EmbeddingRecipeID == right.EmbeddingRecipeID && left.EmbeddingRecipeCanonical == right.EmbeddingRecipeCanonical && left.Scope == right.Scope && left.DryRun == right.DryRun
 }
 
 // ActivateShadow switches the provider's read pointer to a completed shadow
@@ -372,9 +432,14 @@ func (s *Service) ActivateShadow(ctx context.Context, shadowCollection string) e
 	if err := next.vectorStore.EnsureCollection(ctx, next.spec); err != nil {
 		return fmt.Errorf("activate shadow: verify collection: %w", err)
 	}
+	previousActive, previousRetained, previousEpoch, previousActivation := s.eng, s.retained, s.lifecycleEpoch, next.lastActiveEpoch
 	s.retained = s.eng
 	s.advanceLifecycleEpochLocked(next)
 	s.eng = next
+	if err := s.persistLifecycleLocked(); err != nil {
+		s.eng, s.retained, s.lifecycleEpoch, next.lastActiveEpoch = previousActive, previousRetained, previousEpoch, previousActivation
+		return fmt.Errorf("aisearch: persist shadow cutover: %w", err)
+	}
 	return nil
 }
 
@@ -390,8 +455,15 @@ func (s *Service) RollbackShadow(_ context.Context, oldCollection string) error 
 	if oldCollection != "" && s.retained.spec.Name != oldCollection {
 		return fmt.Errorf("aisearch: retained collection is %q, not %q", s.retained.spec.Name, oldCollection)
 	}
+	previousActive, previousRetained, previousEpoch := s.eng, s.retained, s.lifecycleEpoch
+	previousActiveActivation, previousRetainedActivation := previousActive.lastActiveEpoch, previousRetained.lastActiveEpoch
 	s.eng, s.retained = s.retained, s.eng
 	s.advanceLifecycleEpochLocked(s.eng)
+	if err := s.persistLifecycleLocked(); err != nil {
+		s.eng, s.retained, s.lifecycleEpoch = previousActive, previousRetained, previousEpoch
+		previousActive.lastActiveEpoch, previousRetained.lastActiveEpoch = previousActiveActivation, previousRetainedActivation
+		return fmt.Errorf("aisearch: persist shadow rollback: %w", err)
+	}
 	return nil
 }
 
@@ -463,8 +535,15 @@ func (s *Service) ApplyTuning(ctx context.Context, tuning pkg.TuningConfig) (job
 	}
 
 	s.mu.Lock()
+	previousActive, previousEpoch := s.eng, s.lifecycleEpoch
+	previousActivation := next.lastActiveEpoch
 	s.advanceLifecycleEpochLocked(next)
 	s.eng = next
+	if err := s.persistLifecycleLocked(); err != nil {
+		s.eng, s.lifecycleEpoch, next.lastActiveEpoch = previousActive, previousEpoch, previousActivation
+		s.mu.Unlock()
+		return "", 0, 0, fmt.Errorf("apply tuning: persist active generation: %w", err)
+	}
 	s.mu.Unlock()
 
 	job, err := next.svc.Reindex(ctx, "", false)

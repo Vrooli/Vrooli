@@ -2,8 +2,10 @@ package facts
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,6 +22,68 @@ import (
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	_ "modernc.org/sqlite"
 )
+
+func TestDescribeFileMetricsUsesActiveCatalogAndFencesStaleFiles(t *testing.T) {
+	repoRoot := t.TempDir()
+	filePath := "scenarios/demo/api/main.go"
+	absPath := filepath.Join(repoRoot, filepath.FromSlash(filePath))
+	writeProductionFixture(t, repoRoot, filePath, "package main\n// TODO FIXME HACK\nfunc main() {}\n")
+	content, err := os.ReadFile(absPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "metrics.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+		t.Fatal(err)
+	}
+	if err := catalog.Migrate(context.Background(), db); err != nil {
+		t.Fatal(err)
+	}
+	index, err := newProductionIndex(db, repoRoot, NewAdmission())
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	if err := index.catalog.BeginGeneration(context.Background(), catalog.Generation{ID: "metrics-g1", Policy: indexPolicy, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(content)
+	file := catalog.SourceFile{ID: catalog.StableFileID(filePath), Path: filePath, Language: "go", Role: catalog.RoleImplementation, Scope: "scenario:demo", Authority: "authoritative", Owner: "scenario:demo", Hash: fmt.Sprintf("sha256:%x", digest), Size: int64(len(content)), ModTime: now, Searchable: true}
+	if err := index.catalog.UpsertFiles(context.Background(), "metrics-g1", []catalog.SourceFile{file}); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.catalog.CompleteGeneration(context.Background(), "metrics-g1", "sha256:test", "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	if err := index.catalog.Activate(context.Background(), "metrics-g1"); err != nil {
+		t.Fatal(err)
+	}
+	target := &factsv1.TargetContext{RootPath: filepath.Join(repoRoot, "scenarios", "demo"), ScenarioAware: true, Scenario: "demo"}
+	facts, _, warnings, err := index.DescribeFileMetrics(context.Background(), target)
+	if err != nil || len(warnings) != 0 || len(facts) != 1 {
+		t.Fatalf("DescribeFileMetrics facts=%+v warnings=%+v err=%v", facts, warnings, err)
+	}
+	attrs := facts[0].GetAttributes()
+	if attrs["file_path"] != "api/main.go" || attrs["line_count"] != "3" || attrs["code_lines"] != "2" ||
+		attrs["comment_lines"] != "1" || attrs["todo_count"] != "1" || attrs["fixme_count"] != "1" || attrs["hack_count"] != "1" {
+		t.Fatalf("metric attributes = %#v", facts[0].GetAttributes())
+	}
+	writeProductionFixture(t, repoRoot, filePath, "package main\nfunc main() { println(1) }\n")
+	facts, _, warnings, err = index.DescribeFileMetrics(context.Background(), target)
+	if err != nil || len(facts) != 0 || len(warnings) != 1 || warnings[0].GetCode() != "file_metrics_stale_catalog" {
+		t.Fatalf("stale catalog facts=%+v warnings=%+v err=%v", facts, warnings, err)
+	}
+	writeProductionFixture(t, repoRoot, filePath, string([]byte{0xff, '\n'}))
+	facts, _, warnings, err = index.DescribeFileMetrics(context.Background(), target)
+	if err != nil || len(facts) != 0 || len(warnings) != 1 || warnings[0].GetCode() != "file_metrics_unavailable" {
+		t.Fatalf("unsupported binary source facts=%+v warnings=%+v err=%v", facts, warnings, err)
+	}
+}
 
 func TestShadowGenerationReviewedCorpus(t *testing.T) {
 	dbPath, generation := os.Getenv("CODE_FACTS_LIVE_DB"), os.Getenv("CODE_FACTS_LIVE_GENERATION")
