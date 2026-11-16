@@ -222,7 +222,7 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 	// Gateway, preserving LOCAL_ONLY and the transcript/text privacy basis. The
 	// summary evaluation package keeps its explicit resource-ollama runner as an
 	// experiment owner; it is not the serving caller.
-	summarizer := intsumm.NewSummarizerWithRunner("ai-gateway", summarizechain.NewAIGatewayRunner())
+	summarizer := intsumm.NewSummarizerWithTaskRunner(summarizechain.NewAIGatewayRunner())
 
 	byokRegistries := byok.NewRegistries()
 	chs := BuildChains(env, voiceSvc, ttsSvc, summarizer, byokRegistries, logger)
@@ -374,7 +374,7 @@ func BuildWithDeps(ctx context.Context) (*server.Server, *Deps, func() error, er
 			},
 		},
 		Chains: server.Chains{STT: chs.STT, TTS: chs.TTS, Summarize: chs.Summarize, Coordinator: chs.Coordinator},
-		Voice:  voiceSvc, SpeakerResource: speakerClient, AudioEngine: audioEngine, EngineRegistry: engineRegistry, Usage: usageRecorder,
+		SpeakerResource: speakerClient, AudioEngine: audioEngine, EngineRegistry: engineRegistry, Usage: usageRecorder,
 		Stores:   server.CompositionStores{ProviderConfig: stores.ProviderConfig, VoiceOverrides: stores.VoiceOverrides, BYOK: stores.BYOK, STTStream: stores.STTStream, STTSpeaker: stores.STTSpeaker, Wakeword: stores.Wakeword, Speaker: stores.Speaker, TTSConfig: stores.TTSConfig, Playback: stores.Playback, Usage: stores.Usage},
 		Sessions: sessionRegistry, StreamLedgers: streamLedgers, TTS: ttsSvc, Cache: ttsCache, SummarizeConfig: &summCfg, Corpus: corpusSvc, ExperimentManager: experimentMgr, Experiments: experimentSvc,
 	})

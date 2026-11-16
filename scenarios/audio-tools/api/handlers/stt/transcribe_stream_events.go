@@ -17,9 +17,8 @@ import (
 // streamErrorCode classifies a stream error into a machine-readable code the
 // clients key off (plan L2). A typed backend-down error becomes "backend_starting"
 // (transient — show a "starting…" affordance) or "backend_unavailable" (operator
-// action). Everything else keeps the legacy "provider_failure" code. Shared by
-// the Connect stream-event path and the WebSocket bridge so both surfaces stay
-// in lockstep.
+// action). Everything else keeps the legacy "provider_failure" code for
+// Connect clients.
 func streamErrorCode(err error) string {
 	if err != nil && strings.Contains(err.Error(), "stt_busy") {
 		return "stt_busy"

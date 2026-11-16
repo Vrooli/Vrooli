@@ -22,8 +22,7 @@ func (r *recordingCapacityReporter) Active(_ context.Context, resource string) s
 func (*recordingCapacityReporter) Idle(context.Context, string) {}
 
 // TestProtoForEvent_VadStateRoundtrip asserts that the chain→proto bridge
-// faithfully carries every field of VadStateEvent. This is the cross-
-// transport contract: WS and Connect bidi must surface the same data.
+// faithfully carries every field of VadStateEvent into the Connect contract.
 func TestProtoForEvent_VadStateRoundtrip(t *testing.T) {
 	in := sttchain.StreamEvent{
 		Kind: sttchain.StreamEventVadState,
@@ -55,8 +54,8 @@ func TestProtoForEvent_VadStateNilDropsEvent(t *testing.T) {
 }
 
 // TestProtoForEvent_SpeakerRejectionCarriesScore asserts the chain→proto
-// bridge forwards the similarity score and threshold so the Connect transport
-// surfaces the same numbers as the WS transport — without them the rejection
+// bridge forwards the similarity score and threshold so Connect clients can
+// explain a rejection precisely — without them the rejection
 // banner can only show 0.00/0.00.
 func TestProtoForEvent_SpeakerRejectionCarriesScore(t *testing.T) {
 	in := sttchain.StreamEvent{

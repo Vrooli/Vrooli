@@ -292,9 +292,8 @@ After a successful grant, the indicator transitions to `granted` /
 **Symptom:** The browser successfully captures audio and uploads it,
 but transcription either fails with a decode error or returns garbage
 text. In DevTools → **Network**, the request to
-`/api/v1/voice/stream` (WebSocket) or the streaming Connect RPC shows
-binary frames whose first bytes are `1A 45 DF A3` (the EBML / WebM
-magic) instead of a raw PCM payload.
+the streaming Connect RPC reports decode errors or recognition garbage when
+the browser sent containerized WebM/Opus instead of raw PCM.
 
 **Diagnosis:** The audio-tools streaming endpoint expects **raw 16-bit
 PCM at 16 kHz**. The `MediaRecorder` API in browsers emits
@@ -354,14 +353,13 @@ explanation and the planned fix.
 There is no functional gap — every consumer still sees the final
 transcript — only the latency benefit of live partials is missing.
 
-### WebSocket provider routing
+### Browser streaming provider routing
 
-The browser WebSocket path now uses the same `sttchain` provider chain as
-the Connect transport. A configured server-side BYOK credential is applied
+The browser Connect stream uses the `sttchain` provider chain. A configured
+server-side BYOK credential is applied
 when the browser cannot attach custom handshake headers; explicit request
 credentials still take precedence. Provider identity and terminal routing
-metadata are emitted on the stream, so the browser path and Connect path
-have the same provider-selection semantics.
+metadata are emitted on the stream.
 
 If the stream reports `provider_failure`, inspect the provider identity and
 the capability projection first. Configure or repair the named provider from

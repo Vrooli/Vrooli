@@ -42,27 +42,27 @@ Non-negotiable contracts. Changing any of these is an RFC-level decision, not a 
 ## Transport classification
 
 1. The four `RESTReason*` constants in `templates/scenarios/react-vite/api/internal/module/module.go` are the only escape hatches from Connect-RPC for proto-owned operations. For audio-tools:
-   - `multipart_upload`: `POST /api/v1/voice/transcribe`, `POST /api/v1/audio/transcode`.
+   - `multipart_upload`: none in P0.
    - `ops_probe`: `GET /health`.
    - `webhook_receiver`: none in P0.
    - `third_party_shape`: none in P0.
-2. The browser-voice WebSocket is **not** a REST exception; it is a `TransportReason: websocket_transport` endpoint. (This constant must be added to the template — see R-PROTO.)
+2. Browser voice streaming uses the proto-owned `STTService.TranscribeStream` Connect bidi endpoint. The retired `/api/v1/voice/stream` WebSocket route is not mounted.
 3. No new endpoints in web-console for audio. Consumers reach audio-tools directly via the integrations adapter.
 
 ## Streaming v2 replay and segment delivery
 
 1. A v2 audio chunk is retained until the server emits a processed-coverage
-   acknowledgement or an explicit terminal failure. A socket close or generic
-   `done` is not evidence of coverage.
-2. Both Connect and WebSocket transports commit each durable transcript segment
+   acknowledgement or an explicit terminal failure. A stream close or empty
+   final is not evidence of coverage.
+2. The Connect bidi handler commits each durable transcript segment
    into the session ledger before emitting it. The identity is provider-supplied
    when available; otherwise it is deterministically derived from session,
    generation, and canonical sample range.
-3. A WebSocket reconnect re-emits committed segments in canonical timeline
-   order with `segmentId`. Browser providers retain IDs for the active turn and
-   deliver each ID to host UI exactly once. This lets replay repair a missed
+3. A Connect reconnect re-emits committed segments in canonical timeline
+   order with `segmentId`. The browser provider retains IDs for the active turn and
+   delivers each ID to host UI exactly once. This lets replay repair a missed
    server-to-browser delivery without duplicate composer or dictation text.
-4. **Encoded in**: `handlers/stt/{stream_ws,transcribe_stream}.go`,
+4. **Encoded in**: `handlers/stt/transcribe_stream.go`,
    `internal/stt/session/ledger.go`, and both PCM v2 browser providers.
 
 ## Greenfield discipline

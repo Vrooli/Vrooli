@@ -166,7 +166,8 @@ func TestPrintComparisonRendersWinnerRowsAndKeepsNilReportVisible(t *testing.T) 
 
 	mkReport := func(winnerWer, winnerRtf float64, passed bool) *evalv1.EvalReport {
 		return &evalv1.EvalReport{
-			Summary: &evalv1.EvalReportSummary{WinnerStrategy: "batch"},
+			QualityMeasured: true,
+			Summary:         &evalv1.EvalReportSummary{WinnerStrategy: "batch"},
 			PerStrategy: []*evalv1.StrategyReport{
 				{Strategy: "batch", Label: "batch / clean", Wer: winnerWer, Rtf: winnerRtf, WhisperCalls: 1, Safety: &evalv1.SafetyGateReport{Passed: passed}, Scaling: &evalv1.ScalingAnalysis{
 					LatencyClassification: "linear",
@@ -205,15 +206,35 @@ func TestPrintComparisonRendersWinnerRowsAndKeepsNilReportVisible(t *testing.T) 
 	require.Contains(t, out, "SCALE")
 	require.Contains(t, out, "linear/flat")
 	require.Contains(t, out, "UNSAFE")
-	require.Contains(t, out, "* best")
+	require.Contains(t, out, "No overall ranking: runs need successful, quality-measured reports and identical recipes to compare.")
+	require.NotContains(t, out, "* best")
 	require.Contains(t, out, "Experiment errors:")
 	require.Contains(t, out, "all speaker experiment conditions were skipped")
-	// The best (beta) row carries the marker.
+	// No row receives a winner marker when one requested comparison is still running.
 	for _, line := range strings.Split(out, "\n") {
-		if strings.Contains(line, "exp-bbb") {
-			require.True(t, strings.HasPrefix(strings.TrimSpace(line), "*"), "best experiment row should be marked: %q", line)
+		require.False(t, strings.Contains(line, "exp-bbb") && strings.HasPrefix(strings.TrimSpace(line), "*"), "incomplete comparison must not rank a winner: %q", line)
+	}
+}
+
+func TestPrintComparisonRanksOnlyIdenticalQualityMeasuredRecipes(t *testing.T) {
+	app := testutil.NewTestApp(t, http.NewServeMux())
+	ctx, buf := cliapptest.NewCapturedRunContext(app, cliapp.ArgSchema{}, cliapptest.TestRunContextOptions{})
+	recipe := func(clipID string) *experimentv1.ExperimentRecipe {
+		return &experimentv1.ExperimentRecipe{ClipIds: []string{clipID}, Strategies: []*evalv1.EvalStrategy{{Kind: "batch"}}}
+	}
+	item := func(id, clip string, wer float64) *experimentv1.ComparedExperiment {
+		return &experimentv1.ComparedExperiment{
+			Experiment: &experimentv1.Experiment{Id: id, Status: experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED, Recipe: recipe(clip)},
+			Report:     &evalv1.EvalReport{QualityMeasured: true, PerStrategy: []*evalv1.StrategyReport{{Strategy: "batch", Wer: wer}}},
 		}
 	}
+	printComparison(ctx, []*experimentv1.ComparedExperiment{item("exp-a", "clip-a", .08), item("exp-b", "clip-b", .02)})
+	require.Contains(t, buf.String(), "No overall ranking:")
+	require.NotContains(t, buf.String(), "* best")
+	buf.Reset()
+	printComparison(ctx, []*experimentv1.ComparedExperiment{item("exp-a", "clip-a", .08), item("exp-b", "clip-a", .02)})
+	require.Contains(t, buf.String(), "* best")
+	require.Contains(t, buf.String(), "exp-b")
 }
 
 func TestPrintComparisonRendersRecipeDiffAndStrategyAlignment(t *testing.T) {

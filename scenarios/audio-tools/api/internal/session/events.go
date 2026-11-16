@@ -6,8 +6,8 @@
 // subscribe to the same session and receive transcript deltas, assistant
 // deltas, VAD signals, tool events, and barge-in cancels.
 //
-// Concrete transports plug in below the session boundary; P0 ships
-// handlers/stt/stream_ws.go (WebSocket).
+// The STT Connect bidi stream and session service expose this boundary to
+// browser and application clients.
 package session
 
 import "time"

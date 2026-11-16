@@ -3,11 +3,11 @@
 // audio-tools-owned API and is not a shared implementation to copy.
 
 import { registerVoiceTransport as registerBrowserVoiceTransport } from "@vrooli/audio-capture-browser";
-import { buildVoiceStreamWsUrl, transcribeAudioWithRetry, transcribeAudioWithRetryDetailed } from "./api/voice";
+import { openVoiceStream, transcribeAudioWithRetry, transcribeAudioWithRetryDetailed } from "./api/voice";
 
 export function registerVoiceTransport(): void {
   registerBrowserVoiceTransport({
-    buildStreamUrl: (language, sessionId, resumeToken) => buildVoiceStreamWsUrl(language, sessionId, resumeToken),
+    openStream: (start, handlers) => openVoiceStream(start, handlers),
     transcribeRetained: (blob, language) => transcribeAudioWithRetry(blob, 2, language),
     transcribeRetainedWithIdentity: (blob, language) => transcribeAudioWithRetryDetailed(blob, 2, language),
   });
@@ -73,7 +73,6 @@ export type { TTSConfig, TTSSummarizeConfig, TTSPlaybackEvent } from "./api/tts"
 export {
   createVoiceApi,
   useVoiceApi,
-  buildVoiceStreamWsUrl,
   transcribeAudio,
   transcribeAudioBypassFilter,
   transcribeAudioWithRetry,

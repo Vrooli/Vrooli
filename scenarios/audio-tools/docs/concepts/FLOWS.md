@@ -44,15 +44,15 @@ voice canonical id → voice_overrides["tier:provider-id"] (if any) → adapter 
 
 Same policy-permitted tiering concept, with capability-specific ordering. Local summarization uses `internal/summarize` (Ollama); BYOK uses its OpenRouter adapter. Hosted summarization remains unimplemented in the inspected LPBS client.
 
-### Browser-voice WS session
+### Browser voice session
 
 ```
-client opens WS /api/v1/voice/stream?voice=…&language=…
-  └─ handlers/stt/stream_ws.StreamWSHandler.ServeHTTP
-       ├─ session.New(transport="browser-voice", voice, language, CancelHook)
+browser opens generated STTService.TranscribeStream bidi Connect client
+  └─ handlers/stt.TranscribeStream
+       ├─ session.New with stream identity and cancellation hook
        ├─ session.Registry.Add
        ├─ stt.Segmenter (transport-agnostic streaming pipeline)
-       └─ on disconnect: session.Close("ws-disconnect"); registry.Remove
+       └─ on stream close: session closes and registry removes it
 ```
 
 Concurrent `SessionService.Subscribe` observers attach to the same `session.Session` and receive every transcript/VAD/barge-in event.

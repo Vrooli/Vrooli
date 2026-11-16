@@ -6,6 +6,21 @@ import { Input } from "../../../components/ui/input";
 import { Select } from "../../../components/ui/select";
 import { useTranslation } from "../../../i18n";
 import { strings } from "../../../consts/strings";
+import { createClient } from "@connectrpc/connect";
+import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { AudioProcessingService } from "@vrooli/proto-types/audio-tools/v1/audio/audio_pb";
+import { transport } from "../../../api/client";
+
+const audioClient = createClient(AudioProcessingService, transport);
+
+function outputFormat(format: string): AudioFormat {
+  switch (format) {
+    case "mp3": return AudioFormat.MP3;
+    case "flac": return AudioFormat.FLAC;
+    case "ogg": return AudioFormat.OGG;
+    default: return AudioFormat.WAV;
+  }
+}
 
 export function TranscodeTryIt() {
   const { t } = useTranslation();
@@ -20,18 +35,22 @@ export function TranscodeTryIt() {
     setBusy(true);
     setError("");
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-    const fd = new FormData();
-    fd.append("audio", file);
-    fd.append("output_format", format);
-    const { uploadFile } = await import("../../../api/client");
-    const res = await uploadFile("/api/v1/audio/transcode", fd);
-    setBusy(false);
-    if (!res.ok) {
-      setError(t(strings.diagnostics.transcodeFailed, { status: res.status }));
+    try {
+      const res = await audioClient.transcode({
+        audio: new Uint8Array(await file.arrayBuffer()),
+        inputFormat: AudioFormat.UNSPECIFIED,
+        outputFormat: outputFormat(format),
+        sampleRate: 0,
+        channels: 0,
+        bitrate: 0,
+      });
+      setDownloadUrl(URL.createObjectURL(new Blob([res.audio], { type: res.contentType })));
+    } catch (err) {
+      setError(t(strings.diagnostics.transcodeFailed, { status: err instanceof Error ? err.message : "unknown" }));
       return;
+    } finally {
+      setBusy(false);
     }
-    const blob = await res.blob();
-    setDownloadUrl(URL.createObjectURL(blob));
   };
 
   return (

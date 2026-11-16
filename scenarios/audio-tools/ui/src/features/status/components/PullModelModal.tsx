@@ -28,8 +28,8 @@ export function PullModelModal({ open, onClose, onConfirm, pending }: PullModelM
         <p className="text-xs text-app-muted-foreground">
           {t(strings.status.pullHint, {
             commandCode: "ollama pull",
-            example1: "phi3:mini",
-            example2: "llama3.1:8b",
+            example1: "publisher/model:tag",
+            example2: "model-name:latest",
           })}
         </p>
         <Input

@@ -126,7 +126,9 @@ evidence, never a substitute for a real-time long-form turn. A cell declares
 one lane: a `realtime` cell derives its WER and safety result from its first
 paced repeat, while an explicitly `deterministic` cell derives those fields
 from its unpaced replay. The runner never attaches an unpaced failure to a
-report labeled `realtime`.
+report labeled `realtime`. For promotion, compatible measurements retain the
+highest observed WER and any failed safety observation; a passing repeat
+cannot hide a failed quality or safety observation.
 Recovery, fault, browser-product-path, and device categories remain explicit
 blocking reasons until their dedicated qualification artifacts are persisted.
 An `interval_accounting` artifact is also stricter than its name implies: it

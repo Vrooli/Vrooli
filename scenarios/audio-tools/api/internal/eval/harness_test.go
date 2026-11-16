@@ -172,13 +172,51 @@ func TestRunReport_RealtimeProducesLatencySamples(t *testing.T) {
 	require.Len(t, rep.PerStrategy[0].PerClip[0].LatencySamplesMs, 3, "one latency sample per real-time repeat")
 }
 
+func TestRunReport_QualityOnlyNativeStreamDoesNotClaimLatency(t *testing.T) {
+	clip := Clip{ID: "native", PCM: testaudio.SilenceSamplesAtRate(16000, 300), SampleRate: 16000, Reference: "hello world"}
+	spec := StrategySpec{
+		Kind: sttchain.StrategyPassthrough, Label: "native",
+		BuildSession: func(clip Clip) (Session, *MeteredProvider) {
+			meter := NewMeteredProvider(fakeProv("hello world", time.Millisecond), float64(clip.bytesPerSecond()))
+			return controlledSession(meter, clip.Reference), meter
+		},
+	}
+
+	report := RunReport(context.Background(), []Clip{clip}, []StrategySpec{spec}, DefaultEvalOptions())
+	require.True(t, report.QualityMeasured)
+	require.False(t, report.LatencyMeasured)
+	require.Empty(t, report.PerStrategy[0].PerClip[0].LatencySamplesMs)
+	require.Zero(t, report.PerStrategy[0].FinalizationLatencyP95Ms)
+}
+
+func TestRunReport_NativePassthroughSamplesOnlyRequestedLatencyRepeats(t *testing.T) {
+	clip := Clip{ID: "native", PCM: testaudio.SilenceSamplesAtRate(16000, 300), SampleRate: 16000, Reference: "hello world"}
+	spec := StrategySpec{
+		Kind: sttchain.StrategyPassthrough, Label: "native",
+		BuildSession: func(clip Clip) (Session, *MeteredProvider) {
+			meter := NewMeteredProvider(fakeProv("hello world", time.Millisecond), float64(clip.bytesPerSecond()))
+			return controlledSession(meter, clip.Reference), meter
+		},
+	}
+	var ticks atomic.Int64
+	report := RunReport(context.Background(), []Clip{clip}, []StrategySpec{spec}, EvalOptions{
+		ChunkMs: 100, QualityPass: true, RealtimeRepeats: 2, RealtimeConcurrency: 1,
+		Sleep: func(time.Duration) {},
+		Now:   func() time.Time { return time.Unix(0, ticks.Add(1)*int64(time.Millisecond)) },
+	})
+	require.True(t, report.QualityMeasured)
+	require.True(t, report.LatencyMeasured)
+	require.Len(t, report.PerStrategy[0].PerClip[0].LatencySamplesMs, 2, "paced quality pass must not add a third sample")
+	require.Greater(t, report.PerStrategy[0].FinalizationLatencyP95Ms, 0.0)
+}
+
 func TestReplay_RealtimeCapturesEndOfFeedBeforeImmediateDone(t *testing.T) {
 	clip := Clip{ID: "immediate-done", PCM: testaudio.SilenceSamplesAtRate(16000, 300), SampleRate: 16000}
 	var ticks atomic.Int64
 	result := Replay(context.Background(), clip, ReplayOptions{
-		Mode: ModeRealtime,
+		Mode:    ModeRealtime,
 		ChunkMs: 100,
-		Sleep: func(time.Duration) {},
+		Sleep:   func(time.Duration) {},
 		Now: func() time.Time {
 			return time.Unix(0, ticks.Add(1)*int64(time.Millisecond))
 		},

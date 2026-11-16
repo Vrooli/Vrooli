@@ -182,8 +182,8 @@ func TestValidateStreamStartEngine_UsesExplicitConnectSelection(t *testing.T) {
 	require.ErrorContains(t, validateStreamStartEngine(start, registry), "unknown engine_id")
 }
 
-// TestConnectBidiKeepsTerminalSessionRecoverable is the Connect-side twin of
-// TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity.
+// TestConnectBidiKeepsTerminalSessionRecoverable exercises replay retention
+// after the server sends a terminal event.
 //
 // The Connect transport used to remove the session as soon as it had sent the
 // terminal event, on the reasoning that delivery ended the session's usefulness.

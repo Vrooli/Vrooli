@@ -1,13 +1,8 @@
 package audio
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -185,74 +180,6 @@ func TestRequireBytes_ZeroReturnsInvalidArgument(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
-func TestAtoiOr_ParsingBehaviour(t *testing.T) {
-	require.Equal(t, 42, atoiOr("42", 7))
-	require.Equal(t, 7, atoiOr("", 7))
-	require.Equal(t, 7, atoiOr("not-an-int", 7))
-}
-
 func TestSchemaIsEmpty(t *testing.T) {
 	require.Equal(t, "", Schema())
-}
-
-func TestMultipartTranscodeHandler_HappyPath(t *testing.T) {
-	withRunner(t, audiomocks.NewFakeRunner([]byte("M"), nil))
-
-	body, contentType := buildMultipart(t, "audio", "in.wav", []byte("X"), map[string]string{
-		"output_format": "mp3",
-		"sample_rate":   "16000",
-		"channels":      "1",
-		"bitrate":       "128000",
-	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/audio/transcode", strings.NewReader(body))
-	req.Header.Set("Content-Type", contentType)
-	w := httptest.NewRecorder()
-	multipartTranscodeHandler().ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "audio/mpeg", w.Header().Get("Content-Type"))
-	require.Equal(t, "M", w.Body.String())
-}
-
-func TestMultipartTranscodeHandler_MissingFile(t *testing.T) {
-	body, contentType := buildMultipart(t, "wrong-field", "x.wav", []byte("X"), nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/audio/transcode", strings.NewReader(body))
-	req.Header.Set("Content-Type", contentType)
-	w := httptest.NewRecorder()
-	multipartTranscodeHandler().ServeHTTP(w, req)
-	require.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestMultipartTranscodeHandler_BadRequestBody(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/audio/transcode", strings.NewReader("not-multipart"))
-	req.Header.Set("Content-Type", "multipart/form-data; boundary=---bogus")
-	w := httptest.NewRecorder()
-	multipartTranscodeHandler().ServeHTTP(w, req)
-	require.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func buildMultipart(t *testing.T, field, filename string, body []byte, fields map[string]string) (string, string) {
-	t.Helper()
-	var buf bytes.Buffer
-	mw := multipart.NewWriter(&buf)
-	fw, err := mw.CreateFormFile(field, filename)
-	require.NoError(t, err)
-	_, err = fw.Write(body)
-	require.NoError(t, err)
-	for k, v := range fields {
-		require.NoError(t, mw.WriteField(k, v))
-	}
-	require.NoError(t, mw.Close())
-	return buf.String(), mw.FormDataContentType()
-}
-
-func TestMultipartTranscodeHandler_FfmpegMissingMapsFailedDependency(t *testing.T) {
-	restore := intaudio.SetFfmpegAvailableForTest(false, false)
-	t.Cleanup(restore)
-	body, contentType := buildMultipart(t, "audio", "x.wav", []byte("X"), nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/audio/transcode", strings.NewReader(body))
-	req.Header.Set("Content-Type", contentType)
-	w := httptest.NewRecorder()
-	multipartTranscodeHandler().ServeHTTP(w, req)
-	require.Equal(t, http.StatusFailedDependency, w.Code)
 }

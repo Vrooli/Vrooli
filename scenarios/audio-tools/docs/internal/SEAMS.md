@@ -34,8 +34,8 @@ new seams at their shared owner, not as duplicated consumer implementations.
 | `sttchain.BYOKAdapter` / `ttschain.BYOKAdapter` / `summarizechain.BYOKAdapter` | Interface | `internal/byok/*.go` | chain `BYOKProvider` registry dispatch |
 | `sttchain.VrooliClient` / `ttschain.VrooliClient` / `summarizechain.VrooliClient` | Interface | `integrations/lpbs/clients/*_client.go` | chain `VrooliProvider` |
 | `tts.VerifyCatalog` | Pure function | `internal/tts/voice_catalog.go` | `main.go` startup gate |
-| `session.Session` pub/sub | Concrete | `internal/session/session.go` | `handlers/stt/stream_ws.go`, `handlers/session` |
-| Browser-voice WS | Concrete | `handlers/stt/stream_ws.go` | `main.go` route mount |
+| `session.Session` pub/sub | Concrete | `internal/session/session.go` | `handlers/stt/transcribe_stream.go`, `handlers/session` |
+| Browser voice transport | Generated Connect bidi client | `packages/proto/schemas/audio-tools/v1/stt/stt.proto` | Consumer adapters call `STTService.TranscribeStream`; the retired WebSocket route has no live browser caller |
 | `audiotools.URLResolver` (consumer-side) | Interface | `scenarios/web-console/api/integrations/audiotools/discovery.go` | `audiotools.Client.refresh()` |
 | `store.{ProviderConfig,BYOK,VoiceOverride,Usage,Wakeword,Speaker,STTStreamConfig,TTSConfig,Playback}Store` | Concrete (sql) | `internal/store/*.go` | every admin handler (settings/usage/stt/tts) |
 | `byokstore.Store` / `byokstore.Encryptor` | Concrete | `internal/byokstore/{store,encryptor,fingerprint}.go` | `handlers/settings` and chain BYOK resolver |
@@ -47,10 +47,8 @@ new seams at their shared owner, not as duplicated consumer implementations.
 | `chains/tiered.LPBSProvider` | Generic | `internal/ai/chains/tiered/lpbs.go` | STT, TTS, and summarize retain typed LPBS execution methods while sharing safe LPBS client configuration, availability, and model identity behavior. |
 | `chains/tiered.Tier[Req,Resp]` | Struct (function fields) | `internal/ai/chains/tiered/tiered.go` | per-chain `sttTier`/`ttsTier`/`sumTier` generic helpers (pointer-shaped type param to dodge typed-nil-in-interface) wrap concrete provider methods |
 | `sttchain.Chain.Probe` / `ttschain.Chain.Probe` / `summarizechain.Chain.Probe` | Inherited from embedded `*tiered.Coordinator` | `internal/ai/chains/tiered/tiered.go` | `handlers/tts` GetStatus + `cli/domains/settings` (`settings providers`) — returns `tiered.ProbeResult` |
-| `stt.MultipartTranscribeHandler` / `audio.multipartTranscodeHandler` | Concrete | `handlers/{stt,audio}/` | UI multipart upload paths |
 | `audio.Runner` + `audio.DefaultRunner` + `audio.SetFfmpegAvailableForTest` | Interface + var + test seam | `internal/audio/transcode.go` | `handlers/audio` unit tests substitute a fake Runner and seed ffmpeg presence so happy-path / error branches run without an ffmpeg binary on PATH |
 | `audioformat.ProcessRunner` / `audioformat.Process` / `audioformat.StreamDecoder` | Interface + per-session decoder | `internal/audioformat/stream.go` | streaming STT live decode (one ffmpeg child per non-PCM session); `FakeProcessRunner` keeps ffmpeg off the unit-test path |
-| `stt.StreamWSHandler` | Concrete | `handlers/stt/stream_ws.go` | mounts `/api/v1/voice/stream` over `voice.Service.HandleStreamWS`; its deterministic qualification faults live in `stream_ws_faults.go` and are double-gated by an active server-owned DB-and-file isolation lease plus `X-Vrooli-Test-Mode: 1`. The bounded fault values exercise provider admission, post-chunk and post-commit close, reader backpressure, and processed-coverage acknowledgement behavior without emitting audio or transcript data. A suppressed acknowledgement retains the v2 replay tail and emits `incomplete_coverage`; terminal `done` is therefore not a success signal without full coverage. |
 | `stt.Segmenter` | Concrete | `internal/stt/segmenter/` | WS handler + Connect bidi handler + eval streaming harness rows (one impl, two transports, one lab replay path) |
 | `stt.StrategySelector` | Concrete | `internal/stt/selector.go` | `stt.Segmenter` at session start |
 | `stt.StreamingStrategy` | Interface | `internal/stt/strategy/{vad_segment,overlap_agree,passthrough}.go` | `stt.StrategySelector` |
@@ -73,7 +71,6 @@ new seams at their shared owner, not as duplicated consumer implementations.
 | `handlers/experiment.ExperimentManager` | Interface | `handlers/experiment/connect_handler.go` | Connect handler consumer-side seam over `internal/experiment.Manager` (`Submit/Get/Wait/List/Cancel/Subscribe`); handler tests can substitute a fake manager without starting the worker |
 | `ui experiment client` | Generated Connect client wrapper | `ui/src/services/experiment.ts` | Dictation Studio lab console consumes `ExperimentService` for start/wait/cancel/list/report/compare. Component tests mock this module, so UI tests prove lifecycle wiring without live Whisper/sherpa-onnx resources or a running API |
 | `StreamDiagnosticRecorder` | Bounded metadata-only browser record | `packages/audio-capture-browser/src/streamDiagnostic.ts` | Browser dictation transports publish protocol state, coverage cursors, durability, status/error codes, and terminal reason to product UI. It intentionally cannot retain audio or transcript text, so support export is privacy-safe. |
-| `ATV2 protocol fixture` | Cross-language conformance fixture | `handlers/stt/stream_ws.go` constants and `protocol_fixture_test.go` | `packages/audio-capture-browser/src/protocol.ts` and `streamMessages.ts`; the Go steward test names the regeneration command when the browser fixture drifts. |
 | `testaudio` PCM fixture builders | Test-only fixture package | `internal/stt/segmenter/testaudio/testaudio.go` | STT strategies, segmenter parity, eval replay and handler tests; owns sample width/rate arithmetic and named content-duration fixtures. |
 | `sttchain` fake provider builder | Test-only provider fake | `internal/ai/sttchain/mocks/provider.go` | Provider, strategy and segmenter tests; defaults are overridable per test and every build returns a fresh fake. |
 | Browser `MediaStream` fixture | Test-only browser fake | `ui/src/audio-integration/test-support/browser.ts` | Web Speech, Whisper and wake-word tests; centralizes the minimal stream/track shape and accepts an injected stop callback. |
@@ -83,9 +80,8 @@ new seams at their shared owner, not as duplicated consumer implementations.
 
 | Direction | Mechanism |
 |---|---|
-| consumer → audio-tools (API) | Connect-RPC + multipart REST exceptions + browser-voice WS |
+| consumer → audio-tools (API) | Connect-RPC + multipart REST exceptions |
 | consumer UI → audio-tools UI | `@vrooli/audio-capture-browser` package plus each consumer's transport adapter |
-| audio-tools → browser audio package | Server-owned JSON fixture for ATV2 header and WebSocket message constants; regenerate with `AUDIO_PROTOCOL_UPDATE_FIXTURE=1 go test ./handlers/stt` |
 | audio-tools → LPBS (flag-off) | HTTP POST per capability |
 | audio-tools → BYOK third parties | HTTP POST per adapter (recorded fixtures via go-vcr) |
 
@@ -593,8 +589,7 @@ an actionable diff showing exactly which entries diverged.
 ### `stt.Segmenter` (transport-free streaming orchestrator)
 - **Owner:** `api/internal/stt/segmenter/segmenter.go`
   (see [`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md)).
-- **Production wires:** constructed once per streaming session by both
-  the browser WS handler (`handlers/stt/stream_ws.go`) and the Connect
+- **Production wires:** constructed once per streaming session by the Connect
   bidi handler (`handlers/stt/transcribe_stream.go`). The eval/experiment
   harness also constructs it per replay for `vad_segment` and
   `overlap_agree`, using an eval-local single-provider chain. Public eval

@@ -2,7 +2,7 @@
 
 This document is the canonical architecture reference for streaming
 speech-to-text inside audio-tools. It explains how audio chunks flow
-from a transport (browser WebSocket or non-browser Connect bidi) to a
+from browser or consumer Connect bidi requests to a
 typed event stream, and how the **technique** that produces those
 events is kept independent of the **provider** that performs the
 transcription.
@@ -51,7 +51,7 @@ regardless of which (strategy, provider) pair is in use. Consumers
 (UI, CLIs, other scenarios) never learn about strategies; the
 abstraction terminates inside audio-tools.
 
-## Current Architecture (as of 2026-08-18)
+## Current Architecture (as of 2026-11-16)
 
 > **One-shot auto-stop is server-VAD-led.** The browser's mic-button ring and
 > the stop trigger consume the same source — `useServerVadStateStore` — via
@@ -63,20 +63,19 @@ abstraction terminates inside audio-tools.
 
 
 
-Two transports use the same transport-free segmenting boundary. The browser
-WebSocket and Connect bidi surfaces translate their wire formats into the
-shared `sttchain` event stream; they do not select providers or implement
-their own retention policy.
+Browser dictation and other consumers use the generated bidi Connect
+`STTService.TranscribeStream` contract. Scenario adapters provide auth and
+endpoint discovery; the shared browser package owns capture and replay policy.
+The handler translates Connect messages into the transport-free segmenter
+boundary; it does not select providers in the browser.
 
 ```text
-browser WebSocket framing       Connect bidi framing
-              \                     /
-               shared STT session/segmenter boundary
-                 -> ingress PCM and policy
-                 -> compatible provider + strategy
-                    -> native incremental OR bounded batch strategy
-                 -> egress policy and canonical interval accounting
-                 -> partial snapshots, stable commits, acknowledgements, terminal outcome
+browser capture -> generated Connect bidi client -> STT handler
+                                            -> session / segmenter boundary
+                                              -> ingress PCM and policy
+                                              -> compatible provider + strategy
+                                              -> egress policy and interval accounting
+                                              -> partials, stable commits, acknowledgements, terminal outcome
 ```
 
 The shipped implementation provides:
@@ -92,7 +91,7 @@ The shipped implementation provides:
 - `whisper-local` uses the native whisper.cpp managed service for batch
   strategies; `kyutai` and `sherpa-streaming` use native passthrough
   streaming providers.
-- Both transports preserve durable segments, acknowledgements, errors, and
+- The Connect stream preserves durable segments, acknowledgements, errors, and
   terminal events while allowing disposable partial/status snapshots to be
   coalesced.
 
@@ -115,19 +114,18 @@ no compatible current receipt exists.
 ## Target Architecture
 
 The destination separates strategy from provider, gives the "which
-strategy do I use?" decision exactly one home, and shares one pipeline
-across both transports.
+strategy do I use?" decision exactly one home, and serves browser and other
+consumers through the generated Connect bidi contract.
 
 ```
-TRANSPORT EDGE  (translate wire format ↔ Segmenter events; no logic)
-┌────────────────────────┐    ┌────────────────────────┐
-│  WS handler            │    │  Connect bidi handler  │
-│  /api/v1/voice/stream  │    │  STT.TranscribeStream  │
-└──────────┬─────────────┘    └────────────┬───────────┘
-           │                               │
-           │  audio chunks in              │
-           │  TranscribeStreamEvents out   │
-           ▼                               ▼
+TRANSPORT EDGE  (translate Connect requests ↔ Segmenter events; no logic)
+┌─────────────────────────────────────────────────────────┐
+│  Connect bidi handler: STT.TranscribeStream             │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+                            │ audio chunks in
+                            │ TranscribeStreamEvents out
+                            ▼
 ┌─────────────────────────────────────────────────────────┐
 │  Segmenter   (transport-free orchestrator)               │
 │  ─────────────────────────────────────────────────────  │
@@ -278,13 +276,12 @@ observer fanout, or transport details — those live in the Segmenter.
 
 ### Protocol v2: replay-safe capture coverage
 
-Browser and Connect clients use protocol version 2 for a streaming turn. A
+Browser and other generated Connect clients use protocol version 2 for a streaming turn. A
 turn has a random `session_id` and `resume_token`; each captured canonical PCM
 chunk has a monotonically increasing `sequence`, absolute `start_sample` and
-`end_sample` cursors, and a SHA-256 identity. Browser WebSocket frames encode
-those values as `ATV2 | sequence | start_sample | end_sample | sha256 | PCM`.
-The handler verifies the digest before the server session ledger accepts the
-chunk. `done`, a socket close, and an empty final are **not** evidence that
+`end_sample` cursors, and a SHA-256 identity. Each Connect audio request carries those cursors, digest, and PCM bytes as
+typed fields. The handler verifies the digest before the server session ledger
+accepts the chunk. A stream close or empty final is **not** evidence that
 audio was processed.
 
 The server ledger persists received coverage and advances its processed cursor
@@ -292,13 +289,13 @@ from the strategy consumption cursor, not from text commits. This matters for
 continuous speech: a recognizer can consume audio for many seconds while its
 silence-based segmenter has not committed a segment. The cursor emits at most
 one durable acknowledgement per roughly 100 ms of canonical audio, and the
-WebSocket ledger compacts that coverage immediately into a bounded replay tail.
+server ledger compacts that coverage immediately into a bounded replay tail.
 It returns a durable `processed_acknowledgement` status with both cursors before
 terminal `final` and `done`.
 
 The browser stores the same ordered batched chunks and digests in a bounded turn
-journal before releasing a frame to the socket. Worklet quanta are combined
-into approximately 100 ms ATV2 frames (at most 15 wire messages per second),
+journal before releasing a request. Worklet quanta are combined into approximately
+100 ms batches (at most 15 audio messages per second),
 and IndexedDB uses append records with periodic snapshot compaction rather than
 rewriting the entire retained turn for every frame. The server uses the same
 append-log-plus-compaction pattern for receive, acknowledgement, commit, and
@@ -327,33 +324,31 @@ contains the audio payload or transcript.
 This is deliberately not an exactly-once *transport* promise: a reconnect may
 deliver a retained chunk again, but it cannot silently replace it or advance
 coverage without the server acknowledgement. Durable transcript segments have a
-different, stronger rule: both transports commit a stable `segmentId` into the
-same ledger before emitting it. On WebSocket reconnect, the server re-emits
-those commits in canonical sample order and the browser delivers each identity
-to host UI once. A future provider-recovery generation must replay retained
+different, stronger rule: the handler commits a stable `segmentId` into the
+same ledger before emitting it. On reconnect, the server re-emits those
+commits in canonical sample order and the browser delivers each identity to
+host UI once. A future provider-recovery generation must replay retained
 ranges under a new generation identity while preserving that same segment
 idempotency rule.
 
-A streaming session used to be bounded by a hard 5-minute *absolute*
-WebSocket deadline (`context.WithTimeout(r.Context(), 5*time.Minute)`
-in `handlers/stt/stream_ws.go`). That clock fired on *active* speakers
-mid-utterance and closed the socket without draining the tail, so the
-last words were silently lost. The lifecycle is now **inactivity-based
-with a drain-then-close teardown**:
+The retired WebSocket route used a hard 5-minute *absolute* deadline. It could
+fire on active speakers mid-utterance and close without draining the tail, so
+the last words were silently lost. The Connect stream uses an
+**inactivity-based deadline with drain-then-close teardown**:
 
 - **Idle deadline, reset per frame.** Each inbound audio frame arms a
   read deadline of `SessionIdleTimeoutMs` (see below). A session ends
   only after that many milliseconds with *no* audio — not on a fixed
   wall-clock cap. A user can dictate continuously for as long as they
   like.
-- **Every close path drains, then closes.** Idle-timeout, an explicit
-  client `done`, and request-context cancel all route through the same
+- **Every stream end drains before it closes.** Idle-timeout, an explicit
+  client end request, and request-context cancel all route through the same
   graceful-end path: the segmenter is signalled to end, the provider
   sends kyutai its end marker, and the reader awaits the flush/`done`
-  **before** the socket closes. A bounded drain deadline prevents a
+  **before** the stream closes. A bounded drain deadline prevents a
   wedged backend from hanging the close forever. Measured kyutai flush
   lag is small (RTF ≈ 0.13), so awaiting it is cheap.
-- **Kyutai dials lazily.** The browser WebSocket may be opened before
+- **Kyutai dials lazily.** The browser Connect stream may be opened before
   recording starts, but the kyutai provider does not dial `/v1/stream`
   until the first audio chunk arrives. Zero-audio pre-connects therefore
   never take or wait on the single-session model lock.
@@ -403,7 +398,7 @@ A streaming session emits two classes of event:
   Interim hypotheses and live progress snapshots may be **coalesced to the
   latest value or dropped** under consumer backpressure, and they **MUST NEVER
   back-pressure their producer**. Each stream has an independent latest-value
-  slot at the browser WebSocket egress: a VAD tick cannot erase live text, and
+  slot at the browser Connect egress: a VAD tick cannot erase live text, and
   a status update cannot erase the ring state. Losing an intermediate snapshot
   is invisible because the next value supersedes it.
 - **Durable — everything else** (`segment`, `segment-rejected`/speaker
@@ -421,8 +416,8 @@ removes the coupling at its root: partials cannot block a producer, and the rela
 always drains the backend socket, so the decode loop is immune to consumer speed
 while committed text remains lossless and ordered.
 
-**One rule, one code encoding.** All three Go hops (the kyutai provider adapter,
-the relay egress buffer, and the browser WS handler) consume the single predicate
+**One rule, one code encoding.** Both Go hops (the kyutai provider adapter and
+the Connect handler egress buffer) consume the single predicate
 `sttchain.StreamEvent.Durable()` / `IsDroppable()`
 (`internal/ai/sttchain/interface.go`) rather than re-deriving the rule inline.
 The kyutai resource (`resources/kyutai-stt`) applies the same semantics on its

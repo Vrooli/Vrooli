@@ -10,6 +10,7 @@ import (
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/eval"
 	experimentv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/experiment"
+	"google.golang.org/protobuf/proto"
 )
 
 // comparisonRow is the per-experiment projection the comparison table renders:
@@ -28,6 +29,7 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 	rows := make([]comparisonRow, 0, len(experiments))
 	bestIdx := -1
 	anyMissingReport := false
+	rankable := comparisonIsRankable(experiments)
 	for i, ce := range experiments {
 		row := comparisonRow{exp: ce.GetExperiment(), report: ce.GetReport()}
 		if row.report != nil {
@@ -36,7 +38,7 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 			anyMissingReport = true
 		}
 		rows = append(rows, row)
-		if row.winner == nil {
+		if !rankable || row.winner == nil {
 			continue
 		}
 		if bestIdx == -1 {
@@ -89,6 +91,8 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 	}
 	if bestIdx >= 0 {
 		fmt.Fprintf(ctx.Stdout(), "\n* best = lowest winner WER (tie-break lower RTF); deltas are vs that experiment.\n")
+	} else if len(experiments) > 1 {
+		fmt.Fprintln(ctx.Stdout(), "\nNo overall ranking: runs need successful, quality-measured reports and identical recipes to compare.")
 	}
 	if anyMissingReport {
 		fmt.Fprintln(ctx.Stdout(), "Rows without a winner have no stored report yet (still running, or failed before reporting).")
@@ -101,6 +105,27 @@ func printComparison(ctx cliapp.RunContext, experiments []*experimentv1.Compared
 	}
 	printExperimentErrors(ctx, exps)
 	fmt.Fprintln(ctx.Stdout(), "Use --json for full recipes and per-experiment report payloads.")
+}
+
+// comparisonIsRankable prevents a cross-run winner from implying a controlled
+// model/strategy comparison when the workload or evaluator coverage differs.
+func comparisonIsRankable(experiments []*experimentv1.ComparedExperiment) bool {
+	if len(experiments) < 2 || experiments[0] == nil || experiments[0].GetExperiment() == nil || experiments[0].GetReport() == nil {
+		return false
+	}
+	first := experiments[0]
+	if first.GetExperiment().GetStatus() != experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED || !first.GetReport().GetQualityMeasured() || winnerStrategyRow(first.GetReport()) == nil {
+		return false
+	}
+	for _, current := range experiments[1:] {
+		if current == nil || current.GetExperiment() == nil || current.GetReport() == nil ||
+			current.GetExperiment().GetStatus() != experimentv1.ExperimentStatus_EXPERIMENT_STATUS_SUCCEEDED ||
+			!current.GetReport().GetQualityMeasured() || winnerStrategyRow(current.GetReport()) == nil ||
+			!proto.Equal(first.GetExperiment().GetRecipe(), current.GetExperiment().GetRecipe()) {
+			return false
+		}
+	}
+	return true
 }
 
 func printRecipeDiff(ctx cliapp.RunContext, rows []comparisonRow) {

@@ -70,6 +70,30 @@ func TestSummarizer_Summarize(t *testing.T) {
 	}
 }
 
+func TestSummarizerTypedTaskRunnerReceivesTheOwnerTaskWithoutCLIEncoding(t *testing.T) {
+	var received TaskRequest
+	s := NewSummarizerWithTaskRunner(func(_ context.Context, request TaskRequest) ([]byte, error) {
+		received = request
+		return []byte(`{"model":"policy-model","response":"spoken summary","eval_count":7}`), nil
+	})
+	result, err := s.Summarize(context.Background(), "source transcript", "summarize.default", "heavy")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !received.SelectorIsRole || received.Selector != "summarize.default" {
+		t.Fatalf("selector = %+v", received)
+	}
+	if received.Source != "source transcript" || received.Instruction != summarizeSystemPrompts["heavy"] || received.MaxOutputTokens != 120 {
+		t.Fatalf("task request lost source, instruction, or cap: %+v", received)
+	}
+	if received.ContextTier != 0 || received.ExpectedModel != "" || received.RightsDecisionSHA256 != "" {
+		t.Fatalf("ordinary serving task unexpectedly contains experiment-only selectors: %+v", received)
+	}
+	if result.Content != "spoken summary" || result.Model != "policy-model" || result.EvalCount != 7 {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
 func TestSummarizer_UnknownLevel(t *testing.T) {
 	s := testSummarizer(t, "ok", func(args []string, _ string) {
 		if !strings.Contains(argValue(args, "--system"), "Rewrite") {

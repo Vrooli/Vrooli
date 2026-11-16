@@ -12,7 +12,7 @@ import (
 
 // [REQ:ATD-P0-002] Persisted evidence may accumulate only full realtime rungs.
 func TestPromotionVerdictsForMeasurements_AccumulatesPersistedRealtimeRungs(t *testing.T) {
-	verdicts := promotionVerdictsForMeasurements(replayMeasurements(&evalv1.EvalReport{PerStrategy: []*evalv1.StrategyReport{
+	verdicts := promotionVerdictsForMeasurements(replayMeasurements(&evalv1.EvalReport{QualityMeasured: true, PerStrategy: []*evalv1.StrategyReport{
 		{EngineId: "kyutai", Strategy: "passthrough", Wer: 0.12, ReplayLane: "realtime", PerClip: []*evalv1.ClipReport{{AudioDurationMs: 30_000}}},
 		{EngineId: "kyutai", Strategy: "passthrough", Wer: 0.08, ReplayLane: "realtime", PerClip: []*evalv1.ClipReport{{AudioDurationMs: 60_000}}},
 		{EngineId: "kyutai", Strategy: "passthrough", Wer: 0.01, ReplayLane: "deterministic", PerClip: []*evalv1.ClipReport{{AudioDurationMs: 60 * 60 * 1000}}},
@@ -40,7 +40,7 @@ func TestPromotionVerdictsForMeasurements_RejectsObservedSafetyFailure(t *testin
 }
 
 func TestPromotionVerdictsForMeasurements_SeparatesStrategiesAndRejectsLegacyRows(t *testing.T) {
-	verdicts := promotionVerdictsForMeasurements(replayMeasurements(&evalv1.EvalReport{PerStrategy: []*evalv1.StrategyReport{
+	verdicts := promotionVerdictsForMeasurements(replayMeasurements(&evalv1.EvalReport{QualityMeasured: true, PerStrategy: []*evalv1.StrategyReport{
 		{EngineId: "whisper-local", Strategy: "batch", Wer: 0.01, ReplayLane: "realtime", Safety: &evalv1.SafetyGateReport{Passed: false}},
 		{EngineId: "whisper-local", Strategy: "vad_segment", Wer: 0.01, ReplayLane: "realtime", Safety: &evalv1.SafetyGateReport{Passed: true}},
 		{EngineId: "whisper-local", Wer: 0.01, ReplayLane: "realtime", Safety: &evalv1.SafetyGateReport{Passed: false}},
@@ -52,6 +52,13 @@ func TestPromotionVerdictsForMeasurements_SeparatesStrategiesAndRejectsLegacyRow
 	}
 	require.Contains(t, byStrategy["batch"].GetReasons(), "dropped-span rate exceeds trust threshold")
 	require.NotContains(t, byStrategy["vad_segment"].GetReasons(), "dropped-span rate exceeds trust threshold")
+}
+
+func TestReplayMeasurementsIgnoresUnmeasuredQualityRows(t *testing.T) {
+	got := replayMeasurements(&evalv1.EvalReport{PerStrategy: []*evalv1.StrategyReport{{
+		EngineId: "kyutai", Strategy: "passthrough", ReplayLane: "realtime",
+	}}})
+	require.Empty(t, got, "quality-disabled or legacy reports must not contribute zero-value WER")
 }
 
 func TestSameQualificationMachine_RequiresStableHostAndArchitecture(t *testing.T) {

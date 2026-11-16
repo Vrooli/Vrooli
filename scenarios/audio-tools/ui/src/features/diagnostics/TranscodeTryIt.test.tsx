@@ -5,23 +5,19 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
 import { strings } from "../../consts/strings";
 
-// TranscodeTryIt dynamic-imports api/client.uploadFile. We need to mock
-// that module so the call doesn't try a real fetch.
-const uploadFile = vi.fn();
-vi.mock("../../api/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../api/client")>();
-  return { ...actual, uploadFile };
-});
+const transcodeRpc = vi.fn();
+vi.mock("@connectrpc/connect", () => ({
+  createClient: () => ({ transcode: (request: unknown) => transcodeRpc(request) }),
+}));
 
 import { TranscodeTryIt } from "./TranscodeTryIt";
 
 beforeEach(() => {
   Object.defineProperty(URL, "createObjectURL", { value: vi.fn(() => "blob:fake"), writable: true });
   Object.defineProperty(URL, "revokeObjectURL", { value: vi.fn(), writable: true });
-  uploadFile.mockResolvedValue({
-    ok: true,
-    status: 200,
-    blob: () => Promise.resolve(new Blob(["transcoded"], { type: "audio/wav" })),
+  transcodeRpc.mockResolvedValue({
+    audio: new Uint8Array([1, 2]),
+    contentType: "audio/wav",
   });
 });
 
@@ -38,31 +34,29 @@ describe("TranscodeTryIt", () => {
     ).toBeDisabled();
   });
 
-  it("on success: posts to /api/v1/audio/transcode and renders the download link", async () => {
+  it("sends file bytes through Connect and renders the download link", async () => {
     const user = userEvent.setup();
     renderWithProviders(<TranscodeTryIt />);
     const file = new File(["x"], "in.wav", { type: "audio/wav" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([120]).buffer });
     await user.upload(screen.getByLabelText(strings.diagnostics.audioFileLabel), file);
     await user.click(
       screen.getByRole("button", { name: new RegExp(strings.diagnostics.transcodeAction, "i") }),
     );
-    await waitFor(() =>
-      expect(uploadFile).toHaveBeenCalledWith("/api/v1/audio/transcode", expect.any(FormData)),
-    );
+    await waitFor(() => expect(transcodeRpc).toHaveBeenCalledWith({
+      audio: new Uint8Array([120]), inputFormat: 0, outputFormat: 1, sampleRate: 0, channels: 0, bitrate: 0,
+    }));
     expect(
       await screen.findByRole("link", { name: new RegExp(strings.diagnostics.transcodeDownload, "i") }),
     ).toBeInTheDocument();
   });
 
-  it("on non-2xx: renders the failed copy key", async () => {
-    uploadFile.mockResolvedValue({
-      ok: false,
-      status: 500,
-      blob: () => Promise.resolve(new Blob([])),
-    });
+  it("on Connect failure: renders the failed copy key", async () => {
+    transcodeRpc.mockRejectedValue(new Error("connect failed"));
     const user = userEvent.setup();
     renderWithProviders(<TranscodeTryIt />);
     const file = new File(["x"], "in.wav", { type: "audio/wav" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([120]).buffer });
     await user.upload(screen.getByLabelText(strings.diagnostics.audioFileLabel), file);
     await user.click(
       screen.getByRole("button", { name: new RegExp(strings.diagnostics.transcodeAction, "i") }),

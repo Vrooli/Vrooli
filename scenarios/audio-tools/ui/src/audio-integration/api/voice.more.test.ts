@@ -1,5 +1,5 @@
 // Additional coverage for voice.ts — covering everything NOT touched by voice.test.ts:
-//   buildVoiceStreamWsUrl, transcribeAudio/BypassFilter/WithRetry,
+//   transcribeAudio/BypassFilter/WithRetry,
 //   wake-word API, speaker-verification API, blobFormat branches,
 //   and the module-level lazy() singleton wrappers.
 
@@ -10,7 +10,6 @@ import { createVoiceApi } from "./voice";
 import { setActiveAudioToolsClientForTesting } from "../client";
 import type { AudioToolsClient } from "../client";
 import {
-  buildVoiceStreamWsUrl,
   transcribeAudio,
   transcribeAudioBypassFilter,
   transcribeAudioWithRetry,
@@ -94,60 +93,6 @@ const protoSpeakerConfig = {
   rejectBehavior: RejectBehavior.DROP,
   fallbackWithoutVerification: false,
 };
-
-// ---------------------------------------------------------------------------
-// buildVoiceStreamWsUrl
-// ---------------------------------------------------------------------------
-
-describe("buildVoiceStreamWsUrl", () => {
-  it("converts http:// base URL to ws://", () => {
-    const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080"));
-    const url = api.buildVoiceStreamWsUrl();
-    expect(url).toMatch(/^ws:\/\/localhost:8080\//);
-    expect(url).toContain("format=pcm_s16le");
-  });
-
-  it("converts https:// base URL to wss://", () => {
-    const api = createVoiceApi(makeFakeClient({}, "https://api.example.com"));
-    const url = api.buildVoiceStreamWsUrl();
-    expect(url).toMatch(/^wss:\/\/api\.example\.com\//);
-  });
-
-  it("appends language parameter when provided", () => {
-    const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080"));
-    const url = api.buildVoiceStreamWsUrl("en");
-    expect(url).toContain("language=en");
-    expect(url).toContain("format=pcm_s16le");
-  });
-
-  it("omits language parameter when not provided", () => {
-    const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080"));
-    const url = api.buildVoiceStreamWsUrl();
-    expect(url).not.toContain("language=");
-  });
-
-  it("forwards an explicit browser qualification fault only from test-mode page state", () => {
-    window.history.pushState({}, "", "/?stt_test_mode=1&stt_test_fault=provider_busy");
-    const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080"));
-    const url = api.buildVoiceStreamWsUrl();
-    expect(url).toContain("test_mode=1");
-    expect(url).toContain("test_fault=provider_busy");
-    window.history.pushState({}, "", "/");
-  });
-
-  it("strips trailing slash from base URL", () => {
-    const api = createVoiceApi(makeFakeClient({}, "http://localhost:8080/"));
-    const url = api.buildVoiceStreamWsUrl();
-    expect(url).not.toContain("//api");
-    expect(url).toMatch(/^ws:\/\/localhost:8080\//);
-  });
-
-  it("passes through non-http/https schemes unchanged", () => {
-    const api = createVoiceApi(makeFakeClient({}, "custom://endpoint"));
-    const url = api.buildVoiceStreamWsUrl();
-    expect(url).toMatch(/^custom:\/\//);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // transcribeAudio — blobFormat branches
@@ -671,16 +616,6 @@ describe("module-level lazy() singleton", () => {
     setActiveAudioToolsClientForTesting(null);
   });
 
-  it("buildVoiceStreamWsUrl() delegates through lazy() to the active client", () => {
-    const url = buildVoiceStreamWsUrl();
-    expect(url).toMatch(/^ws:\/\/lazy-test\//);
-  });
-
-  it("buildVoiceStreamWsUrl() passes language", () => {
-    const url = buildVoiceStreamWsUrl("ja");
-    expect(url).toContain("language=ja");
-  });
-
   it("transcribeAudio() delegates to active client", async () => {
     const transcribe = vi.fn().mockResolvedValue({ text: "lazy-transcribe" });
     client = makeFakeClient({ transcribe }, "http://lazy-test");
@@ -805,16 +740,5 @@ describe("module-level lazy() singleton", () => {
     expect(deleteSpeakerProfile).toHaveBeenCalledWith({ profileId: "del-id" });
   });
 
-  it("rebinds lazy api when client identity changes", () => {
-    // First call with client1
-    const url1 = buildVoiceStreamWsUrl();
-    expect(url1).toMatch(/^ws:\/\/lazy-test\//);
 
-    // Switch to a different client
-    const client2 = makeFakeClient({}, "http://other-host");
-    setActiveAudioToolsClientForTesting(client2);
-
-    const url2 = buildVoiceStreamWsUrl();
-    expect(url2).toMatch(/^ws:\/\/other-host\//);
-  });
 });

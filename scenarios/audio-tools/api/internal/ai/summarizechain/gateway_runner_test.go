@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"audio-tools/internal/summarize"
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -24,15 +25,16 @@ func TestAIGatewayRunnerUsesLocalFaithfulSummaryTaskContract(t *testing.T) {
 			received = request.Msg
 			return connect.NewResponse(&inferencev1.RunResponse{
 				ValueJson: `{"summary":"Keep the release date and action."}`,
-				Model:     "resource-reported-model",
-				Usage:     &inferencev1.Usage{OutputTokens: 9},
+				Model:     "resource-reported-model", Validated: true,
+				Usage: &inferencev1.Usage{OutputTokens: 9},
 			}), nil
 		}), nil
 	})
 
-	resultBytes, err := runner(context.Background(), []string{
-		"gateway", "chat", "--role", "summarize.default", "--system", "Preserve names and dates.", "--max-tokens", "120", "--temperature", "0.2",
-	}, "The release is ready. Deploy it tomorrow.")
+	resultBytes, err := runner(context.Background(), summarize.TaskRequest{
+		Selector: "summarize.default", SelectorIsRole: true,
+		Instruction: "Preserve names and dates.", Source: "The release is ready. Deploy it tomorrow.", MaxOutputTokens: 120,
+	})
 	require.NoError(t, err)
 	require.NotNil(t, received)
 	require.Equal(t, GatewaySummaryRole, received.GetRole())
@@ -62,7 +64,7 @@ func TestAIGatewayRunnerRejectsCallerModelSelectors(t *testing.T) {
 		t.Fatal("model selector rejection must happen before gateway resolution")
 		return nil, nil
 	})
-	_, err := runner(context.Background(), []string{"gateway", "chat", "--model", "qwen3.5:9b", "--system", "summarize", "--max-tokens", "120"}, "text")
+	_, err := runner(context.Background(), summarize.TaskRequest{Selector: "qwen3.5:9b", Instruction: "summarize", Source: "text", MaxOutputTokens: 120})
 	require.ErrorContains(t, err, "not concrete model selectors")
 }
 
@@ -71,6 +73,30 @@ func TestAIGatewayRunnerRejectsUnexpectedRole(t *testing.T) {
 		t.Fatal("unsupported role rejection must happen before gateway resolution")
 		return nil, nil
 	})
-	_, err := runner(context.Background(), []string{"gateway", "chat", "--role", "chat.default", "--system", "summarize", "--max-tokens", "120"}, "text")
+	_, err := runner(context.Background(), summarize.TaskRequest{Selector: "chat.default", SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120})
 	require.ErrorContains(t, err, "unsupported audio-tools summarization role")
+}
+
+func TestAIGatewayRunnerRejectsResourceOnlyExecutionSelectors(t *testing.T) {
+	runner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
+		t.Fatal("resource-only selectors must fail before Gateway resolution")
+		return nil, nil
+	})
+	_, err := runner(context.Background(), summarize.TaskRequest{
+		Selector: "summarize.default", SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120,
+		ContextTier: 4096, ExpectedModel: "qwen3.5:9b", ExpectedArtifactDigest: "sha256:artifact",
+	})
+	require.ErrorContains(t, err, "resource-specific context or rights selectors")
+}
+
+func TestAIGatewayRunnerRejectsUnvalidatedTypedResult(t *testing.T) {
+	runner := NewAIGatewayRunnerWithResolver(func(context.Context) (InferenceRunner, error) {
+		return inferenceFunc(func(context.Context, *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
+			return connect.NewResponse(&inferencev1.RunResponse{ValueJson: `{"summary":"looks plausible"}`, Model: "model"}), nil
+		}), nil
+	})
+	_, err := runner(context.Background(), summarize.TaskRequest{
+		Selector: "summarize.default", SelectorIsRole: true, Instruction: "summarize", Source: "text", MaxOutputTokens: 120,
+	})
+	require.ErrorContains(t, err, "unvalidated summary result")
 }

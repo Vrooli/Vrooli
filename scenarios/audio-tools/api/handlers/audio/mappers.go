@@ -1,8 +1,6 @@
 package audio
 
 import (
-	"fmt"
-
 	audiov1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/audio"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 )
@@ -87,17 +85,3 @@ var normalizationMethods = map[audiov1.NormalizationMethod]string{
 }
 
 func normalizationMethodString(m audiov1.NormalizationMethod) string { return normalizationMethods[m] }
-
-// atoiOr parses s as a decimal integer; on empty input or parse error
-// it returns def.
-func atoiOr(s string, def int) int {
-	if s == "" {
-		return def
-	}
-	var v int
-	_, err := fmt.Sscanf(s, "%d", &v)
-	if err != nil {
-		return def
-	}
-	return v
-}

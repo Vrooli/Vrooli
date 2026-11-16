@@ -55,6 +55,9 @@
     "version": "0.0.1",
     "type": "business-application",
     "category": "ai_tools",
+    "capabilities": [
+      "ai"
+    ],
     "tags": [
       "react-ui",
       "go-api"

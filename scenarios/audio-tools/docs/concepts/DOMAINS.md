@@ -26,11 +26,11 @@ belong in [`DATA.md`](DATA.md).
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Requirements | Source Paths |
 |---|---|---|---|---|---|---|
-| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI, WS | OT-P0-001 through OT-P0-006; OT-P0-008 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts`, `ui/src/audio-integration/turnJournal.test.ts`, `ui/src/features/diagnostics/`, `bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json`, `bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json`, `bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json`, `packages/proto/schemas/audio-tools/v1/stt/` |
+| stt | Speech-to-text (batch + streaming) with three-tier provider routing. | Streaming / chain-routed | Stream config, wakeword phrases, enrolled speaker embeddings, transcription usage rows. | API, CLI, UI | OT-P0-001 through OT-P0-006; OT-P0-008 | `api/internal/stt/`, `api/internal/ai/sttchain/`, `api/handlers/stt/`, `cli/domains/stt/`, `ui/src/audio-integration/hooks/voice/VoiceStreamProvider.tailDrop.test.ts`, `ui/src/audio-integration/turnJournal.test.ts`, `ui/src/features/diagnostics/`, `bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json`, `bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json`, `bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json`, `packages/proto/schemas/audio-tools/v1/stt/` |
 | tts | Text-to-speech synthesis (batch + streaming) with on-disk cache. | Synthesis / chain-routed | Voice catalog snapshot, TTS config, content-addressable audio cache, playback events. | API, CLI, UI | OT-P1-004; OT-P0-009 | `api/internal/tts/`, `api/internal/ai/ttschain/`, `api/handlers/tts/`, `cli/domains/tts/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/tts/` |
 | summarize | Text summarization with normalization preprocessing. | Inference / chain-routed | Per-call usage rows. | API, CLI, UI | OT-P1-004; OT-P0-009 | `api/internal/summarize/`, `api/internal/ai/summarizechain/`, `api/handlers/summarize/`, `cli/domains/summarize/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/summarize/` |
 | audio | Audio file processing (transcode/trim/merge/split/fade/volume/normalize/metadata). | Pipeline / shellout | None (operates on multipart payloads). | API, CLI, UI | Supports canonical audio handling and OT-P0-009; no separate transformation expansion target | `api/internal/audio/`, `api/handlers/audio/`, `cli/domains/audio/`, `ui/src/features/diagnostics/`, `packages/proto/schemas/audio-tools/v1/audio/` |
-| session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API, WS | OT-P0-001; OT-P0-005; OT-P0-009 | `api/internal/session/`, `api/handlers/stt/stream_ws.go`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
+| session | Voice-session pub/sub fan-out for live STT + TTS streams. | Pub/sub / streaming | Ephemeral in-memory session state. | API | OT-P0-001; OT-P0-005; OT-P0-009 | `api/internal/session/`, `api/handlers/session/`, `packages/proto/schemas/audio-tools/v1/session/` |
 | settings | Operator configuration: provider defaults, per-capability precedence, BYOK creds (AES-GCM at rest). | CRUD / config | Provider config, BYOK secrets, voice overrides. | API, CLI, UI | OT-P0-004; OT-P0-008; OT-P0-009 | `api/internal/settings/`, `api/internal/store/`, `api/internal/byokstore/`, `api/handlers/settings/`, `cli/domains/settings/`, `ui/src/features/configuration/`, `packages/proto/schemas/audio-tools/v1/settings/` |
 | usage | Per-operation usage history and dashboard rollups; not the customer billing ledger. | Reporting / diagnostic history | Usage rows (provider, op, ms, credits). | API, CLI, UI | OT-P0-007 (integration obligation); OT-P0-010 | `api/internal/store/usage.go`, `api/internal/usagereport/`, `api/handlers/usage/`, `cli/domains/usage/`, `ui/src/features/usage/`, `packages/proto/schemas/audio-tools/v1/usage/` |
 | corpus | Speech-eval clip store: operator-recorded audio + corrected ground-truth transcripts for the eval harness. | CRUD / blob+metadata | Clip metadata (`corpus` SQLite domain) + audio bytes (blob store, git-ignored). | API, CLI, UI | OT-P0-006; OT-P0-009 | `api/internal/corpus/`, `api/handlers/corpus/`, `cli/domains/corpus/`, `ui/src/features/dictation-studio/`, `packages/proto/schemas/audio-tools/v1/corpus/` |
@@ -44,10 +44,10 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: convert spoken audio to text through configured policy-permitted tiers (speech currently prefers Local → BYOK → Vrooli; the LPBS/Vrooli client is composed but hosted delivery remains unavailable until the shared gateway ships); support batch unary + bidi streaming with segmenter-strategy decoupling (VAD, overlap-agree, passthrough).
 - Primary archetype: streaming / chain-routed.
-- Secondary traits: WS browser transport, wakeword admin, speaker enrollment + verification.
+- Secondary traits: Connect bidi browser transport, wakeword admin, speaker enrollment + verification.
 - Owns: segmenter, strategy selector, streaming strategies, STT chain providers, STT admin (stream config / wakeword / speaker) handlers.
 - Does not own: BYOK credential persistence (settings), usage ledger (usage), generic audio file ops (audio).
-- API: `api/handlers/stt/` (Connect-RPC + WS `/api/v1/voice/stream`).
+- API: `api/handlers/stt/` (Connect-RPC, including bidi `TranscribeStream`).
 - CLI: `cli/domains/stt/` (verb `audio-tools stt …`; renamed from `voice` on 2026-05-17 — see [`../internal/DECISIONS.md`](../internal/DECISIONS.md)).
 - UI: `ui/src/features/diagnostics/` (try-it row), `ui/src/features/configuration/` (admin forms).
 - Storage: `stt_stream_config`, `wakeword_templates`, `speaker_profiles` tables; see [`DATA.md`](DATA.md).
@@ -98,8 +98,8 @@ belong in [`DATA.md`](DATA.md).
 
 - Purpose: own the per-voice-session lifecycle and fan out STT/TTS events to multiple observers (UI + diagnostics + downstream subscribers).
 - Primary archetype: pub/sub / streaming.
-- Owns: `session.Session`, browser-WS transport bridge.
-- API: `api/handlers/session/` (Connect-RPC + WS `/api/v1/voice/stream`).
+- Owns: `session.Session` and Connect-RPC session observers.
+- API: `api/handlers/session/` (Connect-RPC). The retired browser WebSocket bridge was removed when dictation moved to `STTService.TranscribeStream`.
 - UI: consumed by diagnostics and any embed component subscribing.
 - Storage: ephemeral in-memory only.
 - Requirements: OT-P0-001; OT-P0-005; OT-P0-009.

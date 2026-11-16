@@ -1,17 +1,19 @@
 import { createClient } from "@connectrpc/connect";
-import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { AudioFormat, ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 import {
   Capability,
   DiagnosticsService,
   SuiteOverall_Status,
 } from "@vrooli/proto-types/audio-tools/v1/diagnostics/diagnostics_pb";
 import { SummarizeService, SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/summarize_pb";
-import { transport, uploadFile } from "../api/client";
+import { STTService } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+import { transport } from "../api/client";
 import { tryCall, type Result } from "./result";
 import { normalizeConnectError } from "./settings";
 
 const summarizeClient = createClient(SummarizeService, transport);
 const diagnosticsClient = createClient(DiagnosticsService, transport);
+const sttClient = createClient(STTService, transport);
 
 function providerTierLabel(t: ProviderTier): string {
   switch (t) {
@@ -75,9 +77,7 @@ export interface TranscribeResult {
 }
 
 /**
- * Transcribe an uploaded audio file. Uses the REST multipart endpoint
- * (`POST /api/v1/voice/transcribe`) — proto JSON would inflate binary payloads.
- * The backend responds with the same shape as the Connect TranscribeResponse.
+ * Transcribe an uploaded audio file through the owner STT Connect service.
  */
 // -----------------------------------------------------------------------------
 // Suite runner — drives the server-side DiagnosticsService.
@@ -302,27 +302,26 @@ export async function getLastSuiteRun(): Promise<Result<SuiteRun>> {
 
 export async function transcribe(file: File): Promise<Result<TranscribeResult>> {
   return tryCall(async () => {
-    const fd = new FormData();
-    fd.append("audio", file);
-    const res = await uploadFile("/api/v1/voice/transcribe", fd);
-    if (!res.ok) {
-      const { decodeApiError } = await import("../api/client");
-      throw await decodeApiError(res);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 300_000);
+    let resp;
+    try {
+      resp = await sttClient.transcribe(
+        { audio: new Uint8Array(await file.arrayBuffer()), format: AudioFormat.WAV },
+        { signal: controller.signal },
+      );
+    } catch (e) {
+      throw normalizeConnectError(e);
+    } finally {
+      clearTimeout(timeout);
     }
-    const json = (await res.json()) as {
-      text?: string;
-      provider_tier?: string;
-      provider_id?: string;
-      model_id?: string;
-      latency_ms?: number;
-    };
     return {
-      text: json.text ?? "",
+      text: resp.text,
       trace: {
-        providerTier: json.provider_tier ?? "",
-        providerId: json.provider_id ?? "",
-        modelId: json.model_id ?? "",
-        latencyMs: json.latency_ms ?? 0,
+        providerTier: providerTierLabel(resp.providerTier),
+        providerId: resp.providerId,
+        modelId: resp.modelId,
+        latencyMs: resp.latencyMs,
       },
     };
   });

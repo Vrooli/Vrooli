@@ -22,8 +22,8 @@
           "type": "test"
         },
         {
-          "notes": "[REQ:ATD-P0-001] WebSocket v2 commits stable segment identities, re-emits them on reconnect, and proves the ledger remains single-commit. Browser-provider tests independently prove each consumer suppresses a replayed ID.",
-          "ref": "api/handlers/stt/stream_ws_test.go::TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity",
+          "notes": "[REQ:ATD-P0-001] The Connect bidi handler retains terminal sessions for replay; the retired browser WebSocket route is no longer an active product contract.",
+          "ref": "api/handlers/stt/parity_connect_test.go::TestConnectBidiKeepsTerminalSessionRecoverable",
           "status": "implemented",
           "type": "test"
         },
@@ -143,14 +143,14 @@
           "type": "test"
         },
         {
-          "notes": "[REQ:ATD-P0-004] WAV-backed product-path incomplete-coverage case passed on 2026-07-12 (BAS execution ed1006b3-8aff-4c65-8855-2f941a2b7c22). With a server-owned routed-isolation lease installed, it proves captured PCM reaches the terminal WebSocket path, an intentionally withheld acknowledgement is visible in the product, and the diagnostic exposes incomplete_coverage rather than a false successful final.",
+          "notes": "[REQ:ATD-P0-004] Historical WAV-backed product-path incomplete-coverage case passed on 2026-07-12 (BAS execution ed1006b3-8aff-4c65-8855-2f941a2b7c22) through the then-current WebSocket route. The route was retired in 2026-11; this receipt does not prove the current Connect stream path.",
           "ref": "bas/cases/01-foundation/01-dictation/deterministic-incomplete-coverage.json",
           "status": "implemented",
           "type": "automation"
         },
         {
           "notes": "Required before completion: browser qualification must prove reconnect/replay and terminal coverage over the real product path.",
-          "status": "implemented",
+          "status": "planned",
           "type": "manual"
         }
       ]
@@ -171,13 +171,13 @@
           "type": "test"
         },
         {
-          "notes": "[REQ:ATD-P0-005] Double-gated deterministic WebSocket provider-busy fault emits the typed stt_busy contract. It is an API qualification seam, not resource admission promotion evidence.",
-          "ref": "api/handlers/stt/stream_ws_test.go::TestStreamWS_TestOnlyProviderBusyFault",
+          "notes": "[REQ:ATD-P0-005] Connect stream error projection preserves the provider-busy code. The deterministic route-specific WebSocket fault injector was retired with that route; resource admission remains covered by the chain tests above.",
+          "ref": "api/handlers/stt/transcribe_stream_events_test.go::TestStreamErrorCode_UsesBackendState",
           "status": "implemented",
           "type": "test"
         },
         {
-          "notes": "[REQ:ATD-P0-005] WAV-backed product-path busy-fault case passed on 2026-07-12 (BAS execution 35820ee3-2145-4f83-bac7-d62a56e0b461) with an explicit provider-busy text assertion. A boot-only server gate plus explicit test URL parameters reaches the browser WebSocket without weakening normal deployments.",
+          "notes": "[REQ:ATD-P0-005] Historical WAV-backed browser WebSocket busy-fault case passed on 2026-07-12 (BAS execution 35820ee3-2145-4f83-bac7-d62a56e0b461). The route-specific fault injector was retired; this retained receipt is not evidence for the current Connect browser journey.",
           "ref": "bas/cases/01-foundation/01-dictation/deterministic-provider-busy.json",
           "status": "implemented",
           "type": "automation"
@@ -195,7 +195,7 @@
       "description": "Audio Tools, Web Console, and Swarm Manager use one bounded capture and journal core that resumes missing ranges and reports reduced durability explicitly.",
       "id": "ATD-P0-006",
       "prd_ref": "OT-P0-001",
-      "status": "complete",
+      "status": "in_progress",
       "title": "Canonical browser capture recovery",
       "validation": [
         {
@@ -205,14 +205,14 @@
           "type": "test"
         },
         {
-          "notes": "[REQ:ATD-P0-006] Chromium fake-device workflow passed on 2026-07-12 (BAS execution 92e2f7e6-a005-411b-a395-bcf299743401): it proves real getUserMedia PCM capture, v2 send, terminal done delivery, and durable processed acknowledgement through the same-origin WebSocket proxy with explicit lifecycle assertions.",
+          "notes": "[REQ:ATD-P0-006] Historical Chromium fake-device workflow passed on 2026-07-12 (BAS execution 92e2f7e6-a005-411b-a395-bcf299743401) through the then-current same-origin WebSocket proxy. It predates the Connect migration and is not current served-journey evidence.",
           "ref": "bas/cases/01-foundation/01-dictation/deterministic-microphone-smoke.json",
           "status": "implemented",
           "type": "automation"
         },
         {
           "notes": "Required before completion: record live consumer-adapter evidence for Audio Tools, Web Console, and Swarm Manager using the governed recovery core.",
-          "status": "implemented",
+          "status": "planned",
           "type": "manual"
         }
       ]

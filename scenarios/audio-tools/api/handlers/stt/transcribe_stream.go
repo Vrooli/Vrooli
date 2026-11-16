@@ -43,10 +43,8 @@ func (h *connectHandler) reportStreamActive(ctx context.Context, engineID string
 	return h.deps.Capacity.Active(ctx, engine.Resource)
 }
 
-// TranscribeStream is the Connect bidi-stream implementation of the
-// streaming STT surface. Both the proto-RPC client path and the
-// /api/v1/voice/stream WebSocket transport feed through the same
-// sttchain.Chain.Stream entry point — only the wire shape differs.
+// TranscribeStream is the Connect bidi-stream implementation of browser voice
+// capture. It feeds the STT pipeline and session ledger directly.
 //
 // Wire shape on the Connect side:
 //
@@ -185,10 +183,8 @@ func (h *connectHandler) TranscribeStream(
 	events := make(chan sttchain.StreamEvent, 16)
 	seg := segmenter.New(segmenter.Deps{Chain: h.deps.Chain, Selector: h.deps.Selector, Engine: h.deps.Engine, Registry: h.deps.Registry, EngineResolver: h.deps.EngineResolver, SpeakerIsolation: currentSpeakerIsolation(h.deps), SpeakerExtraction: currentSpeakerExtraction(h.deps)})
 	cfg := h.resolveStreamPipelineConfig(ctx)
-	// StreamStart.config is the Connect transport's per-session override. The
-	// WebSocket transport already applies its request-scoped engine_id before
-	// entering the Segmenter; ignoring this field here made the two transports
-	// run different engines for the same explicit request.
+	// StreamStart.config carries the per-session engine override. Apply it before
+	// entering the Segmenter so the selected engine matches the request.
 	if engineID := streamStartEngineID(startCfg); engineID != "" {
 		cfg.EngineID = engineID
 	}
@@ -293,10 +289,8 @@ func (h *connectHandler) TranscribeStream(
 	}
 	// The terminal event is delivered, but delivered is not acted on: a client
 	// that reconnects with the same session must replay the SAME committed
-	// segment rather than re-transcribe into a duplicate identity. Removing the
-	// session here made the Connect transport diverge from the WebSocket
-	// transport on exactly the contract
-	// TestStreamWS_V2ReplayReemitsCommittedSegmentWithStableIdentity pins.
+	// segment rather than re-transcribe into a duplicate identity. Retaining the
+	// session preserves the recovery contract exercised by Connect reconnect tests.
 	// Growth is already bounded without the transport having to guess when
 	// recovery is over: every Open and Persist re-arms the registry's recovery
 	// expiry, so an idle terminal session is reclaimed on its own.

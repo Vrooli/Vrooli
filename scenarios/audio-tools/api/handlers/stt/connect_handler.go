@@ -35,7 +35,6 @@ type Deps struct {
 	Chain    *sttchain.Chain
 	Selector *sttpkg.Selector
 	Registry *sttengine.Registry
-	Voice    *sttpipeline.Service
 	// SpeakerResource is the speaker-verification resource client used for
 	// enrollment + streaming verification. nil means the resource is not
 	// wired (enrollment fails FailedPrecondition; isolation falls back).
@@ -54,13 +53,8 @@ type Deps struct {
 	Capacity          sttcapacity.Reporter
 	DefaultCredential DefaultCredentialResolver
 	EngineResolver    *sttengine.LiveResolver
-	// Sessions is the server-owned replay ledger registry shared by Connect
-	// and WebSocket transports. Module supplies a bounded default when unset.
+	// Sessions is the server-owned replay ledger registry for Connect streams.
 	Sessions *session.Registry
-	// TestIsolationActive reports whether the server currently has the complete
-	// leased DB-and-file isolation session installed. Qualification faults are
-	// accepted only while this is true and the individual request opts in.
-	TestIsolationActive func() bool
 }
 
 func (h *connectHandler) applyDefaultCredential(ctx context.Context, capability, provider, key string) (string, string) {
@@ -108,7 +102,7 @@ func (h *connectHandler) Transcribe(ctx context.Context, req *connect.Request[st
 	if h.deps.Chain == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("stt chain not configured"))
 	}
-	if audioExceedsLimit(len(req.Msg.Audio)) {
+	if len(req.Msg.Audio) > sttpipeline.MaxAudioSize {
 		return nil, connect.NewError(connect.CodeInvalidArgument,
 			fmt.Errorf("audio exceeds maximum size of %d bytes", sttpipeline.MaxAudioSize))
 	}

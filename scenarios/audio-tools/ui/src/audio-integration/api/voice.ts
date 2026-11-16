@@ -2,15 +2,18 @@
 // HOST DIFFERENCE: binds the shared browser voice surface to audio-tools RPCs.
 //
 // Binds to audio-tools' STTService Connect handler and exposes a hook-
-// shaped voice operation surface for consumer scenarios. WebSocket URL
-// construction reads baseUrl from the active AudioToolsClient registered
+// shaped voice operation surface for consumer scenarios. Connect stream
+// mapping reads baseUrl from the active AudioToolsClient registered
 // via <AudioToolsProvider>.
 
 import { create } from "@bufbuild/protobuf";
+import { AudioFormat } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { TranscribeStreamRequestSchema, type TranscribeStreamEvent, type TranscribeStreamRequest } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 import { FieldMaskSchema } from "@bufbuild/protobuf/wkt";
 
 import { getActiveAudioToolsClient, useAudioToolsClient, type AudioToolsClient } from "../client";
 import type { WakeWordTemplate } from "../hooks/voice/wakeword/types";
+import { openConnectVoiceStream as openConnectVoiceStreamWithCodec, type VoiceConnectCodec, type VoiceStreamConnection, type VoiceStreamHandlers, type VoiceStreamStart } from "@vrooli/audio-capture-browser";
 import {
   audioFormatFromString,
   rejectBehaviorFromString,
@@ -27,6 +30,57 @@ import {
 } from "@vrooli/audio-capture-browser";
 
 import type { SpeakerConfig, SpeakerProfile, StreamConfig as StreamConfigMsg, WakeWordConfig as WakeWordConfigMsg, WakeWordTemplate as WakeWordTemplateMsg } from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
+
+interface SegmentOrdinalState { readonly byID: Map<string, number>; next: number; }
+const segmentOrdinals = new Map<string, SegmentOrdinalState>();
+
+const voiceConnectCodec: VoiceConnectCodec<TranscribeStreamRequest, TranscribeStreamEvent> = {
+  start: (start) => {
+    const params = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
+    const config = params.get("stt_engine_id") ? { engineId: params.get("stt_engine_id")! } : undefined;
+    return create(TranscribeStreamRequestSchema, { payload: { case: "start", value: {
+      language: start.language, initialPrompt: start.initialPrompt ?? "", skipSpeakerVerification: start.skipSpeakerVerification ?? false,
+      inputFormat: AudioFormat.PCM_S16LE, inputSampleRateHz: start.sampleRateHz, protocolVersion: start.protocolVersion,
+      sessionId: start.sessionId, generation: start.generation, resumeToken: start.resumeToken, config,
+    } } });
+  },
+  audio: (chunk) => create(TranscribeStreamRequestSchema, { payload: { case: "audioChunk", value: chunk } }),
+  end: () => create(TranscribeStreamRequestSchema, { payload: { case: "end", value: {} } }),
+  isStart: (request) => request.payload.case === "start",
+  event: (event, start) => {
+    const key = `${start.sessionId}:${start.generation}`;
+    const ordinal = segmentOrdinals.get(key) ?? { byID: new Map<string, number>(), next: 0 };
+    segmentOrdinals.set(key, ordinal);
+    switch (event.event.case) {
+      case "partial": return { type: "partial", text: event.event.value.text };
+      case "segment": {
+        const segment = event.event.value;
+        const segmentId = segment.segmentId || `${segment.startSample}:${segment.endSample}`;
+        let segmentIndex = ordinal.byID.get(segmentId);
+        if (segmentIndex === undefined) { segmentIndex = ordinal.next++; ordinal.byID.set(segmentId, segmentIndex); }
+        return { type: "segment-final", text: segment.text, segmentId, segmentIndex, speakerPolicy: segment.speakerPolicy };
+      }
+      case "speakerRejection": return { type: "segment-rejected", score: event.event.value.score, threshold: event.event.value.threshold, segmentIndex: ordinal.next };
+      case "error": return { type: "error", code: event.event.value.code, text: event.event.value.message };
+      case "vadState": return { type: "vad-state", voiced: event.event.value.voiced, silenceElapsedMs: Number(event.event.value.silenceElapsedMs), silenceTimeoutMs: Number(event.event.value.silenceTimeoutMs), tickSeq: Number(event.event.value.tickSeq), silenceTimedOut: event.event.value.silenceTimedOut };
+      case "acknowledgement": {
+        const sequence = event.event.value.processedSequence;
+        return { type: "status", code: "processed_acknowledgement", ...(sequence >= 0n && sequence <= BigInt(Number.MAX_SAFE_INTEGER) ? { processedSequence: Number(sequence) } : {}) };
+      }
+      case "sessionStatus": return { type: "status", code: `session_${event.event.value.state}`, text: event.event.value.recoveryGuidance };
+      case "done": {
+        segmentOrdinals.delete(key);
+        return { type: "final", text: event.event.value.finalText, providerId: event.event.value.providerId, modelId: event.event.value.modelId };
+      }
+      case "wakeWord": return null;
+      default: return null;
+    }
+  },
+};
+
+function openConnectVoiceStream(client: AudioToolsClient, start: VoiceStreamStart, handlers: VoiceStreamHandlers): VoiceStreamConnection {
+  return openConnectVoiceStreamWithCodec(client.stt, voiceConnectCodec, start, handlers);
+}
 
 export interface VoiceTranscriptionResult {
   text: string;
@@ -207,46 +261,10 @@ function decodeSpeakerProfile(p: SpeakerProfile): SpeakerVerificationProfile {
   };
 }
 
-function apiBaseToWsBase(apiBase: string): string {
-  if (apiBase.startsWith("https://")) return `wss://${apiBase.slice("https://".length)}`;
-  if (apiBase.startsWith("http://")) return `ws://${apiBase.slice("http://".length)}`;
-  return apiBase;
-}
-
 export function createVoiceApi(client: AudioToolsClient) {
   const api = {
-    buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string {
-      const wsBase = apiBaseToWsBase(client.baseUrl.replace(/\/$/, ""));
-      // The embed streams raw 16 kHz mono signed-16-bit PCM, so it declares
-      // `format=pcm_s16le` to take the server's ffmpeg-free fast-path (the
-      // audioformat substrate's identity decoder). See PcmVoiceStreamProvider
-      // + handlers/stt/stream_ws.go::buildStreamStart.
-      const params = new URLSearchParams({ format: "pcm_s16le" });
-      // Browser automation cannot set arbitrary WebSocket handshake headers.
-      // The boot-only server qualification gate accepts this explicit URL pair
-      // solely for deterministic browser fault cases; ordinary pages never set
-      // it, and a normal server ignores it even if they do.
-		if (typeof window !== "undefined") {
-			const pageParams = new URLSearchParams(window.location.search);
-        const fault = pageParams.get("stt_test_fault");
-        if (pageParams.get("stt_test_mode") === "1" && fault) {
-          params.set("test_mode", "1");
-          params.set("test_fault", fault);
-        }
-			const engine = pageParams.get("stt_engine_id");
-			if (engine) params.set("engine_id", engine);
-			const strategy = pageParams.get("stt_strategy");
-			if (strategy) params.set("strategy", strategy);
-			if (pageParams.get("stt_test_mode") === "1" && pageParams.get("stt_capture_source") === "virtual") {
-				params.set("test_mode", "1");
-				params.set("capture_source", "virtual");
-			}
-		}
-      if (language) params.set("language", language);
-      if (sessionId) params.set("protocol_version", "2");
-      if (sessionId) params.set("session_id", sessionId);
-      if (resumeToken) params.set("resume_token", resumeToken);
-      return `${wsBase}/api/v1/voice/stream?${params.toString()}`;
+    openVoiceStream(start: VoiceStreamStart, handlers: VoiceStreamHandlers): VoiceStreamConnection {
+      return openConnectVoiceStream(client, start, handlers);
     },
 
     async transcribeAudioDetailed(audioBlob: Blob, language?: string): Promise<VoiceTranscriptionResult> {
@@ -478,7 +496,7 @@ function lazy() {
   return _lazyApi;
 }
 
-export function buildVoiceStreamWsUrl(language?: string, sessionId?: string, resumeToken?: string): string { return lazy().buildVoiceStreamWsUrl(language, sessionId, resumeToken); }
+export function openVoiceStream(start: VoiceStreamStart, handlers: VoiceStreamHandlers): VoiceStreamConnection { return lazy().openVoiceStream(start, handlers); }
 export function transcribeAudio(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudio(audioBlob, language); }
 export function transcribeAudioDetailed(audioBlob: Blob, language?: string): Promise<VoiceTranscriptionResult> { return lazy().transcribeAudioDetailed(audioBlob, language); }
 export function transcribeAudioBypassFilter(audioBlob: Blob, language?: string): Promise<string> { return lazy().transcribeAudioBypassFilter(audioBlob, language); }

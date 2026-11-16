@@ -12,7 +12,7 @@ Read this first when:
 - adding a new ffmpeg-backed transformation,
 - swapping the ffmpeg invocation strategy (e.g., adopting libav
   bindings, switching to a long-lived ffmpeg server),
-- changing the multipart REST exception (`POST /api/v1/audio/transcode`),
+- changing the `AudioProcessingService.Transcode` Connect method,
 - debugging "why does my merge crash with a tempfile error?" or "why
   do I get `FailedPrecondition` when ffmpeg is installed?".
 
@@ -59,13 +59,9 @@ parameters. The shared guard `requireBytes`
 | `Merge` | `api/handlers/audio/merge.go:14` | `sources[]` (each `{audio, format}`), `output_format`, `crossfade_seconds` |
 | `ExtractMetadata` | `api/handlers/audio/metadata.go:13` | `audio` |
 
-The REST multipart fallback `POST /api/v1/audio/transcode`
-(`api/handlers/audio/transcode.go:35`) is registered as a deliberate
-REST exception in the endpoints descriptor
-(`api/handlers/audio/connect_handler.go:33`) — clients that cannot
-form a Connect request (browsers uploading a `<input type=file>`) get
-a multipart form with `audio` part plus optional
-`output_format`/`sample_rate`/`channels`/`bitrate` fields.
+The browser file-upload surface uses the same typed Connect method as other
+consumers. Its request carries the audio bytes, input/output formats, and
+optional sample rate, channel, and bitrate controls.
 
 ## Outputs
 

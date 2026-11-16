@@ -192,8 +192,8 @@ audio-tools`").
 The streaming STT pipeline ([`../domains/stt/streaming-pipeline.md`](../domains/stt/streaming-pipeline.md))
 exposes the operator-tunable levers below (strategy levers plus
 the egress-gate levers in the next subsection). They are read once per
-streaming session by `StrategySelector` and apply to both transports
-(browser WS, Connect bidi). The defaults match the pre-extraction
+streaming session by `StrategySelector` and apply to the Connect bidi stream.
+The defaults match the pre-extraction
 web-console behavior — operators only adjust them to trade latency,
 CPU, or quality.
 
@@ -242,9 +242,8 @@ Lever rules (per [control-surface-tunable-levers-design]):
 Every user-facing STT transcript passes through the shared
 **post-recognition egress policy** (`internal/stt/quality/`) before it
 leaves audio-tools. Streaming still runs the underlying `egress.Gate`
-per segment; unary Connect `Transcribe`, multipart
-`/api/v1/voice/transcribe`, buffered fallback output, and diagnostics
-readiness previews apply the same policy to the final chain result. A
+per segment; unary Connect `Transcribe`, buffered fallback output, and
+diagnostics readiness previews apply the same policy to the final chain result. A
 stage may `Drop` (suppress entirely, excluded from final text), `Reject`
 (suppress text, emit a speaker-rejection event on streaming paths), or
 `Emit`.

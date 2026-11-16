@@ -84,7 +84,6 @@ type (
 		Logger            logx.Logger
 		Env               Env
 		Chains            Chains
-		Voice             *sttpipeline.Service
 		SpeakerResource   *sttpipeline.SpeakerClient
 		AudioEngine       *audioformat.Engine
 		EngineRegistry    *sttengine.Registry
@@ -106,7 +105,7 @@ type (
 // modules, keeping handler packages out of the dependency wiring file.
 func Compose(d CompositionDeps) *Server {
 	db, capsRegistry, logger, env, chains := d.DB, d.Capabilities, d.Logger, d.Env, d.Chains
-	voice, speakerResource, audioEngine, engineRegistry, usage := d.Voice, d.SpeakerResource, d.AudioEngine, d.EngineRegistry, d.Usage
+	speakerResource, audioEngine, engineRegistry, usage := d.SpeakerResource, d.AudioEngine, d.EngineRegistry, d.Usage
 	stores, sessions, streamLedgers, tts, cache := d.Stores, d.Sessions, d.StreamLedgers, d.TTS, d.Cache
 	summarizeConfig, corpus, experimentManager, experiments := d.SummarizeConfig, d.Corpus, d.ExperimentManager, d.Experiments
 	engineResolver := sttengine.NewLiveResolver(controlplane.New().Run, 30*time.Second)
@@ -138,24 +137,22 @@ func Compose(d CompositionDeps) *Server {
 		// The resolver combines bounded control-plane facts with the chain's
 		// provider-owned liveness signal. Its cache is shared by the picker and
 		// automatic stream selection.
-		Chain:               chains.STT,
-		Selector:            selector,
-		Registry:            engineRegistry,
-		EngineResolver:      engineResolver,
-		Voice:               voice,
-		SpeakerResource:     speakerResource,
-		Engine:              audioEngine,
-		Logger:              logger,
-		Clock:               schedule.System(),
-		Usage:               usage,
-		StreamConfig:        stores.STTStream,
-		SpeakerConfig:       stores.STTSpeaker,
-		Wakeword:            stores.Wakeword,
-		Speaker:             stores.Speaker,
-		Capacity:            sttcapacity.NewCLIReporter(),
-		Sessions:            streamLedgers,
-		TestIsolationActive: env.TestIsolationActive,
-		DefaultCredential:   defaultCredential,
+		Chain:             chains.STT,
+		Selector:          selector,
+		Registry:          engineRegistry,
+		EngineResolver:    engineResolver,
+		SpeakerResource:   speakerResource,
+		Engine:            audioEngine,
+		Logger:            logger,
+		Clock:             schedule.System(),
+		Usage:             usage,
+		StreamConfig:      stores.STTStream,
+		SpeakerConfig:     stores.STTSpeaker,
+		Wakeword:          stores.Wakeword,
+		Speaker:           stores.Speaker,
+		Capacity:          sttcapacity.NewCLIReporter(),
+		Sessions:          streamLedgers,
+		DefaultCredential: defaultCredential,
 	}
 	diagnostics := diagcore.New(diagcore.Deps{
 		STT:       chains.STT,

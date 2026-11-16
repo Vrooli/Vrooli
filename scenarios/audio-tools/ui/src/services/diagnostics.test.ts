@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import { ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
+import { AudioFormat, ProviderTier } from "@vrooli/proto-types/audio-tools/v1/common/common_pb";
 import {
   Capability,
   SuiteOverall_Status,
@@ -10,20 +10,16 @@ import { SummarizeLevel } from "@vrooli/proto-types/audio-tools/v1/summarize/sum
 const summarizeRpc = vi.fn();
 const runSuiteRpc = vi.fn();
 const getLastRunRpc = vi.fn();
+const transcribeRpc = vi.fn();
 
 vi.mock("@connectrpc/connect", () => ({
   createClient: () => ({
     summarize: (req: unknown) => summarizeRpc(req),
     runSuite: (req: unknown) => runSuiteRpc(req),
     getLastRun: (req: unknown) => getLastRunRpc(req),
+    transcribe: (req: unknown) => transcribeRpc(req),
   }),
 }));
-
-const uploadFileMock = vi.fn();
-vi.mock("../api/client", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../api/client")>();
-  return { ...actual, uploadFile: (path: string, fd: FormData) => uploadFileMock(path, fd) };
-});
 
 import { summarize, runSuite, getLastSuiteRun, transcribe } from "./diagnostics";
 
@@ -279,26 +275,21 @@ describe("getLastSuiteRun", () => {
 
 describe("transcribe", () => {
   function file(): File {
-    return new File([new Uint8Array([1, 2, 3])], "clip.wav", { type: "audio/wav" });
+    const input = new File([new Uint8Array([1, 2, 3])], "clip.wav", { type: "audio/wav" });
+    Object.defineProperty(input, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
+    return input;
   }
 
-  it("uploads the audio and decodes the REST trace", async () => {
-    uploadFileMock.mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          text: "hello",
-          provider_tier: "byok",
-          provider_id: "openai",
-          model_id: "whisper-1",
-          latency_ms: 99,
-        }),
+  it("sends the file bytes through Connect and maps the provider trace", async () => {
+    transcribeRpc.mockResolvedValue({
+      text: "hello",
+      providerTier: ProviderTier.BYOK,
+      providerId: "openai",
+      modelId: "whisper-1",
+      latencyMs: 99,
     });
     const r = await transcribe(file());
-    expect(uploadFileMock).toHaveBeenCalledTimes(1);
-    const [path, fd] = uploadFileMock.mock.calls[0]!;
-    expect(path).toBe("/api/v1/voice/transcribe");
-    expect(fd).toBeInstanceOf(FormData);
+    expect(transcribeRpc).toHaveBeenCalledWith({ audio: new Uint8Array([1, 2, 3]), format: AudioFormat.WAV });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.data.text).toBe("hello");
@@ -312,7 +303,7 @@ describe("transcribe", () => {
   });
 
   it("defaults missing JSON fields", async () => {
-    uploadFileMock.mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    transcribeRpc.mockResolvedValue({ text: "", providerTier: ProviderTier.UNSPECIFIED, providerId: "", modelId: "", latencyMs: 0 });
     const r = await transcribe(file());
     if (r.ok) {
       expect(r.data.text).toBe("");
@@ -320,17 +311,12 @@ describe("transcribe", () => {
     }
   });
 
-  it("decodes the server error envelope on a non-2xx response", async () => {
-    uploadFileMock.mockResolvedValue({
-      ok: false,
-      status: 502,
-      json: () => Promise.resolve({ code: "unavailable", message: "stt down" }),
-    });
+  it("normalizes Connect errors", async () => {
+    transcribeRpc.mockRejectedValue(new Error("stt down"));
     const r = await transcribe(file());
     expect(r.ok).toBe(false);
     if (!r.ok) {
-      expect(r.error.code).toBe("unavailable");
-      expect(r.error.status).toBe(502);
+      expect(r.error.message).toContain("stt down");
     }
   });
 });

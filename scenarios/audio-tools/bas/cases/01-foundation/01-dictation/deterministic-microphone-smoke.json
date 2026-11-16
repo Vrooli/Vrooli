@@ -110,7 +110,7 @@
             "timeout_ms": 5000
           },
           "metadata": {
-            "label": "Assert the PCM-v2 WebSocket is connected through the lifecycle UI proxy"
+            "label": "Assert the Connect bidi stream is connected"
           }
         }
       },

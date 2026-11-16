@@ -373,6 +373,11 @@ func RunReport(ctx context.Context, clips []Clip, specs []StrategySpec, opts Eva
 				cr = EvalClip(ctx, clip, meter, ReplayOptions{
 					Mode: qualityMode, ChunkMs: opts.ChunkMs, Sleep: opts.Sleep, Now: opts.Now, DroppedSpanThresholdWords: opts.DroppedSpanThresholdWords,
 				}, session)
+				// Native passthrough quality must be paced, but that quality pass
+				// is not one of the requested latency repeats. Keep its transcript,
+				// compute and safety evidence while reporting latency only from the
+				// explicitly requested repeat set.
+				cr.LatencySamplesMs = nil
 				opts.emitProgress(EvalProgress{
 					Scope:         opts.ProgressScope,
 					Phase:         "quality",

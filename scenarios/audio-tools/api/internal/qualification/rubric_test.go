@@ -1,7 +1,10 @@
 // [REQ:ATD-P0-002] Both engines must meet one provider-neutral trust floor.
 package trustfloor
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestEvaluateRejectsMissingRequiredEvidence(t *testing.T) {
 	v := Evaluate(Evidence{EngineID: "kyutai", AllIntervalsAccounted: true, BoundedRecovery: true}, DefaultThresholds)
@@ -91,6 +94,56 @@ func TestEvaluateReplayMeasurements_SeparatesProviderStrategyCells(t *testing.T)
 	}
 	if contains(byStrategy["vad_segment"].Reasons, "dropped-span rate exceeds trust threshold") {
 		t.Fatalf("safe VAD cell inherited batch safety failure: %#v", byStrategy["vad_segment"])
+	}
+}
+
+func TestEvaluateReplayMeasurements_DoesNotLetGoodWERHideFailedObservation(t *testing.T) {
+	verdicts := EvaluateReplayMeasurements([]ReplayMeasurement{
+		{EngineID: "kyutai", ModelID: "stt-1b", Strategy: "passthrough", PolicyProfile: "default", ReplayLane: "realtime", WER: 0.10, SafetyObserved: true, SafetyPassed: true},
+		{EngineID: "kyutai", ModelID: "stt-1b", Strategy: "passthrough", PolicyProfile: "default", ReplayLane: "realtime", WER: 0.40, SafetyObserved: true, SafetyPassed: true},
+	}, DefaultThresholds)
+	if len(verdicts) != 1 {
+		t.Fatalf("verdict count = %d, want 1", len(verdicts))
+	}
+	if verdicts[0].Verdict.Stable || !contains(verdicts[0].Verdict.Reasons, "WER exceeds trust threshold") {
+		t.Fatalf("failed WER observation must block promotion: %#v", verdicts[0].Verdict)
+	}
+}
+
+func TestEvaluateReplayMeasurementsRejectsNonFiniteWER(t *testing.T) {
+	for _, badWER := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		verdicts := EvaluateReplayMeasurements([]ReplayMeasurement{{EngineID: "kyutai", WER: badWER}}, DefaultThresholds)
+		if len(verdicts) != 1 || verdicts[0].Verdict.Stable || !contains(verdicts[0].Verdict.Reasons, "invalid WER observation") {
+			t.Fatalf("non-finite WER %v did not fail closed: %#v", badWER, verdicts)
+		}
+	}
+}
+
+func TestEvaluateRejectsNonFiniteQualityAndThresholdValues(t *testing.T) {
+	durations := make(map[string]bool, len(DurationLadder))
+	for _, profile := range DurationLadder {
+		durations[profile.Name] = true
+	}
+	faults := make(map[string]bool, len(RequiredFaults))
+	for _, fault := range RequiredFaults {
+		faults[fault] = true
+	}
+	valid := Evidence{EngineID: "kyutai", AllIntervalsAccounted: true, BoundedRecovery: true, DurationProfiles: durations, FaultProfiles: faults, HasBrowserProductPath: true, HasDeviceEvidence: true}
+	for _, mutate := range []struct {
+		name string
+		want string
+		run  func(*Evidence, *Thresholds)
+	}{{"nan WER", "WER is invalid", func(e *Evidence, _ *Thresholds) { e.WER = math.NaN() }},
+		{"infinite dropped span", "dropped-span rate is invalid", func(e *Evidence, _ *Thresholds) { e.DroppedSpanRate = math.Inf(1) }},
+		{"nan threshold", "qualification thresholds are invalid", func(_ *Evidence, th *Thresholds) { th.MaxWER = math.NaN() }}} {
+		t.Run(mutate.name, func(t *testing.T) {
+			evidence, thresholds := valid, DefaultThresholds
+			mutate.run(&evidence, &thresholds)
+			verdict := Evaluate(evidence, thresholds)
+			if verdict.Stable || !contains(verdict.Reasons, mutate.want) {
+				t.Fatalf("invalid quality input was accepted: %#v", verdict)
+			}
+		})
 	}
 }
 

@@ -565,7 +565,7 @@
     "pullFieldLabel": "model name",
     "pullHeading": "Pull model on ollama",
     "pullHint": "The model name is passed to {{commandCode}}. Examples: {{example1}}, {{example2}}.",
-    "pullPlaceholder": "model-name (e.g. phi3:mini)",
+    "pullPlaceholder": "model-name (e.g. publisher/model:tag)",
     "pullPulling": "Pulling…",
     "stateAvailable": "Available",
     "stateDash": "—",

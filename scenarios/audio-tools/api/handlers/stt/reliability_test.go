@@ -1,11 +1,7 @@
 package stt
 
 import (
-	"bytes"
 	"context"
-	"mime/multipart"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -31,34 +27,8 @@ func anyEntryContains(entries []string, substr string) bool {
 	return false
 }
 
-// TestMultipartTranscribe_RejectsOversize asserts the multipart endpoint
-// rejects an upload larger than MaxAudioSize with a 4xx before invoking the
-// chain (the limit was previously defined but never enforced).
-func TestMultipartTranscribe_RejectsOversize(t *testing.T) {
-	chain := sttchain.NewChain(sttchain.Options{})
-	h := MultipartTranscribeHandler(Deps{Chain: chain})
-
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	part, err := mw.CreateFormFile("audio", "big.wav")
-	require.NoError(t, err)
-	_, err = part.Write(make([]byte, sttpipeline.MaxAudioSize+1))
-	require.NoError(t, err)
-	require.NoError(t, mw.Close())
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", &body)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	rec := httptest.NewRecorder()
-
-	h.ServeHTTP(rec, req)
-
-	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code,
-		"oversize upload should be rejected with 413; body=%s", rec.Body.String())
-	require.Contains(t, rec.Body.String(), "maximum size")
-}
-
 // TestConnectTranscribe_RejectsOversize asserts the Connect unary Transcribe
-// handler enforces the same MaxAudioSize ceiling as the multipart path.
+// handler rejects audio above the shared ingress size ceiling.
 func TestConnectTranscribe_RejectsOversize(t *testing.T) {
 	h := NewConnectHandler(Deps{
 		Chain:  sttchain.NewChain(sttchain.Options{}),

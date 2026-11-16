@@ -3,11 +3,8 @@ package stt
 import (
 	"context"
 	"errors"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -16,7 +13,6 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 
 	"audio-tools/internal/ai/sttchain"
-	sttmocks "audio-tools/internal/ai/sttchain/mocks"
 	"audio-tools/internal/logx"
 	"audio-tools/internal/store"
 	intstt "audio-tools/internal/stt"
@@ -640,111 +636,6 @@ func TestStreamConfig_UpdateRejectsUnknownMaskPath(t *testing.T) {
 	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
-// ----- multipart -------------------------------------------------
-
-func buildSTTMultipart(t *testing.T, audio []byte, fields map[string]string) (string, string) {
-	t.Helper()
-	var sb strings.Builder
-	mw := newMultipart(&sb)
-	require.NoError(t, mw.WriteFile("audio", "in.wav", audio))
-	for k, v := range fields {
-		require.NoError(t, mw.WriteField(k, v))
-	}
-	require.NoError(t, mw.Close())
-	return sb.String(), mw.ContentType()
-}
-
-func TestMultipartTranscribe_ChainNotConfigured(t *testing.T) {
-	h := MultipartTranscribeHandler(Deps{})
-	body, ct := buildSTTMultipart(t, []byte("X"), nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(body))
-	req.Header.Set("Content-Type", ct)
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, req)
-	require.Equal(t, http.StatusServiceUnavailable, w.Code)
-}
-
-func TestMultipartTranscribe_MissingFile(t *testing.T) {
-	chain := sttchain.NewChain(sttchain.Options{
-		EnableVrooli: true,
-		Vrooli:       sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true, Result: &sttchain.Result{Text: "hello"}}),
-	})
-	h := MultipartTranscribeHandler(Deps{Chain: chain})
-	var sb strings.Builder
-	mw := newMultipart(&sb)
-	require.NoError(t, mw.WriteField("format", "wav"))
-	require.NoError(t, mw.Close())
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(sb.String()))
-	req.Header.Set("Content-Type", mw.ContentType())
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, req)
-	require.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestMultipartTranscribe_BadMultipart(t *testing.T) {
-	chain := sttchain.NewChain(sttchain.Options{})
-	h := MultipartTranscribeHandler(Deps{Chain: chain})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader("not-multipart"))
-	req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, req)
-	require.Equal(t, http.StatusBadRequest, w.Code)
-}
-
-func TestMultipartTranscribe_HappyPath(t *testing.T) {
-	chain := sttchain.NewChain(sttchain.Options{
-		EnableVrooli: true,
-		Vrooli: sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{
-			Available: true,
-			Result:    &sttchain.Result{Text: "hello", DetectedLanguage: "en"},
-		}),
-	})
-	h := MultipartTranscribeHandler(Deps{Chain: chain})
-	body, ct := buildSTTMultipart(t, []byte("RAW"), map[string]string{"language": "en", "format": "wav"})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(body))
-	req.Header.Set("Content-Type", ct)
-	// Set LPBS token header so the chain takes the vrooli branch.
-	req.Header.Set("X-Audio-LPBS-Token", "tok")
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, req)
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Contains(t, w.Body.String(), `"text":"hello"`)
-}
-
-func TestMultipartTranscribe_ChainErrorMapsHTTP(t *testing.T) {
-	chain := sttchain.NewChain(sttchain.Options{
-		EnableVrooli: true,
-		Vrooli:       sttchain.NewVrooliProvider(&sttmocks.FakeVrooliClient{Available: true, Err: sttchain.ErrInsufficientCredits}),
-	})
-	h := MultipartTranscribeHandler(Deps{Chain: chain})
-	body, ct := buildSTTMultipart(t, []byte("RAW"), nil)
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/voice/transcribe", strings.NewReader(body))
-	req.Header.Set("Content-Type", ct)
-	req.Header.Set("X-Audio-LPBS-Token", "tok")
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, req)
-	require.Equal(t, http.StatusPaymentRequired, w.Code)
-}
-
 func TestModuleSchemaIsEmpty(t *testing.T) {
 	require.Equal(t, "", Schema())
 }
-
-// --- small multipart writer wrapper kept local to tests ----------
-
-type multipartWriter struct{ mw *multipart.Writer }
-
-func newMultipart(w io.Writer) *multipartWriter { return &multipartWriter{mw: multipart.NewWriter(w)} }
-
-func (m *multipartWriter) WriteFile(field, filename string, body []byte) error {
-	fw, err := m.mw.CreateFormFile(field, filename)
-	if err != nil {
-		return err
-	}
-	_, err = fw.Write(body)
-	return err
-}
-
-func (m *multipartWriter) WriteField(k, v string) error { return m.mw.WriteField(k, v) }
-func (m *multipartWriter) Close() error                 { return m.mw.Close() }
-func (m *multipartWriter) ContentType() string          { return m.mw.FormDataContentType() }

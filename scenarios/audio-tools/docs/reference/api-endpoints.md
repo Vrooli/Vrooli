@@ -21,13 +21,12 @@ types. Clients must use generated clients instead of hand-written JSON shapes.
 | Path | Method | Reason |
 |---|---|---|
 | `/health` and `/api/v1/health` | GET | Lifecycle and load-balancer probe |
-| `/api/v1/voice/transcribe` | POST | Multipart audio upload |
-| `/api/v1/audio/transcode` | POST | Multipart audio upload |
-| `/api/v1/voice/stream` | WS upgrade | Browser voice-stream transport |
 
-`STTService.TranscribeStream` is a bidirectional Connect stream. The server
-emits partial, segment, error, and terminal done events. A done event that
-falls back to unary transcription explicitly identifies buffered mode.
+`STTService.TranscribeStream` is the bidirectional browser and consumer voice
+stream. Browser clients use the generated Connect client through their
+scenario-owned adapter. The server emits partial, segment, error, and terminal
+events. A terminal event that falls back to unary transcription explicitly
+identifies buffered mode.
 
 ## Adding a new endpoint
 

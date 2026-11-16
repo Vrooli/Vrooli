@@ -3,7 +3,10 @@
 // independent from machine-specific latency bands.
 package trustfloor
 
-import "sort"
+import (
+	"math"
+	"sort"
+)
 
 type DurationProfile struct {
 	Name    string
@@ -161,8 +164,16 @@ func EvaluatePromotionMeasurements(measurements []ReplayMeasurement, qualificati
 			}
 			aggregates[key] = agg
 		}
-		if !agg.hasWER || measurement.WER < agg.wer {
-			agg.wer, agg.hasWER = measurement.WER, true
+		if math.IsNaN(measurement.WER) || math.IsInf(measurement.WER, 0) || measurement.WER < 0 {
+			agg.evidenceFailures = append(agg.evidenceFailures, "invalid WER observation")
+		} else {
+			// A stable verdict must satisfy the quality floor for every compatible
+			// observation. Keeping only the best WER lets a good run hide a failed
+			// repeat or an earlier same-cell regression, while safety evidence is
+			// already aggregated fail-closed below.
+			if !agg.hasWER || measurement.WER > agg.wer {
+				agg.wer, agg.hasWER = measurement.WER, true
+			}
 		}
 		if measurement.SafetyObserved {
 			agg.safetyObserved = true
@@ -259,6 +270,9 @@ func EvaluatePromotionMeasurements(measurements []ReplayMeasurement, qualificati
 
 func Evaluate(e Evidence, thresholds Thresholds) Verdict {
 	v := Verdict{}
+	if math.IsNaN(thresholds.MaxWER) || math.IsInf(thresholds.MaxWER, 0) || thresholds.MaxWER < 0 || math.IsNaN(thresholds.MaxDroppedSpanRate) || math.IsInf(thresholds.MaxDroppedSpanRate, 0) || thresholds.MaxDroppedSpanRate < 0 {
+		v.Reasons = append(v.Reasons, "qualification thresholds are invalid")
+	}
 	if e.EngineID == "" {
 		v.Reasons = append(v.Reasons, "engine identity is missing")
 	}
@@ -284,10 +298,14 @@ func Evaluate(e Evidence, thresholds Thresholds) Verdict {
 			v.Reasons = append(v.Reasons, "missing fault profile: "+fault)
 		}
 	}
-	if e.WER > thresholds.MaxWER {
+	if math.IsNaN(e.WER) || math.IsInf(e.WER, 0) || e.WER < 0 {
+		v.Reasons = append(v.Reasons, "WER is invalid")
+	} else if e.WER > thresholds.MaxWER {
 		v.Reasons = append(v.Reasons, "WER exceeds trust threshold")
 	}
-	if e.DroppedSpanRate > thresholds.MaxDroppedSpanRate {
+	if math.IsNaN(e.DroppedSpanRate) || math.IsInf(e.DroppedSpanRate, 0) || e.DroppedSpanRate < 0 {
+		v.Reasons = append(v.Reasons, "dropped-span rate is invalid")
+	} else if e.DroppedSpanRate > thresholds.MaxDroppedSpanRate {
 		v.Reasons = append(v.Reasons, "dropped-span rate exceeds trust threshold")
 	}
 	if !e.HasBrowserProductPath {

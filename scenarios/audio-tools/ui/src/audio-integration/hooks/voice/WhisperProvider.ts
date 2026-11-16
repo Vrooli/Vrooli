@@ -2,7 +2,7 @@
 //
 // WhisperProvider — HTTP batch transcription provider.
 // Collects all audio locally via MediaRecorder, sends a single POST on stop.
-// Used when the backend supports Whisper but not the streaming WebSocket endpoint.
+// Used when the backend supports Whisper but not the streaming Connect endpoint.
 //
 // Retention: after each turn stops, the combined audio Blob is moved from the
 // transient `chunks` buffer into `lastTurn` so the hook can offer a

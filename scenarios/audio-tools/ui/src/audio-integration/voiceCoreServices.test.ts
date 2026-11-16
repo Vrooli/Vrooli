@@ -6,7 +6,6 @@ const mocks = vi.hoisted(() => ({
   transcribeAudio: vi.fn(),
   transcribeAudioBypassFilter: vi.fn(),
   transcribeAudioWithRetry: vi.fn(),
-  buildVoiceStreamWsUrl: vi.fn(),
 }));
 
 vi.mock("./api/voice", () => mocks);

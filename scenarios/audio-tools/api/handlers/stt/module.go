@@ -2,10 +2,8 @@ package stt
 
 import (
 	"context"
-	"net/http"
 
 	"audio-tools/internal/modulekit"
-	"audio-tools/internal/stt/session"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -20,9 +18,6 @@ import (
 type DefaultCredentialResolver func(ctx context.Context, capability string) (provider, key string, ok bool)
 
 func Module(d Deps) modulekit.Module {
-	if d.Sessions == nil {
-		d.Sessions = session.NewRegistry(0)
-	}
 	h := NewConnectHandler(d)
 	runtimePath, runtimeHandler := sttconnect.NewSTTServiceHandler(h)
 	adminPath, adminHandler := sttconnect.NewSTTAdminServiceHandler(h)
@@ -33,8 +28,6 @@ func Module(d Deps) modulekit.Module {
 				connectx.ServiceMount{Path: runtimePath, Handler: runtimeHandler},
 				connectx.ServiceMount{Path: adminPath, Handler: adminHandler},
 			)
-			r.Handle("/api/v1/voice/transcribe", MultipartTranscribeHandler(d)).Methods(http.MethodPost)
-			r.Handle("/api/v1/voice/stream", StreamWSHandler(d)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}

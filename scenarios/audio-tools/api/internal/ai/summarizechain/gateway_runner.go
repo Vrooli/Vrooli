@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -32,10 +31,10 @@ type InferenceRunner interface {
 
 type InferenceResolver func(context.Context) (InferenceRunner, error)
 
-// NewAIGatewayRunner adapts the maintained Summarizer CLI-shaped seam to the
-// typed AI Gateway contract. The resource role selector is translated into one
-// task role; concrete model selectors never cross the caller boundary.
-func NewAIGatewayRunner() summarize.GatewayRunner {
+// NewAIGatewayRunner adapts Audio Tools' owner-typed task request directly to
+// AI Gateway. The resource role selector is translated into one task role;
+// CLI serialization and parsing stay on the resource-ollama experiment path.
+func NewAIGatewayRunner() summarize.TaskRunner {
 	return NewAIGatewayRunnerWithResolver(func(ctx context.Context) (InferenceRunner, error) {
 		url, err := discovery.ResolveScenarioURLDefault(ctx, "ai-gateway")
 		if err != nil {
@@ -45,25 +44,30 @@ func NewAIGatewayRunner() summarize.GatewayRunner {
 	})
 }
 
-func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.GatewayRunner {
-	return func(ctx context.Context, args []string, source string) ([]byte, error) {
+func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.TaskRunner {
+	return func(ctx context.Context, task summarize.TaskRequest) ([]byte, error) {
 		if resolve == nil {
 			return nil, errors.New("ai-gateway resolver is required")
 		}
-		if model := argValue(args, "--model"); model != "" {
+		if !task.SelectorIsRole {
 			return nil, errors.New("audio-tools local summary accepts policy roles, not concrete model selectors")
 		}
-		selector := argValue(args, "--role")
+		selector := strings.TrimSpace(task.Selector)
 		if selector != "summarize.default" && selector != GatewaySummaryRole {
 			return nil, fmt.Errorf("unsupported audio-tools summarization role %q", selector)
 		}
-		instruction := strings.TrimSpace(argValue(args, "--system"))
+		instruction := strings.TrimSpace(task.Instruction)
 		if instruction == "" {
 			return nil, errors.New("audio-tools summary task instruction is required")
 		}
-		outputTokens, err := strconv.ParseInt(argValue(args, "--max-tokens"), 10, 32)
-		if err != nil || outputTokens <= 0 {
+		if strings.TrimSpace(task.Source) == "" {
+			return nil, errors.New("audio-tools summary source is required")
+		}
+		if task.MaxOutputTokens <= 0 || int64(task.MaxOutputTokens) > int64(^uint32(0)>>1) {
 			return nil, errors.New("audio-tools summary output-token cap must be positive")
+		}
+		if task.ContextTier != 0 || task.ExpectedModel != "" || task.ExpectedArtifactDigest != "" || task.RightsDecisionSHA256 != "" || task.RightsEvaluatedAt != "" || task.RightsReceiptSHA256 != "" || task.PolicyFileSHA256 != "" {
+			return nil, errors.New("audio-tools AI Gateway task cannot carry resource-specific context or rights selectors")
 		}
 		client, err := resolve(ctx)
 		if err != nil {
@@ -75,9 +79,9 @@ func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.Gateway
 			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 			PrivacyProvenance: localSummaryPrivacyProvenance,
 			Instruction:       instruction,
-			Source:            source,
+			Source:            task.Source,
 			SchemaJson:        `{"type":"object","required":["summary"],"properties":{"summary":{"type":"string"}},"additionalProperties":false}`,
-			MaxOutputTokens:   int32(outputTokens),
+			MaxOutputTokens:   int32(task.MaxOutputTokens),
 		}))
 		if err != nil {
 			return nil, fmt.Errorf("ai-gateway local summary: %w", err)
@@ -87,6 +91,9 @@ func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.Gateway
 		}
 		if gatewayError := response.Msg.GetError(); gatewayError != nil {
 			return nil, fmt.Errorf("ai-gateway summary failed (%s): %s", gatewayError.GetCode(), gatewayError.GetMessage())
+		}
+		if !response.Msg.GetValidated() || strings.TrimSpace(response.Msg.GetValueJson()) == "" {
+			return nil, errors.New("ai-gateway returned an unvalidated summary result")
 		}
 		if strings.TrimSpace(response.Msg.GetModel()) == "" {
 			return nil, errors.New("ai-gateway did not report the selected summary model")
@@ -116,13 +123,4 @@ func NewAIGatewayRunnerWithResolver(resolve InferenceResolver) summarize.Gateway
 		}
 		return json.Marshal(result)
 	}
-}
-
-func argValue(args []string, flag string) string {
-	for index := 0; index+1 < len(args); index++ {
-		if args[index] == flag {
-			return args[index+1]
-		}
-	}
-	return ""
 }

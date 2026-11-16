@@ -2,8 +2,6 @@
 package audio
 
 import (
-	"net/http"
-
 	"audio-tools/internal/logx"
 	"audio-tools/internal/modulekit"
 
@@ -28,7 +26,6 @@ func Module(logger logx.Logger) modulekit.Module {
 		Name: "audio",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: h})
-			r.Handle("/api/v1/audio/transcode", multipartTranscodeHandler()).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}
@@ -38,18 +35,6 @@ func Schema() string { return "" }
 
 var Endpoints = []modulekit.EndpointDescriptor{
 	{ID: "audio.transcode", Path: "/vrooli.audio_tools.v1.audio.AudioProcessingService/Transcode", Method: "POST", Summary: "Transcode audio (Connect-RPC)", Category: "audio"},
-	{
-		ID: "audio.transcode_multipart", Path: "/api/v1/audio/transcode", Method: "POST", Summary: "Multipart audio transcode", Category: "audio",
-		RESTException: &modulekit.RESTException{
-			Reason: modulekit.RESTReasonMultipartUpload,
-			Note:   "Audio bytes via multipart form-data.",
-			ProtoPayloads: &modulekit.RESTProtoPayloads{
-				Request:  modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.audio.TranscodeRequest", Transport: "multipart/form-data", Conformance: "transport_only"},
-				Response: modulekit.RESTPayload{ProtoFullName: "vrooli.audio_tools.v1.audio.TranscodeResponse", Transport: "json", Conformance: "protojson"},
-				Error:    modulekit.RESTPayload{Transport: "none", Conformance: "none"},
-			},
-		},
-	},
 	{ID: "audio.trim", Path: "/vrooli.audio_tools.v1.audio.AudioProcessingService/Trim", Method: "POST", Category: "audio"},
 	{ID: "audio.merge", Path: "/vrooli.audio_tools.v1.audio.AudioProcessingService/Merge", Method: "POST", Category: "audio"},
 	{ID: "audio.split", Path: "/vrooli.audio_tools.v1.audio.AudioProcessingService/Split", Method: "POST", Category: "audio"},

@@ -10,7 +10,7 @@ interface Props {
   onTrace: (t: ProviderTrace) => void;
 }
 
-// LiveTry streams audio via WebSocket through PcmVoiceStreamProvider — the
+// LiveTry streams audio via Connect through PcmVoiceStreamProvider — the
 // same path consumer scenarios adopt by copying audio-integration/. The lazy
 // construction is deliberate: SSR and the first render must never touch
 // MediaRecorder / AudioContext.

@@ -18,11 +18,31 @@ const defaultOllamaGatewayBin = "resource-ollama"
 // runner; production uses exec.CommandContext.
 type GatewayRunner func(ctx context.Context, args []string, stdin string) ([]byte, error)
 
+// TaskRequest is the owner-derived summarization task passed to a typed
+// inference adapter. It keeps execution intent separate from CLI encoding.
+type TaskRequest struct {
+	Selector               string
+	SelectorIsRole         bool
+	Instruction            string
+	Source                 string
+	MaxOutputTokens        int
+	ContextTier            int
+	ExpectedModel          string
+	ExpectedArtifactDigest string
+	RightsDecisionSHA256   string
+	RightsEvaluatedAt      string
+	RightsReceiptSHA256    string
+	PolicyFileSHA256       string
+}
+
+type TaskRunner func(ctx context.Context, request TaskRequest) ([]byte, error)
+
 // Summarizer calls the resource-ollama gateway to summarize text for TTS
 // consumption.
 type Summarizer struct {
-	Bin    string
-	Runner GatewayRunner
+	Bin        string
+	Runner     GatewayRunner
+	TaskRunner TaskRunner
 }
 
 // NewSummarizer creates a summarizer backed by the resource-ollama gateway.
@@ -42,6 +62,12 @@ func NewSummarizerWithRunner(bin string, runner GatewayRunner) *Summarizer {
 		bin = defaultOllamaGatewayBin
 	}
 	return &Summarizer{Bin: bin, Runner: runner}
+}
+
+// NewSummarizerWithTaskRunner creates a summarizer backed by an owner-typed
+// inference adapter instead of the resource CLI argument protocol.
+func NewSummarizerWithTaskRunner(runner TaskRunner) *Summarizer {
+	return &Summarizer{TaskRunner: runner}
 }
 
 // summarizeSystemPrompts maps summarization levels to system prompts.
@@ -162,44 +188,51 @@ func (s *Summarizer) SummarizeAtContextTierWithExecutionIdentity(ctx context.Con
 	if selector == "" {
 		selector = DefaultSummarizeModel
 	}
-	selectorFlag := "--model"
-	if SelectorIsRole(selector) {
-		selectorFlag = "--role"
+	task := TaskRequest{
+		Selector: selector, SelectorIsRole: SelectorIsRole(selector), Instruction: systemPrompt,
+		Source: text, MaxOutputTokens: numPredict, ContextTier: contextTier,
+		ExpectedModel: expectedModel, ExpectedArtifactDigest: expectedArtifactDigest,
+		RightsDecisionSHA256: rightsDecisionSHA256, RightsEvaluatedAt: rightsEvaluatedAt,
+		RightsReceiptSHA256: rightsReceiptSHA256, PolicyFileSHA256: policyFileSHA256,
 	}
-	args := []string{
-		"gateway", "chat",
-		selectorFlag, selector,
-		"--system", systemPrompt,
-		"--max-tokens", strconv.Itoa(numPredict),
-		"--temperature", "0.2",
-		"--think=false",
-		"--json",
-		"--prompt-stdin",
-	}
-	if contextTier > 0 {
-		args = append(args, "--num-ctx", strconv.Itoa(contextTier))
-	}
-	if rightsDecisionSHA256 != "" {
-		args = append(args, "--expected-rights-decision-sha256", rightsDecisionSHA256, "--expected-rights-evaluated-at", rightsEvaluatedAt)
-	}
-	if expectedModel != "" {
-		args = append(args, "--expected-model", expectedModel, "--expected-artifact-digest", expectedArtifactDigest)
-	}
-	if rightsReceiptSHA256 != "" {
-		args = append(args, "--expected-rights-receipt-sha256", rightsReceiptSHA256, "--expected-policy-file-sha256", policyFileSHA256)
-	}
-
-	runner := s.Runner
-	if runner == nil {
-		bin := strings.TrimSpace(s.Bin)
-		if bin == "" {
-			bin = defaultOllamaGatewayBin
+	var out []byte
+	var err error
+	if s.TaskRunner != nil {
+		out, err = s.TaskRunner(ctx, task)
+	} else {
+		selectorFlag := "--model"
+		if task.SelectorIsRole {
+			selectorFlag = "--role"
 		}
-		runner = func(ctx context.Context, args []string, stdin string) ([]byte, error) {
-			return runGatewayCLI(ctx, bin, args, stdin)
+		args := []string{
+			"gateway", "chat", selectorFlag, task.Selector,
+			"--system", task.Instruction, "--max-tokens", strconv.Itoa(task.MaxOutputTokens),
+			"--temperature", "0.2", "--think=false", "--json", "--prompt-stdin",
 		}
+		if task.ContextTier > 0 {
+			args = append(args, "--num-ctx", strconv.Itoa(task.ContextTier))
+		}
+		if task.RightsDecisionSHA256 != "" {
+			args = append(args, "--expected-rights-decision-sha256", task.RightsDecisionSHA256, "--expected-rights-evaluated-at", task.RightsEvaluatedAt)
+		}
+		if task.ExpectedModel != "" {
+			args = append(args, "--expected-model", task.ExpectedModel, "--expected-artifact-digest", task.ExpectedArtifactDigest)
+		}
+		if task.RightsReceiptSHA256 != "" {
+			args = append(args, "--expected-rights-receipt-sha256", task.RightsReceiptSHA256, "--expected-policy-file-sha256", task.PolicyFileSHA256)
+		}
+		runner := s.Runner
+		if runner == nil {
+			bin := strings.TrimSpace(s.Bin)
+			if bin == "" {
+				bin = defaultOllamaGatewayBin
+			}
+			runner = func(ctx context.Context, args []string, stdin string) ([]byte, error) {
+				return runGatewayCLI(ctx, bin, args, stdin)
+			}
+		}
+		out, err = runner(ctx, args, task.Source)
 	}
-	out, err := runner(ctx, args, text)
 	if err != nil {
 		if looksLikeMissingOllamaModel(err.Error()) {
 			return SummarizerResponse{}, fmt.Errorf("%w: %s", ErrSummarizeModelNotInstalled, err.Error())

@@ -25,10 +25,6 @@ const app = createScenarioServer({
   distDir: DIST_DIR,
   serviceName: 'audio-tools',
   proxyTimeoutMs: CONNECT_RPC_PROXY_TIMEOUT_MS,
-  // Dictation uses a same-origin WebSocket rather than Connect RPC. Preserve
-  // its endpoint exactly when the lifecycle UI server receives an upgrade.
-  wsPathPrefix: '/api/v1/voice/stream',
-  wsPathTransform: (path) => path,
 })
 
 // The shared server serves static assets and API proxies but does not install

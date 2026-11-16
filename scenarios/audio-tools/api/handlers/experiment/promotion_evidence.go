@@ -52,7 +52,7 @@ func (h *connectHandler) aggregatePromotionVerdicts(ctx context.Context, anchor 
 }
 
 func replayMeasurements(report *evalv1.EvalReport) []trustfloor.ReplayMeasurement {
-	if report == nil {
+	if report == nil || !report.GetQualityMeasured() {
 		return nil
 	}
 	measurements := make([]trustfloor.ReplayMeasurement, 0, len(report.GetPerStrategy()))
