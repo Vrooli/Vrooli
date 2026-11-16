@@ -172,6 +172,27 @@ func TestAServedRenderRecordsItsLaneModelAndCost(t *testing.T) {
 	require.Equal(t, "any", generator.last.FallbackPolicy)
 	require.Contains(t, job.Candidates[0].ProvenanceJSON, `"cost_usd":0.042`)
 	require.Contains(t, job.Candidates[0].ProvenanceJSON, `"cost_provenance":"provider_reported_v1"`)
+	require.Contains(t, job.Candidates[0].ProvenanceJSON, `"image_tools_job_id":"image-tools-job-123"`)
+}
+
+func TestGPURequiredRenderRequestsExactImageToolsAdmission(t *testing.T) {
+	generator := &fakeGenerator{}
+	store := NewStoreWithGenerator(&fakeExecutor{}, generator)
+	style := catalog.Style{
+		ID: "synth", Strategy: "synthesized", QualityTier: catalog.TierLocalModel,
+		Subject: "celestial", Placements: []string{"full_bleed"},
+		Generation: &catalog.GenerationBlock{PromptTemplate: "a luminous celestial chart"},
+	}
+	job, err := store.SubmitWithContext(context.Background(), Request{
+		Style: style, Surface: testSurface, Placement: "full_bleed", Seed: 19, Count: 1, RequireGPU: true,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, job.Candidates)
+	require.True(t, generator.last.RequireGPU, "the render must request exact Image Tools GPU admission before inference")
+
+	procedural := catalog.Style{ID: "proc", Strategy: "procedural", Subject: "horizon", Placements: []string{"full_bleed"}}
+	_, err = store.SubmitWithContext(context.Background(), Request{Style: procedural, Surface: testSurface, RequireGPU: true})
+	require.ErrorContains(t, err, "require_gpu needs a local-model style")
 }
 
 // A backend that reports no cost must not be recorded as free. "This route cost
@@ -209,6 +230,7 @@ func (g *costedGenerator) Generate(ctx context.Context, req imageengine.Generati
 	}
 	result.ModelID = "frontier/mock"
 	result.Tier = "byok-cloud"
+	result.ImageToolsJobID = "image-tools-job-123"
 	result.CostUSD, result.CostReported = g.cost, true
 	return result, nil
 }

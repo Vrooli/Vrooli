@@ -6,25 +6,12 @@ import (
 
 	"connectrpc.com/connect"
 
+	"audio-tools/cli/domains/internal/providerlabels"
 	"github.com/vrooli/cli-core/cliapp"
 
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
 	summv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize"
 	summconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/summarize/summarize_v1connect"
 )
-
-func providerTierLabel(t commonv1.ProviderTier) string {
-	switch t {
-	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
-		return "local"
-	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
-		return "byok"
-	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
-		return "vrooli"
-	default:
-		return "unknown"
-	}
-}
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
@@ -63,7 +50,7 @@ func (h *handlers) text(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{
 			fmt.Sprintf("[%s/%s, %dms] %s",
-				providerTierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, int(resp.Msg.LatencyMs), resp.Msg.Text),
+				providerlabels.TierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, int(resp.Msg.LatencyMs), resp.Msg.Text),
 		},
 	})
 }

@@ -21,7 +21,6 @@ is not provenance. If a change would let a produced artifact silently acquire
 different inputs than the ones it recorded, it belongs on the declaration side
 as a new version instead.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

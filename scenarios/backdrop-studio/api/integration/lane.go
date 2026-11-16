@@ -238,10 +238,36 @@ type RenderJob struct {
 	Candidates    []Candidate `json:"candidates"`
 }
 
+// ImageToolsJobReceipt is the durable execution record behind a generated
+// candidate. It exposes the exact capacity claim and GPU identity to the live
+// integration lane instead of inferring them from the selected route.
+type ImageToolsJobReceipt struct {
+	State      string            `json:"state"`
+	Lane       string            `json:"lane"`
+	StartedAt  string            `json:"startedAt"`
+	FinishedAt string            `json:"finishedAt"`
+	ResultMeta map[string]string `json:"resultMeta"`
+}
+
+// ImageToolsJob reads the source job record linked by candidate provenance.
+func (e Environment) ImageToolsJob(ctx context.Context, id string) (ImageToolsJobReceipt, error) {
+	var response struct {
+		Job ImageToolsJobReceipt `json:"job"`
+	}
+	request := struct {
+		ID string `json:"id"`
+	}{ID: id}
+	if err := e.postJSON(ctx, e.ImageToolsURL+"/vrooli.image_tools.v1.jobs.JobsService/GetJob", request, &response); err != nil {
+		return ImageToolsJobReceipt{}, fmt.Errorf("integration: get image-tools job %q: %w", id, err)
+	}
+	return response.Job, nil
+}
+
 // SubmitOptions is one render request from the lane's point of view.
 type SubmitOptions struct {
 	StyleID     string
 	Seed        int64
+	RequireGPU  bool
 	Placement   string
 	SurfaceID   string
 	BrandID     string
@@ -253,8 +279,9 @@ type SubmitOptions struct {
 // server's own message, because that message is the finding.
 func (e Environment) Submit(ctx context.Context, opts SubmitOptions) (RenderJob, error) {
 	body := map[string]any{
-		"style": map[string]any{"id": opts.StyleID},
-		"seed":  fmt.Sprintf("%d", opts.Seed),
+		"style":       map[string]any{"id": opts.StyleID},
+		"seed":        fmt.Sprintf("%d", opts.Seed),
+		"require_gpu": opts.RequireGPU,
 	}
 	if opts.Placement != "" {
 		body["placement"] = opts.Placement

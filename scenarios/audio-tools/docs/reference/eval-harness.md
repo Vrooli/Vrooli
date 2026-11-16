@@ -490,19 +490,13 @@ unready driver is a retryable admission condition.
 
 Example bounded realtime run:
 
-Always pass `--api-base` for a qualification. Web Console terminals can expose
-another scenario's API variables, and an ambient auto-detected endpoint must
-never consume a long-run window.
+Set the CLI API base explicitly before a qualification. Web Console terminals
+can expose another scenario's API variables, and an ambient auto-detected
+endpoint must never consume a long-run window.
 
 ```bash
-audio-tools soak run \
-  --api-base http://127.0.0.1:19630 \
-  --driver-url http://127.0.0.1:24485 \
-  --ui-url http://127.0.0.1:20004 \
-  --fixture /absolute/path/to/dictation-reference.wav \
-  --lane realtime --profile realistic --turns 3 --feed-ms 4000 \
-  --engine-id kyutai --model-id kyutai/stt-1b-en_fr \
-  --strategy passthrough --policy default --json
+audio-tools configure api_base http://127.0.0.1:19630/api/v1
+audio-tools soak run --driver-url http://127.0.0.1:24485 --ui-url http://127.0.0.1:20004 --fixture /absolute/path/to/dictation-reference.wav --lane realtime --profile realistic --turns 3 --feed-ms 4000 --engine-id kyutai --model-id kyutai/stt-1b-en_fr --strategy passthrough --policy default --json
 ```
 
 The run refuses qualification when any required assertion is absent. Text

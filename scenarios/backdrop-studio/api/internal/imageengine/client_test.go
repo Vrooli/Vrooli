@@ -53,6 +53,7 @@ func TestClientApplyRefusesMissingInputsAndUnresolvedTreatmentNames(t *testing.T
 
 func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.T) {
 	var sawConditioning bool
+	var sawRequiredGPU bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v1/ai/image_to_image":
@@ -60,6 +61,9 @@ func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.
 			_, _, err := r.FormFile("file")
 			require.NoError(t, err)
 			sawConditioning = true
+			var params map[string]any
+			require.NoError(t, json.Unmarshal([]byte(r.FormValue("params")), &params))
+			sawRequiredGPU, _ = params["requireGpu"].(bool)
 			w.Header().Set("Content-Type", "application/json")
 			// image-tools' REST submit edge serialises with protojson PROTO
 			// names, so this is `job_id`. The fake previously wrote `jobId`,
@@ -77,14 +81,16 @@ func TestClientGenerateUsesImageToolsInferenceAndBlocksOnceForResult(t *testing.
 	}))
 	defer server.Close()
 	client := &Client{HTTPClient: server.Client(), Resolve: func(context.Context) (string, error) { return server.URL, nil }}
-	out, err := client.Generate(context.Background(), GenerationRequest{Width: 512, Height: 320, Prompt: "quiet field", Conditioning: []byte{1, 2}})
+	out, err := client.Generate(context.Background(), GenerationRequest{Width: 512, Height: 320, Prompt: "quiet field", Conditioning: []byte{1, 2}, RequireGPU: true})
 	require.NoError(t, err)
 	require.Equal(t, []byte{9, 8, 7}, out.PNG)
 	require.True(t, sawConditioning)
+	require.True(t, sawRequiredGPU, "require_gpu must reach the Image Tools admission contract")
 	// The model the router chose comes back with the bytes. Without it a
 	// model-backed release has no model to disclose and is refused.
 	require.Equal(t, "sd-1.5/local-gpu", out.ModelID)
 	require.Equal(t, "local-gpu", out.Tier)
+	require.Equal(t, "job-1", out.ImageToolsJobID)
 }
 
 func TestClientGenerateRequiresProviderCostMarker(t *testing.T) {

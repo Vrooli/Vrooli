@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"strings"
@@ -63,7 +64,9 @@ func TestCaptureSolanaAddressPagePersistsFinalizedSourcesAndTokenDeltas(t *testi
 	pageSource := forensics.Source{ID: "sol-page", Name: "Solana finalized signatures", URL: "https://rpc.example", Retrieved: "2026-11-12T12:00:00Z", SHA256: strings.Repeat("a", 64)}
 	txSource := forensics.Source{ID: "sol-tx", Name: "Solana finalized transaction", URL: "https://rpc.example", Retrieved: "2026-11-12T12:00:00Z", SHA256: strings.Repeat("b", 64)}
 	occ := forensics.Occurrence{ID: "solana:" + sig + ":spl:1", Chain: forensics.ChainSolana, Transaction: sig, Block: 99, Timestamp: "2026-11-12T11:00:00Z", EventIndex: 1, Direction: "input", From: address, Asset: "SPL:" + address, Atomic: "42", Scale: 6, Kind: forensics.EvidenceObservation, SourceID: txSource.ID}
-	page := forensics.CapturedSolanaPage{Address: address, Before: before, NextBefore: sig, Signatures: []forensics.SolanaSignature{{Signature: sig, Slot: 99}}, Source: pageSource, Transactions: []forensics.CapturedSolanaTransaction{{Source: txSource, Occurrences: []forensics.Occurrence{occ}}}}
+	pump := forensics.PumpInstruction{ID: "solana:" + sig + ":pump:2", Transaction: sig, Slot: 99, Index: 2, ProgramID: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", SourceID: txSource.ID, Kind: "create_v2", DecoderVersion: "pump-public-docs/idl/pump.json@639b87fb45c3adeffa6f7c4a1bf0cb85e392bf22#create_v2", Mint: "11111111111111111111111111111112", User: address, Creator: address, Name: "Test Token", Symbol: "TST", MetadataURI: "https://metadata.example/token.json"}
+	unresolved := forensics.UnresolvedPumpInstruction{ID: "solana:" + sig + ":pump:4", Transaction: sig, Slot: 99, Index: 4, ProgramID: pump.ProgramID, SourceID: txSource.ID, Discriminator: "c2ab1c46684d5b2f", Reason: "Pump discriminator is not in this decoder version"}
+	page := forensics.CapturedSolanaPage{Address: address, Before: before, NextBefore: sig, Signatures: []forensics.SolanaSignature{{Signature: sig, Slot: 99}}, Source: pageSource, Transactions: []forensics.CapturedSolanaTransaction{{Source: txSource, Occurrences: []forensics.Occurrence{occ}, PumpInstructions: []forensics.PumpInstruction{pump}, UnresolvedPumpInstructions: []forensics.UnresolvedPumpInstruction{unresolved}}}}
 	reader := &fakeSolanaAddressReader{page: page}
 	h := NewHandlerWithReaders(repo, log.New(io.Discard, "", 0), nil, nil).WithSolanaReader(reader)
 	response, err := h.CaptureSolanaAddressPage(context.Background(), connect.NewRequest(&p.CaptureSolanaAddressPageRequest{CaseId: doc.ID, Address: address, BeforeSignature: before}))
@@ -72,9 +75,27 @@ func TestCaptureSolanaAddressPagePersistsFinalizedSourcesAndTokenDeltas(t *testi
 	require.Equal(t, before, reader.before)
 	require.Equal(t, uint32(1), response.Msg.CapturedTransactionCount)
 	require.Equal(t, uint32(1), response.Msg.CapturedOccurrenceCount)
+	require.Equal(t, uint32(1), response.Msg.CapturedPumpInstructionCount)
+	require.Equal(t, uint32(1), response.Msg.UnresolvedPumpInstructionCount)
 	require.Equal(t, sig, response.Msg.NextBeforeSignature)
 	require.Len(t, response.Msg.Case.Sources, 2)
 	require.Equal(t, occ.ID, response.Msg.Case.Occurrences[0].Id)
+	require.Equal(t, pump.ID, response.Msg.Case.PumpInstructions[0].Id)
+	require.Equal(t, pump.DecoderVersion, response.Msg.Case.PumpInstructions[0].DecoderVersion)
+	require.Equal(t, unresolved.Discriminator, response.Msg.Case.UnresolvedPumpInstructions[0].Discriminator)
+	// The SQLite document must preserve the typed records and replay must be idempotent.
+	replay, err := h.CaptureSolanaAddressPage(context.Background(), connect.NewRequest(&p.CaptureSolanaAddressPageRequest{CaseId: doc.ID, Address: address, BeforeSignature: before}))
+	require.NoError(t, err)
+	require.Len(t, replay.Msg.Case.PumpInstructions, 1)
+	require.Len(t, replay.Msg.Case.UnresolvedPumpInstructions, 1)
+	packet, err := h.ExportPrivatePacket(context.Background(), connect.NewRequest(&p.ExportPrivatePacketRequest{Id: doc.ID}))
+	require.NoError(t, err)
+	var packetEnvelope struct {
+		Case forensics.Case `json:"case"`
+	}
+	require.NoError(t, json.Unmarshal(packet.Msg.GetPacketJson(), &packetEnvelope))
+	require.Equal(t, []forensics.PumpInstruction{pump}, packetEnvelope.Case.PumpInstructions)
+	require.Equal(t, []forensics.UnresolvedPumpInstruction{unresolved}, packetEnvelope.Case.UnresolvedPumpInstructions)
 }
 
 func (f *fakeEVMWalletReader) FetchWalletSnapshot(_ context.Context, chain forensics.Chain, address string, tokens []string) (forensics.CapturedEVMWalletSnapshot, error) {

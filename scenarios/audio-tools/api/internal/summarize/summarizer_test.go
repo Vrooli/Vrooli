@@ -199,7 +199,7 @@ func TestSummarizerPassesOwnerVerifiedExecutionIdentity(t *testing.T) {
 			t.Errorf("expected artifact digest = %q, want %q", got, artifactDigest)
 		}
 	})
-	if _, err := s.SummarizeAtContextTierWithExecutionIdentity(context.Background(), "source", "summarize.default", "moderate", 4096, "qwen3.5:9b", artifactDigest, decisionSHA, evaluatedAt); err != nil {
+	if _, err := s.SummarizeAtContextTierWithExecutionIdentity(context.Background(), "source", "summarize.default", "moderate", 4096, "qwen3.5:9b", artifactDigest, decisionSHA, evaluatedAt, "", ""); err != nil {
 		t.Fatalf("summarize with current rights binding: %v", err)
 	}
 }

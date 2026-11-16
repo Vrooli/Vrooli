@@ -7,7 +7,6 @@ domain is added, renamed, split, merged, or removed.
 `notes` is a worked example from the template, not product scope.
 Replace it after the first real domain is green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

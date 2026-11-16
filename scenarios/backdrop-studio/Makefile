@@ -14,7 +14,7 @@
 # This Makefile is a thin wrapper. All user-facing output (status, banners,
 # colors) is owned by the `vrooli scenario` CLI itself.
 
-.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints
+.PHONY: help start run stop restart test logs status clean build dev fmt fmt-go fmt-ui lint lint-go lint-ui check setup open orient temporal-models endpoints gpu-showcase lm17-full-showcase
 
 .DEFAULT_GOAL := help
 
@@ -63,6 +63,13 @@ integration: ## Render every seeded style through the really running image-tools
 	@printf 'The lane needs backdrop-studio, image-tools and asset-studio running,\n'
 	@printf 'and refuses to judge anything if the API is not built from this tree.\n\n'
 	@cd api && GOWORK=off go test -tags integration -count=1 -timeout 40m ./integration/...
+
+gpu-showcase: ## Render synth-celestial and require GPU provenance; check capacity first
+	@bash scripts/gpu-showcase-preflight.sh
+	@cd api && BACKDROP_STUDIO_REQUIRE_GPU=1 BACKDROP_STUDIO_GPU_SHOWCASE_OUT="$${BACKDROP_STUDIO_GPU_SHOWCASE_OUT}" GOWORK=off go test -tags integration -count=1 -timeout 20m -run '^TestGPUModelBackedShowcase$$' ./integration
+
+lm17-full-showcase: ## Run both image GPU demos with Ollama overlap, then compare SAM2 CPU/CUDA
+	@bash scripts/lm17-full-showcase.sh
 
 integration-evidence: ## Capture renders and candidate corpus in managed test_runs storage; review before promoting testdata
 	@cd api && BACKDROP_STUDIO_WRITE_EVIDENCE=1 GOWORK=off go test -tags integration \

@@ -4,7 +4,6 @@ This is the product-specific security target and known qualification boundary,
 not a security certificate. PRD OT-P0-009 governs private bounded voice handling.
 Published documentation does not enable multi-user or hosted access safely.
 
-## Purpose Of This Document
 
 Define sensitive data, trust boundaries, required controls and remaining evidence.
 Use [DATA.md](../concepts/DATA.md) for storage ownership and retention; use

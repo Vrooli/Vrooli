@@ -4,7 +4,6 @@ This document owns performance interpretation and regression procedure. The
 [pilot decision sheet](TESTING.md#pilot-decision-sheet-and-safe-first-slice) owns
 candidate product SLOs; experiment and test owners retain measured receipts.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

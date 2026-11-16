@@ -10,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"audio-tools/cli/domains/internal/providerlabels"
 	"github.com/vrooli/cli-core/cliapp"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
@@ -62,19 +63,6 @@ func responseFormatLabel(f commonv1.ResponseFormat) string {
 	}
 }
 
-func providerTierLabel(t commonv1.ProviderTier) string {
-	switch t {
-	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
-		return "local"
-	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
-		return "byok"
-	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
-		return "vrooli"
-	default:
-		return "unknown"
-	}
-}
-
 func (h *handlers) synthesize(ctx cliapp.RunContext) error {
 	speed := 1.0
 	if s := ctx.Flag("speed"); s != "" {
@@ -111,7 +99,7 @@ func (h *handlers) synthesize(ctx cliapp.RunContext) error {
 		Result: []string{
 			fmt.Sprintf("Synthesized %d bytes (%s) via %s/%s in %.0fms.",
 				len(resp.Msg.Audio), resp.Msg.ContentType,
-				providerTierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, resp.Msg.LatencyMs),
+				providerlabels.TierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, resp.Msg.LatencyMs),
 		},
 	})
 }
@@ -184,7 +172,7 @@ func (h *handlers) synthesizeStream(ctx cliapp.RunContext) error {
 			totalBytes += n
 		}
 		if frame.IsFinal {
-			finalTier = providerTierLabel(frame.GetProviderTier())
+			finalTier = providerlabels.TierLabel(frame.GetProviderTier())
 			finalID = frame.ProviderId
 			finalModel = frame.ModelId
 			finalMs = frame.LatencyMs

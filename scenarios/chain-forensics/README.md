@@ -28,6 +28,12 @@ analyst labels and immutable private packet receipts in SQLite, exposes the
 case operations over Connect and its registered CLI, and provides a local case
 review/export surface. The generated Notes example domain has been removed.
 
+The bounded finalized Solana capture also stores source-linked Pump `create_v2`
+instruction facts and unresolved Pump variants in SQLite and private packets;
+the CLI reports both counts and the case page renders the facts with the pinned
+decoder version and its limits. See the package evidence README and
+`docs/internal/PROGRESS.md` for the exact public transaction and verification.
+
 The published 1HQ3 reconstruction, a real private rug/bridge/exchange case
 handed to attention, and Crypto Infrastructure CI2's evaluator import remain
 open until their complete showcases are rehearsed. See

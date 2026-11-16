@@ -24,7 +24,6 @@ const app = createScenarioServer({
   apiPort: API_PORT,
   distDir: DIST_DIR,
   serviceName: 'audio-tools',
-  corsOrigins: '*',
   proxyTimeoutMs: CONNECT_RPC_PROXY_TIMEOUT_MS,
   // Dictation uses a same-origin WebSocket rather than Connect RPC. Preserve
   // its endpoint exactly when the lifecycle UI server receives an upgrade.

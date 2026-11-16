@@ -101,6 +101,7 @@ func (h *handler) Submit(ctx context.Context, req *connect.Request[render_v1.Sub
 		Seed:        req.Msg.GetSeed(),
 		Count:       int(req.Msg.GetCandidateCount()),
 		BrandTokens: tokens,
+		RequireGPU:  req.Msg.GetRequireGpu(),
 	})
 	if err != nil {
 		var rejected *internalrender.QualityRejectedError

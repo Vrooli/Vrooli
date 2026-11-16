@@ -1,6 +1,5 @@
 # Monetization — Audio Tools
 
-## Purpose Of This Document
 
 Define Audio Tools' commercial role and the evidence needed before its owned
 subscription/credits route can be sold as working capability. This document does

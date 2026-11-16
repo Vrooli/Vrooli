@@ -1,6 +1,5 @@
 # Choosing the UI
 
-## Purpose Of This Document
 
 Walk a scenario author through the one path from a generated scaffold to a
 product-shaped UI: decide, configure, adopt, build. Gate 5 in

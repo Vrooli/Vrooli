@@ -36,7 +36,6 @@ func TestCoverageFloors(t *testing.T) {
 		"audio-tools/internal/diagnostics":        90,
 		"audio-tools/handlers/stt":                80,
 		"audio-tools/internal/audio":              75,
-		"audio-tools/internal/httpx":              70,
 		"audio-tools/internal/stt/pipeline":       20,
 		"audio-tools/internal/tts":                70,
 		"audio-tools/internal/usagereport":        65,

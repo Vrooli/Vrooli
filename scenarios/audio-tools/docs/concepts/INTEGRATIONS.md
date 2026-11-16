@@ -1,6 +1,5 @@
 # Integrations — Audio Tools
 
-## Purpose Of This Document
 
 This is the dependency inventory for the current source and its degradation
 boundaries. Desired portable routing lives in

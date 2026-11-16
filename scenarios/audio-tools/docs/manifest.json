@@ -1813,6 +1813,39 @@
             "generated"
           ],
           "completion": "required"
+        },
+        {
+          "path": "internal/soak-qualification.md",
+          "docType": "qualification",
+          "title": "Long-form Dictation Soak Qualification",
+          "aliases": [
+            "soak-phase",
+            "accelerated-dictation-qualification"
+          ],
+          "description": "Test Genie contract and runbook for the accelerated long-form dictation soak phase",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "long-form-dictation-soak",
+            "accelerated-qualification"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "validated"
+          ],
+          "completion": "required",
+          "validation": {
+            "requiredHeadings": [
+              "North Star",
+              "The rungs and their gates",
+              "What each finding means",
+              "The canonical fix",
+              "How to verify"
+            ]
+          }
         }
       ]
     }

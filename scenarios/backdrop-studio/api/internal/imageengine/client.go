@@ -95,6 +95,9 @@ type GenerationRequest struct {
 	// "interactive". Backdrop renders are not interactive — an operator submits
 	// and waits — so batch is correct and lets latency-sensitive work win.
 	Priority string
+	// RequireGPU fails before inference when the exact GPU admission cannot be
+	// acquired. Callers that permit the CPU fallback leave this false.
+	RequireGPU bool
 	// AllowReclaim permits image-tools to free idle lower-value GPU residents
 	// to satisfy this claim. On a shared host this is the difference between a
 	// render and an out-of-memory failure: this box routinely holds 13GB of
@@ -112,6 +115,9 @@ type GenerationRequest struct {
 // something a caller reconstructs.
 type GenerationResult struct {
 	PNG []byte
+	// ImageToolsJobID links the disclosed model/tier to its durable admission,
+	// timing and capacity receipt in image-tools.
+	ImageToolsJobID string
 	// ModelID is the registry model image-tools' selector actually chose. It is
 	// never a model this scenario asked for: routing is image-tools' decision,
 	// and recording a requested model as the used one would be a fabricated
@@ -439,6 +445,7 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) (Generatio
 		"allowByok":      req.AllowBYOK,
 		"priority":       req.Priority,
 		"allowReclaim":   req.AllowReclaim,
+		"requireGpu":     req.RequireGPU,
 	}
 	if req.Steps > 0 {
 		params["steps"] = req.Steps
@@ -515,7 +522,7 @@ func (c *Client) Generate(ctx context.Context, req GenerationRequest) (Generatio
 	if len(output) == 0 {
 		return GenerationResult{}, fmt.Errorf("image-tools inference returned an empty image")
 	}
-	result := GenerationResult{PNG: output, ModelID: submitted.ModelID, Tier: submitted.Tier}
+	result := GenerationResult{PNG: output, ImageToolsJobID: submitted.JobID, ModelID: submitted.ModelID, Tier: submitted.Tier}
 	if waited.Job.ResultMeta[metaCostProvenance] == providerReportedCostProvenance {
 		if raw, ok := waited.Job.ResultMeta[metaCostUSD]; ok {
 			if cost, parseErr := strconv.ParseFloat(strings.TrimSpace(raw), 64); parseErr == nil {

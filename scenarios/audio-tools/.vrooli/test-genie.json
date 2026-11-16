@@ -47,7 +47,7 @@
     "requiredResources": []
   },
   "docs": {
-    "path": "scenarios/audio-tools/docs/test-genie/soak/README.md"
+    "path": "scenarios/audio-tools/docs/internal/soak-qualification.md"
   },
   "maturity": {
     "version": "1.0.0",

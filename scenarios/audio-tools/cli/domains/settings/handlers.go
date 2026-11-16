@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	"audio-tools/cli/domains/internal/providerlabels"
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
-	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	settv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings"
 	settconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/settings/settings_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/shared"
 	ttsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts"
 	ttsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/tts/tts_v1connect"
 )
@@ -27,19 +27,6 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 		core:   core,
 		client: settconnect.NewSettingsServiceClient(httpClient, baseURL),
 		tts:    ttsconnect.NewTTSServiceClient(httpClient, baseURL),
-	}
-}
-
-func providerTierLabel(t commonv1.ProviderTier) string {
-	switch t {
-	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
-		return "local"
-	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
-		return "byok"
-	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
-		return "vrooli"
-	default:
-		return "unknown"
 	}
 }
 
@@ -67,7 +54,7 @@ func (h *handlers) providers(ctx cliapp.RunContext) error {
 		if a.GetState() == sharedv1.ProviderState_PROVIDER_STATE_AVAILABLE {
 			state = "up"
 		}
-		fmt.Fprintf(out, "  %-7s %-12s %s\n", providerTierLabel(a.GetTier()), a.GetProviderId(), state)
+		fmt.Fprintf(out, "  %-7s %-12s %s\n", providerlabels.TierLabel(a.GetTier()), a.GetProviderId(), state)
 	}
 	return nil
 }

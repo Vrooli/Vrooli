@@ -51,7 +51,7 @@ fallback.
 
 ```bash
 test-genie execute audio-tools --phases soak
-test-genie runs findings --scenario audio-tools
+test-genie runs findings audio-tools
 ```
 
 The provider also persists the one conformance document under

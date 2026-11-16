@@ -4,7 +4,6 @@ Audio Tools is primarily a shared capability, with owned hosted voice adding
 subscription or credit value inside consuming applications. This is a product
 direction and validation plan, not a priced offer or launch approval.
 
-## Purpose Of This Document
 
 Connect the voice experience, adoption path and commercial hypotheses to proof.
 The PRD owns scope; MONETIZATION.md owns packaging proposals and policy decisions.

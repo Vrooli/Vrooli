@@ -10,7 +10,6 @@ This document is the canonical map of product capabilities, bounded
 contexts, and ownership for this scenario. Keep it current whenever a
 domain is added, renamed, split, merged, or removed.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

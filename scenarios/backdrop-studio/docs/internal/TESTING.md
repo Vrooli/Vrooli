@@ -78,6 +78,36 @@ Set `BACKDROP_STUDIO_LANE_BRAND=<brand-id>` to run the bound pass against a real
 Brand Manager brand; without it the bound pass binds tokens directly, which
 exercises the same code path.
 
+### GPU showcase
+
+`make gpu-showcase` first requires `LM17_FOOTPRINT_BASELINE`,
+`LM17_FOOTPRINT_KEEP_FILE`, and `BACKDROP_STUDIO_GPU_DISK_PEAK_BYTES` (a measured
+comparable job peak). Its preflight checks the fresh owner footprint, 120 GiB
+disk reserve, 25 GiB cohort ceiling, Image Tools inventory/waiters, GPU model
+selection and backend doctor. It then renders only the live model-backed
+`synth-celestial` style and sets the typed `require_gpu` request so Image Tools must admit an exact GPU
+claim before inference. It fails unless provenance says `generation_tier=local-gpu`
+and the durable job records its GPU claim and UUID. Check the full host
+capacity/claim inventory, Image Tools waiters, and measured disk peak before
+running it. Set `BACKDROP_STUDIO_GPU_SHOWCASE_OUT=<evidence-dir>` to retain the
+PNG and receipt; the receipt includes the exact Image Tools job ID, claim and
+timestamps. The test logs end-to-end wall time. A CPU fallback remains available
+to ordinary render callers and does not pass this GPU proof.
+
+`make lm17-full-showcase` composes the Backdrop render, an Image Tools
+`text_to_image` job, and the Base+ SAM2 CPU/CUDA comparison. It starts a local
+Ollama request beside each image generation, proves both job intervals overlap
+the successful Ollama request, and records per-job GPU claims, UUIDs, timings,
+disk reservations and GPU telemetry. It compares the host `/proc/vmstat:oom_kill`
+counter before and after the run and fails if the counter changes; successful
+GPU jobs and Ollama requests provide process-level completion evidence. The
+measured full-run peak must cover the
+latest SAM2 Base+ reservation (2,122,375,168 bytes), not only the smaller SD
+artifact peak. Set `BACKDROP_STUDIO_FULL_SHOWCASE_OUT`
+to a retained evidence directory in addition to the four preflight variables
+above. The target does not refresh Backdrop Studio; restart it from the current
+tree under a complete pre-refresh gate first.
+
 ### Why it is not a Test Genie phase
 
 Test Genie's phase registry is provider-backed and closed — there is no

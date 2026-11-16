@@ -24,7 +24,7 @@ type SQLExecutor interface {
 
 type Repository interface {
 	Import(context.Context, chainforensics.Case) (Record, error)
-	MergeCapture(context.Context, string, []chainforensics.Source, []chainforensics.Occurrence, ...[]chainforensics.EVMWalletSnapshot) (Record, error)
+	MergeCapture(context.Context, string, []chainforensics.Source, []chainforensics.Occurrence, ...chainforensics.CaptureAdditions) (Record, error)
 	Get(context.Context, string) (Record, error)
 	List(context.Context, int) ([]Record, error)
 	AddLabel(context.Context, AnalystLabel) (AnalystLabel, error)
@@ -75,7 +75,7 @@ func (r *sqliteRepository) getPacket(ctx context.Context, caseID, digest string)
 	return record, nil
 }
 
-func (r *sqliteRepository) MergeCapture(ctx context.Context, id string, sources []chainforensics.Source, occurrences []chainforensics.Occurrence, snapshots ...[]chainforensics.EVMWalletSnapshot) (Record, error) {
+func (r *sqliteRepository) MergeCapture(ctx context.Context, id string, sources []chainforensics.Source, occurrences []chainforensics.Occurrence, additions ...chainforensics.CaptureAdditions) (Record, error) {
 	record, err := r.Get(ctx, id)
 	if err != nil {
 		return Record{}, err
@@ -139,8 +139,8 @@ func (r *sqliteRepository) MergeCapture(ctx context.Context, id string, sources 
 			changed = true
 		}
 	}
-	for _, batch := range snapshots {
-		for _, snapshot := range batch {
+	for _, batch := range additions {
+		for _, snapshot := range batch.WalletSnapshots {
 			found := false
 			for _, old := range record.Case.WalletSnapshots {
 				if old.ID == snapshot.ID {
@@ -155,6 +155,42 @@ func (r *sqliteRepository) MergeCapture(ctx context.Context, id string, sources 
 			}
 			if !found {
 				record.Case.WalletSnapshots = append(record.Case.WalletSnapshots, snapshot)
+				changed = true
+			}
+		}
+		for _, instruction := range batch.PumpInstructions {
+			found := false
+			for _, old := range record.Case.PumpInstructions {
+				if old.ID == instruction.ID {
+					found = true
+					oldJSON, _ := json.Marshal(old)
+					newJSON, _ := json.Marshal(instruction)
+					if string(oldJSON) != string(newJSON) {
+						return Record{}, ErrConflict{ID: id}
+					}
+					break
+				}
+			}
+			if !found {
+				record.Case.PumpInstructions = append(record.Case.PumpInstructions, instruction)
+				changed = true
+			}
+		}
+		for _, instruction := range batch.UnresolvedPumpInstructions {
+			found := false
+			for _, old := range record.Case.UnresolvedPumpInstructions {
+				if old.ID == instruction.ID {
+					found = true
+					oldJSON, _ := json.Marshal(old)
+					newJSON, _ := json.Marshal(instruction)
+					if string(oldJSON) != string(newJSON) {
+						return Record{}, ErrConflict{ID: id}
+					}
+					break
+				}
+			}
+			if !found {
+				record.Case.UnresolvedPumpInstructions = append(record.Case.UnresolvedPumpInstructions, instruction)
 				changed = true
 			}
 		}

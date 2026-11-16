@@ -10,7 +10,6 @@ Required new targets own exact immutable package/actor/destination/window admiss
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -21,7 +21,6 @@ identity has actually done and what happened). Descriptors are authored, reviewe
 and replayable; state is accumulated and never rewritten. If a change would let
 runtime state edit a descriptor, it belongs in a proposal instead.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

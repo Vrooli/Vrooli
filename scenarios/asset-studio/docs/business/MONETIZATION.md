@@ -3,7 +3,6 @@
 This document records how the scenario could earn its keep, and what
 evidence would justify investing further.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

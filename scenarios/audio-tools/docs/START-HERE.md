@@ -349,10 +349,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "component"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "component-id"
+react-component-library components draft-publish "component"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -361,17 +361,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest audio-tools <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest audio-tools "ui/src/components/Example.tsx" example-component --experience-contract "experience/components/example-component.json" --display-name "Example component" --slot "Main"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> audio-tools
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "component-id" --version "1.0.0"
+react-component-library adoptions preflight "component-id" audio-tools --version "1.0.0"
+react-component-library workflows promotion-readiness "asset-id" --origin-scenario audio-tools
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -379,14 +377,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario audio-tools
+react-component-library workflows promotion-readiness "asset-id" --origin-scenario audio-tools
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions apply <component-id> audio-tools <adopted-path>
+react-component-library adoptions link "component-id" audio-tools --version "1.0.0"
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

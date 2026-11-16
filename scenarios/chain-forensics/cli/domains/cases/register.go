@@ -95,11 +95,11 @@ func (h *client) captureSolanaAddressPageReport(_ cliapp.OperationContext, r *p.
 	if r.GetCase() != nil {
 		id = r.GetCase().GetId()
 	}
-	result := fmt.Sprintf("Captured %d finalized Solana transaction(s) and %d token-balance observation(s) into case %s.", r.GetCapturedTransactionCount(), r.GetCapturedOccurrenceCount(), id)
+	result := fmt.Sprintf("Captured %d finalized Solana transaction(s), %d token-balance observation(s), and %d decoded Pump instruction(s) into case %s; %d Pump instruction(s) remain unresolved.", r.GetCapturedTransactionCount(), r.GetCapturedOccurrenceCount(), r.GetCapturedPumpInstructionCount(), id, r.GetUnresolvedPumpInstructionCount())
 	if r.GetNextBeforeSignature() != "" {
 		result += " Next page cursor: " + r.GetNextBeforeSignature()
 	}
-	return cliapp.MutationReport{Result: []string{result}, Changes: []string{"One bounded finalized signature page and per-transaction token balance deltas were attached with response hashes."}}
+	return cliapp.MutationReport{Result: []string{result}, Changes: []string{"One bounded finalized signature page, exact per-transaction token deltas, and versioned Pump instruction records were attached with response hashes."}}
 }
 
 func (h *client) captureEVMWalletSnapshot(ctx cliapp.OperationContext) (*p.CaptureEVMWalletSnapshotResponse, error) {
@@ -228,10 +228,14 @@ func (h *client) importCase(ctx cliapp.OperationContext) (*p.CaseResponse, error
 // normalizeEnums accepts the canonical package Case JSON vocabulary while
 // preserving the strongly typed proto enum wire contract.
 func normalizeEnums(v any) {
+	normalizeEnumsAt(v, false)
+}
+
+func normalizeEnumsAt(v any, pumpInstruction bool) {
 	switch x := v.(type) {
 	case map[string]any:
 		for k, value := range x {
-			if s, ok := value.(string); ok {
+			if s, ok := value.(string); ok && !pumpInstruction {
 				switch k {
 				case "chain":
 					x[k] = "CHAIN_" + strings.ToUpper(s)
@@ -241,11 +245,16 @@ func normalizeEnums(v any) {
 					x[k] = "EVIDENCE_GRADE_" + strings.ToUpper(s)
 				}
 			}
-			normalizeEnums(value)
+			_, isPumpInstructions := x[k].([]any)
+			if k == "pump_instructions" && isPumpInstructions {
+				normalizeEnumsAt(x[k], true)
+			} else {
+				normalizeEnumsAt(x[k], pumpInstruction)
+			}
 		}
 	case []any:
 		for _, value := range x {
-			normalizeEnums(value)
+			normalizeEnumsAt(value, pumpInstruction)
 		}
 	}
 }

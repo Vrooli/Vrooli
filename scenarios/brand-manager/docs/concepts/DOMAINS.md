@@ -8,7 +8,6 @@ brand-manager owns the full branding lifecycle: authors brands and logo
 candidates, composes icon targets from one vector mark, applies them to
 scenarios, and validates the result through the test-genie `branding` phase.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

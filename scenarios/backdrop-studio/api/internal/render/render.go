@@ -139,6 +139,7 @@ type Request struct {
 	Seed        int64
 	Count       int
 	BrandTokens map[string]string
+	RequireGPU  bool
 }
 
 func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error) {
@@ -172,6 +173,9 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 	routing, routeErr := resolveLane(style)
 	if routeErr != nil {
 		return Job{}, routeErr
+	}
+	if req.RequireGPU && routing.ServedLane != LaneLocalModel {
+		return Job{}, fmt.Errorf("render: require_gpu needs a local-model style; %q serves through %q", style.ID, routing.ServedLane)
 	}
 	jobID := id(style.ID, req.Surface.ID, seed, count)
 	job := &Job{ID: jobID, StyleID: style.ID, SurfaceID: req.Surface.ID, Placement: req.Placement, Regions: append([]catalog.Region(nil), style.Regions...), ContrastThreshold: style.ContrastThreshold, Status: "completed", Seed: seed, ExecutionPath: expectedPath(style.Strategy)}
@@ -306,6 +310,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 		generationNative := ""
 		generationModel := ""
 		generationTier := ""
+		imageToolsJobID := ""
 		prompt := ""
 		if style.Generation != nil {
 			prompt = style.Generation.PromptTemplate
@@ -354,6 +359,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 				AllowBYOK:      policy.AllowBYOK,
 				Priority:       "batch",
 				AllowReclaim:   true,
+				RequireGPU:     req.RequireGPU,
 				Conditioning: func() []byte {
 					if style.Strategy == "guided" {
 						conditioningSubmitted = true
@@ -379,6 +385,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 			// honestly, and this is the only moment the fact exists.
 			generationModel = generated.ModelID
 			generationTier = generated.Tier
+			imageToolsJobID = generated.ImageToolsJobID
 			routing.recordGeneration(generated)
 			// A model answers in whatever format it likes; the candidate field
 			// is named image_png and every consumer decodes it as one.
@@ -444,7 +451,7 @@ func (s *Store) SubmitWithContext(ctx context.Context, req Request) (Job, error)
 		if sweepErr := s.gateParallaxSweep(style, treated, candidatePlates); sweepErr != nil {
 			return Job{}, sweepErr
 		}
-		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: len(style.Treatments) > 0, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, Model: generationModel, Tier: generationTier, Negative: generationNegative(style), Conditioner: conditioner, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, generationModel, generationTier, outW, outH, routing, generatorAuthor), QualityJSON: qualityJSON(verdict), SVG: svgSource, Routing: routing, Plates: candidatePlates})
+		job.Candidates = append(job.Candidates, Candidate{ID: id(jobID, candidateSeed, i), JobID: jobID, Strategy: style.Strategy, ExecutionPath: job.ExecutionPath, PNG: treated, Width: outW, Height: outH, Seed: candidateSeed, TreatmentApplied: len(style.Treatments) > 0, ConditioningSubmitted: conditioningSubmitted, DisclosureRequired: style.Strategy == "guided" || style.Strategy == "synthesized", Prompt: prompt, Model: generationModel, Tier: generationTier, Negative: generationNegative(style), Conditioner: conditioner, ProvenanceJSON: provenance(style, req.Surface, candidateSeed, job.ExecutionPath, generationNative, generationModel, generationTier, imageToolsJobID, outW, outH, routing, generatorAuthor), QualityJSON: qualityJSON(verdict), SVG: svgSource, Routing: routing, Plates: candidatePlates})
 	}
 	s.mu.Lock()
 	s.jobs[jobID] = job
@@ -467,7 +474,7 @@ const (
 // backdrop can be reproduced and audited rather than merely trusted. For a
 // model-backed candidate it names both sizes: the geometry the model drew and
 // the geometry that shipped.
-func provenance(style catalog.Style, surface Surface, seed int64, executionPath, generationNative, model, tier string, width, height int, routing Routing, generatorAuthor string) string {
+func provenance(style catalog.Style, surface Surface, seed int64, executionPath, generationNative, model, tier, imageToolsJobID string, width, height int, routing Routing, generatorAuthor string) string {
 	record := map[string]any{
 		"style_id":       style.ID,
 		"strategy":       style.Strategy,
@@ -501,6 +508,9 @@ func provenance(style catalog.Style, surface Surface, seed int64, executionPath,
 		}
 		if tier != "" {
 			record["generation_tier"] = tier
+		}
+		if imageToolsJobID != "" {
+			record["image_tools_job_id"] = imageToolsJobID
 		}
 		record["generation_steps"] = generationSteps
 		record["generation_cfg_scale"] = generationCFGScale

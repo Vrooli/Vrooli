@@ -84,15 +84,19 @@ func (h *Handler) CaptureSolanaAddressPage(ctx context.Context, req *connect.Req
 	}
 	sources := []forensics.Source{page.Source}
 	occurrences := make([]forensics.Occurrence, 0)
+	pumpInstructions := make([]forensics.PumpInstruction, 0)
+	unresolvedPumpInstructions := make([]forensics.UnresolvedPumpInstruction, 0)
 	for _, tx := range page.Transactions {
 		sources = append(sources, tx.Source)
 		occurrences = append(occurrences, tx.Occurrences...)
+		pumpInstructions = append(pumpInstructions, tx.PumpInstructions...)
+		unresolvedPumpInstructions = append(unresolvedPumpInstructions, tx.UnresolvedPumpInstructions...)
 	}
-	updated, err := h.repo.MergeCapture(ctx, record.Case.ID, sources, occurrences)
+	updated, err := h.repo.MergeCapture(ctx, record.Case.ID, sources, occurrences, forensics.CaptureAdditions{PumpInstructions: pumpInstructions, UnresolvedPumpInstructions: unresolvedPumpInstructions})
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&proto.CaptureSolanaAddressPageResponse{Case: toProto(updated), CapturedTransactionCount: uint32(len(page.Transactions)), CapturedOccurrenceCount: uint32(len(occurrences)), NextBeforeSignature: page.NextBefore}), nil
+	return connect.NewResponse(&proto.CaptureSolanaAddressPageResponse{Case: toProto(updated), CapturedTransactionCount: uint32(len(page.Transactions)), CapturedOccurrenceCount: uint32(len(occurrences)), NextBeforeSignature: page.NextBefore, CapturedPumpInstructionCount: uint32(len(pumpInstructions)), UnresolvedPumpInstructionCount: uint32(len(unresolvedPumpInstructions))}), nil
 }
 
 func (h *Handler) CaptureEVMWalletSnapshot(ctx context.Context, req *connect.Request[proto.CaptureEVMWalletSnapshotRequest]) (*connect.Response[proto.CaptureEVMWalletSnapshotResponse], error) {
@@ -109,7 +113,7 @@ func (h *Handler) CaptureEVMWalletSnapshot(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
 	}
-	updated, err := h.repo.MergeCapture(ctx, record.Case.ID, captured.Sources, nil, []forensics.EVMWalletSnapshot{captured.Snapshot})
+	updated, err := h.repo.MergeCapture(ctx, record.Case.ID, captured.Sources, nil, forensics.CaptureAdditions{WalletSnapshots: []forensics.EVMWalletSnapshot{captured.Snapshot}})
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -406,6 +410,12 @@ func toProto(r cases.Record) *proto.EvidenceCase {
 		}
 		p.WalletSnapshots = append(p.WalletSnapshots, ps)
 	}
+	for _, instruction := range d.PumpInstructions {
+		p.PumpInstructions = append(p.PumpInstructions, &proto.PumpInstruction{Id: instruction.ID, TransactionId: instruction.Transaction, Slot: instruction.Slot, InstructionIndex: instruction.Index, ProgramId: instruction.ProgramID, SourceId: instruction.SourceID, Kind: instruction.Kind, DecoderVersion: instruction.DecoderVersion, Mint: instruction.Mint, User: instruction.User, Creator: instruction.Creator, Name: instruction.Name, Symbol: instruction.Symbol, MetadataUri: instruction.MetadataURI, MayhemMode: instruction.MayhemMode, CashbackEnabled: instruction.CashbackEnabled, CreatorFeeBps: instruction.CreatorFeeBPS, HolderReward: instruction.HolderReward})
+	}
+	for _, instruction := range d.UnresolvedPumpInstructions {
+		p.UnresolvedPumpInstructions = append(p.UnresolvedPumpInstructions, &proto.UnresolvedPumpInstruction{Id: instruction.ID, TransactionId: instruction.Transaction, Slot: instruction.Slot, InstructionIndex: instruction.Index, ProgramId: instruction.ProgramID, SourceId: instruction.SourceID, Discriminator: instruction.Discriminator, Reason: instruction.Reason})
+	}
 	return p
 }
 
@@ -429,6 +439,12 @@ func fromProto(p *proto.EvidenceCase) (forensics.Case, error) {
 			ws.Tokens = append(ws.Tokens, forensics.WalletTokenBalance{Contract: token.GetContract(), Atomic: token.GetAtomicQuantity(), Scale: token.GetScale(), ScaleKnown: token.GetScaleKnown()})
 		}
 		d.WalletSnapshots = append(d.WalletSnapshots, ws)
+	}
+	for _, instruction := range p.GetPumpInstructions() {
+		d.PumpInstructions = append(d.PumpInstructions, forensics.PumpInstruction{ID: instruction.GetId(), Transaction: instruction.GetTransactionId(), Slot: instruction.GetSlot(), Index: instruction.GetInstructionIndex(), ProgramID: instruction.GetProgramId(), SourceID: instruction.GetSourceId(), Kind: instruction.GetKind(), DecoderVersion: instruction.GetDecoderVersion(), Mint: instruction.GetMint(), User: instruction.GetUser(), Creator: instruction.GetCreator(), Name: instruction.GetName(), Symbol: instruction.GetSymbol(), MetadataURI: instruction.GetMetadataUri(), MayhemMode: instruction.GetMayhemMode(), CashbackEnabled: instruction.GetCashbackEnabled(), CreatorFeeBPS: instruction.GetCreatorFeeBps(), HolderReward: instruction.GetHolderReward()})
+	}
+	for _, instruction := range p.GetUnresolvedPumpInstructions() {
+		d.UnresolvedPumpInstructions = append(d.UnresolvedPumpInstructions, forensics.UnresolvedPumpInstruction{ID: instruction.GetId(), Transaction: instruction.GetTransactionId(), Slot: instruction.GetSlot(), Index: instruction.GetInstructionIndex(), ProgramID: instruction.GetProgramId(), SourceID: instruction.GetSourceId(), Discriminator: instruction.GetDiscriminator(), Reason: instruction.GetReason()})
 	}
 	if err := forensics.Validate(d); err != nil {
 		return forensics.Case{}, err

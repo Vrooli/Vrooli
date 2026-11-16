@@ -52,11 +52,12 @@ same-origin API; it must not compose or expose a foreign scenario URL.
 
 ## 3. Install and use the shared browser package
 
-Install through the Scenario Dependency Analyzer:
+Preview the package change through the Scenario Dependency Analyzer. Preview is
+the default; add `--apply` to the reviewed command when you are ready to write
+the dependency and lockfile:
 
 ```bash
-scenario-dependency-analyzer deps install npm/@vrooli/audio-capture-browser \
-  --scenario <name> --surface ui --apply
+scenario-dependency-analyzer deps install npm/@vrooli/audio-capture-browser --scenario audio-tools --surface ui
 ```
 
 The package owns the implementation that must remain consistent for every

@@ -737,7 +737,7 @@ longer current.
 
 **Evidence:** `handlers/stt/stream_ws.go`, focused STT handler tests, and the
 live baseline transcription recorded in
-`/home/matthalloran8/.vrooli/plan-artifacts/speech-stack-ground-truth/`.
+`../../../.vrooli/plan-artifacts/speech-stack-ground-truth/`.
 
 ### 2026-05-27 — ScriptProcessorNode → AudioWorklet migration (deferred)
 
@@ -833,6 +833,14 @@ Evaluation replay/session construction moved from handlers/eval into internal/ev
 ### 2026-07-23 - Bootstrap transport and experiment boundaries were separated
 
 The experiment report workflow now lives in internal/experiment/report and HTTP module composition now lives in internal/transport. api/internal/bootstrap/bootstrap.go is 312 lines and has no handler imports; bootstrap's package files have no handler imports. Full API suite passed with GOWORK=off go test ./... on 2026-07-23. Remaining architecture findings still require a fresh evidence-manifest-producing architecture run.
+
+### 2026-11-15 - 2026-11-16 — Cleanup history: centralize provider-tier labels
+
+The five CLI domains settings, STT, summarize, TTS, and usage held byte-identical providerTierLabel implementations. Their callers now use one Audio Tools CLI helper at cli/domains/internal/providerlabels; all prior local implementations were deleted. The separate diagnostics formatter remains because its unknown-value label differs. Focused tests for the shared helper and all five affected domains pass. Production source is 46 lines smaller across the CLI domain boundary; whole-scenario reduction and Test Genie maturity are not claimed.
+
+### 2026-11-15 - 2026-11-16 - Remove unconnected HTTP and remote reporting stubs
+
+Approach: dead-path deletion. Removed the internal/httpx production writer because repository-wide source search found no production caller; its references were its own tests and coverage-floor entry. Removed the LPBS RemoteReporter because it was only self-tested, described itself as future/flag-off until the LPBS gateway shipped, and had no production constructor, Start, or Submit caller. Updated the SEAMS index. Kept the local UsageService recorder and the still-connected LPBS client/provider interfaces. Also aligned one existing summarize test call with the current API, supplying empty optional receipt/policy values; focused summarize tests pass.
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

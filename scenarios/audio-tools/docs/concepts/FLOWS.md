@@ -97,7 +97,6 @@ the scenario. Use it when behavior depends on ordered states, retries,
 cancellation, stale completion, background jobs, polling, or mutually
 exclusive UI modes.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

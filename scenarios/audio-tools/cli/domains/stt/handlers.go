@@ -21,6 +21,7 @@ import (
 	"golang.org/x/net/http2"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
+	"audio-tools/cli/domains/internal/providerlabels"
 	"github.com/vrooli/cli-core/cliapp"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/audio-tools/v1/common"
@@ -160,19 +161,6 @@ func availabilityLabel(ok bool) string {
 	return "unavailable"
 }
 
-func providerTierLabel(t commonv1.ProviderTier) string {
-	switch t {
-	case commonv1.ProviderTier_PROVIDER_TIER_LOCAL:
-		return "local"
-	case commonv1.ProviderTier_PROVIDER_TIER_BYOK:
-		return "byok"
-	case commonv1.ProviderTier_PROVIDER_TIER_VROOLI:
-		return "vrooli"
-	default:
-		return "unknown"
-	}
-}
-
 func streamingModeLabel(m sttv1.StreamingMode) string {
 	switch m {
 	case sttv1.StreamingMode_STREAMING_MODE_OFF:
@@ -246,7 +234,7 @@ func (h *handlers) transcribe(ctx cliapp.RunContext) error {
 	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
 		Result: []string{
 			fmt.Sprintf("Transcribed via %s/%s (%.0fms): %s",
-				providerTierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, resp.Msg.LatencyMs, resp.Msg.Text),
+				providerlabels.TierLabel(resp.Msg.GetProviderTier()), resp.Msg.ProviderId, resp.Msg.LatencyMs, resp.Msg.Text),
 		},
 	})
 }
@@ -332,7 +320,7 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 			fmt.Fprintf(ctx.Stdout(), "partial: %s\n", e.Partial.Text)
 		case *sttv1.TranscribeStreamEvent_Segment:
 			fmt.Fprintf(ctx.Stdout(), "segment [%s/%s %.0fms]: %s\n",
-				providerTierLabel(e.Segment.ProviderTier), e.Segment.ModelId, e.Segment.LatencyMs, e.Segment.Text)
+				providerlabels.TierLabel(e.Segment.ProviderTier), e.Segment.ModelId, e.Segment.LatencyMs, e.Segment.Text)
 		case *sttv1.TranscribeStreamEvent_WakeWord:
 			fmt.Fprintf(ctx.Stdout(), "wake-word: score=%.3f sample=%s\n", e.WakeWord.Score, e.WakeWord.SampleId)
 		case *sttv1.TranscribeStreamEvent_SpeakerRejection:
@@ -346,7 +334,7 @@ func (h *handlers) transcribeStream(ctx cliapp.RunContext) error {
 				fallback = " (streaming degraded: buffered mode)"
 			}
 			fmt.Fprintf(ctx.Stdout(), "done [%s/%s %.0fms%s]: %s\n",
-				providerTierLabel(e.Done.ProviderTier), e.Done.ModelId, e.Done.LatencyMs, fallback, e.Done.FinalText)
+				providerlabels.TierLabel(e.Done.ProviderTier), e.Done.ModelId, e.Done.LatencyMs, fallback, e.Done.FinalText)
 		}
 	}
 	return lastErr

@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/go-echarts/go-echarts/v2/types"
@@ -28,13 +27,11 @@ import (
 	"github.com/johnfercher/maroto/v2/pkg/consts/fontstyle"
 	"github.com/johnfercher/maroto/v2/pkg/props"
 	"github.com/vrooli/api-core/discovery"
-	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
-	"github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture/captureconnect"
 )
 
 const (
 	// chartScenarioSlug and basScenarioSlug are the discovery slugs used to
-	// reach this scenario's own served files and the BAS capture service.
+	// reach this scenario's own served files and the BAS bundle service.
 	chartScenarioSlug = "chart-generator"
 	basScenarioSlug   = "browser-automation-studio"
 
@@ -48,18 +45,17 @@ const (
 	// dedicated dir (not bare /tmp) so only chart output is ever HTTP-exposed.
 	renderRootDir = "/tmp/chart-generator-rendered"
 
-	// defaultCaptureTimeout bounds one BAS screenshot. A capture is a real
+	// defaultCaptureTimeout bounds one BAS bundle capture. A capture is a real
 	// navigation (2–10s) plus artifact export, so this is deliberately generous.
 	defaultCaptureTimeout = 60 * time.Second
 )
 
-// captureClient is the narrow BAS CaptureService seam the renderer needs: the
-// generated Connect client satisfies it in production; tests fake it.
+// captureClient is the narrow EX9 pixels seam the renderer needs.
 type captureClient interface {
-	Capture(ctx context.Context, req *connect.Request[capturev1.CaptureRequest]) (*connect.Response[capturev1.CaptureResponse], error)
+	CaptureScenarioPixels(ctx context.Context, scenario, route string, width, height int) ([]byte, error)
 }
 
-// captureResolver lazily produces the BAS Capture client. Production resolves
+// captureResolver lazily produces the BAS bundle client. Production resolves
 // browser-automation-studio's base URL through scenario discovery on first use
 // (BAS may boot after chart-generator); tests inject a canned client.
 type captureResolver func(ctx context.Context) (captureClient, error)
@@ -77,8 +73,7 @@ type ChartRenderer struct {
 	capture        captureClient
 }
 
-// NewChartRenderer creates a new chart renderer wired to reach
-// browser-automation-studio's CaptureService for PNG rendering.
+// NewChartRenderer creates a renderer wired to BAS's versioned pixel bundle.
 func NewChartRenderer(outputDir string) *ChartRenderer {
 	httpClient := &http.Client{Timeout: defaultCaptureTimeout}
 	return &ChartRenderer{
@@ -88,7 +83,7 @@ func NewChartRenderer(outputDir string) *ChartRenderer {
 			if err != nil {
 				return nil, fmt.Errorf("browser-automation-studio not available: %w", err)
 			}
-			return captureconnect.NewCaptureServiceClient(httpClient, baseURL), nil
+			return scenarioBundleCaptureClient{baseURL: baseURL, httpClient: httpClient}, nil
 		},
 	}
 }
@@ -154,7 +149,7 @@ func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcesso
 			files[format] = outputPath
 
 		case "png":
-			// Generate actual PNG via browser-automation-studio's CaptureService.
+			// Generate actual PNG via browser-automation-studio's EX9 pixel bundle.
 			if err := cr.generatePNG(outputPath, htmlPath, req); err != nil {
 				fmt.Printf("⚠️ browser-automation-studio PNG generation failed: %v\n", err)
 				// Fall back to placeholder if BAS is not available
@@ -919,73 +914,37 @@ func (cr *ChartRenderer) generatePNG(outputPath, htmlPath string, req ChartGener
 	return nil
 }
 
-// capturePNGWithBAS renders outputPath via one BAS CaptureService.Capture
-// screenshot of the served chart HTML. The scenario= shorthand keeps the call
-// host-independent: BAS resolves chart-generator's base URL itself and appends
-// the served path. Screenshot bytes land on the BAS filesystem, which the
-// executor shares with this scenario on a local host, so we copy them to the
-// caller's output path. Any failure returns an error and the caller falls back
-// to the placeholder PNG — the same graceful-degradation contract as before.
+// capturePNGWithBAS renders outputPath from one manifest-verified EX9 pixel artifact.
+// Any failure returns an error so the caller keeps its existing placeholder fallback.
 func (cr *ChartRenderer) capturePNGWithBAS(outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
 	client, err := cr.captureClientOrResolve(context.Background())
 	if err != nil {
 		return err
 	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), defaultCaptureTimeout)
 	defer cancel()
-
-	width := req.Width
+	width, height := req.Width, req.Height
 	if width <= 0 {
 		width = 800
 	}
-	height := req.Height
 	if height <= 0 {
 		height = 600
 	}
-
 	servedPath, err := cr.renderedURLPath(htmlPath)
 	if err != nil {
 		return err
 	}
-	captureURL := fmt.Sprintf("scenario=%s,path=%s", chartScenarioSlug, servedPath)
-
-	w := int32(width)
-	h := int32(height)
-	resp, err := client.Capture(ctx, connect.NewRequest(&capturev1.CaptureRequest{
-		Url:      captureURL,
-		Captures: []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT},
-		Dimensions: &capturev1.Dimensions{
-			Width:  &w,
-			Height: &h,
-		},
-		WaitFor: &capturev1.WaitFor{Spec: &capturev1.WaitFor_Networkidle{Networkidle: true}},
-		Label:   "chart-generator png export",
-	}))
+	pngData, err := client.CaptureScenarioPixels(ctx, chartScenarioSlug, servedPath, width, height)
 	if err != nil {
-		// Drop the cached client so a BAS restart (new port) re-resolves.
 		cr.captureMu.Lock()
 		cr.capture = nil
 		cr.captureMu.Unlock()
-		return fmt.Errorf("browser-automation-studio capture failed: %w", err)
+		return fmt.Errorf("browser-automation-studio UX capture failed: %w", err)
 	}
-
-	var shotPath string
-	for _, art := range resp.Msg.GetArtifacts() {
-		if art.GetType() == capturev1.CaptureType_CAPTURE_TYPE_SCREENSHOT {
-			shotPath = art.GetPath()
-			break
-		}
+	if len(pngData) == 0 {
+		return fmt.Errorf("browser-automation-studio UX capture returned empty pixels")
 	}
-	if shotPath == "" {
-		return fmt.Errorf("browser-automation-studio capture returned no screenshot artifact")
-	}
-
-	data, err := os.ReadFile(shotPath)
-	if err != nil {
-		return fmt.Errorf("read screenshot artifact %q: %w", shotPath, err)
-	}
-	if err := os.WriteFile(outputPath, data, 0o644); err != nil {
+	if err := os.WriteFile(outputPath, pngData, 0o644); err != nil {
 		return fmt.Errorf("write PNG to %q: %w", outputPath, err)
 	}
 	return nil
