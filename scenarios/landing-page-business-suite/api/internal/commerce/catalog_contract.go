@@ -88,15 +88,24 @@ type BundleCatalogEntry struct {
 
 // UpdateBundlePriceInput contains display metadata editable by operators.
 type UpdateBundlePriceInput struct {
-	StripePriceID  *string
-	PlanName       *string
-	DisplayWeight  *int
-	DisplayEnabled *bool
-	Subtitle       *string
-	Badge          *string
-	CtaLabel       *string
-	Highlight      *bool
-	Features       *[]string
+	StripePriceID   *string
+	PlanName        *string
+	DisplayWeight   *int
+	DisplayEnabled  *bool
+	Subtitle        *string
+	Badge           *string
+	CtaLabel        *string
+	Highlight       *bool
+	Features        *[]string
+	AppEntitlements *map[string]AppEntitlementPlanSpec
+}
+
+// AppEntitlementPlanSpec declares the effective app grants carried by a
+// subscription offer. A standalone plan has one app key; a bundle lists every
+// included app. Status and rank are derived from the active subscription.
+type AppEntitlementPlanSpec struct {
+	Features []string         `json:"features,omitempty"`
+	Limits   map[string]int64 `json:"limits,omitempty"`
 }
 
 // CreateBundlePriceInput contains a complete operator-provided price definition.
@@ -115,4 +124,5 @@ type CreateBundlePriceInput struct {
 	CtaLabel               *string
 	Highlight              *bool
 	Features               []string
+	AppEntitlements        map[string]AppEntitlementPlanSpec
 }

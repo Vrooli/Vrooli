@@ -22,6 +22,7 @@ import {
 import { Switch } from '../../../../shared/ui/switch';
 import { Callout } from '../Callout';
 import { createBundlePrice, verifyStripePrice, type CreateBundlePricePayload } from '../../../../shared/api/billing';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 interface AddPlanModalProps {
   bundleKey: string;
@@ -490,22 +491,10 @@ export function AddPlanModal({ bundleKey, isOpen, onClose, onSuccess }: AddPlanM
         </div>
 
         <DialogFooter className="border-t border-slate-700 pt-4">
-          <Button variant="outline" onClick={handleClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={() => { void handleSave(); }} disabled={saving}>
-            {saving ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Plan
-              </>
-            )}
-          </Button>
+          <OverlayActionBar actions={[
+            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
+            { id: 'create-plan', label: saving ? 'Creating...' : 'Create Plan', onSelect: () => { void handleSave(); }, disabled: saving, primary: true },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

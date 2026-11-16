@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, Loader2, RefreshCw, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { KeyRound, Loader2, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 import type { RemoteAPIKey, RemoteProfile, RemoteStripeSettings } from '../../../shared/api';
 import {
   createRemoteAPIKeyAdmin,
@@ -14,7 +14,6 @@ import { PROVIDER_OPTIONS } from '../../../shared/api/credits';
 import { Button } from '../../../shared/ui/button';
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -25,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Switch } from '../../../shared/ui/switch';
 import { inputClassName } from '../components/formFieldClasses';
 import { SetupTask, type SetupTaskStatus } from '@vrooli/react-component-library/SetupTask/0';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 type SettingsTab = 'credentials' | 'payments';
 
@@ -232,8 +232,10 @@ export function RemoteProfileOwnerSettingsDialog({ profile, open, onOpenChange }
         </div>
 
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => { void load(); }} disabled={loading || busy !== null}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
-          <DialogClose asChild><Button variant="ghost">Close</Button></DialogClose>
+          <OverlayActionBar actions={[
+            { id: 'refresh', label: 'Refresh', onSelect: () => { void load(); }, disabled: loading || busy !== null },
+            { id: 'close', label: 'Close', onSelect: () => { onOpenChange(false); }, primary: true },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -3,6 +3,7 @@ package commerce
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -24,19 +25,14 @@ func TestNormalizeUsageReportRejectsUnmeteredRequest(t *testing.T) {
 	}
 }
 
-func TestRecordUsagePersistsProviderMetadataEvent(t *testing.T) {
+func TestRecordUsageRejectsCallerSuppliedAppScope(t *testing.T) {
 	db, err := sql.Open("sqlite", ":memory:")
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
 	defer db.Close()
-	for _, statement := range []string{
-		`CREATE TABLE usage_records (user_identity TEXT NOT NULL, billing_period TEXT NOT NULL, limit_key TEXT NOT NULL, usage_amount INTEGER NOT NULL, app_bundle_key TEXT, operation_id TEXT, last_operation_at TEXT, updated_at TEXT, UNIQUE(user_identity, billing_period, limit_key, app_bundle_key))`,
-		`CREATE TABLE usage_events (operation_id TEXT UNIQUE, user_identity TEXT NOT NULL, app_bundle_key TEXT NOT NULL, model TEXT NOT NULL, credits INTEGER NOT NULL, cost_micros INTEGER NOT NULL, prompt_tokens INTEGER NOT NULL, completion_tokens INTEGER NOT NULL, provider TEXT NOT NULL)`,
-	} {
-		if _, err := db.Exec(statement); err != nil {
-			t.Fatalf("create test schema: %v", err)
-		}
+	if _, err := db.Exec(`CREATE TABLE usage_records (user_identity TEXT NOT NULL, billing_period TEXT NOT NULL, limit_key TEXT NOT NULL, usage_amount INTEGER NOT NULL, app_bundle_key TEXT, operation_id TEXT, last_operation_at TEXT, updated_at TEXT, UNIQUE(user_identity, billing_period, limit_key, app_bundle_key))`); err != nil {
+		t.Fatalf("create test schema: %v", err)
 	}
 
 	opID := "op-record-1"
@@ -55,20 +51,14 @@ func TestRecordUsagePersistsProviderMetadataEvent(t *testing.T) {
 			"provider":          "openrouter",
 		},
 	})
-	if err != nil {
-		t.Fatalf("RecordUsage: %v", err)
+	if !errors.Is(err, ErrDirectUsageScopeUnavailable) {
+		t.Fatalf("RecordUsage error=%v, want fail-closed app scope refusal", err)
 	}
-
-	var user, app, model, provider string
-	var credits, cost, prompt, completion int64
-	if err := db.QueryRow(`SELECT user_identity, app_bundle_key, model, credits, cost_micros, prompt_tokens, completion_tokens, provider FROM usage_events WHERE operation_id=?`, opID).
-		Scan(&user, &app, &model, &credits, &cost, &prompt, &completion, &provider); err != nil {
-		t.Fatalf("read usage event: %v", err)
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM usage_records`).Scan(&count); err != nil {
+		t.Fatalf("count usage records: %v", err)
 	}
-	if user != "user@example.com" || app != "my-app" || model != "openrouter/test-model" || provider != "openrouter" {
-		t.Fatalf("event identity metadata = user=%q app=%q model=%q provider=%q", user, app, model, provider)
-	}
-	if credits != 17 || cost != 1234 || prompt != 10 || completion != 5 {
-		t.Fatalf("event accounting = credits=%d cost=%d prompt=%d completion=%d", credits, cost, prompt, completion)
+	if count != 0 {
+		t.Fatalf("unverified app billing scope wrote %d usage record(s)", count)
 	}
 }

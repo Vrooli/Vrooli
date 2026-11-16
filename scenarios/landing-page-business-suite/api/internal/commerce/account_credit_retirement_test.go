@@ -68,6 +68,8 @@ func TestAccountFundingEventReplayPreservesOriginalGrant(t *testing.T) {
 			}
 			defer db.Close()
 			mock.ExpectBegin()
+			mock.ExpectExec("SELECT pg_advisory_xact_lock\\(hashtextextended\\(\\$1,0\\)\\)").WithArgs(tc.account).WillReturnResult(sqlmock.NewResult(0, 0))
+			mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM funding_purchase_blocks WHERE business_account_id=\\$1\\)").WithArgs(tc.account).WillReturnRows(sqlmock.NewRows([]string{"blocked"}).AddRow(false))
 			mock.ExpectExec("INSERT INTO business_account_credit_transactions").WillReturnResult(sqlmock.NewResult(0, 0))
 			mock.ExpectQuery("SELECT business_account_id,customer_email,amount_credits,transaction_type,metadata FROM business_account_credit_transactions").WithArgs("stripe", "event").WillReturnRows(sqlmock.NewRows([]string{"account", "email", "amount", "kind", "metadata"}).AddRow("acct", "member@example.test", 10, "credit_topup", []byte(`{ "note": "grant", "livemode": false }`)))
 			mock.ExpectRollback()

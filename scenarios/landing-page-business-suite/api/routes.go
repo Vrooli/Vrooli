@@ -53,7 +53,6 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/identity"
-	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 func (s *Server) setupRoutes() {
@@ -345,6 +344,16 @@ func registerReceiptRoutes(s *Server) {
 		UserIdentity: func(ctx context.Context) string {
 			return getUserEmail(ctx)
 		},
+		UserID: func(ctx context.Context) string {
+			return getUserID(ctx)
+		},
+		ResolveBusinessAccount: func(ctx context.Context, userID, identity, requestedID string) (string, error) {
+			account, err := s.businessAccounts.ResolveForUser(ctx, userID, identity, requestedID)
+			if err != nil {
+				return "", err
+			}
+			return account.ID, nil
+		},
 		WriteError: writeJSONError,
 	}))).Methods(http.MethodPost)
 }
@@ -561,19 +570,7 @@ func registerEntitlementRoute(s *Server) {
 		if payload.SharedDecision().Warning {
 			w.Header().Set("X-Entitlement-Warning", "past_due")
 		}
-		lease, err := s.userAuthService.SignEntitlementLease(entitlementclient.Payload{
-			UserIdentity:      identity,
-			Status:            payload.Status,
-			PlanTier:          payload.PlanTier,
-			PlanRank:          payload.PlanRank,
-			PriceID:           payload.PriceID,
-			Features:          payload.Features,
-			Limits:            payload.Limits,
-			NotAfter:          payload.NotAfter,
-			BillingCycleStart: payload.BillingCycleStart,
-			Credits:           payload.Credits,
-			Subscription:      payload.Subscription,
-		})
+		lease, err := s.userAuthService.SignEntitlementLease(payload.LeaseClaims(identity))
 		if err != nil {
 			writeJSONError(w, http.StatusServiceUnavailable, "entitlement signing unavailable", ApiErrorTypeServerError)
 			return

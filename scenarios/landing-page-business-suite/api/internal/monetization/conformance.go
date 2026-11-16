@@ -36,6 +36,7 @@ type declaration struct {
 	Version             int       `json:"version"`
 	BundleKey           string    `json:"bundle_key"`
 	AppKey              string    `json:"app_key"`
+	ProductShape        string    `json:"product_shape"`
 	RequiresEntitlement bool      `json:"requires_entitlement"`
 	Features            []surface `json:"features"`
 	Meters              []surface `json:"meters"`
@@ -44,12 +45,21 @@ type declaration struct {
 }
 
 type surface struct {
-	Key              string   `json:"key"`
-	LimitKey         string   `json:"limit_key"`
-	Class            string   `json:"class"`
-	Outbox           string   `json:"outbox"`
-	Byok             bool     `json:"byok"`
-	EnforcementPaths []string `json:"enforcement_paths"`
+	Key              string       `json:"key"`
+	LimitKey         string       `json:"limit_key"`
+	Class            string       `json:"class"`
+	Outbox           string       `json:"outbox"`
+	Reservation      *reservation `json:"reservation"`
+	Byok             bool         `json:"byok"`
+	EnforcementPaths []string     `json:"enforcement_paths"`
+}
+
+type reservation struct {
+	Kind        string `json:"kind"`
+	Authority   string `json:"authority"`
+	BeginPath   string `json:"begin_path"`
+	CommitPath  string `json:"commit_path"`
+	ReleasePath string `json:"release_path"`
 }
 
 func RegisterRoutes(router *mux.Router, catalog catalogReader, bundleKey func() string) {
@@ -104,7 +114,7 @@ func (h Handler) ValidateTarget(ctx context.Context, req *connect.Request[scenar
 
 func (Handler) DescribeProvider(context.Context, *connect.Request[scenariovalidationv1.DescribeProviderRequest]) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
 	return connect.NewResponse(&scenariovalidationv1.DescribeProviderResponse{
-		Provider: "landing-page-business-suite", Phase: "monetization-conformance", SpecVersion: "1.1.0", Contract: "scenario-validation/v1",
+		Provider: "landing-page-business-suite", Phase: "monetization-conformance", SpecVersion: "1.3.0", Contract: "scenario-validation/v1",
 		Capabilities: &scenariovalidationv1.ProviderCapabilities{DeliveryMode: "inline", SupportsExecution: false, SupportsFixes: false, TargetKinds: []commonv1.ValidationTargetKind{commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO}},
 	}), nil
 }
@@ -305,6 +315,18 @@ func validateDeclaration(root, manifest string, declaration declaration) []*comm
 	if declaration.Version != 2 || strings.TrimSpace(declaration.BundleKey) == "" || strings.TrimSpace(declaration.AppKey) == "" {
 		findings = append(findings, finding("money.undeclared_monetization", "Monetization declaration has invalid identity", manifest, "Use version 2 and provide non-empty bundle_key and app_key values."))
 	}
+	switch declaration.ProductShape {
+	case "feature_gated":
+		if !declaration.RequiresEntitlement || len(declaration.Features) == 0 {
+			findings = append(findings, finding("money.product_shape_mismatch", "Feature-gated product shape does not match its declaration", manifest, "A feature_gated product must require entitlement and declare at least one gated feature."))
+		}
+	case "meter_only":
+		if declaration.RequiresEntitlement || len(declaration.Features) != 0 || len(declaration.Meters) == 0 {
+			findings = append(findings, finding("money.product_shape_mismatch", "Meter-only product shape does not match its declaration", manifest, "A meter_only product must not require entitlement or declare gated features, and must declare at least one meter."))
+		}
+	default:
+		findings = append(findings, finding("money.product_shape_mismatch", "Monetization declaration has no valid product shape", manifest, "Set product_shape to feature_gated or meter_only."))
+	}
 	if declaration.RequiresEntitlement {
 		if len(declaration.AccountSurfacePaths) == 0 {
 			findings = append(findings, finding("money.no_account_surface", "Entitled scenario has no declared account surface", manifest, "Declare account_surface_paths for the sign-in, plan, subscription, and credit surface."))
@@ -365,16 +387,89 @@ func validateDeclaration(root, manifest string, declaration declaration) []*comm
 			findings = append(findings, finding("money.feature_not_enforced", "Declared meter enforcement path is missing", missing, "Add the declared enforcement path or correct the manifest."))
 		}
 		if meter.Class == "B" {
-			if strings.TrimSpace(meter.Outbox) == "" {
-				findings = append(findings, finding("money.no_outbox_for_local_meter", "Class B meter has no durable outbox declaration", manifest, "Declare the durable outbox path for this local-capacity meter."))
+			if meter.Reservation != nil {
+				if strings.TrimSpace(meter.Outbox) != "" {
+					findings = append(findings, invalidRemoteReservation(manifest, "A Class B meter cannot declare both an outbox and a remote reservation."))
+				} else if err := validateRemoteReservation(root, meter); err != nil {
+					findings = append(findings, invalidRemoteReservation(manifest, err.Error()))
+				}
+			} else if strings.TrimSpace(meter.Outbox) == "" {
+				findings = append(findings, finding("money.no_outbox_for_local_meter", "Class B meter has no durable outbox declaration", manifest, "Declare a durable outbox, or a complete LPBS atomic reservation for this meter."))
 			} else if !hasDurableOutbox(root, meter.Outbox) {
 				findings = append(findings, finding("money.no_outbox_for_local_meter", "Declared Class B outbox is not durable", filepath.Join(root, filepath.Clean(meter.Outbox)), "Persist usage before delivery and retain it across process restarts."))
 			}
+		} else if meter.Reservation != nil {
+			findings = append(findings, invalidRemoteReservation(manifest, "Remote atomic reservations are only valid for Class B local-capacity meters."))
 		}
 	}
 	findings = append(findings, scanLocalLimitConfig(root, declaration)...)
 	findings = append(findings, scanOfflineBlocking(root, manifest, declaration)...)
 	return findings
+}
+
+func invalidRemoteReservation(location, reason string) *commonv1.AssessmentFinding {
+	return finding("money.remote_reservation_invalid", "Remote atomic reservation declaration is invalid", location, reason)
+}
+
+func validateRemoteReservation(root string, meter surface) error {
+	reservation := meter.Reservation
+	if reservation.Kind != "lpbs_atomic" || reservation.Authority != "landing-page-business-suite" {
+		return fmt.Errorf("reservation kind must be lpbs_atomic and authority must be landing-page-business-suite")
+	}
+	paths := []struct {
+		name, path, marker string
+	}{
+		{name: "begin_path", path: reservation.BeginPath, marker: `quota.Begin(ctx, token, "` + meter.LimitKey + `"`},
+		{name: "commit_path", path: reservation.CommitPath, marker: "hold.Commit("},
+		{name: "release_path", path: reservation.ReleasePath, marker: "hold.Release("},
+	}
+	for _, item := range paths {
+		path := strings.TrimSpace(item.path)
+		if path == "" {
+			return fmt.Errorf("reservation %s is required", item.name)
+		}
+		if !containsPath(meter.EnforcementPaths, path) {
+			return fmt.Errorf("reservation %s %q must also be declared in enforcement_paths", item.name, path)
+		}
+		clean := filepath.Clean(filepath.FromSlash(path))
+		if filepath.IsAbs(clean) || clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("reservation %s must stay within the scenario root", item.name)
+		}
+		data, err := readScenarioFile(root, clean)
+		if err != nil {
+			return fmt.Errorf("reservation %s path %q is not readable: %w", item.name, path, err)
+		}
+		if !strings.Contains(string(data), item.marker) {
+			return fmt.Errorf("reservation %s path %q does not contain the expected atomic-reservation operation", item.name, path)
+		}
+	}
+	return nil
+}
+
+func readScenarioFile(root, relative string) ([]byte, error) {
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	resolved, err := filepath.EvalSymlinks(filepath.Join(realRoot, relative))
+	if err != nil {
+		return nil, err
+	}
+	rel, err := filepath.Rel(realRoot, resolved)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("resolved path escapes the scenario root")
+	}
+	return os.ReadFile(resolved)
+}
+
+func containsPath(paths []string, target string) bool {
+	target = filepath.ToSlash(filepath.Clean(filepath.FromSlash(target)))
+	for _, path := range paths {
+		if filepath.ToSlash(filepath.Clean(filepath.FromSlash(path))) == target {
+			return true
+		}
+	}
+	return false
 }
 
 func scanLocalLimitConfig(root string, declaration declaration) []*commonv1.AssessmentFinding {
@@ -510,8 +605,8 @@ func missingPaths(root string, paths []string) string {
 
 func hasClientPath(paths []string) bool {
 	for _, path := range paths {
-		lower := strings.ToLower(path)
-		if strings.HasPrefix(lower, "ui/") || strings.Contains(lower, "client") || strings.HasSuffix(lower, ".tsx") || strings.HasSuffix(lower, ".ts") {
+		lower := strings.ToLower(filepath.ToSlash(filepath.Clean(path)))
+		if strings.HasPrefix(lower, "ui/") || strings.HasPrefix(lower, "frontend/") || strings.HasPrefix(lower, "client/") || strings.Contains(lower, "/client/") || strings.HasSuffix(lower, ".tsx") || strings.HasSuffix(lower, ".ts") || strings.HasSuffix(lower, ".jsx") || strings.HasSuffix(lower, ".js") {
 			return true
 		}
 	}
@@ -543,14 +638,18 @@ func finding(code, title, location, remediation string) *commonv1.AssessmentFind
 
 func buildAssessment(scenario string, findings []*commonv1.AssessmentFinding) *commonv1.MaturityAssessment {
 	blocking := make([]string, 0, len(findings))
+	findingsBySeverity := make(map[string]int32)
 	for _, f := range findings {
 		blocking = append(blocking, f.Code)
+		// All findings emitted by this provider use SEVERITY_ERROR today.
+		// The shared maturity contract's canonical key is the enum spelling.
+		findingsBySeverity["FINDING_SEVERITY_ERROR"]++
 	}
 	level := "L4"
 	if len(findings) > 0 {
 		level = "L1"
 	}
-	return &commonv1.MaturityAssessment{Scenario: scenario, Provider: "landing-page-business-suite", Phase: "monetization-conformance", Version: "1.1.0", Findings: findings, Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: "L4", BlockingFindingCodes: blocking, Clean: len(findings) == 0}}
+	return &commonv1.MaturityAssessment{Scenario: scenario, Provider: "landing-page-business-suite", Phase: "monetization-conformance", Version: "1.1.0", Findings: findings, FindingsBySeverity: findingsBySeverity, Local: &commonv1.LocalMaturityAssessment{CurrentLevel: level, NextLevel: "L4", BlockingFindingCodes: blocking, Clean: len(findings) == 0}}
 }
 
 func failureClass(status scenariovalidationv1.ValidationStatus) string {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { renderWithProviders as render } from '@vrooli/api-base/testing';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { PublicBranding } from '../../../shared/api/types';
@@ -28,7 +29,7 @@ function renderAt(path: string) {
       <Route path="/terms" element={<LegalPage kind="terms" />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
-  </MemoryRouter>);
+  </MemoryRouter>, { withoutRouter: true });
 }
 
 async function settle() {

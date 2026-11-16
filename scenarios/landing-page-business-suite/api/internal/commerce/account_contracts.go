@@ -12,18 +12,19 @@ import shared "github.com/vrooli/vrooli/packages/proto/gen/go/landing-page-busin
 
 // EntitlementPayload is used by bundled apps to unlock features.
 type EntitlementPayload struct {
-	UserIdentity      string                     `json:"user_identity,omitempty"`
-	Status            string                     `json:"status"`
-	PlanTier          string                     `json:"plan_tier,omitempty"`
-	PlanRank          int32                      `json:"plan_rank,omitempty"`
-	PriceID           string                     `json:"price_id,omitempty"`
-	Features          []string                   `json:"features,omitempty"`
-	Limits            []entitlementclient.Limit  `json:"limits,omitempty"`
-	NotAfter          time.Time                  `json:"not_after,omitempty"`
-	Lease             string                     `json:"lease,omitempty"`
-	BillingCycleStart int                        `json:"billing_cycle_start,omitempty"`
-	Credits           *shared.CreditsBalance     `json:"credits,omitempty"`
-	Subscription      *shared.SubscriptionStatus `json:"subscription,omitempty"`
+	UserIdentity      string                             `json:"user_identity,omitempty"`
+	Status            string                             `json:"status"`
+	PlanTier          string                             `json:"plan_tier,omitempty"`
+	PlanRank          int32                              `json:"plan_rank,omitempty"`
+	PriceID           string                             `json:"price_id,omitempty"`
+	Features          []string                           `json:"features,omitempty"`
+	Limits            []entitlementclient.Limit          `json:"limits,omitempty"`
+	AppEntitlements   []entitlementclient.AppEntitlement `json:"app_entitlements,omitempty"`
+	NotAfter          time.Time                          `json:"not_after,omitempty"`
+	Lease             string                             `json:"lease,omitempty"`
+	BillingCycleStart int                                `json:"billing_cycle_start,omitempty"`
+	Credits           *shared.CreditsBalance             `json:"credits,omitempty"`
+	Subscription      *shared.SubscriptionStatus         `json:"subscription,omitempty"`
 }
 
 // SharedDecision exposes the same signed-lease status semantics used by
@@ -33,7 +34,21 @@ func (p *EntitlementPayload) SharedDecision() monetization.Decision {
 	if p == nil {
 		return monetization.StatusDecision(entitlementclient.Payload{}, "/pricing")
 	}
-	return monetization.StatusDecision(entitlementclient.Payload{Status: p.Status, PlanRank: p.PlanRank, Features: p.Features, Limits: p.Limits, NotAfter: p.NotAfter}, "/pricing")
+	return monetization.StatusDecision(entitlementclient.Payload{Status: p.Status, PlanRank: p.PlanRank, Features: p.Features, Limits: p.Limits, AppEntitlements: p.AppEntitlements, NotAfter: p.NotAfter}, "/pricing")
+}
+
+// LeaseClaims converts the authority's complete effective snapshot to the
+// shared signed lease contract. Desktop link callers add their installation
+// binding after this conversion; both routes preserve app-scoped grants.
+func (p *EntitlementPayload) LeaseClaims(userIdentity string) entitlementclient.Payload {
+	if p == nil {
+		return entitlementclient.Payload{UserIdentity: userIdentity}
+	}
+	return entitlementclient.Payload{
+		UserIdentity: userIdentity, Status: p.Status, PlanTier: p.PlanTier, PlanRank: p.PlanRank,
+		PriceID: p.PriceID, Features: p.Features, Limits: p.Limits, AppEntitlements: p.AppEntitlements,
+		NotAfter: p.NotAfter, BillingCycleStart: p.BillingCycleStart, Credits: p.Credits, Subscription: p.Subscription,
+	}
 }
 
 type CreditsEnvelope struct {

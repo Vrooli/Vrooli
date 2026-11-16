@@ -111,7 +111,7 @@ func TestServiceOrderHTTPFourDoorJourneyLinksOneOfferToFourAcceptedLedgerReceipt
 	for _, door := range doors {
 		t.Run(door.name, func(t *testing.T) {
 			key := "http-four-door:" + door.name
-			jobInput := map[string]string{"sector": "battery storage", "market": "US"}
+			jobInput := map[string]string{"sector": "battery storage"}
 			beginBody := map[string]any{
 				"offer_id": offer.ID, "offer_version": offer.Version, "door": door.name,
 				"idempotency_key": key, "job_input": jobInput,
@@ -137,7 +137,7 @@ func TestServiceOrderHTTPFourDoorJourneyLinksOneOfferToFourAcceptedLedgerReceipt
 			if err := json.Unmarshal([]byte(encoded), &changedBody); err != nil {
 				t.Fatal(err)
 			}
-			changedBody["job_input"] = map[string]string{"sector": "battery storage", "market": "CA"}
+			changedBody["job_input"] = map[string]string{"sector": "solar storage"}
 			serviceOrderHTTPCall(t, api.Client(), http.MethodPost, api.URL+"/api/v1/service-orders", marshalServiceOrderJSON(t, changedBody), http.StatusConflict)
 			if door.signature != "" {
 				changedSignature := map[string]any{}

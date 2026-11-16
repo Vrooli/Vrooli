@@ -582,10 +582,12 @@ func TestPlanService_UpdateBundlePrice_UpdateMetadata(t *testing.T) {
 	subtitle := "Best value!"
 	badge := "Popular"
 	features := []string{"Feature 1", "Feature 2"}
+	appEntitlements := map[string]AppEntitlementPlanSpec{"audio-tools": {Features: []string{"audio:export"}, Limits: map[string]int64{"ai_credits": 100}}}
 	updated, err := service.UpdateBundlePrice(t.Context(), "metadata_update_bundle", "price_meta", UpdateBundlePriceInput{
-		Subtitle: &subtitle,
-		Badge:    &badge,
-		Features: &features,
+		Subtitle:        &subtitle,
+		Badge:           &badge,
+		Features:        &features,
+		AppEntitlements: &appEntitlements,
 	})
 	if err != nil {
 		t.Fatalf("UpdateBundlePrice failed: %v", err)
@@ -602,6 +604,9 @@ func TestPlanService_UpdateBundlePrice_UpdateMetadata(t *testing.T) {
 	}
 	if _, ok := updated.Metadata["features"]; !ok {
 		t.Error("expected features in metadata")
+	}
+	if _, declared, err := parseAppEntitlementDeclarations(updated.Metadata); err != nil || !declared {
+		t.Fatalf("app entitlement metadata did not round-trip: declared=%v error=%v", declared, err)
 	}
 }
 
@@ -698,6 +703,51 @@ func TestPlanService_CreateBundlePrice_RejectsStripeProductMismatch(t *testing.T
 	}
 	if !strings.Contains(err.Error(), "product") {
 		t.Fatalf("expected product mismatch error, got: %v", err)
+	}
+}
+
+func TestPlanService_CreateBundlePricePersistsAppOfferScope(t *testing.T) {
+	bundle := testBundle("create_app_offer", "test")
+	service := createTestPlanService(t, bundle, nil)
+	fetcher := func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{PriceID: priceID, LookupKey: "audio_monthly", Currency: "usd", AmountCents: 1000, Interval: "month", ProductID: bundle.StripeProductID, ProductName: "Audio Tools", Active: true}, nil
+	}
+	plan, err := service.CreateBundlePrice(context.Background(), bundle.BundleKey, CreateBundlePriceInput{
+		StripePriceID: "price_audio_monthly", PlanName: "Audio Tools", PlanTier: "pro", BillingInterval: "month",
+		AppEntitlements: map[string]AppEntitlementPlanSpec{"audio-tools": {Features: []string{"audio:export"}, Limits: map[string]int64{"ai_credits": 100}}},
+	}, fetcher)
+	if err != nil {
+		t.Fatalf("create app offer: %v", err)
+	}
+	declarations, declared, err := parseAppEntitlementDeclarations(plan.Metadata)
+	if err != nil || !declared {
+		t.Fatalf("created offer app scope declared=%v err=%v metadata=%v", declared, err, plan.Metadata)
+	}
+	if got := declarations["audio-tools"]; len(got.features) != 1 || got.features[0] != "audio:export" || len(got.limits) != 1 || got.limits[0].Value != 100 {
+		t.Fatalf("created offer scope = %#v", got)
+	}
+}
+
+func TestPlanService_CreateBundlePriceRejectsInvalidAppOfferScope(t *testing.T) {
+	bundle := testBundle("create_invalid_app_offer", "test")
+	service := createTestPlanService(t, bundle, nil)
+	_, err := service.CreateBundlePrice(context.Background(), bundle.BundleKey, CreateBundlePriceInput{
+		StripePriceID: "price_invalid", PlanName: "Invalid", PlanTier: "pro", BillingInterval: "month",
+		AppEntitlements: map[string]AppEntitlementPlanSpec{" audio-tools ": {Features: []string{"audio:export"}}},
+	}, func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{PriceID: priceID, Currency: "usd", AmountCents: 1000, Interval: "month", ProductID: bundle.StripeProductID, Active: true}, nil
+	})
+	if err == nil {
+		t.Fatal("invalid app offer scope was accepted")
+	}
+	_, err = service.CreateBundlePrice(context.Background(), bundle.BundleKey, CreateBundlePriceInput{
+		StripePriceID: "price_invalid_limit", PlanName: "Invalid limit", PlanTier: "pro", BillingInterval: "month",
+		AppEntitlements: map[string]AppEntitlementPlanSpec{"audio-tools": {Limits: map[string]int64{"ai_credits": -2}}},
+	}, func(ctx context.Context, priceID string) (*StripePriceImport, error) {
+		return &StripePriceImport{PriceID: priceID, Currency: "usd", AmountCents: 1000, Interval: "month", ProductID: bundle.StripeProductID, Active: true}, nil
+	})
+	if err == nil {
+		t.Fatal("app offer with an invalid negative limit was accepted")
 	}
 }
 

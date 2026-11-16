@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Loader2, RefreshCw, Tag, Clock, Repeat, Infinity as InfinityIcon, ExternalLink } from 'lucide-react';
+import { Check, Loader2, RefreshCw, Tag, Clock, Repeat, Infinity as InfinityIcon } from 'lucide-react';
 import { Button } from '../../../../shared/ui/button';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import { cn } from '../../../../shared/lib/utils';
 import { Callout } from '../Callout';
 import type { UseCouponImportReturn } from '../../hooks/useCouponImport';
 import type { CouponImportPreviewItem } from '../../../../shared/api/billing';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 type CouponFilter = 'all' | 'active' | 'inactive' | 'assigned';
 const COUPON_FILTERS: Array<{ key: CouponFilter; label: string }> = [
@@ -261,18 +262,10 @@ export function ImportCouponModal({ couponImport }: ImportCouponModalProps) {
         </div>
 
         <DialogFooter className="border-t border-slate-700/50 pt-4">
-          <Button variant="ghost" onClick={closeModal}>
-            Close
-          </Button>
-          <a
-            href="https://dashboard.stripe.com/coupons"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 rounded-md transition-colors"
-          >
-            <ExternalLink className="h-4 w-4" />
-            Manage in Stripe
-          </a>
+          <OverlayActionBar actions={[
+            { id: 'close', label: 'Close', onSelect: closeModal },
+            { id: 'manage-stripe', label: 'Manage in Stripe', onSelect: () => { window.open('https://dashboard.stripe.com/coupons', '_blank', 'noopener,noreferrer'); }, primary: true },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

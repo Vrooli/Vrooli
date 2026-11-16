@@ -37,7 +37,7 @@ func TestConcurrent_GetSubscription_SameUser(t *testing.T) {
 		go func(workerID int) {
 			defer wg.Done()
 			for j := 0; j < lookupsPerGoroutine; j++ {
-				sub, err := svc.GetSubscription("concurrent-sub@example.com")
+				sub, err := svc.GetSubscriptionContext(context.Background(), "concurrent-sub@example.com")
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
 					t.Logf("Worker %d lookup %d failed: %v", workerID, j, err)
@@ -75,7 +75,7 @@ func TestConcurrent_GetSubscription_DifferentUsers(t *testing.T) {
 			defer wg.Done()
 			email := "user" + string(rune('0'+userNum)) + "@example.com"
 			for j := 0; j < lookupsPerUser; j++ {
-				_, err := svc.GetSubscription(email)
+				_, err := svc.GetSubscriptionContext(context.Background(), email)
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
 					t.Logf("User %d lookup %d failed: %v", userNum, j, err)
@@ -109,7 +109,7 @@ func TestConcurrent_GetEntitlements_MultipleUsers(t *testing.T) {
 			defer wg.Done()
 			email := "entitle" + string(rune('0'+userNum)) + "@example.com"
 			for j := 0; j < lookupsPerUser; j++ {
-				entitlements, err := svc.GetEntitlements(email)
+				entitlements, err := svc.GetEntitlementsContext(context.Background(), email)
 				if err != nil {
 					atomic.AddInt32(&errors, 1)
 					t.Logf("User %d lookup %d failed: %v", userNum, j, err)
@@ -181,12 +181,12 @@ func TestConcurrent_GetSubscriptionAndEntitlements_Mixed(t *testing.T) {
 			for j := 0; j < opsPerGoroutine; j++ {
 				// Alternate between subscription and entitlement lookups
 				if j%2 == 0 {
-					_, err := svc.GetSubscription(email)
+					_, err := svc.GetSubscriptionContext(context.Background(), email)
 					if err != nil {
 						atomic.AddInt32(&subErrors, 1)
 					}
 				} else {
-					_, err := svc.GetEntitlements(email)
+					_, err := svc.GetEntitlementsContext(context.Background(), email)
 					if err != nil {
 						atomic.AddInt32(&entErrors, 1)
 					}
@@ -263,7 +263,7 @@ func TestConcurrent_AccountService_HighContention_StressTest(t *testing.T) {
 				email := "stress" + string(rune('0'+(j%10))) + "@example.com"
 				switch j % 3 {
 				case 0:
-					_, err := svc.GetSubscription(email)
+					_, err := svc.GetSubscriptionContext(context.Background(), email)
 					if err != nil {
 						atomic.AddInt32(&errors, 1)
 					}
@@ -273,7 +273,7 @@ func TestConcurrent_AccountService_HighContention_StressTest(t *testing.T) {
 						atomic.AddInt32(&errors, 1)
 					}
 				case 2:
-					_, err := svc.GetEntitlements(email)
+					_, err := svc.GetEntitlementsContext(context.Background(), email)
 					if err != nil {
 						atomic.AddInt32(&errors, 1)
 					}

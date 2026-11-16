@@ -75,6 +75,55 @@ func NormalizePlanTier(raw string) (string, error) {
 	return value, nil
 }
 
+func normalizeAppEntitlementPlanSpecs(input map[string]AppEntitlementPlanSpec) (map[string]AppEntitlementPlanSpec, error) {
+	if len(input) == 0 {
+		return nil, nil
+	}
+	keys := make([]string, 0, len(input))
+	for appKey := range input {
+		keys = append(keys, appKey)
+	}
+	sort.Strings(keys)
+	result := make(map[string]AppEntitlementPlanSpec, len(input))
+	for _, rawAppKey := range keys {
+		appKey := strings.TrimSpace(rawAppKey)
+		if appKey == "" || appKey != rawAppKey {
+			return nil, fmt.Errorf("app entitlement key must be canonical and nonempty")
+		}
+		declaration := input[rawAppKey]
+		features := make([]string, 0, len(declaration.Features))
+		seenFeatures := make(map[string]struct{}, len(declaration.Features))
+		for _, rawFeature := range declaration.Features {
+			feature := strings.TrimSpace(rawFeature)
+			if feature == "" || feature != rawFeature {
+				return nil, fmt.Errorf("app %s feature must be canonical and nonempty", appKey)
+			}
+			if _, exists := seenFeatures[feature]; exists {
+				return nil, fmt.Errorf("app %s has duplicate feature %s", appKey, feature)
+			}
+			seenFeatures[feature] = struct{}{}
+			features = append(features, feature)
+		}
+		sort.Strings(features)
+		limits := make(map[string]int64, len(declaration.Limits))
+		for rawKey, value := range declaration.Limits {
+			key := strings.TrimSpace(rawKey)
+			if key == "" || key != rawKey {
+				return nil, fmt.Errorf("app %s limit key must be canonical and nonempty", appKey)
+			}
+			if value < -1 {
+				return nil, fmt.Errorf("app %s limit %s must be -1 (unlimited) or nonnegative", appKey, key)
+			}
+			limits[key] = value
+		}
+		if len(features) == 0 && len(limits) == 0 {
+			return nil, fmt.Errorf("app %s must declare at least one feature or limit", appKey)
+		}
+		result[appKey] = AppEntitlementPlanSpec{Features: features, Limits: limits}
+	}
+	return result, nil
+}
+
 func PlanKindForTier(tier string) shared.PlanKind {
 	switch tier {
 	case "credits":
@@ -428,6 +477,13 @@ func ApplyPlanMetadata(plan *shared.PlanOption, input UpdateBundlePriceInput) {
 			delete(plan.Metadata, "features")
 		} else {
 			plan.Metadata["features"] = &commonv1.JsonValue{Kind: &commonv1.JsonValue_ListValue{ListValue: &commonv1.JsonList{Values: values}}}
+		}
+	}
+	if input.AppEntitlements != nil {
+		if len(*input.AppEntitlements) == 0 {
+			delete(plan.Metadata, "app_entitlements")
+		} else {
+			plan.Metadata["app_entitlements"] = appEntitlementSpecsValue(*input.AppEntitlements)
 		}
 	}
 }

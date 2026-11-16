@@ -3,6 +3,7 @@
   "version": 2,
   "bundle_key": "business_suite",
   "app_key": "landing-page-business-suite",
+  "product_shape": "feature_gated",
   "requires_entitlement": true,
   "account_surface_paths": ["api/routes.go"],
   "journey_probe_paths": ["api/monetization_journey.go"],

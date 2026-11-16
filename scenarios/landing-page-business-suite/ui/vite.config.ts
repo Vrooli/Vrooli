@@ -1,6 +1,7 @@
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 export default defineConfig(({ mode }) => {
   const isProfile = mode === "profile";
@@ -40,7 +41,7 @@ export default defineConfig(({ mode }) => {
         allow: [path.resolve(__dirname, "../../../packages")],
       },
     },
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     optimizeDeps: {
       include: ["@bufbuild/protobuf"],
     },

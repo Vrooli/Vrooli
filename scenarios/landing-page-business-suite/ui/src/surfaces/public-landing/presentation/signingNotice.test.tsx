@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen } from '@testing-library/react';
+import { renderWithProviders as render } from '@vrooli/api-base/testing';
 import { DownloadChooser } from './DownloadChooser';
 import { resolveSigningNotice } from '../services/downloads.service';
 import type { DownloadAsset } from '../../../shared/api/types';
@@ -17,8 +18,6 @@ const appMetadata = {
     link_url: 'https://github.com/Vrooli/Vrooli/tree/master/scenarios/web-console',
   },
 };
-
-afterEach(cleanup);
 
 describe('signing notice resolution', () => {
   it('falls back to the app default', () => {

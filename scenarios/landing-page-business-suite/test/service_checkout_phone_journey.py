@@ -7,18 +7,27 @@ from playwright.sync_api import expect, sync_playwright
 
 url, result_path, screenshot_path = sys.argv[1:4]
 responses = []
+browser_errors = []
+failed_requests = []
 
 with sync_playwright() as playwright:
     browser = playwright.chromium.launch(executable_path="/usr/bin/google-chrome", headless=True, args=["--no-sandbox"])
     page = browser.new_page(
         viewport={"width": 390, "height": 844}, device_scale_factor=3, is_mobile=True, has_touch=True,
     )
+    page.on("console", lambda message: browser_errors.append(f"console {message.type}: {message.text}") if message.type == "error" else None)
+    page.on("pageerror", lambda error: browser_errors.append(f"page error: {error}"))
+    page.on("requestfailed", lambda request: failed_requests.append(f"{request.method} {request.url}: {request.failure}"))
     page.on("response", lambda response: responses.append({
         "method": response.request.method, "url": response.url, "status": response.status,
         "sha256": response.headers.get("x-content-sha256", ""),
     }))
     page.goto(url, wait_until="domcontentloaded")
-    expect(page.get_by_role("heading", name="Company Market Scan")).to_be_visible()
+    try:
+        expect(page.get_by_role("heading", name="Company Market Scan")).to_be_visible()
+    except AssertionError:
+        print("Browser diagnostics:", json.dumps({"errors": browser_errors, "failed_requests": failed_requests, "body": page.locator("body").inner_text()[:2000]}))
+        raise
     expect(page.get_by_text("$49.00 USD", exact=True)).to_be_visible()
     expect(page.get_by_text("Target delivery: 60 minutes")).to_be_visible()
     expect(page.get_by_text("Legal review is open and operator approval is pending", exact=False)).to_be_visible()

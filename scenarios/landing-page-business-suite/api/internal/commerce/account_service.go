@@ -3,6 +3,8 @@ package commerce
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +22,7 @@ import (
 // seam: Store keeps account persistence independent of a concrete pool
 // and allows HTTP requests to select Test Genie's lease-owned database.
 type Store interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
@@ -95,10 +98,6 @@ func NewService(db Store, planService PlanCatalog, runtime Runtime) *Service {
 
 func normalizeEmail(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
 
-func (s *Service) GetSubscription(userIdentity string) (*shared.SubscriptionStatus, error) {
-	return s.GetSubscriptionContext(context.Background(), userIdentity)
-}
-
 // GetSubscriptionContext reads subscription state using the caller's context.
 func (s *Service) GetSubscriptionContext(ctx context.Context, userIdentity string) (*shared.SubscriptionStatus, error) {
 	user := s.normalizeEmail(userIdentity)
@@ -142,10 +141,6 @@ func (s *Service) getSubscriptionContext(ctx context.Context, user, businessAcco
 	return result, nil
 }
 
-func (s *Service) loadSubscriptionRecord(ctx context.Context, user string) (*subscriptionRecord, error) {
-	return s.loadSubscriptionRecordForBusinessAccount(ctx, user, "")
-}
-
 func (s *Service) loadSubscriptionRecordForBusinessAccount(ctx context.Context, user, businessAccountID string) (*subscriptionRecord, error) {
 	query := `
 		SELECT subscription_id, status, source, external_subscription_id, plan_tier, price_id, bundle_key, canceled_at, updated_at
@@ -159,7 +154,7 @@ func (s *Service) loadSubscriptionRecordForBusinessAccount(ctx context.Context, 
 		WHERE business_account_id = $1 AND (customer_email = $2 OR customer_id = $2)`
 		args = []any{strings.TrimSpace(businessAccountID), user}
 	}
-	query += ` ORDER BY updated_at DESC LIMIT 1`
+	query += ` ORDER BY CASE WHEN status IN ('active','trialing','past_due') THEN 0 ELSE 1 END, updated_at DESC LIMIT 1`
 	row := s.db.QueryRowContext(ctx, `
 		`+query, args...)
 
@@ -294,14 +289,6 @@ func (s *Service) decorateCredits(balance shared.CreditsBalance, updatedAt time.
 }
 
 // getBillingCycleStart retrieves billing cycle start for a user.
-func (s *Service) BillingCycleStart(userIdentity string) int {
-	return s.billingCycleStartContext(context.Background(), userIdentity)
-}
-
-func (s *Service) billingCycleStartContext(ctx context.Context, userIdentity string) int {
-	return s.billingCycleStartForBusinessAccountContext(ctx, userIdentity, "")
-}
-
 func (s *Service) billingCycleStartForBusinessAccountContext(ctx context.Context, userIdentity, businessAccountID string) int {
 	userIdentity = s.normalizeEmail(userIdentity)
 	if userIdentity == "" {
@@ -327,10 +314,6 @@ func (s *Service) billingCycleStartForBusinessAccountContext(ctx context.Context
 		return 0
 	}
 	return billingCycleStart
-}
-
-func (s *Service) GetEntitlements(userIdentity string) (*EntitlementPayload, error) {
-	return s.GetEntitlementsContext(context.Background(), userIdentity)
 }
 
 // GetEntitlementStatus is the narrow delivery-facing entitlement seam. It
@@ -399,6 +382,28 @@ func (s *Service) getEntitlementsContext(ctx context.Context, userIdentity, busi
 		}
 	}
 
+	appEntitlements, scoped, err := s.deriveAppEntitlements(ctx, userIdentity, businessAccountID)
+	if err != nil {
+		return nil, fmt.Errorf("derive effective app entitlements: %w", err)
+	}
+	if scoped {
+		payload.AppEntitlements = appEntitlements
+		payload.Features = nil
+		payload.Limits = nil
+		// These legacy summary fields remain for account display. Authorization
+		// in relying apps uses each signed app record when scoped records exist.
+		for _, grant := range appEntitlements {
+			payload.Features = append(payload.Features, grant.Features...)
+			payload.Limits = append(payload.Limits, grant.Limits...)
+		}
+		payload.Features = uniqueSortedStrings(payload.Features)
+		payload.Limits = mergeUniqueLimits(payload.Limits)
+		payload.Status, payload.PlanRank = summarizeEffectiveAppGrants(appEntitlements)
+		if tier := planTierForRank(payload.PlanRank); tier != "" {
+			payload.PlanTier = tier
+		}
+	}
+
 	if subscriptionRecordSource, externalID := s.subscriptionSourceAndExternalIDForBusinessAccount(userIdentity, businessAccountID, subscription); subscriptionRecordSource != "stripe" && externalID != "" {
 		if resolver, ok := s.planService.(interface {
 			GetPlanByExternalProductID(string) (*shared.PlanOption, error)
@@ -430,8 +435,300 @@ func (s *Service) getEntitlementsContext(ctx context.Context, userIdentity, busi
 	return payload, nil
 }
 
-func (s *Service) subscriptionSourceAndExternalID(userIdentity string, subscription *shared.SubscriptionStatus) (string, string) {
-	return s.subscriptionSourceAndExternalIDForBusinessAccount(userIdentity, "", subscription)
+func summarizeEffectiveAppGrants(grants []entitlementclient.AppEntitlement) (string, int32) {
+	status := "inactive"
+	statusPriority := entitlementStatusPriority(status)
+	var rank int32
+	for _, grant := range grants {
+		if grant.PlanRank > rank {
+			rank = grant.PlanRank
+		}
+		if priority := entitlementStatusPriority(grant.Status); priority > statusPriority {
+			status = grant.Status
+			statusPriority = priority
+		}
+	}
+	return status, rank
+}
+
+func planTierForRank(rank int32) string {
+	for tier, candidate := range allowedPlanTiers {
+		if candidate == rank {
+			return tier
+		}
+	}
+	return ""
+}
+
+type appEntitlementDeclaration struct {
+	features []string
+	limits   []entitlementclient.Limit
+}
+
+// deriveAppEntitlements computes the signed effective grant set from every
+// currently usable subscription on the selected account. If any active plan
+// is scoped while another cannot be resolved to a scope declaration, refuse
+// to issue a partial scoped lease.
+func (s *Service) deriveAppEntitlements(ctx context.Context, userIdentity, businessAccountID string) ([]entitlementclient.AppEntitlement, bool, error) {
+	if s == nil || s.db == nil || s.planService == nil {
+		return nil, false, nil
+	}
+	query := `SELECT status, plan_tier, price_id, bundle_key, source, external_subscription_id FROM subscriptions WHERE (customer_email = $1 OR customer_id = $1) AND status IN ('active','trialing','past_due')`
+	args := []any{userIdentity}
+	if strings.TrimSpace(businessAccountID) != "" {
+		query = `SELECT status, plan_tier, price_id, bundle_key, source, external_subscription_id FROM subscriptions WHERE business_account_id = $1 AND (customer_email = $2 OR customer_id = $2) AND status IN ('active','trialing','past_due')`
+		args = []any{strings.TrimSpace(businessAccountID), userIdentity}
+	}
+	query += ` ORDER BY updated_at DESC, subscription_id`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+
+	merged := make(map[string]entitlementclient.AppEntitlement)
+	unscopedPlans := 0
+	scopedPlans := 0
+	for rows.Next() {
+		var status, planTier, priceID, bundleKey, source, externalID sql.NullString
+		if err := rows.Scan(&status, &planTier, &priceID, &bundleKey, &source, &externalID); err != nil {
+			return nil, false, err
+		}
+		plan, err := s.resolvePlanForSubscription(priceID.String, source.String, externalID.String)
+		if err != nil {
+			return nil, false, err
+		}
+		if plan == nil {
+			unscopedPlans++
+			continue
+		}
+		declarations, declared, err := parseAppEntitlementDeclarations(plan.Metadata)
+		if err != nil {
+			return nil, false, fmt.Errorf("plan %s app entitlement metadata: %w", priceID.String, err)
+		}
+		if !declared {
+			unscopedPlans++
+			continue
+		}
+		scopedPlans++
+		planTierValue := strings.TrimSpace(planTier.String)
+		if planTierValue == "" {
+			planTierValue = plan.GetPlanTier()
+		}
+		planRank := plan.GetPlanRank()
+		if planRank == 0 && planTierValue != "" {
+			planRank = PlanRankForTier(planTierValue)
+		}
+		for appKey, declaration := range declarations {
+			grant := entitlementclient.AppEntitlement{
+				AppKey: appKey, BundleKey: strings.TrimSpace(bundleKey.String), Status: strings.ToLower(strings.TrimSpace(status.String)),
+				PlanRank: planRank, Features: append([]string(nil), declaration.features...), Limits: append([]entitlementclient.Limit(nil), declaration.limits...),
+			}
+			if s.limitsSvc != nil && planTierValue != "" {
+				configured, err := s.limitsSvc.GetTierLimits(ctx, planTierValue)
+				if err != nil {
+					return nil, false, fmt.Errorf("load limits for plan %s: %w", planTierValue, err)
+				}
+				for _, limit := range configured {
+					if limit.AppBundleKey != nil && *limit.AppBundleKey != s.bundleKey {
+						continue
+					}
+					grant.Limits = append(grant.Limits, entitlementclient.Limit{Key: limit.LimitKey, Value: limit.LimitValue, BundleKey: s.bundleKey})
+				}
+			}
+			grant.Limits = mergeUniqueLimits(grant.Limits)
+			merged[appKey] = mergeAppEntitlement(merged[appKey], grant)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	if scopedPlans == 0 {
+		return nil, false, nil
+	}
+	if unscopedPlans > 0 {
+		return nil, false, fmt.Errorf("%d active subscription plan(s) lack app entitlement declarations", unscopedPlans)
+	}
+	appKeys := make([]string, 0, len(merged))
+	for appKey := range merged {
+		appKeys = append(appKeys, appKey)
+	}
+	sort.Strings(appKeys)
+	result := make([]entitlementclient.AppEntitlement, 0, len(appKeys))
+	for _, appKey := range appKeys {
+		grant := merged[appKey]
+		grant.Limits = mergeUniqueLimits(grant.Limits)
+		grant.Features = uniqueSortedStrings(grant.Features)
+		result = append(result, grant)
+	}
+	return result, true, nil
+}
+
+func (s *Service) resolvePlanForSubscription(priceID, source, externalID string) (*shared.PlanOption, error) {
+	if strings.TrimSpace(priceID) != "" {
+		plan, err := s.planService.GetPlanByPriceID(strings.TrimSpace(priceID))
+		if err != nil {
+			return nil, nil
+		}
+		if plan != nil {
+			return plan, nil
+		}
+	}
+	if strings.ToLower(strings.TrimSpace(source)) != "stripe" && strings.TrimSpace(externalID) != "" {
+		resolver, ok := s.planService.(interface {
+			GetPlanByExternalProductID(string) (*shared.PlanOption, error)
+		})
+		if ok {
+			plan, err := resolver.GetPlanByExternalProductID(strings.TrimSpace(externalID))
+			if err == nil {
+				return plan, err
+			}
+		}
+	}
+	return nil, nil
+}
+
+func mergeAppEntitlement(existing, next entitlementclient.AppEntitlement) entitlementclient.AppEntitlement {
+	if existing.AppKey == "" {
+		return next
+	}
+	if next.PlanRank > existing.PlanRank {
+		existing.PlanRank = next.PlanRank
+	}
+	if entitlementStatusPriority(next.Status) > entitlementStatusPriority(existing.Status) {
+		existing.Status = next.Status
+	}
+	existing.Features = append(existing.Features, next.Features...)
+	existing.Limits = append(existing.Limits, next.Limits...)
+	if existing.BundleKey == "" {
+		existing.BundleKey = next.BundleKey
+	}
+	return existing
+}
+
+func entitlementStatusPriority(status string) int {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "active":
+		return 3
+	case "trialing":
+		return 2
+	case "past_due":
+		return 1
+	default:
+		return 0
+	}
+}
+
+func mergeUniqueLimits(limits []entitlementclient.Limit) []entitlementclient.Limit {
+	merged := make(map[string]entitlementclient.Limit, len(limits))
+	for _, limit := range limits {
+		key := strings.TrimSpace(limit.Key)
+		if key == "" {
+			continue
+		}
+		limit.Key = key
+		current, ok := merged[key]
+		if !ok || (limit.Value == -1 && current.Value != -1) || (limit.Value != -1 && current.Value != -1 && limit.Value > current.Value) {
+			merged[key] = limit
+		}
+	}
+	keys := make([]string, 0, len(merged))
+	for key := range merged {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	result := make([]entitlementclient.Limit, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, merged[key])
+	}
+	return result
+}
+
+func uniqueSortedStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
+func parseAppEntitlementDeclarations(metadata map[string]*commonv1.JsonValue) (map[string]appEntitlementDeclaration, bool, error) {
+	value := metadata["app_entitlements"]
+	if value == nil {
+		return nil, false, nil
+	}
+	object, ok := jsonValueToAny(value).(map[string]any)
+	if !ok {
+		return nil, true, fmt.Errorf("app_entitlements must be an object keyed by app_key")
+	}
+	declarations := make(map[string]appEntitlementDeclaration, len(object))
+	for rawAppKey, rawValue := range object {
+		appKey := strings.TrimSpace(rawAppKey)
+		if appKey == "" || appKey != rawAppKey {
+			return nil, true, fmt.Errorf("app key must be canonical and nonempty")
+		}
+		entry, ok := rawValue.(map[string]any)
+		if !ok {
+			return nil, true, fmt.Errorf("app %s declaration must be an object", appKey)
+		}
+		declaration := appEntitlementDeclaration{}
+		if featureValue, exists := entry["features"]; exists {
+			list, ok := featureValue.([]any)
+			if !ok {
+				return nil, true, fmt.Errorf("app %s features must be a list", appKey)
+			}
+			for _, item := range list {
+				text, ok := item.(string)
+				if !ok || strings.TrimSpace(text) == "" || strings.TrimSpace(text) != text {
+					return nil, true, fmt.Errorf("app %s feature must be a canonical nonempty string", appKey)
+				}
+				declaration.features = append(declaration.features, text)
+			}
+		}
+		if limitsValue, exists := entry["limits"]; exists {
+			limits, ok := limitsValue.(map[string]any)
+			if !ok {
+				return nil, true, fmt.Errorf("app %s limits must be an object", appKey)
+			}
+			for key, amount := range limits {
+				if strings.TrimSpace(key) == "" || strings.TrimSpace(key) != key {
+					return nil, true, fmt.Errorf("app %s limit key must be canonical and nonempty", appKey)
+				}
+				var value int64
+				switch number := amount.(type) {
+				case int64:
+					value = number
+				case float64:
+					if number != float64(int64(number)) {
+						return nil, true, fmt.Errorf("app %s limit %s must be an integer", appKey, key)
+					}
+					value = int64(number)
+				default:
+					return nil, true, fmt.Errorf("app %s limit %s must be an integer", appKey, key)
+				}
+				if value < -1 {
+					return nil, true, fmt.Errorf("app %s limit %s must be -1 (unlimited) or nonnegative", appKey, key)
+				}
+				declaration.limits = append(declaration.limits, entitlementclient.Limit{Key: key, Value: value})
+			}
+		}
+		declaration.features = uniqueSortedStrings(declaration.features)
+		declarations[appKey] = declaration
+	}
+	if len(declarations) == 0 {
+		return nil, true, fmt.Errorf("app_entitlements must declare at least one app")
+	}
+	return declarations, true, nil
 }
 
 func (s *Service) subscriptionSourceAndExternalIDForBusinessAccount(userIdentity, businessAccountID string, subscription *shared.SubscriptionStatus) (string, string) {

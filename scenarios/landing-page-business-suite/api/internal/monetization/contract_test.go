@@ -55,4 +55,42 @@ func TestPaidFeaturesExampleMatchesSchema(t *testing.T) {
 			t.Fatalf("%s monetization manifest does not match schema: %v", scenario, err)
 		}
 	}
+	basBytes, err := os.ReadFile(filepath.Join(repoRoot, "scenarios", "browser-automation-studio", ".vrooli", "monetization.json"))
+	if err != nil {
+		t.Fatalf("read BAS monetization manifest for negative schema fixtures: %v", err)
+	}
+	var bas map[string]any
+	if err := json.Unmarshal(basBytes, &bas); err != nil {
+		t.Fatalf("decode BAS monetization manifest: %v", err)
+	}
+	meters, ok := bas["meters"].([]any)
+	if !ok || len(meters) < 2 {
+		t.Fatal("BAS monetization manifest does not contain its AI and workflow meters")
+	}
+	reservation := map[string]any{
+		"kind": "lpbs_atomic", "authority": "landing-page-business-suite",
+		"begin_path":   "api/services/entitlement/service.go",
+		"commit_path":  "api/services/workflow/service.go",
+		"release_path": "api/services/workflow/service.go",
+	}
+	classABytes, _ := json.Marshal(bas)
+	var classA map[string]any
+	if err := json.Unmarshal(classABytes, &classA); err != nil {
+		t.Fatalf("clone BAS manifest for Class A negative schema fixture: %v", err)
+	}
+	classAMeters := classA["meters"].([]any)
+	classAMeters[0].(map[string]any)["reservation"] = reservation
+	if err := schema.Validate(classA); err == nil {
+		t.Fatal("schema accepted a remote reservation on a Class A meter")
+	}
+	bothBytes, _ := json.Marshal(bas)
+	var both map[string]any
+	if err := json.Unmarshal(bothBytes, &both); err != nil {
+		t.Fatalf("clone BAS manifest for conflicting mode schema fixture: %v", err)
+	}
+	bothMeters := both["meters"].([]any)
+	bothMeters[1].(map[string]any)["outbox"] = "api/services/credits"
+	if err := schema.Validate(both); err == nil {
+		t.Fatal("schema accepted both outbox and remote reservation modes")
+	}
 }

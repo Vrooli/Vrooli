@@ -17,9 +17,10 @@ var (
 // Receipt is the platform-neutral input accepted by the purchase rail seam.
 // The token is verified by the selected platform validator before persistence.
 type Receipt struct {
-	Source       string
-	Token        string
-	UserIdentity string
+	Source            string
+	Token             string
+	UserIdentity      string
+	BusinessAccountID string
 }
 
 // NormalizedSubscription is the only shape the commerce core consumes. Once
@@ -101,12 +102,14 @@ func (v StripeReceiptValidator) Validate(ctx context.Context, receipt Receipt) (
 	return v.Verify.Validate(ctx, receipt)
 }
 
-// RegisterReceipt persists a normalized receipt result. The source/external
-// pair is unique, so replaying a receipt is rejected rather than refreshing
-// an existing row or silently creating a second subscription.
+// RegisterReceipt persists a normalized receipt result on the authenticated,
+// server-resolved business account. The source/external pair is unique, so
+// replaying a receipt is rejected rather than refreshing an existing row or
+// silently creating a second subscription.
 func (s *Service) RegisterReceipt(ctx context.Context, validators ReceiptValidators, receipt Receipt) (*EntitlementPayload, error) {
 	user := s.normalizeEmail(receipt.UserIdentity)
-	if user == "" || strings.TrimSpace(receipt.Token) == "" {
+	accountID := strings.TrimSpace(receipt.BusinessAccountID)
+	if user == "" || strings.TrimSpace(receipt.Token) == "" || accountID == "" {
 		return nil, ErrReceiptInvalid
 	}
 	normalized, err := validators.Validate(ctx, receipt)
@@ -120,10 +123,10 @@ func (s *Service) RegisterReceipt(ctx context.Context, validators ReceiptValidat
 		return nil, ErrReceiptInvalid
 	}
 	result, err := s.db.ExecContext(ctx, `
-		INSERT INTO subscriptions (subscription_id, customer_email, status, source, external_subscription_id, plan_tier, price_id, bundle_key, created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
+		INSERT INTO subscriptions (subscription_id, customer_email, business_account_id, status, source, external_subscription_id, plan_tier, price_id, bundle_key, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)
 		ON CONFLICT DO NOTHING
-	`, normalized.SubscriptionID, user, normalized.Status, strings.ToLower(receipt.Source), normalized.ExternalSubscription, normalized.PlanTier, normalized.PriceID, normalized.BundleKey)
+	`, normalized.SubscriptionID, user, accountID, normalized.Status, strings.ToLower(receipt.Source), normalized.ExternalSubscription, normalized.PlanTier, normalized.PriceID, normalized.BundleKey)
 	if err != nil {
 		return nil, fmt.Errorf("persist validated receipt: %w", err)
 	}
@@ -133,5 +136,5 @@ func (s *Service) RegisterReceipt(ctx context.Context, validators ReceiptValidat
 	s.cacheMutex.Lock()
 	delete(s.cache, user)
 	s.cacheMutex.Unlock()
-	return s.GetEntitlementsContext(ctx, user)
+	return s.GetEntitlementsForBusinessAccountContext(ctx, user, accountID)
 }

@@ -10,15 +10,16 @@ import (
 )
 
 type UpdatePriceRequest struct {
-	StripePriceID  *string   `json:"stripe_price_id"`
-	PlanName       *string   `json:"plan_name"`
-	DisplayWeight  *int      `json:"display_weight"`
-	DisplayEnabled *bool     `json:"display_enabled"`
-	Subtitle       *string   `json:"subtitle"`
-	Badge          *string   `json:"badge"`
-	CtaLabel       *string   `json:"cta_label"`
-	Highlight      *bool     `json:"highlight"`
-	Features       *[]string `json:"features"`
+	StripePriceID   *string                                     `json:"stripe_price_id"`
+	PlanName        *string                                     `json:"plan_name"`
+	DisplayWeight   *int                                        `json:"display_weight"`
+	DisplayEnabled  *bool                                       `json:"display_enabled"`
+	Subtitle        *string                                     `json:"subtitle"`
+	Badge           *string                                     `json:"badge"`
+	CtaLabel        *string                                     `json:"cta_label"`
+	Highlight       *bool                                       `json:"highlight"`
+	Features        *[]string                                   `json:"features"`
+	AppEntitlements *map[string]commerce.AppEntitlementPlanSpec `json:"app_entitlements"`
 }
 
 type Dependencies struct {
@@ -42,24 +43,25 @@ type Dependencies struct {
 }
 
 type CreatePriceRequest struct {
-	StripePriceID          string   `json:"stripe_price_id"`
-	PlanName               string   `json:"plan_name"`
-	PlanTier               string   `json:"plan_tier"`
-	BillingInterval        string   `json:"billing_interval"`
-	AmountCents            *int64   `json:"amount_cents"`
-	Currency               *string  `json:"currency"`
-	DisplayWeight          *int32   `json:"display_weight"`
-	DisplayEnabled         *bool    `json:"display_enabled"`
-	MonthlyIncludedCredits *int64   `json:"monthly_included_credits"`
-	Subtitle               *string  `json:"subtitle"`
-	Badge                  *string  `json:"badge"`
-	CtaLabel               *string  `json:"cta_label"`
-	Highlight              *bool    `json:"highlight"`
-	Features               []string `json:"features"`
+	StripePriceID          string                                     `json:"stripe_price_id"`
+	PlanName               string                                     `json:"plan_name"`
+	PlanTier               string                                     `json:"plan_tier"`
+	BillingInterval        string                                     `json:"billing_interval"`
+	AmountCents            *int64                                     `json:"amount_cents"`
+	Currency               *string                                    `json:"currency"`
+	DisplayWeight          *int32                                     `json:"display_weight"`
+	DisplayEnabled         *bool                                      `json:"display_enabled"`
+	MonthlyIncludedCredits *int64                                     `json:"monthly_included_credits"`
+	Subtitle               *string                                    `json:"subtitle"`
+	Badge                  *string                                    `json:"badge"`
+	CtaLabel               *string                                    `json:"cta_label"`
+	Highlight              *bool                                      `json:"highlight"`
+	Features               []string                                   `json:"features"`
+	AppEntitlements        map[string]commerce.AppEntitlementPlanSpec `json:"app_entitlements,omitempty"`
 }
 
 func (r CreatePriceRequest) input() commerce.CreateBundlePriceInput {
-	return commerce.CreateBundlePriceInput{StripePriceID: r.StripePriceID, PlanName: r.PlanName, PlanTier: r.PlanTier, BillingInterval: r.BillingInterval, AmountCents: r.AmountCents, Currency: r.Currency, DisplayWeight: r.DisplayWeight, DisplayEnabled: r.DisplayEnabled, MonthlyIncludedCredits: r.MonthlyIncludedCredits, Subtitle: r.Subtitle, Badge: r.Badge, CtaLabel: r.CtaLabel, Highlight: r.Highlight, Features: r.Features}
+	return commerce.CreateBundlePriceInput{StripePriceID: r.StripePriceID, PlanName: r.PlanName, PlanTier: r.PlanTier, BillingInterval: r.BillingInterval, AmountCents: r.AmountCents, Currency: r.Currency, DisplayWeight: r.DisplayWeight, DisplayEnabled: r.DisplayEnabled, MonthlyIncludedCredits: r.MonthlyIncludedCredits, Subtitle: r.Subtitle, Badge: r.Badge, CtaLabel: r.CtaLabel, Highlight: r.Highlight, Features: r.Features, AppEntitlements: r.AppEntitlements}
 }
 
 type StripeImportRequest struct {

@@ -4,7 +4,7 @@
   "scenario": "landing-page-business-suite",
   "phase": "monetization-conformance",
   "displayName": "Monetization Conformance",
-  "description": "Validates monetization trust boundaries, declarations, and local metering posture.",
+  "description": "Validates monetization trust boundaries, declarations, and meter admission/reporting posture.",
   "source": "validation-provider",
   "orderHint": 19,
   "timeout": "90s",
@@ -41,12 +41,12 @@
   "concurrency": { "mode": "provider-serial" },
   "determinism": { "default": "file-determined", "inputs": [".vrooli/monetization.json", "**/*.go"], "reason": "The provider scans scenario source and manifest state." },
   "maturity": {
-    "version": "1.2.0",
+    "version": "1.3.0",
     "levels": [
       { "id": "L0", "name": "Inventory unavailable", "description": "Monetization surfaces cannot be inspected.", "entry_criteria": ["The target is applicable."], "exit_criteria": ["Source and declaration surfaces are readable."] },
       { "id": "L1", "name": "Trust boundary", "description": "The static trust-boundary checks run and findings are visible.", "entry_criteria": ["Source surfaces are readable."], "exit_criteria": ["No shared service secret or symmetric verifier is present."] },
       { "id": "L2", "name": "Declared", "description": "The monetization surface is declared and enforcement paths are inspectable.", "entry_criteria": ["Trust-boundary checks are clean."], "exit_criteria": ["Manifest and enforcement paths are present."] },
-      { "id": "L3", "name": "Hardened", "description": "Class A and Class B meters have the required server or durable-local posture.", "entry_criteria": ["Declaration is valid."], "exit_criteria": ["Meter posture is clean."] },
+      { "id": "L3", "name": "Hardened", "description": "Class A and Class B meters have the required server or durable-local posture.", "entry_criteria": ["Declaration is valid."], "exit_criteria": ["Meter posture is clean.", "Each Class B meter declares exactly one supported accounting mode."] },
       { "id": "L4", "name": "Complete", "description": "The scenario is ready for monetization assurance.", "entry_criteria": ["All gating checks are clean."], "exit_criteria": ["All declared monetization checks pass."] }
     ],
     "capabilities": [
@@ -60,6 +60,7 @@
     ],
     "findings": {
       "money.undeclared_monetization": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Add or repair the governed monetization declaration." },
+      "money.product_shape_mismatch": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare whether the product gates features or only meters usage, then align the enforcement declaration." },
       "money.service_token_in_client_bundle": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Remove shared service credentials from desktop and client surfaces." },
       "money.symmetric_token_verification": { "capability_id": "monetization_boundary", "local_level_impact": "L1", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use asymmetric consumer leases." },
       "money.feature_not_enforced": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare and implement the authoritative feature enforcement path." },
@@ -68,7 +69,8 @@
       "money.cost_bearing_meter_client_executed": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Move cost-bearing work behind the LPBS wallet boundary." },
       "money.limits_from_local_config": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Remove duplicated numeric limits from local configuration." },
       "money.gate_blocks_offline": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use a still-valid cached lease during transient outages." },
-      "money.no_outbox_for_local_meter": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Persist Class B usage in a durable outbox before delivery." }
+      "money.no_outbox_for_local_meter": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Persist Class B usage in a durable outbox before delivery, unless the meter declares a validated LPBS atomic reservation." },
+      "money.remote_reservation_invalid": { "capability_id": "monetization_boundary", "local_level_impact": "L3", "global_impact": "safety_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Declare matching LPBS reservation, commit, and release code paths for a Class B meter, separately from outbox reporting." }
       ,"money.unknown_bundle_key": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Use the LPBS runtime bundle key." }
       ,"money.unregistered_app_key": { "capability_id": "monetization_boundary", "local_level_impact": "L2", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Register the declared app through the delivery catalog." }
       ,"money.live_catalog_unavailable": { "capability_id": "monetization_boundary", "local_level_impact": "L4", "global_impact": "foundation_blocker", "dimension": "operational-targets", "severity_default": "SEVERITY_ERROR", "clean_requirement": "required", "fix_class": "manual", "reason": "Restore the LPBS database/catalog authority before declaring conformance." }

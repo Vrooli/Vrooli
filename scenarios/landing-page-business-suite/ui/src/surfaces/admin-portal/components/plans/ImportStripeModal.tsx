@@ -14,6 +14,7 @@ import type { StripeProductWithPrices } from '../../../../shared/api/billing';
 import { cn } from '../../../../shared/lib/utils';
 import { Callout } from '../Callout';
 import type { UseStripeImportReturn } from '../../hooks/useStripeImport';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 type PriceFilter = 'all' | 'active' | 'existing' | 'inactive';
 const PRICE_FILTERS: Array<{ key: PriceFilter; label: string }> = [
@@ -455,7 +456,7 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
           )}
         </div>
 
-        <DialogFooter className="border-t border-slate-700 pt-4 gap-3 flex-col sm:flex-row sm:items-center sm:justify-between">
+        <DialogFooter className="border-t border-slate-700 pt-4 gap-3">
           <div className="flex flex-col gap-2 text-sm text-slate-400">
             <div className="flex items-center gap-2">
               <Check className="h-4 w-4 text-emerald-400" />
@@ -491,29 +492,10 @@ export function ImportStripeModal({ stripeImport }: ImportStripeModalProps) {
               </label>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={closeModal} disabled={importing}>
-              Cancel
-            </Button>
-            <Button
-              onClick={() => {
-                void handleImport();
-              }}
-              disabled={importing || loading || !canImport}
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  Import Selected
-                </>
-              )}
-            </Button>
-          </div>
+          <OverlayActionBar className="sm:w-auto sm:min-w-64" actions={[
+            { id: 'cancel', label: 'Cancel', onSelect: closeModal, disabled: importing },
+            { id: 'import-selected', label: importing ? 'Importing...' : 'Import Selected', onSelect: () => { void handleImport(); }, disabled: importing || loading || !canImport, primary: true },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

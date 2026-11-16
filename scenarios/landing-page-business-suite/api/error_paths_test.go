@@ -161,7 +161,7 @@ func TestErrorPaths_AccountService_NonexistentUser(t *testing.T) {
 	svc := NewAccountService(db, planSvc)
 
 	// Query for a user that doesn't exist
-	sub, err := svc.GetSubscription("nonexistent-999999@example.com")
+	sub, err := svc.GetSubscriptionContext(context.Background(), "nonexistent-999999@example.com")
 	// Should return nil subscription without error (or with specific error)
 	if err != nil {
 		t.Logf("Non-existent user returned error: %v", err)
@@ -178,7 +178,7 @@ func TestErrorPaths_AccountService_EmptyEmail(t *testing.T) {
 	svc := NewAccountService(db, planSvc)
 
 	// Test with empty email
-	sub, err := svc.GetSubscription("")
+	sub, err := svc.GetSubscriptionContext(context.Background(), "")
 	// Should handle gracefully
 	if err != nil {
 		t.Logf("Empty email returned error (acceptable): %v", err)

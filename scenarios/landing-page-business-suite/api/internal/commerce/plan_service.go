@@ -187,12 +187,17 @@ func (s *PlanService) CreateBundlePrice(ctx context.Context, bundleKey string, i
 		return nil, err
 	}
 
+	appEntitlements, err := normalizeAppEntitlementPlanSpecs(input.AppEntitlements)
+	if err != nil {
+		return nil, err
+	}
 	metadata := buildPlanMetadata(
 		input.Subtitle,
 		input.Badge,
 		input.CtaLabel,
 		input.Highlight,
 		input.Features,
+		appEntitlements,
 	)
 
 	plan := &PlanOption{
@@ -232,6 +237,13 @@ func (s *PlanService) UpdateBundlePriceWithStripe(ctx context.Context, bundleKey
 	}
 	if s.planStore == nil {
 		return nil, fmt.Errorf("plan store not available")
+	}
+	if input.AppEntitlements != nil {
+		normalized, err := normalizeAppEntitlementPlanSpecs(*input.AppEntitlements)
+		if err != nil {
+			return nil, err
+		}
+		input.AppEntitlements = &normalized
 	}
 
 	var stripeDetails *StripePriceImport

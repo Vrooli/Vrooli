@@ -14,23 +14,31 @@ import (
 // verification details. Validators are selected by source and all sources
 // return the same entitlement payload.
 type ReceiptDependencies struct {
-	Validators   commerce.ReceiptValidators
-	Register     func(context.Context, commerce.ReceiptValidators, commerce.Receipt) (*commerce.EntitlementPayload, error)
-	UserIdentity func(context.Context) string
-	WriteError   func(http.ResponseWriter, int, string, string)
+	Validators             commerce.ReceiptValidators
+	Register               func(context.Context, commerce.ReceiptValidators, commerce.Receipt) (*commerce.EntitlementPayload, error)
+	UserIdentity           func(context.Context) string
+	UserID                 func(context.Context) string
+	ResolveBusinessAccount func(context.Context, string, string, string) (string, error)
+	WriteError             func(http.ResponseWriter, int, string, string)
 }
 
 type receiptRequest struct {
-	Source string `json:"source"`
-	Token  string `json:"token"`
+	Source            string `json:"source"`
+	Token             string `json:"token"`
+	BusinessAccountID string `json:"business_account_id,omitempty"`
 }
 
 // RegisterReceipt accepts a server-verifiable store receipt or purchase token.
 // Identity comes from the authenticated consumer token, never from the body.
 func RegisterReceipt(deps ReceiptDependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if deps.UserIdentity == nil || deps.UserID == nil {
+			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
+			return
+		}
 		identity := strings.TrimSpace(deps.UserIdentity(r.Context()))
-		if identity == "" {
+		userID := strings.TrimSpace(deps.UserID(r.Context()))
+		if identity == "" || userID == "" {
 			deps.WriteError(w, http.StatusUnauthorized, "Authentication required", "unauthorized")
 			return
 		}
@@ -43,7 +51,16 @@ func RegisterReceipt(deps ReceiptDependencies) http.HandlerFunc {
 			deps.WriteError(w, http.StatusBadRequest, "source and token are required", "validation")
 			return
 		}
-		payload, err := deps.Register(r.Context(), deps.Validators, commerce.Receipt{Source: request.Source, Token: request.Token, UserIdentity: identity})
+		if deps.ResolveBusinessAccount == nil {
+			deps.WriteError(w, http.StatusServiceUnavailable, "Business account resolution is unavailable", "server_error")
+			return
+		}
+		accountID, err := deps.ResolveBusinessAccount(r.Context(), userID, identity, request.BusinessAccountID)
+		if err != nil || strings.TrimSpace(accountID) == "" {
+			deps.WriteError(w, http.StatusForbidden, "Business account access is not available", "forbidden")
+			return
+		}
+		payload, err := deps.Register(r.Context(), deps.Validators, commerce.Receipt{Source: request.Source, Token: request.Token, UserIdentity: identity, BusinessAccountID: accountID})
 		if err != nil {
 			status, kind := http.StatusUnprocessableEntity, "receipt_invalid"
 			switch {

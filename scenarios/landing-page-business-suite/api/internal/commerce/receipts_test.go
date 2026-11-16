@@ -20,6 +20,9 @@ func (r receiptResult) RowsAffected() (int64, error) { return int64(r), nil }
 
 type replayReceiptStore struct{}
 
+func (replayReceiptStore) QueryContext(context.Context, string, ...any) (*sql.Rows, error) {
+	return nil, errors.New("query unsupported")
+}
 func (replayReceiptStore) QueryRowContext(context.Context, string, ...any) *sql.Row { return nil }
 func (replayReceiptStore) ExecContext(context.Context, string, ...any) (sql.Result, error) {
 	return receiptResult(0), nil
@@ -35,9 +38,22 @@ func TestRegisterReceiptRejectsReplayBeforeRefreshingEntitlements(t *testing.T) 
 			}, nil
 		}},
 	}
-	_, err := service.RegisterReceipt(context.Background(), validators, Receipt{Source: "apple", Token: "signed", UserIdentity: "buyer@example.com"})
+	_, err := service.RegisterReceipt(context.Background(), validators, Receipt{Source: "apple", Token: "signed", UserIdentity: "buyer@example.com", BusinessAccountID: "account-1"})
 	if !errors.Is(err, ErrReceiptReplay) {
 		t.Fatalf("replayed receipt error = %v, want %v", err, ErrReceiptReplay)
+	}
+}
+
+func TestRegisterReceiptRequiresResolvedBusinessAccount(t *testing.T) {
+	validated := false
+	service := NewService(replayReceiptStore{}, testPlanCatalog{}, Runtime{})
+	validators := ReceiptValidators{"apple": AppleReceiptValidator{Verify: func(context.Context, Receipt) (NormalizedSubscription, error) {
+		validated = true
+		return NormalizedSubscription{}, nil
+	}}}
+	_, err := service.RegisterReceipt(context.Background(), validators, Receipt{Source: "apple", Token: "signed", UserIdentity: "buyer@example.com"})
+	if !errors.Is(err, ErrReceiptInvalid) || validated {
+		t.Fatalf("registration error=%v validated=%t, want invalid receipt before validation", err, validated)
 	}
 }
 
@@ -101,8 +117,9 @@ func TestReceiptSourcesProduceEquivalentEntitlementPayloads(t *testing.T) {
 		}
 		defer db.Close()
 		for _, statement := range []string{
-			`CREATE TABLE subscriptions (subscription_id TEXT, customer_email TEXT, customer_id TEXT, status TEXT, source TEXT, external_subscription_id TEXT, plan_tier TEXT, price_id TEXT, bundle_key TEXT, canceled_at TIMESTAMP, updated_at TIMESTAMP, billing_cycle_start INTEGER, created_at TIMESTAMP)`,
-			`CREATE TABLE credit_wallets (customer_email TEXT, balance_credits INTEGER, bonus_credits INTEGER, updated_at TIMESTAMP)`,
+			`CREATE TABLE subscriptions (subscription_id TEXT, customer_email TEXT, customer_id TEXT, business_account_id TEXT, status TEXT, source TEXT, external_subscription_id TEXT, plan_tier TEXT, price_id TEXT, bundle_key TEXT, canceled_at TIMESTAMP, updated_at TIMESTAMP, billing_cycle_start INTEGER, created_at TIMESTAMP)`,
+			`CREATE TABLE business_account_credit_wallets (business_account_id TEXT PRIMARY KEY, customer_email TEXT NOT NULL, balance_credits INTEGER NOT NULL DEFAULT 0, bonus_credits INTEGER NOT NULL DEFAULT 0, updated_at DATETIME)`,
+			`CREATE TABLE credit_funding_lots (id TEXT PRIMARY KEY, business_account_id TEXT NOT NULL, source_kind TEXT, provider TEXT, provider_ref TEXT, livemode BOOLEAN, settlement_state TEXT NOT NULL, spendable_after DATETIME, reversal_window_ends DATETIME, granted INTEGER, remaining INTEGER NOT NULL, expires_at DATETIME, status TEXT NOT NULL, created_at DATETIME)`,
 		} {
 			if _, err := db.Exec(statement); err != nil {
 				t.Fatal(err)
@@ -113,9 +130,19 @@ func TestReceiptSourcesProduceEquivalentEntitlementPayloads(t *testing.T) {
 		validators := ReceiptValidators{source: VerifiedReceiptFunc(func(context.Context, Receipt) (NormalizedSubscription, error) {
 			return canonical, nil
 		})}
-		got, err := service.RegisterReceipt(context.Background(), validators, Receipt{Source: source, Token: "verified", UserIdentity: canonical.UserIdentity})
+		got, err := service.RegisterReceipt(context.Background(), validators, Receipt{Source: source, Token: "verified", UserIdentity: canonical.UserIdentity, BusinessAccountID: "account-1"})
 		if err != nil {
 			t.Fatalf("%s registration: %v", source, err)
+		}
+		if got.Status != "active" || got.PlanTier != "pro" {
+			t.Fatalf("%s receipt returned account entitlements status=%q plan=%q, want active pro", source, got.Status, got.PlanTier)
+		}
+		var storedAccount string
+		if err := db.QueryRow(`SELECT business_account_id FROM subscriptions WHERE subscription_id = ?`, canonical.SubscriptionID).Scan(&storedAccount); err != nil {
+			t.Fatalf("%s read persisted receipt account: %v", source, err)
+		}
+		if storedAccount != "account-1" {
+			t.Fatalf("%s receipt account = %q, want selected account", source, storedAccount)
 		}
 		got.NotAfter = time.Time{}
 		got.Subscription = nil

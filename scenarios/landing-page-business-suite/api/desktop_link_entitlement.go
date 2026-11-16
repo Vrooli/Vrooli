@@ -5,8 +5,6 @@ import (
 	"fmt"
 
 	link "landing-page-business-suite-api/internal/desktoplink"
-
-	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 )
 
 func (s *Server) issueDesktopEntitlementLease(ctx context.Context, connected link.Link) (link.EntitlementLease, error) {
@@ -22,13 +20,14 @@ func (s *Server) issueDesktopEntitlementLease(ctx context.Context, connected lin
 	if err != nil {
 		return link.EntitlementLease{}, fmt.Errorf("resolve linked entitlement: %w", err)
 	}
-	lease, err := s.userAuthService.SignEntitlementLease(entitlementclient.Payload{
-		UserIdentity: connected.LocalPrincipal, BusinessAccountID: connected.BusinessAccountID, LinkID: connected.ID,
-		InstallationID: connected.InstallationID, Resource: connected.Resource, Audience: connected.Audience,
-		Scopes: connected.Scopes, Status: payload.Status, PlanTier: payload.PlanTier, PlanRank: payload.PlanRank,
-		PriceID: payload.PriceID, Features: payload.Features, Limits: payload.Limits, NotAfter: payload.NotAfter,
-		BillingCycleStart: payload.BillingCycleStart, Credits: payload.Credits, Subscription: payload.Subscription,
-	})
+	claims := payload.LeaseClaims(connected.LocalPrincipal)
+	claims.BusinessAccountID = connected.BusinessAccountID
+	claims.LinkID = connected.ID
+	claims.InstallationID = connected.InstallationID
+	claims.Resource = connected.Resource
+	claims.Audience = connected.Audience
+	claims.Scopes = connected.Scopes
+	lease, err := s.userAuthService.SignEntitlementLease(claims)
 	if err != nil {
 		return link.EntitlementLease{}, fmt.Errorf("sign linked entitlement: %w", err)
 	}

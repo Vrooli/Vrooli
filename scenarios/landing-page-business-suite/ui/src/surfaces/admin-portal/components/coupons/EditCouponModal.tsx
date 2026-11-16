@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Loader2, Tag } from 'lucide-react';
-import { Button } from '../../../../shared/ui/button';
+import { Tag } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import { FormField } from '../FormField';
 import { inputClassName } from '../formFieldClasses';
 import { Callout } from '../Callout';
 import type { StripeCoupon } from '../../../../shared/api/billing';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 interface EditCouponModalProps {
   coupon: StripeCoupon | null;
@@ -132,13 +132,10 @@ export function EditCouponModal({
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={handleClose} disabled={saving}>
-            Cancel
-          </Button>
-          <Button onClick={() => { void handleSave(); }} disabled={saving} className="gap-2">
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
+          <OverlayActionBar actions={[
+            { id: 'cancel', label: 'Cancel', onSelect: handleClose, disabled: saving },
+            { id: 'save', label: saving ? 'Saving...' : 'Save Changes', onSelect: () => { void handleSave(); }, disabled: saving, primary: true },
+          ]} />
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -116,7 +116,30 @@ func newListJsonValue(values []*commonv1.JsonValue) *commonv1.JsonValue {
 	}}
 }
 
-func buildPlanMetadata(subtitle, badge, ctaLabel *string, highlight *bool, features []string) map[string]*commonv1.JsonValue {
+func appEntitlementSpecsValue(specs map[string]AppEntitlementPlanSpec) *commonv1.JsonValue {
+	values := make(map[string]any, len(specs))
+	for appKey, declaration := range specs {
+		appValue := make(map[string]any)
+		if len(declaration.Features) > 0 {
+			features := make([]any, len(declaration.Features))
+			for i, feature := range declaration.Features {
+				features[i] = feature
+			}
+			appValue["features"] = features
+		}
+		if len(declaration.Limits) > 0 {
+			limits := make(map[string]any, len(declaration.Limits))
+			for key, value := range declaration.Limits {
+				limits[key] = value
+			}
+			appValue["limits"] = limits
+		}
+		values[appKey] = appValue
+	}
+	return toJsonValue(values)
+}
+
+func buildPlanMetadata(subtitle, badge, ctaLabel *string, highlight *bool, features []string, appEntitlements map[string]AppEntitlementPlanSpec) map[string]*commonv1.JsonValue {
 	metadata := make(map[string]*commonv1.JsonValue)
 
 	if subtitle != nil {
@@ -150,6 +173,9 @@ func buildPlanMetadata(subtitle, badge, ctaLabel *string, highlight *bool, featu
 			listValues = append(listValues, newStringJsonValue(feature))
 		}
 		metadata["features"] = newListJsonValue(listValues)
+	}
+	if len(appEntitlements) > 0 {
+		metadata["app_entitlements"] = appEntitlementSpecsValue(appEntitlements)
 	}
 
 	if len(metadata) == 0 {

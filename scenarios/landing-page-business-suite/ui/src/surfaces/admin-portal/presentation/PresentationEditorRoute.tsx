@@ -10,6 +10,7 @@ import { RevisionPreview } from './RevisionPreview';
 import { usePresentationEditor, type Activation } from './usePresentationEditor';
 import { useDocumentPreview, type DocumentPreviewRequest } from './useDocumentPreview';
 import './presentationEditor.css';
+import { OverlayActionBar } from '@vrooli/react-component-library/OverlayActionBar/1';
 
 export interface PresentationEditorRouteProps {
   /** Parent supplies the route's explicit variant. No public-assignment lookup. */
@@ -127,8 +128,10 @@ function AuthenticatedEditor({ variantSlug, client = productPresentationClient, 
         <DialogHeader><DialogTitle>{confirmation === 'reload' ? 'Discard local edits and reload?' : confirmActivation?.kind === 'publish' ? 'Publish this draft?' : 'Restore this published revision?'}</DialogTitle>
           <DialogDescription>{confirmation === 'reload' ? 'Reload replaces all unsaved text with the current server draft. Cancel to keep your edits.' : 'This explicitly changes the active public revision, subject to server validation and the loaded generation. Saving alone does not perform this action.'}</DialogDescription></DialogHeader>
         {confirmActivation && <dl className="space-y-2 break-all text-sm text-slate-200"><dt>Revision</dt><dd className="font-mono">{confirmActivation.revision}</dd><dt>Expected generation</dt><dd>{confirmActivation.generation.toString()}</dd></dl>}
-        <DialogFooter><Button variant="ghost" onClick={() => { setConfirmation(undefined); }}>Cancel</Button>
-          <Button variant={confirmation === 'reload' ? 'destructive' : 'default'} onClick={() => { if (confirmation === 'reload') editor.reload(); else if (confirmActivation) editor.activate(confirmActivation); setConfirmation(undefined); }}>{confirmation === 'reload' ? 'Discard and reload' : confirmActivation?.kind === 'publish' ? 'Confirm publish' : 'Confirm rollback'}</Button></DialogFooter>
+        <DialogFooter><OverlayActionBar actions={[
+          { id: 'cancel', label: 'Cancel', onSelect: () => { setConfirmation(undefined); } },
+          { id: 'confirm', label: confirmation === 'reload' ? 'Discard and reload' : confirmActivation?.kind === 'publish' ? 'Confirm publish' : 'Confirm rollback', onSelect: () => { if (confirmation === 'reload') editor.reload(); else if (confirmActivation) editor.activate(confirmActivation); setConfirmation(undefined); }, primary: true },
+        ]} /></DialogFooter>
       </DialogContent>
     </Dialog>
   </div>;

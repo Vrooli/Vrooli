@@ -25,7 +25,11 @@ func bundleHandlerDependencies(planService *commerce.PlanService, stripe *Stripe
 			if stripe != nil {
 				fetcher = stripe.FetchStripePriceDetails
 			}
-			updated, err := planService.UpdateBundlePriceWithStripe(ctx, bundleKey, priceID, commerce.UpdateBundlePriceInput(request), fetcher)
+			updated, err := planService.UpdateBundlePriceWithStripe(ctx, bundleKey, priceID, commerce.UpdateBundlePriceInput{
+				StripePriceID: request.StripePriceID, PlanName: request.PlanName, DisplayWeight: request.DisplayWeight,
+				DisplayEnabled: request.DisplayEnabled, Subtitle: request.Subtitle, Badge: request.Badge,
+				CtaLabel: request.CtaLabel, Highlight: request.Highlight, Features: request.Features, AppEntitlements: request.AppEntitlements,
+			}, fetcher)
 			if err != nil {
 				return nil, err
 			}

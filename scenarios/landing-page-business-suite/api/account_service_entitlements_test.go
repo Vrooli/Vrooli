@@ -199,7 +199,7 @@ func TestAccountServiceEntitlementsIncludesFeatures(t *testing.T) {
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 	// [REQ:SUB-ENTITLEMENTS] Entitlements payload surfaces feature flags and credits
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestAccountServiceEntitlements_NoSubscriptionDefaults(t *testing.T) {
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
 
-	entitlements, err := accountService.GetEntitlements("nosub@example.com")
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), "nosub@example.com")
 	if err != nil {
 		t.Fatalf("GetEntitlements for missing user failed: %v", err)
 	}
@@ -387,7 +387,7 @@ func TestAccountServiceEntitlements_InfersPlanTierFromPrice(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -470,7 +470,7 @@ func TestGetEntitlements_StatusPastDue_ReturnsLimitedAccess(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -540,7 +540,7 @@ func TestGetEntitlements_StatusTrialing_ReturnsFullAccess(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -576,7 +576,7 @@ func TestGetEntitlements_StatusCanceled_ReturnsFreeDefaults(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -650,7 +650,7 @@ func TestGetEntitlements_BillingCycleStart_IncludedInResponse(t *testing.T) {
 	}
 
 	accountService := newAccountServiceWithTestPlanStore(t, db)
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -679,7 +679,7 @@ func TestGetEntitlements_NoBillingCycleStart_DefaultsToZero(t *testing.T) {
 	}
 
 	accountService := NewAccountService(db, NewPlanService(db))
-	entitlements, err := accountService.GetEntitlements(email)
+	entitlements, err := accountService.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}

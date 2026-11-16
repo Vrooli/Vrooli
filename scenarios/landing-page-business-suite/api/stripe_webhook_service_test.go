@@ -7,11 +7,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
+	"landing-page-business-suite-api/internal/commerce"
 )
 
 // setupCheckoutAtomicitySchema restores the production schema before a test
@@ -203,6 +207,131 @@ func TestHandleCheckoutCompleted_SubscriptionBranch_HappyPath_UsesSingleTx(t *te
 		require.NoError(t, db.QueryRow(`SELECT status FROM subscription_schedules WHERE subscription_id = $1`, "sub_happy_intro").Scan(&schedStatus))
 		assert.Equal(t, "active", schedStatus)
 	})
+}
+
+func TestScopedOffersFlowThroughCheckoutWebhookAndLeaseEntitlements(t *testing.T) {
+	db := setupTestDB(t)
+	resetStripeTestData(t, db)
+	setupCheckoutAtomicitySchema(t, db)
+
+	productID := upsertTestBundleProduct(t, db, "business_suite", "Business Suite", "prod_scoped_offer", "production", 1000000, 0.001, "credits")
+	insertBundlePrice(t, db, productID, "price_audio_only", "Audio Tools", "pro", "month", "usd", 1000, false, "", 0, 0, "", 0, 0, 1, 10, "none", sessionTypeSubscription, map[string]interface{}{
+		"app_entitlements": map[string]interface{}{
+			"audio-tools": map[string]interface{}{"features": []interface{}{"transcribe"}, "limits": map[string]interface{}{"ai_credits": int64(100)}},
+		},
+	})
+	insertBundlePrice(t, db, productID, "price_audio_plus", "Audio Tools Plus", "pro", "month", "usd", 1500, false, "", 0, 0, "", 0, 0, 1, 15, "none", sessionTypeSubscription, map[string]interface{}{
+		"app_entitlements": map[string]interface{}{
+			"audio-tools": map[string]interface{}{"features": []interface{}{"transcribe", "enhanced_export"}, "limits": map[string]interface{}{"ai_credits": int64(150)}},
+		},
+	})
+	insertBundlePrice(t, db, productID, "price_full_bundle", "Business Suite", "pro", "month", "usd", 3000, false, "", 0, 0, "", 0, 0, 1, 20, "none", sessionTypeSubscription, map[string]interface{}{
+		"app_entitlements": map[string]interface{}{
+			"audio-tools": map[string]interface{}{"features": []interface{}{"export"}, "limits": map[string]interface{}{"ai_credits": int64(200)}},
+			"web-console": map[string]interface{}{"features": []interface{}{"agents"}},
+		},
+	})
+
+	accountID, email := "acct_scoped_offer", "scoped-offer@example.com"
+	if _, err := db.Exec(`INSERT INTO business_account_credit_wallets (business_account_id,customer_email,balance_credits,bonus_credits) VALUES ($1,$2,0,0)`, accountID, email); err != nil {
+		t.Fatal(err)
+	}
+	checkoutIDs := map[string][2]string{
+		"price_audio_only":  {"cs_audio_only", "sub_audio_only"},
+		"price_full_bundle": {"cs_full_bundle", "sub_full_bundle"},
+	}
+	stripeMock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/v1/checkout/sessions" {
+			http.NotFound(w, r)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ids, ok := checkoutIDs[r.Form.Get("line_items[0][price]")]
+		if !ok || r.Form.Get("subscription_data[metadata][business_account_id]") != accountID {
+			http.Error(w, "checkout price or account binding missing", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"id":%q,"url":"https://checkout.stripe.test/%s","status":"open","subscription":%q,"customer":"cus_atomicity","customer_email":%q,"amount_total":1000}`, ids[0], ids[0], ids[1], email)
+	}))
+	defer stripeMock.Close()
+	service := ConfigureStripeService(t, db, DefaultStripeTestConfig().WithKeys("pk_test", "sk_test", "whsec_scoped_offer").WithMockServer(stripeMock), stripeMock)
+	for i, checkout := range []struct{ session, subscription, price string }{
+		{"cs_audio_only", "sub_audio_only", "price_audio_only"},
+		{"cs_full_bundle", "sub_full_bundle", "price_full_bundle"},
+	} {
+		created, err := service.CreateCheckoutSessionForBusinessAccount(checkout.price, "/success", "/cancel", email, accountID)
+		require.NoError(t, err)
+		assert.Equal(t, checkout.session, created.SessionId)
+		payload, signature := buildCheckoutCompletedWebhook(t, "whsec_scoped_offer", fmt.Sprintf("evt_scoped_checkout_%d", i), checkout.session, checkout.subscription, email, 1000)
+		require.NoError(t, service.HandleWebhook(payload, signature))
+	}
+
+	accounts := commerce.NewService(db, globalTestPlanStore, commerce.Runtime{})
+	effective, err := accounts.GetEntitlementsForBusinessAccountContext(t.Context(), email, accountID)
+	require.NoError(t, err)
+	grants := make(map[string]entitlementclient.AppEntitlement)
+	for _, grant := range effective.AppEntitlements {
+		grants[grant.AppKey] = grant
+	}
+	assert.ElementsMatch(t, []string{"export", "transcribe"}, grants["audio-tools"].Features)
+	assert.ElementsMatch(t, []string{"agents"}, grants["web-console"].Features)
+	assert.Equal(t, int64(200), grants["audio-tools"].Limits[0].Value, "overlapping offers must use the greatest allowance, not stack limits")
+	assert.Equal(t, "active", grants["audio-tools"].Status)
+	_, audioPresent := grants["audio-tools"]
+	_, webPresent := grants["web-console"]
+	assert.True(t, audioPresent, "standalone app checkout and bundle offer retain the app grant")
+	assert.True(t, webPresent, "bundle checkout expands to its declared app member")
+
+	sendSubscriptionEvent := func(eventID, eventType string, object map[string]interface{}) {
+		t.Helper()
+		payload, err := json.Marshal(map[string]interface{}{"id": eventID, "type": eventType, "data": map[string]interface{}{"object": object}})
+		require.NoError(t, err)
+		timestamp := fmt.Sprintf("%d", time.Now().Unix())
+		mac := hmac.New(sha256.New, []byte("whsec_scoped_offer"))
+		mac.Write([]byte(timestamp + "." + string(payload)))
+		signature := "t=" + timestamp + ",v1=" + hex.EncodeToString(mac.Sum(nil))
+		require.NoError(t, service.HandleWebhook(payload, signature))
+	}
+	sendSubscriptionEvent("evt_scoped_audio_upgrade", "customer.subscription.updated", map[string]interface{}{
+		"id": "sub_audio_only", "customer": "cus_atomicity", "customer_email": email, "status": "active",
+		"metadata": map[string]interface{}{"business_account_id": accountID, "plan_tier": "pro", "bundle_key": "business_suite"},
+		"items":    map[string]interface{}{"data": []interface{}{map[string]interface{}{"price": map[string]interface{}{"id": "price_audio_plus"}}}},
+	})
+	effective, err = accounts.GetEntitlementsForBusinessAccountContext(t.Context(), email, accountID)
+	require.NoError(t, err)
+	for _, grant := range effective.AppEntitlements {
+		if grant.AppKey == "audio-tools" {
+			assert.Contains(t, grant.Features, "enhanced_export", "subscription update must derive the upgraded app plan")
+		}
+	}
+
+	sendSubscriptionEvent("evt_scoped_bundle_deleted", "customer.subscription.deleted", map[string]interface{}{
+		"id": "sub_full_bundle", "customer": "cus_atomicity", "customer_email": email, "status": "canceled",
+		"metadata": map[string]interface{}{"business_account_id": accountID, "plan_tier": "pro", "bundle_key": "business_suite"},
+		"items":    map[string]interface{}{"data": []interface{}{map[string]interface{}{"price": map[string]interface{}{"id": "price_full_bundle"}}}},
+	})
+
+	effective, err = accounts.GetEntitlementsForBusinessAccountContext(t.Context(), email, accountID)
+	require.NoError(t, err)
+	assert.Len(t, effective.AppEntitlements, 1)
+	assert.Equal(t, "audio-tools", effective.AppEntitlements[0].AppKey)
+	assert.ElementsMatch(t, []string{"transcribe", "enhanced_export"}, effective.AppEntitlements[0].Features)
+	assert.Equal(t, int64(150), effective.AppEntitlements[0].Limits[0].Value)
+
+	sendSubscriptionEvent("evt_scoped_audio_downgrade", "customer.subscription.updated", map[string]interface{}{
+		"id": "sub_audio_only", "customer": "cus_atomicity", "customer_email": email, "status": "active",
+		"metadata": map[string]interface{}{"business_account_id": accountID, "plan_tier": "pro", "bundle_key": "business_suite"},
+		"items":    map[string]interface{}{"data": []interface{}{map[string]interface{}{"price": map[string]interface{}{"id": "price_audio_only"}}}},
+	})
+	effective, err = accounts.GetEntitlementsForBusinessAccountContext(t.Context(), email, accountID)
+	require.NoError(t, err)
+	assert.Len(t, effective.AppEntitlements, 1)
+	assert.ElementsMatch(t, []string{"transcribe"}, effective.AppEntitlements[0].Features)
+	assert.Equal(t, int64(100), effective.AppEntitlements[0].Limits[0].Value)
 }
 
 // TestHandleCheckoutCompleted_RetryAfterRollback_Succeeds simulates Stripe's

@@ -49,7 +49,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 		t.Fatalf("failed to seed subscription: %v", err)
 	}
 
-	info, err := accountService.GetSubscription(userEmail)
+	info, err := accountService.GetSubscriptionContext(context.Background(), userEmail)
 	if err != nil {
 		t.Fatalf("initial GetSubscription failed: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 		t.Fatalf("failed to update subscription: %v", err)
 	}
 
-	cached, err := accountService.GetSubscription(userEmail)
+	cached, err := accountService.GetSubscriptionContext(context.Background(), userEmail)
 	if err != nil {
 		t.Fatalf("cached GetSubscription failed: %v", err)
 	}
@@ -76,7 +76,7 @@ func TestAccountServiceSubscriptionCache(t *testing.T) {
 
 	time.Sleep(cacheTTL + 10*time.Millisecond)
 
-	refreshed, err := accountService.GetSubscription(userEmail)
+	refreshed, err := accountService.GetSubscriptionContext(context.Background(), userEmail)
 	if err != nil {
 		t.Fatalf("refresher GetSubscription failed: %v", err)
 	}
@@ -90,7 +90,7 @@ func TestAccountServiceSubscriptionMissingUser(t *testing.T) {
 
 	accountService := NewAccountService(db, NewPlanService(db))
 
-	status, err := accountService.GetSubscription("  ")
+	status, err := accountService.GetSubscriptionContext(context.Background(), "  ")
 	if err != nil {
 		t.Fatalf("unexpected error for missing user: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestGetEntitlements_IncludesBillingCycleStart(t *testing.T) {
 	}()
 
 	svc := NewAccountService(db, NewPlanService(db))
-	ent, err := svc.GetEntitlements(email)
+	ent, err := svc.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
@@ -199,31 +199,11 @@ func TestGetEntitlements_BillingCycleStartZeroWhenNotSet(t *testing.T) {
 	}()
 
 	svc := NewAccountService(db, NewPlanService(db))
-	ent, err := svc.GetEntitlements(email)
+	ent, err := svc.GetEntitlementsContext(context.Background(), email)
 	if err != nil {
 		t.Fatalf("GetEntitlements failed: %v", err)
 	}
 	if ent.BillingCycleStart != 0 {
 		t.Errorf("expected billing_cycle_start=0 for unset, got %d", ent.BillingCycleStart)
-	}
-}
-
-func TestGetBillingCycleStart_NoSubscription(t *testing.T) {
-	db := setupTestDB(t)
-
-	svc := NewAccountService(db, NewPlanService(db))
-	start := svc.BillingCycleStart("nonexistent@test.com")
-	if start != 0 {
-		t.Errorf("expected billing_cycle_start=0 for nonexistent user, got %d", start)
-	}
-}
-
-func TestGetBillingCycleStart_EmptyUser(t *testing.T) {
-	db := setupTestDB(t)
-
-	svc := NewAccountService(db, NewPlanService(db))
-	start := svc.BillingCycleStart("  ")
-	if start != 0 {
-		t.Errorf("expected billing_cycle_start=0 for empty user, got %d", start)
 	}
 }

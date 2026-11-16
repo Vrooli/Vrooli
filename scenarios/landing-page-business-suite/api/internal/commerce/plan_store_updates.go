@@ -47,6 +47,13 @@ func (ps *PlanStore) updatePlanWithStripeDetailsLocked(priceID string, input Upd
 			return nil, err
 		}
 	}
+	if input.AppEntitlements != nil {
+		normalized, err := normalizeAppEntitlementPlanSpecs(*input.AppEntitlements)
+		if err != nil {
+			return nil, err
+		}
+		input.AppEntitlements = &normalized
+	}
 
 	targetIdx, err := ps.planIndexByPriceIDLocked(priceID)
 	if err != nil {
