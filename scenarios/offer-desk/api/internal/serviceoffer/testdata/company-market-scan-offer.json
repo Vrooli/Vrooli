@@ -4,10 +4,16 @@
   "name": "Company Market Scan",
   "summary": "A cited snapshot of public company and market information.",
   "audience": "Small teams deciding whether to evaluate a market or vendor.",
+  "limits": [
+    "One market or vendor category per order; sector input is 1 to 500 characters.",
+    "Public business sources only; no personal contact data or private records.",
+    "Descriptive summary only; not investment, legal, or accounting advice."
+  ],
+  "privacy_terms": "No account or contact details are required. Do not submit passwords, payment data, personal contact data, or confidential information. The local test checkout uses a deterministic fixture and stores no real payment credentials.",
   "intake_schema": {
     "type": "object",
     "properties": {
-      "sector": { "type": "string", "description": "Market or vendor category to examine." }
+      "sector": { "type": "string", "description": "Market or vendor category to examine.", "minLength": 1, "maxLength": 500 }
     },
     "required": ["sector"]
   },

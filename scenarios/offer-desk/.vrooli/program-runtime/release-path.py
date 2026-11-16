@@ -3,8 +3,7 @@ import json
 
 inputs = program.inputs()
 
-envelope = {'program': 'offer-desk.release-path', 'version': '1', 'status': 'failed',
-            'phase': 'validate', 'inputs': {}, 'signals': {}, 'errors': [], 'evidence': []}
+envelope = program.envelope('offer-desk.release-path', '1', phase="validate", inputs={})
 
 ROW_CAP = 40
 SHIPPED = ('TRIGGER_MET', 'RETIRED')

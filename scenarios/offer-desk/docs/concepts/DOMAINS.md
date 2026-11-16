@@ -10,7 +10,6 @@ shared UI primitives remain non-domains. The board and gate capabilities are
 implemented as slices of the catalog service rather than as undeclared runtime
 packages.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

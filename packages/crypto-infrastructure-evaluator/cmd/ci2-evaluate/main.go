@@ -9,16 +9,23 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: ci2-evaluate <private-packet.json>")
+	seeded := len(os.Args) == 3 && os.Args[1] == "--seeded"
+	if len(os.Args) != 2 && !seeded {
+		fmt.Fprintln(os.Stderr, "usage: ci2-evaluate [--seeded] <private-packet.json>")
 		os.Exit(2)
 	}
-	f, err := os.Open(os.Args[1])
+	path := os.Args[len(os.Args)-1]
+	f, err := os.Open(path)
 	if err != nil {
 		fail(err)
 	}
 	defer f.Close()
-	r, err := evaluator.EvaluatePacket(f)
+	var r any
+	if seeded {
+		r, err = evaluator.EvaluatePacketSeededSuite(f)
+	} else {
+		r, err = evaluator.EvaluatePacket(f)
+	}
 	if err != nil {
 		fail(err)
 	}

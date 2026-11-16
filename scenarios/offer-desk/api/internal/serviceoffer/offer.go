@@ -33,6 +33,8 @@ type Record struct {
 	Summary             string          `json:"summary"`
 	Audience            string          `json:"audience"`
 	IntakeSchema        json.RawMessage `json:"intake_schema"`
+	Limits              []string        `json:"limits"`
+	PrivacyTerms        string          `json:"privacy_terms"`
 	ProposedPrice       Price           `json:"proposed_price"`
 	Delivery            Delivery        `json:"delivery"`
 	VerificationPromise string          `json:"verification_promise"`
@@ -82,17 +84,22 @@ const (
 // Page is the staged human/browsing-agent landing surface. It never contains a
 // direct transactional URL: a browser agent must use the approved checkout.
 type Page struct {
-	Slug                  string `json:"slug"`
-	Title                 string `json:"title"`
-	Description           string `json:"description"`
-	Audience              string `json:"audience"`
-	ProposedPrice         Price  `json:"proposed_price"`
-	DeliveryTargetMinutes int    `json:"delivery_target_minutes"`
-	VerificationPromise   string `json:"verification_promise"`
-	RefundRule            string `json:"refund_rule"`
-	FreeSamplePath        string `json:"free_sample_path"`
-	CheckoutPath          string `json:"checkout_path"`
-	PublicationState      string `json:"publication_state"`
+	Slug                  string          `json:"slug"`
+	Title                 string          `json:"title"`
+	Description           string          `json:"description"`
+	Audience              string          `json:"audience"`
+	InputSchema           json.RawMessage `json:"input_schema"`
+	Limits                []string        `json:"limits"`
+	PrivacyTerms          string          `json:"privacy_terms"`
+	LegalStatus           string          `json:"legal_status"`
+	OperatorApproval      ApprovalState   `json:"operator_approval"`
+	ProposedPrice         Price           `json:"proposed_price"`
+	DeliveryTargetMinutes int             `json:"delivery_target_minutes"`
+	VerificationPromise   string          `json:"verification_promise"`
+	RefundRule            string          `json:"refund_rule"`
+	FreeSamplePath        string          `json:"free_sample_path"`
+	CheckoutPath          string          `json:"checkout_path"`
+	PublicationState      string          `json:"publication_state"`
 }
 
 // GuestCheckout is a test-mode-only description of a person or browsing
@@ -157,6 +164,9 @@ func Validate(record Record) error {
 	if err := validObjectSchema(record.IntakeSchema); err != nil {
 		problems = append(problems, "intake_schema: "+err.Error())
 	}
+	if len(record.Limits) == 0 || strings.TrimSpace(record.PrivacyTerms) == "" {
+		problems = append(problems, "service limits and privacy terms are required")
+	}
 	if record.ProposedPrice.AmountMinor <= 0 || !validCurrency(record.ProposedPrice.Currency) {
 		problems = append(problems, "proposed_price requires a positive amount and ISO-style currency")
 	}
@@ -219,6 +229,8 @@ func Project(record Record, sampleFiles fs.FS) (Surfaces, error) {
 	checkoutPath := "/checkout/" + record.ID
 	page := Page{
 		Slug: record.ID, Title: record.Name, Description: record.Summary, Audience: record.Audience,
+		InputSchema: cloneJSON(record.IntakeSchema), Limits: append([]string(nil), record.Limits...),
+		PrivacyTerms: record.PrivacyTerms, LegalStatus: record.Legal.Status, OperatorApproval: record.OperatorApproval,
 		ProposedPrice: record.ProposedPrice, DeliveryTargetMinutes: record.Delivery.TargetMinutes,
 		VerificationPromise: record.VerificationPromise, RefundRule: record.RefundRule,
 		FreeSamplePath: "/samples/" + record.Sample.Path, CheckoutPath: checkoutPath, PublicationState: "staged",

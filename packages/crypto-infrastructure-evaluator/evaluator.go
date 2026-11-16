@@ -15,6 +15,11 @@ import (
 
 const Version = "ci2-linkability/v1"
 
+// maxPacketResponseBytes bounds the base64-wrapped packet envelope accepted
+// from the Chain Forensics owner. Real private cases can be much larger than
+// small demo packets because finalized history pages retain exact source rows.
+const maxPacketResponseBytes = 128 << 20
+
 // Report is a deterministic inventory of evidence and residual attribution risk.
 // Scores are evidence coverage indicators, not anonymity or safety guarantees.
 type Report struct {
@@ -93,54 +98,84 @@ func Evaluate(c chainforensics.Case) (Report, error) {
 // checks the supplied digest against the canonical serializer from the shared
 // owner package before evaluating the embedded case.
 func EvaluatePacket(r io.Reader) (Report, error) {
+	b, err := readPacketResponse(r)
+	if err != nil {
+		return Report{}, err
+	}
+	c, packetSHA, err := decodeVerifiedPacket(b)
+	if err != nil {
+		return Report{}, err
+	}
+	report, err := Evaluate(c)
+	if err != nil {
+		return Report{}, err
+	}
+	if report.PacketSHA256 != packetSHA {
+		return Report{}, fmt.Errorf("shared packet digest changed during evaluation")
+	}
+	return report, nil
+}
+
+// EvaluatePacketSeededSuite validates the persisted packet and runs the
+// deterministic three-profile linkage suite over its embedded CF6 case.
+func EvaluatePacketSeededSuite(r io.Reader) (SeededSuiteReport, error) {
+	b, err := readPacketResponse(r)
+	if err != nil {
+		return SeededSuiteReport{}, err
+	}
+	c, _, err := decodeVerifiedPacket(b)
+	if err != nil {
+		return SeededSuiteReport{}, err
+	}
+	return EvaluateSeededSuite(c)
+}
+
+func readPacketResponse(r io.Reader) ([]byte, error) {
+	b, err := io.ReadAll(io.LimitReader(r, maxPacketResponseBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("read packet response: %w", err)
+	}
+	if len(b) > maxPacketResponseBytes {
+		return nil, fmt.Errorf("packet response exceeds %d MiB", maxPacketResponseBytes>>20)
+	}
+	return b, nil
+}
+
+func decodeVerifiedPacket(b []byte) (chainforensics.Case, string, error) {
 	var response struct {
 		PacketJSON string `json:"packet_json"`
 		SHA256     string `json:"sha256"`
 	}
-	b, err := io.ReadAll(io.LimitReader(r, 16<<20+1))
-	if err != nil {
-		return Report{}, fmt.Errorf("read packet response: %w", err)
-	}
-	if len(b) > 16<<20 {
-		return Report{}, fmt.Errorf("packet response exceeds 16 MiB")
-	}
 	if err := json.Unmarshal(b, &response); err != nil {
-		return Report{}, fmt.Errorf("decode packet response: %w", err)
+		return chainforensics.Case{}, "", fmt.Errorf("decode packet response: %w", err)
 	}
 	if response.PacketJSON == "" || response.SHA256 == "" {
-		return Report{}, fmt.Errorf("packet response must include packet_json and sha256")
+		return chainforensics.Case{}, "", fmt.Errorf("packet response must include packet_json and sha256")
 	}
 	packetBytes, err := base64.StdEncoding.DecodeString(response.PacketJSON)
 	if err != nil {
-		return Report{}, fmt.Errorf("decode packet_json bytes: %w", err)
+		return chainforensics.Case{}, "", fmt.Errorf("decode packet_json bytes: %w", err)
 	}
 	var wire struct {
 		SchemaVersion string          `json:"schema_version"`
 		Case          json.RawMessage `json:"case"`
 	}
 	if err := json.Unmarshal(packetBytes, &wire); err != nil {
-		return Report{}, fmt.Errorf("decode packet envelope: %w", err)
+		return chainforensics.Case{}, "", fmt.Errorf("decode packet envelope: %w", err)
 	}
 	if wire.SchemaVersion != "chain-forensics.packet/v1" {
-		return Report{}, fmt.Errorf("unsupported packet schema %q", wire.SchemaVersion)
+		return chainforensics.Case{}, "", fmt.Errorf("unsupported packet schema %q", wire.SchemaVersion)
 	}
 	c, err := chainforensics.DecodeCase(bytes.NewReader(wire.Case))
 	if err != nil {
-		return Report{}, fmt.Errorf("decode shared case: %w", err)
+		return chainforensics.Case{}, "", fmt.Errorf("decode shared case: %w", err)
 	}
 	packet, err := chainforensics.BuildPrivatePacket(c)
 	if err != nil {
-		return Report{}, fmt.Errorf("rebuild shared packet: %w", err)
+		return chainforensics.Case{}, "", fmt.Errorf("rebuild shared packet: %w", err)
 	}
 	if response.SHA256 != packet.SHA256 {
-		return Report{}, fmt.Errorf("packet SHA-256 mismatch: supplied %q calculated %q", response.SHA256, packet.SHA256)
+		return chainforensics.Case{}, "", fmt.Errorf("packet SHA-256 mismatch: supplied %q calculated %q", response.SHA256, packet.SHA256)
 	}
-	report, err := Evaluate(c)
-	if err != nil {
-		return Report{}, err
-	}
-	if report.PacketSHA256 != response.SHA256 {
-		return Report{}, fmt.Errorf("shared packet digest changed during evaluation")
-	}
-	return report, nil
+	return c, packet.SHA256, nil
 }

@@ -16,6 +16,11 @@ func TestOneRecordProjectsConsistentStagedAgentAndHumanDoors(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, record.ID, surfaces.Page.Slug)
+	require.JSONEq(t, string(record.IntakeSchema), string(surfaces.Page.InputSchema))
+	require.Equal(t, record.Limits, surfaces.Page.Limits)
+	require.Equal(t, record.PrivacyTerms, surfaces.Page.PrivacyTerms)
+	require.Equal(t, record.Legal.Status, surfaces.Page.LegalStatus)
+	require.Equal(t, record.OperatorApproval, surfaces.Page.OperatorApproval)
 	require.Equal(t, record.ProposedPrice, surfaces.Page.ProposedPrice)
 	require.Equal(t, record.Delivery.TargetMinutes, surfaces.Page.DeliveryTargetMinutes)
 	require.Equal(t, record.VerificationPromise, surfaces.Page.VerificationPromise)

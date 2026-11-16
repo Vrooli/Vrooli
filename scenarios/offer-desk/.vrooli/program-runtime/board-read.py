@@ -3,8 +3,7 @@ import json
 
 inputs = program.inputs()
 
-envelope = {'program': 'offer-desk.board-read', 'version': '1', 'status': 'failed',
-            'phase': 'validate', 'inputs': {}, 'signals': {}, 'errors': [], 'evidence': []}
+envelope = program.envelope('offer-desk.board-read', '1', phase="validate", inputs={})
 
 # Statuses the board assigns a node. Held here so an unrecognised value is reported as
 # drift rather than silently bucketed into a known band.

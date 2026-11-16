@@ -3,8 +3,7 @@ import json
 
 inputs = program.inputs()
 
-envelope = {'program': 'offer-desk.attention-triage', 'version': '1', 'status': 'failed',
-            'phase': 'validate', 'inputs': {}, 'signals': {}, 'errors': [], 'evidence': []}
+envelope = program.envelope('offer-desk.attention-triage', '1', phase="validate", inputs={})
 
 LABELS = ['operator_decision', 'evidence_gap', 'routine', 'stale_idea']
 BOARD_CAP = 80

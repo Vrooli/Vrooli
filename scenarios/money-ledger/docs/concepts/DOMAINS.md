@@ -10,7 +10,6 @@ shared UI primitives remain non-domains. This map follows the code that is
 actually shipped; the ledger capability slices below are not separate runtime
 packages or ownership boundaries.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

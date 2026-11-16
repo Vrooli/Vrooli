@@ -3,8 +3,7 @@ import json
 
 inputs = program.inputs()
 
-envelope = {'program': 'offer-desk.learning-read', 'version': '1', 'status': 'failed',
-            'phase': 'validate', 'inputs': {}, 'signals': {}, 'errors': [], 'evidence': []}
+envelope = program.envelope('offer-desk.learning-read', '1', phase="validate", inputs={})
 
 SCOPE = 'offer-desk-usage'
 COHORT_CAP = 12
