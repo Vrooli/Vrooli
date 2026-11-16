@@ -18,12 +18,14 @@ import (
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers/export"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/internal/protoconv"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	"github.com/vrooli/browser-automation-studio/services/export/render"
 	"github.com/vrooli/browser-automation-studio/services/export/source"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -319,6 +321,17 @@ func (h *Handler) renderExportInBackground(ctx context.Context, row *database.Ex
 
 // prepareExportMedia preserves source cleanup until the resulting media is consumed.
 func (h *Handler) prepareExportMedia(ctx context.Context, executionID uuid.UUID, format string, body export.Request, requested string, row *database.ExportIndex) (*render.RenderedMedia, string, error) {
+	var media *render.RenderedMedia
+	var selected string
+	err := executionartifactlock.WithLock(ctx, h.recordingsRoot, executionID, func(lockCtx context.Context) error {
+		var err error
+		media, selected, err = h.prepareExportMediaLocked(lockCtx, executionID, format, body, requested, row)
+		return err
+	})
+	return media, selected, err
+}
+
+func (h *Handler) prepareExportMediaLocked(ctx context.Context, executionID uuid.UUID, format string, body export.Request, requested string, row *database.ExportIndex) (*render.RenderedMedia, string, error) {
 	if requested != source.RenderSourceReplayFrames {
 		video, err := h.loadRecordedVideo(ctx, executionID)
 		if err == nil {
@@ -526,10 +539,10 @@ func (h *Handler) resolveExportPresentation(ctx context.Context, spec *exportsv1
 	exportservices.Apply(spec, body.Overrides)
 	if h.entitlementService != nil {
 		required := false
-		if ent := entitlement.FromContext(ctx); ent != nil {
-			required = !ent.HasFeature(entitlement.FeatureWatermarkFree)
+		if ent := monetization.SnapshotFromContext(ctx); ent != nil {
+			required = !ent.HasFeatureForApp("browser-automation-studio", entitlement.FeatureWatermarkFree)
 		} else {
-			required = h.entitlementService.RequiresWatermark(ctx, entitlement.UserIdentityFromContext(ctx))
+			required = h.entitlementService.RequiresWatermark(ctx, monetization.UserIdentityFromContext(ctx))
 		}
 		exportservices.EnforceWatermarkRequirements(spec, required)
 	}

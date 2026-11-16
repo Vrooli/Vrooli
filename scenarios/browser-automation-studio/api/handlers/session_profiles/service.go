@@ -72,27 +72,22 @@ func (s *service) Update(
 	}
 
 	id := sessionprofilepersistence.ProfileID(msg.GetId())
-	var (
-		profile *sessionprofilepersistence.SessionProfile
-		err     error
-	)
-
+	var name *string
 	if hasName {
-		profile, err = s.deps.Repo.RenameProfile(id, msg.GetName())
-		if err != nil {
-			return nil, mapStoreError(err)
-		}
+		value := msg.GetName()
+		name = &value
 	}
-
+	var bp *sessionprofilepersistence.BrowserProfile
 	if hasBrowserProfile {
-		bp, convErr := structToBrowserProfile(msg.GetBrowserProfile())
+		var convErr error
+		bp, convErr = structToBrowserProfile(msg.GetBrowserProfile())
 		if convErr != nil {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidBrowser)
 		}
-		profile, err = s.deps.Repo.UpdateBrowserProfile(id, bp)
-		if err != nil {
-			return nil, mapStoreError(err)
-		}
+	}
+	profile, err := s.deps.Repo.UpdateProfileSettings(id, name, bp)
+	if err != nil {
+		return nil, mapStoreError(err)
 	}
 
 	return connect.NewResponse(&sessionprofilesv1.SessionProfileResponse{Profile: toProto(profile)}), nil

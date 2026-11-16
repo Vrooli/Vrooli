@@ -12,11 +12,15 @@ adapters and presentation.
 - `packages/credentialclient-go` resolves the shared `vrooli/lpbs-account`
   credential. BAS does not create a second subscription identity or token
   store.
-- `packages/entitlementclient-go` verifies the LPBS lease and exposes the
-  server-signed feature and limit snapshot.
-- `packages/monetization-go` supplies the shared Class B usage outbox and
-  idempotent operation reporting. BAS persists it through its scenario-owned
+- [`entitlementclient-go`](../../../packages/entitlementclient-go/README.md)
+  verifies the signed lease. BAS persists the token and authority JWKS in its
+  private app data directory and re-verifies them after restart.
+- [`monetization-go`](../../../packages/monetization-go/README.md) owns the
+  shared usage primitives; BAS persists events through its scenario-owned
   storage adapter.
+- The shared subscription session module clears the process lease cache and
+  its disk records on explicit sign-out after credential authority deletes the
+  refresh credential.
 - `api/middleware/entitlement.go` is the boundary for protected BAS routes.
   Class A operations require a valid server lease. Class B operations may use
   the signed local lease while offline and enqueue usage for reconciliation.
@@ -38,7 +42,7 @@ It declares these meters:
 
 | Limit key | Class | Reporting |
 |---|---|---|
-| `ai_credits` | A | AI/credit service; server-authoritative |
+| `ai_credits` | A | AI Gateway inference; server-authoritative |
 | `workflow_executions` | B | shared monetization outbox |
 
 Limit values and plan membership are never read from BAS configuration or an

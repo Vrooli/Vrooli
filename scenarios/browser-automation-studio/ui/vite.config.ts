@@ -256,10 +256,9 @@ export default defineConfig(({ mode }): UserConfig => {
     ],
     coverage: {
       provider: 'v8',
-      // Focused commands validate behavior without being made to satisfy the
-      // scenario-wide coverage gate. `test:coverage` switches to the dedicated
-      // coverage config, which explicitly enables collection and enforces the
-      // merged 85% floor after every selected project has contributed.
+      // Focused commands validate behavior without collecting all source. The
+      // full suite merges its project shards and enforces the committed ratchet
+      // from .vrooli/testing.json after every expected project contributes.
       enabled: COLLECTING_RAW_COVERAGE,
       // Focused projects are merged by the coverage runner. Their raw reports
       // must contain only modules the project actually executes; the normal
@@ -267,10 +266,9 @@ export default defineConfig(({ mode }): UserConfig => {
       all: !COLLECTING_RAW_COVERAGE,
       reporter: ['text', 'json', 'html', 'json-summary'],
       reportsDirectory: './coverage',
-      include: COVERAGE.include,
-      exclude: COVERAGE.exclude,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/**/*.d.ts', 'src/main.tsx', 'src/test-setup.ts', 'src/test-utils/**', 'src/consts/strings.generated.ts', 'src/i18n/locales/**', 'src/**/generated/**'],
       reportOnFailure: true,
-      thresholds: COVERAGE.thresholds,
     },
     environmentOptions: {
       jsdom: {

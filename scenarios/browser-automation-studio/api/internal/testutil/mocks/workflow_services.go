@@ -233,6 +233,10 @@ func (m *WorkflowExecutionService) GetExecution(ctx context.Context, id uuid.UUI
 	return nil, errors.New("not found")
 }
 
+func (m *WorkflowExecutionService) WaitForExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	return m.GetExecution(ctx, id)
+}
+
 func (m *WorkflowExecutionService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
 	return errors.New("not implemented")
 }

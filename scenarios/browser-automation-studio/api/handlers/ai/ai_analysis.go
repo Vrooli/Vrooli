@@ -10,7 +10,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/constants"
 	modelai "github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/credits"
 )
 
 // DOMExtractor defines the interface for extracting DOM trees.
@@ -28,19 +27,17 @@ type ElementAnalyzer interface {
 // AIAnalysisHandler handles AI-powered element analysis through the shared AI model service.
 // It focuses on HTTP concerns and delegates domain logic to an ElementAnalyzer.
 type AIAnalysisHandler struct {
-	log           *logrus.Logger
-	analyzer      ElementAnalyzer
-	timeout       time.Duration
-	creditService credits.CreditService
+	log      *logrus.Logger
+	analyzer ElementAnalyzer
+	timeout  time.Duration
 }
 
 type aiAnalysisConfig struct {
-	analyzer      ElementAnalyzer
-	domExtractor  DOMExtractor
-	modelClient   modelai.RolePromptClient
-	role          string
-	timeout       time.Duration
-	creditService credits.CreditService
+	analyzer     ElementAnalyzer
+	domExtractor DOMExtractor
+	modelClient  modelai.RolePromptClient
+	role         string
+	timeout      time.Duration
 }
 
 // AIAnalysisOption configures the AIAnalysisHandler.
@@ -81,13 +78,6 @@ func WithAIAnalysisTimeout(timeout time.Duration) AIAnalysisOption {
 	}
 }
 
-// WithAIAnalysisCreditService sets the credit service for AI usage tracking.
-func WithAIAnalysisCreditService(svc credits.CreditService) AIAnalysisOption {
-	return func(cfg *aiAnalysisConfig) {
-		cfg.creditService = svc
-	}
-}
-
 // NewAIAnalysisHandler creates a new AI analysis handler with optional configuration.
 func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AIAnalysisOption) *AIAnalysisHandler {
 	cfg := aiAnalysisConfig{
@@ -107,7 +97,7 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 		}
 		modelClient := cfg.modelClient
 		if modelClient == nil {
-			modelClient = modelai.NewOpenRouterClient(log)
+			modelClient = newGatewayRolePromptClient()
 		}
 
 		analyzer = &AIElementAnalyzer{
@@ -119,34 +109,19 @@ func NewAIAnalysisHandler(log *logrus.Logger, domHandler *DOMHandler, opts ...AI
 	}
 
 	return &AIAnalysisHandler{
-		log:           log,
-		analyzer:      analyzer,
-		timeout:       cfg.timeout,
-		creditService: cfg.creditService,
+		log:      log,
+		analyzer: analyzer,
+		timeout:  cfg.timeout,
 	}
 }
 
-// RunAIAnalyze is the transport-agnostic core of the AI element analysis
-// endpoint. Returns a CreditCheckError when the user is not entitled to run
-// the operation; other errors wrap the underlying analyzer failure.
-func (h *AIAnalysisHandler) RunAIAnalyze(ctx context.Context, url, intent, userID string, hasBYOK bool) ([]ElementInfo, error) {
+// RunAIAnalyze is the transport-agnostic core of the AI element analysis endpoint.
+func (h *AIAnalysisHandler) RunAIAnalyze(ctx context.Context, url, intent string) ([]ElementInfo, error) {
 	if strings.TrimSpace(url) == "" {
 		return nil, ErrMissingURL
 	}
 	if strings.TrimSpace(intent) == "" {
 		return nil, ErrMissingIntent
-	}
-
-	if h.creditService != nil {
-		if userID == "" {
-			userID = "anonymous"
-		}
-		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
-		if err != nil && h.log != nil {
-			h.log.WithError(err).Warn("ai_analysis: failed to check AI operation permission")
-		} else if !canProceed {
-			return nil, &CreditCheckError{Code: errCode, Message: errMsg, Remaining: remaining}
-		}
 	}
 
 	if h.log != nil {
@@ -165,24 +140,11 @@ func (h *AIAnalysisHandler) RunAIAnalyze(ctx context.Context, url, intent, userI
 		return nil, fmt.Errorf("ai_analyze_elements: %w", err)
 	}
 
-	if h.creditService != nil && userID != "" {
-		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
-			UserIdentity: userID,
-			Operation:    credits.OpAIElementAnalyze,
-			IsBYOK:       hasBYOK,
-		}); err != nil && h.log != nil {
-			h.log.WithError(err).Warn("ai_analysis: failed to charge credits")
-		}
-	}
-
 	return suggestions, nil
 }
 
 // ErrMissingIntent signals that AIAnalyzeElements received an empty intent.
 var ErrMissingIntent = fmt.Errorf("intent is required")
-
-// Avoid unused-import warning when none of the remaining helpers use json.
-var _ = json.NewEncoder
 
 // analyzeElementsWithAI delegates to the injected analyzer.
 func (h *AIAnalysisHandler) analyzeElementsWithAI(ctx context.Context, url, intent string) ([]ElementInfo, error) {

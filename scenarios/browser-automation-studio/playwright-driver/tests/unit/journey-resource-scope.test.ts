@@ -1,7 +1,4 @@
 async function loadJourneyResourceScope(): Promise<typeof import('../journeys/support').JourneyResourceScope> {
-  process.env.BAS_API_URL ??= 'http://127.0.0.1:1';
-  process.env.BAS_DRIVER_URL ??= 'http://127.0.0.1:1';
-  process.env.BAS_FIXTURE_ORIGIN ??= 'http://127.0.0.1:1';
   return (await import('../journeys/support')).JourneyResourceScope;
 }
 

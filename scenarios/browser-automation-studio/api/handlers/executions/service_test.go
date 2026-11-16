@@ -60,6 +60,10 @@ func (s *stubExecutor) StopExecution(ctx context.Context, id uuid.UUID) error {
 	return s.stopFn(ctx, id)
 }
 
+func (s *stubExecutor) WaitForExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	return s.getFn(ctx, id)
+}
+
 func (s *stubExecutor) ResumeExecution(ctx context.Context, id uuid.UUID, p map[string]any) (*database.ExecutionIndex, error) {
 	return s.resumeFn(ctx, id, p)
 }
@@ -222,6 +226,36 @@ func TestGetExecution_Success(t *testing.T) {
 	}
 }
 
+func TestWaitForExecutionValidatesBoundAndReturnsExactTerminalReceipt(t *testing.T) {
+	id := uuid.New()
+	completed := time.Now().UTC()
+	exec := &stubExecutor{
+		getFn: func(_ context.Context, got uuid.UUID) (*database.ExecutionIndex, error) {
+			if got != id {
+				return nil, errors.New("wait used wrong execution id")
+			}
+			return &database.ExecutionIndex{ID: id, Status: database.ExecutionStatusCompleted, CompletedAt: &completed}, nil
+		},
+		hydrateFn: func(_ context.Context, index *database.ExecutionIndex) (*basexecution.Execution, error) {
+			return &basexecution.Execution{ExecutionId: index.ID.String()}, nil
+		},
+	}
+	client, stop := newTestService(t, exec, nil)
+	defer stop()
+
+	_, err := client.WaitForExecution(context.Background(), connect.NewRequest(&basapi.WaitForExecutionRequest{ExecutionId: id.String(), TimeoutMs: 75001}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("out-of-range wait code = %v, want InvalidArgument", connect.CodeOf(err))
+	}
+	resp, err := client.WaitForExecution(context.Background(), connect.NewRequest(&basapi.WaitForExecutionRequest{ExecutionId: id.String(), TimeoutMs: 75}))
+	if err != nil {
+		t.Fatalf("wait for execution: %v", err)
+	}
+	if got := resp.Msg.GetExecution().GetExecutionId(); got != id.String() {
+		t.Fatalf("wait receipt execution id = %q, want %q", got, id)
+	}
+}
+
 func TestListExecutions_FiltersInvalidWorkflow(t *testing.T) {
 	client, stop := newTestService(t, &stubExecutor{}, nil)
 	defer stop()
@@ -311,6 +345,22 @@ func TestResumeExecution_FailedPrecondition(t *testing.T) {
 	_, err := client.ResumeExecution(context.Background(), connect.NewRequest(&basapi.ResumeExecutionRequest{ExecutionId: id.String()}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("expected FailedPrecondition, got %v (%v)", connect.CodeOf(err), err)
+	}
+}
+
+func TestResumeExecution_ActiveAdmissionIsFailedPrecondition(t *testing.T) {
+	id := uuid.New()
+	exec := &stubExecutor{
+		resumeFn: func(context.Context, uuid.UUID, map[string]any) (*database.ExecutionIndex, error) {
+			return nil, database.ErrResumeAlreadyActive
+		},
+	}
+	client, stop := newTestService(t, exec, nil)
+	defer stop()
+
+	_, err := client.ResumeExecution(context.Background(), connect.NewRequest(&basapi.ResumeExecutionRequest{ExecutionId: id.String()}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("active resume error code = %s, want failed precondition: %v", connect.CodeOf(err), err)
 	}
 }
 

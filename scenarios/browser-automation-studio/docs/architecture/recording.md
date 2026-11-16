@@ -646,7 +646,7 @@ process-local history or sequence cache. A missing repository is an error.
 | **Persist** | [CODE: api/services/recording/persistence/repository.go] | Repository interface |
 | **Persist** | [CODE: api/services/recording/persistence/sqlite.go] | SQLite implementation |
 | **Live-Capture** | [CODE: api/services/live-capture/service.go] | Session management, routes to unified recording |
-| **Wire** | [CODE: api/internal/wire/wire.go] | Dependency injection |
+| **Composition** | [CODE: api/handlers/handler.go] | `InitDefaultDepsWithOptions` composes the production handler dependency graph; API startup calls it from `api/main.go` |
 
 ## Commit Acknowledgment and Observability
 

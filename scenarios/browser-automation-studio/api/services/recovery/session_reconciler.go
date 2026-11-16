@@ -29,7 +29,7 @@ const audioToolsSoakWorkflowID = "audio-tools-long-form-dictation-soak"
 
 type sessionInventory interface {
 	ListObservedSessions(context.Context) ([]driver.ObservedSession, error)
-	ForceCloseSession(context.Context, string) error
+	ForceCloseSession(context.Context, string, string, string) error
 }
 
 type executionLookup interface {
@@ -120,7 +120,7 @@ func (r *SessionReconciler) ReconcileOnce(ctx context.Context) (SessionReconcile
 			result.Skipped++
 			continue
 		}
-		if err := r.driver.ForceCloseSession(ctx, session.ID); err != nil {
+		if err := r.driver.ForceCloseSession(ctx, session.ID, session.OwnerExecutionID, session.LeaseID); err != nil {
 			if r.log != nil {
 				r.log.WithError(err).WithField("session_id", session.ID).Warn("terminal session reconciliation failed")
 			}
@@ -139,7 +139,7 @@ func (r *SessionReconciler) reconcileOrphanedSoak(ctx context.Context, session d
 	if err != nil || r.now().Before(lastUsed.Add(DefaultSoakOrphanGrace)) {
 		return false
 	}
-	if err := r.driver.ForceCloseSession(ctx, session.ID); err != nil {
+	if err := r.driver.ForceCloseSession(ctx, session.ID, session.OwnerExecutionID, session.LeaseID); err != nil {
 		if r.log != nil {
 			r.log.WithError(err).WithField("session_id", session.ID).Warn("orphaned soak session reconciliation failed")
 		}

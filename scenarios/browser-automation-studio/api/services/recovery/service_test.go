@@ -27,6 +27,19 @@ type statusUpdate struct {
 	updatedAt    time.Time
 }
 
+type freshStatusRepo struct {
+	*mockRepo
+	fresh *database.ExecutionIndex
+}
+
+func (r *freshStatusRepo) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	if r.fresh == nil || r.fresh.ID != id {
+		return nil, nil
+	}
+	copy := *r.fresh
+	return &copy, nil
+}
+
 func (m *mockRepo) ListExecutions(ctx context.Context, query database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
 	m.queries = append(m.queries, query)
 	if m.listErr != nil {
@@ -64,6 +77,16 @@ func (m *mockRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, stat
 	return nil
 }
 
+func (m *mockRepo) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	for _, execution := range m.executions {
+		if execution != nil && execution.ID == id {
+			copy := *execution
+			return &copy, nil
+		}
+	}
+	return nil, nil
+}
+
 func TestRecoverInterruptedExecutions_NoActiveRows(t *testing.T) {
 	repo := &mockRepo{
 		executions: []*database.ExecutionIndex{
@@ -79,7 +102,7 @@ func TestRecoverInterruptedExecutions_NoActiveRows(t *testing.T) {
 	}
 	log := logrus.New()
 
-	svc := NewService(repo, log)
+	svc := NewService(repo, log, t.TempDir())
 	result, err := svc.RecoverInterruptedExecutions(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -111,7 +134,7 @@ func TestRecoverInterruptedExecutions_MarksInterrupted(t *testing.T) {
 	}
 	log := logrus.New()
 
-	svc := NewService(repo, log)
+	svc := NewService(repo, log, t.TempDir())
 	result, err := svc.RecoverInterruptedExecutions(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -151,12 +174,34 @@ func TestRecoverInterruptedExecutionsReturnsErrorWhenAnyOwnerRemainsActive(t *te
 		updateErr: errors.New("database unavailable"),
 	}
 
-	result, err := NewService(repo, logrus.New()).RecoverInterruptedExecutions(context.Background())
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
 	if err == nil {
 		t.Fatal("RecoverInterruptedExecutions returned nil error while an active execution remained unrecovered")
 	}
 	if result == nil || result.TotalActive != 1 || result.Failed != 1 || result.Recovered != 0 {
 		t.Fatalf("recovery result = %+v, want one failed active execution", result)
+	}
+}
+
+func TestRecoverInterruptedExecutionsCountsConcurrentTerminalTransitionAsSkipped(t *testing.T) {
+	id := uuid.New()
+	listed := &database.ExecutionIndex{ID: id, WorkflowID: uuid.New(), Status: database.ExecutionStatusRunning}
+	completed := *listed
+	completed.Status = database.ExecutionStatusCompleted
+	repo := &freshStatusRepo{
+		mockRepo: &mockRepo{executions: []*database.ExecutionIndex{listed}},
+		fresh:    &completed,
+	}
+
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
+	if err != nil {
+		t.Fatalf("RecoverInterruptedExecutions returned error: %v", err)
+	}
+	if result.TotalActive != 1 || result.Recovered != 0 || result.Skipped != 1 || result.Failed != 0 {
+		t.Fatalf("recovery result = %+v, want one concurrently completed execution skipped", result)
+	}
+	if len(repo.updates) != 0 {
+		t.Fatalf("recovery overwrote a terminal execution: updates=%+v", repo.updates)
 	}
 }
 
@@ -186,7 +231,7 @@ func TestRecoverInterruptedExecutions_RecoversRecentRowsFromPreviousProcess(t *t
 		},
 	}
 
-	result, err := NewService(repo, logrus.New()).RecoverInterruptedExecutions(context.Background())
+	result, err := NewService(repo, logrus.New(), t.TempDir()).RecoverInterruptedExecutions(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -248,7 +293,7 @@ func TestRecoverInterruptedExecutions_FindsActiveRowsBeyondRecentHistory(t *test
 		},
 	)
 	repo := &mockRepo{executions: executions}
-	svc := NewService(repo, logrus.New())
+	svc := NewService(repo, logrus.New(), t.TempDir())
 
 	result, err := svc.RecoverInterruptedExecutions(context.Background())
 	if err != nil {

@@ -550,7 +550,7 @@
         {
           "path": "LPBS_INTEGRATION.md",
           "title": "LPBS Integration",
-          "description": "Playwright browser session integration",
+          "description": "LPBS account, entitlement, AI-source, and workflow-quota integration",
           "internal": true,
           "docType": "doc-LPBS-INTEGRATION-md",
           "maturity": "active",

@@ -1,6 +1,6 @@
 import { resolveApiBase, createScenarioConnectTransport } from '@vrooli/api-base';
 
-import { getWebAccessToken } from '../stores/authStore';
+import { useAuthStore } from '../stores/authStore';
 
 /**
  * Shared Connect-Web transport for every generated proto client in BAS.
@@ -11,8 +11,10 @@ import { getWebAccessToken } from '../stores/authStore';
  */
 export const API_BASE = resolveApiBase();
 
-const authenticatedFetch: typeof fetch = (input, init) => {
-  const token = getWebAccessToken();
+export const authenticatedFetch: typeof fetch = async (input, init) => {
+  // Use the same auth source as the UI: Electron's native auth manager in a
+  // packaged app, and the short-lived browser token in a web session.
+  const token = await useAuthStore.getState().getAccessToken();
   if (!token) return fetch(input, init);
 
   // Only attach the consumer token to BAS's own API origin. This prevents a
@@ -28,6 +30,19 @@ const authenticatedFetch: typeof fetch = (input, init) => {
 
   const headers = new Headers(init?.headers);
   if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`);
+  const aiRequest = requestURL.pathname.includes('VisionNavigationService/StartNavigation') || requestURL.pathname.includes('.v1.ai.AIService/');
+  if (aiRequest && typeof window !== 'undefined') {
+    const receipt = window.sessionStorage.getItem('bas.ai.remote-consent-receipt');
+    const source = window.sessionStorage.getItem('bas.ai.remote-consent-source');
+    // Source selection is a routing preference, while the opaque receipt is
+    // independent consent authority. Forward the preference by itself so a
+    // missing/revoked receipt is refused by Gateway for the selected source
+    // instead of silently falling back to another route.
+    if (source) headers.set('X-Vrooli-AI-Consent-Source', source);
+    if (receipt) {
+      headers.set('X-Vrooli-AI-Consent-Grant', receipt);
+    }
+  }
   return fetch(input, { ...init, headers });
 };
 

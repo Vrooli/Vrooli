@@ -10,6 +10,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	entsvc "github.com/vrooli/browser-automation-studio/services/entitlement"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	entitlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/entitlement"
 )
 
@@ -66,7 +67,7 @@ func (s *service) SetIdentity(
 	if email != "" {
 		s.deps.Provider.InvalidateCache(email)
 	}
-	status, err := s.buildStatus(entsvc.WithUserIdentity(ctx, email), email)
+	status, err := s.buildStatus(monetization.WithUserIdentity(ctx, email), email)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func (s *service) RefreshStatus(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errUserRequired)
 	}
 	s.deps.Provider.InvalidateCache(user)
-	status, err := s.buildStatus(entsvc.WithUserIdentity(ctx, user), user)
+	status, err := s.buildStatus(monetization.WithUserIdentity(ctx, user), user)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +107,7 @@ func (s *service) RefreshStatus(
 func withConsumerAccessToken(ctx context.Context, authorization string) context.Context {
 	const prefix = "Bearer "
 	if strings.HasPrefix(authorization, prefix) {
-		return entsvc.WithAccessToken(ctx, strings.TrimSpace(strings.TrimPrefix(authorization, prefix)))
+		return monetization.WithAccessToken(ctx, strings.TrimSpace(strings.TrimPrefix(authorization, prefix)))
 	}
 	return ctx
 }
@@ -246,7 +247,7 @@ const (
 // the shared-session hint. Request message fields are never accepted as an
 // account selector.
 func (s *service) resolveUserIdentity(ctx context.Context) string {
-	if id := entsvc.UserIdentityFromContext(ctx); id != "" {
+	if id := monetization.UserIdentityFromContext(ctx); id != "" {
 		return id
 	}
 	if s.deps.Settings != nil {
@@ -260,7 +261,7 @@ func (s *service) resolveUserIdentity(ctx context.Context) string {
 // resolveUserIdentityRaw is the usage variant. It has the same trust rule as
 // resolveUserIdentity but does not invent an anonymous account.
 func (s *service) resolveUserIdentityRaw(ctx context.Context) string {
-	if id := entsvc.UserIdentityFromContext(ctx); id != "" {
+	if id := monetization.UserIdentityFromContext(ctx); id != "" {
 		return id
 	}
 	if s.deps.Settings != nil {
@@ -299,7 +300,7 @@ func (s *service) buildStatus(ctx context.Context, user string) (*entitlementv1.
 
 	usedCount := 0
 	monthlyLimit := 0
-	if limit, found := ent.LimitValue("ai_credits"); found {
+	if limit, found := ent.LimitValueForApp("browser-automation-studio", "ai_credits", "business_suite"); found {
 		monthlyLimit = int(limit)
 	}
 	remaining := monthlyLimit
@@ -354,9 +355,9 @@ func (s *service) resolveCanUseRecording(ctx context.Context, user string) bool 
 }
 
 func (s *service) buildFeatureAccess(ent *entsvc.Entitlement) []*entitlementv1.FeatureAccess {
-	canUseAI := ent.HasFeature(entsvc.FeatureAI)
-	canUseRecording := ent.HasFeature(entsvc.FeatureRecording)
-	requiresWatermark := !ent.HasFeature(entsvc.FeatureWatermarkFree)
+	canUseAI := ent.HasFeatureForApp("browser-automation-studio", entsvc.FeatureAI)
+	canUseRecording := ent.HasFeatureForApp("browser-automation-studio", entsvc.FeatureRecording)
+	requiresWatermark := !ent.HasFeatureForApp("browser-automation-studio", entsvc.FeatureWatermarkFree)
 
 	return []*entitlementv1.FeatureAccess{
 		{

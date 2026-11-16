@@ -16,10 +16,14 @@ function fixture(root, branches) {
     b: Object.fromEntries(branches.map(([id, , count]) => [id, [count]])) } };
 }
 function setup(t, entries = [[[0, 2, 1], [1, 3, 0]], [[0, 3, 1], [1, 2, 0]]]) {
-  const root = mkdtempSync(path.join(tmpdir(), 'bas-coverage-'));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(path.join(root, 'src'));
+	const scenarioRoot = mkdtempSync(path.join(tmpdir(), 'bas-coverage-'));
+	const root = path.join(scenarioRoot, 'ui');
+	t.after(() => rmSync(scenarioRoot, { recursive: true, force: true }));
+	mkdirSync(path.join(root, 'src'), { recursive: true });
   writeFileSync(path.join(root, 'src/feature.ts'), 'export const feature = 1;\n');
+	mkdirSync(path.join(scenarioRoot, '.vrooli'));
+	const policy = { unit: { policy_profile: { policy_classes: { react_vite_ui: { coverage: { committed: { lines: 85, statements: 85, functions: 85, branches: 85 } } } } } } };
+	writeFileSync(path.join(scenarioRoot, '.vrooli/testing.json'), JSON.stringify(policy));
   const run = path.join(root, 'coverage');
   const projects = ['first', 'second'];
   const manifest = { version: 1, projects, sourceClosureProject: 'first', sourceFingerprint: sourceFingerprint(root), completed: {} };
@@ -49,6 +53,16 @@ test('positive unchanged branches survive an additional map with a new uncovered
   assert.equal(result.summary.branches.total, 2);
   assert.equal(result.summary.branches.covered, 1);
   assert.ok(existsSync(path.join(run, 'coverage-summary.json')));
+});
+test('combined report follows committed floors from the scenario policy', async t => {
+  const { root, run } = setup(t);
+  const policyPath = path.join(root, '..', '.vrooli/testing.json');
+  const policy = JSON.parse(readFileSync(policyPath, 'utf8'));
+  policy.unit.policy_profile.policy_classes.react_vite_ui.coverage.committed = { lines: 33, statements: 33, functions: 42, branches: 68 };
+  writeFileSync(policyPath, JSON.stringify(policy));
+  const result = await mergeCoverageRun(run, root);
+  assert.equal(result.floor, 33);
+  assert.equal(result.status, 'passed');
 });
 for (const kind of ['missing', 'unexpected', 'changed-source', 'changed-report', 'missing-closure']) {
   test(`refuses ${kind} input without publishing a combined summary`, async t => {

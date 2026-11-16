@@ -16,6 +16,7 @@ type RecordingBuffer = {
   evictions: number;
   drain?: Promise<void>;
 };
+type JsonRecord = Record<string, unknown>;
 
 // The same bounded owner retains pending work, delivery progress and replay
 // identity. Only acknowledged entries can be evicted or hidden by a clear.
@@ -46,8 +47,12 @@ export function bufferTimelineEntry(sessionId: string, entry: TimelineEntry): bo
   const buffer = getBuffer(sessionId);
   const existing = buffer.entries.get(entry.id);
   if (existing) {
-    if (JSON.stringify(timelineEntryToJson(existing.entry)) !== JSON.stringify(timelineEntryToJson(entry))) {
-      throw new Error('Recording observation identity conflicts with its original contents');
+    const existingJson = timelineEntryToJson(existing.entry);
+    const retryJson = timelineEntryToJson(entry);
+    if (JSON.stringify(existingJson) !== JSON.stringify(retryJson)) {
+      const changedFields = changedFieldPaths(existingJson, retryJson);
+      const details = changedFields.length > 0 ? ` (changed fields: ${changedFields.join(', ')})` : '';
+      throw new Error(`Recording observation identity conflicts with its original contents${details}`);
     }
     return false;
   }
@@ -66,6 +71,26 @@ export function bufferTimelineEntry(sessionId: string, entry: TimelineEntry): bo
     delivering: false, acknowledgeOnDelivery: true,
   });
   return true;
+}
+
+/** Return a small set of field paths without including any observed values. */
+function changedFieldPaths(existing: unknown, retry: unknown, prefix = '', limit = 3): string[] {
+  if (JSON.stringify(existing) === JSON.stringify(retry)) return [];
+  if (limit <= 0) return [];
+  if (isJsonRecord(existing) && isJsonRecord(retry)) {
+    const paths: string[] = [];
+    for (const key of new Set([...Object.keys(existing), ...Object.keys(retry)])) {
+      const path = prefix ? `${prefix}.${key}` : key;
+      paths.push(...changedFieldPaths(existing[key], retry[key], path, limit - paths.length));
+      if (paths.length >= limit) break;
+    }
+    return paths;
+  }
+  return prefix ? [prefix] : ['<root>'];
+}
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export function getBufferedTimelineEntry(sessionId: string, entryId: string): TimelineEntry | undefined {

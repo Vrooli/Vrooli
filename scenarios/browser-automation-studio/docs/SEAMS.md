@@ -75,6 +75,16 @@ This document catalogs the architectural seams in browser-automation-studio for 
 - Workflow builder tests should use the canonical ReactFlow, Monaco, drag-event, workflow-node, workflow-edge, viewport, validation-response, and workflow-store fixtures from `@/test-utils` instead of redefining canvas/editor shims locally.
 - Assertion helpers still need to be added as recurring domain expectations emerge.
 
+### 4. CLI Environment and Test Utilities (Enforced)
+
+**Location:** `cli/internal/appctx/context.go`, `cli/internal/testutil`
+
+**Seam:** `appctx.EnvReader` controls token environment lookup. Production defaults to `appctx.OSEnv`; owner tests inject `testutil.MapEnv` without mutating process-global environment.
+
+**Test utility contract:** Shared CLI helpers live under `cli/internal/testutil` and are imported only from test files. `cli/internal/testutil/no_prod_import_test.go` checks the compiled production import graph.
+
+**Status:** Good for token lookup. Other CLI environment reads remain inventoried for later owner-level migration.
+
 ---
 
 ## Go API Seams
@@ -340,16 +350,16 @@ type WorkflowResolver interface {
 
 ### 10. AI Client Seam (Good)
 
-**Location:** `api/services/ai/client.go`
+**Location:** `api/handlers/ai/gateway_client.go`
 
-**Interface:** `api/services/ai/interface.go`
+**Interfaces:** `api/services/ai/interface.go`
 - `AIClient` with `ExecutePrompt` and `Model`
-- Compile-time enforcement on `OpenRouterClient` and `MockAIClient`
+- `RolePromptClient` for role-based Gateway requests and fake clients
 
 **Status:** Good
-- Shell-out integration is confined to `OpenRouterClient`
-- `MockAIClient` enables workflow tests without the executable
-- Injected via `WorkflowServiceOptions`
+- User-facing inference routes through AI Gateway for provider routing and metering
+- Injected interfaces keep workflow and handler tests independent of provider services
+- The former BAS OpenRouter provider chain has been removed
 
 ---
 
@@ -425,59 +435,39 @@ of transport endpoints that have not yet formed an independent domain.
 
 ---
 
-### 24. Credit Service Seam (Strong)
+### 24. Credit Usage Read Seam (Strong)
 
 **Location:** `api/services/credits/`
 
 **Interface:** `api/services/credits/interface.go`
 ```go
 type CreditService interface {
-    CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error)
-    Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
-    ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
     GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error)
-    GetOperationCost(op OperationType) int
-    LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error
     GetUsageHistory(ctx context.Context, userIdentity string, months, offset int) ([]UsageSummary, bool, error)
     GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error)
-    CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error)
 }
 ```
 
 **Test Doubles:**
-- `services/credits/mock.go`: `MockService` - Full interface mock with configurable responses
-- `services/credits/entitlement_provider.go`: `MockEntitlementProvider` - Controls tier/limit behavior
+- Entitlement limit providers keep the local read model testable.
+
+**Billing ownership:**
+- AI inference authorization and usage are owned by AI Gateway; workflow quota admission and reservations are owned by LPBS.
+- The BAS fixed-cost `Charge` path and its local credit/operation writers were removed after production caller search found no callers. The legacy usage reads and schema remain until the UI is migrated to authoritative LPBS-backed usage.
+- The shared monetization outbox remains for the governed desktop usage journey.
 
 **Status:** Strong
-- Clean interface separating credit checking from charging
-- Multiple testing seams: `EntitlementProvider`, `LPBSReporter`, `Dialect` flag
-- Comprehensive test coverage with SQLite in-memory database
+- Read-only interface for BAS's legacy local usage surfaces
+- `EntitlementProvider` isolates limit reads; the shared outbox is tested against a fake LPBS authority
+- AI billing and workflow reservations do not pass through this service
 - Compile-time enforcement via `var _ CreditService = (*Service)(nil)`
 
 **Architecture:**
 
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│                      CreditService                               │
-├──────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ EntitlementProvider │───▶ GetAICreditsLimit()             │   │
-│  │ (testing seam)      │    CanUseAIWithEntitlement()        │   │
-│  └──────────────────┘    GetEntitlement()                    │   │
-│                          └─────────────────────────────────┘   │
-│                                                                  │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ LPBSReporter     │───▶ ReportUsage()                      │   │
-│  │ (testing seam)   │    (async to central LPBS)             │   │
-│  └──────────────────┘    └─────────────────────────────────┘   │
-│                                                                  │
-│  ┌──────────────────┐    ┌─────────────────────────────────┐   │
-│  │ Database Dialect │───▶ PostgreSQL (production)            │   │
-│  │ (testing seam)   │    SQLite (unit tests)                 │   │
-│  └──────────────────┘    └─────────────────────────────────┘   │
-│                                                                  │
-└──────────────────────────────────────────────────────────────────┘
+CreditService read methods ──▶ legacy BAS usage tables
+EntitlementProvider ─────────▶ current signed lease limit
+BAS desktop usage journey ───▶ monetization-go durable outbox ──▶ LPBS
 ```
 
 **Testing Example:**
@@ -490,9 +480,7 @@ svc := credits.NewService(credits.ServiceOptions{
     EntitlementProvider: &credits.MockEntitlementProvider{
         Entitlement: &entitlement.Entitlement{Tier: entitlement.TierPro},
         AICreditsLimit: 500,
-        CanUseAI: true,
     },
-    LPBSReporter: &mockLPBSReporter{}, // Captures reports for verification
 })
 ```
 
@@ -520,24 +508,26 @@ type Tier string // TierFree, TierSolo, TierPro, TierStudio, TierBusiness
 ```go
 type EntitlementProvider interface {
     GetEntitlement(ctx context.Context, userIdentity string) (*entitlement.Entitlement, error)
-    GetAICreditsLimit(tier entitlement.Tier) int
-    CanUseAIWithEntitlement(ent *entitlement.Entitlement) bool
+}
+
+type EntitlementLimitProvider interface {
+    LimitForEntitlement(ent *entitlement.Entitlement) (int, bool)
 }
 ```
 
 **Test Doubles:**
 - `services/credits/entitlement_provider.go`: `MockEntitlementProvider`
-- `services/entitlement/context.go`: Context injection for tier overrides
+- Production reads come from the verified shared snapshot or `entitlement.Service`.
 
 **Status:** Strong
 - `EntitlementProvider` interface enables testing credit logic without real entitlement service
-- Context-based override allows middleware tier injection for testing
+- The local usage service does not decide whether AI requests are allowed.
 - Cache with configurable TTL (5 min default)
 - Offline grace period (5 hours) for resilience
 
 **Testing Patterns:**
 
-1. **Mock Provider (preferred for unit tests):**
+1. **Mock Provider (for read-model tests):**
 ```go
 mock := &credits.MockEntitlementProvider{
     Entitlement: &entitlement.Entitlement{
@@ -545,66 +535,21 @@ mock := &credits.MockEntitlementProvider{
         Status: entitlement.StatusActive,
     },
     AICreditsLimit: 500,
-    CanUseAI: true,
 }
-```
-
-2. **Context Override (for integration/handler tests):**
-```go
-ctx := entitlement.WithEntitlement(ctx, &entitlement.Entitlement{
-    Tier: entitlement.TierBusiness,
-})
-// Credits service will use this entitlement instead of fetching
 ```
 
 ---
 
-### 26. LPBS Reporter Seam (Strong)
+### 26. LPBS Usage Outbox (Strong)
 
-**Location:** `api/services/credits/service.go`
-
-**Interface:**
-```go
-type LPBSReporter interface {
-    ReportUsage(ctx context.Context, report LPBSUsageReport) error
-}
-
-type LPBSUsageReport struct {
-    UserIdentity string                  `json:"user_identity"`
-    LimitKey     string                  `json:"limit_key"`
-    UsageAmount  int64                   `json:"usage_amount"`
-    AppBundleKey string                  `json:"app_bundle_key"`
-    Metadata     LPBSUsageReportMetadata `json:"metadata,omitempty"`
-}
-```
+**Location:** `api/services/credits/monetization_transport.go` and `packages/monetization-go`
 
 **Status:** Strong
-- Enables capturing and verifying usage reports in tests
-- Async reporting (goroutine with retry) doesn't block local operations
-- Reports include operation type, model, tokens, and BYOK flag
+- BAS retains the durable outbox for its governed desktop monetization journey.
+- The local fixed-cost Charge/report path is removed; no production BAS path creates AI usage events.
+- AI Gateway owns AI usage, while LPBS owns workflow reservation admission.
 
-**Test Example:**
-```go
-type mockLPBSReporter struct {
-    reports []credits.LPBSUsageReport
-    mu      sync.Mutex
-}
-
-func (m *mockLPBSReporter) ReportUsage(ctx context.Context, report credits.LPBSUsageReport) error {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    m.reports = append(m.reports, report)
-    return nil
-}
-
-// In test
-reporter := &mockLPBSReporter{}
-svc := credits.NewService(credits.ServiceOptions{
-    LPBSReporter: reporter,
-    // ...
-})
-// After operations, verify: reporter.reports
-```
+**Proof:** `TestUsageOutboxSurvivesServiceRestart` exercises the durable BAS outbox with a local fake LPBS HTTP authority.
 
 ---
 
@@ -1110,9 +1055,8 @@ Rules: ignored AX nodes are pruned (children spliced up); `bounds`/`dom`/empty-s
 | EventBroadcaster | Yes (via HubInterface) | Yes (MockHub) | Yes | - |
 | RetryService (TS) | Yes | N/A (pure functions) | N/A | - |
 | Accessibility Snapshot (TS + Go) | Yes (`cdpFactory`, pure normalizer, `fileProducer`) | Yes (fake CDP + golden; `fakeExecutor`) | Yes | - |
-| CreditService | Yes | Yes (MockService, MockEntitlementProvider) | Yes | - |
+| CreditService | Yes | Yes (fake Credits, MockEntitlementProvider) | Yes | - |
 | EntitlementProvider | Yes | Yes (MockEntitlementProvider) | Yes | - |
-| LPBSReporter | Yes | Yes (mockLPBSReporter in tests) | Yes | - |
 | Recording (ActionRepository) | Yes | Yes (MockRepository) | Yes | - |
 | ActionRecorder | Yes | Yes (TestRecordingHub, MockHub) | Yes | - |
 
@@ -1238,36 +1182,16 @@ The codebase follows a layered architecture with clear responsibilities:
 | **Coordination** | `services/workflow/`, `services/live-capture/` | Orchestration, business flow |
 | **Domain Rules** | `automation/` | Execution contracts, engine abstraction, format conversion |
 | **Infrastructure** | `database/`, `storage/`, `websocket/` | Persistence, storage, real-time |
-| **Cross-cutting** | `internal/` | Shared utilities, error handling, dependency wiring |
+| **Cross-cutting** | `internal/` | Shared utilities, error handling and path/configuration policy |
 
-### Dependency Wiring (NEW - 2025-12-16)
+### Dependency Wiring (current)
 
-**Location:** `internal/wire/`
+**Location:** `handlers/handler.go` (`InitDefaultDepsWithOptions`), called by `api/main.go`
 
-**Purpose:** Centralized dependency injection that separates infrastructure setup from business logic.
-
-**Interface:**
-```go
-type Dependencies struct {
-    WorkflowService   *workflow.WorkflowService
-    RecordModeService *livecapture.Service       // services/live-capture
-    RecordingService  archiveingestion.IngestionServiceInterface
-    WorkflowValidator *workflowvalidator.Validator
-    Storage           storage.StorageInterface
-    RecordingsRoot    string
-    ReplayRenderer    ReplayRenderer
-    SessionProfiles   *archiveingestion.SessionProfileStore
-    UXMetricsRepo     uxmetrics.Repository
-}
-
-func BuildDependencies(repo database.Repository, hub *wsHub.Hub, log *logrus.Logger, cfg Config) (*Dependencies, error)
-```
-
-**Benefits:**
-- Single source of truth for production dependency construction
-- Clear separation between infrastructure and business logic
-- Easier testing through explicit dependency injection
-- Handler construction simplified to receiving pre-wired dependencies
+The previous `internal/wire.BuildDependencies` implementation had no callers and
+duplicated the production graph. It has been removed. Handler dependencies are
+assembled by `InitDefaultDepsWithOptions`; tests and custom composition use
+`NewHandlerWithDeps`.
 
 ### Recording Services Clarification (UPDATED - 2025-12-17)
 

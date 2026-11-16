@@ -13,7 +13,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/credits"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // WorkflowExecutor defines the interface for executing workflows.
@@ -65,12 +65,11 @@ const (
 
 // Scheduler manages workflow scheduling using cron expressions.
 type Scheduler struct {
-	repo          ScheduleRepository
-	executor      WorkflowExecutor
-	notifier      ScheduleNotifier
-	log           *logrus.Logger
-	creditService credits.CreditService
-	settingsRepo  SettingsRepository
+	repo         ScheduleRepository
+	executor     WorkflowExecutor
+	notifier     ScheduleNotifier
+	log          *logrus.Logger
+	settingsRepo SettingsRepository
 
 	cron      *cron.Cron
 	entries   map[uuid.UUID]cron.EntryID // scheduleID -> cron entry ID
@@ -101,12 +100,11 @@ func DefaultConfig() *Config {
 
 // SchedulerOptions holds the dependencies for creating a Scheduler.
 type SchedulerOptions struct {
-	Repo          ScheduleRepository
-	Executor      WorkflowExecutor
-	Notifier      ScheduleNotifier
-	Log           *logrus.Logger
-	CreditService credits.CreditService
-	SettingsRepo  SettingsRepository
+	Repo         ScheduleRepository
+	Executor     WorkflowExecutor
+	Notifier     ScheduleNotifier
+	Log          *logrus.Logger
+	SettingsRepo SettingsRepository
 }
 
 // New creates a new Scheduler instance.
@@ -123,16 +121,15 @@ func New(opts SchedulerOptions) *Scheduler {
 	)
 
 	return &Scheduler{
-		repo:          opts.Repo,
-		executor:      opts.Executor,
-		notifier:      opts.Notifier,
-		log:           opts.Log,
-		creditService: opts.CreditService,
-		settingsRepo:  opts.SettingsRepo,
-		cron:          c,
-		entries:       make(map[uuid.UUID]cron.EntryID),
-		ctx:           ctx,
-		cancel:        cancel,
+		repo:         opts.Repo,
+		executor:     opts.Executor,
+		notifier:     opts.Notifier,
+		log:          opts.Log,
+		settingsRepo: opts.SettingsRepo,
+		cron:         c,
+		entries:      make(map[uuid.UUID]cron.EntryID),
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 }
 
@@ -351,6 +348,9 @@ func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 		// Execute the workflow
 		ctx, cancel := context.WithTimeout(s.ctx, 30*time.Minute)
 		defer cancel()
+		if identity := s.getUserIdentity(ctx); identity != "" {
+			ctx = monetization.WithUserIdentity(ctx, identity)
+		}
 
 		execution, err := s.executor.ExecuteWorkflow(ctx, workflowID, execParams)
 		now := time.Now()
@@ -396,27 +396,6 @@ func (s *Scheduler) createJob(schedule *database.ScheduleIndex) func() {
 			"workflow_id":   workflowID,
 			"execution_id":  execution.ID,
 		}).Info("Scheduled workflow execution completed")
-
-		// Charge credits for successful scheduled execution
-		if s.creditService != nil {
-			userIdentity := s.getUserIdentity(ctx)
-			if userIdentity != "" {
-				_, chargeErr := s.creditService.Charge(ctx, credits.ChargeRequest{
-					UserIdentity: userIdentity,
-					Operation:    credits.OpExecutionScheduled,
-					Metadata: credits.ChargeMetadata{
-						WorkflowID:  workflowID.String(),
-						ExecutionID: execution.ID.String(),
-					},
-				})
-				if chargeErr != nil {
-					s.log.WithError(chargeErr).WithFields(logrus.Fields{
-						"schedule_id":  scheduleID,
-						"execution_id": execution.ID,
-					}).Warn("Failed to charge credits for scheduled execution")
-				}
-			}
-		}
 
 		// Notify about success
 		if s.notifier != nil {

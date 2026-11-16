@@ -74,6 +74,9 @@ type ExecutionService interface {
 	ExecuteAdhocWorkflowAPI(ctx context.Context, req *basexecution.ExecuteAdhocRequest) (*basexecution.ExecuteAdhocResponse, error)
 	ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context, req *basexecution.ExecuteAdhocRequest, opts *ExecuteOptions) (*basexecution.ExecuteAdhocResponse, error)
 	StopExecution(ctx context.Context, executionID uuid.UUID) error
+	// WaitForExecution joins one exact local runner without canceling it when
+	// the caller's bounded observation ends.
+	WaitForExecution(ctx context.Context, executionID uuid.UUID) (*database.ExecutionIndex, error)
 	ResumeExecution(ctx context.Context, executionID uuid.UUID, parameters map[string]any) (*database.ExecutionIndex, error)
 
 	// Execution queries

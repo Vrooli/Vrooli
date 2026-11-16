@@ -21,6 +21,15 @@ interface RecordingHeaderProps {
   selectedWorkflowName?: string | null;
   /** Whether to show the Run button */
   showRunButton?: boolean;
+  /** Stop the current recording while preserving the session for retry. */
+  onStartRecording?: () => void;
+  /** Initial page navigation has settled and recording can safely start. */
+  canStartRecording?: boolean;
+  /** Recording start request is in flight. */
+  isRecordingStarting?: boolean;
+  onStopRecording?: () => void;
+  /** Recording lifecycle request is in flight. */
+  isRecordingStopping?: boolean;
   /** Callback when Run button is clicked */
   onRun?: () => void;
   /** Whether an execution is currently running */
@@ -61,6 +70,11 @@ export function RecordingHeader({
   onExecuteClick,
   selectedWorkflowName,
   showRunButton = false,
+  onStartRecording,
+  canStartRecording = false,
+  isRecordingStarting = false,
+  onStopRecording,
+  isRecordingStopping = false,
   onRun,
   isExecuting = false,
   onStop,
@@ -187,6 +201,7 @@ export function RecordingHeader({
 
         {/* Combined Recording + Connection Status indicator */}
         {mode === 'recording' && isRecording && (
+          <>
           <span
             className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full cursor-help border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
             title={effectiveConnectionStatus?.isWebSocket
@@ -218,6 +233,29 @@ export function RecordingHeader({
               }
             </span>
           </span>
+          {onStopRecording && (
+            <button
+              type="button"
+              onClick={onStopRecording}
+              disabled={isRecordingStopping}
+              aria-label={isRecordingStopping ? 'Stopping recording' : 'Stop recording'}
+              className="px-3 py-1 text-xs font-semibold rounded-md border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-60 disabled:cursor-wait dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/40"
+            >
+              {isRecordingStopping ? 'Stopping…' : 'Stop recording'}
+            </button>
+          )}
+          </>
+        )}
+        {mode === 'recording' && !isRecording && canStartRecording && onStartRecording && (
+          <button
+            type="button"
+            onClick={onStartRecording}
+            disabled={isRecordingStarting}
+            aria-label={isRecordingStarting ? 'Starting recording' : 'Start recording'}
+            className="px-3 py-1 text-xs font-semibold rounded-md border border-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 disabled:cursor-wait dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+          >
+            {isRecordingStarting ? 'Starting…' : 'Start recording'}
+          </button>
         )}
 
         {/* Execution indicator (only when actively running) */}

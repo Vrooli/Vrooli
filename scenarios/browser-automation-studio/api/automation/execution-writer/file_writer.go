@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/services/evidence"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
@@ -68,13 +69,25 @@ type FileWriter struct {
 // ExecutionResultData accumulates execution results to be written to disk.
 // This is the file format stored at ExecutionIndex.ResultPath.
 type ExecutionResultData struct {
-	ExecutionID string           `json:"execution_id"`
-	WorkflowID  string           `json:"workflow_id"`
-	Steps       []StepResultData `json:"steps"`
-	Artifacts   []ArtifactData   `json:"artifacts"`
-	Telemetry   []TelemetryData  `json:"telemetry"`
-	Summary     ExecutionSummary `json:"summary"`
-	mu          sync.Mutex       `json:"-"`
+	ExecutionID    string                 `json:"execution_id"`
+	WorkflowID     string                 `json:"workflow_id"`
+	Steps          []StepResultData       `json:"steps"`
+	Artifacts      []ArtifactData         `json:"artifacts"`
+	Telemetry      []TelemetryData        `json:"telemetry"`
+	Summary        ExecutionSummary       `json:"summary"`
+	PurgeAuxiliary []PurgeArtifactReceipt `json:"-"`
+	mu             sync.Mutex             `json:"-"`
+}
+
+// PurgeArtifactReceipt is private, writer-authored ownership evidence for a
+// storage object outside the public evidence manifest.
+type PurgeArtifactReceipt struct {
+	ArtifactID string `json:"artifact_id"`
+	Storage    string `json:"storage"`
+	Path       string `json:"path,omitempty"`
+	ObjectKey  string `json:"object_key,omitempty"`
+	Bytes      int64  `json:"bytes"`
+	SHA256     string `json:"sha256"`
 }
 
 type executionTimelineData struct {
@@ -113,6 +126,11 @@ type ArtifactData struct {
 	AccessPolicy   string         `json:"access_policy,omitempty"`
 	Redacted       bool           `json:"redacted,omitempty"`
 	Payload        map[string]any `json:"payload,omitempty"`
+	// PurgeStorageClass/Path are private writer receipts used only by the
+	// contained-directory inventory. They never enter result or evidence JSON.
+	PurgeStorageClass string `json:"-"`
+	PurgeStoragePath  string `json:"-"`
+	PurgeObjectKey    string `json:"-"`
 }
 
 // TelemetryData captures step telemetry for debugging.
@@ -233,8 +251,15 @@ func (r *FileWriter) writeResultFile(ctx context.Context, executionID uuid.UUID,
 	if err := r.writeEvidenceManifest(ctx, executionID, result, timeline); err != nil {
 		return err
 	}
-
-	return nil
+	workflowID, err := uuid.Parse(result.WorkflowID)
+	if err != nil || workflowID == uuid.Nil {
+		return fmt.Errorf("result workflow identity is invalid")
+	}
+	bindings, err := r.purgeArtifactBindings(ctx, executionID, result)
+	if err != nil {
+		return err
+	}
+	return r.writePurgeInventory(ctx, executionID, workflowID, bindings)
 }
 
 func (r *FileWriter) writeReadmeFile(ctx context.Context, executionID uuid.UUID) error {
@@ -277,6 +302,14 @@ If an artifact type is missing, it was not requested or the engine failed to pro
 // RecordStepOutcome stores the execution step and key artifacts to files.
 // Respects the artifact collection settings configured via SetArtifactConfig().
 func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (recordResult RecordResult, err error) {
+	err = r.withExecutionArtifactLock(ctx, plan.ExecutionID, func(lockCtx context.Context) error {
+		recordResult, err = r.recordStepOutcomeLocked(lockCtx, plan, outcome)
+		return err
+	})
+	return recordResult, err
+}
+
+func (r *FileWriter) recordStepOutcomeLocked(ctx context.Context, plan contracts.ExecutionPlan, outcome contracts.StepOutcome) (recordResult RecordResult, err error) {
 	if r == nil {
 		return RecordResult{}, nil
 	}
@@ -359,6 +392,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		Payload:      map[string]any{"outcome": outcomeValue},
 	}
 	result.mu.Lock()
+	outcomeArtifact.PurgeStorageClass = "inline"
 	result.Artifacts = append(result.Artifacts, outcomeArtifact)
 	result.mu.Unlock()
 	artifactIDs = append(artifactIDs, outcomeArtifactID)
@@ -392,6 +426,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 				return RecordResult{}, fmt.Errorf("digest console artifact: %w", err)
 			}
 			result.mu.Lock()
+			artifact.PurgeStorageClass = "inline"
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
 			artifactIDs = append(artifactIDs, id)
@@ -408,6 +443,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 				r.log.WithError(err).Warn("Failed to persist console log artifact")
 			} else if ref != nil {
 				consoleArtifact = ref
+				appendPurgeAuxiliary(result, *ref)
 			}
 		}
 	}
@@ -439,6 +475,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 				return RecordResult{}, fmt.Errorf("digest network artifact: %w", err)
 			}
 			result.mu.Lock()
+			artifact.PurgeStorageClass = "inline"
 			result.Artifacts = append(result.Artifacts, artifact)
 			result.mu.Unlock()
 			artifactIDs = append(artifactIDs, id)
@@ -455,6 +492,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 				r.log.WithError(err).Warn("Failed to persist network event artifact")
 			} else if ref != nil {
 				networkArtifact = ref
+				appendPurgeAuxiliary(result, *ref)
 			}
 		}
 	}
@@ -470,6 +508,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			Label:        deriveStepLabel(outcome),
 			Payload:      map[string]any{"assertion": outcome.Assertion},
 		}
+		artifact.PurgeStorageClass = "inline"
 		result.mu.Lock()
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
@@ -488,6 +527,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			Label:        deriveStepLabel(outcome),
 			Payload:      map[string]any{"value": outcome.ExtractedData},
 		}
+		artifact.PurgeStorageClass = "inline"
 		result.mu.Lock()
 		result.Artifacts = append(result.Artifacts, artifact)
 		result.mu.Unlock()
@@ -521,6 +561,12 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 				"hash":                outcome.Screenshot.Hash,
 				"storage_duration_ns": screenshotStorageDuration.Nanoseconds(),
 			},
+			PurgeStorageClass: "external",
+			PurgeStoragePath:  screenshotInfo.Path,
+			PurgeObjectKey:    screenshotInfo.ObjectName,
+		}
+		if screenshotInfo.Path != "" {
+			artifact.PurgeStorageClass = "execution_file"
 		}
 		// File and object-store locations are storage implementation details.
 		// Replay consumers resolve the artifact ID through the authorized
@@ -555,6 +601,7 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 			r.log.WithError(err).Warn("Failed to persist DOM snapshot artifact")
 		} else if ref != nil {
 			domSnapshotArtifact = ref
+			appendPurgeAuxiliary(result, *ref)
 		}
 	}
 
@@ -583,6 +630,30 @@ func (r *FileWriter) RecordStepOutcome(ctx context.Context, plan contracts.Execu
 		ArtifactIDs:        artifactIDs,
 		TimelineArtifactID: &timelineID,
 	}, nil
+}
+
+func (r *FileWriter) withExecutionArtifactLock(ctx context.Context, executionID uuid.UUID, write func(context.Context) error) error {
+	if r == nil || r.root == nil {
+		return write(ctx)
+	}
+	root, err := r.root.Root(ctx)
+	if err != nil {
+		return err
+	}
+	return executionartifactlock.WithLock(ctx, root, executionID, func(lockCtx context.Context) error {
+		if reader, ok := r.repo.(interface {
+			GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error)
+		}); ok {
+			entry, err := reader.GetExecution(lockCtx, executionID)
+			if err != nil {
+				return err
+			}
+			if entry == nil {
+				return database.ErrNotFound
+			}
+		}
+		return write(lockCtx)
+	})
 }
 
 func (r *FileWriter) appendProtoTimelineEntry(
@@ -1036,6 +1107,26 @@ type telemetryArtifactRef struct {
 	ContentType string
 	SizeBytes   int64
 	ObjectName  string
+	SHA256      string
+}
+
+func appendPurgeAuxiliary(result *ExecutionResultData, artifact telemetryArtifactRef) {
+	if result == nil || artifact.Path == "" && artifact.ObjectName == "" {
+		return
+	}
+	storageClass := "external"
+	objectKey := artifact.ObjectName
+	if artifact.Path != "" {
+		storageClass = "execution_file"
+		objectKey = ""
+	}
+	result.mu.Lock()
+	defer result.mu.Unlock()
+	result.PurgeAuxiliary = append(result.PurgeAuxiliary, PurgeArtifactReceipt{
+		ArtifactID: artifact.ID.String(), Storage: storageClass, Path: artifact.Path,
+		ObjectKey: objectKey,
+		Bytes:     artifact.SizeBytes, SHA256: artifact.SHA256,
+	})
 }
 
 func (r *FileWriter) persistTelemetryArtifact(ctx context.Context, executionID uuid.UUID, folder string, baseName string, ext string, contentType string, data []byte) (*telemetryArtifactRef, error) {
@@ -1059,6 +1150,10 @@ func (r *FileWriter) persistTelemetryArtifact(ctx context.Context, executionID u
 	if info == nil {
 		return nil, nil
 	}
+	digest := sha256.Sum256(data)
+	if strings.TrimSpace(info.ObjectName) == "" || strings.TrimSpace(info.URL) == "" || info.SizeBytes != int64(len(data)) || !strings.EqualFold(strings.TrimSpace(info.SHA256), hex.EncodeToString(digest[:])) {
+		return nil, errors.New("telemetry storage returned an incomplete or mismatched receipt")
+	}
 	return &telemetryArtifactRef{
 		ID:          uuid.New(),
 		URL:         info.URL,
@@ -1066,6 +1161,7 @@ func (r *FileWriter) persistTelemetryArtifact(ctx context.Context, executionID u
 		ContentType: info.ContentType,
 		SizeBytes:   info.SizeBytes,
 		ObjectName:  info.ObjectName,
+		SHA256:      info.SHA256,
 	}, nil
 }
 

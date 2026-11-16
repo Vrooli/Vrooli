@@ -37,6 +37,12 @@ func (c Checkpoint) validate() error {
 }
 
 func (r *FileWriter) RecordCheckpoint(ctx context.Context, checkpoint Checkpoint) error {
+	return r.withExecutionArtifactLock(ctx, checkpoint.ExecutionID, func(lockCtx context.Context) error {
+		return r.recordCheckpointLocked(lockCtx, checkpoint)
+	})
+}
+
+func (r *FileWriter) recordCheckpointLocked(ctx context.Context, checkpoint Checkpoint) error {
 	if err := checkpoint.validate(); err != nil {
 		return err
 	}
@@ -52,7 +58,7 @@ func (r *FileWriter) RecordCheckpoint(ctx context.Context, checkpoint Checkpoint
 		return fmt.Errorf("commit recovery state: %w", err)
 	}
 	r.root.RecordWrite(ctx)
-	return nil
+	return r.writePurgeInventory(ctx, checkpoint.ExecutionID, checkpoint.WorkflowID)
 }
 
 // ReadCheckpoint uses the execution index's authoritative result location and

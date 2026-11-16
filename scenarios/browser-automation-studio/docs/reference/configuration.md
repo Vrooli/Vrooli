@@ -2,7 +2,7 @@
 
 ## Environment variables
 
-`ENGINE=playwright` selects the supported driver. `PLAYWRIGHT_DRIVER_URL` points to an existing driver; otherwise lifecycle supervision starts the local sidecar. `PLAYWRIGHT_CHROMIUM_PATH` can select an existing Chromium binary.
+`ENGINE=playwright` selects the supported driver. `PLAYWRIGHT_DRIVER_URL` points to an existing driver; otherwise API sidecar supervision starts the local driver. `BROWSER_EXECUTABLE_PATH` selects an existing Chromium-compatible browser executable.
 
 ## Service manifest (`.vrooli/service.json`)
 

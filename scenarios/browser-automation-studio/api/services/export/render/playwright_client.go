@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"image"
 	"math"
@@ -62,10 +61,11 @@ type captureResponse struct {
 // waits for render, and captures screenshots.
 type playwrightCaptureClient struct {
 	exportPageURL string
+	engineFactory autoengine.Factory
 }
 
-func newPlaywrightCaptureClient(exportPageURL string) replayCaptureClient {
-	return &playwrightCaptureClient{exportPageURL: exportPageURL}
+func newPlaywrightCaptureClient(exportPageURL string, engineFactory autoengine.Factory) replayCaptureClient {
+	return &playwrightCaptureClient{exportPageURL: exportPageURL, engineFactory: engineFactory}
 }
 
 func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovieSpec, captureInterval int) (*captureResponse, error) {
@@ -78,22 +78,13 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	if strings.TrimSpace(c.exportPageURL) == "" {
 		return nil, fmt.Errorf("export page url not configured")
 	}
+	if c.engineFactory == nil {
+		return nil, fmt.Errorf("canonical automation engine factory not configured")
+	}
 
 	// Only attempt when Playwright driver is present.
 	if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
 		return nil, fmt.Errorf("PLAYWRIGHT_DRIVER_URL not set; Playwright driver required for capture")
-	}
-
-	factory, err := autoengine.DefaultFactory(nil)
-	if err != nil {
-		return nil, err
-	}
-	engine, err := factory.Resolve(ctx, "playwright")
-	if err != nil {
-		return nil, err
-	}
-	if engine == nil {
-		return nil, errors.New("playwright engine not available")
 	}
 
 	rec := &inMemoryCaptureRecorder{}
@@ -133,7 +124,7 @@ func (c *playwrightCaptureClient) Capture(ctx context.Context, spec *ReplayMovie
 	req := autoexecutor.Request{
 		Plan:              plan,
 		EngineName:        "playwright",
-		EngineFactory:     factory,
+		EngineFactory:     c.engineFactory,
 		Recorder:          rec,
 		EventSink:         eventSink,
 		HeartbeatInterval: 0,

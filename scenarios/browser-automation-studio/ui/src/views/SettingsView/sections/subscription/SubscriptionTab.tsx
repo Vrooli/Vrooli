@@ -1,24 +1,35 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useEntitlementStore } from '@stores/entitlementStore';
 import { useAuthStore } from '@stores/authStore';
-import { AuthSection } from './AuthSection';
-import { SubscriptionStatusCard } from './SubscriptionStatusCard';
 import { UnifiedUsageSection } from './UnifiedUsageSection';
 import { UsageHistorySection } from './UsageHistorySection';
 import { OperationLogModal } from './OperationLogModal';
 import { FeatureAccessList } from './FeatureAccessList';
 import { UpgradePromptSection } from './UpgradePromptSection';
 import { LoadingSpinner } from '@shared/ui';
-import { PendingSyncBadge } from '@vrooli/react-component-library/MonetizationAccount/2.0.0';
+import { MonetizationAccountPanel } from '@vrooli/react-component-library/MonetizationAccount/2.0.2';
+import { resolveUpgradeDestination } from '@shared/upgradeDestination';
+
+function statusLabel(status: string | undefined, configured: boolean): string {
+  if (status === 'active') return 'Active';
+  if (status === 'trialing') return 'Trial';
+  if (status === 'past_due') return 'Payment needs attention';
+  if (status === 'canceled') return 'Canceled';
+  if (status === 'inactive') return 'Inactive';
+  return configured ? 'Connected' : 'Not signed in';
+}
+
+function openHostedAccount(path: string): void {
+  window.open(resolveUpgradeDestination(path), '_blank', 'noopener,noreferrer');
+}
 
 export function SubscriptionTab() {
   const {
     status,
     isLoading,
+    error: entitlementError,
     fetchStatus,
-    getUserEmail,
-    fetchPendingSyncCount,
-    pendingSyncCount,
+    refreshEntitlement,
   } = useEntitlementStore();
 
   // Operation log modal state
@@ -32,32 +43,24 @@ export function SubscriptionTab() {
     setOperationLogMonth(null);
   }, []);
 
-  // Get auth state for syncing with entitlements
-  const { isAuthenticated, user: authUser } = useAuthStore();
-  const { setUserEmail } = useEntitlementStore();
+  const auth = useAuthStore();
+  const { isAuthenticated, signIn, signOut, error: authError } = auth;
+  const previousAuthState = useRef(isAuthenticated);
 
   // Fetch entitlement status on mount
   useEffect(() => {
     const init = async () => {
-      // Get the stored email
-      await getUserEmail();
-      // Then fetch the status
       await fetchStatus();
     };
     void init();
-  }, [fetchStatus, getUserEmail]);
+  }, [fetchStatus]);
 
+  // Re-fetch when the shared session changes. The server resolves account
+  // identity from the LPBS authority instead of accepting a UI-supplied email.
   useEffect(() => {
-    void fetchPendingSyncCount();
-  }, [fetchPendingSyncCount]);
-
-  // Sync entitlement store when auth user changes
-  useEffect(() => {
-    if (isAuthenticated && authUser?.email) {
-      // Set the email in entitlement store to fetch subscription status
-      void setUserEmail(authUser.email);
-    }
-  }, [isAuthenticated, authUser?.email, setUserEmail]);
+    if (previousAuthState.current !== isAuthenticated) void fetchStatus();
+    previousAuthState.current = isAuthenticated;
+  }, [isAuthenticated, fetchStatus]);
 
   // Show loading state on initial load
   if (isLoading && !status) {
@@ -70,13 +73,20 @@ export function SubscriptionTab() {
 
   return (
     <div className="space-y-8">
-      {/* Authentication */}
-      <AuthSection />
-
-      {pendingSyncCount !== null && <PendingSyncBadge pending={pendingSyncCount} />}
-
-      {/* Status Card - only show if we have status */}
-      {status && <SubscriptionStatusCard />}
+      <MonetizationAccountPanel
+        configured={isAuthenticated}
+        plan={status?.tier ?? 'free'}
+        status={status?.status ?? 'inactive'}
+        statusLabel={statusLabel(status?.status, isAuthenticated)}
+        creditsLabel={status ? (status.ai_credits_limit < 0 ? 'Unlimited' : `${status.ai_credits_remaining} remaining`) : 'Unavailable'}
+        busyAction={auth.isLoading ? (auth.isAuthenticated ? 'sign-out' : 'sign-in') : isLoading ? 'refresh' : null}
+        error={authError || entitlementError || undefined}
+        onSignIn={() => void signIn()}
+        onSignOut={() => void signOut()}
+        onRefresh={() => void refreshEntitlement()}
+        onManageAccount={() => openHostedAccount('/account')}
+        onComparePlans={() => openHostedAccount('/pricing')}
+      />
 
       {/* Unified Usage - shows both AI credits and executions */}
       {status && <UnifiedUsageSection />}

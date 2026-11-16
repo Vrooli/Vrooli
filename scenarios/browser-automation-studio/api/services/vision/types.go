@@ -33,21 +33,22 @@ type NavigationRequest struct {
 	// If not specified, the registry will auto-select.
 	NavigatorType NavigatorType `json:"navigator_type,omitempty"`
 
-	// UserID is the user identity for credit tracking.
-	UserID string `json:"-"`
-
 	// CallbackURL is the URL for step event callbacks.
 	CallbackURL string `json:"-"`
+
+	// RootOperationID is the caller's stable idempotency root for this
+	// navigation. The sidecar derives a distinct stable Gateway ID per step.
+	RootOperationID string `json:"-"`
+	// AccessToken is the verified shared session token, carried only over the
+	// owned local sidecar route and never persisted in navigation state.
+	AccessToken string `json:"-"`
+	// AISource is the selected shared billing source: local, own-key, or
+	// vrooli-credits. Gateway remains authoritative for authorization and usage.
+	AISource string `json:"-"`
+	// PrivacyConsentGrant is an opaque Gateway-signed source-scoped receipt.
+	// It is carried in process memory only and never persisted or logged.
+	PrivacyConsentGrant string `json:"-"`
 }
-
-// CredentialProvenance identifies how the provider credential was obtained.
-// The value is deliberately an internal provenance marker, never a secret.
-type CredentialProvenance string
-
-const (
-	CredentialProvenanceNone      CredentialProvenance = "none"
-	CredentialProvenanceAuthority CredentialProvenance = "authority_provisioned" // #nosec G101 -- provenance label, not a secret
-)
 
 // NavigationStep represents a single step in the navigation process.
 type NavigationStep struct {
@@ -91,19 +92,12 @@ type NavigationResult struct {
 
 // NavigatorInfo provides information about a navigator for the list endpoint.
 type NavigatorInfo struct {
-	Type              NavigatorType    `json:"type"`
-	Available         bool             `json:"available"`
-	Description       string           `json:"description"`
-	CreditPolicy      CreditPolicyInfo `json:"credit_policy"`
-	AllowedSources    []ClientSource   `json:"allowed_sources"`
-	UnavailableReason string           `json:"unavailable_reason,omitempty"`
-}
-
-// CreditPolicyInfo is the JSON-serializable form of CreditPolicy.
-type CreditPolicyInfo struct {
-	RequiresCredits  bool              `json:"requires_credits"`
-	CreditsPerStep   int               `json:"credits_per_step"`
-	BypassConditions []BypassCondition `json:"bypass_conditions"`
+	Type              NavigatorType  `json:"type"`
+	Available         bool           `json:"available"`
+	Description       string         `json:"description"`
+	CreditPolicy      CreditPolicy   `json:"credit_policy"`
+	AllowedSources    []ClientSource `json:"allowed_sources"`
+	UnavailableReason string         `json:"unavailable_reason,omitempty"`
 }
 
 // NavigatorsResponse is the response for GET /api/v1/ai-navigate/navigators.

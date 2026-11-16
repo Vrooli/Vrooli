@@ -23,7 +23,8 @@ Production wiring registers one Playwright navigator; the registry retains disco
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │              VisionNavigationHandler                                 │   │
 │  │  - Extracts X-Client-Source header (ui/cli/api)                     │   │
-│  │  - Validates entitlements via CreditPolicy                          │   │
+│  │  - Checks shared signed-session feature lease                       │   │
+│  │  - AI Gateway owns privacy, source consent, and usage per inference │   │
 │  │  - Delegates to NavigatorRegistry                                   │   │
 │  └───────────────────────────────┬─────────────────────────────────────┘   │
 └──────────────────────────────────┼──────────────────────────────────────────┘
@@ -49,8 +50,8 @@ Production wiring registers one Playwright navigator; the registry retains disco
 │  Status: Available              │
 │                                 │
 │  CreditPolicy:                  │
-│  - 2 credits/step               │
-│  - Bypass: BYOK, Openrouter     │
+│  - Meter display only           │
+│  - No fixed local charge        │
 │                                 │
 │  ClientSourcePolicy:            │
 │  - All sources (ui/cli/api)     │
@@ -176,17 +177,9 @@ type ClientInterface interface {
 │                        CreditPolicy                              │
 ├─────────────────────────────────────────────────────────────────┤
 │  RequiresCredits:  bool                                         │
-│  OperationType:    credits.OperationType                        │
 │  PerStepCharging:  bool                                         │
 │  CreditsPerStep:   int                                          │
-│  BypassConditions: []BypassCondition                            │
-│                                                                  │
-│  Bypass Types:                                                   │
-│  ┌──────────────────────┐                                       │
-│  │ - BypassBYOK         │ <- User brings their own API key      │
-│  │ - BypassOpenrouter   │ <- Using openrouter resource          │
-│  │ - BypassLocalExec    │ <- Local-only execution               │
-│  └──────────────────────┘                                       │
+│  Gateway owns authorization, source policy, and usage accounting │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -320,7 +313,7 @@ NavigatorRegistry.SelectNavigator()
 └─────────────────────────────────┘
     |
     v
-CreditPolicy validation
+Shared feature gate; Gateway validates source/privacy and reserves usage
     |
     v
 Navigator.Navigate(request)

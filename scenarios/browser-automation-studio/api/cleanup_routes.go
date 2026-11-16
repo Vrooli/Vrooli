@@ -29,10 +29,98 @@ type ownerCleanupRoutes struct {
 }
 
 func registerOwnerCleanupRoutes(r chi.Router, planner *retention.Service) {
+	// Cleanup routes are trusted-local operator endpoints. The BAS API listener
+	// is pinned to IPv4 loopback in main.go; do not mount these routes on a
+	// separately exposed handler without adding the scenario's auth boundary.
 	s := &ownerCleanupRoutes{planner: planner}
+	r.Post("/api/v1/executions/{executionID}/purge-preview", s.exactPurgePreview)
+	r.Post("/api/v1/executions/{executionID}/purge", s.exactPurgeApply)
 	r.Get("/api/v1/cleanup/estimate", s.estimate)
 	r.Post("/api/v1/cleanup/preview", s.preview)
 	r.Post("/api/v1/cleanup/apply", s.apply)
+}
+
+type exactPurgeApplyRequest struct {
+	Confirmation string                      `json:"confirmation"`
+	Preview      retention.ExactPurgePreview `json:"preview"`
+}
+
+func (s *ownerCleanupRoutes) exactPurgePreview(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "executionID"))
+	if err != nil || id == uuid.Nil {
+		http.Error(w, "executionID must be a UUID", http.StatusBadRequest)
+		return
+	}
+	if s.planner == nil {
+		http.Error(w, "retention planner is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	preview, err := s.planner.PreviewExactPurge(r.Context(), id)
+	if err != nil {
+		http.Error(w, exactPurgeMessage(err), exactPurgeStatus(err))
+		return
+	}
+	writeOwnerCleanupJSON(w, preview)
+}
+
+func (s *ownerCleanupRoutes) exactPurgeApply(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "executionID"))
+	if err != nil || id == uuid.Nil {
+		http.Error(w, "executionID must be a UUID", http.StatusBadRequest)
+		return
+	}
+	var req exactPurgeApplyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "confirmation and exact preview metadata are required", http.StatusBadRequest)
+		return
+	}
+	if s.planner == nil {
+		http.Error(w, "retention planner is not configured", http.StatusServiceUnavailable)
+		return
+	}
+	result, err := s.planner.PurgeExact(r.Context(), id, req.Confirmation, req.Preview)
+	if err != nil {
+		http.Error(w, exactPurgeMessage(err), exactPurgeStatus(err))
+		return
+	}
+	writeOwnerCleanupJSON(w, struct {
+		retention.ExactPurgePreview
+		Deleted bool `json:"deleted"`
+	}{ExactPurgePreview: result, Deleted: true})
+}
+
+func exactPurgeStatus(err error) int {
+	switch {
+	case errors.Is(err, retention.ErrExactExecutionMissing):
+		return http.StatusNotFound
+	case errors.Is(err, retention.ErrExactExecutionActive), errors.Is(err, retention.ErrExactArtifactShared), errors.Is(err, retention.ErrExactArtifactMissing):
+		return http.StatusConflict
+	case errors.Is(err, retention.ErrExactConfirmation), errors.Is(err, retention.ErrExactPreviewChanged):
+		return http.StatusPreconditionFailed
+	default:
+		return http.StatusServiceUnavailable
+	}
+}
+
+func exactPurgeMessage(err error) string {
+	switch {
+	case errors.Is(err, retention.ErrExactExecutionMissing):
+		return "execution was not found"
+	case errors.Is(err, retention.ErrExactExecutionActive):
+		return "execution is not terminal"
+	case errors.Is(err, retention.ErrExactArtifactShared), errors.Is(err, retention.ErrExactArtifactOverlap):
+		return "artifact ownership overlaps another execution"
+	case errors.Is(err, retention.ErrExactArtifactMissing):
+		return "execution artifact directory is missing"
+	case errors.Is(err, retention.ErrExactConfirmation):
+		return "confirmation must exactly match the execution UUID"
+	case errors.Is(err, retention.ErrExactPreviewChanged):
+		return "execution metadata or artifact inventory changed after preview"
+	case errors.Is(err, retention.ErrExactInventoryInvalid):
+		return "execution artifact ownership inventory is incomplete or invalid"
+	default:
+		return "exact purge could not complete; inspect the target before retrying"
+	}
 }
 
 func (s *ownerCleanupRoutes) sweep(r *http.Request, ids []uuid.UUID, captureIDs, recordingIDs map[string]struct{}, estimatedBytes map[uuid.UUID]int64, recoveryOnly bool) (*retention.Report, []retention.CleanupItem, int64, int, int64, error) {

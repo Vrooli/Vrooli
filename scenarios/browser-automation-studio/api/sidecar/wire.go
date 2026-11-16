@@ -146,7 +146,7 @@ func BuildDependencies(
 		log:    log,
 	}
 
-	// 3. Build process (mirrors service.json: cd playwright-driver && node dist/server.js)
+	// 3. Build process (mirrors service.json: cd playwright-driver && node dist/<variant>/server.js)
 	process := supervisor.NewNodeProcess(
 		supervisorCfg.NodePath,
 		supervisorCfg.DriverDir,

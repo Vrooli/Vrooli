@@ -31,9 +31,11 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
   const addScreenshot = useExecutionStore(s => s.addScreenshot);
   const recordHeartbeat = useExecutionStore(s => s.recordHeartbeat);
   const refreshTimeline = useExecutionStore(s => s.refreshTimeline);
+  const loadExecution = useExecutionStore(s => s.loadExecution);
 
   // Track current subscription to avoid duplicate subscribe messages
   const subscribedIdRef = useRef<string | null>(null);
+  const wasConnectedRef = useRef(isConnected);
 
   // Memoize handlers object to prevent infinite re-render loops
   // Store methods from Zustand are stable references, but the object itself must be memoized
@@ -77,6 +79,8 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
 
   // Subscribe/unsubscribe based on execution state
   useEffect(() => {
+    const reconnected = !wasConnectedRef.current && isConnected;
+    wasConnectedRef.current = isConnected;
     const executionId = execution?.id;
     const status = execution?.status;
     // Subscribe when execution is active (pending or running)
@@ -92,6 +96,13 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
       return;
     }
 
+    // A successful send only means the provider accepted a message while a
+    // socket was open. Clear the remembered subscription on disconnect so the
+    // same execution is subscribed again after reconnect.
+    if (!isConnected) {
+      return;
+    }
+
     // Subscribe to new execution
     if (subscribedIdRef.current !== executionId) {
       // Unsubscribe from previous if different
@@ -100,6 +111,11 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
       }
       send({ type: 'subscribe', execution_id: executionId });
       subscribedIdRef.current = executionId;
+      if (reconnected) {
+        // The terminal event may have arrived while the socket was down.
+        // Rehydrate the authoritative execution record along with the stream.
+        void loadExecution(executionId);
+      }
       logger.debug('Subscribed to execution updates', {
         component: 'useExecutionEvents',
         executionId,
@@ -113,7 +129,7 @@ export function useExecutionEvents(execution?: Pick<Execution, 'id' | 'status'>)
         subscribedIdRef.current = null;
       }
     };
-  }, [execution?.id, execution?.status, send]);
+  }, [execution?.id, execution?.status, isConnected, loadExecution, send]);
 
   // WebSocket events provide the low-latency path, but short workflows can
   // finish before the subscription handshake completes. Polling only while a

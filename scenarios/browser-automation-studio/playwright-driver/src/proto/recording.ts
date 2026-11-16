@@ -344,17 +344,20 @@ export function timelineEntryToJson(entry: TimelineEntry): Record<string, unknow
 
 /**
  * Normalize timestamp from raw event.
- * Handles invalid/missing timestamps by falling back to current time.
+ * Invalid timestamps use a stable sentinel rather than wall-clock time so a
+ * retried event with the same identity cannot become a conflicting timeline
+ * entry. The Unix epoch deliberately signals that the source did not provide
+ * a usable observation time; inventing a fresh capture time would be false.
  */
 function normalizeTimestamp(rawTimestamp: number): Date {
   try {
     const date = new Date(rawTimestamp);
     if (Number.isNaN(date.getTime())) {
-      return new Date();
+      return new Date(0);
     }
     return date;
   } catch {
-    return new Date();
+    return new Date(0);
   }
 }
 

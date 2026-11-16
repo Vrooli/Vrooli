@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
-	"github.com/vrooli/browser-automation-studio/internal/testutil/enginemocks"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +14,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"github.com/vrooli/browser-automation-studio/internal/testutil/enginemocks"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -30,7 +31,18 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 )
+
+func newPlaywrightTestEngine(t *testing.T, server *httptest.Server) *engine.PlaywrightEngine {
+	t.Helper()
+	client, err := driver.NewClientWithURL(server.URL, driver.WithHTTPClient(server.Client()))
+	require.NoError(t, err)
+	broker := session.NewManagerWithClient(client)
+	playwright, err := engine.NewPlaywrightEngineWithSessionManager(broker, nil)
+	require.NoError(t, err)
+	return playwright
+}
 
 type priorNavigationState string
 
@@ -522,8 +534,8 @@ func TestExecutePreservesInvocationAndTransportOwnership(t *testing.T) {
 					io.WriteString(w, `{"success":true}`)
 				}
 			}))
-			eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
-			require.NoError(t, err)
+			eng := newPlaywrightTestEngine(t, server)
+			var err error
 			action := &basactions.ActionDefinition{
 				Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
 				Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid"}},
@@ -618,8 +630,8 @@ func TestExecuteTimeoutDuringLiveInstructionClosesSessionWithoutReplay(t *testin
 		}
 	}))
 
-	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
-	require.NoError(t, err)
+	eng := newPlaywrightTestEngine(t, server)
+	var err error
 	action := &basactions.ActionDefinition{
 		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
 		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/effect"}},
@@ -723,8 +735,8 @@ func TestExecuteDriverDeathRetainsUncertainEffectWithoutReplay(t *testing.T) {
 		}
 	}))
 
-	eng, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), nil)
-	require.NoError(t, err)
+	eng := newPlaywrightTestEngine(t, server)
+	var err error
 	action := &basactions.ActionDefinition{
 		Type:   basactions.ActionType_ACTION_TYPE_NAVIGATE,
 		Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://fixture.invalid/effect"}},

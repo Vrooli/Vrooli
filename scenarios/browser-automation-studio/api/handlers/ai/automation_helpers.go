@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -120,21 +121,13 @@ func NewDefaultAutomationRunner(log *logrus.Logger, opts ...AutomationRunnerOpti
 		opt(runner)
 	}
 
-	// Only create default factory if not provided via options
+	// Every caller must provide its lifecycle owner. Production helpers share
+	// BAS's API session broker; tests can provide a fake engine factory.
 	if runner.engineFactory == nil {
-		factory, err := autoengine.DefaultFactory(log)
-		if err != nil {
-			return nil, err
-		}
-		runner.engineFactory = factory
+		return nil, errors.New("automation engine factory is required")
 	}
 
 	return runner, nil
-}
-
-// newAutomationRunner is a convenience wrapper for backward compatibility.
-func newAutomationRunner(log *logrus.Logger) (*DefaultAutomationRunner, error) {
-	return NewDefaultAutomationRunner(log)
 }
 
 // Run executes a sequence of automation instructions and returns outcomes.

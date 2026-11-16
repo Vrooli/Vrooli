@@ -228,6 +228,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to sign out';
       set({ error: errorMessage, isLoading: false });
+    } finally {
+      sessionStorage.removeItem('bas.ai.remote-consent-receipt');
+      sessionStorage.removeItem('bas.ai.remote-consent-source');
     }
   },
 

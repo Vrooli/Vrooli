@@ -4,7 +4,13 @@ import { isOperational } from '../session';
 import type { Config } from '../config';
 import type { StartSessionRequest, StartSessionResponse, SessionSpec } from '../types';
 import { parseJsonBody, sendJson, sendError } from '../middleware';
-import { InvalidInstructionError, ResourceLimitError, PlaywrightDriverError, SessionNotFoundError, logger } from '../utils';
+import {
+  InvalidInstructionError,
+  ResourceLimitError,
+  PlaywrightDriverError,
+  SessionNotFoundError,
+  logger,
+} from '../utils';
 import { startFrameStreaming } from '../frame-streaming';
 import type { FaultController } from '../fault-control';
 
@@ -26,6 +32,32 @@ export async function handleSessionStart(
   config: Config,
   faultController?: FaultController
 ): Promise<void> {
+  let responseDisconnected = false;
+  let admitted:
+    | { sessionId: string; executionId: string; leaseId: string; reused: boolean }
+    | undefined;
+  let disconnectCleanup: Promise<void> | undefined;
+  const closeUnacknowledgedSession = (): Promise<void> => {
+    if (!admitted || admitted.reused) return Promise.resolve();
+    if (!disconnectCleanup) {
+      disconnectCleanup = sessionManager
+        .closeSessionForLease(admitted.sessionId, admitted.executionId, admitted.leaseId)
+        .then(() => undefined);
+    }
+    return disconnectCleanup;
+  };
+  res.once('close', () => {
+    if (res.writableFinished) return;
+    responseDisconnected = true;
+    void closeUnacknowledgedSession().catch((error: unknown) => {
+      logger.warn('Could not close session after start response disconnect', {
+        sessionId: admitted?.sessionId,
+        executionId: admitted?.executionId,
+        error: String(error),
+      });
+    });
+  });
+
   try {
     const body = await parseJsonBody(req, config);
     const request = body as unknown as StartSessionRequest;
@@ -63,16 +95,22 @@ export async function handleSessionStart(
       );
     }
     if (typeof options.viewport.width !== 'number' || options.viewport.width <= 0) {
-      throw new InvalidInstructionError('Invalid session_options.viewport.width: must be a positive number', {
-        field: 'session_options.viewport.width',
-        received: options.viewport.width,
-      });
+      throw new InvalidInstructionError(
+        'Invalid session_options.viewport.width: must be a positive number',
+        {
+          field: 'session_options.viewport.width',
+          received: options.viewport.width,
+        }
+      );
     }
     if (typeof options.viewport.height !== 'number' || options.viewport.height <= 0) {
-      throw new InvalidInstructionError('Invalid session_options.viewport.height: must be a positive number', {
-        field: 'session_options.viewport.height',
-        received: options.viewport.height,
-      });
+      throw new InvalidInstructionError(
+        'Invalid session_options.viewport.height: must be a positive number',
+        {
+          field: 'session_options.viewport.height',
+          received: options.viewport.height,
+        }
+      );
     }
 
     // Validate reuse_mode if provided
@@ -89,10 +127,13 @@ export async function handleSessionStart(
     }
 
     if (options.frame_scale !== 'css' && options.frame_scale !== 'device') {
-      throw new InvalidInstructionError('Invalid session_options.frame_scale: must be css or device', {
-        field: 'session_options.frame_scale',
-        received: options.frame_scale,
-      });
+      throw new InvalidInstructionError(
+        'Invalid session_options.frame_scale: must be css or device',
+        {
+          field: 'session_options.frame_scale',
+          received: options.frame_scale,
+        }
+      );
     }
 
     if (
@@ -111,24 +152,51 @@ export async function handleSessionStart(
     const spec: SessionSpec = {
       execution_id: request.execution_id,
       workflow_id: request.workflow_id,
-      ...{ ...options, browser_profile: interactiveProfileDefault(options.labels, options.browser_profile) },
+      ...{
+        ...options,
+        browser_profile: interactiveProfileDefault(options.labels, options.browser_profile),
+      },
       reuse_mode: options.reuse_mode as 'fresh' | 'clean' | 'reuse',
     };
 
-    const drillToken = typeof req.headers['x-playwright-drill-token'] === 'string' ? req.headers['x-playwright-drill-token'] : undefined;
+    const drillToken =
+      typeof req.headers['x-playwright-drill-token'] === 'string'
+        ? req.headers['x-playwright-drill-token']
+        : undefined;
     if (faultController?.consume(drillToken, 'driver_unavailable')) {
-      throw new PlaywrightDriverError('controlled driver-unavailable drill outcome', 'DRILL_DRIVER_UNAVAILABLE');
+      throw new PlaywrightDriverError(
+        'controlled driver-unavailable drill outcome',
+        'DRILL_DRIVER_UNAVAILABLE'
+      );
     }
-    if (faultController && faultController.capacityReserved(drillToken) > 0 && faultController.consume(drillToken, 'capacity_lease')) {
-      throw new ResourceLimitError('controlled capacity lease rejected session admission', { drill: true });
+    if (
+      faultController &&
+      faultController.capacityReserved(drillToken) > 0 &&
+      faultController.consume(drillToken, 'capacity_lease')
+    ) {
+      throw new ResourceLimitError('controlled capacity lease rejected session admission', {
+        drill: true,
+      });
     }
+    if (responseDisconnected) return;
     // Start session - returns session info including whether it was reused and actual viewport
     const { sessionId, leaseId, reused, createdAt, actualViewport } =
       await sessionManager.startSession(spec);
+    admitted = { sessionId, executionId: spec.execution_id, leaseId, reused };
+
+    // A peer can disappear while browser startup is in flight. No lease was
+    // available to the close listener then, so reconcile immediately now.
+    if (responseDisconnected) {
+      await closeUnacknowledgedSession();
+      return;
+    }
 
     if (faultController?.consume(drillToken, 'fail_after_session_registration')) {
-      await sessionManager.forceCloseSession(sessionId);
-      throw new PlaywrightDriverError('controlled failure after session registration; session was reconciled', 'DRILL_SESSION_REGISTRATION_FAILURE');
+      await sessionManager.forceCloseSession(sessionId, spec.execution_id, leaseId);
+      throw new PlaywrightDriverError(
+        'controlled failure after session registration; session was reconciled',
+        'DRILL_SESSION_REGISTRATION_FAILURE'
+      );
     }
 
     const frameStreaming = options.frame_streaming;
@@ -143,19 +211,22 @@ export async function handleSessionStart(
           return session;
         },
       };
-      void sessionManager.waitForPipelineReady(sessionId, 5000).then((ready) => {
-        if (!ready) return;
-        const session = provider.getSession(sessionId);
-        startFrameStreaming(sessionId, provider, {
-          streamUrl: frameStreaming.url,
-          streamKind: 'execution',
-          quality: frameStreaming.quality,
-          fps: frameStreaming.fps,
-          scale: session.spec.frame_scale!,
+      void sessionManager
+        .waitForPipelineReady(sessionId, 5000)
+        .then((ready) => {
+          if (!ready) return;
+          const session = provider.getSession(sessionId);
+          startFrameStreaming(sessionId, provider, {
+            streamUrl: frameStreaming.url,
+            streamKind: 'execution',
+            quality: frameStreaming.quality,
+            fps: frameStreaming.fps,
+            scale: session.spec.frame_scale!,
+          });
+        })
+        .catch((error: unknown) => {
+          logger.debug('Deferred frame preview did not start', { sessionId, error: String(error) });
         });
-      }).catch((error: unknown) => {
-        logger.debug('Deferred frame preview did not start', { sessionId, error: String(error) });
-      });
     }
 
     const current = sessionManager.getSessionForLease(sessionId, spec.execution_id, leaseId);
@@ -176,11 +247,27 @@ export async function handleSessionStart(
 
     sendJson(res, 200, response);
   } catch (error) {
+    if (responseDisconnected) {
+      try {
+        await closeUnacknowledgedSession();
+      } catch (closeError) {
+        logger.warn('Could not close session after start response disconnect', {
+          sessionId: admitted?.sessionId,
+          executionId: admitted?.executionId,
+          error: String(closeError),
+        });
+      }
+      return;
+    }
     sendError(res, error as Error, '/session/start');
   }
 }
 
-export const interactiveProfileDefault = (labels?: SessionSpec['labels'], profile?: SessionSpec['browser_profile']): SessionSpec['browser_profile'] => profile ?? (labels?.mode === 'recording' ? { preset: 'stealth' } : undefined);
+export const interactiveProfileDefault = (
+  labels?: SessionSpec['labels'],
+  profile?: SessionSpec['browser_profile']
+): SessionSpec['browser_profile'] =>
+  profile ?? (labels?.mode === 'recording' ? { preset: 'stealth' } : undefined);
 
 function requiresArtifactRoot(
   capabilities?: StartSessionRequest['session_options']['required_capabilities']

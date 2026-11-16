@@ -40,41 +40,10 @@ type Service struct {
 	unifiedRecordingSvc *unifiedrecording.Service
 }
 
-// NewService creates a new live capture service.
-func NewService(log *logrus.Logger, unifiedRecordingSvc *unifiedrecording.Service) *Service {
-	mgr, err := session.NewManager(session.WithLogger(log))
-	if err != nil {
-		log.WithError(err).Warn("Failed to create session manager, service will fail on first use")
-		return &Service{
-			sessions:            nil,
-			generator:           NewWorkflowGenerator(),
-			log:                 log,
-			unifiedRecordingSvc: unifiedRecordingSvc,
-		}
-	}
-	return &Service{
-		sessions:            mgr,
-		generator:           NewWorkflowGenerator(),
-		log:                 log,
-		unifiedRecordingSvc: unifiedRecordingSvc,
-	}
-}
-
-// NewServiceWithManager creates a service with a custom session manager (for testing).
+// NewServiceWithManager creates the capture service around its canonical session manager.
 func NewServiceWithManager(mgr *session.Manager, log *logrus.Logger, unifiedRecordingSvc *unifiedrecording.Service) *Service {
 	return &Service{
 		sessions:            mgr,
-		generator:           NewWorkflowGenerator(),
-		log:                 log,
-		unifiedRecordingSvc: unifiedRecordingSvc,
-	}
-}
-
-// NewServiceWithClient creates a service with a custom driver client (for testing).
-// Deprecated: Use NewServiceWithManager instead.
-func NewServiceWithClient(client *driver.Client, log *logrus.Logger, unifiedRecordingSvc *unifiedrecording.Service) *Service {
-	return &Service{
-		sessions:            session.NewManagerWithClient(client, session.WithLogger(log)),
 		generator:           NewWorkflowGenerator(),
 		log:                 log,
 		unifiedRecordingSvc: unifiedRecordingSvc,
@@ -106,6 +75,8 @@ type SessionResult struct {
 	// Close releases this exact admission, even if its public ID is later reused.
 	Close          func(context.Context) error
 	SessionID      string
+	ExecutionID    string
+	LeaseID        string
 	CreatedAt      time.Time
 	ActualViewport *ViewportDimensions // Actual viewport from Playwright (may differ due to profile)
 	// InitialNavigation contains info about the initial URL navigation, if one occurred.
@@ -113,13 +84,9 @@ type SessionResult struct {
 	InitialNavigation *HistoryEntryInfo
 }
 
-// ViewportDimensions represents width and height of a viewport with source attribution.
-type ViewportDimensions struct {
-	Width  int
-	Height int
-	Source string // "requested", "fingerprint", "fingerprint_partial", or "default"
-	Reason string // Human-readable explanation of what determined the dimensions
-}
+// ViewportDimensions preserves the service result name while using the driver's
+// canonical source-attributed viewport contract.
+type ViewportDimensions = driver.ActualViewport
 
 // CreateSession creates a new browser session for live capture.
 func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (result *SessionResult, err error) {
@@ -223,14 +190,17 @@ func (s *Service) CreateSession(ctx context.Context, cfg *SessionConfig) (result
 		actualViewport = &ViewportDimensions{
 			Width:  av.Width,
 			Height: av.Height,
-			Source: string(av.Source),
+			Source: av.Source,
 			Reason: av.Reason,
 		}
 	}
 
+	executionID, leaseID := sess.OwnerIdentity()
 	return &SessionResult{
 		Close:             sess.Close,
 		SessionID:         sess.ID(),
+		ExecutionID:       executionID,
+		LeaseID:           leaseID,
 		CreatedAt:         time.Now().UTC(),
 		ActualViewport:    actualViewport,
 		InitialNavigation: initialNavigation,
@@ -346,7 +316,7 @@ func (s *Service) GetRecordingDebug(ctx context.Context, id string) (*http.Respo
 	if err != nil {
 		return nil, err
 	}
-	return owned.RouteRequest(ctx, http.MethodGet, "/record/debug", nil)
+	return owned.RouteRequest(ctx, http.MethodGet, "/record/debug", nil, nil)
 }
 
 // GetServiceWorkers retrieves service workers for a session.

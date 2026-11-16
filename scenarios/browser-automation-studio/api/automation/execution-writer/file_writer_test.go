@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/storage"
 	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
@@ -32,10 +33,61 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
+func TestRecordCheckpointCoordinatesWithExactPurgeAcrossInstances(t *testing.T) {
+	root := t.TempDir()
+	executionID, workflowID := uuid.New(), uuid.New()
+	release, err := executionartifactlock.Acquire(context.Background(), root, executionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer := NewFileWriter(nil, nil, nil, NewStaticRoot(root))
+	done := make(chan error, 1)
+	go func() {
+		done <- writer.RecordCheckpoint(context.Background(), Checkpoint{SchemaVersion: CheckpointVersion, ExecutionID: executionID, WorkflowID: workflowID, LastStepIndex: 0, NodeID: "n1", TotalSteps: 1, Store: map[string]any{}})
+	}()
+	select {
+	case err := <-done:
+		release()
+		t.Fatalf("writer passed a purge lock: %v", err)
+	case <-time.After(40 * time.Millisecond):
+	}
+	release()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("writer did not resume after purge lock released")
+	}
+}
+
+type missingExecutionRepo struct{}
+
+func (missingExecutionRepo) GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error) {
+	return nil, database.ErrNotFound
+}
+func (missingExecutionRepo) UpdateExecutionResultPath(context.Context, uuid.UUID, string, time.Time) error {
+	return nil
+}
+
+func TestRecordCheckpointDoesNotRecreatePurgedExecutionArtifacts(t *testing.T) {
+	root := t.TempDir()
+	id, wf := uuid.New(), uuid.New()
+	writer := NewFileWriter(missingExecutionRepo{}, nil, nil, NewStaticRoot(root))
+	err := writer.RecordCheckpoint(context.Background(), Checkpoint{SchemaVersion: CheckpointVersion, ExecutionID: id, WorkflowID: wf, LastStepIndex: 0, NodeID: "n1", TotalSteps: 1, Store: map[string]any{}})
+	if !errors.Is(err, database.ErrNotFound) {
+		t.Fatalf("expected missing execution guard, got %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, id.String())); !os.IsNotExist(err) {
+		t.Fatalf("writer recreated purged directory: %v", err)
+	}
+}
+
 type noopRepo struct{}
 
 func (noopRepo) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
-	return nil, nil
+	return &database.ExecutionIndex{ID: id}, nil
 }
 
 func (noopRepo) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {

@@ -4,8 +4,6 @@
 // It exists to avoid import cycles - packages like automation/events, automation/compiler,
 // and services/workflow all need enum conversions but would create cycles if importing protoconv.
 //
-// NOTE: internal/protoconv/enum_convert.go has the same functions (re-exported from here).
-// New code should import this package directly.
 package enums
 
 import (

@@ -227,7 +227,7 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		actualViewport = &ActualViewportWithSource{
 			Width:  result.ActualViewport.Width,
 			Height: result.ActualViewport.Height,
-			Source: ViewportSource(result.ActualViewport.Source),
+			Source: result.ActualViewport.Source,
 			Reason: result.ActualViewport.Reason,
 		}
 	}
@@ -242,6 +242,37 @@ func (h *Handler) CreateRecordingSession(w http.ResponseWriter, r *http.Request)
 		RestoredTabs:       restoredTabs,
 		InitialURL:         initialURL,
 	}
+	if result.ExecutionID == "" || result.LeaseID == "" {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), recordModeTimeout)
+		closeErr := result.Close(cleanupCtx)
+		cleanupCancel()
+		details := map[string]string{}
+		if closeErr != nil {
+			details["cleanup_error"] = closeErr.Error()
+		}
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session owner identity is unavailable; stream access was not issued.").WithDetails(details))
+		return
+	}
+	cookieName, cookieValue, grantErr := h.wsHub.IssueSessionStreamCookie(result.SessionID, result.ExecutionID, result.LeaseID)
+	if grantErr != nil {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), recordModeTimeout)
+		closeErr := result.Close(cleanupCtx)
+		cleanupCancel()
+		details := map[string]string{"grant_error": grantErr.Error()}
+		if closeErr != nil {
+			details["cleanup_error"] = closeErr.Error()
+		}
+		h.respondError(w, ErrServiceUnavailable.WithMessage("Session stream authority could not be established.").WithDetails(details))
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieName,
+		Value:    cookieValue,
+		Path:     websocket.SessionStreamCookiePath(result.SessionID),
+		HttpOnly: true,
+		Secure:   r.TLS != nil || strings.HasPrefix(strings.ToLower(r.Header.Get("Origin")), "https://"),
+		SameSite: http.SameSiteStrictMode,
+	})
 
 	if pb, err := protoconv.RecordingSessionToProto(response); err == nil && pb != nil {
 		h.respondProto(w, http.StatusOK, pb)
@@ -302,6 +333,16 @@ func (h *Handler) CloseRecordingSession(w http.ResponseWriter, r *http.Request) 
 		frameSlots.ClearRecordingFrames(sessionID)
 	}
 	h.clearActiveSessionProfile(sessionID)
+	h.wsHub.RevokeSessionStreamCookie(sessionID)
+	http.SetCookie(w, &http.Cookie{
+		Name:     websocket.SessionStreamCookieName(sessionID),
+		Value:    "",
+		Path:     websocket.SessionStreamCookiePath(sessionID),
+		HttpOnly: true,
+		Secure:   r.TLS != nil || strings.HasPrefix(strings.ToLower(r.Header.Get("Origin")), "https://"),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
 
 	h.respondSuccess(w, http.StatusOK, map[string]interface{}{
 		"session_id":        sessionID,

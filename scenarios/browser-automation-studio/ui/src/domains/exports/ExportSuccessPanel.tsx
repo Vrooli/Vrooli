@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useExportStore, type Export } from './store';
-import { exportsClient } from '@/api/exports';
+import { generateExportCaption } from '@/api/exports';
 
 interface ExportSuccessPanelProps {
   export_: Export;
@@ -43,7 +43,7 @@ export const ExportSuccessPanel: React.FC<ExportSuccessPanelProps> = ({
   const handleGenerateCaption = useCallback(async () => {
     setIsGeneratingCaption(true);
     try {
-      const res = await exportsClient.generateExportCaption({ id: export_.id });
+      const res = await generateExportCaption(export_.id);
       const caption = res.caption;
       if (caption.length > 0) {
         setAiCaption(caption);

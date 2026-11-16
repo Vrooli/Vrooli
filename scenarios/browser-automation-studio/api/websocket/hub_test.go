@@ -36,6 +36,19 @@ func newTestHub(t *testing.T) *Hub {
 	return newTestHubBase(t)
 }
 
+func newRecordingGrantClient(t *testing.T, hub *Hub, sessionID string) *Client {
+	t.Helper()
+	if _, _, err := hub.IssueSessionStreamCookie(sessionID, uuid.NewString(), uuid.NewString()); err != nil {
+		t.Fatal(err)
+	}
+	grant := hub.recordingGrants[sessionID]
+	return &Client{
+		ID: uuid.New(), Send: make(chan any, 4), BinarySend: make(chan []byte, 1), Hub: hub,
+		RecordingGrantSessionID: sessionID, RecordingGrantExecutionID: grant.executionID,
+		recordingGrantHash: grant.secretHash,
+	}
+}
+
 func waitForMessage(t *testing.T, ch <-chan any) any {
 	t.Helper()
 
@@ -432,6 +445,28 @@ func startTestWebSocketServer(t *testing.T, hub *Hub) *httptest.Server {
 	return testutil.StartHTTPServer(t, handler)
 }
 
+func startRecordingWebSocketServer(t *testing.T, hub *Hub, sessionID string) *httptest.Server {
+	t.Helper()
+	handler := http.NewServeMux()
+	path := SessionStreamCookiePath(sessionID)
+	handler.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie(SessionStreamCookieName(sessionID))
+		if err != nil || !hub.ValidateSessionStreamCookie(sessionID, cookie.Value) {
+			http.Error(w, "recording stream unavailable", http.StatusForbidden)
+			return
+		}
+		conn, err := testUpgrader.Upgrade(w, r, nil)
+		if err != nil {
+			t.Logf("recording websocket upgrade failed: %v", err)
+			return
+		}
+		if !hub.ServeRecordingWS(conn, sessionID, cookie.Value) {
+			_ = conn.Close()
+		}
+	})
+	return testutil.StartHTTPServer(t, handler)
+}
+
 func dialTestWebSocket(t *testing.T, server *httptest.Server) *websocket.Conn {
 	t.Helper()
 
@@ -439,6 +474,17 @@ func dialTestWebSocket(t *testing.T, server *httptest.Server) *websocket.Conn {
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("failed to dial websocket server: %v", err)
+	}
+	return conn
+}
+
+func dialTestWebSocketWithCookie(t *testing.T, server *httptest.Server, name, value string) *websocket.Conn {
+	t.Helper()
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + SessionStreamCookiePath(strings.TrimPrefix(name, "bas_ws_"))
+	header := http.Header{"Cookie": []string{name + "=" + value}}
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err != nil {
+		t.Fatalf("failed to dial authorized recording websocket: %v", err)
 	}
 	return conn
 }
@@ -688,14 +734,18 @@ func TestBroadcastRecordingEntryFiltersNonSubscribed(t *testing.T) {
 func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] websocket subscribe_recording enables recording action streaming", func(t *testing.T) {
 		hub := newTestHub(t)
-		server := startTestWebSocketServer(t, hub)
-
-		conn := dialTestWebSocket(t, server)
+		sessionID := uuid.NewString()
+		executionID := uuid.NewString()
+		leaseID := uuid.NewString()
+		cookieName, cookieValue, err := hub.IssueSessionStreamCookie(sessionID, executionID, leaseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		server := startRecordingWebSocketServer(t, hub, sessionID)
+		conn := dialTestWebSocketWithCookie(t, server, cookieName, cookieValue)
 		defer conn.Close()
 
 		drainWelcomeMessage(t, conn)
-
-		sessionID := "recording-session-789"
 
 		// Subscribe to recording session
 		if err := conn.WriteJSON(map[string]any{
@@ -742,14 +792,16 @@ func TestRecordingSubscriptionViaWebSocket(t *testing.T) {
 func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 	t.Run("[REQ:BAS-RECORD-MODE] websocket unsubscribe_recording stops recording action streaming", func(t *testing.T) {
 		hub := newTestHub(t)
-		server := startTestWebSocketServer(t, hub)
-
-		conn := dialTestWebSocket(t, server)
+		sessionID := uuid.NewString()
+		cookieName, cookieValue, err := hub.IssueSessionStreamCookie(sessionID, uuid.NewString(), uuid.NewString())
+		if err != nil {
+			t.Fatal(err)
+		}
+		server := startRecordingWebSocketServer(t, hub, sessionID)
+		conn := dialTestWebSocketWithCookie(t, server, cookieName, cookieValue)
 		defer conn.Close()
 
 		drainWelcomeMessage(t, conn)
-
-		sessionID := "recording-session-unsub"
 
 		// Subscribe first
 		if err := conn.WriteJSON(map[string]any{
@@ -789,6 +841,64 @@ func TestRecordingUnsubscriptionViaWebSocket(t *testing.T) {
 		}
 		_ = conn.SetReadDeadline(time.Time{})
 	})
+}
+
+func TestGenericWebSocketCannotSubscribeToRecordingSession(t *testing.T) {
+	hub := newTestHub(t)
+	sessionID := uuid.NewString()
+	if _, _, err := hub.IssueSessionStreamCookie(sessionID, uuid.NewString(), uuid.NewString()); err != nil {
+		t.Fatal(err)
+	}
+	forwarded := make(chan struct{}, 1)
+	hub.SetInputForwarder(func(string, map[string]any) (*driver.ForwardInputResponse, error) {
+		forwarded <- struct{}{}
+		return &driver.ForwardInputResponse{Status: "ok"}, nil
+	})
+	server := startTestWebSocketServer(t, hub)
+	conn := dialTestWebSocket(t, server)
+	defer conn.Close()
+	drainWelcomeMessage(t, conn)
+	if err := conn.WriteJSON(map[string]any{"type": "subscribe_recording", "session_id": sessionID}); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": sessionID, "input": map[string]any{"type": "click"}}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if hub.HasRecordingFrameSubscribers(sessionID) {
+		t.Fatal("generic socket subscribed to a protected recording session")
+	}
+	select {
+	case <-forwarded:
+		t.Fatal("generic socket forwarded input to a protected recording session")
+	default:
+	}
+}
+
+func TestRecordingStreamGrantRevocationClearsActiveOwner(t *testing.T) {
+	hub := newTestHub(t)
+	sessionID := uuid.NewString()
+	_, value, err := hub.IssueSessionStreamCookie(sessionID, uuid.NewString(), uuid.NewString())
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant := hub.recordingGrants[sessionID]
+	client := &Client{ID: uuid.New(), Send: make(chan any, 4), BinarySend: make(chan []byte, 1), Hub: hub,
+		RecordingGrantSessionID: sessionID, RecordingGrantExecutionID: grant.executionID, recordingGrantHash: grant.secretHash}
+	hub.register <- client
+	_ = waitForMessage(t, client.Send)
+	client.handleSubscription("subscribe_recording", map[string]any{"session_id": sessionID})
+	_ = waitForMessage(t, client.Send)
+	if !hub.HasRecordingFrameSubscribers(sessionID) {
+		t.Fatal("owner could not subscribe before revocation")
+	}
+	hub.RevokeSessionStreamCookie(sessionID)
+	if hub.ValidateSessionStreamCookie(sessionID, value) {
+		t.Fatal("revoked cookie still validates")
+	}
+	if hub.HasRecordingFrameSubscribers(sessionID) || client.RecordingSessionID != nil || client.RecordingGrantSessionID != "" {
+		t.Fatal("revocation retained active stream authority")
+	}
 }
 
 // TestMultipleRecordingSessionsIsolation verifies actions are isolated between different recording sessions
@@ -1011,15 +1121,16 @@ func TestBroadcastBinaryFrameToSubscribedClient(t *testing.T) {
 
 func TestLatestFrameSlotReplacesAndSeedsLateRecordingViewer(t *testing.T) {
 	hub := newTestHub(t)
-	hub.BroadcastBinaryFrame("recording-latest", []byte("older"))
-	hub.BroadcastBinaryFrame("recording-latest", []byte("newest"))
-	if len(hub.latestFrames) != 1 || string(hub.latestFrames["recording:recording-latest"].binary) != "newest" {
+	sessionID := uuid.NewString()
+	hub.BroadcastBinaryFrame(sessionID, []byte("older"))
+	hub.BroadcastBinaryFrame(sessionID, []byte("newest"))
+	if len(hub.latestFrames) != 1 || string(hub.latestFrames["recording:"+sessionID].binary) != "newest" {
 		t.Fatalf("latest recording frame slot did not replace the prior frame: %#v", hub.latestFrames)
 	}
-	client := &Client{ID: uuid.New(), Send: make(chan any, 4), BinarySend: make(chan []byte, 1), Hub: hub}
+	client := newRecordingGrantClient(t, hub, sessionID)
 	hub.register <- client
 	waitForMessage(t, client.Send)
-	client.handleSubscription("subscribe_recording", map[string]any{"session_id": "recording-latest"})
+	client.handleSubscription("subscribe_recording", map[string]any{"session_id": sessionID})
 	waitForMessage(t, client.Send) // subscription confirmation
 	select {
 	case got := <-client.BinarySend:
@@ -1029,7 +1140,7 @@ func TestLatestFrameSlotReplacesAndSeedsLateRecordingViewer(t *testing.T) {
 	default:
 		t.Fatal("late recording viewer did not receive the latest frame")
 	}
-	hub.ClearRecordingFrames("recording-latest")
+	hub.ClearRecordingFrames(sessionID)
 	if len(hub.latestFrames) != 0 {
 		t.Fatalf("recording teardown retained a frame slot: %#v", hub.latestFrames)
 	}
@@ -1149,6 +1260,11 @@ func TestRecordingActionStreamingSequence(t *testing.T) {
 // [REQ:BAS-RH-J13] Received button/key transitions must not overtake an admitted input.
 func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 	hub := newTestHubBase(t)
+	sessionID := uuid.NewString()
+	cookieName, cookieValue, err := hub.IssueSessionStreamCookie(sessionID, uuid.NewString(), uuid.NewString())
+	if err != nil {
+		t.Fatal(err)
+	}
 	first, second, release := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	effects := make(chan int, 2)
 	hub.SetInputForwarder(func(_ string, input map[string]any) (*driver.ForwardInputResponse, error) {
@@ -1163,19 +1279,8 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 		}
 		return &driver.ForwardInputResponse{Status: "ok", AppliedSequence: uint64(n), InputID: fmt.Sprintf("input-%d", n)}, nil
 	})
-	upgrader := websocket.Upgrader{CheckOrigin: func(*http.Request) bool { return true }}
-	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		hub.ServeWS(conn, nil)
-	}))
-	conn, _, err := websocket.DefaultDialer.Dial("ws"+strings.TrimPrefix(server.URL, "http"), nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	server := startRecordingWebSocketServer(t, hub, sessionID)
+	conn := dialTestWebSocketWithCookie(t, server, cookieName, cookieValue)
 	defer conn.Close()
 	if err := conn.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
 		t.Fatal(err)
@@ -1186,7 +1291,7 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 	}
 	send := func(sequence int) {
 		t.Helper()
-		if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": "input-order", "input": map[string]any{"sequence": sequence, "input_id": fmt.Sprintf("input-%d", sequence)}}); err != nil {
+		if err := conn.WriteJSON(map[string]any{"type": "recording_input", "session_id": sessionID, "input": map[string]any{"sequence": sequence, "input_id": fmt.Sprintf("input-%d", sequence)}}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1235,7 +1340,7 @@ func TestRecordingInputPreservesConnectionOrder(t *testing.T) {
 		if err := conn.ReadJSON(&ack); err != nil {
 			t.Fatalf("read input receipt %d: %v", want, err)
 		}
-		if ack["type"] != "recording_input_applied" || ack["session_id"] != "input-order" || ack["input_id"] != fmt.Sprintf("input-%d", want) || ack["applied_sequence"] != float64(want) {
+		if ack["type"] != "recording_input_applied" || ack["session_id"] != sessionID || ack["input_id"] != fmt.Sprintf("input-%d", want) || ack["applied_sequence"] != float64(want) {
 			t.Errorf("receipt %d has wrong content: %v", want, ack)
 		}
 	}
@@ -1268,21 +1373,22 @@ func TestRecordingFrameSubscriptionIntent(t *testing.T) {
 	for _, choice := range []string{"default", "enabled", "events only"} {
 		t.Run(choice, func(t *testing.T) {
 			hub := newTestHub(t)
-			client := &Client{ID: uuid.New(), Hub: hub, Send: make(chan any, 4), BinarySend: make(chan []byte, 1)}
+			sessionID := uuid.NewString()
+			client := newRecordingGrantClient(t, hub, sessionID)
 			hub.register <- client
 			_ = waitForMessage(t, client.Send)
-			msg := map[string]any{"session_id": "recording"}
+			msg := map[string]any{"session_id": sessionID}
 			if choice != "default" {
 				msg["frames"] = choice == "enabled"
 			}
 			client.handleSubscription("subscribe_recording", msg)
 			_ = waitForMessage(t, client.Send)
 			wantFrames := choice != "events only"
-			if got := hub.HasRecordingFrameSubscribers("recording"); got != wantFrames {
+			if got := hub.HasRecordingFrameSubscribers(sessionID); got != wantFrames {
 				t.Errorf("frame consumers=%v, want %v", got, wantFrames)
 			}
 			for i := 0; i < 3; i++ {
-				hub.BroadcastBinaryFrame("recording", []byte{0xff, 0xd8})
+				hub.BroadcastBinaryFrame(sessionID, []byte{0xff, 0xd8})
 			}
 			wantQueued, wantDropped := 0, int64(0)
 			if wantFrames {
@@ -1295,7 +1401,7 @@ func TestRecordingFrameSubscriptionIntent(t *testing.T) {
 			if got := hub.GetDroppedFrameCount(); got != wantDropped {
 				t.Errorf("dropped images=%d, want %d", got, wantDropped)
 			}
-			hub.BroadcastPageEvent("recording", map[string]any{"type": "created"})
+			hub.BroadcastPageEvent(sessionID, map[string]any{"type": "created"})
 			event := waitForMessage(t, client.Send).(map[string]any)
 			if event["type"] != "page_event" {
 				t.Fatalf("page event lost: %v", event)
@@ -1310,13 +1416,14 @@ func TestRecordingFrameSubscriptionIntent(t *testing.T) {
 
 func TestRecordingFrameSubscriptionChoiceReplacesPreviousChoice(t *testing.T) {
 	hub := newTestHub(t)
-	client := &Client{ID: uuid.New(), Hub: hub, Send: make(chan any, 4), BinarySend: make(chan []byte, 1)}
+	sessionID := uuid.NewString()
+	client := newRecordingGrantClient(t, hub, sessionID)
 	hub.register <- client
 	_ = waitForMessage(t, client.Send)
 	for _, enabled := range []bool{false, true, false} {
-		client.handleSubscription("subscribe_recording", map[string]any{"session_id": "recording", "frames": enabled})
+		client.handleSubscription("subscribe_recording", map[string]any{"session_id": sessionID, "frames": enabled})
 		_ = waitForMessage(t, client.Send)
-		if got := hub.HasRecordingFrameSubscribers("recording"); got != enabled {
+		if got := hub.HasRecordingFrameSubscribers(sessionID); got != enabled {
 			t.Errorf("replacement choice=%v, want %v", got, enabled)
 		}
 	}

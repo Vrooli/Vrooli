@@ -1,4 +1,5 @@
 import { toJson } from '@bufbuild/protobuf';
+import { acknowledgeTimelineEntries, bufferTimelineEntry, initRecordingBuffer, removeRecordingBuffer } from '../../../src/recording/io/buffer';
 import {
   rawBrowserEventToTimelineEntry,
   timelineEntryToJson,
@@ -24,6 +25,34 @@ function createRawInputEvent(attributes: Record<string, string>, secret: string)
 }
 
 describe('recording timeline sensitive-value redaction', () => {
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'converts invalid event time %s to the same retry-stable sentinel',
+    (timestamp) => {
+      const raw = {
+        ...createRawInputEvent({ type: 'text' }, 'ordinary value'),
+        id: 'invalid-time-retry',
+        timestamp,
+      };
+      const context = { sessionId: 'synthetic-session', sequenceNum: 3 };
+
+      const first = rawBrowserEventToTimelineEntry(raw, context);
+      const retry = rawBrowserEventToTimelineEntry(raw, context);
+
+      expect(timelineEntryToJson(retry)).toEqual(timelineEntryToJson(first));
+      expect(first.timestamp?.seconds).toBe(0n);
+      expect(first.action?.metadata?.capturedAt?.seconds).toBe(0n);
+      const sessionId = `invalid-time-${String(timestamp)}`;
+      initRecordingBuffer(sessionId);
+      try {
+        expect(bufferTimelineEntry(sessionId, first)).toBe(true);
+        expect(bufferTimelineEntry(sessionId, retry)).toBe(false);
+      } finally {
+        acknowledgeTimelineEntries(sessionId, [first.id]);
+        removeRecordingBuffer(sessionId);
+      }
+    }
+  );
+
   it('preserves observed cursor position separately from click position', () => {
     const base = createRawInputEvent({ type: 'text' }, 'value');
     const observed = rawBrowserEventToTimelineEntry({

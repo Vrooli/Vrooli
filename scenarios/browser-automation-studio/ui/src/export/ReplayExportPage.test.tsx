@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
+import { renderWithProviders } from '@/test-utils/renderWithProviders';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReplayPlayerController, ReplayPlayerProps } from '@/domains/exports/replay/types';
 import ReplayExportPage from './ReplayExportPage';
@@ -36,7 +37,7 @@ describe('replay page request and presentation ownership', () => {
   it.each(['resolve', 'reject'] as const)('keeps an inline successor when the previous fetch later %ss', async outcome => {
     const old = deferred<unknown>();
     const fetch = vi.fn().mockReturnValue(old.promise); vi.stubGlobal('fetch', fetch);
-    render(<ReplayExportPage />);
+    renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     await message({ type: 'bas:spec:set', spec: spec('b') });
     expect(metadataId()).toBe('b');
@@ -48,7 +49,7 @@ describe('replay page request and presentation ownership', () => {
   it('supersedes an in-flight execution fetch, stays unready while pending, and ignores its old finalizer', async () => {
     const a = deferred<unknown>(); const b = deferred<unknown>();
     const fetch = vi.fn().mockReturnValueOnce(a.promise).mockReturnValueOnce(b.promise); vi.stubGlobal('fetch', fetch);
-    render(<ReplayExportPage />);
+    renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:set', spec: spec('initial') });
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     expect(window.basExport?.ready).toBe(false);
@@ -61,7 +62,7 @@ describe('replay page request and presentation ownership', () => {
   });
   it('does not schedule an old pending retry after replacement or after unmount', async () => {
     const pending = deferred<unknown>(); const fetch = vi.fn().mockReturnValue(pending.promise); vi.stubGlobal('fetch', fetch);
-    const { unmount } = render(<ReplayExportPage />);
+    const { unmount } = renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     await message({ type: 'bas:spec:set', spec: spec('b') });
     unmount();
@@ -72,7 +73,7 @@ describe('replay page request and presentation ownership', () => {
   });
   it('retains current pending-to-ready retry and visible current request errors', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(response({ status: 'pending', message: 'Capturing frames' })).mockResolvedValueOnce(response({ status: 'ready', package: spec('a') })).mockRejectedValueOnce(Error('current failed'));
-    vi.stubGlobal('fetch', fetch); render(<ReplayExportPage />);
+    vi.stubGlobal('fetch', fetch); renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     expect(window.basExport?.ready).toBe(false);
     await act(async () => vi.advanceTimersByTimeAsync(4000));
@@ -83,7 +84,7 @@ describe('replay page request and presentation ownership', () => {
   });
   it('rejects malformed current HTTP replay packages through the existing strict parser', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ status: 'ready', package: { ...spec('a'), unexpectedField: true } })));
-    render(<ReplayExportPage />);
+    renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     expect(screen.getByText('Replay export unavailable')).toBeInTheDocument();
     expect(window.basExport?.ready).toBe(false);
@@ -92,7 +93,7 @@ describe('replay page request and presentation ownership', () => {
   it('retires a slow response body after a successor is adopted', async () => {
     const body = deferred<unknown>();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => body.promise }));
-    render(<ReplayExportPage />);
+    renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     await message({ type: 'bas:spec:set', spec: spec('b') });
     await act(async () => body.resolve({ status: 'ready', package: spec('a') }));
@@ -100,7 +101,7 @@ describe('replay page request and presentation ownership', () => {
   });
   it('removes an already scheduled retry when a valid encoded spec replaces it', async () => {
     const fetch = vi.fn().mockResolvedValue(response({ status: 'pending' })); vi.stubGlobal('fetch', fetch);
-    render(<ReplayExportPage />);
+    renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     await message({ type: 'bas:spec:set-encoded', payload: btoa(JSON.stringify(spec('b'))) });
     await act(async () => vi.advanceTimersByTimeAsync(4000));
@@ -109,7 +110,7 @@ describe('replay page request and presentation ownership', () => {
   it('ignores an already queued stale retry without losing ownership of the current timer', async () => {
     const timer = vi.spyOn(window, 'setTimeout');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response({ status: 'pending' })));
-    const { unmount } = render(<ReplayExportPage />);
+    const { unmount } = renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' });
     const oldRetry = timer.mock.calls.find(call => call[1] === 4000)?.[0];
     if (typeof oldRetry !== 'function') throw Error('missing retry');
@@ -120,7 +121,7 @@ describe('replay page request and presentation ownership', () => {
   });
   it('aborts an active request and never retries its late response after unmount', async () => {
     const pending = deferred<unknown>(); const fetch = vi.fn().mockReturnValue(pending.promise); vi.stubGlobal('fetch', fetch);
-    const { unmount } = render(<ReplayExportPage />);
+    const { unmount } = renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:fetch', executionId: 'a' }); unmount();
     expect(fetch.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
     await act(async () => pending.resolve(response({ status: 'pending' })));
@@ -133,7 +134,7 @@ describe('replay page request and presentation ownership', () => {
     ['easeInOut', 'cubic', 'easeInOut', 'cubic'], [' EASEINOUT ', ' Bezier ', 'easeInOut', 'cubic'],
     ['unknown', 'unknown', undefined, undefined],
   ])('preserves authored cursor motion %s / %s', async (speedProfile, pathStyle, expectedSpeed, expectedPath) => {
-    render(<ReplayExportPage />);
+    renderWithProviders(<ReplayExportPage />);
     await message({ type: 'bas:spec:set', spec: spec('a', { speedProfile, pathStyle }) });
     expect(player.props?.cursorDefaultSpeedProfile).toBe(expectedSpeed);
     expect(player.props?.cursorDefaultPathStyle).toBe(expectedPath);

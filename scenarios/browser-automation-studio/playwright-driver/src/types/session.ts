@@ -504,8 +504,15 @@ export interface HealthResponse {
   sessions: number;
   /** Number of sessions with active recording */
   active_recordings?: number;
-  /** Driver version */
-  version?: string;
+  /** Playwright driver release, distinct from the Chromium version. */
+  driver_version?: string;
+  /** Immutable lifecycle runtime artifact identity when selected. */
+  runtime_release_id?: string;
+  runtime_release_operation_id?: string;
+  /** Lifecycle start operation whose selected runtime this process serves. */
+  start_operation_id?: string;
+  /** Lifecycle build identity injected into this process. */
+  build_identity?: string;
   /** Browser subsystem health */
   browser?: {
     healthy: boolean;

@@ -135,6 +135,42 @@ describe('tab admission and session ownership [REQ:BAS-RH-J03]', () => {
     expect(useSessionStore.getState().activePageId).toBe('current');
     expect(onPageCreated).not.toHaveBeenCalled();
   });
+  it('merges page events newer than an in-flight page-list snapshot', async () => {
+    const staleSnapshot = deferred<Response>();
+    const createdPage = {...second, createdAt: '2026-09-23T00:00:01Z'};
+    let lists = 0;
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      lists += 1;
+      return lists === 1
+        ? response({pages: [page], activePageId: page.id})
+        : staleSnapshot.promise;
+    }));
+    const {result, rerender} = renderHook(() => usePages({sessionId: 'session'}));
+    await act(async () => {await result.current.refreshPages();});
+
+    let pending!: Promise<void>;
+    act(() => {pending = result.current.refreshPages();});
+    socket.lastMessage = {type: 'page_event', session_id: 'session', event: {
+      id: 'new-tab', type: 'page_created', pageId: createdPage.id, url: createdPage.url,
+      title: createdPage.title, timestamp: createdPage.createdAt,
+    }};
+    rerender();
+    socket.lastMessage = {type: 'page_switch', session_id: 'session', active_page_id: createdPage.id};
+    rerender();
+    socket.lastMessage = {type: 'page_event', session_id: 'session', event: {
+      id: 'close-old-tab', type: 'page_closed', pageId: page.id, timestamp: '2026-09-23T00:00:02Z',
+    }};
+    rerender();
+
+    await act(async () => {
+      staleSnapshot.resolve(response({pages: [page], activePageId: page.id}));
+      await pending;
+    });
+    expect(result.current.pageList.map(item => item.id)).toEqual([page.id, createdPage.id]);
+    expect(result.current.pages.get(page.id)?.status).toBe('closed');
+    expect(result.current.activePageId).toBe(createdPage.id);
+    expect(useSessionStore.getState().activePageId).toBe(createdPage.id);
+  });
   it.each([false, true])('joins the creation receipt and event, callback first=%s', async callbackFirst => {
     const admission = deferred<Response>();
     vi.stubGlobal('fetch', vi.fn(async () => admission.promise));

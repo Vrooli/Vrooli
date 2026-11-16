@@ -85,6 +85,8 @@ func LoadConfig(settings map[string]any) Config {
 	}
 	if value, ok := settings["sidecar_driver_script"].(string); ok {
 		cfg.DriverScript = value
+	} else if value := strings.TrimSpace(os.Getenv("PLAYWRIGHT_DRIVER_SCRIPT")); value != "" {
+		cfg.DriverScript = value
 	}
 	if value, ok := settings["sidecar_node_path"].(string); ok {
 		cfg.NodePath = value

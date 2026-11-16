@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/config"
 )
 
@@ -21,7 +22,7 @@ var (
 	maxCaptureFrames         = config.Load().Replay.MaxCaptureFrames
 )
 
-func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
+func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string, engineFactory autoengine.Factory) *ReplayRenderer {
 	cfg := config.Load()
 	ffmpegPath := detectFFmpegBinary()
 	client := &http.Client{Timeout: cfg.Replay.RenderTimeout}
@@ -86,6 +87,7 @@ func newReplayRendererConfig(log *logrus.Logger, recordingsRoot string) *ReplayR
 		exportPageURL:     exportPageURL,
 		captureIntervalMs: captureInterval,
 		apiBaseURL:        apiBaseURL,
+		captureClient:     newPlaywrightCaptureClient(exportPageURL, engineFactory),
 	}
 }
 

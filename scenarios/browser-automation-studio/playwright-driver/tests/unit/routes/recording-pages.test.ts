@@ -157,6 +157,107 @@ describe('recording pages', () => {
       expect(session.frameStack).toEqual([]);
     });
 
+    it('creates a restored popup through the exact owned opener page', async () => {
+      const popup = {
+        goto: jest.fn().mockResolvedValue(undefined),
+        title: jest.fn().mockResolvedValue('Popup'),
+        url: jest.fn().mockReturnValue('https://popup.example'),
+        isClosed: () => false,
+        evaluate: jest.fn().mockResolvedValue(undefined),
+        opener: jest.fn().mockResolvedValue(undefined),
+      } as unknown as Page;
+      const opener = {
+        isClosed: () => false,
+        waitForEvent: jest.fn().mockResolvedValue(popup),
+        evaluate: jest.fn().mockResolvedValue(true),
+      } as unknown as Page;
+      const session = {
+        phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
+        context: mockContext([opener], popup),
+        pageBindings: pageBindings([['opener-page', opener]]),
+        frameStack: [], page: opener,
+      };
+      const manager = {
+        getSession: jest.fn().mockReturnValue(session),
+        getSessionForLease: jest.fn().mockReturnValue(session), updateActivity: jest.fn(),
+      } as unknown as SessionManager;
+      const response = createMockHttpResponse();
+
+      await handleRecordNewPage(createMockHttpRequest({
+        method: 'POST',
+        body: { execution_id: 'owner', lease_id: 'lease', url: 'https://popup.example', opener_driver_page_id: 'opener-page' },
+      }), response, 'abc', manager, config);
+
+      expect(response.statusCode).toBe(201);
+      expect(opener.waitForEvent).toHaveBeenCalledWith('popup', { timeout: config.execution.navigationTimeoutMs });
+      expect(opener.evaluate).toHaveBeenCalledTimes(1);
+      expect(popup.goto).toHaveBeenCalledWith('https://popup.example', { waitUntil: 'domcontentloaded', timeout: config.execution.navigationTimeoutMs });
+      expect(popup.evaluate).toHaveBeenCalledTimes(2);
+      expect(session.pageBindings.has(popup)).toBe(true);
+      expect(session.page).toBe(popup);
+    });
+
+    it('closes only its unacknowledged popup when the page handoff fails', async () => {
+      let popupClosed = false;
+      const popup = {
+        evaluate: jest.fn().mockRejectedValueOnce(new Error('controlled handoff failure')).mockResolvedValueOnce(true),
+        close: jest.fn().mockImplementation(async () => { popupClosed = true; }),
+        isClosed: () => popupClosed,
+      } as unknown as Page;
+      const context = mockContext([]);
+      const opener = {
+        isClosed: () => false,
+        waitForEvent: jest.fn().mockResolvedValue(popup),
+        evaluate: jest.fn().mockImplementation(async () => { context.setPages([opener, popup]); return true; }),
+      } as unknown as Page;
+      context.setPages([opener]);
+      const session = {
+        phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
+        context, pageBindings: pageBindings([['opener-page', opener]]),
+        frameStack: [], page: opener,
+      };
+      const manager = {
+        getSession: jest.fn().mockReturnValue(session),
+        getSessionForLease: jest.fn().mockReturnValue(session), updateActivity: jest.fn(),
+      } as unknown as SessionManager;
+      const response = createMockHttpResponse();
+
+      await handleRecordNewPage(createMockHttpRequest({
+        method: 'POST',
+        body: { execution_id: 'owner', lease_id: 'lease', url: 'https://popup.example', opener_driver_page_id: 'opener-page' },
+      }), response, 'abc', manager, config);
+
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(opener.evaluate).toHaveBeenCalledTimes(1);
+      expect(popup.evaluate).toHaveBeenCalledTimes(2);
+      expect(popup.close).toHaveBeenCalledTimes(1);
+      expect(session.pageBindings.has(popup)).toBe(false);
+      expect(context.pages()).toEqual([opener]);
+    });
+
+    it('rejects an opener identity outside the current session before creating pages', async () => {
+      const page = { isClosed: () => false } as unknown as Page;
+      const context = mockContext([page]);
+      const session = {
+        phase: 'ready', ownerExecutionId: 'owner', leaseId: 'lease',
+        context, pageBindings: pageBindings([]), frameStack: [], page,
+      };
+      const manager = {
+        getSession: jest.fn().mockReturnValue(session),
+        getSessionForLease: jest.fn().mockReturnValue(session), updateActivity: jest.fn(),
+      } as unknown as SessionManager;
+      const response = createMockHttpResponse();
+
+      await handleRecordNewPage(createMockHttpRequest({
+        method: 'POST',
+        body: { execution_id: 'owner', lease_id: 'lease', url: 'https://popup.example', opener_driver_page_id: 'foreign-page' },
+      }), response, 'abc', manager, config);
+
+      expect(response.statusCode).toBeGreaterThanOrEqual(400);
+      expect(context.newPage).not.toHaveBeenCalled();
+      expect(context.pages()).toEqual([page]);
+    });
+
     // [REQ:BAS-RH-J01] [REQ:BAS-RH-J07] Failed navigation cannot commit an error page.
     it.each([
       ['https://unreachable.test', false],

@@ -78,26 +78,8 @@ type fakeCredits struct {
 	lastLogOffset int
 }
 
-func (f *fakeCredits) CanCharge(context.Context, string, credits.OperationType) (bool, int, error) {
-	return true, 0, nil
-}
-
-func (f *fakeCredits) Charge(context.Context, credits.ChargeRequest) (*credits.ChargeResult, error) {
-	return nil, nil
-}
-
-func (f *fakeCredits) ChargeIfAllowed(context.Context, credits.ChargeRequest) (*credits.ChargeResult, error) {
-	return nil, nil
-}
-
 func (f *fakeCredits) GetUsage(_ context.Context, _ string) (*credits.UsageSummary, error) {
 	return f.usage, f.usageErr
-}
-
-func (f *fakeCredits) GetOperationCost(credits.OperationType) int { return 0 }
-
-func (f *fakeCredits) LogFailedOperation(context.Context, credits.ChargeRequest, error) error {
-	return nil
 }
 
 func (f *fakeCredits) GetUsageHistory(_ context.Context, _ string, months, offset int) ([]credits.UsageSummary, bool, error) {
@@ -108,10 +90,6 @@ func (f *fakeCredits) GetUsageHistory(_ context.Context, _ string, months, offse
 func (f *fakeCredits) GetOperationLog(_ context.Context, _, _, _ string, limit, offset int) (*credits.OperationLogPage, error) {
 	f.lastLogLimit, f.lastLogOffset = limit, offset
 	return f.log, f.logErr
-}
-
-func (f *fakeCredits) CanPerformAIOperation(context.Context, string, credits.OperationType, bool) (bool, string, string, int, error) {
-	return true, "", "", 0, nil
 }
 
 // ---------------------------------------------------------------------------

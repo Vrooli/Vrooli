@@ -17,8 +17,6 @@ import { ConnectError, Code } from '@connectrpc/connect';
 
 const getStatusMock = vi.fn();
 const getIdentityMock = vi.fn();
-const setIdentityMock = vi.fn();
-const clearIdentityMock = vi.fn();
 const refreshStatusMock = vi.fn();
 const getUsageMock = vi.fn();
 const getUsageHistoryMock = vi.fn();
@@ -28,8 +26,6 @@ vi.mock('../../api/entitlement', () => ({
   entitlementClient: {
     getStatus: (...a: unknown[]) => getStatusMock(...a),
     getIdentity: (...a: unknown[]) => getIdentityMock(...a),
-    setIdentity: (...a: unknown[]) => setIdentityMock(...a),
-    clearIdentity: (...a: unknown[]) => clearIdentityMock(...a),
     refreshStatus: (...a: unknown[]) => refreshStatusMock(...a),
     getUsage: (...a: unknown[]) => getUsageMock(...a),
     getUsageHistory: (...a: unknown[]) => getUsageHistoryMock(...a),
@@ -37,7 +33,7 @@ vi.mock('../../api/entitlement', () => ({
   },
 }));
 
-import { useEntitlementStore, isValidEmail } from '../entitlementStore';
+import { useEntitlementStore } from '../entitlementStore';
 
 const makeProtoStatus = (overrides: Record<string, unknown> = {}) => ({
   userIdentity: 'alice@example.com',
@@ -85,7 +81,7 @@ describe('entitlementStore (Connect-RPC)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const m of [
-      getStatusMock, getIdentityMock, setIdentityMock, clearIdentityMock, refreshStatusMock,
+      getStatusMock, getIdentityMock, refreshStatusMock,
       getUsageMock, getUsageHistoryMock, getOperationLogMock,
     ]) {
       m.mockReset();
@@ -95,21 +91,6 @@ describe('entitlementStore (Connect-RPC)', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  describe('isValidEmail', () => {
-    it('accepts well-formed addresses', () => {
-      expect(isValidEmail('a@example.com')).toBe(true);
-      expect(isValidEmail('  foo@bar.co  ')).toBe(true);
-    });
-    it('rejects malformed addresses', () => {
-      expect(isValidEmail('')).toBe(false);
-      expect(isValidEmail('plain')).toBe(false);
-      expect(isValidEmail('@example.com')).toBe(false);
-      expect(isValidEmail('foo@')).toBe(false);
-      expect(isValidEmail('foo@bar')).toBe(false);
-      expect(isValidEmail('foo@bar.')).toBe(false);
-    });
   });
 
   describe('fetchStatus', () => {
@@ -144,55 +125,6 @@ describe('entitlementStore (Connect-RPC)', () => {
 
   });
 
-  describe('setUserEmail', () => {
-    it('rejects invalid email without calling client', async () => {
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('not-an-email');
-      });
-      expect(setIdentityMock).not.toHaveBeenCalled();
-      expect(useEntitlementStore.getState().error).toBeTruthy();
-    });
-
-    it('rejects empty email without calling client', async () => {
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('   ');
-      });
-      expect(setIdentityMock).not.toHaveBeenCalled();
-      expect(useEntitlementStore.getState().error).toBe('Email is required');
-    });
-
-    it('persists status when client succeeds', async () => {
-      setIdentityMock.mockResolvedValueOnce({ status: makeProtoStatus({ userIdentity: 'bob@example.com' }) });
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('Bob@Example.com');
-      });
-      expect(setIdentityMock).toHaveBeenCalledWith({ email: 'bob@example.com' });
-      expect(useEntitlementStore.getState().userEmail).toBe('bob@example.com');
-    });
-
-    it('surfaces client error', async () => {
-      setIdentityMock.mockRejectedValueOnce(new ConnectError('bad email', Code.InvalidArgument));
-      await act(async () => {
-        await useEntitlementStore.getState().setUserEmail('foo@bar.co');
-      });
-      expect(useEntitlementStore.getState().error).toMatch(/bad email/);
-    });
-  });
-
-  describe('clearUserEmail', () => {
-    it('clears state on success', async () => {
-      useEntitlementStore.setState({ userEmail: 'a@b.com' });
-      clearIdentityMock.mockResolvedValueOnce({});
-      await act(async () => {
-        await useEntitlementStore.getState().clearUserEmail();
-      });
-      expect(clearIdentityMock).toHaveBeenCalled();
-      const s = useEntitlementStore.getState();
-      expect(s.userEmail).toBe('');
-      expect(s.status).toBeNull();
-    });
-  });
-
   describe('refreshEntitlement', () => {
     it('falls back to fetchStatus when no current user is known', async () => {
       getStatusMock.mockResolvedValueOnce({ status: makeProtoStatus({ userIdentity: 'anonymous' }) });
@@ -203,13 +135,13 @@ describe('entitlementStore (Connect-RPC)', () => {
       expect(getStatusMock).toHaveBeenCalled();
     });
 
-    it('invokes refreshStatus with stored user', async () => {
+  it('refreshes through the shared server session instead of sending a UI identity', async () => {
       useEntitlementStore.setState({ userEmail: 'alice@example.com' });
       refreshStatusMock.mockResolvedValueOnce({ status: makeProtoStatus() });
       await act(async () => {
         await useEntitlementStore.getState().refreshEntitlement();
       });
-      expect(refreshStatusMock).toHaveBeenCalledWith({ user: 'alice@example.com' });
+      expect(refreshStatusMock).toHaveBeenCalledWith({});
     });
   });
 

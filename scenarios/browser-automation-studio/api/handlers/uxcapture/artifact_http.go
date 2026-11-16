@@ -29,6 +29,41 @@ func bundleDirectory(capturesRoot, bundleID string) (string, error) {
 // caller supplies BAS's configured private capture root; request paths never
 // choose a filesystem root.
 func MountArtifactHTTP(r chi.Router, capturesRoot string) {
+	r.Delete("/ux-capture/bundles/{bundleID}", func(w http.ResponseWriter, req *http.Request) {
+		if strings.TrimSpace(capturesRoot) == "" {
+			http.Error(w, "capture storage unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		bundleID := chi.URLParam(req, "bundleID")
+		bundleDir, err := bundleDirectory(capturesRoot, bundleID)
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		manifestBytes, err := readRegularNoSymlink(filepath.Join(bundleDir, "manifest.json"))
+		if err != nil {
+			http.NotFound(w, req)
+			return
+		}
+		var manifest bundle.Bundle
+		if json.Unmarshal(manifestBytes, &manifest) != nil || manifest.Validate() != nil || manifest.ID != bundleID {
+			http.Error(w, "bundle manifest is invalid", http.StatusUnprocessableEntity)
+			return
+		}
+		// External bundles declare themselves ephemeral. Only the BAS artifact
+		// owner may remove those bundles; scenario captures remain owned by their
+		// normal retention path.
+		if !manifest.Privacy.External || !manifest.Privacy.Ephemeral {
+			http.Error(w, "bundle is not an external ephemeral capture", http.StatusConflict)
+			return
+		}
+		if err := os.RemoveAll(bundleDir); err != nil {
+			http.Error(w, "could not remove ephemeral capture", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
 	r.Get("/ux-capture/bundles/{bundleID}/artifacts/*", func(w http.ResponseWriter, req *http.Request) {
 		bundleID := chi.URLParam(req, "bundleID")
 		parsedID, err := uuid.Parse(bundleID)

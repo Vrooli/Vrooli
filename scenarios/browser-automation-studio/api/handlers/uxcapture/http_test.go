@@ -34,14 +34,19 @@ func TestMountHTTPPersistsPrivateBundle(t *testing.T) {
 	if response.Code != 201 {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
+	if strings.Contains(response.Body.String(), "bundle_dir") {
+		t.Fatal("BAS response leaked its private bundle directory")
+	}
 	var result struct {
-		BundleDir string `json:"bundle_dir"`
+		Manifest struct {
+			ID string `json:"id"`
+		} `json:"manifest"`
 	}
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"manifest.json", "README.md", "pixels/light-1280x720.png", "identity/components.json"} {
-		info, err := os.Stat(filepath.Join(result.BundleDir, path))
+		info, err := os.Stat(filepath.Join(root, "ux", result.Manifest.ID, path))
 		if err != nil {
 			t.Fatalf("expected %s: %v", path, err)
 		}
@@ -62,9 +67,12 @@ func TestFileCapturePersistsSanitizedFilenameAndPayload(t *testing.T) {
 	if response.Code != 201 {
 		t.Fatalf("status = %d body=%s", response.Code, response.Body.String())
 	}
+	if strings.Contains(response.Body.String(), "bundle_dir") {
+		t.Fatal("BAS response leaked its private bundle directory")
+	}
 	var result struct {
-		BundleDir string `json:"bundle_dir"`
-		Manifest  struct {
+		Manifest struct {
+			ID     string `json:"id"`
 			Source struct {
 				Filename string `json:"filename"`
 			} `json:"source"`
@@ -77,7 +85,7 @@ func TestFileCapturePersistsSanitizedFilenameAndPayload(t *testing.T) {
 		t.Fatalf("filename leaked path or mismatched: %q", result.Manifest.Source.Filename)
 	}
 	for _, file := range []string{"manifest.json", "README.md", "pixels/light-1280x720.png", "page/frozen.html"} {
-		if _, err := os.Stat(filepath.Join(result.BundleDir, file)); err != nil {
+		if _, err := os.Stat(filepath.Join(root, "ux", result.Manifest.ID, file)); err != nil {
 			t.Errorf("missing bundle file %s: %v", file, err)
 		}
 	}

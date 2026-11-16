@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 )
 
 // Sweep selects eligible terminal executions and, when opts.Apply is true,
@@ -124,6 +125,24 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 			continue
 		}
 
+		releaseLock, lockErr := executionartifactlock.Acquire(ctx, s.recordingsRoot, exec.ID)
+		if lockErr != nil {
+			report.errored(item, fmt.Sprintf("%s: %v", ReasonDeleteRowFailed, lockErr))
+			continue
+		}
+		current, readErr := s.store.GetExecution(ctx, exec.ID)
+		if readErr != nil || current == nil || current.Status != exec.Status || current.ResultPath != exec.ResultPath || !database.IsTerminalStatus(current.Status) {
+			releaseLock()
+			report.skip(item, "execution changed while waiting to purge")
+			continue
+		}
+		currentDir, currentSafe := resolveArtifactDir(cleanRoot, current)
+		if !currentSafe || filepath.Clean(currentDir) != filepath.Clean(artifactDir) {
+			releaseLock()
+			report.skip(item, ReasonUnsafePath)
+			continue
+		}
+
 		// Apply mode: delete files first, then the DB row.
 		if exists {
 			var deleteErr error
@@ -133,6 +152,7 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 				deleteErr = s.fs.RemoveAll(artifactDir)
 			}
 			if deleteErr != nil {
+				releaseLock()
 				if s.log != nil {
 					s.log.WithError(deleteErr).WithField("artifact_dir", artifactDir).Error("retention: failed to remove artifact directory")
 				}
@@ -144,12 +164,14 @@ func (s *Service) Sweep(ctx context.Context, opts Options) (*Report, error) {
 		}
 
 		if err := s.store.DeleteExecution(ctx, exec.ID); err != nil {
+			releaseLock()
 			if s.log != nil {
 				s.log.WithError(err).WithField("execution_id", exec.ID).Error("retention: failed to delete execution row")
 			}
 			report.errored(item, fmt.Sprintf("%s: %v", ReasonDeleteRowFailed, err))
 			continue
 		}
+		releaseLock()
 
 		report.remove(item)
 	}

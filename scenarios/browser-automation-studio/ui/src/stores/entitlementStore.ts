@@ -38,7 +38,6 @@ interface EntitlementState {
   error: string | null;
   lastFetched: Date | null;
   isOffline: boolean;
-  pendingSyncCount: number | null;
 
   usageHistory: UsagePeriod[];
   historyLoading: boolean;
@@ -49,26 +48,13 @@ interface EntitlementState {
   operationLogHasMore: boolean;
 
   fetchStatus: () => Promise<void>;
-  setUserEmail: (email: string) => Promise<void>;
-  clearUserEmail: () => Promise<void>;
   refreshEntitlement: () => Promise<void>;
-  fetchPendingSyncCount: () => Promise<void>;
   getUserEmail: () => Promise<string>;
   fetchUsageHistory: (months?: number, offset?: number) => Promise<void>;
   fetchOperationLog: (month: string, category?: string, limit?: number, offset?: number) => Promise<void>;
   setSelectedPeriod: (month: string | null) => void;
   clearOperationLog: () => void;
 }
-
-// Helper to check if email is valid (basic client-side validation)
-export const isValidEmail = (email: string): boolean => {
-  const trimmed = email.trim();
-  if (!trimmed) return false;
-  const atIndex = trimmed.indexOf('@');
-  if (atIndex < 1) return false;
-  const domain = trimmed.slice(atIndex + 1);
-  return domain.length > 0 && domain.includes('.') && !domain.endsWith('.');
-};
 
 const toMaybeTier = (value: string | undefined): SubscriptionTier | undefined => {
   if (!value) return undefined;
@@ -136,7 +122,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
   error: null,
   lastFetched: null,
   isOffline: false,
-  pendingSyncCount: null,
 
   usageHistory: [],
   historyLoading: false,
@@ -171,64 +156,6 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
     }
   },
 
-  fetchPendingSyncCount: async () => {
-    try {
-      const response = await fetch('/api/v1/monetization/outbox/pending');
-      if (!response.ok) throw new Error(`pending usage request failed: ${response.status}`);
-      const body = (await response.json()) as { pending?: unknown };
-      const pending = typeof body.pending === 'number' && Number.isFinite(body.pending) ? body.pending : 0;
-      set({ pendingSyncCount: Math.max(0, Math.floor(pending)) });
-    } catch {
-      set({ pendingSyncCount: null });
-    }
-  },
-
-  setUserEmail: async (email: string) => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) {
-      set({ error: 'Email is required' });
-      return;
-    }
-    if (!isValidEmail(trimmedEmail)) {
-      set({ error: 'Please enter a valid email address' });
-      return;
-    }
-
-    set({ isLoading: true, error: null });
-    try {
-      const resp = await entitlementClient.setIdentity({ email: trimmedEmail });
-      const data = toStatus(resp.status);
-      if (!data) {
-        set({ isLoading: false });
-        return;
-      }
-      set({
-        status: data,
-        userEmail: data.user_identity || '',
-        isLoading: false,
-        lastFetched: new Date(),
-        isOffline: false,
-      });
-    } catch (err) {
-      set({ error: messageFromError(err, 'Failed to set email'), isLoading: false });
-    }
-  },
-
-  clearUserEmail: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      await entitlementClient.clearIdentity({});
-      set({
-        userEmail: '',
-        status: null,
-        isLoading: false,
-        lastFetched: new Date(),
-      });
-    } catch (err) {
-      set({ error: messageFromError(err, 'Failed to clear email'), isLoading: false });
-    }
-  },
-
   refreshEntitlement: async () => {
     const currentUser = get().userEmail || get().status?.user_identity || '';
     if (!currentUser) {
@@ -238,7 +165,7 @@ export const useEntitlementStore = create<EntitlementState>((set, get) => ({
     }
     set({ isLoading: true, error: null });
     try {
-      const resp = await entitlementClient.refreshStatus({ user: currentUser });
+      const resp = await entitlementClient.refreshStatus({});
       const data = toStatus(resp.status);
       if (!data) {
         set({ isLoading: false });

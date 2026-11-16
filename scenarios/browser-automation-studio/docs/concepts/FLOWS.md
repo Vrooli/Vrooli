@@ -1,6 +1,5 @@
 # Flows
 
-## Purpose Of This Document
 
 Describe the lifecycle rules that preserve correct browser automation evidence.
 

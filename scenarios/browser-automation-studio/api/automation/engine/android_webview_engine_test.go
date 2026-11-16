@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 )
 
 func TestAndroidWebViewEngineRequiresTargetAndLease(t *testing.T) {
-	pw, err := NewPlaywrightEngineWithHTTPClient("http://127.0.0.1:1", http.DefaultClient, nil)
+	pw, err := newPlaywrightEngineForHTTPDoer("http://127.0.0.1:1", http.DefaultClient, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +27,11 @@ func TestAndroidWebViewEngineRequiresTargetAndLease(t *testing.T) {
 }
 
 func TestDefaultFactoryRegistersAndroidWebViewEngine(t *testing.T) {
-	factory, err := DefaultFactory(nil)
+	broker, err := session.NewManager(session.WithLogger(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	factory, err := DefaultFactoryWithSessionManager(nil, broker)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -29,6 +29,10 @@ export interface VisionClientConfig {
 
   /** Max retries on transient errors */
   maxRetries?: number;
+  /** Verified session bearer, forwarded only to AI Gateway. */
+  authorization?: string;
+  aiSource?: 'local' | 'own-key' | 'vrooli-credits';
+  privacyConsentGrant?: string;
 }
 
 /**
@@ -59,6 +63,9 @@ export function createVisionClient(config: VisionClientConfig): VisionModelClien
     gatewayUrl: config.gatewayUrl,
     profile,
     timeoutMs: config.timeoutMs,
+    authorization: config.authorization,
+    aiSource: config.aiSource,
+    privacyConsentGrant: config.privacyConsentGrant,
   });
 }
 
@@ -90,7 +97,9 @@ export function getModelInfo(modelId: string): VisionModelSpec {
  * @returns true if the model is supported
  */
 export function isModelSupported(modelId: string): boolean {
-  return ['local_first', 'remote_only', 'local-first', 'remote-only'].includes(modelId.trim().toLowerCase());
+  return ['local_first', 'remote_only', 'local-first', 'remote-only'].includes(
+    modelId.trim().toLowerCase()
+  );
 }
 
 /**

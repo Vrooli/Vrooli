@@ -59,6 +59,22 @@ CREATE INDEX IF NOT EXISTS idx_executions_started_at ON executions(started_at DE
 -- Foreign-key checks during retention must not scan every execution per deletion.
 CREATE INDEX IF NOT EXISTS idx_executions_resumed_from_id ON executions(resumed_from_id);
 
+-- Admission claim prevents different API processes from resuming the same checkpoint concurrently.
+-- Claims advance to a new child only after the previous child reached a terminal state.
+CREATE TABLE IF NOT EXISTS execution_resume_claims (
+    source_execution_id TEXT PRIMARY KEY REFERENCES executions(id) ON DELETE CASCADE,
+    child_execution_id TEXT NOT NULL UNIQUE REFERENCES executions(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Upgrade existing databases: prefer an active child so deploying this admission guard
+-- cannot accidentally permit a duplicate while a pre-upgrade resume is still running.
+INSERT OR IGNORE INTO execution_resume_claims (source_execution_id, child_execution_id)
+SELECT resumed_from_id, id
+FROM executions
+WHERE resumed_from_id IS NOT NULL
+ORDER BY CASE WHEN status IN ('pending', 'running') THEN 0 ELSE 1 END, started_at DESC;
+
 CREATE TABLE IF NOT EXISTS schedules (
     id TEXT PRIMARY KEY,
     workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,

@@ -60,11 +60,17 @@ export interface CreateWorkflowInput {
   folderPath?: string;
   flowDefinition?: WorkflowDefinitionV2;
   aiPrompt?: string;
+  /** Recovery key for a retry of this exact AI generation request. */
+  operationID?: string;
 }
 
 export const createWorkflowViaApi = async (
   input: CreateWorkflowInput,
-): Promise<CreateWorkflowResponse> => workflowsClient.createWorkflow(input);
+): Promise<CreateWorkflowResponse> => {
+  const { operationID, ...request } = input;
+  const headers = operationID ? new Headers({ 'Idempotency-Key': operationID }) : undefined;
+  return workflowsClient.createWorkflow(request, headers ? { headers } : undefined);
+};
 
 export interface UpdateWorkflowInput {
   workflowId: string;
@@ -91,11 +97,17 @@ export interface ModifyWorkflowInput {
   workflowId: string;
   modificationPrompt: string;
   currentFlow: WorkflowDefinitionV2;
+  /** Recovery key for a retry of this exact AI modification request. */
+  operationID?: string;
 }
 
 export const modifyWorkflowViaApi = async (
   input: ModifyWorkflowInput,
-): Promise<UpdateWorkflowResponse> => workflowsClient.modifyWorkflow(input);
+): Promise<UpdateWorkflowResponse> => {
+  const { operationID, ...request } = input;
+  const headers = operationID ? new Headers({ 'Idempotency-Key': operationID }) : undefined;
+  return workflowsClient.modifyWorkflow(request, headers ? { headers } : undefined);
+};
 
 export interface ExecuteWorkflowInput {
   workflowId: string;

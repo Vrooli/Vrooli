@@ -47,6 +47,9 @@ export interface VisionAnalysisRequest {
 
   /** Current URL for context */
   currentUrl: string;
+
+  /** Stable per-inference operation identity derived from the caller root. */
+  operationId: string;
 }
 
 /**
@@ -171,4 +174,5 @@ export type VisionErrorCode =
   | 'CONTEXT_TOO_LONG'
   | 'PARSE_ERROR'
   | 'NETWORK_ERROR'
+  | 'OUTCOME_UNCERTAIN'
   | 'UNKNOWN';

@@ -723,6 +723,6 @@ func TestCreateForDrillIsBrokerOwnedAndClosesWithItsLease(t *testing.T) {
 
 func TestRouteSessionRequestRequiresManagerOwnedSession(t *testing.T) {
 	manager := NewManagerWithClient(nil)
-	_, err := manager.RouteSessionRequest(context.Background(), "unowned", http.MethodGet, "/record/debug", nil)
+	_, err := manager.RouteSessionRequest(context.Background(), "unowned", http.MethodGet, "/record/debug", nil, nil)
 	require.Error(t, err)
 }

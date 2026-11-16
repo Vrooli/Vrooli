@@ -4,22 +4,114 @@
  * reader of that environment and the only BAS/driver/fixture client.
  */
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  create, fromJson, toJson,
-  type DescMessage, type DescMethodUnary, type JsonValue, type MessageInitShape, type MessageShape,
+  create,
+  fromJson,
+  toJson,
+  type DescMessage,
+  type DescMethodUnary,
+  type JsonValue,
+  type MessageInitShape,
+  type MessageShape,
 } from '@bufbuild/protobuf';
-import { ActionDefinitionSchema, type ActionDefinition } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
-import { KeyboardParamsSchema, ShortcutParamsSchema, DragDropParamsSchema } from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import {
+  ActionDefinitionSchema,
+  type ActionDefinition,
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
+import {
+  KeyboardParamsSchema,
+  ShortcutParamsSchema,
+  DragDropParamsSchema,
+} from '@vrooli/proto-types/browser-automation-studio/v1/actions/action_pb';
 import type { StepOutcome } from '@vrooli/proto-types/browser-automation-studio/v1/execution/driver_pb';
 import { ExecutionMode } from '@vrooli/proto-types/browser-automation-studio/v1/workflows/definition_pb';
 import { WorkflowsService } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
 import { createTypedInstruction } from '../helpers/instruction-factory';
-import type { CloseSessionRequest, SessionSpec, StartSessionRequest, StartSessionResponse } from '../../src/types';
+import type {
+  CloseSessionRequest,
+  SessionSpec,
+  StartSessionRequest,
+  StartSessionResponse,
+} from '../../src/types';
 
 export const TIMEOUT_MS = { request: 30000, wait: 10000 } as const;
 export const VIEWPORT = { width: 640, height: 480 } as const;
+
+export type JourneyEvidenceFacts = Record<string, string | number | boolean | null | string[]>;
+type JourneyEvidenceRecord = {
+  schema_version: 1;
+  run_id: string;
+  recorded_at: string;
+  journey_id: string;
+  event: string;
+  kind: 'timing' | 'receipt';
+  outcome: 'ok' | 'failed';
+  elapsed_ms?: number;
+  facts?: JourneyEvidenceFacts;
+  error_type?: string;
+};
+
+const fallbackEvidenceRunId = randomUUID();
+
+function writeJourneyEvidence(
+  record: Omit<JourneyEvidenceRecord, 'schema_version' | 'run_id' | 'recorded_at'>
+): void {
+  const evidenceFile = process.env.BAS_JOURNEY_EVIDENCE_FILE;
+  if (!evidenceFile)
+    throw new Error(
+      'BAS_JOURNEY_EVIDENCE_FILE is unset; journey global setup must own evidence output'
+    );
+  const complete: JourneyEvidenceRecord = {
+    schema_version: 1,
+    run_id: process.env.BAS_JOURNEY_RUN_ID ?? fallbackEvidenceRunId,
+    recorded_at: new Date().toISOString(),
+    ...record,
+  };
+  appendFileSync(evidenceFile, `${JSON.stringify(complete)}\n`, { encoding: 'utf8', mode: 0o600 });
+}
+
+/** Time one BAS UI journey milestone with a monotonic clock and retain its result identity. */
+export async function measureJourney<T>(
+  journeyId: string,
+  event: string,
+  operation: () => Promise<T>,
+  facts?: (result: T) => JourneyEvidenceFacts
+): Promise<T> {
+  const started = process.hrtime.bigint();
+  try {
+    const result = await operation();
+    writeJourneyEvidence({
+      journey_id: journeyId,
+      event,
+      kind: 'timing',
+      outcome: 'ok',
+      elapsed_ms: Number(process.hrtime.bigint() - started) / 1_000_000,
+      facts: facts?.(result),
+    });
+    return result;
+  } catch (error) {
+    writeJourneyEvidence({
+      journey_id: journeyId,
+      event,
+      kind: 'timing',
+      outcome: 'failed',
+      elapsed_ms: Number(process.hrtime.bigint() - started) / 1_000_000,
+      error_type: error instanceof Error ? error.name : 'unknown',
+    });
+    throw error;
+  }
+}
+
+/** Persist an exact browser/execution/profile receipt without page content or credentials. */
+export function recordJourneyReceipt(
+  journeyId: string,
+  event: string,
+  facts: JourneyEvidenceFacts
+): void {
+  writeJourneyEvidence({ journey_id: journeyId, event, kind: 'receipt', outcome: 'ok', facts });
+}
 
 type JourneyCleanup = { label: string; run: () => Promise<unknown> };
 
@@ -52,32 +144,57 @@ export class JourneyResourceScope {
     }
 
     if (bodyFailed && failures.length > 0) {
-      throw new AggregateError([bodyError, ...failures], 'Journey body and resource cleanup failed');
+      throw new AggregateError(
+        [bodyError, ...failures],
+        'Journey body and resource cleanup failed'
+      );
     }
     if (bodyFailed) throw bodyError;
-    if (failures.length > 0) throw new AggregateError(failures, `Journey resource cleanup failed: ${failures.map(({ message }) => message).join('; ')}`);
+    if (failures.length > 0)
+      throw new AggregateError(
+        failures,
+        `Journey resource cleanup failed: ${failures.map(({ message }) => message).join('; ')}`
+      );
     return value;
   }
 }
 
 /** Run a journey body and always attempt every registered resource cleanup. */
-export const withJourneyResources = <T>(body: (resources: JourneyResourceScope) => Promise<T>): Promise<T> =>
-  new JourneyResourceScope().run(body);
+export const withJourneyResources = <T>(
+  body: (resources: JourneyResourceScope) => Promise<T>
+): Promise<T> => new JourneyResourceScope().run(body);
 
 type Box = { left: number; top: number; width: number; height: number };
-const layout = JSON.parse(readFileSync(join(__dirname, '../../../fixtures/journey-site/layout.json'), 'utf8')) as Record<'counter' | 'input' | 'paste' | 'compose' | 'challenge', Box>;
+const layout = JSON.parse(
+  readFileSync(join(__dirname, '../../../fixtures/journey-site/layout.json'), 'utf8')
+) as Record<'counter' | 'input' | 'paste' | 'compose' | 'challenge', Box>;
 /** Viewport centre of a fixture control, for pointer input. */
 export const target = (name: keyof typeof layout): { x: number; y: number } => {
   const box = layout[name];
   return { x: box.left + box.width / 2, y: box.top + box.height / 2 };
 };
 
-function required(name: 'BAS_API_URL' | 'BAS_DRIVER_URL' | 'BAS_FIXTURE_ORIGIN'): string {
+function required(
+  name: 'BAS_API_URL' | 'BAS_UI_URL' | 'BAS_DRIVER_URL' | 'BAS_FIXTURE_ORIGIN'
+): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is unset; run journeys with jest.journeys.config.js`);
   return value;
 }
-export const env = { api: required('BAS_API_URL'), driver: required('BAS_DRIVER_URL'), fixture: required('BAS_FIXTURE_ORIGIN') };
+export const env = {
+  get api() {
+    return required('BAS_API_URL');
+  },
+  get ui() {
+    return required('BAS_UI_URL');
+  },
+  get driver() {
+    return required('BAS_DRIVER_URL');
+  },
+  get fixture() {
+    return required('BAS_FIXTURE_ORIGIN');
+  },
+};
 
 async function send(url: string, body?: unknown, expectedStatus?: number): Promise<unknown> {
   const response = await fetch(url, {
@@ -95,19 +212,30 @@ async function send(url: string, body?: unknown, expectedStatus?: number): Promi
 
 /** Call a BAS Connect method by its generated descriptor. */
 export async function rpc<I extends DescMessage, O extends DescMessage>(
-  method: DescMethodUnary<I, O>, request: MessageInitShape<I>,
+  method: DescMethodUnary<I, O>,
+  request: MessageInitShape<I>
 ): Promise<MessageShape<O>> {
-  const body = await send(`${env.api}/${method.parent.typeName}/${method.name}`, toJson(method.input, create(method.input, request)));
+  const body = await send(
+    `${env.api}/${method.parent.typeName}/${method.name}`,
+    toJson(method.input, create(method.input, request))
+  );
   return fromJson(method.output, body as JsonValue, { ignoreUnknownFields: true });
 }
 
 /** Call a BAS REST route whose body is a generated message. */
-export async function rest<O extends DescMessage>(schema: O, path: string, body?: unknown): Promise<MessageShape<O>> {
-  return fromJson(schema, await send(`${env.api}/api/v1${path}`, body) as JsonValue, { ignoreUnknownFields: true });
+export async function rest<O extends DescMessage>(
+  schema: O,
+  path: string,
+  body?: unknown
+): Promise<MessageShape<O>> {
+  return fromJson(schema, (await send(`${env.api}/api/v1${path}`, body)) as JsonValue, {
+    ignoreUnknownFields: true,
+  });
 }
 
 /** Call a BAS REST route whose body has no generated message. */
-export const apiRoute = <T>(path: string, body?: unknown): Promise<T> => send(`${env.api}/api/v1${path}`, body) as Promise<T>;
+export const apiRoute = <T>(path: string, body?: unknown): Promise<T> =>
+  send(`${env.api}/api/v1${path}`, body) as Promise<T>;
 
 /** Call a driver route; driver bodies are the TypeScript types in src/types. */
 export const driver = <T>(path: string, body?: unknown, expectedStatus?: number): Promise<T> =>
@@ -116,29 +244,69 @@ export const driver = <T>(path: string, body?: unknown, expectedStatus?: number)
 /** A typed action, built by the shared instruction factory. */
 export const action = (type: string, params: Record<string, unknown>): ActionDefinition =>
   type === 'shortcut'
-    ? create(ActionDefinitionSchema, { type: 21, params: { case: 'shortcut', value: create(ShortcutParamsSchema, { shortcut: String(params.shortcut), selector: params.selector as string | undefined }) } })
+    ? create(ActionDefinitionSchema, {
+        type: 21,
+        params: {
+          case: 'shortcut',
+          value: create(ShortcutParamsSchema, {
+            shortcut: String(params.shortcut),
+            selector: params.selector as string | undefined,
+          }),
+        },
+      })
     : type === 'keyboard'
-      ? create(ActionDefinitionSchema, { type: 9, params: { case: 'keyboard', value: create(KeyboardParamsSchema, { key: params.key as string | undefined, keys: (params.keys as string[] | undefined) ?? [] }) } })
+      ? create(ActionDefinitionSchema, {
+          type: 9,
+          params: {
+            case: 'keyboard',
+            value: create(KeyboardParamsSchema, {
+              key: params.key as string | undefined,
+              keys: (params.keys as string[] | undefined) ?? [],
+            }),
+          },
+        })
       : type === 'drag-drop'
-        ? create(ActionDefinitionSchema, { type: 22, params: { case: 'dragDrop', value: create(DragDropParamsSchema, { sourceSelector: String(params.source), targetSelector: String(params.target), steps: 3 }) } })
-        : createTypedInstruction(type, params).action ?? create(ActionDefinitionSchema);
+        ? create(ActionDefinitionSchema, {
+            type: 22,
+            params: {
+              case: 'dragDrop',
+              value: create(DragDropParamsSchema, {
+                sourceSelector: String(params.source),
+                targetSelector: String(params.target),
+                steps: 3,
+              }),
+            },
+          })
+        : (createTypedInstruction(type, params).action ?? create(ActionDefinitionSchema));
 
-export type Lease = { sessionId: string; leaseId: string; executionId: string; sequence: number; settled?: boolean };
-export const ownership = (lease: Lease): CloseSessionRequest => ({ execution_id: lease.executionId, lease_id: lease.leaseId });
+export type Lease = {
+  sessionId: string;
+  leaseId: string;
+  executionId: string;
+  sequence: number;
+  settled?: boolean;
+};
+export const ownership = (lease: Lease): CloseSessionRequest => ({
+  execution_id: lease.executionId,
+  lease_id: lease.leaseId,
+});
 
-export async function openLease(options: {
-  storageState?: SessionSpec['storage_state'];
-  reuseMode?: SessionSpec['reuse_mode'];
-  labels?: SessionSpec['labels'];
-  viewport?: SessionSpec['viewport'];
-  sessionProfileVersion?: SessionSpec['session_profile_version'];
-  locale?: SessionSpec['locale'];
-  timezone?: SessionSpec['timezone'];
-  userAgent?: SessionSpec['user_agent'];
-  browserProfile?: SessionSpec['browser_profile'];
-} = {}): Promise<Lease> {
+export async function openLease(
+  options: {
+    storageState?: SessionSpec['storage_state'];
+    reuseMode?: SessionSpec['reuse_mode'];
+    labels?: SessionSpec['labels'];
+    viewport?: SessionSpec['viewport'];
+    sessionProfileVersion?: SessionSpec['session_profile_version'];
+    locale?: SessionSpec['locale'];
+    timezone?: SessionSpec['timezone'];
+    userAgent?: SessionSpec['user_agent'];
+    browserProfile?: SessionSpec['browser_profile'];
+  } = {}
+): Promise<Lease> {
   const request: StartSessionRequest = {
-    execution_id: randomUUID(), workflow_id: randomUUID(),
+    execution_id: randomUUID(),
+    workflow_id: randomUUID(),
     session_options: {
       viewport: options.viewport ?? VIEWPORT,
       reuse_mode: options.reuseMode ?? 'fresh',
@@ -154,20 +322,34 @@ export async function openLease(options: {
     },
   };
   const started = await driver<StartSessionResponse>('/session/start', request);
-  if (!started.session_id || !started.lease_id) throw new Error(`Driver returned no lease: ${JSON.stringify(started)}`);
-  return { sessionId: started.session_id, leaseId: started.lease_id, executionId: request.execution_id, sequence: 0 };
+  if (!started.session_id || !started.lease_id)
+    throw new Error(`Driver returned no lease: ${JSON.stringify(started)}`);
+  return {
+    sessionId: started.session_id,
+    leaseId: started.lease_id,
+    executionId: request.execution_id,
+    sequence: 0,
+  };
 }
 
 export async function runAction(lease: Lease, definition: ActionDefinition): Promise<StepOutcome> {
   const sequence = ++lease.sequence;
   const body = await driver<JsonValue>(`/session/${lease.sessionId}/run`, {
-    ...ownership(lease), operation_sequence: sequence, invocation_id: `${lease.executionId}:${sequence}`, attempt: 1,
-    instruction: { index: sequence - 1, node_id: `journey-${sequence}`, action: toJson(ActionDefinitionSchema, definition) },
+    ...ownership(lease),
+    operation_sequence: sequence,
+    invocation_id: `${lease.executionId}:${sequence}`,
+    attempt: 1,
+    instruction: {
+      index: sequence - 1,
+      node_id: `journey-${sequence}`,
+      action: toJson(ActionDefinitionSchema, definition),
+    },
   });
   // Driver responses include common JsonValue fields as ordinary JSON values;
   // its REST envelope isn't protobuf JSON's tagged JsonValue representation.
-  const outcome = body as StepOutcome;
-  if (!outcome.success) throw new Error(`Driver rejected ${definition.params.case}: ${JSON.stringify(body)}`);
+  const outcome = body as unknown as StepOutcome;
+  if (!outcome.success)
+    throw new Error(`Driver rejected ${definition.params.case}: ${JSON.stringify(body)}`);
   return outcome;
 }
 
@@ -197,28 +379,43 @@ export async function stopAndAcknowledgeRecording(lease: Lease): Promise<void> {
   const record = `/session/${lease.sessionId}/record`;
   await driver(`${record}/stop`, ownership(lease));
   const { entries } = await driver<{ entries: Array<{ id?: string }> }>(`${record}/actions`);
-  const entry_ids = entries.flatMap(({ id }) => id ? [id] : []);
-  if (entry_ids.length > 0) await driver(`${record}/actions/ack`, { ...ownership(lease), entry_ids });
+  const entry_ids = entries.flatMap(({ id }) => (id ? [id] : []));
+  if (entry_ids.length > 0)
+    await driver(`${record}/actions/ack`, { ...ownership(lease), entry_ids });
 }
 
 /** Run `body` with open leases and close every one afterwards, newest first. */
-export async function withLeases<T>(body: (open: typeof openLease, resources: JourneyResourceScope) => Promise<T>): Promise<T> {
-  return withJourneyResources(async (resources) => body(async (options) => {
-    const lease = await openLease(options);
-    registerLeaseCleanup(resources, lease);
-    return lease;
-  }, resources));
+export async function withLeases<T>(
+  body: (open: typeof openLease, resources: JourneyResourceScope) => Promise<T>
+): Promise<T> {
+  return withJourneyResources(async (resources) =>
+    body(async (options) => {
+      const lease = await openLease(options);
+      registerLeaseCleanup(resources, lease);
+      return lease;
+    }, resources)
+  );
 }
 
 /** A one-node observer workflow for ExecuteAdhocWorkflow. */
-export function adhoc(name: string, nodeAction: ActionDefinition, waitForCompletion: boolean, resilience?: { maxAttempts: number; delayMs: number }):
-  MessageInitShape<typeof WorkflowsService.method.executeAdhocWorkflow.input> {
+export function adhoc(
+  name: string,
+  nodeAction: ActionDefinition,
+  waitForCompletion: boolean,
+  resilience?: { maxAttempts: number; delayMs: number }
+): MessageInitShape<typeof WorkflowsService.method.executeAdhocWorkflow.input> {
   return {
     metadata: { name: `${name} ${randomUUID()}` },
     flowDefinition: {
       metadata: { name, executionMode: ExecutionMode.OBSERVER },
       settings: { headless: true, timeoutMs: 20000 },
-      nodes: [{ id: randomUUID(), action: nodeAction, executionSettings: { timeoutMs: 20000, resilience } }],
+      nodes: [
+        {
+          id: randomUUID(),
+          action: nodeAction,
+          executionSettings: { timeoutMs: 20000, resilience },
+        },
+      ],
     },
     waitForCompletion,
     parameters: { headless: true, viewportWidth: VIEWPORT.width, viewportHeight: VIEWPORT.height },
@@ -226,23 +423,52 @@ export function adhoc(name: string, nodeAction: ActionDefinition, waitForComplet
 }
 
 export type FixtureEffect = { sequence: number; context: string; held?: boolean };
-export type FixtureState = { effects: FixtureEffect[]; released: Array<{ sequence: number }>; inputs: Array<{ type: string; value: string; context: string }>; scrolls: Array<{ y: number }>; fingerprints: Array<Record<string, unknown>>; challenges: Array<{ context: string; completedBy: string }>; challengeVisits: Array<{ context: string }>; profileObservations: Array<{ context: string; localStorage: string | null }>; retryAttempts: number };
+export type FixtureState = {
+  effects: FixtureEffect[];
+  released: Array<{ sequence: number }>;
+  inputs: Array<{ type: string; value: string; context: string }>;
+  scrolls: Array<{ y: number }>;
+  fingerprints: Array<Record<string, unknown>>;
+  challenges: Array<{ context: string; completedBy: string }>;
+  challengeVisits: Array<{ context: string }>;
+  profileObservations: Array<{ context: string; localStorage: string | null }>;
+  authObservations: Array<{ context: string; hasSyntheticAuth: boolean }>;
+  retryAttempts: number;
+};
 
 export async function fixtureState(): Promise<FixtureState> {
   return (await fetch(new URL('/journey-state', env.fixture))).json() as Promise<FixtureState>;
 }
 
 /** Long-poll the fixture until more than `after` records of `kind` exist. */
-export async function fixtureAfter(kind: 'effect' | 'release' | 'input' | 'scroll' | 'fingerprint' | 'challenge' | 'challenge-visit' | 'profile-observation', after: number): Promise<FixtureState> {
+export async function fixtureAfter(
+  kind:
+    | 'effect'
+    | 'release'
+    | 'input'
+    | 'scroll'
+    | 'fingerprint'
+    | 'challenge'
+    | 'challenge-visit'
+    | 'profile-observation'
+    | 'auth-observation',
+  after: number
+): Promise<FixtureState> {
   const url = new URL('/journey-wait', env.fixture);
-  url.search = new URLSearchParams({ kind, after: String(after), timeout_ms: String(TIMEOUT_MS.wait) }).toString();
+  url.search = new URLSearchParams({
+    kind,
+    after: String(after),
+    timeout_ms: String(TIMEOUT_MS.wait),
+  }).toString();
   const response = await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS.wait + 1000) });
   if (!response.ok) throw new Error(`Fixture saw no ${kind} after ${after} (${response.status})`);
   return response.json() as Promise<FixtureState>;
 }
 
 /** Wait until the fixture observes a matching input, without sleeping. */
-export async function fixtureInput(match: (input: FixtureState['inputs'][number]) => boolean): Promise<FixtureState['inputs'][number]> {
+export async function fixtureInput(
+  match: (input: FixtureState['inputs'][number]) => boolean
+): Promise<FixtureState['inputs'][number]> {
   let state = await fixtureState();
   for (;;) {
     const found = state.inputs.find(match);

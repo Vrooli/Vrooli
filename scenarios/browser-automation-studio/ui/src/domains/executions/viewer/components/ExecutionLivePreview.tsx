@@ -11,7 +11,7 @@
 import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { Video, VideoOff, Loader2, AlertCircle, Maximize2, Minimize2 } from 'lucide-react';
-import { useFrameStream, type ExecutionFrame } from '@/domains/recording/capture/useFrameStream';
+import { useFrameStream } from '@/domains/recording/capture/useFrameStream';
 
 interface ExecutionLivePreviewProps {
   /** The execution ID to stream frames from */
@@ -32,10 +32,9 @@ export function ExecutionLivePreview({
 }: ExecutionLivePreviewProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [frame, setFrame] = useState<ExecutionFrame | null>(null);
-
-  const stream = useFrameStream({sessionId:null,executionId,enabled,onExecutionFrame:setFrame});
-  const {frameUrl,frameCount,error} = stream;
+  const stream = useFrameStream({sessionId:null,executionId,enabled});
+  const {canvasRef,hasFrame,frameStats,displayDimensions,error} = stream;
+  const frameCount = frameStats.totalFrames;
   const isSubscribed = stream.isWsFrameActive;
   const isStreaming = stream.hasFrame && isSubscribed;
 
@@ -44,36 +43,7 @@ export function ExecutionLivePreview({
     onStreamingChange?.(isStreaming);
   }, [isStreaming, onStreamingChange]);
 
-  // Calculate FPS (rough estimate based on frame count over time)
-  const [fps, setFps] = useState(0);
-  useEffect(() => {
-    if (!isStreaming) {
-      setFps(0);
-      return;
-    }
-
-    const startTime = Date.now();
-    const startCount = frameCount;
-
-    const interval = setInterval(() => {
-      const elapsed = (Date.now() - startTime) / 1000;
-      if (elapsed > 0) {
-        setFps(Math.round((frameCount - startCount) / elapsed));
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isStreaming, frameCount]);
-
-  // Render loading state
-  if (!isSubscribed && enabled) {
-    return (
-      <div className={clsx('flex flex-col items-center justify-center h-full min-h-[300px] bg-flow-node/70 rounded-lg border border-flow-border', className)}>
-        <Loader2 className="w-8 h-8 text-flow-text-secondary animate-spin mb-3" />
-        <p className="text-sm text-flow-text-secondary">Connecting to live preview...</p>
-      </div>
-    );
-  }
+  const fps = frameStats.currentFps;
 
   // Render disabled state
   if (!enabled) {
@@ -88,30 +58,6 @@ export function ExecutionLivePreview({
     );
   }
 
-  // Render error state
-  if (error) {
-    return (
-      <div className={clsx('flex flex-col items-center justify-center h-full min-h-[300px] bg-flow-node/70 rounded-lg border border-rose-500/30', className)}>
-        <AlertCircle className="w-8 h-8 text-rose-400 mb-3" />
-        <p className="text-sm text-rose-200">Failed to connect to live preview</p>
-        <p className="text-xs text-rose-100/70 mt-1">{error}</p>
-      </div>
-    );
-  }
-
-  // Render waiting for frames state
-  if (isSubscribed && !frameUrl) {
-    return (
-      <div className={clsx('flex flex-col items-center justify-center h-full min-h-[300px] bg-flow-node/70 rounded-lg border border-flow-border', className)}>
-        <Video className="w-8 h-8 text-flow-text-secondary animate-pulse mb-3" />
-        <p className="text-sm text-flow-text-secondary">Waiting for frames...</p>
-        <p className="text-xs text-flow-text-tertiary mt-1">
-          Frames will appear once the browser starts
-        </p>
-      </div>
-    );
-  }
-
   return (
     <div className={clsx('relative group', isFullscreen && 'fixed inset-0 z-50 bg-black', className)}>
       {/* Frame display */}
@@ -119,15 +65,44 @@ export function ExecutionLivePreview({
         'relative overflow-hidden rounded-lg border border-flow-border bg-black',
         isFullscreen && 'h-full flex items-center justify-center'
       )}>
-        {frameUrl && (
-          <img
-            src={frameUrl}
-            alt="Live browser preview"
-            className={clsx(
-              'w-full h-auto object-contain',
-              isFullscreen && 'max-h-full max-w-full w-auto'
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label="Live browser preview"
+          className={clsx(
+            'w-full h-auto object-contain',
+            isFullscreen && 'max-h-full max-w-full w-auto',
+            !hasFrame && 'hidden'
+          )}
+        />
+
+        {!hasFrame && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-flow-node/70">
+            {error ? (
+              <>
+                <AlertCircle className="w-8 h-8 text-rose-400 mb-3" />
+                <p className="text-sm text-rose-200">Failed to connect to live preview</p>
+                <p className="text-xs text-rose-100/70 mt-1">{error}</p>
+              </>
+            ) : !isSubscribed ? (
+              <>
+                <Loader2 className="w-8 h-8 text-flow-text-secondary animate-spin mb-3" />
+                <p className="text-sm text-flow-text-secondary">Connecting to live preview...</p>
+              </>
+            ) : (
+              <>
+                <Video className="w-8 h-8 text-flow-text-secondary animate-pulse mb-3" />
+                <p className="text-sm text-flow-text-secondary">Waiting for frames...</p>
+                <p className="text-xs text-flow-text-tertiary mt-1">Frames will appear once the browser starts</p>
+              </>
             )}
-          />
+          </div>
+        )}
+
+        {hasFrame && error && (
+          <div role="alert" className="absolute inset-x-3 top-3 rounded-md bg-rose-950/90 px-3 py-2 text-xs text-rose-100">
+            Live preview paused: {error}
+          </div>
         )}
 
         {/* Streaming indicator */}
@@ -146,9 +121,9 @@ export function ExecutionLivePreview({
           <div className="absolute top-2 right-12 px-2 py-1 rounded-md bg-black/70 text-xs text-white/80">
             <div>Frames: {frameCount}</div>
             <div>FPS: ~{fps}</div>
-            {frame && (
+            {displayDimensions && (
               <div>
-                {frame.width}x{frame.height}
+                {displayDimensions.width}x{displayDimensions.height}
               </div>
             )}
           </div>
@@ -187,9 +162,9 @@ export function ExecutionLivePreview({
               'Connecting to live preview...'
             )}
           </span>
-          {frame && (
+          {displayDimensions && (
             <span>
-              {frame.width}x{frame.height} @ ~{fps} FPS
+              {displayDimensions.width}x{displayDimensions.height} @ ~{fps} FPS
             </span>
           )}
         </div>

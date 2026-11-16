@@ -7,6 +7,7 @@ import path from 'node:path';
 import { handleSessionClose } from '../../../src/routes/session-close';
 import type { SessionSpec } from '../../../src/types';
 import { playwrightProvider } from '../../../src/playwright';
+import type { BrowserManager } from '../../../src/session/browser-manager';
 import { SessionManager } from '../../../src/session/manager';
 import { ServiceWorkerController } from '../../../src/service-worker';
 import { SessionNotFoundError, ResourceLimitError } from '../../../src/utils/errors';
@@ -488,6 +489,26 @@ describe('SessionManager', () => {
 
     it('should throw error for non-existent session', () => {
       expect(() => manager.getSession('non-existent')).toThrow(SessionNotFoundError);
+    });
+
+    it('exports authentication storage only for the exact unreleased lease', async () => {
+      const { sessionId } = await manager.startSession(createSessionSpec({ execution_id: 'storage-owner' }));
+      const session = manager.peekSession(sessionId);
+      session.lastUsedAt = new Date(0);
+      mockContext.storageState.mockResolvedValue({ cookies: [], origins: [] });
+
+      await expect(manager.getStorageStateForLease(sessionId, 'foreign-owner', session.leaseId)).rejects.toThrow(SessionNotFoundError);
+      await expect(manager.getStorageStateForLease(sessionId, 'storage-owner', 'stale-lease')).rejects.toThrow(SessionNotFoundError);
+      expect(mockContext.storageState).not.toHaveBeenCalled();
+
+      const before = Date.now();
+      const state = await manager.getStorageStateForLease(sessionId, 'storage-owner', session.leaseId);
+      expect(state).toEqual({ cookies: [], origins: [] });
+      expect(mockContext.storageState).toHaveBeenCalledWith({ indexedDB: true });
+      expect(session.lastUsedAt.getTime()).toBeGreaterThanOrEqual(before);
+
+      expect(manager.releaseExecutionLease(sessionId, 'storage-owner', session.leaseId)).toBe(true);
+      await expect(manager.getStorageStateForLease(sessionId, 'storage-owner', session.leaseId)).rejects.toThrow(SessionNotFoundError);
     });
   });
 
@@ -1062,6 +1083,27 @@ describe('SessionManager', () => {
       expect(() => managerShortIdle.getSession(sessionId)).toThrow(SessionNotFoundError);
 
       await managerShortIdle.shutdown();
+    });
+
+    it('does not recycle the shared browser while a capture holds a startup reservation', async () => {
+      const owned = manager as unknown as { browserManager: BrowserManager };
+      const recycle = jest.spyOn(owned.browserManager, 'recycleIdleBrowsers');
+      const markUsed = jest.spyOn(owned.browserManager, 'markPoolUsedNow');
+      let enteredCapture!: () => void;
+      let releaseCapture!: () => void;
+      const entered = new Promise<void>((resolve) => { enteredCapture = resolve; });
+      const hold = new Promise<void>((resolve) => { releaseCapture = resolve; });
+      const capture = manager.withPublicCaptureBrowser(async () => {
+        enteredCapture();
+        await hold;
+      });
+
+      await entered;
+      await manager.cleanupIdleSessions();
+      expect(recycle).not.toHaveBeenCalled();
+      releaseCapture();
+      await capture;
+      expect(markUsed).toHaveBeenCalledTimes(1);
     });
 
     it('should not close active sessions', async () => {

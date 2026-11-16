@@ -94,6 +94,35 @@ describe('explicit browser navigation [REQ:BAS-RH-J04]', () => {
     expect(result.current.isInitialNavigationComplete).toBe(true);
   });
 
+  it('does not carry initial navigation readiness into a replacement session/page owner', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => response('https://fixture.test/launch'));
+    vi.stubGlobal('fetch', fetch);
+    const { result, rerender } = renderHook(({ sessionId, pageId, observedUrl }) => useBrowserNavigation({
+      pageId, sessionId, initialUrl: 'https://fixture.test/launch', observedUrl,
+    }), { initialProps: { sessionId: 'first-session', pageId: 'first-page', observedUrl: 'about:blank' } });
+    await flush();
+    expect(result.current.isInitialNavigationComplete).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    rerender({ sessionId: 'replacement-session', pageId: 'replacement-page' });
+    await flush();
+    expect(result.current.isInitialNavigationComplete).toBe(false);
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.handleNavigate('https://fixture.test/replacement'));
+    await flush();
+    expect(result.current.isInitialNavigationComplete).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetch.mock.calls[1]![1]!.body as string)).toEqual({
+      url: 'https://fixture.test/replacement', page_id: 'replacement-page',
+    });
+
+    rerender({ sessionId: 'replacement-session', pageId: 'restored-page', observedUrl: 'https://fixture.test/restored' });
+    await flush();
+    expect(result.current.isInitialNavigationComplete).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it('does not abort an explicit request when a browser location notification arrives', async () => {
     const pending = deferred<Response>();
     const fetch = vi.fn().mockReturnValue(pending.promise);

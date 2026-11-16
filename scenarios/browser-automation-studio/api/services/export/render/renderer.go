@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
@@ -74,8 +75,8 @@ const (
 )
 
 // NewReplayRenderer constructs a replay renderer with sane defaults.
-func NewReplayRenderer(log *logrus.Logger, recordingsRoot string) *ReplayRenderer {
-	return newReplayRendererConfig(log, recordingsRoot)
+func NewReplayRenderer(log *logrus.Logger, recordingsRoot string, engineFactory autoengine.Factory) *ReplayRenderer {
+	return newReplayRendererConfig(log, recordingsRoot, engineFactory)
 }
 
 // replayCaptureClient abstracts the capture transport.
@@ -96,10 +97,7 @@ func (r *ReplayRenderer) Render(ctx context.Context, spec *ReplayMovieSpec, form
 	}
 
 	if r.captureClient == nil {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			return nil, errors.New("PLAYWRIGHT_DRIVER_URL required for replay rendering")
-		}
-		r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
+		return nil, errors.New("replay capture client not configured")
 	}
 
 	if strings.TrimSpace(r.exportPageURL) == "" {
@@ -143,10 +141,7 @@ func (r *ReplayRenderer) WithVideoEncoder(encoder VideoEncoder) *ReplayRenderer 
 // renderCapture orchestrates the full pipeline: capture, decode, assemble, and optionally convert to GIF.
 func (r *ReplayRenderer) renderCapture(ctx context.Context, spec *ReplayMovieSpec, format RenderFormat, filename string, captureInterval int) (*RenderedMedia, error) {
 	if r.captureClient == nil {
-		if os.Getenv("PLAYWRIGHT_DRIVER_URL") == "" {
-			return nil, errors.New("PLAYWRIGHT_DRIVER_URL required for capture")
-		}
-		r.captureClient = newPlaywrightCaptureClient(r.exportPageURL)
+		return nil, errors.New("replay capture client not configured")
 	}
 
 	capture, err := r.captureClient.Capture(ctx, spec, captureInterval)

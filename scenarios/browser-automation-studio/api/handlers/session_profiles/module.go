@@ -19,8 +19,7 @@ import (
 type Repo interface {
 	ListProfiles() ([]sessionprofilepersistence.SessionProfile, error)
 	CreateProfile(name string) (*sessionprofilepersistence.SessionProfile, error)
-	RenameProfile(id sessionprofilepersistence.ProfileID, name string) (*sessionprofilepersistence.SessionProfile, error)
-	UpdateBrowserProfile(id sessionprofilepersistence.ProfileID, profile *sessionprofilepersistence.BrowserProfile) (*sessionprofilepersistence.SessionProfile, error)
+	UpdateProfileSettings(id sessionprofilepersistence.ProfileID, name *string, profile *sessionprofilepersistence.BrowserProfile) (*sessionprofilepersistence.SessionProfile, error)
 	DeleteProfile(id sessionprofilepersistence.ProfileID) error
 }
 

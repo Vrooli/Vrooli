@@ -58,7 +58,8 @@ func TestNewAIAnalysisHandler(t *testing.T) {
 		defaultAnalyzer, ok := handler.analyzer.(*AIElementAnalyzer)
 		require.True(t, ok, "default analyzer should be AIElementAnalyzer")
 		assert.Equal(t, domHandler, defaultAnalyzer.domExtractor)
-		assert.NotNil(t, defaultAnalyzer.modelClient)
+		assert.IsType(t, &gatewayRolePromptClient{}, defaultAnalyzer.modelClient)
+		assert.Equal(t, "write.default", defaultAnalyzer.role)
 	})
 }
 
@@ -71,7 +72,7 @@ func TestRunAIAnalyze_RequestValidation(t *testing.T) {
 	t.Run("rejects empty URL", func(t *testing.T) {
 		analyzer := &mockElementAnalyzer{}
 		handler := makeHandler(analyzer)
-		_, err := handler.RunAIAnalyze(context.Background(), "", "search", "", false)
+		_, err := handler.RunAIAnalyze(context.Background(), "", "search")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrMissingURL)
 		assert.Empty(t, analyzer.calls)
@@ -80,7 +81,7 @@ func TestRunAIAnalyze_RequestValidation(t *testing.T) {
 	t.Run("rejects empty intent", func(t *testing.T) {
 		analyzer := &mockElementAnalyzer{}
 		handler := makeHandler(analyzer)
-		_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "", "", false)
+		_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrMissingIntent)
 		assert.Empty(t, analyzer.calls)
@@ -93,7 +94,7 @@ func TestRunAIAnalyze_DelegatesToAnalyzer(t *testing.T) {
 	analyzer := &mockElementAnalyzer{suggestions: suggestions}
 	handler := NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer))
 
-	got, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search products", "", false)
+	got, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search products")
 
 	require.NoError(t, err)
 	assert.Equal(t, suggestions, got)
@@ -107,7 +108,7 @@ func TestRunAIAnalyze_AnalyzerError(t *testing.T) {
 	analyzer := &mockElementAnalyzer{err: errors.New("analysis failed")}
 	handler := NewAIAnalysisHandler(log, nil, WithElementAnalyzer(analyzer))
 
-	_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search", "", false)
+	_, err := handler.RunAIAnalyze(context.Background(), "https://example.com", "search")
 	require.Error(t, err)
 }
 
@@ -120,7 +121,7 @@ func TestAIElementAnalyzer_ExtractFailure(t *testing.T) {
 		log:          log,
 		domExtractor: mockDOM,
 		modelClient:  mockModelClient,
-		role:         "chat.small",
+		role:         "write.default",
 	}
 
 	_, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
@@ -137,7 +138,7 @@ func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 		log:          log,
 		domExtractor: mockDOM,
 		modelClient:  mockModelClient,
-		role:         "chat.small",
+		role:         "write.default",
 	}
 
 	results, err := analyzer.Analyze(context.Background(), "https://example.com", "search")
@@ -147,7 +148,7 @@ func TestAIElementAnalyzer_ParsesSuggestions(t *testing.T) {
 	assert.Equal(t, "Search", results[0].Text)
 	assert.Len(t, mockDOM.calls, 1)
 	assert.Len(t, mockModelClient.Calls, 1)
-	assert.Equal(t, "chat.small", mockModelClient.Calls[0].Role)
+	assert.Equal(t, "write.default", mockModelClient.Calls[0].Role)
 }
 
 func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
@@ -159,7 +160,7 @@ func TestAIElementAnalyzer_FallbackOnBadJSON(t *testing.T) {
 		log:          log,
 		domExtractor: mockDOM,
 		modelClient:  mockModelClient,
-		role:         "chat.small",
+		role:         "write.default",
 	}
 
 	results, err := analyzer.Analyze(context.Background(), "https://example.com", "search")

@@ -4,15 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"net/url"
+	"strings"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
-	"github.com/vrooli/browser-automation-studio/middleware"
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 )
 
@@ -141,14 +141,12 @@ func (s *service) AnalyzeElements(
 	ctx context.Context,
 	req *connect.Request[aiv1.AnalyzeElementsRequest],
 ) (*connect.Response[aiv1.AnalyzeElementsResponse], error) {
+	ctx = aihandlers.WithGatewayRootOperationID(ctx, requestRootOperationID(req.Header()))
 	if req.Msg.GetUrl() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errMissingURL)
 	}
 
-	hasBYOK := middleware.HasBYOKKey(ctx)
-	userID := entitlement.UserIdentityFromContext(ctx)
-
-	result, err := s.deps.ElementAnalysis.RunAnalyzeElements(ctx, req.Msg.GetUrl(), userID, hasBYOK)
+	result, err := s.deps.ElementAnalysis.RunAnalyzeElements(ctx, req.Msg.GetUrl())
 	if err != nil {
 		return nil, mapHandlerError(err)
 	}
@@ -196,6 +194,7 @@ func (s *service) AIAnalyzeElements(
 	ctx context.Context,
 	req *connect.Request[aiv1.AIAnalyzeElementsRequest],
 ) (*connect.Response[aiv1.AIAnalyzeElementsResponse], error) {
+	ctx = aihandlers.WithGatewayRootOperationID(ctx, requestRootOperationID(req.Header()))
 	msg := req.Msg
 	if msg.GetUrl() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errMissingURL)
@@ -204,16 +203,20 @@ func (s *service) AIAnalyzeElements(
 		return nil, connect.NewError(connect.CodeInvalidArgument, errMissingIntent)
 	}
 
-	hasBYOK := middleware.HasBYOKKey(ctx)
-	userID := entitlement.UserIdentityFromContext(ctx)
-
-	suggestions, err := s.deps.AIAnalysis.RunAIAnalyze(ctx, msg.GetUrl(), msg.GetIntent(), userID, hasBYOK)
+	suggestions, err := s.deps.AIAnalysis.RunAIAnalyze(ctx, msg.GetUrl(), msg.GetIntent())
 	if err != nil {
 		return nil, mapHandlerError(err)
 	}
 	return connect.NewResponse(&aiv1.AIAnalyzeElementsResponse{
 		Suggestions: elementInfosToProto(suggestions),
 	}), nil
+}
+
+func requestRootOperationID(header http.Header) string {
+	if value := strings.TrimSpace(header.Get("X-Vrooli-Root-Operation-ID")); value != "" {
+		return value
+	}
+	return strings.TrimSpace(header.Get("Idempotency-Key"))
 }
 
 // =============================================================================
@@ -272,12 +275,10 @@ func mapHandlerError(err error) error {
 	case errors.Is(err, aihandlers.ErrAutomationRunnerNotReady):
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
-	var creditErr *aihandlers.CreditCheckError
-	if errors.As(err, &creditErr) {
-		if creditErr.IsInsufficientCredits() {
-			return connect.NewError(connect.CodeResourceExhausted, creditErr)
-		}
-		return connect.NewError(connect.CodePermissionDenied, creditErr)
+	if code := connect.CodeOf(err); code != connect.CodeUnknown {
+		// Preserve AI Gateway's authoritative refusal and its recovery metadata
+		// across the BAS handler boundary.
+		return err
 	}
 	return connect.NewError(connect.CodeInternal, err)
 }

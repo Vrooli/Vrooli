@@ -28,6 +28,7 @@ import {
   type ActionExecutionContext,
   type ActionHistoryEntry,
 } from '../../../../src/ai/vision-agent';
+import { createHash } from 'node:crypto';
 import type { BrowserAction, ScrollAction } from '../../../../src/ai/action/types';
 import type { ElementLabel, TokenUsage } from '../../../../src/ai/vision-client/types';
 import type { Page } from 'rebrowser-playwright';
@@ -60,11 +61,13 @@ function createMockVisionClient(): VisionModelClientInterface & {
   queueResponse: (response: Partial<VisionAnalysisResponseInterface>) => void;
   setDefaultResponse: (response: Partial<VisionAnalysisResponseInterface>) => void;
   getCallCount: () => number;
+  getOperationIDs: () => string[];
   setFailMode: (shouldFail: boolean, message?: string) => void;
 } {
   const queue: Partial<VisionAnalysisResponseInterface>[] = [];
   let defaultResponse: Partial<VisionAnalysisResponseInterface> | null = null;
   let callCount = 0;
+  const operationIDs: string[] = [];
   let shouldFail = false;
   let failMessage = 'Mock client failure';
 
@@ -75,10 +78,9 @@ function createMockVisionClient(): VisionModelClientInterface & {
   };
 
   return {
-    analyze(
-      _request: VisionAnalysisRequestInterface
-    ): Promise<VisionAnalysisResponseInterface> {
+    analyze(request: VisionAnalysisRequestInterface): Promise<VisionAnalysisResponseInterface> {
       callCount++;
+      operationIDs.push(request.operationId);
 
       if (shouldFail) {
         return Promise.reject(new Error(failMessage));
@@ -123,6 +125,9 @@ function createMockVisionClient(): VisionModelClientInterface & {
 
     getCallCount(): number {
       return callCount;
+    },
+    getOperationIDs(): string[] {
+      return [...operationIDs];
     },
 
     setFailMode(fail: boolean, message?: string): void {
@@ -262,6 +267,7 @@ function createNavConfig(overrides?: Partial<NavigationConfig>): NavigationConfi
     maxSteps: 10,
     model: 'mock-model',
     navigationId: 'nav-test-123',
+    rootOperationId: 'b'.repeat(32),
     callbackUrl: 'http://localhost/callback',
     onStep: (step): Promise<void> => {
       steps.push(step);
@@ -300,6 +306,11 @@ describe('VisionAgent', () => {
       expect(result.totalSteps).toBe(2);
       expect(result.summary).toBe('Task completed');
       expect(mockClient.getCallCount()).toBe(2);
+      expect(mockClient.getOperationIDs()).toEqual(
+        [1, 2].map((step) =>
+          createHash('sha256').update(`bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:${step}`).digest('hex')
+        )
+      );
     });
 
     it('stops at max steps when goal not achieved', async () => {
@@ -848,11 +859,9 @@ describe('LoopDetector', () => {
 
       // Add 10 effective scroll actions
       for (let i = 1; i <= 10; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'scroll', direction: 'down' },
-          i,
-          { scrollWasEffective: true }
-        ));
+        history.push(
+          makeHistoryEntry({ type: 'scroll', direction: 'down' }, i, { scrollWasEffective: true })
+        );
       }
 
       const result = detector.detect(history);
@@ -866,11 +875,9 @@ describe('LoopDetector', () => {
 
       // Add 3 ineffective scroll actions (more than maxIneffectiveRepeats=2)
       for (let i = 1; i <= 3; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'scroll', direction: 'down' },
-          i,
-          { scrollWasEffective: false }
-        ));
+        history.push(
+          makeHistoryEntry({ type: 'scroll', direction: 'down' }, i, { scrollWasEffective: false })
+        );
       }
 
       const result = detector.detect(history);
@@ -887,22 +894,18 @@ describe('LoopDetector', () => {
 
       // Add 5 ineffective scrolls (at the new limit)
       for (let i = 1; i <= 5; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'scroll', direction: 'down' },
-          i,
-          { scrollWasEffective: false }
-        ));
+        history.push(
+          makeHistoryEntry({ type: 'scroll', direction: 'down' }, i, { scrollWasEffective: false })
+        );
       }
 
       let result = detector.detect(history);
       expect(result.isLoop).toBe(false);
 
       // Add one more to exceed limit
-      history.push(makeHistoryEntry(
-        { type: 'scroll', direction: 'down' },
-        6,
-        { scrollWasEffective: false }
-      ));
+      history.push(
+        makeHistoryEntry({ type: 'scroll', direction: 'down' }, 6, { scrollWasEffective: false })
+      );
 
       result = detector.detect(history);
       expect(result.isLoop).toBe(true);
@@ -913,11 +916,21 @@ describe('LoopDetector', () => {
       const history: ActionHistoryEntry[] = [];
 
       // 2 ineffective, then 1 effective, then 2 more ineffective
-      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 1, { scrollWasEffective: false }));
-      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 2, { scrollWasEffective: false }));
-      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 3, { scrollWasEffective: true }));
-      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 4, { scrollWasEffective: false }));
-      history.push(makeHistoryEntry({ type: 'scroll', direction: 'down' }, 5, { scrollWasEffective: false }));
+      history.push(
+        makeHistoryEntry({ type: 'scroll', direction: 'down' }, 1, { scrollWasEffective: false })
+      );
+      history.push(
+        makeHistoryEntry({ type: 'scroll', direction: 'down' }, 2, { scrollWasEffective: false })
+      );
+      history.push(
+        makeHistoryEntry({ type: 'scroll', direction: 'down' }, 3, { scrollWasEffective: true })
+      );
+      history.push(
+        makeHistoryEntry({ type: 'scroll', direction: 'down' }, 4, { scrollWasEffective: false })
+      );
+      history.push(
+        makeHistoryEntry({ type: 'scroll', direction: 'down' }, 5, { scrollWasEffective: false })
+      );
 
       const result = detector.detect(history);
       // Only 2 consecutive ineffective at the end, should not trigger
@@ -932,10 +945,7 @@ describe('LoopDetector', () => {
 
       // Add 4 clicks on same element (more than maxSameElementRepeats=3)
       for (let i = 1; i <= 4; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'click', elementId: 5 },
-          i
-        ));
+        history.push(makeHistoryEntry({ type: 'click', elementId: 5 }, i));
       }
 
       const result = detector.detect(history);
@@ -949,11 +959,12 @@ describe('LoopDetector', () => {
 
       // Add clicks on same element but URL changes each time
       for (let i = 1; i <= 5; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'click', elementId: 5 },
-          i,
-          { urlBefore: `https://example.com/page${i}`, urlAfter: `https://example.com/page${i + 1}` }
-        ));
+        history.push(
+          makeHistoryEntry({ type: 'click', elementId: 5 }, i, {
+            urlBefore: `https://example.com/page${i}`,
+            urlAfter: `https://example.com/page${i + 1}`,
+          })
+        );
       }
 
       const result = detector.detect(history);
@@ -984,10 +995,7 @@ describe('LoopDetector', () => {
 
       // Add 4 identical type actions (more than default maxRepeats=3)
       for (let i = 1; i <= 4; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'type', text: 'hello', elementId: 1 },
-          i
-        ));
+        history.push(makeHistoryEntry({ type: 'type', text: 'hello', elementId: 1 }, i));
       }
 
       const result = detector.detect(history);
@@ -1001,10 +1009,7 @@ describe('LoopDetector', () => {
 
       // Add 10 done actions (should never be a loop)
       for (let i = 1; i <= 10; i++) {
-        history.push(makeHistoryEntry(
-          { type: 'done', success: true, result: 'done' },
-          i
-        ));
+        history.push(makeHistoryEntry({ type: 'done', success: true, result: 'done' }, i));
       }
 
       const result = detector.detect(history);
@@ -1073,30 +1078,48 @@ describe('serializeAction', () => {
   });
 });
 
-
 describe('independent task evidence', () => {
   const pageWithText = (text: string): Page => {
-    const item = {textContent: async () => text, getAttribute: async () => 'https://example.test'};
-    return {locator: () => ({count: async () => 1, first: () => item, nth: () => item})} as unknown as Page;
+    const item = {
+      textContent: async () => text,
+      getAttribute: async () => 'https://example.test',
+    };
+    return {
+      locator: () => ({ count: async () => 1, first: () => item, nth: () => item }),
+    } as unknown as Page;
   };
   it('does not treat model completion as verified success without postconditions', async () => {
-    expect((await observeTaskResult({page: pageWithText('hello')})).verifiedSuccess).toBe(false);
+    expect((await observeTaskResult({ page: pageWithText('hello') })).verifiedSuccess).toBe(false);
   });
   it('verifies caller conditions and extracts bounded results without executing actions', async () => {
-    const result = await observeTaskResult({page: pageWithText('hello'), postconditions: [{selector: '#subject', mode: 'text_equals', expected: 'hello'}], extraction: [{name: 'subjects', selector: '#subject'}]});
-    expect(result).toEqual({verifiedSuccess: true, extractedData: {subjects: ['hello']}});
+    const result = await observeTaskResult({
+      page: pageWithText('hello'),
+      postconditions: [{ selector: '#subject', mode: 'text_equals', expected: 'hello' }],
+      extraction: [{ name: 'subjects', selector: '#subject' }],
+    });
+    expect(result).toEqual({ verifiedSuccess: true, extractedData: { subjects: ['hello'] } });
   });
   it('rejects a wrong result and oversized extraction', async () => {
-    await expect(observeTaskResult({page: pageWithText('wrong'), postconditions: [{selector: '#subject', mode: 'text_equals', expected: 'hello'}]})).rejects.toThrow('postcondition_failed');
-    await expect(observeTaskResult({page: pageWithText('x'.repeat(32769)), extraction: [{name: 'subjects', selector: '#subject'}]})).rejects.toThrow('budget');
+    await expect(
+      observeTaskResult({
+        page: pageWithText('wrong'),
+        postconditions: [{ selector: '#subject', mode: 'text_equals', expected: 'hello' }],
+      })
+    ).rejects.toThrow('postcondition_failed');
+    await expect(
+      observeTaskResult({
+        page: pageWithText('x'.repeat(32769)),
+        extraction: [{ name: 'subjects', selector: '#subject' }],
+      })
+    ).rejects.toThrow('budget');
   });
   it('blocks a model-proposed click before the executor under read_only', async () => {
     const visionClient = createMockVisionClient();
-    visionClient.queueResponse({action: {type: 'click', x: 1, y: 1}, goalAchieved: false});
+    visionClient.queueResponse({ action: { type: 'click', x: 1, y: 1 }, goalAchieved: false });
     const actionExecutor = createMockActionExecutor();
     const execute = jest.spyOn(actionExecutor, 'execute');
-    const agent = createVisionAgent(createMockDeps({visionClient, actionExecutor}));
-    const result = await agent.navigate(createNavConfig({effectPolicy: 'read_only'}));
+    const agent = createVisionAgent(createMockDeps({ visionClient, actionExecutor }));
+    const result = await agent.navigate(createNavConfig({ effectPolicy: 'read_only' }));
     expect(result.status).toBe('failed');
     expect(result.error).toContain('effect_policy');
     expect(execute).not.toHaveBeenCalled();

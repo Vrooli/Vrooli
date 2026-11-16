@@ -114,6 +114,26 @@ describe('useFrameStats', () => {
       expect(result.current.stats.totalFrames).toBe(6);
       expect(result.current.stats.avgFrameSize).toBe(2000); // Only the new frame in history
     });
+
+    it('compacts a large expired prefix without changing rolling statistics', () => {
+      const { result } = renderHook(() => useFrameStats());
+
+      act(() => {
+        for (let i = 0; i < 300; i += 1) {
+          result.current.recordFrame(1000);
+          vi.advanceTimersByTime(1);
+        }
+        vi.advanceTimersByTime(5001);
+        for (let i = 0; i < 300; i += 1) {
+          result.current.recordFrame(2000);
+          vi.advanceTimersByTime(1);
+        }
+        vi.advanceTimersByTime(1000);
+      });
+
+      expect(result.current.stats.totalFrames).toBe(600);
+      expect(result.current.stats.avgFrameSize).toBe(2000);
+    });
   });
 
   describe('reset', () => {

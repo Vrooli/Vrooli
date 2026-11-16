@@ -178,7 +178,9 @@ export class BrowserManager {
       this.validateFakeMicrophoneWav(wavPath);
     }
 
-    return this.pool.getOrLaunch(key, () => this.launchBrowserInternal(key));
+    const browser = await this.pool.getOrLaunch(key, () => this.launchBrowserInternal(key));
+    this.updatePoolMetrics();
+    return browser;
   }
 
   /** Connect to a browser owned by a controlled desktop target. */
@@ -187,7 +189,9 @@ export class BrowserManager {
     const proxy = await createAndroidCDPProxy(endpoint);
     try {
       const browser = await playwrightProvider.chromium.connectOverCDP(proxy.endpoint);
-      browser.on('disconnected', () => { void proxy.close(); });
+      browser.on('disconnected', () => {
+        void proxy.close();
+      });
       return browser;
     } catch (error) {
       await proxy.close();
@@ -275,20 +279,62 @@ export class BrowserManager {
     return selectAudioStrategy(await this.getHostAudioCapability());
   }
 
+  /** Close only pooled Chromium processes whose contexts are all gone. */
+  async recycleIdleBrowsers(idleForMs: number): Promise<number> {
+    try {
+      const recycled = await this.pool.closeIdle(idleForMs, async (key, browser) => {
+        try {
+          await browser.close();
+          metrics.browserPoolRecycles.inc();
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.warn('Failed to recycle idle browser', {
+            error: message,
+            browserKey: key === DEFAULT_BROWSER_KEY ? 'default' : key,
+          });
+          metrics.cleanupFailures.inc({ operation: 'browser_idle_recycle' });
+          throw error;
+        }
+      });
+      if (recycled > 0) logger.info('browser: recycled idle pooled browsers', { count: recycled });
+      return recycled;
+    } finally {
+      this.updatePoolMetrics();
+    }
+  }
+
+  updatePoolMetrics(): void {
+    const usage = this.pool.usageSnapshot();
+    metrics.browserPoolBrowsers.set(usage.browserCount);
+    metrics.browserPoolContexts.set(usage.contextCount);
+    metrics.browserPoolIdleBrowsers.set(usage.idleBrowserCount);
+    metrics.browserPoolMaxIdleSeconds.set(usage.maxIdleSeconds);
+  }
+
+  /** Start the pool's idle grace period when a caller's browser work ends. */
+  markPoolUsedNow(): void {
+    this.pool.markUsed();
+    this.updatePoolMetrics();
+  }
+
   /**
    * Shutdown all browsers and cleanup resources.
    */
   async shutdown(): Promise<void> {
-    await this.pool.closeAll(async (key, browser) => {
-      await browser.close().catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn('Failed to close browser', {
-          error: message,
-          browserKey: key === DEFAULT_BROWSER_KEY ? 'default' : key,
+    try {
+      await this.pool.closeAll(async (key, browser) => {
+        await browser.close().catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          logger.warn('Failed to close browser', {
+            error: message,
+            browserKey: key === DEFAULT_BROWSER_KEY ? 'default' : key,
+          });
+          metrics.cleanupFailures.inc({ operation: 'browser_close' });
         });
-        metrics.cleanupFailures.inc({ operation: 'browser_close' });
       });
-    });
+    } finally {
+      this.updatePoolMetrics();
+    }
   }
 
   /**

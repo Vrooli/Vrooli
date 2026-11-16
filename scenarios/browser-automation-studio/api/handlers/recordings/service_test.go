@@ -836,6 +836,29 @@ func TestDeleteSessionTab_HappyPath(t *testing.T) {
 	require.Equal(t, 1, p.OpenTabs[1].Order) // renumbered
 }
 
+func TestDeleteSessionTabRepairsPopupOpenerOrders(t *testing.T) {
+	repo := newFakeRepo()
+	p := newProfile("p")
+	rootOrder, childOrder := 0, 1
+	p.OpenTabs = []sessionprofilepersistence.TabState{
+		{URL: "https://root", Order: 0},
+		{URL: "https://popup", Order: 1, OpenerOrder: &rootOrder},
+		{URL: "https://nested-popup", Order: 2, OpenerOrder: &childOrder},
+	}
+	repo.put(p)
+	client, cleanup := newTestServer(t, repo, nil)
+	defer cleanup()
+
+	_, err := client.DeleteSessionTab(context.Background(), connect.NewRequest(&recordingsv1.DeleteSessionTabRequest{ProfileId: "p", Order: 0}))
+	require.NoError(t, err)
+	require.Len(t, p.OpenTabs, 2)
+	require.Equal(t, "https://popup", p.OpenTabs[0].URL)
+	require.Nil(t, p.OpenTabs[0].OpenerOrder, "deleted opener must not be rebound to another saved tab")
+	require.Equal(t, "https://nested-popup", p.OpenTabs[1].URL)
+	require.NotNil(t, p.OpenTabs[1].OpenerOrder)
+	require.Equal(t, 0, *p.OpenTabs[1].OpenerOrder, "retained opener relationship follows renumbered parent")
+}
+
 func TestDeleteSessionTab_NotFound(t *testing.T) {
 	repo := newFakeRepo()
 	p := newProfile("p")

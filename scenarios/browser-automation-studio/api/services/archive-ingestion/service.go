@@ -14,6 +14,7 @@ import (
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/storage"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
@@ -139,9 +140,6 @@ type IngestionService struct {
 	recordingsRoot string
 }
 
-// RecordingService is an alias for backward compatibility.
-type RecordingService = IngestionService
-
 // NewIngestionService constructs an archive ingestion service.
 func NewIngestionService(repo IngestionRepository, storageClient storage.StorageInterface, _ *wsHub.Hub, log *logrus.Logger, recordingsRoot string) *IngestionService {
 	absRoot := recordingsRoot
@@ -160,7 +158,7 @@ func NewIngestionService(repo IngestionRepository, storageClient storage.Storage
 	// Create the recorder with the execution index repository adapter
 	var execRepo executionwriter.ExecutionIndexRepository
 	if repo != nil {
-		execRepo = &executionIndexRepoAdapter{repo: repo}
+		execRepo = &executionIndexRepoAdapter{repo: repo, recordingsRoot: absRoot}
 	}
 
 	return &IngestionService{
@@ -172,12 +170,10 @@ func NewIngestionService(repo IngestionRepository, storageClient storage.Storage
 	}
 }
 
-// NewRecordingService is an alias for backward compatibility.
-var NewRecordingService = NewIngestionService
-
 // executionIndexRepoAdapter adapts IngestionRepository to ExecutionIndexRepository
 type executionIndexRepoAdapter struct {
-	repo IngestionRepository
+	repo           IngestionRepository
+	recordingsRoot string
 }
 
 func (a *executionIndexRepoAdapter) GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
@@ -185,11 +181,24 @@ func (a *executionIndexRepoAdapter) GetExecution(ctx context.Context, id uuid.UU
 }
 
 func (a *executionIndexRepoAdapter) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
-	return a.repo.UpdateExecutionStatus(ctx, id, status, errorMessage, completedAt, updatedAt)
+	return executionartifactlock.WithLock(ctx, a.recordingsRoot, id, func(lockCtx context.Context) error {
+		return a.repo.UpdateExecutionStatus(lockCtx, id, status, errorMessage, completedAt, updatedAt)
+	})
+}
+
+func (a *executionIndexRepoAdapter) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
+	if execution == nil {
+		return errors.New("execution index is nil")
+	}
+	return executionartifactlock.WithLock(ctx, a.recordingsRoot, execution.ID, func(lockCtx context.Context) error {
+		return a.repo.UpdateExecution(lockCtx, execution)
+	})
 }
 
 func (a *executionIndexRepoAdapter) UpdateExecutionResultPath(ctx context.Context, id uuid.UUID, resultPath string, updatedAt time.Time) error {
-	return a.repo.UpdateExecutionResultPath(ctx, id, resultPath, updatedAt)
+	return executionartifactlock.WithLock(ctx, a.recordingsRoot, id, func(lockCtx context.Context) error {
+		return a.repo.UpdateExecutionResultPath(lockCtx, id, resultPath, updatedAt)
+	})
 }
 
 // ImportArchive ingests a Chrome extension recording archive located on disk.
@@ -250,7 +259,9 @@ func (s *IngestionService) ImportArchive(ctx context.Context, archivePath string
 		UpdatedAt:  time.Now().UTC(),
 	}
 
-	if err := s.repo.CreateExecution(ctx, execution); err != nil {
+	if err := executionartifactlock.WithLock(ctx, s.recordingsRoot, execution.ID, func(lockCtx context.Context) error {
+		return s.repo.CreateExecution(lockCtx, execution)
+	}); err != nil {
 		s.cleanupRecordingArtifacts(context.Background(), projectCreated, workflowCreated, project, workflow, nil)
 		return nil, fmt.Errorf("failed to create execution: %w", err)
 	}
@@ -268,7 +279,9 @@ func (s *IngestionService) ImportArchive(ctx context.Context, archivePath string
 	execution.UpdatedAt = time.Now().UTC()
 	// ResultPath is set by the recorder when writing the result file
 
-	if err := s.repo.UpdateExecutionStatus(ctx, execution.ID, execution.Status, nil, execution.CompletedAt, execution.UpdatedAt); err != nil {
+	if err := executionartifactlock.WithLock(ctx, s.recordingsRoot, execution.ID, func(lockCtx context.Context) error {
+		return s.repo.UpdateExecutionStatus(lockCtx, execution.ID, execution.Status, nil, execution.CompletedAt, execution.UpdatedAt)
+	}); err != nil {
 		return nil, fmt.Errorf("failed to finalise execution: %w", err)
 	}
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 )
@@ -89,8 +90,19 @@ func (h *Handler) CaptureSessionProfileState(ctx context.Context, sessionID stri
 		return nil, err
 	}
 	tabs := make([]sessionprofilepersistence.TabState, 0, len(pages))
+	orderByPageID := make(map[uuid.UUID]int, len(pages))
 	for index, page := range pages {
-		tabs = append(tabs, sessionprofilepersistence.TabState{URL: page.URL, Title: page.Title, IsActive: page.ID == activePageID, Order: index})
+		orderByPageID[page.ID] = index
+	}
+	for index, page := range pages {
+		tab := sessionprofilepersistence.TabState{URL: page.URL, Title: page.Title, IsActive: page.ID == activePageID, Order: index}
+		if page.OpenerID != nil {
+			if openerOrder, ok := orderByPageID[*page.OpenerID]; ok {
+				value := openerOrder
+				tab.OpenerOrder = &value
+			}
+		}
+		tabs = append(tabs, tab)
 	}
 	return &sessionprofilepersistence.SessionEndState{
 		StorageState: state,

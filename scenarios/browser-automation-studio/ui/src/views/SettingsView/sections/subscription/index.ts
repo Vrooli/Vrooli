@@ -1,6 +1,4 @@
 export { SubscriptionTab } from './SubscriptionTab';
-export { AuthSection } from './AuthSection';
-export { SubscriptionStatusCard } from './SubscriptionStatusCard';
 export { UnifiedUsageSection } from './UnifiedUsageSection';
 export { UsageHistorySection } from './UsageHistorySection';
 export { OperationLogModal } from './OperationLogModal';

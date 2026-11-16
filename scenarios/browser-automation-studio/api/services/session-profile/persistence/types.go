@@ -165,10 +165,11 @@ const MaxRestoredTabs = 20
 
 // TabState captures a single tab's state for restoration when resuming a session.
 type TabState struct {
-	URL      string `json:"url"`                 // URL to navigate to
-	Title    string `json:"title,omitempty"`     // Tab title (for display before load)
-	IsActive bool   `json:"is_active,omitempty"` // Whether this was the active tab
-	Order    int    `json:"order"`               // Creation order for consistent tab ordering
+	URL         string `json:"url"`                    // URL to navigate to
+	Title       string `json:"title,omitempty"`        // Tab title (for display before load)
+	IsActive    bool   `json:"is_active,omitempty"`    // Whether this was the active tab
+	Order       int    `json:"order"`                  // Creation order for consistent tab ordering
+	OpenerOrder *int   `json:"opener_order,omitempty"` // Saved order of the tab that opened this popup
 }
 
 // SessionEndState bundles all data to persist when a session ends.

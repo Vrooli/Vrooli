@@ -1,5 +1,6 @@
 import { createClient } from '@connectrpc/connect';
-import { AIService } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
+import { create } from '@bufbuild/protobuf';
+import { AIAnalyzeElementsRequestSchema, AIService } from '@vrooli/proto-types/browser-automation-studio/v1/ai/ai_pb';
 import type {
   ElementInfo as ProtoElementInfo,
   ElementSelectionResult as ProtoElementSelectionResult,
@@ -17,6 +18,17 @@ import type {
 import { transport } from './client';
 
 export const aiClient = createClient(AIService, transport);
+
+export const newGatewayRootOperationID = (): string => {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+};
+
+export const analyzeElementsWithAI = (request: { url: string; intent: string }, rootOperationID: string) => {
+  const headers = new Headers({ 'Idempotency-Key': rootOperationID });
+  return aiClient.aIAnalyzeElements(create(AIAnalyzeElementsRequestSchema, request), { headers });
+};
 
 // =============================================================================
 // Proto → legacy-shape mappers

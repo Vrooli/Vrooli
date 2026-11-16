@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,31 +18,11 @@ import (
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
-const accessTokenContextKey contextKey = "subscription_access_token"
-
 var (
 	ErrAccessTokenRequired     = errors.New("subscription access token is required")
 	ErrEntitlementUnavailable  = errors.New("subscription entitlement service is unavailable")
 	ErrEntitlementUnauthorized = errors.New("subscription access token was rejected")
 )
-
-// WithAccessToken attaches the short-lived consumer access token to a
-// request-scoped entitlement lookup. It is never persisted or cached.
-func WithAccessToken(ctx context.Context, token string) context.Context {
-	return context.WithValue(ctx, accessTokenContextKey, strings.TrimSpace(token))
-}
-
-func accessTokenFromContext(ctx context.Context) string {
-	token, _ := ctx.Value(accessTokenContextKey).(string)
-	return strings.TrimSpace(token)
-}
-
-// AccessTokenFromContext exposes the request-scoped consumer token to other
-// BAS adapters that must call the trusted authority. It never returns a
-// refresh credential or a persisted secret.
-func AccessTokenFromContext(ctx context.Context) string {
-	return accessTokenFromContext(ctx)
-}
 
 // Service provides entitlement checking and feature gating.
 type Service struct {
@@ -72,10 +54,25 @@ func (s *Service) SetSessionResolver(resolver *credentialclient.ConsumerSessionR
 	s.rebuildGate()
 }
 
+// ClearSession removes the short-lived access token and any signed entitlement
+// lease cache after the shared subscription session is deleted.
+func (s *Service) ClearSession(context.Context) error {
+	if s == nil {
+		return nil
+	}
+	if s.sessionResolver != nil {
+		s.sessionResolver.Clear()
+	}
+	if s.gate != nil && s.gate.Entitlements != nil {
+		return s.gate.Entitlements.Clear()
+	}
+	return nil
+}
+
 // ResolveAccessToken returns the request-scoped or credential-session consumer
 // token. It is intentionally short-lived and is never persisted by BAS.
 func (s *Service) ResolveAccessToken(ctx context.Context, serviceURL string) (string, error) {
-	if token := accessTokenFromContext(ctx); token != "" {
+	if token := monetization.AccessTokenFromContext(ctx); token != "" {
 		return token, nil
 	}
 	if s.sessionResolver == nil {
@@ -86,6 +83,47 @@ func (s *Service) ResolveAccessToken(ctx context.Context, serviceURL string) (st
 		return "", err
 	}
 	return access.AccessToken, nil
+}
+
+// ResolveConsumerIdentity asks LPBS to bind a current access token to the
+// account identity. Local identity hints are never sent as remote authority.
+func (s *Service) ResolveConsumerIdentity(ctx context.Context) (string, error) {
+	if s == nil {
+		return "", ErrAccessTokenRequired
+	}
+	serviceURL := strings.TrimSpace(s.cfg.ServiceURL)
+	token, err := s.ResolveAccessToken(ctx, serviceURL)
+	if err != nil {
+		return "", err
+	}
+	var identity string
+	if s.sessionResolver != nil {
+		identity, err = s.sessionResolver.ResolveIdentityAt(ctx, serviceURL, token)
+	} else {
+		identity, err = credentialclient.ResolveConsumerIdentity(ctx, serviceURL, token, s.httpClient)
+	}
+	if errors.Is(err, credentialclient.ErrSubscriptionUnauthorized) {
+		return "", ErrEntitlementUnauthorized
+	}
+	if err != nil {
+		return "", fmt.Errorf("%w: identity lookup: %v", ErrEntitlementUnavailable, err)
+	}
+	return identity, nil
+}
+
+// GetCachedEntitlement restores a verified signed lease without contacting
+// LPBS. The identity selects a cache record only; the shared client verifies
+// its issuer signature and signed expiry before returning it.
+func (s *Service) GetCachedEntitlement(userIdentity string) (*Entitlement, error) {
+	if s == nil || s.gate == nil || s.gate.Entitlements == nil {
+		return nil, ErrEntitlementUnavailable
+	}
+	lease, err := s.gate.Entitlements.Cached(strings.TrimSpace(userIdentity))
+	if err != nil {
+		return nil, fmt.Errorf("%w: cached lease: %v", ErrEntitlementUnavailable, err)
+	}
+	snapshot := monetization.SnapshotFromLease(lease, time.Now().UTC())
+	return &snapshot, nil
 }
 
 // GetEntitlement retrieves the entitlement for a user, using cache when available.
@@ -108,27 +146,42 @@ func (s *Service) GetEntitlement(ctx context.Context, userIdentity string) (*Ent
 	return ent, nil
 }
 
-// CanExecuteWorkflow checks if the user can execute a workflow based on their tier limits.
-// Returns true if execution is allowed, false if limit reached.
-func (s *Service) CanExecuteWorkflow(ctx context.Context, userIdentity string, currentMonthCount int) bool {
-	decision := s.gate.Meter(ctx, userIdentity, "workflow_executions")
-	if !decision.Allowed || !decision.LimitFound {
-		return false
+// ReserveWorkflowExecution creates one atomic Class B quota hold through LPBS.
+// The caller commits it after persisting its accepted execution record, or
+// releases it if that local write fails.
+func (s *Service) ReserveWorkflowExecution(ctx context.Context, userIdentity string) (*monetization.QuotaHold, error) {
+	userIdentity = strings.ToLower(strings.TrimSpace(userIdentity))
+	if userIdentity == "" {
+		return nil, fmt.Errorf("workflow execution requires an authenticated account")
 	}
-	if decision.Limit < 0 {
-		// Unlimited
-		return true
+	lease, err := s.GetEntitlement(ctx, userIdentity)
+	if err != nil {
+		return nil, fmt.Errorf("workflow execution entitlement unavailable: %w", err)
 	}
-
-	return int64(currentMonthCount) < decision.Limit
+	if !lease.IsActive() || !lease.ExpiresAt.After(time.Now()) || !s.CanExecuteWorkflowAt(userIdentity, 0, time.Now()) {
+		return nil, fmt.Errorf("workflow execution is not allowed by the signed lease")
+	}
+	token, err := s.ResolveAccessToken(ctx, strings.TrimSpace(s.cfg.ServiceURL))
+	if err != nil {
+		return nil, fmt.Errorf("workflow execution session unavailable: %w", err)
+	}
+	quota := monetization.QuotaReservationClient{BaseURL: s.cfg.ServiceURL, HTTPClient: s.httpClient}
+	hold, err := quota.Begin(ctx, token, "workflow_executions", 1, 0)
+	if err != nil {
+		return nil, fmt.Errorf("workflow execution quota reservation failed: %w", err)
+	}
+	return hold, nil
 }
 
-// CanExecuteWorkflowOffline evaluates the cached, signed Class B lease. It
-// never refreshes the authority, so a transient outage cannot block local
-// work while an unexpired lease remains valid.
-func (s *Service) CanExecuteWorkflowOffline(userIdentity string, currentMonthCount int) bool {
-	decision := s.gate.CachedMeter(userIdentity, "workflow_executions")
-	return decisionAllowsCount(decision, currentMonthCount)
+// ProbeWorkflowExecution briefly reserves and releases one count unit. It is
+// used by local conformance probes that must exercise LPBS admission without
+// consuming a real execution allowance.
+func (s *Service) ProbeWorkflowExecution(ctx context.Context, userIdentity string) error {
+	hold, err := s.ReserveWorkflowExecution(ctx, userIdentity)
+	if err != nil {
+		return err
+	}
+	return hold.Release(context.WithoutCancel(ctx))
 }
 
 // CanUseFeatureOffline evaluates a feature from the verified lease cache and
@@ -150,24 +203,6 @@ func decisionAllowsCount(decision monetization.Decision, currentMonthCount int) 
 		return false
 	}
 	return decision.Limit < 0 || int64(currentMonthCount) < decision.Limit
-}
-
-// GetRemainingExecutions returns how many executions the user has remaining this month.
-// Returns -1 for unlimited.
-func (s *Service) GetRemainingExecutions(ctx context.Context, userIdentity string, currentMonthCount int) int {
-	decision := s.gate.Meter(ctx, userIdentity, "workflow_executions")
-	if !decision.Allowed || !decision.LimitFound {
-		return 0
-	}
-	if decision.Limit < 0 {
-		return -1
-	}
-
-	remaining := int(decision.Limit) - currentMonthCount
-	if remaining < 0 {
-		return 0
-	}
-	return remaining
 }
 
 // RequiresWatermark returns true if exports for this user should be watermarked.
@@ -199,12 +234,12 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 	if serviceURL == "" {
 		return nil, fmt.Errorf("%w: service URL is not configured", ErrEntitlementUnavailable)
 	}
-	if accessTokenFromContext(ctx) == "" {
+	if monetization.AccessTokenFromContext(ctx) == "" {
 		accessToken, err := s.ResolveAccessToken(ctx, serviceURL)
 		if err != nil {
 			return nil, err
 		}
-		ctx = WithAccessToken(ctx, accessToken)
+		ctx = monetization.WithAccessToken(ctx, accessToken)
 	}
 
 	if s.gate == nil || s.gate.Entitlements == nil ||
@@ -214,7 +249,7 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 	}
 	var lease entitlementclient.Payload
 	var err error
-	if token := accessTokenFromContext(ctx); token != "" {
+	if token := monetization.AccessTokenFromContext(ctx); token != "" {
 		// Bypass the identity-keyed cache whenever the caller supplied a
 		// bearer. LPBS then checks that the requested identity matches the
 		// verified token before this process accepts the lease.
@@ -229,40 +264,10 @@ func (s *Service) fetchEntitlement(ctx context.Context, userIdentity string) (*E
 		return nil, fmt.Errorf("%w: %v", ErrEntitlementUnavailable, err)
 	}
 
-	// Convert the verified, signed lease to the local entitlement type. The
-	// signed not_after is the hard offline boundary; cache TTL only controls
-	// how often BAS refreshes while the lease remains valid.
-	now := time.Now()
-	ent := &Entitlement{
-		UserIdentity:      lease.UserIdentity,
-		Status:            Status(lease.Status),
-		Tier:              strings.ToLower(lease.PlanTier),
-		PlanRank:          lease.PlanRank,
-		PriceID:           lease.PriceID,
-		Features:          lease.Features,
-		Limits:            lease.Limits,
-		BillingCycleStart: lease.BillingCycleStart,
-		FetchedAt:         now,
-		ExpiresAt:         lease.NotAfter,
-	}
-
-	if balance, ok := lease.Credits.(map[string]interface{}); ok {
-		if value, ok := balance["balance_credits"].(float64); ok {
-			ent.Credits = int64(value)
-		}
-	}
-
-	// Normalize tier
-	if ent.Tier == "" {
-		ent.Tier = TierFree
-	}
-
-	// Normalize status
-	if ent.Status == "" {
-		ent.Status = StatusInactive
-	}
-
-	return ent, nil
+	// The shared snapshot is a view over verified signed claims. The signed
+	// not_after remains the hard offline boundary enforced by entitlementclient.
+	snapshot := monetization.SnapshotFromLease(lease, time.Now().UTC())
+	return &snapshot, nil
 }
 
 func (s *Service) rebuildGate() {
@@ -271,7 +276,7 @@ func (s *Service) rebuildGate() {
 
 func (s *Service) rebuildGateForURL(serviceURL string) {
 	resolve := func(ctx context.Context, baseURL string) (string, error) {
-		if token := accessTokenFromContext(ctx); token != "" {
+		if token := monetization.AccessTokenFromContext(ctx); token != "" {
 			return token, nil
 		}
 		if s.sessionResolver == nil {
@@ -283,35 +288,33 @@ func (s *Service) rebuildGateForURL(serviceURL string) {
 		}
 		return access.AccessToken, nil
 	}
-	s.gate = monetization.NewGate(entitlementclient.NewClient(serviceURL, resolve, s.httpClient), s.sessionResolver, "business_suite")
+	client := entitlementclient.NewClient(serviceURL, resolve, s.httpClient)
+	if store, err := newLeaseStore(); err != nil {
+		if s.log != nil {
+			s.log.WithError(err).Warn("monetization lease cache unavailable")
+		}
+	} else {
+		client.SetStore(store)
+	}
+	if s.sessionResolver != nil && s.sessionResolver.Credentials != nil {
+		client.SetIssuerKeyStore(monetization.NewCredentialIssuerKeyStore(s.sessionResolver.Credentials))
+	}
+	s.gate = monetization.NewGateForApp(client, s.sessionResolver, "business_suite", "browser-automation-studio")
 }
 
-// CanUseAIWithEntitlement checks AI access using features array first, then tier fallback.
-// If the Features array is present (non-nil and non-empty), it is authoritative.
-// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
-func (s *Service) CanUseAIWithEntitlement(ent *Entitlement) bool {
-	if ent == nil {
-		return false
+func newLeaseStore() (*entitlementclient.FileLeaseStore, error) {
+	base := strings.TrimSpace(os.Getenv("APP_DATA_DIR"))
+	if base == "" {
+		if vrooliHome := strings.TrimSpace(os.Getenv("VROOLI_HOME")); vrooliHome != "" {
+			base = filepath.Join(vrooliHome, "browser-automation-studio")
+		} else {
+			var err error
+			base, err = os.UserConfigDir()
+			if err != nil {
+				return nil, fmt.Errorf("resolve user config directory: %w", err)
+			}
+			base = filepath.Join(base, "Vrooli", "Browser Automation Studio")
+		}
 	}
-	return monetization.HasFeature(entitlementclient.Payload{Features: ent.Features}, FeatureAI)
-}
-
-// CanUseRecordingWithEntitlement checks recording access using features array first.
-// If the Features array is present (non-nil and non-empty), it is authoritative.
-// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
-func (s *Service) CanUseRecordingWithEntitlement(ent *Entitlement) bool {
-	if ent == nil {
-		return false
-	}
-	return monetization.HasFeature(entitlementclient.Payload{Features: ent.Features}, FeatureRecording)
-}
-
-// RequiresWatermarkWithEntitlement checks if watermark is required using features array first.
-// If the Features array is present (non-nil and non-empty), it is authoritative.
-// If Features is nil or empty, falls back to tier-based config for backwards compatibility.
-func (s *Service) RequiresWatermarkWithEntitlement(ent *Entitlement) bool {
-	if ent == nil {
-		return true // Fail safe: require watermark
-	}
-	return !monetization.HasFeature(entitlementclient.Payload{Features: ent.Features}, FeatureWatermarkFree)
+	return entitlementclient.NewFileLeaseStore(filepath.Join(base, "monetization", "leases"))
 }

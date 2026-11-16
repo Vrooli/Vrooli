@@ -6,12 +6,14 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace as NS
 import unittest
+from unittest.mock import patch
 
 ROOT=Path(__file__).resolve().parents[1]
 KERNEL_HOST=ROOT.parents[2]/'program-runtime'/'kernel'/'host'
 if str(KERNEL_HOST) not in sys.path:
     sys.path.insert(0, str(KERNEL_HOST))
 from program_helper import ProgramHelper
+from engine import SessionKernel
 # The real kernel sandbox and schema checker. Act sections are validated against these, not a
 # stub: a fragment the kernel would reject, or output the caller's verifier rejects, fails here.
 KERNEL_HOST=ROOT.parents[2]/'program-runtime'/'kernel'/'host'
@@ -121,35 +123,16 @@ class ContractedChildren:
         def invoke(**kw):
             result = call(**kw)
             if isinstance(result, Handle) and not result.meta():
+                if len(result.rows) == 1 and isinstance(result.rows[0], dict):
+                    row = dict(result.rows[0])
+                    row.setdefault('phase', 'report')
+                    row.setdefault('signals', {})
+                    row.setdefault('errors', [])
+                    row.setdefault('evidence', [])
+                    result.rows = [row]
                 result._metadata = {'output_contract': child_contract(name)}
             return result
         return invoke
-
-
-class Program:
-    def __init__(self, inputs, outputs=None): self._inputs = inputs; self._child_helper=ProgramHelper("2", outputs or {})
-    def inputs(self): return self._inputs
-    def child_envelope(self, handle, **kwargs):
-        rows=handle.head(1)
-        if rows and isinstance(rows[0],dict):
-            # Fixtures state only the fields a case cares about; fill the remaining envelope
-            # fields while keeping the child's own contract metadata for real validation.
-            row=dict(rows[0]); metadata=handle.meta()
-            row.setdefault('phase','report');row.setdefault('signals',{});row.setdefault('errors',[]);row.setdefault('evidence',[])
-            handle=NS(head=lambda n:[row][:n],count=lambda:1,meta=lambda:metadata)
-        return self._child_helper.child_envelope(handle, **kwargs)
-    def attach(self, envelope): self.envelope = envelope
-    def fail(self, status, klass, detail, where):
-        import inspect
-        envelope = inspect.currentframe().f_back.f_globals.get('envelope')
-        if isinstance(envelope, dict):
-            envelope['status'] = status
-            envelope['errors'].append({'class': klass, 'detail': str(detail), 'where': where})
-        return 'report'
-    def classify(self, exc): return ('partial', 'binding_error') if 'scenario_not_running' in str(exc) else ('failed', 'binding_error')
-    def run(self, states, state):
-        while state:
-            state = states[state]()
 
 class Programs(unittest.TestCase):
     def run_program(self,name,inputs,api=None,lib=None,learn=None,ai=None,search_hub_rows=None,workflow_health_rows=None):
@@ -158,13 +141,78 @@ class Programs(unittest.TestCase):
         outputs=json.loads((ROOT/(name+'.json')).read_text()).get('outputs',{})
         if lib is not None and hasattr(lib,'browser_automation_studio'):
             lib=NS(**{**vars(lib),'browser_automation_studio':ContractedChildren(lib.browser_automation_studio)})
-        scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':Program(inputs,outputs),'learn':self.learn,'ai':ai,
+        program = ProgramHelper("2", outputs)
+        scope={'inputs':inputs,'browser_automation_studio':api,'lib':lib,'program':program,'learn':self.learn,'ai':ai,
                'search_hub':NS(query=NS(query=lambda **kw:Handle(list(search_hub_rows or [])))),
                'workflow_health':NS(workflows=NS(search=lambda **kw:Handle(list(workflow_health_rows or []))))}
+        program._bind(scope)
         captured = io.StringIO()
         with contextlib.redirect_stdout(captured):exec(compile((ROOT/(name+'.py')).read_text(),name,'exec'),scope)
         self.stdout = captured.getvalue()
         return scope['envelope']
+
+    def test_submitted_payload_is_limited_to_its_declared_bas_bindings(self):
+        """A dynamic payload gets the contract's exact BAS namespace, not a caller-specific stub."""
+        contract = json.loads((ROOT / 'do-task.json').read_text())
+        bindings = []
+        for binding in contract.get('bindings', []):
+            binding_id = binding.get('id', '')
+            if not binding_id.startswith('browser-automation-studio/'):
+                continue
+            scenario, *route = binding_id.split('/')
+            bindings.append({
+                'id': binding_id,
+                'scenario': scenario,
+                'group': route[0],
+                'command': '/'.join(route[1:]),
+                'effect': binding.get('effect', ''),
+                'rows_field': '$response',
+            })
+
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+            def read(self): return b'{"executionId":"exec-1"}'
+
+        calls = []
+        def bridge(request, timeout=None):
+            calls.append(json.loads(request.data.decode()))
+            return Response()
+
+        kernel = SessionKernel(
+            bindings,
+            session_id='dynamic-contract-session',
+            bridge_url='http://program-runtime/internal/program-runtime/bindings/execute',
+        )
+        with patch('engine._open_bridge_request', side_effect=bridge):
+            allowed = kernel.execute(
+                "route = 'execute'\n"
+                "result = getattr(browser_automation_studio.workflows, route)(workflow_id='wf-7', version=3)\n"
+                "print(result.raw()['executionId'])",
+                program_id='operator-authored-bas-probe',
+                provenance='contract-bound-dynamic-payload',
+            )
+            denied = kernel.execute(
+                "route = 'delete'\n"
+                "getattr(browser_automation_studio.executions, route)(execution_id='exec-1')",
+                program_id='operator-authored-bas-probe',
+                provenance='contract-bound-dynamic-payload',
+            )
+
+        self.assertTrue(allowed['ok'], allowed)
+        self.assertIn('exec-1', allowed['stdout'])
+        self.assertEqual([{
+            'session_id': 'dynamic-contract-session',
+            'program_id': 'operator-authored-bas-probe',
+            'provenance': 'contract-bound-dynamic-payload',
+            'binding_id': 'browser-automation-studio/workflows/execute',
+            'args': {'workflow_id': 'wf-7', 'version': 3},
+            'confirmed': False,
+            'rows': '',
+        }], calls)
+        self.assertFalse(denied['ok'])
+        self.assertEqual([], denied['invocations'])
+        self.assertIn('no governed binding command', denied['error'])
 
     def test_setpoint_rows_read_measures_and_mark_missing_sensors_unavailable(self):
         def measure(key, value): return lambda **kw: Handle([{key: value}])
@@ -328,6 +376,128 @@ class Programs(unittest.TestCase):
             declared=json.loads((ROOT/(name+'.json')).read_text())['version']
             source=(ROOT/(name+'.py')).read_text()
             self.assertIn('"version": "'+declared+'"',source,name+' source version must match its contract')
+
+    def test_bas_dynamic_routes_match_their_declared_owner_contracts(self):
+        import re
+
+        expected = {
+            'author-flow': {
+                'workflows/validate': 'read', 'workflows/execute-adhoc': 'write',
+                'workflows/get': 'read', 'workflows/create': 'write',
+                'workflows/update': 'write', 'executions/timeline': 'read',
+            },
+            'capture-surface': {'capture/capture': 'write'},
+            'do-task': {
+                'workflows/get': 'read', 'workflows/execute': 'write',
+                'executions/get': 'read', 'executions/timeline': 'read',
+                'executions/screenshots': 'read', 'workflows/validate': 'read',
+                'workflows/execute-adhoc': 'write', 'workflows/create': 'write',
+                'workflows/update': 'write', 'vision-navigation/start': 'write',
+                'vision-navigation/status': 'read', 'workflows/list': 'read',
+            },
+            'find-flows': {'workflows/list': 'read'},
+            'navigate-intent': {
+                'vision-navigation/start': 'write', 'vision-navigation/status': 'read',
+            },
+            'setpoint-read': {
+                'executions/list': 'read', 'executions/screenshots': 'read',
+                'measures/pass-rate': 'read', 'measures/p95-duration': 'read',
+                'measures/step-failure-rate': 'read', 'measures/selector-failure-rate': 'read',
+            },
+            'smoke-flow': {
+                'workflows/get': 'read', 'workflows/execute': 'write',
+                'executions/get': 'read', 'executions/timeline': 'read',
+                'executions/screenshots': 'read',
+            },
+        }
+        expected_programs = set(expected) | {'learning-read'}
+        actual_programs = {path.stem for path in ROOT.glob('*.py')}
+        self.assertEqual(expected_programs, actual_programs, 'BAS Program Runtime script inventory changed')
+        for name, expected_routes in expected.items():
+            contract = json.loads((ROOT / (name + '.json')).read_text())
+            actual = {
+                binding['id'].split('browser-automation-studio/', 1)[1]: binding['effect']
+                for binding in contract.get('bindings', [])
+                if binding.get('id', '').startswith('browser-automation-studio/')
+            }
+            self.assertEqual(expected_routes, actual, name + ' BAS owner/effect contract drifted')
+
+            source = (ROOT / (name + '.py')).read_text()
+            calls = {
+                '/'.join(part.replace('_', '-') for part in path.strip('.').split('.'))
+                for path in re.findall(r'(?<!lib\.)browser_automation_studio((?:\.[A-Za-z_]\w*)+)\s*\(', source)
+            }
+            self.assertLessEqual(calls, set(actual), name + ' contains an undeclared direct BAS route')
+
+        expected_children = {
+            'do-task': {'smoke_flow', 'author_flow', 'navigate_intent', 'find_flows'},
+        }
+        for name, children in expected_children.items():
+            source = (ROOT / (name + '.py')).read_text()
+            actual_children = set(re.findall(r'lib\.browser_automation_studio\.([A-Za-z_]\w*)\s*\(', source))
+            self.assertEqual(children, actual_children, name + ' nested BAS program route drifted')
+            for child in children:
+                self.assertTrue((ROOT / (child.replace('_', '-') + '.json')).is_file(), f'{name} calls undeclared child {child}')
+
+        # Third-party Program Runtime contracts are dynamic BAS callers too.
+        # Keep Portal's cross-scenario owner routes in the same source inventory.
+        portal_root = ROOT.parents[2] / 'portal' / '.vrooli' / 'program-runtime'
+        portal_contract = json.loads((portal_root / 'do-task.json').read_text())
+        portal_expected = {
+            'workflows/execute': 'write', 'executions/get': 'read',
+            'executions/wait-for-execution': 'read', 'executions/stop': 'write',
+        }
+        portal_actual = {
+            binding['id'].split('browser-automation-studio/', 1)[1]: binding['effect']
+            for binding in portal_contract.get('bindings', [])
+            if binding.get('id', '').startswith('browser-automation-studio/')
+        }
+        self.assertEqual(portal_expected, portal_actual, 'Portal BAS owner/effect contract drifted')
+        portal_source = (portal_root / 'do-task.py').read_text()
+        portal_calls = {
+            '/'.join(part.replace('_', '-') for part in path.strip('.').split('.'))
+            for path in re.findall(r'(?<!lib\.)browser_automation_studio((?:\.[A-Za-z_]\w*)+)\s*\(', portal_source)
+        }
+        self.assertEqual(set(portal_expected), portal_calls, 'Portal direct BAS calls must match declared route inventory')
+
+        # Complete the checked-in caller census across every scenario's
+        # Program Runtime contracts, including future cross-scenario scripts.
+        # Arbitrary source submitted at runtime is separately constrained by
+        # the selected program's declared bindings; it is not a checked-in
+        # source caller and must not be claimed by this inventory.
+        scenarios_root = ROOT.parents[2]
+        discovered = {}
+        source_callers = {}
+        route_pattern = re.compile(r'(?<!lib\.)browser_automation_studio((?:\.[A-Za-z_]\w*)+)\s*\(')
+        for runtime_root in scenarios_root.glob('*/.vrooli/program-runtime'):
+            for contract_path in runtime_root.glob('*.json'):
+                contract = json.loads(contract_path.read_text())
+                declared = {
+                    binding['id'].split('browser-automation-studio/', 1)[1]: binding['effect']
+                    for binding in contract.get('bindings', [])
+                    if binding.get('id', '').startswith('browser-automation-studio/')
+                }
+                if not declared:
+                    continue
+                script_path = contract_path.with_suffix('.py')
+                self.assertTrue(script_path.is_file(), f"{contract_path} declares BAS routes but has no checked-in Python source")
+                source = script_path.read_text()
+                calls = {
+                    '/'.join(part.replace('_', '-') for part in path.strip('.').split('.'))
+                    for path in route_pattern.findall(source)
+                }
+                self.assertLessEqual(calls, set(declared), f"{script_path} invokes an undeclared BAS binding")
+                discovered[str(script_path.relative_to(scenarios_root))] = declared
+                source_callers[str(script_path.relative_to(scenarios_root))] = calls
+        self.assertIn('portal/.vrooli/program-runtime/do-task.py', discovered)
+        self.assertIn('react-component-library/.vrooli/program-runtime/capture-story.py', discovered)
+        self.assertEqual(set(discovered), set(source_callers), 'every checked-in contract BAS caller must have a source route inventory')
+
+        learning = json.loads((ROOT / 'learning-read.json').read_text())
+        self.assertFalse(any(
+            binding.get('id', '').startswith('browser-automation-studio/')
+            for binding in learning.get('bindings', [])
+        ), 'learning-read is a memory consumer, not a BAS browser caller')
 
     def test_repair_requires_version_before_any_binding(self):
         r=self.run_program('author-flow',{'flow':{'nodes':[{}]},'workflow_id':'existing'})

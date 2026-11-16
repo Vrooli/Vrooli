@@ -253,6 +253,14 @@ export function usePages({
   createdCallback.current = onPageCreated;
   const owner = useRef({sessionId});
   if (owner.current.sessionId !== sessionId) owner.current = {sessionId};
+  const pageRevision = useRef(0);
+  const changedPageRevision = useRef(new Map<string, number>());
+  const activePageRevision = useRef(0);
+  const notePageMutation = useCallback((pageId?: string, active = false) => {
+    const revision = ++pageRevision.current;
+    if (pageId) changedPageRevision.current.set(pageId, revision);
+    if (active) activePageRevision.current = revision;
+  }, []);
 
   // A creation receipt and its callback describe one page. Preserve terminal
   // closure if a delayed creation observation arrives after the user closed it.
@@ -292,15 +300,32 @@ export function usePages({
     }
   }, [apiUrl, sessionId]);
 
-  const refreshPages = useCallback(() => request('', undefined, payload => {
-    const data = parsePagesResponse(payload);
-    if (!data || data.pages.some(page => page.sessionId !== sessionId)) throw new Error('Invalid pages response');
-    useSessionStore.setState({pages: new Map(data.pages.map(page => [page.id, page])), activePageId: data.activePageId || null});
-    useSessionStore.getState().updatePageColorMap(data.pages);
-  }), [request, sessionId]);
+  const refreshPages = useCallback(() => {
+    const admittedRevision = pageRevision.current;
+    return request('', undefined, payload => {
+      const data = parsePagesResponse(payload);
+      if (!data || data.pages.some(page => page.sessionId !== sessionId)) throw new Error('Invalid pages response');
+      const state = useSessionStore.getState();
+      const pagesById = new Map(data.pages.map(page => [page.id, page]));
+      for (const [pageId, revision] of changedPageRevision.current) {
+        if (revision <= admittedRevision) continue;
+        const newerPage = state.pages.get(pageId);
+        if (newerPage) pagesById.set(pageId, newerPage);
+      }
+      const pages = [...pagesById.values()];
+      const selectedPageId = activePageRevision.current > admittedRevision
+        ? state.activePageId
+        : data.activePageId || null;
+      useSessionStore.setState({pages: pagesById, activePageId: selectedPageId});
+      useSessionStore.getState().updatePageColorMap(pages);
+    });
+  }, [request, sessionId]);
 
   useEffect(() => {
     owner.current = {sessionId};
+    pageRevision.current += 1;
+    changedPageRevision.current.clear();
+    activePageRevision.current = pageRevision.current;
     useSessionStore.setState({pages: new Map(), activePageId: null, pageColorMap: new Map()});
     setError(null);
     setIsLoading(false);
@@ -314,6 +339,7 @@ export function usePages({
     const message = parsePageEventMessage(lastMessage);
     if (message?.session_id === sessionId) {
       const event = message.event;
+      notePageMutation(event.pageId);
       const state = useSessionStore.getState();
       const existing = state.pages.get(event.pageId);
       if (event.type === 'page_created') {
@@ -329,12 +355,16 @@ export function usePages({
       }
     }
     const selection = parsePageSwitchMessage(lastMessage);
-    if (selection?.session_id === sessionId) useSessionStore.getState().setActivePageId(selection.active_page_id || null);
+    if (selection?.session_id === sessionId) {
+      notePageMutation(undefined, true);
+      useSessionStore.getState().setActivePageId(selection.active_page_id || null);
+    }
   });
 
   const switchToPage = useCallback((pageId: string) => request(`/${pageId}/activate`, {method: 'POST'}, () => {
+    notePageMutation(undefined, true);
     useSessionStore.getState().setActivePageId(pageId);
-  }), [request]);
+  }), [request, notePageMutation]);
 
   const closePage = useCallback((pageId: string) => request(`/${pageId}/close`, {method: 'POST'}, payload => {
     const selected = isRecord(payload) && typeof payload.activePageId === 'string' ? payload.activePageId
@@ -342,9 +372,10 @@ export function usePages({
     if (selected === null) throw new Error('Invalid close-page response');
     const state = useSessionStore.getState();
     const wasOpen = state.pages.get(pageId)?.status === 'active';
+    notePageMutation(pageId, true);
     if (wasOpen) state.updatePage(pageId, {status: 'closed', closedAt: new Date().toISOString()});
     state.setActivePageId(selected || null);
-  }), [request]);
+  }), [request, notePageMutation]);
 
   const createPage = useCallback((url?: string) => request('', {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: url || 'about:blank'}),
@@ -353,8 +384,9 @@ export function usePages({
     if (!page || page.sessionId !== sessionId || !isRecord(payload) || payload.activePageId !== page.id) {
       throw new Error('Invalid created-page response');
     }
+    notePageMutation(page.id, true);
     observeCreatedPage(page, page.id);
-  }), [request, sessionId, observeCreatedPage]);
+  }), [request, sessionId, observeCreatedPage, notePageMutation]);
 
   const pageList = useMemo(() => [...pages.values()].sort((a, b) =>
     new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()), [pages]);

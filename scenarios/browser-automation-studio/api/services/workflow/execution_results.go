@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/services/evidence"
 	exportservices "github.com/vrooli/browser-automation-studio/services/export"
 	basevidence "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/evidence"
@@ -227,7 +229,9 @@ func (s *WorkflowService) assetURLForPath(executionID uuid.UUID, path string) st
 // UpdateExecutionResultPath updates the DB execution index with the given result file path.
 // This is used by the recorder when it first writes the result file.
 func (s *WorkflowService) UpdateExecutionResultPath(ctx context.Context, executionID uuid.UUID, resultPath string, updatedAt time.Time) error {
-	return s.repo.UpdateExecutionResultPath(ctx, executionID, resultPath, updatedAt)
+	return executionartifactlock.WithLock(ctx, s.executionDataRootOrDefault(), executionID, func(lockCtx context.Context) error {
+		return s.repo.UpdateExecutionResultPath(lockCtx, executionID, resultPath, updatedAt)
+	})
 }
 
 // Ensure our workflow service satisfies the recorder's minimal interface when used as ExecutionIndexRepository.
@@ -253,10 +257,63 @@ func (s *WorkflowService) GetExecution(ctx context.Context, id uuid.UUID) (*data
 	return s.repo.GetExecution(ctx, id)
 }
 
+// WaitForExecution joins the local runner for one caller-bounded observation.
+// Ending the wait does not cancel execution; callers that want cancellation
+// must use StopExecution with this exact execution ID.
+func (s *WorkflowService) WaitForExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	if s == nil || s.repo == nil {
+		return nil, errors.New("workflow execution service not configured")
+	}
+	if value, ok := s.executionCancels.Load(id); ok {
+		control, valid := value.(executionControl)
+		if !valid || control.done == nil {
+			return nil, errors.New("execution completion owner is invalid")
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-control.done:
+		}
+	} else {
+		// A restarted process may still serve an already-persisted terminal
+		// receipt, but it must not pretend it can join an active runner it does
+		// not own.
+		latest, err := s.repo.GetExecution(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if latest == nil {
+			return nil, database.ErrNotFound
+		}
+		if latest.CompletedAt == nil {
+			return nil, fmt.Errorf("execution %s is %s but this API process has no completion owner", id, latest.Status)
+		}
+	}
+	latest, err := s.GetExecution(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if latest == nil || latest.CompletedAt == nil {
+		return nil, fmt.Errorf("execution %s runner exited without a persisted terminal result", id)
+	}
+	return latest, nil
+}
+
 func (s *WorkflowService) UpdateExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
-	return s.repo.UpdateExecutionStatus(ctx, id, status, errorMessage, completedAt, updatedAt)
+	return s.persistExecutionStatus(ctx, id, status, errorMessage, completedAt, updatedAt)
+}
+
+func (s *WorkflowService) persistExecutionStatus(ctx context.Context, id uuid.UUID, status string, errorMessage *string, completedAt *time.Time, updatedAt time.Time) error {
+	return executionartifactlock.WithLock(ctx, s.executionDataRootOrDefault(), id, func(lockCtx context.Context) error {
+		return s.repo.UpdateExecutionStatus(lockCtx, id, status, errorMessage, completedAt, updatedAt)
+	})
 }
 
 func (s *WorkflowService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
-	return s.repo.UpdateExecution(ctx, execution)
+	if execution == nil || execution.ID == uuid.Nil {
+		return errors.New("execution index is nil")
+	}
+	return executionartifactlock.WithLock(ctx, s.executionDataRootOrDefault(), execution.ID, func(lockCtx context.Context) error {
+		return s.repo.UpdateExecution(lockCtx, execution)
+	})
 }

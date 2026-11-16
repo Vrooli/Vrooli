@@ -27,7 +27,7 @@ Vrooli Ascension transforms browser automation from code-based scripts to visual
 ### Engine selection (Playwright driver)
 - Default: the in-repo Playwright driver (`ENGINE=playwright` or unset). The legacy Browserless engine has been removed.
 - Playwright: `ENGINE=playwright` is the default. If `PLAYWRIGHT_DRIVER_URL` is unset, the lifecycle starts the local Playwright driver (`playwright-driver/`, a Node HTTP server) automatically and exports `PLAYWRIGHT_DRIVER_URL=http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}` (allocated from 24400-24499). Stop hooks clean it up.
-- Desktop/Electron: bundle `resources/playwright/driver/server.js`, spawn it from Electron main (allowing `PORT=0` for a free port), capture the port, and launch the bundled API with `ENGINE=playwright` and `PLAYWRIGHT_DRIVER_URL=<captured>`. To avoid bundling another Chromium (~80–120 MB), align Playwright with the Electron Chromium version and set `PLAYWRIGHT_CHROMIUM_PATH` to that binary.
+- Lifecycle-managed instances build their driver at `playwright-driver/dist/<variant>/server.js` and UI at `ui/dist/<variant>/`; the API supervisor and UI server select the same `VROOLI_VARIANT`. Standalone driver builds keep the default `dist/server.js` output. Desktop/Electron bundles the selected driver artifact and its sibling browser scripts; the API sidecar supervisor owns startup and cleanup. To reuse Electron's Chromium instead of a second browser download, set `BROWSER_EXECUTABLE_PATH` to the verified browser executable.
 
 ### Database storage (SQLite)
 - Storage is embedded SQLite via `modernc.org/sqlite` (pure Go, no CGO). The DB file is resolved through `api-core/storage` with `ProfileAuto` — typically `~/.local/share/vrooli/browser-automation-studio/browser-automation-studio.db` on Linux.
@@ -168,11 +168,11 @@ curl -X POST "http://localhost:${API_PORT}/api/v1/recordings/import" \
 The in-repo Playwright driver (`playwright-driver/`) is the default and only engine (`ENGINE=playwright` or unset); the legacy Browserless engine has been removed. The driver starts automatically with the scenario — there is no separate resource CLI to run.
 
 1) Start the scenario normally: `vrooli scenario start browser-automation-studio` (or `make start`/`vrooli develop`). The API sidecar supervisor launches the local Playwright driver, sets `PLAYWRIGHT_DRIVER_URL`, and resolves `ENGINE=playwright` automatically.
-2) To point at an already-running driver, export `PLAYWRIGHT_DRIVER_URL=<url>` before starting; the API will use it instead of spawning its own. Set `PLAYWRIGHT_CHROMIUM_PATH` to reuse an existing Chromium binary and avoid a second download.
+2) To point at an already-running driver, export `PLAYWRIGHT_DRIVER_URL=<url>` before starting; the API will use it instead of spawning its own. Set `BROWSER_EXECUTABLE_PATH` for the driver to reuse an existing Chromium binary.
 
 Notes:
 - The driver must be running and reachable for health checks to pass.
-- For desktop/Electron bundles, start the driver from Electron main (PORT=0), read the chosen port, and inject `PLAYWRIGHT_DRIVER_URL`/`ENGINE=playwright` into the bundled API before launching the UI.
+- For desktop/Electron bundles, ship the selected TypeScript driver at `playwright-driver/dist/<variant>/server.js` with its sibling browser scripts; the API sidecar supervisor owns startup, shutdown, health checks and the allocated driver port.
 
 ## 🏗️ Architecture
 

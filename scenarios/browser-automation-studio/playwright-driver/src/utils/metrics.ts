@@ -18,6 +18,12 @@ export class Metrics {
   public screenshotSize: Histogram<never>;
   public sessionDuration: Histogram<never>;
   public cleanupFailures: Counter<'operation'>;
+  /** Pooled browser processes actually closed after a safe idle check. */
+  public browserPoolRecycles: Counter<never>;
+  public browserPoolBrowsers: Gauge<never>;
+  public browserPoolContexts: Gauge<never>;
+  public browserPoolIdleBrowsers: Gauge<never>;
+  public browserPoolMaxIdleSeconds: Gauge<never>;
   /** Total recorded actions across all sessions */
   public recordingActionsTotal: Counter<never>;
   /** Active recording sessions */
@@ -83,6 +89,36 @@ export class Metrics {
       name: 'playwright_driver_cleanup_failures_total',
       help: 'Total number of cleanup failures by operation type (page_close, context_close, tracing_stop, browser_close, recording_stop)',
       labelNames: ['operation'] as const,
+      registers: [this.registry],
+    });
+
+    this.browserPoolRecycles = new Counter({
+      name: 'playwright_driver_browser_pool_recycles_total',
+      help: 'Pooled browser processes closed after the idle timeout with no open contexts',
+      registers: [this.registry],
+    });
+
+    this.browserPoolBrowsers = new Gauge({
+      name: 'playwright_driver_browser_pool_browsers',
+      help: 'Number of connected browsers retained by the pool',
+      registers: [this.registry],
+    });
+
+    this.browserPoolContexts = new Gauge({
+      name: 'playwright_driver_browser_pool_contexts',
+      help: 'Number of open contexts across connected pooled browsers',
+      registers: [this.registry],
+    });
+
+    this.browserPoolIdleBrowsers = new Gauge({
+      name: 'playwright_driver_browser_pool_idle_browsers',
+      help: 'Number of connected pooled browsers with no open contexts',
+      registers: [this.registry],
+    });
+
+    this.browserPoolMaxIdleSeconds = new Gauge({
+      name: 'playwright_driver_browser_pool_max_idle_seconds',
+      help: 'Oldest no-context browser idle age in seconds',
       registers: [this.registry],
     });
 
@@ -167,6 +203,11 @@ export interface NoOpMetrics {
   screenshotSize: { observe: () => void };
   sessionDuration: { observe: () => void };
   cleanupFailures: { inc: () => void };
+  browserPoolRecycles: { inc: () => void };
+  browserPoolBrowsers: { set: (value: number) => void };
+  browserPoolContexts: { set: (value: number) => void };
+  browserPoolIdleBrowsers: { set: (value: number) => void };
+  browserPoolMaxIdleSeconds: { set: (value: number) => void };
   recordingActionsTotal: { inc: () => void };
   recordingSessionsActive: { inc: () => void; dec: () => void; set: () => void };
   telemetryFailures: { inc: () => void };
@@ -194,6 +235,11 @@ export function createNoOpMetrics(): NoOpMetrics {
     screenshotSize: noOpHistogram,
     sessionDuration: noOpHistogram,
     cleanupFailures: noOpCounter,
+    browserPoolRecycles: noOpCounter,
+    browserPoolBrowsers: noOpGauge,
+    browserPoolContexts: noOpGauge,
+    browserPoolIdleBrowsers: noOpGauge,
+    browserPoolMaxIdleSeconds: noOpGauge,
     recordingActionsTotal: noOpCounter,
     recordingSessionsActive: noOpGauge,
     telemetryFailures: noOpCounter,

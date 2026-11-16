@@ -74,9 +74,31 @@ describe('recording lifecycle results belong to the current session', () => {
     rerender({ id: 'created' }); expect(signal.aborted).toBe(false); expect(result.current.isLoading).toBe(true);
     await act(async () => { pending.resolve({ success: true, data: { recording_id: 'current' } }); await start; });
     expect(result.current.isRecording).toBe(true); expect(result.current.recordingId).toBe('current');
-    mocks.stop.mockResolvedValueOnce({ success: false, error: 'current stop failure' });
+    mocks.stop.mockResolvedValueOnce({ success: false, error: 'current stop failure' }).mockResolvedValueOnce({ success: true, data: {} });
     await act(async () => result.current.stopRecording());
     expect(result.current.error).toBe('current stop failure'); expect(result.current.isLoading).toBe(false);
+    expect(result.current.isRecording).toBe(true);
+    await act(async () => result.current.stopRecording());
+    expect(mocks.stop).toHaveBeenCalledTimes(2);
+    expect(mocks.stop.mock.calls[0][0]).toBe('created');
+    expect(mocks.stop.mock.calls[1][0]).toBe('created');
+    expect(result.current.error).toBeNull(); expect(result.current.isRecording).toBe(false);
+  });
+  it('allows a failed automatic start to be retried on the same session', async () => {
+    mocks.start.mockResolvedValueOnce({ success: false, error: 'driver warming up' })
+      .mockResolvedValueOnce({ success: true, data: { recording_id: 'retry-recording' } });
+    const { result } = renderHook(() => useRecordMode({ sessionId: 'same-session' }));
+
+    await act(async () => result.current.startRecording());
+    expect(result.current.isRecording).toBe(false);
+    expect(result.current.error).toBe('driver warming up');
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => result.current.startRecording());
+    expect(mocks.start).toHaveBeenCalledTimes(2);
+    expect(mocks.start.mock.calls.map(([sessionId]) => sessionId)).toEqual(['same-session', 'same-session']);
+    expect(result.current.recordingId).toBe('retry-recording');
+    expect(result.current.isRecording).toBe(true);
   });
   it('preserves a completed initial recording when its created session props arrive afterwards', async () => {
     mocks.start.mockResolvedValueOnce({ success: true, data: { recording_id: 'created-recording' } });

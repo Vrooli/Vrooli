@@ -18,9 +18,9 @@ const FORMS = html(`<h1>Journey form</h1><form>
 </form>`);
 
 const SAME = html('<button id="same" onclick="document.body.dataset.clicked=location.pathname">same selector</button>');
-const FRAME_HOST = html('<h1>Frames</h1><iframe id="fixture-frame" src="/frame-child"></iframe>');
+const FRAME_HOST = html('<h1>Frames</h1><iframe id="fixture-frame" src="/frame-child" style="position:absolute;left:20px;top:80px;width:320px;height:220px"></iframe>');
 const GESTURES = html(`<h1>Gestures</h1><input id="shortcut" value="start"><div id="drag-source" draggable="true" style="position:absolute;left:20px;top:80px;width:100px;height:40px;background:#ddd">source</div><div id="drag-target" style="position:absolute;left:180px;top:80px;width:120px;height:40px;background:#eee" ondragover="event.preventDefault()" ondrop="this.dataset.dropped='yes';fetch('/effect',{method:'POST'})">target</div><div style="height:1600px"></div><div id="scroll-end">end</div><script>document.querySelector('#shortcut').addEventListener('input',event=>fetch('/input-observation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'field',value:event.target.value})}));window.addEventListener('scroll',()=>fetch('/scroll-observation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({y:window.scrollY})}));</script>`);
-const COMPLEX = html(`<h1>Browser behaviors</h1><button id="spa" onclick="history.pushState({},'', '/spa/next');document.querySelector('h1').textContent='SPA navigated'">SPA</button><button id="popup" onclick="window.open('/same-popup','fixture-popup')">Popup</button><div id="shadow-host"></div><script>const root=document.querySelector('#shadow-host').attachShadow({mode:'open'});const button=document.createElement('button');button.id='shadow-button';button.textContent='Shadow';button.addEventListener('click',()=>button.dataset.clicked='yes');root.append(button);</script>`);
+const COMPLEX = html(`<h1>Browser behaviors</h1><button id="spa" style="position:absolute;left:20px;top:80px;width:100px;height:40px" onclick="history.pushState({},'', '/spa/next');document.querySelector('h1').textContent='SPA navigated'">SPA</button><button id="popup" style="position:absolute;left:140px;top:80px;width:120px;height:40px" onclick="window.open('/same-popup','fixture-popup')">Popup</button><div id="shadow-host"></div><script>const root=document.querySelector('#shadow-host').attachShadow({mode:'open'});const button=document.createElement('button');button.id='shadow-button';button.textContent='Shadow';button.addEventListener('click',()=>button.dataset.clicked='yes');root.append(button);</script>`);
 const SERVICE_WORKER = `self.addEventListener('install', event => event.waitUntil(self.skipWaiting())); self.addEventListener('activate', event => event.waitUntil(self.clients.claim())); self.addEventListener('fetch', event => { if (new URL(event.request.url).pathname === '/worker-probe') event.respondWith(new Response('worker-ok')); });`;
 const SW_PAGE = html(`<h1>Service worker fixture</h1><output id="worker-result">pending</output><script>navigator.serviceWorker.register('/service-worker.js').then(async () => { await navigator.serviceWorker.ready; if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, {once:true})); const response = await fetch('/worker-probe'); const output=document.querySelector('#worker-result'); output.textContent=await response.text(); output.classList.add(output.textContent); }).catch(error => document.querySelector('#worker-result').textContent = String(error));</script>`);
 
@@ -88,10 +88,11 @@ export async function startJourneySite() {
   const challenges = [];
   const challengeVisits = [];
   const profileObservations = [];
+  const authObservations = [];
   let retryAttempts = 0;
-  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length, fingerprint: () => fingerprints.length, challenge: () => challenges.length, 'challenge-visit': () => challengeVisits.length, 'profile-observation': () => profileObservations.length };
+  const counts = { effect: () => effects.length, release: () => released.length, input: () => inputs.length, scroll: () => scrolls.length, fingerprint: () => fingerprints.length, challenge: () => challenges.length, 'challenge-visit': () => challengeVisits.length, 'profile-observation': () => profileObservations.length, 'auth-observation': () => authObservations.length };
   const waiters = new Set();
-  const snapshot = () => ({ effects, released, inputs, scrolls, fingerprints, challenges, challengeVisits, profileObservations, retryAttempts });
+  const snapshot = () => ({ effects, released, inputs, scrolls, fingerprints, challenges, challengeVisits, profileObservations, authObservations, retryAttempts });
   const notify = () => { for (const wake of waiters) wake(); };
   const record = (entry) => { effects.push({ sequence: effects.length + 1, ...entry }); notify(); return effects.length; };
   const json = (response, status, body) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body));
@@ -167,7 +168,7 @@ export async function startJourneySite() {
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(FRAME_HOST);
         return;
       case 'GET /frame-child':
-        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(SAME);
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(html('<button id="frame-target" style="position:absolute;left:20px;top:20px;width:140px;height:50px" onclick="document.body.dataset.clicked=location.pathname">Frame button</button>'));
         return;
       case 'GET /gestures':
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(GESTURES);
@@ -186,6 +187,13 @@ export async function startJourneySite() {
         notify();
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...(!/(^|;\s*)fixture_context=/.test(context) ? { 'Set-Cookie': `fixture_context=${randomUUID()}; Path=/; SameSite=Lax` } : {}) }).end(CHALLENGE);
         return;
+      case 'GET /auth-probe': {
+        const hasSyntheticAuth = /(^|;\s*)bas_j12_authorized=local-challenge-complete(?:;|$)/.test(context);
+        authObservations.push({ context, hasSyntheticAuth });
+        notify();
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end(html(`<h1 id="auth-state" data-auth="${hasSyntheticAuth}">${hasSyntheticAuth ? 'Synthetic profile restored' : 'No synthetic auth'}</h1>`));
+        return;
+      }
       case 'GET /encrypted-profile':
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Set-Cookie': 'bas_j14_secret=sealed-profile-value; HttpOnly; Path=/; SameSite=Lax' }).end(ENCRYPTED_PROFILE);
         return;

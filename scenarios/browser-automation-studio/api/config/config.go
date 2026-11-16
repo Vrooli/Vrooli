@@ -32,13 +32,13 @@ package config
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/internal/envx"
 )
 
 // Config holds all tunable configuration for the browser-automation-studio API.
@@ -87,8 +87,8 @@ type Config struct {
 	// When enabled, detailed timing data is collected and exposed for bottleneck analysis.
 	Performance PerformanceConfig
 
-	// AIProvider controls the AI provider fallback chain configuration.
-	AIProvider AIProviderConfig
+	// LPBSFallback holds the local journey's LPBS URL fallback.
+	LPBSFallback LPBSFallbackConfig
 }
 
 // TimeoutsConfig groups timeout-related settings.
@@ -544,46 +544,11 @@ type PerformanceConfig struct {
 	StreamToWebSocket bool
 }
 
-// AIProviderConfig controls the AI provider fallback chain.
-// The chain tries providers in order: BYOK → VrooliAPI → DevMode → Block
-type AIProviderConfig struct {
-	// EnableBYOK allows users to provide their own OpenRouter keys via header.
-	// When true, requests with X-BYOK-OpenRouter-Key header use the user's key.
-	// Env: BAS_AI_ENABLE_BYOK (default: true)
-	EnableBYOK bool
-
-	// EnableVrooliAPI enables the Vrooli external AI API (when available).
-	// This is the paid tier that charges credits.
-	// Env: BAS_AI_ENABLE_VROOLI_API (default: true)
-	EnableVrooliAPI bool
-
-	// EnableDevMode enables the dev mode fallback using resource-openrouter.
-	// This is always available if the resource is installed locally.
-	// Env: BAS_AI_ENABLE_DEV_MODE (default: true)
-	EnableDevMode bool
-
-	// BYOKValidationTTL is how long to cache BYOK key validation results.
-	// Tradeoff: Higher = fewer validation calls, slower to detect revoked keys.
-	// Env: BAS_AI_BYOK_VALIDATION_TTL_MS (default: 300000, 5 minutes)
-	BYOKValidationTTL time.Duration
-
-	// VrooliAPIURL is the URL for Vrooli's external AI service.
-	// Placeholder for now - returns unavailable until service is built.
-	// Env: BAS_AI_VROOLI_API_URL (default: "")
-	VrooliAPIURL string
-
-	// DefaultModel is an OPTIONAL explicit operator override for the AI model.
-	// When empty (the default), the effective OpenRouter model is resolved through
-	// the OpenRouter resource policy using DefaultRole. There is intentionally no
-	// concrete model slug baked in as a default.
-	// Env: BAS_AI_DEFAULT_MODEL (default: "")
-	DefaultModel string
-
-	// DefaultRole is the OpenRouter policy role used to resolve the default model
-	// when no explicit override is supplied. The concrete slug it maps to is owned
-	// by the OpenRouter resource policy, never by this code.
-	// Env: BAS_OPENROUTER_ROLE (default: "chat.default")
-	DefaultRole string
+// LPBSFallbackConfig holds a fallback used only by local monetization journeys.
+// Inference routing is owned by AI Gateway. The legacy BAS_AI_VROOLI_API_URL
+// environment variable remains accepted for existing local configurations.
+type LPBSFallbackConfig struct {
+	BaseURL string
 }
 
 var (
@@ -595,13 +560,30 @@ var (
 // The configuration is loaded once and cached for the lifetime of the process.
 func Load() *Config {
 	configOnce.Do(func() {
-		globalConfig = loadFromEnv()
+		globalConfig = loadFromEnv(envx.OS{})
 	})
 	return globalConfig
 }
 
-// loadFromEnv creates a new Config populated from environment variables.
-func loadFromEnv() *Config {
+// LoadWithEnv creates a fresh configuration from an explicit environment reader.
+// Unlike Load, it does not cache the result, so callers can safely validate
+// operator-provided configuration without mutating process environment state.
+func LoadWithEnv(reader envx.Reader) *Config {
+	if reader == nil {
+		reader = envx.OS{}
+	}
+	return loadFromEnv(reader)
+}
+
+// loadFromEnv creates a new Config populated from the supplied environment.
+func loadFromEnv(reader envx.Reader) *Config {
+	parseDurationMs := func(name string, fallback int) time.Duration { return parseDurationMsFrom(reader, name, fallback) }
+	parseInt := func(name string, fallback int) int { return parseIntFrom(reader, name, fallback) }
+	parseInt64 := func(name string, fallback int64) int64 { return parseInt64From(reader, name, fallback) }
+	parseFloat := func(name string, fallback float64) float64 { return parseFloatFrom(reader, name, fallback) }
+	parseBool := func(name string, fallback bool) bool { return parseBoolFrom(reader, name, fallback) }
+	parseString := func(name, fallback string) string { return parseStringFrom(reader, name, fallback) }
+
 	return &Config{
 		Timeouts: TimeoutsConfig{
 			DefaultRequest:      parseDurationMs("BAS_TIMEOUT_DEFAULT_REQUEST_MS", 5000),
@@ -721,14 +703,8 @@ func loadFromEnv() *Config {
 			BufferSize:         parseInt("BAS_PERF_BUFFER_SIZE", 100),
 			StreamToWebSocket:  parseBool("BAS_PERF_STREAM_TO_WEBSOCKET", true),
 		},
-		AIProvider: AIProviderConfig{
-			EnableBYOK:        parseBool("BAS_AI_ENABLE_BYOK", true),
-			EnableVrooliAPI:   parseBool("BAS_AI_ENABLE_VROOLI_API", true),
-			EnableDevMode:     parseBool("BAS_AI_ENABLE_DEV_MODE", true),
-			BYOKValidationTTL: parseDurationMs("BAS_AI_BYOK_VALIDATION_TTL_MS", 300000),
-			VrooliAPIURL:      parseString("BAS_AI_VROOLI_API_URL", ""),
-			DefaultModel:      parseString("BAS_AI_DEFAULT_MODEL", ""),
-			DefaultRole:       parseString("BAS_OPENROUTER_ROLE", "chat.default"),
+		LPBSFallback: LPBSFallbackConfig{
+			BaseURL: parseString("BAS_LPBS_URL", parseString("BAS_AI_VROOLI_API_URL", "")),
 		},
 	}
 }
@@ -894,8 +870,9 @@ func (c *Config) Validate() error {
 }
 
 // parseDurationMs parses an environment variable as milliseconds and returns a time.Duration.
-func parseDurationMs(envVar string, defaultMs int) time.Duration {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseDurationMsFrom(reader envx.Reader, envVar string, defaultMs int) time.Duration {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return time.Duration(defaultMs) * time.Millisecond
 	}
@@ -907,8 +884,9 @@ func parseDurationMs(envVar string, defaultMs int) time.Duration {
 }
 
 // parseInt parses an environment variable as an integer.
-func parseInt(envVar string, defaultVal int) int {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseIntFrom(reader envx.Reader, envVar string, defaultVal int) int {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -920,8 +898,9 @@ func parseInt(envVar string, defaultVal int) int {
 }
 
 // parseInt64 parses an environment variable as an int64.
-func parseInt64(envVar string, defaultVal int64) int64 {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseInt64From(reader envx.Reader, envVar string, defaultVal int64) int64 {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -933,8 +912,9 @@ func parseInt64(envVar string, defaultVal int64) int64 {
 }
 
 // parseFloat parses an environment variable as a float64.
-func parseFloat(envVar string, defaultVal float64) float64 {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseFloatFrom(reader envx.Reader, envVar string, defaultVal float64) float64 {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -946,8 +926,9 @@ func parseFloat(envVar string, defaultVal float64) float64 {
 }
 
 // parseBool parses an environment variable as a boolean.
-func parseBool(envVar string, defaultVal bool) bool {
-	value := strings.TrimSpace(strings.ToLower(os.Getenv(envVar)))
+func parseBoolFrom(reader envx.Reader, envVar string, defaultVal bool) bool {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(strings.ToLower(value))
 	if value == "" {
 		return defaultVal
 	}
@@ -955,8 +936,9 @@ func parseBool(envVar string, defaultVal bool) bool {
 }
 
 // parseString returns an environment variable value or a default.
-func parseString(envVar string, defaultVal string) string {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseStringFrom(reader envx.Reader, envVar string, defaultVal string) string {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		return defaultVal
 	}
@@ -964,8 +946,9 @@ func parseString(envVar string, defaultVal string) string {
 }
 
 // parseStringList parses a comma-separated environment variable into a slice.
-func parseStringList(envVar string, defaultVal string) []string {
-	value := strings.TrimSpace(os.Getenv(envVar))
+func parseStringListFrom(reader envx.Reader, envVar string, defaultVal string) []string {
+	value, _ := reader.LookupEnv(envVar)
+	value = strings.TrimSpace(value)
 	if value == "" {
 		value = defaultVal
 	}

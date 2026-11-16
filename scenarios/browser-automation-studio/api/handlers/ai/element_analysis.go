@@ -2,14 +2,12 @@ package ai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
 	modelai "github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/credits"
 )
 
 // ElementAnalysisHandler handles element analysis and coordinate-based operations.
@@ -18,7 +16,6 @@ type ElementAnalysisHandler struct {
 	log                 *logrus.Logger
 	runner              AutomationRunner
 	suggestionGenerator *aiSuggestionGenerator
-	creditService       credits.CreditService
 	modelClient         modelai.RolePromptClient
 }
 
@@ -48,13 +45,6 @@ func WithAIModelClient(client modelai.RolePromptClient) ElementAnalysisOption {
 	}
 }
 
-// WithElementAnalysisCreditService sets the credit service for AI usage tracking.
-func WithElementAnalysisCreditService(svc credits.CreditService) ElementAnalysisOption {
-	return func(h *ElementAnalysisHandler) {
-		h.creditService = svc
-	}
-}
-
 // NewElementAnalysisHandler creates a new element analysis handler with optional configuration.
 func NewElementAnalysisHandler(log *logrus.Logger, opts ...ElementAnalysisOption) *ElementAnalysisHandler {
 	handler := &ElementAnalysisHandler{log: log}
@@ -64,43 +54,15 @@ func NewElementAnalysisHandler(log *logrus.Logger, opts ...ElementAnalysisOption
 		opt(handler)
 	}
 
-	// Create default runner if not provided
-	if handler.runner == nil {
-		runner, err := newAutomationRunner(log)
-		if err != nil && log != nil {
-			log.WithError(err).Warn("Failed to initialize automation runner for element analysis; requests will fail")
-		}
-		handler.runner = runner
-	}
-
 	// Create default suggestion generator if not provided
+	if handler.modelClient == nil {
+		handler.modelClient = newGatewayRolePromptClient()
+	}
 	if handler.suggestionGenerator == nil {
 		handler.suggestionGenerator = newAISuggestionGenerator(log, WithAISuggestionModelClient(handler.modelClient))
 	}
 
 	return handler
-}
-
-// CreditCheckError signals that the user is not entitled to run the
-// requested AI operation (tier/credit gate). Transports map this onto
-// PermissionDenied / ResourceExhausted.
-type CreditCheckError struct {
-	Code      string
-	Message   string
-	Remaining int
-}
-
-func (e *CreditCheckError) Error() string {
-	if e == nil {
-		return ""
-	}
-	return e.Message
-}
-
-// IsInsufficientCredits returns true when the gate failed for the
-// out-of-credits reason rather than a tier reason.
-func (e *CreditCheckError) IsInsufficientCredits() bool {
-	return e != nil && e.Code == "INSUFFICIENT_CREDITS"
 }
 
 // AnalyzeElementsResult is the Go-typed return shape of
@@ -117,27 +79,12 @@ type AnalyzeElementsResult struct {
 // RunAnalyzeElements runs the page-elements-and-context extraction script
 // (with AI suggestion overlay) and returns a Go-typed result. The Connect
 // handler is a thin adapter onto this method.
-//
-// `userID` is used only for credit accounting; "" means anonymous. `hasBYOK`
-// signals the caller supplied an OpenRouter key (free of charge).
-func (h *ElementAnalysisHandler) RunAnalyzeElements(ctx context.Context, url, userID string, hasBYOK bool) (*AnalyzeElementsResult, error) {
+func (h *ElementAnalysisHandler) RunAnalyzeElements(ctx context.Context, url string) (*AnalyzeElementsResult, error) {
 	if strings.TrimSpace(url) == "" {
 		return nil, ErrMissingURL
 	}
 	if h.runner == nil {
 		return nil, ErrAutomationRunnerNotReady
-	}
-
-	if h.creditService != nil {
-		if userID == "" {
-			userID = "anonymous"
-		}
-		canProceed, errCode, errMsg, remaining, err := h.creditService.CanPerformAIOperation(ctx, userID, credits.OpAIElementAnalyze, hasBYOK)
-		if err != nil && h.log != nil {
-			h.log.WithError(err).Warn("element_analysis: failed to check AI operation permission")
-		} else if !canProceed {
-			return nil, &CreditCheckError{Code: errCode, Message: errMsg, Remaining: remaining}
-		}
 	}
 
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
@@ -157,20 +104,7 @@ func (h *ElementAnalysisHandler) RunAnalyzeElements(ctx context.Context, url, us
 
 	aiSuggestions, err := h.suggestionGenerator.generateAISuggestions(ctx, elements, pageContext)
 	if err != nil {
-		if h.log != nil {
-			h.log.WithError(err).Warn("Failed to generate AI suggestions, continuing without them")
-		}
-		aiSuggestions = []AISuggestion{}
-	}
-
-	if h.creditService != nil && userID != "" && len(aiSuggestions) > 0 {
-		if _, err := h.creditService.Charge(ctx, credits.ChargeRequest{
-			UserIdentity: userID,
-			Operation:    credits.OpAIElementAnalyze,
-			IsBYOK:       hasBYOK,
-		}); err != nil && h.log != nil {
-			h.log.WithError(err).Warn("element_analysis: failed to charge credits")
-		}
+		return nil, fmt.Errorf("generate AI suggestions through AI Gateway: %w", err)
 	}
 
 	return &AnalyzeElementsResult{
@@ -204,9 +138,6 @@ func (h *ElementAnalysisHandler) RunGetElementAtCoordinate(ctx context.Context, 
 	defer cancel()
 	return h.getElementAtCoordinate(ctx, url, x, y)
 }
-
-// Compile-time check that the package's sentinel errors are wired up.
-var _ = errors.New
 
 // Test helpers - these delegate to the internal components for testing
 

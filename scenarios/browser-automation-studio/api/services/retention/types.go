@@ -73,6 +73,7 @@ type Service struct {
 	now              func() time.Time
 	log              *logrus.Logger
 	cleanupMu        sync.Mutex
+	exactPurgeMu     sync.Mutex
 	cleanupDone      map[string]CleanupApplyResponse
 	recoveryCacheMu  sync.Mutex
 	protectedCacheAt time.Time

@@ -5,11 +5,11 @@
  * want to click and the AI proposes matching selectors.
  */
 
-import { FC, memo, useCallback, useState } from 'react';
+import { FC, memo, useCallback, useRef, useState } from 'react';
 import { Brain, Loader2, Wand2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { ElementInfo } from '@/types/elements';
-import { aiClient, mapProtoElementInfo } from '@/api/ai';
+import { analyzeElementsWithAI, mapProtoElementInfo, newGatewayRootOperationID } from '@/api/ai';
 import { logger } from '@utils/logger';
 
 export interface AISuggestionsPanelProps {
@@ -43,6 +43,7 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
 }) => {
   const [intent, setIntent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const pendingRootOperation = useRef<{ key: string; id: string } | null>(null);
 
   const runSuggestions = useCallback(async () => {
     if (!effectiveUrl) {
@@ -58,12 +59,21 @@ const AISuggestionsPanel: FC<AISuggestionsPanelProps> = ({
 
     setIsLoading(true);
     onHoverSuggestion(null);
+    const operationKey = JSON.stringify([effectiveUrl, trimmedIntent]);
+    if (pendingRootOperation.current?.key !== operationKey) {
+      pendingRootOperation.current = { key: operationKey, id: newGatewayRootOperationID() };
+    }
+    const rootOperationID = pendingRootOperation.current.id;
 
     try {
-      const resp = await aiClient.aIAnalyzeElements({
-        url: effectiveUrl,
-        intent: trimmedIntent,
-      });
+      const resp = await analyzeElementsWithAI(
+        {
+          url: effectiveUrl,
+          intent: trimmedIntent,
+        },
+        rootOperationID,
+      );
+      pendingRootOperation.current = null;
       const normalized = resp.suggestions
         .map((entry) => mapProtoElementInfo(entry))
         .filter((entry): entry is ElementInfo => entry !== null);

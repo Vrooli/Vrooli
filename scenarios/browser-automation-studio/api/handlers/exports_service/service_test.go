@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/databasemocks"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/ai"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	exportsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports/exportsconnect"
@@ -64,20 +64,19 @@ func (f *fakeOpener) OpenFolder(path string) error {
 	return f.openErr
 }
 
-type fakeAIClient struct {
-	resp string
-	err  error
+type fakeCaptionClient struct {
+	resp        string
+	err         error
+	role        string
+	prompt      string
+	operationID string
 }
 
-func (f fakeAIClient) ExecutePrompt(_ context.Context, _ string) (string, error) {
+func (f *fakeCaptionClient) ExecutePromptWithRole(ctx context.Context, role, prompt string) (string, error) {
+	f.role, f.prompt = role, prompt
+	f.operationID = aihandlers.GatewayRootOperationIDFromContext(ctx)
 	return f.resp, f.err
 }
-
-func (fakeAIClient) Model() string { return "test-model" }
-
-type fakeAIFactory struct{ client fakeAIClient }
-
-func (f fakeAIFactory) CreateClient(_ ai.ClientOptions) ai.AIClient { return f.client }
 
 // =============================================================================
 // Harness
@@ -91,7 +90,7 @@ type harness struct {
 	repo     *databasemocks.MockRepository
 	executor *fakeExecutor
 	opener   *fakeOpener
-	factory  *fakeAIFactory
+	caption  *fakeCaptionClient
 	client   exportsconnect.ExportsServiceClient
 }
 
@@ -103,22 +102,22 @@ func newHarness(t *testing.T) *harness {
 	repo := newFakeRepo()
 	executor := &fakeExecutor{exists: true}
 	opener := &fakeOpener{}
-	factory := &fakeAIFactory{client: fakeAIClient{resp: "A cool caption."}}
+	caption := &fakeCaptionClient{resp: "A cool caption."}
 
 	mount := Module(Deps{
-		Repo:            repo,
-		Executor:        executor,
-		Catalog:         fakeCatalog{},
-		AIClientFactory: factory,
-		Opener:          opener,
-		Logger:          logger,
+		Repo:          repo,
+		Executor:      executor,
+		Catalog:       fakeCatalog{},
+		CaptionClient: caption,
+		Opener:        opener,
+		Logger:        logger,
 	})
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, mount.Handler)
 	srv := testutil.StartHTTPServer(t, mux)
 	t.Cleanup(srv.Close)
 	client := exportsconnect.NewExportsServiceClient(srv.Client(), srv.URL)
-	return &harness{repo: repo, executor: executor, opener: opener, factory: factory, client: client}
+	return &harness{repo: repo, executor: executor, opener: opener, caption: caption, client: client}
 }
 
 // =============================================================================
@@ -313,23 +312,36 @@ func TestDeleteExport_Happy(t *testing.T) {
 func TestGenerateExportCaption_Happy(t *testing.T) {
 	h := newHarness(t)
 	row := seedExport(t, h, "demo")
-	resp, err := h.client.GenerateExportCaption(context.Background(), connect.NewRequest(&exportsv1.GenerateExportCaptionRequest{
+	request := connect.NewRequest(&exportsv1.GenerateExportCaptionRequest{
 		Id: row.ID.String(),
-	}))
+	})
+	request.Header().Set("Idempotency-Key", "aabbccddeeff00112233445566778899")
+	resp, err := h.client.GenerateExportCaption(context.Background(), request)
 	require.NoError(t, err)
 	require.Equal(t, "A cool caption.", resp.Msg.GetCaption())
 	require.Equal(t, "A cool caption.", resp.Msg.GetExport().GetAiCaption())
+	require.Equal(t, "write.default", h.caption.role)
+	require.Contains(t, h.caption.prompt, "Generate a short, engaging caption")
+	require.Equal(t, "aabbccddeeff00112233445566778899", h.caption.operationID)
 }
 
-func TestGenerateExportCaption_FallsBackOnAIError(t *testing.T) {
+func TestGenerateExportCaption_FailsClosedOnAIGatewayError(t *testing.T) {
 	h := newHarness(t)
-	h.factory.client = fakeAIClient{err: errors.New("AI provider down")}
+	h.caption.err = connect.NewError(connect.CodeUnavailable, errors.New("AI Gateway unavailable"))
 	row := seedExport(t, h, "demo")
-	resp, err := h.client.GenerateExportCaption(context.Background(), connect.NewRequest(&exportsv1.GenerateExportCaptionRequest{
+	_, err := h.client.GenerateExportCaption(context.Background(), connect.NewRequest(&exportsv1.GenerateExportCaptionRequest{
 		Id: row.ID.String(),
 	}))
-	require.NoError(t, err)
-	require.Contains(t, resp.Msg.GetCaption(), "demo")
+	require.Error(t, err)
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
+	persisted, getErr := h.repo.GetExport(context.Background(), row.ID)
+	require.NoError(t, getErr)
+	require.Empty(t, persisted.AICaption)
+}
+
+func TestExecutePromptFailsClosedWithoutGatewayClient(t *testing.T) {
+	_, err := (&service{}).executePrompt(context.Background(), "caption source")
+	require.ErrorContains(t, err, "AI Gateway caption client is unavailable")
 }
 
 // =============================================================================

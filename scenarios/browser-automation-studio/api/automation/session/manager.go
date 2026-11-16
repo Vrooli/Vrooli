@@ -13,11 +13,8 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
-// Viewport defines default browser dimensions.
-type Viewport struct {
-	Width  int
-	Height int
-}
+// Viewport is the driver's canonical width/height value used for defaults.
+type Viewport = driver.Viewport
 
 // Manager handles session lifecycle with tracking and cleanup.
 type Manager struct {
@@ -149,8 +146,8 @@ func (m *Manager) ListObservedSessions(ctx context.Context) ([]driver.ObservedSe
 }
 
 // ForceCloseSession performs the driver's authenticated recovery close.
-func (m *Manager) ForceCloseSession(ctx context.Context, sessionID string) error {
-	return m.client.ForceCloseSession(ctx, sessionID)
+func (m *Manager) ForceCloseSession(ctx context.Context, sessionID, expectedOwnerExecutionID, expectedLeaseID string) error {
+	return m.client.ForceCloseSession(ctx, sessionID, expectedOwnerExecutionID, expectedLeaseID)
 }
 
 func (m *Manager) adopt(resp *driver.CreateSessionResponse, executionID string, mode Mode, recording *RecordingCallbacks) (*Session, error) {
@@ -403,12 +400,12 @@ func (m *Manager) SetAdministrativeSecret(secret string) { m.client.SetAdministr
 
 // RouteSessionRequest resolves an API-owned session before forwarding a raw
 // response-preserving driver endpoint through its session owner.
-func (m *Manager) RouteSessionRequest(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+func (m *Manager) RouteSessionRequest(ctx context.Context, sessionID, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
 	owned, ok := m.Get(sessionID)
 	if !ok {
 		return nil, fmt.Errorf("session not found: %s", sessionID)
 	}
-	return owned.RouteRequest(ctx, method, suffix, body)
+	return owned.RouteRequest(ctx, method, suffix, body, headers)
 }
 
 func resolveAPIHost() string {

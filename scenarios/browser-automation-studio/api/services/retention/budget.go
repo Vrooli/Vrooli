@@ -14,6 +14,7 @@ import (
 	coreRetention "github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 )
 
@@ -179,19 +180,38 @@ func (s *Service) EnforceEvidenceBudget(ctx context.Context, name string, budget
 			return exec != nil && database.IsTerminalStatus(exec.Status), nil
 		},
 		RemoveHook: func(path string, remove func() error) error {
-			if err := WithInactiveEvidence([]string{path, "execution:" + filepath.Base(path)}, remove); err != nil {
+			removeWithEvidence := func(lockCtx context.Context) error {
+				return WithInactiveEvidence([]string{path, "execution:" + filepath.Base(path)}, func() error {
+					if name == "recordings" {
+						id, err := uuid.Parse(filepath.Base(path))
+						if err != nil {
+							return err
+						}
+						if s.store == nil {
+							return errors.New("execution repository unavailable")
+						}
+						exec, err := s.store.GetExecution(lockCtx, id)
+						if err == nil && (exec == nil || !database.IsTerminalStatus(exec.Status)) {
+							return errors.New("execution became active during retention")
+						}
+						if err != nil && !errors.Is(err, database.ErrNotFound) {
+							return err
+						}
+						if err := s.store.DeleteExecution(lockCtx, id); err != nil && !errors.Is(err, database.ErrNotFound) {
+							return err
+						}
+					}
+					return remove()
+				})
+			}
+			if name != "recordings" {
+				return removeWithEvidence(ctx)
+			}
+			id, err := uuid.Parse(filepath.Base(path))
+			if err != nil {
 				return err
 			}
-			if name == "recordings" {
-				id, err := uuid.Parse(filepath.Base(path))
-				if err != nil {
-					return err
-				}
-				if err := s.store.DeleteExecution(ctx, id); err != nil && !errors.Is(err, database.ErrNotFound) {
-					return err
-				}
-			}
-			return nil
+			return executionartifactlock.WithLock(ctx, root, id, removeWithEvidence)
 		},
 	})
 	if err != nil {

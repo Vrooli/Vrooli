@@ -11,7 +11,7 @@ import { DriverPageBindings } from '../../../src/session/page-bindings';
 
 const { sendPageEvent, setupPageLifecycleListeners, pageEventCircuitBreaker } = pageEvents;
 
-type PageEventPayload = { eventType?: string; faviconUrl?: string; driverPageId?: string; url?: string; title?: string };
+type PageEventPayload = { eventType?: string; faviconUrl?: string; driverPageId?: string; openerDriverPageId?: string; url?: string; title?: string };
 const parsePageEvent = (body: unknown): PageEventPayload => {
   if (typeof body !== 'string') throw new Error('page-event fixture did not return a JSON body');
   return JSON.parse(body) as PageEventPayload;
@@ -189,6 +189,23 @@ describe('recording tab callback ownership [REQ:BAS-RH-J03]', () => {
       expect(fetchMock.mock.calls.every(([url]) => url === 'http://callback')).toBe(true);
       expect(f.page.goto).not.toHaveBeenCalled();
     } finally {cleanup();}
+  });
+
+  it('records the exact opener identity for a restored popup', async () => {
+    const opener = fixture();
+    const popup = fixture();
+    popup.page.opener.mockResolvedValue(opener.page);
+    opener.openPages.push(popup.page);
+    opener.session.pageBindings.register(opener.page, 'opener-driver-page');
+    const { cleanup } = opener.setup();
+    try {
+      await (opener.context.listeners('page')[0] as (page: Page) => Promise<void>)(popup.page);
+      expect(pageEventBodies(fetchMock)).toContainEqual(expect.objectContaining({
+        eventType: 'created',
+        driverPageId: expect.any(String),
+        openerDriverPageId: 'opener-driver-page',
+      }));
+    } finally { cleanup(); }
   });
 
   it('publishes creation without waiting for document readiness, then orders navigation metadata', async () => {

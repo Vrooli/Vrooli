@@ -3,6 +3,7 @@ package workflows
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"testing"
@@ -15,13 +16,21 @@ import (
 	coredb "github.com/vrooli/api-core/database"
 
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/credits"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	basworkflows "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/workflows"
 )
+
+func TestWorkflowErrorPreservesGatewayCodeAndRecoveryID(t *testing.T) {
+	upstream := connect.NewError(connect.CodeUnavailable, errors.New("outcome uncertain"))
+	upstream.Meta().Set("X-Vrooli-Root-Operation-ID", "aabbccddeeff00112233445566778899")
+
+	got := workflowError(fmt.Errorf("execute ai prompt: %w", upstream))
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(got))
+	require.Equal(t, "aabbccddeeff00112233445566778899", got.Meta().Get("X-Vrooli-Root-Operation-ID"))
+}
 
 // ---------------------------------------------------------------------------
 // fakes
@@ -168,19 +177,6 @@ type fakeSeedScheduler struct {
 func (f *fakeSeedScheduler) Schedule(executionID, scenario, token string) error {
 	f.scheduled = append(f.scheduled, [3]string{executionID, scenario, token})
 	return f.err
-}
-
-type fakeCreditCharger struct {
-	calls []credits.ChargeRequest
-	err   error
-}
-
-func (f *fakeCreditCharger) Charge(_ context.Context, req credits.ChargeRequest) (*credits.ChargeResult, error) {
-	f.calls = append(f.calls, req)
-	if f.err != nil {
-		return nil, f.err
-	}
-	return &credits.ChargeResult{}, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -377,12 +373,11 @@ func TestExecuteWorkflow_InvalidID(t *testing.T) {
 
 func TestExecuteWorkflow_OK_NoOptions(t *testing.T) {
 	exec := &fakeExecutor{execResp: &basapi.ExecuteWorkflowResponse{ExecutionId: "exec-1"}}
-	charger := &fakeCreditCharger{}
 	client, stop := newServerAndClient(t, Deps{
-		Catalog:       &fakeCatalog{},
-		Executor:      exec,
-		Validator:     &fakeValidator{},
-		CreditService: charger,
+		Catalog:      &fakeCatalog{},
+		Executor:     exec,
+		Validator:    &fakeValidator{},
+		UserIdentity: func(context.Context) string { return "alice@example.com" },
 	})
 	defer stop()
 
@@ -392,8 +387,6 @@ func TestExecuteWorkflow_OK_NoOptions(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "exec-1", resp.Msg.GetExecutionId())
 	require.Nil(t, exec.lastExecOpts) // no options provided ⇒ nil
-	require.Len(t, charger.calls, 1)
-	require.Equal(t, credits.OpExecutionRun, charger.calls[0].Operation)
 }
 
 func TestExecuteWorkflow_OptionsTranslated(t *testing.T) {

@@ -29,7 +29,15 @@ type closingHub struct {
 }
 
 func (s *stubHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
-func (s *stubHub) Run()                                {}
+func (*stubHub) IssueSessionStreamCookie(sessionID, _, _ string) (string, string, error) {
+	return wsHub.SessionStreamCookieName(sessionID), "test-stream-cookie", nil
+}
+func (*stubHub) RevokeSessionStreamCookie(string) {}
+func (*stubHub) ValidateSessionStreamCookie(_, value string) bool {
+	return value == "test-stream-cookie"
+}
+func (*stubHub) ServeRecordingWS(*websocket.Conn, string, string) bool { return true }
+func (s *stubHub) Run()                                                {}
 func (s *stubHub) GetClientCount() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -287,7 +295,15 @@ func newBlockingHub() *blockingHub {
 }
 
 func (b *blockingHub) ServeWS(*websocket.Conn, *uuid.UUID) {}
-func (b *blockingHub) Run()                                {}
+func (*blockingHub) IssueSessionStreamCookie(sessionID, _, _ string) (string, string, error) {
+	return wsHub.SessionStreamCookieName(sessionID), "test-stream-cookie", nil
+}
+func (*blockingHub) RevokeSessionStreamCookie(string) {}
+func (*blockingHub) ValidateSessionStreamCookie(_, value string) bool {
+	return value == "test-stream-cookie"
+}
+func (*blockingHub) ServeRecordingWS(*websocket.Conn, string, string) bool { return true }
+func (b *blockingHub) Run()                                                {}
 func (b *blockingHub) GetClientCount() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()

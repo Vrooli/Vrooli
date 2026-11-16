@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	uxmetricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/uxmetrics"
 )
 
@@ -144,7 +144,7 @@ func (s *service) GetWorkflowAggregate(
 }
 
 func requireProTier(ctx context.Context) error {
-	ent := entitlement.FromContext(ctx)
+	ent := monetization.SnapshotFromContext(ctx)
 	if ent == nil {
 		return nil
 	}

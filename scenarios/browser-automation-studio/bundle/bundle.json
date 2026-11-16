@@ -92,6 +92,7 @@
       },
     "env": {
       "API_PORT": "${browser-automation-studio-api.api}",
+      "PLAYWRIGHT_BROWSERS_PATH": "resources/playwright",
     "BAS_DB_BACKEND": "sqlite",
     "BAS_SQLITE_PATH": "${data}/data/api/browser-automation-studio.sqlite",
     "BAS_SCREENSHOT_STORAGE": "local",
@@ -104,6 +105,9 @@
         "path": "playwright-driver"
       }
     ],
+      "asset_dirs": [
+        "resources/playwright"
+      ],
       "data_dirs": [
         "data/api"
       ],

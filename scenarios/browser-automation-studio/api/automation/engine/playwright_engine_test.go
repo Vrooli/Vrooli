@@ -4,16 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 )
 
@@ -21,7 +24,16 @@ func newPlaywrightEngineForServer(serverURL string, client *http.Client, log *lo
 	if client == nil {
 		client = http.DefaultClient
 	}
-	return NewPlaywrightEngineWithHTTPClient(serverURL, client, log)
+	return newPlaywrightEngineForHTTPDoer(serverURL, client, log)
+}
+
+func newPlaywrightEngineForHTTPDoer(serverURL string, client driver.HTTPDoer, log *logrus.Logger) (*PlaywrightEngine, error) {
+	driverClient, err := driver.NewClientWithURL(serverURL, driver.WithHTTPClient(client), driver.WithLogger(log))
+	if err != nil {
+		return nil, err
+	}
+	broker := session.NewManagerWithClient(driverClient, session.WithLogger(log))
+	return NewPlaywrightEngineWithSessionManager(broker, log)
 }
 
 func TestPlaywrightEngine_Run_DecodesScreenshotAndDOM(t *testing.T) {
@@ -246,63 +258,10 @@ func TestPlaywrightDriverError_Unwrap(t *testing.T) {
 	}
 }
 
-func TestNewPlaywrightEngineWithHTTPClient(t *testing.T) {
-	log := logrus.New()
-	log.SetOutput(io.Discard)
-
-	t.Run("creates engine with valid inputs", func(t *testing.T) {
-		mock := &mockHTTPClient{}
-		engine, err := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if engine == nil {
-			t.Fatal("expected engine to be non-nil")
-		}
-		if engine.Name() != "playwright" {
-			t.Errorf("expected name 'playwright', got %s", engine.Name())
-		}
-	})
-
-	t.Run("strips trailing slash from URL", func(t *testing.T) {
-		mock := &mockHTTPClient{}
-		engine, err := NewPlaywrightEngineWithHTTPClient("http://localhost:39400/", mock, log)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if engine == nil {
-			t.Fatal("expected engine to be non-nil")
-		}
-	})
-
-	t.Run("fails with empty URL", func(t *testing.T) {
-		mock := &mockHTTPClient{}
-		_, err := NewPlaywrightEngineWithHTTPClient("", mock, log)
-		if err == nil {
-			t.Fatal("expected error for empty URL")
-		}
-		if !strings.Contains(err.Error(), "driver URL is required") {
-			t.Errorf("expected URL error, got: %v", err)
-		}
-	})
-
-	t.Run("fails with whitespace-only URL", func(t *testing.T) {
-		mock := &mockHTTPClient{}
-		_, err := NewPlaywrightEngineWithHTTPClient("   ", mock, log)
-		if err == nil {
-			t.Fatal("expected error for whitespace URL")
-		}
-	})
-
-	t.Run("fails with nil HTTP client", func(t *testing.T) {
-		_, err := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", nil, log)
-		if err == nil {
-			t.Fatal("expected error for nil HTTP client")
-		}
-		if !strings.Contains(err.Error(), "httpClient") {
-			t.Errorf("expected httpClient error, got: %v", err)
-		}
-	})
+func TestNewPlaywrightEngineWithSessionManagerRequiresBroker(t *testing.T) {
+	if _, err := NewPlaywrightEngineWithSessionManager(nil, logrus.New()); err == nil || !strings.Contains(err.Error(), "session manager is required") {
+		t.Fatalf("nil broker error = %v, want required-broker error", err)
+	}
 }
 
 func TestPlaywrightEngine_Health_ErrorCases(t *testing.T) {
@@ -315,7 +274,7 @@ func TestPlaywrightEngine_Health_ErrorCases(t *testing.T) {
 				return nil, errors.New("connection refused")
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		_, err := engine.Capabilities(context.Background())
 		if err == nil {
 			t.Fatal("expected error when driver unreachable")
@@ -338,7 +297,7 @@ func TestPlaywrightEngine_Health_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		_, err := engine.Capabilities(context.Background())
 		if err == nil {
 			t.Fatal("expected error for non-200 response")
@@ -374,7 +333,7 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 				return nil, errors.New("dial tcp: connection refused")
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		_, err := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -395,7 +354,7 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 		mock := &mockHTTPClient{doFn: func(req *http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: http.StatusTooManyRequests, Body: io.NopCloser(strings.NewReader("Maximum concurrent sessions reached"))}, nil
 		}}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 		defer cancel()
 		_, err := engine.StartSession(ctx, SessionSpec{ExecutionID: uuid.New(), WorkflowID: uuid.New()})
@@ -413,7 +372,7 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		_, err := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -435,7 +394,7 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		_, err := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -461,7 +420,7 @@ func TestPlaywrightEngine_StartSession_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		_, err := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -499,7 +458,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				return nil, errors.New("connection reset by peer")
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -535,7 +494,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -571,7 +530,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -608,7 +567,7 @@ func TestPlaywrightSession_Run_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -649,7 +608,7 @@ func TestPlaywrightSession_Reset_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -678,7 +637,7 @@ func TestPlaywrightSession_Reset_ErrorCases(t *testing.T) {
 				return nil, errors.New("broken pipe")
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -712,7 +671,7 @@ func TestPlaywrightSession_Close_ErrorCases(t *testing.T) {
 				}, nil
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),
@@ -814,7 +773,7 @@ func TestPlaywrightEngine_Run_ContextCancellation(t *testing.T) {
 				}
 			},
 		}
-		engine, _ := NewPlaywrightEngineWithHTTPClient("http://localhost:39400", mock, log)
+		engine, _ := newPlaywrightEngineForHTTPDoer("http://localhost:39400", mock, log)
 		session, _ := engine.StartSession(context.Background(), SessionSpec{
 			ExecutionID: uuid.New(),
 			WorkflowID:  uuid.New(),

@@ -1,64 +1,16 @@
-// Package credits provides unified credit management for all billable operations.
-//
-// This package replaces the scattered usage tracking (UsageTracker, AICreditsTracker)
-// with a single, type-safe service that handles all credit operations.
-//
-// # Architecture
-//
-// The credit system uses a unified pool model where all operations (AI, executions,
-// exports) draw from the same credit balance. Operation types are tracked for
-// analytics and UI display.
-//
-// # Usage
-//
-//	svc := credits.NewService(opts)
-//
-//	// Check if user can afford operation
-//	canCharge, remaining, err := svc.CanCharge(ctx, userID, credits.OpAIWorkflowGenerate)
-//
-//	// Charge after successful operation
-//	result, err := svc.Charge(ctx, credits.ChargeRequest{
-//	    UserIdentity: userID,
-//	    Operation:    credits.OpAIWorkflowGenerate,
-//	    Metadata:     credits.ChargeMetadata{Model: "gpt-4"},
-//	})
+// Package credits provides BAS account usage read models and its durable
+// LPBS outbox journey adapter. AI billing is owned by AI Gateway.
 package credits
 
 import (
 	"context"
-	"errors"
 	"time"
 )
 
-// CreditService is the unified interface for all credit operations.
-// This replaces UsageTracker and AICreditsTracker with a single, type-safe API.
+// CreditService exposes BAS's account usage read surfaces.
 type CreditService interface {
-	// CanCharge checks if the user has sufficient credits for the operation.
-	// Returns (canCharge, remainingCredits, error).
-	// remainingCredits is -1 for unlimited tiers.
-	// This should be called BEFORE performing the operation.
-	CanCharge(ctx context.Context, userIdentity string, op OperationType) (bool, int, error)
-
-	// Charge deducts credits for a completed operation.
-	// Call this AFTER the operation succeeds.
-	// Returns the charge result with remaining balance.
-	Charge(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
-
-	// ChargeIfAllowed combines CanCharge and Charge atomically.
-	// Useful when you want to reserve credits before starting an operation.
-	// Returns ErrInsufficientCredits if not allowed.
-	ChargeIfAllowed(ctx context.Context, req ChargeRequest) (*ChargeResult, error)
-
 	// GetUsage returns the usage summary for a user in the current billing period.
 	GetUsage(ctx context.Context, userIdentity string) (*UsageSummary, error)
-
-	// GetOperationCost returns the credit cost for an operation type.
-	// Returns 0 for free operations.
-	GetOperationCost(op OperationType) int
-
-	// LogFailedOperation logs an operation that failed (no credits charged).
-	// Useful for audit trails and debugging.
-	LogFailedOperation(ctx context.Context, req ChargeRequest, opErr error) error
 
 	// GetUsageHistory returns usage summaries for multiple billing periods.
 	// months specifies how many months to retrieve, offset specifies months to skip from current.
@@ -69,67 +21,6 @@ type CreditService interface {
 	// month is in YYYY-MM format, category filters by operation category (ai, execution, export).
 	// Empty category returns all operations.
 	GetOperationLog(ctx context.Context, userIdentity, month, category string, limit, offset int) (*OperationLogPage, error)
-
-	// CanPerformAIOperation checks if user can perform an AI operation.
-	// Combines BYOK bypass, tier check, and credit check in one call.
-	// Returns (canProceed, errorCode, errorMessage, remaining, error).
-	// errorCode is empty string if canProceed is true.
-	// If hasBYOK is true, bypasses tier and credit checks (user pays their own way).
-	CanPerformAIOperation(ctx context.Context, userIdentity string, op OperationType, hasBYOK bool) (bool, string, string, int, error)
-}
-
-// ChargeRequest encapsulates all information needed to charge credits.
-// This design makes it impossible to forget required fields.
-type ChargeRequest struct {
-	// UserIdentity is required: who to charge (email or customer ID)
-	UserIdentity string
-
-	// Operation is required: what operation type
-	Operation OperationType
-
-	// Metadata contains optional operation-specific details for logging/auditing
-	Metadata ChargeMetadata
-
-	// IsBYOK indicates the user is using their own API key (Bring Your Own Key).
-	// When true, the operation is logged with cost=0 for analytics purposes
-	// since the user pays their own way directly to the AI provider.
-	IsBYOK bool
-
-	// ActualCostCents is the actual cost in cents from the AI provider (e.g., OpenRouter).
-	// When provided, this is used for LPBS reporting instead of estimated costs.
-	// Set to 0 or leave unset to use default cost estimation.
-	ActualCostCents float64
-}
-
-// ChargeMetadata contains optional operation-specific details for logging.
-// Use the appropriate fields based on the operation type.
-type ChargeMetadata struct {
-	// Common fields
-	WorkflowID  string `json:"workflow_id,omitempty"`
-	ExecutionID string `json:"execution_id,omitempty"`
-	DurationMs  int    `json:"duration_ms,omitempty"`
-
-	// AI operation fields
-	Model            string `json:"model,omitempty"`
-	PromptTokens     int    `json:"prompt_tokens,omitempty"`
-	CompletionTokens int    `json:"completion_tokens,omitempty"`
-
-	// Export operation fields
-	ExportFormat  string `json:"export_format,omitempty"`
-	FileSizeBytes int64  `json:"file_size_bytes,omitempty"`
-}
-
-// ChargeResult contains the result of a charge operation.
-type ChargeResult struct {
-	// Charged is the number of credits charged (may be 0 if free operation)
-	Charged int
-
-	// RemainingCredits is the user's remaining balance after the charge.
-	// -1 indicates unlimited.
-	RemainingCredits int
-
-	// WasCharged is true if credits were actually deducted
-	WasCharged bool
 }
 
 // UsageSummary contains aggregated usage for a billing period.
@@ -218,18 +109,3 @@ type OperationLogEntry struct {
 	// ErrorMessage contains the error if Success is false
 	ErrorMessage string `json:"error_message,omitempty"`
 }
-
-// Sentinel errors for credit operations.
-var (
-	// ErrInsufficientCredits indicates the user doesn't have enough credits.
-	ErrInsufficientCredits = errors.New("insufficient credits for this operation")
-
-	// ErrNoCreditsAccess indicates the user's tier doesn't have access to credits.
-	ErrNoCreditsAccess = errors.New("your subscription tier does not include this feature")
-
-	// ErrInvalidOperation indicates an unknown operation type.
-	ErrInvalidOperation = errors.New("unknown operation type")
-
-	// ErrUserIdentityRequired indicates the user identity is missing.
-	ErrUserIdentityRequired = errors.New("user identity is required")
-)

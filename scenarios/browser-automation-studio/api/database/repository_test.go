@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -245,6 +246,141 @@ func TestExecutionCRUD(t *testing.T) {
 	}
 	if _, err := repo.GetExecution(ctx, exec.ID); err == nil {
 		t.Fatalf("expected GetExecution to fail after delete")
+	}
+}
+
+func TestConcurrentResumeAdmissionAllowsOnlyOneActiveChild(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "resume-admission.db")
+	dsn := fmt.Sprintf("file:%s?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_time_format=sqlite", dbPath)
+	primarySQL, err := sqlx.Connect("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("connect primary sqlite: %v", err)
+	}
+	primaryLog := logrus.New()
+	primaryLog.SetOutput(os.Stdout)
+	primaryLog.SetLevel(logrus.PanicLevel)
+	db := &DB{DB: primarySQL, log: primaryLog}
+	if err := db.EnsureSchemas(); err != nil {
+		_ = primarySQL.Close()
+		t.Fatalf("init schema: %v", err)
+	}
+	defer primarySQL.Close()
+	secondarySQL, err := sqlx.Connect("sqlite", dsn)
+	if err != nil {
+		t.Fatalf("connect secondary sqlite: %v", err)
+	}
+	defer secondarySQL.Close()
+	secondary := &DB{DB: secondarySQL, log: primaryLog}
+	repositories := []Repository{NewRepository(db, primaryLog), NewRepository(secondary, primaryLog)}
+	ctx := context.Background()
+	workflowID := uuid.New()
+	if err := repositories[0].CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "resume", FolderPath: "/resume", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	sourceID := uuid.New()
+	if err := repositories[0].CreateExecution(ctx, &ExecutionIndex{ID: sourceID, WorkflowID: workflowID, Status: ExecutionStatusFailed, StartedAt: time.Now().UTC()}); err != nil {
+		t.Fatalf("CreateExecution source: %v", err)
+	}
+
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		repo := repositories[i]
+		go func(repo Repository) {
+			<-start
+			child := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusPending, StartedAt: time.Now().UTC(), ResumedFromID: &sourceID}
+			errs <- repo.CreateExecution(ctx, child)
+		}(repo)
+	}
+	close(start)
+
+	succeeded, rejected := 0, 0
+	for i := 0; i < 2; i++ {
+		err := <-errs
+		switch {
+		case err == nil:
+			succeeded++
+		case errors.Is(err, ErrResumeAlreadyActive):
+			rejected++
+		default:
+			t.Fatalf("CreateExecution resume: unexpected error: %v", err)
+		}
+	}
+	if succeeded != 1 || rejected != 1 {
+		t.Fatalf("admission results: succeeded=%d rejected=%d; want one of each", succeeded, rejected)
+	}
+
+	var children int
+	if err := db.GetContext(ctx, &children, `SELECT COUNT(*) FROM executions WHERE resumed_from_id = ?`, sourceID.String()); err != nil {
+		t.Fatalf("count resume children: %v", err)
+	}
+	if children != 1 {
+		t.Fatalf("persisted resume children = %d, want exactly one", children)
+	}
+}
+
+func TestResumeAdmissionCanAdvanceAfterChildTerminates(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "resume", FolderPath: "/resume", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	sourceID := uuid.New()
+	if err := repo.CreateExecution(ctx, &ExecutionIndex{ID: sourceID, WorkflowID: workflowID, Status: ExecutionStatusFailed, StartedAt: time.Now().UTC()}); err != nil {
+		t.Fatalf("CreateExecution source: %v", err)
+	}
+	first := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusPending, StartedAt: time.Now().UTC(), ResumedFromID: &sourceID}
+	if err := repo.CreateExecution(ctx, first); err != nil {
+		t.Fatalf("CreateExecution first child: %v", err)
+	}
+	if err := repo.UpdateExecutionStatus(ctx, first.ID, ExecutionStatusFailed, nil, nil, time.Now().UTC()); err != nil {
+		t.Fatalf("finish first child: %v", err)
+	}
+	second := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusPending, StartedAt: time.Now().UTC(), ResumedFromID: &sourceID}
+	if err := repo.CreateExecution(ctx, second); err != nil {
+		t.Fatalf("CreateExecution retry child after terminal child: %v", err)
+	}
+}
+
+func TestResumeAdmissionBackfillsActiveChildClaims(t *testing.T) {
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	repo := NewRepository(db, logrus.New())
+	ctx := context.Background()
+	workflowID := uuid.New()
+	if err := repo.CreateWorkflow(ctx, &WorkflowIndex{ID: workflowID, Name: "resume", FolderPath: "/resume", Version: 1}); err != nil {
+		t.Fatalf("CreateWorkflow: %v", err)
+	}
+	sourceID := uuid.New()
+	if err := repo.CreateExecution(ctx, &ExecutionIndex{ID: sourceID, WorkflowID: workflowID, Status: ExecutionStatusFailed, StartedAt: time.Now().UTC()}); err != nil {
+		t.Fatalf("CreateExecution source: %v", err)
+	}
+	child := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusRunning, StartedAt: time.Now().UTC(), ResumedFromID: &sourceID}
+	if err := repo.CreateExecution(ctx, child); err != nil {
+		t.Fatalf("CreateExecution existing child: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DROP TABLE execution_resume_claims`); err != nil {
+		t.Fatalf("drop claim table to model pre-upgrade state: %v", err)
+	}
+	if err := db.EnsureSchemas(); err != nil {
+		t.Fatalf("EnsureSchemas upgrade: %v", err)
+	}
+	competing := &ExecutionIndex{ID: uuid.New(), WorkflowID: workflowID, Status: ExecutionStatusPending, StartedAt: time.Now().UTC(), ResumedFromID: &sourceID}
+	if err := repo.CreateExecution(ctx, competing); !errors.Is(err, ErrResumeAlreadyActive) {
+		t.Fatalf("CreateExecution competing child = %v, want active-resume rejection", err)
+	}
+	var childCount int
+	if err := db.GetContext(ctx, &childCount, `SELECT COUNT(*) FROM executions WHERE resumed_from_id = ?`, sourceID.String()); err != nil {
+		t.Fatalf("count resume children: %v", err)
+	}
+	if childCount != 1 {
+		t.Fatalf("persisted resume children = %d, want exactly one after schema upgrade", childCount)
 	}
 }
 

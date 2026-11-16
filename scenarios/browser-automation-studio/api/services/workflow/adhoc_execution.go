@@ -175,6 +175,10 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 	baseBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
 	// Then merge with execution-level overrides (highest priority)
 	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
+	hold, err := s.reserveExecution(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	execIndex := &database.ExecutionIndex{
 		ID:          executionID,
@@ -190,7 +194,11 @@ func (s *WorkflowService) ExecuteAdhocWorkflowAPIWithOptions(ctx context.Context
 		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_API,
 		Parameters:      req.Parameters,
 	}); err != nil {
+		s.releaseExecutionHold(ctx, hold)
 		return nil, fmt.Errorf("create execution: %w", err)
+	}
+	if err := s.commitExecutionHold(ctx, hold, executionID); err != nil {
+		return nil, fmt.Errorf("commit workflow execution quota: %w", err)
 	}
 
 	// Use the standard async runner so status polling, stop requests, and result indexing work.

@@ -257,6 +257,7 @@ export class SessionManager {
       const browser = await this.browserManager.getBrowser();
       return await capture(browser);
     } finally {
+      this.browserManager.markPoolUsedNow();
       this.reservedSessionStarts--;
     }
   }
@@ -1015,6 +1016,7 @@ export class SessionManager {
     ) {
       throw new SessionNotFoundError(sessionId);
     }
+    session.lastUsedAt = new Date();
     return session;
   }
 
@@ -1090,19 +1092,32 @@ export class SessionManager {
   }
 
   // Recovery-only path; normal callers must continue to use the lease guard.
-  async forceCloseSession(sessionId: string): Promise<SessionCloseResult> {
+  async forceCloseSession(
+    sessionId: string,
+    expectedOwnerExecutionId: string,
+    expectedLeaseId: string
+  ): Promise<SessionCloseResult> {
+    const session = this.sessions.get(sessionId) ?? this.closingSessions.get(sessionId)?.session;
+    if (
+      !session ||
+      session.ownerExecutionId !== expectedOwnerExecutionId ||
+      session.leaseId !== expectedLeaseId
+    ) {
+      // The observation may have gone stale while a session was released and
+      // reused. Treat that as not found so a recovery pass cannot close a new
+      // owner's browser context.
+      throw new SessionNotFoundError(sessionId);
+    }
     return this.closeSession(sessionId);
   }
 
-  /**
-   * Export cookies, localStorage and IndexedDB authentication state for a session.
-   */
-  async getStorageState(
-    sessionId: string
+  /** Export browser credentials only for the active execution lease. */
+  async getStorageStateForLease(
+    sessionId: string,
+    executionId: string,
+    leaseId: string
   ): Promise<Awaited<ReturnType<BrowserContext['storageState']>>> {
-    // Exporting storage is an operation on the session, not observation. Keep
-    // the idle lease alive while the caller is actively using it.
-    const session = this.getSession(sessionId);
+    const session = this.getSessionForLease(sessionId, executionId, leaseId);
     return session.context.storageState({ indexedDB: true });
   }
 
@@ -1294,6 +1309,7 @@ export class SessionManager {
         // before releasing the session lease.
         const videoPaths = await teardownSessionResources(session);
         this.sessions.delete(sessionId);
+        this.browserManager.markPoolUsedNow();
         metrics.sessionDuration.observe(Date.now() - startTime);
         logger.info(scopedLog(LogContext.SESSION, 'closed'), {
           sessionId,
@@ -1335,6 +1351,7 @@ export class SessionManager {
    * The session manager owns idle classification and close retry ownership.
    */
   async cleanupIdleSessions(): Promise<void> {
+    this.browserManager.updatePoolMetrics();
     const idleSessions = findIdleSessions(this.sessions, this.config.session.idleTimeoutMs);
 
     if (idleSessions.length > 0) {
@@ -1347,6 +1364,14 @@ export class SessionManager {
       metrics.sessionCount.set({ state: 'idle' }, 0);
       if (failures.length) throw new AggregateError(failures, 'Idle session cleanup incomplete');
     }
+    // A start may have borrowed a pooled browser but not created its context
+    // yet. Keep the pool while a session or reserved operation owns that
+    // startup window; contexts alone cannot represent this transient lease.
+    if (this.sessions.size > 0 || this.reservedSessionStarts > 0) return;
+    // Session cleanup owns the idle boundary. BrowserPool closes a process
+    // only after every Playwright context is gone and the browser itself has
+    // remained unused for the same interval; it never interrupts live work.
+    await this.browserManager.recycleIdleBrowsers(this.config.session.idleTimeoutMs);
   }
 
   /**

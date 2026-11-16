@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
+	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
@@ -13,12 +13,17 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/consumeridentity"
 	"github.com/vrooli/browser-automation-studio/config"
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // createTestService creates a service instance for testing.
 func createTestService(t *testing.T) *Service {
 	t.Helper()
+	// Lease-store tests must not write synthetic accounts to the user's global
+	// application data directory.
+	t.Setenv("APP_DATA_DIR", t.TempDir())
 
 	log := logrus.New()
 	log.SetLevel(logrus.ErrorLevel)
@@ -39,7 +44,7 @@ func signedLeaseFixture(t *testing.T, identity, tier string) (string, []byte) {
 		t.Fatal(err)
 	}
 	const keyID = "test-lease-key"
-	payload := entitlementclient.Payload{UserIdentity: identity, Status: "active", PlanTier: tier, Credits: map[string]any{"balance_credits": float64(41)}, NotAfter: time.Now().Add(time.Hour)}
+	payload := entitlementclient.Payload{UserIdentity: identity, Status: "active", PlanTier: tier, Features: []string{FeatureAI}, Limits: []entitlementclient.Limit{{Key: "workflow_executions", Value: 10}}, Credits: map[string]any{"balance_credits": float64(41)}, NotAfter: time.Now().Add(time.Hour)}
 	lease, err := entitlementclient.Sign(payload, keyID, key)
 	if err != nil {
 		t.Fatal(err)
@@ -72,12 +77,71 @@ func TestGetEntitlementBindsAuthorityQueryAndResponseIdentity(t *testing.T) {
 	svc.cfg.ServiceURL = server.URL
 	svc.httpClient = server.Client()
 
-	ent, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), " Alice@Example.com ")
+	ent, err := svc.GetEntitlement(monetization.WithAccessToken(context.Background(), "opaque-access"), " Alice@Example.com ")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ent.UserIdentity != "alice@example.com" || ent.Tier != "pro" || ent.Credits != 41 {
 		t.Fatalf("entitlement = %#v", ent)
+	}
+}
+
+func TestReserveWorkflowExecutionUsesAuthenticatedLPBSUsageAndSignedLimit(t *testing.T) {
+	lease, jwks := signedLeaseFixture(t, "alice@example.com", "pro")
+	used := int64(9)
+	pending := int64(0)
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/jwks.json":
+			w.Write(jwks)
+		case "/api/v1/entitlements":
+			if r.URL.Query().Get("user") != "alice@example.com" || r.Header.Get("Authorization") != "Bearer opaque-access" {
+				t.Fatalf("entitlement request identity/token mismatch: %s", r.URL.String())
+			}
+			w.Write([]byte(`{"lease":"` + lease + `"}`))
+		case "/api/v1/usage/reservations":
+			if r.Header.Get("Authorization") != "Bearer opaque-access" {
+				t.Fatalf("reservation request token mismatch: %s", r.URL.String())
+			}
+			var body struct {
+				LimitKey string `json:"limit_key"`
+				Amount   int64  `json:"amount"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.LimitKey != "workflow_executions" || body.Amount != 1 {
+				t.Fatalf("reservation request = %+v, err=%v", body, err)
+			}
+			if used+pending+body.Amount > 10 {
+				http.Error(w, "quota limit exceeded", http.StatusPaymentRequired)
+				return
+			}
+			pending += body.Amount
+			_, _ = w.Write([]byte(`{"reservation_id":"hold-1"}`))
+		case "/api/v1/usage/reservations/hold-1/finalize":
+			pending--
+			used++
+			w.WriteHeader(http.StatusNoContent)
+		case "/api/v1/usage/reservations/hold-1/release":
+			pending--
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected request path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	svc := createTestService(t)
+	svc.cfg.ServiceURL = server.URL
+	svc.httpClient = server.Client()
+	ctx := monetization.WithAccessToken(context.Background(), "opaque-access")
+	hold, err := svc.ReserveWorkflowExecution(ctx, "alice@example.com")
+	if err != nil {
+		t.Fatalf("reserve below limit: %v", err)
+	}
+	if err := hold.Commit(ctx, 1); err != nil {
+		t.Fatalf("commit accepted execution: %v", err)
+	}
+	used = 10
+	if _, err := svc.ReserveWorkflowExecution(ctx, "alice@example.com"); err == nil {
+		t.Fatal("execution at signed limit was admitted")
 	}
 }
 
@@ -95,7 +159,7 @@ func TestGetEntitlementRejectsAuthorityIdentityMismatchWithoutCredits(t *testing
 	svc.cfg.ServiceURL = server.URL
 	svc.httpClient = server.Client()
 
-	_, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
+	_, err := svc.GetEntitlement(monetization.WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
 	if err == nil || !strings.Contains(err.Error(), "unauthorized") {
 		t.Fatalf("mismatch error = %v", err)
 	}
@@ -110,9 +174,57 @@ func TestGetEntitlementRejectsAuthorityResponseWithoutIdentity(t *testing.T) {
 	svc.cfg.ServiceURL = server.URL
 	svc.httpClient = server.Client()
 
-	_, err := svc.GetEntitlement(WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
+	_, err := svc.GetEntitlement(monetization.WithAccessToken(context.Background(), "opaque-access"), "alice@example.com")
 	if err == nil || !strings.Contains(err.Error(), "malformed lease response") {
 		t.Fatalf("missing identity error = %v", err)
+	}
+}
+
+type testIssuerKeyStore struct{ jwks []byte }
+
+func (s *testIssuerKeyStore) Load(context.Context, string) ([]byte, error) {
+	return append([]byte(nil), s.jwks...), nil
+}
+
+func (s *testIssuerKeyStore) Save(_ context.Context, _ string, jwks []byte) error {
+	s.jwks = append([]byte(nil), jwks...)
+	return nil
+}
+
+func TestSignedLeaseSurvivesBASServiceReloadAndOfflineRestart(t *testing.T) {
+	appData := t.TempDir()
+	t.Setenv("APP_DATA_DIR", appData)
+	lease, jwks := signedLeaseFixture(t, "alice@example.com", "pro")
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/jwks.json" {
+			_, _ = w.Write(jwks)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"lease":"` + lease + `"}`))
+	}))
+	configCfg := config.EntitlementConfig{RequestTimeout: time.Second, ServiceURL: server.URL}
+	trust := &testIssuerKeyStore{}
+	first := NewService(configCfg, logrus.New())
+	first.httpClient = server.Client()
+	first.gate.Entitlements.HTTPClient = first.httpClient
+	first.gate.Entitlements.SetIssuerKeyStore(trust)
+	if _, err := first.GetEntitlement(monetization.WithAccessToken(context.Background(), "session"), "alice@example.com"); err != nil {
+		t.Fatal(err)
+	}
+	if !first.CanUseFeatureOffline("alice@example.com", FeatureAI, 0) {
+		t.Fatal("fresh signed lease did not grant its feature")
+	}
+
+	server.Close()
+	restarted := NewService(configCfg, logrus.New())
+	restarted.httpClient = server.Client()
+	restarted.gate.Entitlements.SetIssuerKeyStore(trust)
+	if !restarted.CanUseFeatureOffline("alice@example.com", FeatureAI, 0) {
+		t.Fatal("persisted signed lease was not reloaded for offline use after service restart")
+	}
+	if restarted.CanUseFeatureOffline("alice@example.com", "unpublished-feature", 0) {
+		t.Fatal("offline restart granted a feature absent from the signed lease")
 	}
 }
 
@@ -162,132 +274,18 @@ func TestEntitlement_IsExpired(t *testing.T) {
 
 func TestEntitlement_HasFeature(t *testing.T) {
 	ent := &Entitlement{
-		Features: []string{"ai", "recording", "export"},
+		Features:        []string{"ai", "recording", "export"},
+		AppEntitlements: []entitlementclient.AppEntitlement{{AppKey: "browser-automation-studio", Status: "active", Features: []string{"ai", "recording", "export"}}},
 	}
 
-	if !ent.HasFeature("ai") {
+	if !ent.HasFeatureForApp("browser-automation-studio", "ai") {
 		t.Error("expected HasFeature('ai') to be true")
 	}
-	if !ent.HasFeature("recording") {
+	if !ent.HasFeatureForApp("browser-automation-studio", "recording") {
 		t.Error("expected HasFeature('recording') to be true")
 	}
-	if ent.HasFeature("premium") {
+	if ent.HasFeatureForApp("browser-automation-studio", "premium") {
 		t.Error("expected HasFeature('premium') to be false")
-	}
-}
-
-// ============================================================================
-// Feature-Aware Method Tests (GAP-004)
-// ============================================================================
-
-func TestCanUseAIWithEntitlement_FeaturesArray_HasAI(t *testing.T) {
-	svc := createTestService(t)
-
-	// Entitlement with AI feature in features array (free tier normally can't use AI)
-	ent := &Entitlement{
-		Tier:     "free",
-		Features: []string{FeatureAI},
-	}
-
-	// Features array is authoritative - should allow AI despite free tier
-	if !svc.CanUseAIWithEntitlement(ent) {
-		t.Error("expected CanUseAIWithEntitlement to return true when features array contains AI")
-	}
-}
-
-func TestCanUseAIWithEntitlement_FeaturesArray_NoAI(t *testing.T) {
-	svc := createTestService(t)
-
-	// Entitlement without AI feature (pro tier normally can use AI)
-	ent := &Entitlement{
-		Tier:     "pro",
-		Features: []string{FeatureRecording, FeatureWatermarkFree}, // No AI
-	}
-
-	// Features array is authoritative - should deny AI despite pro tier
-	if svc.CanUseAIWithEntitlement(ent) {
-		t.Error("expected CanUseAIWithEntitlement to return false when features array doesn't contain AI")
-	}
-}
-
-func TestCanUseAIWithEntitlement_NilEntitlement(t *testing.T) {
-	svc := createTestService(t)
-
-	if svc.CanUseAIWithEntitlement(nil) {
-		t.Error("expected CanUseAIWithEntitlement to return false for nil entitlement")
-	}
-}
-
-func TestCanUseRecordingWithEntitlement_FeaturesArray_HasRecording(t *testing.T) {
-	svc := createTestService(t)
-
-	// Solo tier normally can't use recording, but features array grants it
-	ent := &Entitlement{
-		Tier:     "solo",
-		Features: []string{FeatureRecording},
-	}
-
-	if !svc.CanUseRecordingWithEntitlement(ent) {
-		t.Error("expected CanUseRecordingWithEntitlement to return true when features array contains recording")
-	}
-}
-
-func TestCanUseRecordingWithEntitlement_FeaturesArray_NoRecording(t *testing.T) {
-	svc := createTestService(t)
-
-	// Pro tier normally can use recording, but features array denies it
-	ent := &Entitlement{
-		Tier:     "pro",
-		Features: []string{FeatureAI}, // No recording
-	}
-
-	if svc.CanUseRecordingWithEntitlement(ent) {
-		t.Error("expected CanUseRecordingWithEntitlement to return false when features array doesn't contain recording")
-	}
-}
-
-func TestCanUseRecordingWithEntitlement_NilEntitlement(t *testing.T) {
-	svc := createTestService(t)
-
-	if svc.CanUseRecordingWithEntitlement(nil) {
-		t.Error("expected CanUseRecordingWithEntitlement to return false for nil entitlement")
-	}
-}
-
-func TestRequiresWatermarkWithEntitlement_FeaturesArray_WatermarkFree(t *testing.T) {
-	svc := createTestService(t)
-
-	// Free tier normally requires watermark, but features array grants watermark-free
-	ent := &Entitlement{
-		Tier:     "free",
-		Features: []string{FeatureWatermarkFree},
-	}
-
-	if svc.RequiresWatermarkWithEntitlement(ent) {
-		t.Error("expected RequiresWatermarkWithEntitlement to return false when features array contains watermark_free")
-	}
-}
-
-func TestRequiresWatermarkWithEntitlement_FeaturesArray_NoWatermarkFree(t *testing.T) {
-	svc := createTestService(t)
-
-	// Pro tier normally doesn't require watermark, but features array doesn't grant watermark-free
-	ent := &Entitlement{
-		Tier:     "pro",
-		Features: []string{FeatureAI, FeatureRecording}, // No watermark_free
-	}
-
-	if !svc.RequiresWatermarkWithEntitlement(ent) {
-		t.Error("expected RequiresWatermarkWithEntitlement to return true when features array doesn't contain watermark_free")
-	}
-}
-
-func TestRequiresWatermarkWithEntitlement_NilEntitlement(t *testing.T) {
-	svc := createTestService(t)
-
-	// Nil entitlement should fail safe - require watermark
-	if !svc.RequiresWatermarkWithEntitlement(nil) {
-		t.Error("expected RequiresWatermarkWithEntitlement to return true (require watermark) for nil entitlement")
 	}
 }
 

@@ -73,7 +73,7 @@ func TestUXCaptureCommandCallsTheVersionedEndpointOnce(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"bundle_dir":"/x","manifest":{}}`))
+		_, _ = w.Write([]byte(`{"manifest":{}}`))
 	}))
 	t.Cleanup(server.Close)
 	t.Setenv("BAS_UXCAPTURE_CLI_TEST_CONFIG", t.TempDir())

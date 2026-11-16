@@ -10,13 +10,15 @@ import (
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai/aiconnect"
 
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
-	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/vision"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // ---- Test doubles --------------------------------------------------------
@@ -30,6 +32,7 @@ type fakeNavigator struct {
 	description        string
 	navigateID         string
 	navigateErr        error
+	lastRequest        vision.NavigationRequest
 }
 
 type fakeHandle struct {
@@ -43,7 +46,8 @@ func (h *fakeHandle) Wait(context.Context) error      { return nil }
 func (h *fakeHandle) Abort(context.Context) error     { return nil }
 func (h *fakeHandle) Resume(context.Context) error    { return nil }
 
-func (f *fakeNavigator) Navigate(_ context.Context, _ vision.NavigationRequest) (vision.NavigationHandle, error) {
+func (f *fakeNavigator) Navigate(_ context.Context, req vision.NavigationRequest) (vision.NavigationHandle, error) {
+	f.lastRequest = req
 	if f.navigateErr != nil {
 		return nil, f.navigateErr
 	}
@@ -80,51 +84,6 @@ func (f *fakeTracker) AbortNavigation(_ context.Context, navigationID string) er
 func (f *fakeTracker) ResumeNavigation(_ context.Context, navigationID string) error {
 	f.lastResume = navigationID
 	return f.resumeErr
-}
-
-// stubCredits implements just enough of credits.CreditService for the
-// handler's CanPerformAIOperation path. All other methods are unreachable
-// in these tests and panic to surface accidental call sites loudly.
-type stubCredits struct {
-	canPerform bool
-	errCode    string
-	errMsg     string
-	remaining  int
-	err        error
-	called     bool
-}
-
-func (s *stubCredits) CanPerformAIOperation(_ context.Context, _ string, _ credits.OperationType, _ bool) (bool, string, string, int, error) {
-	s.called = true
-	return s.canPerform, s.errCode, s.errMsg, s.remaining, s.err
-}
-
-func (*stubCredits) CanCharge(context.Context, string, credits.OperationType) (bool, int, error) {
-	panic("unused")
-}
-
-func (*stubCredits) Charge(context.Context, credits.ChargeRequest) (*credits.ChargeResult, error) {
-	panic("unused")
-}
-
-func (*stubCredits) ChargeIfAllowed(context.Context, credits.ChargeRequest) (*credits.ChargeResult, error) {
-	panic("unused")
-}
-
-func (*stubCredits) GetUsage(context.Context, string) (*credits.UsageSummary, error) {
-	panic("unused")
-}
-func (*stubCredits) GetOperationCost(credits.OperationType) int { panic("unused") }
-func (*stubCredits) LogFailedOperation(context.Context, credits.ChargeRequest, error) error {
-	panic("unused")
-}
-
-func (*stubCredits) GetUsageHistory(context.Context, string, int, int) ([]credits.UsageSummary, bool, error) {
-	panic("unused")
-}
-
-func (*stubCredits) GetOperationLog(context.Context, string, string, string, int, int) (*credits.OperationLogPage, error) {
-	panic("unused")
 }
 
 // ---- Helpers -------------------------------------------------------------
@@ -261,32 +220,85 @@ func TestStartNavigation_NoNavigatorsAvailable(t *testing.T) {
 	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err))
 }
 
-func TestStartNavigation_CreditExhaustionMapsToResourceExhausted(t *testing.T) {
+func TestStartNavigation_DelegatesBillingAndCarriesStableGatewayRoot(t *testing.T) {
 	nav := &fakeNavigator{
 		navType:            vision.NavigatorPlaywright,
 		available:          true,
 		clientSourcePolicy: vision.AllSourcesPolicy(),
 		creditPolicy: vision.CreditPolicy{
 			RequiresCredits: true,
-			OperationType:   credits.OpAIVisionNavigate,
 		},
 		navigateID: "nav-1",
 	}
-	creds := &stubCredits{
-		canPerform: false,
-		errCode:    "INSUFFICIENT_CREDITS",
-		errMsg:     "out of credits",
-	}
-	client := newTestClient(t, Deps{Registry: newTestRegistry(t, nav), Credits: creds})
+	client := newTestClient(t, Deps{Registry: newTestRegistry(t, nav)})
 
-	_, err := client.StartNavigation(context.Background(), connect.NewRequest(&aiv1.StartNavigationRequest{
+	req := connect.NewRequest(&aiv1.StartNavigationRequest{
 		SessionId: "sess-1",
 		Prompt:    "x",
 		Model:     "gpt-4o",
-	}))
-	require.Error(t, err)
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
-	require.True(t, creds.called)
+	})
+	req.Header().Set("Idempotency-Key", "stable retry key")
+	resp, err := client.StartNavigation(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, "local", nav.lastRequest.AISource)
+	require.Len(t, nav.lastRequest.RootOperationID, 64)
+	require.NotContains(t, nav.lastRequest.RootOperationID, "stable retry key")
+	require.Equal(t, nav.lastRequest.RootOperationID, resp.Header().Get("X-Vrooli-Root-Operation-ID"))
+}
+
+func TestNavigationAISourceRequiresSharedAuthorityForAccountBackedModes(t *testing.T) {
+	source, token, err := navigationAISource(context.Background(), false)
+	require.NoError(t, err)
+	require.Equal(t, "local", source)
+	require.Empty(t, token)
+
+	byok := middleware.WithOwnKeySourceHint(context.Background(), true)
+	_, _, err = navigationAISource(byok, false)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+
+	byok = middleware.WithOwnKeySourceHint(monetization.WithAccessToken(context.Background(), "signed-session"), true)
+	source, token, err = navigationAISource(byok, false)
+	require.NoError(t, err)
+	require.Equal(t, "own-key", source)
+	require.Equal(t, "signed-session", token)
+	source, token, err = navigationAISource(monetization.WithAccessToken(context.Background(), "signed-session"), true)
+	require.NoError(t, err)
+	require.Equal(t, "own-key", source, "a stored credential authority key preserves the saved-key route")
+	require.Equal(t, "signed-session", token)
+
+	credits := monetization.WithAccessToken(context.Background(), "signed-session")
+	_, _, err = navigationAISource(credits, false)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "missing verified feature snapshot must fail closed")
+	credits = monetization.WithSnapshot(credits, &monetization.Snapshot{Features: []string{entitlement.FeatureAI}})
+	source, token, err = navigationAISource(credits, false)
+	require.NoError(t, err)
+	require.Equal(t, "vrooli-credits", source)
+	require.Equal(t, "signed-session", token)
+}
+
+func TestStartNavigationCarriesGatewayConsentAndSignedSession(t *testing.T) {
+	nav := &fakeNavigator{
+		navType:            vision.NavigatorPlaywright,
+		available:          true,
+		clientSourcePolicy: vision.AllSourcesPolicy(),
+		navigateID:         "nav-consent",
+	}
+	logger := logrus.New()
+	logger.SetOutput(testWriter{t})
+	svc := &service{deps: Deps{Logger: logger, Registry: newTestRegistry(t, nav), CallbackBase: "http://127.0.0.1:8080"}}
+	ctx := monetization.WithAccessToken(context.Background(), "verified-session-token")
+	ctx = monetization.WithSnapshot(ctx, &monetization.Snapshot{Features: []string{entitlement.FeatureAI}})
+	req := connect.NewRequest(&aiv1.StartNavigationRequest{
+		SessionId: "sess-1", Prompt: "inspect this page", Model: "remote_only",
+	})
+	req.Header().Set("X-Vrooli-AI-Consent-Grant", "opaque-source-bound-receipt")
+	req.Header().Set("Idempotency-Key", "vision-call-1")
+	response, err := svc.StartNavigation(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, "vrooli-credits", nav.lastRequest.AISource)
+	require.Equal(t, "verified-session-token", nav.lastRequest.AccessToken)
+	require.Equal(t, "opaque-source-bound-receipt", nav.lastRequest.PrivacyConsentGrant)
+	require.Equal(t, nav.lastRequest.RootOperationID, response.Header().Get("X-Vrooli-Root-Operation-ID"))
 }
 
 func TestStartNavigation_NavigateFailureMapsToUnavailable(t *testing.T) {

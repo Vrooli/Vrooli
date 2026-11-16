@@ -208,27 +208,33 @@ func TestService_GetOrCreateProfile_NotFound(t *testing.T) {
 	}
 }
 
-func TestService_RenameProfile(t *testing.T) {
-	svc, _, mockClock := newTestService(t)
-
-	// Create a profile
-	created, _ := svc.CreateProfile("Original")
-	originalUpdatedAt := created.UpdatedAt
-
-	// Advance clock
-	mockClock.Advance(time.Hour)
-
-	// Rename it
-	renamed, err := svc.RenameProfile(created.ID, "New Name")
+func TestService_UpdateProfileSettingsIsValidatedAndAtomic(t *testing.T) {
+	svc, _, _ := newTestService(t)
+	created, err := svc.CreateProfile("Alpha")
 	if err != nil {
-		t.Fatalf("RenameProfile failed: %v", err)
+		t.Fatal(err)
 	}
 
-	if renamed.Name != "New Name" {
-		t.Errorf("expected name 'New Name', got '%s'", renamed.Name)
+	name := "Renamed"
+	invalid := &persistence.BrowserProfile{Preset: "made-up"}
+	if _, err := svc.UpdateProfileSettings(created.ID, &name, invalid); err == nil {
+		t.Fatal("expected invalid browser profile to reject combined update")
 	}
-	if renamed.UpdatedAt.Equal(originalUpdatedAt) {
-		t.Error("expected UpdatedAt to be updated")
+	unchanged, err := svc.GetProfile(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.Name != "Alpha" || unchanged.BrowserProfile != nil {
+		t.Fatalf("invalid combined update partially committed: %+v", unchanged)
+	}
+
+	valid := &persistence.BrowserProfile{Preset: "stealth"}
+	updated, err := svc.UpdateProfileSettings(created.ID, &name, valid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Name != "Renamed" || updated.BrowserProfile == nil || updated.BrowserProfile.Preset != "stealth" {
+		t.Fatalf("valid combined update did not commit both fields: %+v", updated)
 	}
 }
 
@@ -930,9 +936,10 @@ func TestService_SaveOpenTabs(t *testing.T) {
 
 	created, _ := svc.CreateProfile("Test")
 
+	rootOrder := 0
 	tabs := []persistence.TabState{
 		{URL: "https://example.com", Title: "Example", IsActive: true, Order: 0},
-		{URL: "https://test.com", Title: "Test", Order: 1},
+		{URL: "https://test.com", Title: "Test", Order: 1, OpenerOrder: &rootOrder},
 	}
 
 	updated, err := svc.SaveOpenTabs(created.ID, tabs)
@@ -942,6 +949,9 @@ func TestService_SaveOpenTabs(t *testing.T) {
 
 	if len(updated.OpenTabs) != 2 {
 		t.Errorf("expected 2 tabs, got %d", len(updated.OpenTabs))
+	}
+	if updated.OpenTabs[1].OpenerOrder == nil || *updated.OpenTabs[1].OpenerOrder != 0 {
+		t.Errorf("popup opener relation was not preserved: %+v", updated.OpenTabs[1])
 	}
 }
 

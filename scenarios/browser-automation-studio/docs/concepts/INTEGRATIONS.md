@@ -1,6 +1,5 @@
 # Integrations
 
-## Purpose Of This Document
 
 List external and Vrooli-managed dependencies at the ownership boundary.
 

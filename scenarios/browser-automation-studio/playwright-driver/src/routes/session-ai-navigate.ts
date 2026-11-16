@@ -42,12 +42,21 @@ import {
   type NavigationStep,
   type VisionAgentDeps,
 } from '../ai/vision-agent';
-import { createVisionClient, isModelSupported, getSupportedModelIds } from '../ai/vision-client/factory';
+import {
+  createVisionClient,
+  isModelSupported,
+  getSupportedModelIds,
+} from '../ai/vision-client/factory';
 import { createScreenshotCapture, createElementAnnotator } from '../ai/screenshot';
 import { createActionExecutor } from '../ai/action';
-import { createCallbackEmitter, emitNavigationComplete, type NavigationCompleteEvent } from '../ai/emitter';
+import {
+  createCallbackEmitter,
+  emitNavigationComplete,
+  type NavigationCompleteEvent,
+} from '../ai/emitter';
 import { BEHAVIOR_SETTINGS_KEY } from '../browser-profile';
 import type { BehaviorSettings } from '../types/browser-profile';
+import { requireSessionLease } from './session-lease';
 
 /**
  * Request body for AI navigation.
@@ -60,6 +69,9 @@ interface AINavigateRequest {
   effect_policy?: NavigationConfig['effectPolicy'];
   postconditions?: NavigationConfig['postconditions'];
   extraction?: NavigationConfig['extraction'];
+  root_operation_id: string;
+  ai_source: 'local' | 'own-key' | 'vrooli-credits';
+  privacy_consent_grant?: string;
 }
 
 /**
@@ -75,11 +87,14 @@ interface AINavigateResponse {
 /**
  * Track active navigations per session (to support abort).
  */
-const activeNavigations = new Map<string, {
-  agent: ReturnType<typeof createVisionAgent>;
-  navigationId: string;
-  settled: Promise<unknown>;
-}>();
+const activeNavigations = new Map<
+  string,
+  {
+    agent: ReturnType<typeof createVisionAgent>;
+    navigationId: string;
+    settled: Promise<unknown>;
+  }
+>();
 const AI_GATEWAY_TIMEOUT_MS = 120000;
 
 /**
@@ -94,18 +109,17 @@ export async function handleSessionAINavigate(
   sessionManager: SessionManager,
   _config: Config
 ): Promise<void> {
-  // Validate session exists
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    sendError(res, new Error(`Session not found: ${sessionId}`), '/session/:id/ai-navigate');
-    return;
-  }
+  const owner = requireSessionLease(req, res, sessionId, sessionManager);
+  if (!owner) return;
+  const session = owner.session;
 
   // Check session phase
   if (session.phase !== 'ready' && session.phase !== 'recording') {
     sendError(
       res,
-      new Error(`Session is in ${session.phase} phase. AI navigation requires 'ready' or 'recording' phase.`),
+      new Error(
+        `Session is in ${session.phase} phase. AI navigation requires 'ready' or 'recording' phase.`
+      ),
       '/session/:id/ai-navigate'
     );
     return;
@@ -134,7 +148,10 @@ export async function handleSessionAINavigate(
 
   // Validate required fields
   if (!body.prompt || typeof body.prompt !== 'string') {
-    sendJson(res, 400, { error: 'bad_request', message: 'prompt is required and must be a string' });
+    sendJson(res, 400, {
+      error: 'bad_request',
+      message: 'prompt is required and must be a string',
+    });
     return;
   }
   if (!body.model || typeof body.model !== 'string') {
@@ -142,7 +159,35 @@ export async function handleSessionAINavigate(
     return;
   }
   if (!body.callback_url || typeof body.callback_url !== 'string') {
-    sendJson(res, 400, { error: 'bad_request', message: 'callback_url is required and must be a string' });
+    sendJson(res, 400, {
+      error: 'bad_request',
+      message: 'callback_url is required and must be a string',
+    });
+    return;
+  }
+  if (!/^[a-f0-9]{32,128}$/i.test(body.root_operation_id ?? '')) {
+    sendJson(res, 400, {
+      error: 'bad_request',
+      message: 'root_operation_id must be 32-128 hexadecimal characters',
+    });
+    return;
+  }
+  if (!['local', 'own-key', 'vrooli-credits'].includes(body.ai_source)) {
+    sendJson(res, 400, { error: 'bad_request', message: 'ai_source is unsupported' });
+    return;
+  }
+  if (body.ai_source !== 'local' && !req.headers.authorization?.startsWith('Bearer ')) {
+    sendJson(res, 401, {
+      error: 'unauthorized',
+      message: 'signed session authorization is required for account-backed AI',
+    });
+    return;
+  }
+  if (
+    body.privacy_consent_grant &&
+    (body.privacy_consent_grant.length > 16384 || /[\r\n]/.test(body.privacy_consent_grant))
+  ) {
+    sendJson(res, 400, { error: 'bad_request', message: 'privacy_consent_grant is invalid' });
     return;
   }
 
@@ -159,12 +204,18 @@ export async function handleSessionAINavigate(
 
   // Validate max_steps
   if (body.effect_policy && !['explicit', 'read_only'].includes(body.effect_policy)) {
-    sendJson(res, 400, {error: 'bad_request', message: 'Unsupported effect_policy'});
+    sendJson(res, 400, { error: 'bad_request', message: 'Unsupported effect_policy' });
     return;
   }
-  if ((body.postconditions && (!Array.isArray(body.postconditions) || body.postconditions.length > 16)) ||
-      (body.extraction && (!Array.isArray(body.extraction) || body.extraction.length > 16))) {
-    sendJson(res, 400, {error: 'bad_request', message: 'Task contract must contain bounded observation lists'});
+  if (
+    (body.postconditions &&
+      (!Array.isArray(body.postconditions) || body.postconditions.length > 16)) ||
+    (body.extraction && (!Array.isArray(body.extraction) || body.extraction.length > 16))
+  ) {
+    sendJson(res, 400, {
+      error: 'bad_request',
+      message: 'Task contract must contain bounded observation lists',
+    });
     return;
   }
   const maxSteps = body.max_steps ?? 20;
@@ -194,6 +245,9 @@ export async function handleSessionAINavigate(
       // models may need the full role window while loading a multimodal rung.
       timeoutMs: AI_GATEWAY_TIMEOUT_MS,
       maxRetries: 2,
+      authorization: body.ai_source === 'local' ? undefined : req.headers.authorization,
+      aiSource: body.ai_source,
+      privacyConsentGrant: body.privacy_consent_grant,
     });
   } catch (err) {
     sendJson(res, 400, {
@@ -207,7 +261,9 @@ export async function handleSessionAINavigate(
   const annotator = createElementAnnotator();
 
   // Get behavior settings from the session's browser context for human-like typing
-  type BehaviorContext = NonNullable<typeof session.context> & { [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings };
+  type BehaviorContext = NonNullable<typeof session.context> & {
+    [BEHAVIOR_SETTINGS_KEY]?: BehaviorSettings;
+  };
   const behaviorSettings = session.context
     ? (session.context as BehaviorContext)[BEHAVIOR_SETTINGS_KEY]
     : undefined;
@@ -240,6 +296,7 @@ export async function handleSessionAINavigate(
     model: body.model,
     callbackUrl: body.callback_url,
     navigationId,
+    rootOperationId: body.root_operation_id,
     onStep: (step: NavigationStep) => {
       // Additional step logging
       logger.debug('Navigation step completed', {
@@ -353,18 +410,13 @@ export async function handleSessionAINavigate(
  * Aborts in-progress AI navigation for the session.
  */
 export function handleSessionAINavigateAbort(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager,
   _config: Config
 ): void {
-  // Validate session exists
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    sendError(res, new Error(`Session not found: ${sessionId}`), '/session/:id/ai-navigate/abort');
-    return;
-  }
+  if (!requireSessionLease(req, res, sessionId, sessionManager)) return;
 
   // Check for active navigation
   const active = activeNavigations.get(sessionId);
@@ -397,18 +449,13 @@ export function handleSessionAINavigateAbort(
  * Resumes AI navigation after human intervention is complete.
  */
 export function handleSessionAINavigateResume(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager,
   _config: Config
 ): void {
-  // Validate session exists
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    sendError(res, new Error(`Session not found: ${sessionId}`), '/session/:id/ai-navigate/resume');
-    return;
-  }
+  if (!requireSessionLease(req, res, sessionId, sessionManager)) return;
 
   // Check for active navigation
   const active = activeNavigations.get(sessionId);
@@ -451,18 +498,15 @@ export function handleSessionAINavigateResume(
  * Returns status of AI navigation for the session.
  */
 export function handleSessionAINavigateStatus(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager,
   _config: Config
 ): void {
-  // Validate session exists
-  const session = sessionManager.getSession(sessionId);
-  if (!session) {
-    sendError(res, new Error(`Session not found: ${sessionId}`), '/session/:id/ai-navigate/status');
-    return;
-  }
+  const owner = requireSessionLease(req, res, sessionId, sessionManager);
+  if (!owner) return;
+  // Identity is verified before exposing navigation status.
 
   // Check for active navigation
   const active = activeNavigations.get(sessionId);
@@ -488,10 +532,7 @@ export function handleSessionAINavigateStatus(
  *
  * Returns list of supported vision models.
  */
-export function handleListAIModels(
-  _req: IncomingMessage,
-  res: ServerResponse
-): void {
+export function handleListAIModels(_req: IncomingMessage, res: ServerResponse): void {
   const models = getSupportedModelIds();
   sendJson(res, 200, {
     models,

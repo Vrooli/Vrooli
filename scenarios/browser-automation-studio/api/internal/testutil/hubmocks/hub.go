@@ -29,6 +29,12 @@ func New() *Hub {
 var _ ws.HubInterface = (*Hub)(nil)
 
 func (h *Hub) ServeWS(*websocket.Conn, *uuid.UUID) {}
+func (*Hub) IssueSessionStreamCookie(sessionID, _, _ string) (string, string, error) {
+	return ws.SessionStreamCookieName(sessionID), "test-stream-cookie", nil
+}
+func (*Hub) RevokeSessionStreamCookie(string)                      {}
+func (*Hub) ValidateSessionStreamCookie(_, value string) bool      { return value == "test-stream-cookie" }
+func (*Hub) ServeRecordingWS(*websocket.Conn, string, string) bool { return true }
 
 func (h *Hub) BroadcastEnvelope(event any) {
 	h.mu.Lock()

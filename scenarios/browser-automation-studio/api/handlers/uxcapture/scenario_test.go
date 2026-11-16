@@ -49,6 +49,9 @@ func TestScenarioCaptureResolvesRunningAppRootWithoutRoute(t *testing.T) {
 	if response.Code != 201 {
 		t.Fatalf("status = %d; body=%s", response.Code, response.Body.String())
 	}
+	if strings.Contains(response.Body.String(), "bundle_dir") {
+		t.Fatal("BAS response leaked its private bundle directory")
+	}
 	if client.request == nil || client.request.URL != "http://localhost:4321/" || client.request.Route != "/" {
 		t.Fatalf("scenario root was not resolved: %+v", client.request)
 	}

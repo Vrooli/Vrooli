@@ -13,9 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	uxsvc "github.com/vrooli/browser-automation-studio/services/uxmetrics"
 	"github.com/vrooli/browser-automation-studio/services/uxmetrics/contracts"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	uxmetricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/uxmetrics"
 	uxmetricsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/uxmetrics/uxmetricsconnect"
 )
@@ -229,10 +229,10 @@ func TestRequireProTierBlocksFreeTier(t *testing.T) {
 	mount := Module(Deps{Service: svc, Logger: logger})
 
 	// Wrap the mount handler in middleware that injects a Free-tier entitlement.
-	freeEnt := &entitlement.Entitlement{Tier: entitlement.TierFree}
+	freeEnt := &monetization.Snapshot{Tier: string(monetization.PlanFree)}
 	mux := http.NewServeMux()
 	mux.Handle(mount.Path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(entitlement.WithEntitlement(r.Context(), freeEnt))
+		r = r.WithContext(monetization.WithSnapshot(r.Context(), freeEnt))
 		mount.Handler.ServeHTTP(w, r)
 	}))
 	srv := testutil.StartHTTPServer(t, mux)

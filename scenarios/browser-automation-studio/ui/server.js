@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveUIDistDir } from './server-dist-path.js'
 import fs from 'node:fs'
 import zlib from 'node:zlib'
 import { startScenarioServer, injectBaseTag } from '@vrooli/api-base/server'
@@ -107,7 +108,7 @@ function enableGzipStatic(app, distDir) {
 }
 
 export function startServer() {
-  const distDir = path.join(__dirname, 'dist')
+  const distDir = resolveUIDistDir(process.env.BAS_UI_DIST_DIR, __dirname)
   ensureGzipAssetsSync(distDir)
 
   return startScenarioServer({
@@ -115,7 +116,7 @@ export function startServer() {
     apiPort: ensureApiPort(API_PORT),
     apiHost: API_HOST,
     wsHost: WS_HOST || API_HOST,
-    distDir: path.join(__dirname, 'dist'),
+    distDir,
     serviceName: SERVICE_NAME,
     version: VERSION,
     wsPathPrefix: '/ws',

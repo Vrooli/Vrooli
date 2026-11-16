@@ -1,6 +1,5 @@
 # Data
 
-## Purpose Of This Document
 
 Describe durable data ownership and evidence integrity.
 

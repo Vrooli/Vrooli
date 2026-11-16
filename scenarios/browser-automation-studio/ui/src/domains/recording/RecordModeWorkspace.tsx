@@ -33,6 +33,7 @@ import type { ReplayPreviewResponse, RecordedAction } from './types/types';
 import type { WorkflowSettingsTyped } from '@/types/workflow';
 import { SessionManager } from '@/views/SettingsView/sections/sessions/SessionManager/SessionManager';
 import { useRecordingSession } from './hooks/useRecordingSession';
+import { selectRecordedActions, selectedActionIndicesForIds } from './selectedActions';
 import { useSessionProfiles } from './hooks/useSessionProfiles';
 import { useBrowserNavigation } from './hooks/useBrowserNavigation';
 import { useSessionProfileSelection } from './hooks/useSessionProfileSelection';
@@ -262,7 +263,7 @@ export function RecordModeWorkspace({
     isSidebarOpen, setSidebarOpen, handleSidebarToggle, sidebarActiveTab, setSidebarTab,
     aiSettings, updateAISettings, aiMessages, aiSendMessage, aiAbortNavigation, aiResumeNavigation,
     aiClearConversation, aiIsNavigating, aiAvailableModels, aiHumanIntervention,
-    isRecording, isLoading, error, startRecording, clearActions, insertAction,
+    isRecording, isLoading, error, startRecording, stopRecording, clearActions, insertAction,
     generateWorkflow, validateSelector, replayPreview, isReplaying,
     lowConfidenceCount, mediumConfidenceCount, openPages, activePageId, switchToPage, closePage,
     createPage, isPagesLoading, recentActivityPageId, isTimelineLive,
@@ -271,7 +272,7 @@ export function RecordModeWorkspace({
     selectAll, selectNone, exitSelectionMode, handleDeleteAction, handleEditSelector, handleEditPayload,
   } = recordingMode;
   // Legacy form APIs consume indexes; resolve those indexes from canonical IDs at this boundary.
-  const selectedActionIndices = identifiedActions.flatMap((action, index) => selectedActionIds.includes(action.id) ? [index] : []);
+  const selectedActionIndices = selectedActionIndicesForIds(selectedActionIds, identifiedActions);
 
   const handleModeChange = useCallback((newMode: TimelineMode) => {
     if (newMode === mode) return;
@@ -552,16 +553,14 @@ export function RecordModeWorkspace({
   const handleTestSelectedActions = useCallback(
     async (actionIndices: number[]): Promise<ReplayPreviewResponse> => {
       const selected = mode === 'recording'
-        ? actionIndices
-          .map((index) => timelineDisplayItems[index]?.id)
-          .filter((id): id is string => Boolean(id))
-          .map((id) => identifiedActions.find((action) => action.id === id))
-          .filter((action): action is NonNullable<typeof action> => action !== undefined)
-        : [];
-      const actionsToReplay = selected.length > 0 ? selected : identifiedActions;
+        ? selectRecordedActions(actionIndices, identifiedActions)
+        : identifiedActions;
+      if (selected.length === 0) {
+        throw new Error('Select at least one recorded action to test.');
+      }
       const results = await replayPreview(
         { stopOnFailure: true },
-        actionsToReplay,
+        selected,
       );
       return results;
     },
@@ -637,13 +636,14 @@ export function RecordModeWorkspace({
             onWorkflowGenerated(workflowId, params.projectId);
           }
         } else {
-          // Inline mode: use existing generate workflow API
-          // TODO: API should support generating from subset of actions
-          // For now, generate from all actions
-          const selectedActions = mode === 'recording'
-            ? params.actionIndices.map((index) => identifiedActions[index]).filter((action): action is NonNullable<typeof action> => action !== undefined)
-            : [];
-          const actionsToGenerate = selectedActions.length > 0 ? selectedActions : identifiedActions;
+          // WorkflowCreationForm indices address identifiedActions; the form
+          // receives those indices after canonical timeline IDs are resolved.
+          const actionsToGenerate = mode === 'recording'
+            ? selectRecordedActions(params.actionIndices, identifiedActions)
+            : identifiedActions;
+          if (actionsToGenerate.length === 0) {
+            throw new Error('Select at least one recorded action to generate a workflow.');
+          }
           const resultPayload: unknown = await generateWorkflow(
             params.name,
             params.projectId,
@@ -664,7 +664,7 @@ export function RecordModeWorkspace({
         setIsGenerating(false);
       }
     },
-    [generateWorkflow, exitSelectionMode, identifiedActions, mode, onWorkflowGenerated]
+    [generateWorkflow, exitSelectionMode, identifiedActions, mode, onWorkflowGenerated, timelineDisplayItems]
   );
 
   const hasUnstableSelectors = lowConfidenceCount > 0 || mediumConfidenceCount > 0;
@@ -676,6 +676,11 @@ export function RecordModeWorkspace({
     <div className="flex flex-col h-full bg-flow-bg text-flow-text">
       <RecordingHeader
         isRecording={mode === 'recording' && isRecording}
+        onStartRecording={() => { void startRecording(); }}
+        canStartRecording={mode === 'recording' && !!sessionId && isInitialNavigationComplete}
+        isRecordingStarting={isLoading && !isRecording}
+        onStopRecording={() => { void stopRecording(); }}
+        isRecordingStopping={isLoading && isRecording}
         onClose={onClose}
         mode={mode}
         onModeChange={handleModeChange}

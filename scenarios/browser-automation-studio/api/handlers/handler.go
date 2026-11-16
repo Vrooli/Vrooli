@@ -132,9 +132,8 @@ type Handler struct {
 
 	// Credit service for unified usage tracking
 	creditService credits.CreditService
-
-	// AI client factory for per-request AI client creation
-	aiClientFactory *ai.AIClientFactory
+	// AI browser helpers share the canonical API session broker through one runner.
+	aiHelperRunner aihandlers.AutomationRunner
 }
 
 // recordingUploadLimitBytes returns the configured maximum upload size for recording archives.
@@ -173,7 +172,6 @@ type HandlerDeps struct {
 	UXMetricsRepo         uxmetrics.Repository              // Optional: enables UX metrics collection
 	EntitlementService    *entitlement.Service              // Optional: enables tier-based feature gating
 	CreditService         credits.CreditService             // Optional: enables unified credit tracking
-	AIClientFactory       *ai.AIClientFactory               // Optional: enables per-request AI client creation
 	NavigatorRegistry     *vision.NavigatorRegistry         // Optional: enables vision navigator selection
 	PlaywrightNavigator   *vision.PlaywrightVisionNavigator // Optional: direct reference to playwright navigator
 }
@@ -190,9 +188,7 @@ type DepsOptions struct {
 	UXMetricsRepo           uxmetrics.Repository
 	EntitlementService      *entitlement.Service
 	CreditService           credits.CreditService                 // Unified credit tracking
-	AIClientFactory         *ai.AIClientFactory                   // Per-request AI client creation
 	NavigatorRegistry       *vision.NavigatorRegistry             // Vision navigator selection
-	PlaywrightNavigator     *vision.PlaywrightVisionNavigator     // Direct reference to playwright navigator
 	UnifiedRecordingService *unifiedrecording.Service             // Timeline persistence for recorded actions
 	RecordingsRoot          executionwriter.RootProvider          // Request-aware execution artifact storage
 	ProjectRoot             func(context.Context) (string, error) // Request-aware project filesystem storage
@@ -257,20 +253,20 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 	}
 
 	// Create base AI client for workflow service
-	// Note: For credit-tracked AI operations, use AIClientFactory instead
-	var aiClient ai.AIClient = ai.NewOpenRouterClient(log)
+	// User-facing generation runs through the AI Gateway, which owns routing and metering.
+	var aiClient ai.AIClient = aihandlers.NewGatewayRolePromptClient()
 
 	// Create workflow service with dependencies
 	workflowSvc := workflow.NewWorkflowServiceWithDeps(repo, wsHub, log, workflow.WorkflowServiceOptions{
 		Executor:              autoExecutor,
 		EngineFactory:         autoEngineFactory,
-		SessionBroker:         sessionBroker,
 		ArtifactRecorder:      autoRecorder,
 		EventSinkFactory:      eventSinkFactory,
 		ExecutionDataRoot:     recordingsRoot,
 		ProjectRoot:           opts.ProjectRoot,
 		AIClient:              aiClient,
 		SessionProfileService: sessionProfileSvc,
+		ExecutionAdmission:    opts.EntitlementService,
 	})
 	// Declared-readiness settling for the opening navigation. Optional by
 	// design: if Experience Manager is unavailable every run falls back to
@@ -314,14 +310,12 @@ func InitDefaultDepsWithOptions(repo database.Repository, wsHub *wsHub.Hub, log 
 		RecordModeService:     recordModeSvc,
 		SessionBroker:         sessionBroker,
 		RecordingsRoot:        recordingsRoot,
-		ReplayRenderer:        render.NewReplayRenderer(log, recordingsRoot),
+		ReplayRenderer:        render.NewReplayRenderer(log, recordingsRoot, autoEngineFactory),
 		SessionProfileService: sessionProfileSvc,
 		UXMetricsRepo:         opts.UXMetricsRepo,
 		EntitlementService:    opts.EntitlementService,
 		CreditService:         opts.CreditService,
-		AIClientFactory:       opts.AIClientFactory,
 		NavigatorRegistry:     opts.NavigatorRegistry,
-		PlaywrightNavigator:   opts.PlaywrightNavigator,
 	}
 }
 
@@ -372,30 +366,21 @@ func NewHandlerWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log 
 		seedCleanupManager:    seedCleanupManager,
 		entitlementService:    deps.EntitlementService,
 		creditService:         deps.CreditService,
-		aiClientFactory:       deps.AIClientFactory,
 	}
 	handler.upgrader.CheckOrigin = handler.isOriginAllowed
 
-	// Initialize AI subhandlers with dependencies
-	modelClient := ai.NewOpenRouterClient(log)
-	handler.domHandler = aihandlers.NewDOMHandler(log)
-	handler.screenshotHandler = aihandlers.NewScreenshotHandler(log)
+	// These endpoints are ephemeral helpers, but their sessions still belong to
+	// the same broker that owns workflow and recording sessions. Sharing one
+	// runner avoids three private session managers while keeping each invocation
+	// isolated by its own execution/workflow IDs and request context.
+	aiHelpers, aiHelperRunner := newAIHelperHandlers(log, deps.SessionBroker)
+	handler.aiHelperRunner = aiHelperRunner
+	handler.domHandler = aiHelpers.DOM
+	handler.screenshotHandler = aiHelpers.Screenshot
 
-	// Initialize element analysis handler with optional credit service
-	elementAnalysisOpts := []aihandlers.ElementAnalysisOption{}
-	if deps.CreditService != nil {
-		elementAnalysisOpts = append(elementAnalysisOpts, aihandlers.WithElementAnalysisCreditService(deps.CreditService))
-	}
-	elementAnalysisOpts = append(elementAnalysisOpts, aihandlers.WithAIModelClient(modelClient))
-	handler.elementAnalysisHandler = aihandlers.NewElementAnalysisHandler(log, elementAnalysisOpts...)
-
-	// Initialize AI analysis handler with optional credit service
-	aiAnalysisOpts := []aihandlers.AIAnalysisOption{}
-	if deps.CreditService != nil {
-		aiAnalysisOpts = append(aiAnalysisOpts, aihandlers.WithAIAnalysisCreditService(deps.CreditService))
-	}
-	aiAnalysisOpts = append(aiAnalysisOpts, aihandlers.WithAIAnalysisModelClient(modelClient))
-	handler.aiAnalysisHandler = aihandlers.NewAIAnalysisHandler(log, handler.domHandler, aiAnalysisOpts...)
+	// AI Gateway owns provider routing and metering for these user-facing paths.
+	handler.elementAnalysisHandler = aiHelpers.ElementAnalysis
+	handler.aiAnalysisHandler = aiHelpers.AIAnalysis
 
 	// Initialize vision navigation callback handler. The user-facing
 	// vision-navigation surface is served via Connect-RPC by

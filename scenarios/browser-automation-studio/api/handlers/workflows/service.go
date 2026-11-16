@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
+	"net/http"
 	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 
+	contractvalues "github.com/vrooli/browser-automation-studio/automation/contracts"
 	autodriver "github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/credits"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -30,6 +31,29 @@ type service struct {
 }
 
 func (s *service) log() *logrus.Logger { return s.deps.Logger }
+
+func withGatewayOperationID(ctx context.Context, header http.Header) context.Context {
+	operationID := strings.TrimSpace(header.Get("X-Vrooli-Root-Operation-ID"))
+	if operationID == "" {
+		operationID = strings.TrimSpace(header.Get("Idempotency-Key"))
+	}
+	if operationID == "" {
+		return ctx
+	}
+	return aihandlers.WithGatewayRootOperationID(ctx, operationID)
+}
+
+func workflowError(err error) *connect.Error {
+	result := connect.NewError(connect.CodeInternal, err)
+	var gatewayErr *connect.Error
+	if errors.As(err, &gatewayErr) {
+		result = connect.NewError(gatewayErr.Code(), err)
+		if operationID := gatewayErr.Meta().Get("X-Vrooli-Root-Operation-ID"); operationID != "" {
+			result.Meta().Set("X-Vrooli-Root-Operation-ID", operationID)
+		}
+	}
+	return result
+}
 
 func parseWorkflowID(raw string) (uuid.UUID, error) {
 	id, err := uuid.Parse(strings.TrimSpace(raw))
@@ -100,6 +124,7 @@ func (s *service) CreateWorkflow(
 
 	ctx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
 	defer cancel()
+	ctx = withGatewayOperationID(ctx, req.Header())
 
 	resp, err := s.deps.Catalog.CreateWorkflow(ctx, req.Msg)
 	if err != nil {
@@ -110,7 +135,7 @@ func (s *service) CreateWorkflow(
 			return nil, connect.NewError(connect.CodeInvalidArgument, errInvalidWorkflowFormat)
 		}
 		s.log().WithError(err).Error("create workflow failed")
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, workflowError(err)
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -129,6 +154,7 @@ func (s *service) UpdateWorkflow(
 
 	ctx, cancel := context.WithTimeout(ctx, constants.DefaultRequestTimeout)
 	defer cancel()
+	ctx = withGatewayOperationID(ctx, req.Header())
 
 	resp, err := s.deps.Catalog.UpdateWorkflow(ctx, req.Msg)
 	if err != nil {
@@ -211,8 +237,6 @@ func (s *service) ExecuteWorkflow(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	s.chargeExecutionCredits(ctx, req.Msg.GetWorkflowId(), resp.GetExecutionId())
-
 	if err := s.finalizeSeedPlan(ctx, seedPlan, resp.GetExecutionId(), req.Msg.GetWaitForCompletion()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -259,8 +283,6 @@ func (s *service) ExecuteAdhocWorkflow(
 		s.log().WithError(err).Error("execute adhoc workflow failed")
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
-
-	s.chargeExecutionCredits(ctx, "", resp.GetExecutionId())
 
 	if err := s.finalizeSeedPlan(ctx, seedPlan, resp.GetExecutionId(), req.Msg.GetWaitForCompletion()); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
@@ -339,6 +361,7 @@ func (s *service) ModifyWorkflow(
 
 	ctx, cancel := context.WithTimeout(ctx, constants.ExtendedRequestTimeout)
 	defer cancel()
+	ctx = withGatewayOperationID(ctx, req.Header())
 
 	resp, err := s.deps.Catalog.ModifyWorkflowAPI(ctx, workflowID, prompt, req.Msg.GetCurrentFlow())
 	if err != nil {
@@ -350,7 +373,7 @@ func (s *service) ModifyWorkflow(
 			return nil, connect.NewError(connect.CodeNotFound, errWorkflowNotFound)
 		}
 		s.log().WithError(err).WithField("workflow_id", workflowID).Error("modify workflow failed")
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, workflowError(err)
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -594,26 +617,5 @@ func mergeSeedState(params **basexecution.ExecutionParameters, seedState map[str
 	}
 	if _, exists := (*params).Env["seed_applied"]; !exists {
 		(*params).Env["seed_applied"] = contractvalues.AnyToJsonValue(true)
-	}
-}
-
-// chargeExecutionCredits logs but does not abort on charge failure: the
-// execution already started and a transient billing error must not break the
-// request.
-func (s *service) chargeExecutionCredits(ctx context.Context, workflowID, executionID string) {
-	if s.deps.CreditService == nil || executionID == "" {
-		return
-	}
-	identity := s.deps.UserIdentity(ctx)
-	_, err := s.deps.CreditService.Charge(ctx, credits.ChargeRequest{
-		UserIdentity: identity,
-		Operation:    credits.OpExecutionRun,
-		Metadata: credits.ChargeMetadata{
-			WorkflowID:  workflowID,
-			ExecutionID: executionID,
-		},
-	})
-	if err != nil {
-		s.log().WithError(err).WithField("execution_id", executionID).Warn("failed to charge credits for execution")
 	}
 }

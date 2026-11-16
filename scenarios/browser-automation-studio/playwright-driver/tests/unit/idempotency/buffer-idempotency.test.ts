@@ -18,6 +18,7 @@ import {
   removeRecordingBuffer,
 } from '../../../src/recording/io/buffer';
 import { TimelineEntrySchema, type TimelineEntry } from '../../../src/recording/types';
+import { ActionTelemetrySchema } from '@vrooli/proto-types/browser-automation-studio/v1/domain/telemetry_pb';
 import { MAX_RECORDING_BUFFER_SIZE } from '../../../src/utils';
 import { create } from '@bufbuild/protobuf';
 
@@ -159,6 +160,38 @@ describe('Recording Buffer Idempotency', () => {
       expect(isEntryBuffered(sessionId, entry.id)).toBe(true);
       expect(getTimelineEntries(sessionId)).toEqual([]);
       expect(() => bufferTimelineEntry(sessionId, createTestEntry({ id: entry.id, sequenceNum: 99 }))).toThrow('conflicts');
+    });
+
+    it('reports the changed canonical field when a retry reuses an identity with different contents', () => {
+      const entry = createTestEntry({ id: 'conflicting-sequence', sequenceNum: 1 });
+      bufferTimelineEntry(sessionId, entry);
+
+      expect(() => bufferTimelineEntry(sessionId, createTestEntry({ id: entry.id, sequenceNum: 2 })))
+        .toThrow('changed fields: sequenceNum');
+    });
+
+    it('reports nested attribution fields without leaking their contents', () => {
+      const entry = createTestEntry({
+        id: 'conflicting-attribution',
+        telemetry: create(ActionTelemetrySchema, { framePath: ['#original-frame'], driverPageId: 'original-page' }),
+      });
+      bufferTimelineEntry(sessionId, entry);
+
+      let error: Error | undefined;
+      try {
+        bufferTimelineEntry(sessionId, createTestEntry({
+          id: entry.id,
+          telemetry: create(ActionTelemetrySchema, { framePath: ['#changed-frame'], driverPageId: 'changed-page' }),
+        }));
+      } catch (caught) {
+        error = caught as Error;
+      }
+
+      expect(error?.message).toContain('changed fields: telemetry.framePath, telemetry.driverPageId');
+      expect(error?.message).not.toContain('original-frame');
+      expect(error?.message).not.toContain('changed-frame');
+      expect(error?.message).not.toContain('original-page');
+      expect(error?.message).not.toContain('changed-page');
     });
 
     it('rejects an unknown acknowledgement without clearing any pending observation', () => {

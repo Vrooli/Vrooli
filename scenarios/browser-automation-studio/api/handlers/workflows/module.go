@@ -18,7 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/api-core/connectx"
 
-	"github.com/vrooli/browser-automation-studio/services/credits"
 	workflowservice "github.com/vrooli/browser-automation-studio/services/workflow"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api/apiconnect"
@@ -66,13 +65,6 @@ type SeedScheduler interface {
 	Schedule(executionID string, seedScenario string, cleanupToken string) error
 }
 
-// CreditCharger abstracts the per-execution credit charge. The implementation
-// must tolerate transient failures and return them without aborting execution
-// (the caller logs and continues).
-type CreditCharger interface {
-	Charge(ctx context.Context, req credits.ChargeRequest) (*credits.ChargeResult, error)
-}
-
 // UserIdentityResolver extracts the calling user identity from the request
 // context. Tests inject a fixed identity; production uses the entitlement
 // middleware's context extractor.
@@ -85,7 +77,6 @@ type Deps struct {
 	Validator     Validator
 	SeedRunner    SeedRunner
 	SeedScheduler SeedScheduler
-	CreditService CreditCharger
 	UserIdentity  UserIdentityResolver
 	Logger        *logrus.Logger
 }

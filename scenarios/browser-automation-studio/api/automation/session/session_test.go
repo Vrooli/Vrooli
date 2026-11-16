@@ -634,9 +634,11 @@ func TestSession_GetStorageState_Success(t *testing.T) {
 	}
 
 	sess := &Session{
-		id:     "storage-session",
-		mode:   ModeRecording,
-		client: client,
+		id:          "storage-session",
+		executionID: "storage-owner",
+		leaseID:     "storage-lease",
+		mode:        ModeRecording,
+		client:      client,
 	}
 
 	state, err := sess.GetStorageState(context.Background())

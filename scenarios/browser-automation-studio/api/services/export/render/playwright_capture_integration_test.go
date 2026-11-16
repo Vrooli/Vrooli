@@ -26,6 +26,7 @@ import (
 	autoengine "github.com/vrooli/browser-automation-studio/automation/engine"
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	autoexecutor "github.com/vrooli/browser-automation-studio/automation/executor"
+	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
@@ -66,7 +67,15 @@ func TestPlaywrightCaptureIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	client := newPlaywrightCaptureClient(server.URL + "/src/export/composer.html")
+	broker, err := autosession.NewManager(autosession.WithLogger(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	factory, err := autoengine.DefaultFactoryWithSessionManager(nil, broker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := newPlaywrightCaptureClient(server.URL+"/src/export/composer.html", factory)
 	result, err := client.Capture(ctx, spec, 40)
 	if err != nil {
 		t.Fatal(err)
@@ -180,7 +189,11 @@ func TestPlaywrightSamePageReplayAdoptionIntegration(t *testing.T) {
 		instructions[index].Index = index
 		instructions[index].NodeID = fmt.Sprintf("adoption-%02d-%s", index, instructions[index].NodeID)
 	}
-	factory, err := autoengine.DefaultFactory(nil)
+	broker, err := autosession.NewManager(autosession.WithLogger(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	factory, err := autoengine.DefaultFactoryWithSessionManager(nil, broker)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +268,15 @@ func TestPlaywrightPhoneFrameIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, err := newPlaywrightCaptureClient(server.URL+"/src/export/composer.html").Capture(ctx, spec, 200)
+	broker, err := autosession.NewManager(autosession.WithLogger(nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	factory, err := autoengine.DefaultFactoryWithSessionManager(nil, broker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := newPlaywrightCaptureClient(server.URL+"/src/export/composer.html", factory).Capture(ctx, spec, 200)
 	if err != nil {
 		t.Fatal(err)
 	}

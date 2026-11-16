@@ -40,8 +40,14 @@ export async function mergeCoverageRun(runRoot, uiRoot) {
   summary.total = total.toJSON();
   await writeFile(path.join(runRoot, 'coverage-final.json'), `${JSON.stringify(merged.toJSON())}\n`);
   await writeFile(path.join(runRoot, 'coverage-summary.json'), `${JSON.stringify(summary, null, 2)}\n`);
-  // One explicit scenario-wide contract, unchanged from vite.config.ts.
-  const { coverage: { thresholds } } = JSON.parse(await readFile(new URL('../vitest.projects.json', import.meta.url), 'utf8'));
+  // Coverage ratchets belong to the scenario's Unit Health policy. The Vitest
+  // project inventory selects tests; it does not duplicate this owner gate.
+  const policyPath = path.resolve(uiRoot, '..', '.vrooli', 'testing.json');
+  const policy = JSON.parse(await readFile(policyPath, 'utf8'));
+  const thresholds = policy.unit?.policy_profile?.policy_classes?.react_vite_ui?.coverage?.committed;
+  if (!thresholds || !['lines', 'statements', 'functions', 'branches'].every(name => Number.isFinite(thresholds[name]))) {
+    throw new Error(`Coverage policy is missing committed react_vite_ui floors: ${policyPath}`);
+  }
   const floor = thresholds.lines;
   const failed = Object.entries(summary.total).filter(([name, value]) => value.pct < thresholds[name]);
   return { status: failed.length ? 'below-floor' : 'passed', floor, failed: failed.map(([name, value]) => `${name} ${value.pct}%`), summary: summary.total };

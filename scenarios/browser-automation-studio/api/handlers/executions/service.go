@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
@@ -187,6 +188,46 @@ func (s *service) GetExecution(
 	return connect.NewResponse(&basapi.GetExecutionResponse{Execution: pbExec}), nil
 }
 
+// WaitForExecution returns the durable terminal receipt after one bounded join
+// of the local execution owner. Request cancellation ends observation only;
+// stopping the exact execution remains a separate lifecycle operation.
+func (s *service) WaitForExecution(
+	ctx context.Context,
+	req *connect.Request[basapi.WaitForExecutionRequest],
+) (*connect.Response[basapi.GetExecutionResponse], error) {
+	id, err := parseExecutionID(req.Msg.GetExecutionId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	waitMS := req.Msg.GetTimeoutMs()
+	if waitMS < 1 || waitMS > 75000 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("timeout_ms must be between 1 and 75000"))
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, time.Duration(waitMS)*time.Millisecond)
+	defer cancel()
+	execIndex, err := s.deps.Executor.WaitForExecution(waitCtx, id)
+	if err != nil {
+		code := connect.CodeInternal
+		if errors.Is(err, context.DeadlineExceeded) {
+			code = connect.CodeDeadlineExceeded
+		} else if errors.Is(err, context.Canceled) {
+			code = connect.CodeCanceled
+		} else if errors.Is(err, database.ErrNotFound) {
+			code = connect.CodeNotFound
+		}
+		return nil, connect.NewError(code, err)
+	}
+	if execIndex == nil || execIndex.ID != id || execIndex.CompletedAt == nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("execution owner returned no matching terminal receipt"))
+	}
+	pbExec, err := s.deps.Executor.HydrateExecutionProto(ctx, execIndex)
+	if err != nil {
+		s.log().WithError(err).WithField("execution_id", id).Error("hydrate waited execution failed")
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	return connect.NewResponse(&basapi.GetExecutionResponse{Execution: pbExec}), nil
+}
+
 // ---------------------------------------------------------------------------
 // GetExecutionTimeline
 // ---------------------------------------------------------------------------
@@ -282,6 +323,9 @@ func (s *service) ResumeExecution(
 
 	newExec, err := s.deps.Executor.ResumeExecution(ctx, id, params)
 	if err != nil {
+		if errors.Is(err, database.ErrResumeAlreadyActive) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "cannot be resumed") || strings.Contains(errMsg, "not resumable") {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, err)

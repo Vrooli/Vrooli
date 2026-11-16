@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	platform "github.com/vrooli/platform-go"
 )
 
@@ -93,7 +95,43 @@ func (s *Service) ApplyCleanup(ctx context.Context, preview CleanupPreview, idem
 			result.Warnings = append(result.Warnings, fmt.Sprintf("capture %s: contained filesystem deletion unavailable", item.ID))
 			continue
 		}
-		err := deleter.DeleteContained(ctx, root, item.Path)
+		remove := func(lockCtx context.Context) error {
+			if strings.HasPrefix(item.ID, "recording:") {
+				id, parseErr := uuid.Parse(strings.TrimPrefix(item.ID, "recording:"))
+				if parseErr != nil {
+					return ErrInvalidCleanupPreview
+				}
+				if s.store == nil {
+					return errors.New("execution repository unavailable")
+				}
+				if _, rowErr := s.store.GetExecution(lockCtx, id); !errors.Is(rowErr, database.ErrNotFound) {
+					if rowErr == nil {
+						return errors.New("orphan recording became indexed during cleanup")
+					}
+					return rowErr
+				}
+				info, statErr := os.Lstat(item.Path)
+				if statErr != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || !info.ModTime().Equal(item.ModifiedAt) {
+					return errors.New("orphan recording changed since cleanup preview")
+				}
+				bytes, sizeErr := directorySizeForCleanup(item.Path)
+				if sizeErr != nil || bytes != item.Bytes {
+					return errors.New("orphan recording inventory changed since cleanup preview")
+				}
+			}
+			return deleter.DeleteContained(lockCtx, root, item.Path)
+		}
+		var err error
+		if strings.HasPrefix(item.ID, "recording:") {
+			executionID, parseErr := uuid.Parse(strings.TrimPrefix(item.ID, "recording:"))
+			if parseErr != nil {
+				err = ErrInvalidCleanupPreview
+			} else {
+				err = executionartifactlock.WithLock(ctx, s.recordingsRoot, executionID, remove)
+			}
+		} else {
+			err = remove(ctx)
+		}
 		if err != nil {
 			result.SkippedItemIDs = append(result.SkippedItemIDs, item.ID)
 			result.Warnings = append(result.Warnings, fmt.Sprintf("capture %s: %v", item.ID, err))

@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/state"
 	"github.com/vrooli/browser-automation-studio/config"
 	credentialuse "github.com/vrooli/browser-automation-studio/internal/credentialuse"
+	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
@@ -620,14 +621,15 @@ const (
 	minEntryTimeoutMs     = 250
 )
 
-// maybeRestoreTabs restores tabs from session profile before workflow execution.
-// When RestoreTabs is true and OpenTabs are provided, navigates to the first tab's URL
-// before the workflow starts. This enables running workflows with tabs restored from
-// a previous session.
-//
-// Currently supports restoring the first tab's URL as the initial navigation.
-// Additional tabs are logged but not created, as the EngineSession interface
-// doesn't support multi-page creation directly.
+type profileTabSession interface {
+	CreatePage(context.Context, string) (*driver.CreatePageResponse, error)
+	CreatePopupPage(context.Context, string, string) (*driver.CreatePageResponse, error)
+	SetActivePage(context.Context, string) error
+	InitialDriverPageID() string
+}
+
+// maybeRestoreTabs restores persisted URLs and active-tab identity in stable
+// creation order before workflow execution begins.
 func (e *SimpleExecutor) maybeRestoreTabs(ctx context.Context, req Request, eng engine.AutomationEngine, spec engine.SessionSpec, session engine.EngineSession) (engine.EngineSession, error) {
 	if !req.RestoreTabs || len(req.OpenTabs) == 0 {
 		return session, nil
@@ -638,16 +640,21 @@ func (e *SimpleExecutor) maybeRestoreTabs(ctx context.Context, req Request, eng 
 		"tab_count":    len(req.OpenTabs),
 	}).Info("Restoring tabs from session profile")
 
-	// Find the first valid tab URL to navigate to
-	var firstTabURL string
-	for _, tab := range req.OpenTabs {
-		if tab.URL != "" && tab.URL != "about:blank" {
-			firstTabURL = tab.URL
-			break
-		}
+	orderedTabs := append([]sessionprofilepersistence.TabState(nil), req.OpenTabs...)
+	sort.SliceStable(orderedTabs, func(i, j int) bool { return orderedTabs[i].Order < orderedTabs[j].Order })
+	if len(orderedTabs) > sessionprofilepersistence.MaxRestoredTabs {
+		orderedTabs = orderedTabs[:sessionprofilepersistence.MaxRestoredTabs]
 	}
-
-	if firstTabURL == "" {
+	tabs := make([]sessionprofilepersistence.TabState, 0, len(orderedTabs))
+	for _, tab := range orderedTabs {
+		url := strings.TrimSpace(tab.URL)
+		if url == "" || url == "about:blank" {
+			continue
+		}
+		tab.URL = url
+		tabs = append(tabs, tab)
+	}
+	if len(tabs) == 0 {
 		logrus.WithField("execution_id", req.Plan.ExecutionID).Debug("No valid tab URLs to restore")
 		return session, nil
 	}
@@ -661,7 +668,25 @@ func (e *SimpleExecutor) maybeRestoreTabs(ctx context.Context, req Request, eng 
 		}
 	}
 
-	// Navigate to the first tab's URL
+	pageSession, supportsPageRestore := session.(profileTabSession)
+	if len(tabs) > 1 && !supportsPageRestore {
+		return session, errors.New("engine session does not support restoring multiple profile tabs")
+	}
+	orderToIndex := make(map[int]int, len(tabs))
+	for index, tab := range tabs {
+		if _, exists := orderToIndex[tab.Order]; exists && tab.OpenerOrder != nil {
+			return session, fmt.Errorf("profile tab order %d is ambiguous for popup restoration", tab.Order)
+		}
+		orderToIndex[tab.Order] = index
+		if tab.OpenerOrder != nil {
+			openerIndex, ok := orderToIndex[*tab.OpenerOrder]
+			if !ok || openerIndex >= index {
+				return session, fmt.Errorf("profile popup tab at order %d references unavailable opener order %d", tab.Order, *tab.OpenerOrder)
+			}
+		}
+	}
+	firstTabURL := tabs[0].URL
+	// Navigate the session's initial page to the first saved tab.
 	instr := contracts.CompiledInstruction{
 		Index:  -1,
 		NodeID: tabRestoreNodeID,
@@ -683,18 +708,52 @@ func (e *SimpleExecutor) maybeRestoreTabs(ctx context.Context, req Request, eng 
 		return session, fmt.Errorf("tab restoration navigation failed (%s): %s", firstTabURL, e.failureMessage(outcome))
 	}
 
+	activePageID := ""
+	activeTabChosen := false
+	pageIDByOrder := make(map[int]string, len(tabs))
+	if supportsPageRestore {
+		initialPageID := pageSession.InitialDriverPageID()
+		pageIDByOrder[tabs[0].Order] = initialPageID
+		activePageID = initialPageID
+		activeTabChosen = tabs[0].IsActive
+	}
+	for _, tab := range tabs[1:] {
+		var page *driver.CreatePageResponse
+		var err error
+		if tab.OpenerOrder != nil {
+			openerPageID, ok := pageIDByOrder[*tab.OpenerOrder]
+			if !ok || strings.TrimSpace(openerPageID) == "" {
+				return session, fmt.Errorf("profile popup tab at order %d has no restored opener identity", tab.Order)
+			}
+			page, err = pageSession.CreatePopupPage(ctx, tab.URL, openerPageID)
+		} else {
+			page, err = pageSession.CreatePage(ctx, tab.URL)
+		}
+		if err != nil {
+			return session, fmt.Errorf("restore profile tab %q: %w", tab.URL, err)
+		}
+		pageIDByOrder[tab.Order] = page.DriverPageID
+		if tab.IsActive && !activeTabChosen {
+			activePageID = page.DriverPageID
+			activeTabChosen = true
+		}
+	}
+	if activePageID != "" {
+		if err := pageSession.SetActivePage(ctx, activePageID); err != nil {
+			return session, fmt.Errorf("select restored active profile tab: %w", err)
+		}
+	}
+
 	logrus.WithFields(logrus.Fields{
 		"execution_id": req.Plan.ExecutionID,
 		"url":          firstTabURL,
 	}).Info("Tab restoration: navigated to first tab URL")
 
-	// Log if there are additional tabs that won't be restored
-	if len(req.OpenTabs) > 1 {
+	if len(tabs) > 1 {
 		logrus.WithFields(logrus.Fields{
-			"execution_id":        req.Plan.ExecutionID,
-			"additional_tabs":     len(req.OpenTabs) - 1,
-			"restored_first_only": true,
-		}).Debug("Additional tabs not restored (workflow execution uses single page)")
+			"execution_id":  req.Plan.ExecutionID,
+			"restored_tabs": len(tabs),
+		}).Info("Restored profile tabs")
 	}
 
 	return session, nil

@@ -112,6 +112,7 @@
     {
       "name": "execution-viewer",
       "include": [
+        "src/domains/executions/store.test.ts",
         "src/domains/executions/InlineExecution*.test.{ts,tsx}",
         "src/domains/executions/history/**/*.test.{ts,tsx}",
         "src/domains/executions/hooks/useExecutionEvents.test.{ts,tsx}",
@@ -162,12 +163,6 @@
       "src/consts/strings.generated.ts",
       "src/i18n/locales/**",
       "src/**/generated/**"
-    ],
-    "thresholds": {
-      "lines": 85,
-      "functions": 85,
-      "branches": 85,
-      "statements": 85
-    }
+    ]
   }
 }

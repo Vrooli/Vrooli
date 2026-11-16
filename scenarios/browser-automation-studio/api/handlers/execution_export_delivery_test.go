@@ -20,6 +20,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/export/source"
 	ws "github.com/vrooli/browser-automation-studio/websocket"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 	"google.golang.org/protobuf/proto"
 )
@@ -167,7 +168,7 @@ func TestExportPresentationPreservesExplicitStylesAndWatermarkPolicy(t *testing.
 		if !required {
 			features = []string{entitlement.FeatureWatermarkFree}
 		}
-		ctx := entitlement.WithEntitlement(t.Context(), &entitlement.Entitlement{Status: entitlement.StatusActive, Features: features})
+		ctx := monetization.WithSnapshot(t.Context(), &monetization.Snapshot{Status: entitlement.StatusActive, Features: features})
 		incoming := &exportsv1.ReplaySpec{Decor: &exportsv1.ReplayDecor{ShowDeviceFrame: proto.Bool(false), BrowserScale: proto.Float64(.9)}}
 		spec := proto.Clone(incoming).(*exportsv1.ReplaySpec)
 		if err := h.resolveExportPresentation(ctx, spec, hexport.Request{MovieSpec: incoming}); err != nil {

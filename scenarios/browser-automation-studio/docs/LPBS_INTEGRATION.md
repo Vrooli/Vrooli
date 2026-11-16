@@ -1,257 +1,85 @@
-# LPBS Integration Guide
+# BAS monetization integration
 
-This document describes the BAS integration with Landing Page Business Suite
-(LPBS) for subscription identity, entitlement checks, metered AI, and usage
-reporting.
+This guide records the current Browser Automation Studio (BAS) boundaries for
+sign-in, subscription features, AI metering, and workflow quota admission.
 
-## Overview
+## Identity and entitlement
 
-BAS uses LPBS as the authority for:
+The [entitlement middleware](../api/middleware/entitlement.go) adapts the
+verified LPBS lease to BAS route gates; caller email and UI flags do not prove
+subscription access.
 
-- the consumer identity and subscription tier;
-- atomic credit authorization and charging for subscription-backed AI; and
-- centralized usage reporting and administration.
+The shared refresh credential is `vrooli/lpbs-account` / `refresh-token`. The
+browser keeps only the short-lived access token in session storage; native
+credential authority is the durable refresh-token source. BAS APIs resolve the
+account identity from the authenticated LPBS session.
 
-Local model execution and operator BYOK remain available without an LPBS
-request. Only the LPBS path is metered against the consumer subscription.
+## AI source policy
 
-## Architecture
+BAS selects one of three AI sources:
 
-```
-┌─────────────────────────────┐        ┌─────────────────────────────┐
-│  Browser Automation Studio  │        │ Landing Page Business Suite │
-│                             │        │                             │
-│  ┌─────────────────────────┐ │      │ ┌────────────────────────┐ │
-│  │ Shared credential       │ │      │ │ LPBS consumer authority │ │
-│  │ authority               │─┼──────┼>│ RS256 access + refresh  │ │
-│  │ refresh token only      │ │      │ │ JWKS + entitlements     │ │
-│  └────────────┬────────────┘ │      │ └────────────┬───────────┘ │
-│               │ access token │                   │               │
-│  ┌────────────▼────────────┐ │      │ ┌───────────▼────────────┐ │
-│  │ BAS / AI Gateway         │─┼──────┼>│ Metered inference       │ │
-│  │ memory-only bearer       │ │      │ │ identity + atomic debit │ │
-│  └─────────────────────────┘ │      │ └────────────────────────┘ │
-│                             │        │                             │
-└─────────────────────────────┘        └─────────────────────────────┘
-```
+- **Local inference:** available without a BAS AI subscription gate and without
+  Vrooli-credit metering.
+- **Saved provider key:** requires the authenticated session used to resolve the
+  saved credential; it is not charged to Vrooli credits and does not require the
+  BAS `features.ai` gate.
+- **Vrooli credits:** requires the signed `features.ai` entitlement. BAS sends the
+  request to AI Gateway, which owns authorization, accounting, and provider
+  dispatch. A saved key or caller header does not bypass the selected source
+  policy. Confidential remote requests also require the separately verified,
+  source-scoped consent receipt.
 
-## Identity and single sign-on
+BAS does not calculate a local fixed cost or report AI usage directly to LPBS.
 
-All deployment tiers use the same logical credential identity:
-`vrooli/lpbs-account` / `refresh-token`.
+## Workflow execution quota
 
-- Tier 1 (local Vrooli server): a scenario provisions the native credential
-  authority; every scenario on that machine resolves the same identity.
-- Tier 2 (desktop bundle): the desktop runtime stores the refresh token in its
-  native credential store and exposes an authenticated, declared-credential IPC
-  surface to bundled services. BAS and AI Gateway use the same logical ID.
-- Tier 3 (remote/VPS): the server keeps the refresh token in its deployment
-  credential provider; LPBS is still the issuer and the access token is bound to
-  the configured LPBS authority.
+Workflow admission is a Class B count-based meter owned by LPBS. BAS reserves
+`workflow_executions` before accepting a manual, API, adhoc, or scheduled run.
+It persists the execution row before committing the reservation. A failed row
+write releases the hold; an uncertain commit fails closed and marks the run
+failed. Offline execution is denied because the current-period quota cannot be
+reserved.
 
-The browser stores only a short-lived access token in `sessionStorage`. Desktop
-safeStorage protects the local profile copy, while the native credential
-authority is the durable source of truth. Refresh rotation is serialized and a
-replayed refresh token revokes its family.
+`monetization-go.QuotaReservationClient` uses the shared HTTPS/loopback-only
+LPBS transport and rejects redirects. BAS does not send a duplicate post-run
+usage report after reservation commit.
 
-The web callback requires the stored state value, removes the URL fragment
-before making the provisioning request, and sends the refresh token only to the
-same-origin BAS session endpoint. BAS APIs derive identity from verified LPBS
-claims and reject mismatched query/header identities.
+## Remaining local read surfaces
 
-## Environment Variables
+BAS still exposes its legacy current-usage, history, and operation-log read APIs.
+The `credit_usage` and `operation_log` tables and their schemas remain in place;
+no existing rows are deleted. The local fixed-cost writer has been removed, so
+these local reads are not the authoritative current Gateway or LPBS accounting
+record. The subscription UI still consumes parts of this legacy read surface;
+replacing it with an LPBS-backed view remains open work.
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `BAS_ENTITLEMENT_SERVICE_URL` | LPBS service base URL for hosted or local authority | `http://localhost:15000` or `https://vrooli.com` |
-| `LPBS_METERED_INFERENCE_URL` | AI Gateway's LPBS metered inference authority | LPBS base URL |
-| `APP_BUNDLE_KEY` | App identifier for usage records | `browser-automation-studio` (default) |
+The BAS durable `monetization_usage_outbox` remains for the governed desktop
+monetization journey probe. It is not the production AI usage path. Generic
+outbox support remains in `monetization-go` for actual consumers.
 
-## Usage Sync Flow
+## Verification
 
-1. **Resolve**: BAS or AI Gateway resolves the shared refresh token through the
-   credential authority and rotates it at LPBS when the in-memory access token
-   is near expiry.
-2. **Verify**: LPBS verifies the RS256 access token against its public key set,
-   derives the consumer identity from claims, and checks the subscription.
-3. **Charge**: LPBS authorizes and charges metered inference atomically.
-4. **Report**: BAS may separately report operational usage with an idempotent
-   service-to-service operation ID.
-5. **Degrade safely**: a missing/expired subscription token cannot silently
-   become another user or a paid request; local/BYOK providers may still be
-   selected according to policy.
+Focused local proof for the remaining outbox adapter:
 
-## Idempotency
-
-To prevent double-counting when retries occur (network errors, timeouts), BAS generates a unique `operation_id` for each charge operation. This ID is:
-- Generated once when the charge occurs
-- Reused across all retry attempts
-- Stored in LPBS to detect duplicate reports
-
-```go
-// BAS generates operation_id ONCE
-operationID := uuid.New().String()
-
-// Same ID used for all retries
-for attempt := 0; attempt < maxRetries; attempt++ {
-    report := LPBSUsageReport{
-        OperationID: operationID, // Same ID every retry
-        // ... other fields
-    }
-    err := sendToLPBS(report)
-    if err == nil {
-        break
-    }
-    time.Sleep(backoff)
-}
+```sh
+cd scenarios/browser-automation-studio/api
+go test ./services/credits -run TestUsageOutboxSurvivesServiceRestart -count=1
 ```
 
-LPBS checks for duplicate `operation_id` before recording:
-```sql
--- If operation_id exists, return success without incrementing
-SELECT EXISTS(SELECT 1 FROM usage_records WHERE operation_id = $1)
-```
-
-## Health Checks
-
-### BAS Health Check
-```bash
-# Check if BAS can reach LPBS
-curl http://localhost:16000/api/v1/credits/lpbs-health
-```
-
-Response:
-```json
-{
-  "configured": true,
-  "reachable": true,
-  "last_sync": "2026-01-21T10:30:00Z",
-  "last_error": ""
-}
-```
-
-### LPBS Health Check
-```bash
-# Check LPBS usage service health
-curl http://localhost:15000/api/v1/usage/health
-```
-
-Response:
-```json
-{
-  "healthy": true,
-  "database_connected": true,
-  "last_record_at": "2026-01-21T10:30:00Z",
-  "records_this_period": 1234
-}
-```
-
-## API Reference
-
-### Report Usage (BAS -> LPBS)
-
-**Endpoint**: `POST /api/v1/usage/report`
-
-**Headers**:
-- `Authorization: Bearer {LPBS_SECRET}`
-- `Content-Type: application/json`
-
-**Request**:
-```json
-{
-  "user_identity": "user@example.com",
-  "limit_key": "ai_credits",
-  "amount": 500000,
-  "app_bundle_key": "browser-automation-studio",
-  "operation_id": "550e8400-e29b-41d4-a716-446655440000",
-  "metadata": {
-    "operation": "ai.workflow.generate",
-    "model": "gpt-4-turbo",
-    "prompt_tokens": 1500,
-    "is_byok": false
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "success": true
-}
-```
-
-## Testing
-
-### Unit Tests
-
-BAS includes mock reporters for testing without real LPBS:
-
-```go
-reporter := &mockLPBSReporter{}
-svc := credits.NewService(credits.ServiceOptions{
-    LPBSReporter: reporter, // Use mock instead of HTTP
-})
-
-// After operations, verify reports
-assert.Len(t, reporter.reports, 1)
-assert.Equal(t, "test@example.com", reporter.reports[0].UserIdentity)
-```
-
-### Integration Tests
-
-To test end-to-end:
-
-1. Start LPBS: `make start` in `scenarios/landing-page-business-suite`.
-2. Set environment:
-   ```bash
-   export BAS_ENTITLEMENT_SERVICE_URL=http://localhost:15000
-   export LPBS_METERED_INFERENCE_URL=http://localhost:15000
-   ```
-3. Provision the consumer session through the BAS web or desktop sign-in flow;
-   do not put a refresh token in shell history.
-4. Run BAS tests with `vrooli scenario test browser-automation-studio`.
-
-### Verifying Idempotency
-
-```bash
-# Send same operation_id 3 times
-for i in 1 2 3; do
-  curl -X POST http://localhost:15000/api/v1/usage/report \
-    -H "Authorization: Bearer $LPBS_SECRET" \
-    -H "Content-Type: application/json" \
-    -d '{
-      "user_identity": "test@example.com",
-      "limit_key": "ai_credits",
-      "amount": 100000,
-      "app_bundle_key": "bas",
-      "operation_id": "test-uuid-123"
-    }'
-done
-
-# Verify: usage_amount should be 100000, NOT 300000
-curl "http://localhost:15000/api/v1/usage/summary?user_identity=test@example.com"
-```
+The test queues an immutable event, constructs a fresh BAS service instance,
+and verifies that the event is delivered once through the shared LPBS transport.
+It uses a local fake authority and does not claim a customer billing event or
+live LPBS proof. Gateway and LPBS owner tests cover their respective metering
+contracts.
 
 ## Troubleshooting
 
-### "LPBS report failed after retries"
-
-Check:
-1. LPBS is running: `curl http://localhost:15000/api/v1/usage/health`
-2. The shared consumer session can resolve a short-lived LPBS access token.
-3. Network connectivity between services. Reports remain in BAS's durable
-   `usage_outbox` until LPBS acknowledges them.
-
-### Usage not appearing in LPBS
-
-Check:
-1. BAS logs for "lpbs: usage report sent" (debug level)
-2. LPBS logs for "usage_recorded"
-3. Operation completed successfully locally (check BAS `operation_log` table)
-
-### Double-counted usage
-
-This shouldn't happen with idempotency, but if it does:
-1. Check that `operation_id` is being generated (look for UUID in logs)
-2. Verify LPBS has the `operation_id` column (run schema migration)
-3. Check for LPBS version mismatch
+- **Workflow admission fails:** check that LPBS is configured and that the
+  authenticated session can reserve `workflow_executions`. BAS does not fall back
+  to local admission when LPBS is unavailable.
+- **Vrooli-credit AI is denied:** verify the signed BAS `features.ai` lease, the
+  authenticated consumer session, Gateway availability, and any required
+  source-scoped consent receipt.
+- **Usage shown in the BAS legacy panel disagrees with LPBS:** the local panel is
+  not the authoritative current usage record. Use the hosted LPBS account surface
+  for account management while the BAS read surface is migrated.

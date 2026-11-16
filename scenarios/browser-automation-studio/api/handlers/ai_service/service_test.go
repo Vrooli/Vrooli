@@ -24,17 +24,20 @@ import (
 // newServiceForTest builds a service wired with the supplied mock automation
 // runner. The runner is shared across screenshot/DOM/element analysis handlers
 // so each RPC can choose its own canned outcome list.
-func newServiceForTest(t *testing.T, runner aihandlers.AutomationRunner) (aiconnect.AIServiceClient, *spyLinkPreview) {
+func newServiceForTest(t *testing.T, runner aihandlers.AutomationRunner, promptClients ...testRolePromptClient) (aiconnect.AIServiceClient, *spyLinkPreview) {
 	t.Helper()
 	log := logrus.New()
 	log.SetOutput(io.Discard)
 
 	screenshot := aihandlers.NewScreenshotHandler(log, aihandlers.WithScreenshotRunner(runner))
 	dom := aihandlers.NewDOMHandler(log, aihandlers.WithDOMRunner(runner))
-	// Default suggestion generator will fail to reach the model gateway and gracefully
-	// degrade to empty AI suggestions; that's the behavior we want under test.
+	promptClient := testRolePromptClient{response: `{"suggestions":[]}`}
+	if len(promptClients) > 0 {
+		promptClient = promptClients[0]
+	}
 	elem := aihandlers.NewElementAnalysisHandler(log,
 		aihandlers.WithElementRunner(runner),
+		aihandlers.WithAIModelClient(promptClient),
 	)
 	mockAnalyzer := &fakeAnalyzer{suggestions: []aihandlers.ElementInfo{{Text: "Search", TagName: "BUTTON", Confidence: 0.9}}}
 	aiAn := aihandlers.NewAIAnalysisHandler(log, dom,
@@ -64,6 +67,15 @@ type spyLinkPreview struct {
 	data  *LinkPreviewData
 	found bool
 	err   error
+}
+
+type testRolePromptClient struct {
+	response string
+	err      error
+}
+
+func (c testRolePromptClient) ExecutePromptWithRole(context.Context, string, string) (string, error) {
+	return c.response, c.err
 }
 
 func (s *spyLinkPreview) Fetch(_ context.Context, u string) (*LinkPreviewData, bool, error) {
@@ -203,35 +215,7 @@ func TestService_AnalyzeElements_RejectsEmptyURL(t *testing.T) {
 }
 
 func TestService_AnalyzeElements_HappyPath(t *testing.T) {
-	runner := newServiceAutomationRunner()
-	runner.Outcomes = []autocontracts.StepOutcome{
-		{Success: true, NodeID: "analysis.navigate"},
-		{Success: true, NodeID: "analysis.wait"},
-		{
-			Success: true,
-			NodeID:  "analysis.evaluate",
-			ExtractedData: map[string]any{
-				"result": map[string]any{
-					"elements": []any{
-						map[string]any{
-							"text": "Login", "tagName": "BUTTON", "type": "button",
-							"selectors":   []any{map[string]any{"selector": "#login", "type": "id", "robustness": 0.9}},
-							"boundingBox": map[string]any{"x": 1.0, "y": 2.0, "width": 100.0, "height": 40.0},
-							"confidence":  0.85,
-							"category":    "authentication",
-							"attributes":  map[string]any{},
-						},
-					},
-					"pageContext": map[string]any{"title": "Login", "url": "https://example.com"},
-				},
-			},
-		},
-		{
-			Success:    true,
-			NodeID:     "analysis.screenshot",
-			Screenshot: &autocontracts.Screenshot{Data: []byte{0x01, 0x02}, MediaType: "image/png"},
-		},
-	}
+	runner := analysisRunner()
 	client, _ := newServiceForTest(t, runner)
 
 	resp, err := client.AnalyzeElements(context.Background(), connect.NewRequest(&aiv1.AnalyzeElementsRequest{
@@ -242,6 +226,41 @@ func TestService_AnalyzeElements_HappyPath(t *testing.T) {
 	require.Len(t, resp.Msg.GetElements(), 1)
 	assert.Equal(t, "Login", resp.Msg.GetElements()[0].GetText())
 	assert.Equal(t, "Login", resp.Msg.GetPageContext().GetTitle())
+}
+
+func TestService_AnalyzeElements_PreservesGatewayRefusal(t *testing.T) {
+	runner := analysisRunner()
+	rootOperationID := "aabbccddeeff00112233445566778899"
+	gatewayError := connect.NewError(connect.CodeResourceExhausted, errors.New("credits unavailable"))
+	gatewayError.Meta().Set("X-Vrooli-Root-Operation-ID", rootOperationID)
+	client, _ := newServiceForTest(t, runner, testRolePromptClient{err: gatewayError})
+	request := connect.NewRequest(&aiv1.AnalyzeElementsRequest{Url: "https://example.com"})
+	request.Header().Set("Idempotency-Key", rootOperationID)
+	_, err := client.AnalyzeElements(context.Background(), request)
+	require.Error(t, err)
+	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
+	connectError, ok := err.(*connect.Error)
+	require.True(t, ok)
+	require.Equal(t, rootOperationID, connectError.Meta().Get("X-Vrooli-Root-Operation-ID"))
+}
+
+func analysisRunner() *serviceAutomationRunner {
+	runner := newServiceAutomationRunner()
+	runner.Outcomes = []autocontracts.StepOutcome{
+		{Success: true, NodeID: "analysis.navigate"},
+		{Success: true, NodeID: "analysis.wait"},
+		{Success: true, NodeID: "analysis.evaluate", ExtractedData: map[string]any{"result": map[string]any{
+			"elements": []any{map[string]any{
+				"text": "Login", "tagName": "BUTTON", "type": "button",
+				"selectors":   []any{map[string]any{"selector": "#login", "type": "id", "robustness": 0.9}},
+				"boundingBox": map[string]any{"x": 1.0, "y": 2.0, "width": 100.0, "height": 40.0},
+				"confidence":  0.85, "category": "authentication", "attributes": map[string]any{},
+			}},
+			"pageContext": map[string]any{"title": "Login", "url": "https://example.com"},
+		}}},
+		{Success: true, NodeID: "analysis.screenshot", Screenshot: &autocontracts.Screenshot{Data: []byte{0x01, 0x02}, MediaType: "image/png"}},
+	}
+	return runner
 }
 
 // =============================================================================

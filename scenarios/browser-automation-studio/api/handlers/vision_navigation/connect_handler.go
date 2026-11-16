@@ -2,6 +2,9 @@ package vision_navigation
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -9,14 +12,17 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/sirupsen/logrus"
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
+	"github.com/vrooli/browser-automation-studio/middleware"
+	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai"
 
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
 	"github.com/vrooli/browser-automation-studio/services/vision"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
 // service implements aiconnect.VisionNavigationServiceHandler.
@@ -115,48 +121,72 @@ func buildNavigationTaskContract(
 	return msg.EffectPolicy, conditions, extraction, nil
 }
 
-func (s *service) navigationCredentialProvenance() vision.CredentialProvenance {
+func navigationOperationRootID(req connect.AnyRequest) (string, error) {
+	for _, name := range []string{"Idempotency-Key", "X-Idempotency-Key"} {
+		if value := strings.TrimSpace(req.Header().Get(name)); value != "" {
+			// Hash arbitrary caller keys into the gateway's high-entropy token
+			// alphabet without exposing the original key outside this boundary.
+			digest := sha256.Sum256([]byte(value))
+			return hex.EncodeToString(digest[:]), nil
+		}
+	}
+	value := make([]byte, 16)
+	if _, err := rand.Read(value); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(value), nil
+}
+
+func navigationAISource(ctx context.Context, savedOpenRouterKey bool) (source, accessToken string, err error) {
+	accessToken = monetization.AccessTokenFromContext(ctx)
+	switch aihandlers.PrivacyConsentSourceFromContext(ctx) {
+	case "own-key":
+		if !savedOpenRouterKey {
+			return "", "", connect.NewError(connect.CodePermissionDenied, errors.New("BAS own-key AI requires a configured OpenRouter credential"))
+		}
+		if accessToken == "" {
+			return "", "", connect.NewError(connect.CodePermissionDenied, errors.New("BAS own-key AI requires a signed shared session"))
+		}
+		return "own-key", accessToken, nil
+	case "vrooli-credits":
+		if accessToken == "" {
+			return "", "", connect.NewError(connect.CodePermissionDenied, errors.New("BAS vision navigation requires a signed session when using Vrooli credits"))
+		}
+		lease := monetization.SnapshotFromContext(ctx)
+		if lease == nil || !lease.HasFeatureForApp("browser-automation-studio", entitlement.FeatureAI) {
+			return "", "", connect.NewError(connect.CodePermissionDenied, errors.New("BAS vision navigation requires the signed session's ai feature when using Vrooli credits"))
+		}
+		return "vrooli-credits", accessToken, nil
+	case "local":
+		return "local", "", nil
+	case "":
+		// Older callers without an explicit preference retain the established
+		// saved-credential/session behavior below.
+	default:
+		return "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported AI source preference"))
+	}
+	if middleware.HasOwnKeySourceHint(ctx) || savedOpenRouterKey {
+		if accessToken == "" {
+			return "", "", connect.NewError(connect.CodePermissionDenied, errors.New("BAS own-key AI requires a signed shared session"))
+		}
+		return "own-key", accessToken, nil
+	}
+	if accessToken == "" {
+		return "local", "", nil
+	}
+	lease := monetization.SnapshotFromContext(ctx)
+	if lease == nil || !lease.HasFeatureForApp("browser-automation-studio", entitlement.FeatureAI) {
+		return "", "", connect.NewError(connect.CodePermissionDenied, errors.New("BAS vision navigation requires the signed session's ai feature when using Vrooli credits"))
+	}
+	return "vrooli-credits", accessToken, nil
+}
+
+func (s *service) hasSavedOpenRouterKey() bool {
 	if s.deps.CredentialAuthority == nil {
-		return vision.CredentialProvenanceNone
+		return false
 	}
 	identity, err := credentialauthority.ParseIdentity("vrooli/openrouter")
-	if err == nil && s.deps.CredentialAuthority.Status(identity, "api-key").Configured {
-		return vision.CredentialProvenanceAuthority
-	}
-	return vision.CredentialProvenanceNone
-}
-
-func navigationUserID(ctx context.Context) string {
-	userID := entitlement.UserIdentityFromContext(ctx)
-	if userID == "" {
-		return "anonymous"
-	}
-	return userID
-}
-
-func (s *service) authorizeNavigationCredits(
-	ctx context.Context,
-	navigator vision.VisionNavigator,
-	provenance vision.CredentialProvenance,
-) error {
-	policy := navigator.CreditPolicy()
-	if s.deps.Credits == nil || !policy.ShouldChargeCredits(provenance, false, false) {
-		return nil
-	}
-	userID := navigationUserID(ctx)
-	canProceed, errCode, errMsg, remaining, err := s.deps.Credits.CanPerformAIOperation(ctx, userID, policy.OperationType, provenance == vision.CredentialProvenanceAuthority)
-	if err != nil {
-		s.logger().WithError(err).Warn("vision_navigation: credit check failed; continuing")
-		return nil
-	}
-	if canProceed {
-		return nil
-	}
-	code := connect.CodeFailedPrecondition
-	if errCode == "INSUFFICIENT_CREDITS" {
-		code = connect.CodeResourceExhausted
-	}
-	return connect.NewError(code, fmt.Errorf("%s: %s (remaining=%d)", errCode, errMsg, remaining))
+	return err == nil && s.deps.CredentialAuthority.Status(identity, "api-key").Configured
 }
 
 // =============================================================================
@@ -202,8 +232,20 @@ func (s *service) StartNavigation(
 		return nil, s.mapSelectError(err, preferredType, source)
 	}
 
-	if err := s.authorizeNavigationCredits(ctx, navigator, s.navigationCredentialProvenance()); err != nil {
+	aiSource, accessToken, err := navigationAISource(ctx, s.hasSavedOpenRouterKey())
+	if err != nil {
 		return nil, err
+	}
+	consentGrant := ""
+	if aiSource != "local" {
+		consentGrant = strings.TrimSpace(req.Header().Get("X-Vrooli-AI-Consent-Grant"))
+		if len(consentGrant) > 16384 || strings.ContainsAny(consentGrant, "\r\n") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("AI consent grant header is invalid"))
+		}
+	}
+	rootOperationID, err := navigationOperationRootID(req)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("create AI Gateway operation identity: %w", err))
 	}
 
 	effectPolicy, conditions, extraction, err := buildNavigationTaskContract(msg, navigator.Type())
@@ -212,13 +254,16 @@ func (s *service) StartNavigation(
 	}
 	navReq := vision.NavigationRequest{
 		EffectPolicy: effectPolicy, Postconditions: conditions, Extraction: extraction,
-		SessionID:     input.sessionID,
-		Prompt:        input.prompt,
-		Model:         input.model,
-		MaxSteps:      input.maxSteps,
-		NavigatorType: navigator.Type(),
-		UserID:        navigationUserID(ctx),
-		CallbackURL:   s.resolveCallbackURL(req),
+		SessionID:           input.sessionID,
+		Prompt:              input.prompt,
+		Model:               input.model,
+		MaxSteps:            input.maxSteps,
+		NavigatorType:       navigator.Type(),
+		CallbackURL:         s.resolveCallbackURL(req),
+		RootOperationID:     rootOperationID,
+		AccessToken:         accessToken,
+		AISource:            aiSource,
+		PrivacyConsentGrant: consentGrant,
 	}
 
 	handle, err := navigator.Navigate(ctx, navReq)
@@ -235,13 +280,15 @@ func (s *service) StartNavigation(
 		"navigator":     string(navigator.Type()),
 	}).Info("vision_navigation: started")
 
-	return connect.NewResponse(&aiv1.StartNavigationResponse{
+	response := connect.NewResponse(&aiv1.StartNavigationResponse{
 		NavigationId:  handle.ID(),
 		Status:        "started",
 		Model:         input.model,
 		MaxSteps:      int32(input.maxSteps),
 		NavigatorType: string(navigator.Type()),
-	}), nil
+	})
+	response.Header().Set("X-Vrooli-Root-Operation-ID", rootOperationID)
+	return response, nil
 }
 
 // =============================================================================
@@ -477,18 +524,13 @@ func navigatorInfoToProto(n vision.NavigatorInfo) *aiv1.NavigatorInfo {
 	for _, src := range n.AllowedSources {
 		allowed = append(allowed, string(src))
 	}
-	bypass := make([]string, 0, len(n.CreditPolicy.BypassConditions))
-	for _, b := range n.CreditPolicy.BypassConditions {
-		bypass = append(bypass, string(b))
-	}
 	return &aiv1.NavigatorInfo{
 		Type:        string(n.Type),
 		Available:   n.Available,
 		Description: n.Description,
 		CreditPolicy: &aiv1.CreditPolicyInfo{
-			RequiresCredits:  n.CreditPolicy.RequiresCredits,
-			CreditsPerStep:   int32(n.CreditPolicy.CreditsPerStep),
-			BypassConditions: bypass,
+			RequiresCredits: n.CreditPolicy.RequiresCredits,
+			CreditsPerStep:  int32(n.CreditPolicy.CreditsPerStep),
 		},
 		AllowedSources:    allowed,
 		UnavailableReason: n.UnavailableReason,

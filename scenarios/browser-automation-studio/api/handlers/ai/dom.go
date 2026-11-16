@@ -281,15 +281,6 @@ func NewDOMHandler(log *logrus.Logger, opts ...DOMHandlerOption) *DOMHandler {
 		opt(handler)
 	}
 
-	// Create default runner if not provided
-	if handler.runner == nil {
-		runner, err := newAutomationRunner(log)
-		if err != nil && log != nil {
-			log.WithError(err).Warn("Failed to initialize automation runner for DOM extraction; requests will fail")
-		}
-		handler.runner = runner
-	}
-
 	return handler
 }
 

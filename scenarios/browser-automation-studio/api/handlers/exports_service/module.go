@@ -19,7 +19,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/services/ai"
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
 	exportsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports/exportsconnect"
 )
@@ -49,11 +49,10 @@ type CatalogLookup interface {
 	GetWorkflow(ctx context.Context, workflowID uuid.UUID) (*basapi.WorkflowSummary, error)
 }
 
-// AIClientFactory is the narrow seam used to build a per-request AI
-// client for caption generation. Optional — when nil, the service falls
-// back to a direct OpenRouter client (legacy path).
-type AIClientFactory interface {
-	CreateClient(opts ai.ClientOptions) ai.AIClient
+// CaptionPromptClient is the shared AI Gateway contract used to generate
+// captions. It carries profile, privacy, usage and operation identity policy.
+type CaptionPromptClient interface {
+	ExecutePromptWithRole(ctx context.Context, role, prompt string) (string, error)
 }
 
 // SystemOpener wraps reveal-in-file-manager / open-folder shell-outs so
@@ -65,21 +64,20 @@ type SystemOpener interface {
 
 // Deps wires the ExportsService handler.
 type Deps struct {
-	CancelExport    func(uuid.UUID) bool // optional owned job cancellation; no new wire status
-	Repo            Repo
-	Executor        ExecutionLookup
-	Catalog         CatalogLookup
-	AIClientFactory AIClientFactory // optional
-	Opener          SystemOpener    // optional; defaults to OS-native
-	Logger          *logrus.Logger
+	CancelExport  func(uuid.UUID) bool // optional owned job cancellation; no new wire status
+	Repo          Repo
+	Executor      ExecutionLookup
+	Catalog       CatalogLookup
+	CaptionClient CaptionPromptClient // optional; defaults to the shared AI Gateway.
+	Opener        SystemOpener        // optional; defaults to OS-native
+	Logger        *logrus.Logger
 }
 
 // Module builds the ExportsService Connect handler.
 //
-// Required deps: Repo, Executor, Catalog, Logger. AIClientFactory and
-// Opener are optional; AIClientFactory missing means the legacy direct
-// OpenRouter path is used, and Opener missing means the production
-// os/exec-based opener is installed.
+// Required deps: Repo, Executor, Catalog, Logger. CaptionClient and Opener
+// are optional; the default caption client routes through AI Gateway, while
+// Opener defaults to the production os/exec-based implementation.
 func Module(d Deps) connectx.ServiceMount {
 	if d.Logger == nil {
 		panic("exports_service.Module requires Deps.Logger")
@@ -95,6 +93,9 @@ func Module(d Deps) connectx.ServiceMount {
 	}
 	if d.Opener == nil {
 		d.Opener = osOpener{}
+	}
+	if d.CaptionClient == nil {
+		d.CaptionClient = aihandlers.NewGatewayRolePromptClient()
 	}
 	path, handler := exportsconnect.NewExportsServiceHandler(&service{deps: d})
 	return connectx.ServiceMount{Path: path, Handler: handler}

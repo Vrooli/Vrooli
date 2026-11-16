@@ -117,25 +117,23 @@ type NavigationStepRecord struct {
 // the owning navigator's lock held; navigators hand out Snapshot copies to
 // readers so the live struct is never read without that lock.
 type NavigationSession struct {
-	VerifiedSuccess      bool
-	ExtractedData        map[string]interface{}
-	VerificationError    string
-	FinalURL             string
-	Error                string
-	Summary              string
-	TotalDurationMs      int64
-	NavigationID         string
-	SessionID            string
-	UserID               string
-	Model                string
-	StartedAt            time.Time
-	StepCount            int
-	TotalTokens          int
-	Status               NavigationStatus
-	AwaitingHuman        bool
-	HumanIntervention    *HumanInterventionInfo
-	CredentialProvenance CredentialProvenance
-	NavigatorType        NavigatorType
+	VerifiedSuccess   bool
+	ExtractedData     map[string]interface{}
+	VerificationError string
+	FinalURL          string
+	Error             string
+	Summary           string
+	TotalDurationMs   int64
+	NavigationID      string
+	SessionID         string
+	Model             string
+	StartedAt         time.Time
+	StepCount         int
+	TotalTokens       int
+	Status            NavigationStatus
+	AwaitingHuman     bool
+	HumanIntervention *HumanInterventionInfo
+	NavigatorType     NavigatorType
 	// Steps is the bounded action history (MaxRecordedSteps most recent).
 	Steps []NavigationStepRecord
 

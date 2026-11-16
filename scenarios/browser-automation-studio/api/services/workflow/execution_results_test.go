@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,18 +16,23 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/vrooli/browser-automation-studio/internal/testutil"
+
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	coredb "github.com/vrooli/api-core/database"
 	"github.com/vrooli/browser-automation-studio/automation/contracts"
+	"github.com/vrooli/browser-automation-studio/automation/driver"
 	"github.com/vrooli/browser-automation-studio/automation/engine"
 	"github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	"github.com/vrooli/browser-automation-studio/automation/executor"
+	"github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	uxcollector "github.com/vrooli/browser-automation-studio/services/uxmetrics/collector"
 	basactions "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/actions"
 	basapi "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/api"
@@ -39,9 +43,46 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func newWorkflowTestPlaywrightEngine(t *testing.T, driverURL string, client driver.HTTPDoer) *engine.PlaywrightEngine {
+	t.Helper()
+	driverClient, err := driver.NewClientWithURL(driverURL, driver.WithHTTPClient(client))
+	require.NoError(t, err)
+	broker := session.NewManagerWithClient(driverClient)
+	playwright, err := engine.NewPlaywrightEngineWithSessionManager(broker, logrus.New())
+	require.NoError(t, err)
+	return playwright
+}
+
 type lifecycleRepository struct {
 	database.Repository
 	execution *database.ExecutionIndex
+}
+
+func TestExecutionStatusTransitionCoordinatesWithExactPurge(t *testing.T) {
+	root := t.TempDir()
+	row := &database.ExecutionIndex{ID: uuid.New(), WorkflowID: uuid.New(), Status: database.ExecutionStatusRunning}
+	repo := &lifecycleRepository{execution: row}
+	service := &WorkflowService{repo: repo, executionDataRoot: root}
+	release, err := executionartifactlock.Acquire(context.Background(), root, row.ID)
+	require.NoError(t, err)
+	done := make(chan error, 1)
+	go func() {
+		done <- service.UpdateExecutionStatus(context.Background(), row.ID, database.ExecutionStatusCompleted, nil, nil, time.Now())
+	}()
+	select {
+	case err := <-done:
+		release()
+		t.Fatalf("status writer passed exact purge lock: %v", err)
+	case <-time.After(40 * time.Millisecond):
+	}
+	release()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(time.Second):
+		t.Fatal("status writer did not resume after purge lock released")
+	}
+	require.Equal(t, database.ExecutionStatusCompleted, row.Status)
 }
 
 func (r *lifecycleRepository) GetExecution(context.Context, uuid.UUID) (*database.ExecutionIndex, error) {
@@ -143,6 +184,18 @@ func (r *completionRepository) CreateExecution(_ context.Context, index *databas
 	}
 	r.index = *index
 	return nil
+}
+
+func TestRejectedConcurrentResumeRemovesOnlyItsUnadmittedSnapshot(t *testing.T) {
+	root := t.TempDir()
+	executionID := uuid.New()
+	repo := &completionRepository{createErr: database.ErrResumeAlreadyActive}
+	service := &WorkflowService{repo: repo, executionDataRoot: root}
+	index := &database.ExecutionIndex{ID: executionID, WorkflowID: uuid.New(), Status: database.ExecutionStatusPending, StartedAt: time.Now().UTC()}
+	err := service.createExecution(context.Background(), index, &basexecution.Execution{})
+	require.ErrorIs(t, err, database.ErrResumeAlreadyActive)
+	_, statErr := os.Stat(service.executionSnapshotPath(executionID))
+	assert.ErrorIs(t, statErr, os.ErrNotExist, "a definite duplicate-resume rejection must not leave an orphan snapshot")
 }
 
 func (r *completionRepository) GetExecution(ctx context.Context, _ uuid.UUID) (*database.ExecutionIndex, error) {
@@ -401,6 +454,58 @@ func TestSynchronousWaitCancellationPreservesDetachedExecution(t *testing.T) {
 	}
 }
 
+func TestWaitForExecutionCancellationEndsObservationWithoutStoppingOwner(t *testing.T) {
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	service, repo, invoke := newCompletionFixture(t, "saved", func(ctx context.Context, _ executor.Request) error {
+		close(entered)
+		select {
+		case <-release:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
+	if got := invoke(context.Background(), false); got.err != nil || got.completed {
+		t.Fatalf("async execution admission = %+v", got)
+	}
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("execution runner did not start")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	wait := make(chan error, 1)
+	go func() {
+		_, err := service.WaitForExecution(ctx, repo.index.ID)
+		wait <- err
+	}()
+	cancel()
+	select {
+	case err := <-wait:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancelled wait error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancelled wait did not return")
+	}
+	if repo.index.CompletedAt != nil {
+		t.Fatal("ending the wait unexpectedly completed or stopped the detached execution")
+	}
+
+	close(release)
+	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	terminal, err := service.WaitForExecution(ctx, repo.index.ID)
+	if err != nil {
+		t.Fatalf("wait for durable terminal receipt: %v", err)
+	}
+	if terminal.ID != repo.index.ID || terminal.CompletedAt == nil || terminal.Status != database.ExecutionStatusCompleted {
+		t.Fatalf("terminal receipt = %+v", terminal)
+	}
+}
+
 func TestStopExecutionWaitsForRunnerCleanup(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		releaseCleanup := make(chan struct{})
@@ -538,10 +643,7 @@ func TestStopExecutionRetainsUncertainOutcomeAndJoinsLeasedDriverClose(t *testin
 		}
 	}))
 
-	playwright, err := engine.NewPlaywrightEngineWithHTTPClient(server.URL, server.Client(), logrus.New())
-	if err != nil {
-		t.Fatalf("create Playwright engine: %v", err)
-	}
+	playwright := newWorkflowTestPlaywrightEngine(t, server.URL, server.Client())
 	sink := &retainedWorkflowEventSink{}
 	service, repo, invoke := newCompletionFixture(t, "saved", func(ctx context.Context, request executor.Request) error {
 		request.EngineName = playwright.Name()

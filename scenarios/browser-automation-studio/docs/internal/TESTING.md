@@ -28,6 +28,31 @@ local fixture site for the duration of the run, and reports one result per
 is the suite. J11 (AI navigation with a stubbed model) runs as a driver
 integration test for now; its journey coverage is pending (QUEUE.md).
 
+An independently started, disposable BAS instance can be addressed without a
+Baseline Modes engagement by setting all three explicit loopback URLs and a
+non-live instance label. This supports a scenario instance started with the
+governed `vrooli scenario start ... --instance <variant>` route when BAS's
+component outputs are variant-specific and package installs are already fresh.
+For older manifests or an independent tree, lifecycle still requires outputs
+confined to that tree. Forced dependency installs and stale shared installs are
+refused while another instance serves the same source. Global setup checks API,
+UI, and driver health, starts only the local fixture site, and never manages BAS
+lifecycle. The three service ports must be distinct. Example:
+
+```bash
+BAS_JOURNEY_INSTANCE=mb3-isolated \
+BAS_JOURNEY_API_URL=http://127.0.0.1:18402 \
+BAS_JOURNEY_UI_URL=http://127.0.0.1:20386 \
+BAS_JOURNEY_DRIVER_URL=http://127.0.0.1:24437 \
+pnpm test:journeys --json --outputFile=<path>
+```
+
+Explicit URLs accept loopback hosts only and reject credentials; the `live`
+instance label is refused. Omit all three URL variables to retain the default
+engagement-backed shadow route. This target-selection regression does not prove
+that the selected instance has independent build outputs or that any journey
+passed; those require a lifecycle receipt and the actual journey result.
+
 ## Focused checks
 
 - API: `cd api && go test ./<changed packages>/...`

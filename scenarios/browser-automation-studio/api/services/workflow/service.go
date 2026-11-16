@@ -14,13 +14,13 @@ import (
 	autoevents "github.com/vrooli/browser-automation-studio/automation/events"
 	executionwriter "github.com/vrooli/browser-automation-studio/automation/execution-writer"
 	autoexec "github.com/vrooli/browser-automation-studio/automation/executor"
-	autosession "github.com/vrooli/browser-automation-studio/automation/session"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/readiness"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
@@ -59,7 +59,6 @@ type WorkflowService struct {
 	aiClient              ai.AIClient
 	executor              autoexec.Executor
 	engineFactory         autoengine.Factory
-	sessionBroker         *autosession.Manager
 	artifactRecorder      executionwriter.ExecutionWriter
 	planCompiler          autoexec.PlanCompiler
 	eventSinkFactory      func() autoevents.Sink
@@ -74,7 +73,14 @@ type WorkflowService struct {
 	// readinessResolver settles a run's opening navigation on the target
 	// scenario's declared surfaces instead of on navigation timing alone. It is
 	// optional: nil keeps every run on generic navigation.
-	readinessResolver readiness.Resolver
+	readinessResolver  readiness.Resolver
+	executionAdmission WorkflowExecutionAdmission
+}
+
+// WorkflowExecutionAdmission checks account identity, signed Class B limits,
+// and authoritative usage before a workflow execution is created.
+type WorkflowExecutionAdmission interface {
+	ReserveWorkflowExecution(context.Context, string) (*monetization.QuotaHold, error)
 }
 
 type executionControl struct {
@@ -129,19 +135,15 @@ type ExecutionExportPreview struct {
 	Package             *exportsv1.ReplaySpec `json:"package,omitempty"`
 }
 
-// NewWorkflowService creates a new workflow service
-func NewWorkflowService(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger) *WorkflowService {
-	return NewWorkflowServiceWithDeps(repo, wsHub, log, WorkflowServiceOptions{})
-}
-
-// WorkflowServiceOptions allow injecting the refactored engine/executor/recorder
-// stack without disrupting existing call sites.
+// WorkflowServiceOptions configures the workflow service's execution owners.
 type WorkflowServiceOptions struct {
 	Executor         autoexec.Executor
 	EngineFactory    autoengine.Factory
-	SessionBroker    *autosession.Manager
 	ArtifactRecorder executionwriter.ExecutionWriter
 	PlanCompiler     autoexec.PlanCompiler
+	// AIClient must be explicitly injected by the application. A nil client
+	// keeps generation disabled instead of falling back to a provider-specific
+	// path outside AI Gateway.
 	AIClient         ai.AIClient
 	EventSinkFactory func() autoevents.Sink
 	// ExecutionDataRoot controls where execution artifacts and proto snapshots are persisted.
@@ -153,15 +155,12 @@ type WorkflowServiceOptions struct {
 	// SessionProfileService provides access to session profiles for authenticated execution.
 	// When set, workflows can use session_profile_id to inject storage state (cookies, localStorage).
 	SessionProfileService *sessionprofile.Service
+	ExecutionAdmission    WorkflowExecutionAdmission
 }
 
-// NewWorkflowServiceWithDeps allows advanced configuration for upcoming engine
-// abstraction work while keeping the legacy constructor stable.
+// NewWorkflowServiceWithDeps creates a workflow service with explicit dependencies.
 func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterface, log *logrus.Logger, opts WorkflowServiceOptions) *WorkflowService {
 	aiClient := opts.AIClient
-	if aiClient == nil {
-		aiClient = ai.NewOpenRouterClient(log)
-	}
 
 	eventSinkFactory := opts.EventSinkFactory
 	if eventSinkFactory == nil {
@@ -177,16 +176,46 @@ func NewWorkflowServiceWithDeps(repo database.Repository, wsHub wsHub.HubInterfa
 		aiClient:              aiClient,
 		executor:              opts.Executor,
 		engineFactory:         opts.EngineFactory,
-		sessionBroker:         opts.SessionBroker,
 		artifactRecorder:      opts.ArtifactRecorder,
 		planCompiler:          opts.PlanCompiler,
 		eventSinkFactory:      eventSinkFactory,
 		executionDataRoot:     strings.TrimSpace(opts.ExecutionDataRoot),
 		projectRoot:           opts.ProjectRoot,
 		sessionProfileService: opts.SessionProfileService,
+		executionAdmission:    opts.ExecutionAdmission,
 	}
 
 	return svc
+}
+
+func (s *WorkflowService) reserveExecution(ctx context.Context) (*monetization.QuotaHold, error) {
+	if s == nil || s.executionAdmission == nil {
+		return nil, nil
+	}
+	return s.executionAdmission.ReserveWorkflowExecution(ctx, monetization.UserIdentityFromContext(ctx))
+}
+
+func (s *WorkflowService) releaseExecutionHold(ctx context.Context, hold *monetization.QuotaHold) {
+	if hold == nil {
+		return
+	}
+	if err := hold.Release(context.WithoutCancel(ctx)); err != nil && s.log != nil {
+		s.log.WithError(err).Warn("Failed to release unaccepted workflow quota hold")
+	}
+}
+
+func (s *WorkflowService) commitExecutionHold(ctx context.Context, hold *monetization.QuotaHold, executionID uuid.UUID) error {
+	if hold == nil {
+		return nil
+	}
+	if err := hold.Commit(ctx, 1); err != nil {
+		s.releaseExecutionHold(ctx, hold)
+		message := "workflow quota could not be committed; execution was not started"
+		completedAt := time.Now().UTC()
+		_ = s.UpdateExecutionStatus(context.WithoutCancel(ctx), executionID, database.ExecutionStatusFailed, &message, &completedAt, completedAt)
+		return err
+	}
+	return nil
 }
 
 // newEventSink constructs an event sink for automation lifecycle notifications.

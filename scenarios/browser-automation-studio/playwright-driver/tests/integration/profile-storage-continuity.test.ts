@@ -129,7 +129,8 @@ describe('profile authentication continuity', () => {
     await writeIdentity(first.page, 'alpha');
     const second = await start();
     await writeIdentity(second.page, 'beta');
-    const snapshot = await manager.getStorageState(first.sessionId);
+    const owner = manager.peekSession(first.sessionId);
+    const snapshot = await manager.getStorageStateForLease(first.sessionId, owner.ownerExecutionId, owner.leaseId);
     await manager.closeSession(first.sessionId);
     const restored = await start(snapshot);
 

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 )
 
 // framePersistResult summarizes the outcome of persisting recording frames.
@@ -103,15 +104,17 @@ func (s *IngestionService) cleanupRecordingArtifacts(baseCtx context.Context, pr
 
 	// Clean up execution and its associated files
 	if execution != nil {
-		if err := s.repo.DeleteExecution(ctx, execution.ID); err != nil && s.log != nil {
-			s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to delete partial execution during recording cleanup")
-		}
-		execDir := strings.TrimSpace(s.recordingsRoot)
-		if execDir != "" {
-			path := filepath.Join(execDir, execution.ID.String())
-			if err := os.RemoveAll(path); err != nil && s.log != nil {
-				s.log.WithError(err).WithField("path", path).Warn("Failed to remove partial recording assets")
+		err := executionartifactlock.WithLock(ctx, s.recordingsRoot, execution.ID, func(lockCtx context.Context) error {
+			if err := s.repo.DeleteExecution(lockCtx, execution.ID); err != nil {
+				return err
 			}
+			if strings.TrimSpace(s.recordingsRoot) != "" {
+				return os.RemoveAll(filepath.Join(s.recordingsRoot, execution.ID.String()))
+			}
+			return nil
+		})
+		if err != nil && s.log != nil {
+			s.log.WithError(err).WithField("execution_id", execution.ID).Warn("Failed to clean partial recording execution")
 		}
 	}
 

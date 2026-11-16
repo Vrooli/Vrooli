@@ -5,6 +5,7 @@ import (
 
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
+	"github.com/vrooli/browser-automation-studio/internal/enums"
 	"github.com/vrooli/browser-automation-studio/services/workflow"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
@@ -19,7 +20,7 @@ func ExecutionToProto(execution *database.ExecutionIndex) (*basexecution.Executi
 	pb := &basexecution.Execution{
 		ExecutionId: execution.ID.String(),
 		WorkflowId:  execution.WorkflowID.String(),
-		Status:      StringToExecutionStatus(execution.Status),
+		Status:      enums.StringToExecutionStatus(execution.Status),
 		StartedAt:   autocontracts.TimeToTimestamp(execution.StartedAt),
 		CreatedAt:   autocontracts.TimeToTimestamp(execution.CreatedAt),
 		UpdatedAt:   autocontracts.TimeToTimestamp(execution.UpdatedAt),
@@ -47,7 +48,7 @@ func ExecutionExportPreviewToProto(preview *workflow.ExecutionExportPreview) (*b
 	return &basexecution.ExecutionExportPreview{
 		ExecutionId:         preview.ExecutionID.String(),
 		SpecId:              preview.SpecID,
-		Status:              StringToExportStatus(preview.Status),
+		Status:              enums.StringToExportStatus(preview.Status),
 		Message:             preview.Message,
 		CapturedFrameCount:  int32(preview.CapturedFrameCount),
 		AvailableAssetCount: int32(preview.AvailableAssetCount),

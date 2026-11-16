@@ -1,6 +1,5 @@
 # Architecture
 
-## Purpose Of This Document
 
 This is the authoritative architecture map. Historical design analyses are context, not contracts.
 

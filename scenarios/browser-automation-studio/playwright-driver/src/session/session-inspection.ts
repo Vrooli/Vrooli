@@ -32,6 +32,7 @@ export interface SessionListEntry {
   is_recording: boolean;
   instruction_count: number;
   owner_execution_id: string;
+  lease_id: string;
   workflow_id?: string;
   current_url?: string;
   page_count: number;
@@ -105,6 +106,7 @@ export function listSessions(
       is_recording: session.pipelineManager?.isRecording() ?? false,
       instruction_count: session.instructionCount,
       owner_execution_id: session.ownerExecutionId,
+      lease_id: session.leaseId,
       workflow_id: session.spec.workflow_id,
       current_url: currentUrl,
       page_count: session.context.pages().length,

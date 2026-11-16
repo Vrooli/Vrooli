@@ -18,12 +18,12 @@ func TestSeams_RolePromptClient(t *testing.T) {
 		mockResponse := `[{"text": "Login", "tagName": "BUTTON", "confidence": 0.9, "category": "auth"}]`
 		mockClient := newMockRolePromptClient(mockResponse)
 
-		response, err := mockClient.ExecutePromptWithRole(context.Background(), "chat.small", "test prompt")
+		response, err := mockClient.ExecutePromptWithRole(context.Background(), "write.default", "test prompt")
 
 		require.NoError(t, err)
 		assert.Equal(t, mockResponse, response)
 		assert.Len(t, mockClient.Calls, 1)
-		assert.Equal(t, "chat.small", mockClient.Calls[0].Role)
+		assert.Equal(t, "write.default", mockClient.Calls[0].Role)
 		assert.Equal(t, "test prompt", mockClient.Calls[0].Prompt)
 	})
 
@@ -32,7 +32,7 @@ func TestSeams_RolePromptClient(t *testing.T) {
 			Err: assert.AnError,
 		}
 
-		_, err := mockClient.ExecutePromptWithRole(context.Background(), "chat.small", "test prompt")
+		_, err := mockClient.ExecutePromptWithRole(context.Background(), "write.default", "test prompt")
 
 		assert.Error(t, err)
 		assert.Equal(t, assert.AnError, err)

@@ -71,6 +71,44 @@ type androidWebViewSession struct {
 	recordingID    string
 }
 
+func (s *androidWebViewSession) CreatePage(ctx context.Context, url string) (*driver.CreatePageResponse, error) {
+	pageSession, ok := s.EngineSession.(interface {
+		CreatePage(context.Context, string) (*driver.CreatePageResponse, error)
+	})
+	if !ok {
+		return nil, errors.New("Android WebView session does not support page restoration")
+	}
+	return pageSession.CreatePage(ctx, url)
+}
+
+func (s *androidWebViewSession) CreatePopupPage(ctx context.Context, url, openerPageID string) (*driver.CreatePageResponse, error) {
+	pageSession, ok := s.EngineSession.(interface {
+		CreatePopupPage(context.Context, string, string) (*driver.CreatePageResponse, error)
+	})
+	if !ok {
+		return nil, errors.New("Android WebView session does not support popup restoration")
+	}
+	return pageSession.CreatePopupPage(ctx, url, openerPageID)
+}
+
+func (s *androidWebViewSession) SetActivePage(ctx context.Context, pageID string) error {
+	pageSession, ok := s.EngineSession.(interface {
+		SetActivePage(context.Context, string) error
+	})
+	if !ok {
+		return errors.New("Android WebView session does not support page selection")
+	}
+	return pageSession.SetActivePage(ctx, pageID)
+}
+
+func (s *androidWebViewSession) InitialDriverPageID() string {
+	pageSession, ok := s.EngineSession.(interface{ InitialDriverPageID() string })
+	if !ok {
+		return ""
+	}
+	return pageSession.InitialDriverPageID()
+}
+
 func (s *androidWebViewSession) Run(ctx context.Context, instruction contracts.CompiledInstruction) (contracts.StepOutcome, error) {
 	outcome, err := s.EngineSession.Run(ctx, instruction)
 	offset := time.Since(s.recordingStart)

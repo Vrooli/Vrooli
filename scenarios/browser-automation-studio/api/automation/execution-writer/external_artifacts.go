@@ -20,6 +20,12 @@ const maxEmbeddedExternalArtifactBytes = 5 * 1024 * 1024
 // RecordExecutionArtifacts persists available evidence and returns every failed
 // import. A requested path or digest alone cannot acknowledge retained bytes.
 func (r *FileWriter) RecordExecutionArtifacts(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error {
+	return r.withExecutionArtifactLock(ctx, plan.ExecutionID, func(lockCtx context.Context) error {
+		return r.recordExecutionArtifactsLocked(lockCtx, plan, artifacts)
+	})
+}
+
+func (r *FileWriter) recordExecutionArtifactsLocked(ctx context.Context, plan contracts.ExecutionPlan, artifacts []ExternalArtifact) error {
 	if r == nil || len(artifacts) == 0 {
 		return nil
 	}
@@ -98,6 +104,9 @@ func (r *FileWriter) prepareExternalArtifact(ctx context.Context, executionID uu
 		payload[inlineKey], payload["inline"] = base64.StdEncoding.EncodeToString(data), true
 	}
 	storageURL := ""
+	storageClass := "inline"
+	storagePath := ""
+	objectKey := ""
 	if !inline || (isHAR && r.storage != nil) {
 		if r.storage == nil {
 			return ArtifactData{}, errors.New("artifact storage unavailable for non-inline evidence")
@@ -122,6 +131,11 @@ func (r *FileWriter) prepareExternalArtifact(ctx context.Context, executionID uu
 			return ArtifactData{}, errors.New("artifact content digest differs from stored bytes")
 		}
 		storageURL, payload["storage_object"] = stored.URL, stored.ObjectName
+		objectKey = stored.ObjectName
+		storageClass = "external"
+		if stored.Path != "" {
+			storageClass, storagePath = "execution_file", stored.Path
+		}
 		if stored.ContentType != "" {
 			contentType = stored.ContentType
 		}
@@ -135,6 +149,8 @@ func (r *FileWriter) prepareExternalArtifact(ctx context.Context, executionID uu
 		SizeBytes: &descriptor.SizeBytes, SHA256: descriptor.SHA256,
 		Classification: descriptor.Classification.String(), RetentionClass: descriptor.Retention.String(),
 		AccessPolicy: descriptor.Access.String(), Redacted: descriptor.Redacted,
+		PurgeStorageClass: storageClass, PurgeStoragePath: storagePath,
+		PurgeObjectKey: objectKey,
 	}, nil
 }
 

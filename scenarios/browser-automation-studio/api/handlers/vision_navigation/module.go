@@ -1,6 +1,7 @@
 // Package vision_navigation hosts the BAS VisionNavigationService Connect-RPC
 // handler. It wraps the existing services/vision navigator registry and
-// playwright session tracker; the service-layer code is unchanged.
+// Playwright session tracker; AI metering and privacy enforcement are owned by
+// AI Gateway.
 //
 // The complementary /api/v1/internal/ai-navigate/callback webhook (POST from
 // the playwright driver) stays on chi as a documented REST exception (webhook
@@ -13,7 +14,6 @@ import (
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	aiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/ai/aiconnect"
 
-	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/vision"
 )
 
@@ -24,10 +24,8 @@ import (
 type SessionTracker = vision.SessionTracker
 
 // Deps wires the vision-navigation handler. Logger is required. Registry is
-// required (no registry → no navigators → handler can't function). Credits
-// and Tracker are optional but each disables a feature:
-//   - Credits == nil: credit policy checks are skipped (UI/dev mode).
-//   - Tracker == nil: status / abort / resume return NotFound for every id.
+// required (no registry → no navigators → handler can't function). Tracker
+// is optional; without it status / abort / resume return NotFound.
 //
 // CallbackBase, when non-empty, is the scheme://host base URL used to build
 // the callback URL sent to playwright-driver (e.g. "http://127.0.0.1:8110").
@@ -35,7 +33,6 @@ type SessionTracker = vision.SessionTracker
 type Deps struct {
 	Logger              *logrus.Logger
 	Registry            *vision.NavigatorRegistry
-	Credits             credits.CreditService
 	Tracker             SessionTracker
 	CallbackBase        string
 	CredentialAuthority *credentialauthority.Authority

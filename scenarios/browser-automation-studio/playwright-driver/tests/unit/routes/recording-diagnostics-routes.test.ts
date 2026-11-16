@@ -175,12 +175,12 @@ describe('recording diagnostics routes', () => {
       },
     };
 
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => session as ReturnType<SessionManager['getSession']>,
+    const sessionManager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => session as ReturnType<SessionManager['getSessionForLease']>,
     };
 
     const res = createMockHttpResponse();
-    await handleRecordDebug({} as ReturnType<typeof createMockHttpRequest>, res, 'test', sessionManager as SessionManager);
+    await handleRecordDebug(createMockHttpRequest({ headers: { 'x-bas-execution-id': 'owner', 'x-bas-session-lease-id': 'lease' } }), res, 'test', sessionManager as SessionManager);
 
     expect(res.statusCode).toBe(200);
     const payload = res.getJSON();
@@ -208,12 +208,12 @@ describe('recording diagnostics routes', () => {
       },
     };
 
-    const sessionManager: Pick<SessionManager, 'getSession'> = {
-      getSession: () => session as ReturnType<SessionManager['getSession']>,
+    const sessionManager: Pick<SessionManager, 'getSessionForLease'> = {
+      getSessionForLease: () => session as ReturnType<SessionManager['getSessionForLease']>,
     };
 
     const res = createMockHttpResponse();
-    await handleRecordDebug({} as ReturnType<typeof createMockHttpRequest>, res, 'test', sessionManager as SessionManager);
+    await handleRecordDebug(createMockHttpRequest({ headers: { 'x-bas-execution-id': 'owner', 'x-bas-session-lease-id': 'lease' } }), res, 'test', sessionManager as SessionManager);
 
     const payload = res.getJSON();
     expect(payload.browser_script).toBeNull();

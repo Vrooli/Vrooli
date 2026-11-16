@@ -25,7 +25,8 @@ import (
 
 // Common errors
 var (
-	ErrNotFound = errors.New("not found")
+	ErrNotFound            = errors.New("not found")
+	ErrResumeAlreadyActive = errors.New("resume already active")
 )
 
 // ============================================================================

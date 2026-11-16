@@ -82,12 +82,13 @@ export function ExecutionPreviewPanel({
   // We subscribe early (before store loads) to avoid missing frames due to race conditions
   // The backend only sends frames when execution is actually running, so early subscription is safe
   // We unsubscribe when execution is completed/failed/cancelled
-  const isExecutionRunning = currentExecution?.status === 'running';
-  const isExecutionActive = !currentExecution ||
-    currentExecution.status === 'pending' ||
-    currentExecution.status === 'running';
+  const isExecutionActive = currentExecution
+    ? currentExecution.status === 'pending' || currentExecution.status === 'running'
+    : isLoading;
   const frameStream = useFrameStream({sessionId:null,executionId:isExecutionActive ? executionId : null,enabled:isExecutionActive});
-  const {frameUrl,frameCount} = frameStream;
+  const {canvasRef,hasFrame} = frameStream;
+  const frameCount = frameStream.frameStats.totalFrames;
+  const isFrameSocketConnected = frameStream.isWsFrameActive;
   const isStreaming = frameStream.hasFrame && frameStream.isWsFrameActive;
 
   // Determine content type based on execution state and available data
@@ -95,16 +96,17 @@ export function ExecutionPreviewPanel({
   const contentType: ContentType = useMemo(() => {
     // Show live stream if we're streaming frames, regardless of store state
     // This avoids showing fallback content while store is still loading
-    if (isStreaming && frameUrl) return 'live-stream';
+    if (isStreaming && hasFrame) return 'live-stream';
+    // Keep the canvas mounted for pending and running runs so its first decoded
+    // frame is not lost before the viewer changes from status to live mode.
+    if (isExecutionActive) return 'live-stream';
     if (!currentExecution) return 'pending';
-    // Also show live stream if execution is running even if no frames yet
-    if (isExecutionRunning) return 'live-stream';
     if (currentExecution.status === 'completed' || currentExecution.status === 'failed' || currentExecution.status === 'cancelled') {
       if (currentExecution.screenshots && currentExecution.screenshots.length > 0) return 'slideshow';
       return 'status';
     }
     return 'status';
-  }, [currentExecution, isExecutionRunning, isStreaming, frameUrl]);
+  }, [currentExecution, isExecutionActive, isStreaming, hasFrame]);
 
   // Get workflow info for display
   const workflows = useWorkflowStore((s) => s.workflows);
@@ -205,20 +207,26 @@ export function ExecutionPreviewPanel({
     };
   }, [executionId, loadExecution]);
 
-  // Loading state - but show live stream if frames are arriving even while loading
-  if (isLoading && !(isStreaming && frameUrl)) {
+  // Keep the canvas mounted while the initial execution record loads. The first
+  // decoded frame is painted directly to it; swapping from a loading screen to
+  // a later-mounted canvas would discard that first frame.
+  if (isLoading && !(isStreaming && hasFrame)) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
-        <Loader2 className="w-12 h-12 text-flow-accent animate-spin mb-4" />
-        <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
-          Loading execution...
-        </p>
+      <div className="h-full w-full">
+        {isExecutionActive ? (
+          <LiveStreamView canvasRef={canvasRef} frameCount={frameCount} hasFrame={hasFrame} isConnected={isFrameSocketConnected} />
+        ) : (
+          <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
+            <Loader2 className="w-12 h-12 text-flow-accent animate-spin mb-4" />
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Loading execution...</p>
+          </div>
+        )}
       </div>
     );
   }
 
   // Error state - but still show live stream if frames are arriving
-  if (error && !(isStreaming && frameUrl)) {
+  if (error && !(isStreaming && hasFrame)) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
         <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
@@ -238,7 +246,7 @@ export function ExecutionPreviewPanel({
   }
 
   // No execution found - but still show live stream if frames are arriving
-  if (!currentExecution && !(isStreaming && frameUrl)) {
+  if (!currentExecution && !(isStreaming && hasFrame)) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
         <AlertCircle className="w-12 h-12 text-amber-500 mb-4" />
@@ -255,8 +263,8 @@ export function ExecutionPreviewPanel({
   // Main content
   return (
     <div className="h-full w-full">
-      {contentType === 'live-stream' && frameUrl ? (
-        <LiveStreamView frameUrl={frameUrl} frameCount={frameCount} />
+      {contentType === 'live-stream' ? (
+        <LiveStreamView canvasRef={canvasRef} frameCount={frameCount} hasFrame={hasFrame} isConnected={isFrameSocketConnected} />
       ) : contentType === 'slideshow' && currentExecution ? (
         <ScreenshotSlideshow
           screenshots={slideshowScreenshots}
@@ -514,20 +522,31 @@ function ExecutionContent({
 
 /** Live stream view - displays real-time frames from execution */
 function LiveStreamView({
-  frameUrl,
+  canvasRef,
   frameCount,
+  hasFrame,
+  isConnected,
 }: {
-  frameUrl: string;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
   frameCount: number;
+  hasFrame: boolean;
+  isConnected: boolean;
 }) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center bg-gray-900">
       <div className="relative w-full h-full flex items-center justify-center">
-        <img
-          src={frameUrl}
-          alt="Live execution preview"
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label="Live execution preview"
           className="max-w-full max-h-full object-contain"
         />
+        {!hasFrame && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-white/80">
+            <Loader2 className="mb-2 h-6 w-6 animate-spin" />
+            <span>{isConnected ? 'Waiting for browser frames…' : 'Connecting to live preview…'}</span>
+          </div>
+        )}
         <div className="absolute top-3 left-3 flex items-center gap-2 px-2 py-1 bg-red-600/90 rounded text-white text-xs font-medium">
           <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
           LIVE

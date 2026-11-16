@@ -41,6 +41,7 @@ export * from './session-audio';
 export * from './session-close';
 export * from './session-storage';
 export * from './session-service-workers';
+export * from './session-lease';
 export * from './record-mode/index';
 export * from './session-ai-navigate';
 export * from './public-page-capture';

@@ -83,8 +83,8 @@
   },
   "private": true,
   "scripts": {
-    "build": "pnpm selector:manifest && npx vite build && node ./scripts/gzip-dist.mjs",
-    "build:profile": "pnpm selector:manifest && npx vite build --mode profile && node ./scripts/gzip-dist.mjs",
+    "build": "node scripts/build.mjs",
+    "build:profile": "node scripts/build.mjs --mode profile",
     "dev": "vrooli lifecycle protect -- npx vite",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

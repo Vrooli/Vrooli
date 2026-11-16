@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback, useId } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { logger } from '@utils/logger';
 import { X, Target, Settings, Loader, Eye, Monitor, AlertCircle, Brain, ArrowUp, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import BrowserInspectorTab from './BrowserInspectorTab';
 import type { ElementInfo, ElementHierarchyEntry } from '@/types/elements';
 import { ResponsiveDialog } from '@shared/layout';
-import { aiClient, mapProtoElementInfo, mapProtoSelectionResult } from '@/api/ai';
+import { aiClient, analyzeElementsWithAI, mapProtoElementInfo, mapProtoSelectionResult, newGatewayRootOperationID } from '@/api/ai';
 
 // bytesToBase64 converts a Uint8Array (proto `bytes` field) into a standard
 // base64 string for use as a data URL.
@@ -80,6 +80,7 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
   const [screenshotDimensions, setScreenshotDimensions] = useState<{width: number; height: number} | null>(null);
   const [hoverPosition, setHoverPosition] = useState<{x: number; y: number} | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<ElementInfo[]>([]);
+	const pendingRootOperation = useRef<{ key: string; id: string } | null>(null);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [userIntent, setUserIntent] = useState('');
   const [hierarchyCandidates, setHierarchyCandidates] = useState<ElementHierarchyEntry[]>([]);
@@ -234,8 +235,14 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
     }
 
     setAiAnalyzing(true);
+    const operationKey = JSON.stringify([url, userIntent.trim()]);
+    if (pendingRootOperation.current?.key !== operationKey) {
+      pendingRootOperation.current = { key: operationKey, id: newGatewayRootOperationID() };
+    }
+    const rootOperationID = pendingRootOperation.current.id;
     try {
-      const resp = await aiClient.aIAnalyzeElements({ url, intent: userIntent.trim() });
+      const resp = await analyzeElementsWithAI({ url, intent: userIntent.trim() }, rootOperationID);
+      pendingRootOperation.current = null;
       const suggestions = resp.suggestions
         .map((entry) => mapProtoElementInfo(entry))
         .filter((entry): entry is ElementInfo => entry !== null);
@@ -251,7 +258,8 @@ const ElementPickerModal: React.FC<ElementPickerModalProps> = ({
       }
     } catch (error) {
       logger.error('Failed to analyze with AI', { component: 'ElementPickerModal', action: 'handleAIAnalysis' }, error);
-      toast.error('AI analysis failed. Check the AI model configuration and try again.');
+      const message = error instanceof Error ? error.message : 'AI analysis failed';
+      toast.error(message);
     } finally {
       setAiAnalyzing(false);
     }

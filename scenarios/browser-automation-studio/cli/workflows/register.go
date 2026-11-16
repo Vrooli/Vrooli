@@ -12,9 +12,8 @@
 // chi routes that have been deleted from the API; this register
 // supersedes them.
 //
-// step_parser.go and workflow_builder.go remain in this package as pure
-// helpers used by the deprecated `execute.go` path. They are kept while
-// any embedder still imports them; their unit tests still pass.
+// The former inline --step parser and builder are removed; execute-adhoc
+// accepts the canonical workflow definition directly.
 package workflows
 
 import (

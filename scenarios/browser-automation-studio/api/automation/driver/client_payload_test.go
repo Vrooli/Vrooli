@@ -298,6 +298,25 @@ func TestCreatePageRequiresCompletedIdentityReceipt(t *testing.T) {
 	}
 }
 
+func TestCreatePopupPageCarriesExactOpenerIdentity(t *testing.T) {
+	var payload map[string]string
+	server := testutil.StartHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Errorf("decode popup create request: %v", err)
+		}
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"driver_page_id": "popup", "url": "https://popup.test"})
+	}))
+	client, err := NewClientWithURL(server.URL, WithoutCircuitBreaker())
+	require.NoError(t, err)
+	receipt, err := client.CreatePopupPage(context.Background(), "session", "owner", "lease", "https://popup.test", "opener-page")
+	require.NoError(t, err)
+	require.Equal(t, "popup", receipt.DriverPageID)
+	require.Equal(t, map[string]string{
+		"url": "https://popup.test", "execution_id": "owner", "lease_id": "lease", "opener_driver_page_id": "opener-page",
+	}, payload)
+}
+
 // [REQ:BAS-RH-J05] A successful HTTP status cannot admit an unusable preview.
 func TestGetFrameRejectsInvalidReceipts(t *testing.T) {
 	for _, tc := range []struct {

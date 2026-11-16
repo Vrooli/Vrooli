@@ -94,17 +94,17 @@ type VisionNavigator interface {
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌────────────────────────────┐      ┌────────────────────────────────────┐ │
-│  │  VisionNavigationHandler   │      │        Credit Service              │ │
-│  │  - Selects navigator       │◀────▶│  - Policy-based checking           │ │
-│  │  - Validates entitlements  │      │  - Per-step charging               │ │
+│  │  VisionNavigationHandler   │      │             AI Gateway              │ │
+│  │  - Selects navigator       │─────▶│  - Signed-session source check      │ │
+│  │  - Validates feature lease │      │  - Privacy policy and usage meter   │ │
 │  │  - Broadcasts WebSocket    │      └────────────────────────────────────┘ │
 │  └─────────────┬──────────────┘                                             │
 │                │                                                            │
 │    ┌───────────┴───────────┐                                                │
 │    ▼                       ▼                                                │
 │  NavigatorRegistry    CreditPolicy                                          │
-│  - SelectNavigator()  - ShouldChargeCredits()                               │
-│  - ListNavigators()   - BypassConditions                                    │
+│  - SelectNavigator()  - Meter display only                                 │
+│  - ListNavigators()   - No local authorization or billing                  │
 │                                                                             │
 │                │  Forward to driver         Callback from driver            │
 │                ▼                                    ▲                       │
@@ -155,33 +155,26 @@ type VisionNavigator interface {
 
 ## Credit Policies
 
-Each navigator declares its own credit policy, which the handler checks before execution.
+The navigator response exposes only display hints. The signed-session middleware
+checks the BAS AI feature for Vrooli-funded requests; AI Gateway validates the
+account source, privacy consent, and usage reservation for each model call. BAS
+does not precheck balances or charge from callback events.
 
 ### CreditPolicy Structure
 
 ```go
 type CreditPolicy struct {
     RequiresCredits  bool
-    OperationType    credits.OperationType
     PerStepCharging  bool
     CreditsPerStep   int
-    BypassConditions []BypassCondition
 }
 ```
 
 ### Navigator Credit Policies
 
-| Navigator | RequiresCredits | CreditsPerStep | Bypass Conditions |
-|-----------|-----------------|----------------|-------------------|
-| Playwright | Yes | 2 | AI Gateway usage and entitlement policy |
-
-### Bypass Conditions
-
-| Condition | Description |
-|-----------|-------------|
-| `ai_gateway` | AI Gateway reports provider-neutral usage and route evidence |
-| `entitlement` | An approved entitlement or credit policy permits execution |
-| `local_execution` | Running locally without external API calls |
+| Navigator | RequiresCredits | Fixed credits per step |
+|-----------|-----------------|------------------------|
+| Playwright | Account-source dependent | None; Gateway determines usage |
 
 ## Client Source Restriction
 
@@ -221,9 +214,9 @@ User types prompt
        │                                                   │
        ▼                                                   │
 ┌──────────────────┐                                       │
-│ 3. Checks credit │                                       │
-│    policy and    │                                       │
-│    entitlements  │                                       │
+│ 3. Checks signed │                                       │
+│    session and   │                                       │
+│    AI feature    │                                       │
 └──────────────────┘                                       │
        │                                                   │
        ▼                                                   │
@@ -263,9 +256,9 @@ User types prompt
        │
        ▼
 ┌──────────────────┐
-│ 6. Charges       │
-│    credits per   │
-│    policy        │
+│ 6. Records usage │
+│    through AI    │
+│    Gateway       │
 └──────────────────┘
        │
        ▼
@@ -283,7 +276,7 @@ User types prompt
 |-------|------|---------|
 | **API** | `api/services/vision/navigator.go` | VisionNavigator interface, NavigationHandle |
 | **API** | `api/services/vision/types.go` | NavigationRequest, NavigationStep, NavigationResult |
-| **API** | `api/services/vision/policy.go` | CreditPolicy, ClientSourcePolicy, BypassCondition |
+| **API** | `api/services/vision/policy.go` | CreditPolicy display hint, ClientSourcePolicy |
 | **API** | `api/services/vision/registry.go` | NavigatorRegistry (discovery + selection) |
 | **API** | `api/services/vision/playwright_navigator.go` | Playwright implementation |
 
@@ -499,7 +492,7 @@ The UI shows [CODE: ui/src/domains/recording/ai-navigation/HumanInterventionOver
 ## Architectural Decisions
 
 1. **Navigator Abstraction**: Pluggable navigator pattern enables different backends with distinct policies
-2. **Policy-Based Credit Gating**: Each navigator declares its own credit policy, handler enforces uniformly
+2. **Gateway-Owned Metering**: BAS checks the signed feature lease; AI Gateway owns per-inference usage and billing
 3. **Client Source Restriction**: `X-Client-Source` header enables CLI-only features
 4. **Async Background Processing**: Navigation runs in background (202 Accepted), events pushed via WebSocket
 5. **Callback-based Progress**: Driver POSTs to callback URL, backend broadcasts via WebSocket

@@ -23,6 +23,7 @@ type Viewport struct {
 type ObservedSession struct {
 	ID               string `json:"id"`
 	OwnerExecutionID string `json:"owner_execution_id"`
+	LeaseID          string `json:"lease_id"`
 	WorkflowID       string `json:"workflow_id"`
 	CreatedAt        string `json:"created_at"`
 	LastUsedAt       string `json:"last_used_at"`
@@ -106,17 +107,17 @@ type ArtifactPaths struct {
 // Playwright driver may attach to during a validation run. The target owns
 // process launch and cleanup; BAS only owns workflow execution.
 type AppTarget struct {
-	TargetKind     string `json:"target_kind,omitempty"`
-	TargetID       string `json:"target_id"`
-	CDPEndpoint    string `json:"cdp_endpoint"`
-	RendererID     string `json:"renderer_id"`
-	RendererURL    string `json:"renderer_url"`
-	RendererTitle  string `json:"renderer_title,omitempty"`
-	ScenarioName   string `json:"scenario_name"`
-	ArtifactDigest string `json:"artifact_digest"`
-	ContextID      string `json:"context_id"`
-	CDPTransport   string `json:"cdp_transport"`
-	DownloadPath   string `json:"download_path,omitempty"`
+	TargetKind       string `json:"target_kind,omitempty"`
+	TargetID         string `json:"target_id"`
+	CDPEndpoint      string `json:"cdp_endpoint"`
+	RendererID       string `json:"renderer_id"`
+	RendererURL      string `json:"renderer_url"`
+	RendererTitle    string `json:"renderer_title,omitempty"`
+	ScenarioName     string `json:"scenario_name"`
+	ArtifactDigest   string `json:"artifact_digest"`
+	ContextID        string `json:"context_id"`
+	CDPTransport     string `json:"cdp_transport"`
+	DownloadPath     string `json:"download_path,omitempty"`
 	TestDatabaseRoot string `json:"test_database_root,omitempty"`
 }
 

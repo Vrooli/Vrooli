@@ -25,6 +25,19 @@ func TestLocalManifestCommandsMatchRegisteredFlatCommands(t *testing.T) {
 			registered[command.Name] = true
 		}
 	}
+	app, err := cliapp.NewScenarioApp(cliapp.ScenarioOptions{
+		Name: "bas-manifest-test", AllowAnonymous: true,
+		ConfigDirEnvVars: []string{"BAS_MANIFEST_TEST_CONFIG"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BAS_MANIFEST_TEST_CONFIG", t.TempDir())
+	for _, group := range SubcommandGroups(&appctx.Context{Core: app}, raw) {
+		for _, command := range group.Subcommands {
+			registered[group.Name+" "+command.Name] = true
+		}
+	}
 	for _, group := range manifest.Groups {
 		for _, command := range group.Commands {
 			if command.Binding.Kind != "local" {

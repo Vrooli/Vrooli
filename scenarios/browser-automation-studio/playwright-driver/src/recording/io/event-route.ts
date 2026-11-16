@@ -26,6 +26,7 @@ import type winston from 'winston';
 import { shouldProcessEvent, formatDecisionForLog } from '../orchestration/decisions';
 import { LogContext, scopedLog } from '../../utils';
 import type { RawBrowserEvent } from '../types';
+import { RecordingEventContextCache } from './event-context-cache';
 
 // =============================================================================
 // Constants
@@ -196,18 +197,22 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
 
   // Track pages currently being set up to prevent duplicate concurrent registrations
   const pagesBeingSetUp = new Set<Page>();
+  // Browser retries keep their id and payload, but a rerender can change the
+  // Playwright-derived frame selector path between attempts. Pin that metadata
+  // to the first attempt so a retry replays the same canonical observation.
+  const eventContexts = new RecordingEventContextCache();
 
   /**
    * Handle a recording event from the page route.
    */
   async function handleRecordingEvent(
     postData: string,
-    framePath: string[],
-    driverPageId: string | undefined
+    deriveContext: () => Promise<{ framePath: string[]; driverPageId?: string }>
   ): Promise<string | undefined> {
     const rawEvent = JSON.parse(postData) as RawBrowserEvent;
-    rawEvent.framePath = framePath;
-    rawEvent.driverPageId = driverPageId;
+    const stableContext = await eventContexts.resolve(rawEvent, deriveContext);
+    rawEvent.framePath = stableContext.framePath;
+    rawEvent.driverPageId = stableContext.driverPageId;
     stats.lastEventType = rawEvent.actionType;
 
     const eventHandler = getEventHandler();
@@ -308,11 +313,12 @@ export function createEventRouteManager(options: EventRouteOptions): EventRouteM
 
           const postData = request.postData();
           if (!postData) throw new Error('Recording event body is required');
-          const framePath = await frameSelectorPath(request.frame());
           const entryId = await handleRecordingEvent(
             postData,
-            framePath,
-            routeOptions.driverPageId ?? getDriverPageId?.(page)
+            async () => ({
+              framePath: await frameSelectorPath(request.frame()),
+              driverPageId: routeOptions.driverPageId ?? getDriverPageId?.(page),
+            })
           );
 
           // Acknowledge only after the recording consumer accepts the entry.

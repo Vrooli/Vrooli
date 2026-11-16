@@ -85,9 +85,8 @@ func MountHTTP(r chi.Router, client PublicCaptureClient, capturesRoot string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(struct {
-			BundleDir string        `json:"bundle_dir"`
-			Manifest  bundle.Bundle `json:"manifest"`
-		}{BundleDir: bundleDir, Manifest: manifest})
+			Manifest bundle.Bundle `json:"manifest"`
+		}{Manifest: manifest})
 	})
 	r.Post("/ux-capture/file", func(w http.ResponseWriter, req *http.Request) {
 		if client == nil {
@@ -156,9 +155,8 @@ func MountHTTP(r chi.Router, client PublicCaptureClient, capturesRoot string) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(struct {
-			BundleDir string        `json:"bundle_dir"`
-			Manifest  bundle.Bundle `json:"manifest"`
-		}{bundleDir, manifest})
+			Manifest bundle.Bundle `json:"manifest"`
+		}{manifest})
 	})
 }
 

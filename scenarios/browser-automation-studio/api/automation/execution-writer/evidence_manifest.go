@@ -12,7 +12,9 @@ import (
 	"github.com/google/uuid"
 	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/browser-automation-studio/services/evidence"
+	basdomain "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/domain"
 	bastimeline "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/timeline"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -65,7 +67,9 @@ func (r *FileWriter) writeEvidenceManifest(ctx context.Context, executionID uuid
 			entries = make([]*bastimeline.TimelineEntry, 0, len(timeline.pb.Entries))
 			for _, entry := range timeline.pb.Entries {
 				if entry != nil {
-					entries = append(entries, proto.Clone(entry).(*bastimeline.TimelineEntry))
+					portable := proto.Clone(entry).(*bastimeline.TimelineEntry)
+					sanitizeReplayEntryForEvidence(portable)
+					entries = append(entries, portable)
 				}
 			}
 		}
@@ -92,6 +96,44 @@ func (r *FileWriter) writeEvidenceManifest(ctx context.Context, executionID uuid
 	}
 	r.root.RecordWrite(ctx)
 	return nil
+}
+
+// sanitizeReplayEntryForEvidence keeps typed artifact identity and display
+// metadata while removing storage locations and payload contents. The evidence
+// manifest is portable: object keys, local paths and download URLs stay behind
+// BAS's authorized artifact resolver.
+func sanitizeReplayEntryForEvidence(entry *bastimeline.TimelineEntry) {
+	if entry == nil {
+		return
+	}
+	if aggregates := entry.GetAggregates(); aggregates != nil {
+		for _, artifact := range aggregates.Artifacts {
+			if artifact == nil {
+				continue
+			}
+			artifact.StorageUrl = ""
+			artifact.ThumbnailUrl = nil
+			artifact.Payload = map[string]*commonv1.JsonValue{}
+		}
+	}
+	telemetry := entry.GetTelemetry()
+	if telemetry == nil {
+		return
+	}
+	if screenshot := telemetry.GetScreenshot(); screenshot != nil {
+		screenshot.Url = ""
+		screenshot.ThumbnailUrl = ""
+		screenshot.Path = nil
+	}
+	for _, artifact := range []*basdomain.TelemetryArtifact{
+		telemetry.GetDomSnapshot(), telemetry.GetConsoleLogArtifact(), telemetry.GetNetworkEventArtifact(),
+	} {
+		if artifact == nil {
+			continue
+		}
+		artifact.StorageUrl = ""
+		artifact.Path = nil
+	}
 }
 
 func evidenceMediaType(artifact ArtifactData) string {

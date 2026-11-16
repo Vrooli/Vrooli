@@ -6,160 +6,78 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
-	entitlementclient "github.com/vrooli/vrooli/packages/entitlementclient-go"
 	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
-// EntitlementMiddleware provides request-scoped entitlement checking.
+// EntitlementMiddleware adapts the shared consumer token and LPBS-verified
+// lease to BAS's existing request context. Route enforcement belongs to the
+// shared monetization kit, not scenario-local middleware methods.
 type EntitlementMiddleware struct {
 	service      *entitlement.Service
 	log          *logrus.Logger
-	cfg          config.EntitlementConfig
 	settingsRepo EntitlementSettingsRepository
 }
 
-// EntitlementSettingsRepository defines the interface for user settings storage.
+// EntitlementSettingsRepository supplies the local identity lookup hint used
+// to ask the shared credential authority for the current consumer lease.
 type EntitlementSettingsRepository interface {
 	GetSetting(ctx context.Context, key string) (string, error)
 }
 
-// NewEntitlementMiddleware creates a new entitlement middleware.
-func NewEntitlementMiddleware(
-	service *entitlement.Service,
-	log *logrus.Logger,
-	cfg config.EntitlementConfig,
-	settingsRepo EntitlementSettingsRepository,
-) *EntitlementMiddleware {
-	return &EntitlementMiddleware{
-		service:      service,
-		log:          log,
-		cfg:          cfg,
-		settingsRepo: settingsRepo,
-	}
+type entitlementSettingsWriter interface {
+	SetSetting(ctx context.Context, key, value string) error
 }
 
-// InjectEntitlement is middleware that extracts user identity and injects entitlement into context.
-// This runs on all requests to make entitlement info available to handlers.
+// NewEntitlementMiddleware creates the BAS request-context adapter.
+func NewEntitlementMiddleware(service *entitlement.Service, log *logrus.Logger, settingsRepo EntitlementSettingsRepository) *EntitlementMiddleware {
+	return &EntitlementMiddleware{service: service, log: log, settingsRepo: settingsRepo}
+}
+
+// InjectEntitlement attaches the shared short-lived consumer token, then adds
+// the verified lease to BAS's legacy handler context when LPBS is available.
+// Missing/offline authority remains a denied paid decision; the request itself
+// continues so local/free functionality stays available.
 func (m *EntitlementMiddleware) InjectEntitlement(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Request headers, query parameters, and bodies never select an
-		// entitlement lease. The stored identity is only a lookup hint for the
-		// shared consumer session; LPBS overwrites it with the verified lease
-		// identity before the request is allowed to use paid state.
-		userIdentity := m.resolveStoredUserIdentity(r.Context())
-
-		// Carry the consumer access token through the request context. The
-		// entitlement authority derives the authoritative identity from this
-		// token; request headers are only a lookup hint for the local cache.
+	return monetization.InjectEntitlement(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		if token := bearerToken(r.Header.Get("Authorization")); token != "" {
-			ctx = entitlement.WithAccessToken(ctx, token)
-		}
-		ctx = entitlement.WithUserIdentity(ctx, userIdentity)
-
-		// Fetch and inject entitlement for authenticated users
-		if userIdentity != "" {
-			ent, err := m.service.GetEntitlement(ctx, userIdentity)
-			if err != nil {
-				m.log.WithError(err).WithField("user", userIdentity).Debug("Failed to get entitlement")
-				// Continue without entitlement - handlers will use defaults
-			} else {
-				ctx = entitlement.WithEntitlement(ctx, ent)
-				ctx = entitlement.WithUserIdentity(ctx, ent.UserIdentity)
+		userIdentity := m.resolveStoredUserIdentity(ctx)
+		remoteIdentity := false
+		if m.service != nil {
+			identity, err := m.service.ResolveConsumerIdentity(ctx)
+			if err == nil {
+				userIdentity, remoteIdentity = identity, true
+				if writer, ok := m.settingsRepo.(entitlementSettingsWriter); ok {
+					_ = writer.SetSetting(ctx, "user_identity", identity)
+				}
+			} else if m.log != nil {
+				m.log.WithError(err).Debug("Failed to resolve consumer identity; using only a verified offline lease if available")
 			}
 		}
-
+		ctx = monetization.WithUserIdentity(ctx, userIdentity)
+		if m.service != nil && userIdentity != "" {
+			var ent *entitlement.Entitlement
+			var err error
+			if remoteIdentity {
+				ent, err = m.service.GetEntitlement(ctx, userIdentity)
+			} else {
+				ent, err = m.service.GetCachedEntitlement(userIdentity)
+			}
+			if err != nil {
+				if m.log != nil {
+					m.log.WithError(err).WithField("user", userIdentity).Debug("Failed to get entitlement")
+				}
+			} else {
+				ctx = monetization.WithSnapshot(ctx, ent)
+				ctx = monetization.WithUserIdentity(ctx, ent.UserIdentity)
+			}
+		}
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
-// RequireActiveSubscription returns middleware that requires an active subscription.
-// Returns 403 if subscription is not active.
-func (m *EntitlementMiddleware) RequireActiveSubscription(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.entitlementsEnabled(r.Context()) {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		decision := m.featureDecision(r.Context(), "", 0)
-		if !decision.Allowed {
-			monetization.WriteError(w, http.StatusForbidden, monetization.ErrorSubscriptionRequired, decision)
-			return
-		}
-		if decision.Warning {
-			w.Header().Set("X-Entitlement-Warning", monetization.ReasonPastDue)
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// RequireAIAccess returns middleware that requires AI feature access.
-func (m *EntitlementMiddleware) RequireAIAccess(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.entitlementsEnabled(r.Context()) {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		decision := m.featureDecision(r.Context(), entitlement.FeatureAI, 0)
-		if !decision.Allowed {
-			monetization.WriteError(w, http.StatusForbidden, monetization.ErrorRankRequired, decision)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// RequireRecordingAccess returns middleware that requires recording feature access.
-func (m *EntitlementMiddleware) RequireRecordingAccess(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !m.entitlementsEnabled(r.Context()) {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		decision := m.featureDecision(r.Context(), entitlement.FeatureRecording, 0)
-		if !decision.Allowed {
-			monetization.WriteError(w, http.StatusForbidden, monetization.ErrorRankRequired, decision)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (m *EntitlementMiddleware) featureDecision(ctx context.Context, feature string, minPlanRank int32) monetization.Decision {
-	const upgradePath = "/settings/subscription"
-	ent := entitlement.FromContext(ctx)
-	if ent == nil {
-		return monetization.Decision{Reason: monetization.ReasonLeaseUnavailable, UpgradePath: upgradePath}
-	}
-	payload := entitlementclient.Payload{Status: string(ent.Status), PlanRank: ent.PlanRank, Features: ent.Features, Limits: ent.Limits}
-	decision := monetization.StatusDecision(payload, upgradePath)
-	return monetization.FeatureDecision(payload, feature, minPlanRank, decision)
-}
-
-func bearerToken(authorization string) string {
-	const prefix = "Bearer "
-	if !strings.HasPrefix(authorization, prefix) {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimPrefix(authorization, prefix))
-}
-
-func (m *EntitlementMiddleware) entitlementsEnabled(_ context.Context) bool {
-	// Entitlement enforcement is fail-closed. A missing lease is not an
-	// entitlement, and must not turn a protected route into an unprotected one.
-	return true
+	}))
 }
 
 func (m *EntitlementMiddleware) resolveStoredUserIdentity(ctx context.Context) string {
-	if m.settingsRepo == nil {
+	if m == nil || m.settingsRepo == nil {
 		return ""
 	}
 	value, err := m.settingsRepo.GetSetting(ctx, "user_identity")

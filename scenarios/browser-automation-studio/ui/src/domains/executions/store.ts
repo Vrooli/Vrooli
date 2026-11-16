@@ -703,6 +703,9 @@ const resolveRequiresVideoPreference = (): boolean => {
   return false;
 };
 
+// Async detail reads must not restore a viewer after a newer selection or close.
+let executionLoadGeneration = 0;
+
 export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   executions: [],
   currentExecution: null,
@@ -711,6 +714,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   autoOpenExport: false,
 
   openViewer: (workflowId: string) => {
+    executionLoadGeneration += 1;
     const state = get();
     if (state.currentExecution && state.currentExecution.workflowId !== workflowId) {
       set({ currentExecution: null });
@@ -719,6 +723,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   closeViewer: () => {
+    executionLoadGeneration += 1;
     set({ currentExecution: null, viewerWorkflowId: null });
   },
 
@@ -738,6 +743,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         await options.saveWorkflowFn();
       }
 
+      executionLoadGeneration += 1;
       set({ viewerWorkflowId: workflowId });
       const state = get();
 
@@ -908,9 +914,11 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   loadExecution: async (executionId: string) => {
+    const loadGeneration = ++executionLoadGeneration;
     try {
       const msg = await getExecutionViaApi(executionId);
       const execution = parseExecutionProto(executionMsgToJson(msg));
+      if (loadGeneration !== executionLoadGeneration) return;
       let screenshots: Screenshot[] = [];
       try {
         const shots = await getExecutionScreenshotsViaApi(executionId);
@@ -919,6 +927,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
         logger.error('Failed to load execution screenshots', { component: 'ExecutionStore', action: 'loadExecution', executionId }, shotsErr);
       }
 
+      if (loadGeneration !== executionLoadGeneration) return;
       set({ currentExecution: { ...execution, screenshots }, viewerWorkflowId: execution.workflowId });
       void get().refreshTimeline(executionId);
     } catch (error) {
@@ -1112,6 +1121,7 @@ export const useExecutionStore = create<ExecutionStore>((set, get) => ({
   },
 
   clearCurrentExecution: () => {
+    executionLoadGeneration += 1;
     set({ currentExecution: null });
   },
 

@@ -323,17 +323,7 @@ func (s *WorkflowService) CheckAutomationHealth(ctx context.Context) (bool, erro
 	}
 
 	if factory == nil {
-		var defaultFactory autoengine.Factory
-		var err error
-		if s.sessionBroker != nil {
-			defaultFactory, err = autoengine.DefaultFactoryWithSessionManager(s.log, s.sessionBroker)
-		} else {
-			defaultFactory, err = autoengine.DefaultFactory(s.log)
-		}
-		if err != nil {
-			return false, err
-		}
-		factory = defaultFactory
+		return false, errors.New("canonical automation engine factory is not configured")
 	}
 
 	eng, err := factory.Resolve(ctx, engineName)

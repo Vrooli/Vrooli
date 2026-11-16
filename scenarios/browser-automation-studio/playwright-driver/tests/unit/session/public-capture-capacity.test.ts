@@ -6,7 +6,10 @@ import { createTestConfig } from '../../helpers';
 describe('public capture session capacity', () => {
   it('reserves one normal BAS slot until the fresh capture callback finishes', async () => {
     const browser = {} as Browser;
-    const browserManager = { getBrowser: jest.fn(async () => browser) };
+    const browserManager = {
+      getBrowser: jest.fn(async () => browser),
+      markPoolUsedNow: jest.fn(),
+    };
     const manager = new SessionManager(
       createTestConfig({
         session: {
@@ -42,5 +45,6 @@ describe('public capture session capacity', () => {
       'after-release'
     );
     expect(browserManager.getBrowser).toHaveBeenCalledTimes(2);
+    expect(browserManager.markPoolUsedNow).toHaveBeenCalledTimes(2);
   });
 });

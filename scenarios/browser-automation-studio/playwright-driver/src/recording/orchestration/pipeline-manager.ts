@@ -788,7 +788,17 @@ export class RecordingPipelineManager {
   }
 
   private async deactivateRecordingOnAllPages(): Promise<void> {
-    await Promise.all(this.context.pages().map((page) => page.evaluate(generateDeactivationScript())));
+    const results = await Promise.allSettled(
+      this.context.pages().map((page) => page.evaluate(generateDeactivationScript())),
+    );
+    const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected');
+    if (failures.length > 0) {
+      // Do not release stop ownership while another page may still be flushing
+      // its final events. The caller can retry the full deactivation after all
+      // pages from this snapshot have completed. Preserve the original owner
+      // error so API callers retain its existing failure classification.
+      throw failures[0]!.reason;
+    }
   }
 
   // ===========================================================================

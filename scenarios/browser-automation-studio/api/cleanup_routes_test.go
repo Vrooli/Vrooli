@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +30,115 @@ func (cleanupRouteStore) ListExecutions(context.Context, database.ExecutionQuery
 }
 
 func (cleanupRouteStore) DeleteExecution(context.Context, uuid.UUID) error { return nil }
+
+type exactRouteStore struct{ exec *database.ExecutionIndex }
+
+func (s *exactRouteStore) GetExecution(_ context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	if s.exec == nil || s.exec.ID != id {
+		return nil, database.ErrNotFound
+	}
+	return s.exec, nil
+}
+func (s *exactRouteStore) ListExecutions(context.Context, database.ExecutionQuery) ([]*database.ExecutionIndex, int, error) {
+	if s.exec == nil {
+		return nil, 0, nil
+	}
+	return []*database.ExecutionIndex{s.exec}, 1, nil
+}
+func (s *exactRouteStore) DeleteExecution(_ context.Context, id uuid.UUID) error {
+	if s.exec != nil && s.exec.ID == id {
+		s.exec = nil
+	}
+	return nil
+}
+
+func TestExactPurgeRoutesAreMetadataOnlyAndUUIDBound(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "bas-cleanup-route-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	id := uuid.New()
+	dir := filepath.Join(root, id.String())
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	secret := []byte("private fixture page text")
+	if err := os.WriteFile(filepath.Join(dir, "result.json"), secret, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	wf := uuid.New()
+	manifest := `{"id":"` + uuid.NewString() + `","schema_version":"bas-replay/v1","execution_id":"` + id.String() + `","workflow_id":"` + wf.String() + `","evidence":{"id":"` + uuid.NewString() + `","schema_version":"bas-evidence/v1","execution_id":"` + id.String() + `","artifacts":[]}}`
+	if err := os.WriteFile(filepath.Join(dir, "evidence.proto.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	writeRoutePurgeInventory(t, dir, id, wf)
+	store := &exactRouteStore{exec: &database.ExecutionIndex{ID: id, WorkflowID: wf, Status: database.ExecutionStatusCompleted, ResultPath: filepath.Join(dir, "result.json")}}
+	planner := retention.NewService(store, retention.OSFileSystem{}, root, nil)
+	router := chi.NewRouter()
+	registerOwnerCleanupRoutes(router, planner)
+	path := "/api/v1/executions/" + id.String()
+	previewResponse := httptest.NewRecorder()
+	router.ServeHTTP(previewResponse, httptest.NewRequest(http.MethodPost, path+"/purge-preview", nil))
+	if previewResponse.Code != http.StatusOK {
+		t.Fatalf("preview status=%d body=%s", previewResponse.Code, previewResponse.Body.String())
+	}
+	if bytes.Contains(previewResponse.Body.Bytes(), secret) {
+		t.Fatal("preview leaked artifact content")
+	}
+	var preview retention.ExactPurgePreview
+	if err := json.Unmarshal(previewResponse.Body.Bytes(), &preview); err != nil {
+		t.Fatal(err)
+	}
+	wrongBody, _ := json.Marshal(exactPurgeApplyRequest{Confirmation: uuid.NewString(), Preview: preview})
+	wrong := httptest.NewRecorder()
+	router.ServeHTTP(wrong, httptest.NewRequest(http.MethodPost, path+"/purge", bytes.NewReader(wrongBody)))
+	if wrong.Code != http.StatusPreconditionFailed {
+		t.Fatalf("wrong confirmation status=%d", wrong.Code)
+	}
+	applyBody, _ := json.Marshal(exactPurgeApplyRequest{Confirmation: id.String(), Preview: preview})
+	applied := httptest.NewRecorder()
+	router.ServeHTTP(applied, httptest.NewRequest(http.MethodPost, path+"/purge", bytes.NewReader(applyBody)))
+	if applied.Code != http.StatusOK {
+		t.Fatalf("apply status=%d body=%s", applied.Code, applied.Body.String())
+	}
+	if bytes.Contains(applied.Body.Bytes(), secret) {
+		t.Fatal("apply leaked artifact content")
+	}
+	var response struct {
+		retention.ExactPurgePreview
+		Deleted bool `json:"deleted"`
+	}
+	if err := json.Unmarshal(applied.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if !response.Deleted || response.ExecutionID != id.String() {
+		t.Fatalf("response=%+v", response)
+	}
+}
+
+func writeRoutePurgeInventory(t *testing.T, dir string, id, workflowID uuid.UUID) {
+	t.Helper()
+	files := make([]map[string]any, 0, 2)
+	for _, name := range []string{"result.json", "evidence.proto.json"} {
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(data)
+		files = append(files, map[string]any{"path": name, "bytes": len(data), "sha256": hex.EncodeToString(sum[:])})
+	}
+	raw, err := json.Marshal(map[string]any{"schema_version": "bas-execution-directory/v1", "execution_id": id.String(), "workflow_id": workflowID.String(), "files": files})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "purge-inventory.v1.json"), raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestCleanupRoutesPreserveEstimatePreviewApplyAndIdempotency(t *testing.T) {
 	recordingsRoot := t.TempDir()

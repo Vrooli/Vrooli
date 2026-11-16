@@ -14,7 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
-	"github.com/vrooli/browser-automation-studio/services/credits"
 	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
@@ -39,8 +38,6 @@ type PlaywrightVisionNavigator struct {
 	log           *logrus.Logger
 	driverBaseURL string
 	wsHub         wsHub.HubInterface
-	httpClient    HTTPDoer
-	creditService credits.CreditService
 	sessions      SessionRouteBroker
 
 	// Recording callback for unified action capture.
@@ -52,27 +49,12 @@ type PlaywrightVisionNavigator struct {
 	activeNavigations map[string]*NavigationSession
 }
 
-// HTTPDoer is an interface for making HTTP requests.
-type HTTPDoer interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 type SessionRouteBroker interface {
-	RouteSessionRequest(context.Context, string, string, string, []byte) (*http.Response, error)
+	RouteSessionRequest(context.Context, string, string, string, []byte, http.Header) (*http.Response, error)
 }
 
 // PlaywrightNavigatorOption configures PlaywrightVisionNavigator.
 type PlaywrightNavigatorOption func(*PlaywrightVisionNavigator)
-
-// WithPlaywrightHTTPClient sets a custom HTTP client.
-func WithPlaywrightHTTPClient(client HTTPDoer) PlaywrightNavigatorOption {
-	return func(n *PlaywrightVisionNavigator) {
-		n.httpClient = client
-		if broker, ok := client.(SessionRouteBroker); ok {
-			n.sessions = broker
-		}
-	}
-}
 
 // WithPlaywrightHub sets the WebSocket hub.
 func WithPlaywrightHub(hub wsHub.HubInterface) PlaywrightNavigatorOption {
@@ -81,20 +63,11 @@ func WithPlaywrightHub(hub wsHub.HubInterface) PlaywrightNavigatorOption {
 	}
 }
 
-// WithPlaywrightCreditService sets the credit service.
-func WithPlaywrightCreditService(svc credits.CreditService) PlaywrightNavigatorOption {
-	return func(n *PlaywrightVisionNavigator) {
-		n.creditService = svc
-	}
-}
-
 // WithPlaywrightSessionBroker routes every /session request through the API's
 // owned session registry.
 func WithPlaywrightSessionBroker(mgr SessionRouteBroker) PlaywrightNavigatorOption {
 	return func(n *PlaywrightVisionNavigator) { n.sessions = mgr }
 }
-
-func (n *PlaywrightVisionNavigator) SetSessionRouteBroker(mgr SessionRouteBroker) { n.sessions = mgr }
 
 // WithActionRecordCallback sets the callback for recording AI navigation actions.
 // This enables unified recording of AI-initiated browser actions.
@@ -118,7 +91,6 @@ func NewPlaywrightVisionNavigator(log *logrus.Logger, opts ...PlaywrightNavigato
 		log:               log,
 		driverBaseURL:     driverURL,
 		activeNavigations: make(map[string]*NavigationSession),
-		httpClient:        &http.Client{Timeout: 30 * time.Second},
 	}
 
 	for _, opt := range opts {
@@ -142,11 +114,11 @@ func (n *PlaywrightVisionNavigator) Type() NavigatorType {
 	return NavigatorPlaywright
 }
 
-func (n *PlaywrightVisionNavigator) routeSession(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+func (n *PlaywrightVisionNavigator) routeSession(ctx context.Context, sessionID, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
 	if n.sessions == nil {
 		return nil, fmt.Errorf("session broker unavailable")
 	}
-	return n.sessions.RouteSessionRequest(ctx, sessionID, method, suffix, body)
+	return n.sessions.RouteSessionRequest(ctx, sessionID, method, suffix, body, headers)
 }
 
 // Description returns a human-readable description.
@@ -184,11 +156,9 @@ func (n *PlaywrightVisionNavigator) UnavailableReason(ctx context.Context) strin
 // CreditPolicy returns the credit policy for this navigator.
 func (n *PlaywrightVisionNavigator) CreditPolicy() CreditPolicy {
 	return CreditPolicy{
-		RequiresCredits:  true,
-		OperationType:    credits.OpAIVisionNavigate,
-		PerStepCharging:  true,
-		CreditsPerStep:   2,
-		BypassConditions: []BypassCondition{BypassCredentialProvenance, BypassResourceOpenrouter},
+		RequiresCredits: true,
+		PerStepCharging: true,
+		CreditsPerStep:  0,
 	}
 }
 
@@ -204,14 +174,12 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Track the navigation session
 	session := &NavigationSession{
-		NavigationID:         navigationID,
-		SessionID:            req.SessionID,
-		UserID:               req.UserID,
-		Model:                req.Model,
-		StartedAt:            time.Now(),
-		Status:               StatusNavigating,
-		CredentialProvenance: CredentialProvenanceNone,
-		NavigatorType:        NavigatorPlaywright,
+		NavigationID:  navigationID,
+		SessionID:     req.SessionID,
+		Model:         req.Model,
+		StartedAt:     time.Now(),
+		Status:        StatusNavigating,
+		NavigatorType: NavigatorPlaywright,
 	}
 
 	n.mu.Lock()
@@ -229,13 +197,16 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 
 	// Forward to playwright-driver
 	driverReq := map[string]interface{}{
-		"prompt":         req.Prompt,
-		"effect_policy":  req.EffectPolicy,
-		"postconditions": req.Postconditions,
-		"extraction":     req.Extraction,
-		"model":          req.Model,
-		"max_steps":      maxSteps,
-		"callback_url":   req.CallbackURL,
+		"prompt":                req.Prompt,
+		"effect_policy":         req.EffectPolicy,
+		"postconditions":        req.Postconditions,
+		"extraction":            req.Extraction,
+		"model":                 req.Model,
+		"max_steps":             maxSteps,
+		"callback_url":          req.CallbackURL,
+		"root_operation_id":     req.RootOperationID,
+		"ai_source":             req.AISource,
+		"privacy_consent_grant": req.PrivacyConsentGrant,
 	}
 
 	body, err := json.Marshal(driverReq)
@@ -244,7 +215,11 @@ func (n *PlaywrightVisionNavigator) Navigate(ctx context.Context, req Navigation
 		return nil, fmt.Errorf("marshal driver request: %w", err)
 	}
 
-	resp, err := n.routeSession(ctx, req.SessionID, http.MethodPost, "/ai-navigate", body)
+	headers := make(http.Header)
+	if req.AccessToken != "" {
+		headers.Set("Authorization", "Bearer "+req.AccessToken)
+	}
+	resp, err := n.routeSession(ctx, req.SessionID, http.MethodPost, "/ai-navigate", body, headers)
 	if err != nil {
 		n.removeNavigation(navigationID)
 		return nil, fmt.Errorf("driver request failed: %w", err)
@@ -369,23 +344,6 @@ func (n *PlaywrightVisionNavigator) HandleStepCallback(ctx context.Context, even
 		}
 
 		n.onActionRecord(session.SessionID, recordedAction)
-	}
-
-	// Charge credits per step
-	if n.creditService != nil && session != nil {
-		_, err := n.creditService.Charge(ctx, credits.ChargeRequest{
-			UserIdentity: session.UserID,
-			Operation:    credits.OpAIVisionNavigate,
-			Metadata: credits.ChargeMetadata{
-				Model:            session.Model,
-				PromptTokens:     event.TokensUsed.PromptTokens,
-				CompletionTokens: event.TokensUsed.CompletionTokens,
-			},
-			IsBYOK: session.CredentialProvenance == CredentialProvenanceAuthority,
-		})
-		if err != nil {
-			n.log.WithError(err).Warn("vision_navigation_callback: failed to charge credits")
-		}
 	}
 
 	// Broadcast via WebSocket
@@ -562,7 +520,7 @@ func (n *PlaywrightVisionNavigator) AbortNavigation(ctx context.Context, navigat
 		return fmt.Errorf("navigation not found: %s", navigationID)
 	}
 
-	resp, err := n.routeSession(ctx, session.SessionID, http.MethodPost, "/ai-navigate/abort", nil)
+	resp, err := n.routeSession(ctx, session.SessionID, http.MethodPost, "/ai-navigate/abort", nil, nil)
 	if err != nil {
 		return fmt.Errorf("abort request failed: %w", err)
 	}
@@ -590,7 +548,7 @@ func (n *PlaywrightVisionNavigator) ResumeNavigation(ctx context.Context, naviga
 		return errors.New("navigation is not awaiting human intervention")
 	}
 
-	resp, err := n.routeSession(ctx, session.SessionID, http.MethodPost, "/ai-navigate/resume", nil)
+	resp, err := n.routeSession(ctx, session.SessionID, http.MethodPost, "/ai-navigate/resume", nil, nil)
 	if err != nil {
 		return fmt.Errorf("resume request failed: %w", err)
 	}

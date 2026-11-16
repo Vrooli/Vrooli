@@ -38,13 +38,16 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 	if s == nil {
 		return nil, errors.New("workflow service not configured")
 	}
-
 	getResp, err := s.GetWorkflowAPI(ctx, &basapi.GetWorkflowRequest{WorkflowId: workflowID.String()})
 	if err != nil {
 		return nil, err
 	}
 	if getResp == nil || getResp.Workflow == nil {
 		return nil, fmt.Errorf("workflow %s not found", workflowID)
+	}
+	hold, err := s.reserveExecution(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	now := time.Now().UTC()
@@ -63,7 +66,11 @@ func (s *WorkflowService) ExecuteWorkflow(ctx context.Context, workflowID uuid.U
 		TriggerType:     basbase.TriggerType_TRIGGER_TYPE_MANUAL,
 		Parameters:      &basexecution.ExecutionParameters{InitialStore: convertParamsToProto(parameters)},
 	}); err != nil {
+		s.releaseExecutionHold(ctx, hold)
 		return nil, err
+	}
+	if err := s.commitExecutionHold(ctx, hold, exec.ID); err != nil {
+		return nil, fmt.Errorf("commit workflow execution quota: %w", err)
 	}
 
 	// Manual flat parameters remain in @store/; other execution options use defaults.
@@ -222,6 +229,10 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 	baseBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(workflowBrowserProfile, profileBrowserSettings)
 	// Then merge with execution-level overrides (highest priority)
 	finalBrowserProfile := sessionprofilepersistence.MergeBrowserProfiles(baseBrowserProfile, execBrowserProfile)
+	hold, err := s.reserveExecution(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	now := time.Now().UTC()
 	exec := &database.ExecutionIndex{
@@ -244,7 +255,11 @@ func (s *WorkflowService) ExecuteWorkflowAPIWithOptions(ctx context.Context, req
 		TriggerType:     trigger,
 		Parameters:      req.Parameters,
 	}); err != nil {
+		s.releaseExecutionHold(ctx, hold)
 		return nil, err
+	}
+	if err := s.commitExecutionHold(ctx, hold, exec.ID); err != nil {
+		return nil, fmt.Errorf("commit workflow execution quota: %w", err)
 	}
 
 	completion := s.startExecutionRunnerWithOptions(ctx, workflowSummary, exec.ID, initialStore, initialParams, env, artifactCfg, finalBrowserProfile, storageState, sessionProfileVersion, opts, projectRoot, startURL, saveSessionProfileID, restoreTabs, openTabs, navigationWaitUntil, continueOnError)
@@ -526,7 +541,7 @@ func (s *WorkflowService) executeWorkflowAsyncWithOptions(ctx context.Context, w
 	defer func() {
 		runErr = errors.Join(runErr, s.finalizeExecution(ctx, execIndex, eventSink, runErr))
 	}()
-	if err := s.repo.UpdateExecutionStatus(persistenceCtx, executionID, database.ExecutionStatusRunning, nil, nil, time.Now().UTC()); err != nil {
+	if err := s.persistExecutionStatus(persistenceCtx, executionID, database.ExecutionStatusRunning, nil, nil, time.Now().UTC()); err != nil {
 		return fmt.Errorf("persist running execution before effects: %w", err)
 	}
 
@@ -730,7 +745,7 @@ func (s *WorkflowService) finalizeExecution(ctx context.Context, execIndex *data
 	if errMsg != "" {
 		errPtr = &errMsg
 	}
-	if err := s.repo.UpdateExecutionStatus(persistenceCtx, execIndex.ID, status, errPtr, &now, now); err != nil {
+	if err := s.persistExecutionStatus(persistenceCtx, execIndex.ID, status, errPtr, &now, now); err != nil {
 		return fmt.Errorf("persist terminal execution status %s: %w", status, err)
 	}
 

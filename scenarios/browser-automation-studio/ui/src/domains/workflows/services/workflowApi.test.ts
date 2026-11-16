@@ -10,12 +10,16 @@ import {
 const listWorkflowsMock = vi.fn();
 const getWorkflowMock = vi.fn();
 const executeWorkflowMock = vi.fn();
+const createWorkflowMock = vi.fn();
+const modifyWorkflowMock = vi.fn();
 
 vi.mock('@/api/workflows', () => ({
   workflowsClient: {
     listWorkflows: (...a: unknown[]) => listWorkflowsMock(...a),
     getWorkflow: (...a: unknown[]) => getWorkflowMock(...a),
     executeWorkflow: (...a: unknown[]) => executeWorkflowMock(...a),
+    createWorkflow: (...a: unknown[]) => createWorkflowMock(...a),
+    modifyWorkflow: (...a: unknown[]) => modifyWorkflowMock(...a),
   },
 }));
 
@@ -23,6 +27,8 @@ import {
   executeWorkflowViaApi,
   fetchWorkflowList,
   fetchWorkflowProjectId,
+  createWorkflowViaApi,
+  modifyWorkflowViaApi,
 } from './workflowApi';
 
 describe('workflowApi', () => {
@@ -87,5 +93,29 @@ describe('workflowApi', () => {
       workflowId: 'workflow-1',
       waitForCompletion: false,
     }));
+  });
+
+  it('sends create recovery metadata as Connect call headers, not request data', async () => {
+    createWorkflowMock.mockResolvedValue({});
+    const request = { projectId: 'project-1', name: 'Generated', aiPrompt: 'Build a flow' };
+
+    await createWorkflowViaApi({ ...request, operationID: 'op-create' });
+
+    expect(createWorkflowMock).toHaveBeenCalledWith(request, {
+      headers: expect.any(Headers),
+    });
+    expect(createWorkflowMock.mock.calls[0][1].headers.get('Idempotency-Key')).toBe('op-create');
+  });
+
+  it('sends modify recovery metadata as Connect call headers, not request data', async () => {
+    modifyWorkflowMock.mockResolvedValue({});
+    const request = { workflowId: 'workflow-1', modificationPrompt: 'Add a wait', currentFlow: {} };
+
+    await modifyWorkflowViaApi({ ...request, operationID: 'op-modify' } as never);
+
+    expect(modifyWorkflowMock).toHaveBeenCalledWith(request, {
+      headers: expect.any(Headers),
+    });
+    expect(modifyWorkflowMock.mock.calls[0][1].headers.get('Idempotency-Key')).toBe('op-modify');
   });
 });

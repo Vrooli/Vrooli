@@ -10,7 +10,15 @@
       "description": "Given a saved signed-in profile, when the operator closes/reopens BAS, then supported sign-in state and tabs return without crossing into another profile.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J29-ui-profile-recovery.test.ts",
+          "phase": "journey",
+          "status": "unverified",
+          "notes": "J29 is strict-TypeScript checked and its local fixture auth probe passes; the BAS UI profile close/reopen journey awaits a healthy shadow lifecycle and has not run live."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J02",
@@ -210,7 +218,15 @@
       "description": "Given a declared session capacity and fresh/clean reuse policy, when starts overlap, reset fails, or the active page is not the first tab, then reservations stay bounded, retained pages are open, page maps are coherent and failed reset has an explicit recovery path. Test isolation must cover the declared origin/storage matrix.",
       "status": "planned",
       "prd_ref": "OT-P0-005",
-      "validation": []
+      "validation": [
+        {
+          "type": "test",
+          "ref": "playwright-driver/tests/journeys/J30-ui-session-isolation.test.ts",
+          "phase": "journey",
+          "status": "unverified",
+          "notes": "J30 compiles and defines two-session UI/timeline isolation with checked cleanup; concurrency capacity and origin/storage reuse matrices remain wider proof obligations."
+        }
+      ]
     },
     {
       "id": "BAS-RH-J16",

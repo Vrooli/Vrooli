@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"encoding/json"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,65 +9,71 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	monetization "github.com/vrooli/vrooli/packages/monetization-go"
 )
 
-func TestRequireAIAccessFailsClosedWithoutLease(t *testing.T) {
-	m := NewEntitlementMiddleware(
-		entitlement.NewService(config.EntitlementConfig{}, logrus.New()),
-		logrus.New(), config.EntitlementConfig{}, nil,
-	)
+type identitySettings struct{ value string }
+
+func (s identitySettings) GetSetting(context.Context, string) (string, error) { return s.value, nil }
+
+func TestInjectEntitlementUsesStoredIdentityOnlyForOfflineLookup(t *testing.T) {
+	t.Setenv("APP_DATA_DIR", t.TempDir())
+	service := entitlement.NewService(config.EntitlementConfig{}, logrus.New())
+	middleware := NewEntitlementMiddleware(service, logrus.New(), identitySettings{value: " Alice@Example.com "})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai", nil)
-	rr := httptest.NewRecorder()
-
-	m.RequireAIAccess(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
-		t.Fatal("protected handler must not run without a lease")
-	})).ServeHTTP(rr, req)
-
-	if rr.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want 403", rr.Code)
-	}
-	var response map[string]any
-	if err := json.Unmarshal(rr.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode refusal: %v", err)
-	}
-	if response["upgrade_path"] != "/settings/subscription" {
-		t.Fatalf("upgrade_path = %v, want /settings/subscription", response["upgrade_path"])
+	req.Header.Set("Authorization", "Bearer short-lived-token")
+	req.Header.Set("X-User-Identity", "attacker@example.com")
+	recorder := httptest.NewRecorder()
+	called := false
+	middleware.InjectEntitlement(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		if got := monetization.AccessTokenFromContext(r.Context()); got != "short-lived-token" {
+			t.Errorf("shared access token = %q", got)
+		}
+		if got := monetization.UserIdentityFromContext(r.Context()); got != "alice@example.com" {
+			t.Errorf("identity hint = %q", got)
+		}
+		if monetization.SnapshotFromContext(r.Context()) != nil {
+			t.Error("unavailable LPBS authority unexpectedly injected an entitlement")
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})).ServeHTTP(recorder, req)
+	if !called || recorder.Code != http.StatusNoContent {
+		t.Fatalf("middleware called=%v status=%d", called, recorder.Code)
 	}
 }
 
-func TestRequireAIAccessUsesLeaseFeatures(t *testing.T) {
-	m := NewEntitlementMiddleware(
-		entitlement.NewService(config.EntitlementConfig{}, logrus.New()),
-		logrus.New(), config.EntitlementConfig{}, nil,
-	)
-
-	tests := []struct {
-		name     string
-		features []string
-		wantCode int
-	}{
-		{name: "feature granted", features: []string{entitlement.FeatureAI}, wantCode: http.StatusNoContent},
-		{name: "feature denied despite tier", features: []string{"recording"}, wantCode: http.StatusForbidden},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/v1/ai", nil)
-			rr := httptest.NewRecorder()
-			ctx := entitlement.WithEntitlement(req.Context(), &entitlement.Entitlement{
-				UserIdentity: "user@example.com",
-				Status:       entitlement.StatusActive,
-				Tier:         entitlement.TierFree,
-				Features:     tt.features,
-			})
-			req = req.WithContext(ctx)
-
-			m.RequireAIAccess(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusNoContent)
-			})).ServeHTTP(rr, req)
-
-			if rr.Code != tt.wantCode {
-				t.Fatalf("status = %d, want %d", rr.Code, tt.wantCode)
+func TestInjectEntitlementResolvesIdentityFromLPBSForRemoteLease(t *testing.T) {
+	t.Setenv("APP_DATA_DIR", t.TempDir())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/auth/me":
+			if r.Header.Get("Authorization") != "Bearer short-lived-token" {
+				t.Errorf("authorization = %q", r.Header.Get("Authorization"))
 			}
-		})
-	}
+			_, _ = w.Write([]byte(`{"user":{"email":"Verified@Example.com"}}`))
+		case "/api/v1/entitlements":
+			if got := r.URL.Query().Get("user"); got != "verified@example.com" {
+				t.Errorf("requested identity = %q", got)
+			}
+			http.Error(w, "fake authority unavailable", http.StatusServiceUnavailable)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	service := entitlement.NewService(config.EntitlementConfig{ServiceURL: server.URL}, logrus.New())
+	middleware := NewEntitlementMiddleware(service, logrus.New(), identitySettings{value: "attacker@example.com"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai", nil)
+	req.Header.Set("Authorization", "Bearer short-lived-token")
+	req.Header.Set("X-User-Identity", "attacker@example.com")
+	recorder := httptest.NewRecorder()
+	middleware.InjectEntitlement(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := monetization.UserIdentityFromContext(r.Context()); got != "verified@example.com" {
+			t.Errorf("verified identity = %q", got)
+		}
+		if monetization.SnapshotFromContext(r.Context()) != nil {
+			t.Error("unavailable entitlement authority unexpectedly injected a lease")
+		}
+	})).ServeHTTP(recorder, req)
 }

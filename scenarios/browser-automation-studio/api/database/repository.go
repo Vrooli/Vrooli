@@ -94,6 +94,10 @@ type repository struct {
 	log *logrus.Logger
 }
 
+type namedExecutor interface {
+	NamedExecContext(context.Context, string, any) (sql.Result, error)
+}
+
 // NewRepository creates a new repository instance
 func NewRepository(db *DB, log *logrus.Logger) Repository {
 	return &repository{
@@ -436,7 +440,13 @@ func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIn
 	if execution.TriggerType == "" {
 		execution.TriggerType = "manual"
 	}
+	if execution.ResumedFromID != nil {
+		return r.createResumedExecution(ctx, execution)
+	}
+	return r.insertExecution(ctx, r.db, execution)
+}
 
+func (r *repository) insertExecution(ctx context.Context, exec namedExecutor, execution *ExecutionIndex) error {
 	query := `INSERT INTO executions (id, workflow_id, status, started_at, error_message, result_path, resumed_from_id)
 	          VALUES (:id, :workflow_id, :status, :started_at, :error_message, :result_path, :resumed_from_id)`
 	if hasTriggerType, err := r.db.columnExists(ctx, "executions", "trigger_type"); err != nil {
@@ -445,10 +455,71 @@ func (r *repository) CreateExecution(ctx context.Context, execution *ExecutionIn
 		query = `INSERT INTO executions (id, workflow_id, status, trigger_type, started_at, error_message, result_path, resumed_from_id)
 		          VALUES (:id, :workflow_id, :status, :trigger_type, :started_at, :error_message, :result_path, :resumed_from_id)`
 	}
-	_, err := r.db.NamedExecContext(ctx, query, execution)
+	_, err := exec.NamedExecContext(ctx, query, execution)
 	if err != nil {
 		r.log.WithError(err).Error("Failed to create execution")
 		return fmt.Errorf("failed to create execution: %w", err)
+	}
+	return nil
+}
+
+func (r *repository) createResumedExecution(ctx context.Context, execution *ExecutionIndex) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin resumed execution admission: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := r.insertExecution(ctx, tx, execution); err != nil {
+		return err
+	}
+	result, err := tx.ExecContext(ctx, `
+		INSERT OR IGNORE INTO execution_resume_claims (source_execution_id, child_execution_id)
+		VALUES (?, ?)
+	`, execution.ResumedFromID.String(), execution.ID.String())
+	if err != nil {
+		return fmt.Errorf("claim resumable execution %s: %w", execution.ResumedFromID, err)
+	}
+	inserted, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("read resumed execution claim result: %w", err)
+	}
+	if inserted == 0 {
+		var activeChild struct {
+			ID     string `db:"id"`
+			Status string `db:"status"`
+		}
+		query := r.db.Rebind(`
+			SELECT e.id, e.status
+			FROM execution_resume_claims AS c
+			JOIN executions AS e ON e.id = c.child_execution_id
+			WHERE c.source_execution_id = ?
+		`)
+		if err := tx.GetContext(ctx, &activeChild, query, execution.ResumedFromID.String()); err != nil {
+			return fmt.Errorf("load existing resume claim for %s: %w", execution.ResumedFromID, err)
+		}
+		if activeChild.Status == ExecutionStatusPending || activeChild.Status == ExecutionStatusRunning {
+			return fmt.Errorf("%w: execution %s already has active resumed child %s", ErrResumeAlreadyActive, execution.ResumedFromID, activeChild.ID)
+		}
+		update := r.db.Rebind(`
+			UPDATE execution_resume_claims
+			SET child_execution_id = ?, created_at = CURRENT_TIMESTAMP
+			WHERE source_execution_id = ? AND child_execution_id = ?
+		`)
+		updated, err := tx.ExecContext(ctx, update, execution.ID.String(), execution.ResumedFromID.String(), activeChild.ID)
+		if err != nil {
+			return fmt.Errorf("advance terminal resume claim for %s: %w", execution.ResumedFromID, err)
+		}
+		rows, err := updated.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("read resume claim update result: %w", err)
+		}
+		if rows != 1 {
+			return fmt.Errorf("%w: execution %s resume claim changed during admission", ErrResumeAlreadyActive, execution.ResumedFromID)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit resumed execution admission: %w", err)
 	}
 	return nil
 }

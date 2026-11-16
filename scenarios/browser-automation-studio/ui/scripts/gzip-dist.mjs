@@ -4,10 +4,10 @@ import zlib from 'node:zlib'
 
 const outDirIndex = process.argv.indexOf('--outDir')
 const requestedOutDir = outDirIndex >= 0 ? process.argv[outDirIndex + 1] : ''
-const distDir = path.resolve(process.cwd(), 'dist')
-const outputDir = requestedOutDir && !requestedOutDir.startsWith('-')
-  ? path.resolve(requestedOutDir)
-  : distDir
+if (outDirIndex >= 0 && (!requestedOutDir || requestedOutDir.startsWith('-'))) {
+  throw new Error('--outDir requires a directory path')
+}
+const outputDir = path.resolve(process.cwd(), requestedOutDir || 'dist')
 
 const CONTENT_TYPES = new Map([
   ['.js', true],
@@ -37,13 +37,13 @@ function walk(dir, onFile) {
   }
 }
 
-if (!fs.existsSync(distDir)) {
+if (!fs.existsSync(outputDir)) {
   process.exit(0)
 }
 
 let written = 0
 
-walk(distDir, (filePath) => {
+walk(outputDir, (filePath) => {
   if (!shouldGzip(filePath)) return
 
   const gzPath = `${filePath}.gz`
@@ -61,15 +61,4 @@ walk(distDir, (filePath) => {
 
 if (process.env.VROOLI_VERBOSE_GZIP === '1') {
   console.log(`[gzip-dist] wrote ${written} file(s)`)
-}
-
-// Lifecycle stages component output by appending --outDir to the declared
-// build command. Because this builder performs a second command after Vite,
-// the flag arrives here rather than at Vite. Publish the completed dist tree
-// into that requested stage so the atomic lifecycle swap receives the actual
-// artifact instead of an empty directory.
-if (outputDir !== distDir) {
-  fs.rmSync(outputDir, { recursive: true, force: true })
-  fs.mkdirSync(path.dirname(outputDir), { recursive: true })
-  fs.cpSync(distDir, outputDir, { recursive: true, dereference: true })
 }

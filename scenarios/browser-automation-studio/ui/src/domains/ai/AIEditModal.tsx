@@ -42,7 +42,7 @@ function AIEditModal({ onClose }: AIEditModalProps) {
       toast.success('Workflow modified successfully!');
       onClose();
     } catch (_error) {
-      toast.error('Failed to modify workflow');
+      toast.error('Could not confirm the change. Retry the same prompt to safely recover the result.');
     } finally {
       setIsProcessing(false);
     }

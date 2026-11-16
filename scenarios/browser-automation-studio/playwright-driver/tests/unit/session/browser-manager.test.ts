@@ -27,11 +27,19 @@ jest.mock('../../../src/utils', () => ({
     cleanupFailures: {
       inc: jest.fn(),
     },
+    browserPoolRecycles: {
+      inc: jest.fn(),
+    },
+    browserPoolBrowsers: { set: jest.fn() },
+    browserPoolContexts: { set: jest.fn() },
+    browserPoolIdleBrowsers: { set: jest.fn() },
+    browserPoolMaxIdleSeconds: { set: jest.fn() },
   },
 }));
 
 import { chromium } from 'rebrowser-playwright';
 import type { Browser, BrowserContext, Page } from 'rebrowser-playwright';
+import { metrics } from '../../../src/utils';
 import {
   BrowserManager,
   createBrowserManager,
@@ -48,6 +56,7 @@ function createMockBrowser(
   return {
     isConnected: jest.fn().mockReturnValue(connected),
     version: jest.fn().mockReturnValue(version),
+    contexts: jest.fn().mockReturnValue([]),
     newContext: jest.fn(),
     close: jest.fn().mockResolvedValue(undefined),
   } as unknown as jest.Mocked<Browser>;
@@ -218,6 +227,17 @@ describe('BrowserManager', () => {
 
       expect(browser).toBe(mockBrowser);
       expect((chromium.launch as jest.Mock).mock.calls.length).toBe(1);
+    });
+
+    it('publishes pool occupancy and counts only successful idle recycles', async () => {
+      await manager.getBrowser();
+      expect(metrics.browserPoolBrowsers.set).toHaveBeenCalledWith(1);
+      expect(metrics.browserPoolContexts.set).toHaveBeenCalledWith(0);
+      expect(metrics.browserPoolIdleBrowsers.set).toHaveBeenCalledWith(1);
+
+      await expect(manager.recycleIdleBrowsers(0)).resolves.toBe(1);
+      expect(metrics.browserPoolRecycles.inc).toHaveBeenCalledTimes(1);
+      expect(metrics.browserPoolBrowsers.set).toHaveBeenLastCalledWith(0);
     });
 
     it('returns cached browser on subsequent calls', async () => {

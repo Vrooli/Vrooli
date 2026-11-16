@@ -168,10 +168,9 @@ func MountScenarioHTTP(r chi.Router, client ScenarioCaptureClient, resolver Scen
 			fullPageStatus = &driverMetadata.Artifacts.FullPagePixelsStatus
 		}
 		_ = json.NewEncoder(w).Encode(struct {
-			BundleDir            string        `json:"bundle_dir"`
 			Manifest             bundle.Bundle `json:"manifest"`
 			FullPagePixelsStatus *bundle.Lens  `json:"full_page_pixels_status,omitempty"`
-		}{BundleDir: bundleDir, Manifest: manifest, FullPagePixelsStatus: fullPageStatus})
+		}{Manifest: manifest, FullPagePixelsStatus: fullPageStatus})
 	})
 }
 

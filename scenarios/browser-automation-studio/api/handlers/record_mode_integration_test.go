@@ -94,6 +94,14 @@ func (h *TestRecordingHub) GetLastEntry(sessionID string) *bastimeline.TimelineE
 // Implement wsHub.HubInterface
 
 func (h *TestRecordingHub) ServeWS(conn *websocket.Conn, executionID *uuid.UUID) {}
+func (*TestRecordingHub) IssueSessionStreamCookie(sessionID, _, _ string) (string, string, error) {
+	return wsHub.SessionStreamCookieName(sessionID), "test-stream-cookie", nil
+}
+func (*TestRecordingHub) RevokeSessionStreamCookie(string) {}
+func (*TestRecordingHub) ValidateSessionStreamCookie(_, value string) bool {
+	return value == "test-stream-cookie"
+}
+func (*TestRecordingHub) ServeRecordingWS(*websocket.Conn, string, string) bool { return true }
 
 func (h *TestRecordingHub) BroadcastEnvelope(event any) {}
 

@@ -16,10 +16,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/constants"
 	"github.com/vrooli/browser-automation-studio/database"
-	"github.com/vrooli/browser-automation-studio/middleware"
-	"github.com/vrooli/browser-automation-studio/services/ai"
-	"github.com/vrooli/browser-automation-studio/services/credits"
-	"github.com/vrooli/browser-automation-studio/services/entitlement"
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	exportsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/exports"
 )
 
@@ -401,6 +398,11 @@ func (s *service) GenerateExportCaption(
 
 	ctx, cancel := context.WithTimeout(ctx, constants.ExtendedRequestTimeout)
 	defer cancel()
+	operationID := strings.TrimSpace(req.Header().Get("X-Vrooli-Root-Operation-ID"))
+	if operationID == "" {
+		operationID = strings.TrimSpace(req.Header().Get("Idempotency-Key"))
+	}
+	ctx = aihandlers.WithGatewayRootOperationID(ctx, operationID)
 
 	row, err := s.deps.Repo.GetExport(ctx, exportID)
 	if err != nil {
@@ -422,11 +424,12 @@ func (s *service) GenerateExportCaption(
 	prompt := buildCaptionPrompt(row, workflowName, workflowDescription)
 
 	caption, aiErr := s.executePrompt(ctx, prompt)
-	formatLabel := captionFormatLabel(row.Format)
 	if aiErr != nil {
 		s.deps.Logger.WithError(aiErr).WithField("export_id", exportID).Error("Failed to generate AI caption")
-		// Fallback caption rather than erroring.
-		caption = fmt.Sprintf("Check out this %s replay: %s", formatLabel, row.Name)
+		if connect.CodeOf(aiErr) != connect.CodeUnknown {
+			return nil, aiErr
+		}
+		return nil, connect.NewError(connect.CodeUnavailable, aiErr)
 	}
 
 	caption = strings.TrimSpace(caption)
@@ -539,19 +542,10 @@ func (s *service) OpenExportFolder(
 // =============================================================================
 
 func (s *service) executePrompt(ctx context.Context, prompt string) (string, error) {
-	if s.deps.AIClientFactory != nil {
-		userIdentity := entitlement.UserIdentityFromContext(ctx)
-		byokKey := middleware.BYOKKeyFromContext(ctx)
-		client := s.deps.AIClientFactory.CreateClient(ai.ClientOptions{
-			UserIdentity:  userIdentity,
-			BYOKKey:       byokKey,
-			OperationType: credits.OpAICaptionGenerate,
-		})
-		return client.ExecutePrompt(ctx, prompt)
+	if s.deps.CaptionClient == nil {
+		return "", errors.New("AI Gateway caption client is unavailable")
 	}
-	// Legacy direct OpenRouter path (no credit tracking).
-	client := ai.NewOpenRouterClient(s.deps.Logger)
-	return client.ExecutePrompt(ctx, prompt)
+	return s.deps.CaptionClient.ExecutePromptWithRole(ctx, "write.default", prompt)
 }
 
 func captionFormatLabel(format string) string {

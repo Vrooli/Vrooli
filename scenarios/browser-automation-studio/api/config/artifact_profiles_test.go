@@ -3,6 +3,8 @@ package config
 import (
 	"testing"
 
+	"github.com/vrooli/browser-automation-studio/internal/envx"
+
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 )
 
@@ -108,7 +110,7 @@ func TestDefaultArtifactSettingsForProfile_UnknownFallsBackToStandard(t *testing
 // "standard" when BAS_ARTIFACT_DEFAULT_PROFILE is unset, and validates.
 func TestConfigDefaultProfileIsStandard(t *testing.T) {
 	t.Setenv("BAS_ARTIFACT_DEFAULT_PROFILE", "")
-	cfg := loadFromEnv()
+	cfg := loadFromEnv(envx.OS{})
 	if cfg.ArtifactLimits.DefaultProfile != ProfileStandard {
 		t.Fatalf("expected default profile %q, got %q", ProfileStandard, cfg.ArtifactLimits.DefaultProfile)
 	}
@@ -120,7 +122,7 @@ func TestConfigDefaultProfileIsStandard(t *testing.T) {
 // TestConfigDefaultProfileHonorsEnv proves the operator override is honored.
 func TestConfigDefaultProfileHonorsEnv(t *testing.T) {
 	t.Setenv("BAS_ARTIFACT_DEFAULT_PROFILE", "full")
-	cfg := loadFromEnv()
+	cfg := loadFromEnv(envx.OS{})
 	if cfg.ArtifactLimits.DefaultProfile != ProfileFull {
 		t.Fatalf("expected env override full, got %q", cfg.ArtifactLimits.DefaultProfile)
 	}
@@ -132,7 +134,7 @@ func TestConfigDefaultProfileHonorsEnv(t *testing.T) {
 
 func TestConfigExplicitExecutionTimeoutCapHonorsEnv(t *testing.T) {
 	t.Setenv("BAS_EXECUTION_MAX_EXPLICIT_TIMEOUT_MS", "5400000")
-	cfg := loadFromEnv()
+	cfg := loadFromEnv(envx.OS{})
 	if got := cfg.Execution.ExplicitMaxTimeout.Milliseconds(); got != 5400000 {
 		t.Fatalf("explicit timeout cap = %dms, want 5400000ms", got)
 	}

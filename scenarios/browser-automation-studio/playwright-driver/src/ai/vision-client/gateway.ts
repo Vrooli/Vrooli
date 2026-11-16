@@ -20,8 +20,7 @@ import { VisionModelError } from './types';
 import { parseLLMResponse } from '../action/parser';
 import type { BrowserAction } from '../action/types';
 
-const INFERENCE_PROCEDURE =
-  '/vrooli.ai_gateway.v1.inference.InferenceService/Run';
+const INFERENCE_PROCEDURE = '/vrooli.ai_gateway.v1.inference.InferenceService/Run';
 const DEFAULT_TIMEOUT_MS = 120_000;
 const DEFAULT_ROLE = 'extract.structured';
 
@@ -32,6 +31,12 @@ export interface AIGatewayVisionClientConfig {
   profile?: GatewayProfile;
   /** Request timeout in milliseconds. */
   timeoutMs?: number;
+  /** Verified BAS session bearer, passed only to AI Gateway. */
+  authorization?: string;
+  /** BAS-selected account source; interpreted by Gateway, never caller-key data. */
+  aiSource?: 'local' | 'own-key' | 'vrooli-credits';
+  /** Opaque source-scoped receipt issued by BAS consent UI/API. */
+  privacyConsentGrant?: string;
 }
 
 interface GatewayUsage {
@@ -73,6 +78,9 @@ interface GatewayRunRequest {
   role: string;
   turns: GatewayTurn[];
   profile: 'PROFILE_LOCAL_FIRST' | 'PROFILE_REMOTE_ONLY';
+  privacyClass: 'PRIVACY_CLASS_CONFIDENTIAL';
+  privacyProvenance: string;
+  rootOperationId: string;
 }
 
 function routeSpec(profile: GatewayProfile): VisionModelSpec {
@@ -99,14 +107,17 @@ export function normalizeGatewayProfile(value?: string): GatewayProfile {
 }
 
 function parseUsage(value: number | string | undefined): number {
-  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : value ?? 0;
+  const parsed = typeof value === 'string' ? Number.parseInt(value, 10) : (value ?? 0);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
 function detectMediaType(image: Buffer): string {
   if (image.length >= 2 && image[0] === 0xff && image[1] === 0xd8) return 'image/jpeg';
   if (image.length >= 8 && image[0] === 0x89 && image[1] === 0x50) return 'image/png';
-  if (image.subarray(0, 5).toString('ascii') === '<?xml' || image.subarray(0, 4).toString('ascii') === '<svg') {
+  if (
+    image.subarray(0, 5).toString('ascii') === '<?xml' ||
+    image.subarray(0, 4).toString('ascii') === '<svg'
+  ) {
     return 'image/svg+xml';
   }
   return 'image/png';
@@ -255,7 +266,7 @@ function decodeValue(valueJson: string): {
     throw new VisionModelError(`Gateway returned invalid JSON: ${String(error)}`, 'PARSE_ERROR');
   }
 
-  const record = parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : null;
+  const record = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
   const candidate = record && 'action' in record ? record.action : parsed;
   if (!candidate || typeof candidate !== 'object') {
     throw new VisionModelError('Gateway response did not contain an action object', 'PARSE_ERROR');
@@ -265,13 +276,13 @@ function decodeValue(valueJson: string): {
   // requires done.success. Some otherwise-valid structured responses omit the
   // duplicated action field, so bridge the two contracts here rather than
   // rejecting a response that the gateway already validated.
-  const envelopeGoalAchieved = record && typeof record.goalAchieved === 'boolean'
-    ? record.goalAchieved
-    : false;
+  const envelopeGoalAchieved =
+    record && typeof record.goalAchieved === 'boolean' ? record.goalAchieved : false;
   const actionRecord = candidate as Record<string, unknown>;
-  const normalizedCandidate = actionRecord.type === 'done' && typeof actionRecord.success !== 'boolean'
-    ? { ...actionRecord, success: envelopeGoalAchieved }
-    : candidate;
+  const normalizedCandidate =
+    actionRecord.type === 'done' && typeof actionRecord.success !== 'boolean'
+      ? { ...actionRecord, success: envelopeGoalAchieved }
+      : candidate;
 
   let action: BrowserAction;
   try {
@@ -281,12 +292,16 @@ function decodeValue(valueJson: string): {
   }
 
   const reasoning = record && typeof record.reasoning === 'string' ? record.reasoning : '';
-  const goalAchieved = record && typeof record.goalAchieved === 'boolean'
-    ? record.goalAchieved
-    : action.type === 'done' && action.success;
-  const confidence = record && typeof record.confidence === 'number'
-    ? Math.max(0, Math.min(1, record.confidence))
-    : action.type === 'done' && action.success ? 0.95 : 0.75;
+  const goalAchieved =
+    record && typeof record.goalAchieved === 'boolean'
+      ? record.goalAchieved
+      : action.type === 'done' && action.success;
+  const confidence =
+    record && typeof record.confidence === 'number'
+      ? Math.max(0, Math.min(1, record.confidence))
+      : action.type === 'done' && action.success
+        ? 0.95
+        : 0.75;
   return { action, reasoning, goalAchieved, confidence };
 }
 
@@ -294,6 +309,9 @@ export class AIGatewayVisionClient implements VisionModelClient {
   private readonly gatewayUrl: string;
   private readonly profile: GatewayProfile;
   private readonly timeoutMs: number;
+  private readonly authorization?: string;
+  private readonly aiSource: 'local' | 'own-key' | 'vrooli-credits';
+  private readonly privacyConsentGrant?: string;
 
   constructor(config: AIGatewayVisionClientConfig = {}) {
     this.gatewayUrl = (config.gatewayUrl ?? process.env.AI_GATEWAY_URL ?? '').replace(/\/$/, '');
@@ -302,16 +320,22 @@ export class AIGatewayVisionClient implements VisionModelClient {
     }
     this.profile = config.profile ?? 'local_first';
     this.timeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.authorization = config.authorization;
+    this.aiSource = config.aiSource ?? 'local';
+    this.privacyConsentGrant = config.privacyConsentGrant;
   }
 
   async analyze(request: VisionAnalysisRequest): Promise<VisionAnalysisResponse> {
     const body: GatewayRunRequest = {
-      source: `browser navigation at ${request.currentUrl}`,
+      source: 'Browser Automation Studio vision navigation',
       schemaJson: ACTION_SCHEMA,
       instruction: gatewayInstruction(),
       role: DEFAULT_ROLE,
       turns: buildTurns(request),
       profile: this.profile === 'remote_only' ? 'PROFILE_REMOTE_ONLY' : 'PROFILE_LOCAL_FIRST',
+      privacyClass: 'PRIVACY_CLASS_CONFIDENTIAL',
+      privacyProvenance: 'browser_automation_studio.vision_navigation',
+      rootOperationId: request.operationId,
     };
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -319,33 +343,61 @@ export class AIGatewayVisionClient implements VisionModelClient {
     try {
       const response = await fetch(`${this.gatewayUrl}${INFERENCE_PROCEDURE}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Vrooli-AI-Source': this.aiSource,
+          ...(this.authorization ? { Authorization: this.authorization } : {}),
+          ...(this.privacyConsentGrant
+            ? { 'X-Vrooli-AI-Consent-Grant': this.privacyConsentGrant }
+            : {}),
+        },
         body: JSON.stringify(body),
         signal: controller.signal,
       });
-      const payload = await response.json() as GatewayResponse;
+      const payload = (await response.json()) as GatewayResponse;
       if (!response.ok) {
-        throw new VisionModelError(`AI Gateway request failed (${response.status})`, 'NETWORK_ERROR', response.status >= 500);
+        throw new VisionModelError(
+          `AI Gateway request failed (${response.status}); reuse root_operation_id=${request.operationId} before retrying if the provider may have received this request`,
+          'NETWORK_ERROR',
+          response.status >= 500
+        );
       }
       if (payload.error?.message) {
-        throw new VisionModelError(payload.error.message, 'MODEL_UNAVAILABLE', true);
+        const uncertain = payload.error.code === 'INFERENCE_ERROR_CODE_OUTCOME_UNCERTAIN';
+        throw new VisionModelError(
+          `${payload.error.message}; root_operation_id=${request.operationId}`,
+          uncertain ? 'OUTCOME_UNCERTAIN' : 'MODEL_UNAVAILABLE',
+          !uncertain
+        );
       }
       if (!payload.validated || !payload.valueJson) {
-        throw new VisionModelError('AI Gateway rejected the browser action response', 'PARSE_ERROR');
+        throw new VisionModelError(
+          'AI Gateway rejected the browser action response',
+          'PARSE_ERROR'
+        );
       }
       const value = decodeValue(payload.valueJson);
       const tokensUsed: TokenUsage = {
         promptTokens: parseUsage(payload.usage?.inputTokens),
         completionTokens: parseUsage(payload.usage?.outputTokens),
-        totalTokens: parseUsage(payload.usage?.inputTokens) + parseUsage(payload.usage?.outputTokens),
+        totalTokens:
+          parseUsage(payload.usage?.inputTokens) + parseUsage(payload.usage?.outputTokens),
       };
       return { ...value, tokensUsed, rawResponse: payload.valueJson };
     } catch (error) {
       if (error instanceof VisionModelError) throw error;
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new VisionModelError(`AI Gateway request timed out after ${this.timeoutMs}ms`, 'NETWORK_ERROR', true);
+        throw new VisionModelError(
+          `AI Gateway request timed out after ${this.timeoutMs}ms; reuse root_operation_id=${request.operationId} before retrying`,
+          'NETWORK_ERROR',
+          true
+        );
       }
-      throw new VisionModelError(`AI Gateway request failed: ${String(error)}`, 'NETWORK_ERROR', true);
+      throw new VisionModelError(
+        `AI Gateway request failed: ${String(error)}; reuse root_operation_id=${request.operationId} before retrying`,
+        'NETWORK_ERROR',
+        true
+      );
     } finally {
       clearTimeout(timeout);
     }
@@ -356,6 +408,8 @@ export class AIGatewayVisionClient implements VisionModelClient {
   }
 }
 
-export function createAIGatewayVisionClient(config: AIGatewayVisionClientConfig = {}): AIGatewayVisionClient {
+export function createAIGatewayVisionClient(
+  config: AIGatewayVisionClientConfig = {}
+): AIGatewayVisionClient {
   return new AIGatewayVisionClient(config);
 }

@@ -62,14 +62,14 @@ func testLogger() *logrus.Logger {
 }
 
 // newTestScheduler creates a Scheduler for tests with the given dependencies.
-// CreditService and SettingsRepo are left nil for basic tests.
+// SettingsRepo is left nil for basic tests.
 func newTestScheduler(repo ScheduleRepository, executor WorkflowExecutor, notifier ScheduleNotifier) *Scheduler {
 	return New(SchedulerOptions{
 		Repo:     repo,
 		Executor: executor,
 		Notifier: notifier,
 		Log:      testLogger(),
-		// CreditService and SettingsRepo left nil for tests
+		// SettingsRepo left nil for tests
 	})
 }
 

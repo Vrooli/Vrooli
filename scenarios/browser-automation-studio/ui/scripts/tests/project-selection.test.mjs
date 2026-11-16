@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
@@ -26,7 +26,9 @@ test('every existing ordinary UI test file is selected exactly once, including v
   visit(path.join(ui, 'src'));
   visit(path.join(ui, 'vitest'));
   assert.ok(selected.some(item => item.projectName === 'execution-viewer'));
-  assert.deepEqual(inventory.coverage.thresholds, { lines: 85, functions: 85, branches: 85, statements: 85 });
+  assert.equal(Object.hasOwn(inventory.coverage, 'thresholds'), false, 'coverage ratchets belong to the scenario policy');
+  const policy = JSON.parse(readFileSync(path.join(ui, '..', '.vrooli', 'testing.json'), 'utf8'));
+  assert.deepEqual(policy.unit.policy_profile.policy_classes.react_vite_ui.coverage.committed, { lines: 33, statements: 33, functions: 42, branches: 68 });
   assert.deepEqual(inventory.coverage.include, ['src/**/*.{ts,tsx}']);
   assert.deepEqual(inventory.coverage.exclude, ['src/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx,mjs}', 'src/**/*.spec.{ts,tsx}', 'src/**/*.spec.{ts,tsx,mjs}', 'src/**/*.d.ts', 'src/main.tsx', 'src/bootstrap.tsx', 'src/test-setup.ts', 'src/test-utils/**', 'src/consts/strings.generated.ts', 'src/i18n/locales/**', 'src/**/generated/**']);
   const declared = inventory.projects.map(project => project.name);

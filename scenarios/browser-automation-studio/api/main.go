@@ -29,6 +29,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/config"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/handlers"
+	aihandlers "github.com/vrooli/browser-automation-studio/handlers/ai"
 	aiserviceconnect "github.com/vrooli/browser-automation-studio/handlers/ai_service"
 	captureconnect "github.com/vrooli/browser-automation-studio/handlers/capture"
 	consumerdeclarationsconnect "github.com/vrooli/browser-automation-studio/handlers/consumer_declarations"
@@ -54,11 +55,10 @@ import (
 	"github.com/vrooli/browser-automation-studio/internal/paths"
 	"github.com/vrooli/browser-automation-studio/middleware"
 	"github.com/vrooli/browser-automation-studio/performance"
-	"github.com/vrooli/browser-automation-studio/services/ai"
 	"github.com/vrooli/browser-automation-studio/services/credits"
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
-	"github.com/vrooli/browser-automation-studio/services/recovery"
 	readinessservice "github.com/vrooli/browser-automation-studio/services/readiness"
+	"github.com/vrooli/browser-automation-studio/services/recovery"
 	"github.com/vrooli/browser-automation-studio/services/retention"
 	"github.com/vrooli/browser-automation-studio/services/scheduler"
 	"github.com/vrooli/browser-automation-studio/services/testgenie"
@@ -176,7 +176,7 @@ func main() {
 	// Resolve ownership left by the previous API process before starting any
 	// workers or sidecars. Serving with active rows whose recovery failed could
 	// let a new process accept work while stale executions still look owned.
-	recoverySvc := recovery.NewService(repo, log)
+	recoverySvc := recovery.NewService(repo, log, paths.ResolveRecordingsRoot(log))
 	recoverCtx, recoverCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	recoveryResult, recoveryErr := recoverySvc.RecoverInterruptedExecutions(recoverCtx)
 	recoverCancel()
@@ -242,7 +242,7 @@ func main() {
 		entitlementSvc.SetSessionResolver(resolver)
 		subscriptionResolver = resolver
 	}
-	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, cfg.Entitlement, repo)
+	entitlementMiddleware := middleware.NewEntitlementMiddleware(entitlementSvc, log, repo)
 	byokMiddleware := middleware.NewBYOKMiddleware()
 
 	if cfg.Entitlement.ServiceURL != "" {
@@ -266,42 +266,11 @@ func main() {
 
 	// Initialize entitlement handler (uses unified credit service)
 
-	// Initialize AI provider chain and factory
-	aiProviderChain := ai.NewAIProviderChain(ai.AIProviderChainOptions{
-		Logger:               log,
-		CreditService:        creditService,
-		EnableBYOK:           cfg.AIProvider.EnableBYOK,
-		EnableVrooli:         cfg.AIProvider.EnableVrooliAPI,
-		EnableDevMode:        cfg.AIProvider.EnableDevMode,
-		VrooliAPIURL:         cfg.AIProvider.VrooliAPIURL,
-		SubscriptionResolver: subscriptionResolver,
-		DefaultModel:         cfg.AIProvider.DefaultModel,
-		Role:                 cfg.AIProvider.DefaultRole,
-	})
-	aiClientFactory := ai.NewAIClientFactory(ai.AIClientFactoryOptions{
-		Chain:  aiProviderChain,
-		Logger: log,
-	})
-	log.WithFields(logrus.Fields{
-		"byok_enabled":     cfg.AIProvider.EnableBYOK,
-		"vrooli_enabled":   cfg.AIProvider.EnableVrooliAPI,
-		"dev_mode_enabled": cfg.AIProvider.EnableDevMode,
-	}).Info("✅ AI provider chain initialized")
-
 	// Initialize UX metrics repository (used by both handler wiring and API endpoints)
 	uxRepo := uxrepository.NewRepository(db.Routed)
 
 	// Initialize navigator registry for vision navigation
 	navigatorRegistry := vision.NewNavigatorRegistry()
-
-	// Create and register playwright navigator
-	playwrightNav := vision.NewPlaywrightVisionNavigator(log,
-		vision.WithPlaywrightHub(hub),
-		vision.WithPlaywrightCreditService(creditService),
-	)
-	navigatorRegistry.Register(playwrightNav)
-
-	log.WithField("navigator_count", navigatorRegistry.Count()).Info("✅ Vision navigator registry initialized")
 
 	// Resolve allowed origins before constructing handlers
 	corsCfg := middleware.GetCachedCorsConfig()
@@ -313,14 +282,20 @@ func main() {
 		UXMetricsRepo:           uxRepo,
 		EntitlementService:      entitlementSvc,
 		CreditService:           creditService,
-		AIClientFactory:         aiClientFactory,
 		NavigatorRegistry:       navigatorRegistry,
-		PlaywrightNavigator:     playwrightNav,
 		UnifiedRecordingService: unifiedRecordingSvc,
 		RecordingsRoot:          recordingsRoot,
 		ProjectRoot:             recordingsRoot.ProjectsRoot,
 	})
-	playwrightNav.SetSessionRouteBroker(deps.SessionBroker)
+	// Construct the navigator only after BAS has composed its session broker so
+	// every driver request is bound to the canonical owner from first use.
+	playwrightNav := vision.NewPlaywrightVisionNavigator(log,
+		vision.WithPlaywrightHub(hub),
+		vision.WithPlaywrightSessionBroker(deps.SessionBroker),
+	)
+	navigatorRegistry.Register(playwrightNav)
+	deps.PlaywrightNavigator = playwrightNav
+	log.WithField("navigator_count", navigatorRegistry.Count()).Info("✅ Vision navigator registry initialized")
 	handler := handlers.NewHandlerWithDeps(repo, hub, log, corsCfg.AllowedOrigins, deps)
 	checkpointCtx, cancelCheckpoints := context.WithCancel(context.Background())
 	checkpointsDone := make(chan struct{})
@@ -398,6 +373,7 @@ func main() {
 
 	// Setup router
 	r := chi.NewRouter()
+	r.Use(aihandlers.PrivacyConsentContextMiddleware)
 
 	// Middleware
 	r.Use(chimiddleware.Logger)
@@ -523,17 +499,15 @@ func main() {
 			Validator:     workflowsconnect.NewDefaultValidator(handler.WorkflowValidator()),
 			SeedRunner:    workflowsconnect.NewDefaultSeedRunner(testgenie.NewClient(nil, nil)),
 			SeedScheduler: handler.SeedCleanupManager(),
-			CreditService: creditService,
-			UserIdentity:  entitlement.UserIdentityFromContext,
+			UserIdentity:  monetization.UserIdentityFromContext,
 			Logger:        log,
 		}),
 		exportsserviceconnect.Module(exportsserviceconnect.Deps{
-			CancelExport:    handler.CancelExport,
-			Repo:            repo,
-			Executor:        deps.ExecutionService,
-			Catalog:         deps.CatalogService,
-			AIClientFactory: aiClientFactory,
-			Logger:          log,
+			CancelExport: handler.CancelExport,
+			Repo:         repo,
+			Executor:     deps.ExecutionService,
+			Catalog:      deps.CatalogService,
+			Logger:       log,
 		}),
 		observabilityconnect.Module(observabilityconnect.Deps{
 			Proxy:  handler,
@@ -542,7 +516,6 @@ func main() {
 		visionnavconnect.Module(visionnavconnect.Deps{
 			Logger:              log,
 			Registry:            navigatorRegistry,
-			Credits:             creditService,
 			Tracker:             playwrightNav,
 			CredentialAuthority: credentialAuthority,
 		}),
@@ -646,31 +619,22 @@ func main() {
 	// RESTException: WebSocket endpoints are not RPC and stay on chi.
 	// RESTReason: third_party_shape (browser WebSocket transport + binary
 	// playwright-driver frame stream). Tracked in docs/internal/REST_EXCEPTIONS.md.
-	r.Get("/ws", handler.HandleWebSocket)                // WebSocket endpoint for browser clients
-	r.Get("/ws/frames", handler.HandleDriverFrameStream) // Shared recording and execution driver-frame ingress.
+	r.Get("/ws", handler.HandleWebSocket)                               // WebSocket endpoint for browser clients
+	r.Get("/ws/sessions/{sessionID}", handler.HandleRecordingWebSocket) // Owner-bound recording stream
+	r.Get("/ws/frames", handler.HandleDriverFrameStream)                // Shared recording and execution driver-frame ingress.
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/ai/privacy-consent", aihandlers.PrivacyConsentHandler().ServeHTTP)
+		r.Post("/ai/privacy-consent", aihandlers.PrivacyConsentHandler().ServeHTTP)
+		r.Delete("/ai/privacy-consent/{id}", aihandlers.PrivacyConsentHandler().ServeHTTP)
 		uxcaptureconnect.MountHTTP(r, driverClient, capturesEvidenceRoot)
 		uxcaptureconnect.MountScenarioHTTP(r, driverClient, discovery.NewResolver(discovery.ResolverConfig{}), capturesEvidenceRoot)
 		sessionModule := monetization.NewSessionModule(credentialClient, lpbsAccountIdentity, lpbsAccountField)
+		sessionModule.OnDelete = entitlementSvc.ClearSession
 		r.Post("/credentials/provision", credentialProvisionHandler(credentialClient))
 		r.Post("/auth/subscription/session", sessionModule.Provision)
 		r.Get("/auth/subscription/session", sessionModule.Status)
 		r.Delete("/auth/subscription/session", sessionModule.Delete)
-		r.Get("/monetization/outbox/pending", func(w http.ResponseWriter, req *http.Request) {
-			identity, err := repo.GetSetting(req.Context(), "user_identity")
-			if err != nil {
-				http.Error(w, "unable to read monetization identity", http.StatusInternalServerError)
-				return
-			}
-			pending, err := creditService.PendingOutboxCount(req.Context(), identity)
-			if err != nil {
-				http.Error(w, "unable to read pending monetization usage", http.StatusServiceUnavailable)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]int{"pending": pending})
-		})
 		// Health endpoint under /api/v1 for consistency
 		r.Get("/health", healthHandler)
 
@@ -685,8 +649,8 @@ func main() {
 			}
 			operation := strings.TrimSpace(req.URL.Query().Get("operation"))
 			journeyCtx := req.Context()
-			if token := strings.TrimSpace(os.Getenv("SMOKE_TEST_MONETIZATION_ACCESS_TOKEN")); token != "" && entitlement.AccessTokenFromContext(journeyCtx) == "" {
-				journeyCtx = entitlement.WithAccessToken(journeyCtx, token)
+			if token := strings.TrimSpace(os.Getenv("SMOKE_TEST_MONETIZATION_ACCESS_TOKEN")); token != "" && monetization.AccessTokenFromContext(journeyCtx) == "" {
+				journeyCtx = monetization.WithAccessToken(journeyCtx, token)
 			}
 			respond := func(result map[string]string) {
 				w.Header().Set("Content-Type", "application/json")
@@ -694,10 +658,10 @@ func main() {
 			}
 			lpbsURL := strings.TrimRight(cfg.Entitlement.ServiceURL, "/")
 			if lpbsURL == "" {
-				lpbsURL = strings.TrimRight(cfg.AIProvider.VrooliAPIURL, "/")
+				lpbsURL = strings.TrimRight(cfg.LPBSFallback.BaseURL, "/")
 			}
 			resolveJourneyAccess := func(ctx context.Context) (string, error) {
-				token := entitlement.AccessTokenFromContext(ctx)
+				token := monetization.AccessTokenFromContext(ctx)
 				if token != "" {
 					return token, nil
 				}
@@ -807,9 +771,9 @@ func main() {
 				// endpoint when the configured entitlement authority is local.
 				baseURL := strings.TrimRight(cfg.Entitlement.ServiceURL, "/")
 				if baseURL == "" {
-					baseURL = strings.TrimRight(cfg.AIProvider.VrooliAPIURL, "/")
+					baseURL = strings.TrimRight(cfg.LPBSFallback.BaseURL, "/")
 				}
-				token := entitlement.AccessTokenFromContext(journeyCtx)
+				token := monetization.AccessTokenFromContext(journeyCtx)
 				if token == "" && subscriptionResolver != nil {
 					access, resolveErr := subscriptionResolver.ResolveAt(journeyCtx, baseURL)
 					if resolveErr == nil {
@@ -864,19 +828,20 @@ func main() {
 					http.Error(w, "resolve Class B consumer identity: "+err.Error(), http.StatusServiceUnavailable)
 					return
 				}
-				_, err = entitlementSvc.GetEntitlement(journeyCtx, user)
+				token, err := resolveJourneyAccess(journeyCtx)
 				if err != nil {
-					http.Error(w, "resolve signed plan for Class B probe: "+err.Error(), http.StatusServiceUnavailable)
+					http.Error(w, "resolve Class B usage session: "+err.Error(), http.StatusServiceUnavailable)
 					return
 				}
-				// The journey exercises the signed Class B workflow meter. A local
-				// tier override cannot manufacture the authoritative lease or its
-				// workflow limit; recording feature access is a separate surface.
-				if entitlementSvc.CanExecuteWorkflow(journeyCtx, user, 0) {
-					respond(map[string]string{"observed": "class_b=allowed", "route": "local-capacity"})
+				admissionCtx := monetization.WithAccessToken(journeyCtx, token)
+				admissionCtx = monetization.WithUserIdentity(admissionCtx, user)
+				// Probe the same signed lease and LPBS quota path as real execution,
+				// then release the hold so this smoke check consumes no allowance.
+				if err := entitlementSvc.ProbeWorkflowExecution(admissionCtx, user); err == nil {
+					respond(map[string]string{"observed": "class_b=allowed", "route": "lpbs-usage-and-signed-lease"})
 					return
 				}
-				respond(map[string]string{"observed": "class_b=refused", "route": "local-capacity"})
+				respond(map[string]string{"observed": "class_b=refused", "route": "lpbs-usage-and-signed-lease"})
 			case "offline_class_b":
 				user, err := resolveJourneyUser(journeyCtx)
 				if err != nil {
@@ -887,11 +852,10 @@ func main() {
 					http.Error(w, "seed verified lease cache: "+err.Error(), http.StatusServiceUnavailable)
 					return
 				}
-				if !entitlementSvc.CanExecuteWorkflowOffline(user, 0) {
-					http.Error(w, "cached Class B lease did not allow workflow execution", http.StatusPaymentRequired)
-					return
-				}
-				respond(map[string]string{"observed": "offline_class_b=allowed", "route": "cached-lease"})
+				// A cached signed limit is not enough to authorize a capped meter
+				// without its current use count. Do not fabricate zero when the
+				// LPBS usage authority is unavailable.
+				respond(map[string]string{"observed": "offline_class_b=unsupported", "reason": "workflow execution usage count is not cached", "route": "cached-lease"})
 			case "offline_gate_degrades":
 				user, err := resolveJourneyUser(journeyCtx)
 				if err != nil {
@@ -913,7 +877,7 @@ func main() {
 					http.Error(w, err.Error(), http.StatusServiceUnavailable)
 					return
 				}
-				token := entitlement.AccessTokenFromContext(journeyCtx)
+				token := monetization.AccessTokenFromContext(journeyCtx)
 				if token == "" && subscriptionResolver != nil {
 					access, resolveErr := subscriptionResolver.ResolveAt(journeyCtx, lpbsURL)
 					if resolveErr != nil {
@@ -967,7 +931,7 @@ func main() {
 					http.Error(w, "expired signed lease still allowed Class B work", http.StatusBadGateway)
 					return
 				}
-				respond(map[string]string{"observed": "expired_lease=free", "route": "lease-expiry"})
+				respond(map[string]string{"observed": "expired_lease=denied", "route": "lease-expiry"})
 			default:
 				http.Error(w, "unknown monetization journey operation", http.StatusBadRequest)
 			}
@@ -1124,12 +1088,11 @@ func main() {
 	// at the configured cron times
 	scheduleNotifier := scheduler.NewWSNotifier(hub, log)
 	schedulerSvc := scheduler.New(scheduler.SchedulerOptions{
-		Repo:          repo,
-		Executor:      handler.GetExecutionService(),
-		Notifier:      scheduleNotifier,
-		Log:           log,
-		CreditService: creditService,
-		SettingsRepo:  repo,
+		Repo:         repo,
+		Executor:     handler.GetExecutionService(),
+		Notifier:     scheduleNotifier,
+		Log:          log,
+		SettingsRepo: repo,
 	})
 	if err := schedulerSvc.Start(); err != nil {
 		log.WithError(err).Warn("⚠️  Scheduler failed to start - scheduled workflows will not run")
@@ -1159,6 +1122,9 @@ func main() {
 	// Start server with graceful shutdown
 	// WriteTimeout is extended to allow long-running automation requests
 	if err := server.Run(server.Config{
+		// Exact cleanup is a trusted-local operator operation. Pin the listener
+		// to loopback instead of relying on api-core's configurable default.
+		BindAddress:     "127.0.0.1",
 		Handler:         apihttp.TestModeMiddleware(r),
 		WriteTimeout:    globalRequestTimeout + 30*time.Second,
 		ShutdownTimeout: managedShutdownTimeout,

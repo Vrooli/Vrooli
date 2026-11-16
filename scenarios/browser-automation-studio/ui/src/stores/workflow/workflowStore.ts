@@ -20,6 +20,10 @@ import {
   restoreWorkflowVersionViaApi,
   updateWorkflowViaApi,
 } from '../../domains/workflows/services/workflowApi';
+import {
+  beginWorkflowRecoveryOperation,
+  completeWorkflowRecoveryOperation,
+} from '../../domains/workflows/services/workflowRecovery';
 import { logger } from '../../utils/logger';
 import { protoMessageToJson } from '../../utils/proto';
 import { WorkflowSummarySchema } from '@vrooli/proto-types/browser-automation-studio/v1/api/service_pb';
@@ -421,18 +425,21 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
   },
 
   generateWorkflow: async (prompt: string, name: string, folderPath: string, projectId?: string) => {
+    const request = {
+      projectId: projectId ?? '',
+      name,
+      folderPath,
+      aiPrompt: prompt,
+    };
+    const operationID = beginWorkflowRecoveryOperation('create', request);
     try {
       clearAutosaveTimer();
-      const resp = await createWorkflowViaApi({
-        projectId: projectId ?? '',
-        name,
-        folderPath,
-        aiPrompt: prompt,
-      });
+      const resp = await createWorkflowViaApi({ ...request, operationID });
       const normalized = parseWorkflowFromCreateProto(resp);
       if (!normalized) {
         throw new Error('Failed to parse generated workflow payload');
       }
+      completeWorkflowRecoveryOperation('create', operationID);
       set(buildWorkflowLoadState(normalized, { lastSavedAt: new Date() }));
       return normalized;
     } catch (error) {
@@ -447,17 +454,21 @@ export const useWorkflowStore = create<WorkflowStore>((set, get) => ({
       throw new Error('No workflow loaded to modify');
     }
 
+    const request = {
+      workflowId: currentWorkflow.id,
+      modificationPrompt: prompt,
+      currentFlow: flowDefinitionFromJson({ nodes, edges }),
+    };
+    const operationID = beginWorkflowRecoveryOperation('modify', request);
+
     try {
       clearAutosaveTimer();
-      const resp = await modifyWorkflowViaApi({
-        workflowId: currentWorkflow.id,
-        modificationPrompt: prompt,
-        currentFlow: flowDefinitionFromJson({ nodes, edges }),
-      });
+      const resp = await modifyWorkflowViaApi({ ...request, operationID });
       const normalized = parseWorkflowFromUpdateProto(resp);
       if (!normalized) {
         throw new Error('Failed to parse modified workflow payload');
       }
+      completeWorkflowRecoveryOperation('modify', operationID);
       set(buildWorkflowLoadState(normalized, { lastSavedAt: new Date() }));
       return normalized;
     } catch (error) {

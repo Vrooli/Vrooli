@@ -83,15 +83,6 @@ func NewScreenshotHandler(log *logrus.Logger, opts ...ScreenshotHandlerOption) *
 		opt(handler)
 	}
 
-	// Create default runner if not provided
-	if handler.runner == nil {
-		runner, err := newAutomationRunner(log)
-		if err != nil && log != nil {
-			log.WithError(err).Warn("Failed to initialize automation runner for screenshots; requests will fail")
-		}
-		handler.runner = runner
-	}
-
 	return handler
 }
 

@@ -42,6 +42,8 @@ const (
 	// PlaywrightDriverAdminSecretEnv authorizes only the loopback recovery
 	// endpoint. It is never sent with normal lease-protected operations.
 	PlaywrightDriverAdminSecretEnv = "PLAYWRIGHT_DRIVER_ADMIN_SECRET"
+	SessionExecutionHeader         = "X-BAS-Execution-ID"
+	SessionLeaseHeader             = "X-BAS-Session-Lease-ID"
 	maxSessionAdmissionRetryDelay  = 500 * time.Millisecond
 )
 
@@ -407,8 +409,17 @@ func (c *Client) CloseSessionWithLease(ctx context.Context, sessionID, execution
 // activity. The endpoint is deliberately separate from normal session use so
 // reconciliation cannot keep an idle session alive.
 func (c *Client) ListObservedSessions(ctx context.Context) ([]ObservedSession, error) {
+	secret := c.adminSecret
+	if secret == "" {
+		return nil, fmt.Errorf("%s is required for administrative session recovery", PlaywrightDriverAdminSecretEnv)
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/observability/sessions", nil)
+	if err != nil {
+		return nil, fmt.Errorf("create observed session request: %w", err)
+	}
+	request.Header.Set("X-Playwright-Admin-Secret", secret)
 	var resp ObservedSessionsResponse
-	if err := c.get(ctx, "/observability/sessions", &resp); err != nil {
+	if err := c.doRequest(request, &resp, "GET /observability/sessions"); err != nil {
 		return nil, err
 	}
 	return resp.Sessions, nil
@@ -417,15 +428,23 @@ func (c *Client) ListObservedSessions(ctx context.Context) ([]ObservedSession, e
 // ForceCloseSession is an authenticated, loopback-only recovery operation.
 // Normal callers must use CloseSessionWithLease. A missing secret fails closed
 // rather than silently weakening the driver's lease ownership model.
-func (c *Client) ForceCloseSession(ctx context.Context, sessionID string) error {
+func (c *Client) ForceCloseSession(ctx context.Context, sessionID, expectedOwnerExecutionID, expectedLeaseID string) error {
 	secret := c.adminSecret
 	if secret == "" {
 		return fmt.Errorf("%s is required for administrative session recovery", PlaywrightDriverAdminSecretEnv)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+fmt.Sprintf("/session/%s/force-close", url.PathEscape(sessionID)), http.NoBody)
+	body, err := json.Marshal(map[string]string{
+		"expected_owner_execution_id": expectedOwnerExecutionID,
+		"expected_lease_id":           expectedLeaseID,
+	})
+	if err != nil {
+		return fmt.Errorf("encode force-close ownership: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+fmt.Sprintf("/session/%s/force-close", url.PathEscape(sessionID)), bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("create force-close request: %w", err)
 	}
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Playwright-Admin-Secret", secret)
 	return c.doRequest(req, &CloseSessionResponse{}, "POST /session/:id/force-close")
 }
@@ -838,7 +857,23 @@ type CreatePageResponse struct {
 
 // CreatePage creates a new page (tab) in the browser session.
 func (c *Client) CreatePage(ctx context.Context, sessionID, executionID, leaseID, pageURL string) (*CreatePageResponse, error) {
+	return c.createPage(ctx, sessionID, executionID, leaseID, pageURL, "")
+}
+
+// CreatePopupPage creates a page through a specific opener page in the same
+// owned session, preserving the browser's opener relationship.
+func (c *Client) CreatePopupPage(ctx context.Context, sessionID, executionID, leaseID, pageURL, openerPageID string) (*CreatePageResponse, error) {
+	if strings.TrimSpace(openerPageID) == "" {
+		return nil, errors.New("popup opener page identity is required")
+	}
+	return c.createPage(ctx, sessionID, executionID, leaseID, pageURL, openerPageID)
+}
+
+func (c *Client) createPage(ctx context.Context, sessionID, executionID, leaseID, pageURL, openerPageID string) (*CreatePageResponse, error) {
 	req := map[string]string{"url": pageURL, "execution_id": executionID, "lease_id": leaseID}
+	if openerPageID != "" {
+		req["opener_driver_page_id"] = openerPageID
+	}
 	var resp CreatePageResponse
 	if err := c.post(ctx, fmt.Sprintf("/session/%s/record/new-page", url.PathEscape(sessionID)), req, &resp); err != nil {
 		return nil, err
@@ -850,38 +885,50 @@ func (c *Client) CreatePage(ctx context.Context, sessionID, executionID, leaseID
 }
 
 // GetStorageState retrieves the browser storage state for session persistence.
-func (c *Client) GetStorageState(ctx context.Context, sessionID string) (json.RawMessage, error) {
+func (c *Client) GetStorageState(ctx context.Context, sessionID, executionID, leaseID string) (json.RawMessage, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp struct {
 		StorageState json.RawMessage `json:"storage_state"`
 	}
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/storage-state", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.getWithSessionOwner(ctx, fmt.Sprintf("/session/%s/storage-state", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return resp.StorageState, nil
 }
 
 // GetServiceWorkers retrieves the service workers for a session.
-func (c *Client) GetServiceWorkers(ctx context.Context, sessionID string) (*GetServiceWorkersResponse, error) {
+func (c *Client) GetServiceWorkers(ctx context.Context, sessionID, executionID, leaseID string) (*GetServiceWorkersResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp GetServiceWorkersResponse
-	if err := c.get(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.getWithSessionOwner(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UnregisterAllServiceWorkers unregisters all service workers for a session.
-func (c *Client) UnregisterAllServiceWorkers(ctx context.Context, sessionID string) (*UnregisterServiceWorkersResponse, error) {
+func (c *Client) UnregisterAllServiceWorkers(ctx context.Context, sessionID, executionID, leaseID string) (*UnregisterServiceWorkersResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp UnregisterServiceWorkersResponse
-	if err := c.delete(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), &resp); err != nil {
+	if err := c.deleteWithSessionOwner(ctx, fmt.Sprintf("/session/%s/service-workers", url.PathEscape(sessionID)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
 }
 
 // UnregisterServiceWorker unregisters a specific service worker by scope URL.
-func (c *Client) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL string) (*UnregisterServiceWorkerResponse, error) {
+func (c *Client) UnregisterServiceWorker(ctx context.Context, sessionID, scopeURL, executionID, leaseID string) (*UnregisterServiceWorkerResponse, error) {
+	if err := validateSessionOwner(executionID, leaseID); err != nil {
+		return nil, err
+	}
 	var resp UnregisterServiceWorkerResponse
-	if err := c.delete(ctx, fmt.Sprintf("/session/%s/service-workers/%s", url.PathEscape(sessionID), url.PathEscape(scopeURL)), &resp); err != nil {
+	if err := c.deleteWithSessionOwner(ctx, fmt.Sprintf("/session/%s/service-workers/%s", url.PathEscape(sessionID), url.PathEscape(scopeURL)), executionID, leaseID, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -1143,6 +1190,36 @@ func ResolveMaxConcurrentSessions() int {
 
 // HTTP helper methods
 
+func validateSessionOwner(executionID, leaseID string) error {
+	if strings.TrimSpace(executionID) == "" || strings.TrimSpace(leaseID) == "" {
+		return errors.New("session route requires execution ID and lease ID")
+	}
+	return nil
+}
+
+func setSessionOwnerHeaders(headers http.Header, executionID, leaseID string) {
+	headers.Set(SessionExecutionHeader, executionID)
+	headers.Set(SessionLeaseHeader, leaseID)
+}
+
+func (c *Client) getWithSessionOwner(ctx context.Context, path, executionID, leaseID string, response interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	setSessionOwnerHeaders(req.Header, executionID, leaseID)
+	return c.doRequest(req, response, "GET "+path)
+}
+
+func (c *Client) deleteWithSessionOwner(ctx context.Context, path, executionID, leaseID string, response interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	setSessionOwnerHeaders(req.Header, executionID, leaseID)
+	return c.doRequest(req, response, "DELETE "+path)
+}
+
 func (c *Client) get(ctx context.Context, path string, response interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
@@ -1253,14 +1330,14 @@ func (c *Client) doRequestInternal(req *http.Request, response interface{}, oper
 // SessionRouteRequest is the broker's escape hatch for driver session endpoints
 // whose response is intentionally proxied without interpreting its schema.
 // Callers must still enter through automation/session's owned Session.
-func (c *Client) SessionRouteRequest(ctx context.Context, sessionID, method, suffix string, body []byte) (*http.Response, error) {
+func (c *Client) SessionRouteRequest(ctx context.Context, sessionID, executionID, leaseID, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
 	allowed := map[string]bool{
 		http.MethodGet + " /record/debug":        true,
 		http.MethodPost + " /ai-navigate":        true,
 		http.MethodPost + " /ai-navigate/abort":  true,
 		http.MethodPost + " /ai-navigate/resume": true,
 	}
-	if strings.TrimSpace(sessionID) == "" || !allowed[method+" "+suffix] {
+	if strings.TrimSpace(sessionID) == "" || validateSessionOwner(executionID, leaseID) != nil || !allowed[method+" "+suffix] {
 		return nil, errors.New("invalid session route")
 	}
 	endpoint := c.baseURL + "/session/" + url.PathEscape(sessionID) + suffix
@@ -1274,6 +1351,14 @@ func (c *Client) SessionRouteRequest(ctx context.Context, sessionID, method, suf
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	setSessionOwnerHeaders(req.Header, executionID, leaseID)
+	// Authorization is forwarded only to the AI start endpoint. Callers cannot
+	// smuggle arbitrary headers into other driver routes through this broker.
+	if method == http.MethodPost && suffix == "/ai-navigate" && headers != nil {
+		if values := headers.Values("Authorization"); len(values) == 1 && strings.HasPrefix(values[0], "Bearer ") && strings.TrimSpace(strings.TrimPrefix(values[0], "Bearer ")) != "" {
+			req.Header.Set("Authorization", values[0])
+		}
 	}
 	var response *http.Response
 	operation := method + " /session/:id" + suffix

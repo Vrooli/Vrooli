@@ -22,56 +22,11 @@ type PlaywrightEngine struct {
 	log      *logrus.Logger
 }
 
-// NewPlaywrightEngine constructs an engine using environment configuration.
-// It requires PLAYWRIGHT_DRIVER_URL unless allowDefault is true, in which case
-// it falls back to localhost for developer setups.
-func NewPlaywrightEngine(log *logrus.Logger) (*PlaywrightEngine, error) {
-	mgr, err := session.NewManager(session.WithLogger(log))
-	if err != nil {
-		return nil, err
-	}
-	return &PlaywrightEngine{sessions: mgr, log: log}, nil
-}
-
-// NewPlaywrightEngineWithRecordingsRoot constructs an engine with an explicit recordings root.
-func NewPlaywrightEngineWithRecordingsRoot(log *logrus.Logger, recordingsRoot string) (*PlaywrightEngine, error) {
-	opts := []session.Option{session.WithLogger(log)}
-	if strings.TrimSpace(recordingsRoot) != "" {
-		opts = append(opts, session.WithExecutionArtifactsRoot(recordingsRoot))
-	}
-	mgr, err := session.NewManager(opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &PlaywrightEngine{sessions: mgr, log: log}, nil
-}
-
-// NewPlaywrightEngineWithDefault allows the localhost fallback when explicit
-// configuration is absent (useful for local development and tests).
-func NewPlaywrightEngineWithDefault(log *logrus.Logger) (*PlaywrightEngine, error) {
-	// NewManager already allows default, so this is the same as NewPlaywrightEngine
-	return NewPlaywrightEngine(log)
-}
-
 // NewPlaywrightEngineWithSessionManager uses the API's shared session broker.
 func NewPlaywrightEngineWithSessionManager(mgr *session.Manager, log *logrus.Logger) (*PlaywrightEngine, error) {
 	if mgr == nil {
 		return nil, errors.New("session manager is required")
 	}
-	return &PlaywrightEngine{sessions: mgr, log: log}, nil
-}
-
-// NewPlaywrightEngineWithHTTPClient constructs an engine with a custom HTTP client.
-// This is primarily used for testing to inject mock HTTP responses.
-func NewPlaywrightEngineWithHTTPClient(driverURL string, httpClient HTTPDoer, log *logrus.Logger) (*PlaywrightEngine, error) {
-	if httpClient == nil {
-		return nil, errors.New("httpClient is required")
-	}
-	client, err := driver.NewClientWithURL(driverURL, driver.WithHTTPClient(httpClient), driver.WithLogger(log))
-	if err != nil {
-		return nil, err
-	}
-	mgr := session.NewManagerWithClient(client, session.WithLogger(log))
 	return &PlaywrightEngine{sessions: mgr, log: log}, nil
 }
 

@@ -107,6 +107,8 @@ export function useBrowserNavigation({
   initialUrl = '',
   observedUrl,
 }: UseBrowserNavigationOptions): UseBrowserNavigationReturn {
+  const owner = useMemo(() => ({ sessionId, pageId, disposed: false, requests: new Set<AbortController>() }), [sessionId, pageId]);
+  const initialOwner = useRef(owner);
   const [previewUrl, setPreviewUrl] = useState(initialUrl);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
@@ -114,9 +116,11 @@ export function useBrowserNavigation({
   const [request, setRequest] = useState<NavigationIntent | null>(() => initialUrl ? { url: initialUrl, sessionId, pageId } : null);
   const capabilityRead = useRef<AbortController | null>(null);
   const admitted = useRef<{ request: NavigationIntent; scope: object } | null>(null);
-  const [isInitialNavigationComplete, setIsInitialNavigationComplete] = useState(!initialUrl);
+  // Readiness belongs to one session/page lifetime; a replacement owner must
+  // not inherit successful navigation from the previous browser target.
+  const [completedOwner, setCompletedOwner] = useState<object | null>(() => initialUrl ? null : owner);
   const [navigationError, setNavigationError] = useState<string | null>(null);
-  const owner = useMemo(() => ({ sessionId, pageId, disposed: false, requests: new Set<AbortController>() }), [sessionId, pageId]);
+  const isInitialNavigationComplete = completedOwner === owner;
 
   useLayoutEffect(() => {
     owner.disposed = false;
@@ -132,6 +136,11 @@ export function useBrowserNavigation({
   useEffect(() => {
     if (observedUrl !== undefined) setPreviewUrl(observedUrl);
   }, [observedUrl, owner]);
+
+  useEffect(() => {
+    const mayAdoptObservedPage = owner !== initialOwner.current || !initialUrl;
+    if (mayAdoptObservedPage && observedUrl && observedUrl !== 'about:blank') setCompletedOwner(owner);
+  }, [initialUrl, observedUrl, owner]);
 
   const updateNavigationState = useCallback((data: ReturnType<typeof parseNavigationState>) => {
     capabilityRead.current?.abort();
@@ -195,7 +204,7 @@ export function useBrowserNavigation({
     admitted.current = { request, scope: owner };
     const controller = new AbortController();
     void execute('navigate', { url: request.url }, 1, controller).then(success => {
-      if (success && !owner.disposed && !controller.signal.aborted) setIsInitialNavigationComplete(true);
+      if (success && !owner.disposed && !controller.signal.aborted) setCompletedOwner(owner);
     });
     return () => controller.abort();
   }, [sessionId, pageId, request, execute, owner]);

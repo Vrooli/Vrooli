@@ -50,6 +50,9 @@ export interface NavigationConfig {
   /** Navigation session ID for correlation */
   navigationId: string;
 
+  /** Caller idempotency root. Never logged or exposed to the browser. */
+  rootOperationId: string;
+
   /** Optional: Abort signal for cancellation */
   abortSignal?: AbortSignal;
 
@@ -203,10 +206,7 @@ export interface ScreenshotOptions {
  * Testing seam: Mock for unit tests.
  */
 export interface ElementAnnotatorInterface {
-  annotate(
-    screenshot: Buffer,
-    elements: ElementLabel[]
-  ): Promise<AnnotatedScreenshot>;
+  annotate(screenshot: Buffer, elements: ElementLabel[]): Promise<AnnotatedScreenshot>;
 }
 
 /**
@@ -288,6 +288,7 @@ export interface VisionAnalysisRequestInterface {
   goal: string;
   conversationHistory: ConversationMessageInterface[];
   currentUrl: string;
+  operationId: string;
 }
 
 export interface VisionAnalysisResponseInterface {

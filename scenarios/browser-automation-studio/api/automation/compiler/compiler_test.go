@@ -234,14 +234,6 @@ func TestCompileWorkflowDetectsCycles(t *testing.T) {
 	}
 }
 
-func TestCompileWorkflowUnsupportedType(t *testing.T) {
-	// This test uses an unsupported action type - we use UNSPECIFIED which maps to "custom"
-	// But we need a truly invalid type string. Since proto types are validated, we can't
-	// easily create an invalid type. Instead, skip this test as the proto types enforce
-	// valid action types at compile time.
-	t.Skip("Proto types enforce valid action types - this test is not applicable with typed protos")
-}
-
 func TestCompileWorkflowLoopExtractsBody(t *testing.T) {
 	// Create a workflow with a loop node using proper V2 ActionDefinition.
 	// The loop node connects to body nodes via edges with "loopbody" source handle.
@@ -691,12 +683,6 @@ func TestCompileWorkflow_MissingActionRejected(t *testing.T) {
 	require.Contains(t, err.Error(), "missing required action field")
 }
 
-func TestCompileWorkflow_WhitespaceOnlyStepTypeError(t *testing.T) {
-	// With proto types, action types are enums - there's no concept of whitespace-only type
-	// Skip this test as it's not applicable to proto-based workflows
-	t.Skip("Proto action types are enums - whitespace-only type is not possible")
-}
-
 // =============================================================================
 // Branching and Conditional Workflow Tests
 // =============================================================================
@@ -918,10 +904,22 @@ func TestCompileWorkflow_InvalidViewportDimensions(t *testing.T) {
 	})
 
 	t.Run("negative viewport dimensions", func(t *testing.T) {
-		// Proto int32 can't have negative values affect viewport extraction since
-		// the compiler checks for positive values. Proto uses uint or validates separately.
-		// Skip this subtest as negative int32 values won't work the same way.
-		t.Skip("Proto int32 viewport dimensions handle negatives differently")
+		negative := int32(-1)
+		workflow := makeTestWorkflowWithSettings(
+			uuid.New(),
+			"negative-viewport",
+			[]*basworkflows.WorkflowNodeV2{
+				{Id: "a", Action: &basactions.ActionDefinition{Type: basactions.ActionType_ACTION_TYPE_NAVIGATE, Params: &basactions.ActionDefinition_Navigate{Navigate: &basactions.NavigateParams{Url: "https://example.com"}}}},
+			},
+			[]*basworkflows.WorkflowEdgeV2{},
+			&basworkflows.WorkflowSettingsV2{ViewportWidth: &negative, ViewportHeight: &negative},
+		)
+		plan, err := CompileWorkflow(workflow)
+		require.NoError(t, err)
+		if plan.Metadata != nil {
+			_, hasViewport := plan.Metadata["executionViewport"]
+			assert.False(t, hasViewport, "negative dimensions must not create viewport metadata")
+		}
 	})
 }
 

@@ -220,6 +220,16 @@
         "required": false,
         "provisioning": "operator",
         "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/scenarios/landing-page-business-suite/docs/guides/CONFIGURATION_GUIDE.md"
+      },
+      {
+        "version": "credential-descriptor/v1",
+        "logical_id": "vrooli/lpbs-issuer-trust",
+        "field": "jwks-keysets",
+        "label": "LPBS issuer verification keys",
+        "description": "Public issuer keys retained by the credential authority so an editable offline lease cache cannot supply its own trust root.",
+        "required": false,
+        "provisioning": "generated",
+        "kind": "public"
       }
     ]
   },
@@ -559,7 +569,7 @@
             },
             "tier-2-desktop": {
               "supported": true,
-              "notes": "Packaged driver spawned by Electron; reuse bundled Chromium via PLAYWRIGHT_CHROMIUM_PATH when possible"
+              "notes": "Package the API-supervised TypeScript driver under dist/<variant>/server.js; reuse a compatible bundled browser via BROWSER_EXECUTABLE_PATH when possible"
             }
           },
           "swappable_with": [
@@ -570,7 +580,7 @@
             }
           ],
           "packaging_hints": [
-            "Bundle driver/server.js with desktop app",
+            "Bundle playwright-driver/dist/<variant>/server.js, sibling browser scripts and runtime dependencies; the API sidecar supervisor owns its process",
             "If not reusing Electron Chromium, include @playwright/browser-chromium per platform"
           ]
         },
@@ -686,7 +696,8 @@
       "role": "api",
       "build": {
         "kind": "go_module",
-        "dir": "api"
+        "dir": "api",
+        "output": "api/bin/{scenario}-api-{variant}"
       },
       "run": {
         "argv": [
@@ -698,7 +709,8 @@
         "BAS_DRIVER_EXECUTION_TIMEOUT_MS": "7200000",
         "BAS_EXECUTION_MAX_TIMEOUT_MS": "7200000",
         "GOMEMLIMIT": "96MiB",
-        "PLAYWRIGHT_DRIVER_URL": "http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}"
+        "PLAYWRIGHT_DRIVER_URL": "http://127.0.0.1:${PLAYWRIGHT_DRIVER_PORT}",
+        "PLAYWRIGHT_DRIVER_SCRIPT": "dist/${VROOLI_VARIANT}/server.js"
       },
         "port": "api",
         "data_dirs": [
@@ -713,13 +725,17 @@
       "role": "ui",
       "build": {
         "kind": "pnpm_vite",
-        "dir": "ui"
+        "dir": "ui",
+        "output": "ui/dist/{variant}/index.html"
       },
       "run": {
         "argv": [
           "node",
           "server.js"
         ],
+        "env": {
+          "BAS_UI_DIST_DIR": "dist/${VROOLI_VARIANT}"
+        },
         "cwd": "ui",
         "port": "ui"
       }
@@ -729,12 +745,12 @@
       "build": {
         "kind": "node_bundle",
         "dir": "playwright-driver",
-        "output": "playwright-driver/dist/server.js"
+        "output": "playwright-driver/dist/{variant}/server.js"
       },
       "run": {
         "argv": [
           "node",
-          "dist/server.js"
+          "{{bin.playwright-driver}}"
         ],
         "cwd": "playwright-driver",
         "port": "playwright_driver",

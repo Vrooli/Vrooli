@@ -24,6 +24,7 @@ import (
 	livecapture "github.com/vrooli/browser-automation-studio/services/live-capture"
 	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	"github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
+	wsHub "github.com/vrooli/browser-automation-studio/websocket"
 )
 
 // createTestHandlerWithRecordMode creates a handler with mock services for record mode testing.
@@ -87,6 +88,17 @@ func TestCreateRecordingSession_Success(t *testing.T) {
 
 	if response.SessionID == "" {
 		t.Fatal("expected session_id to be set")
+	}
+	cookieName := wsHub.SessionStreamCookieName(response.SessionID)
+	var streamCookie *http.Cookie
+	for _, cookie := range rr.Result().Cookies() {
+		if cookie.Name == cookieName {
+			streamCookie = cookie
+			break
+		}
+	}
+	if streamCookie == nil || !streamCookie.HttpOnly || streamCookie.Path != wsHub.SessionStreamCookiePath(response.SessionID) || streamCookie.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("session response did not set a path-scoped HttpOnly stream cookie: %#v", streamCookie)
 	}
 }
 
@@ -855,6 +867,33 @@ type profileSnapshotDriver struct {
 	pagesErr  error
 	onClose   func()
 	onStorage func()
+}
+
+func TestCaptureSessionProfileStatePersistsPopupOpenerOrder(t *testing.T) {
+	initialID, popupID := uuid.New(), uuid.New()
+	pages := []*domain.Page{
+		{ID: initialID, URL: "https://opener.invalid", Title: "Opener"},
+		{ID: popupID, URL: "https://popup.invalid", Title: "Popup", OpenerID: &initialID},
+	}
+	driver := &profileSnapshotDriver{MockRecordModeService: NewMockRecordModeService(), pages: pages, active: popupID}
+	h := &Handler{recordModeService: driver}
+
+	state, err := h.CaptureSessionProfileState(context.Background(), "session")
+	if err != nil {
+		t.Fatalf("CaptureSessionProfileState: %v", err)
+	}
+	if len(state.OpenTabs) != 2 {
+		t.Fatalf("captured %d tabs, want 2", len(state.OpenTabs))
+	}
+	if state.OpenTabs[0].OpenerOrder != nil {
+		t.Fatalf("root tab unexpectedly has opener order: %v", *state.OpenTabs[0].OpenerOrder)
+	}
+	if state.OpenTabs[1].OpenerOrder == nil || *state.OpenTabs[1].OpenerOrder != 0 {
+		t.Fatalf("popup opener order = %v, want 0", state.OpenTabs[1].OpenerOrder)
+	}
+	if !state.OpenTabs[1].IsActive {
+		t.Fatal("active popup identity was not captured")
+	}
 }
 
 func (d *profileSnapshotDriver) GetStorageState(ctx context.Context, id string) (json.RawMessage, error) {

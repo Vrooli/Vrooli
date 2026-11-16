@@ -46,7 +46,8 @@
   },
   "scripts": {
     "browsers:ensure": "node scripts/ensure-browsers.mjs",
-    "build": "esbuild src/server.ts --bundle --platform=node --target=node18 --outfile=dist/server.js --external:rebrowser-playwright --external:winston --external:prom-client --external:uuid --external:zod --external:@bufbuild/protobuf --external:@bufbuild/protobuf/* --external:ws && node scripts/stage-browser-scripts.mjs && node scripts/ensure-browsers.mjs",
+    "build": "node scripts/build.mjs",
+    "build:profile": "node scripts/build.mjs --mode profile",
     "build:types": "tsc -p tsconfig.build.json --emitDeclarationOnly",
     "clean": "node scripts/clean.mjs",
     "dev": "ts-node src/server.ts",

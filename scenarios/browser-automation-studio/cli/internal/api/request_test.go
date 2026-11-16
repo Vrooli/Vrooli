@@ -4,10 +4,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"browser-automation-studio/cli/internal/appctx"
+	"browser-automation-studio/cli/internal/testutil"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -64,10 +64,8 @@ func TestDo_SetsAuthorizationHeader(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Set token via environment variable (the way ScenarioApp expects it)
+	// Supply an isolated environment through the same seam production uses.
 	const testTokenEnv = "TEST_APP_API_TOKEN"
-	os.Setenv(testTokenEnv, "test-token-123")
-	defer os.Unsetenv(testTokenEnv)
 
 	core, err := cliapp.NewStandardScenarioApp(cliapp.StandardScenarioOptions{
 		Name:              "test-app",
@@ -84,6 +82,7 @@ func TestDo_SetsAuthorizationHeader(t *testing.T) {
 		Name:         "test-app",
 		Core:         core,
 		TokenEnvVars: []string{testTokenEnv},
+		Environment:  testutil.MapEnv{testTokenEnv: "test-token-123"},
 	}
 
 	_, _, err = Do(ctx, "GET", "/test", nil, nil, nil)

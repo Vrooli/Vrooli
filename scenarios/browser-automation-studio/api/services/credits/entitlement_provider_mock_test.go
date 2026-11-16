@@ -6,7 +6,7 @@ import (
 	"github.com/vrooli/browser-automation-studio/services/entitlement"
 )
 
-// MockEntitlementProvider is a test double for unit testing credit logic.
+// MockEntitlementProvider is a test double for local usage read-model tests.
 //
 // # Usage Example
 //
@@ -16,7 +16,6 @@ import (
 //	        Status: entitlement.StatusActive,
 //	    },
 //	    AICreditsLimit: 500,
-//	    CanUseAI:       true,
 //	}
 //	svc := credits.NewService(credits.ServiceOptions{
 //	    EntitlementProvider: mock,
@@ -33,9 +32,6 @@ type MockEntitlementProvider struct {
 	// unlimited, 0 for no access.
 	AICreditsLimit int
 
-	// CanUseAI is returned by CanUseAIWithEntitlement.
-	CanUseAI bool
-
 	// GetEntitlementCalls tracks how many times GetEntitlement was called.
 	GetEntitlementCalls int
 
@@ -48,11 +44,6 @@ func (m *MockEntitlementProvider) GetEntitlement(_ context.Context, userIdentity
 	m.GetEntitlementCalls++
 	m.LastUserIdentity = userIdentity
 	return m.Entitlement, m.GetEntitlementError
-}
-
-// CanUseAIWithEntitlement returns the configured mock value.
-func (m *MockEntitlementProvider) CanUseAIWithEntitlement(_ *entitlement.Entitlement) bool {
-	return m.CanUseAI
 }
 
 func (m *MockEntitlementProvider) LimitForEntitlement(_ *entitlement.Entitlement) (int, bool) {

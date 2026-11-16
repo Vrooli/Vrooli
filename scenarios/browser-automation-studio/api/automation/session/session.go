@@ -198,11 +198,11 @@ func (s *Session) ReplayPreview(ctx context.Context, req *driver.ReplayPreviewRe
 
 // RouteRequest proxies an owned driver's session endpoint while retaining the
 // session broker as the only API boundary to /session routes.
-func (s *Session) RouteRequest(ctx context.Context, method, suffix string, body []byte) (*http.Response, error) {
+func (s *Session) RouteRequest(ctx context.Context, method, suffix string, body []byte, headers http.Header) (*http.Response, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.SessionRouteRequest(ctx, s.id, method, suffix, body)
+	return s.client.SessionRouteRequest(ctx, s.id, s.executionID, s.leaseID, method, suffix, body, headers)
 }
 
 // --- Common Operations (All Modes) ---
@@ -291,7 +291,7 @@ func (s *Session) GetStorageState(ctx context.Context) (json.RawMessage, error) 
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.GetStorageState(ctx, s.id)
+	return s.client.GetStorageState(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // GetServiceWorkers retrieves the service workers for this session.
@@ -299,7 +299,7 @@ func (s *Session) GetServiceWorkers(ctx context.Context) (*driver.GetServiceWork
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.GetServiceWorkers(ctx, s.id)
+	return s.client.GetServiceWorkers(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // UnregisterAllServiceWorkers unregisters all service workers for this session.
@@ -307,7 +307,7 @@ func (s *Session) UnregisterAllServiceWorkers(ctx context.Context) (*driver.Unre
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.UnregisterAllServiceWorkers(ctx, s.id)
+	return s.client.UnregisterAllServiceWorkers(ctx, s.id, s.executionID, s.leaseID)
 }
 
 // UnregisterServiceWorker unregisters a specific service worker by scope URL.
@@ -315,7 +315,7 @@ func (s *Session) UnregisterServiceWorker(ctx context.Context, scopeURL string) 
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
-	return s.client.UnregisterServiceWorker(ctx, s.id, scopeURL)
+	return s.client.UnregisterServiceWorker(ctx, s.id, scopeURL, s.executionID, s.leaseID)
 }
 
 // DownloadArtifact streams a driver-managed artifact by path.
@@ -361,12 +361,30 @@ func (s *Session) CreatePage(ctx context.Context, url string) (*driver.CreatePag
 	return s.client.CreatePage(ctx, s.id, s.executionID, s.leaseID, url)
 }
 
+// CreatePopupPage creates a page through an owned opener page.
+func (s *Session) CreatePopupPage(ctx context.Context, url, openerPageID string) (*driver.CreatePageResponse, error) {
+	if s.isClosed() {
+		return nil, errors.New("session closed")
+	}
+	return s.client.CreatePopupPage(ctx, s.id, s.executionID, s.leaseID, url, openerPageID)
+}
+
 // ClosePage closes a browser tab under this Session's immutable lease.
 func (s *Session) ClosePage(ctx context.Context, driverPageID string) (*driver.ClosePageResponse, error) {
 	if s.isClosed() {
 		return nil, errors.New("session closed")
 	}
 	return s.client.ClosePage(ctx, s.id, s.executionID, s.leaseID, driverPageID)
+}
+
+// InitialDriverPageID returns the browser-owned identity of the page created
+// with this session. It remains stable for that session lifetime and is used
+// only for selecting a restored active tab, never persisted across sessions.
+func (s *Session) InitialDriverPageID() string {
+	if s == nil {
+		return ""
+	}
+	return s.initialDriverPageID
 }
 
 // SetActivePage switches the active page for execution.
@@ -457,6 +475,16 @@ func isAbsentSessionError(err error) bool {
 
 // ID returns the session ID.
 func (s *Session) ID() string { return s.id }
+
+// OwnerIdentity returns the immutable broker identity admitted for this
+// session. Callers use it to bind delegated read/control capabilities to this
+// exact execution lease; neither value is accepted from browser input.
+func (s *Session) OwnerIdentity() (executionID, leaseID string) {
+	if s == nil {
+		return "", ""
+	}
+	return s.executionID, s.leaseID
+}
 
 // Mode returns the session mode.
 func (s *Session) Mode() Mode { return s.mode }

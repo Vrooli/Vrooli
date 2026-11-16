@@ -44,7 +44,7 @@ func WorkflowValidationResultToProto(result *workflowvalidator.Result) *basapi.W
 	}
 	issueToProto := func(issue workflowvalidator.Issue) *basapi.WorkflowValidationIssue {
 		return &basapi.WorkflowValidationIssue{
-			Severity: StringToValidationSeverity(string(issue.Severity)),
+			Severity: enums.StringToValidationSeverity(string(issue.Severity)),
 			Code:     issue.Code,
 			Message:  issue.Message,
 			NodeId:   issue.NodeID,

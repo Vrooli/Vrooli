@@ -13,6 +13,7 @@ import type { Config } from '../../config';
 import { parseJsonBody, sendJson, sendError } from '../../middleware';
 import { logger, scopedLog, LogContext } from '../../utils';
 import { runExternalUrlInjectionTest } from '../../recording/testing/external-url-injection-test';
+import { requireSessionLease } from '../session-lease';
 
 interface BrowserScriptState {
   loaded: boolean;
@@ -95,13 +96,15 @@ const parseBrowserScriptState = (value: unknown): BrowserScriptState | null => {
  * This is used for real-time debugging during active recording sessions.
  */
 export async function handleRecordDebug(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   sessionId: string,
   sessionManager: SessionManager
 ): Promise<void> {
   try {
-    const session = sessionManager.getSession(sessionId);
+    const owner = requireSessionLease(req, res, sessionId, sessionManager);
+    if (!owner) return;
+    const session = owner.session;
 
     // Server-side state (using pipelineManager as single source of truth)
     const pipelineManager = session.pipelineManager;

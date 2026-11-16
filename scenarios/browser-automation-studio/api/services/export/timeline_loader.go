@@ -19,6 +19,11 @@ import (
 )
 
 // TimelineLoader loads execution timeline data from various sources.
+type ExecutionRepository interface {
+	GetExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error)
+	GetWorkflow(ctx context.Context, id uuid.UUID) (*database.WorkflowIndex, error)
+}
+
 type TimelineLoader struct {
 	repo ExecutionRepository
 }

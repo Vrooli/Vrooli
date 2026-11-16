@@ -13,6 +13,7 @@ import (
 	autocontracts "github.com/vrooli/browser-automation-studio/automation/contracts"
 	"github.com/vrooli/browser-automation-studio/database"
 	"github.com/vrooli/browser-automation-studio/internal/enums"
+	"github.com/vrooli/browser-automation-studio/internal/executionartifactlock"
 	basexecution "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/execution"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -71,6 +72,12 @@ func (s *WorkflowService) createExecution(ctx context.Context, execIndex *databa
 	pb.CreatedAt = autocontracts.TimeToTimestamp(execIndex.CreatedAt)
 	pb.UpdatedAt = autocontracts.TimeToTimestamp(execIndex.UpdatedAt)
 
+	return executionartifactlock.WithLock(ctx, s.executionDataRootOrDefault(), execIndex.ID, func(lockCtx context.Context) error {
+		return s.createExecutionLocked(lockCtx, execIndex, pb)
+	})
+}
+
+func (s *WorkflowService) createExecutionLocked(ctx context.Context, execIndex *database.ExecutionIndex, pb *basexecution.Execution) error {
 	path := s.executionSnapshotPath(execIndex.ID)
 	raw, err := protojson.MarshalOptions{UseProtoNames: true, Indent: "  "}.Marshal(pb)
 	if err != nil {
@@ -80,6 +87,15 @@ func (s *WorkflowService) createExecution(ctx context.Context, execIndex *databa
 		return fmt.Errorf("commit execution %s admission metadata: %w", execIndex.ID, err)
 	}
 	if err := s.repo.CreateExecution(ctx, execIndex); err != nil {
+		if errors.Is(err, database.ErrResumeAlreadyActive) {
+			// The repository guarantees this rejection rolled back the new index
+			// row. Remove only the snapshot just written for this fresh ID; other
+			// database errors may have an uncertain commit outcome and keep theirs.
+			if cleanupErr := os.Remove(path); cleanupErr != nil && !os.IsNotExist(cleanupErr) {
+				return fmt.Errorf("index execution %s after metadata commit: %w; remove rejected resume snapshot: %v", execIndex.ID, err, cleanupErr)
+			}
+			_ = os.Remove(filepath.Dir(path)) // Remove only if empty; never recursively delete evidence.
+		}
 		// A database error may have an uncertain commit outcome. Keep the sole
 		// recovery receipt, report its ID, and never start the runner on error.
 		return fmt.Errorf("index execution %s after metadata commit: %w", execIndex.ID, err)

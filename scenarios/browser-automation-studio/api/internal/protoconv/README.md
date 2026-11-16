@@ -9,7 +9,6 @@ internal/
 ├── enums/           ← NEW: Standalone enum conversions (no dependencies)
 │   └── enums.go     ← All string↔proto enum functions
 ├── protoconv/       ← Proto object conversions (depends on workflow, export, etc.)
-│   ├── enum_convert.go   ← Re-exports from internal/enums for backward compat
 │   ├── convert.go        ← Execution, timeline, project conversions
 │   ├── workflows.go      ← Workflow definition conversions
 │   └── README.md         ← This file
@@ -33,8 +32,8 @@ status := enums.StringToExecutionStatus("COMPLETED")
 
 ```
 
-`protoconv` retains re-exports for other enum conversions that still have
-callers. Action type conversions are provided only by `internal/enums`.
+All proto enum conversions are owned by `internal/enums`; `protoconv` handles
+proto object conversions only.
 
 ### Available Enum Converters
 

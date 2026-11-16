@@ -2,8 +2,9 @@ package ai
 
 import "context"
 
-// AIClient defines the interface for AI prompt execution.
-// This abstraction enables testing without shelling out to real AI services.
+// AIClient defines the prompt interface used by workflow generation.
+// The production implementation routes through AI Gateway; fakes implement it
+// directly in tests.
 type AIClient interface {
 	// ExecutePrompt sends a prompt to an AI model and returns the response.
 	ExecutePrompt(ctx context.Context, prompt string) (string, error)
@@ -12,14 +13,7 @@ type AIClient interface {
 	Model() string
 }
 
-// RolePromptClient executes text prompts through the shared OpenRouter service
-// using a resource-owned model role.
+// RolePromptClient executes prompts through AI Gateway using a shared role.
 type RolePromptClient interface {
 	ExecutePromptWithRole(ctx context.Context, role, prompt string) (string, error)
 }
-
-// Compile-time interface enforcement
-var (
-	_ AIClient         = (*OpenRouterClient)(nil)
-	_ RolePromptClient = (*OpenRouterClient)(nil)
-)

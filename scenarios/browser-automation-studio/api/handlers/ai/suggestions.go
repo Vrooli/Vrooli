@@ -11,7 +11,7 @@ import (
 	modelai "github.com/vrooli/browser-automation-studio/services/ai"
 )
 
-const defaultAIModelRole = "chat.small"
+const defaultAIModelRole = "write.default"
 
 // The provider and parser enforce the same contract. Array responses are wrapped
 // at the parser boundary to retain the previously supported response shape.
@@ -70,7 +70,7 @@ func newAISuggestionGenerator(log *logrus.Logger, opts ...AISuggestionOption) *a
 
 	// Create default client if not provided
 	if generator.client == nil {
-		generator.client = modelai.NewOpenRouterClient(log)
+		generator.client = newGatewayRolePromptClient()
 	}
 
 	return generator

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -136,18 +135,6 @@ func (s *Service) DeleteProfile(id persistence.ProfileID) error {
 	return nil
 }
 
-// RenameProfile updates the profile display name.
-func (s *Service) RenameProfile(id persistence.ProfileID, name string) (*persistence.SessionProfile, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		name = s.generateProfileName()
-	}
-	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
-		profile.Name = name
-		return nil
-	})
-}
-
 // UpdateProfile applies a field mutation to the latest profile under repository
 // write ownership. The timestamp is part of the same acknowledged snapshot.
 func (s *Service) UpdateProfile(id persistence.ProfileID, modify func(*persistence.SessionProfile) error) (*persistence.SessionProfile, error) {
@@ -160,17 +147,25 @@ func (s *Service) UpdateProfile(id persistence.ProfileID, modify func(*persisten
 	})
 }
 
-// UpdateBrowserProfile updates the browser profile settings.
-func (s *Service) UpdateBrowserProfile(id persistence.ProfileID, browserProfile *persistence.BrowserProfile) (*persistence.SessionProfile, error) {
-	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
-		// Validate browser profile if provided
-		if browserProfile != nil {
-			if err := ValidateBrowserProfile(browserProfile); err != nil {
-				return fmt.Errorf("invalid browser profile: %w", err)
-			}
+// UpdateProfileSettings validates and persists the profile's user-editable
+// settings as one repository mutation. A mixed update must never publish only
+// the first field when a later field is invalid or cannot be stored.
+func (s *Service) UpdateProfileSettings(id persistence.ProfileID, name *string, browserProfile *persistence.BrowserProfile) (*persistence.SessionProfile, error) {
+	if name == nil && browserProfile == nil {
+		return nil, errors.New("profile settings update is empty")
+	}
+	if browserProfile != nil {
+		if err := ValidateBrowserProfile(browserProfile); err != nil {
+			return nil, fmt.Errorf("invalid browser profile: %w", err)
 		}
-
-		profile.BrowserProfile = browserProfile
+	}
+	return s.UpdateProfile(id, func(profile *persistence.SessionProfile) error {
+		if name != nil {
+			profile.Name = strings.TrimSpace(*name)
+		}
+		if browserProfile != nil {
+			profile.BrowserProfile = browserProfile
+		}
 		return nil
 	})
 }
@@ -752,13 +747,4 @@ func (s *Service) MaskStorageState(rawStorageState []byte) (*MaskedStorageState,
 func NewServiceWithPath(root string, log *logrus.Logger) *Service {
 	repo := persistence.NewFileRepository(root, log)
 	return NewService(repo, log)
-}
-
-// NewServiceWithDefaultPath creates a service with the default data directory.
-func NewServiceWithDefaultPath(log *logrus.Logger) *Service {
-	root := os.Getenv("SESSION_PROFILES_ROOT")
-	if root == "" {
-		root = "data/session-profiles"
-	}
-	return NewServiceWithPath(root, log)
 }

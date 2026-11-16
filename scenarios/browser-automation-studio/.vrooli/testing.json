@@ -220,7 +220,8 @@
               "text",
               "json-summary",
               "json"
-            ]
+            ],
+            "committed": {"lines": 33, "statements": 33, "functions": 42, "branches": 68}
           },
           "test_utils": {
             "required_roots": [

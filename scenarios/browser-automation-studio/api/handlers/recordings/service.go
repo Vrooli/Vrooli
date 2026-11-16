@@ -593,6 +593,17 @@ func (s *service) DeleteSessionTab(
 				found = true
 				continue
 			}
+			if tab.OpenerOrder != nil {
+				switch {
+				case *tab.OpenerOrder == order:
+					// The opener is no longer part of this saved workspace; retain
+					// the popup as an independent tab instead of pointing at a new one.
+					tab.OpenerOrder = nil
+				case *tab.OpenerOrder > order:
+					updatedOrder := *tab.OpenerOrder - 1
+					tab.OpenerOrder = &updatedOrder
+				}
+			}
 			tab.Order = len(tabs)
 			tabs = append(tabs, tab)
 		}

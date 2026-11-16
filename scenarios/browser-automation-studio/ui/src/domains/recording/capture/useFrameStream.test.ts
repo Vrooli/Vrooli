@@ -49,8 +49,8 @@ async function resolveDecode(index:number) {
   await act(async()=>{decodes[index]!.resolve(image);await drain();});
   return image;
 }
-async function mount() {
-  const hook=renderHook(({sessionId,pageId}:{sessionId:string;pageId?:string|null})=>useFrameStream({sessionId,pageId}),
+async function mount(onStreamError?: (message:string)=>void) {
+  const hook=renderHook(({sessionId,pageId}:{sessionId:string;pageId?:string|null})=>useFrameStream({sessionId,pageId,onStreamError}),
     {initialProps:{sessionId:'session-a',pageId:'page-a'} as {sessionId:string;pageId?:string|null}});
   const canvas=document.createElement('canvas');
   (hook.result.current.canvasRef as {current:HTMLCanvasElement|null}).current=canvas;
@@ -102,17 +102,43 @@ describe('live viewer WebSocket transport and lifetime',()=>{
     await act(async()=>{await vi.advanceTimersByTimeAsync(500);});
     expect(sockets).toHaveLength(count);
   });
+  it('bounds sockets that open but never deliver a valid frame',async()=>{
+    const onStreamError=vi.fn();
+    await mount(onStreamError);
+    for(let attempt=0;attempt<=10;attempt+=1) {
+      const socket=sockets.at(-1)!;
+      act(()=>{socket.open();socket.onclose?.();});
+      if(attempt<10) {
+        const delay=Math.min(250*2**attempt,15000);
+        await act(async()=>{await vi.advanceTimersByTimeAsync(delay);});
+      }
+    }
+    expect(sockets).toHaveLength(11);
+    expect(onStreamError).toHaveBeenCalledWith('Live frame connection stopped after repeated reconnect failures');
+    await act(async()=>{await vi.advanceTimersByTimeAsync(120000);});
+    expect(sockets).toHaveLength(11);
+  });
   it('routes execution frames through the same bounded decode and paint path',async()=>{
     const listeners:WebSocketMessageCallback[]=[];const send=vi.fn(()=>true);
     const context={isConnected:true,send,subscribe:vi.fn(),unsubscribe:vi.fn(),reconnect:vi.fn(),
       subscribeToMessages:(callback:WebSocketMessageCallback)=>{listeners.push(callback);return ()=>{};}};
     const wrapper=({children}:{children:React.ReactNode})=>createElement(WebSocketContext.Provider,{value:context},children);
-    const hook=renderHook(()=>useFrameStream({sessionId:null,executionId:'execution-a'}),{wrapper});
+    let renders = 0;
+    const hook=renderHook(()=>{renders += 1; return useFrameStream({sessionId:null,executionId:'execution-a'});},{wrapper});
+    const canvas=document.createElement('canvas');
+    (hook.result.current.canvasRef as {current:HTMLCanvasElement|null}).current=canvas;
     expect(send).toHaveBeenCalledWith({type:'subscribe_execution_frames',execution_id:'execution-a'});
     act(()=>listeners.forEach(listener=>listener({type:'execution_frame',execution_id:'execution-a',data:'/9j/2Q==',media_type:'image/jpeg',width:640,height:480,captured_at:'2026-09-23T03:00:00Z'})));
     await resolveDecode(0);
-    expect(hook.result.current.hasFrame).toBe(true);expect(hook.result.current.frameCount).toBe(1);
-    expect(hook.result.current.frameUrl).toBe('data:image/jpeg;base64,/9j/2Q==');
+    expect(hook.result.current.hasFrame).toBe(true);
+    const afterFirstPaint = renders;
+    for (let index=1; index<10; index+=1) {
+      act(()=>listeners.forEach(listener=>listener({type:'execution_frame',execution_id:'execution-a',data:'/9j/2Q==',media_type:'image/jpeg',width:640,height:480,captured_at:'2026-09-23T03:00:00Z'})));
+      await resolveDecode(index);
+    }
+    expect(draw).toHaveBeenCalledTimes(10);
+    expect(mocks.recordFrame).toHaveBeenCalledTimes(10);
+    expect(renders).toBe(afterFirstPaint);
     hook.unmount();expect(send).toHaveBeenCalledWith({type:'unsubscribe_execution_frames'});
   });
 });

@@ -55,24 +55,18 @@ type RestoredTabInfo struct {
 	IsActive bool   `json:"is_active"`
 }
 
-// ViewportDimensions represents width and height of a viewport.
-type ViewportDimensions struct {
-	Width  int `json:"width"`
-	Height int `json:"height"`
-}
-
-// ViewportSource describes what determined the actual viewport dimensions.
-type ViewportSource string
+// ViewportSource preserves the handler name while sharing the driver's source contract.
+type ViewportSource = driver.ViewportSource
 
 const (
-	// ViewportSourceRequested means the UI-requested dimensions were used
-	ViewportSourceRequested ViewportSource = "requested"
-	// ViewportSourceFingerprint means browser profile fingerprint override was applied
-	ViewportSourceFingerprint ViewportSource = "fingerprint"
-	// ViewportSourceFingerprintPartial means fingerprint set one dimension, requested used for other
-	ViewportSourceFingerprintPartial ViewportSource = "fingerprint_partial"
-	// ViewportSourceDefault means fallback defaults were used
-	ViewportSourceDefault ViewportSource = "default"
+	// ViewportSourceRequested is the driver source when the requested size is used.
+	ViewportSourceRequested = driver.ViewportSourceRequested
+	// ViewportSourceFingerprint is the driver source when a profile override is used.
+	ViewportSourceFingerprint = driver.ViewportSourceFingerprint
+	// ViewportSourceFingerprintPartial is the driver source when only one profile dimension applies.
+	ViewportSourceFingerprintPartial = driver.ViewportSourceFingerprintPartial
+	// ViewportSourceDefault is the driver source when browser defaults are used.
+	ViewportSourceDefault = driver.ViewportSourceDefault
 )
 
 // ActualViewportWithSource contains viewport dimensions with source attribution.

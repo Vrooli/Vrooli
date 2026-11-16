@@ -8,7 +8,6 @@ import { useSessionStore } from '../stores';
 interface FrameDimensions { width: number; height: number; capturedAt: string }
 interface FrameIdentity { session_id: string; page_id: string; captured_at: string }
 export interface PageMetadata { title: string; url: string }
-export interface ExecutionFrame { data: string; mediaType: string; width: number; height: number; capturedAt: string }
 export interface StreamConnectionStatus {
   isConnected: boolean;
   isWebSocket: boolean;
@@ -19,7 +18,6 @@ export interface UseFrameStreamOptions {
   /** Execution previews use the shared hub socket and decoder. */
   executionId?: string | null;
   enabled?: boolean;
-  onExecutionFrame?: (frame: ExecutionFrame) => void;
   /** Null is an empty workspace; omission follows the active browser page. */
   pageId?: string | null;
   refreshToken?: number;
@@ -37,17 +35,15 @@ interface ViewState {
   isFetching: boolean;
   isWsFrameActive: boolean;
   isPageSwitching: boolean;
-  frameCount: number;
 }
 export interface UseFrameStreamResult extends ViewState {
   canvasRef: React.RefObject<HTMLCanvasElement>;
   frameDimensionsRef: React.RefObject<FrameDimensions | null>;
   frameStats: FrameStats;
-  frameUrl: string | null;
 }
 const EMPTY_VIEW: ViewState = {
   hasFrame: false, displayDimensions: null, displayedTimestamp: null, error: null,
-  isFetching: false, isWsFrameActive: false, isPageSwitching: false, frameCount: 0,
+  isFetching: false, isWsFrameActive: false, isPageSwitching: false,
 };
 // Keep a bounded visual cadence when decoding is slower than admission. A
 // frame that is only a few admissions behind can still be useful; a much older
@@ -61,7 +57,7 @@ interface FrameJob {
   timestamp: string;
   socket: boolean;
   metadata?: PageMetadata;
-  execution?: ExecutionFrame;
+  execution?: true;
   owns: () => boolean;
   deliver: (frame: FrameJob, bitmap: ImageBitmap) => void;
   fail: (message: string) => void;
@@ -137,7 +133,6 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
   const executionMessageHandler = useRef<((message: unknown) => void) | null>(null);
   const previousPage = useRef(pageId);
   const [view, setView] = useState<ViewState>(EMPTY_VIEW);
-  const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const {stats: frameStats, recordFrame, reset: resetStats} = useFrameStats();
 
   useEffect(() => {callbacks.current.onStatsUpdate?.(frameStats);}, [frameStats]);
@@ -164,7 +159,6 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
     let currentView = {...EMPTY_VIEW, isPageSwitching: Boolean(previousPage.current && pageId && previousPage.current !== pageId)};
     previousPage.current = pageId;
     setView(currentView);
-    setFrameUrl(null);
     frameDimensionsRef.current = null;
     useSessionStore.getState().setFrameDimensions(null);
     useSessionStore.getState().setDisplayDimensions(null);
@@ -199,7 +193,6 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         const previous = frameDimensionsRef.current;
         frameDimensionsRef.current = {...dimensions,capturedAt:frame.timestamp};
         const change: Partial<ViewState> = {hasFrame:true,isFetching:false,isPageSwitching:false,error:null,isWsFrameActive:frame.socket};
-        if (frame.execution) change.frameCount = currentView.frameCount + 1;
         if (!previous || previous.width !== bitmap.width || previous.height !== bitmap.height) {
           change.displayDimensions = dimensions;
           useSessionStore.getState().setFrameDimensions(dimensions);
@@ -212,8 +205,6 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         lastPainted = frame.id;
         painted = true;
         update(change);
-        if (frame.execution) callbacks.current.onExecutionFrame?.(frame.execution);
-        if (frame.execution) setFrameUrl(`data:${frame.execution.mediaType};base64,${frame.execution.data}`);
         recordFrame(frame.blob.size);
         if (frame.metadata && (frame.metadata.url !== lastMetadata?.url || frame.metadata.title !== lastMetadata?.title)) {
           lastMetadata = frame.metadata;
@@ -269,7 +260,7 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         const mediaType = typeof message.media_type === 'string' ? message.media_type : 'image/jpeg';
         enqueue({id:++sequence,blob:executionFrameBlob(message.data,mediaType),
           timestamp:message.captured_at,socket:true,
-          execution:{data:message.data,mediaType,width:message.width,height:message.height,capturedAt:message.captured_at}});
+          execution:true});
       } catch {
         fail('Invalid execution frame');
       }
@@ -286,7 +277,6 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
         connection.binaryType = 'arraybuffer';
         connection.onopen = () => {
           if (disposed || socket !== connection) return;
-          reconnectAttempts = 0;
           update({isFetching:!painted});
           connection.send(JSON.stringify({type:'subscribe_recording',session_id:sessionId}));
         };
@@ -294,7 +284,12 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
           if (disposed || socket !== connection || !(event.data instanceof ArrayBuffer)) return;
           try {
             const frame = binaryFrame(event.data);
-            if (matchesSource(frame)) enqueue({...frame,id:++sequence,socket:true});
+            if (matchesSource(frame)) {
+              // Only a useful frame proves recovery. Servers that accept then
+              // immediately drop a socket must consume the bounded retry budget.
+              reconnectAttempts = 0;
+              enqueue({...frame,id:++sequence,socket:true});
+            }
           }
           catch {fail('Invalid binary frame');}
         };
@@ -306,6 +301,8 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
           if (reconnectAttempts < 10) {
             const delay = Math.min(250 * 2 ** reconnectAttempts++,15000);
             reconnectTimer = setTimeout(connect,delay);
+          } else {
+            fail('Live frame connection stopped after repeated reconnect failures');
           }
         };
       };
@@ -331,5 +328,5 @@ export function useFrameStream(options: UseFrameStreamOptions): UseFrameStreamRe
     };
   }, [sessionId,executionId,enabled,webSocket?.isConnected,webSocket?.send,pageId,refreshToken,recordFrame,resetStats]);
 
-  return {...view,canvasRef,frameDimensionsRef,frameStats,frameUrl};
+  return {...view,canvasRef,frameDimensionsRef,frameStats};
 }

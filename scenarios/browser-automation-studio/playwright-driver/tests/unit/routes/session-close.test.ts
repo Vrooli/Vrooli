@@ -77,7 +77,7 @@ describe('Session Close Route', () => {
 
   it('force-closes only for a loopback caller holding the recovery secret', async () => {
     const config = createTestConfig({ server: { adminSecret: 'recovery-secret' } });
-    const { sessionId } = await sessionManager.startSession({
+    const { sessionId, leaseId } = await sessionManager.startSession({
       execution_id: 'exec-force-close', workflow_id: 'workflow-force-close', base_url: 'https://example.com',
       viewport: { width: 1280, height: 720 }, reuse_mode: 'fresh', required_capabilities: {},
     });
@@ -88,7 +88,21 @@ describe('Session Close Route', () => {
     expect(unauthorizedRes.statusCode).toBe(403);
     expect(() => sessionManager.peekSession(sessionId)).not.toThrow();
 
-    const authorized = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close`, headers: { 'x-playwright-admin-secret': 'recovery-secret' } });
+    const staleOwner = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close`, headers: { 'x-playwright-admin-secret': 'recovery-secret' }, body: { expected_owner_execution_id: 'replaced-owner', expected_lease_id: leaseId } });
+    Object.assign(staleOwner, { socket: { remoteAddress: '127.0.0.1' } });
+    const staleOwnerRes = createMockHttpResponse();
+    await handleSessionForceClose(staleOwner, staleOwnerRes, sessionId, sessionManager, config);
+    expect(staleOwnerRes.statusCode).toBe(404);
+    expect(() => sessionManager.peekSession(sessionId)).not.toThrow();
+
+    const staleLease = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close`, headers: { 'x-playwright-admin-secret': 'recovery-secret' }, body: { expected_owner_execution_id: 'exec-force-close', expected_lease_id: 'replaced-lease' } });
+    Object.assign(staleLease, { socket: { remoteAddress: '127.0.0.1' } });
+    const staleLeaseRes = createMockHttpResponse();
+    await handleSessionForceClose(staleLease, staleLeaseRes, sessionId, sessionManager, config);
+    expect(staleLeaseRes.statusCode).toBe(404);
+    expect(() => sessionManager.peekSession(sessionId)).not.toThrow();
+
+    const authorized = createMockHttpRequest({ method: 'POST', url: `/session/${sessionId}/force-close`, headers: { 'x-playwright-admin-secret': 'recovery-secret' }, body: { expected_owner_execution_id: 'exec-force-close', expected_lease_id: leaseId } });
     Object.assign(authorized, { socket: { remoteAddress: '127.0.0.1' } });
     const authorizedRes = createMockHttpResponse();
     await handleSessionForceClose(authorized, authorizedRes, sessionId, sessionManager, config);

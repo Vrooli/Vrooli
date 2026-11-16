@@ -2010,6 +2010,47 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "purge-preview",
+          "description": "Preview metadata for purging exactly one execution by UUID.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "purge",
+          "description": "Purge exactly one execution by UUID after explicit matching confirmation.",
+          "positionals": [
+            {
+              "name": "execution-id",
+              "required": true,
+              "description": "Execution UUID"
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirm",
+              "required": true,
+              "description": "Must exactly match the execution UUID"
+            }
+          ],
+          "binding": { "kind": "local" },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
         }
       ]
     },
@@ -2796,7 +2837,7 @@
             },
             {
               "name": "model",
-              "description": "Vision model identifier (default gpt-4o)"
+              "description": "AI Gateway route profile (default local_first)"
             },
             {
               "name": "max-steps",

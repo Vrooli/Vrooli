@@ -95,39 +95,3 @@ func EnforceWatermarkRequirements(spec *exportsv1.ReplaySpec, requiresWatermark 
 
 	return result
 }
-
-// ValidateWatermarkForExport checks if the watermark settings in a spec
-// are valid for export given the entitlement restrictions.
-//
-// Returns an error if the settings violate entitlement requirements.
-func ValidateWatermarkForExport(spec *exportsv1.ReplaySpec, requiresWatermark bool) error {
-	if !requiresWatermark {
-		return nil // No restrictions
-	}
-
-	if spec.Watermark == nil || !spec.Watermark.Enabled {
-		return &WatermarkValidationError{
-			Code:    "WATERMARK_REQUIRED",
-			Message: "Watermark is required for your subscription tier",
-		}
-	}
-
-	if spec.Watermark.AssetId != "" && !IsBuiltInAssetID(spec.Watermark.AssetId) {
-		return &WatermarkValidationError{
-			Code:    "CUSTOM_LOGO_NOT_ALLOWED",
-			Message: "Custom logos are not available on your subscription tier. Upgrade to use your own logo.",
-		}
-	}
-
-	return nil
-}
-
-// WatermarkValidationError represents a watermark validation error
-type WatermarkValidationError struct {
-	Code    string
-	Message string
-}
-
-func (e *WatermarkValidationError) Error() string {
-	return e.Message
-}

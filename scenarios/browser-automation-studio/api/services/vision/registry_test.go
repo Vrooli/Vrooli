@@ -316,9 +316,8 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 		available:   true,
 		description: "Playwright navigator",
 		creditPolicy: CreditPolicy{
-			RequiresCredits:  true,
-			CreditsPerStep:   2,
-			BypassConditions: []BypassCondition{BypassCredentialProvenance},
+			RequiresCredits: true,
+			PerStepCharging: true,
 		},
 		clientSourcePolicy: AllSourcesPolicy(),
 	}
@@ -329,8 +328,7 @@ func TestNavigatorRegistry_ListNavigators(t *testing.T) {
 		unavailableReason: "alternate navigator unavailable",
 		description:       "alternate navigator",
 		creditPolicy: CreditPolicy{
-			RequiresCredits:  false,
-			BypassConditions: []BypassCondition{BypassLocalExecution},
+			RequiresCredits: false,
 		},
 		clientSourcePolicy: CLIOnlyPolicy(),
 	}

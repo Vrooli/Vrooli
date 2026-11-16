@@ -1,6 +1,7 @@
 package uxcapture
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -13,6 +14,10 @@ import (
 )
 
 func makeArtifactBundle(t *testing.T, root string) (string, string, []byte) {
+	return makeArtifactBundleWithPrivacy(t, root, bundle.Privacy{RedactionStatus: "complete"})
+}
+
+func makeArtifactBundleWithPrivacy(t *testing.T, root string, privacy bundle.Privacy) (string, string, []byte) {
 	t.Helper()
 	id := uuid.NewString()
 	content := []byte("<html><body>captured</body></html>")
@@ -29,13 +34,43 @@ func makeArtifactBundle(t *testing.T, root string) (string, string, []byte) {
 			bundle.LensIdentity: {Status: bundle.LensAbsent, Reason: "fixture"}, bundle.LensNetwork: {Status: bundle.LensAbsent, Reason: "fixture"},
 			bundle.LensStates: {Status: bundle.LensAbsent, Reason: "fixture"},
 		},
-		Privacy:   bundle.Privacy{RedactionStatus: "complete"},
+		Privacy:   privacy,
 		Artifacts: []bundle.Artifact{{Kind: "frozen-page", Path: "page/frozen.html", MediaType: "text/html", SizeBytes: int64(len(content)), SHA256: bundle.Digest(content)}},
 	}
 	if err := bundle.WriteBundleWithArtifacts(filepath.Join(root, "ux", id), manifest, []bundle.ArtifactPayload{{Path: "page/frozen.html", Content: content}}); err != nil {
 		t.Fatal(err)
 	}
 	return id, filepath.Join(root, "ux", id, "page", "frozen.html"), content
+}
+
+func TestDeleteArtifactHTTPRemovesOnlyExternalEphemeralBundles(t *testing.T) {
+	root := t.TempDir()
+	id, _, _ := makeArtifactBundleWithPrivacy(t, root, bundle.Privacy{RedactionStatus: "complete", External: true, Ephemeral: true})
+	router := chi.NewRouter()
+	MountArtifactHTTP(router, root)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest("DELETE", "/ux-capture/bundles/"+id, nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s, want 204", response.Code, response.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "ux", id)); !os.IsNotExist(err) {
+		t.Fatalf("ephemeral bundle directory remains: %v", err)
+	}
+}
+
+func TestDeleteArtifactHTTPRefusesRetainedScenarioBundles(t *testing.T) {
+	root := t.TempDir()
+	id, _, _ := makeArtifactBundle(t, root)
+	router := chi.NewRouter()
+	MountArtifactHTTP(router, root)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest("DELETE", "/ux-capture/bundles/"+id, nil))
+	if response.Code != http.StatusConflict {
+		t.Fatalf("status=%d body=%s, want 409", response.Code, response.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "ux", id)); err != nil {
+		t.Fatalf("retained scenario bundle was removed: %v", err)
+	}
 }
 
 func artifactRequest(t *testing.T, root, bundleID, path string) *httptest.ResponseRecorder {

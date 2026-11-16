@@ -15,6 +15,12 @@ import (
 // RecordTelemetry owns the telemetry artifact policy and timeline-log
 // projection. Step outcomes remain independent of this optional data stream.
 func (r *FileWriter) RecordTelemetry(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
+	return r.withExecutionArtifactLock(ctx, plan.ExecutionID, func(lockCtx context.Context) error {
+		return r.recordTelemetryLocked(lockCtx, plan, telemetry)
+	})
+}
+
+func (r *FileWriter) recordTelemetryLocked(ctx context.Context, plan contracts.ExecutionPlan, telemetry contracts.StepTelemetry) error {
 	if r == nil || !r.artifactConfigForExecution(plan.ExecutionID).CollectTelemetry {
 		return nil
 	}

@@ -37,20 +37,6 @@ import (
 	"github.com/vrooli/browser-automation-studio/automation/driver"
 )
 
-func TestNewService_InitializesComponents(t *testing.T) {
-	log := logrus.New()
-	log.SetLevel(logrus.ErrorLevel) // Suppress logs during tests
-
-	// NewService without a working driver will have nil sessions, but should still
-	// create the generator. Pass nil for unified recording service in tests.
-	svc := NewService(log, nil)
-
-	// Generator should be created even if session manager fails
-	if svc.generator == nil {
-		t.Error("Expected generator to be initialized")
-	}
-}
-
 func TestRecordingActionProtoJSON_PreservesCanonicalTimelineFields(t *testing.T) {
 	actionID, pageID := uuid.New(), uuid.New()
 	capturedAt := time.Date(2026, 10, 1, 6, 0, 0, 0, time.UTC)

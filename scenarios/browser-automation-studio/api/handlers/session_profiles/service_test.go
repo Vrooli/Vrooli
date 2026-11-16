@@ -3,6 +3,7 @@ package session_profiles
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/vrooli/browser-automation-studio/internal/testutil"
 	"github.com/vrooli/browser-automation-studio/internal/testutil/sessionprofilemocks"
+	sessionprofile "github.com/vrooli/browser-automation-studio/services/session-profile"
 	sessionprofilepersistence "github.com/vrooli/browser-automation-studio/services/session-profile/persistence"
 	sessionprofilesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles"
 	sessionprofilesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/session_profiles/session_profilesconnect"
@@ -51,17 +53,19 @@ func (f *fakeRepo) CreateProfile(name string) (*sessionprofilepersistence.Sessio
 	return p, nil
 }
 
-func (f *fakeRepo) RenameProfile(id sessionprofilepersistence.ProfileID, name string) (*sessionprofilepersistence.SessionProfile, error) {
+func (f *fakeRepo) UpdateProfileSettings(id sessionprofilepersistence.ProfileID, name *string, bp *sessionprofilepersistence.BrowserProfile) (*sessionprofilepersistence.SessionProfile, error) {
+	if bp != nil {
+		if err := sessionprofile.ValidateBrowserProfile(bp); err != nil {
+			return nil, fmt.Errorf("invalid browser profile: %w", err)
+		}
+	}
 	return f.Update(id, func(p *sessionprofilepersistence.SessionProfile) error {
-		p.Name = name
-		p.UpdatedAt = time.Now().UTC()
-		return nil
-	})
-}
-
-func (f *fakeRepo) UpdateBrowserProfile(id sessionprofilepersistence.ProfileID, bp *sessionprofilepersistence.BrowserProfile) (*sessionprofilepersistence.SessionProfile, error) {
-	return f.Update(id, func(p *sessionprofilepersistence.SessionProfile) error {
-		p.BrowserProfile = bp
+		if name != nil {
+			p.Name = *name
+		}
+		if bp != nil {
+			p.BrowserProfile = bp
+		}
 		p.UpdatedAt = time.Now().UTC()
 		return nil
 	})
@@ -246,6 +250,45 @@ func TestUpdate_BrowserProfileHappyPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp.Msg.GetProfile().GetBrowserProfile())
 	require.Equal(t, "stealth", resp.Msg.GetProfile().GetBrowserProfile().Fields["preset"].GetStringValue())
+}
+
+func TestUpdate_CombinedSettingsCommitTogether(t *testing.T) {
+	repo := newFakeRepo()
+	p, _ := repo.CreateProfile("Alpha")
+	client, cleanup := newTestServer(t, repo)
+	defer cleanup()
+
+	name := "Renamed"
+	bp, err := structpb.NewStruct(map[string]any{"preset": "stealth"})
+	require.NoError(t, err)
+	resp, err := client.Update(context.Background(), connect.NewRequest(&sessionprofilesv1.UpdateSessionProfileRequest{
+		Id: string(p.ID), Name: &name, BrowserProfile: bp,
+	}))
+	require.NoError(t, err)
+	require.Equal(t, "Renamed", resp.Msg.GetProfile().GetName())
+	require.Equal(t, "stealth", resp.Msg.GetProfile().GetBrowserProfile().Fields["preset"].GetStringValue())
+}
+
+func TestUpdate_InvalidCombinedSettingsLeaveProfileUnchanged(t *testing.T) {
+	repo := newFakeRepo()
+	p, _ := repo.CreateProfile("Alpha")
+	client, cleanup := newTestServer(t, repo)
+	defer cleanup()
+
+	name := "Renamed"
+	bp, err := structpb.NewStruct(map[string]any{"preset": "made-up"})
+	require.NoError(t, err)
+	_, err = client.Update(context.Background(), connect.NewRequest(&sessionprofilesv1.UpdateSessionProfileRequest{
+		Id: string(p.ID), Name: &name, BrowserProfile: bp,
+	}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
+
+	profiles, err := repo.ListProfiles()
+	require.NoError(t, err)
+	require.Len(t, profiles, 1)
+	require.Equal(t, "Alpha", profiles[0].Name)
+	require.Nil(t, profiles[0].BrowserProfile)
 }
 
 func TestUpdate_NotFound(t *testing.T) {

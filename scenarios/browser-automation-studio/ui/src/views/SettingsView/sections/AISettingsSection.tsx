@@ -21,6 +21,7 @@ import {
   type SubscriptionTier,
 } from '@stores/entitlementStore';
 import { SettingSection } from './shared';
+import { AIPrivacyConsentSection } from './AIPrivacyConsentSection';
 
 // AI Credits tier configuration
 const AI_CREDITS_BY_TIER: Record<SubscriptionTier, { limit: number; label: string }> = {
@@ -324,6 +325,7 @@ export function AISettingsSection() {
       <AIAccessStatusCard />
       <AIUsageMeter />
       <OpenRouterKeySection />
+      <AIPrivacyConsentSection />
       <AITierComparison />
     </div>
   );

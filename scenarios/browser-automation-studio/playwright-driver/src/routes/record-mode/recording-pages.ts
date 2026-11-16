@@ -197,13 +197,47 @@ export async function handleRecordNewPage(
     const ownedSession = recordingOwner(body, sessionId, sessionManager);
     const session = ownedSession();
     sessionManager.updateActivity(sessionId);
-    const request = body as { url?: string };
+    const request = body as { url?: string; opener_driver_page_id?: string };
 
     // Default to about:blank if no URL provided
     const url = request.url || 'about:blank';
 
-    // Create a new page in the browser context
-    const newPage = await session.context.newPage();
+    // When restoring a popup, create it through the exact owned opener so
+    // Playwright and BAS retain the same page.opener relationship.
+    let newPage: Page;
+    const openerPageID = request.opener_driver_page_id?.trim();
+    if (openerPageID) {
+      const opener = session.pageBindings.getPage(openerPageID);
+      if (!opener || opener.isClosed()) throw new Error('opener page is not available in this owned session');
+      const popupName = `vrooli-profile-restore-${randomUUID()}`;
+      const pagesBefore = new Set(session.context.pages());
+      const popupReady = opener.waitForEvent('popup', { timeout: config.execution.navigationTimeoutMs });
+      try {
+        const opened = await opener.evaluate((name: string) => window.open('about:blank', name) !== null, popupName);
+        if (!opened) throw new Error(`browser blocked popup from opener page ${openerPageID}`);
+        newPage = await popupReady;
+        await newPage.evaluate(() => { window.name = ''; });
+      } catch (error) {
+        // A browser may create the page and then lose the popup event/route
+        // handoff. Identify cleanup by this request's unique transient name.
+        void popupReady.catch(() => undefined);
+        for (const candidate of session.context.pages()) {
+          if (pagesBefore.has(candidate)) continue;
+          const belongsToRequest = await candidate.evaluate((name: string) => window.name === name, popupName).catch(() => false);
+          if (!belongsToRequest) continue;
+          try {
+            await candidate.close();
+            unregisterRecordingPage(session, candidate);
+          } catch (cleanupError) {
+            throw new Error(`Popup creation failed: ${String(error)}; owned popup cleanup failed: ${String(cleanupError)}`);
+          }
+          break;
+        }
+        throw error;
+      }
+    } else {
+      newPage = await session.context.newPage();
+    }
 
     let pageId: string;
     let title: string;

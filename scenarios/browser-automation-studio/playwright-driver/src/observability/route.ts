@@ -316,10 +316,17 @@ export function handleObservabilityRefresh(
 }
 
 export function handleSessionList(
-  _req: IncomingMessage,
+  req: IncomingMessage,
   res: ServerResponse,
   deps: ObservabilityRouteDependencies
 ): void {
+  const secret = deps.config.server.adminSecret;
+  const address = req.socket?.remoteAddress ?? '';
+  const loopback = address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
+  if (!loopback || !secret || req.headers['x-playwright-admin-secret'] !== secret) {
+    sendJson(res, 403, { error: 'administrative session inventory is not authorized' });
+    return;
+  }
   try {
     const sessions = deps.sessionManager.getSessionList();
     const summary = deps.sessionManager.getSessionSummary();

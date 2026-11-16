@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -34,6 +33,7 @@ func TestNewElementAnalysisHandler(t *testing.T) {
 
 		assert.NotNil(t, handler)
 		assert.Equal(t, log, handler.log)
+		assert.IsType(t, &gatewayRolePromptClient{}, handler.modelClient)
 	})
 }
 
@@ -43,14 +43,14 @@ func TestRunAnalyzeElements_RequestValidation(t *testing.T) {
 
 	t.Run("rejects empty URL", func(t *testing.T) {
 		handler := NewElementAnalysisHandler(log)
-		_, err := handler.RunAnalyzeElements(context.Background(), "", "", false)
+		_, err := handler.RunAnalyzeElements(context.Background(), "")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrMissingURL)
 	})
 
 	t.Run("errors when runner missing", func(t *testing.T) {
 		handler := &ElementAnalysisHandler{log: log}
-		_, err := handler.RunAnalyzeElements(context.Background(), "https://example.com", "", false)
+		_, err := handler.RunAnalyzeElements(context.Background(), "https://example.com")
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrAutomationRunnerNotReady)
 	})
@@ -236,18 +236,12 @@ func rgbaAt(pixels image.Image, x, y int) [4]uint32 {
 	return [4]uint32{r, g, b, a}
 }
 
-func TestGenerateAISuggestions_Integration(t *testing.T) {
-	integration.SkipShort(t, "AI suggestions integration")
-	if _, err := exec.LookPath("resource-openrouter"); err != nil {
-		t.Skip("resource-openrouter not on PATH")
-	}
-	if err := exec.Command("resource-openrouter", "status").Run(); err != nil {
-		t.Skipf("resource-openrouter status failed: %v", err)
-	}
-
+func TestGenerateAISuggestions_UsesModelClient(t *testing.T) {
 	log := logrus.New()
 	log.SetOutput(os.Stderr)
-	handler := NewElementAnalysisHandler(log)
+	handler := NewElementAnalysisHandler(log, WithSuggestionGenerator(newAISuggestionGenerator(log,
+		WithAISuggestionModelClient(newMockRolePromptClient(`{"suggestions":[{"action":"Search","confidence":0.9,"category":"navigation"}]}`)),
+	)))
 
 	t.Run("[REQ:BAS-AI-GENERATION-SMOKE] generates suggestions for search page", func(t *testing.T) {
 		ctx := context.Background()

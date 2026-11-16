@@ -71,7 +71,13 @@ export async function handleSessionForceClose(
     return;
   }
   try {
-    const result = await sessionManager.forceCloseSession(sessionId);
+    const body = await parseJsonBody(req, {});
+    const ownerExecutionId = typeof body.expected_owner_execution_id === 'string' ? body.expected_owner_execution_id : '';
+    const leaseId = typeof body.expected_lease_id === 'string' ? body.expected_lease_id : '';
+    if (!ownerExecutionId || !leaseId) {
+      throw new InvalidInstructionError('expected_owner_execution_id and expected_lease_id are required for administrative recovery');
+    }
+    const result = await sessionManager.forceCloseSession(sessionId, ownerExecutionId, leaseId);
     sendJson(res, 200, { success: true, video_paths: result.videoPaths, trace_path: result.tracePath, har_path: result.harPath });
   } catch (error) {
     sendError(res, error as Error, `/session/${sessionId}/force-close`);

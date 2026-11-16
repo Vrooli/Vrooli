@@ -568,6 +568,10 @@ func (m *MockExecutionService) GetExecution(ctx context.Context, id uuid.UUID) (
 	return &copy, nil
 }
 
+func (m *MockExecutionService) WaitForExecution(ctx context.Context, id uuid.UUID) (*database.ExecutionIndex, error) {
+	return m.GetExecution(ctx, id)
+}
+
 func (m *MockExecutionService) UpdateExecution(ctx context.Context, execution *database.ExecutionIndex) error {
 	if m.UpdateExecutionError != nil {
 		return m.UpdateExecutionError
@@ -1229,8 +1233,10 @@ func (m *MockRecordModeService) CreateSession(ctx context.Context, cfg *livecapt
 	}
 
 	result := &livecapture.SessionResult{
-		SessionID: "test-session-" + uuid.NewString()[:8],
-		CreatedAt: time.Now().UTC(),
+		SessionID:   uuid.NewString(),
+		ExecutionID: uuid.NewString(),
+		LeaseID:     uuid.NewString(),
+		CreatedAt:   time.Now().UTC(),
 	}
 	result.Close = func(ctx context.Context) error { return m.CloseSession(ctx, result.SessionID) }
 	m.Sessions[result.SessionID] = result

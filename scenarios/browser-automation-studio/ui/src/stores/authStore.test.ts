@@ -226,6 +226,8 @@ describe('authStore [REQ:BAS-AUTH]', () => {
     it('clears user and auth state', async () => {
       getDesktopWindow().desktop = { auth: mockDesktopAuth };
       mockDesktopAuth.signOut.mockResolvedValue(undefined);
+      sessionStorage.setItem('bas.ai.remote-consent-receipt', 'alice-receipt');
+      sessionStorage.setItem('bas.ai.remote-consent-source', 'own-key');
 
       // Set initial authenticated state
       useAuthStore.setState({
@@ -243,6 +245,8 @@ describe('authStore [REQ:BAS-AUTH]', () => {
       expect(state.isAuthenticated).toBe(false);
       expect(state.user).toBeNull();
       expect(mockDesktopAuth.signOut).toHaveBeenCalled();
+      expect(sessionStorage.getItem('bas.ai.remote-consent-receipt')).toBeNull();
+      expect(sessionStorage.getItem('bas.ai.remote-consent-source')).toBeNull();
     });
 
     it('handles sign out errors', async () => {
