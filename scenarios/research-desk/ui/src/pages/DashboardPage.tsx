@@ -17,7 +17,7 @@ import { QueryView } from "../components/QueryView";
 import { Section } from "../components/Section";
 import { StateBadge } from "../components/StateBadge";
 import { Unreadable } from "../components/Unreadable";
-import { DerivedWhen, When } from "../components/When";
+import { DerivedWhen, LastObserved, When } from "../components/When";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -289,7 +289,7 @@ function AllStates({ counts }: { counts: GetOverviewResponse["stateCounts"] }) {
 function NeedsYouSummary() {
   const { t } = useTranslation();
   const query = useNeedsYou();
-  if (query.isError) return <DeliveryBanner error={query.error} />;
+  if (query.isError) return <><DeliveryBanner error={query.error} /><LastObserved date={toDate(query.data?.observedAt)} /></>;
   if (!query.data) return null;
   const open = waiting(query.data.items);
   return (
@@ -299,6 +299,7 @@ function NeedsYouSummary() {
       actions={open.length > 0 ? <Link to="/needs-you" className="rd-more">{t(strings.now.openFeed)}</Link> : undefined}
     >
       <DeliveryBanner courier={query.data.courier} open={query.data.itemCount} switchAt="/needs-you#delivery" />
+      <LastObserved date={toDate(query.data.observedAt)} />
       {open.length === 0 ? (
         <p className="text-body-sm">{t(strings.now.nothingNeedsYou)}</p>
       ) : (

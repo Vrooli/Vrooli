@@ -8,13 +8,14 @@ import { Link } from "react-router-dom";
 import { CommissionState, lastResearchWrite, useTopics, type TopicSummary } from "../api/activity";
 import { Fact } from "../components/Fact";
 import { ResearchWriteWhen } from "../components/ResearchWrite";
+import { LastObserved } from "../components/When";
 import { QueryView } from "../components/QueryView";
 import { Facts } from "../components/Section";
 import { StateBadge } from "../components/StateBadge";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { kb, tokens } from "../lib/format";
+import { kb, toDate, tokens } from "../lib/format";
 import { matching, sortByResearchWrite } from "../lib/topics";
 
 /**
@@ -28,6 +29,7 @@ export function TopicsPage() {
   return (
     <div data-testid={selectors.pages.topics} className="rd-page">
       <PageHeader headingId="topics-heading" title={t(strings.topics.title)} description={t(strings.topics.description)} />
+      <LastObserved date={toDate(query.data?.observedAt)} />
       <QueryView query={query}>
         {({ topics }) => {
           if (topics.length === 0) return <EmptyState title={t(strings.topics.emptyTitle)} description={t(strings.topics.empty)} />;

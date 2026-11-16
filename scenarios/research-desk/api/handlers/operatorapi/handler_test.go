@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
 
 	"research-desk/internal/courier"
@@ -21,7 +22,9 @@ import (
 	"research-desk/internal/writer"
 
 	operatorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator"
+	operatorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator/operator_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // Handlers run over the testutil archive of real research-home excerpts. local-models is a real
@@ -58,6 +61,44 @@ func newHandler(t *testing.T) (*handler, string) {
 }
 
 func code(err error) connect.Code { return connect.CodeOf(err) }
+
+func TestListNeedsYouIncludesObservationTime(t *testing.T) {
+	h, _ := newHandler(t)
+	feed, err := h.ListNeedsYou(context.Background(), connect.NewRequest(&operatorv1.ListNeedsYouRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC)
+	if observed := feed.Msg.GetObservedAt(); observed == nil || !observed.AsTime().Equal(want) {
+		t.Errorf("needs-you feed carries the time its snapshot was read: got %v, want %s", observed, want)
+	}
+}
+
+func TestSettleHistoricalStatePersistsCitationsWithoutEndingWorkerState(t *testing.T) {
+	h, research := newHandler(t)
+	at := time.Date(2026, 11, 12, 8, 0, 0, 0, time.UTC)
+	activityStart, activityEnd := at.Add(-time.Hour), at.Add(-time.Minute)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-42"})
+	resp, err := h.SettleHistoricalState(ctx, connect.NewRequest(&operatorv1.SettleHistoricalStateRequest{
+		CommissionId: commission, Status: string(home.HistoricalClosed), AsOf: timestamppb.New(at),
+		ActivityStart: timestamppb.New(activityStart), ActivityEnd: timestamppb.New(activityEnd),
+		Reason: "A cited closeout records the historical end.", EvidencePaths: []string{"cohorts/" + commission + "/README.md"},
+	}))
+	if err != nil || !resp.Msg.Written || resp.Msg.Settlement.RecordedBy != "run-42" {
+		t.Fatalf("settlement write: %+v %v", resp, err)
+	}
+	snap, err := h.deps.Reader.Snapshot(context.Background(), home.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := snap.Find(commission)
+	if err != nil || c.State != home.StateUnknown || c.HistoricalSettlement == nil || c.HistoricalSettlement.Evidence[0] != "cohorts/"+commission+"/README.md" {
+		t.Fatalf("historical record persists without changing derived worker state: %+v %v", c, err)
+	}
+	if _, err := os.Stat(filepath.Join(research, "cohorts", commission, home.SettlementFile)); err != nil {
+		t.Fatalf("durable record missing: %v", err)
+	}
+}
 
 // [REQ:RD-P0-006]
 func TestAnswer(t *testing.T) {
@@ -102,8 +143,8 @@ func TestAnswer(t *testing.T) {
 	if max, _ := testutil.EntryChars(); max == 0 || feed.Msg.EntryCharsMax != int32(max) {
 		t.Errorf("the entry limit comes from limits.json: %d, want %d", feed.Msg.EntryCharsMax, max)
 	}
-	if feed.Msg.Courier.HubRead || !strings.Contains(feed.Msg.Courier.HubReason, "no courier switch is on") {
-		t.Errorf("no switch is on, so the Hub is not read: %+v", feed.Msg.Courier)
+	if feed.Msg.Courier.HubRead || !strings.Contains(feed.Msg.Courier.HubReason, "not configured") || !feed.Msg.Courier.GlobalOn {
+		t.Errorf("the Hub is always read, here unconfigured, and the supervisor's decisions are on by default: %+v", feed.Msg.Courier)
 	}
 }
 
@@ -128,6 +169,47 @@ func TestAddEntryAndSteering(t *testing.T) {
 	charter, _ := os.ReadFile(filepath.Join(research, "cohorts", commission, home.CharterFile))
 	if !strings.Contains(string(charter), home.SteeringSentence) {
 		t.Error("the charter carries the Steering sentence")
+	}
+}
+
+func TestStewardFindingUsesVerifiedRunAndLowerPriorityFile(t *testing.T) {
+	h, research := newHandler(t)
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-42"})
+	resp, err := h.AddStewardFinding(ctx, connect.NewRequest(&operatorv1.AddStewardFindingRequest{CommissionId: commission, Text: "Reviewed correction."}))
+	if err != nil || !resp.Msg.Written || resp.Msg.AgentRunId != "run-42" || !strings.Contains(resp.Msg.Text, "by agent run run-42") {
+		t.Fatalf("verified run is attributed: %+v %v", resp, err)
+	}
+	if !strings.HasSuffix(resp.Msg.Path, "STEWARD.md") {
+		t.Fatalf("finding goes to STEWARD.md: %s", resp.Msg.Path)
+	}
+	operatorPath := filepath.Join(research, "cohorts", commission, home.OperatorFile)
+	if _, err := os.Stat(operatorPath); !os.IsNotExist(err) {
+		t.Fatalf("agent finding must not write operator words: %v", err)
+	}
+}
+
+func TestStewardFindingEndpointRequiresVerifiedAgent(t *testing.T) {
+	h, _ := newHandler(t)
+	path, endpoint := operatorconnect.NewOperatorServiceHandler(h, StewardOnly())
+	mux := http.NewServeMux()
+	mux.Handle(path, endpoint)
+	for _, tc := range []struct {
+		name string
+		ctx  context.Context
+		code int
+	}{
+		{"verified agent", provenance.NewContext(context.Background(), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-42"}), http.StatusOK},
+		{"unattributed local caller", context.Background(), http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, operatorconnect.OperatorServiceAddStewardFindingProcedure, strings.NewReader(`{"commission_id":"`+commission+`","text":"Finding."}`)).WithContext(tc.ctx)
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != tc.code {
+				t.Fatalf("steward channel status = %d, want %d: %s", rec.Code, tc.code, rec.Body.String())
+			}
+		})
 	}
 }
 
@@ -291,36 +373,36 @@ func TestADryRunShowsTheExactTextAndWhenItIsRead(t *testing.T) {
 
 // Delivery reasons are codes, and a global item says what it
 // asks and where, instead of being answerable.
-func TestAGlobalItemCarriesItsInstructionAndEveryReasonIsACode(t *testing.T) {
+func TestTheSupervisorsItemsAreAnswerableAndEveryReasonIsACode(t *testing.T) {
 	h, _ := newHandler(t)
 	feed, err := h.ListNeedsYou(context.Background(), connect.NewRequest(&operatorv1.ListNeedsYouRequest{}))
 	if err != nil {
 		t.Fatal(err)
 	}
-	var global int
+	var supervisor int
 	for _, it := range feed.Msg.Items {
 		if it.DeliveryReasonCode == operatorv1.DeliveryReason_DELIVERY_REASON_UNSPECIFIED || it.Courier.GetReason() == operatorv1.DeliveryReason_DELIVERY_REASON_UNSPECIFIED {
 			t.Errorf("%s: no reason code (%q, %q)", it.Id, it.DeliveryReason, it.Courier.GetWhy())
 		}
-		if it.CommissionId != "" {
-			if it.Answerable && it.Instruction != "" {
-				t.Errorf("%s: an answerable item needs no instruction", it.Id)
-			}
+		if it.Answerable && it.Instruction != "" {
+			t.Errorf("%s: an answerable item needs no instruction", it.Id)
+		}
+		if it.CommissionId != home.SupervisorOwner {
 			continue
 		}
-		global++
-		if it.Answerable || it.Instruction == "" {
-			t.Errorf("%s: a global item is never answerable and says what to do: %+v", it.Id, it)
+		supervisor++
+		if !it.Answerable {
+			t.Errorf("%s: the supervisor's item is answered into the research home's inbox: %+v", it.Id, it)
 		}
-		if it.DeliveryReasonCode != operatorv1.DeliveryReason_DELIVERY_REASON_NO_COMMISSION && it.DeliveryReasonCode != operatorv1.DeliveryReason_DELIVERY_REASON_NOTICE {
-			t.Errorf("%s: global item reason %s", it.Id, it.DeliveryReasonCode)
+		if it.DeliveryReasonCode != operatorv1.DeliveryReason_DELIVERY_REASON_NO_RECOMMENDATION {
+			t.Errorf("%s: an older item without a Recommended: line goes as a notice, got %s", it.Id, it.DeliveryReasonCode)
 		}
 		if it.Id == "FRAUD-FREE-KEYS-20261107" && (len(it.Links) != 1 || !strings.HasSuffix(it.Links[0].Target, "topics/public-data-fraud/MISSION.md") || !filepath.IsAbs(it.Links[0].Target)) {
 			t.Errorf("links resolve beside ATTENTION.md: %+v", it.Links)
 		}
 	}
-	if global != 7 {
-		t.Errorf("want the 7 real global items, got %d", global)
+	if supervisor != 7 {
+		t.Errorf("want the 7 real supervisor items, got %d", supervisor)
 	}
 }
 

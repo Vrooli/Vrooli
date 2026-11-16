@@ -4,27 +4,112 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
 // Record file names inside a commission folder (FILE-CONTRACT.md §1).
 const (
-	CharterFile  = "README.md"
-	StanceFile   = "STANCE-MESSAGE.txt"
-	KernelFile   = "KERNEL.txt"
-	PacketFile   = "PACKET.json"
-	LaunchFile   = "LAUNCH.json"
-	OperatorFile = "OPERATOR.md"
-	StateFile    = "STATE.md"
-	LedgerFile   = "LEDGER.md"
-	BaselineFile = "BASELINE.json"
+	CharterFile    = "README.md"
+	StanceFile     = "STANCE-MESSAGE.txt"
+	KernelFile     = "KERNEL.txt"
+	PacketFile     = "PACKET.json"
+	LaunchFile     = "LAUNCH.json"
+	OperatorFile   = "OPERATOR.md"
+	StateFile      = "STATE.md"
+	LedgerFile     = "LEDGER.md"
+	BaselineFile   = "BASELINE.json"
+	SettlementFile = "SETTLEMENT.json"
 )
 
 // LaunchSchema and PacketSchema are the schema ids of the two JSON records.
 const (
-	LaunchSchema = "research-desk.launch/v1"
-	PacketSchema = "research-desk.packet/v1"
+	LaunchSchema     = "research-desk.launch/v1"
+	PacketSchema     = "research-desk.packet/v1"
+	SettlementSchema = "research-desk.settlement/v1"
 )
+
+// HistoricalSettlement records the commission's historical disposition.
+// It is intentionally independent of the live worker/session state.
+type HistoricalSettlement struct {
+	Schema        string     `json:"schema"`
+	CommissionID  string     `json:"commission_id"`
+	Status        string     `json:"status"`
+	AsOf          time.Time  `json:"as_of"`
+	ActivityStart *time.Time `json:"activity_start,omitempty"`
+	ActivityEnd   *time.Time `json:"activity_end,omitempty"`
+	RecordedAt    time.Time  `json:"recorded_at"`
+	RecordedBy    string     `json:"recorded_by"`
+	Reason        string     `json:"reason"`
+	Evidence      []string   `json:"evidence"`
+}
+
+type HistoricalStatus string
+
+const (
+	HistoricalPrepared           HistoricalStatus = "prepared"
+	HistoricalClosed             HistoricalStatus = "closed"
+	HistoricalClosedPartial      HistoricalStatus = "closed_partial"
+	HistoricalContinuedElsewhere HistoricalStatus = "continued_elsewhere"
+)
+
+func (s HistoricalStatus) Valid() bool {
+	switch s {
+	case HistoricalPrepared, HistoricalClosed, HistoricalClosedPartial, HistoricalContinuedElsewhere:
+		return true
+	default:
+		return false
+	}
+}
+
+// ReadHistoricalSettlement reads SETTLEMENT.json; absence is not a settlement.
+func ReadHistoricalSettlement(path string) (*HistoricalSettlement, error) {
+	var record HistoricalSettlement
+	if err := readJSON(path, SettlementSchema, &record, func() string { return record.Schema }); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if record.CommissionID == "" || !HistoricalStatus(record.Status).Valid() || record.AsOf.IsZero() || record.RecordedAt.IsZero() || record.RecordedBy == "" || strings.TrimSpace(record.Reason) == "" || len(record.Evidence) == 0 {
+		return nil, fmt.Errorf("%s is missing required settlement fields", path)
+	}
+	if (record.ActivityStart == nil) != (record.ActivityEnd == nil) || (record.ActivityStart != nil && record.ActivityEnd.Before(*record.ActivityStart)) {
+		return nil, fmt.Errorf("%s has an incomplete or reversed activity interval", path)
+	}
+	if record.Status != string(HistoricalPrepared) && record.ActivityStart == nil {
+		return nil, fmt.Errorf("%s needs a cited activity interval for a completed disposition", path)
+	}
+	return &record, nil
+}
+
+// ValidateHistoricalEvidence verifies citations stay within the research home
+// and name readable regular files.
+func ValidateHistoricalEvidence(researchDir string, record *HistoricalSettlement) error {
+	root, err := filepath.EvalSymlinks(researchDir)
+	if err != nil {
+		return fmt.Errorf("resolve research home: %w", err)
+	}
+	for _, citation := range record.Evidence {
+		if citation == "" || filepath.IsAbs(citation) || filepath.Clean(citation) != citation {
+			return fmt.Errorf("%w: evidence citations must be clean paths relative to the research home", ErrInvalid)
+		}
+		resolved, err := filepath.EvalSymlinks(filepath.Join(researchDir, filepath.FromSlash(citation)))
+		if err != nil {
+			return fmt.Errorf("%w: evidence file %q cannot be read: %v", ErrInvalid, citation, err)
+		}
+		rel, err := filepath.Rel(root, resolved)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("%w: evidence file %q is outside the research home", ErrInvalid, citation)
+		}
+		info, err := os.Stat(resolved)
+		if err != nil || !info.Mode().IsRegular() {
+			return fmt.Errorf("%w: evidence citation %q must name a regular file", ErrInvalid, citation)
+		}
+	}
+	return nil
+}
 
 // LaunchRecord is LAUNCH.json (FILE-CONTRACT.md §3): only what cannot be
 // derived from other files.

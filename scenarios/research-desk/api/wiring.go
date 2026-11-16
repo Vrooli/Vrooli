@@ -13,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/askreader"
 	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/researchhome"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -60,11 +61,12 @@ type wiring struct {
 }
 
 // Locations a test or a second instance overrides. Unset means the
-// production location under the user's home.
+// production location under the user's home; the research home itself is
+// researchhome.EnvHome (VROOLI_RESEARCH_HOME), shared with every research
+// reader.
 const (
-	envResearchDir = "RESEARCH_DESK_RESEARCH_DIR"
-	envStateDir    = "RESEARCH_DESK_STATE_DIR"
-	envCodexDir    = "RESEARCH_DESK_CODEX_DIR"
+	envStateDir = "RESEARCH_DESK_STATE_DIR"
+	envCodexDir = "RESEARCH_DESK_CODEX_DIR"
 	// envOtherCodexHomes is a path list of glob patterns, each naming a Codex
 	// home outside Web Console's session folder.
 	envOtherCodexHomes = "RESEARCH_DESK_OTHER_CODEX_HOMES"
@@ -80,9 +82,11 @@ func newWiring(getenv func(string) string) *wiring {
 		log.Fatalf("resolve the user's home directory for ~/.vrooli/research: %v", err)
 	}
 	w := &wiring{homeConfig: home.DefaultConfig(userHome), version: "unknown"}
-	if dir := getenv(envResearchDir); dir != "" {
-		w.homeConfig.ResearchDir = dir
+	researchDir, err := researchhome.Dir(getenv)
+	if err != nil {
+		log.Fatalf("research home: %v", err)
 	}
+	w.homeConfig.ResearchDir = researchDir
 	if dir := getenv(envCodexDir); dir != "" {
 		w.homeConfig.CodexDir = dir
 	}
@@ -284,13 +288,23 @@ func (w *wiring) registerResearchBackupTarget(ctx context.Context) error {
 		return err
 	}
 	client := targetsconnect.NewTargetsServiceClient(httpClient, baseURL, option)
-	_, err = client.RegisterTarget(ctx, connect.NewRequest(&targetsv1.RegisterTargetRequest{
-		Owner:      scenarioName,
-		Name:       "research-home",
-		SourceKind: sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM,
-		Locator:    w.homeConfig.ResearchDir,
-	}))
-	return err
+	for _, target := range []struct {
+		name    string
+		locator string
+	}{
+		{name: "research-home", locator: w.homeConfig.ResearchDir},
+		{name: "topic-data-backup-manager-recovery", locator: filepath.Join(w.homeConfig.ResearchDir, "topics", "data-backup-manager-recovery")},
+	} {
+		if _, err := client.RegisterTarget(ctx, connect.NewRequest(&targetsv1.RegisterTargetRequest{
+			Owner:      scenarioName,
+			Name:       target.name,
+			SourceKind: sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM,
+			Locator:    target.locator,
+		})); err != nil {
+			return fmt.Errorf("register research backup target %q: %w", target.name, err)
+		}
+	}
+	return nil
 }
 
 // automaticLaunch says how an automatic launch reaches Web Console, or why it

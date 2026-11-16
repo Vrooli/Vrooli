@@ -30,8 +30,8 @@ type Ask struct {
 	// technical details the desk wrote, or from an older ask's question.
 	Key   string
 	State string
-	// RequesterRef is the id of the request event that opened the ask; a
-	// withdrawal closes it by this id, whether or not it carries a subject key.
+	// RequesterRef is the id of the event that opened the ask; the ask is
+	// closed by this id, whether or not it carries a subject key.
 	RequesterRef string
 	// Question, BigPicture, TechnicalDetails, Recommended and Options are the
 	// decision as the Hub holds it, to tell whether it is still the item's
@@ -41,8 +41,10 @@ type Ask struct {
 	Answer                                              string
 	AnswerLabel                                         string
 	Note                                                string
-	CreatedAt                                           time.Time
-	Deadline                                            time.Time
+	// AnsweredAt is when the operator answered; zero while no one has.
+	AnsweredAt time.Time
+	CreatedAt  time.Time
+	Deadline   time.Time
 	// FirstDelivered is when a device first received it; zero until then.
 	FirstDelivered time.Time
 }
@@ -67,6 +69,9 @@ type AskSpec struct {
 	// Deadline is zero for the Hub's default; a set deadline changes the
 	// event on every pass, so only a one-off ask (the delivery test) sets it.
 	Deadline time.Time
+	// Explainer is the decision's page, carried inline in the event; the Hub
+	// stores it as the ask's explainer. Every ask the courier raises has one.
+	Explainer string
 }
 
 // NoticeSpec is one plain notice, without answer options.
@@ -85,23 +90,22 @@ type Notice struct {
 	State     string
 }
 
-// Hub is the courier's Notification Hub seam. Raising and withdrawing go out
-// as events; reading comes back from the Hub.
+// Hub is the courier's Notification Hub seam. Decisions and notices go out as
+// events through Vrooli Events; reading comes back from the Hub.
 type Hub interface {
 	// Sendable says why nothing can be sent now, or nil.
 	Sendable(ctx context.Context) error
-	// Ask publishes one decision request for the item's subject. The same
-	// request is the same event, so a repeat is deduplicated by Vrooli Events
-	// and the Hub; a changed request updates the open decision in place, or
-	// replaces it when its answer menu changed.
+	// Ask sends one decision request for the item's subject. The same request
+	// is a no-op at the Hub; a changed request updates the open decision in
+	// place, or replaces it when its answer menu changed.
 	Ask(ctx context.Context, spec AskSpec) error
-	// RequestRef is the id of the request event Ask publishes for spec. An
-	// open ask with another RequesterRef was raised before the item changed,
-	// or before asks carried a subject key, and is raised again.
+	// RequestRef is the id of the request Ask sends for spec. An open ask with
+	// another RequesterRef was raised before the item changed, or before asks
+	// carried a subject key, and is raised again.
 	RequestRef(spec AskSpec) string
-	// Withdraw closes an open ask whose item no longer needs the operator. The
-	// reason is shown to the operator on the closed decision. Closing is never
-	// an answer.
+	// Withdraw closes an open ask whose item no longer needs the operator, by
+	// the id of the event that opened it. The reason is shown to the operator
+	// on the closed decision. Closing is never an answer.
 	Withdraw(ctx context.Context, ask Ask, reason string, at time.Time) error
 	// Notify publishes one notice, deduplicated the same way.
 	Notify(ctx context.Context, spec NoticeSpec) error
@@ -122,10 +126,10 @@ var (
 	NoticeEvent   = "research_desk.needs_you.notification.v1"
 )
 
-// EventHub raises through Vrooli Events, the route every scenario-originated
-// decision takes (api-core operatordecision), and reads asks and notices back
-// from Notification Hub. Notification Hub shows an ask only to the service that
-// raised it, so reading asks presents the desk's ask-reader identity.
+// EventHub raises decisions and notices through Vrooli Events, the route every
+// scenario-originated decision takes (api-core operatordecision); a decision
+// carries its page inline. Reading asks and notices back comes from the Hub,
+// which shows the desk its asks only under its ask-reader identity.
 type EventHub struct {
 	// Events resolves the Vrooli Events API base URL on each call.
 	Events func(ctx context.Context) (string, error)
@@ -167,14 +171,15 @@ func event(eventType string, payload map[string]any) eventbus.DomainEvent {
 // decision per subject, so an item's ask is updated or closed, never repeated.
 func subjectKey(key string) string { return operatordecision.SubjectKeyFrom(key) }
 
-// askEvent is the decision request for spec.
-func askEvent(spec AskSpec) (eventbus.DomainEvent, error) {
+// askFacts is the decision spec states, checked against the contract every
+// producer meets.
+func askFacts(spec AskSpec) (operatordecision.Facts, error) {
 	subject := spec.Subject
 	if strings.TrimSpace(subject) == "" {
 		subject = spec.Key[strings.LastIndex(spec.Key, "/")+1:]
 	}
 	facts := operatordecision.Facts{
-		Subject:              clip(subject, 60),
+		Subject:              operatordecision.Clip(subject, 60),
 		Question:             spec.Question,
 		Recommended:          spec.Recommended,
 		RecommendationReason: spec.Reason,
@@ -183,17 +188,27 @@ func askEvent(spec AskSpec) (eventbus.DomainEvent, error) {
 		Urgency:              "normal",
 		Deadline:             spec.Deadline,
 		SubjectKey:           subjectKey(spec.Key),
+		Explainer:            spec.Explainer,
 	}
 	for _, o := range spec.Options {
 		facts.Options = append(facts.Options, operatordecision.Option{Key: o.Key, Label: o.Label})
 	}
 	if err := facts.Validate(); err != nil {
-		return eventbus.DomainEvent{}, fmt.Errorf("the item cannot be a Hub decision (%w); answer it in the desk", err)
+		return operatordecision.Facts{}, fmt.Errorf("the item cannot be a Hub decision (%w); answer it in the desk", err)
+	}
+	return facts, nil
+}
+
+// askEvent is the decision request for spec.
+func askEvent(spec AskSpec) (eventbus.DomainEvent, error) {
+	facts, err := askFacts(spec)
+	if err != nil {
+		return eventbus.DomainEvent{}, err
 	}
 	return event(DecisionEvent, facts.Payload()), nil
 }
 
-// Ask publishes the decision.
+// Ask publishes the decision, its page inline.
 func (h *EventHub) Ask(ctx context.Context, spec AskSpec) error {
 	e, err := askEvent(spec)
 	if err != nil {
@@ -212,8 +227,8 @@ func (h *EventHub) RequestRef(spec AskSpec) string {
 	return operatordecision.EventID(e)
 }
 
-// Withdraw closes the ask by the id of the request that opened it. at is when
-// the desk saw the ask was no longer needed; it makes each pass's withdrawal a
+// Withdraw closes an ask by the id of the event that opened it. at is when the
+// desk saw the ask was no longer needed; it makes each pass's withdrawal a
 // distinct event, so one lost before the Hub subscribed is sent again.
 func (h *EventHub) Withdraw(ctx context.Context, ask Ask, reason string, at time.Time) error {
 	if ask.RequesterRef == "" {
@@ -250,8 +265,8 @@ func (h *EventHub) clients(ctx context.Context) (convconnect.ConversationsServic
 	return convconnect.NewConversationsServiceClient(client, base, asks...), notifconnect.NewNotificationsServiceClient(client, base, opt), nil
 }
 
-// Asks pages through the Hub's asks from this source and keeps those whose
-// key starts with prefix.
+// Asks returns the Hub's asks from this source whose key starts with prefix,
+// read as the desk's ask-reader.
 func (h *EventHub) Asks(ctx context.Context, prefix string) ([]Ask, error) {
 	conv, _, err := h.clients(ctx)
 	if err != nil {
@@ -347,7 +362,7 @@ func askFromProto(a *convv1.Ask) Ask {
 	return Ask{
 		ID: a.GetId(), Key: keyOf(a.GetQuestion(), a.GetTechnicalDetails()), State: a.GetState(), RequesterRef: a.GetRequesterRef(),
 		Question: a.GetQuestion(), BigPicture: a.GetBigPicture(), TechnicalDetails: a.GetTechnicalDetails(), Recommended: a.GetRecommended(), Options: askOptions(a),
-		Answer: a.GetAnswer(), AnswerLabel: a.GetAnswerLabel(), Note: a.GetNote(),
+		Answer: a.GetAnswer(), AnswerLabel: a.GetAnswerLabel(), Note: a.GetNote(), AnsweredAt: parseTime(a.GetAnsweredAt()),
 		CreatedAt: parseTime(a.GetCreatedAt()), Deadline: parseTime(a.GetDeadline()), FirstDelivered: parseTime(a.GetFirstDeliveredAt()),
 	}
 }

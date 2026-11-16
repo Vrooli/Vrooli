@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"research-desk/internal/home"
 )
@@ -89,6 +90,9 @@ func (w *Writer) Role() error {
 	}
 	return nil
 }
+
+// ResearchDir is the research home the writer writes in.
+func (w *Writer) ResearchDir() string { return w.researchDir }
 
 // StateDir is the desk's own folder.
 func (w *Writer) StateDir() string { return w.stateDir }
@@ -174,6 +178,143 @@ func (w *Writer) operatorFile(commissionID string, e home.Entry) (path, title st
 	return filepath.Join(dir, home.OperatorFile), "# Operator — " + commissionID, nil
 }
 
+// RenderStewardFinding returns an attributed finding for the commission's
+// lower-priority STEWARD.md channel without writing it.
+func (w *Writer) RenderStewardFinding(commissionID, runID, body string, at time.Time) (string, string, error) {
+	dir, err := w.folder("cohorts", commissionID)
+	if err != nil {
+		return "", "", err
+	}
+	path := filepath.Join(dir, "STEWARD.md")
+	text, err := w.stewardFindingText(path, runID, body, at)
+	return path, text, err
+}
+
+// AppendStewardFinding writes a dated finding attributed to its verified
+// agent run. It never writes the operator's higher-priority OPERATOR.md.
+func (w *Writer) AppendStewardFinding(commissionID, runID, body string, at time.Time) (string, string, error) {
+	path, text, err := w.RenderStewardFinding(commissionID, runID, body, at)
+	if err != nil {
+		return "", "", err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := w.held(); err != nil {
+		return "", "", err
+	}
+	if _, err := w.enableStewardLocked(commissionID); err != nil {
+		return "", "", err
+	}
+	text, err = w.stewardFindingText(path, runID, body, at)
+	if err != nil {
+		return "", "", err
+	}
+	return path, text, appendBytes(path, text)
+}
+
+func (w *Writer) enableStewardLocked(commissionID string) (string, error) {
+	dir, err := w.folder("cohorts", commissionID)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, home.CharterFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read the charter %s: %w", path, err)
+	}
+	if bytes.Contains(data, []byte(home.StewardSentence)) {
+		return "", nil
+	}
+	text := separator(data) + home.StewardSentence + "\n"
+	return text, appendBytes(path, text)
+}
+
+func (w *Writer) stewardFindingText(path, runID, body string, at time.Time) (string, error) {
+	body = strings.TrimSpace(strings.ReplaceAll(body, "\r\n", "\n"))
+	if runID == "" || at.IsZero() || body == "" {
+		return "", fmt.Errorf("%w: a steward finding needs an agent run, time and text", home.ErrInvalid)
+	}
+	max, err := w.entryChars()
+	if err != nil {
+		return "", fmt.Errorf("%w: the entry limit is unknown: %v", home.ErrUnavailable, err)
+	}
+	if err := home.CheckEntryText(body, w.researchDir, max); err != nil {
+		return "", fmt.Errorf("%w: %v", home.ErrInvalid, err)
+	}
+	for _, line := range strings.Split(body, "\n") {
+		if strings.HasPrefix(line, "### ") {
+			return "", fmt.Errorf("%w: a steward finding cannot contain a heading line", home.ErrInvalid)
+		}
+	}
+	existing, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("read %s: %w", path, err)
+	}
+	prefix := separator(existing)
+	if len(existing) == 0 {
+		prefix = "# Steward findings\n\n"
+	}
+	entry := fmt.Sprintf("### %s · finding · by agent run %s\n%s\n", at.UTC().Format(home.EntryTimeLayout), runID, body)
+	return prefix + entry, nil
+}
+
+// AppendInbox appends one entry `### <UTC> · from <from> · <kind>` to a
+// level's INBOX.md (docs/agent-system/LEVELS.md): topics/<topic>/INBOX.md, or
+// the research home's (the supervisor's) when topic is empty. It creates the
+// file when absent, and writes nothing when the inbox or its drained history
+// already holds marker, which the body must name; wrote is false then. A body
+// line that would start an entry is escaped, so the operator's words never
+// split the file.
+func (w *Writer) AppendInbox(topic, marker string, at time.Time, from, kind, body string) (path string, wrote bool, err error) {
+	path, text, err := w.RenderInbox(topic, marker, at, from, kind, body)
+	if err != nil {
+		return "", false, err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := w.held(); err != nil {
+		return "", false, err
+	}
+	for _, file := range []string{path, filepath.Join(filepath.Dir(path), "history", home.InboxFile)} {
+		existing, err := os.ReadFile(file)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return "", false, fmt.Errorf("read %s: %w", file, err)
+		}
+		if bytes.Contains(existing, []byte(marker)) {
+			return path, false, nil
+		}
+	}
+	existing, _ := os.ReadFile(path)
+	prefix := separator(existing)
+	if len(existing) == 0 {
+		prefix = "# Inbox — " + filepath.Base(filepath.Dir(path)) + "\n\n"
+	}
+	return path, true, appendBytes(path, prefix+text)
+}
+
+// RenderInbox returns the inbox AppendInbox writes to and the entry it
+// appends; it writes nothing and needs no writer role.
+func (w *Writer) RenderInbox(topic, marker string, at time.Time, from, kind, body string) (path, text string, err error) {
+	body = w.FitEntry(body)
+	if marker == "" || !strings.Contains(body, marker) {
+		return "", "", fmt.Errorf("%w: an inbox entry names its marker %q, which keeps it from being written twice", home.ErrInvalid, marker)
+	}
+	dir := w.researchDir
+	if topic != "" {
+		if dir, err = w.folder("topics", topic); err != nil {
+			return "", "", err
+		}
+	}
+	lines := strings.Split(strings.TrimSpace(strings.ReplaceAll(body, "\r\n", "\n")), "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "### ") {
+			lines[i] = `\` + line
+		}
+	}
+	heading := "### " + at.UTC().Format(home.EntryTimeLayout) + " · from " + from + " · " + kind
+	return filepath.Join(dir, home.InboxFile), heading + "\n" + strings.Join(lines, "\n") + "\n", nil
+}
+
 // AppendVerdict appends one verdict to reviews/<id>/VERDICTS.md.
 func (w *Writer) AppendVerdict(reviewID string, e home.Entry) (string, error) {
 	path, title, err := w.verdictFile(reviewID, e)
@@ -205,9 +346,8 @@ func (w *Writer) verdictFile(reviewID string, e home.Entry) (path, title string,
 	return filepath.Join(dir, home.VerdictsFile), "# Verdicts — " + reviewID, nil
 }
 
-// RenderSteering returns the charter path and the exact text EnableSteering
-// would append to it; the text is empty when the charter already carries the
-// Steering sentence.
+// RenderSteering returns the missing operator and steward guidance for an
+// older charter; it changes nothing when both authority clauses are present.
 func (w *Writer) RenderSteering(commissionID string) (path, text string, err error) {
 	dir, err := w.folder("cohorts", commissionID)
 	if err != nil {
@@ -218,10 +358,17 @@ func (w *Writer) RenderSteering(commissionID string) (path, text string, err err
 	if err != nil {
 		return path, "", fmt.Errorf("read the charter %s: %w", path, err)
 	}
-	if bytes.Contains(data, []byte(home.SteeringSentence)) {
+	var additions strings.Builder
+	if !bytes.Contains(data, []byte(home.SteeringSentence)) {
+		additions.WriteString("## Steering\n\n" + home.SteeringSentence + "\n")
+	}
+	if !bytes.Contains(data, []byte(home.StewardSentence)) {
+		additions.WriteString(home.StewardSentence + "\n")
+	}
+	if additions.Len() == 0 {
 		return path, "", nil
 	}
-	return path, separator(data) + "## Steering\n\n" + home.SteeringSentence + "\n", nil
+	return path, separator(data) + additions.String(), nil
 }
 
 // EnableSteering appends the Steering section to an older charter that does
@@ -256,6 +403,57 @@ func (w *Writer) WriteLaunch(commissionID string, record *home.LaunchRecord) (st
 		return path, err
 	}
 	return path, writeJSON(path, record)
+}
+
+// WriteHistoricalSettlement creates one immutable, evidence-backed historical
+// disposition. It never edits LAUNCH.json or changes the observed worker state.
+func (w *Writer) RenderHistoricalSettlement(record *home.HistoricalSettlement) (string, string, error) {
+	path, err := w.validateHistoricalSettlement(record)
+	if err != nil {
+		return path, "", err
+	}
+	data, err := json.MarshalIndent(record, "", "  ")
+	return path, string(data) + "\n", err
+}
+
+func (w *Writer) validateHistoricalSettlement(record *home.HistoricalSettlement) (string, error) {
+	if record == nil || record.Schema != home.SettlementSchema || record.CommissionID == "" || !home.HistoricalStatus(record.Status).Valid() || record.AsOf.IsZero() || record.RecordedAt.IsZero() || record.RecordedBy == "" || strings.TrimSpace(record.Reason) == "" || len(record.Evidence) == 0 {
+		return "", fmt.Errorf("%w: settlement needs a valid status, times, reason and evidence", home.ErrInvalid)
+	}
+	if (record.ActivityStart == nil) != (record.ActivityEnd == nil) || (record.ActivityStart != nil && record.ActivityEnd.Before(*record.ActivityStart)) || (record.Status != string(home.HistoricalPrepared) && record.ActivityStart == nil) {
+		return "", fmt.Errorf("%w: completed dispositions need a complete, ordered activity interval", home.ErrInvalid)
+	}
+	dir, err := w.folder("cohorts", record.CommissionID)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, home.SettlementFile)
+	if err := home.ValidateHistoricalEvidence(w.researchDir, record); err != nil {
+		return path, err
+	}
+	return path, nil
+}
+
+// WriteHistoricalSettlement creates an immutable historical disposition.
+func (w *Writer) WriteHistoricalSettlement(record *home.HistoricalSettlement) (string, error) {
+	path, err := w.validateHistoricalSettlement(record)
+	if err != nil {
+		return path, err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := w.held(); err != nil {
+		return path, err
+	}
+	if _, err := os.Lstat(path); err == nil {
+		return path, fmt.Errorf("%w: %s already has an immutable historical settlement", home.ErrRefused, record.CommissionID)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return path, err
+	}
+	if err := writeJSON(path, record); err != nil {
+		return path, err
+	}
+	return path, nil
 }
 
 // WriteState replaces one JSON file in the desk state folder atomically.

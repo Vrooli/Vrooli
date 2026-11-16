@@ -93,7 +93,7 @@ func TestTheScenarioOwnedSkillsRenderRouteDiscipline(t *testing.T) {
 	for _, line := range []string{
 		"## Route discipline",
 		"`Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`",
-		"Write each decision as a needs-you item in `STATE.md`",
+		"Write each decision as a needs-you item in its topic's `DECISIONS.md`",
 	} {
 		if !strings.Contains(result.Texts.Charter, line) {
 			t.Errorf("the charter lacks %q", line)

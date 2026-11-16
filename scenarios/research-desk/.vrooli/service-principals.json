@@ -1,0 +1,22 @@
+{
+  "principals": [
+    {
+      "name": "research-desk",
+      "resource": "web-console",
+      "audience": "scenario-authenticator:web-console",
+      "scopes": ["web-console:read", "web-console:write"]
+    },
+    {
+      "name": "research-desk-ask-reader",
+      "resource": "notification-hub-ask-reader",
+      "audience": "scenario-authenticator:notification-hub-ask-reader",
+      "scopes": ["notification-hub:ask-read"]
+    },
+    {
+      "name": "research-desk-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    }
+  ]
+}

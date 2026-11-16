@@ -93,14 +93,26 @@ approval route: the `research-management` policy and the canonical evaluator, wi
 coverage for every superseded commission. Other operator actions stay operator-only. Switch:
 low; `wire.ResearchOperation`.
 
-**The courier publishes events and reads the Hub back; off until chosen.** Alternatives: the
-supervisor delivers (fragile), Agent Manager decisions, the Hub's `Ask` directly (the Hub
-refused the desk), an owner-scoped Hub grant (it would make the desk the recipient). Events
-are the route every scenario decision takes; the Hub shows the desk its own asks to the desk's ask-reader service identity only (`askreader` in api-core). Cost: the
-desk's own withdrawals and updates depend on the Hub's subject-key support; an ask the desk
-cannot read back stays open until its deadline. Off for commissions the desk did not
-launch, because older files hold items that must never page the operator. Switch: low;
-`internal/courier/hub.go`.
+**The courier sends every decision as an event that carries its page; off until chosen.**
+Alternatives: the supervisor delivers (fragile), Agent Manager decisions, the desk's own
+verified Hub sender (the route before 2026-11-15: a second credential, two routes while it was
+not issued, and an authenticator outage stopped all sending), an owner-scoped Hub grant (it
+would make the desk the recipient). Notification Hub now stores an event's inline page as the
+ask's explainer (`operatordecision.Facts.Explainer`), the route every scenario producer uses;
+the page is bounded by one event (720 KiB as JSON) instead of 2 MiB, and the Hub attributes
+the event by its source as it does for every producer. Every decision carries a page: the
+item's own, or a summary built from the item. Off for commissions the desk did not launch,
+because older files hold items that must never page the operator. Switch: low;
+`internal/courier/hub.go`, `pages.go`.
+
+**A decision belongs to its level, and every answer lands in that level's inbox.**
+Alternatives: keep items with the commission and relay late answers to a live successor (the
+2026-11-14 fix; it stranded three answers once the successors ended too), or copy items up into
+`ATTENTION.md` (a second source). A topic's `DECISIONS.md` and the supervisor's `ATTENTION.md`
+outlive every commission, and the level's `INBOX.md` is the channel its next agent drains, so no
+successor logic and no copies (`docs/agent-system/LEVELS.md`). The supervisor's decisions are
+on by default, because the courier is the one route. Switch: medium; `internal/home/levels.go`,
+`internal/courier/afterlife.go`.
 
 **One first-sightings record for the courier.** Alternative: a per-switch item list plus
 separate first-seen and first-held files (three records of one fact). Present-before-switch,
@@ -122,7 +134,8 @@ is recorded with what was searched. Switch: low; `home.neverStarted`.
 one function the dry run and the append share, and every state a client branches on has a
 code. Alternative: the UI rebuilds the grammar and reads prose (it drifted once). Switch: low.
 
-Replaced: sending decisions through the Hub's `Ask` → "The courier publishes events";
-speaking with the operator's local session → "Automatic launch through whichever Web Console
-access exists" and "The courier publishes events"; refusing every agent at Launch and Control
+Replaced: sending decisions through the Hub's `Ask` → "The courier publishes events" → the
+desk's own verified sender → "The courier sends every decision as an event that carries its
+page"; speaking with the operator's local session → "Automatic launch through whichever Web
+Console access exists"; refusing every agent at Launch and Control
 → "Launch and Control for agents through shared operation grants".

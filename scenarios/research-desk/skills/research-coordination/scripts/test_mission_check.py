@@ -114,6 +114,23 @@ class MissionCheckTest(unittest.TestCase):
         self.assertTrue(any("at least three" in e for e in rep.errors), rep.errors)
         self.assertIn("| 1 | 0 | 2 | 0 |", mc.render_markdown([rep]))
 
+    def test_later_lines_keep_unbriefed_work_in_order_without_looking_staffed(self):
+        text = mission().replace("## Approval flow", "## Later\n\n- **A5** — Every shell ported · 80–160 h\n"
+                                 "- **A6** — Release gate on every app · 40–60 h\n\n## Approval flow", 1)
+        self.topic("later", text)
+        rep = self.report("later")
+        self.assertEqual(rep.errors, [])
+        self.assertEqual([(w.ident, w.hours_low) for w in rep.later], [("A5", 80), ("A6", 40)])
+        self.assertEqual(rep.as_dict()["workstreams"]["later"], 2)
+        self.assertEqual(rep.open_hours(), 40 + 30 + 25 + 80 + 40)  # Later work is open work
+        self.assertNotIn("A5", [w.ident for w in rep.workstreams])  # never a staffable row
+        bad = text.replace("- **A6** — Release gate on every app · 40–60 h", "- A6: release gate, someday")
+        bad = bad.replace("- **A5**", "- **A1**")
+        self.topic("bad", bad)
+        errors = self.report("bad").errors
+        self.assertTrue(any("Later line is not" in e for e in errors), errors)
+        self.assertTrue(any("A1: both a table row and a Later line" in e for e in errors), errors)
+
     def test_valid_mission_passes_and_counts_portfolio(self):
         self.topic("good", mission())
         rep = self.report("good")
@@ -146,6 +163,15 @@ class MissionCheckTest(unittest.TestCase):
         rows = [WORKSTREAM.format(id="A1", hours="40", status="open"), WORKSTREAM.format(id="A2", hours="40", status="landed")]
         self.topic("thin", mission(rows=rows))
         self.assertTrue(any("at least three" in e for e in self.report("thin").errors))
+
+    def test_retired_topic_is_reported_not_failed(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="landed")]
+        text = mission(rows=rows).replace("Mode: build", "Mode: build\nRetired: 2026-11-15 — every workstream landed", 1)
+        self.topic("done", text)
+        rep = self.report("done")
+        self.assertEqual((rep.errors, rep.retired), ([], "2026-11-15 — every workstream landed"))
+        self.assertIn("| retired |", mc.render_markdown([rep]))
+        self.assertEqual(rep.as_dict()["retired"], "2026-11-15 — every workstream landed")
 
     def test_task_sized_row_warns_and_missing_hours_fails(self):
         rows = [
@@ -207,6 +233,34 @@ class MissionCheckTest(unittest.TestCase):
             self.run_check("--write-readme")
         self.assertEqual((self.home / "README.md").read_text(), "no markers\n")
 
+
+
+class VerdictProvenanceTest(unittest.TestCase):
+    def test_pasted_stance_unsourced_and_corrected_verdicts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            reviews = home / "reviews"
+            stance = "Note how the agent spent most of its time trying to progress our work directly."
+            for rid, topic in (("r1", "alpha"), ("r2", "beta")):
+                (reviews / rid).mkdir(parents=True)
+                (reviews / rid / "VERDICTS.md").write_text(
+                    f"# Verdicts\n\n### 2026-11-14T05:09:15Z · verdict {topic} · via hand\n{stance}\n")
+            (reviews / "r3").mkdir()
+            (reviews / "r3" / "VERDICTS.md").write_text(
+                "# Verdicts\n\n### 2026-11-12T16:20:00Z · verdict gamma, delta · via hand\nOne joint verdict.\n\n"
+                "### 2026-11-16T09:00:00Z · verdict gamma · via hand\nKeep going.\n")
+            reps = [mc.TopicReport(t) for t in ("alpha", "beta", "gamma", "delta")]
+            mc.check_verdicts(home, reps)
+            warn = {r.topic: r.warnings for r in reps}
+            self.assertIn("separate topic verdicts", " ".join(warn["alpha"]))  # one stance filed per topic
+            self.assertIn("separate topic verdicts", " ".join(warn["beta"]))
+            self.assertEqual(warn["delta"], [])                                # a joint verdict is the operator's choice
+            self.assertIn("no Source: line", " ".join(warn["gamma"]))         # new and unsourced
+            with (reviews / "r2" / "VERDICTS.md").open("a") as f:
+                f.write("\n### 2026-11-15T08:20:00Z · provenance correction · via audit (not an operator verdict)\nA delegate.\n")
+            reps = [mc.TopicReport(t) for t in ("alpha", "beta")]
+            mc.check_verdicts(home, reps)
+            self.assertEqual([r.warnings for r in reps], [[], []])            # the correction voids it; alpha stands alone
 
 if __name__ == "__main__":
     unittest.main()

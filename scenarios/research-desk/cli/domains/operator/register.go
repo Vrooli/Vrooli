@@ -19,15 +19,17 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.CommandGroup, e
 	h := &handlers{client: operatorconnect.NewOperatorServiceClient(httpClient, baseURL)}
 	service := operatorconnect.OperatorServiceName + "."
 	bindings := map[string]cliapp.PrimitiveHandler{
-		service + "ListNeedsYou":   cliapp.ProtoList(h.needsYouCall, needsYouReport),
-		service + "Answer":         cliapp.ProtoList(h.answerCall, answerReport),
-		service + "AddEntry":       cliapp.ProtoList(h.sayCall, entryReport),
-		service + "EnableSteering": cliapp.ProtoList(h.steeringCall, steeringReport),
-		service + "ListReviews":    cliapp.ProtoList(h.reviewsCall, reviewsReport),
-		service + "AddVerdict":     cliapp.ProtoList(h.verdictCall, verdictReport),
-		service + "SetCourier":     cliapp.ProtoList(h.courierCall, courierReport),
-		service + "TestCourier":    cliapp.ProtoList(h.courierTestCall, courierTestReport),
-		service + "MarkSeen":       cliapp.ProtoList(h.markSeenCall, markSeenReport),
+		service + "ListNeedsYou":      cliapp.ProtoList(h.needsYouCall, needsYouReport),
+		service + "Answer":            cliapp.ProtoList(h.answerCall, answerReport),
+		service + "AddEntry":          cliapp.ProtoList(h.sayCall, entryReport),
+		service + "AddStewardFinding": cliapp.ProtoList(h.feedbackCall, feedbackReport),
+		service + "SettleHistoricalState": cliapp.ProtoList(h.settleHistoricalCall, historicalSettlementReport),
+		service + "EnableSteering":    cliapp.ProtoList(h.steeringCall, steeringReport),
+		service + "ListReviews":       cliapp.ProtoList(h.reviewsCall, reviewsReport),
+		service + "AddVerdict":        cliapp.ProtoList(h.verdictCall, verdictReport),
+		service + "SetCourier":        cliapp.ProtoList(h.courierCall, courierReport),
+		service + "TestCourier":       cliapp.ProtoList(h.courierTestCall, courierTestReport),
+		service + "MarkSeen":          cliapp.ProtoList(h.markSeenCall, markSeenReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

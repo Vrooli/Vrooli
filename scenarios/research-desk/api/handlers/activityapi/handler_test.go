@@ -2,6 +2,7 @@ package activityapi
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"os"
@@ -133,7 +134,7 @@ func TestOverviewShowsTheDesksRoutes(t *testing.T) {
 // may assert it never started; every commission says when an entry is read;
 // topics carry their last research write apart from mission edits.
 func TestTheWireCarriesAssertionReadingAndResearchWrites(t *testing.T) {
-	h, research, _ := newHandler(t)
+	h, research, clock := newHandler(t)
 	ctx := context.Background()
 	// STATE.md rewritten after the build: unknown, with nothing found for it.
 	state := filepath.Join(research, "cohorts", commission, home.StateFile)
@@ -161,6 +162,9 @@ func TestTheWireCarriesAssertionReadingAndResearchWrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if observed := topics.Msg.GetObservedAt(); observed == nil || !observed.AsTime().Equal(clock.Now()) {
+		t.Errorf("topic list carries the time its snapshot was read: got %v, want %s", observed, clock.Now())
+	}
 	first := topics.Msg.Topics[0]
 	if w := first.LastResearchWrite; !w.GetAt().GetEvidence().GetKnown() || !strings.Contains(w.GetAt().GetEvidence().GetSource(), "/runs/") || w.GetTopic() != first.Topic {
 		t.Errorf("the first topic's last research write is in a run folder: %+v", w)
@@ -171,5 +175,89 @@ func TestTheWireCarriesAssertionReadingAndResearchWrites(t *testing.T) {
 	}
 	if overview.Msg.LatestResearchWrite.GetTopic() != first.Topic {
 		t.Errorf("the overview's latest research write is the first topic's: %+v", overview.Msg.LatestResearchWrite)
+	}
+}
+
+func TestHistoricalSettlementDoesNotChangeObservedUnknownState(t *testing.T) {
+	h, research, _ := newHandler(t)
+	statePath := filepath.Join(research, "cohorts", commission, home.StateFile)
+	later := testutil.Base.Add(time.Hour)
+	if err := os.Chtimes(statePath, later, later); err != nil {
+		t.Fatal(err)
+	}
+	activityStart, activityEnd := testutil.Base.Add(-2*time.Hour), testutil.Base.Add(-time.Hour)
+	record := home.HistoricalSettlement{
+		Schema: home.SettlementSchema, CommissionID: commission, Status: string(home.HistoricalClosed),
+		AsOf: testutil.Base.Add(-time.Minute), ActivityStart: &activityStart, ActivityEnd: &activityEnd, RecordedAt: testutil.Base, RecordedBy: "run-42",
+		Reason: "The closeout records the historical disposition.", Evidence: []string{"cohorts/" + commission + "/README.md"},
+	}
+	data, err := json.Marshal(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(research, "cohorts", commission, home.SettlementFile)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.ListCommissions(context.Background(), connect.NewRequest(&activityv1.ListCommissionsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, got := range resp.Msg.Commissions {
+		if got.Id != commission {
+			continue
+		}
+		if got.State != activityv1.CommissionState_COMMISSION_STATE_UNKNOWN {
+			t.Fatalf("historical disposition changed current observed state to %s", got.State)
+		}
+		if s := got.HistoricalSettlement; s == nil || s.Status != string(home.HistoricalClosed) || len(s.EvidencePaths) != 1 || s.RecordedBy != "run-42" {
+			t.Fatalf("historical disposition and citation are surfaced separately: %+v", s)
+		}
+		return
+	}
+	t.Fatalf("commission %s missing from list", commission)
+}
+
+// Topics carry their research skills and programs by prefix id, and the
+// list carries the research home's own, each with what stops it resolving.
+func TestListTopicsCarriesResearchSkillsAndPrograms(t *testing.T) {
+	h, research, _ := newHandler(t)
+	for rel, content := range map[string]string{
+		"topics/local-model-performance/skills/present/SKILL.md": "---\nname: present\ndescription: Present.\n---\n",
+		"topics/local-model-performance/programs/pulse.json":     `{"name":"research/pulse"}`,
+		"topics/local-model-performance/programs/pulse.py":       "program.report()\n",
+		"skills/research-review/SKILL.md":                        "---\nname: research-review\ndescription: Review.\n---\n",
+	} {
+		path := filepath.Join(research, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	topics, err := h.ListTopics(context.Background(), connect.NewRequest(&activityv1.ListTopicsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var files *activityv1.TopicWorkspaceFiles
+	for _, topic := range topics.Msg.Topics {
+		if topic.Topic == "local-model-performance" {
+			files = topic.WorkspaceFiles
+		}
+	}
+	if !files.GetCapabilitiesEvidence().GetKnown() || len(files.GetCapabilities()) != 2 {
+		t.Fatalf("topic capabilities = %+v", files.GetCapabilities())
+	}
+	skill, program := files.Capabilities[0], files.Capabilities[1]
+	if skill.Id != "research/local-model-performance/present" || skill.Kind != activityv1.CapabilityKind_CAPABILITY_KIND_SKILL || len(skill.Problems) != 0 || !strings.HasSuffix(skill.Path, "SKILL.md") {
+		t.Errorf("skill = %+v", skill)
+	}
+	if program.Id != "research/local-model-performance/pulse" || program.Kind != activityv1.CapabilityKind_CAPABILITY_KIND_PROGRAM || len(program.Problems) != 1 || !strings.Contains(program.Problems[0], "research/pulse") {
+		t.Errorf("a contract named for another scope is a problem: %+v", program)
+	}
+	supervisor := topics.Msg.HomeCapabilities
+	if !topics.Msg.GetHomeCapabilitiesEvidence().GetKnown() || len(supervisor) != 1 || supervisor[0].Id != "research/research-review" {
+		t.Errorf("home capabilities = %+v", supervisor)
 	}
 }

@@ -22,10 +22,13 @@ from test_mission_check import WORKSTREAM, mission  # noqa: E402
 CONTRACT_LINES = (
     "State: see STATE.md beside this file.",
     "Read entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at every unit start; they are the operator's words and win over this charter",
-    "Write each decision as a needs-you item in `STATE.md` (grammar in the research-coordination skill); research-desk delivers it, or you do by the fallback below. This overrides research-coordination step 9 and LONG_EFFORT_DESIGN D17 on delivery.",
+    "Read entries in `STEWARD.md` beside this file at every unit start.",
+    "`OPERATOR.md` entries override everything; `STEWARD.md` entries guide the work when they do not conflict with operator entries; where neither file decides, use supervisor judgment.",
+    "`Steward · <date> · <attribution>`",
+    "Write each decision as a needs-you item in its topic's `DECISIONS.md` (grammar in the research-coordination skill); research-desk delivers it, or you do by the fallback below.",
+    "`Commission: programme-five-20261112`",
     "### <UTC> · delivered <ID> · via desk",
     "`Delivered: <route> <UTC>`",
-    "`Commission: programme-five-20261112`",
     "`Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`",
 )
 
@@ -140,7 +143,12 @@ class PacketTest(unittest.TestCase):
         charter = res["texts"]["charter"]
         alpha_card, beta_card = charter.split("### Card 1", 1)[1].split("### Card 2", 1)
         beta_card = beta_card.split("## Scheduler procedure", 1)[0]
-        self.assertIn("- **Also open** (taken when the card's workstreams land or wait): **A2** (30–60 h), **A4** (25 h)", alpha_card)
+        self.assertIn("- **Also open** (taken when the card's workstreams land or wait): A2, A4", alpha_card)
+        self.assertNotIn("Waits on the operator", alpha_card)  # nothing waits: no line
+        alpha = self.home / "topics" / "alpha" / "MISSION.md"
+        alpha.write_text(alpha.read_text().replace("## Approval flow", "## Later\n\n- **A9** — More · 40–80 h\n\n## Approval flow", 1))
+        _, res = self.preview(order={"alpha": ["A1"]})
+        self.assertIn("wait): A2, A4; then the mission's Later list: A9", res["texts"]["charter"])
         self.assertNotIn("Also open", beta_card)  # B5, B2, B4 are every live row
         self.assertIn("- **Waits on the operator:** B3 (waiting-operator); the rest is in the mission's Approval flow.", beta_card)
         self.assertIn("- **Return:** the mission's \"Return in this window\".", alpha_card)
@@ -258,6 +266,27 @@ class PacketTest(unittest.TestCase):
             self.assertEqual(code, 2, over)
         self.assertEqual(list((self.home / "cohorts").iterdir()), [])
 
+    def test_a_long_stance_keeps_the_leading_quotes_and_points_to_the_charter(self):
+        quotes = ["First words. " * 120, "Second words. " * 100, "Third words. " * 100]
+        code, res = self.preview(stance_quotes=quotes)
+        self.assertEqual(code, 0, res["errors"])
+        stance, charter = res["texts"]["stance"], res["texts"]["charter"]
+        self.assertLessEqual(len(stance), 3500)
+        self.assertIn(quotes[0].strip(), stance)
+        self.assertNotIn("Third words.", stance)
+        self.assertRegex(stance, r"\(\d more of my quotes, verbatim, are in the charter under Operator stance")
+        for q in quotes:
+            self.assertIn(q.strip(), charter)
+
+    def test_a_charter_over_its_gate_carries_fewer_unordered_workstreams_per_card(self):
+        long_row = "| {id} | Land it | Dim A | 40 h | " + "A long showcase sentence. " * 80 + " | open |"
+        for name, prefix in (("gamma", "G"), ("delta", "D")):
+            self.topic(name, mission(rows=[long_row.format(id=f"{prefix}{i}") for i in range(1, 5)]))
+        code, res = self.preview(topics=["gamma", "delta"])
+        self.assertEqual(code, 0, res["errors"])
+        self.assertLessEqual(len(res["texts"]["charter"].encode()), 25000)
+        self.assertTrue(all(1 < len(c["order"]) < 4 for c in res["cards"]), [c["order"] for c in res["cards"]])
+
     def test_a_failed_gate_exits_1_writes_nothing_and_says_what_to_cut(self):
         code, res = self.build(stance_quotes=["word " * 800])
         self.assertEqual(code, 1)
@@ -277,6 +306,28 @@ class PacketTest(unittest.TestCase):
         code, res = self.preview(topics=["thin"])
         self.assertEqual(code, 2)
         self.assertTrue(any(e["code"] == "mission_error" for e in res["errors"]))
+
+    def test_the_topic_plan_orders_the_card_and_names_each_brief(self):
+        work = self.home / "topics" / "alpha" / "work"
+        (work / "A1-api").mkdir(parents=True)
+        (work / "A1-api" / "BRIEF.md").write_text("brief")
+        (work / "README.md").write_text("# Plan\n\n| Brief | Workstream | State | Note |\n|---|---|---|---|\n"
+                                        "| `A3-old` | A3 | landed | |\n| `A4-next` | A4 | planned | |\n"
+                                        "| [A1-api](A1-api/BRIEF.md) | A1 | ready | mentions A2 |\n\n## Risks\n\n| A2 risk | | | | | |\n")
+        code, res = self.preview()
+        self.assertEqual(code, 0, res["errors"])
+        alpha, beta = res["cards"]
+        self.assertEqual((alpha["order"], alpha["order_source"]), (["A4", "A1"], "plan"))  # landed and note-only rows skipped
+        self.assertEqual(beta["order_source"], "mission")
+        charter = res["texts"]["charter"]
+        self.assertIn(packet.PLAN_LABEL, charter)
+        self.assertIn("Brief: `work/A1-api/BRIEF.md`.", charter)  # relative to the card's Folder
+
+    def test_a_retired_topic_is_refused(self):
+        self.topic("done", mission().replace("Mode: build", "Mode: build\nRetired: 2026-11-15 — landed", 1))
+        code, res = self.preview(topics=["done"])
+        self.assertEqual(code, 2)
+        self.assertIn("done: retired 2026-11-15 — landed; reopen it before commissioning", [e["message"] for e in res["errors"]])
 
     def test_unknown_or_unfilled_placeholders_are_errors(self):
         with self.assertRaises(packet.Fail) as ctx:
@@ -344,15 +395,31 @@ class NeedsYouGrammarTest(unittest.TestCase):
         copies = {
             "operator-attention.md": (packet.SKILL / "references/operator-attention.md").read_text(encoding="utf-8"),
             "charter.md": (packet.TEMPLATES / "charter.md").read_text(encoding="utf-8"),
-            "FILE-CONTRACT.md §5": contract[contract.index("## 5. Needs-you grammar"):],
+            "FILE-CONTRACT.md §5": contract[contract.index("## 5. Decisions"):],
         }
         for name, text in copies.items():
-            for needle in ("[A-Z0-9][A-Z0-9_-]{0,127}", "[a-z0-9-]{1,32}", "No actionable items are recorded."):
+            for needle in ("[A-Z0-9][A-Z0-9_-]{0,127}", "[a-z0-9-]{1,32}"):
                 self.assertIn(needle, text, name)
             self.assertRegex(text, r"(?m)^### [A-Z0-9][A-Z0-9_-]{0,127} — \S", name)
             for line in ("Recommended", "Options", "Packet", "Secret", "Commission", "Delivered"):
                 self.assertRegex(text, rf"(?m)(^|`){line}: \S", f"{name} lacks {line}:")
 
+
+
+class ReviewBriefsTest(unittest.TestCase):
+    def test_review_briefs_are_verbatim_copies_of_long_effort_design(self):
+        doc = (packet.REPO / "docs/agent-system/LONG_EFFORT_DESIGN.md").read_text(encoding="utf-8")
+        section = doc[doc.index("### 2a."):doc.index("## 3.")]
+        blocks = re.findall(r"```text\n(.*?)\n```", section, re.S)
+        copy = packet.PATHS["review_briefs"].read_text(encoding="utf-8")
+        self.assertEqual(len(blocks), 3)
+        self.assertEqual(re.findall(r"```text\n(.*?)\n```", copy, re.S), blocks)
+
+    def test_owners_follow_listed_workstreams_up_to_the_cap(self):
+        self.assertEqual(packet.owner_split([2]), [2])          # one topic, two whole workstreams: two owners
+        self.assertEqual(packet.owner_split([4, 1]), [4, 1])
+        self.assertEqual(packet.owner_split([4, 4]), [3, 2])    # capped at OWNERS_MAX
+        self.assertEqual(packet.owner_split([0, 0, 0, 0, 0, 0]), [1] * 6)  # never fewer than one per card
 
 if __name__ == "__main__":
     unittest.main()

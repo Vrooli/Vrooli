@@ -20,35 +20,49 @@
     "owner_model_tier": "inherit"
   },
   "models": {
-    "supervisor_model": ["gpt-6-luna", "gpt-6-astra", "gpt-6-sol"],
-    "supervisor_effort": ["low", "medium", "high", "xhigh"],
-    "owner_model_tier": ["inherit", "gpt-6-luna", "gpt-6-astra", "gpt-6-sol"]
+    "supervisor_model": [
+      "gpt-6-luna",
+      "gpt-6-astra",
+      "gpt-6-sol"
+    ],
+    "supervisor_effort": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "owner_model_tier": [
+      "inherit",
+      "gpt-6-luna",
+      "gpt-6-astra",
+      "gpt-6-sol"
+    ]
   },
   "ceilings": {
-    "scheduler_start_bytes": 63816,
-    "scheduler_unit_bytes": 42677,
-    "owner_start_bytes": 21517,
+    "scheduler_start_bytes": 23600,
+    "scheduler_unit_bytes": 21200,
+    "owner_start_bytes": 8591,
     "mission_bytes": 40000,
     "skill_bytes": {
-      "research-coordination/SKILL.md": 30027,
-      "research-coordination/references/operator-attention.md": 28043,
-      "research-coordination/references/cohort-lifecycle.md": 7667,
-      "research-coordination/references/direction.md": 22712,
-      "research-coordination/references/mission.md": 18566,
-      "research-coordination/references/observations.md": 8060,
-      "adaptive-research/SKILL.md": 17937,
-      "local-experimentation/SKILL.md": 12961,
-      "local-experimentation/references/adaptive.md": 22608,
-      "local-experimentation/references/record.md": 8771
+      "research-coordination/SKILL.md": 10780,
+      "research-coordination/references/mission.md": 7475,
+      "research-coordination/references/operator-attention.md": 5921,
+      "research-coordination/references/supervision.md": 5419,
+      "research-coordination/references/topic-folder.md": 6244,
+      "research-coordination/templates/charter.md": 12514,
+      "research-coordination/templates/owner-brief.md": 2456,
+      "adaptive-research/SKILL.md": 6098,
+      "local-experimentation/SKILL.md": 5163,
+      "local-experimentation/references/trials.md": 2447,
+      "research-review/SKILL.md": 7731
     }
   },
   "read_sets": {
-    "note": "What each role is told to read, measured 2026-11-11T22:35:53Z on cohorts/programme-three-20261111 before any skill text changed. MISSION.md and CHECKPOINT.md are excluded: the desk and the templates do not author them. Paths in skills are relative to scenarios/research-desk/skills/; long_effort is docs/agent-system/LONG_EFFORT_DESIGN.md from '## 2. Design rules' up to '## 4. Codex'. scheduler_start is what a scheduler reads under the current templates: owner-brief.md, not operator-attention.md (a templates/ charter hands delivery to the desk and opens operator-attention.md only for its fallback). Its ceiling was lowered on 2026-11-12 from 88485 (the older charter with operator-attention.md) to 63816, this list measured on programme-three-20261111 that day: charter 36030, STATE.md 6549, OPERATOR.md 0, long_effort_s2_s3 17945, owner-brief.md 3292.",
+    "note": "What each role is told to read. 2026-11-15 condensation (owner A, research-system-maturation): the charter no longer sends the scheduler to LONG_EFFORT_DESIGN.md at start (it carries the procedure and pastes the §2a/§2b briefs only when it starts a reviewer), so scheduler_start is charter, STATE.md, OPERATOR.md and owner-brief.md. Skill ceilings are the sizes after the condensation (research-coordination SKILL+references+charter 139,190 → ~47 KB). MISSION.md and CHECKPOINT.md are excluded: the desk and the templates do not author them. Steward-channel update (2026-11-15): 605 bytes reserved for the charter's dated, lower-priority STEWARD.md guidance; scheduler read-set ceilings include this addition. Earlier history of these ceilings: measured 2026-11-11 on programme-three-20261111 (charter 36030, STATE.md 6549, long_effort_s2_s3 17945, owner-brief.md 3292). Read-set ceilings lowered 2026-11-15 to the measured sums: scheduler_start 63,816 → 23,000, scheduler_unit 42,677 → 20,600 (measured 22,830 and 20,452; the rest absorbs the test home's temporary path length), owner_start 21,517 → 8,591.",
     "scheduler_start": [
       "charter",
       "STATE.md",
       "OPERATOR.md",
-      "long_effort_s2_s3",
       "research-coordination/templates/owner-brief.md"
     ],
     "scheduler_unit": [

@@ -66,7 +66,7 @@ func TestAnyRFC3339HeadingTimeIsAnEntry(t *testing.T) {
 	}
 }
 
-func TestRealAttentionItemsAreGlobalNotices(t *testing.T) {
+func TestRealOlderAttentionItemsAreTheSupervisorsNotices(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(testutil.NewHome(t).Research, "ATTENTION.md"))
 	if err != nil {
 		t.Fatal(err)
@@ -82,12 +82,12 @@ func TestRealAttentionItemsAreGlobalNotices(t *testing.T) {
 		if it.Recommended != nil || it.Commission != "" {
 			t.Errorf("%s: a recommendation inside a bullet is not a `Recommended:` line, and no item names a commission; got %+v", it.ID, it)
 		}
-		f := FeedItem{Item: it, CommissionID: it.Commission}
+		f := FeedItem{Item: it}
 		if d, _, _ := f.Delivery(); d != DeliverNotice {
-			t.Errorf("%s: a global item is sent as a notice at most, got %s", it.ID, d)
+			t.Errorf("%s: an item without a Recommended: line is sent as a notice at most, got %s", it.ID, d)
 		}
-		if ok, _ := f.Answerable(); ok {
-			t.Errorf("%s: no commission would read an answer to a global item", it.ID)
+		if f.Owner() != SupervisorOwner {
+			t.Errorf("%s: an item without a Commission: line is the supervisor's, got %s", it.ID, f.Owner())
 		}
 		if it.Instruction() == "" {
 			t.Errorf("%s: a global item carries what it says to do", it.ID)
@@ -148,6 +148,38 @@ func TestContractItemFields(t *testing.T) {
 	}
 	if strings.Contains(items[1].Body, "Closeout") {
 		t.Error("an item ends at the next `## ` heading")
+	}
+}
+
+// An `Explainer:` line names the page that goes with the decision. It is data for
+// the desk, not prose for the operator, and a relative path is read from the
+// folder of the file holding the item.
+func TestExplainerLineNamesThePageAndStaysOutOfTheOperatorsText(t *testing.T) {
+	text := "## Needs you\n### AV4 — Pick\nTwo options differ in cost.\nRecommended: keep — Keep it.\nOptions: keep — Keep; drop — Drop.\nExplainer: pages/av4.html\n"
+	items, _ := ParseNeedsYou(text, StateNeedsSection, "/research/cohorts/c1/STATE.md")
+	if len(items) != 1 || items[0].Explainer != "pages/av4.html" {
+		t.Fatalf("Explainer: line: %+v", items)
+	}
+	if got := items[0].Prose(); got != "Two options differ in cost." {
+		t.Errorf("the prose is what the operator reads, without the field line: %q", got)
+	}
+	if got := items[0].ExplainerPath(); got != "/research/cohorts/c1/pages/av4.html" {
+		t.Errorf("a relative page is read beside the item's file: %q", got)
+	}
+	absolute := items[0]
+	absolute.Explainer = "/pages/av4.html"
+	if absolute.ExplainerPath() != "/pages/av4.html" || (NeedsYouItem{}).ExplainerPath() != "" {
+		t.Errorf("an absolute page is used as written and no line means no page")
+	}
+}
+
+// The grammar of a recommendation that is not offered is in needs_you_cases.json;
+// here, what the courier does with one.
+func TestInvalidRecommendationFallsBackToDeliverableNotice(t *testing.T) {
+	items, _ := ParseNeedsYou("## Needs you\n### DECIDE — Choose a route\nRecommended: fast — Use the fast route.\nOptions: safe — Use the safe route; wait — Wait.\n", StateNeedsSection, "STATE.md")
+	feedItem := FeedItem{Item: items[0], CommissionID: "cohort", Commission: &Commission{Steering: Flag{Value: true}}}
+	if got, reason, _ := feedItem.Delivery(); got != DeliverNotice || reason != ReasonNoRecommendation {
+		t.Fatalf("legacy invalid recommendation delivery = %s/%s, want notice/no_recommendation", got, reason)
 	}
 }
 
@@ -423,5 +455,20 @@ func TestEachCommissionSaysWhenANewEntryIsRead(t *testing.T) {
 	}
 	if got := (&Commission{State: StateLive, Steering: steering}).EntryReading().ReadSince; got.Known {
 		t.Errorf("without STATE.md no entry has been read: %+v", got)
+	}
+}
+
+// A charter built before topic DECISIONS.md still leaves delivery to the desk.
+func TestCharterFlagsAcceptTheCurrentAndLegacyDecisionsLine(t *testing.T) {
+	dir := t.TempDir()
+	for name, line := range map[string]string{"current": DecisionsSentence, "legacy": LegacyDecisionsSentence, "none": "Write decisions somewhere."} {
+		path := filepath.Join(dir, name+".md")
+		if err := os.WriteFile(path, []byte("## Steering\n\n"+SteeringSentence+"\n\n## Decisions\n\n"+line+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		steering, decisions := readCharterFlags(path)
+		if !steering.Value || decisions.Value != (name != "none") {
+			t.Errorf("%s: steering %v, decisions %v", name, steering.Value, decisions.Value)
+		}
 	}
 }

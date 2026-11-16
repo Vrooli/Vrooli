@@ -1,25 +1,29 @@
 // Package courier carries needs-you items to Notification Hub and answers
 // back into OPERATOR.md (SYSTEM.md §7). One pass every minute in the instance
 // holding the write lock; no watcher, no pending store: every pass re-reads
-// the files and the Hub. Items go out as decision and notification events
-// through Vrooli Events; an unchanged item is the same event, so a repeated
-// send is harmless. An item's ask carries a Hub subject key, so the Hub keeps
-// one open decision per item: the courier updates it when the item changes and
-// withdraws it when the item is answered in the desk or leaves the files.
+// the files and the Hub. Decisions and notices go out as events through Vrooli
+// Events; a decision carries its page inline (pages.go). An unchanged item is the
+// same request, so a repeated send is harmless. An item's ask carries a Hub
+// subject key, so the Hub keeps one open decision per item: the courier updates
+// it when the item changes and withdraws it when the item is answered in the
+// desk or leaves the files.
 package courier
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
 	"maps"
-	"slices"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/schedule"
 
 	"research-desk/internal/home"
@@ -51,18 +55,10 @@ const SwitchFile = "courier.json"
 // Deleting the file starts a new record.
 const SightingsFile = "first-sightings.json"
 
-// Files of the earlier form, read once to build SightingsFile and then
-// removed: first sightings, first holds for a scheduler, and each switch's
-// list of the items present when it was turned on.
-const (
-	oldSightingsFile = "courier-seen.json"
-	oldHoldsFile     = "courier-wait.json"
-)
-
 // SchedulerGrace is how long the courier leaves an item to a scheduler that
-// delivers by itself: a commission whose charter lacks the Decisions sentence,
-// and every global item. Such a scheduler adds `Delivered:` when it delivers;
-// the courier sends only what is still undelivered after the grace.
+// delivers by itself: a commission whose charter lacks the Decisions sentence.
+// Such a scheduler adds `Delivered:` when it delivers; the courier sends only
+// what is still undelivered after the grace.
 const SchedulerGrace = 2 * time.Hour
 
 // Switch is one courier switch. Turning it on records a first sighting of
@@ -79,9 +75,6 @@ type Sightings struct {
 	// found is false before the record began; the first record marks every
 	// item present as already there.
 	found bool
-	// fromOldFiles is true when the record was built from the earlier files,
-	// which are replaced on the next write.
-	fromOldFiles bool
 }
 
 // at is when an item was first sighted; ok is false before its first sighting.
@@ -108,7 +101,8 @@ func (s Sightings) graceEnd(f *home.FeedItem, now time.Time) time.Time {
 
 // Switches are the operator's courier choices. A commission without an entry
 // is on only when the desk launched it (every item it has appeared after the
-// launch); the global ATTENTION.md switch is off until turned on.
+// launch). A level's decisions are on: the courier is their route. The global
+// switch lets the operator turn the supervisor's (ATTENTION.md) off.
 type Switches struct {
 	Global      Switch            `json:"global"`
 	Commissions map[string]Switch `json:"commissions"`
@@ -117,20 +111,44 @@ type Switches struct {
 // For says whether the courier carries an item, and why; present is true
 // when the item was there before its switch was turned on.
 func (s Switches) For(f *home.FeedItem, sightings Sightings) (on, present bool, why string) {
-	if f.Commission == nil {
-		if !s.Global.On {
-			return false, false, "global items: off until the operator turns delivery on for them"
+	switch {
+	case f.CommissionID == "":
+		// A level's decision. Its record of first sightings began before the
+		// item (or the switch) did, else the item was already there: never sent.
+		on, why = true, "a topic's decision: the courier is its route"
+		var since time.Time
+		if f.Topic == "" {
+			on, why = s.Supervisor()
+			since = s.Global.At
 		}
-		if sightings.before(f, s.Global.At) {
-			return false, true, "global items: this item was already there when the courier was turned on at " + stamp(s.Global.At) + "; it is never sent"
+		if on && (!sightings.found || sightings.before(f, since)) {
+			if since.IsZero() {
+				return false, true, "this item was already there when the courier began to carry a level's own decisions; it is never sent"
+			}
+			return false, true, "this item was already there when the courier was turned on at " + stamp(since) + "; it is never sent"
 		}
-		return true, false, "global items: turned on by the operator"
+		return on, false, why
+	case f.Commission == nil:
+		return false, false, "it names a commission with no folder"
 	}
 	on, why = s.ForCommission(f.Commission)
 	if sw, ok := s.Commissions[f.Commission.ID]; on && ok && sightings.before(f, sw.At) {
 		return false, true, "this item was already there when the courier was turned on at " + stamp(sw.At) + "; it is never sent"
 	}
 	return on, false, why
+}
+
+// Supervisor says whether the courier carries the supervisor's decisions
+// (ATTENTION.md items without a `Commission:` line), and why: on unless the
+// operator turned the global switch off.
+func (s Switches) Supervisor() (bool, string) {
+	switch {
+	case s.Global.At.IsZero():
+		return true, "the supervisor's decisions: on (courier off --global turns them off)"
+	case s.Global.On:
+		return true, "the supervisor's decisions: turned on by the operator at " + stamp(s.Global.At)
+	}
+	return false, "the supervisor's decisions: turned off by the operator at " + stamp(s.Global.At)
 }
 
 // ForCommission says whether the courier is on for a commission, and why.
@@ -149,24 +167,6 @@ func (s Switches) ForCommission(c *home.Commission) (bool, string) {
 
 func stamp(t time.Time) string { return t.UTC().Format(time.RFC3339) }
 
-// any reports whether the Hub needs reading at all.
-func (s Switches) any(snap *home.Snapshot) bool {
-	if s.Global.On {
-		return true
-	}
-	for _, sw := range s.Commissions {
-		if sw.On {
-			return true
-		}
-	}
-	for _, c := range snap.Commissions {
-		if c.State != home.StateEnded && c.LaunchedBy() == "desk" {
-			return true
-		}
-	}
-	return false
-}
-
 // Action is what a pass does for one step.
 type Action string
 
@@ -183,6 +183,9 @@ const (
 	ActRefreshAsk Action = "refresh-ask"
 	// ActWithdraw closes an open ask the operator no longer needs to answer.
 	ActWithdraw Action = "withdraw"
+	// ActLandAnswer records the operator's answer to an ask whose item is in no
+	// file in its level's inbox (afterlife.go).
+	ActLandAnswer Action = "land-answer"
 )
 
 // Step is the courier's decision for one item or one orphaned ask.
@@ -196,6 +199,8 @@ type Step struct {
 	Ask      *Ask
 	Notice   *Notice
 	Action   Action
+	// Inboxes are the levels whose INBOX.md gets an answer this step records.
+	Inboxes []*home.Level
 	// Why explains the action, or why there is none; Reason is the same as
 	// a code.
 	Why    string
@@ -232,8 +237,6 @@ type Plan struct {
 	Steps    []Step
 	// HubRead is nil when the Hub's asks were read; otherwise why not.
 	HubRead error
-	// HubSkipped is true when no switch is on, so the Hub was not read.
-	HubSkipped bool
 	// Unreadable lists needs-you and answer files that exist but cannot be
 	// read; nothing is sent, recorded or forgotten for their owners.
 	Unreadable []home.Evidence
@@ -243,6 +246,8 @@ type Plan struct {
 	Recorded  time.Time
 	blocked   func(owner string) string
 	sightings Sightings
+	// pages are the items' explainer pages, read for this plan.
+	pages Pages
 }
 
 // keep reports whether a remembered key's owner is blocked, so its record
@@ -275,8 +280,6 @@ type Health struct {
 	LastPass time.Time
 	// Problem is why the last pass could not read or send; empty when it could.
 	Problem string
-	// Idle is true when no switch is on, so the last pass read nothing.
-	Idle bool
 	// LastReadBack is when the Hub's asks were last read.
 	LastReadBack time.Time
 	// LastDelivery is the later of when this process last sent an ask or a
@@ -308,8 +311,6 @@ func (h Health) Say() (bool, string) {
 		return false, "no pass yet; " + Withdraw
 	case h.Problem != "":
 		return false, fmt.Sprintf("last pass %s failed: %s; answers last read back %s; last delivery %s; %s", stamp(h.LastPass), h.Problem, when(h.LastReadBack), when(h.LastDelivery), Withdraw)
-	case h.Idle:
-		return true, fmt.Sprintf("last pass %s: no switch on, nothing is sent; last delivery %s; %s", stamp(h.LastPass), when(h.LastDelivery), Withdraw)
 	}
 	return true, fmt.Sprintf("last pass %s; answers read back %s; last delivery %s; %s", stamp(h.LastPass), when(h.LastReadBack), when(h.LastDelivery), Withdraw)
 }
@@ -330,6 +331,11 @@ func problem(plan Plan, err error) string {
 			failed = append(failed, fmt.Sprintf("%s %s failed: %v", s.Action, s.Key, s.Err))
 		}
 	}
+	for _, s := range plan.Steps {
+		if s.Item == nil && s.Action == ActNone && s.Ask != nil && s.Ask.State == "answered" {
+			failed = append(failed, fmt.Sprintf("the operator's answer to %s (ask %s) is not recorded yet: %s", s.Key, s.Ask.ID, s.Why))
+		}
+	}
 	return strings.Join(failed, "; ")
 }
 
@@ -338,8 +344,8 @@ func (c *Courier) note(plan Plan, err error) {
 	c.hmu.Lock()
 	defer c.hmu.Unlock()
 	h := &c.health
-	h.LastPass, h.Idle, h.Problem = c.Clock.Now(), plan.HubSkipped, problem(plan, err)
-	if err == nil && plan.HubRead == nil && !plan.HubSkipped {
+	h.LastPass, h.Problem = c.Clock.Now(), problem(plan, err)
+	if err == nil && plan.HubRead == nil {
 		h.LastReadBack = plan.At
 	}
 	for _, s := range plan.Steps {
@@ -416,83 +422,24 @@ func sightingTime(s Sightings, now time.Time) time.Time {
 	return now
 }
 
-// sightings reads the first sightings. Before the file exists it builds them
-// once from the earlier files: their first sightings, their first holds for a
-// scheduler (whichever is earlier wins), and each switch's list of items
-// present when it was turned on (sighted no later than the switch).
+// sightings reads the first sightings.
 func (c *Courier) sightings() (Sightings, error) {
 	s := Sightings{First: map[string]time.Time{}}
 	found, err := c.Writer.ReadState(SightingsFile, &s.First)
 	if err != nil {
 		return s, fmt.Errorf("%w; the courier sends nothing until it can read when each item first appeared", err)
 	}
-	if found {
-		s.found = true
-		return s, nil
-	}
-	earlier := func(key string, t time.Time) {
-		if old, ok := s.First[key]; !ok || t.Before(old) {
-			s.First[key] = t
-		}
-	}
-	for _, name := range []string{oldSightingsFile, oldHoldsFile} {
-		old := map[string]time.Time{}
-		ok, err := c.Writer.ReadState(name, &old)
-		if err != nil {
-			return s, fmt.Errorf("%w; the courier sends nothing until it can read when each item first appeared", err)
-		}
-		s.found = s.found || ok
-		for key, t := range old {
-			earlier(key, t)
-		}
-	}
-	type oldSwitch struct {
-		On       bool      `json:"on"`
-		At       time.Time `json:"at"`
-		Baseline []string  `json:"baseline"`
-	}
-	var old struct {
-		Global      oldSwitch            `json:"global"`
-		Commissions map[string]oldSwitch `json:"commissions"`
-	}
-	if _, err := c.Writer.ReadState(SwitchFile, &old); err != nil {
-		return s, fmt.Errorf("%w; the courier sends nothing until it can read its switches", err)
-	}
-	for _, sw := range append(slices.Collect(maps.Values(old.Commissions)), old.Global) {
-		for _, key := range sw.Baseline {
-			s.found = true
-			if _, ok := s.First[key]; !ok {
-				s.First[key] = time.Time{}
-			} else if sw.On {
-				earlier(key, sw.At)
-			}
-		}
-	}
-	s.fromOldFiles = s.found
+	s.found = found
 	return s, nil
 }
 
-// writeSightings writes next when it differs from what was read; a record
-// built from the earlier files replaces them, and the switches are written
-// again without their item lists.
+// writeSightings writes next when it differs from what was read.
 func (c *Courier) writeSightings(old Sightings, next map[string]time.Time) error {
-	if old.found && !old.fromOldFiles && maps.EqualFunc(old.First, next, time.Time.Equal) {
+	if old.found && maps.EqualFunc(old.First, next, time.Time.Equal) {
 		return nil
 	}
-	if _, err := c.Writer.WriteState(SightingsFile, next); err != nil {
-		return err
-	}
-	if !old.fromOldFiles {
-		return nil
-	}
-	s, err := c.Switches()
-	if err != nil {
-		return err
-	}
-	if _, err := c.Writer.WriteState(SwitchFile, s); err != nil {
-		return err
-	}
-	return errors.Join(c.Writer.RemoveState(oldSightingsFile), c.Writer.RemoveState(oldHoldsFile))
+	_, err := c.Writer.WriteState(SightingsFile, next)
+	return err
 }
 
 // Plan computes a pass without acting: the dry run.
@@ -512,14 +459,13 @@ func (c *Courier) Plan(ctx context.Context) (Plan, *home.Snapshot, error) {
 		notices map[string]Notice
 	)
 	switch {
-	case !sw.any(snap):
-		plan.HubSkipped = true
 	case c.Hub == nil:
 		plan.HubRead = errors.New("notification-hub is not configured for this instance")
 	default:
 		if plan.HubRead = c.Hub.Sendable(ctx); plan.HubRead != nil {
 			break
 		}
+		plan.pages = readPages(feed, snap.ResearchDir)
 		if asks, plan.HubRead = c.Hub.Asks(ctx, AskPrefix); plan.HubRead == nil {
 			notices, plan.HubRead = c.Hub.Notices(ctx)
 		}
@@ -527,7 +473,7 @@ func (c *Courier) Plan(ctx context.Context) (Plan, *home.Snapshot, error) {
 	if plan.sightings, err = c.sightings(); err != nil {
 		return Plan{}, nil, err
 	}
-	plan.Steps = decide(c.Hub, feed, sw, asks, notices, plan.HubRead, plan.HubSkipped, plan.sightings, snap.Now)
+	plan.Steps = decide(c.Hub, feed, sw, asks, notices, plan.HubRead, plan.sightings, plan.pages, ownersOf(snap), snap.Now)
 	return plan, snap, nil
 }
 
@@ -548,13 +494,14 @@ func recordedDelivery(snap *home.Snapshot) time.Time {
 	return newest
 }
 
-// selfDelivering reports whether the item's scheduler delivers it by itself.
+// selfDelivering reports whether the item's scheduler delivers it by itself:
+// a commission whose charter predates the Decisions sentence.
 func selfDelivering(f *home.FeedItem) bool {
-	return f.Commission == nil || !f.Commission.Decisions.Value
+	return f.Commission != nil && !f.Commission.Decisions.Value
 }
 
 // decide is the pure core of a pass.
-func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string]Notice, hubErr error, hubSkipped bool, sightings Sightings, now time.Time) []Step {
+func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string]Notice, hubErr error, sightings Sightings, pages Pages, owners Owners, now time.Time) []Step {
 	// An item may have several asks: an earlier one that ended, or an open one
 	// raised before asks carried a subject key and a newer one that replaced
 	// it. The open one, then the newest, speaks for the item; any other open
@@ -580,31 +527,29 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 		s.Delivery, s.Reason, s.Why = f.Delivery()
 		on, present, why := sw.For(f, sightings)
 		s.On, s.Switch = on, why
-		if f.Commission != nil {
-			s.Key = AskPrefix + f.CommissionID + "/" + f.Item.ID
-			s.Ask = byKey[s.Key]
-			listed[s.Key] = true
-		}
-		if n, ok := notices[NoticePrefix+owner(f)+"/"+f.Item.ID]; ok {
+		s.Key = owners.askKey(f, byKey)
+		s.Ask = byKey[s.Key]
+		listed[s.Key] = true
+		if n, ok := notices[NoticePrefix+f.Owner()+"/"+f.Item.ID]; ok {
 			s.Notice = &n
 		}
 		answerable, _ := f.Answerable()
 		first, _ := sightings.at(f)
 		reusedWhy := reused(f, s.Ask, first)
 		switch a := s.Ask; {
-		case feed.Blocked(f.CommissionID) != "":
-			s.Reason, s.Why = home.ReasonUnreadable, "nothing is sent or recorded while the desk cannot read this item's files: "+feed.Blocked(f.CommissionID)
+		case feed.Blocked(f.Owner()) != "":
+			s.Reason, s.Why = home.ReasonUnreadable, "nothing is sent or recorded while the desk cannot read this item's files: "+feed.Blocked(f.Owner())
 		case reusedWhy != "":
 			s.Reused, s.Reason, s.Why = true, home.ReasonIDReused, reusedWhy
 		case a != nil && a.State == "answered" && f.Answer == nil && answerable:
-			s.Action, s.Reason, s.Why = ActRecordAnswer, home.ReasonHubAnswered, "answered in Notification Hub"
+			s.Action, s.Reason, s.Why, s.Inboxes = ActRecordAnswer, home.ReasonHubAnswered, "answered in Notification Hub; recorded in "+answerRecord(f), f.Inboxes
 		case a != nil && a.Open() && f.Answer != nil:
 			s.Action, s.Reason, s.Why = ActWithdraw, home.ReasonAnswered, withdrawAnswered
-		case a != nil && a.Open() && s.On && hubErr == nil && askStale(hub, a, f):
+		case a != nil && a.Open() && s.On && hubErr == nil && askStale(hub, a, f, pages):
 			s.Action, s.Reason, s.Why = ActRefreshAsk, home.ReasonInHub, "the Hub ask is not the item's current question; raised again so the Hub updates or replaces it"
 		case a != nil && a.Open() && f.Item.Delivered != "":
 			s.Reason, s.Why = home.ReasonInHub, "delivered by its scheduler; the Hub ask stays open until it is answered or the item leaves the files"
-		case a != nil && !a.FirstDelivered.IsZero() && f.Delivered == nil && f.Answer == nil:
+		case a != nil && !a.FirstDelivered.IsZero() && f.Commission != nil && f.Delivered == nil && f.Answer == nil:
 			s.Action, s.Reason, s.Why = ActRecordDelivered, home.ReasonHubDelivered, "the Hub delivered the ask"
 		case a != nil:
 			s.Reason, s.Why = home.ReasonInHub, "Hub ask "+a.State
@@ -618,8 +563,6 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 			s.Reason, s.Why = home.ReasonSwitchOff, s.Switch
 		case selfDelivering(f) && now.Before(sightings.graceEnd(f, now)):
 			s.Reason, s.Why = home.ReasonSchedulerGrace, "its scheduler delivers it by itself; sent only if it has no `Delivered:` line by "+stamp(sightings.graceEnd(f, now))
-		case hubSkipped:
-			s.Reason, s.Why = home.ReasonHubUnavailable, "the Hub was not read"
 		case hubErr != nil:
 			s.Reason, s.Why = home.ReasonHubUnavailable, "not sent: "+hubErr.Error()
 		case s.Delivery == home.DeliverAsk:
@@ -627,7 +570,7 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 		case f.Delivered != nil:
 			s.Reason, s.Why = home.ReasonHubDelivered, "notice delivered "+f.Delivered.At.UTC().Format(time.RFC3339)
 		default:
-			s.Key = NoticePrefix + owner(f) + "/" + f.Item.ID
+			s.Key = NoticePrefix + f.Owner() + "/" + f.Item.ID
 			switch n := s.Notice; {
 			case n == nil:
 				s.Action = ActNotice
@@ -639,15 +582,39 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 				s.Reason, s.Why = home.ReasonInHub, "Hub notice "+n.State
 			}
 		}
+		if problem := pages.problem(f); problem != "" && (s.Action == ActAsk || s.Action == ActRefreshAsk) {
+			s.Why = joinWhy(s.Why, problem)
+		}
+		var grammar []string
+		for _, p := range f.Item.Problems {
+			if p != f.Item.RecommendedProblem {
+				grammar = append(grammar, p)
+			}
+		}
+		if len(grammar) > 0 && s.Action != ActWithdraw {
+			// A withdrawal's reason is the operator's to read; the grammar note is the agent's.
+			s.Why = joinWhy(s.Why, "the item breaks the grammar ("+strings.Join(grammar, "; ")+"); check it with needs_you.py validate")
+		}
 		steps = append(steps, s)
 	}
 	for _, a := range byKey {
-		if listed[a.Key] || !a.Open() {
+		if listed[a.Key] {
 			continue
 		}
-		if commission, _, _ := strings.Cut(strings.TrimPrefix(a.Key, AskPrefix), "/"); feed.Blocked(commission) != "" {
-			steps = append(steps, Step{Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActNone, Reason: home.ReasonOrphaned,
-				Why: "its item's files cannot be read, so the Hub ask stays open until they can: " + feed.Blocked(commission)})
+		if a.State == "answered" && strings.HasPrefix(a.Key, AskPrefix) {
+			if step, ok := afterAnswer(feed, owners, a); ok {
+				steps = append(steps, step)
+			}
+			continue
+		}
+		if !a.Open() {
+			continue
+		}
+		if why := feed.Blocked(commissionOf(a.Key)); why != "" {
+			steps = append(steps, Step{
+				Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActNone, Reason: home.ReasonOrphaned,
+				Why: "its item's files cannot be read, so the Hub ask stays open until they can: " + why,
+			})
 			continue
 		}
 		steps = append(steps, Step{Key: a.Key, Ask: a, Delivery: home.DeliverNone, Action: ActWithdraw, Reason: home.ReasonOrphaned, Why: withdrawOrphaned})
@@ -666,6 +633,14 @@ func decide(hub Hub, feed home.Feed, sw Switches, asks []Ask, notices map[string
 		return steps[n+i].Ask.ID < steps[n+j].Ask.ID
 	})
 	return steps
+}
+
+// joinWhy adds a note to a step's sentence.
+func joinWhy(why, note string) string {
+	if why == "" {
+		return note
+	}
+	return why + "; " + note
 }
 
 // reused says why an item's ID was reused, or "": an answer, a
@@ -688,10 +663,7 @@ func reused(f *home.FeedItem, a *Ask, first time.Time) string {
 	default:
 		return ""
 	}
-	what := "answer it in the desk"
-	if f.Commission != nil {
-		what = "answer it in the desk, or tell its supervisor to give the item a new ID"
-	}
+	what := "answer it in the desk, or give the item a new ID"
 	return fmt.Sprintf("ID reused, not delivered: %s already has %s, before this item first appeared at %s; %s", f.Item.ID, earlier, stamp(first), what)
 }
 
@@ -727,7 +699,8 @@ const (
 	withdrawDuplicate = "Replaced by an updated copy of this decision."
 )
 
-// commissionOf is the commission an ask key names.
+// commissionOf is the owner an ask key names: a commission, a topic
+// (home.TopicOwner) or the supervisor.
 func commissionOf(key string) string {
 	commission, _, _ := strings.Cut(strings.TrimPrefix(key, AskPrefix), "/")
 	return commission
@@ -738,8 +711,8 @@ func commissionOf(key string) string {
 // before asks carried a subject key, and still saying what the item says, is
 // left as it is (raising it again would page the operator twice for nothing);
 // it is withdrawn by its request id when the item is answered or leaves.
-func askStale(hub Hub, a *Ask, f *home.FeedItem) bool {
-	spec := askSpec(f)
+func askStale(hub Hub, a *Ask, f *home.FeedItem, pages Pages) bool {
+	spec := askSpec(f, a.Key, pages)
 	ref := hub.RequestRef(spec)
 	return ref != "" && a.RequesterRef != ref && !a.says(spec)
 }
@@ -756,13 +729,6 @@ func (a Ask) says(spec AskSpec) bool {
 		}
 	}
 	return true
-}
-
-func owner(f *home.FeedItem) string {
-	if f.CommissionID == "" {
-		return "global"
-	}
-	return f.CommissionID
 }
 
 // Pass computes a plan and carries it out. Only the lock holder sends.
@@ -783,17 +749,17 @@ func (c *Courier) Pass(ctx context.Context) (plan Plan, err error) {
 		if s.Action == ActNone {
 			continue
 		}
-		s.Err = c.act(ctx, s, now)
+		s.Err = c.act(ctx, s, now, plan)
 		s.Done = s.Err == nil
 	}
 	return plan, c.recordSightings(plan)
 }
 
-func (c *Courier) act(ctx context.Context, s *Step, now time.Time) error {
+func (c *Courier) act(ctx context.Context, s *Step, now time.Time, plan Plan) error {
 	f := s.Item
 	switch s.Action {
 	case ActAsk, ActRefreshAsk:
-		return c.Hub.Ask(ctx, askSpec(f))
+		return c.Hub.Ask(ctx, askSpec(f, s.Key, plan.pages))
 	case ActWithdraw:
 		return c.Hub.Withdraw(ctx, *s.Ask, s.Why, now)
 	case ActNotice:
@@ -803,8 +769,8 @@ func (c *Courier) act(ctx context.Context, s *Step, now time.Time) error {
 			return c.record(f, home.EntryDelivered, now, "hub ask "+s.Ask.ID)
 		}
 		return c.record(f, home.EntryDelivered, now, "hub notice "+s.Notice.ID)
-	case ActRecordAnswer:
-		return c.record(f, home.EntryAnswer, now, home.AnswerBody(s.Ask.Answer, s.Ask.AnswerLabel, s.Ask.Note))
+	case ActRecordAnswer, ActLandAnswer:
+		return c.recordAnswer(s, now)
 	}
 	return nil
 }
@@ -820,16 +786,14 @@ func (c *Courier) record(f *home.FeedItem, kind string, at time.Time, body strin
 	return err
 }
 
-const questionLimit = 600
-
-// askSpec is a pure function of the item, so an unchanged item is the same
-// event on every pass; the Hub's default deadline applies. The operator reads
+// askSpec is a pure function of the item and its key, so an unchanged item is
+// the same event on every pass; the Hub's default deadline applies. The operator reads
 // the question and big picture cold on a phone, so they hold only the item's
 // title and prose; the desk's key, the commission, the packet and any
 // `Details:` line go to the technical details for the agent that acts on the
 // answer (FILE-CONTRACT.md §5).
-func askSpec(f *home.FeedItem) AskSpec {
-	key := AskPrefix + f.CommissionID + "/" + f.Item.ID
+func askSpec(f *home.FeedItem, key string, pages Pages) AskSpec {
+	page := pages.of(f)
 	reason := f.Item.Reason
 	if reason == "" && f.Item.Recommended != nil {
 		reason = f.Item.Recommended.Label
@@ -837,27 +801,47 @@ func askSpec(f *home.FeedItem) AskSpec {
 	return AskSpec{
 		Key:              key,
 		Subject:          f.Item.Title,
-		Question:         clip(f.Item.Title, questionLimit),
-		BigPicture:       clip(f.Item.Prose(), 4000),
-		TechnicalDetails: clip(technicalDetails(f, key), 12000),
+		Question:         operatordecision.Clip(f.Item.Title, operatordecision.MaxQuestion),
+		BigPicture:       operatordecision.Clip(f.Item.Prose(), operatordecision.MaxBigPictureCodePoints),
+		TechnicalDetails: operatordecision.Clip(technicalDetails(f, key, page, pages.effects[f.Key()]), operatordecision.MaxTechnicalDetailsCodePoints),
 		Options:          f.Item.Choices(),
 		Recommended:      f.Item.Recommended.Key,
-		Reason:           clip(reason, 300),
+		Reason:           operatordecision.Clip(reason, operatordecision.MaxReason),
+		Explainer:        pages.explainer(f),
 	}
 }
 
 // technicalDetails says where the item lives and what the next agent needs.
-func technicalDetails(f *home.FeedItem, key string) string {
+// The hash of the item's own page, or of the packet text its summary page
+// shows, is in it, so a page that changed makes the item a changed request
+// and the Hub's page is replaced.
+func technicalDetails(f *home.FeedItem, key string, page *Page, effects map[string]string) string {
 	lines := []string{deskKeyLine(key)}
-	if f.CommissionID != "" {
+	switch {
+	case f.CommissionID != "":
 		lines = append(lines, "Research commission: "+f.CommissionID)
+	case f.Topic != "":
+		lines = append(lines, "Research topic: "+f.Topic)
+	default:
+		lines = append(lines, "Raised by: the research supervisor")
 	}
 	lines = append(lines, "Needs-you item: "+f.Item.ID)
 	if src := f.Item.Source; src != "" {
 		lines = append(lines, "Item file: "+src)
 	}
 	if f.Item.Packet != "" {
-		lines = append(lines, "Packet: "+f.Item.Packet)
+		line := "Packet: " + f.Item.PacketPath()
+		if page == nil && len(effects) > 0 {
+			sum := sha256.Sum256([]byte(fmt.Sprint(effects)))
+			line += " (on each answer: sha256 " + hex.EncodeToString(sum[:8]) + ")"
+		}
+		lines = append(lines, line)
+	}
+	if len(f.Inboxes) > 0 {
+		lines = append(lines, "Answer lands in: "+filepath.Join(f.Inboxes[0].Dir, home.InboxFile))
+	}
+	if page != nil {
+		lines = append(lines, "Explainer: "+f.Item.ExplainerPath()+" (sha256 "+page.SHA256[:16]+")")
 	}
 	if f.Item.Details != "" {
 		lines = append(lines, "Details: "+f.Item.Details)
@@ -866,19 +850,12 @@ func technicalDetails(f *home.FeedItem, key string) string {
 }
 
 func noticeSpec(f *home.FeedItem, key string) NoticeSpec {
-	title := owner(f) + " · " + f.Item.ID + " — " + f.Item.Title
+	title := f.Owner() + " · " + f.Item.ID + " — " + f.Item.Title
 	body := "Needs you, in " + f.Sources[0] + "."
 	if f.Item.Secret != "" {
 		body += " A secret goes where the item says: " + f.Item.Secret + ". Never type it into the desk or a file."
 	}
-	return NoticeSpec{Key: key, Title: clip(title, 200), Body: clip(body, 1000)}
-}
-
-func clip(s string, n int) string {
-	if r := []rune(s); len(r) > n {
-		return string(r[:n-1]) + "…"
-	}
-	return s
+	return NoticeSpec{Key: key, Title: operatordecision.Clip(title, 200), Body: operatordecision.Clip(body, 1000)}
 }
 
 // Run passes every interval until ctx ends. Each action is logged; a problem
@@ -930,6 +907,17 @@ type TestResult struct {
 // testLifetime is the delivery-test ask's deadline.
 const testLifetime = 15 * time.Minute
 
+// testPage is the delivery test's page, built the way an item's summary page
+// is, so the test shows that a decision's page reaches the operator.
+func testPage(stamp string) string {
+	return operatordecision.NewPage("Research desk delivery test").
+		Lead("This checks that research decisions reach you with their page, like this one. Test "+stamp+".").
+		Options(operatordecision.Facts{Options: []operatordecision.Option{{Key: "seen", Label: "Seen"}, {Key: "not-seen", Label: "Not seen"}}, Recommended: "seen"}, map[string]string{
+			"seen": "Nothing else happens; research decisions reach you.", "not-seen": "Nothing else happens; tell the agent that ran the test.",
+		}).
+		IfNoAnswer("No answer is needed. It expires unanswered in 15 minutes.").HTML()
+}
+
 // Test raises one research-desk delivery test ask and waits up to wait for a
 // device to receive it. Nothing is answered; the ask expires at its deadline.
 func (c *Courier) Test(ctx context.Context, wait time.Duration) (TestResult, error) {
@@ -951,6 +939,7 @@ func (c *Courier) Test(ctx context.Context, wait time.Duration) (TestResult, err
 		Recommended:      "seen",
 		Reason:           "This only checks that research-desk decisions reach you.",
 		Deadline:         result.Expires,
+		Explainer:        testPage(stamp),
 	})
 	if err != nil {
 		return result, err

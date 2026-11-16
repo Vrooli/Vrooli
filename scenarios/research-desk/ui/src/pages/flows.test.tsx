@@ -109,6 +109,7 @@ afterEach(() => {
 });
 
 describe("Needs you", () => {
+  const observedAt = "2026-11-11T09:30:00Z";
   const item = {
     id: "AV4",
     title: "Choose how AV4 handles yt-dlp",
@@ -141,6 +142,22 @@ describe("Needs you", () => {
         { path: `${OPERATOR}/Answer`, body: { commissionId: item.commissionId, itemId: "AV4", optionKey: "keep", note: "tell me if AV6 needs it" } },
       ]),
     );
+  });
+
+  it("shows when the needs-you snapshot was observed, or says unknown when unavailable", async () => {
+    stubWire((path) => (path === `${OPERATOR}/ListNeedsYou` ? { observedAt, items: [], courier: { writer: true } } : {}));
+    render("/needs-you");
+    await waitFor(() => {
+      const observed = screen.getAllByLabelText(strings.common.lastObserved);
+      expect(observed.some((item) => item.querySelector("time")?.getAttribute("datetime") === new Date(observedAt).toISOString())).toBe(true);
+    });
+
+    cleanup();
+    stubWire((path) => (path === `${OPERATOR}/ListNeedsYou` ? { items: [], courier: { writer: true } } : {}));
+    render("/needs-you");
+    expect(await screen.findByLabelText(strings.common.lastObserved)).toBeInTheDocument();
+    const observed = screen.getByLabelText(strings.common.lastObserved);
+    await waitFor(() => expect(observed).toHaveTextContent(strings.common.unknown));
   });
 
   it("never offers a text box for a secret, and says where it goes", async () => {

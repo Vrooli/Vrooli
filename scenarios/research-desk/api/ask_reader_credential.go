@@ -8,7 +8,7 @@ import (
 )
 
 // askReaderCredential reads the desk's ask-reader credential, the one the
-// operator issues with askreader.IssueScript, from the credential authority
+// operator issues with serviceprincipal.IssueCommand, from the credential authority
 // entry scenario-authenticator writes on issuance. There is no fallback: until
 // the credential is issued the shared client reports that and the desk answers
 // in the desk instead of presenting a credential it did not read.

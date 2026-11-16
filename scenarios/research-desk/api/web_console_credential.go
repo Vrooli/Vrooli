@@ -10,13 +10,13 @@ import (
 
 // The desk's own Web Console identity: the `research-desk` service principal
 // (resource web-console, scopes web-console:read and web-console:write) that
-// scripts/issue-service-principal.sh issues. The operator runs that script; an
-// agent run cannot, because issuing needs a verified human.
+// .vrooli/service-principals.json declares. The operator configures and issues
+// it with serviceprincipal.IssueCommand; an agent run cannot, because issuing
+// needs a verified human.
 const (
 	webConsoleCredentialIdentity = "scenario-authenticator/service-principal/research-desk/web-console"
 	webConsoleCredentialField    = "credential"
 	webConsoleAudience           = "scenario-authenticator:web-console"
-	webConsoleIssueScript        = "scenarios/research-desk/scripts/issue-service-principal.sh"
 )
 
 // newWebConsoleTokens is the desk's Web Console token client over a credential
@@ -27,7 +27,6 @@ func newWebConsoleTokens(credential servicetoken.CredentialSource, options ...se
 		Name:         "research-desk web-console",
 		Credential:   credential,
 		Expect:       servicetoken.ExpectIdentity("research-desk", webConsoleAudience, "web-console:read", "web-console:write"),
-		IssueHint:    "the operator runs " + webConsoleIssueScript,
 		MinRemaining: servicetoken.DefaultRefreshMargin,
 	}, options...)
 }

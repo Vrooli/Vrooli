@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/boottest"
+	"github.com/vrooli/api-core/researchhome"
 )
 
 // Verify this API entry point serves its own healthy response and terminates.
@@ -21,7 +22,7 @@ func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 		t.Fatal(err)
 	}
 	boottest.Run(t, boottest.Config{Service: "research-desk-api", Env: []string{
-		envResearchDir + "=" + research,
+		researchhome.EnvHome + "=" + research,
 		envStateDir + "=" + filepath.Join(root, "state"),
 		envCodexDir + "=" + filepath.Join(root, "codex"),
 	}})

@@ -118,7 +118,7 @@
       "status": "complete",
       "prd_ref": "OT-P0-004",
       "criticality": "P0",
-      "description": "Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived.",
+      "description": "Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived; persist evidence-backed historical dispositions independently of current worker/session state.",
       "validation": [
         {
           "type": "test",
@@ -147,6 +147,27 @@
           "phase": "unit",
           "status": "implemented",
           "notes": "an unreadable file is unknown, never empty"
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/writer/writer_test.go::TestHistoricalSettlementIsCitedImmutableAndIndependentOfLaunch",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "settlements cite contained source files and cannot overwrite history"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/activityapi/handler_test.go::TestHistoricalSettlementDoesNotChangeObservedUnknownState",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "historical disposition is surfaced separately from observed worker state"
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/operatorapi/handler_test.go::TestSettleHistoricalStatePersistsCitationsWithoutEndingWorkerState",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "verified agent can persist a citation-backed settlement through the single writer"
         },
         {
           "type": "manual",

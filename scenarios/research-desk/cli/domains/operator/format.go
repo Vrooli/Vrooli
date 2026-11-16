@@ -28,25 +28,22 @@ func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouRespo
 			on = append(on, s.CommissionId)
 		}
 	}
-	global := "off"
+	supervisor := "off"
 	if c.GetGlobalOn() {
-		global = "on"
+		supervisor = "on"
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
 			fmt.Sprintf("%d item(s) wait for an answer (answered items are listed, not counted) and %d older list(s) are shown, never sent.", msg.ItemCount, msg.OlderListCount),
-			fmt.Sprintf("Courier on for: %s; global ATTENTION.md items %s. %s %s", orNone(on), global, hub, writer),
+			fmt.Sprintf("Courier on for: every topic's decisions; the supervisor's %s; commissions %s. %s %s", supervisor, orNone(on), hub, writer),
 		},
 		ResultsHeading: "Needs you",
 		ListShaped:     true,
 		ResultCount:    len(msg.Items),
-		RetrievalHints: []string{"`answer <commission-id> <item-id> <option-key>` — answer into OPERATOR.md", "`courier on <commission-id>` — send this commission's items to Notification Hub"},
+		RetrievalHints: []string{"`answer <owner> <item-id> <option-key>` — answer into the owner's OPERATOR.md or INBOX.md", "`courier on <commission-id>` — send this commission's items to Notification Hub", "`needs_you.py open` (research-coordination skill) — every open decision across levels, from files, with the desk down"},
 	}
 	for _, it := range msg.Items {
 		owner := it.CommissionId
-		if owner == "" {
-			owner = "global"
-		}
 		if it.Kind == operatorv1.NeedsYouKind_NEEDS_YOU_KIND_OLDER_LIST {
 			report.Results = append(report.Results, fmt.Sprintf("%s · %s", owner, it.Title), "    "+strings.ReplaceAll(it.Body, "\n", "\n    "), "    "+it.Instruction, "    in: "+strings.Join(it.Sources, ", "))
 			continue
@@ -123,6 +120,32 @@ func answerReport(_ cliapp.OperationContext, msg *operatorv1.AnswerResponse) cli
 
 func entryReport(_ cliapp.OperationContext, msg *operatorv1.AddEntryResponse) cliapp.ListReport {
 	return written(msg.Path, msg.Written, msg.Text, msg.Warning, msg.Reading)
+}
+
+func feedbackReport(_ cliapp.OperationContext, msg *operatorv1.AddStewardFindingResponse) cliapp.ListReport {
+	state := "written"
+	charter := "The charter now tells the supervisor to read this channel below operator entries."
+	if !msg.GetWritten() {
+		state = "dry run; nothing written"
+		charter = "A real write will make the charter read this channel below operator entries."
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Steward finding %s to %s (agent run %s).", state, msg.GetPath(), msg.GetAgentRunId()), charter, msg.GetText()}, ResultCount: 1}
+}
+
+func historicalSettlementReport(_ cliapp.OperationContext, msg *operatorv1.SettleHistoricalStateResponse) cliapp.ListReport {
+	verb := "recorded"
+	if !msg.GetWritten() {
+		verb = "previewed; nothing written"
+	}
+	s := msg.GetSettlement()
+	if s == nil {
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("Historical settlement %s at %s.", verb, msg.GetPath()), msg.GetText()}, ResultCount: 1}
+	}
+	return cliapp.ListReport{Summary: []string{
+		fmt.Sprintf("Historical disposition %q %s at %s (as of %s).", s.GetStatus(), verb, msg.GetPath(), render.When(s.GetAsOf())),
+		s.GetReason(), "Evidence: " + strings.Join(s.GetEvidencePaths(), ", "),
+		"This disposition positions historical overlap checks; it does not change current worker/session state.",
+	}, ResultCount: 1}
 }
 
 func verdictReport(_ cliapp.OperationContext, msg *operatorv1.AddVerdictResponse) cliapp.ListReport {

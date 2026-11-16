@@ -543,6 +543,78 @@
       ]
     },
     {
+      "id": "steward_finding",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/AddStewardFinding",
+      "method": "POST",
+      "summary": "Send a steward finding",
+      "description": "Appends a dated, verified-agent-attributed finding to STEWARD.md. The live charter is updated to read this channel below OPERATOR.md and above supervisor judgment; operator words retain priority.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request names an option, kind or text the file grammar refuses; the message says what is allowed"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "A verified agent run is required"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Finding",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/AddStewardFinding -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"text\":\"Keep the measured limit.\"}'"
+        }
+      ]
+    },
+    {
+      "id": "historical_settlement",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/SettleHistoricalState",
+      "method": "POST",
+      "summary": "Record a historical settlement",
+      "description": "Records an immutable, evidence-backed historical disposition for an unknown commission. Completed dispositions include a cited activity interval for overlap history; observed worker/session state remains independently derived and unchanged.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request names an option, kind or text the file grammar refuses; the message says what is allowed"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "A verified agent run is required"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Close",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/SettleHistoricalState -H 'Content-Type: application/json' -d '{\"commission_id\":\"research-restart-20261031\",\"status\":\"closed\",\"as_of\":\"2026-10-31T21:25:54Z\",\"reason\":\"The commissioned window closed and cleanup was recorded.\",\"evidence_paths\":[\"cohorts/research-restart-20261031/README.md\",\"cohorts/research-restart-20261031/STATUS.md\"]}'"
+        }
+      ]
+    },
+    {
       "id": "operator_steering",
       "path": "/vrooli.research_desk.v1.operator.OperatorService/EnableSteering",
       "method": "POST",

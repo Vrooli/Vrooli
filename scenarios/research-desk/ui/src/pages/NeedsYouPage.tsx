@@ -19,7 +19,7 @@ import { PathText } from "../components/PathText";
 import { QueryView } from "../components/QueryView";
 import { Section } from "../components/Section";
 import { Unreadable } from "../components/Unreadable";
-import { When } from "../components/When";
+import { LastObserved, When } from "../components/When";
 import { WouldWrite } from "../components/WouldWrite";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -49,6 +49,7 @@ export function NeedsYouPage() {
     <div data-testid={selectors.pages.needsYou} className="rd-page">
       <PageHeader headingId="needs-you-heading" title={t(strings.needsYou.title)} description={t(strings.needsYou.description)} />
       {query.isError ? <DeliveryBanner error={query.error} /> : null}
+      <LastObserved date={toDate(query.data?.observedAt)} />
       <QueryView query={query}>
         {(feed) => {
           const { items, courier, unreadable } = feed;

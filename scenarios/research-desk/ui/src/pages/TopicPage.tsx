@@ -4,6 +4,7 @@ import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
 import { Link, useParams } from "react-router-dom";
 
 import { ChangeSubject, lastResearchWrite, useCommissions, useTopics } from "../api/activity";
+import { homeFileUrl } from "../api/client";
 import { ChangesPanel } from "../components/Changes";
 import { CommissionRow } from "../components/CommissionRow";
 import { Fact, Unknown } from "../components/Fact";
@@ -11,7 +12,7 @@ import { PathText } from "../components/PathText";
 import { ResearchWriteWhen } from "../components/ResearchWrite";
 import { QueryView } from "../components/QueryView";
 import { Facts, Section } from "../components/Section";
-import { When } from "../components/When";
+import { LastObserved, When } from "../components/When";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -26,6 +27,7 @@ export function TopicPage() {
   return (
     <div data-testid={selectors.pages.topic} className="rd-page">
       <Link to="/topics" className="rd-back">{t(strings.topics.back)}</Link>
+      <LastObserved date={toDate(query.data?.observedAt)} />
       <QueryView query={query}>
         {({ topics }) => {
           const topic = topics.find((x) => x.topic === name);
@@ -36,6 +38,9 @@ export function TopicPage() {
           const review = topic.lastReview;
           const reviewAt = toDate(review?.file?.modified);
           const related = (commissions.data?.commissions ?? []).filter((c) => topic.commissionIds.includes(c.id));
+          const workspace = topic.workspaceFiles;
+          const currentUrl = workspace?.currentView?.file ? homeFileUrl(workspace.currentView.file.path, query.data?.researchHome) : null;
+          const toolsUrl = workspace?.tools?.file ? homeFileUrl(workspace.tools.file.path, query.data?.researchHome) : null;
           return (
             <>
               <PageHeader headingId="topic-heading" title={topic.title?.value || topic.topic} eyebrow={<span className="rd-id">{topic.topic}</span>} />
@@ -89,6 +94,45 @@ export function TopicPage() {
                     ))}
                   </ul>
                 )}
+              </Section>
+              <Section id="topic-workspace-files" title={t(strings.topics.workspaceFiles)} note={workspace?.feedbackTruncated ? t(strings.topics.feedbackPartial) : undefined}>
+                <ul className="rd-rows">
+                  <li className="rd-row">
+                    <span className="font-semibold">{t(strings.topics.currentView)}</span>
+                    {workspace?.currentView?.file ? (
+                      currentUrl ? <a href={currentUrl}>{workspace.currentView.file.name}</a> : <PathText path={workspace.currentView.file.path} />
+                    ) : (
+                      <span className="text-body-sm text-app-muted-foreground">
+                        {workspace?.currentView?.evidence?.known ? t(strings.topics.noOptionalFile) : workspace?.currentView?.evidence?.reason || t(strings.common.unknown)}
+                      </span>
+                    )}
+                  </li>
+                  <li className="rd-row">
+                    <span className="font-semibold">{t(strings.topics.tools)}</span>
+                    {workspace?.tools?.file ? (
+                      toolsUrl ? <a href={toolsUrl}>{workspace.tools.file.name}</a> : <PathText path={workspace.tools.file.path} />
+                    ) : (
+                      <span className="text-body-sm text-app-muted-foreground">
+                        {workspace?.tools?.evidence?.known ? t(strings.topics.noOptionalFile) : workspace?.tools?.evidence?.reason || t(strings.common.unknown)}
+                      </span>
+                    )}
+                  </li>
+                  <li className="rd-row">
+                    <span className="font-semibold">{t(strings.topics.feedback)}</span>
+                    {workspace?.feedbackFiles.length ? (
+                      <ul className="rd-list">
+                        {workspace.feedbackFiles.map((file) => {
+                          const url = homeFileUrl(file.path, query.data?.researchHome);
+                          return <li key={file.path}>{url ? <a href={url}>{file.name}</a> : <PathText path={file.path} />}</li>;
+                        })}
+                      </ul>
+                    ) : (
+                      <span className="text-body-sm text-app-muted-foreground">
+                        {workspace?.feedbackEvidence?.known ? t(strings.topics.noFeedback) : workspace?.feedbackEvidence?.reason || t(strings.common.unknown)}
+                      </span>
+                    )}
+                  </li>
+                </ul>
               </Section>
               <Section id="topic-commissions" title={t(strings.topics.commissions, { count: topic.commissionIds.length })}>
                 {related.length === 0 ? (

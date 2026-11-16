@@ -69,6 +69,15 @@ plus the allowance in `KERNEL.txt` or the spec).
 | `paused` | TUI, goal `paused` |
 | `limited` | TUI, goal `usage_limited`, `budget_limited` or `blocked` |
 
+An optional `SETTLEMENT.json` stores a cited historical disposition (`prepared`, `closed`,
+`closed_partial` or `continued_elsewhere`) with the time through which the cited evidence
+supports it and the verified recording run.
+It is returned separately from `state` and never changes worker/session terminality, live-state
+counts, or whether a process is open. Completed records include cited activity start/end times
+used by historical overlap checks; open-window overlaps remain session-derived. Its citations
+are relative to the research home and must resolve to regular files under that home. The record
+is immutable.
+
 **The operator's word.** An `unknown` commission carries `never_started`: it may launch on
 the operator's word only when the packet is complete, there is no `LAUNCH.json`, and no
 match or goal naming the charter was found in any Codex home the desk can read (unreadable
@@ -83,7 +92,11 @@ when they share a topic and their intervals intersect (start to now while a wind
 else to the known end, else to the last write: "stopped or ended (allowance unknown)");
 `open_overlaps` are the pairs open now. A
 topic reports its newest run-folder write (with its commission), `mission` and `last_review`;
-a write its commission's state does not explain carries a note.
+a write its commission's state does not explain carries a note. `ListTopics` also returns
+bounded navigation metadata for optional `CURRENT.md`, `TOOLS.md` and regular files under
+`feedback/`. These are links and evidence only: the desk does not parse their contents,
+duplicate their state, or make them prerequisites. The existing read-only `route[example]:/api/v1/home/<path>`
+route serves each linked file under the research-home boundary.
 
 ## 5. Launch
 
@@ -150,12 +163,15 @@ never leaves half a stop.
 `say`, `answer` and `verdict` append in the grammar of FILE-CONTRACT §4; `dry_run` returns
 the exact text. `enable-steering` adds the Steering line to an older charter, only on the
 operator's action (`dry_run` shows text and path); until then each entry warns that it will
-not be read. A global needs-you item is answerable into the
-commission its `Commission:` line names; without one it carries `instruction` and `links`.
-An answer is **read** by the supervisor once `STATE.md` is rewritten after it. The courier
-(rules: FILE-CONTRACT §5, "Courier") publishes `research_desk.needs_you.decision_requested.v1`
-and `.notification.v1` to Vrooli Events; Notification Hub turns them into an ask or a notice
-and is read back without a credential. `now` shows the courier's last pass.
+not be read. A level's decision (a topic's `DECISIONS.md`, the supervisor's `ATTENTION.md`)
+is answered into that level's `INBOX.md`; a commission's older item into its `OPERATOR.md`.
+An answer is **read** once the inbox entry is drained, or `STATE.md` is rewritten after it. The courier
+(rules: FILE-CONTRACT §5, "Courier") publishes each decision to Vrooli Events as
+`research_desk.needs_you.decision_requested.v1` with a page inline: the item's `Explainer:`
+page, or a summary page built from the item. Notices go as `.notification.v1`. Notification
+Hub turns them into an ask (its page as the explainer) or a notice; the desk reads asks back
+as its ask-reader. Every Hub answer lands in the owning level's `INBOX.md` (and a
+commission's item's `OPERATOR.md`), even after the item left the files. `now` shows the last pass.
 
 ## 8. Since last look
 

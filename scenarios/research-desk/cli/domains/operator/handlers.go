@@ -2,6 +2,7 @@ package operator
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vrooli/cli-core/cliapp"
 
@@ -10,6 +11,7 @@ import (
 
 	operatorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator"
 	operatorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator/operator_v1connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type handlers struct {
@@ -36,6 +38,54 @@ func (h *handlers) sayCall(ctx cliapp.OperationContext) (*operatorv1.AddEntryRes
 		return nil, fmt.Errorf("the kind is \"direction\" or \"wind-down\", not %q (steering is `enable-steering <commission-id>`)", kind)
 	}
 	return render.Call("write to OPERATOR.md of "+req.CommissionId, h.client.AddEntry, req)
+}
+
+func (h *handlers) feedbackCall(ctx cliapp.OperationContext) (*operatorv1.AddStewardFindingResponse, error) {
+	req := &operatorv1.AddStewardFindingRequest{CommissionId: ctx.Positional("commission-id"), Text: ctx.Positional("text"), DryRun: ctx.BoolFlag("dry-run")}
+	return render.Call("write a steward finding to STEWARD.md of "+req.CommissionId, h.client.AddStewardFinding, req)
+}
+
+func (h *handlers) settleHistoricalCall(ctx cliapp.OperationContext) (*operatorv1.SettleHistoricalStateResponse, error) {
+	parseTime := func(name string, required bool) (*timestamppb.Timestamp, error) {
+		var raw string
+		if name == "as-of" {
+			raw = ctx.Positional(name)
+		} else {
+			raw = ctx.Flag(name)
+		}
+		if raw == "" && !required {
+			return nil, nil
+		}
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			return nil, fmt.Errorf("%s takes a UTC RFC 3339 time, not %q", name, raw)
+		}
+		return timestamppb.New(parsed), nil
+	}
+	asOf, err := parseTime("as-of", true)
+	if err != nil {
+		return nil, err
+	}
+	start, err := parseTime("activity-start", false)
+	if err != nil {
+		return nil, err
+	}
+	end, err := parseTime("activity-end", false)
+	if err != nil {
+		return nil, err
+	}
+	if ctx.Positional("status") != "prepared" && (start == nil || end == nil) {
+		return nil, fmt.Errorf("completed dispositions need --activity-start and --activity-end")
+	}
+	if ctx.Positional("status") == "prepared" && (start != nil || end != nil) {
+		return nil, fmt.Errorf("prepared dispositions do not take an activity interval")
+	}
+	req := &operatorv1.SettleHistoricalStateRequest{
+		CommissionId: ctx.Positional("commission-id"), Status: ctx.Positional("status"), AsOf: asOf,
+		ActivityStart: start, ActivityEnd: end, Reason: ctx.Positional("reason"),
+		EvidencePaths: ctx.FlagValues("evidence"), DryRun: ctx.BoolFlag("dry-run"),
+	}
+	return render.Call("record historical disposition for "+req.CommissionId, h.client.SettleHistoricalState, req)
 }
 
 func (h *handlers) steeringCall(ctx cliapp.OperationContext) (*operatorv1.EnableSteeringResponse, error) {

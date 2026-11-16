@@ -171,7 +171,7 @@ Increase open-file limits or check that loopback is reachable.
 ### API E2E test (`go test -tags=e2e`) hangs
 
 The E2E harness boots the actual binary over an empty research home in a temporary
-folder (`RESEARCH_DESK_RESEARCH_DIR`, `RESEARCH_DESK_STATE_DIR`, `RESEARCH_DESK_CODEX_DIR`)
+folder (`VROOLI_RESEARCH_HOME`, `RESEARCH_DESK_STATE_DIR`, `RESEARCH_DESK_CODEX_DIR`)
 and waits for `/health`. The desk has no database to bootstrap; a hang is the binary not
 starting. Read the boot log the harness prints.
 

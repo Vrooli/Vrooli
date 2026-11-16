@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/serviceprincipal"
+
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/askreader"
 
@@ -110,13 +112,13 @@ func TestWithoutAnIssuedCredentialTheDeskNamesTheOperatorCommandAndNeverReachesT
 	stub := &hubStub{askReaderOK: "desk-token"}
 	hub := deskHub(t, stub, deskTokens(func(context.Context) (string, error) { return "", errors.New("no such credential entry") }))
 	_, err := hub.Asks(context.Background(), AskPrefix)
-	if !errors.Is(err, askreader.ErrNotIssued) || !strings.Contains(err.Error(), askreader.IssueScript) {
-		t.Fatalf("err = %v, want the missing credential named with %s", err, askreader.IssueScript)
+	if !errors.Is(err, askreader.ErrNotIssued) || !strings.Contains(err.Error(), serviceprincipal.IssueCommand) {
+		t.Fatalf("err = %v, want the missing credential named with %s", err, serviceprincipal.IssueCommand)
 	}
 	if len(stub.askAuth) != 0 {
 		t.Fatalf("an unidentified read must never be sent to the Hub: %v", stub.askAuth)
 	}
-	if refused := hub.Hub.Refused(); refused == nil || !strings.Contains(refused.Error(), askreader.IssueScript) {
+	if refused := hub.Hub.Refused(); refused == nil || !strings.Contains(refused.Error(), serviceprincipal.IssueCommand) {
 		t.Fatalf("the desk must remember why the Hub read was refused, got %v", refused)
 	}
 }

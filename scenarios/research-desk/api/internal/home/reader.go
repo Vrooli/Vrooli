@@ -102,7 +102,13 @@ type Snapshot struct {
 	// Attention and AttentionLegacy are ATTENTION.md's "## Actionable now".
 	Attention       []NeedsYouItem
 	AttentionLegacy []Legacy
-	Reviews         []*Review
+	// Levels are the supervisor's folder (the research home) and each topic's:
+	// their own decisions and the answers in their inboxes (levels.go).
+	Levels  []*Level
+	Reviews []*Review
+	// Capabilities are the research home's own (supervisor) skills and
+	// programs; each topic carries its own in Documents.
+	Capabilities Capabilities
 	// Unreadable lists ATTENTION.md and the reviews folder when they exist
 	// but cannot be read; every commission, topic and review
 	// keeps its own list too, and AllUnreadable gathers them.
@@ -165,7 +171,7 @@ func (r *Reader) Snapshot(ctx context.Context, opts Options) (*Snapshot, error) 
 		others:      sync.OnceValue(func() OtherGoals { return r.others.others(ctx, r.cfg.OtherCodexHomes) }),
 	}
 
-	snap := &Snapshot{Now: now, ResearchDir: r.cfg.ResearchDir}
+	snap := &Snapshot{Now: now, ResearchDir: r.cfg.ResearchDir, Capabilities: readCapabilities(r.cfg.ResearchDir, "")}
 	for _, id := range ids {
 		runs := owned[id]
 		sort.Slice(runs, func(i, j int) bool { return runs[i].Path < runs[j].Path })
@@ -181,6 +187,7 @@ func (r *Reader) Snapshot(ctx context.Context, opts Options) (*Snapshot, error) 
 	if snap.Reviews, err = readReviews(r.cfg.ResearchDir, index.of); err != nil {
 		snap.Unreadable = append(snap.Unreadable, Unreadable(filepath.Join(r.cfg.ResearchDir, ReviewsDir), err))
 	}
+	snap.Levels = readLevels(r.cfg.ResearchDir, topics)
 	linkTopics(topics, snap.Commissions, unowned, snap.Reviews)
 	snap.Topics = topics
 
@@ -293,12 +300,24 @@ func (s *Snapshot) intervalEnd(c *Commission) time.Time {
 	switch {
 	case c.State.Running():
 		return s.Now
+	case c.HistoricalSettlement != nil && c.HistoricalSettlement.ActivityEnd != nil:
+		return *c.HistoricalSettlement.ActivityEnd
 	case c.Ended.Known:
 		return c.Ended.Value
 	case c.LastWrite.Known && c.LastWrite.Value.After(c.Started.Value):
 		return c.LastWrite.Value
 	}
 	return c.Started.Value
+}
+
+func intervalStart(c *Commission) (time.Time, bool) {
+	if c.Started.Known {
+		return c.Started.Value, true
+	}
+	if c.HistoricalSettlement != nil && c.HistoricalSettlement.ActivityStart != nil {
+		return *c.HistoricalSettlement.ActivityStart, true
+	}
+	return time.Time{}, false
 }
 
 func (s *Snapshot) overlaps(keep func(*Commission) bool) []Overlap {
@@ -308,11 +327,12 @@ func (s *Snapshot) overlaps(keep func(*Commission) bool) []Overlap {
 	}
 	byTopic := map[string][]interval{}
 	for _, c := range s.Commissions {
-		if !c.Started.Known || !keep(c) {
+		start, known := intervalStart(c)
+		if !known || !keep(c) {
 			continue
 		}
 		for _, ref := range c.Topics {
-			byTopic[ref.Topic] = append(byTopic[ref.Topic], interval{c.ID, c.Started.Value, s.intervalEnd(c)})
+			byTopic[ref.Topic] = append(byTopic[ref.Topic], interval{c.ID, start, s.intervalEnd(c)})
 		}
 	}
 	var out []Overlap

@@ -4,11 +4,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
 // Needs-you grammar (FILE-CONTRACT.md §5). One parser for STATE.md
-// "## Needs you" and ATTENTION.md "## Actionable now".
+// "## Needs you" and ATTENTION.md "## Actionable now". The grammar's cases live
+// beside the agents' file check, skills/research-coordination/scripts/
+// needs_you_cases.json, and both parsers run them (needsyou_cases_test.go).
 
 // Option is one answer an item offers.
 type Option struct {
@@ -24,11 +27,27 @@ type NeedsYouItem struct {
 	Body string
 	// Recommended is set when a `Recommended: <key> — <label>` line names an option.
 	Recommended *Option
-	// RecommendedProblem says why a `Recommended:` line could not be read.
+	// RecommendedProblem says why a `Recommended:` line could not be parsed or
+	// did not name one of the item's offered choices.
 	RecommendedProblem string
-	Options            []Option
-	Packet             string
-	Secret             string
+	// Problems are every way the item breaks the grammar, RecommendedProblem
+	// among them, worded as needs_you.py words them.
+	Problems []string
+	Options  []Option
+	// optionsLine is true once an `Options:` line is read: an empty one
+	// offers nothing rather than the defaults.
+	optionsLine bool
+	// decision is true once a `Recommended:` line is read, well formed or not.
+	decision bool
+	// Packet is the brief a worker executes on the answer: work/<ID>/BRIEF.md
+	// of the level that raised the item. Every decision carries one.
+	Packet string
+	// Explainer is the optional `Explainer:` line: a self-contained HTML page
+	// that shows the decision (a comparison, a plan, a schedule) and goes with
+	// the Hub decision as its explainer. An absolute path, or one relative to
+	// the folder of the file holding the item; see ExplainerPath.
+	Explainer string
+	Secret    string
 	// Reason is the optional `Reason:` line: one plain sentence on why the
 	// recommendation is right.
 	Reason string
@@ -87,6 +106,18 @@ func ParseNeedsYou(text, section, source string) ([]NeedsYouItem, []Legacy) {
 		if current == nil {
 			return
 		}
+		if current.Recommended != nil {
+			if _, ok := current.Choice(current.Recommended.Key); !ok {
+				current.RecommendedProblem = `Recommended key "` + current.Recommended.Key + `" is not offered; fix the Recommended key or add it to Options`
+				current.Recommended = nil
+			}
+		}
+		if current.RecommendedProblem != "" {
+			current.Problems = append(current.Problems, current.RecommendedProblem)
+		}
+		if p := current.packetProblem(); p != "" {
+			current.Problems = append(current.Problems, p)
+		}
 		current.Body = strings.TrimSpace(strings.Join(body, "\n"))
 		items = append(items, *current)
 		current, body = nil, nil
@@ -104,6 +135,8 @@ func ParseNeedsYou(text, section, source string) ([]NeedsYouItem, []Legacy) {
 			flush()
 			m := itemHeading.FindStringSubmatch(line)
 			if m == nil {
+				// needs_you.py: "malformed item heading"; the desk shows it as
+				// text that is not an item.
 				legacy = append(legacy, line)
 				continue
 			}
@@ -144,21 +177,39 @@ func (it *NeedsYouItem) field(line string) {
 	value = strings.TrimSpace(value)
 	switch name {
 	case "Recommended":
+		it.decision = true
 		if m := optionText.FindStringSubmatch(value); m != nil {
 			it.Recommended = &Option{Key: m[1], Label: m[2]}
 			it.RecommendedProblem = ""
 		} else {
-			it.RecommendedProblem = "the Recommended: line does not start with `<key> — <label>`"
+			it.RecommendedProblem = "malformed Recommended line; use Recommended: <key> — <label>"
 		}
 	case "Options":
-		it.Options = nil
+		if it.optionsLine {
+			it.Problems = append(it.Problems, "duplicate Options: line; keep one options list")
+			return
+		}
+		it.optionsLine = true
 		for _, part := range strings.Split(value, "; ") {
-			if m := optionText.FindStringSubmatch(strings.TrimSpace(part)); m != nil {
+			m := optionText.FindStringSubmatch(strings.TrimSpace(part))
+			switch {
+			case value == "":
+			case m == nil:
+				it.Problems = append(it.Problems, "malformed option "+strconv.Quote(part)+"; use <key> — <label>")
+			default:
+				if _, dup := it.Choice(m[1]); dup {
+					it.Problems = append(it.Problems, "duplicate option key "+strconv.Quote(m[1]))
+				}
 				it.Options = append(it.Options, Option{Key: m[1], Label: m[2]})
 			}
 		}
 	case "Packet":
 		it.Packet = value
+	case "Explainer":
+		it.Explainer = value
+		if ext := strings.ToLower(filepath.Ext(value)); ext != ".html" && ext != ".htm" {
+			it.Problems = append(it.Problems, "Explainer: must name an .html page, a path inside the research home")
+		}
 	case "Reason":
 		it.Reason = value
 	case "Details":
@@ -172,10 +223,40 @@ func (it *NeedsYouItem) field(line string) {
 	}
 }
 
+// BriefFile is the name of a decision's packet: the brief a worker gets.
+const BriefFile = "BRIEF.md"
+
+// packetProblem says why a decision's `Packet:` line does not name its
+// brief, or "". The raiser understands the decision best, so it writes the
+// packet a worker executes on the answer (LEVELS.md, "Decisions travel up").
+func (it *NeedsYouItem) packetProblem() string {
+	switch {
+	case !it.decision:
+		return ""
+	case it.Packet == "":
+		return "a decision needs a Packet: line naming its brief, work/<ID>/" + BriefFile + ", so the answer can be executed without its raiser"
+	case filepath.Base(it.Packet) != BriefFile:
+		return "Packet: must name the decision's brief, work/<ID>/" + BriefFile + ", not " + filepath.Base(it.Packet)
+	}
+	return ""
+}
+
+// PacketPath is the item's packet as an absolute path, resolved as
+// ExplainerPath is; empty when the item names none.
+func (it NeedsYouItem) PacketPath() string {
+	switch {
+	case it.Packet == "":
+		return ""
+	case filepath.IsAbs(it.Packet) || it.Source == "":
+		return it.Packet
+	}
+	return filepath.Join(filepath.Dir(it.Source), it.Packet)
+}
+
 // fieldNames are the `Name:` lines field reads; they are data for the desk,
 // not prose for the operator.
 var fieldNames = map[string]bool{
-	"Recommended": true, "Options": true, "Packet": true, "Secret": true,
+	"Recommended": true, "Options": true, "Packet": true, "Explainer": true, "Secret": true,
 	"Reason": true, "Details": true, "Delivered": true, "Commission": true,
 }
 
@@ -196,9 +277,22 @@ func (it *NeedsYouItem) Prose() string {
 	return strings.TrimSpace(strings.Join(keep, "\n"))
 }
 
+// ExplainerPath is where the item's explainer page is: the `Explainer:` line as
+// an absolute path, a relative one resolved against the folder of the file the
+// item was read from. Empty when the item names none.
+func (it NeedsYouItem) ExplainerPath() string {
+	switch {
+	case it.Explainer == "":
+		return ""
+	case filepath.IsAbs(it.Explainer) || it.Source == "":
+		return it.Explainer
+	}
+	return filepath.Join(filepath.Dir(it.Source), it.Explainer)
+}
+
 // Choices returns the item's options, or the defaults without an Options: line.
 func (it *NeedsYouItem) Choices() []Option {
-	if len(it.Options) > 0 {
+	if len(it.Options) > 0 || it.optionsLine {
 		return it.Options
 	}
 	return DefaultOptions

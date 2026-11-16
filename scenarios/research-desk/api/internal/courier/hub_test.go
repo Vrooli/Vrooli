@@ -63,6 +63,7 @@ var testSpec = AskSpec{
 	Options:          []home.Option{{Key: "keep", Label: "Keep"}, {Key: "drop", Label: "Drop"}},
 	Recommended:      "keep",
 	Reason:           "Cheapest.",
+	Explainer:        "<!doctype html><h1>Keep the video tool?</h1>",
 }
 
 // An ask carries the item's key as its subject, so the Hub keeps one open
@@ -81,6 +82,9 @@ func TestAnAskCarriesTheItemAsItsSubject(t *testing.T) {
 	}
 	if p := s.payload(t, 0); p["subject"] != testSpec.Subject || p["technical_details"] != testSpec.TechnicalDetails {
 		t.Fatalf("the Hub title names the decision and the technical details carry the desk key: %v", p)
+	}
+	if got := s.payload(t, 0)["explainer_html"]; got != testSpec.Explainer {
+		t.Fatalf("the decision's page rides inline in the event, where the Hub stores it as the explainer: %v", got)
 	}
 	if s.hub.RequestRef(testSpec) != s.events[0].GetEventId() {
 		t.Fatalf("RequestRef %q is not the id of the event sent, %q", s.hub.RequestRef(testSpec), s.events[0].GetEventId())

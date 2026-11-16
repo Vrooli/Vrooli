@@ -52,11 +52,11 @@ Use this shape so entries are scannable. Append newest at the bottom.
   `research-desk-ask-reader` service principal. The desk reads that credential from the
   credential authority (`api/ask_reader_credential.go`, linked 2026-11-14) and exchanges it
   through the shared client (`askreader.Tokens`). Until the operator runs
-  `scenarios/notification-hub/scripts/issue-ask-reader-principals.sh` the courier cannot read
+  `scenario-authenticator service-principals sync --apply` the courier cannot read
   asks back and says so; it still raises and withdraws. Real fix: that one operator command.
 - **Web Console credential: not issued.** The desk's client is built (`api/web_console_credential.go`,
   on the shared `api-core/servicetoken`): once the operator runs
-  `scenarios/research-desk/scripts/issue-service-principal.sh` the desk presents its own
+  `scenario-authenticator service-principals sync --apply` the desk presents its own
   `research-desk` principal (read and write, exactly) to Web Console, and `research-desk now`
   reports "service credential". Until then automatic launch uses Web Console's local availability
   policy, and `web_console_access` says so on every launch. A credential that exists but cannot be
@@ -163,3 +163,37 @@ a migration handoff with a planned retirement path back into
 - Evidence: before repair, `research-desk now --json` showed `vrooli-events` as `not evaluated: deadline reached` and a failed courier pass; after targeted dependency resolution and restart, both `vrooli-events` and `notification-hub` were healthy and the courier last pass succeeded. The needs-you validator rejected malformed recommendation keys with a fix hint; corrected live `STATE.md` validates.
 - Blocker: Test Genie unit remains red only for three UI navigation tests failing on cross-realm `AbortSignal`; bug `knw-1794539667732355246`.
 - Measured: 2026-11-13
+
+### 2026-11-14 — decisions carried no explainer page without the sender credential (fixed 2026-11-15)
+
+Pages now ride inside the decision event (`operatordecision.Facts.Explainer`), which the Hub
+stores as the ask's explainer; the sender route and its credential are deleted, and every
+decision carries a page (its own, or a summary built from the item). Refs:
+`api/internal/courier/pages.go`, `docs/DECISIONS.md`.
+
+### 2026-11-14 — answers given after a commission ended reached no commission (fixed)
+
+**Symptom:** Three Hub answers (`CF3-SECOND-NODE-001`, `ELEMENTS-RECONNECT`, `DB1-OFFHOST-SINK`)
+sat in Notification Hub with nothing in any `OPERATOR.md`, while the superseding commissions asked
+the operator the same question again.
+
+**Root cause:** The courier read an answer back only for an item still in a needs-you file. The
+operator answered after the commission ended and was superseded, so the item had left every file
+and the answered ask had no step.
+
+**Fix (2026-11-15, replaces the relay-only fix of 2026-11-14):** the relay reached only a *live*
+successor, so all three answers were stranded again once the successors ended too. Now an answered
+ask whose item is in no file is written once into the asking commission's own `OPERATOR.md` and,
+when that commission ended, relayed to a live successor or appended to the topic's `INBOX.md`,
+which the next commission drains at start. The Hub is read every pass.
+**Model fix (2026-11-15, O7):** decisions now live with their level (`topics/<t>/DECISIONS.md`,
+`ATTENTION.md`) and every answer lands in that level's `INBOX.md`, so there is no successor to find
+(FILE-CONTRACT §5 "Every answer lands"). The three answers are in
+`topics/crypto-foundations/INBOX.md` and `topics/data-backup-manager-recovery/INBOX.md`.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: On live `ee-forcing-functions-20261115`, agent `research-desk say … --dry-run` was denied because it writes operator words. The regression now proves verified-agent findings go to attributed `STEWARD.md`, and the charter ranks them below `OPERATOR.md` and above supervisor judgment. Focused writer, API/auth, home and CLI tests pass; live `feedback --dry-run` succeeds.
+- Blocker: none
+- Measured: 2026-11-15

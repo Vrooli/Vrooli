@@ -78,9 +78,15 @@ func Verdicts(snap *home.Snapshot, topics []string, choices map[string]Resolutio
 			out = append(out, v)
 		}
 		if newest >= 0 {
+			// A topic with a plan starts from the plan: an old checkpoint
+			// (often 100 KB of run detail) is read only when there is none.
 			v := &out[newest]
-			v.ReadFirst = checkpoint(snap.Commission(v.CommissionID), topic).Path
-			v.Message += "; its newest checkpoint is offered as read_first"
+			if hasPlan(snap.ResearchDir, topic) {
+				v.Message += "; its checkpoint is not offered as read_first because the topic's work/README.md plan comes first"
+			} else {
+				v.ReadFirst = checkpoint(snap.Commission(v.CommissionID), topic).Path
+				v.Message += "; its newest checkpoint is offered as read_first"
+			}
 		}
 	}
 	return out
@@ -204,4 +210,10 @@ func stateExcerpt(c *home.Commission) *StateExcerpt {
 		text = string(r[:ExcerptChars])
 	}
 	return &StateExcerpt{Path: path, Text: text, Truncated: len(text) < len(data)}
+}
+
+// hasPlan reports whether the topic keeps a work/README.md plan of briefs.
+func hasPlan(researchDir, topic string) bool {
+	info, err := os.Stat(filepath.Join(researchDir, "topics", topic, "work", "README.md"))
+	return err == nil && info.Mode().IsRegular()
 }

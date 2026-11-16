@@ -57,6 +57,8 @@ type Commission struct {
 	Packet       *PacketRecord
 	Spec         *PacketSpec
 	Launch       *LaunchRecord
+	// HistoricalSettlement is evidence-backed historical disposition, separate from live worker state.
+	HistoricalSettlement *HistoricalSettlement
 	// Operator is OPERATOR.md, nil when absent.
 	Operator *OperatorLog
 	// Steering says whether the charter tells the scheduler to read OPERATOR.md.
@@ -162,6 +164,19 @@ func readCommission(researchDir, id string, runs []RunFolder, topicOf func(strin
 		c.RecordErrors = append(c.RecordErrors, err.Error())
 	} else {
 		c.Launch = record
+	}
+	if record, err := ReadHistoricalSettlement(filepath.Join(dir, SettlementFile)); err != nil {
+		c.RecordErrors = append(c.RecordErrors, err.Error())
+	} else if record != nil && record.CommissionID != id {
+		c.RecordErrors = append(c.RecordErrors, fmt.Sprintf("%s names commission %q; expected %q", SettlementFile, record.CommissionID, id))
+	} else if record != nil {
+		if err := ValidateHistoricalEvidence(researchDir, record); err != nil {
+			c.RecordErrors = append(c.RecordErrors, err.Error())
+		} else {
+			c.HistoricalSettlement = record
+		}
+	} else {
+		c.HistoricalSettlement = nil
 	}
 	packetPath := filepath.Join(dir, PacketFile)
 	if record, spec, err := ReadPacket(packetPath); err != nil {

@@ -9,7 +9,7 @@ declares web-console, vrooli-events and notification-hub as scenario dependencie
 `required: false` and `startup_policy: ignore`, so the desk starts and reads files without
 them; the reasons are in [`../DECISIONS.md`](../DECISIONS.md) under "An ordinary Codex TUI", "Only
 the live instance writes", "Automatic launch through whichever Web Console access exists" and
-"The courier publishes events".
+"The courier sends decisions as the desk's own verified sender".
 
 ## Cross-References
 

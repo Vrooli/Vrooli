@@ -1,6 +1,6 @@
 ---
 name: "local-experimentation"
-description: "Run bounded local experiments against a baseline, admit resource and acquisition costs before trials, verify recovery and cleanup, and decide adopt, investigate, or reject from retained evidence."
+description: "Compare a candidate tool, model or technique against the current baseline on this host: freeze the evaluation, admit resource and acquisition costs before trials, run and clean up through the owners, and decide adopt, investigate or reject from retained evidence."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,104 +9,83 @@ metadata:
   tags: ["experiment", "benchmark", "capacity", "reproducibility", "local"]
   icon: "flask-conical"
   status: "active"
-  revision: 15
+  revision: 16
   createdAt: "2026-10-20T00:00:00Z"
-  updatedAt: "2026-11-04T16:15:22Z"
+  updatedAt: "2026-11-15T08:00:00Z"
   requires:
-    scenarios: ["prompt-manager", "scenario-dependency-analyzer"]
-    commands: ["vrooli capacity", "scenario-dependency-analyzer deps", "search-hub query"]
+    commands: ["vrooli capacity", "scenario-dependency-analyzer deps"]
   origin:
     kind: "authored"
 ---
-## Practice focus: Local experimentation
+## Local experimentation
 
-Resolve one bounded hypothesis by comparing a candidate with the current baseline under declared resource and recovery limits. Retain enough evidence to reproduce the decision, including failures and routes that were not tested.
+Use a controlled comparison when a choice is expensive to reverse: a default model, a runtime, a
+storage format, a production technique. For a choice you can make by reading two outputs, decide
+by inspection and build. The goal is a decision you can reproduce, with failures and untested
+routes kept, not a pile of metrics.
 
-### Scope
+Owners keep their mechanics: capacity admission (`docs/configuration/host/capacity.md`),
+acquisition (`docs/package-governance.md`, Scenario Dependency Analyzer), lifecycle and media
+owners. This skill adds judgment; it creates no scheduler. Use `adaptive-research` when the next
+question must come from evidence, and `scientific-debugging` for a known defect.
 
-Use this method for uncertain local tools, models, or production techniques. It owns experimental judgment and evidence. Existing capacity, acquisition, lifecycle, and media owners retain execution and state. It does not authorize purchases, license agreements, credential changes, publication, service eviction, or security changes. Use `scientific-debugging` for a known defect and `scenario-work-ladder` for a scenario repair.
+### 1. Fix the question before any output
 
-Keep one record with the existing effort; use [the record guide](references/record.md) for the canonical research home, topic/run reading path and applicable evidence. Read `path:docs/configuration/host/capacity.md` for capacity-governed work, `path:docs/package-governance.md` for acquisitions, and `program-runtime` only when reusing a governed program. Owner contracts define mechanics; this skill does not create another scheduler or admission policy.
+- Recall prior experiments (`search-hub query "<intent>" --type library,record,skill,doc`, or
+  `rg` over the topic's runs).
+- State a falsifiable hypothesis and the baseline. Freeze inputs, metrics, acceptance criteria,
+  candidate and retry limits, and the stop time before you look at results. Check the evaluator
+  against the real outcome the operator cares about; a technical proxy keeps its narrow meaning.
+- Budget each route: trials and repetitions, wall time, tokens, peak GPU, RAM and disk including
+  downloads, unpacking, caches and outputs. Stop on failed admission, new terms or authority,
+  OOM, interference, the repeated-failure limit or an exhausted budget.
 
-For adaptive optimization or copied production code, read [adaptive and external experiments](references/adaptive.md). Use `adaptive-research` when the next question must be discovered from evidence. A retained report or reproducible prototype can complete research without maintained integration.
+If you cannot fix these, the decision is `investigate`; do not start a heavy trial.
 
-To launch experiments in separate chats, use the [single-chat launch guidance](references/adaptive.md#start-or-resume-one-research-chat). Reuse the harness; do not create a delivery team or an experiment scheduler for one research goal.
+### 2. Admit the exact route
 
-Use `research-coordination` when several studies or a broad effort need shared direction, review and synthesis. Investigators retain their own research frontiers and execution ownership.
+- Pin inputs and dependency versions. Acquire tools, models and data through Scenario Dependency
+  Analyzer or the resource's owner; routine in-scope acquisition needs no extra confirmation.
+  Record source, version, terms, expanded bytes and where it installs.
+- Read terms against the research use; a research-only license may still forbid the product.
+- Admit heavy work through the capacity owner with fresh readings. A warning, a recorded claim,
+  an enforced refusal and your own safety hold mean different things. Unknown demand or a missing
+  required admission is `not_tested`, never a rejection.
+- Never acquire weights for a route that already fails memory, disk, terms or authority.
 
-### Phase 1: Bound the question
+### 3. Run trials
 
-**Entry:** A user-authorized outcome has an owner and destination.
+- Submit, watch, cancel and fetch through the owner; record each operation's identity before
+  waiting. Serialize when overlap would break capacity or comparability.
+- Count refusals before execution separately from executed trials. Retry a refused slot only when
+  evidence shows the failed condition changed. Amend the protocol only prospectively, keeping the
+  earlier results.
+- Measure the declared outcome and costs; separate setup, trial and selection costs; label
+  sampled peaks.
+- Check outputs against acceptance and then judge their usefulness. A decodable file is not
+  acceptance. Recheck an apparent winner on fresh runs before claiming it.
 
-1. Recall relevant experiments with `search-hub query "<experiment intent>" --type library,record,skill,doc`. Follow the repository fallback if discovery fails.
-2. Read the existing topic guide, relevant prior run and recorded feedback. Inspect ongoing work, source state, and the supported execution surface. Record actual permissions; requested access is not observed access.
-3. State a falsifiable hypothesis and baseline. Freeze common inputs and acceptance before viewing outputs. Qualify the evaluator for the user outcome before scaling; technical proxies retain their narrow meaning.
-4. Bound candidates, repetitions, elapsed time, tokens, and peak storage/resource demand for the selected route. Include warmups, failures, verification, and recovery costs. For unattended work, qualify the existing execution owner under [the unattended guidance](references/adaptive.md#bound-unattended-work).
-5. Define stopping criteria: failed admission, new terms or authority requirements, OOM, resource interference, repeated failure limit, or exhausted budget. Stop only task-owned work. A route refusal stops that trial and dependent effects; for a wider research commission, use the [research frontier](references/adaptive.md#choose-the-next-research-question) to select independent permitted work before concluding the whole study.
+### 4. Decide and clean up
 
-**Exit/artifact:** A dated experiment record fixes scope, owners, comparable inputs, success/failure criteria, budgets, and stop conditions. If these cannot be fixed, end with `investigate`; do not start a heavy trial.
-
-### Phase 2: Admit the exact route
-
-**Entry:** The record is fixed and no conflicting writer owns the same effect. Apply acquisition and capacity checks when that route needs them; a lightweight check does not require a new lease or installation.
-
-1. Pin the inputs and dependency identities needed for reproducibility. Record unknown identities and local/cloud behavior. For remote sources or credentials, use the [source access check](references/adaptive.md#check-source-access).
-2. Choose and acquire tools, dependencies, models, and data needed for the authorized investigation. Use Scenario Dependency Analyzer or the existing resource/model owner unless the operator explicitly authorizes an isolated workaround; do not require separate confirmation for routine in-scope acquisition. Record source, version, applicable terms, estimated expanded bytes, install/cache locations and ownership, and simultaneous storage demand; reconcile actual effects and cleanup afterward. An unavailable production capability does not itself prohibit an isolated experiment. If an owner route is missing or refuses admission, identify the exact gap, repair it when authorized, or pursue a viable alternative; an authorized workaround does not override actual capacity or safety refusals.
-3. Evaluate terms against the actual research use separately from eventual deployment. A research-only tool can be useful even if its license excludes the proposed product; record that limitation and do not imply the research license permits integration. If the contemplated research itself is outside the license, or its scope is unresolved, retain the exact issue and pursue another permitted route.
-4. Use the capacity owner's current observations and admission contract for governed execution. Record effective enforcement mode and result. An advisory warning, recorded claim, enforced refusal, and caller safety hold have different meanings; do not reinterpret them in a private policy.
-5. Compare peak demand plus headroom with fresh available capacity. Obtain and retain any required owner lease across the heavy lifetime. A passive observation is not a reservation. Unknown demand or missing required admission means `not_tested`.
-
-**Exit/artifact:** Evidence identifies an executable route, marks inapplicable acquisition/admission gates, or names the failed required gate. Do not acquire weights for a route that already fails memory, disk, terms, or authority admission.
-
-### Phase 3: Run trials
-
-**Entry:** Inputs, identities, budgets, and required owner gates pass for this trial.
-
-1. Use the supported owner for submission, status, cancellation, and output retrieval. Record reproducible inputs and the owner operation identity or synchronous request scope before waiting. A synchronous path does not require a new job registry.
-2. Count pre-execution admission refusals separately from executed trials, while retaining both. Resubmit a refused slot only after fresh evidence shows its failed gate may have changed and the preset retry policy permits it. Record any authorized protocol amendment before dependent work; never overwrite the earlier refusal or change acceptance after seeing output.
-3. Schedule trials and acquisitions within the capacity owner’s admission and the actual shared-resource budget. Serialize when overlap would exceed those limits or compromise comparability. Reuse owner operations and retain their identities and receipts.
-4. Measure the declared outcome and resource costs. Separate setup from trial and selection costs. Label sampled peaks and unavailable metrics; preserve metric definitions across candidates.
-5. For long-lived effects, reuse applicable owner cancellation evidence or qualify the selected path once while active. Verify final owned processes/leases and partial outputs. Reconcile the original operation before retrying; retain qualification costs and failures.
-6. Verify actual outputs against hashes and technical acceptance, then review the artifact for the declared usefulness criteria. A successful command or decodable file is not acceptance.
-
-**Exit/artifact:** Every preset trial has a terminal receipt or an explicit unresolved state. Any unresolved effects stop duplicate/dependent trials. A trial that was refused before execution is an admission failure, not a model-quality failure or a cancellation test.
-
-### Phase 4: Decide and close
-
-**Entry:** The trial budget is exhausted, a stopping criterion fired, or the hypothesis has enough evidence.
-
-Use the first matching row for each route:
-
-| Evidence | Decision | Next action |
-|---|---|---|
-| A required effect, acceptance, permission, identity, admission or cleanup check remains unverified; or route is `not_tested` | `investigate` | Name the exact gap, owner and bounded next check. Preserve the baseline. |
-| Completed comparable trials fail a preset quality/cost criterion or the hypothesis | `reject` | Retain the failure and baseline. A new or revised trial needs a prospective rationale and must fit the commission and remaining allowance. |
-| Comparable trials pass quality/cost criteria and recovery/cleanup, and improve the declared outcome over baseline | `adopt` | Retain the result and name the smallest maintained integration. Implement integration only when it belongs to the authorized outcome. |
-
-1. Retain accepted outputs, reproducible inputs, source/configuration hashes, receipts, and the decision. Update the run guide and the topic's findings, feedback dispositions, decisions and next questions; for concurrent work, send the topic update to its designated writer. Inventory each retained path, bytes, purpose, owner and license.
-2. Preview cleanup against the task ownership ledger. Prefer the owner's reversible removal or quarantine. Remove only verified task-owned expendable assets; never clear global caches, unrelated processes, or shared model versions.
-3. Verify cleanup through owner status/claims and filesystem inventory. Report remaining leases, processes, caches, outputs, and uncertain effects explicitly. Keep recovery evidence until its owner accepts closure.
-4. Use the [shared persistence/discovery method](references/record.md#persist-and-discover). Retain the exact retrieval receipt or visibility gap; do not repeat unchanged indexing checks or change the empirical verdict.
-
-**Exit/artifact:** The record supports `adopt`, `investigate`, or `reject`; retained assets and remaining effects have owners. Full closure includes a discoverable work-record plus ledger row leading back to the workspace by intent; failed persistence or retrieval is reported as partial closure. Adoption names the maintained integration, version/admission/status/cancellation/provenance behavior, focused checks, and a useful acceptance artifact. Do not claim integrated production support from a scratch success.
-
-### Anti-patterns
-
-| Mistake | Consequence | Replacement |
-|---|---|---|
-| Admit against nominal GPU size or yesterday's free memory | Competes with current work | Fresh observations plus owner admission |
-| Install first and measure disk afterward | Extraction/copies exhaust storage | Peak simultaneous storage budget before acquisition |
-| Change prompts, seeds or acceptance after seeing one result | Invalid comparison | Frozen shared inputs and explicit new experiment |
-| Retry an uncertain job or kill all matching processes | Duplicate effects or unrelated loss | Reconcile the exact job and cancel only its owned scope |
-| Hide failures or call an untested route rejected | Misleading selection | Preserve all preset trial dispositions and unknowns |
-
-### Troubleshooting & Edge Cases
-
-| Observation | Action |
+| Evidence | Decision |
 |---|---|
-| Executor cannot read GPU or local sockets | Report the executor restriction. Use supported reviewed diagnostics; do not infer a host outage or bypass containment. |
-| Exact version, terms or memory requirement is unknown | Mark the route `not_tested` and decision `investigate`. Do not replace it silently with another model. |
-| Owner has no suitable admission, acquisition or cancellation operation | Record the gap; repair it or use an operator-authorized isolated workaround when applicable, while honoring actual required capacity and safety gates. |
-| Cancellation returned but children/leases remain | Hold retry and cleanup. Preserve receipt and recovery ownership. |
-| Candidate is text-only but comparison uses reference images | Label conditioning as different. Do not rank it as an equivalent image-conditioned trial. |
-| Baseline already meets acceptance and no candidate can run | Retain baseline evidence. Report the comparison as incomplete; do not invent a winner. |
+| A required check (effect, acceptance, permission, admission, cleanup) is unverified, or the route is `not_tested` | `investigate`: name the gap, owner and next check |
+| Comparable trials fail a preset criterion | `reject`: keep the failure and the baseline |
+| Comparable trials pass, recover cleanly and beat the baseline | `adopt`: name the smallest maintained integration, and build it when the commission includes it |
+
+Keep accepted outputs, inputs, hashes, receipts and the decision in the run folder (never `/tmp`,
+which is cleared after three days). Remove only task-owned assets through their owners; never
+clear global caches, shared models or unrelated processes. Report what remains. For experiments on
+copied production code, source access with credentials, or unattended runs, read
+[trials](references/trials.md).
+
+### Traps
+
+| Trap | Instead |
+|---|---|
+| Admitting against nominal GPU size or yesterday's free memory | Fresh readings plus owner admission |
+| Installing first and measuring disk afterwards | Budget peak storage before acquisition |
+| Changing prompts, seeds or acceptance after one result | Freeze them; a change is a new experiment |
+| Retrying an uncertain job or killing every matching process | Reconcile the exact job and cancel only its scope |
+| Calling an untested route rejected | Keep `not_tested` and the reason |
+| A frozen evaluator for a choice that is cheap to reverse | Decide by inspection and build |

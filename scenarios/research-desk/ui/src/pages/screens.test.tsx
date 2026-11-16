@@ -279,6 +279,7 @@ describe("Topics", () => {
   it("lists the newest research write first, with live, paused and limited apart, the write's source a tap away, and a filter", async () => {
     wire({
       [`${ACTIVITY}/ListTopics`]: {
+        observedAt: AT,
         topics: [
           topic("older", "2026-10-01T00:00:00Z", {
             pausedCommissionIds: ["c2"],
@@ -295,6 +296,10 @@ describe("Topics", () => {
       },
     });
     render("/topics");
+    await waitFor(() => {
+      const observed = screen.getAllByLabelText(strings.common.lastObserved);
+      expect(observed.some((item) => item.querySelector("time")?.getAttribute("datetime") === new Date(AT).toISOString())).toBe(true);
+    });
     const links = await screen.findAllByRole("link", { name: /Title|silent/ });
     expect(links.map((l) => l.getAttribute("href"))).toEqual(["/topics/newer", "/topics/older", "/topics/silent"]);
     expect(screen.getByText(WIRE.mode)).toBeInTheDocument();
@@ -321,6 +326,7 @@ describe("Topics", () => {
   it("shows one topic's mission check, workstreams, commissions and changes", async () => {
     wire({
       [`${ACTIVITY}/ListTopics`]: {
+        observedAt: AT,
         topics: [
           topic("t", AT, {
             mission: { path: `${HOME}/topics/t/MISSION.md`, bytes: "8000" },
@@ -331,6 +337,10 @@ describe("Topics", () => {
       [`${ACTIVITY}/ListCommissions`]: { commissions: [commission] },
     });
     render("/topics/t");
+    await waitFor(() => {
+      const observed = screen.getAllByLabelText(strings.common.lastObserved);
+      expect(observed.some((item) => item.querySelector("time")?.getAttribute("datetime") === new Date(AT).toISOString())).toBe(true);
+    });
     expect(await screen.findByText(WIRE.workstream)).toBeInTheDocument();
     expect(screen.getByText(WIRE.missionError)).toBeInTheDocument();
     expect(screen.getByText(WIRE.missionWarning)).toBeInTheDocument();

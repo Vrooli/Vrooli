@@ -4,6 +4,7 @@ import (
 	"research-desk/internal/home"
 	"research-desk/internal/peer"
 
+	"github.com/vrooli/api-core/researchhome"
 	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
@@ -81,6 +82,19 @@ func ReadSets(sets []home.ReadSet) []*sharedv1.ReadSet {
 	out := make([]*sharedv1.ReadSet, 0, len(sets))
 	for _, set := range sets {
 		out = append(out, &sharedv1.ReadSet{Role: set.Role, Files: Files(set.Files), Bytes: set.Bytes, EstimatedTokens: set.EstimatedTokens, Flags: set.Flags})
+	}
+	return out
+}
+
+// Capabilities converts a scope's research skills and programs.
+func Capabilities(c home.Capabilities) []*activityv1.ResearchCapability {
+	out := make([]*activityv1.ResearchCapability, 0, len(c.Items))
+	for _, item := range c.Items {
+		kind := activityv1.CapabilityKind_CAPABILITY_KIND_SKILL
+		if item.Kind == researchhome.KindProgram {
+			kind = activityv1.CapabilityKind_CAPABILITY_KIND_PROGRAM
+		}
+		out = append(out, &activityv1.ResearchCapability{Id: item.ID, Kind: kind, Path: item.Path, Problems: item.Problems})
 	}
 	return out
 }

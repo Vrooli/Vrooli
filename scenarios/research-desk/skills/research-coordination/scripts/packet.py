@@ -33,8 +33,11 @@ TEMPLATES = SKILL / "templates"
 REPO = SKILL.parents[3]
 PATHS = {
     "footprint": SCRIPTS / "footprint.py",
+    "topic_health": SCRIPTS / "topic_health.py",
+    "inbox": SCRIPTS / "inbox.py",
+    "needs_you": SCRIPTS / "needs_you.py",
     "adaptive_research": SKILL.parent / "adaptive-research" / "SKILL.md",
-    "long_effort": REPO / "docs" / "agent-system" / "LONG_EFFORT_DESIGN.md",
+    "review_briefs": TEMPLATES / "review-briefs.md",
     "operator_attention": SKILL / "references" / "operator-attention.md",
     "owner_brief": TEMPLATES / "owner-brief.md",
     "effort_anatomy": REPO / "scenarios/prompt-manager/store/skills/packs/core/effort-diagnosis/scripts/effort_anatomy.py",
@@ -249,14 +252,16 @@ def mission_facts(rep: mc.TopicReport, text: str, chosen: list, others: dict[str
     picked = {w.ident for w in chosen}
     later = [w for w in rep.workstreams if w.status in mc.LIVE and w.ident not in picked]
     lines = []
-    if later:
+    if later or rep.later:
         lines.append("- **Also open** (taken when the card's workstreams land or wait): "
-                     + ", ".join(f"**{w.ident}** ({w.magnitude.split('·')[0].strip()})" for w in later))
+                     + ", ".join(w.ident for w in later)
+                     + (f"{'; then ' if later else ''}the mission's Later list: {', '.join(w.ident for w in rep.later)}" if rep.later else ""))
     asks = [f"{w.ident} ({w.status})" for w in rep.workstreams if w.status in ("waiting-operator", "proposed")]
     waits = [f"{w.ident} ({w.status})" for w in rep.workstreams if w.status == "waiting-time"]
-    lines.append(f"- **Waits on the operator:** {', '.join(asks) or 'no workstream'}"
-                 + (f"; waiting on time: {', '.join(waits)}" if waits else "")
-                 + "; the rest is in the mission's Approval flow.")
+    if asks or waits:
+        lines.append(f"- **Waits on the operator:** {', '.join(asks) or 'no workstream'}"
+                     + (f"; waiting on time: {', '.join(waits)}" if waits else "")
+                     + "; the rest is in the mission's Approval flow.")
     ret = RETURN_HEAD.search(text)
     if ret:
         lines.append(f"- **Return:** the mission's \"{(ret.group(1) or ret.group(2)).strip(' .')}\".")
@@ -277,16 +282,41 @@ def and_join(items: list[str]) -> str:
     return items[0] if len(items) == 1 else ", ".join(items[:-1]) + " and " + items[-1]
 
 
-def card_workstreams(rep: mc.TopicReport, order: list[str] | None, count: int) -> list:
-    """The operator's order, else active, then approved, then open rows, capped."""
+def plan_order(tdir: Path, rep: mc.TopicReport) -> list[tuple[str, str | None]]:
+    """Live workstreams in the order of the topic's plan (`work/README.md`), each with its brief
+    path when written. A row names its workstream in its Brief or Workstream cell."""
+    plan = tdir / "work" / "README.md"
+    if not plan.is_file():
+        return []
+    live = [w.ident for w in rep.workstreams if w.status in mc.LIVE]
+    out: list[tuple[str, str | None]] = []
+    for cells in mc.table_rows(re.split(r"^## Risks", plan.read_text(encoding="utf-8"), maxsplit=1, flags=re.M | re.I)[0]):
+        state = ((cells[2] if len(cells) > 2 else "").split() or [""])[0].lower()
+        if state in ("done", "landed", "dropped"):
+            continue
+        ws = next((w for w in live if re.search(rf"(?<![A-Za-z0-9]){re.escape(w)}(?![A-Za-z0-9])", " ".join(cells[:2]))), None)
+        if not ws or ws in (o[0] for o in out):
+            continue
+        brief_id = re.sub(r"[`\[\]]", "", cells[0]).split("(")[0].strip().rstrip("/").split("/")[-1]
+        brief = tdir / "work" / brief_id / "BRIEF.md"
+        out.append((ws, f"work/{brief_id}/BRIEF.md" if brief_id and brief.is_file() else None))
+    return out
+
+
+def card_workstreams(rep: mc.TopicReport, order: list[str] | None, count: int,
+                     plan: list[tuple[str, str | None]] = ()) -> list:
+    """The operator's order, else the topic's plan, else active, then approved, then open rows, capped."""
     rows = {w.ident: w for w in rep.workstreams}
     if order:
         return [rows[i] for i in order]
+    if plan:
+        return [rows[ws] for ws, _ in plan][:count]
     ranked = [w for s in ("active", "approved", "open") for w in rep.workstreams if w.status == s]
     return ranked[:count]
 
 
 ORDER_LABEL = "- **Order** (the operator's; land in this order):"
+PLAN_LABEL = "- **Order** (the topic's plan, `work/README.md`; start each owner from its brief, under the folder):"
 CHOICE_LABEL = "- **Workstreams** (active, approved, then open; not a priority order: choose by scorecard movement):"
 
 
@@ -294,7 +324,9 @@ def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, t
                 others: dict[str, int], read_first: str | None, order: list[str] | None, notes: str | None,
                 count: int, cap: int) -> tuple[str, dict]:
     tdir = home / "topics" / topic
-    chosen = card_workstreams(rep, order, count)
+    plan = [] if order else plan_order(tdir, rep)
+    briefs = dict(plan)
+    chosen = card_workstreams(rep, order, count, plan)
     lists = ", ".join(f"`{p.name}`" for p in list_files(tdir))
     lines = [
         f"### Card {n} — {title} · mode `{rep.mode}`",
@@ -303,14 +335,15 @@ def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, t
     ]
     if read_first:
         lines.append(f"- **Read first:** `{read_first}`")
-    lines.append(ORDER_LABEL if order else CHOICE_LABEL)
+    lines.append(ORDER_LABEL if order else PLAN_LABEL if plan else CHOICE_LABEL)
     lines += [f"  {i}. **{w.ident}** ({' '.join(w.magnitude.split())}): {' '.join(w.showcase.split())}"
+              + (f" Brief: `{briefs[w.ident]}`." if briefs.get(w.ident) else "")
               for i, w in enumerate(chosen, 1)]
     lines += mission_facts(rep, text, chosen, others, cap)
     if notes:
         lines += ["", "Operator's notes for this card, verbatim:", "", notes.strip("\n")]
     card = {"topic": topic, "mode": rep.mode, "order": [w.ident for w in chosen],
-            "order_source": "operator" if order else "mission", "read_first": read_first, "clause_cap": cap}
+            "order_source": "operator" if order else "plan" if plan else "mission", "read_first": read_first, "clause_cap": cap}
     return "\n".join(lines) + "\n", card
 
 
@@ -337,7 +370,21 @@ def kernel_excerpt(source: str, budget: int) -> str:
     return cut + "..."
 
 
-def compose(home: Path, spec: dict, cid: str, cap: int) -> tuple[dict[str, str], list[dict], list[dict]]:
+OWNERS_MAX = 5  # eight threads: the scheduler, owners, and at least two left for reviewers and workers
+
+
+def owner_split(workstreams: list[int]) -> list[int]:
+    """Owners per card: one per card, then one more per listed workstream, round-robin, up to OWNERS_MAX."""
+    split = [1] * len(workstreams)
+    while sum(split) < OWNERS_MAX:
+        grow = [i for i, n in enumerate(workstreams) if split[i] < n]
+        if not grow:
+            break
+        split[min(grow, key=lambda i: split[i])] += 1
+    return split
+
+
+def compose(home: Path, spec: dict, cid: str, cap: int, most: int | None = None) -> tuple[dict[str, str], list[dict], list[dict]]:
     """Render charter, stance and kernel. Returns texts, cards and mission errors."""
     limits = load_limits()
     errors: list[dict] = []
@@ -345,24 +392,27 @@ def compose(home: Path, spec: dict, cid: str, cap: int) -> tuple[dict[str, str],
     for n, topic in enumerate(spec["topics"], 1):
         rep, title, text = read_mission(home, topic)
         errors += [{"code": "mission_error", "message": f"{topic}: {e}"} for e in rep.errors]
+        if rep.retired:
+            errors.append({"code": "mission_error", "message": f"{topic}: retired {rep.retired}; reopen it before commissioning"})
         others = {t: i for i, t in enumerate(spec["topics"], 1) if t != topic}
         md, card = render_card(n, home, cid, topic, rep, title, text, others, spec["read_first"].get(topic),
                                spec["order"].get(topic), spec["card_notes"].get(topic),
-                               default_count(len(spec["topics"]), limits["packet"]["ordered_workstreams_max"]), cap)
+                               most or default_count(len(spec["topics"]), limits["packet"]["ordered_workstreams_max"]), cap)
         cards_md.append(md)
         cards.append(card)
         titles.append(title)
         open_hours.append(str(rep.open_hours()))
     folder = home / "cohorts" / cid
-    owners = len(spec["topics"])
+    split = owner_split([len(c["order"]) for c in cards])
+    owners = sum(split)
     quotes = [quote_text(q) for q in spec["stance_quotes"]]
     emphasis = spec["emphasis"].strip()
     ordered = sum(t in spec["order"] for t in spec["topics"])
-    phrase = ("in order" if ordered == owners else "in the order a card gives, else by scorecard movement" if ordered
+    phrase = ("in order" if ordered == len(cards) else "in the order a card gives, else by scorecard movement" if ordered
               else "chosen by scorecard movement")
     values = {
         "order_phrase": phrase,
-        "kernel_order": " in order" if ordered == owners else " (in order where given)" if ordered else "",
+        "kernel_order": " in order" if ordered == len(cards) else " (in order where given)" if ordered else "",
         "title": f"Research commission {cid} — {' · '.join(titles)}",
         "commission_id": cid,
         "research_home": str(home),
@@ -386,6 +436,8 @@ def compose(home: Path, spec: dict, cid: str, cap: int) -> tuple[dict[str, str],
         "allowance_hours": str(spec["allowance_hours"]),
         "cards": "\n".join(cards_md),
         "owner_count": str(owners),
+        "owner_split": ("one per card" if owners == len(cards) else
+                        "; ".join(f"card {i}: {k}" for i, k in enumerate(split, 1)) + ", one per listed workstream in card order"),
         "held_slots": str(owners + 1),
         "slots": str(8 - owners - 1),
         "supervisor_model": spec["supervisor_model"],
@@ -398,15 +450,31 @@ def compose(home: Path, spec: dict, cid: str, cap: int) -> tuple[dict[str, str],
         "start_date": f"{today():%Y-%m-%d}",
         **{k: str(v) for k, v in PATHS.items()},
     }
+    stance_t = (TEMPLATES / "stance.txt").read_text(encoding="utf-8")
     texts = {
         "charter": render((TEMPLATES / "charter.md").read_text(encoding="utf-8"), values),
-        "stance": render((TEMPLATES / "stance.txt").read_text(encoding="utf-8"), values),
+        "stance": fit_stance(stance_t, values, quotes, limits["gates"]["stance_chars"]),
     }
     kernel_t = (TEMPLATES / "kernel.txt").read_text(encoding="utf-8")
     budget = limits["gates"]["kernel_chars"] - len(render(kernel_t, {**values, "kernel_excerpt": ""}))
     values["kernel_excerpt"] = kernel_excerpt(emphasis or spec["stance_quotes"][0], budget)
     texts["kernel"] = render(kernel_t, values)
     return texts, cards, errors
+
+
+def fit_stance(template: str, values: dict, quotes: list[str], limit: int) -> str:
+    """The stance message with every quote, or, when that is over the limit Codex keeps verbatim
+    through compaction, the leading quotes that fit and a pointer to the charter, which carries all
+    of them. A first quote that alone is too long still renders whole and fails its gate."""
+    for keep in range(len(quotes), 0, -1):
+        rest = len(quotes) - keep
+        block = "\n\n".join(quotes[:keep]) + (
+            f"\n\n({rest} more of my quotes, verbatim, are in the charter under Operator stance; read them there.)"
+            if rest else "")
+        text = render(template, {**values, "stance_quotes": block})
+        if len(text) <= limit or keep == 1:
+            return text
+    return render(template, values)
 
 
 # ---------------------------------------------------------------- gates
@@ -528,8 +596,11 @@ def prepare(home: Path, spec_arg: str) -> tuple[dict, str, dict, list, list, lis
     limits = load_limits()
     spec = normalize_spec(read_spec(spec_arg), home, limits)
     cid = commission_id(home, spec["slug"])
-    for cap in CLAUSE_CAPS:  # the longest mission excerpts that let the charter fit
-        texts, cards, mission_errors = compose(home, spec, cid, cap)
+    full = default_count(len(spec["topics"]), limits["packet"]["ordered_workstreams_max"])
+    # The longest mission excerpts, then the most unordered workstreams per card, that let the
+    # charter fit; an operator's order is never cut. The mission keeps every workstream.
+    for most, cap in [(full, c) for c in CLAUSE_CAPS] + [(m, 0) for m in range(full - 1, 1, -1)]:
+        texts, cards, mission_errors = compose(home, spec, cid, cap, most)
         if len(texts["charter"].encode("utf-8")) <= limits["gates"]["charter_bytes"]:
             break
     gates, gate_errors = gate(texts, limits, home, cid)
@@ -592,9 +663,10 @@ def check_cards(home: Path, charter: str, topics: list[str]) -> list[dict]:
         rf = re.search(r"Read first:\*\*\s*`?([^`\s]+)", sec)
         order = None
         path = home / "topics" / topic / "MISSION.md"
-        source = "operator" if ORDER_LABEL in sec else "mission" if CHOICE_LABEL in sec else None
+        labels = {"operator": ORDER_LABEL, "plan": PLAN_LABEL, "mission": CHOICE_LABEL}
+        source = next((k for k, label in labels.items() if label in sec), None)
         if source:  # a card built from templates/: its list, not the notes, is the order
-            listed = sec.split(ORDER_LABEL if source == "operator" else CHOICE_LABEL, 1)[1].split("\n\n", 1)[0]
+            listed = sec.split(labels[source], 1)[1].split("\n\n", 1)[0]
             order = re.findall(r"^  \d+\. \*\*([A-Za-z0-9_-]+)\*\*", listed, re.MULTILINE)
         elif path.is_file():  # an older card: mission workstream IDs in order of first mention
             ids = [w.ident for w in mc.check_mission(topic, path).workstreams]

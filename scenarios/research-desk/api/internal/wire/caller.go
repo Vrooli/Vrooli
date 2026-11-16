@@ -18,6 +18,13 @@ const OperatorAction = "this is the operator's action; write a needs-you item in
 // service calls a procedure that acts for the operator.
 var ErrNotOperator = errors.New(OperatorAction)
 
+// ErrNotSteward is returned when an unverified caller attempts to use the
+// attributed, lower-priority steward channel.
+var ErrNotSteward = errors.New("a steward finding requires a verified agent run")
+
+// VerifiedAgent reports whether the request carries a trusted agent run.
+func VerifiedAgent(ctx context.Context) bool { return provenance.FromContext(ctx).IsVerifiedAgent() }
+
 // ResearchOperation preserves local operator access while routing delegated
 // launch/control through the shared, live operation-grant evaluator. Agent
 // attribution must never fall back to an ambient human availability principal.

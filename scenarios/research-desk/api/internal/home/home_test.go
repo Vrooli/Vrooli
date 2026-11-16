@@ -558,6 +558,27 @@ func TestAnUnknownEndIsTheLastWriteNotNow(t *testing.T) {
 	}
 }
 
+func TestHistoricalSettlementsPositionUnknownCommissionsInPastOverlaps(t *testing.T) {
+	startA, endA := base, base.Add(4*time.Hour)
+	startB, endB := base.Add(2*time.Hour), base.Add(6*time.Hour)
+	settled := func(id string, start, end time.Time) *Commission {
+		return &Commission{
+			ID: id, State: StateUnknown, Topics: []TopicRef{{Topic: "t"}},
+			Started:              Time{Evidence: Unknown("no current session")},
+			HistoricalSettlement: &HistoricalSettlement{Status: string(HistoricalClosed), ActivityStart: &start, ActivityEnd: &end},
+		}
+	}
+	snap := &Snapshot{Now: base.Add(24 * time.Hour), Commissions: []*Commission{
+		settled("historical-a", startA, endA), settled("historical-b", startB, endB),
+	}}
+	if got := snap.Overlaps(); len(got) != 1 || strings.Join(got[0].CommissionIDs, " ") != "historical-a historical-b" {
+		t.Fatalf("cited historical intervals make overlap checks usable while live state stays unknown: %+v", got)
+	}
+	if got := snap.OpenOverlaps(); len(got) != 0 || snap.Commissions[0].State != StateUnknown {
+		t.Fatalf("historical settlements do not claim current terminality or open windows: %+v", got)
+	}
+}
+
 func TestMissingResearchHome(t *testing.T) {
 	reader := NewReader(Config{ResearchDir: filepath.Join(t.TempDir(), "absent")}, Deps{Clock: schedule.NewFake(base), Procs: &fakeProcs{known: true}})
 	if _, err := reader.Snapshot(context.Background(), Options{}); !errors.Is(err, ErrNoResearchHome) {

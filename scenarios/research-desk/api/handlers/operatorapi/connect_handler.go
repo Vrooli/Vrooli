@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
 
 	"research-desk/internal/courier"
@@ -71,6 +72,8 @@ func (h *handler) commission(snap *home.Snapshot, id string) (*home.Commission, 
 	return c, h.fail("commission", err)
 }
 
+func supervisorOn(sw courier.Switches) bool { on, _ := sw.Supervisor(); return on }
+
 func steeringWarning(c *home.Commission) string {
 	if c.Steering.Value {
 		return ""
@@ -83,15 +86,12 @@ func (h *handler) ListNeedsYou(ctx context.Context, _ *connect.Request[operatorv
 	if err != nil {
 		return nil, h.fail("plan", err)
 	}
-	resp := &operatorv1.ListNeedsYouResponse{EntryCharsMax: int32(h.deps.Writer.EntryChars()), Courier: &operatorv1.CourierStatus{
-		GlobalOn:     plan.Switches.Global.On,
-		HubRead:      !plan.HubSkipped && plan.HubRead == nil,
+	resp := &operatorv1.ListNeedsYouResponse{ObservedAt: wire.Timestamp(snap.Now), EntryCharsMax: int32(h.deps.Writer.EntryChars()), Courier: &operatorv1.CourierStatus{
+		GlobalOn:     supervisorOn(plan.Switches),
+		HubRead:      plan.HubRead == nil,
 		SwitchesFile: filepath.Join(h.deps.Writer.StateDir(), courier.SwitchFile),
 	}}
-	switch {
-	case plan.HubSkipped:
-		resp.Courier.HubReason = "no courier switch is on"
-	case plan.HubRead != nil:
+	if plan.HubRead != nil {
 		resp.Courier.HubReason = plan.HubRead.Error()
 	}
 	// A read never takes the lock: it only asks which role this has.
@@ -161,7 +161,7 @@ func item(s *courier.Step) *operatorv1.NeedsYouItem {
 	answerable, why := f.Answerable()
 	delivery, deliveryCode, deliveryWhy := f.Delivery()
 	out := &operatorv1.NeedsYouItem{
-		Kind: operatorv1.NeedsYouKind_NEEDS_YOU_KIND_ITEM, Id: f.Item.ID, Title: f.Item.Title, Body: f.Item.Body, CommissionId: f.CommissionID, Sources: f.Sources,
+		Kind: operatorv1.NeedsYouKind_NEEDS_YOU_KIND_ITEM, Id: f.Item.ID, Title: f.Item.Title, Body: f.Item.Body, CommissionId: f.Owner(), Sources: f.Sources,
 		RecommendedProblem: f.Item.RecommendedProblem, Options: options(f.Item.Choices()),
 		Packet: f.Item.Packet, Secret: f.Item.Secret, DeliveredByScheduler: f.Item.Delivered,
 		Answerable: answerable, NotAnswerableReason: why,
@@ -171,9 +171,9 @@ func item(s *courier.Step) *operatorv1.NeedsYouItem {
 	if !answerable {
 		// What the item itself says to do, so it is acted on where it says.
 		out.Instruction = f.Item.Instruction()
-		for _, l := range f.Item.Links() {
-			out.Links = append(out.Links, &operatorv1.Link{Label: l.Label, Target: l.Target})
-		}
+	}
+	for _, l := range f.Item.Links() {
+		out.Links = append(out.Links, &operatorv1.Link{Label: l.Label, Target: l.Target})
 	}
 	if f.Item.Recommended != nil {
 		out.Recommended = &operatorv1.Option{Key: f.Item.Recommended.Key, Label: f.Item.Recommended.Label}
@@ -238,22 +238,28 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 	if err != nil {
 		return nil, err
 	}
-	c, err := h.commission(snap, msg.CommissionId)
-	if err != nil {
-		return nil, err
+	// commission_id names the item's owner: a commission, topic:<slug> or
+	// supervisor (a level's own decision).
+	owner := msg.CommissionId
+	var c *home.Commission
+	if !home.IsLevelOwner(owner) {
+		if c, err = h.commission(snap, owner); err != nil {
+			return nil, err
+		}
+		owner = c.ID
 	}
 	feed := snap.NeedsYou()
-	if why := feed.Blocked(c.ID); why != "" {
+	if why := feed.Blocked(owner); why != "" {
 		return nil, h.fail("answer", fmt.Errorf("%w: the answer is not written while the desk cannot read the item or the answers already given: %s", home.ErrRefused, why))
 	}
 	var f *home.FeedItem
 	for i := range feed.Items {
-		if feed.Items[i].CommissionID == c.ID && feed.Items[i].Item.ID == msg.ItemId {
+		if feed.Items[i].Owner() == owner && feed.Items[i].Item.ID == msg.ItemId {
 			f = &feed.Items[i]
 		}
 	}
 	if f == nil {
-		return nil, h.fail("answer", home.WithCommand(home.Cause(home.ErrNotFound, fmt.Errorf("commission %s has no needs-you item %q (an ended commission's items are not answerable)", c.ID, msg.ItemId)), "research-desk needs-you"))
+		return nil, h.fail("answer", home.WithCommand(home.Cause(home.ErrNotFound, fmt.Errorf("%s has no needs-you item %q (an ended commission's items are not answerable)", owner, msg.ItemId)), "research-desk needs-you"))
 	}
 	if ok, why := f.Answerable(); !ok {
 		return nil, h.fail("answer", home.Cause(home.ErrRefused, errors.New(why)))
@@ -272,11 +278,30 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 		label = choice.Label
 	}
 	entry := home.Entry{At: h.deps.Clock.Now().UTC(), Kind: home.EntryAnswer, Subject: f.Item.ID, Via: home.ViaDesk, Body: home.AnswerBody(key, label, note)}
+	if c == nil {
+		return h.levelAnswer(f, entry, key, label, note, msg.DryRun)
+	}
 	path, text, written, err := h.operatorEntry(c.ID, entry, msg.DryRun)
 	if err != nil {
 		return nil, h.fail("answer", err)
 	}
 	return connect.NewResponse(&operatorv1.AnswerResponse{Entry: wire.Entry(&entry), Path: path, Warning: steeringWarning(c), Text: text, Written: written, Reading: wire.EntryReading(c.EntryReading())}), nil
+}
+
+// levelAnswer writes the answer to a level's own decision into that level's
+// INBOX.md, the entry its next agent drains (docs/agent-system/LEVELS.md).
+func (h *handler) levelAnswer(f *home.FeedItem, e home.Entry, key, label, note string, dryRun bool) (*connect.Response[operatorv1.AnswerResponse], error) {
+	source := "research desk " + e.At.Format(home.EntryTimeLayout)
+	e.Body = home.InboxAnswerBody(f.Item.ID, key, label, note, f.Item.PacketPath(), source)
+	path, text, err := h.deps.Writer.RenderInbox(f.Topic, source, e.At, "operator", home.EntryAnswer, e.Body)
+	written := false
+	if err == nil && !dryRun {
+		_, written, err = h.deps.Writer.AppendInbox(f.Topic, source, e.At, "operator", home.EntryAnswer, e.Body)
+	}
+	if err != nil {
+		return nil, h.fail("answer", err)
+	}
+	return connect.NewResponse(&operatorv1.AnswerResponse{Entry: wire.Entry(&e), Path: path, Text: text, Written: written}), nil
 }
 
 // operatorEntry renders the exact text of an OPERATOR.md entry and, unless
@@ -331,6 +356,101 @@ func (h *handler) AddEntry(ctx context.Context, req *connect.Request[operatorv1.
 		return nil, h.fail("add entry", err)
 	}
 	return connect.NewResponse(&operatorv1.AddEntryResponse{Entry: wire.Entry(&entry), Path: path, Warning: steeringWarning(c), Text: text, Written: written, Reading: wire.EntryReading(c.EntryReading())}), nil
+}
+
+func (h *handler) AddStewardFinding(ctx context.Context, req *connect.Request[operatorv1.AddStewardFindingRequest]) (*connect.Response[operatorv1.AddStewardFindingResponse], error) {
+	snap, err := h.snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c, err := h.commission(snap, req.Msg.CommissionId)
+	if err != nil {
+		return nil, err
+	}
+	runID := provenance.FromContext(ctx).RunID
+	at := h.deps.Clock.Now().UTC()
+	path, text, err := h.deps.Writer.RenderStewardFinding(c.ID, runID, req.Msg.Text, at)
+	if err != nil {
+		return nil, h.fail("steward finding", err)
+	}
+	written := false
+	if !req.Msg.DryRun {
+		path, text, err = h.deps.Writer.AppendStewardFinding(c.ID, runID, req.Msg.Text, at)
+		if err != nil {
+			return nil, h.fail("steward finding", err)
+		}
+		written = true
+	}
+	return connect.NewResponse(&operatorv1.AddStewardFindingResponse{Path: path, Text: text, Written: written, AgentRunId: runID}), nil
+}
+
+func (h *handler) SettleHistoricalState(ctx context.Context, req *connect.Request[operatorv1.SettleHistoricalStateRequest]) (*connect.Response[operatorv1.SettleHistoricalStateResponse], error) {
+	msg := req.Msg
+	if msg.AsOf == nil || msg.AsOf.CheckValid() != nil {
+		return nil, h.fail("settle historical state", home.Cause(home.ErrInvalid, errors.New("as_of must be a valid timestamp")))
+	}
+	status := home.HistoricalStatus(msg.Status)
+	if !status.Valid() {
+		return nil, h.fail("settle historical state", home.Cause(home.ErrInvalid, errors.New("status must be prepared, closed, closed_partial or continued_elsewhere")))
+	}
+	snap, err := h.snapshot(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c, err := h.commission(snap, msg.CommissionId)
+	if err != nil {
+		return nil, err
+	}
+	if c.State != home.StateUnknown {
+		return nil, h.fail("settle historical state", home.Cause(home.ErrRefused, errors.New("historical settlements are only accepted for commissions currently observed as unknown")))
+	}
+	recordedAt := h.deps.Clock.Now().UTC()
+	asOf := msg.AsOf.AsTime().UTC()
+	if asOf.After(recordedAt) {
+		return nil, h.fail("settle historical state", home.Cause(home.ErrInvalid, errors.New("as_of cannot be in the future")))
+	}
+	var activityStart, activityEnd *time.Time
+	if status == home.HistoricalPrepared {
+		if msg.ActivityStart != nil || msg.ActivityEnd != nil {
+			return nil, h.fail("settle historical state", home.Cause(home.ErrInvalid, errors.New("prepared dispositions have no activity interval")))
+		}
+	} else {
+		if msg.ActivityStart == nil || msg.ActivityEnd == nil || msg.ActivityStart.CheckValid() != nil || msg.ActivityEnd.CheckValid() != nil {
+			return nil, h.fail("settle historical state", home.Cause(home.ErrInvalid, errors.New("completed dispositions need valid activity_start and activity_end timestamps")))
+		}
+		start, end := msg.ActivityStart.AsTime().UTC(), msg.ActivityEnd.AsTime().UTC()
+		if end.Before(start) || start.After(asOf) || end.After(asOf) {
+			return nil, h.fail("settle historical state", home.Cause(home.ErrInvalid, errors.New("activity interval must be ordered and no later than as_of")))
+		}
+		activityStart, activityEnd = &start, &end
+	}
+	record := &home.HistoricalSettlement{
+		Schema: home.SettlementSchema, CommissionID: c.ID, Status: string(status), AsOf: asOf,
+		ActivityStart: activityStart, ActivityEnd: activityEnd,
+		RecordedAt: recordedAt, RecordedBy: provenance.FromContext(ctx).RunID, Reason: strings.TrimSpace(msg.Reason),
+		Evidence: append([]string(nil), msg.EvidencePaths...),
+	}
+	path, text, err := h.deps.Writer.RenderHistoricalSettlement(record)
+	if err != nil {
+		return nil, h.fail("settle historical state", err)
+	}
+	written := false
+	if !msg.DryRun {
+		path, err = h.deps.Writer.WriteHistoricalSettlement(record)
+		if err != nil {
+			return nil, h.fail("settle historical state", err)
+		}
+		written = true
+	}
+	settlement := &activityv1.HistoricalSettlement{
+		Status: record.Status, AsOf: wire.Timestamp(record.AsOf), RecordedAt: wire.Timestamp(record.RecordedAt),
+		Reason: record.Reason, EvidencePaths: append([]string(nil), record.Evidence...), RecordedBy: record.RecordedBy,
+	}
+	if record.ActivityStart != nil {
+		settlement.ActivityStart = wire.Timestamp(*record.ActivityStart)
+		settlement.ActivityEnd = wire.Timestamp(*record.ActivityEnd)
+	}
+	return connect.NewResponse(&operatorv1.SettleHistoricalStateResponse{Path: path, Text: text, Written: written, Settlement: settlement}), nil
 }
 
 func (h *handler) EnableSteering(ctx context.Context, req *connect.Request[operatorv1.EnableSteeringRequest]) (*connect.Response[operatorv1.EnableSteeringResponse], error) {
@@ -444,7 +564,7 @@ func (h *handler) SetCourier(ctx context.Context, req *connect.Request[operatorv
 	}
 	resp := &operatorv1.SetCourierResponse{SwitchesFile: filepath.Join(h.deps.Writer.StateDir(), courier.SwitchFile)}
 	if c == nil {
-		resp.On, resp.Reason = sw.Global.On, "global ATTENTION.md items; those present now are never sent"
+		resp.On, resp.Reason = sw.Supervisor()
 	} else {
 		resp.On, resp.Reason = sw.ForCommission(c)
 	}

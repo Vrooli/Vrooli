@@ -35,7 +35,8 @@
     "copied": "Copied",
     "copyPath": "Copy path",
     "copyId": "Copy id",
-    "atLeast": "at least"
+    "atLeast": "at least",
+    "lastObserved": "Last observed"
   },
   "state": {
     "live": "Live",
@@ -133,6 +134,13 @@
     "lastWriteLabel": "Last write",
     "noWrite": "No write found",
     "claim": "Supervisor says",
+    "historicalSettlement": "Historical settlement",
+    "historicalDisposition": "Disposition",
+    "historicalAsOf": "Evidence as of",
+    "historicalActivityStart": "Research interval start",
+    "historicalActivityEnd": "Research interval end",
+    "historicalReason": "Reason",
+    "historicalRecordedBy": "Recorded by",
     "launchedBy": "Launched by",
     "byHand": "by hand (no launch record)",
     "folder": "Folder",
@@ -356,7 +364,14 @@
     "lastWrite": "Last research write",
     "edited": "edited",
     "lastReview": "Last review",
-    "noReview": "No review covers it"
+    "noReview": "No review covers it",
+    "workspaceFiles": "Current programme files",
+    "currentView": "Current picture",
+    "tools": "Capability dependencies",
+    "feedback": "Feedback records",
+    "noOptionalFile": "Not present",
+    "noFeedback": "No feedback records",
+    "feedbackPartial": "Feedback listing is partial"
   },
   "reading": {
     "none": "No read set can be measured for this commission.",

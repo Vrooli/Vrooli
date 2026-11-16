@@ -9,6 +9,7 @@ import (
 	"research-desk/cli/domains/render"
 
 	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
 var stateWords = []string{"live", "paused", "limited", "stopped", "prepared", "unknown", "ended"}
@@ -204,11 +205,57 @@ func (h *handlers) topicsReport(_ cliapp.OperationContext, msg *activityv1.ListT
 		if m := t.Mission; m != nil {
 			report.Results = append(report.Results, "    mission edited "+render.When(m.Modified)+" · "+m.Path)
 		}
+		if workspace := t.WorkspaceFiles; workspace != nil {
+			for _, optional := range []struct {
+				name string
+				file *sharedv1.FileFact
+				fact *sharedv1.Evidence
+			}{{"current view", workspace.CurrentView.GetFile(), workspace.CurrentView.GetEvidence()}, {"tools", workspace.Tools.GetFile(), workspace.Tools.GetEvidence()}} {
+				if optional.file != nil {
+					report.Results = append(report.Results, "    "+optional.name+": "+optional.file.Path)
+				} else if optional.fact != nil && !optional.fact.Known {
+					report.Results = append(report.Results, "    "+optional.name+" unknown: "+optional.fact.Reason)
+				}
+			}
+			for _, file := range workspace.FeedbackFiles {
+				report.Results = append(report.Results, "    feedback: "+file.Path)
+			}
+			if workspace.FeedbackTruncated {
+				report.Results = append(report.Results, "    feedback: listing is partial")
+			}
+			if workspace.FeedbackEvidence != nil && !workspace.FeedbackEvidence.Known && workspace.FeedbackEvidence.Reason != "" {
+				report.Results = append(report.Results, "    feedback unknown: "+workspace.FeedbackEvidence.Reason)
+			}
+			report.Results = append(report.Results, capabilityLines(workspace.Capabilities, workspace.CapabilitiesEvidence)...)
+		}
 		if r := t.LastReview; r != nil {
 			report.Results = append(report.Results, "    reviewed "+render.When(r.GetFile().GetModified())+" in "+r.ReviewId+" · "+r.GetFile().GetPath())
 		}
 	}
+	if home := capabilityLines(msg.HomeCapabilities, msg.HomeCapabilitiesEvidence); len(home) > 0 {
+		report.Results = append(append(report.Results, "research home (supervisor)"), home...)
+	}
 	return report
+}
+
+// capabilityLines lists research skills and programs by the prefix id that
+// Prompt Manager and Program Runtime resolve, with what stops each resolving.
+func capabilityLines(items []*activityv1.ResearchCapability, fact *sharedv1.Evidence) []string {
+	var lines []string
+	if fact != nil && !fact.Known && fact.Reason != "" {
+		lines = append(lines, "    skills and programs unknown: "+fact.Reason)
+	}
+	for _, item := range items {
+		kind := "skill"
+		if item.Kind == activityv1.CapabilityKind_CAPABILITY_KIND_PROGRAM {
+			kind = "program"
+		}
+		lines = append(lines, fmt.Sprintf("    %s %s · %s", kind, item.Id, item.Path))
+		for _, problem := range item.Problems {
+			lines = append(lines, "      problem: "+problem)
+		}
+	}
+	return lines
 }
 
 func (h *handlers) changesReport(_ cliapp.OperationContext, msg *activityv1.GetChangesResponse) cliapp.ListReport {

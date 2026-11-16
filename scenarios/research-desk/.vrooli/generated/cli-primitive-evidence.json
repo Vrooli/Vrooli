@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "research-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "d8b5e6e235a964bbc564d4a4d39477ac1140c3b372a84c9370982e986483a622",
+  "manifest_hash": "1beda53f5af3929491fa65d34231f6fa8fada6d42353221c7ef4109b2843b903",
   "commands": [
     {
       "path": "answer",
@@ -57,6 +57,12 @@
     {
       "path": "enable-steering",
       "command": "enable-steering",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "feedback",
+      "command": "feedback",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },
@@ -129,6 +135,12 @@
     {
       "path": "say",
       "command": "say",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "settle-historical-state",
+      "command": "settle-historical-state",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

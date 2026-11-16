@@ -494,12 +494,12 @@
         },
         {
           "name": "answer",
-          "description": "Answer a needs-you item into the commission's OPERATOR.md",
+          "description": "Answer a needs-you item into its owner's record: a commission's OPERATOR.md, or a topic's or the supervisor's INBOX.md",
           "positionals": [
             {
               "name": "commission-id",
               "required": true,
-              "description": "Commission folder name"
+              "description": "The item's owner as needs-you lists it: a commission folder name, topic:<slug> or supervisor"
             },
             {
               "name": "item-id",
@@ -581,6 +581,55 @@
               "description": "Print the exact text that would be appended; writes nothing"
             }
           ]
+        },
+        {
+          "name": "feedback",
+          "description": "Send a dated finding from this verified agent run to the lower-priority STEWARD.md channel",
+          "positionals": [
+            {"name": "commission-id", "required": true, "description": "Commission folder name"},
+            {"name": "text", "required": true, "description": "Reviewed finding or correction for the supervisor"}
+          ],
+          "flags": [
+            {"name": "dry-run", "bool": true, "description": "Print the exact text without writing"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "AddStewardFinding"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "settle-historical-state",
+          "description": "Record an immutable historical disposition for an unknown commission, citing files under the research home; does not change worker/session state",
+          "positionals": [
+            {"name": "commission-id", "required": true, "description": "Unknown commission folder name"},
+            {"name": "status", "required": true, "description": "prepared, closed, closed_partial or continued_elsewhere"},
+            {"name": "as-of", "required": true, "description": "UTC RFC 3339 time through which the cited evidence supports this disposition"},
+            {"name": "reason", "required": true, "description": "Evidence-based explanation of the historical disposition"}
+          ],
+          "flags": [
+            {"name": "activity-start", "description": "UTC RFC 3339 start of the historical research interval; required except for prepared"},
+            {"name": "activity-end", "description": "UTC RFC 3339 end of the historical research interval; required except for prepared"},
+            {"name": "evidence", "description": "Research-home-relative source file citation; repeat for each source", "repeatable": true, "required": true},
+            {"name": "dry-run", "bool": true, "description": "Show the exact record without writing"}
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "SettleHistoricalState"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          },
+          "architecture": {"primitive": "proto_list"}
         },
         {
           "name": "enable-steering",
@@ -672,7 +721,7 @@
         },
         {
           "name": "courier",
-          "description": "Turn the courier to Notification Hub on or off for a commission, or for global ATTENTION.md items",
+          "description": "Turn the courier to Notification Hub on or off for a commission, or with --global for the supervisor's ATTENTION.md decisions (on by default); topics' decisions always go",
           "positionals": [
             {
               "name": "switch",
@@ -689,7 +738,7 @@
             {
               "name": "global",
               "bool": true,
-              "description": "Switch global ATTENTION.md items instead of a commission"
+              "description": "Switch the supervisor's ATTENTION.md decisions instead of a commission"
             }
           ],
           "binding": {

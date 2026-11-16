@@ -1,6 +1,10 @@
 package operatorapi
 
 import (
+	"context"
+
+	"connectrpc.com/connect"
+
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
 
@@ -12,7 +16,7 @@ import (
 
 // Module mounts the operator Connect service and the read-only file route.
 func Module(deps Deps) module.Module {
-	path, handler := operatorconnect.NewOperatorServiceHandler(NewHandler(deps), wire.OperatorOnly(OperatorProcedures...))
+	path, handler := operatorconnect.NewOperatorServiceHandler(NewHandler(deps), wire.OperatorOnly(OperatorProcedures...), StewardOnly())
 	return module.Module{
 		Name: "operator",
 		Mount: func(r *mux.Router) {
@@ -21,6 +25,26 @@ func Module(deps Deps) module.Module {
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+// StewardOnly permits the lower-priority finding channel only to a verified
+// agent run, so callers cannot write under another identity.
+func StewardOnly() connect.HandlerOption {
+	return connect.WithInterceptors(connect.UnaryInterceptorFunc(func(next connect.UnaryFunc) connect.UnaryFunc {
+		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			if req.Spec().Procedure == operatorconnect.OperatorServiceAddStewardFindingProcedure {
+				if !wire.VerifiedAgent(ctx) {
+					return nil, connect.NewError(connect.CodePermissionDenied, wire.ErrNotSteward)
+				}
+			}
+			if req.Spec().Procedure == operatorconnect.OperatorServiceSettleHistoricalStateProcedure {
+				if !wire.VerifiedAgent(ctx) {
+					return nil, connect.NewError(connect.CodePermissionDenied, wire.ErrNotSteward)
+				}
+			}
+			return next(ctx, req)
+		}
+	}))
 }
 
 // OperatorProcedures act for the operator; a caller verified as an agent or
@@ -73,6 +97,20 @@ var Endpoints = []module.EndpointDescriptor{
 		Description: "Appends a direction or wind-down entry, in the operator's words, to the commission's OPERATOR.md; nothing is typed into the supervisor's conversation. dry_run returns the exact text without writing; every answer says when the supervisor will read it.",
 		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, notOperator},
 		Examples:    example("Direction", "AddEntry", `{"commission_id":"programme-five-20261112","kind":"ENTRY_KIND_DIRECTION","text":"Put AV6 first."}`),
+	},
+	{
+		ID: "steward_finding", Path: operatorconnect.OperatorServiceAddStewardFindingProcedure, Method: "POST", Category: "operator",
+		Summary:     "Send a steward finding",
+		Description: "Appends a dated, verified-agent-attributed finding to STEWARD.md. The live charter is updated to read this channel below OPERATOR.md and above supervisor judgment; operator words retain priority.",
+		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, {Status: 403, Code: "permission_denied", Description: "A verified agent run is required"}},
+		Examples:    example("Finding", "AddStewardFinding", `{"commission_id":"programme-five-20261112","text":"Keep the measured limit."}`),
+	},
+	{
+		ID: "historical_settlement", Path: operatorconnect.OperatorServiceSettleHistoricalStateProcedure, Method: "POST", Category: "operator",
+		Summary:     "Record a historical settlement",
+		Description: "Records an immutable, evidence-backed historical disposition for an unknown commission. Completed dispositions include a cited activity interval for overlap history; observed worker/session state remains independently derived and unchanged.",
+		Errors:      []module.ErrorDesc{readOnly, invalid, noCommission, {Status: 403, Code: "permission_denied", Description: "A verified agent run is required"}},
+		Examples:    example("Close", "SettleHistoricalState", `{"commission_id":"research-restart-20261031","status":"closed","as_of":"2026-10-31T21:25:54Z","reason":"The commissioned window closed and cleanup was recorded.","evidence_paths":["cohorts/research-restart-20261031/README.md","cohorts/research-restart-20261031/STATUS.md"]}`),
 	},
 	{
 		ID: "operator_steering", Path: operatorconnect.OperatorServiceEnableSteeringProcedure, Method: "POST", Category: "operator",

@@ -146,3 +146,21 @@ func TestNowSaysTheWebConsoleAccessAndTheCourier(t *testing.T) {
 	// The reason names no command; the CLI prints the lens's command beside it.
 	require.Contains(t, out, "lens notification-hub unavailable: notification-hub is not running: no port (next: vrooli scenario start notification-hub)")
 }
+
+func TestTopicsListResearchSkillsAndProgramsWithTheirProblems(t *testing.T) {
+	report := (&handlers{}).topicsReport(nil, &activityv1.ListTopicsResponse{
+		Topics: []*activityv1.TopicSummary{{Topic: "experience-engineering", WorkspaceFiles: &activityv1.TopicWorkspaceFiles{
+			Capabilities: []*activityv1.ResearchCapability{
+				{Id: "research/experience-engineering/present-ux-decisions", Kind: activityv1.CapabilityKind_CAPABILITY_KIND_SKILL, Path: "/r/topics/experience-engineering/skills/present-ux-decisions/SKILL.md"},
+				{Id: "research/experience-engineering/pulse", Kind: activityv1.CapabilityKind_CAPABILITY_KIND_PROGRAM, Path: "/r/topics/experience-engineering/programs/pulse.json", Problems: []string{"program source pulse.py is missing"}},
+			},
+			CapabilitiesEvidence: &sharedv1.Evidence{Known: true},
+		}}},
+		HomeCapabilitiesEvidence: &sharedv1.Evidence{Reason: "cannot list /r/skills: permission denied"},
+	})
+	require.Contains(t, report.Results, "    skill research/experience-engineering/present-ux-decisions · /r/topics/experience-engineering/skills/present-ux-decisions/SKILL.md")
+	require.Contains(t, report.Results, "    program research/experience-engineering/pulse · /r/topics/experience-engineering/programs/pulse.json")
+	require.Contains(t, report.Results, "      problem: program source pulse.py is missing")
+	require.Contains(t, report.Results, "research home (supervisor)")
+	require.Contains(t, report.Results, "    skills and programs unknown: cannot list /r/skills: permission denied")
+}

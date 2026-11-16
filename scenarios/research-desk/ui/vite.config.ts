@@ -1,6 +1,7 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -29,7 +30,7 @@ export default defineConfig(({ mode }): UserConfig => {
     // INTEROP-CRITICAL: relative assets must load through the tunnel hostname,
     // app-monitor proxy mounts and iframe hosts, not only at the server root.
     base: './',
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: {
       // @vrooli/api-base pins its own React, router, query, i18n, and Testing
       // Library packages. One instance of each must serve both this UI and
@@ -57,6 +58,10 @@ export default defineConfig(({ mode }): UserConfig => {
     test: {
       globals: true,
       environment: 'jsdom',
+      // React Router creates Node Requests during data-router navigation.
+      // Keep jsdom for DOM APIs and use Node's matching abort classes so
+      // Request accepts the navigation signal in the same realm.
+      environmentMatchGlobs: [['src/**/*.{ts,tsx}', './src/test-environment.ts']],
       // Transform api-base through Vite so resolve.dedupe applies to its
       // imports; an externalized package resolves its own pinned copies.
       server: { deps: { inline: [/@vrooli\/api-base/] } },

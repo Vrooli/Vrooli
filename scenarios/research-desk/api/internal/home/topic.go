@@ -30,6 +30,7 @@ type Topic struct {
 	// open, by state; never summed into one "running".
 	Live, Paused, Limited []string
 	Check                 MissionCheck
+	Documents             TopicDocuments
 	// Unreadable lists the runs folder when it exists but cannot be read
 	//: the topic's run folders, and so their commissions' runs,
 	// are then unknown.
@@ -152,6 +153,7 @@ func readTopics(researchDir string) (topicIndex, map[string][]RunFolder, error) 
 			}
 		}
 		t := &Topic{Slug: entry.Name(), Dir: path}
+		t.Documents = readTopicDocuments(path, researchDir)
 		index.topics = append(index.topics, t)
 		index.names[t.Slug] = t.Slug
 		missionPath := filepath.Join(t.Dir, "MISSION.md")

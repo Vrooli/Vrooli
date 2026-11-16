@@ -647,6 +647,20 @@ func TestBlockersAreFewAndResolvedInTheRequest(t *testing.T) {
 	if !p.Launchable() || len(p.Verdicts) != 1 || !strings.HasSuffix(p.Verdicts[0].ReadFirst, "ai-video-production-and-funnels/runs/"+handRun+"/CHECKPOINT.md") {
 		t.Fatalf("a stopped commission should offer its checkpoint as read_first: %+v", p.Verdicts)
 	}
+
+	// With a work/README.md plan the plan comes first: no checkpoint, and the
+	// message says why.
+	plan := filepath.Join(r.research, "topics", "ai-video-production-and-funnels", "work", "README.md")
+	if err := os.MkdirAll(filepath.Dir(plan), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(plan, []byte("# Plan\n\n1. AV9 brief\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, _ = r.service.PreflightSpec(ctx, []byte(`{"topics":["ai-video-production-and-funnels"]}`), Choices{})
+	if v := p.Verdicts[0]; v.ReadFirst != "" || !strings.Contains(v.Message, "work/README.md plan comes first") {
+		t.Fatalf("a topic with a plan must not be sent to an old checkpoint: %+v", v)
+	}
 }
 
 // commandText is command-line text in a sentence the operator reads.

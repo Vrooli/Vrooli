@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/schedule"
 
 	"research-desk/internal/home"
@@ -74,8 +75,10 @@ func (h *fakeHub) Ask(_ context.Context, spec AskSpec) error {
 	} else if open != nil && open.Open() {
 		h.older = append(h.older, open)
 	}
-	h.asks[spec.Key] = &Ask{ID: "ask-" + spec.Key + "-" + ref, Key: spec.Key, State: "pending", RequesterRef: ref, CreatedAt: h.clock.Now(), Deadline: spec.Deadline,
-		Question: spec.Question, BigPicture: spec.BigPicture, TechnicalDetails: spec.TechnicalDetails, Recommended: spec.Recommended, Options: spec.Options}
+	h.asks[spec.Key] = &Ask{
+		ID: "ask-" + spec.Key + "-" + ref, Key: spec.Key, State: "pending", RequesterRef: ref, CreatedAt: h.clock.Now(), Deadline: spec.Deadline,
+		Question: spec.Question, BigPicture: spec.BigPicture, TechnicalDetails: spec.TechnicalDetails, Recommended: spec.Recommended, Options: spec.Options,
+	}
 	return nil
 }
 
@@ -235,8 +238,8 @@ func (r *rig) operatorFile(t *testing.T) []home.Entry {
 func TestOldItemsAreNeverSentByDefault(t *testing.T) {
 	r := newRig(t, "")
 	plan := r.pass(t)
-	if !plan.HubSkipped || r.hub.reads != 0 || len(r.hub.raised)+len(r.hub.sent) != 0 {
-		t.Fatalf("with every switch at its default the Hub is not even read: %+v reads=%d", plan, r.hub.reads)
+	if len(r.hub.raised)+len(r.hub.sent) != 0 {
+		t.Fatalf("with every switch at its default nothing already there is sent: %+v", plan)
 	}
 	for _, s := range plan.Steps {
 		if s.Item.CommissionID == commission && (s.On || !strings.Contains(s.Why, "did not launch")) {
@@ -663,12 +666,12 @@ Backups now live only on this computer. Pick where an encrypted copy goes.
 Recommended: s3 — Use the storage account you already have.
 Reason: It is already approved and costs nothing new.
 Options: s3 — Use the storage account you already have; host — Use another of your computers
-Packet: /home/x/packet.md
+Packet: /home/x/work/DB1-SINK/BRIEF.md
 Details: plan F12; evidence runs/r1
 Delivered: hub 2026-11-13T00:00:00Z
 `
 	items, _ := home.ParseNeedsYou(text, "Needs you", "/home/x/STATE.md")
-	spec := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"})
+	spec := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{})
 	if spec.Question != "Choose where off-site backups are kept" || spec.Subject != spec.Question {
 		t.Fatalf("the question is the title alone: %q / %q", spec.Question, spec.Subject)
 	}
@@ -678,7 +681,10 @@ Delivered: hub 2026-11-13T00:00:00Z
 	if spec.Reason != "It is already approved and costs nothing new." {
 		t.Fatalf("a Reason: line is the recommendation reason: %q", spec.Reason)
 	}
-	for _, want := range []string{"Desk key: " + AskPrefix + "steward-x/DB1-SINK", "Research commission: steward-x", "Needs-you item: DB1-SINK", "Item file: /home/x/STATE.md", "Packet: /home/x/packet.md", "Details: plan F12; evidence runs/r1"} {
+	if facts, err := askFacts(spec); err != nil || len(operatordecision.CoverProblems(facts)) > 0 {
+		t.Fatalf("a cold reader cannot parse the cover: %v %v", err, operatordecision.CoverProblems(facts))
+	}
+	for _, want := range []string{"Desk key: " + AskPrefix + "steward-x/DB1-SINK", "Research commission: steward-x", "Needs-you item: DB1-SINK", "Item file: /home/x/STATE.md", "Packet: /home/x/work/DB1-SINK/BRIEF.md", "Details: plan F12; evidence runs/r1"} {
 		if !strings.Contains(spec.TechnicalDetails, want) {
 			t.Errorf("technical details lack %q:\n%s", want, spec.TechnicalDetails)
 		}
@@ -687,7 +693,7 @@ Delivered: hub 2026-11-13T00:00:00Z
 		t.Fatal("the desk finds the ask again by its technical details")
 	}
 	items[0].Reason = ""
-	if got := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}).Reason; got != "Use the storage account you already have." {
+	if got := askSpec(&home.FeedItem{Item: items[0], CommissionID: "steward-x"}, AskPrefix+"steward-x/DB1-SINK", Pages{}).Reason; got != "Use the storage account you already have." {
 		t.Fatalf("without a Reason: line the recommended label explains: %q", got)
 	}
 }
@@ -699,8 +705,8 @@ func TestHealthIsTheLastPassAndSaysWhenAnAskCloses(t *testing.T) {
 	}
 	r := newRig(t, "")
 	r.pass(t)
-	if ok, said := r.courier.Health().Say(); !ok || !strings.Contains(said, "no switch on") || !strings.Contains(said, "last delivery never") {
-		t.Fatalf("no switch on: %v %q", ok, said)
+	if ok, said := r.courier.Health().Say(); !ok || !strings.Contains(said, "answers read back") || !strings.Contains(said, "last delivery never") {
+		t.Fatalf("the Hub is read every pass, though nothing was sent: %v %q", ok, said)
 	}
 	r = newRig(t, "desk")
 	r.pass(t)
@@ -865,65 +871,6 @@ func TestAnUnreadableStateIsNotTakenAsNoItems(t *testing.T) {
 	}
 }
 
-// A record of the earlier form (each switch's list of the items present when
-// it was turned on, first sightings and first holds in two more files) is read
-// once and replaced: the listed items stay unsent, a later item keeps its
-// first sighting and its two-hour wait, and the earlier files are gone.
-func TestTheEarlierRecordIsHonouredAndReplaced(t *testing.T) {
-	r := newRig(t, "")
-	state := r.courier.Writer.StateDir()
-	on := r.clock.Now().Add(-time.Hour)
-	held := r.clock.Now().Add(-30 * time.Minute)
-	files := map[string]string{
-		SwitchFile:       `{"global":{"on":false,"at":"0001-01-01T00:00:00Z","baseline":null},"commissions":{"` + commission + `":{"on":true,"at":"` + stamp(on) + `","baseline":["` + commission + `/AV4","` + commission + `/AV5"]}}}`,
-		oldSightingsFile: `{"` + commission + `/AV4":"0001-01-01T00:00:00Z","` + commission + `/AV9":"` + stamp(held) + `"}`,
-		oldHoldsFile:     `{"` + commission + `/AV9":"` + stamp(held) + `"}`,
-	}
-	if err := os.MkdirAll(state, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for name, text := range files {
-		if err := os.WriteFile(filepath.Join(state, name), []byte(text), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	r.setItems(t, items+"\n### AV9 — A question that came after the switch\nRecommended: go — Go ahead.\n")
-
-	plan := r.pass(t)
-	for _, s := range plan.Steps {
-		if s.Item == nil || s.Item.CommissionID != commission {
-			continue
-		}
-		want := home.ReasonBaseline
-		if s.Item.Item.ID == "AV9" {
-			want = home.ReasonSchedulerGrace
-		}
-		if s.Reason != want {
-			t.Errorf("%s: %s %q, want %s", s.Item.Item.ID, s.Reason, s.Why, want)
-		}
-	}
-	for _, name := range []string{oldSightingsFile, oldHoldsFile} {
-		if _, err := os.Stat(filepath.Join(state, name)); !errors.Is(err, os.ErrNotExist) {
-			t.Errorf("%s is replaced by %s: %v", name, SightingsFile, err)
-		}
-	}
-	if data, _ := os.ReadFile(filepath.Join(state, SwitchFile)); strings.Contains(string(data), "baseline") {
-		t.Errorf("the switches are written again without their item lists: %s", data)
-	}
-	sightings, err := r.courier.sightings()
-	if err != nil || !sightings.First[commission+"/AV9"].Equal(held) || !sightings.First[commission+"/AV5"].IsZero() {
-		t.Fatalf("first sightings: %+v %v", sightings.First, err)
-	}
-
-	r.clock.Advance(SchedulerGrace - 30*time.Minute)
-	r.pass(t)
-	if len(r.hub.raised) != 0 || len(r.hub.sent) != 1 || r.hub.sent[0].Key != NoticePrefix+commission+"/AV9" {
-		t.Fatalf("only AV9 is sent, two hours after its first sighting: %+v %+v", r.hub.raised, r.hub.sent)
-	}
-}
-
-// An item waits on the operator until it has its own answer or its Hub ask is
-// answered; an expired ask still waits, to be answered in the desk.
 func TestAnItemWaitsUntilAnswered(t *testing.T) {
 	answer := &home.Entry{Kind: home.EntryAnswer, Subject: "X"}
 	cases := []struct {

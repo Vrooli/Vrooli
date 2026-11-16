@@ -1,138 +1,116 @@
 ---
 name: "research-review"
-description: "Run the operator's review of selected research topics: verify what was accomplished from the files, show media and rendered artifacts for exact-artifact feedback, diagnose under-delivery, tidy the topic folders by moving (never deleting), record the operator's verdicts verbatim, carry them to live owners the same day, apply authorized improvements to research organization and mission guidance, and suggest the next commission's emphasis."
+description: "Audit and restructure a research topic against the operator's intent: measure what actually landed and what a fresh owner must read, spot farce and clutter, reorganise the folder so it scales, keep plans and risks current, and run the operator's review of selected topics with verdicts recorded verbatim."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["practice"]
-  tags: ["research", "review", "missions"]
+  tags: ["research", "review", "audit", "missions", "planning"]
   icon: "clipboard-check"
   status: "active"
-  revision: 3
+  revision: 4
   createdAt: "2026-11-11T00:00:00Z"
-  updatedAt: "2026-11-12T01:00:00Z"
+  updatedAt: "2026-11-15T08:00:00Z"
   requires:
-    commands: ["python3"]
+    commands: ["python3", "rg"]
   origin:
     kind: "authored"
 ---
-## Practice focus: Research review
+## Research review and topic audit
 
-The operator reviews a few topics at a time. You gather what was actually accomplished, put it
-in front of them plainly, record what they decide in their words, and realign the missions to
-it. A request to improve a topic authorizes reversible organization and guidance edits within
-that topic, including improvements inferred from the initial request and later feedback.
-Apply them and report the concrete changes; do not require another confirmation merely
-because the review revealed useful edits. A review-only request stays read-only. Clarify only
-material ambiguity that prevents a responsible edit; continue independent improvements.
-This workflow does not launch research, implement product capabilities, change commission
-allowances, contact clients or publish material unless separately authorized. Research home `H` = `~/.vrooli/research`; the
-file grammar is research-desk `docs/reference/FILE-CONTRACT.md` (§4 verdicts, §5 needs-you).
+A research topic drifts: clutter, a mission paraphrased smaller, knowledge as a pile of run logs,
+and a mature look while nothing lands.
+Your job is to put it back on the operator's intent: smaller to read, clearer to act on, and
+measurably moving. "Audit <topic>" is the whole request; you need nothing else to start.
 
-Route discipline: research-desk, Search Hub, Prompt Manager and Program Runtime are optional
-lenses (`research-desk changes <topic>`, `program-runtime.research-workspace-review`). When one
-fails, do not repair it: read the files directly and note the failure in one line in `REVIEW.md`.
+Research home `H` = `~/.vrooli/research`; scripts are in `scripts/`. File grammar:
+`scenarios/research-desk/docs/reference/FILE-CONTRACT.md`. When a service fails, read the files
+and note it in one line.
 
-### 1. Gather evidence (per selected topic `T`)
+### What farce and clutter look like
 
-1. `python3 <research-coordination>/scripts/mission_check.py H --topic T --json`: mode,
-   workstream rows (id, destination, showcase, status) and errors.
-2. Commissions that touched `T`: `rg -l "topics/T/" H/cohorts/*/README.md`. For each, its
-   `STATE.md` (final state, what waits) and the `LEDGER.md` entries naming `T` (search; never
-   read a ledger whole).
-3. Run folders `H/topics/T/runs/*/CHECKPOINT.md`: changed, verified, unverified, showcases.
-4. Verify every claimed landing by opening its artifact: it exists, runs or plays, and matches
-   the showcase. A claim you cannot open is "claimed, unverified", never "landed".
-5. Live and paused commissions: `research-desk commissions --state live` and `--state paused`;
-   without the desk, any commission whose allowance has not ended, whose `STATE.md` changed in
-   the last 70 minutes or says paused. When unsure, count it.
-6. A commission that moved no scorecard dimension for `T`, or landed less than its card, gets
-   `effort-diagnosis` (its scheduler and owner sessions) before you write anything about it.
+| Sign | How you see it |
+|---|---|
+| Busy without landing | `history.py topic T`: window hours and repo lines up, landed workstreams 0, scorecard "none moved" |
+| The mission shrank | Operator intent paraphrased; End state hedged ("decision-ready", "foundation"); workstreams under 20 hours; a dimension no workstream moves |
+| Entry files a newcomer must wade through | `audit.py measure T`: owner start read large, README a log, MISSION over ~15 KB (aim) or 40 KB (limit), many top-level files |
+| Knowledge organised by run | Findings live only in run checkpoints and the ledger; no page says what is true now |
+| Structure for show | Template files copied unchanged, empty folders, unbriefed table rows, plans that never drove a commission |
+| Stale current claims | Two pages disagree; a "current" page older than the last three runs |
+| Lost operator concerns | The operator said it twice and no feedback record shows the recurrence |
+| Words put in the operator's mouth | A verdict or "operator stance" an agent wrote (its own return lists the file), then used to narrow the mission |
+| Idle behind asks | `waiting-operator` rows the mode already authorizes, or asks the operator already answered |
+| Small scope at commission start | A cold owner proposes a module or a report, not a whole API or scenario |
 
-### 2. Write `H/reviews/<id>/REVIEW.md`
+### Audit a topic
 
-`<id>` = a short slug of the topics plus the local date (`video-books-20261112`; add `-2`
-if taken). Per topic, in this order, each line with an absolute path and a date:
+1. **Measure before.** `python3 -I scripts/audit.py measure T --out <review>/T.before.json` (read
+   cost, clutter, mission check, throughput). Read `history.py topic T` for the full history.
+2. **Read the intent.** The operator's verbatim words in `MISSION.md`, the topic's feedback and
+   inbox, and verdicts in `H/reviews/*/VERDICTS.md` that name `T`. This is the bar; your taste
+   is not.
+3. **Diagnose.** Walk the signs above. For a topic that moved nothing, name the cause in the setup
+   (mission, card, brief, route, capacity, supervision), not the owners' account
+   (`effort-diagnosis` when it is not obvious).
+4. **Restructure.** Use the common shape and the knowledge layout for the topic's kind
+   (`research-coordination` [topic folder](../research-coordination/references/topic-folder.md)):
+   - README becomes the one-screen front page; MISSION keeps operator words, end state, scorecard
+     and workstreams, and sends receipts to `LEDGER.md`.
+   - Knowledge is rewritten by subject (architecture current vs target, invariants and state
+     machines, a claims register, a taste register), linking the runs that prove it.
+   - The next commission's work becomes ready-to-run briefs in `work/`, with the risk list; every
+     other row becomes a one-line `## Later` entry in the mission, so nothing looks staffed.
+   - Superseded pages move to `history/`. Never delete. Nothing inside `runs/` moves. Before
+     moving a page, `rg -lF <name> H --glob '**/{README,MISSION,CHECKPOINT}.md'`: update the
+     links you can, and leave a one-line pointer at the old path for names inside checkpoints.
+   - Add a part only when it saves real rediscovery.
+5. **Measure after and compare.** `audit.py measure T --out <review>/T.after.json`, then
+   `audit.py compare <before> <after>`. Done means `Smaller overall: yes`: the owner start read
+   and the Markdown outside `runs/`, `history/` and `work/` end no larger, so condensing pays for
+   new briefs. Never cut scope or operator words to get there.
+6. **Record.** `H/reviews/<id>/REVIEW.md` per topic: what changed (every move as `from → to`),
+   the before/after table, the diagnosis, what you left for the topic's owners, and decisions.
+   One dated line in `LEDGER.md`.
 
-- **Landed** — workstream, showcase, the artifact you opened.
-- **Claimed but unverified** — what was claimed, where, and what you could not confirm.
-- **Open** — live workstreams not started or in progress, and what waits on the operator.
-- **Grew** — new workstreams, list rows, folders and files since the last review (sizes);
-  clutter that makes a fresh owner read more than it needs.
-- **What failed organizationally** (under-delivery only) — the diagnosed cause in the setup
-  (charter, card, brief, route, capacity, supervision), not the owner's account, and the change
-  it makes to the next packet.
-- **Organization changes** — applied improvements and any deferred moves into `H/topics/T/history/` that would leave the topic folder
-  showing a concise entry point, mission, useful current guidance and current runs. Keep durable
-  synthesis easy to find; do not archive useful guidance merely to achieve a fixed folder shape. Never a deletion. Nothing inside
-  a run folder of a live or paused commission (step 1.5). Never move a file whose name or path
-  appears, as a link or bare text, in a live or paused commission's charter, any `MISSION.md`
-  or any `CHECKPOINT.md`: check each with `rg -F <file name>` over those files first.
-- **Decisions needed** — only unresolved decisions outside existing authority, with recommendations.
-  Do not turn routine edits or already supplied feedback into approval requests.
+A change to scope, mode, or a restructure that moves most of a topic is a supervisor-level
+decision: write it as a needs-you item with a ready-to-run packet (`research-coordination`
+[operator attention](../research-coordination/references/operator-attention.md)) and continue the
+rest of the audit. Ordinary tidying needs no approval.
 
-When requested, or when the work includes media or rendered artifacts, also write
-`H/reviews/<id>/REVIEW.html`, one phone-friendly HTML file with inline styling and scripts. Embed review-sized media directly
-when practical; link large artifacts by relative paths and explicitly identify external file
-dependencies rather than calling the result self-contained. Show each exact artifact (`<video controls playsinline preload="none">`, `<audio>`, `<img>`, or a
-link for a document) by a path relative to the file, with its absolute path, sha256, status and
-what to look for; then a feedback section per artifact (aspect, timestamp or passage, optional
-0–10 score, words) that exports one JSON file the operator saves beside it. Nothing is sent or
-saved automatically. Pattern: `H/topics/ai-video-production-and-funnels/REVIEW.html`.
+### Plans and risks
 
-End with **Next commission**: suggested topics, emphasis and `read_first` for `packet.py`,
-quoting the operator's words where they set it. Keep the file short enough to read on a
-phone: link evidence, do not paste it.
+At each supervision cycle, keep `work/README.md` honest: the next briefs in order, each still
+ready to run, and the risks with their last review date. Check it against the evidence: a risk
+that fired, a stale starting point, a workstream with no brief, a showcase past its resume date.
+`program-runtime research/plan-health --json` reads this across topics; else read the files. A
+plan unchanged for three commissions while work landed is not being used.
 
-### 3. Record verdicts verbatim
+### Operator review
 
-Append each verdict to `H/reviews/<id>/VERDICTS.md` (create it with `# Verdicts — <id>`):
+The operator reviews a few topics at a time: show what actually happened, record what they
+decide in their words, realign the missions.
 
-```markdown
-### 2026-11-12T10:14:03Z · verdict ai-video-production-and-funnels · via hand
-The operator's words, verbatim, any number of lines.
-```
+1. **Gather** per topic: `mission_check.py H --topic T --json`; commissions that touched it
+   (`rg -l "topics/T/" H/cohorts/*/README.md`, their `STATE.md`, ledger entries naming `T`);
+   run checkpoints; `history.py topic T`. Open every claimed landing: it exists, runs or plays,
+   and matches the showcase; what you cannot open is "claimed, unverified". A commission is live
+   or paused when `research-desk commissions --state live|paused` says so or its `STATE.md`
+   changed in the last 70 minutes.
+2. **Write** `H/reviews/<id>/REVIEW.md` (`<id>` = topics slug + date): per topic Landed, Claimed
+   but unverified, Open, Grew, What failed organisationally (cause and the change to the next
+   packet), Organisation changes, Decisions needed; then **Next commission** with topics,
+   emphasis and `read_first`. For media or rendered work, add one phone-friendly
+   `REVIEW.html` that shows each exact artifact with a feedback form that exports JSON.
+3. **Verdicts** are what the operator said about this topic, verbatim, appended only with
+   `inbox.py verdict H/reviews/<id> --topic <t> --source "<Hub answer id | OPERATOR.md line |
+   chat session and UTC>" --body-file F` (research-coordination scripts; it stamps the time).
+   Stance quoted in a brief is never a verdict; no source, no entry. For each verdict on a live
+   topic, put under **Direction for live commissions** the commission id and the exact entry
+   for the operator to apply with `research-desk say <id> direction`; `OPERATOR.md` is theirs.
+4. **Apply** authorised improvements the same day, by the audit steps above. Re-read `MISSION.md`
+   before editing it, change only what the verdict touches, never shrink its ambition, and run
+   `mission_check.py`.
 
-`via desk` when research-desk wrote it, `via hand` when you record it from the conversation.
-Append only; a correction is a new entry. Never paraphrase inside an entry.
-
-**Same day to live owners.** For each verdict on a topic that a live or paused commission
-covers, add to `REVIEW.md` under **Direction for live commissions** the commission id and the
-exact entry body: the verdict verbatim, then one line on what changes for the owner. The
-operator applies it (`research-desk say <id> direction`, or by appending a §4 `direction`
-entry to `H/cohorts/<id>/OPERATOR.md`); `OPERATOR.md` is the operator's file, not yours. If
-that charter lacks the Steering line (older charters), say first that it must be enabled: the
-desk appends it on the operator's action, or the operator appends the Steering sentence of
-`research-coordination/templates/charter.md` to the charter by hand.
-
-### 4. Apply authorized improvements and iterate
-
-- Apply reversible cleanup within the requested scope without a second approval. Preserve
-  originals and evidence; record each `from → to` in **Moved** so it can be reversed. The
-  live-work and reference protections above still apply. Leave protected files in place.
-- Improve the topic's existing entry point, current state, method, results and mission as
-  needed. Separate historical evidence from current guidance, remove contradictory current
-  claims, and give a fresh owner a short starting path. Prefer editing existing sources over
-  adding overlapping documents. Preserve unresolved findings and failed experiments.
-- Turn feedback into operational research guidance: desired outcomes, ambitious workstreams,
-  falsifiable experiments, acceptance criteria, exact-artifact evidence and review gates.
-  Include reusable capability development and maturation where relevant; avoid reducing the
-  task to its easiest local demo or adding infrastructure without a demonstrated purpose.
-- Record operator feedback verbatim in verdicts and distinguish it from your interpretation.
-  Link the verdict to a concise change record with rationale and any deferred decisions.
-  Proposals under `proposals/T.md` are for unresolved changes, not a mandatory approval stage.
-- Before editing `MISSION.md`, re-read it (a supervisor may have changed it), change only
-  relevant sections and rows, preserve status cells unless new evidence warrants an explicit
-  status correction, and run `mission_check.py`. Never silently shrink ambition, discard
-  original intent or overwrite another owner's current work.
-- Follow-up feedback continues the same authorized improvement cycle: update guidance and
-  affected reports, keep earlier verdicts intact, and explain what changed. Regenerate stale
-  HTML after substantive changes; check links, artifact labels and phone-width layout. Report
-  validation limits honestly. Preparing live-owner direction does not authorize writing the
-  operator-owned steering file; retain the routing boundary in step 3.
-
-**Exit:** `REVIEW.md` (and `REVIEW.html` for media), `VERDICTS.md`, applied changes, any unresolved proposals and moves are
-on disk; each verdict on a live topic has its direction entry ready; the operator has the
-next-commission suggestion; nothing was deleted, and no file a live or paused commission names
-was moved.
+**Exit:** the review files, the before/after tables, verdicts recorded verbatim, applied changes
+with every move listed, and nothing deleted.

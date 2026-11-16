@@ -57,6 +57,27 @@ export function StatusPanel({ data }: { data: GetCommissionResponse }) {
           <PathText path={c.folder} />
         </Fact>
       </Facts>
+      {c.historicalSettlement ? (
+        <Section id="historical-settlement" title={t(strings.commission.historicalSettlement)}>
+          <Facts>
+            <Fact label={t(strings.commission.historicalDisposition)}>{c.historicalSettlement.status}</Fact>
+            <Fact label={t(strings.commission.historicalAsOf)}>{time(c.historicalSettlement.asOf)}</Fact>
+            {c.historicalSettlement.activityStart ? (
+              <>
+                <Fact label={t(strings.commission.historicalActivityStart)}>{time(c.historicalSettlement.activityStart)}</Fact>
+                <Fact label={t(strings.commission.historicalActivityEnd)}>{time(c.historicalSettlement.activityEnd)}</Fact>
+              </>
+            ) : null}
+            <Fact label={t(strings.commission.historicalReason)}>{c.historicalSettlement.reason}</Fact>
+            <Fact label={t(strings.commission.historicalRecordedBy)}>{c.historicalSettlement.recordedBy}</Fact>
+          </Facts>
+          <ul className="rd-rows">
+            {c.historicalSettlement.evidencePaths.map((path) => (
+              <li key={path} className="rd-row"><PathText path={path} /></li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
       <Section id="changes" title={t(strings.changes.title)}>
         <ChangesPanel subject={ChangeSubject.COMMISSION} id={c.id} />
       </Section>

@@ -1,180 +1,180 @@
 #!/usr/bin/env python3
-"""Validate and render an image-complete feature decision card.
+"""Check a feature decision card, and render it as a Notification Hub decision page.
 
-The JSON input is a packet for one disappeared served feature. Evidence images
-must be embedded as data URIs so the card stays readable when opened from a
-phone without navigating to another file or private path.
+A card (research-feature-decision/v1) is one served feature that disappeared, as BAS's
+feature-inventory diff emits it; BAS runs `validate` on every card it writes. `render`
+writes the card as a Hub explainer page (the kit the Hub styles, answer buttons that fill
+in the answer), writes BRIEF.md beside it (the packet a worker executes on the answer), and
+prints the needs-you item that names both, so the card reaches the operator through the
+normal decision route. Render into the level's work/<ID>/. Evidence images are embedded data: URIs.
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
+import binascii
 import html
 import json
 import re
 import sys
 from pathlib import Path
 
-ID = re.compile(r"[A-Z0-9][A-Z0-9_-]{0,127}\Z")
-IMAGE = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)\Z")
+ID = re.compile(r"[A-Z0-9][A-Z0-9_-]{0,127}")
+IMAGE = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)")
+MAGIC = {"png": lambda b: b.startswith(b"\x89PNG\r\n\x1a\n"), "jpeg": lambda b: b.startswith(b"\xff\xd8\xff"),
+         "webp": lambda b: b[:4] == b"RIFF" and b[8:12] == b"WEBP"}
 REQUIRED = {"schema", "id", "title", "location", "summary", "evidence", "options", "recommendation", "status", "terms"}
+EFFECT = {"keep": (r"restore|retain|keep", "keep must say that the feature will be restored or retained"),
+          "drop": (r"delete|remove", "drop must say that its code will be deleted or removed")}
+
+
+def text(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def image_problem(index: int, source: object) -> str | None:
+    match = IMAGE.fullmatch(source) if isinstance(source, str) else None
+    if not match:
+        return f"evidence {index} must embed a PNG, JPEG or WebP data URI; file paths and links are not accepted"
+    try:
+        raw = base64.b64decode(match[2], validate=True)
+    except (ValueError, binascii.Error):
+        return f"evidence {index} has invalid base64 image data"
+    if not raw or len(raw) > 1_048_576:
+        return f"evidence {index} image must be 1 byte to 1 MiB"
+    return None if MAGIC[match[1]](raw) else f"evidence {index} image bytes do not match {match[1]}"
 
 
 def validate(card: object) -> list[str]:
-    errors: list[str] = []
     if not isinstance(card, dict):
         return ["card must be a JSON object"]
+    errors = []
+    check = lambda ok, message: ok or errors.append(message)
     missing = sorted(REQUIRED - set(card))
-    if missing:
-        errors.append("missing fields: " + ", ".join(missing))
-    if card.get("schema") != "research-feature-decision/v1":
-        errors.append("schema must be research-feature-decision/v1")
-    if not isinstance(card.get("id"), str) or not ID.fullmatch(card.get("id", "")):
-        errors.append("id must use uppercase letters, digits, underscores or hyphens")
+    check(not missing, "missing fields: " + ", ".join(missing))
+    check(card.get("schema") == "research-feature-decision/v1", "schema must be research-feature-decision/v1")
+    check(isinstance(card.get("id"), str) and ID.fullmatch(card["id"]), "id must use uppercase letters, digits, underscores or hyphens")
     for field in ("title", "summary"):
-        if not isinstance(card.get(field), str) or not card[field].strip():
-            errors.append(f"{field} must be a non-empty sentence")
-    summary = card.get("summary")
-    if isinstance(summary, str) and summary.strip():
-        sentences = [part for part in re.split(r"(?<=[.!?])\s+", summary.strip()) if part]
-        if len(sentences) != 1 or not re.search(r"[.!?]$", summary.strip()):
-            errors.append("summary must be one complete sentence")
-        if len(summary.split()) > 28:
-            errors.append("summary must use 28 words or fewer")
-    location = card.get("location")
-    if not isinstance(location, dict) or not isinstance(location.get("screen"), str) or not location["screen"].strip():
-        errors.append("location.screen must name the screen")
-    elif not isinstance(location.get("taps"), list) or not location["taps"] or not all(isinstance(step, str) and step.strip() for step in location["taps"]):
-        errors.append("location.taps must list the taps to reach the screen")
-
+        check(text(card.get(field)), f"{field} must be a non-empty sentence")
+    summary = str(card.get("summary") or "").strip()
+    if summary:
+        check(len(re.split(r"(?<=[.!?])\s+", summary)) == 1 and summary[-1] in ".!?", "summary must be one complete sentence")
+        check(len(summary.split()) <= 28, "summary must use 28 words or fewer")
+    location = card.get("location") if isinstance(card.get("location"), dict) else {}
+    check(text(location.get("screen")), "location.screen must name the screen")
+    taps = location.get("taps")
+    check(isinstance(taps, list) and taps and all(map(text, taps)), "location.taps must list the taps to reach the screen")
     evidence = card.get("evidence")
-    if not isinstance(evidence, list) or not evidence:
-        errors.append("evidence must contain at least one embedded image")
-    else:
+    if check(isinstance(evidence, list) and evidence, "evidence must contain at least one embedded image"):
         for index, item in enumerate(evidence, start=1):
-            if not isinstance(item, dict) or not isinstance(item.get("alt"), str) or not item["alt"].strip():
+            if not isinstance(item, dict) or not text(item.get("alt")):
                 errors.append(f"evidence {index} needs short alt text")
-                continue
-            source = item.get("image")
-            match = IMAGE.fullmatch(source) if isinstance(source, str) else None
-            if not match:
-                errors.append(f"evidence {index} must embed a PNG, JPEG or WebP data URI; file paths and links are not accepted")
-                continue
-            try:
-                raw = base64.b64decode(match.group(2), validate=True)
-                if not raw:
-                    raise ValueError("empty image")
-            except (ValueError, base64.binascii.Error):
-                errors.append(f"evidence {index} has invalid base64 image data")
-                continue
-            if len(raw) > 1_048_576:
-                errors.append(f"evidence {index} image exceeds 1 MiB")
-                continue
-            kind = match.group(1)
-            valid_header = (
-                raw.startswith(b"\x89PNG\r\n\x1a\n") if kind == "png" else
-                raw.startswith(b"\xff\xd8\xff") if kind == "jpeg" else
-                len(raw) >= 12 and raw.startswith(b"RIFF") and raw[8:12] == b"WEBP"
-            )
-            if not valid_header:
-                errors.append(f"evidence {index} image bytes do not match {kind}")
-
-    options = card.get("options")
-    if not isinstance(options, list) or len(options) != 2:
-        errors.append("options must contain exactly keep and drop")
-        options = []
-    by_key = {}
-    for option in options:
-        if not isinstance(option, dict) or option.get("key") not in ("keep", "drop"):
-            errors.append("each option must use the key keep or drop")
-            continue
+            elif problem := image_problem(index, item.get("image")):
+                errors.append(problem)
+    options = card.get("options") if isinstance(card.get("options"), list) else []
+    keys = [o.get("key") for o in options if isinstance(o, dict)]
+    check(sorted(keys) == ["drop", "keep"] and len(options) == 2, "options must be exactly keep and drop")
+    for option in (o for o in options if isinstance(o, dict) and o.get("key") in EFFECT):
         key = option["key"]
-        if key in by_key:
-            errors.append(f"option {key} is repeated")
-        by_key[key] = option
-        if not isinstance(option.get("label"), str) or not option["label"].strip():
-            errors.append(f"option {key} needs a plain-language label")
-        effect = option.get("effect")
-        if not isinstance(effect, str) or not effect.strip():
-            errors.append(f"option {key} must explain what happens")
-        elif key == "keep" and not re.search(r"restore|retain|keep", effect, re.I):
-            errors.append("keep must say that the feature will be restored or retained")
-        elif key == "drop" and not re.search(r"delete|remove", effect, re.I):
-            errors.append("drop must say that its code will be deleted or removed")
-    if set(by_key) != {"keep", "drop"}:
-        errors.append("both keep and drop options are required")
-    if card.get("recommendation") not in ("keep", "drop"):
-        errors.append("recommendation must be keep or drop")
-    if card.get("recommendation") not in by_key:
-        errors.append("recommendation must match an offered option")
-
-    status = card.get("status")
-    if status not in ("pending", "resolved"):
-        errors.append("status must be pending or resolved")
-    elif status == "resolved" and card.get("answer") not in ("keep", "drop"):
-        errors.append("a resolved card must record answer keep or drop")
-    elif status == "pending" and card.get("answer") is not None:
-        errors.append("a pending card must not claim an answer")
-
+        check(text(option.get("label")), f"option {key} needs a plain-language label")
+        if check(text(option.get("effect")), f"option {key} must explain what happens"):
+            check(re.search(EFFECT[key][0], option["effect"], re.I), EFFECT[key][1])
+    check(card.get("recommendation") in keys and card.get("recommendation") in EFFECT, "recommendation must be keep or drop, and offered")
+    status, answer = card.get("status"), card.get("answer")
+    check(status in ("pending", "resolved"), "status must be pending or resolved")
+    check(status != "resolved" or answer in EFFECT, "a resolved card must record answer keep or drop")
+    check(status != "pending" or answer is None, "a pending card must not claim an answer")
     terms = card.get("terms")
-    if not isinstance(terms, list) or not all(isinstance(term, dict) and isinstance(term.get("word"), str) and term["word"].strip() and isinstance(term.get("meaning"), str) and term["meaning"].strip() for term in terms):
-        errors.append("terms must be a list that defines any needed word in plain language; use [] when there are no special words")
+    check(isinstance(terms, list) and all(isinstance(t, dict) and text(t.get("word")) and text(t.get("meaning")) for t in terms),
+          "terms must be a list that defines any needed word in plain language; use [] when there are no special words")
     return errors
 
 
+SCRIPT = ('document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("[data-od-answer]");'
+          'if(b&&window.hub&&window.hub.prefill)window.hub.prefill("answer",b.getAttribute("data-od-answer"))});')
+
+
+def question(card: dict) -> str:
+    return f"Keep or drop “{card['title']}”?"
+
+
 def render(card: dict) -> str:
-    evidence = "".join(
-        f'<figure><img src="{html.escape(item["image"], quote=True)}" alt="{html.escape(item["alt"], quote=True)}"><figcaption>{html.escape(item["alt"])}</figcaption></figure>'
-        for item in card["evidence"]
-    )
-    options = "".join(
-        f'<article class="choice"><h2>{html.escape(option["label"])}</h2><p>{html.escape(option["effect"])}</p></article>'
-        for option in card["options"]
-    )
-    answer = ""
-    if card["status"] == "resolved":
-        answer = f'<p class="answer">Recorded answer: {html.escape(card["answer"].title())}. This is a replay of an answered choice.</p>'
-    terms = "".join(f'<li><strong>{html.escape(term["word"])}</strong>: {html.escape(term["meaning"])}</li>' for term in card.get("terms", []))
-    taps = " &rarr; ".join(html.escape(step) for step in card["location"]["taps"])
-    return f'''<!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(card["title"])}</title>
-<style>
-*{{box-sizing:border-box}}body{{margin:0;background:#f5f7fa;color:#182230;font:16px/1.5 system-ui,sans-serif}}main{{max-width:720px;margin:auto;padding:16px}}h1{{font-size:1.35rem;line-height:1.25}}h2{{font-size:1rem;margin:0 0 6px}}p{{margin:8px 0}}.location,.answer{{padding:12px;border-radius:10px;background:#e8eef5}}.evidence{{display:grid;gap:12px}}figure{{margin:0;background:#fff;border:1px solid #cbd5e1;border-radius:12px;padding:8px}}img{{display:block;width:100%;height:auto;border-radius:8px}}figcaption{{font-size:.875rem;color:#46576b;padding-top:6px}}.choices{{display:grid;gap:10px}}.choice{{padding:12px;border:1px solid #b6c4d3;border-radius:10px;background:#fff}}.recommend{{font-weight:700;color:#155e45}}@media(min-width:640px){{.evidence{{grid-template-columns:1fr 1fr}}}}
-</style><main>
-<p class="recommend">Recommendation: {html.escape(card["recommendation"].title())}</p>
-<h1>{html.escape(card["title"])}</h1><p>{html.escape(card["summary"])}</p>
-<p class="location"><strong>Where:</strong> {html.escape(card["location"]["screen"])}<br><strong>Tap:</strong> {taps}</p>
-<section class="evidence" aria-label="Evidence images">{evidence}</section>
-{answer}<section class="choices" aria-label="Choices">{options}</section>
-{('<section><h2>Word meanings</h2><ul>'+terms+'</ul></section>') if terms else ''}
-</main></html>'''
+    """The card as a Hub explainer page, in the markup api-core operatordecision.Page writes."""
+    e = lambda value: html.escape(str(value), quote=True)
+    where = " → ".join(e(step) for step in card["location"]["taps"])
+    figures = "".join(f'<figure class="hub-figure"><img src="{e(i["image"])}" alt="{e(i["alt"])}"><figcaption>{e(i["alt"])}</figcaption></figure>'
+                      for i in card["evidence"])
+    recommended = '<section class="is-recommended"><span class="hub-chip is-primary">Recommended</span>'
+    choices = "".join(
+        (recommended if o["key"] == card["recommendation"] else "<section>") +
+        f'<h3>{e(o["label"])}</h3><p>{e(o["effect"])}</p><button type="button" data-od-answer="{e(o["key"])}">Choose this</button></section>'
+        for o in card["options"])
+    answer = (f'<div class="hub-callout is-success"><strong>Answered:</strong> {e(card["answer"])}. This page replays an answered choice.</div>'
+              if card["status"] == "resolved" else "")
+    terms = "".join(f"<dt>{e(t['word'])}</dt><dd>{e(t['meaning'])}</dd>" for t in card["terms"])
+    terms = '<h2>Words used</h2><dl class="od-facts">' + terms + "</dl>" if terms else ""
+    return ('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            f'<title>{e(question(card))}</title><style>.od-facts{{display:grid;grid-template-columns:auto 1fr;gap:.25rem .75rem}}'
+            '.od-facts dt{font-weight:600}.od-facts dd{margin:0}</style></head><body>'
+            f'<h1>{e(question(card))}</h1><p>{e(card["summary"])}</p>{answer}'
+            f'<dl class="od-facts"><dt>Where</dt><dd>{e(card["location"]["screen"])}</dd><dt>How to get there</dt><dd>{where}</dd></dl>'
+            f'{figures}<h2>Your choices</h2><div class="hub-tradeoffs">{choices}</div>'
+            f'{terms}<script>{SCRIPT}</script></body></html>')
+
+
+def brief(card: dict) -> str:
+    """The packet: what a worker does on each answer, with no other context."""
+    taps = " → ".join(card["location"]["taps"])
+    effects = "\n".join(f"- **`{o['key']}`{' (recommended)' if o['key'] == card['recommendation'] else ''}.** {o['effect']}"
+                         for o in card["options"])
+    return (f"# {card['id']} · packet: {question(card)}\n\n{card['summary']}\n\n"
+            f"**Where:** {card['location']['screen']} ({taps}). **Evidence:** the decision page beside this file.\n\n"
+            f"## On each answer\n\n{effects}\n\n"
+            "## Proof\n\nThe served screen shows the feature (keep), or no code provides it (drop), and the feature "
+            "inventory diff reports this card resolved.\n")
+
+
+def needs_you_item(card: dict, page: Path, packet: Path) -> str:
+    """The needs-you item that sends the card to the operator with its page and packet."""
+    label = {o["key"]: o["label"] for o in card["options"]}
+    return "\n".join([
+        f"### {card['id']} — {question(card)}",
+        f"{card['summary']} It is on {card['location']['screen']}. The page shows it before and after the change.",
+        f"Recommended: {card['recommendation']} — {label[card['recommendation']]}",
+        f"Options: keep — {label['keep']}; drop — {label['drop']}",
+        f"Packet: {packet.resolve()}",
+        f"Explainer: {page.resolve()}",
+    ])
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("validate", choices=["validate", "render"])
+    parser.add_argument("action", choices=["validate", "render"])
     parser.add_argument("--file", required=True, type=Path)
-    parser.add_argument("--output", type=Path)
+    parser.add_argument("--output", type=Path, help="Where render writes the page")
     args = parser.parse_args()
     try:
         card = json.loads(args.file.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         print(f"cannot read card JSON: {exc}", file=sys.stderr)
         return 2
-    errors = validate(card)
-    if errors:
+    if errors := validate(card):
         print("Feature decision card rejected:\n" + "\n".join(f"- {error}" for error in errors), file=sys.stderr)
         return 1
-    if args.validate == "render":
-        if args.output is None:
-            print("render requires --output", file=sys.stderr)
-            return 2
-        args.output.write_text(render(card), encoding="utf-8")
-        print(f"Feature decision card rendered: {args.output}")
-    else:
+    if args.action == "validate":
         print(f"Feature decision card valid: {args.file}")
+        return 0
+    if args.output is None:
+        print("render requires --output", file=sys.stderr)
+        return 2
+    args.output.write_text(render(card), encoding="utf-8")
+    packet = args.output.with_name("BRIEF.md")
+    print(f"Feature decision page rendered: {args.output}")
+    if card["status"] == "pending":
+        packet.write_text(brief(card), encoding="utf-8")
+        print(f"Packet written: {packet}")
+        print("Needs-you item (add it with needs_you.py write):\n" + needs_you_item(card, args.output, packet))
     return 0
 
 

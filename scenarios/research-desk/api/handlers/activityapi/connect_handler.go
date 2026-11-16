@@ -161,7 +161,10 @@ func (h *handler) ListTopics(ctx context.Context, _ *connect.Request[activityv1.
 	if err != nil {
 		return nil, err
 	}
-	resp := &activityv1.ListTopicsResponse{}
+	resp := &activityv1.ListTopicsResponse{ObservedAt: wire.Timestamp(snap.Now)}
+	resp.ResearchHome = snap.ResearchDir
+	resp.HomeCapabilities = wire.Capabilities(snap.Capabilities)
+	resp.HomeCapabilitiesEvidence = wire.Evidence(snap.Capabilities.Evidence)
 	for _, t := range snap.Topics {
 		check := &activityv1.MissionCheck{
 			Mode: t.Check.Mode, Open: int32(t.Check.Open), Active: int32(t.Check.Active),
@@ -181,6 +184,19 @@ func (h *handler) ListTopics(ctx context.Context, _ *connect.Request[activityv1.
 			Aliases:              t.Aliases,
 			Mission:              wire.File(t.Mission),
 			MissionCheck:         check,
+			WorkspaceFiles: &activityv1.TopicWorkspaceFiles{
+				CurrentView: &activityv1.TopicOptionalFile{
+					File: wire.File(t.Documents.CurrentView.File), Evidence: wire.Evidence(t.Documents.CurrentView.Evidence),
+				},
+				Tools: &activityv1.TopicOptionalFile{
+					File: wire.File(t.Documents.Tools.File), Evidence: wire.Evidence(t.Documents.Tools.Evidence),
+				},
+				FeedbackFiles:        wire.Files(t.Documents.FeedbackFiles),
+				FeedbackEvidence:     wire.Evidence(t.Documents.FeedbackEvidence),
+				FeedbackTruncated:    t.Documents.FeedbackTruncated,
+				Capabilities:         wire.Capabilities(t.Documents.Capabilities),
+				CapabilitiesEvidence: wire.Evidence(t.Documents.Capabilities.Evidence),
+			},
 		})
 	}
 	return connect.NewResponse(resp), nil
@@ -256,6 +272,16 @@ func summary(c *home.Commission) *activityv1.CommissionSummary {
 	}
 	if c.State == home.StateUnknown {
 		out.NeverStarted = wire.NeverStarted(c.NeverStarted)
+	}
+	if s := c.HistoricalSettlement; s != nil {
+		out.HistoricalSettlement = &activityv1.HistoricalSettlement{
+			Status: s.Status, AsOf: wire.Timestamp(s.AsOf), RecordedAt: wire.Timestamp(s.RecordedAt),
+			Reason: s.Reason, EvidencePaths: append([]string(nil), s.Evidence...), RecordedBy: s.RecordedBy,
+		}
+		if s.ActivityStart != nil {
+			out.HistoricalSettlement.ActivityStart = wire.Timestamp(*s.ActivityStart)
+			out.HistoricalSettlement.ActivityEnd = wire.Timestamp(*s.ActivityEnd)
+		}
 	}
 	for _, ref := range c.Topics {
 		out.Topics = append(out.Topics, &activityv1.TopicRef{Topic: ref.Topic, Basis: ref.Basis, Source: ref.Source})

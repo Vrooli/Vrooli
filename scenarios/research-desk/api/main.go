@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/schedule"
@@ -18,6 +20,7 @@ import (
 )
 
 func main() {
+	eventpublishing.Register()
 	// Preflight runs first so the binary can re-exec itself after a
 	// stale-source rebuild before any listener opens.
 	if preflight.Run(preflight.Config{ScenarioName: "research-desk"}) {

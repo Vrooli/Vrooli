@@ -5,9 +5,18 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"reflect"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/vrooli/api-core/askreader"
+	"github.com/vrooli/api-core/eventpublisher"
+	"github.com/vrooli/api-core/serviceprincipal"
+
+	"research-desk/internal/courier"
 
 	"connectrpc.com/connect"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
@@ -86,5 +95,39 @@ func TestACredentialThatCannotBeUsedStopsTheDeskCallingWebConsole(t *testing.T) 
 		if _, _, _, err := (&peer.Peer{Name: "web-console", BaseURL: func(context.Context) (string, error) { return "http://unused", nil }, Credential: credential}).Dial(context.Background()); err == nil {
 			t.Fatalf("%s: the desk must not dial", name)
 		}
+	}
+}
+
+// The declaration the operator reads before granting anything must say exactly
+// what this code expects the token to be; a drift would be a credential the desk
+// then refuses to present.
+func TestTheDeskDeclaresExactlyThePrincipalsItsCodeExpects(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", ".vrooli", filepath.Base(serviceprincipal.DeclarationFile)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared, err := serviceprincipal.ParseDeclarations(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]serviceprincipal.Declaration{
+		"research-desk": {Name: "research-desk", Resource: "web-console", Audience: webConsoleAudience, Scopes: []string{"web-console:read", "web-console:write"}},
+		askreader.Principal(courier.Source): {
+			Name: askreader.Principal(courier.Source), Resource: askreader.Resource, Audience: askreader.Audience, Scopes: []string{askreader.Scope},
+		},
+		eventpublisher.Principal(courier.Source): {
+			Name: eventpublisher.Principal(courier.Source), Resource: eventpublisher.Resource, Audience: eventpublisher.Audience, Scopes: []string{eventpublisher.Scope},
+		},
+	}
+	if len(declared) != len(want) {
+		t.Fatalf("declared %d principals, the desk consumes %d: %+v", len(declared), len(want), declared)
+	}
+	for _, got := range declared {
+		if !reflect.DeepEqual(got, want[got.Name]) {
+			t.Errorf("%s declares %+v, the code expects %+v", got.Name, got, want[got.Name])
+		}
+	}
+	if webConsoleCredentialIdentity != serviceprincipal.CredentialIdentity("research-desk", "web-console") {
+		t.Errorf("the credential is read from %s, which is not where issuing writes it", webConsoleCredentialIdentity)
 	}
 }

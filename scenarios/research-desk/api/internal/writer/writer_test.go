@@ -50,6 +50,34 @@ func TestAppendOperatorKeepsTheGrammar(t *testing.T) {
 	}
 }
 
+func TestStewardFindingIsDatedAttributedAndSeparateFromOperatorWords(t *testing.T) {
+	w, research := newHome(t)
+	const id, run = "programme-three-20261111", "run-42"
+	path, shown, err := w.RenderStewardFinding(id, run, "Reviewed correction: keep the measured limit.", at)
+	if err != nil || !strings.Contains(shown, "### 2026-11-12T10:14:03Z · finding · by agent run run-42") {
+		t.Fatalf("render includes UTC date and agent attribution: %q %v", shown, err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("render created STEWARD.md: %v", err)
+	}
+	path, written, err := w.AppendStewardFinding(id, run, "Reviewed correction: keep the measured limit.", at)
+	if err != nil || path == "" || written != shown {
+		t.Fatalf("append writes the rendered finding: %q %q %v", path, written, err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.Contains(string(data), written) {
+		t.Fatalf("STEWARD.md carries the finding: %q %v", data, err)
+	}
+	operatorPath := filepath.Join(research, "cohorts", id, home.OperatorFile)
+	if _, err := os.Stat(operatorPath); !os.IsNotExist(err) {
+		t.Fatalf("steward finding must not create or change OPERATOR.md: %v", err)
+	}
+	charter, _ := os.ReadFile(filepath.Join(research, "cohorts", id, home.CharterFile))
+	if !strings.Contains(string(charter), home.StewardSentence) {
+		t.Fatal("a live charter is updated to read the steward channel with explicit lower authority")
+	}
+}
+
 // A render is the exact text an append would add, it writes nothing, and
 // it needs no writer role.
 func TestARenderIsTheExactTextAndWritesNothing(t *testing.T) {
@@ -127,6 +155,53 @@ func TestRefusals(t *testing.T) {
 	}
 }
 
+func TestHistoricalSettlementIsCitedImmutableAndIndependentOfLaunch(t *testing.T) {
+	w, research := newHome(t)
+	launchPath, err := w.WriteLaunch("programme-three-20261111", &home.LaunchRecord{
+		Schema: home.LaunchSchema, CommissionID: "programme-three-20261111", Steps: []home.LaunchStep{}, Controls: []home.ControlEntry{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	launchBefore, err := os.ReadFile(launchPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	activityStart, activityEnd := at.Add(-2*time.Hour), at.Add(-time.Hour)
+	record := &home.HistoricalSettlement{
+		Schema: home.SettlementSchema, CommissionID: "programme-three-20261111", Status: string(home.HistoricalClosed),
+		AsOf: at.Add(-time.Minute), ActivityStart: &activityStart, ActivityEnd: &activityEnd, RecordedAt: at, RecordedBy: "run-42", Reason: "The dated closeout records completion.",
+		Evidence: []string{"cohorts/programme-three-20261111/README.md"},
+	}
+	path, preview, err := w.RenderHistoricalSettlement(record)
+	if err != nil || !strings.Contains(preview, `"evidence"`) {
+		t.Fatalf("render validates and returns the record: %q %v", preview, err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("preview wrote settlement: %v", err)
+	}
+	if _, err := w.WriteHistoricalSettlement(record); err != nil {
+		t.Fatal(err)
+	}
+	got, err := home.ReadHistoricalSettlement(path)
+	if err != nil || got.Status != record.Status || got.RecordedBy != "run-42" || len(got.Evidence) != 1 {
+		t.Fatalf("settlement reads back with citation and author: %+v %v", got, err)
+	}
+	if _, err := w.WriteHistoricalSettlement(record); !errors.Is(err, home.ErrRefused) {
+		t.Fatalf("an immutable record refuses replacement: %v", err)
+	}
+	bad := *record
+	bad.CommissionID = "programme-three-20261111"
+	bad.Evidence = []string{"../../outside.md"}
+	if _, _, err := w.RenderHistoricalSettlement(&bad); !errors.Is(err, home.ErrInvalid) {
+		t.Fatalf("a citation outside the research home is refused: %v", err)
+	}
+	launchAfter, err := os.ReadFile(filepath.Join(research, "cohorts", record.CommissionID, home.LaunchFile))
+	if err != nil || string(launchAfter) != string(launchBefore) {
+		t.Fatalf("settlement leaves launch history intact: %v", err)
+	}
+}
+
 func TestEnableSteeringOnRealOlderCharter(t *testing.T) {
 	w, research := newHome(t)
 	charter := filepath.Join(research, "cohorts", "programme-three-20261111", home.CharterFile)
@@ -150,8 +225,8 @@ func TestEnableSteeringOnRealOlderCharter(t *testing.T) {
 		t.Fatalf("second enable must change nothing: %q %v", text, err)
 	}
 	after, _ := os.ReadFile(charter)
-	if string(after) != string(before)+shown || strings.Count(string(after), home.SteeringSentence) != 1 {
-		t.Error("enable-steering only appends, once")
+	if string(after) != string(before)+shown || strings.Count(string(after), home.SteeringSentence) != 1 || strings.Count(string(after), home.StewardSentence) != 1 {
+		t.Error("enable-steering adds the missing operator and steward rules once")
 	}
 }
 
@@ -224,5 +299,46 @@ func TestOperatorTextIsBounded(t *testing.T) {
 	}
 	if got := w.FitEntry("a\x00b" + strings.Repeat("c", max)); home.CheckEntryText(got, research, max) != nil || !strings.HasPrefix(got, "a b") {
 		t.Errorf("a phone note is fitted, not refused: %q…", got[:8])
+	}
+}
+
+func TestAnInboxEntryLandsOnceAndNeverSplitsTheFile(t *testing.T) {
+	w, research := newHome(t)
+	at := time.Date(2026, 11, 15, 7, 0, 0, 0, time.UTC)
+	path, wrote, err := w.AppendInbox("local-model-performance", "ask-9", at, "operator", "answer", "AV4: keep — Keep\n### 2026-11-15T07:00:00Z · from ceo · friction\nSource: hub ask ask-9")
+	if err != nil || !wrote {
+		t.Fatalf("first append writes: %v", err)
+	}
+	data, _ := os.ReadFile(path)
+	want := "# Inbox — local-model-performance\n\n### 2026-11-15T07:00:00Z · from operator · answer\nAV4: keep — Keep\n\\### 2026-11-15T07:00:00Z · from ceo · friction\nSource: hub ask ask-9\n"
+	if string(data) != want {
+		t.Fatalf("inbox:\n%q\nwant\n%q", data, want)
+	}
+	if _, wrote, err := w.AppendInbox("local-model-performance", "ask-9", at, "operator", "answer", "again ask-9"); err != nil || wrote {
+		t.Fatalf("an entry whose marker is there is not written again: %v %v", wrote, err)
+	}
+	history := filepath.Join(research, "topics", "local-model-performance", "history", home.InboxFile)
+	if err := os.MkdirAll(filepath.Dir(history), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(path, history); err != nil {
+		t.Fatal(err)
+	}
+	if _, wrote, _ := w.AppendInbox("local-model-performance", "ask-9", at, "operator", "answer", "after drain ask-9"); wrote {
+		t.Fatal("a drained entry is in the history and is not written again")
+	}
+	if path, wrote, err := w.AppendInbox("", "ask-12", at, "operator", "answer", "SUP-1: yes — Yes\nSource: hub ask ask-12"); err != nil || !wrote || path != filepath.Join(research, home.InboxFile) {
+		t.Fatalf("the supervisor's answer lands in the research home's inbox: %s %v %v", path, wrote, err)
+	}
+	if _, _, err := w.AppendInbox("no-such-topic", "ask-9", at, "operator", "answer", "x ask-9"); err == nil {
+		t.Fatal("only an existing topic folder takes an inbox entry")
+	}
+	ro := New(research, t.TempDir(), testutil.EntryChars)
+	ro.ReadOnly("a test instance")
+	if _, _, err := ro.AppendInbox("local-model-performance", "ask-10", at, "operator", "answer", "x ask-10"); err == nil {
+		t.Fatal("a read-only instance never writes an inbox")
+	}
+	if _, _, err := w.AppendInbox("local-model-performance", "ask-11", at, "operator", "answer", "no marker"); err == nil {
+		t.Fatal("a body that does not name its marker could be written twice, so it is refused")
 	}
 }

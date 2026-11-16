@@ -1,0 +1,8 @@
+{
+  "approval_flow": "Owners make finished artifacts, alternatives and the pipeline that produces them (tools, evaluators, rendering). The operator gives taste judgments in batches, each bound to an exact version; a judged direction is what the next workstream builds on.",
+  "boundaries": "- Publishing or sending artifacts outside the project.\n- Spending money or accepting paid terms.\n- Rights and licences for source material.",
+  "end_state_hint": "Describe the finished artifacts and the production capability that can make more.",
+  "workstream_hint": "Track individual artifacts in `ARTIFACTS.md`; rows here are kinds of artifact and the production capability, tens of hours each.",
+  "mode_tools": "\n## Rendering and media\n\n- **Used for:** producing and checking artifacts.\n- **Fallback:** <fill: the local route when the rendering service is down.>\n- **Monitoring scenario:** <fill: the scenario slug in backticks>\n",
+  "knowledge_page": "knowledge/TASTE.md"
+}

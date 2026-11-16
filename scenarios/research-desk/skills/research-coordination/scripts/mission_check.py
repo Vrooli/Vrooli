@@ -44,6 +44,8 @@ SHRINKING = (
     "if justified",
 )
 MIN_WORKSTREAM_HOURS = 20
+# A `## Later` line: an unbriefed workstream kept in order beneath the table, one line each.
+LATER_LINE = re.compile(r"^- \*\*([A-Za-z0-9][A-Za-z0-9_.-]*)\*\* — (.+) · ([^·]+)$")
 LIMITS = Path(__file__).resolve().parent.parent / "templates" / "limits.json"
 RECEIPT_HEADING = re.compile(
     r"^#{2,3} .*(cohort update|hourly|delta screen|probe|datapoint|\b20\d\d-\d\d-\d\d\b)",
@@ -67,7 +69,9 @@ class TopicReport:
     mode: str = ""
     architect_pass: str = ""
     ambition_review: str = ""
+    retired: str = ""
     workstreams: list[Workstream] = field(default_factory=list)
+    later: list[Workstream] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
@@ -75,7 +79,7 @@ class TopicReport:
         return sum(1 for w in self.workstreams if w.status == status)
 
     def open_hours(self) -> int:
-        return sum(w.hours_low or 0 for w in self.workstreams if w.status in LIVE)
+        return sum(w.hours_low or 0 for w in self.workstreams + self.later if w.status in LIVE + ("later",))
 
     def as_dict(self) -> dict:
         return {
@@ -83,12 +87,14 @@ class TopicReport:
             "mode": self.mode,
             "architect_pass": self.architect_pass,
             "ambition_review": self.ambition_review,
-            "workstreams": {s: self.count(s) for s in STATUSES},
+            "retired": self.retired,
+            "workstreams": {s: self.count(s) for s in STATUSES} | {"later": len(self.later)},
             "workstream_rows": [
                 {"id": w.ident, "destination": w.destination, "magnitude": w.magnitude,
                  "showcase": w.showcase, "status": w.status}
                 for w in self.workstreams
             ],
+            "later": [{"id": w.ident, "outcome": w.destination, "magnitude": w.magnitude} for w in self.later],
             "open_hours_low": self.open_hours(),
             "errors": self.errors,
             "warnings": self.warnings,
@@ -146,7 +152,17 @@ def check_mission(topic: str, path: Path) -> TopicReport:
     if not rep.ambition_review:
         rep.errors.append("missing 'Last ambition review:'")
     elif rep.ambition_review.lower().startswith("pending"):
-        rep.warnings.append("ambition review pending: run LONG_EFFORT_DESIGN.md §2b before staffing")
+        rep.warnings.append("ambition review pending: run the ambition brief in templates/review-briefs.md before staffing")
+
+    m = re.search(r"^Retired:\s*(\S.*)$", text, re.MULTILINE)
+    if m:  # a finished topic keeps its folder and links; it is reported, never commissioned
+        rep.retired = m.group(1).strip()
+        rep.warnings.append(f"retired {rep.retired}; not commissionable (remove the Retired line to reopen it)")
+        return rep
+
+    unfilled = text.count("<fill:")
+    if unfilled:
+        rep.errors.append(f"{unfilled} unfilled template markers '<fill: …>'; write them from the operator's intent (architect pass)")
 
     sections = split_sections(text)
     for name in REQUIRED_SECTIONS:
@@ -185,6 +201,19 @@ def check_mission(topic: str, path: Path) -> TopicReport:
             rep.errors.append(f"{ident}: magnitude '{magnitude}' names no agent-hours")
         elif ws.hours_low < MIN_WORKSTREAM_HOURS and "per " not in magnitude:
             rep.warnings.append(f"{ident}: {ws.hours_low} h is a task, not a workstream; fold it into a larger row")
+    for line in sections.get("Later", "").splitlines():
+        if not line.startswith("- "):
+            continue
+        m = LATER_LINE.match(line.strip())
+        if not m:
+            rep.errors.append(f"Later line is not `- **ID** — outcome · N–M h`: {line.strip()[:60]}")
+            continue
+        rep.later.append(Workstream(m[1], m[2].strip(), m[3].strip(), "", "later", parse_hours(m[3])))
+        if parse_hours(m[3]) is None:
+            rep.errors.append(f"{m[1]}: Later magnitude '{m[3].strip()}' names no agent-hours")
+    taken = [w.ident for w in rep.later if w.ident in {x.ident for x in rep.workstreams}]
+    if taken:
+        rep.errors.append(f"{', '.join(taken)}: both a table row and a Later line; keep one")
     live = sum(1 for w in rep.workstreams if w.status in LIVE)
     if live < 3:
         rep.errors.append(f"only {live} open/active/approved workstreams; keep at least three (run an architect pass)")
@@ -244,7 +273,7 @@ def render_markdown(reports: list[TopicReport]) -> str:
         "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in reports:
-        status = "errors" if r.errors else ("warnings" if r.warnings else "ok")
+        status = "retired" if r.retired else "errors" if r.errors else ("warnings" if r.warnings else "ok")
         lines.append(
             f"| [{r.topic}](topics/{r.topic}/MISSION.md) | {r.mode or '—'} | {r.count('open')} | {r.count('active')} "
             f"| {sum(r.count(w) for w in WAITING)} | {r.count('landed')} | {r.count('proposed') + r.count('approved')} | {r.open_hours()} "
@@ -267,6 +296,47 @@ def write_readme(home: Path, table: str) -> None:
     readme.write_text(f"{head}{PORTFOLIO_START}\n{table}\n{PORTFOLIO_END}{tail}", encoding="utf-8")
 
 
+SOURCED_SINCE = "2026-11-15T12"  # hand verdicts written from here on carry a Source: line (inbox.py verdict)
+
+
+def check_verdicts(home: Path, reports: list["TopicReport"]) -> None:
+    """Warn on hand verdicts whose words may not be the operator's about that topic.
+
+    A later `provenance correction` entry voids the verdicts above it. Of the rest, warn when the
+    same words were filed as verdicts on different topics (a stance pasted per topic), or when a
+    verdict written since SOURCED_SINCE has no `Source:` line.
+    """
+    found = []
+    for path in sorted(home.glob("reviews/*/VERDICTS.md")) + sorted(home.glob("topics/*/history/VERDICTS*.md")):
+        live = []
+        for block in re.split(r"(?m)^(?=### )", path.read_text(encoding="utf-8", errors="replace"))[1:]:
+            head, _, body = block.partition("\n")
+            if "provenance correction" in head:
+                live = []
+                continue
+            m = re.match(r"### (\S+) · verdict ([a-z0-9, -]+?)\s*(?:[A-Za-z0-9_-]*[A-Z][A-Za-z0-9_-]*)?\s*· via hand", head)
+            if m:
+                words = " ".join(l for l in body.split("\n") if not l.startswith("Source:")).split()
+                live.append({"at": m.group(1), "topics": [t for t in re.split(r"[,\s]+", m.group(2)) if t],
+                             "key": " ".join(words[:12]).strip("\"“”").lower(), "sourced": "\nSource:" in "\n" + body,
+                             "file": path.relative_to(home)})
+        found += live
+    spread: dict[str, set] = {}  # words -> the topic sets of the separate entries carrying them
+    for v in found:
+        spread.setdefault(v["key"], set()).add(tuple(v["topics"]))
+    by_topic = {r.topic: r for r in reports}
+    for v in found:
+        for t in v["topics"]:
+            r = by_topic.get(t)
+            if not r:
+                continue
+            if v["key"] and len(spread[v["key"]]) > 1:
+                r.warnings.append(f"verdict {v['at']} in {v['file']}: the same words were filed as {len(spread[v['key']])} "
+                                  "separate topic verdicts; check that the operator said them about this one (research-review)")
+            elif not v["sourced"] and v["at"] >= SOURCED_SINCE:
+                r.warnings.append(f"verdict {v['at']} in {v['file']} has no Source: line; it may not be the operator's words")
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("home", type=Path)
@@ -285,6 +355,7 @@ def main(argv: list[str]) -> int:
             rep = TopicReport(tdir.name, errors=["MISSION.md missing (references/mission.md)"])
         check_readme(rep, tdir / "README.md")
         reports.append(rep)
+    check_verdicts(args.home, reports)
 
     if args.write_readme:
         if args.topic:

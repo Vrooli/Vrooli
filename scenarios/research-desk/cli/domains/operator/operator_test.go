@@ -23,8 +23,14 @@ func TestManifestCoversOperatorService(t *testing.T) {
 type service struct {
 	operatorconnect.UnimplementedOperatorServiceHandler
 	entry   *operatorv1.AddEntryRequest
+	finding *operatorv1.AddStewardFindingRequest
 	courier *operatorv1.SetCourierRequest
 	seen    *operatorv1.MarkSeenRequest
+}
+
+func (s *service) AddStewardFinding(_ context.Context, req *connect.Request[operatorv1.AddStewardFindingRequest]) (*connect.Response[operatorv1.AddStewardFindingResponse], error) {
+	s.finding = req.Msg
+	return connect.NewResponse(&operatorv1.AddStewardFindingResponse{Path: "/r/STEWARD.md", Text: "finding", Written: !req.Msg.DryRun, AgentRunId: "run-42"}), nil
 }
 
 func (s *service) MarkSeen(_ context.Context, req *connect.Request[operatorv1.MarkSeenRequest]) (*connect.Response[operatorv1.MarkSeenResponse], error) {
@@ -89,6 +95,20 @@ func TestSayMapsKindsAndShowsTheWarning(t *testing.T) {
 	require.True(t, svc.entry.DryRun)
 	require.Contains(t, out, "Dry run: nothing written. This text would be appended to /r/OPERATOR.md:")
 	require.Contains(t, out, "### 2026-11-12T10:14:03Z · direction · via desk")
+}
+
+func TestFeedbackWritesThroughTheStewardChannel(t *testing.T) {
+	svc := &service{}
+	cmd, core := command(t, svc, "feedback")
+	out, err := cliapptest.RunCommand(t, cmd, core, "programme-four-20261110", "Reviewed: keep the measured result.")
+	require.NoError(t, err)
+	require.Equal(t, "Reviewed: keep the measured result.", svc.finding.Text)
+	require.Equal(t, "programme-four-20261110", svc.finding.CommissionId)
+	require.Contains(t, out, "STEWARD.md")
+	require.Contains(t, out, "run-42")
+	_, err = cliapptest.RunCommand(t, cmd, core, "programme-four-20261110", "Reviewed.", "--dry-run")
+	require.NoError(t, err)
+	require.True(t, svc.finding.DryRun)
 }
 
 // One command records a look at everything; it is mark-seen --all.
