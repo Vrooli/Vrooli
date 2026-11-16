@@ -85,6 +85,8 @@ func TestVisualStepFromAccessibilitySnapshotUsesSharedArtifactShape(t *testing.T
 	require.NoError(t, json.Unmarshal([]byte(step.GetLayoutJson()), &layout))
 	require.Equal(t, float64(404), layout["document"].(map[string]any)["scrollWidth"])
 	require.Equal(t, "app-chrome-controls", layout["geometryPolicy"].(map[string]any)["unsafeEdgeScope"])
+	require.Equal(t, "application-chrome", layout["geometryPolicy"].(map[string]any)["chromeScope"])
+	require.Equal(t, true, layout["geometryPolicy"].(map[string]any)["touchTargetsViewportOnly"])
 	elements := layout["elements"].([]any)
 	require.Len(t, elements, 2)
 	button := elements[1].(map[string]any)
@@ -113,6 +115,59 @@ func TestVisualStepConversionCarriesNestedClippingEvidence(t *testing.T) {
 	elements := layout["elements"].([]any)
 	chip := elements[2].(map[string]any)
 	require.Equal(t, true, chip["inScrollContainer"], "the clipping-aware migration must carry reachability to the canonical evaluator")
+}
+
+func TestVisualStepConversionPreservesClippingFloorCases(t *testing.T) {
+	target := CaptureTarget{ViewportWidth: 390, ViewportHeight: 844, ViewportID: "mobile"}
+	inside := Bounds{X: 0, Y: 200, Width: 390, Height: 56}
+	cases := []struct {
+		name                string
+		style               map[string]string
+		width               float64
+		nested              bool
+		nestedAncestorWidth float64
+		nestedAncestorStyle map[string]string
+		wantClip            bool
+	}{
+		{name: "auto", style: map[string]string{"overflow-x": "auto"}, width: 390, wantClip: true},
+		{name: "scroll", style: map[string]string{"overflow-x": "scroll"}, width: 390, wantClip: true},
+		{name: "hidden", style: map[string]string{"overflow-x": "hidden"}, width: 390, wantClip: true},
+		{name: "clip shorthand", style: map[string]string{"overflow": "auto hidden"}, width: 390, wantClip: true},
+		{name: "deep descendant", style: map[string]string{"overflow-x": "auto"}, width: 390, nested: true, wantClip: true},
+		{name: "wide inner clipper remains reachable through outer scroller", style: map[string]string{"overflow-x": "auto"}, width: 390, nested: true, nestedAncestorWidth: 700, nestedAncestorStyle: map[string]string{"overflow-x": "hidden"}, wantClip: true},
+		{name: "visible does not clip", style: map[string]string{"overflow-x": "visible"}, width: 390},
+		{name: "missing evidence does not clip", width: 390},
+		{name: "outside ancestor cannot excuse", style: map[string]string{"overflow-x": "auto"}, width: 700},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			chip := AXNode{Role: "listitem", Name: "Dismissed", DOM: DOMNode{TestID: "chip"}, Bounds: &Bounds{X: 324, Y: 212, Width: 99, Height: 44}}
+			if tc.nested {
+				width := tc.nestedAncestorWidth
+				if width == 0 {
+					width = 600
+				}
+				chip = AXNode{Role: "group", Bounds: &Bounds{X: 16, Y: 200, Width: width, Height: 56}, ComputedStyle: tc.nestedAncestorStyle, Children: []AXNode{chip}}
+			}
+			snapshot := Snapshot{Contract: snapshotContract, Root: AXNode{
+				Role: "document", DOM: DOMNode{Tag: "body"}, Bounds: &Bounds{Width: 390, Height: 844},
+				Children: []AXNode{{Role: "list", Bounds: &inside, ComputedStyle: tc.style, Children: []AXNode{chip}}},
+			}}
+			snapshot.Root.Children[0].Bounds.Width = tc.width
+			step, err := visualStepFromAccessibilitySnapshot(target, snapshot)
+			require.NoError(t, err)
+			var layout map[string]any
+			require.NoError(t, json.Unmarshal([]byte(step.GetLayoutJson()), &layout))
+			var got bool
+			for _, raw := range layout["elements"].([]any) {
+				element := raw.(map[string]any)
+				if element["testId"] == "chip" {
+					got, _ = element["inScrollContainer"].(bool)
+				}
+			}
+			require.Equal(t, tc.wantClip, got)
+		})
+	}
 }
 
 func TestUIHealthGeometryEvaluatorUsesCanonicalFindingEnvelope(t *testing.T) {
@@ -202,6 +257,10 @@ func TestCanonicalGeometryOwnsBaselineFloorEvidenceAndHonorsOptOut(t *testing.T)
 			require.Equal(t, "passed", evidence.Verdict, "the opted-out claim is not independently re-evaluated")
 		}
 	}
+	unmeasured := []spec.Finding{{Code: spec.CodeClaimUnverifiable, Severity: spec.SeverityInfo, Message: "shared geometry service unavailable"}}
+	claimEvidence, passed := evaluateGeometryFloorClaim(page, spec.Claim{ID: "overflow", Type: "no-document-horizontal-overflow"}, target, snapshot.Flatten(), unmeasured)
+	require.False(t, passed)
+	require.Equal(t, "unverifiable", claimEvidence.Verdict, "a shared evaluator outage cannot turn geometry claims into passes")
 }
 
 func countFindingCode(findings []spec.Finding, code string) int {

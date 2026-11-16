@@ -9,7 +9,6 @@ These flows describe the **intended** design (Phase 1). No flow is
 modeled in code yet; the maturity ladder and production shape below
 describe how each flow will be hardened as it lands.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

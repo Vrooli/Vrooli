@@ -223,12 +223,15 @@ func RunBound(ctx context.Context, path, ownerPath string, session SessionEnviro
 	if err = writeRegistration(config.StateDirectory, registration); err != nil {
 		return err
 	}
-	lifecycleReceipt := LifecycleReceipt{HelperID: helperID, Epoch: registration.Epoch, SessionID: registration.SessionID, Surface: registration.Surface, Status: "running", ObservedAt: nowUTC()}
+	lifecycleReceipt := LifecycleReceipt{HelperID: helperID, Epoch: registration.Epoch, SessionID: registration.SessionID, Surface: registration.Surface, Status: sessions.HelperLifecycleRunning, ObservedAt: nowUTC()}
 	lifecycleReceipt.ComponentGeneration = registration.ComponentGeneration
 	if err = WriteLifecycleReceipt(config.StateDirectory, lifecycleReceipt); err != nil {
 		return err
 	}
-	helper.SetLifecycleReporter(func(status string, activeRequests int, errorCode string) error {
+	helper.SetLifecycleReporter(func(status sessions.HelperLifecycleStatus, activeRequests int, errorCode string) error {
+		if _, valid := lifecycleReceipt.Status.Transition(status); !valid {
+			return ErrBootstrap
+		}
 		lifecycleReceipt.Status = status
 		lifecycleReceipt.ActiveRequests = activeRequests
 		lifecycleReceipt.ErrorCode = errorCode

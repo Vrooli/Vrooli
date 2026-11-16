@@ -5,7 +5,6 @@ other scenarios, and third-party services used by the scenario. The
 load-bearing dependency is `scenario-authenticator`; everything else is
 local infrastructure or optional.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

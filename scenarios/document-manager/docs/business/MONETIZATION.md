@@ -10,7 +10,6 @@ better than inventing a commercial story.
 > decided here. The engineering contract for wiring free / metered /
 > gated is `path:../../docs/concepts/PAID_FEATURES.md`.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -4,7 +4,6 @@
 platform capability and is not a product. This document records *why*
 rather than deferring the question, so it is not reopened by default.
 
-## Purpose Of This Document
 
 Use this document to answer whether and how this scenario earns its keep.
 Monetization *strategy* — whether to charge at all, pricing, bundle

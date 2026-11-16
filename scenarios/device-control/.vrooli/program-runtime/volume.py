@@ -1,5 +1,4 @@
 """Run one typed, lease-owned semantic volume operation."""
-import json
 
 inputs = program.inputs()
 learn.task(operation="device-control.volume", key={"device": inputs.get("device", "")})
@@ -76,4 +75,4 @@ status = envelope["signals"].get("outcome", "unknown")
 envelope["signals"]["learning"] = {"feedback_ref": learn.result("volume")}
 learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
               envelope["evidence"] if status == "verified_success" else [])
-print(json.dumps(envelope, allow_nan=False))
+program.report(envelope)

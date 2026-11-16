@@ -12,7 +12,6 @@ fidelity — and a generated document goes back through *this* matrix on
 ingest, so a target that renders something this matrix cannot parse is a
 defect on both sides.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

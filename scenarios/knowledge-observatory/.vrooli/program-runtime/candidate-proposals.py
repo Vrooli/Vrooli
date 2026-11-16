@@ -14,20 +14,16 @@ envelope = {
 }
 
 
-def fail(kind, detail):
-    envelope["status"] = "failed"
-    envelope["errors"].append({"class": kind, "detail": str(detail)[:240], "where": envelope["phase"]})
-    return "report"
 
 
 def validate():
     if not isinstance(inputs, dict) or set(inputs) - {"candidates", "reader_task"}:
-        return fail("invalid_input", "candidates and reader_task are the only inputs")
+        return program.fail("failed", 'invalid_input', 'candidates and reader_task are the only inputs', envelope["phase"])
     candidates = inputs.get("candidates")
     if not isinstance(candidates, list) or not 1 <= len(candidates) <= 100:
-        return fail("invalid_input", "candidates must contain 1..100 records")
+        return program.fail("failed", 'invalid_input', 'candidates must contain 1..100 records', envelope["phase"])
     if not all(isinstance(candidate, dict) for candidate in candidates):
-        return fail("invalid_input", "each candidate must be an object")
+        return program.fail("failed", 'invalid_input', 'each candidate must be an object', envelope["phase"])
     envelope["inputs"] = dict(inputs)
     envelope["phase"] = "collect"
     return "collect"

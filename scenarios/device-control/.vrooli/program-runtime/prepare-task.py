@@ -1,19 +1,14 @@
 inputs = program.inputs()
-envelope={"program":"device-control.prepare-task","version":"1","status":"failed","phase":"validate","inputs":{},
- "signals":{},"errors":[],"evidence":[]}
+envelope = program.envelope('device-control.prepare-task', '1', phase="validate", inputs={})
 handles={}
-def fail(status,klass,detail,where):
-    envelope["status"]=status
-    envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
-    return "report"
 
 
 def step_validate():
     if not isinstance(inputs,dict):
-        return fail("failed","invalid_input","Object inputs required","validate")
+        return program.fail("failed","invalid_input","Object inputs required","validate", detail_limit=160)
     for field in ("device","context_key"):
         if not isinstance(inputs.get(field),str) or not inputs[field].strip() or len(inputs[field])>512:
-            return fail("failed","invalid_input","Required string: "+field,"validate")
+            return program.fail("failed","invalid_input","Required string: "+field,"validate", detail_limit=160)
     return "collect"
 
 def step_collect():
@@ -24,7 +19,7 @@ def step_collect():
         if not selected.count():
             selected=inventory.filter(lambda d:d.get("name","").lower()==inputs["device"].lower())
         if selected.count()!=1:
-            return fail("failed","device_selection_required","Device must match one exact ID or unique name","collect")
+            return program.fail("failed","device_selection_required","Device must match one exact ID or unique name","collect", detail_limit=160)
         device=selected.head(1)[0]
         handles["device"]=device
         flows=device_control.flow.list(device_id=device["id"],context_key=inputs["context_key"])
@@ -37,7 +32,7 @@ def step_collect():
         envelope["status"]="ok"
     except Exception as exc:
         status,klass=program.classify(exc)
-        return fail(status,klass,klass,"collect")
+        return program.fail(status,klass,klass,"collect", detail_limit=160)
     return "report"
 def step_act():
     return "report"
@@ -54,4 +49,4 @@ while state:
     except Exception as exc:
         if state=="report":
             raise
-        state=fail("failed","kernel_runtime",str(exc)[:160],state)
+        state=program.fail("failed","kernel_runtime",str(exc)[:160],state, detail_limit=160)

@@ -29,26 +29,21 @@ type Registration struct {
 // cleanup result does not prove that the process exited; the process owner must
 // still establish that boundary independently.
 type LifecycleReceipt struct {
-	ComponentGeneration string                 `json:"component_generation,omitempty"`
-	HelperID            string                 `json:"helper_id"`
-	Epoch               uint64                 `json:"epoch"`
-	SessionID           string                 `json:"session_id"`
-	Surface             targetmodel.SurfaceRef `json:"surface"`
-	Status              string                 `json:"status"`
-	ActiveRequests      int                    `json:"active_requests"`
-	ErrorCode           string                 `json:"error_code,omitempty"`
-	ObservedAt          time.Time              `json:"observed_at"`
+	ComponentGeneration string                         `json:"component_generation,omitempty"`
+	HelperID            string                         `json:"helper_id"`
+	Epoch               uint64                         `json:"epoch"`
+	SessionID           string                         `json:"session_id"`
+	Surface             targetmodel.SurfaceRef         `json:"surface"`
+	Status              sessions.HelperLifecycleStatus `json:"status"`
+	ActiveRequests      int                            `json:"active_requests"`
+	ErrorCode           string                         `json:"error_code,omitempty"`
+	ObservedAt          time.Time                      `json:"observed_at"`
 }
 
 const lifecycleReceiptName = "lifecycle.json"
 
 func validLifecycleReceipt(receipt LifecycleReceipt) bool {
-	switch receipt.Status {
-	case "running", "stopping", "controller-cleanup-completed", "uncertain":
-	default:
-		return false
-	}
-	return receipt.HelperID != "" && receipt.Epoch > 0 && receipt.SessionID != "" && receipt.Surface.Validate() == nil && receipt.ActiveRequests >= 0 && !receipt.ObservedAt.IsZero() && len(receipt.ErrorCode) <= 128
+	return receipt.Status.Valid() && receipt.HelperID != "" && receipt.Epoch > 0 && receipt.SessionID != "" && receipt.Surface.Validate() == nil && receipt.ActiveRequests >= 0 && !receipt.ObservedAt.IsZero() && len(receipt.ErrorCode) <= 128
 }
 
 // WriteLifecycleReceipt atomically persists a helper-generation-specific

@@ -8,7 +8,6 @@ domain is added, renamed, split, merged, or removed.
 > retained only until the first real domain (`devices`) is green, then
 > removed (see `docs/START-HERE.md`, gate `example-domain-removed`).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

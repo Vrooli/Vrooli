@@ -65,13 +65,13 @@ func TestLifecycleReceiptRoundTripsShutdownPendingState(t *testing.T) {
 	configPath := filepath.Join(dir, "config.json")
 	require.NoError(t, os.WriteFile(configPath, data, 0600))
 	require.NoError(t, writeRegistration(dir, Registration{Surface: surface, SessionID: config.SessionID, HelperID: "helper-generation-2", Epoch: 2, SocketPath: filepath.Join(dir, "helper.sock")}))
-	receipt := LifecycleReceipt{HelperID: "helper-generation-2", Epoch: 2, SessionID: config.SessionID, Surface: surface, Status: "stopping", ActiveRequests: 1, ErrorCode: "rpc_drain_timeout", ObservedAt: time.Now().UTC()}
+	receipt := LifecycleReceipt{HelperID: "helper-generation-2", Epoch: 2, SessionID: config.SessionID, Surface: surface, Status: sessions.HelperLifecycleStopping, ActiveRequests: 1, ErrorCode: "rpc_drain_timeout", ObservedAt: time.Now().UTC()}
 	require.NoError(t, WriteLifecycleReceipt(dir, receipt))
 
 	got, err := ReadLifecycleReceipt(context.Background(), configPath)
 	require.NoError(t, err)
 	require.Equal(t, receipt, got)
-	receipt.Status = "controller-cleanup-completed"
+	receipt.Status = sessions.HelperLifecycleControllerCleanupCompleted
 	receipt.ActiveRequests = 0
 	receipt.ErrorCode = ""
 	receipt.ObservedAt = time.Now().UTC()
@@ -80,6 +80,6 @@ func TestLifecycleReceiptRoundTripsShutdownPendingState(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, receipt, got)
 
-	receipt.Status = "done"
+	receipt.Status = sessions.HelperLifecycleStatus("done")
 	require.ErrorIs(t, WriteLifecycleReceipt(dir, receipt), ErrBootstrap, "unknown states must not be treated as terminal receipts")
 }

@@ -10,7 +10,6 @@ Keep this file high-signal. Do not turn it into a warehouse for every
 domain, endpoint, workflow, or decision. If a concern has a dedicated
 document below, update that document and link it here.
 
-## Purpose Of This Document
 
 This document owns:
 

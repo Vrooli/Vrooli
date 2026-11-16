@@ -241,13 +241,37 @@ knowledge-observatory docs health knowledge-observatory --json
 | `--scenario` | Scenario name (optional if provided as positional argument) |
 | `--scope` | `scenario` (default) or `path` |
 | `--path` | Docs path to scan when using path scope |
-| `--checks` | Comma-separated checks: `structure`, `content`, `links`, `refs`, `commands`, `manifest`, `numbers` |
+| `--checks` | Comma-separated check names listed in the generated inventory below |
+
+Available checks are generated from Knowledge Observatory's owner registry:
+
+<!-- BEGIN GENERATED DOCHEALTH CHECKS -->
+
+| Check | Scope | Purpose |
+|---|---|---|
+| `structure` | scenario | Contract placement: missing/misplaced/extra docs, manifest status, health score. |
+| `content` | generic | Markdown, mermaid, and absolute-path content checks. |
+| `links` | generic | Local and external link validation. |
+| `refs` | generic | Bidirectional reference audit ([CODE:], // DOC:, marked refs). |
+| `commands` | generic | Conservative Vrooli-owned command validation in fenced shell snippets. |
+| `manifest` | scenario | docs/manifest.json coverage (orphaned docs, missing registrations). |
+| `numbers` | generic | Drift-prone hardcoded-number / derived-count lint. |
+| `assertions` | generic | Same-document duplicate or contradictory normative claims and generic purpose headings fail; cross-document and superseded historical repeats are advisory. |
+
+<!-- END GENERATED DOCHEALTH CHECKS -->
 | `--strict-external-links` | Treat external link failures as failures |
 | `--require-all-docs-registered` | Report scenario docs missing from `docs/manifest.json` |
 | `--skip-external-links` | Skip external link probing for offline runs |
 | `--json` | Emit raw JSON output |
 
 The `refs` check validates explicit marked references such as `cli:...`.
+The `assertions` check fails on repeated normative statements or explicit
+opposite-polarity assertions within one current document, warns on
+cross-document matches that need scope review, and rejects the generic
+`Purpose Of This Document` heading while retaining document-specific purpose
+content. Documents explicitly marked `SUPERSEDED — historical provenance only`
+keep duplicate assertions as warnings so retained snapshots stay visible
+without blocking current guidance.
 The `commands` check conservatively validates Vrooli-owned commands found in
 fenced shell snippets by delegating to CLI Health (DOCS policy); it does not
 execute the referenced commands.

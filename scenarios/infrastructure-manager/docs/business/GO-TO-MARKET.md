@@ -6,7 +6,6 @@ this scenario. It is the `infra-health` team's instrument, and its
 internal adoption motion instead, because that is the real analogue and it
 does have failure modes worth naming.
 
-## Purpose Of This Document
 
 Use this document to answer who this is for, how they come to rely on it, and
 what would make adoption fail. External positioning is not applicable; see

@@ -292,6 +292,11 @@ func evaluateGeometryFloorClaim(page spec.PageDocument, claim spec.Claim, target
 		return evidence, false
 	}
 	for _, finding := range geometry {
+		if finding.Code == spec.CodeClaimUnverifiable && finding.Severity == spec.SeverityInfo {
+			evidence.Verdict = "unverifiable"
+			evidence.Message = finding.Message
+			return evidence, false
+		}
 		if finding.Code == "visual_geometry_unmeasured" ||
 			(finding.Code == "visual_surface_root_unmeasured" && rule == "visual_surface_does_not_fill_viewport") {
 			evidence.Verdict = "unverifiable"

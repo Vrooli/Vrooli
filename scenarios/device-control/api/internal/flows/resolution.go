@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	VisionRung       = "vision"
-	VisualAnchorRung = "visual-anchor"
-	LocateVisualRole = "locate.visual"
+	VisionRung              = "vision"
+	VisualAnchorRung        = "visual-anchor"
+	LocateVisualRole        = "locate.visual"
+	visionPrivacyProvenance = "device-control.resolver:user-target-intent-selected-device-screenshot-owner-submitted"
 
 	defaultConfidenceThreshold = 0.70
 	defaultMaxDimension        = 1024
@@ -78,6 +79,8 @@ type EvidenceEvent struct {
 	Reason          string   `json:"reason,omitempty"`
 	SubmittedWidth  int      `json:"submitted_width,omitempty"`
 	SubmittedHeight int      `json:"submitted_height,omitempty"`
+	PrivacyClass    string   `json:"privacy_class,omitempty"`
+	PrivacySource   string   `json:"privacy_provenance,omitempty"`
 }
 
 // Result is the durable-safe flow evidence shape. Bounds are canonical
@@ -196,7 +199,10 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Result, error) {
 		return result, nil
 	}
 	result.Evidence = append(result.Evidence, EvidenceEvent{Name: "skip", Rung: VisualAnchorRung, Reason: "anchor_not_found"})
-	result.Evidence = append(result.Evidence, EvidenceEvent{Name: "attempt_vision", Rung: VisionRung, SubmittedWidth: req.Frame.Width, SubmittedHeight: req.Frame.Height})
+	result.Evidence = append(result.Evidence, EvidenceEvent{
+		Name: "attempt_vision", Rung: VisionRung, SubmittedWidth: req.Frame.Width, SubmittedHeight: req.Frame.Height,
+		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL.String(), PrivacySource: visionPrivacyProvenance,
+	})
 
 	response, err := r.runVision(ctx, req)
 	if err != nil {
@@ -259,8 +265,11 @@ func (r *Resolver) runVision(ctx context.Context, req Request) (*inferencev1.Run
 		return nil, &UnavailableError{Reason: "ai_gateway_client_not_configured"}
 	}
 	request := connect.NewRequest(&inferencev1.RunRequest{
-		Role:        LocateVisualRole,
-		Instruction: fmt.Sprintf("Locate the target intent %q in the supplied screenshot. Return JSON with found, bounds as [x1,y1,x2,y2], and confidence from 0..1. The gateway owns coordinate normalization; do not assume a caller coordinate convention.", req.Target),
+		Role:              LocateVisualRole,
+		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
+		PrivacyProvenance: visionPrivacyProvenance,
+		Instruction:       fmt.Sprintf("Locate the target intent %q in the supplied screenshot. Return JSON with found, bounds as [x1,y1,x2,y2], and confidence from 0..1. The gateway owns coordinate normalization; do not assume a caller coordinate convention.", req.Target),
 		// The gateway's typed schema subset deliberately does not include
 		// minItems/maxItems. The resolver enforces the exact four-bound
 		// contract after decoding, so the provider cannot widen it silently.

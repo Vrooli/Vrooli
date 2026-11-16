@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"device-control/internal/desktophelper"
+	"device-control/internal/sessions"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/targetmodel"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -34,7 +35,7 @@ func TestDesktopHelperLifecycleInventorySurfacesPendingReceiptAndStillBlocksExit
 	owner.Helper.PublicKey = ""
 	writeJSON(ownerBootstrapPath, owner)
 	writeJSON(filepath.Join(stateDir, "registration.json"), desktophelper.Registration{HelperID: "helper-generation-4", Epoch: 4, SessionID: helper.SessionID, Surface: surface, SocketPath: filepath.Join(stateDir, "helper.sock")})
-	receipt := desktophelper.LifecycleReceipt{HelperID: "helper-generation-4", Epoch: 4, SessionID: helper.SessionID, Surface: surface, Status: "stopping", ActiveRequests: 2, ErrorCode: "rpc_drain_timeout", ObservedAt: time.Now().UTC()}
+	receipt := desktophelper.LifecycleReceipt{HelperID: "helper-generation-4", Epoch: 4, SessionID: helper.SessionID, Surface: surface, Status: sessions.HelperLifecycleStopping, ActiveRequests: 2, ErrorCode: "rpc_drain_timeout", ObservedAt: time.Now().UTC()}
 	require.NoError(t, desktophelper.WriteLifecycleReceipt(stateDir, receipt))
 
 	work, blockers, complete := desktopHelperLifecycleInventory(context.Background(), ownerBootstrapPath)
@@ -65,7 +66,7 @@ func TestDesktopHelperLifecycleInventorySurfacesPendingReceiptAndStillBlocksExit
 	require.Equal(t, "completed", lifecycleWorkStatus(managedWork, "desktop-helper-process-exit"))
 	require.NotEmpty(t, managedBlockers, "process exit cannot hide pending controller cleanup")
 
-	receipt.Status = "running"
+	receipt.Status = sessions.HelperLifecycleRunning
 	receipt.ActiveRequests = 0
 	receipt.ErrorCode = ""
 	receipt.ObservedAt = time.Now().UTC()
@@ -75,7 +76,7 @@ func TestDesktopHelperLifecycleInventorySurfacesPendingReceiptAndStillBlocksExit
 	require.Equal(t, "unknown", lifecycleWorkStatus(work, "desktop-helper-shutdown"))
 	require.Contains(t, lifecycleBlockerCode(blockers, "desktop_helper_liveness_unconfirmed"), "desktop_helper_liveness_unconfirmed")
 
-	receipt.Status = "controller-cleanup-completed"
+	receipt.Status = sessions.HelperLifecycleControllerCleanupCompleted
 	receipt.ActiveRequests = 0
 	receipt.ErrorCode = ""
 	receipt.ObservedAt = time.Now().UTC()

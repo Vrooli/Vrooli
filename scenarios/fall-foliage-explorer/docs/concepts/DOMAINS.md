@@ -1,6 +1,5 @@
 # Domains
 
-## Purpose Of This Document
 
 This document maps the scenario's product domains to implementation surfaces.
 

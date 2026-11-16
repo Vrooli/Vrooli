@@ -24,5 +24,4 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'lifestyle-dashboard',
-  corsOrigins: '*',
 })

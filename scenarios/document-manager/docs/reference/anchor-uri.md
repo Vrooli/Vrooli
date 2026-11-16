@@ -9,7 +9,6 @@ cites it — most importantly the ledger, which stores the string and
 **never dereferences it**. That opacity is deliberate and it has a
 consequence: this string *is* the interface. Nothing else crosses.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

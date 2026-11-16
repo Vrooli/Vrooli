@@ -1,6 +1,5 @@
 # UI Architecture
 
-## Purpose Of This Document
 
 Describe two things: the **operator surface** this scenario builds — its
 information architecture, design principles, and shared primitives — and the

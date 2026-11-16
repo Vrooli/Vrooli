@@ -1,5 +1,4 @@
 """Screenshot a named phone or TV, or try an app on it: optionally install an APK, open it, screenshot it."""
-import json
 
 inputs = program.inputs()
 learn.task(operation="device-control.check-app", key={"device": inputs.get("device", ""), "app": inputs.get("app", "")})
@@ -83,4 +82,4 @@ status = envelope["signals"].get("outcome", "unknown")
 envelope["signals"]["learning"] = {"feedback_ref": learn.result("check-app")}
 learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
               envelope["evidence"] if status == "verified_success" else [])
-print(json.dumps(envelope, allow_nan=False))
+program.report(envelope)

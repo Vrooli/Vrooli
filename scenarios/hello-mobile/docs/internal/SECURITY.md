@@ -4,7 +4,6 @@ This document records the scenario's security and privacy posture.
 Update it before adding auth, user data, external APIs, payment flows,
 secrets, or sensitive business data.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

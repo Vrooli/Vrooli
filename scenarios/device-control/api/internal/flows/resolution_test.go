@@ -51,7 +51,12 @@ func TestResolverNormalizesVisionResultAndConvertsToOriginalDeviceCoordinates(t 
 	require.Equal(t, []float64{0.1, 0.2, 0.5, 0.6}, result.Bounds)
 	require.Equal(t, []int{192, 216, 960, 648}, result.DeviceBounds)
 	require.Equal(t, uint32(960), fake.request.GetAttachments()[0].GetWidth())
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, fake.request.GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, fake.request.GetPrivacyClass())
+	require.Equal(t, visionPrivacyProvenance, fake.request.GetPrivacyProvenance())
 	require.Empty(t, fake.request.GetSource())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL.String(), result.Evidence[2].PrivacyClass)
+	require.Equal(t, visionPrivacyProvenance, result.Evidence[2].PrivacySource)
 	require.Equal(t, []string{"skip", "skip", "attempt_vision", "resolved"}, evidenceNames(result.Evidence))
 }
 
@@ -188,6 +193,10 @@ func TestGatewayPlannerUsesBoundedTypedContract(t *testing.T) {
 	plan, err := planner.Plan(context.Background(), AgentWorld{Goal: "pause playback", StepKinds: []string{"media-pause"}})
 	require.NoError(t, err)
 	require.Equal(t, "media-pause", plan.StepKind)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, fake.request.GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, fake.request.GetPrivacyClass())
+	require.Equal(t, agentPlanPrivacyProvenance, fake.request.GetPrivacyProvenance())
+	require.Equal(t, AgentPlanRole, fake.request.GetRole())
 	require.EqualValues(t, defaultPlanTokenCap, fake.request.GetMaxOutputTokens())
 	require.NotContains(t, fake.request.GetSchemaJson(), "additionalProperties")
 	require.NotContains(t, fake.request.GetSchemaJson(), "maxLength")
@@ -209,6 +218,8 @@ func TestGatewayPlannerReturnsGatewayUsageWithoutInventingMissingMetrics(t *test
 	}}
 	_, evidence, err := NewGatewayPlanner(fake).PlanWithEvidence(context.Background(), AgentWorld{Goal: "inspect"})
 	require.NoError(t, err)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL.String(), evidence.PrivacyClass)
+	require.Equal(t, agentPlanPrivacyProvenance, evidence.PrivacyProvenance)
 	require.Equal(t, "local-provider", evidence.Provider)
 	require.Equal(t, "small-model", evidence.Model)
 	require.EqualValues(t, 2, evidence.ProviderCallsMade)
@@ -240,6 +251,8 @@ func TestGatewayPlannerKeepsSemanticScreenContentLocal(t *testing.T) {
 	_, err := NewGatewayPlanner(fake).Plan(context.Background(), AgentWorld{Goal: "inspect screen", Semantics: &strategy.SemanticSnapshot{}})
 	require.NoError(t, err)
 	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, fake.request.GetProfile())
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, fake.request.GetPrivacyClass())
+	require.Equal(t, agentPlanPrivacyProvenance, fake.request.GetPrivacyProvenance())
 }
 
 func TestGatewayPlannerRejectsUnknownAndContradictoryModelFields(t *testing.T) {

@@ -4,8 +4,30 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestGeneratedCLIHealthCheckTableMatchesRegistry(t *testing.T) {
+	path := filepath.Join("..", "..", "..", "..", "docs", "reference", "cli-commands.md")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read CLI reference: %v", err)
+	}
+	text := string(content)
+	begin := "<!-- BEGIN GENERATED DOCHEALTH CHECKS -->"
+	end := "<!-- END GENERATED DOCHEALTH CHECKS -->"
+	start := strings.Index(text, begin)
+	finish := strings.Index(text, end)
+	if start < 0 || finish < 0 || finish <= start {
+		t.Fatalf("generated check table markers are missing or out of order")
+	}
+	start += len(begin)
+	got := strings.TrimSpace(text[start:finish])
+	if want := CheckDocumentationTable(); got != want {
+		t.Fatalf("generated docs check table is stale\n got: %s\nwant: %s", got, want)
+	}
+}
 
 func TestNewSelection(t *testing.T) {
 	if sel, err := newSelection(nil); err != nil || len(sel.enabled) != 0 {

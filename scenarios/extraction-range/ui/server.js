@@ -26,7 +26,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'extraction-range',
-  corsOrigins: '*',
   setupRoutes(app) {
     // The range's REST/practice endpoints intentionally live at the API root
     // rather than under `/api`; keep those paths on the same origin for the

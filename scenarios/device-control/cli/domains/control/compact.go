@@ -6,9 +6,10 @@ import (
 )
 
 // compactDevices projects the full inventory payload to one short row per
-// reachable device: what it is, whether it can be used, and which one-call
-// verbs its transports support. Unreachable and retained-but-absent rows are
-// counted, not listed; `device list --all` or `--full` shows them.
+// device with at least one usable transport: what it is, whether it can be
+// used, and which one-call verbs its transports support. Unreachable and
+// retained-but-absent rows are counted, not listed; `device list --all` or
+// `--full` shows them.
 func compactDevices(raw []byte, includeUnreachable bool) (map[string]any, error) {
 	var payload struct {
 		Devices []struct {
@@ -36,6 +37,12 @@ func compactDevices(raw []byte, includeUnreachable bool) (map[string]any, error)
 	hidden := 0
 	for _, device := range payload.Devices {
 		usable := device.Status == "available" || device.Health == "available"
+		for _, transport := range device.Transports {
+			if transport.Health == "available" {
+				usable = true
+				break
+			}
+		}
 		if !usable && !includeUnreachable {
 			hidden++
 			continue

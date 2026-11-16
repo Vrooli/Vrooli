@@ -16,7 +16,6 @@ produce," and they share one normalized document model.
 > treatment `handoff` received. See the write-spine rows in
 > [`../internal/DECISIONS.md`](../internal/DECISIONS.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

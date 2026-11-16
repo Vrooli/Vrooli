@@ -1266,3 +1266,10 @@ The cause (including running-service revision or routing) is unverified.
 Reconcile the running owner surface before treating inventory as available.
 Direct source inspection and the prepare-change program remained usable.
 This cleanup changed guidance, not the API implementation.
+
+## Work ladder
+
+- Rung: W3
+- Evidence: `tools/mermaid-lint/lint.mjs` reproduced on Node v24.22.3 with `TypeError: Cannot set property navigator of #<Object> which has only a getter`; replacing the property descriptor in the sidecar restores real Mermaid verdicts, and `node --test tools/mermaid-lint/lint.test.mjs` passes.
+- Blocker: none for this localized defect; the parser now returns `mermaid@11.13.0` verdicts on Node 24.
+- Measured: 2026-11-14

@@ -25,7 +25,7 @@ import (
 type DesktopUnixHelper struct {
 	controller        *DesktopController
 	authority         *SignedDesktopAuthority
-	lifecycleReporter func(status string, activeRequests int, errorCode string) error
+	lifecycleReporter func(status HelperLifecycleStatus, activeRequests int, errorCode string) error
 }
 type desktopConnectionKey struct{}
 
@@ -100,7 +100,7 @@ func NewDesktopUnixHelper(c *DesktopController, a *SignedDesktopAuthority) (*Des
 
 // SetLifecycleReporter connects shutdown milestones to the lifecycle owner's
 // durable receipt. Configure it before Serve starts.
-func (h *DesktopUnixHelper) SetLifecycleReporter(report func(status string, activeRequests int, errorCode string) error) {
+func (h *DesktopUnixHelper) SetLifecycleReporter(report func(status HelperLifecycleStatus, activeRequests int, errorCode string) error) {
 	h.lifecycleReporter = report
 }
 
@@ -184,12 +184,12 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 	cancel()
 	closeErr := server.Close()
 	var lifecycleErr error
-	reportLifecycle := func(status string, errorCode string) {
+	reportLifecycle := func(status HelperLifecycleStatus, errorCode string) {
 		if h.lifecycleReporter != nil {
 			lifecycleErr = errors.Join(lifecycleErr, h.lifecycleReporter(status, requests.activeCount(), errorCode))
 		}
 	}
-	reportLifecycle("stopping", "")
+	reportLifecycle(HelperLifecycleStopping, "")
 	if !gotServe {
 		serveErr = <-serving
 	}
@@ -209,16 +209,16 @@ func (h *DesktopUnixHelper) Serve(ctx context.Context, listener *net.UnixListene
 		// an in-flight RPC. Preserve the timeout as an error after the handlers
 		// eventually finish and cleanup can run safely.
 		requestErr = errors.Join(errors.New("desktop helper shutdown exceeded its RPC drain timeout; waiting for accepted handlers"), requestErr)
-		reportLifecycle("stopping", "rpc_drain_timeout")
+		reportLifecycle(HelperLifecycleStopping, "rpc_drain_timeout")
 		_ = requests.wait(context.Background())
 	}
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), desktopHelperShutdownTimeout)
 	shutdownErr := h.controller.Shutdown(shutdownCtx)
 	cancelShutdown()
 	if shutdownErr != nil {
-		reportLifecycle("uncertain", "cleanup_failed")
+		reportLifecycle(HelperLifecycleUncertain, "cleanup_failed")
 	} else {
-		reportLifecycle("controller-cleanup-completed", "")
+		reportLifecycle(HelperLifecycleControllerCleanupCompleted, "")
 	}
 	if errors.Is(closeErr, http.ErrServerClosed) {
 		closeErr = nil

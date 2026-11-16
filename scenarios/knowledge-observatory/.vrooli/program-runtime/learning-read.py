@@ -1,8 +1,7 @@
 """Project shared Memory comparison rows into the established consumer envelope."""
 import json
 inputs = program.inputs()
-envelope={"program":"knowledge-observatory.learning-read","version":"1","status":"failed","phase":"validate",
-          "inputs":{},"signals":{},"errors":[],"evidence":[]}
+envelope = program.envelope('knowledge-observatory.learning-read', '1', phase="validate", inputs={})
 try:
     if not isinstance(inputs,dict) or set(inputs)-{"from","to","operation","context_key"}:
         raise ValueError("Only explicit comparison-window selectors are accepted")

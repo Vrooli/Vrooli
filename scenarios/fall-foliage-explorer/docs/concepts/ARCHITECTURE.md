@@ -1,6 +1,5 @@
 # Architecture
 
-## Purpose Of This Document
 
 This document explains the scenario shape, runtime boundaries, and durable contracts future agents should preserve.
 

@@ -1,6 +1,5 @@
 # Portability Model
 
-## Purpose Of This Document
 
 This is the **single canonical source** for the **Portability axis**: the model that answers *"does this capability resolve on that host OS, and if it does not, is the absence a gap or a decision?"*
 

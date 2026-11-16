@@ -5,7 +5,6 @@ scenario. Update it when domains add tables, files, blobs, external
 records, retention rules, migrations, imports, or exports. Domain
 ownership mirrors [`DOMAINS.md`](DOMAINS.md) exactly.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

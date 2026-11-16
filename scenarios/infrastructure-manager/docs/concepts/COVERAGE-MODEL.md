@@ -1,6 +1,5 @@
 # Coverage Model
 
-## Purpose Of This Document
 
 This is the **single canonical source** for the **Coverage axis**: the model that answers *"how much of the platform's reliability is instrumented at all?"*
 

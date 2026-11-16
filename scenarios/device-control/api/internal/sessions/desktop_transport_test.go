@@ -301,13 +301,13 @@ func (n *stubbornTransportNative) Validate(context.Context, DesktopCommand) erro
 func TestDesktopUnixServeKeepsResourcesAlivePastHandlerDrainTimeout(t *testing.T) {
 	native := &stubbornTransportNative{started: make(chan struct{}), resume: make(chan struct{})}
 	type lifecycleObservation struct {
-		status string
+		status HelperLifecycleStatus
 		active int
 		code   string
 	}
 	var lifecycleMu sync.Mutex
 	var lifecycle []lifecycleObservation
-	reporter := func(status string, active int, code string) error {
+	reporter := func(status HelperLifecycleStatus, active int, code string) error {
 		lifecycleMu.Lock()
 		defer lifecycleMu.Unlock()
 		lifecycle = append(lifecycle, lifecycleObservation{status: status, active: active, code: code})
@@ -364,7 +364,7 @@ func TestDesktopUnixServeKeepsResourcesAlivePastHandlerDrainTimeout(t *testing.T
 	lifecycleMu.Unlock()
 }
 
-func startDesktopUnixHelperForShutdownTest(t *testing.T, native DesktopNative, reporters ...func(string, int, string) error) (*DesktopController, *SQLiteDesktopRepository, DesktopLease, string, ed25519.PrivateKey, func() error) {
+func startDesktopUnixHelperForShutdownTest(t *testing.T, native DesktopNative, reporters ...func(HelperLifecycleStatus, int, string) error) (*DesktopController, *SQLiteDesktopRepository, DesktopLease, string, ed25519.PrivateKey, func() error) {
 	t.Helper()
 	controller, repo, _, _, lease := desktopFixture(t)
 	public, private, err := ed25519.GenerateKey(rand.Reader)

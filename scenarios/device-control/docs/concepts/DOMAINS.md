@@ -13,7 +13,6 @@ and no domain answers two.** The test is deletion — removing a strategy
 should touch only `strategies`; adding a new phone should touch only
 `devices`; changing how a target is located should touch only `flows`.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

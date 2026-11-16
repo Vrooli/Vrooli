@@ -1,6 +1,5 @@
 # Setpoint Model
 
-## Purpose Of This Document
 
 This is the **single canonical source** for the **setpoint**: the bar every cell is graded against, where it lives, why it lives here, and what structurally prevents this scenario from moving it.
 

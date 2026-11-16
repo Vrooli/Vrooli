@@ -1,6 +1,5 @@
 # Flows
 
-## Purpose Of This Document
 
 This document records user and system flows, including lifecycle states and validation evidence.
 

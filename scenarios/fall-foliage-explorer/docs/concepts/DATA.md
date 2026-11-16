@@ -1,6 +1,5 @@
 # Data
 
-## Purpose Of This Document
 
 This document records data ownership, storage shape, and import/export behavior.
 

@@ -27,10 +27,16 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http:
 Object.assign(globalThis, {
   window: dom.window,
   document: dom.window.document,
-  navigator: dom.window.navigator,
   HTMLElement: dom.window.HTMLElement,
   SVGElement: dom.window.SVGElement,
   getComputedStyle: dom.window.getComputedStyle,
+});
+// Node 24 exposes navigator as a configurable getter without a setter, so it
+// cannot be replaced through Object.assign in this ESM module.
+Object.defineProperty(globalThis, "navigator", {
+  value: dom.window.navigator,
+  configurable: true,
+  writable: true,
 });
 const { default: mermaid } = await import("mermaid");
 mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });

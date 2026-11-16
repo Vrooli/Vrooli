@@ -1,20 +1,16 @@
-import json
 
 inputs = program.inputs()
 learn.task(operation="device-control.replay-flow", key={"device": inputs.get("device_id", ""), "context_key": inputs.get("context_key", "")})
-envelope={"program":"device-control.replay-flow","version":"2","status":"failed","phase":"validate","inputs":{},
- "signals":{},"errors":[],"evidence":[]}
+envelope = program.envelope('device-control.replay-flow', '2', phase="validate", inputs={})
 handles={}
 def fail(status,klass,detail,where):
-    envelope["status"]=status
     if klass in ("invalid_input", "identity_mismatch"):
         envelope["signals"]["outcome"]="failed"
     elif klass in ("capability_gap", "scenario_unreachable", "no_grant", "not_run_eligible"):
         envelope["signals"]["outcome"]="unavailable"
     else:
         envelope["signals"].setdefault("outcome", "unknown")
-    envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
-    return "report"
+    return program.fail(status,klass,detail,where,detail_limit=160)
 
 
 def step_validate():
@@ -68,7 +64,7 @@ def step_report():
     envelope["signals"]["learning"] = {"feedback_ref": learn.result("replay", artifact=artifact)}
     learn.outcome(status if status in ("verified_success", "failed", "unavailable", "unknown") else "unknown",
                   envelope["evidence"] if status == "verified_success" else [])
-    print(json.dumps(envelope, allow_nan=False))
+    program.report(envelope)
     return None
 STATES={"validate":step_validate,"collect":step_collect,"act":step_act,"report":step_report}
 state="validate"

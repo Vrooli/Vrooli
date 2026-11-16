@@ -282,7 +282,7 @@ func desktopHelperLifecycleInventory(ctx context.Context, ownerBootstrapPath str
 	if err != nil {
 		return unknown("desktop helper shutdown receipt is missing or invalid")
 	}
-	status := receipt.Status
+	workStatus := string(receipt.Status)
 	blockers := []*commonv1.LifecycleBlocker{}
 	// A recognized receipt completes owner-work enumeration even when it leaves
 	// shutdown, liveness, cleanup, or process exit unresolved. Those conditions
@@ -291,9 +291,9 @@ func desktopHelperLifecycleInventory(ctx context.Context, ownerBootstrapPath str
 	complete := true
 	switch receipt.Status {
 	case "controller-cleanup-completed":
-		status = "completed"
+		workStatus = "completed"
 	case "running":
-		status = "unknown"
+		workStatus = "unknown"
 		blockers = append(blockers, &commonv1.LifecycleBlocker{Code: "desktop_helper_liveness_unconfirmed", Message: "last helper receipt reports running, but current process liveness is unconfirmed", Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN, Observed: true})
 	case "stopping":
 		blockers = append(blockers, &commonv1.LifecycleBlocker{Code: "desktop_helper_shutdown_pending", Message: fmt.Sprintf("desktop helper shutdown is pending with %d accepted RPC handler(s); receipt code %s", receipt.ActiveRequests, receipt.ErrorCode), Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING, Observed: true})
@@ -304,7 +304,7 @@ func desktopHelperLifecycleInventory(ctx context.Context, ownerBootstrapPath str
 	}
 	// The helper receipt is written before RunBound's deferred native/SQLite
 	// teardown. Only the external process owner can confirm process exit.
-	work := []*commonv1.LifecycleWorkItem{{Id: "owner/desktop-helper-shutdown", Kind: "desktop-helper-shutdown", Status: status}, {Id: "owner/desktop-helper-process-exit", Kind: "desktop-helper-process-exit", Status: "unknown"}}
+	work := []*commonv1.LifecycleWorkItem{{Id: "owner/desktop-helper-shutdown", Kind: "desktop-helper-shutdown", Status: workStatus}, {Id: "owner/desktop-helper-process-exit", Kind: "desktop-helper-process-exit", Status: "unknown"}}
 	blockers = append(blockers, &commonv1.LifecycleBlocker{Code: "desktop_helper_process_exit_unobserved", Message: "desktop helper cleanup receipt does not establish helper process exit", Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN, Observed: true})
 	return work, blockers, complete
 }

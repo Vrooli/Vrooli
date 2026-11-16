@@ -378,16 +378,14 @@ func (h *connectHandler) sharedStatus(findings []spec.Finding) scenariovalidatio
 	// may classify this failure as advisory/non-gating, but they must not rewrite
 	// the provider's underlying truth.
 	notEvaluated := false
+	hasFailure := false
 	for _, finding := range findings {
 		if finding.Severity == spec.SeverityError {
-			return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+			hasFailure = true
 		}
 		if finding.Code == spec.CodeCaptureUnavailable {
 			notEvaluated = true
 		}
 	}
-	if notEvaluated {
-		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED
-	}
-	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
+	return maturity.ObservedValidationStatus(hasFailure, notEvaluated)
 }

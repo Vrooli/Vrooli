@@ -35,7 +35,6 @@ product scope) as a copyable reference; `template-manager detemplate
 document-manager` removes every fenced example once the real domains are
 green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

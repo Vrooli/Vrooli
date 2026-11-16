@@ -156,7 +156,6 @@ func visualStepFromAccessibilitySnapshot(target CaptureTarget, snapshot Snapshot
 			"rect":        map[string]float64{"x": node.Bounds.X, "y": node.Bounds.Y, "width": node.Bounds.Width, "height": node.Bounds.Height},
 			"computed":    normalizeAXComputedStyle(node.ComputedStyle),
 			"interactive": isInteractiveNode(node),
-			"disabled":    containsState(node, "disabled"),
 			"surfaceRoot": index == 0,
 		}
 		if isPreviewWorkspaceScrollNode(node) || clippedHorizontallyByAncestor(node, parents, target) {
@@ -168,9 +167,12 @@ func visualStepFromAccessibilitySnapshot(target CaptureTarget, snapshot Snapshot
 		return nil, fmt.Errorf("geometry artifact has no accessibility nodes with measured bounds")
 	}
 	layout := map[string]any{
-		"viewport":       map[string]int{"width": target.ViewportWidth, "height": target.ViewportHeight},
-		"elements":       elements,
-		"geometryPolicy": map[string]any{"overflowSlackPx": 2, "unsafeEdgeScope": "app-chrome-controls"},
+		"viewport": map[string]int{"width": target.ViewportWidth, "height": target.ViewportHeight},
+		"elements": elements,
+		"geometryPolicy": map[string]any{
+			"overflowSlackPx": 2, "unsafeEdgeScope": "app-chrome-controls", "chromeScope": "application-chrome",
+			"touchTargetsViewportOnly": true,
+		},
 	}
 	if target.ViewportID == "mobile" {
 		// Preserve the existing EXM mobile baseline floor. This is an explicit

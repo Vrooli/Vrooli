@@ -1,6 +1,5 @@
 # Trust Model
 
-## Purpose Of This Document
 
 This is the **single canonical source** for the **Trust axis**: the model that answers *"is this reading evidence, or is it instrument fault?"*
 

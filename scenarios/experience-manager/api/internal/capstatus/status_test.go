@@ -73,8 +73,8 @@ func TestLoadReadsLiveRegistry(t *testing.T) {
 }
 
 // TestDeriveAgainstLiveReconciler is the headline assertion: status must reflect
-// what the reconciler can do, and the two capabilities we know are provable today
-// must come out provable while the known-blocked ones must not.
+// what the reconciler can do, provable capabilities must remain provable, and
+// known-blocked or delegated capabilities must not be advertised as EXM-owned.
 func TestDeriveAgainstLiveReconciler(t *testing.T) {
 	reg, err := Load(registryDir(t))
 	if err != nil {
@@ -90,10 +90,10 @@ func TestDeriveAgainstLiveReconciler(t *testing.T) {
 		byID[r.Capability] = r
 	}
 
-	// tap-target-size needs only viewport:mobile, ax-tree, layout-box, and an
-	// evaluator that exists. It is the canonical provable capability.
-	if got := byID["tap-target-size"].Status; got != StatusProvable {
-		t.Errorf("tap-target-size: want provable, got %s (%v)", got, byID["tap-target-size"].Blockers)
+	// Geometry floor claims remain parseable, but ui-health now owns their
+	// deterministic evaluation. EXM must not advertise a second checker.
+	if got := byID["tap-target-size"].Status; got != StatusNoChecker {
+		t.Errorf("tap-target-size: want no EXM checker after geometry delegation, got %s (%v)", got, byID["tap-target-size"].Blockers)
 	}
 	// hover-contrast is now provable because the baseline matrix transmits the
 	// interaction-state axis and BAS produces computed-style evidence.

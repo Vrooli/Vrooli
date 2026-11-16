@@ -296,6 +296,9 @@ func (s *Service) DocHealth(ctx context.Context, scenarioName string, opts DocHe
 			result.Counts.NumbersFlagged += flagged
 		}
 	}
+	if sel.runs(checkAssertions, target) {
+		result.ContentFindings = append(result.ContentFindings, assertionFindings(files, target.root)...)
+	}
 
 	if sel.runs(checkLinks, target) {
 		linkFindings, linkSum := validateLinks(ctx, target.root, s.doer, cfg, linkTasks)

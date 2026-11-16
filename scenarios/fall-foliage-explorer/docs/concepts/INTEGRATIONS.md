@@ -1,6 +1,5 @@
 # Integrations
 
-## Purpose Of This Document
 
 This document records resource and service dependencies, their failure modes, and ownership.
 

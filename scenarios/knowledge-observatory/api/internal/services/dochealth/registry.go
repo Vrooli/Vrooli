@@ -7,6 +7,7 @@ import (
 )
 
 // DOC: docs/internal/SEAMS.md#dochealth
+//go:generate go run ../../../cmd/generate-doc-health-table --root ../../../../
 // Check registry. Each documentation-health check declares an applicability
 // scope so a single engine can run over a scenario (all checks) or a
 // project-level docs path (generic checks only). The default selection is
@@ -29,13 +30,14 @@ func (s checkScope) String() string {
 
 // Stable check identifiers, usable in DocHealthOptions.Checks / --checks.
 const (
-	checkStructure = "structure"
-	checkContent   = "content"
-	checkLinks     = "links"
-	checkRefs      = "refs"
-	checkCommands  = "commands"
-	checkManifest  = "manifest"
-	checkNumbers   = "numbers"
+	checkStructure  = "structure"
+	checkContent    = "content"
+	checkLinks      = "links"
+	checkRefs       = "refs"
+	checkCommands   = "commands"
+	checkManifest   = "manifest"
+	checkNumbers    = "numbers"
+	checkAssertions = "assertions"
 )
 
 type checkSpec struct {
@@ -54,6 +56,19 @@ var checkRegistry = []checkSpec{
 	{checkCommands, scopeGeneric, "Conservative Vrooli-owned command validation in fenced shell snippets."},
 	{checkManifest, scopeScenario, "docs/manifest.json coverage (orphaned docs, missing registrations)."},
 	{checkNumbers, scopeGeneric, "Drift-prone hardcoded-number / derived-count lint."},
+	{checkAssertions, scopeGeneric, "Same-document duplicate or contradictory normative claims and generic purpose headings fail; cross-document and superseded historical repeats are advisory."},
+}
+
+// CheckDocumentationTable renders the public check inventory from the same
+// registry that validates --checks. Generated CLI docs cannot acquire
+// identifiers or descriptions that the owner does not execute.
+func CheckDocumentationTable() string {
+	var b strings.Builder
+	b.WriteString("| Check | Scope | Purpose |\n|---|---|---|\n")
+	for _, check := range checkRegistry {
+		fmt.Fprintf(&b, "| `%s` | %s | %s |\n", check.Name, check.Scope, check.Description)
+	}
+	return strings.TrimSuffix(b.String(), "\n")
 }
 
 func checkScopeOf(name string) (checkScope, bool) {
@@ -118,7 +133,7 @@ func (sel selection) runs(name string, target docTarget) bool {
 // needsMarkdownFiles reports whether any selected, applicable check operates on
 // the markdown file set (so the walker only runs when something consumes it).
 func (sel selection) needsMarkdownFiles(target docTarget) bool {
-	for _, name := range []string{checkContent, checkLinks, checkRefs, checkCommands, checkNumbers, checkManifest} {
+	for _, name := range []string{checkContent, checkLinks, checkRefs, checkCommands, checkNumbers, checkManifest, checkAssertions} {
 		if sel.runs(name, target) {
 			return true
 		}
