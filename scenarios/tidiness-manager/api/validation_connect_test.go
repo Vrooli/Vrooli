@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
 
@@ -20,6 +21,7 @@ import (
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	validationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/tidiness-manager/v1/validation"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestScenarioValidationHandlerPacksTidinessNativeDetail(t *testing.T) {
@@ -195,6 +197,110 @@ func TestTidinessFindingsToProtoNormalizesTypedEvidence(t *testing.T) {
 	}
 }
 
+func TestValidateTargetPreservesCanonicalFindingContract(t *testing.T) {
+	root := writeValidationTargetFixture(t)
+	const scenario = "tidiness-validation-fixture"
+
+	canonical, _, err := buildTidinessScanWithAudit(context.Background(), scenario, root, 0, nil, localCatalogFactsSource())
+	if err != nil {
+		t.Fatalf("buildTidinessScan() error = %v", err)
+	}
+	if len(canonical.Findings) == 0 {
+		t.Fatal("fixture scan produced no source findings")
+	}
+
+	handler := newScenarioValidationHandler(&Server{reductionFacts: localCatalogFactsSource()})
+	response, err := handler.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
+		Target: &commonv1.ValidationTarget{
+			Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SCENARIO,
+			Id:   scenario,
+			Root: root,
+		},
+	}))
+	if err != nil {
+		t.Fatalf("ValidateTarget() error = %v", err)
+	}
+	wantStatus := assessment.DeriveValidationStatus(canonical.Assessment)
+	if response.Msg.GetStatus() != wantStatus {
+		t.Fatalf("shared status = %q, canonical assessment status = %q", response.Msg.GetStatus(), wantStatus)
+	}
+	// Assessment is derived maturity evidence and does not own finding identity;
+	// compare it for projection parity, but resolve source identities below from
+	// the native finding list and the canonical scan result.
+	if !proto.Equal(response.Msg.GetAssessment(), canonical.Assessment) {
+		t.Fatalf("shared assessment differs from canonical scan assessment")
+	}
+	var native validationv1.TidinessScanResponse
+	if err := response.Msg.GetNativeDetail().UnmarshalTo(&native); err != nil {
+		t.Fatalf("native_detail unmarshal failed: %v", err)
+	}
+	if native.GetStatus() != canonical.Status {
+		t.Fatalf("native status = %q, canonical status = %q", native.GetStatus(), canonical.Status)
+	}
+	if !proto.Equal(native.GetAssessment(), response.Msg.GetAssessment()) {
+		t.Fatal("native assessment differs from shared assessment")
+	}
+	if len(native.GetFindings()) != len(canonical.Findings) || len(native.GetViolations()) != len(canonical.Findings) {
+		t.Fatalf("native findings/violations = %d/%d, canonical findings = %d", len(native.GetFindings()), len(native.GetViolations()), len(canonical.Findings))
+	}
+
+	wantIDs := make([]string, 0, len(canonical.Findings))
+	wantByID := make(map[string]TidinessFinding, len(canonical.Findings))
+	for _, finding := range canonical.Findings {
+		if _, exists := wantByID[finding.ID]; exists {
+			t.Fatalf("canonical source finding identity duplicated: %q", finding.ID)
+		}
+		wantIDs = append(wantIDs, finding.ID)
+		wantByID[finding.ID] = finding
+	}
+	sort.Strings(wantIDs)
+	seen := make(map[string]bool, len(native.GetFindings()))
+	gotIDs := make([]string, 0, len(native.GetFindings()))
+	for _, finding := range native.GetFindings() {
+		id := finding.GetId()
+		if seen[id] {
+			t.Fatalf("native source finding identity duplicated: %q", id)
+		}
+		seen[id] = true
+		gotIDs = append(gotIDs, id)
+		want, ok := wantByID[id]
+		if !ok {
+			t.Fatalf("native finding %q has no canonical source finding", id)
+		}
+		if finding.GetSeverity() != want.Severity {
+			t.Errorf("finding %q severity = %q, canonical = %q", id, finding.GetSeverity(), want.Severity)
+		}
+		if finding.GetRuleId() != want.RuleID {
+			t.Errorf("finding %q rule id = %q, canonical = %q", id, finding.GetRuleId(), want.RuleID)
+		}
+		if finding.GetRemediation() != want.RecommendedRemediation || finding.GetRecommendedRemediation() != want.RecommendedRemediation {
+			t.Errorf("finding %q remediation aliases differ from canonical source", id)
+		}
+	}
+	sort.Strings(gotIDs)
+	if strings.Join(gotIDs, "\n") != strings.Join(wantIDs, "\n") {
+		t.Fatalf("native finding identities = %v, canonical = %v", gotIDs, wantIDs)
+	}
+	aliasIDs := make(map[string]bool, len(native.GetViolations()))
+	for _, alias := range native.GetViolations() {
+		id := alias.GetId()
+		if !seen[id] {
+			t.Fatalf("compatibility violation %q has no canonical finding", id)
+		}
+		if aliasIDs[id] {
+			t.Fatalf("compatibility violation identity duplicated: %q", id)
+		}
+		aliasIDs[id] = true
+		want := wantByID[id]
+		if alias.GetSeverity() != want.Severity || alias.GetRuleId() != want.RuleID {
+			t.Errorf("compatibility violation %q changed source severity or rule", id)
+		}
+	}
+	if len(aliasIDs) != len(wantByID) {
+		t.Fatalf("compatibility violation identities = %d, canonical finding identities = %d", len(aliasIDs), len(wantByID))
+	}
+}
+
 func TestTidinessScanRESTEndpointRemoved(t *testing.T) {
 	router := http.NewServeMux()
 	path, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(newScenarioValidationHandler(&Server{}), assessment.Describer{}))
@@ -224,8 +330,21 @@ func TestScenarioValidationIncludesMaintainedSidecarSource(t *testing.T) {
 	var graphReport *facts.CodeFactsReport
 	localMetrics := localCatalogFactsSource()
 	server := &Server{reductionFacts: reductionSourceFunc(func(ctx context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
-		if len(request.Msg.GetInclude()) == 1 && request.Msg.GetInclude()[0] == facts.FactFamily_FACT_FAMILY_FILE_METRICS {
-			return localMetrics.DescribeCodeFacts(ctx, request)
+		includeMetrics, includeSymbols := false, false
+		for _, family := range request.Msg.GetInclude() {
+			includeMetrics = includeMetrics || family == facts.FactFamily_FACT_FAMILY_FILE_METRICS
+			includeSymbols = includeSymbols || family == facts.FactFamily_FACT_FAMILY_SYMBOLS
+		}
+		var metricFacts []*facts.GenericFact
+		if includeMetrics {
+			metricResponse, metricErr := localMetrics.DescribeCodeFacts(ctx, request)
+			if metricErr != nil {
+				return nil, metricErr
+			}
+			metricFacts = metricResponse.Msg.GetFacts()
+		}
+		if !includeSymbols {
+			return connect.NewResponse(&facts.CodeFactsReport{Facts: metricFacts}), nil
 		}
 		calls++
 		if got := request.Msg.GetTarget().GetLanguageFilter(); len(got) != 3 || got[0] != "go" || got[1] != "typescript" || got[2] != "javascript" {
@@ -247,6 +366,7 @@ func TestScenarioValidationIncludesMaintainedSidecarSource(t *testing.T) {
 		}
 		graphReport = &facts.CodeFactsReport{
 			Target: &facts.TargetContext{RootPath: root},
+			Facts:  metricFacts,
 			Graphs: []*facts.LanguageGraph{{
 				ParseUnit: &facts.ParseUnit{Id: "typescript:" + root, Language: "typescript", RootPath: root},
 				Graph:     &commonv1.CodeGraph{Nodes: nodes, Edges: edges},

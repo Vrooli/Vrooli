@@ -1,10 +1,13 @@
 package discovery
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/api-core/factgraph"
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	common "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"tidiness-manager/internal/testutil"
@@ -58,11 +61,11 @@ func TestRankUsesHistoricalExpectedNetAndReportsUncalibratedCandidates(t *testin
 			}
 		}},
 	}
-	report := registry.Recommend(nil, 0, 75)
+	report := registry.Recommend(nil, nil, 0, 75)
 	if len(report.Recommendations) != 2 || report.Recommendations[0].Locations[0].Path != "c.go" || *report.Recommendations[0].ExpectedNetLines != 25 || report.Recommendations[1].ExpectedNetLines != nil {
 		t.Fatalf("ranking/minimum must use net reduction and preserve unknown calibration: %+v", report)
 	}
-	if got := registry.Recommend(nil, 1, 0); got.Count != 1 || got.Recommendations[0].DetectorID != "measured" {
+	if got := registry.Recommend(nil, nil, 1, 0); got.Count != 1 || got.Recommendations[0].DetectorID != "measured" {
 		t.Fatal(got)
 	}
 }
@@ -109,21 +112,35 @@ func TestJavaScriptPromptManagerCensusCalibrationIsTargetScoped(t *testing.T) {
 	if census == nil || census.Cases != 3 || census.TruePositive != 2 || census.FalsePositive != 0 || census.FalseNegative != 0 || census.TrueNegative != 1 {
 		t.Fatalf("unexpected complete JavaScript census confusion matrix: %+v", census)
 	}
-	if census.Precision == nil || *census.Precision != 1 || census.Recall == nil || *census.Recall != 1 || !census.CompleteCensus || !census.AdjudicationComplete || !census.ResponseComplete {
-		t.Fatalf("complete source census should expose only its scoped exact-body rates: %+v", census)
+	if census.Precision != nil || census.Recall != nil || !census.CompleteCensus || !census.AdjudicationComplete || census.ResponseComplete {
+		t.Fatalf("source census without a captured complete served response must not publish rates: %+v", census)
 	}
-	if len(census.Targets) != 1 || census.Targets[0].Scenario != "prompt-manager" || census.Targets[0].SourceHash != codeFactsSourceHash || census.Targets[0].ConfigHash != codeFactsConfigHash || census.Targets[0].SourceManifestSHA256 == "" {
+	if len(census.Targets) != 1 || census.Targets[0].Scenario != "prompt-manager" || census.Targets[0].SourceHash != codeFactsSourceHash || census.Targets[0].ConfigHash != codeFactsConfigHash || census.Targets[0].SourceManifestSHA256 == "" || census.Targets[0].ResponseComplete {
 		t.Fatalf("target frame is missing its source/config identity: %+v", census.Targets)
 	}
 	got := calibrationForTarget(calibration, "prompt-manager", codeFactsSourceHash, codeFactsConfigHash)
-	if got.ScopeFrameID != census.FrameID || got.Precision == nil || *got.Precision != 1 || got.Recall == nil || *got.Recall != 1 {
-		t.Fatalf("exact source/config should receive the scoped frame: %+v", got)
+	if got.ScopeFrameID != "" || got.Precision != nil || got.Recall != nil {
+		t.Fatalf("an unverified served response must not calibrate the exact source/config: %+v", got)
 	}
 	for _, mismatch := range [][3]string{{"prompt-manager", "other-source", census.Targets[0].ConfigHash}, {"prompt-manager", census.Targets[0].SourceHash, "other-config"}, {"other-scenario", census.Targets[0].SourceHash, census.Targets[0].ConfigHash}} {
 		got := calibrationForTarget(calibration, mismatch[0], mismatch[1], mismatch[2])
 		if got.ScopeFrameID != "" || got.Precision != nil || got.Recall != nil {
 			t.Errorf("nonmatching target got prompt-manager rates: %+v", got)
 		}
+	}
+}
+
+func TestIncompleteServedResponseCannotPublishCensusRates(t *testing.T) {
+	precision, recall := 1.0, 1.0
+	frame := CalibrationFrame{
+		FrameID: "exact-source-census", PopulationID: "population", Population: "bounded target",
+		CompleteCensus: true, SamplingUnit: "body group", SelectionMethod: "complete census",
+		RandomSeed: "not-applicable", AdjudicationProtocol: "reviewed", AdjudicationComplete: true,
+		ResponseComplete: false, TruePositive: 1, Precision: &precision, Recall: &recall,
+	}
+	frame.setRates()
+	if frame.Precision != nil || frame.Recall != nil {
+		t.Fatalf("missing served-output evidence must clear scoped rates: %+v", frame)
 	}
 }
 
@@ -139,9 +156,9 @@ func TestAuditorFindingsJoinRegistryWithoutChangingPolicySemantics(t *testing.T)
 	if auditorDetector == nil || auditorDetector.Calibration.Precision != nil || auditorDetector.Calibration.Basis == "" {
 		t.Fatalf("policy detector calibration must be explicitly non-precision-based: %+v", auditorDetector)
 	}
-	report := testutil.GraphReport("/repo/scenarios/demo")
+	report := testutil.GraphReport(policyTestRoot(t, map[string]string{"api/config.go": strings.Repeat("line\n", 17)}))
 	report.Target.Requested = &facts.CodeTarget{Scenario: "demo"}
-	result := registry.RecommendWithAuditorFindings(report, []AuditorFinding{{
+	result := registry.Recommend(report, []AuditorFinding{{
 		RuleID: "standards.env-validation", Severity: "high", Title: "Validate environment inputs",
 		Description: "The service accepts an unvalidated environment value.", FilePath: "api/config.go", LineNumber: 17,
 		Recommendation: "Validate the value before use.", Standard: "Vrooli Security", Source: "scenario-auditor",
@@ -156,8 +173,15 @@ func TestAuditorFindingsJoinRegistryWithoutChangingPolicySemantics(t *testing.T)
 	if finding.NetLines != 0 || finding.ExpectedNetLines != nil || finding.Calibration.Precision != nil || !strings.HasPrefix(finding.Calibration.Basis, "not-applicable") || finding.Action != "Validate the value before use." || finding.Locations[0].Path != "api/config.go" {
 		t.Fatalf("policy finding was presented as measured code reduction: %+v", finding)
 	}
-	if result := registry.RecommendWithAuditorFindings(report, []AuditorFinding{{RuleID: "outside", FilePath: "/repo/scenarios/other/api/a.go"}}, 0, 0); result.Count != 0 || len(result.Warnings) == 0 {
+	if result := registry.Recommend(report, []AuditorFinding{{RuleID: "outside", FilePath: "/repo/scenarios/other/api/a.go"}}, 0, 0); result.Count != 0 || len(result.Warnings) == 0 {
 		t.Fatalf("out-of-target Auditor evidence must be rejected with a warning: %+v", result)
+	}
+	stale := registry.Recommend(report, []AuditorFinding{
+		{RuleID: "missing", FilePath: "api/deleted.go", LineNumber: 1},
+		{RuleID: "moved", FilePath: "api/config.go", LineNumber: 18},
+	}, 0, 0)
+	if stale.Count != 0 || len(stale.Warnings) != 2 {
+		t.Fatalf("findings for absent files or out-of-range lines must be rejected: %+v", stale)
 	}
 }
 
@@ -169,15 +193,15 @@ func TestMeasuredReductionRanksAheadOfPolicyFindings(t *testing.T) {
 		}},
 		{ID: "standards.scenario-auditor", Calibration: Calibration{Basis: "not-applicable: policy findings are not reduction predictions"}},
 	}}
-	report := testutil.GraphReport("/repo/scenarios/demo")
+	report := testutil.GraphReport(policyTestRoot(t, map[string]string{"api/b.go": "one\ntwo\nthree\n"}))
 	report.Target.Requested = &facts.CodeTarget{Scenario: "demo"}
 	findings := []AuditorFinding{{RuleID: "policy-rule", FilePath: "api/b.go", LineNumber: 3}}
 
-	got := registry.RecommendWithAuditorFindings(report, findings, 1, 0)
+	got := registry.Recommend(report, findings, 1, 0)
 	if got.Count != 1 || got.Recommendations[0].DetectorID != "measured-reduction" {
 		t.Fatalf("top reduction should win the limited ranking: %+v", got)
 	}
-	all := registry.RecommendWithAuditorFindings(report, findings, 0, 0)
+	all := registry.Recommend(report, findings, 0, 0)
 	if all.Count != 2 || all.Recommendations[0].DetectorID != "measured-reduction" || all.Recommendations[1].DetectorID != "standards.scenario-auditor" {
 		t.Fatalf("reduction and policy findings were not ordered by expected net lines: %+v", all.Recommendations)
 	}
@@ -189,6 +213,21 @@ func TestMeasuredReductionRanksAheadOfPolicyFindings(t *testing.T) {
 	}
 }
 
+func policyTestRoot(t *testing.T, files map[string]string) string {
+	t.Helper()
+	root := t.TempDir()
+	for path, content := range files {
+		fullPath := filepath.Join(root, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root
+}
+
 func TestGraphEvidenceExcludesTestsGeneratedEscapesAndDuplicateNodes(t *testing.T) {
 	node := func(path string) *common.CodeGraphNode {
 		return testutil.GraphNode(path, "old", path, map[string]string{"signature": "func()", "start_line": "2", "end_line": "10"})
@@ -197,7 +236,7 @@ func TestGraphEvidenceExcludesTestsGeneratedEscapesAndDuplicateNodes(t *testing.
 		testutil.GraphUnit{ID: "api", Language: "go", RootPath: "/repo/scenarios/demo/api", Nodes: []*common.CodeGraphNode{node("a.go"), node("a.go"), node("a_test.go"), node("x.pb.go"), node("vendor/a.go"), node("generated/a.go"), node("../../escape.go"), node("/elsewhere/a.go")}},
 		testutil.GraphUnit{ID: "escaped", Language: "go", RootPath: "/repo/scenarios/other", Nodes: []*common.CodeGraphNode{node("a.go")}},
 	)
-	symbols, warnings := graphSymbols(report, false)
+	symbols, warnings, _ := graphSymbolsWithLanguageFilesFromIndex(factgraph.NewIndex(report), false)
 	if len(symbols) != 1 || symbols[0].path != "api/a.go" {
 		t.Fatalf("unsafe or duplicate evidence admitted: %+v", symbols)
 	}
@@ -223,7 +262,8 @@ func TestDuplicateFunctionBodiesUsesSharedGraphIdentity(t *testing.T) {
 		},
 	})
 
-	groups, warnings := DuplicateFunctionBodies(report, 5)
+	groupsByLanguage, warnings, _ := DuplicateFunctionBodiesByLanguageWithEvidence(factgraph.NewIndex(report), 5)
+	groups := groupsByLanguage["go"]
 	if len(warnings) != 0 {
 		t.Fatalf("unexpected graph warnings: %v", warnings)
 	}
@@ -238,7 +278,8 @@ func TestDuplicateFunctionBodiesUsesSharedGraphIdentity(t *testing.T) {
 		ID: "ui", Language: "typescript", RootPath: "/repo/scenarios/demo/ui",
 		Nodes: []*common.CodeGraphNode{node("a", "a.ts", 7, "same"), node("b", "b.ts", 7, "same")},
 	})
-	groups, warnings = DuplicateFunctionBodies(report, 5)
+	groupsByLanguage, warnings, _ = DuplicateFunctionBodiesByLanguageWithEvidence(factgraph.NewIndex(report), 5)
+	groups = groupsByLanguage["typescript"]
 	if len(warnings) != 0 || len(groups) != 1 || len(groups[0].Locations) != 2 {
 		t.Fatalf("TypeScript graph body identities must use the same detector: groups=%+v warnings=%v", groups, warnings)
 	}
@@ -258,7 +299,8 @@ func TestDuplicateFunctionBodiesUsesSharedGraphIdentity(t *testing.T) {
 		ID: "ui", Language: "typescript", RootPath: "/repo/scenarios/demo/ui",
 		Nodes: []*common.CodeGraphNode{jsNode("a", "a.js", "javascript"), jsNode("b", "b.js", "javascript"), jsTestNode("test-a", "a.test.js"), jsTestNode("test-b", "b.test.js")},
 	})
-	groups, warnings = DuplicateFunctionBodiesForLanguage(report, 5, "javascript")
+	groupsByLanguage, warnings, _ = DuplicateFunctionBodiesByLanguageWithEvidence(factgraph.NewIndex(report), 5)
+	groups = groupsByLanguage["javascript"]
 	if len(warnings) != 0 || len(groups) != 1 || len(groups[0].Locations) != 2 {
 		t.Fatalf("JavaScript graph nodes inside a TypeScript project must be language-routed: groups=%+v warnings=%v", groups, warnings)
 	}
@@ -275,7 +317,7 @@ func TestDuplicateFunctionBodiesByLanguageSharesGraphEvidence(t *testing.T) {
 		testutil.GraphUnit{ID: "api", Language: "go", RootPath: "/repo/api", Nodes: []*common.CodeGraphNode{makeNode("g1", "a.go", "go"), makeNode("g2", "b.go", "go")}},
 		testutil.GraphUnit{ID: "ui", Language: "typescript", RootPath: "/repo/ui", Nodes: []*common.CodeGraphNode{makeNode("t1", "a.ts", "typescript"), makeNode("t2", "b.ts", "typescript")}},
 	)
-	groups, warnings, evidence := DuplicateFunctionBodiesByLanguageWithEvidence(report, 5)
+	groups, warnings, evidence := DuplicateFunctionBodiesByLanguageWithEvidence(factgraph.NewIndex(report), 5)
 	if len(warnings) != 0 || len(groups["go"]) != 1 || len(groups["typescript"]) != 1 {
 		t.Fatalf("multi-language groups=%+v warnings=%v", groups, warnings)
 	}

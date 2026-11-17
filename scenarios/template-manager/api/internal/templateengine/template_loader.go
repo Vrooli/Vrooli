@@ -191,7 +191,33 @@ func readTemplateManifest(templateDir string) (templatecontracts.TemplateManifes
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return manifest, err
 	}
+	if err := validateManifestHookTokens(manifest); err != nil {
+		return manifest, fmt.Errorf("template %s hook tokens: %w", templateDir, err)
+	}
 	return manifest, nil
+}
+
+func validateManifestHookTokens(manifest templatecontracts.TemplateManifest) error {
+	validate := func(label string, hooks []templatecontracts.TemplateHook) error {
+		for i, hook := range hooks {
+			if _, _, _, err := resolveTemplateHook(hook, map[string]string{"SCENARIO_ID": "schema-check"}); err != nil {
+				return fmt.Errorf("%s hook %d argv: %w", label, i+1, err)
+			}
+			if _, err := resolveHookValuesMap(hook.Env, map[string]string{"SCENARIO_ID": "schema-check"}); err != nil {
+				return fmt.Errorf("%s hook %d: %w", label, i+1, err)
+			}
+		}
+		return nil
+	}
+	if err := validate("post", manifest.PostHooks); err != nil {
+		return err
+	}
+	for i, reloc := range manifest.Relocations {
+		if err := validate(fmt.Sprintf("relocation %d", i+1), reloc.Post); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // effectiveRelocations returns the template's own relocations followed by the

@@ -229,16 +229,6 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/notes/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + notes providers. Repository tests get a fresh table without touching the central registry. |
 | **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/notes/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/notes/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
 
-### Doer (outbound HTTP)
-
-| | |
-|---|---|
-| **Seam** | Outbound HTTP request boundary |
-| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to the scenario composition root and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `packages/api-core/apihttptest::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
-| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
-
 ### SidecarClient (Node sidecar delegation)
 
 | | |
@@ -286,7 +276,6 @@ The react-vite template ships two seams used by middleware/HTTP outbound that th
 | Seam | Where declared | Production wiring | Test wiring | Rationale |
 |---|---|---|---|---|
 | `schedule.Clock` | `packages/api-core/schedule.Clock` | `main.go` constructs `schedule.System()`; passed to `apihttp.NewScenarioModuleHandler`. | `packages/api-core/scheduletest::FakeClock` (`Advance`, `SetNow`). | Middleware request-duration logging relies on deterministic time. Documented at top of this file ("Clock" section). |
-| `httpc.Doer` | `internal/httpc/doer.go` | Ships unwired by intent; `*http.Client` satisfies the interface when a domain needs outbound HTTP. | `packages/api-core/apihttptest::FakeDoer` (response queue + recorded requests). | Outbound HTTP boundary; pre-declared so the first consumer doesn't reinvent ad-hoc mocking. Documented above ("Doer" section). |
 
 ## Adding a new seam
 

@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/eventpublisher"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
@@ -20,6 +21,7 @@ import (
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/api/internal/modules"
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/api/internal/publisherauth"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/bridge"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/broker"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/config"
@@ -94,6 +96,9 @@ func main() {
 		log.Fatalf("open subscription store: %v", err)
 	}
 
+	publisherObserver := publisherauth.New(eventpublisher.NewVerifier(), db)
+	go publisherObserver.Run(ctx, func(err error) { log.Printf("publisher observation flush: %v", err) })
+
 	policyBroadcaster := policy.NewPolicyBroadcaster()
 	webhookDeliverer := subscription.NewWebhookDeliverer()
 
@@ -107,6 +112,7 @@ func main() {
 		subStore:          subStore,
 		policyBroadcaster: policyBroadcaster,
 		webhookDeliverer:  webhookDeliverer,
+		publishers:        publisherObserver,
 	}
 	descriptorSource, err := descriptorimage.NewForRepo(captureValidationRepoRoot())
 	if err != nil {
@@ -189,4 +195,7 @@ type Server struct {
 	webhookDeliverer  *subscription.WebhookDeliverer
 	descriptorSource  *descriptorimage.Source
 	policyVersion     atomic.Int64
+	// publishers counts how each accepted event's claimed source fared against the
+	// publisher proof it came with. It never refuses an event.
+	publishers *publisherauth.Observer
 }

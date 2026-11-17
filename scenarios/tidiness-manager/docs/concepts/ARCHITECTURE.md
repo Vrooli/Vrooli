@@ -1,6 +1,5 @@
 # Architecture
 
-## Purpose Of This Document
 
 This document maps Tidiness Manager's current surfaces and ownership boundaries so future agents can extend it without drifting back into static-quality policy.
 

@@ -1,6 +1,5 @@
 # Domains
 
-## Purpose Of This Document
 
 This document names Tidiness Manager's bounded contexts and points to the implementation surfaces that own them.
 

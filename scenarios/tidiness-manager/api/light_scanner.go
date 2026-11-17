@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/factgraph"
 	repocontract "github.com/vrooli/repo-contract-go"
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
@@ -72,7 +72,7 @@ type LanguageMetrics struct {
 	CodeMetrics *CodeMetrics      `json:"code_metrics,omitempty"`
 	Complexity  *ComplexityResult `json:"complexity,omitempty"`
 	Duplicates  *DuplicateResult  `json:"duplicates,omitempty"`
-	facts       *facts.CodeFactsReport
+	factIndex   *factgraph.Index
 }
 
 // CommandRun captures execution details
@@ -104,6 +104,8 @@ type FileMetric struct {
 	NonNullAssertionCount int    `json:"non_null_assertion_count,omitempty"`
 	FallbackImportCount   int    `json:"fallback_import_count,omitempty"`
 	FallbackFunctionCount int    `json:"fallback_function_count,omitempty"`
+	IsTestFile            bool   `json:"is_test_file,omitempty"`
+	HasTestFile           bool   `json:"has_test_file,omitempty"`
 }
 
 // LongFile represents files exceeding threshold
@@ -154,7 +156,7 @@ func (ls *LightScanner) ScanWithOptions(ctx context.Context, opts ScanOptions) (
 
 	// Collect one complete inventory. Incremental mode filters the returned file
 	// metrics, while language analysis retains its whole-source semantics.
-	inventory, err := ls.collectFileMetricsContext(ctx)
+	inventory, report, err := ls.collectScanFacts(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to collect file metrics: %w", err)
 	}
@@ -188,7 +190,7 @@ func (ls *LightScanner) ScanWithOptions(ctx context.Context, opts ScanOptions) (
 	result.LongFiles = longFiles
 
 	// All metrics share this scan's filtered file inventory.
-	result.LanguageMetrics = ls.collectLanguageMetrics(ctx, languagesFromFileMetrics(inventory), inventory)
+	result.LanguageMetrics = ls.collectLanguageMetricsFromFacts(languagesFromFileMetrics(inventory), inventory, report, nil)
 
 	result.CompletedAt = time.Now()
 	result.Duration = durationMilliseconds(result.CompletedAt.Sub(startTime))
@@ -207,29 +209,38 @@ func durationMilliseconds(duration time.Duration) int64 {
 	return whole
 }
 
-// collectLanguageMetrics detects languages and runs all available analyzers
-func (ls *LightScanner) collectLanguageMetrics(ctx context.Context, languages map[Language]*LanguageInfo, inventory []FileMetric) map[Language]*LanguageMetrics {
-	var report *facts.CodeFactsReport
-	var factsErr error
-	if needsSharedSyntaxFacts(languages) {
-		factsCtx, cancel := context.WithTimeout(ctx, ls.timeout)
-		report, factsErr = currentCodeFacts(factsCtx, ls.codeFacts, &facts.CodeTarget{
-			Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ls.scenarioPath,
-			LanguageFilter: []string{"go", "typescript", "javascript"},
-		})
-		cancel()
+// collectScanFacts requests the file catalog and graph evidence in one Code
+// Facts response. The full report then feeds every Tidiness projection.
+func (ls *LightScanner) collectScanFacts(ctx context.Context) ([]FileMetric, *facts.CodeFactsReport, error) {
+	if ls.codeFacts == nil {
+		return nil, nil, fmt.Errorf("Code Facts source is required")
 	}
-	return ls.collectLanguageMetricsFromFacts(languages, inventory, report, factsErr)
+	target := &facts.CodeTarget{
+		Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ls.scenarioPath,
+		LanguageFilter: []string{"go", "typescript", "javascript"},
+	}
+	report, err := currentCodeFactsWithFamilies(ctx, ls.codeFacts, target, []facts.FactFamily{
+		facts.FactFamily_FACT_FAMILY_SYMBOLS, facts.FactFamily_FACT_FAMILY_FILE_METRICS,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	inventory, err := ls.fileMetricsFromReport(report)
+	if err != nil {
+		return nil, nil, err
+	}
+	return inventory, report, nil
 }
 
 func (ls *LightScanner) collectLanguageMetricsFromFacts(languages map[Language]*LanguageInfo, inventory []FileMetric, report *facts.CodeFactsReport, factsErr error) map[Language]*LanguageMetrics {
 	result := make(map[Language]*LanguageMetrics)
-	graphMetrics := graphFileMetrics(report)
+	index := factgraph.NewIndex(report)
+	graphMetrics := graphFileMetricsFromIndex(index)
 	filesByLanguage := make(map[string][]string, len(languages))
 	for language, info := range languages {
 		filesByLanguage[string(language)] = info.Files
 	}
-	duplicationDetector := NewDuplicationDetector(ls.scenarioPath, ls.timeout)
+	duplicationDetector := NewDuplicationDetector(ls.scenarioPath)
 	var duplicatesByLanguage map[string]*DuplicateResult
 	if factsErr != nil {
 		duplicatesByLanguage = make(map[string]*DuplicateResult, len(filesByLanguage))
@@ -237,7 +248,7 @@ func (ls *LightScanner) collectLanguageMetricsFromFacts(languages map[Language]*
 			duplicatesByLanguage[language] = &DuplicateResult{Skipped: true, SkipReason: factsErr.Error(), Tool: "code-facts"}
 		}
 	} else if report != nil {
-		duplicatesByLanguage = duplicationDetector.DetectDuplicationForLanguagesFromFacts(filesByLanguage, report)
+		duplicatesByLanguage = duplicationDetector.DetectDuplicationForLanguagesFromIndex(filesByLanguage, index)
 	} else {
 		duplicatesByLanguage = make(map[string]*DuplicateResult, len(filesByLanguage))
 		for language := range filesByLanguage {
@@ -255,7 +266,7 @@ func (ls *LightScanner) collectLanguageMetricsFromFacts(languages map[Language]*
 		// handled per file for config entrypoints outside TypeScript projects.
 		metrics := &LanguageMetrics{
 			Language: lang, FileCount: len(files), TotalLines: langInfo.TotalLines,
-			facts: report,
+			factIndex: index,
 		}
 
 		// Run code metrics (TODOs, imports, functions) - always available
@@ -265,27 +276,21 @@ func (ls *LightScanner) collectLanguageMetricsFromFacts(languages map[Language]*
 				languageInventory = append(languageInventory, metric)
 			}
 		}
-		codeMetricsAnalyzer := NewCodeMetricsAnalyzer(ls.scenarioPath)
-		codeMetrics, err := codeMetricsAnalyzer.AnalyzeInventoryWithGraphMetrics(languageInventory, lang, graphMetrics)
-		if err == nil {
-			metrics.CodeMetrics = codeMetrics
-		}
+		var metricsAnalyzer CodeMetricsAnalyzer
+		metrics.CodeMetrics = metricsAnalyzer.AnalyzeInventoryWithGraphMetrics(languageInventory, lang, graphMetrics)
 
 		// Reuse current Code Facts syntax metrics.
-		complexityAnalyzer := NewComplexityAnalyzer(ls.scenarioPath, ls.timeout)
 		var complexity *ComplexityResult
 		if factsErr != nil {
 			complexity = &ComplexityResult{Skipped: true, SkipReason: factsErr.Error()}
 		} else if lang != LanguageGo {
 			complexity = &ComplexityResult{Skipped: true, SkipReason: fmt.Sprintf("shared complexity facts are not yet available for %s", lang)}
 		} else if report != nil {
-			complexity, err = complexityAnalyzer.AnalyzeComplexityFromFacts(files, report)
+			complexity = complexityFromIndex(files, index)
 		} else {
 			complexity = &ComplexityResult{Skipped: true, SkipReason: fmt.Sprintf("shared syntax facts are not available for %s", lang)}
 		}
-		if err == nil {
-			metrics.Complexity = complexity
-		}
+		metrics.Complexity = complexity
 
 		// Project all language duplicate results from the one shared graph traversal.
 		metrics.Duplicates = duplicatesByLanguage[string(lang)]
@@ -294,15 +299,6 @@ func (ls *LightScanner) collectLanguageMetricsFromFacts(languages map[Language]*
 	}
 
 	return result
-}
-
-func needsSharedSyntaxFacts(languages map[Language]*LanguageInfo) bool {
-	for _, lang := range []Language{LanguageGo, LanguageTypeScript, LanguageJavaScript} {
-		if info := languages[lang]; info != nil && len(info.Files) > 0 {
-			return true
-		}
-	}
-	return false
 }
 
 // runMakeCommand executes a make target and captures output
@@ -410,72 +406,69 @@ func buildCommandRun(command, target string, err error, stdout, stderr *bytes.Bu
 	)
 }
 
-func (ls *LightScanner) collectFileMetrics() ([]FileMetric, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), ls.timeout)
-	defer cancel()
-	return ls.collectFileMetricsContext(ctx)
+func (ls *LightScanner) fileMetricsFromReport(report *facts.CodeFactsReport) ([]FileMetric, error) {
+	if report == nil {
+		return nil, fmt.Errorf("Code Facts returned an empty report")
+	}
+	return ls.fileMetricsFromFacts(report.GetFacts(), report.GetWarnings())
 }
 
-func (ls *LightScanner) collectFileMetricsContext(ctx context.Context) ([]FileMetric, error) {
-	if ls.codeFacts == nil {
-		return nil, fmt.Errorf("Code Facts file metrics source is required")
+func (ls *LightScanner) fileMetricsFromFacts(sourceFacts []*facts.GenericFact, warnings []*facts.Warning) ([]FileMetric, error) {
+	for _, warning := range warnings {
+		code, message := warning.GetCode(), warning.GetMessage()
+		fileMetricUnsupported := code == "phase_6_contract_only" && strings.Contains(message, "FILE_METRICS")
+		if strings.HasPrefix(code, "file_metrics_") || fileMetricUnsupported {
+			return nil, fmt.Errorf("Code Facts file metrics unavailable: %s", warning.GetMessage())
+		}
 	}
-	target := &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ls.scenarioPath}
-	request := &facts.DescribeCodeFactsRequest{Target: target, Include: []facts.FactFamily{facts.FactFamily_FACT_FAMILY_FILE_METRICS}, UseCache: true, PageSize: 1000}
 	metrics := make([]FileMetric, 0)
-	for page := 0; page < 100; page++ {
-		response, err := ls.codeFacts.DescribeCodeFacts(ctx, connect.NewRequest(request))
-		if err != nil {
-			return nil, fmt.Errorf("Code Facts file metrics: %w", err)
+	for _, fact := range sourceFacts {
+		if fact.GetFamily() != facts.FactFamily_FACT_FAMILY_FILE_METRICS {
+			continue
 		}
-		if response == nil || response.Msg == nil {
-			return nil, fmt.Errorf("Code Facts file metrics returned an empty report")
+		attrs := fact.GetAttributes()
+		path := filepath.ToSlash(strings.TrimSpace(attrs["file_path"]))
+		if path == "" || ls.isExcluded(path) {
+			continue
 		}
-		for _, warning := range response.Msg.GetWarnings() {
-			code, message := warning.GetCode(), warning.GetMessage()
-			fileMetricUnsupported := code == "phase_6_contract_only" && strings.Contains(message, "FILE_METRICS")
-			if strings.HasPrefix(code, "file_metrics_") || fileMetricUnsupported {
-				return nil, fmt.Errorf("Code Facts file metrics unavailable: %s", warning.GetMessage())
-			}
+		lines, parseErr := strconv.Atoi(attrs["line_count"])
+		if parseErr != nil || lines < 0 {
+			return nil, fmt.Errorf("Code Facts returned invalid line_count for %q: %q", path, attrs["line_count"])
 		}
-		for _, fact := range response.Msg.GetFacts() {
-			attrs := fact.GetAttributes()
-			path := filepath.ToSlash(strings.TrimSpace(attrs["file_path"]))
-			if path == "" || ls.isExcluded(path) {
-				continue
-			}
-			lines, parseErr := strconv.Atoi(attrs["line_count"])
-			if parseErr != nil || lines < 0 {
-				return nil, fmt.Errorf("Code Facts returned invalid line_count for %q: %q", path, attrs["line_count"])
-			}
-			if attrs["lexical_metrics_version"] != "1" {
-				return nil, fmt.Errorf("Code Facts returned unsupported lexical metrics for %q: version %q", path, attrs["lexical_metrics_version"])
-			}
-			metric := FileMetric{Path: path, Lines: lines, Extension: attrs["file_extension"], Language: attrs["language"]}
-			for key, destination := range map[string]*int{
-				"code_lines": &metric.CodeLines, "comment_lines": &metric.CommentLines,
-				"todo_count": &metric.TodoCount, "fixme_count": &metric.FixmeCount, "hack_count": &metric.HackCount,
-				"as_any_count": &metric.AsAnyCount, "as_type_assertion_count": &metric.AsTypeAssertionCount,
-				"ts_ignore_count": &metric.TsIgnoreCount, "non_null_assertion_count": &metric.NonNullAssertionCount,
-				"fallback_import_count": &metric.FallbackImportCount, "fallback_function_count": &metric.FallbackFunctionCount,
-			} {
-				value, parseErr := strconv.Atoi(attrs[key])
-				if parseErr != nil || value < 0 {
-					return nil, fmt.Errorf("Code Facts returned invalid %s for %q: %q", key, path, attrs[key])
-				}
-				*destination = value
-			}
-			if metric.CodeLines+metric.CommentLines != lines {
-				return nil, fmt.Errorf("Code Facts line metrics disagree for %q: non-empty=%d code=%d comment=%d", path, lines, metric.CodeLines, metric.CommentLines)
-			}
-			metrics = append(metrics, metric)
+		if attrs["lexical_metrics_version"] != "1" {
+			return nil, fmt.Errorf("Code Facts returned unsupported lexical metrics for %q: version %q", path, attrs["lexical_metrics_version"])
 		}
-		request.PageToken = response.Msg.GetNextPageToken()
-		if request.PageToken == "" {
-			return metrics, nil
+		metric := FileMetric{Path: path, Lines: lines, Extension: attrs["file_extension"], Language: attrs["language"]}
+		for key, destination := range map[string]*int{
+			"code_lines": &metric.CodeLines, "comment_lines": &metric.CommentLines,
+			"todo_count": &metric.TodoCount, "fixme_count": &metric.FixmeCount, "hack_count": &metric.HackCount,
+			"as_any_count": &metric.AsAnyCount, "as_type_assertion_count": &metric.AsTypeAssertionCount,
+			"ts_ignore_count": &metric.TsIgnoreCount, "non_null_assertion_count": &metric.NonNullAssertionCount,
+			"fallback_import_count": &metric.FallbackImportCount, "fallback_function_count": &metric.FallbackFunctionCount,
+		} {
+			value, parseErr := strconv.Atoi(attrs[key])
+			if parseErr != nil || value < 0 {
+				return nil, fmt.Errorf("Code Facts returned invalid %s for %q: %q", key, path, attrs[key])
+			}
+			*destination = value
 		}
+		if attrs["test_classification_version"] != "1" {
+			return nil, fmt.Errorf("Code Facts returned unsupported test classification for %q: version %q", path, attrs["test_classification_version"])
+		}
+		metric.IsTestFile, parseErr = strconv.ParseBool(attrs["is_test_file"])
+		if parseErr != nil {
+			return nil, fmt.Errorf("Code Facts returned invalid is_test_file for %q: %q", path, attrs["is_test_file"])
+		}
+		metric.HasTestFile, parseErr = strconv.ParseBool(attrs["has_test_file"])
+		if parseErr != nil {
+			return nil, fmt.Errorf("Code Facts returned invalid has_test_file for %q: %q", path, attrs["has_test_file"])
+		}
+		if metric.CodeLines+metric.CommentLines != lines {
+			return nil, fmt.Errorf("Code Facts line metrics disagree for %q: non-empty=%d code=%d comment=%d", path, lines, metric.CodeLines, metric.CommentLines)
+		}
+		metrics = append(metrics, metric)
 	}
-	return nil, fmt.Errorf("Code Facts file metrics exceeded 100 pages")
+	return metrics, nil
 }
 
 // getPreviousScans retrieves the last scan times for all files from the database

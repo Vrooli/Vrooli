@@ -30,8 +30,10 @@ target and requirement, add the experience claim, then implement and tag the tes
 with its `[REQ:ID]`. Statuses are earned by requirement sync from passing
 evidence, never set by hand.
 
-The integrations step is deliberately empty until integration-hub ships. It
-declares the deferral and creates nothing.
+The integrations step reports declared requirements as deferred and creates no
+bindings. Integration Hub now owns an OpenRouter connection pilot, but Onboarding
+does not query it or connect manifest declarations to its bindings. See
+[Integrations](concepts/INTEGRATIONS.md) for the current owner boundary.
 
 What is not true yet is recorded in [Problems](internal/PROBLEMS.md). Read it
 before assuming a documented behaviour is live.

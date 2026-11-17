@@ -1,18 +1,14 @@
 import json
 inputs = program.inputs()
 
-envelope = {"program": "visited-tracker.attention-select", "version": "1", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
+envelope = program.envelope('visited-tracker.attention-select', '1', phase="validate", inputs={})
 
-def fail(status, kind, detail):
-    envelope["status"] = status
-    envelope["errors"].append({"class": kind, "detail": str(detail)[:240], "where": envelope["phase"]})
-    return "report"
 
 def step_validate():
     campaign = inputs.get("campaign_id", "")
     limit = inputs.get("limit", 10)
     if not isinstance(campaign, str) or not campaign.strip() or len(campaign) > 36 or isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 20:
-        return fail("failed", "invalid_input", "require campaign_id and limit 1..20")
+        return program.fail('failed', 'invalid_input', 'require campaign_id and limit 1..20', envelope["phase"])
     envelope["inputs"] = {"campaign_id": campaign, "limit": limit}
     return "collect"
 
@@ -35,12 +31,12 @@ def step_collect():
         envelope["status"] = "partial" if truncated else "ok"
     except Exception as exc:
         status, kind = program.classify(exc)
-        return fail(status, kind, str(exc))
+        return program.fail(status, kind, str(exc), envelope["phase"])
     return "report"
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False))
+    program.report(envelope)
     return None
 
 STATES = {"validate": step_validate, "collect": step_collect, "report": step_report}
@@ -51,4 +47,4 @@ while state:
     except Exception as exc:
         if envelope["phase"] == "report":
             raise
-        state = fail("failed", "kernel_runtime", str(exc))
+        state = program.fail('failed', 'kernel_runtime', str(exc), envelope["phase"])

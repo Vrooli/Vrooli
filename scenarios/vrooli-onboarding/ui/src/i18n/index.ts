@@ -390,7 +390,7 @@ const onboarding = {
   integrations: {
     heading: "Integrations",
     deferred: "Integration setup is deferred",
-    intro: "Connection bindings and authorization flows are owned by the integration capability. This onboarding step reports declared requirements but does not create placeholder connections or fake bindings.",
+    intro: "Integration Hub currently supports an OpenRouter connection pilot. This step reports declared requirements as deferred; it does not look up Hub connections or create bindings.",
     required: "required",
     none: "No selected capability declares an external integration requirement.",
     readContract: "Read the integration contract",

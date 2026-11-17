@@ -4,9 +4,7 @@ import hashlib
 import datetime
 
 inputs = program.inputs()
-envelope = {"program": "vrooli-memory.finish-attempt", "version": "1",
-            "status": "failed", "phase": "validate", "inputs": {},
-            "signals": {}, "errors": [], "evidence": []}
+envelope = program.envelope('vrooli-memory.finish-attempt', '1', phase="validate", inputs={})
 
 fail = program.fail
 
@@ -210,7 +208,7 @@ def step_report():
             envelope["status"] = "partial"
             envelope["errors"].append({"class": "capture_failed", "cause": klass,
                                        "cause_status": status, "detail": str(exc)[:240], "where": where})
-    print(json.dumps(envelope, ensure_ascii=True, allow_nan=False))
+    program.report(envelope)
     return None
 
 state = "validate"

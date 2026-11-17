@@ -100,9 +100,10 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, root string, env []string
 	// declared per-relocation but executed in declaration order after every
 	// relocation has been written, so a single `make generate` covers all
 	// of them when multiple relocations are siblings.
+	resolvedHooks := make([]resolvedTemplateHook, 0)
 	for _, reloc := range relocations {
 		for index, hook := range reloc.Post {
-			name, args, description, err := resolveTemplateHook(hook)
+			name, args, description, err := resolveTemplateHook(hook, values)
 			if err != nil {
 				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
@@ -110,21 +111,21 @@ func runRelocations[C any](deps HandlerDeps[C], ctx C, root string, env []string
 			if hookCwd := strings.TrimSpace(hook.Cwd); hookCwd != "" && hookCwd != "." {
 				cwd = filepath.Join(root, filepath.FromSlash(hookCwd))
 			}
-			hookEnv, err := templateHookEnv(env, hook.Env)
+			envOverrides, err := resolveHookValuesMap(hook.Env, values)
+			if err != nil {
+				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
+			}
+			hookEnv, err := templateHookEnv(env, envOverrides)
 			if err != nil {
 				return fmt.Errorf("relocation post hook %d: %w", index+1, err)
 			}
 			_, _ = fmt.Fprintf(output, "[Relocation post] %s\n", description)
-			if err := deps.RunSubprocess(ctx, shell.Spec{
-				Name:   name,
-				Args:   args,
-				Dir:    cwd,
-				Env:    hookEnv,
-				Stdout: output,
-				Stderr: deps.Stderr(ctx),
-			}); err != nil {
-				return fmt.Errorf("relocation post hook %q: %w", description, err)
-			}
+			resolvedHooks = append(resolvedHooks, resolvedTemplateHook{name: name, args: args, cwd: cwd, env: hookEnv, description: description})
+		}
+	}
+	for _, hook := range resolvedHooks {
+		if err := deps.RunSubprocess(ctx, shell.Spec{Name: hook.name, Args: hook.args, Dir: hook.cwd, Env: hook.env, Stdout: output, Stderr: deps.Stderr(ctx)}); err != nil {
+			return fmt.Errorf("relocation post hook %q: %w", hook.description, err)
 		}
 	}
 	return nil

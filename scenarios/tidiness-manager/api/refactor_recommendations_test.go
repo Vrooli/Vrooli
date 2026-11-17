@@ -5,6 +5,9 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -87,8 +90,16 @@ func TestScenarioAuditorAdapterMapsPublicTypeFieldToPolicyRule(t *testing.T) {
 	if err != nil || len(findings) != 1 {
 		t.Fatalf("load public Auditor violation: %+v %v", findings, err)
 	}
+	root := t.TempDir()
+	apiDir := filepath.Join(root, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(apiDir, "main.go"), []byte(strings.Repeat("line\n", 42)), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	registry := debt.New()
-	result := registry.RecommendWithAuditorFindings(&facts.CodeFactsReport{Target: &facts.TargetContext{Requested: &facts.CodeTarget{Scenario: "demo"}}}, findings, 10, 0)
+	result := registry.Recommend(&facts.CodeFactsReport{Target: &facts.TargetContext{RootPath: root, Requested: &facts.CodeTarget{Scenario: "demo"}}}, findings, 10, 0)
 	if result.Count != 1 || result.Recommendations[0].PolicyRuleID != "application_logging" || result.Recommendations[0].PolicyStandard != "logging-v1" || result.Recommendations[0].PolicyFindingID != "finding-1" || result.Recommendations[0].PolicyObservedAt != "2026-11-10T18:00:00Z" || result.Recommendations[0].Calibration.Precision != nil {
 		t.Fatalf("public Auditor violation lost its policy identity or was miscalibrated: %+v", result)
 	}

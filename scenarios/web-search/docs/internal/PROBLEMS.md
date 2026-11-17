@@ -241,21 +241,20 @@ green.
 deployed browserless served `/content`. A substrate route bug is invisible to
 seam tests by construction.
 
-**Fix:** `internal/research/fetch/` (HTTP-first `HTTPFetcher` →
-`EscalatingFetcher` → `BASFetcher` via browser-automation-studio
-`CaptureService.Capture` with `inline_dom=true`). A NON-hermetic live smoke
-(`fetch/live_smoke_test.go`) pins the transport contract from now on. See
-DECISIONS.md 2026-06-10.
+**Original fix (historical):** `internal/research/fetch/` used an HTTP-first
+`HTTPFetcher` → `EscalatingFetcher` → BAS `CaptureService.Capture` call with
+the then-new `inline_dom=true` contract. See DECISIONS.md 2026-06-10.
+
+**Current contract (2026-11-14):** the BAS `inline_dom` field and generic
+`DOM`/`DOM_TREE` capture artifacts have been removed after web-search moved to
+`ux-capture.v1`. The external-page escalation now accepts a complete-redaction,
+ephemeral bundle and reads only its frozen-page artifact. See the 2026-11-14
+decision row and `fetch/bas.go`.
 
 **Constraints worth knowing:**
-- BAS Capture's `inline_dom` is served by an in-page EVALUATE node
-  (`document.documentElement.outerHTML`) because the Playwright driver's
-  EXTRACT handler only does `textContent` today; the response is capped at
-  2 MiB (truncation is silent — fine for readable-text extraction).
-- The BAS capture handler reads the DOM from the exported `timeline.json`
-  frame's `extracted_data_preview` — a field the BAS execution writer never
-  populated before 2026-06-10 (fixed in `file_writer.go`; the whole BAS read
-  side depended on it).
+- The old inline-DOM reader used an in-page EVALUATE node and exported
+  `timeline.json` data. That implementation was deleted with the EX9 migration;
+  its implementation detail is retained here only as historical context.
 - Browser escalation fires per-URL on HTTP failure OR thin extracted text
   (`WEB_SEARCH_MIN_READABLE_CHARS`, default 200). With BAS down, L2 degrades
   to HTTP-only and logs `browser leg failed` — verified live 2026-06-10.

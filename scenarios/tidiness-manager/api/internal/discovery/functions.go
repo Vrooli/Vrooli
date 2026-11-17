@@ -1,6 +1,6 @@
 package discovery
 
-import facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+import "github.com/vrooli/api-core/factgraph"
 
 // FunctionMetric projects shared parser facts; it does not parse files or run
 // another analyzer. Test functions remain available to explicit metric callers.
@@ -9,8 +9,8 @@ type FunctionMetric struct {
 	Complexity int
 }
 
-func FunctionMetrics(report *facts.CodeFactsReport) ([]FunctionMetric, []string) {
-	symbols, warnings := graphSymbols(report, true)
+func FunctionMetricsFromIndex(index *factgraph.Index) ([]FunctionMetric, []string) {
+	symbols, warnings, _ := graphSymbolsWithLanguageFilesFromIndex(index, true)
 	result := make([]FunctionMetric, 0, len(symbols))
 	for _, symbol := range symbols {
 		if symbol.complexity > 0 {

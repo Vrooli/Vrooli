@@ -2,122 +2,101 @@ package fetch_test
 
 import (
 	"context"
-	"errors"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
-	"connectrpc.com/connect"
-	capturev1 "github.com/vrooli/vrooli/packages/proto/gen/go/browser-automation-studio/v1/capture"
-
-	"web-search/internal/research/fetch"
-
 	"github.com/stretchr/testify/require"
+	"web-search/internal/research/fetch"
 )
 
-// fakeCaptureClient records the last Capture request and returns a canned
-// response or error.
-type fakeCaptureClient struct {
-	lastReq *capturev1.CaptureRequest
-	resp    *capturev1.CaptureResponse
-	err     error
-	calls   int
-}
-
-func (f *fakeCaptureClient) Capture(
-	_ context.Context,
-	req *connect.Request[capturev1.CaptureRequest],
-) (*connect.Response[capturev1.CaptureResponse], error) {
-	f.calls++
-	f.lastReq = req.Msg
-	if f.err != nil {
-		return nil, f.err
+func bundleServer(t *testing.T, html string) (*httptest.Server, <-chan struct{}) {
+	t.Helper()
+	deleted := make(chan struct{})
+	const id = "81dbd4b4-53ba-4e54-98a4-f98790da56da"
+	artifact := []byte(html)
+	sum := sha256.Sum256(artifact)
+	manifest := map[string]any{
+		"schema_version": "ux-capture.v1", "id": id,
+		"source":    map[string]any{"kind": "url", "url": "https://example.com/spa"},
+		"session":   map[string]any{"id": "session-123"},
+		"lenses":    map[string]any{"L1": map[string]any{"status": "present"}},
+		"privacy":   map[string]any{"redaction_status": "complete", "external": true, "ephemeral": true},
+		"artifacts": []any{map[string]any{"kind": "frozen-page", "path": "page/frozen.html", "size_bytes": len(artifact), "sha256": hex.EncodeToString(sum[:])}},
 	}
-	return connect.NewResponse(f.resp), nil
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/api/v1/ux-capture/bundles/"+id+"/artifacts/page/frozen.html" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write(artifact)
+			return
+		}
+		if r.Method == http.MethodDelete && r.URL.Path == "/api/v1/ux-capture/bundles/"+id {
+			close(deleted)
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		require.Equal(t, "/api/v1/ux-capture/public", r.URL.Path)
+		require.Equal(t, http.MethodPost, r.Method)
+		var request map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		require.Equal(t, "https://example.com/spa", request["url"])
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"manifest": manifest})
+	}))
+	return server, deleted
 }
 
-func basWithClient(client fetch.CaptureClient, resolveErr error) *fetch.BASFetcher {
-	return &fetch.BASFetcher{
-		Resolve: func(_ context.Context) (fetch.CaptureClient, error) {
-			if resolveErr != nil {
-				return nil, resolveErr
-			}
-			return client, nil
-		},
-	}
-}
-
-func TestBASFetcherExtractsReadableTextFromInlineDom(t *testing.T) {
-	client := &fakeCaptureClient{resp: &capturev1.CaptureResponse{
-		ExecutionId: "exec-1",
-		DomHtml:     `<html><body><nav>menu</nav><p>Rendered article text.</p></body></html>`,
-	}}
-	f := basWithClient(client, nil)
+func TestBASFetcherExtractsReadableTextFromCanonicalBundle(t *testing.T) {
+	server, deleted := bundleServer(t, `<html><body><nav>menu</nav><article><p>Rendered article text.</p></article></body></html>`)
+	defer server.Close()
+	f := &fetch.BASFetcher{Resolve: func(context.Context) (string, error) { return server.URL, nil }}
 
 	text, err := f.Fetch(context.Background(), "https://example.com/spa")
 	require.NoError(t, err)
 	require.Contains(t, text, "Rendered article text.")
 	require.NotContains(t, text, "menu")
-
-	// The request must use inline DOM (no artifact-path coupling), capture
-	// type DOM, and wait for networkidle so JS shells hydrate.
-	require.True(t, client.lastReq.GetInlineDom())
-	require.Equal(t, []capturev1.CaptureType{capturev1.CaptureType_CAPTURE_TYPE_DOM}, client.lastReq.GetCaptures())
-	require.True(t, client.lastReq.GetWaitFor().GetNetworkidle())
+	select {
+	case <-deleted:
+	default:
+		t.Fatal("external ephemeral capture was not deleted through BAS owner")
+	}
 }
 
-func TestBASFetcherCarriesExecutionIdentityIntoObservation(t *testing.T) {
-	client := &fakeCaptureClient{resp: &capturev1.CaptureResponse{
-		ExecutionId: "bas-execution-1",
-		DomHtml:     `<html><body><p>Rendered article text.</p></body></html>`,
-	}}
-	f := basWithClient(client, nil)
+func TestBASFetcherCarriesBundleSessionIdentityIntoObservation(t *testing.T) {
+	server, deleted := bundleServer(t, `<html><body><p>Rendered article text.</p></body></html>`)
+	defer server.Close()
+	f := &fetch.BASFetcher{Resolve: func(context.Context) (string, error) { return server.URL, nil }}
 
 	observation, err := f.FetchObservation(context.Background(), "https://example.com/spa")
 	require.NoError(t, err)
-	require.Equal(t, "bas-execution-1", observation.ProducerExecutionID)
+	require.Equal(t, "session-123", observation.ProducerExecutionID)
 	require.Equal(t, "bas-readable-text-v1", observation.ExtractionRevision)
-}
-
-func TestBASFetcherErrorsOnEmptyDom(t *testing.T) {
-	client := &fakeCaptureClient{resp: &capturev1.CaptureResponse{ExecutionId: "exec-1"}}
-	f := basWithClient(client, nil)
-
-	_, err := f.Fetch(context.Background(), "https://example.com")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "no DOM")
-}
-
-func TestBASFetcherErrorsWhenBASUnavailable(t *testing.T) {
-	f := basWithClient(nil, errors.New("scenario not running"))
-	_, err := f.Fetch(context.Background(), "https://example.com")
-	require.Error(t, err)
-}
-
-func TestBASFetcherRetriesResolutionAfterCaptureError(t *testing.T) {
-	// First capture fails (e.g. BAS restarted on a new port): the cached
-	// client must be dropped so the next fetch re-resolves.
-	failing := &fakeCaptureClient{err: errors.New("connection refused")}
-	working := &fakeCaptureClient{resp: &capturev1.CaptureResponse{DomHtml: "<p>recovered</p>"}}
-	clients := []fetch.CaptureClient{failing, working}
-	resolves := 0
-	f := &fetch.BASFetcher{
-		Resolve: func(_ context.Context) (fetch.CaptureClient, error) {
-			client := clients[resolves]
-			resolves++
-			return client, nil
-		},
+	require.Equal(t, "metadata-and-extracted-content", observation.Retention)
+	select {
+	case <-deleted:
+	default:
+		t.Fatal("external ephemeral capture was not deleted through BAS owner")
 	}
+}
 
-	_, err := f.Fetch(context.Background(), "https://example.com")
-	require.Error(t, err)
-
-	text, err := f.Fetch(context.Background(), "https://example.com")
-	require.NoError(t, err)
-	require.Contains(t, text, "recovered")
-	require.Equal(t, 2, resolves, "capture failure must invalidate the cached client")
+func TestBASFetcherRejectsMissingReadableArtifact(t *testing.T) {
+	server, deleted := bundleServer(t, "<html><body></body></html>")
+	defer server.Close()
+	f := &fetch.BASFetcher{Resolve: func(context.Context) (string, error) { return server.URL, nil }}
+	_, err := f.Fetch(context.Background(), "https://example.com/spa")
+	require.ErrorContains(t, err, "no readable page text")
+	select {
+	case <-deleted:
+	default:
+		t.Fatal("unreadable content did not clean up external ephemeral bundle")
+	}
 }
 
 func TestBASFetcherRejectsEmptyURL(t *testing.T) {
-	f := basWithClient(&fakeCaptureClient{}, nil)
+	f := &fetch.BASFetcher{}
 	_, err := f.Fetch(context.Background(), " ")
 	require.Error(t, err)
 }

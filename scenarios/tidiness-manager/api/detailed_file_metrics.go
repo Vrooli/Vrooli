@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	"github.com/vrooli/api-core/factgraph"
 )
 
 // DetailedFileMetrics contains comprehensive per-file metrics for refactor prioritization
@@ -34,7 +34,7 @@ type DetailedFileMetrics struct {
 
 // CollectDetailedFileMetricsFromInventory consumes the file inventory already
 // supplied by Code Facts, avoiding a second path walk and line-count pass.
-func CollectDetailedFileMetricsFromInventory(scenarioPath string, inventory []FileMetric, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
+func CollectDetailedFileMetricsFromInventory(inventory []FileMetric, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
 	files := make([]string, 0, len(inventory))
 	lineCounts := make(map[string]int, len(inventory))
 	metricsByPath := make(map[string]FileMetric, len(inventory))
@@ -43,10 +43,10 @@ func CollectDetailedFileMetricsFromInventory(scenarioPath string, inventory []Fi
 		lineCounts[metric.Path] = metric.Lines
 		metricsByPath[metric.Path] = metric
 	}
-	return collectDetailedFileMetrics(scenarioPath, files, lineCounts, metricsByPath, langMetrics)
+	return collectDetailedFileMetrics(files, lineCounts, metricsByPath, langMetrics)
 }
 
-func collectDetailedFileMetrics(scenarioPath string, files []string, inventoryLines map[string]int, metricsByPath map[string]FileMetric, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
+func collectDetailedFileMetrics(files []string, inventoryLines map[string]int, metricsByPath map[string]FileMetric, langMetrics map[Language]*LanguageMetrics) ([]DetailedFileMetrics, error) {
 	if len(files) == 0 {
 		return []DetailedFileMetrics{}, nil
 	}
@@ -86,15 +86,14 @@ func collectDetailedFileMetrics(scenarioPath string, files []string, inventoryLi
 
 	// Collect metrics per file
 	results := make([]DetailedFileMetrics, 0, len(files))
-	codeMetricsAnalyzer := NewCodeMetricsAnalyzer(scenarioPath)
-	var graphReport *facts.CodeFactsReport
+	var graphIndex *factgraph.Index
 	for _, metrics := range langMetrics {
-		if metrics != nil && metrics.facts != nil {
-			graphReport = metrics.facts
+		if metrics != nil && metrics.factIndex != nil {
+			graphIndex = metrics.factIndex
 			break
 		}
 	}
-	graphMetrics := graphFileMetrics(graphReport)
+	graphMetrics := graphFileMetricsFromIndex(graphIndex)
 	for _, relPath := range files {
 		lang, hasLang := fileLangMap[relPath]
 		if !hasLang {
@@ -118,13 +117,9 @@ func collectDetailedFileMetrics(scenarioPath string, files []string, inventoryLi
 			fileMetrics.ImportCount, fileMetrics.FunctionCount = graphMetric.imports, graphMetric.functions
 		}
 
-		// Build test file map for this language to check test coverage
-		allFilesForLang := languages[lang].Files
-		testFiles, sourceFiles := codeMetricsAnalyzer.buildTestFileMaps(allFilesForLang, lang)
-
-		// If this file itself is a test file, mark hasTest as true
-		// Otherwise, check if it has a corresponding test file
-		hasTest := testFiles[relPath] || codeMetricsAnalyzer.hasTestFile(relPath, testFiles, sourceFiles, lang)
+		// Code Facts computes the filename-based companion relation from its
+		// active catalog snapshot; it does not imply behavioral test coverage.
+		hasTest := metric.HasTestFile
 
 		detailed := DetailedFileMetrics{
 			FilePath:              relPath,

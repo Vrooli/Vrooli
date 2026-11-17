@@ -27,6 +27,10 @@ func TestOwnUnitPolicyMatchesObservedVitestSurface(t *testing.T) {
 		if _, found := findRoleSurface(role, inv); !found {
 			t.Fatal("own UI role rejects the observed native test framework")
 		}
+		inv.Surfaces[0].Framework = ""
+		if _, found := findRoleSurface(role, inv); !found {
+			t.Fatal("unknown framework metadata should not hide a surface identified by its path, kind, and language")
+		}
 		inv.Surfaces[0].Framework = "jest"
 		if _, found := findRoleSurface(role, inv); found {
 			t.Fatal("a different runner incorrectly satisfies the Vitest role")

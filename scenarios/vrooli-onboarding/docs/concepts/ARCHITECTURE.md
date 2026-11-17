@@ -1,6 +1,5 @@
 # Architecture
 
-## Purpose Of This Document
 
 Describe how onboarding is composed: what reads, what writes, who owns which
 decision, and how the same flow serves every deployment tier.
@@ -68,7 +67,7 @@ decision is a patch to a service onboarding does not own.
 | What this install chose | `internal/operatorstate` | Patches through the service |
 | Credential values | Credential authority | Relays; never stores or reads |
 | Host detection and remediation | Control plane | Orders the work, reports the outcome |
-| Connectors and connections | integration-hub *(deferred)* | Declares the deferral |
+| Connection metadata and explicit bindings | Integration Hub (OpenRouter pilot) | Reports manifest requirements as deferred; no Hub lookup or binding |
 | Purpose profiles | onboarding profile data + bounded evaluator | Recommends scenario choices; never grants permissions |
 | Requirement status | Requirement sync from test evidence | Never asserts |
 

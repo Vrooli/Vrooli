@@ -22,6 +22,8 @@ type memoryStore struct {
 	pending         []OpeningPublication
 	decisionPending []RemediationDecisionPublication
 	ensured         []string
+	withdrawals     []RemediationDecisionWithdrawal
+	withdrawalAcks  [][]string
 }
 
 type recordingPublisher struct {
@@ -654,6 +656,20 @@ func (m *memoryStore) AcknowledgeRemediationDecisionPublication(_ context.Contex
 	return nil
 }
 
+func (m *memoryStore) ListPendingRemediationDecisionWithdrawals(_ context.Context, limit int) ([]RemediationDecisionWithdrawal, error) {
+	if limit > len(m.withdrawals) {
+		limit = len(m.withdrawals)
+	}
+	return append([]RemediationDecisionWithdrawal(nil), m.withdrawals[:limit]...), nil
+}
+func (m *memoryStore) AcknowledgeRemediationDecisionWithdrawal(_ context.Context, eventIDs []string, _ time.Time) error {
+	m.withdrawalAcks = append(m.withdrawalAcks, eventIDs)
+	if len(m.withdrawals) > 0 {
+		m.withdrawals = m.withdrawals[1:]
+	}
+	return nil
+}
+
 type combinedPublisher struct {
 	opening   int
 	decisions int
@@ -826,4 +842,96 @@ func TestTickDeferredPublicationUsesOneFinalDrainAcrossPhases(t *testing.T) {
 			t.Fatalf("unexpected publication order: %#v", publisher.order)
 		}
 	}
+}
+
+func TestBuildRemediationDecisionEventIsKeyedPerIncident(t *testing.T) {
+	incident := Incident{ID: "inc-77", Fingerprint: "fp", Title: "t", Severity: SeverityCritical, RemediationDecisionGeneration: 1}
+	candidate := RemediationCandidate{ID: "c", Title: "c", RiskLevel: "low"}
+	observed := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
+	first := BuildRemediationDecisionEvent(incident, candidate, 1, "digest-a", observed, observed.Add(24*time.Hour))
+	second := BuildRemediationDecisionEvent(incident, RemediationCandidate{ID: "c2", Title: "c2", RiskLevel: "low"}, 2, "digest-b", observed.Add(time.Minute), observed.Add(25*time.Hour))
+	for _, event := range []eventbus.DomainEvent{first, second} {
+		if got, _ := event.Payload["subject_key"].(string); got != "remediation:inc-77" {
+			t.Fatalf("subject_key = %q, want remediation:inc-77", got)
+		}
+	}
+	if operatordecision.EventID(first) == operatordecision.EventID(second) {
+		t.Fatal("changed candidate must be a new revision with its own event id")
+	}
+}
+
+func TestDrainPublishesPendingRemediationWithdrawalsBySubjectOrRef(t *testing.T) {
+	asserted := time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC)
+	store := &memoryStore{withdrawals: []RemediationDecisionWithdrawal{
+		{IncidentID: "inc-1", SubjectKey: "remediation:inc-1", Reason: "The incident cleared on its own, so no remediation is needed: Disk.", AssertedAt: asserted, EventIDs: []string{"e1", "e2"}},
+		{IncidentID: "inc-2", RequesterRef: "legacy-event", Reason: "Autoheal has an updated request for this incident.", AssertedAt: asserted, EventIDs: []string{"legacy-event"}},
+	}}
+	publisher := &capturingDecisionPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	service.DrainPendingPublications(context.Background())
+
+	if len(publisher.events) != 2 {
+		t.Fatalf("published %d events, want 2", len(publisher.events))
+	}
+	byKey := publisher.events[0]
+	if byKey.EventType != "vrooli-autoheal.remediation.decision_withdrawn.v1" || byKey.Payload["subject_key"] != "remediation:inc-1" || byKey.Payload["source_event_type"] != RemediationDecisionEventType {
+		t.Fatalf("subject withdrawal = %#v", byKey)
+	}
+	if reason, _ := byKey.Payload["reason"].(string); reason == "" {
+		t.Fatal("withdrawal needs a plain-words reason")
+	}
+	byRef := publisher.events[1]
+	if byRef.Payload["requester_ref"] != "legacy-event" {
+		t.Fatalf("legacy withdrawal = %#v", byRef)
+	}
+	if _, keyed := byRef.Payload["subject_key"]; keyed {
+		t.Fatal("a request raised without a subject key must be closed by its event id")
+	}
+	if len(store.withdrawalAcks) != 2 || len(store.withdrawalAcks[0]) != 2 {
+		t.Fatalf("acknowledgements = %#v", store.withdrawalAcks)
+	}
+}
+
+func TestFailedWithdrawalStaysPendingForRetry(t *testing.T) {
+	store := &memoryStore{withdrawals: []RemediationDecisionWithdrawal{{IncidentID: "inc-1", SubjectKey: "remediation:inc-1", Reason: "Cleared.", AssertedAt: time.Now().UTC(), EventIDs: []string{"e1"}}}}
+	publisher := &capturingDecisionPublisher{err: fmt.Errorf("hub unavailable")}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	service.DrainPendingPublications(context.Background())
+	if len(store.withdrawalAcks) != 0 || len(store.withdrawals) != 1 {
+		t.Fatalf("a failed publish must leave the withdrawal pending: acks=%v pending=%d", store.withdrawalAcks, len(store.withdrawals))
+	}
+	publisher.err = nil
+	service.DrainPendingPublications(context.Background())
+	if len(store.withdrawalAcks) != 1 || len(store.withdrawals) != 0 {
+		t.Fatalf("retry must publish and acknowledge: acks=%v pending=%d", store.withdrawalAcks, len(store.withdrawals))
+	}
+}
+
+func TestResolvingAnIncidentClosesItsRemediationRequestImmediately(t *testing.T) {
+	store := &memoryStore{withdrawals: []RemediationDecisionWithdrawal{{IncidentID: "inc-9", SubjectKey: "remediation:inc-9", Reason: "Cleared.", AssertedAt: time.Now().UTC(), EventIDs: []string{"e9"}}}}
+	publisher := &capturingDecisionPublisher{}
+	service := NewService(store)
+	service.SetEventPublisher(publisher)
+	if _, err := service.UpdateIncidentStatus(context.Background(), "inc-9", StatusResolved, "fixed"); err != nil {
+		t.Fatal(err)
+	}
+	if len(publisher.events) != 1 || publisher.events[0].Payload["subject_key"] != "remediation:inc-9" {
+		t.Fatalf("resolve must publish the withdrawal now, got %#v", publisher.events)
+	}
+}
+
+type capturingDecisionPublisher struct {
+	events []eventbus.DomainEvent
+	err    error
+}
+
+func (*capturingDecisionPublisher) Publish(context.Context, string, map[string]any) error { return nil }
+func (p *capturingDecisionPublisher) PublishDomainEvent(_ context.Context, event eventbus.DomainEvent) error {
+	if p.err != nil {
+		return p.err
+	}
+	p.events = append(p.events, event)
+	return nil
 }

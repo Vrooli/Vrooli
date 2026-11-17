@@ -48,10 +48,10 @@
         },
         {
           "type": "test",
-          "ref": "api/internal/research/fetch/bas_test.go::TestBASFetcherExtractsReadableTextFromInlineDom",
+          "ref": "api/internal/research/fetch/bas_test.go::TestBASFetcherExtractsReadableTextFromCanonicalBundle",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Browser escalation leg drives browser-automation-studio CaptureService.Capture with inline_dom=true (no artifact-path/filesystem coupling) and extracts readable text from the returned DOM"
+          "notes": "Browser escalation leg requests the redacted ux-capture.v1 public-page bundle, verifies the frozen-page artifact size and digest, extracts readable text, and removes the ephemeral external bundle"
         },
         {
           "type": "test",

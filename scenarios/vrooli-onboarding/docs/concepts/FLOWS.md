@@ -1,6 +1,5 @@
 # Flows
 
-## Purpose Of This Document
 
 Record the lifecycle of an onboarding decision: how it is made, committed,
 applied, verified, and revised.
@@ -149,9 +148,11 @@ prose.
 
 ## Deferred flows
 
-Connector authorization and connection binding belong to integration-hub.
-Onboarding declares the deferral and simulates nothing, because state nothing
-can honour is worse than an empty step.
+Integration Hub owns current OpenRouter connection metadata and explicit
+bindings. Onboarding reads declared integration requirements but does not query
+the Hub, compare scopes, or write bindings. Keep the step deferred until the
+manifest-to-connection flow has an explicit owner contract; see
+[Integrations](INTEGRATIONS.md).
 
 ## Cross-References
 

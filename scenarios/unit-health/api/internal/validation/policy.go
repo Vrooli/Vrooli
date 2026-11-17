@@ -482,7 +482,10 @@ func findRoleSurface(role unitPolicyRequiredRole, inv discovery.Inventory) (disc
 func frameworkMatches(want, got string) bool {
 	want = adapterregistry.NormalizeFramework(want)
 	got = adapterregistry.NormalizeFramework(got)
-	return want != "" && want == got
+	// An observed surface can lack framework metadata even when its identity,
+	// path, kind and language are known. In that case the required policy class
+	// supplies the runner; a known contradictory framework still rejects it.
+	return want != "" && (got == "" || got == "unknown" || want == got)
 }
 
 func pathMatches(want, got, root string) bool {

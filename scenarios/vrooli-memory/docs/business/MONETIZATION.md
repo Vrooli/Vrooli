@@ -13,7 +13,6 @@ a monetizable Vrooli capability. Keep it honest: `not-applicable` is
 better than inventing a commercial story — but so is naming a real one
 when it exists.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -42,8 +42,12 @@ func newLightScannerForTest(root string, timeout time.Duration, excludes ...stri
 func localCatalogFactsSource() ReductionFacts {
 	return reductionSourceFunc(func(_ context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 		report := &facts.CodeFactsReport{}
-		if len(request.Msg.GetInclude()) == 1 && request.Msg.GetInclude()[0] == facts.FactFamily_FACT_FAMILY_FILE_METRICS {
-			metrics := make([]*facts.GenericFact, 0)
+		wantsMetrics := false
+		for _, family := range request.Msg.GetInclude() {
+			wantsMetrics = wantsMetrics || family == facts.FactFamily_FACT_FAMILY_FILE_METRICS
+		}
+		if wantsMetrics {
+			var inventory []FileMetric
 			root := request.Msg.GetTarget().GetPath()
 			err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 				if walkErr != nil {
@@ -76,13 +80,16 @@ func localCatalogFactsSource() ReductionFacts {
 				if metricErr != nil {
 					return nil
 				}
-				metrics = append(metrics, &facts.GenericFact{Family: facts.FactFamily_FACT_FAMILY_FILE_METRICS, Subject: rel, Attributes: fileMetricAttributesForTest(metric)})
+				inventory = append(inventory, metric)
 				return nil
 			})
 			if err != nil {
 				return nil, err
 			}
-			report.Facts = metrics
+			applyFixtureTestClassification(inventory)
+			for _, metric := range inventory {
+				report.Facts = append(report.Facts, &facts.GenericFact{Family: facts.FactFamily_FACT_FAMILY_FILE_METRICS, Subject: metric.Path, Attributes: fileMetricAttributesForTest(metric)})
+			}
 		}
 		return connect.NewResponse(report), nil
 	})
@@ -95,7 +102,7 @@ func TestCatalogFixtureSourceMatchesMetricExtFiltering(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	metrics, err := newLightScannerForTest(root, time.Second).collectFileMetricsContext(context.Background())
+	metrics, _, err := newLightScannerForTest(root, time.Second).collectScanFacts(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +122,7 @@ func TestCatalogFixtureSourceExcludesConfiguredPaths(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	metrics, err := newLightScannerForTest(root, time.Second, "generated/**").collectFileMetricsContext(context.Background())
+	metrics, _, err := newLightScannerForTest(root, time.Second, "generated/**").collectScanFacts(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}

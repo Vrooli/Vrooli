@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -1146,5 +1147,146 @@ func TestIncidentTypeConstraintAdmitsHostPressureAndMigratesLegacyTables(t *test
 	}
 	if !incidents.ValidType(string(incidents.TypeHostPressure)) {
 		t.Fatal("host_pressure must be a valid list filter")
+	}
+}
+
+func publishDecision(t *testing.T, store *Store, publication *incidents.RemediationDecisionPublication) {
+	t.Helper()
+	if publication == nil {
+		t.Fatal("expected a decision publication")
+	}
+	if err := store.AcknowledgeRemediationDecisionPublication(context.Background(), publication.EventID); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSQLiteStore_RemediationRequestIsKeyedAndClosedWhenIncidentResolves(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+	incident := createCriticalDecisionIncident(t, store, now, "candidate-a", "/tmp/a")
+	first, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now)
+	if err != nil || first == nil {
+		t.Fatalf("first publication = %#v, %v", first, err)
+	}
+	if got := remediationEventSubject(string(first.EventJSON)); got != "remediation:"+incident.ID {
+		t.Fatalf("subject key = %q, want remediation:%s", got, incident.ID)
+	}
+
+	// Not yet published: nothing for the hub to close.
+	if pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100); err != nil || len(pending) != 0 {
+		t.Fatalf("unpublished request produced withdrawals %#v, %v", pending, err)
+	}
+	publishDecision(t, store, first)
+	// Still needed: keep it open.
+	if pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100); err != nil || len(pending) != 0 {
+		t.Fatalf("live request produced withdrawals %#v, %v", pending, err)
+	}
+
+	if _, err := store.UpdateIncidentStatus(ctx, incident.ID, incidents.StatusResolved, "recovered"); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100)
+	if err != nil || len(pending) != 1 {
+		t.Fatalf("withdrawals after resolve = %#v, %v; want one", pending, err)
+	}
+	w := pending[0]
+	if w.SubjectKey != "remediation:"+incident.ID || w.RequesterRef != "" || w.Reason == "" || len(w.EventIDs) != 1 || w.EventIDs[0] != first.EventID {
+		t.Fatalf("withdrawal = %#v", w)
+	}
+	if w.AssertedAt.Before(now) {
+		t.Fatalf("withdrawal asserted at %s, before the request at %s", w.AssertedAt, now)
+	}
+	if err := store.AcknowledgeRemediationDecisionWithdrawal(ctx, w.EventIDs, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100); err != nil || len(pending) != 0 {
+		t.Fatalf("acknowledged withdrawal returned again: %#v, %v", pending, err)
+	}
+}
+
+func TestSQLiteStore_ChangedCandidateKeepsOneSubjectAndWithdrawsNothing(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+	incident := createCriticalDecisionIncident(t, store, now, "candidate-a", "/tmp/a")
+	first, _ := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now)
+	publishDecision(t, store, first)
+	createCriticalDecisionIncident(t, store, now.Add(time.Second), "candidate-b", "/tmp/b")
+	second, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(time.Second))
+	if err != nil || second == nil || second.Revision != 2 {
+		t.Fatalf("second publication = %#v, %v", second, err)
+	}
+	if remediationEventSubject(string(first.EventJSON)) != remediationEventSubject(string(second.EventJSON)) {
+		t.Fatal("changed candidate must keep the same subject key so the hub updates the one open decision")
+	}
+	if pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100); err != nil || len(pending) != 0 {
+		t.Fatalf("a revised request must not be withdrawn: %#v, %v", pending, err)
+	}
+}
+
+func TestSQLiteStore_RemediationRequestClosesWhenCandidateStopsApplying(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+	incident := createCriticalDecisionIncident(t, store, now, "candidate-a", "/tmp/a")
+	first, _ := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now)
+	publishDecision(t, store, first)
+
+	if _, err := store.UpsertIncident(ctx, incidents.UpsertInput{
+		Fingerprint: incident.Fingerprint, Type: incidents.TypeHostIntegrity, Severity: incidents.SeverityCritical,
+		Title: "Runtime failed", Summary: "Fixture failure", ObservedAt: now.Add(time.Second),
+		SourceCheckID:         "host-kernel-module-drift",
+		RemediationCandidates: []incidents.RemediationCandidate{{ID: "candidate-a", Applicability: "not_applicable"}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if publication, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(time.Second)); err != nil || publication != nil {
+		t.Fatalf("ineligible incident publication = %#v, %v", publication, err)
+	}
+	pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100)
+	if err != nil || len(pending) != 1 || pending[0].SubjectKey != "remediation:"+incident.ID {
+		t.Fatalf("withdrawals = %#v, %v; want the keyed request closed", pending, err)
+	}
+}
+
+func TestSQLiteStore_KeylessLegacyRequestIsReplacedAndClosedByEventID(t *testing.T) {
+	db := openSQLiteTestDB(t)
+	store := NewStore(db)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Second)
+	incident := createCriticalDecisionIncident(t, store, now, "candidate-a", "/tmp/a")
+	legacy, _ := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now)
+	publishDecision(t, store, legacy)
+	// Rewrite the stored request as an older build published it: no subject key.
+	var event map[string]any
+	if err := json.Unmarshal(legacy.EventJSON, &event); err != nil {
+		t.Fatal(err)
+	}
+	delete(event["Payload"].(map[string]any), "subject_key")
+	stripped, _ := json.Marshal(event)
+	if _, err := db.ExecContext(ctx, `UPDATE incident_remediation_publications SET event_json=? WHERE event_id=?`, string(stripped), legacy.EventID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Same digest, still open, but keyless: the reconcile path re-raises it keyed.
+	replacement, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(time.Minute))
+	if err != nil || replacement == nil || replacement.Revision != 2 {
+		t.Fatalf("replacement = %#v, %v; want a keyed revision 2", replacement, err)
+	}
+	if remediationEventSubject(string(replacement.EventJSON)) == "" {
+		t.Fatal("replacement must carry the subject key")
+	}
+	pending, err := store.ListPendingRemediationDecisionWithdrawals(ctx, 100)
+	if err != nil || len(pending) != 1 || pending[0].RequesterRef != legacy.EventID || pending[0].SubjectKey != "" {
+		t.Fatalf("withdrawals = %#v, %v; want the legacy request closed by its event id", pending, err)
+	}
+	// Once re-raised under a key, a second reconcile is idempotent.
+	publishDecision(t, store, replacement)
+	if again, err := store.EnsureRemediationDecisionPublication(ctx, incident.ID, now.Add(2*time.Minute)); err != nil || again != nil {
+		t.Fatalf("reconcile after migration = %#v, %v; want no new request", again, err)
 	}
 }

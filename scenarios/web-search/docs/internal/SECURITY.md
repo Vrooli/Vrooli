@@ -10,7 +10,6 @@ secrets, or sensitive business data.
 > covered by owner tests; residual advisories remain in the acceptance
 > report.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -155,12 +155,18 @@ func TestClassifyFileRole_GeneratedMarkers(t *testing.T) {
 }
 
 func TestIsTestFilePathStillWorks(t *testing.T) {
-	// IsTestFilePath remains a thin, callable wrapper (not forked).
-	if !IsTestFilePath("api/foo_test.go") {
-		t.Error("IsTestFilePath should report _test.go as a test file")
+	cases := map[string]bool{
+		"api/foo_test.go":               true,
+		"ui/foo.test.tsx":               true,
+		"ui/__tests__/foo.jsx":          true,
+		"api/tests/fixtures/example.md": true,
+		"api/foo.go":                    false,
+		"ui/foo.ts":                     false,
 	}
-	if IsTestFilePath("api/foo.go") {
-		t.Error("IsTestFilePath should not report foo.go as a test file")
+	for path, want := range cases {
+		if got := IsTestFilePath(path); got != want {
+			t.Errorf("IsTestFilePath(%q) = %t, want %t", path, got, want)
+		}
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -42,7 +43,7 @@ func runGenerate[C any](deps HandlerDeps[C], ctx C, req templatecontracts.Genera
 	}
 	result := prepared.result(opts.RunHooks, false)
 	if opts.RunHooks {
-		if err := runTemplateHooks(deps, ctx, prepared.destination, info.Manifest, deps.Stdout(ctx)); err != nil {
+		if err := runTemplateHooks(deps, ctx, prepared.destination, info.Manifest, prepared.values, deps.Stdout(ctx)); err != nil {
 			return templatecontracts.GenerateResult{}, err
 		}
 	}
@@ -169,7 +170,7 @@ func validateGeneratedScenarioResult[C any](deps HandlerDeps[C], ctx C, prepared
 	return fmt.Errorf("%s", formatTemplateValidationIssues(issues))
 }
 
-func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, manifest templatecontracts.TemplateManifest, output io.Writer) error {
+func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, manifest templatecontracts.TemplateManifest, values map[string]string, output io.Writer) error {
 	if output == nil {
 		output = io.Discard
 	}
@@ -177,25 +178,33 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 		_, _ = fmt.Fprintln(output, "No post hooks defined for this template")
 		return nil
 	}
+	resolved := make([]resolvedTemplateHook, 0, len(manifest.PostHooks))
 	for index, hook := range manifest.PostHooks {
-		name, args, description, err := resolveTemplateHook(hook)
+		name, args, description, err := resolveTemplateHook(hook, values)
 		if err != nil {
 			return fmt.Errorf("post hook %d: %w", index+1, err)
 		}
-		_, _ = fmt.Fprintf(output, "[Hook %d] %s\n", index+1, description)
+		envOverrides, err := resolveHookValuesMap(hook.Env, values)
+		if err != nil {
+			return fmt.Errorf("post hook %d: %w", index+1, err)
+		}
+		env, err := templateHookEnv(deps.CommandEnv(ctx), envOverrides)
+		if err != nil {
+			return fmt.Errorf("post hook %d: %w", index+1, err)
+		}
 		cwd := destination
 		if strings.TrimSpace(hook.Cwd) != "" && hook.Cwd != "." {
 			cwd = filepath.Join(destination, filepath.FromSlash(hook.Cwd))
 		}
-		env, err := templateHookEnv(deps.CommandEnv(ctx), hook.Env)
-		if err != nil {
-			return fmt.Errorf("post hook %d: %w", index+1, err)
-		}
+		resolved = append(resolved, resolvedTemplateHook{name: name, args: args, description: description, cwd: cwd, env: env})
+	}
+	for index, item := range resolved {
+		_, _ = fmt.Fprintf(output, "[Hook %d] %s\n", index+1, item.description)
 		if err := deps.RunSubprocess(ctx, shell.Spec{
-			Name:   name,
-			Args:   args,
-			Dir:    cwd,
-			Env:    env,
+			Name:   item.name,
+			Args:   item.args,
+			Dir:    item.cwd,
+			Env:    item.env,
 			Stdout: output,
 			Stderr: deps.Stderr(ctx),
 		}); err != nil {
@@ -205,20 +214,89 @@ func runTemplateHooks[C any](deps HandlerDeps[C], ctx C, destination string, man
 	return nil
 }
 
-func resolveTemplateHook(hook templatecontracts.TemplateHook) (string, []string, string, error) {
+type resolvedTemplateHook struct {
+	name        string
+	args        []string
+	description string
+	cwd         string
+	env         []string
+}
+
+var scenarioIDValue = regexp.MustCompile(`^[a-z][a-z0-9-]{0,62}$`)
+
+func resolveTemplateHook(hook templatecontracts.TemplateHook, values map[string]string) (string, []string, string, error) {
 	if len(hook.Argv) == 0 {
 		return "", nil, "", fmt.Errorf("argv must declare an executable")
 	}
-	name := strings.TrimSpace(hook.Argv[0])
+	argv, err := resolveHookValues(hook.Argv, values)
+	if err != nil {
+		return "", nil, "", err
+	}
+	name := strings.TrimSpace(argv[0])
 	if name == "" {
 		return "", nil, "", fmt.Errorf("argv[0] must declare a non-empty executable")
 	}
-	args := append([]string(nil), hook.Argv[1:]...)
+	args := append([]string(nil), argv[1:]...)
 	description := strings.TrimSpace(hook.Description)
 	if description == "" {
 		description = strings.Join(hook.Argv, " ")
 	}
 	return name, args, description, nil
+}
+
+func resolveHookValues(values []string, supplied map[string]string) ([]string, error) {
+	resolved := make([]string, len(values))
+	for i, original := range values {
+		value := original
+		var b strings.Builder
+		for len(value) > 0 {
+			start := strings.Index(value, "{{")
+			close := strings.Index(value, "}}")
+			if start < 0 {
+				if close >= 0 || strings.ContainsAny(value, "{}") {
+					return nil, fmt.Errorf("malformed hook token in %q", original)
+				}
+				b.WriteString(value)
+				break
+			}
+			if close >= 0 && close < start {
+				return nil, fmt.Errorf("malformed hook token in %q", original)
+			}
+			b.WriteString(value[:start])
+			end := strings.Index(value[start+2:], "}}")
+			if end < 0 {
+				return nil, fmt.Errorf("malformed hook token in %q", original)
+			}
+			end += start + 2
+			key := value[start+2 : end]
+			if key != "SCENARIO_ID" {
+				return nil, fmt.Errorf("unsupported hook token %q", key)
+			}
+			replacement, ok := supplied[key]
+			if !ok || replacement == "" {
+				return nil, fmt.Errorf("hook token %s has no value", key)
+			}
+			if !scenarioIDValue.MatchString(replacement) {
+				return nil, fmt.Errorf("hook token %s has invalid value %q", key, replacement)
+			}
+			b.WriteString(replacement)
+			value = value[end+2:]
+		}
+		resolved[i] = b.String()
+	}
+	return resolved, nil
+}
+
+func resolveHookValuesMap(values map[string]string, supplied map[string]string) (map[string]string, error) {
+	resolved := make(map[string]string, len(values))
+	for key, value := range values {
+		items, err := resolveHookValues([]string{value}, supplied)
+		if err != nil {
+			return nil, fmt.Errorf("environment %s: %w", key, err)
+		}
+		resolved[key] = items[0]
+	}
+	return resolved, nil
 }
 
 func templateHookEnv(base []string, overrides map[string]string) ([]string, error) {

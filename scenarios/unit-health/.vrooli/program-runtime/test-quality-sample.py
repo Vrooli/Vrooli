@@ -5,11 +5,8 @@ inputs = program.inputs()
 LABELS = {"behavioral", "weak_oracle", "missing_negative_case", "implementation_coupled", "valid_exception", "insufficient_context", "uncertain"}
 MAX_ROWS = 64
 env = {"program":"unit-health.test-quality-sample", "version":"1", "status":"failed", "phase":"validate", "signals":{}, "errors":[], "evidence":[]}
+program.attach(env)
 
-def fail(status, klass, detail, where):
-    env["status"] = status
-    env["errors"].append({"class": klass, "detail": str(detail)[:200], "where": where})
-    return "report"
 
 def identity(row):
     return ":".join(str(row.get(k, "")) for k in ("workspace", "file", "testId", "framework"))
@@ -40,17 +37,17 @@ def candidates_from_results(payload, workspace):
     return sorted(folded.values(), key=identity)[:MAX_ROWS]
 
 def step_validate():
-    if not isinstance(inputs, dict): return fail("failed", "invalid_input", "inputs must be an object", "validate")
+    if not isinstance(inputs, dict): return program.fail('failed', 'invalid_input', 'inputs must be an object', 'validate', detail_limit=200)
     scenario = inputs.get("scenario")
-    if not isinstance(scenario, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,127}", scenario): return fail("failed", "invalid_input", "scenario must be an exact scenario id", "validate")
-    if inputs.get("review_mode", "advisory") != "advisory" or inputs.get("selection", "stratified") != "stratified": return fail("failed", "invalid_input", "only stratified advisory review is supported", "validate")
+    if not isinstance(scenario, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,127}", scenario): return program.fail('failed', 'invalid_input', 'scenario must be an exact scenario id', 'validate', detail_limit=200)
+    if inputs.get("review_mode", "advisory") != "advisory" or inputs.get("selection", "stratified") != "stratified": return program.fail('failed', 'invalid_input', 'only stratified advisory review is supported', 'validate', detail_limit=200)
     size = inputs.get("sample_size", 12)
-    if type(size) is not int or size < 1 or size > MAX_ROWS: return fail("failed", "invalid_input", "sample_size must be within [1,64]", "validate")
+    if type(size) is not int or size < 1 or size > MAX_ROWS: return program.fail('failed', 'invalid_input', 'sample_size must be within [1,64]', 'validate', detail_limit=200)
     for key in ("seed", "source_identity"):
-        if not isinstance(inputs.get(key), str) or not inputs[key].strip() or len(inputs[key]) > 256: return fail("failed", "invalid_input", key + " is required and bounded", "validate")
+        if not isinstance(inputs.get(key), str) or not inputs[key].strip() or len(inputs[key]) > 256: return program.fail('failed', 'invalid_input', key + ' is required and bounded', 'validate', detail_limit=200)
     rows = inputs.get("candidates", [])
-    if not isinstance(rows, list) or len(rows) > MAX_ROWS: return fail("failed", "invalid_input", "candidates must be a bounded array", "validate")
-    if any(not isinstance(r, dict) for r in rows): return fail("failed", "invalid_input", "candidate rows must be objects", "validate")
+    if not isinstance(rows, list) or len(rows) > MAX_ROWS: return program.fail('failed', 'invalid_input', 'candidates must be a bounded array', 'validate', detail_limit=200)
+    if any(not isinstance(r, dict) for r in rows): return program.fail('failed', 'invalid_input', 'candidate rows must be objects', 'validate', detail_limit=200)
     env["inputs"] = {"scenario":scenario, "workspace":str(inputs.get("workspace", "api")), "sample_size":size, "seed":inputs["seed"], "source_identity":inputs["source_identity"], "selection":"stratified", "review_mode":"advisory", "include_controls":bool(inputs.get("include_controls", True))}
     return "collect"
 
@@ -66,14 +63,14 @@ def step_collect():
             rows = candidates_from_results(payload if isinstance(payload, dict) else {}, env["inputs"]["workspace"])
             env["evidence"].append("unit-health:validate:" + str(payload.get("runId", payload.get("run_id", "")) if isinstance(payload, dict) else "")[:96])
         except NameError:
-            return fail("unavailable", "scenario_unreachable", "Unit Health inventory unavailable", "collect")
+            return program.fail('unavailable', 'scenario_unreachable', 'Unit Health inventory unavailable', 'collect', detail_limit=200)
         except Exception as exc:
             status, klass = program.classify(exc)
-            return fail("unavailable" if status == "unavailable" else "failed", klass, str(exc), "collect")
-    if not rows: return fail("unavailable", "scenario_unreachable", "inventory unavailable or empty; no clean cohort inferred", "collect")
+            return program.fail('unavailable' if status == 'unavailable' else 'failed', klass, str(exc), 'collect', detail_limit=200)
+    if not rows: return program.fail('unavailable', 'scenario_unreachable', 'inventory unavailable or empty; no clean cohort inferred', 'collect', detail_limit=200)
     digests = {str(r.get("sourceDigest")) for r in rows if r.get("sourceDigest")}
     if digests and any(d != env["inputs"]["source_identity"] for d in digests):
-        return fail("unavailable", "source_drift", "candidate source identity differs from requested source", "collect")
+        return program.fail('unavailable', 'source_drift', 'candidate source identity differs from requested source', 'collect', detail_limit=200)
     # Stable hash ordering is deterministic for a fixed source identity and seed.
     rows = sorted(rows, key=lambda r: hashlib.sha256((env["inputs"]["seed"] + "\0" + identity(r)).encode()).hexdigest())
     priority = lambda r: 0 if r.get("staticStatus") == "violation" else (1 if r.get("staticStatus") in ("unknown", "") or r.get("runtimeStatus") == "unknown" else 2)
@@ -183,4 +180,4 @@ states = {"validate":step_validate, "collect":step_collect, "classify":step_clas
 state = "validate"
 while state:
     try: state = states[state]()
-    except Exception as exc: state = fail("failed", "kernel_runtime", exc, state)
+    except Exception as exc: state = program.fail('failed', 'kernel_runtime', exc, state, detail_limit=200)

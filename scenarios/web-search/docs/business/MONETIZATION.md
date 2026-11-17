@@ -8,7 +8,6 @@ better than inventing a commercial story.
 > is the *intended* role drawn from `PRD.md`. Direct external
 > monetization is an explicit deferred hypothesis, not a committed plan.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

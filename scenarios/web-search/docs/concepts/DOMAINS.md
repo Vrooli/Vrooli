@@ -12,7 +12,6 @@ domain is added, renamed, split, merged, or removed.
 > `curation` boundaries. The historical scaffold note is retained in
 > `docs/internal/PROGRESS.md` as an audit record, not as current state.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

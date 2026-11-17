@@ -41,7 +41,15 @@ func initDeepValidationRun(repoRoot, templateName, scenarioID, testPreset string
 		TestPreset:   testPreset,
 		RetainedTemp: retainTemp,
 	}
-	tempRoot, err := os.MkdirTemp("", "vrooli-template-deep-*")
+	// Keep generated validation scenarios inside the logical repository. Go's
+	// VCS stamping walks upward from the scenario's temp path; a generic system
+	// temp directory can inherit an unrelated .git (for example /tmp/.git) and
+	// make the generated API build fail before Test Genie reaches any phases.
+	tempParent := filepath.Join(repoRoot, ".vrooli", "template-validation")
+	if err := os.MkdirAll(tempParent, 0o700); err != nil {
+		return run, templatevalidation.RunMarker{}, false, fmt.Errorf("create deep validation temp parent: %v", err)
+	}
+	tempRoot, err := os.MkdirTemp(tempParent, "run-*")
 	if err != nil {
 		return run, templatevalidation.RunMarker{}, false, fmt.Errorf("create deep validation temp dir: %v", err)
 	}
@@ -507,7 +515,7 @@ func generateDeepValidationScenario[C any](deps HandlerDeps[C], ctx C, info temp
 	}, info.Name, info.Manifest); len(issues) > 0 {
 		return resolved, issues
 	}
-	if err := runTemplateHooks(deps, ctx, destination, info.Manifest, deps.Stderr(ctx)); err != nil {
+	if err := runTemplateHooks(deps, ctx, destination, info.Manifest, values, deps.Stderr(ctx)); err != nil {
 		return resolved, []templatecontracts.TemplateValidationIssue{{
 			Template: info.Name,
 			Message:  fmt.Sprintf("run template post hooks: %v", err),

@@ -30,6 +30,13 @@ const (
 // request is published under.
 var RemediationDecisionEventType = operatordecision.DecisionRequestedEventType(RemediationDecisionSource, RemediationDecisionKind)
 
+// RemediationDecisionSubjectKey names the situation a remediation request is
+// about: one incident. The hub keeps at most one open request per key, updates
+// it when the candidate changes and closes it when autoheal withdraws it.
+func RemediationDecisionSubjectKey(incidentID string) string {
+	return "remediation:" + incidentID
+}
+
 // RemediationDecisionSnapshotDigest binds the incident facts, selected candidate,
 // and that candidate's generated artifacts to one operator decision.
 func RemediationDecisionSnapshotDigest(incident Incident, candidate RemediationCandidate) (string, error) {
@@ -108,25 +115,16 @@ func findRemediationCandidate(candidates []RemediationCandidate, id string) (Rem
 }
 
 func BuildRemediationDecisionEvent(incident Incident, candidate RemediationCandidate, revision int, digest string, occurred, deadline time.Time) eventbus.DomainEvent {
-	facts := operatordecision.Facts{
-		Subject:              fmt.Sprintf("Approve remediation for incident %s", incident.Title),
-		Question:             fmt.Sprintf("Autoheal detected %q and proposes remediation %q (risk: %s). Approve applying it?", incident.Title, candidate.Title, remediationRiskLabel(candidate.RiskLevel)),
-		Options:              []operatordecision.Option{{Key: "approve", Label: "Approve remediation"}, {Key: "reject", Label: "Do not remediate"}},
-		Recommended:          "reject",
-		RecommendationReason: "A generated host script can affect the system; review its current candidate and artifact before approving.",
-		Reversible:           false,
-		Urgency:              "high",
-		Note:                 candidate.DecisionPrompt,
-		Deadline:             deadline.UTC(),
-		Correlation: map[string]string{
-			"incident_id":          incident.ID,
-			"incident_fingerprint": incident.Fingerprint,
-			"candidate_id":         candidate.ID,
-			"candidate_risk_level": candidate.RiskLevel,
-			"generation":           fmt.Sprint(incident.RemediationDecisionGeneration),
-			"revision":             fmt.Sprint(revision),
-			"candidate_digest":     digest,
-		},
+	facts := remediationDecisionFacts(incident, candidate, deadline)
+	facts.AssertedAt = occurred.UTC()
+	facts.Correlation = map[string]string{
+		"incident_id":          incident.ID,
+		"incident_fingerprint": incident.Fingerprint,
+		"candidate_id":         candidate.ID,
+		"candidate_risk_level": candidate.RiskLevel,
+		"generation":           fmt.Sprint(incident.RemediationDecisionGeneration),
+		"revision":             fmt.Sprint(revision),
+		"candidate_digest":     digest,
 	}
 	return operatordecision.BuildEvent(RemediationDecisionSource, RemediationDecisionKind, occurred.UTC(), facts)
 }
@@ -142,6 +140,8 @@ type Store interface {
 	EnsureRemediationDecisionPublication(ctx context.Context, incidentID string, observedAt time.Time) (*RemediationDecisionPublication, error)
 	ListPendingRemediationDecisionPublications(ctx context.Context, limit int) ([]RemediationDecisionPublication, error)
 	AcknowledgeRemediationDecisionPublication(ctx context.Context, eventID string) error
+	ListPendingRemediationDecisionWithdrawals(ctx context.Context, limit int) ([]RemediationDecisionWithdrawal, error)
+	AcknowledgeRemediationDecisionWithdrawal(ctx context.Context, eventIDs []string, at time.Time) error
 }
 
 type EventPublisher interface {
@@ -198,6 +198,11 @@ func (s *Service) UpdateIncidentStatus(ctx context.Context, incidentID string, s
 	}
 	if status == StatusResolved && (current == nil || current.Status != StatusResolved) {
 		s.publish(ctx, "incident.resolved.v1", updated)
+	}
+	if (status == StatusResolved || status == StatusIgnored) && !publicationDrainDeferred(ctx) {
+		// The incident no longer needs the operator: close its open request now
+		// rather than at the next tick.
+		s.publishPendingRemediationDecisionWithdrawals(ctx, pendingOpeningPublicationBatch)
 	}
 	return updated, nil
 }
@@ -484,7 +489,50 @@ const pendingOpeningPublicationBatch = 100
 // attempts across opening notices and remediation decisions.
 func (s *Service) DrainPendingPublications(ctx context.Context) {
 	attempted := s.publishPendingOpeningPublications(ctx, pendingOpeningPublicationBatch)
+	// Withdrawals go first: a request that no longer needs the operator must not
+	// wait behind new ones, and each is a single idempotent event.
+	s.publishPendingRemediationDecisionWithdrawals(ctx, pendingOpeningPublicationBatch)
 	s.publishPendingRemediationDecisionPublications(ctx, pendingOpeningPublicationBatch-attempted)
+}
+
+// publishPendingRemediationDecisionWithdrawals closes every published
+// remediation request whose incident no longer needs an answer: it resolved,
+// was dismissed, lost its applicable candidate, or the request was replaced by
+// a revision the hub cannot match to the same subject. A withdrawal the hub
+// cannot take now stays pending and retries on the next drain; the hub closes
+// only a still-open request, so a repeat is harmless.
+func (s *Service) publishPendingRemediationDecisionWithdrawals(ctx context.Context, limit int) {
+	if s == nil || s.store == nil || s.publisher == nil || limit <= 0 {
+		return
+	}
+	if readiness, ok := s.publisher.(interface{ Enabled() bool }); ok && !readiness.Enabled() {
+		return
+	}
+	decisionPublisher, ok := s.publisher.(DecisionPublisher)
+	if !ok {
+		return
+	}
+	pending, err := s.store.ListPendingRemediationDecisionWithdrawals(ctx, limit)
+	if err != nil {
+		log.Printf("vrooli-autoheal pending remediation withdrawal read failed: %v", err)
+		return
+	}
+	for _, withdrawal := range pending {
+		event := operatordecision.BuildWithdrawalEvent(RemediationDecisionSource, RemediationDecisionKind, withdrawal.AssertedAt, operatordecision.Withdrawal{
+			SubjectKey:   withdrawal.SubjectKey,
+			RequesterRef: withdrawal.RequesterRef,
+			Reason:       withdrawal.Reason,
+			AssertedAt:   withdrawal.AssertedAt,
+		})
+		if err := decisionPublisher.PublishDomainEvent(ctx, event); err != nil {
+			log.Printf("vrooli-autoheal remediation withdrawal publish failed: incident=%s error=%v", withdrawal.IncidentID, err)
+			return
+		}
+		if err := s.store.AcknowledgeRemediationDecisionWithdrawal(ctx, withdrawal.EventIDs, s.now()); err != nil {
+			log.Printf("vrooli-autoheal remediation withdrawal acknowledgement failed: incident=%s error=%v", withdrawal.IncidentID, err)
+			return
+		}
+	}
 }
 
 func (s *Service) publishPendingOpeningPublications(ctx context.Context, limit int) int {

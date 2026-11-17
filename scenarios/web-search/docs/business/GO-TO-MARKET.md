@@ -7,7 +7,6 @@ validation experiments for the scenario.
 > is internal-first by design. External go-to-market is an explicit
 > deferred hypothesis (see [`MONETIZATION.md`](MONETIZATION.md)).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

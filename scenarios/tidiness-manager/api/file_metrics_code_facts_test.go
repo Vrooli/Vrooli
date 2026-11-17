@@ -9,11 +9,11 @@ import (
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
-func TestLightScannerUsesCodeFactsFileMetrics(t *testing.T) {
+func TestLightScannerUsesOneCodeFactsResponseForInventoryAndGraphs(t *testing.T) {
 	called := false
 	source := reductionSourceFunc(func(_ context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 		called = true
-		if len(request.Msg.GetInclude()) != 1 || request.Msg.GetInclude()[0] != facts.FactFamily_FACT_FAMILY_FILE_METRICS {
+		if len(request.Msg.GetInclude()) != 2 || request.Msg.GetInclude()[0] != facts.FactFamily_FACT_FAMILY_SYMBOLS || request.Msg.GetInclude()[1] != facts.FactFamily_FACT_FAMILY_FILE_METRICS || !request.Msg.GetIncludeGraphs() {
 			t.Fatalf("requested families = %v", request.Msg.GetInclude())
 		}
 		return connect.NewResponse(&facts.CodeFactsReport{Facts: []*facts.GenericFact{{
@@ -23,11 +23,12 @@ func TestLightScannerUsesCodeFactsFileMetrics(t *testing.T) {
 				"code_lines": "2", "comment_lines": "1", "todo_count": "1", "fixme_count": "0", "hack_count": "0",
 				"as_any_count": "0", "as_type_assertion_count": "0", "ts_ignore_count": "0", "non_null_assertion_count": "0",
 				"fallback_import_count": "0", "fallback_function_count": "0",
+				"test_classification_version": "1", "is_test_file": "false", "has_test_file": "false",
 			},
 		}}}), nil
 	})
 	scanner := NewLightScanner(t.TempDir(), 0).withCodeFacts(source)
-	got, err := scanner.collectFileMetricsContext(context.Background())
+	got, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +39,7 @@ func TestLightScannerUsesCodeFactsFileMetrics(t *testing.T) {
 }
 
 func TestDetailedFileMetricsConsumesExistingInventory(t *testing.T) {
-	root := t.TempDir()
-	metrics, err := CollectDetailedFileMetricsFromInventory(root, []FileMetric{{Path: "api/unknown.zz", Lines: 7, Extension: ".zz"}}, nil)
+	metrics, err := CollectDetailedFileMetricsFromInventory([]FileMetric{{Path: "api/unknown.zz", Lines: 7, Extension: ".zz"}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestDetailedFileMetricsConsumesExistingInventory(t *testing.T) {
 }
 
 func TestLightScannerHasNoLocalInventoryFallback(t *testing.T) {
-	if _, err := NewLightScanner(t.TempDir(), 0).collectFileMetricsContext(context.Background()); err == nil {
+	if _, _, err := NewLightScanner(t.TempDir(), 0).collectScanFacts(context.Background()); err == nil {
 		t.Fatal("file metric collection without Code Facts must fail closed")
 	}
 }

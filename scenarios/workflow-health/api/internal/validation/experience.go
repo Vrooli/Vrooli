@@ -190,24 +190,6 @@ func assetsCoverLifecycle(assets []workflows.WorkflowAsset, region readinessRegi
 	return loading && terminal
 }
 
-func assetCoversLifecycle(asset workflows.WorkflowAsset, region readinessRegion) bool {
-	loading := false
-	terminal := false
-	for _, ref := range asset.Selectors {
-		raw := ref.Raw
-		if strings.Contains(raw, "data-experience-state") && strings.Contains(raw, "loading") || selectorKeyCoversState(ref.Key, region.ID, "loading") {
-			loading = true
-		}
-		for _, state := range region.Lifecycle.States {
-			if state != "loading" && state != "static" &&
-				(strings.Contains(raw, "data-experience-state") && strings.Contains(raw, state) || selectorKeyCoversState(ref.Key, region.ID, state)) {
-				terminal = true
-			}
-		}
-	}
-	return loading && terminal
-}
-
 func assetCoversRegion(asset workflows.WorkflowAsset, region readinessRegion) bool {
 	for _, ref := range asset.Selectors {
 		raw := ref.Raw

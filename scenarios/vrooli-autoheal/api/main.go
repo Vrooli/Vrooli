@@ -40,6 +40,7 @@ import (
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/recovery"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/middleware"
@@ -48,6 +49,7 @@ import (
 )
 
 func main() {
+	eventpublishing.Register()
 	// Preflight checks - must be first, before any initialization
 	if preflight.Run(preflight.Config{
 		ScenarioName: "vrooli-autoheal",
@@ -299,7 +301,7 @@ func run() error {
 	}
 	log.Printf("startup stage=event-publisher-resolved")
 	if notificationBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "notification-hub"); resolveErr == nil {
-		if verifier, verifierErr := remediation.NewNotificationHubAskVerifier(notificationBase); verifierErr == nil {
+		if verifier, verifierErr := remediation.NewNotificationHubAskVerifier(notificationBase, remediation.NewAskReaderTokens()); verifierErr == nil {
 			h.SetRemediationAskVerifier(verifier)
 			log.Printf("startup stage=remediation-ask-verifier-resolved")
 		} else {

@@ -19,7 +19,6 @@ everything derived from it. `forest` and `recall` may be rebuilt from
 from them. If a change would make a derived domain authoritative for
 something, it belongs in `journal` instead.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

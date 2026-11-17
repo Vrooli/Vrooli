@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 import { createRequire } from 'node:module';
 import RequirementReporter, { nativeAssertionOptions } from '@vrooli/vitest-requirement-reporter';
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const installedVitestVersion = createRequire(import.meta.url)('vitest/package.json').version as string;
 
@@ -33,7 +34,7 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react(), stringsCodegen()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react(), stringsCodegen()],
     resolve: isProfile
       ? {
           alias: {

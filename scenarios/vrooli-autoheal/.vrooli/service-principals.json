@@ -1,0 +1,22 @@
+{
+  "principals": [
+    {
+      "name": "vrooli-autoheal-ask-reader",
+      "resource": "notification-hub-ask-reader",
+      "audience": "scenario-authenticator:notification-hub-ask-reader",
+      "scopes": ["notification-hub:ask-read"]
+    },
+    {
+      "name": "vrooli-autoheal-event-publisher",
+      "resource": "vrooli-events",
+      "audience": "scenario-authenticator:vrooli-events",
+      "scopes": ["vrooli-events:publish"]
+    },
+    {
+      "name": "vrooli-autoheal-notification-hub",
+      "resource": "notification-hub",
+      "audience": "scenario-authenticator:notification-hub",
+      "scopes": ["notification-hub:send"]
+    }
+  ]
+}

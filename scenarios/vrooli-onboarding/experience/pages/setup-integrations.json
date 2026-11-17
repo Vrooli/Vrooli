@@ -8,7 +8,7 @@
     "routes": [
       "/setup/integrations"
     ],
-    "purpose": "State plainly that integration binding is deferred to integration-hub, and create nothing.",
+    "purpose": "State that Onboarding binding is deferred although Integration Hub has an OpenRouter pilot, and create nothing.",
     "prd_refs": [
       "OT-P2-002"
     ]
@@ -24,7 +24,7 @@
   "states": [
     {
       "id": "deferred",
-      "description": "Integration Hub is unavailable; the step declares the deferral.",
+      "description": "The OpenRouter Hub pilot exists, but Onboarding does not resolve manifest declarations to Hub bindings.",
       "setup": {
         "route": "/setup/integrations"
       }
@@ -38,7 +38,7 @@
     {
       "id": "deferral-notice",
       "role": "status",
-      "description": "Explains that connector and connection models are owned by integration-hub."
+      "description": "Explains that Integration Hub owns connection metadata and explicit bindings while Onboarding reports manifest requirements as deferred."
     },
     {
       "id": "contract-link",

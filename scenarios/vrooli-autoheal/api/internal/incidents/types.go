@@ -57,6 +57,20 @@ type RemediationDecisionPublication struct {
 	SupersededAt    *time.Time
 }
 
+// RemediationDecisionWithdrawal asks the hub to close an operator request that
+// no longer needs an answer. A request published with a subject key is closed
+// by that key; one published before subject keys existed is closed by the
+// event id it was raised with. EventIDs lists the publication rows the
+// acknowledgement marks as withdrawn.
+type RemediationDecisionWithdrawal struct {
+	IncidentID   string
+	SubjectKey   string
+	RequesterRef string
+	Reason       string
+	AssertedAt   time.Time
+	EventIDs     []string
+}
+
 type Incident struct {
 	ID                             string                 `json:"id"`
 	Fingerprint                    string                 `json:"fingerprint"`

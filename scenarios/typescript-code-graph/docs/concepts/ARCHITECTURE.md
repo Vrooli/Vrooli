@@ -9,7 +9,6 @@ Keep this file high-signal. Do not turn it into a warehouse for every
 domain, endpoint, workflow, or decision. If a concern has a dedicated
 document below, update that document and link it here.
 
-## Purpose Of This Document
 
 This document owns:
 
@@ -250,10 +249,10 @@ Every top-level directory under the scenario root has exactly one owner and one 
 | `api/` | API service | Go HTTP/Connect-RPC server; business logic; per-path serialization; sidecar supervision. | Module root. Subdirectory rules below. |
 | `api/cmd/gen-endpoints/` | Codegen | Generates `.vrooli/endpoints.json` from the modules registry. | Pure tool; not imported by production code. |
 | `api/handlers/{graph,health,rewrite}/` | Transport edge | Connect handler factories, proto<->domain translation, error-code mapping. | Imports `internal/<domain>` for the service interface; never the repository or persistence directly. |
-| `api/internal/graph/` | Graph domain | Extract orchestration, NodeID/EdgeID derivation, hashing, normalization, error mapping, leading-comment passthrough. | Forbidden imports: `os/exec` (sidecar only), `time` for wall-clock (use `schedule.Clock`), `net/http` (use `httpc.Doer`), sibling product domains. |
+| `api/internal/graph/` | Graph domain | Extract orchestration, NodeID/EdgeID derivation, hashing, normalization, error mapping, leading-comment passthrough. | Forbidden imports: `os/exec` (sidecar only), `time` for wall-clock (use `schedule.Clock`), `net/http` (introduce an outbound seam only with a production consumer), sibling product domains. |
 | `api/internal/rewrite/` | Rewrite domain | RewritePlan/Apply orchestration, PlanID stability, in-memory PlanStore, dry-run short-circuit. | Same import-quarantine as `graph/`. `no_external_command_test.go` asserts no `exec.Command` to git/tsc/pnpm/node from this package. |
 | `api/internal/sidecar/` | Sidecar substrate | **Only** package allowed to `import "os/exec"`. Owns spawn, framing, handshake, heartbeat, restart-with-backoff, cancellation, and the `SidecarClient`/`Supervisor` types. | Importable by `main.go` (wiring) and test packages. Not importable by `graph`/`rewrite` (they take `SidecarClient` via constructor). |
-| `api/internal/{clock,httpc,httpx,middleware,module,modules,server,database,testutil}/` | Template substrate | Cross-cutting infrastructure inherited from the react-vite template. | See react-vite template docs. |
+| `api/internal/{clock,httpx,middleware,module,modules,server,database,testutil}/` | Template substrate | Cross-cutting infrastructure inherited from the react-vite template. | See react-vite template docs. |
 | `api/internal/{graph,rewrite,sidecar}/mocks/` | Per-domain fakes | `FakeSidecarClient`, `FakePlanStore`. Co-located with the domain. | Test-only via `testutil/no_prod_import_test.go`. |
 | `api/internal/sidecar/testdata/fake_sidecar.js` | Test fixture | Minimal Node IPC peer for supervisor tests (avoids the real `dist/index.js`). | Test-only. |
 | `cli/` | CLI binary | Thin wrapper over the Connect-RPC API. `cli-core` argument parsing + manifest-driven dispatch. | No business logic. Forbidden: hand-rolled HTTP/JSON; must use generated Connect-Go client. |

@@ -1,6 +1,5 @@
 # Data
 
-## Purpose Of This Document
 
 Name the data onboarding owns, the data it projects without owning, and the data
 it must never hold.
@@ -44,13 +43,14 @@ flowchart LR
 | Resource enablement | `operator-state.resources.*` | Patches — and this is the only authority for it |
 | Host tool and safeguard opt-in, safeguard config | `operator-state.host_tools.*`, `host_safeguards.*` | Patches |
 | Completion marker and degraded acknowledgement | `operator-state` | Patches |
-| Trust posture | `operator-state.trust_posture` | **Preserves. Never writes.** |
-| Core-set authority | `operator-state.core` | **Preserves. Never writes.** |
+| Trust posture | `operator-state.trust_posture` | Carries through; excluded from onboarding writes |
+| Core-set authority | `operator-state.core` | Carries through; excluded from onboarding writes |
 | Active profile | `operator-state.active_profile` | Patches the selected profile provenance |
-| Integration bindings | integration-hub | Deferred; creates nothing |
+| Integration declarations | `service.json#integrations[]` | Reads; reports deferred readiness only |
+| Hub connection bindings | Integration Hub connection metadata | Not read or written by Onboarding |
 
-The two "preserves, never writes" rows are load-bearing. Trust posture selects
-token, break-glass, node-execution, and JWKS-cache defaults across the whole
+These rows record independent invariants. Trust posture selects token,
+break-glass, node-execution, and JWKS-cache defaults across the whole
 install; the core set grants control-plane fallback protection. Neither is an
 onboarding decision, and both live in a document onboarding writes — so the
 write path must be incapable of touching them.

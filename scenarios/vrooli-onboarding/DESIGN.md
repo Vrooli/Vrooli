@@ -100,11 +100,9 @@ release or native qualification.
 
 | Capability | Why deferred | Revisit trigger |
 |---|---|---|
-| Integrations step | Connector and connection models are owned by integration-hub | integration-hub ships |
+| Integrations step | Onboarding does not connect manifest requirements to Hub bindings | Implement and validate an explicit manifest-to-connection workflow |
 
 Onboarding publishes its metadata-only configuration provider to search-hub;
-indexing and query ranking remain search-hub responsibilities. A deferred
-integration step says so and creates nothing. A step that fabricates state so
-the flow looks complete is worse than an empty one.
-
-A deferred step says so and creates nothing. A step that fabricates state so the flow looks complete is worse than an empty one.
+indexing and query ranking remain search-hub responsibilities. The integration
+step names declared requirements as deferred and creates no bindings. A step
+that fabricates state for an unsupported provider flow would mislead the operator.

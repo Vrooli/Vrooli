@@ -53,7 +53,8 @@ lifecycle markers, caches, and generated runtime state are not.
 | Degraded acknowledgement | `operator-state` | Operator | 9 |
 | Trust posture | `operator-state.trust_posture` | Control plane | — *(preserved, never written here)* |
 | Active profile | `operator-state.active_profile` | Onboarding profile provenance | Welcome / goal intake |
-| Integration binding | `operator-state.integrations.*` | integration-hub *(deferred)* | 4 |
+| Scenario integration requirement | `service.json#integrations[]` | Scenario author; Onboarding reports deferred readiness | 5 |
+| Hub scenario/context binding | Integration Hub connection metadata | Not managed by Onboarding | — |
 
 The bold row is the one that historically had two authorities. Resource
 enablement lives in operator state and nowhere else: `vrooli resource enable`

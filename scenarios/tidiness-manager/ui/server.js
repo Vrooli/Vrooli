@@ -24,7 +24,6 @@ const app = createScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'tidiness-manager',
-  corsOrigins: '*',
   // Inject config into HTML to avoid fetch issues with SPA routing
   scenarioConfig: {
     apiUrl: `http://127.0.0.1:${apiPort}/api/v1`,

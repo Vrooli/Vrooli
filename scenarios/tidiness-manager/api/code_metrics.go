@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/vrooli/api-core/factgraph"
-	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 // CodeMetrics contains language-agnostic code quality metrics
@@ -59,15 +58,11 @@ func NewCodeMetricsAnalyzer(scenarioPath string) *CodeMetricsAnalyzer {
 	return &CodeMetricsAnalyzer{scenarioPath: scenarioPath}
 }
 
-// AnalyzeInventory aggregates the lexical metrics already supplied by Code
-// Facts and structural counts from its language graph.
-func (cma *CodeMetricsAnalyzer) AnalyzeInventory(inventory []FileMetric, lang Language, report *facts.CodeFactsReport) (*CodeMetrics, error) {
-	return cma.AnalyzeInventoryWithGraphMetrics(inventory, lang, graphFileMetrics(report))
-}
-
-func (cma *CodeMetricsAnalyzer) AnalyzeInventoryWithGraphMetrics(inventory []FileMetric, lang Language, graphMetrics map[string]map[Language]graphFileMetric) (*CodeMetrics, error) {
+// AnalyzeInventoryWithGraphMetrics combines a canonical file inventory with
+// graph counts projected once from the shared Code Facts response.
+func (cma *CodeMetricsAnalyzer) AnalyzeInventoryWithGraphMetrics(inventory []FileMetric, lang Language, graphMetrics map[string]map[Language]graphFileMetric) *CodeMetrics {
 	if len(inventory) == 0 {
-		return &CodeMetrics{}, nil
+		return &CodeMetrics{}
 	}
 
 	var totalTodos, totalFixmes, totalHacks int
@@ -77,26 +72,17 @@ func (cma *CodeMetricsAnalyzer) AnalyzeInventoryWithGraphMetrics(inventory []Fil
 	var filesWithTests, filesWithoutTests int
 	var totalAsAny, totalAsType, totalTsIgnore, totalNonNull int
 
-	files := make([]string, 0, len(inventory))
 	for _, metric := range inventory {
-		files = append(files, metric.Path)
-	}
-	testFiles, sourceFiles := cma.buildTestFileMaps(files, lang)
-	metricsByPath := make(map[string]FileMetric, len(inventory))
-	for _, metric := range inventory {
-		metricsByPath[metric.Path] = metric
-	}
-
-	for _, relPath := range files {
+		relPath := metric.Path
 		// Skip test files themselves when counting coverage
-		if cma.isTestFile(relPath, lang) {
+		if metric.IsTestFile {
 			continue
 		}
 
-		fileMetrics := codeMetricsFromFileMetric(metricsByPath[relPath])
+		fileMetrics := codeMetricsFromFileMetric(metric)
 
 		// Check if this source file has a test
-		fileMetrics.HasTestFile = cma.hasTestFile(relPath, testFiles, sourceFiles, lang)
+		fileMetrics.HasTestFile = metric.HasTestFile
 		if graphMetric, ok := graphMetrics[relPath][lang]; ok && graphMetric.graphBacked {
 			fileMetrics.ImportCount, fileMetrics.FunctionCount = graphMetric.imports, graphMetric.functions
 		}
@@ -159,7 +145,7 @@ func (cma *CodeMetricsAnalyzer) AnalyzeInventoryWithGraphMetrics(inventory []Fil
 		AsTypeAssertionCount:  totalAsType,
 		TsIgnoreCount:         totalTsIgnore,
 		NonNullAssertionCount: totalNonNull,
-	}, nil
+	}
 }
 
 func codeMetricsFromFileMetric(metric FileMetric) *FileCodeMetrics {
@@ -186,12 +172,12 @@ type graphFileMetric struct {
 	graphBacked        bool
 }
 
-// graphFileMetrics projects each graph once into file-level counts. Previously
-// AnalyzeInventory rebuilt module paths and rescanned every graph for every
-// source file, making this path O(files × (nodes + edges)).
-func graphFileMetrics(report *facts.CodeFactsReport) map[string]map[Language]graphFileMetric {
+func graphFileMetricsFromIndex(index *factgraph.Index) map[string]map[Language]graphFileMetric {
 	result := make(map[string]map[Language]graphFileMetric)
-	for _, file := range factgraph.NewIndex(report).Files() {
+	if index == nil {
+		return result
+	}
+	for _, file := range index.Files() {
 		language := Language(file.Language())
 		metric := graphFileMetric{imports: file.Imports(), graphBacked: true}
 		for _, node := range file.Nodes() {
@@ -211,38 +197,20 @@ func graphFileMetrics(report *facts.CodeFactsReport) map[string]map[Language]gra
 	return result
 }
 
-// buildTestFileMaps separates test paths from source paths for companion lookup.
-func (cma *CodeMetricsAnalyzer) buildTestFileMaps(files []string, lang Language) (map[string]bool, map[string]bool) {
-	testFiles := make(map[string]bool)
-	sourceFiles := make(map[string]bool)
-	for _, file := range files {
-		if cma.isTestFile(file, lang) {
-			testFiles[file] = true
-		} else {
-			sourceFiles[file] = true
-		}
-	}
-	return testFiles, sourceFiles
-}
-
 // IsTestFilePath checks if a file path looks like a test file based on common
 // naming conventions across languages. Unlike the method variant, this does not
 // require a Language parameter — it checks all known patterns.
 func IsTestFilePath(filePath string) bool {
-	base := filepath.Base(filePath)
-	return strings.HasSuffix(base, "_test.go") ||
-		strings.HasSuffix(base, ".test.ts") ||
-		strings.HasSuffix(base, ".test.tsx") ||
-		strings.HasSuffix(base, ".spec.ts") ||
-		strings.HasSuffix(base, ".spec.tsx") ||
-		strings.HasSuffix(base, ".test.js") ||
-		strings.HasSuffix(base, ".test.jsx") ||
-		strings.HasSuffix(base, ".spec.js") ||
-		strings.HasSuffix(base, ".spec.jsx") ||
-		strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".py") ||
-		strings.HasSuffix(base, "_test.py") ||
-		strings.Contains(filePath, "__tests__") ||
-		strings.Contains(filePath, "/tests/")
+	if strings.Contains(filePath, "/tests/") {
+		return true
+	}
+	var analyzer CodeMetricsAnalyzer
+	for _, language := range []Language{LanguageGo, LanguageTypeScript, LanguageJavaScript, LanguagePython, LanguageRust} {
+		if analyzer.isTestFile(filePath, language) {
+			return true
+		}
+	}
+	return false
 }
 
 // isTestFile checks if a file is a test file based on language conventions
@@ -275,99 +243,6 @@ func (cma *CodeMetricsAnalyzer) isTestFile(filePath string, lang Language) bool 
 		// Rust: tests in tests/ directory or #[cfg(test)] modules
 		// For now, just check tests/ directory
 		return strings.Contains(filePath, "/tests/")
-
-	default:
-		return false
-	}
-}
-
-// hasTestFile matches by exact stem or same-directory longest source stem.
-// This filename heuristic does not prove that tests cover the source behavior.
-func (cma *CodeMetricsAnalyzer) hasTestFile(sourceFile string, testFiles, sourceFiles map[string]bool, lang Language) bool {
-	dir := filepath.Dir(sourceFile)
-	base := filepath.Base(sourceFile)
-	ext := filepath.Ext(base)
-	nameWithoutExt := strings.TrimSuffix(base, ext)
-
-	switch lang {
-	case LanguageGo:
-		// Go: file.go -> file_test.go or file_behavior_test.go.
-		testFile := filepath.Join(dir, nameWithoutExt+"_test.go")
-		if testFiles[testFile] {
-			return true
-		}
-		// A descriptive suffix is common for package tests that cover one
-		// production file (for example, overlap_agree_behavior_test.go).
-		for candidate := range testFiles {
-			if filepath.Dir(candidate) != dir {
-				continue
-			}
-			candidateBase := filepath.Base(candidate)
-			if !strings.HasPrefix(candidateBase, nameWithoutExt+"_") || !strings.HasSuffix(candidateBase, "_test.go") {
-				continue
-			}
-			candidateStem := strings.TrimSuffix(candidateBase, "_test.go")
-			mostSpecificSource := ""
-			if sourceFiles[filepath.Join(dir, candidateStem+".go")] {
-				mostSpecificSource = filepath.Join(dir, candidateStem+".go")
-			}
-			for i, char := range candidateStem {
-				if char != '_' {
-					continue
-				}
-				possibleSource := filepath.Join(dir, candidateStem[:i]+".go")
-				if sourceFiles[possibleSource] && len(candidateStem[:i]) > len(strings.TrimSuffix(filepath.Base(mostSpecificSource), ".go")) {
-					mostSpecificSource = possibleSource
-				}
-			}
-			if mostSpecificSource != "" && mostSpecificSource != sourceFile {
-				continue
-			}
-			return true
-		}
-		return false
-
-	case LanguageTypeScript, LanguageJavaScript:
-		// TS/JS: multiple possible test file patterns
-		// 1. Same directory: file.ts -> file.test.ts or file.spec.ts
-		// 2. __tests__ directory: file.ts -> __tests__/file.test.ts
-		possibleTests := []string{
-			filepath.Join(dir, nameWithoutExt+".test"+ext),
-			filepath.Join(dir, nameWithoutExt+".spec"+ext),
-			filepath.Join(dir, "__tests__", nameWithoutExt+".test"+ext),
-			filepath.Join(dir, "__tests__", nameWithoutExt+".spec"+ext),
-			filepath.Join(dir, "__tests__", base),
-		}
-		for _, testFile := range possibleTests {
-			if testFiles[testFile] {
-				return true
-			}
-		}
-		return false
-
-	case LanguagePython:
-		// Python: file.py -> test_file.py or file_test.py
-		possibleTests := []string{
-			filepath.Join(dir, "test_"+base),
-			filepath.Join(dir, nameWithoutExt+"_test.py"),
-		}
-		for _, testFile := range possibleTests {
-			if testFiles[testFile] {
-				return true
-			}
-		}
-		return false
-
-	case LanguageRust:
-		// Rust: typically tests are in the same file or in tests/ directory
-		// For now, assume if tests/ directory exists, it has tests
-		testsDir := filepath.Join(dir, "tests")
-		for testFile := range testFiles {
-			if strings.HasPrefix(testFile, testsDir) {
-				return true
-			}
-		}
-		return false
 
 	default:
 		return false

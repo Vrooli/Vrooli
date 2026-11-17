@@ -28,7 +28,8 @@ func collectDetailedFileMetricsForTest(root string, files []string, langMetrics 
 		}
 		inventory = append(inventory, FileMetric{Path: relPath, Lines: count, Extension: filepath.Ext(relPath)})
 	}
-	return CollectDetailedFileMetricsFromInventory(root, inventory, langMetrics)
+	applyFixtureTestClassification(inventory)
+	return CollectDetailedFileMetricsFromInventory(inventory, langMetrics)
 }
 
 // countLines is retained for assertions against temporary test fixtures only.

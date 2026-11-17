@@ -86,11 +86,14 @@ An unreachable native store never falls back to the encrypted file store.
 worse than the degraded state `doctor` reports, because the split is invisible
 until a value cannot be found.
 
-## Integration-hub is the only deferred V2 capability, and it creates nothing
+## Onboarding integration binding remains deferred, and it creates nothing
 
-**Tradeoff**: a visibly empty step in the flow. **Why it wins**: a step that
-fabricates a connection so the flow looks complete produces state nothing can
-honour, and it is discovered at the worst possible time.
+**Tradeoff**: a deferred step remains until Onboarding supports an explicit
+manifest-to-connection workflow. **Why it wins**: Integration Hub has a current
+OpenRouter metadata pilot, but fabricating a binding for an unsupported or
+unverified declaration would create state its consumer cannot honor. The Hub
+and the onboarding step have separate owners; see
+[concepts/INTEGRATIONS.md](../concepts/INTEGRATIONS.md).
 
 ## Profiles use bounded repository-owned data
 

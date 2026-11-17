@@ -10,7 +10,6 @@ exclusive UI modes.
 > lifecycle behavior. Formal model artifacts remain a separate maturity
 > target where listed.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

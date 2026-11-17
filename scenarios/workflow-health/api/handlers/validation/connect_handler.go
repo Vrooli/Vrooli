@@ -264,15 +264,9 @@ func (scenarioURLResolver) ResolveScenarioURLDefault(ctx context.Context, scenar
 }
 
 func validationStatusOptions(report providerReport) []assessment.ValidationResponseOption {
-	if report.Summary.NotEvaluated > 0 || report.Summary.Refused > 0 {
-		return []assessment.ValidationResponseOption{
-			assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED),
-		}
-	}
-	if report.Summary.Failed > 0 {
-		return []assessment.ValidationResponseOption{
-			assessment.WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED),
-		}
+	status := assessment.ObservedValidationStatus(report.Summary.Failed > 0, report.Summary.NotEvaluated > 0 || report.Summary.Refused > 0)
+	if status != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		return []assessment.ValidationResponseOption{assessment.WithValidationStatus(status)}
 	}
 	return nil
 }

@@ -8,7 +8,6 @@ other scenarios, and third-party services used by the scenario.
 > SearXNG, Qdrant, Ollama, Agent Manager, and BAS paths report typed
 > unavailable or degraded outcomes when they cannot be reached.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

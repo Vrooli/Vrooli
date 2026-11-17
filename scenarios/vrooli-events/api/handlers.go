@@ -321,6 +321,10 @@ func (s *Server) handleIngest(w http.ResponseWriter, r *http.Request) {
 
 	event.ID = id
 
+	// Count how the claimed source fared against the publisher proof. Observation
+	// never refuses, alters or fails an accepted event.
+	s.publishers.Observe(r.Context(), r.Header, env.GetSource().GetScenario(), env.EventType, env.EventId)
+
 	// Broadcast asynchronously so ingestion latency is not affected by slow subscribers.
 	go func() {
 		envOut, err := convert.EventToEnvelope(event)

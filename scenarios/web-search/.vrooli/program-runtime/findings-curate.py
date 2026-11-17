@@ -29,10 +29,6 @@ envelope = {
 handles = {}
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:160], "where": where})
-    return "report"
 
 
 def propose(kind, finding_id, verb, evidence):
@@ -45,9 +41,9 @@ def propose(kind, finding_id, verb, evidence):
 
 def step_validate():
     if not (1 <= limit <= 500):
-        return fail("failed", "invalid_input", f"limit={limit} outside 1..500", "validate")
+        return program.fail("failed", "invalid_input", f"limit={limit} outside 1..500", "validate", detail_limit=160)
     if not (0.0 < decayed_below <= 1.0):
-        return fail("failed", "invalid_input", f"decayed_below={decayed_below} outside (0, 1]", "validate")
+        return program.fail("failed", "invalid_input", f"decayed_below={decayed_below} outside (0, 1]", "validate", detail_limit=160)
     return "collect"
 
 
@@ -60,7 +56,7 @@ def step_collect():  # COLLECT · governed reads only, concurrent
         )
     except Exception as exc:
         status, klass = program.classify(exc)
-        return fail(status, klass, exc, "collect")
+        return program.fail(status, klass, exc, "collect", detail_limit=160)
     handles.update(eff=eff, disputes=disputes)
     return "act"
 
@@ -73,7 +69,7 @@ def step_act():  # ACT · the one write-effect binding, invoked in dry-run only 
         handles["gc"].count()
     except Exception as exc:
         status, klass = program.classify(exc)
-        return fail(status, klass, exc, "act")
+        return program.fail(status, klass, exc, "act", detail_limit=160)
     return "classify"
 
 

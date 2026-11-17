@@ -284,15 +284,6 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 	result.LongFilesCount = len(result.LongFiles)
 
 	// Collect and persist detailed file metrics to database (TM-FM-001, TM-FM-002)
-	scenarioPath, err := sc.scenarios.ScenarioPath(result.Scenario)
-	if err != nil {
-		return nil, &ScanError{
-			Status:  http.StatusInternalServerError,
-			Message: "failed to resolve scenario path",
-			Err:     err,
-		}
-	}
-
 	filePaths := make([]string, len(result.FileMetrics))
 	for i, fm := range result.FileMetrics {
 		filePaths[i] = fm.Path
@@ -303,7 +294,7 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 	if len(filePaths) > 0 {
 		// Pass language metrics for complexity/duplication data
 		var metricsErr error
-		detailedMetrics, metricsErr = CollectDetailedFileMetricsFromInventory(scenarioPath, result.FileMetrics, result.LanguageMetrics)
+		detailedMetrics, metricsErr = CollectDetailedFileMetricsFromInventory(result.FileMetrics, result.LanguageMetrics)
 		if metricsErr != nil {
 			sc.log("failed to collect detailed metrics", map[string]interface{}{
 				"error":    metricsErr.Error(),
@@ -482,7 +473,7 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 	}
 
 	// Pass language metrics for complexity/duplication data
-	detailedMetrics, metricsErr := CollectDetailedFileMetricsFromInventory(scenarioPath, result.FileMetrics, result.LanguageMetrics)
+	detailedMetrics, metricsErr := CollectDetailedFileMetricsFromInventory(result.FileMetrics, result.LanguageMetrics)
 	if metricsErr != nil {
 		sc.log("failed to collect detailed metrics", map[string]interface{}{
 			"error":    metricsErr.Error(),

@@ -1,12 +1,7 @@
-import json
 inputs = program.inputs()
 
-envelope = {"program": "visited-tracker.setpoint-read", "version": "2", "status": "failed", "phase": "validate", "inputs": {}, "signals": {}, "errors": [], "evidence": []}
+envelope = program.envelope('visited-tracker.setpoint-read', '2', phase="validate", inputs={})
 
-def fail(status, kind, detail):
-    envelope["status"] = status
-    envelope["errors"].append({"class": kind, "detail": str(detail)[:240], "where": envelope["phase"]})
-    return "report"
 
 def meta_value(meta, snake, camel):
     return meta.get(snake, meta.get(camel))
@@ -62,7 +57,7 @@ def integrity_and_storage_rows(meta):
 def step_validate():
     campaign = inputs.get("campaign_id", "")
     if campaign is not None and (not isinstance(campaign, str) or len(campaign) > 36):
-        return fail("failed", "invalid_input", "campaign_id must be a UUID when supplied")
+        return program.fail('failed', 'invalid_input', 'campaign_id must be a UUID when supplied', envelope["phase"])
     envelope["inputs"] = {"campaign_id": campaign}
     return "collect"
 
@@ -79,7 +74,7 @@ def step_collect():
         envelope["status"] = "ok" if measured else "partial"
     except Exception as exc:
         status, kind = program.classify(exc)
-        fail("partial", kind, str(exc))
+        program.fail('partial', kind, str(exc), envelope["phase"])
         rows.append({"row": "binding-condition", "reading": None, "target": 0, "in_band": None, "unavailable": True, "reason": "scenario_unreachable" if status == "unavailable" else "unreliable:" + kind})
     campaign = envelope["inputs"].get("campaign_id", "")
     telemetry = None
@@ -99,7 +94,7 @@ def step_collect():
                 rows.append({"row": "attention-fairness", "reading": None, "target": 86400, "in_band": None, "unavailable": True, "reason": "unreliable:missing-telemetry"})
         except Exception as exc:
             status, kind = program.classify(exc)
-            fail("partial", kind, str(exc))
+            program.fail('partial', kind, str(exc), envelope["phase"])
             rows.append({"row": "attention-fairness", "reading": None, "target": 86400, "in_band": None, "unavailable": True, "reason": "scenario_unreachable" if status == "unavailable" else "unreliable:" + kind})
     else:
         rows.append({"row": "attention-fairness", "reading": None, "target": 86400, "in_band": None, "unavailable": True, "reason": "pending_campaign_id"})
@@ -115,7 +110,7 @@ def step_collect():
 
 def step_report():
     envelope["phase"] = "report"
-    print(json.dumps(envelope, allow_nan=False))
+    program.report(envelope)
     return None
 
 STATES = {"validate": step_validate, "collect": step_collect, "report": step_report}
@@ -126,4 +121,4 @@ while state:
     except Exception as exc:
         if envelope["phase"] == "report":
             raise
-        state = fail("failed", "kernel_runtime", str(exc))
+        state = program.fail('failed', 'kernel_runtime', str(exc), envelope["phase"])

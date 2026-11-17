@@ -82,7 +82,7 @@ beforeEach(() => {
     resources: ["postgres"],
     credentials: [{ resource: "openrouter", logical_id: "openrouter", field: "api_key", label: "OpenRouter key", required: true, status: "unconfigured" }],
     hosts: [{ name: "git", status: "ready", kind: "tool", required: true }],
-    integrations: [{ name: "alpha/github-oauth", category: "integration", status: "deferred", required: true, detail: "Read project issues. Connection setup is deferred until the integration capability is available." }, { name: "release-authority", category: "system", status: "ready" }],
+    integrations: [{ name: "alpha/github-oauth", category: "integration", status: "deferred", required: true, detail: "Read project issues. Onboarding does not bind this declaration to an Integration Hub connection." }, { name: "release-authority", category: "system", status: "ready" }],
     checked_at: "2026-07-29T00:00:00Z",
     blockers: [],
     degraded: [],

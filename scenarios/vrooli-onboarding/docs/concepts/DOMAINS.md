@@ -1,6 +1,5 @@
 # Domains — Vrooli Onboarding
 
-## Purpose Of This Document
 
 Name the capabilities that own onboarding behaviour, so requirements, code, and
 tests agree on where a decision lives.
@@ -58,7 +57,7 @@ as metadata, patches only the fields it owns, and preserves the rest.
 
 | Candidate | Why deferred | Revisit trigger |
 |---|---|---|
-| integrations | Connector and connection models are owned by integration-hub | integration-hub ships |
+| integrations | Show manifest requirements as deferred; do not query Hub or bind connections | Explicit manifest-to-connection workflow with scope and multi-binding semantics |
 
 ## Cross-References
 

@@ -17,7 +17,8 @@ resume state):
 3. **Resources** — required resources are already selected; add optional ones.
 4. **Credentials** — each card explains what the credential unlocks and links to
    where you get one. Values go straight to the credential authority.
-5. **Integrations** — empty until integration-hub ships.
+5. **Integrations** — review declared requirements as deferred. The current
+   OpenRouter Hub pilot is separate; this step does not create bindings.
 6. **Host** — consent to the tools and safeguards your selection needs. Risk and
    privilege are shown before you choose.
 7. **Operating mode** — confirm lifecycle auto-restart preferences; this does

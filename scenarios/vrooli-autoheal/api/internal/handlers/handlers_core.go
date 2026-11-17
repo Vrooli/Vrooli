@@ -70,6 +70,8 @@ type StoreInterface interface {
 	EnsureRemediationDecisionPublication(ctx context.Context, incidentID string, observedAt time.Time) (*incidents.RemediationDecisionPublication, error)
 	ListPendingRemediationDecisionPublications(ctx context.Context, limit int) ([]incidents.RemediationDecisionPublication, error)
 	AcknowledgeRemediationDecisionPublication(ctx context.Context, eventID string) error
+	ListPendingRemediationDecisionWithdrawals(ctx context.Context, limit int) ([]incidents.RemediationDecisionWithdrawal, error)
+	AcknowledgeRemediationDecisionWithdrawal(ctx context.Context, eventIDs []string, at time.Time) error
 	RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error)
 	RecordIncidentRemediationOutcome(ctx context.Context, incidentID string, outcome incidents.Outcome) (*incidents.Incident, error)
 	// Action log operations [REQ:HEAL-ACTION-001]

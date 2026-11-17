@@ -166,7 +166,7 @@
     },
     {
       "id": "ONB-INTEGRATIONS-DEFERRED",
-      "title": "If a scenario declares an integration before integration-hub ships, then the integrations step shall present it as deferred and shall create no binding.",
+      "title": "If a scenario declares an integration, then the step shall report it as deferred until Onboarding implements a supported manifest-to-connection flow, and shall create no binding. Integration Hub’s current OpenRouter pilot does not change this boundary.",
       "status": "complete",
       "prd_ref": "OT-P2-002",
       "category": "experience",

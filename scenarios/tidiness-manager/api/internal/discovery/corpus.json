@@ -1,5 +1,5 @@
 {
-  "version": "debt-detector-corpus-v12",
+  "version": "debt-detector-corpus-v18",
   "historical_audit": {
     "evidence_ref": "programme-four-20261110/dr1-historical-detector-evidence-v2.json",
     "evidence_sha256": "15b312062b5eb9f68702eb95c68cb9b68bb116c6573e8e8e176d88ef3ac14b4b",
@@ -13607,6 +13607,454 @@
           "BodyLines": 13
         }
       ]
+    },
+    {
+      "id": "live-v4-quality-health-go-group-01",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-live-go-census-20261116.json",
+      "source_hash": "011323a19f8c1f0abc4e2fe29ea75ccec9d029ac031ceb81ee5e9fec28654d76",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "reason": "Independent complete build-aware API/CLI source census; exact full-location match with served recommendations: True. Exact-function identity label only; this does not establish safe consolidation or removable-line actionability.",
+      "sampling_frame": "dr1-live-quality-health-go-census-20261116-v1",
+      "sampling_population_id": "sha256:8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "symbols": [
+        {
+          "Name": "findingCounts",
+          "Path": "api/handlers/audit/handler.go",
+          "BodyHash": "e5647f8ad359142e257f3f364302c0dd03044566a8c19e1f63c8cb58ca83e076",
+          "BodyLines": 13,
+          "Start": 259,
+          "End": 271
+        },
+        {
+          "Name": "countFindings",
+          "Path": "api/internal/audit/service.go",
+          "BodyHash": "e5647f8ad359142e257f3f364302c0dd03044566a8c19e1f63c8cb58ca83e076",
+          "BodyLines": 13,
+          "Start": 542,
+          "End": 554
+        }
+      ]
+    },
+    {
+      "id": "live-v4-quality-health-go-group-02",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-live-go-census-20261116.json",
+      "source_hash": "011323a19f8c1f0abc4e2fe29ea75ccec9d029ac031ceb81ee5e9fec28654d76",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "reason": "Independent complete build-aware API/CLI source census; exact full-location match with served recommendations: True. Exact-function identity label only; this does not establish safe consolidation or removable-line actionability.",
+      "sampling_frame": "dr1-live-quality-health-go-census-20261116-v1",
+      "sampling_population_id": "sha256:8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "symbols": [
+        {
+          "Name": "autofixableCount",
+          "Path": "api/handlers/audit/handler.go",
+          "BodyHash": "e307612b22e7f09aa0f00bb08bc66cbf3361bf8f67952b88de13b8e223986d73",
+          "BodyLines": 9,
+          "Start": 273,
+          "End": 281
+        },
+        {
+          "Name": "autofixableCount",
+          "Path": "api/internal/audit/service.go",
+          "BodyHash": "e307612b22e7f09aa0f00bb08bc66cbf3361bf8f67952b88de13b8e223986d73",
+          "BodyLines": 9,
+          "Start": 532,
+          "End": 540
+        }
+      ]
+    },
+    {
+      "id": "live-v4-quality-health-go-group-03",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-live-go-census-20261116.json",
+      "source_hash": "011323a19f8c1f0abc4e2fe29ea75ccec9d029ac031ceb81ee5e9fec28654d76",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "reason": "Independent complete build-aware API/CLI source census; exact full-location match with served recommendations: True. Exact-function identity label only; this does not establish safe consolidation or removable-line actionability.",
+      "sampling_frame": "dr1-live-quality-health-go-census-20261116-v1",
+      "sampling_population_id": "sha256:8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "symbols": [
+        {
+          "Name": "canFixGoLintConfigPresent",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 329,
+          "End": 333
+        },
+        {
+          "Name": "canFixGoLintRequiredLinters",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 377,
+          "End": 381
+        }
+      ]
+    },
+    {
+      "id": "live-v4-quality-health-go-group-04",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-live-go-census-20261116.json",
+      "source_hash": "011323a19f8c1f0abc4e2fe29ea75ccec9d029ac031ceb81ee5e9fec28654d76",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "reason": "Independent complete build-aware API/CLI source census; exact full-location match with served recommendations: True. Exact-function identity label only; this does not establish safe consolidation or removable-line actionability.",
+      "sampling_frame": "dr1-live-quality-health-go-census-20261116-v1",
+      "sampling_population_id": "sha256:8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "symbols": [
+        {
+          "Name": "splitCSV",
+          "Path": "cli/domains/audit/handlers.go",
+          "BodyHash": "826a7f5c5b0b15f2d2c457223960701c2cd24e435bf16a3e4ab41326a9e01b67",
+          "BodyLines": 15,
+          "Start": 131,
+          "End": 145
+        },
+        {
+          "Name": "splitCSV",
+          "Path": "cli/domains/autofix/handlers.go",
+          "BodyHash": "826a7f5c5b0b15f2d2c457223960701c2cd24e435bf16a3e4ab41326a9e01b67",
+          "BodyLines": 15,
+          "Start": 60,
+          "End": 74
+        }
+      ]
+    },
+    {
+      "id": "live-post-shared-parser-quality-health-go-group-01",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-after-shared-parser-go-census-20261116.json",
+      "source_hash": "1ed167fc84b18f3438f07bf1045a1f6025b052591e7a290fe3242c54f29c615a",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "reason": "Independent complete build-aware API/CLI source census; full member-location set matches the exact served response. Exact function-body identity only; safe consolidation and removable-line actionability are not adjudicated.",
+      "sampling_frame": "dr1-live-quality-health-go-post-shared-parser-20261116-v1",
+      "sampling_population_id": "sha256:62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "symbols": [
+        {
+          "Name": "findingCounts",
+          "Path": "api/handlers/audit/handler.go",
+          "BodyHash": "e5647f8ad359142e257f3f364302c0dd03044566a8c19e1f63c8cb58ca83e076",
+          "BodyLines": 13,
+          "Start": 259,
+          "End": 271
+        },
+        {
+          "Name": "countFindings",
+          "Path": "api/internal/audit/service.go",
+          "BodyHash": "e5647f8ad359142e257f3f364302c0dd03044566a8c19e1f63c8cb58ca83e076",
+          "BodyLines": 13,
+          "Start": 542,
+          "End": 554
+        }
+      ]
+    },
+    {
+      "id": "live-post-shared-parser-quality-health-go-group-02",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-after-shared-parser-go-census-20261116.json",
+      "source_hash": "1ed167fc84b18f3438f07bf1045a1f6025b052591e7a290fe3242c54f29c615a",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "reason": "Independent complete build-aware API/CLI source census; full member-location set matches the exact served response. Exact function-body identity only; safe consolidation and removable-line actionability are not adjudicated.",
+      "sampling_frame": "dr1-live-quality-health-go-post-shared-parser-20261116-v1",
+      "sampling_population_id": "sha256:62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "symbols": [
+        {
+          "Name": "autofixableCount",
+          "Path": "api/handlers/audit/handler.go",
+          "BodyHash": "e307612b22e7f09aa0f00bb08bc66cbf3361bf8f67952b88de13b8e223986d73",
+          "BodyLines": 9,
+          "Start": 273,
+          "End": 281
+        },
+        {
+          "Name": "autofixableCount",
+          "Path": "api/internal/audit/service.go",
+          "BodyHash": "e307612b22e7f09aa0f00bb08bc66cbf3361bf8f67952b88de13b8e223986d73",
+          "BodyLines": 9,
+          "Start": 532,
+          "End": 540
+        }
+      ]
+    },
+    {
+      "id": "live-post-shared-parser-quality-health-go-group-03",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-after-shared-parser-go-census-20261116.json",
+      "source_hash": "1ed167fc84b18f3438f07bf1045a1f6025b052591e7a290fe3242c54f29c615a",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "reason": "Independent complete build-aware API/CLI source census; full member-location set matches the exact served response. Exact function-body identity only; safe consolidation and removable-line actionability are not adjudicated.",
+      "sampling_frame": "dr1-live-quality-health-go-post-shared-parser-20261116-v1",
+      "sampling_population_id": "sha256:62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "symbols": [
+        {
+          "Name": "canFixGoLintConfigPresent",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 329,
+          "End": 333
+        },
+        {
+          "Name": "canFixGoLintRequiredLinters",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 377,
+          "End": 381
+        }
+      ]
+    },
+    {
+      "id": "live-post-shared-counts-quality-health-go-group-01",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-after-shared-counts-go-census-20261116.json",
+      "source_hash": "67d0f22b6dec6be68d4e59e03fb9909d57fd77b601fbef1c37979358397fda54",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "003cb8b73192e406f10f3e211a6e947fe0b5d8ce605d153893f8ba04327dbf1b",
+      "reason": "Independent complete build-aware API/CLI source census; full member-location set matches the exact served response. Exact function-body identity only; safe consolidation and removable-line actionability are not adjudicated.",
+      "sampling_frame": "dr1-live-quality-health-go-post-shared-counts-20261116-v1",
+      "sampling_population_id": "sha256:003cb8b73192e406f10f3e211a6e947fe0b5d8ce605d153893f8ba04327dbf1b",
+      "symbols": [
+        {
+          "Name": "autofixableCount",
+          "Path": "api/handlers/audit/handler.go",
+          "BodyHash": "e307612b22e7f09aa0f00bb08bc66cbf3361bf8f67952b88de13b8e223986d73",
+          "BodyLines": 9,
+          "Start": 259,
+          "End": 267
+        },
+        {
+          "Name": "autofixableCount",
+          "Path": "api/internal/audit/service.go",
+          "BodyHash": "e307612b22e7f09aa0f00bb08bc66cbf3361bf8f67952b88de13b8e223986d73",
+          "BodyLines": 9,
+          "Start": 532,
+          "End": 540
+        }
+      ]
+    },
+    {
+      "id": "live-post-shared-counts-quality-health-go-group-02",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-after-shared-counts-go-census-20261116.json",
+      "source_hash": "67d0f22b6dec6be68d4e59e03fb9909d57fd77b601fbef1c37979358397fda54",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "003cb8b73192e406f10f3e211a6e947fe0b5d8ce605d153893f8ba04327dbf1b",
+      "reason": "Independent complete build-aware API/CLI source census; full member-location set matches the exact served response. Exact function-body identity only; safe consolidation and removable-line actionability are not adjudicated.",
+      "sampling_frame": "dr1-live-quality-health-go-post-shared-counts-20261116-v1",
+      "sampling_population_id": "sha256:003cb8b73192e406f10f3e211a6e947fe0b5d8ce605d153893f8ba04327dbf1b",
+      "symbols": [
+        {
+          "Name": "canFixGoLintConfigPresent",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 329,
+          "End": 333
+        },
+        {
+          "Name": "canFixGoLintRequiredLinters",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 377,
+          "End": 381
+        }
+      ]
+    },
+    {
+      "id": "live-post-count-autofixable-quality-health-go-group-01",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/quality-health-after-count-autofixable-go-census-20261116.json",
+      "source_hash": "74613fd4bb489cd25fd95d632b1fbd1fa9fb338d4cd5b8dff7b65d3fa1bff78e",
+      "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+      "source_manifest_sha256": "a43b8d4eaeca73ac5959b49bc5c6776fd47130f382592db8db10c90c618656cd",
+      "reason": "Independent complete build-aware API/CLI source census; full member-location set matches the exact served response. Exact function-body identity only; safe consolidation and removable-line actionability are not adjudicated.",
+      "sampling_frame": "dr1-live-quality-health-go-post-count-autofixable-20261116-v1",
+      "sampling_population_id": "sha256:a43b8d4eaeca73ac5959b49bc5c6776fd47130f382592db8db10c90c618656cd",
+      "symbols": [
+        {
+          "Name": "canFixGoLintConfigPresent",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 329,
+          "End": 333
+        },
+        {
+          "Name": "canFixGoLintRequiredLinters",
+          "Path": "api/internal/autofix/autofix.go",
+          "BodyHash": "a1f3a3b1f29ce7e9323e9419dd1cf6e99112cb9f115ee1bc0e010dc62d80e957",
+          "BodyLines": 5,
+          "Start": 377,
+          "End": 381
+        }
+      ]
+    },
+    {
+      "id": "live-architecture-cartographer-go-group-01-1",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/dr1-cartographer-auditor-go-census-20261116.json",
+      "source_hash": "a8025ee84bfd244a4184cec4830536a592c334e24e2698f5b2eae6d2b7815ce5",
+      "config_hash": "d5512b67cd451ca0ca639a3ac2579132ea92daa37e9d94c1e6aa4a07216f8310",
+      "source_manifest_sha256": "d8ef0b960f40d45c4945dd25a96d09e7dda67f240ae5b83c6fd7a5ad52f7c6d5",
+      "reason": "Independent complete API/CLI Go source census exactly matches the full member-location set in the served response. Measures exact body identity only.",
+      "sampling_frame": "dr1-live-architecture-cartographer-census-20261116-v1",
+      "sampling_population_id": "sha256:d8ef0b960f40d45c4945dd25a96d09e7dda67f240ae5b83c6fd7a5ad52f7c6d5",
+      "symbols": [
+        {
+          "Name": "NewConnectHandler",
+          "Path": "api/handlers/search/connect_handler.go",
+          "BodyHash": "e2c85eed09f9edfee17045b887cc0e58cd7c445103c434ce8c603ddfb7dd6678",
+          "BodyLines": 6,
+          "Start": 61,
+          "End": 66
+        },
+        {
+          "Name": "NewConnectHandler",
+          "Path": "api/handlers/searchcontrol/connect_handler.go",
+          "BodyHash": "e2c85eed09f9edfee17045b887cc0e58cd7c445103c434ce8c603ddfb7dd6678",
+          "BodyLines": 6,
+          "Start": 105,
+          "End": 110
+        }
+      ]
+    },
+    {
+      "id": "live-scenario-auditor-go-group-01-1",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/dr1-cartographer-auditor-go-census-20261116.json",
+      "source_hash": "e6d39e8ee39705dd25b043ab1252316474ab501cf5a118e0110f59cec7393bff",
+      "config_hash": "e45579ee264c4b427b3bbd94c936c4e312e3ad79250fc5cd9080abe53f17c312",
+      "source_manifest_sha256": "a34542e01b1e4ad04f4340fb853074e85dfc70b5d76542cd3f15cf6e19fe681e",
+      "reason": "Independent complete API/CLI Go source census exactly matches the full member-location set in the served response. Measures exact body identity only.",
+      "sampling_frame": "dr1-live-scenario-auditor-census-20261116-v1",
+      "sampling_population_id": "sha256:a34542e01b1e4ad04f4340fb853074e85dfc70b5d76542cd3f15cf6e19fe681e",
+      "symbols": [
+        {
+          "Name": "Get",
+          "Path": "api/handlers_scanner.go",
+          "BodyHash": "7ef9f6c0f992a954dc733c467dfbc66af3cd43fdd82b854a78ab7b6f473f31a3",
+          "BodyLines": 6,
+          "Start": 165,
+          "End": 170
+        },
+        {
+          "Name": "Get",
+          "Path": "api/handlers_standards.go",
+          "BodyHash": "7ef9f6c0f992a954dc733c467dfbc66af3cd43fdd82b854a78ab7b6f473f31a3",
+          "BodyLines": 6,
+          "Start": 179,
+          "End": 184
+        }
+      ]
+    },
+    {
+      "id": "live-go-code-graph-go-group-01",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/dr1-four-target-go-census-20261116.json",
+      "source_hash": "d944c55ef0a15c0ca1c455e086d40810b6dea49246f243e44abb6099b0d8ef91",
+      "config_hash": "569fa7fcb6cf86b77b05432eb383a9a3e16c6590acebdb1994a93bc05f679864",
+      "source_manifest_sha256": "dcd7b1aa9c35c6b418c5911179ce780165b4a355401e53c73f03249c9b14d196",
+      "reason": "Independent complete Go source census matches the exact full member-location set in the served response; this labels body identity only.",
+      "sampling_frame": "dr1-live-go-code-graph-census-20261116-v1",
+      "sampling_population_id": "sha256:dcd7b1aa9c35c6b418c5911179ce780165b4a355401e53c73f03249c9b14d196",
+      "symbols": [
+        {
+          "Name": "newHandlers",
+          "Path": "cli/domains/graph/handlers.go",
+          "BodyHash": "6813f9ab853de54fe44b96a05ecd1cba91dd5b4a24c74ed61580013d7ef0ecee",
+          "BodyLines": 7,
+          "Start": 25,
+          "End": 31
+        },
+        {
+          "Name": "newHandlers",
+          "Path": "cli/domains/rewrite/handlers.go",
+          "BodyHash": "6813f9ab853de54fe44b96a05ecd1cba91dd5b4a24c74ed61580013d7ef0ecee",
+          "BodyLines": 7,
+          "Start": 25,
+          "End": 31
+        }
+      ]
+    },
+    {
+      "id": "live-typescript-code-graph-go-group-01",
+      "detector_id": "duplication.identical-function-body",
+      "language": "go",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "steward-free-host-maintainability-20261115/DR1/evidence/dr1-four-target-go-census-20261116.json",
+      "source_hash": "76b2e9f9bfe45f4fdf4fc6ef8f8c4f9eea11e6a23d7db54784f9165a7857b72d",
+      "config_hash": "5d88a5dad6499e5f21004f058e02bc27cf0c36a69ed246914e5097da06f665ef",
+      "source_manifest_sha256": "5924ae62e47435d4bc325fca6ba4538b56e79d223c08cfb037c5f681005e1f48",
+      "reason": "Independent complete Go source census matches the exact full member-location set in the served response; this labels body identity only.",
+      "sampling_frame": "dr1-live-typescript-code-graph-census-20261116-v1",
+      "sampling_population_id": "sha256:5924ae62e47435d4bc325fca6ba4538b56e79d223c08cfb037c5f681005e1f48",
+      "symbols": [
+        {
+          "Name": "newHandlers",
+          "Path": "cli/domains/graph/handlers.go",
+          "BodyHash": "02c8ef598f655f221c82aed96d8a884bf960a699b22d66b28dd2605ba398834b",
+          "BodyLines": 7,
+          "Start": 24,
+          "End": 30
+        },
+        {
+          "Name": "newHandlers",
+          "Path": "cli/domains/rewrite/handlers.go",
+          "BodyHash": "02c8ef598f655f221c82aed96d8a884bf960a699b22d66b28dd2605ba398834b",
+          "BodyLines": 7,
+          "Start": 25,
+          "End": 31
+        }
+      ]
     }
   ],
   "sampling": {
@@ -15262,8 +15710,8 @@
       "random_seed": "not-applicable:complete-census",
       "adjudication_protocol": "ts-morph source census applies the current Code Graph bodySyntaxAttrs normalization and five-physical-line threshold. Every eligible function is assigned to exactly one repeated-hash group or to the singleton pool. Current Tidiness registry owner-path replay is the prediction. Code Facts parse_units provides authoritative target source/config hashes; the full graph recommendation response was not received.",
       "adjudication_complete": true,
-      "measurement_method": "Local TypeScript Code Graph parser and Tidiness registry owner-path replay. Identity is the Code Facts source_hash/config_hash from the fast parse_units response receipt; the JS-only census source manifest hash is separate. Full graph/recommendation response remains unverified.",
-      "response_complete": true,
+      "measurement_method": "Local parser census and registry replay are retained; full Code Facts graph and recommendation response was not received, so served-output precision is unavailable.",
+      "response_complete": false,
       "generalization_scope": "Only this complete prompt-manager source snapshot and exact JavaScript function-body identity. Do not generalize to fleet prevalence, fleet precision/recall or remediation actionability.",
       "targets": [
         {
@@ -15274,8 +15722,8 @@
           "eligible_functions": 74,
           "source_groups": 2,
           "served_groups": null,
-          "response_complete": true,
-          "prediction_basis": "local Tidiness registry owner-path replay; target source/config identity from Code Facts parse_units report cache. Full graph recommendation response not verified."
+          "response_complete": false,
+          "prediction_basis": "Local Tidiness registry owner-path replay only; the full graph recommendation response was not verified."
         }
       ]
     },
@@ -15289,8 +15737,8 @@
       "random_seed": "dr1-probability-go-scenarios-2026-11-11-v1",
       "adjudication_protocol": "Independent ts-morph/TypeScript Compiler API census using the provider's documented SHA-256 syntax-printer normalization, excluding test, declaration, generated, and vendored sources; compare every full production location set to the retained served recommendation response. This measures syntax group recognition, not actionability or safe net removal.",
       "adjudication_complete": true,
-      "measurement_method": "Independent TypeScript source census compared against the exact saved served recommendation response; both source and configuration hashes are retained from that response and its parser report.",
-      "response_complete": true,
+      "measurement_method": "Source census and local registry replay are retained; the raw served recommendation response is not present in the evidence set, so exact served matching and scoped rates are unverified.",
+      "response_complete": false,
       "generalization_scope": "exact frozen target only; no TypeScript fleet rate",
       "targets": [
         {
@@ -15301,8 +15749,241 @@
           "source_file_count": 872,
           "eligible_functions": 1782,
           "source_groups": 19,
-          "served_groups": 17,
-          "served_recommendations": 17,
+          "served_groups": null,
+          "served_recommendations": null,
+          "response_complete": false,
+          "prediction_basis": "Source census and local registry replay only; raw matching served response was not retained."
+        }
+      ]
+    },
+    "dr1-live-quality-health-go-census-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+      "population": "Complete Go function-body census for quality-health API/CLI production sources at the saved source/config identity; 211 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group, with the complete member-location set",
+      "selection_method": "Complete build-aware census of Go API/CLI production functions in the exact served target snapshot; no sampling.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "Independent go/parser and go/printer full-body SHA-256 census of every eligible Go production function in api/ and cli/, with the five-physical-line threshold and Go build constraints honored for the current platform; compare complete location sets with every served Go duplicate-body recommendation. The file manifest, source/config hashes, exact response, and labels are retained. This adjudicates exact body identity, not behavior, safe consolidation, or realized line savings.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus the exact served response; source/config hashes and per-file manifest retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this quality-health Go API/CLI source manifest and exact target source/config snapshot. No historical, fleet, remediation-actionability, or realized-line-savings inference.",
+      "targets": [
+        {
+          "scenario": "quality-health",
+          "applicability": "go-groups-present",
+          "source_hash": "011323a19f8c1f0abc4e2fe29ea75ccec9d029ac031ceb81ee5e9fec28654d76",
+          "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+          "source_manifest_sha256": "8c80537fc3368e0600f02e9eef3e927b1228a7b8ea293bef883304bf0a00e19a",
+          "source_file_count": 46,
+          "eligible_functions": 211,
+          "source_groups": 4,
+          "served_groups": 4,
+          "served_recommendations": 15,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-quality-health-go-post-shared-parser-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+      "population": "Complete post-migration Go function-body census for quality-health API/CLI at the saved source/config identity; 209 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group, with the complete member-location set",
+      "selection_method": "Independent complete go/parser census of Go API/CLI production functions in the exact served target snapshot; no sampling.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Independent go/parser and go/printer full-body SHA-256 groups with the registry five-line threshold, Go build constraints honored for the current platform; exact full-location-set comparison with every served Go duplicate-body recommendation. Measures body identity, not behavior or safe reduction.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus the exact served response; source/config hashes and per-file source manifest retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this post-migration quality-health Go API/CLI source manifest and exact target source/config snapshot. No historical, fleet, remediation-actionability, or realized-line-savings inference.",
+      "targets": [
+        {
+          "scenario": "quality-health",
+          "applicability": "go-groups-present",
+          "source_hash": "1ed167fc84b18f3438f07bf1045a1f6025b052591e7a290fe3242c54f29c615a",
+          "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+          "source_manifest_sha256": "62c374ca1aa72fb37ed91907bff63b88c7aebea5b6f5833a410f74f8a4c66986",
+          "source_file_count": 46,
+          "eligible_functions": 209,
+          "source_groups": 3,
+          "served_groups": 3,
+          "served_recommendations": 14,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-quality-health-go-post-shared-counts-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:003cb8b73192e406f10f3e211a6e947fe0b5d8ce605d153893f8ba04327dbf1b",
+      "population": "Complete post-count-consolidation Go function-body census for quality-health API/CLI at the saved source/config identity; 208 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group, with the complete member-location set",
+      "selection_method": "Independent complete go/parser census of Go API/CLI production functions in the exact served target snapshot; no sampling.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Independent go/parser and go/printer full-body SHA-256 groups with the registry five-line threshold, Go build constraints honored for the current platform; exact full-location-set comparison with every served Go duplicate-body recommendation. Measures body identity, not behavior or safe reduction.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus the exact served response; source/config hashes and per-file source manifest retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this post-migration quality-health Go API/CLI source manifest and exact target source/config snapshot. No historical, fleet, remediation-actionability, or realized-line-savings inference.",
+      "targets": [
+        {
+          "scenario": "quality-health",
+          "applicability": "go-groups-present",
+          "source_hash": "67d0f22b6dec6be68d4e59e03fb9909d57fd77b601fbef1c37979358397fda54",
+          "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+          "source_manifest_sha256": "003cb8b73192e406f10f3e211a6e947fe0b5d8ce605d153893f8ba04327dbf1b",
+          "source_file_count": 46,
+          "eligible_functions": 208,
+          "source_groups": 2,
+          "served_groups": 2,
+          "served_recommendations": 13,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-quality-health-go-post-count-autofixable-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:a43b8d4eaeca73ac5959b49bc5c6776fd47130f382592db8db10c90c618656cd",
+      "population": "Complete post-autofixable-counter consolidation Go function-body census for quality-health API/CLI at the saved source/config identity; 207 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group, with the complete member-location set",
+      "selection_method": "Independent complete go/parser census of Go API/CLI production functions in the exact served target snapshot; no sampling.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Independent go/parser and go/printer full-body SHA-256 groups with the registry five-line threshold, Go build constraints honored for the current platform; exact full-location-set comparison with every served Go duplicate-body recommendation. Measures body identity, not behavior or safe reduction.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus the exact served response; source/config hashes and per-file source manifest retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this post-migration quality-health Go API/CLI source manifest and exact target source/config snapshot. No historical, fleet, remediation-actionability, or realized-line-savings inference.",
+      "targets": [
+        {
+          "scenario": "quality-health",
+          "applicability": "go-groups-present",
+          "source_hash": "74613fd4bb489cd25fd95d632b1fbd1fa9fb338d4cd5b8dff7b65d3fa1bff78e",
+          "config_hash": "1745e28e4f744c73b94cd2aa87b6b73a073d911fe5eb23ad9d40df88077eb684",
+          "source_manifest_sha256": "a43b8d4eaeca73ac5959b49bc5c6776fd47130f382592db8db10c90c618656cd",
+          "source_file_count": 46,
+          "eligible_functions": 207,
+          "source_groups": 1,
+          "served_groups": 1,
+          "served_recommendations": 12,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-architecture-cartographer-census-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:d8ef0b960f40d45c4945dd25a96d09e7dda67f240ae5b83c6fd7a5ad52f7c6d5",
+      "population": "Complete Go function-body census for architecture-cartographer API/CLI at exact source/config identity; 952 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group with the full member-location set",
+      "selection_method": "Independent go/parser and go/printer complete census of production Go functions in the exact served source snapshot.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Exact full-location-set comparison for every served Go duplicate-body recommendation. Body identity only; no behavioral or safe-reduction inference.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus exact served response; source/config hashes and file manifest retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this architecture-cartographer Go API/CLI source manifest and exact source/config snapshot. No fleet, historical, actionability, or realized-savings inference.",
+      "targets": [
+        {
+          "scenario": "architecture-cartographer",
+          "applicability": "go-groups-present",
+          "source_hash": "a8025ee84bfd244a4184cec4830536a592c334e24e2698f5b2eae6d2b7815ce5",
+          "config_hash": "d5512b67cd451ca0ca639a3ac2579132ea92daa37e9d94c1e6aa4a07216f8310",
+          "source_manifest_sha256": "d8ef0b960f40d45c4945dd25a96d09e7dda67f240ae5b83c6fd7a5ad52f7c6d5",
+          "source_file_count": 220,
+          "eligible_functions": 952,
+          "source_groups": 1,
+          "served_groups": 1,
+          "served_recommendations": 18,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-scenario-auditor-census-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:a34542e01b1e4ad04f4340fb853074e85dfc70b5d76542cd3f15cf6e19fe681e",
+      "population": "Complete Go function-body census for scenario-auditor API/CLI at exact source/config identity; 683 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group with the full member-location set",
+      "selection_method": "Independent go/parser and go/printer complete census of production Go functions in the exact served source snapshot.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Exact full-location-set comparison for every served Go duplicate-body recommendation. Body identity only; no behavioral or safe-reduction inference.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus exact served response; source/config hashes and file manifest retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this scenario-auditor Go API/CLI source manifest and exact source/config snapshot. No fleet, historical, actionability, or realized-savings inference.",
+      "targets": [
+        {
+          "scenario": "scenario-auditor",
+          "applicability": "go-groups-present",
+          "source_hash": "e6d39e8ee39705dd25b043ab1252316474ab501cf5a118e0110f59cec7393bff",
+          "config_hash": "e45579ee264c4b427b3bbd94c936c4e312e3ad79250fc5cd9080abe53f17c312",
+          "source_manifest_sha256": "a34542e01b1e4ad04f4340fb853074e85dfc70b5d76542cd3f15cf6e19fe681e",
+          "source_file_count": 77,
+          "eligible_functions": 683,
+          "source_groups": 1,
+          "served_groups": 1,
+          "served_recommendations": 97,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-go-code-graph-census-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:dcd7b1aa9c35c6b418c5911179ce780165b4a355401e53c73f03249c9b14d196",
+      "population": "Complete Go function-body census for go-code-graph API/CLI, 74 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group with full locations",
+      "selection_method": "Independent go/parser and go/printer census of production Go functions in exact served source snapshot.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Exact full-location-set comparison of every served Go duplicate-body group; identity only.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus exact served response with source manifest and hashes retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this go-code-graph Go API/CLI source manifest and exact source/config snapshot; no fleet, historical, actionability, or realized-savings inference.",
+      "targets": [
+        {
+          "scenario": "go-code-graph",
+          "applicability": "go-groups-present",
+          "source_hash": "d944c55ef0a15c0ca1c455e086d40810b6dea49246f243e44abb6099b0d8ef91",
+          "config_hash": "569fa7fcb6cf86b77b05432eb383a9a3e16c6590acebdb1994a93bc05f679864",
+          "source_manifest_sha256": "dcd7b1aa9c35c6b418c5911179ce780165b4a355401e53c73f03249c9b14d196",
+          "source_file_count": 39,
+          "eligible_functions": 74,
+          "source_groups": 1,
+          "served_groups": 1,
+          "served_recommendations": 19,
+          "response_complete": true
+        }
+      ]
+    },
+    "dr1-live-typescript-code-graph-census-20261116-v1": {
+      "detector_id": "duplication.identical-function-body",
+      "population_id": "sha256:5924ae62e47435d4bc325fca6ba4538b56e79d223c08cfb037c5f681005e1f48",
+      "population": "Complete Go function-body census for typescript-code-graph API/CLI, 124 eligible functions.",
+      "complete_census": true,
+      "sampling_unit": "one exact-body duplicate group with full locations",
+      "selection_method": "Independent go/parser and go/printer census of production Go functions in exact served source snapshot.",
+      "random_seed": "not-applicable:complete-census",
+      "adjudication_protocol": "complete source census for Go files under api/ and cli/; source groups not listed by this served response are false negatives for this exact-body definition Exact full-location-set comparison of every served Go duplicate-body group; identity only.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent complete source census versus exact served response with source manifest and hashes retained.",
+      "response_complete": true,
+      "generalization_scope": "Only this typescript-code-graph Go API/CLI source manifest and exact source/config snapshot; no fleet, historical, actionability, or realized-savings inference.",
+      "targets": [
+        {
+          "scenario": "typescript-code-graph",
+          "applicability": "go-groups-present",
+          "source_hash": "76b2e9f9bfe45f4fdf4fc6ef8f8c4f9eea11e6a23d7db54784f9165a7857b72d",
+          "config_hash": "5d88a5dad6499e5f21004f058e02bc27cf0c36a69ed246914e5097da06f665ef",
+          "source_manifest_sha256": "5924ae62e47435d4bc325fca6ba4538b56e79d223c08cfb037c5f681005e1f48",
+          "source_file_count": 51,
+          "eligible_functions": 124,
+          "source_groups": 1,
+          "served_groups": 1,
+          "served_recommendations": 27,
           "response_complete": true
         }
       ]

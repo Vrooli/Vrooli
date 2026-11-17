@@ -33,13 +33,13 @@
 
 ### 🟢 P2 – Future / expansion
 - [x] OT-P2-001 | Per-scenario operating mode | The wizard may expose the manifest-recommended auto-restart choice per scenario and may persist operator overrides.
-- [x] OT-P2-002 | Deferred integrations contract | If a scenario declares an integration before integration-hub ships, then the integrations step shall present it as deferred and shall create no placeholder binding.
+- [x] OT-P2-002 | Deferred integrations contract | If a scenario declares an integration, then Onboarding shall present the requirement as deferred until it implements a supported manifest-to-connection flow, and shall create no placeholder binding. The current OpenRouter Hub pilot does not change this boundary.
 
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks: Go for the API, CLI, and the shared control-plane state service; React + TypeScript + Vite for the UI, consuming the shared component library and design tokens.
 - Data + storage expectations: No scenario-owned database. `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is the sole durable record and is owned by a control-plane service, not by this scenario. Credential values live only in the credential authority.
 - Integration strategy: Manifest-derived read models and a field-scoped write API. Every other surface — CLI, bridge, cloud, desktop — is a client of the same service and evaluator.
-- Non-goals: Authoring `service.json`; owning connector or OAuth lifecycles (integration-hub); implementing host remediation itself (the control plane owns detection and repair); replacing `secrets-manager` for credential lifecycle.
+- Non-goals: Authoring `service.json`; owning Hub connection metadata or bindings (Integration Hub); provider OAuth lifecycles remain unimplemented; implementing host remediation itself (the control plane owns detection and repair); replacing `secrets-manager` for credential lifecycle.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: none. The scenario reads manifests and delegates storage.

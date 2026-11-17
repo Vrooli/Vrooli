@@ -128,6 +128,27 @@ The relocation post-hook then runs `make generate` from
 `packages/proto`. Generated docs should therefore tell scenario authors
 to edit `packages/proto/schemas/<scenario-id>/...`.
 
+### Hook value tokens
+
+Template post hooks and relocation post hooks may use `{{SCENARIO_ID}}` in
+an argv element or environment value. Template Manager resolves it from the
+scenario slug validated for the current generation/validation request. The
+only supported token is `SCENARIO_ID`; unknown names, malformed braces,
+missing values, and values that are not lowercase scenario slugs fail before
+any hook process starts. Static argv and environment values continue to work
+unchanged. Values are substituted inside their existing argv/env element;
+hooks are always started with native argv and never through a shell.
+
+Example relocation hook:
+
+```json
+{"argv": ["make", "generate", "SCENARIO={{SCENARIO_ID}}"]}
+```
+
+This produces the `make` executable plus two args: `generate` and the single
+argument `SCENARIO=<scenario-id>` remain separate. Do not use shell
+syntax or rely on shell expansion in hook declarations.
+
 ## Template-Only Files
 
 Use `copyExcludes` for files that should never appear in generated scenarios.

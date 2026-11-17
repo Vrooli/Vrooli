@@ -4,6 +4,7 @@
 package modules
 
 import (
+	"github.com/vrooli/vrooli/scenarios/vrooli-events/api/internal/publisherauth"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/policy"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/store"
 	"github.com/vrooli/vrooli/scenarios/vrooli-events/internal/subscription"
@@ -17,5 +18,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(store.Schema),
 		apidb.SchemaProviderFunc(policy.Schema),
 		apidb.SchemaProviderFunc(subscription.Schema),
+		apidb.SchemaProviderFunc(publisherauth.Schema),
 	}
 }

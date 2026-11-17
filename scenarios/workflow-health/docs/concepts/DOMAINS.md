@@ -8,7 +8,6 @@ Workflow Health owns workflow policy and intelligence, not browser automation
 runtime internals. Browser Automation Studio remains the execution engine;
 Test Genie remains the orchestrator; Search Hub remains the query surface.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

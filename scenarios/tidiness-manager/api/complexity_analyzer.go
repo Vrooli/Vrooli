@@ -1,14 +1,11 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
-	"time"
 
-	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	"github.com/vrooli/api-core/factgraph"
 	debt "tidiness-manager/internal/discovery"
 )
 
@@ -43,51 +40,15 @@ type ComplexFile struct {
 	Line       int    `json:"line"`
 }
 
-// ComplexityAnalyzer consumes the shared source graph. No local parser or
-// external-tool installation is needed for Go complexity metrics.
-type ComplexityAnalyzer struct {
-	scenarioPath string
-	timeout      time.Duration
-	source       ReductionFacts
-}
-
-func NewComplexityAnalyzer(scenarioPath string, timeout time.Duration) *ComplexityAnalyzer {
-	if timeout == 0 {
-		timeout = 60 * time.Second
+// complexityFromIndex projects the shared Code Facts index into file metrics.
+func complexityFromIndex(files []string, index *factgraph.Index) *ComplexityResult {
+	skipped := func(reason string) *ComplexityResult {
+		return &ComplexityResult{Skipped: true, SkipReason: reason}
 	}
-	return &ComplexityAnalyzer{scenarioPath: scenarioPath, timeout: timeout}
-}
-
-func (ca *ComplexityAnalyzer) AnalyzeComplexity(ctx context.Context, lang Language, files []string) (*ComplexityResult, error) {
-	skipped := func(reason string) (*ComplexityResult, error) {
-		return &ComplexityResult{Skipped: true, SkipReason: reason}, nil
-	}
-	if lang != LanguageGo {
-		return skipped(fmt.Sprintf("shared complexity facts are not yet available for %s", lang))
-	}
-	if len(files) == 0 {
-		return skipped("no files to analyze")
-	}
-	if _, err := resolveScenarioFiles(ca.scenarioPath, files); err != nil {
-		return skipped(err.Error())
-	}
-	ctx, cancel := context.WithTimeout(ctx, ca.timeout)
-	defer cancel()
-	report, err := currentCodeFacts(ctx, ca.source, &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ca.scenarioPath, LanguageFilter: []string{"go"}})
-	if err != nil {
-		return skipped(err.Error())
-	}
-	return ca.AnalyzeComplexityFromFacts(files, report)
-}
-
-func (ca *ComplexityAnalyzer) AnalyzeComplexityFromFacts(files []string, report *facts.CodeFactsReport) (*ComplexityResult, error) {
-	skipped := func(reason string) (*ComplexityResult, error) {
-		return &ComplexityResult{Skipped: true, SkipReason: reason}, nil
-	}
-	if len(report.GetGraphs()) == 0 {
+	if len(index.Files()) == 0 {
 		return skipped("Code Facts returned no Go graph evidence")
 	}
-	functions, warnings := debt.FunctionMetrics(report)
+	functions, warnings := debt.FunctionMetricsFromIndex(index)
 	if len(warnings) > 0 {
 		return skipped(strings.Join(warnings, "; "))
 	}
@@ -131,5 +92,5 @@ func (ca *ComplexityAnalyzer) AnalyzeComplexityFromFacts(files []string, report 
 		return a.Line < b.Line
 	})
 	result.HighComplexityCount = len(result.HighComplexityFiles)
-	return result, nil
+	return result
 }

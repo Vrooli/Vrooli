@@ -18,11 +18,18 @@ func TestLightScannerSharesOneCodeFactsResponseAcrossStructuralMetrics(t *testin
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\nimport \"fmt\"\nfunc first() {\n fmt.Println(1)\n}\nfunc second() {\n fmt.Println(1)\n}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	metric, err := fileMetricForTest(filepath.Join(root, "main.go"), "main.go", LanguageGo)
+	if err != nil {
+		t.Fatal(err)
+	}
 	requestCount := 0
 	source := reductionSourceFunc(func(_ context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
 		requestCount++
 		if request.Msg.GetIncludeGraphs() != true || !request.Msg.GetUseCache() {
 			t.Errorf("Code Facts request omitted graph/cache options: %+v", request.Msg)
+		}
+		if got := request.Msg.GetInclude(); len(got) != 2 || got[0] != facts.FactFamily_FACT_FAMILY_SYMBOLS || got[1] != facts.FactFamily_FACT_FAMILY_FILE_METRICS {
+			t.Errorf("requested families = %v, want symbols and file metrics", got)
 		}
 		if got := request.Msg.GetTarget().GetLanguageFilter(); len(got) != 3 || got[0] != "go" || got[1] != "typescript" || got[2] != "javascript" {
 			t.Errorf("language filter = %v, want [go typescript javascript]", got)
@@ -44,6 +51,7 @@ func TestLightScannerSharesOneCodeFactsResponseAcrossStructuralMetrics(t *testin
 		}
 		return connect.NewResponse(&facts.CodeFactsReport{
 			Target: &facts.TargetContext{RootPath: root},
+			Facts:  []*facts.GenericFact{{Family: facts.FactFamily_FACT_FAMILY_FILE_METRICS, Attributes: fileMetricAttributesForTest(metric)}},
 			Graphs: []*facts.LanguageGraph{{
 				ParseUnit: &facts.ParseUnit{Id: "go:" + root, Language: "go", RootPath: root},
 				Graph:     &commonv1.CodeGraph{Nodes: nodes},
@@ -51,15 +59,12 @@ func TestLightScannerSharesOneCodeFactsResponseAcrossStructuralMetrics(t *testin
 		}), nil
 	})
 
-	files := []string{"main.go"}
-	metric, err := fileMetricForTest(filepath.Join(root, "main.go"), "main.go", LanguageGo)
+	scanner := NewLightScanner(root, time.Second).withCodeFacts(source)
+	inventory, report, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	scanner := NewLightScanner(root, time.Second).withCodeFacts(source)
-	got := scanner.collectLanguageMetrics(context.Background(), map[Language]*LanguageInfo{
-		LanguageGo: {Language: LanguageGo, Files: files, FileCount: len(files)},
-	}, []FileMetric{metric})[LanguageGo]
+	got := scanner.collectLanguageMetricsFromFacts(languagesFromFileMetrics(inventory), inventory, report, nil)[LanguageGo]
 	if requestCount != 1 {
 		t.Fatalf("Code Facts requests = %d, want exactly one", requestCount)
 	}
@@ -74,7 +79,7 @@ func TestLightScannerSharesOneCodeFactsResponseAcrossStructuralMetrics(t *testin
 	}
 }
 
-func TestLightScannerFetchesSharedSyntaxEvidenceOnceForAllLanguages(t *testing.T) {
+func TestLightScannerFetchesCombinedCodeFactsOnceForAllLanguages(t *testing.T) {
 	root := t.TempDir()
 	files := []struct {
 		path string
@@ -101,7 +106,7 @@ func TestLightScannerFetchesSharedSyntaxEvidenceOnceForAllLanguages(t *testing.T
 		}
 		info.Files = append(info.Files, file.path)
 		info.FileCount++
-		inventory = append(inventory, FileMetric{Path: file.path, Extension: filepath.Ext(file.path), Lines: 1})
+		inventory = append(inventory, FileMetric{Path: file.path, Extension: filepath.Ext(file.path), Language: string(file.lang), Lines: 1, CodeLines: 1})
 	}
 	requestCount := 0
 	source := reductionSourceFunc(func(_ context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
@@ -109,9 +114,18 @@ func TestLightScannerFetchesSharedSyntaxEvidenceOnceForAllLanguages(t *testing.T
 		if got := request.Msg.GetTarget().GetLanguageFilter(); len(got) != 3 || got[0] != "go" || got[1] != "typescript" || got[2] != "javascript" {
 			t.Errorf("language filter = %v, want [go typescript javascript]", got)
 		}
-		return connect.NewResponse(&facts.CodeFactsReport{Target: &facts.TargetContext{RootPath: root}}), nil
+		metricFacts := make([]*facts.GenericFact, 0, len(inventory))
+		for _, metric := range inventory {
+			metricFacts = append(metricFacts, &facts.GenericFact{Family: facts.FactFamily_FACT_FAMILY_FILE_METRICS, Attributes: fileMetricAttributesForTest(metric)})
+		}
+		return connect.NewResponse(&facts.CodeFactsReport{Target: &facts.TargetContext{RootPath: root}, Facts: metricFacts}), nil
 	})
-	got := NewLightScanner(root, time.Second).withCodeFacts(source).collectLanguageMetrics(context.Background(), languages, inventory)
+	scanner := NewLightScanner(root, time.Second).withCodeFacts(source)
+	inventory, report, err := scanner.collectScanFacts(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := scanner.collectLanguageMetricsFromFacts(languagesFromFileMetrics(inventory), inventory, report, nil)
 	if requestCount != 1 {
 		t.Fatalf("Code Facts requests = %d for %d languages, want 1", requestCount, len(languages))
 	}

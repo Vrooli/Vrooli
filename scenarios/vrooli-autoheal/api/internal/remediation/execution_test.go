@@ -21,6 +21,9 @@ func TestNotificationHubAskVerifierAcceptsOnlyDurableApproval(t *testing.T) {
 		if r.URL.Path != "/vrooli.notification_hub.v1.conversations.ConversationsService/GetAsk" {
 			t.Fatalf("path = %q", r.URL.Path)
 		}
+		if got := r.Header.Get("Authorization"); got != "Bearer ask-reader-token" {
+			t.Fatalf("Authorization = %q, want the service ask-reader bearer", got)
+		}
 		w.Header().Set("Content-Type", "application/proto")
 		body, marshalErr := proto.Marshal(&conversationv1.GetAskResponse{Ask: ask})
 		if marshalErr != nil {
@@ -29,7 +32,7 @@ func TestNotificationHubAskVerifierAcceptsOnlyDurableApproval(t *testing.T) {
 		_, _ = w.Write(body)
 	}))
 	defer server.Close()
-	verifier, err := NewNotificationHubAskVerifier(server.URL)
+	verifier, err := NewNotificationHubAskVerifier(server.URL, staticAskReaderToken{token: "ask-reader-token"})
 	if err != nil {
 		t.Fatalf("NewNotificationHubAskVerifier() error = %v", err)
 	}

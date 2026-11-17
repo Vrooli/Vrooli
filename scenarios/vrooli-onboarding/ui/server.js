@@ -14,5 +14,4 @@ startScenarioServer({
   apiPort: requiredPort('API_PORT'),
   distDir: './dist',
   serviceName: 'vrooli-onboarding',
-  corsOrigins: '*',
 })

@@ -7,7 +7,6 @@ recovering, and maintaining the scenario.
 > procedure. Live acceptance and recovery limitations are recorded in
 > [`LIVE_VALIDATION.md`](LIVE_VALIDATION.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

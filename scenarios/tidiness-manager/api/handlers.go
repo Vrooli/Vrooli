@@ -331,13 +331,13 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 
 	scanStage := collector.Stage("scan")
 	scanner := NewLightScanner(scenarioPath, timeout, excludes...).withCodeFacts(codeFacts)
-	fileMetrics, err := scanner.collectFileMetricsContext(ctx)
+	fileMetrics, report, err := scanner.collectScanFacts(ctx)
 	if err != nil {
 		scanStage.End()
 		return nil, nil, err
 	}
 	languages := languagesFromFileMetrics(fileMetrics)
-	languageMetrics := scanner.collectLanguageMetrics(ctx, languages, fileMetrics)
+	languageMetrics := scanner.collectLanguageMetricsFromFacts(languages, fileMetrics, report, nil)
 	scanStage.End()
 
 	analysisStage := collector.Stage("analysis")
@@ -390,8 +390,8 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 	}
 	var graphMetrics map[string]map[Language]graphFileMetric
 	for _, language := range languageMetrics {
-		if language != nil && language.facts != nil {
-			graphMetrics = graphFileMetrics(language.facts)
+		if language != nil && language.factIndex != nil {
+			graphMetrics = graphFileMetricsFromIndex(language.factIndex)
 			break
 		}
 	}

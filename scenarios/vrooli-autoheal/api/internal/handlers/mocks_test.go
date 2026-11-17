@@ -239,6 +239,14 @@ func (m *mockStore) AcknowledgeRemediationDecisionPublication(context.Context, s
 	return nil
 }
 
+func (m *mockStore) ListPendingRemediationDecisionWithdrawals(context.Context, int) ([]incidents.RemediationDecisionWithdrawal, error) {
+	return nil, nil
+}
+
+func (m *mockStore) AcknowledgeRemediationDecisionWithdrawal(context.Context, []string, time.Time) error {
+	return nil
+}
+
 func (m *mockStore) RecordIncidentRemediationArtifact(ctx context.Context, incidentID string, artifact incidents.RemediationArtifact) (*incidents.Incident, error) {
 	m.recordedArtifact = &artifact
 	if m.incident == nil {

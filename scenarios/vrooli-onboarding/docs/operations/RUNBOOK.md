@@ -100,6 +100,8 @@ graphical session. Initialize the encrypted file store there first
 
 - Credential lifecycle, keyring repair, recovery bundles → `secrets-manager`.
 - Host tool installation and safeguard application internals → the control plane.
-- Connector and OAuth flows → integration-hub, when it ships.
+- Current OpenRouter connection metadata and explicit bindings → Integration Hub.
+  Onboarding does not bind manifest requirements; provider OAuth flows remain
+  unimplemented. See [Integrations](../concepts/INTEGRATIONS.md).
 - Anything in [Problems](../internal/PROBLEMS.md) is known and tracked; check
   there before filing.

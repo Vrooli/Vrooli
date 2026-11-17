@@ -6,7 +6,6 @@ constraints, and regression procedures.
 > Budgets below are controlled targets. Measurements are labeled by provenance
 > and workload; a controlled fixture never becomes an operator-benefit claim.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

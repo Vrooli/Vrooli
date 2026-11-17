@@ -35,11 +35,7 @@ envelope = {
 plan = {"create_scope": False, "rules_to_create": [], "rules_existing": []}
 
 
-def fail(status, klass, detail, where):
-    """The one place a bad path is recorded."""
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
+fail = program.fail
 
 
 def step_validate():
@@ -140,7 +136,7 @@ def step_act():  # ACT · declared writes only, in order: scope, then rules (cre
 
 def step_report():  # REPORT · bounded, always
     envelope["phase"] = "report"
-    print(json.dumps(envelope, ensure_ascii=True, allow_nan=False))
+    program.report(envelope)
     return None
 
 

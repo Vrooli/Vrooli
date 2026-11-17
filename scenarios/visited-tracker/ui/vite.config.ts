@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import RequirementReporter from "@vrooli/vitest-requirement-reporter";
 import type { Reporter } from "vitest";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 const requirementReporter = new RequirementReporter({
   outputFile: 'coverage/vitest-requirements.json',
@@ -15,7 +16,7 @@ const requirementReporter = new RequirementReporter({
 export default defineConfig({
   // INTEROP-CRITICAL: relative assets remain reachable through host proxies.
   base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   test: {
     globals: true,
     environment: 'jsdom',

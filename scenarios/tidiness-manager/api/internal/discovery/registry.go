@@ -3,8 +3,10 @@
 package discovery
 
 import (
+	"bytes"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -204,12 +206,12 @@ func Default() *Registry {
 
 func (r *Registry) Describe() []Detector { return append([]Detector(nil), r.detectors...) }
 
-func (r *Registry) Recommend(report *facts.CodeFactsReport, limit, minLines int) Report {
+func (r *Registry) Recommend(report *facts.CodeFactsReport, findings []AuditorFinding, limit, minLines int) Report {
 	result := Report{Scenario: report.GetTarget().GetRequested().GetScenario(), SourceHash: report.GetCache().GetSourceHash(), ConfigHash: report.GetCache().GetConfigHash(), Detectors: r.Describe(), Recommendations: []Opportunity{}}
 	for _, warning := range report.GetWarnings() {
 		result.Warnings = append(result.Warnings, warning.GetCode()+": "+warning.GetMessage())
 	}
-	symbols, warnings := graphSymbols(report, false)
+	symbols, warnings, _ := graphSymbolsWithLanguageFilesFromIndex(factgraph.NewIndex(report), false)
 	result.Warnings = append(result.Warnings, warnings...)
 	for _, detector := range r.detectors {
 		if detector.detect == nil {
@@ -229,6 +231,44 @@ func (r *Registry) Recommend(report *facts.CodeFactsReport, limit, minLines int)
 			}
 			result.Recommendations = append(result.Recommendations, opportunity)
 		}
+	}
+	var auditorCalibration Calibration
+	for _, detector := range r.detectors {
+		if detector.ID == "standards.scenario-auditor" {
+			auditorCalibration = detector.Calibration
+			break
+		}
+	}
+	for _, finding := range findings {
+		if strings.TrimSpace(finding.RuleID) == "" || strings.TrimSpace(finding.FilePath) == "" {
+			continue
+		}
+		path, ok := auditorLocationPath(report.GetTarget().GetRootPath(), result.Scenario, finding.FilePath)
+		if !ok {
+			result.Warnings = append(result.Warnings, "ignored Scenario Auditor finding outside target: "+finding.FilePath)
+			continue
+		}
+		if ok, reason := auditorFindingLocationCurrent(report.GetTarget().GetRootPath(), path, finding.LineNumber); !ok {
+			result.Warnings = append(result.Warnings, "ignored Scenario Auditor finding with invalid current location ("+reason+"): "+finding.FilePath)
+			continue
+		}
+		title := finding.Title
+		if title == "" {
+			title = finding.RuleID
+		}
+		reason := finding.Description
+		if reason == "" {
+			reason = "Scenario Auditor reported a standards-policy violation."
+		}
+		id := fmt.Sprintf("standards.scenario-auditor:%s:%s:%d", finding.RuleID, path, finding.LineNumber)
+		result.Recommendations = append(result.Recommendations, Opportunity{
+			ID: id, DetectorID: "standards.scenario-auditor", Title: title,
+			Locations: []Location{{Path: path, StartLine: finding.LineNumber, EndLine: finding.LineNumber}},
+			Reason:    reason, Action: finding.Recommendation,
+			Calibration:  auditorCalibration,
+			PolicyRuleID: finding.RuleID, PolicySeverity: finding.Severity, PolicyStandard: finding.Standard, PolicySource: finding.Source,
+			PolicyFindingID: finding.ID, PolicyObservedAt: finding.DiscoveredAt,
+		})
 	}
 	sort.Slice(result.Recommendations, func(i, j int) bool {
 		a, b := result.Recommendations[i], result.Recommendations[j]
@@ -295,65 +335,6 @@ func calibrationForTarget(calibration Calibration, scenario, sourceHash, configH
 	return result
 }
 
-// RecommendWithAuditorFindings places standards findings in the same
-// recommendation registry while preserving their policy meaning. Findings
-// have no measured line reduction and are never assigned synthetic precision.
-func (r *Registry) RecommendWithAuditorFindings(report *facts.CodeFactsReport, findings []AuditorFinding, limit, minLines int) Report {
-	result := r.Recommend(report, 0, minLines)
-	var auditorCalibration Calibration
-	for _, detector := range r.detectors {
-		if detector.ID == "standards.scenario-auditor" {
-			auditorCalibration = detector.Calibration
-			break
-		}
-	}
-	for _, finding := range findings {
-		if strings.TrimSpace(finding.RuleID) == "" || strings.TrimSpace(finding.FilePath) == "" {
-			continue
-		}
-		path, ok := auditorLocationPath(report.GetTarget().GetRootPath(), result.Scenario, finding.FilePath)
-		if !ok {
-			result.Warnings = append(result.Warnings, "ignored Scenario Auditor finding outside target: "+finding.FilePath)
-			continue
-		}
-		title := finding.Title
-		if title == "" {
-			title = finding.RuleID
-		}
-		reason := finding.Description
-		if reason == "" {
-			reason = "Scenario Auditor reported a standards-policy violation."
-		}
-		id := fmt.Sprintf("standards.scenario-auditor:%s:%s:%d", finding.RuleID, path, finding.LineNumber)
-		result.Recommendations = append(result.Recommendations, Opportunity{
-			ID: id, DetectorID: "standards.scenario-auditor", Title: title,
-			Locations: []Location{{Path: path, StartLine: finding.LineNumber, EndLine: finding.LineNumber}},
-			Reason:    reason, Action: finding.Recommendation,
-			Calibration:  auditorCalibration,
-			PolicyRuleID: finding.RuleID, PolicySeverity: finding.Severity, PolicyStandard: finding.Standard, PolicySource: finding.Source,
-			PolicyFindingID: finding.ID, PolicyObservedAt: finding.DiscoveredAt,
-		})
-	}
-	sort.Slice(result.Recommendations, func(i, j int) bool {
-		a, b := result.Recommendations[i], result.Recommendations[j]
-		if (a.ExpectedNetLines == nil) != (b.ExpectedNetLines == nil) {
-			return a.ExpectedNetLines != nil
-		}
-		if a.ExpectedNetLines != nil && *a.ExpectedNetLines != *b.ExpectedNetLines {
-			return *a.ExpectedNetLines > *b.ExpectedNetLines
-		}
-		if a.NetLines != b.NetLines {
-			return a.NetLines > b.NetLines
-		}
-		return a.ID < b.ID
-	})
-	if limit > 0 && len(result.Recommendations) > limit {
-		result.Recommendations = result.Recommendations[:limit]
-	}
-	result.Count = len(result.Recommendations)
-	return result
-}
-
 func auditorLocationPath(targetRoot, scenario, findingPath string) (string, bool) {
 	path := filepath.Clean(findingPath)
 	if filepath.IsAbs(path) {
@@ -374,16 +355,55 @@ func auditorLocationPath(targetRoot, scenario, findingPath string) (string, bool
 	return path, true
 }
 
-func graphSymbols(report *facts.CodeFactsReport, includeTests bool) ([]symbol, []string) {
-	symbols, warnings, _ := graphSymbolsWithLanguageFiles(report, includeTests)
-	return symbols, warnings
+// auditorFindingLocationCurrent prevents cached policy findings from pointing
+// at files or lines that no longer exist in the current Code Facts target. It
+// does not prove that the policy still applies at an existing location.
+func auditorFindingLocationCurrent(targetRoot, relativePath string, line int) (bool, string) {
+	if strings.TrimSpace(targetRoot) == "" {
+		return false, "target root is unavailable"
+	}
+	root, err := filepath.Abs(targetRoot)
+	if err != nil {
+		return false, "target root cannot be resolved"
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return false, "target root cannot be resolved"
+	}
+	candidate := filepath.Join(root, filepath.FromSlash(relativePath))
+	resolved, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return false, "file is absent from current target"
+	}
+	resolved, err = filepath.Abs(resolved)
+	if err != nil {
+		return false, "file cannot be resolved"
+	}
+	withinRoot, err := filepath.Rel(root, resolved)
+	if err != nil || withinRoot == ".." || strings.HasPrefix(withinRoot, ".."+string(filepath.Separator)) {
+		return false, "resolved file escapes current target"
+	}
+	content, err := os.ReadFile(resolved)
+	if err != nil {
+		return false, "file cannot be read"
+	}
+	if line <= 0 {
+		return true, ""
+	}
+	lineCount := bytes.Count(content, []byte{'\n'})
+	if len(content) > 0 && content[len(content)-1] != '\n' {
+		lineCount++
+	}
+	if line > lineCount {
+		return false, "line is outside current file"
+	}
+	return true, ""
 }
 
-// graphSymbolsWithLanguageFiles extracts symbols and records which valid
-// target paths had language evidence in the same graph traversal.
-func graphSymbolsWithLanguageFiles(report *facts.CodeFactsReport, includeTests bool) ([]symbol, []string, map[string]map[string]bool) {
+// graphSymbolsWithLanguageFilesFromIndex extracts symbols and records which
+// valid target paths had language evidence in the same graph traversal.
+func graphSymbolsWithLanguageFilesFromIndex(index *factgraph.Index, includeTests bool) ([]symbol, []string, map[string]map[string]bool) {
 	var result []symbol
-	index := factgraph.NewIndex(report)
 	warnings := index.Warnings()
 	seen := map[string]bool{}
 	evidence := map[string]map[string]bool{}
@@ -505,35 +525,16 @@ func identicalBodyGroups(symbols []symbol, language string) [][]symbol {
 	return groups
 }
 
-// DuplicateFunctionBodies projects exact body groups from Code Facts into the
-// scanner's legacy duplicate-block response shape. Parsing and clone identity
-// remain owned by the shared graph providers.
 type DuplicateBodyGroup struct {
 	Language  string
 	Locations []Location
 	Lines     int
 }
 
-func DuplicateFunctionBodies(report *facts.CodeFactsReport, minLines int) ([]DuplicateBodyGroup, []string) {
-	return DuplicateFunctionBodiesForLanguage(report, minLines, "")
-}
-
-func DuplicateFunctionBodiesForLanguage(report *facts.CodeFactsReport, minLines int, language string) ([]DuplicateBodyGroup, []string) {
-	groups, warnings, _ := DuplicateFunctionBodiesForLanguageWithEvidence(report, minLines, language)
-	return groups, warnings
-}
-
-// DuplicateFunctionBodiesForLanguageWithEvidence shares a single graph walk
-// between duplicate grouping and the caller's missing-language decision.
-func DuplicateFunctionBodiesForLanguageWithEvidence(report *facts.CodeFactsReport, minLines int, language string) ([]DuplicateBodyGroup, []string, map[string]map[string]bool) {
-	symbols, warnings, evidence := graphSymbolsWithLanguageFiles(report, false)
-	return duplicateBodyGroups(symbols, minLines, language), warnings, evidence
-}
-
 // DuplicateFunctionBodiesByLanguageWithEvidence groups every language from one
 // Code Facts graph traversal for multi-language scan callers.
-func DuplicateFunctionBodiesByLanguageWithEvidence(report *facts.CodeFactsReport, minLines int) (map[string][]DuplicateBodyGroup, []string, map[string]map[string]bool) {
-	symbols, warnings, evidence := graphSymbolsWithLanguageFiles(report, false)
+func DuplicateFunctionBodiesByLanguageWithEvidence(index *factgraph.Index, minLines int) (map[string][]DuplicateBodyGroup, []string, map[string]map[string]bool) {
+	symbols, warnings, evidence := graphSymbolsWithLanguageFilesFromIndex(index, false)
 	result := make(map[string][]DuplicateBodyGroup)
 	for _, group := range duplicateBodyGroups(symbols, minLines, "") {
 		result[group.Language] = append(result[group.Language], group)

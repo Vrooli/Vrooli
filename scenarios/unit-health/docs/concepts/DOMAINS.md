@@ -7,7 +7,6 @@ domain is added, renamed, split, merged, or removed.
 The template's starter domain was removed. Every domain below is
 product scope.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -34,7 +34,7 @@ func (s *Server) recommendReductions(ctx context.Context, scenario string, limit
 	}
 	registry := debt.Default()
 	findings, err := currentAuditorFindings(ctx, s.auditorFindings, scenario)
-	result := registry.RecommendWithAuditorFindings(report, findings, limit, minLines)
+	result := registry.Recommend(report, findings, limit, minLines)
 	if err != nil {
 		result.Warnings = append(result.Warnings, "scenario-auditor findings unavailable: "+err.Error())
 	}
@@ -97,6 +97,10 @@ func currentAuditorFindings(ctx context.Context, source AuditorFindingsSource, s
 }
 
 func currentCodeFacts(ctx context.Context, client ReductionFacts, target *facts.CodeTarget) (*facts.CodeFactsReport, error) {
+	return currentCodeFactsWithFamilies(ctx, client, target, []facts.FactFamily{facts.FactFamily_FACT_FAMILY_SYMBOLS})
+}
+
+func currentCodeFactsWithFamilies(ctx context.Context, client ReductionFacts, target *facts.CodeTarget, include []facts.FactFamily) (*facts.CodeFactsReport, error) {
 	if client == nil {
 		url, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, "code-facts")
 		if err != nil {
@@ -105,7 +109,7 @@ func currentCodeFacts(ctx context.Context, client ReductionFacts, target *facts.
 		client = factsconnect.NewCodeFactsServiceClient(http.DefaultClient, url)
 	}
 	response, err := client.DescribeCodeFacts(ctx, connect.NewRequest(&facts.DescribeCodeFactsRequest{
-		Target: target, Include: []facts.FactFamily{facts.FactFamily_FACT_FAMILY_SYMBOLS}, IncludeGraphs: true, UseCache: true,
+		Target: target, Include: include, IncludeGraphs: true, UseCache: true,
 	}))
 	if err != nil {
 		return nil, fmt.Errorf("current source evidence: %w", err)

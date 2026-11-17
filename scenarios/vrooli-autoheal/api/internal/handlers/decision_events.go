@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/vrooli/api-core/operatordecision"
+	"github.com/vrooli/vrooli/packages/credential-authority-go/hubidentity"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/incidents"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/remediation"
 )
@@ -19,13 +20,16 @@ const DecisionEventWebhookPath = "/api/v1/events/notification-hub"
 // notification_hub.ask.resolved.v1 through the signed vrooli-events webhook and
 // applies it via the shared operatordecision.Webhook. The substrate verifies the
 // HMAC signature, decodes the envelope, gates on the ask-resolved event type,
-// and fans the resolution to the remediation effect. This closes the loop the
+// confirms the answer with the Hub as autoheal's own ask-reader, and fans the resolution to the remediation effect. This closes the loop the
 // manual /approve REST route opened: an approve on a LOW-RISK candidate
 // auto-executes server-side; a high-risk approve records the approval and leaves
 // the explicit manual apply step to the operator; a reject/no-answer records a
 // declined outcome and executes nothing.
 func DecisionResolvedWebhook(h *Handlers, secret string) http.Handler {
-	return operatordecision.Webhook(secret, remediationDecisionEffect{handlers: h})
+	return operatordecision.NewWebhook(hubidentity.WebhookConfig(operatordecision.WebhookConfig{
+		Secret: operatordecision.StaticSecret(secret), Source: incidents.RemediationDecisionSource,
+		Effects: []operatordecision.DomainEffect{remediationDecisionEffect{handlers: h}},
+	}))
 }
 
 // remediationDecisionEffect reconstructs the apply call from a resolved
@@ -54,6 +58,13 @@ func (e remediationDecisionEffect) Apply(ctx context.Context, res operatordecisi
 	if incidentID == "" || candidateID == "" || digest == "" || generationErr != nil || generation < 1 || res.RequesterRef == "" {
 		// A resolution without the keys we need is not ours to act on; ack it as a
 		// benign no-op so vrooli-events does not retry a poison message.
+		return true, nil
+	}
+
+	// A withdrawn decision means autoheal itself closed the request because the
+	// incident no longer needs the operator (or the request was replaced). It is
+	// no answer: never an approval and not a decline of the remediation.
+	if res.State == operatordecision.StateWithdrawn {
 		return true, nil
 	}
 

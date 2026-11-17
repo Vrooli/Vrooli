@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/api-core/factgraph"
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
@@ -20,6 +21,10 @@ var (
 	testTsIgnorePattern = regexp.MustCompile(`@ts-ignore|@ts-expect-error`)
 	testNonNullPattern  = regexp.MustCompile(`[a-zA-Z0-9_)\]]\s*!\s*[.\[]`)
 )
+
+func graphFileMetrics(report *facts.CodeFactsReport) map[string]map[Language]graphFileMetric {
+	return graphFileMetricsFromIndex(factgraph.NewIndex(report))
+}
 
 func languageForTestExtension(extension string) (Language, bool) {
 	switch strings.ToLower(extension) {
@@ -39,7 +44,7 @@ func languageForTestExtension(extension string) (Language, bool) {
 }
 
 // AnalyzeFilesWithFacts adapts real fixture files to Code Facts-owned metrics.
-// Production requests use AnalyzeInventory with the catalog facts response.
+// Production requests use AnalyzeInventoryWithGraphMetrics with the catalog facts response.
 func (cma *CodeMetricsAnalyzer) AnalyzeFilesWithFacts(files []string, lang Language, report *facts.CodeFactsReport) (*CodeMetrics, error) {
 	inventory := make([]FileMetric, 0, len(files))
 	for _, relPath := range files {
@@ -49,7 +54,70 @@ func (cma *CodeMetricsAnalyzer) AnalyzeFilesWithFacts(files []string, lang Langu
 		}
 		inventory = append(inventory, metric)
 	}
-	return cma.AnalyzeInventory(inventory, lang, report)
+	applyFixtureTestClassification(inventory)
+	return cma.AnalyzeInventoryWithGraphMetrics(inventory, lang, graphFileMetricsFromIndex(factgraph.NewIndex(report))), nil
+}
+
+// applyFixtureTestClassification models the FILE_METRICS relation for source
+// fixtures. Production uses Code Facts' catalog-backed attributes.
+func applyFixtureTestClassification(inventory []FileMetric) {
+	tests, sources := map[string]bool{}, map[string]bool{}
+	for i := range inventory {
+		inventory[i].IsTestFile = IsTestFilePath(inventory[i].Path)
+		if inventory[i].IsTestFile {
+			tests[inventory[i].Path] = true
+		} else {
+			sources[inventory[i].Path] = true
+		}
+	}
+	for fileIndex := range inventory {
+		if inventory[fileIndex].IsTestFile {
+			inventory[fileIndex].HasTestFile = true
+			continue
+		}
+		path := inventory[fileIndex].Path
+		dir, base := filepath.Dir(path), filepath.Base(path)
+		ext := filepath.Ext(base)
+		stem := strings.TrimSuffix(base, ext)
+		for _, candidate := range []string{
+			filepath.Join(dir, stem+"_test.go"),
+			filepath.Join(dir, stem+".test"+ext), filepath.Join(dir, stem+".spec"+ext),
+			filepath.Join(dir, "__tests__", stem+".test"+ext), filepath.Join(dir, "__tests__", stem+".spec"+ext),
+			filepath.Join(dir, "__tests__", base), filepath.Join(dir, "test_"+base),
+			filepath.Join(dir, stem+"_test.py"),
+		} {
+			if tests[candidate] {
+				inventory[fileIndex].HasTestFile = true
+				break
+			}
+		}
+		if ext == ".go" && !inventory[fileIndex].HasTestFile {
+			for candidate := range tests {
+				candidateBase := filepath.Base(candidate)
+				if filepath.Dir(candidate) != dir || !strings.HasPrefix(candidateBase, stem+"_") || !strings.HasSuffix(candidateBase, "_test.go") {
+					continue
+				}
+				candidateStem := strings.TrimSuffix(candidateBase, "_test.go")
+				mostSpecific := ""
+				if sources[filepath.Join(dir, candidateStem+".go")] {
+					mostSpecific = filepath.Join(dir, candidateStem+".go")
+				}
+				for i, r := range candidateStem {
+					if r != '_' {
+						continue
+					}
+					possible := filepath.Join(dir, candidateStem[:i]+".go")
+					if sources[possible] && len(candidateStem[:i]) > len(strings.TrimSuffix(filepath.Base(mostSpecific), ".go")) {
+						mostSpecific = possible
+					}
+				}
+				if mostSpecific == "" || mostSpecific == path {
+					inventory[fileIndex].HasTestFile = true
+					break
+				}
+			}
+		}
+	}
 }
 
 func fileMetricForTest(absPath, relPath string, lang Language) (FileMetric, error) {
@@ -76,6 +144,8 @@ func fileMetricAttributesForTest(metric FileMetric) map[string]string {
 		"as_any_count": strconv.Itoa(metric.AsAnyCount), "as_type_assertion_count": strconv.Itoa(metric.AsTypeAssertionCount),
 		"ts_ignore_count": strconv.Itoa(metric.TsIgnoreCount), "non_null_assertion_count": strconv.Itoa(metric.NonNullAssertionCount),
 		"fallback_import_count": strconv.Itoa(metric.FallbackImportCount), "fallback_function_count": strconv.Itoa(metric.FallbackFunctionCount),
+		"test_classification_version": "1", "is_test_file": strconv.FormatBool(metric.IsTestFile),
+		"has_test_file": strconv.FormatBool(metric.HasTestFile),
 	}
 }
 

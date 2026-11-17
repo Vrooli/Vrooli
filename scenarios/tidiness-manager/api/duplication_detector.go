@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
-	"time"
 
-	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	"github.com/vrooli/api-core/factgraph"
 	debt "tidiness-manager/internal/discovery"
 )
 
@@ -41,58 +38,16 @@ type DuplicateLocation struct {
 // discovery registry.
 type DuplicationDetector struct {
 	scenarioPath string
-	timeout      time.Duration
-	source       ReductionFacts
 }
 
-func NewDuplicationDetector(scenarioPath string, timeout time.Duration) *DuplicationDetector {
-	if timeout == 0 {
-		timeout = 90 * time.Second
-	}
-	return &DuplicationDetector{scenarioPath: scenarioPath, timeout: timeout}
+func NewDuplicationDetector(scenarioPath string) *DuplicationDetector {
+	return &DuplicationDetector{scenarioPath: scenarioPath}
 }
 
-func (dd *DuplicationDetector) DetectDuplication(ctx context.Context, lang Language, files []string) (*DuplicateResult, error) {
-	switch lang {
-	case LanguageGo:
-		return dd.detectGraphDuplication(ctx, files, "go", []string{"go"})
-	case LanguageTypeScript:
-		return dd.detectGraphDuplication(ctx, files, "typescript", []string{"typescript"})
-	case LanguageJavaScript:
-		// JavaScript in an established TypeScript project is emitted by that
-		// project graph; standalone JavaScript packages have their own Code Facts
-		// parse unit routed to the same TypeScript AST provider.
-		return dd.detectGraphDuplication(ctx, files, "javascript", []string{"javascript", "typescript"})
-	default:
-		return &DuplicateResult{Skipped: true, SkipReason: fmt.Sprintf("duplication detection not implemented for %s", lang)}, nil
-	}
-}
-
-func (dd *DuplicationDetector) detectGraphDuplication(ctx context.Context, files []string, language string, languageFilter []string) (*DuplicateResult, error) {
-	if len(files) == 0 {
-		return &DuplicateResult{Skipped: true, SkipReason: "no files to analyze"}, nil
-	}
-	if _, err := resolveScenarioFiles(dd.scenarioPath, files); err != nil {
-		return &DuplicateResult{Skipped: true, SkipReason: err.Error()}, nil
-	}
-
-	cmdCtx, cancel := context.WithTimeout(ctx, dd.timeout)
-	defer cancel()
-	report, err := currentCodeFacts(cmdCtx, dd.source, &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_PATH, Path: dd.scenarioPath, LanguageFilter: languageFilter})
-	if err != nil {
-		return &DuplicateResult{Skipped: true, SkipReason: err.Error(), Tool: "code-facts"}, nil
-	}
-	return dd.DetectDuplicationFromFacts(files, language, report)
-}
-
-func (dd *DuplicationDetector) DetectDuplicationFromFacts(files []string, language string, report *facts.CodeFactsReport) (*DuplicateResult, error) {
-	return dd.DetectDuplicationForLanguagesFromFacts(map[string][]string{language: files}, report)[language], nil
-}
-
-// DetectDuplicationForLanguagesFromFacts projects all language groups from one
+// DetectDuplicationForLanguagesFromIndex projects all language groups from one
 // graph traversal, allowing multi-language scans to reuse shared symbols.
-func (dd *DuplicationDetector) DetectDuplicationForLanguagesFromFacts(filesByLanguage map[string][]string, report *facts.CodeFactsReport) map[string]*DuplicateResult {
-	groupsByLanguage, warnings, evidence := debt.DuplicateFunctionBodiesByLanguageWithEvidence(report, DuplicateMinimumLines)
+func (dd *DuplicationDetector) DetectDuplicationForLanguagesFromIndex(filesByLanguage map[string][]string, index *factgraph.Index) map[string]*DuplicateResult {
+	groupsByLanguage, warnings, evidence := debt.DuplicateFunctionBodiesByLanguageWithEvidence(index, DuplicateMinimumLines)
 	results := make(map[string]*DuplicateResult, len(filesByLanguage))
 	for language, files := range filesByLanguage {
 		if len(files) == 0 {

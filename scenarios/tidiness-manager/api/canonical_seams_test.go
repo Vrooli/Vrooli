@@ -711,7 +711,7 @@ func TestRepositoryExecutableSeamMatchesDeclaredBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(hits) != executableSeams[0].Budget {
-		t.Fatalf("executable observation = %d, budget = %d", len(hits), executableSeams[0].Budget)
+		t.Fatalf("executable observation = %d, budget = %d, hits = %#v", len(hits), executableSeams[0].Budget, hits)
 	}
 	retiredExecutable := strings.Join([]string{"vrooli", "debt", "census"}, "-")
 	for _, hit := range hits {

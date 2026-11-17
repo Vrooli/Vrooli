@@ -44,7 +44,7 @@ All five produce identical operator state for identical choices. That is a teste
 | 3 | Core supervision set | Which seed scenarios must remain supervised | `core.seed`, locked `core.trusted_base`, and the declared closure |
 | 4 | Resources | Which optional resources to add | Transitive closure of the scenario selection |
 | 5 | Credentials | Which declared credentials to provision | Credential descriptors on selected manifests |
-| 6 | Integrations | *(deferred)* | Owned by integration-hub; no placeholder bindings |
+| 6 | Integrations | *(deferred)* | Reports manifest requirements; does not query Hub or create bindings |
 | 7 | Host | Which tools and safeguards to consent to | `hostTools` / `hostSafeguards` on selected manifests |
 | 8 | Operating mode | Which scenarios restart automatically | `runtime.kind` and `runtime.auto_restart_default` |
 | 9 | Apply | Confirmation to change the host | The committed selection |
@@ -110,7 +110,7 @@ Statuses and PRD checkboxes are earned by requirement sync from passing evidence
 Onboarding does **not**:
 
 - author `service.json` or any manifest;
-- own connector, OAuth, or integration lifecycles (integration-hub does);
+- own Hub connection metadata or bindings (Integration Hub does); provider OAuth flows are not yet implemented;
 - carry a private host-repair implementation — detection and remediation belong to the control plane, and onboarding orders and reports them;
 - replace `secrets-manager` for credential lifecycle, backup, or keyring repair;
 - persist a credential value anywhere in onboarding-owned state. The normal UI,

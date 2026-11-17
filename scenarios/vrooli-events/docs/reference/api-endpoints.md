@@ -42,6 +42,37 @@ Accepts an event and stores it durably. Returns immediately (202 Accepted) — s
 
 Receipts are post-response, best-effort observations. Absence of a receipt means **unobserved**, not failed.
 
+#### Publisher proof (observation only)
+
+A publisher may present `Authorization: Bearer <token>` for its `<source>-event-publisher`
+service principal (audience `scenario-authenticator:vrooli-events`, scope
+`vrooli-events:publish`; api-core `eventpublisher`). Every accepted event is classified
+against that proof and counted, and **nothing about acceptance changes**: an event is
+accepted whatever it presents. See [GET /publisher-authentication](#get-publisher-authentication--publisher-proof-counts).
+
+### GET /publisher-authentication — Publisher proof counts
+
+[CODE: api/internal/publisherauth] | [CODE: api/routes.go]
+
+Read-only. Returns how the claimed `source.scenario` of every accepted event fared against
+the proof it came with, since counting began:
+
+| Class | Meaning |
+|---|---|
+| `authenticated` | a verified event-publisher principal whose source is the claimed source |
+| `mismatch` | a verified event-publisher principal for a *different* source: a forgery or a mis-labelled publisher |
+| `unauthenticated` | no bearer token; every publisher until its credential is issued |
+| `invalid` | a token that did not verify, or verified but is not an event-publisher principal |
+| `unverifiable` | a token that could not be checked because the authenticator was unreachable |
+
+The response has `mode` (`observe`), `since`, `totals` by class, `by_family` (event families, the
+high-consequence ones first: `answer` for `notification_hub.ask.*`, `decision` for
+`*.decision_requested.v1` and `*.decision_withdrawn.v1`, `notification`, `other`) and `rows`
+by claimed source, family, class and authenticated source, each with `count`, `first_seen`,
+`last_seen` and a `sample_event_id` to find the latest event in the store. Counts are kept in
+memory, flushed every 30 s and before each read. Enforcing a family is an operator decision made
+from these counts; this endpoint does not enforce anything. `503` when observation is not enabled.
+
 ### Receipt projection rules
 
 Receipt projection rules are the central allow-list for typed unary receipt data. Scenario code can propose a bounded candidate projection, but a matching rule is required before `api-core/eventbus` emits it and Vrooli Events independently validates it at ingestion. Fields outside `response_fields`, fields in `redact_fields`, payloads over `max_bytes`, and sampling exclusions are rejected or omitted; no matching rule means no receipt.

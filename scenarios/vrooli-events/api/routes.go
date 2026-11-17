@@ -16,6 +16,7 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/v1/events", s.handleQuery)
 	mux.HandleFunc("DELETE /api/v1/events", s.handleDeleteEventsByType)
 	mux.HandleFunc("GET /api/v1/events/subscribe", s.handleSubscribe)
+	mux.Handle("GET /api/v1/publisher-authentication", s.publishers.Handler())
 
 	// Policy endpoints
 	mux.HandleFunc("GET /api/v1/policies/snapshot", s.handlePolicySnapshot)

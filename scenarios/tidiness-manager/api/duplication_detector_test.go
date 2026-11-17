@@ -1,68 +1,40 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
-	"time"
 
-	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/factgraph"
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	common "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"tidiness-manager/internal/testutil"
 )
 
-func TestNewDuplicationDetectorDefaults(t *testing.T) {
-	if got := NewDuplicationDetector("/scenario", 0).timeout; got != 90*time.Second {
-		t.Fatalf("default timeout = %s, want 90s", got)
-	}
-	if got := NewDuplicationDetector("/scenario", time.Second).timeout; got != time.Second {
-		t.Fatalf("explicit timeout = %s, want 1s", got)
-	}
-}
-
-func TestDetectDuplicationUsesOneGraphPathForGoTypeScriptAndJavaScript(t *testing.T) {
+func TestDuplicationProjectsSharedFactsForEachLanguage(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		language      Language
 		graphLanguage string
-		targetFilter  []string
 		files         []string
 	}{
-		{"go", LanguageGo, "go", []string{"go"}, []string{"api/a.go", "api/b.go"}},
-		{"typescript", LanguageTypeScript, "typescript", []string{"typescript"}, []string{"ui/src/a.ts", "ui/src/b.ts"}},
-		{"javascript in TypeScript project", LanguageJavaScript, "typescript", []string{"javascript", "typescript"}, []string{"ui/src/a.js", "ui/src/b.js"}},
-		{"standalone javascript", LanguageJavaScript, "javascript", []string{"javascript", "typescript"}, []string{"ui/src/a.js", "ui/src/b.js"}},
+		{"go", LanguageGo, "go", []string{"api/a.go", "api/b.go"}},
+		{"typescript", LanguageTypeScript, "typescript", []string{"ui/src/a.ts", "ui/src/b.ts"}},
+		{"javascript", LanguageJavaScript, "typescript", []string{"ui/src/a.js", "ui/src/b.js"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			symbolLanguage := tc.graphLanguage
-			if tc.language == LanguageJavaScript {
-				symbolLanguage = "javascript"
-			}
+			symbolLanguage := string(tc.language)
 			nodes := []*common.CodeGraphNode{
 				testutil.GraphNode("a", "first", sourcePath(tc.files[0]), bodyAttributes(symbolLanguage, 11, 18, "same")),
 				testutil.GraphNode("b", "second", sourcePath(tc.files[1]), bodyAttributes(symbolLanguage, 21, 28, "same")),
 			}
 			unitRoot := "/scenario"
-			if tc.graphLanguage == "typescript" || tc.graphLanguage == "javascript" {
+			if tc.graphLanguage == "typescript" {
 				unitRoot = "/scenario/ui"
 			}
 			report := testutil.GraphReport("/scenario", testutil.GraphUnit{ID: "unit", Language: tc.graphLanguage, RootPath: unitRoot, Nodes: nodes})
-			dd := NewDuplicationDetector("/scenario", time.Second)
-			dd.source = reductionSourceFunc(func(_ context.Context, req *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
-				if !reflect.DeepEqual(req.Msg.GetTarget().GetLanguageFilter(), tc.targetFilter) {
-					t.Fatalf("language filter = %v, want %v", req.Msg.GetTarget().GetLanguageFilter(), tc.targetFilter)
-				}
-				return connect.NewResponse(report), nil
-			})
-
-			got, err := dd.DetectDuplication(context.Background(), tc.language, tc.files)
-			if err != nil {
-				t.Fatal(err)
-			}
+			detector := NewDuplicationDetector("/scenario")
+			got := detector.DetectDuplicationForLanguagesFromIndex(map[string][]string{string(tc.language): tc.files}, factgraph.NewIndex(report))[string(tc.language)]
 			if got.Skipped || got.Tool != "code-facts" || got.TotalDuplicates != 1 || got.TotalLines != 8 {
 				t.Fatalf("result = %+v", got)
 			}
@@ -73,66 +45,32 @@ func TestDetectDuplicationUsesOneGraphPathForGoTypeScriptAndJavaScript(t *testin
 	}
 }
 
-func TestDetectDuplicationScopesToRequestedFiles(t *testing.T) {
+func TestDuplicationProjectsOnlyRequestedFiles(t *testing.T) {
 	nodes := []*common.CodeGraphNode{
 		testutil.GraphNode("a", "first", "src/a.js", bodyAttributes("javascript", 1, 8, "same")),
 		testutil.GraphNode("b", "middle", "src/b.js", bodyAttributes("javascript", 11, 18, "same")),
 		testutil.GraphNode("c", "third", "src/c.js", bodyAttributes("javascript", 21, 28, "same")),
 	}
 	report := testutil.GraphReport("/scenario", testutil.GraphUnit{ID: "unit", Language: "typescript", RootPath: "/scenario/ui", Nodes: nodes})
-	dd := NewDuplicationDetector("/scenario", time.Second)
-	dd.source = reductionSourceFunc(func(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
-		return connect.NewResponse(report), nil
-	})
-
-	got, err := dd.DetectDuplication(context.Background(), LanguageJavaScript, []string{"ui/src/a.js", "ui/src/c.js"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	files := []string{"ui/src/a.js", "ui/src/c.js"}
+	got := NewDuplicationDetector("/scenario").DetectDuplicationForLanguagesFromIndex(map[string][]string{"javascript": files}, factgraph.NewIndex(report))["javascript"]
 	if got.Skipped || got.TotalDuplicates != 1 || len(got.DuplicateBlocks[0].Files) != 2 {
 		t.Fatalf("result = %+v", got)
 	}
-	if got.DuplicateBlocks[0].Files[0].Path != "ui/src/a.js" || got.DuplicateBlocks[0].Files[1].Path != "ui/src/c.js" {
+	if got.DuplicateBlocks[0].Files[0].Path != files[0] || got.DuplicateBlocks[0].Files[1].Path != files[1] {
 		t.Fatalf("requested file scope = %+v", got.DuplicateBlocks[0].Files)
 	}
 }
 
-func TestDetectDuplicationDegradesWhenRequestedLanguageEvidenceIsMissing(t *testing.T) {
-	dd := NewDuplicationDetector("/scenario", time.Second)
-	dd.source = reductionSourceFunc(func(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
-		return connect.NewResponse(&facts.CodeFactsReport{}), nil
-	})
-	got, err := dd.DetectDuplication(context.Background(), LanguageJavaScript, []string{"ui/src/app.js"})
-	if err != nil {
-		t.Fatal(err)
+func TestDuplicationSkipsMissingEvidenceAndEscapingPaths(t *testing.T) {
+	detector := NewDuplicationDetector("/scenario")
+	missing := detector.DetectDuplicationForLanguagesFromIndex(map[string][]string{"javascript": {"ui/src/app.js"}}, factgraph.NewIndex(&facts.CodeFactsReport{}))["javascript"]
+	if !missing.Skipped || missing.Tool != "code-facts" || missing.SkipReason == "" || missing.TotalDuplicates != 0 {
+		t.Fatalf("missing evidence result = %+v", missing)
 	}
-	if !got.Skipped || got.Tool != "code-facts" || got.SkipReason == "" || got.TotalDuplicates != 0 {
-		t.Fatalf("missing evidence result = %+v", got)
-	}
-}
-
-func TestDetectDuplicationDegradesWhenCodeFactsFails(t *testing.T) {
-	dd := NewDuplicationDetector("/scenario", time.Second)
-	dd.source = reductionSourceFunc(func(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
-		return nil, errors.New("provider unavailable")
-	})
-	got, err := dd.DetectDuplication(context.Background(), LanguageGo, []string{"api/a.go"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !got.Skipped || got.Tool != "code-facts" || got.SkipReason == "" {
-		t.Fatalf("provider failure result = %+v", got)
-	}
-}
-
-func TestDetectDuplicationRejectsEscapingPaths(t *testing.T) {
-	dd := NewDuplicationDetector("/scenario", time.Second)
-	got, err := dd.DetectDuplication(context.Background(), LanguageJavaScript, []string{"../outside.js"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !got.Skipped || got.Tool != "" || got.SkipReason == "" {
-		t.Fatalf("path validation result = %+v", got)
+	escaping := detector.DetectDuplicationForLanguagesFromIndex(map[string][]string{"javascript": {"../outside.js"}}, factgraph.NewIndex(&facts.CodeFactsReport{}))["javascript"]
+	if !escaping.Skipped || escaping.Tool != "" || escaping.SkipReason == "" {
+		t.Fatalf("path validation result = %+v", escaping)
 	}
 }
 

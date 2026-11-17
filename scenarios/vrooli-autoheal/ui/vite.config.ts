@@ -1,6 +1,7 @@
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import RequirementReporter from "@vrooli/vitest-requirement-reporter";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // INTEROP-CRITICAL: base must stay relative so tunnel, proxy, and iframe-hosted
 // deployments resolve built assets correctly regardless of parent route prefix.
@@ -9,7 +10,7 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     base: "./", // Required for tunnel/proxy contexts
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     resolve: isProfile
       ? {
           alias: {

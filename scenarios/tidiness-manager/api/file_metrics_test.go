@@ -9,7 +9,7 @@ import (
 )
 
 // [REQ:TM-LS-005] Test file line counting
-func TestCollectFileMetrics_LineCounting(t *testing.T) {
+func TestCollectScanFacts_LineCounting(t *testing.T) {
 	// Create temporary test directory
 	tmpDir := t.TempDir()
 
@@ -34,9 +34,9 @@ func TestCollectFileMetrics_LineCounting(t *testing.T) {
 
 	// Create scanner and collect metrics
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Verify we found the expected files
@@ -68,7 +68,7 @@ func TestCollectFileMetrics_LineCounting(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test file extension filtering
-func TestCollectFileMetrics_ExtensionFiltering(t *testing.T) {
+func TestCollectScanFacts_ExtensionFiltering(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create files with different extensions
@@ -92,9 +92,9 @@ func TestCollectFileMetrics_ExtensionFiltering(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Count how many of each type we found
@@ -263,7 +263,7 @@ func TestFileMetrics_Totals(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test handling of empty files
-func TestCollectFileMetrics_EmptyFiles(t *testing.T) {
+func TestCollectScanFacts_EmptyFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create empty and near-empty files
@@ -287,9 +287,9 @@ func TestCollectFileMetrics_EmptyFiles(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Empty files should still be included in metrics
@@ -308,7 +308,7 @@ func TestCollectFileMetrics_EmptyFiles(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test exclusion of hidden directories
-func TestCollectFileMetrics_ExcludeHiddenDirs(t *testing.T) {
+func TestCollectScanFacts_ExcludeHiddenDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create files in hidden and normal directories
@@ -329,9 +329,9 @@ func TestCollectFileMetrics_ExcludeHiddenDirs(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	metricPaths := make(map[string]bool)
@@ -371,7 +371,7 @@ func TestCollectFileMetrics_ExcludeHiddenDirs(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test handling of unreadable files
-func TestCollectFileMetrics_UnreadableFiles(t *testing.T) {
+func TestCollectScanFacts_UnreadableFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create readable file
@@ -391,10 +391,10 @@ func TestCollectFileMetrics_UnreadableFiles(t *testing.T) {
 	defer func() { _ = os.Chmod(unreadablePath, 0o644) }() // Cleanup
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	// Should complete despite unreadable file (may skip it or return error)
 	if err != nil {
-		t.Logf("collectFileMetrics returned error (acceptable): %v", err)
+		t.Logf("collectScanFacts returned error (acceptable): %v", err)
 	}
 
 	// Should have metrics for at least the readable file
@@ -415,7 +415,7 @@ func TestCollectFileMetrics_UnreadableFiles(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test file metrics with deeply nested directory structure
-func TestCollectFileMetrics_DeepNesting(t *testing.T) {
+func TestCollectScanFacts_DeepNesting(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create deeply nested file
@@ -428,9 +428,9 @@ func TestCollectFileMetrics_DeepNesting(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Should find deeply nested file
@@ -450,7 +450,7 @@ func TestCollectFileMetrics_DeepNesting(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test file extension metadata
-func TestCollectFileMetrics_ExtensionMetadata(t *testing.T) {
+func TestCollectScanFacts_ExtensionMetadata(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	testFiles := []struct {
@@ -470,9 +470,9 @@ func TestCollectFileMetrics_ExtensionMetadata(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Verify extension metadata is captured correctly
@@ -488,7 +488,7 @@ func TestCollectFileMetrics_ExtensionMetadata(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test handling of very large files
-func TestCollectFileMetrics_LargeFile(t *testing.T) {
+func TestCollectScanFacts_LargeFile(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a very large file (10,000 lines)
@@ -507,9 +507,9 @@ func TestCollectFileMetrics_LargeFile(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Should handle large file without issues
@@ -529,7 +529,7 @@ func TestCollectFileMetrics_LargeFile(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test file metrics with symlinks
-func TestCollectFileMetrics_Symlinks(t *testing.T) {
+func TestCollectScanFacts_Symlinks(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a real file
@@ -548,9 +548,9 @@ func TestCollectFileMetrics_Symlinks(t *testing.T) {
 	}
 
 	scanner := newLightScannerForTest(tmpDir, 0)
-	metrics, err := scanner.collectFileMetrics()
+	metrics, _, err := scanner.collectScanFacts(context.Background())
 	if err != nil {
-		t.Fatalf("collectFileMetrics failed: %v", err)
+		t.Fatalf("collectScanFacts failed: %v", err)
 	}
 
 	// Verify scanner handles symlinks gracefully (implementation-dependent)
@@ -560,7 +560,7 @@ func TestCollectFileMetrics_Symlinks(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test concurrent file metric collection safety
-func TestCollectFileMetrics_Concurrent(t *testing.T) {
+func TestCollectScanFacts_Concurrent(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create test files
@@ -574,7 +574,7 @@ func TestCollectFileMetrics_Concurrent(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		go func() {
 			scanner := newLightScannerForTest(tmpDir, 0)
-			_, err := scanner.collectFileMetrics()
+			_, _, err := scanner.collectScanFacts(context.Background())
 			done <- err
 		}()
 	}
@@ -588,7 +588,7 @@ func TestCollectFileMetrics_Concurrent(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Test line counting with different line ending styles
-func TestCollectFileMetrics_LineEndings(t *testing.T) {
+func TestCollectScanFacts_LineEndings(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	testCases := []struct {
@@ -613,9 +613,9 @@ func TestCollectFileMetrics_LineEndings(t *testing.T) {
 			}
 
 			scanner := newLightScannerForTest(tmpDir, 0)
-			metrics, err := scanner.collectFileMetrics()
+			metrics, _, err := scanner.collectScanFacts(context.Background())
 			if err != nil {
-				t.Fatalf("collectFileMetrics failed: %v", err)
+				t.Fatalf("collectScanFacts failed: %v", err)
 			}
 
 			for _, m := range metrics {
@@ -684,7 +684,7 @@ func TestLongFileThreshold_BoundaryConditions(t *testing.T) {
 }
 
 // [REQ:TM-LS-005] Benchmark file metric collection performance
-func BenchmarkCollectFileMetrics_Small(b *testing.B) {
+func BenchmarkCollectScanFacts_Small(b *testing.B) {
 	tmpDir := b.TempDir()
 
 	// Create 10 files
@@ -705,15 +705,15 @@ func BenchmarkCollectFileMetrics_Small(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		scanner := newLightScannerForTest(tmpDir, 0)
-		_, err := scanner.collectFileMetrics()
+		_, _, err := scanner.collectScanFacts(context.Background())
 		if err != nil {
-			b.Fatalf("collectFileMetrics failed: %v", err)
+			b.Fatalf("collectScanFacts failed: %v", err)
 		}
 	}
 }
 
 // [REQ:TM-LS-005] Benchmark file metric collection with many files
-func BenchmarkCollectFileMetrics_Large(b *testing.B) {
+func BenchmarkCollectScanFacts_Large(b *testing.B) {
 	tmpDir := b.TempDir()
 
 	// Create 100 files
@@ -734,9 +734,9 @@ func BenchmarkCollectFileMetrics_Large(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		scanner := newLightScannerForTest(tmpDir, 0)
-		_, err := scanner.collectFileMetrics()
+		_, _, err := scanner.collectScanFacts(context.Background())
 		if err != nil {
-			b.Fatalf("collectFileMetrics failed: %v", err)
+			b.Fatalf("collectScanFacts failed: %v", err)
 		}
 	}
 }

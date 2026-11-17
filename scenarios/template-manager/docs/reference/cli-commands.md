@@ -139,6 +139,11 @@ template-manager template drift ai-gateway --verbose
 template-manager template drift ai-gateway --verbose --json
 ```
 
+### Inspecting and resolving debt
+
+Use the [factory debt workflow](../factory/TEMPLATE-FACTORY-GUIDE.md#debt-ledger-workflow)
+for inspection commands and supported owner transitions.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

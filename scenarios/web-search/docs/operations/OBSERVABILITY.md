@@ -8,7 +8,6 @@ business/product signals for the scenario.
 > implemented. Aggregate quality, source, cost, and organic operator cohorts
 > remain explicitly limited or unknown where noted below.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -6,34 +6,30 @@ env = program.envelope("unit-health.mutation-pilot", "1", inputs=inputs)
 env["signals"] = {"summary": {}, "receipts": []}
 
 
-def fail(status, klass, detail, where):
-    env["status"] = status
-    env["errors"].append({"class": klass, "detail": str(detail)[:240], "where": where})
-    return "report"
 
 
 def step_validate():
     if not isinstance(inputs, dict):
-        return fail("failed", "invalid_input", "inputs must be an object", "validate")
+        return program.fail
     scenario = inputs.get("scenario")
     if not isinstance(scenario, str) or not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,127}", scenario):
-        return fail("failed", "invalid_input", "scenario must be an exact scenario id", "validate")
+        return program.fail
     seed = inputs.get("seed")
     if not isinstance(seed, str) or not seed.strip() or len(seed) > 256:
-        return fail("failed", "invalid_input", "seed is required and bounded", "validate")
+        return program.fail
     operators = inputs.get("operators", ["boundary", "negate-condition", "return-constant"])
     if not isinstance(operators, list) or not operators or len(operators) > 3 or any(not isinstance(item, str) for item in operators):
-        return fail("failed", "invalid_input", "operators must be a bounded non-empty array", "validate")
+        return program.fail
     supported = {"boundary", "negate-condition", "return-constant"}
     if any(item not in supported for item in operators):
-        return fail("failed", "invalid_input", "operators contain an unsupported value", "validate")
+        return program.fail
     max_mutants = inputs.get("max_mutants", 20)
     if type(max_mutants) is not int or max_mutants < 1 or max_mutants > 50:
-        return fail("failed", "invalid_input", "max_mutants must be within [1,50]", "validate")
+        return program.fail
     workspace = inputs.get("workspace", "api")
     package = inputs.get("package", "./internal/testquality/...")
     if not isinstance(workspace, str) or not workspace or not isinstance(package, str) or not package:
-        return fail("failed", "invalid_input", "workspace and package are required", "validate")
+        return program.fail
     env["inputs"] = {"scenario": scenario, "workspace": workspace, "package": package, "operators": operators, "max_mutants": max_mutants, "seed": seed}
     env["status"] = "ok"
     return "collect"
@@ -53,10 +49,10 @@ def step_collect():
         handle = read()
         if isinstance(handle, Exception):
             status, klass = program.classify(handle)
-            return fail("unavailable" if klass == "scenario_unreachable" else "partial", klass, str(handle), "collect")
+            return program.fail
         payload = handle.raw() if hasattr(handle, "raw") else {}
         if not isinstance(payload, dict):
-            return fail("partial", "binding_error", "mutation binding returned no object", "collect")
+            return program.fail
         summary = value(payload, "summary", "summary", {}) or {}
         receipts = value(payload, "receipts", "receipts", []) or []
         env["signals"]["summary"] = {
@@ -81,7 +77,7 @@ def step_collect():
         return "report"
     except Exception as exc:
         status, klass = program.classify(exc)
-        return fail("unavailable" if klass == "scenario_unreachable" else "partial", klass, str(exc), "collect")
+        return program.fail
 
 
 def step_report():

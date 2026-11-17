@@ -4,9 +4,7 @@ import hashlib
 import datetime
 
 inputs = program.inputs()
-envelope = {"program": "vrooli-memory.compare-outcomes", "version": "1",
-            "status": "failed", "phase": "validate", "inputs": {},
-            "signals": {}, "errors": [], "evidence": []}
+envelope = program.envelope('vrooli-memory.compare-outcomes', '1', phase="validate", inputs={})
 
 fail = program.fail
 

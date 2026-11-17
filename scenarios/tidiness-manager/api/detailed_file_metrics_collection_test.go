@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/vrooli/api-core/factgraph"
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
@@ -812,7 +813,7 @@ func TestCollectDetailedFileMetrics_Concurrent(t *testing.T) {
 func collectAndValidateMetricsWithGraph(t *testing.T, root string, files []string, expected int, lang Language, path string, imports, functions int) []DetailedFileMetrics {
 	t.Helper()
 	metrics, err := collectDetailedFileMetricsForTest(root, files, map[Language]*LanguageMetrics{
-		lang: {facts: testMetricsGraph(root, path, lang, imports, functions)},
+		lang: {factIndex: factgraph.NewIndex(testMetricsGraph(root, path, lang, imports, functions))},
 	})
 	if err != nil {
 		t.Fatalf("collectDetailedFileMetricsForTest() error = %v", err)

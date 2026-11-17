@@ -99,16 +99,6 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/executor/executor_test.go::fakeEnvReader` supplies a controlled `VROOLI_HOME` and inherited environment. |
 | **Why it exists** | Go work directories and toolchain environment filtering must be testable without mutating the process environment. `TestEnvironmentSeamControlsGoWorkDirectoryAndScrubbing` proves the injected values change both outcomes. |
 
-### httpx.Logger
-
-| | |
-|---|---|
-| **Seam** | Diagnostic logging for REST serialization failures |
-| **Interface** | `internal/httpx/errors.go::Logger` (`Printf`) |
-| **Production wiring** | `internal/logx.Default()` adapts the standard logger at the HTTP boundary. |
-| **Test fake** | `internal/httpx/errors_test.go::recordingLogger` captures the marshal-failure line through `WriteProtoWithLogger`. |
-| **Why it exists** | Error serialization failures are rare but observable. The writer can now prove its log behavior without touching the process-global logger. |
-
 ### Pinger (database reachability)
 
 | | |

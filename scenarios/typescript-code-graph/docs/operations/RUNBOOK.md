@@ -2,7 +2,6 @@
 
 This document records operator procedures for running, diagnosing, recovering, and maintaining the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

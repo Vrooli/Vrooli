@@ -55,7 +55,7 @@ lifecycle injects each resource's endpoint from its
 | `QDRANT_URL` | findings | local Qdrant resource endpoint | Semantic index (collection `web-search-findings`) via aisearch-go. If unreachable, recall falls back to text matching. |
 | `OLLAMA_URL` | findings (embeddings), livesearch/research (synthesis, distillation) | local Ollama resource endpoint | `embedding.default` embeddings + small chat role. If unreachable, no embeddings/synthesis; raw hits still returned. |
 | `RERANKER_URL` | findings (ranking) | local reranker resource endpoint | TEI cross-encoder (bge-reranker-v2-m3). Falls back to raw dense order. |
-| browser-automation-studio discovery | research (L2 browser escalation) | scenario discovery (`discovery.ResolveScenarioURLDefault`) | Browser leg of the L2 fetch stack: `CaptureService.Capture` (Connect-RPC, `inline_dom=true`) for pages the HTTP leg cannot read. If unreachable, L2 degrades to HTTP-only fetch; L0/L1 unaffected. |
+| browser-automation-studio discovery | research (L2 browser escalation) | scenario discovery (`discovery.ResolveScenarioURLDefault`) | Browser leg of the L2 fetch stack: the redaction-first `/ux-capture/public` command returns a `ux-capture.v1` bundle for pages the HTTP leg cannot read. Web-search verifies and reads the frozen-page artifact from the shared BAS capture root, then removes the ephemeral external bundle. If unreachable, L2 degrades to HTTP-only fetch; L0/L1 unaffected. |
 | search-hub registration target | federation | lifecycle / search-hub discovery | Self-registers `web-search.live` + `web-search.learnings` from `.vrooli/search.json`; control token gates mutating verbs (reindex/config/query-overrides). |
 
 ### Tuning levers (boot-time)

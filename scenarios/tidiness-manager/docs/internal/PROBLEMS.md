@@ -43,3 +43,10 @@ The completeness tool says "has: API → needs: API + E2E" but for backend-only 
 3. Or: Accept completeness score penalty as tool limitation and document actual coverage separately
 
 ---
+
+### Refactor detector precision is currently snapshot-scoped
+**Status**: Open (calibration coverage gap)
+**Severity**: Medium
+**Description**: A 2026-11-16 exact `quality-health` Go API/CLI snapshot was independently censused: 46 Go source files, 211 eligible functions, and four served duplicate-body groups. The matching corpus frame records 4 true positives, 0 false positives, and 0 false negatives for that exact source/config identity. The live response reports expected net lines 12/10/6/2 and precision/recall 1.0 only for this complete exact-source target census.
+**Limit**: This does not establish fleet-wide or historical precision, behavior-preserving consolidation, actionability, or realized savings. Historical detector predictions remain unjoinable to outcomes; the 17-positive/one-negative archive sample cannot estimate precision. Stale source or config hashes do not receive this frame.
+**Evidence**: Debt-reduction DR1 run `steward-free-host-maintainability-20261115/DR1/evidence/quality-health-live-go-census-20261116.json`, `quality-health-current-recommendations-20261116.json`, and corpus frame `dr1-live-quality-health-go-census-20261116-v1`.

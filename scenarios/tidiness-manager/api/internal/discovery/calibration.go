@@ -257,7 +257,7 @@ func countConfusion(tp, fp, fn, tn *int, hit, expected bool) {
 func (c *CalibrationFrame) setRates() {
 	if c.FrameID == "" || c.PopulationID == "" || c.Population == "" || !c.CompleteCensus ||
 		c.SamplingUnit == "" || c.SelectionMethod == "" || c.RandomSeed == "" ||
-		c.AdjudicationProtocol == "" || !c.AdjudicationComplete {
+		c.AdjudicationProtocol == "" || !c.AdjudicationComplete || !c.ResponseComplete {
 		c.Precision, c.Recall = nil, nil
 		return
 	}

@@ -7,7 +7,6 @@ runtime dependencies, and deployment readiness.
 > supported through the scenario lifecycle. Desktop/mobile packaging and
 > hosted deployment remain deferred tiers.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

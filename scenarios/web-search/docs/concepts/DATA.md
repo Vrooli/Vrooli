@@ -7,7 +7,6 @@ records, retention rules, migrations, imports, or exports.
 The schema below is the implemented owner model. Domain schemas are embedded
 next to the code that interprets them and are applied idempotently at startup.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

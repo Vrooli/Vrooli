@@ -412,9 +412,9 @@ func loadIntegrationReadiness(path, owner string) ([]readinessItem, error) {
 			return nil, fmt.Errorf("%s declares an integration without a connector", owner)
 		}
 		name := owner + "/" + connector
-		detail := "Connection setup is deferred until the integration capability is available."
+		detail := "Onboarding does not bind this declaration to an Integration Hub connection."
 		if integration.Purpose != "" {
-			detail = integration.Purpose + " Connection setup is deferred until the integration capability is available."
+			detail = integration.Purpose + " Onboarding does not bind this declaration to an Integration Hub connection."
 		}
 		if len(integration.Scopes) > 0 {
 			detail += " Requested scopes: " + strings.Join(integration.Scopes, ", ") + "."
@@ -427,7 +427,7 @@ func loadIntegrationReadiness(path, owner string) ([]readinessItem, error) {
 			Category:    "integration",
 			Status:      "deferred",
 			Detail:      detail,
-			Remediation: "Configure the declared connection when the integration capability is available.",
+			Remediation: "Check the integration contract for current Hub support; Onboarding does not bind declared connections.",
 			Required:    integration.Required,
 		})
 	}

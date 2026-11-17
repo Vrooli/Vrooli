@@ -435,6 +435,9 @@ func TestRunTemplateValidateDeepInvokesTestGenieWithScenarioPath(t *testing.T) {
 		deepRun.RetainedTemp {
 		t.Fatalf("deepRun = %#v", deepRun)
 	}
+	if !strings.HasPrefix(deepRun.TempRoot, filepath.Join(repoRoot, ".vrooli", "template-validation")+string(filepath.Separator)) {
+		t.Fatalf("temp root = %q, want a path under the repository-scoped validation workspace", deepRun.TempRoot)
+	}
 	if _, err := os.Stat(deepRun.TempRoot); !os.IsNotExist(err) {
 		t.Fatalf("temp root cleanup err = %v, want not exist", err)
 	}
@@ -1456,7 +1459,7 @@ func TestRunTemplateHooksPreservesArgvAndOverlaysEnvironmentWithoutShell(t *test
 		Cwd:  "cli",
 	}}}
 
-	if err := runTemplateHooks(deps, struct{}{}, destination, manifest, io.Discard); err != nil {
+	if err := runTemplateHooks(deps, struct{}{}, destination, manifest, map[string]string{"SCENARIO_ID": "native-hooks"}, io.Discard); err != nil {
 		t.Fatalf("runTemplateHooks: %v", err)
 	}
 	if len(capture.calls) != 1 {
@@ -1480,6 +1483,84 @@ func TestRunTemplateHooksPreservesArgvAndOverlaysEnvironmentWithoutShell(t *test
 	}
 	if len(wantEnv) != 0 {
 		t.Fatalf("hook environment missing overrides/base values: %#v; env=%#v", wantEnv, got.Env)
+	}
+}
+
+func TestHookValueResolverAllowlistAndValidation(t *testing.T) {
+	tests := []struct {
+		name, input string
+		values      map[string]string
+		want        string
+		wantErr     bool
+	}{
+		{"expand slug", "SCENARIO={{SCENARIO_ID}}", map[string]string{"SCENARIO_ID": "career-desk"}, "SCENARIO=career-desk", false},
+		{"unknown", "{{OTHER}}", map[string]string{"SCENARIO_ID": "career-desk"}, "", true},
+		{"malformed", "{{SCENARIO_ID", map[string]string{"SCENARIO_ID": "career-desk"}, "", true},
+		{"missing", "{{SCENARIO_ID}}", nil, "", true},
+		{"hostile", "{{SCENARIO_ID}}", map[string]string{"SCENARIO_ID": "x;touch-pwned"}, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := resolveHookValues([]string{tt.input}, tt.values)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err == nil && got[0] != tt.want {
+				t.Fatalf("got %q, want %q", got[0], tt.want)
+			}
+		})
+	}
+}
+
+func TestManifestHookTokenValidationRejectsUnsupportedTokens(t *testing.T) {
+	manifest := scenariocli.TemplateManifest{PostHooks: []scenariocli.TemplateHook{{Argv: []string{"tool", "{{UNKNOWN}}"}}}}
+	if err := validateManifestHookTokens(manifest); err == nil {
+		t.Fatal("expected manifest validation to reject unsupported hook token")
+	}
+	manifest.PostHooks[0].Argv[1] = "{{SCENARIO_ID}}"
+	if err := validateManifestHookTokens(manifest); err != nil {
+		t.Fatalf("valid allowlisted token rejected: %v", err)
+	}
+}
+
+func TestRunTemplateHooksExpandsOnlySelectedScenarioAsNativeArg(t *testing.T) {
+	root := t.TempDir()
+	destination := filepath.Join(root, "scenarios", "career-desk")
+	capture := &capturedSubprocess{}
+	deps := newRelocationTestDeps(root, io.Discard, io.Discard, capture)
+	manifest := scenariocli.TemplateManifest{PostHooks: []scenariocli.TemplateHook{{
+		Argv: []string{"make", "generate", "SCENARIO={{SCENARIO_ID}}"},
+		Env:  map[string]string{"SELECTED_SCENARIO": "{{SCENARIO_ID}}"},
+	}}}
+	if err := runTemplateHooks(deps, struct{}{}, destination, manifest, map[string]string{"SCENARIO_ID": "career-desk"}, io.Discard); err != nil {
+		t.Fatal(err)
+	}
+	if len(capture.calls) != 1 {
+		t.Fatalf("calls = %d, want 1", len(capture.calls))
+	}
+	got := capture.calls[0]
+	if got.Name != "make" || !reflect.DeepEqual(got.Args, []string{"generate", "SCENARIO=career-desk"}) {
+		t.Fatalf("argv = %q %#v", got.Name, got.Args)
+	}
+	if !slices.Contains(got.Env, "SELECTED_SCENARIO=career-desk") {
+		t.Fatalf("env lacks selected id: %#v", got.Env)
+	}
+}
+
+func TestRunTemplateHooksRejectsInvalidTokenBeforeProcessStart(t *testing.T) {
+	root := t.TempDir()
+	capture := &capturedSubprocess{}
+	deps := newRelocationTestDeps(root, io.Discard, io.Discard, capture)
+	manifest := scenariocli.TemplateManifest{PostHooks: []scenariocli.TemplateHook{
+		{Argv: []string{"first"}},
+		{Argv: []string{"second", "{{UNKNOWN}}"}},
+	}}
+	err := runTemplateHooks(deps, struct{}{}, root, manifest, map[string]string{"SCENARIO_ID": "career-desk"}, io.Discard)
+	if err == nil {
+		t.Fatal("expected unknown token rejection")
+	}
+	if len(capture.calls) != 0 {
+		t.Fatalf("started %d processes before validation completed", len(capture.calls))
 	}
 }
 

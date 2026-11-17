@@ -274,3 +274,21 @@ func TestDecisionRejectRecordsDeclined(t *testing.T) {
 		t.Fatalf("expected a declined outcome, got %#v", store.recordedOutcome)
 	}
 }
+
+// A withdrawn decision is autoheal closing its own request: it is neither an
+// approval nor a decline, so it must not execute, claim, or record anything.
+func TestDecisionWithdrawnResolutionIsANoOp(t *testing.T) {
+	h, store, runner := remediationFixture(t, "low", false)
+	effect := remediationDecisionEffect{handlers: h}
+
+	resolution := approveResolution("approve", store.incident.RemediationCandidateDigest)
+	resolution.State = operatordecision.StateWithdrawn
+	resolution.Answer = ""
+	handled, err := effect.Apply(context.Background(), resolution)
+	if err != nil || !handled {
+		t.Fatalf("Apply handled=%v err=%v, want handled=true err=nil", handled, err)
+	}
+	if runner.runPath != "" || store.recordCalls != 0 || store.claimCalls != 0 || store.declineCalls != 0 || store.recordedOutcome != nil {
+		t.Fatalf("withdrawn resolution had effects: run=%q records=%d claims=%d declines=%d outcome=%#v", runner.runPath, store.recordCalls, store.claimCalls, store.declineCalls, store.recordedOutcome)
+	}
+}

@@ -164,6 +164,7 @@ CREATE TABLE IF NOT EXISTS incident_remediation_publications (
     expires_at TEXT NOT NULL,
     published_at TEXT,
     superseded_at TEXT,
+    withdrawn_at TEXT,
     UNIQUE (incident_id, generation, revision)
 );
 

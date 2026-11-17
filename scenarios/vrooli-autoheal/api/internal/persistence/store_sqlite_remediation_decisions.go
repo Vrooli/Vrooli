@@ -66,10 +66,19 @@ func (s *Store) EnsureRemediationDecisionPublication(ctx context.Context, incide
 		return nil, err
 	}
 	if digest == incident.RemediationCandidateDigest && incident.RemediationDecisionEventID != "" && incident.RemediationDecisionExpiresAt != nil && observedAt.Before(*incident.RemediationDecisionExpiresAt) {
-		if err := tx.Commit(); err != nil {
+		// A request published before subject keys existed has no key for the hub
+		// to update or close by; raise it again under the key and let the old
+		// one be withdrawn by its event id.
+		keyed, err := remediationPublicationHasSubject(ctx, tx, incident.RemediationDecisionEventID)
+		if err != nil {
 			return nil, err
 		}
-		return nil, nil
+		if keyed {
+			if err := tx.Commit(); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		}
 	}
 	revision := 1
 	if incident.RemediationDecisionGeneration == generation {
@@ -161,6 +170,167 @@ func (s *Store) AcknowledgeRemediationDecisionPublication(ctx context.Context, e
 		return err
 	} else if changed != 1 {
 		return fmt.Errorf("decision publication %q is no longer pending", eventID)
+	}
+	return nil
+}
+
+type remediationRowQuerier interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+// remediationPublicationHasSubject reports whether the stored request carries a
+// subject key. A missing row counts as keyless so the caller re-raises it.
+func remediationPublicationHasSubject(ctx context.Context, q remediationRowQuerier, eventID string) (bool, error) {
+	var raw string
+	if err := q.QueryRowContext(ctx, `SELECT event_json FROM incident_remediation_publications WHERE event_id=?`, eventID).Scan(&raw); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return remediationEventSubject(raw) != "", nil
+}
+
+func remediationEventSubject(eventJSON string) string {
+	var event struct {
+		Payload map[string]any
+	}
+	if err := json.Unmarshal([]byte(eventJSON), &event); err != nil {
+		return ""
+	}
+	subject, _ := event.Payload["subject_key"].(string)
+	return strings.TrimSpace(subject)
+}
+
+// ensureRemediationPublicationColumns adds the withdrawal marker to databases
+// created before remediation requests could be closed.
+func (s *Store) ensureRemediationPublicationColumns(ctx context.Context) error {
+	if _, err := s.db.ExecContext(ctx, `ALTER TABLE incident_remediation_publications ADD COLUMN withdrawn_at TEXT`); err != nil {
+		msg := strings.ToLower(err.Error())
+		if strings.Contains(msg, "duplicate column name") || strings.Contains(msg, "no such table") {
+			return nil
+		}
+		return fmt.Errorf("add incident_remediation_publications.withdrawn_at column: %w", err)
+	}
+	return nil
+}
+
+// ListPendingRemediationDecisionWithdrawals returns the closes owed to the hub
+// for requests that were published and have not been withdrawn.
+//
+//   - A keyed request is closed by its subject key once the incident has no
+//     live request: resolved, ignored, or its candidate stopped being
+//     applicable. An incident that recurred and is waiting for its new request
+//     is skipped. While a live request exists the hub updates or replaces the
+//     open decision itself.
+//   - A request published without a key cannot be updated, so it is closed by
+//     its event id as soon as it is no longer the incident's current request.
+func (s *Store) ListPendingRemediationDecisionWithdrawals(ctx context.Context, limit int) ([]incidents.RemediationDecisionWithdrawal, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT p.event_id, p.incident_id, p.created_at, p.event_json,
+			i.status, i.title, COALESCE(i.updated_at, ''), i.remediation_decision_event_id, i.event_count, i.remediation_decision_generation
+		FROM incident_remediation_publications p
+		JOIN incidents i ON i.id=p.incident_id
+		WHERE p.published_at IS NOT NULL AND p.withdrawn_at IS NULL
+		ORDER BY p.created_at, p.event_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	byIncident := map[string]*incidents.RemediationDecisionWithdrawal{}
+	var order []string
+	add := func(w incidents.RemediationDecisionWithdrawal, key string) {
+		if existing, ok := byIncident[key]; ok {
+			existing.EventIDs = append(existing.EventIDs, w.EventIDs...)
+			if w.AssertedAt.After(existing.AssertedAt) {
+				existing.AssertedAt = w.AssertedAt
+			}
+			return
+		}
+		copied := w
+		byIncident[key] = &copied
+		order = append(order, key)
+	}
+	for rows.Next() {
+		var eventID, incidentID, createdRaw, eventJSON, status, title, updatedRaw, currentEventID string
+		var eventCount, decisionGeneration int
+		if err := rows.Scan(&eventID, &incidentID, &createdRaw, &eventJSON, &status, &title, &updatedRaw, &currentEventID, &eventCount, &decisionGeneration); err != nil {
+			return nil, err
+		}
+		open := status == string(incidents.StatusOpen) || status == string(incidents.StatusAcknowledged)
+		if open && eventCount != decisionGeneration {
+			// The incident recurred and this operation has not yet decided
+			// whether to raise a request for the new lifecycle. Leave the open
+			// request for that step to update or replace.
+			continue
+		}
+		live := open && currentEventID != ""
+		subject := remediationEventSubject(eventJSON)
+		asserted := parseOptionalTimePtr(createdRaw)
+		assertedAt := time.Now().UTC()
+		if asserted != nil {
+			assertedAt = *asserted
+		}
+		if updated := parseOptionalTimePtr(updatedRaw); updated != nil && updated.After(assertedAt) && !live {
+			assertedAt = *updated
+		}
+		switch {
+		case subject != "" && !live:
+			add(incidents.RemediationDecisionWithdrawal{
+				IncidentID: incidentID, SubjectKey: subject, Reason: remediationWithdrawalReason(status, title),
+				AssertedAt: assertedAt, EventIDs: []string{eventID},
+			}, "subject:"+subject)
+		case subject == "" && (!live || eventID != currentEventID):
+			reason := remediationWithdrawalReason(status, title)
+			if live {
+				reason = "Autoheal has an updated request for this incident."
+			}
+			add(incidents.RemediationDecisionWithdrawal{
+				IncidentID: incidentID, RequesterRef: eventID, Reason: reason,
+				AssertedAt: assertedAt, EventIDs: []string{eventID},
+			}, "ref:"+eventID)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := make([]incidents.RemediationDecisionWithdrawal, 0, len(order))
+	for _, key := range order {
+		if len(out) == limit {
+			break
+		}
+		out = append(out, *byIncident[key])
+	}
+	return out, nil
+}
+
+func remediationWithdrawalReason(status, title string) string {
+	title = strings.TrimSpace(title)
+	if len(title) > 120 {
+		title = title[:120]
+	}
+	switch status {
+	case string(incidents.StatusResolved):
+		return fmt.Sprintf("The incident cleared on its own, so no remediation is needed: %s.", title)
+	case string(incidents.StatusIgnored):
+		return fmt.Sprintf("The incident was dismissed, so no remediation is needed: %s.", title)
+	default:
+		return fmt.Sprintf("Autoheal no longer proposes a remediation for this incident: %s.", title)
+	}
+}
+
+// AcknowledgeRemediationDecisionWithdrawal records that the hub accepted the
+// close for these publication rows.
+func (s *Store) AcknowledgeRemediationDecisionWithdrawal(ctx context.Context, eventIDs []string, at time.Time) error {
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	for _, eventID := range eventIDs {
+		if _, err := s.db.ExecContext(ctx, `UPDATE incident_remediation_publications SET withdrawn_at=? WHERE event_id=? AND withdrawn_at IS NULL`, at.UTC().Format(time.RFC3339Nano), eventID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -1,6 +1,5 @@
 # UI Architecture
 
-## Purpose Of This Document
 
 Template Manager owns this shared guide. Scenario documents link here and
 record only local differences. This describes the current template, not proof

@@ -216,14 +216,12 @@ aspirational; they are not represented as machine-proven claims.
 - UI Health reports the screen-reader-only clipping heuristic on the runtime
   surface. This is report-only until the provider distinguishes intentional
   `sr-only` accessibility styling from meaningful text clipping.
-- Alternate/error-state assertions that need deterministic backend fixtures or
-  computed-style evidence remain aspirational; they are not represented as
-  machine-proven claims.
 
 ### Explicitly deferred scope
 
-Integration-hub connectors remain outside this scenario's shipped scope and are
-intentionally deferred. Mobile tiers and credential lifecycle/recovery
+Onboarding's manifest-to-Hub binding flow remains outside this scenario's shipped
+scope and is intentionally deferred. Integration Hub has an OpenRouter metadata
+pilot; Onboarding does not consume its bindings. Mobile tiers and credential lifecycle/recovery
 operations remain owned by their accountable scenarios; onboarding now exposes
 their conditional manifest contracts and truthful readiness states, but native,
 remote, provider, and recovery qualification still require owner evidence.

@@ -83,8 +83,8 @@ stateDiagram-v2
   Validation --> Credentials: fix a required gap
 
   note right of Integrations
-    Empty until integration-hub ships.
-    Declares deferral, creates nothing.
+    Hub owns the current OpenRouter connection pilot. Onboarding reports
+    declarations as deferred and creates no bindings. See concepts/INTEGRATIONS.md.
   end note
   note right of Apply
     The only step that changes host state.
@@ -241,10 +241,11 @@ maintain a second encrypted-store implementation.
 
 ### 5 — Integrations *(deferred)*
 
-Empty until integration-hub ships. Where a selected scenario declares an
-`integrations[]` requirement, the step names it as deferred and creates no
-binding. The connector and connection models are owned by integration-hub; see
-[`connectors.md`](../../../docs/configuration/integrations/connectors.md).
+Where a selected scenario declares an `integrations[]` requirement, the step
+names it as deferred and creates no binding. Integration Hub currently supports
+OpenRouter metadata and explicit bindings, but onboarding does not query the Hub
+or match those bindings to declarations. See [Integrations](concepts/INTEGRATIONS.md)
+for the source and the next owner boundary.
 
 ### 6 — Host
 
@@ -510,7 +511,7 @@ path. Profile data grants no permissions and cannot execute code.
 
 ### What is deferred
 
-- **Integration-hub** — owns connectors and connections; the integrations step is empty until it ships.
+- **Onboarding-to-Hub binding** — remains deferred until a tested manifest-to-connection workflow exists; Integration Hub already owns the OpenRouter pilot.
 
 ## See also
 

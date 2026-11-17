@@ -6,10 +6,10 @@
 //   - HTTPFetcher is the default leg — a plain, browserless-free HTTP GET with
 //     readable-text extraction. Most result pages are server-rendered; paying
 //     a real browser's 2–10s per page for them is waste.
-//   - BASFetcher (bas.go) is the browser leg — a one-shot
-//     browser-automation-studio CaptureService.Capture call with inline DOM
-//     return. Browser rendering goes through the BAS scenario only; web-search
-//     never talks to a raw browser resource.
+//   - BASFetcher (bas.go) is the browser leg — it requests BAS's redaction-first
+//     ux-capture.v1 public-page bundle, verifies the frozen-page artifact, and
+//     extracts readable text. Browser rendering goes through BAS only;
+//     web-search never talks to a raw browser resource.
 //   - EscalatingFetcher composes them: try HTTP, escalate per-URL to the
 //     browser leg when the HTTP leg fails outright or yields too little
 //     readable text (the JS-shell heuristic). With no browser leg configured

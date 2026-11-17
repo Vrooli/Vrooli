@@ -1,13 +1,14 @@
 // INTEROP-CRITICAL: Vite config for vrooli-onboarding UI
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 export default defineConfig(({ mode }) => {
   const isProfile = mode === "profile";
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     resolve: {
       alias: isProfile ? {
         "react-dom/client": "react-dom/profiling",

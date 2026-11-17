@@ -1,10 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 // import RequirementReporter from '@vrooli/vitest-requirement-reporter';
 
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   test: {
     globals: true,
     environment: 'jsdom',

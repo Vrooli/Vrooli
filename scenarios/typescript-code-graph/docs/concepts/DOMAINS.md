@@ -4,7 +4,6 @@ This document is the canonical map of product capabilities, bounded contexts, an
 
 `notes` is a worked example from the template, not product scope. It will be removed once the real domains are green per the Gate 7 step in [`../START-HERE.md`](../START-HERE.md).
 
-## Purpose Of This Document
 
 Use this document to answer:
 
