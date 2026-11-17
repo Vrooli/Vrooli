@@ -917,6 +917,29 @@ func TestSanitizeScenarioIdentifier(t *testing.T) {
 	}
 }
 
+func TestBuildIssueDescriptionKeepsBASCaptureCommandBoundToPreviewRoute(t *testing.T) {
+	description := buildIssueDescription(
+		"Example app",
+		"test-app",
+		"http://localhost:8080/apps/test-app/proxy/settings?tab=security",
+		"app-monitor",
+		"",
+		"",
+		nil,
+		time.Unix(0, 0),
+		nil, 0, "",
+		nil, 0, "",
+		nil, 0, "",
+		nil, 0, "",
+		nil, "", "", "",
+		t.TempDir(),
+	)
+	want := `browser-automation-studio capture --url "scenario=test-app,path=/settings?tab=security" --capture screenshot --out /tmp/test-app-validation`
+	if !strings.Contains(description, want) {
+		t.Fatalf("generated issue instructions do not preserve the exact preview target and validation output path; missing %q", want)
+	}
+}
+
 func TestTruncateTitle(t *testing.T) {
 	testCases := []struct {
 		name     string

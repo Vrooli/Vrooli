@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"path"
@@ -291,7 +293,7 @@ func (d *GatewayVideoDispatcher) Dispatch(ctx context.Context, req RenderDispatc
 	if err := json.Unmarshal(body, &submitted); err != nil || submitted.Execution.ExecutionID == "" {
 		return RenderDispatchResult{}, fmt.Errorf("decode Gateway video submission: %w", err)
 	}
-	return d.wait(ctx, client, base, submitted.Execution.ExecutionID)
+	return d.wait(ctx, client, base, submitted.Execution.ExecutionID, req.CandidateCount)
 }
 
 type gatewayMediaResponse struct {
@@ -300,7 +302,7 @@ type gatewayMediaResponse struct {
 type gatewayMediaExecution struct {
 	ExecutionID   string               `json:"executionId"`
 	Status        string               `json:"status"`
-	ActualCostUSD float64              `json:"actualCostUsd"`
+	ActualCostUSD *float64             `json:"actualCostUsd"`
 	ResolvedModel string               `json:"resolvedModel"`
 	Seed          string               `json:"seed"`
 	ErrorCode     string               `json:"errorCode"`
@@ -312,7 +314,7 @@ type gatewayMediaOutput struct {
 	MediaType string `json:"mediaType"`
 }
 
-func (d *GatewayVideoDispatcher) wait(ctx context.Context, client *http.Client, base, executionID string) (RenderDispatchResult, error) {
+func (d *GatewayVideoDispatcher) wait(ctx context.Context, client *http.Client, base, executionID string, expectedOutputs int) (RenderDispatchResult, error) {
 	body, _ := json.Marshal(map[string]string{"executionId": executionID})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/vrooli.ai_gateway.v1.routing.RoutingService/WaitMediaExecution", bytes.NewReader(body))
 	if err != nil {
@@ -335,16 +337,29 @@ func (d *GatewayVideoDispatcher) wait(ctx context.Context, client *http.Client, 
 	if err := json.Unmarshal(data, &waited); err != nil {
 		return RenderDispatchResult{}, fmt.Errorf("decode Gateway video receipt: %w", err)
 	}
+	if waited.Execution.ExecutionID != executionID {
+		return RenderDispatchResult{}, fmt.Errorf("Gateway video receipt identity mismatch: waited for %s, received %s", executionID, waited.Execution.ExecutionID)
+	}
 	if waited.Execution.Status != "MEDIA_EXECUTION_STATUS_SUCCEEDED" {
 		return RenderDispatchResult{}, fmt.Errorf("Gateway video %s failed (%s): %s", executionID, waited.Execution.ErrorCode, waited.Execution.ErrorMessage)
 	}
 	if waited.Execution.ResolvedModel == "" || len(waited.Execution.Outputs) == 0 {
 		return RenderDispatchResult{}, errors.New("Gateway video receipt lacks model or outputs")
 	}
-	result := RenderDispatchResult{Backend: "ai-gateway", Model: waited.Execution.ResolvedModel, Seed: waited.Execution.Seed, Parameters: "producer=video", RouteReceipt: executionID, ActualCost: waited.Execution.ActualCostUSD, CostRecorded: true}
+	if expectedOutputs > 0 && len(waited.Execution.Outputs) != expectedOutputs {
+		return RenderDispatchResult{}, fmt.Errorf("Gateway video receipt returned %d outputs for a request of %d", len(waited.Execution.Outputs), expectedOutputs)
+	}
+	if waited.Execution.ActualCostUSD == nil || math.IsNaN(*waited.Execution.ActualCostUSD) || math.IsInf(*waited.Execution.ActualCostUSD, 0) || *waited.Execution.ActualCostUSD < 0 {
+		return RenderDispatchResult{}, errors.New("Gateway video receipt has invalid actual cost")
+	}
+	result := RenderDispatchResult{Backend: "ai-gateway", Model: waited.Execution.ResolvedModel, Seed: waited.Execution.Seed, Parameters: "producer=video", RouteReceipt: executionID, ActualCost: *waited.Execution.ActualCostUSD, CostRecorded: true}
 	for _, output := range waited.Execution.Outputs {
 		if strings.TrimSpace(output.Reference) == "" || strings.TrimSpace(output.MediaType) == "" {
 			return RenderDispatchResult{}, errors.New("Gateway video receipt contains incomplete output metadata")
+		}
+		mediaType, _, err := mime.ParseMediaType(output.MediaType)
+		if err != nil || !strings.EqualFold(strings.SplitN(mediaType, "/", 2)[0], "video") {
+			return RenderDispatchResult{}, fmt.Errorf("Gateway video receipt contains non-video output media type %q", output.MediaType)
 		}
 		result.Outputs = append(result.Outputs, RenderOutput{Reference: output.Reference, MediaType: output.MediaType})
 	}

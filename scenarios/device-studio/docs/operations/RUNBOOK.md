@@ -1,6 +1,5 @@
 # Runbook — Device Studio
 
-## Purpose Of This Document
 
 Operate the current local app and distinguish implemented workflows from remaining delivery work.
 

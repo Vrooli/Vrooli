@@ -5,9 +5,8 @@ import (
 	"errors"
 	"github.com/vrooli/cli-core/cliutil"
 	"io"
+	"net/http"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -57,36 +56,23 @@ func TestBaselineStartRequestCarriesCollectionReservation(t *testing.T) {
 	}
 }
 
-func TestCachedScenarioURLResolverCollapsesConcurrentDiscovery(t *testing.T) {
-	var calls atomic.Int32
-	resolver := &cachedScenarioURLResolver{
-		ttl: time.Minute,
-		resolve: func(context.Context) (string, error) {
-			calls.Add(1)
-			time.Sleep(10 * time.Millisecond)
-			return "http://localhost:15421/", nil
+func TestBaselineRunsClientResolvesTestGenieOnEveryCall(t *testing.T) {
+	urls := []string{"http://localhost:15421", "http://localhost:16234"}
+	calls := 0
+	client := baselineRunsClient{
+		httpClient: &http.Client{Timeout: time.Second},
+		resolveURL: func(context.Context) (string, error) {
+			url := urls[calls]
+			calls++
+			return url, nil
 		},
 	}
-
-	const workers = 8
-	urls := make([]string, workers)
-	errs := make([]error, workers)
-	var wg sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			urls[i], errs[i] = resolver.Resolve(context.Background())
-		}(i)
-	}
-	wg.Wait()
-
-	if got := calls.Load(); got != 1 {
-		t.Fatalf("discovery calls = %d, want one shared resolution", got)
-	}
 	for i := range urls {
-		if errs[i] != nil || urls[i] != "http://localhost:15421" {
-			t.Fatalf("worker %d got url=%q err=%v", i, urls[i], errs[i])
+		if _, err := client.client(context.Background()); err != nil {
+			t.Fatalf("client %d: %v", i, err)
+		}
+		if calls != i+1 {
+			t.Fatalf("resolver calls after client %d = %d, want %d", i, calls, i+1)
 		}
 	}
 }

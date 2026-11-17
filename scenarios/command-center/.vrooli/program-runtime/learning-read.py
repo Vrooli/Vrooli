@@ -1,17 +1,12 @@
 import json
 inputs = program.inputs()
-envelope={"program":"command-center.learning-read","version":"1","status":"failed","phase":"validate","inputs":{},
- "signals":{},"errors":[],"evidence":[]}
+envelope = program.envelope('command-center.learning-read', '1', phase="validate", inputs={})
 handles={}
-def fail(status,klass,detail,where):
-    envelope["status"]=status
-    envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
-    return "report"
 
 
 def step_validate():
     if not isinstance(inputs,dict) or set(inputs)-{"from","to","operation","context_key"}:
-        return fail("failed","invalid_input","Only explicit comparison-window selectors are accepted","validate")
+        return program.fail("failed","invalid_input","Only explicit comparison-window selectors are accepted","validate", detail_limit=160)
     envelope["inputs"] = dict(inputs)
     return "collect"
 def step_collect():
@@ -60,4 +55,4 @@ while state:
     except Exception as exc:
         if state=="report":
             raise
-        state=fail("failed","kernel_runtime",str(exc)[:160],state)
+        state=program.fail("failed","kernel_runtime",str(exc)[:160],state, detail_limit=160)

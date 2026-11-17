@@ -149,12 +149,16 @@ func TestHTTPLPBSReleaseClientAcceptsEquivalentDigestEncodings(t *testing.T) {
 func TestHTTPLPBSReleaseClientHandlesConfigurationAndResponses(t *testing.T) {
 	t.Setenv("LPBS_BASE_URL", "")
 	t.Setenv("LPBS_SERVICE_SECRET", "")
-	if _, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
+	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
 		ResolveBaseURL: func(context.Context) (string, error) { return "", errors.New("discovery unavailable") },
-	}); err == nil {
-		t.Fatal("undiscoverable base URL returned nil error")
+	})
+	if err != nil {
+		t.Fatalf("deferred discovery should not fail construction: %v", err)
 	}
-	client := &HTTPLPBSReleaseClient{baseURL: "http://127.0.0.1:1", httpClient: http.DefaultClient}
+	if _, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "demo"}); err == nil {
+		t.Fatal("undiscoverable base URL returned nil operation error")
+	}
+	client = &HTTPLPBSReleaseClient{baseURL: "http://127.0.0.1:1", httpClient: http.DefaultClient}
 	if _, err := client.Verify(context.Background(), &LPBSVerifyRequest{}); err == nil || !strings.Contains(err.Error(), "app_key") {
 		t.Fatalf("missing app key error = %v", err)
 	}
@@ -172,7 +176,7 @@ func TestHTTPLPBSReleaseClientHandlesConfigurationAndResponses(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer server.Close()
-	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{BaseURL: server.URL})
+	client, err = NewHTTPLPBSReleaseClient(LPBSClientConfig{BaseURL: server.URL})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -192,27 +196,49 @@ func TestHTTPLPBSReleaseClientHandlesConfigurationAndResponses(t *testing.T) {
 	}
 }
 
-func TestNewHTTPLPBSReleaseClientResolvesBaseURLThroughDiscovery(t *testing.T) {
+func TestNewHTTPLPBSReleaseClientDefersBaseURLResolutionUntilEachOperation(t *testing.T) {
 	t.Setenv("LPBS_BASE_URL", "")
-	discovered := false
+	var requestsA, requestsB int
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsA++
+		_, _ = w.Write([]byte(`{"ready":false}`))
+	}))
+	defer serverA.Close()
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsB++
+		_, _ = w.Write([]byte(`{"ready":false}`))
+	}))
+	defer serverB.Close()
+	resolutions := 0
 	client, err := NewHTTPLPBSReleaseClient(LPBSClientConfig{
 		ResolveBaseURL: func(context.Context) (string, error) {
-			discovered = true
-			return "http://lpbs.test:9999/", nil
+			resolutions++
+			if resolutions == 1 {
+				return serverA.URL + "/", nil
+			}
+			return serverB.URL, nil
 		},
 		ResolveServiceSecret: func() (string, error) { return "authority-secret", nil },
 	})
 	if err != nil {
 		t.Fatalf("constructor error: %v", err)
 	}
-	if !discovered {
-		t.Fatal("discovery resolver was not used")
+	if resolutions != 0 {
+		t.Fatalf("constructor resolutions = %d, want 0", resolutions)
 	}
-	if client.baseURL != "http://lpbs.test:9999" {
-		t.Fatalf("baseURL = %q, want trimmed discovered URL", client.baseURL)
+	if client.baseURL != "" || client.resolveBaseURL == nil {
+		t.Fatalf("dynamic address state = base %q, resolver configured %v", client.baseURL, client.resolveBaseURL != nil)
 	}
 	if client.serviceSecret != "authority-secret" {
 		t.Fatalf("serviceSecret = %q, want authority value", client.serviceSecret)
+	}
+	for range 2 {
+		if _, err := client.CheckDeployReadiness(context.Background(), &LPBSReadinessRequest{AppKey: "demo"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if resolutions != 2 || requestsA != 1 || requestsB != 1 {
+		t.Fatalf("resolutions=%d requests A/B=%d/%d, want 2 and 1/1", resolutions, requestsA, requestsB)
 	}
 }
 
@@ -255,6 +281,9 @@ func TestNewHTTPLPBSReleaseClientPrefersExplicitConfigOverOwners(t *testing.T) {
 	}
 	if client.baseURL != "http://explicit.test" || client.serviceSecret != "explicit-secret" {
 		t.Fatalf("explicit config not preferred: base=%q secret=%q", client.baseURL, client.serviceSecret)
+	}
+	if client.resolveBaseURL != nil {
+		t.Fatal("explicit LPBS URL must remain pinned")
 	}
 }
 

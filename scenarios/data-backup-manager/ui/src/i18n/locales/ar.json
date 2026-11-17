@@ -392,7 +392,8 @@
     "settings": {
       "title": "الإعدادات",
       "themeHeading": "المظهر",
-      "localeHeading": "اللغة"
+    "localeHeading": "اللغة",
+    "notificationsHeading": "إشعارات التطبيق"
     }
   },
   "errors": {

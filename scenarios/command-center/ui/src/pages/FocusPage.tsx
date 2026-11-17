@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { AmbientShell } from "../components/AmbientShell";
+import { FreshnessTimestamp } from "../components/FreshnessTimestamp";
 import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { useBoardController } from "../lib/boardContext";
 import { fetchFocus, type FocusEntry, type FocusKind } from "../lib/api";
@@ -33,6 +34,8 @@ export default function FocusPage() {
         <ExperienceSurface surfaceId="ranked-list" as="section" data-testid="focus-ranked-list" data-requested-state={forcedState ?? undefined} className="cc-read-main" state={surfaceState} statusMessage={failed ? "The focus ranking is unavailable." : undefined} aria-labelledby="focus-title">
           <h2 id="focus-title" className="cc-read-title">What is worth building next</h2>
           <p className="cc-read-lede">{entries.length} findings across {owners.length} {owners.length === 1 ? "owner" : "owners"}. Sensor integrity ranks above coverage breadth.</p>
+          <FreshnessTimestamp label="Focus report generated" value={query.data?.generatedAt} loading={query.isLoading} />
+          <FreshnessTimestamp label="Board snapshot generated" value={board.board?.generatedAt} loading={!board.board} />
           {failed ? <p role="alert" className="cc-degraded">The ranking could not be computed.</p> : null}
           {state === "partial" ? <p role="status" className="cc-degraded cc-degraded-quiet">The ranking is partial: at least one declared source could not be read.</p> : null}
           {!failed && !query.isLoading && entries.length === 0 ? <p data-testid="focus-empty" className="cc-empty">The board found no current findings inside its declared denominator.</p> : null}
@@ -57,10 +60,12 @@ export default function FocusPage() {
                   <span className="cc-source-dot" />
                   <span className="cc-source-name">{source.name.replace(/^scenario:/, "")}</span>
                   <span className="cc-source-meta">{source.team} · {source.instrumentStatus}{source.state?.status ? ` · ${source.state.status}` : ""}{source.reason ? ` · ${source.reason}` : ""}</span>
+                  <FreshnessTimestamp label="Source checked" value={source.state?.checkedAt} />
                   {source.state?.featureStatus ? <span className="cc-source-meta">features: {Object.entries(source.state.featureStatus).map(([feature, status]) => `${feature}=${status}`).join(", ")}</span> : null}
                 </li>
               ))}
             </ul>
+            {!board.board ? <FreshnessTimestamp label="Source checks" loading /> : null}
           </ExperienceSurface>
         </aside>
       </main>

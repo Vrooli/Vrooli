@@ -2,6 +2,7 @@ package validation_run
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	manifest "development-toolchain-validator/internal/manifest"
@@ -39,6 +40,20 @@ type MaterializedGolden struct {
 // seam: SkillContentSource
 type SkillContentSource interface {
 	SkillContent(ctx context.Context, skillID string) (string, error)
+}
+
+// AuthorizationApprovalPendingError is a definitive Agent Manager mutation
+// outcome: the requested run was not started and requires operator approval.
+type AuthorizationApprovalPendingError struct {
+	Subject string
+	Detail  string
+}
+
+func (e *AuthorizationApprovalPendingError) Error() string {
+	if e.Detail != "" {
+		return e.Detail
+	}
+	return fmt.Sprintf("operator approval pending for %q", e.Subject)
 }
 
 // AgentManagerClient is the outbound seam for invoking agent-manager

@@ -214,11 +214,25 @@ func (h *Handler) servePractice(w http.ResponseWriter, r *http.Request) {
 	} else if level.Mechanism == "script_loaded" {
 		fmt.Fprintf(&b, "<div id=\"results\" data-source=\"/practice/%s/data\" data-offset=\"%d\">Records load after interaction.</div><button id=\"load\">Load records</button><script>document.querySelector('#load').onclick=async()=>{const box=document.querySelector('#results');const r=await fetch(box.dataset.source+'?offset='+box.dataset.offset);const d=await r.json();box.insertAdjacentHTML('beforeend',d.records.map(x=>`<article data-id='${x.id}' data-active='${x.active}'><span data-field='id'>${x.id}</span><b data-field='name'>${x.name}</b><span data-field='category'>${x.category}</span><span data-field='value'>${x.value}</span><span>active=${x.active}</span></article>`).join(''));if(d.next_offset===null){document.querySelector('#load').disabled=true}else{box.dataset.offset=d.next_offset;document.querySelector('#load').textContent='Load more'}}</script>", url.PathEscape(level.ID), start)
 	} else if level.Mechanism == "messy_markup" {
-		b.WriteString("<div class=\"record-list legacy-v3\">")
-		for i, row := range visible {
-			fmt.Fprintf(&b, "<div class=\"row row-%d\" data-record=\"%s\" data-active=\"%v\"><span class=\"field id\">%s</span><div class=\"content\"><strong>%s</strong><i>%s</i><em>%v</em><small>active=%v</small></div></div>", i, html.EscapeString(fmt.Sprint(row["id"])), row["active"], html.EscapeString(fmt.Sprint(row["id"])), html.EscapeString(fmt.Sprint(row["name"])), html.EscapeString(fmt.Sprint(row["category"])), row["value"], row["active"])
+		if level.Page.LayoutVariant == "malformed-v1" {
+			b.WriteString("<ul class=\"record-list legacy-v4\">")
+			for _, row := range visible {
+				fmt.Fprintf(&b, "<LI CLASS=row data-record=%s data-active=%v><span class=field id>%s</span><div class=content><STRONG>%s</STRONG><I>%s</EM><EM>%v</I><small>active=%v</small></div></LI><aside>layout noise</aside>", html.EscapeString(fmt.Sprint(row["id"])), row["active"], html.EscapeString(fmt.Sprint(row["id"])), html.EscapeString(fmt.Sprint(row["name"])), html.EscapeString(fmt.Sprint(row["category"])), row["value"], row["active"])
+			}
+			b.WriteString("</ul></aside>")
+		} else if level.Page.LayoutVariant == "malformed-v2" {
+			b.WriteString("<ul class=record-list legacy-v5>")
+			for _, row := range visible {
+				fmt.Fprintf(&b, "<li class='row' data-record='%s' data-active='%v' data-note=\"quoted > boundary\"><span class='field id'>%s</span><!-- decoy boundary: <li class='row' data-record='FAKE-ROW' data-active='false'> --><div class=content><strong>%s</strong><i>%s</em><em>%v</i><small>active=%v</small></div></li>", html.EscapeString(fmt.Sprint(row["id"])), row["active"], html.EscapeString(fmt.Sprint(row["id"])), html.EscapeString(fmt.Sprint(row["name"])), html.EscapeString(fmt.Sprint(row["category"])), row["value"], row["active"])
+			}
+			b.WriteString("</ul>")
+		} else {
+			b.WriteString("<div class=\"record-list legacy-v3\">")
+			for i, row := range visible {
+				fmt.Fprintf(&b, "<div class=\"row row-%d\" data-record=\"%s\" data-active=\"%v\"><span class=\"field id\">%s</span><div class=\"content\"><strong>%s</strong><i>%s</i><em>%v</em><small>active=%v</small></div></div>", i, html.EscapeString(fmt.Sprint(row["id"])), row["active"], html.EscapeString(fmt.Sprint(row["id"])), html.EscapeString(fmt.Sprint(row["name"])), html.EscapeString(fmt.Sprint(row["category"])), row["value"], row["active"])
+			}
+			b.WriteString("</div>")
 		}
-		b.WriteString("</div>")
 	} else {
 		writeTable(&b, visible, level.Mechanism)
 	}

@@ -4,8 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"time"
+
+	"connectrpc.com/connect"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,6 +18,7 @@ import (
 
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -109,70 +114,184 @@ func TestSha256Hex(t *testing.T) {
 	}
 }
 
-// TestBuildSummaryHashesDiffContent proves the wiring end-to-end: the
-// adapter fetches the run diff and stores sha256(content) in DiffHash
-// (not the run id, the old bug), and mirrors the changed file paths.
-func TestBuildSummaryHashesDiffContent(t *testing.T) {
-	const runID = "run-123"
-	const content = "diff --git a/api/foo.go b/api/foo.go\n+func foo() {}\n"
+// connectStub is served through the generated AgentManagerService Connect
+// handler so these tests exercise the actual generated client wire contract.
+type connectStub struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	t *testing.T
+}
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/runs/"+runID+"/diff") {
-			resp := &apipb.GetRunDiffResponse{Diff: &domainpb.RunDiff{
-				RunId:   runID,
-				Content: content,
-				Files: []*domainpb.FileDiff{
-					{Path: "api/foo.go"},
-				},
-			}}
-			out, err := protoJSONMarshal.Marshal(resp)
-			if err != nil {
-				t.Errorf("marshal diff response: %v", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write(out)
-			return
-		}
-		http.Error(w, "unexpected request: "+r.URL.Path, http.StatusNotFound)
-	}))
-	defer srv.Close()
+func (s *connectStub) ReconcileScenarioProfiles(_ context.Context, req *connect.Request[apipb.ReconcileScenarioProfilesRequest]) (*connect.Response[apipb.ReconcileScenarioProfilesResponse], error) {
+	if req.Msg.Scenario != ScenarioName {
+		s.t.Errorf("scenario = %q", req.Msg.Scenario)
+	}
+	return connect.NewResponse(&apipb.ReconcileScenarioProfilesResponse{Scenario: req.Msg.Scenario, Results: []*apipb.ProfileReconcileResult{{ProfileKey: ProfileKey}}, Created: 1}), nil
+}
+func (s *connectStub) CreateTask(_ context.Context, req *connect.Request[apipb.CreateTaskRequest]) (*connect.Response[apipb.CreateTaskResponse], error) {
+	if req.Msg.Task == nil || !filepath.IsAbs(req.Msg.Task.ProjectRoot) || req.Msg.Task.ScopePath != "." {
+		s.t.Errorf("unexpected task: %+v", req.Msg.Task)
+	}
+	return connect.NewResponse(&apipb.CreateTaskResponse{Task: &domainpb.Task{Id: "task-1"}}), nil
+}
+func (s *connectStub) CreateRun(_ context.Context, req *connect.Request[apipb.CreateRunRequest]) (*connect.Response[apipb.CreateRunResponse], error) {
+	if req.Msg.TaskId != "task-1" || req.Msg.GetProfileRef().GetProfileKey() != ProfileKey || !req.Msg.GetForce() {
+		s.t.Errorf("unexpected run request: %+v", req.Msg)
+	}
+	return connect.NewResponse(&apipb.CreateRunResponse{Run: &domainpb.Run{Id: "run-1"}}), nil
+}
+func (s *connectStub) GetRun(_ context.Context, req *connect.Request[apipb.GetRunRequest]) (*connect.Response[apipb.GetRunResponse], error) {
+	if req.Msg.RunId != "run-1" {
+		s.t.Errorf("run id = %q", req.Msg.RunId)
+	}
+	return connect.NewResponse(&apipb.GetRunResponse{Run: &domainpb.Run{Id: req.Msg.RunId, Status: domainpb.RunStatus_RUN_STATUS_COMPLETE}}), nil
+}
+func (s *connectStub) GetRunDiff(_ context.Context, req *connect.Request[apipb.GetRunDiffRequest]) (*connect.Response[apipb.GetRunDiffResponse], error) {
+	if req.Msg.RunId != "run-1" {
+		s.t.Errorf("diff run id = %q", req.Msg.RunId)
+	}
+	return connect.NewResponse(&apipb.GetRunDiffResponse{Diff: &domainpb.RunDiff{RunId: req.Msg.RunId, Content: "diff --git a/foo b/foo\n", Files: []*domainpb.FileDiff{{Path: "foo"}}}}), nil
+}
 
-	c := New(Options{Resolver: discovery.NewStaticResolver(srv.URL)})
-	summary, err := c.buildSummary(context.Background(), &domainpb.Run{Id: runID})
+func newConnectClient(t *testing.T) *Client {
+	t.Helper()
+	stub := &connectStub{t: t}
+	path, handler := apiconnect.NewAgentManagerServiceHandler(stub)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return New(Options{Resolver: discovery.NewStaticResolver(srv.URL), PollInterval: time.Millisecond})
+}
+
+func TestGeneratedConnectClientCoversAgentManagerProcedures(t *testing.T) {
+	c := newConnectClient(t)
+	if _, err := c.Initialize(context.Background()); err != nil {
+		t.Fatalf("Initialize: %v", err)
+	}
+	runID, err := c.StartSandboxedRun(context.Background(), vrun.SandboxedRunSpec{SkillID: "skill", GoldenSlug: "golden", GoldenPath: t.TempDir()})
 	if err != nil {
-		t.Fatalf("buildSummary: %v", err)
+		t.Fatalf("StartSandboxedRun: %v", err)
 	}
-
-	if summary.DiffHash != sha256Hex(content) {
-		t.Fatalf("DiffHash = %q, want sha256 of content %q", summary.DiffHash, sha256Hex(content))
+	if runID != "run-1" {
+		t.Fatalf("run id = %q", runID)
 	}
-	if summary.DiffHash == runID {
-		t.Fatalf("DiffHash still equals run id (the old bug)")
+	summary, err := c.WaitForTerminal(context.Background(), runID, time.Second)
+	if err != nil {
+		t.Fatalf("WaitForTerminal: %v", err)
 	}
-	if len(summary.DiffPaths) != 1 || summary.DiffPaths[0].Path != "api/foo.go" {
-		t.Fatalf("DiffPaths not mirrored from diff files: %+v", summary.DiffPaths)
+	if summary.DiffHash != sha256Hex("diff --git a/foo b/foo\n") {
+		t.Fatalf("diff hash = %q", summary.DiffHash)
+	}
+	if len(summary.DiffPaths) != 1 || summary.DiffPaths[0].Path != "foo" {
+		t.Fatalf("diff paths = %+v", summary.DiffPaths)
 	}
 }
 
-// TestBuildSummaryNoDiffLeavesHashEmpty confirms a run with no retrievable
-// diff leaves DiffHash empty rather than fabricating one.
 func TestBuildSummaryNoDiffLeavesHashEmpty(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Return an empty GetRunDiffResponse (no Diff) for any request.
-		out, _ := protoJSONMarshal.Marshal(&apipb.GetRunDiffResponse{})
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write(out)
-	}))
+	// A successful Connect response with no diff is a valid missing diff.
+	stub := &emptyDiffStub{connectStub: connectStub{t: t}}
+	path, handler := apiconnect.NewAgentManagerServiceHandler(stub)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	srv := httptest.NewServer(mux)
 	defer srv.Close()
-
 	c := New(Options{Resolver: discovery.NewStaticResolver(srv.URL)})
-	summary, err := c.buildSummary(context.Background(), &domainpb.Run{Id: "run-x"})
+	summary, err := c.buildSummary(context.Background(), &domainpb.Run{Id: "run-1"})
 	if err != nil {
 		t.Fatalf("buildSummary: %v", err)
 	}
 	if summary.DiffHash != "" {
-		t.Fatalf("DiffHash = %q, want empty when no diff present", summary.DiffHash)
+		t.Fatalf("DiffHash = %q, want empty", summary.DiffHash)
+	}
+}
+
+type emptyDiffStub struct{ connectStub }
+
+func (s *emptyDiffStub) GetRunDiff(context.Context, *connect.Request[apipb.GetRunDiffRequest]) (*connect.Response[apipb.GetRunDiffResponse], error) {
+	return connect.NewResponse(&apipb.GetRunDiffResponse{}), nil
+}
+
+type getRunErrorStub struct {
+	connectStub
+	err   error
+	calls int
+}
+
+func (s *getRunErrorStub) GetRun(context.Context, *connect.Request[apipb.GetRunRequest]) (*connect.Response[apipb.GetRunResponse], error) {
+	s.calls++
+	return nil, s.err
+}
+
+func TestGeneratedConnectClientRetriesTransientErrorsOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		code            connect.Code
+		wantCalls       int
+		wantUnavailable bool
+	}{
+		{name: "unavailable retries", code: connect.CodeUnavailable, wantCalls: 3, wantUnavailable: true},
+		{name: "invalid argument does not retry", code: connect.CodeInvalidArgument, wantCalls: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := &getRunErrorStub{connectStub: connectStub{t: t}, err: connect.NewError(tc.code, errors.New("stub failure"))}
+			path, handler := apiconnect.NewAgentManagerServiceHandler(stub)
+			mux := http.NewServeMux()
+			mux.Handle(path, handler)
+			srv := httptest.NewServer(mux)
+			defer srv.Close()
+			c := New(Options{Resolver: discovery.NewStaticResolver(srv.URL), MaxAttempts: 3})
+			_, err := c.getRun(context.Background(), "run")
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if stub.calls != tc.wantCalls {
+				t.Fatalf("calls = %d, want %d", stub.calls, tc.wantCalls)
+			}
+			var unavailable vrun.ErrDependencyUnavailable
+			if got := errors.As(err, &unavailable); got != tc.wantUnavailable {
+				t.Fatalf("dependency unavailable = %v, want %v (err %v)", got, tc.wantUnavailable, err)
+			}
+		})
+	}
+}
+
+type approvalPendingStub struct {
+	connectStub
+	calls int
+}
+
+func (s *approvalPendingStub) CreateRun(context.Context, *connect.Request[apipb.CreateRunRequest]) (*connect.Response[apipb.CreateRunResponse], error) {
+	s.calls++
+	err := connect.NewError(connect.CodeFailedPrecondition, errors.New("approval is pending"))
+	detail, detailErr := connect.NewErrorDetail(&apipb.AuthorizationApprovalPending{Subject: "development-toolchain-validator", Detail: "operator approval pending"})
+	if detailErr != nil {
+		return nil, detailErr
+	}
+	err.AddDetail(detail)
+	return nil, err
+}
+
+func TestCreateRunReturnsTypedApprovalPendingOutcomeWithoutRetry(t *testing.T) {
+	stub := &approvalPendingStub{connectStub: connectStub{t: t}}
+	path, handler := apiconnect.NewAgentManagerServiceHandler(stub)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+	c := New(Options{Resolver: discovery.NewStaticResolver(srv.URL), MaxAttempts: 3})
+	_, err := c.createRun(context.Background(), &apipb.CreateRunRequest{})
+	var pending *vrun.AuthorizationApprovalPendingError
+	if !errors.As(err, &pending) {
+		t.Fatalf("error = %T %v, want typed approval-pending outcome", err, err)
+	}
+	if pending.Subject != "development-toolchain-validator" || pending.Detail != "operator approval pending" {
+		t.Fatalf("pending = %+v", pending)
+	}
+	if stub.calls != 1 {
+		t.Fatalf("CreateRun calls = %d, want 1", stub.calls)
+	}
+	var unavailable vrun.ErrDependencyUnavailable
+	if errors.As(err, &unavailable) {
+		t.Fatalf("approval outcome misclassified as dependency unavailable: %v", err)
 	}
 }

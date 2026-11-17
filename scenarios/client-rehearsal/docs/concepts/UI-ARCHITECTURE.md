@@ -62,3 +62,5 @@ ratification.
 **Maturity:** L1 mockup + concept proposed; concept and selected mockups await
 the two required human ratifications. Product UI code has not started. No
 tokens or shared primitives are changed.
+
+This scenario does not declare app-delivery capability: it has no intentional browser push destination or app-delivery producer. The shared initializer and settings component are therefore omitted. Scenario-specific notification behavior, if any, remains owned by its own feature contract.

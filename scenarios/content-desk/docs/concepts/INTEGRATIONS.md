@@ -10,7 +10,6 @@ Content Desk owns the full Today/Plan/Create/Review/Learn/Content experience, na
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -60,6 +59,7 @@ trustworthy.
 | search-hub | P1 | Makes editorial history reachable from federated query without a router change. | Descriptor plus boot registration; the router holds no content. |
 | agent-manager | P1, optional | Runs the declared `content-desk/workbench` profile only for drafting, evidence-hunting, or review suggestions. | Output is an editable revision with the Agent Manager run ID recorded. Agents never approve or publish. |
 | vrooli-events | automatic | Run correlation for drafts written inside an agent run. **No integration work** — api-core publishes receipts for every endpoint already. | Correlation ids only; run payloads are never copied. |
+| deployment-manager | optional | Receives launch-assets readiness evidence only when the owner readiness token is configured. | `DEPLOYMENT_MANAGER_API_BASE_URL` may pin a deployment address; otherwise the reporter resolves the current local peer for each report. Reporting errors remain explicit and do not leave the reporter pinned to a stale port. |
 
 ### Boundaries this scenario deliberately does not cross
 

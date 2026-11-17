@@ -10,7 +10,6 @@ procedures worth writing first are already predictable: recovering a failed
 import sweep, re-running a stale claim check, and reconciling a publish handoff
 that returned no post id. Write them when those paths are real, not before.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

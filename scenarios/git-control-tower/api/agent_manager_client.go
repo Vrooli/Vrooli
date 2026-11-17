@@ -1,49 +1,54 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	"connectrpc.com/connect"
+	"git-control-tower/internal/policygate"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-// AgentManagerClient is a lightweight HTTP client for agent-manager APIs.
+// AgentManagerClient is the generated Connect client for Agent Manager. The
+// attachment upload endpoint remains HTTP because its wire format is multipart.
 type AgentManagerClient struct {
 	BaseClient
+
+	mu             sync.Mutex
+	cachedBaseURL  string
+	resolveURL     func(context.Context) (string, error)
 	maxRetries     int
 	retryBaseDelay time.Duration
-
-	mu            sync.Mutex
-	cachedBaseURL string
 }
 
-// NewAgentManagerClient creates a new agent-manager client with the given timeout.
 func NewAgentManagerClient(timeout time.Duration) *AgentManagerClient {
 	return &AgentManagerClient{
-		BaseClient:     NewBaseClient("agent-manager", timeout),
-		maxRetries:     2,
-		retryBaseDelay: 200 * time.Millisecond,
+		BaseClient: NewBaseClient("agent-manager", timeout),
+		maxRetries: 2, retryBaseDelay: 200 * time.Millisecond,
 	}
 }
 
 func (c *AgentManagerClient) resolveBaseURL(ctx context.Context) (string, error) {
+	if c.resolveURL != nil {
+		return c.resolveURL(ctx)
+	}
 	c.mu.Lock()
 	cached := c.cachedBaseURL
 	c.mu.Unlock()
 	if cached != "" {
 		return cached, nil
 	}
-
 	url, err := c.BaseClient.resolveBaseURL(ctx)
 	if err != nil {
 		return "", err
 	}
-
 	c.mu.Lock()
 	c.cachedBaseURL = url
 	c.mu.Unlock()
@@ -56,271 +61,247 @@ func (c *AgentManagerClient) clearCachedURL() {
 	c.mu.Unlock()
 }
 
-// isRetryable returns true for transport-level errors and gateway status codes.
-func isRetryable(err error, statusCode int) bool {
+func (c *AgentManagerClient) connectClient(ctx context.Context) (apiconnect.AgentManagerServiceClient, error) {
+	baseURL, err := c.resolveBaseURL(ctx)
 	if err != nil {
-		if _, ok := err.(net.Error); ok {
-			return true
+		return nil, fmt.Errorf("resolve agent-manager url: %w", err)
+	}
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 120 * time.Second}
+	}
+	return apiconnect.NewAgentManagerServiceClient(httpClient, baseURL), nil
+}
+
+// callConnect retries only transport-level failures, clearing the cached
+// address before each retry so discovery observes Agent Manager port changes.
+// Application errors retain their Connect status and are never retried.
+func callConnect[T any](ctx context.Context, c *AgentManagerClient, call func(apiconnect.AgentManagerServiceClient) (*T, error)) (*T, error) {
+	var lastErr error
+	for attempt := 0; attempt <= c.maxRetries; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
-		return true
+		client, err := c.connectClient(ctx)
+		if err != nil {
+			lastErr = err
+		} else {
+			result, callErr := call(client)
+			if callErr == nil {
+				return result, nil
+			}
+			lastErr = callErr
+			code := connect.CodeOf(callErr)
+			if code != connect.CodeUnavailable && code != connect.CodeDeadlineExceeded {
+				return nil, callErr
+			}
+		}
+		if attempt == c.maxRetries {
+			break
+		}
+		c.clearCachedURL()
+		if err := waitForAgentManagerRetry(ctx, c.retryBaseDelay, attempt); err != nil {
+			return nil, err
+		}
 	}
-	switch statusCode {
-	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
-		return true
-	}
-	return false
+	return nil, fmt.Errorf("agent-manager Connect retry exhausted after %d attempts: %w", c.maxRetries+1, lastErr)
 }
 
-// retryDelay computes exponential backoff capped at 2s.
-func (c *AgentManagerClient) retryDelay(attempt int) time.Duration {
-	d := c.retryBaseDelay
-	for i := 0; i < attempt; i++ {
-		d *= 2
+func waitForAgentManagerRetry(ctx context.Context, base time.Duration, attempt int) error {
+	delay := base
+	for i := 0; i < attempt && delay < 2*time.Second; i++ {
+		delay *= 2
 	}
-	if d > 2*time.Second {
-		d = 2 * time.Second
+	if delay > 2*time.Second {
+		delay = 2 * time.Second
 	}
-	return d
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
-// ListProfiles calls GET /api/v1/profiles on agent-manager.
-func (c *AgentManagerClient) ListProfiles(ctx context.Context) (*wireListProfilesResponse, error) {
-	var result wireListProfilesResponse
-	if err := c.doGet(ctx, "/api/v1/profiles", &result); err != nil {
-		return nil, err
+func agentManagerRequest[T any](ctx context.Context, message *T) *connect.Request[T] {
+	request := connect.NewRequest(message)
+	for name, values := range policygate.VerifiedOwnerHeaders(ctx) {
+		request.Header()[name] = append([]string(nil), values...)
 	}
-	return &result, nil
+	return request
 }
 
-// CreateTask calls POST /api/v1/tasks on agent-manager.
-func (c *AgentManagerClient) CreateTask(ctx context.Context, req agentTaskCreateRequest) (*agentTaskCreateResponse, error) {
-	var result agentTaskCreateResponse
-	if err := c.doJSON(ctx, "/api/v1/tasks", req, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) ListProfiles(ctx context.Context) (*apipb.ListProfilesResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.ListProfilesResponse, error) {
+		response, err := client.ListProfiles(ctx, agentManagerRequest(ctx, &apipb.ListProfilesRequest{}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// CreateRun calls POST /api/v1/runs on agent-manager.
-func (c *AgentManagerClient) CreateRun(ctx context.Context, req agentRunCreateInternalRequest) (*agentRunCreateInternalResponse, error) {
-	var result agentRunCreateInternalResponse
-	if err := c.doJSON(ctx, "/api/v1/runs", req, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) CreateTask(ctx context.Context, task *ampb.Task) (*apipb.CreateTaskResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.CreateTaskResponse, error) {
+		response, err := client.CreateTask(ctx, agentManagerRequest(ctx, &apipb.CreateTaskRequest{Task: task}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// GetRun calls GET /api/v1/runs/{id} on agent-manager.
-func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*wireGetRunResponse, error) {
-	var result wireGetRunResponse
-	if err := c.doGet(ctx, "/api/v1/runs/"+runID, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) CreateRun(ctx context.Context, request *apipb.CreateRunRequest) (*apipb.CreateRunResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.CreateRunResponse, error) {
+		response, err := client.CreateRun(ctx, agentManagerRequest(ctx, request))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// GetRunReport returns the bounded, privacy-filtered run projection. It is
-// used only to attach generic work references and receipt availability to
-// provenance; transcripts and raw event payloads are never copied.
-func (c *AgentManagerClient) GetRunReport(ctx context.Context, runID string) (*wireRunReportResponse, error) {
-	var result wireRunReportResponse
-	if err := c.doGet(ctx, "/api/v1/runs/"+runID+"/report", &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) GetRun(ctx context.Context, runID string) (*apipb.GetRunResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetRunResponse, error) {
+		response, err := client.GetRun(ctx, agentManagerRequest(ctx, &apipb.GetRunRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// GetRunEvents calls GET /api/v1/runs/{id}/events on agent-manager.
-func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence, limit int) (*wireGetRunEventsResponse, error) {
-	path := fmt.Sprintf("/api/v1/runs/%s/events?afterSequence=%d&limit=%d", runID, afterSequence, limit)
-	var result wireGetRunEventsResponse
-	if err := c.doGet(ctx, path, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) GetRunReport(ctx context.Context, runID string) (*apipb.RunReport, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.RunReport, error) {
+		response, err := client.GetRunReport(ctx, agentManagerRequest(ctx, &apipb.GetRunReportRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// GetRunDiff calls GET /api/v1/runs/{id}/diff on agent-manager.
-func (c *AgentManagerClient) GetRunDiff(ctx context.Context, runID string) (*wireGetRunDiffResponse, error) {
-	var result wireGetRunDiffResponse
-	if err := c.doGet(ctx, "/api/v1/runs/"+runID+"/diff", &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) GetRunEvents(ctx context.Context, runID string, afterSequence, limit int) (*apipb.GetRunEventsResponse, error) {
+	after, pageSize := int64(afterSequence), int32(limit)
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetRunEventsResponse, error) {
+		response, err := client.GetRunEvents(ctx, agentManagerRequest(ctx, &apipb.GetRunEventsRequest{
+			RunId: runID, AfterSequence: &after, Limit: &pageSize,
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// ContinueRun calls POST /api/v1/runs/{id}/continue on agent-manager.
-func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, req AgentContinueRequest) (*wireContinueRunResponse, error) {
-	var result wireContinueRunResponse
-	if err := c.doJSON(ctx, "/api/v1/runs/"+runID+"/continue", req, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) GetRunDiff(ctx context.Context, runID string) (*apipb.GetRunDiffResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.GetRunDiffResponse, error) {
+		response, err := client.GetRunDiff(ctx, agentManagerRequest(ctx, &apipb.GetRunDiffRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// ApproveRun calls POST /api/v1/runs/{id}/approve on agent-manager.
-func (c *AgentManagerClient) ApproveRun(ctx context.Context, runID string, req AgentApproveRequest) (*wireApproveRunResponse, error) {
-	var result wireApproveRunResponse
-	if err := c.doJSON(ctx, "/api/v1/runs/"+runID+"/approve", req, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) ContinueRun(ctx context.Context, runID string, request AgentContinueRequest) (*ampb.ContinueRunResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*ampb.ContinueRunResponse, error) {
+		response, err := client.ContinueRun(ctx, agentManagerRequest(ctx, &ampb.ContinueRunRequest{
+			RunId: runID, Message: request.Message, AttachmentIds: request.AttachmentIDs,
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// RejectRun calls POST /api/v1/runs/{id}/reject on agent-manager.
-func (c *AgentManagerClient) RejectRun(ctx context.Context, runID string, req AgentRejectRequest) (*wireRejectRunResponse, error) {
-	var result wireRejectRunResponse
-	if err := c.doJSON(ctx, "/api/v1/runs/"+runID+"/reject", req, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) ApproveRun(ctx context.Context, runID string, request AgentApproveRequest) (*apipb.ApproveRunResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.ApproveRunResponse, error) {
+		response, err := client.ApproveRun(ctx, agentManagerRequest(ctx, &apipb.ApproveRunRequest{
+			RunId: runID, Actor: optionalString(request.Actor), CommitMsg: optionalString(request.CommitMsg),
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// StopRun calls POST /api/v1/runs/{id}/stop on agent-manager.
-func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*wireStopRunResponse, error) {
-	var result wireStopRunResponse
-	if err := c.doJSON(ctx, "/api/v1/runs/"+runID+"/stop", struct{}{}, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) RejectRun(ctx context.Context, runID string, request AgentRejectRequest) (*apipb.RejectRunResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.RejectRunResponse, error) {
+		response, err := client.RejectRun(ctx, agentManagerRequest(ctx, &apipb.RejectRunRequest{
+			RunId: runID, Actor: optionalString(request.Actor), Reason: request.Reason,
+		}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// ListRuns calls GET /api/v1/runs on agent-manager.
-func (c *AgentManagerClient) ListRuns(ctx context.Context, tagPrefix string, limit int) (*wireListRunsResponse, error) {
-	path := fmt.Sprintf("/api/v1/runs?tag_prefix=%s&limit=%d", tagPrefix, limit)
-	var result wireListRunsResponse
-	if err := c.doGet(ctx, path, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
+func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) (*apipb.StopRunResponse, error) {
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.StopRunResponse, error) {
+		response, err := client.StopRun(ctx, agentManagerRequest(ctx, &apipb.StopRunRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
 }
 
-// UploadAttachment streams a multipart upload to agent-manager's /api/v1/attachments/upload.
+func (c *AgentManagerClient) ListRuns(ctx context.Context, tagPrefix string, limit int) (*apipb.ListRunsResponse, error) {
+	prefix, pageSize := tagPrefix, int32(limit)
+	return callConnect(ctx, c, func(client apiconnect.AgentManagerServiceClient) (*apipb.ListRunsResponse, error) {
+		response, err := client.ListRuns(ctx, agentManagerRequest(ctx, &apipb.ListRunsRequest{TagPrefix: &prefix, Limit: &pageSize}))
+		if err != nil {
+			return nil, err
+		}
+		return response.Msg, nil
+	})
+}
+
+// UploadAttachment keeps Agent Manager's multipart contract and forwards only
+// the already verified human credential, matching the Connect owner requests.
 func (c *AgentManagerClient) UploadAttachment(ctx context.Context, body io.Reader, contentType string) (*wireUploadAttachmentResponse, error) {
 	baseURL, err := c.resolveBaseURL(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("resolve agent-manager url: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/attachments/upload", body)
-	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 120 * time.Second}
 	}
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.httpClient.Do(req)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/api/v1/attachments/upload", body)
+	if err != nil {
+		return nil, fmt.Errorf("create upload request: %w", err)
+	}
+	request.Header.Set("Content-Type", contentType)
+	request.Header.Set("Accept", "application/json")
+	for name, values := range policygate.VerifiedOwnerHeaders(ctx) {
+		request.Header[name] = append([]string(nil), values...)
+	}
+	response, err := httpClient.Do(request)
 	if err != nil {
 		c.clearCachedURL()
-		return nil, fmt.Errorf("agent-manager request failed: %w", err)
+		return nil, fmt.Errorf("agent-manager upload failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK && response.StatusCode != http.StatusCreated {
+		return nil, c.parseError(response)
 	}
-
 	var result wireUploadAttachmentResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	if err := json.NewDecoder(response.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode upload response: %w", err)
 	}
 	return &result, nil
 }
 
-func (c *AgentManagerClient) doJSON(ctx context.Context, path string, body, result interface{}) error {
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return fmt.Errorf("marshal request: %w", err)
-	}
-
-	return c.doWithRetry(ctx, func(baseURL string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+path, bytes.NewReader(bodyBytes))
-		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Accept", "application/json")
-		return c.httpClient.Do(req)
-	}, result, func(code int) bool {
-		return code == http.StatusOK || code == http.StatusCreated
-	})
-}
-
-func (c *AgentManagerClient) doGet(ctx context.Context, path string, result interface{}) error {
-	return c.doWithRetry(ctx, func(baseURL string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
-		if err != nil {
-			return nil, fmt.Errorf("create request: %w", err)
-		}
-		req.Header.Set("Accept", "application/json")
-		return c.httpClient.Do(req)
-	}, result, func(code int) bool {
-		return code == http.StatusOK
-	})
-}
-
-// doWithRetry executes an HTTP request with retry logic.
-// makeReq builds the request given a resolved base URL.
-// isSuccess checks whether a status code indicates success.
-func (c *AgentManagerClient) doWithRetry(
-	ctx context.Context,
-	makeReq func(baseURL string) (*http.Response, error),
-	result interface{},
-	isSuccess func(int) bool,
-) error {
-	var lastErr error
-	for attempt := 0; attempt <= c.maxRetries; attempt++ {
-		if err := c.waitForRetry(ctx, attempt); err != nil {
-			return err
-		}
-
-		baseURL, err := c.resolveBaseURL(ctx)
-		if err != nil {
-			lastErr = fmt.Errorf("resolve agent-manager url: %w", err)
-			c.clearCachedURL()
-			continue
-		}
-
-		resp, err := makeReq(baseURL)
-		if err != nil {
-			lastErr = fmt.Errorf("agent-manager request failed: %w", err)
-			c.clearCachedURL()
-			if isRetryable(err, 0) {
-				continue
-			}
-			return lastErr
-		}
-
-		if !isSuccess(resp.StatusCode) {
-			amErr := c.parseError(resp)
-			resp.Body.Close()
-			if isRetryable(nil, resp.StatusCode) {
-				lastErr = amErr
-				c.clearCachedURL()
-				continue
-			}
-			return amErr
-		}
-
-		decodeErr := json.NewDecoder(resp.Body).Decode(result)
-		resp.Body.Close()
-		if decodeErr != nil {
-			return fmt.Errorf("decode response: %w", decodeErr)
-		}
+func optionalString(value string) *string {
+	if value == "" {
 		return nil
 	}
-	return lastErr
-}
-
-// waitForRetry sleeps with backoff for retry attempts > 0, respecting context cancellation.
-func (c *AgentManagerClient) waitForRetry(ctx context.Context, attempt int) error {
-	if attempt == 0 {
-		return nil
-	}
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(c.retryDelay(attempt - 1)):
-		return nil
-	}
+	return &value
 }

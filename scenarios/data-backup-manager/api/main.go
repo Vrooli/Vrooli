@@ -518,8 +518,8 @@ func run(ctx context.Context) error {
 	)
 	freshMigrations := destinationsH.NewRepositoryMigrationCoordinator(migrationEffects, migrationOwner)
 
-	destinationsModule, recoveryWorkers := destinationsH.ModuleWithBackupRecovery(
-		db, clk, kopia, protectedRoot, filePaths.StateDir, logger, decisionPublisher, eventsWebhookSecret,
+	destinationsModule, recoveryWorkers := destinationsH.ModuleWithBackupRecoveryLifecycle(
+		execCtx, db, clk, kopia, protectedRoot, filePaths.StateDir, logger, decisionPublisher, eventsWebhookSecret,
 		destinationsH.BackupFailureConfig{
 			History:        backupHistory{plans: plansSvc, runs: runsSvc, repo: runsRepo, targets: targetsSvc},
 			Usage:          kopia,

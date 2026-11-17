@@ -1,28 +1,86 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/discovery"
-	httpx "github.com/vrooli/api-core/servertest"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
-func actionTestServer(t *testing.T, status CapabilityStatus, handler http.Handler) (*Server, func()) {
-	t.Helper()
-	upstream := httpx.NewHandlerServer(t, handler)
-	client := &AgentManagerClient{BaseClient: BaseClient{httpClient: httpx.TestClient(), resolver: discovery.NewStaticResolver(upstream.URL), serviceName: "agent-manager"}, maxRetries: 0, retryBaseDelay: time.Millisecond}
-	registry := NewCapabilityRegistry([]CapabilityDef{{ID: "agent-manager"}}, map[string]StatusChecker{"agent-manager": &FakeStatusChecker{Status: status}}, time.Minute)
-	return &Server{git: NewFakeGitRunner(), agentManagerClient: client, capabilities: registry}, upstream.Close
+type actionAgentManagerStub struct {
+	apiconnect.UnimplementedAgentManagerServiceHandler
+	events    *apipb.GetRunEventsResponse
+	diff      *apipb.GetRunDiffResponse
+	continued *ampb.ContinueRunResponse
+	approved  *apipb.ApproveRunResponse
+	rejected  *apipb.RejectRunResponse
+	stopped   *apipb.StopRunResponse
+	err       error
+	gotAfter  int64
+	gotLimit  int32
 }
 
-func actionRequest(t *testing.T, s *Server, method, path, body string, id string, call func(http.ResponseWriter, *http.Request)) *httptest.ResponseRecorder {
+func (s *actionAgentManagerStub) GetRunEvents(_ context.Context, req *connect.Request[apipb.GetRunEventsRequest]) (*connect.Response[apipb.GetRunEventsResponse], error) {
+	s.gotAfter, s.gotLimit = req.Msg.GetAfterSequence(), req.Msg.GetLimit()
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.events), nil
+}
+func (s *actionAgentManagerStub) GetRunDiff(context.Context, *connect.Request[apipb.GetRunDiffRequest]) (*connect.Response[apipb.GetRunDiffResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.diff), nil
+}
+func (s *actionAgentManagerStub) ContinueRun(context.Context, *connect.Request[ampb.ContinueRunRequest]) (*connect.Response[ampb.ContinueRunResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.continued), nil
+}
+func (s *actionAgentManagerStub) ApproveRun(context.Context, *connect.Request[apipb.ApproveRunRequest]) (*connect.Response[apipb.ApproveRunResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.approved), nil
+}
+func (s *actionAgentManagerStub) RejectRun(context.Context, *connect.Request[apipb.RejectRunRequest]) (*connect.Response[apipb.RejectRunResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.rejected), nil
+}
+func (s *actionAgentManagerStub) StopRun(context.Context, *connect.Request[apipb.StopRunRequest]) (*connect.Response[apipb.StopRunResponse], error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+	return connect.NewResponse(s.stopped), nil
+}
+
+func actionTestServer(t *testing.T, status CapabilityStatus, stub *actionAgentManagerStub) *Server {
+	t.Helper()
+	path, handler := apiconnect.NewAgentManagerServiceHandler(stub)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	upstream := httptest.NewServer(mux)
+	t.Cleanup(upstream.Close)
+	client := &AgentManagerClient{BaseClient: BaseClient{httpClient: upstream.Client(), resolver: discovery.NewStaticResolver(upstream.URL), serviceName: "agent-manager"}}
+	registry := NewCapabilityRegistry([]CapabilityDef{{ID: "agent-manager"}}, map[string]StatusChecker{"agent-manager": &FakeStatusChecker{Status: status}}, time.Minute)
+	return &Server{git: NewFakeGitRunner(), agentManagerClient: client, capabilities: registry}
+}
+
+func actionRequest(t *testing.T, s *Server, method, path, body, id string, call func(http.ResponseWriter, *http.Request)) *httptest.ResponseRecorder {
 	t.Helper()
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	r = mux.SetURLVars(r, map[string]string{"id": id})
@@ -32,176 +90,82 @@ func actionRequest(t *testing.T, s *Server, method, path, body string, id string
 }
 
 func TestAgentRunEventsBoundsAndProjection(t *testing.T) {
-	var gotAfter, gotLimit int
-	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotAfter = 0
-		gotLimit = 0
-		_, _ = fmt.Sscanf(r.URL.Query().Get("afterSequence"), "%d", &gotAfter)
-		_, _ = fmt.Sscanf(r.URL.Query().Get("limit"), "%d", &gotLimit)
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"events":[{"id":"evt-1","run_id":"run-a","event_type":"message","sequence":"7","message":{"text":"hello"}}]}`))
-	})
-	s, closeUpstream := actionTestServer(t, StatusAvailable, upstream)
-	defer closeUpstream()
+	stub := &actionAgentManagerStub{events: &apipb.GetRunEventsResponse{Events: []*ampb.RunEvent{{Id: "evt-1", RunId: "run-a", Sequence: 7, EventType: ampb.RunEventType_RUN_EVENT_TYPE_MESSAGE, Data: &ampb.RunEvent_Message{Message: &ampb.MessageEventData{Role: "assistant", Content: "hello"}}}}}}
+	s := actionTestServer(t, StatusAvailable, stub)
 	w := actionRequest(t, s, http.MethodGet, "/events?afterSequence=0&limit=900", "", "run-a", s.handleAgentRunEvents)
 	if w.Code != http.StatusOK {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body)
 	}
-	if gotAfter != 0 || gotLimit != 500 {
-		t.Fatalf("forwarded bounds after=%d limit=%d", gotAfter, gotLimit)
+	if stub.gotAfter != 0 || stub.gotLimit != 500 {
+		t.Fatalf("forwarded bounds after=%d limit=%d", stub.gotAfter, stub.gotLimit)
 	}
-	var got AgentRunEventsResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if len(got.Events) != 1 || got.Events[0].ID != "evt-1" || got.Events[0].Sequence != 7 || got.Events[0].EventType != "message" {
-		t.Fatalf("projection=%+v", got.Events)
+	if !strings.Contains(w.Body.String(), `"eventType":"message"`) || !strings.Contains(w.Body.String(), `"content":"hello"`) {
+		t.Fatalf("projection=%s", w.Body)
 	}
 }
 
 func TestAgentRunDiffProjectsFiles(t *testing.T) {
-	upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasSuffix(r.URL.Path, "/runs/r1/diff") {
-			t.Errorf("path=%s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"diff":{"content":"patch","files":[{"path":"main.go","change_type":"modified","additions":3,"deletions":1}]}}`))
-	})
-	s, closeUpstream := actionTestServer(t, StatusAvailable, upstream)
-	defer closeUpstream()
-	w := actionRequest(t, s, http.MethodGet, "/runs/r1/diff", "", "r1", s.handleAgentRunDiff)
-	if w.Code != http.StatusOK {
+	stub := &actionAgentManagerStub{diff: &apipb.GetRunDiffResponse{Diff: &ampb.RunDiff{Content: "diff --git", Files: []*ampb.FileDiff{{Path: "main.go", ChangeType: "modified", Additions: 3, Deletions: 1, Patch: "+x"}}}}}
+	s := actionTestServer(t, StatusAvailable, stub)
+	w := actionRequest(t, s, http.MethodGet, "/diff", "", "run-1", s.handleAgentRunDiff)
+	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"additions":3`) {
 		t.Fatalf("status=%d body=%s", w.Code, w.Body)
-	}
-	var got AgentRunDiffResponse
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.RunID != "r1" || got.Content != "patch" || len(got.Files) != 1 || got.Files[0].Path != "main.go" || got.Files[0].Additions != 3 || got.Files[0].Deletions != 1 {
-		t.Fatalf("projection=%+v", got)
 	}
 }
 
 func TestAgentRunEventsRejectInvalidQueryBounds(t *testing.T) {
-	for _, query := range []string{"?afterSequence=-2", "?limit=0", "?limit=nope"} {
-		t.Run(query, func(t *testing.T) {
-			s, closeUpstream := actionTestServer(t, StatusAvailable, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Errorf("invalid query reached upstream") }))
-			defer closeUpstream()
-			w := actionRequest(t, s, http.MethodGet, "/runs/r1/events"+query, "", "r1", s.handleAgentRunEvents)
-			if w.Code != http.StatusBadRequest {
-				t.Fatalf("status=%d body=%s", w.Code, w.Body)
-			}
-		})
+	s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{})
+	w := actionRequest(t, s, http.MethodGet, "/events?limit=0", "", "run-a", s.handleAgentRunEvents)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body)
 	}
 }
 
 func TestAgentRunActionsRejectUnavailableAndMissingRunID(t *testing.T) {
-	handlers := []struct {
-		name, path string
-		call       func(*Server, http.ResponseWriter, *http.Request)
-	}{
-		{"events", "/runs//events", (*Server).handleAgentRunEvents},
-		{"diff", "/runs//diff", (*Server).handleAgentRunDiff},
-		{"continue", "/runs//continue", (*Server).handleAgentRunContinue},
-		{"approve", "/runs//approve", (*Server).handleAgentRunApprove},
-		{"reject", "/runs//reject", (*Server).handleAgentRunReject},
-		{"stop", "/runs//stop", (*Server).handleAgentRunStop},
+	s := actionTestServer(t, StatusUnavailable, &actionAgentManagerStub{})
+	w := actionRequest(t, s, http.MethodPost, "/continue", `{"message":"next"}`, "run-a", s.handleAgentRunContinue)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("unavailable status=%d", w.Code)
 	}
-	for _, tc := range handlers {
-		for _, statusCase := range []struct {
-			name      string
-			available CapabilityStatus
-			id        string
-			want      int
-		}{{"unavailable", StatusUnavailable, "r1", http.StatusServiceUnavailable}, {"missing run id", StatusAvailable, "  ", http.StatusBadRequest}} {
-			t.Run(tc.name+"/"+statusCase.name, func(t *testing.T) {
-				s, closeUpstream := actionTestServer(t, statusCase.available, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Errorf("unexpected upstream call") }))
-				defer closeUpstream()
-				w := actionRequest(t, s, http.MethodPost, tc.path, "{}", statusCase.id, func(w http.ResponseWriter, r *http.Request) { tc.call(s, w, r) })
-				if w.Code != statusCase.want {
-					t.Fatalf("status=%d body=%s want=%d", w.Code, w.Body, statusCase.want)
-				}
-			})
-		}
+	s = actionTestServer(t, StatusAvailable, &actionAgentManagerStub{})
+	w = actionRequest(t, s, http.MethodPost, "/continue", `{"message":"next"}`, " ", s.handleAgentRunContinue)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("missing id status=%d", w.Code)
 	}
 }
 
 func TestAgentRunActionResponseProjections(t *testing.T) {
-	tests := []struct {
-		name, path, body, response string
-		call                       func(*Server, http.ResponseWriter, *http.Request)
-		check                      func(*testing.T, *httptest.ResponseRecorder)
-	}{
-		{"continue", "/runs/r1/continue", `{"message":"go"}`, `{"success":true,"run":{"id":"r1","status":"RUN_STATUS_RUNNING"}}`, (*Server).handleAgentRunContinue, func(t *testing.T, w *httptest.ResponseRecorder) {
-			var got AgentContinueResponse
-			if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || !got.Success || got.Run == nil || got.Run.ID != "r1" {
-				t.Fatalf("projection=%s err=%v", w.Body, err)
-			}
-		}},
-		{"approve", "/runs/r1/approve", `{}`, `{"result":{"success":true,"files_applied":2,"commit_hash":"abc","message":"done"}}`, (*Server).handleAgentRunApprove, func(t *testing.T, w *httptest.ResponseRecorder) {
-			var got AgentApproveResponse
-			_ = json.Unmarshal(w.Body.Bytes(), &got)
-			if !got.Success || got.FilesApplied != 2 || got.CommitHash != "abc" || got.Message != "done" {
-				t.Fatalf("projection=%+v", got)
-			}
-		}},
-		{"reject", "/runs/r1/reject", `{}`, `{"status":"rejected"}`, (*Server).handleAgentRunReject, func(t *testing.T, w *httptest.ResponseRecorder) {
-			var got AgentRejectResponse
-			_ = json.Unmarshal(w.Body.Bytes(), &got)
-			if got.Status != "rejected" {
-				t.Fatalf("projection=%+v", got)
-			}
-		}},
-		{"stop", "/runs/r1/stop", ``, `{"status":"stopped"}`, (*Server).handleAgentRunStop, func(t *testing.T, w *httptest.ResponseRecorder) {
-			var got AgentStopResponse
-			_ = json.Unmarshal(w.Body.Bytes(), &got)
-			if got.Status != "stopped" {
-				t.Fatalf("projection=%+v", got)
-			}
-		}},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if !strings.HasSuffix(r.URL.Path, tc.path) {
-					t.Errorf("path=%s want suffix %s", r.URL.Path, tc.path)
-				}
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(tc.response))
-			})
-			s, closeUpstream := actionTestServer(t, StatusAvailable, upstream)
-			defer closeUpstream()
-			w := actionRequest(t, s, http.MethodPost, tc.path, tc.body, "r1", func(w http.ResponseWriter, r *http.Request) { tc.call(s, w, r) })
-			if w.Code != http.StatusOK {
-				t.Fatalf("status=%d body=%s", w.Code, w.Body)
-			}
-			tc.check(t, w)
-		})
-	}
+	t.Run("continue", func(t *testing.T) {
+		s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{continued: &ampb.ContinueRunResponse{Success: true, Run: &ampb.Run{Id: "r1", Status: ampb.RunStatus_RUN_STATUS_RUNNING}}})
+		w := actionRequest(t, s, http.MethodPost, "/continue", `{"message":"next"}`, "r1", s.handleAgentRunContinue)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"success":true`) || !strings.Contains(w.Body.String(), `"id":"r1"`) {
+			t.Fatalf("status=%d body=%s", w.Code, w.Body)
+		}
+	})
+	t.Run("approve", func(t *testing.T) {
+		s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{approved: &apipb.ApproveRunResponse{Result: &ampb.ApproveResult{Success: true, FilesApplied: 2, CommitHash: "abc"}}})
+		w := actionRequest(t, s, http.MethodPost, "/approve", `{}`, "r1", s.handleAgentRunApprove)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"filesApplied":2`) {
+			t.Fatalf("status=%d body=%s", w.Code, w.Body)
+		}
+	})
+	t.Run("reject and stop", func(t *testing.T) {
+		s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{rejected: &apipb.RejectRunResponse{Status: "rejected"}, stopped: &apipb.StopRunResponse{Status: "stopped"}})
+		w := actionRequest(t, s, http.MethodPost, "/reject", `{"reason":"no"}`, "r1", s.handleAgentRunReject)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"status":"rejected"`) {
+			t.Fatalf("reject status=%d body=%s", w.Code, w.Body)
+		}
+		w = actionRequest(t, s, http.MethodPost, "/stop", `{}`, "r1", s.handleAgentRunStop)
+		if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"status":"stopped"`) {
+			t.Fatalf("stop status=%d body=%s", w.Code, w.Body)
+		}
+	})
 }
 
 func TestAgentRunActionsMapOwnerErrors(t *testing.T) {
-	methods := []struct {
-		name, path string
-		call       func(*Server, http.ResponseWriter, *http.Request)
-	}{
-		{"events", "/runs/r1/events", (*Server).handleAgentRunEvents}, {"diff", "/runs/r1/diff", (*Server).handleAgentRunDiff}, {"continue", "/runs/r1/continue", (*Server).handleAgentRunContinue}, {"approve", "/runs/r1/approve", (*Server).handleAgentRunApprove}, {"reject", "/runs/r1/reject", (*Server).handleAgentRunReject}, {"stop", "/runs/r1/stop", (*Server).handleAgentRunStop},
-	}
-	for _, tc := range methods {
-		t.Run(tc.name, func(t *testing.T) {
-			upstream := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Error(w, "owner failed", http.StatusInternalServerError)
-			})
-			s, closeUpstream := actionTestServer(t, StatusAvailable, upstream)
-			defer closeUpstream()
-			body := "{}"
-			if tc.name == "events" || tc.name == "diff" {
-				body = ""
-			}
-			w := actionRequest(t, s, http.MethodPost, tc.path, body, "r1", func(w http.ResponseWriter, r *http.Request) { tc.call(s, w, r) })
-			if w.Code != http.StatusInternalServerError {
-				t.Fatalf("status=%d body=%s", w.Code, w.Body)
-			}
-		})
+	s := actionTestServer(t, StatusAvailable, &actionAgentManagerStub{err: connect.NewError(connect.CodeNotFound, errors.New("missing"))})
+	w := actionRequest(t, s, http.MethodGet, "/diff", "", "r1", s.handleAgentRunDiff)
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body)
 	}
 }

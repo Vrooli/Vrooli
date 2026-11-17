@@ -39,7 +39,15 @@ what changed. Context may explain intent only for matching staged scope;
 similar paths, text or times do not establish authorship. Never infer attribution
 trailers, agent co-authorship, test success, or unstated motivation.
 
-Return one JSON object matching the supplied result schema. Write a concise
+Return one `<gct_message>...</gct_message>` XML element as raw final text. Brief
+commentary may appear before or after the element; GCT ignores it. Use these
+child tags: `title`, `body`, `trailers`, `source_ids`, `unknowns`, and
+`covered_file_ids`. Put each source ID in `<source_ids><id>…</id>`; each
+unknown in `<unknowns><item>…</item>`; and each inspected file number in
+`<covered_file_ids><id>…</id>`. Escape XML text (`&amp;`, `&lt;`, `&gt;`) in
+field contents. Do not wrap the XML in JSON, a Markdown fence, or commentary.
+
+Write a concise
 imperative title and an optional body describing resulting behavior across the
 whole selection to the extent the evidence supports it. GCT binds the result to
 the immutable workflow input; do not echo its snapshot digest. Keep the two ID
@@ -70,7 +78,7 @@ manifest and marks every unspecified file uncovered. Never invent IDs or echo
 thousands of paths. Reading current checkout content cannot make an omitted
 staged patch complete. No source relationship automatically supplies coverage.
 Return trailers as an empty array; the editor preserves human trailers separately.
-Do not wrap JSON in commentary or a Markdown code fence.
+Represent empty collections with empty XML containers.
 
 Immutable input:
 

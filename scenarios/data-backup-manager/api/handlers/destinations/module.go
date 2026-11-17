@@ -15,6 +15,7 @@ import (
 	"data-backup-manager/internal/repohealth"
 	"data-backup-manager/internal/sysmounts"
 
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/schedule"
@@ -98,6 +99,13 @@ func (w Workers) LifecycleHooks() lifecycle.Hooks {
 // the volume recovery monitor and, when configured, the backup-failure monitor
 // that shares its decision, journal and callback machinery.
 func ModuleWithBackupRecovery(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, recoveryStateRoot string, logger *log.Logger, publisher operatordecision.Publisher, webhookSecret string, failureCfg BackupFailureConfig) (modulecontract.Module, Workers) {
+	return ModuleWithBackupRecoveryLifecycle(nil, db, clk, eng, protectedRoot, recoveryStateRoot, logger, publisher, webhookSecret, failureCfg)
+}
+
+// ModuleWithBackupRecoveryLifecycle binds the optional Events subscription
+// reconciler to the owning server lifecycle. Use this entry point in servers;
+// the non-lifecycle wrapper is retained for callers that only mount routes.
+func ModuleWithBackupRecoveryLifecycle(lifecycle context.Context, db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, recoveryStateRoot string, logger *log.Logger, publisher operatordecision.Publisher, webhookSecret string, failureCfg BackupFailureConfig) (modulecontract.Module, Workers) {
 	repo := internaldestinations.NewSQLiteRepository(db, clk)
 	recoveryStore := &destinationreadiness.FileRecoveryStore{Root: filepath.Join(recoveryStateRoot, "volume-recovery")}
 	readinessSvc := destinationreadiness.NewService(
@@ -160,13 +168,13 @@ func ModuleWithBackupRecovery(db *database.RoutedDB, clk schedule.Clock, eng eng
 				r.Handle(recoveryDecisionWebhookPath, operatordecision.NewWebhook(hubidentity.WebhookConfig(operatordecision.WebhookConfig{Secret: operatordecision.StaticSecret(webhookSecret), Source: recoveryDecisionSource, Reader: failureCfg.AskReader, Effects: effects}))).Methods("POST")
 				if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 					target := "http://127.0.0.1:" + port + recoveryDecisionWebhookPath
-					go func() {
-						ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-						defer cancel()
-						if err := reconcileRecoveryDecisionSubscription(ctx, target); err != nil && logger != nil {
-							logger.Printf("volume recovery decision answer subscription reconciliation failed: %v", err)
+					go eventbus.RunSubscriptionReconciler(lifecycle, eventbus.SubscriptionReconcilerConfig{
+						Interval: 30 * time.Second, AttemptTimeout: 15 * time.Second, Attempts: 1,
+					}, func(ctx context.Context) error { return reconcileRecoveryDecisionSubscription(ctx, target) }, func(err error) {
+						if logger != nil {
+							logger.Printf("volume recovery decision answer subscription reconciliation failed; retry scheduled: %v", err)
 						}
-					}()
+					})
 				}
 			} else if decisions != nil && logger != nil {
 				logger.Printf("volume recovery decision callback disabled: events webhook signing secret unavailable")

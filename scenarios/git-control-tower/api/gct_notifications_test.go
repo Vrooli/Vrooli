@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -15,6 +17,35 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	_ "modernc.org/sqlite"
 )
+
+func TestNotificationCategoriesMatchScenarioManifest(t *testing.T) {
+	t.Helper()
+	data, err := os.ReadFile("../.vrooli/notifications.json")
+	if err != nil {
+		t.Fatalf("read notification manifest: %v", err)
+	}
+	var manifest struct {
+		Categories []struct {
+			Key string `json:"key"`
+		} `json:"categories"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("decode notification manifest: %v", err)
+	}
+	declared := make(map[string]bool, len(manifest.Categories))
+	for _, category := range manifest.Categories {
+		declared[category.Key] = true
+	}
+	for _, category := range []string{
+		notificationCategoryProposalReceived,
+		notificationCategoryCommitMessageReady,
+		notificationCategoryCommitMessageFailed,
+	} {
+		if !declared[category] {
+			t.Errorf("emitted notification category %q is missing from .vrooli/notifications.json", category)
+		}
+	}
+}
 
 type notificationPublisher struct {
 	mu     sync.Mutex

@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "git-control-tower",
   "key": "git-control-tower/staged-message",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Explicit message-only drafting for the complete immutable staged selection using bounded representative context and compact file-ID coverage. No repository writes.",
   "inputSchema": {
     "type": "object",
@@ -39,60 +39,9 @@
     "additionalProperties": false,
     "properties": {
       "result": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "title": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 200
-          },
-          "body": {
-            "type": "string",
-            "maxLength": 8000
-          },
-          "trailers": {
-            "type": "array",
-            "maxItems": 0
-          },
-          "source_ids": {
-            "type": "array",
-            "maxItems": 20,
-            "uniqueItems": true,
-            "items": {
-              "type": "string",
-              "maxLength": 256
-            },
-            "description": "Opaque selected-context source IDs only; never stable file IDs, paths, run IDs, or workflow IDs. Copy only contexts[].id. Return [] when no selected source IDs are supplied."
-          },
-          "unknowns": {
-            "type": "array",
-            "maxItems": 31,
-            "items": {
-              "type": "string",
-              "maxLength": 1000
-            }
-          },
-          "covered_file_ids": {
-            "type": "array",
-            "maxItems": 64,
-            "uniqueItems": true,
-            "items": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 4096
-            },
-            "description": "Stable integer staged-file IDs supported by complete patch inspection; these IDs never belong in source_ids."
-          }
-        },
-        "required": [
-          "title",
-          "body",
-          "trailers",
-          "source_ids",
-          "unknowns",
-          "covered_file_ids"
-        ]
+        "type": "string",
+        "maxLength": 30000,
+        "description": "Raw final text containing exactly one <gct_message> XML element, with optional commentary outside it. Git Control Tower extracts and validates the XML element."
       }
     },
     "required": [
@@ -107,68 +56,6 @@
         "profileKey": "git-control-tower/staged-message",
         "promptRef": {
           "skillId": "git-control-tower-staged-message"
-        },
-        "resultSpec": {
-          "version": "result-spec/v1",
-          "kind": "json_schema",
-          "extractionMode": "deterministic_only",
-          "schema": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "title": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 200
-              },
-              "body": {
-                "type": "string",
-                "maxLength": 8000
-              },
-              "trailers": {
-                "type": "array",
-                "maxItems": 0
-              },
-              "source_ids": {
-                "type": "array",
-                "maxItems": 20,
-                "uniqueItems": true,
-                "items": {
-                  "type": "string",
-                  "maxLength": 256
-                },
-                "description": "Opaque selected-context source IDs only; never stable file IDs, paths, run IDs, or workflow IDs. Copy only contexts[].id. Return [] when no selected source IDs are supplied."
-              },
-              "unknowns": {
-                "type": "array",
-                "maxItems": 31,
-                "items": {
-                  "type": "string",
-                  "maxLength": 1000
-                }
-              },
-              "covered_file_ids": {
-                "type": "array",
-                "maxItems": 64,
-                "uniqueItems": true,
-                "items": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 4096
-                },
-                "description": "Stable integer staged-file IDs supported by complete patch inspection; these IDs never belong in source_ids."
-              }
-            },
-            "required": [
-              "title",
-              "body",
-              "trailers",
-              "source_ids",
-              "unknowns",
-              "covered_file_ids"
-            ]
-          },
-          "schemaRepairAttempts": 0
         },
         "bindings": [
           {
@@ -215,12 +102,12 @@
         "bindings": [
           {
             "name": "result",
-            "source": "structured_result",
-            "selector": "$.value",
+            "source": "final_handoff",
+            "selector": "node=draft;$.text",
             "order": "desc",
             "limit": 1,
-            "maxBytes": 61440,
-            "renderAs": "json",
+            "maxBytes": 49152,
+            "renderAs": "text",
             "missingPolicy": "error"
           }
         ]

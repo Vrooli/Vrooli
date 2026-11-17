@@ -245,6 +245,18 @@
         "type": "minio",
         "startup_policy": "try_start"
       }
+    },
+    "scenarios": {
+      "vrooli-events": {
+        "degraded_behavior": "Manual in-scenario decisions remain available; asynchronous Notification Hub answers may be delayed until Events recovers and subscription reconciliation succeeds.",
+        "description": "Receives durable webhook decision answers for this scenario through Vrooli Events.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The scenario uses the shared api-core eventbus client over runtime HTTP and imports no Vrooli Events package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      }
     }
   },
   "environment": {},

@@ -62,8 +62,8 @@ func TestGeometryWorkerCallsGatewayOnceLocalOnlyAndWritesInspectedGLB(t *testing
 	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetRole() != "extract.structured" || fake.request.GetMaxProviderCalls() != 1 || fake.request.GetMaxOutputTokens() != 4096 {
 		t.Fatalf("unsafe or unbounded Gateway request: %+v", fake.request)
 	}
-	if fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
-		t.Fatalf("privacy class = %s, want UNSPECIFIED because Device Studio has no source", fake.request.GetPrivacyClass())
+	if fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || fake.request.GetPrivacyProvenance() != "device_studio.geometry.project_and_reference_inputs" {
+		t.Fatalf("privacy contract = %s from %q, want confidential Device Studio project/reference inputs", fake.request.GetPrivacyClass(), fake.request.GetPrivacyProvenance())
 	}
 	if !strings.Contains(fake.request.GetInstruction(), "[-W/2,+W/2]") || !strings.Contains(fake.request.GetInstruction(), "flat box display face") || !strings.Contains(fake.request.GetInstruction(), "stand-off") {
 		t.Fatalf("fixed geometry instruction must state the locked envelope and flat screen face: %s", fake.request.GetInstruction())
@@ -195,8 +195,8 @@ func TestGeometryWorkerFundingRoutesSelectOneProviderAndRejectProviderDrift(t *t
 	if fake.request.GetRole() != "extract.structured" || fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetMaxProviderCalls() != 1 {
 		t.Fatalf("unexpected route request: %+v", fake.request)
 	}
-	if fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
-		t.Fatalf("privacy class = %s, want UNSPECIFIED because funding route does not classify data", fake.request.GetPrivacyClass())
+	if fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || fake.request.GetPrivacyProvenance() != "device_studio.geometry.project_and_reference_inputs" {
+		t.Fatalf("privacy contract = %s from %q, want confidential Device Studio project/reference inputs", fake.request.GetPrivacyClass(), fake.request.GetPrivacyProvenance())
 	}
 
 	m.FundingRoute = "byok"
@@ -217,8 +217,8 @@ func TestGeometryWorkerFundingRoutesSelectOneProviderAndRejectProviderDrift(t *t
 	if err == nil || !strings.Contains(err.Error(), "could not return one validated bounded recipe") {
 		t.Fatalf("remote route without privacy class should surface the gateway refusal: %v", err)
 	}
-	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_REMOTE_ONLY || fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
-		t.Fatalf("remote funding request must retain its route and unknown privacy class: %+v", fake.request)
+	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_REMOTE_ONLY || fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || fake.request.GetPrivacyProvenance() != "device_studio.geometry.project_and_reference_inputs" {
+		t.Fatalf("remote funding request must retain its route and confidential source contract: %+v", fake.request)
 	}
 }
 

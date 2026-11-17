@@ -84,6 +84,11 @@ func (s *Service) project(ctx context.Context, repo, dir string, job reviewjobs.
 	// failure reason while restoring the retry policy documented for this case.
 	if job.State == reviewjobs.Failed && strings.HasPrefix(job.Error, "Invalid structured message result:") {
 		errorCode, retryable = "invalid_structured_output", true
+	} else if job.State == reviewjobs.Failed && job.ErrorCode == "structured_result_invalid" {
+		// Older Agent Manager revisions rejected raw XML before GCT could parse
+		// it. Project those saved failures as retryable against the active
+		// final-handoff revision without mutating the historical receipt.
+		errorCode, retryable = "invalid_structured_output", true
 	}
 	phase := job.Phase
 	if phase == "" {

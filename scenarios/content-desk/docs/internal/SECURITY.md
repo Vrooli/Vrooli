@@ -13,7 +13,6 @@ resource. A schema change that introduces a token, cookie, or session column is
 a defect. Claim evidence stores commands that will be re-run, so command
 provenance and execution boundaries are the first real review topic.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

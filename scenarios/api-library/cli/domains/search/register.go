@@ -72,7 +72,7 @@ func runSearch(core *cliapp.ScenarioApp, args []string) error {
 		if *maxPrice > 0 {
 			filters["max_price"] = *maxPrice
 		}
-		if cats := splitCSV(*categoryList); len(cats) > 0 {
+		if cats := cliutil.ParseCSV(*categoryList); len(cats) > 0 {
 			filters["categories"] = cats
 		}
 		if len(filters) > 0 {
@@ -133,22 +133,6 @@ func searchRows(results []support.SearchResult) []string {
 				r.Name, support.ShortID(r.ID), r.Provider, orDash(r.Category), configured, r.RelevanceScore, pricing))
 	}
 	return rows
-}
-
-func splitCSV(value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 func orDash(value string) string {

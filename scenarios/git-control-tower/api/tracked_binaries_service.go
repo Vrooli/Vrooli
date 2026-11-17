@@ -61,8 +61,8 @@ const oversizedTrackedThreshold int64 = 50 * 1024 * 1024
 // They populate TrackedBinary.Format, which existing consumers already render.
 const reasonOversized = "oversized"
 
-const untrackHistoryWarning = "Untracking removes these from the working tree and future commits. " +
-	"The bytes remain in git history, so repository size is unchanged until history is rewritten."
+const untrackHistoryWarning = "The local file stays in place. Untracking removes it from the Git index and ignores it for future commits. " +
+	"Its existing bytes remain in Git history, so repository size is unchanged until history is rewritten."
 
 // AnalyzeTrackedBinaries reports tracked files that should not be committed:
 // every compiled executable (build output at any size), plus any other tracked

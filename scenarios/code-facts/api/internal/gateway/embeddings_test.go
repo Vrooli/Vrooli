@@ -1,9 +1,10 @@
-package retrieval
+package gateway
 
 import (
 	"context"
 	"testing"
 
+	"code-facts/internal/retrieval"
 	"connectrpc.com/connect"
 	aisearch "github.com/vrooli/ai-go/search"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
@@ -54,7 +55,7 @@ func TestGatewayEmbedderUsesLocalConfidentialRoleContract(t *testing.T) {
 		t.Fatalf("unexpected vectors: %#v", vectors)
 	}
 	req := client.request
-	if req.GetRole() != EmbeddingRole {
+	if req.GetRole() != retrieval.EmbeddingRole {
 		t.Fatalf("embedding task contract mismatch: %+v", req)
 	}
 	if req.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || req.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || req.GetPrivacyProvenance() != codeFactsProvenance {
@@ -84,11 +85,22 @@ func TestGatewayEmbedderRejectsGatewayRefusal(t *testing.T) {
 	}
 }
 
+func TestGatewayEmbedderRequiresConfiguredHTTPClientForConnectPath(t *testing.T) {
+	embedder := &GatewayEmbedder{
+		ExpectedModel: "embed-policy-model",
+		Dimensions:    2,
+		ResolveURL:    func(context.Context) (string, error) { return "http://ai-gateway", nil },
+	}
+	if _, err := embedder.client(context.Background()); err == nil {
+		t.Fatal("Connect client construction must not fall back to the ambient default HTTP client")
+	}
+}
+
 type untouchedVectorStore struct{ queries int }
 
-func (*untouchedVectorStore) Upsert(context.Context, []VectorRecord) error { return nil }
-func (*untouchedVectorStore) Delete(context.Context, []string) error       { return nil }
-func (s *untouchedVectorStore) Query(context.Context, []float32, Query) ([]Candidate, error) {
+func (*untouchedVectorStore) Upsert(context.Context, []retrieval.VectorRecord) error { return nil }
+func (*untouchedVectorStore) Delete(context.Context, []string) error                 { return nil }
+func (s *untouchedVectorStore) Query(context.Context, []float32, retrieval.Query) ([]retrieval.Candidate, error) {
 	s.queries++
 	return nil, nil
 }
@@ -98,10 +110,10 @@ func TestSemanticQueryCannotOverrideEmbeddingPolicy(t *testing.T) {
 	searcher := GatewaySemanticSearcher{
 		Store: store,
 		ResolvePolicy: func(context.Context) (aisearch.EmbeddingPolicy, error) {
-			return aisearch.EmbeddingPolicy{Role: EmbeddingRole, Model: "policy-model", Dimensions: 3}, nil
+			return aisearch.EmbeddingPolicy{Role: retrieval.EmbeddingRole, Model: "policy-model", Dimensions: 3}, nil
 		},
 	}
-	_, err := searcher.SearchSemantic(context.Background(), Query{
+	_, err := searcher.SearchSemantic(context.Background(), retrieval.Query{
 		Text: "private repository query", EmbeddingModel: "caller-selected-model", EmbeddingDimensions: 3,
 	})
 	if err == nil {

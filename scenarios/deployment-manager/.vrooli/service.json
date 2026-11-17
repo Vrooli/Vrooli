@@ -262,6 +262,26 @@
         "runtime_only": true,
         "runtime_only_rationale": "Deployment-manager files migration tasks through swarm-manager's external Connect service; no source-level package import is expected.",
         "purpose": "Optional backlog integration for approved dependency migration tasks"
+      },
+      "vrooli-events": {
+        "degraded_behavior": "Deployment Manager starts without blocking; if Events is unavailable, bounded subscription reconciliation retries five times and answered release decisions are not delivered until reconciliation succeeds.",
+        "description": "Receive release-decision answers through the signed decision webhook",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment Manager registers a durable event subscription through vrooli-events over HTTP; no scenario package import is used for this runtime boundary.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "offer-desk": {
+        "degraded_behavior": "Deployment Manager remains available; readiness promotion publication and evaluation return an explicit Offer Desk unavailable error until the optional peer is reachable.",
+        "description": "Publish release-readiness facts to the Offer Desk promotion gate",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Deployment Manager uses Offer Desk over its generated Connect service at request time; no scenario package import is used for this runtime boundary.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
 func TestHandleAgentRunList_Empty(t *testing.T) {
@@ -74,14 +76,13 @@ func TestHandleAgentRunDiff_Response(t *testing.T) {
 func TestWireRunToAPI_PromptPreview(t *testing.T) {
 	t.Parallel()
 
-	w := &wireRun{
-		ID:            "run-001",
-		Status:        "RUN_STATUS_RUNNING",
+	w := &ampb.Run{
+		Id:            "run-001",
+		Status:        ampb.RunStatus_RUN_STATUS_RUNNING,
 		PromptPreview: "Fix the failing auth tests in the login module",
-		CreatedAt:     "2025-01-01T00:00:00Z",
 	}
 
-	api := wireRunToAPI(w)
+	api := agentRunToAPI(w)
 
 	if api.PromptPreview != "Fix the failing auth tests in the login module" {
 		t.Errorf("expected prompt preview to pass through, got %q", api.PromptPreview)
@@ -94,13 +95,12 @@ func TestWireRunToAPI_PromptPreview(t *testing.T) {
 func TestWireRunToAPI_PromptPreviewEmpty(t *testing.T) {
 	t.Parallel()
 
-	w := &wireRun{
-		ID:        "run-002",
-		Status:    "RUN_STATUS_COMPLETE",
-		CreatedAt: "2025-01-01T00:00:00Z",
+	w := &ampb.Run{
+		Id:     "run-002",
+		Status: ampb.RunStatus_RUN_STATUS_COMPLETE,
 	}
 
-	api := wireRunToAPI(w)
+	api := agentRunToAPI(w)
 
 	if api.PromptPreview != "" {
 		t.Errorf("expected empty prompt preview, got %q", api.PromptPreview)

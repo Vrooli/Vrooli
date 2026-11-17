@@ -98,6 +98,7 @@ func TestListActive_ExcludesTerminal(t *testing.T) {
 	terminal, err := svc.Start(ctx, vrun.StartInput{TupleKind: vr.TupleKindSkill, SubjectID: "b", GoldenSlug: "g"})
 	require.NoError(t, err)
 	require.NoError(t, terminal.TransitionStatus(vrun.StatusRunning))
+	require.NoError(t, repo.UpdateStatus(ctx, terminal))
 	require.NoError(t, terminal.TransitionStatus(vrun.StatusTerminal))
 	terminal.TerminalVerdict = vr.VerdictPass
 	require.NoError(t, repo.UpdateStatus(ctx, terminal))

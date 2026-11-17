@@ -1,9 +1,7 @@
 package destinations
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -86,73 +84,21 @@ func reconcileRecoveryDecisionSubscription(ctx context.Context, target string) e
 	if err != nil {
 		return err
 	}
+	return reconcileRecoveryDecisionSubscriptionAt(ctx, base, target)
+}
+
+func reconcileRecoveryDecisionSubscriptionAt(ctx context.Context, base, target string) error {
 	base = strings.TrimRight(base, "/")
 	client := &http.Client{Timeout: 10 * time.Second}
-	const owner = "data-backup-manager"
-	pattern := operatordecision.AskResolvedEventType
-	var existing []struct {
-		ID             int64  `json:"id"`
-		EventPattern   string `json:"event_pattern"`
-		DeliveryTarget string `json:"delivery_target"`
-		Enabled        bool   `json:"enabled"`
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner="+owner, nil)
+	subscriptions, err := eventbus.NewSubscriptionClient(base, client)
 	if err != nil {
 		return err
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
+	desired := eventbus.Subscription{
+		Name: "data-backup-manager-volume-recovery-decisions", OwnerScenario: "data-backup-manager",
+		EventPattern: operatordecision.AskResolvedEventType, DeliveryType: "webhook", DeliveryTarget: target, Enabled: true,
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("list event subscriptions returned %s", resp.Status)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
-		return err
-	}
-	payload, err := json.Marshal(map[string]any{
-		"name": "data-backup-manager-volume-recovery-decisions", "owner_scenario": owner,
-		"event_pattern": pattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true,
-	})
-	if err != nil {
-		return err
-	}
-	for _, item := range existing {
-		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
-			return nil
-		}
-		if item.Enabled && item.DeliveryTarget == target {
-			req, err = http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", base, item.ID), bytes.NewReader(payload))
-			if err != nil {
-				return err
-			}
-			req.Header.Set("Content-Type", "application/json")
-			resp, err = client.Do(req)
-			if err != nil {
-				return err
-			}
-			defer resp.Body.Close()
-			if resp.StatusCode >= 400 {
-				return fmt.Errorf("update event subscription returned %s", resp.Status)
-			}
-			return nil
-		}
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/subscriptions", bytes.NewReader(payload))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("create event subscription returned %s", resp.Status)
-	}
-	return nil
+	return subscriptions.EnsureNamedSubscription(ctx, desired)
 }
 
 var _ operatordecision.DomainEffect = (*RecoveryDecisionFlow)(nil)

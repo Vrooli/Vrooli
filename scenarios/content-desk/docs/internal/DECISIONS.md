@@ -10,7 +10,6 @@ Content Desk owns the full Today/Plan/Create/Review/Learn/Content experience, na
 This document records durable decisions and tradeoffs future agents
 should not accidentally relitigate.
 
-## Purpose Of This Document
 
 Use this document when a choice:
 

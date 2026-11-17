@@ -20,7 +20,6 @@ policy scoring. Conflating them is the most likely way this scenario decays:
 a truth gate that keeps failing on unfalsifiable statements gets switched off,
 and a policy checker that pretends to verify facts gives false assurance.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

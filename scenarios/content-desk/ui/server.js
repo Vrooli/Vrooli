@@ -26,7 +26,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'content-desk',
-  corsOrigins: '*',
   setupRoutes(app) {
     app.use((req, res, next) => {
       if (!connectRpcPath.test(req.path)) {

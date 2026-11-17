@@ -1,6 +1,5 @@
 # Deployment — Device Studio
 
-## Purpose Of This Document
 
 Working deployment boundary, updated 2026-10-20. Development APIs and
 rendering paths are implemented and exercised, and a private Linux bundle/AppImage has now been assembled and launched through the native validation owner. The exact private AppImage passes required native project-dialog input with the development app stopped. Standalone rendering and persistence remain unqualified. Research and tool-profile

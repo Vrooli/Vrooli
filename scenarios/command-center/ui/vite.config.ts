@@ -1,10 +1,11 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 export default defineConfig(({ mode }) => ({
   // INTEROP-CRITICAL: relative assets remain valid behind proxy/tunnel paths.
   base: './',  // Required for tunnel/proxy contexts
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   // Profile mode (performance-health capture): the profiling react-dom makes
   // <React.Profiler> emit commit durations, and kept names attribute them.
   resolve: mode === "profile"

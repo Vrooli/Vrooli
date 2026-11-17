@@ -38,6 +38,7 @@ flowchart TB
     C[composition root] --> F
     C --> CA[catalog]
     C --> R
+    C --> GW[AI Gateway adapter]
     C --> IC
     CA --> DB[(SQLite catalog and FTS)]
     R --> DB
@@ -73,6 +74,7 @@ only the resulting proof statuses and evidence.
 | `api/handlers/validation/` | Shared validation provider | scenario-validation contract and validation policy | provider contract and endpoint coverage |
 | `api/internal/catalog/` | Domain core and persistence contract | standard library and `database/sql` only in adapter files | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/retrieval/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
+| `api/internal/gateway/` | AI Gateway adapter | generated AI Gateway Connect client, discovery, and retrieval contracts | generated client and embedding contract tests |
 | `api/internal/indexcontrol/` | Domain core | standard library only | transport, sibling-domain, and ambient-dependency gate |
 | `api/internal/facts/` | Evidence orchestration | analyzer providers, report cache, and typed Describe APIs | public Search delegates to the generation-fenced retrieval boundary |
 | `api/internal/fswatch/` | Filesystem observation substrate | standard library and native OS watcher APIs | bounded roots, debounce, and backstop tests |

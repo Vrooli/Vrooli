@@ -1,11 +1,11 @@
-// Package agent_manager hosts the outbound HTTP client to agent-manager.
+// Package agent_manager hosts the outbound Connect client to agent-manager.
 // It resolves agent-manager's base URL via api-core/discovery and
 // implements the validation_run worker's AgentManagerClient seam by
 // composing three agent-manager surfaces:
 //
-//   - POST /api/v1/profiles/reconcile-scenario   (Initialize)
-//   - POST /api/v1/tasks + POST /api/v1/runs     (StartSandboxedRun)
-//   - GET  /api/v1/runs/{id} + .../diff          (WaitForTerminal)
+//   - ReconcileScenarioProfiles (Initialize)
+//   - CreateTask + CreateRun (StartSandboxedRun)
+//   - GetRun + GetRunDiff (WaitForTerminal)
 //
 // The profile is owned by DTV on disk at .vrooli/agent-profiles/*.json
 // and reconciled into agent-manager at startup; runs reference the
@@ -15,15 +15,12 @@
 package agent_manager
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -33,12 +30,12 @@ import (
 
 	"development-toolchain-validator/internal/httpc"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	repocontract "github.com/vrooli/repo-contract-go"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 // ScenarioName is the slug DTV registers under in discovery /
@@ -68,14 +65,14 @@ type Options struct {
 	PollInterval time.Duration
 }
 
-// Client is the HTTP adapter implementing vrun.AgentManagerClient.
+// Client is the Connect adapter implementing vrun.AgentManagerClient.
 type Client struct {
 	opts Options
 }
 
 // New constructs a Client. Empty fields fall back to production
 // defaults: discovery via the default resolver, a 30s HTTP timeout,
-// three transport retries, and a 2s poll cadence.
+// three transient-failure attempts, and a 2s poll cadence.
 func New(opts Options) *Client {
 	if opts.Resolver == nil {
 		opts.Resolver = discovery.NewResolver(discovery.ResolverConfig{})
@@ -94,11 +91,6 @@ func New(opts Options) *Client {
 
 var _ vrun.AgentManagerClient = (*Client)(nil)
 
-var (
-	protoJSONMarshal   = protojson.MarshalOptions{UseProtoNames: false}
-	protoJSONUnmarshal = protojson.UnmarshalOptions{DiscardUnknown: true}
-)
-
 // Initialize asks agent-manager to reconcile DTV's profile sources
 // declared in .vrooli/service.json. Call once at startup before the
 // validation_run worker dispatches its first skill run. Failures here
@@ -106,9 +98,8 @@ var (
 // should boot without a reconciled profile (today: it should not, the
 // dep is required).
 func (c *Client) Initialize(ctx context.Context) (*apipb.ReconcileScenarioProfilesResponse, error) {
-	req := &apipb.ReconcileScenarioProfilesRequest{Scenario: ScenarioName}
-	resp := &apipb.ReconcileScenarioProfilesResponse{}
-	if err := c.doProto(ctx, http.MethodPost, "/api/v1/profiles/reconcile-scenario", req, resp); err != nil {
+	resp, err := c.reconcileScenarioProfiles(ctx, &apipb.ReconcileScenarioProfilesRequest{Scenario: ScenarioName})
+	if err != nil {
 		return nil, fmt.Errorf("reconcile scenario profiles: %w", err)
 	}
 	found := false
@@ -150,11 +141,11 @@ func (c *Client) StartSandboxedRun(ctx context.Context, spec vrun.SandboxedRunSp
 		CreatedBy:   ScenarioName,
 	}
 	createTaskReq := &apipb.CreateTaskRequest{Task: task}
-	createTaskResp := &apipb.CreateTaskResponse{}
-	if err := c.doProto(ctx, http.MethodPost, "/api/v1/tasks", createTaskReq, createTaskResp); err != nil {
+	createTaskResp, err := c.createTask(ctx, createTaskReq)
+	if err != nil {
 		return "", err
 	}
-	if createTaskResp.Task == nil || strings.TrimSpace(createTaskResp.Task.Id) == "" {
+	if createTaskResp == nil || createTaskResp.Task == nil || strings.TrimSpace(createTaskResp.Task.Id) == "" {
 		return "", fmt.Errorf("agent-manager returned empty task id")
 	}
 
@@ -166,11 +157,11 @@ func (c *Client) StartSandboxedRun(ctx context.Context, spec vrun.SandboxedRunSp
 		Tag:        &tag,
 		Force:      true,
 	}
-	runResp := &apipb.CreateRunResponse{}
-	if err := c.doProto(ctx, http.MethodPost, "/api/v1/runs", runReq, runResp); err != nil {
+	runResp, err := c.createRun(ctx, runReq)
+	if err != nil {
 		return "", err
 	}
-	if runResp.Run == nil || strings.TrimSpace(runResp.Run.Id) == "" {
+	if runResp == nil || runResp.Run == nil || strings.TrimSpace(runResp.Run.Id) == "" {
 		return "", fmt.Errorf("agent-manager returned empty run id")
 	}
 	return runResp.Run.Id, nil
@@ -257,106 +248,109 @@ func (c *Client) buildSummary(ctx context.Context, run *domainpb.Run) (vrun.RunS
 }
 
 func (c *Client) getRun(ctx context.Context, runID string) (*domainpb.Run, error) {
-	out := &apipb.GetRunResponse{}
-	if err := c.doProto(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(runID), nil, out); err != nil {
+	out, err := c.getRunRPC(ctx, runID)
+	if err != nil {
 		return nil, err
 	}
-	if out.Run == nil {
+	if out == nil || out.Run == nil {
 		return nil, fmt.Errorf("agent-manager GetRun: empty run")
 	}
 	return out.Run, nil
 }
 
 func (c *Client) getRunDiff(ctx context.Context, runID string) (*domainpb.RunDiff, error) {
-	out := &apipb.GetRunDiffResponse{}
-	if err := c.doProto(ctx, http.MethodGet, "/api/v1/runs/"+url.PathEscape(runID)+"/diff", nil, out); err != nil {
+	out, err := c.getRunDiffRPC(ctx, runID)
+	if err != nil {
 		return nil, err
 	}
 	return out.Diff, nil
 }
 
-// doProto centralizes URL resolution, retry on transport failure, proto
-// JSON marshal/unmarshal, and error translation into vrun's typed
-// ErrDependencyUnavailable.
-func (c *Client) doProto(ctx context.Context, method, path string, in, out proto.Message) error {
-	var body []byte
-	if in != nil {
-		buf, err := protoJSONMarshal.Marshal(in)
-		if err != nil {
-			return fmt.Errorf("marshal request: %w", err)
-		}
-		body = buf
-	}
-
+// invoke centralizes discovery, bounded retries for transient Connect failures,
+// and translation into typed dependency and authorization outcomes.
+func invoke[T any](c *Client, ctx context.Context, call func(apiconnect.AgentManagerServiceClient) (*connect.Response[T], error)) (*T, error) {
 	var lastErr error
 	for attempt := 0; attempt < c.opts.MaxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		base, err := c.opts.Resolver.ResolveScenarioURLDefault(ctx, "agent-manager")
 		if err != nil {
 			if discovery.IsScenarioNotRunning(err) {
-				return vrun.ErrDependencyUnavailable{Dependency: "agent-manager", Reason: "scenario not running"}
+				return nil, vrun.ErrDependencyUnavailable{Dependency: "agent-manager", Reason: "scenario not running"}
 			}
 			lastErr = err
 			continue
 		}
-		respBytes, status, err := c.do(ctx, method, base+path, body)
-		if err != nil {
-			lastErr = err
-			if isRetriable(err) {
-				continue
-			}
-			return err
+		client := apiconnect.NewAgentManagerServiceClient(c.opts.Doer, strings.TrimRight(base, "/"))
+		resp, err := call(client)
+		if err == nil {
+			return resp.Msg, nil
 		}
-		if status >= 500 {
-			lastErr = fmt.Errorf("agent-manager upstream %d: %s", status, truncate(string(respBytes)))
-			continue
+		if pending := approvalPendingError(err); pending != nil {
+			return nil, pending
 		}
-		if status >= 400 {
-			return fmt.Errorf("agent-manager request failed: status %d: %s", status, truncate(string(respBytes)))
+		if !isRetriableConnect(err) {
+			return nil, err
 		}
-		if out != nil && len(respBytes) > 0 {
-			if err := protoJSONUnmarshal.Unmarshal(respBytes, out); err != nil {
-				return fmt.Errorf("decode response: %w", err)
-			}
-		}
-		return nil
+		lastErr = err
 	}
 	if lastErr == nil {
 		lastErr = errors.New("exhausted retries")
 	}
-	return vrun.ErrDependencyUnavailable{Dependency: "agent-manager", Reason: lastErr.Error()}
+	return nil, vrun.ErrDependencyUnavailable{Dependency: "agent-manager", Reason: lastErr.Error()}
 }
 
-func (c *Client) do(ctx context.Context, method, fullURL string, body []byte) ([]byte, int, error) {
-	var reader io.Reader
-	if body != nil {
-		reader = bytes.NewReader(body)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, reader)
-	if err != nil {
-		return nil, 0, err
-	}
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := c.opts.Doer.Do(req)
-	if err != nil {
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-	respBytes, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	if err != nil {
-		return nil, resp.StatusCode, err
-	}
-	return respBytes, resp.StatusCode, nil
+func (c *Client) reconcileScenarioProfiles(ctx context.Context, req *apipb.ReconcileScenarioProfilesRequest) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.ReconcileScenarioProfilesResponse], error) {
+		return client.ReconcileScenarioProfiles(ctx, connect.NewRequest(req))
+	})
+}
+func (c *Client) createTask(ctx context.Context, req *apipb.CreateTaskRequest) (*apipb.CreateTaskResponse, error) {
+	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.CreateTaskResponse], error) {
+		return client.CreateTask(ctx, connect.NewRequest(req))
+	})
+}
+func (c *Client) createRun(ctx context.Context, req *apipb.CreateRunRequest) (*apipb.CreateRunResponse, error) {
+	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.CreateRunResponse], error) {
+		return client.CreateRun(ctx, connect.NewRequest(req))
+	})
+}
+func (c *Client) getRunRPC(ctx context.Context, id string) (*apipb.GetRunResponse, error) {
+	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.GetRunResponse], error) {
+		return client.GetRun(ctx, connect.NewRequest(&apipb.GetRunRequest{RunId: id}))
+	})
+}
+func (c *Client) getRunDiffRPC(ctx context.Context, id string) (*apipb.GetRunDiffResponse, error) {
+	return invoke(c, ctx, func(client apiconnect.AgentManagerServiceClient) (*connect.Response[apipb.GetRunDiffResponse], error) {
+		return client.GetRunDiff(ctx, connect.NewRequest(&apipb.GetRunDiffRequest{RunId: id}))
+	})
 }
 
-func isRetriable(err error) bool {
-	msg := err.Error()
-	return strings.Contains(msg, "connection refused") ||
-		strings.Contains(msg, "EOF") ||
-		strings.Contains(msg, "i/o timeout") ||
-		strings.Contains(msg, "upstream 5")
+func approvalPendingError(err error) *vrun.AuthorizationApprovalPendingError {
+	var rpcErr *connect.Error
+	if !errors.As(err, &rpcErr) || rpcErr.Code() != connect.CodeFailedPrecondition {
+		return nil
+	}
+	for _, detail := range rpcErr.Details() {
+		message, decodeErr := detail.Value()
+		if decodeErr != nil {
+			continue
+		}
+		if pending, ok := message.(*apipb.AuthorizationApprovalPending); ok {
+			return &vrun.AuthorizationApprovalPendingError{Subject: pending.GetSubject(), Detail: pending.GetDetail()}
+		}
+	}
+	return nil
+}
+
+func isRetriableConnect(err error) bool {
+	switch connect.CodeOf(err) {
+	case connect.CodeUnavailable, connect.CodeInternal, connect.CodeUnknown, connect.CodeDeadlineExceeded:
+		return true
+	default:
+		return false
+	}
 }
 
 // buildSkillPrompt assembles the agent's prompt for a skill run. The

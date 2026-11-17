@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -89,7 +90,13 @@ func NewChartRenderer(outputDir string) *ChartRenderer {
 }
 
 // RenderChart generates actual chart files using go-echarts
-func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcessorRequest) (map[string]string, error) {
+func (cr *ChartRenderer) RenderChart(ctx context.Context, chartID string, req ChartGenerationProcessorRequest) (map[string]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	files := make(map[string]string)
 
 	// Create output directory
@@ -150,7 +157,10 @@ func (cr *ChartRenderer) RenderChart(chartID string, req ChartGenerationProcesso
 
 		case "png":
 			// Generate actual PNG via browser-automation-studio's EX9 pixel bundle.
-			if err := cr.generatePNG(outputPath, htmlPath, req); err != nil {
+			if err := cr.generatePNG(ctx, outputPath, htmlPath, req); err != nil {
+				if ctx.Err() != nil {
+					return nil, ctx.Err()
+				}
 				fmt.Printf("⚠️ browser-automation-studio PNG generation failed: %v\n", err)
 				// Fall back to placeholder if BAS is not available
 				if err := cr.generatePNGPlaceholder(outputPath, req); err != nil {
@@ -899,9 +909,9 @@ func (cr *ChartRenderer) extractSVGFromHTML(html string) string {
 
 // generatePNG creates an actual PNG file by asking browser-automation-studio
 // to screenshot the chart HTML the API server is already serving.
-func (cr *ChartRenderer) generatePNG(outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
+func (cr *ChartRenderer) generatePNG(ctx context.Context, outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
 	fmt.Println("🌐 Attempting to generate PNG using browser-automation-studio...")
-	if err := cr.capturePNGWithBAS(outputPath, htmlPath, req); err != nil {
+	if err := cr.capturePNGWithBAS(ctx, outputPath, htmlPath, req); err != nil {
 		return err
 	}
 
@@ -916,12 +926,15 @@ func (cr *ChartRenderer) generatePNG(outputPath, htmlPath string, req ChartGener
 
 // capturePNGWithBAS renders outputPath from one manifest-verified EX9 pixel artifact.
 // Any failure returns an error so the caller keeps its existing placeholder fallback.
-func (cr *ChartRenderer) capturePNGWithBAS(outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
-	client, err := cr.captureClientOrResolve(context.Background())
+func (cr *ChartRenderer) capturePNGWithBAS(ctx context.Context, outputPath, htmlPath string, req ChartGenerationProcessorRequest) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	client, err := cr.captureClientOrResolve(ctx)
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), defaultCaptureTimeout)
+	captureCtx, cancel := context.WithTimeout(ctx, defaultCaptureTimeout)
 	defer cancel()
 	width, height := req.Width, req.Height
 	if width <= 0 {
@@ -934,11 +947,16 @@ func (cr *ChartRenderer) capturePNGWithBAS(outputPath, htmlPath string, req Char
 	if err != nil {
 		return err
 	}
-	pngData, err := client.CaptureScenarioPixels(ctx, chartScenarioSlug, servedPath, width, height)
+	pngData, err := client.CaptureScenarioPixels(captureCtx, chartScenarioSlug, servedPath, width, height)
+	if captureCtx.Err() != nil {
+		return captureCtx.Err()
+	}
 	if err != nil {
-		cr.captureMu.Lock()
-		cr.capture = nil
-		cr.captureMu.Unlock()
+		if !errors.Is(err, context.Canceled) {
+			cr.captureMu.Lock()
+			cr.capture = nil
+			cr.captureMu.Unlock()
+		}
 		return fmt.Errorf("browser-automation-studio UX capture failed: %w", err)
 	}
 	if len(pngData) == 0 {

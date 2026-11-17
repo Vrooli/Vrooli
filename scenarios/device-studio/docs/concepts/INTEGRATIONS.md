@@ -1,6 +1,5 @@
 # Integrations — Device Studio
 
-## Purpose Of This Document
 
 Contract updated during delivery. Project/photographic render integration is implemented; physical-shot composition and optional creation/account/publication integrations remain in progress. Qualification below is scoped to actual evidence, not a released desktop claim.
 

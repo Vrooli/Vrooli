@@ -213,3 +213,8 @@ lockfiles yourself before committing. Scripts use `pnpm` directly (no
 Read `docs/guides/choosing-ui.md` before opening `ui/`. Then open
 `scenarios/browser-automation-studio/` to see the same template shape taken to
 completion on the API and CLI side; its UI predates the library shell.
+
+
+### Malformed-markup stress level
+
+messy-markup-05 is an owned fifth level in the messy-markup family. It serves 24 records through mixed-case tags, unquoted attributes, misnested i/em tags, orphan end tags, entities, and layout noise. Its exact expected records remain data-defined in api/internal/rangeengine/levels/messy-markup-05.json; the page renderer is in api/handlers/range/site.go. This challenge intentionally exposes parser error-recovery and field-association failures. Current GoColly and Playwright adapter attempts both score 0/24; the practice site keeps each result in its per-tool scoreboard.

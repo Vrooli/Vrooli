@@ -1,6 +1,5 @@
 # Security — Device Studio
 
-## Purpose Of This Document
 
 Foundation contract, 2026-10-19. The implementation status changed after this original contract; current bounded geometry execution is described under [Current implemented boundary](#current-implemented-boundary--2026-10-21). The full security requirements and review remain open.
 

@@ -1,7 +1,14 @@
 # App Monitor
 
+> **Superseded suite surface:** Portal is the successor for the consolidated
+> operator-facing chat and app surface. Put new suite-surface work in Portal;
+> see the [successor path](../portal/docs/concepts/SUCCESSOR-PATH.md). App
+> Monitor stays available as a legacy implementation reference while Portal's
+> corresponding capabilities mature; monitoring and host-operation ownership
+> remain with their existing owners.
+
 ## Purpose
-App Monitor provides a centralized dashboard for monitoring and managing all running Vrooli scenarios. It acts as a critical infrastructure component that ensures the health, performance, and availability of deployed scenarios.
+App Monitor is the legacy centralized dashboard for monitoring and managing Vrooli scenarios. Portal is the successor operator-facing suite surface; monitoring and host-operation ownership remain with their existing owners.
 
 ## How It Helps Vrooli
 - **Self-Monitoring**: Enables Vrooli to track its own application ecosystem

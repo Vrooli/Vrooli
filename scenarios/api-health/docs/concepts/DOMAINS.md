@@ -10,7 +10,6 @@ mapping, and the shared Test Genie provider surface. The `probe` and
 `remediation` domains add execution evidence and deterministic repair
 without changing the validation boundary.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

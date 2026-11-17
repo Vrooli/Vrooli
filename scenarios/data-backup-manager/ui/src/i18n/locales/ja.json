@@ -387,7 +387,8 @@
     "settings": {
       "title": "設定",
       "themeHeading": "外観",
-      "localeHeading": "言語"
+    "localeHeading": "言語",
+    "notificationsHeading": "アプリ通知"
     }
   },
   "errors": {

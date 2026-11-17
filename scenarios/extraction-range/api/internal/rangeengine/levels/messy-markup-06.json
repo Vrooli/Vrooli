@@ -1,0 +1,374 @@
+{
+  "id": "messy-markup-06",
+  "family": "messy-markup",
+  "family_name": "Messy markup",
+  "difficulty": 5,
+  "title": "Malformed token boundary recovery: quoted delimiters and comment decoys",
+  "task": "Extract every expected source row from this malformed response. A quoted greater-than sign in an attribute and fake row tags inside comments are decoys, not boundaries. Keep category and value attached through misnested inline tags; do not submit decoy records.",
+  "mechanism": "messy_markup",
+  "tags": [
+    "difficulty-5",
+    "messy_markup",
+    "hard",
+    "very-hard",
+    "comment-decoys",
+    "quoted-delimiters",
+    "token-boundaries"
+  ],
+  "page": {
+    "title": "Malformed token-boundary recovery \u00b7 level 6",
+    "records": [
+      {
+        "id": "MES06-001",
+        "name": "Island & coast 1 / sector",
+        "category": "beta",
+        "value": 901,
+        "active": true
+      },
+      {
+        "id": "MES06-002",
+        "name": "Island & coast 2 / sector",
+        "category": "gamma",
+        "value": 902,
+        "active": true
+      },
+      {
+        "id": "MES06-003",
+        "name": "Island & coast 3 / sector",
+        "category": "alpha",
+        "value": 903,
+        "active": true
+      },
+      {
+        "id": "MES06-004",
+        "name": "Island & coast 4 / sector",
+        "category": "beta",
+        "value": 904,
+        "active": true
+      },
+      {
+        "id": "MES06-005",
+        "name": "Island & coast 5 / sector",
+        "category": "gamma",
+        "value": 905,
+        "active": false
+      },
+      {
+        "id": "MES06-006",
+        "name": "Island & coast 6 / sector",
+        "category": "alpha",
+        "value": 906,
+        "active": true
+      },
+      {
+        "id": "MES06-007",
+        "name": "Island & coast 7 / sector",
+        "category": "beta",
+        "value": 907,
+        "active": true
+      },
+      {
+        "id": "MES06-008",
+        "name": "Island & coast 8 / sector",
+        "category": "gamma",
+        "value": 908,
+        "active": true
+      },
+      {
+        "id": "MES06-009",
+        "name": "Island & coast 9 / sector",
+        "category": "alpha",
+        "value": 909,
+        "active": true
+      },
+      {
+        "id": "MES06-010",
+        "name": "Island & coast 10 / sector",
+        "category": "beta",
+        "value": 910,
+        "active": false
+      },
+      {
+        "id": "MES06-011",
+        "name": "Island & coast 11 / sector",
+        "category": "gamma",
+        "value": 911,
+        "active": true
+      },
+      {
+        "id": "MES06-012",
+        "name": "Island & coast 12 / sector",
+        "category": "alpha",
+        "value": 912,
+        "active": true
+      },
+      {
+        "id": "MES06-013",
+        "name": "Island & coast 13 / sector",
+        "category": "beta",
+        "value": 913,
+        "active": true
+      },
+      {
+        "id": "MES06-014",
+        "name": "Island & coast 14 / sector",
+        "category": "gamma",
+        "value": 914,
+        "active": true
+      },
+      {
+        "id": "MES06-015",
+        "name": "Island & coast 15 / sector",
+        "category": "alpha",
+        "value": 915,
+        "active": false
+      },
+      {
+        "id": "MES06-016",
+        "name": "Island & coast 16 / sector",
+        "category": "beta",
+        "value": 916,
+        "active": true
+      },
+      {
+        "id": "MES06-017",
+        "name": "Island & coast 17 / sector",
+        "category": "gamma",
+        "value": 917,
+        "active": true
+      },
+      {
+        "id": "MES06-018",
+        "name": "Island & coast 18 / sector",
+        "category": "alpha",
+        "value": 918,
+        "active": true
+      },
+      {
+        "id": "MES06-019",
+        "name": "Island & coast 19 / sector",
+        "category": "beta",
+        "value": 919,
+        "active": true
+      },
+      {
+        "id": "MES06-020",
+        "name": "Island & coast 20 / sector",
+        "category": "gamma",
+        "value": 920,
+        "active": false
+      },
+      {
+        "id": "MES06-021",
+        "name": "Island & coast 21 / sector",
+        "category": "alpha",
+        "value": 921,
+        "active": true
+      },
+      {
+        "id": "MES06-022",
+        "name": "Island & coast 22 / sector",
+        "category": "beta",
+        "value": 922,
+        "active": true
+      },
+      {
+        "id": "MES06-023",
+        "name": "Island & coast 23 / sector",
+        "category": "gamma",
+        "value": 923,
+        "active": true
+      },
+      {
+        "id": "MES06-024",
+        "name": "Island & coast 24 / sector",
+        "category": "alpha",
+        "value": 924,
+        "active": true
+      }
+    ],
+    "page_size": 24,
+    "variant": 5,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "malformed-v2",
+    "behavior": {
+      "case_variation": true,
+      "misnested_inline": true,
+      "orphan_end_tags": true,
+      "markup_entities": true
+    },
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "MES06-001",
+      "name": "Island & coast 1 / sector",
+      "category": "beta",
+      "value": 901,
+      "active": true
+    },
+    {
+      "id": "MES06-002",
+      "name": "Island & coast 2 / sector",
+      "category": "gamma",
+      "value": 902,
+      "active": true
+    },
+    {
+      "id": "MES06-003",
+      "name": "Island & coast 3 / sector",
+      "category": "alpha",
+      "value": 903,
+      "active": true
+    },
+    {
+      "id": "MES06-004",
+      "name": "Island & coast 4 / sector",
+      "category": "beta",
+      "value": 904,
+      "active": true
+    },
+    {
+      "id": "MES06-005",
+      "name": "Island & coast 5 / sector",
+      "category": "gamma",
+      "value": 905,
+      "active": false
+    },
+    {
+      "id": "MES06-006",
+      "name": "Island & coast 6 / sector",
+      "category": "alpha",
+      "value": 906,
+      "active": true
+    },
+    {
+      "id": "MES06-007",
+      "name": "Island & coast 7 / sector",
+      "category": "beta",
+      "value": 907,
+      "active": true
+    },
+    {
+      "id": "MES06-008",
+      "name": "Island & coast 8 / sector",
+      "category": "gamma",
+      "value": 908,
+      "active": true
+    },
+    {
+      "id": "MES06-009",
+      "name": "Island & coast 9 / sector",
+      "category": "alpha",
+      "value": 909,
+      "active": true
+    },
+    {
+      "id": "MES06-010",
+      "name": "Island & coast 10 / sector",
+      "category": "beta",
+      "value": 910,
+      "active": false
+    },
+    {
+      "id": "MES06-011",
+      "name": "Island & coast 11 / sector",
+      "category": "gamma",
+      "value": 911,
+      "active": true
+    },
+    {
+      "id": "MES06-012",
+      "name": "Island & coast 12 / sector",
+      "category": "alpha",
+      "value": 912,
+      "active": true
+    },
+    {
+      "id": "MES06-013",
+      "name": "Island & coast 13 / sector",
+      "category": "beta",
+      "value": 913,
+      "active": true
+    },
+    {
+      "id": "MES06-014",
+      "name": "Island & coast 14 / sector",
+      "category": "gamma",
+      "value": 914,
+      "active": true
+    },
+    {
+      "id": "MES06-015",
+      "name": "Island & coast 15 / sector",
+      "category": "alpha",
+      "value": 915,
+      "active": false
+    },
+    {
+      "id": "MES06-016",
+      "name": "Island & coast 16 / sector",
+      "category": "beta",
+      "value": 916,
+      "active": true
+    },
+    {
+      "id": "MES06-017",
+      "name": "Island & coast 17 / sector",
+      "category": "gamma",
+      "value": 917,
+      "active": true
+    },
+    {
+      "id": "MES06-018",
+      "name": "Island & coast 18 / sector",
+      "category": "alpha",
+      "value": 918,
+      "active": true
+    },
+    {
+      "id": "MES06-019",
+      "name": "Island & coast 19 / sector",
+      "category": "beta",
+      "value": 919,
+      "active": true
+    },
+    {
+      "id": "MES06-020",
+      "name": "Island & coast 20 / sector",
+      "category": "gamma",
+      "value": 920,
+      "active": false
+    },
+    {
+      "id": "MES06-021",
+      "name": "Island & coast 21 / sector",
+      "category": "alpha",
+      "value": 921,
+      "active": true
+    },
+    {
+      "id": "MES06-022",
+      "name": "Island & coast 22 / sector",
+      "category": "beta",
+      "value": 922,
+      "active": true
+    },
+    {
+      "id": "MES06-023",
+      "name": "Island & coast 23 / sector",
+      "category": "gamma",
+      "value": 923,
+      "active": true
+    },
+    {
+      "id": "MES06-024",
+      "name": "Island & coast 24 / sector",
+      "category": "alpha",
+      "value": 924,
+      "active": true
+    }
+  ]
+}

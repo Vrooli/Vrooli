@@ -50,7 +50,7 @@ func runCompare(core *cliapp.ScenarioApp, args []string) error {
 		payload := map[string]interface{}{
 			"api_ids": fs.Args(),
 		}
-		if attrs := splitCSV(*attributes); len(attrs) > 0 {
+		if attrs := cliutil.ParseCSV(*attributes); len(attrs) > 0 {
 			payload["attributes"] = attrs
 		}
 		body = payload
@@ -75,20 +75,4 @@ func runCompare(core *cliapp.ScenarioApp, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderListReport(os.Stdout, report)
-}
-
-func splitCSV(value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

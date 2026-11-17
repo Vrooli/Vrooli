@@ -16,11 +16,6 @@ import ja from "../i18n/locales/ja.json";
 import ar from "../i18n/locales/ar.json";
 import { TestAppRouter } from "../app/routes";
 
-// The settings route mounts the library notification card, which loads its
-// catalogue after render; shell and routing assertions do not depend on it.
-vi.mock("@vrooli/react-component-library/AppNotificationSettings/1", () => ({ AppNotificationSettings: () => null }));
-
-
 const renderShell = (path = "/") =>
   renderWithProviders(<TestAppRouter initialEntries={[path]} />, { withoutRouter: true });
 

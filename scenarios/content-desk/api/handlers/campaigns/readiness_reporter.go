@@ -3,6 +3,7 @@ package campaigns
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/vrooli/api-core/discovery"
 	readinessreporter "github.com/vrooli/vrooli/packages/proto/readinessreporter"
@@ -14,13 +15,12 @@ func newReadinessReporter(ctx context.Context) (*readinessreporter.Reporter, err
 	if os.Getenv(readinessPrefix+"_TOKEN") == "" {
 		return nil, nil
 	}
-	baseURL := os.Getenv("DEPLOYMENT_MANAGER_API_BASE_URL")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
-		if err != nil {
-			return nil, err
-		}
-		baseURL = resolved
+	return readinessreporter.NewFromEnvResolver(readinessPrefix, resolveDeploymentManagerURL, "marketing-assets-available", "content-desk.launch-assets.readiness", "content-desk")
+}
+
+func resolveDeploymentManagerURL(ctx context.Context) (string, error) {
+	if base := strings.TrimSpace(os.Getenv("DEPLOYMENT_MANAGER_API_BASE_URL")); base != "" {
+		return base, nil
 	}
-	return readinessreporter.NewFromEnv(readinessPrefix, baseURL, "marketing-assets-available", "content-desk.launch-assets.readiness", "content-desk")
+	return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
 }

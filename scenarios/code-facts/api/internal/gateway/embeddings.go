@@ -1,4 +1,6 @@
-package retrieval
+// Package gateway adapts Code Facts embedding policy to the generated
+// AI Gateway Connect service.
+package gateway
 
 import (
 	"context"
@@ -8,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"code-facts/internal/retrieval"
 	"connectrpc.com/connect"
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/discovery"
@@ -17,7 +20,6 @@ import (
 )
 
 const (
-	EmbeddingRole       = "embedding.default"
 	codeFactsProvenance = "code-facts.repository-index:catalog-filtered-private-source-text-local-embedding"
 )
 
@@ -66,7 +68,7 @@ func (e *GatewayEmbedder) Embed(ctx context.Context, texts []string) ([][]float3
 		inputs[index] = e.TaskPrefix + text
 	}
 	request := connect.NewRequest(&inferencev1.EmbedRequest{
-		Texts: inputs, Role: EmbeddingRole,
+		Texts: inputs, Role: retrieval.EmbeddingRole,
 		Profile:           sharedv1.Profile_PROFILE_LOCAL_ONLY,
 		PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL,
 		PrivacyProvenance: codeFactsProvenance,
@@ -120,29 +122,29 @@ func (e *GatewayEmbedder) client(ctx context.Context) (EmbeddingClient, error) {
 	}
 	httpClient := e.HTTPClient
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		return nil, errors.New("ai-gateway HTTP client is unavailable")
 	}
 	return inferenceconnect.NewInferenceServiceClient(httpClient, baseURL), nil
 }
 
 type GatewaySemanticSearcher struct {
-	Store         VectorStore
+	Store         retrieval.VectorStore
 	ResolvePolicy func(context.Context) (aisearch.EmbeddingPolicy, error)
 }
 
-func (s GatewaySemanticSearcher) SearchSemantic(ctx context.Context, query Query) ([]Candidate, error) {
+func (s GatewaySemanticSearcher) SearchSemantic(ctx context.Context, query retrieval.Query) ([]retrieval.Candidate, error) {
 	if s.Store == nil {
 		return nil, errors.New("semantic search is not configured")
 	}
 	resolve := s.ResolvePolicy
 	if resolve == nil {
 		resolve = func(ctx context.Context) (aisearch.EmbeddingPolicy, error) {
-			return aisearch.ResolveEmbeddingPolicy(ctx, EmbeddingRole)
+			return aisearch.ResolveEmbeddingPolicy(ctx, retrieval.EmbeddingRole)
 		}
 	}
 	policy, err := resolve(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("resolve local embedding role %q: %w", EmbeddingRole, err)
+		return nil, fmt.Errorf("resolve local embedding role %q: %w", retrieval.EmbeddingRole, err)
 	}
 	if query.EmbeddingModel != "" && query.EmbeddingModel != policy.Model {
 		return nil, fmt.Errorf("query embedding model %q differs from policy model", query.EmbeddingModel)
@@ -163,7 +165,7 @@ func (s GatewaySemanticSearcher) SearchSemantic(ctx context.Context, query Query
 	return s.Store.Query(ctx, vectors[0], query)
 }
 
-var _ Embedder = (*GatewayEmbedder)(nil)
+var _ retrieval.Embedder = (*GatewayEmbedder)(nil)
 
 func TaskPrefixForEmbeddingModel(model string, query bool) string {
 	queryPrefix, documentPrefix := aisearch.TaskPrefixesFor(model)

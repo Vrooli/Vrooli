@@ -69,10 +69,6 @@
       "testId": "panel-tile",
       "selector": "[data-testid=\"panel-tile\"]"
     },
-    "library.data-display.provenance-ink.root": {
-      "testId": "data-display.provenance-ink",
-      "selector": "[data-testid=\"data-display.provenance-ink\"]"
-    },
     "library.data-display.rolling-number.root": {
       "testId": "data-display.rolling-number",
       "selector": "[data-testid=\"data-display.rolling-number\"]"
@@ -92,7 +88,7 @@
   },
   "dynamicSelectors": {},
   "sources": {
-    "ui/src/consts/selectors.library.ts": "ae9b05510fd7c419025407bb70a709d25ed2c86b6d41fc18a0cbe46fcf4a20c4",
+    "ui/src/consts/selectors.library.ts": "65bd9b3ff10eeee3425671fdf0359627ed04d94f7dfc01f8f0a8ae42bb51a701",
     "ui/src/consts/selectors.ts": "f4e57f008072d0e4daddd227e295db87077305be076de32bf50be6f07bfa5dc3"
   }
 }

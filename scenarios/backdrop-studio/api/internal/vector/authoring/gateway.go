@@ -40,6 +40,8 @@ type GatewayClient struct {
 	Timeout time.Duration
 }
 
+const privacyProvenance = "backdrop_studio.generator_authoring.brief_and_schema"
+
 // NewGatewayClient resolves ai-gateway at call time, so an absent scenario is a
 // named missing capability when someone authors rather than a startup failure
 // for everyone who does not.
@@ -84,17 +86,21 @@ func (c *GatewayClient) Author(ctx context.Context, prompt string) (string, stri
 			// returns source code. Nothing in it is private to a customer, and
 			// the frontier candidates for this role are remote — so declaring
 			// local-only would refuse every route that can actually serve it.
-			Profile:      sharedv1.Profile_PROFILE_REMOTE_ONLY,
-			PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
-			Operation:    "author_generator",
-			Scenario:     "backdrop-studio",
-			TimeoutMs:    int32(timeout.Milliseconds()),
-			RequestId:    uuid.NewString(),
+			Profile:           sharedv1.Profile_PROFILE_REMOTE_ONLY,
+			PrivacyClass:      sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+			PrivacyProvenance: privacyProvenance,
+			Operation:         "author_generator",
+			Scenario:          "backdrop-studio",
+			TimeoutMs:         int32(timeout.Milliseconds()),
+			RequestId:         uuid.NewString(),
 		},
 		InputText: prompt,
 	}))
 	if err != nil {
 		return "", "", err
+	}
+	if response == nil {
+		return "", "", fmt.Errorf("ai-gateway returned no response")
 	}
 	msg := response.Msg
 	if msg == nil {

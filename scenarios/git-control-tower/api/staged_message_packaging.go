@@ -520,20 +520,14 @@ func decodeStagedMessageSynthesisResult(execution *ampb.WorkflowExecution, canon
 	}
 	var result stagedMessageCompactResult
 	xmlOutput := false
-	if canonical.FormatVersion == 4 && input.DraftContext.ContractVersion == 5 {
-		resultText, ok := output["result"].(string)
-		if !ok {
-			// The result object fallback keeps a source update safe while the
-			// versioned Agent Manager declaration is being activated.
-			if err := decodeStrictStagedMessageJSON(resultRaw, &result); err != nil {
-				return nil, err
-			}
-		} else {
-			xmlOutput = true
-			result, err = decodeStagedMessageXMLResult(resultText)
-			if err != nil {
-				return nil, err
-			}
+	if resultText, ok := output["result"].(string); ok && strings.Contains(resultText, "<gct_message") {
+		// New quick and deep declarations bind Agent Manager's raw final handoff
+		// here. Older active revisions still return a structured JSON object,
+		// which falls through to the compatibility decoder below.
+		xmlOutput = true
+		result, err = decodeStagedMessageXMLResult(resultText)
+		if err != nil {
+			return nil, err
 		}
 	} else if err := decodeStrictStagedMessageJSON(resultRaw, &result); err != nil {
 		return nil, err

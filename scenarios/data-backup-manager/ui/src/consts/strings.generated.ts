@@ -401,6 +401,7 @@ export const strings = {
       title: "pages.settings.title",
       themeHeading: "pages.settings.themeHeading",
       localeHeading: "pages.settings.localeHeading",
+      notificationsHeading: "pages.settings.notificationsHeading",
     },
   },
   errors: {

@@ -95,6 +95,51 @@ func TestSecretsManagerIsDegradableLifecycleDependency(t *testing.T) {
 	}
 }
 
+func TestOutboundOptionalPeerLifecycleDeclarations(t *testing.T) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	scenarioRoot, err := repocontract.ResolveScenarioPath(repoRoot, "deployment-manager")
+	if err != nil {
+		t.Fatalf("resolve deployment-manager path: %v", err)
+	}
+	data, err := os.ReadFile(filepath.Join(scenarioRoot, ".vrooli", "service.json"))
+	if err != nil {
+		t.Fatalf("read service manifest: %v", err)
+	}
+	var manifest struct {
+		Dependencies struct {
+			Scenarios map[string]struct {
+				Required         bool   `json:"required"`
+				StartupPolicy    string `json:"startup_policy"`
+				DegradedBehavior string `json:"degraded_behavior"`
+			} `json:"scenarios"`
+		} `json:"dependencies"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse service manifest: %v", err)
+	}
+	want := map[string]string{
+		"scenario-to-cloud":           "try_start",
+		"scenario-to-desktop":         "ignore",
+		"landing-page-business-suite": "try_start",
+		"swarm-manager":               "try_start",
+		"offer-desk":                  "ignore",
+		"vrooli-events":               "ignore",
+	}
+	for peer, policy := range want {
+		dependency, ok := manifest.Dependencies.Scenarios[peer]
+		if !ok {
+			t.Errorf("missing outbound runtime dependency %q", peer)
+			continue
+		}
+		if dependency.Required || dependency.StartupPolicy != policy || strings.TrimSpace(dependency.DegradedBehavior) == "" {
+			t.Errorf("%s lifecycle = %+v; want optional, startup_policy=%s, and explicit degraded behavior", peer, dependency, policy)
+		}
+	}
+}
+
 // TestResolveDatabaseURL verifies database URL construction
 func TestResolveDatabaseURL(t *testing.T) {
 	tests := []struct {

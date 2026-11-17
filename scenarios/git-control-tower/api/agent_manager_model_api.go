@@ -123,16 +123,6 @@ type AgentContinueRequest struct {
 	AttachmentIDs []string `json:"attachment_ids,omitempty"`
 }
 
-// wireUploadAttachmentResponse is the response from agent-manager's upload endpoint.
-type wireUploadAttachmentResponse struct {
-	ID          string `json:"id"`
-	FileName    string `json:"file_name"`
-	ContentType string `json:"content_type"`
-	FileSize    int64  `json:"file_size"`
-	StoragePath string `json:"storage_path"`
-	URL         string `json:"url"`
-}
-
 // AttachmentUploadResponse is the UI-facing response for attachment uploads.
 type AttachmentUploadResponse struct {
 	ID          string `json:"id"`

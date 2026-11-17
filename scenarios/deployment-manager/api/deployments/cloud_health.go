@@ -392,7 +392,11 @@ func cloudRefusal(status int, body []byte) *CloudHealthResult {
 }
 
 func (c *HTTPCloudHealthClient) cloudGet(ctx context.Context, path string) ([]byte, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	baseURL, err := c.baseURLFor(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+path, nil)
 	if err != nil {
 		return nil, 0, fmt.Errorf("build request: %w", err)
 	}

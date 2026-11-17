@@ -41,7 +41,7 @@ func (s *Server) handleAgentRunEvents(w http.ResponseWriter, r *http.Request) {
 
 	events := make([]AgentRunEvent, 0, len(wireResp.Events))
 	for i := range wireResp.Events {
-		events = append(events, wireRunEventToAPI(&wireResp.Events[i]))
+		events = append(events, agentRunEventToAPI(wireResp.Events[i]))
 	}
 
 	hctx.Resp.OK(AgentRunEventsResponse{Events: events})
@@ -115,7 +115,7 @@ func (s *Server) handleAgentRunDiff(w http.ResponseWriter, r *http.Request) {
 		resp.Content = wireResp.Diff.Content
 		files := make([]AgentRunDiffFile, 0, len(wireResp.Diff.Files))
 		for i := range wireResp.Diff.Files {
-			files = append(files, wireFileDiffToAPI(&wireResp.Diff.Files[i]))
+			files = append(files, agentFileDiffToAPI(wireResp.Diff.Files[i]))
 		}
 		resp.Files = files
 	}
@@ -158,7 +158,7 @@ func (s *Server) handleAgentRunContinue(w http.ResponseWriter, r *http.Request) 
 		Success: wireResp.Success,
 	}
 	if wireResp.Run != nil {
-		apiRun := wireRunToAPI(wireResp.Run)
+		apiRun := agentRunToAPI(wireResp.Run)
 		resp.Run = &apiRun
 	}
 
@@ -199,7 +199,7 @@ func (s *Server) handleAgentRunApprove(w http.ResponseWriter, r *http.Request) {
 	resp := AgentApproveResponse{}
 	if wireResp.Result != nil {
 		resp.Success = wireResp.Result.Success
-		resp.FilesApplied = wireResp.Result.FilesApplied
+		resp.FilesApplied = int(wireResp.Result.FilesApplied)
 		resp.CommitHash = wireResp.Result.CommitHash
 		resp.Message = wireResp.Result.Message
 	}

@@ -3,6 +3,8 @@ import {
   createScenarioServer,
   createProxyMiddleware,
   injectBaseTag,
+  refuseUpgrade,
+  SAME_ORIGIN_POLICY,
 } from '@vrooli/api-base/server'
 import axios from 'axios'
 import http from 'http'
@@ -120,7 +122,6 @@ const app = createScenarioServer({
   distDir: path.join(__dirname, 'dist'),
   serviceName: 'app-monitor-ui',
   version: '1.0.0',
-  corsOrigins: '*',
   verbose: true,
   proxyTimeoutMs: API_PROXY_TIMEOUT_MS,
   setupRoutes: (expressApp) => {
@@ -228,6 +229,13 @@ server.on('upgrade', (req, socket, head) => {
     try {
       const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
       if (url.pathname === '/ws') {
+        // This socket is served here rather than through the API Base proxy,
+        // so it applies the same browser origin policy itself.
+        const decision = SAME_ORIGIN_POLICY.evaluateUpgrade(req)
+        if (decision.verdict === 'refused') {
+          refuseUpgrade(socket, decision.reason)
+          return
+        }
         wss.handleUpgrade(req, socket, head, (ws) => {
           wss.emit('connection', ws, req)
         })

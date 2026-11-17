@@ -3,7 +3,6 @@
 This document defines API Health's system shape, provider boundary, data flow,
 extension rules, and cutover responsibilities.
 
-## Purpose Of This Document
 
 This document owns:
 

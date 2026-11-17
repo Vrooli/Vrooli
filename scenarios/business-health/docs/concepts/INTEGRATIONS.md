@@ -33,7 +33,7 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| Deployment Manager | optional | Receives readiness evidence only when the owner readiness token is configured. | A fixed `BUSINESS_HEALTH_DEPLOYMENT_MANAGER_READINESS_URL` may pin a deployment address; otherwise the reporter resolves the current local peer for each report. Failure is explicit (`Unavailable`) and does not leave a client pinned to a stale port. |
 
 ## Third-Party Services
 
@@ -46,6 +46,7 @@ requires them.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
+| Deployment Manager | report call cannot resolve or reach the peer | The validation request returns an explicit unavailable error when reporting is enabled; with no readiness token, validation has no dependency on Deployment Manager. | readiness reporter and reporter package tests |
 
 ## Cross-References
 

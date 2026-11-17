@@ -1,6 +1,5 @@
 # Experience — Device Studio
 
-## Purpose Of This Document
 
 Foundation contract, 2026-10-19, with current implementation notes below. The E1 Projects surface and D3 saved-shot editor have scoped implementation/evidence; the broader product behavior remains design intent. Research and pure presentation examples do not establish a released or accepted renderer.
 

@@ -25,8 +25,115 @@ func TestNewHTTPCloudHealthClientUsesConfiguredURL(t *testing.T) {
 	if client.baseURL != "http://cloud.example" {
 		t.Fatalf("baseURL = %q", client.baseURL)
 	}
+	if client.resolveBaseURL != nil {
+		t.Fatal("configured cloud URL must remain pinned")
+	}
 	if !client.receiptVerificationStrict {
 		t.Fatal("production cloud client must require receipt verification")
+	}
+}
+
+func TestHTTPCloudHealthClientResolvesCurrentPeerPerOperation(t *testing.T) {
+	var requestsA, requestsB atomic.Int32
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsA.Add(1)
+		_, _ = w.Write([]byte(`{"deployment":{"status":"healthy"}}`))
+	}))
+	defer serverA.Close()
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsB.Add(1)
+		_, _ = w.Write([]byte(`{"deployment":{"status":"healthy"}}`))
+	}))
+	defer serverB.Close()
+	var resolutions atomic.Int32
+	client := &HTTPCloudHealthClient{
+		httpClient: http.DefaultClient,
+		resolveBaseURL: func(context.Context) (string, error) {
+			if resolutions.Add(1) == 1 {
+				return serverA.URL + "/", nil
+			}
+			return serverB.URL, nil
+		},
+	}
+	for range 2 {
+		if _, err := client.cloudDeploymentStatus(context.Background(), "deployment"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if resolutions.Load() != 2 || requestsA.Load() != 1 || requestsB.Load() != 1 {
+		t.Fatalf("resolutions=%d requests A/B=%d/%d, want 2 and 1/1", resolutions.Load(), requestsA.Load(), requestsB.Load())
+	}
+}
+
+func TestDesktopPackagerClientResolvesCurrentPeerPerOperation(t *testing.T) {
+	var requestsA, requestsB atomic.Int32
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsA.Add(1)
+		_, _ = w.Write([]byte(`{"status":"ready"}`))
+	}))
+	defer serverA.Close()
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestsB.Add(1)
+		_, _ = w.Write([]byte(`{"status":"ready"}`))
+	}))
+	defer serverB.Close()
+	var resolutions atomic.Int32
+	client := &DesktopPackagerClient{
+		httpClient: http.DefaultClient,
+		resolveURL: func(context.Context) (string, error) {
+			if resolutions.Add(1) == 1 {
+				return serverA.URL, nil
+			}
+			return serverB.URL, nil
+		},
+	}
+	for range 2 {
+		status, err := client.GetBuildStatus(context.Background(), "build")
+		if err != nil || status.Status != "ready" {
+			t.Fatalf("status=%+v err=%v", status, err)
+		}
+	}
+	if resolutions.Load() != 2 || requestsA.Load() != 1 || requestsB.Load() != 1 {
+		t.Fatalf("resolutions=%d requests A/B=%d/%d; want 2 and 1/1", resolutions.Load(), requestsA.Load(), requestsB.Load())
+	}
+}
+
+func TestDesktopPackagerClientKeepsConfiguredAddressPinned(t *testing.T) {
+	t.Setenv("SCENARIO_TO_DESKTOP_URL", "http://desktop.example:18000/")
+	client, err := NewDesktopPackagerClient(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.baseURL != "http://desktop.example:18000" || client.resolveURL != nil {
+		t.Fatalf("configured address must remain pinned: base=%q resolver=%v", client.baseURL, client.resolveURL != nil)
+	}
+}
+
+func TestOutboundScenarioURLAdaptersShareValidationPolicy(t *testing.T) {
+	invalid := []string{"", "ftp://peer.example:18000", "https://user:secret@peer.example", "http://"}
+	for _, value := range invalid {
+		for _, mode := range []string{"configured", "discovered"} {
+			t.Run(mode+"/"+value, func(t *testing.T) {
+				resolve := func(context.Context) (string, error) { return value, nil }
+				cloud := &HTTPCloudHealthClient{}
+				lpbs := &HTTPLPBSReleaseClient{}
+				desktop := &DesktopPackagerClient{}
+				if mode == "configured" {
+					cloud.baseURL, lpbs.baseURL, desktop.baseURL = value, value, value
+				} else {
+					cloud.resolveBaseURL, lpbs.resolveBaseURL, desktop.resolveURL = resolve, resolve, resolve
+				}
+				if _, err := cloud.baseURLFor(context.Background()); err == nil {
+					t.Errorf("cloud accepted invalid URL %q", value)
+				}
+				if _, err := lpbs.endpoint(context.Background(), "/health"); err == nil {
+					t.Errorf("LPBS accepted invalid URL %q", value)
+				}
+				if _, err := desktop.endpoint(context.Background(), "/health"); err == nil {
+					t.Errorf("desktop accepted invalid URL %q", value)
+				}
+			})
+		}
 	}
 }
 

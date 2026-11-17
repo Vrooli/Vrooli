@@ -42,10 +42,11 @@
 - ~~Research request endpoint returns mock data only~~
 
 **Solution Implemented**: 
-- Added `triggerResearchAssistant()` function to call research-assistant API
-- Implemented `getResearchAssistantPort()` for dynamic service discovery  
+- Added `triggerResearchAssistant()` to call the configured research service
+- Replaced shell command and fixed-port probing with `api-core/discovery` for optional local scenario lookup
+- Added explicit `RESEARCH_ASSISTANT_API_BASE_URL` support for external/deployed service addressing
 - Created `processResearchResults()` to parse and store discovered APIs
-- Integration now works when research-assistant is running, gracefully handles when it's not
+- A missing local target produces an actionable failed request; external deployments can provide the explicit base URL
 
 ## 🟡 Medium Priority Issues
 

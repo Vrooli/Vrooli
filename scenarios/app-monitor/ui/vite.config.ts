@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -10,7 +11,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: './',  // Required for universal deployment (proxied scenarios)
-    plugins: [react()],
+    plugins: [sourceLibraryResolver({ devOnly: true }), react()],
     server: {
       port: parseInt(env.VITE_PORT),
       host: true, // Allow external connections

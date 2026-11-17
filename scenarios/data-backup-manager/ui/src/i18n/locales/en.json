@@ -388,7 +388,8 @@
     "settings": {
       "title": "Settings",
       "themeHeading": "Appearance",
-      "localeHeading": "Language"
+    "localeHeading": "Language",
+    "notificationsHeading": "App notifications"
     }
   },
   "errors": {

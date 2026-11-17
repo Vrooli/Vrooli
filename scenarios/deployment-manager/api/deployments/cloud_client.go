@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"deployment-manager/shared"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/receiptsigning"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
@@ -251,10 +252,11 @@ type CloudRecoveryClient interface {
 
 // HTTPCloudHealthClient calls scenario-to-cloud's health endpoint.
 type HTTPCloudHealthClient struct {
-	httpClient   *http.Client
-	baseURL      string
-	log          func(string, map[string]interface{})
-	pollInterval time.Duration
+	httpClient     *http.Client
+	baseURL        string
+	resolveBaseURL func(context.Context) (string, error)
+	log            func(string, map[string]interface{})
+	pollInterval   time.Duration
 	// receiptVerifier is the independent consumer-side trust root for
 	// scenario-to-cloud receipts. Direct struct construction is retained for
 	// lightweight tests and legacy callers; production constructors require
@@ -279,13 +281,11 @@ func NewHTTPCloudHealthClient(log func(string, map[string]interface{})) (*HTTPCl
 		client.receiptVerificationStrict = true
 		return client, nil
 	}
-	baseURL, err := discovery.ResolveScenarioURLDefault(context.Background(), "scenario-to-cloud")
-	if err != nil {
-		return nil, fmt.Errorf("resolve scenario-to-cloud URL: %w", err)
-	}
 	return &HTTPCloudHealthClient{
-		httpClient:                &http.Client{Timeout: 30 * time.Second},
-		baseURL:                   baseURL,
+		httpClient: &http.Client{Timeout: 30 * time.Second},
+		resolveBaseURL: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "scenario-to-cloud")
+		},
 		log:                       log,
 		pollInterval:              cloudDeploymentPollInterval,
 		receiptVerifier:           verifier,
@@ -558,6 +558,10 @@ func (c *HTTPCloudHealthClient) cloudDeploymentStatus(ctx context.Context, id st
 }
 
 func (c *HTTPCloudHealthClient) cloudJSON(ctx context.Context, method, path string, payload interface{}, expectedStatus int, out interface{}) error {
+	baseURL, err := c.baseURLFor(ctx)
+	if err != nil {
+		return err
+	}
 	var body io.Reader
 	if payload != nil {
 		encoded, err := json.Marshal(payload)
@@ -566,7 +570,7 @@ func (c *HTTPCloudHealthClient) cloudJSON(ctx context.Context, method, path stri
 		}
 		body = bytes.NewReader(encoded)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	req, err := http.NewRequestWithContext(ctx, method, baseURL+path, body)
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
 	}
@@ -591,6 +595,22 @@ func (c *HTTPCloudHealthClient) cloudJSON(ctx context.Context, method, path stri
 		}
 	}
 	return nil
+}
+
+func (c *HTTPCloudHealthClient) baseURLFor(ctx context.Context) (string, error) {
+	baseURL := strings.TrimSpace(c.baseURL)
+	if c.resolveBaseURL != nil {
+		resolved, err := c.resolveBaseURL(ctx)
+		if err != nil {
+			return "", fmt.Errorf("resolve scenario-to-cloud URL: %w", err)
+		}
+		baseURL = strings.TrimSpace(resolved)
+	}
+	validated, err := shared.ValidateServiceURL(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("scenario-to-cloud URL: %w", err)
+	}
+	return validated, nil
 }
 
 // cloudReceiptNow is the DM clock used for receipt freshness (tests pin it).

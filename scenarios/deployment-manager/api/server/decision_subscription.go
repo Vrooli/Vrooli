@@ -1,21 +1,19 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"strings"
 	"time"
 
-	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
 )
 
 const (
-	decisionSubscriptionOwner = "deployment-manager"
-	decisionSubscriptionName  = "deployment-manager-decision-answers"
+	decisionSubscriptionOwner  = "deployment-manager"
+	decisionSubscriptionName   = "deployment-manager-decision-answers"
+	decisionSubscriptionCycle  = 30 * time.Second
+	decisionSubscriptionWindow = 15 * time.Second
 )
 
 // reconcileDecisionEventSubscription keeps exactly one enabled vrooli-events
@@ -25,84 +23,66 @@ const (
 // dead-on-arrival. vrooli-events owns the durable row; this only ensures it
 // exists and targets the live webhook. Ported from swarm-manager's
 // reconcileDecisionEventSubscription.
-func reconcileDecisionEventSubscription(ctx context.Context, target string) error {
-	base, err := discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+func reconcileDecisionEventSubscriptionWithResolver(ctx context.Context, target string, resolve func(context.Context) (string, error)) error {
+	base, err := resolve(ctx)
 	if err != nil {
 		return err
 	}
-	base = strings.TrimRight(base, "/")
-	client := &http.Client{Timeout: 10 * time.Second}
+	client, err := eventbus.NewSubscriptionClient(base, nil)
+	if err != nil {
+		return err
+	}
 	const pattern = operatordecision.AskResolvedEventType
-	var existing []struct {
-		ID             int64  `json:"id"`
-		EventPattern   string `json:"event_pattern"`
-		DeliveryTarget string `json:"delivery_target"`
-		Enabled        bool   `json:"enabled"`
+	payload := eventbus.Subscription{
+		Name: decisionSubscriptionName, OwnerScenario: decisionSubscriptionOwner,
+		EventPattern: pattern, DeliveryType: "webhook", DeliveryTarget: target, Enabled: true,
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner="+decisionSubscriptionOwner, nil)
+	// Deployment Manager has one AskResolved webhook route. Older releases
+	// stored that same route under several names, so this owner explicitly
+	// adopts the full exact tuple; target-only or partial matches remain foreign.
+	return client.EnsureNamedSubscriptionWithExactRouteAdoption(ctx, payload)
+}
+
+// reconcileDecisionEventSubscriptionWithRetry bounds startup recovery when
+// Events is unavailable or restarting. It never delays the server itself; the
+// caller runs it in a background goroutine with a total deadline.
+func reconcileDecisionEventSubscriptionWithRetry(ctx context.Context, target string, resolve func(context.Context) (string, error), delay time.Duration) error {
+	err := eventbus.ReconcileSubscription(ctx, eventbus.SubscriptionReconcilerConfig{
+		Attempts: 5, AttemptTimeout: decisionSubscriptionWindow, RetryDelay: delay,
+	}, func(attempt context.Context) error {
+		return reconcileDecisionEventSubscriptionWithResolver(attempt, target, resolve)
+	})
 	if err != nil {
-		return err
-	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("list event subscriptions returned %s", resp.Status)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
-		return err
-	}
-	payload := map[string]any{
-		"name":            decisionSubscriptionName,
-		"owner_scenario":  decisionSubscriptionOwner,
-		"event_pattern":   pattern,
-		"delivery_type":   "webhook",
-		"delivery_target": target,
-		"enabled":         true,
-	}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	for _, item := range existing {
-		if item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
-			return nil
-		}
-		if item.Enabled && item.DeliveryTarget == target {
-			return putDecisionSubscription(ctx, client, base, item.ID, body)
-		}
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/subscriptions", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("create event subscription returned %s", resp.Status)
+		return fmt.Errorf("reconcile %s decision subscription: %w", decisionSubscriptionOwner, err)
 	}
 	return nil
 }
 
-func putDecisionSubscription(ctx context.Context, client *http.Client, base string, id int64, body []byte) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", base, id), bytes.NewReader(body))
-	if err != nil {
-		return err
+// runDecisionEventSubscriptionReconciler owns periodic recovery for this
+// optional integration. Every reconciliation cycle has a deadline, cycles do
+// not overlap, and the caller's server lifecycle context stops retries during
+// shutdown.
+func runDecisionEventSubscriptionReconciler(ctx context.Context, target string, resolve func(context.Context) (string, error), cycle, window, delay time.Duration, wait func(context.Context, time.Duration) bool, report func(error)) {
+	var waitCycle func(context.Context, time.Duration) bool
+	if wait != nil {
+		waitCycle = wait
 	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
+	eventbus.RunSubscriptionReconciler(ctx, eventbus.SubscriptionReconcilerConfig{
+		Interval: cycle, AttemptTimeout: window, CycleTimeout: window, Attempts: 5,
+		RetryDelayForAttempt: func(attempt int) time.Duration { return delay * time.Duration(1<<attempt) },
+		Wait:                 waitCycle,
+	}, func(ctx context.Context) error {
+		return reconcileDecisionEventSubscriptionWithResolver(ctx, target, resolve)
+	}, report)
+}
+
+func waitDecisionSubscriptionCycle(ctx context.Context, duration time.Duration) bool {
+	timer := time.NewTimer(duration)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return false
+	case <-timer.C:
+		return ctx.Err() == nil
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("update event subscription returned %s", resp.Status)
-	}
-	return nil
 }

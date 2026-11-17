@@ -1,6 +1,5 @@
 # Monetization — Device Studio
 
-## Purpose Of This Document
 
 Apply existing Vrooli monetization to device presentation; no new price, subscription rank or bundle membership is authorized by this foundation.
 

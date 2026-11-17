@@ -30,6 +30,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/cors"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	coreRedis "github.com/vrooli/api-core/redis"
@@ -2203,11 +2204,12 @@ func requestResearchHandler(w http.ResponseWriter, r *http.Request) {
 
 // triggerResearchAssistant calls the research-assistant API to perform research
 func triggerResearchAssistant(researchID string, capability string, requirements map[string]interface{}) {
-	// First check if research-assistant is running
-	researchPort := getResearchAssistantPort()
-	if researchPort == "" {
-		log.Printf("Research-assistant not running, cannot trigger research for ID: %s", researchID)
-		updateResearchStatus(researchID, "failed", "Research-assistant service not available")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	researchURL, err := resolveResearchAssistantURL(ctx, configuredResearchAssistantResolver())
+	if err != nil {
+		log.Printf("Research-assistant not available for research ID %s: %v", researchID, err)
+		updateResearchStatus(researchID, "failed", researchAssistantUnavailableMessage(err))
 		return
 	}
 
@@ -2227,11 +2229,14 @@ func triggerResearchAssistant(researchID string, capability string, requirements
 	}
 
 	searchJSON, _ := json.Marshal(searchReq)
-	resp, err := http.Post(
-		fmt.Sprintf("http://localhost:%s/api/search", researchPort),
-		"application/json",
-		bytes.NewBuffer(searchJSON),
-	)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, researchAssistantSearchURL(researchURL), bytes.NewBuffer(searchJSON))
+	if err != nil {
+		log.Printf("Failed to prepare research-assistant request: %v", err)
+		updateResearchStatus(researchID, "failed", "Failed to prepare research request")
+		return
+	}
+	request.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(request)
 	if err != nil {
 		log.Printf("Failed to call research-assistant: %v", err)
 		updateResearchStatus(researchID, "failed", "Failed to connect to research service")
@@ -2257,36 +2262,32 @@ func triggerResearchAssistant(researchID string, capability string, requirements
 	processResearchResults(researchID, capability, searchResults)
 }
 
-// getResearchAssistantPort attempts to get the port of the running research-assistant
-func getResearchAssistantPort() string {
-	// Try using vrooli CLI to get the port
-	cmd := "vrooli scenario port research-assistant api 2>/dev/null"
-	out, err := exec.Command("bash", "-c", cmd).Output()
-	if err == nil && len(out) > 0 {
-		return strings.TrimSpace(string(out))
-	}
+type scenarioURLResolver interface {
+	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
+}
 
-	// Fallback to checking if default port is in use
-	// Research-assistant typically uses port range 16000-16999
-	for port := 16100; port <= 16110; port++ {
-		conn, err := net.Dial("tcp", fmt.Sprintf("localhost:%d", port))
-		if err == nil {
-			conn.Close()
-			// Try to verify it's the research-assistant
-			resp, err := http.Get(fmt.Sprintf("http://localhost:%d/health", port))
-			if err == nil {
-				defer resp.Body.Close()
-				var health map[string]interface{}
-				if json.NewDecoder(resp.Body).Decode(&health) == nil {
-					if service, ok := health["service"].(string); ok && service == "research-assistant" {
-						return strconv.Itoa(port)
-					}
-				}
-			}
-		}
-	}
+const researchAssistantAPIBaseURLEnv = "RESEARCH_ASSISTANT_API_BASE_URL"
 
-	return ""
+func configuredResearchAssistantResolver() scenarioURLResolver {
+	if staticURL := strings.TrimSpace(os.Getenv(researchAssistantAPIBaseURLEnv)); staticURL != "" {
+		return discovery.NewStaticResolver(staticURL)
+	}
+	return discovery.DefaultResolver()
+}
+
+func resolveResearchAssistantURL(ctx context.Context, resolver scenarioURLResolver) (string, error) {
+	if resolver == nil {
+		return "", fmt.Errorf("scenario URL resolver is not configured")
+	}
+	return resolver.ResolveScenarioURLDefault(ctx, "research-assistant")
+}
+
+func researchAssistantSearchURL(baseURL string) string {
+	return strings.TrimRight(baseURL, "/") + "/api/search"
+}
+
+func researchAssistantUnavailableMessage(err error) string {
+	return fmt.Sprintf("Research-assistant service unavailable: %v. Configure %s for an external or deployed service.", err, researchAssistantAPIBaseURLEnv)
 }
 
 // updateResearchStatus updates the status of a research request in the database

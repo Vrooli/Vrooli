@@ -1,5 +1,5 @@
 import { FullPageDrawer } from "@vrooli/react-component-library/FullPageDrawer/1";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Settings, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { useIsMobile } from "../hooks";
@@ -74,6 +74,13 @@ export function SettingsModal({
   // Actionable findings only -- see useHealthIssueCount for why informational
   // items are excluded from the badge.
   const healthIssueCount = useHealthIssueCount(repoId);
+
+  // The status-bar health badge is the primary entry point for actionable
+  // repository hygiene findings. Take users straight to those findings so the
+  // existing per-item remediation is visible as soon as Settings opens.
+  useEffect(() => {
+    if (isOpen && healthIssueCount > 0) setActiveTab("health");
+  }, [isOpen, healthIssueCount]);
 
   if (!isOpen) return null;
 

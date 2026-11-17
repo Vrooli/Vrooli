@@ -1,6 +1,5 @@
 # Domains — Device Studio
 
-## Purpose Of This Document
 
 Foundation contract, 2026-10-19. Product behavior below is specified for implementation; the generated reference scaffold does not implement it. Research demonstrates individual techniques, not a released scenario.
 

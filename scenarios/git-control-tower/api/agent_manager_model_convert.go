@@ -1,185 +1,117 @@
 package main
 
-import "encoding/json"
+import (
+	"time"
 
-// ============================================================================
-// Conversion functions: wire → API
-// ============================================================================
+	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
 
-func wireRunSummaryToAPI(w *wireRunSummary) *AgentRunSummary {
-	if w == nil {
+func agentRunSummaryToAPI(summary *ampb.RunSummary) *AgentRunSummary {
+	if summary == nil {
 		return nil
 	}
 	return &AgentRunSummary{
-		FilesModified: w.FilesModified,
-		FilesCreated:  w.FilesCreated,
-		FilesDeleted:  w.FilesDeleted,
-		TokensUsed:    int64(w.TokensUsed),
-		TurnsUsed:     w.TurnsUsed,
-		CostEstimate:  w.CostEstimate,
+		FilesModified: summary.GetFilesModified(), FilesCreated: summary.GetFilesCreated(),
+		FilesDeleted: summary.GetFilesDeleted(), TokensUsed: summary.GetTokensUsed(),
+		TurnsUsed: int(summary.GetTurnsUsed()), CostEstimate: summary.GetCostEstimate(),
 	}
 }
 
-func wireRunActionsToAPI(w *wireRunActions) *AgentRunActions {
-	if w == nil {
+func agentRunActionsToAPI(actions *ampb.RunActions) *AgentRunActions {
+	if actions == nil {
 		return nil
 	}
 	return &AgentRunActions{
-		CanInvestigate:               w.CanInvestigate,
-		CanApplyInvestigation:        w.CanApplyInvestigation,
-		CanDelete:                    w.CanDelete,
-		CanStop:                      w.CanStop,
-		CanRetry:                     w.CanRetry,
-		CanContinue:                  w.CanContinue,
-		CanApprove:                   w.CanApprove,
-		CanReject:                    w.CanReject,
-		CanReview:                    w.CanReview,
-		CanExtractRecommendations:    w.CanExtractRecommendations,
-		CanRegenerateRecommendations: w.CanRegenerateRecommendations,
+		CanInvestigate: actions.GetCanInvestigate(), CanApplyInvestigation: actions.GetCanApplyInvestigation(),
+		CanDelete: actions.GetCanDelete(), CanStop: actions.GetCanStop(), CanRetry: actions.GetCanRetry(),
+		CanContinue: actions.GetCanContinue(), CanApprove: actions.GetCanApprove(), CanReject: actions.GetCanReject(),
+		CanReview: actions.GetCanReview(),
 	}
 }
 
-func wireRunToAPI(w *wireRun) AgentRun {
+func agentRunToAPI(run *ampb.Run) AgentRun {
+	if run == nil {
+		return AgentRun{}
+	}
 	return AgentRun{
-		ID:              w.ID,
-		TaskID:          w.TaskID,
-		SessionID:       w.SessionID,
-		Status:          normalizeEnum(w.Status, "RUN_STATUS_"),
-		Phase:           normalizeEnum(w.Phase, "RUN_PHASE_"),
-		ProgressPercent: w.ProgressPercent,
-		ErrorMsg:        w.ErrorMsg,
-		ApprovalState:   normalizeEnum(w.ApprovalState, "APPROVAL_STATE_"),
-		PromptPreview:   w.PromptPreview,
-		SandboxID:       w.SandboxID,
-		CommitHash:      w.CommitHash,
-		Summary:         wireRunSummaryToAPI(w.Summary),
-		Actions:         wireRunActionsToAPI(w.Actions),
-		CreatedAt:       w.CreatedAt,
-		StartedAt:       w.StartedAt,
-		EndedAt:         w.EndedAt,
+		ID: run.GetId(), TaskID: run.GetTaskId(), SessionID: run.GetSessionId(),
+		Status:          normalizeEnum(run.GetStatus().String(), "RUN_STATUS_"),
+		Phase:           normalizeEnum(run.GetPhase().String(), "RUN_PHASE_"),
+		ProgressPercent: int(run.GetProgressPercent()), ErrorMsg: run.GetErrorMsg(),
+		ApprovalState: normalizeEnum(run.GetApprovalState().String(), "APPROVAL_STATE_"),
+		PromptPreview: run.GetPromptPreview(), SandboxID: run.GetSandboxId(), CommitHash: run.GetCommitHash(),
+		Summary: agentRunSummaryToAPI(run.GetSummary()), Actions: agentRunActionsToAPI(run.GetActions()),
+		CreatedAt: timestampString(run.GetCreatedAt()), StartedAt: timestampString(run.GetStartedAt()),
+		EndedAt: timestampString(run.GetEndedAt()),
 	}
 }
 
-func wireRunEventToAPI(w *wireRunEvent) AgentRunEvent {
-	evt := AgentRunEvent{
-		ID:        w.ID,
-		RunID:     w.RunID,
-		Sequence:  w.Sequence,
-		EventType: normalizeEventType(w.EventType),
-		Timestamp: w.Timestamp,
+func timestampString(value *timestamppb.Timestamp) string {
+	if value == nil {
+		return ""
 	}
-
-	if data := flattenEventData(w); len(data) > 0 {
-		evt.Data = data
-	}
-	return evt
+	return value.AsTime().Format(time.RFC3339Nano)
 }
 
-// flattenEventData converts oneof wire event fields into a flat map for the UI.
-func flattenEventData(w *wireRunEvent) map[string]interface{} {
+func agentRunEventToAPI(event *ampb.RunEvent) AgentRunEvent {
+	if event == nil {
+		return AgentRunEvent{}
+	}
+	result := AgentRunEvent{
+		ID: event.GetId(), RunID: event.GetRunId(), Sequence: event.GetSequence(),
+		EventType: normalizeEventType(event.GetEventType().String()), Timestamp: timestampString(event.GetTimestamp()),
+	}
 	data := map[string]interface{}{}
-	flattenMessageData(data, w.Message)
-	flattenToolCallData(data, w.ToolCall)
-	flattenToolResultData(data, w.ToolResult)
-	flattenErrorData(data, w.Error)
-	flattenStatusData(data, w.Status)
-	flattenLogData(data, w.Log)
-	flattenProgressData(data, w.Progress)
-	return data
-}
-
-func flattenMessageData(data map[string]interface{}, m *wireMessageData) {
-	if m == nil {
-		return
-	}
-	data["content"] = m.Content
-	if m.Role != "" {
-		data["role"] = m.Role
-	}
-}
-
-func flattenToolCallData(data map[string]interface{}, tc *wireToolCallData) {
-	if tc == nil {
-		return
-	}
-	data["name"] = tc.ToolName
-	if len(tc.Input) > 0 {
-		var parsed interface{}
-		if json.Unmarshal(tc.Input, &parsed) == nil {
-			data["input"] = parsed
+	switch value := event.GetData().(type) {
+	case *ampb.RunEvent_Message:
+		data["content"], data["role"] = value.Message.GetContent(), value.Message.GetRole()
+	case *ampb.RunEvent_ToolCall:
+		data["name"] = value.ToolCall.GetToolName()
+		if value.ToolCall.GetInput() != nil {
+			data["input"] = value.ToolCall.GetInput().AsMap()
+		}
+	case *ampb.RunEvent_ToolResult:
+		data["result"] = value.ToolResult.GetOutput()
+		if name := value.ToolResult.GetToolName(); name != "" {
+			data["name"] = name
+		}
+	case *ampb.RunEvent_Error:
+		data["message"] = value.Error.GetMessage()
+		if code := value.Error.GetCode(); code != "" {
+			data["code"] = code
+		}
+	case *ampb.RunEvent_Status:
+		if value.Status.GetNewStatus() != "" {
+			data["newStatus"] = normalizeEnum(value.Status.GetNewStatus(), "RUN_STATUS_")
+		}
+		if value.Status.GetOldStatus() != "" {
+			data["oldStatus"] = normalizeEnum(value.Status.GetOldStatus(), "RUN_STATUS_")
+		}
+	case *ampb.RunEvent_Log:
+		data["message"], data["level"] = value.Log.GetMessage(), value.Log.GetLevel()
+	case *ampb.RunEvent_Progress:
+		data["percent"] = int(value.Progress.GetPercentComplete())
+		if message := value.Progress.GetCurrentAction(); message != "" {
+			data["message"] = message
 		}
 	}
+	if len(data) != 0 {
+		result.Data = data
+	}
+	return result
 }
 
-func flattenToolResultData(data map[string]interface{}, tr *wireToolResultData) {
-	if tr == nil {
-		return
+func agentFileDiffToAPI(file *ampb.FileDiff) AgentRunDiffFile {
+	if file == nil {
+		return AgentRunDiffFile{}
 	}
-	data["result"] = tr.Output
-	if tr.ToolName != "" {
-		data["name"] = tr.ToolName
-	}
+	return AgentRunDiffFile{Path: file.GetPath(), ChangeType: file.GetChangeType(), Additions: int(file.GetAdditions()), Deletions: int(file.GetDeletions()), IsBinary: file.GetIsBinary(), Patch: file.GetPatch()}
 }
 
-func flattenErrorData(data map[string]interface{}, e *wireErrorData) {
-	if e == nil {
-		return
+func agentProfileToAPI(profile *ampb.AgentProfile) AgentProfile {
+	if profile == nil {
+		return AgentProfile{}
 	}
-	data["message"] = e.Message
-	if e.Code != "" {
-		data["code"] = e.Code
-	}
-}
-
-func flattenStatusData(data map[string]interface{}, s *wireStatusData) {
-	if s == nil {
-		return
-	}
-	if s.NewStatus != "" {
-		data["newStatus"] = normalizeEnum(s.NewStatus, "RUN_STATUS_")
-	}
-	if s.OldStatus != "" {
-		data["oldStatus"] = normalizeEnum(s.OldStatus, "RUN_STATUS_")
-	}
-}
-
-func flattenLogData(data map[string]interface{}, l *wireLogData) {
-	if l == nil {
-		return
-	}
-	data["message"] = l.Message
-	if l.Level != "" {
-		data["level"] = l.Level
-	}
-}
-
-func flattenProgressData(data map[string]interface{}, p *wireProgressData) {
-	if p == nil {
-		return
-	}
-	data["percent"] = p.Percent
-	if p.Message != "" {
-		data["message"] = p.Message
-	}
-}
-
-func wireFileDiffToAPI(w *wireFileDiff) AgentRunDiffFile {
-	return AgentRunDiffFile{
-		Path:       w.Path,
-		ChangeType: w.ChangeType,
-		Additions:  w.Additions,
-		Deletions:  w.Deletions,
-		IsBinary:   w.IsBinary,
-		Patch:      w.Patch,
-	}
-}
-
-func wireProfileToAPI(w *wireAgentProfile) AgentProfile {
-	return AgentProfile{
-		ID:          w.ID,
-		Key:         w.ProfileKey,
-		Name:        w.Name,
-		Description: w.Description,
-		RoleRef:     w.RoleRef,
-	}
+	return AgentProfile{ID: profile.GetId(), Key: profile.GetProfileKey(), Name: profile.GetName(), Description: profile.GetDescription(), RoleRef: profile.GetRoleRef()}
 }

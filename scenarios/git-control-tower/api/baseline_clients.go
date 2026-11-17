@@ -10,7 +10,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -346,69 +345,12 @@ type baselineRunsClient struct {
 	resolveURL func(ctx context.Context) (string, error)
 }
 
-// cachedScenarioURLResolver collapses the discovery fan-out created by a
-// collection diff. A single child comparison can resolve Test Genie several
-// times (wait, compare, and artifact catalogs); a four-member collection used
-// to launch all of those `vrooli scenario port` subprocesses concurrently.
-// That made the aggregate wait spend minutes in discovery after the actual
-// runs had already finished. The URL is stable for the lifetime of a local
-// service, while the short TTL still notices a service relocation/restart.
-type cachedScenarioURLResolver struct {
-	mu        sync.Mutex
-	url       string
-	expiresAt time.Time
-	resolving chan struct{}
-	resolve   func(context.Context) (string, error)
-	ttl       time.Duration
-}
-
-func (r *cachedScenarioURLResolver) Resolve(ctx context.Context) (string, error) {
-	for {
-		r.mu.Lock()
-		if r.url != "" && time.Now().Before(r.expiresAt) {
-			url := r.url
-			r.mu.Unlock()
-			return url, nil
-		}
-		if r.resolving != nil {
-			done := r.resolving
-			r.mu.Unlock()
-			select {
-			case <-done:
-				continue
-			case <-ctx.Done():
-				return "", ctx.Err()
-			}
-		}
-		resolving := make(chan struct{})
-		r.resolving = resolving
-		r.mu.Unlock()
-
-		url, err := r.resolve(ctx)
-		r.mu.Lock()
-		if err == nil && strings.TrimSpace(url) != "" {
-			r.url = strings.TrimRight(url, "/")
-			r.expiresAt = time.Now().Add(r.ttl)
-			url = r.url
-		}
-		r.resolving = nil
-		close(resolving)
-		r.mu.Unlock()
-		return url, err
-	}
-}
-
-var baselineTestGenieURL = &cachedScenarioURLResolver{
-	resolve: func(ctx context.Context) (string, error) {
-		return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
-	},
-	ttl: 30 * time.Second,
-}
-
 func newBaselineRunsClient(timeout time.Duration) baselineRunsClient {
 	return baselineRunsClient{
 		httpClient: &http.Client{Timeout: timeout},
-		resolveURL: baselineTestGenieURL.Resolve,
+		resolveURL: func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "test-genie")
+		},
 	}
 }
 

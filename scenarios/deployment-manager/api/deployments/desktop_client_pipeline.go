@@ -94,7 +94,11 @@ func (c *DesktopPackagerClient) RunPublishPipelineConnect(ctx context.Context, r
 			AuthorizationEpoch: deploy.AuthorizationEpoch, ReadinessReviewKey: deploy.ReadinessReviewKey,
 		},
 	}
-	client := pipelineconnect.NewPipelineServiceClient(c.httpClient, c.baseURL)
+	baseURL, err := c.endpoint(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+	client := pipelineconnect.NewPipelineServiceClient(c.httpClient, baseURL)
 	response, err := client.Run(ctx, connect.NewRequest(&pipelinev1.PipelineRunRequest{Config: config}))
 	if err != nil {
 		return nil, fmt.Errorf("run typed publish pipeline: %w", err)
@@ -106,7 +110,6 @@ func (c *DesktopPackagerClient) RunPublishPipelineConnect(ctx context.Context, r
 }
 
 func (c *DesktopPackagerClient) WaitForPipelineConnect(ctx context.Context, pipelineID string) (*PipelineStatus, error) {
-	client := pipelineconnect.NewPipelineServiceClient(c.httpClient, c.baseURL)
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -114,8 +117,18 @@ func (c *DesktopPackagerClient) WaitForPipelineConnect(ctx context.Context, pipe
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
+			baseURL, err := c.endpoint(ctx, "")
+			if err != nil {
+				c.log("warn", map[string]interface{}{"msg": "resolve scenario-to-desktop pipeline status", "pipeline_id": pipelineID, "error": err.Error()})
+				continue
+			}
+			client := pipelineconnect.NewPipelineServiceClient(c.httpClient, baseURL)
 			response, err := client.Get(ctx, connect.NewRequest(&pipelinev1.PipelineGetRequest{PipelineId: pipelineID}))
 			if err != nil {
+				if connect.CodeOf(err) == connect.CodeUnavailable {
+					c.log("warn", map[string]interface{}{"msg": "scenario-to-desktop pipeline status unavailable", "pipeline_id": pipelineID, "error": err.Error()})
+					continue
+				}
 				return nil, fmt.Errorf("get typed pipeline status: %w", err)
 			}
 			status := pipelineStatusFromProto(response.Msg)
@@ -213,7 +226,11 @@ func (c *DesktopPackagerClient) SetSigningConfig(ctx context.Context, scenarioNa
 		return fmt.Errorf("marshal config: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "PUT", c.baseURL+"/api/v1/signing/"+scenarioName, bytes.NewReader(body))
+	endpoint, err := c.endpoint(ctx, "/api/v1/signing/"+scenarioName)
+	if err != nil {
+		return err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "PUT", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}

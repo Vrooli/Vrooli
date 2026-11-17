@@ -259,6 +259,27 @@ table-driven case against `FakeInspector` / `FakeMutator` instead.
 
 ## Agent-Access Policy Gate Seams
 
+### Agent Manager RPC boundary
+
+`api/agent_manager_client.go` uses the generated `AgentManagerService` Connect
+client for profile listing, task/run creation, run detail/report/events/diff
+reads, continuation, approval, rejection, stop, and filtered run listing. The
+client attaches only `policygate.VerifiedOwnerHeaders(ctx)` to each request;
+those headers carry the already verified credential channel for Agent Manager
+to validate independently. The browser-facing `/api/v1/agent/...` handlers
+remain GCT-owned REST routes and adapt their public JSON response shape from
+the generated protobuf messages.
+
+The sole Agent Manager REST exception is
+`POST /api/v1/attachments/upload` in `AgentManagerClient.UploadAttachment`.
+Agent Manager defines this as multipart and has no matching protobuf RPC, so
+the upload must retain its multipart body while forwarding the same verified
+owner proof. `agent_manager_client_test.go` covers Connect procedure use,
+owner-proof forwarding, typed create requests, and the multipart exception;
+`agent_manager_handler_actions_test.go` covers typed event paging and UI
+projection. Run events are a bounded unary page (`GetRunEvents`), not a
+server-streaming RPC.
+
 The agent-access policy gate (see `docs/concepts/ARCHITECTURE.md` →
 "Policy Gate") introduces three narrow seams that are all individually
 unit-testable without standing up a full server:

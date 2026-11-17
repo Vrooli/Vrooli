@@ -58,7 +58,7 @@ func TestDomainPackagesAreTransportFreeAndIndependent(t *testing.T) {
 }
 
 func TestZoneMapMatchesTopLevelPackageTree(t *testing.T) {
-	wantInternal := []string{"catalog", "database", "facts", "fswatch", "indexcontrol", "logging", "modules", "registration", "retrieval", "testutil"}
+	wantInternal := []string{"catalog", "database", "facts", "fswatch", "gateway", "indexcontrol", "logging", "modules", "registration", "retrieval", "testutil"}
 	wantHandlers := []string{"facts", "health", "validation"}
 	assertDirectorySet(t, "..", wantInternal)
 	assertDirectorySet(t, filepath.Join("..", "..", "handlers"), wantHandlers)
@@ -77,7 +77,7 @@ func TestSeamRegistryMatchesDomainContracts(t *testing.T) {
 	seams := readRelative(t, filepath.Join("..", "..", "..", "docs", "internal", "SEAMS.md"))
 	for _, seam := range []string{
 		"catalog.Repository", "catalog.Clock",
-		"retrieval.Embedder",
+		"retrieval.Embedder", "gateway.EmbeddingClient",
 		"retrieval.VectorStore", "retrieval.Reranker", "retrieval.Admission",
 		"indexcontrol.JobStore", "indexcontrol.ProcessRunner",
 		"logging.Logger",

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"testing"
 )
 
@@ -46,7 +47,7 @@ func TestSVGExport_RenderChart(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			files, err := renderer.RenderChart(tt.chartID, tt.req)
+			files, err := renderer.RenderChart(context.Background(), tt.chartID, tt.req)
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got nil")

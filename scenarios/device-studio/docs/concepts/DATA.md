@@ -1,6 +1,5 @@
 # Data — Device Studio
 
-## Purpose Of This Document
 
 Foundation contract, 2026-10-19, updated during implementation. The E1 project workspace and E2 photographic still workflow implement a bounded subset; the broader contract below remains the release target. Recording intake is under development. Research demonstrates individual techniques, not a released scenario.
 

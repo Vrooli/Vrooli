@@ -145,9 +145,12 @@ Additional seams added for DTV P0:
   table-driven cases in `evaluator_test.go`.
 - **`validation_run.AgentManagerClient`** — outbound seam for
   agent-manager sandboxed runs. Production:
-  `integrations/agent_manager.Client` (currently a not-yet-wired stub;
-  see PROBLEMS.md). Test fake:
-  `internal/validation_run/mocks.FakeAgentManager`.
+  `integrations/agent_manager.Client`, using the generated
+  `AgentManagerService` Connect client for profile reconciliation, task/run
+  creation, status polling, and diff retrieval. Discovery resolution and
+  transient-failure retry behavior stay in this adapter. Test fake:
+  `internal/validation_run/mocks.FakeAgentManager`; adapter coverage uses the
+  real generated client against an in-process generated Connect handler.
 - **`validation_run.ToolRunner`** — outbound seam for shelling out to
   dev-tool CLIs (`scenario-auditor`, `test-genie`,
   `scenario-completeness-scoring`). Production:

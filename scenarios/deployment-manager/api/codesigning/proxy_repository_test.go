@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -102,7 +103,55 @@ func TestProxyRepositoryErrorsAndURLResolution(t *testing.T) {
 		t.Fatal("upstream failure should be surfaced")
 	}
 	t.Setenv("SCENARIO_TO_DESKTOP_URL", " http://example.test/ ")
-	if got := getDefaultSigningAPIURL(); got != "http://example.test" {
-		t.Fatalf("unexpected configured URL %q", got)
+	pinned := NewProxyRepository(proxyScenarioLookup{scenario: "demo"})
+	if pinned.baseURL != "http://example.test" || pinned.resolveBaseURL != nil {
+		t.Fatalf("configured address must remain pinned: base=%q resolver=%v", pinned.baseURL, pinned.resolveBaseURL != nil)
+	}
+}
+
+func TestProxyRepositoryResolvesCurrentPeerPerOperation(t *testing.T) {
+	var requestsA, requestsB atomic.Int32
+	response := func(counter *atomic.Int32) http.HandlerFunc {
+		return func(w http.ResponseWriter, _ *http.Request) {
+			counter.Add(1)
+			_ = json.NewEncoder(w).Encode(signingConfigResponse{Scenario: "demo", Config: &SigningConfig{Enabled: true}})
+		}
+	}
+	serverA := httptest.NewServer(response(&requestsA))
+	defer serverA.Close()
+	serverB := httptest.NewServer(response(&requestsB))
+	defer serverB.Close()
+	var resolutions atomic.Int32
+	repo := NewProxyRepository(proxyScenarioLookup{scenario: "demo"}, WithBaseURLResolver(func(context.Context) (string, error) {
+		if resolutions.Add(1) == 1 {
+			return serverA.URL, nil
+		}
+		return serverB.URL, nil
+	}))
+	for range 2 {
+		if _, err := repo.Get(context.Background(), "profile"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if resolutions.Load() != 2 || requestsA.Load() != 1 || requestsB.Load() != 1 {
+		t.Fatalf("resolutions=%d requests A/B=%d/%d; want 2 and 1/1", resolutions.Load(), requestsA.Load(), requestsB.Load())
+	}
+}
+
+func TestProxyRepositorySharesScenarioURLValidationPolicy(t *testing.T) {
+	for _, value := range []string{"", "ftp://peer.example:18000", "https://user:secret@peer.example", "http://"} {
+		for _, mode := range []string{"configured", "discovered"} {
+			t.Run(mode+"/"+value, func(t *testing.T) {
+				var repo *ProxyRepository
+				if mode == "configured" {
+					repo = NewProxyRepository(proxyScenarioLookup{scenario: "demo"}, WithBaseURL(value))
+				} else {
+					repo = NewProxyRepository(proxyScenarioLookup{scenario: "demo"}, WithBaseURLResolver(func(context.Context) (string, error) { return value, nil }))
+				}
+				if _, err := repo.endpoint(context.Background(), "/health"); err == nil {
+					t.Errorf("signing proxy accepted invalid URL %q", value)
+				}
+			})
+		}
 	}
 }

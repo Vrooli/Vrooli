@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ExperienceSurface, type ExperienceSurfaceState } from "@vrooli/react-component-library/ExperienceSurface/1.0.3";
 import { AmbientShell } from "../components/AmbientShell";
+import { FreshnessTimestamp } from "../components/FreshnessTimestamp";
 import { useBoardController } from "../lib/boardContext";
 import { InkMark } from "@vrooli/react-component-library/ProvenanceInk/0.1.3";
 import { RollingNumber } from "@vrooli/react-component-library/RollingNumber/0.1.6";
@@ -30,6 +31,7 @@ export default function OpenLoopPage() {
       <main className="cc-read" data-testid="open-loop-page">
         <ExperienceSurface surfaceId="blind-spots" as="section" data-testid="open-loop-blind-spots" data-requested-state={forcedState ?? undefined} className="cc-read-main" state={surfaceState} statusMessage={failed ? "The open-loop report is unavailable." : undefined} aria-labelledby="open-loop-title">
           <h2 id="open-loop-title" className="cc-read-title">What the board cannot see</h2>
+          <FreshnessTimestamp label="Open-loop report generated" value={query.data?.generatedAt} loading={query.isLoading} />
           <div className="cc-tally" role="group" aria-label="Open loop tally">
             <div className="cc-tally-item"><RollingNumber value={missing.length} format="compact" ink="dotted" scale="display" /><span>missing cells</span></div>
             <div className="cc-tally-item"><RollingNumber value={unregistered.length} format="compact" ink="dotted" scale="display" /><span>unregistered outcomes</span></div>

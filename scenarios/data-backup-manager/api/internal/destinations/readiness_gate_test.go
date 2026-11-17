@@ -147,6 +147,41 @@ func TestUnevaluableReadinessRefusesCreation(t *testing.T) {
 	}
 }
 
+func TestUnknownCapacityDoesNotBlockDestinationCreation(t *testing.T) {
+	readiness := &stubReadiness{report: destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityUnknown,
+		Checks: []destinationreadiness.CheckResult{{
+			Code:     "capacity",
+			Severity: destinationreadiness.SeverityUnknown,
+			Message:  "target size not selected; capacity fit is unknown",
+		}},
+	}}
+	svc, _ := newGatedService(t, readiness)
+
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err != nil {
+		t.Fatalf("capacity can be checked after a target is selected, got %v", err)
+	}
+}
+
+func TestUnknownFilesystemReadinessStillRefusesCreation(t *testing.T) {
+	readiness := &stubReadiness{report: destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityUnknown,
+		Checks: []destinationreadiness.CheckResult{{
+			Code:     "filesystem_state",
+			Severity: destinationreadiness.SeverityUnknown,
+			Message:  "filesystem health is unavailable",
+		}},
+	}}
+	svc, bundle := newGatedService(t, readiness)
+
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err == nil {
+		t.Fatal("unknown filesystem health must still refuse creation")
+	}
+	if len(bundle.Prepared) != 0 {
+		t.Fatalf("bundle was prepared %d times on an unproven filesystem", len(bundle.Prepared))
+	}
+}
+
 // S3 destinations have no mounted volume to evaluate; the gate must not run.
 func TestGateSkipsNonFilesystemBackends(t *testing.T) {
 	stub := &stubReadiness{report: failingDriverReport()}

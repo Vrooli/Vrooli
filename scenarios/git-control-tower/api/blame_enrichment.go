@@ -30,18 +30,20 @@ func (s *Server) enrichBlame(ctx context.Context, repoDir string, result *BlameR
 				result.Warnings = append(result.Warnings, "agent-manager run context unavailable for "+group.RunID+": "+reportErr.Error())
 			} else {
 				for _, ref := range report.WorkReferences {
-					if ref.Visibility == "private" || ref.State == "private" || ref.State == "expired" {
+					visibility := normalizeEnum(ref.GetVisibility().String(), "WORK_REFERENCE_VISIBILITY_")
+					state := normalizeEnum(ref.GetState().String(), "WORK_REFERENCE_STATE_")
+					if visibility == "private" || state == "private" || state == "expired" {
 						continue
 					}
 					runReferences[group.RunID] = append(runReferences[group.RunID], provenance.WorkRef{
-						Kind: ref.Kind, ID: ref.ID, Revision: ref.Revision, Relationship: ref.Relationship,
-						Verified: ref.Verified, Visibility: ref.Visibility, State: ref.State,
-						UnavailableReason: ref.UnavailableReason,
+						Kind: ref.GetKind(), ID: ref.GetId(), Revision: ref.GetRevision(), Relationship: ref.GetRelationship(),
+						Verified: ref.GetVerified(), Visibility: visibility, State: state,
+						UnavailableReason: ref.GetUnavailableReason(),
 					})
 				}
 				bundle.WorkReferences = append(bundle.WorkReferences, runReferences[group.RunID]...)
-				if report.ReceiptsAvailability.State != "available" {
-					result.Warnings = append(result.Warnings, "receipts "+report.ReceiptsAvailability.State+" for "+group.RunID+": "+report.ReceiptsAvailability.Reason)
+				if report.GetReceiptsAvailability().GetState() != "available" {
+					result.Warnings = append(result.Warnings, "receipts "+report.GetReceiptsAvailability().GetState()+" for "+group.RunID+": "+report.GetReceiptsAvailability().GetReason())
 				}
 			}
 		}

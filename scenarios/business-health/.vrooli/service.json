@@ -118,6 +118,16 @@
         "startup_policy": "try_start",
         "description": "Federated search router. business-health self-registers its `business-health.intent` provider (PRD purpose/OTs + requirements corpus) at boot so search-hub can route capability/intent queries to it.",
         "degraded_behavior": "If search-hub is down at boot, self-registration retries briefly then gives up; local validation, matrix, wizard, and fleet surfaces are unaffected and registration is retried on next boot."
+      },
+      "deployment-manager": {
+        "degraded_behavior": "Without a readiness token validation has no Deployment Manager call; with reporting enabled an unreachable peer returns an explicit unavailable error.",
+        "description": "Optional readiness evidence sink when the owner token is configured.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Business Health uses the generated readiness reporter contract at runtime and imports no Deployment Manager package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     },
     "resources": {

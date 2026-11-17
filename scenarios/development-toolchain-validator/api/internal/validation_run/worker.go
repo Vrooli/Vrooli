@@ -180,6 +180,11 @@ func (w *Worker) processSkillRun(ctx context.Context, r Run, materialized Materi
 		SkillPrompt: skillPrompt,
 	})
 	if err != nil {
+		var approvalPending *AuthorizationApprovalPendingError
+		if errors.As(err, &approvalPending) {
+			w.terminate(ctx, r, vr.VerdictRunFailure, "agent-manager authorization approval pending: "+approvalPending.Error(), RunSummary{StartedAt: startedAt, EndedAt: w.deps.Clock.Now().UTC()})
+			return
+		}
 		var unavailable ErrDependencyUnavailable
 		if errors.As(err, &unavailable) {
 			w.terminate(ctx, r, vr.VerdictRunFailure, err.Error(), RunSummary{StartedAt: startedAt, EndedAt: w.deps.Clock.Now().UTC()})

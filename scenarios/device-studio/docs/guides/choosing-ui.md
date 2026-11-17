@@ -1,6 +1,5 @@
 # Choosing and implementing the UI
 
-## Purpose Of This Document
 
 Apply the accepted guided-plus-advanced studio design while preserving library ownership and honest experience maturity.
 

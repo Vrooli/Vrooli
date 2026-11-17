@@ -1,6 +1,5 @@
 # Performance — Device Studio
 
-## Purpose Of This Document
 
 This document records the performance contract and dated measurements. The app
 implements photographic and physical still/video workflows. The observations below have different scopes and do not imply

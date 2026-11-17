@@ -2,7 +2,7 @@
   "schemaVersion": "agent-workflow/v1",
   "owner": "git-control-tower",
   "key": "git-control-tower/staged-message-deep",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Draft from an initial immutable staged collection or investigate a successful partial draft using bounded metadata inventory and agent-selected representative patches; preserve detailed inspection accounting separately.",
   "inputSchema": {
     "type": "object",
@@ -44,7 +44,7 @@
       "result": {
         "type": "string",
         "maxLength": 30000,
-        "description": "One JSON string containing exactly one <gct_message> XML element plus optional surrounding commentary. GCT ignores text outside that element."
+        "description": "Raw final text containing exactly one <gct_message> XML element, with optional commentary outside it. Git Control Tower extracts and validates the XML element."
       }
     },
     "required": [
@@ -59,17 +59,6 @@
         "profileKey": "git-control-tower/staged-message-deep",
         "promptRef": {
           "skillId": "git-control-tower-staged-message-deep"
-        },
-        "resultSpec": {
-          "version": "result-spec/v1",
-          "kind": "json_schema",
-          "extractionMode": "deterministic_only",
-          "schema": {
-            "type": "string",
-            "maxLength": 30000,
-            "description": "One JSON string containing exactly one <gct_message> XML element plus optional surrounding commentary. GCT ignores text outside that element."
-          },
-          "schemaRepairAttempts": 0
         },
         "bindings": [
           {
@@ -116,12 +105,12 @@
         "bindings": [
           {
             "name": "result",
-            "source": "structured_result",
-            "selector": "$.value",
+            "source": "final_handoff",
+            "selector": "node=draft;$.text",
             "order": "desc",
             "limit": 1,
-            "maxBytes": 61440,
-            "renderAs": "json",
+            "maxBytes": 49152,
+            "renderAs": "text",
             "missingPolicy": "error"
           }
         ]

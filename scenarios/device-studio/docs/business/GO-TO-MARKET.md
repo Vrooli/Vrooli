@@ -1,6 +1,5 @@
 # Go to market — Device Studio
 
-## Purpose Of This Document
 
 Record positioning and qualification before any public launch. This is a proposed product strategy, not permission to publish, message customers or activate an offer.
 

@@ -554,7 +554,7 @@ func (cp *ChartProcessor) generateChartFiles(ctx context.Context, chartID string
 	// Use the real chart renderer. Output lands under renderRootDir, which the
 	// API server serves at renderedURLPrefix so BAS can screenshot PNG exports.
 	renderer := NewChartRenderer(renderRootDir)
-	return renderer.RenderChart(chartID, req)
+	return renderer.RenderChart(ctx, chartID, req)
 }
 
 func (cp *ChartProcessor) generateMockChartFile(filepath, format string, req ChartGenerationProcessorRequest) error {

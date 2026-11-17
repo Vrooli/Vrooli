@@ -22,6 +22,7 @@ import (
 	"code-facts/internal/catalog"
 	internalfacts "code-facts/internal/facts"
 	"code-facts/internal/fswatch"
+	"code-facts/internal/gateway"
 	"code-facts/internal/indexcontrol"
 	"code-facts/internal/retrieval"
 
@@ -196,7 +197,7 @@ func newProductionIndex(db *sql.DB, repoRoot string, admission *internalfacts.We
 		cancels: map[string]context.CancelFunc{},
 	}
 	index.engine = retrieval.HybridEngine{
-		Planner: retrieval.QueryPlanner{}, Lexical: lexical, Semantic: retrieval.GatewaySemanticSearcher{Store: retrieval.NewSQLiteVectorStore(db)}, Freshness: lexical,
+		Planner: retrieval.QueryPlanner{}, Lexical: lexical, Semantic: gateway.GatewaySemanticSearcher{Store: retrieval.NewSQLiteVectorStore(db)}, Freshness: lexical,
 		Admission: admission, Cache: retrieval.NewResultCache(128, 8*1024*1024),
 		Flights: retrieval.NewQueryFlights(), RRFK: 60,
 	}
@@ -1000,7 +1001,7 @@ func (index *ProductionIndex) buildGeneration(ctx context.Context, job *indexcon
 		return fmt.Errorf("record Code Facts embedding generation policy: %w", err)
 	}
 	cardIndexer := retrieval.CardIndexer{
-		Embedder: retrieval.NewGatewayEmbedder(embeddingPolicy.Model, embeddingPolicy.Dimensions, retrieval.TaskPrefixForEmbeddingModel(embeddingPolicy.Model, false)),
+		Embedder: gateway.NewGatewayEmbedder(embeddingPolicy.Model, embeddingPolicy.Dimensions, gateway.TaskPrefixForEmbeddingModel(embeddingPolicy.Model, false)),
 		Store:    index.vectors, Admission: index.admission, BatchSize: 32,
 	}
 	buildRevision, err := index.gitRevision(ctx)

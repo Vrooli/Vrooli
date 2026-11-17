@@ -1,6 +1,5 @@
 # Observability — Device Studio
 
-## Purpose Of This Document
 
 Specify truthful operational visibility. The scaffold health route is real infrastructure; product metrics below are planned.
 

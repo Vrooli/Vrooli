@@ -23,18 +23,24 @@ func newReadinessReporter(ctx context.Context) ReadinessReporter {
 		return nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv(businessHealthReadinessPrefix+"_URL")), "/")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
-		if err != nil {
-			return readinessConfigurationError{err: err}
-		}
-		baseURL = strings.TrimRight(strings.TrimSpace(resolved), "/")
+	if baseURL != "" {
+		return newReadinessReporterFor(baseURL)
 	}
-	return newReadinessReporterFor(baseURL)
+	return newReadinessReporterWithResolver()
 }
 
 func newReadinessReporterFor(baseURL string) ReadinessReporter {
 	reporter, err := readinessreporter.NewFromEnv(baseURLPrefix(), baseURL, "requirements-cover-sale", "business-health.requirements.readiness", "business-health")
+	if err != nil {
+		return readinessConfigurationError{err: err}
+	}
+	return reporter
+}
+
+func newReadinessReporterWithResolver() ReadinessReporter {
+	reporter, err := readinessreporter.NewFromEnvResolver(baseURLPrefix(), func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+	}, "requirements-cover-sale", "business-health.requirements.readiness", "business-health")
 	if err != nil {
 		return readinessConfigurationError{err: err}
 	}

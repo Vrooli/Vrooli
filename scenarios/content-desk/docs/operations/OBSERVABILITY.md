@@ -12,7 +12,6 @@ declared by authors, and operator approval latency. That last one is the health
 metric for the whole scenario — if approval gets slow, the simplification it
 enables stalls behind it.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

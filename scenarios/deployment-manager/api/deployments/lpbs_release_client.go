@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"deployment-manager/shared"
 	"github.com/vrooli/api-core/discovery"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
@@ -182,10 +183,11 @@ func (r *LPBSVerifyResult) UnmarshalJSON(data []byte) error {
 
 // HTTPLPBSReleaseClient is the default LPBS release client over HTTP.
 type HTTPLPBSReleaseClient struct {
-	httpClient    *http.Client
-	baseURL       string
-	serviceSecret string
-	log           func(string, map[string]interface{})
+	httpClient     *http.Client
+	baseURL        string
+	resolveBaseURL func(context.Context) (string, error)
+	serviceSecret  string
+	log            func(string, map[string]interface{})
 }
 
 // LPBSClientConfig options for constructing the LPBS client. Base URL and
@@ -200,28 +202,22 @@ type LPBSClientConfig struct {
 	ResolveServiceSecret func() (string, error)
 }
 
-// NewHTTPLPBSReleaseClient creates a new HTTP LPBS release client.
-// It resolves the LPBS URL through scenario discovery and the shared service
-// secret through the credential authority, and logs a warning if the service
-// credential is still missing so misconfig is visible.
+// NewHTTPLPBSReleaseClient creates a new HTTP LPBS release client. Explicit
+// URLs stay pinned; discovered URLs are resolved for each operation. The
+// shared service secret is resolved once through the credential authority.
 func NewHTTPLPBSReleaseClient(cfg LPBSClientConfig) (*HTTPLPBSReleaseClient, error) {
 	base := strings.TrimSpace(cfg.BaseURL)
 	if base == "" {
 		base = strings.TrimSpace(os.Getenv("LPBS_BASE_URL"))
 	}
+	var resolveBaseURL func(context.Context) (string, error)
 	if base == "" {
-		resolve := cfg.ResolveBaseURL
-		if resolve == nil {
-			resolve = defaultLPBSScenarioURL
+		resolveBaseURL = cfg.ResolveBaseURL
+		if resolveBaseURL == nil {
+			resolveBaseURL = defaultLPBSScenarioURL
 		}
-		resolved, err := resolve(context.Background())
-		if err != nil {
-			return nil, fmt.Errorf("LPBS base URL is not configured and %s could not be discovered: %w", LPBSScenarioSlug, err)
-		}
-		base = strings.TrimSpace(resolved)
-	}
-	if base == "" {
-		return nil, fmt.Errorf("LPBS base URL not configured (set LPBS_BASE_URL, pass BaseURL, or make %s discoverable)", LPBSScenarioSlug)
+	} else {
+		base = strings.TrimSpace(base)
 	}
 	log := cfg.Log
 	if log == nil {
@@ -251,11 +247,28 @@ func NewHTTPLPBSReleaseClient(cfg LPBSClientConfig) (*HTTPLPBSReleaseClient, err
 		})
 	}
 	return &HTTPLPBSReleaseClient{
-		httpClient:    &http.Client{Timeout: 60 * time.Second},
-		baseURL:       strings.TrimRight(base, "/"),
-		serviceSecret: secret,
-		log:           log,
+		httpClient:     &http.Client{Timeout: 60 * time.Second},
+		baseURL:        strings.TrimRight(base, "/"),
+		resolveBaseURL: resolveBaseURL,
+		serviceSecret:  secret,
+		log:            log,
 	}, nil
+}
+
+func (c *HTTPLPBSReleaseClient) endpoint(ctx context.Context, path string) (string, error) {
+	base := strings.TrimSpace(c.baseURL)
+	if c.resolveBaseURL != nil {
+		resolved, err := c.resolveBaseURL(ctx)
+		if err != nil {
+			return "", fmt.Errorf("resolve %s: %w", LPBSScenarioSlug, err)
+		}
+		base = strings.TrimSpace(resolved)
+	}
+	validated, err := shared.ValidateServiceURL(base)
+	if err != nil {
+		return "", fmt.Errorf("%s URL: %w", LPBSScenarioSlug, err)
+	}
+	return validated + path, nil
 }
 
 // lazyLPBSReleaseClient resolves the LPBS owner on first successful use. The
@@ -328,12 +341,16 @@ var (
 
 // CheckDeployReadiness calls POST /api/v1/deploy-readiness with service auth.
 func (c *HTTPLPBSReleaseClient) CheckDeployReadiness(ctx context.Context, req *LPBSReadinessRequest) (*LPBSReadinessResult, error) {
+	endpoint, err := c.endpoint(ctx, "/api/v1/deploy-readiness")
+	if err != nil {
+		return nil, err
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal: %w", err)
 	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		c.baseURL+"/api/v1/deploy-readiness", bytes.NewReader(body))
+		endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
@@ -417,8 +434,10 @@ func (c *HTTPLPBSReleaseClient) Verify(ctx context.Context, req *LPBSVerifyReque
 		q.Set("deep", "true")
 	}
 
-	endpoint := fmt.Sprintf("%s/api/v1/updates/%s/verify?%s",
-		c.baseURL, url.PathEscape(req.AppKey), q.Encode())
+	endpoint, err := c.endpoint(ctx, fmt.Sprintf("/api/v1/updates/%s/verify?%s", url.PathEscape(req.AppKey), q.Encode()))
+	if err != nil {
+		return nil, err
+	}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -477,7 +496,11 @@ func (c *HTTPLPBSReleaseClient) HaltChannel(ctx context.Context, req *LPBSRecove
 	if err != nil {
 		return nil, fmt.Errorf("marshal channel halt: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/admin/download-channels/halt", bytes.NewReader(body))
+	endpoint, err := c.endpoint(ctx, "/api/v1/admin/download-channels/halt")
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build channel halt request: %w", err)
 	}
@@ -527,7 +550,11 @@ func (c *HTTPLPBSReleaseClient) RecoverChannel(ctx context.Context, req *LPBSRec
 	if err != nil {
 		return nil, fmt.Errorf("marshal channel recovery: %w", err)
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/admin/download-channels/recover", bytes.NewReader(body))
+	endpoint, err := c.endpoint(ctx, "/api/v1/admin/download-channels/recover")
+	if err != nil {
+		return nil, err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("build channel recovery request: %w", err)
 	}

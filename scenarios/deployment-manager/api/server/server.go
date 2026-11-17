@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/discovery"
+
 	"deployment-manager/build"
 	"deployment-manager/bundles"
 	"deployment-manager/codesigning"
@@ -64,30 +66,31 @@ type Server struct {
 	releaseDecisionReconciler *internalReleaseDecision.Reconciler
 
 	// Domain handlers
-	HealthHandler            *health.Handler
-	FitnessHandler           *fitness.Handler
-	TelemetryHandler         *telemetry.Handler
-	SecretsHandler           *secrets.Handler
-	DependenciesHandler      *dependencies.Handler
-	SwapsHandler             *swaps.Handler
-	DeploymentsHandler       *deployments.Handler
-	BundlesHandler           *bundles.Handler
-	ProfilesHandler          *profiles.Handler
-	SigningHandler           *codesigning.Handler
-	BuildHandler             *build.Handler
-	ApprovalsHandler         *deployments.ApprovalsHandler
-	PublishedVersionsHandler *deployments.PublishedVersionsHandler
-	LPBSConfigHandler        *profiles.LPBSConfigHandler
-	ReleasesHandler          *releases.Handler
-	MigrationTasksHandler    *migrationtasks.Handler
-	EvidencePath             string
-	EvidenceHandler          http.Handler
-	ProfilesConnectPath      string
-	ProfilesConnectHandler   http.Handler
-	ConnectRoutes            []transport.Route
-	Orchestrator             *deployments.Orchestrator
-	Handler                  http.Handler
-	DecisionWebhookHandler   http.Handler
+	HealthHandler              *health.Handler
+	FitnessHandler             *fitness.Handler
+	TelemetryHandler           *telemetry.Handler
+	SecretsHandler             *secrets.Handler
+	DependenciesHandler        *dependencies.Handler
+	SwapsHandler               *swaps.Handler
+	DeploymentsHandler         *deployments.Handler
+	BundlesHandler             *bundles.Handler
+	ProfilesHandler            *profiles.Handler
+	SigningHandler             *codesigning.Handler
+	BuildHandler               *build.Handler
+	ApprovalsHandler           *deployments.ApprovalsHandler
+	PublishedVersionsHandler   *deployments.PublishedVersionsHandler
+	LPBSConfigHandler          *profiles.LPBSConfigHandler
+	ReleasesHandler            *releases.Handler
+	MigrationTasksHandler      *migrationtasks.Handler
+	EvidencePath               string
+	EvidenceHandler            http.Handler
+	ProfilesConnectPath        string
+	ProfilesConnectHandler     http.Handler
+	ConnectRoutes              []transport.Route
+	Orchestrator               *deployments.Orchestrator
+	Handler                    http.Handler
+	DecisionWebhookHandler     http.Handler
+	decisionSubscriptionTarget string
 
 	// Repositories
 	ProfilesRepo      profiles.Repository
@@ -524,17 +527,10 @@ func New() (*Server, error) {
 	} else {
 		srv.DecisionWebhookHandler = readinesshandler.DecisionResolvedWebhook(webhookSecret, releaseDecisionResolver)
 		// Deliveries only reach the webhook when a vrooli-events subscription routes
-		// notification-hub ask resolutions to it. Reconcile it in the background so a
-		// missing subscription does not block startup.
+		// notification-hub ask resolutions to it. Start owns its bounded periodic
+		// reconciler so an Events restart can recover without restarting this server.
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
-			target := "http://127.0.0.1:" + port + readinesshandler.DecisionEventWebhookPath
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				if err := reconcileDecisionEventSubscription(ctx, target); err != nil {
-					logFn("release decision answer subscription reconciliation failed", map[string]interface{}{"error": err.Error()})
-				}
-			}()
+			srv.decisionSubscriptionTarget = "http://127.0.0.1:" + port + readinesshandler.DecisionEventWebhookPath
 		}
 	}
 
@@ -660,6 +656,15 @@ func (s *Server) Start() error {
 			case res != (internalReleaseDecision.Result{}):
 				LogStructured("release decision reconcile", map[string]interface{}{"lapsed": res.Lapsed, "cleared": res.Cleared, "replaced": res.Replaced, "republished": res.Republished})
 			}
+		})
+	}
+	if s.decisionSubscriptionTarget != "" && s.DecisionWebhookHandler != nil {
+		go runDecisionEventSubscriptionReconciler(ctx, s.decisionSubscriptionTarget, func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "vrooli-events")
+		}, decisionSubscriptionCycle, decisionSubscriptionWindow, 500*time.Millisecond, nil, func(err error) {
+			LogStructured("release decision answer subscription reconciliation failed; retry scheduled", map[string]interface{}{
+				"error": err.Error(), "retry_after": decisionSubscriptionCycle.String(),
+			})
 		})
 	}
 

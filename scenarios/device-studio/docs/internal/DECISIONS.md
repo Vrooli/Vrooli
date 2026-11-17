@@ -1,6 +1,5 @@
 # Decisions — Device Studio
 
-## Purpose Of This Document
 
 Preserve accepted choices and their rationale. Historical research snapshots remain evidence; this document and PRD express current intent.
 

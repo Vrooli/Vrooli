@@ -3,6 +3,8 @@ package retrieval
 
 import "context"
 
+const EmbeddingRole = "embedding.default"
+
 type Regime string
 
 const (
@@ -13,16 +15,16 @@ const (
 )
 
 type Query struct {
-	Text           string
-	Target         string
-	Scope          string
-	Roles          []string
-	Families       []string
-	Languages      []string
-	Generation     string
-	EmbeddingModel string
+	Text                string
+	Target              string
+	Scope               string
+	Roles               []string
+	Families            []string
+	Languages           []string
+	Generation          string
+	EmbeddingModel      string
 	EmbeddingDimensions int
-	Limit          int
+	Limit               int
 }
 
 type RankEvidence struct {

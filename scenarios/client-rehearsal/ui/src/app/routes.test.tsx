@@ -10,11 +10,6 @@ import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { TestAppRouter } from "./routes";
 
-// The settings route mounts the library notification card, which loads its
-// catalogue after render; shell and routing assertions do not depend on it.
-vi.mock("@vrooli/react-component-library/AppNotificationSettings/1", () => ({ AppNotificationSettings: () => null }));
-
-
 describe("AppRouter", () => {
   afterEach(() => {
     cleanup();

@@ -144,6 +144,16 @@
         "startup_policy": "try_start",
         "description": "Code-facts uses TypeScript Code Graph as the analyzer backend for TypeScript source graph extraction.",
         "degraded_behavior": "TypeScript graph fact families are unavailable for targets that require TypeScript analyzer execution."
+      },
+      "ai-gateway": {
+        "degraded_behavior": "semantic mode is omitted or reports degraded semantic results while lexical search continues",
+        "description": "Optional Connect embedding provider for semantic code search; lexical search remains available when absent",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Semantic embeddings are a runtime-only enhancement and Code Facts degrades to lexical results if the gateway is unavailable; it is not required to start or index",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

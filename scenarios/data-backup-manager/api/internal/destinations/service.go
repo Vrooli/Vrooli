@@ -459,7 +459,20 @@ func (s *service) gateOnReadiness(ctx context.Context, location string, acknowle
 		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: check.Message + "; " + check.NextAction}
 	}
 	if report.OverallSeverity == destinationreadiness.SeverityUnknown || report.OverallSeverity == "" {
-		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: "destination readiness is unknown; establish the current mounted-volume identity and filesystem health before creating a repository"}
+		// Capacity is intentionally unknown until a plan selects its targets.
+		unknownReadiness := false
+		unknownChecks := 0
+		for _, check := range report.Checks {
+			if check.Severity == destinationreadiness.SeverityUnknown {
+				unknownChecks++
+				if check.Code != "capacity" {
+					unknownReadiness = true
+				}
+			}
+		}
+		if unknownReadiness || unknownChecks == 0 {
+			return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: "destination readiness is unknown; establish the current mounted-volume identity and filesystem health before creating a repository"}
+		}
 	}
 
 	if report.OverallSeverity != destinationreadiness.SeverityFail || acknowledged {

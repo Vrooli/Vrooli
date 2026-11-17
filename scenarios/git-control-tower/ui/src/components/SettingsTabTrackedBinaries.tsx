@@ -25,11 +25,9 @@ export function formatBytes(bytes: number): string {
  * Compiled executables committed to git. They are build output: large,
  * unmergeable, platform-specific, and stale the moment their source changes.
  *
- * The fix button removes the file from the index and adds it to the owning
- * scenario's .gitignore, so the next build does not re-stage it. It deliberately
- * does NOT claim to reclaim space -- the bytes stay in history until someone
- * rewrites it, and the panel says so rather than implying a cleanup that did
- * not happen.
+ * The fix keeps the file on disk, removes it from the index, and adds a rule to
+ * the owning group's .gitignore so the next build does not re-stage it. It does
+ * not reclaim space: committed bytes stay in history until history is rewritten.
  */
 export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSectionProps) {
   const query = useTrackedBinaries(repoId);
@@ -53,7 +51,7 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
     );
   };
 
-  const heading = <h3 className={`font-semibold text-slate-200 ${textSm}`}>Tracked files to remove</h3>;
+  const heading = <h3 className={`font-semibold text-slate-200 ${textSm}`}>Large or generated files tracked in Git</h3>;
 
   if (query.isLoading) {
     return (
@@ -68,7 +66,7 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
     return (
       <div className="space-y-4">
         {heading}
-        <p className={`${textXs} text-red-400`}>Failed to scan for tracked binaries: {query.error.message}</p>
+        <p className={`${textXs} text-red-400`}>Failed to scan for large or generated tracked files: {query.error.message}</p>
       </div>
     );
   }
@@ -132,6 +130,9 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
                 <span className="break-all">ignore in {ignoreTarget}</span>
                 {binary.already_ignored && <span className="text-slate-600">&middot; already ignored</span>}
               </p>
+              <p className={`${textXs} text-slate-400`}>
+                This keeps the local file, removes it from the Git index, and adds the rule to {ignoreTarget}.
+              </p>
               <div className="flex justify-end">
                 <Button
                   variant="outline"
@@ -140,7 +141,7 @@ export function TrackedBinariesSection({ isMobile, repoId }: TrackedBinariesSect
                   onClick={() => handleUntrack(binary)}
                   disabled={busy}
                 >
-                  {pendingPath === binary.path ? "Untracking…" : "Untrack & ignore"}
+                  {pendingPath === binary.path ? "Untracking…" : "Keep local & untrack"}
                 </Button>
               </div>
             </div>

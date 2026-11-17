@@ -2,6 +2,7 @@ package studio
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -130,6 +131,52 @@ func TestGatewayVideoDispatcherUsesOneDurableWait(t *testing.T) { // [REQ:ASSET-
 	}
 	if !submitted || !waited || got.Backend != "ai-gateway" || got.ActualCost != 0.24 || got.Outputs[0].MediaType != "video/mp4" {
 		t.Fatalf("video result=%#v submitted=%t waited=%t", got, submitted, waited)
+	}
+}
+
+func TestGatewayVideoDispatcherRejectsUnboundOrInvalidReceipt(t *testing.T) {
+	tests := []struct {
+		name, executionID, mediaType string
+		cost                         float64
+		costPresent                  bool
+		outputs                      int
+	}{
+		{name: "wrong execution identity", executionID: "other-execution", mediaType: "video/mp4", cost: 0.1, costPresent: true, outputs: 1},
+		{name: "non-video output", executionID: "video-1", mediaType: "image/png", cost: 0.1, costPresent: true, outputs: 1},
+		{name: "output count mismatch", executionID: "video-1", mediaType: "video/mp4", cost: 0.1, costPresent: true, outputs: 2},
+		{name: "negative cost", executionID: "video-1", mediaType: "video/mp4", cost: -0.1, costPresent: true, outputs: 1},
+		{name: "missing cost", executionID: "video-1", mediaType: "video/mp4", outputs: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/vrooli.ai_gateway.v1.routing.RoutingService/SubmitMedia" {
+					_, _ = io.WriteString(w, `{"execution":{"executionId":"video-1","status":"MEDIA_EXECUTION_STATUS_QUEUED"}}`)
+					return
+				}
+				outputs := make([]map[string]string, tt.outputs)
+				for i := range outputs {
+					outputs[i] = map[string]string{"reference": "media://video.mp4", "mediaType": tt.mediaType}
+				}
+				execution := map[string]any{
+					"executionId": tt.executionID, "status": "MEDIA_EXECUTION_STATUS_SUCCEEDED", "actualCostUsd": tt.cost,
+					"resolvedModel": "resource-video", "outputs": outputs,
+				}
+				if !tt.costPresent {
+					delete(execution, "actualCostUsd")
+				}
+				body, err := json.Marshal(map[string]any{"execution": execution})
+				if err != nil {
+					t.Fatal(err)
+				}
+				_, _ = w.Write(body)
+			}))
+			defer server.Close()
+			_, err := (&GatewayVideoDispatcher{BaseURL: server.URL, Client: server.Client()}).Dispatch(context.Background(), RenderDispatchRequest{RenderID: "render-video", Prompt: "product orbit", CandidateCount: 1, Producer: ProducerVideo})
+			if err == nil {
+				t.Fatal("invalid Gateway receipt was accepted")
+			}
+		})
 	}
 }
 

@@ -162,9 +162,10 @@ export function StatusHeader({
           onClick={onOpenSettings}
           aria-label={
             displayedHealthIssueCount > 0
-              ? `Open settings (${displayedHealthIssueCount} health ${displayedHealthIssueCount === 1 ? "issue" : "issues"})`
+              ? `Review repository health (${displayedHealthIssueCount} ${displayedHealthIssueCount === 1 ? "issue" : "issues"})`
               : "Open settings"
           }
+          title={displayedHealthIssueCount > 0 ? "Review repository health issues" : "Open settings"}
           data-testid="settings-button"
         >
           <span className="relative inline-flex">

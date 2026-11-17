@@ -293,3 +293,28 @@ func waitFor(t *testing.T, cond func() bool, timeout time.Duration) {
 	}
 	t.Fatalf("waitFor: condition did not become true within %s", timeout)
 }
+
+func TestWorker_SkillRun_ApprovalPendingIsDefinitiveRunFailure(t *testing.T) {
+	deps, repo, _ := newWorkerDeps(t)
+	deps.AgentMgr = &vrunmocks.FakeAgentManager{
+		StartErr: &vrun.AuthorizationApprovalPendingError{Subject: "development-toolchain-validator", Detail: "operator approval pending"},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, repo.Create(ctx, vrun.Run{
+		ID: "r-approval", TupleKind: vr.TupleKindSkill, SubjectID: "plan-skill", GoldenSlug: "ref",
+		Status: vrun.StatusQueued, CreatedAt: deps.Clock.Now(),
+	}))
+	w := vrun.NewWorker(deps, vrun.WorkerConfig{PollInterval: 50 * time.Millisecond})
+	go w.Run(ctx)
+	w.Notify()
+	waitFor(t, func() bool {
+		got, err := repo.Get(context.Background(), "r-approval")
+		return err == nil && got.Status == vrun.StatusTerminal
+	}, 3*time.Second)
+	got, err := repo.Get(context.Background(), "r-approval")
+	require.NoError(t, err)
+	require.Equal(t, vr.VerdictRunFailure, got.TerminalVerdict)
+	require.Contains(t, got.ErrorMessage, "authorization approval pending")
+	require.Contains(t, got.ErrorMessage, "operator approval pending")
+}

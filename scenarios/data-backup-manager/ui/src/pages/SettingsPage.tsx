@@ -2,6 +2,7 @@ import { selectors } from "../consts/selectors";
 import { strings, type StringKey } from "../consts/strings";
 import { SUPPORTED_LOCALES, getCurrentLocale, getLocaleConfig, setLocale, useTranslation } from "../i18n";
 import { useTheme, type ThemeChoice } from "../theme/ThemeProvider";
+import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 
@@ -82,6 +83,14 @@ export function SettingsPage() {
           ))}
         </div>
       </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className="text-sm font-semibold uppercase text-app-muted-foreground">
+          {t(strings.pages.settings.notificationsHeading)}
+        </h3>
+        <AppNotificationSettings />
+      </div>
+
     </section>
   );
 }

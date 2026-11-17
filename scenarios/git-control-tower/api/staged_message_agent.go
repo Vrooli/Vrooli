@@ -394,6 +394,13 @@ func (p *stagedMessageAgent) project(ctx context.Context, client stagedMessageWo
 	if reason := e.GetTerminalReason(); reason != nil {
 		out.ErrorCode = reason.GetCode()
 		out.Retryable = reason.GetRetryable()
+		if reason.GetCode() == "structured_result_invalid" {
+			// Legacy staged-message revisions required JSON even when the agent
+			// returned the new XML contract. A new GCT retry adopts the saved input
+			// under the active raw-handoff revision, so this format failure is
+			// recoverable without changing the staged selection.
+			out.Retryable = true
+		}
 		if reason.GetCode() == "provider_admission_maintenance" {
 			out.Error = "Agent execution is paused for Workspace Sandbox maintenance; no agent work started."
 			out.ExecutionStarted = false

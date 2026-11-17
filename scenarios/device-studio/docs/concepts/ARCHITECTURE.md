@@ -1,6 +1,5 @@
 # Architecture — Device Studio
 
-## Purpose Of This Document
 
 Foundation contract with implementation status updated 2026-10-20. The project workspace and photographic still workflow have retained product evidence; video, native motion and the broader release remain in development. Target behavior below is not a release-completion claim.
 

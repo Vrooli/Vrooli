@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // Get ports from environment variables. The default lives here rather than in
 // the npm script: package scripts run through cmd.exe on Windows, which cannot
@@ -11,7 +12,7 @@ const API_BASE_URL = `http://localhost:${API_PORT}`;
 const WS_BASE_URL = `ws://localhost:${API_PORT}`;
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   preview: {
     port: UI_PORT,
     host: true,

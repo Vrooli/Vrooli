@@ -1,6 +1,5 @@
 # Component library adoption and gaps
 
-## Purpose Of This Document
 
 Separate shared components from product-specific controls. The scoped top-navigation adaptation below is scenario-owned; it does not authorize editing a shared release or creating a new component release.
 

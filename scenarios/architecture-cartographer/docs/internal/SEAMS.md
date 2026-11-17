@@ -33,6 +33,23 @@ clients are the seam at the wire boundary. REST remains intentional
 only where the payload is not proto-typed, such as multipart file
 uploads; the response metadata still uses generated proto types.
 
+## Production transport inventory
+
+- API ingress mounts generated Connect handlers for the scenario's graph,
+  domains, conflicts, signals, apply, analytics, audit, campaign, search,
+  search-control, and scenario-validation services.
+- UI domain APIs and CLI RPC bindings use generated service clients. The UI's
+  only REST request is `/health`, an operational probe parsed with generated
+  health and error-envelope schemas.
+- Outbound Code Facts surface and graph reads use generated
+  `CodeFactsService` clients. They resolve the scenario URL per operation and
+  retain a local surface fallback only for the explicitly partial inventory
+  behavior covered by `internal/domains/factsclient_test.go`.
+
+There are no multipart or other production REST exceptions in this scenario.
+The unused generic multipart helper and its fixture test were removed from the
+UI client; they described a notes attachment route this scenario does not own.
+
 If a piece of production code reaches for `time.Now()`, `*sql.DB`, or
 the network without going through one of the entries below, that's a
 new seam that hasn't been declared yet. Declaring it is the work — the
@@ -458,20 +475,20 @@ the goal is the same: production wires once, tests substitute.
 | | |
 |---|---|
 | **Seam** | Single Connect-Web transport factory for proto-typed UI API calls |
-| **Module** | `ui/src/api/client.ts` exports `transport` from `@vrooli/api-base::createScenarioConnectTransport`, plus REST-only helpers (`ApiError`, `decodeApiError`, `makeApiError`, `uploadFile`) for multipart exceptions. |
-| **Production wiring** | Every proto-typed domain client imports `transport` and constructs a generated client with `createClient(<Service>, transport)`. REST multipart helpers use `uploadFile()` and parse the metadata response with the generated proto descriptor. |
-| **Test fake** | Component tests mock `api/<domain>` modules or typed client methods. REST helper tests stub `global.fetch` directly. Connect behavior is covered at the API boundary by the generated client and focused module tests. |
-| **Why it exists** | Per-domain clients should not know URL suffix rules, fetch setup, or proto JSON parse details. Connect-Web centralizes those choices, while the REST helpers make the binary-upload exception explicit instead of becoming a second general transport pattern. |
+| **Module** | `ui/src/api/client.ts` exports `transport` from `@vrooli/api-base::createScenarioConnectTransport`, plus typed `ApiError` parsing for the REST health probe. |
+| **Production wiring** | Every proto-typed domain client imports `transport` and constructs a generated client with `createClient(<Service>, transport)`. `ui/src/api/health.ts` calls `/health` as an operational probe and parses the generated response and error-envelope schemas. |
+| **Test fake** | Component tests mock `api/<domain>` modules or typed client methods. Health and error-envelope tests use constructed `Response` values; Connect behavior is covered at the API boundary by generated clients and focused module tests. |
+| **Why it exists** | Per-domain clients do not know URL suffix rules or fetch setup. Connect-Web centralizes proto RPC transport; the one REST request stays limited to the probe infrastructure must reach without a generated client. |
 
 ### `api/<domain>` (per-domain client modules)
 
 | | |
 |---|---|
-| **Seam** | UI ↔ API per-domain endpoints (canonical CRUD reference: `api/notes.ts`) |
-| **Module** | `ui/src/api/notes.ts` exports `notesClient = createClient(NotesService, transport)` and `uploadAttachment(...)` for the multipart REST exception. |
-| **Production wiring** | Feature components wire generated client methods through `useQuery` / `useMutation`, for example `notesClient.listNotes({})` and `notesClient.createNote({ title, body })`. Multipart flows call `uploadAttachment`, which uses `FormData` plus `uploadFile()` and returns generated metadata. |
-| **Test fake** | Component tests use inline `vi.mock("./api/notes", async (importOriginal) => ...)` and replace `notesClient` methods or `uploadAttachment`. Factories build generated proto types, including `Timestamp` values. |
-| **Why it exists** | The canonical per-domain client pattern. Mirror this shape when adding a second domain client: export the generated Connect client, keep binary-upload helpers beside it when needed, and let components consume typed results rather than hand-written response interfaces. |
+| **Seam** | UI ↔ API per-domain RPC clients |
+| **Module** | `ui/src/api/{analytics,apply,campaign,conflicts,domains,graph,health,signals}.ts` exports generated Connect clients, plus the health probe. |
+| **Production wiring** | Feature components wire generated service methods through `useQuery` / `useMutation`. No API domain uses multipart upload or a handwritten response interface. |
+| **Test fake** | Component tests mock per-domain API modules or typed client methods. `graph.test.ts` checks its generated client exposes the service RPCs; other domain contract behavior is covered at the API handlers. |
+| **Why it exists** | UI operations consume the proto service descriptors directly, keeping RPC paths and message types out of feature code. |
 
 ### ErrorBoundary (render-error catch)
 

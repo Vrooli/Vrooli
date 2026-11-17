@@ -1,7 +1,6 @@
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Select } from "@vrooli/react-component-library/Select/1";
 import { SettingsList } from "@vrooli/react-component-library/SettingsList/1";
-import { AppNotificationSettings } from "@vrooli/react-component-library/AppNotificationSettings/1";
 
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -51,9 +50,6 @@ export function SettingsPage() {
           </SettingsList.Row>
         </SettingsList.Group>
       </SettingsList>
-      {/* This scenario's notification settings. Renders nothing until
-          .vrooli/notifications.json sets "appDelivery": true. */}
-      <AppNotificationSettings />
     </section>
   );
 }

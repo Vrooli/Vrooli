@@ -510,7 +510,7 @@ func runUpdateTags(core *cliapp.ScenarioApp, args []string) error {
 		}
 		body = raw
 	} else {
-		body = map[string]interface{}{"tags": splitCSV(*tags)}
+		body = map[string]interface{}{"tags": cliutil.ParseCSV(*tags)}
 	}
 	if _, err := core.Request("PUT", "/apis/"+id+"/tags", nil, body); err != nil {
 		return err
@@ -782,22 +782,6 @@ func recipeRows(list []support.Recipe) []string {
 			r.Name, support.ShortID(r.ID), orDash(r.DifficultyLevel), r.Rating, r.TimesUsed))
 	}
 	return rows
-}
-
-func splitCSV(value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 func orDash(value string) string {

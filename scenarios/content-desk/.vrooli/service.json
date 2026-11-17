@@ -152,6 +152,16 @@
         "startup_policy": "try_start",
         "description": "Executes the governed content-desk.board-read declared program that backs the browser /api/v1/board read.",
         "degraded_behavior": "The /api/v1/board edge returns unavailable; the direct Connect reads (campaigns, drafts, capabilities) still work and the CLI board read remains available."
+      },
+      "deployment-manager": {
+        "degraded_behavior": "Launch asset data remains available; when reporting is enabled an unreachable peer returns an explicit unavailable error.",
+        "description": "Optional readiness evidence sink when the owner token is configured.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Content Desk uses the generated readiness reporter contract at runtime and imports no Deployment Manager package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

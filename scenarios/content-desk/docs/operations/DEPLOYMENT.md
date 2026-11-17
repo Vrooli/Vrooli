@@ -16,7 +16,6 @@ no tenancy model, no hosted credential surface, and evidence checks that run as
 ordinary local tool use instead of arbitrary remote code execution. A hosted
 product would reopen all three at once.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

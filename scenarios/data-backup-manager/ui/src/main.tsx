@@ -1,5 +1,6 @@
 import { SpatialNavProvider } from "@vrooli/iframe-bridge/react";
 import { LibraryStringsProvider } from "@vrooli/react-component-library/useLocale/1";
+import { initAppNotifications } from "@vrooli/react-component-library/AppNotificationSettings/1";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -43,6 +44,9 @@ if (!rootEl) {
 const appRoot = rootEl;
 
 const queryClient = new QueryClient();
+
+// Re-confirm the installed app and honor notification taps that open DBM.
+initAppNotifications();
 
 async function bootstrap() {
   const [{ ErrorBoundary }, { onProfilerRender }] = await Promise.all([

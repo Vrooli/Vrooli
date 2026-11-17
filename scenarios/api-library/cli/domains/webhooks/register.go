@@ -87,7 +87,7 @@ func runCreate(core *cliapp.ScenarioApp, args []string) error {
 		}
 		body = map[string]interface{}{
 			"url":    *url,
-			"events": splitCSV(*events),
+			"events": cliutil.ParseCSV(*events),
 		}
 	}
 
@@ -157,20 +157,4 @@ func runTest(core *cliapp.ScenarioApp, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, report)
 	}
 	return cliapp.RenderMutationReport(os.Stdout, report)
-}
-
-func splitCSV(value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }

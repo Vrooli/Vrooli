@@ -10,7 +10,6 @@ history. The one path with real cost is the scheduled claim re-verification
 sweep, which executes stored commands and grows with the claim library rather
 than with drafts. Budget it when it exists.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
