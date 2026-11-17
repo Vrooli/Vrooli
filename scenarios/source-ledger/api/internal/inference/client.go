@@ -1,4 +1,4 @@
-// Package inference is Vrooli Memory's only boundary for model inference.
+// Package inference is Source Ledger's only boundary for model inference.
 package inference
 
 import (
@@ -7,10 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
 	aisearch "github.com/vrooli/ai-go/search"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -20,6 +23,9 @@ const (
 	EmbeddingRole      = "embedding.default"
 	ClassificationRole = "classify.routing"
 	SummaryRole        = "summarize.default"
+	// privacyProvenance identifies the internal journal source and its
+	// classification basis without including corpus content.
+	privacyProvenance = "source_ledger.internal_journal"
 	// Text generation routinely takes longer than a small embedding request on
 	// local models.  Leaving this at the gateway's short provider default turns
 	// normal cold-start latency into breaker failures.
@@ -90,7 +96,26 @@ type (
 type GatewayClient struct {
 	routing    routingconnect.RoutingServiceClient
 	vocabulary VocabularyProvider
+	// inflight and lastDone describe foreground calls only, so background
+	// indexing can step aside for recall, journal and rule work.
+	inflight atomic.Int32
+	lastDone atomic.Int64
+	// batch, when set, embeds many texts per call through ai-gateway's
+	// local-only InferenceService.Embed (the file corpus's bulk path).
+	batch inferenceconnect.InferenceServiceClient
 }
+
+// WithBatchEmbedding enables EmbedBatch through ai-gateway's typed,
+// local-only embedding RPC.
+func (c *GatewayClient) WithBatchEmbedding(client inferenceconnect.InferenceServiceClient) *GatewayClient {
+	c.batch = client
+	return c
+}
+
+// idleGap is how long foreground inference must have been quiet before a
+// background embedding starts. Searches arrive in bursts (Search Hub fans
+// out), so one quiet gap covers the burst.
+const idleGap = 2 * time.Second
 
 func NewGatewayClient(routing routingconnect.RoutingServiceClient, vocabulary ...VocabularyProvider) *GatewayClient {
 	c := &GatewayClient{routing: routing}
@@ -105,6 +130,94 @@ func (c *GatewayClient) Embed(ctx context.Context, text string, task EmbeddingTa
 	if err != nil {
 		return nil, err
 	}
+	return decodeEmbedding(output)
+}
+
+// EmbedWhenIdle embeds a document for background indexing. It waits until no
+// foreground call is running and none finished within idleGap, and it is not
+// itself counted as foreground, so interactive work never queues behind it.
+func (c *GatewayClient) EmbedWhenIdle(ctx context.Context, text string) ([]float64, error) {
+	if err := c.waitIdle(ctx); err != nil {
+		return nil, err
+	}
+	output, err := c.route(ctx, sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, EmbeddingRole, embeddingInput(EmbeddingDocument, text), EmbeddingTimeout, 0)
+	if err != nil {
+		return nil, err
+	}
+	return decodeEmbedding(output)
+}
+
+// embedEach embeds texts one call at a time, for clients without the batch
+// service.
+func (c *GatewayClient) embedEach(ctx context.Context, task EmbeddingTask, texts []string, background bool) ([][]float64, error) {
+	out := make([][]float64, len(texts))
+	for i, text := range texts {
+		var err error
+		if background {
+			out[i], err = c.EmbedWhenIdle(ctx, text)
+		} else {
+			out[i], err = c.Embed(ctx, text, task)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// EmbedBatch embeds texts for one task in a single ai-gateway call. A
+// background batch first waits for foreground quiet (see EmbedWhenIdle) and
+// is not counted as foreground; a foreground batch (a query) is.
+func (c *GatewayClient) EmbedBatch(ctx context.Context, task EmbeddingTask, texts []string, background bool) ([][]float64, error) {
+	if c == nil || c.batch == nil {
+		return c.embedEach(ctx, task, texts, background)
+	}
+	if background {
+		if err := c.waitIdle(ctx); err != nil {
+			return nil, err
+		}
+	} else {
+		c.inflight.Add(1)
+		defer func() {
+			c.lastDone.Store(time.Now().UnixNano())
+			c.inflight.Add(-1)
+		}()
+	}
+	inputs := make([]string, len(texts))
+	for i, text := range texts {
+		inputs[i] = embeddingInput(task, text)
+	}
+	ctx, cancel := context.WithTimeout(ctx, EmbeddingTimeout+time.Duration(len(texts))*time.Second)
+	defer cancel()
+	resp, err := c.batch.Embed(ctx, connect.NewRequest(&inferencev1.EmbedRequest{Role: EmbeddingRole, Texts: inputs}))
+	if err != nil {
+		return nil, fmt.Errorf("ai-gateway embed batch: %w", err)
+	}
+	if e := resp.Msg.GetError(); e != nil {
+		return nil, fmt.Errorf("ai-gateway embed batch: %s", e.GetMessage())
+	}
+	if len(resp.Msg.GetVectors()) != len(texts) {
+		return nil, fmt.Errorf("ai-gateway embed batch returned %d vectors for %d texts", len(resp.Msg.GetVectors()), len(texts))
+	}
+	out := make([][]float64, len(texts))
+	for i, v := range resp.Msg.GetVectors() {
+		out[i] = v.GetValues()
+	}
+	return out, nil
+}
+
+func (c *GatewayClient) waitIdle(ctx context.Context) error {
+	for c.inflight.Load() > 0 || time.Since(time.Unix(0, c.lastDone.Load())) < idleGap {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
+	return nil
+}
+
+func decodeEmbedding(output string) ([]float64, error) {
 	var response struct {
 		Embedding []float64 `json:"embedding"`
 	}
@@ -156,11 +269,23 @@ func (c *GatewayClient) Summarize(ctx context.Context, prompt string) (string, e
 	return generatedText(output)
 }
 
+// execute runs one foreground inference call.
 func (c *GatewayClient) execute(ctx context.Context, kind sharedv1.RequestKind, role, input string, timeout time.Duration, maxOutputTokens int) (string, error) {
+	if c != nil {
+		c.inflight.Add(1)
+		defer func() {
+			c.lastDone.Store(time.Now().UnixNano())
+			c.inflight.Add(-1)
+		}()
+	}
+	return c.route(ctx, kind, role, input, timeout, maxOutputTokens)
+}
+
+func (c *GatewayClient) route(ctx context.Context, kind sharedv1.RequestKind, role, input string, timeout time.Duration, maxOutputTokens int) (string, error) {
 	if c == nil || c.routing == nil {
 		return "", errors.New("ai-gateway routing client is not configured")
 	}
-	resp, err := c.routing.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: &sharedv1.GatewayRequest{Kind: kind, Role: role, Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, Scenario: "vrooli-memory", TimeoutMs: int32(timeout / time.Millisecond), MaxOutputTokens: int32(maxOutputTokens)}, InputText: input}))
+	resp, err := c.routing.ExecuteRoute(ctx, connect.NewRequest(&routingv1.ExecuteRouteRequest{Request: &sharedv1.GatewayRequest{Kind: kind, Role: role, Profile: sharedv1.Profile_PROFILE_LOCAL_FIRST, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL, PrivacyProvenance: privacyProvenance, Scenario: "source-ledger", TimeoutMs: int32(timeout / time.Millisecond), MaxOutputTokens: int32(maxOutputTokens)}, InputText: input}))
 	if err != nil {
 		return "", fmt.Errorf("execute ai-gateway route %s: %w", role, err)
 	}
@@ -265,6 +390,41 @@ func (e Embedder) EmbedQuery(ctx context.Context, text string) ([]float64, error
 
 func (e Embedder) EmbedDocument(ctx context.Context, text string) ([]float64, error) {
 	return e.Client.Embed(ctx, text, EmbeddingDocument)
+}
+
+// batchEmbedder is GatewayClient's bulk path.
+type batchEmbedder interface {
+	EmbedBatch(context.Context, EmbeddingTask, []string, bool) ([][]float64, error)
+}
+
+// EmbedQueryFast embeds one query through the bulk path when the client has
+// one (a typed local call, about half the latency of a routed one).
+func (e Embedder) EmbedQueryFast(ctx context.Context, text string) ([]float64, error) {
+	if b, ok := e.Client.(batchEmbedder); ok {
+		out, err := b.EmbedBatch(ctx, EmbeddingQuery, []string{text}, false)
+		if err != nil {
+			return nil, err
+		}
+		return out[0], nil
+	}
+	return e.EmbedQuery(ctx, text)
+}
+
+// EmbedDocumentsWhenIdle embeds a background batch, stepping aside for
+// foreground inference first. Clients without a bulk path embed one by one.
+func (e Embedder) EmbedDocumentsWhenIdle(ctx context.Context, texts []string) ([][]float64, error) {
+	if b, ok := e.Client.(batchEmbedder); ok {
+		return b.EmbedBatch(ctx, EmbeddingDocument, texts, true)
+	}
+	out := make([][]float64, len(texts))
+	for i, text := range texts {
+		v, err := e.EmbedDocument(ctx, text)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = v
+	}
+	return out, nil
 }
 
 func (e Embedder) Available(ctx context.Context) bool {

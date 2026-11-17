@@ -328,6 +328,46 @@ CLI must surface the typed wake-budget/frontier rejection from the API and
 must not implement a local fallback. The missing governed bindings are
 tracked by Swarm Manager capture `cap-ec8f3c2ee6b5f2ab`.
 
+## Research Files
+
+`files` searches file-authoritative corpora (today `research`, the research
+home at `$VROOLI_RESEARCH_HOME` or `~/.vrooli/research`). Every call first
+syncs the index against the files, so hits cite the text on disk now as
+`path#Lstart-Lend`.
+
+```text
+source-ledger files search "<words>" [--topic <topic>] [--feed <feed>] [--limit <n>] [--include-raw] [--json]
+source-ledger files feeds [--topic <topic>] [--recent <n>] [--json]
+```
+
+The report says which ranking answered (`lexical` or `hybrid`) and lists any
+degradation (`SYNC_PARTIAL`, `SEMANTIC_WARMING`, `SEMANTIC_UNAVAILABLE`).
+Ranking is `hybrid` when ai-gateway answers: the prose chunks (Markdown,
+text, YAML) nearest the query by meaning join the word matches, so a query
+that shares no words with its answer still finds it. When some chunk holds
+every query word, a chunk scores 0.7 by words and 0.3 by meaning, and one that
+holds only some of the words counts a tenth; when none does, the query is a
+paraphrase and meaning alone ranks. Raw material (anything under `runs/`,
+`support/`, `preimages/`, `history/` or `replay/`, and `.pyc` files) ranks at half weight
+so a question finds the finding before the evidence behind it;
+`--include-raw` ranks it like curated pages. The first hits name different
+files; a file's further chunks follow. JSON, JSONL and CSV are matched by
+words only. Background embedding (parallel batches, entry files and recently queried
+chunks first) fills the vectors; a chunk the model refuses is marked and
+skipped rather than retried forever. `files feeds` shows coverage per feed.
+
+What gets indexed is set by optional `feeds.json` files at the corpus root and
+at `topics/<topic>/` (`exclude`, `include`, `feeds`, `run_depth`,
+`dataset_files`, `max_file_kb`, `max_json_kb`, `private`). The `private`
+class is never indexed or served: by default operator conversations
+(`OPERATOR.md`, `OPERATOR-*.md`, `STANCE-MESSAGE.txt`, `OPERATOR-WORDS*`) and
+personal data (`*resume*`, `personal/`, `private/`, `*.private.*`). A topic
+replaces the list with its own, `"private": []` opts in. A malformed
+`feeds.json` is reported as a `CORPUS_PROBLEMS` degradation: at the root the
+defaults apply, in a topic only its README/INDEX/SUMMARY files are indexed. With Source Ledger down, research agents run
+`research-desk/skills/research-coordination/scripts/find.py`, which applies
+the same policy to the files and prints the same shape.
+
 ## Cross-references
 
 - [`api-endpoints.md`](api-endpoints.md) — API endpoints these commands mirror

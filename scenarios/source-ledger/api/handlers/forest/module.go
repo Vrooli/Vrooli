@@ -7,6 +7,7 @@ import (
 	"source-ledger/internal/inference"
 	"source-ledger/internal/module"
 	"source-ledger/internal/policy"
+	vectorcodec "source-ledger/internal/vector"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -18,8 +19,8 @@ import (
 // NewService builds the compaction service. The composition root owns the
 // single instance because the scheduled maintenance pass and the operator RPC
 // must share one run mutex; two instances would compact concurrently.
-func NewService(db *database.RoutedDB, client inference.Client, target int, registry *policy.Registry) *internalforest.Service {
-	svc := internalforest.NewService(internalforest.NewSQLiteRepository(db.Primary()), internalforest.NewSQLiteCandidateSource(db.Primary()), client, internalforest.Config{Target: target})
+func NewService(db *database.RoutedDB, client inference.Client, target int, registry *policy.Registry, generations ...*vectorcodec.SQLiteGenerationServing) *internalforest.Service {
+	svc := internalforest.NewService(internalforest.NewSQLiteRepository(db.Primary(), generations...), internalforest.NewSQLiteCandidateSource(db.Primary(), generations...), client, internalforest.Config{Target: target})
 	svc.SetPolicyRegistry(registry)
 	return svc
 }

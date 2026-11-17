@@ -55,7 +55,6 @@ deferred to the corpus-authority phase.
 Append requests write the journal authority first; derived forest and recall
 state are downstream projections that can be rebuilt from authoritative data.
 
-## Purpose Of This Document
 
 This document distinguishes durable source material from derived ledger state.
 
@@ -77,12 +76,11 @@ proto packages will become the wire-level schema source of truth.
 ## Migrations And Compatibility
 
 Migration must preserve entry identity, body hashes, provenance, and append-only
-guards before any consumer cutover. The one-shot
-`api/cmd/migrate-memory-corpus` command copies the engine-owned tables in one
-transaction and deliberately leaves `harness_projections`,
-`harness_import_runs`, and `journal_retry_queue` in `vrooli-memory`. The
-source-ledger target is registered with `data-backup-manager` as a
-non-regenerable SQLite target before the migration.
+guards before any consumer cutover. The one-shot copy of the engine-owned
+tables from `vrooli-memory` ran on 2026-08-07 (PROGRESS.md, phase 15) and its
+command was then retired; `harness_projections`, `harness_import_runs` and
+`journal_retry_queue` stayed in `vrooli-memory`. The source-ledger database is
+a non-regenerable `data-backup-manager` target.
 
 ## Import / Export
 

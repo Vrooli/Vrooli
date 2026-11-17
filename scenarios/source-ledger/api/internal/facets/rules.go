@@ -67,18 +67,7 @@ func (r *SQLiteRepository) CreateRule(ctx context.Context, rule Rule) (Rule, err
 	if rule.Scope == "" {
 		rule.Scope = string(policy.ScopeFromContext(ctx))
 	}
-	if err := r.Validate(ctx, rule.FacetID); err != nil {
-		return Rule{}, err
-	}
-	if rule.Kind != "" && rule.KindGlob != "" {
-		return Rule{}, fmt.Errorf("rule %s cannot set both kind and kind_glob", rule.ID)
-	}
-	if rule.KindGlob != "" {
-		if _, err := path.Match(rule.KindGlob, ""); err != nil {
-			return Rule{}, fmt.Errorf("invalid kind glob for rule %s: %w", rule.ID, err)
-		}
-	}
-	if _, err := compileRule(rule); err != nil {
+	if err := r.validateRule(ctx, rule); err != nil {
 		return Rule{}, err
 	}
 	now := time.Now().UTC()
@@ -90,6 +79,19 @@ func (r *SQLiteRepository) CreateRule(ctx context.Context, rule Rule) (Rule, err
 	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO classification_rules(id,scope,priority,facet_id,source_runtime,kind,kind_glob,source_path_glob,body_pattern,enabled,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, rule.ID, rule.Scope, rule.Priority, rule.FacetID, rule.SourceRuntime, rule.Kind, rule.KindGlob, rule.SourcePathGlob, rule.BodyPattern, rule.Enabled, rule.CreatedAt.Format(time.RFC3339Nano), rule.UpdatedAt.Format(time.RFC3339Nano))
 	return rule, err
+}
+
+// validateRule checks a rule before it is stored: a known facet, kind or
+// kind_glob (not both), a valid glob and a compilable body pattern.
+func (r *SQLiteRepository) validateRule(ctx context.Context, rule Rule) error {
+	if err := r.Validate(ctx, rule.FacetID); err != nil {
+		return err
+	}
+	if _, err := globMatch(rule.KindGlob, "", "kind glob", rule.ID); err != nil {
+		return err
+	}
+	_, err := compileRule(rule)
+	return err
 }
 
 func (r *SQLiteRepository) DeleteRule(ctx context.Context, id string) error {
@@ -184,30 +186,22 @@ func (r *SQLiteRepository) DryRunRule(ctx context.Context, ruleID string) (DryRu
 	if err != nil {
 		return DryRun{}, err
 	}
-	rows, err := r.db.QueryContext(ctx, `SELECT body,source_runtime,kind,source_path FROM entries WHERE scope=? ORDER BY created_at,id`, rule.Scope)
+	corpus, err := r.ListCorpus(ctx, rule.Scope)
 	if err != nil {
 		return DryRun{}, err
 	}
-	defer rows.Close()
 	dry := DryRun{ID: uuid.NewString(), RuleID: rule.ID, Scope: rule.Scope, CorpusFingerprint: fingerprint, CreatedAt: time.Now().UTC()}
-	for rows.Next() {
-		var input RuleInput
-		if err := rows.Scan(&input.Body, &input.SourceRuntime, &input.Kind, &input.SourcePath); err != nil {
-			return DryRun{}, err
-		}
-		matched, err := matches(rule, input)
+	for _, entry := range corpus {
+		matched, err := matches(rule, entry.RuleInput)
 		if err != nil {
 			return DryRun{}, err
 		}
 		if matched {
 			dry.MatchCount++
 			if len(dry.Samples) < 20 {
-				dry.Samples = append(dry.Samples, input.Body)
+				dry.Samples = append(dry.Samples, entry.Body)
 			}
 		}
-	}
-	if err := rows.Err(); err != nil {
-		return DryRun{}, err
 	}
 	samples, err := json.Marshal(dry.Samples)
 	if err != nil {
@@ -320,20 +314,9 @@ func (r *SQLiteRepository) EnableRule(ctx context.Context, ruleID string) error 
 // RevertRule appends the latest prior assignment for every entry the rule
 // decided. It never deletes assignments or journal entries.
 func (r *SQLiteRepository) RevertRule(ctx context.Context, ruleID string) (int, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT DISTINCT entry_id FROM facet_assignments WHERE actor_id=?`, "rule:"+ruleID)
+	actor := "rule:" + ruleID
+	ids, err := queryStrings(ctx, r.db, `SELECT DISTINCT entry_id FROM facet_assignments WHERE actor_id=?`, actor)
 	if err != nil {
-		return 0, err
-	}
-	defer rows.Close()
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return 0, err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 	count := 0
@@ -342,13 +325,7 @@ func (r *SQLiteRepository) RevertRule(ctx context.Context, ruleID string) (int, 
 		if err != nil {
 			return count, err
 		}
-		var prior string
-		for i := len(assignments) - 1; i >= 0; i-- {
-			if assignments[i].ActorID != "rule:"+ruleID {
-				prior = assignments[i].FacetID
-				break
-			}
-		}
+		prior := priorFacet(assignments, actor)
 		if prior == "" {
 			continue
 		}
@@ -358,6 +335,34 @@ func (r *SQLiteRepository) RevertRule(ctx context.Context, ruleID string) (int, 
 		count++
 	}
 	return count, nil
+}
+
+// priorFacet is the newest facet in assignments not decided by actor.
+func priorFacet(assignments []Assignment, actor string) string {
+	for i := len(assignments) - 1; i >= 0; i-- {
+		if assignments[i].ActorID != actor {
+			return assignments[i].FacetID
+		}
+	}
+	return ""
+}
+
+// queryStrings returns the single text column of every row.
+func queryStrings(ctx context.Context, db *sql.DB, query string, args ...any) ([]string, error) {
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var v string
+		if err := rows.Scan(&v); err != nil {
+			return nil, err
+		}
+		out = append(out, v)
+	}
+	return out, rows.Err()
 }
 
 func (r *SQLiteRepository) rule(ctx context.Context, id string) (Rule, error) {
@@ -380,7 +385,12 @@ func scanRule(row rowScanner) (Rule, error) {
 	return rule, nil
 }
 
+// compileRule checks a rule's shape (kind or kind_glob, not both) and
+// compiles its body pattern (nil when it has none).
 func compileRule(rule Rule) (*regexp.Regexp, error) {
+	if rule.Kind != "" && rule.KindGlob != "" {
+		return nil, fmt.Errorf("rule %s cannot set both kind and kind_glob", rule.ID)
+	}
 	if strings.TrimSpace(rule.BodyPattern) == "" {
 		return nil, nil
 	}
@@ -396,31 +406,29 @@ func matches(rule Rule, input RuleInput) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if rule.Kind != "" && rule.KindGlob != "" {
-		return false, fmt.Errorf("rule %s cannot set both kind and kind_glob", rule.ID)
-	}
-	if rule.SourceRuntime != "" && rule.SourceRuntime != input.SourceRuntime || rule.Kind != "" && rule.Kind != input.Kind {
-		return false, nil
-	}
-	if rule.KindGlob != "" {
-		ok, err := path.Match(rule.KindGlob, input.Kind)
-		if err != nil {
-			return false, fmt.Errorf("invalid kind glob for rule %s: %w", rule.ID, err)
-		}
-		if !ok {
+	for _, f := range [][2]string{{rule.SourceRuntime, input.SourceRuntime}, {rule.Kind, input.Kind}} {
+		if f[0] != "" && f[0] != f[1] {
 			return false, nil
 		}
 	}
-	if rule.SourcePathGlob != "" {
-		ok, err := path.Match(rule.SourcePathGlob, input.SourcePath)
-		if err != nil {
-			return false, fmt.Errorf("invalid source path glob for rule %s: %w", rule.ID, err)
-		}
-		if !ok {
-			return false, nil
+	for _, g := range [][3]string{{rule.KindGlob, input.Kind, "kind glob"}, {rule.SourcePathGlob, input.SourcePath, "source path glob"}} {
+		if ok, err := globMatch(g[0], g[1], g[2], rule.ID); !ok || err != nil {
+			return false, err
 		}
 	}
 	return pattern == nil || pattern.MatchString(input.Body), nil
+}
+
+// globMatch matches value against glob; an empty glob matches everything.
+func globMatch(glob, value, what, ruleID string) (bool, error) {
+	if glob == "" {
+		return true, nil
+	}
+	ok, err := path.Match(glob, value)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s for rule %s: %w", what, ruleID, err)
+	}
+	return ok, nil
 }
 
 func corpusFingerprint(ctx context.Context, db *sql.DB, scope string) (string, error) {

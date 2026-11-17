@@ -137,10 +137,7 @@ func (s *Service) runLocked(ctx context.Context, config Config, maxClusters int)
 		}
 		best, pairKey, ok := bestPairExcluding(candidates, failedPairs)
 		if !ok {
-			if lastSummarizeErr != nil {
-				return result, fmt.Errorf("summarize compaction cluster: %w", lastSummarizeErr)
-			}
-			return result, fmt.Errorf("no eligible candidate pair remains while frontier is above target")
+			return result, noPairLeft(lastSummarizeErr)
 		}
 		prompt := summaryPrompt(config.SummaryInstruction, best[0], best[1])
 		body, err := s.summarize(ctx, prompt)
@@ -156,18 +153,8 @@ func (s *Service) runLocked(ctx context.Context, config Config, maxClusters int)
 			}
 			continue
 		}
-		body = strings.TrimSpace(body)
-		if body == "" {
-			return result, fmt.Errorf("summarize compaction cluster: empty summary")
-		}
-		vector, err := s.inference.Embed(ctx, body, inference.EmbeddingClustering)
-		if err != nil {
-			return result, fmt.Errorf("embed compaction summary: %w", err)
-		}
-		depth, generation := max(best[0].Depth, best[1].Depth)+1, max(best[0].Generation, best[1].Generation)+1
-		_, err = s.repo.CreateSummary(ctx, Summary{Body: body, FacetID: best[0].FacetID, Vector: vector, Depth: depth, Generation: generation}, []Edge{{ChildID: best[0].ID, ChildKind: best[0].Kind}, {ChildID: best[1].ID, ChildKind: best[1].Kind}})
-		if err != nil {
-			return result, fmt.Errorf("write compaction summary: %w", err)
+		if err := s.writeSummary(ctx, best, body); err != nil {
+			return result, err
 		}
 		result.CompactedCount++
 		candidates, err = s.eligible(ctx)
@@ -177,6 +164,33 @@ func (s *Service) runLocked(ctx context.Context, config Config, maxClusters int)
 		result.EligibleFrontierAfter = len(candidates)
 	}
 	return result, nil
+}
+
+// noPairLeft explains a frontier still above target with no pair left to
+// try: the last summarizer failure when there was one.
+func noPairLeft(lastSummarizeErr error) error {
+	if lastSummarizeErr != nil {
+		return fmt.Errorf("summarize compaction cluster: %w", lastSummarizeErr)
+	}
+	return fmt.Errorf("no eligible candidate pair remains while frontier is above target")
+}
+
+// writeSummary embeds a pair's summary and stores it above the pair.
+func (s *Service) writeSummary(ctx context.Context, pair [2]Candidate, body string) error {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return fmt.Errorf("summarize compaction cluster: empty summary")
+	}
+	vector, err := s.inference.Embed(ctx, body, inference.EmbeddingClustering)
+	if err != nil {
+		return fmt.Errorf("embed compaction summary: %w", err)
+	}
+	depth, generation := max(pair[0].Depth, pair[1].Depth)+1, max(pair[0].Generation, pair[1].Generation)+1
+	_, err = s.repo.CreateSummary(ctx, Summary{Body: body, FacetID: pair[0].FacetID, Vector: vector, Depth: depth, Generation: generation}, []Edge{{ChildID: pair[0].ID, ChildKind: pair[0].Kind}, {ChildID: pair[1].ID, ChildKind: pair[1].Kind}})
+	if err != nil {
+		return fmt.Errorf("write compaction summary: %w", err)
+	}
+	return nil
 }
 
 // summarize retries the provider's transient stream-termination failure before

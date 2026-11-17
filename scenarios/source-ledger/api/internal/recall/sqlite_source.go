@@ -3,7 +3,6 @@ package recall
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"time"
 
 	"source-ledger/internal/policy"
@@ -12,9 +11,25 @@ import (
 
 // SQLiteSource projects the persistent journal and pin state into recall
 // candidates. Forest summaries join this same source in the forest phase.
-type SQLiteSource struct{ db *sql.DB }
+type SQLiteSource struct {
+	db          *sql.DB
+	generations *vectorcodec.SQLiteGenerationServing
+}
 
-func NewSQLiteSource(db *sql.DB) *SQLiteSource { return &SQLiteSource{db: db} }
+func NewSQLiteSource(db *sql.DB, generations ...*vectorcodec.SQLiteGenerationServing) *SQLiteSource {
+	source := &SQLiteSource{db: db}
+	if len(generations) > 0 {
+		source.generations = generations[0]
+	}
+	return source
+}
+
+func (s *SQLiteSource) ActiveRecipeID(ctx context.Context) (string, bool, error) {
+	if s.generations == nil {
+		return "", false, nil
+	}
+	return s.generations.ActiveRecipeID(ctx)
+}
 
 // Liveness reports the portion of a configured scope's compaction-eligible
 // forest that has not yet been absorbed into a forest parent. It uses the same
@@ -153,7 +168,7 @@ ORDER BY 6,1`, scope, scope, scope, scope, now, scope, scope, policy.ExpireOnRes
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	vectors, err := s.vectorsByNode(ctx)
+	vectors, err := vectorcodec.EntryVectors(ctx, s.db, s.generations, string(policy.ScopeFromContext(ctx)))
 	if err != nil {
 		return nil, err
 	}
@@ -161,45 +176,6 @@ ORDER BY 6,1`, scope, scope, scope, scope, now, scope, scope, policy.ExpireOnRes
 		out[i].Vectors = vectors[out[i].ID]
 	}
 	return out, nil
-}
-
-// vectorsByNode loads every derived facet embedding in one pass. Fetching them
-// per node through correlated subqueries returned only the first space, which
-// left two thirds of the embedding corpus written and never read.
-func (s *SQLiteSource) vectorsByNode(ctx context.Context) (map[string][][]float64, error) {
-	rows, err := s.db.QueryContext(ctx, `
-SELECT ft.entry_id, em.vector_blob, em.vector_json
-FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id JOIN entries e ON e.id=ft.entry_id
-WHERE e.scope=?
-UNION ALL
-SELECT sm.id, sm.vector_blob, sm.vector_json FROM summaries sm WHERE sm.scope=?
-ORDER BY 1`, policy.ScopeFromContext(ctx), policy.ScopeFromContext(ctx))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[string][][]float64{}
-	for rows.Next() {
-		var id, raw string
-		var blob []byte
-		if err := rows.Scan(&id, &blob, &raw); err != nil {
-			return nil, err
-		}
-		var vector []float64
-		switch {
-		case len(blob) > 0:
-			vector, err = vectorcodec.Decode(blob)
-		case raw != "" && raw != "[]":
-			err = json.Unmarshal([]byte(raw), &vector)
-		default:
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		out[id] = append(out[id], vector)
-	}
-	return out, rows.Err()
 }
 
 var _ Source = (*SQLiteSource)(nil)

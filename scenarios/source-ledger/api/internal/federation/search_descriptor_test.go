@@ -1,6 +1,7 @@
 package federation
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -44,7 +45,28 @@ func TestSearchDescriptorParsesAndMapsRecallHits(t *testing.T) { // [REQ:VMEM-P0
 func TestCommittedSearchDescriptorUsesOneScopeAwareProvider(t *testing.T) { // [REQ:SL-P1-002]
 	file, err := aisearch.LoadSearchFile("../../../.vrooli/search.json")
 	require.NoError(t, err)
-	require.Len(t, file.Providers, 1, "duplicate providers run default recall twice and ignore explicit scopes")
-	require.Equal(t, "source-ledger.scopes", file.Providers[0].ProviderID)
-	require.Contains(t, string(file.Providers[0].Endpoint), "{{scope_value}}")
+	recall := map[string]string{}
+	for _, provider := range file.Providers {
+		if strings.Contains(string(provider.Endpoint), "RecallService/Recall") {
+			recall[provider.ProviderID] = string(provider.Endpoint)
+		}
+	}
+	require.Len(t, recall, 1, "duplicate recall providers run default recall twice and ignore explicit scopes")
+	require.Contains(t, recall["source-ledger.scopes"], "{{scope_value}}")
+}
+
+// The research home is a separate corpus: files are the authority and the
+// provider searches them, never the ledger's recall.
+func TestCommittedSearchDescriptorRoutesResearchFilesToTheFileCorpus(t *testing.T) {
+	file, err := aisearch.LoadSearchFile("../../../.vrooli/search.json")
+	require.NoError(t, err)
+	for _, provider := range file.Providers {
+		if provider.ProviderID == "source-ledger.research" {
+			require.Contains(t, string(provider.Endpoint), "FilesService/Search")
+			require.Contains(t, string(provider.ResultMapping), `"degradations_field": "degradations"`)
+			require.NotEmpty(t, provider.Tests.Cases)
+			return
+		}
+	}
+	t.Fatal("source-ledger.research provider is not registered")
 }

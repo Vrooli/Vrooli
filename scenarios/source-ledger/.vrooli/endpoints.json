@@ -79,6 +79,30 @@
       "category": "facets"
     },
     {
+      "id": "facets_count_unassigned",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/CountUnassigned",
+      "method": "POST",
+      "summary": "Count entries without a facet assignment",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_delete",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/DeleteFacet",
+      "method": "POST",
+      "summary": "Delete an unassigned facet",
+      "description": "",
+      "category": "facets"
+    },
+    {
+      "id": "facets_ensure",
+      "path": "/vrooli.source_ledger.v1.facets.FacetsService/EnsureFacet",
+      "method": "POST",
+      "summary": "Ensure a scoped facet",
+      "description": "",
+      "category": "facets"
+    },
+    {
       "id": "facets_set_policy",
       "path": "/vrooli.source_ledger.v1.facets.FacetsService/SetFacetPolicy",
       "method": "POST",
@@ -141,6 +165,22 @@
       "summary": "Resolve a thread",
       "description": "",
       "category": "facets"
+    },
+    {
+      "id": "files_search",
+      "path": "/vrooli.source_ledger.v1.files.FilesService/Search",
+      "method": "POST",
+      "summary": "Search a file corpus (research home) with sync-on-read and citations",
+      "description": "",
+      "category": "files"
+    },
+    {
+      "id": "files_feeds",
+      "path": "/vrooli.source_ledger.v1.files.FilesService/ListFeeds",
+      "method": "POST",
+      "summary": "Summarise a file corpus's feeds: size, freshness and newest files",
+      "description": "",
+      "category": "files"
     },
     {
       "id": "forest_compact",
@@ -337,6 +377,20 @@
       ]
     },
     {
+      "id": "journal_count_entries",
+      "path": "/vrooli.source_ledger.v1.journal.JournalService/CountEntries",
+      "method": "POST",
+      "summary": "Count journal entries in a time window",
+      "description": "",
+      "category": "measures",
+      "request": {
+        "type": "CountEntriesRequest"
+      },
+      "response": {
+        "type": "CountEntriesResponse"
+      }
+    },
+    {
       "id": "rules_list",
       "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/ListRules",
       "method": "POST",
@@ -349,6 +403,14 @@
       "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/CreateRule",
       "method": "POST",
       "summary": "Create classification rule",
+      "description": "",
+      "category": "rules"
+    },
+    {
+      "id": "rules_delete",
+      "path": "/vrooli.source_ledger.v1.rules.ClassificationRulesService/DeleteRule",
+      "method": "POST",
+      "summary": "Delete a disabled classification rule",
       "description": "",
       "category": "rules"
     },
@@ -443,6 +505,70 @@
       "summary": "Reset scope policy overrides",
       "description": "",
       "category": "scopes"
+    },
+    {
+      "id": "vector_generation_stage",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/StageGeneration",
+      "method": "POST",
+      "summary": "Stage a recipe-bound SQLite vector generation",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_catch_up",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/CatchUpGeneration",
+      "method": "POST",
+      "summary": "Catch up a staged SQLite vector generation",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_validate",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/ValidateGeneration",
+      "method": "POST",
+      "summary": "Validate source coverage and vector integrity before cutover",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_promote",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/PromoteGeneration",
+      "method": "POST",
+      "summary": "Promote a validated SQLite vector generation",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_rollback",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/RollbackGeneration",
+      "method": "POST",
+      "summary": "Restore the retained SQLite vector generation",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_operation",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/GetGenerationOperation",
+      "method": "POST",
+      "summary": "Read durable SQLite generation operation status",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_resume",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/ResumeGenerationOperation",
+      "method": "POST",
+      "summary": "Resume an interrupted SQLite generation operation",
+      "description": "",
+      "category": "ops"
+    },
+    {
+      "id": "vector_generation_active",
+      "path": "/vrooli.source_ledger.v1.vector.VectorGenerationService/GetActiveGeneration",
+      "method": "POST",
+      "summary": "Read the active SQLite vector generation",
+      "description": "",
+      "category": "ops"
     }
   ]
 }

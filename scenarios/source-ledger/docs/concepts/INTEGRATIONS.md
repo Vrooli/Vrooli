@@ -44,7 +44,6 @@ non-regenerable ledger database.
 External integrations receive explicit scope-aware requests and return bounded
 failure states; they never become the journal authority.
 
-## Purpose Of This Document
 
 This document records planned dependencies and their degraded behavior.
 

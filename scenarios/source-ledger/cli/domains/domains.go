@@ -2,6 +2,7 @@ package domains
 
 import (
 	"source-ledger/cli/domains/facets"
+	"source-ledger/cli/domains/files"
 	"source-ledger/cli/domains/forest"
 	"source-ledger/cli/domains/journal"
 	"source-ledger/cli/domains/measures"
@@ -79,6 +80,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	groups = append(groups, forestGroup, facetsGroup, rulesGroup)
+	filesGroup, err := files.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, forestGroup, facetsGroup, rulesGroup, filesGroup)
 	return groups, nil
 }

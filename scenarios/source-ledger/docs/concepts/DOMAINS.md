@@ -80,7 +80,6 @@ are not yet implemented in this scaffold.
 Each domain owns its data and boundary operations while sharing the explicit
 scope contract and immutable journal identity.
 
-## Purpose Of This Document
 
 This document records bounded contexts before the engine packages move.
 

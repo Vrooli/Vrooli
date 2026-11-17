@@ -14,9 +14,18 @@ import (
 	"github.com/google/uuid"
 )
 
-type SQLiteRepository struct{ db *sql.DB }
+type SQLiteRepository struct {
+	db          *sql.DB
+	generations *vectorcodec.SQLiteGenerationServing
+}
 
-func NewSQLiteRepository(db *sql.DB) *SQLiteRepository { return &SQLiteRepository{db: db} }
+func NewSQLiteRepository(db *sql.DB, generations ...*vectorcodec.SQLiteGenerationServing) *SQLiteRepository {
+	repo := &SQLiteRepository{db: db}
+	if len(generations) > 0 {
+		repo.generations = generations[0]
+	}
+	return repo
+}
 func (r *SQLiteRepository) CreateSummary(ctx context.Context, s Summary, edges []Edge) (Summary, error) {
 	if s.ID == "" {
 		s.ID = uuid.NewString()
@@ -131,6 +140,22 @@ func (r *SQLiteRepository) nodeVectors(ctx context.Context, nodes []Node) (map[s
 	if len(ids) == 0 {
 		return map[string][][]float64{}, nil
 	}
+	if r.generations != nil {
+		facets, err := r.generations.ReadActiveVectors(ctx, "journal.facets")
+		if err != nil {
+			return nil, err
+		}
+		if facets.Active {
+			summaries, err := r.generations.ReadActiveVectors(ctx, "forest.summaries")
+			if err != nil {
+				return nil, err
+			}
+			if !summaries.Active || summaries.GenerationID != facets.GenerationID || summaries.RecipeID != facets.RecipeID {
+				return nil, fmt.Errorf("Source Ledger active generation changed while reading forest nodes")
+			}
+			return r.generationNodeVectors(ctx, ids, facets, summaries)
+		}
+	}
 	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
 	args := make([]any, len(ids))
 	for i, id := range ids {
@@ -185,6 +210,42 @@ ORDER BY ft.entry_id,ft.id`, append([]any{policy.ScopeFromContext(ctx)}, args...
 	return out, rows.Err()
 }
 
+func (r *SQLiteRepository) generationNodeVectors(ctx context.Context, ids []string, facets, summaries vectorcodec.ActiveGenerationVectors) (map[string][][]float64, error) {
+	placeholders := strings.TrimRight(strings.Repeat("?,", len(ids)), ",")
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	rows, err := r.db.QueryContext(ctx, `SELECT ft.id,ft.entry_id FROM facet_texts ft JOIN entries e ON e.id=ft.entry_id WHERE e.scope=? AND ft.entry_id IN (`+placeholders+`) ORDER BY ft.entry_id,ft.id`, append([]any{policy.ScopeFromContext(ctx)}, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][][]float64{}
+	for rows.Next() {
+		var sourceID, entryID string
+		if err := rows.Scan(&sourceID, &entryID); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		if vector, ok := facets.Vectors[sourceID]; ok {
+			out[entryID] = append(out[entryID], vector)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	for _, id := range ids {
+		if vector, ok := summaries.Vectors[id]; ok {
+			out[id] = append(out[id], vector)
+		}
+	}
+	return out, nil
+}
+
 func decodeVector(blob []byte, raw string) ([]float64, error) {
 	if len(blob) > 0 {
 		return vectorcodec.Decode(blob)
@@ -200,6 +261,14 @@ func decodeVector(blob []byte, raw string) ([]float64, error) {
 }
 
 func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {
+	var active vectorcodec.ActiveGenerationVectors
+	var err error
+	if r.generations != nil {
+		active, err = r.generations.ReadActiveVectors(ctx, "forest.summaries")
+		if err != nil {
+			return nil, err
+		}
+	}
 	rows, err := r.db.QueryContext(ctx, `SELECT s.id,s.body,s.facet_id,s.vector_blob,s.vector_json,s.depth,s.generation,s.created_at FROM summaries s LEFT JOIN tree_edges e ON e.child_id=s.id AND e.child_kind='summary' WHERE s.scope=? AND e.parent_id IS NULL ORDER BY s.created_at,s.id`, policy.ScopeFromContext(ctx))
 	if err != nil {
 		return nil, err
@@ -213,14 +282,18 @@ func (r *SQLiteRepository) Frontier(ctx context.Context) ([]Summary, error) {
 		if err := rows.Scan(&s.ID, &s.Body, &s.FacetID, &blob, &raw, &s.Depth, &s.Generation, &created); err != nil {
 			return nil, err
 		}
-		var err error
-		if len(blob) > 0 {
-			s.Vector, err = vectorcodec.Decode(blob)
-		} else if raw != "" {
-			err = json.Unmarshal([]byte(raw), &s.Vector)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("decode summary vector: %w", err)
+		if active.Active {
+			s.Vector = active.Vectors[s.ID]
+		} else {
+			var decodeErr error
+			if len(blob) > 0 {
+				s.Vector, decodeErr = vectorcodec.Decode(blob)
+			} else if raw != "" {
+				decodeErr = json.Unmarshal([]byte(raw), &s.Vector)
+			}
+			if decodeErr != nil {
+				return nil, fmt.Errorf("decode summary vector: %w", decodeErr)
+			}
 		}
 		s.CreatedAt, _ = time.Parse(time.RFC3339Nano, created)
 		out = append(out, s)

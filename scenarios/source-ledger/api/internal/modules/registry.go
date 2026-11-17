@@ -21,14 +21,17 @@ import (
 	"source-ledger/internal/forest"
 	"source-ledger/internal/journal"
 	"source-ledger/internal/module"
+	vectorstore "source-ledger/internal/vector"
 
 	capsH "source-ledger/handlers/capabilities"
 	facetsH "source-ledger/handlers/facets"
+	filesH "source-ledger/handlers/files"
 	forestH "source-ledger/handlers/forest"
 	journalH "source-ledger/handlers/journal"
 	recallH "source-ledger/handlers/recall"
 	rulesH "source-ledger/handlers/rules"
 	scopesH "source-ledger/handlers/scopes"
+	vectorH "source-ledger/handlers/vectorgenerations"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -46,11 +49,13 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
 	out = append(out, facetsH.Endpoints...)
+	out = append(out, filesH.Endpoints...)
 	out = append(out, forestH.Endpoints...)
 	out = append(out, recallH.Endpoints...)
 	out = append(out, journalH.Endpoints...)
 	out = append(out, rulesH.Endpoints...)
 	out = append(out, scopesH.Endpoints...)
+	out = append(out, vectorH.Endpoints...)
 	return out
 }
 
@@ -78,11 +83,13 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "facets", File: facetsH.ProtoFile},
+		{Module: "files", File: filesH.ProtoFile},
 		{Module: "forest", File: forestH.ProtoFile},
 		{Module: "recall", File: recallH.ProtoFile},
 		{Module: "journal", File: journalH.ProtoFile},
 		{Module: "rules", File: rulesH.ProtoFile},
 		{Module: "scopes", File: scopesH.ProtoFile},
+		{Module: "vector-generations", File: vectorH.ProtoFile},
 	}
 }
 
@@ -100,5 +107,6 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(journal.Schema),
 		apidb.SchemaProviderFunc(facets.Schema),
 		apidb.SchemaProviderFunc(forest.Schema),
+		apidb.SchemaProviderFunc(vectorstore.Schema),
 	}
 }

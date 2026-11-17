@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 
 	recallv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/shared"
 
 	internalfacets "source-ledger/internal/facets"
 	internaljournal "source-ledger/internal/journal"
@@ -37,10 +38,11 @@ func (h *connectHandler) SetUsageRecorder(usage *internalfacets.Service) { h.usa
 
 func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recallv1.RecallRequest]) (*connect.Response[recallv1.RecallResponse], error) {
 	ctx = policy.WithScope(ctx, req.Msg.GetScope())
-	hits, err := h.service.Recall(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()))
+	result, err := h.service.Recall(ctx, req.Msg.GetQuery(), int(req.Msg.GetLimit()))
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
+	hits := result.Hits
 	if h.usage != nil {
 		ids := make([]string, 0, len(hits))
 		seen := make(map[string]struct{}, len(hits))
@@ -58,7 +60,11 @@ func (h *connectHandler) Recall(ctx context.Context, req *connect.Request[recall
 			h.logger.Printf("record recall usage: %v", err)
 		}
 	}
-	return connect.NewResponse(&recallv1.RecallResponse{Hits: hitsProto(hits)}), nil
+	response := &recallv1.RecallResponse{Hits: hitsProto(hits)}
+	if result.Lexical {
+		response.Degradations = []*sharedv1.Degradation{{Reason: "SEMANTIC_UNAVAILABLE", Leg: "semantic", Detail: result.Reason, Retryable: true}}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (h *connectHandler) Wake(ctx context.Context, req *connect.Request[recallv1.WakeRequest]) (*connect.Response[recallv1.WakeResponse], error) {

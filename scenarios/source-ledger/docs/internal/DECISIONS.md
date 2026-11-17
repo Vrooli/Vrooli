@@ -32,7 +32,6 @@ claim that the ledger engine has moved or that a production corpus is present.
 The decisions constrain the future wire contract: scope is explicit, authority
 is singular, and harness-specific behavior stays at the consumer boundary.
 
-## Purpose Of This Document
 
 This is the durable decision log for the Source Ledger extraction boundary.
 

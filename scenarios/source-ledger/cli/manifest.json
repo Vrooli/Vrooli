@@ -906,11 +906,9 @@
               "default": "100"
             },
             {
-              "name": "facet",
-              "description": "Target facet",
-              "bind": {
-                "field": "facet_id"
-              }
+              "name": "facet-id",
+              "aliases": ["facet"],
+              "description": "Target facet"
             },
             {
               "name": "source-runtime",
@@ -1131,6 +1129,96 @@
           }
         }
       ]
+    },
+    {
+      "name": "files",
+      "description": "Search research files with sync-on-read and line citations",
+      "commands": [
+        {
+          "name": "search",
+          "description": "Search the research home; every read first syncs the index against the files",
+          "positionals": [
+            {
+              "name": "query",
+              "required": true,
+              "description": "Words to find"
+            }
+          ],
+          "flags": [
+            {
+              "name": "topic",
+              "description": "Only topics/<topic>/"
+            },
+            {
+              "name": "feed",
+              "description": "Only one feed (a topic's top folder or a feeds.json feed)"
+            },
+            {
+              "name": "limit",
+              "description": "Maximum hits (default 10)"
+            },
+            {
+              "name": "include-raw",
+              "bool": true,
+              "description": "Rank run output, support copies, preimages and history like curated pages (default: lower)"
+            },
+            {
+              "name": "corpus",
+              "description": "Corpus id",
+              "default": "research"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FilesService",
+            "method": "Search"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "feeds",
+          "description": "Summarise feeds: file counts, freshness and newest files",
+          "flags": [
+            {
+              "name": "topic",
+              "description": "Only topics/<topic>/"
+            },
+            {
+              "name": "recent",
+              "description": "Newest files per feed (default 3)"
+            },
+            {
+              "name": "corpus",
+              "description": "Corpus id",
+              "default": "research"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "FilesService",
+            "method": "ListFeeds"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
     }
   ],
   "measures": {
@@ -1278,6 +1366,46 @@
       "service": "ForestService",
       "method": "GetNode",
       "reason": "Individual node inspection is deferred; the operator surface exposes the scored frontier, bounded compaction, and rebuild operations needed by this plan."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "StageGeneration",
+      "reason": "Durable SQLite recipe staging is exposed through authenticated Connect; the Source Ledger CLI does not implement disk-admitted lifecycle commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "CatchUpGeneration",
+      "reason": "Durable SQLite recipe catch-up is exposed through authenticated Connect; the Source Ledger CLI does not implement disk-admitted lifecycle commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "ValidateGeneration",
+      "reason": "Generation integrity validation is exposed through authenticated Connect; the Source Ledger CLI does not implement lifecycle inspection commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "PromoteGeneration",
+      "reason": "Recipe cutover is exposed through authenticated Connect; the Source Ledger CLI does not implement disk-admitted lifecycle commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "RollbackGeneration",
+      "reason": "Recipe rollback is exposed through authenticated Connect; the Source Ledger CLI does not implement disk-admitted lifecycle commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "GetGenerationOperation",
+      "reason": "Durable operation status is exposed through authenticated Connect; the Source Ledger CLI does not implement lifecycle inspection commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "ResumeGenerationOperation",
+      "reason": "Interrupted operation recovery is exposed through authenticated Connect; the Source Ledger CLI does not implement disk-admitted lifecycle commands."
+    },
+    {
+      "service": "VectorGenerationService",
+      "method": "GetActiveGeneration",
+      "reason": "Active recipe status is exposed through authenticated Connect; the Source Ledger CLI does not implement lifecycle inspection commands."
     }
   ]
 }

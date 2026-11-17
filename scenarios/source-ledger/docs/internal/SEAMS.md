@@ -74,7 +74,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Short name used to refer to the boundary in conversation. |
 | **Interface** | Go file & symbol that defines the contract. |
 | **Production wiring** | Where the real implementation is constructed. |
-| **Test fake** | The fake under `internal/testutil/mocks/` (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
+| **Test fake** | The api-core fake (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
 | **Why it exists** | The class of bug it prevents or the test ergonomic it enables. |
 
 ## Current seams
@@ -86,7 +86,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Wall-clock time |
 | **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
 | **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
+| **Test fake** | api-core `scheduletest.FakeClock` (`Now`, `Advance`, `SetNow`). |
 | **Why it exists** | Middleware computes request-duration log lines from a pair of `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(a short test interval)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
 
 ### Pinger (database reachability)
@@ -191,13 +191,29 @@ and use matrix/trace helpers from the relevant testutil package.
 
 ### Doer (outbound HTTP)
 
+Owned by api-core: `apihttp.Doer` and its fake `apihttptest.FakeDoer`. Source
+Ledger's only outbound calls go through generated Connect clients (ai-gateway),
+so it keeps no local copy of the seam.
+
+### inference.Client (model calls) and background embedding
+
 | | |
 |---|---|
-| **Seam** | Outbound HTTP request boundary |
-| **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
-| **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
+| **Seam** | Every model call (embed, classify, summarize) |
+| **Interface** | `internal/inference/client.go::Client`; `Embedder` adapts it to ai-go's task-aware embedder |
+| **Production wiring** | `main.go` builds one `GatewayClient` (ai-gateway routing) shared by journal, recall, rules, forest and the file corpus. |
+| **Test fake** | `internal/testutil/mocks/inference.go`; `files` tests use small in-package embedders. |
+| **Why it exists** | One privacy-provenance and timeout policy for all inference. `GatewayClient` counts foreground calls; `EmbedWhenIdle` (background file embedding) waits for a quiet gap and is not counted, so recall never queues behind indexing. |
+
+### files.Service (research file corpus)
+
+| | |
+|---|---|
+| **Seam** | File-authoritative corpora (today `research` = `$VROOLI_RESEARCH_HOME`) |
+| **Interface** | `internal/files/service.go::Service` (`Search`, `ListFeeds`, `Sync`, `Run`) |
+| **Production wiring** | `main.go::openFileCorpus` opens the cache `~/.vrooli/cache/vrooli/source-ledger/files-index.db` (WAL, one connection) and starts `Run` (5-minute sync, then background embedding). |
+| **Test fake** | Real files in `t.TempDir()` and a temp SQLite cache; no fake store. |
+| **Why it exists** | Files are the authority and the index is a cache: every read syncs first, so a hit cites the text on disk now, and deleting the cache costs one rebuild. Indexing policy is data (`feeds.json`); `research-desk/skills/research-coordination/scripts/find.py` applies the same policy and ranking from files when this service is down. |
 
 ## Adding a new seam
 
@@ -214,83 +230,16 @@ why a boundary lives where it does and what still needs follow-up.
 
 | Area | Drift | Decision | Follow-up |
 |---|---|---|---|
-| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes stay under `api/internal/testutil/mocks/`. | Preserve this split when adding new domains. |
+| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes come from api-core test packages; `internal/testutil/mocks/` holds only the inference fake. | Preserve this split when adding new domains. |
 | Temporal workflow side effects | Async flows can bury transition rules inside handlers/components. | Pure workflow transitions are domain policy; side effects remain behind seams. | See [`FLOWS.md`](../concepts/FLOWS.md) for modeled flows. |
 | Domain schemas | Central schema files make domain deletion and ownership harder. | Domain tables live beside domain code; `internal/database/system.sql` is only for genuinely cross-cutting DB infrastructure. | If a table is added to system schema, document why it is not domain-owned. |
 
-### Domain-scoped packages, not generic `services/`
+### Adding a domain package
 
-When a seam belongs to a domain (tasks, users, …), it lives in
-`internal/<domain>/`, NOT in `internal/database/` or
-`internal/services/`. Copy this layout for each domain package:
-
-```
-internal/<domain>/
-  types.go         # Entity, CreateInput, ErrInvalid<Entity>, Err<Entity>NotFound
-  repository.go    # Repository interface
-  sqlite.go        # NewSQLiteRepository (production impl)
-  sqlite_test.go   # Repository tests against real sqlite
-  service.go       # Service interface + impl (validation, defaults)
-  service_test.go  # Service tests against FakeRepository
-  schema.sql       # Domain-owned table DDL (Pass-3 pattern)
-  schema.go        # //go:embed schema.sql + Schema() string
-  schema_test.go   # Embed-content tripwire
-  mocks/           # Co-located test fakes (package mocks)
-    repository.go
-    service.go
-    repository_test.go
-    service_test.go
-```
-
-Mocks are co-located under `internal/<dom>/mocks/`, NOT under
-`internal/testutil/mocks/`. `mocks/repository.go` defines
-`FakeRepository`; `mocks/service.go` defines `FakeService`. Deleting
-`internal/<dom>/` takes the mocks, schema, and tests along in one
-sweep.
-
-`internal/database/` retains only cross-cutting infrastructure
-(`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —
-never domain-specific interfaces.
-
-`internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakeDoer`).
-
-### Mechanical steps
-
-1. **Define the interface in a domain package.** Methods are exactly
-   what callers need — no more, no less. Example:
-   ```go
-   // internal/tasks/repository.go
-   package tasks
-
-   type Repository interface {
-       Create(ctx context.Context, t Task) (Task, error)
-       Get(ctx context.Context, id string) (Task, error)
-   }
-   ```
-2. **Implement it in production with the concrete dependency wrapped
-   in an unexported struct.** The struct holds `*sql.DB`; the methods
-   translate domain calls to SQL. Production wires this in `main.go`;
-   tests never see it.
-3. **Add a service alongside the repository.** Even if `Service`
-   currently does nothing more than pass through, define it now —
-   handlers should depend on the service, not the repository, so
-   future validation/policy has a home that doesn't require a handler
-   refactor.
-4. **Add fakes in `internal/<domain>/mocks/`** (co-located with the
-   domain, `package mocks`) named `repository.go` and `service.go`.
-   Each method takes a per-method error knob (`CreateErr error`) plus
-   any state it needs to return. Counters use `atomic.Int64`, not plain
-   `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakeDoer`) stay in
-   `internal/testutil/mocks/`.
-5. **Update this document.** A row in the table above with the same
-   the required columns. If you skip this step, the seam exists but isn't
-   discoverable — future readers will reinvent it parallel.
-6. **Add `var _` compile-time assertions** wherever the interface is
-   defined: `var _ Repository = (*sqliteRepository)(nil)`. The
-   assertion moves "this concrete type satisfies the interface" from a
-   runtime surprise into a compile error.
+Follow the canonical layout and mechanical steps in the template's
+[`SEAMS.md`](../../../../templates/scenarios/react-vite/docs/internal/SEAMS.md)
+("Domain-scoped packages" and "Mechanical steps"); this file records only
+Source Ledger's own seams.
 
 ## UI-side seams
 

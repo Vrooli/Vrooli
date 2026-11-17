@@ -200,13 +200,13 @@ func measure(path, scope string, _ int) (measurement, error) {
 	result := measurement{Scope: scope, Entries: entries, Summaries: summaries}
 	for i := 0; i < 5; i++ {
 		start := time.Now()
-		hits, err := service.Recall(ctx, "fixed recall performance fixture", 5)
+		recalled, err := service.Recall(ctx, "fixed recall performance fixture", 5)
 		if err != nil {
 			return measurement{}, err
 		}
 		result.SamplesSeconds = append(result.SamplesSeconds, time.Since(start).Seconds())
-		if i == 0 && len(hits) > 0 {
-			result.TopEntryID = hits[0].Node.EntryID
+		if i == 0 && len(recalled.Hits) > 0 {
+			result.TopEntryID = recalled.Hits[0].Node.EntryID
 		}
 	}
 	result.NodeCount, err = countNodes(ctx, db.Primary(), scope)

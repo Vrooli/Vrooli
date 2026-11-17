@@ -3,6 +3,7 @@ package recall
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -34,7 +35,8 @@ func (e embedder) EmbedQuery(context.Context, string) ([]float64, error) { retur
 func TestRecallKeepsAbsorbedLeafAndCollapsesDescendants(t *testing.T) { // [REQ:VMEM-P0-001] [REQ:VMEM-P0-003] [REQ:VMEM-P0-004]
 	now := time.Now()
 	svc := NewService(source{{ID: "summary", Text: "weak summary", Vectors: [][]float64{{.1, 1}}, Depth: 1}, {ID: "leaf", ParentID: "summary", EntryID: "leaf", Text: "exact leaf", Vectors: [][]float64{{1, 0}}, CreatedAt: now}}, embedder{[]float64{1, 0}}, Config{})
-	hits, err := svc.Recall(context.Background(), "exact", 10)
+	recalled, err := svc.Recall(context.Background(), "exact", 10)
+	hits := recalled.Hits
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	require.Equal(t, "leaf", hits[0].Node.ID)
@@ -54,7 +56,8 @@ func TestWakePinsFirstAndSubjectsPinsToWholeViewBudget(t *testing.T) { // [REQ:V
 
 func TestRecallCollapsesDescendantsWhenAncestorWins(t *testing.T) {
 	svc := NewService(source{{ID: "summary", Text: "summary", Vectors: [][]float64{{1, 0}}, Depth: 1}, {ID: "leaf", ParentID: "summary", Text: "leaf", Vectors: [][]float64{{.8, 0}}}}, embedder{[]float64{1, 0}}, Config{})
-	hits, err := svc.Recall(context.Background(), "summary", 10)
+	recalled, err := svc.Recall(context.Background(), "summary", 10)
+	hits := recalled.Hits
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	require.Equal(t, "summary", hits[0].Node.ID)
@@ -143,7 +146,8 @@ func TestWakeExcerptsStructuredContentWithoutChangingRecall(t *testing.T) { // [
 	require.LessOrEqual(t, chars(wake.Hits[0].Node.Text), 200)
 	require.LessOrEqual(t, lines(wake.Hits[0].Node.Text), 2)
 	require.Equal(t, chars(wake.Hits[0].Node.Text), wake.CharsUsed)
-	hits, err := svc.Recall(context.Background(), "retained boundary", 1)
+	recalled, err := svc.Recall(context.Background(), "retained boundary", 1)
+	hits := recalled.Hits
 	require.NoError(t, err)
 	require.Len(t, hits, 1)
 	require.Equal(t, string(raw), hits[0].Node.Text)
@@ -286,7 +290,8 @@ func TestRecallScoresAcrossEveryFacetSpace(t *testing.T) { // [REQ:VMEM-P1-005] 
 		{ID: "topic-match", Text: "topic match", Vectors: [][]float64{{.6, .8}}},
 		{ID: "entities-match", Text: "entities match", Vectors: [][]float64{{0, 1}, {1, 0}}},
 	}
-	hits, err := NewService(nodes, embedder{[]float64{1, 0}}, Config{}).Recall(context.Background(), "q", 10)
+	recalled, err := NewService(nodes, embedder{[]float64{1, 0}}, Config{}).Recall(context.Background(), "q", 10)
+	hits := recalled.Hits
 	require.NoError(t, err)
 	require.Equal(t, "entities-match", hits[0].Node.ID,
 		"a perfect match in a secondary space must outrank a partial match in the primary space")
@@ -301,4 +306,28 @@ func TestPerFacetLimitIsTheLargestDeclaredResidency(t *testing.T) { // [REQ:VMEM
 	// With no declared residencies wake walks one recency list, so the line
 	// budget is the only bound that can apply.
 	require.Equal(t, 40, NewService(source{}, embedder{}, Config{WakeBudget: 40}).perFacetLimit())
+}
+
+type downEmbedder struct{}
+
+func (downEmbedder) EmbedQuery(context.Context, string) ([]float64, error) {
+	return nil, errors.New("ai-gateway rejected embedding.default route")
+}
+
+// The journal must stay searchable when the embedding route is down: recall
+// answers lexically and says so instead of failing (it returned HTTP 500 for
+// every query on 2026-11-14, which held Search Hub's circuit open).
+func TestRecallFallsBackToLexicalWhenEmbeddingIsDown(t *testing.T) {
+	nodes := source{
+		{ID: "a", EntryID: "a", Text: "validated the breaker recovery probe"},
+		{ID: "b", EntryID: "b", Text: "unrelated grocery list"},
+		{ID: "c", EntryID: "c", Text: "breaker opened"},
+	}
+	recalled, err := NewService(nodes, downEmbedder{}, Config{}).Recall(context.Background(), "breaker recovery", 10)
+	require.NoError(t, err)
+	require.True(t, recalled.Lexical)
+	require.Contains(t, recalled.Reason, "semantic scoring unavailable")
+	require.Len(t, recalled.Hits, 2, "nodes sharing no query term are not hits")
+	require.Equal(t, "a", recalled.Hits[0].Node.EntryID)
+	require.Less(t, recalled.Hits[0].Score, 1.0)
 }

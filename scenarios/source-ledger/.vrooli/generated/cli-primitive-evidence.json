@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "source-ledger",
   "generator": "v1.0.0",
-  "manifest_hash": "5cba34a7cb35a81899d22f8dd00ee4acbdd0deacf576161fe7c1ebc4a6f508be",
+  "manifest_hash": "b41f5d30ea9d089a7756c6ec66e9697452bfd0fc60e23035e5a5d2aeff30d2e4",
   "commands": [
     {
       "path": "facets assign",
@@ -67,6 +67,22 @@
       "group": "facets",
       "command": "unassigned",
       "binding": "FacetsService.CountUnassigned",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "files feeds",
+      "group": "files",
+      "command": "feeds",
+      "binding": "FilesService.ListFeeds",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "files search",
+      "group": "files",
+      "command": "search",
+      "binding": "FilesService.Search",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

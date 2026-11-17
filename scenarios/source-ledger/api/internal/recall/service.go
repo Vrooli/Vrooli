@@ -5,6 +5,8 @@ package recall
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"math"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -23,6 +25,12 @@ type (
 	}
 	QueryEmbedder interface {
 		EmbedQuery(context.Context, string) ([]float64, error)
+	}
+	GenerationIdentitySource interface {
+		ActiveRecipeID(context.Context) (string, bool, error)
+	}
+	RecipeQueryEmbedder interface {
+		EmbedQueryForRecipe(context.Context, string, string) ([]float64, error)
 	}
 	Service struct {
 		source   Source
@@ -76,24 +84,91 @@ func configFromPolicy(config policy.Config, fallback Config) Config {
 	return fallback
 }
 
-func (s *Service) Recall(ctx context.Context, query string, limit int) ([]Hit, error) {
+// Result is one recall answer. Lexical is set when semantic scoring was
+// unavailable; the hits are then ranked by term overlap and Reason says why.
+type Result struct {
+	Hits    []Hit
+	Lexical bool
+	Reason  string
+}
+
+var errRecipeEmbedder = errors.New("Source Ledger active embedding generation requires its exact-recipe query embedder")
+
+func (s *Service) Recall(ctx context.Context, query string, limit int) (Result, error) {
 	if limit <= 0 {
 		limit = 10
 	}
+	var recipeID string
+	var generationActive bool
+	var err error
+	identitySource, tracksGeneration := s.source.(GenerationIdentitySource)
+	if tracksGeneration {
+		recipeID, generationActive, err = identitySource.ActiveRecipeID(ctx)
+		if err != nil {
+			return Result{}, err
+		}
+	}
+	// The query embedding and the node load are independent; overlapping
+	// them makes a recall cost the slower of the two, not their sum.
+	embedCtx, cancelEmbed := context.WithCancel(ctx)
+	defer cancelEmbed()
+	type embedded struct {
+		vec []float64
+		err error
+	}
+	queryVec := make(chan embedded, 1)
+	go func() {
+		var e embedded
+		if generationActive {
+			exact, ok := s.embedder.(RecipeQueryEmbedder)
+			if !ok {
+				e.err = errRecipeEmbedder
+			} else {
+				e.vec, e.err = exact.EmbedQueryForRecipe(embedCtx, recipeID, query)
+			}
+		} else {
+			e.vec, e.err = s.embedder.EmbedQuery(embedCtx, query)
+		}
+		queryVec <- e
+	}()
 	nodes, err := s.source.Nodes(ctx)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
-	q, err := s.embedder.EmbedQuery(ctx, query)
-	if err != nil {
-		return nil, err
+	if tracksGeneration {
+		observedRecipeID, observedActive, err := identitySource.ActiveRecipeID(ctx)
+		if err != nil {
+			return Result{}, err
+		}
+		if observedRecipeID != recipeID || observedActive != generationActive {
+			return Result{}, errors.New("Source Ledger embedding generation changed during recall; retry the request")
+		}
 	}
+	e := <-queryVec
+	if errors.Is(e.err, errRecipeEmbedder) {
+		return Result{}, e.err
+	}
+	q, err := e.vec, e.err
+	result := Result{}
 	hits := make([]Hit, 0, len(nodes))
-	for _, n := range nodes {
-		hits = append(hits, Hit{Node: n, Score: bestSpaceScore(q, n.Vectors)})
+	if err != nil {
+		// The journal stays searchable when the embedding route is down: rank
+		// by term overlap and say so, instead of failing the whole recall.
+		result.Lexical, result.Reason = true, "semantic scoring unavailable: "+err.Error()
+		scores := lexicalScores(query, nodes)
+		for i, n := range nodes {
+			if scores[i] > 0 {
+				hits = append(hits, Hit{Node: n, Score: scores[i]})
+			}
+		}
+	} else {
+		for _, n := range nodes {
+			hits = append(hits, Hit{Node: n, Score: bestSpaceScore(q, n.Vectors)})
+		}
 	}
 	sort.SliceStable(hits, func(i, j int) bool { return hits[i].Score > hits[j].Score })
-	return collapse(hits, limit), nil
+	result.Hits = collapse(hits, limit)
+	return result, nil
 }
 
 func (s *Service) Wake(ctx context.Context, budget int) (Wake, error) {
@@ -224,47 +299,32 @@ func excerptText(text string, maxLines int, charLimits ...int) string {
 		maxChars = charLimits[0]
 	}
 	lead, body := splitLeadingMetadata(text)
-	if maxLines <= 0 {
-		maxLines = int(^uint(0) >> 1)
-	}
-	kept := make([]string, 0, maxLines)
+	var kept []string
 	if lead != "" {
 		kept = append(kept, lead)
 	}
 	total := len(kept)
-	for _, line := range strings.Split(strings.TrimSpace(body), "\n") {
+	for _, line := range strings.Split(body, "\n") {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		total++
-		if len(kept) < maxLines {
+		if maxLines <= 0 || len(kept) < maxLines {
 			kept = append(kept, strings.TrimRight(line, " \t"))
 		}
 	}
-	if len(kept) == 0 {
-		return ""
-	}
 	result := strings.Join(kept, "\n")
-	truncated := total > len(kept)
-	if maxChars > 0 && chars(result) > maxChars {
-		truncated = true
-		result = truncateRunes(result, maxChars)
+	if result == "" || (total == len(kept) && (maxChars <= 0 || chars(result) <= maxChars)) {
+		return result
 	}
-	if truncated {
-		marker := " " + truncationMarker
-		if maxChars > 0 {
-			available := maxChars - chars(marker)
-			if available < 0 {
-				available = 0
-			}
-			result = truncateRunes(result, available)
-		}
-		result = strings.TrimRight(result, " \n") + marker
-		if maxChars > 0 && chars(result) > maxChars {
-			result = truncationMarker
-		}
+	marker := " " + truncationMarker
+	if maxChars > 0 && maxChars < chars(marker) {
+		return truncationMarker
 	}
-	return result
+	if maxChars > 0 {
+		result = truncateRunes(result, maxChars-chars(marker))
+	}
+	return strings.TrimRight(result, " \n") + marker
 }
 
 func chars(text string) int { return utf8.RuneCountInString(text) }
@@ -308,8 +368,8 @@ func splitLeadingMetadata(text string) (lead, body string) {
 	// Prefer a human-written summary over the slug when the block offers both.
 	for _, field := range []string{"description:", "name:"} {
 		for _, line := range strings.Split(block, "\n") {
-			if value := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), field)); strings.HasPrefix(strings.TrimSpace(line), field) && value != "" {
-				return strings.Trim(value, `"'`), after
+			if value, ok := strings.CutPrefix(strings.TrimSpace(line), field); ok && strings.TrimSpace(value) != "" {
+				return strings.Trim(strings.TrimSpace(value), `"'`), after
 			}
 		}
 	}
@@ -404,18 +464,7 @@ func cosine(a, b []float64) float64 {
 	if aa == 0 || bb == 0 {
 		return 0
 	}
-	return dot / (sqrt(aa) * sqrt(bb))
-}
-
-func sqrt(v float64) float64 {
-	if v == 0 {
-		return 0
-	}
-	x := v
-	for i := 0; i < 12; i++ {
-		x = (x + v/x) / 2
-	}
-	return x
+	return dot / (math.Sqrt(aa) * math.Sqrt(bb))
 }
 
 func lines(text string) int {

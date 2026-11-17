@@ -18,7 +18,9 @@
           "path": "/vrooli.source_ledger.v1.recall.RecallService/Recall",
           "method": "HTTP_METHOD_POST",
           "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}},\"scope\":\"{{scope_value}}\"}",
-          "headers": {"Content-Type": "application/json"}
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "status_endpoint": {
@@ -26,7 +28,9 @@
           "scenario_id": "source-ledger",
           "path": "/health",
           "method": "HTTP_METHOD_GET",
-          "headers": {"Content-Type": "application/json"}
+          "headers": {
+            "Content-Type": "application/json"
+          }
         }
       },
       "result_mapping": {
@@ -35,7 +39,8 @@
         "score_field": "score",
         "score_scale": "SCORE_SCALE_COSINE_0_1",
         "snippet_field": "text",
-        "title_field": "facetId"
+        "title_field": "facetId",
+        "degradations_field": "degradations"
       },
       "tuning": {
         "engine": "dense",
@@ -44,18 +49,178 @@
         "rerank_enabled": false,
         "rerank_blend": false,
         "rerank_shortlist": 50,
-        "floor": {"hard_floor": 0, "max_gap": 0}
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        }
       },
-      "performance": {"p95_ms": 1500, "degraded_rate_max": 0.1, "minimum_samples": 2, "telemetry_required": true},
-      "scoring": {"recall_at": 5, "recall_target": 0.8, "mrr_at": 3, "deep_k": 50},
+      "performance": {
+        "p95_ms": 1500,
+        "degraded_rate_max": 0.1,
+        "minimum_samples": 2,
+        "telemetry_required": true
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
       "tests": {
-        "minimum": {"reviewed_positive": 1, "negative": 1},
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        },
         "suite_id": "source-ledger.scopes.primary",
         "name": "Source Ledger scope-filtered recall corpus",
         "description": "Reviewed cases for scope-filtered source history retrieval.",
         "cases": [
-          {"id": "scope-work-record", "query": "what did a previous coding agent validate or implement", "expect_ids": ["b64be0e6-c42e-47b8-92f4-89834d9dde94"], "expect_within_top_k": 5, "status": "reviewed", "tags": ["reviewed", "work-record"]},
-          {"id": "scope-junk-negative", "query": "zxqv unrelated synthetic nonsense", "expect_no_strong_hit": true, "expect_max_score": 0.6, "status": "reviewed", "tags": ["reviewed", "negative"]}
+          {
+            "id": "scope-work-record",
+            "query": "what did a previous coding agent validate or implement",
+            "expect_ids": [
+              "b64be0e6-c42e-47b8-92f4-89834d9dde94"
+            ],
+            "expect_within_top_k": 5,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "work-record"
+            ]
+          },
+          {
+            "id": "scope-junk-negative",
+            "query": "zxqv unrelated synthetic nonsense",
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.6,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "negative"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "provider_id": "source-ledger.research",
+      "lifecycle": "experimental",
+      "provider_group": "source-ledger",
+      "bucket": "BUCKET_KNOW",
+      "type": "doc",
+      "class": "local_live",
+      "scope": "SCOPE_PROJECT",
+      "description": "Research home files (~/.vrooli/research): topic missions, knowledge maps, plans, skills, operator feedback, run reports and checkpoints. Every read first syncs the index against the files, so hits show the text on disk now, cited as path#Lstart-Lend. Use for what research has found, decided, planned or been told. For one topic, run `source-ledger files search <words> --topic <topic>`.",
+      "routing_profile": {
+        "answer_spaces": [
+          "research",
+          "findings",
+          "decisions",
+          "plans"
+        ],
+        "intents": [
+          "recall_research",
+          "locate_finding",
+          "check_prior_decision"
+        ],
+        "positive_examples": [
+          "what has research found about ux capture",
+          "which topic owns terminal freezing",
+          "experience engineering target architecture"
+        ],
+        "exclusions": [
+          "live implementation source",
+          "current service health"
+        ]
+      },
+      "endpoint": {
+        "http_json": {
+          "scenario_id": "source-ledger",
+          "path": "/vrooli.source_ledger.v1.files.FilesService/Search",
+          "method": "HTTP_METHOD_POST",
+          "body_template": "{\"query\":\"{{query}}\",\"limit\":{{limit}}}",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "status_endpoint": {
+        "http_json": {
+          "scenario_id": "source-ledger",
+          "path": "/health",
+          "method": "HTTP_METHOD_GET",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "result_mapping": {
+        "results_path": "hits",
+        "id_field": "path",
+        "title_field": "citation",
+        "path_field": "absPath",
+        "snippet_field": "snippet",
+        "score_field": "score",
+        "score_scale": "SCORE_SCALE_COSINE_0_1",
+        "degradations_field": "degradations"
+      },
+      "tuning": {
+        "engine": "hybrid",
+        "embed_model": "nomic-embed-text",
+        "embed_task_prefix": true,
+        "rerank_enabled": false,
+        "rerank_blend": false,
+        "rerank_shortlist": 40,
+        "floor": {
+          "hard_floor": 0,
+          "max_gap": 0
+        }
+      },
+      "performance": {
+        "p95_ms": 2500,
+        "degraded_rate_max": 0.5,
+        "minimum_samples": 2,
+        "telemetry_required": true
+      },
+      "scoring": {
+        "recall_at": 5,
+        "recall_target": 0.8,
+        "mrr_at": 3,
+        "deep_k": 50
+      },
+      "tests": {
+        "minimum": {
+          "reviewed_positive": 1,
+          "negative": 1
+        },
+        "suite_id": "source-ledger.research.primary",
+        "name": "Research home file search",
+        "description": "Reviewed cases for fresh, cited research-file retrieval.",
+        "cases": [
+          {
+            "id": "exemplar-decision-skill",
+            "query": "present ux decisions on a phone with today captured beside the proposal",
+            "expect_ids": [
+              "topics/experience-engineering/skills/present-ux-decisions/SKILL.md"
+            ],
+            "expect_within_top_k": 5,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "skill"
+            ]
+          },
+          {
+            "id": "research-junk-negative",
+            "query": "zxqv unrelated synthetic nonsense",
+            "expect_no_strong_hit": true,
+            "expect_max_score": 0.6,
+            "status": "reviewed",
+            "tags": [
+              "reviewed",
+              "negative"
+            ]
+          }
         ]
       }
     }

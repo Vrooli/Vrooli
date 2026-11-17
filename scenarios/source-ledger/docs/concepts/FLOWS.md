@@ -62,7 +62,6 @@ are executable only after the service contract and moved engine are present.
 The flows preserve append-only authority while derived enrichment, compaction,
 and federation consume scope-filtered records.
 
-## Purpose Of This Document
 
 This document describes the intended source-ledger flows and their failure
 boundaries.

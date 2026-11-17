@@ -3,8 +3,6 @@ package forest
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"source-ledger/internal/policy"
@@ -13,10 +11,17 @@ import (
 
 // SQLiteCandidateSource projects only root nodes whose current facet policy
 // permits compaction. Policy remains owned by facets; forest only applies it.
-type SQLiteCandidateSource struct{ db *sql.DB }
+type SQLiteCandidateSource struct {
+	db          *sql.DB
+	generations *vectorcodec.SQLiteGenerationServing
+}
 
-func NewSQLiteCandidateSource(db *sql.DB) *SQLiteCandidateSource {
-	return &SQLiteCandidateSource{db: db}
+func NewSQLiteCandidateSource(db *sql.DB, generations ...*vectorcodec.SQLiteGenerationServing) *SQLiteCandidateSource {
+	source := &SQLiteCandidateSource{db: db}
+	if len(generations) > 0 {
+		source.generations = generations[0]
+	}
+	return source
 }
 
 func (s *SQLiteCandidateSource) CompactionCandidates(ctx context.Context) ([]Candidate, error) {
@@ -57,7 +62,9 @@ ORDER BY created_at,id`, scope, scope, now, scope, scope)
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	vectors, err := s.vectorsByCandidate(ctx)
+	// Every vector space of a candidate, so pair scoring compares each space
+	// with its counterpart rather than one notion of relatedness.
+	vectors, err := vectorcodec.EntryVectors(ctx, s.db, s.generations, string(policy.ScopeFromContext(ctx)))
 	if err != nil {
 		return nil, err
 	}
@@ -65,47 +72,6 @@ ORDER BY created_at,id`, scope, scope, now, scope, scope)
 		out[i].Vectors = vectors[out[i].ID]
 	}
 	return out, nil
-}
-
-// vectorsByCandidate loads every derived facet embedding in one pass so pair
-// scoring can compare each space against its counterpart. The previous
-// per-candidate subquery returned only the first space, so clustering could
-// group by exactly one notion of relatedness.
-func (s *SQLiteCandidateSource) vectorsByCandidate(ctx context.Context) (map[string][][]float64, error) {
-	rows, err := s.db.QueryContext(ctx, `
-SELECT ft.entry_id, em.vector_blob, em.vector_json
-FROM facet_texts ft JOIN embeddings em ON em.facet_text_id=ft.id
-JOIN entries e ON e.id=ft.entry_id
-WHERE e.scope=?
-UNION ALL
-SELECT sm.id, sm.vector_blob, sm.vector_json FROM summaries sm WHERE sm.scope=?
-ORDER BY 1`, policy.ScopeFromContext(ctx), policy.ScopeFromContext(ctx))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	out := map[string][][]float64{}
-	for rows.Next() {
-		var id, raw string
-		var blob []byte
-		if err := rows.Scan(&id, &blob, &raw); err != nil {
-			return nil, err
-		}
-		var vector []float64
-		switch {
-		case len(blob) > 0:
-			vector, err = vectorcodec.Decode(blob)
-		case raw != "" && raw != "[]":
-			err = json.Unmarshal([]byte(raw), &vector)
-		default:
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("decode compaction vector: %w", err)
-		}
-		out[id] = append(out[id], vector)
-	}
-	return out, rows.Err()
 }
 
 var _ CandidateSource = (*SQLiteCandidateSource)(nil)

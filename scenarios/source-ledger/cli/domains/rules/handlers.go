@@ -42,7 +42,7 @@ func (h *handlers) listReport(ctx cliapp.OperationContext, msg *rulesv1.ListRule
 }
 
 func (h *handlers) createCall(ctx cliapp.OperationContext) (*rulesv1.CreateRuleResponse, error) {
-	rule := &rulesv1.Rule{Id: ctx.Flag("id"), Scope: scope(ctx), Priority: int32Value(ctx.Flag("priority")), FacetId: ctx.Flag("facet"), SourceRuntime: ctx.Flag("source-runtime"), Kind: ctx.Flag("kind"), KindGlob: ctx.Flag("kind-glob"), SourcePathGlob: ctx.Flag("source-path-glob"), BodyPattern: ctx.Flag("body-pattern")}
+	rule := &rulesv1.Rule{Id: ctx.Flag("id"), Scope: scope(ctx), Priority: int32Value(ctx.Flag("priority")), FacetId: ctx.Flag("facet-id"), SourceRuntime: ctx.Flag("source-runtime"), Kind: ctx.Flag("kind"), KindGlob: ctx.Flag("kind-glob"), SourcePathGlob: ctx.Flag("source-path-glob"), BodyPattern: ctx.Flag("body-pattern")}
 	response, err := h.client.CreateRule(context.Background(), connect.NewRequest(&rulesv1.CreateRuleRequest{Rule: rule}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("create source-ledger classification rule", err, nil)

@@ -11,7 +11,10 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 func TestEmbedderUsesDistinctGatewayTasks(t *testing.T) { // [REQ:VMEM-P1-005]
@@ -212,7 +215,13 @@ func (r *outcomeRouting) ExecuteRoute(context.Context, *connect.Request[routingv
 }
 
 func (f fakeRouting) ExecuteRoute(_ context.Context, req *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
-	if req.Msg.GetRequest().GetRole() != f.wantRole || req.Msg.GetInputText() != f.wantInput || req.Msg.GetRequest().GetTimeoutMs() != int32(f.wantTimeout/time.Millisecond) || req.Msg.GetRequest().GetMaxOutputTokens() != int32(f.wantMaxOutputTokens) {
+	request := req.Msg.GetRequest()
+	if request.GetRole() != f.wantRole || req.Msg.GetInputText() != f.wantInput ||
+		request.GetTimeoutMs() != int32(f.wantTimeout/time.Millisecond) ||
+		request.GetMaxOutputTokens() != int32(f.wantMaxOutputTokens) ||
+		request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL ||
+		request.GetScenario() != "source-ledger" ||
+		request.GetPrivacyProvenance() != privacyProvenance {
 		panic("wrong gateway request")
 	}
 	return connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: f.response}), nil
@@ -252,4 +261,64 @@ func (fakeRouting) WaitMediaExecution(context.Context, *connect.Request[routingv
 
 func (fakeRouting) RetryMediaExecution(context.Context, *connect.Request[routingv1.RetryMediaExecutionRequest]) (*connect.Response[routingv1.RetryMediaExecutionResponse], error) {
 	return nil, nil
+}
+
+// Background indexing steps aside for foreground inference and never makes
+// foreground work wait on itself.
+func TestEmbedWhenIdleYieldsToForegroundCalls(t *testing.T) {
+	routing := &outcomeRouting{result: connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: `{"embedding":[0.5]}`})}
+	client := NewGatewayClient(routing)
+
+	_, err := client.Embed(context.Background(), "recall query", EmbeddingQuery)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	_, err = client.EmbedWhenIdle(ctx, "research chunk")
+	require.ErrorIs(t, err, context.DeadlineExceeded, "a background embed waits out the quiet gap")
+	require.Equal(t, 1, routing.calls)
+
+	client.lastDone.Store(time.Now().Add(-idleGap).UnixNano())
+	for range 2 {
+		vec, err := client.EmbedWhenIdle(context.Background(), "research chunk")
+		require.NoError(t, err)
+		require.Equal(t, []float64{0.5}, vec)
+	}
+	require.Equal(t, 3, routing.calls, "background calls do not count as foreground activity")
+}
+
+type fakeBatchEmbed struct {
+	inferenceconnect.InferenceServiceClient
+	texts [][]string
+}
+
+func (f *fakeBatchEmbed) Embed(_ context.Context, req *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error) {
+	f.texts = append(f.texts, req.Msg.GetTexts())
+	resp := &inferencev1.EmbedResponse{}
+	for range req.Msg.GetTexts() {
+		resp.Vectors = append(resp.Vectors, &inferencev1.EmbeddingVector{Values: []float64{1}})
+	}
+	return connect.NewResponse(resp), nil
+}
+
+// The file corpus embeds many chunks per gateway call, with task prefixes,
+// and a background batch still steps aside for foreground work.
+func TestEmbedBatchSendsOneCallAndYieldsToForeground(t *testing.T) {
+	batch := &fakeBatchEmbed{}
+	client := NewGatewayClient(&outcomeRouting{}).WithBatchEmbedding(batch)
+
+	vecs, err := client.EmbedBatch(context.Background(), EmbeddingQuery, []string{"q"}, false)
+	require.NoError(t, err)
+	require.Len(t, vecs, 1)
+	require.Equal(t, []string{queryPrefix + "q"}, batch.texts[0])
+
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	_, err = client.EmbedBatch(ctx, EmbeddingDocument, []string{"a", "b"}, true)
+	require.ErrorIs(t, err, context.DeadlineExceeded, "the foreground query just finished")
+
+	client.lastDone.Store(time.Now().Add(-idleGap).UnixNano())
+	vecs, err = client.EmbedBatch(context.Background(), EmbeddingDocument, []string{"a", "b"}, true)
+	require.NoError(t, err)
+	require.Len(t, vecs, 2)
+	require.Equal(t, []string{documentPrefix + "a", documentPrefix + "b"}, batch.texts[1])
 }

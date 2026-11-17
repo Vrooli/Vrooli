@@ -67,7 +67,6 @@ recall, and facets boundaries; transport adapters remain at the edge. Scope
 registry requests carry the registry scope explicitly, while the `Scope`
 resource carries the vocabulary and budget for the target ledger.
 
-## Purpose Of This Document
 
 This document defines the Source Ledger boundary and the invariants that
 later extraction phases must preserve.
