@@ -124,13 +124,15 @@ Static brightness scales RGB channels. Native effects require a usable advertise
 brightness range for limits below 100 percent; the raw level is the rounded-down
 percentage of the advertised maximum. A requested level below the hardware
 minimum, a fixed/reversed range, or a missing brightness control prevents an
-effect write. Control then emits a safely scoped static Off fallback, including
-when lowering the cap after an unbounded effect was already enabled. The result
-describes Off while persisted desired effect intent and ownership remain intact.
-If the hardware has no safely scoped static Off, the unsupported result states
-that no Off command completed and prior output may remain unchanged. Exact zone
-effects can work without static color support when their brightness control
-honors the limit. SDK acknowledgement never proves visible brightness.
+effect write. Control first tries the same color as static output, where software
+RGB scaling can honor the cap. If static output cannot be confirmed, it emits a
+safely scoped static Off fallback to stop a possibly over-cap effect. Persisted
+effect intent and ownership remain intact, and the result describes the command
+that was actually attempted. If hardware cannot safely apply static color or Off,
+the result states that no fallback command completed and prior output may remain
+unchanged. Exact zone effects can work without static color support
+when their brightness control honors the limit. SDK acknowledgement never proves
+visible brightness.
 
 ## Operation truth and current limits
 
@@ -154,6 +156,13 @@ explicit per-zone outcome so policy can use its static fallback. Native mode
 ACK and fresh same-connection controller readback are distinct from separately
 observed physical output. The bounded reconciliation cadence does not perform
 frame-rate physical detector scans. Physical output qualification remains open.
+
+`Controller.reported_led_colors` exposes each color from the latest OpenRGB v6
+controller-data packet, with its LED index/name and observation timestamp. The
+source is explicitly `openrgb_sdk_controller_data_cached_state`: this is the
+backend's reported/cached color state, not a measurement of physical light.
+`ZoneApplyResult.cached_mode_readback` checks the active mode descriptor only;
+it does not verify per-LED RGB values.
 
 ## Verification
 

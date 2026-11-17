@@ -29,6 +29,7 @@ func (a activityServer) GetRuntimeActivity(context.Context, *connect.Request[api
 	}
 	return connect.NewResponse(a.response), nil
 }
+
 func TestTypedPhysicalActivityReadNeverInfersExecutingFromQueueOrReceipt(t *testing.T) {
 	now := time.Date(2026, 11, 11, 18, 0, 0, 0, time.UTC)
 	zero, one := uint32(0), uint32(1)
@@ -109,5 +110,43 @@ func TestTypedActivityOwnerTimeAndPartialEvidenceDriveWorkTruthfully(t *testing.
 			require.Equal(t, test.wantEffect, effective.EffectId)
 			require.Equal(t, test.fallback, effective.StaticFallback)
 		})
+	}
+}
+
+func TestReadRetainsPhysicalActivityWhenOwnerNeedsSeveralSeconds(t *testing.T) {
+	now := time.Now().UTC()
+	path, handler := apiconnect.NewAgentManagerServiceHandler(activityServer{response: &apipb.GetRuntimeActivityResponse{
+		ObservedAt: timestamppb.New(now), ObservedExecutingRuns: 3, UnknownReasons: []string{"attached scope unresolved"},
+	}})
+	mux := http.NewServeMux()
+	mux.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(5*time.Second + 100*time.Millisecond):
+			handler.ServeHTTP(w, r)
+		case <-r.Context().Done():
+		}
+	}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	source := New()
+	source.resolve = func(context.Context, string) (string, error) { return server.URL, nil }
+	got := source.Read(context.Background())
+	if got.AgentManager.State != policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED || got.AgentManager.Measurements["observed_executing_runs"] != 3 {
+		t.Fatalf("owner activity beyond the previous four-second budget was lost: %+v", got.AgentManager)
+	}
+	if _, ok := got.AgentManager.Measurements["active_runs"]; ok {
+		t.Fatal("partial owner inventory was upgraded to an exact activity total")
+	}
+
+	config := policy.DefaultConfig()
+	config.DefaultPreset = policyv1.PresetKind_PRESET_KIND_COMBINED
+	health := policy.SourceInput{Name: "host", State: policyv1.EvidenceState_EVIDENCE_STATE_FRESH, ObservedAt: got.Now, SourceTime: got.Now, Measurements: map[string]float64{"health_level": 1}}
+	_, effective, err := (policy.Engine{Config: config}).Evaluate(policy.State{}, policy.Inputs{Now: got.Now, InfrastructureHealth: []policy.SourceInput{health}, AgentManager: got.AgentManager})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if effective.EffectId != "Breathing" || effective.StaticFallback {
+		t.Fatalf("positive physical evidence did not restore Combined's supported effect: %+v", effective)
 	}
 }

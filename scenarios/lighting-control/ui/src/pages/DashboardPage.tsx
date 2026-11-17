@@ -17,6 +17,9 @@ import { manualOffCoversAll } from "../features/lights/manualOff";
 import { useManualOffDescription } from "../features/lights/useManualOffDescription";
 import { useLightDesk } from "../features/lights/useLightDesk";
 import { ManualZoneEditor } from "../features/lights/ManualZoneEditor";
+import { EffectDeliveryNotice, ZoneColorEvidence } from "../features/lights/ColorEvidence";
+import { ControllerColorReport } from "../features/lights/ControllerColorReport";
+import { colorHex, rgbLabel } from "../features/lights/colorEvidence";
 import { Link } from "react-router-dom";
 
 const presets = [PresetKind.OFF, PresetKind.LOAD, PresetKind.WORK, PresetKind.HEALTH, PresetKind.COMBINED, PresetKind.STATIC] as const;
@@ -87,12 +90,16 @@ function ControllerPanel({ controllers, statuses, busy, backendReady, maxBrightn
     <ul className="lightdesk-controller-list">{controllers.map((controller) => <li key={controller.controllerId} className="lightdesk-controller">
       <div className="lightdesk-controller-head"><div><h3><Link className="lightdesk-link" to={`/controllers/${encodeURIComponent(controller.controllerId)}`}>{controller.name || controller.vendor || controller.controllerId}</Link></h3><p className="lightdesk-muted">{controller.vendor} · {controller.zones.length} {t(strings.lightDesk.zones)}</p></div><button className="lightdesk-button lightdesk-button--small" disabled={busy || (!controller.enrolled && (!backendReady || !hasStableControllerIdentity(controller)))} onClick={() => void act(() => lightingApi.enroll(controller.controllerId, !controller.enrolled), controller.enrolled ? t(strings.lightDesk.controllerUnenrolled) : t(strings.lightDesk.controllerEnrolled))}>{controller.enrolled ? t(strings.lightDesk.unenroll) : t(strings.lightDesk.enroll)}</button></div>
       {!hasStableControllerIdentity(controller) ? <p className="lightdesk-warning">{t(strings.lightDesk.controllerUi.identityUnavailable)}</p> : null}
+      <ControllerColorReport controller={controller} statuses={[...statuses.values()].filter((status) => status.desired?.controllerId === controller.controllerId)} compact/>
       {controller.zones.map((zone) => {
         const status = statuses.get(`${controller.controllerId}/${zone.zoneId}`);
-        const state = status?.desired?.desiredMode;
-        const swatch = state?.case === "staticColor" ? `rgb(${state.value.color?.red ?? 0} ${state.value.color?.green ?? 0} ${state.value.color?.blue ?? 0})` : undefined;
-        return <div className="lightdesk-zone" key={zone.zoneId}><div className="lightdesk-zone-main"><span className="lightdesk-color-dot" style={{ background: swatch }}/><div><strong>{zone.name}</strong><p className="lightdesk-muted">{zone.ledCount} {t(strings.lightDesk.leds)} · {zone.supportsStaticColor ? t(strings.lightDesk.staticSupported) : t(strings.lightDesk.staticUnsupported)}</p></div></div>
+        return <div className="lightdesk-zone" key={zone.zoneId}><div className="lightdesk-zone-main"><div><strong>{zone.name}</strong><p className="lightdesk-muted">{zone.ledCount} {t(strings.lightDesk.leds)} · {zone.supportsStaticColor ? t(strings.lightDesk.staticSupported) : t(strings.lightDesk.staticUnsupported)}</p></div></div>
           {controller.enrolled ? <ManualZoneEditor controllerId={controller.controllerId} zone={zone} desired={status?.desired} maxBrightness={maxBrightness} disabled={busy || !backendReady || !hasStableControllerIdentity(controller)} act={act}/> : null}
+          <div className="lightdesk-zone-color-evidence">
+            <ZoneColorEvidence title={t(strings.lightDesk.savedIntent)} mode={status?.desired?.desiredMode} scaledLabel={t(strings.lightDesk.scaledPayload)} offLabel={t(strings.lightDesk.offValue)} noColorLabel={t(strings.lightDesk.noColorValue)} missingLabel={t(strings.lightDesk.colorEvidenceUnavailable)}/>
+            <ZoneColorEvidence title={t(strings.lightDesk.lastCommandPayload)} mode={status?.lastApply?.desired?.desiredMode} scaledLabel={t(strings.lightDesk.scaledPayload)} offLabel={t(strings.lightDesk.offValue)} noColorLabel={t(strings.lightDesk.noColorValue)} missingLabel={t(strings.lightDesk.colorEvidenceUnavailable)}/>
+          </div>
+          <EffectDeliveryNotice desired={status?.desired} lastApply={status?.lastApply}/>
           <p className="lightdesk-operation">{t(operationKey(status?.lastApply?.operation))}{status?.lastApply?.backendAcknowledged ? ` · ${t(strings.lightDesk.acknowledgedNotObserved)}` : ""}{status?.lastApply?.reason ? ` · ${status.lastApply.reason}` : ""}</p>
           {zone.supportedEffects.length ? <p className="lightdesk-muted">{t(strings.lightDesk.effectsAvailable)}: {zone.supportedEffects.join(", ")}</p> : null}
         </div>;
@@ -104,7 +111,7 @@ function ControllerPanel({ controllers, statuses, busy, backendReady, maxBrightn
 function PolicyPanel({ effective, evidence, maxAgeSeconds, busy, onPreset, onResume }: { effective?: EffectivePolicy; evidence: EvidenceSource[]; maxAgeSeconds: number; busy: boolean; onPreset: (kind: PresetKind) => void; onResume: () => void }) {
   const { t } = useTranslation();
   return <section className="lightdesk-panel" aria-labelledby="policy-title"><div className="lightdesk-panel-heading"><Sparkles aria-hidden="true"/><h2 id="policy-title">{t(strings.lightDesk.policy)}</h2></div>
-    {effective ? <><p className="lightdesk-policy-name">{t(presetKey(effective.preset))}</p><p className="lightdesk-muted">{effective.reason || t(strings.lightDesk.noPolicyReason)}</p><div className="lightdesk-policy-details"><span>{t(strings.lightDesk.brightness)} <strong>{effective.brightnessPercent}%</strong></span><span>{effective.effectId ? `${t(strings.lightDesk.effect)}: ${effective.effectId}` : t(strings.lightDesk.staticColor)}</span></div>
+    {effective ? <><p className="lightdesk-policy-name">{t(presetKey(effective.preset))}</p><p className="lightdesk-muted">{effective.reason || t(strings.lightDesk.noPolicyReason)}</p>{effective.color ? <div className="lightdesk-policy-color"><span className="lightdesk-color-sample lightdesk-color-sample--policy" style={{ backgroundColor: colorHex(effective.color) }} aria-hidden="true"/><div><strong>{t(strings.lightDesk.selectedColor)} · {colorHex(effective.color)}</strong><small>{t(strings.lightDesk.rgbChannels, { channels: rgbLabel(effective.color) })} · {t(strings.lightDesk.percentageValue, { percent: effective.brightnessPercent })}</small></div></div> : null}<div className="lightdesk-policy-details"><span>{t(strings.lightDesk.brightness)} <strong>{effective.brightnessPercent}%</strong></span><span>{effective.effectId ? `${t(strings.lightDesk.effect)}: ${effective.effectId}` : t(strings.lightDesk.staticColor)}</span></div>
       {effective.staticFallback ? <p className="lightdesk-warning"><AlertTriangle aria-hidden="true"/>{t(strings.lightDesk.staticFallback)}</p> : null}
       <label className="lightdesk-select-label">{t(strings.lightDesk.choosePreset)}<select value={effective.preset} disabled={busy} onChange={(event) => onPreset(Number(event.target.value))}>{presets.map((kind) => <option value={kind} key={kind}>{t(presetKey(kind))}</option>)}</select></label>
       {effective.manualPriority ? <button className="lightdesk-button" disabled={busy} onClick={onResume}>{t(strings.lightDesk.resumeAutomatic)}</button> : null}

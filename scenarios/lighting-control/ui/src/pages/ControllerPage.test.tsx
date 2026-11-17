@@ -2,12 +2,12 @@ import { create } from "@bufbuild/protobuf";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BackendState, BackendStatusSchema, ControllerSchema, OperationState, ZoneApplyResultSchema, ZoneCapabilitySchema, ZoneStateSchema, ZoneStatusSchema } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
+import { BackendState, BackendStatusSchema, ControllerSchema, OperationState, ReportedLEDColorSchema, ZoneApplyResultSchema, ZoneCapabilitySchema, ZoneStateSchema, ZoneStatusSchema } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
 import { PolicyConfigSchema, PresetKind } from "@vrooli/proto-types/lighting-control/v1/policy/policy_pb";
 import { lightingApi } from "../features/lights/api";
 import { strings } from "../consts/strings";
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
-import { setLocale } from "../i18n";
+import { i18n, setLocale } from "../i18n";
 import { ControllerPage } from "./ControllerPage";
 
 describe("ControllerPage", () => {
@@ -35,6 +35,38 @@ describe("ControllerPage", () => {
     renderWithProviders(<MemoryRouter initialEntries={["/controllers/missing"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Routes><Route path="/controllers/:controllerId" element={<ControllerPage />}/></Routes></MemoryRouter>, { withoutRouter: true });
     expect(await screen.findByRole("heading", { name: strings.lightDesk.controllerUi.unavailableTitle })).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(strings.lightDesk.controllerUi.unavailableHelp);
+  });
+
+  it("shows cached controller colors with their time and without claiming per-zone or physical verification", async () => {
+    await setLocale("en");
+    const observedAt = { seconds: BigInt(1_800_000_000), nanos: 0 };
+    const attemptedAt = { seconds: BigInt(1_800_000_010), nanos: 0 };
+    const payload = create(ZoneStateSchema, {
+      controllerId: "42", zoneId: "zone-main",
+      desiredMode: { case: "staticColor", value: { color: { red: 217, green: 154, blue: 36 }, brightnessPercent: 25 } },
+    });
+    const controller = create(ControllerSchema, {
+      controllerId: "42", name: "GPU", vendor: "Example", enrolled: true, identitySource: "openrgb_linux_pci_i2c_location",
+      zones: [create(ZoneCapabilitySchema, { zoneId: "zone-main", name: "Main", supportsStaticColor: true })],
+      reportedColorSource: "openrgb_sdk_controller_data_cached_state",
+      reportedColorsObservedAt: observedAt,
+      reportedActiveMode: "Direct",
+      reportedLedColors: [0, 1, 2, 3].map((index) => create(ReportedLEDColorSchema, { index, displayName: `LED ${index + 1}`, color: { red: 54, green: 39, blue: 9 } })),
+    });
+    vi.spyOn(lightingApi, "readDesk").mockResolvedValue({
+      backend: create(BackendStatusSchema, { state: BackendState.READY }), controllers: [controller],
+      zones: [create(ZoneStatusSchema, { desired: payload, lastApply: create(ZoneApplyResultSchema, { desired: payload, operation: OperationState.BACKEND_ACKNOWLEDGED, completedAt: attemptedAt, backendAcknowledged: true }) })],
+      manualOverride: undefined, effective: undefined, config: create(PolicyConfigSchema, { brightnessCapPercent: 35 }),
+    });
+    const { container } = renderWithProviders(<MemoryRouter initialEntries={["/controllers/42"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Routes><Route path="/controllers/:controllerId" element={<ControllerPage />}/></Routes></MemoryRouter>, { withoutRouter: true });
+
+    expect(await screen.findByRole("heading", { name: i18n.t(strings.lightDesk.openRgbReportedState) })).toBeInTheDocument();
+    const reportText = container.querySelector(".lightdesk-reported-colors")?.textContent ?? "";
+    expect(reportText).toContain("#362709");
+    expect(reportText).toContain(i18n.t(strings.lightDesk.reportedColorPredatesCommand));
+    expect(reportText).toContain(i18n.t(strings.lightDesk.reportedColorScope));
+    expect(reportText).toContain(i18n.t(strings.lightDesk.reportedColorSource, { source: i18n.t(strings.lightDesk.reportedColorSourceOpenRgbCache) }));
+    expect(reportText).not.toContain("openrgb_sdk_controller_data_cached_state");
   });
 
   it("shows errors when durable Off cannot be saved", async () => {

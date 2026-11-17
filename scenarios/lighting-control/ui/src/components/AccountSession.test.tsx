@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { strings } from "../consts/strings";
+import { i18n } from "../i18n";
 import { AccountSession } from "./AccountSession";
 import { sessionApi } from "../api/session";
 import { renderWithProviders } from "../test-utils";
@@ -10,6 +11,19 @@ const copy = strings.lightDesk.account;
 vi.mock("../api/session", () => ({ sessionApi: { status: vi.fn(), login: vi.fn(), refresh: vi.fn(), logout: vi.fn() } }));
 afterEach(() => vi.resetAllMocks());
 describe("AccountSession", () => {
+  it("describes browser sign-in without demanding lighting scopes or agent approval", async () => {
+    await i18n.changeLanguage("en");
+    vi.mocked(sessionApi.status).mockResolvedValue({ authenticated: false });
+    renderWithProviders(<AccountSession />);
+    await screen.findByText(i18n.t(copy.signedOut));
+    const intro = screen.getByText(i18n.t(copy.intro));
+    expect(intro).toBeVisible();
+    expect(intro.textContent).toBe("Sign in with your installation account.");
+    const account = screen.getByRole("heading", { name: i18n.t(copy.title) }).closest("section");
+    expect(account).not.toHaveTextContent(/lighting-control:|scopes?|approval|consent|grant/i);
+    expect(screen.getByRole("button", { name: i18n.t(copy.signIn) })).toBeEnabled();
+    expect(sessionApi.login).not.toHaveBeenCalled();
+  });
   it("keeps MFA distinct from an authenticated session and verifies sign-in status", async () => {
     vi.mocked(sessionApi.status).mockResolvedValueOnce({ authenticated: false }).mockResolvedValueOnce({ authenticated: true, email: "owner@example.test" });
     vi.mocked(sessionApi.login).mockResolvedValueOnce({ authenticated: false, mfaRequired: true, mfaChallenge: "challenge" }).mockResolvedValueOnce({ authenticated: false });

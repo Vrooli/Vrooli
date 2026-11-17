@@ -98,6 +98,27 @@ body {
 .lightdesk-empty { padding: 1.3rem .5rem; text-align: center; color: var(--color-muted-foreground); }
 .lightdesk-empty h3 { color: var(--color-foreground); }
 .lightdesk-policy-name { margin: .2rem 0; font-size: 1.2rem; font-weight: 700; }
+.lightdesk-policy-color { display: flex; min-height: 4.25rem; align-items: center; gap: .8rem; padding: .65rem; margin: .8rem 0; border: 1px solid var(--color-border-strong); border-radius: .7rem; background: var(--color-surface-muted); }
+.lightdesk-policy-color > div, .lightdesk-color-values > span:last-child, .lightdesk-scaled-color > span:last-child, .lightdesk-reported-color-list li > span:last-child { display: grid; gap: .15rem; }
+.lightdesk-policy-color small, .lightdesk-color-evidence small, .lightdesk-reported-color-list small { color: var(--color-muted-foreground); font-size: .78rem; }
+.lightdesk-color-sample { display: block; width: 2.7rem; height: 2.7rem; flex: 0 0 auto; border: 2px solid var(--color-foreground); border-radius: .45rem; box-shadow: 0 0 0 2px var(--color-surface); }
+.lightdesk-color-sample--policy { width: 3.5rem; height: 3.5rem; }
+.lightdesk-zone-color-evidence { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-top: .65rem; }
+.lightdesk-color-evidence { display: grid; gap: .4rem; min-width: 0; padding: .6rem; border: 1px solid var(--color-border); border-radius: .6rem; background: var(--color-surface-muted); font-size: .83rem; }
+.lightdesk-color-values, .lightdesk-scaled-color { display: flex; min-width: 0; align-items: center; gap: .6rem; }
+.lightdesk-color-values b, .lightdesk-scaled-color b { font-family: var(--font-mono, monospace); letter-spacing: .025em; }
+.lightdesk-scaled-color { padding-top: .4rem; border-top: 1px solid var(--color-border); }
+.lightdesk-color-sample--scaled { width: 2rem; height: 2rem; }
+.lightdesk-reported-colors { padding-top: .7rem; margin-top: .7rem; border-top: 1px solid var(--color-border); }
+.lightdesk-reported-colors--compact { padding: .6rem; border: 1px solid var(--color-border); border-radius: .65rem; background: var(--color-surface-muted); }
+.lightdesk-reported-colors--compact .lightdesk-reported-color-list { display: flex; flex-wrap: wrap; max-height: none; }
+.lightdesk-reported-colors--compact .lightdesk-reported-color-list li { gap: .4rem; }
+.lightdesk-reported-colors--compact .lightdesk-color-sample { width: 1.8rem; height: 1.8rem; border-width: 1px; }
+.lightdesk-reported-colors--compact .lightdesk-warning { padding: .5rem; font-size: .78rem; }
+.lightdesk-reported-colors h3 { margin: 0 0 .45rem; font-size: .92rem; }
+.lightdesk-reported-color-list { display: grid; gap: .45rem; max-height: 16rem; overflow: auto; padding: 0; margin: .6rem 0; list-style: none; }
+.lightdesk-reported-color-list li { display: flex; align-items: center; gap: .6rem; }
+.lightdesk-color-sample--unknown { background: repeating-linear-gradient(135deg, var(--color-surface-muted), var(--color-surface-muted) 4px, var(--color-border) 4px, var(--color-border) 8px); }
 .lightdesk-policy-details { display: flex; flex-wrap: wrap; gap: 1rem; padding: .7rem 0; }
 .lightdesk-select-label { display: grid; gap: .35rem; margin: .65rem 0; font-weight: 600; }
 .lightdesk-select-label select { width: 100%; min-height: 2.75rem; padding: .5rem .65rem; border: 1px solid var(--color-border); border-radius: .55rem; background: var(--color-field); color: var(--color-foreground); font: inherit; }
@@ -162,6 +183,7 @@ body {
   .lightdesk-settings-grid, .lightdesk-settings-form { grid-template-columns: minmax(0, 1fr); }
   .lightdesk-fieldset { grid-template-columns: minmax(0, 1fr); }
   .lightdesk-controller-detail { grid-template-columns: minmax(0, 1fr); }
+  .lightdesk-zone-color-evidence { grid-template-columns: minmax(0, 1fr); }
   .lightdesk-controller-detail > .lightdesk-controller-status { order: -1; }
   .lightdesk-mobile-footer { position: sticky; bottom: 0; z-index: 5; display: grid; gap: .5rem; padding-block: var(--space-xs); background: var(--color-background); }
   .lightdesk-mobile-footer .lightdesk-button { min-height: var(--tap-target-min); }

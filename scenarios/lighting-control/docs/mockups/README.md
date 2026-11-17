@@ -1,4 +1,4 @@
-# Light Desk proposed mockups
+# Approved Light Desk mockups
 
 Sixth board: [Custom preset editor and review corrections](CUSTOMIZE.md).
 

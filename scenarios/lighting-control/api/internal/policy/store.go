@@ -139,7 +139,10 @@ ON CONFLICT(id) DO UPDATE SET
 func DefaultConfig() *policyv1.PolicyConfig {
 	return &policyv1.PolicyConfig{
 		DefaultPreset:                  policyv1.PresetKind_PRESET_KIND_OFF,
-		SourceMaxAgeSeconds:            60,
+		// Substrate health is sourced from autoheal checks that run every 300–600s.
+		// Keep a 5-minute grace over the slowest cadence so healthy host evidence
+		// is not perpetually discarded between scheduled observations.
+		SourceMaxAgeSeconds:            900,
 		LoadEnterPercent:               80,
 		LoadExitPercent:                60,
 		DebounceSeconds:                5,

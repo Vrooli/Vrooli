@@ -22,6 +22,7 @@ func (*brightnessBackend) ProtocolVersion(context.Context) (uint32, error) { ret
 func (*brightnessBackend) Discover(context.Context) ([]control.SDKController, error) {
 	return []control.SDKController{{Serial: "brightness-fixture", Zones: []control.SDKZone{{Name: "Strip", LEDCount: 1, Static: true}}}}, nil
 }
+
 func (b *brightnessBackend) SendZoneColors(_ context.Context, _, _ uint32, colors []control.RGB) (control.SDKCommandResult, error) {
 	b.writes = append(b.writes, append([]control.RGB(nil), colors...))
 	return control.SDKCommandResult{LocalWriteCompleted: true, BackendAcknowledged: true}, nil
@@ -113,6 +114,7 @@ type brightnessModeBackend struct {
 func (b *brightnessModeBackend) Discover(context.Context) ([]control.SDKController, error) {
 	return []control.SDKController{{Serial: "brightness-effect-fixture", LEDCount: 1, Zones: []control.SDKZone{{Name: "Strip", LEDCount: 1, Static: true, ActiveMode: b.active, Modes: []control.SDKMode{{Name: "Static"}, {Name: "Breathing"}}}}}}, nil
 }
+
 func (b *brightnessModeBackend) SendMode(_ context.Context, _ uint32, target control.SDKModeTarget, mode control.SDKMode) (control.SDKCommandResult, error) {
 	b.modes = append(b.modes, mode.Name)
 	b.active = int32(target.ModeIndex)
@@ -148,12 +150,13 @@ func TestLoweringCapStopsExistingUnboundedEffectBeforeReturning(t *testing.T) {
 	_, err = service.SetConfig(ctx, config)
 	require.NoError(t, err)
 	require.Equal(t, []string{"Breathing", "Static"}, backend.modes, "lowered cap must exit the prior unlimited effect")
-	require.Equal(t, [][]control.RGB{{{}}}, backend.writes, "Off must be sent before SetConfig returns")
+	require.Equal(t, [][]control.RGB{{{R: 89}}}, backend.writes, "static amber fallback must stay within the lowered cap")
 	rows, override, err := writer.DesiredState(ctx)
 	require.NoError(t, err)
 	require.True(t, proto.Equal(desired, rows[0].Desired), "retain the effect for a future supported configuration")
-	require.NotNil(t, rows[0].LastApply.Desired.GetOff())
-	require.Contains(t, rows[0].LastApply.Reason, "static Off fallback")
+	require.NotNil(t, rows[0].LastApply.Desired.GetStaticColor())
+	require.Equal(t, uint32(35), rows[0].LastApply.Desired.GetStaticColor().BrightnessPercent)
+	require.Contains(t, rows[0].LastApply.Reason, "static color fallback")
 	require.True(t, rows[0].LastApply.BackendAcknowledged)
 	require.False(t, override.Active, "fallback must not publish a new ownership fence")
 	source, err := repo.DesiredSource(ctx, id, zone)

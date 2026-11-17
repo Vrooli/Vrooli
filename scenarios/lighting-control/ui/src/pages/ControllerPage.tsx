@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowLeft, CircleHelp, Power, Sun } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { useMediaQuery } from "@vrooli/react-component-library/useMediaQuery/1";
-import { BackendState, OperationState, type ZoneStatus } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
+import { BackendState, CachedModeReadback, OperationState, type ZoneStatus } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
 import { PresetKind } from "@vrooli/proto-types/lighting-control/v1/policy/policy_pb";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
@@ -14,6 +14,8 @@ import { ManualZoneEditor } from "../features/lights/ManualZoneEditor";
 import { manualOffCoversAll, manualOffCoversController } from "../features/lights/manualOff";
 import { useManualOffDescription } from "../features/lights/useManualOffDescription";
 import { useLightDesk } from "../features/lights/useLightDesk";
+import { EffectDeliveryNotice, ZoneColorEvidence } from "../features/lights/ColorEvidence";
+import { ControllerColorReport } from "../features/lights/ControllerColorReport";
 
 export function ControllerPage() {
   const { controllerId = "" } = useParams();
@@ -81,7 +83,10 @@ export function ControllerPage() {
             <p className="lightdesk-muted">{zone.supportedEffects.length ? t(strings.lightDesk.controllerUi.effectsReported, { effects: zone.supportedEffects.join(", ") }) : t(strings.lightDesk.controllerUi.noEffects)}</p>
           </div>
           <ManualZoneEditor controllerId={controllerId} zone={zone} desired={zoneStatuses.find((item) => item.desired?.controllerId === controllerId && item.desired.zoneId === zone.zoneId)?.desired} maxBrightness={maxBrightness} disabled={busy || !stableIdentity || !controller.enrolled || !backendReady} detail act={apply}/>
-            <ZoneResult status={zoneStatuses.find((item) => item.desired && item.desired.controllerId === controllerId && item.desired.zoneId === zone.zoneId)} />
+          <ZoneColorEvidence title={t(strings.lightDesk.savedIntent)} mode={zoneStatuses.find((item) => item.desired?.controllerId === controllerId && item.desired.zoneId === zone.zoneId)?.desired?.desiredMode} scaledLabel={t(strings.lightDesk.scaledPayload)} offLabel={t(strings.lightDesk.offValue)} noColorLabel={t(strings.lightDesk.noColorValue)} missingLabel={t(strings.lightDesk.colorEvidenceUnavailable)}/>
+          <ZoneColorEvidence title={t(strings.lightDesk.lastCommandPayload)} mode={zoneStatuses.find((item) => item.desired?.controllerId === controllerId && item.desired.zoneId === zone.zoneId)?.lastApply?.desired?.desiredMode} scaledLabel={t(strings.lightDesk.scaledPayload)} offLabel={t(strings.lightDesk.offValue)} noColorLabel={t(strings.lightDesk.noColorValue)} missingLabel={t(strings.lightDesk.colorEvidenceUnavailable)}/>
+          <EffectDeliveryNotice desired={zoneStatuses.find((item) => item.desired?.controllerId === controllerId && item.desired.zoneId === zone.zoneId)?.desired} lastApply={zoneStatuses.find((item) => item.desired?.controllerId === controllerId && item.desired.zoneId === zone.zoneId)?.lastApply}/>
+          <ZoneResult status={zoneStatuses.find((item) => item.desired && item.desired.controllerId === controllerId && item.desired.zoneId === zone.zoneId)} />
         </div>)}
         {!stableIdentity ? <p className="lightdesk-warning">{t(strings.lightDesk.controllerUi.identityUnavailable)}</p> : null}
         {!controller.enrolled ? <button className="lightdesk-button lightdesk-button--primary" disabled={busy || !stableIdentity || !backendReady} onClick={() => void enroll()}>{t(strings.lightDesk.controllerUi.enrollController)}</button> : null}
@@ -96,6 +101,7 @@ export function ControllerPage() {
           <div><dt>{t(strings.lightDesk.controllerUi.desiredPolicy)}</dt><dd>{policyLabel}</dd></div>
           <div><dt>{t(strings.lightDesk.controllerUi.physicalOutput)}</dt><dd>{observations > 0 ? `${observations}/${controller.zones.length} · ${t(strings.lightDesk.observedOutput)}` : t(strings.lightDesk.controllerUi.physicalUnknown)}</dd></div>
         </dl>
+        <ControllerColorReport controller={controller} statuses={zoneStatuses.filter((item) => item.desired?.controllerId === controllerId)} />
         {desk.error ? <p role="alert" className="lightdesk-warning">{desk.error.message}</p> : null}
         {desk.data?.backend?.detail ? <p className="lightdesk-muted">{desk.data.backend.detail}</p> : null}
         <p className="lightdesk-warning"><CircleHelp aria-hidden="true"/>{t(strings.lightDesk.controllerUi.ackCaveat)}</p>
@@ -112,7 +118,12 @@ function ZoneResult({ status }: { status?: ZoneStatus }) {
   const { t } = useTranslation();
   const result = status?.lastApply;
   const label = result?.operation === OperationState.BACKEND_ACKNOWLEDGED ? t(strings.lightDesk.controllerUi.backendAccepted) : result?.operation === OperationState.COMMAND_SENT ? t(strings.lightDesk.controllerUi.commandSent) : result?.operation === OperationState.FAILED ? t(strings.lightDesk.controllerUi.failed) : result?.operation === OperationState.UNSUPPORTED ? t(strings.lightDesk.controllerUi.unsupported) : result?.operation === OperationState.DEFERRED ? t(strings.lightDesk.controllerUi.deferred) : t(strings.lightDesk.controllerUi.noCommand);
-  return <p className="lightdesk-operation">{label}{result?.reason ? ` · ${result.reason}` : ""}{status?.observation ? ` · ${t(strings.lightDesk.controllerUi.observed, { source: status.observation.source })}` : ` · ${t(strings.lightDesk.controllerUi.notVerified)}`}</p>;
+  const modeReadback = result?.cachedModeReadback === CachedModeReadback.MATCHES ? strings.lightDesk.modeReadbackMatches : result?.cachedModeReadback === CachedModeReadback.MISMATCH ? strings.lightDesk.modeReadbackMismatch : result?.cachedModeReadback === CachedModeReadback.NOT_CHECKED ? strings.lightDesk.modeReadbackNotChecked : undefined;
+  return <div className="lightdesk-operation">
+    <p>{label}{status?.observation ? ` · ${t(strings.lightDesk.controllerUi.observed, { source: status.observation.source })}` : ` · ${t(strings.lightDesk.controllerUi.notVerified)}`}</p>
+    {modeReadback ? <p className="lightdesk-meta">{t(strings.lightDesk.backendModeReadback)}: {t(modeReadback)}</p> : null}
+    {result?.reason ? <details><summary>{t(strings.lightDesk.commandDiagnostic)}</summary><p>{result.reason}</p></details> : null}
+  </div>;
 }
 
 function presetLabelKey(value: PresetKind) {

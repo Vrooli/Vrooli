@@ -54,11 +54,20 @@ type Service struct {
 	clock            schedule.Clock
 	// writeMu serializes all persisted desired-state and reconciliation writes,
 	// as well as backend replacement/quiesce against those writes.
-	writeMu     sync.Mutex
-	cacheMu     sync.Mutex
-	cache       []SDKController
-	cacheAt     time.Time
-	cacheLoaded bool
+	writeMu            sync.Mutex
+	cacheMu            sync.Mutex
+	cache              []SDKController
+	cacheAt            time.Time
+	cacheLoaded        bool
+	reportedStateCache map[string]reportedControllerState
+}
+
+type reportedControllerState struct {
+	ledColors  []*controlv1.ReportedLEDColor
+	activeMode string
+	modeIndex  uint32
+	modeKnown  bool
+	observedAt time.Time
 }
 
 func NewService(repo Repository, backend Backend, clock schedule.Clock) *Service {
@@ -164,6 +173,7 @@ func (s *Service) ListControllers(ctx context.Context, includeUnavailable ...boo
 	noDevice := false
 	ambiguousZoneCount := 0
 	availableIDs := make(map[string]bool)
+	reportedStates := make(map[string]reportedControllerState)
 	if s.backend != nil {
 		found, err := s.discover(ctx, true)
 		if err != nil && !errors.Is(err, ErrNoDevice) {
@@ -177,12 +187,37 @@ func (s *Service) ListControllers(ctx context.Context, includeUnavailable ...boo
 			if readErr != nil {
 				return nil, nil, fmt.Errorf("list persisted controllers: %w", readErr)
 			}
+			s.cacheMu.Lock()
+			for _, controller := range saved {
+				if state, ok := s.reportedStateCache[controller.ControllerId]; ok {
+					applyReportedControllerState(controller, state)
+				}
+			}
+			s.cacheMu.Unlock()
 			return status, saved, nil
 		}
 		noDevice = errors.Is(err, ErrNoDevice)
 		controllers, mappings, ambiguous := projectControllers(found, s.clock.Now())
+		observedAt := s.clock.Now().UTC()
 		for _, controller := range controllers {
 			availableIDs[controller.ControllerId] = true
+			reportedStates[controller.ControllerId] = reportedStateFromController(controller, observedAt)
+		}
+		if noDevice {
+			// An empty controller scan is not a fresh color or mode observation.
+			// Preserve the in-process last-known readings and their original time.
+			s.cacheMu.Lock()
+			for id, state := range s.reportedStateCache {
+				reportedStates[id] = cloneReportedControllerState(state)
+			}
+			s.cacheMu.Unlock()
+		} else {
+			s.cacheMu.Lock()
+			s.reportedStateCache = make(map[string]reportedControllerState, len(reportedStates))
+			for id, state := range reportedStates {
+				s.reportedStateCache[id] = cloneReportedControllerState(state)
+			}
+			s.cacheMu.Unlock()
 		}
 		if err := s.repo.SyncControllers(ctx, controllers, mappings); err != nil {
 			return nil, nil, fmt.Errorf("persist controller discovery: %w", err)
@@ -197,11 +232,17 @@ func (s *Service) ListControllers(ctx context.Context, includeUnavailable ...boo
 	if err != nil {
 		return nil, nil, fmt.Errorf("list persisted controllers: %w", err)
 	}
+	for _, controller := range controllers {
+		if state, ok := reportedStates[controller.ControllerId]; ok {
+			applyReportedControllerState(controller, state)
+		}
+	}
 	status := s.BackendStatus(ctx)
 	if ambiguousZoneCount > 0 {
 		status.Detail = fmt.Sprintf("%d ambiguous zone identities are unavailable for control; resolve duplicate header names before configuration", ambiguousZoneCount)
 	}
 	if noDevice {
+		status.State = controlv1.BackendState_BACKEND_STATE_UNAVAILABLE
 		status.Reason = controlv1.BackendReason_BACKEND_REASON_PROBE_FAILED
 		status.Detail = ErrNoDevice.Error()
 	}
@@ -223,6 +264,45 @@ func statusFromError(now time.Time, err error) *controlv1.BackendStatus {
 		state = controlv1.BackendState_BACKEND_STATE_PROTOCOL_MISMATCH
 	}
 	return &controlv1.BackendStatus{State: state, Reason: backendReason(err), Detail: err.Error(), CheckedAt: now.UTC().Format(time.RFC3339Nano)}
+}
+
+func cloneReportedColors(colors []*controlv1.ReportedLEDColor) []*controlv1.ReportedLEDColor {
+	cloned := make([]*controlv1.ReportedLEDColor, 0, len(colors))
+	for _, color := range colors {
+		cloned = append(cloned, proto.Clone(color).(*controlv1.ReportedLEDColor))
+	}
+	return cloned
+}
+
+func cloneReportedControllerState(state reportedControllerState) reportedControllerState {
+	state.ledColors = cloneReportedColors(state.ledColors)
+	return state
+}
+
+func reportedStateFromController(controller *controlv1.Controller, observedAt time.Time) reportedControllerState {
+	modeIndex := uint32(0)
+	if controller.ReportedActiveModeIndex != nil {
+		modeIndex = controller.GetReportedActiveModeIndex()
+	}
+	return reportedControllerState{
+		ledColors:  cloneReportedColors(controller.ReportedLedColors),
+		activeMode: controller.ReportedActiveMode,
+		modeIndex:  modeIndex,
+		modeKnown:  controller.ReportedActiveModeObservedAt != nil,
+		observedAt: observedAt,
+	}
+}
+
+func applyReportedControllerState(controller *controlv1.Controller, state reportedControllerState) {
+	controller.ReportedLedColors = cloneReportedColors(state.ledColors)
+	controller.ReportedColorSource = "openrgb_sdk_controller_data_cached_state"
+	controller.ReportedColorsObservedAt = timestamppb.New(state.observedAt.UTC())
+	if state.modeKnown {
+		controller.ReportedActiveMode = state.activeMode
+		modeIndex := state.modeIndex
+		controller.ReportedActiveModeIndex = &modeIndex
+		controller.ReportedActiveModeObservedAt = timestamppb.New(state.observedAt.UTC())
+	}
 }
 
 func zoneFingerprint(z SDKZone) string {
@@ -256,6 +336,22 @@ func projectControllers(found []SDKController, lastSeen time.Time) ([]*controlv1
 			identitySource = "openrgb_identity_ambiguous"
 		}
 		c := &controlv1.Controller{BackendId: "openrgb", ControllerId: id, Name: raw.Name, Vendor: raw.Vendor, Description: raw.Description, IdentitySource: identitySource, LastSeenAt: timestamppb.New(lastSeen.UTC())}
+		c.ReportedColorSource = "openrgb_sdk_controller_data_cached_state"
+		c.ReportedColorsObservedAt = timestamppb.New(lastSeen.UTC())
+		if raw.ActiveMode >= 0 && int(raw.ActiveMode) < len(raw.Modes) {
+			c.ReportedActiveMode = raw.Modes[raw.ActiveMode].Name
+			modeIndex := uint32(raw.ActiveMode)
+			c.ReportedActiveModeIndex = &modeIndex
+			c.ReportedActiveModeObservedAt = timestamppb.New(lastSeen.UTC())
+		}
+		for i, color := range raw.LEDColors {
+			name := ""
+			if i < len(raw.LEDNames) {
+				name = raw.LEDNames[i]
+			}
+			index := uint32(i)
+			c.ReportedLedColors = append(c.ReportedLedColors, &controlv1.ReportedLEDColor{Index: &index, DisplayName: name, Color: &controlv1.Color{Red: uint32(color.R), Green: uint32(color.G), Blue: uint32(color.B)}})
+		}
 		counts := map[string]int{}
 		for _, z := range raw.Zones {
 			counts[zoneFingerprint(z)]++
@@ -925,6 +1021,10 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 				result = s.applyBrightnessFallback(ctx, d)
 				return result
 			}
+			if d.GetEffect() != nil && (command.LocalWriteCompleted || command.BackendAcknowledged || command.CachedModeReadback != controlv1.CachedModeReadback_CACHED_MODE_READBACK_UNSPECIFIED) {
+				result = s.applyEffectFallback(ctx, d, "native effect apply was incomplete: "+commandErr.Error())
+				return result
+			}
 			switch {
 			case command.AckStatus != 0:
 				result.Operation = controlv1.OperationState_OPERATION_STATE_FAILED
@@ -1030,6 +1130,8 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 			return result
 		}
 	}
+	colorBrightness := requestedBrightness(d)
+	modeSent := false
 	if modes, ok := s.backend.(modeBackend); ok {
 		mode, targetMode, modeOK := requestedMode(d, *raw, *target)
 		if !modeOK {
@@ -1042,37 +1144,59 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 			result = s.applyBrightnessFallback(ctx, d)
 			return result
 		}
+		if wantsEffect && mode.ColorMode == sdkModeColorsPerLED && mode.Flags&sdkModeHasPerLEDColor == 0 {
+			result.Operation = controlv1.OperationState_OPERATION_STATE_UNSUPPORTED
+			result.Reason = "native effect reports per-LED colors without advertising per-LED color control"
+			return result
+		}
+		if wantsEffect && mode.Flags&sdkModeHasBrightness != 0 {
+			colorBrightness = 100
+		}
 		if wantsEffect || !modeAlreadyActive(targetMode, *raw, *target) {
+			modeSent = true
 			mode = configureMode(mode, d)
 			modeResult, modeErr := modes.SendMode(ctx, raw.ID, targetMode, mode)
 			result.LocalWriteCompleted = modeResult.LocalWriteCompleted
 			result.BackendAcknowledged = modeResult.BackendAcknowledged
 			result.BackendAckStatus = modeResult.AckStatus
 			if modeErr != nil {
+				if wantsEffect && (modeResult.LocalWriteCompleted || modeResult.BackendAcknowledged) {
+					result = s.applyEffectFallback(ctx, d, "native effect mode change was not confirmed: "+modeErr.Error())
+					return result
+				}
 				result.Operation = controlv1.OperationState_OPERATION_STATE_FAILED
 				result.Reason = "mode change was not confirmed: " + modeErr.Error()
 				return result
 			}
 		}
-		if wantsEffect {
+		if wantsEffect && mode.ColorMode != sdkModeColorsPerLED {
 			result.Operation = controlv1.OperationState_OPERATION_STATE_BACKEND_ACKNOWLEDGED
 			result.Reason = "OpenRGB v6 acknowledged the selected mode; cached readback and visible output are unverified"
 			return result
 		}
 	}
-	brightness := requestedBrightness(d)
-	color.R = uint8(math.Round(float64(color.R) * brightness / 100))
-	color.G = uint8(math.Round(float64(color.G) * brightness / 100))
-	color.B = uint8(math.Round(float64(color.B) * brightness / 100))
+	color = scaleRGBByBrightness(color, colorBrightness)
 	colors := make([]RGB, target.LEDCount)
 	for i := range colors {
 		colors[i] = color
 	}
 	command, err := s.backend.SendZoneColors(ctx, raw.ID, target.Index, colors)
-	result.LocalWriteCompleted = command.LocalWriteCompleted
-	result.BackendAcknowledged = command.BackendAcknowledged
-	result.BackendAckStatus = command.AckStatus
+	result.LocalWriteCompleted = result.LocalWriteCompleted || command.LocalWriteCompleted
+	if modeSent {
+		result.BackendAcknowledged = result.BackendAcknowledged && command.BackendAcknowledged
+	} else {
+		result.BackendAcknowledged = command.BackendAcknowledged
+	}
+	if command.AckStatus != 0 {
+		result.BackendAckStatus = command.AckStatus
+	}
 	if err != nil {
+		if modeSent {
+			if _, wantsEffect := d.DesiredMode.(*controlv1.ZoneState_Effect); wantsEffect {
+				result = s.applyEffectFallback(ctx, d, "native effect color input was not confirmed: "+err.Error())
+				return result
+			}
+		}
 		var ackErr *SDKAckError
 		if command.LocalWriteCompleted && !errors.As(err, &ackErr) {
 			result.Operation = controlv1.OperationState_OPERATION_STATE_COMMAND_SENT
@@ -1083,9 +1207,9 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 		result.Reason = err.Error()
 		return result
 	}
-	if command.BackendAcknowledged {
+	if result.BackendAcknowledged {
 		result.Operation = controlv1.OperationState_OPERATION_STATE_BACKEND_ACKNOWLEDGED
-		result.Reason = "OpenRGB v6 acknowledged UpdateZoneLEDs with status OK; cached readback and visible output are unverified"
+		result.Reason = "OpenRGB v6 acknowledged the required mode and UpdateZoneLEDs operations; cached readback and visible output are unverified"
 		return result
 	}
 	result.Operation = controlv1.OperationState_OPERATION_STATE_COMMAND_SENT
@@ -1093,12 +1217,40 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 	return result
 }
 
-// applyBrightnessFallback does not change durable intent or publish an Off
-// override. It only emits a safely scoped Off when an effect cannot honor a cap.
+// applyBrightnessFallback does not change durable effect intent or publish an
+// Off override. It first emits the same color as static output, where RGB
+// scaling can honor the brightness cap. Off remains the fail-safe when static
+// output cannot be confirmed, such as on effect-only hardware.
 func (s *Service) applyBrightnessFallback(ctx context.Context, desired *controlv1.ZoneState) *controlv1.ZoneApplyResult {
+	return s.applyEffectFallback(ctx, desired, "native effect has no usable brightness field or safe atomic capped color input")
+}
+
+func (s *Service) applyEffectFallback(ctx context.Context, desired *controlv1.ZoneState, cause string) *controlv1.ZoneApplyResult {
+	if effect := desired.GetEffect(); effect != nil && effect.Color != nil {
+		static := &controlv1.ZoneState{
+			ControllerId: desired.ControllerId,
+			ZoneId:       desired.ZoneId,
+			DesiredMode: &controlv1.ZoneState_StaticColor{StaticColor: &controlv1.StaticZoneState{
+				Color:             proto.Clone(effect.Color).(*controlv1.Color),
+				BrightnessPercent: effect.BrightnessPercent,
+			}},
+		}
+		result := s.apply(ctx, static)
+		if result.Operation == controlv1.OperationState_OPERATION_STATE_BACKEND_ACKNOWLEDGED && result.BackendAcknowledged {
+			result.Reason = cause + "; static color fallback: " + result.Reason
+			return result
+		}
+		off := s.applySafeOffFallback(ctx, desired)
+		off.Reason = cause + "; static color fallback was not confirmed (" + result.Reason + "); " + off.Reason
+		return off
+	}
+	return s.applySafeOffFallback(ctx, desired)
+}
+
+func (s *Service) applySafeOffFallback(ctx context.Context, desired *controlv1.ZoneState) *controlv1.ZoneApplyResult {
 	off := &controlv1.ZoneState{ControllerId: desired.ControllerId, ZoneId: desired.ZoneId, DesiredMode: &controlv1.ZoneState_Off{Off: &emptypb.Empty{}}}
 	result := s.apply(ctx, off)
-	result.Reason = "native effect cannot honor maximum brightness; static Off fallback: " + result.Reason
+	result.Reason = "Off fallback: " + result.Reason
 	if !result.LocalWriteCompleted {
 		result.Reason += "; no Off command was completed, so prior output may remain unchanged"
 	}
@@ -1115,7 +1267,35 @@ func zoneLEDCounts(zones []SDKZone) []uint32 {
 
 func modeCanHonorBrightness(mode SDKMode, desired *controlv1.ZoneState) bool {
 	brightness := uint32(requestedBrightness(desired))
-	return brightness == 100 || (mode.Flags&sdkModeHasBrightness != 0 && mode.BrightnessMax > mode.BrightnessMin && uint64(mode.BrightnessMax)*uint64(brightness)/100 >= uint64(mode.BrightnessMin))
+	if brightness == 100 {
+		return true
+	}
+	if mode.Flags&sdkModeHasBrightness != 0 {
+		return mode.BrightnessMax > mode.BrightnessMin && uint64(mode.BrightnessMax)*uint64(brightness)/100 >= uint64(mode.BrightnessMin)
+	}
+	return modeCanScaleColorInput(mode)
+}
+
+func modeCanScaleColorInput(mode SDKMode) bool {
+	switch mode.ColorMode {
+	case sdkModeColorsPerLED:
+		// Per-LED input is installed in a second command after mode activation.
+		// Without a native brightness field, old cached colors could be exposed
+		// between those commands, so it cannot prove the cap during transition.
+		return false
+	case sdkModeColorsModeSpecific:
+		return mode.Flags&sdkModeHasModeSpecificColor != 0 && mode.ColorsMin > 0 && mode.ColorsMin <= maxSDKModeColors && (mode.ColorsMax == 0 || mode.ColorsMax >= mode.ColorsMin)
+	default:
+		return false
+	}
+}
+
+func scaleRGBByBrightness(color RGB, brightnessPercent float64) RGB {
+	brightness := math.Max(0, math.Min(100, brightnessPercent)) / 100
+	color.R = uint8(math.Round(float64(color.R) * brightness))
+	color.G = uint8(math.Round(float64(color.G) * brightness))
+	color.B = uint8(math.Round(float64(color.B) * brightness))
+	return color
 }
 
 func configureMode(mode SDKMode, desired *controlv1.ZoneState) SDKMode {
@@ -1129,6 +1309,9 @@ func configureMode(mode SDKMode, desired *controlv1.ZoneState) SDKMode {
 	}
 	color, ok := requestedColor(desired)
 	if ok && mode.Flags&sdkModeHasModeSpecificColor != 0 && mode.ColorMode == sdkModeColorsModeSpecific {
+		if desired.GetEffect() != nil && mode.Flags&sdkModeHasBrightness == 0 {
+			color = scaleRGBByBrightness(color, requestedBrightness(desired))
+		}
 		packed := uint32(color.R) | uint32(color.G)<<8 | uint32(color.B)<<16
 		count := mode.ColorsMin
 		if count == 0 {

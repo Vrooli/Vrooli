@@ -21,7 +21,10 @@ import (
 )
 
 const (
-	requestTimeout = 4 * time.Second
+	// Agent Manager's physical activity read delegates to the canonical
+	// executor-scope owner and can take several seconds. Keep a bounded margin
+	// above that owner read so positive partial activity is not discarded.
+	requestTimeout = 8 * time.Second
 )
 
 type scenarioResolver func(context.Context, string) (string, error)

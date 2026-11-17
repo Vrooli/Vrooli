@@ -19,6 +19,7 @@ type unreadableBrightnessStore struct{}
 func (unreadableBrightnessStore) Load(context.Context) (*policyv1.PolicyConfig, policy.State, error) {
 	return nil, policy.State{}, errors.New("policy disk unreadable")
 }
+
 func (unreadableBrightnessStore) Save(context.Context, *policyv1.PolicyConfig, policy.State) error {
 	return errors.New("unexpected save")
 }
@@ -41,15 +42,20 @@ func TestEffectsRequireUsableBrightnessControlBeforeAnyModeWrite(t *testing.T) {
 	for _, tc := range []struct {
 		name            string
 		flags, min, max uint32
+		colorMode       uint32
+		colorsMin       uint32
 		ok              bool
 	}{
-		{name: "absent"}, {name: "fixed", flags: 1 << 4, min: 10, max: 10},
+		{name: "absent"},
+		{name: "fixed", flags: 1 << 4, min: 10, max: 10},
 		{name: "minimum exceeds cap", flags: 1 << 4, min: 50, max: 100},
 		{name: "reversed", flags: 1 << 4, min: 100, max: 0},
 		{name: "usable", flags: 1 << 4, max: 255, ok: true},
+		{name: "per-LED color without native brightness is unsafe during mode activation", flags: 1 << 5, colorMode: 1},
+		{name: "mode-specific palette can carry cap atomically", flags: 1 << 6, colorMode: 2, colorsMin: 1, ok: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			base := &fakeBackend{protocol: 6, controllers: []control.SDKController{{Serial: "effect-limit", Zones: []control.SDKZone{{Name: "Strip", Static: false, LEDCount: 1, Modes: []control.SDKMode{{Name: "Breathing", SDKModeParameters: control.SDKModeParameters{Flags: tc.flags, BrightnessMin: tc.min, BrightnessMax: tc.max}}}}}}}}
+			base := &fakeBackend{protocol: 6, controllers: []control.SDKController{{Serial: "effect-limit", Zones: []control.SDKZone{{Name: "Strip", Static: false, LEDCount: 1, Modes: []control.SDKMode{{Name: "Breathing", SDKModeParameters: control.SDKModeParameters{Flags: tc.flags, BrightnessMin: tc.min, BrightnessMax: tc.max, ColorsMin: tc.colorsMin, ColorsMax: tc.colorsMin, ColorMode: tc.colorMode}}}}}}}}
 			backend := &modeAwareBackend{fakeBackend: base}
 			svc, _ := newService(t, backend, scheduletest.New(time.Now()))
 			_, controllers, err := svc.ListControllers(t.Context())
@@ -63,7 +69,13 @@ func TestEffectsRequireUsableBrightnessControlBeforeAnyModeWrite(t *testing.T) {
 			if tc.ok {
 				require.Equal(t, uint32(35), result.Desired.GetEffect().BrightnessPercent)
 				require.Len(t, backend.modes, 1)
-				require.Equal(t, uint32(89), backend.modes[0].mode.Brightness)
+				if tc.colorMode == 2 {
+					require.Equal(t, []uint32{uint32(89)}, backend.modes[0].mode.Colors, "the scaled mode-specific palette is carried atomically with mode activation")
+					require.Empty(t, backend.writes)
+				} else {
+					require.Equal(t, uint32(89), backend.modes[0].mode.Brightness)
+					require.Empty(t, backend.writes)
+				}
 			} else {
 				require.NotNil(t, result.Desired.GetOff())
 				require.Contains(t, result.Reason, "prior output may remain unchanged")
@@ -112,17 +124,48 @@ func TestCapCommitWaitsForPriorEmissionAndSerializesReapply(t *testing.T) {
 
 type brightnessStableBackend struct {
 	*fakeBackend
-	attempted []*controlv1.ZoneState
+	attempted    []*controlv1.ZoneState
+	effectResult control.SDKCommandResult
+	effectErr    error
 }
 
 func (b *brightnessStableBackend) ApplyStableZone(_ context.Context, _, _ string, desired *controlv1.ZoneState) (control.SDKCommandResult, error) {
 	b.attempted = append(b.attempted, desired)
 	if desired.GetEffect() != nil {
+		if b.effectErr != nil {
+			return b.effectResult, b.effectErr
+		}
 		return control.SDKCommandResult{}, errors.Join(control.ErrUnsupported, control.ErrBrightnessLimit)
 	}
 	return control.SDKCommandResult{LocalWriteCompleted: true, BackendAcknowledged: true}, nil
 }
-func TestStableBrightnessCapabilityFailureEmitsTruthfulOffFallback(t *testing.T) {
+
+func TestPartiallyAppliedNativeEffectFallsBackToCappedStaticColor(t *testing.T) {
+	backend := &brightnessStableBackend{
+		fakeBackend:  &fakeBackend{protocol: 6, controllers: []control.SDKController{{Serial: "partial-effect-fallback", Zones: []control.SDKZone{{Name: "Strip", LEDCount: 1, Static: true}}}}},
+		effectResult: control.SDKCommandResult{LocalWriteCompleted: true, BackendAcknowledged: true, CachedModeReadback: controlv1.CachedModeReadback_CACHED_MODE_READBACK_MATCHES},
+		effectErr:    errors.New("UpdateZoneLEDs was rejected"),
+	}
+	svc, _ := newService(t, backend, scheduletest.New(time.Now()))
+	_, controllers, err := svc.ListControllers(t.Context())
+	require.NoError(t, err)
+	id, zone := controllers[0].ControllerId, controllers[0].Zones[0].ZoneId
+	_, err = svc.Enroll(t.Context(), id, true)
+	require.NoError(t, err)
+	desired := &controlv1.ZoneState{ControllerId: id, ZoneId: zone, DesiredMode: &controlv1.ZoneState_Effect{Effect: &controlv1.EffectZoneState{EffectId: "Breathing", Color: &controlv1.Color{Red: 255, Green: 160, Blue: 32}, BrightnessPercent: 25}}}
+	result, err := svc.SetZoneState(t.Context(), desired)
+	require.NoError(t, err)
+	require.Equal(t, controlv1.OperationState_OPERATION_STATE_BACKEND_ACKNOWLEDGED, result.Operation)
+	require.True(t, result.BackendAcknowledged)
+	require.NotNil(t, result.Desired.GetStaticColor(), "the confirmed last apply must describe the safe static fallback")
+	require.Contains(t, result.Reason, "UpdateZoneLEDs was rejected")
+	require.Len(t, backend.attempted, 2)
+	require.NotNil(t, backend.attempted[1].GetStaticColor())
+	require.Equal(t, uint32(25), backend.attempted[1].GetStaticColor().BrightnessPercent)
+	require.Equal(t, uint32(255), backend.attempted[1].GetStaticColor().Color.Red)
+}
+
+func TestStableBrightnessCapabilityFailureEmitsCappedStaticColorFallback(t *testing.T) {
 	backend := &brightnessStableBackend{fakeBackend: &fakeBackend{protocol: 6, controllers: []control.SDKController{{Serial: "stable-cap-fallback", Zones: []control.SDKZone{{Name: "Strip", LEDCount: 1, Static: true}}}}}}
 	svc, _ := newService(t, backend, scheduletest.New(time.Now()))
 	_, controllers, err := svc.ListControllers(t.Context())
@@ -135,10 +178,12 @@ func TestStableBrightnessCapabilityFailureEmitsTruthfulOffFallback(t *testing.T)
 	require.NoError(t, err)
 	require.Len(t, backend.attempted, 2)
 	require.Equal(t, uint32(35), backend.attempted[0].GetEffect().BrightnessPercent)
-	require.NotNil(t, backend.attempted[1].GetOff())
-	require.NotNil(t, result.Desired.GetOff())
+	require.NotNil(t, backend.attempted[1].GetStaticColor())
+	require.Equal(t, uint32(35), backend.attempted[1].GetStaticColor().BrightnessPercent)
+	require.NotNil(t, result.Desired.GetStaticColor())
+	require.Equal(t, uint32(35), result.Desired.GetStaticColor().BrightnessPercent)
 	require.True(t, result.LocalWriteCompleted)
 	require.True(t, result.BackendAcknowledged)
-	require.Contains(t, result.Reason, "static Off fallback")
+	require.Contains(t, result.Reason, "static color fallback")
 	require.NotContains(t, result.Reason, "prior output may remain unchanged")
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -51,6 +52,206 @@ func (s *memoryPolicyStore) Save(_ context.Context, config *policyv1.PolicyConfi
 type fixedPolicyInputs struct{ inputs internalpolicy.Inputs }
 
 func (s fixedPolicyInputs) Read(context.Context) internalpolicy.Inputs { return s.inputs }
+
+type dynamicPolicyInputs func() internalpolicy.Inputs
+
+func (s dynamicPolicyInputs) Read(context.Context) internalpolicy.Inputs { return s() }
+
+type observingPolicyStore struct {
+	memoryPolicyStore
+	saved chan internalpolicy.State
+}
+
+func (s *observingPolicyStore) Save(ctx context.Context, config *policyv1.PolicyConfig, state internalpolicy.State) error {
+	if err := s.memoryPolicyStore.Save(ctx, config, state); err != nil {
+		return err
+	}
+	select {
+	case s.saved <- state:
+	default:
+	}
+	return nil
+}
+
+func TestNextRunDelayWakesAtPolicyDebounceDeadline(t *testing.T) {
+	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
+	interval := 30 * time.Second
+	config := internalpolicy.DefaultConfig()
+
+	tests := []struct {
+		name         string
+		state        internalpolicy.State
+		debounce     uint32
+		wantDelay    time.Duration
+		wantDebounce bool
+	}{
+		{name: "no candidate keeps normal cadence", state: internalpolicy.State{}, debounce: 5, wantDelay: interval},
+		{
+			name: "pending candidate wakes at remaining debounce",
+			state: internalpolicy.State{
+				Candidate:   policyv1.PresetKind_PRESET_KIND_COMBINED,
+				CandidateAt: now.Add(-2 * time.Second),
+			},
+			debounce:     5,
+			wantDelay:    3 * time.Second,
+			wantDebounce: true,
+		},
+		{
+			name: "expired candidate wakes immediately",
+			state: internalpolicy.State{
+				Candidate:   policyv1.PresetKind_PRESET_KIND_COMBINED,
+				CandidateAt: now.Add(-5 * time.Second),
+			},
+			debounce:     5,
+			wantDelay:    time.Millisecond,
+			wantDebounce: true,
+		},
+		{
+			name: "long debounce remains bounded by normal cadence",
+			state: internalpolicy.State{
+				Candidate:   policyv1.PresetKind_PRESET_KIND_COMBINED,
+				CandidateAt: now.Add(-time.Second),
+			},
+			debounce:  60,
+			wantDelay: interval,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testConfig := proto.Clone(config).(*policyv1.PolicyConfig)
+			testConfig.DebounceSeconds = tc.debounce
+			store := &memoryPolicyStore{config: testConfig, state: tc.state}
+			service := NewService(store, nil, nil)
+			service.now = func() time.Time { return now }
+
+			delay, debounceWake := service.nextRunDelay(context.Background(), interval)
+			require.Equal(t, tc.wantDelay, delay)
+			require.Equal(t, tc.wantDebounce, debounceWake)
+		})
+	}
+}
+
+func TestRunEvaluatesAtDebounceDeadlineBeforeNormalReconcileTick(t *testing.T) {
+	now := time.Now().UTC()
+	config := internalpolicy.DefaultConfig()
+	config.DefaultPreset = policyv1.PresetKind_PRESET_KIND_HEALTH
+	config.DebounceSeconds = 1
+	store := &observingPolicyStore{
+		memoryPolicyStore: memoryPolicyStore{
+			config: config,
+			state: internalpolicy.State{
+				ActivePreset: policyv1.PresetKind_PRESET_KIND_STATIC,
+				Candidate:    policyv1.PresetKind_PRESET_KIND_HEALTH,
+				CandidateAt:  now.Add(-200 * time.Millisecond),
+			},
+		},
+		saved: make(chan internalpolicy.State, 8),
+	}
+	sources := dynamicPolicyInputs(func() internalpolicy.Inputs {
+		observedAt := time.Now().UTC()
+		return internalpolicy.Inputs{
+			Now: observedAt,
+			InfrastructureHealth: []internalpolicy.SourceInput{{
+				Name:         "infrastructure-manager/substrate",
+				State:        policyv1.EvidenceState_EVIDENCE_STATE_FRESH,
+				ObservedAt:   observedAt,
+				SourceTime:   observedAt,
+				Measurements: map[string]float64{"health_level": 2},
+			}},
+		}
+	})
+	service := NewService(store, sources, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		service.Run(ctx, 30*time.Second)
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case state := <-store.saved:
+			if state.ActivePreset == policyv1.PresetKind_PRESET_KIND_HEALTH && state.Candidate == policyv1.PresetKind_PRESET_KIND_UNSPECIFIED {
+				return
+			}
+		case <-timer.C:
+			t.Fatal("policy candidate was not committed at its debounce deadline before the 30s reconcile tick")
+		}
+	}
+}
+
+func TestRunKeepsFallbackWhenEvidenceGoesStaleAtDebounceDeadline(t *testing.T) {
+	now := time.Now().UTC()
+	config := internalpolicy.DefaultConfig()
+	config.DefaultPreset = policyv1.PresetKind_PRESET_KIND_HEALTH
+	config.DebounceSeconds = 1
+	store := &observingPolicyStore{
+		memoryPolicyStore: memoryPolicyStore{
+			config: config,
+			state: internalpolicy.State{
+				ActivePreset: policyv1.PresetKind_PRESET_KIND_STATIC,
+				Candidate:    policyv1.PresetKind_PRESET_KIND_HEALTH,
+				CandidateAt:  now.Add(-200 * time.Millisecond),
+			},
+		},
+		saved: make(chan internalpolicy.State, 8),
+	}
+	var reads atomic.Int32
+	sources := dynamicPolicyInputs(func() internalpolicy.Inputs {
+		read := reads.Add(1)
+		observedAt := time.Now().UTC()
+		state := policyv1.EvidenceState_EVIDENCE_STATE_FRESH
+		reason := ""
+		measurements := map[string]float64{"health_level": 2}
+		if read > 1 {
+			state = policyv1.EvidenceState_EVIDENCE_STATE_STALE
+			reason = "health source expired while policy candidate was pending"
+			measurements = nil
+		}
+		return internalpolicy.Inputs{
+			Now: observedAt,
+			InfrastructureHealth: []internalpolicy.SourceInput{{
+				Name:         "infrastructure-manager/substrate",
+				State:        state,
+				ObservedAt:   observedAt,
+				SourceTime:   observedAt,
+				Reason:       reason,
+				Measurements: measurements,
+			}},
+		}
+	})
+	service := NewService(store, sources, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		service.Run(ctx, 30*time.Second)
+		close(done)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case state := <-store.saved:
+			if reads.Load() > 1 && state.ActivePreset == policyv1.PresetKind_PRESET_KIND_STATIC && state.Candidate == policyv1.PresetKind_PRESET_KIND_UNSPECIFIED {
+				return
+			}
+		case <-timer.C:
+			t.Fatal("stale evidence at debounce expiry did not retain the static fallback")
+		}
+	}
+}
 
 func TestSetConfigPersistsDraftWithoutEvaluatingOrChangingActivePreset(t *testing.T) {
 	store := &memoryPolicyStore{config: internalpolicy.DefaultConfig(), state: internalpolicy.State{ManualPreset: policyv1.PresetKind_PRESET_KIND_OFF}}

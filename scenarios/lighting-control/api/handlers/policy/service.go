@@ -215,13 +215,53 @@ func (s *Service) Run(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
+		delay, debounceWake := s.nextRunDelay(ctx, interval)
+		var debounceTimer *time.Timer
+		var debounceC <-chan time.Time
+		if debounceWake {
+			debounceTimer = time.NewTimer(delay)
+			debounceC = debounceTimer.C
+		}
 		select {
 		case <-ctx.Done():
+			if debounceTimer != nil && !debounceTimer.Stop() {
+				select {
+				case <-debounceTimer.C:
+				default:
+				}
+			}
 			return
 		case <-ticker.C:
+			if debounceTimer != nil {
+				debounceTimer.Stop()
+			}
 			s.reconcileTick(ctx)
+		case <-debounceC:
+			if debounceWake {
+				// A candidate must be evaluated when its debounce expires. Waiting
+				// for the normal reconciliation cadence can leave the old fallback
+				// color applied for another full interval after evidence recovers.
+				if _, _, err := s.evaluateAndApply(ctx); err != nil {
+					log.Printf("lighting-control debounced policy evaluation failed: %v", err)
+				}
+			}
 		}
 	}
+}
+
+func (s *Service) nextRunDelay(ctx context.Context, interval time.Duration) (time.Duration, bool) {
+	config, state, err := internalpolicy.LoadForRead(ctx, s.store)
+	if err != nil || state.Candidate == policyv1.PresetKind_PRESET_KIND_UNSPECIFIED || state.CandidateAt.IsZero() {
+		return interval, false
+	}
+	remaining := time.Duration(config.DebounceSeconds)*time.Second - s.now().Sub(state.CandidateAt)
+	if remaining <= 0 {
+		return time.Millisecond, true
+	}
+	if remaining < interval {
+		return remaining, true
+	}
+	return interval, false
 }
 
 func (s *Service) reconcileTick(ctx context.Context) {

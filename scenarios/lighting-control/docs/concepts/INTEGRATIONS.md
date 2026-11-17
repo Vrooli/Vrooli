@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -63,7 +62,7 @@ Health means the available host/substrate condition, not general scenario uptime
 
 Combined takes its color from that health assessment and requests a gentle activity pulse only with current physical execution evidence and supported zone capability. Unknown/stale activity keeps a usable health color steady. Unknown health uses the configured static fallback and brightness cap. Work and Combined consume the ordinary Agent Manager runtime projection backed by the existing canonical executor observer, independently of maintenance admission or lifecycle gates. Logical pending/starting/running records and historical imports never establish physical activity. A fresh positive lower bound may prove activity (or the configured busy threshold) while coverage stays visibly degraded and the exact total remains unknown. Partial zero, failed reads and missing, stale or future source timestamps do not establish idle or active work; Work uses its configured static fallback. Queue counts remain separate metadata.
 
-Each source retains its own freshness and reason in effective policy evidence. API service `/health` is not host-health input. The consumer performs no host repair, team activation, dependency installation, service startup or hardware scan to obtain these readings.
+Each source retains its own freshness and reason in effective policy evidence. The default maximum source age is 900 seconds: infrastructure-manager substrate inputs are autoheal check results with 300–600 second schedules, and a 60-second global age made otherwise current host evidence stale between scheduled runs. Readings older than the configured limit still fall back and their ages remain visible. API service `/health` is not host-health input. The consumer performs no host repair, team activation, dependency installation, service startup or hardware scan to obtain these readings.
 
 ## Protocol evidence
 

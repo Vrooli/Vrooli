@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net"
 	"net/netip"
 	"strconv"
@@ -46,6 +45,8 @@ type SDKController struct {
 	Serial      string
 	Location    string
 	LEDCount    uint32
+	LEDNames    []string
+	LEDColors   []RGB
 	ActiveMode  int32
 	Modes       []SDKMode
 	Zones       []SDKZone
@@ -460,6 +461,9 @@ func (c SDKClient) ApplyConfiguredStableZone(ctx context.Context, controllerID, 
 		return SDKCommandResult{}, ErrUnsupported
 	}
 	_, wantsEffect := desired.DesiredMode.(*controlv1.ZoneState_Effect)
+	if wantsEffect && mode.ColorMode == sdkModeColorsPerLED && mode.Flags&sdkModeHasPerLEDColor == 0 {
+		return SDKCommandResult{}, ErrUnsupported
+	}
 	if wantsEffect && !modeCanHonorBrightness(mode, desired) {
 		return SDKCommandResult{}, fmt.Errorf("%w: %w", ErrUnsupported, ErrBrightnessLimit)
 	}
@@ -498,14 +502,15 @@ func (c SDKClient) ApplyConfiguredStableZone(ctx context.Context, controllerID, 
 	if wantsEffect && mode.ColorMode != sdkModeColorsPerLED {
 		return combined, nil
 	}
+	colorBrightness := requestedBrightness(desired)
+	if wantsEffect && mode.Flags&sdkModeHasBrightness != 0 {
+		colorBrightness = 100
+	}
 	color, ok := requestedColor(desired)
 	if !ok {
 		return combined, ErrUnsupported
 	}
-	brightness := requestedBrightness(desired)
-	color.R = uint8(math.Round(float64(color.R) * brightness / 100))
-	color.G = uint8(math.Round(float64(color.G) * brightness / 100))
-	color.B = uint8(math.Round(float64(color.B) * brightness / 100))
+	color = scaleRGBByBrightness(color, colorBrightness)
 	colors := make([]RGB, zone.LEDCount)
 	for i := range colors {
 		colors[i] = color
@@ -785,8 +790,9 @@ func parseController(id uint32, payload []byte) (SDKController, error) {
 	if err != nil || ledCount > 65535 {
 		return SDKController{}, errors.New("invalid LED count")
 	}
+	ledNames := make([]string, ledCount)
 	for i := uint16(0); i < ledCount; i++ {
-		if _, err = c.str16(); err != nil {
+		if ledNames[i], err = c.str16(); err != nil {
 			return SDKController{}, err
 		}
 	}
@@ -794,8 +800,16 @@ func parseController(id uint32, payload []byte) (SDKController, error) {
 	if err != nil || uint64(colors)*4 > uint64(len(c.data)-c.at) {
 		return SDKController{}, errors.New("invalid color count")
 	}
-	if err = c.skip(uint64(colors) * 4); err != nil {
-		return SDKController{}, err
+	ledColors := make([]RGB, colors)
+	for i := uint16(0); i < colors; i++ {
+		packed, readErr := c.take(4)
+		if readErr != nil {
+			return SDKController{}, readErr
+		}
+		// OpenRGB's SDK Color is serialized as red, green, blue, brightness.
+		// Brightness is retained by the wire format but is not a per-channel
+		// multiplier in the RGB value exposed to callers.
+		ledColors[i] = RGB{R: packed[0], G: packed[1], B: packed[2]}
 	}
 	// Protocol v5/v6 additions follow the v0 controller colors.
 	displayNames, err := c.u16()
@@ -819,7 +833,7 @@ func parseController(id uint32, payload []byte) (SDKController, error) {
 	if c.at != len(c.data) {
 		return SDKController{}, errors.New("unexpected trailing controller data")
 	}
-	return SDKController{ID: id, Type: identity.Type, Name: identity.Name, Vendor: identity.Vendor, Description: identity.Description, Serial: identity.Serial, Location: identity.Location, LEDCount: uint32(ledCount), ActiveMode: int32(activeMode), Modes: controllerModes, Zones: zones}, nil
+	return SDKController{ID: id, Type: identity.Type, Name: identity.Name, Vendor: identity.Vendor, Description: identity.Description, Serial: identity.Serial, Location: identity.Location, LEDCount: uint32(ledCount), LEDNames: ledNames, LEDColors: ledColors, ActiveMode: int32(activeMode), Modes: controllerModes, Zones: zones}, nil
 }
 
 func skipModeV6(c *cursor) error {

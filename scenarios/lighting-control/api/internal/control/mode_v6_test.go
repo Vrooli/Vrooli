@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control"
 )
 
 // The pinned 1.1 server returned these bytes over SDK v6 from the four-LED
@@ -169,6 +170,41 @@ func TestOpenRGBV6ModeScopeGuards(t *testing.T) {
 	require.ErrorContains(t, err, "entire controller")
 	_, _, err = encodeSDKModeUpdateV6(SDKModeTarget{ModeIndex: math.MaxUint32}, SDKMode{Name: "Static"})
 	require.ErrorContains(t, err, "out of range")
+}
+
+func TestNativeEffectCanEnforceBrightnessThroughModeColorInput(t *testing.T) {
+	desired := &controlv1.ZoneState{DesiredMode: &controlv1.ZoneState_Effect{Effect: &controlv1.EffectZoneState{
+		EffectId: "Breathing", Color: &controlv1.Color{Red: 217, Green: 154, Blue: 36}, BrightnessPercent: 25,
+	}}}
+
+	perLED := SDKMode{Name: "Breathing", SDKModeParameters: SDKModeParameters{
+		Flags:     sdkModeHasSpeed | sdkModeHasPerLEDColor,
+		ColorMode: sdkModeColorsPerLED,
+	}}
+	require.False(t, modeCanHonorBrightness(perLED, desired), "activating an effect before installing scaled per-LED input can briefly expose an old uncapped buffer")
+	require.False(t, modeCanScaleColorInput(perLED))
+
+	nativeBrightness := SDKMode{Name: "Breathing", SDKModeParameters: SDKModeParameters{
+		Flags:         sdkModeHasBrightness | sdkModeHasPerLEDColor,
+		BrightnessMin: 1, BrightnessMax: 100, ColorMode: sdkModeColorsPerLED,
+	}}
+	require.True(t, modeCanHonorBrightness(nativeBrightness, desired), "hardware brightness can cap output before the per-LED buffer is updated")
+
+	modeSpecific := SDKMode{Name: "Breathing", SDKModeParameters: SDKModeParameters{
+		Flags:     sdkModeHasSpeed | sdkModeHasModeSpecificColor,
+		ColorsMin: 1, ColorsMax: 1, ColorMode: sdkModeColorsModeSpecific,
+	}}
+	configured := configureMode(modeSpecific, desired)
+	require.Equal(t, []uint32{uint32(54) | uint32(39)<<8 | uint32(9)<<16}, configured.Colors)
+	require.True(t, modeCanHonorBrightness(modeSpecific, desired))
+
+	for _, unsafe := range []SDKMode{
+		{Name: "No color input"},
+		{Name: "Mismatched per-LED flag", SDKModeParameters: SDKModeParameters{Flags: sdkModeHasModeSpecificColor, ColorMode: sdkModeColorsPerLED}},
+		{Name: "Empty palette", SDKModeParameters: SDKModeParameters{Flags: sdkModeHasModeSpecificColor, ColorMode: sdkModeColorsModeSpecific}},
+	} {
+		require.False(t, modeCanHonorBrightness(unsafe, desired), "%s must not bypass static fallback", unsafe.Name)
+	}
 }
 
 func TestOpenRGBV6IdentityRejectsTransientLocation(t *testing.T) {

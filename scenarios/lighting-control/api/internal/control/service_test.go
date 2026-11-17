@@ -52,11 +52,23 @@ func newService(t *testing.T, backend control.Backend, clock *scheduletest.FakeC
 
 func TestDiscoveryUsesSerialIdentityAndZoneFingerprintsNotOrder(t *testing.T) {
 	clock := scheduletest.New(time.Date(2026, 11, 10, 12, 0, 0, 0, time.UTC))
-	backend := &fakeBackend{protocol: 6, controllers: []control.SDKController{{ID: 77, Name: "Board", Vendor: "Maker", Serial: "board-serial", Zones: []control.SDKZone{{Name: "Header", LEDCount: 4, Index: 0, Static: true}, {Name: "Strip", LEDCount: 8, Index: 1, Static: true}}}}}
+	backend := &fakeBackend{protocol: 6, controllers: []control.SDKController{{ID: 77, Name: "Board", Vendor: "Maker", Serial: "board-serial", LEDNames: []string{"GPU edge", "GPU core"}, LEDColors: []control.RGB{{R: 1, G: 2, B: 3}, {R: 128, G: 64, B: 0}}, ActiveMode: 1, Modes: []control.SDKMode{{Name: "Direct"}, {Name: "Static"}}, Zones: []control.SDKZone{{Name: "Header", LEDCount: 4, Index: 0, Static: true}, {Name: "Strip", LEDCount: 8, Index: 1, Static: true}}}}}
 	svc, _ := newService(t, backend, clock)
 	_, first, err := svc.ListControllers(context.Background())
 	require.NoError(t, err)
 	firstID := first[0].ControllerId
+	require.Equal(t, "openrgb_sdk_controller_data_cached_state", first[0].ReportedColorSource)
+	require.NotNil(t, first[0].ReportedLedColors[0].Index)
+	require.Equal(t, uint32(0), first[0].ReportedLedColors[0].GetIndex())
+	require.Equal(t, uint32(1), first[0].ReportedLedColors[0].Color.Red)
+	require.Equal(t, uint32(2), first[0].ReportedLedColors[0].Color.Green)
+	require.Equal(t, uint32(3), first[0].ReportedLedColors[0].Color.Blue)
+	require.Equal(t, "GPU core", first[0].ReportedLedColors[1].DisplayName)
+	require.Equal(t, clock.Now().UTC(), first[0].ReportedColorsObservedAt.AsTime())
+	require.Equal(t, "Static", first[0].ReportedActiveMode)
+	require.NotNil(t, first[0].ReportedActiveModeIndex)
+	require.Equal(t, uint32(1), first[0].GetReportedActiveModeIndex())
+	require.Equal(t, clock.Now().UTC(), first[0].ReportedActiveModeObservedAt.AsTime())
 	backend.controllers[0].Zones[0], backend.controllers[0].Zones[1] = backend.controllers[0].Zones[1], backend.controllers[0].Zones[0]
 	backend.controllers[0].ID = 99
 	_, second, err := svc.ListControllers(context.Background())
@@ -453,6 +465,7 @@ func TestListControllersSeparatesAbsentDevicesFromPersistedUnavailable(t *testin
 	status, current, err := svc.ListControllers(ctx)
 	require.NoError(t, err)
 	require.Empty(t, current, "default discovery excludes absent persisted devices")
+	require.Equal(t, controlv1.BackendState_BACKEND_STATE_UNAVAILABLE, status.State)
 	require.Equal(t, controlv1.BackendReason_BACKEND_REASON_PROBE_FAILED, status.Reason)
 	require.Contains(t, status.Detail, "no OpenRGB controllers")
 	_, includingUnavailable, err := svc.ListControllers(ctx, true)

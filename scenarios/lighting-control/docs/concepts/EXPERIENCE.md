@@ -4,7 +4,7 @@
 
 Light Desk is a calm operational workbench for persistent host lighting. It is closer to a compact device-control console than a gaming effects editor: operators need to know what policy is desired, which enrolled zones can carry it, and whether a command was accepted. The interface never implies that acceptance means visible light output.
 
-The operator approved the full Light Desk design in the originating conversation on 2026-11-10: “I approve of the full light desk design”. This ratifies the concept and all six paired desktop/phone mockup boards presented immediately before that answer. Product UI implementation may proceed. The information architecture and policy vocabulary below are the approved target, not evidence that hardware is available.
+The operator approved the full Light Desk design in the originating conversation on 2026-11-10: “I approve of the full light desk design”. This ratifies the concept and all six paired desktop/phone mockup boards presented immediately before that answer. Product UI implementation may proceed. The information architecture and policy vocabulary below are the approved target, not evidence that hardware is available. The accepted delivery target in `.vrooli/work/delivery/host-hardware-lighting/SPEC.md` uses these six boards as its visual reference. Generated hardware, live-signal values, thresholds and state remain illustrative; design ratification does not establish implementation, accessibility, SDK or physical-output qualification.
 
 ## Comparison
 
@@ -156,10 +156,17 @@ archives manual zone settings through the existing policy-selection path.
 Both layouts show and constrain edits to the current maximum brightness. The
 control service enforces the current cap at emission for UI, CLI, direct API and
 reconciliation; persisted manual intent is retained so cap changes do not erase
-it. Native effects that cannot honor the limit trigger a safe Off attempt;
-capability failures remain explicit when that fallback cannot be delivered.
-The backend retains authority over capabilities, and an advertised effect is not proof of visible
-motion or measured output.
+it. A native effect can honor the limit through its advertised brightness field
+or by scaling an explicitly advertised mode-specific palette that is sent
+atomically with the mode. Per-LED input without a native brightness field is
+not safe because it requires a second write after effect activation. The backend
+must confirm the exact mode and all required color writes. If no compliant path
+exists, it falls back to
+capped static color when acknowledged, then Off when it is not. The UI states
+when saved effect intent resolves to static or Off, because those targets do
+not pulse. Controller-wide SDK RGB is cached state and may be configured effect
+input rather than a live animation frame. An advertised effect and an SDK ACK
+are not proof of visible motion or measured output.
 
 ## Cross-references
 

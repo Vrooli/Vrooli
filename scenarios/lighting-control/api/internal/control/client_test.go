@@ -200,6 +200,8 @@ func TestDiscoverV6RetainsTransientHandlesAndParsesControllerIdentityAndCapabili
 	require.Len(t, controllers[0].Zones, 1)
 	require.True(t, controllers[0].Zones[0].Static)
 	require.Equal(t, uint32(2), controllers[0].Zones[0].LEDCount)
+	require.Equal(t, []RGB{{R: 12, G: 34, B: 56}, {R: 201, G: 202, B: 203}}, controllers[0].LEDColors)
+	require.Equal(t, []string{"LED 1", "LED 2"}, controllers[0].LEDNames)
 	parsed, err := parseController(4242, controllerV6Fixture("Rainbow"))
 	require.NoError(t, err)
 	require.False(t, parsed.Zones[0].Static, "unsupported modes must not be reported as static-color capability")
@@ -207,6 +209,151 @@ func TestDiscoverV6RetainsTransientHandlesAndParsesControllerIdentityAndCapabili
 	binary.LittleEndian.PutUint32(truncatedSize[:4], uint32(len(truncatedSize)-4))
 	_, err = parseController(4242, truncatedSize)
 	require.ErrorContains(t, err, "invalid device data size", "release_1.1 prefixes the full serialized reply size")
+}
+
+func controllerV6EffectFixture(modes []SDKMode, activeMode uint32, colors []RGB) []byte {
+	data := make([]byte, 4)
+	putU16 := func(value uint16) { data = binary.LittleEndian.AppendUint16(data, value) }
+	putU32 := func(value uint32) { data = binary.LittleEndian.AppendUint32(data, value) }
+	putString := func(value string) {
+		putU16(uint16(len(value) + 1))
+		data = append(data, value...)
+		data = append(data, 0)
+	}
+	putU32(2)
+	for _, value := range []string{"GPU", "ASUS", "ENE", "v1", "serial", "local"} {
+		putString(value)
+	}
+	putU16(uint16(len(modes)))
+	putU32(activeMode)
+	for _, mode := range modes {
+		putString(mode.Name)
+		for _, value := range []uint32{mode.Flags, mode.SpeedMin, mode.SpeedMax, mode.BrightnessMin, mode.BrightnessMax, mode.ColorsMin, mode.ColorsMax, mode.Speed, mode.Brightness, mode.Direction, mode.ColorMode} {
+			putU32(value)
+		}
+		putU16(uint16(len(mode.Colors)))
+		for _, color := range mode.Colors {
+			putU32(color)
+		}
+	}
+	putU16(1) // one zone
+	putString("Unknown")
+	putU32(0) // zone type
+	putU32(uint32(len(colors)))
+	putU32(uint32(len(colors)))
+	putU32(uint32(len(colors)))
+	putU16(0)              // matrix map
+	putU16(0)              // segments
+	putU32(0)              // zone flags
+	putU32(math.MaxUint32) // no zone-specific active mode
+	putU16(0)              // no zone-specific modes
+	putString("GPU zone")
+	putU16(uint16(len(colors)))
+	for index := range colors {
+		putString(fmt.Sprintf("LED %d", index+1))
+	}
+	putU16(uint16(len(colors)))
+	for _, color := range colors {
+		data = append(data, color.R, color.G, color.B, 255)
+	}
+	putU16(0) // protocol v6 display names
+	putU32(0) // controller flags
+	putString("GPU")
+	putU32(0) // configuration
+	binary.LittleEndian.PutUint32(data[:4], uint32(len(data)))
+	return data
+}
+
+func TestStableMutationUsesNativeBrightnessBeforePerLEDColorInput(t *testing.T) {
+	server := listenSDK(t)
+	done := make(chan error, 1)
+	breathing := SDKMode{Name: "Breathing", SDKModeParameters: SDKModeParameters{
+		Flags:    sdkModeHasSpeed | sdkModeHasBrightness | sdkModeHasPerLEDColor,
+		SpeedMin: 4, SpeedMax: 0, Speed: 2, BrightnessMin: 1, BrightnessMax: 100, ColorMode: sdkModeColorsPerLED,
+	}}
+	direct := SDKMode{Name: "Direct", SDKModeParameters: SDKModeParameters{
+		Flags: sdkModeHasPerLEDColor, ColorMode: sdkModeColorsPerLED,
+	}}
+	initial := []RGB{{R: 255}, {R: 255}, {R: 255}, {R: 255}}
+	output := []RGB{{R: 217, G: 154, B: 36}, {R: 217, G: 154, B: 36}, {R: 217, G: 154, B: 36}, {R: 217, G: 154, B: 36}}
+	go func() {
+		conn, err := server.Accept()
+		if err != nil {
+			done <- err
+			return
+		}
+		defer conn.Close()
+		negotiateFixtureConnection(conn, nil, 6)
+		for index, active := range []uint32{0, 1} {
+			count := readSDKRequest(conn, nil, requestControllerCount)
+			if count.deviceID != 0 {
+				done <- fmt.Errorf("controller count request device = %d", count.deviceID)
+				return
+			}
+			writeSDKPacket(conn, 0, requestControllerCount, append(uint32Bytes(1), uint32Bytes(4242)...))
+			writeSDKAck(conn, 0, requestControllerCount, 0)
+			request := readSDKRequest(conn, nil, requestControllerData)
+			if request.deviceID != 4242 {
+				done <- fmt.Errorf("controller data request device = %d", request.deviceID)
+				return
+			}
+			colors := initial
+			reportedModes := []SDKMode{direct, breathing}
+			if index == 1 {
+				colors = output
+				reportedModes[1].Brightness = 25
+			}
+			writeSDKPacket(conn, 4242, requestControllerData, controllerV6EffectFixture(reportedModes, active, colors))
+			writeSDKAck(conn, 4242, requestControllerData, 0)
+			if index == 0 {
+				modePacket := readSDKRequest(conn, nil, updateModePacketV6)
+				modeCursor := cursor{data: modePacket.data}
+				_, _ = modeCursor.u32()
+				modeIndex, _ := modeCursor.u32()
+				modeUpdate, decodeErr := decodeSDKModeV6(&modeCursor)
+				if modePacket.deviceID != 4242 || modeIndex != 1 || decodeErr != nil || modeUpdate.Name != "Breathing" || modeUpdate.Brightness != 25 {
+					done <- fmt.Errorf("breathing mode packet is not exact: packet=%+v index=%d mode=%+v err=%v", modePacket, modeIndex, modeUpdate, decodeErr)
+					return
+				}
+				writeSDKPacket(conn, 0, 100, nil)
+				writeSDKAck(conn, 4242, updateModePacketV6, 0)
+			}
+		}
+		colorsPacket := readSDKRequest(conn, nil, updateZoneLEDs)
+		if colorsPacket.deviceID != 4242 {
+			done <- fmt.Errorf("LED update device = %d", colorsPacket.deviceID)
+			return
+		}
+		colorsCursor := cursor{data: colorsPacket.data}
+		_, _ = colorsCursor.u32()
+		zoneIndex, _ := colorsCursor.u32()
+		count, _ := colorsCursor.u16()
+		if zoneIndex != 0 || count != 4 {
+			done <- fmt.Errorf("LED update scope/count = %d/%d", zoneIndex, count)
+			return
+		}
+		for range count {
+			got, readErr := colorsCursor.take(4)
+			if readErr != nil || len(got) != 4 || got[0] != 217 || got[1] != 154 || got[2] != 36 || got[3] != 0 {
+				done <- fmt.Errorf("LED RGB bytes = %v, error=%v", got, readErr)
+				return
+			}
+		}
+		writeSDKAck(conn, 4242, updateZoneLEDs, 0)
+		done <- nil
+	}()
+
+	initialController, err := parseController(4242, controllerV6EffectFixture([]SDKMode{direct, breathing}, 0, initial))
+	require.NoError(t, err)
+	id, _ := controllerIdentity(initialController)
+	desired := &controlv1.ZoneState{ControllerId: id, ZoneId: "persisted-zone-id", DesiredMode: &controlv1.ZoneState_Effect{Effect: &controlv1.EffectZoneState{
+		EffectId: "Breathing", Color: &controlv1.Color{Red: 217, Green: 154, Blue: 36}, BrightnessPercent: 25,
+	}}}
+	result, err := (SDKClient{Address: server.Addr().String()}).ApplyStableZone(context.Background(), id, zoneFingerprint(initialController.Zones[0]), desired)
+	require.NoError(t, err)
+	require.True(t, result.BackendAcknowledged, "both native-mode and scaled-color writes must be acknowledged")
+	require.Equal(t, controlv1.CachedModeReadback_CACHED_MODE_READBACK_MATCHES, result.CachedModeReadback)
+	require.NoError(t, <-done)
 }
 
 func TestStableMutationUsesFreshIdentityAndMutationOnOneSDKConnection(t *testing.T) {
@@ -552,7 +699,7 @@ func controllerV6FixtureWithActiveMode(zoneMode string, activeMode uint32) []byt
 	putString("LED 1")
 	putString("LED 2")
 	putU16(2)
-	data = append(data, make([]byte, 8)...)
+	data = append(data, []byte{12, 34, 56, 255, 201, 202, 203, 255}...)
 	putU16(0)
 	putU32(0)
 	putString("Board")

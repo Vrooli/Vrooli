@@ -108,6 +108,49 @@ describe("Light Desk", () => {
     expect(await screen.findByText(strings.lightDesk.policyUnavailable)).toBeInTheDocument();
   });
 
+  it("separates selected amber, saved effect intent, and the dim static RGB payload", async () => {
+    const color = { red: 217, green: 154, blue: 36 };
+    const saved = create(ZoneStateSchema, {
+      controllerId: "42", zoneId: "zone-main",
+      desiredMode: { case: "effect", value: { effectId: "Breathing", color, brightnessPercent: 25 } },
+    });
+    const applied = create(ZoneStateSchema, {
+      controllerId: "42", zoneId: "zone-main",
+      desiredMode: { case: "staticColor", value: { color, brightnessPercent: 25 } },
+    });
+    vi.spyOn(lightingApi, "readDesk").mockResolvedValue({
+      ...desk,
+      zones: [create(ZoneStatusSchema, { desired: saved, lastApply: create(ZoneApplyResultSchema, { desired: applied, operation: OperationState.BACKEND_ACKNOWLEDGED, backendAcknowledged: true }) })],
+      effective: create(EffectivePolicySchema, { preset: PresetKind.COMBINED, color, brightnessPercent: 25, effectId: "Breathing", reason: "Healthy system", evidence: [] }),
+    });
+    const { container } = renderWithProviders(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardPage /></MemoryRouter>, { withoutRouter: true });
+
+    await screen.findByRole("heading", { name: strings.lightDesk.policy });
+    expect(screen.getByText(strings.lightDesk.savedIntent)).toBeInTheDocument();
+    expect(screen.getByText(strings.lightDesk.lastCommandPayload)).toBeInTheDocument();
+    expect(container.querySelector(".lightdesk-policy-color")?.textContent).toContain("#D99A24");
+    expect(container.querySelector(".lightdesk-zone-color-evidence")?.textContent).toContain("#D99A24");
+    expect(container.querySelector(".lightdesk-zone-color-evidence")?.textContent).toContain("#362709");
+    expect(container.querySelector(".lightdesk-effect-delivery")?.textContent).toContain(strings.lightDesk.effectStaticFallback);
+    expect(container.querySelector(".lightdesk-effect-delivery")?.getAttribute("role")).toBe("status");
+  });
+
+  it("does not claim a static effect fallback was applied when the backend did not acknowledge it", async () => {
+    const color = { red: 217, green: 154, blue: 36 };
+    const saved = create(ZoneStateSchema, { controllerId: "42", zoneId: "zone-main", desiredMode: { case: "effect", value: { effectId: "Breathing", color, brightnessPercent: 25 } } });
+    const attempted = create(ZoneStateSchema, { controllerId: "42", zoneId: "zone-main", desiredMode: { case: "staticColor", value: { color, brightnessPercent: 25 } } });
+    vi.spyOn(lightingApi, "readDesk").mockResolvedValue({
+      ...desk,
+      zones: [create(ZoneStatusSchema, { desired: saved, lastApply: create(ZoneApplyResultSchema, { desired: attempted, operation: OperationState.COMMAND_SENT, backendAcknowledged: false }) })],
+    });
+    const { container } = renderWithProviders(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><DashboardPage /></MemoryRouter>, { withoutRouter: true });
+
+    await screen.findByRole("heading", { name: strings.lightDesk.controllers });
+    const notice = container.querySelector(".lightdesk-effect-delivery");
+    expect(notice?.textContent).toContain(strings.lightDesk.effectStaticUnconfirmed);
+    expect(notice?.getAttribute("role")).toBe("alert");
+  });
+
   it("checks backend state, applies an editable color, and chooses a policy preset", async () => {
     const read = vi.spyOn(lightingApi, "readDesk").mockResolvedValue(desk);
     const setStatic = vi.spyOn(lightingApi, "setStatic").mockResolvedValue({} as never);
