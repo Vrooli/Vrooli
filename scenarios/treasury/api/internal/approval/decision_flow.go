@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -33,6 +34,7 @@ type DecisionAsker interface {
 // can only resolve the exact local approval named in the Hub-verified
 // correlation; they never alter mandate or budget policy.
 type DecisionFlow struct {
+	applyMu   sync.Mutex
 	store     DecisionAskStore
 	publisher operatordecision.Publisher
 	clock     schedule.Clock
@@ -138,14 +140,23 @@ func (f *DecisionFlow) Apply(ctx context.Context, resolution operatordecision.De
 		return false, nil
 	}
 	approvalID := strings.TrimSpace(resolution.Correlation["approval_id"])
-	if approvalID == "" || resolution.AskID != decisionAskID(approvalID) {
+	if approvalID == "" {
 		return false, nil
 	}
-	ask, err := f.store.Get(ctx, resolution.AskID)
+	// A Hub answer can arrive through the direct callback and the durable
+	// Events subscription at the same time. Serialize the read/apply/readback
+	// sequence so only one request observes the ask and approval as pending.
+	f.applyMu.Lock()
+	defer f.applyMu.Unlock()
+	// The Hub assigns its own UUID to each ask. The producer's durable record is
+	// keyed by our stable correlation ID, so bind the two through the immutable
+	// requester event reference captured when this exact ask was raised.
+	ask, err := f.store.Get(ctx, decisionAskID(approvalID))
 	if err != nil {
 		return true, fmt.Errorf("load Treasury approval decision: %w", err)
 	}
-	if ask == nil || ask.Extra["approval_id"] != approvalID || ask.State != operatordecision.PendingStatePending {
+	if ask == nil || ask.Extra["approval_id"] != approvalID || ask.State != operatordecision.PendingStatePending ||
+		strings.TrimSpace(ask.EventID) == "" || resolution.RequesterRef != ask.EventID {
 		return true, nil
 	}
 	request, err := f.approvals.Get(ctx, approvalID)
@@ -211,8 +222,8 @@ func DecisionWebhookModule(secret string, reader operatordecision.AskReader, flo
 	}}
 }
 
-func NewDecisionAskReader(credential func(context.Context) (string, error)) operatordecision.AskReader {
-	return requireIssuedAskReader{inner: askreader.NewReader(DecisionSource, askreader.CredentialSource(credential))}
+func NewDecisionAskReader(credential func(context.Context) (string, error), options ...askreader.ReaderOption) operatordecision.AskReader {
+	return requireIssuedAskReader{inner: askreader.NewReader(DecisionSource, askreader.CredentialSource(credential), options...)}
 }
 
 func NewAuthorityDecisionAskReader() operatordecision.AskReader {

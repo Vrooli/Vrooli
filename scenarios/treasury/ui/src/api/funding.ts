@@ -1,58 +1,52 @@
 import { createClient } from "@connectrpc/connect";
-import { AgentSpend, TreasuryAdmin } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
+import { FundingAdminService } from "@vrooli/proto-types/treasury/v1/funding/wallet_ops_pb";
+import { LedgerService } from "@vrooli/proto-types/treasury/v1/ledger/ledger_pb";
 import type {
   FundingIntent,
   Withdrawal,
   WithdrawalQuote,
 } from "@vrooli/proto-types/treasury/v1/funding/wallet_ops_pb";
-import type { AgentBudgetHeadroom } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
+import type { LedgerDestination } from "@vrooli/proto-types/treasury/v1/ledger/ledger_pb";
 
 import { transport } from "./client";
 
-const treasuryAdmin = createClient(TreasuryAdmin, transport);
-const agentSpend = createClient(AgentSpend, transport);
-
-function operatorHeaders(operatorToken: string): HeadersInit {
-  return { Authorization: `Bearer ${operatorToken}` };
-}
+const treasuryAdmin = createClient(FundingAdminService, transport);
+const treasuryLedger = createClient(LedgerService, transport);
 
 export async function createFundingIntent(
-  operatorToken: string,
-  input: { budgetId: string; atomicAmount: string; ledgerBookId: string; ledgerAccountId: string; valueMinor: bigint },
+  input: { budgetId: string; atomicAmount: string; valueMinor: bigint },
 ): Promise<FundingIntent> {
   const response = await treasuryAdmin.createFundingIntent({
     id: crypto.randomUUID(),
     budgetId: input.budgetId,
     atomicAmount: input.atomicAmount,
-    ledgerBookId: input.ledgerBookId,
-    ledgerAccountId: input.ledgerAccountId,
     valuation: { amountMinor: input.valueMinor, currency: "USD", basisReference: "Operator-declared local-fork funding value" },
-  }, { headers: operatorHeaders(operatorToken) });
+  });
   if (!response.intent) throw new Error("Treasury returned an empty funding intent");
   return response.intent;
 }
 
-export async function listFundingIntents(operatorToken: string, budgetId: string): Promise<FundingIntent[]> {
-  const response = await treasuryAdmin.listFundingIntents({ budgetId }, { headers: operatorHeaders(operatorToken) });
+export async function getLedgerFundingDestination(): Promise<LedgerDestination> {
+  const response = await treasuryLedger.getLedgerDestination({});
+  const destination = response.destination;
+  if (!destination?.configured || !destination.bookName || !destination.accountName) {
+    throw new Error(destination?.unconfiguredReason || "Treasury has no verified Money Ledger destination configured");
+  }
+  return destination;
+}
+
+export async function listFundingIntents(budgetId: string): Promise<FundingIntent[]> {
+  const response = await treasuryAdmin.listFundingIntents({ budgetId });
   return response.intents;
 }
 
-export async function getBudgetHeadroom(agentIdentityToken: string, budgetId: string): Promise<AgentBudgetHeadroom> {
-  const response = await agentSpend.getBudgetHeadroom({ budgetId }, {
-    headers: { "X-Agent-Identity-Token": agentIdentityToken },
-  });
-  if (!response.headroom) throw new Error("Treasury returned empty budget headroom");
-  return response.headroom;
-}
-
-export async function confirmFundingTransfer(operatorToken: string, id: string, transactionHash: string): Promise<FundingIntent> {
-  const response = await treasuryAdmin.confirmFundingTransfer({ id, transactionHash }, { headers: operatorHeaders(operatorToken) });
+export async function confirmFundingTransfer(id: string, transactionHash: string): Promise<FundingIntent> {
+  const response = await treasuryAdmin.confirmFundingTransfer({ id, transactionHash });
   if (!response.intent) throw new Error("Treasury returned an empty funding confirmation");
   return response.intent;
 }
 
 export async function previewWithdrawal(
-  operatorToken: string,
   input: { budgetId: string; mandateId: string; destination: string; atomicAmount: string; maxFeeWei: string; feeValuationMinor: bigint; valueMinor: bigint },
 ): Promise<WithdrawalQuote> {
   const response = await treasuryAdmin.previewWithdrawal({
@@ -63,17 +57,15 @@ export async function previewWithdrawal(
     maxFeeWei: input.maxFeeWei,
     feeValuationMinor: input.feeValuationMinor,
     valuation: { amountMinor: input.valueMinor, currency: "USD", basisReference: "Operator-declared local-fork withdrawal value" },
-  }, { headers: operatorHeaders(operatorToken) });
+  });
   if (!response.quote) throw new Error("Treasury returned an empty withdrawal quote");
   return response.quote;
 }
 
-export async function executeWithdrawal(operatorToken: string, agentIdentityToken: string, quoteId: string, idempotencyKey: string): Promise<Withdrawal> {
-  const headers = new Headers(operatorHeaders(operatorToken));
-  headers.set("X-Treasury-Mandate-Identity-Token", agentIdentityToken);
-  const response = await treasuryAdmin.executeWithdrawal({ quoteId, idempotencyKey }, { headers });
+export async function executeWithdrawal(quoteId: string, idempotencyKey: string): Promise<Withdrawal> {
+  const response = await treasuryAdmin.executeWithdrawal({ quoteId, idempotencyKey });
   if (!response.withdrawal) throw new Error("Treasury returned an empty withdrawal");
   return response.withdrawal;
 }
 
-export type { FundingIntent, Withdrawal, WithdrawalQuote };
+export type { FundingIntent, LedgerDestination, Withdrawal, WithdrawalQuote };

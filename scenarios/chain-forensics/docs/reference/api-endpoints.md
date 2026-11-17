@@ -92,6 +92,26 @@ and their previous/applied timestamps. The matching CLI commands are
 `chain-forensics cases revise --revision <request.json>` and
 `chain-forensics cases revisions <case-id>`.
 
+### Cases — bounded Solana signature discovery
+
+`CasesService.CaptureSolanaAddressPage` normally stores one finalized page of
+up to 25 signatures plus each transaction's source bytes and decoded balance
+deltas. Set `signatures_only=true` to retain only a finalized
+`getSignaturesForAddress` result page, with `signature_limit` from 1 through
+1,000 (default 1,000). `signature_page_count` can capture 1 through 25
+sequential pages in one append (default 1); the cursor advances between
+requests, and the response returns the last `next_before_signature` plus total
+`captured_signature_count`. Multi-page responses return `case_id` and omit the
+full case payload to keep the response bounded. If an upstream rate limit ends
+a multi-page request after at least one page, captured pages are retained and
+`stopped_reason` explains why scanning stopped. Signature-only pages do not fetch transaction bodies or
+create flow observations. Fetch selected signatures through
+`CaptureSolanaTransaction` before making transaction-level claims. The owner
+retains the exact result and HTTP envelope in the private case source list; the
+CLI mirror is `chain-forensics cases capture-solana-address --signatures-only
+--signature-limit <1..1000> --signature-pages <1..25>`. The request is finalized and read-only; no
+signature or page is evidence of identity, ownership, or control.
+
 For a new domain, copy the worked vertical slice in the fenced example
 above first, then replace it once your real domain is green.
 

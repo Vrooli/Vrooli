@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdh"
 	"crypto/ecdsa"
@@ -17,17 +18,21 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	requestidentity "github.com/vrooli/api-core/identity"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
@@ -35,11 +40,15 @@ import (
 	chaincasesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/chain-forensics/v1/cases/cases_v1connect"
 	routingpb "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing"
 	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/dev-routing/v1/routing/routing_v1connect"
+	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ledgerpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger"
 	ledgerconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ledger/ledger_v1connect"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	notificationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	notificationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
 	notificationsshared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
+	accountsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
+	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	bookv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/book"
@@ -50,12 +59,15 @@ import (
 	fundingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding/funding_v1connect"
 	mandatepb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
 	mandateconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate/mandate_v1connect"
+	treasurysharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 	walletpb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
 	walletconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet/wallet_v1connect"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"treasury/internal/baseusdc"
 	"treasury/internal/identity"
+	x402rail "treasury/internal/rail/x402"
+	treasuryresearchbudget "treasury/internal/researchbudget"
 	"treasury/internal/testutil/agentclaims"
 	"treasury/internal/testutil/basefork"
 )
@@ -178,11 +190,11 @@ func newCF5WebPushFixture(t *testing.T) cf5WebPushFixture {
 }
 
 // TestCF5MobileLocalForkReceiptWatcherQueuesReceipt is the gated local-fork
-// CF5 rehearsal: BAS captures the funding, receipt-credit and withdrawal
-// surfaces while isolated Treasury, Money Ledger, Notification Hub and a Base
-// fork exercise acceptance, exactly-once headroom credit, notice delivery and
-// allowlisted withdrawal. The opt-in runtime still needs a fresh shared disk
-// lease before it can produce evidence for those expected outcomes.
+// CF5 rehearsal. It attempts BAS mobile captures while isolated Treasury,
+// Money Ledger, Notification Hub and a Base fork exercise receipt acceptance,
+// exactly-once headroom credit, notice delivery, paid-provider value and an
+// allowlisted return. Any API fallback remains labeled separately from UI
+// evidence; BAS unavailability must not be reported as a mobile pass.
 func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	if os.Getenv("TREASURY_CF5_REHEARSAL") != "1" {
 		t.Skip("set TREASURY_CF5_REHEARSAL=1 and TREASURY_CF5_FIXTURE_DIR for the isolated CF5 fork handoff")
@@ -213,8 +225,45 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	custodyDir := filepath.Join(runDir, "custody")
 	initializeCF2Credentials(t, filepath.Join(custodyDir, "synthetic-custody.enc"))
 	t.Cleanup(func() { _ = os.RemoveAll(custodyDir) })
-	_, _, _, _, _, jwksURL, authenticatorURL, closeIdentity := startServiceIdentityFixture(t)
+	_, _, agentManagerServiceToken, _, _, moneyLedgerOperatorToken, jwksURL, authenticatorURL, closeIdentity := startServiceIdentityFixture(t)
 	t.Cleanup(closeIdentity)
+	operatorAuthVariant := instanceName("scenario-authenticator")
+	operatorAuthName := "scenario-authenticator@" + operatorAuthVariant
+	operatorAuthStorage := filepath.Join(runDir, "operator-auth-storage")
+	t.Cleanup(func() {
+		if err := os.RemoveAll(operatorAuthStorage); err != nil {
+			t.Errorf("remove isolated operator-authenticator account database: %v", err)
+		}
+	})
+	operatorAuthSource := prepareCF5APIScenarioVariant(t, "scenario-authenticator", "../../scenario-authenticator", runDir, map[string]string{
+		"VROOLI_STORAGE_ROOT":            operatorAuthStorage,
+		"VROOLI_AUTH_RESOURCE_AUDIENCES": "treasury=scenario-authenticator:treasury",
+	})
+	operatorAuthStarted := lifecycleRehearsal(t, ctx, runDir, "operator-auth-start", map[string]string{}, "start", operatorAuthName, "--path", operatorAuthSource, "--json", "--timeout", "300")
+	operatorAuthURL := cf5APIURL(t, operatorAuthStarted)
+	operatorAuthStopped := false
+	stopOperatorAuth := func() {
+		if operatorAuthStopped {
+			return
+		}
+		stopCF5Variant(t, runDir, operatorAuthName, operatorAuthURL)
+		operatorAuthStopped = true
+	}
+	t.Cleanup(stopOperatorAuth)
+	requireHTTPStatus(t, operatorAuthURL+"/health", http.StatusOK)
+	operatorEmail := "cf5-operator-" + strings.TrimPrefix(operatorAuthVariant, "cf5-") + "@example.test"
+	operatorPasswordBytes := make([]byte, 24)
+	_, err := rand.Read(operatorPasswordBytes)
+	require.NoError(t, err)
+	operatorPassword := "Cf5!" + base64.RawURLEncoding.EncodeToString(operatorPasswordBytes)
+	clear(operatorPasswordBytes)
+	operatorAccounts := accountsconnect.NewAccountsServiceClient(&http.Client{Timeout: 10 * time.Second}, operatorAuthURL)
+	registeredOperator, err := operatorAccounts.Register(ctx, connect.NewRequest(&accountsv1.RegisterRequest{
+		Email: operatorEmail, Password: operatorPassword, Username: "CF5 isolated rehearsal operator", Resource: "treasury",
+	}))
+	require.NoError(t, err, "register a disposable human only in the isolated scenario-authenticator variant")
+	operatorSubject := registeredOperator.Msg.GetAccount().GetId()
+	registeredOperator = nil // Do not retain the access/refresh token response from account registration.
 	ledgerVariant := instanceName("money-ledger")
 	ledgerName := "money-ledger@" + ledgerVariant
 	ledgerEnv := map[string]string{
@@ -223,6 +272,12 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 		"VROOLI_AUTH_SCENARIO_JWKS_URL":  jwksURL,
 		"SCENARIO_AUTHENTICATOR_API_URL": authenticatorURL,
 	}
+	ownerBindings, err := json.Marshal([]map[string]any{{
+		"source": "scenario_authenticator", "subject": "cf5-local-operator", "canonical_subject": "cf5-local-operator",
+		"scopes": []string{"money-ledger:write"}, "resources": []string{"money-ledger"},
+	}})
+	require.NoError(t, err)
+	ledgerEnv["VROOLI_AUTH_OWNER_BINDINGS"] = string(ownerBindings)
 	ledgerSource := prepareCF5APIScenarioVariant(t, "money-ledger", "../../money-ledger", runDir, ledgerEnv)
 	ledgerStarted := lifecycleRehearsal(t, ctx, runDir, "money-ledger-start", map[string]string{"GOFLAGS": "", "API_TOKEN": ""}, "start", ledgerName, "--path", ledgerSource, "--json", "--timeout", "300")
 	ledgerURL, _ := cf5RuntimeURLs(t, ledgerStarted)
@@ -244,15 +299,17 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	t.Cleanup(stopLedger)
 	requireHTTPStatus(t, ledgerURL+"/health", http.StatusOK)
 	ledgerBooks := ledgerconnect.NewBooksServiceClient(&http.Client{Timeout: 10 * time.Second}, ledgerURL)
-	createdBook, err := ledgerBooks.CreateBook(ctx, connect.NewRequest(&ledgerpb.CreateBookRequest{Name: "CF5 isolated Base funding", Currency: "USD"}))
+	createdBook, err := ledgerBooks.CreateBook(ctx, cf5ServiceRequest(&ledgerpb.CreateBookRequest{Name: "CF5 isolated Base funding", Currency: "USD"}, moneyLedgerOperatorToken))
 	require.NoError(t, err)
-	createdAccount, err := ledgerBooks.CreateAccount(ctx, connect.NewRequest(&ledgerpb.CreateAccountRequest{BookId: createdBook.Msg.GetBook().GetId(), Name: "Base USDC deposits", AccountKind: ledgerpb.AccountKind_ASSET}))
+	createdAccount, err := ledgerBooks.CreateAccount(ctx, cf5ServiceRequest(&ledgerpb.CreateAccountRequest{BookId: createdBook.Msg.GetBook().GetId(), Name: "Base USDC deposits", AccountKind: ledgerpb.AccountKind_ASSET}, moneyLedgerOperatorToken))
 	require.NoError(t, err)
 	writeCF5JSON(t, filepath.Join(runDir, "money-ledger-fixture.json"), map[string]string{
 		"variant": ledgerVariant, "api_url": ledgerURL, "book_id": createdBook.Msg.GetBook().GetId(), "account_id": createdAccount.Msg.GetAccount().GetId(), "service_identity": "treasury / money-ledger:write via local synthetic JWKS fixture",
 	})
 	var runIdentityMu sync.RWMutex
 	activeRunID := "test-run"
+	var budgetEvidenceMu sync.Mutex
+	budgetEvidence := map[string][]byte{}
 	claimsForRun := func(runID string) identity.Claims {
 		claims := agentclaims.For("cf1-local-operator")
 		claims.RunID = runID
@@ -271,6 +328,51 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 		return claims
 	}
 	identityServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/v1/research-budgets/") {
+			if r.Method != http.MethodPost || r.Header.Get("Authorization") != "Bearer "+agentManagerServiceToken {
+				http.Error(w, "Treasury Agent Manager service identity required", http.StatusUnauthorized)
+				return
+			}
+			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/research-budgets/"), "/")
+			if len(parts) != 2 || (parts[1] != "snapshot" && parts[1] != "settlements") {
+				http.NotFound(w, r)
+				return
+			}
+			if _, err := uuid.Parse(parts[0]); err != nil {
+				http.Error(w, "valid run UUID required", http.StatusBadRequest)
+				return
+			}
+			payload, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+			if err != nil || len(payload) == 0 || !json.Valid(payload) {
+				http.Error(w, "invalid run-bound evidence", http.StatusBadRequest)
+				return
+			}
+			key := parts[0] + "/" + parts[1]
+			if parts[1] == "snapshot" {
+				var snapshot treasuryresearchbudget.Snapshot
+				if json.Unmarshal(payload, &snapshot) != nil || snapshot.TreasuryBudgetID == "" || snapshot.MandateID == "" || snapshot.AgentSubject == "" || snapshot.CapMinor < 0 || snapshot.Currency == "" || snapshot.UnitCode == "" || snapshot.PolicyRevision == "" || snapshot.CreatedAt.IsZero() {
+					http.Error(w, "invalid Treasury run snapshot", http.StatusBadRequest)
+					return
+				}
+			} else {
+				var settlement treasuryresearchbudget.Settlement
+				if json.Unmarshal(payload, &settlement) != nil || settlement.ID == "" || settlement.SettlementID == "" || settlement.TreasuryReceiptID == "" || settlement.IntegrationID == "" || settlement.Currency == "" || settlement.UnitCode == "" || settlement.AmountMinor < 0 || settlement.SettledAt.IsZero() {
+					http.Error(w, "settlement evidence id required", http.StatusBadRequest)
+					return
+				}
+				key += "/" + settlement.SettlementID
+			}
+			budgetEvidenceMu.Lock()
+			if prior, exists := budgetEvidence[key]; exists && !bytes.Equal(prior, payload) {
+				budgetEvidenceMu.Unlock()
+				http.Error(w, "conflicting immutable run evidence", http.StatusConflict)
+				return
+			}
+			budgetEvidence[key] = append([]byte(nil), payload...)
+			budgetEvidenceMu.Unlock()
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		var request struct {
 			Token          string `json:"token"`
 			OperationToken string `json:"operation_token"`
@@ -352,6 +454,42 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 		"endpoint_host": "127.0.0.1", "endpoint_path": "/push/receipt", "recipient": "e1-fixture@notification-hub.invalid",
 		"fixture_only": true, "seeded_in_isolated_leased_database": true, "external_credentials": false, "phone_delivery_claimed": false,
 	})
+	offerDeskEvidenceDir := filepath.Join(runDir, "cf5-offer-desk")
+	require.NoError(t, os.MkdirAll(offerDeskEvidenceDir, 0o700))
+	agentManagerEvidenceDir := filepath.Join(runDir, "agent-manager-cli")
+	require.NoError(t, os.MkdirAll(agentManagerEvidenceDir, 0o700))
+	agentManagerEvidenceInfo, err := os.Lstat(agentManagerEvidenceDir)
+	require.NoError(t, err)
+	require.True(t, agentManagerEvidenceInfo.IsDir() && agentManagerEvidenceInfo.Mode()&os.ModeSymlink == 0, "paid-body evidence child must be a real directory")
+	require.Equal(t, os.FileMode(0o700), agentManagerEvidenceInfo.Mode().Perm(), "paid-body evidence child must be private")
+	agentManagerEvidenceStat, ok := agentManagerEvidenceInfo.Sys().(*syscall.Stat_t)
+	require.True(t, ok, "paid-body evidence child must expose its Linux device/inode identity")
+	offerDeskSource := prepareCF5APIScenarioVariant(t, "offer-desk", "../../offer-desk", runDir, map[string]string{
+		"VROOLI_STORAGE_ROOT":                      filepath.Join(runDir, "offer-desk-storage"),
+		"TREASURY_API_URL":                         "",
+		"OFFER_DESK_TEST_DROP_FIRST_PAID_RESPONSE": "1",
+	})
+	disableCF4OfferDeskVectorSearch(t, offerDeskSource)
+	offerDeskName := "offer-desk@" + instanceName("cf5-offer-desk")
+	offerDeskStarted := lifecycleRehearsal(t, ctx, runDir, "offer-desk-start", map[string]string{}, "start", offerDeskName, "--path", offerDeskSource, "--json", "--timeout", "240")
+	offerDeskURL := cf5APIURL(t, offerDeskStarted)
+	offerDeskStopped := false
+	stopOfferDesk := func() {
+		if offerDeskStopped {
+			return
+		}
+		stopCF5Variant(t, runDir, offerDeskName, offerDeskURL)
+		offerDeskStopped = true
+	}
+	t.Cleanup(stopOfferDesk)
+	offerID, offerVariantID := seedCF4OfferDeskGraph(t, ctx, offerDeskURL, offerDeskEvidenceDir)
+	paidCatalogURL := strings.TrimRight(offerDeskURL, "/") + "/api/v1/paid/catalog"
+	facilitatorKey, err := gethcrypto.GenerateKey()
+	require.NoError(t, err)
+	facilitatorAddress := gethcrypto.PubkeyToAddress(facilitatorKey.PublicKey)
+	require.NoError(t, fork.Call(ctx, "anvil_setBalance", []any{facilitatorAddress.Hex(), "0x56bc75e2d63100000"}, nil))
+	cf5ProvisionPinnedFacilitatorKey(t, facilitatorKey)
+	cf5StartPinnedFacilitator(t, ctx, runDir)
 
 	instance := instanceName("treasury")
 	name := "treasury@" + instance
@@ -365,10 +503,20 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 		"TREASURY_LEDGER_BOOK_ID":                             createdBook.Msg.GetBook().GetId(),
 		"TREASURY_LEDGER_ACCOUNT_ID":                          createdAccount.Msg.GetAccount().GetId(),
 		"SCENARIO_AUTHENTICATOR_API_URL":                      authenticatorURL,
+		"TREASURY_OPERATOR_AUTH_URL":                          operatorAuthURL,
+		"TREASURY_OPERATOR_JWKS_URL":                          operatorAuthURL + "/.well-known/jwks.json",
+		"TREASURY_OPERATOR_HUMAN_SUBJECTS":                    operatorSubject,
+		"TREASURY_X402_PAID_BODY_EVIDENCE_DIR":                agentManagerEvidenceDir,
+		"TREASURY_X402_PAID_BODY_EVIDENCE_ROOT":               runDir,
+		"TREASURY_X402_PAID_BODY_EVIDENCE_DIR_DEV":            fmt.Sprintf("%d", agentManagerEvidenceStat.Dev),
+		"TREASURY_X402_PAID_BODY_EVIDENCE_DIR_INO":            fmt.Sprintf("%d", agentManagerEvidenceStat.Ino),
+		"TREASURY_CF5_REHEARSAL":                              "1",
 		"AGENT_MANAGER_API_URL":                               identityServer.URL,
 		"NOTIFICATION_HUB_API_URL":                            hubAPIURL,
 		"TREASURY_CF5_NOTIFICATION_TEST_MODE":                 "1",
 		"TREASURY_CF5_NOTIFICATION_TEST_AGENT_IDENTITY_TOKEN": "cf5-local-agent",
+		"OFFER_DESK_BASE_URL":                                 offerDeskURL,
+		"X402_FACILITATOR_URL":                                "http://127.0.0.1:14021",
 	}
 	source := prepareCF5ScenarioVariant(t, "treasury", "..", runDir, apiEnv)
 	writeCF5JSON(t, filepath.Join(runDir, "treasury-binding.json"), map[string]any{
@@ -391,6 +539,63 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	requireHTTPStatus(t, apiURL+"/health", http.StatusOK)
 	requireHTTPStatus(t, uiURL+"/health", http.StatusOK)
 	requireHTTPStatus(t, uiURL+"/fund", http.StatusOK)
+	cookieJar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+	sessionHTTP := &http.Client{Jar: cookieJar, Timeout: 10 * time.Second}
+	signInBody, err := json.Marshal(map[string]string{"email": operatorEmail, "password": operatorPassword})
+	require.NoError(t, err)
+	signInRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, uiURL+"/api/v1/operator-session/sign-in", strings.NewReader(string(signInBody)))
+	require.NoError(t, err)
+	signInRequest.Header.Set("Content-Type", "application/json")
+	signInRequest.Header.Set("Origin", uiURL)
+	signInResponse, err := sessionHTTP.Do(signInRequest)
+	require.NoError(t, err)
+	signInResponseBody, err := io.ReadAll(signInResponse.Body)
+	require.NoError(t, err)
+	require.NoError(t, signInResponse.Body.Close())
+	require.Equalf(t, http.StatusOK, signInResponse.StatusCode, "isolated operator sign-in response: %s", strings.TrimSpace(string(signInResponseBody)))
+	require.NotContains(t, string(signInResponseBody), "access_token")
+	require.NotContains(t, string(signInResponseBody), "refresh_token")
+	setCookies := signInResponse.Cookies()
+	require.NotEmpty(t, setCookies)
+	for _, cookie := range setCookies {
+		require.True(t, cookie.HttpOnly, "Treasury operator cookies must be HttpOnly")
+	}
+	statusRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, uiURL+"/api/v1/operator-session", nil)
+	require.NoError(t, err)
+	statusResponse, err := sessionHTTP.Do(statusRequest)
+	require.NoError(t, err)
+	var sessionStatus struct {
+		Authenticated bool   `json:"authenticated"`
+		Subject       string `json:"subject"`
+	}
+	require.NoError(t, json.NewDecoder(statusResponse.Body).Decode(&sessionStatus))
+	require.NoError(t, statusResponse.Body.Close())
+	require.Equal(t, http.StatusOK, statusResponse.StatusCode)
+	require.True(t, sessionStatus.Authenticated)
+	require.Equal(t, operatorSubject, sessionStatus.Subject)
+	writeCF5JSON(t, filepath.Join(runDir, "treasury-browser-session.json"), map[string]any{
+		"surface_origin": uiURL, "authenticated": true, "verified_human_subject": sessionStatus.Subject,
+		"http_only_cookies": true, "token_response_fields": false,
+		"subject_to_operator_binding": "isolated allowlist maps this verified human to the existing Treasury local-operator realm",
+	})
+	clear(operatorPasswordBytes)
+	setCF5VariantEnvironment(t, offerDeskSource, map[string]string{"TREASURY_API_URL": apiURL})
+	offerDeskRebound := lifecycleRehearsal(t, ctx, runDir, "offer-desk-bind-treasury", map[string]string{}, "restart", offerDeskName, "--path", offerDeskSource, "--json", "--timeout", "240")
+	require.Equal(t, offerDeskURL, cf5APIURL(t, offerDeskRebound), "Offer Desk restart must preserve its isolated API address")
+	cf5Price := cf5DeclareOfferDeskPriceWithSession(t, ctx, uiURL, sessionHTTP, map[string]any{
+		"offer_id": offerID, "variant_id": offerVariantID,
+		"price": map[string]any{
+			"id": "cf4-research-inference", "resource_url": paidCatalogURL,
+			"description": "Offer Desk research catalog lookup", "mime_type": "application/json",
+			"network": "eip155:8453", "scheme": "exact", "pay_to": fork.Accounts[2],
+			"asset": baseusdc.USDCAddress, "asset_decimals": 6, "max_timeout_seconds": 300,
+			"extra_json": `{"assetTransferMethod":"eip3009","name":"USD Coin","version":"2"}`,
+		},
+	})
+	require.Equal(t, int64(1), cf5Price.AmountMinor)
+	require.Equal(t, "10000", cf5Price.Amount)
+	writeCF5JSON(t, filepath.Join(offerDeskEvidenceDir, "priced-call.json"), cf5Price)
 	const bookID = "cf5-integrated-research-book"
 	ledgerBookID := createdBook.Msg.GetBook().GetId()
 	ledgerAccountID := createdAccount.Msg.GetAccount().GetId()
@@ -413,11 +618,23 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	variant := fmt.Sprintf("cf5-integrated-%d", time.Now().UnixNano())
 	budgetID := "cf1-agent-manager-budget-" + variant
 	mandateID := "cf1-agent-manager-mandate-" + variant
+	providerURL, err := url.ParseRequestURI(paidCatalogURL)
+	require.NoError(t, err)
+	x402 := &cf1X402ShowcaseConfig{
+		CatalogURL: paidCatalogURL, PriceID: cf5Price.ID, CallID: "cf4-research-inference-call",
+		Counterparty: strings.ToLower(providerURL.Hostname()), InstrumentID: "cf1-agent-manager-instrument-x402-cf5-" + variant,
+		PrepareSigner: func(_ context.Context, actualWalletID, actualAddress string) (string, error) {
+			return cf1RunWalletX402Credential(t, runDir, filepath.Join(custodyDir, "synthetic-custody.enc"), actualWalletID, actualAddress, paidCatalogURL)
+		},
+	}
 	var runID, walletID, walletAddress, fundingTxHash string
 	var beforeCredit, afterCredit *authorizationv1.GetBudgetHeadroomResponse
+	var basCaptureError string
+	var basFundAuthenticatedCaptured bool
 	notificationClient := notificationsconnect.NewNotificationsServiceClient(&http.Client{Timeout: 10 * time.Second}, hubAPIURL)
 	hooks := cf1ShowcaseHooks{
 		FundingAtomicAmount: "2600000",
+		X402:                x402,
 		FundAgentWallet: func(fundCtx context.Context, actualBudgetID, actualWalletID, actualAddress, actualMandateID, actualRunID string) error {
 			if actualBudgetID != budgetID || actualMandateID != mandateID {
 				return fmt.Errorf("unexpected run-owned budget binding: budget=%s mandate=%s", actualBudgetID, actualMandateID)
@@ -434,10 +651,41 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 				"wallet_id": walletID, "local_fork_address": walletAddress,
 				"ledger_book_id": ledgerBookID, "ledger_account_id": ledgerAccountID,
 			})
-			captureCF5MobileFund(t, fundCtx, runDir, uiURL, budgetID, ledgerBookID, ledgerAccountID, walletAddress, "2600000", "2.60")
+			if captureErr := captureCF5MobileFund(t, fundCtx, runDir, uiURL, operatorEmail, operatorPassword, budgetID, walletAddress); captureErr != nil {
+				basCaptureError = captureErr.Error()
+				writeCF5JSON(t, filepath.Join(runDir, "bas-mobile-fund-capture-failed.json"), map[string]any{
+					"error": basCaptureError, "bas_artifact_created": false,
+					"fund_surface_verified": false, "authenticated_funding_flow_verified": false,
+				})
+			} else {
+				basFundAuthenticatedCaptured = true
+				writeCF5JSON(t, filepath.Join(runDir, "bas-mobile-authenticated-fund-link.json"), map[string]any{
+					"fund_surface_verified": true, "authenticated_funding_flow_verified": true,
+					"budget_id": budgetID, "atomic_amount": "2600000", "wallet_address": walletAddress,
+					"exact_prefilled_base_usdc_uri_asserted": true, "mobile_wallet_app_opened": false,
+				})
+			}
+			operatorPassword = ""
 			intents, listErr := fundingIntents.ListFundingIntents(fundCtx, cf5OperatorRequest(&fundingpb.ListFundingIntentsRequest{BudgetId: budgetID}))
 			if listErr != nil {
 				return listErr
+			}
+			if len(intents.Msg.GetIntents()) == 0 && basCaptureError != "" {
+				fallback, createErr := fundingIntents.CreateFundingIntent(fundCtx, cf5OperatorRequest(&fundingpb.CreateFundingIntentRequest{
+					Id: "cf5-mobile-api-fallback-" + variant, BudgetId: budgetID, AtomicAmount: "2600000",
+					Valuation: &ingestpb.CryptoValuation{AmountMinor: 260, Currency: "USD", BasisReference: "CF5 isolated local-fork rehearsal"},
+				}))
+				if createErr != nil {
+					return fmt.Errorf("BAS failed and the Treasury funding API fallback also failed: %w", createErr)
+				}
+				writeCF5JSON(t, filepath.Join(runDir, "bas-mobile-fund-api-fallback.json"), map[string]any{
+					"intent_id": fallback.Msg.GetIntent().GetId(), "created_by": "authenticated Treasury API in isolated local-fork test",
+					"reason": basCaptureError, "mobile_ui_action_claimed": false,
+				})
+				intents, listErr = fundingIntents.ListFundingIntents(fundCtx, cf5OperatorRequest(&fundingpb.ListFundingIntentsRequest{BudgetId: budgetID}))
+				if listErr != nil {
+					return listErr
+				}
 			}
 			if len(intents.Msg.GetIntents()) != 1 {
 				return fmt.Errorf("Fund surface created %d intents for run budget", len(intents.Msg.GetIntents()))
@@ -498,7 +746,7 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 			if observed == nil || observed.GetTransactionHash() != fundingTxHash || observed.GetNotificationState() != "sent" {
 				return fmt.Errorf("run wallet funding watcher did not credit and notify: %+v", observed)
 			}
-			delivery, deliveryErr := operator.GetReceiptFunding(fundCtx, cf5OperatorRequest(&fundingpb.GetReceiptFundingRequest{Id: observed.GetReceiptDeliveryId()}))
+			delivery, deliveryErr := fundingIntents.GetReceiptFunding(fundCtx, cf5OperatorRequest(&fundingpb.GetReceiptFundingRequest{Id: observed.GetReceiptDeliveryId()}))
 			if deliveryErr != nil {
 				return deliveryErr
 			}
@@ -588,7 +836,9 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 				return fmt.Errorf("accepted receipt did not become exact Treasury headroom: %+v", afterCredit.GetHeadroom())
 			}
 			writeRehearsalProto(t, filepath.Join(runDir, "headroom-after-credit.json"), afterCredit)
-			captureCF5MobileReceipt(t, fundCtx, runDir, uiURL, budgetID, fundingTxHash)
+			writeCF5JSON(t, filepath.Join(runDir, "bas-mobile-receipt-capture-skipped.json"), map[string]string{
+				"reason": "no disposable verified-human browser session is configured; receipt UI remains unverified",
+			})
 			writeCF5JSON(t, filepath.Join(runDir, "agent-manager-cli", "funding-accepted.json"), map[string]any{
 				"budget_id": budgetID, "wallet_id": walletID, "address": walletAddress,
 				"transaction_hash": fundingTxHash, "atomic_amount": "2600000", "accepted": true,
@@ -619,15 +869,227 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	}
 	repo, err := filepath.Abs(filepath.Join(".", "../../.."))
 	require.NoError(t, err)
-	cf1RunID, cf1AuthorizationID, cf1SettlementID, err := runCF1AgentManagerCLIForkShowcase(t, ctx, repo, runDir, apiURL, identityServer.URL, source, name, operator, nil, fork, bookID, variant, hooks)
-	require.NoError(t, err)
+	// Keep the existing dropped-response recovery proof and measured useful
+	// paid call inside the primary run, while a second ordinary run is active
+	// with its own budget wallet and reciprocal refusal probes.
+	pairedBarrierDir := filepath.Join(runDir, "cf1-paired-probes")
+	pairedIdentityPath := filepath.Join(runDir, "agent-manager-cross-budget-identities.json")
+	pairedRuns, pairErr := newCF1PairedRunHarness(apiURL, pairedIdentityPath, pairedBarrierDir)
+	require.NoError(t, pairErr)
+	hooks.PairedRun = pairedRuns
+	secondCF1RunDir := filepath.Join(runDir, "cf1-second-budget-run")
+	require.NoError(t, os.MkdirAll(filepath.Join(secondCF1RunDir, "custody"), 0o700))
+	secondVariant := variant + "-second-budget"
+	secondHooks := cf1ShowcaseHooks{PairedRun: pairedRuns, TreasuryCredentialPath: filepath.Join(secondCF1RunDir, "custody", "synthetic-custody.enc"), AwaitApprovalNotice: hooks.AwaitApprovalNotice}
+	t.Setenv("TREASURY_CF1_X402_MEASURED_SECOND_CALL", "1")
+	type runResult struct {
+		runID, authorizationID, settlementID string
+		err                                  error
+	}
+	firstResult, secondResult := make(chan runResult, 1), make(chan runResult, 1)
+	go func() {
+		result := runResult{}
+		passed := t.Run("CF5 primary ordinary Agent Manager run", func(runT *testing.T) {
+			result.runID, result.authorizationID, result.settlementID, result.err = runCF1AgentManagerCLIForkShowcase(runT, ctx, repo, runDir, apiURL, identityServer.URL, source, name, operator, nil, fork, bookID, variant, hooks)
+		})
+		if !passed && result.err == nil {
+			result.err = errors.New("primary ordinary-run subtest failed through a test assertion")
+		}
+		firstResult <- result
+	}()
+	go func() {
+		result := runResult{}
+		passed := t.Run("CF5 counterpart ordinary Agent Manager run", func(runT *testing.T) {
+			result.runID, result.authorizationID, result.settlementID, result.err = runCF1AgentManagerCLIForkShowcase(runT, ctx, repo, secondCF1RunDir, apiURL, identityServer.URL, source, name, operator, nil, fork, bookID, secondVariant, secondHooks)
+		})
+		if !passed && result.err == nil {
+			result.err = errors.New("counterpart ordinary-run subtest failed through a test assertion")
+		}
+		secondResult <- result
+	}()
+	var first, second runResult
+	select {
+	case first = <-firstResult:
+	case <-ctx.Done():
+		require.FailNow(t, "paired primary Agent Manager run did not complete", "%v", ctx.Err())
+	}
+	if first.err != nil {
+		cancel()
+		require.NoError(t, first.err)
+	}
+	select {
+	case second = <-secondResult:
+	case <-ctx.Done():
+		require.FailNow(t, "paired counterpart Agent Manager run did not complete", "%v", ctx.Err())
+	}
+	require.NoError(t, first.err)
+	require.NoError(t, second.err)
+	cf1RunID, cf1AuthorizationID, cf1SettlementID := first.runID, first.authorizationID, first.settlementID
 	require.NotEmpty(t, cf1RunID)
 	require.NotEmpty(t, cf1AuthorizationID)
 	require.NotEmpty(t, cf1SettlementID)
 	require.Equal(t, runID, cf1RunID)
+	require.NotEmpty(t, second.runID)
+	require.NotEqual(t, cf1RunID, second.runID)
+	var pairedEvidence cf1PairedIdentityEvidence
+	pairedEvidenceBytes, err := os.ReadFile(pairedIdentityPath)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(pairedEvidenceBytes, &pairedEvidence))
+	require.Len(t, pairedEvidence.Agents, 2)
+	var primaryPairRow, counterpartPairRow *struct {
+		RunID                     string `json:"run_id"`
+		ProfileID                 string `json:"profile_id"`
+		BudgetID                  string `json:"budget_id"`
+		MandateID                 string `json:"mandate_id"`
+		WalletID                  string `json:"wallet_id"`
+		WalletAddress             string `json:"wallet_address"`
+		OwnAuthorizationID        string `json:"own_authorization_id"`
+		OwnSettlementID           string `json:"own_settlement_id"`
+		OwnTxHash                 string `json:"own_tx_hash"`
+		OwnHeadroomMinor          int64  `json:"own_headroom_minor"`
+		ForeignWalletProbeStatus  string `json:"foreign_wallet_probe_status"`
+		ForeignMandateProbeStatus string `json:"foreign_mandate_probe_status"`
+	}
+	for index := range pairedEvidence.Agents {
+		row := &pairedEvidence.Agents[index]
+		switch row.RunID {
+		case cf1RunID:
+			primaryPairRow = row
+		case second.runID:
+			counterpartPairRow = row
+		}
+	}
+	require.NotNil(t, primaryPairRow)
+	require.NotNil(t, counterpartPairRow)
+	require.Equal(t, budgetID, primaryPairRow.BudgetID)
+	require.Equal(t, mandateID, primaryPairRow.MandateID)
+	require.Equal(t, "cf1-agent-manager-budget-"+secondVariant, counterpartPairRow.BudgetID)
+	require.Equal(t, "cf1-agent-manager-mandate-"+secondVariant, counterpartPairRow.MandateID)
+	require.NotEqual(t, primaryPairRow.WalletID, counterpartPairRow.WalletID)
+	require.NotEqual(t, strings.ToLower(primaryPairRow.WalletAddress), strings.ToLower(counterpartPairRow.WalletAddress))
+	for _, identity := range pairedEvidence.Agents {
+		require.Equal(t, "permission_denied", identity.ForeignWalletProbeStatus)
+		require.Equal(t, "permission_denied", identity.ForeignMandateProbeStatus)
+	}
+	writeRehearsalJSON(t, filepath.Join(runDir, "cf1-two-ordinary-budget-runs.json"), map[string]any{
+		"agents": pairedEvidence.Agents, "reciprocal_foreign_wallet_and_mandate_denials": true,
+		"distinct_run_bound_budgets": true, "distinct_mandates_wallets_and_addresses": true,
+		"shared_identity_path": pairedIdentityPath, "paired_probe_barrier_dir": pairedBarrierDir,
+	})
+	budgetEvidenceMu.Lock()
+	snapshotEvidence := append([]byte(nil), budgetEvidence[cf1RunID+"/snapshot"]...)
+	x402SettlementID := "cf1-agent-manager-settlement-x402-" + variant
+	x402SettlementEvidence := append([]byte(nil), budgetEvidence[cf1RunID+"/settlements/"+x402SettlementID]...)
+	measuredSettlementID := x402SettlementID + "-measured"
+	measuredSettlementEvidence := append([]byte(nil), budgetEvidence[cf1RunID+"/settlements/"+measuredSettlementID]...)
+	budgetEvidenceMu.Unlock()
+	require.NotEmpty(t, snapshotEvidence, "the local Agent Manager receiver must retain the authenticated run snapshot")
+	require.NotEmpty(t, x402SettlementEvidence, "the same x402 settlement retry must publish immutable run-budget evidence")
+	var acceptedBudgetSnapshot treasuryresearchbudget.Snapshot
+	require.NoError(t, json.Unmarshal(snapshotEvidence, &acceptedBudgetSnapshot))
+	require.Equal(t, budgetID, acceptedBudgetSnapshot.TreasuryBudgetID)
+	require.Equal(t, mandateID, acceptedBudgetSnapshot.MandateID)
+	require.Equal(t, "cf1-local-operator", acceptedBudgetSnapshot.AgentSubject)
+	var acceptedX402Settlement treasuryresearchbudget.Settlement
+	require.NoError(t, json.Unmarshal(x402SettlementEvidence, &acceptedX402Settlement))
+	require.Equal(t, x402SettlementID, acceptedX402Settlement.SettlementID)
+	require.EqualValues(t, 1, acceptedX402Settlement.AmountMinor)
+	require.NotEmpty(t, measuredSettlementEvidence, "the separate successful paid call must publish immutable run-budget evidence")
+	var acceptedMeasuredSettlement treasuryresearchbudget.Settlement
+	require.NoError(t, json.Unmarshal(measuredSettlementEvidence, &acceptedMeasuredSettlement))
+	require.Equal(t, measuredSettlementID, acceptedMeasuredSettlement.SettlementID)
+	require.EqualValues(t, 1, acceptedMeasuredSettlement.AmountMinor)
+	require.Equal(t, "measured", acceptedMeasuredSettlement.BenefitState, "paid response must prove useful provider output")
+	var measuredResult struct {
+		Status          string `json:"status"`
+		SettlementID    string `json:"settlement_id"`
+		AmountMinor     int64  `json:"amount_minor"`
+		PriceID         string `json:"price_id"`
+		CallID          string `json:"call_id"`
+		BodyPath        string `json:"body_path"`
+		ResponseBytes   int    `json:"response_bytes"`
+		ResponseSHA256  string `json:"response_sha256"`
+		LedgerEmission  string `json:"ledger_emission_id"`
+		TreasuryReceipt string `json:"receipt_id"`
+		BenefitState    string `json:"benefit_state"`
+	}
+	measuredResultPath := filepath.Join(agentManagerEvidenceDir, "x402-measured-result.json")
+	measuredResultBytes, err := os.ReadFile(measuredResultPath)
+	require.NoError(t, err, "Agent Manager must return measured paid-result evidence")
+	require.NoError(t, json.Unmarshal(measuredResultBytes, &measuredResult))
+	require.Equal(t, "settled", measuredResult.Status)
+	require.Equal(t, measuredSettlementID, measuredResult.SettlementID)
+	require.EqualValues(t, 1, measuredResult.AmountMinor)
+	require.Equal(t, cf5Price.ID, measuredResult.PriceID)
+	require.Equal(t, x402.CallID, measuredResult.CallID)
+	require.Equal(t, measuredSettlementID+":ledger", measuredResult.LedgerEmission)
+	require.Equal(t, acceptedMeasuredSettlement.TreasuryReceiptID, measuredResult.TreasuryReceipt)
+	require.Equal(t, "measured", measuredResult.BenefitState)
+	require.Greater(t, measuredResult.ResponseBytes, 0)
+	require.Len(t, measuredResult.ResponseSHA256, 64)
+	for _, character := range measuredResult.ResponseSHA256 {
+		require.True(t, character >= '0' && character <= '9' || character >= 'a' && character <= 'f', "response digest must be lowercase hex")
+	}
+	require.NotEmpty(t, measuredResult.BodyPath)
+	require.False(t, filepath.IsAbs(measuredResult.BodyPath), "body artifact must be scoped to the run evidence directory")
+	cleanBodyPath := filepath.Clean(measuredResult.BodyPath)
+	require.NotEqual(t, "..", cleanBodyPath)
+	require.False(t, strings.HasPrefix(cleanBodyPath, ".."+string(filepath.Separator)), "body artifact cannot escape its evidence directory")
+	measuredBody, err := os.ReadFile(filepath.Join(agentManagerEvidenceDir, cleanBodyPath))
+	require.NoError(t, err)
+	require.Len(t, measuredBody, measuredResult.ResponseBytes)
+	measuredBodyDigest := sha256.Sum256(measuredBody)
+	require.Equal(t, measuredResult.ResponseSHA256, fmt.Sprintf("%x", measuredBodyDigest))
+	var usefulCatalog struct {
+		Nodes []struct {
+			ID string `json:"id"`
+		} `json:"nodes"`
+	}
+	require.NoError(t, json.Unmarshal(measuredBody, &usefulCatalog), "paid body must be the exact catalog response, not just a settlement receipt")
+	require.NotEmpty(t, usefulCatalog.Nodes)
+	var foundSeededOffer bool
+	for _, node := range usefulCatalog.Nodes {
+		if node.ID == offerID || node.ID == offerVariantID {
+			foundSeededOffer = true
+			break
+		}
+	}
+	require.True(t, foundSeededOffer, "paid response must include the seeded useful offer graph")
+	agentManagerBudgetEvidenceDir := filepath.Join(runDir, "agent-manager-research-budget")
+	require.NoError(t, os.MkdirAll(agentManagerBudgetEvidenceDir, 0o700))
+	writeCF5JSON(t, filepath.Join(agentManagerBudgetEvidenceDir, "snapshot.json"), json.RawMessage(snapshotEvidence))
+	writeCF5JSON(t, filepath.Join(agentManagerBudgetEvidenceDir, "x402-settlement.json"), json.RawMessage(x402SettlementEvidence))
+	writeCF5JSON(t, filepath.Join(agentManagerBudgetEvidenceDir, "receiver-provenance.json"), map[string]any{
+		"authenticated_service_token": true, "service_subject": "treasury-agent-manager",
+		"immutable_duplicate_policy": "exact repeat accepted; conflicting body rejected",
+		"receiver":                   "isolated CF5 HTTP fixture sharing the identity authority origin",
+		"production_agent_manager_scenario_exercised": false,
+	})
+	headroomRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, uiURL+"/api/v1/operator-session/budget-headroom?budget_id="+budgetID, nil)
+	require.NoError(t, err)
+	headroomResponse, err := sessionHTTP.Do(headroomRequest)
+	require.NoError(t, err)
+	headroomBody, err := io.ReadAll(headroomResponse.Body)
+	require.NoError(t, err)
+	require.NoError(t, headroomResponse.Body.Close())
+	require.Equalf(t, http.StatusOK, headroomResponse.StatusCode, "cookie-only budget headroom response: %s", strings.TrimSpace(string(headroomBody)))
+	var browserHeadroom map[string]any
+	require.NoError(t, json.Unmarshal(headroomBody, &browserHeadroom))
+	require.Equal(t, budgetID, browserHeadroom["budget_id"])
+	sessionFunding := fundingconnect.NewFundingAdminServiceClient(sessionHTTP, uiURL)
+	sessionIntents, err := sessionFunding.ListFundingIntents(ctx, connect.NewRequest(&fundingpb.ListFundingIntentsRequest{BudgetId: budgetID}))
+	require.NoError(t, err, "same-origin HttpOnly session must authorize the token-free Fund Connect path")
+	require.NotEmpty(t, sessionIntents.Msg.GetIntents(), "session subject mapping must resolve the same operator-owned funding intent")
+	writeCF5JSON(t, filepath.Join(runDir, "treasury-browser-session-fund-readback.json"), map[string]any{
+		"cookie_only_budget_headroom": true, "budget_id": budgetID, "credited_minor": browserHeadroom["funding_credited_minor"],
+		"cookie_only_connect_funding_list": true, "intents_visible": len(sessionIntents.Msg.GetIntents()),
+		"same_origin": true, "static_token_headers": false,
+	})
 	purchases := []int64{30, 110}
 	if hooks.X402 != nil {
-		purchases = append(purchases, 1)
+		// The Agent Manager showcase performs both a dropped-response recovery
+		// attempt and a separate bounded call whose paid response is measured.
+		purchases = append(purchases, 1, 1)
 	}
 	writeCF5JSON(t, filepath.Join(runDir, "integrated-wallet-spend.json"), map[string]any{
 		"run_id": runID, "budget_id": budgetID, "mandate_id": mandateID, "wallet_id": walletID,
@@ -640,7 +1102,7 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	require.EqualValues(t, 260, afterSpend.GetHeadroom().GetFundingCreditedMinor())
 	expectedReturnMinor := int64(120)
 	if hooks.X402 != nil {
-		expectedReturnMinor--
+		expectedReturnMinor -= 2
 	}
 	require.EqualValues(t, expectedReturnMinor, afterSpend.GetHeadroom().GetFundingRemainingMinor())
 	writeRehearsalProto(t, filepath.Join(runDir, "headroom-after-agent-purchases.json"), afterSpend)
@@ -652,7 +1114,7 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 		PerTransactionCapMinor: 1000, PeriodSeconds: 3600, Currency: "USD",
 	}}))
 	require.NoError(t, err, "the local rehearsal explicitly permits its small return transfer after CF1's over-cap approval proof")
-	_, err = operator.SetWithdrawalDestination(ctx, cf5OperatorRequest(&fundingpb.SetWithdrawalDestinationRequest{Destination: &fundingpb.WithdrawalDestination{
+	_, err = fundingIntents.SetWithdrawalDestination(ctx, cf5OperatorRequest(&fundingpb.SetWithdrawalDestinationRequest{Destination: &fundingpb.WithdrawalDestination{
 		BudgetId: budgetID, Address: withdrawalDestination, Label: "CF5 local Coinbase test destination",
 	}}))
 	require.NoError(t, err)
@@ -665,9 +1127,52 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, mandatepb.MandateStatus_MANDATE_STATUS_LIVE, mandateResponse.Msg.GetMandate().GetStatus())
 	destinationBefore := cf5USDCBalance(t, ctx, fork, withdrawalDestination)
-	withdrawalAmount, withdrawalAtomic, err := cf5WithdrawalPlan(expectedReturnMinor, cf5WithdrawalFeeMinor)
+	_, withdrawalAtomic, err := cf5WithdrawalPlan(expectedReturnMinor, cf5WithdrawalFeeMinor)
 	require.NoError(t, err)
-	captureCF5MobileWithdrawalPreview(t, ctx, runDir, uiURL, budgetID, withdrawalDestination, mandateResponse.Msg.GetMandate().GetId(), withdrawalAmount)
+	// No test-human browser identity is provisioned. Keep browser automation
+	// token-free and leave all withdrawal authority decisions to the operator.
+	captureErr := errors.New("withdrawal UI capture skipped: no disposable verified-human browser session or operator-approved run principal is configured")
+	basCaptureError = strings.TrimSpace(strings.Join([]string{basCaptureError, captureErr.Error()}, "; "))
+	writeCF5JSON(t, filepath.Join(runDir, "bas-mobile-withdrawal-capture-skipped.json"), map[string]any{
+		"reason": captureErr.Error(), "bas_artifact_created": false, "withdrawal_ui_flow_verified": false,
+	})
+	{
+		_, ok := new(big.Int).SetString(withdrawalAtomic, 10)
+		require.True(t, ok)
+		quoteResponse, quoteErr := fundingIntents.PreviewWithdrawal(ctx, cf5OperatorRequest(&fundingpb.PreviewWithdrawalRequest{
+			BudgetId: budgetID, MandateId: mandateResponse.Msg.GetMandate().GetId(), Destination: withdrawalDestination,
+			AtomicAmount: withdrawalAtomic, MaxFeeWei: "1000000000000000000", FeeValuationMinor: cf5WithdrawalFeeMinor,
+			Valuation: &ingestpb.CryptoValuation{AmountMinor: expectedReturnMinor - cf5WithdrawalFeeMinor, Currency: "USD", Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, BasisReference: "CF5 isolated local-fork return value", ValuedAt: timestamppb.Now()},
+		}))
+		require.NoError(t, quoteErr)
+		require.Equal(t, "local-fork", quoteResponse.Msg.GetQuote().GetExecutionMode())
+		writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-quote-api-fallback.json"), quoteResponse.Msg)
+		execute := func() *connect.Response[fundingpb.WithdrawalResponse] {
+			req := cf5OperatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.GetQuote().GetId(), IdempotencyKey: "cf5-api-return-" + variant})
+			req.Header().Set("X-Treasury-Mandate-Identity-Token", "cf5-local-agent")
+			resp, executeErr := fundingIntents.ExecuteWithdrawal(ctx, req)
+			require.NoError(t, executeErr)
+			return resp
+		}
+		withdrawal := execute().Msg.GetWithdrawal()
+		if withdrawal.GetState() == "pending_approval" {
+			approvals, listErr := operator.ListApprovals(ctx, cf5OperatorRequest(&authorizationv1.ListApprovalsRequest{Status: treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_QUEUED, BookId: bookID}))
+			require.NoError(t, listErr)
+			for _, queued := range approvals.Msg.GetApprovals() {
+				if queued.GetAuthorizationId() == withdrawal.GetAuthorizationId() {
+					_, resolveErr := operator.ResolveApproval(ctx, cf5OperatorRequest(&authorizationv1.ResolveApprovalRequest{ApprovalId: queued.GetId(), Resolution: treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_APPROVED}))
+					require.NoError(t, resolveErr)
+				}
+			}
+			withdrawal = execute().Msg.GetWithdrawal()
+		}
+		require.Equal(t, "settled", withdrawal.GetState(), withdrawal.GetLastError())
+		writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-api-fallback.json"), withdrawal)
+		writeCF5JSON(t, filepath.Join(runDir, "withdrawal-api-fallback-evidence.json"), map[string]any{
+			"created_by": "authenticated Treasury API in isolated local-fork test", "mobile_ui_action_claimed": false,
+			"reason": captureErr.Error(), "transaction_hash": withdrawal.GetTransactionHash(),
+		})
+	}
 	destinationAfter := cf5USDCBalance(t, ctx, fork, withdrawalDestination)
 	withdrawalAtomicBig, ok := new(big.Int).SetString(withdrawalAtomic, 10)
 	require.True(t, ok)
@@ -675,8 +1180,8 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	var withdrawalReceipt struct {
 		Status string `json:"status"`
 	}
-	// The BAS assertion captures the settled withdrawal status; the destination
-	// balance delta is the independent local-fork chain readback.
+	// The authenticated Treasury API fallback settled this local-fork return;
+	// chain balance and receipt reads independently verify the transfer.
 	withdrawalTxHash := cf5WithdrawalTx(t, ctx, fork, withdrawalDestination, withdrawalAtomic)
 	require.NoError(t, fork.Call(ctx, "eth_getTransactionReceipt", []any{withdrawalTxHash}, &withdrawalReceipt))
 	require.Equal(t, "0x1", withdrawalReceipt.Status)
@@ -701,23 +1206,29 @@ func TestCF5MobileLocalForkReceiptWatcherQueuesReceipt(t *testing.T) {
 	require.False(t, stopReceipt.KilledAfterTimeout)
 	require.False(t, stopReceipt.EndpointReachableAfter, "%+v", stopReceipt)
 	require.True(t, stopReceipt.Clean, "%+v", stopReceipt)
+	completed := []string{
+		"the CF1 budget's actual Treasury research root was exported to a key-only encrypted portable bundle, its CA scalar removed, failed to sign, restored from the separately copied bundle, and proved with a fresh challenge before receipt funding",
+		"ordinary Agent Manager run wallet funded by a finalized local Base USDC transfer",
+		"CF1 in-cap and approved over-cap local-fork purchases under the run-bound mandate",
+		"isolated Money Ledger exact-token receipt acceptance",
+		"exact Treasury budget headroom consumption after purchases and return",
+		"Notification Hub delivered the accepted-receipt notice to a bounded local Web Push endpoint within five seconds; the opaque encrypted payload and durable provider receipt were read back",
+	}
+	remaining := []string{
+		"qualify DBM off-host transport and restore on a second independent fleet owner",
+		"replace the in-cap native USDC fixture purchase with the fully configured CF4 facilitator priced call",
+		"prove accepted-receipt push delivery to an enrolled operator mobile device; the current endpoint is a local test fixture",
+		"independent CF1/CF5 code review",
+	}
+	if basCaptureError == "" {
+		completed = append(completed, "BAS mobile Fund, exact prefilled Base link, receipt confirmation, and allowlisted withdrawal preview/execution")
+	} else if basFundAuthenticatedCaptured {
+		remaining = append(remaining, "BAS verified the same-origin verified-human Fund session and exact prefilled Base USDC link; wallet-app open, on-chain send, receipt confirmation, push, priced provider result, and allowlisted return UI remain unproven. API fallback is not mobile UI evidence.")
+	} else {
+		remaining = append(remaining, fmt.Sprintf("BAS mobile Fund, receipt and withdrawal journey remains unproven (%s); local-fork/API fallback does not prove the mobile UI flow", basCaptureError))
+	}
 	writeCF5JSON(t, filepath.Join(runDir, "handoff-result.json"), map[string]any{
-		"status": "partial", "completed": []string{
-			"the CF1 budget's actual Treasury research root was exported to a key-only encrypted portable bundle, its CA scalar removed, failed to sign, restored from the separately copied bundle, and proved with a fresh challenge before receipt funding",
-			"ordinary Agent Manager run wallet funded by a finalized local Base USDC transfer",
-			"CF1 in-cap and approved over-cap local-fork purchases under the run-bound mandate",
-			"isolated Money Ledger exact-token receipt acceptance",
-			"exact Treasury budget headroom consumption after purchases and return",
-			"Notification Hub delivered the accepted-receipt notice to a bounded local Web Push endpoint within five seconds; the opaque encrypted payload and durable provider receipt were read back",
-			"BAS mobile Fund surface and exact prefilled Base link",
-			"BAS mobile allowlisted withdrawal preview and execution with chain balance readback",
-		},
-		"remaining": []string{
-			"qualify DBM off-host transport and restore on a second independent fleet owner",
-			"replace the in-cap native USDC fixture purchase with the fully configured CF4 facilitator priced call",
-			"prove accepted-receipt push delivery to an enrolled operator mobile device; the current endpoint is a local test fixture",
-			"independent CF1/CF5 code review",
-		},
+		"status": "partial", "completed": completed, "remaining": remaining,
 		"notification_delivery": map[string]any{"status": "local_push_delivered", "phone_delivery_claimed": false, "maximum_latency_seconds": 5},
 		"instance":              name, "api_url": apiURL, "ui_url": uiURL,
 		"fork": forkIdentity, "fork_stop": stopReceipt,
@@ -773,10 +1284,10 @@ func cf5RecoverBudgetRootBeforeFunding(t *testing.T, ctx context.Context, runDir
 		Id: rootID, Network: baseusdc.Network, OperatorSecret: secret,
 	}))
 	require.NoError(t, err)
-	bundleMatches, err := filepath.Glob(filepath.Join(runDir, "storage", "data", "vrooli", "*", filepath.FromSlash(exported.Msg.GetRelativePath())))
+	bundleDirMatches, err := filepath.Glob(filepath.Join(runDir, "storage", "data", "vrooli", "*", filepath.FromSlash(exported.Msg.GetRelativePath())))
 	require.NoError(t, err)
-	require.Len(t, bundleMatches, 1, "portable bundle must stay inside this isolated Treasury variant's data root")
-	serverBundlePath := bundleMatches[0]
+	require.Len(t, bundleDirMatches, 1, "portable recovery bundle directory must stay inside this isolated Treasury variant's data root")
+	serverBundlePath := filepath.Join(bundleDirMatches[0], "wallet.bundle")
 	bundle, err := os.ReadFile(serverBundlePath)
 	require.NoError(t, err)
 	require.Equal(t, int(exported.Msg.GetSizeBytes()), len(bundle))
@@ -850,153 +1361,97 @@ func cf5AddressTopic(address string) string {
 	return "0x" + strings.Repeat("0", 24) + strings.TrimPrefix(strings.ToLower(address), "0x")
 }
 
-func formatAtomicUSDCForUI(atoms string) string {
-	value, ok := new(big.Int).SetString(atoms, 10)
-	if !ok {
-		return atoms
-	}
-	whole, fraction := new(big.Int), new(big.Int)
-	whole.QuoRem(value, big.NewInt(1_000_000), fraction)
-	return fmt.Sprintf("%s.%06d", whole.String(), fraction.Int64())
-}
-
-func captureCF5MobileFund(t *testing.T, ctx context.Context, runDir, uiURL, budgetID, ledgerBookID, ledgerAccountID, walletAddress, atomicAmount, declaredValue string) {
+func captureCF5MobileFund(t *testing.T, ctx context.Context, runDir, uiURL, email, password, budgetID, walletAddress string) error {
 	t.Helper()
+	expectedPaymentURI := fmt.Sprintf("ethereum:%s@8453/transfer?address=%s&uint256=2600000", baseusdc.USDCAddress, walletAddress)
 	flow := map[string]any{
 		"settings": map[string]any{"viewport_width": 390, "viewport_height": 844},
 		"nodes": []any{
 			map[string]any{"id": "wait-fund", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='page-fund']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": map[string]any{"label": "Mobile Fund page renders"}}},
 			map[string]any{"id": "assert-fork-boundary", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='page-fund']", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": map[string]any{"string_value": "This page does not publish a production funding address or authorize customer deposits."}, "timeout_ms": 5000}, "metadata": map[string]any{"label": "Verify the local-fork-only funding boundary"}}},
-			cf5InputNode("operator-token", "funding-operator-token", "cf2-local-operator-only"),
-			cf5InputNode("budget-id", "funding-budget-id", budgetID),
-			cf5InputNode("token-amount", "funding-atomic-amount", formatAtomicUSDCForUI(atomicAmount)),
-			cf5InputNode("declared-value", "funding-declared-value", declaredValue),
-			cf5InputNode("ledger-book-id", "funding-ledger-book-id", ledgerBookID),
-			cf5InputNode("ledger-account-id", "funding-ledger-account-id", ledgerAccountID),
-			map[string]any{"id": "create-intent", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-create-intent']"}, "metadata": map[string]any{"label": "Tap Fund to create a local-fork payment intent"}}},
-			map[string]any{"id": "wait-payment-link", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='funding-payment-uri']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": map[string]any{"label": "Wait for the Base payment link"}}},
-			map[string]any{"id": "assert-qr", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='funding-payment-qr']", "mode": "ASSERTION_MODE_EXISTS", "timeout_ms": 5000}, "metadata": map[string]any{"label": "Verify the funding QR is shown"}}},
-			map[string]any{"id": "assert-prefilled-base-link", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='funding-open-wallet-link']", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "href", "expected": map[string]any{"string_value": fmt.Sprintf("ethereum:%s@8453/transfer?address=%s&uint256=%s", baseusdc.USDCAddress, walletAddress, atomicAmount)}, "timeout_ms": 5000}, "metadata": map[string]any{"label": "Verify the Base app link pre-fills USDC, chain, budget wallet and exact amount"}}},
+			map[string]any{"id": "email", "action": map[string]any{"type": "ACTION_TYPE_INPUT", "input": map[string]any{"selector": "[data-testid='funding-session-email']", "value": email, "clear_first": true}, "metadata": map[string]any{"label": "Sign in the disposable verified test operator"}}},
+			map[string]any{"id": "password", "action": map[string]any{"type": "ACTION_TYPE_INPUT", "input": map[string]any{"selector": "[data-testid='funding-session-password']", "value": password, "clear_first": true}, "metadata": map[string]any{"label": "Enter the ephemeral local-only operator password"}}},
+			map[string]any{"id": "sign-in", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-session-sign-in']"}, "metadata": map[string]any{"label": "Start the same-origin HttpOnly session"}}},
+			map[string]any{"id": "wait-session", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='funding-session-identity']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": map[string]any{"label": "Wait for the verified operator session"}}},
+			map[string]any{"id": "budget", "action": map[string]any{"type": "ACTION_TYPE_INPUT", "input": map[string]any{"selector": "[data-testid='funding-budget-id']", "value": budgetID, "clear_first": true}, "metadata": map[string]any{"label": "Select the run-owned research budget"}}},
+			map[string]any{"id": "amount", "action": map[string]any{"type": "ACTION_TYPE_INPUT", "input": map[string]any{"selector": "[data-testid='funding-atomic-amount']", "value": "2.60", "clear_first": true}, "metadata": map[string]any{"label": "Set the local test receipt amount"}}},
+			map[string]any{"id": "declared-value", "action": map[string]any{"type": "ACTION_TYPE_INPUT", "input": map[string]any{"selector": "[data-testid='funding-declared-value']", "value": "2.60", "clear_first": true}, "metadata": map[string]any{"label": "Set the separately valued local test receipt"}}},
+			map[string]any{"id": "create-intent", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-create-intent']"}, "metadata": map[string]any{"label": "Tap Fund to create the Base USDC payment link"}}},
+			map[string]any{"id": "wait-payment-link", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='funding-open-wallet-link']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": map[string]any{"label": "Wait for the prefilled Base wallet link"}}},
+			map[string]any{"id": "assert-payment-link", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='funding-open-wallet-link']", "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS", "attribute_name": "href", "expected": map[string]any{"string_value": expectedPaymentURI}, "timeout_ms": 5000}, "metadata": map[string]any{"label": "Verify exact Base network, USDC token, amount, and wallet address"}}},
+			map[string]any{"id": "capture-payment-link", "action": map[string]any{"type": "ACTION_TYPE_SCREENSHOT", "screenshot": map[string]any{"full_page": true}, "metadata": map[string]any{"label": "Capture the authenticated mobile Fund page and exact prefilled wallet link"}}},
 		},
 		"edges": []any{
-			cf5Edge("e1", "wait-fund", "assert-fork-boundary"), cf5Edge("e2", "assert-fork-boundary", "operator-token"),
-			cf5Edge("e3", "operator-token", "budget-id"), cf5Edge("e4", "budget-id", "token-amount"),
-			cf5Edge("e5", "token-amount", "declared-value"), cf5Edge("e6", "declared-value", "ledger-book-id"),
-			cf5Edge("e7", "ledger-book-id", "ledger-account-id"), cf5Edge("e8", "ledger-account-id", "create-intent"),
-			cf5Edge("e9", "create-intent", "wait-payment-link"), cf5Edge("e10", "wait-payment-link", "assert-qr"), cf5Edge("e11", "assert-qr", "assert-prefilled-base-link"),
+			cf5Edge("e1", "wait-fund", "assert-fork-boundary"),
+			cf5Edge("e2", "assert-fork-boundary", "email"), cf5Edge("e3", "email", "password"),
+			cf5Edge("e4", "password", "sign-in"), cf5Edge("e5", "sign-in", "wait-session"),
+			cf5Edge("e6", "wait-session", "budget"), cf5Edge("e7", "budget", "amount"),
+			cf5Edge("e8", "amount", "declared-value"), cf5Edge("e9", "declared-value", "create-intent"),
+			cf5Edge("e10", "create-intent", "wait-payment-link"), cf5Edge("e11", "wait-payment-link", "assert-payment-link"),
+			cf5Edge("e12", "assert-payment-link", "capture-payment-link"),
 		},
 	}
 	flowPath := filepath.Join(runDir, "mobile-fund-capture-flow.json")
+	defer os.Remove(flowPath)
 	raw, err := json.MarshalIndent(flow, "", "  ")
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(flowPath, raw, 0o600))
+	if err = os.WriteFile(flowPath, raw, 0o600); err != nil {
+		return err
+	}
 	artifactDir := filepath.Join(runDir, "bas-mobile-fund")
-	require.NoError(t, os.MkdirAll(artifactDir, 0o700))
-	cli, err := exec.LookPath("browser-automation-studio")
-	require.NoError(t, err, "BAS CLI is required for the CF5 mobile recording")
-	cmd := exec.CommandContext(ctx, cli, "capture", "--url", uiURL+"/fund", "--dimensions", "mobile", "--capture", "screenshot", "--wait-for", "[data-testid='page-fund']", "--interaction-flow-file", flowPath, "--out", artifactDir, "--label", "CF5 local-fork mobile Fund", "--json")
-	output, err := cmd.CombinedOutput()
-	require.NoErrorf(t, err, "BAS mobile Fund capture failed: %s", strings.TrimSpace(string(output)))
-	require.NoError(t, os.WriteFile(filepath.Join(runDir, "bas-mobile-fund-capture.json"), output, 0o600))
-	require.NotEmpty(t, output)
-}
-
-func captureCF5MobileReceipt(t *testing.T, ctx context.Context, runDir, uiURL, budgetID, txHash string) {
-	t.Helper()
-	flow := map[string]any{
-		"settings": map[string]any{"viewport_width": 390, "viewport_height": 844},
-		"nodes": []any{
-			map[string]any{"id": "wait-fund", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='page-fund']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": map[string]any{"label": "Open the mobile Funding surface"}}},
-			cf5InputNode("operator-token", "funding-operator-token", "cf2-local-operator-only"),
-			cf5InputNode("budget-id", "funding-budget-id", budgetID),
-			map[string]any{"id": "refresh-intents", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-refresh-intents']"}, "metadata": map[string]any{"label": "Load the newly credited funding receipt"}}},
-			map[string]any{"id": "wait-intent", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='funding-recent-intent']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 10000}, "metadata": map[string]any{"label": "Wait for receipt status"}}},
-			map[string]any{"id": "select-intent", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-recent-intent']"}, "metadata": map[string]any{"label": "Open the funded intent"}}},
-			map[string]any{"id": "assert-credited", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='page-fund']", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": map[string]any{"string_value": "credited"}, "timeout_ms": 5000}, "metadata": map[string]any{"label": "Verify receipt credit is visible on mobile"}}},
-			cf5InputNode("transaction-hash", "funding-transaction-hash", txHash),
-			map[string]any{"id": "confirm-transfer", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-confirm-transfer']"}, "metadata": map[string]any{"label": "Confirm the finalized Base transfer from the mobile receipt view"}}},
-			map[string]any{"id": "assert-credit-stable", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='page-fund']", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": map[string]any{"string_value": "credited"}, "timeout_ms": 10000}, "metadata": map[string]any{"label": "Verify the receipt remains credited after confirmation"}}},
-		},
-		"edges": []any{
-			cf5Edge("e1", "wait-fund", "operator-token"), cf5Edge("e2", "operator-token", "budget-id"),
-			cf5Edge("e3", "budget-id", "refresh-intents"), cf5Edge("e4", "refresh-intents", "wait-intent"),
-			cf5Edge("e5", "wait-intent", "select-intent"), cf5Edge("e6", "select-intent", "assert-credited"),
-			cf5Edge("e7", "assert-credited", "transaction-hash"), cf5Edge("e8", "transaction-hash", "confirm-transfer"),
-			cf5Edge("e9", "confirm-transfer", "assert-credit-stable"),
-		},
+	if err = os.MkdirAll(artifactDir, 0o700); err != nil {
+		return err
 	}
-	flowPath := filepath.Join(runDir, "mobile-receipt-capture-flow.json")
-	raw, err := json.MarshalIndent(flow, "", "  ")
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(flowPath, raw, 0o600))
-	artifactDir := filepath.Join(runDir, "bas-mobile-receipt")
-	require.NoError(t, os.MkdirAll(artifactDir, 0o700))
 	cli, err := exec.LookPath("browser-automation-studio")
-	require.NoError(t, err, "BAS CLI is required for the CF5 mobile receipt recording")
-	cmd := exec.CommandContext(ctx, cli, "capture", "--url", uiURL+"/fund", "--dimensions", "mobile", "--capture", "screenshot", "--wait-for", "[data-testid='page-fund']", "--interaction-flow-file", flowPath, "--out", artifactDir, "--label", "CF5 local-fork mobile receipt credit", "--json")
-	output, err := cmd.CombinedOutput()
-	require.NoErrorf(t, err, "BAS mobile receipt capture failed: %s", strings.TrimSpace(string(output)))
-	require.NoError(t, os.WriteFile(filepath.Join(runDir, "bas-mobile-receipt-capture.json"), output, 0o600))
-	require.NotEmpty(t, output)
-}
-
-func captureCF5MobileWithdrawalPreview(t *testing.T, ctx context.Context, runDir, uiURL, budgetID, destination, mandateID, amount string) {
-	t.Helper()
-	flow := map[string]any{
-		"settings": map[string]any{"viewport_width": 390, "viewport_height": 844},
-		"nodes": []any{
-			map[string]any{"id": "wait-fund", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='page-fund']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 15000}, "metadata": map[string]any{"label": "Open the mobile funding and withdrawal surface"}}},
-			cf5InputNode("operator-token", "funding-operator-token", "cf2-local-operator-only"),
-			cf5InputNode("agent-token", "funding-agent-token", "cf5-local-agent"),
-			cf5InputNode("budget-id", "funding-budget-id", budgetID),
-			cf5InputNode("destination", "funding-withdrawal-destination", destination),
-			cf5InputNode("mandate-id", "funding-withdrawal-mandate-id", mandateID),
-			cf5InputNode("withdrawal-amount", "funding-withdrawal-amount", amount),
-			cf5InputNode("withdrawal-value", "funding-withdrawal-value", amount),
-			cf5InputNode("max-fee", "funding-withdrawal-max-fee", "1000000000000000000"),
-			cf5InputNode("fee-value", "funding-withdrawal-fee-value", "0.10"),
-			map[string]any{"id": "preview-withdrawal", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-withdrawal-preview']"}, "metadata": map[string]any{"label": "Request an allowlisted local-fork withdrawal fee preview"}}},
-			map[string]any{"id": "assert-quote", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='page-fund']", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": map[string]any{"string_value": "local-fork"}, "timeout_ms": 10000}, "metadata": map[string]any{"label": "Verify the quote discloses its local-fork execution mode"}}},
-			map[string]any{"id": "execute-withdrawal", "action": map[string]any{"type": "ACTION_TYPE_CLICK", "click": map[string]any{"selector": "[data-testid='funding-withdrawal-execute']"}, "metadata": map[string]any{"label": "Confirm and execute the allowlisted withdrawal from mobile"}}},
-			map[string]any{"id": "wait-settled", "action": map[string]any{"type": "ACTION_TYPE_WAIT", "wait": map[string]any{"selector": "[data-testid='funding-withdrawal-status']", "state": "WAIT_STATE_VISIBLE", "timeout_ms": 20000}, "metadata": map[string]any{"label": "Wait for the withdrawal settlement status"}}},
-			map[string]any{"id": "assert-settled", "action": map[string]any{"type": "ACTION_TYPE_ASSERT", "assert": map[string]any{"selector": "[data-testid='funding-withdrawal-status']", "mode": "ASSERTION_MODE_TEXT_CONTAINS", "expected": map[string]any{"string_value": "settled"}, "timeout_ms": 5000}, "metadata": map[string]any{"label": "Confirm the allowlisted withdrawal settled"}}},
-		},
-		"edges": []any{
-			cf5Edge("e1", "wait-fund", "operator-token"), cf5Edge("e2", "operator-token", "agent-token"),
-			cf5Edge("e3", "agent-token", "budget-id"), cf5Edge("e4", "budget-id", "destination"),
-			cf5Edge("e5", "destination", "mandate-id"), cf5Edge("e6", "mandate-id", "withdrawal-amount"),
-			cf5Edge("e7", "withdrawal-amount", "withdrawal-value"), cf5Edge("e8", "withdrawal-value", "max-fee"),
-			cf5Edge("e9", "max-fee", "fee-value"), cf5Edge("e10", "fee-value", "preview-withdrawal"),
-			cf5Edge("e11", "preview-withdrawal", "assert-quote"), cf5Edge("e12", "assert-quote", "execute-withdrawal"),
-			cf5Edge("e13", "execute-withdrawal", "wait-settled"), cf5Edge("e14", "wait-settled", "assert-settled"),
-		},
+	if err != nil {
+		return fmt.Errorf("BAS CLI is required for the CF5 mobile recording: %w", err)
 	}
-	flowPath := filepath.Join(runDir, "mobile-withdrawal-capture-flow.json")
-	raw, err := json.MarshalIndent(flow, "", "  ")
-	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(flowPath, raw, 0o600))
-	artifactDir := filepath.Join(runDir, "bas-mobile-withdrawal")
-	require.NoError(t, os.MkdirAll(artifactDir, 0o700))
-	cli, err := exec.LookPath("browser-automation-studio")
-	require.NoError(t, err, "BAS CLI is required for the CF5 mobile withdrawal preview recording")
-	cmd := exec.CommandContext(ctx, cli, "capture", "--url", uiURL+"/fund", "--dimensions", "mobile", "--capture", "screenshot", "--wait-for", "[data-testid='page-fund']", "--interaction-flow-file", flowPath, "--out", artifactDir, "--label", "CF5 local-fork mobile withdrawal preview", "--json")
+	cmd := exec.CommandContext(ctx, cli, "capture", "--url", uiURL+"/fund", "--dimensions", "mobile", "--capture", "screenshot", "--wait-for", "[data-testid='page-fund']", "--interaction-flow-file", flowPath, "--out", artifactDir, "--label", "CF5 token-free local-fork mobile Fund surface", "--json")
 	output, err := cmd.CombinedOutput()
-	require.NoErrorf(t, err, "BAS mobile withdrawal preview capture failed: %s", strings.TrimSpace(string(output)))
-	require.NoError(t, os.WriteFile(filepath.Join(runDir, "bas-mobile-withdrawal-capture.json"), output, 0o600))
-	require.NotEmpty(t, output)
-}
-
-func cf5InputNode(id, selector, value string) map[string]any {
-	return map[string]any{"id": id, "action": map[string]any{"type": "ACTION_TYPE_INPUT", "input": map[string]any{"selector": "[data-testid='" + selector + "']", "value": value, "clear_first": true}, "metadata": map[string]any{"label": "Enter isolated fixture " + id}}}
+	if writeErr := os.WriteFile(filepath.Join(runDir, "bas-mobile-fund-capture.json"), output, 0o600); writeErr != nil {
+		return writeErr
+	}
+	if err != nil {
+		return fmt.Errorf("BAS mobile Fund surface capture failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	if len(output) == 0 {
+		return fmt.Errorf("BAS mobile Fund capture returned no artifact receipt")
+	}
+	return nil
 }
 
 func cf5Edge(id, source, target string) map[string]any {
 	return map[string]any{"id": id, "source": source, "target": target}
 }
 
+func cf5DeclareOfferDeskPriceWithSession(t *testing.T, ctx context.Context, uiURL string, client *http.Client, declaration map[string]any) x402rail.Price {
+	t.Helper()
+	encoded, err := json.Marshal(declaration)
+	require.NoError(t, err)
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(uiURL, "/")+"/api/v1/x402/prices/offer-desk", strings.NewReader(string(encoded)))
+	require.NoError(t, err)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", uiURL)
+	response, err := client.Do(request)
+	require.NoError(t, err)
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 64<<10))
+	require.NoError(t, err)
+	require.Equalf(t, http.StatusCreated, response.StatusCode, "same-origin session price declaration: %s", strings.TrimSpace(string(body)))
+	var price x402rail.Price
+	require.NoError(t, json.Unmarshal(body, &price))
+	return price
+}
+
 func cf5OperatorRequest[T any](value *T) *connect.Request[T] {
 	request := connect.NewRequest(value)
 	request.Header().Set("X-Vrooli-Operator-Token", "cf2-local-operator-only")
+	return request
+}
+
+func cf5ServiceRequest[T any](value *T, token string) *connect.Request[T] {
+	request := connect.NewRequest(value)
+	request.Header().Set("Authorization", "Bearer "+token)
 	return request
 }
 
@@ -1077,6 +1532,21 @@ func prepareCF5ScenarioVariant(t *testing.T, scenarioName, repoScenario, runDir 
 	repo, err := filepath.Abs(filepath.Clean(filepath.Join(".", repoScenario)))
 	require.NoError(t, err)
 	require.DirExists(t, repo)
+	if scenarioName == "treasury" {
+		// The lifecycle variant builds from this isolated clone but launches the
+		// API with the serving Treasury tree as its working directory. Keep the
+		// generated freshness manifest's research-relative inputs resolvable
+		// there for the duration of this rehearsal.
+		home, homeErr := os.UserHomeDir()
+		require.NoError(t, homeErr)
+		servingResearch := filepath.Join(repo, ".vrooli", "research")
+		if _, statErr := os.Lstat(servingResearch); errors.Is(statErr, os.ErrNotExist) {
+			require.NoError(t, os.Symlink(filepath.Join(home, ".vrooli", "research"), servingResearch))
+			t.Cleanup(func() { _ = os.Remove(servingResearch) })
+		} else {
+			require.NoError(t, statErr)
+		}
+	}
 	workspace := filepath.Join(runDir, "workspace")
 	source := filepath.Join(workspace, "scenarios", scenarioName)
 	require.NoError(t, os.MkdirAll(source, 0o700))
@@ -1117,6 +1587,12 @@ func prepareCF5ScenarioVariant(t *testing.T, scenarioName, repoScenario, runDir 
 			}
 			if entry.IsDir() && (entry.Name() == "node_modules" || entry.Name() == "data" || entry.Name() == "tmp") {
 				if component == "ui" && entry.Name() == "node_modules" {
+					if scenarioName == "treasury" {
+						if err := copyCF5Tree(path, filepath.Join(destRoot, rel)); err != nil {
+							return err
+						}
+						return filepath.SkipDir
+					}
 					if err := os.Symlink(path, filepath.Join(destRoot, rel)); err != nil {
 						return err
 					}
@@ -1170,6 +1646,59 @@ func prepareCF5ScenarioVariant(t *testing.T, scenarioName, repoScenario, runDir 
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(manifest, raw, 0o600))
 	return source
+}
+
+// copyCF5Tree keeps the Treasury UI build's dependency tree inside the
+// isolated scenario variant. Sharing ui/node_modules makes lifecycle correctly
+// reject a build while the live Treasury instance is serving; copying this
+// already-provisioned tree lets the rehearsal rebuild its own UI safely.
+func copyCF5Tree(source, destination string) error {
+	return filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		target := destination
+		if rel != "." {
+			target = filepath.Join(destination, rel)
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			link, err := os.Readlink(path)
+			if err != nil {
+				return err
+			}
+			return os.Symlink(link, target)
+		}
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o700)
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		in, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
+		if err != nil {
+			_ = in.Close()
+			return err
+		}
+		_, copyErr := io.Copy(out, in)
+		inCloseErr := in.Close()
+		outCloseErr := out.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if inCloseErr != nil {
+			return inCloseErr
+		}
+		return outCloseErr
+	})
 }
 
 // prepareCF5APIScenarioVariant keeps the test-only service surface to the API

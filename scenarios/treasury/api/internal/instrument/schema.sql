@@ -11,6 +11,18 @@ CREATE TABLE IF NOT EXISTS instruments (
     created_at TEXT NOT NULL
 );
 
+-- No provider credential or issued card material is stored here. The
+-- fingerprint binds retries to the original instrument, mandate, provider
+-- credential reference, and mandate-derived scope. An unresolved attempt is
+-- never reissued beyond the provider's idempotency retention window.
+CREATE TABLE IF NOT EXISTS card_issuance_attempts (
+    instrument_id TEXT PRIMARY KEY,
+    fingerprint TEXT NOT NULL CHECK (length(fingerprint) = 64),
+    status TEXT NOT NULL CHECK (status IN ('in_flight', 'unknown', 'complete')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
 -- INVARIANT: onlyOperatorBeneficiaryCanBeRepresented
 -- An instrument and its mandate must remain in the same operator-owned book.
 CREATE TRIGGER IF NOT EXISTS instruments_book_mandate_match_insert

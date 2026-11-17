@@ -30,6 +30,8 @@ ports as outbound source ports. See the project-level port allocation reference
 |---|---|---|
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario id by `api-core/storage`, so no inherited variable can point one scenario at another's database. Set `VROOLI_STORAGE_ROOT` to relocate the whole storage tree for a test run. |
 | `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `CHAIN_FORENSICS_SOLANA_RPC_URL` | `https://api.mainnet-beta.solana.com` | Keyless public endpoint for finalized Solana transaction and SPL owner/token-account captures. |
+| `CHAIN_FORENSICS_SOLANA_HISTORY_RPC_URL` | `https://api.mainnet.solana.com` | Keyless official endpoint for finalized signature history and known-signature transaction reads. Signature-only page reads are bounded to 1,000 entries and share the origin-aware cache/rate limiter. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through

@@ -243,11 +243,20 @@ func (r *sqliteRepository) Revoke(ctx context.Context, id, reason, idempotencyKe
 	if err != nil {
 		return Grant{}, err
 	}
-	if grant.Status == GrantStatusRevoked {
-		return Grant{}, &InvalidGrantError{Reason: "grant is already revoked"}
+	previousStatus := grant.Status
+	if err := grant.TransitionTo(GrantStatusRevoked); err != nil {
+		return Grant{}, err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE grants SET status = 'revoked', cancelled_at = ? WHERE id = ?`, formatTime(at), id); err != nil {
+	result, err := tx.ExecContext(ctx, `UPDATE grants SET status = ?, cancelled_at = ? WHERE id = ? AND status = ?`, grant.Status, formatTime(at), id, previousStatus)
+	if err != nil {
 		return Grant{}, fmt.Errorf("revoke grant: %w", err)
+	}
+	updated, err := result.RowsAffected()
+	if err != nil {
+		return Grant{}, fmt.Errorf("verify grant revocation: %w", err)
+	}
+	if updated != 1 {
+		return Grant{}, &InvalidGrantError{Reason: "grant status changed during revocation"}
 	}
 	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO grant_revoke_receipts (idempotency_key, grant_id, reason, created_at)
@@ -257,7 +266,6 @@ func (r *sqliteRepository) Revoke(ctx context.Context, id, reason, idempotencyKe
 	if err := tx.Commit(); err != nil {
 		return Grant{}, fmt.Errorf("commit grant revocation: %w", err)
 	}
-	grant.Status = GrantStatusRevoked
 	grant.CancelledAt = &at
 	return grant, nil
 }

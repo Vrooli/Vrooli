@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -33,6 +34,7 @@ import (
 	"treasury/internal/budget"
 	"treasury/internal/evidence"
 	"treasury/internal/identity"
+	"treasury/internal/ledger"
 	"treasury/internal/mandate"
 	"treasury/internal/nativeusdc"
 	"treasury/internal/receiptfunding"
@@ -40,6 +42,22 @@ import (
 )
 
 type walletopsTestStore map[string]string
+
+type fixedFundingDestination struct{ destination ledger.Destination }
+
+type baseMainnetFundingRPC struct{ head *big.Int }
+
+func (r baseMainnetFundingRPC) VerifyWalletTransaction(context.Context, wallet.Wallet, string) ([]baseusdc.Observation, error) {
+	return nil, errors.New("receipt verification is not part of this intent-creation test")
+}
+
+func (r baseMainnetFundingRPC) LatestBlockNumber(context.Context) (*big.Int, error) {
+	return new(big.Int).Set(r.head), nil
+}
+
+func (f fixedFundingDestination) Destination(context.Context) (ledger.Destination, error) {
+	return f.destination, nil
+}
 
 func (s walletopsTestStore) Put(service, key, value string) error {
 	s[service+"/"+key] = value
@@ -256,6 +274,222 @@ func TestFundingWatcherRejectsAmbiguousTransfersAndAdvancesFinalizedCursor(t *te
 	require.Equal(t, "17", cursor, "a completed finalized scan advances the durable cursor")
 }
 
+func TestExactFundingObservationRequiresOneFinalizedExactBaseUSDCTransfer(t *testing.T) {
+	w := wallet.Wallet{ID: "wallet", Address: "0x" + strings.Repeat("a", 40)}
+	intent := fundingIntent{id: "intent", operator: "operator", atoms: "1000000", startBlock: "50", request: &fundingpb.CreateFundingIntentRequest{}}
+	txHash := "0x" + strings.Repeat("b", 64)
+	valid := baseusdc.Observation{WalletID: w.ID, Network: baseusdc.Network, AssetID: baseusdc.TransferAsset, Decimals: baseusdc.USDCDecimals, From: "0x" + strings.Repeat("d", 40), To: w.Address, AtomicAmount: intent.atoms, TransactionHash: txHash, LogIndex: 3, BlockNumber: 51, BlockHash: "0x" + strings.Repeat("c", 64), Finality: "finalized"}
+	check := baseusdc.Check{ID: "check", OperatorIdentity: intent.operator, WalletID: w.ID, Network: baseusdc.Network, TransactionHash: txHash, Outcome: "verified", Transfers: []baseusdc.Observation{valid}}
+
+	matched, err := exactFundingObservation(intent, w, txHash, check)
+	require.NoError(t, err)
+	require.Equal(t, uint64(3), matched.LogIndex)
+
+	preIntent := check
+	preIntent.Transfers = []baseusdc.Observation{valid}
+	preIntent.Transfers[0].BlockNumber = 49
+	_, err = exactFundingObservation(intent, w, txHash, preIntent)
+	require.ErrorContains(t, err, "no exact finalized")
+
+	unfinalized := check
+	unfinalized.Transfers = []baseusdc.Observation{valid}
+	unfinalized.Transfers[0].Finality = "pending"
+	_, err = exactFundingObservation(intent, w, txHash, unfinalized)
+	require.ErrorContains(t, err, "not finalized")
+
+	duplicate := check
+	duplicate.Transfers = []baseusdc.Observation{valid, valid}
+	_, err = exactFundingObservation(intent, w, txHash, duplicate)
+	require.ErrorContains(t, err, "multiple exact")
+
+	wrongRecipient := check
+	wrongRecipient.Transfers = []baseusdc.Observation{valid}
+	wrongRecipient.Transfers[0].To = "0x" + strings.Repeat("e", 40)
+	_, err = exactFundingObservation(intent, w, txHash, wrongRecipient)
+	require.ErrorContains(t, err, "outside the requested")
+}
+
+func TestFundingReceiptBindingIsStableAndPreventsOneLogFundingTwoIntents(t *testing.T) {
+	service, ctx := setupWalletOpsTest(t)
+	service.Receipts = &baseusdc.Service{}
+	service.Funding = &receiptfunding.Service{}
+	created, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: "research-budget", Network: baseusdc.Network})
+	require.NoError(t, err)
+	w, err := service.Wallets.Get(ctx, created.GetWalletId(), baseusdc.Network, "local-operator")
+	require.NoError(t, err)
+	intentProto := &fundingpb.CreateFundingIntentRequest{Id: "bind-1", BudgetId: "research-budget", AtomicAmount: "1000000", LedgerBookId: "research", LedgerAccountId: "cash", Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD"}}
+	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(intentProto)
+	require.NoError(t, err)
+	now := service.Clock.Now().UTC().Format(time.RFC3339Nano)
+	_, err = service.DB.ExecContext(ctx, `INSERT INTO funding_intents(id,budget_id,operator_identity,atomic_amount,request_proto,start_block,state,created_at,updated_at) VALUES(?,?,?,?,?,?,'waiting',?,?)`, "bind-1", "research-budget", "local-operator", "1000000", encoded, "50", now, now)
+	require.NoError(t, err)
+	intent, err := service.loadIntent(ctx, "local-operator", "bind-1")
+	require.NoError(t, err)
+	txHash := "0x" + strings.Repeat("b", 64)
+	obs := baseusdc.Observation{WalletID: w.ID, Network: baseusdc.Network, AssetID: baseusdc.TransferAsset, Decimals: baseusdc.USDCDecimals, From: "0x" + strings.Repeat("d", 40), To: w.Address, AtomicAmount: intent.atoms, TransactionHash: txHash, LogIndex: 4, BlockNumber: 51, BlockHash: "0x" + strings.Repeat("c", 64), Finality: "finalized"}
+	check := baseusdc.Check{ID: "retained-check", OperatorIdentity: intent.operator, WalletID: w.ID, Network: baseusdc.Network, TransactionHash: txHash, Outcome: "verified"}
+	one, err := service.bindFundingReceipt(ctx, intent, w, txHash, check, obs)
+	require.NoError(t, err)
+	two, err := service.bindFundingReceipt(ctx, intent, w, txHash, check, obs)
+	require.NoError(t, err)
+	require.Equal(t, one, two, "retry must retain a deterministic check/log delivery binding")
+	_, err = service.bindFundingReceipt(ctx, intent, w, "0x"+strings.Repeat("e", 64), check, obs)
+	require.ErrorIs(t, err, ErrInvalid)
+
+	second := *intentProto
+	second.Id = "bind-2"
+	second.BudgetId = "research-budget-two"
+	_, err = budget.NewService(budget.NewSQLiteRepository(service.DB), service.Clock).Create(ctx, budget.Budget{
+		ID: second.BudgetId, BookID: "research", Currency: "USD", TotalCapMinor: 1000,
+		PeriodicCapMinor: 1000, PerTransactionCapMinor: 1000, Period: time.Hour,
+	})
+	require.NoError(t, err)
+	secondWallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: second.BudgetId, Network: baseusdc.Network})
+	require.NoError(t, err)
+	require.NotEqual(t, w.ID, secondWallet.GetWalletId())
+	encoded, err = proto.MarshalOptions{Deterministic: true}.Marshal(&second)
+	require.NoError(t, err)
+	_, err = service.DB.ExecContext(ctx, `INSERT INTO funding_intents(id,budget_id,operator_identity,atomic_amount,request_proto,start_block,state,created_at,updated_at) VALUES(?,?,?,?,?,?,'waiting',?,?)`, "bind-2", second.BudgetId, "local-operator", "1000000", encoded, "50", now, now)
+	require.NoError(t, err)
+	secondIntent, err := service.loadIntent(ctx, "local-operator", "bind-2")
+	require.NoError(t, err)
+	secondObservation := obs
+	secondObservation.WalletID = secondWallet.GetWalletId()
+	secondObservation.To = secondWallet.GetAddress()
+	secondCheck := check
+	secondCheck.WalletID = secondWallet.GetWalletId()
+	_, err = service.bindFundingReceipt(ctx, secondIntent, wallet.Wallet{ID: secondWallet.GetWalletId(), Address: secondWallet.GetAddress()}, txHash, secondCheck, secondObservation)
+	require.ErrorIs(t, err, ErrConflict, "one chain log cannot be bound to two funding intents")
+}
+
+func TestConcurrentCrossWalletFundingReceiptClaimHasOneWinner(t *testing.T) {
+	service, ctx := setupWalletOpsTest(t)
+	// Exercise simultaneous callers on separate SQLite connections. The runtime
+	// writer lock may serialize their commit attempts; the invariant is that no
+	// scheduling outcome can create two claims or two bindings for one log.
+	pool, ok := service.DB.(interface{ SetMaxOpenConns(int) })
+	require.True(t, ok, "test database should expose its SQLite connection pool")
+	pool.SetMaxOpenConns(2)
+	service.Receipts = &baseusdc.Service{}
+	service.Funding = &receiptfunding.Service{}
+
+	firstWallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: "research-budget", Network: baseusdc.Network})
+	require.NoError(t, err)
+	secondBudgetID := "research-budget-two"
+	_, err = budget.NewService(budget.NewSQLiteRepository(service.DB), service.Clock).Create(ctx, budget.Budget{
+		ID: secondBudgetID, BookID: "research", Currency: "USD", TotalCapMinor: 1000,
+		PeriodicCapMinor: 1000, PerTransactionCapMinor: 1000, Period: time.Hour,
+	})
+	require.NoError(t, err)
+	secondWallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: secondBudgetID, Network: baseusdc.Network})
+	require.NoError(t, err)
+
+	now := service.Clock.Now().UTC().Format(time.RFC3339Nano)
+	newIntent := func(id, budgetID string) fundingIntent {
+		t.Helper()
+		request := &fundingpb.CreateFundingIntentRequest{Id: id, BudgetId: budgetID, AtomicAmount: "1000000", LedgerBookId: "research", LedgerAccountId: "cash", Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD"}}
+		encoded, marshalErr := proto.MarshalOptions{Deterministic: true}.Marshal(request)
+		require.NoError(t, marshalErr)
+		_, insertErr := service.DB.ExecContext(ctx, `INSERT INTO funding_intents(id,budget_id,operator_identity,atomic_amount,request_proto,start_block,state,created_at,updated_at) VALUES(?,?,?,?,?,?,'waiting',?,?)`, id, budgetID, "local-operator", "1000000", encoded, "50", now, now)
+		require.NoError(t, insertErr)
+		intent, loadErr := service.loadIntent(ctx, "local-operator", id)
+		require.NoError(t, loadErr)
+		return intent
+	}
+	firstIntent := newIntent("concurrent-intent-one", "research-budget")
+	secondIntent := newIntent("concurrent-intent-two", secondBudgetID)
+	txHash := "0x" + strings.Repeat("f", 64)
+	blockHash := "0x" + strings.Repeat("c", 64)
+	observation := func(w *fundingpb.BudgetWallet) baseusdc.Observation {
+		return baseusdc.Observation{
+			WalletID: w.GetWalletId(), Network: baseusdc.Network, AssetID: baseusdc.TransferAsset,
+			Decimals: baseusdc.USDCDecimals, From: "0x" + strings.Repeat("d", 40), To: w.GetAddress(),
+			AtomicAmount: "1000000", TransactionHash: txHash, LogIndex: 11,
+			BlockNumber: 51, BlockHash: blockHash, Finality: "finalized",
+		}
+	}
+	type result struct{ err error }
+	type contender struct {
+		intent fundingIntent
+		wallet wallet.Wallet
+		check  baseusdc.Check
+		obs    baseusdc.Observation
+	}
+	contenders := []contender{
+		{intent: firstIntent, wallet: wallet.Wallet{ID: firstWallet.GetWalletId(), Address: firstWallet.GetAddress()}, check: baseusdc.Check{ID: "concurrent-check-one", OperatorIdentity: "local-operator", WalletID: firstWallet.GetWalletId(), Network: baseusdc.Network, TransactionHash: txHash, Outcome: "verified"}, obs: observation(firstWallet)},
+		{intent: secondIntent, wallet: wallet.Wallet{ID: secondWallet.GetWalletId(), Address: secondWallet.GetAddress()}, check: baseusdc.Check{ID: "concurrent-check-two", OperatorIdentity: "local-operator", WalletID: secondWallet.GetWalletId(), Network: baseusdc.Network, TransactionHash: txHash, Outcome: "verified"}, obs: observation(secondWallet)},
+	}
+	start := make(chan struct{})
+	ready := make(chan struct{}, len(contenders))
+	results := make(chan result, len(contenders))
+	for _, current := range contenders {
+		current := current
+		go func() {
+			ready <- struct{}{}
+			<-start
+			_, bindErr := service.bindFundingReceipt(ctx, current.intent, current.wallet, txHash, current.check, current.obs)
+			results <- result{err: bindErr}
+		}()
+	}
+	for range contenders {
+		<-ready
+	}
+	close(start)
+
+	successes, conflicts := 0, 0
+	for range contenders {
+		got := <-results
+		if got.err == nil {
+			successes++
+			continue
+		}
+		require.ErrorIs(t, got.err, ErrConflict, "the losing caller should observe the existing global claim")
+		conflicts++
+	}
+	require.Equal(t, 1, successes, "one intent must retain the globally unique chain-log claim")
+	require.Equal(t, 1, conflicts, "the competing budget wallet must fail with a conflict")
+	var claims, bindings int
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM funding_intent_receipt_log_claims WHERE network=? AND asset_id=? AND transaction_hash=? AND log_index=?`, baseusdc.Network, baseusdc.TransferAsset, txHash, 11).Scan(&claims))
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT COUNT(*) FROM funding_intent_receipt_bindings WHERE network=? AND asset_id=? AND LOWER(transaction_hash)=LOWER(?) AND log_index=?`, baseusdc.Network, baseusdc.TransferAsset, txHash, 11).Scan(&bindings))
+	require.Equal(t, 1, claims)
+	require.Equal(t, 1, bindings)
+}
+
+func TestReceiptClaimSchemaFailsClosedAndPreservesConflictingLegacyBindings(t *testing.T) {
+	ctx := context.Background()
+	db := databasetest.NewSQLite(t)
+	_, err := db.ExecContext(ctx, `CREATE TABLE budget_wallets (budget_id TEXT PRIMARY KEY)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO budget_wallets(budget_id) VALUES('budget-one'),('budget-two')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TABLE funding_intents (id TEXT PRIMARY KEY, budget_id TEXT NOT NULL, state TEXT NOT NULL, FOREIGN KEY(budget_id) REFERENCES budget_wallets(budget_id))`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO funding_intents(id,budget_id,state) VALUES('intent-one','budget-one','credited'),('intent-two','budget-two','credited')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `CREATE TABLE funding_intent_receipt_bindings (
+		intent_id TEXT PRIMARY KEY REFERENCES funding_intents(id), operator_identity TEXT NOT NULL,
+		wallet_id TEXT NOT NULL, network TEXT NOT NULL, asset_id TEXT NOT NULL, transaction_hash TEXT NOT NULL,
+		log_index INTEGER NOT NULL, atomic_amount TEXT NOT NULL, recipient TEXT NOT NULL,
+		block_hash TEXT NOT NULL, check_id TEXT NOT NULL, delivery_id TEXT NOT NULL UNIQUE,
+		created_at TEXT NOT NULL, UNIQUE(wallet_id,network,asset_id,transaction_hash,log_index)
+	)`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(ctx, `INSERT INTO funding_intent_receipt_bindings(
+		intent_id,operator_identity,wallet_id,network,asset_id,transaction_hash,log_index,atomic_amount,recipient,block_hash,check_id,delivery_id,created_at
+	) VALUES
+		('intent-one','operator','wallet-one','base','native-usdc','0xabc',9,'100','0x111','0xaaa','check-one','delivery-one','2026-11-01T00:00:00Z'),
+		('intent-two','operator','wallet-two','base','native-usdc','0xABC',9,'100','0x222','0xbbb','check-two','delivery-two','2026-11-02T00:00:00Z')`)
+	require.NoError(t, err)
+
+	err = database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(Schema))
+	require.ErrorContains(t, err, "conflicting historical funding receipt bindings require operator reconciliation")
+	var conflictCount, claimCount int
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM funding_intent_receipt_migration_conflicts`).Scan(&conflictCount))
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM funding_intent_receipt_log_claims`).Scan(&claimCount))
+	require.Equal(t, 2, conflictCount, "both original conflicting bindings must remain in the diagnostic ledger")
+	require.Zero(t, claimCount, "a conflicting chain log must not receive an arbitrary canonical claim")
+}
+
 func TestCreateFundingIntentRecordsOperatorValuationEvidence(t *testing.T) {
 	service, ctx := setupWalletOpsTest(t)
 	service.Receipts = &baseusdc.Service{}
@@ -292,6 +526,72 @@ func TestCreateFundingIntentRecordsOperatorValuationEvidence(t *testing.T) {
 	require.NoError(t, proto.Unmarshal(encoded, &stored))
 	require.Equal(t, sharedpb.Basis_BASIS_OPERATOR_ASSERTED, stored.GetValuation().GetBasis())
 	require.True(t, stored.GetValuation().GetValuedAt().AsTime().Equal(service.Clock.Now()), "Treasury should timestamp the operator valuation at intent creation")
+	require.Equal(t, "research", stored.GetLedgerBookId())
+	require.Equal(t, "cash", stored.GetLedgerAccountId())
+}
+
+func TestMainnetFundingIntentRequiresExplicitGateAndUsesReadOnlyReceiptHead(t *testing.T) {
+	service, ctx := setupWalletOpsTest(t)
+	service.Funding = &receiptfunding.Service{}
+	service.Receipts = baseusdc.NewService(baseusdc.NewSQLiteStore(service.DB), baseMainnetFundingRPC{head: big.NewInt(8450000)}, "base-mainnet-fixture", service.Clock.Now)
+	wallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: "research-budget", Network: baseusdc.Network})
+	require.NoError(t, err)
+	request := &fundingpb.CreateFundingIntentRequest{
+		Id: "explicit-mainnet-intent", BudgetId: wallet.GetBudgetId(), AtomicAmount: "2600000",
+		Valuation:    &ingestpb.CryptoValuation{AmountMinor: 260, Currency: "USD", BasisReference: "operator funding preview"},
+		LedgerBookId: "research", LedgerAccountId: "cash",
+	}
+
+	_, err = service.CreateFundingIntent(ctx, "local-operator", request)
+	require.ErrorIs(t, err, ErrInvalid, "empty funding mode must stay disabled")
+	service.FundingMode = "base-mainnet"
+	intent, err := service.CreateFundingIntent(ctx, "local-operator", request)
+	require.NoError(t, err)
+	require.Equal(t, "2600000", intent.GetAtomicAmount())
+	var startBlock string
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT start_block FROM funding_intents WHERE id=?`, intent.GetId()).Scan(&startBlock))
+	require.Equal(t, "8450000", startBlock)
+	require.Nil(t, service.Native, "mainnet inbound mode must not need or configure a signing adapter")
+}
+
+func TestCreateFundingIntentUsesOperatorSelectedLedgerDestination(t *testing.T) {
+	service, ctx := setupWalletOpsTest(t)
+	service.Receipts = &baseusdc.Service{}
+	service.Funding = &receiptfunding.Service{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			ID json.RawMessage `json:"id"`
+		}
+		if json.NewDecoder(r.Body).Decode(&request) != nil || len(request.ID) == 0 {
+			http.Error(w, "invalid JSON-RPC request", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":"0x64"}`, request.ID)
+	}))
+	defer server.Close()
+	var err error
+	service.Native, err = nativeusdc.New(service.DB, nil, server.URL, "local-fork")
+	require.NoError(t, err)
+	wallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: "research-budget", Network: baseusdc.Network})
+	require.NoError(t, err)
+	service.LedgerDestination = fixedFundingDestination{destination: ledger.Destination{
+		BookID: "operator-book", AccountID: "operator-deposit-account",
+	}}
+
+	intent, err := service.CreateFundingIntent(ctx, "local-operator", &fundingpb.CreateFundingIntentRequest{
+		Id: "operator-destination-intent", BudgetId: wallet.GetBudgetId(), AtomicAmount: "1000000",
+		LedgerBookId: "client-injected-book", LedgerAccountId: "client-injected-account",
+		Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD", BasisReference: "operator declared local-fork value"},
+	})
+	require.NoError(t, err)
+
+	var encoded []byte
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT request_proto FROM funding_intents WHERE id=?`, intent.GetId()).Scan(&encoded))
+	var stored fundingpb.CreateFundingIntentRequest
+	require.NoError(t, proto.Unmarshal(encoded, &stored))
+	require.Equal(t, "operator-book", stored.GetLedgerBookId())
+	require.Equal(t, "operator-deposit-account", stored.GetLedgerAccountId())
 }
 
 func TestProvisionBudgetWalletRejectsPartialRunBinding(t *testing.T) {
@@ -523,12 +823,18 @@ func TestMandateRotationRejectsProofFromPreviousGeneration(t *testing.T) { // [R
 	publicKey, err := gethcrypto.HexToECDSA(strings.TrimPrefix(privateKeyHex, "0x"))
 	require.NoError(t, err)
 	claimsRead := walletReadClaims(t, now, session.AgentSubject, session.AgentRunID, session.BudgetID)
-	require.NoError(t, service.BindAgentSessionPublicKey(ctx, session.BudgetID, session.MandateID, claimsRead, "0x"+hex.EncodeToString(gethcrypto.FromECDSAPub(&publicKey.PublicKey))))
+	oldPublicKey := "0x" + hex.EncodeToString(gethcrypto.FromECDSAPub(&publicKey.PublicKey))
+	require.ErrorIs(t, service.BindAgentSessionPublicKey(ctx, session.BudgetID, session.MandateID, claimsRead, oldPublicKey), ErrAgentSessionProof,
+		"retired public keys cannot be rebound to a later generation")
+	rotatedKey, err := gethcrypto.GenerateKey()
+	require.NoError(t, err)
+	rotatedPublicKey := "0x" + hex.EncodeToString(gethcrypto.FromECDSAPub(&rotatedKey.PublicKey))
+	require.NoError(t, service.BindAgentSessionPublicKey(ctx, session.BudgetID, session.MandateID, claimsRead, rotatedPublicKey))
 	newIntent := oldIntent
 	newIntent.SettlementID = "settlement-new-generation"
 	newIntent.Generation = rotated.Generation
 	newIntent.ExpiresAt = rotated.ExpiresAt.UTC().Format(time.RFC3339Nano)
-	newSignature, err := signAgentIntent(privateKeyHex, newIntent)
+	newSignature, err := signAgentIntent("0x"+hex.EncodeToString(gethcrypto.FromECDSA(rotatedKey)), newIntent)
 	require.NoError(t, err)
 	require.ErrorIs(t, service.AuthorizeAgentSettlement(ctx, claims, oldIntent, oldSignature), ErrAgentSessionProof, "a rebound key cannot replay the prior generation's signed intent")
 	require.NoError(t, service.AuthorizeAgentSettlement(ctx, claims, newIntent, newSignature), "a newly signed intent can use the new generation binding")

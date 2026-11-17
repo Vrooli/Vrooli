@@ -76,7 +76,13 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "chain-forensics-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		casesH.Module(db, schedule.System(), log.Default()),
+		casesH.Module(db, schedule.System(), log.Default(), casesH.RPCConfig{
+			EthereumURL: os.Getenv("CHAIN_FORENSICS_ETHEREUM_RPC_URL"),
+			BaseURL:     os.Getenv("CHAIN_FORENSICS_BASE_RPC_URL"),
+			ArbitrumURL: os.Getenv("CHAIN_FORENSICS_ARBITRUM_RPC_URL"),
+			SolanaURL:        os.Getenv("CHAIN_FORENSICS_SOLANA_RPC_URL"),
+			SolanaHistoryURL: os.Getenv("CHAIN_FORENSICS_SOLANA_HISTORY_RPC_URL"),
+		}),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

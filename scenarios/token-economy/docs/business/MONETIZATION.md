@@ -9,7 +9,6 @@ better than inventing a commercial story.
 > `offer-desk`). This document records the scenario-local hypothesis and the
 > evidence that would confirm or kill it. It does not decide strategy.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

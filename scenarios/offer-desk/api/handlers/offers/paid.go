@@ -48,7 +48,11 @@ func (s *Service) paidOffersOverCap(writer http.ResponseWriter, request *http.Re
 }
 
 func (s *Service) servePaidOffers(writer http.ResponseWriter, request *http.Request, priceID string) {
-	base, err := paidTreasuryURL(request.Context())
+	resolveTreasuryURL := s.resolveTreasuryURL
+	if resolveTreasuryURL == nil {
+		resolveTreasuryURL = paidTreasuryURL
+	}
+	base, err := resolveTreasuryURL(request.Context())
 	if err != nil {
 		writePaidError(writer, http.StatusServiceUnavailable, "Treasury x402 admission is unavailable")
 		return

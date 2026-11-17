@@ -45,10 +45,30 @@ type PairVerifier interface {
 	VerifyPair(context.Context, string, string) (Claims, error)
 }
 
-func VerifyRequest(ctx context.Context, verifier Verifier, headers http.Header) (Claims, error) {
+// VerifySpendIdentity verifies the ordinary run identity and, when supplied,
+// its distinct operation token as one authority check. Spend admission and
+// settlement recovery must share this rule so neither path can silently drop
+// an operation grant or fall back to baseline-only verification.
+func VerifySpendIdentity(ctx context.Context, verifier Verifier, baselineToken, operationToken string) (Claims, error) {
 	if verifier == nil {
 		return Claims{}, fmt.Errorf("%w: verifier is unavailable", ErrUnverifiable)
 	}
+	baselineToken = strings.TrimSpace(baselineToken)
+	operationToken = strings.TrimSpace(operationToken)
+	if operationToken == "" {
+		return verifier.Verify(ctx, baselineToken)
+	}
+	pairVerifier, ok := verifier.(PairVerifier)
+	if !ok {
+		return Claims{}, fmt.Errorf("%w: paired operation verification is unavailable", ErrUnverifiable)
+	}
+	if baselineToken == "" || baselineToken == operationToken {
+		return Claims{}, fmt.Errorf("%w: identity token pair is incomplete", ErrUnverifiable)
+	}
+	return pairVerifier.VerifyPair(ctx, baselineToken, operationToken)
+}
+
+func VerifyRequest(ctx context.Context, verifier Verifier, headers http.Header) (Claims, error) {
 	baseline := strings.TrimSpace(headers.Get(HeaderAgentIdentityToken))
 	if baseline == "" {
 		parts := strings.Fields(strings.TrimSpace(headers.Get("Authorization")))
@@ -56,15 +76,7 @@ func VerifyRequest(ctx context.Context, verifier Verifier, headers http.Header) 
 			baseline = parts[1]
 		}
 	}
-	operation := strings.TrimSpace(headers.Get(HeaderAgentOperationToken))
-	if operation == "" {
-		return verifier.Verify(ctx, baseline)
-	}
-	pairVerifier, ok := verifier.(PairVerifier)
-	if !ok {
-		return Claims{}, fmt.Errorf("%w: paired operation verification is unavailable", ErrUnverifiable)
-	}
-	return pairVerifier.VerifyPair(ctx, baseline, operation)
+	return VerifySpendIdentity(ctx, verifier, baseline, headers.Get(HeaderAgentOperationToken))
 }
 
 type UnavailableVerifier struct{ Cause error }

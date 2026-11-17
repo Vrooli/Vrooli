@@ -32,6 +32,7 @@ import (
 	"treasury/internal/budget"
 	"treasury/internal/identity"
 	"treasury/internal/instrument"
+	"treasury/internal/ledger"
 	"treasury/internal/mandate"
 	"treasury/internal/nativeusdc"
 	"treasury/internal/receiptfunding"
@@ -60,21 +61,25 @@ type Notification interface {
 	Received(context.Context, string, string, string, string, string) error
 }
 type Config struct {
-	DB             DB
-	Wallets        *wallet.Service
-	Books          book.Service
-	Budgets        budget.Service
-	Receipts       *baseusdc.Service
-	Funding        *receiptfunding.Service
-	Native         *nativeusdc.Adapter
-	Mandates       mandate.Service
-	Authorizations *authorization.Service
-	Approvals      *approval.Service
-	Instruments    *instrument.Service
-	Credentials    instrument.CredentialWriter
-	Settlements    *settlement.Service
-	Notifications  Notification
-	Clock          schedule.Clock
+	DB                DB
+	Wallets           *wallet.Service
+	Books             book.Service
+	Budgets           budget.Service
+	Receipts          *baseusdc.Service
+	Funding           *receiptfunding.Service
+	Native            *nativeusdc.Adapter
+	Mandates          mandate.Service
+	Authorizations    *authorization.Service
+	Approvals         *approval.Service
+	Instruments       *instrument.Service
+	Credentials       instrument.CredentialWriter
+	Settlements       *settlement.Service
+	LedgerDestination ledger.DestinationSource
+	Notifications     Notification
+	// FundingMode controls inbound funding intents only. `base-mainnet` uses
+	// the read-only receipt verifier; it never enables native signing.
+	FundingMode string
+	Clock       schedule.Clock
 }
 type Service struct{ Config }
 
@@ -83,6 +88,21 @@ func New(c Config) *Service {
 		c.Clock = schedule.System()
 	}
 	return &Service{Config: c}
+}
+
+func (s *Service) inboundFundingMode() string {
+	if s == nil {
+		return "disabled"
+	}
+	if strings.TrimSpace(s.FundingMode) != "" {
+		return strings.TrimSpace(s.FundingMode)
+	}
+	// Preserve the existing explicitly constructed local-fork test/rehearsal
+	// path for callers that predate the opt-in mode field.
+	if s.Native != nil && s.Native.Mode() == "local-fork" {
+		return "local-fork"
+	}
+	return "disabled"
 }
 
 type binding struct{ budgetID, walletID, parentID, operator, network, agent, run string }
@@ -235,6 +255,104 @@ type fundingIntent struct {
 	createdAt, updatedAt                             time.Time
 }
 
+type fundingReceiptBinding struct {
+	IntentID, OperatorIdentity, WalletID                    string
+	Network, AssetID, TransactionHash                       string
+	LogIndex                                                uint64
+	AtomicAmount, Recipient, BlockHash, CheckID, DeliveryID string
+}
+
+func (s *Service) loadFundingReceiptBinding(ctx context.Context, intentID string) (fundingReceiptBinding, error) {
+	var value fundingReceiptBinding
+	var logIndex int64
+	err := s.DB.QueryRowContext(ctx, `SELECT intent_id,operator_identity,wallet_id,network,asset_id,transaction_hash,log_index,atomic_amount,recipient,block_hash,check_id,delivery_id FROM funding_intent_receipt_bindings WHERE intent_id=?`, intentID).Scan(
+		&value.IntentID, &value.OperatorIdentity, &value.WalletID, &value.Network, &value.AssetID, &value.TransactionHash, &logIndex, &value.AtomicAmount, &value.Recipient, &value.BlockHash, &value.CheckID, &value.DeliveryID,
+	)
+	if err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	if logIndex < 0 {
+		return fundingReceiptBinding{}, ErrInvalid
+	}
+	value.LogIndex = uint64(logIndex)
+	return value, nil
+}
+
+func (s *Service) bindFundingReceipt(ctx context.Context, intent fundingIntent, w wallet.Wallet, transactionHash string, check baseusdc.Check, observation baseusdc.Observation) (fundingReceiptBinding, error) {
+	start, ok := new(big.Int).SetString(intent.startBlock, 10)
+	if !ok || !start.IsUint64() || start.Sign() < 0 || observation.BlockNumber < start.Uint64() || observation.Finality != "finalized" ||
+		check.Outcome != "verified" || check.OperatorIdentity != intent.operator || check.WalletID != w.ID || check.Network != baseusdc.Network ||
+		!strings.EqualFold(check.TransactionHash, transactionHash) || observation.WalletID != w.ID || observation.Network != baseusdc.Network ||
+		observation.AssetID != baseusdc.TransferAsset || observation.Decimals != baseusdc.USDCDecimals || observation.AtomicAmount != intent.atoms ||
+		!strings.EqualFold(observation.To, w.Address) || !strings.EqualFold(observation.TransactionHash, transactionHash) ||
+		observation.LogIndex > uint64(^uint32(0)) || observation.BlockHash == "" || check.ID == "" {
+		return fundingReceiptBinding{}, fmt.Errorf("%w: receipt evidence does not match the exact finalized Base USDC intent", ErrInvalid)
+	}
+	deliveryID := fmt.Sprintf("%s/log/%d", check.ID, observation.LogIndex)
+	createdAt := s.now().Format(time.RFC3339Nano)
+	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+	if err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	var state, storedHash, storedDeliveryID string
+	if err = tx.QueryRowContext(ctx, `SELECT state,transaction_hash,receipt_delivery_id FROM funding_intents WHERE id=? AND operator_identity=?`, intent.id, intent.operator).Scan(&state, &storedHash, &storedDeliveryID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fundingReceiptBinding{}, ErrNotFound
+		}
+		return fundingReceiptBinding{}, err
+	}
+	if state == "credited" || (storedHash != "" && !strings.EqualFold(storedHash, transactionHash)) {
+		return fundingReceiptBinding{}, ErrConflict
+	}
+	canonicalHash := strings.ToLower(transactionHash)
+	_, err = tx.ExecContext(ctx, `INSERT INTO funding_intent_receipt_log_claims(network,asset_id,transaction_hash,log_index,intent_id,created_at) VALUES(?,?,?,?,?,?) ON CONFLICT(network,asset_id,transaction_hash,log_index) DO NOTHING`, baseusdc.Network, baseusdc.TransferAsset, canonicalHash, observation.LogIndex, intent.id, createdAt)
+	if err != nil {
+		return fundingReceiptBinding{}, fmt.Errorf("claim finalized Base USDC transfer log: %w", err)
+	}
+	var claimedIntentID string
+	if err = tx.QueryRowContext(ctx, `SELECT intent_id FROM funding_intent_receipt_log_claims WHERE network=? AND asset_id=? AND transaction_hash=? AND log_index=?`, baseusdc.Network, baseusdc.TransferAsset, canonicalHash, observation.LogIndex).Scan(&claimedIntentID); err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	if claimedIntentID != intent.id {
+		return fundingReceiptBinding{}, ErrConflict
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO funding_intent_receipt_bindings(intent_id,operator_identity,wallet_id,network,asset_id,transaction_hash,log_index,atomic_amount,recipient,block_hash,check_id,delivery_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(intent_id) DO NOTHING`, intent.id, intent.operator, w.ID, baseusdc.Network, baseusdc.TransferAsset, transactionHash, observation.LogIndex, intent.atoms, strings.ToLower(w.Address), strings.ToLower(observation.BlockHash), check.ID, deliveryID, createdAt)
+	if err != nil {
+		return fundingReceiptBinding{}, fmt.Errorf("%w: receipt log is already bound to another intent: %v", ErrConflict, err)
+	}
+	var binding fundingReceiptBinding
+	var index int64
+	if err = tx.QueryRowContext(ctx, `SELECT intent_id,operator_identity,wallet_id,network,asset_id,transaction_hash,log_index,atomic_amount,recipient,block_hash,check_id,delivery_id FROM funding_intent_receipt_bindings WHERE intent_id=?`, intent.id).Scan(
+		&binding.IntentID, &binding.OperatorIdentity, &binding.WalletID, &binding.Network, &binding.AssetID, &binding.TransactionHash, &index, &binding.AtomicAmount, &binding.Recipient, &binding.BlockHash, &binding.CheckID, &binding.DeliveryID,
+	); err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	if index < 0 {
+		return fundingReceiptBinding{}, ErrInvalid
+	}
+	binding.LogIndex = uint64(index)
+	if binding.IntentID != intent.id || binding.OperatorIdentity != intent.operator || binding.WalletID != w.ID || binding.Network != baseusdc.Network || binding.AssetID != baseusdc.TransferAsset ||
+		!strings.EqualFold(binding.TransactionHash, transactionHash) || binding.AtomicAmount != intent.atoms || !strings.EqualFold(binding.Recipient, w.Address) {
+		return fundingReceiptBinding{}, ErrConflict
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE funding_intents SET state=CASE WHEN state='waiting' THEN 'observed' ELSE state END,transaction_hash=?,receipt_delivery_id=?,last_error='',updated_at=? WHERE id=? AND operator_identity=? AND state<>'credited' AND (transaction_hash='' OR LOWER(transaction_hash)=LOWER(?)) AND (receipt_delivery_id='' OR receipt_delivery_id=?)`, binding.TransactionHash, binding.DeliveryID, createdAt, intent.id, intent.operator, binding.TransactionHash, binding.DeliveryID)
+	if err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	if changed != 1 && storedDeliveryID != binding.DeliveryID {
+		return fundingReceiptBinding{}, ErrConflict
+	}
+	if err = tx.Commit(); err != nil {
+		return fundingReceiptBinding{}, err
+	}
+	return binding, nil
+}
+
 func (s *Service) now() time.Time {
 	return s.Clock.Now().UTC()
 }
@@ -250,7 +368,19 @@ func newID(prefix string) (string, error) {
 // CreateFundingIntent snapshots the chain head before returning a payment URI.
 // Only a finalized transfer at or after that block can satisfy the intent.
 func (s *Service) CreateFundingIntent(ctx context.Context, operator string, in *fundingpb.CreateFundingIntentRequest) (*fundingpb.FundingIntent, error) {
-	if s == nil || s.DB == nil || s.Wallets == nil || s.Receipts == nil || s.Funding == nil || operator == "" || in == nil || in.BudgetId == "" || !positiveAtoms.MatchString(in.AtomicAmount) || in.Valuation == nil || in.Valuation.Currency == "" || in.LedgerBookId == "" || in.LedgerAccountId == "" {
+	if s == nil || s.DB == nil || s.Wallets == nil || s.Receipts == nil || s.Funding == nil || operator == "" || in == nil {
+		return nil, ErrInvalid
+	}
+	if s.LedgerDestination != nil {
+		destination, err := s.LedgerDestination.Destination(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("resolve Treasury Money Ledger destination: %w", err)
+		}
+		in = proto.Clone(in).(*fundingpb.CreateFundingIntentRequest)
+		in.LedgerBookId = destination.BookID
+		in.LedgerAccountId = destination.AccountID
+	}
+	if in.BudgetId == "" || !positiveAtoms.MatchString(in.AtomicAmount) || in.Valuation == nil || in.Valuation.Currency == "" || in.LedgerBookId == "" || in.LedgerAccountId == "" {
 		return nil, ErrInvalid
 	}
 	b, err := s.load(ctx, in.BudgetId)
@@ -267,16 +397,32 @@ func (s *Service) CreateFundingIntent(ctx context.Context, operator string, in *
 	if policy.Currency != strings.ToUpper(in.Valuation.Currency) {
 		return nil, ErrInvalid
 	}
-	if s.Native == nil || s.Native.Mode() != "local-fork" {
-		return nil, fmt.Errorf("%w: funding intents require the explicitly configured local Base fork", ErrInvalid)
-	}
-	var head string
-	if err = s.Native.Call(ctx, "eth_blockNumber", []any{}, &head); err != nil {
-		return nil, err
-	}
-	start, err := rpcUint(head)
-	if err != nil {
-		return nil, err
+	var start *big.Int
+	switch s.inboundFundingMode() {
+	case "local-fork":
+		if s.Native == nil || s.Native.Mode() != "local-fork" {
+			return nil, fmt.Errorf("%w: local-fork funding requires the explicitly configured Base fork", ErrInvalid)
+		}
+		var head string
+		if err = s.Native.Call(ctx, "eth_blockNumber", []any{}, &head); err != nil {
+			return nil, err
+		}
+		start, err = rpcUint(head)
+		if err != nil {
+			return nil, err
+		}
+	case "base-mainnet":
+		// This mode only creates receive intents. Native must stay absent or
+		// disabled so enabling inbound confirmation cannot expose a signing rail.
+		if s.Native != nil && s.Native.Mode() != "disabled" {
+			return nil, fmt.Errorf("%w: mainnet funding refuses an enabled native signer", ErrInvalid)
+		}
+		start, err = s.Receipts.LatestBlockNumber(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("read Base mainnet funding-intent start block: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("%w: inbound Base funding is disabled", ErrInvalid)
 	}
 	id := strings.TrimSpace(in.Id)
 	if id == "" {
@@ -332,7 +478,7 @@ type fundingTransferLog struct {
 // WatchFundingIntents searches finalized local-fork Base blocks, then routes a
 // matching transfer through the existing receipt verification and credit path.
 func (s *Service) WatchFundingIntents(ctx context.Context) error {
-	if s == nil || s.DB == nil || s.Native == nil || s.Native.Mode() != "local-fork" {
+	if s == nil || s.DB == nil || s.inboundFundingMode() != "local-fork" || s.Native == nil || s.Native.Mode() != "local-fork" {
 		return nil
 	}
 	var finalized struct {
@@ -473,15 +619,16 @@ func (s *Service) watchFundingIntent(ctx context.Context, id, operator string, f
 }
 
 func (s *Service) ConfirmFundingTransfer(ctx context.Context, operator string, in *fundingpb.ConfirmFundingTransferRequest) (*fundingpb.FundingIntent, error) {
-	if in == nil || operator == "" || in.Id == "" || in.TransactionHash == "" || s.Receipts == nil || s.Funding == nil {
+	if in == nil || operator == "" || in.Id == "" || strings.TrimSpace(in.TransactionHash) == "" || s.Receipts == nil || s.Funding == nil {
 		return nil, ErrInvalid
 	}
+	transactionHash := strings.ToLower(strings.TrimSpace(in.TransactionHash))
 	v, err := s.loadIntent(ctx, operator, in.Id)
 	if err != nil {
 		return nil, err
 	}
 	if v.state == "credited" {
-		if !strings.EqualFold(v.txHash, in.TransactionHash) {
+		if !strings.EqualFold(v.txHash, transactionHash) {
 			return nil, ErrConflict
 		}
 		_ = s.retryNotification(ctx, v)
@@ -491,6 +638,9 @@ func (s *Service) ConfirmFundingTransfer(ctx context.Context, operator string, i
 		}
 		return s.publicIntent(ctx, v)
 	}
+	if v.txHash != "" && !strings.EqualFold(v.txHash, transactionHash) {
+		return nil, ErrConflict
+	}
 	b, err := s.load(ctx, v.budgetID)
 	if err != nil {
 		return nil, err
@@ -499,73 +649,189 @@ func (s *Service) ConfirmFundingTransfer(ctx context.Context, operator string, i
 	if err != nil {
 		return nil, err
 	}
-	check, err := s.Receipts.Verify(ctx, operator, w, in.TransactionHash)
-	if err != nil {
-		_ = s.updateIntent(ctx, v.id, "waiting", "", "", v.notificationState, err)
+	binding, err := s.loadFundingReceiptBinding(ctx, v.id)
+	if err == nil {
+		if !fundingBindingMatches(v, w, transactionHash, binding) {
+			return nil, ErrConflict
+		}
+		return s.reconcileBoundFunding(ctx, v, w, binding)
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	start, ok := new(big.Int).SetString(v.startBlock, 10)
-	if !ok {
+	if v.deliveryID != "" {
+		// A pre-binding intent may represent a legacy partial attempt. Its
+		// delivery is not enough to prove which check/log was accepted, so leave
+		// it fail-closed for an explicit reconciliation instead of guessing.
+		return nil, fmt.Errorf("%w: funding intent has a delivery reference without its exact receipt binding", ErrConflict)
+	}
+	check, err := s.Receipts.Verify(ctx, operator, w, transactionHash)
+	if err != nil {
+		return nil, err
+	}
+	matched, err := exactFundingObservation(v, w, transactionHash, check)
+	if err != nil {
+		return nil, err
+	}
+	binding, err = s.bindFundingReceipt(ctx, v, w, transactionHash, check, *matched)
+	if err != nil {
+		return nil, err
+	}
+	v, err = s.loadIntent(ctx, operator, in.Id)
+	if err != nil {
+		return nil, err
+	}
+	return s.reconcileBoundFunding(ctx, v, w, binding)
+}
+
+func fundingBindingMatches(intent fundingIntent, w wallet.Wallet, transactionHash string, binding fundingReceiptBinding) bool {
+	return binding.IntentID == intent.id && binding.OperatorIdentity == intent.operator && binding.WalletID == w.ID &&
+		binding.Network == baseusdc.Network && binding.AssetID == baseusdc.TransferAsset && strings.EqualFold(binding.TransactionHash, transactionHash) &&
+		binding.AtomicAmount == intent.atoms && strings.EqualFold(binding.Recipient, w.Address) && binding.CheckID != "" && binding.DeliveryID != ""
+}
+
+func exactFundingObservation(intent fundingIntent, w wallet.Wallet, transactionHash string, check baseusdc.Check) (*baseusdc.Observation, error) {
+	if check.Outcome != "verified" || check.OperatorIdentity != intent.operator || check.WalletID != w.ID || check.Network != baseusdc.Network || !strings.EqualFold(check.TransactionHash, transactionHash) {
+		return nil, fmt.Errorf("%w: retained receipt check is outside the requested Base wallet and transaction scope", ErrInvalid)
+	}
+	start, ok := new(big.Int).SetString(intent.startBlock, 10)
+	if !ok || !start.IsUint64() || start.Sign() < 0 {
 		return nil, ErrInvalid
 	}
 	var matched *baseusdc.Observation
 	for i := range check.Transfers {
 		obs := &check.Transfers[i]
-		if new(big.Int).SetUint64(obs.BlockNumber).Cmp(start) < 0 || obs.AtomicAmount != v.atoms {
+		if !strings.EqualFold(obs.TransactionHash, transactionHash) || obs.Network != baseusdc.Network || obs.AssetID != baseusdc.TransferAsset ||
+			obs.Decimals != baseusdc.USDCDecimals || !strings.EqualFold(obs.To, w.Address) {
+			return nil, fmt.Errorf("%w: verifier returned a transfer outside the requested Base USDC recipient scope", ErrInvalid)
+		}
+		if obs.BlockNumber < start.Uint64() || obs.AtomicAmount != intent.atoms {
 			continue
 		}
+		if obs.Finality != "finalized" {
+			return nil, fmt.Errorf("%w: matching Base USDC transfer is not finalized", ErrInvalid)
+		}
 		if matched != nil {
-			return nil, fmt.Errorf("%w: multiple exact amount transfer logs in transaction", ErrInvalid)
+			return nil, fmt.Errorf("%w: multiple exact Base USDC logs in one transaction match this intent", ErrInvalid)
 		}
 		matched = obs
 	}
 	if matched == nil {
-		return nil, fmt.Errorf("%w: no exact native-USDC transfer at or after intent start block", ErrInvalid)
+		return nil, fmt.Errorf("%w: no exact finalized native-USDC transfer at or after intent creation", ErrInvalid)
 	}
-	if v.txHash != "" && !strings.EqualFold(v.txHash, in.TransactionHash) {
+	if intent.request.GetAttribution().GetPayerAddress() != "" && !strings.EqualFold(intent.request.GetAttribution().GetPayerAddress(), matched.From) {
+		return nil, fmt.Errorf("%w: declared payer address does not match the verified Transfer sender", ErrInvalid)
+	}
+	return matched, nil
+}
+
+func (s *Service) reconcileBoundFunding(ctx context.Context, intent fundingIntent, w wallet.Wallet, binding fundingReceiptBinding) (*fundingpb.FundingIntent, error) {
+	if !fundingBindingMatches(intent, w, intent.txHash, binding) || intent.deliveryID != binding.DeliveryID {
 		return nil, ErrConflict
 	}
-	if v.deliveryID == "" {
-		attribution := v.request.Attribution
-		if attribution != nil {
-			if attribution.PayerAddress != "" && !strings.EqualFold(attribution.PayerAddress, matched.From) {
-				return nil, fmt.Errorf("%w: claimed payer address does not match the verified Transfer sender", ErrInvalid)
-			}
-			attribution = proto.Clone(attribution).(*ingestpb.CryptoPayerAttribution)
-			attribution.PayerAddress = strings.ToLower(matched.From)
-		}
-		delivery, e := s.Funding.Submit(ctx, receiptfunding.SubmitInput{OperatorIdentity: operator, WalletID: w.ID, TransactionHash: matched.TransactionHash, CheckID: check.ID, BudgetID: v.budgetID, LedgerBookID: v.request.LedgerBookId, LedgerAccountID: v.request.LedgerAccountId, LogIndex: matched.LogIndex, Action: ingestpb.CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL, Valuation: v.request.Valuation, Attribution: attribution})
-		if e != nil {
-			_ = s.updateIntent(ctx, v.id, "observed", matched.TransactionHash, "", v.notificationState, e)
-			return nil, e
-		}
-		v.deliveryID = delivery.ID
-	}
-	_ = s.updateIntent(ctx, v.id, "delivering", matched.TransactionHash, v.deliveryID, v.notificationState, nil)
-	if err = s.Funding.DrainPending(ctx); err != nil {
-		_ = s.updateIntent(ctx, v.id, "delivering", matched.TransactionHash, v.deliveryID, v.notificationState, err)
+	check, err := s.Receipts.GetCheck(ctx, intent.operator, w.ID, binding.TransactionHash, binding.CheckID)
+	if err != nil {
 		return nil, err
 	}
-	delivery, err := s.Funding.Get(ctx, v.deliveryID, operator)
+	matched, err := exactFundingObservation(intent, w, binding.TransactionHash, check)
+	if err != nil || matched.LogIndex != binding.LogIndex || matched.AtomicAmount != binding.AtomicAmount || !strings.EqualFold(matched.BlockHash, binding.BlockHash) {
+		if err != nil {
+			return nil, err
+		}
+		return nil, ErrConflict
+	}
+	delivery, err := s.Funding.Get(ctx, binding.DeliveryID, intent.operator)
+	if errors.Is(err, receiptfunding.ErrNotFound) {
+		attribution := intent.request.Attribution
+		if attribution != nil {
+			attribution = proto.Clone(attribution).(*ingestpb.CryptoPayerAttribution)
+		}
+		if attribution == nil {
+			attribution = &ingestpb.CryptoPayerAttribution{}
+		}
+		attribution.PayerAddress = strings.ToLower(matched.From)
+		delivery, err = s.Funding.Submit(ctx, receiptfunding.SubmitInput{
+			OperatorIdentity: intent.operator, WalletID: w.ID, TransactionHash: binding.TransactionHash, CheckID: binding.CheckID,
+			BudgetID: intent.budgetID, LedgerBookID: intent.request.LedgerBookId, LedgerAccountID: intent.request.LedgerAccountId,
+			LogIndex: binding.LogIndex, Action: ingestpb.CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL,
+			Valuation: intent.request.Valuation, Attribution: attribution,
+		})
+		if err != nil {
+			_ = s.updateIntent(ctx, intent.id, "observed", binding.TransactionHash, binding.DeliveryID, intent.notificationState, err)
+			return nil, err
+		}
+	} else if err != nil {
+		return nil, err
+	}
+	if err := validateFundingDeliveryBinding(delivery, intent, w, binding); err != nil {
+		return nil, err
+	}
+	_ = s.updateIntent(ctx, intent.id, "delivering", binding.TransactionHash, binding.DeliveryID, intent.notificationState, nil)
+	drainErr := s.Funding.DrainPending(ctx)
+	delivery, err = s.Funding.Get(ctx, binding.DeliveryID, intent.operator)
 	if err != nil {
+		if drainErr != nil {
+			return nil, errors.Join(drainErr, err)
+		}
+		return nil, err
+	}
+	if err = validateFundingDeliveryBinding(delivery, intent, w, binding); err != nil {
 		return nil, err
 	}
 	if delivery.Status != "accepted" || delivery.Receipt == nil || delivery.Receipt.Id == "" {
-		return nil, fmt.Errorf("%w: accepted ledger receipt is not available", ErrInvalid)
+		if drainErr != nil {
+			return nil, drainErr
+		}
+		return nil, fmt.Errorf("%w: accepted Ledger receipt is not available", ErrInvalid)
 	}
-	if err = s.updateIntent(ctx, v.id, "credited", matched.TransactionHash, v.deliveryID, "pending", nil); err != nil {
+	if err = validateAcceptedFundingBinding(delivery.Receipt, intent, w, binding); err != nil {
 		return nil, err
 	}
-	v, err = s.loadIntent(ctx, operator, v.id)
+	if drainErr != nil {
+		return nil, drainErr
+	}
+	if err = s.updateIntent(ctx, intent.id, "credited", binding.TransactionHash, binding.DeliveryID, "pending", nil); err != nil {
+		return nil, err
+	}
+	intent, err = s.loadIntent(ctx, intent.operator, intent.id)
 	if err != nil {
 		return nil, err
 	}
-	_ = s.retryNotification(ctx, v)
-	v, err = s.loadIntent(ctx, operator, v.id)
+	_ = s.retryNotification(ctx, intent)
+	intent, err = s.loadIntent(ctx, intent.operator, intent.id)
 	if err != nil {
 		return nil, err
 	}
-	return s.publicIntent(ctx, v)
+	return s.publicIntent(ctx, intent)
+}
+
+func validateFundingDeliveryBinding(delivery receiptfunding.Delivery, intent fundingIntent, w wallet.Wallet, binding fundingReceiptBinding) error {
+	request := delivery.Request
+	observation := request.GetObservation()
+	if delivery.ID != binding.DeliveryID || delivery.OperatorIdentity != intent.operator || delivery.WalletID != w.ID || delivery.BudgetID != intent.budgetID ||
+		request == nil || request.GetAction() != ingestpb.CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL || request.GetSource().GetCheckId() != binding.CheckID ||
+		request.GetSource().GetWalletId() != w.ID || request.GetSource().GetOperatorIdentity() != intent.operator || observation == nil ||
+		observation.GetNetwork() != baseusdc.Network || observation.GetAssetId() != baseusdc.TransferAsset || observation.GetDecimals() != baseusdc.USDCDecimals ||
+		observation.GetAtomicAmount() != intent.atoms || !strings.EqualFold(observation.GetTransactionHash(), binding.TransactionHash) ||
+		observation.GetLegIndex() != uint32(binding.LogIndex) || !strings.EqualFold(observation.GetAddress(), w.Address) ||
+		!strings.EqualFold(observation.GetBlockHash(), binding.BlockHash) || observation.GetBookId() != intent.request.GetLedgerBookId() ||
+		observation.GetAccountId() != intent.request.GetLedgerAccountId() || request.GetValuation().GetCurrency() != intent.request.GetValuation().GetCurrency() {
+		return fmt.Errorf("%w: queued receipt delivery does not match its immutable Base funding binding", ErrConflict)
+	}
+	return nil
+}
+
+func validateAcceptedFundingBinding(receipt *ingestpb.AcceptedCryptoReceipt, intent fundingIntent, w wallet.Wallet, binding fundingReceiptBinding) error {
+	if receipt == nil || receipt.GetId() == "" || receipt.GetPostingId() == "" || receipt.GetAction() != ingestpb.CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL ||
+		!receipt.GetNoChargeback() || receipt.GetSource().GetCheckId() != binding.CheckID || receipt.GetSource().GetWalletId() != w.ID ||
+		receipt.GetSource().GetOperatorIdentity() != intent.operator || receipt.GetObservation().GetNetwork() != baseusdc.Network ||
+		receipt.GetObservation().GetAssetId() != baseusdc.TransferAsset || receipt.GetObservation().GetAtomicAmount() != intent.atoms ||
+		receipt.GetObservation().GetDecimals() != baseusdc.USDCDecimals || !strings.EqualFold(receipt.GetObservation().GetTransactionHash(), binding.TransactionHash) ||
+		receipt.GetObservation().GetLegIndex() != uint32(binding.LogIndex) || !strings.EqualFold(receipt.GetObservation().GetAddress(), w.Address) ||
+		!strings.EqualFold(receipt.GetObservation().GetBlockHash(), binding.BlockHash) || receipt.GetCurrency() != intent.request.GetValuation().GetCurrency() {
+		return fmt.Errorf("%w: accepted Ledger receipt does not reconcile to the exact Base funding intent", ErrConflict)
+	}
+	return nil
 }
 
 func (s *Service) loadIntent(ctx context.Context, operator, id string) (fundingIntent, error) {
@@ -609,7 +875,15 @@ func (s *Service) publicIntent(ctx context.Context, v fundingIntent) (*fundingpb
 	if err != nil {
 		return nil, err
 	}
-	return &fundingpb.FundingIntent{Id: v.id, BudgetId: v.budgetID, Wallet: publicWallet(b, w), AtomicAmount: v.atoms, PaymentUri: fmt.Sprintf("ethereum:%s@8453/transfer?address=%s&uint256=%s", baseusdc.USDCAddress, w.Address, v.atoms), State: v.state, TransactionHash: v.txHash, ReceiptDeliveryId: v.deliveryID, CreatedAt: timestamppb.New(v.createdAt), UpdatedAt: timestamppb.New(v.updatedAt), NotificationState: v.notificationState, LastError: v.lastError}, nil
+	return &fundingpb.FundingIntent{
+		Id: v.id, BudgetId: v.budgetID, Wallet: publicWallet(b, w), AtomicAmount: v.atoms,
+		PaymentUri: fmt.Sprintf("ethereum:%s@8453/transfer?address=%s&uint256=%s", baseusdc.USDCAddress, w.Address, v.atoms),
+		State:      v.state, TransactionHash: v.txHash, ReceiptDeliveryId: v.deliveryID,
+		CreatedAt: timestamppb.New(v.createdAt), UpdatedAt: timestamppb.New(v.updatedAt),
+		NotificationState: v.notificationState, LastError: v.lastError,
+		FundingMode: s.inboundFundingMode(), PaymentValueMinor: v.request.GetValuation().GetAmountMinor(),
+		PaymentCurrency: strings.ToUpper(v.request.GetValuation().GetCurrency()),
+	}, nil
 }
 
 func (s *Service) GetFundingIntent(ctx context.Context, operator, id string) (*fundingpb.FundingIntent, error) {

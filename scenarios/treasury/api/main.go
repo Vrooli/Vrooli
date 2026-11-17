@@ -39,18 +39,24 @@ import (
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/askreader"
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/browsersession"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/filerouting"
 	"github.com/vrooli/api-core/preflight"
+	apireceiptsigning "github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/schedule"
 	apiserver "github.com/vrooli/api-core/server"
+	"github.com/vrooli/api-core/servicetoken"
 	"github.com/vrooli/api-core/storage"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+	credentialauthoritysigning "github.com/vrooli/vrooli/packages/credential-authority-go/receiptsigning"
 	credentialclient "github.com/vrooli/vrooli/packages/credentialclient-go"
+	accountsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts/accounts_v1connect"
 	_ "modernc.org/sqlite"
 
 	agentspendH "treasury/handlers/agentspend"
@@ -62,6 +68,7 @@ import (
 	instrumentH "treasury/handlers/instrument"
 	ledgeradminH "treasury/handlers/ledgeradmin"
 	mandateH "treasury/handlers/mandate"
+	operatorSessionH "treasury/handlers/operatorsession"
 	treasuryadminH "treasury/handlers/treasuryadmin"
 	walletH "treasury/handlers/wallet"
 	x402gateH "treasury/handlers/x402gate"
@@ -181,10 +188,27 @@ func main() {
 		operatorToken = strings.TrimSpace(os.Getenv("API_TOKEN"))
 	}
 	var operatorAuthorizer operatorauth.Authorizer
-	operatorAuthorizer, err = operatorauth.NewStaticToken(operatorToken)
+	staticOperatorAuthorizer, staticAuthorizerErr := operatorauth.NewStaticToken(operatorToken)
+	if staticAuthorizerErr != nil {
+		staticOperatorAuthorizer = nil
+	}
+	err = staticAuthorizerErr
+	authenticatorVerifier := authn.NewScenarioAuthenticatorProvider(authn.JWTConfig{
+		Audience: "scenario-authenticator:treasury", JWKSURL: strings.TrimSpace(os.Getenv("TREASURY_OPERATOR_JWKS_URL")),
+		Client: &http.Client{Timeout: 5 * time.Second},
+	})
+	var operatorHumanSubjects []string
+	for _, subject := range strings.Split(os.Getenv("TREASURY_OPERATOR_HUMAN_SUBJECTS"), ",") {
+		if subject = strings.TrimSpace(subject); subject != "" {
+			operatorHumanSubjects = append(operatorHumanSubjects, subject)
+		}
+	}
+	operatorAuthorizer = operatorauth.SessionOrStatic{
+		Static: staticOperatorAuthorizer, Verifier: authenticatorVerifier,
+		HumanSubjects: operatorHumanSubjects, OperatorSubject: "local-operator",
+	}
 	if err != nil {
-		log.Printf("operator realm unavailable; TreasuryAdmin will fail closed: %v", err)
-		operatorAuthorizer = operatorauth.Unavailable{Cause: err}
+		log.Printf("static operator realm unavailable; browser session realm remains available: %v", err)
 	}
 	var approvalRelay approval.Relay
 	if os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") == "1" {
@@ -212,7 +236,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("x402 signer configuration failed: %v", err)
 	}
-	x402Adapter, err := x402rail.New(x402HTTPClient, x402Signer)
+	x402Adapter, err := newTreasuryX402Adapter(x402HTTPClient, x402Signer)
 	if err != nil {
 		log.Fatalf("x402 rail configuration failed: %v", err)
 	}
@@ -306,6 +330,22 @@ func main() {
 		walletService = wallet.NewService(wallet.NewSQLiteRepository(db), book.NewService(book.NewSQLiteRepository(db), clock), authority, clock, func(ctx context.Context, rel string) (string, error) {
 			return fileRootPath(ctx, fileRoots, storage.ClassData, rel)
 		})
+		// No DBM key is minted here. Until DBM provisions and returns a signed
+		// attestation in this CA identity, rotation commit remains fail-closed.
+		rotationIdentity, identityErr := credentialauthority.ParseIdentity("scenario/data-backup-manager/wallet-recovery")
+		var rotationReceiptVerifier *credentialauthoritysigning.PublicVerifier
+		verifierErr := identityErr
+		if verifierErr == nil {
+			rotationReceiptVerifier, verifierErr = credentialauthoritysigning.NewPublicVerifier(
+				rotationIdentity, "rotation-attestation-public-key-ring", authority,
+				[]apireceiptsigning.Purpose{apireceiptsigning.PurposeWalletRecoveryPublicationReceipt},
+			)
+		}
+		if verifierErr != nil {
+			log.Printf("DBM rotation receipt verification unavailable; rotation commit will remain fail-closed: %v", verifierErr)
+		} else {
+			walletService.WithRotationReceiptVerifier(rotationReceiptVerifier)
+		}
 	}
 	var nativeUSDCAdapter *nativeusdc.Adapter
 	if walletService != nil && strings.TrimSpace(os.Getenv("TREASURY_BASE_USDC_MODE")) == "local-fork" {
@@ -380,6 +420,16 @@ func main() {
 	var approvalDecisionFlow *approval.DecisionFlow
 	var approvalDecisionModule module.Module
 	if os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") != "1" {
+		decisionHubURL := scenarioURL(startupCtx, os.Getenv("TREASURY_DECISION_HUB_API_URL"), "notification-hub")
+		askReaderOptions := []askreader.ReaderOption{
+			askreader.WithBaseURL(func(context.Context) (string, error) { return decisionHubURL, nil }),
+			askreader.WithTokenOptions(askreader.WithExchanger(servicetoken.AuthenticatorExchanger(&http.Client{Timeout: 5 * time.Second}, func(context.Context) (string, error) {
+				return authenticatorURL, nil
+			}))),
+		}
+		if os.Getenv("TREASURY_DECISION_HUB_TEST_MODE") == "1" {
+			askReaderOptions = append(askReaderOptions, askreader.WithTestMode())
+		}
 		approvalDecisionFlow = approval.NewDecisionFlow(approval.NewSQLiteDecisionAskStore(db), eventbus.NewDiscoveredClient(startupCtx), clock).WithApprovalService(approvalService).
 			WithLimits(func(ctx context.Context, request approval.Request) (approval.Limits, error) {
 				record, err := authorizationRepository.Get(ctx, request.AuthorizationID)
@@ -403,7 +453,7 @@ func main() {
 				return "", fmt.Errorf("parse Treasury ask-reader credential identity: %w", err)
 			}
 			return credentialClient.Resolve(ctx, string(identity), askreader.CredentialField)
-		}), approvalDecisionFlow)
+		}, askReaderOptions...), approvalDecisionFlow)
 	}
 	walletInstrumentService := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandateService, railRegistry, credentialResolver, clock, cardRegistry)
 	x402Gate.SetRecoveryVault(walletInstrumentService)
@@ -413,10 +463,27 @@ func main() {
 	if writer, ok := credentialResolver.(instrument.CredentialWriter); ok {
 		credentialWriter = writer
 	}
+	fundingMode := strings.TrimSpace(os.Getenv("TREASURY_BASE_FUNDING_MODE"))
+	if fundingMode == "" {
+		if strings.TrimSpace(os.Getenv("TREASURY_BASE_USDC_MODE")) == "local-fork" {
+			fundingMode = "local-fork"
+		} else {
+			fundingMode = "disabled"
+		}
+	}
+	// Mainnet receive-intent publication requires two separate operator-set
+	// switches: choose the read-only Base network and affirm CF3's funded-address
+	// commissioning/publication ceremony. This never configures native signing.
+	if fundingMode == "base-mainnet" && os.Getenv("TREASURY_BASE_FUNDING_ADDRESS_APPROVED") != "1" {
+		log.Printf("Base mainnet funding intents remain disabled until the operator address-approval gate is set")
+		fundingMode = "disabled"
+	}
 	walletOperations := walletops.New(walletops.Config{
 		DB: db, Wallets: walletService, Books: bookService, Budgets: budgetService,
 		Receipts: baseReceiptService, Funding: fundingService, Native: nativeUSDCAdapter,
-		Mandates: mandateService, Authorizations: walletAuthorizationService, Approvals: approvalService,
+		FundingMode:       fundingMode,
+		LedgerDestination: destination,
+		Mandates:          mandateService, Authorizations: walletAuthorizationService, Approvals: approvalService,
 		Instruments: walletInstrumentService, Credentials: credentialWriter, Settlements: walletSettlementService,
 		Clock: clock,
 	})
@@ -485,8 +552,7 @@ func main() {
 	if baseReceiptService != nil {
 		walletReceiptReader = baseReceiptService
 	}
-	srv := server.New(
-		server.Deps{Clock: clock, Logger: log.Default()},
+	modules := []module.Module{
 		healthH.Module(db, "treasury-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
 		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, agentspendH.HandlerOverrides{
@@ -504,14 +570,32 @@ func main() {
 		x402gateH.ModuleWithOfferDesk(x402Gate, operatorAuthorizer, offerDeskPrices),
 		x402resourceH.Module(x402Gate),
 		x402receiptH.Module(ledger.NewSQLiteRepository(db)),
-		approvalDecisionModule,
-	)
+	}
+	if approvalDecisionModule.Mount != nil {
+		modules = append(modules, approvalDecisionModule)
+	}
+	srv := server.New(server.Deps{Clock: clock, Logger: log.Default()}, modules...)
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
+	operatorSessionEdge := browsersession.New("treasury")
+	operatorAuthURL := strings.TrimSpace(os.Getenv("TREASURY_OPERATOR_AUTH_URL"))
+	if operatorAuthURL == "" {
+		operatorAuthURL = authenticatorURL
+	}
+	operatorSessionEdge.Accounts = func(context.Context) (browsersession.Accounts, error) {
+		return accountsconnect.NewAccountsServiceClient(&http.Client{Timeout: 10 * time.Second}, operatorAuthURL), nil
+	}
+	operatorSessionH.Handler{
+		Edge: operatorSessionEdge, Verifier: authenticatorVerifier, Operator: operatorAuthorizer, Budgets: budgetService,
+		OwnsBudget: func(ctx context.Context, operator, budgetID string) bool {
+			_, err := walletOperations.GetForOperator(ctx, operator, budgetID, "")
+			return err == nil
+		},
+	}.Register(rootMux)
 
 	rootMux.Handle("/", srv.Handler())
 
@@ -529,4 +613,16 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+func newTreasuryX402Adapter(client *http.Client, signer x402rail.TypedDataSigner) (*x402rail.Adapter, error) {
+	evidenceDir := strings.TrimSpace(os.Getenv("TREASURY_X402_PAID_BODY_EVIDENCE_DIR"))
+	if evidenceDir == "" {
+		return x402rail.New(client, signer)
+	}
+	if os.Getenv("TREASURY_CF5_REHEARSAL") != "1" || os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") != "1" || os.Getenv("X402_RUNTIME_MODE") != "local-fork" {
+		return nil, fmt.Errorf("x402 paid response evidence requires the isolated CF5 local-fork test mode")
+	}
+	return x402rail.NewForLocalForkPaidBodyEvidence(client, signer,
+		strings.TrimSpace(os.Getenv("TREASURY_X402_PAID_BODY_EVIDENCE_ROOT")), evidenceDir)
 }

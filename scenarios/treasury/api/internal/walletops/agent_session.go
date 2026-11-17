@@ -92,6 +92,14 @@ func (s *Service) BindAgentSessionPublicKey(ctx context.Context, budgetID, manda
 	if _, err := s.Mandates.RequireLive(ctx, mandateID); err != nil {
 		return ErrSessionInactive
 	}
+	var retiredKey string
+	err = s.DB.QueryRowContext(ctx, `SELECT public_key FROM mandate_agent_session_keys WHERE mandate_id=? AND agent_subject=? AND agent_run_id=? AND generation<? AND public_key=? ORDER BY generation DESC LIMIT 1`, mandateID, claims.Subject, claims.RunID, record.generation, publicKey).Scan(&retiredKey)
+	if err == nil && strings.EqualFold(retiredKey, publicKey) {
+		return ErrAgentSessionProof
+	}
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
 	now := s.Clock.Now().UTC().Format(time.RFC3339Nano)
 	result, err := s.DB.ExecContext(ctx, `INSERT INTO mandate_agent_session_keys(mandate_id,generation,budget_id,agent_subject,agent_run_id,public_key,registered_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(mandate_id,generation) DO NOTHING`, mandateID, record.generation, budgetID, claims.Subject, claims.RunID, publicKey, now)
 	if err != nil {

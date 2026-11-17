@@ -158,6 +158,24 @@ func (r *sqliteRepository) MergeCapture(ctx context.Context, id string, sources 
 				changed = true
 			}
 		}
+		for _, snapshot := range batch.SolanaTokenAccountSnapshots {
+			found := false
+			for _, old := range record.Case.SolanaTokenAccountSnapshots {
+				if old.ID == snapshot.ID {
+					found = true
+					oldJSON, _ := json.Marshal(old)
+					newJSON, _ := json.Marshal(snapshot)
+					if string(oldJSON) != string(newJSON) {
+						return Record{}, ErrConflict{ID: id}
+					}
+					break
+				}
+			}
+			if !found {
+				record.Case.SolanaTokenAccountSnapshots = append(record.Case.SolanaTokenAccountSnapshots, snapshot)
+				changed = true
+			}
+		}
 		for _, instruction := range batch.PumpInstructions {
 			found := false
 			for _, old := range record.Case.PumpInstructions {

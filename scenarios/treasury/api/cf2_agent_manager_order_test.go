@@ -51,7 +51,7 @@ type cf2AgentManagerReceipt struct {
 // ordinary Agent Manager run. The manager captures before Treasury restarts;
 // this caller then reads Treasury's accepted receipt and lets that same run
 // reconcile the LPBS order to the exact posting/receipt pair.
-func runCF2AgentManagerLPBSOrder(t *testing.T, ctx context.Context, repo, runDir, treasuryName, treasurySource, treasuryURL, lpbsURL string, price x402.Price, offer cf2CanonicalOffer, buyerKey *ecdsa.PrivateKey, fork *basefork.Fork, receiptToken string) string {
+func runCF2AgentManagerLPBSOrder(t *testing.T, ctx context.Context, repo, runDir, lpbsDeliveryDir, treasuryName, treasurySource, treasuryURL, lpbsURL string, price x402.Price, offer cf2CanonicalOffer, buyerKey *ecdsa.PrivateKey, fork *basefork.Fork, receiptToken string) string {
 	t.Helper()
 	require.NoError(t, fork.Call(ctx, "evm_setNextBlockTimestamp", []any{time.Now().Unix()}, nil))
 	require.NoError(t, fork.Call(ctx, "evm_mine", []any{}, nil))
@@ -73,7 +73,7 @@ func runCF2AgentManagerLPBSOrder(t *testing.T, ctx context.Context, repo, runDir
 	signaturePath := filepath.Join(coord, "one-use-local-fork-payment.signature")
 	require.NoError(t, os.WriteFile(signaturePath, []byte(paymentSignature), 0o600))
 	defer func() { _ = os.Remove(signaturePath) }()
-	config := map[string]string{"lpbs_url": lpbsURL, "payment_signature_path": signaturePath}
+	config := map[string]string{"lpbs_url": lpbsURL, "payment_signature_path": signaturePath, "delivery_dir": lpbsDeliveryDir}
 	configBytes, err := json.Marshal(config)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(coord, "treasury-config.json"), configBytes, 0o600))

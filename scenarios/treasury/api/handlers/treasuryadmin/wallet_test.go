@@ -67,6 +67,12 @@ func (s *walletStub) Create(_ context.Context, in wallet.CreateInput) (wallet.Wa
 	return s.value(in.OperatorIdentity), nil
 }
 
+func (s *walletStub) Rotate(_ context.Context, _, _, operator, successor string) (wallet.Wallet, error) {
+	value := s.value(operator)
+	value.ID = successor
+	return value, nil
+}
+
 func (s *walletStub) Get(_ context.Context, _, _, operator string) (wallet.Wallet, error) {
 	return s.value(operator), nil
 }
@@ -104,6 +110,16 @@ func TestResearchWalletRPCsPreserveOperatorRealmAndAttribution(t *testing.T) {
 			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
 			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
 			_, err := client.CreateResearchWallet(context.Background(), r)
+			return err
+		},
+		"RotateResearchWallet": func(h http.Header) error {
+			r := connect.NewRequest(&walletv1.RotateResearchWalletRequest{Id: "wallet-1", Network: "eip155:84532", SuccessorId: "wallet-2"})
+			r.Header().Set(operatorauth.HeaderOperatorToken, h.Get(operatorauth.HeaderOperatorToken))
+			r.Header().Set(operatorauth.HeaderAgentToken, h.Get(operatorauth.HeaderAgentToken))
+			response, err := client.RotateResearchWallet(context.Background(), r)
+			if err == nil {
+				require.Equal(t, "wallet-2", response.Msg.GetWallet().GetId())
+			}
 			return err
 		},
 		"GetResearchWallet": func(h http.Header) error {

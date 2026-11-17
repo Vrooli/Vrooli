@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "chain-forensics",
   "generator": "v1.0.0",
-  "manifest_hash": "c08c79ffb7f5370aa855553496ac5b71b8610559c3073b2dc5dd917a651de87d",
+  "manifest_hash": "811c96196b4b2c2a78d38efd7b8a01215f6e3b0a2cbe8f45f1d7e9857a0d60f4",
   "commands": [
     {
       "path": "cases add-label",
@@ -51,6 +51,22 @@
       "group": "cases",
       "command": "capture-solana-address",
       "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureSolanaAddressPage",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-solana-token-accounts",
+      "group": "cases",
+      "command": "capture-solana-token-accounts",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureSolanaTokenAccounts",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "cases capture-solana-transaction",
+      "group": "cases",
+      "command": "capture-solana-transaction",
+      "binding": "vrooli.chain_forensics.v1.cases.CasesService.CaptureSolanaTransaction",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
     },

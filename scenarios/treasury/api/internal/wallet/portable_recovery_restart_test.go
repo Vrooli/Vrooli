@@ -16,8 +16,9 @@ import (
 
 // TestPortableRecoverySurvivesIndependentOwnerRestart keeps key custody and
 // Treasury metadata in separate durable stores. It wipes the source host's
-// credential file, imports only the encrypted key bundle on an independent
-// owner, reopens both destination stores, and proves the recovered address.
+// credential file, imports the encrypted key bundle plus authenticated public
+// witness into a clean Treasury database, reopens both destination stores,
+// and proves the recovered address.
 func TestPortableRecoverySurvivesIndependentOwnerRestart(t *testing.T) {
 	ctx := context.Background()
 	clock := schedule.System()
@@ -43,6 +44,8 @@ func TestPortableRecoverySurvivesIndependentOwnerRestart(t *testing.T) {
 	require.NoError(t, err)
 	bundle, err := source.ExportPortableRecoveryBundle(ctx, original.ID, original.Network, original.OperatorIdentity, operatorSecret)
 	require.NoError(t, err)
+	witness, err := source.ExportPortableRecoveryWitness(ctx, original.ID, original.Network, original.OperatorIdentity, operatorSecret)
+	require.NoError(t, err)
 	identity, err := ca.ParseIdentity(original.CustodyReference)
 	require.NoError(t, err)
 	manifest, err := ca.InspectRecovery(bundle, operatorSecret)
@@ -65,10 +68,6 @@ func TestPortableRecoverySurvivesIndependentOwnerRestart(t *testing.T) {
 	_, err = nodeBooks.Create(ctx, book.CreateInput{ID: in.BookID, Name: "Recovery restart fixture", BeneficiaryIdentity: in.OperatorIdentity})
 	require.NoError(t, err)
 	nodeRepository := NewSQLiteRepository(database.NewFromPrimary(nodeDB))
-	_, err = nodeRepository.Prepare(ctx, original)
-	require.NoError(t, err)
-	require.NoError(t, nodeRepository.SetPublic(ctx, original.ID, original.Address, original.PublicKey))
-	require.NoError(t, nodeRepository.RecordMint(ctx, original.ID, false))
 	nodeBundlePath := filepath.Join(nodeDir, "wallet-key.bundle")
 	require.NoError(t, os.WriteFile(nodeBundlePath, bundle, 0o600))
 	transportedBundle, err := os.ReadFile(nodeBundlePath)
@@ -78,7 +77,7 @@ func TestPortableRecoverySurvivesIndependentOwnerRestart(t *testing.T) {
 	nodeAuthority, err := ca.OpenEncryptedFile(nodeAuthorityPath, nodePassphrase)
 	require.NoError(t, err)
 	nodeService := NewService(nodeRepository, nodeBooks, nodeAuthority, clock, nil)
-	_, err = nodeService.RestorePortableRecoveryBundle(ctx, original.ID, original.Network, original.OperatorIdentity, transportedBundle, operatorSecret)
+	_, err = nodeService.RestorePortableRecoveryWithWitness(ctx, original.ID, original.Network, original.OperatorIdentity, transportedBundle, witness, operatorSecret)
 	require.NoError(t, err)
 
 	// Simulate process restart on the replacement node: neither SQL handles nor

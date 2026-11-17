@@ -41,6 +41,28 @@ type Grant struct {
 	Rules                []GrantRule
 }
 
+// TransitionTo owns legal changes to persisted grant status. Grants are issued
+// live; any known non-revoked persisted status can be revoked, and revocation
+// is terminal.
+func (g *Grant) TransitionTo(next GrantStatus) error {
+	if g == nil {
+		return &InvalidGrantError{Reason: "grant is required for a status transition"}
+	}
+	if g.Status == GrantStatusRevoked {
+		return &InvalidGrantError{Reason: "grant is already revoked"}
+	}
+	if next != GrantStatusRevoked {
+		return &InvalidGrantError{Reason: fmt.Sprintf("grant cannot transition from %q to %q", g.Status, next)}
+	}
+	switch g.Status {
+	case GrantStatusDraft, GrantStatusLive, GrantStatusExhausted, GrantStatusExpired:
+	default:
+		return &InvalidGrantError{Reason: fmt.Sprintf("grant has unknown status %q", g.Status)}
+	}
+	g.Status = next
+	return nil
+}
+
 type CreateInput struct {
 	TokenTypeID          string
 	GrantSourceID        string

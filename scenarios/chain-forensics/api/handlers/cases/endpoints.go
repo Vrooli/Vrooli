@@ -16,7 +16,9 @@ var Endpoints = []module.EndpointDescriptor{
 	{ID: "cases_capture_bitcoin", Path: casesconnect.CasesServiceCaptureBitcoinTransactionProcedure, Method: "POST", Summary: "Capture a confirmed public Bitcoin transaction into a case", Category: "cases"},
 	{ID: "cases_capture_bitcoin_address_page", Path: casesconnect.CasesServiceCaptureBitcoinAddressPageProcedure, Method: "POST", Summary: "Capture one bounded confirmed Bitcoin address-history page", Category: "cases"},
 	{ID: "cases_capture_evm_wallet_snapshot", Path: casesconnect.CasesServiceCaptureEVMWalletSnapshotProcedure, Method: "POST", Summary: "Capture native and selected ERC-20 balances at a pinned EVM block", Category: "cases"},
-	{ID: "cases_capture_solana_address_page", Path: casesconnect.CasesServiceCaptureSolanaAddressPageProcedure, Method: "POST", Summary: "Capture one bounded finalized Solana signature page and SPL balance deltas", Category: "cases"},
+	{ID: "cases_capture_solana_address_page", Path: casesconnect.CasesServiceCaptureSolanaAddressPageProcedure, Method: "POST", Summary: "Capture one bounded finalized Solana signature page with SPL deltas or signature-only discovery", Category: "cases"},
+	{ID: "cases_capture_solana_transaction", Path: casesconnect.CasesServiceCaptureSolanaTransactionProcedure, Method: "POST", Summary: "Capture one finalized Solana transaction by its supplied signature without address-history enumeration", Category: "cases"},
+	{ID: "cases_capture_solana_token_accounts", Path: casesconnect.CasesServiceCaptureSolanaTokenAccountsProcedure, Method: "POST", Summary: "Capture one finalized SPL token-account inventory filtered by owner and token program", Category: "cases"},
 	{ID: "cases_revise", Path: casesconnect.CasesServiceReviseCaseProcedure, Method: "POST", Summary: "Append typed case evidence with optimistic concurrency", Category: "cases"},
 	{ID: "cases_revision_history", Path: casesconnect.CasesServiceListCaseRevisionsProcedure, Method: "POST", Summary: "List immutable case revision receipts", Category: "cases"},
 }

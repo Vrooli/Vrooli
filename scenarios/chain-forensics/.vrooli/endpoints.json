@@ -156,7 +156,23 @@
       "id": "cases_capture_solana_address_page",
       "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureSolanaAddressPage",
       "method": "POST",
-      "summary": "Capture one bounded finalized Solana signature page and SPL balance deltas",
+      "summary": "Capture one bounded finalized Solana signature page with SPL deltas or signature-only discovery",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_solana_transaction",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureSolanaTransaction",
+      "method": "POST",
+      "summary": "Capture one finalized Solana transaction by its supplied signature without address-history enumeration",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_solana_token_accounts",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureSolanaTokenAccounts",
+      "method": "POST",
+      "summary": "Capture one finalized SPL token-account inventory filtered by owner and token program",
       "description": "",
       "category": "cases"
     },

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 import { ArrowDownToLine, ArrowUpFromLine, Clipboard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
-import { createFundingIntent, confirmFundingTransfer, executeWithdrawal, getBudgetHeadroom, listFundingIntents, previewWithdrawal, type FundingIntent, type Withdrawal, type WithdrawalQuote } from "../api/funding";
+import { createFundingIntent, confirmFundingTransfer, executeWithdrawal, getLedgerFundingDestination, listFundingIntents, previewWithdrawal, type FundingIntent, type LedgerDestination, type Withdrawal, type WithdrawalQuote } from "../api/funding";
+import { getOperatorBudgetHeadroom, getOperatorSession, refreshOperatorSession, signInOperator, signOutOperator, type OperatorSession } from "../api/operatorSession";
 import type { AgentBudgetHeadroom } from "@vrooli/proto-types/treasury/v1/authorization/authorization_pb";
 import { Button } from "@vrooli/react-component-library/Button/2";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
@@ -15,19 +16,25 @@ type FundingForm = {
   budgetId: string;
   amount: string;
   value: string;
-  bookId: string;
-  accountId: string;
 };
 
 export function FundPage() {
   const { t } = useTranslation();
-  const [operatorToken, setOperatorToken] = useState("");
-  const [agentIdentityToken, setAgentIdentityToken] = useState("");
-  const [form, setForm] = useState<FundingForm>({ budgetId: "", amount: "", value: "", bookId: "", accountId: "" });
+  const [operatorSession, setOperatorSession] = useState<OperatorSession>({ authenticated: false });
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [mfaChallenge, setMfaChallenge] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [form, setForm] = useState<FundingForm>({ budgetId: "", amount: "", value: "" });
   const [intents, setIntents] = useState<FundingIntent[]>([]);
   const [activeIntent, setActiveIntent] = useState<FundingIntent>();
   const [headroom, setHeadroom] = useState<AgentBudgetHeadroom>();
   const [headroomError, setHeadroomError] = useState("");
+  const [ledgerDestination, setLedgerDestination] = useState<LedgerDestination>();
+  const [ledgerDestinationError, setLedgerDestinationError] = useState("");
   const [transactionHash, setTransactionHash] = useState("");
   const [destination, setDestination] = useState("");
   const [mandateId, setMandateId] = useState("");
@@ -42,28 +49,74 @@ export function FundPage() {
   const [notice, setNotice] = useState("");
   const withdrawalIdempotencyKeys = useRef(new Map<string, string>());
 
+  useEffect(() => {
+    let stopped = false;
+    void getOperatorSession().then(async (session) => {
+      if (!session.authenticated) {
+        try {
+          const refreshed = await refreshOperatorSession();
+          session = refreshed.authenticated ? await getOperatorSession() : refreshed;
+        } catch {
+          // A signed-out browser has no refresh cookie; sign-in remains available.
+        }
+      }
+      if (!stopped) setOperatorSession(session);
+    }).catch((reason) => {
+      if (!stopped) setError(errorText(reason, t(strings.fund.sessionError)));
+    }).finally(() => {
+      if (!stopped) setSessionLoading(false);
+    });
+    return () => { stopped = true; };
+  }, [t]);
+
   const refreshHeadroom = useCallback(async () => {
     const budgetId = form.budgetId.trim();
-    if (!agentIdentityToken || !budgetId) {
+    if (!operatorSession.authenticated || !budgetId) {
       setHeadroom(undefined);
       setHeadroomError("");
       return;
     }
     try {
-      setHeadroom(await getBudgetHeadroom(agentIdentityToken, budgetId));
+      setHeadroom(await getOperatorBudgetHeadroom(budgetId));
       setHeadroomError("");
     } catch (reason) {
       setHeadroom(undefined);
       setHeadroomError(errorText(reason, t(strings.fund.headroomError)));
     }
-  }, [agentIdentityToken, form.budgetId, t]);
+  }, [form.budgetId, operatorSession.authenticated, t]);
+
+  useEffect(() => {
+    if (!operatorSession.authenticated) {
+      setLedgerDestination(undefined);
+      setLedgerDestinationError("");
+      return;
+    }
+
+    let stopped = false;
+    const timer = setTimeout(() => {
+      void getLedgerFundingDestination().then((destination) => {
+        if (stopped) return;
+        setLedgerDestination(destination);
+        setLedgerDestinationError("");
+      }).catch((reason) => {
+        if (stopped) return;
+        setLedgerDestination(undefined);
+        setLedgerDestinationError(errorText(reason, t(strings.fund.ledgerDestinationError)));
+      });
+    }, 250);
+
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [operatorSession.authenticated, t]);
 
   async function refreshIntents() {
-    if (!operatorToken || !form.budgetId.trim()) return;
+    if (!operatorSession.authenticated || !form.budgetId.trim()) return;
     setBusy(true);
     setError("");
     try {
-      const updated = await listFundingIntents(operatorToken, form.budgetId.trim());
+      const updated = await listFundingIntents(form.budgetId.trim());
       setIntents(updated);
       setActiveIntent((current) => updated.find((item) => item.id === current?.id) ?? current);
       await refreshHeadroom();
@@ -75,13 +128,13 @@ export function FundPage() {
   }
 
   useEffect(() => {
-    if (!operatorToken || !form.budgetId.trim() || !activeIntent || !isFundingIntentPending(activeIntent.state)) return;
+    if (!operatorSession.authenticated || !form.budgetId.trim() || !activeIntent || !isFundingIntentPending(activeIntent.state)) return;
 
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const poll = async () => {
       try {
-        const updated = await listFundingIntents(operatorToken, form.budgetId.trim());
+        const updated = await listFundingIntents(form.budgetId.trim());
         if (stopped) return;
         setIntents(updated);
         const latest = updated.find((item) => item.id === activeIntent.id);
@@ -98,10 +151,10 @@ export function FundPage() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [activeIntent, form.budgetId, operatorToken, refreshHeadroom]);
+  }, [activeIntent, form.budgetId, operatorSession.authenticated, refreshHeadroom]);
 
   useEffect(() => {
-    if (!quote || quote.executionMode !== "local-fork" || !withdrawal || withdrawal.state !== "pending_approval" || !operatorToken || !agentIdentityToken) return;
+    if (!operatorSession.authenticated || !quote || quote.executionMode !== "local-fork" || !withdrawal || withdrawal.state !== "pending_approval") return;
     const idempotencyKey = withdrawalIdempotencyKeys.current.get(quote.id);
     if (!idempotencyKey) return;
 
@@ -114,7 +167,7 @@ export function FundPage() {
       try {
         // Replaying the original local-fork request is idempotent. Once its
         // explicit approval is resolved, Treasury returns the settled result.
-        const latest = await executeWithdrawal(operatorToken, agentIdentityToken, quote.id, idempotencyKey);
+        const latest = await executeWithdrawal(quote.id, idempotencyKey);
         if (stopped) return;
         setWithdrawal(latest);
         if (latest.state === "settled") {
@@ -139,7 +192,69 @@ export function FundPage() {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [agentIdentityToken, operatorToken, quote?.executionMode, quote?.id, t, withdrawal?.id, withdrawal?.state]);
+  }, [operatorSession.authenticated, quote?.executionMode, quote?.id, t, withdrawal?.id, withdrawal?.state]);
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (mfaChallenge && !mfaCode.trim() && !recoveryCode.trim()) {
+      setError(t(strings.fund.mfaRequired));
+      return;
+    }
+    setSessionBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const result = await signInOperator({
+        email: loginEmail.trim(),
+        password: loginPassword,
+        mfaChallenge,
+        totpCode: mfaCode.trim(),
+        recoveryCode: recoveryCode.trim(),
+      });
+      if (result.mfa_required && result.mfa_challenge) {
+        setMfaChallenge(result.mfa_challenge);
+        setLoginPassword("");
+        setMfaCode("");
+        setRecoveryCode("");
+        setNotice(t(strings.fund.mfaPrompt));
+        return;
+      }
+      if (!result.authenticated) throw new Error(t(strings.fund.sessionError));
+      const session = await getOperatorSession();
+      if (!session.authenticated) throw new Error(t(strings.fund.sessionError));
+      setOperatorSession(session);
+      setLoginPassword("");
+      setMfaChallenge("");
+      setMfaCode("");
+      setRecoveryCode("");
+      setNotice(t(strings.fund.sessionSignedIn, { subject: session.subject || loginEmail.trim() }));
+    } catch (reason) {
+      setError(errorText(reason, t(strings.fund.sessionError)));
+    } finally {
+      setSessionBusy(false);
+    }
+  }
+
+  async function signOut() {
+    setSessionBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      await signOutOperator();
+      setOperatorSession({ authenticated: false });
+      setLedgerDestination(undefined);
+      setIntents([]);
+      setActiveIntent(undefined);
+      setHeadroom(undefined);
+      setQuote(undefined);
+      setWithdrawal(undefined);
+      setNotice(t(strings.fund.sessionSignedOut));
+    } catch (reason) {
+      setError(errorText(reason, t(strings.fund.requestError)));
+    } finally {
+      setSessionBusy(false);
+    }
+  }
 
   async function createIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -147,12 +262,10 @@ export function FundPage() {
     setError("");
     setNotice("");
     try {
-      const created = await createFundingIntent(operatorToken, {
+      const created = await createFundingIntent({
         budgetId: form.budgetId.trim(),
         atomicAmount: toUSDCAtoms(form.amount, t(strings.fund.amountError)),
         valueMinor: toMinorUnits(form.value, t(strings.fund.valueError)),
-        ledgerBookId: form.bookId.trim(),
-        ledgerAccountId: form.accountId.trim(),
       });
       setActiveIntent(created);
       setTransactionHash("");
@@ -172,12 +285,50 @@ export function FundPage() {
     setError("");
     setNotice("");
     try {
-      const updated = await confirmFundingTransfer(operatorToken, activeIntent.id, transactionHash.trim());
+      const updated = await confirmFundingTransfer(activeIntent.id, transactionHash.trim());
       setActiveIntent(updated);
       setNotice(updated.receiptDeliveryId
         ? t(strings.fund.acceptedNotice, { id: updated.receiptDeliveryId })
         : t(strings.fund.confirmedNotice, { state: updated.state }));
       await refreshIntents();
+    } catch (reason) {
+      setError(errorText(reason, t(strings.fund.requestError)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function payWithCoinbaseWallet() {
+    const intent = activeIntent;
+    const payDetails = intent && basePayDetails(intent);
+    if (!intent || !payDetails) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const { pay, getPaymentStatus } = await import("@base-org/account");
+      const payment = await pay({ amount: payDetails.amount, to: payDetails.address, testnet: false });
+      if (!/^0x[0-9a-f]{64}$/i.test(payment.id)) throw new Error(t(strings.fund.requestError));
+      setTransactionHash(payment.id);
+
+      // Wallet status is only a progress hint. Treasury's configured Base RPC
+      // remains the authority that verifies exact amount, recipient and finality.
+      const status = await getPaymentStatus({ id: payment.id, testnet: false });
+      if (status.status !== "completed") {
+        setNotice(t(strings.fund.basePayPending, { status: status.status, hash: payment.id }));
+        return;
+      }
+      if (status.amount !== payDetails.amount || status.recipient?.toLowerCase() !== payDetails.address.toLowerCase()) {
+        setError(t(strings.fund.basePayMismatch, { hash: payment.id }));
+        return;
+      }
+
+      const updated = await confirmFundingTransfer(intent.id, payment.id);
+      setActiveIntent(updated);
+      setNotice(updated.receiptDeliveryId
+        ? t(strings.fund.acceptedNotice, { id: updated.receiptDeliveryId })
+        : t(strings.fund.confirmedNotice, { state: updated.state }));
+      await refreshHeadroom();
     } catch (reason) {
       setError(errorText(reason, t(strings.fund.requestError)));
     } finally {
@@ -191,7 +342,7 @@ export function FundPage() {
     setError("");
     setWithdrawal(undefined);
     try {
-      const next = await previewWithdrawal(operatorToken, {
+      const next = await previewWithdrawal({
         budgetId: form.budgetId.trim(),
         mandateId: mandateId.trim(),
         destination: destination.trim(),
@@ -219,7 +370,7 @@ export function FundPage() {
         idempotencyKey = crypto.randomUUID();
         withdrawalIdempotencyKeys.current.set(quote.id, idempotencyKey);
       }
-      const result = await executeWithdrawal(operatorToken, agentIdentityToken, quote.id, idempotencyKey);
+      const result = await executeWithdrawal(quote.id, idempotencyKey);
       setWithdrawal(result);
       setNotice(t(strings.fund.withdrawNotice, { state: result.state }));
     } catch (reason) {
@@ -255,13 +406,55 @@ export function FundPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>{t(strings.fund.sessionTitle)}</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>{t(strings.fund.onrampTitle)}</CardTitle>
+          <p className="text-sm text-app-muted-foreground">{t(strings.fund.onrampIntro)}</p>
+        </CardHeader>
+        <CardContent className="grid gap-3 text-sm">
+          <p>{t(strings.fund.onrampBuy)}</p>
+          <p>{t(strings.fund.onrampTransfer)}</p>
+          <p>{t(strings.fund.onrampGas)}</p>
+          <p className="rounded-control border border-app-warning/40 bg-app-warning/10 p-3">{t(strings.fund.onrampSafety)}</p>
+          <div className="flex flex-wrap gap-3">
+            <a href="https://help.coinbase.com/en/wallet/managing-account/payment-method" target="_blank" rel="noreferrer" className="font-medium text-app-primary underline">{t(strings.fund.onrampBuyHelp)}</a>
+            <a href="https://help.coinbase.com/en/wallet/managing-account/usdc-coinbase-wallet" target="_blank" rel="noreferrer" className="font-medium text-app-primary underline">{t(strings.fund.onrampUSDCFeesHelp)}</a>
+            <a href="https://help.coinbase.com/en/wallet/sending-and-receiving/how-do-i-move-assets-between-my-coinbase-wallet-and-my-coinbase" target="_blank" rel="noreferrer" className="font-medium text-app-primary underline">{t(strings.fund.onrampTransferHelp)}</a>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card data-testid={selectors.funding.sessionPanel}>
+        <CardHeader>
+          <CardTitle>{t(strings.fund.sessionTitle)}</CardTitle>
+          <p className="text-sm text-app-muted-foreground">{t(strings.fund.sessionHelp)}</p>
+        </CardHeader>
+        <CardContent>
+          {sessionLoading ? <p role="status">{t(strings.fund.sessionLoading)}</p>
+            : operatorSession.authenticated ? <div className="flex flex-wrap items-center justify-between gap-3">
+              <p data-testid={selectors.funding.sessionIdentity} role="status">{t(strings.fund.sessionSignedIn, { subject: operatorSession.subject || "" })}</p>
+              <Button data-testid={selectors.funding.signOutButton} type="button" variant="secondary" disabled={sessionBusy} onClick={() => void signOut()}>{t(strings.fund.signOut)}</Button>
+            </div>
+              : <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void signIn(event)}>
+                <Field testId={selectors.funding.sessionEmail} label={t(strings.fund.sessionEmail)} value={loginEmail} type="email" onChange={setLoginEmail} autoComplete="email" required disabled={sessionBusy} />
+                {!mfaChallenge && <Field testId={selectors.funding.sessionPassword} label={t(strings.fund.sessionPassword)} value={loginPassword} type="password" onChange={setLoginPassword} autoComplete="current-password" required disabled={sessionBusy} />}
+                {mfaChallenge && <>
+                  <Field testId={selectors.funding.sessionMfaCode} label={t(strings.fund.mfaCode)} value={mfaCode} onChange={setMfaCode} inputMode="numeric" autoComplete="one-time-code" disabled={sessionBusy} />
+                  <Field testId={selectors.funding.sessionRecoveryCode} label={t(strings.fund.recoveryCode)} value={recoveryCode} onChange={setRecoveryCode} autoComplete="off" disabled={sessionBusy} />
+                </>}
+                <div className="flex flex-wrap gap-3 sm:col-span-2">
+                  <Button data-testid={selectors.funding.signInButton} type="submit" disabled={sessionBusy || !loginEmail.trim() || (!mfaChallenge && !loginPassword)}>{sessionBusy ? t(strings.fund.signingIn) : t(mfaChallenge ? strings.fund.verifyMfa : strings.fund.signIn)}</Button>
+                  {mfaChallenge && <Button type="button" variant="secondary" disabled={sessionBusy} onClick={() => { setMfaChallenge(""); setMfaCode(""); setRecoveryCode(""); setError(""); setNotice(""); }}>{t(strings.fund.cancelMfa)}</Button>}
+                </div>
+              </form>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle>{t(strings.fund.budgetTitle)}</CardTitle><p className="text-sm text-app-muted-foreground">{t(strings.fund.budgetHelp)}</p></CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
-          <Field testId={selectors.funding.operatorToken} label={t(strings.fund.operatorToken)} value={operatorToken} type="password" onChange={setOperatorToken} autoComplete="current-password" />
-          <Field testId={selectors.funding.agentToken} label={t(strings.fund.agentToken)} value={agentIdentityToken} type="password" onChange={setAgentIdentityToken} autoComplete="off" />
-          <Field testId={selectors.funding.budgetId} label={t(strings.fund.budgetId)} value={form.budgetId} onChange={(value) => setForm({ ...form, budgetId: value })} />
+          <Field testId={selectors.funding.budgetId} label={t(strings.fund.budgetId)} value={form.budgetId} onChange={(value) => setForm({ ...form, budgetId: value })} disabled={!operatorSession.authenticated} />
           <div className="sm:col-span-2 flex justify-end">
-            <Button data-testid={selectors.funding.refreshButton} type="button" variant="secondary" disabled={busy || !operatorToken || !form.budgetId.trim()} onClick={() => void refreshIntents()}>
+            <Button data-testid={selectors.funding.refreshButton} type="button" variant="secondary" disabled={busy || !operatorSession.authenticated || !form.budgetId.trim()} onClick={() => void refreshIntents()}>
               <RefreshCw aria-hidden="true" className="size-4" /> {t(strings.fund.refresh)}
             </Button>
           </div>
@@ -288,9 +481,13 @@ export function FundPage() {
             <form className="grid gap-4" onSubmit={(event) => void createIntent(event)}>
               <Field testId={selectors.funding.atomicAmount} label={t(strings.fund.tokenAmount)} value={form.amount} onChange={(value) => setForm({ ...form, amount: value })} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,6})?" required />
               <Field testId={selectors.funding.declaredValue} label={t(strings.fund.declaredValue)} value={form.value} onChange={(value) => setForm({ ...form, value })} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
-              <Field testId={selectors.funding.ledgerBookId} label={t(strings.fund.ledgerBookId)} value={form.bookId} onChange={(value) => setForm({ ...form, bookId: value })} required />
-              <Field testId={selectors.funding.ledgerAccountId} label={t(strings.fund.ledgerAccountId)} value={form.accountId} onChange={(value) => setForm({ ...form, accountId: value })} required />
-              <Button data-testid={selectors.funding.createIntentButton} type="submit" disabled={busy || !operatorToken || !form.budgetId.trim()}>{t(strings.fund.createLink)}</Button>
+              <div data-testid="funding-ledger-destination" className="sm:col-span-2 rounded-control border border-app-border p-3 text-sm" role={ledgerDestinationError ? "alert" : "status"}>
+                <span className="font-medium">{t(strings.fund.ledgerDestinationLabel)}: </span>
+                {ledgerDestination
+                  ? `${ledgerDestination.bookName} · ${ledgerDestination.accountName} (${ledgerDestination.currency || "USD"})`
+                  : ledgerDestinationError || t(operatorSession.authenticated ? strings.fund.ledgerDestinationLoading : strings.fund.ledgerDestinationConnect)}
+              </div>
+            <Button data-testid={selectors.funding.createIntentButton} type="submit" disabled={busy || !operatorSession.authenticated || !ledgerDestination || !form.budgetId.trim()}>{t(strings.fund.createLink)}</Button>
             </form>
           </CardContent>
         </Card>
@@ -300,7 +497,6 @@ export function FundPage() {
           <CardContent className="grid gap-4">
             {activeIntent ? <div className="rounded-control border border-app-border p-3 text-sm">
               <dl className="grid gap-2 sm:grid-cols-2">
-                <Detail label={t(strings.fund.intent)} value={activeIntent.id} />
                 <Detail testId={selectors.funding.activeIntentState} liveRegion label={t(strings.fund.state)} value={activeIntent.state} />
                 <Detail label={t(strings.fund.tokenAmount)} value={formatAtomicUSDC(activeIntent.atomicAmount)} />
                 <Detail testId={selectors.funding.notificationState} liveRegion label={t(strings.fund.notification)} value={activeIntent.notificationState || t(strings.fund.notAvailable)} />
@@ -311,8 +507,12 @@ export function FundPage() {
                   <figcaption className="max-w-56 text-center text-xs text-app-muted-foreground">{t(strings.fund.paymentQrHelp)}</figcaption>
                 </figure>
                 <div className="grid min-w-0 gap-2">
-                  <label htmlFor="funding-payment-uri" className="font-medium">{t(strings.fund.paymentLink)}</label>
-                  <textarea id="funding-payment-uri" data-testid={selectors.funding.paymentUri} readOnly value={activeIntent.paymentUri} className="min-h-20 w-full break-all rounded-control border border-app-border bg-app-card p-3 font-mono text-xs" />
+                  <p className="font-medium">{t(strings.fund.paymentLink)}</p>
+                  <p data-testid={selectors.funding.paymentUri} className="text-sm text-app-muted-foreground">{t(strings.fund.paymentLinkHelp)}</p>
+                  {basePayDetails(activeIntent) && <div className="grid gap-2 rounded-control border border-app-border p-3">
+                    <p className="text-sm text-app-muted-foreground">{t(strings.fund.basePayHelp)}</p>
+                    <Button data-testid={selectors.funding.basePayButton} type="button" disabled={busy || !operatorSession.authenticated} onClick={() => void payWithCoinbaseWallet()}>{t(strings.fund.basePayButton)}</Button>
+                  </div>}
                   <div className="flex flex-wrap gap-2">
                     <Button data-testid={selectors.funding.copyLinkButton} type="button" variant="secondary" onClick={() => void copyPaymentUri()}><Clipboard aria-hidden="true" className="size-4" /> {t(strings.fund.copyLink)}</Button>
                     {activeIntent.paymentUri.startsWith("ethereum:") && <a data-testid={selectors.funding.openWalletLink} href={activeIntent.paymentUri} className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border px-3 text-sm font-medium text-app-foreground hover:bg-app-muted"><ExternalLink aria-hidden="true" className="size-4" /> {t(strings.fund.openWallet)}</a>}
@@ -321,11 +521,11 @@ export function FundPage() {
               </div>}
               <form className="mt-4 grid gap-3 border-t border-app-border pt-4" onSubmit={(event) => void confirmTransfer(event)}>
                 <Field testId={selectors.funding.transactionHash} label={t(strings.fund.transactionHash)} value={transactionHash} onChange={setTransactionHash} required />
-                <Button data-testid={selectors.funding.confirmTransferButton} type="submit" variant="secondary" disabled={busy || !operatorToken}>{t(strings.fund.confirmAllocate)}</Button>
+                <Button data-testid={selectors.funding.confirmTransferButton} type="submit" variant="secondary" disabled={busy || !operatorSession.authenticated}>{t(strings.fund.confirmAllocate)}</Button>
                 <p className="text-xs text-app-muted-foreground">{t(strings.fund.confirmationHelp)}</p>
               </form>
             </div> : <p className="rounded-control border border-dashed border-app-border p-5 text-sm text-app-muted-foreground">{t(strings.fund.emptyIntent)}</p>}
-            {intents.length > 0 && <div><h3 className="mb-2 font-semibold">{t(strings.fund.recentIntents)}</h3><ul className="grid gap-2">{intents.map((item) => <li key={item.id}><button data-testid={selectors.funding.recentIntent} type="button" className="w-full rounded-control border border-app-border p-3 text-start hover:bg-app-muted" onClick={() => setActiveIntent(item)}><span className="block truncate font-mono text-xs">{item.id}</span><span className="mt-1 block text-sm">{t(strings.fund.atomicUnits, { state: item.state, amount: formatAtomicUSDC(item.atomicAmount) })}</span></button></li>)}</ul></div>}
+            {intents.length > 0 && <div><h3 className="mb-2 font-semibold">{t(strings.fund.recentIntents)}</h3><ul className="grid gap-2">{intents.map((item) => <li key={item.id}><button data-testid={selectors.funding.recentIntent} type="button" className="w-full rounded-control border border-app-border p-3 text-start hover:bg-app-muted" onClick={() => setActiveIntent(item)}><span className="block text-sm">{t(strings.fund.atomicUnits, { state: item.state, amount: formatAtomicUSDC(item.atomicAmount) })}</span></button></li>)}</ul></div>}
           </CardContent>
         </Card>
       </div>
@@ -340,7 +540,7 @@ export function FundPage() {
             <Field testId={selectors.funding.withdrawalValue} label={t(strings.fund.declaredValue)} value={withdrawalValue} onChange={setWithdrawalValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
             <Field testId={selectors.funding.withdrawalMaxFee} label={t(strings.fund.maxFee)} value={feeWei} onChange={setFeeWei} inputMode="numeric" pattern="[0-9]+" required />
             <Field testId={selectors.funding.withdrawalFeeValue} label={t(strings.fund.feeValue)} value={feeValue} onChange={setFeeValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
-            <div className="sm:col-span-2"><Button data-testid={selectors.funding.withdrawalPreviewButton} type="submit" variant="secondary" disabled={busy || !operatorToken || !form.budgetId.trim() || !mandateId.trim()}>{t(strings.fund.preview)}</Button></div>
+            <div className="sm:col-span-2"><Button data-testid={selectors.funding.withdrawalPreviewButton} type="submit" variant="secondary" disabled={busy || !operatorSession.authenticated || !form.budgetId.trim() || !mandateId.trim()}>{t(strings.fund.preview)}</Button></div>
           </form>
           {quote && <div className="mt-5 rounded-control border border-app-border p-4">
             <h3 className="font-semibold">{t(strings.fund.quote)}</h3>
@@ -353,7 +553,7 @@ export function FundPage() {
               <Detail label={t(strings.fund.estimatedTime)} value={formatDuration(quote.estimatedSeconds)} />
               <Detail label={t(strings.fund.quoteExpires)} value={formatTimestamp(quote.expiresAt?.seconds)} />
             </dl>
-            <Button data-testid={selectors.funding.withdrawalExecuteButton} type="button" className="mt-4" variant="danger" disabled={busy || !agentIdentityToken || quote.executionMode !== "local-fork" || withdrawal?.state === "pending_approval"} onClick={() => void runWithdrawal()}>
+            <Button data-testid={selectors.funding.withdrawalExecuteButton} type="button" className="mt-4" variant="danger" disabled={busy || !operatorSession.authenticated || quote.executionMode !== "local-fork" || withdrawal?.state === "pending_approval"} onClick={() => void runWithdrawal()}>
               {quote.executionMode === "local-fork" ? t(strings.fund.executeFork) : t(strings.fund.executeDisabled)}
             </Button>
             {withdrawal && <p data-testid={selectors.funding.withdrawalStatus} role="status" className="mt-3 text-sm">{t(strings.fund.withdrawalStatus, { id: withdrawal.id, state: withdrawal.state })}{withdrawal.transactionHash ? ` · ${withdrawal.transactionHash}` : ""}</p>}
@@ -366,7 +566,7 @@ export function FundPage() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", testId, ...props }: { label: string; value: string; onChange: (value: string) => void; type?: string; testId?: string; autoComplete?: string; inputMode?: "text" | "numeric" | "decimal"; pattern?: string; required?: boolean }) {
+function Field({ label, value, onChange, type = "text", testId, ...props }: { label: string; value: string; onChange: (value: string) => void; type?: string; testId?: string; autoComplete?: string; inputMode?: "text" | "numeric" | "decimal"; pattern?: string; required?: boolean; disabled?: boolean }) {
   const id = useId();
   return <div className="grid min-w-0 gap-2"><label htmlFor={id} className="text-sm font-medium">{label}</label><Input id={id} data-testid={testId} type={type} value={value} onChange={(event) => onChange(event.target.value)} {...props} /></div>;
 }
@@ -427,4 +627,24 @@ function formatDuration(seconds: number): string {
 
 function isFundingIntentPending(state: string): boolean {
   return state === "waiting" || state === "observed" || state === "delivering" || state === "awaiting_transfer";
+}
+
+function basePayDetails(intent: FundingIntent): { amount: string; address: string } | undefined {
+  if (intent.fundingMode !== "base-mainnet" || intent.paymentCurrency.toUpperCase() !== "USD" || !isFundingIntentPending(intent.state)) return undefined;
+  const address = intent.wallet?.address ?? "";
+  if (!/^0x[0-9a-f]{40}$/i.test(address) || !/^\d+$/.test(intent.atomicAmount)) return undefined;
+  let valueMinor: bigint;
+  let atomicAmount: bigint;
+  try {
+    valueMinor = BigInt(intent.paymentValueMinor);
+    atomicAmount = BigInt(intent.atomicAmount);
+  } catch {
+    return undefined;
+  }
+  if (valueMinor <= 0n || atomicAmount !== valueMinor * 10_000n) return undefined;
+  return { amount: formatUSDMinorForPayment(valueMinor), address };
+}
+
+function formatUSDMinorForPayment(valueMinor: bigint): string {
+  return `${valueMinor / 100n}.${(valueMinor % 100n).toString().padStart(2, "0")}`;
 }

@@ -153,17 +153,7 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 	defer unlock()
 	var verifiedClaims identity.Claims
 	if !operator {
-		var claims identity.Claims
-		var err error
-		if strings.TrimSpace(in.OperationToken) != "" {
-			pairVerifier, ok := s.verifier.(identity.PairVerifier)
-			if !ok {
-				return Record{}, fmt.Errorf("%w: paired operation verification is unavailable", ErrInvalid)
-			}
-			claims, err = pairVerifier.VerifyPair(ctx, strings.TrimSpace(in.IdentityToken), strings.TrimSpace(in.OperationToken))
-		} else {
-			claims, err = s.verifier.Verify(ctx, strings.TrimSpace(in.IdentityToken))
-		}
+		claims, err := identity.VerifySpendIdentity(ctx, s.verifier, in.IdentityToken, in.OperationToken)
 		if err != nil {
 			return Record{}, fmt.Errorf("%w: live agent identity verification failed: %v", ErrInvalid, err)
 		}

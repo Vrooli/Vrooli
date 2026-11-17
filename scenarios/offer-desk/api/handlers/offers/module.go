@@ -35,12 +35,7 @@ type Service struct {
 	store               *catalog.Store
 	logger              *log.Logger
 	clock               schedule.Clock
-	journal             ledgerconnect.JournalServiceClient
-	position            ledgerconnect.PositionServiceClient
 	bookID              string
-	bookName            string
-	books               ledgerconnect.BooksServiceClient
-	goals               swarmconnect.GoalServiceClient
 	interval            time.Duration
 	storefrontReadiness *readinessreporter.Reporter
 	pricingReadiness    *readinessreporter.Reporter
@@ -48,7 +43,9 @@ type Service struct {
 	// resolveLedgerURL locates Money Ledger. The board calls it per request
 	// so starting Money Ledger after Offer Desk needs no restart; nil means no
 	// ledger is wired and actuals are reported unavailable.
-	resolveLedgerURL func(context.Context) (string, error)
+	resolveLedgerURL   func(context.Context) (string, error)
+	resolveGoalsURL    func(context.Context) (string, error)
+	resolveTreasuryURL func(context.Context) (string, error)
 }
 
 func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock) *Service {
@@ -56,16 +53,12 @@ func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock)
 		clock = schedule.System()
 	}
 	s := &Service{store: catalog.NewStore(db, clock.Now), logger: logger, clock: clock, bookID: os.Getenv("MONEY_LEDGER_BOOK_ID")}
-	if readinessBase, err := discovery.ResolveScenarioURLDefault(context.Background(), "deployment-manager"); err == nil && readinessBase != "" {
-		s.store.SetReadinessProvider(deploymentReadinessProvider(&http.Client{Timeout: 700 * time.Millisecond}, readinessBase))
-	}
 	s.resolveLedgerURL = resolveMoneyLedgerURL
-	if base, err := s.resolveLedgerURL(context.Background()); err == nil && base != "" {
-		s.useLedger(base)
+	s.resolveTreasuryURL = paidTreasuryURL
+	s.resolveGoalsURL = func(ctx context.Context) (string, error) {
+		return discovery.ResolveScenarioURLDefault(ctx, "swarm-manager")
 	}
-	if swarmBase, err := discovery.ResolveScenarioURLDefault(context.Background(), "swarm-manager"); err == nil && swarmBase != "" {
-		s.goals = swarmconnect.NewGoalServiceClient(&http.Client{Timeout: 700 * time.Millisecond}, swarmBase)
-	}
+	s.store.SetReadinessProvider(deploymentReadinessProvider(&http.Client{Timeout: 700 * time.Millisecond}, resolveDeploymentManagerURL))
 	return s
 }
 
@@ -79,15 +72,24 @@ func resolveMoneyLedgerURL(ctx context.Context) (string, error) {
 	return discovery.ResolveScenarioURLDefault(ctx, "money-ledger")
 }
 
-func (s *Service) useLedger(base string) {
+func ledgerClients(base string) (ledgerconnect.JournalServiceClient, ledgerconnect.PositionServiceClient, ledgerconnect.BooksServiceClient) {
 	hc := &http.Client{Timeout: 700 * time.Millisecond}
-	s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
-	s.position = ledgerconnect.NewPositionServiceClient(hc, base)
-	s.books = ledgerconnect.NewBooksServiceClient(hc, base)
+	base = strings.TrimRight(base, "/")
+	return ledgerconnect.NewJournalServiceClient(hc, base), ledgerconnect.NewPositionServiceClient(hc, base), ledgerconnect.NewBooksServiceClient(hc, base)
 }
 
-func deploymentReadinessProvider(client *http.Client, baseURL string) catalog.ReadinessProvider {
+func deploymentReadinessProvider(client *http.Client, resolve func(context.Context) (string, error)) catalog.ReadinessProvider {
 	return func(ctx context.Context, node *offerspb.Node) (catalog.ReadinessState, error) {
+		if resolve == nil {
+			return catalog.ReadinessState{}, fmt.Errorf("deployment-manager resolver is not configured")
+		}
+		baseURL, err := resolve(ctx)
+		if err != nil {
+			return catalog.ReadinessState{}, fmt.Errorf("resolve deployment-manager: %w", err)
+		}
+		if strings.TrimSpace(baseURL) == "" {
+			return catalog.ReadinessState{}, fmt.Errorf("deployment-manager returned an empty URL")
+		}
 		request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/readiness/state?scenario="+url.QueryEscape(node.GetName()), nil)
 		if err != nil {
 			return catalog.ReadinessState{}, err
@@ -333,11 +335,21 @@ func (s *Service) observedAt() *timestamppb.Timestamp {
 }
 
 func (s *Service) attachGoalImpacts(ctx context.Context, ladder *offerspb.ReleaseLadderResponse) {
-	if s.goals == nil {
+	if s.resolveGoalsURL == nil {
 		ladder.Availability = append(ladder.Availability, &offerspb.Availability{Source: "swarm-manager.goals", Reason: "goal source unavailable: scenario could not be resolved"})
 		return
 	}
-	response, err := s.goals.ListGoals(ctx, connect.NewRequest(&swarmapipb.ListGoalsRequest{}))
+	base, err := s.resolveGoalsURL(ctx)
+	if err != nil || strings.TrimSpace(base) == "" {
+		reason := "scenario could not be resolved"
+		if err != nil {
+			reason = err.Error()
+		}
+		ladder.Availability = append(ladder.Availability, &offerspb.Availability{Source: "swarm-manager.goals", Reason: "goal source unavailable: " + reason})
+		return
+	}
+	goals := swarmconnect.NewGoalServiceClient(&http.Client{Timeout: 700 * time.Millisecond}, strings.TrimRight(base, "/"))
+	response, err := goals.ListGoals(ctx, connect.NewRequest(&swarmapipb.ListGoalsRequest{}))
 	if err != nil {
 		ladder.Availability = append(ladder.Availability, &offerspb.Availability{Source: "swarm-manager.goals", Reason: err.Error()})
 		return
@@ -552,42 +564,46 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 	}
 	out := make([]*offerspb.BoardEntry, 0, len(nodes))
 	response := &offerspb.BoardResponse{Entries: out, Evaluation: &offerspb.EvaluationCondition{LastResult: offerspb.EvaluationResult_EVALUATION_NOT_RUN, Degraded: true, Reason: "evaluation has not run"}}
+	var journal ledgerconnect.JournalServiceClient
+	var positionClient ledgerconnect.PositionServiceClient
+	var booksClient ledgerconnect.BooksServiceClient
 	if s.resolveLedgerURL != nil {
 		if base, err := s.resolveLedgerURL(ctx); err == nil && base != "" {
-			s.useLedger(base)
+			journal, positionClient, booksClient = ledgerClients(base)
 		}
 	}
-	if s.position == nil {
+	if positionClient == nil {
 		response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: declared money-ledger dependency could not be resolved"})
 	} else {
-		if s.books != nil {
-			books, bookErr := s.books.ListBooks(ctx, connect.NewRequest(&ledgerpb.ListBooksRequest{}))
+		bookID, bookName := s.bookID, ""
+		if booksClient != nil {
+			books, bookErr := booksClient.ListBooks(ctx, connect.NewRequest(&ledgerpb.ListBooksRequest{}))
 			if bookErr == nil {
-				if s.bookID == "" && len(books.Msg.Books) > 0 {
-					s.bookID = books.Msg.Books[0].Id
+				if bookID == "" && len(books.Msg.Books) > 0 {
+					bookID = books.Msg.Books[0].Id
 				}
 				for _, book := range books.Msg.Books {
-					if book.Id == s.bookID {
-						s.bookName = book.Name
+					if book.Id == bookID {
+						bookName = book.Name
 						break
 					}
 				}
 			}
 		}
-		if s.bookID == "" {
+		if bookID == "" {
 			response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: no ledger book is configured or available"})
 		}
-		if s.bookID != "" {
+		if bookID != "" {
 			deadline, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
 			defer cancel()
-			position, err := s.position.GetPosition(deadline, connect.NewRequest(&ledgerpb.PositionRequest{BookId: s.bookID}))
+			position, err := positionClient.GetPosition(deadline, connect.NewRequest(&ledgerpb.PositionRequest{BookId: bookID}))
 			if err != nil {
 				response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger.position", Reason: err.Error()})
 			} else {
 				response.Position = position.Msg
 				response.PostureSource = "money-ledger.position"
-				if s.bookName != "" {
-					response.PostureSource += ": " + s.bookName
+				if bookName != "" {
+					response.PostureSource += ": " + bookName
 				}
 				for _, input := range position.Msg.Inputs {
 					if input.AgeSeconds > response.PostureAgeSeconds {
@@ -595,7 +611,7 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 					}
 				}
 				buffer, bufferAvailable := 0.0, false
-				goals, goalErr := s.position.ListGoals(deadline, connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: s.bookID}))
+				goals, goalErr := positionClient.ListGoals(deadline, connect.NewRequest(&ledgerpb.ListGoalsRequest{BookId: bookID}))
 				if goalErr != nil {
 					response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger.goals", Reason: goalErr.Error()})
 				} else {
@@ -620,9 +636,9 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 	for _, n := range nodes {
 		entry := &offerspb.BoardEntry{NodeId: n.Id, Title: n.Name, Status: n.Status}
 		actualsSource := "money-ledger.actuals"
-		if s.journal != nil && n.ActualAccountId != "" {
+		if journal != nil && n.ActualAccountId != "" {
 			deadline, cancel := context.WithTimeout(ctx, 700*time.Millisecond)
-			postings, err := s.journal.ListPostings(deadline, connect.NewRequest(&ledgerpb.ListPostingsRequest{AccountId: n.ActualAccountId, Limit: 500}))
+			postings, err := journal.ListPostings(deadline, connect.NewRequest(&ledgerpb.ListPostingsRequest{AccountId: n.ActualAccountId, Limit: 500}))
 			cancel()
 			if err != nil {
 				entry.Availability = append(entry.Availability, &offerspb.Availability{Source: "money-ledger.actuals", Reason: err.Error()})

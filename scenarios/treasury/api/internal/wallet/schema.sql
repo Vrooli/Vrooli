@@ -12,3 +12,20 @@ CREATE TABLE IF NOT EXISTS research_wallets (
     recovery_status TEXT NOT NULL DEFAULT 'not_qualified',
     recovery_sha256 TEXT NOT NULL DEFAULT ''
 );
+
+-- Revocation is separate from the immutable wallet row so existing Treasury
+-- databases can gain durable key lifecycle state without rewriting custody
+-- bindings or weakening their mint witnesses.
+CREATE TABLE IF NOT EXISTS research_wallet_revocations (
+    wallet_id TEXT PRIMARY KEY REFERENCES research_wallets(id),
+    revoked_at TEXT NOT NULL,
+    successor_wallet_id TEXT NOT NULL UNIQUE REFERENCES research_wallets(id)
+);
+
+-- An intent serializes concurrent rotation requests and makes retries after a
+-- process restart converge on the same fresh successor ID.
+CREATE TABLE IF NOT EXISTS research_wallet_rotation_intents (
+    wallet_id TEXT PRIMARY KEY REFERENCES research_wallets(id),
+    successor_wallet_id TEXT NOT NULL UNIQUE,
+    started_at TEXT NOT NULL
+);

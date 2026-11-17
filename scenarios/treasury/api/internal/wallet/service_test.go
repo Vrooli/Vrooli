@@ -110,6 +110,82 @@ func TestWalletCreateIdempotentAndScopeBound(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestRootWalletRotationPersistsRevocationAndRemovesOldCredential(t *testing.T) {
+	s, authority, in := setup(t)
+	ctx := context.Background()
+	old, err := s.Create(ctx, in)
+	require.NoError(t, err)
+	oldIdentity, err := ca.ParseIdentity(old.CustodyReference)
+	require.NoError(t, err)
+	receiptSigner, receiptVerifier := testRotationReceiptSigner(t, authority)
+	s.WithRotationReceiptVerifier(receiptVerifier)
+
+	next, _ := prepareAndCommitRotationFixture(t, ctx, s, old, "wallet-test-successor")
+	require.NotEqual(t, old.Address, next.Address)
+	require.False(t, authority.Status(oldIdentity, keyField).Configured, "old scalar must be removed from the credential authority")
+	proof, err := s.Prove(ctx, next.ID, next.Network, next.OperatorIdentity, "root_rotation_successor_nonce_20261115")
+	require.NoError(t, err)
+	require.True(t, proof.Verified)
+	_, err = s.Prove(ctx, old.ID, old.Network, old.OperatorIdentity, "root_rotation_revoked_nonce_20261115")
+	require.ErrorIs(t, err, ErrMismatch, "durable wallet revocation must refuse the retired root")
+
+	stored, err := s.repository.Get(ctx, old.ID)
+	require.NoError(t, err)
+	require.NotEmpty(t, stored.RevokedAt)
+	require.Equal(t, next.ID, stored.SuccessorID)
+
+	preparation, err := s.PreparePortableRotation(ctx, old.ID, old.Network, old.OperatorIdentity, next.ID)
+	require.NoError(t, err, "replaying preparation after cleanup is idempotent")
+	require.Equal(t, next.Address, preparation.Successor.Address)
+	receipt := RotationPublicationReceipt{Version: 1, WalletID: old.ID, Network: old.Network, Address: old.Address, SuccessorID: next.ID,
+		DestinationID: "fixture-db", DestinationBackend: "s3", PlanID: "manual", RunID: "retry", TargetName: "treasury-wallet-recovery-" + old.ID,
+		SnapshotID: "snap-retry", LatestSnapshotID: "snap-retry", TombstoneSHA256: preparation.SHA256, RestoredRevocationSHA256: preparation.SHA256,
+		DBMVerifyPassed: true, RestoredTombstoneMatches: true, VerifiedAt: "2026-11-15T12:00:00Z"}
+	receipt = signTestRotationReceipt(t, receiptSigner, receipt)
+	retried, err := s.CommitPortableRotation(ctx, old.ID, old.Network, old.OperatorIdentity, next.ID, receipt)
+	require.NoError(t, err, "replaying the same verified receipt is idempotent")
+	require.Equal(t, next.Address, retried.Address)
+	_, err = s.Rotate(ctx, old.ID, old.Network, old.OperatorIdentity, "other-successor")
+	require.ErrorIs(t, err, ErrUnavailable, "the legacy one-shot rotate method cannot bypass DBM receipt validation")
+}
+
+func TestRootWalletRotationDoesNotStrandBaseMainnetBalance(t *testing.T) {
+	s, authority, in := setup(t)
+	ctx := context.Background()
+	in.ID = "wallet-mainnet-rotation-protected"
+	in.Network = "eip155:8453"
+	old, err := s.Create(ctx, in)
+	require.NoError(t, err)
+	_, err = s.Rotate(ctx, old.ID, old.Network, old.OperatorIdentity, "wallet-mainnet-successor")
+	require.ErrorIs(t, err, ErrUnavailable, "mainnet rotation must wait until a balance-migration path exists")
+	proof, err := s.Prove(ctx, old.ID, old.Network, old.OperatorIdentity, "mainnet_rotation_remains_live_20261115")
+	require.NoError(t, err, "a refused rotation leaves the original root usable")
+	require.True(t, proof.Verified)
+	identity, err := ca.ParseIdentity(old.CustodyReference)
+	require.NoError(t, err)
+	require.True(t, authority.Status(identity, keyField).Configured)
+}
+
+func TestRotationIntentPinsTheSuccessorAcrossInterruptedRetry(t *testing.T) {
+	s, _, in := setup(t)
+	ctx := context.Background()
+	old, err := s.Create(ctx, in)
+	require.NoError(t, err)
+	require.NoError(t, s.repository.WithCustodyLock(ctx, old.ID, func(repository Repository) error {
+		return repository.PrepareRotation(ctx, old.ID, "wallet-retry-successor", s.clock.Now())
+	}))
+
+	_, err = s.PreparePortableRotation(ctx, old.ID, old.Network, old.OperatorIdentity, "wallet-other-successor")
+	require.ErrorIs(t, err, ErrMismatch, "a retry cannot silently choose another root after an interrupted rotation")
+	proof, err := s.Prove(ctx, old.ID, old.Network, old.OperatorIdentity, "rotation_intent_preserves_old_nonce_20261115")
+	require.NoError(t, err, "the intent alone does not revoke the old root")
+	require.True(t, proof.Verified)
+
+	next, err := s.PreparePortableRotation(ctx, old.ID, old.Network, old.OperatorIdentity, "wallet-retry-successor")
+	require.NoError(t, err, "retry with the pinned successor can resume preparation")
+	require.NotEqual(t, old.Address, next.Successor.Address)
+}
+
 func TestWalletControlProofRejectsChangedNetworkMessageAddressAndNonce(t *testing.T) {
 	s, _, in := setup(t)
 	ctx := context.Background()

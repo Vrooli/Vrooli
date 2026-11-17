@@ -38,16 +38,18 @@ type PacketRecord struct {
 // maintenance. Existing sources, claims, and observations cannot be replaced
 // or removed. Edges change only through explicit, history-preserving revisions.
 type RevisionAdditions struct {
-	Summary         string                      `json:"summary,omitempty"`
-	Sources         []chainforensics.Source     `json:"sources,omitempty"`
-	Claims          []chainforensics.Claim      `json:"claims,omitempty"`
-	Occurrences     []chainforensics.Occurrence `json:"occurrences,omitempty"`
-	Edges           []chainforensics.Edge       `json:"edges,omitempty"`
-	EdgeRevisions   []EdgeRevision              `json:"edge_revisions,omitempty"`
-	Gaps            []string                    `json:"gaps,omitempty"`
-	Counterexamples []string                    `json:"counterexamples,omitempty"`
-	Disagreements   []string                    `json:"source_disagreements,omitempty"`
-	ResolvedGaps    []string                    `json:"resolved_gaps,omitempty"`
+	Summary                    string                                     `json:"summary,omitempty"`
+	Sources                    []chainforensics.Source                    `json:"sources,omitempty"`
+	Claims                     []chainforensics.Claim                     `json:"claims,omitempty"`
+	Occurrences                []chainforensics.Occurrence                `json:"occurrences,omitempty"`
+	Edges                      []chainforensics.Edge                      `json:"edges,omitempty"`
+	EdgeRevisions              []EdgeRevision                             `json:"edge_revisions,omitempty"`
+	Gaps                       []string                                   `json:"gaps,omitempty"`
+	Counterexamples            []string                                   `json:"counterexamples,omitempty"`
+	Disagreements              []string                                   `json:"source_disagreements,omitempty"`
+	ResolvedGaps               []string                                   `json:"resolved_gaps,omitempty"`
+	PumpInstructions           []chainforensics.PumpInstruction           `json:"pump_instructions,omitempty"`
+	UnresolvedPumpInstructions []chainforensics.UnresolvedPumpInstruction `json:"unresolved_pump_instructions,omitempty"`
 }
 
 type EdgeRevision struct {

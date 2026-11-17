@@ -2,6 +2,7 @@ package cases
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -14,13 +15,16 @@ import (
 )
 
 type Handler struct {
-	repo           cases.Repository
-	logger         *log.Logger
-	readers        map[forensics.Chain]EVMReader
-	bitcoin        BitcoinReader
-	addressHistory BitcoinAddressReader
-	wallets        map[forensics.Chain]EVMWalletReader
-	solana         SolanaAddressReader
+	repo             cases.Repository
+	logger           *log.Logger
+	readers          map[forensics.Chain]EVMReader
+	bitcoin          BitcoinReader
+	addressHistory   BitcoinAddressReader
+	wallets          map[forensics.Chain]EVMWalletReader
+	solana           SolanaAddressReader
+	solanaSignatures SolanaSignatureReader
+	solanaTx         SolanaTransactionReader
+	solanaTokens     SolanaTokenAccountReader
 }
 
 type EVMReader interface {
@@ -41,6 +45,18 @@ type EVMWalletReader interface {
 
 type SolanaAddressReader interface {
 	FetchAddressPage(context.Context, string, string) (forensics.CapturedSolanaPage, error)
+}
+
+type SolanaSignatureReader interface {
+	FetchAddressSignatures(context.Context, string, string, uint32) (forensics.CapturedSolanaPage, error)
+}
+
+type SolanaTransactionReader interface {
+	FetchTransaction(context.Context, string) (forensics.CapturedSolanaTransaction, error)
+}
+
+type SolanaTokenAccountReader interface {
+	FetchTokenAccountsByOwner(context.Context, string, string) (forensics.CapturedSolanaTokenAccountSnapshot, error)
 }
 
 func NewHandler(repo cases.Repository, logger *log.Logger, readers ...map[forensics.Chain]EVMReader) *Handler {
@@ -70,13 +86,171 @@ func (h *Handler) WithWalletReaders(wallets map[forensics.Chain]EVMWalletReader)
 
 func (h *Handler) WithSolanaReader(reader SolanaAddressReader) *Handler { h.solana = reader; return h }
 
+func (h *Handler) WithSolanaSignatureReader(reader SolanaSignatureReader) *Handler {
+	h.solanaSignatures = reader
+	return h
+}
+
+func (h *Handler) WithSolanaTransactionReader(reader SolanaTransactionReader) *Handler {
+	h.solanaTx = reader
+	return h
+}
+
+func (h *Handler) WithSolanaTokenAccountReader(reader SolanaTokenAccountReader) *Handler {
+	h.solanaTokens = reader
+	return h
+}
+
+func (h *Handler) CaptureSolanaTransaction(ctx context.Context, req *connect.Request[proto.CaptureSolanaTransactionRequest]) (*connect.Response[proto.CaptureSolanaTransactionResponse], error) {
+	if h.solanaTx == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("Solana public transaction reader is unavailable"))
+	}
+	record, err := h.repo.Get(ctx, req.Msg.GetCaseId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	selectionSourceID := req.Msg.GetSelectionSourceId()
+	var selector *forensics.Source
+	if selectionSourceID != "" {
+		for i := range record.Case.Sources {
+			if record.Case.Sources[i].ID == selectionSourceID {
+				selector = &record.Case.Sources[i]
+				break
+			}
+		}
+		if selector == nil || !strings.HasPrefix(selector.Citation, "getSignaturesForAddress(") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("selection_source_id must identify a retained getSignaturesForAddress source in this case"))
+		}
+		var rows []struct {
+			Signature string `json:"signature"`
+		}
+		if err := json.Unmarshal(selector.ResultBody, &rows); err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("selected signature source has invalid retained result body: %w", err))
+		}
+		matched := false
+		for _, row := range rows {
+			if row.Signature == req.Msg.GetSignature() {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("signature is not present in selected retained history source"))
+		}
+	}
+	captured, err := h.solanaTx.FetchTransaction(ctx, req.Msg.GetSignature())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	if selector != nil {
+		captured.Source.SelectedBySourceID = selectionSourceID
+		oldSourceID := captured.Source.ID
+		captured.Source.ID += "-selected-by-" + selectionSourceID
+		for i := range captured.Occurrences {
+			if captured.Occurrences[i].SourceID == oldSourceID {
+				captured.Occurrences[i].SourceID = captured.Source.ID
+			}
+		}
+		for i := range captured.PumpInstructions {
+			if captured.PumpInstructions[i].SourceID == oldSourceID {
+				captured.PumpInstructions[i].SourceID = captured.Source.ID
+			}
+		}
+		for i := range captured.UnresolvedPumpInstructions {
+			if captured.UnresolvedPumpInstructions[i].SourceID == oldSourceID {
+				captured.UnresolvedPumpInstructions[i].SourceID = captured.Source.ID
+			}
+		}
+	}
+	updated, err := h.repo.MergeCapture(ctx, record.Case.ID, []forensics.Source{captured.Source}, captured.Occurrences, forensics.CaptureAdditions{PumpInstructions: captured.PumpInstructions, UnresolvedPumpInstructions: captured.UnresolvedPumpInstructions})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(&proto.CaptureSolanaTransactionResponse{Case: toProto(updated), CapturedOccurrenceCount: uint32(len(captured.Occurrences)), CapturedPumpInstructionCount: uint32(len(captured.PumpInstructions)), UnresolvedPumpInstructionCount: uint32(len(captured.UnresolvedPumpInstructions)), TransactionFailed: captured.Failed, Signature: req.Msg.GetSignature(), SelectionSourceId: selectionSourceID}), nil
+}
+
+func (h *Handler) CaptureSolanaTokenAccounts(ctx context.Context, req *connect.Request[proto.CaptureSolanaTokenAccountsRequest]) (*connect.Response[proto.CaptureSolanaTokenAccountsResponse], error) {
+	if h.solanaTokens == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("Solana token-account reader is unavailable"))
+	}
+	record, err := h.repo.Get(ctx, req.Msg.GetCaseId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	captured, err := h.solanaTokens.FetchTokenAccountsByOwner(ctx, req.Msg.GetOwner(), req.Msg.GetProgramId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnavailable, err)
+	}
+	updated, err := h.repo.MergeCapture(ctx, record.Case.ID, []forensics.Source{captured.Source}, nil, forensics.CaptureAdditions{SolanaTokenAccountSnapshots: []forensics.SolanaTokenAccountSnapshot{captured.Snapshot}})
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(&proto.CaptureSolanaTokenAccountsResponse{Case: toProto(updated), CapturedAccountCount: uint32(len(captured.Snapshot.Accounts)), ContextSlot: captured.Snapshot.ContextSlot}), nil
+}
+
 func (h *Handler) CaptureSolanaAddressPage(ctx context.Context, req *connect.Request[proto.CaptureSolanaAddressPageRequest]) (*connect.Response[proto.CaptureSolanaAddressPageResponse], error) {
-	if h.solana == nil {
+	if !req.Msg.GetSignaturesOnly() && h.solana == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("Solana public reader is unavailable"))
 	}
 	record, err := h.repo.Get(ctx, req.Msg.GetCaseId())
 	if err != nil {
 		return nil, mapError(err)
+	}
+	if req.Msg.GetSignaturesOnly() {
+		if h.solanaSignatures == nil {
+			return nil, connect.NewError(connect.CodeUnavailable, fmt.Errorf("Solana signature-page reader is unavailable"))
+		}
+		limit := req.Msg.GetSignatureLimit()
+		if limit == 0 {
+			limit = 1000
+		}
+		if limit > 1000 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("signature-only pages are limited to 1000 entries"))
+		}
+		pageCount := req.Msg.GetSignaturePageCount()
+		if pageCount == 0 {
+			pageCount = 1
+		}
+		if pageCount > 25 {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("signature-only capture is limited to 25 sequential pages"))
+		}
+		cursor := req.Msg.GetBeforeSignature()
+		var sources []forensics.Source
+		var signatureCount uint32
+		var capturedPages uint32
+		stoppedReason := ""
+		for i := uint32(0); i < pageCount; i++ {
+			page, err := h.solanaSignatures.FetchAddressSignatures(ctx, req.Msg.GetAddress(), cursor, limit)
+			if err != nil {
+				if capturedPages == 0 {
+					return nil, connect.NewError(connect.CodeUnavailable, err)
+				}
+				stoppedReason = err.Error()
+				break
+			}
+			sources = append(sources, page.Source)
+			capturedPages++
+			signatureCount += uint32(len(page.Signatures))
+			if len(page.Signatures) == 0 || page.NextBefore == "" || page.NextBefore == cursor {
+				break
+			}
+			cursor = page.NextBefore
+			if len(page.Signatures) < int(limit) {
+				break
+			}
+		}
+		updated, err := h.repo.MergeCapture(ctx, record.Case.ID, sources, nil)
+		if err != nil {
+			return nil, mapError(err)
+		}
+		response := &proto.CaptureSolanaAddressPageResponse{NextBeforeSignature: cursor, CapturedSignatureCount: signatureCount, SignaturesOnly: true, CaseId: updated.Case.ID, CapturedPageCount: capturedPages, StoppedReason: stoppedReason}
+		if capturedPages == 1 {
+			response.Case = toProto(updated)
+		}
+		return connect.NewResponse(response), nil
+	}
+	if limit := req.Msg.GetSignatureLimit(); limit != 0 && limit != 25 {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("transaction address pages use a fixed limit of 25; use signatures_only for a bounded signature-only page"))
 	}
 	page, err := h.solana.FetchAddressPage(ctx, req.Msg.GetAddress(), req.Msg.GetBeforeSignature())
 	if err != nil {
@@ -96,7 +270,7 @@ func (h *Handler) CaptureSolanaAddressPage(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&proto.CaptureSolanaAddressPageResponse{Case: toProto(updated), CapturedTransactionCount: uint32(len(page.Transactions)), CapturedOccurrenceCount: uint32(len(occurrences)), NextBeforeSignature: page.NextBefore, CapturedPumpInstructionCount: uint32(len(pumpInstructions)), UnresolvedPumpInstructionCount: uint32(len(unresolvedPumpInstructions))}), nil
+	return connect.NewResponse(&proto.CaptureSolanaAddressPageResponse{Case: toProto(updated), CapturedTransactionCount: uint32(len(page.Transactions)), CapturedOccurrenceCount: uint32(len(occurrences)), NextBeforeSignature: page.NextBefore, CapturedPumpInstructionCount: uint32(len(pumpInstructions)), UnresolvedPumpInstructionCount: uint32(len(unresolvedPumpInstructions)), CapturedSignatureCount: uint32(len(page.Signatures))}), nil
 }
 
 func (h *Handler) CaptureEVMWalletSnapshot(ctx context.Context, req *connect.Request[proto.CaptureEVMWalletSnapshotRequest]) (*connect.Response[proto.CaptureEVMWalletSnapshotResponse], error) {
@@ -291,13 +465,13 @@ func (h *Handler) ReviseCase(ctx context.Context, req *connect.Request[proto.Rev
 	}
 	additions := cases.RevisionAdditions{Summary: m.GetSummary(), ResolvedGaps: append([]string(nil), m.GetResolvedGaps()...)}
 	for _, s := range m.GetSources() {
-		additions.Sources = append(additions.Sources, forensics.Source{ID: s.GetId(), Name: s.GetName(), URL: s.GetUrl(), Retrieved: s.GetRetrievedAt(), SHA256: s.GetSha256(), Citation: s.GetCitation(), Limitations: s.GetLimitations(), ResultBody: append([]byte(nil), s.GetResultBody()...), RawResponseBody: append([]byte(nil), s.GetRawResponseBody()...), RawResponseSHA256: s.GetRawResponseSha256()})
+		additions.Sources = append(additions.Sources, forensics.Source{ID: s.GetId(), Name: s.GetName(), URL: s.GetUrl(), Retrieved: s.GetRetrievedAt(), SHA256: s.GetSha256(), Citation: s.GetCitation(), Limitations: s.GetLimitations(), ResultBody: append([]byte(nil), s.GetResultBody()...), RawResponseBody: append([]byte(nil), s.GetRawResponseBody()...), RawResponseSHA256: s.GetRawResponseSha256(), SelectedBySourceID: s.GetSelectedBySourceId()})
 	}
 	for _, c := range m.GetClaims() {
 		additions.Claims = append(additions.Claims, forensics.Claim{ID: c.GetId(), Text: c.GetText(), SourceID: c.GetSourceId(), Kind: kindFromProto(c.GetKind())})
 	}
 	for _, o := range m.GetOccurrences() {
-		additions.Occurrences = append(additions.Occurrences, forensics.Occurrence{ID: o.GetId(), Chain: chainFromProto(o.GetChain()), Transaction: o.GetTransactionId(), Block: o.GetBlockHeight(), Timestamp: o.GetTimestamp(), EventIndex: o.GetEventIndex(), Direction: o.GetDirection(), PreviousTx: o.GetPreviousTransactionId(), PreviousIndex: o.GetPreviousOutputIndex(), From: o.GetFrom(), To: o.GetTo(), Asset: o.GetAsset(), Atomic: o.GetAtomicQuantity(), Scale: o.GetScale(), Kind: kindFromProto(o.GetKind()), SourceID: o.GetSourceId()})
+		additions.Occurrences = append(additions.Occurrences, forensics.Occurrence{ID: o.GetId(), Chain: chainFromProto(o.GetChain()), Transaction: o.GetTransactionId(), Block: o.GetBlockHeight(), Timestamp: o.GetTimestamp(), EventIndex: o.GetEventIndex(), Direction: o.GetDirection(), PreviousTx: o.GetPreviousTransactionId(), PreviousIndex: o.GetPreviousOutputIndex(), From: o.GetFrom(), To: o.GetTo(), Asset: o.GetAsset(), Atomic: o.GetAtomicQuantity(), Scale: o.GetScale(), Measurement: o.GetMeasurement(), Account: o.GetAccount(), Kind: kindFromProto(o.GetKind()), SourceID: o.GetSourceId()})
 	}
 	for _, e := range m.GetEdges() {
 		additions.Edges = append(additions.Edges, forensics.Edge{ID: e.GetId(), From: e.GetFromOccurrence(), To: e.GetToOccurrence(), Grade: gradeFromProto(e.GetGrade()), Rule: e.GetRule(), EvidenceIDs: append([]string(nil), e.GetEvidenceIds()...), Caveats: append([]string(nil), e.GetCaveats()...)})
@@ -308,6 +482,12 @@ func (h *Handler) ReviseCase(ctx context.Context, req *connect.Request[proto.Rev
 			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("each edge revision must include a replacement edge"))
 		}
 		additions.EdgeRevisions = append(additions.EdgeRevisions, cases.EdgeRevision{SupersedesEdgeID: e.GetSupersedesEdgeId(), Replacement: forensics.Edge{ID: replacement.GetId(), From: replacement.GetFromOccurrence(), To: replacement.GetToOccurrence(), Grade: gradeFromProto(replacement.GetGrade()), Rule: replacement.GetRule(), EvidenceIDs: append([]string(nil), replacement.GetEvidenceIds()...), Caveats: append([]string(nil), replacement.GetCaveats()...)}})
+	}
+	for _, p := range m.GetPumpInstructions() {
+		additions.PumpInstructions = append(additions.PumpInstructions, forensics.PumpInstruction{ID: p.GetId(), Transaction: p.GetTransactionId(), Slot: p.GetSlot(), Index: p.GetInstructionIndex(), ProgramID: p.GetProgramId(), SourceID: p.GetSourceId(), Kind: p.GetKind(), DecoderVersion: p.GetDecoderVersion(), Mint: p.GetMint(), User: p.GetUser(), Creator: p.GetCreator(), Name: p.GetName(), Symbol: p.GetSymbol(), MetadataURI: p.GetMetadataUri(), MayhemMode: p.GetMayhemMode(), CashbackEnabled: p.GetCashbackEnabled(), CreatorFeeBPS: p.GetCreatorFeeBps(), HolderReward: p.GetHolderReward()})
+	}
+	for _, p := range m.GetUnresolvedPumpInstructions() {
+		additions.UnresolvedPumpInstructions = append(additions.UnresolvedPumpInstructions, forensics.UnresolvedPumpInstruction{ID: p.GetId(), Transaction: p.GetTransactionId(), Slot: p.GetSlot(), Index: p.GetInstructionIndex(), ProgramID: p.GetProgramId(), SourceID: p.GetSourceId(), Discriminator: p.GetDiscriminator(), Reason: p.GetReason(), CandidateKind: p.GetCandidateKind(), DecoderVersion: p.GetDecoderVersion(), ExpectedDataLength: p.GetExpectedDataLength(), ObservedDataLength: p.GetObservedDataLength()})
 	}
 	additions.Gaps = append([]string(nil), m.GetGaps()...)
 	additions.Counterexamples = append([]string(nil), m.GetCounterexamples()...)
@@ -328,13 +508,13 @@ func (h *Handler) ListCaseRevisions(ctx context.Context, req *connect.Request[pr
 	for _, revision := range revisions {
 		adds := &proto.ReviseCaseRequest{CaseId: revision.CaseID, ExpectedUpdatedAt: timestamppb.New(revision.PreviousUpdatedAt), Summary: revision.Additions.Summary, Gaps: revision.Additions.Gaps, Counterexamples: revision.Additions.Counterexamples, SourceDisagreements: revision.Additions.Disagreements, ResolvedGaps: revision.Additions.ResolvedGaps}
 		for _, s := range revision.Additions.Sources {
-			adds.Sources = append(adds.Sources, &proto.Source{Id: s.ID, Name: s.Name, Url: s.URL, RetrievedAt: s.Retrieved, Sha256: s.SHA256, Citation: s.Citation, Limitations: s.Limitations, ResultBody: s.ResultBody, RawResponseBody: s.RawResponseBody, RawResponseSha256: s.RawResponseSHA256})
+			adds.Sources = append(adds.Sources, &proto.Source{Id: s.ID, Name: s.Name, Url: s.URL, RetrievedAt: s.Retrieved, Sha256: s.SHA256, Citation: s.Citation, Limitations: s.Limitations, ResultBody: s.ResultBody, RawResponseBody: s.RawResponseBody, RawResponseSha256: s.RawResponseSHA256, SelectedBySourceId: s.SelectedBySourceID})
 		}
 		for _, c := range revision.Additions.Claims {
 			adds.Claims = append(adds.Claims, &proto.Claim{Id: c.ID, Text: c.Text, SourceId: c.SourceID, Kind: kindToProto(c.Kind)})
 		}
 		for _, o := range revision.Additions.Occurrences {
-			adds.Occurrences = append(adds.Occurrences, &proto.Occurrence{Id: o.ID, Chain: chainToProto(o.Chain), TransactionId: o.Transaction, BlockHeight: o.Block, Timestamp: o.Timestamp, EventIndex: o.EventIndex, Direction: o.Direction, PreviousTransactionId: o.PreviousTx, PreviousOutputIndex: o.PreviousIndex, From: o.From, To: o.To, Asset: o.Asset, AtomicQuantity: o.Atomic, Scale: o.Scale, Kind: kindToProto(o.Kind), SourceId: o.SourceID})
+			adds.Occurrences = append(adds.Occurrences, &proto.Occurrence{Id: o.ID, Chain: chainToProto(o.Chain), TransactionId: o.Transaction, BlockHeight: o.Block, Timestamp: o.Timestamp, EventIndex: o.EventIndex, Direction: o.Direction, PreviousTransactionId: o.PreviousTx, PreviousOutputIndex: o.PreviousIndex, From: o.From, To: o.To, Asset: o.Asset, AtomicQuantity: o.Atomic, Scale: o.Scale, Measurement: o.Measurement, Account: o.Account, Kind: kindToProto(o.Kind), SourceId: o.SourceID})
 		}
 		for _, e := range revision.Additions.Edges {
 			adds.Edges = append(adds.Edges, &proto.FlowEdge{Id: e.ID, FromOccurrence: e.From, ToOccurrence: e.To, Grade: gradeToProto(e.Grade), Rule: e.Rule, EvidenceIds: e.EvidenceIDs, Caveats: e.Caveats})
@@ -342,6 +522,12 @@ func (h *Handler) ListCaseRevisions(ctx context.Context, req *connect.Request[pr
 		for _, e := range revision.Additions.EdgeRevisions {
 			replacement := e.Replacement
 			adds.EdgeRevisions = append(adds.EdgeRevisions, &proto.EdgeRevision{SupersedesEdgeId: e.SupersedesEdgeID, Replacement: &proto.FlowEdge{Id: replacement.ID, FromOccurrence: replacement.From, ToOccurrence: replacement.To, Grade: gradeToProto(replacement.Grade), Rule: replacement.Rule, EvidenceIds: replacement.EvidenceIDs, Caveats: replacement.Caveats}})
+		}
+		for _, p := range revision.Additions.PumpInstructions {
+			adds.PumpInstructions = append(adds.PumpInstructions, &proto.PumpInstruction{Id: p.ID, TransactionId: p.Transaction, Slot: p.Slot, InstructionIndex: p.Index, ProgramId: p.ProgramID, SourceId: p.SourceID, Kind: p.Kind, DecoderVersion: p.DecoderVersion, Mint: p.Mint, User: p.User, Creator: p.Creator, Name: p.Name, Symbol: p.Symbol, MetadataUri: p.MetadataURI, MayhemMode: p.MayhemMode, CashbackEnabled: p.CashbackEnabled, CreatorFeeBps: p.CreatorFeeBPS, HolderReward: p.HolderReward})
+		}
+		for _, p := range revision.Additions.UnresolvedPumpInstructions {
+			adds.UnresolvedPumpInstructions = append(adds.UnresolvedPumpInstructions, &proto.UnresolvedPumpInstruction{Id: p.ID, TransactionId: p.Transaction, Slot: p.Slot, InstructionIndex: p.Index, ProgramId: p.ProgramID, SourceId: p.SourceID, Discriminator: p.Discriminator, Reason: p.Reason, CandidateKind: p.CandidateKind, DecoderVersion: p.DecoderVersion, ExpectedDataLength: p.ExpectedDataLength, ObservedDataLength: p.ObservedDataLength})
 		}
 		item := &proto.CaseRevision{Id: revision.ID, CaseId: revision.CaseID, PreviousUpdatedAt: timestamppb.New(revision.PreviousUpdatedAt), AppliedAt: timestamppb.New(revision.AppliedAt), Additions: adds}
 		if revision.PreviousCase.ID != "" {
@@ -392,13 +578,13 @@ func toProto(r cases.Record) *proto.EvidenceCase {
 	d := r.Case
 	p := &proto.EvidenceCase{Id: d.ID, Title: d.Title, Summary: d.Summary, Private: d.Private, Gaps: d.Gaps, Counterexamples: d.Counterexamples, SourceDisagreements: d.Disagreements, CreatedAt: timestamppb.New(r.CreatedAt), UpdatedAt: timestamppb.New(r.UpdatedAt)}
 	for _, s := range d.Sources {
-		p.Sources = append(p.Sources, &proto.Source{Id: s.ID, Name: s.Name, Url: s.URL, RetrievedAt: s.Retrieved, Sha256: s.SHA256, Citation: s.Citation, Limitations: s.Limitations, ResultBody: s.ResultBody, RawResponseBody: s.RawResponseBody, RawResponseSha256: s.RawResponseSHA256})
+		p.Sources = append(p.Sources, &proto.Source{Id: s.ID, Name: s.Name, Url: s.URL, RetrievedAt: s.Retrieved, Sha256: s.SHA256, Citation: s.Citation, Limitations: s.Limitations, ResultBody: s.ResultBody, RawResponseBody: s.RawResponseBody, RawResponseSha256: s.RawResponseSHA256, SelectedBySourceId: s.SelectedBySourceID})
 	}
 	for _, c := range d.Claims {
 		p.Claims = append(p.Claims, &proto.Claim{Id: c.ID, Text: c.Text, SourceId: c.SourceID, Kind: kindToProto(c.Kind)})
 	}
 	for _, o := range d.Occurrences {
-		p.Occurrences = append(p.Occurrences, &proto.Occurrence{Id: o.ID, Chain: chainToProto(o.Chain), TransactionId: o.Transaction, BlockHeight: o.Block, Timestamp: o.Timestamp, EventIndex: o.EventIndex, Direction: o.Direction, PreviousTransactionId: o.PreviousTx, PreviousOutputIndex: o.PreviousIndex, From: o.From, To: o.To, Asset: o.Asset, AtomicQuantity: o.Atomic, Scale: o.Scale, Kind: kindToProto(o.Kind), SourceId: o.SourceID})
+		p.Occurrences = append(p.Occurrences, &proto.Occurrence{Id: o.ID, Chain: chainToProto(o.Chain), TransactionId: o.Transaction, BlockHeight: o.Block, Timestamp: o.Timestamp, EventIndex: o.EventIndex, Direction: o.Direction, PreviousTransactionId: o.PreviousTx, PreviousOutputIndex: o.PreviousIndex, From: o.From, To: o.To, Asset: o.Asset, AtomicQuantity: o.Atomic, Scale: o.Scale, Measurement: o.Measurement, Account: o.Account, Kind: kindToProto(o.Kind), SourceId: o.SourceID})
 	}
 	for _, e := range d.Edges {
 		p.Edges = append(p.Edges, &proto.FlowEdge{Id: e.ID, FromOccurrence: e.From, ToOccurrence: e.To, Grade: gradeToProto(e.Grade), Rule: e.Rule, EvidenceIds: e.EvidenceIDs, Caveats: e.Caveats})
@@ -410,11 +596,18 @@ func toProto(r cases.Record) *proto.EvidenceCase {
 		}
 		p.WalletSnapshots = append(p.WalletSnapshots, ps)
 	}
+	for _, snapshot := range d.SolanaTokenAccountSnapshots {
+		ps := &proto.SolanaTokenAccountSnapshot{Id: snapshot.ID, Owner: snapshot.Owner, ProgramId: snapshot.ProgramID, ContextSlot: snapshot.ContextSlot, SourceId: snapshot.SourceID}
+		for _, account := range snapshot.Accounts {
+			ps.Accounts = append(ps.Accounts, &proto.SolanaTokenAccount{Address: account.Address, Mint: account.Mint, Owner: account.Owner, ProgramId: account.ProgramID, AtomicQuantity: account.AtomicQuantity, Scale: account.Scale, ScaleKnown: account.ScaleKnown})
+		}
+		p.SolanaTokenAccountSnapshots = append(p.SolanaTokenAccountSnapshots, ps)
+	}
 	for _, instruction := range d.PumpInstructions {
 		p.PumpInstructions = append(p.PumpInstructions, &proto.PumpInstruction{Id: instruction.ID, TransactionId: instruction.Transaction, Slot: instruction.Slot, InstructionIndex: instruction.Index, ProgramId: instruction.ProgramID, SourceId: instruction.SourceID, Kind: instruction.Kind, DecoderVersion: instruction.DecoderVersion, Mint: instruction.Mint, User: instruction.User, Creator: instruction.Creator, Name: instruction.Name, Symbol: instruction.Symbol, MetadataUri: instruction.MetadataURI, MayhemMode: instruction.MayhemMode, CashbackEnabled: instruction.CashbackEnabled, CreatorFeeBps: instruction.CreatorFeeBPS, HolderReward: instruction.HolderReward})
 	}
 	for _, instruction := range d.UnresolvedPumpInstructions {
-		p.UnresolvedPumpInstructions = append(p.UnresolvedPumpInstructions, &proto.UnresolvedPumpInstruction{Id: instruction.ID, TransactionId: instruction.Transaction, Slot: instruction.Slot, InstructionIndex: instruction.Index, ProgramId: instruction.ProgramID, SourceId: instruction.SourceID, Discriminator: instruction.Discriminator, Reason: instruction.Reason})
+		p.UnresolvedPumpInstructions = append(p.UnresolvedPumpInstructions, &proto.UnresolvedPumpInstruction{Id: instruction.ID, TransactionId: instruction.Transaction, Slot: instruction.Slot, InstructionIndex: instruction.Index, ProgramId: instruction.ProgramID, SourceId: instruction.SourceID, Discriminator: instruction.Discriminator, Reason: instruction.Reason, CandidateKind: instruction.CandidateKind, DecoderVersion: instruction.DecoderVersion, ExpectedDataLength: instruction.ExpectedDataLength, ObservedDataLength: instruction.ObservedDataLength})
 	}
 	return p
 }
@@ -422,13 +615,13 @@ func toProto(r cases.Record) *proto.EvidenceCase {
 func fromProto(p *proto.EvidenceCase) (forensics.Case, error) {
 	d := forensics.Case{ID: p.GetId(), Title: p.GetTitle(), Summary: p.GetSummary(), Private: p.GetPrivate(), Gaps: p.GetGaps(), Counterexamples: p.GetCounterexamples(), Disagreements: p.GetSourceDisagreements()}
 	for _, s := range p.GetSources() {
-		d.Sources = append(d.Sources, forensics.Source{ID: s.GetId(), Name: s.GetName(), URL: s.GetUrl(), Retrieved: s.GetRetrievedAt(), SHA256: s.GetSha256(), Citation: s.GetCitation(), Limitations: s.GetLimitations(), ResultBody: append([]byte(nil), s.GetResultBody()...), RawResponseBody: append([]byte(nil), s.GetRawResponseBody()...), RawResponseSHA256: s.GetRawResponseSha256()})
+		d.Sources = append(d.Sources, forensics.Source{ID: s.GetId(), Name: s.GetName(), URL: s.GetUrl(), Retrieved: s.GetRetrievedAt(), SHA256: s.GetSha256(), Citation: s.GetCitation(), Limitations: s.GetLimitations(), ResultBody: append([]byte(nil), s.GetResultBody()...), RawResponseBody: append([]byte(nil), s.GetRawResponseBody()...), RawResponseSHA256: s.GetRawResponseSha256(), SelectedBySourceID: s.GetSelectedBySourceId()})
 	}
 	for _, c := range p.GetClaims() {
 		d.Claims = append(d.Claims, forensics.Claim{ID: c.GetId(), Text: c.GetText(), SourceID: c.GetSourceId(), Kind: kindFromProto(c.GetKind())})
 	}
 	for _, o := range p.GetOccurrences() {
-		d.Occurrences = append(d.Occurrences, forensics.Occurrence{ID: o.GetId(), Chain: chainFromProto(o.GetChain()), Transaction: o.GetTransactionId(), Block: o.GetBlockHeight(), Timestamp: o.GetTimestamp(), EventIndex: o.GetEventIndex(), Direction: o.GetDirection(), PreviousTx: o.GetPreviousTransactionId(), PreviousIndex: o.GetPreviousOutputIndex(), From: o.GetFrom(), To: o.GetTo(), Asset: o.GetAsset(), Atomic: o.GetAtomicQuantity(), Scale: o.GetScale(), Kind: kindFromProto(o.GetKind()), SourceID: o.GetSourceId()})
+		d.Occurrences = append(d.Occurrences, forensics.Occurrence{ID: o.GetId(), Chain: chainFromProto(o.GetChain()), Transaction: o.GetTransactionId(), Block: o.GetBlockHeight(), Timestamp: o.GetTimestamp(), EventIndex: o.GetEventIndex(), Direction: o.GetDirection(), PreviousTx: o.GetPreviousTransactionId(), PreviousIndex: o.GetPreviousOutputIndex(), From: o.GetFrom(), To: o.GetTo(), Asset: o.GetAsset(), Atomic: o.GetAtomicQuantity(), Scale: o.GetScale(), Measurement: o.GetMeasurement(), Account: o.GetAccount(), Kind: kindFromProto(o.GetKind()), SourceID: o.GetSourceId()})
 	}
 	for _, e := range p.GetEdges() {
 		d.Edges = append(d.Edges, forensics.Edge{ID: e.GetId(), From: e.GetFromOccurrence(), To: e.GetToOccurrence(), Grade: gradeFromProto(e.GetGrade()), Rule: e.GetRule(), EvidenceIDs: e.GetEvidenceIds(), Caveats: e.GetCaveats()})
@@ -440,11 +633,18 @@ func fromProto(p *proto.EvidenceCase) (forensics.Case, error) {
 		}
 		d.WalletSnapshots = append(d.WalletSnapshots, ws)
 	}
+	for _, snapshot := range p.GetSolanaTokenAccountSnapshots() {
+		ts := forensics.SolanaTokenAccountSnapshot{ID: snapshot.GetId(), Owner: snapshot.GetOwner(), ProgramID: snapshot.GetProgramId(), ContextSlot: snapshot.GetContextSlot(), SourceID: snapshot.GetSourceId()}
+		for _, account := range snapshot.GetAccounts() {
+			ts.Accounts = append(ts.Accounts, forensics.SolanaTokenAccount{Address: account.GetAddress(), Mint: account.GetMint(), Owner: account.GetOwner(), ProgramID: account.GetProgramId(), AtomicQuantity: account.GetAtomicQuantity(), Scale: account.GetScale(), ScaleKnown: account.GetScaleKnown()})
+		}
+		d.SolanaTokenAccountSnapshots = append(d.SolanaTokenAccountSnapshots, ts)
+	}
 	for _, instruction := range p.GetPumpInstructions() {
 		d.PumpInstructions = append(d.PumpInstructions, forensics.PumpInstruction{ID: instruction.GetId(), Transaction: instruction.GetTransactionId(), Slot: instruction.GetSlot(), Index: instruction.GetInstructionIndex(), ProgramID: instruction.GetProgramId(), SourceID: instruction.GetSourceId(), Kind: instruction.GetKind(), DecoderVersion: instruction.GetDecoderVersion(), Mint: instruction.GetMint(), User: instruction.GetUser(), Creator: instruction.GetCreator(), Name: instruction.GetName(), Symbol: instruction.GetSymbol(), MetadataURI: instruction.GetMetadataUri(), MayhemMode: instruction.GetMayhemMode(), CashbackEnabled: instruction.GetCashbackEnabled(), CreatorFeeBPS: instruction.GetCreatorFeeBps(), HolderReward: instruction.GetHolderReward()})
 	}
 	for _, instruction := range p.GetUnresolvedPumpInstructions() {
-		d.UnresolvedPumpInstructions = append(d.UnresolvedPumpInstructions, forensics.UnresolvedPumpInstruction{ID: instruction.GetId(), Transaction: instruction.GetTransactionId(), Slot: instruction.GetSlot(), Index: instruction.GetInstructionIndex(), ProgramID: instruction.GetProgramId(), SourceID: instruction.GetSourceId(), Discriminator: instruction.GetDiscriminator(), Reason: instruction.GetReason()})
+		d.UnresolvedPumpInstructions = append(d.UnresolvedPumpInstructions, forensics.UnresolvedPumpInstruction{ID: instruction.GetId(), Transaction: instruction.GetTransactionId(), Slot: instruction.GetSlot(), Index: instruction.GetInstructionIndex(), ProgramID: instruction.GetProgramId(), SourceID: instruction.GetSourceId(), Discriminator: instruction.GetDiscriminator(), Reason: instruction.GetReason(), CandidateKind: instruction.GetCandidateKind(), DecoderVersion: instruction.GetDecoderVersion(), ExpectedDataLength: instruction.GetExpectedDataLength(), ObservedDataLength: instruction.GetObservedDataLength()})
 	}
 	if err := forensics.Validate(d); err != nil {
 		return forensics.Case{}, err

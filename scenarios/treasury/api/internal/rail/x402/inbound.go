@@ -237,10 +237,20 @@ func (g *Gate) Admit(ctx context.Context, priceID, paymentHeader string) (Admiss
 	if settleErr != nil {
 		status = "unknown"
 		settled = SettleResult{Payer: verified.Payer, Network: price.Network, Reason: "facilitator settlement response unavailable: " + settleErr.Error()}
-	} else if !settled.Success || settled.Transaction == "" || settled.Payer == "" || settled.Network != price.Network {
+	} else if !settled.Success {
 		status = "failed"
 		if settled.Reason == "" {
-			settled.Reason = "facilitator returned an incomplete or mismatched settlement"
+			settled.Reason = "facilitator refused settlement"
+		}
+	} else if settled.Transaction == "" || settled.Payer == "" || !strings.EqualFold(settled.Payer, verified.Payer) || !strings.EqualFold(settled.Network, price.Network) {
+		// A success-shaped but mismatched receipt cannot prove whether the
+		// transfer occurred. Keep it unknown so callers never treat it as a
+		// settled inflow or a safe-to-retry failure.
+		status = "unknown"
+		settled.Reason = "facilitator settlement receipt did not match the verified payer and network"
+		settled.Payer = verified.Payer
+		if settled.Network == "" {
+			settled.Network = price.Network
 		}
 	}
 	completed, err := g.repository.CompleteAdmission(context.WithoutCancel(ctx), claim.ID, status, settled, g.now().UTC(), price)
@@ -380,7 +390,7 @@ func (g *Gate) SettleAuthorization(ctx context.Context, admissionID, jobID, reso
 	if settleErr != nil {
 		status = "unknown"
 		settled = SettleResult{Payer: stored.Payer, Network: price.Network, Reason: "facilitator settlement response unavailable: " + settleErr.Error()}
-	} else if !settled.Success || settled.Transaction == "" || settled.Payer != stored.Payer || settled.Network != price.Network {
+	} else if !settled.Success {
 		status = "failed"
 		if claim.Recovery {
 			// A failed replay does not prove that the earlier dispatched settle
@@ -389,7 +399,14 @@ func (g *Gate) SettleAuthorization(ctx context.Context, admissionID, jobID, reso
 			status = "unknown"
 		}
 		if settled.Reason == "" {
-			settled.Reason = "facilitator returned an incomplete or mismatched settlement"
+			settled.Reason = "facilitator refused settlement"
+		}
+	} else if settled.Transaction == "" || settled.Payer == "" || !strings.EqualFold(settled.Payer, stored.Payer) || !strings.EqualFold(settled.Network, price.Network) {
+		status = "unknown"
+		settled.Reason = "facilitator settlement receipt did not match the verified payer and network"
+		settled.Payer = stored.Payer
+		if settled.Network == "" {
+			settled.Network = price.Network
 		}
 	}
 	completed, err := repository.CompleteResourceSettlement(context.WithoutCancel(ctx), stored.ID, status, settled, g.now().UTC(), price)

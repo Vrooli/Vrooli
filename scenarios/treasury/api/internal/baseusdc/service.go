@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"regexp"
 	"strings"
 	"time"
@@ -36,6 +37,32 @@ func NewService(store Store, verifier Verification, providerID string, now func(
 		now = time.Now
 	}
 	return &Service{store: store, verifier: verifier, provider: strings.TrimSpace(providerID), now: now}
+}
+
+// LatestBlockNumber exposes a read-only chain head for opt-in inbound funding
+// intents. Receipt verification remains the authority for canonicality and
+// finality; callers must not use this value to credit funds directly.
+func (s *Service) LatestBlockNumber(ctx context.Context) (*big.Int, error) {
+	if s == nil || s.verifier == nil {
+		return nil, ErrRPCUnavailable
+	}
+	reader, ok := s.verifier.(interface {
+		LatestBlockNumber(context.Context) (*big.Int, error)
+	})
+	if !ok {
+		return nil, ErrRPCUnavailable
+	}
+	return reader.LatestBlockNumber(ctx)
+}
+
+// GetCheck reads one immutable receipt-check snapshot in its full operator,
+// wallet, and transaction scope. Funding retries use it to reconstruct the
+// same deterministic Ledger delivery after an uncertain queue/response step.
+func (s *Service) GetCheck(ctx context.Context, operator, walletID, transactionHash, checkID string) (Check, error) {
+	if s == nil || s.store == nil || operator == "" || walletID == "" || !evHash.MatchString(transactionHash) || strings.TrimSpace(checkID) == "" {
+		return Check{}, ErrPriorCheckNotFound
+	}
+	return s.store.GetCheck(ctx, operator, walletID, strings.ToLower(transactionHash), checkID)
 }
 
 func (s *Service) Verify(ctx context.Context, operator string, wallet walletpkg.Wallet, transactionHash string) (Check, error) {
@@ -172,14 +199,24 @@ func errorCode(err error) string {
 }
 
 func validObservations(wallet walletpkg.Wallet, transactionHash, provider string, observations []Observation) bool {
-	if len(observations) == 0 {
+	// A Base transaction cannot reasonably contain an unbounded number of
+	// native-USDC transfers to a single Treasury wallet. Bound retained evidence
+	// before serializing it, and reject aliases for the same canonical log.
+	if len(observations) == 0 || len(observations) > 128 {
 		return false
 	}
+	seenLogs := make(map[uint64]struct{}, len(observations))
 	for _, value := range observations {
+		if _, exists := seenLogs[value.LogIndex]; exists {
+			return false
+		}
+		seenLogs[value.LogIndex] = struct{}{}
+		expectedKey := fmt.Sprintf("%s/%s/%s/log/%d/%s", Network, USDCAddress, strings.ToLower(transactionHash), value.LogIndex, strings.ToLower(wallet.Address))
 		if value.WalletID != wallet.ID || value.Network != Network || value.AssetID != TransferAsset || value.Decimals != USDCDecimals ||
 			!strings.EqualFold(value.To, wallet.Address) || !evAddress.MatchString(value.From) || !atomicAmountPattern.MatchString(value.AtomicAmount) ||
 			!strings.EqualFold(value.TransactionHash, transactionHash) || !evHash.MatchString(value.BlockHash) ||
 			!evHash.MatchString(value.FinalizedHeadHash) || value.ProviderID != provider || value.ObservedAt.IsZero() || value.BlockTime.IsZero() ||
+			!strings.EqualFold(value.WalletAddressBinding, wallet.Address) || value.EconomicKey != expectedKey ||
 			(value.Finality != "included" && value.Finality != "finalized") {
 			return false
 		}

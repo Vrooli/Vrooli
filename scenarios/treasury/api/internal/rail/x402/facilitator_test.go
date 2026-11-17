@@ -47,6 +47,81 @@ func TestInboundChallengeAndReplaySafeAdmission(t *testing.T) {
 	require.EqualValues(t, 1, facilitator.verifyCalls.Load(), "a settled replay must not depend on facilitator availability")
 }
 
+func TestOperatorDeclaredPriceIDCannotBeReboundToDifferentTerms(t *testing.T) {
+	gate, _, _, price := newInboundFixture(t)
+	changed := price
+	changed.Amount, changed.AmountMinor = "20000", 2
+	_, err := gate.Declare(context.Background(), changed)
+	require.ErrorIs(t, err, ErrInvalid, "reusing a price ID must not silently mutate the terms a payer accepted")
+
+	header, err := gate.PaymentRequired(context.Background(), price.ID)
+	require.NoError(t, err)
+	decoded, err := base64.StdEncoding.DecodeString(header)
+	require.NoError(t, err)
+	require.Contains(t, string(decoded), `"amount":"10000"`)
+	require.NotContains(t, string(decoded), `"amount":"20000"`)
+}
+
+// [REQ:TRS-P1-002] A success-shaped receipt for another payer is unknown and
+// cannot create an inflow or replay the payment.
+func TestInboundMismatchedSuccessfulReceiptStaysUnknownAndCannotEmitInflows(t *testing.T) {
+	gate, handle, facilitator, price := newInboundFixture(t)
+	facilitator.verifyPayer = "0xAbCd000000000000000000000000000000000001"
+	facilitator.settlePayer = "0x9999000000000000000000000000000000000002"
+	challenge, err := gate.PaymentRequired(context.Background(), price.ID)
+	require.NoError(t, err)
+	payment := paymentForChallenge(t, challenge, "mismatched-receipt-payer")
+
+	first, err := gate.Admit(context.Background(), price.ID, payment)
+	require.ErrorIs(t, err, ErrUnknown)
+	require.Equal(t, "unknown", first.Status)
+	require.NotEmpty(t, first.TransactionID, "retain the mismatched facilitator transaction observation for reconciliation")
+	var emissions int
+	require.NoError(t, handle.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM ledger_emissions WHERE settlement_id=?`, first.ID).Scan(&emissions))
+	require.Zero(t, emissions, "a payer-mismatched receipt cannot create an inflow")
+
+	_, err = gate.Admit(context.Background(), price.ID, payment)
+	require.ErrorIs(t, err, ErrUnknown)
+	require.EqualValues(t, 1, facilitator.settleCalls.Load(), "unknown retries must not dispatch the same payment twice")
+}
+
+// [REQ:TRS-P1-002] Address case normalization and same-admission recovery keep
+// payer identity and unknown settlement outcomes bound.
+func TestInboundPayerAddressComparisonAcceptsChecksumCaseAndResourceRetryKeepsUnknownRecoverable(t *testing.T) {
+	t.Run("immediate admission normalizes address case", func(t *testing.T) {
+		gate, _, facilitator, price := newInboundFixture(t)
+		facilitator.verifyPayer = "0xAbCd000000000000000000000000000000000001"
+		facilitator.settlePayer = "0xabcd000000000000000000000000000000000001"
+		challenge, err := gate.PaymentRequired(context.Background(), price.ID)
+		require.NoError(t, err)
+		admission, err := gate.Admit(context.Background(), price.ID, paymentForChallenge(t, challenge, "case-normalized"))
+		require.NoError(t, err)
+		require.Equal(t, "settled", admission.Status)
+	})
+
+	t.Run("resource retry retains payload after mismatched receipt", func(t *testing.T) {
+		gate, _, facilitator, price := newInboundFixture(t)
+		facilitator.verifyPayer = "0xAbCd000000000000000000000000000000000001"
+		facilitator.settlePayer = "0x9999000000000000000000000000000000000002"
+		challenge, err := gate.PaymentRequired(context.Background(), price.ID)
+		require.NoError(t, err)
+		verified, err := gate.VerifyForResource(context.Background(), price.ID, "job-payer", "resource-payer", "order-payer", paymentForChallenge(t, challenge, "resource-mismatch-retry"))
+		require.NoError(t, err)
+
+		unknown, err := gate.SettleAuthorization(context.Background(), verified.ID, verified.JobID, verified.ResourceID, verified.OrderID)
+		require.ErrorIs(t, err, ErrUnknown)
+		require.Equal(t, "unknown", unknown.Status)
+		require.NotEmpty(t, unknown.RecoveryReference, "unknown dispatch must retain protected payload for reconciliation")
+		require.NotEmpty(t, unknown.TransactionID, "retain the facilitator's mismatched transaction observation for review")
+
+		facilitator.settlePayer = "0xabcd000000000000000000000000000000000001"
+		recovered, err := gate.SettleAuthorization(context.Background(), verified.ID, verified.JobID, verified.ResourceID, verified.OrderID)
+		require.NoErrorf(t, err, "reconciled admission: %#v", recovered)
+		require.Equal(t, "settled", recovered.Status)
+		require.EqualValues(t, 2, facilitator.settleCalls.Load(), "reconciliation may retry the same authorization after an unknown result")
+	})
+}
+
 func TestResourceAdmissionVerifiesFirstAndSettlesOnceAfterBinding(t *testing.T) {
 	gate, handle, facilitator, price := newInboundFixture(t)
 	challenge, err := gate.PaymentRequired(context.Background(), price.ID)
@@ -271,12 +346,18 @@ type fixtureFacilitator struct {
 	settleCalls   atomic.Int64
 	settleFailure atomic.Bool
 	delay         time.Duration
+	verifyPayer   string
+	settlePayer   string
 }
 
 func (f *fixtureFacilitator) Verify(_ context.Context, payload, _ json.RawMessage) (VerifyResult, error) {
 	f.verifyCalls.Add(1)
 	digest := sha256.Sum256(payload)
-	return VerifyResult{Valid: true, Payer: "payer:" + hex.EncodeToString(digest[:4])}, nil
+	payer := f.verifyPayer
+	if payer == "" {
+		payer = "payer:" + hex.EncodeToString(digest[:4])
+	}
+	return VerifyResult{Valid: true, Payer: payer}, nil
 }
 
 func (f *fixtureFacilitator) Settle(_ context.Context, payload, _ json.RawMessage) (SettleResult, error) {
@@ -288,7 +369,11 @@ func (f *fixtureFacilitator) Settle(_ context.Context, payload, _ json.RawMessag
 		time.Sleep(f.delay)
 	}
 	digest := sha256.Sum256(payload)
-	return SettleResult{Success: true, Payer: "payer:" + hex.EncodeToString(digest[:4]), Transaction: "tx:" + hex.EncodeToString(digest[:]), Network: "eip155:8453"}, nil
+	payer := f.settlePayer
+	if payer == "" {
+		payer = "payer:" + hex.EncodeToString(digest[:4])
+	}
+	return SettleResult{Success: true, Payer: payer, Transaction: "tx:" + hex.EncodeToString(digest[:]), Network: "eip155:8453"}, nil
 }
 
 var _ Facilitator = (*fixtureFacilitator)(nil)

@@ -190,3 +190,29 @@ func TestListAndRevokeGrantAreTypedAndIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []grants.Grant{revoked}, all)
 }
+
+func TestRevokePreservesExpiredGrantTransitionAndWritesReceipt(t *testing.T) {
+	now := time.Date(2026, 8, 19, 12, 0, 0, 0, time.UTC)
+	db, repository, _, tokenTypes := newGrantStore(t)
+	createTokenType(t, tokenTypes, "chores", now)
+	service := grants.NewService(repository, readTokenType(tokenTypes), grants.NewRuleEvaluator(), schedule.NewFake(now))
+	created, err := service.Create(context.Background(), grants.CreateInput{
+		TokenTypeID: "chores", GrantSourceID: "weekly", Authorizer: "parent:alex",
+		HolderID: "child:sam", AmountMinor: 9, ExpiresAt: now.Add(24 * time.Hour),
+		IdempotencyKey: "grant-expired-revoke",
+	})
+	require.NoError(t, err)
+	_, err = db.ExecContext(context.Background(), `UPDATE grants SET status = ? WHERE id = ?`, grants.GrantStatusExpired, created.ID)
+	require.NoError(t, err)
+
+	revoked, err := repository.Revoke(context.Background(), created.ID, "late revoke", "revoke-expired", now)
+	require.NoError(t, err)
+	require.Equal(t, grants.GrantStatusRevoked, revoked.Status)
+
+	var status string
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT status FROM grants WHERE id = ?`, created.ID).Scan(&status))
+	require.Equal(t, string(grants.GrantStatusRevoked), status)
+	var receipts int
+	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM grant_revoke_receipts WHERE idempotency_key = ?`, "revoke-expired").Scan(&receipts))
+	require.Equal(t, 1, receipts)
+}

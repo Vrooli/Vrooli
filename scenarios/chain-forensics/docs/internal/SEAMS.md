@@ -189,6 +189,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | A domain's `internal/<domain>/sqlite_test.go::newSchemaDB` uses `db.NewSQLite(t)` + `apidb.EnsureSchemas(...)` with the system + that domain's providers. Repository tests get a fresh table without touching the central registry. |
 | **Why it exists** | Domain ownership of the schema. Adding a column lands in the same diff as the Go change. Deleting `internal/<domain>/` deletes the table definition with it, so removed domains do not leave tables created on boot. The `handlers/<domain>/module.go::Schema` re-export keeps the registry's import surface narrow — it imports handler packages, not their internal peers. |
 
+### Public chain readers and endpoint configuration
+
+| | |
+|---|---|
+| **Seam** | Public Bitcoin, EVM and Solana capture sources |
+| **Interface** | `handlers/cases/connect_handler.go::EVMReader`, `BitcoinReader`, `BitcoinAddressReader`, `EVMWalletReader`, `SolanaAddressReader`, `SolanaSignatureReader`, `SolanaTransactionReader`, and `SolanaTokenAccountReader` |
+| **Production wiring** | `main.go` resolves the optional public RPC endpoint environment values into `handlers/cases.RPCConfig`; `handlers/cases/module.go` constructs the typed readers and injects them into the case handler. Empty values select documented keyless defaults. |
+| **Test fake** | `handlers/cases/capture_test.go` uses narrow recording readers; package-level provider tests use bounded `httptest` servers and exact retained responses. |
+| **Why it exists** | Public-chain acquisition needs controllable endpoint selection and capture fakes. Signature-only discovery retains the exact bounded source page without fetching every transaction; selected signatures are captured separately before transaction-level claims. |
+
 ### Doer (outbound HTTP)
 
 | | |
@@ -196,7 +206,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Outbound HTTP request boundary |
 | **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
 | **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
+| **Test fake** | `api-core/apihttptest::FakeDoer` (canonical canned response/error queue and request log). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
 ## Adding a new seam
@@ -253,7 +263,7 @@ sweep.
 never domain-specific interfaces.
 
 `internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakeDoer`).
+(`FakeClock`; outbound HTTP seam currently has no production consumer).
 
 ### Mechanical steps
 
@@ -282,7 +292,7 @@ never domain-specific interfaces.
    Each method takes a per-method error knob (`CreateErr error`) plus
    any state it needs to return. Counters use `atomic.Int64`, not plain
    `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakeDoer`) stay in
+   (`FakeClock`) stay in
    `internal/testutil/mocks/`.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't

@@ -45,6 +45,21 @@ type acceptAndRead struct {
 	read readFunc
 }
 
+// failAcceptedWriteDB models a process failure after budget credit has been
+// durably committed but before the delivery can be marked accepted.
+type failAcceptedWriteDB struct {
+	DB
+	failed bool
+}
+
+func (db *failAcceptedWriteDB) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	if !db.failed && strings.Contains(query, "SET status='accepted'") {
+		db.failed = true
+		return nil, errors.New("simulated process crash before delivery acceptance commit")
+	}
+	return db.DB.ExecContext(ctx, query, args...)
+}
+
 func (f acceptAndRead) Get(ctx context.Context, id string) (*ingestpb.AcceptedCryptoReceipt, error) {
 	return f.read(ctx, id)
 }
@@ -82,6 +97,7 @@ func TestFundingRecoversLostAcceptanceAndRestartWithoutDuplicateCredit(t *testin
 	in := SubmitInput{OperatorIdentity: "operator", WalletID: w.ID, TransactionHash: tx, CheckID: check.ID, BudgetID: "budget", LedgerBookID: "ledger-book", LedgerAccountID: "ledger-account", Action: ingestpb.CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL, Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD", Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, BasisReference: "test-explicit-valuation", ValuedAt: timestamppb.New(now)}, Attribution: &ingestpb.CryptoPayerAttribution{PayerAddress: check.Transfers[0].From, PayerIdentity: "fixture:customer"}}
 	var accepted *ingestpb.AcceptedCryptoReceipt
 	calls := 0
+	readCalls := 0
 	acceptor := acceptAndRead{acceptFunc: acceptFunc(func(_ context.Context, req *ingestpb.AcceptCryptoReceiptRequest) (*ingestpb.AcceptedCryptoReceipt, error) {
 		calls++
 		if accepted == nil {
@@ -90,6 +106,15 @@ func TestFundingRecoversLostAcceptanceAndRestartWithoutDuplicateCredit(t *testin
 		}
 		return proto.Clone(accepted).(*ingestpb.AcceptedCryptoReceipt), nil
 	}), read: func(_ context.Context, id string) (*ingestpb.AcceptedCryptoReceipt, error) {
+		readCalls++
+		if readCalls == 1 {
+			mismatch := proto.Clone(accepted).(*ingestpb.AcceptedCryptoReceipt)
+			mismatch.AtomicDelta = "1000002"
+			return mismatch, nil
+		}
+		if readCalls == 2 {
+			return nil, errors.New("receipt readback temporarily unavailable")
+		}
 		if accepted == nil || id != accepted.Id {
 			return nil, ErrNotFound
 		}
@@ -116,6 +141,39 @@ func TestFundingRecoversLostAcceptanceAndRestartWithoutDuplicateCredit(t *testin
 		grantCalls++
 		return CreditLotLink{ID: "lpbs-lot", Owner: "landing-page-business-suite", ReceiptID: receipt.GetId()}, nil
 	}))
+	require.ErrorContains(t, service.DrainPending(ctx), "readback differs")
+	funding, err = repository.Funding(ctx, "budget")
+	require.NoError(t, err)
+	require.Zero(t, funding.CreditedMinor, "headroom must remain unchanged when canonical Ledger readback differs")
+	delivery, err = service.Get(ctx, delivery.ID, "operator")
+	require.NoError(t, err)
+	require.Equal(t, "queued", delivery.Status)
+	require.ErrorContains(t, service.DrainPending(ctx), "receipt readback temporarily unavailable")
+	funding, err = repository.Funding(ctx, "budget")
+	require.NoError(t, err)
+	require.Zero(t, funding.CreditedMinor, "headroom must remain unchanged until canonical Ledger readback succeeds")
+	// Model process death after the idempotent budget credit commits but before
+	// Treasury records the accepted delivery. The restart must replay safely.
+	service = NewService(NewStore(&failAcceptedWriteDB{DB: db}), baseusdc.NewSQLiteStore(db), walletReader{w}, repository, acceptor, func() time.Time { return now })
+	service.SetCreditLotGranter(lotGrantFunc(func(_ context.Context, receipt *ingestpb.AcceptedCryptoReceipt) (CreditLotLink, error) {
+		grantCalls++
+		return CreditLotLink{ID: "lpbs-lot", Owner: "landing-page-business-suite", ReceiptID: receipt.GetId()}, nil
+	}))
+	require.ErrorContains(t, service.DrainPending(ctx), "simulated process crash")
+	funding, err = repository.Funding(ctx, "budget")
+	require.NoError(t, err)
+	require.EqualValues(t, 100, funding.CreditedMinor, "the accepted Ledger receipt funded budget headroom before simulated process death")
+	delivery, err = service.Get(ctx, delivery.ID, "operator")
+	require.NoError(t, err)
+	require.Equal(t, "queued", delivery.Status, "failed delivery-state commit must remain retryable")
+	require.NoError(t, db.Close())
+	db = open()
+	repository = budget.NewSQLiteRepository(db)
+	service = NewService(NewStore(db), baseusdc.NewSQLiteStore(db), walletReader{w}, repository, acceptor, func() time.Time { return now })
+	service.SetCreditLotGranter(lotGrantFunc(func(_ context.Context, receipt *ingestpb.AcceptedCryptoReceipt) (CreditLotLink, error) {
+		grantCalls++
+		return CreditLotLink{ID: "lpbs-lot", Owner: "landing-page-business-suite", ReceiptID: receipt.GetId()}, nil
+	}))
 	require.NoError(t, service.DrainPending(ctx))
 	require.NoError(t, service.DrainPending(ctx))
 	delivery, err = service.Get(ctx, delivery.ID, "operator")
@@ -124,7 +182,7 @@ func TestFundingRecoversLostAcceptanceAndRestartWithoutDuplicateCredit(t *testin
 	require.Equal(t, "lpbs-lot", delivery.CreditLotID)
 	require.Equal(t, "landing-page-business-suite", delivery.CreditLotOwner)
 	require.Equal(t, "ledger-receipt", delivery.CreditLotReceiptID)
-	require.Equal(t, 2, calls)
+	require.Equal(t, 5, calls)
 	require.Equal(t, 1, grantCalls, "accepted receipt was granted only once across the Treasury store restart")
 	funding, err = repository.Funding(ctx, "budget")
 	require.NoError(t, err)

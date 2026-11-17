@@ -34,12 +34,14 @@ func TestPriceDeclarationAndUnpaidChallenge(t *testing.T) {
 	unauthorizedResult := httptest.NewRecorder()
 	router.ServeHTTP(unauthorizedResult, unauthorized)
 	require.Equal(t, http.StatusUnauthorized, unauthorizedResult.Code)
+	require.Zero(t, repository.createCalls, "an unauthenticated caller cannot persist or reserve a price")
 
 	authorized := httptest.NewRequest(http.MethodPost, "/api/v1/x402/prices", bytes.NewReader(body))
 	authorized.Header.Set(operatorauth.HeaderOperatorToken, "operator-secret")
 	authorizedResult := httptest.NewRecorder()
 	router.ServeHTTP(authorizedResult, authorized)
 	require.Equal(t, http.StatusCreated, authorizedResult.Code)
+	require.Equal(t, 1, repository.createCalls)
 
 	unpaid := httptest.NewRequest(http.MethodPost, "/api/v1/x402/prices/price-1/admit", nil)
 	unpaidResult := httptest.NewRecorder()
@@ -112,9 +114,13 @@ func fixturePrice() x402rail.Price {
 	}
 }
 
-type fixtureRepository struct{ price x402rail.Price }
+type fixtureRepository struct {
+	price       x402rail.Price
+	createCalls int
+}
 
 func (r *fixtureRepository) CreatePrice(_ context.Context, price x402rail.Price) (x402rail.Price, error) {
+	r.createCalls++
 	r.price = price
 	return price, nil
 }

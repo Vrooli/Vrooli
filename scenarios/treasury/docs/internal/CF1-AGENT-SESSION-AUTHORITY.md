@@ -39,6 +39,12 @@ passed through authorization and settlement so the canonical operation/target
 grant evaluator remains authoritative; a baseline-only request cannot silently
 fall back when an operation token was supplied.
 
+All entry points share `identity.VerifySpendIdentity` for this token-pair
+contract. Header-based request verification delegates to that helper, and
+charge admission and settlement no longer carry separate pair-verification
+implementations. The authorization and settlement stages still evaluate their
+own bound intent at their respective side-effect boundaries.
+
 The signed message is the literal domain separator
 `Vrooli Treasury mandate session settlement v1\n` followed by JSON for
 `AgentSettlementIntent`, in Go struct field order. The digest applies the

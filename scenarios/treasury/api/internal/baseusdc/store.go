@@ -26,6 +26,7 @@ type Check struct {
 
 type Store interface {
 	Append(context.Context, Check) error
+	GetCheck(context.Context, string, string, string, string) (Check, error)
 	List(context.Context, string, string, string, int) ([]Check, error)
 	GetPriorVerified(context.Context, string, string, string, string, string) (Check, error)
 }

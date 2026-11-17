@@ -5,7 +5,6 @@ what evidence would justify investing further. It is a hypothesis document, not
 a commitment; bundle placement and pricing are operator-curated canon
 (`path:docs/monetization/README.md`).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

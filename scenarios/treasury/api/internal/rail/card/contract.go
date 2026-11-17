@@ -163,6 +163,12 @@ func (i guardedIssuer) Inspect(ctx context.Context, query InspectQuery) (Issued,
 	if strings.TrimSpace(issued.ExternalID) == "" {
 		return Issued{}, fmt.Errorf("%w: issuer inspection omitted external_id", ErrInvalid)
 	}
+	if strings.TrimSpace(issued.ExternalID) != strings.TrimSpace(query.ExternalID) {
+		return Issued{}, fmt.Errorf("%w: issuer inspection returned a different external_id", ErrInvalid)
+	}
+	if err := ValidateScope(issued.Scope); err != nil {
+		return Issued{}, fmt.Errorf("%w: issuer inspection returned an invalid scope", ErrInvalid)
+	}
 	return issued, nil
 }
 

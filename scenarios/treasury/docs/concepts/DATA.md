@@ -11,7 +11,6 @@ stored balance is a number that can silently disagree with its own history.
 secrets live in `secrets-manager` and are resolved by reference at use
 time; this scenario persists the reference and never the value.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

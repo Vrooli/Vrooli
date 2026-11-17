@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "87887f4a979809e6f3f9cd896a0fb62cf124e6e8f83f286c4fdb0411417c44fd",
+  "manifest_hash": "2ecd98613f46da6861eea3bf142f739c592afac89505f4be5a79a0c8f1844a80",
   "commands": [
     {
       "path": "approval list",
@@ -217,6 +217,12 @@
       "binding": "FundingAdminService.GetBudgetWallet"
     },
     {
+      "path": "wallet commit-rotation",
+      "group": "wallet",
+      "command": "commit-rotation",
+      "binding": "WalletAdminService.CommitPortableResearchWalletRotation"
+    },
+    {
       "path": "wallet create",
       "group": "wallet",
       "command": "create",
@@ -257,6 +263,12 @@
       "group": "wallet",
       "command": "get",
       "binding": "WalletAdminService.GetResearchWallet"
+    },
+    {
+      "path": "wallet prepare-rotation",
+      "group": "wallet",
+      "command": "prepare-rotation",
+      "binding": "WalletAdminService.PreparePortableResearchWalletRotation"
     },
     {
       "path": "wallet prove",
@@ -317,6 +329,12 @@
       "group": "wallet",
       "command": "restore-portable-recovery",
       "binding": "WalletAdminService.RestorePortableResearchWalletRecovery"
+    },
+    {
+      "path": "wallet rotate",
+      "group": "wallet",
+      "command": "rotate",
+      "binding": "WalletAdminService.RotateResearchWallet"
     },
     {
       "path": "wallet withdrawal-destination-set",

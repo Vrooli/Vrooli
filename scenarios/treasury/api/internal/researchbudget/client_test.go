@@ -102,8 +102,13 @@ func TestCF7RequestOnlyBridgeClient(t *testing.T) {
 		CapMinor: 100, Currency: "USD", UnitCode: "USD_CENTS", PolicyRevision: "cf7-test-revision",
 		CreatedAt: time.Date(2026, 11, 14, 6, 0, 0, 0, time.UTC),
 	})
-	require.ErrorContains(t, err, "Agent Manager research budget evidence returned 202")
-	require.ErrorContains(t, err, "approval_pending")
+	approved := os.Getenv("CF7_AM_REQUEST_ONLY_APPROVED") == "true"
+	if approved {
+		require.NoError(t, err)
+	} else {
+		require.ErrorContains(t, err, "Agent Manager research budget evidence returned 202")
+		require.ErrorContains(t, err, "approval_pending")
+	}
 	err = client.RecordSettlement(context.Background(), runID, researchbudget.Settlement{
 		ID: "cf7-unapproved-evidence", SettlementID: "cf7-unapproved-settlement",
 		TreasuryReceiptID: "cf7-unapproved-receipt", IntegrationID: "x402:local-test",
@@ -111,8 +116,12 @@ func TestCF7RequestOnlyBridgeClient(t *testing.T) {
 		ResultRef: "cf7-test-result", BenefitState: "measured", BenefitSummary: "test fixture only",
 		SettledAt: time.Date(2026, 11, 14, 6, 1, 0, 0, time.UTC),
 	})
-	require.ErrorContains(t, err, "Agent Manager research budget evidence returned 202")
-	require.ErrorContains(t, err, "approval_pending")
+	if approved {
+		require.NoError(t, err)
+	} else {
+		require.ErrorContains(t, err, "Agent Manager research budget evidence returned 202")
+		require.ErrorContains(t, err, "approval_pending")
+	}
 }
 
 func TestClientPostsRunBoundImmutableEvidenceWithTreasuryServiceToken(t *testing.T) {

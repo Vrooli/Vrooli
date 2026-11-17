@@ -18,6 +18,7 @@ import (
 	secp "github.com/go-webauthn/x/crypto/secp256k1"
 	"github.com/go-webauthn/x/crypto/secp256k1/ecdsa"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/receiptsigning"
 	"github.com/vrooli/api-core/schedule"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"golang.org/x/crypto/sha3"
@@ -50,6 +51,7 @@ type Wallet struct {
 	ID, BookID, OperatorIdentity, Network, Address, PublicKey, CustodyReference string
 	CreatedAt                                                                   time.Time
 	RecoveryStatus, RecoverySHA256                                              string
+	RevokedAt, SuccessorID                                                      string
 }
 type (
 	CreateInput struct{ ID, BookID, Network, OperatorIdentity string }
@@ -73,17 +75,28 @@ type Custody interface {
 type (
 	RecoveryPath func(context.Context, string) (string, error)
 	Service      struct {
-		repository            Repository
-		books                 Books
-		custody               Custody
-		clock                 schedule.Clock
-		recoveryPath          RecoveryPath
-		sessionSignAuthorizer SessionSignAuthorizer
+		repository              Repository
+		books                   Books
+		custody                 Custody
+		clock                   schedule.Clock
+		recoveryPath            RecoveryPath
+		sessionSignAuthorizer   SessionSignAuthorizer
+		rotationReceiptVerifier receiptsigning.ReceiptVerifier
 	}
 )
 
 func NewService(repository Repository, books Books, custody Custody, clock schedule.Clock, path RecoveryPath) *Service {
 	return &Service{repository: repository, books: books, custody: custody, clock: clock, recoveryPath: path}
+}
+
+// WithRotationReceiptVerifier installs the trusted DBM receipt verifier. A nil
+// verifier leaves destructive rotation disabled; caller-supplied receipt
+// fields are never accepted as proof by themselves.
+func (s *Service) WithRotationReceiptVerifier(verifier receiptsigning.ReceiptVerifier) *Service {
+	if s != nil {
+		s.rotationReceiptVerifier = verifier
+	}
+	return s
 }
 
 func (s *Service) available(ctx context.Context) error {
@@ -196,6 +209,9 @@ func (s *Service) binding(ctx context.Context, id, network, operator string) (Wa
 	if err != nil {
 		return Wallet{}, err
 	}
+	if w.RevokedAt != "" {
+		return Wallet{}, fmt.Errorf("%w: wallet key was revoked", ErrMismatch)
+	}
 	if !supported(network) || w.Network != network || w.OperatorIdentity != operator || !validReference(w) {
 		return Wallet{}, ErrMismatch
 	}
@@ -214,6 +230,9 @@ func (s *Service) Get(ctx context.Context, id, network, operator string) (Wallet
 	if err != nil {
 		return Wallet{}, err
 	}
+	if w.RevokedAt != "" {
+		return Wallet{}, fmt.Errorf("%w: wallet key was revoked", ErrMismatch)
+	}
 	key, err := s.key(w)
 	if err != nil {
 		return Wallet{}, err
@@ -223,6 +242,13 @@ func (s *Service) Get(ctx context.Context, id, network, operator string) (Wallet
 		return Wallet{}, ErrMismatch
 	}
 	return w, nil
+}
+
+// Rotate is retained for wire compatibility but fails closed. Root rotation
+// must use PreparePortableRotation, an operator-context off-host DBM check, and
+// CommitPortableRotation so a one-shot call cannot delete the old scalar.
+func (s *Service) Rotate(ctx context.Context, id, network, operator, successorID string) (Wallet, error) {
+	return Wallet{}, fmt.Errorf("%w: root rotation requires the prepare, off-host DBM verification, and receipt-validated commit phases", ErrUnavailable)
 }
 
 func (s *Service) key(w Wallet) (*secp.PrivateKey, error) {

@@ -183,17 +183,12 @@ func (s *Service) DrainPending(ctx context.Context) error {
 			if err == nil {
 				err = validateAcceptance(value.Request, receipt)
 			}
-			if err == nil {
-				err = s.budgets.CreditAccepted(ctx, budget.FundingCredit{LedgerReceiptID: receipt.Id, PostingID: receipt.PostingId, SourceCheckID: receipt.Source.CheckId, BudgetID: value.BudgetID, AtomicDelta: receipt.AtomicDelta, ValuationDeltaMinor: receipt.ValuationDeltaMinor, ValuationCurrency: receipt.Currency, AcceptedAt: receipt.AcceptedAt.AsTime()})
-			}
-			if err == nil {
-				err = s.store.Accept(ctx, value.ID, receipt)
-				if err == nil {
-					value.Status = "accepted"
-				}
-			}
 		}
-		if err == nil && receipt != nil && value.Status == "accepted" {
+		// The Ledger acceptance can succeed even if our response is lost. Read
+		// back its immutable receipt before admitting local headroom or marking
+		// this delivery accepted. A retry presents the same idempotency key, then
+		// repeats this proof before committing the local side effect.
+		if err == nil && receipt != nil {
 			reader, ok := s.acceptor.(ReceiptReader)
 			if !ok {
 				err = errors.New("Money Ledger accepted receipt reader is unavailable")
@@ -202,6 +197,15 @@ func (s *Service) DrainPending(ctx context.Context) error {
 				canonical, err = reader.Get(ctx, receipt.GetId())
 				if err == nil && !proto.Equal(receipt, canonical) {
 					err = errors.New("Money Ledger receipt readback differs from retained acceptance")
+				}
+			}
+		}
+		if err == nil && receipt != nil && value.Status == "queued" {
+			err = s.budgets.CreditAccepted(ctx, budget.FundingCredit{LedgerReceiptID: receipt.Id, PostingID: receipt.PostingId, SourceCheckID: receipt.Source.CheckId, BudgetID: value.BudgetID, AtomicDelta: receipt.AtomicDelta, ValuationDeltaMinor: receipt.ValuationDeltaMinor, ValuationCurrency: receipt.Currency, AcceptedAt: receipt.AcceptedAt.AsTime()})
+			if err == nil {
+				err = s.store.Accept(ctx, value.ID, receipt)
+				if err == nil {
+					value.Status = "accepted"
 				}
 			}
 		}

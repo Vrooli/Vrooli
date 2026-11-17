@@ -13,7 +13,12 @@ export const API_BASE = resolveApiBase();
 const REST_API_BASE = resolveApiBase({ appendSuffix: true });
 const PROTO_READ_OPTIONS = { ignoreUnknownFields: true } as const;
 
-export const transport = createScenarioConnectTransport({ baseUrl: API_BASE });
+const sessionFetch: typeof fetch = (input, init) => fetch(input, {
+  ...init,
+  credentials: "include",
+});
+
+export const transport = createScenarioConnectTransport({ baseUrl: API_BASE, fetch: sessionFetch });
 
 /**
  * Typed error thrown when the API returns a non-2xx response. The

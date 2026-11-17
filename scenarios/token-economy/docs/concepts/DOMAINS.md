@@ -14,7 +14,6 @@ The scaffold also ships one clearly fenced worked example domain (never
 product scope) as a copyable reference; `template-manager detemplate
 token-economy` removes every fenced example once the real domains are green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

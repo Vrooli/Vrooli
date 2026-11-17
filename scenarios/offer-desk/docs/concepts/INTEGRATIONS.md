@@ -31,7 +31,10 @@ This scenario declares no external Vrooli resource. Nodes, triggers and proposal
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| Money Ledger | planned (P1) | Two reads, both for the board. **(1) Actuals** for the earned-versus-intended join. **(2) Financial posture** — runway, goal verdicts with sustain-window progress, and the default-alive gap — because this scenario is the `monetization` team's single address and its financial member must be served by the same surface as its catalog members (`../internal/DECISIONS.md`, 2026-08-13). Both are optional at runtime and degrade to a stated unavailability. | Typed read client with a short deadline. One-way: Money Ledger has no knowledge of offers and must never gain any. Neither read may be cached as a stored amount — the board renders the figure with its source and age, or reports that it could not. |
+| Money Ledger | active | Actuals and financial posture for the board. Read-only and one-way. | Optional; each board request resolves the current address and uses generated Connect clients with a short deadline. If unavailable, the affected values are marked unavailable and never treated as zero. |
+| Deployment Manager | active | Optional readiness state for release rows; readiness evidence reporting when an owner token is configured. | Optional; resolve the current address for each readiness operation. Missing state is unavailable; report failures are returned to the caller without preventing Offer Desk from starting. |
+| Swarm Manager | active | Goal impacts on the release ladder. | Optional; resolve the current address per ladder request. If unavailable, append an explicit source availability reason and preserve local ladder results. |
+| Treasury | active | x402 payment admission for the paid catalog endpoint only. | Optional to Offer Desk as a whole; resolve the current address per paid request. If unavailable, return HTTP 503 for the paid endpoint while free surfaces remain available. |
 | Landing Page Business Suite | **deliberately none** | Commerce data reaches this scenario indirectly, through Money Ledger. Coupling directly to a billing system would put pricing and entitlement concepts into a scenario whose whole boundary is that it holds neither. | — |
 
 ## Third-Party Services
@@ -45,9 +48,12 @@ This scenario declares no external Vrooli resource. Nodes, triggers and proposal
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
-| Money Ledger — actuals read | unreachable, slow, or erroring | The board marks the actuals source unavailable with a reason. **Never zero earnings** — indistinguishable from an offer that genuinely earned nothing. Every other board source continues to rank. | board tests with a faked unavailable ledger |
+| Money Ledger — actuals read | unreachable, slow, or erroring | The board marks the actuals source unavailable with a reason. **Never zero earnings** — indistinguishable from an offer that genuinely earned nothing. Every other board source continues to rank. The URL is resolved on each request; no failed lookup can reuse a client for a stale port. | board tests with a faked unavailable ledger and a restart/re-resolution case |
 | Money Ledger — posture read | unreachable, slow, or erroring | The board marks the posture source unavailable with a reason and the age of the last good reading. **Never a zero runway and never an unmet goal verdict** — an unreadable ledger and a genuinely exhausted runway are opposite conclusions that would otherwise render identically. The two reads degrade independently: actuals may be unavailable while posture is fine. | board tests faking each read unavailable separately |
 | Money Ledger — position reports itself partial | a contributing adapter is down inside the ledger | The board propagates the partial marker rather than flattening it. A posture figure the ledger already qualified must not arrive here unqualified — that would launder a caveat out of existence at the surface the operator actually reads. | board tests with a partial position fixture |
+| Deployment Manager | unavailable, restarted, or readiness endpoint fails | Catalog readiness is absent for that read; configured evidence reports return their error. Offer Desk remains available. Each operation resolves the current address. | readiness provider tests with target restart and unavailable resolution |
+| Swarm Manager | unavailable, restarted, or Connect call fails | Release ladder includes an availability reason; local entries remain available. Each ladder request resolves the current address. | release ladder tests with target restart and unavailable resolution |
+| Treasury | unavailable or admission fails | Paid catalog request returns HTTP 503; free endpoints are unaffected. | paid endpoint tests with missing dependency and resolver override |
 | Fact sources (P2) | a named fact has no current value | The trigger evaluates to **unknown**, the node stays in `candidate`, and the run reports the missing fact. Never false. | gates evaluation tests |
 
 ## Why This Scenario Has Almost No Integrations
@@ -56,7 +62,9 @@ The short dependency list is a design outcome, not an early-stage accident.
 
 This scenario's entire boundary is that it holds *intent* — what should be sold and what state that intent is in. The moment it reads a payment processor directly, it acquires opinions about money; the moment it writes to one, it acquires opinions about customers. Both belong elsewhere, and both are already owned: commerce upstream, and actuals in Money Ledger.
 
-So the only runtime dependency is Money Ledger, read twice — actuals and financial posture — and both degrade to an honest unavailability rather than blocking anything. The scenario is fully useful with no dependency reachable at all.
+Money Ledger, Deployment Manager, Swarm Manager, and Treasury are optional at the scenario level. Their individual features return an explicit unavailable signal when the peer cannot be reached; none of them blocks local catalog, board, or authoring work. The scenario remains useful with no dependency reachable.
+
+Every long-lived request path resolves the peer address when it runs. Offer Desk does not retain a discovered port across target restarts. Remote deployments may supply the documented service base URL overrides; local discovery remains the default.
 
 The second read exists because this scenario is the `monetization` team's instrument, and it is worth being precise about what that does and does not license. It licenses **surfacing** another scenario's figures at the one address the team reads. It does not license computing them, storing them, correcting them, or reasoning about them. If a board entry ever needs an amount this scenario had to work out for itself, the boundary has moved and the correct response is to move it back.
 

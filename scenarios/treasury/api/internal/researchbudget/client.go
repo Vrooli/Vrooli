@@ -57,6 +57,7 @@ type Settlement struct {
 	SettledAt         time.Time `json:"settled_at"`
 }
 
+
 // Client exposes only the two fixed Treasury evidence routes. Exact operation
 // authority is evaluated by Agent Manager from its trusted request authority;
 // this client cannot manufacture a grant or choose another write route.

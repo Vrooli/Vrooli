@@ -79,6 +79,10 @@ func (w *scopedReceiptWallets) Create(context.Context, wallet.CreateInput) (wall
 	return wallet.Wallet{}, errors.New("not used")
 }
 
+func (w *scopedReceiptWallets) Rotate(context.Context, string, string, string, string) (wallet.Wallet, error) {
+	return wallet.Wallet{}, errors.New("not used")
+}
+
 func (w *scopedReceiptWallets) Get(_ context.Context, id, network, operator string) (wallet.Wallet, error) {
 	owner, ok := w.owners[id]
 	if !ok || network != baseusdc.Network {
@@ -110,7 +114,7 @@ func TestBaseReceiptEvidenceSurvivesOwnerHTTPAndDatabaseReopen(t *testing.T) {
 	providerID := "fixture-base-rpc"
 	checkedAt := time.Date(2026, 11, 2, 18, 30, 0, 0, time.UTC)
 	transfer := baseusdc.Observation{
-		EconomicKey:       "eip155:8453/erc20:" + baseusdc.USDCAddress + "/" + transactionHash + "/log/4/0x1111111111111111111111111111111111111111",
+		EconomicKey:       baseusdc.Network + "/" + baseusdc.USDCAddress + "/" + transactionHash + "/log/4/0x1111111111111111111111111111111111111111",
 		InclusionRevision: transactionHash + "/log/4@" + blockHash,
 		WalletID:          "wallet-1", Network: baseusdc.Network, AssetID: baseusdc.TransferAsset, Decimals: 6,
 		From: "0x2222222222222222222222222222222222222222", To: "0x1111111111111111111111111111111111111111",
@@ -118,6 +122,7 @@ func TestBaseReceiptEvidenceSurvivesOwnerHTTPAndDatabaseReopen(t *testing.T) {
 		BlockHash: blockHash, BlockTime: checkedAt.Add(-time.Minute), Finality: "finalized",
 		FinalizedHeadNumber: 100, FinalizedHeadHash: "0x" + strings.Repeat("c", 64),
 		ProviderID: providerID, ObservedAt: checkedAt,
+		WalletAddressBinding: "0x1111111111111111111111111111111111111111",
 	}
 
 	openOwner := func() (*sql.DB, *httptest.Server, walletconnect.WalletAdminServiceClient) {

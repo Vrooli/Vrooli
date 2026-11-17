@@ -176,6 +176,21 @@ an aborted response. Each receipt retains the prior complete case snapshot.
 Represent a changed edge assessment with a new edge ID and preserve the
 previous edge and its evidence.
 
+### Discover older Solana signatures
+
+Use `chain-forensics cases capture-solana-address --case-id <id> --address
+<pubkey> --signatures-only` to retain a finalized signature-only page without
+fetching every transaction. The default page size is 1,000; set
+`--signature-limit <1..1000>` to bound it further. Continue with
+`--before-signature <next-page-cursor>` using the prior response's
+`next_before_signature`. For bounded history scans, set
+`--signature-pages <1..25>` to fetch sequential pages and append all exact
+responses in one case revision; multi-page commands report the last cursor
+without returning the full packet in the mutation response. This is discovery
+evidence only. Capture selected
+transactions through `chain-forensics cases capture-solana-transaction` to
+record transaction-level sources and observations.
+
 For a new domain, copy the worked CRUD command group in the fenced
 example above first, then replace it once your real domain is green.
 

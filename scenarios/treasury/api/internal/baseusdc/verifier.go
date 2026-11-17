@@ -102,6 +102,36 @@ func NewVerifier(rpc RPC, providerID string, now func() time.Time) (*Verifier, e
 	return &Verifier{rpc: rpc, provider: strings.TrimSpace(providerID), now: now}, nil
 }
 
+// LatestBlockNumber returns the configured Base provider's latest observed
+// block. Funding intent creation uses this only to exclude transfers that
+// predate the operator's intent; receipt verification still requires canonical
+// inclusion and Base's finalized tag before accounting accepts a transfer.
+func (v *Verifier) LatestBlockNumber(ctx context.Context) (*big.Int, error) {
+	if v == nil || v.rpc == nil {
+		return nil, ErrRPCUnavailable
+	}
+	var chainID string
+	if err := v.rpc.Call(ctx, "eth_chainId", []any{}, &chainID); err != nil {
+		return nil, fmt.Errorf("%w: chain identity read failed", ErrRPCUnavailable)
+	}
+	chain, err := parseQuantity(chainID, "chain ID")
+	if err != nil || !chain.IsUint64() || chain.Uint64() != ChainID {
+		return nil, ErrWrongNetwork
+	}
+	var latest *block
+	if err := v.rpc.Call(ctx, "eth_getBlockByNumber", []any{"latest", false}, &latest); err != nil {
+		return nil, fmt.Errorf("%w: latest block read failed", ErrRPCUnavailable)
+	}
+	if latest == nil {
+		return nil, fmt.Errorf("%w: latest block is empty", ErrRPCUnavailable)
+	}
+	number, err := parseQuantity(latest.Number, "latest block number")
+	if err != nil || !number.IsUint64() || !evHash.MatchString(latest.Hash) {
+		return nil, fmt.Errorf("%w: latest block identity is malformed", ErrRPCUnavailable)
+	}
+	return number, nil
+}
+
 // VerifyWalletTransaction reads an EVM receipt and Base's finalized head. It
 // proves only that this RPC currently reports exact native-USDC Transfer logs
 // to a persisted Treasury wallet address. It never signs, writes a ledger

@@ -90,6 +90,7 @@ type cardResponse struct {
 	CVV                string `json:"cvv"`
 	State              string `json:"state"`
 	Type               string `json:"type"`
+	CardholderCurrency string `json:"cardholder_currency"`
 	SpendLimit         int64  `json:"spend_limit"`
 	SpendLimitDuration string `json:"spend_limit_duration"`
 	ExpMonth           string `json:"exp_month"`
@@ -140,6 +141,16 @@ func (a *Adapter) Issue(ctx context.Context, command card.IssueCommand) (card.Is
 	if err := card.ValidateScope(command.Scope); err != nil {
 		return card.Issued{}, err
 	}
+	if !strings.EqualFold(strings.TrimSpace(command.Scope.Currency), "USD") {
+		return card.Issued{}, fmt.Errorf("%w: Lithic card spend limits are denominated in USD cents", card.ErrInvalid)
+	}
+	now := time.Now().UTC()
+	if !command.Scope.ExpiresAt.After(now) || command.Scope.ExpiresAt.After(now.AddDate(5, 0, 0)) {
+		return card.Issued{}, fmt.Errorf("%w: expires_at must be in the future and within Lithic's five-year card limit", card.ErrInvalid)
+	}
+	if !providerExpiryMatches(command.Scope.ExpiresAt) {
+		return card.Issued{}, fmt.Errorf("%w: Lithic card expiry has month precision; mandate expiry must be the final instant of its UTC month", card.ErrInvalid)
+	}
 	credential, err := parseProviderCredential(command.Credential)
 	if err != nil {
 		return card.Issued{}, err
@@ -151,7 +162,8 @@ func (a *Adapter) Issue(ctx context.Context, command card.IssueCommand) (card.Is
 		Memo: boundedMemo(command.Scope.MandateReference, command.Scope.Counterparty), AccountToken: credential.AccountToken,
 	}
 	var created cardResponse
-	if err := a.request(ctx, http.MethodPost, "/v1/cards", credential.APIKey, deterministicUUID(command.IdempotencyKey), cardRequest, &created, http.StatusOK, http.StatusCreated); err != nil {
+	issueIdentity := "lithic:card:" + command.InstrumentID + "\x00" + command.IdempotencyKey
+	if err := a.request(ctx, http.MethodPost, "/v1/cards", credential.APIKey, deterministicUUID(issueIdentity), cardRequest, &created, http.StatusOK, http.StatusCreated); err != nil {
 		return card.Issued{}, fmt.Errorf("issue provider card: %w", err)
 	}
 	if strings.TrimSpace(created.Token) == "" {
@@ -160,7 +172,7 @@ func (a *Adapter) Issue(ctx context.Context, command card.IssueCommand) (card.Is
 	fail := func(cause error, ruleToken string) (card.Issued, error) {
 		return card.Issued{}, a.failIssue(ctx, credential.APIKey, created.Token, ruleToken, cause)
 	}
-	if strings.TrimSpace(created.PAN) == "" || created.State != "PAUSED" || created.SpendLimit != command.Scope.AmountMinor || created.SpendLimitDuration != "FOREVER" || created.ExpMonth != cardRequest.ExpMonth || created.ExpYear != cardRequest.ExpYear {
+	if strings.TrimSpace(created.PAN) == "" || created.State != "PAUSED" || !strings.EqualFold(created.CardholderCurrency, "USD") || created.SpendLimit != command.Scope.AmountMinor || created.SpendLimitDuration != "FOREVER" || created.ExpMonth != cardRequest.ExpMonth || created.ExpYear != cardRequest.ExpYear {
 		return fail(fmt.Errorf("%w: provider did not create the requested paused card scope", ErrInvalid), "")
 	}
 
@@ -170,7 +182,7 @@ func (a *Adapter) Issue(ctx context.Context, command card.IssueCommand) (card.Is
 		Parameters: ruleParameters{Action: "DECLINE", Conditions: []condition{{Attribute: "MERCHANT_ID", Operation: "IS_NOT_ONE_OF", Value: []string{strings.ToUpper(command.Scope.Counterparty)}}}},
 	}
 	var rule ruleResponse
-	if err := a.request(ctx, http.MethodPost, "/v2/auth_rules", credential.APIKey, deterministicUUID(command.IdempotencyKey+":merchant-rule"), ruleRequest, &rule, http.StatusCreated); err != nil {
+	if err := a.request(ctx, http.MethodPost, "/v2/auth_rules", credential.APIKey, "", ruleRequest, &rule, http.StatusCreated); err != nil {
 		return fail(fmt.Errorf("create provider merchant rule: %w", err), "")
 	}
 	if strings.TrimSpace(rule.Token) == "" {
@@ -198,7 +210,7 @@ func (a *Adapter) Issue(ctx context.Context, command card.IssueCommand) (card.Is
 	if err := a.request(ctx, http.MethodGet, "/v1/cards/"+url.PathEscape(created.Token), credential.APIKey, "", nil, &verified, http.StatusOK); err != nil {
 		return fail(fmt.Errorf("verify provider card: %w", err), rule.Token)
 	}
-	if !matchesCardScope(verified, created.Token, command.Scope.AmountMinor, cardRequest.ExpMonth, cardRequest.ExpYear) {
+	if !matchesCardScope(verified, created.Token, command.Scope.AmountMinor, "USD", cardRequest.ExpMonth, cardRequest.ExpYear) {
 		return fail(fmt.Errorf("%w: provider card is not open with the requested mandate scope", ErrInvalid), rule.Token)
 	}
 
@@ -234,15 +246,21 @@ func (a *Adapter) Inspect(ctx context.Context, query card.InspectQuery) (card.Is
 	if err := a.request(ctx, http.MethodGet, "/v2/auth_rules/"+url.PathEscape(credential.RuleToken), credential.APIKey, "", nil, &remoteRule, http.StatusOK); err != nil {
 		return card.Issued{}, fmt.Errorf("inspect provider merchant rule: %w", err)
 	}
-	if !matchesCardScope(remoteCard, credential.CardToken, credential.AmountMinor, credential.ProviderExpMonth, credential.ProviderExpYear) || remoteRule.Token != credential.RuleToken || remoteRule.State != "ACTIVE" || remoteRule.CurrentVersion == nil || !permitsOnly(remoteRule.CurrentVersion.Parameters, credential.Counterparty) {
+	if !matchesCardScope(remoteCard, credential.CardToken, credential.AmountMinor, credential.Currency, credential.ProviderExpMonth, credential.ProviderExpYear) || remoteRule.Token != credential.RuleToken || remoteRule.State != "ACTIVE" || remoteRule.CurrentVersion == nil || !permitsOnly(remoteRule.CurrentVersion.Parameters, credential.Counterparty) {
 		return card.Issued{}, fmt.Errorf("%w: provider scope differs from mandate-bound credential", ErrInvalid)
 	}
 	scope := card.Scope{MandateReference: credential.MandateReference, AmountMinor: credential.AmountMinor, Currency: credential.Currency, Counterparty: credential.Counterparty, ExpiresAt: credential.MandateExpiresAt}
 	return card.Issued{ExternalID: remoteCard.Token, Scope: scope}, nil
 }
 
-func matchesCardScope(remote cardResponse, token string, amountMinor int64, expMonth, expYear string) bool {
-	return remote.Token == token && remote.State == "OPEN" && remote.SpendLimit == amountMinor && remote.SpendLimitDuration == "FOREVER" && remote.ExpMonth == expMonth && remote.ExpYear == expYear
+func matchesCardScope(remote cardResponse, token string, amountMinor int64, currency, expMonth, expYear string) bool {
+	return remote.Token == token && remote.State == "OPEN" && strings.EqualFold(remote.CardholderCurrency, currency) && remote.SpendLimit == amountMinor && remote.SpendLimitDuration == "FOREVER" && remote.ExpMonth == expMonth && remote.ExpYear == expYear
+}
+
+func providerExpiryMatches(expiresAt time.Time) bool {
+	expiresAt = expiresAt.UTC()
+	monthEnd := time.Date(expiresAt.Year(), expiresAt.Month()+1, 1, 0, 0, 0, 0, time.UTC).Add(-time.Nanosecond)
+	return expiresAt.Equal(monthEnd)
 }
 
 func (a *Adapter) failIssue(ctx context.Context, apiKey, cardToken, ruleToken string, cause error) error {
@@ -288,9 +306,12 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 	if command.MandateReference != credential.MandateReference {
 		return rail.Result{}, fmt.Errorf("%w: card credential belongs to a different mandate", ErrInvalid)
 	}
+	if !time.Now().UTC().Before(credential.MandateExpiresAt) {
+		return rail.Result{Outcome: rail.OutcomeFailed, Basis: "mandate_expired", OccurredAt: time.Now().UTC(), Detail: "card mandate has expired; no provider authorization was requested"}, nil
+	}
 	attempt := authorizeRequest{Amount: command.AmountMinor, Descriptor: boundedDescriptor(command.Counterparty), PAN: credential.PAN, MerchantAcceptorID: strings.ToUpper(command.Counterparty), MerchantCurrency: strings.ToUpper(command.Currency)}
 	var authorized transactionResponse
-	status, err := a.requestAny(ctx, http.MethodPost, "/v1/simulate/authorize", credential.APIKey, deterministicUUID(command.IdempotencyKey), attempt, &authorized)
+	status, err := a.requestAny(ctx, http.MethodPost, "/v1/simulate/authorize", credential.APIKey, "", attempt, &authorized)
 	if err != nil {
 		return rail.Result{}, fmt.Errorf("simulate provider authorization: %w", err)
 	}
@@ -301,8 +322,12 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 		return rail.Result{}, fmt.Errorf("%w: provider authorization returned status %d without a transaction token", ErrInvalid, status)
 	}
 	clear := map[string]any{"amount": 0, "token": authorized.Token}
-	if err := a.request(ctx, http.MethodPost, "/v1/simulate/clearing", credential.APIKey, deterministicUUID(command.IdempotencyKey+":clear"), clear, nil, http.StatusOK, http.StatusCreated); err != nil {
-		return rail.Result{}, fmt.Errorf("clear provider authorization: %w", err)
+	if err := a.request(ctx, http.MethodPost, "/v1/simulate/clearing", credential.APIKey, "", clear, nil, http.StatusOK, http.StatusCreated); err != nil {
+		// The authorization may already exist even when the clearing response
+		// is lost. Preserve the provider transaction handle for reconciliation;
+		// callers retry/query this same transaction rather than inventing a new
+		// settlement identity.
+		return rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: authorized.Token, ReceiptReference: "lithic-sandbox:" + authorized.Token, Basis: "provider_card_clearing_unknown", OccurredAt: time.Now().UTC(), Detail: "provider authorization was accepted but clearing response was inconclusive"}, nil
 	}
 	now := time.Now().UTC()
 	return rail.Result{Outcome: rail.OutcomeSettled, ExternalID: authorized.Token, ReceiptReference: "lithic-sandbox:" + authorized.Token, Basis: "provider_card", OccurredAt: now, Detail: "provider authorized and cleared sandbox card transaction"}, nil
@@ -320,6 +345,10 @@ func (a *Adapter) QueryOutcome(ctx context.Context, query rail.Query) (rail.Resu
 	if err := a.request(ctx, http.MethodGet, "/v1/transactions/"+url.PathEscape(query.ExternalID), credential.APIKey, "", nil, &transaction, http.StatusOK); err != nil {
 		return rail.Result{}, err
 	}
+	requestedID := strings.TrimSpace(query.ExternalID)
+	if strings.TrimSpace(transaction.Token) != requestedID {
+		return rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: requestedID, ReceiptReference: "lithic-sandbox:" + requestedID, Basis: "provider_card_query_inconclusive", OccurredAt: time.Now().UTC(), Detail: "provider transaction readback did not match the requested transaction"}, nil
+	}
 	outcome := rail.OutcomeUnknown
 	switch strings.ToUpper(transaction.Status) {
 	case "SETTLED":
@@ -327,7 +356,7 @@ func (a *Adapter) QueryOutcome(ctx context.Context, query rail.Query) (rail.Resu
 	case "DECLINED", "VOIDED", "REVERSED":
 		outcome = rail.OutcomeFailed
 	}
-	return rail.Result{Outcome: outcome, ExternalID: transaction.Token, ReceiptReference: "lithic-sandbox:" + transaction.Token, Basis: "provider_card_query", OccurredAt: time.Now().UTC(), Detail: strings.ToLower(transaction.Status)}, nil
+	return rail.Result{Outcome: outcome, ExternalID: requestedID, ReceiptReference: "lithic-sandbox:" + requestedID, Basis: "provider_card_query", OccurredAt: time.Now().UTC(), Detail: strings.ToLower(transaction.Status)}, nil
 }
 
 func parseProviderCredential(raw string) (providerCredential, error) {

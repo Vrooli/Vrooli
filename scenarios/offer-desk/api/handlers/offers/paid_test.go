@@ -23,21 +23,29 @@ func TestPaidCatalogForwards402AndOnlyReleasesContentAfterSettlement(t *testing.
 
 	var settled bool
 	var seenPayment string
-	treasury := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/api/v1/x402/prices/cf4-research-inference/admit", r.URL.Path)
-		require.Equal(t, http.MethodGet, r.Method)
-		seenPayment = r.Header.Get("Payment-Signature")
-		if !settled {
-			w.Header().Set("Payment-Required", "eyJ4NDAyVmVyc2lvbiI6Mn0=")
-			w.WriteHeader(http.StatusPaymentRequired)
-			_, _ = w.Write([]byte(`{"error":"payment signature is required"}`))
-			return
-		}
-		w.Header().Set("Payment-Response", base64.StdEncoding.EncodeToString([]byte(`{"success":true,"payer":"0xabc","transaction":"0x123","network":"eip155:8453"}`)))
-		w.WriteHeader(http.StatusOK)
-	}))
+	newTreasury := func() *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			require.Equal(t, "/api/v1/x402/prices/cf4-research-inference/admit", r.URL.Path)
+			require.Equal(t, http.MethodGet, r.Method)
+			seenPayment = r.Header.Get("Payment-Signature")
+			if !settled {
+				w.Header().Set("Payment-Required", "eyJ4NDAyVmVyc2lvbiI6Mn0=")
+				w.WriteHeader(http.StatusPaymentRequired)
+				_, _ = w.Write([]byte(`{"error":"payment signature is required"}`))
+				return
+			}
+			w.Header().Set("Payment-Response", base64.StdEncoding.EncodeToString([]byte(`{"success":true,"payer":"0xabc","transaction":"0x123","network":"eip155:8453"}`)))
+			w.WriteHeader(http.StatusOK)
+		}))
+	}
+	treasury := newTreasury()
 	defer treasury.Close()
-	t.Setenv("TREASURY_API_URL", treasury.URL)
+	currentTreasuryURL := treasury.URL
+	resolveCalls := 0
+	s.resolveTreasuryURL = func(context.Context) (string, error) {
+		resolveCalls++
+		return currentTreasuryURL, nil
+	}
 
 	serve := func(payment string) *httptest.ResponseRecorder {
 		router := mux.NewRouter()
@@ -57,11 +65,16 @@ func TestPaidCatalogForwards402AndOnlyReleasesContentAfterSettlement(t *testing.
 	require.NotContains(t, challenge.Body.String(), "Metered research inference", "content must stay withheld before admission")
 
 	settled = true
+	treasury.Close()
+	treasury = newTreasury()
+	defer treasury.Close()
+	currentTreasuryURL = treasury.URL
 	paid := serve("signed-x402-v2-payload")
 	require.Equal(t, "signed-x402-v2-payload", seenPayment)
 	require.Equal(t, http.StatusOK, paid.Code)
 	require.NotEmpty(t, paid.Header().Get("Payment-Response"))
 	require.True(t, strings.Contains(paid.Body.String(), "Metered research inference"))
+	require.Equal(t, 2, resolveCalls, "each payment operation resolves the peer; a restarted Treasury address is used on the next request")
 }
 
 func TestPaidCatalogFailsClosedWhenTreasuryDoesNotConfirmSettlement(t *testing.T) { // [REQ:CF4-OFFER-DESK-METERING]

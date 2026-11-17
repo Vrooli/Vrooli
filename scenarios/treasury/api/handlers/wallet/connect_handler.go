@@ -18,6 +18,7 @@ import (
 
 type Wallets interface {
 	Create(context.Context, domain.CreateInput) (domain.Wallet, error)
+	Rotate(context.Context, string, string, string, string) (domain.Wallet, error)
 	Get(context.Context, string, string, string) (domain.Wallet, error)
 	Prove(context.Context, string, string, string, string) (domain.Proof, error)
 	QualifyRecovery(context.Context, string, string, string) (domain.Wallet, error)
@@ -27,7 +28,13 @@ type Wallets interface {
 type PortableRecovery interface {
 	PersistPortableRecoveryBundle(context.Context, string, string, string, string) (domain.PortableRecoveryArtifact, error)
 	RestorePortableRecoveryBundle(context.Context, string, string, string, []byte, string) (domain.Wallet, error)
+	RestorePortableRecoveryWithWitness(context.Context, string, string, string, []byte, []byte, string, ...[]byte) (domain.Wallet, error)
 	RestorePersistedPortableRecoveryBundle(context.Context, string, string, string, string) (domain.Wallet, error)
+}
+
+type RotationPhases interface {
+	PreparePortableRotation(context.Context, string, string, string, string) (domain.RotationPreparation, error)
+	CommitPortableRotation(context.Context, string, string, string, string, domain.RotationPublicationReceipt) (domain.Wallet, error)
 }
 
 type ReceiptChecker interface {
@@ -40,11 +47,13 @@ type connectHandler struct {
 	authorizer       operatorauth.Authorizer
 	wallets          Wallets
 	portableRecovery PortableRecovery
+	rotationPhases   RotationPhases
 	baseUSDC         ReceiptChecker
 }
 
 func NewConnectHandler(authorizer operatorauth.Authorizer, wallets Wallets, recovery PortableRecovery, receipts ReceiptChecker) walletconnect.WalletAdminServiceHandler {
-	return &connectHandler{authorizer: authorizer, wallets: wallets, portableRecovery: recovery, baseUSDC: receipts}
+	phases, _ := wallets.(RotationPhases)
+	return &connectHandler{authorizer: authorizer, wallets: wallets, portableRecovery: recovery, rotationPhases: phases, baseUSDC: receipts}
 }
 
 func (h *connectHandler) operatorIdentity(ctx context.Context, request interface{ Header() http.Header }) (operatorauth.Identity, error) {

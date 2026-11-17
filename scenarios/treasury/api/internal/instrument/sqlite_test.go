@@ -3,6 +3,7 @@ package instrument_test
 import (
 	"context"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -109,11 +110,26 @@ func (credentialRail) QueryOutcome(context.Context, rail.Query) (rail.Result, er
 	return rail.Result{}, nil
 }
 
-type scopedCardIssuer struct{ received card.IssueCommand }
+type scopedCardIssuer struct {
+	received card.IssueCommand
+	calls    atomic.Int64
+	failNext bool
+	started  chan struct{}
+	release  chan struct{}
+}
 
 func (*scopedCardIssuer) Name() string { return "fixture-scoped-card" }
 func (i *scopedCardIssuer) Issue(_ context.Context, command card.IssueCommand) (card.Issued, error) {
+	i.calls.Add(1)
 	i.received = command
+	if i.started != nil {
+		close(i.started)
+		<-i.release
+	}
+	if i.failNext {
+		i.failNext = false
+		return card.Issued{}, context.DeadlineExceeded
+	}
 	return card.Issued{ExternalID: "provider-card-1", Credential: "issued-card-secret", Scope: command.Scope}, nil
 }
 
@@ -137,7 +153,7 @@ func TestScopedCardIssuanceUsesMandateAndCredentialAuthority(t *testing.T) {
 	signer, err := mandate.NewHMACSigner([]byte("test-only-key"))
 	require.NoError(t, err)
 	mandates := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
-	grant, err := mandates.Issue(ctx, mandate.IssueInput{ID: "card-mandate", IdempotencyKey: "card-mandate-key", BookID: "card-book", BudgetID: "card-budget", Authorizer: "operator:1", CapMinor: 875, Currency: "USD", AllowedCounterparties: []string{"MERCHANT123"}, ExpiresAt: now.Add(48 * time.Hour)})
+	grant, err := mandates.Issue(ctx, mandate.IssueInput{ID: "card-mandate", IdempotencyKey: "card-mandate-key", BookID: "card-book", BudgetID: "card-budget", Authorizer: "operator:1", CapMinor: 875, Currency: "USD", AllowedCounterparties: []string{"MERCHANT123"}, ExpiresAt: now.Add(60 * 24 * time.Hour)})
 	require.NoError(t, err)
 	issuer := &scopedCardIssuer{}
 	issuers, err := card.NewRegistry(issuer)
@@ -147,8 +163,26 @@ func TestScopedCardIssuanceUsesMandateAndCredentialAuthority(t *testing.T) {
 	credentials := &credentialResolver{value: `{"api_key":"provider-secret"}`}
 	service := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(handle), mandates, rails, credentials, clock, issuers)
 
-	created, err := service.Register(ctx, instrument.RegisterInput{ID: "card-instrument", MandateID: grant.ID, Rail: issuer.Name(), CredentialReference: "vrooli/treasury/lithic", Counterparty: "MERCHANT123"})
-	require.NoError(t, err)
+	input := instrument.RegisterInput{ID: "card-instrument", MandateID: grant.ID, Rail: issuer.Name(), CredentialReference: "vrooli/treasury/lithic", Counterparty: "MERCHANT123"}
+	issuer.started, issuer.release = make(chan struct{}), make(chan struct{})
+	type registerResult struct {
+		value instrument.Instrument
+		err   error
+	}
+	firstResult := make(chan registerResult, 1)
+	go func() {
+		value, registerErr := service.Register(ctx, input)
+		firstResult <- registerResult{value: value, err: registerErr}
+	}()
+	<-issuer.started
+	_, concurrentErr := service.Register(ctx, input)
+	require.ErrorIs(t, concurrentErr, instrument.ErrCardIssueInProgress)
+	require.EqualValues(t, 1, issuer.calls.Load(), "a concurrent registration must not dispatch a second issuer call")
+	close(issuer.release)
+	result := <-firstResult
+	require.NoError(t, result.err)
+	created := result.value
+	issuer.started, issuer.release = nil, nil
 	require.Equal(t, grant.ID, issuer.received.Scope.MandateReference)
 	require.Equal(t, grant.CapMinor, issuer.received.Scope.AmountMinor)
 	require.Equal(t, grant.Currency, issuer.received.Scope.Currency)
@@ -170,6 +204,48 @@ func TestScopedCardIssuanceUsesMandateAndCredentialAuthority(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "issued-card-secret", scoped.Value)
 	require.Equal(t, storedReference, credentials.reference)
+
+	// Repeating a successful registration must return the committed instrument
+	// without asking the provider to create or bind another card.
+	repeated, err := service.Register(ctx, instrument.RegisterInput{ID: "card-instrument", MandateID: grant.ID, Rail: issuer.Name(), CredentialReference: "vrooli/treasury/lithic", Counterparty: "MERCHANT123"})
+	require.NoError(t, err)
+	require.Equal(t, created, repeated)
+	require.EqualValues(t, 1, issuer.calls.Load())
+
+	// A retry inside provider retention uses the same instrument identity. Once
+	// an ambiguous attempt ages beyond that window, reconciliation is required
+	// and Register must not dispatch a second issue request.
+	issuer.failNext = true
+	uncertainInput := instrument.RegisterInput{ID: "uncertain-card", MandateID: grant.ID, Rail: issuer.Name(), CredentialReference: "vrooli/treasury/lithic", Counterparty: "MERCHANT123"}
+	_, err = service.Register(ctx, uncertainInput)
+	require.Error(t, err)
+	require.EqualValues(t, 2, issuer.calls.Load())
+	clock.Advance(31 * 24 * time.Hour)
+	_, err = service.Register(ctx, uncertainInput)
+	require.ErrorIs(t, err, instrument.ErrCardIssueReconciliation)
+	require.EqualValues(t, 2, issuer.calls.Load(), "expired provider idempotency must never be treated as permission to reissue")
+}
+
+// [REQ:TRS-P1-003] Durable issuance journal refuses parallel attempts and
+// request identity changes before they reach the issuer.
+func TestCardIssueJournalSerializesConcurrentFirstAttempt(t *testing.T) {
+	ctx := context.Background()
+	handle := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, handle, database.SchemaProviderFunc(instrument.Schema)))
+	repository := instrument.NewSQLiteRepository(handle)
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	first, err := repository.BeginCardIssue(ctx, "instrument-concurrent", strings.Repeat("a", 64), now)
+	require.NoError(t, err)
+	require.Equal(t, "in_flight", first.Status)
+	_, err = repository.BeginCardIssue(ctx, "instrument-concurrent", strings.Repeat("a", 64), now.Add(time.Minute))
+	require.ErrorIs(t, err, instrument.ErrCardIssueInProgress)
+	_, err = repository.BeginCardIssue(ctx, "instrument-concurrent", strings.Repeat("b", 64), now.Add(time.Minute))
+	require.ErrorIs(t, err, instrument.ErrInvalid)
+	require.NoError(t, repository.SetCardIssueAttemptStatus(ctx, "instrument-concurrent", strings.Repeat("a", 64), "complete", now.Add(2*time.Minute)))
+	require.NoError(t, repository.SetCardIssueAttemptStatus(ctx, "instrument-concurrent", strings.Repeat("a", 64), "unknown", now.Add(3*time.Minute)), "a late issuer timeout cannot downgrade completed durable evidence")
+	completed, err := repository.GetCardIssueAttempt(ctx, "instrument-concurrent")
+	require.NoError(t, err)
+	require.Equal(t, "complete", completed.Status)
 }
 
 func TestManualInstrumentRequiresNoCredentialMaterial(t *testing.T) {

@@ -2,9 +2,12 @@ package wallet
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/receiptsigning"
 
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/shared"
 	walletv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/wallet"
@@ -46,6 +49,70 @@ func (h *connectHandler) CreateResearchWallet(ctx context.Context, request *conn
 		return nil, walletError(err)
 	}
 	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
+}
+
+func (h *connectHandler) RotateResearchWallet(ctx context.Context, request *connect.Request[walletv1.RotateResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if h.wallets == nil {
+		return nil, walletError(walletdomain.ErrUnavailable)
+	}
+	w, err := h.wallets.Rotate(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetSuccessorId())
+	if err != nil {
+		return nil, walletError(err)
+	}
+	return connect.NewResponse(&walletv1.ResearchWalletResponse{Wallet: walletToProto(w)}), nil
+}
+
+func (h *connectHandler) PreparePortableResearchWalletRotation(ctx context.Context, request *connect.Request[walletv1.PreparePortableResearchWalletRotationRequest]) (*connect.Response[walletv1.PreparePortableResearchWalletRotationResponse], error) {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if h.rotationPhases == nil {
+		return nil, walletError(walletdomain.ErrUnavailable)
+	}
+	if request.Msg.GetId() == "" || request.Msg.GetNetwork() == "" || request.Msg.GetSuccessorId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and stable successor ID are required"))
+	}
+	prepared, err := h.rotationPhases.PreparePortableRotation(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetSuccessorId())
+	if err != nil {
+		return nil, walletError(err)
+	}
+	return connect.NewResponse(&walletv1.PreparePortableResearchWalletRotationResponse{Wallet: walletToProto(prepared.Successor), RevocationTombstoneJson: string(prepared.Tombstone), TombstoneSha256: prepared.SHA256}), nil
+}
+
+func (h *connectHandler) CommitPortableResearchWalletRotation(ctx context.Context, request *connect.Request[walletv1.CommitPortableResearchWalletRotationRequest]) (*connect.Response[walletv1.CommitPortableResearchWalletRotationResponse], error) {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if h.rotationPhases == nil {
+		return nil, walletError(walletdomain.ErrUnavailable)
+	}
+	if request.Msg.GetId() == "" || request.Msg.GetNetwork() == "" || request.Msg.GetSuccessorId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and successor ID are required"))
+	}
+	var attestation receiptsigning.SignatureEnvelope
+	if strings.TrimSpace(request.Msg.GetDbmAttestationJson()) == "" || json.Unmarshal([]byte(request.Msg.GetDbmAttestationJson()), &attestation) != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a DBM-signed wallet recovery attestation envelope is required"))
+	}
+	r := walletdomain.RotationPublicationReceipt{
+		Version: 1, WalletID: request.Msg.GetId(), Network: request.Msg.GetNetwork(), SuccessorID: request.Msg.GetSuccessorId(),
+		DestinationID: request.Msg.GetDestinationId(), DestinationBackend: request.Msg.GetDestinationBackend(), PlanID: request.Msg.GetPlanId(),
+		RunID: request.Msg.GetRunId(), TargetName: request.Msg.GetTargetName(), SnapshotID: request.Msg.GetSnapshotId(), LatestSnapshotID: request.Msg.GetLatestSnapshotId(),
+		TombstoneSHA256: request.Msg.GetTombstoneSha256(), RestoredRevocationSHA256: request.Msg.GetRestoredRevocationSha256(),
+		BundlePresent: request.Msg.GetBundlePresent(), DBMVerifyPassed: request.Msg.GetDbmVerifyPassed(),
+		RestoredTombstoneMatches: request.Msg.GetRestoredTombstoneMatches(), VerifiedAt: request.Msg.GetVerifiedAt(), Address: request.Msg.GetAddress(),
+		ReservationID: request.Msg.GetReservationId(), ReservationExpiresAt: request.Msg.GetReservationExpiresAt(), Attestation: &attestation,
+	}
+	committed, err := h.rotationPhases.CommitPortableRotation(ctx, r.WalletID, r.Network, operator.Subject, r.SuccessorID, r)
+	if err != nil {
+		return nil, walletError(err)
+	}
+	return connect.NewResponse(&walletv1.CommitPortableResearchWalletRotationResponse{Wallet: walletToProto(committed)}), nil
 }
 
 func (h *connectHandler) GetResearchWallet(ctx context.Context, request *connect.Request[walletv1.ResearchWalletRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
@@ -93,7 +160,7 @@ func (h *connectHandler) ExportPortableResearchWalletRecovery(ctx context.Contex
 	if err != nil {
 		return nil, walletError(err)
 	}
-	return connect.NewResponse(&walletv1.ExportPortableResearchWalletRecoveryResponse{RelativePath: artifact.RelativePath, Sha256: artifact.SHA256, SizeBytes: artifact.SizeBytes}), nil
+	return connect.NewResponse(&walletv1.ExportPortableResearchWalletRecoveryResponse{RelativePath: artifact.RelativePath, WitnessRelativePath: artifact.WitnessPath, Sha256: artifact.SHA256, SizeBytes: artifact.SizeBytes}), nil
 }
 
 func (h *connectHandler) RestorePortableResearchWalletRecovery(ctx context.Context, request *connect.Request[walletv1.RestorePortableResearchWalletRecoveryRequest]) (*connect.Response[walletv1.ResearchWalletResponse], error) {
@@ -108,7 +175,12 @@ func (h *connectHandler) RestorePortableResearchWalletRecovery(ctx context.Conte
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("wallet ID, network, and operator recovery secret are required"))
 	}
 	var recovered walletdomain.Wallet
-	if len(request.Msg.GetBundle()) > 0 {
+	if len(request.Msg.GetRevocation()) > 0 && (len(request.Msg.GetBundle()) == 0 || len(request.Msg.GetWitness()) == 0) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("a revocation tombstone requires the matching bundle and witness"))
+	}
+	if len(request.Msg.GetBundle()) > 0 && len(request.Msg.GetWitness()) > 0 {
+		recovered, err = h.portableRecovery.RestorePortableRecoveryWithWitness(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetBundle(), request.Msg.GetWitness(), request.Msg.GetOperatorSecret(), request.Msg.GetRevocation())
+	} else if len(request.Msg.GetBundle()) > 0 {
 		recovered, err = h.portableRecovery.RestorePortableRecoveryBundle(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetBundle(), request.Msg.GetOperatorSecret())
 	} else {
 		recovered, err = h.portableRecovery.RestorePersistedPortableRecoveryBundle(ctx, request.Msg.GetId(), request.Msg.GetNetwork(), operator.Subject, request.Msg.GetOperatorSecret())

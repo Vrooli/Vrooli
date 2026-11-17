@@ -151,7 +151,7 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	}
 
 	now := s.clock.Now().UTC()
-	claims, err := verifySpendIdentity(ctx, s.verifier, in.IdentityToken, in.OperationToken)
+	claims, err := identity.VerifySpendIdentity(ctx, s.verifier, in.IdentityToken, in.OperationToken)
 	if err != nil {
 		refusal := baseRecord(in, now)
 		refusal.Verdict, _ = initialVerdict(authorizationflow.AuthorizationRefuse)
@@ -282,27 +282,6 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 		return Record{}, fmt.Errorf("record authorization evidence: %w", err)
 	}
 	return created, nil
-}
-
-// verifySpendIdentity keeps the ordinary run identity and the approved,
-// operation-specific consent as a pair at the Treasury authorization
-// boundary. A grant token is never accepted as a replacement for the run
-// identity, and a caller that supplies an operation token cannot fall back to
-// verifying only its baseline token.
-func verifySpendIdentity(ctx context.Context, verifier identity.Verifier, baseline, operation string) (identity.Claims, error) {
-	baseline = strings.TrimSpace(baseline)
-	operation = strings.TrimSpace(operation)
-	if operation == "" {
-		return verifier.Verify(ctx, baseline)
-	}
-	pairVerifier, ok := verifier.(identity.PairVerifier)
-	if !ok {
-		return identity.Claims{}, fmt.Errorf("%w: paired operation verification is unavailable", identity.ErrUnverifiable)
-	}
-	if baseline == "" || baseline == operation {
-		return identity.Claims{}, fmt.Errorf("%w: identity token pair is incomplete", identity.ErrUnverifiable)
-	}
-	return pairVerifier.VerifyPair(ctx, baseline, operation)
 }
 
 func (s *Service) ensureApproval(ctx context.Context, record Record) error {

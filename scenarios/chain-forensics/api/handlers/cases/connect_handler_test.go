@@ -85,7 +85,8 @@ func TestReviseCaseEndpointUsesTypedAppendOnlyRequestAndExposesHistory(t *testin
 	edge := &proto.FlowEdge{Id: "endpoint-revised-grade", FromOccurrence: occurrence.GetId(), ToOccurrence: doc.Edges[0].To, Grade: proto.EvidenceGrade_EVIDENCE_GRADE_HYPOTHESIS, Rule: "attribution hypothesis", EvidenceIds: []string{claim.GetId()}, Caveats: []string{"Does not prove control."}}
 	oldEdge := doc.Edges[0]
 	replacement := &proto.FlowEdge{Id: "endpoint-reassessed-grade", FromOccurrence: oldEdge.From, ToOccurrence: oldEdge.To, Grade: proto.EvidenceGrade_EVIDENCE_GRADE_HYPOTHESIS, Rule: "reassessed after source provenance review", EvidenceIds: []string{oldEdge.From}, Caveats: []string{"Prior grade retained in revision snapshot."}}
-	request := &proto.ReviseCaseRequest{CaseId: doc.ID, ExpectedUpdatedAt: timestamppb.New(created.UpdatedAt), Summary: "Revised summary with newly captured public evidence.", ResolvedGaps: []string{"gap to resolve"}, Sources: []*proto.Source{source}, Claims: []*proto.Claim{claim}, Occurrences: []*proto.Occurrence{occurrence}, Edges: []*proto.FlowEdge{edge}, EdgeRevisions: []*proto.EdgeRevision{{SupersedesEdgeId: oldEdge.ID, Replacement: replacement}}}
+	pumpCandidate := &proto.UnresolvedPumpInstruction{Id: "pump-candidate", TransactionId: "fixture-signature", Slot: 123, InstructionIndex: 4, ProgramId: "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", SourceId: doc.Sources[0].ID, Discriminator: "c2ab1c46684d5b2f", Reason: "The current pinned IDL candidate has a different observed byte length; historical deployed layout and arguments remain unresolved.", CandidateKind: "buy_exact_quote_in_v2", DecoderVersion: "pump-public-docs/idl/pump.json@639b87fb45c3adeffa6f7c4a1bf0cb85e392bf22#buy_exact_quote_in_v2", ExpectedDataLength: 25, ObservedDataLength: 24}
+	request := &proto.ReviseCaseRequest{CaseId: doc.ID, ExpectedUpdatedAt: timestamppb.New(created.UpdatedAt), Summary: "Revised summary with newly captured public evidence.", ResolvedGaps: []string{"gap to resolve"}, Sources: []*proto.Source{source}, Claims: []*proto.Claim{claim}, Occurrences: []*proto.Occurrence{occurrence}, Edges: []*proto.FlowEdge{edge}, EdgeRevisions: []*proto.EdgeRevision{{SupersedesEdgeId: oldEdge.ID, Replacement: replacement}}, UnresolvedPumpInstructions: []*proto.UnresolvedPumpInstruction{pumpCandidate}}
 	response, err := h.ReviseCase(ctx, connect.NewRequest(request))
 	require.NoError(t, err)
 	activeEdgeIDs := make([]string, 0, len(response.Msg.GetCase().GetEdges()))
@@ -118,6 +119,8 @@ func TestReviseCaseEndpointUsesTypedAppendOnlyRequestAndExposesHistory(t *testin
 	require.Contains(t, history.Msg.GetRevisions()[0].GetPreviousCase().GetGaps(), "gap to resolve")
 	require.Contains(t, history.Msg.GetRevisions()[0].GetPreviousCase().GetEdges(), toProto(casesRecord(doc)).GetEdges()[0])
 	require.Equal(t, replacement.GetId(), history.Msg.GetRevisions()[0].GetAdditions().GetEdgeRevisions()[0].GetReplacement().GetId())
+	require.Equal(t, pumpCandidate, history.Msg.GetRevisions()[0].GetAdditions().GetUnresolvedPumpInstructions()[0])
+	require.Equal(t, pumpCandidate, response.Msg.GetCase().GetUnresolvedPumpInstructions()[0])
 }
 
 func testTime() time.Time { return time.Date(2026, 11, 12, 12, 0, 0, 0, time.UTC) }

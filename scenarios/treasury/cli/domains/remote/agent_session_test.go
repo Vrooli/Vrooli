@@ -110,6 +110,12 @@ func TestSessionRequestUsesInjectedEnvironmentAndCredentialResolver(t *testing.T
 			resolvedOperation, resolvedTarget = operation, target
 			return cliutil.AgentCredentials{BaselineToken: "run-token", OperationToken: "read-grant"}, nil
 		},
+		ResolveSessionKey: func(_ context.Context, token, rotation string) (string, error) {
+			if token != "run-token" || rotation != "" {
+				t.Fatalf("session resolver received token=%q rotation=%q", token, rotation)
+			}
+			return key, nil
+		},
 	}
 	request := connect.NewRequest(&fundingv1.GetBudgetWalletRequest{BudgetId: "budget-7", MandateId: "mandate-3"})
 	prepare := treasurySessionRequestHeadersWithDependencies(nil, nil, dependencies)
@@ -127,14 +133,38 @@ func TestSessionRequestUsesInjectedEnvironmentAndCredentialResolver(t *testing.T
 
 func TestSessionPrivateKeyValueUsesInjectedEnvironmentForOrdinaryRun(t *testing.T) {
 	key := "0x0000000000000000000000000000000000000000000000000000000000000001"
-	if got := sessionPrivateKeyValue(nil, testEnvironment{sessionPrivateKeyEnv: key}); got != strings.TrimPrefix(key, "0x") {
+	got, err := sessionPrivateKeyValue(context.Background(), nil, Dependencies{Environment: testEnvironment{sessionPrivateKeyEnv: key}}, "")
+	if err != nil || got != strings.TrimPrefix(key, "0x") {
 		t.Fatalf("ordinary run environment session key = %q, want unprefixed key", got)
 	}
-	if got := sessionPrivateKeyValue(func() string { return "  source-key  " }, testEnvironment{sessionPrivateKeyEnv: "environment-key"}); got != "source-key" {
+	got, err = sessionPrivateKeyValue(context.Background(), func() string { return "  source-key  " }, Dependencies{Environment: testEnvironment{sessionPrivateKeyEnv: "environment-key"}}, "")
+	if err != nil || got != "source-key" {
 		t.Fatalf("explicit key source = %q, want source-key", got)
 	}
-	if got := sessionPrivateKeyValue(nil, testEnvironment{}); got != "" {
+	got, err = sessionPrivateKeyValue(context.Background(), nil, Dependencies{Environment: testEnvironment{}}, "")
+	if err != nil || got != "" {
 		t.Fatalf("missing session key = %q, want empty", got)
+	}
+}
+
+func TestSessionPrivateKeyValueRotatesRunOwnedKeyByRequestID(t *testing.T) {
+	var observedToken, observedRequest string
+	dependencies := Dependencies{
+		Environment: testEnvironment{
+			cliutil.EnvIdentityToken:  "verified-run-token",
+			sessionRotationRequestEnv: "rotation-42",
+		},
+		ResolveSessionKey: func(_ context.Context, token, request string) (string, error) {
+			observedToken, observedRequest = token, request
+			return "b2" + strings.Repeat("2", 62), nil
+		},
+	}
+	got, err := sessionPrivateKeyValue(context.Background(), nil, dependencies, "")
+	if err != nil || got != "b2"+strings.Repeat("2", 62) {
+		t.Fatalf("resolved rotated run key=%q err=%v", got, err)
+	}
+	if observedToken != "verified-run-token" || observedRequest != "rotation-42" {
+		t.Fatalf("broker received token=%q rotation request=%q", observedToken, observedRequest)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,13 +26,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		prefix + "ListCases": cliapp.ProtoList(h.list, h.listReport), prefix + "ImportCase": cliapp.ProtoMutation(h.importCase, h.importReport),
 		prefix + "GetCase": cliapp.ProtoList(h.get, h.getReport), prefix + "ExportPrivatePacket": cliapp.ProtoList(h.packet, h.packetReport),
 		prefix + "AddAnalystLabel": cliapp.ProtoMutation(h.addLabel, h.labelReport), prefix + "ListAnalystLabels": cliapp.ProtoList(h.labels, h.labelsReport),
-		prefix + "CaptureEVMTransaction":     cliapp.ProtoMutation(h.captureEVM, h.captureReport),
-		prefix + "CaptureBitcoinTransaction": cliapp.ProtoMutation(h.captureBitcoin, h.captureBitcoinReport),
-		prefix + "CaptureBitcoinAddressPage": cliapp.ProtoMutation(h.captureBitcoinAddressPage, h.captureBitcoinAddressPageReport),
-		prefix + "CaptureEVMWalletSnapshot":  cliapp.ProtoMutation(h.captureEVMWalletSnapshot, h.captureEVMWalletSnapshotReport),
-		prefix + "CaptureSolanaAddressPage":  cliapp.ProtoMutation(h.captureSolanaAddressPage, h.captureSolanaAddressPageReport),
-		prefix + "ReviseCase":                cliapp.ProtoMutation(h.reviseCase, h.reviseReport),
-		prefix + "ListCaseRevisions":         cliapp.ProtoList(h.revisions, h.revisionsReport),
+		prefix + "CaptureEVMTransaction":      cliapp.ProtoMutation(h.captureEVM, h.captureReport),
+		prefix + "CaptureBitcoinTransaction":  cliapp.ProtoMutation(h.captureBitcoin, h.captureBitcoinReport),
+		prefix + "CaptureBitcoinAddressPage":  cliapp.ProtoMutation(h.captureBitcoinAddressPage, h.captureBitcoinAddressPageReport),
+		prefix + "CaptureEVMWalletSnapshot":   cliapp.ProtoMutation(h.captureEVMWalletSnapshot, h.captureEVMWalletSnapshotReport),
+		prefix + "CaptureSolanaAddressPage":   cliapp.ProtoMutation(h.captureSolanaAddressPage, h.captureSolanaAddressPageReport),
+		prefix + "CaptureSolanaTransaction":   cliapp.ProtoMutation(h.captureSolanaTransaction, h.captureSolanaTransactionReport),
+		prefix + "CaptureSolanaTokenAccounts": cliapp.ProtoMutation(h.captureSolanaTokenAccounts, h.captureSolanaTokenAccountsReport),
+		prefix + "ReviseCase":                 cliapp.ProtoMutation(h.reviseCase, h.reviseReport),
+		prefix + "ListCaseRevisions":          cliapp.ProtoList(h.revisions, h.revisionsReport),
 	}
 	return cliapp.LoadFromManifestPrimitives(manifest, "cases", bindings)
 }
@@ -62,7 +65,7 @@ func (h *client) reviseCase(ctx cliapp.OperationContext) (*p.ReviseCaseResponse,
 }
 
 func (h *client) reviseReport(_ cliapp.OperationContext, r *p.ReviseCaseResponse) cliapp.MutationReport {
-	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Applied revision %s to case %s.", r.GetRevisionId(), r.GetCase().GetId())}, Changes: []string{fmt.Sprintf("Case now contains %d sources, %d claims, and %d flow edges; prior evidence and revision receipts are retained.", len(r.GetCase().GetSources()), len(r.GetCase().GetClaims()), len(r.GetCase().GetEdges()))}}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Applied revision %s to case %s.", r.GetRevisionId(), r.GetCase().GetId())}, Changes: []string{fmt.Sprintf("Case now contains %d sources, %d claims, %d flow edges, %d decoded Pump instruction(s), and %d unresolved Pump instruction(s); prior evidence and revision receipts are retained.", len(r.GetCase().GetSources()), len(r.GetCase().GetClaims()), len(r.GetCase().GetEdges()), len(r.GetCase().GetPumpInstructions()), len(r.GetCase().GetUnresolvedPumpInstructions()))}}
 }
 
 func (h *client) revisions(ctx cliapp.OperationContext) (*p.ListCaseRevisionsResponse, error) {
@@ -83,7 +86,27 @@ func (h *client) revisionsReport(_ cliapp.OperationContext, r *p.ListCaseRevisio
 }
 
 func (h *client) captureSolanaAddressPage(ctx cliapp.OperationContext) (*p.CaptureSolanaAddressPageResponse, error) {
-	r, e := h.rpc.CaptureSolanaAddressPage(context.Background(), connect.NewRequest(&p.CaptureSolanaAddressPageRequest{CaseId: ctx.Flag("case-id"), Address: ctx.Flag("address"), BeforeSignature: ctx.Flag("before-signature")}))
+	limit := uint64(0)
+	if raw := strings.TrimSpace(ctx.Flag("signature-limit")); raw != "" {
+		parsed, err := strconv.ParseUint(raw, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("signature-limit must be an integer from 1 through 1000: %w", err)
+		}
+		limit = parsed
+	} else if ctx.BoolFlag("signatures-only") {
+		limit = 1000
+	}
+	pageCount := uint64(0)
+	if raw := strings.TrimSpace(ctx.Flag("signature-pages")); raw != "" {
+		parsed, err := strconv.ParseUint(raw, 10, 32)
+		if err != nil || parsed == 0 || parsed > 25 {
+			return nil, fmt.Errorf("signature-pages must be an integer from 1 through 25")
+		}
+		pageCount = parsed
+	} else if ctx.BoolFlag("signatures-only") {
+		pageCount = 1
+	}
+	r, e := h.rpc.CaptureSolanaAddressPage(context.Background(), connect.NewRequest(&p.CaptureSolanaAddressPageRequest{CaseId: ctx.Flag("case-id"), Address: ctx.Flag("address"), BeforeSignature: ctx.Flag("before-signature"), SignatureLimit: uint32(limit), SignaturesOnly: ctx.BoolFlag("signatures-only"), SignaturePageCount: uint32(pageCount)}))
 	if e != nil {
 		return nil, cliapp.WrapAPIError("capture Solana address page", e, nil)
 	}
@@ -95,11 +118,73 @@ func (h *client) captureSolanaAddressPageReport(_ cliapp.OperationContext, r *p.
 	if r.GetCase() != nil {
 		id = r.GetCase().GetId()
 	}
+	if r.GetSignaturesOnly() {
+		if id == "" {
+			id = r.GetCaseId()
+		}
+		pageCount := r.GetCapturedPageCount()
+		if pageCount == 0 {
+			pageCount = 1
+		}
+		result := fmt.Sprintf("Captured %d finalized signature(s) across %d page(s) into private case %s without fetching transactions.", r.GetCapturedSignatureCount(), pageCount, id)
+		if r.GetNextBeforeSignature() != "" {
+			result += " Next page cursor: " + r.GetNextBeforeSignature()
+		}
+		if r.GetStoppedReason() != "" {
+			result += " Stopped before the next page: " + r.GetStoppedReason()
+		}
+		return cliapp.MutationReport{Result: []string{result}, Changes: []string{"The exact finalized signature-only result and response envelope are retained; signatures locate transactions but do not establish transaction-level transfers."}}
+	}
 	result := fmt.Sprintf("Captured %d finalized Solana transaction(s), %d token-balance observation(s), and %d decoded Pump instruction(s) into case %s; %d Pump instruction(s) remain unresolved.", r.GetCapturedTransactionCount(), r.GetCapturedOccurrenceCount(), r.GetCapturedPumpInstructionCount(), id, r.GetUnresolvedPumpInstructionCount())
 	if r.GetNextBeforeSignature() != "" {
 		result += " Next page cursor: " + r.GetNextBeforeSignature()
 	}
 	return cliapp.MutationReport{Result: []string{result}, Changes: []string{"One bounded finalized signature page, exact per-transaction token deltas, and versioned Pump instruction records were attached with response hashes."}}
+}
+
+func (h *client) captureSolanaTransaction(ctx cliapp.OperationContext) (*p.CaptureSolanaTransactionResponse, error) {
+	r, err := h.rpc.CaptureSolanaTransaction(context.Background(), connect.NewRequest(&p.CaptureSolanaTransactionRequest{CaseId: ctx.Flag("case-id"), Signature: ctx.Flag("signature"), SelectionSourceId: ctx.Flag("signature-source")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("capture Solana transaction", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *client) captureSolanaTokenAccounts(ctx cliapp.OperationContext) (*p.CaptureSolanaTokenAccountsResponse, error) {
+	r, err := h.rpc.CaptureSolanaTokenAccounts(context.Background(), connect.NewRequest(&p.CaptureSolanaTokenAccountsRequest{CaseId: ctx.Flag("case-id"), Owner: ctx.Flag("owner"), ProgramId: ctx.Flag("program-id")}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("capture Solana token accounts", err, nil)
+	}
+	return r.Msg, nil
+}
+
+func (h *client) captureSolanaTokenAccountsReport(_ cliapp.OperationContext, r *p.CaptureSolanaTokenAccountsResponse) cliapp.MutationReport {
+	owner := "requested owner"
+	if r.GetCase() != nil && len(r.GetCase().GetSolanaTokenAccountSnapshots()) > 0 {
+		owner = r.GetCase().GetSolanaTokenAccountSnapshots()[len(r.GetCase().GetSolanaTokenAccountSnapshots())-1].GetOwner()
+	}
+	caseID := "unknown"
+	if r.GetCase() != nil {
+		caseID = r.GetCase().GetId()
+	}
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Captured %d finalized token account(s) for owner %s at context slot %d into case %s.", r.GetCapturedAccountCount(), owner, r.GetContextSlot(), caseID)}, Changes: []string{"Exact jsonParsed response and envelope hashes are attached; token-account addresses remain distinct from owner addresses."}}
+}
+
+func (h *client) captureSolanaTransactionReport(_ cliapp.OperationContext, r *p.CaptureSolanaTransactionResponse) cliapp.MutationReport {
+	id := ""
+	if r.GetCase() != nil {
+		id = r.GetCase().GetId()
+	}
+	status := "succeeded"
+	if r.GetTransactionFailed() {
+		status = "failed"
+	}
+	result := fmt.Sprintf("Captured finalized Solana transaction %s (%s) into case %s with %d token-balance observation(s), %d decoded Pump instruction(s), and %d unresolved instruction(s).", r.GetSignature(), status, id, r.GetCapturedOccurrenceCount(), r.GetCapturedPumpInstructionCount(), r.GetUnresolvedPumpInstructionCount())
+	changes := "The supplied signature was fetched directly; selector-page lineage was not supplied."
+	if r.GetSelectionSourceId() != "" {
+		changes = "The transaction signature was verified against retained finalized signature-history source " + r.GetSelectionSourceId() + "; raw transaction and selector response hashes remain distinct."
+	}
+	return cliapp.MutationReport{Result: []string{result}, Changes: []string{changes}}
 }
 
 func (h *client) captureEVMWalletSnapshot(ctx cliapp.OperationContext) (*p.CaptureEVMWalletSnapshotResponse, error) {

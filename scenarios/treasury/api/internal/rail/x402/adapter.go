@@ -4,6 +4,7 @@ package x402
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -14,9 +15,13 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/sys/unix"
 
 	"treasury/internal/rail"
 )
@@ -91,9 +96,10 @@ type TypedDataSigner interface {
 }
 
 type Adapter struct {
-	client *http.Client
-	signer TypedDataSigner
-	now    func() time.Time
+	client           *http.Client
+	signer           TypedDataSigner
+	now              func() time.Time
+	paidBodyEvidence *paidBodyEvidenceSink
 }
 
 func New(client *http.Client, signer TypedDataSigner) (*Adapter, error) {
@@ -101,6 +107,22 @@ func New(client *http.Client, signer TypedDataSigner) (*Adapter, error) {
 		return nil, fmt.Errorf("%w: HTTP client and typed-data signer are required", ErrInvalid)
 	}
 	return &Adapter{client: noRedirectClient(client), signer: signer, now: time.Now}, nil
+}
+
+// NewForLocalForkPaidBodyEvidence explicitly enables bounded raw paid-response
+// capture for an isolated local-fork rehearsal. Production callers must use
+// New, which never persists response content.
+func NewForLocalForkPaidBodyEvidence(client *http.Client, signer TypedDataSigner, evidenceRoot, evidenceDir string) (*Adapter, error) {
+	adapter, err := New(client, signer)
+	if err != nil {
+		return nil, err
+	}
+	sink, err := newPaidBodyEvidenceSink(evidenceRoot, evidenceDir)
+	if err != nil {
+		return nil, fmt.Errorf("configure local-fork paid response evidence: %w", err)
+	}
+	adapter.paidBodyEvidence = sink
+	return adapter, nil
 }
 
 func (a *Adapter) Name() string { return "x402" }
@@ -151,8 +173,8 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 	if err != nil {
 		return unknown(payload, "paid response omitted a valid Payment-Response: "+err.Error()), err
 	}
-	if !settled.Success || settled.Transaction == "" || settled.Payer == "" || settled.Network != accepted.Network {
-		return unknown(payload, "facilitator response did not contain a complete matching settlement"), fmt.Errorf("incomplete x402 settlement response")
+	if !settled.Success || settled.Transaction == "" || settled.Payer == "" || !strings.EqualFold(settled.Network, accepted.Network) || !strings.EqualFold(settled.Payer, credential.Account) {
+		return unknown(payload, "facilitator response did not contain a complete settlement matching the authorized payer and network"), fmt.Errorf("incomplete or mismatched x402 settlement response")
 	}
 	// Keep a bounded digest of the paid resource body with Treasury's outcome.
 	// The content itself can contain research data or provider material, so it
@@ -162,13 +184,33 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 	switch {
 	case bodyErr != nil:
 		detail += "; response_evidence=read_error"
+		if a.paidBodyEvidence != nil {
+			detail += "; response_artifact=not_published; response_artifact_error=body_read_failed"
+		}
 	case len(resultBody) > maxResponseBytes:
 		detail += fmt.Sprintf("; response_evidence=truncated; response_bytes_at_least=%d", len(resultBody))
+		if a.paidBodyEvidence != nil {
+			detail += "; response_artifact=not_published; response_artifact_error=body_too_large"
+		}
 	case len(resultBody) == 0:
 		detail += "; response_evidence=empty"
+		if a.paidBodyEvidence != nil {
+			detail += "; response_artifact=not_published; response_artifact_error=empty_body"
+		}
 	default:
 		digest := sha256.Sum256(resultBody)
-		detail += fmt.Sprintf("; response_bytes=%d; response_sha256=%s", len(resultBody), hex.EncodeToString(digest[:]))
+		bodyHash := hex.EncodeToString(digest[:])
+		detail += fmt.Sprintf("; response_bytes=%d; response_sha256=%s", len(resultBody), bodyHash)
+		if a.paidBodyEvidence != nil {
+			artifact, captureErr := a.paidBodyEvidence.write(command.SettlementID, resultBody)
+			if captureErr != nil {
+				// The facilitator receipt already proves settlement. A local
+				// evidence failure must never rewrite that financial outcome.
+				detail += "; response_artifact=not_published; response_artifact_error=true"
+			} else {
+				detail += "; response_artifact=" + artifact
+			}
+		}
 	}
 	return rail.Result{
 		Outcome: rail.OutcomeSettled, ExternalID: settled.Transaction,
@@ -176,6 +218,219 @@ func (a *Adapter) Settle(ctx context.Context, command rail.SettleCommand) (rail.
 		OccurredAt: a.now().UTC(),
 		Detail:     detail,
 	}, nil
+}
+
+type paidBodyEvidenceSink struct {
+	rootFD    *os.File
+	dirFD     *os.File
+	root      unix.Stat_t
+	dir       unix.Stat_t
+	child     string
+	afterLink func()
+}
+
+func newPaidBodyEvidenceSink(root, dir string) (*paidBodyEvidenceSink, error) {
+	if !filepath.IsAbs(root) || !filepath.IsAbs(dir) {
+		return nil, fmt.Errorf("evidence root and directory must be absolute")
+	}
+	root = filepath.Clean(root)
+	dir = filepath.Clean(dir)
+	if filepath.Dir(dir) != root || filepath.Base(dir) == "." || filepath.Base(dir) == ".." {
+		return nil, fmt.Errorf("evidence directory must be a direct child of the current run root")
+	}
+	rootFD, err := openAbsoluteDirectoryNoSymlinks(root)
+	if err != nil {
+		return nil, fmt.Errorf("open evidence root without following path-component links: %w", err)
+	}
+	closeRoot := true
+	defer func() {
+		if closeRoot {
+			_ = rootFD.Close()
+		}
+	}()
+	rootDescriptor := int(rootFD.Fd())
+	var rootStat unix.Stat_t
+	if err := unix.Fstat(rootDescriptor, &rootStat); err != nil || rootStat.Mode&unix.S_IFMT != unix.S_IFDIR || rootStat.Mode&0o077 != 0 {
+		return nil, fmt.Errorf("evidence root descriptor is not a private directory")
+	}
+	child := filepath.Base(dir)
+	if err := unix.Mkdirat(rootDescriptor, child, 0o700); err != nil && !errors.Is(err, unix.EEXIST) {
+		return nil, fmt.Errorf("create evidence directory: %w", err)
+	}
+	dirDescriptor, err := unix.Openat(rootDescriptor, child, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, fmt.Errorf("open evidence directory without following links: %w", err)
+	}
+	dirFD := os.NewFile(uintptr(dirDescriptor), dir)
+	var dirStat unix.Stat_t
+	if err := unix.Fstat(dirDescriptor, &dirStat); err != nil || dirStat.Mode&unix.S_IFMT != unix.S_IFDIR || dirStat.Mode&0o077 != 0 {
+		_ = dirFD.Close()
+		return nil, fmt.Errorf("evidence directory must be a private, real directory")
+	}
+	closeRoot = false
+	return &paidBodyEvidenceSink{rootFD: rootFD, dirFD: dirFD, root: rootStat, dir: dirStat, child: child}, nil
+}
+
+func openAbsoluteDirectoryNoSymlinks(path string) (*os.File, error) {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return nil, fmt.Errorf("directory path must be absolute and clean")
+	}
+	current, err := unix.Open(string(filepath.Separator), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, component := range strings.Split(strings.TrimPrefix(path, string(filepath.Separator)), string(filepath.Separator)) {
+		if component == "" {
+			continue
+		}
+		next, openErr := unix.Openat(current, component, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+		_ = unix.Close(current)
+		if openErr != nil {
+			return nil, openErr
+		}
+		current = next
+	}
+	return os.NewFile(uintptr(current), path), nil
+}
+
+func (sink *paidBodyEvidenceSink) write(settlementID string, body []byte) (string, error) {
+	if sink == nil || sink.dirFD == nil || sink.rootFD == nil {
+		return "", fmt.Errorf("paid response evidence is not configured")
+	}
+	if err := sink.validateDirectoryBinding(); err != nil {
+		return "", err
+	}
+	if !safeEvidenceID(settlementID) {
+		return "", fmt.Errorf("settlement ID is unsafe for an evidence filename")
+	}
+	if len(body) == 0 || len(body) > maxResponseBytes {
+		return "", fmt.Errorf("paid response body is outside the evidence size bound")
+	}
+	name := "x402-paid-response-" + settlementID + ".body"
+	temporaryName, err := randomEvidenceName()
+	if err != nil {
+		return "", err
+	}
+	temporaryDescriptor, err := unix.Openat(int(sink.dirFD.Fd()), temporaryName, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0o600)
+	if err != nil {
+		return "", fmt.Errorf("create temporary evidence: %w", err)
+	}
+	temporary := os.NewFile(uintptr(temporaryDescriptor), temporaryName)
+	defer func() { _ = unix.Unlinkat(int(sink.dirFD.Fd()), temporaryName, 0) }()
+	if err := temporary.Chmod(0o600); err != nil {
+		_ = temporary.Close()
+		return "", fmt.Errorf("restrict temporary evidence permissions: %w", err)
+	}
+	if _, err := temporary.Write(body); err != nil {
+		_ = temporary.Close()
+		return "", fmt.Errorf("write temporary evidence: %w", err)
+	}
+	if err := temporary.Sync(); err != nil {
+		_ = temporary.Close()
+		return "", fmt.Errorf("sync temporary evidence: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return "", fmt.Errorf("close temporary evidence: %w", err)
+	}
+	if err := sink.validateDirectoryBinding(); err != nil {
+		return "", err
+	}
+	created := false
+	if err := unix.Linkat(int(sink.dirFD.Fd()), temporaryName, int(sink.dirFD.Fd()), name, 0); err != nil {
+		if !errors.Is(err, unix.EEXIST) {
+			return "", fmt.Errorf("publish paid response evidence atomically: %w", err)
+		}
+		if err := verifyExistingEvidenceAt(int(sink.dirFD.Fd()), name, body); err != nil {
+			return "", err
+		}
+	} else {
+		created = true
+	}
+	if sink.afterLink != nil {
+		sink.afterLink()
+	}
+	if err := sink.validateDirectoryBinding(); err != nil {
+		if created {
+			if removeErr := unix.Unlinkat(int(sink.dirFD.Fd()), name, 0); removeErr != nil && !errors.Is(removeErr, unix.ENOENT) {
+				return "", fmt.Errorf("evidence directory moved after publication: %v; rollback artifact: %w", err, removeErr)
+			}
+			_ = sink.dirFD.Sync()
+		}
+		return "", fmt.Errorf("evidence directory moved after publication: %w", err)
+	}
+	if err := sink.dirFD.Sync(); err != nil {
+		if created {
+			if removeErr := unix.Unlinkat(int(sink.dirFD.Fd()), name, 0); removeErr != nil && !errors.Is(removeErr, unix.ENOENT) {
+				return "", fmt.Errorf("sync evidence directory: %v; remove uncommitted artifact: %w", err, removeErr)
+			}
+			_ = sink.dirFD.Sync()
+		}
+		return "", fmt.Errorf("sync evidence directory: %w", err)
+	}
+	return name, nil
+}
+
+func safeEvidenceID(value string) bool {
+	if value == "" || len(value) > 128 || !isASCIILetterOrDigit(value[0]) {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		char := value[index]
+		if !isASCIILetterOrDigit(char) && char != '-' && char != '_' && char != '.' {
+			return false
+		}
+	}
+	return true
+}
+
+func isASCIILetterOrDigit(value byte) bool {
+	return value >= 'a' && value <= 'z' || value >= 'A' && value <= 'Z' || value >= '0' && value <= '9'
+}
+
+func (sink *paidBodyEvidenceSink) validateDirectoryBinding() error {
+	var rootStat unix.Stat_t
+	if err := unix.Fstat(int(sink.rootFD.Fd()), &rootStat); err != nil || rootStat.Dev != sink.root.Dev || rootStat.Ino != sink.root.Ino {
+		return fmt.Errorf("evidence root descriptor changed")
+	}
+	descriptor, err := unix.Openat(int(sink.rootFD.Fd()), sink.child, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("revalidate evidence directory without following links: %w", err)
+	}
+	defer func() { _ = unix.Close(descriptor) }()
+	var dirStat unix.Stat_t
+	if err := unix.Fstat(descriptor, &dirStat); err != nil || dirStat.Dev != sink.dir.Dev || dirStat.Ino != sink.dir.Ino {
+		return fmt.Errorf("evidence directory was replaced after configuration")
+	}
+	return nil
+}
+
+func randomEvidenceName() (string, error) {
+	var value [16]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		return "", fmt.Errorf("generate temporary evidence name: %w", err)
+	}
+	return ".x402-paid-response-" + hex.EncodeToString(value[:]) + ".tmp", nil
+}
+
+func verifyExistingEvidenceAt(dirFD int, name string, expected []byte) error {
+	descriptor, err := unix.Openat(dirFD, name, unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("open existing evidence without following links: %w", err)
+	}
+	file := os.NewFile(uintptr(descriptor), name)
+	defer func() { _ = file.Close() }()
+	var info unix.Stat_t
+	if err := unix.Fstat(descriptor, &info); err != nil || info.Mode&unix.S_IFMT != unix.S_IFREG || info.Mode&0o777 != 0o600 || info.Size != int64(len(expected)) || info.Size > maxResponseBytes {
+		return fmt.Errorf("existing evidence does not match the bounded private artifact contract")
+	}
+	actual, err := io.ReadAll(io.LimitReader(file, maxResponseBytes+1))
+	if err != nil {
+		return fmt.Errorf("read existing evidence: %w", err)
+	}
+	if len(actual) > maxResponseBytes || int64(len(actual)) != info.Size || !bytes.Equal(actual, expected) {
+		return fmt.Errorf("existing evidence differs from this settlement response")
+	}
+	return nil
 }
 
 // QueryOutcome replays only the exact signed payload preserved by the first

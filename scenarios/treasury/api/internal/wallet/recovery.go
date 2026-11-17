@@ -3,16 +3,173 @@ package wallet
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	"treasury/internal/book"
 )
+
+// PortableRecoveryWitness carries only public wallet metadata. Its MAC is
+// derived from the operator-held recovery secret, so DBM can transport it as
+// an opaque public sidecar while Treasury authenticates it before import.
+type PortableRecoveryWitness struct {
+	Version          int       `json:"version"`
+	ID               string    `json:"id"`
+	BookID           string    `json:"book_id"`
+	BookName         string    `json:"book_name"`
+	BookBeneficiary  string    `json:"book_beneficiary"`
+	OperatorIdentity string    `json:"operator_identity"`
+	Network          string    `json:"network"`
+	Address          string    `json:"address"`
+	PublicKey        string    `json:"public_key"`
+	CustodyReference string    `json:"custody_reference"`
+	CreatedAt        time.Time `json:"created_at"`
+	MAC              string    `json:"mac"`
+}
+
+func witnessMAC(secret string, w PortableRecoveryWitness) []byte {
+	w.MAC = ""
+	data, _ := json.Marshal(w)
+	key := sha256.Sum256([]byte("vrooli-treasury-portable-witness-v1\x00" + secret))
+	mac := hmac.New(sha256.New, key[:])
+	_, _ = mac.Write(data)
+	return mac.Sum(nil)
+}
+
+func (s *Service) ExportPortableRecoveryWitness(ctx context.Context, id, network, operator, secret string) ([]byte, error) {
+	w, err := s.binding(ctx, id, network, operator)
+	if err != nil {
+		return nil, err
+	}
+	if len(secret) < 32 || len(secret) > 4096 || w.Address == "" || w.PublicKey == "" {
+		return nil, ErrInvalid
+	}
+	book, err := s.books.Get(ctx, w.BookID)
+	if err != nil || book.BeneficiaryIdentity != operator {
+		return nil, ErrMismatch
+	}
+	witness := PortableRecoveryWitness{Version: 1, ID: w.ID, BookID: w.BookID, BookName: book.Name, BookBeneficiary: book.BeneficiaryIdentity, OperatorIdentity: w.OperatorIdentity, Network: w.Network, Address: w.Address, PublicKey: w.PublicKey, CustodyReference: w.CustodyReference, CreatedAt: w.CreatedAt.UTC()}
+	witness.MAC = hex.EncodeToString(witnessMAC(secret, witness))
+	return json.Marshal(witness)
+}
+
+// RestorePortableRecoveryWithWitness bootstraps a missing wallet row only
+// after authenticating public metadata and proving that the encrypted bundle
+// contains the matching signing key in transient custody memory.
+func (s *Service) RestorePortableRecoveryWithWitness(ctx context.Context, id, network, operator string, blob, witnessBlob []byte, secret string, revocationBlobs ...[]byte) (Wallet, error) {
+	if len(secret) < 32 || len(secret) > 4096 || len(blob) == 0 || len(blob) > 1<<20 || len(witnessBlob) == 0 || len(witnessBlob) > 16<<10 || len(revocationBlobs) > 1 || (len(revocationBlobs) == 1 && len(revocationBlobs[0]) > 16<<10) {
+		return Wallet{}, ErrInvalid
+	}
+	var witness PortableRecoveryWitness
+	if json.Unmarshal(witnessBlob, &witness) != nil || witness.Version != 1 {
+		return Wallet{}, ErrMismatch
+	}
+	claimed, err := hex.DecodeString(witness.MAC)
+	if err != nil || !hmac.Equal(claimed, witnessMAC(secret, witness)) {
+		return Wallet{}, ErrMismatch
+	}
+	w := Wallet{ID: witness.ID, BookID: witness.BookID, OperatorIdentity: witness.OperatorIdentity, Network: witness.Network, Address: witness.Address, PublicKey: witness.PublicKey, CustodyReference: witness.CustodyReference, CreatedAt: witness.CreatedAt.UTC()}
+	if w.ID != id || w.Network != network || w.OperatorIdentity != operator || !supported(network) || !validReference(w) || w.Address == "" || w.PublicKey == "" || witness.CreatedAt.IsZero() {
+		return Wallet{}, ErrMismatch
+	}
+	if len(revocationBlobs) == 1 && len(revocationBlobs[0]) > 0 {
+		var revocation PortableRecoveryRevocation
+		if json.Unmarshal(revocationBlobs[0], &revocation) != nil || !VerifyPortableRecoveryRevocation(revocation) || revocation.WalletID != w.ID || revocation.Network != w.Network || revocation.Address != w.Address || revocation.PublicKey != w.PublicKey {
+			return Wallet{}, ErrMismatch
+		}
+		return Wallet{}, fmt.Errorf("%w: portable recovery bundle is revoked at epoch %d", ErrMismatch, revocation.Epoch)
+	}
+	if err = verifyRecoveryBinding(blob, secret, w); err != nil {
+		return Wallet{}, err
+	}
+	bookRecord, bookErr := s.books.Get(ctx, w.BookID)
+	if bookErr == nil {
+		if bookRecord.BeneficiaryIdentity != operator || witness.BookBeneficiary != operator || bookRecord.Name != witness.BookName {
+			return Wallet{}, ErrMismatch
+		}
+	} else {
+		if !errors.Is(bookErr, book.ErrNotFound) {
+			return Wallet{}, ErrUnavailable
+		}
+		creator, ok := s.books.(interface {
+			Create(context.Context, book.CreateInput) (book.Book, error)
+		})
+		if !ok || witness.BookBeneficiary != operator || witness.BookName == "" {
+			return Wallet{}, ErrMismatch
+		}
+		bookRecord, err = creator.Create(ctx, book.CreateInput{ID: w.BookID, Name: witness.BookName, BeneficiaryIdentity: operator})
+		if err != nil || bookRecord.BeneficiaryIdentity != operator {
+			return Wallet{}, ErrMismatch
+		}
+	}
+	// Prepare is insert-only. A conflict is accepted only when every durable
+	// binding agrees, allowing safe retries after an interrupted restore.
+	_, err = s.repository.Prepare(ctx, w)
+	if err != nil {
+		return Wallet{}, err
+	}
+	err = s.repository.WithCustodyLock(ctx, id, func(repository Repository) error {
+		stored, e := repository.Get(ctx, id)
+		if e != nil {
+			return e
+		}
+		if stored.BookID != w.BookID || stored.OperatorIdentity != operator || stored.Network != network || stored.CustodyReference != w.CustodyReference || (stored.Address != "" && stored.Address != w.Address) || (stored.PublicKey != "" && stored.PublicKey != w.PublicKey) || stored.RevokedAt != "" {
+			return ErrMismatch
+		}
+		locked := *s
+		locked.repository = repository
+		key, keyErr := locked.key(stored)
+		if keyErr == nil {
+			defer key.Zero()
+			if Address(key.PubKey()) != w.Address || hex.EncodeToString(key.PubKey().SerializeUncompressed()) != w.PublicKey {
+				return fmt.Errorf("%w: portable recovery refuses to replace an existing key", ErrMismatch)
+			}
+		} else if !errors.Is(keyErr, credentialauthority.ErrUnconfigured) {
+			return keyErr
+		}
+		if stored.Address == "" {
+			if e = repository.SetPublic(ctx, id, w.Address, w.PublicKey); e != nil {
+				return e
+			}
+		}
+		if keyErr != nil {
+			if e = locked.custody.RestoreRecovery(blob, secret); e != nil {
+				return fmt.Errorf("%w: portable recovery restore failed", ErrUnavailable)
+			}
+		}
+		if keyErr != nil {
+			key, e := locked.key(w)
+			if e != nil {
+				return e
+			}
+			defer key.Zero()
+			if Address(key.PubKey()) != w.Address || hex.EncodeToString(key.PubKey().SerializeUncompressed()) != w.PublicKey {
+				return ErrMismatch
+			}
+		}
+		minted, e := repository.Minted(ctx, id, false)
+		if e != nil {
+			return e
+		}
+		if !minted {
+			return repository.RecordMint(ctx, id, false)
+		}
+		return nil
+	})
+	if err != nil {
+		return Wallet{}, err
+	}
+	return s.Get(ctx, id, network, operator)
+}
 
 // QualifyRecovery checks a persisted, scoped encrypted backup by restoring it
 // into transient owner memory and matching the immutable public address.
@@ -146,6 +303,7 @@ func (s *Service) ExportPortableRecoveryBundle(ctx context.Context, id, network,
 
 type PortableRecoveryArtifact struct {
 	RelativePath string
+	WitnessPath  string
 	SHA256       string
 	SizeBytes    uint64
 }
@@ -159,8 +317,12 @@ func (s *Service) PersistPortableRecoveryBundle(ctx context.Context, id, network
 	if err != nil {
 		return PortableRecoveryArtifact{}, err
 	}
+	witness, err := s.ExportPortableRecoveryWitness(ctx, id, network, operator, operatorSecret)
+	if err != nil {
+		return PortableRecoveryArtifact{}, err
+	}
 	relativePath := portableBackupName(id)
-	path, err := s.recoveryPath(ctx, relativePath)
+	path, err := s.recoveryPath(ctx, filepath.Join(relativePath, "wallet.bundle"))
 	if err != nil {
 		return PortableRecoveryArtifact{}, err
 	}
@@ -174,9 +336,31 @@ func (s *Service) PersistPortableRecoveryBundle(ctx context.Context, id, network
 	}
 	if existing, readErr := readBackup(path); readErr == nil {
 		if !bytes.Equal(existing, blob) {
-			return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery artifact already exists with different ciphertext", ErrMismatch)
+			current, bindingErr := s.binding(ctx, id, network, operator)
+			if bindingErr != nil || verifyRecoveryBinding(existing, operatorSecret, current) != nil {
+				return PortableRecoveryArtifact{}, fmt.Errorf("%w: existing portable recovery artifact does not match the current wallet", ErrMismatch)
+			}
+			// ExportRecovery may produce fresh ciphertext on retry. Reuse the
+			// already durable artifact only after proving it still contains this
+			// wallet's exact key, so a crash between bundle and witness writes is
+			// idempotent without accepting a stale or substituted bundle.
+			blob = existing
 		}
-		return portableRecoveryArtifact(relativePath, blob), nil
+		witnessPath := filepath.Join(relativePath, "witness.json")
+		witnessFile, pathErr := s.recoveryPath(ctx, witnessPath)
+		storedWitness, witnessErr := readBackup(witnessFile)
+		if pathErr != nil {
+			return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery witness path is unavailable", ErrUnavailable)
+		}
+		if errors.Is(witnessErr, os.ErrNotExist) {
+			if witnessErr = writePrivateArtifact(witnessFile, witness); witnessErr != nil {
+				return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery witness retry failed", ErrUnavailable)
+			}
+			storedWitness = witness
+		} else if witnessErr != nil || !bytes.Equal(storedWitness, witness) {
+			return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery witness is absent or changed", ErrMismatch)
+		}
+		return portableRecoveryArtifact(relativePath, witnessPath, blob), nil
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return PortableRecoveryArtifact{}, fmt.Errorf("%w: existing portable recovery artifact is not a safe regular file", ErrMismatch)
 	}
@@ -201,16 +385,37 @@ func (s *Service) PersistPortableRecoveryBundle(ctx context.Context, id, network
 		return PortableRecoveryArtifact{}, fmt.Errorf("%w: portable recovery readback mismatch", ErrMismatch)
 	}
 	committed = true
-	return portableRecoveryArtifact(relativePath, blob), nil
+	witnessPath := filepath.Join(relativePath, "witness.json")
+	witnessFile, err := s.recoveryPath(ctx, witnessPath)
+	if err != nil {
+		_ = os.Remove(path)
+		return PortableRecoveryArtifact{}, err
+	}
+	if err = writePrivateArtifact(witnessFile, witness); err != nil {
+		_ = os.Remove(path)
+		return PortableRecoveryArtifact{}, err
+	}
+	return portableRecoveryArtifact(relativePath, witnessPath, blob), nil
 }
 
-func portableRecoveryArtifact(relativePath string, blob []byte) PortableRecoveryArtifact {
+func writePrivateArtifact(path string, blob []byte) error {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, werr := file.Write(blob)
+	serr := file.Sync()
+	cerr := file.Close()
+	return errors.Join(werr, serr, cerr)
+}
+
+func portableRecoveryArtifact(relativePath, witnessPath string, blob []byte) PortableRecoveryArtifact {
 	digest := sha256.Sum256(blob)
-	return PortableRecoveryArtifact{RelativePath: filepath.ToSlash(relativePath), SHA256: hex.EncodeToString(digest[:]), SizeBytes: uint64(len(blob))}
+	return PortableRecoveryArtifact{RelativePath: filepath.ToSlash(relativePath), WitnessPath: filepath.ToSlash(witnessPath), SHA256: hex.EncodeToString(digest[:]), SizeBytes: uint64(len(blob))}
 }
 
 func portableBackupName(id string) string {
-	return filepath.Join("portable-recovery", id+".bundle")
+	return filepath.Join("portable-recovery", id+".recovery")
 }
 
 // RestorePersistedPortableRecoveryBundle restores the encrypted artifact that
@@ -221,11 +426,20 @@ func (s *Service) RestorePersistedPortableRecoveryBundle(ctx context.Context, id
 	if err != nil {
 		return Wallet{}, err
 	}
-	bundle, err := readBackup(path)
+	bundlePath := filepath.Join(path, "wallet.bundle")
+	bundle, err := readBackup(bundlePath)
 	if err != nil {
 		return Wallet{}, fmt.Errorf("%w: portable recovery artifact is unavailable or unsafe", ErrUnavailable)
 	}
-	return s.RestorePortableRecoveryBundle(ctx, id, network, operator, bundle, operatorSecret)
+	witness, err := readBackup(filepath.Join(path, "witness.json"))
+	if err != nil {
+		return Wallet{}, fmt.Errorf("%w: portable recovery witness is unavailable or unsafe", ErrUnavailable)
+	}
+	revocation, err := readBackup(filepath.Join(path, "revocation.json"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return Wallet{}, fmt.Errorf("%w: portable recovery revocation tombstone is unsafe", ErrMismatch)
+	}
+	return s.RestorePortableRecoveryWithWitness(ctx, id, network, operator, bundle, witness, operatorSecret, revocation)
 }
 
 // RestorePortableRecoveryBundle restores only the missing, previously minted

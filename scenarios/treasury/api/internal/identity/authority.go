@@ -1,13 +1,12 @@
 package identity
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	requestidentity "github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/scopecatalog"
 )
 
 // Authorize uses the operation grant carried by verified Agent Manager claims.
@@ -18,11 +17,15 @@ func Authorize(claims Claims, operation, target string, now time.Time) error {
 	if operation == "treasury.read" {
 		scope = "treasury:read"
 	}
-	if claims.Subject == "" || claims.RunID == "" || claims.ExpiresAt <= now.Unix() || !scopecatalog.Resolve(claims.Scopes, scope) {
+	if claims.Subject == "" || claims.RunID == "" || claims.ExpiresAt <= now.Unix() {
 		return fmt.Errorf("%w: current run identity and %s capability are required", ErrUnverifiable, scope)
 	}
-	var grant requestidentity.OperationGrant
-	if json.Unmarshal([]byte(claims.Meta["operation_grant"]), &grant) != nil || !strings.HasPrefix(target, "treasury:") || !grant.Allows(operation, target, now) {
+	grant := requestidentity.OperationGrantFromMeta(claims.Meta, now)
+	evaluation := authn.EvaluateOperationGrant(claims.Scopes, grant, scope, operation, target, now)
+	if !evaluation.Capability {
+		return fmt.Errorf("%w: current run identity and %s capability are required", ErrUnverifiable, scope)
+	}
+	if !strings.HasPrefix(target, "treasury:") || !evaluation.Allowed() {
 		return fmt.Errorf("%w: operation %s is outside the approved target grant", ErrUnverifiable, operation)
 	}
 	return nil

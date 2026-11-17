@@ -105,13 +105,37 @@
       "testId": "approvals-book-select",
       "selector": "[data-testid=\"approvals-book-select\"]"
     },
-    "funding.operatorToken": {
-      "testId": "funding-operator-token",
-      "selector": "[data-testid=\"funding-operator-token\"]"
+    "funding.sessionPanel": {
+      "testId": "funding-session-panel",
+      "selector": "[data-testid=\"funding-session-panel\"]"
     },
-    "funding.agentToken": {
-      "testId": "funding-agent-token",
-      "selector": "[data-testid=\"funding-agent-token\"]"
+    "funding.sessionIdentity": {
+      "testId": "funding-session-identity",
+      "selector": "[data-testid=\"funding-session-identity\"]"
+    },
+    "funding.sessionEmail": {
+      "testId": "funding-session-email",
+      "selector": "[data-testid=\"funding-session-email\"]"
+    },
+    "funding.sessionPassword": {
+      "testId": "funding-session-password",
+      "selector": "[data-testid=\"funding-session-password\"]"
+    },
+    "funding.sessionMfaCode": {
+      "testId": "funding-session-mfa-code",
+      "selector": "[data-testid=\"funding-session-mfa-code\"]"
+    },
+    "funding.sessionRecoveryCode": {
+      "testId": "funding-session-recovery-code",
+      "selector": "[data-testid=\"funding-session-recovery-code\"]"
+    },
+    "funding.signInButton": {
+      "testId": "funding-session-sign-in",
+      "selector": "[data-testid=\"funding-session-sign-in\"]"
+    },
+    "funding.signOutButton": {
+      "testId": "funding-session-sign-out",
+      "selector": "[data-testid=\"funding-session-sign-out\"]"
     },
     "funding.budgetId": {
       "testId": "funding-budget-id",
@@ -161,14 +185,6 @@
       "testId": "funding-declared-value",
       "selector": "[data-testid=\"funding-declared-value\"]"
     },
-    "funding.ledgerBookId": {
-      "testId": "funding-ledger-book-id",
-      "selector": "[data-testid=\"funding-ledger-book-id\"]"
-    },
-    "funding.ledgerAccountId": {
-      "testId": "funding-ledger-account-id",
-      "selector": "[data-testid=\"funding-ledger-account-id\"]"
-    },
     "funding.createIntentButton": {
       "testId": "funding-create-intent",
       "selector": "[data-testid=\"funding-create-intent\"]"
@@ -184,6 +200,10 @@
     "funding.openWalletLink": {
       "testId": "funding-open-wallet-link",
       "selector": "[data-testid=\"funding-open-wallet-link\"]"
+    },
+    "funding.basePayButton": {
+      "testId": "funding-base-pay-button",
+      "selector": "[data-testid=\"funding-base-pay-button\"]"
     },
     "funding.copyLinkButton": {
       "testId": "funding-copy-link",
@@ -431,7 +451,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
-    "ui/src/consts/selectors.ts": "a9cdbf296e5795beb10d33c6a91b415f7cec4d000af3d21a2c074ff1cb868d53",
+    "ui/src/consts/selectors.ts": "6b4de57ebac8d2b7f90ee4bfd5c14ddc709af0f19da0bafb96175cb554e2bc68",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -360,7 +360,7 @@
         },
         {
           "name": "capture-solana-address",
-          "description": "Capture one bounded finalized Solana signature page and SPL account deltas",
+          "description": "Capture one finalized Solana page with SPL deltas or signature-only history discovery",
           "flags": [
             {
               "name": "case-id",
@@ -387,12 +387,133 @@
                 "field": "before_signature",
                 "kind": "raw_string"
               }
+            },
+            {
+              "name": "signature-limit",
+              "description": "For signature-only discovery pages, request 1-1000 signatures; default 1000 when signatures-only is set",
+              "bind": {
+                "field": "signature_limit",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "signature-pages",
+              "description": "Capture 1-25 sequential signature-only pages and append them together; default 1",
+              "bind": {
+                "field": "signature_page_count",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "signatures-only",
+              "description": "Retain only the bounded finalized signature page without fetching transactions",
+              "bind": {
+                "field": "signatures_only",
+                "kind": "raw_string"
+              },
+              "bool": true
             }
           ],
           "binding": {
             "kind": "connect-rpc",
             "service": "vrooli.chain_forensics.v1.cases.CasesService",
             "method": "CaptureSolanaAddressPage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture-solana-token-accounts",
+          "description": "Capture one finalized SPL token-account inventory filtered by owner and token program",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Solana owner public key",
+              "bind": {
+                "field": "owner",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "program-id",
+              "required": true,
+              "description": "SPL Token or Token-2022 program id",
+              "bind": {
+                "field": "program_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureSolanaTokenAccounts"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture-solana-transaction",
+          "description": "Capture one finalized Solana transaction by signature without address-history enumeration",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "signature",
+              "required": true,
+              "description": "Externally selected Solana base58 transaction signature",
+              "bind": {
+                "field": "signature",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "signature-source",
+              "required": false,
+              "description": "Retained getSignaturesForAddress source id that selected this signature",
+              "bind": {
+                "field": "selection_source_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureSolanaTransaction"
           },
           "governance": {
             "effect": "write",

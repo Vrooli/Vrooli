@@ -112,6 +112,26 @@ func TestVerifyWalletTransactionRequiresBaseAndReturnsExactFinalizedTransfer(t *
 	require.Equal(t, []string{"eth_chainId", "eth_getTransactionReceipt", "eth_getBlockByNumber", "eth_getBlockByNumber"}, rpc.methods)
 }
 
+func TestLatestBlockNumberReadsOnlyConfiguredBaseChainHead(t *testing.T) {
+	rpc := validRPC()
+	got, err := testVerifier(rpc, time.Unix(1, 0)).LatestBlockNumber(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "100", got.String())
+	require.Equal(t, []string{"eth_chainId", "eth_getBlockByNumber"}, rpc.methods)
+}
+
+func TestLatestBlockNumberRefusesWrongNetworkAndMalformedHead(t *testing.T) {
+	rpc := validRPC()
+	rpc.chainID = "0x1"
+	_, err := testVerifier(rpc, time.Unix(1, 0)).LatestBlockNumber(context.Background())
+	require.ErrorIs(t, err, ErrWrongNetwork)
+
+	rpc = validRPC()
+	rpc.block = &block{Number: "0xzz", Hash: testBlock}
+	_, err = testVerifier(rpc, time.Unix(1, 0)).LatestBlockNumber(context.Background())
+	require.Error(t, err)
+}
+
 func TestVerifyWalletTransactionKeepsIncludedTransferUnfinalized(t *testing.T) {
 	rpc := validRPC()
 	rpc.head.Number = "0x63"

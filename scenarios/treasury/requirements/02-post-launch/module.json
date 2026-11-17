@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "P1 requirements: the rails and the operator controls that make the P0 spine useful against real counterparties. Each assumes the P0 properties rather than re-establishing them.",
-    "last_validated_at": "2026-11-14T14:17:06-05:00",
+    "last_validated_at": "2026-11-15T19:25:28-05:00",
     "module": "P1-targets",
     "priority": "P1",
     "schema_version": "1.0.0"
@@ -16,10 +16,11 @@
       "description": "Where a counterparty endpoint declares an x402 price, the scenario should pay it from an operator-held balance under a mandate carrying a per-call cap",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/rail/x402/client_test.go#TestOutboundRefusesQuoteAbovePerCallCapBeforeSigning; api/internal/rail/x402/client_integration_test.go#TestOutboundKeepsMismatchedFacilitatorPayerUnknown; api/internal/rail/x402/client_integration_test.go#TestOutboundPaidResponseEvidenceIsBounded; api/internal/rail/x402/client_integration_test.go#TestLocalForkPaidBodyEvidenceWritesExactPrivateArtifact; api/internal/rail/x402/client_integration_test.go#TestDefaultAdapterNeverCapturesPaidBodyFromAmbientEnvironment; api/internal/rail/x402/client_integration_test.go#TestLocalForkPaidBodyEvidenceRejectsUnsafeIDAndEscapingDirectories; api/main_test.go#TestTreasuryX402UsesContentFreeConstructorByDefault; api/main_test.go#TestTreasuryX402EvidenceRequiresIsolatedLocalForkTestMode; api/main_test.go#TestTreasuryX402EvidenceRejectsRunDirectoryEscape",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/rail/x402/client_test.go`. A 402 response is parsed into a priced authorization request; a price above the mandate's per-call cap is refused before any payment is constructed. [REQ:TRS-P1-001]"
+          "notes": "The owner tests refuse a quote over the mandate cap before signing and preserve an untrusted first-settlement payer as unknown. [REQ:TRS-P1-001]"
         },
         {
           "type": "manual",
@@ -38,10 +39,11 @@
       "description": "The scenario should let any Vrooli endpoint declare a price and collect payment through a self-hosted facilitator, recording each receipt as inflow",
       "validation": [
         {
-          "type": "manual",
+          "type": "test",
+          "ref": "api/internal/rail/x402/facilitator_test.go#TestInboundChallengeAndReplaySafeAdmission; api/internal/rail/x402/facilitator_test.go#TestInboundMismatchedSuccessfulReceiptStaysUnknownAndCannotEmitInflows; api/internal/rail/x402/facilitator_test.go#TestInboundPayerAddressComparisonAcceptsChecksumCaseAndResourceRetryKeepsUnknownRecoverable; api/internal/rail/x402/facilitator_concurrency_test.go#TestConcurrentInboundPayersMeasureSQLiteContention",
           "phase": "unit",
           "status": "implemented",
-          "notes": "Planned test at `api/internal/rail/x402/facilitator_test.go`. An unpaid request receives 402 with the declared price; a request carrying valid proof of payment is admitted exactly once. [REQ:TRS-P1-002]"
+          "notes": "Owner tests cover challenge/replay admission, payer-bound settlement, recoverable unknown outcomes and concurrent unique payers. [REQ:TRS-P1-002]"
         },
         {
           "type": "manual",
@@ -67,10 +69,10 @@
       "validation": [
         {
           "type": "test",
-          "ref": "api/internal/rail/card/contract_test.go#TestIssuerContractIsProviderNeutralAndRejectsScopeWidening; api/internal/instrument/sqlite_test.go#TestScopedCardIssuanceUsesMandateAndCredentialAuthority; api/internal/rail/card/lithic/adapter_test.go#TestIssueAndInspectProviderEnforcedScope",
+          "ref": "api/internal/rail/card/contract_test.go#TestIssuerContractIsProviderNeutralAndRejectsScopeWidening; api/internal/rail/card/contract_test.go#TestIssuerInspectionMustMatchRequestedIdentityAndReturnValidScope; api/internal/instrument/sqlite_test.go#TestScopedCardIssuanceUsesMandateAndCredentialAuthority; api/internal/instrument/sqlite_test.go#TestCardIssueJournalSerializesConcurrentFirstAttempt; api/internal/rail/card/lithic/adapter_test.go#TestIssueAndInspectProviderEnforcedScope; api/internal/rail/card/lithic/adapter_test.go#TestIssueRejectsExpiredOrBeyondProviderCardHorizonBeforeRequest; api/internal/rail/card/lithic/adapter_test.go#TestIssueRejectsNonUSDSpendScopeBeforeRequest; api/internal/rail/card/lithic/adapter_test.go#TestIssueRefusesProviderCardWithMismatchedCardholderCurrency; api/internal/rail/card/lithic/adapter_test.go#TestSettleAfterMandateExpiryRefusesBeforeProviderRequest; api/internal/rail/card/lithic/adapter_test.go#TestSettleAmbiguousClearReturnsTransactionHandleForQueryReconciliation; api/internal/rail/card/lithic/adapter_test.go#TestIssueIdempotencyKeyIsStablePerInstrumentAndIsolatesDifferentInstruments; api/internal/rail/card/lithic/adapter_test.go#TestIssueRetryAfterLostCreateResponseReusesOneProviderCard; api/internal/rail/card/lithic/adapter_test.go#TestQueryOutcomeRejectsMismatchedTransactionAndKeepsRequestedHandle",
           "phase": "unit",
-          "status": "failing",
-          "notes": "Issued card scope is derived from the live mandate, the contract carries no provider type, and provider/issued credentials cross Credential Authority only. [REQ:TRS-P1-003]"
+          "status": "implemented",
+          "notes": "The unit tests cover provider-neutral scope, exact inspected identity, mandate-to-issuer projection, durable instrument-bound retry, concurrent-attempt refusal, USD-cent currency binding, expiry representability, ambiguous-clear query reconciliation, and lost-create-response idempotency. `api/internal/instrument` and `api/internal/rail/card/**` are included by the required API Go service unit role (`go test ./...`). [REQ:TRS-P1-003]"
         },
         {
           "type": "test",
@@ -84,7 +86,7 @@
     {
       "id": "TRS-P1-004",
       "title": "Personal and business books",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-004",
       "criticality": "P1",
       "description": "A mandate should belong to exactly one book, and books should not share instruments, budgets or approval chains",
@@ -93,14 +95,14 @@
           "type": "test",
           "ref": "api/internal/authorization/sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Raw SQL cannot reassign an authorization or approval chain across the mandate and budget book boundary. [REQ:TRS-P1-004]"
         },
         {
           "type": "test",
           "ref": "ui/src/pages/DashboardPage.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The operator queue switches books without displaying approval cards from another book. [REQ:TRS-P1-004]"
         }
       ]
@@ -108,7 +110,7 @@
     {
       "id": "TRS-P1-005",
       "title": "Standing mandates and obligations",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-005",
       "criticality": "P1",
       "description": "The scenario should represent a renewal as a standing mandate that surfaces its next charge date and its cancellation path in one action",
@@ -117,14 +119,14 @@
           "type": "test",
           "ref": "api/internal/mandate/standing_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A standing mandate carries durable recurrence state; an atomic cancellation prevents the next boundary from being claimed. [REQ:TRS-P1-005]"
         },
         {
           "type": "test",
           "ref": "ui/src/pages/SettingsPage.test.tsx",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The operator sees the next charge by book and cancels the obligation in one action. [REQ:TRS-P1-005]"
         }
       ]
@@ -132,7 +134,7 @@
     {
       "id": "TRS-P1-006",
       "title": "Kill switch",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-006",
       "criticality": "P1",
       "description": "When an operator freezes a budget, a book or the whole scenario, the freeze should take effect before the next authorization rather than at the next settlement",
@@ -141,14 +143,14 @@
           "type": "test",
           "ref": "api/internal/budget/freeze_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Budget, book, and scenario freeze scope is durable and the broadest active scope wins. [REQ:TRS-P1-006]"
         },
         {
           "type": "test",
           "ref": "api/internal/settlement/sqlite_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A freeze engaged after approval releases the hold and stops settlement before the rail adapter is called. [REQ:TRS-P1-006]"
         }
       ]
@@ -156,7 +158,7 @@
     {
       "id": "TRS-P1-007",
       "title": "Spend position without a ledger round-trip",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-007",
       "criticality": "P1",
       "description": "The scenario should report remaining headroom per budget from its own authorization records, so an agent can plan without querying money-ledger",
@@ -165,14 +167,14 @@
           "type": "test",
           "ref": "api/internal/budget/headroom_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "Headroom is computed from authorization records rather than a mutable balance; pending and settled records count while released records do not. [REQ:TRS-P1-007]"
         },
         {
           "type": "test",
           "ref": "api/handlers/agentspend/surface_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "The generated agent-facing service exposes computed headroom without accepting a caller-owned balance. [REQ:TRS-P1-007]"
         }
       ]
@@ -180,7 +182,7 @@
     {
       "id": "TRS-P1-008",
       "title": "Durable external wallet receipt evidence",
-      "status": "in_progress",
+      "status": "complete",
       "prd_ref": "OT-P1-008",
       "criticality": "P1",
       "description": "When an operator checks a Base native-USDC transaction for a Treasury wallet, Treasury shall retain the result and exact provider-reported transfer observations for operator readback, without creating a fiat posting or spending authority",
@@ -189,14 +191,14 @@
           "type": "test",
           "ref": "api/internal/baseusdc/service_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "A successful check, pending or unavailable result, repeated check, and transaction re-inclusion under a different block hash remain attributable and readable by only the bound operator; no check writes Money Ledger or Treasury allocation. [REQ:TRS-P1-008]"
         },
         {
           "type": "test",
           "ref": "api/handlers/treasuryadmin/wallet_test.go",
           "phase": "unit",
-          "status": "failing",
+          "status": "implemented",
           "notes": "TreasuryAdmin returns and reads receipt evidence only for a verified operator and the operator-bound wallet. [REQ:TRS-P1-008]"
         },
         {

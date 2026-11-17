@@ -31,7 +31,7 @@ func (r *sqliteRepository) Revise(ctx context.Context, caseID string, expected t
 	if strings.TrimSpace(caseID) == "" || expected.IsZero() {
 		return Record{}, CaseRevision{}, ErrInvalid{Field: "expected_updated_at", Reason: "case id and the exact case updated_at value are required"}
 	}
-	if strings.TrimSpace(additions.Summary) == "" && len(additions.Sources)+len(additions.Claims)+len(additions.Occurrences)+len(additions.Edges)+len(additions.EdgeRevisions)+len(additions.Gaps)+len(additions.Counterexamples)+len(additions.Disagreements)+len(additions.ResolvedGaps) == 0 {
+	if strings.TrimSpace(additions.Summary) == "" && len(additions.Sources)+len(additions.Claims)+len(additions.Occurrences)+len(additions.Edges)+len(additions.EdgeRevisions)+len(additions.Gaps)+len(additions.Counterexamples)+len(additions.Disagreements)+len(additions.ResolvedGaps)+len(additions.PumpInstructions)+len(additions.UnresolvedPumpInstructions) == 0 {
 		return Record{}, CaseRevision{}, ErrInvalid{Field: "additions", Reason: "at least one typed evidence addition is required"}
 	}
 	current, err := r.Get(ctx, caseID)
@@ -119,6 +119,8 @@ func (r *sqliteRepository) Revise(ctx context.Context, caseID string, expected t
 	current.Case.Sources = append(current.Case.Sources, additions.Sources...)
 	current.Case.Claims = append(current.Case.Claims, additions.Claims...)
 	current.Case.Occurrences = append(current.Case.Occurrences, additions.Occurrences...)
+	current.Case.PumpInstructions = append(current.Case.PumpInstructions, additions.PumpInstructions...)
+	current.Case.UnresolvedPumpInstructions = append(current.Case.UnresolvedPumpInstructions, additions.UnresolvedPumpInstructions...)
 	if len(superseded) > 0 {
 		kept := current.Case.Edges[:0]
 		for _, edge := range current.Case.Edges {

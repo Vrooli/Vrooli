@@ -4,6 +4,8 @@ package instrument
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,8 +18,15 @@ import (
 )
 
 var (
-	ErrInvalid  = errors.New("invalid instrument")
-	ErrNotFound = errors.New("instrument not found")
+	ErrInvalid                 = errors.New("invalid instrument")
+	ErrNotFound                = errors.New("instrument not found")
+	ErrCardIssueInProgress     = errors.New("card issuance is already in progress")
+	ErrCardIssueReconciliation = errors.New("card issuance is outside provider idempotency retention; operator reconciliation is required")
+)
+
+const (
+	cardIssueIdempotencyRetention = 30 * 24 * time.Hour
+	cardIssueInFlightLease        = 5 * time.Minute
 )
 
 type Instrument struct {
@@ -48,6 +57,22 @@ type CredentialWriter interface {
 type CardIssuers interface {
 	Get(string) (card.Issuer, error)
 	Has(string) bool
+}
+
+type CardIssueAttempt struct {
+	Fingerprint string
+	Status      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}
+
+// CardIssueJournal stores only a non-reversible request fingerprint and
+// lifecycle timestamps. Provider credentials and issued card material stay in
+// Credential Authority.
+type CardIssueJournal interface {
+	GetCardIssueAttempt(context.Context, string) (CardIssueAttempt, error)
+	BeginCardIssue(context.Context, string, string, time.Time) (CardIssueAttempt, error)
+	SetCardIssueAttemptStatus(context.Context, string, string, string, time.Time) error
 }
 
 type ScopedCredential struct {
@@ -143,7 +168,37 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, e
 	if !grant.AllowsCounterparty(in.Counterparty) {
 		return Instrument{}, fmt.Errorf("%w: counterparty is outside mandate scope", ErrInvalid)
 	}
+	scope := card.Scope{MandateReference: grant.ID, AmountMinor: grant.CapMinor, Currency: grant.Currency, Counterparty: in.Counterparty, ExpiresAt: grant.ExpiresAt}
+	if existing, getErr := s.repository.Get(ctx, in.ID); getErr == nil {
+		if existing.MandateID != grant.ID || existing.BookID != grant.BookID || existing.Rail != in.Rail || existing.CapMinor != grant.CapMinor || existing.Currency != grant.Currency || existing.Counterparty != in.Counterparty || !existing.ExpiresAt.Equal(grant.ExpiresAt) {
+			return Instrument{}, fmt.Errorf("%w: instrument id is already bound to a different mandate scope", ErrInvalid)
+		}
+		if isCard {
+			journal, ok := s.repository.(CardIssueJournal)
+			if ok {
+				if attempt, attemptErr := journal.GetCardIssueAttempt(ctx, in.ID); attemptErr == nil {
+					if attempt.Fingerprint != cardIssueFingerprint(in, scope) {
+						return Instrument{}, fmt.Errorf("%w: instrument id is already bound to a different card provider identity", ErrInvalid)
+					}
+					if attempt.Status != "complete" {
+						if err := journal.SetCardIssueAttemptStatus(context.WithoutCancel(ctx), in.ID, attempt.Fingerprint, "complete", s.clock.Now().UTC()); err != nil {
+							return Instrument{}, fmt.Errorf("complete recovered card issuance record: %w", err)
+						}
+					}
+				} else if !errors.Is(attemptErr, ErrNotFound) {
+					return Instrument{}, attemptErr
+				}
+			}
+		}
+		return existing, nil
+	} else if !errors.Is(getErr, ErrNotFound) {
+		return Instrument{}, getErr
+	}
 	if isCard {
+		journal, ok := s.repository.(CardIssueJournal)
+		if !ok {
+			return Instrument{}, fmt.Errorf("%w: card issuance requires a durable issuance journal", ErrInvalid)
+		}
 		if s.resolver == nil {
 			return Instrument{}, fmt.Errorf("%w: card issuance requires credential resolution", ErrInvalid)
 		}
@@ -151,27 +206,58 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (Instrument, e
 		if !ok {
 			return Instrument{}, fmt.Errorf("%w: card issuance requires a writable credential authority", ErrInvalid)
 		}
-		providerCredential, resolveErr := s.resolver.Resolve(ctx, in.CredentialReference, "value")
-		if resolveErr != nil {
-			return Instrument{}, fmt.Errorf("resolve card provider credential: %w", resolveErr)
-		}
 		issuer, issuerErr := s.cardIssuers.Get(in.Rail)
 		if issuerErr != nil {
 			return Instrument{}, fmt.Errorf("load card issuer: %w", issuerErr)
 		}
-		scope := card.Scope{MandateReference: grant.ID, AmountMinor: grant.CapMinor, Currency: grant.Currency, Counterparty: in.Counterparty, ExpiresAt: grant.ExpiresAt}
+		fingerprint := cardIssueFingerprint(in, scope)
+		attempt, beginErr := journal.BeginCardIssue(ctx, in.ID, fingerprint, s.clock.Now().UTC())
+		if beginErr != nil {
+			return Instrument{}, beginErr
+		}
+		if attempt.Status == "complete" {
+			return Instrument{}, fmt.Errorf("%w: completed card issuance has no instrument row; operator reconciliation is required", ErrInvalid)
+		}
+		markUnknown := func(cause error) error {
+			if err := journal.SetCardIssueAttemptStatus(context.WithoutCancel(ctx), in.ID, fingerprint, "unknown", s.clock.Now().UTC()); err != nil {
+				return fmt.Errorf("%v; retain card issuance uncertainty: %w", cause, err)
+			}
+			return cause
+		}
+		providerCredential, resolveErr := s.resolver.Resolve(ctx, in.CredentialReference, "value")
+		if resolveErr != nil {
+			return Instrument{}, fmt.Errorf("resolve card provider credential: %w", markUnknown(resolveErr))
+		}
 		issued, issueErr := issuer.Issue(ctx, card.IssueCommand{InstrumentID: in.ID, IdempotencyKey: in.ID, Credential: providerCredential, Scope: scope})
 		if issueErr != nil {
-			return Instrument{}, fmt.Errorf("issue mandate-scoped card: %w", issueErr)
+			return Instrument{}, fmt.Errorf("issue mandate-scoped card: %w", markUnknown(issueErr))
 		}
 		issuedReference := cardCredentialReference(in.ID)
 		if storeErr := writer.Store(ctx, issuedReference, "value", issued.Credential); storeErr != nil {
-			return Instrument{}, fmt.Errorf("store issued card credential: %w", storeErr)
+			return Instrument{}, fmt.Errorf("store issued card credential: %w", markUnknown(storeErr))
 		}
 		in.CredentialReference = issuedReference
+		value := Instrument{ID: in.ID, BookID: grant.BookID, MandateID: grant.ID, Rail: in.Rail, CredentialReference: in.CredentialReference, CapMinor: grant.CapMinor, Currency: grant.Currency, Counterparty: in.Counterparty, ExpiresAt: grant.ExpiresAt, CreatedAt: s.clock.Now().UTC()}
+		created, createErr := s.repository.Create(ctx, value)
+		if createErr != nil {
+			return Instrument{}, fmt.Errorf("create instrument after card issuance: %w", markUnknown(createErr))
+		}
+		if err := journal.SetCardIssueAttemptStatus(context.WithoutCancel(ctx), in.ID, fingerprint, "complete", s.clock.Now().UTC()); err != nil {
+			return created, fmt.Errorf("instrument created but card issuance journal completion failed: %w", err)
+		}
+		return created, nil
 	}
 	value := Instrument{ID: in.ID, BookID: grant.BookID, MandateID: grant.ID, Rail: in.Rail, CredentialReference: in.CredentialReference, CapMinor: grant.CapMinor, Currency: grant.Currency, Counterparty: in.Counterparty, ExpiresAt: grant.ExpiresAt, CreatedAt: s.clock.Now().UTC()}
 	return s.repository.Create(ctx, value)
+}
+
+func cardIssueFingerprint(input RegisterInput, scope card.Scope) string {
+	encoded, _ := json.Marshal(struct {
+		InstrumentID, MandateID, Rail, ProviderCredentialReference string
+		Scope                                                      card.Scope
+	}{input.ID, input.MandateID, input.Rail, input.CredentialReference, scope})
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:])
 }
 
 func cardCredentialReference(instrumentID string) string {

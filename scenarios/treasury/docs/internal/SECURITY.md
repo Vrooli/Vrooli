@@ -10,7 +10,6 @@ manipulated by content it read.** A treasury agent's job is to visit
 counterparty pages and API responses, which means it consumes untrusted
 input by design. Every mitigation below is shaped by that.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

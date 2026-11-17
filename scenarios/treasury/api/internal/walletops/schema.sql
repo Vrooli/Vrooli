@@ -29,6 +29,76 @@ CREATE TABLE IF NOT EXISTS funding_intent_watch_cursors (
  next_block TEXT NOT NULL,
  updated_at TEXT NOT NULL
 );
+-- The first exact, finalized native-USDC transfer is bound to one intent before
+-- Treasury queues any Money Ledger side effect. Retries reuse this check/log
+-- and stable delivery ID; a receipt log cannot fund two different intents.
+CREATE TABLE IF NOT EXISTS funding_intent_receipt_bindings (
+ intent_id TEXT PRIMARY KEY REFERENCES funding_intents(id),
+ operator_identity TEXT NOT NULL,
+ wallet_id TEXT NOT NULL,
+ network TEXT NOT NULL,
+ asset_id TEXT NOT NULL,
+ transaction_hash TEXT NOT NULL,
+ log_index INTEGER NOT NULL CHECK(log_index >= 0),
+ atomic_amount TEXT NOT NULL,
+ recipient TEXT NOT NULL,
+ block_hash TEXT NOT NULL,
+ check_id TEXT NOT NULL,
+ delivery_id TEXT NOT NULL UNIQUE,
+ created_at TEXT NOT NULL,
+ UNIQUE(wallet_id,network,asset_id,transaction_hash,log_index)
+);
+-- Reserve each chain log globally, even if a malformed or replayed verifier
+-- result presents it as funding a different budget wallet. The conflict table
+-- preserves every legacy row if earlier schema versions bound one log more
+-- than once; the trigger below then fails schema migration closed.
+CREATE TABLE IF NOT EXISTS funding_intent_receipt_log_claims (
+ network TEXT NOT NULL,
+ asset_id TEXT NOT NULL,
+ transaction_hash TEXT NOT NULL,
+ log_index INTEGER NOT NULL CHECK(log_index >= 0),
+ intent_id TEXT NOT NULL UNIQUE REFERENCES funding_intents(id),
+ created_at TEXT NOT NULL,
+ PRIMARY KEY(network,asset_id,transaction_hash,log_index)
+);
+CREATE TABLE IF NOT EXISTS funding_intent_receipt_migration_conflicts (
+ network TEXT NOT NULL,
+ asset_id TEXT NOT NULL,
+ transaction_hash TEXT NOT NULL,
+ log_index INTEGER NOT NULL CHECK(log_index >= 0),
+ intent_id TEXT NOT NULL,
+ wallet_id TEXT NOT NULL,
+ atomic_amount TEXT NOT NULL,
+ recipient TEXT NOT NULL,
+ block_hash TEXT NOT NULL,
+ check_id TEXT NOT NULL,
+ delivery_id TEXT NOT NULL,
+ created_at TEXT NOT NULL,
+ PRIMARY KEY(network,asset_id,transaction_hash,log_index,intent_id)
+);
+INSERT OR IGNORE INTO funding_intent_receipt_migration_conflicts(
+ network,asset_id,transaction_hash,log_index,intent_id,wallet_id,atomic_amount,recipient,block_hash,check_id,delivery_id,created_at
+)
+ SELECT b.network,b.asset_id,LOWER(b.transaction_hash),b.log_index,b.intent_id,b.wallet_id,b.atomic_amount,b.recipient,b.block_hash,b.check_id,b.delivery_id,b.created_at
+ FROM funding_intent_receipt_bindings b
+ WHERE EXISTS (
+  SELECT 1 FROM funding_intent_receipt_bindings other
+  WHERE other.network=b.network AND other.asset_id=b.asset_id
+   AND LOWER(other.transaction_hash)=LOWER(b.transaction_hash)
+   AND other.log_index=b.log_index AND other.intent_id<>b.intent_id
+ );
+CREATE TRIGGER IF NOT EXISTS funding_intent_receipt_claim_conflict_guard
+ BEFORE INSERT ON funding_intent_receipt_log_claims
+ WHEN EXISTS (
+  SELECT 1 FROM funding_intent_receipt_migration_conflicts c
+  WHERE c.network=NEW.network AND c.asset_id=NEW.asset_id
+   AND c.transaction_hash=NEW.transaction_hash AND c.log_index=NEW.log_index
+ )
+ BEGIN
+  SELECT RAISE(ABORT,'conflicting historical funding receipt bindings require operator reconciliation');
+ END;
+INSERT OR IGNORE INTO funding_intent_receipt_log_claims(network,asset_id,transaction_hash,log_index,intent_id,created_at)
+ SELECT network,asset_id,LOWER(transaction_hash),log_index,intent_id,created_at FROM funding_intent_receipt_bindings;
 CREATE TABLE IF NOT EXISTS withdrawal_destinations (
  budget_id TEXT NOT NULL REFERENCES budget_wallets(budget_id),
  address TEXT NOT NULL,

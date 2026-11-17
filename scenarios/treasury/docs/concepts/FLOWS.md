@@ -11,7 +11,6 @@ retry. An approval waits on a human who may never answer. Those ordering
 constraints are the product, so they are modeled rather than left inside
 handlers.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

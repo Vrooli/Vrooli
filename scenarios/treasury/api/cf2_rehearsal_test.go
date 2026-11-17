@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -47,6 +48,7 @@ import (
 	conversationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
 	notificationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	notificationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
+	notificationshared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
 	offerspb "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers"
 	offersconnect "github.com/vrooli/vrooli/packages/proto/gen/go/offer-desk/v1/offers/offers_v1connect"
 	accountsV1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-authenticator/v1/accounts"
@@ -87,8 +89,24 @@ import (
 // The opt-in fixture directory belongs to the isolated Money Ledger rehearsal;
 // no host credential or real-value wallet is touched.
 func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS-P0-002] [REQ:TRS-P0-006] [REQ:TRS-P0-009] [REQ:TRS-P0-011] [REQ:TRS-P1-006] [REQ:TRS-P1-007]
-	if os.Getenv("TREASURY_CF2_REHEARSAL") != "1" {
-		t.Skip("set TREASURY_CF2_REHEARSAL=1 and TREASURY_CF2_FIXTURE_DIR for the two-owner fork rehearsal")
+	runTreasuryLocalForkRehearsal(t, false)
+}
+
+// TestCF1OrdinaryAgentManagerLocalFork isolates the full CF1 ordinary-run
+// showcase from CF2's unrelated Offer Desk/LPBS service-order prelude. It
+// retains real Treasury authorization, local-fork settlement, Notification
+// Hub approval, run-owned key rotation/revocation, and restart receipt proof.
+func TestCF1OrdinaryAgentManagerLocalFork(t *testing.T) {
+	runTreasuryLocalForkRehearsal(t, true)
+}
+
+func runTreasuryLocalForkRehearsal(t *testing.T, cf1Only bool) {
+	enableEnv := "TREASURY_CF2_REHEARSAL"
+	if cf1Only {
+		enableEnv = "TREASURY_CF1_REHEARSAL"
+	}
+	if os.Getenv(enableEnv) != "1" {
+		t.Skip("set " + enableEnv + "=1, TREASURY_BASE_FORK_TEST=1, and TREASURY_CF2_FIXTURE_DIR for the local fork rehearsal")
 	}
 	fixtureDir := os.Getenv("TREASURY_CF2_FIXTURE_DIR")
 	require.True(t, filepath.IsAbs(fixtureDir))
@@ -104,14 +122,35 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	require.True(t, strings.HasPrefix(seed.URL, "http://127.0.0.1:"))
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
-	runDir := filepath.Join(filepath.Dir(fixtureDir), "cf2-"+time.Now().UTC().Format("20060102T150405Z"))
+	runPrefix := "cf2-"
+	if cf1Only {
+		runPrefix = "cf1-"
+	}
+	runDir := filepath.Join(filepath.Dir(fixtureDir), runPrefix+time.Now().UTC().Format("20060102T150405Z"))
 	require.NoError(t, os.MkdirAll(runDir, 0o700))
 	t.Logf("rehearsal evidence=%s", runDir)
+	t.Cleanup(func() {
+		status := "PASS"
+		if t.Failed() {
+			status = "FAIL"
+		}
+		scope := "Full CF2 two-owner local-fork rehearsal."
+		if cf1Only {
+			scope = "CF1 ordinary Agent Manager/Treasury local-fork showcase only. LPBS service-order and Offer Desk/x402 portions were intentionally omitted and remain unverified by this run."
+		}
+		readme := fmt.Sprintf("# Treasury local-fork rehearsal — %s\n\nOutcome: %s\n\n%s\n\nEvidence is limited to test-only identities, keys, and the disposable local Base fork. No mainnet or real-value effect occurred.\n", runPrefix, status, scope)
+		if err := os.WriteFile(filepath.Join(runDir, "README.md"), []byte(readme), 0o600); err != nil {
+			t.Errorf("write rehearsal README: %v", err)
+		}
+	})
 	// Prior completed attempts measured ~1.1 GiB filesystem growth; reserve
 	// 1.5 GiB so the showcase fits the host's 120 GiB safety floor with margin
 	// over observed use.
 	const cf2PeakBytes int64 = 1536 * 1024 * 1024
 	diskOwner, diskJob := "crypto-foundations:CF1-normal-agent-run-local-fork", "CF1/CF2 local-fork Agent Manager and receipt rehearsal"
+	if cf1Only {
+		diskOwner, diskJob = "crypto-foundations:CF1-ordinary-agent-manager-local-fork", "CF1 ordinary Agent Manager/Treasury local-fork showcase"
+	}
 	if os.Getenv("TREASURY_CF7_MULTI_CALL_REHEARSAL") == "1" {
 		diskOwner, diskJob = "crypto-foundations:CF7-research-budget-multi-call-local-fork", "CF7 three-call research budget run plus CF1 reference on local Base fork"
 	}
@@ -134,7 +173,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	credentialPath := filepath.Join(custodyDir, "synthetic-custody.enc")
 	initializeCF2Credentials(t, credentialPath)
 	t.Cleanup(func() { _ = os.RemoveAll(custodyDir) })
-	token, noticeToken, _, _, receiptReaderToken, jwksURL, exchangeURL, closeIdentity := startServiceIdentityFixture(t)
+	token, noticeToken, _, _, receiptReaderToken, _, jwksURL, exchangeURL, closeIdentity := startServiceIdentityFixture(t)
 	defer closeIdentity()
 	restoreLedgerEnv := map[string]string{"GOFLAGS": ""}
 	for key, value := range seed.Runtime {
@@ -147,6 +186,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		ledgerEnv[key] = value
 	}
 	ledgerEnv["VROOLI_AUTH_SCENARIO_JWKS_URL"] = jwksURL
+	configureMoneyLedgerRehearsalAuth(t, seed.Source, jwksURL)
 	lifecycleRehearsal(t, ctx, runDir, "ledger-fixture-restart", ledgerEnv, "restart", "money-ledger@"+seed.Variant, "--path", seed.Source, "--json", "--timeout", "240")
 	t.Cleanup(func() {
 		restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 4*time.Minute)
@@ -226,74 +266,85 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		identityAuditMu.Unlock()
 		writeRehearsalJSON(t, filepath.Join(runDir, "cf1-identity-requests.json"), snapshot)
 	})
-	variant := "cf2-" + fmt.Sprint(time.Now().Unix())
-	lpbsVariant := "cf2-lpbs-" + fmt.Sprint(time.Now().UnixNano())
-	lpbsDatabase := "vrooli_landing_page_business_suite_" + strings.ReplaceAll(lpbsVariant, "-", "_")
+	variantPrefix := "cf2-"
+	if cf1Only {
+		variantPrefix = "cf1-"
+	}
+	variant := variantPrefix + fmt.Sprint(time.Now().Unix())
 	lpbsDeliveryDir := filepath.Join(runDir, "lpbs-deliveries")
 	require.NoError(t, os.MkdirAll(lpbsDeliveryDir, 0o700))
-	resourceDatabaseCommand(t, ctx, runDir, "lpbs-database-create", "content", "create-database", lpbsDatabase)
-	t.Cleanup(func() {
-		cleanup, stop := context.WithTimeout(context.Background(), time.Minute)
-		defer stop()
-		resourceDatabaseCommand(t, cleanup, runDir, "lpbs-database-remove", "content", "remove", lpbsDatabase)
-	})
-	offerDeskVariantDir := filepath.Join(runDir, "cf2-offer-desk-owner")
-	require.NoError(t, os.MkdirAll(offerDeskVariantDir, 0o700))
-	offerDeskSource := prepareCF5APIScenarioVariant(t, "offer-desk", "../../offer-desk", offerDeskVariantDir, map[string]string{
-		"VROOLI_STORAGE_ROOT": filepath.Join(runDir, "cf2-offer-desk-storage"),
-		"TREASURY_API_URL":    "",
-	})
-	disableCF4OfferDeskVectorSearch(t, offerDeskSource)
-	offerDeskName := "offer-desk@" + instanceName("cf2-offer-desk-"+variant)
-	offerDeskStart := lifecycleRehearsal(t, ctx, runDir, "cf2-offer-desk-start", map[string]string{}, "start", offerDeskName, "--path", offerDeskSource, "--json", "--timeout", "240")
-	offerDeskURL := rehearsalURL(t, offerDeskStart)
-	offerDeskStopped := false
-	t.Cleanup(func() {
-		if !offerDeskStopped {
-			stopCF5Variant(t, runDir, offerDeskName, offerDeskURL)
-			offerDeskStopped = true
-		}
-	})
-	canonicalOffer := readCF2CanonicalServiceOffer(t, ctx, offerDeskURL)
-	offerID, offerVariantID := seedCF2CanonicalServiceOfferGraph(t, ctx, offerDeskURL, runDir, canonicalOffer)
-	lpbsSource := prepareLPBSRehearsal(t, repo, runDir, map[string]string{
-		"LPBS_REHEARSAL_CREDENTIAL_PATH": credentialPath,
-		"LPBS_REHEARSAL_PAYER_IDENTITY":  "customer:cf2-local",
-		// This fixture binding serves Treasury's separate customer funding receipt.
-		// The x402 service-order buyer is not that test transfer's payer.
-		"LPBS_REHEARSAL_PAYER_ADDRESS":       strings.ToLower(fork.Accounts[1]),
-		"LPBS_REHEARSAL_BUSINESS_ACCOUNT_ID": "cf2-customer-" + variant,
-		"LPBS_REHEARSAL_CUSTOMER_EMAIL":      "cf2-local@example.test",
-		"LPBS_SERVICE_ORDER_TEST_MODE":       "0",
-		"LPBS_REHEARSAL_DELIVERY_DIR":        lpbsDeliveryDir,
-		"SCENARIO_AUTHENTICATOR_API_URL":     exchangeURL,
-		"OFFER_DESK_API_URL":                 offerDeskURL,
-	})
-	lpbsName := "landing-page-business-suite@" + lpbsVariant
-	t.Cleanup(func() {
-		cleanup, stop := context.WithTimeout(context.Background(), time.Minute)
-		defer stop()
-		cmd := exec.CommandContext(cleanup, "vrooli", "scenario", "stop", lpbsName, "--json")
-		output, err := cmd.CombinedOutput()
-		_ = os.WriteFile(filepath.Join(runDir, "lpbs-stop.json"), output, 0o600)
-		if err != nil {
-			t.Logf("LPBS rehearsal lifecycle cleanup: %v", err)
-		}
-	})
-	lpbsStart := lifecycleRehearsal(t, ctx, runDir, "lpbs-start", map[string]string{"GOFLAGS": "-tags=lpbs_rehearsal"}, "start", lpbsName, "--path", lpbsSource, "--json", "--timeout", "240")
-	lpbsURL := rehearsalURL(t, lpbsStart)
-	leaseID := "cf2-lpbs-" + variant
-	routingClient := routingconnect.NewRoutingServiceClient(http.DefaultClient, lpbsURL)
-	_, err = routingClient.InstallTestPool(ctx, connect.NewRequest(&routingpb.InstallTestPoolRequest{Dsn: "file:cf2-lpbs-isolated", LeaseId: leaseID, LeaseTtlMs: int64((10 * time.Minute).Milliseconds())}))
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		cleanup, stop := context.WithTimeout(context.Background(), 30*time.Second)
-		defer stop()
-		_, clearErr := routingClient.ClearTestPool(cleanup, connect.NewRequest(&routingpb.ClearTestPoolRequest{LeaseId: leaseID}))
-		if clearErr != nil {
-			t.Logf("clear LPBS test lease: %v", clearErr)
-		}
-	})
+	var offerDeskURL, lpbsURL, lpbsSource, lpbsName string
+	var canonicalOffer cf2CanonicalOffer
+	var offerID, offerVariantID, leaseID string
+	var routingClient routingconnect.RoutingServiceClient
+	var cf2LPBSOrderID string
+	if !cf1Only {
+		lpbsVariant := "cf2-lpbs-" + fmt.Sprint(time.Now().UnixNano())
+		lpbsDatabase := "vrooli_landing_page_business_suite_" + strings.ReplaceAll(lpbsVariant, "-", "_")
+		resourceDatabaseCommand(t, ctx, runDir, "lpbs-database-create", "content", "create-database", lpbsDatabase)
+		t.Cleanup(func() {
+			cleanup, stop := context.WithTimeout(context.Background(), time.Minute)
+			defer stop()
+			resourceDatabaseCommand(t, cleanup, runDir, "lpbs-database-remove", "content", "remove", lpbsDatabase)
+		})
+		offerDeskVariantDir := filepath.Join(runDir, "cf2-offer-desk-owner")
+		require.NoError(t, os.MkdirAll(offerDeskVariantDir, 0o700))
+		offerDeskSource := prepareCF5APIScenarioVariant(t, "offer-desk", "../../offer-desk", offerDeskVariantDir, map[string]string{
+			"VROOLI_STORAGE_ROOT": filepath.Join(runDir, "cf2-offer-desk-storage"),
+			"TREASURY_API_URL":    "",
+		})
+		disableCF4OfferDeskVectorSearch(t, offerDeskSource)
+		offerDeskName := "offer-desk@" + instanceName("cf2-offer-desk-"+variant)
+		offerDeskStart := lifecycleRehearsal(t, ctx, runDir, "cf2-offer-desk-start", map[string]string{}, "start", offerDeskName, "--path", offerDeskSource, "--json", "--timeout", "240")
+		offerDeskURL = rehearsalURL(t, offerDeskStart)
+		offerDeskStopped := false
+		t.Cleanup(func() {
+			if !offerDeskStopped {
+				stopCF5Variant(t, runDir, offerDeskName, offerDeskURL)
+				offerDeskStopped = true
+			}
+		})
+		canonicalOffer = readCF2CanonicalServiceOffer(t, ctx, offerDeskURL)
+		offerID, offerVariantID = seedCF2CanonicalServiceOfferGraph(t, ctx, offerDeskURL, runDir, canonicalOffer)
+		lpbsSource = prepareLPBSRehearsal(t, repo, runDir, map[string]string{
+			"LPBS_REHEARSAL_CREDENTIAL_PATH": credentialPath,
+			"LPBS_REHEARSAL_PAYER_IDENTITY":  "customer:cf2-local",
+			// This fixture binding serves Treasury's separate customer funding receipt.
+			// The x402 service-order buyer is not that test transfer's payer.
+			"LPBS_REHEARSAL_PAYER_ADDRESS":       strings.ToLower(fork.Accounts[1]),
+			"LPBS_REHEARSAL_BUSINESS_ACCOUNT_ID": "cf2-customer-" + variant,
+			"LPBS_REHEARSAL_CUSTOMER_EMAIL":      "cf2-local@example.test",
+			"LPBS_SERVICE_ORDER_TEST_MODE":       "0",
+			"LPBS_REHEARSAL_DELIVERY_DIR":        lpbsDeliveryDir,
+			"SCENARIO_AUTHENTICATOR_API_URL":     exchangeURL,
+			"OFFER_DESK_API_URL":                 offerDeskURL,
+		})
+		lpbsName = "landing-page-business-suite@" + lpbsVariant
+		t.Cleanup(func() {
+			cleanup, stop := context.WithTimeout(context.Background(), time.Minute)
+			defer stop()
+			cmd := exec.CommandContext(cleanup, "vrooli", "scenario", "stop", lpbsName, "--json")
+			output, err := cmd.CombinedOutput()
+			_ = os.WriteFile(filepath.Join(runDir, "lpbs-stop.json"), output, 0o600)
+			if err != nil {
+				t.Logf("LPBS rehearsal lifecycle cleanup: %v", err)
+			}
+		})
+		lpbsStart := lifecycleRehearsal(t, ctx, runDir, "lpbs-start", map[string]string{"GOFLAGS": "-tags=lpbs_rehearsal"}, "start", lpbsName, "--path", lpbsSource, "--json", "--timeout", "240")
+		lpbsURL = rehearsalURL(t, lpbsStart)
+		leaseID = "cf2-lpbs-" + variant
+		routingClient = routingconnect.NewRoutingServiceClient(http.DefaultClient, lpbsURL)
+		_, err = routingClient.InstallTestPool(ctx, connect.NewRequest(&routingpb.InstallTestPoolRequest{Dsn: "file:cf2-lpbs-isolated", LeaseId: leaseID, LeaseTtlMs: int64((10 * time.Minute).Milliseconds())}))
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			cleanup, stop := context.WithTimeout(context.Background(), 30*time.Second)
+			defer stop()
+			_, clearErr := routingClient.ClearTestPool(cleanup, connect.NewRequest(&routingpb.ClearTestPoolRequest{LeaseId: leaseID}))
+			if clearErr != nil {
+				t.Logf("clear LPBS test lease: %v", clearErr)
+			}
+		})
+	}
 	notificationRequests := make(chan *notificationsv1.SendRequest, 4)
 	notificationMux := http.NewServeMux()
 	notificationMux.Handle(notificationsconnect.NotificationsServiceSendProcedure, connect.NewUnaryHandler(
@@ -415,6 +466,8 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		"SCENARIO_AUTHENTICATOR_API_URL":      exchangeURL,
 		"AGENT_MANAGER_API_URL":               identityServer.URL,
 		"NOTIFICATION_HUB_API_URL":            notificationServer.URL,
+		"TREASURY_DECISION_HUB_API_URL":       hubURL,
+		"TREASURY_DECISION_HUB_TEST_MODE":     "1",
 	})
 	name := "treasury@" + variant
 	start := lifecycleRehearsal(t, ctx, runDir, "treasury-start", map[string]string{"GOFLAGS": "-tags=treasury_rehearsal"}, "start", name, "--path", source, "--json", "--timeout", "240")
@@ -435,48 +488,50 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	case <-time.After(30 * time.Second):
 		t.Fatal("Treasury did not reconcile its Notification Hub answer subscription into the isolated Events fixture")
 	}
-	setCF5VariantEnvironment(t, lpbsSource, map[string]string{"TREASURY_API_URL": apiURL, "LPBS_SERVICE_ORDER_TEST_MODE": "1"})
-	// The test lease registry belongs to the running LPBS process. Clear its
-	// PostgreSQL database before replacement so the restarted owner can install
-	// a fresh lease with the same run-local payer binding.
-	_, err = routingClient.ClearTestPool(ctx, connect.NewRequest(&routingpb.ClearTestPoolRequest{LeaseId: leaseID}))
-	require.NoError(t, err, "release LPBS test pool before restarting its owner")
-	restartedLPBS := lifecycleRehearsal(t, ctx, runDir, "cf2-lpbs-bind-treasury", map[string]string{"GOFLAGS": "-tags=lpbs_rehearsal"}, "restart", lpbsName, "--path", lpbsSource, "--json", "--timeout", "240")
-	restartedLPBSURL := rehearsalURL(t, restartedLPBS)
-	require.Equal(t, lpbsURL, restartedLPBSURL, "LPBS restart must retain its isolated API URL")
-	lpbsURL = restartedLPBSURL
-	// LPBS test-pool leases are process-owned. Reinstall after the deliberate
-	// owner restart so accepted-receipt payer bindings remain available to the
-	// later Treasury→LPBS credit-lot call.
-	_, err = routingClient.InstallTestPool(ctx, connect.NewRequest(&routingpb.InstallTestPoolRequest{
-		Dsn: "file:cf2-lpbs-isolated", LeaseId: leaseID, LeaseTtlMs: int64((10 * time.Minute).Milliseconds()),
-	}))
-	require.NoError(t, err, "restore the isolated LPBS test-pool lease after its owner restart")
-	priceID := canonicalOffer.X402PriceID
-	declaredPrice := cf4DeclareOfferDeskPrice(t, ctx, apiURL, map[string]any{
-		"offer_id": offerID, "variant_id": offerVariantID,
-		"price": map[string]any{
-			"id": priceID, "resource_url": strings.TrimRight(lpbsURL, "/") + canonicalOffer.MPPResourcePath,
-			"description": canonicalOffer.Name, "mime_type": "application/json",
-			"network": "eip155:8453", "scheme": "exact", "pay_to": fork.Accounts[2],
-			"asset": basefork.USDC, "asset_decimals": 6, "max_timeout_seconds": 300,
-			"extra_json": `{"assetTransferMethod":"eip3009","name":"USD Coin","version":"2"}`,
-		},
-	})
-	require.Equal(t, canonicalOffer.ProposedPrice.AmountMinor, declaredPrice.AmountMinor)
-	require.Equal(t, canonicalOffer.ProposedPrice.Currency, declaredPrice.Currency)
-	require.Equal(t, priceID, declaredPrice.ID)
-	_, err = fork.Mint(ctx, x402BuyerAddress.Hex(), declaredPrice.Amount)
-	require.NoError(t, err, "fund only the ephemeral buyer with the canonical $49 test payment on this local fork")
-	writeRehearsalJSON(t, filepath.Join(runDir, "cf2-service-offer-price-join.json"), map[string]any{
-		"canonical_offer": canonicalOffer, "catalog_offer_id": offerID, "catalog_variant_id": offerVariantID,
-		"catalog_edge": "sells_at", "price_id": declaredPrice.ID, "resource_url": declaredPrice.ResourceURL,
-		"amount_minor": declaredPrice.AmountMinor, "currency": declaredPrice.Currency,
-	})
-	cf2LPBSOrderID := runCF2AgentManagerLPBSOrder(t, ctx, repo, runDir, name, source, apiURL, lpbsURL, declaredPrice, canonicalOffer, x402BuyerKey, fork, receiptReaderToken)
-	// Link the accepted seller receipt before later CF2 customer-funding events,
-	// then repeat after both owners restart below to prove durable readback.
-	reconcileCF2LPBSOrder(t, ctx, runDir, apiURL, lpbsURL, cf2LPBSOrderID, receiptReaderToken)
+	if !cf1Only {
+		setCF5VariantEnvironment(t, lpbsSource, map[string]string{"TREASURY_API_URL": apiURL, "LPBS_SERVICE_ORDER_TEST_MODE": "1"})
+		// The test lease registry belongs to the running LPBS process. Clear its
+		// PostgreSQL database before replacement so the restarted owner can install
+		// a fresh lease with the same run-local payer binding.
+		_, err = routingClient.ClearTestPool(ctx, connect.NewRequest(&routingpb.ClearTestPoolRequest{LeaseId: leaseID}))
+		require.NoError(t, err, "release LPBS test pool before restarting its owner")
+		restartedLPBS := lifecycleRehearsal(t, ctx, runDir, "cf2-lpbs-bind-treasury", map[string]string{"GOFLAGS": "-tags=lpbs_rehearsal"}, "restart", lpbsName, "--path", lpbsSource, "--json", "--timeout", "240")
+		restartedLPBSURL := rehearsalURL(t, restartedLPBS)
+		require.Equal(t, lpbsURL, restartedLPBSURL, "LPBS restart must retain its isolated API URL")
+		lpbsURL = restartedLPBSURL
+		// LPBS test-pool leases are process-owned. Reinstall after the deliberate
+		// owner restart so accepted-receipt payer bindings remain available to the
+		// later Treasury→LPBS credit-lot call.
+		_, err = routingClient.InstallTestPool(ctx, connect.NewRequest(&routingpb.InstallTestPoolRequest{
+			Dsn: "file:cf2-lpbs-isolated", LeaseId: leaseID, LeaseTtlMs: int64((10 * time.Minute).Milliseconds()),
+		}))
+		require.NoError(t, err, "restore the isolated LPBS test-pool lease after its owner restart")
+		priceID := canonicalOffer.X402PriceID
+		declaredPrice := cf4DeclareOfferDeskPrice(t, ctx, apiURL, map[string]any{
+			"offer_id": offerID, "variant_id": offerVariantID,
+			"price": map[string]any{
+				"id": priceID, "resource_url": strings.TrimRight(lpbsURL, "/") + canonicalOffer.MPPResourcePath,
+				"description": canonicalOffer.Name, "mime_type": "application/json",
+				"network": "eip155:8453", "scheme": "exact", "pay_to": fork.Accounts[2],
+				"asset": basefork.USDC, "asset_decimals": 6, "max_timeout_seconds": 300,
+				"extra_json": `{"assetTransferMethod":"eip3009","name":"USD Coin","version":"2"}`,
+			},
+		})
+		require.Equal(t, canonicalOffer.ProposedPrice.AmountMinor, declaredPrice.AmountMinor)
+		require.Equal(t, canonicalOffer.ProposedPrice.Currency, declaredPrice.Currency)
+		require.Equal(t, priceID, declaredPrice.ID)
+		_, err = fork.Mint(ctx, x402BuyerAddress.Hex(), declaredPrice.Amount)
+		require.NoError(t, err, "fund only the ephemeral buyer with the canonical $49 test payment on this local fork")
+		writeRehearsalJSON(t, filepath.Join(runDir, "cf2-service-offer-price-join.json"), map[string]any{
+			"canonical_offer": canonicalOffer, "catalog_offer_id": offerID, "catalog_variant_id": offerVariantID,
+			"catalog_edge": "sells_at", "price_id": declaredPrice.ID, "resource_url": declaredPrice.ResourceURL,
+			"amount_minor": declaredPrice.AmountMinor, "currency": declaredPrice.Currency,
+		})
+		cf2LPBSOrderID = runCF2AgentManagerLPBSOrder(t, ctx, repo, runDir, lpbsDeliveryDir, name, source, apiURL, lpbsURL, declaredPrice, canonicalOffer, x402BuyerKey, fork, receiptReaderToken)
+		// Link the accepted seller receipt before later CF2 customer-funding events,
+		// then repeat after both owners restart below to prove durable readback.
+		reconcileCF2LPBSOrder(t, ctx, runDir, apiURL, lpbsURL, cf2LPBSOrderID, receiptReaderToken)
+	}
 	client := authconnect.NewTreasuryAdminClient(http.DefaultClient, apiURL)
 	fundingClient := fundingconnect.NewFundingAdminServiceClient(http.DefaultClient, apiURL)
 	walletClient := walletconnect.NewWalletAdminServiceClient(http.DefaultClient, apiURL)
@@ -485,6 +540,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	bookClient := bookconnect.NewBookAdminServiceClient(http.DefaultClient, apiURL)
 	budgetAdmin := budgetconnect.NewBudgetAdminServiceClient(http.DefaultClient, apiURL)
 	agent := authconnect.NewAgentSpendClient(http.DefaultClient, apiURL)
+	agentFunding := fundingconnect.NewFundingAgentServiceClient(http.DefaultClient, apiURL)
 	bookID := "cf2-book-" + variant
 	budgetID := "cf2-budget-" + variant
 	_, err = bookClient.CreateBook(ctx, operatorRequest(&bookpb.CreateBookRequest{Book: &bookpb.Book{Id: bookID, Name: "CF2 isolated research"}}))
@@ -563,14 +619,31 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		"second_authorization_id": secondAuthorizationID, "second_settlement_id": secondSettlementID,
 		"distinct_run_bound_budgets": true, "distinct_derived_addresses": true,
 	})
-	if os.Getenv("TREASURY_CF7_MULTI_CALL_REHEARSAL") == "1" {
-		cf7RunID, cf7DecisionAuthorizationID, cf7DecisionSettlementID, cf7RunErr := runCF7SeparateLocalForkShowcase(t, ctx, repo, runDir, apiURL, source, name, client, fork, bookID, variant)
+	if !cf1Only && os.Getenv("TREASURY_CF7_MULTI_CALL_REHEARSAL") == "1" {
+		cf7RunID, cf7AuthorizationID, cf7SettlementID, cf7RunErr := runCF7SeparateLocalForkShowcase(t, ctx, repo, runDir, apiURL, hubURL, accessAssertion, source, name, client, fork, bookID, variant, func(waitCtx context.Context, approvalID string) (*notificationsv1.SendRequest, error) {
+			notice, awaitErr := awaitDecisionEvent(waitCtx, approvalID)
+			if awaitErr != nil {
+				return nil, awaitErr
+			}
+			askID := decisionBridge.AskID(approvalID)
+			if err := answerCF1NotificationHubAsk(waitCtx, hubURL, accessAssertion, runDir, approvalID, askID, decisionBridge.Correlation(approvalID)); err != nil {
+				return nil, err
+			}
+			if err := decisionBridge.ReconcileAnswer(waitCtx, eventServer.URL, askID); err != nil {
+				return nil, fmt.Errorf("deliver CF7 Notification Hub answer through Events subscription: %w", err)
+			}
+			return notice, nil
+		})
 		require.NoError(t, cf7RunErr)
 		writeRehearsalJSON(t, filepath.Join(runDir, "cf7-research-budget-multi-call-result.json"), map[string]any{
-			"run_id": cf7RunID, "fourth_decision_authorization_id": cf7DecisionAuthorizationID,
-			"fourth_decision_settlement_id": cf7DecisionSettlementID, "fresh_ordinary_run": true,
-			"settled_calls": 3, "fourth_call_dispatched": false,
+			"run_id": cf7RunID, "fourth_authorization_id": cf7AuthorizationID,
+			"fourth_settlement_id": cf7SettlementID, "fresh_ordinary_run": true,
+			"settled_calls": 4, "fourth_call_dispatched_after_treasury_approval": true,
+			"fourth_call_retry_reused_same_receipt": true,
 		})
+	}
+	if cf1Only {
+		return
 	}
 	walletResult, err := walletClient.CreateResearchWallet(ctx, operatorRequest(&walletpb.CreateResearchWalletRequest{Id: "cf2-wallet-" + variant, BookId: bookID, Network: baseusdc.Network}))
 	require.NoError(t, err)
@@ -596,7 +669,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		if action == ingestpb.CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL {
 			reason = ""
 		}
-		response, err := client.SubmitReceiptFunding(ctx, operatorRequest(&fundingpb.SubmitReceiptFundingRequest{WalletId: w.Id, TransactionHash: hash, CheckId: checkID, LogIndex: logIndex, BudgetId: budgetID, LedgerBookId: seed.Book, LedgerAccountId: seed.Account, Action: action, OriginalReceiptId: original, PreviousReceiptId: previous, Reason: reason, Valuation: value, Attribution: attribution}))
+		response, err := fundingClient.SubmitReceiptFunding(ctx, operatorRequest(&fundingpb.SubmitReceiptFundingRequest{WalletId: w.Id, TransactionHash: hash, CheckId: checkID, LogIndex: logIndex, BudgetId: budgetID, LedgerBookId: seed.Book, LedgerAccountId: seed.Account, Action: action, OriginalReceiptId: original, PreviousReceiptId: previous, Reason: reason, Valuation: value, Attribution: attribution}))
 		require.NoError(t, err)
 		writeRehearsalProto(t, filepath.Join(runDir, label+".json"), response.Msg)
 		require.Equal(t, fundingpb.ReceiptFundingState_RECEIPT_FUNDING_STATE_ACCEPTED, response.Msg.Delivery.State, "%s: %s", label, response.Msg.Delivery.LastError)
@@ -670,12 +743,12 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	// A distinct test customer pays a per-budget derived wallet through the
 	// persisted one-tap funding intent. The payer comes from the verified
 	// Transfer log; LPBS assigns the actual lot only after ledger acceptance.
-	budgetWalletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf2-agent", AgentRunId: "test-run"}))
+	budgetWalletResponse, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf2-agent", AgentRunId: "test-run"}))
 	require.NoError(t, err)
 	budgetWallet := budgetWalletResponse.Msg.Wallet
 	agentWalletRequest := connect.NewRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: budgetID})
 	agentWalletRequest.Header().Set(identity.HeaderAgentIdentityToken, "cf2-local-agent")
-	agentWalletResponse, err := agent.GetBudgetWallet(ctx, agentWalletRequest)
+	agentWalletResponse, err := agentFunding.GetBudgetWallet(ctx, agentWalletRequest)
 	require.NoError(t, err)
 	require.Equal(t, budgetWallet.Address, agentWalletResponse.Msg.Wallet.Address)
 	require.Equal(t, "cf2-agent", agentWalletResponse.Msg.Wallet.AgentSubject)
@@ -698,7 +771,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	customerIntent := waitForCreditedFundingIntent(t, ctx, fundingClient, runDir, intentResponse.Msg.Intent.Id)
 	require.Equal(t, customerTx, customerIntent.GetTransactionHash())
 	require.Equal(t, "credited", customerIntent.GetState())
-	customerDelivery, err := client.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: customerIntent.GetReceiptDeliveryId()}))
+	customerDelivery, err := fundingClient.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: customerIntent.GetReceiptDeliveryId()}))
 	require.NoError(t, err)
 	customer := customerDelivery.Msg.Delivery
 	require.Equal(t, fundingpb.ReceiptFundingState_RECEIPT_FUNDING_STATE_ACCEPTED, customer.State)
@@ -728,7 +801,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	withdrawalDestination := strings.ToLower(fork.Accounts[2])
 	err = fork.Call(ctx, "anvil_setBalance", []any{budgetWallet.Address, "0xde0b6b3a7640000"}, nil)
 	require.NoError(t, err)
-	_, err = client.SetWithdrawalDestination(ctx, operatorRequest(&fundingpb.SetWithdrawalDestinationRequest{Destination: &fundingpb.WithdrawalDestination{BudgetId: budgetID, Address: withdrawalDestination, Label: "CF2 local Coinbase test destination"}}))
+	_, err = fundingClient.SetWithdrawalDestination(ctx, operatorRequest(&fundingpb.SetWithdrawalDestinationRequest{Destination: &fundingpb.WithdrawalDestination{BudgetId: budgetID, Address: withdrawalDestination, Label: "CF2 local Coinbase test destination"}}))
 	require.NoError(t, err)
 	_, err = budgetAdmin.SetBudgetCaps(ctx, operatorRequest(&budgetpb.SetBudgetCapsRequest{Budget: &budgetpb.Budget{Id: budgetID, BookId: bookID, Currency: "USD", TotalCapMinor: 10000, PeriodicCapMinor: 10000, PerTransactionCapMinor: 100, PeriodSeconds: 3600}}))
 	require.NoError(t, err)
@@ -739,7 +812,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	}}))
 	require.NoError(t, err)
 	require.Equal(t, mandatepb.MandateStatus_MANDATE_STATUS_LIVE, mandateResponse.Msg.Mandate.Status)
-	quoteResponse, err := client.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
+	quoteResponse, err := fundingClient.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
 		BudgetId: budgetID, MandateId: mandateResponse.Msg.Mandate.Id, Destination: withdrawalDestination,
 		AtomicAmount: "1000000", MaxFeeWei: "1000000000000000000", FeeValuationMinor: 10,
 		Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD", Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, BasisReference: "local-fork:test-only-withdrawal-value", ValuedAt: timestamppb.Now()},
@@ -752,13 +825,13 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		return request
 	}
 	missingIdentity := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.Quote.Id, IdempotencyKey: "cf2-withdrawal-missing-identity"})
-	_, err = client.ExecuteWithdrawal(ctx, missingIdentity)
+	_, err = fundingClient.ExecuteWithdrawal(ctx, missingIdentity)
 	require.Error(t, err)
 	wrongRealm := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: quoteResponse.Msg.Quote.Id, IdempotencyKey: "cf2-withdrawal-mixed-realm"})
 	wrongRealm.Header().Set(identity.HeaderAgentIdentityToken, "cf2-local-agent")
-	_, err = client.ExecuteWithdrawal(ctx, wrongRealm)
+	_, err = fundingClient.ExecuteWithdrawal(ctx, wrongRealm)
 	require.Error(t, err, "operator auth must keep rejecting the ordinary agent realm header")
-	wrongPrincipalQuote, err := client.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
+	wrongPrincipalQuote, err := fundingClient.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
 		BudgetId: budgetID, MandateId: mandateResponse.Msg.Mandate.Id, Destination: withdrawalDestination,
 		AtomicAmount: "1000000", MaxFeeWei: "1000000000000000000", FeeValuationMinor: 10,
 		Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD", Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, BasisReference: "local-fork:test-only-wrong-principal", ValuedAt: timestamppb.Now()},
@@ -766,12 +839,12 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	require.NoError(t, err)
 	wrongPrincipal := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: wrongPrincipalQuote.Msg.Quote.Id, IdempotencyKey: "cf2-withdrawal-wrong-principal"})
 	wrongPrincipal.Header().Set("X-Treasury-Mandate-Identity-Token", "cf2-other-agent")
-	wrongPrincipalResponse, err := client.ExecuteWithdrawal(ctx, wrongPrincipal)
+	wrongPrincipalResponse, err := fundingClient.ExecuteWithdrawal(ctx, wrongPrincipal)
 	require.NoError(t, err)
 	require.Equal(t, "refused", wrongPrincipalResponse.Msg.Withdrawal.State)
 	require.Empty(t, wrongPrincipalResponse.Msg.Withdrawal.TransactionHash)
 	writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-wrong-principal-refused.json"), wrongPrincipalResponse.Msg.Withdrawal)
-	pendingResponse, err := client.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
+	pendingResponse, err := fundingClient.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
 	require.NoError(t, err)
 	require.Equal(t, "pending_approval", pendingResponse.Msg.Withdrawal.State)
 	writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-pending-approval.json"), pendingResponse.Msg.Withdrawal)
@@ -781,7 +854,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	approved, err := client.ResolveApproval(ctx, operatorRequest(&authpb.ResolveApprovalRequest{ApprovalId: queued.Msg.Approvals[0].Id, Resolution: treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_APPROVED}))
 	require.NoError(t, err)
 	require.Equal(t, treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_APPROVED, approved.Msg.Approval.Status)
-	settledResponse, err := client.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
+	settledResponse, err := fundingClient.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
 	require.NoError(t, err)
 	withdrawal := settledResponse.Msg.Withdrawal
 	writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-settled.json"), withdrawal)
@@ -792,7 +865,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	}
 	require.NoError(t, fork.Call(ctx, "eth_getTransactionReceipt", []any{withdrawal.TransactionHash}, &chainReceipt))
 	require.Equal(t, "0x1", chainReceipt.Status)
-	settledRetry, err := client.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
+	settledRetry, err := fundingClient.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
 	require.NoError(t, err)
 	require.Equal(t, withdrawal.TransactionHash, settledRetry.Msg.Withdrawal.TransactionHash)
 	require.Equal(t, withdrawal.Id, settledRetry.Msg.Withdrawal.Id)
@@ -809,7 +882,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	}}))
 	require.NoError(t, err)
 	mandateID := spendMandateResponse.Msg.Mandate.Id
-	sessionWalletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
+	sessionWalletResponse, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
 		BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf2-agent", AgentRunId: "test-run", MandateId: mandateID,
 	}))
 	require.NoError(t, err)
@@ -821,7 +894,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	agentSessionWalletRequest := connect.NewRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: budgetID, MandateId: mandateID})
 	agentSessionWalletRequest.Header().Set(identity.HeaderAgentIdentityToken, "cf2-local-agent")
 	agentSessionWalletRequest.Header().Set(walletops.HeaderAgentSessionPublicKey, agentSessionPublicKey)
-	agentSessionWalletReadback, err := agent.GetBudgetWallet(ctx, agentSessionWalletRequest)
+	agentSessionWalletReadback, err := agentFunding.GetBudgetWallet(ctx, agentSessionWalletRequest)
 	require.NoError(t, err)
 	require.Equal(t, sessionWallet.Address, agentSessionWalletReadback.Msg.Wallet.Address)
 	require.Equal(t, mandateID, agentSessionWalletReadback.Msg.Wallet.MandateId)
@@ -1017,7 +1090,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		"session_wallet_nonce_after":  nonceAfterDeniedSpend,
 		"dispatch":                    "refused",
 	})
-	frozenQuote, err := client.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
+	frozenQuote, err := fundingClient.PreviewWithdrawal(ctx, operatorRequest(&fundingpb.PreviewWithdrawalRequest{
 		BudgetId: budgetID, MandateId: mandateResponse.Msg.Mandate.Id, Destination: withdrawalDestination,
 		AtomicAmount: "500000", MaxFeeWei: "1000000000000000000", FeeValuationMinor: 5,
 		Valuation: &ingestpb.CryptoValuation{AmountMinor: 50, Currency: "USD", Basis: sharedpb.Basis_BASIS_OPERATOR_ASSERTED, BasisReference: "local-fork:test-only-frozen-withdrawal", ValuedAt: timestamppb.Now()},
@@ -1025,7 +1098,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	require.NoError(t, err)
 	frozenRequest := operatorRequest(&fundingpb.ExecuteWithdrawalRequest{QuoteId: frozenQuote.Msg.Quote.Id, IdempotencyKey: "cf2-frozen-withdrawal-key"})
 	frozenRequest.Header().Set("X-Treasury-Mandate-Identity-Token", "cf2-local-agent")
-	frozenResponse, err := client.ExecuteWithdrawal(ctx, frozenRequest)
+	frozenResponse, err := fundingClient.ExecuteWithdrawal(ctx, frozenRequest)
 	require.NoError(t, err)
 	require.Equal(t, "refused", frozenResponse.Msg.Withdrawal.State)
 	writeRehearsalProto(t, filepath.Join(runDir, "withdrawal-frozen-refused.json"), frozenResponse.Msg.Withdrawal)
@@ -1043,6 +1116,8 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	reconcileCF2LPBSOrder(t, ctx, runDir, apiURL, lpbsURL, cf2LPBSOrderID, receiptReaderToken)
 	client = authconnect.NewTreasuryAdminClient(http.DefaultClient, apiURL)
 	agent = authconnect.NewAgentSpendClient(http.DefaultClient, apiURL)
+	fundingClient = fundingconnect.NewFundingAdminServiceClient(http.DefaultClient, apiURL)
+	agentFunding = fundingconnect.NewFundingAgentServiceClient(http.DefaultClient, apiURL)
 	headroom("after-both-restarts", "2500000", 250, 0)
 	for _, authorizationID := range []string{inCapAuthorization.Authorization.Id, overCapAuthorization.Authorization.Id} {
 		readbackRequest := connect.NewRequest(&authpb.GetAuthorizationRequest{Id: authorizationID})
@@ -1061,7 +1136,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	require.Equal(t, nonceAfterAgentRetry, nonceAfterRestartRetry, "restart replay must not broadcast a second agent transaction")
 	sessionWalletReadbackRequest := connect.NewRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: budgetID, MandateId: mandateID})
 	sessionWalletReadbackRequest.Header().Set(identity.HeaderAgentIdentityToken, "cf2-local-agent")
-	sessionWalletReadback, err := agent.GetBudgetWallet(ctx, sessionWalletReadbackRequest)
+	sessionWalletReadback, err := agentFunding.GetBudgetWallet(ctx, sessionWalletReadbackRequest)
 	require.NoError(t, err)
 	require.Equal(t, sessionWallet.Address, sessionWalletReadback.Msg.Wallet.Address)
 	require.Equal(t, sessionWallet.SessionGeneration, sessionWalletReadback.Msg.Wallet.SessionGeneration)
@@ -1075,7 +1150,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 		"session_nonce_before_restart":     nonceAfterAgentRetry,
 		"session_nonce_after_restart":      nonceAfterRestartRetry,
 	})
-	rotatedWalletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
+	rotatedWalletResponse, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
 		BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf2-agent", AgentRunId: "test-run", MandateId: mandateID, RotateSession: true, RotationIdempotencyKey: "cf2-agent-spend-session-rotation",
 	}))
 	require.NoError(t, err)
@@ -1089,17 +1164,17 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	writeRehearsalProto(t, filepath.Join(runDir, "cf1-session-revoked.json"), revokeResponse.Msg)
 	revokedSessionReadRequest := connect.NewRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: budgetID, MandateId: mandateID})
 	revokedSessionReadRequest.Header().Set(identity.HeaderAgentIdentityToken, "cf2-local-agent")
-	_, revokedSessionErr := agent.GetBudgetWallet(ctx, revokedSessionReadRequest)
+	_, revokedSessionErr := agentFunding.GetBudgetWallet(ctx, revokedSessionReadRequest)
 	require.Error(t, revokedSessionErr, "revoked session must no longer be exposed to the agent")
 	writeRehearsalJSON(t, filepath.Join(runDir, "cf1-session-revoked-agent-read-refused.json"), map[string]string{
 		"mandate_id":      mandateID,
 		"read_error_code": connect.CodeOf(revokedSessionErr).String(),
 	})
-	persistedWithdrawal, err := client.GetWithdrawal(ctx, operatorRequest(&fundingpb.GetWithdrawalRequest{Id: withdrawal.Id}))
+	persistedWithdrawal, err := fundingClient.GetWithdrawal(ctx, operatorRequest(&fundingpb.GetWithdrawalRequest{Id: withdrawal.Id}))
 	require.NoError(t, err)
 	require.Equal(t, "settled", persistedWithdrawal.Msg.Withdrawal.State)
 	require.Equal(t, withdrawal.TransactionHash, persistedWithdrawal.Msg.Withdrawal.TransactionHash)
-	withdrawalRetryAfterRestart, err := client.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
+	withdrawalRetryAfterRestart, err := fundingClient.ExecuteWithdrawal(ctx, withdrawalRequest("cf2-withdrawal-key"))
 	require.NoError(t, err)
 	require.Equal(t, withdrawal.TransactionHash, withdrawalRetryAfterRestart.Msg.Withdrawal.TransactionHash)
 	authorizationReadback := connect.NewRequest(&authpb.GetAuthorizationRequest{Id: withdrawal.AuthorizationId})
@@ -1107,7 +1182,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	verifiedAuthorization, err := agent.GetAuthorization(ctx, authorizationReadback)
 	require.NoError(t, err)
 	require.Equal(t, authpb.AuthorizationVerdict_AUTHORIZATION_VERDICT_SETTLED, verifiedAuthorization.Msg.Authorization.Verdict)
-	readback, err := client.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: removed.Id}))
+	readback, err := fundingClient.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: removed.Id}))
 	require.NoError(t, err)
 	require.True(t, proto.Equal(removed, readback.Msg.Delivery))
 	ledgerClient := ingestconnect.NewIngestServiceClient(http.DefaultClient, seed.URL)
@@ -1133,7 +1208,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	}
 	require.Len(t, currentWalletReceipts, 5, "current showcase wallet should have exactly five accepted receipt events")
 	require.True(t, proto.Equal(customer.Receipt, currentWalletReceipts[4]))
-	linkedCustomer, err := client.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: customer.Id}))
+	linkedCustomer, err := fundingClient.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: customer.Id}))
 	require.NoError(t, err)
 	writeRehearsalProto(t, filepath.Join(runDir, "lpbs-credit-lot-link.json"), linkedCustomer.Msg.Delivery)
 	require.Equal(t, customer.Receipt.Id, linkedCustomer.Msg.Delivery.CreditLotReceiptId)
@@ -1142,7 +1217,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	t.Log("five exact-token receipt events, actual LPBS credit_funding_lots association, mandate-bound agent session signing, in-cap and human-approved over-cap settlements, freeze denial, exact receipt attribution and idempotent replay survived Treasury restart")
 }
 
-func runCF7SeparateLocalForkShowcase(t *testing.T, ctx context.Context, repo, runDir, apiURL, treasurySource, treasuryName string, client authconnect.TreasuryAdminClient, fork *basefork.Fork, bookID, variant string) (string, string, string, error) {
+func runCF7SeparateLocalForkShowcase(t *testing.T, ctx context.Context, repo, runDir, apiURL, hubURL, accessAssertion, treasurySource, treasuryName string, client authconnect.TreasuryAdminClient, fork *basefork.Fork, bookID, variant string, answerApprovalInHub func(context.Context, string) (*notificationsv1.SendRequest, error)) (string, string, string, error) {
 	t.Helper()
 	offerDeskEnv := map[string]string{
 		"VROOLI_STORAGE_ROOT":                      filepath.Join(runDir, "cf7-offer-desk-storage"),
@@ -1229,11 +1304,193 @@ func runCF7SeparateLocalForkShowcase(t *testing.T, ctx context.Context, repo, ru
 			return cf1RunWalletX402Credential(t, runDir, custodyPath, walletID, walletAddress, overCapURL)
 		},
 	}
-	cf7RunID, decisionAuthorizationID, decisionSettlementID, err := runCF1AgentManagerCLIForkShowcase(t, ctx, repo, runDir, apiURL, "", treasurySource, treasuryName, client, nil, fork, bookID, "cf7-"+variant, cf1ShowcaseHooks{X402: x402, CF7Only: true})
+	cf7RunID, decisionAuthorizationID, decisionSettlementID, err := runCF1AgentManagerCLIForkShowcase(t, ctx, repo, runDir, apiURL, "", treasurySource, treasuryName, client, nil, fork, bookID, "cf7-"+variant, cf1ShowcaseHooks{X402: x402, CF7Only: true, AnswerApprovalInHub: answerApprovalInHub})
 	if err != nil {
 		return "", "", "", err
 	}
+	if err := sendCF7BudgetAttention(t, ctx, hubURL, accessAssertion, cf7RunID, filepath.Join(runDir, "cf7-agent-manager-cli", "commission-checkpoint.json"), runDir); err != nil {
+		return "", "", "", fmt.Errorf("publish the exact CF7 spend/result comparison to Notification Hub: %w", err)
+	}
 	return cf7RunID, decisionAuthorizationID, decisionSettlementID, nil
+}
+
+type cf7AttentionCheckpoint struct {
+	RunID           string `json:"run_id"`
+	Currency        string `json:"currency"`
+	UnitCode        string `json:"unit_code"`
+	CapMinor        int64  `json:"cap_minor"`
+	SettledMinor    int64  `json:"settled_minor"`
+	RemainingMinor  int64  `json:"remaining_minor"`
+	FreeComparisons []struct {
+		SettlementID    string `json:"settlement_id"`
+		ReceiptID       string `json:"treasury_receipt_id"`
+		PaidAmountMinor int64  `json:"paid_amount_minor"`
+		PaidBenefit     string `json:"paid_benefit_summary"`
+		FreeAlternative struct {
+			SourceID   string `json:"source_id"`
+			Label      string `json:"label"`
+			ResultRef  string `json:"result_ref"`
+			Digest     string `json:"sha256"`
+			BodyBytes  int    `json:"body_bytes"`
+			Limitation string `json:"comparison"`
+		} `json:"free_alternative"`
+	} `json:"free_comparisons"`
+	ComputeProcurement string `json:"compute_procurement"`
+	DatasetProcurement string `json:"dataset_procurement"`
+}
+
+func cf7AttentionBody(checkpoint cf7AttentionCheckpoint, expectedRunID string) (string, error) {
+	if checkpoint.RunID != expectedRunID || checkpoint.Currency == "" || checkpoint.UnitCode == "" || checkpoint.CapMinor < 0 || checkpoint.SettledMinor < 0 || checkpoint.RemainingMinor != checkpoint.CapMinor-checkpoint.SettledMinor || len(checkpoint.FreeComparisons) != 4 {
+		return "", errors.New("CF7 attention report is incomplete or belongs to another run")
+	}
+	var body strings.Builder
+	fmt.Fprintf(&body, "Run %s settled %d %s of %d %s; remaining %d %s.\n", checkpoint.RunID, checkpoint.SettledMinor, checkpoint.UnitCode, checkpoint.CapMinor, checkpoint.UnitCode, checkpoint.RemainingMinor, checkpoint.UnitCode)
+	settlementIDs, receiptIDs := map[string]struct{}{}, map[string]struct{}{}
+	var comparedSpend int64
+	for _, comparison := range checkpoint.FreeComparisons {
+		if comparison.SettlementID == "" || comparison.ReceiptID == "" || comparison.PaidAmountMinor < 0 || comparison.PaidBenefit == "" || comparison.FreeAlternative.SourceID == "" || comparison.FreeAlternative.Label == "" || comparison.FreeAlternative.ResultRef == "" || comparison.FreeAlternative.Digest == "" || comparison.FreeAlternative.BodyBytes <= 0 || comparison.FreeAlternative.Limitation == "" {
+			return "", errors.New("CF7 attention report has a missing paid result, receipt or free-alternative comparison")
+		}
+		if _, exists := settlementIDs[comparison.SettlementID]; exists {
+			return "", errors.New("CF7 attention report repeats a paid settlement")
+		}
+		if _, exists := receiptIDs[comparison.ReceiptID]; exists {
+			return "", errors.New("CF7 attention report repeats a Treasury receipt")
+		}
+		settlementIDs[comparison.SettlementID] = struct{}{}
+		receiptIDs[comparison.ReceiptID] = struct{}{}
+		if comparison.PaidAmountMinor > (1<<63-1)-comparedSpend {
+			return "", errors.New("CF7 attention report spend total overflows")
+		}
+		comparedSpend += comparison.PaidAmountMinor
+		fmt.Fprintf(&body, "Settlement %s (receipt %s): paid %d %s; result: %s; free option %s (%s) returned %d bytes, digest %s; limitation: %s.\n", comparison.SettlementID, comparison.ReceiptID, comparison.PaidAmountMinor, checkpoint.UnitCode, comparison.PaidBenefit, comparison.FreeAlternative.Label, comparison.FreeAlternative.SourceID, comparison.FreeAlternative.BodyBytes, comparison.FreeAlternative.Digest, comparison.FreeAlternative.Limitation)
+	}
+	if comparedSpend != checkpoint.SettledMinor {
+		return "", errors.New("CF7 attention report paid comparisons do not reconcile to Treasury's settled total")
+	}
+	fmt.Fprintf(&body, "Compute: %s. Dataset: %s.", checkpoint.ComputeProcurement, checkpoint.DatasetProcurement)
+	if body.Len() > 12<<10 {
+		return "", errors.New("CF7 attention report exceeds its 12 KiB notification bound")
+	}
+	return body.String(), nil
+}
+
+func sendCF7BudgetAttention(t *testing.T, ctx context.Context, hubURL, accessAssertion, runID, checkpointPath, evidenceDir string) error {
+	t.Helper()
+	if strings.TrimSpace(accessAssertion) == "" {
+		return errors.New("verified local operator identity is required for the private CF7 report notice")
+	}
+	data, err := os.ReadFile(checkpointPath)
+	if err != nil {
+		return fmt.Errorf("read completed Agent Manager commission checkpoint: %w", err)
+	}
+	var checkpoint cf7AttentionCheckpoint
+	if err := json.Unmarshal(data, &checkpoint); err != nil {
+		return fmt.Errorf("decode completed Agent Manager commission checkpoint: %w", err)
+	}
+	body, err := cf7AttentionBody(checkpoint, runID)
+	if err != nil {
+		return err
+	}
+	client := notificationsconnect.NewNotificationsServiceClient(&http.Client{Timeout: 10 * time.Second}, hubURL)
+	request := connect.NewRequest(&notificationsv1.SendRequest{
+		Title: "CF7 local research spend and result",
+		Body:  body, Urgency: "normal", SensitivityLabel: "private",
+		IdempotencyKey: "cf7-research-budget-report-" + runID,
+		DedupeKey:      "cf7-research-budget-report-" + runID,
+	})
+	request.Header().Set("Cf-Access-Jwt-Assertion", accessAssertion)
+	request.Header().Set("X-Vrooli-Test-Mode", "1")
+	response, err := client.Send(ctx, request)
+	if err != nil {
+		return fmt.Errorf("send private Notification Hub spend/result report: %w", err)
+	}
+	if response.Msg.GetNotification().GetId() == "" {
+		return errors.New("Notification Hub accepted no durable CF7 report notification identity")
+	}
+	sum := sha256.Sum256([]byte(body))
+	writeRehearsalJSON(t, filepath.Join(evidenceDir, "cf7-notification-hub-report.json"), map[string]any{
+		"run_id": runID, "notification_id": response.Msg.GetNotification().GetId(),
+		"idempotency_key": "cf7-research-budget-report-" + runID,
+		"body_sha256":     hex.EncodeToString(sum[:]), "body": body, "private": true,
+	})
+	return nil
+}
+
+func TestCF7AttentionBodyReportsPaidResultBesideBoundedFreeAlternative(t *testing.T) {
+	var checkpoint cf7AttentionCheckpoint
+	const receipt = `{"run_id":"run-1","currency":"USD","unit_code":"USD_MINOR","cap_minor":500,"settled_minor":113,"remaining_minor":387,"free_comparisons":[{"settlement_id":"s1","treasury_receipt_id":"r1","paid_amount_minor":1,"paid_benefit_summary":"three paid records, response sha256=paid1","free_alternative":{"source_id":"offer-desk:free-sample","label":"no-signup sample","result_ref":"free1","sha256":"free-digest-1","body_bytes":81,"comparison":"shape sample only; not the current catalog"}},{"settlement_id":"s2","treasury_receipt_id":"r2","paid_amount_minor":1,"paid_benefit_summary":"three paid records, response sha256=paid2","free_alternative":{"source_id":"offer-desk:free-sample","label":"no-signup sample","result_ref":"free2","sha256":"free-digest-2","body_bytes":82,"comparison":"shape sample only; not the current catalog"}},{"settlement_id":"s3","treasury_receipt_id":"r3","paid_amount_minor":1,"paid_benefit_summary":"three paid records, response sha256=paid3","free_alternative":{"source_id":"offer-desk:free-sample","label":"no-signup sample","result_ref":"free3","sha256":"free-digest-3","body_bytes":83,"comparison":"shape sample only; not the current catalog"}},{"settlement_id":"s4","treasury_receipt_id":"r4","paid_amount_minor":110,"paid_benefit_summary":"over-cap approved paid result","free_alternative":{"source_id":"offer-desk:free-sample","label":"no-signup sample","result_ref":"free4","sha256":"free-digest-4","body_bytes":84,"comparison":"shape sample only; not the current catalog"}}],"compute_procurement":"not_run: CI4/CI9 supplier is unresolved","dataset_procurement":"not_run: no owner-bound dataset source"}`
+	if err := json.Unmarshal([]byte(receipt), &checkpoint); err != nil {
+		t.Fatal(err)
+	}
+	body, err := cf7AttentionBody(checkpoint, "run-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"113 USD_MINOR of 500 USD_MINOR", "s4 (receipt r4): paid 110 USD_MINOR", "over-cap approved paid result", "no-signup sample (offer-desk:free-sample) returned 84 bytes", "not the current catalog", "not_run: CI4/CI9 supplier is unresolved", "not_run: no owner-bound dataset source"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("CF7 attention body omits %q: %s", want, body)
+		}
+	}
+	checkpoint.RunID = "foreign-run"
+	if _, err := cf7AttentionBody(checkpoint, "run-1"); err == nil {
+		t.Fatal("attention report must reject another run's commission checkpoint")
+	}
+	checkpoint.RunID = "run-1"
+	checkpoint.SettledMinor++
+	if _, err := cf7AttentionBody(checkpoint, "run-1"); err == nil {
+		t.Fatal("attention report must refuse spend that does not reconcile to Treasury's settled total")
+	}
+}
+
+func TestSendCF7BudgetAttentionUsesPrivateIdempotentHubNotice(t *testing.T) {
+	checkpointPath := filepath.Join(t.TempDir(), "commission-checkpoint.json")
+	evidenceDir := t.TempDir()
+	runID := "282159e3-8730-40ef-95af-307494b74ed4"
+	comparisons := make([]map[string]any, 4)
+	for i := range comparisons {
+		comparisons[i] = map[string]any{
+			"settlement_id": fmt.Sprintf("s%d", i+1), "treasury_receipt_id": fmt.Sprintf("r%d", i+1), "paid_amount_minor": 1,
+			"paid_benefit_summary": "paid result", "free_alternative": map[string]any{
+				"source_id": "offer-desk:free-sample", "label": "no-signup sample", "result_ref": fmt.Sprintf("free%d", i+1),
+				"sha256": strings.Repeat("a", 64), "body_bytes": 81, "comparison": "shape sample only",
+			},
+		}
+	}
+	checkpointBytes, err := json.Marshal(map[string]any{
+		"run_id": runID, "currency": "USD", "unit_code": "USD_MINOR", "cap_minor": 500, "settled_minor": 4, "remaining_minor": 496,
+		"free_comparisons": comparisons, "compute_procurement": "not_run: supplier contract pending", "dataset_procurement": "not_run: dataset API pending",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(checkpointPath, checkpointBytes, 0o600))
+	var received []*notificationsv1.SendRequest
+	serverMux := http.NewServeMux()
+	serverMux.Handle(notificationsconnect.NotificationsServiceSendProcedure, connect.NewUnaryHandler(
+		notificationsconnect.NotificationsServiceSendProcedure,
+		func(_ context.Context, request *connect.Request[notificationsv1.SendRequest]) (*connect.Response[notificationsv1.SendResponse], error) {
+			received = append(received, proto.Clone(request.Msg).(*notificationsv1.SendRequest))
+			if request.Header().Get("Cf-Access-Jwt-Assertion") != "operator-token" || request.Header().Get("X-Vrooli-Test-Mode") != "1" {
+				return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("missing local operator test identity"))
+			}
+			return connect.NewResponse(&notificationsv1.SendResponse{Notification: &notificationshared.Notification{Id: "notice-1"}}), nil
+		},
+	))
+	server := httptest.NewServer(serverMux)
+	defer server.Close()
+	for i := 0; i < 2; i++ {
+		require.NoError(t, sendCF7BudgetAttention(t, context.Background(), server.URL, "operator-token", runID, checkpointPath, evidenceDir))
+	}
+	require.Len(t, received, 2)
+	require.Equal(t, received[0], received[1])
+	require.Equal(t, "private", received[0].GetSensitivityLabel())
+	require.Equal(t, "cf7-research-budget-report-"+runID, received[0].GetIdempotencyKey())
+	require.Contains(t, received[0].GetBody(), "s4 (receipt r4): paid 1 USD_MINOR")
+	var evidence map[string]any
+	evidenceBytes, err := os.ReadFile(filepath.Join(evidenceDir, "cf7-notification-hub-report.json"))
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(evidenceBytes, &evidence))
+	require.Equal(t, "notice-1", evidence["notification_id"])
+	require.Equal(t, runID, evidence["run_id"])
 }
 
 func seedCF7OverCapOfferDeskGraph(t *testing.T, ctx context.Context, baseURL, runDir, variant string) (string, string) {
@@ -1333,6 +1590,368 @@ type cf1ShowcaseHooks struct {
 	// harness owns price admission, response loss and Treasury restart proof.
 	X402    *cf1X402ShowcaseConfig
 	CF7Only bool
+	// PairedRun enables actual reciprocal Treasury wallet/mandate refusal
+	// probes between two concurrently active ordinary Agent Manager runs.
+	PairedRun *cf1PairedRunHarness
+}
+
+type cf1PairedRunIdentity struct {
+	RunID             string `json:"run_id"`
+	BudgetID          string `json:"budget_id"`
+	MandateID         string `json:"mandate_id"`
+	WalletID          string `json:"wallet_id"`
+	WalletAddress     string `json:"wallet_address"`
+	WalletRunID       string `json:"wallet_run_id"`
+	WalletBudgetID    string `json:"wallet_budget_id"`
+	WalletMandateID   string `json:"wallet_mandate_id"`
+	MandateStatus     string `json:"mandate_status"`
+	SessionGeneration int64  `json:"session_generation"`
+	CoordDir          string `json:"-"`
+}
+
+type cf1PairedProbeMarker struct {
+	RunID                        string `json:"run_id"`
+	CounterpartRunID             string `json:"counterpart_run_id"`
+	TargetBudgetID               string `json:"target_budget_id"`
+	TargetMandateID              string `json:"target_mandate_id"`
+	CounterpartMandateStatus     string `json:"counterpart_mandate_status"`
+	CounterpartSessionGeneration int64  `json:"counterpart_session_generation"`
+	ForeignWalletProbeStatus     string `json:"foreign_wallet_probe_status"`
+	ForeignMandateProbeStatus    string `json:"foreign_mandate_probe_status"`
+}
+
+type cf1PairedRunConfig struct {
+	ForeignBudgetID       string
+	ForeignMandateID      string
+	CounterpartIdentity   map[string]any
+	PairedProbeBarrierDir string
+}
+
+type cf1PairedIdentityEvidence struct {
+	Agents []struct {
+		RunID                     string `json:"run_id"`
+		ProfileID                 string `json:"profile_id"`
+		BudgetID                  string `json:"budget_id"`
+		MandateID                 string `json:"mandate_id"`
+		WalletID                  string `json:"wallet_id"`
+		WalletAddress             string `json:"wallet_address"`
+		OwnAuthorizationID        string `json:"own_authorization_id"`
+		OwnSettlementID           string `json:"own_settlement_id"`
+		OwnTxHash                 string `json:"own_tx_hash"`
+		OwnHeadroomMinor          int64  `json:"own_headroom_minor"`
+		ForeignWalletProbeStatus  string `json:"foreign_wallet_probe_status"`
+		ForeignMandateProbeStatus string `json:"foreign_mandate_probe_status"`
+	} `json:"agents"`
+}
+
+type cf1PairedRunHarness struct {
+	mu               sync.Mutex
+	arrivals         []cf1PairedRunIdentity
+	cancels          []context.CancelFunc
+	ready            chan struct{}
+	readyOnce        sync.Once
+	controller       sync.Once
+	failureOnce      sync.Once
+	apiURL           string
+	identityPath     string
+	barrierDir       string
+	postIdentityGate chan struct{}
+}
+
+func (h *cf1PairedRunHarness) acquirePostIdentityTurn(ctx context.Context) error {
+	select {
+	case <-h.postIdentityGate:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("wait for paired post-identity turn: %w", ctx.Err())
+	}
+}
+
+func (h *cf1PairedRunHarness) releasePostIdentityTurn() { h.postIdentityGate <- struct{}{} }
+
+func (h *cf1PairedRunHarness) registerChildCancel(cancel context.CancelFunc) {
+	h.mu.Lock()
+	h.cancels = append(h.cancels, cancel)
+	h.mu.Unlock()
+}
+
+func (h *cf1PairedRunHarness) fail(err error) {
+	if err == nil {
+		return
+	}
+	h.failureOnce.Do(func() {
+		h.mu.Lock()
+		cancels := append([]context.CancelFunc(nil), h.cancels...)
+		h.mu.Unlock()
+		for _, cancel := range cancels {
+			cancel()
+		}
+	})
+}
+
+func newCF1PairedRunHarness(apiURL, identityPath, barrierDir string) (*cf1PairedRunHarness, error) {
+	for _, path := range []string{identityPath, barrierDir} {
+		if !filepath.IsAbs(path) {
+			return nil, fmt.Errorf("paired Agent Manager evidence path must be absolute: %q", path)
+		}
+	}
+	if err := os.MkdirAll(barrierDir, 0o700); err != nil {
+		return nil, fmt.Errorf("create paired probe barrier directory: %w", err)
+	}
+	if err := os.Chmod(barrierDir, 0o700); err != nil {
+		return nil, fmt.Errorf("secure paired probe barrier directory: %w", err)
+	}
+	postIdentityGate := make(chan struct{}, 1)
+	postIdentityGate <- struct{}{}
+	return &cf1PairedRunHarness{ready: make(chan struct{}), apiURL: apiURL, identityPath: identityPath, barrierDir: barrierDir, postIdentityGate: postIdentityGate}, nil
+}
+
+func (h *cf1PairedRunHarness) configure(ctx context.Context, own cf1PairedRunIdentity) (cf1PairedRunConfig, error) {
+	h.mu.Lock()
+	for _, prior := range h.arrivals {
+		if prior.RunID == own.RunID || prior.BudgetID == own.BudgetID || prior.MandateID == own.MandateID || prior.WalletID == own.WalletID || strings.EqualFold(prior.WalletAddress, own.WalletAddress) {
+			h.mu.Unlock()
+			return cf1PairedRunConfig{}, errors.New("paired Agent Manager runs reused a run, budget, mandate, wallet, or address")
+		}
+	}
+	h.arrivals = append(h.arrivals, own)
+	if len(h.arrivals) > 2 {
+		h.mu.Unlock()
+		return cf1PairedRunConfig{}, errors.New("paired Agent Manager harness received more than two runs")
+	}
+	if len(h.arrivals) == 2 {
+		h.readyOnce.Do(func() { close(h.ready) })
+	}
+	h.mu.Unlock()
+	select {
+	case <-h.ready:
+	case <-ctx.Done():
+		return cf1PairedRunConfig{}, fmt.Errorf("wait for counterpart Treasury budget wallet: %w", ctx.Err())
+	}
+	h.mu.Lock()
+	arrivals := append([]cf1PairedRunIdentity(nil), h.arrivals...)
+	h.mu.Unlock()
+	var counterpart cf1PairedRunIdentity
+	for _, candidate := range arrivals {
+		if candidate.RunID != own.RunID {
+			counterpart = candidate
+		}
+	}
+	if counterpart.RunID == "" || own.SessionGeneration <= 0 || counterpart.SessionGeneration <= 0 {
+		return cf1PairedRunConfig{}, errors.New("paired run identity omitted an active session generation")
+	}
+	if err := h.readBackLiveIdentity(ctx, counterpart); err != nil {
+		return cf1PairedRunConfig{}, fmt.Errorf("read back counterpart live mandate and wallet before config: %w", err)
+	}
+	h.controller.Do(func() { go h.fail(h.releaseGates(ctx, arrivals)) })
+	return cf1PairedRunConfig{
+		ForeignBudgetID: counterpart.BudgetID, ForeignMandateID: counterpart.MandateID,
+		CounterpartIdentity: map[string]any{
+			"run_id": counterpart.RunID, "budget_id": counterpart.BudgetID, "mandate_id": counterpart.MandateID,
+			"wallet_id": counterpart.WalletID, "wallet_address": counterpart.WalletAddress,
+			"wallet_run_id": counterpart.WalletRunID, "wallet_budget_id": counterpart.WalletBudgetID,
+			"wallet_mandate_id": counterpart.WalletMandateID, "mandate_status": counterpart.MandateStatus,
+			"session_generation": counterpart.SessionGeneration,
+		},
+		PairedProbeBarrierDir: h.barrierDir,
+	}, nil
+}
+
+func (h *cf1PairedRunHarness) readBackLiveIdentity(ctx context.Context, identity cf1PairedRunIdentity) error {
+	mandates, err := mandateconnect.NewMandateAdminServiceClient(http.DefaultClient, h.apiURL).ListMandates(ctx, operatorRequest(&mandatepb.ListMandatesRequest{}))
+	if err != nil {
+		return err
+	}
+	var mandate *mandatepb.Mandate
+	for _, candidate := range mandates.Msg.GetMandates() {
+		if candidate.GetId() == identity.MandateID {
+			mandate = candidate
+			break
+		}
+	}
+	if mandate == nil || mandate.GetStatus() != mandatepb.MandateStatus_MANDATE_STATUS_LIVE || mandate.GetAgentRunId() != identity.RunID || mandate.GetBudgetId() != identity.BudgetID {
+		return fmt.Errorf("counterpart mandate is absent, not LIVE, or not bound to its run/budget: %+v", mandate)
+	}
+	walletResponse, err := fundingconnect.NewFundingAdminServiceClient(http.DefaultClient, h.apiURL).GetBudgetWallet(ctx, operatorRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: identity.BudgetID, MandateId: identity.MandateID}))
+	if err != nil {
+		return err
+	}
+	wallet := walletResponse.Msg.GetWallet()
+	if wallet.GetWalletId() != identity.WalletID || !strings.EqualFold(wallet.GetAddress(), identity.WalletAddress) || wallet.GetAgentRunId() != identity.RunID || wallet.GetBudgetId() != identity.BudgetID || wallet.GetMandateId() != identity.MandateID || wallet.GetSessionGeneration() != identity.SessionGeneration {
+		return fmt.Errorf("counterpart wallet readback does not match the live run tuple: %+v", wallet)
+	}
+	return nil
+}
+
+func (h *cf1PairedRunHarness) releaseGates(ctx context.Context, identities []cf1PairedRunIdentity) error {
+	if len(identities) != 2 {
+		return errors.New("paired Agent Manager barrier requires exactly two identities")
+	}
+	waitJSON := func(path string, target any) error {
+		deadline := time.NewTimer(2 * time.Minute)
+		defer deadline.Stop()
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				return json.Unmarshal(data, target)
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-deadline.C:
+				return fmt.Errorf("timeout waiting for paired marker %s", path)
+			case <-ticker.C:
+			}
+		}
+	}
+	writeRelease := func(path string, value any) error {
+		data, err := json.Marshal(value)
+		if err != nil {
+			return err
+		}
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+		if err != nil {
+			return err
+		}
+		if _, err = file.Write(data); err != nil {
+			_ = file.Close()
+			return err
+		}
+		if err = file.Sync(); err != nil {
+			_ = file.Close()
+			return err
+		}
+		return file.Close()
+	}
+	pair := identities
+	markers := make(map[string]cf1PairedProbeMarker, 2)
+	for _, identity := range pair {
+		var marker cf1PairedProbeMarker
+		path := filepath.Join(h.barrierDir, "probe-complete-"+identity.RunID+".json")
+		if err := waitJSON(path, &marker); err != nil {
+			return err
+		}
+		if marker.RunID != identity.RunID || marker.ForeignWalletProbeStatus != "permission_denied" || marker.ForeignMandateProbeStatus != "permission_denied" || marker.CounterpartMandateStatus != "LIVE" || marker.CounterpartSessionGeneration <= 0 {
+			return fmt.Errorf("paired foreign-probe marker for %s failed identity/status validation: %+v", identity.RunID, marker)
+		}
+		markers[identity.RunID] = marker
+	}
+	for _, identity := range pair {
+		if err := h.readBackLiveIdentity(ctx, identity); err != nil {
+			return fmt.Errorf("read back live identity before paired probe release for %s: %w", identity.RunID, err)
+		}
+	}
+	for _, identity := range pair {
+		marker := markers[identity.RunID]
+		var counterpart cf1PairedRunIdentity
+		for _, candidate := range pair {
+			if candidate.RunID == marker.CounterpartRunID {
+				counterpart = candidate
+			}
+		}
+		if counterpart.RunID == "" || marker.TargetBudgetID != counterpart.BudgetID || marker.TargetMandateID != counterpart.MandateID || marker.CounterpartSessionGeneration != counterpart.SessionGeneration {
+			return fmt.Errorf("paired probe target does not match attested counterpart for %s: %+v", identity.RunID, marker)
+		}
+		if err := writeRelease(filepath.Join(h.barrierDir, "probe-release-"+identity.RunID+".json"), map[string]any{"run_id": identity.RunID, "counterpart_run_id": marker.CounterpartRunID, "both_mandates_live_during_probes": true}); err != nil {
+			return fmt.Errorf("release paired probe for %s: %w", identity.RunID, err)
+		}
+	}
+	for _, identity := range pair {
+		var ready struct {
+			RunID            string `json:"run_id"`
+			CounterpartRunID string `json:"counterpart_run_id"`
+			BudgetID         string `json:"budget_id"`
+			MandateID        string `json:"mandate_id"`
+			WalletID         string `json:"wallet_id"`
+			WalletAddress    string `json:"wallet_address"`
+		}
+		if err := waitJSON(filepath.Join(h.barrierDir, "identity-ready-"+identity.RunID+".json"), &ready); err != nil {
+			return err
+		}
+		if ready.RunID != identity.RunID || ready.BudgetID != identity.BudgetID || ready.MandateID != identity.MandateID || ready.WalletID != identity.WalletID || !strings.EqualFold(ready.WalletAddress, identity.WalletAddress) {
+			return fmt.Errorf("paired identity-ready marker does not match Treasury tuple for %s: %+v", identity.RunID, ready)
+		}
+		for _, candidate := range pair {
+			if candidate.RunID != identity.RunID && ready.CounterpartRunID != candidate.RunID {
+				return fmt.Errorf("paired identity-ready marker names the wrong counterpart for %s", identity.RunID)
+			}
+		}
+	}
+	var evidence cf1PairedIdentityEvidence
+	data, err := os.ReadFile(h.identityPath)
+	if err != nil || json.Unmarshal(data, &evidence) != nil || len(evidence.Agents) != 2 {
+		return fmt.Errorf("shared paired identity evidence is missing, malformed, or not exactly two rows: %v", err)
+	}
+	for _, identity := range pair {
+		var row *struct {
+			RunID                     string `json:"run_id"`
+			ProfileID                 string `json:"profile_id"`
+			BudgetID                  string `json:"budget_id"`
+			MandateID                 string `json:"mandate_id"`
+			WalletID                  string `json:"wallet_id"`
+			WalletAddress             string `json:"wallet_address"`
+			OwnAuthorizationID        string `json:"own_authorization_id"`
+			OwnSettlementID           string `json:"own_settlement_id"`
+			OwnTxHash                 string `json:"own_tx_hash"`
+			OwnHeadroomMinor          int64  `json:"own_headroom_minor"`
+			ForeignWalletProbeStatus  string `json:"foreign_wallet_probe_status"`
+			ForeignMandateProbeStatus string `json:"foreign_mandate_probe_status"`
+		}
+		for index := range evidence.Agents {
+			if evidence.Agents[index].RunID == identity.RunID {
+				row = &evidence.Agents[index]
+			}
+		}
+		if row == nil || row.BudgetID != identity.BudgetID || row.MandateID != identity.MandateID || row.WalletID != identity.WalletID || !strings.EqualFold(row.WalletAddress, identity.WalletAddress) || row.OwnAuthorizationID == "" || row.OwnSettlementID == "" || row.OwnTxHash == "" || row.OwnHeadroomMinor <= 0 || row.ForeignWalletProbeStatus != "permission_denied" || row.ForeignMandateProbeStatus != "permission_denied" {
+			return fmt.Errorf("shared paired identity row does not match active Treasury tuple for %s", identity.RunID)
+		}
+		for _, counterpart := range pair {
+			if counterpart.RunID == identity.RunID {
+				continue
+			}
+			var counterpartRow *struct {
+				RunID                     string `json:"run_id"`
+				ProfileID                 string `json:"profile_id"`
+				BudgetID                  string `json:"budget_id"`
+				MandateID                 string `json:"mandate_id"`
+				WalletID                  string `json:"wallet_id"`
+				WalletAddress             string `json:"wallet_address"`
+				OwnAuthorizationID        string `json:"own_authorization_id"`
+				OwnSettlementID           string `json:"own_settlement_id"`
+				OwnTxHash                 string `json:"own_tx_hash"`
+				OwnHeadroomMinor          int64  `json:"own_headroom_minor"`
+				ForeignWalletProbeStatus  string `json:"foreign_wallet_probe_status"`
+				ForeignMandateProbeStatus string `json:"foreign_mandate_probe_status"`
+			}
+			for index := range evidence.Agents {
+				if evidence.Agents[index].RunID == counterpart.RunID {
+					counterpartRow = &evidence.Agents[index]
+				}
+			}
+			if counterpartRow == nil || counterpartRow.BudgetID != counterpart.BudgetID || counterpartRow.MandateID != counterpart.MandateID || counterpartRow.WalletID != counterpart.WalletID || !strings.EqualFold(counterpartRow.WalletAddress, counterpart.WalletAddress) || counterpartRow.ForeignWalletProbeStatus != "permission_denied" || counterpartRow.ForeignMandateProbeStatus != "permission_denied" {
+				return fmt.Errorf("shared paired identity row does not match counterpart Treasury tuple for %s", identity.RunID)
+			}
+		}
+	}
+	for _, identity := range pair {
+		if err := h.readBackLiveIdentity(ctx, identity); err != nil {
+			return fmt.Errorf("read back live identity before paired row release for %s: %w", identity.RunID, err)
+		}
+	}
+	for _, identity := range pair {
+		var counterpart string
+		for _, other := range pair {
+			if other.RunID != identity.RunID {
+				counterpart = other.RunID
+			}
+		}
+		if err := writeRelease(filepath.Join(h.barrierDir, "identity-release-"+identity.RunID+".json"), map[string]any{"run_id": identity.RunID, "counterpart_run_id": counterpart, "both_identity_rows_recorded": true, "both_mandates_live_at_identity_gate": true}); err != nil {
+			return fmt.Errorf("release paired identity gate for %s: %w", identity.RunID, err)
+		}
+	}
+	return nil
 }
 
 type cf1X402ShowcaseConfig struct {
@@ -1345,9 +1964,14 @@ type cf1X402ShowcaseConfig struct {
 
 func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, runDir, apiURL, identityAuthorityURL, treasurySource, treasuryName string, client authconnect.TreasuryAdminClient, notificationRequests <-chan *notificationsv1.SendRequest, fork *basefork.Fork, bookID, variant string, hooks cf1ShowcaseHooks) (string, string, string, error) {
 	t.Helper()
+	nonceValue := func(value string) (*big.Int, bool) {
+		parsed, ok := new(big.Int).SetString(strings.TrimPrefix(strings.TrimSpace(value), "0x"), 16)
+		return parsed, ok
+	}
 	instrumentClient := instrumentconnect.NewInstrumentAdminServiceClient(http.DefaultClient, apiURL)
 	mandateClient := mandateconnect.NewMandateAdminServiceClient(http.DefaultClient, apiURL)
 	budgetAdmin := budgetconnect.NewBudgetAdminServiceClient(http.DefaultClient, apiURL)
+	fundingClient := fundingconnect.NewFundingAdminServiceClient(http.DefaultClient, apiURL)
 	coordName := "agent-manager-cli"
 	if hooks.CF7Only {
 		// CF1 and CF7 are distinct ordinary Agent Manager runs. Keep their
@@ -1409,15 +2033,30 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		return "", "", "", fmt.Errorf("build actual Treasury CLI: %w: %s", err, strings.TrimSpace(string(buildOutput)))
 	}
 	amDir := filepath.Join(repo, "scenarios/agent-manager/api")
+	amCtx, cancelAM := context.WithCancel(ctx)
+	defer cancelAM()
+	if hooks.PairedRun != nil {
+		hooks.PairedRun.registerChildCancel(cancelAM)
+	}
 	cf1AuthorityDir, err := os.MkdirTemp("", "cf1-authority-")
 	if err != nil {
 		return "", "", "", fmt.Errorf("create isolated encrypted Agent Manager key store: %w", err)
 	}
 	defer os.RemoveAll(cf1AuthorityDir)
 	cf1AuthorityPath := filepath.Join(cf1AuthorityDir, "agent-manager-session-keys.enc")
-	amTest := exec.CommandContext(ctx, "go", "test", "./internal/orchestration/integration", "-run", "^TestTreasuryCLIFromOrdinaryRun$", "-count=1", "-v")
+	amTest := exec.CommandContext(amCtx, "go", "test", "./internal/orchestration/integration", "-run", "^TestTreasuryCLIFromOrdinaryRun$", "-count=1", "-v")
 	amTest.Dir = amDir
-	amTest.Env = append(os.Environ(),
+	baseEnv := os.Environ()
+	if hooks.PairedRun != nil && hooks.X402 == nil {
+		filtered := baseEnv[:0]
+		for _, value := range baseEnv {
+			if !strings.HasPrefix(value, "TREASURY_CF1_X402_MEASURED_SECOND_CALL=") {
+				filtered = append(filtered, value)
+			}
+		}
+		baseEnv = filtered
+	}
+	amTest.Env = append(baseEnv,
 		"TREASURY_CF1_COORD_DIR="+coord,
 		"TREASURY_CF1_AUTHORITY_PATH="+cf1AuthorityPath,
 		"TREASURY_CF1_BUDGET_ID="+budgetID,
@@ -1447,6 +2086,9 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	}
 	if hooks.CF7Only {
 		amTest.Env = append(amTest.Env, "TREASURY_CF7_ONLY=1", "TREASURY_CF7_COORD_DIR="+coord)
+	}
+	if hooks.PairedRun != nil {
+		amTest.Env = append(amTest.Env, "TREASURY_CF1_CROSS_BUDGET_IDENTITIES_PATH="+hooks.PairedRun.identityPath)
 	}
 	amOutputPath := filepath.Join(coord, "agent-manager-go-test.log")
 	amOutput, err := os.Create(amOutputPath)
@@ -1482,7 +2124,7 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		}})); err != nil {
 			return "", "", "", fmt.Errorf("create independently bound second-budget mandate: %w", err)
 		}
-		if _, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
+		if _, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
 			BudgetId: isolationBudgetID, Network: baseusdc.Network, AgentSubject: "cf1-isolation-agent", AgentRunId: isolationRunID, MandateId: isolationMandateID,
 		})); err != nil {
 			return "", "", "", fmt.Errorf("provision second run's distinct budget address: %w", err)
@@ -1519,7 +2161,7 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		return "", "", "", fmt.Errorf("short-lived mandate did not preserve its live expiry: %+v", createdExpiryMandate.Msg.GetMandate())
 	}
 	writeRehearsalJSON(t, filepath.Join(coord, "expired-mandate-created.json"), map[string]any{"mandate_id": expiryMandateID, "expires_at": expiryDeadline})
-	walletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
+	walletResponse, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
 		BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID, MandateId: mandateID,
 	}))
 	if err != nil {
@@ -1531,7 +2173,7 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		"session_generation": walletResponse.Msg.GetWallet().GetSessionGeneration(),
 	})
 	if !hooks.CF7Only {
-		isolationWallet, getErr := client.GetBudgetWallet(ctx, operatorRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: isolationBudgetID, MandateId: isolationMandateID}))
+		isolationWallet, getErr := fundingClient.GetBudgetWallet(ctx, operatorRequest(&fundingpb.GetBudgetWalletRequest{BudgetId: isolationBudgetID, MandateId: isolationMandateID}))
 		if getErr != nil {
 			return "", "", "", fmt.Errorf("read independently bound second budget wallet: %w", getErr)
 		}
@@ -1565,6 +2207,21 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 			return "", "", "", fmt.Errorf("prepare CF7 over-cap signer for the provisioned research wallet: %w", signerErr)
 		}
 		hooks.X402.OverCapCredential = credentialValue
+	}
+	var pairedConfig *cf1PairedRunConfig
+	if hooks.PairedRun != nil {
+		identity := cf1PairedRunIdentity{
+			RunID: runIdentity.RunID, BudgetID: budgetID, MandateID: mandateID,
+			WalletID: walletResponse.Msg.GetWallet().GetWalletId(), WalletAddress: walletResponse.Msg.GetWallet().GetAddress(),
+			WalletRunID: walletResponse.Msg.GetWallet().GetAgentRunId(), WalletBudgetID: walletResponse.Msg.GetWallet().GetBudgetId(),
+			WalletMandateID: walletResponse.Msg.GetWallet().GetMandateId(), MandateStatus: "LIVE",
+			SessionGeneration: walletResponse.Msg.GetWallet().GetSessionGeneration(), CoordDir: coord,
+		}
+		pairConfig, pairErr := hooks.PairedRun.configure(ctx, identity)
+		if pairErr != nil {
+			return "", "", "", fmt.Errorf("configure reciprocal live Treasury identity: %w", pairErr)
+		}
+		pairedConfig = &pairConfig
 	}
 	if err := fork.Call(ctx, "anvil_setBalance", []any{walletResponse.Msg.Wallet.Address, "0xde0b6b3a7640000"}, nil); err != nil {
 		return "", "", "", fmt.Errorf("fund local-fork gas: %w", err)
@@ -1686,6 +2343,12 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		config["isolation_budget_id"] = isolationBudgetID
 		config["isolation_mandate_id"] = isolationMandateID
 	}
+	if pairedConfig != nil {
+		config["foreign_budget_id"] = pairedConfig.ForeignBudgetID
+		config["foreign_mandate_id"] = pairedConfig.ForeignMandateID
+		config["counterpart_identity"] = pairedConfig.CounterpartIdentity
+		config["paired_probe_barrier_dir"] = pairedConfig.PairedProbeBarrierDir
+	}
 	if hooks.X402 != nil {
 		x := hooks.X402
 		config["x402_catalog_url"] = x.CatalogURL
@@ -1719,7 +2382,7 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	}
 	writeRehearsalJSON(t, filepath.Join(coord, "treasury-config.json"), config)
 	if hooks.CF7Only {
-		return runCF7TreasuryCoordinator(t, ctx, coord, childDone, amOutputPath, fork, walletResponse.Msg.GetWallet().GetAddress(), config)
+		return runCF7TreasuryCoordinator(t, ctx, coord, childDone, amOutputPath, fork, walletResponse.Msg.GetWallet().GetAddress(), client, bookID, hooks, config)
 	}
 	var authorizationReady struct {
 		AuthorizationID string `json:"authorization_id"`
@@ -1761,6 +2424,15 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "in-cap-settled.json"), nil, childDone); err != nil {
 		return "", "", "", fmt.Errorf("wait for ordinary-run in-cap settlement: %w", err)
 	}
+	var nonceAfterInCap string
+	if err := fork.Call(ctx, "eth_getTransactionCount", []any{walletResponse.Msg.Wallet.Address, "latest"}, &nonceAfterInCap); err != nil {
+		return "", "", "", fmt.Errorf("read ordinary-run nonce after in-cap debit: %w", err)
+	}
+	preInCap, preInCapOK := nonceValue(nonceBeforeAlteredInstrument)
+	postInCap, postInCapOK := nonceValue(nonceAfterInCap)
+	if !preInCapOK || !postInCapOK || new(big.Int).Sub(postInCap, preInCap).Cmp(big.NewInt(1)) != 0 {
+		return "", "", "", fmt.Errorf("ordinary-run in-cap debit count was not exactly one: nonce %s -> %s", nonceBeforeAlteredInstrument, nonceAfterInCap)
+	}
 	inCapSettlement, err := readCLISettlement(coord, "settlement-report-in-cap.log")
 	if err != nil {
 		return "", "", "", err
@@ -1776,11 +2448,11 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID,
 		MandateId: mandateID, RotateSession: true, RotationIdempotencyKey: idempotency + "-session-rotation",
 	}
-	rotatedWalletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(rotationRequest))
+	rotatedWalletResponse, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(rotationRequest))
 	if err != nil {
 		return "", "", "", fmt.Errorf("rotate mandate session while ordinary Agent Manager run is active: %w", err)
 	}
-	rotationReplay, err := client.ProvisionBudgetWallet(ctx, operatorRequest(proto.Clone(rotationRequest).(*fundingpb.ProvisionBudgetWalletRequest)))
+	rotationReplay, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(proto.Clone(rotationRequest).(*fundingpb.ProvisionBudgetWalletRequest)))
 	if err != nil {
 		return "", "", "", fmt.Errorf("replay ordinary-run mandate session rotation: %w", err)
 	}
@@ -1791,11 +2463,11 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	writeRehearsalProto(t, filepath.Join(coord, "mandate-session-rotation-replay.json"), rotationReplay.Msg)
 	changedRotation := proto.Clone(rotationRequest).(*fundingpb.ProvisionBudgetWalletRequest)
 	changedRotation.AgentRunId += "-changed"
-	_, changedRotationErr := client.ProvisionBudgetWallet(ctx, operatorRequest(changedRotation))
+	_, changedRotationErr := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(changedRotation))
 	if connect.CodeOf(changedRotationErr) != connect.CodeAlreadyExists {
 		return "", "", "", fmt.Errorf("changed run payload reused a rotation key without conflict: %v", changedRotationErr)
 	}
-	rotationAfterConflict, err := client.ProvisionBudgetWallet(ctx, operatorRequest(proto.Clone(rotationRequest).(*fundingpb.ProvisionBudgetWalletRequest)))
+	rotationAfterConflict, err := fundingClient.ProvisionBudgetWallet(ctx, operatorRequest(proto.Clone(rotationRequest).(*fundingpb.ProvisionBudgetWalletRequest)))
 	if err != nil || rotationAfterConflict.Msg.GetWallet().GetSessionGeneration() != rotatedWallet.GetSessionGeneration() {
 		return "", "", "", fmt.Errorf("changed-input conflict altered the retained rotation: response=%v err=%v", rotationAfterConflict, err)
 	}
@@ -1811,6 +2483,12 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		"new_generation":         strconv.FormatInt(rotatedWallet.GetSessionGeneration(), 10),
 		"old_generation_retired": true, "same_derived_budget_address": true,
 	})
+	if hooks.PairedRun != nil {
+		if err := hooks.PairedRun.acquirePostIdentityTurn(ctx); err != nil {
+			return "", "", "", err
+		}
+		defer hooks.PairedRun.releasePostIdentityTurn()
+	}
 	if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "over-cap-authorization-ready.json"), nil, childDone); err != nil {
 		return "", "", "", fmt.Errorf("wait for ordinary-run over-cap proposal: %w", err)
 	}
@@ -1873,6 +2551,15 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if err := requireCLILocalSettlement(overCapSettlement, overCapSettlementID); err != nil {
 		return "", "", "", fmt.Errorf("validate approved ordinary-run settlement: %w", err)
 	}
+	var nonceAfterOverCap string
+	if err := fork.Call(ctx, "eth_getTransactionCount", []any{walletResponse.Msg.Wallet.Address, "latest"}, &nonceAfterOverCap); err != nil {
+		return "", "", "", fmt.Errorf("read ordinary-run nonce after approved over-cap debit: %w", err)
+	}
+	postInCapValue, postInCapValueOK := nonceValue(nonceAfterInCap)
+	postOverCapValue, postOverCapOK := nonceValue(nonceAfterOverCap)
+	if !postInCapValueOK || !postOverCapOK || new(big.Int).Sub(postOverCapValue, postInCapValue).Cmp(big.NewInt(1)) != 0 {
+		return "", "", "", fmt.Errorf("approved over-cap debit count was not exactly one: nonce %s -> %s", nonceAfterInCap, nonceAfterOverCap)
+	}
 	// Pin the exact JSON-RPC receipt bytes before Treasury replacement. The
 	// retry below must return this same chain receipt, not merely repeat an ID.
 	overCapReceiptBeforeRestart, err := fork.CallRaw(ctx, "eth_getTransactionReceipt", []any{overCapSettlement.GetSettlement().GetExternalId()})
@@ -1905,6 +2592,13 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "over-cap-retry-after-restart.json"), nil, childDone); err != nil {
 		return "", "", "", fmt.Errorf("wait for ordinary-run exact retry after restart: %w", err)
 	}
+	var nonceAfterOverCapRetry string
+	if err := fork.Call(ctx, "eth_getTransactionCount", []any{walletResponse.Msg.Wallet.Address, "latest"}, &nonceAfterOverCapRetry); err != nil {
+		return "", "", "", fmt.Errorf("read ordinary-run nonce after restart retry: %w", err)
+	}
+	if nonceAfterOverCapRetry != nonceAfterOverCap {
+		return "", "", "", fmt.Errorf("approved over-cap retry debited again: nonce %s -> %s", nonceAfterOverCap, nonceAfterOverCapRetry)
+	}
 	overCapRetry, err := readCLISettlement(coord, "settlement-report-over-cap-after-restart.log")
 	if err != nil {
 		return "", "", "", err
@@ -1924,12 +2618,17 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		return "", "", "", errors.New("ordinary-run retry after Treasury restart changed raw receipt bytes for the original transaction")
 	}
 	writeRehearsalJSON(t, filepath.Join(coord, "over-cap-raw-receipt-restart-continuity.json"), map[string]any{
-		"transaction_hash":           overCapSettlement.GetSettlement().GetExternalId(),
-		"before_restart_sha256":      fmt.Sprintf("%x", overCapReceiptBeforeDigest),
-		"after_restart_sha256":       fmt.Sprintf("%x", overCapReceiptAfterDigest),
-		"raw_bytes_equal":            true,
-		"raw_receipt_before_restart": json.RawMessage(overCapReceiptBeforeRestart),
-		"raw_receipt_after_restart":  json.RawMessage(overCapReceiptAfterRestart),
+		"transaction_hash":            overCapSettlement.GetSettlement().GetExternalId(),
+		"before_restart_sha256":       fmt.Sprintf("%x", overCapReceiptBeforeDigest),
+		"after_restart_sha256":        fmt.Sprintf("%x", overCapReceiptAfterDigest),
+		"raw_bytes_equal":             true,
+		"debit_count_before_retry":    1,
+		"debit_count_after_retry":     1,
+		"sender_nonce_after_in_cap":   nonceAfterInCap,
+		"sender_nonce_after_over_cap": nonceAfterOverCap,
+		"sender_nonce_after_retry":    nonceAfterOverCapRetry,
+		"raw_receipt_before_restart":  json.RawMessage(overCapReceiptBeforeRestart),
+		"raw_receipt_after_restart":   json.RawMessage(overCapReceiptAfterRestart),
 	})
 	if hooks.X402 != nil {
 		if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "x402-authorization-ready.json"), nil, childDone); err != nil {
@@ -2175,6 +2874,11 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		"over_cap_receipt_proof": receiptContinuity["over-cap"],
 		"over_cap_retry_after_treasury_restart_same_settlement":  overCapRetry.GetSettlement().GetId() == overCapSettlement.GetSettlement().GetId(),
 		"over_cap_retry_after_treasury_restart_same_transaction": overCapRetry.GetSettlement().GetExternalId() == overCapSettlement.GetSettlement().GetExternalId(),
+		"over_cap_debit_count_before_restart_retry":              1,
+		"over_cap_debit_count_after_restart_retry":               1,
+		"sender_nonce_after_in_cap":                              nonceAfterInCap,
+		"sender_nonce_after_over_cap":                            nonceAfterOverCap,
+		"sender_nonce_after_over_cap_retry":                      nonceAfterOverCapRetry,
 		"over_cap_raw_receipt_restart_continuity":                "over-cap-raw-receipt-restart-continuity.json",
 		"over_cap_human_approval_notification_record":            "over-cap-approval-notification.json",
 		"freeze_operation_grant_id":                              runCompletion.SpendGrantIDs[expectedGrantCount-2], "expiry_operation_grant_id": runCompletion.SpendGrantIDs[expectedGrantCount-1],
@@ -2228,11 +2932,11 @@ type cf7ForkCall struct {
 	AmountMinor     int64  `json:"amount_minor"`
 }
 
-// runCF7TreasuryCoordinator drives only the four priced calls of a fresh
-// ordinary Agent Manager run. It verifies each settled Treasury response
-// against the local Base fork before releasing the next operation. The fourth
-// quote stops at Treasury's pending per-transaction decision without a release.
-func runCF7TreasuryCoordinator(t *testing.T, ctx context.Context, coord string, childDone <-chan error, amOutputPath string, fork *basefork.Fork, buyerAddress string, config map[string]any) (string, string, string, error) {
+// runCF7TreasuryCoordinator drives the four priced calls of a fresh ordinary
+// Agent Manager run. It verifies each settled Treasury response against the
+// local Base fork, and sends the fourth call only after a distinct operator
+// decision approves its pending over-cap authorization.
+func runCF7TreasuryCoordinator(t *testing.T, ctx context.Context, coord string, childDone <-chan error, amOutputPath string, fork *basefork.Fork, buyerAddress string, client authconnect.TreasuryAdminClient, bookID string, hooks cf1ShowcaseHooks, config map[string]any) (string, string, string, error) {
 	t.Helper()
 	encoded, err := json.Marshal(config["x402_calls"])
 	if err != nil {
@@ -2371,8 +3075,113 @@ func runCF7TreasuryCoordinator(t *testing.T, ctx context.Context, coord string, 
 	if beforeFourth.Cmp(afterFourth) != 0 {
 		return "", "", "", errors.New("CF7 fourth pending decision changed the mandate wallet balance")
 	}
+	queued, err := client.ListApprovals(ctx, operatorRequest(&authpb.ListApprovalsRequest{Status: treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_QUEUED, BookId: bookID}))
+	if err != nil {
+		return "", "", "", fmt.Errorf("read queued Treasury over-cap decisions: %w", err)
+	}
+	var pendingApproval *treasurysharedpb.ApprovalRequest
+	for _, candidate := range queued.Msg.GetApprovals() {
+		if candidate.GetAuthorizationId() == call.AuthorizationID {
+			if pendingApproval != nil {
+				return "", "", "", fmt.Errorf("CF7 authorization %s has duplicate queued Treasury decisions", call.AuthorizationID)
+			}
+			pendingApproval = candidate
+		}
+	}
+	if pendingApproval == nil || pendingApproval.GetAmountMinor() != call.AmountMinor {
+		return "", "", "", fmt.Errorf("CF7 exact over-cap authorization is not queued for its configured amount: approvals=%v", queued.Msg.GetApprovals())
+	}
+	var approvalID, approvalSource, approvalEventID string
+	var approvedRecord *treasurysharedpb.ApprovalRequest
+	if hooks.AnswerApprovalInHub != nil {
+		notice, answerErr := hooks.AnswerApprovalInHub(ctx, pendingApproval.GetId())
+		if answerErr != nil || notice == nil || !strings.Contains(notice.GetBody(), "110 USD minor units") || !strings.Contains(notice.GetBody(), pendingApproval.GetId()) {
+			return "", "", "", fmt.Errorf("Notification Hub did not resolve the exact CF7 over-cap approval: notice=%v err=%v", notice, answerErr)
+		}
+		approved, waitErr := waitForCF1ApprovalStatus(ctx, client, bookID, pendingApproval.GetId(), treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_APPROVED)
+		if waitErr != nil || approved.GetAuthorizationId() != call.AuthorizationID || approved.GetAmountMinor() != call.AmountMinor {
+			return "", "", "", fmt.Errorf("Treasury did not retain the exact CF7 approval returned through Notification Hub: approval=%+v err=%v", approved, waitErr)
+		}
+		approvedRecord = approved
+		approvalID, approvalSource = approved.GetId(), "notification-hub"
+		decisionEventPath := filepath.Join(filepath.Dir(coord), "over-cap-approval-decision-event-"+pendingApproval.GetId()+".json")
+		eventData, eventErr := os.ReadFile(decisionEventPath)
+		if eventErr != nil {
+			return "", "", "", fmt.Errorf("read exact CF7 Treasury approval event delivered to Notification Hub: %w", eventErr)
+		}
+		var event domainevents.EventEnvelope
+		if eventErr := protojson.Unmarshal(eventData, &event); eventErr != nil || event.GetEventType() != "treasury.approval.decision_requested.v1" || event.GetEventId() == "" {
+			return "", "", "", fmt.Errorf("CF7 Notification Hub approval event is invalid: event=%+v err=%v", event, eventErr)
+		}
+		approvalEventID = event.GetEventId()
+		writeRehearsalProto(t, filepath.Join(coord, "x402-call-4-treasury-approved.proto.json"), approvedRecord)
+	} else {
+		approved, resolveErr := client.ResolveApproval(ctx, operatorRequest(&authpb.ResolveApprovalRequest{ApprovalId: pendingApproval.GetId(), Resolution: treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_APPROVED}))
+		if resolveErr != nil || approved.Msg.GetApproval().GetStatus() != treasurysharedpb.ApprovalStatus_APPROVAL_STATUS_APPROVED || approved.Msg.GetApproval().GetAuthorizationId() != call.AuthorizationID {
+			return "", "", "", fmt.Errorf("explicit local operator decision did not approve the exact CF7 over-cap request: approval=%v err=%v", approved, resolveErr)
+		}
+		approvedRecord = approved.Msg.GetApproval()
+		approvalID, approvalSource = approvedRecord.GetId(), "treasury-admin"
+		writeRehearsalProto(t, filepath.Join(coord, "x402-call-4-treasury-approved.proto.json"), approvedRecord)
+	}
+	writeRehearsalJSON(t, filepath.Join(coord, "x402-call-4-treasury-approved.json"), map[string]any{
+		"run_id": runIdentity.RunID, "authorization_id": call.AuthorizationID,
+		"settlement_id": call.SettlementID, "approval_id": approvalID, "approval_event_id": approvalEventID,
+		"amount_minor": call.AmountMinor, "decision": "approved", "source": approvalSource,
+	})
+	if err := os.WriteFile(filepath.Join(coord, "x402-call-4-settle-release"), []byte("approved by the local Treasury operator decision route"), 0o600); err != nil {
+		return "", "", "", err
+	}
+	var settled struct {
+		RunID                    string `json:"run_id"`
+		AuthorizationID          string `json:"authorization_id"`
+		SettlementID             string `json:"settlement_id"`
+		TreasuryReceiptID        string `json:"treasury_receipt_id"`
+		AmountMinor              int64  `json:"amount_minor"`
+		Currency                 string `json:"currency"`
+		ApprovalID               string `json:"approval_id"`
+		ApprovalSource           string `json:"approval_source"`
+		SettlementReportAttempts int    `json:"settlement_report_attempts"`
+		RetrySameReceipt         bool   `json:"idempotent_retry_returned_same_receipt"`
+	}
+	if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "x402-call-4-settled.json"), &settled, childDone); err != nil {
+		return "", "", "", fmt.Errorf("wait for approved CF7 over-cap settlement: %w", err)
+	}
+	if settled.RunID != runIdentity.RunID || settled.AuthorizationID != call.AuthorizationID || settled.SettlementID != call.SettlementID || settled.TreasuryReceiptID == "" || settled.AmountMinor != call.AmountMinor || settled.Currency != "USD" || settled.ApprovalID != approvalID || settled.ApprovalSource != approvalSource || settled.SettlementReportAttempts < 2 || !settled.RetrySameReceipt {
+		return "", "", "", fmt.Errorf("CF7 over-cap settlement did not retain its exact approval and retry identity: %+v", settled)
+	}
+	firstResponse, firstErr := readCLISettlement(coord, "cf7-call-4-settlement-report-first.log")
+	if firstErr != nil {
+		firstResponse, firstErr = readCLISettlement(coord, "cf7-call-4-settlement-report-after-report-approval.log")
+	}
+	if firstErr != nil || firstResponse.GetSettlement().GetId() != call.SettlementID || firstResponse.GetSettlement().GetExternalId() != settled.TreasuryReceiptID || firstResponse.GetSettlement().GetOutcome() != settlementpb.ChargeOutcome_CHARGE_OUTCOME_SETTLED {
+		return "", "", "", fmt.Errorf("CF7 first successful over-cap settlement response does not match Treasury evidence: response=%+v err=%v", firstResponse, firstErr)
+	}
+	retryResponse, err := readCLISettlement(coord, "cf7-call-4-settlement-report-retry.log")
+	if err != nil || retryResponse.GetSettlement().GetId() != firstResponse.GetSettlement().GetId() || retryResponse.GetSettlement().GetExternalId() != firstResponse.GetSettlement().GetExternalId() || retryResponse.GetSettlement().GetOutcome() != settlementpb.ChargeOutcome_CHARGE_OUTCOME_SETTLED {
+		return "", "", "", fmt.Errorf("CF7 over-cap retry changed the settled receipt: first=%+v retry=%+v err=%v", firstResponse.GetSettlement(), retryResponse.GetSettlement(), err)
+	}
+	rawReceipt, err := fork.CallRaw(ctx, "eth_getTransactionReceipt", []any{settled.TreasuryReceiptID})
+	if err != nil {
+		return "", "", "", fmt.Errorf("read CF7 approved over-cap chain receipt: %w", err)
+	}
+	receipt, err := validateCF7X402RPCReceipt(rawReceipt, settled.TreasuryReceiptID, buyerAddress, fork.Accounts[2], 110)
+	if err != nil {
+		return "", "", "", fmt.Errorf("validate CF7 exact over-cap native-USDC transfer: %w", err)
+	}
+	afterSettlement := cf1WalletUSDCBalance(t, ctx, fork, buyerAddress)
+	if new(big.Int).Sub(beforeFourth, afterSettlement).Cmp(big.NewInt(1_100_000)) != 0 {
+		return "", "", "", fmt.Errorf("CF7 approved over-cap call did not debit exactly 110 USD minor units once: before=%s after=%s", beforeFourth, afterSettlement)
+	}
+	writeRehearsalJSON(t, filepath.Join(coord, "cf7-call-4-chain-receipt.json"), map[string]any{
+		"run_id": runIdentity.RunID, "authorization_id": call.AuthorizationID, "settlement_id": call.SettlementID,
+		"approval_id": approvalID, "transaction_hash": settled.TreasuryReceiptID,
+		"receipt_status": receipt.Status, "amount_minor": settled.AmountMinor, "currency": settled.Currency,
+		"wallet_atoms_before": beforeFourth.String(), "wallet_atoms_after": afterSettlement.String(),
+		"single_settlement_receipt_after_retry": true,
+	})
 	if err := waitForCF7Artifact(ctx, filepath.Join(coord, "run-result.json")); err != nil {
-		return "", "", "", fmt.Errorf("CF7 ordinary run did not complete: %w", err)
+		return "", "", "", fmt.Errorf("CF7 ordinary run did not complete after the over-cap approval and settlement: %w", err)
 	}
 	if childErr := <-childDone; childErr != nil {
 		data, _ := os.ReadFile(amOutputPath)
@@ -2485,7 +3294,7 @@ func (s *rehearsalServiceCredentialExchange) ExchangeServiceCredential(_ context
 	return connect.NewResponse(&accountsV1.ExchangeServiceCredentialResponse{AccessToken: serviceToken.value, AccessTokenExpiresAt: timestamppb.New(s.expiry), Audience: serviceToken.audience, Subject: serviceToken.subject, Scopes: append([]string(nil), serviceToken.scopes...)}), nil
 }
 
-func startServiceIdentityFixture(t *testing.T) (moneyLedgerToken, notificationToken, agentManagerToken, x402OrderToken, x402ReceiptToken, jwksURL, exchangeURL string, closeServers func()) {
+func startServiceIdentityFixture(t *testing.T) (moneyLedgerToken, notificationToken, agentManagerToken, x402OrderToken, x402ReceiptToken, moneyLedgerOperatorToken, jwksURL, exchangeURL string, closeServers func()) {
 	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -2495,9 +3304,9 @@ func startServiceIdentityFixture(t *testing.T) (moneyLedgerToken, notificationTo
 		require.NoError(t, marshalErr)
 		return base64.RawURLEncoding.EncodeToString(raw)
 	}
-	serviceJWT := func(subject, resource string, scopes []string) string {
+	identityJWT := func(subject, actorKind, resource string, scopes []string) string {
 		unsigned := encode(map[string]string{"alg": "RS256", "typ": "JWT", "kid": "cf2-local"}) + "." + encode(map[string]any{
-			"user_id": subject, "sub": subject, "actor_kind": "service", "scope": scopes,
+			"user_id": subject, "sub": subject, "actor_kind": actorKind, "scope": scopes,
 			"aud": "scenario-authenticator:" + resource, "iss": "scenario-authenticator", "iat": time.Now().Unix(), "exp": expiry.Unix(),
 		})
 		digest := sha256.Sum256([]byte(unsigned))
@@ -2505,7 +3314,11 @@ func startServiceIdentityFixture(t *testing.T) (moneyLedgerToken, notificationTo
 		require.NoError(t, signErr)
 		return unsigned + "." + base64.RawURLEncoding.EncodeToString(signature)
 	}
+	serviceJWT := func(subject, resource string, scopes []string) string {
+		return identityJWT(subject, "service", resource, scopes)
+	}
 	moneyLedgerToken = serviceJWT("treasury-money-ledger", "money-ledger", []string{"money-ledger:write"})
+	moneyLedgerOperatorToken = identityJWT("cf5-local-operator", "human", "money-ledger", []string{"money-ledger:write"})
 	notificationToken = serviceJWT("treasury-notification-hub", "notification-hub", []string{"notification-hub:send"})
 	agentManagerToken = serviceJWT("treasury-agent-manager", "agent-manager", []string{"agent-manager:write"})
 	askReaderToken := serviceJWT("treasury-ask-reader", "notification-hub-ask-reader", []string{"notification-hub:ask-read"})
@@ -2540,7 +3353,7 @@ func startServiceIdentityFixture(t *testing.T) (moneyLedgerToken, notificationTo
 	})
 	exchangeMux.Handle(path, handler)
 	exchangeServer := httptest.NewServer(exchangeMux)
-	return moneyLedgerToken, notificationToken, agentManagerToken, x402OrderToken, x402ReceiptToken, jwksServer.URL + "/jwks", exchangeServer.URL, func() { exchangeServer.Close(); jwksServer.Close() }
+	return moneyLedgerToken, notificationToken, agentManagerToken, x402OrderToken, x402ReceiptToken, moneyLedgerOperatorToken, jwksServer.URL + "/jwks", exchangeServer.URL, func() { exchangeServer.Close(); jwksServer.Close() }
 }
 
 func provisionCF2FacilitatorSigner(t *testing.T, key *ecdsa.PrivateKey) {
@@ -2840,7 +3653,7 @@ func initializeCF2Credentials(t *testing.T, path string) {
 		{"vrooli/treasury", "mandate-signing-key", "cf2-local-mandate-signing-key-only"},
 		{"scenario-authenticator/service-principal/treasury-money-ledger/money-ledger", "credential", "cf2-local-treasury-service-only"},
 		{"scenario-authenticator/service-principal/treasury-agent-manager/agent-manager", "credential", "cf2-local-treasury-agent-manager-only"},
-		{"scenario-authenticator/service-principal/treasury/notification-hub-ask-reader", "credential", "cf2-local-treasury-ask-reader-only"},
+		{"scenario-authenticator/service-principal/treasury-ask-reader/notification-hub-ask-reader", "credential", "cf2-local-treasury-ask-reader-only"},
 		{"scenario-authenticator/service-principal/landing-page-business-suite/treasury-x402-order", "credential", "cf2-local-lpbs-treasury-x402-order-only"},
 		{"scenario-authenticator/service-principal/landing-page-business-suite/treasury-x402-receipt", "credential", "cf2-local-lpbs-treasury-x402-receipt-reader-only"},
 		{"vrooli/landing-page-business-suite", "service-secret", "cf2-local-lpbs-service-only"},
@@ -2962,7 +3775,7 @@ func (b *cf1DecisionEventsBridge) ServeHTTP(w http.ResponseWriter, r *http.Reque
 			return
 		}
 		if err := b.deliverAnswer(r.Context(), answer); err != nil {
-			http.Error(w, "Treasury answer delivery failed", http.StatusBadGateway)
+			http.Error(w, "Treasury answer delivery failed: "+err.Error(), http.StatusBadGateway)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -3140,8 +3953,30 @@ func (b *cf1DecisionEventsBridge) Correlation(approvalID string) map[string]stri
 }
 
 func (b *cf1DecisionEventsBridge) ReconcileAnswer(ctx context.Context, eventsBase, askID string) error {
+	// Notification Hub publishes its durable resolution outbox asynchronously
+	// after Answer returns. Wait for the real Events publication instead of
+	// racing the publisher and mistaking a queued answer for a lost event.
+	deadline := time.NewTimer(10 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	var eventID string
+	for eventID == "" {
+		b.mu.Lock()
+		eventID = b.answerEventByAsk[askID]
+		b.mu.Unlock()
+		if eventID != "" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wait for Notification Hub resolution event for ask %s: %w", askID, ctx.Err())
+		case <-deadline.C:
+			return fmt.Errorf("Notification Hub did not publish a resolution event for ask %s within 10 seconds", askID)
+		case <-ticker.C:
+		}
+	}
 	b.mu.Lock()
-	eventID := b.answerEventByAsk[askID]
 	var subscriptionID int64
 	for _, subscription := range b.subscriptions {
 		if subscription.OwnerScenario == "treasury" && subscription.Name == "treasury-approval-decision-answers" && subscription.Enabled {
@@ -3150,9 +3985,6 @@ func (b *cf1DecisionEventsBridge) ReconcileAnswer(ctx context.Context, eventsBas
 		}
 	}
 	b.mu.Unlock()
-	if eventID == "" {
-		return fmt.Errorf("Vrooli Events fixture has no resolution event for Hub ask %s", askID)
-	}
 	if subscriptionID == 0 {
 		return fmt.Errorf("Vrooli Events fixture has no enabled Treasury answer subscription")
 	}
@@ -3500,7 +4332,7 @@ func prepareTreasuryRehearsal(t *testing.T, repo, runDir string, environment map
 	require.NoError(t, err)
 	for _, entry := range entries {
 		if entry.Name() != "scenarios" {
-			require.NoError(t, os.Symlink(filepath.Join(repo, entry.Name()), filepath.Join(workspace, entry.Name())))
+			require.NoError(t, ensureRehearsalWorkspaceSymlink(filepath.Join(repo, entry.Name()), filepath.Join(workspace, entry.Name())))
 		}
 	}
 	for _, name := range []string{"api", "cli", ".vrooli"} {
@@ -3566,6 +4398,45 @@ func prepareTreasuryRehearsal(t *testing.T, repo, runDir string, environment map
 	return source
 }
 
+func configureMoneyLedgerRehearsalAuth(t *testing.T, source, jwksURL string) {
+	t.Helper()
+	manifest := filepath.Join(source, ".vrooli", "service.json")
+	var config map[string]any
+	readRehearsalJSON(t, manifest, &config)
+	components, ok := config["components"].(map[string]any)
+	require.True(t, ok, "Money Ledger rehearsal source must declare components")
+	api, ok := components["api"].(map[string]any)
+	require.True(t, ok, "Money Ledger rehearsal source must declare its API component")
+	run, ok := api["run"].(map[string]any)
+	require.True(t, ok, "Money Ledger API component must declare run configuration")
+	env, _ := run["env"].(map[string]any)
+	if env == nil {
+		env = make(map[string]any)
+	}
+	env["VROOLI_AUTH_SCENARIO_AUDIENCE"] = "scenario-authenticator:money-ledger"
+	env["VROOLI_AUTH_SCENARIO_JWKS_URL"] = jwksURL
+	run["env"] = env
+	raw, err := json.MarshalIndent(config, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(manifest, raw, 0o600))
+}
+
+func ensureRehearsalWorkspaceSymlink(target, link string) error {
+	if err := os.Symlink(target, link); err == nil {
+		return nil
+	} else if !errors.Is(err, fs.ErrExist) {
+		return err
+	}
+	current, err := os.Readlink(link)
+	if err != nil {
+		return fmt.Errorf("existing workspace path %s is not a symlink to %s: %w", link, target, err)
+	}
+	if filepath.Clean(current) != filepath.Clean(target) {
+		return fmt.Errorf("existing workspace symlink %s targets %s, want %s", link, current, target)
+	}
+	return nil
+}
+
 func prepareLPBSRehearsal(t *testing.T, repo, runDir string, environment map[string]string) string {
 	t.Helper()
 	workspace := filepath.Join(runDir, "lpbs-workspace")
@@ -3575,7 +4446,7 @@ func prepareLPBSRehearsal(t *testing.T, repo, runDir string, environment map[str
 	require.NoError(t, err)
 	for _, entry := range entries {
 		if entry.Name() != "scenarios" {
-			require.NoError(t, os.Symlink(filepath.Join(repo, entry.Name()), filepath.Join(workspace, entry.Name())))
+			require.NoError(t, ensureRehearsalWorkspaceSymlink(filepath.Join(repo, entry.Name()), filepath.Join(workspace, entry.Name())))
 		}
 	}
 	original := filepath.Join(repo, "scenarios", "landing-page-business-suite")

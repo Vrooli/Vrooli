@@ -10,7 +10,6 @@ cannot be verified. That is a deliberate availability cost accepted in
 exchange for never recording an unattributable payment. Every other
 dependency degrades; this one refuses.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

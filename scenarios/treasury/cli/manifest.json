@@ -969,6 +969,25 @@
           }
         },
         {
+          "name": "rotate",
+          "description": "Deprecated one-shot rotation; fails closed. Use prepare-rotation plus Scenario-to-Cloud wallet-recovery rotate so DBM verifies the newest off-host tombstone before the old scalar is deleted.",
+          "flags": [
+            { "name": "id", "required": true },
+            { "name": "network", "required": true },
+            { "name": "successor-id", "required": true }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalletAdminService",
+            "method": "RotateResearchWallet"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
           "name": "receipt-check",
           "description": "Read a Base native-USDC transfer receipt for a Treasury wallet without posting or allocation.",
           "flags": [
@@ -1133,6 +1152,61 @@
           }
         },
         {
+          "name": "prepare-rotation",
+          "description": "Prepare an idempotent signed revocation tombstone and successor while retaining the old wallet scalar for operator DBM publication.",
+          "flags": [
+            { "name": "id", "required": true },
+            { "name": "network", "required": true },
+            { "name": "successor-id", "required": true }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalletAdminService",
+            "method": "PreparePortableResearchWalletRotation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
+          "name": "commit-rotation",
+          "description": "Commit a prepared wallet rotation only after the operator supplies the exact verified newest off-host tombstone receipt.",
+          "flags": [
+            { "name": "id", "required": true },
+            { "name": "network", "required": true },
+            { "name": "successor-id", "required": true },
+            { "name": "address", "required": true },
+            { "name": "destination-id", "required": true },
+            { "name": "destination-backend", "required": true },
+            { "name": "plan-id", "required": true },
+            { "name": "run-id", "required": true },
+            { "name": "target-name", "required": true },
+            { "name": "snapshot-id", "required": true },
+            { "name": "latest-snapshot-id", "required": true },
+            { "name": "tombstone-sha256", "required": true },
+            { "name": "restored-revocation-sha256", "required": true },
+            { "name": "bundle-present", "bool": true, "required": true },
+            { "name": "dbm-verify-passed", "bool": true, "required": true },
+            { "name": "restored-tombstone-matches", "bool": true, "required": true },
+            { "name": "verified-at", "required": true },
+            { "name": "reservation-id", "required": true },
+            { "name": "reservation-expires-at", "required": true },
+            { "name": "dbm-attestation-json", "required": true }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "WalletAdminService",
+            "method": "CommitPortableResearchWalletRotation"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "permissions": ["network:internal"]
+          }
+        },
+        {
           "name": "export-portable-recovery",
           "description": "Create a portable encrypted key-only recovery bundle. Pipe the operator-held secret on stdin; the encrypted bundle is stored privately in Treasury data for DBM transport.",
           "flags": [
@@ -1180,6 +1254,16 @@
               "name": "bundle-file",
               "local_only": true,
               "description": "Optional path to encrypted bundle bytes to upload instead of using the API's DBM-restored private bundle."
+            },
+            {
+              "name": "witness-file",
+              "local_only": true,
+              "description": "Optional path to the authenticated public wallet metadata sidecar paired with --bundle-file."
+            },
+            {
+              "name": "revocation-file",
+              "local_only": true,
+              "description": "Optional signed revocation tombstone paired with the selected off-host snapshot; revoked wallet bundles are refused."
             },
             {
               "name": "secret-stdin",

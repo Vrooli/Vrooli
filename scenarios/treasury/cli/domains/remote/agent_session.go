@@ -21,13 +21,13 @@ import (
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"treasury/cli/internal/envx"
 )
 
 const (
-	sessionPrivateKeyEnv   = "VROOLI_TREASURY_SESSION_PRIVATE_KEY"
-	sessionPublicKeyHeader = "X-Vrooli-Treasury-Session-Public-Key"
-	sessionProofHeader     = "X-Vrooli-Treasury-Session-Proof"
+	sessionPrivateKeyEnv      = "VROOLI_TREASURY_SESSION_PRIVATE_KEY"
+	sessionRotationRequestEnv = "VROOLI_TREASURY_SESSION_ROTATION_REQUEST"
+	sessionPublicKeyHeader    = "X-Vrooli-Treasury-Session-Public-Key"
+	sessionProofHeader        = "X-Vrooli-Treasury-Session-Proof"
 )
 
 // agentSettlementIntent mirrors Treasury's canonical signed JSON contract.
@@ -81,7 +81,10 @@ func treasurySessionRequestHeadersWithDependencies(core *cliapp.ScenarioApp, key
 		case "AgentSpend.GetBudgetHeadroom":
 			operation, target = "treasury.read", "treasury:budget/"+protoStringField(request, "budget_id")
 		case "AgentSpend.ReportOutcome":
-			privateKeyValue := sessionPrivateKeyValue(keySource, dependencies.Environment)
+			privateKeyValue, keyErr := sessionPrivateKeyValue(context.Background(), keySource, dependencies, "")
+			if keyErr != nil {
+				return nil, keyErr
+			}
 			if privateKeyValue == "" {
 				return nil, fmt.Errorf("run-owned Treasury session-key source is unavailable")
 			}
@@ -115,7 +118,10 @@ func treasurySessionRequestHeadersWithDependencies(core *cliapp.ScenarioApp, key
 		if method != "FundingAgentService.GetBudgetWallet" {
 			return headers, nil
 		}
-		privateKeyValue := sessionPrivateKeyValue(keySource, dependencies.Environment)
+		privateKeyValue, keyErr := sessionPrivateKeyValue(context.Background(), keySource, dependencies, "")
+		if keyErr != nil {
+			return nil, keyErr
+		}
 		privateKey := strings.TrimPrefix(privateKeyValue, "0x")
 		if privateKey == "" {
 			return headers, nil // Operator reads and manually provisioned callers remain unchanged.
@@ -136,15 +142,24 @@ func treasurySessionRequestHeadersWithDependencies(core *cliapp.ScenarioApp, key
 	}
 }
 
-func sessionPrivateKeyValue(source func() string, environment envx.Reader) string {
-	value := ""
+func sessionPrivateKeyValue(ctx context.Context, source func() string, dependencies Dependencies, rotationRequest string) (string, error) {
 	if source != nil {
-		value = source()
-	} else if environment != nil {
-		value, _ = environment.LookupEnv(sessionPrivateKeyEnv)
+		return strings.TrimPrefix(strings.TrimSpace(source()), "0x"), nil
 	}
-	value = strings.TrimPrefix(strings.TrimSpace(value), "0x")
-	return value
+	dependencies = dependencies.withDefaults()
+	identityToken, _ := dependencies.Environment.LookupEnv(cliutil.EnvIdentityToken)
+	if strings.TrimSpace(identityToken) != "" {
+		if rotationRequest == "" {
+			rotationRequest, _ = dependencies.Environment.LookupEnv(sessionRotationRequestEnv)
+		}
+		value, err := dependencies.ResolveSessionKey(ctx, identityToken, rotationRequest)
+		if err != nil {
+			return "", fmt.Errorf("resolve current run-owned Treasury session key: %w", err)
+		}
+		return strings.TrimPrefix(strings.TrimSpace(value), "0x"), nil
+	}
+	value, _ := dependencies.Environment.LookupEnv(sessionPrivateKeyEnv)
+	return strings.TrimPrefix(strings.TrimSpace(value), "0x"), nil
 }
 
 func treasuryAgentOperationHeaders(operation, target string) (map[string]string, error) {

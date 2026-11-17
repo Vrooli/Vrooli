@@ -13,7 +13,6 @@ tells `money-ledger` about it. Each of those is a boundary you could delete
 and name what stopped working, which is the test for whether a domain is
 real.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,16 +40,17 @@ func TestServiceRetainsExactReceiptObservationAcrossDatabaseReopen(t *testing.T)
 	path := filepath.Join(t.TempDir(), "receipts.sqlite")
 	db, store := openReceiptStore(t, path)
 	observedAt := time.Date(2026, 11, 2, 18, 0, 0, 0, time.UTC)
+	w := testWallet()
+	w.OperatorIdentity = "operator-a"
 	transfer := Observation{
-		EconomicKey: "eip155:8453/erc20:" + USDCAddress + "/log/0", InclusionRevision: testTx + "/log/0@" + testBlock,
+		EconomicKey: Network + "/" + USDCAddress + "/" + testTx + "/log/0/" + strings.ToLower(w.Address), InclusionRevision: testTx + "/log/0@" + testBlock,
 		WalletID: testWalletID, Network: Network, AssetID: TransferAsset, Decimals: 6,
 		From: testFrom, To: testTo, AtomicAmount: "5901522", TransactionHash: testTx,
 		LogIndex: 0, BlockNumber: 100, BlockHash: testBlock, BlockTime: observedAt.Add(-time.Minute),
 		Finality: "included", FinalizedHeadNumber: 99, FinalizedHeadHash: "0x" + strings.Repeat("c", 64),
 		ProviderID: "fixture-base-rpc", ObservedAt: observedAt,
+		WalletAddressBinding: w.Address,
 	}
-	w := testWallet()
-	w.OperatorIdentity = "operator-a"
 	svc := NewService(store, verificationStub{observations: []Observation{transfer}}, "fixture-base-rpc", func() time.Time { return observedAt })
 	check, err := svc.Verify(ctx, "operator-a", w, testTx)
 	require.NoError(t, err)
@@ -229,6 +231,9 @@ func TestServiceReturnsRetentionFailureInsteadOfUnstoredSuccess(t *testing.T) {
 type failingStore struct{}
 
 func (failingStore) Append(context.Context, Check) error { return errors.New("storage unavailable") }
+func (failingStore) GetCheck(context.Context, string, string, string, string) (Check, error) {
+	return Check{}, errors.New("storage unavailable")
+}
 func (failingStore) List(context.Context, string, string, string, int) ([]Check, error) {
 	return nil, errors.New("storage unavailable")
 }
@@ -264,12 +269,48 @@ func TestEveryRecheckAddsNewEvidenceInsteadOfReplacingPriorInclusion(t *testing.
 func serviceObservation(blockHash, finality string, head uint64) Observation {
 	observedAt := time.Unix(1, 0).UTC()
 	return Observation{
-		EconomicKey: "stable-key", InclusionRevision: testTx + "/log/0@" + blockHash,
+		EconomicKey: Network + "/" + USDCAddress + "/" + testTx + "/log/0/" + strings.ToLower(testWallet().Address), InclusionRevision: testTx + "/log/0@" + blockHash,
 		WalletID: testWalletID, Network: Network, AssetID: TransferAsset, Decimals: USDCDecimals,
 		From: testFrom, To: testTo, AtomicAmount: "1", TransactionHash: testTx,
 		LogIndex: 0, BlockNumber: 100, BlockHash: blockHash, BlockTime: observedAt,
 		Finality: finality, FinalizedHeadNumber: head, FinalizedHeadHash: "0x" + strings.Repeat("e", 64),
 		ProviderID: "fixture-base-rpc", ObservedAt: observedAt,
+		WalletAddressBinding: testWallet().Address,
+	}
+}
+
+func TestServiceRefusesAliasedOrUnboundProviderObservations(t *testing.T) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		name   string
+		mutate func([]Observation) []Observation
+	}{
+		{name: "wrong economic key", mutate: func(values []Observation) []Observation { values[0].EconomicKey = "other-log"; return values }},
+		{name: "wrong wallet binding", mutate: func(values []Observation) []Observation { values[0].WalletAddressBinding = testFrom; return values }},
+		{name: "duplicate log index", mutate: func(values []Observation) []Observation { return append(values, values[0]) }},
+		{name: "too many observations", mutate: func(values []Observation) []Observation {
+			out := make([]Observation, 129, 129)
+			for i := range out {
+				out[i] = values[0]
+				out[i].LogIndex = uint64(i)
+				out[i].EconomicKey = Network + "/" + USDCAddress + "/" + testTx + "/log/" + fmt.Sprint(i) + "/" + strings.ToLower(testWallet().Address)
+				out[i].InclusionRevision = testTx + "/log/" + fmt.Sprint(i) + "@" + testBlock
+			}
+			return out
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, store := openReceiptStore(t, filepath.Join(t.TempDir(), "receipts.sqlite"))
+			w := testWallet()
+			w.OperatorIdentity = "operator-a"
+			observation := serviceObservation(testBlock, "finalized", 100)
+			verifier := verificationStub{observations: tc.mutate([]Observation{observation})}
+			svc := NewService(store, verifier, "fixture-base-rpc", time.Now)
+			check, err := svc.Verify(ctx, "operator-a", w, testTx)
+			require.Error(t, err)
+			require.Equal(t, "invalid_provider_evidence", check.Outcome)
+			require.Empty(t, check.Transfers)
+		})
 	}
 }
 

@@ -38,6 +38,37 @@ func TestVerifyRequestUsesCanonicalPairWhenOperationTokenPresent(t *testing.T) {
 	}
 }
 
+func TestVerifySpendIdentityUsesBaselineOnlyWhenOperationTokenIsAbsent(t *testing.T) {
+	claims := Claims{RunID: "run-1", Subject: "agent:research"}
+	verifier := baselineVerifierFixture{claims: claims}
+	got, err := VerifySpendIdentity(context.Background(), verifier, " run-token ", " ")
+	if err != nil || got.Subject != claims.Subject {
+		t.Fatalf("baseline-only identity verification failed: claims=%+v err=%v", got, err)
+	}
+}
+
+func TestVerifySpendIdentityRequiresDistinctPairVerifier(t *testing.T) {
+	for name, pair := range map[string][2]string{
+		"missing baseline": {"", "operation-token"},
+		"same token":       {"same-token", "same-token"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := VerifySpendIdentity(context.Background(), &pairVerifierFixture{}, pair[0], pair[1]); !errors.Is(err, ErrUnverifiable) {
+				t.Fatalf("expected incomplete identity pair refusal, got %v", err)
+			}
+		})
+	}
+	if _, err := VerifySpendIdentity(context.Background(), singleTokenVerifier{}, "run-token", "operation-token"); !errors.Is(err, ErrUnverifiable) {
+		t.Fatalf("baseline-only verifier silently accepted operation token: %v", err)
+	}
+}
+
+type baselineVerifierFixture struct{ claims Claims }
+
+func (v baselineVerifierFixture) Verify(context.Context, string) (Claims, error) {
+	return v.claims, nil
+}
+
 func TestVerifyRequestNeverFallsBackWhenPairVerifierMissing(t *testing.T) {
 	headers := make(http.Header)
 	headers.Set(HeaderAgentIdentityToken, "run-token")

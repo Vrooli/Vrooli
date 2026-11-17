@@ -10,7 +10,6 @@ and the fail-closed identity rule each had a plausible alternative that was
 considered and rejected for a stated reason. Those reasons are the point of
 this document.
 
-## Purpose Of This Document
 
 Use this document when a choice:
 

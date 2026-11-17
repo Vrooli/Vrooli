@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -148,8 +150,12 @@ func TestDecisionEffectRequiresExactVerifiedHumanAnswerAndAppliesOnce(t *testing
 	if err := service.Admit(ctx, request); err != nil {
 		t.Fatal(err)
 	}
+	raisedAsk, err := store.Get(ctx, decisionAskID(request.ID))
+	if err != nil || raisedAsk == nil || raisedAsk.EventID == "" {
+		t.Fatalf("raised decision event identity missing: ask=%+v err=%v", raisedAsk, err)
+	}
 	resolution := operatordecision.DecisionResolution{
-		AskID: decisionAskID(request.ID), State: operatordecision.StateAnswered, Answer: "approve",
+		AskID: "notification-hub-uuid", RequesterRef: raisedAsk.EventID, State: operatordecision.StateAnswered, Answer: "approve",
 		AnsweredBy: "operator:owner", AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "operator-session",
 		ResolvedAt: now.Add(time.Minute).Format(time.RFC3339Nano), Correlation: map[string]string{
 			"approval_id": request.ID, "authorization_id": request.AuthorizationID, "book_id": request.BookID,
@@ -162,13 +168,35 @@ func TestDecisionEffectRequiresExactVerifiedHumanAnswerAndAppliesOnce(t *testing
 	if _, err := flow.Apply(ctx, wrong); err != nil || controller.approved != 0 {
 		t.Fatalf("mismatched decision changed the hold: calls=%d err=%v", controller.approved, err)
 	}
+	foreignAsk := resolution
+	foreignAsk.RequesterRef = "another-source-event"
+	if _, err := flow.Apply(ctx, foreignAsk); err != nil || controller.approved != 0 {
+		t.Fatalf("foreign Hub ask event changed the hold: calls=%d err=%v", controller.approved, err)
+	}
 	nonHuman := resolution
 	nonHuman.AnsweredByIdentityKind = "agent"
 	if _, err := flow.Apply(ctx, nonHuman); err != nil || controller.approved != 0 {
 		t.Fatalf("non-human decision changed the hold: calls=%d err=%v", controller.approved, err)
 	}
-	if handled, err := flow.Apply(ctx, resolution); err != nil || !handled {
-		t.Fatalf("verified human decision was not applied: handled=%v err=%v", handled, err)
+	var wg sync.WaitGroup
+	results := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			handled, applyErr := flow.Apply(ctx, resolution)
+			if applyErr != nil || !handled {
+				results <- fmt.Errorf("concurrent verified human decision: handled=%v err=%w", handled, applyErr)
+			}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	for applyErr := range results {
+		t.Fatal(applyErr)
+	}
+	if controller.approved != 1 {
+		t.Fatalf("concurrent Hub deliveries reapplied approval %d times", controller.approved)
 	}
 	if handled, err := flow.Apply(ctx, resolution); err != nil || !handled || controller.approved != 1 {
 		t.Fatalf("duplicate Hub delivery reapplied approval: handled=%v calls=%d err=%v", handled, controller.approved, err)
@@ -226,8 +254,12 @@ func TestDecisionReplayRepairsHubReadbackAfterApprovalCommit(t *testing.T) {
 	if err := service.Admit(ctx, admission); err != nil {
 		t.Fatal(err)
 	}
+	raisedAsk, err := store.Get(ctx, decisionAskID(admission.ID))
+	if err != nil || raisedAsk == nil || raisedAsk.EventID == "" {
+		t.Fatalf("raised decision event identity missing: ask=%+v err=%v", raisedAsk, err)
+	}
 	resolution := operatordecision.DecisionResolution{
-		AskID: decisionAskID(admission.ID), State: operatordecision.StateAnswered, Answer: "approve",
+		AskID: "notification-hub-uuid", RequesterRef: raisedAsk.EventID, State: operatordecision.StateAnswered, Answer: "approve",
 		AnsweredBy: "operator:owner", AnsweredByIdentityKind: "verified_human", AnsweredByIdentitySource: "operator-session",
 		ResolvedAt: now.Add(time.Minute).Format(time.RFC3339Nano), Correlation: map[string]string{
 			"approval_id": admission.ID, "authorization_id": admission.AuthorizationID, "book_id": admission.BookID,
@@ -255,7 +287,7 @@ func TestDecisionReplayRepairsHubReadbackAfterApprovalCommit(t *testing.T) {
 	if controller.approved != 1 {
 		t.Fatalf("exact replay repeated approval effect: calls=%d", controller.approved)
 	}
-	ask, err := store.Get(ctx, resolution.AskID)
+	ask, err := store.Get(ctx, decisionAskID(admission.ID))
 	if err != nil || ask == nil || ask.State != resolution.State || ask.ResolvedBy != resolution.AnsweredBy {
 		t.Fatalf("Hub ask readback was not repaired: ask=%+v err=%v", ask, err)
 	}
