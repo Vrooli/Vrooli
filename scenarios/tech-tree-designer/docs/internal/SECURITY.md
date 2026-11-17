@@ -1,6 +1,5 @@
 # Security — Tech Tree Designer
 
-## Purpose Of This Document
 
 Define target safety boundaries for repository-wide drafts and application. These controls require implementation evidence; their specification does not assert that the current proto materializer provides them.
 

@@ -1,6 +1,5 @@
 # Data — Tech Tree Designer
 
-## Purpose Of This Document
 
 Separate current storage from the target revision/retention contract. The target is a design specification, not a claim that generic proposal tables already exist.
 

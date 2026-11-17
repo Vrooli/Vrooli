@@ -1,6 +1,5 @@
 # Integrations — Tech Tree Designer
 
-## Purpose Of This Document
 
 Assign ownership before implementing adapters. Listed target integrations are not claims of installed or qualified dependencies.
 

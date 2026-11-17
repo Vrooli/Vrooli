@@ -46,6 +46,7 @@ const FORWARDED_HEADERS = [
 ]
 const MAX_BODY_BYTES = 64 * 1024
 const MAX_RESPONSE_BYTES = 1024 * 1024
+const MAX_TIMEOUT_MS = 60_000
 
 class UpstreamResponseTooLargeError extends Error {}
 
@@ -88,9 +89,14 @@ function hubBaseResolver(options: AppNotificationsOptions, lookup?: HubPortLooku
 }
 
 async function readBody(req: Request): Promise<Buffer> {
-  if (Buffer.isBuffer(req.body)) return req.body
-  if (req.body && typeof req.body === 'object' && Object.keys(req.body as object).length > 0) {
-    return Buffer.from(JSON.stringify(req.body))
+  if (Buffer.isBuffer(req.body)) {
+    if (req.body.length > MAX_BODY_BYTES) throw new Error('request body is too large')
+    return req.body
+  }
+  if (typeof req.body !== 'undefined') {
+    const body = Buffer.from(JSON.stringify(req.body))
+    if (body.length > MAX_BODY_BYTES) throw new Error('request body is too large')
+    return body
   }
   const chunks: Buffer[] = []
   let size = 0
@@ -136,7 +142,7 @@ async function readUpstreamBody(res: globalThis.Response): Promise<Buffer> {
 export function createAppNotificationsRouter(options: AppNotificationsOptions & { scenario: string }, portLookup?: HubPortLookup): Router {
   const router = Router()
   const resolveHub = hubBaseResolver(options, portLookup)
-  const timeoutMs = options.timeoutMs ?? 15_000
+  const timeoutMs = Math.min(Math.max(options.timeoutMs ?? 15_000, 1), MAX_TIMEOUT_MS)
   const scenario = options.scenario
 
   async function forward(req: Request, res: Response, targetPath: string, body?: Buffer) {
@@ -216,9 +222,20 @@ export function createAppNotificationsRouter(options: AppNotificationsOptions & 
 
   router.put('/preferences', async (req, res) => {
     let parsed: Record<string, unknown>
+    let raw: string
     try {
-      const raw = (await readBody(req)).toString('utf-8')
-      parsed = JSON.parse(raw || '{}') as Record<string, unknown>
+      raw = (await readBody(req)).toString('utf-8')
+    } catch {
+      res.status(413).json({ code: 'invalid_argument', message: 'Preference body is too large' })
+      return
+    }
+    try {
+      const value: unknown = JSON.parse(raw || '{}')
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        res.status(400).json({ code: 'invalid_argument', message: 'Preference must be a JSON object' })
+        return
+      }
+      parsed = value as Record<string, unknown>
     } catch {
       res.status(400).json({ code: 'invalid_argument', message: 'Preference must be JSON' })
       return

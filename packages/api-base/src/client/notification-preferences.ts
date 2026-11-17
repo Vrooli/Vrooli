@@ -46,13 +46,14 @@ export interface NotificationCatalog {
 export type NotificationRequest = (path: string, init?: RequestInit) => Promise<Response>;
 
 export interface NotificationPreferencesClientOptions {
-  /** Maximum wall time for a request and its response body. Defaults to 15 seconds. */
+  /** Maximum wall time for a request and response body. Defaults to 15 seconds and is capped at 60 seconds. */
   timeoutMs?: number;
   /** Maximum bytes accepted from any response. Defaults to 1 MiB. */
   maxResponseBytes?: number;
 }
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+const MAX_TIMEOUT_MS = 60_000;
 const DEFAULT_MAX_RESPONSE_BYTES = 1024 * 1024;
 
 export class NotificationPreferencesError extends Error {
@@ -246,7 +247,7 @@ export function createNotificationPreferencesClient(
   request: NotificationRequest,
   options: NotificationPreferencesClientOptions = {},
 ) {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = Math.min(options.timeoutMs ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
   const maxResponseBytes = options.maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) throw new Error("Notification timeout must be positive");
   if (!Number.isSafeInteger(maxResponseBytes) || maxResponseBytes <= 0) throw new Error("Notification response limit must be a positive integer");

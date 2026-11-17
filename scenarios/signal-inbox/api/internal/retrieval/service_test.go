@@ -198,4 +198,6 @@ func (f *recordingInference) Embed(_ context.Context, _ string, task inference.E
 	f.tasks = append(f.tasks, task)
 	return []float64{0.1, 0.2}, nil
 }
-func (*recordingInference) Classify(context.Context, string) (string, error) { return "", nil }
+func (*recordingInference) Classify(context.Context, string, []inference.ClassificationOption) (inference.ClassificationResult, error) {
+	return inference.ClassificationResult{}, nil
+}

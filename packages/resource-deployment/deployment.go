@@ -18,16 +18,16 @@ import (
 )
 
 const (
-	deploymentOSLinux              = "linux"
+	deploymentOSLinux              = OSLinux
 	deploymentOSMac                = "mac"
-	deploymentOSMacOS              = "macos"
+	deploymentOSMacOS              = OSMacOS
 	deploymentOSDarwin             = "darwin"
 	deploymentOSWin                = "win"
-	deploymentOSWindows            = "windows"
+	deploymentOSWindows            = OSWindows
 	deploymentVerificationHostTool = "host-tool"
 	deploymentLayoutDir            = "dir"
 	deploymentVerificationChecksum = "checksum"
-	deploymentTargetUnsupported    = "unsupported"
+	TargetUnsupported              = "unsupported"
 	dataAcquisitionEager           = "eager"
 	dataAcquisitionOnDemand        = "on-demand"
 	deploymentLayoutFile           = "file"
@@ -860,7 +860,7 @@ func ParsePlatform(value string) (Platform, error) {
 		return Platform{}, fmt.Errorf("unsupported desktop OS %q", parts[0])
 	}
 	arch := strings.TrimSpace(parts[1])
-	if arch != "amd64" && arch != "arm64" {
+	if arch != ArchAMD64 && arch != ArchARM64 {
 		return Platform{}, fmt.Errorf("unsupported desktop architecture %q", arch)
 	}
 	return Platform{OS: os, Arch: arch}, nil
@@ -880,9 +880,9 @@ func (p Platform) String() string { return p.OS + "-" + p.Arch }
 func canonicalOS(platform string) (string, bool) {
 	switch platform {
 	case deploymentOSLinux:
-		return "linux", true
+		return OSLinux, true
 	case deploymentOSMac, deploymentOSMacOS, deploymentOSDarwin:
-		return "macos", true
+		return OSMacOS, true
 	case deploymentOSWin, deploymentOSWindows:
 		return deploymentOSWindows, true
 	default:
@@ -907,7 +907,7 @@ func (d Deployment) Target(profile, platform, arch string) (Target, bool) {
 	case deploymentOSWin, deploymentOSWindows:
 		target = p.Windows
 	}
-	if target == nil || (target.Support != deploymentTargetUnsupported && strings.TrimSpace(arch) != "" && !slices.Contains(target.Architectures, arch)) {
+	if target == nil || (target.Support != TargetUnsupported && strings.TrimSpace(arch) != "" && !slices.Contains(target.Architectures, arch)) {
 		return Target{}, false
 	}
 	return *target, true

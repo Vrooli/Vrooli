@@ -460,7 +460,7 @@ export interface AppNotificationsOptions {
   manifestPath?: string
   /** Notification Hub API base URL; resolved through the lifecycle when omitted */
   hubBaseUrl?: string
-  /** Timeout for hub calls in ms (default 15000) */
+  /** Timeout for Hub calls in ms (default 15000, capped at 60000) */
   timeoutMs?: number
 }
 

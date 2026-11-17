@@ -2,8 +2,6 @@ package categories
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"signal-inbox/internal/inference"
@@ -124,25 +122,39 @@ func (s *Service) Enrich(ctx context.Context, signal signals.Signal) error {
 	if err != nil {
 		return err
 	}
-	if len(nonReserved(categories)) == 0 {
+	active := nonReserved(categories)
+	if len(active) == 0 {
 		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "no operator-defined categories are available")
+	}
+	if len(active) == 1 {
+		_, err := s.repo.AppendClassification(ctx, Classification{
+			SignalID: signal.ID, ProposedCategoryID: active[0].ID, ProposedConfidence: 1,
+			Model: "deterministic.single_category", State: StateProposed, CreatedAt: s.clock.Now().UTC(),
+		})
+		return err
+	}
+	if len(active) > 255 {
+		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "too many active categories for bounded decision")
 	}
 	if s.inference == nil {
 		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "ai-gateway classification is unavailable")
 	}
-	output, err := s.inference.Classify(ctx, classificationPrompt(signal.ExtractedContent, categories))
+	options := make([]inference.ClassificationOption, 0, len(active))
+	for _, category := range active {
+		description := strings.TrimSpace(category.Name)
+		if strings.TrimSpace(category.Description) != "" {
+			description += ": " + strings.TrimSpace(category.Description)
+		}
+		options = append(options, inference.ClassificationOption{ID: category.ID, Description: description})
+	}
+	result, err := s.inference.Classify(ctx, signal.ExtractedContent, options)
 	if err != nil {
 		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "ai-gateway classification failed: "+err.Error())
 	}
-	proposal, err := parseProposal(output)
-	if err != nil || !isActiveCategory(categories, proposal.CategoryID) {
-		reason := "ai-gateway returned an invalid category proposal"
-		if err != nil {
-			reason += ": " + err.Error()
-		}
-		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, reason)
+	if strings.TrimSpace(result.CategoryID) == "" || result.Confidence < 0 || result.Confidence > 1 || !isActiveCategory(active, result.CategoryID) {
+		return s.recordUncategorized(ctx, signal.ID, uncategorized.ID, "ai-gateway returned an invalid category proposal")
 	}
-	_, err = s.repo.AppendClassification(ctx, Classification{SignalID: signal.ID, ProposedCategoryID: proposal.CategoryID, ProposedConfidence: proposal.Confidence, Model: proposal.Model, State: StateProposed, CreatedAt: s.clock.Now().UTC()})
+	_, err = s.repo.AppendClassification(ctx, Classification{SignalID: signal.ID, ProposedCategoryID: result.CategoryID, ProposedConfidence: result.Confidence, Model: result.Model, State: StateProposed, CreatedAt: s.clock.Now().UTC()})
 	return err
 }
 
@@ -152,34 +164,6 @@ func (s *Service) recordUncategorized(ctx context.Context, signalID, categoryID,
 		return err
 	}
 	return s.repo.EnqueueReclassification(ctx, signalID, reason, s.clock.Now().UTC())
-}
-
-type proposal struct {
-	CategoryID string  `json:"category_id"`
-	Confidence float64 `json:"confidence"`
-	Model      string  `json:"model"`
-}
-
-func parseProposal(output string) (proposal, error) {
-	var parsed proposal
-	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
-		return proposal{}, fmt.Errorf("decode classification proposal: %w", err)
-	}
-	if strings.TrimSpace(parsed.CategoryID) == "" || parsed.Confidence < 0 || parsed.Confidence > 1 {
-		return proposal{}, fmt.Errorf("proposal must name a category id and confidence in [0,1]")
-	}
-	return parsed, nil
-}
-
-func classificationPrompt(content string, categories []Category) string {
-	definitions := make([]string, 0, len(categories))
-	for _, category := range categories {
-		if category.Reserved || !category.Active() {
-			continue
-		}
-		definitions = append(definitions, fmt.Sprintf("- id=%q description=%q", category.ID, category.Description))
-	}
-	return "Classify the signal into exactly one supplied category. Return JSON only: {\"category_id\": string, \"confidence\": number 0..1, \"model\": string}.\nCategories:\n" + strings.Join(definitions, "\n") + "\nSignal:\n" + content
 }
 
 func nonReserved(categories []Category) []Category {

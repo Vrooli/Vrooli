@@ -183,9 +183,9 @@ Notes on the message stream:
   Detect breakage explicitly (zero messages decoded) and fall back.
 - **Cloudflare.** Raw HTML fetch worked with a browser UA; the JSON API did
   not. Expect to need realistic headers, and possibly a headless browser
-  (`browser-automation-studio`'s CaptureService with `inline_dom=true`) as the
-  robust fallback that simply renders the page and reads the returned DOM,
-  sidestepping the encoding entirely.
+  (`git-control-tower ux-capture --url ...`) as the robust fallback. Consume
+  the `ux-capture.v1` frozen-page artifact only when its redaction report is
+  complete and L1 is present; captures of external pages stay ephemeral.
 - **Per-provider.** Each provider encodes differently. ChatGPT = turbo-stream.
   Claude/Gemini/Grok share pages will need their own probes. Structure the
   feature as one interface with per-provider adapters.
@@ -204,15 +204,15 @@ Suggested shape, satisfying `SIG-P1-004`:
   `fetch(url) -> rawHtml|dom`,
   `extract(raw) -> { title, model, createdAt, turns[], citedUrls[] }`.
 - **ChatGPT adapter:** turbo-stream decode (this doc), with a
-  `browser-automation-studio` capture (`inline_dom`) render fallback.
-- **Generic fallback adapter:** BAS capture render plus DOM scrape for providers
-  not yet reverse-engineered.
+  `ux-capture.v1` public-page bundle as the render fallback.
+- **Generic fallback adapter:** use the shared public-page bundle for public
+  providers not yet reverse-engineered; do not capture authenticated accounts.
 - Emit the extracted transcript as the signal's extracted content, so a saved
   conversation is classified, embedded, and retrievable like any other signal —
   not stored as opaque text.
-- **Add a regression fixture**: save one real share-page HTML snapshot and
-  assert the decoder still yields N turns, so a silent upstream format change
-  fails a test instead of silently importing blanks. This fixture is the
+- **Add a regression fixture**: save a synthetic, redacted share-page HTML
+  fixture with no real user content and assert the decoder still yields N
+  turns, so a silent upstream format change fails instead of importing blanks. This fixture is the
   mechanical enforcement of D-019 for this extractor specifically.
 
 ## Cross-References

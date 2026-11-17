@@ -34,12 +34,18 @@ func withSharedCLICoreFreshnessInput(inputs []string) []string {
 }
 
 // FreshnessSpec defines the exact source contract used to compute a CLI
-// freshness fingerprint.
+// freshness fingerprint. Directory-discovered Go sources with embedded assets
+// that conflict with exclusions are classified using the current toolchain
+// environment. Callers building with a different target environment must pass
+// compiler-discovered source files as explicit inputs, so those sources remain
+// authoritative regardless of the ambient environment.
 type FreshnessSpec struct {
 	SourceRoot  string
 	ContextRoot string
 	Inputs      []string
-	SkipFiles   []string
+	// literalInputs holds discovered compiler assets without glob interpretation.
+	literalInputs []string
+	SkipFiles     []string
 	// SkipSuffixes excludes files whose slash-path ends with any listed suffix
 	// from both the manifest and legacy fingerprint engines (e.g. "_test.go" so
 	// test edits never mark a compiled artifact stale).

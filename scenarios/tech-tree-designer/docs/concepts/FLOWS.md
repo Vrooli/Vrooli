@@ -1,6 +1,5 @@
 # Flows — Tech Tree Designer
 
-## Purpose Of This Document
 
 Describe existing proto planning and the target documentation-first workflow without confusing draft, approval, application and proof.
 

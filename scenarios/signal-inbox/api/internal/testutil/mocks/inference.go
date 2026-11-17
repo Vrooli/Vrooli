@@ -9,12 +9,14 @@ import (
 
 // FakeInference supplies deterministic embeddings and classifications to domain tests.
 type FakeInference struct {
-	EmbedOut      []float64
-	EmbedErr      error
-	ClassifyOut   string
-	ClassifyErr   error
-	EmbedCalls    atomic.Int64
-	ClassifyCalls atomic.Int64
+	EmbedOut        []float64
+	EmbedErr        error
+	ClassifyOut     inference.ClassificationResult
+	ClassifyInput   string
+	ClassifyChoices []inference.ClassificationOption
+	ClassifyErr     error
+	EmbedCalls      atomic.Int64
+	ClassifyCalls   atomic.Int64
 }
 
 func (f *FakeInference) Embed(_ context.Context, _ string, _ inference.EmbeddingTask) ([]float64, error) {
@@ -22,8 +24,10 @@ func (f *FakeInference) Embed(_ context.Context, _ string, _ inference.Embedding
 	return f.EmbedOut, f.EmbedErr
 }
 
-func (f *FakeInference) Classify(context.Context, string) (string, error) {
+func (f *FakeInference) Classify(_ context.Context, input string, options []inference.ClassificationOption) (inference.ClassificationResult, error) {
 	f.ClassifyCalls.Add(1)
+	f.ClassifyInput = input
+	f.ClassifyChoices = append([]inference.ClassificationOption(nil), options...)
 	return f.ClassifyOut, f.ClassifyErr
 }
 

@@ -1,6 +1,5 @@
 # Quick Start
 
-## Purpose Of This Document
 
 Get the regenerated Tech Tree Designer running through the Vrooli lifecycle.
 

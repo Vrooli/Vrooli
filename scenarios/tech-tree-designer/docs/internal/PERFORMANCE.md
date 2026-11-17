@@ -1,6 +1,5 @@
 # Performance — Tech Tree Designer
 
-## Purpose Of This Document
 
 Define qualification for OT-P0-008. Repository size must not make routine design depend on whole-fleet scans, eager file copies or rendering every node.
 

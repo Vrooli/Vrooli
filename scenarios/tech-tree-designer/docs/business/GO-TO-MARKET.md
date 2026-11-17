@@ -1,6 +1,5 @@
 # Go To Market — Tech Tree Designer
 
-## Purpose Of This Document
 
 Qualify internal value before making external product claims.
 

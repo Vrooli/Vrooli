@@ -28,6 +28,150 @@ func TestResolveFreshnessInputFilesReusesCanonicalExclusions(t *testing.T) {
 	}
 }
 
+func TestDirectoryAndGlobTrackTestNamedEmbeddedAssets(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "main.go"), "package main\nimport _ \"embed\"\n//go:embed *_test.go\nvar assets string\n")
+	asset := filepath.Join(root, "asset_test.go")
+	for _, input := range []string{".", "**"} {
+		t.Run(input, func(t *testing.T) {
+			mustWriteFile(t, asset, "one")
+			spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{input}}
+			manifest, err := ComputeFreshnessManifest(spec, "go", nil, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustWriteFile(t, asset, "two changed")
+			v, err := EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("edit: %+v %v", v, err)
+			}
+			if err := os.Remove(asset); err != nil {
+				t.Fatal(err)
+			}
+			v, err = EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("removal: %+v %v", v, err)
+			}
+			manifest, err = ComputeFreshnessManifest(spec, "go", nil, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustWriteFile(t, asset, "added")
+			v, err = EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("addition: %+v %v", v, err)
+			}
+		})
+	}
+}
+
+func TestExplicitCompilerInputsTrackOutputLikeAssets(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"asset.log", "asset.test", "asset.tmp", "build.meta", "asset.bin"} {
+		t.Run(name, func(t *testing.T) {
+			file := filepath.Join(root, name)
+			mustWriteFile(t, file, "\x7fELFembedded")
+			spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{name}}
+			manifest, err := ComputeFreshnessManifest(spec, "go", nil, 1)
+			if err != nil || len(manifest.Files) != 1 {
+				t.Fatalf("manifest: %+v %v", manifest.Files, err)
+			}
+			mustWriteFile(t, file, "\x7fELFchanged")
+			v, err := EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("edit: %+v %v", v, err)
+			}
+			if err := os.Remove(file); err != nil {
+				t.Fatal(err)
+			}
+			v, err = EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("removal: %+v %v", v, err)
+			}
+		})
+	}
+}
+
+func TestGenericGoInputsDiscoverOutputLikeEmbeddedAssets(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "main.go"), "package main\nimport \"embed\"\n//go:embed assets/*\nvar assets embed.FS\n")
+	asset := filepath.Join(root, "assets", "data[1].log")
+	mustWriteFile(t, asset, "\x7fELFembedded")
+	for _, input := range []string{".", "**"} {
+		t.Run(input, func(t *testing.T) {
+			mustWriteFile(t, asset, "\x7fELFembedded")
+			spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{input}}
+			manifest, err := ComputeFreshnessManifest(spec, "go", nil, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustWriteFile(t, asset, "\x7fELFchanged")
+			v, err := EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("embedded edit: %+v %v", v, err)
+			}
+			if err := os.Remove(asset); err != nil {
+				t.Fatal(err)
+			}
+			v, err = EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("embedded removal: %+v %v", v, err)
+			}
+			manifest, err = ComputeFreshnessManifest(spec, "go", nil, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mustWriteFile(t, asset, "added")
+			v, err = EvaluateFreshness(spec, manifest, nil)
+			if err != nil || !v.Stale {
+				t.Fatalf("embedded addition: %+v %v", v, err)
+			}
+		})
+	}
+}
+
+func TestEmbeddedInputConflictingWithExclusionFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "main.go"), "package main\nimport _ \"embed\"\n//go:embed assets/tool\nvar data string\n")
+	mustWriteFile(t, filepath.Join(root, "assets", "tool"), "embedded")
+	spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{"."}, SkipFiles: []string{"tool"}}
+	if _, err := ComputeFreshnessManifest(spec, "go", nil, 1); err == nil {
+		t.Fatal("excluded embedded asset must fail rather than stamp an incomplete manifest")
+	}
+}
+
+func TestEmbedDirectoryDoesNotIncludeHiddenOrNestedModules(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "main.go"), "package main\nimport \"embed\"\n//go:embed assets\nvar data embed.FS\n")
+	mustWriteFile(t, filepath.Join(root, "assets", "visible.txt"), "included")
+	mustWriteFile(t, filepath.Join(root, "assets", ".hidden_test.go"), "excluded")
+	mustWriteFile(t, filepath.Join(root, "assets", "nested", "go.mod"), "module nested\n")
+	mustWriteFile(t, filepath.Join(root, "assets", "nested", "other_test.go"), "excluded")
+	spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{"."}, SkipSuffixes: []string{"_test.go"}}
+	if _, err := ComputeFreshnessManifest(spec, "go", nil, 1); err != nil {
+		t.Fatalf("non-embedded files must not conflict with exclusions: %v", err)
+	}
+}
+
+func TestFreshnessDetectsFirstFileInEmptyNestedDirectory(t *testing.T) {
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "main.go"), "package main\n")
+	dir := filepath.Join(root, "assets", "empty")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spec := FreshnessSpec{SourceRoot: root, ContextRoot: root, Inputs: []string{"."}}
+	manifest, err := ComputeFreshnessManifest(spec, "go", nil, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustWriteFile(t, filepath.Join(dir, "new_test.go"), "embedded")
+	v, err := EvaluateFreshness(spec, manifest, nil)
+	if err != nil || !v.Stale {
+		t.Fatalf("addition: %+v %v", v, err)
+	}
+}
+
 func TestSourcePackageDirsKeepsNestedCoveragePackages(t *testing.T) {
 	root := t.TempDir()
 	mustWriteFile(t, filepath.Join(root, ".vrooli", "repo-contract.json"), "{}\n")
@@ -343,9 +487,7 @@ func mustWriteFile(t *testing.T, path, content string) {
 	}
 }
 
-// A test-file edit must not stale any CLI: the Go toolchain never compiles
-// _test.go files into the binary, so counting them made every CLI that imports
-// the edited package rebuild on its next call.
+// An explicit suffix exclusion opts out of tracking test-named files.
 func TestTestFileEditsDoNotChangeTheFingerprint(t *testing.T) {
 	root := t.TempDir()
 	write := func(rel, body string) {
@@ -360,7 +502,7 @@ func TestTestFileEditsDoNotChangeTheFingerprint(t *testing.T) {
 	}
 	write("main.go", "package main\n")
 	write("main_test.go", "package main\n")
-	spec := FreshnessSpec{SourceRoot: root}
+	spec := FreshnessSpec{SourceRoot: root, SkipSuffixes: []string{"_test.go"}}
 	before, err := ComputeFreshnessFingerprint(spec)
 	if err != nil {
 		t.Fatal(err)

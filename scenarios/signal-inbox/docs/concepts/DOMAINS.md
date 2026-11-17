@@ -7,7 +7,6 @@ domain is added, renamed, split, merged, or removed.
 Signal Inbox is organized around the six product domains in the inventory
 below. `health` is an operational support surface, not a product boundary.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

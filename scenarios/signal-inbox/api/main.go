@@ -27,7 +27,7 @@ import (
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	routingconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing/routing_v1connect"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	_ "modernc.org/sqlite"
 
 	categoriesH "signal-inbox/handlers/categories"
@@ -80,7 +80,7 @@ func main() {
 	if gatewayURL, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "ai-gateway"); resolveErr != nil {
 		slog.Warn("ai-gateway unavailable; capture will record uncategorized signals", "error", resolveErr)
 	} else {
-		inferenceClient = inference.NewGatewayClient(routingconnect.NewRoutingServiceClient(http.DefaultClient, gatewayURL))
+		inferenceClient = inference.NewGatewayClient(inferenceconnect.NewInferenceServiceClient(http.DefaultClient, gatewayURL))
 	}
 	categoryService := categories.NewService(categories.NewSQLiteRepository(db), schedule.System(), inferenceClient)
 	triageService := triage.NewService(triage.NewSQLiteRepository(db), schedule.System())

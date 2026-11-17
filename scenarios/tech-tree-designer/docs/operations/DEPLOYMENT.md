@@ -1,6 +1,5 @@
 # Deployment — Tech Tree Designer
 
-## Purpose Of This Document
 
 Distinguish local implementation from qualified support for repository-wide design.
 

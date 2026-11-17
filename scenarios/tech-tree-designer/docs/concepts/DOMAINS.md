@@ -2,7 +2,6 @@
 
 This document is the domain map for the regenerated Tech Tree Designer. The template notes domain has been removed; graph, planning, and ontology are implemented as product domains.
 
-## Purpose Of This Document
 
 Use this document to answer which bounded context owns each capability, data set, proto surface, CLI command, UI feature, and test seam.
 

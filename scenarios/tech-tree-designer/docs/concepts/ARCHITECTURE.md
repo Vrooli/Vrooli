@@ -2,7 +2,6 @@
 
 Tech Tree Designer is Vrooli's ecosystem design environment. The current scenario-centric graph and proto planner use Connect, SQLite, generated proto contracts and domain-owned code. The September 2026 target extends those seams to repository-wide design; it does not claim that extension is implemented.
 
-## Purpose Of This Document
 
 This document records the intended system shape for the regenerated scenario. Product capability boundaries live in [`DOMAINS.md`](DOMAINS.md); detailed data retention will evolve in [`DATA.md`](DATA.md); durable seams live in [`../internal/SEAMS.md`](../internal/SEAMS.md).
 

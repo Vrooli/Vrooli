@@ -90,6 +90,8 @@
     "./AppShell/2.1.3": {"types": "./dist/exports/AppShell/2.1.3.d.ts", "import": "./dist/exports/AppShell/2.1.3.js"},
     "./AppShell/2.1.4": {"types": "./dist/exports/AppShell/2.1.4.d.ts", "import": "./dist/exports/AppShell/2.1.4.js"},
     "./AppShell/2.1.5": {"types": "./dist/exports/AppShell/2.1.5.d.ts", "import": "./dist/exports/AppShell/2.1.5.js"},
+    "./AppShell/2.1.6": {"types": "./dist/exports/AppShell/2.1.6.d.ts", "import": "./dist/exports/AppShell/2.1.6.js"},
+    "./AppShell/2.1.7": {"types": "./dist/exports/AppShell/2.1.7.d.ts", "import": "./dist/exports/AppShell/2.1.7.js"},
     "./ApprovalPrompt": {"types": "./dist/exports/ApprovalPrompt.d.ts", "import": "./dist/exports/ApprovalPrompt.js"},
     "./ApprovalPrompt/1": {"types": "./dist/exports/ApprovalPrompt/1.d.ts", "import": "./dist/exports/ApprovalPrompt/1.js"},
     "./ApprovalPrompt/1.2.0": {"types": "./dist/exports/ApprovalPrompt/1.2.0.d.ts", "import": "./dist/exports/ApprovalPrompt/1.2.0.js"},

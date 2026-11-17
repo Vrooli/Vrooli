@@ -2,10 +2,14 @@ package inference
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"connectrpc.com/connect"
-	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/routing"
+	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 func TestEmbedderUsesDistinctGatewayTasks(t *testing.T) {
@@ -22,14 +26,76 @@ func TestEmbedderUsesDistinctGatewayTasks(t *testing.T) {
 	}
 }
 
-func TestGatewayClientEmbedUsesDocumentPrefix(t *testing.T) {
-	client := NewGatewayClient(fakeRouting{response: `{"embedding":[0.1,0.2]}`})
-	got, err := client.Embed(context.Background(), "signal", EmbeddingDocument)
+func TestGatewayClientUsesTypedLocalPrivacyContracts(t *testing.T) {
+	service := &gatewayInferenceStub{}
+	path, handler := inferenceconnect.NewInferenceServiceHandler(service)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	client := NewGatewayClient(inferenceconnect.NewInferenceServiceClient(server.Client(), server.URL))
+
+	vector, err := client.Embed(context.Background(), "signal", EmbeddingDocument)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 {
-		t.Fatalf("embedding = %v", got)
+	if len(vector) != 2 || vector[0] != 0.1 {
+		t.Fatalf("embedding = %v", vector)
+	}
+	options := []ClassificationOption{{ID: "category-a", Description: "Research"}, {ID: "category-b", Description: "Personal"}}
+	result, err := client.Classify(context.Background(), "captured signal", options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.CategoryID != "category-b" || result.Confidence != 0.8 || result.Model != "decision-model" {
+		t.Fatalf("classification result = %+v", result)
+	}
+
+	if got := service.embedRequest.GetRole(); got != EmbeddingRole {
+		t.Errorf("embedding role = %q, want %q", got, EmbeddingRole)
+	}
+	if got := service.embedRequest.GetTexts(); len(got) != 1 || got[0] != documentPrefix+"signal" {
+		t.Errorf("embedding texts = %v", got)
+	}
+	assertContract := func(name string, profile sharedv1.Profile, class sharedv1.PrivacyClass, provenance string) {
+		t.Helper()
+		if profile != sharedv1.Profile_PROFILE_LOCAL_ONLY || class != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || provenance == "" {
+			t.Errorf("%s privacy contract = profile:%v class:%v provenance:%q", name, profile, class, provenance)
+		}
+	}
+	assertContract("embedding", service.embedRequest.GetProfile(), service.embedRequest.GetPrivacyClass(), service.embedRequest.GetPrivacyProvenance())
+	if service.embedRequest.GetPrivacyProvenance() != EmbeddingProvenance {
+		t.Errorf("embedding provenance = %q, want %q", service.embedRequest.GetPrivacyProvenance(), EmbeddingProvenance)
+	}
+	if got := service.decideRequest.GetRole(); got != DecisionRole {
+		t.Errorf("decision role = %q, want %q", got, DecisionRole)
+	}
+	if got := service.decideRequest.GetState(); got != "captured signal" {
+		t.Errorf("decision state = %q", got)
+	}
+	questions := service.decideRequest.GetQuestions()
+	if len(questions) != 1 || len(questions[0].GetOptions()) != 2 || questions[0].GetOptions()[0].GetLabel() != "category-a" || questions[0].GetOptions()[1].GetLabel() != "category-b" {
+		t.Errorf("decision questions = %+v", questions)
+	}
+	assertContract("decision", service.decideRequest.GetProfile(), service.decideRequest.GetPrivacyClass(), service.decideRequest.GetPrivacyProvenance())
+	if service.decideRequest.GetPrivacyProvenance() != ClassificationProvenance {
+		t.Errorf("decision provenance = %q, want %q", service.decideRequest.GetPrivacyProvenance(), ClassificationProvenance)
+	}
+}
+
+func TestGatewayClientRefusesInvalidDecisionOptionSetsBeforeDispatch(t *testing.T) {
+	service := &gatewayInferenceStub{}
+	path, handler := inferenceconnect.NewInferenceServiceHandler(service)
+	mux := http.NewServeMux()
+	mux.Handle(path, handler)
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	client := NewGatewayClient(inferenceconnect.NewInferenceServiceClient(server.Client(), server.URL))
+	if _, err := client.Classify(context.Background(), "signal", []ClassificationOption{{ID: "only"}}); err == nil {
+		t.Fatal("one option must not dispatch a model decision")
+	}
+	if service.decideRequest != nil {
+		t.Fatal("invalid option set reached AI Gateway")
 	}
 }
 
@@ -43,51 +109,25 @@ func (f *fakeInference) Embed(_ context.Context, _ string, task EmbeddingTask) (
 	return f.embedOut, nil
 }
 
-func (*fakeInference) Classify(context.Context, string) (string, error) { return "", nil }
-
-type fakeRouting struct{ response string }
-
-func (f fakeRouting) ExecuteRoute(_ context.Context, request *connect.Request[routingv1.ExecuteRouteRequest]) (*connect.Response[routingv1.ExecuteRouteResponse], error) {
-	if request.Msg.GetRequest().GetRole() != EmbeddingRole || request.Msg.GetInputText() != documentPrefix+"signal" {
-		panic("wrong gateway request")
-	}
-	return connect.NewResponse(&routingv1.ExecuteRouteResponse{Valid: true, OutputText: f.response}), nil
+func (*fakeInference) Classify(context.Context, string, []ClassificationOption) (ClassificationResult, error) {
+	return ClassificationResult{}, nil
 }
 
-func (fakeRouting) PreviewRoute(context.Context, *connect.Request[routingv1.PreviewRouteRequest]) (*connect.Response[routingv1.PreviewRouteResponse], error) {
-	return nil, nil
+type gatewayInferenceStub struct {
+	inferenceconnect.UnimplementedInferenceServiceHandler
+	embedRequest  *inferencev1.EmbedRequest
+	decideRequest *inferencev1.DecideRequest
 }
 
-func (fakeRouting) ListRouteEvidence(context.Context, *connect.Request[routingv1.ListRouteEvidenceRequest]) (*connect.Response[routingv1.ListRouteEvidenceResponse], error) {
-	return nil, nil
+func (s *gatewayInferenceStub) Embed(_ context.Context, request *connect.Request[inferencev1.EmbedRequest]) (*connect.Response[inferencev1.EmbedResponse], error) {
+	s.embedRequest = request.Msg
+	return connect.NewResponse(&inferencev1.EmbedResponse{Vectors: []*inferencev1.EmbeddingVector{{Values: []float64{0.1, 0.2}}}, Dimension: 2}), nil
 }
 
-func (fakeRouting) GetRouteEvidence(context.Context, *connect.Request[routingv1.GetRouteEvidenceRequest]) (*connect.Response[routingv1.GetRouteEvidenceResponse], error) {
-	return nil, nil
-}
-
-func (fakeRouting) ListProviderHealth(context.Context, *connect.Request[routingv1.ListProviderHealthRequest]) (*connect.Response[routingv1.ListProviderHealthResponse], error) {
-	return nil, nil
-}
-
-func (fakeRouting) SubmitMedia(context.Context, *connect.Request[routingv1.SubmitMediaRequest]) (*connect.Response[routingv1.SubmitMediaResponse], error) {
-	return nil, nil
-}
-
-func (fakeRouting) GetMediaExecution(context.Context, *connect.Request[routingv1.GetMediaExecutionRequest]) (*connect.Response[routingv1.GetMediaExecutionResponse], error) {
-	return nil, nil
-}
-
-func (fakeRouting) WaitMediaExecution(context.Context, *connect.Request[routingv1.WaitMediaExecutionRequest]) (*connect.Response[routingv1.WaitMediaExecutionResponse], error) {
-	return nil, nil
-}
-
-func (fakeRouting) CancelMediaExecution(context.Context, *connect.Request[routingv1.CancelMediaExecutionRequest]) (*connect.Response[routingv1.CancelMediaExecutionResponse], error) {
-	return nil, nil
-}
-
-func (fakeRouting) RetryMediaExecution(context.Context, *connect.Request[routingv1.RetryMediaExecutionRequest]) (*connect.Response[routingv1.RetryMediaExecutionResponse], error) {
-	return nil, nil
+func (s *gatewayInferenceStub) Decide(_ context.Context, request *connect.Request[inferencev1.DecideRequest]) (*connect.Response[inferencev1.DecideResponse], error) {
+	s.decideRequest = request.Msg
+	confidence := 0.8
+	return connect.NewResponse(&inferencev1.DecideResponse{Model: "decision-model", Answers: []*inferencev1.DecisionAnswer{{QuestionId: classificationQuestionID, Choice: "category-b", Confidence: &confidence}}}), nil
 }
 
 func equalTasks(got, want []EmbeddingTask) bool {

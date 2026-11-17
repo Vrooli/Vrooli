@@ -95,6 +95,68 @@ func TestStandingCountsOwnerWorkWithoutAdmittedRequests(t *testing.T) {
 	}
 }
 
+func TestClosingSignalTracksAdmissionGenerations(t *testing.T) {
+	p, err := NewProvider("fixture", "instance", Hooks{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var signal <-chan struct{}
+	handler := p.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		signal = Closing(r.Context())
+	}))
+	request := func() int {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/work", nil))
+		return w.Code
+	}
+	assertOpen := func(ch <-chan struct{}) {
+		t.Helper()
+		if ch == nil {
+			t.Fatal("missing closing signal")
+		}
+		select {
+		case <-ch:
+			t.Fatal("closing signal closed early")
+		default:
+		}
+	}
+	request()
+	first := signal
+	assertOpen(first)
+	prepared, err := p.Prepare(context.Background(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "restart"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-first:
+	default:
+		t.Fatal("prepare did not close admitted signal")
+	}
+	if got := request(); got != http.StatusServiceUnavailable {
+		t.Fatalf("closed admission status = %d", got)
+	}
+	fence := prepared.Msg.GetStanding()
+	_, err = p.Resume(context.Background(), connect.NewRequest(&commonv1.LifecycleResumeRequest{OperationId: "op", FenceToken: fence.GetFenceToken(), Revision: fence.GetRevision()}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request()
+	second := signal
+	assertOpen(second)
+	if first == second {
+		t.Fatal("resume reused the closed signal")
+	}
+	_, err = p.Prepare(context.Background(), connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "next", Reason: "restart"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-second:
+	default:
+		t.Fatal("second prepare did not close new signal")
+	}
+}
+
 func TestDrainTimeoutNamesTheRequestsHoldingTheFence(t *testing.T) {
 	_, client, _, _ := hangingProvider(t, Hooks{})
 	ctx := context.Background()

@@ -92,6 +92,31 @@ describe("shared notification preference client", () => {
     await expect(client.getCatalog()).rejects.toBeInstanceOf(NotificationPreferencesUnavailableError);
   });
 
+  it("caps configured request timeouts at sixty seconds", async () => {
+    vi.useFakeTimers();
+    try {
+      let signal: AbortSignal | undefined;
+      const request = vi.fn((_path: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+        signal = init?.signal ?? undefined;
+        signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+      }));
+      const client = createNotificationPreferencesClient(request, { timeoutMs: 120_000 });
+      const pending = client.getCatalog().catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(signal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(signal?.aborted).toBe(true);
+      expect(await pending).toBeInstanceOf(NotificationPreferencesUnavailableError);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects invalid timeout values instead of removing the bound", () => {
+    expect(() => createNotificationPreferencesClient(vi.fn(), { timeoutMs: Number.NaN })).toThrow("positive");
+    expect(() => createNotificationPreferencesClient(vi.fn(), { timeoutMs: -1 })).toThrow("positive");
+  });
+
   it("also bounds a response body that stalls after headers arrive", async () => {
     const request = vi.fn(async () => new Response(new ReadableStream<Uint8Array>({
       start(controller) {

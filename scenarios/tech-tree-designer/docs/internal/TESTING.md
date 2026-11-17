@@ -1,6 +1,5 @@
 # Testing — Tech Tree Designer
 
-## Purpose Of This Document
 
 Turn the expanded contract into falsifiable evidence. Schema validation proves document shape only; it does not qualify proposal behavior, performance or autonomous execution.
 

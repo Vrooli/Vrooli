@@ -7,6 +7,7 @@ import (
 	"time"
 
 	localdb "signal-inbox/internal/database"
+	"signal-inbox/internal/inference"
 	"signal-inbox/internal/signals"
 	"signal-inbox/internal/testutil/mocks"
 
@@ -64,9 +65,20 @@ func TestProposalDoesNotBecomeConfirmedUntilOperatorConfirms(t *testing.T) {
 	require.NoError(t, err)
 	category, err := svc.Create(context.Background(), "Research queue", "Evidence worth investigating")
 	require.NoError(t, err)
-	fake.ClassifyOut = `{"category_id":"` + category.ID + `","confidence":0.82,"model":"test-route"}`
+	_, err = svc.Create(context.Background(), "Personal", "Personal notes")
+	require.NoError(t, err)
+	fake.ClassifyOut = inference.ClassificationResult{CategoryID: category.ID, Confidence: 0.82, Model: "decision-model"}
 	signal := captureText(t, journal)
 	require.NoError(t, svc.Enrich(context.Background(), signal))
+	require.Equal(t, signal.ExtractedContent, fake.ClassifyInput)
+	require.Len(t, fake.ClassifyChoices, 2)
+	var includedCategory bool
+	for _, choice := range fake.ClassifyChoices {
+		if choice.ID == category.ID && choice.Description == "Research queue: Evidence worth investigating" {
+			includedCategory = true
+		}
+	}
+	require.True(t, includedCategory, "active category ID and definition must be options in the closed-set request")
 	proposal, found, err := svc.GetClassification(context.Background(), signal.ID)
 	require.NoError(t, err)
 	require.True(t, found)
@@ -91,7 +103,9 @@ func TestRetireReassignsConfirmedSignalsWithoutTouchingJournal(t *testing.T) {
 	require.NoError(t, err)
 	category, err := svc.Create(context.Background(), "Temporary focus", "Short-lived category")
 	require.NoError(t, err)
-	fake.ClassifyOut = `{"category_id":"` + category.ID + `","confidence":0.9,"model":"test-route"}`
+	_, err = svc.Create(context.Background(), "Other", "Another category")
+	require.NoError(t, err)
+	fake.ClassifyOut = inference.ClassificationResult{CategoryID: category.ID, Confidence: 0.9, Model: "decision-model"}
 	signal := captureText(t, journal)
 	require.NoError(t, svc.Enrich(context.Background(), signal))
 	_, err = svc.Confirm(context.Background(), signal.ID, category.ID)
@@ -117,6 +131,8 @@ func TestInferenceFailureRecordsUncategorizedAndQueue(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.Create(context.Background(), "Available category", "Exists so inference is attempted")
 	require.NoError(t, err)
+	_, err = svc.Create(context.Background(), "Another category", "Second choice")
+	require.NoError(t, err)
 	signal := captureText(t, journal)
 	require.NoError(t, svc.Enrich(context.Background(), signal))
 	classification, found, err := svc.GetClassification(context.Background(), signal.ID)
@@ -125,4 +141,22 @@ func TestInferenceFailureRecordsUncategorizedAndQueue(t *testing.T) {
 	require.Equal(t, StateUncategorized, classification.State)
 	require.Equal(t, reserved.ID, classification.ProposedCategoryID)
 	require.Contains(t, classification.Reason, "gateway unavailable")
+}
+
+func TestSingleActiveCategoryUsesDeterministicCodePath(t *testing.T) {
+	fake := &mocks.FakeInference{}
+	svc, journal := newCategoryService(t, fake)
+	_, err := svc.Bootstrap(context.Background())
+	require.NoError(t, err)
+	category, err := svc.Create(context.Background(), "Only category", "No choice is needed")
+	require.NoError(t, err)
+	signal := captureText(t, journal)
+	require.NoError(t, svc.Enrich(context.Background(), signal))
+	proposal, found, err := svc.GetClassification(context.Background(), signal.ID)
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, category.ID, proposal.ProposedCategoryID)
+	require.Equal(t, 1.0, proposal.ProposedConfidence)
+	require.Equal(t, "deterministic.single_category", proposal.Model)
+	require.Zero(t, fake.ClassifyCalls.Load(), "one remaining option is a code decision")
 }

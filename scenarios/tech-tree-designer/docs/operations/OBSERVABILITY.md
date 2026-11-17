@@ -1,6 +1,5 @@
 # Observability — Tech Tree Designer
 
-## Purpose Of This Document
 
 Expose product correctness, progress and resource cost without treating health checks as evidence of design readiness.
 

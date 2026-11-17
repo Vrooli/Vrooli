@@ -81,6 +81,7 @@ type Provider struct {
 	nextRequest uint64
 	now         func() time.Time
 	closed      bool
+	closing     chan struct{}
 	quiesced    bool
 	operationID string
 	token       string
@@ -111,6 +112,7 @@ func NewProvider(scenario, instanceID string, hooks Hooks) (*Provider, error) {
 		instance: instanceID,
 		hooks:    hooks,
 		changed:  make(chan struct{}),
+		closing:  make(chan struct{}),
 		inflight: make(map[uint64]admittedRequest),
 		now:      time.Now,
 		quiesced: hooks.Quiesce == nil,
@@ -164,25 +166,36 @@ func (p *Provider) Middleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		leave, err := p.admit(r)
+		leave, closing, err := p.admit(r)
 		if err != nil {
 			http.Error(w, "service unavailable: lifecycle admission closed", http.StatusServiceUnavailable)
 			return
 		}
 		defer leave()
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), closingKey{}, closing)))
 	})
+}
+
+type closingKey struct{}
+
+// Closing returns a signal closed when maintenance closes admission for the
+// request's generation. Resumable long polls can return a normal partial result
+// on this signal; ordinary requests must continue to completion. It is nil
+// outside provider middleware.
+func Closing(ctx context.Context) <-chan struct{} {
+	closing, _ := ctx.Value(closingKey{}).(<-chan struct{})
+	return closing
 }
 
 func isHealthPath(path string) bool {
 	return path == "/health" || path == "/api/v1/health"
 }
 
-func (p *Provider) admit(r *http.Request) (func(), error) {
+func (p *Provider) admit(r *http.Request) (func(), <-chan struct{}, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.closed {
-		return nil, errors.New("lifecycle admission closed")
+		return nil, nil, errors.New("lifecycle admission closed")
 	}
 	p.nextRequest++
 	id := p.nextRequest
@@ -195,7 +208,7 @@ func (p *Provider) admit(r *http.Request) (func(), error) {
 			p.signalLocked()
 			p.mu.Unlock()
 		})
-	}, nil
+	}, p.closing, nil
 }
 
 // runningRequestsLocked returns the admitted requests, longest-running first.
@@ -247,6 +260,9 @@ func (p *Provider) Prepare(ctx context.Context, req *connect.Request[commonv1.Li
 		if err != nil {
 			p.mu.Unlock()
 			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		if !p.closed {
+			close(p.closing)
 		}
 		p.closed = true
 		p.operationID = message.GetOperationId()
@@ -335,6 +351,7 @@ func (p *Provider) Resume(ctx context.Context, req *connect.Request[commonv1.Lif
 		return nil, connect.NewError(connect.CodeAborted, errors.New("lifecycle fence changed during resume"))
 	}
 	p.closed = false
+	p.closing = make(chan struct{})
 	p.quiesced = true
 	p.operationID = ""
 	p.token = ""

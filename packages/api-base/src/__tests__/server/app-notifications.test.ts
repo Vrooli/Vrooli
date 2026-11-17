@@ -161,6 +161,40 @@ describe('createAppNotificationsRouter', () => {
     expect(JSON.parse(hub.seen[1]?.body ?? '{}')).toEqual({ source_scenario: 'web-console', category: 'session-finished', enabled: false })
   })
 
+  it('rejects malformed preference JSON before forwarding', async () => {
+    const hub = await startHub()
+    const base = await startScenarioServer(hub.base)
+    const response = await fetch(`${base}/vrooli-notify/preferences`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{not-json',
+    })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toMatchObject({ code: 'invalid_argument' })
+    expect(hub.seen).toHaveLength(0)
+  })
+
+  it('rejects non-object preferences and bounds parsed request bodies', async () => {
+    const hub = await startHub()
+    const app = express()
+    app.use(express.json({ limit: '2mb' }))
+    app.use('/vrooli-notify', createAppNotificationsRouter({ scenario: 'web-console', hubBaseUrl: hub.base }))
+    const base = `http://127.0.0.1:${await listen(http.createServer(app))}`
+
+    const nullBody = await fetch(`${base}/vrooli-notify/preferences`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: 'null',
+    })
+    const arrayBody = await fetch(`${base}/vrooli-notify/preferences`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '[]',
+    })
+    const oversized = await fetch(`${base}/vrooli-notify/preferences`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category: 'x'.repeat(65 * 1024) }),
+    })
+
+    expect(nullBody.status).toBe(400)
+    expect(arrayBody.status).toBe(400)
+    expect(oversized.status).toBe(413)
+    expect(hub.seen).toHaveLength(0)
+  })
+
   it('answers 503 when Notification Hub is unreachable', async () => {
     const base = await startScenarioServer('http://127.0.0.1:1')
     const res = await fetch(`${base}/vrooli-notify/rpc/ConfirmApp`, { method: 'POST', body: '{}' })
@@ -194,6 +228,22 @@ describe('createAppNotificationsRouter', () => {
 
     expect(response.status).toBe(503)
     expect(await response.json()).toMatchObject({ code: 'unavailable' })
+  })
+
+  it('caps configured upstream timeouts at sixty seconds', async () => {
+    const slowHub = http.createServer(() => {})
+    const hubPort = await listen(slowHub)
+    const nativeTimeout = AbortSignal.timeout.bind(AbortSignal)
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => nativeTimeout(10))
+    const app = express()
+    app.use('/vrooli-notify', createAppNotificationsRouter({
+      scenario: 'web-console', hubBaseUrl: `http://127.0.0.1:${hubPort}`, timeoutMs: 120_000,
+    }))
+    const base = `http://127.0.0.1:${await listen(http.createServer(app))}`
+    const response = await fetch(`${base}/vrooli-notify/catalog`)
+    expect(response.status).toBe(503)
+    expect(timeoutSpy).toHaveBeenCalledWith(60_000)
+    timeoutSpy.mockRestore()
   })
 
   it('reports failed address discovery without claiming the Hub is stopped', async () => {

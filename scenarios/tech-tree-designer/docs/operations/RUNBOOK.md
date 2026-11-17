@@ -1,6 +1,5 @@
 # Runbook — Tech Tree Designer
 
-## Purpose Of This Document
 
 Operate the existing scenario safely and define recovery obligations for the proposed bundle system. Target procedures below are not invented CLI commands.
 
