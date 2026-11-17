@@ -1,0 +1,319 @@
+[
+ {
+  "n": 1,
+  "group": "C",
+  "count": 1,
+  "paths": [
+   "/home/user/.local/share/Trash/files"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 2,
+  "group": "C",
+  "count": 1,
+  "paths": [
+   "/tmp/x"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 3,
+  "group": "C",
+  "count": 1,
+  "paths": [
+   "/tmp/tieback-test-858b3f00"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 4,
+  "group": "C",
+  "count": 1,
+  "paths": [
+   "/tmp/tieback-test-wc-858b3f00"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 5,
+  "group": "E",
+  "count": 5,
+  "paths": [
+   "/home/user/.vrooli/data/vrooli/browser-automation-studio@shadow",
+   "/home/user/.vrooli/data/vrooli/image-tools/adapters/controlnet-canny-sd15/diffusion_pytorch_model.bin",
+   "/home/user/.vrooli/data/vrooli/image-tools/adapters/ip-adapter-sd15/models/image_encoder/pytorch_model.bin",
+   "/home/user/.vrooli/data/vrooli/image-tools/models/big-lama-1024-export/big-lama.zip",
+   "/home/user/.vrooli/data/vrooli/image-tools/models/qwen-image-edit"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 6,
+  "group": "D",
+  "count": 1,
+  "paths": [
+   "/home/user/Vrooli/scenarios/agent-manager/docs/efforts/usage-intelligence/baseline"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 7,
+  "group": "A",
+  "count": 4700,
+  "paths": [
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/003e9f88-c113-4d76-b853-61c5398d46f2",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/005258bb-c646-4539-a713-2d0f4b5d1766",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/0066af80-ee58-4c32-84be-372103c76839",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/006a3678-79fd-4de3-9b3a-073301ab721a",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/007b47f9-a1c0-45f0-8aec-7cf592f4c996",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/00864124-bafa-43f2-b3c3-545de42e38a5",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/0096db7f-41a4-4a2f-bbaa-b83767559a90",
+   "/home/user/.vrooli/state/vrooli/web-console/sessions/codex/00a961ec-1ad0-4bf4-a48f-f4c17a545c5a"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 8,
+  "group": "A",
+  "count": 2,
+  "paths": [
+   "/home/user/Vrooli/packages/.proto-gen-verify-2416633927",
+   "/home/user/Vrooli/packages/.proto-gen-verify-2883513075"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 9,
+  "group": "A",
+  "count": 2,
+  "paths": [
+   "/home/user/Vrooli/packages/.proto-gen-stage-2161494493",
+   "/home/user/Vrooli/packages/.proto-gen-stage-57254201"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 10,
+  "group": "A",
+  "count": 3,
+  "paths": [
+   "/home/user/.claude/projects/-home-user--vrooli-tmp-go-work-TestLiveCompactionAgainstRealClaude1322387011-001",
+   "/home/user/.claude/projects/-home-user--vrooli-tmp-go-work-TestLiveCompactionAgainstRealClaude3326232811-001",
+   "/home/user/.claude/projects/-home-user--vrooli-tmp-go-work-TestLiveCompactionAgainstRealClaude4182619977-001"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 11,
+  "group": "A",
+  "count": 1,
+  "paths": [
+   "/home/user/.git"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 12,
+  "group": "A",
+  "count": 3,
+  "paths": [
+   "/home/user/Vrooli/scenarios/hello-python/api/cmd",
+   "/home/user/Vrooli/scenarios/hello-python/api/handlers",
+   "/home/user/Vrooli/scenarios/hello-python/api/internal"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 13,
+  "group": "A",
+  "count": 19,
+  "paths": [
+   "/home/user/.vrooli/state/vrooli/vrooli-onboarding/apply-runs/apply-already-done.json",
+   "/home/user/.vrooli/state/vrooli/vrooli-onboarding/apply-runs/apply-cancel.json",
+   "/home/user/.vrooli/state/vrooli/vrooli-onboarding/apply-runs/apply-detached-runner.json",
+   "/home/user/.vrooli/state/vrooli/vrooli-onboarding/apply-runs/apply-test.json",
+   "/home/user/Vrooli/packages/.proto-gen-stage-3264541667",
+   "/home/user/Vrooli/packages/.proto-gen-verify-1192964271",
+   "/home/user/Vrooli/packages/.proto-gen-verify-1404469768",
+   "/home/user/Vrooli/packages/.proto-gen-verify-1411682071"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 14,
+  "group": "A",
+  "count": 5,
+  "paths": [
+   "/home/user/Vrooli/scenarios/docs",
+   "/home/user/Vrooli/scenarios/rcl-fixture-positive-1787641498379912",
+   "/home/user/Vrooli/scenarios/rcl-fixture-unrelated-1787641498371379912",
+   "/home/user/Vrooli/scenarios/scenarios",
+   "/home/user/Vrooli/scenarios/template-validation-react-vite-deep"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 15,
+  "group": "A",
+  "count": 35,
+  "paths": [
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/compiler.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/compiler_test.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/fileops.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/fileops_test.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/helpers_test.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/interfaces.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/packager.go",
+   "/home/user/Vrooli/scenarios/git-control-tower/platforms/electron/renderer/packager_test.go"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 16,
+  "group": "A",
+  "count": 16,
+  "paths": [
+   "/home/user/.vrooli/state/vrooli/demo",
+   "/home/user/.vrooli/state/vrooli/probe-fixture",
+   "/home/user/.vrooli/state/vrooli/rcl-fixture-negative-1786943145277903223",
+   "/home/user/.vrooli/state/vrooli/rcl-fixture-positive",
+   "/home/user/.vrooli/state/vrooli/rcl-fixture-positive-1786861721939663287",
+   "/home/user/.vrooli/state/vrooli/rcl-fixture-positive-1786891329771179164",
+   "/home/user/.vrooli/state/vrooli/rcl-fixture-positive-1786980261703779175",
+   "/home/user/.vrooli/state/vrooli/rcl-fixture-positive-1786996983459042748"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 17,
+  "group": "A",
+  "count": 1,
+  "paths": [
+   "/home/user/.vrooli/data/vrooli/001"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 18,
+  "group": "D",
+  "count": 12,
+  "paths": [
+   "/home/user/Vrooli/scenarios/react-component-library/library/components/CardShell/versions/1.0.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/components/CollectionList/versions/1.0.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/components/ContextMenu/versions/1.3.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/components/VirtualList/versions/1.1.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/hooks/useCollection/versions/1.0.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/hooks/useLongPress/versions/1.0.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/tests/components/CardShell/1.0.0",
+   "/home/user/Vrooli/scenarios/react-component-library/library/tests/components/CollectionList/1.0.0"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 19,
+  "group": "A",
+  "count": 1,
+  "paths": [
+   "/home/user/Vrooli/scenarios/react-component-library/api/library"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 20,
+  "group": "D",
+  "count": 1,
+  "paths": [
+   "/home/user/Vrooli/docs/internal/standing-team-route-investigation-2026-11-09"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 21,
+  "group": "D",
+  "count": 1,
+  "paths": [
+   "/home/user/Vrooli/.vrooli/work/delivery/local-inference-maturity"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 22,
+  "group": "E",
+  "count": 2,
+  "paths": [
+   "/home/user/.cache/vrooli/prompt-manager/skill-read-migration-20261105",
+   "/home/user/.local/share/vrooli/resources/postgres/migration-backups/20260709T135723Z"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 23,
+  "group": "B",
+  "count": 1,
+  "paths": [
+   "/home/user/.vrooli/portfolio/steward/.lock-probe-readonly"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 24,
+  "group": "B",
+  "count": 1,
+  "paths": [
+   "/home/user/.vrooli/research/topics/agent-credential-approval/.preview.tmp"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 25,
+  "group": "A",
+  "count": 104,
+  "paths": [
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-000211-200130",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-000804-311430",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-001327-3970523",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-001545-4012087",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-001637-4022565",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-001849-4051228",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-002116-4081826",
+   "/home/user/.vrooli/data/vrooli/money-ledger_cf5-money-ledger-063100-2257343"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 26,
+  "group": "A",
+  "count": 76,
+  "paths": [
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794170077",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794230388",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794230445",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794230505",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794241652",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794241869",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794241905",
+   "/home/user/.vrooli/data/vrooli/treasury_cf2-1794242104"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 27,
+  "group": "B",
+  "count": 1,
+  "paths": [
+   "/home/user/Vrooli/scenarios/zz-sda-fixture"
+  ],
+  "state": "resolved"
+ },
+ {
+  "n": 28,
+  "group": "B",
+  "count": 2,
+  "paths": [
+   "/home/user/.vrooli/tmp/decision-page-check-20261115/notes-a",
+   "/home/user/.vrooli/tmp/decision-page-check-20261115/notes-b"
+  ],
+  "state": "withdrawn"
+ }
+]

@@ -19,19 +19,23 @@ import (
 // intentionally data-shaped: adding a cache must not require a new provider
 // implementation or a new recovery branch.
 type RootSpec struct {
-	ID                    string             `json:"id"`
-	Root                  string             `json:"root"`
-	Class                 string             `json:"class"`
-	Tier                  cleanup.SafetyTier `json:"tier"`
-	MaxAge                string             `json:"max_age"`
-	MaxBytes              string             `json:"max_bytes"`
-	Protect               []string           `json:"protect"`
-	LeaseCheck            string             `json:"lease_check"`
-	Platforms             []string           `json:"platforms"`
-	ToolPruneCommand      []string           `json:"tool_prune_command"`
-	Proof                 RootSpecProof      `json:"proof"`
-	HotWriterBytesPerHour int64              `json:"hot_writer_bytes_per_hour"`
-	Rationale             string             `json:"rationale"`
+	ID               string             `json:"id"`
+	Root             string             `json:"root"`
+	Class            string             `json:"class"`
+	Tier             cleanup.SafetyTier `json:"tier"`
+	MaxAge           string             `json:"max_age"`
+	MaxBytes         string             `json:"max_bytes"`
+	Protect          []string           `json:"protect"`
+	LeaseCheck       string             `json:"lease_check"`
+	Platforms        []string           `json:"platforms"`
+	ToolPruneCommand []string           `json:"tool_prune_command"`
+	// OwnerReclaimCommand delegates the root to the tool that owns it through
+	// the owner-reclaim/v1 contract (see OwnerReclaimProvider). The owner,
+	// not a file walk, proves which entries are unused.
+	OwnerReclaimCommand   []string      `json:"owner_reclaim_command"`
+	Proof                 RootSpecProof `json:"proof"`
+	HotWriterBytesPerHour int64         `json:"hot_writer_bytes_per_hour"`
+	Rationale             string        `json:"rationale"`
 }
 
 type RootSpecProof struct {
@@ -80,6 +84,16 @@ func ValidateRootSpec(spec RootSpec) error {
 	}
 	if spec.Tier == cleanup.SafetyTierRegenerable && !(spec.Proof.Derived && spec.Proof.ToolRecreates && spec.Proof.ExactRoot && spec.Proof.NoLease) {
 		return fmt.Errorf("root spec %q: regenerable roots require complete proof", spec.ID)
+	}
+	if len(spec.OwnerReclaimCommand) > 0 {
+		switch {
+		case strings.TrimSpace(spec.OwnerReclaimCommand[0]) == "":
+			return fmt.Errorf("root spec %q: owner_reclaim_command must name a program", spec.ID)
+		case spec.Tier != cleanup.SafetyTierSafeWithOwner:
+			return fmt.Errorf("root spec %q: owner_reclaim_command requires tier %q, got %q", spec.ID, cleanup.SafetyTierSafeWithOwner, spec.Tier)
+		case len(spec.ToolPruneCommand) > 0:
+			return fmt.Errorf("root spec %q: owner_reclaim_command and tool_prune_command are exclusive; one owner reclaims a root", spec.ID)
+		}
 	}
 	return nil
 }

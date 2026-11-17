@@ -3,7 +3,6 @@
 This document records operator procedures for running, diagnosing,
 recovering, and maintaining the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -148,8 +147,9 @@ distinguish pending measurement, partial progress, and verified reclaim.
 The 2026-10-08 repair is a scoped W3 reliability task against the existing
 provider safety, replay-safe apply, and adjacent-scenario handoff targets.
 Focused fake-filesystem and HTTP contract regressions precede relevant Test
-Genie unit/contracts phases. Live activation must preserve the Go build-cache
-prohibition and protected owner storage. The operator's separate script remains
+Genie unit/contracts phases. Live activation must keep Go build-cache reclaim
+on its owner's build-use protocol only (no file walk or `go clean -cache`), and
+must keep owner storage protected. The operator's separate script remains
 a one-time cleanup; it is not the retention service.
 
 ### Recurring temporary retention

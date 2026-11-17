@@ -26,7 +26,7 @@ import (
 // Deps holds the cross-cutting interfaces the Server depends on
 // regardless of which modules are mounted. Production wires concrete
 // implementations (schedule.System(), process logger) in main.go; tests
-// wire fakes from internal/testutil/mocks.
+// wire test fakes in their place.
 //
 // Per-domain dependencies (database handle, repository services,
 // pingers) live inside each module's constructor — Deps is intentionally

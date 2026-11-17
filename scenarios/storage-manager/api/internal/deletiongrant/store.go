@@ -34,6 +34,13 @@ const (
 	extraGrantExpiresAt = "grant_expires_at" // RFC3339Nano; when the deletion authority lapses
 	extraRequestedBy    = "requested_by"     // the agent subject that asked
 	extraReason         = "reason"           // the agent's stated reason
+	// extraSubjectKey is the Hub subject key the ask was raised with. An ask
+	// raised before subject keys has none and is closed by its request event id.
+	extraSubjectKey = "subject_key"
+	// extraWithdrawalReason and extraWithdrawalUnpublished record a withdrawal
+	// whose event could not be published, so a later pass sends it again.
+	extraWithdrawalReason      = "withdrawal_reason"
+	extraWithdrawalUnpublished = "withdrawal_unpublished"
 
 	ts = time.RFC3339Nano
 )
@@ -133,6 +140,50 @@ func (s *Store) CountOutstandingForSubject(ctx context.Context, subject string, 
 		}
 	}
 	return count, rows.Err()
+}
+
+// PendingAsks returns every ask still awaiting the operator's answer, whether
+// or not its outstanding window has lapsed.
+func (s *Store) PendingAsks(ctx context.Context) ([]operatordecision.PendingAsk, error) {
+	return s.asksWhere(ctx, `state = ?`, operatordecision.PendingStatePending)
+}
+
+// UnpublishedWithdrawals returns the withdrawn asks whose withdrawal event has
+// not been published yet.
+func (s *Store) UnpublishedWithdrawals(ctx context.Context) ([]operatordecision.PendingAsk, error) {
+	return s.asksWhere(ctx, `state = ? AND extra LIKE ?`, operatordecision.PendingStateWithdrawn, `%"`+extraWithdrawalUnpublished+`"%`)
+}
+
+func (s *Store) asksWhere(ctx context.Context, where string, args ...any) ([]operatordecision.PendingAsk, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id FROM deletion_asks WHERE `+where+` ORDER BY raised_at, id`, args...)
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+	out := make([]operatordecision.PendingAsk, 0, len(ids))
+	for _, id := range ids {
+		ask, err := s.Get(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if ask != nil {
+			out = append(out, *ask)
+		}
+	}
+	return out, nil
 }
 
 // ActiveGrantRoots returns one GrantRule per path of every approved ask whose

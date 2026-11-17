@@ -272,7 +272,7 @@ not permission to scan owner-private directories from storage-manager.
 | **Seam** | Outbound HTTP request boundary |
 | **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
 | **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
+| **Test fake** | `github.com/vrooli/api-core/apihttptest::FakeDoer`, the shared companion (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
 ### CleanupService (orchestration application layer)
@@ -348,8 +348,9 @@ sweep.
 (`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —
 never domain-specific interfaces.
 
-`internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakeDoer`).
+Cross-domain fakes come from shared companions (for example
+`apihttptest.FakeDoer`); add `internal/testutil/mocks/` only for a
+cross-domain fake no shared package provides.
 
 ### Mechanical steps
 
@@ -377,9 +378,9 @@ never domain-specific interfaces.
    domain, `package mocks`) named `repository.go` and `service.go`.
    Each method takes a per-method error knob (`CreateErr error`) plus
    any state it needs to return. Counters use `atomic.Int64`, not plain
-   `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakeDoer`) stay in
-   `internal/testutil/mocks/`.
+   `int`, so race-detector tests don't flap. Cross-domain fakes come
+   from shared companions such as `apihttptest.FakeDoer`; only a fake
+   no shared package provides belongs in `internal/testutil/mocks/`.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.

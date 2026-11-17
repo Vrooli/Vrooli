@@ -357,6 +357,10 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 	if err != nil {
 		return nil, err
 	}
+	ownerReclaim, err := ownerReclaimSpecs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
 	builtIns, err := providers.ConservativeBuiltIns(providers.BuiltInDeps{
 		FileSystem:        files,
 		TemporaryActivity: hostfs.NewTemporaryActivityObserver(),
@@ -374,13 +378,13 @@ func defaultRegistry(fileRoots *filerouting.RoutedRoots) (*providers.Registry, e
 		TrashRoots:               roots.Trash,
 		TmpRoots:                 roots.Tmp,
 		ScratchRoots:             hostpaths.ScratchRoots(repoRoot),
-		GoBuildCacheRoots:        roots.GoBuildCache,
 		PlaywrightCacheRoots:     roots.PlaywrightCache,
 		ScenarioBinariesRoot:     binRoot,
 		RemovalLedger:            removalLedger,
 		RuntimeHomeProviders:     runtimeHomeProviderConfigs(repoRoot, home, newRuntimeHomeBrokerRepairer()),
 		GovernedRootSpecs:        governedSpecs,
 		ToolPruneSpecs:           toolPrune,
+		OwnerReclaimSpecs:        ownerReclaim,
 		GovernedRoots:            declaredGovernedRoots(repoRoot),
 		OrphanedDatabaseProvider: providers.NewOrphanedDatabaseProviderWithVerifier(files, hostfs.NewProcessLiveness(), schedule.System(), filepath.Join(home, ".local", "share", "vrooli", "vrooli-autoheal", "autoheal.sqlite"), autohealLiveDatabasePath(home), 30*24*time.Hour, providers.VerifySQLiteQuickCheck, filepath.Join(home, ".vrooli", "state", "storage-manager", "quarantine")),
 		Saturated:                autohealSaturationProbe(http.DefaultClient),
@@ -550,10 +554,7 @@ func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
 // toolPruneSpecs selects the declarative roots that reclaim through a tool's
 // own prune command. It deliberately takes only roots governedRootSpecs leaves
 // behind — those outside the safe/regenerable tiers — so no root is both file
-// pruned and tool pruned. The Go build cache is the motivating member: it is
-// tier conditional precisely because a file walk cannot prove its outputs are
-// no longer in use. Its declared `go clean -cache` command is withheld too:
-// it lacks build-use/quiescence and exact cache-target proof.
+// pruned and tool pruned.
 func toolPruneSpecs(repoRoot string) ([]providers.ToolPruneProviderConfig, error) {
 	specs, err := providers.LoadRootSpecs(repoRoot)
 	if err != nil {
@@ -597,6 +598,43 @@ func toolPruneSpecs(repoRoot string) ([]providers.ToolPruneProviderConfig, error
 				ExactRoot:     spec.Proof.ExactRoot,
 				NoLease:       spec.Proof.NoLease,
 			},
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out, nil
+}
+
+// ownerReclaimSpecs selects the declarative roots whose owning tool reclaims
+// them under the owner-reclaim/v1 contract. ValidateRootSpec confines them to
+// tier safe_with_owner and excludes a tool prune command, so no root is ever
+// also file pruned or tool pruned. A root that does not resolve on this host
+// still registers, blocked, so the catalog explains why nothing is reclaimed.
+func ownerReclaimSpecs(repoRoot string) ([]providers.OwnerReclaimProviderConfig, error) {
+	specs, err := providers.LoadRootSpecs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	inputs, inputErr := corestorage.HostGovernedRootInputs(repoRoot)
+	out := make([]providers.OwnerReclaimProviderConfig, 0)
+	for _, spec := range specs {
+		if len(spec.OwnerReclaimCommand) == 0 || !spec.Applicable() {
+			continue
+		}
+		if err := providers.ValidateRootSpec(spec); err != nil {
+			return nil, err
+		}
+		root := ""
+		if inputErr == nil {
+			if resolved, rootErr := corestorage.ResolveGovernedRootStrict(spec.Root, inputs); rootErr == nil && filepath.IsAbs(resolved) {
+				root = filepath.Clean(resolved)
+			}
+		}
+		out = append(out, providers.OwnerReclaimProviderConfig{
+			ID:        spec.ID,
+			Name:      "Governed " + spec.ID,
+			Root:      root,
+			Command:   cleanupcore.ProcessCommand{Name: spec.OwnerReclaimCommand[0], Args: append([]string(nil), spec.OwnerReclaimCommand[1:]...)},
+			Platforms: append([]string(nil), spec.Platforms...),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })

@@ -10,7 +10,8 @@ import (
 )
 
 // Resolver is the operatordecision.DomainEffect that records an operator's
-// decision on a deletion ask. On "approve" it stamps the grant's expiry (from
+// decision on a deletion ask. A withdrawn resolution is no decision and records
+// no grant. On "approve" it stamps the grant's expiry (from
 // the requested TTL, capped) so the policy snapshot can project it as an allow
 // rule; on any other answer it records the refusal. It owns only this
 // scenario's deletion-grant resolutions.
@@ -65,10 +66,25 @@ func (r *Resolver) Apply(ctx context.Context, resolution operatordecision.Decisi
 	if err != nil {
 		return false, err
 	}
-	if ask == nil || ask.State == stateResolved {
+	// A decision that was closed without an answer (withdrawn by the producer,
+	// or by the Hub when the producer stopped asserting it) never becomes a
+	// grant, and an answer that arrives for an ask already withdrawn here is
+	// ignored: nothing the operator did applies.
+	if ask == nil || ask.State == stateResolved || ask.State == operatordecision.PendingStateWithdrawn {
 		return true, nil
 	}
 	now := r.now()
+	if resolution.State == operatordecision.StateWithdrawn {
+		// Superseded by a newer decision for the same ask: that one carries the
+		// answer, so the ask stays pending.
+		if resolution.SupersededByAskID == "" {
+			ask.State = operatordecision.PendingStateWithdrawn
+			ask.ResolvedAt = &now
+			ask.ResolvedBy = ""
+			return true, r.store.Put(ctx, ask)
+		}
+		return true, nil
+	}
 	ask.State = stateResolved
 	ask.ResolvedAt = &now
 	ask.ResolvedBy = resolution.AnsweredBy

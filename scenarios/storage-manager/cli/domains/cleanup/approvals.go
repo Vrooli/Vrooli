@@ -16,7 +16,7 @@ import (
 
 // standingApproval mirrors the API's host-local approval record. A standing
 // approval is the operator's durable consent for one conditional-tier provider
-// (for example go-build-cache) to run during autonomous pressure recovery on
+// (for example apt-metadata) to run during autonomous pressure recovery on
 // this host only; the API refuses a record whose host_id is not its own.
 type standingApproval struct {
 	Provider   string    `json:"provider,omitempty"`

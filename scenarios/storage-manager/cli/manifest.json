@@ -668,7 +668,7 @@
         },
         {
           "name": "approve",
-          "description": "Grant this host a standing approval for one conditional provider (e.g. go-build-cache) to run during autonomous recovery",
+          "description": "Grant this host a standing approval for one conditional provider (e.g. apt-metadata) to run during autonomous recovery",
           "flags": [
             {
               "name": "provider",

@@ -60,16 +60,23 @@ func TestApplyGrantsNeverOpensAProtectedRootItself(t *testing.T) {
 	}
 }
 
-func TestProtectingDeclarationReportsTheProtectedRoot(t *testing.T) {
-	base := []PathRule{{Root: "/home/u/data", Action: "deny", Source: "owner durable data"}, {Root: "/home/u/cache", Action: "allow", Source: "cache"}}
-	if source, root, isRoot := ProtectingDeclaration(base, "/home/u/data/x/y"); source != "owner durable data" || root != "/home/u/data" || isRoot {
-		t.Fatalf("inside = %q %q %v", source, root, isRoot)
+func TestGoverningPrefersTheProtectionOverACloserAllow(t *testing.T) {
+	base := []PathRule{
+		{Root: "/home/u/data", Action: "deny", Source: "owner durable data"},
+		{Root: "/home/u/data/cache", Action: "allow", Source: "owner cache"},
+		{Root: "/home/u/tmp", Action: "allow", Source: "scratch", Owner: "scenario/x"},
 	}
-	if _, _, isRoot := ProtectingDeclaration(base, "/home/u/data/"); !isRoot {
-		t.Fatal("the protected root itself must report isRoot")
+	if rule, ok := Governing(base, "/home/u/data/cache/y"); !ok || rule.Source != "owner durable data" {
+		t.Fatalf("inside protected data = %+v %v, want the protecting declaration", rule, ok)
 	}
-	if source, _, _ := ProtectingDeclaration(base, "/home/u/cache/x"); source != "" {
-		t.Fatalf("allowed location reported protected by %q", source)
+	if rule, ok := Governing(base, "/home/u/data/"); !ok || rule.Root != "/home/u/data" {
+		t.Fatalf("the protected root itself = %+v %v", rule, ok)
+	}
+	if rule, ok := Governing(base, "/home/u/tmp/a"); !ok || rule.Action != "allow" || rule.Owner != "scenario/x" {
+		t.Fatalf("declared scratch = %+v %v", rule, ok)
+	}
+	if _, ok := Governing(base, "/home/u/other"); ok {
+		t.Fatal("an undeclared location must report no declaration")
 	}
 }
 

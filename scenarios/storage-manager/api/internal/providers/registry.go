@@ -142,11 +142,20 @@ func ConservativeBuiltIns(deps BuiltInDeps) ([]cleanup.Provider, error) {
 		providers = append(providers, provider)
 	}
 	// Tool-pruned roots reclaim through the owning tool's own prune command
-	// rather than a file walk. This is the only reclamation path for a cache
-	// the FileProvider must refuse (the Go build cache), so it is registered
-	// here alongside the declarative file roots it complements.
+	// rather than a file walk, registered alongside the declarative file roots
+	// they complement.
 	for _, cfg := range deps.ToolPruneSpecs {
 		provider, err := NewToolPruneProvider(deps.FileSystem, deps.ProcessRunner, deps.Clock, cfg)
+		if err != nil {
+			return nil, err
+		}
+		providers = append(providers, provider)
+	}
+	// Owner-reclaimed roots delegate removal to the tool that owns them. The
+	// Go build cache reclaims only this way: its owner pins every output a
+	// live build holds and audits the host's go commands before deleting.
+	for _, cfg := range deps.OwnerReclaimSpecs {
+		provider, err := NewOwnerReclaimProvider(deps.ProcessRunner, deps.Clock, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -226,16 +235,17 @@ type BuiltInDeps struct {
 	TrashRoots            []string
 	TmpRoots              []string
 	ScratchRoots          []string
-	GoBuildCacheRoots     []string
 	PlaywrightCacheRoots  []string
 	ScenarioBinariesRoot  string
 	RuntimeHomeProviders  []FileProviderConfig
 	GovernedRootProviders []FileProviderConfig
 	GovernedRootSpecs     []RootSpec
 	// ToolPruneSpecs are declarative roots reclaimed by invoking the owning
-	// tool's prune command through the ProcessRunner seam, for caches that are
-	// unsafe to delete file-by-file (the Go build cache).
-	ToolPruneSpecs           []ToolPruneProviderConfig
+	// tool's prune command through the ProcessRunner seam.
+	ToolPruneSpecs []ToolPruneProviderConfig
+	// OwnerReclaimSpecs are declarative roots whose owning tool plans and
+	// performs reclaim under the owner-reclaim/v1 contract.
+	OwnerReclaimSpecs        []OwnerReclaimProviderConfig
 	OrphanedDatabaseProvider cleanup.Provider
 	// GovernedRoots are absolute storage locations declared by owners (scenario,
 	// resource, and control-plane storage entries). No provider may remove one

@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -34,7 +33,7 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| None yet. | not-applicable | Generated scenario is standalone. | Add when this scenario calls or composes another scenario. |
+| Deployment Manager | optional | Receives readiness evidence when the owner token is configured. | A fixed `STORAGE_MANAGER_DEPLOYMENT_MANAGER_READINESS_URL` may pin a deployment target; otherwise the reporter resolves the current local peer for each report. |
 
 ## Third-Party Services
 
@@ -47,6 +46,7 @@ requires them.
 | Dependency | Failure Signal | Expected Behavior | Tests |
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
+| Deployment Manager | readiness report cannot resolve or reach the peer | Storage operations remain available; when readiness reporting is enabled, the report failure is returned explicitly. | readiness reporter and shared reporter tests |
 
 ## Cross-References
 

@@ -28,14 +28,16 @@ func TestGoBuildCacheDeclarationRequiresOwnerProof(t *testing.T) {
 		if err := ValidateRootSpec(spec); err != nil {
 			t.Error(err)
 		}
-		if spec.Tier != cleanup.SafetyTierConditional || spec.LeaseCheck != "owner" || spec.Proof.NoLease {
-			t.Errorf("Go cache must require owner build-use proof, got %#v", spec)
+		if spec.Tier != cleanup.SafetyTierSafeWithOwner || spec.LeaseCheck != "owner" || spec.Proof.NoLease {
+			t.Errorf("Go cache must be owner-reclaimed with build-use proof, got %#v", spec)
 		}
-		// The Go cache cannot be reclaimed by a generic file walk (the file
-		// providers refuse it), so its only safe reclamation is Go's own prune
-		// command. It must declare exactly that, and nothing uncoordinated.
-		if strings.Join(spec.ToolPruneCommand, " ") != "go clean -cache" {
-			t.Errorf("Go cache must declare its tool-owned prune command `go clean -cache`, got %v", spec.ToolPruneCommand)
+		// File walks and go clean -cache cannot prove an output is released;
+		// only the control-plane owner's build-use protocol can.
+		if got := strings.Join(spec.OwnerReclaimCommand, " "); got != "vrooli host go-cache" {
+			t.Errorf("Go cache must delegate reclaim to `vrooli host go-cache`, got %q", got)
+		}
+		if len(spec.ToolPruneCommand) != 0 {
+			t.Errorf("Go cache must not declare a tool prune command, got %v", spec.ToolPruneCommand)
 		}
 	}
 	if found != 1 {
@@ -132,6 +134,27 @@ func TestGoBuildCacheRefusesPreviouslyApprovedPreview(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+func TestValidateRootSpecConfinesOwnerReclaimCommands(t *testing.T) {
+	base := RootSpec{ID: "owned", Root: "/tmp/owned", Class: "cache", Tier: cleanup.SafetyTierSafeWithOwner, Platforms: []string{"linux"}, Rationale: "owner proves use", OwnerReclaimCommand: []string{"owner", "reclaim"}}
+	if err := ValidateRootSpec(base); err != nil {
+		t.Fatalf("owner-reclaimed safe_with_owner root rejected: %v", err)
+	}
+	for name, mutate := range map[string]func(*RootSpec){
+		"conditional tier": func(s *RootSpec) { s.Tier = cleanup.SafetyTierConditional },
+		"regenerable tier": func(s *RootSpec) {
+			s.Tier, s.Proof = cleanup.SafetyTierRegenerable, RootSpecProof{true, true, true, true}
+		},
+		"also tool pruned":   func(s *RootSpec) { s.ToolPruneCommand = []string{"go", "clean", "-cache"} },
+		"empty program name": func(s *RootSpec) { s.OwnerReclaimCommand = []string{" ", "reclaim"} },
+	} {
+		spec := base
+		mutate(&spec)
+		if err := ValidateRootSpec(spec); err == nil {
+			t.Errorf("%s: owner_reclaim_command accepted outside its contract: %#v", name, spec)
 		}
 	}
 }

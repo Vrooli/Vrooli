@@ -50,11 +50,15 @@ const (
 
 // PathRule is the agent-policy path_rules wire shape.
 type PathRule struct {
-	Root     string `json:"root"`
-	Action   string `json:"action"`
-	Reason   string `json:"reason"`
-	Source   string `json:"source"`
-	Owner    string `json:"owner,omitempty"`
+	Root   string `json:"root"`
+	Action string `json:"action"`
+	Reason string `json:"reason"`
+	Source string `json:"source"`
+	Owner  string `json:"owner,omitempty"`
+	// Match and Only carry an owner's declaration of generated names (see
+	// disposable.go); they stay empty for every other rule.
+	Match    string   `json:"match,omitempty"`
+	Only     []string `json:"only,omitempty"`
 	priority int
 }
 
@@ -91,6 +95,11 @@ func Declarations(repoRoot string) ([]PathRule, []string, error) {
 	rules := rootRules(specs, inputs, &warnings)
 	rules = append(rules, runtimeHomeRules(entries, inputs.RuntimeHome)...)
 	rules = append(rules, ownerRules(repoRoot, inventory.Owners, &warnings)...)
+	disposable, err := disposableRules(repoRoot, inputs, &warnings)
+	if err != nil {
+		return nil, nil, err
+	}
+	rules = append(rules, disposable...)
 	return mergeRules(rules), warnings, nil
 }
 
@@ -242,7 +251,7 @@ func containsPlatform(platforms []corestorage.Platform, want corestorage.Platfor
 func mergeRules(rules []PathRule) []PathRule {
 	byRoot := map[string]PathRule{}
 	for _, rule := range rules {
-		key := rule.Root
+		key := rule.Root + "\x00" + rule.Match
 		if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
 			key = strings.ToLower(key)
 		}
@@ -255,7 +264,12 @@ func mergeRules(rules []PathRule) []PathRule {
 	for _, rule := range byRoot {
 		merged = append(merged, rule)
 	}
-	sort.Slice(merged, func(i, j int) bool { return merged[i].Root < merged[j].Root })
+	sort.Slice(merged, func(i, j int) bool {
+		if merged[i].Root != merged[j].Root {
+			return merged[i].Root < merged[j].Root
+		}
+		return merged[i].Match < merged[j].Match
+	})
 	return merged
 }
 
@@ -280,6 +294,17 @@ func BuildSnapshot(now time.Time, rules []PathRule, warnings []string, approval 
 		return nil, errors.New("snapshot time is required")
 	}
 	now = now.UTC()
+	// Rules that match generated names travel in their own field. A policy
+	// runner older than the name match ignores fields it does not know, and
+	// would otherwise read such a rule as one for the whole folder.
+	var pathRules, nameRules []PathRule
+	for _, rule := range rules {
+		if rule.Match != "" {
+			nameRules = append(nameRules, rule)
+		} else {
+			pathRules = append(pathRules, rule)
+		}
+	}
 	message := fmt.Sprintf("%d declared locations", len(rules))
 	if len(warnings) > 0 {
 		message += fmt.Sprintf("; %d declarations left to the floor", len(warnings))
@@ -294,7 +319,8 @@ func BuildSnapshot(now time.Time, rules []PathRule, warnings []string, approval 
 		"health":         map[string]any{"state": "healthy", "checked_at": now, "expires_at": now.Add(snapshotLifetime), "message": message},
 		"readiness":      map[string]any{"state": "ready", "rollback_plan": "withdraw the storage-manager snapshot; the built-in floor then decides alone"},
 		"evidence_state": "clean", "captured_at": now, "expires_at": now.Add(snapshotLifetime),
-		"path_rules":       rules,
+		"path_rules":       pathRules,
+		"name_rules":       nameRules,
 		"removal_approval": approval,
 		"provenance":       map[string]string{"provider": ProviderID, "declarations": "repo-contract storage.roots and runtime_home; owner storage entries"},
 	}, "", "  ")

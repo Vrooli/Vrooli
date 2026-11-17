@@ -175,6 +175,13 @@ Future external reclamation needs a tool-owner build-use/quiescence protocol;
 mtime and open-handle snapshots are insufficient. Runtime adoption remains a
 separate operator-owned step.
 
+**Follow-up 2026-11-14:** The tool-owner protocol now exists. The control plane
+owns `internal/gocache` and `vrooli host go-cache`: GOCACHEPROG session pins,
+a go-command audit before each shard, and plan tokens bound to the store.
+`go-build-cache` is `safe_with_owner` with `owner_reclaim_command`, and
+reclaims through `OwnerReclaimProvider`. File-walk and `go clean -cache` paths
+stay refused.
+
 **Owner:** Storage Manager provider owner; control-plane owner for lifecycle adoption.
 
 **Refs:** [Safety invariant](../reference/recovery-ledger.md#shared-go-build-cache-safety),

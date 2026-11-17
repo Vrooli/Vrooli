@@ -71,14 +71,19 @@ func TestValidateProviderPolicyRejectsUnsafeOverrides(t *testing.T) {
 	}
 }
 
-func TestBalancedProfileKeepsGoBuildCacheAtSevenDays(t *testing.T) {
-	profile, err := BuildProfile(ProfileBalanced, []cleanup.ProviderMetadata{{ID: "go-build-cache", Name: "Go build cache", Version: "v1", OwnerScenario: "storage-manager", SafetyTier: cleanup.SafetyTierSafe, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeNone, SupportedPlatforms: []string{"linux"}, IrreversibleEffects: []string{"cache files removed"}, TestSubstitute: "fake"}})
+// The Go build cache's owner enforces its own byte budget and recency floor;
+// no profile carries a per-id age for it. Its owner-budgeted provider is
+// enabled like every other safe_with_owner provider.
+func TestBalancedProfileTreatsOwnerBudgetedGoBuildCacheLikeAnyOwnerProvider(t *testing.T) {
+	owned := func(id string) cleanup.ProviderMetadata {
+		return cleanup.ProviderMetadata{ID: id, Name: id, Version: "v1", OwnerScenario: "storage-manager", SafetyTier: cleanup.SafetyTierSafeWithOwner, OwnerBudget: true, DefaultMode: cleanup.ProviderModeDisabled, DefaultApproval: cleanup.ApprovalModeOwner, SupportedPlatforms: []string{"linux"}, IrreversibleEffects: []string{"owner removes entries"}, TestSubstitute: "fake"}
+	}
+	profile, err := BuildProfile(ProfileBalanced, []cleanup.ProviderMetadata{owned("go-build-cache"), owned("other-owner")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := profile.Defaults["go-build-cache"]
-	if !got.Enabled || got.MinAge != 7*24*time.Hour {
-		t.Fatalf("go-build-cache balanced policy = %#v", got)
+	if got, want := profile.Defaults["go-build-cache"], profile.Defaults["other-owner"]; got != want || !got.Enabled {
+		t.Fatalf("go-build-cache balanced policy = %#v, want the generic owner policy %#v", got, want)
 	}
 }
 

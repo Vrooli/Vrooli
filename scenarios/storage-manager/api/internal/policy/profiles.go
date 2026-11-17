@@ -52,10 +52,6 @@ func BuildProfile(name ProfileName, providers []cleanup.ProviderMetadata) (Profi
 				defaultPolicy.Enabled = true
 				defaultPolicy.MinAge = 3 * 24 * time.Hour
 			}
-			if meta.ID == "go-build-cache" {
-				defaultPolicy.Enabled = true
-				defaultPolicy.MinAge = 7 * 24 * time.Hour
-			}
 		case ProfileAggressive:
 			if meta.SafetyTier != cleanup.SafetyTierForbidden {
 				defaultPolicy.Enabled = true

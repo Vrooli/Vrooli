@@ -141,3 +141,47 @@ are wired. Preview reports Ollama's per-tag logical size with a warning that
 shared blobs make it neither unique filesystem usage nor reclaimable bytes.
 Estimated and reclaimed bytes remain zero; actual filesystem delta is unknown
 until an owner reports an authoritative measurement.
+
+## Owner-reclaim providers
+
+A governed root that declares `owner_reclaim_command` in `storage.roots`
+delegates removal to the tool that owns it. Each such root registers one
+`OwnerReclaimProvider` under the root's id. It is `safe_with_owner`,
+owner-budgeted, and owner-approved. Storage Manager plans and invokes; the
+owner decides what is safe to remove. The owner binds its plan to the exact
+store, enforces its own budget, and reports what it freed. Storage Manager
+never walks or deletes the root itself.
+
+The owner-reclaim/v1 contract adds two verbs to the declared command. Each
+verb prints one JSON document whose `schema` ends in `/v1`:
+
+| Invocation | Document fields Storage Manager reads |
+|---|---|
+| `<command> plan --cache <root> --json` | `cache`, `token`, `store_bytes`, `budget_bytes`, `reclaimable_bytes`, `blocked_reason` |
+| `<command> reclaim --cache <root> --token <token> --max-bytes <n> [--time-budget <d>] --json` | `cache`, `freed_bytes`, `removed_entries`, `stop_reason`, `blocked_reason` |
+
+Behaviour:
+
+- **Blocked owner.** An owner that declines exits 0 and names its reason in
+  `blocked_reason`. The provider reports that reason verbatim as its blocked
+  reason.
+- **Failed owner.** A command that cannot start or exits non-zero is also
+  reported as blocked during estimate and preview, and as a skipped batch
+  during apply. It never fails the recovery run.
+- **Contract violations.** A document for another cache, a document with a
+  missing or foreign schema, or a plan that proposes bytes without a token is
+  an error.
+- **Preview items.** Preview splits the reclaimable bytes into items of at most
+  1 GiB, up to 256 items. Each item carries the plan token as its `identity`,
+  so the recovery controller's bounded batches map onto bounded owner applies.
+- **Apply.** Apply requires every item to name the same token. It passes the
+  sum of the item bytes as `--max-bytes`, and the caller's remaining deadline,
+  less a 5-second margin, as `--time-budget`.
+- **Reclaimed bytes.** These are the owner's `freed_bytes`, never the estimate.
+
+The schema confines `owner_reclaim_command` to tier `safe_with_owner`, and
+forbids it together with `tool_prune_command`, so exactly one owner reclaims a
+root. The Go build cache (`vrooli host go-cache`) is the first owner; see
+[Shared Go build-cache safety](recovery-ledger.md#shared-go-build-cache-safety).
+Tests substitute a scripted process runner; the provider package never runs a
+real owner.

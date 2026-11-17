@@ -7,7 +7,6 @@ domain is added, renamed, split, merged, or removed.
 `cleanup` and `health` are the current domains. Keep this inventory aligned
 with proto, API, CLI, UI, and test ownership as the cleanup surface grows.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -67,14 +67,21 @@ func applyGrants(base []PathRule, grants []GrantRule) ([]PathRule, []string) {
 	return mergeRules(out), warnings
 }
 
-// ProtectingDeclaration names the declaration that protects path, if any, and
-// whether path is that protected root itself, which no grant can open.
-func ProtectingDeclaration(rules []PathRule, path string) (source string, protectedRoot string, isRoot bool) {
-	deny, protected := denyingRule(rules, filepath.Clean(path))
-	if !protected {
-		return "", "", false
+// Governing returns the declaration that governs path: the nearest one that
+// denies deletion at or above it, since nothing below a deny may be deleted
+// without a grant, else the nearest declaration of any kind. found is false
+// when nothing on the host declares the location.
+func Governing(rules []PathRule, path string) (rule PathRule, found bool) {
+	path = filepath.Clean(path)
+	if deny, ok := denyingRule(rules, path); ok {
+		return deny, true
 	}
-	return deny.Source, deny.Root, filepath.Clean(deny.Root) == filepath.Clean(path)
+	for _, candidate := range rules {
+		if pathWithin(path, candidate.Root) && (!found || len(candidate.Root) > len(rule.Root)) {
+			rule, found = candidate, true
+		}
+	}
+	return rule, found
 }
 
 // denyingRule returns the nearest declared rule that denies deletion at or above

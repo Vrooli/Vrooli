@@ -43,7 +43,6 @@ import (
 type Roots struct {
 	Tmp             []string
 	Trash           []string
-	GoBuildCache    []string
 	PlaywrightCache []string
 }
 
@@ -57,7 +56,6 @@ func Resolve() Roots {
 	return Roots{
 		Tmp:             existing(os.TempDir(), hostTemporaryRoot(), goWorkRoot()),
 		Trash:           existing(trashRoots()...),
-		GoBuildCache:    existing(goBuildCacheRoot()),
 		PlaywrightCache: existing(playwrightCacheRoot()),
 	}
 }
@@ -76,30 +74,6 @@ func goWorkRoot() string {
 		return ""
 	}
 	return filepath.Join(home, ".vrooli", "tmp", "go-work")
-}
-
-// goBuildCacheRoot resolves Go's build cache.
-//
-// GOCACHE is consulted first because that is exactly the precedence the go
-// command itself uses, so an operator who moved their cache gets it cleaned
-// rather than silently skipped. The fallback mirrors Go's own default of
-// <UserCacheDir>/go-build, which os.UserCacheDir already resolves correctly on
-// linux, darwin, and windows.
-//
-// GOCACHE=off is a valid setting meaning "no cache"; it is not a path, and
-// treating it as one would produce a nonsense root.
-func goBuildCacheRoot() string {
-	if cache := strings.TrimSpace(os.Getenv("GOCACHE")); cache != "" {
-		if strings.EqualFold(cache, "off") {
-			return ""
-		}
-		return cache
-	}
-	dir, err := os.UserCacheDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(dir, "go-build")
 }
 
 // playwrightCacheRoot resolves Playwright's downloaded-browser cache.

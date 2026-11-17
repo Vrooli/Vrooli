@@ -12,11 +12,11 @@ import (
 // ToolPruneProvider reclaims a tool-owned cache by invoking the tool's own
 // prune command instead of deleting files underneath it.
 //
-// Go's whole-cache clean is withheld: unlike its ordinary age-based trimming,
-// it deletes cache shards without proving that active builds released their
-// outputs. Tool ownership and operator consent alone do not supply that proof.
-// Both legacy file previews and tool-prune previews must remain unavailable
-// until a canonical build-use/quiescence and exact-target protocol exists.
+// Go's whole-cache clean is refused: it deletes cache shards without proving
+// that active builds released their outputs, and resolves its cache from the
+// runner's environment rather than the declared root. The Go build cache
+// reclaims only through its owner (OwnerReclaimProvider and
+// `vrooli host go-cache`), whose session pins are that proof.
 //
 // The command is data, taken verbatim from the repository storage contract
 // (.vrooli/repo-contract.json storage.roots[].tool_prune_command) and executed
@@ -84,9 +84,8 @@ func (p *ToolPruneProvider) Metadata() cleanup.ProviderMetadata {
 		TestSubstitute:      "fake-process-runner",
 	}
 	// A regenerable cache may run unattended, but only on the same complete
-	// proof every regenerable provider must carry. A conditional cache (the Go
-	// build cache) keeps operator approval and never runs autonomously, so its
-	// 100+ GB is not re-reclaimed every pressure tick on a build-heavy host.
+	// proof every regenerable provider must carry. A conditional cache keeps
+	// operator approval and never runs autonomously.
 	if p.cfg.Tier == cleanup.SafetyTierRegenerable {
 		meta.DefaultApproval = cleanup.ApprovalModeNone
 		meta.NoLease = p.cfg.Proof.NoLease

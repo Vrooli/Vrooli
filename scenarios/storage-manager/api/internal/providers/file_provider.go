@@ -223,20 +223,24 @@ func NewCacheProvider(files cleanup.FileSystem, clock cleanup.Clock, cfg FilePro
 }
 
 func isGoBuildCacheProvider(id string) bool {
-	// Both are canonical registry identities: the current root-spec provider
-	// and its legacy adapter. Do not let an old regenerable declaration restore
-	// autonomous authority while it still advertises a false NoLease proof.
+	// Both are canonical registry identities: the root-spec id and its legacy
+	// spec- adapter. The file and tool-prune paths refuse them whatever their
+	// declaration says, so an old regenerable or tool-prune declaration cannot
+	// restore an unproven deletion path beside the owner provider.
 	return id == "go-build-cache" || id == "spec-go-build-cache"
 }
 
-const goBuildCacheReclaimBlockedReason = "Go build cache reclaim requires tool-owner build-use or quiescence proof and exact cache-target binding; operator approval and go clean -cache cannot provide it"
+// goBuildCacheReclaimBlockedReason is why the file and tool-prune paths
+// refuse the Go build cache. Its owner (`vrooli host go-cache`, registered as
+// an OwnerReclaimProvider) holds the build-use proof; these paths do not.
+const goBuildCacheReclaimBlockedReason = "Go build cache reclaims only through its owner (owner_reclaim_command `vrooli host go-cache`), whose protocol proves build-use release and binds the exact cache-target; a file walk, operator approval and go clean -cache prove neither"
 
 func (p *FileProvider) reclaimBlockedReason() string {
 	if isGoBuildCacheProvider(p.meta.ID) {
 		// Go promises a Get/Put output remains available through cache Close.
 		// File age, a byte cap, and a snapshot of open handles cannot establish
-		// that all builds have finished using it. This provider has no tool-owner
-		// build-use protocol; even operator approval is not that evidence.
+		// that all builds have finished using it, and even operator approval is
+		// not that evidence. Only the owner's session pins are.
 		return goBuildCacheReclaimBlockedReason
 	}
 	return ""

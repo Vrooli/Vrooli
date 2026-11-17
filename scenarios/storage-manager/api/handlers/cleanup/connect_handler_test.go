@@ -12,6 +12,7 @@ import (
 	cleanupcore "storage-manager/internal/cleanup"
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/policy"
+	"storage-manager/internal/providers"
 
 	"connectrpc.com/connect"
 	corestorage "github.com/vrooli/api-core/storage"
@@ -120,37 +121,63 @@ func TestGovernedRootProviderConfigsAreDeclarativeAndExcludeLeasedRoots(t *testi
 	}
 }
 
-func TestToolPruneSpecsWireGoBuildCacheToItsOwnCommand(t *testing.T) {
+func TestToolPruneSpecsStayOutOfFilePrunedTiers(t *testing.T) {
 	repoRoot := filepath.Join("..", "..", "..", "..", "..")
 	specs, err := toolPruneSpecs(repoRoot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	seen := map[string]bool{}
 	for _, spec := range specs {
-		seen[spec.ID] = true
 		// Roots the file providers already own must not be tool pruned too; that
 		// would register a duplicate id and double the delete authority.
 		if spec.Tier == cleanupcore.SafetyTierSafe || spec.Tier == cleanupcore.SafetyTierRegenerable {
 			t.Fatalf("tool-prune spec %q is in a file-pruned tier %q", spec.ID, spec.Tier)
 		}
+		// go clean -cache deletes shards without build-use proof.
 		if spec.ID == "go-build-cache" {
-			cmd := spec.Command.Name + " " + strings.Join(spec.Command.Args, " ")
-			if cmd != "go clean -cache" {
-				t.Errorf("go-build-cache command = %q, want `go clean -cache`", cmd)
-			}
-			if spec.Tier != cleanupcore.SafetyTierConditional {
-				t.Errorf("go-build-cache tier = %q, want conditional", spec.Tier)
-			}
+			t.Fatalf("go-build-cache must not reclaim through a tool prune command: %#v", spec)
 		}
 	}
-	if !seen["go-build-cache"] {
-		t.Fatalf("go-build-cache has no tool-prune reclamation path; got %v", seen)
+}
+
+// The Go build cache reclaims only through its control-plane owner, and that
+// owner is the only reclaim path registered for it.
+func TestOwnerReclaimSpecsDelegateGoBuildCacheToTheControlPlaneOwner(t *testing.T) {
+	repoRoot := filepath.Join("..", "..", "..", "..", "..")
+	specs, err := ownerReclaimSpecs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
 	}
-	// The regenerable caches keep their FileProvider reclamation and must not
-	// also appear here.
-	if seen["uv-cache"] || seen["pnpm-store"] {
-		t.Fatalf("regenerable caches must stay file pruned, not tool pruned; got %v", seen)
+	var goCache *providers.OwnerReclaimProviderConfig
+	for i := range specs {
+		if specs[i].ID == "go-build-cache" {
+			goCache = &specs[i]
+		}
+	}
+	if goCache == nil {
+		t.Fatalf("go-build-cache has no owner reclaim path; got %#v", specs)
+	}
+	if got := goCache.Command.Name + " " + strings.Join(goCache.Command.Args, " "); got != "vrooli host go-cache" {
+		t.Errorf("go-build-cache owner command = %q, want `vrooli host go-cache`", got)
+	}
+	if goCache.Root != "" && (!filepath.IsAbs(goCache.Root) || filepath.Base(goCache.Root) != "go-build") {
+		t.Errorf("go-build-cache root = %q, want the resolved absolute cache root", goCache.Root)
+	}
+	provider, err := providers.NewOwnerReclaimProvider(nil, nil, *goCache)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta := provider.Metadata(); meta.SafetyTier != cleanupcore.SafetyTierSafeWithOwner || !meta.OwnerBudget {
+		t.Errorf("go-build-cache owner provider metadata = %#v, want an owner-budgeted safe_with_owner provider", meta)
+	}
+	governed, err := governedRootSpecs(repoRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, spec := range governed {
+		if spec.ID == "go-build-cache" {
+			t.Fatal("Go build cache admitted to the file-pruned root specs")
+		}
 	}
 }
 

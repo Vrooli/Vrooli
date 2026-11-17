@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/credential-authority-go/eventpublishing"
+	"github.com/vrooli/vrooli/packages/credential-authority-go/hubidentity"
+
 	"storage-manager/internal/census"
 	"storage-manager/internal/dbmaintenance"
 	"storage-manager/internal/deletiongrant"
@@ -54,6 +57,7 @@ import (
 )
 
 func main() {
+	eventpublishing.Register()
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
 	// The lifecycle already owns freshness checks and builds before launching a
@@ -191,26 +195,41 @@ func main() {
 		Store:          grantStore,
 		Publisher:      eventbus.NewDiscoveredClient(context.Background()),
 		MaxOutstanding: 10,
-		Window:         7 * 24 * time.Hour,
+		Window:         deletiongrant.AskWindow,
 	}
 	// Verify the requesting coding agent's identity (via the shared
 	// agent-provenance layer, which checks the token against agent-manager) so
 	// the request records a trusted run id for the automatic answer tie-back.
 	// The signed resolution webhook carries no agent token and is left unwrapped.
 	grantProvenance := provenance.Middleware(provenance.CLIUtilVerifier{})
-	rootMux.Handle(deletiongrant.RequestPath, grantProvenance(deletiongrant.RequestHandler(grantRaiser, declaredProtection(repoRoot))))
+	rootMux.Handle(deletiongrant.RequestPath, grantProvenance(deletiongrant.RequestHandler(deletiongrant.KeyedRaiser{Inner: grantRaiser, Store: grantStore}, declaredPaths(repoRoot))))
+	// An open deletion decision closes itself when nobody answered within its
+	// window or every path it names is already gone, so the operator's inbox
+	// never keeps a request nothing waits on. A withdrawal that could not be
+	// published is sent again on the next pass.
+	go func() {
+		deletiongrant.Reconciler{Store: grantStore, Withdrawn: grantRaiser, Gate: backgroundGate.Run}.Run(schedulerContext, deletionGrantReconcileInterval, func(res deletiongrant.Result, err error) {
+			if err != nil {
+				logger.Printf("deletion-grant reconcile: %v", err)
+			} else if res != (deletiongrant.Result{}) {
+				logger.Printf("deletion-grant reconcile: %d lapsed, %d with paths gone, %d withdrawals sent again", res.Lapsed, res.Gone, res.Republished)
+			}
+		})
+	}()
 	if secret, secretErr := deletiongrant.ResolveWebhookSecret(os.Getenv); deletiongrant.ShouldMountWebhook(secret, secretErr) {
-		rootMux.Handle(deletiongrant.WebhookPath, operatordecision.Webhook(secret, deletiongrant.NewResolver(grantStore).WithOnApprove(grantRepublisher.Trigger)))
+		rootMux.Handle(deletiongrant.WebhookPath, operatordecision.NewWebhook(hubidentity.WebhookConfig(operatordecision.WebhookConfig{
+			Secret: operatordecision.StaticSecret(secret), Source: deletiongrant.Source,
+			Effects: []operatordecision.DomainEffect{deletiongrant.NewResolver(grantStore).WithOnApprove(grantRepublisher.Trigger)},
+		})))
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			target := "http://127.0.0.1:" + port + deletiongrant.WebhookPath
 			go func() {
-				_ = backgroundGate.RunWhenOpen(schedulerContext, func() error {
-					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-					defer cancel()
-					if err := deletiongrant.ReconcileSubscription(ctx, target); err != nil {
-						logger.Printf("deletion-grant answer subscription reconcile failed: %v", err)
-					}
-					return nil
+				eventbus.RunSubscriptionReconciler(schedulerContext, eventbus.SubscriptionReconcilerConfig{
+					Interval: 30 * time.Second, AttemptTimeout: 15 * time.Second, Attempts: 1,
+				}, func(ctx context.Context) error {
+					return backgroundGate.RunWhenOpen(ctx, func() error { return deletiongrant.ReconcileSubscription(ctx, target) })
+				}, func(err error) {
+					logger.Printf("deletion-grant answer subscription reconcile failed; retry scheduled: %v", err)
 				})
 			}()
 		}
@@ -347,6 +366,10 @@ func openRetentionLedger() (*artifactledger.Ledger, error) {
 }
 
 // startRetentionScheduler runs declared storage-entry budgets on an interval.
+// deletionGrantReconcileInterval is how often open deletion decisions are
+// checked for a lapsed window or paths that are already gone.
+const deletionGrantReconcileInterval = 10 * time.Minute
+
 func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger, db *database.RoutedDB, gate *workgate.Gate) {
 	platform := storage.Platform(runtime.GOOS)
 	budgetCycles := map[string]int{}
@@ -414,21 +437,38 @@ func maintainOwnDatabase(ctx context.Context, logger *log.Logger, db *database.R
 	}
 }
 
-// declaredProtection reads the host's declarations once per request, so a
-// deletion-grant ask shows the operator which paths are owner-protected; when
-// they cannot be read the request is refused rather than asked without that.
-func declaredProtection(repoRoot string) deletiongrant.ProtectionSource {
+// declaredPaths reads the host's declarations once per request, so a
+// deletion-grant ask shows the operator who owns each path and whether it
+// comes back; when they cannot be read the request is refused rather than
+// asked without that.
+func declaredPaths(repoRoot string) deletiongrant.Declarations {
 	if repoRoot == "" {
 		return nil
 	}
-	return func() (deletiongrant.Protection, error) {
+	return func() (func(string) deletiongrant.Declaration, error) {
 		rules, _, err := policybridge.Declarations(repoRoot)
 		if err != nil {
 			return nil, err
 		}
-		return func(path string) (string, string, bool, error) {
-			source, root, isRoot := policybridge.ProtectingDeclaration(rules, path)
-			return source, root, isRoot, nil
+		return func(path string) deletiongrant.Declaration {
+			rule, found := policybridge.Governing(rules, path)
+			if !found {
+				return deletiongrant.Declaration{Disposition: deletiongrant.Undeclared}
+			}
+			d := deletiongrant.Declaration{Source: rule.Source, Root: rule.Root, Reason: rule.Reason, Owner: rule.Owner}
+			if i := strings.LastIndex(d.Owner, "/"); i >= 0 {
+				d.Owner = d.Owner[i+1:] // "scenario/agent-manager" reads as "agent-manager"
+			}
+			switch rule.Action {
+			case "allow":
+				d.Disposition = deletiongrant.Regenerable
+			case "ask":
+				d.Disposition = deletiongrant.OwnerConfirms
+			default:
+				d.Disposition = deletiongrant.Protected
+				d.IsRoot = filepath.Clean(rule.Root) == filepath.Clean(path)
+			}
+			return d
 		}, nil
 	}
 }

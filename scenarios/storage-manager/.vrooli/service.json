@@ -227,6 +227,26 @@
         "startup_policy": "try_start",
         "description": "Optional code-facts enrichment for storage validation and census attribution.",
         "degraded_behavior": "Filesystem scanning remains available when code-facts is unavailable."
+      },
+      "deployment-manager": {
+        "degraded_behavior": "Storage validation and cleanup remain available; when reporting is enabled an unreachable peer returns an explicit error.",
+        "description": "Optional readiness evidence sink when the owner token is configured.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Storage Manager uses the generated readiness reporter contract at runtime and imports no Deployment Manager package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
+      },
+      "vrooli-events": {
+        "degraded_behavior": "Manual in-scenario decisions remain available; asynchronous Notification Hub answers may be delayed until Events recovers and subscription reconciliation succeeds.",
+        "description": "Receives durable webhook decision answers for this scenario through Vrooli Events.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The scenario uses the shared api-core eventbus client over runtime HTTP and imports no Vrooli Events package.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

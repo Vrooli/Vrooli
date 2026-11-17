@@ -36,17 +36,17 @@ func TestApprovalsGrantBindsApprovalToThisHost(t *testing.T) {
 
 	h := &handlers{httpClient: server.Client(), baseURL: server.URL}
 	before := time.Now().UTC()
-	saved, err := h.approvalsGrantCall(flagContext{flags: map[string]string{"provider": "go-build-cache", "approved-by": "operator"}})
+	saved, err := h.approvalsGrantCall(flagContext{flags: map[string]string{"provider": "apt-metadata", "approved-by": "operator"}})
 	if err != nil {
 		t.Fatalf("grant: %v", err)
 	}
-	if gotMethod != http.MethodPost || gotPath != "/api/v1/cleanup/approvals/go-build-cache" {
+	if gotMethod != http.MethodPost || gotPath != "/api/v1/cleanup/approvals/apt-metadata" {
 		t.Fatalf("request = %s %s", gotMethod, gotPath)
 	}
 	if got.HostID != host || got.ApprovedBy != "operator" || got.ApprovedAt.Before(before) {
 		t.Fatalf("approval body = %+v, want host %q, approved_by operator, approved_at >= %s", got, host, before)
 	}
-	if len(saved) != 1 || saved[0].Provider != "go-build-cache" {
+	if len(saved) != 1 || saved[0].Provider != "apt-metadata" {
 		t.Fatalf("saved = %+v", saved)
 	}
 }
@@ -64,7 +64,7 @@ func TestApprovalsRevokeSurfacesAPIRefusal(t *testing.T) {
 	}))
 	defer server.Close()
 	h := &handlers{httpClient: server.Client(), baseURL: server.URL}
-	if _, err := h.approvalsRevokeCall(flagContext{flags: map[string]string{"provider": "go-build-cache"}}); err == nil {
+	if _, err := h.approvalsRevokeCall(flagContext{flags: map[string]string{"provider": "apt-metadata"}}); err == nil {
 		t.Fatal("revoke hid the API refusal")
 	}
 }
@@ -73,7 +73,7 @@ func TestApprovalsListOrdersByProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(map[string]standingApproval{
 			"journald":       {ApprovedBy: "a", HostID: "h"},
-			"go-build-cache": {ApprovedBy: "b", HostID: "h"},
+			"apt-metadata": {ApprovedBy: "b", HostID: "h"},
 		})
 	}))
 	defer server.Close()
@@ -82,7 +82,7 @@ func TestApprovalsListOrdersByProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
-	if len(list) != 2 || list[0].Provider != "go-build-cache" || list[1].Provider != "journald" {
+	if len(list) != 2 || list[0].Provider != "apt-metadata" || list[1].Provider != "journald" {
 		t.Fatalf("list = %+v", list)
 	}
 }

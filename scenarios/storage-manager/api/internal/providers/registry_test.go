@@ -61,7 +61,6 @@ func TestConservativeBuiltInsValidateAndSortCatalog(t *testing.T) {
 		TrashRoots:           []string{"/fake/trash"},
 		TmpRoots:             []string{"/fake/tmp"},
 		ScratchRoots:         []string{"/fake/scratch"},
-		GoBuildCacheRoots:    []string{"/fake/go-build"},
 		PlaywrightCacheRoots: []string{"/fake/playwright"},
 	})
 	if err != nil {

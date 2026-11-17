@@ -17,6 +17,14 @@ owning tool can recreate them, deletion is contained to the exact root, and no
 active lease protects the data. Durable models, scenario databases, and active
 resources remain outside this class.
 
+A root may instead name the tool that proves which of its bytes are unused.
+`tool_prune_command` runs a tool's own prune command as one indivisible
+effect. `owner_reclaim_command` delegates the root to an owner under the
+owner-reclaim/v1 contract; it requires tier `safe_with_owner` and excludes
+`tool_prune_command` ([owner-reclaim providers](providers.md#owner-reclaim-providers)).
+The Go build cache uses `owner_reclaim_command`, because no file walk or
+whole-cache clean can prove that a running build has released an output.
+
 Use the storage-manager provider and recovery read surfaces to inspect the
 resolved declaration. Do not hardcode a physical path in a new provider.
 

@@ -23,14 +23,15 @@ func newReadinessReporter(ctx context.Context) ReadinessReporter {
 		return nil
 	}
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv(storageManagerReadinessPrefix+"_URL")), "/")
-	if baseURL == "" {
-		resolved, err := discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
-		if err != nil {
-			return readinessConfigurationError{err: err}
-		}
-		baseURL = strings.TrimRight(strings.TrimSpace(resolved), "/")
+	var reporter *readinessreporter.Reporter
+	var err error
+	if baseURL != "" {
+		reporter, err = readinessreporter.NewFromEnv(storageManagerReadinessPrefix, baseURL, "storage-architecture-clean", "storage-manager.validate.scenario", "storage-manager")
+	} else {
+		reporter, err = readinessreporter.NewFromEnvResolver(storageManagerReadinessPrefix, func(ctx context.Context) (string, error) {
+			return discovery.ResolveScenarioURLDefault(ctx, "deployment-manager")
+		}, "storage-architecture-clean", "storage-manager.validate.scenario", "storage-manager")
 	}
-	reporter, err := readinessreporter.NewFromEnv(storageManagerReadinessPrefix, baseURL, "storage-architecture-clean", "storage-manager.validate.scenario", "storage-manager")
 	if err != nil {
 		return readinessConfigurationError{err: err}
 	}

@@ -41,43 +41,6 @@ func TestResolveKeepsHostTmpWhenProcessTmpdirIsRelocated(t *testing.T) {
 	}
 }
 
-// TestGoBuildCacheRoot_HonoursGOCACHE asserts an operator who relocated their
-// build cache gets that location cleaned rather than silently skipped.
-func TestGoBuildCacheRoot_HonoursGOCACHE(t *testing.T) {
-	relocated := t.TempDir()
-	t.Setenv("GOCACHE", relocated)
-
-	if got := goBuildCacheRoot(); got != relocated {
-		t.Errorf("goBuildCacheRoot() = %q, want the GOCACHE value %q", got, relocated)
-	}
-}
-
-// TestGoBuildCacheRoot_TreatsOffAsNoRoot asserts the sentinel value is not
-// mistaken for a directory name. GOCACHE=off means "no cache"; treating it as a
-// path would produce a root named "off" relative to nothing.
-func TestGoBuildCacheRoot_TreatsOffAsNoRoot(t *testing.T) {
-	for _, value := range []string{"off", "OFF", "Off"} {
-		t.Setenv("GOCACHE", value)
-		if got := goBuildCacheRoot(); got != "" {
-			t.Errorf("GOCACHE=%s resolved to %q, want no root", value, got)
-		}
-	}
-}
-
-// TestGoBuildCacheRoot_FallsBackToUserCacheDir asserts the default matches
-// Go's own, which os.UserCacheDir already resolves per-OS.
-func TestGoBuildCacheRoot_FallsBackToUserCacheDir(t *testing.T) {
-	t.Setenv("GOCACHE", "")
-
-	cacheDir, err := os.UserCacheDir()
-	if err != nil {
-		t.Skipf("no user cache dir on this host: %v", err)
-	}
-	if got, want := goBuildCacheRoot(), filepath.Join(cacheDir, "go-build"); got != want {
-		t.Errorf("goBuildCacheRoot() = %q, want %q", got, want)
-	}
-}
-
 // TestPlaywrightCacheRoot_TreatsZeroAsNoRoot asserts Playwright's own sentinel
 // is respected. PLAYWRIGHT_BROWSERS_PATH=0 means "install beside the package",
 // not "use the directory named 0".
