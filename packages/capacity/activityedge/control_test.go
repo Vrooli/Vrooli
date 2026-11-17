@@ -73,6 +73,45 @@ func TestDrainWaitsForSequencedIdleReport(t *testing.T) {
 	}
 }
 
+func TestDrainWaitsForIdleReportAlreadyQueuedByDebounce(t *testing.T) {
+	idleStarted := make(chan struct{})
+	releaseIdle := make(chan struct{})
+	drainDone := make(chan error, 1)
+	tr := &tracker{
+		debounce:   time.Millisecond,
+		markActive: func() {},
+		markIdle: func() {
+			close(idleStarted)
+			<-releaseIdle
+		},
+	}
+	if !tr.begin() {
+		t.Fatal("initial work was rejected")
+	}
+	tr.end()
+	select {
+	case <-idleStarted:
+	case <-time.After(time.Second):
+		t.Fatal("debounce did not start the idle report")
+	}
+
+	go func() { drainDone <- tr.drain(context.Background()) }()
+	select {
+	case err := <-drainDone:
+		t.Fatalf("drain returned before the queued idle report completed: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	close(releaseIdle)
+	select {
+	case err := <-drainDone:
+		if err != nil {
+			t.Fatalf("drain after idle report completion: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("drain did not finish after idle report completion")
+	}
+}
+
 func TestControlSocketRefusesRegularFile(t *testing.T) {
 	dir, err := os.MkdirTemp("/tmp", "ae-")
 	if err != nil {

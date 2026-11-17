@@ -69,6 +69,14 @@ evidence, then the shared store independently checks that the recorded process
 identity is gone before releasing the reservation. This receipt path does not
 grant admission; new work still requires `ReserveDiskJob`.
 
+When an active operation is recoverable after its producer exits, owners may
+use `DiskJobReattacher.ReattachDiskJob` with the exact owner, stable job ID and
+lease ID. The capacity store independently verifies that the previous PID and
+start identity are gone, rotates the private capability to the current process,
+and preserves the active reservation and path evidence. This does not release
+or re-admit the job; the owner must reconcile its operation state before it
+continues or completes the same lease.
+
 Terminal `actualDeltaBytes` reports the filesystem available-byte decrease
 since reservation and may include unrelated host activity. Receipts label this
 as `filesystem_available_bytes_decrease`; use the owner-supplied monotonic path

@@ -536,6 +536,10 @@ message ScenarioPortSingle {
 
   // Error detail; empty on success.
   string error = 6;
+
+  // Machine-readable failure class. Known values include "scenario_not_running"
+  // and "port_not_found"; unknown failures and successes leave it empty.
+  string error_code = 7;
 }
 
 // ScenarioPortList is the bare payload of `vrooli scenario ports <name> --json`
@@ -555,6 +559,10 @@ message ScenarioPortList {
 
   // Error detail; empty on success.
   string error = 5;
+
+  // Machine-readable failure class; "scenario_not_running" identifies a
+  // stopped scenario. Unknown failures and successes leave it empty.
+  string error_code = 6;
 }
 
 // -----------------------------------------------------------------------------

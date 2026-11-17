@@ -35,6 +35,11 @@ var ErrUnknownStep = errors.New("unknown capacity step")
 // StepHandler applies one profile rung. The label is the step's declared name.
 type StepHandler func(ctx context.Context, label string) error
 
+// StepPreviewHandler reports the owner-declared effect of a step without
+// applying it. A preview is available only when the adapter can describe the
+// exact action and its scope without invoking the handler.
+type StepPreviewHandler func(ctx context.Context, label string) error
+
 // ActivityHandler reports the resource's own view of whether it is working.
 // Most resources do not need one: idleness is the work-owner's truth, and a
 // resource that cannot tell must not guess.
@@ -53,6 +58,9 @@ type Verbs struct {
 	// Activity reports an activity state. nil means the resource does not
 	// report activity.
 	Activity ActivityHandler
+	// Preview describes a step without applying it. nil fails closed when a
+	// caller asks for --dry-run.
+	Preview StepPreviewHandler
 	// Stdout and Stderr receive confirmations and usage. nil means the process
 	// defaults.
 	Stdout io.Writer
@@ -97,9 +105,15 @@ func (v Verbs) Run(args []string) error {
 	subcommand, rest := args[0], args[1:]
 	switch subcommand {
 	case "degrade", "upshift":
-		label, err := parseStepFlags(subcommand, rest, stderr)
+		label, dryRun, err := parseStepFlags(subcommand, rest, stderr)
 		if err != nil {
 			return err
+		}
+		if dryRun {
+			if v.Preview == nil {
+				return fmt.Errorf("resource %s does not declare a read-only capacity step preview", v.Resource)
+			}
+			return v.Preview(context.Background(), label)
 		}
 		handler := v.Degrade
 		if subcommand == "upshift" && v.Upshift != nil {
@@ -141,23 +155,24 @@ func (v Verbs) usage(w io.Writer) {
 `, v.Resource, v.Resource, v.Resource)
 }
 
-func parseStepFlags(name string, args []string, stderr io.Writer) (string, error) {
+func parseStepFlags(name string, args []string, stderr io.Writer) (string, bool, error) {
 	set := flag.NewFlagSet("capacity "+name, flag.ContinueOnError)
 	set.SetOutput(stderr)
 	to := set.String("to", "", "target profile step label")
+	dryRun := set.Bool("dry-run", false, "describe the declared target action without applying it")
 	// Broker probes commonly request JSON from every resource CLI. The shared
 	// contract accepts the flag even when the confirmation is intentionally
 	// human-readable; resource-specific result payloads remain available from
 	// their domain commands.
 	_ = set.Bool("json", false, "emit a machine-readable result when supported")
 	if err := set.Parse(args); err != nil {
-		return "", err
+		return "", false, err
 	}
 	label := strings.TrimSpace(*to)
 	if label == "" {
-		return "", fmt.Errorf("capacity %s requires --to <label>", name)
+		return "", false, fmt.Errorf("capacity %s requires --to <label>", name)
 	}
-	return label, nil
+	return label, *dryRun, nil
 }
 
 func parseActivityFlags(args []string, stderr io.Writer) (string, error) {

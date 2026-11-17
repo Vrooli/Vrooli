@@ -38,6 +38,9 @@ const (
 	AccountsServiceRegisterProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Register"
 	// AccountsServiceLoginProcedure is the fully-qualified name of the AccountsService's Login RPC.
 	AccountsServiceLoginProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/Login"
+	// AccountsServiceVerifyDecisionProcedure is the fully-qualified name of the AccountsService's
+	// VerifyDecision RPC.
+	AccountsServiceVerifyDecisionProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/VerifyDecision"
 	// AccountsServiceChangePasswordProcedure is the fully-qualified name of the AccountsService's
 	// ChangePassword RPC.
 	AccountsServiceChangePasswordProcedure = "/vrooli.scenario_authenticator.v1.accounts.AccountsService/ChangePassword"
@@ -96,6 +99,8 @@ type AccountsServiceClient interface {
 	// identical message (anti-enumeration). A locked account yields
 	// PERMISSION_DENIED.
 	Login(context.Context, *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error)
+	// Verify a fresh credential for a single relying-party decision without a session.
+	VerifyDecision(context.Context, *connect.Request[accounts.VerifyDecisionRequest]) (*connect.Response[accounts.VerifyDecisionResponse], error)
 	// ChangePassword verifies the current password, stores a new Argon2id hash,
 	// and revokes every live session for the authenticated account.
 	ChangePassword(context.Context, *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error)
@@ -182,6 +187,12 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+AccountsServiceLoginProcedure,
 			connect.WithSchema(accountsServiceMethods.ByName("Login")),
+			connect.WithClientOptions(opts...),
+		),
+		verifyDecision: connect.NewClient[accounts.VerifyDecisionRequest, accounts.VerifyDecisionResponse](
+			httpClient,
+			baseURL+AccountsServiceVerifyDecisionProcedure,
+			connect.WithSchema(accountsServiceMethods.ByName("VerifyDecision")),
 			connect.WithClientOptions(opts...),
 		),
 		changePassword: connect.NewClient[accounts.ChangePasswordRequest, accounts.ChangePasswordResponse](
@@ -281,6 +292,7 @@ func NewAccountsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 type accountsServiceClient struct {
 	register                  *connect.Client[accounts.RegisterRequest, accounts.RegisterResponse]
 	login                     *connect.Client[accounts.LoginRequest, accounts.LoginResponse]
+	verifyDecision            *connect.Client[accounts.VerifyDecisionRequest, accounts.VerifyDecisionResponse]
 	changePassword            *connect.Client[accounts.ChangePasswordRequest, accounts.ChangePasswordResponse]
 	refresh                   *connect.Client[accounts.RefreshRequest, accounts.RefreshResponse]
 	logout                    *connect.Client[accounts.LogoutRequest, accounts.LogoutResponse]
@@ -306,6 +318,11 @@ func (c *accountsServiceClient) Register(ctx context.Context, req *connect.Reque
 // Login calls vrooli.scenario_authenticator.v1.accounts.AccountsService.Login.
 func (c *accountsServiceClient) Login(ctx context.Context, req *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error) {
 	return c.login.CallUnary(ctx, req)
+}
+
+// VerifyDecision calls vrooli.scenario_authenticator.v1.accounts.AccountsService.VerifyDecision.
+func (c *accountsServiceClient) VerifyDecision(ctx context.Context, req *connect.Request[accounts.VerifyDecisionRequest]) (*connect.Response[accounts.VerifyDecisionResponse], error) {
+	return c.verifyDecision.CallUnary(ctx, req)
 }
 
 // ChangePassword calls vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword.
@@ -402,6 +419,8 @@ type AccountsServiceHandler interface {
 	// identical message (anti-enumeration). A locked account yields
 	// PERMISSION_DENIED.
 	Login(context.Context, *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error)
+	// Verify a fresh credential for a single relying-party decision without a session.
+	VerifyDecision(context.Context, *connect.Request[accounts.VerifyDecisionRequest]) (*connect.Response[accounts.VerifyDecisionResponse], error)
 	// ChangePassword verifies the current password, stores a new Argon2id hash,
 	// and revokes every live session for the authenticated account.
 	ChangePassword(context.Context, *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error)
@@ -483,6 +502,12 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 		AccountsServiceLoginProcedure,
 		svc.Login,
 		connect.WithSchema(accountsServiceMethods.ByName("Login")),
+		connect.WithHandlerOptions(opts...),
+	)
+	accountsServiceVerifyDecisionHandler := connect.NewUnaryHandler(
+		AccountsServiceVerifyDecisionProcedure,
+		svc.VerifyDecision,
+		connect.WithSchema(accountsServiceMethods.ByName("VerifyDecision")),
 		connect.WithHandlerOptions(opts...),
 	)
 	accountsServiceChangePasswordHandler := connect.NewUnaryHandler(
@@ -581,6 +606,8 @@ func NewAccountsServiceHandler(svc AccountsServiceHandler, opts ...connect.Handl
 			accountsServiceRegisterHandler.ServeHTTP(w, r)
 		case AccountsServiceLoginProcedure:
 			accountsServiceLoginHandler.ServeHTTP(w, r)
+		case AccountsServiceVerifyDecisionProcedure:
+			accountsServiceVerifyDecisionHandler.ServeHTTP(w, r)
 		case AccountsServiceChangePasswordProcedure:
 			accountsServiceChangePasswordHandler.ServeHTTP(w, r)
 		case AccountsServiceRefreshProcedure:
@@ -626,6 +653,10 @@ func (UnimplementedAccountsServiceHandler) Register(context.Context, *connect.Re
 
 func (UnimplementedAccountsServiceHandler) Login(context.Context, *connect.Request[accounts.LoginRequest]) (*connect.Response[accounts.LoginResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.Login is not implemented"))
+}
+
+func (UnimplementedAccountsServiceHandler) VerifyDecision(context.Context, *connect.Request[accounts.VerifyDecisionRequest]) (*connect.Response[accounts.VerifyDecisionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.scenario_authenticator.v1.accounts.AccountsService.VerifyDecision is not implemented"))
 }
 
 func (UnimplementedAccountsServiceHandler) ChangePassword(context.Context, *connect.Request[accounts.ChangePasswordRequest]) (*connect.Response[accounts.ChangePasswordResponse], error) {

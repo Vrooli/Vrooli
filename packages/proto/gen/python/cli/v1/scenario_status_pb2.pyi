@@ -369,23 +369,25 @@ class ScenarioProcessRecord(_message.Message):
     def __init__(self, pid: _Optional[int] = ..., pgid: _Optional[int] = ..., process_id: _Optional[str] = ..., phase: _Optional[str] = ..., scenario: _Optional[str] = ..., step: _Optional[str] = ..., command: _Optional[str] = ..., working_dir: _Optional[str] = ..., log_file: _Optional[str] = ..., port: _Optional[int] = ..., started_at: _Optional[str] = ..., status: _Optional[str] = ...) -> None: ...
 
 class ScenarioPortSingle(_message.Message):
-    __slots__ = ("success", "scenario", "port_name", "step", "port", "error")
+    __slots__ = ("success", "scenario", "port_name", "step", "port", "error", "error_code")
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     PORT_NAME_FIELD_NUMBER: _ClassVar[int]
     STEP_FIELD_NUMBER: _ClassVar[int]
     PORT_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     success: bool
     scenario: str
     port_name: str
     step: str
     port: int
     error: str
-    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[str] = ..., port_name: _Optional[str] = ..., step: _Optional[str] = ..., port: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+    error_code: str
+    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[str] = ..., port_name: _Optional[str] = ..., step: _Optional[str] = ..., port: _Optional[int] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ...) -> None: ...
 
 class ScenarioPortList(_message.Message):
-    __slots__ = ("success", "scenario", "ports", "metadata", "error")
+    __slots__ = ("success", "scenario", "ports", "metadata", "error", "error_code")
     class MetadataEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -398,12 +400,14 @@ class ScenarioPortList(_message.Message):
     PORTS_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    ERROR_CODE_FIELD_NUMBER: _ClassVar[int]
     success: bool
     scenario: str
     ports: _containers.RepeatedCompositeFieldContainer[_scenario_list_pb2.ScenarioPort]
     metadata: _containers.ScalarMap[str, int]
     error: str
-    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[str] = ..., ports: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., metadata: _Optional[_Mapping[str, int]] = ..., error: _Optional[str] = ...) -> None: ...
+    error_code: str
+    def __init__(self, success: _Optional[bool] = ..., scenario: _Optional[str] = ..., ports: _Optional[_Iterable[_Union[_scenario_list_pb2.ScenarioPort, _Mapping]]] = ..., metadata: _Optional[_Mapping[str, int]] = ..., error: _Optional[str] = ..., error_code: _Optional[str] = ...) -> None: ...
 
 class ScenarioSetupResponse(_message.Message):
     __slots__ = ("success", "phase", "status", "defined", "steps")

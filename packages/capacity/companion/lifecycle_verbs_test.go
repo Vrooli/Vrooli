@@ -1,9 +1,11 @@
 package companion
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -49,5 +51,55 @@ func TestLifecycleCapacityCommandsStopsWhenApplyFails(t *testing.T) {
 	}
 	if executed {
 		t.Fatal("lifecycle action ran after apply failure")
+	}
+}
+
+func TestLifecycleCapacityCommandsDryRunShowsExactOwnerActionWithoutApplying(t *testing.T) {
+	var output bytes.Buffer
+	executed := false
+	group := LifecycleCapacityCommands(LifecycleVerbsConfig{
+		Resource: "whisper",
+		Steps: []LifecycleStep{{
+			Label:       "unloaded",
+			Action:      "stop",
+			Env:         []string{"VROOLI_CAPACITY_UNLOAD=1"},
+			Description: "stop the managed Whisper model server and keep the activity edge",
+		}},
+		Stdout: &output,
+		Exec: func(context.Context, []string, string, ...string) error {
+			executed = true
+			return nil
+		},
+	})
+	if err := group.Subcommands[0].Run([]string{"--to", "unloaded", "--dry-run"}); err != nil {
+		t.Fatalf("dry-run error = %v", err)
+	}
+	if executed {
+		t.Fatal("dry-run invoked the lifecycle action")
+	}
+	for _, want := range []string{"target rung: unloaded", "vrooli resource stop whisper", "VROOLI_CAPACITY_UNLOAD=1", "keep the activity edge"} {
+		if !strings.Contains(output.String(), want) {
+			t.Errorf("dry-run output %q does not contain %q", output.String(), want)
+		}
+	}
+}
+
+func TestLifecycleCapacityCommandsDryRunRejectsUndeclaredStep(t *testing.T) {
+	var output bytes.Buffer
+	executed := false
+	group := LifecycleCapacityCommands(LifecycleVerbsConfig{
+		Resource: "whisper",
+		Steps:    []LifecycleStep{{Label: "unloaded", Action: "stop"}},
+		Stdout:   &output,
+		Exec: func(context.Context, []string, string, ...string) error {
+			executed = true
+			return nil
+		},
+	})
+	if err := group.Subcommands[0].Run([]string{"--to", "wildcard", "--dry-run"}); err == nil || !strings.Contains(err.Error(), ErrUnknownStep.Error()) {
+		t.Fatalf("unknown dry-run step error = %v", err)
+	}
+	if executed || output.Len() != 0 {
+		t.Fatalf("unknown dry-run changed state/output: executed=%t output=%q", executed, output.String())
 	}
 }

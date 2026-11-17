@@ -5,6 +5,7 @@ package discovery
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -53,11 +54,9 @@ type ResolverConfig struct {
 	// Zero uses the default two-second TTL. Set it negative to disable caching.
 	CacheTTL time.Duration
 
-	// NegativeCacheTTL bounds how long a failed lookup is reused. Without it a
-	// stopped scenario costs one CLI fork per caller per attempt, which is the
-	// exact shape of a fork storm. Kept much shorter than CacheTTL so a
-	// scenario that has just started is not held down. Zero uses the default;
-	// set it negative to re-fork on every failure.
+	// NegativeCacheTTL bounds reuse of a confirmed stopped-target result. Other
+	// failures are transient or caller-specific and are never cached. Zero uses
+	// the default; set it negative to retry stopped targets on every lookup.
 	NegativeCacheTTL time.Duration
 
 	// Now supplies time for deterministic cache tests. Nil uses time.Now.
@@ -119,9 +118,8 @@ const defaultPortKey = "API_PORT"
 // bounding the stale-address window after a scenario restart.
 const defaultResolverCacheTTL = 2 * time.Second
 
-// defaultResolverNegativeCacheTTL suppresses a fork stampede against a stopped
-// scenario while keeping the recovery window short enough that a scenario which
-// just came up is picked up promptly.
+// defaultResolverNegativeCacheTTL suppresses repeated recovery against a
+// confirmed stopped scenario while keeping the retry window short.
 const defaultResolverNegativeCacheTTL = 500 * time.Millisecond
 
 // ErrorKind identifies the class of discovery failure.
@@ -249,11 +247,11 @@ func NewStaticResolver(baseURL string) *Resolver {
 // ResolveScenarioPort resolves a scenario's port through the local discovery
 // ladder: lifecycle peer record, runtime registry, then the control-plane CLI.
 //
-// Successful lookups are cached for ResolverConfig.CacheTTL and failures for the
-// shorter ResolverConfig.NegativeCacheTTL, so neither a running nor a stopped
-// scenario costs a process per caller. Concurrent callers for one key collapse
-// onto a single invocation. A context timeout is never cached, since it
-// describes the caller's deadline rather than the target's state.
+// Successful lookups are cached for ResolverConfig.CacheTTL. Confirmed
+// stopped-target results use the shorter ResolverConfig.NegativeCacheTTL;
+// invalid input, transient command/runtime failures, and context timeouts are
+// never cached. Concurrent callers for one key collapse onto a single
+// invocation.
 //
 // If the resolver was created with a static base URL, the port is extracted
 // from that URL instead of invoking the CLI.
@@ -279,7 +277,8 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 }
 
 // resolvePortCached collapses concurrent lookups for one key onto a single
-// ladder evaluation and reuses successful and failed results for their TTLs.
+// ladder evaluation and reuses successful results and confirmed stopped-target
+// results for their respective TTLs.
 // Holding the per-key lock across the lookup is deliberate: a burst of N
 // callers for one scenario must cost one ladder evaluation, not N.
 func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey, cacheKey string) (int, error) {
@@ -312,18 +311,15 @@ func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey,
 
 	port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
 
-	// A timeout reflects the caller's deadline, not the target's state. Caching
-	// it would let one caller's cancellation deny an unrelated caller, so this
-	// result is returned without being recorded.
-	if derr != nil && derr.Kind == ErrTimeout {
-		entry.resolvedAt = time.Time{}
+	if derr != nil {
+		entry.port, entry.err, entry.resolvedAt = 0, nil, time.Time{}
+		if derr.Kind == ErrScenarioNotRunning && r.negativeTTL > 0 {
+			entry.err, entry.resolvedAt = derr, r.now()
+		}
 		return 0, derr
 	}
 
-	entry.port, entry.err, entry.resolvedAt = port, derr, r.now()
-	if derr != nil {
-		return 0, derr
-	}
+	entry.port, entry.err, entry.resolvedAt = port, nil, r.now()
 	return port, nil
 }
 
@@ -440,6 +436,9 @@ func nonNegative(d time.Duration) time.Duration {
 
 func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, portKey string) (int, *Error) {
 	portText, text, err := r.runLookup(ctx, target, portKey)
+	if cliutil.IsScenarioPortNotRunning(err) || cliPortErrorCode(text) == cliutil.ScenarioPortCodeNotRunning {
+		return 0, &Error{Kind: ErrScenarioNotRunning, Scenario: reportSlug, PortKey: portKey, Output: text, Err: err}
+	}
 	if err != nil {
 		// A deadline may come from the caller's context or from the bound the
 		// shared lookup applies when the caller supplied none. Both are
@@ -466,16 +465,6 @@ func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, 
 				Err:      err,
 			}
 		}
-		lower := strings.ToLower(text)
-		if strings.Contains(lower, "not running") || strings.Contains(lower, "not started") || strings.Contains(lower, "no running runtime ports") || strings.Contains(lower, "no runtime ports found") {
-			return 0, &Error{
-				Kind:     ErrScenarioNotRunning,
-				Scenario: reportSlug,
-				PortKey:  portKey,
-				Output:   text,
-				Err:      err,
-			}
-		}
 		return 0, &Error{
 			Kind:     ErrCommandFailed,
 			Scenario: reportSlug,
@@ -487,16 +476,6 @@ func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, 
 
 	port, parseErr := strconv.Atoi(portText)
 	if parseErr != nil || port <= 0 {
-		lower := strings.ToLower(text)
-		if strings.Contains(lower, "no running runtime ports") || strings.Contains(lower, "no runtime ports found") {
-			return 0, &Error{
-				Kind:     ErrScenarioNotRunning,
-				Scenario: reportSlug,
-				PortKey:  portKey,
-				Output:   text,
-				Err:      parseErr,
-			}
-		}
 		return 0, &Error{
 			Kind:     ErrInvalidPort,
 			Scenario: reportSlug,
@@ -507,6 +486,16 @@ func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, 
 	}
 
 	return port, nil
+}
+
+func cliPortErrorCode(output string) string {
+	var payload struct {
+		ErrorCode string `json:"error_code"`
+	}
+	if json.Unmarshal([]byte(output), &payload) != nil {
+		return ""
+	}
+	return payload.ErrorCode
 }
 
 // Target identifies the machine on which a scenario should be reached.
@@ -576,18 +565,10 @@ func (r *Resolver) resolveScenarioURL(ctx context.Context, scenarioSlug, portKey
 }
 
 func (r *Resolver) resolveRemoteScenarioURL(ctx context.Context, scenarioSlug, nodeID string) (string, error) {
-	bridgeURL := r.remoteBaseURL
-	if bridgeURL == "" {
-		var err error
-		bridgeURL, err = nodereach.New(nodereach.Config{}).ResolveURL(ctx)
-		if err != nil {
-			return "", err
-		}
-	}
 	if strings.TrimSpace(scenarioSlug) == "" || strings.TrimSpace(nodeID) == "" {
 		return "", &Error{Kind: ErrInvalidInput, Scenario: scenarioSlug, Err: errors.New("scenario and node target are required")}
 	}
-	return strings.TrimRight(bridgeURL, "/") + "/api/v1/targets/" + url.PathEscape(nodeID) + "/scenarios/" + url.PathEscape(scenarioSlug), nil
+	return nodereach.New(nodereach.Config{BridgeURL: r.remoteBaseURL}).ScenarioURL(ctx, nodeID, scenarioSlug)
 }
 
 // ResolveScenarioPortDefault resolves the standard API port for a scenario.

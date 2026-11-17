@@ -145,6 +145,9 @@ const (
 	// AgentManagerServiceReconcileScenarioProfilesProcedure is the fully-qualified name of the
 	// AgentManagerService's ReconcileScenarioProfiles RPC.
 	AgentManagerServiceReconcileScenarioProfilesProcedure = "/agent_manager.v1.AgentManagerService/ReconcileScenarioProfiles"
+	// AgentManagerServiceEnsureProfileProcedure is the fully-qualified name of the
+	// AgentManagerService's EnsureProfile RPC.
+	AgentManagerServiceEnsureProfileProcedure = "/agent_manager.v1.AgentManagerService/EnsureProfile"
 	// AgentManagerServiceValidateWorkflowProcedure is the fully-qualified name of the
 	// AgentManagerService's ValidateWorkflow RPC.
 	AgentManagerServiceValidateWorkflowProcedure = "/agent_manager.v1.AgentManagerService/ValidateWorkflow"
@@ -220,6 +223,9 @@ const (
 	// AgentManagerServiceCreateTaskProcedure is the fully-qualified name of the AgentManagerService's
 	// CreateTask RPC.
 	AgentManagerServiceCreateTaskProcedure = "/agent_manager.v1.AgentManagerService/CreateTask"
+	// AgentManagerServiceGetTaskProcedure is the fully-qualified name of the AgentManagerService's
+	// GetTask RPC.
+	AgentManagerServiceGetTaskProcedure = "/agent_manager.v1.AgentManagerService/GetTask"
 	// AgentManagerServiceCreateRunProcedure is the fully-qualified name of the AgentManagerService's
 	// CreateRun RPC.
 	AgentManagerServiceCreateRunProcedure = "/agent_manager.v1.AgentManagerService/CreateRun"
@@ -229,6 +235,18 @@ const (
 	// AgentManagerServiceGetRunProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRun RPC.
 	AgentManagerServiceGetRunProcedure = "/agent_manager.v1.AgentManagerService/GetRun"
+	// AgentManagerServiceGetRunByTagProcedure is the fully-qualified name of the AgentManagerService's
+	// GetRunByTag RPC.
+	AgentManagerServiceGetRunByTagProcedure = "/agent_manager.v1.AgentManagerService/GetRunByTag"
+	// AgentManagerServiceStopRunProcedure is the fully-qualified name of the AgentManagerService's
+	// StopRun RPC.
+	AgentManagerServiceStopRunProcedure = "/agent_manager.v1.AgentManagerService/StopRun"
+	// AgentManagerServiceStopRunByTagProcedure is the fully-qualified name of the AgentManagerService's
+	// StopRunByTag RPC.
+	AgentManagerServiceStopRunByTagProcedure = "/agent_manager.v1.AgentManagerService/StopRunByTag"
+	// AgentManagerServiceStopAllRunsProcedure is the fully-qualified name of the AgentManagerService's
+	// StopAllRuns RPC.
+	AgentManagerServiceStopAllRunsProcedure = "/agent_manager.v1.AgentManagerService/StopAllRuns"
 	// AgentManagerServiceGetRunReportProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRunReport RPC.
 	AgentManagerServiceGetRunReportProcedure = "/agent_manager.v1.AgentManagerService/GetRunReport"
@@ -253,6 +271,9 @@ const (
 	// AgentManagerServiceProbeRunnerProcedure is the fully-qualified name of the AgentManagerService's
 	// ProbeRunner RPC.
 	AgentManagerServiceProbeRunnerProcedure = "/agent_manager.v1.AgentManagerService/ProbeRunner"
+	// AgentManagerServiceGetRunnerStatusProcedure is the fully-qualified name of the
+	// AgentManagerService's GetRunnerStatus RPC.
+	AgentManagerServiceGetRunnerStatusProcedure = "/agent_manager.v1.AgentManagerService/GetRunnerStatus"
 	// AgentManagerServiceGetRolePolicyStatusProcedure is the fully-qualified name of the
 	// AgentManagerService's GetRolePolicyStatus RPC.
 	AgentManagerServiceGetRolePolicyStatusProcedure = "/agent_manager.v1.AgentManagerService/GetRolePolicyStatus"
@@ -344,6 +365,8 @@ type AgentManagerServiceClient interface {
 	ListSupervisionOutcomes(context.Context, *connect.Request[domain.ListSupervisionOutcomesRequest]) (*connect.Response[domain.ListSupervisionOutcomesResponse], error)
 	// ReconcileScenarioProfiles resolves all profile sources declared by a scenario.
 	ReconcileScenarioProfiles(context.Context, *connect.Request[api.ReconcileScenarioProfilesRequest]) (*connect.Response[api.ReconcileScenarioProfilesResponse], error)
+	// EnsureProfile resolves a profile by key, creating it when absent.
+	EnsureProfile(context.Context, *connect.Request[api.EnsureProfileRequest]) (*connect.Response[api.EnsureProfileResponse], error)
 	// ValidateWorkflow validates and canonicalizes one workflow without writes.
 	ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
 	// ReconcileScenarioWorkflows atomically reloads scenario-owned sources.
@@ -386,6 +409,8 @@ type AgentManagerServiceClient interface {
 	ListProfiles(context.Context, *connect.Request[api.ListProfilesRequest]) (*connect.Response[api.ListProfilesResponse], error)
 	// CreateTask creates a new task.
 	CreateTask(context.Context, *connect.Request[api.CreateTaskRequest]) (*connect.Response[api.CreateTaskResponse], error)
+	// GetTask retrieves one task by ID.
+	GetTask(context.Context, *connect.Request[api.GetTaskRequest]) (*connect.Response[api.GetTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
 	// GetRuntimeActivity reads current physical execution evidence. It does not
@@ -394,6 +419,14 @@ type AgentManagerServiceClient interface {
 	GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	// GetRunByTag retrieves the run identified by its caller-assigned tag.
+	GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error)
+	// StopRun applies the existing owner authorization policy to one run.
+	StopRun(context.Context, *connect.Request[api.StopRunRequest]) (*connect.Response[api.StopRunResponse], error)
+	// StopRunByTag applies the existing owner authorization policy to a tagged run.
+	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
+	// StopAllRuns applies the existing global-stop authorization policy.
+	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
 	// and investigation workflows. Bulk payloads remain on their dedicated
 	// progressive-disclosure endpoints.
@@ -420,6 +453,8 @@ type AgentManagerServiceClient interface {
 	GetRunEvents(context.Context, *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
 	ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error)
+	// GetRunnerStatus reports the available execution runners.
+	GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error)
 	// GetRolePolicyStatus returns activation state and the latest diagnostic.
 	GetRolePolicyStatus(context.Context, *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error)
 	// GetRolePolicyCatalog returns the active, immutable declared catalog.
@@ -684,6 +719,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioProfiles")),
 			connect.WithClientOptions(opts...),
 		),
+		ensureProfile: connect.NewClient[api.EnsureProfileRequest, api.EnsureProfileResponse](
+			httpClient,
+			baseURL+AgentManagerServiceEnsureProfileProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("EnsureProfile")),
+			connect.WithClientOptions(opts...),
+		),
 		validateWorkflow: connect.NewClient[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse](
 			httpClient,
 			baseURL+AgentManagerServiceValidateWorkflowProcedure,
@@ -834,6 +875,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("CreateTask")),
 			connect.WithClientOptions(opts...),
 		),
+		getTask: connect.NewClient[api.GetTaskRequest, api.GetTaskResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetTaskProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetTask")),
+			connect.WithClientOptions(opts...),
+		),
 		createRun: connect.NewClient[api.CreateRunRequest, api.CreateRunResponse](
 			httpClient,
 			baseURL+AgentManagerServiceCreateRunProcedure,
@@ -850,6 +897,30 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceGetRunProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("GetRun")),
+			connect.WithClientOptions(opts...),
+		),
+		getRunByTag: connect.NewClient[api.GetRunByTagRequest, api.GetRunByTagResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetRunByTagProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRunByTag")),
+			connect.WithClientOptions(opts...),
+		),
+		stopRun: connect.NewClient[api.StopRunRequest, api.StopRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceStopRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("StopRun")),
+			connect.WithClientOptions(opts...),
+		),
+		stopRunByTag: connect.NewClient[api.StopRunByTagRequest, api.StopRunByTagResponse](
+			httpClient,
+			baseURL+AgentManagerServiceStopRunByTagProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("StopRunByTag")),
+			connect.WithClientOptions(opts...),
+		),
+		stopAllRuns: connect.NewClient[api.StopAllRunsRequest, api.StopAllRunsResponse](
+			httpClient,
+			baseURL+AgentManagerServiceStopAllRunsProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("StopAllRuns")),
 			connect.WithClientOptions(opts...),
 		),
 		getRunReport: connect.NewClient[api.GetRunReportRequest, api.RunReport](
@@ -898,6 +969,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceProbeRunnerProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("ProbeRunner")),
+			connect.WithClientOptions(opts...),
+		),
+		getRunnerStatus: connect.NewClient[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetRunnerStatusProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRunnerStatus")),
 			connect.WithClientOptions(opts...),
 		),
 		getRolePolicyStatus: connect.NewClient[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse](
@@ -1020,6 +1097,7 @@ type agentManagerServiceClient struct {
 	setSupervisionPolicyDisabled     *connect.Client[domain.SetSupervisionPolicyDisabledRequest, domain.SupervisionPolicyControl]
 	listSupervisionOutcomes          *connect.Client[domain.ListSupervisionOutcomesRequest, domain.ListSupervisionOutcomesResponse]
 	reconcileScenarioProfiles        *connect.Client[api.ReconcileScenarioProfilesRequest, api.ReconcileScenarioProfilesResponse]
+	ensureProfile                    *connect.Client[api.EnsureProfileRequest, api.EnsureProfileResponse]
 	validateWorkflow                 *connect.Client[api.ValidateWorkflowRequest, api.ValidateWorkflowResponse]
 	reconcileScenarioWorkflows       *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
 	planScenarioWorkflows            *connect.Client[api.ReconcileScenarioWorkflowsRequest, api.ReconcileScenarioWorkflowsResponse]
@@ -1045,9 +1123,14 @@ type agentManagerServiceClient struct {
 	getProfile                       *connect.Client[api.GetProfileRequest, api.GetProfileResponse]
 	listProfiles                     *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
 	createTask                       *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
+	getTask                          *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
 	createRun                        *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
 	getRuntimeActivity               *connect.Client[api.GetRuntimeActivityRequest, api.GetRuntimeActivityResponse]
 	getRun                           *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunByTag                      *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
+	stopRun                          *connect.Client[api.StopRunRequest, api.StopRunResponse]
+	stopRunByTag                     *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
+	stopAllRuns                      *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
 	getRunReport                     *connect.Client[api.GetRunReportRequest, api.RunReport]
 	getRunAccounting                 *connect.Client[api.GetRunAccountingRequest, api.RunAccounting]
 	listRuns                         *connect.Client[api.ListRunsRequest, api.ListRunsResponse]
@@ -1056,6 +1139,7 @@ type agentManagerServiceClient struct {
 	getRunTree                       *connect.Client[api.GetRunTreeRequest, api.RunTree]
 	getRunEvents                     *connect.Client[api.GetRunEventsRequest, api.GetRunEventsResponse]
 	probeRunner                      *connect.Client[api.ProbeRunnerRequest, api.ProbeRunnerResponse]
+	getRunnerStatus                  *connect.Client[api.GetRunnerStatusRequest, api.GetRunnerStatusResponse]
 	getRolePolicyStatus              *connect.Client[api.GetRolePolicyStatusRequest, api.GetRolePolicyStatusResponse]
 	getRolePolicyCatalog             *connect.Client[api.GetRolePolicyCatalogRequest, api.GetRolePolicyCatalogResponse]
 	validateRolePolicyCatalog        *connect.Client[api.ValidateRolePolicyCatalogRequest, api.ValidateRolePolicyCatalogResponse]
@@ -1258,6 +1342,11 @@ func (c *agentManagerServiceClient) ReconcileScenarioProfiles(ctx context.Contex
 	return c.reconcileScenarioProfiles.CallUnary(ctx, req)
 }
 
+// EnsureProfile calls agent_manager.v1.AgentManagerService.EnsureProfile.
+func (c *agentManagerServiceClient) EnsureProfile(ctx context.Context, req *connect.Request[api.EnsureProfileRequest]) (*connect.Response[api.EnsureProfileResponse], error) {
+	return c.ensureProfile.CallUnary(ctx, req)
+}
+
 // ValidateWorkflow calls agent_manager.v1.AgentManagerService.ValidateWorkflow.
 func (c *agentManagerServiceClient) ValidateWorkflow(ctx context.Context, req *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
 	return c.validateWorkflow.CallUnary(ctx, req)
@@ -1384,6 +1473,11 @@ func (c *agentManagerServiceClient) CreateTask(ctx context.Context, req *connect
 	return c.createTask.CallUnary(ctx, req)
 }
 
+// GetTask calls agent_manager.v1.AgentManagerService.GetTask.
+func (c *agentManagerServiceClient) GetTask(ctx context.Context, req *connect.Request[api.GetTaskRequest]) (*connect.Response[api.GetTaskResponse], error) {
+	return c.getTask.CallUnary(ctx, req)
+}
+
 // CreateRun calls agent_manager.v1.AgentManagerService.CreateRun.
 func (c *agentManagerServiceClient) CreateRun(ctx context.Context, req *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error) {
 	return c.createRun.CallUnary(ctx, req)
@@ -1397,6 +1491,26 @@ func (c *agentManagerServiceClient) GetRuntimeActivity(ctx context.Context, req 
 // GetRun calls agent_manager.v1.AgentManagerService.GetRun.
 func (c *agentManagerServiceClient) GetRun(ctx context.Context, req *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return c.getRun.CallUnary(ctx, req)
+}
+
+// GetRunByTag calls agent_manager.v1.AgentManagerService.GetRunByTag.
+func (c *agentManagerServiceClient) GetRunByTag(ctx context.Context, req *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error) {
+	return c.getRunByTag.CallUnary(ctx, req)
+}
+
+// StopRun calls agent_manager.v1.AgentManagerService.StopRun.
+func (c *agentManagerServiceClient) StopRun(ctx context.Context, req *connect.Request[api.StopRunRequest]) (*connect.Response[api.StopRunResponse], error) {
+	return c.stopRun.CallUnary(ctx, req)
+}
+
+// StopRunByTag calls agent_manager.v1.AgentManagerService.StopRunByTag.
+func (c *agentManagerServiceClient) StopRunByTag(ctx context.Context, req *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error) {
+	return c.stopRunByTag.CallUnary(ctx, req)
+}
+
+// StopAllRuns calls agent_manager.v1.AgentManagerService.StopAllRuns.
+func (c *agentManagerServiceClient) StopAllRuns(ctx context.Context, req *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error) {
+	return c.stopAllRuns.CallUnary(ctx, req)
 }
 
 // GetRunReport calls agent_manager.v1.AgentManagerService.GetRunReport.
@@ -1437,6 +1551,11 @@ func (c *agentManagerServiceClient) GetRunEvents(ctx context.Context, req *conne
 // ProbeRunner calls agent_manager.v1.AgentManagerService.ProbeRunner.
 func (c *agentManagerServiceClient) ProbeRunner(ctx context.Context, req *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error) {
 	return c.probeRunner.CallUnary(ctx, req)
+}
+
+// GetRunnerStatus calls agent_manager.v1.AgentManagerService.GetRunnerStatus.
+func (c *agentManagerServiceClient) GetRunnerStatus(ctx context.Context, req *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error) {
+	return c.getRunnerStatus.CallUnary(ctx, req)
 }
 
 // GetRolePolicyStatus calls agent_manager.v1.AgentManagerService.GetRolePolicyStatus.
@@ -1557,6 +1676,8 @@ type AgentManagerServiceHandler interface {
 	ListSupervisionOutcomes(context.Context, *connect.Request[domain.ListSupervisionOutcomesRequest]) (*connect.Response[domain.ListSupervisionOutcomesResponse], error)
 	// ReconcileScenarioProfiles resolves all profile sources declared by a scenario.
 	ReconcileScenarioProfiles(context.Context, *connect.Request[api.ReconcileScenarioProfilesRequest]) (*connect.Response[api.ReconcileScenarioProfilesResponse], error)
+	// EnsureProfile resolves a profile by key, creating it when absent.
+	EnsureProfile(context.Context, *connect.Request[api.EnsureProfileRequest]) (*connect.Response[api.EnsureProfileResponse], error)
 	// ValidateWorkflow validates and canonicalizes one workflow without writes.
 	ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error)
 	// ReconcileScenarioWorkflows atomically reloads scenario-owned sources.
@@ -1599,6 +1720,8 @@ type AgentManagerServiceHandler interface {
 	ListProfiles(context.Context, *connect.Request[api.ListProfilesRequest]) (*connect.Response[api.ListProfilesResponse], error)
 	// CreateTask creates a new task.
 	CreateTask(context.Context, *connect.Request[api.CreateTaskRequest]) (*connect.Response[api.CreateTaskResponse], error)
+	// GetTask retrieves one task by ID.
+	GetTask(context.Context, *connect.Request[api.GetTaskRequest]) (*connect.Response[api.GetTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
 	// GetRuntimeActivity reads current physical execution evidence. It does not
@@ -1607,6 +1730,14 @@ type AgentManagerServiceHandler interface {
 	GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	// GetRunByTag retrieves the run identified by its caller-assigned tag.
+	GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error)
+	// StopRun applies the existing owner authorization policy to one run.
+	StopRun(context.Context, *connect.Request[api.StopRunRequest]) (*connect.Response[api.StopRunResponse], error)
+	// StopRunByTag applies the existing owner authorization policy to a tagged run.
+	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
+	// StopAllRuns applies the existing global-stop authorization policy.
+	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
 	// and investigation workflows. Bulk payloads remain on their dedicated
 	// progressive-disclosure endpoints.
@@ -1633,6 +1764,8 @@ type AgentManagerServiceHandler interface {
 	GetRunEvents(context.Context, *connect.Request[api.GetRunEventsRequest]) (*connect.Response[api.GetRunEventsResponse], error)
 	// ProbeRunner sends a test request to verify runner connectivity.
 	ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error)
+	// GetRunnerStatus reports the available execution runners.
+	GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error)
 	// GetRolePolicyStatus returns activation state and the latest diagnostic.
 	GetRolePolicyStatus(context.Context, *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error)
 	// GetRolePolicyCatalog returns the active, immutable declared catalog.
@@ -1893,6 +2026,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("ReconcileScenarioProfiles")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceEnsureProfileHandler := connect.NewUnaryHandler(
+		AgentManagerServiceEnsureProfileProcedure,
+		svc.EnsureProfile,
+		connect.WithSchema(agentManagerServiceMethods.ByName("EnsureProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceValidateWorkflowHandler := connect.NewUnaryHandler(
 		AgentManagerServiceValidateWorkflowProcedure,
 		svc.ValidateWorkflow,
@@ -2043,6 +2182,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("CreateTask")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceGetTaskHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetTaskProcedure,
+		svc.GetTask,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetTask")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceCreateRunHandler := connect.NewUnaryHandler(
 		AgentManagerServiceCreateRunProcedure,
 		svc.CreateRun,
@@ -2059,6 +2204,30 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceGetRunProcedure,
 		svc.GetRun,
 		connect.WithSchema(agentManagerServiceMethods.ByName("GetRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetRunByTagHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRunByTagProcedure,
+		svc.GetRunByTag,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRunByTag")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceStopRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceStopRunProcedure,
+		svc.StopRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("StopRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceStopRunByTagHandler := connect.NewUnaryHandler(
+		AgentManagerServiceStopRunByTagProcedure,
+		svc.StopRunByTag,
+		connect.WithSchema(agentManagerServiceMethods.ByName("StopRunByTag")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceStopAllRunsHandler := connect.NewUnaryHandler(
+		AgentManagerServiceStopAllRunsProcedure,
+		svc.StopAllRuns,
+		connect.WithSchema(agentManagerServiceMethods.ByName("StopAllRuns")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceGetRunReportHandler := connect.NewUnaryHandler(
@@ -2107,6 +2276,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceProbeRunnerProcedure,
 		svc.ProbeRunner,
 		connect.WithSchema(agentManagerServiceMethods.ByName("ProbeRunner")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetRunnerStatusHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRunnerStatusProcedure,
+		svc.GetRunnerStatus,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRunnerStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceGetRolePolicyStatusHandler := connect.NewUnaryHandler(
@@ -2263,6 +2438,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceListSupervisionOutcomesHandler.ServeHTTP(w, r)
 		case AgentManagerServiceReconcileScenarioProfilesProcedure:
 			agentManagerServiceReconcileScenarioProfilesHandler.ServeHTTP(w, r)
+		case AgentManagerServiceEnsureProfileProcedure:
+			agentManagerServiceEnsureProfileHandler.ServeHTTP(w, r)
 		case AgentManagerServiceValidateWorkflowProcedure:
 			agentManagerServiceValidateWorkflowHandler.ServeHTTP(w, r)
 		case AgentManagerServiceReconcileScenarioWorkflowsProcedure:
@@ -2313,12 +2490,22 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceListProfilesHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateTaskProcedure:
 			agentManagerServiceCreateTaskHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetTaskProcedure:
+			agentManagerServiceGetTaskHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateRunProcedure:
 			agentManagerServiceCreateRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRuntimeActivityProcedure:
 			agentManagerServiceGetRuntimeActivityHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunProcedure:
 			agentManagerServiceGetRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRunByTagProcedure:
+			agentManagerServiceGetRunByTagHandler.ServeHTTP(w, r)
+		case AgentManagerServiceStopRunProcedure:
+			agentManagerServiceStopRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceStopRunByTagProcedure:
+			agentManagerServiceStopRunByTagHandler.ServeHTTP(w, r)
+		case AgentManagerServiceStopAllRunsProcedure:
+			agentManagerServiceStopAllRunsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunReportProcedure:
 			agentManagerServiceGetRunReportHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunAccountingProcedure:
@@ -2335,6 +2522,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetRunEventsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceProbeRunnerProcedure:
 			agentManagerServiceProbeRunnerHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRunnerStatusProcedure:
+			agentManagerServiceGetRunnerStatusHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRolePolicyStatusProcedure:
 			agentManagerServiceGetRolePolicyStatusHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRolePolicyCatalogProcedure:
@@ -2518,6 +2707,10 @@ func (UnimplementedAgentManagerServiceHandler) ReconcileScenarioProfiles(context
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ReconcileScenarioProfiles is not implemented"))
 }
 
+func (UnimplementedAgentManagerServiceHandler) EnsureProfile(context.Context, *connect.Request[api.EnsureProfileRequest]) (*connect.Response[api.EnsureProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.EnsureProfile is not implemented"))
+}
+
 func (UnimplementedAgentManagerServiceHandler) ValidateWorkflow(context.Context, *connect.Request[api.ValidateWorkflowRequest]) (*connect.Response[api.ValidateWorkflowResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ValidateWorkflow is not implemented"))
 }
@@ -2618,6 +2811,10 @@ func (UnimplementedAgentManagerServiceHandler) CreateTask(context.Context, *conn
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateTask is not implemented"))
 }
 
+func (UnimplementedAgentManagerServiceHandler) GetTask(context.Context, *connect.Request[api.GetTaskRequest]) (*connect.Response[api.GetTaskResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetTask is not implemented"))
+}
+
 func (UnimplementedAgentManagerServiceHandler) CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateRun is not implemented"))
 }
@@ -2628,6 +2825,22 @@ func (UnimplementedAgentManagerServiceHandler) GetRuntimeActivity(context.Contex
 
 func (UnimplementedAgentManagerServiceHandler) GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRunByTag is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) StopRun(context.Context, *connect.Request[api.StopRunRequest]) (*connect.Response[api.StopRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StopRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StopRunByTag is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StopAllRuns is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRunReport(context.Context, *connect.Request[api.GetRunReportRequest]) (*connect.Response[api.RunReport], error) {
@@ -2660,6 +2873,10 @@ func (UnimplementedAgentManagerServiceHandler) GetRunEvents(context.Context, *co
 
 func (UnimplementedAgentManagerServiceHandler) ProbeRunner(context.Context, *connect.Request[api.ProbeRunnerRequest]) (*connect.Response[api.ProbeRunnerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ProbeRunner is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetRunnerStatus(context.Context, *connect.Request[api.GetRunnerStatusRequest]) (*connect.Response[api.GetRunnerStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRunnerStatus is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRolePolicyStatus(context.Context, *connect.Request[api.GetRolePolicyStatusRequest]) (*connect.Response[api.GetRolePolicyStatusResponse], error) {

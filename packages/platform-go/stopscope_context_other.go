@@ -17,3 +17,11 @@ func scopeProcessesContext(ctx context.Context, ref ScopeRef) ([]int, error) {
 	}
 	return scopeProcesses(ref)
 }
+
+func scopeProcessesBatchContext(ctx context.Context, refs []ScopeRef) []ScopeProcessObservation {
+	observations := make([]ScopeProcessObservation, len(refs))
+	for i, ref := range refs {
+		observations[i].PIDs, observations[i].Err = scopeProcessesContext(ctx, ref)
+	}
+	return observations
+}

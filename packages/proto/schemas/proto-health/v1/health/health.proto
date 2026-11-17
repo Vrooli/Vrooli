@@ -83,4 +83,11 @@ message Response {
   // reject a healthy HTTP responder that belongs to an older source
   // revision. Empty when unset (pre-VROOLI_BUILD_IDENTITY processes).
   string build_identity = 8;
+
+  // Runtime release identity and lifecycle operation IDs are echoed from the
+  // instance environment so the control plane can prove this endpoint belongs
+  // to the current start, not only to matching source bytes.
+  string runtime_release_id = 9;
+  string runtime_release_operation_id = 10;
+  string start_operation_id = 11;
 }

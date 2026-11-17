@@ -42,6 +42,9 @@ const (
 	// ConversationsServiceAnswerProcedure is the fully-qualified name of the ConversationsService's
 	// Answer RPC.
 	ConversationsServiceAnswerProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/Answer"
+	// ConversationsServiceAnswerRootWithPasswordProcedure is the fully-qualified name of the
+	// ConversationsService's AnswerRootWithPassword RPC.
+	ConversationsServiceAnswerRootWithPasswordProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/AnswerRootWithPassword"
 	// ConversationsServiceMarkReadProcedure is the fully-qualified name of the ConversationsService's
 	// MarkRead RPC.
 	ConversationsServiceMarkReadProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/MarkRead"
@@ -82,6 +85,8 @@ type ConversationsServiceClient interface {
 	// nothing. Same authentication as Ask.
 	CheckAsk(context.Context, *connect.Request[conversations.CheckAskRequest]) (*connect.Response[conversations.CheckAskResponse], error)
 	Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error)
+	// Fresh owner authentication and the exact root decision are submitted together.
+	AnswerRootWithPassword(context.Context, *connect.Request[conversations.AnswerRootWithPasswordRequest]) (*connect.Response[conversations.AnswerRootWithPasswordResponse], error)
 	// MarkRead closes a status update without recording a decision answer.
 	MarkRead(context.Context, *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error)
 	Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error)
@@ -140,6 +145,12 @@ func NewConversationsServiceClient(httpClient connect.HTTPClient, baseURL string
 			httpClient,
 			baseURL+ConversationsServiceAnswerProcedure,
 			connect.WithSchema(conversationsServiceMethods.ByName("Answer")),
+			connect.WithClientOptions(opts...),
+		),
+		answerRootWithPassword: connect.NewClient[conversations.AnswerRootWithPasswordRequest, conversations.AnswerRootWithPasswordResponse](
+			httpClient,
+			baseURL+ConversationsServiceAnswerRootWithPasswordProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("AnswerRootWithPassword")),
 			connect.WithClientOptions(opts...),
 		),
 		markRead: connect.NewClient[conversations.MarkReadRequest, conversations.MarkReadResponse](
@@ -207,19 +218,20 @@ func NewConversationsServiceClient(httpClient connect.HTTPClient, baseURL string
 
 // conversationsServiceClient implements ConversationsServiceClient.
 type conversationsServiceClient struct {
-	ask                 *connect.Client[conversations.AskRequest, conversations.AskResponse]
-	checkAsk            *connect.Client[conversations.CheckAskRequest, conversations.CheckAskResponse]
-	answer              *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
-	markRead            *connect.Client[conversations.MarkReadRequest, conversations.MarkReadResponse]
-	wait                *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
-	dismiss             *connect.Client[conversations.DismissRequest, conversations.DismissResponse]
-	withdraw            *connect.Client[conversations.WithdrawRequest, conversations.WithdrawResponse]
-	getAsk              *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
-	listAsks            *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
-	listNativeConsents  *connect.Client[conversations.ListNativeConsentsRequest, conversations.ListNativeConsentsResponse]
-	requestContext      *connect.Client[conversations.RequestContextRequest, conversations.RequestContextResponse]
-	statAttachmentBlobs *connect.Client[conversations.StatAttachmentBlobsRequest, conversations.StatAttachmentBlobsResponse]
-	putAttachmentBlob   *connect.Client[conversations.PutAttachmentBlobRequest, conversations.PutAttachmentBlobResponse]
+	ask                    *connect.Client[conversations.AskRequest, conversations.AskResponse]
+	checkAsk               *connect.Client[conversations.CheckAskRequest, conversations.CheckAskResponse]
+	answer                 *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
+	answerRootWithPassword *connect.Client[conversations.AnswerRootWithPasswordRequest, conversations.AnswerRootWithPasswordResponse]
+	markRead               *connect.Client[conversations.MarkReadRequest, conversations.MarkReadResponse]
+	wait                   *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
+	dismiss                *connect.Client[conversations.DismissRequest, conversations.DismissResponse]
+	withdraw               *connect.Client[conversations.WithdrawRequest, conversations.WithdrawResponse]
+	getAsk                 *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
+	listAsks               *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
+	listNativeConsents     *connect.Client[conversations.ListNativeConsentsRequest, conversations.ListNativeConsentsResponse]
+	requestContext         *connect.Client[conversations.RequestContextRequest, conversations.RequestContextResponse]
+	statAttachmentBlobs    *connect.Client[conversations.StatAttachmentBlobsRequest, conversations.StatAttachmentBlobsResponse]
+	putAttachmentBlob      *connect.Client[conversations.PutAttachmentBlobRequest, conversations.PutAttachmentBlobResponse]
 }
 
 // Ask calls vrooli.notification_hub.v1.conversations.ConversationsService.Ask.
@@ -235,6 +247,12 @@ func (c *conversationsServiceClient) CheckAsk(ctx context.Context, req *connect.
 // Answer calls vrooli.notification_hub.v1.conversations.ConversationsService.Answer.
 func (c *conversationsServiceClient) Answer(ctx context.Context, req *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error) {
 	return c.answer.CallUnary(ctx, req)
+}
+
+// AnswerRootWithPassword calls
+// vrooli.notification_hub.v1.conversations.ConversationsService.AnswerRootWithPassword.
+func (c *conversationsServiceClient) AnswerRootWithPassword(ctx context.Context, req *connect.Request[conversations.AnswerRootWithPasswordRequest]) (*connect.Response[conversations.AnswerRootWithPasswordResponse], error) {
+	return c.answerRootWithPassword.CallUnary(ctx, req)
 }
 
 // MarkRead calls vrooli.notification_hub.v1.conversations.ConversationsService.MarkRead.
@@ -299,6 +317,8 @@ type ConversationsServiceHandler interface {
 	// nothing. Same authentication as Ask.
 	CheckAsk(context.Context, *connect.Request[conversations.CheckAskRequest]) (*connect.Response[conversations.CheckAskResponse], error)
 	Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error)
+	// Fresh owner authentication and the exact root decision are submitted together.
+	AnswerRootWithPassword(context.Context, *connect.Request[conversations.AnswerRootWithPasswordRequest]) (*connect.Response[conversations.AnswerRootWithPasswordResponse], error)
 	// MarkRead closes a status update without recording a decision answer.
 	MarkRead(context.Context, *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error)
 	Wait(context.Context, *connect.Request[conversations.WaitRequest]) (*connect.Response[conversations.WaitResponse], error)
@@ -352,6 +372,12 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 		ConversationsServiceAnswerProcedure,
 		svc.Answer,
 		connect.WithSchema(conversationsServiceMethods.ByName("Answer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	conversationsServiceAnswerRootWithPasswordHandler := connect.NewUnaryHandler(
+		ConversationsServiceAnswerRootWithPasswordProcedure,
+		svc.AnswerRootWithPassword,
+		connect.WithSchema(conversationsServiceMethods.ByName("AnswerRootWithPassword")),
 		connect.WithHandlerOptions(opts...),
 	)
 	conversationsServiceMarkReadHandler := connect.NewUnaryHandler(
@@ -422,6 +448,8 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 			conversationsServiceCheckAskHandler.ServeHTTP(w, r)
 		case ConversationsServiceAnswerProcedure:
 			conversationsServiceAnswerHandler.ServeHTTP(w, r)
+		case ConversationsServiceAnswerRootWithPasswordProcedure:
+			conversationsServiceAnswerRootWithPasswordHandler.ServeHTTP(w, r)
 		case ConversationsServiceMarkReadProcedure:
 			conversationsServiceMarkReadHandler.ServeHTTP(w, r)
 		case ConversationsServiceWaitProcedure:
@@ -461,6 +489,10 @@ func (UnimplementedConversationsServiceHandler) CheckAsk(context.Context, *conne
 
 func (UnimplementedConversationsServiceHandler) Answer(context.Context, *connect.Request[conversations.AnswerRequest]) (*connect.Response[conversations.AnswerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.Answer is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) AnswerRootWithPassword(context.Context, *connect.Request[conversations.AnswerRootWithPasswordRequest]) (*connect.Response[conversations.AnswerRootWithPasswordResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.AnswerRootWithPassword is not implemented"))
 }
 
 func (UnimplementedConversationsServiceHandler) MarkRead(context.Context, *connect.Request[conversations.MarkReadRequest]) (*connect.Response[conversations.MarkReadResponse], error) {

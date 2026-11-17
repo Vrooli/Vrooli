@@ -338,6 +338,7 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
     verbose = false,
     configBuilder,
     setupRoutes,
+    setupBeforeProxy,
     proxyMetadata,
     scenarioConfig,
     wsPathPrefix,
@@ -390,6 +391,9 @@ export function createScenarioServer(options: ServerTemplateOptions): Express {
   // Browser origin policy: refuse cross-origin browser requests before any
   // route, proxy or static handler runs (see origin-policy.ts).
   app.use(originPolicy.middleware({ verbose }))
+
+  // Scenario ingress policy must run before any generic proxy.
+  if (setupBeforeProxy) setupBeforeProxy(app)
 
   // HTML injection middleware (if needed)
   if (proxyMetadata || scenarioConfig) {

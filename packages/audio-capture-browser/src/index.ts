@@ -1,4 +1,4 @@
-export * from "./protocol";
+export * from "./streamIdentity";
 export * from "./turnJournal";
 export * from "./pcm";
 export * from "./pcmCapture";
@@ -7,6 +7,8 @@ export * from "./sessionIdentity";
 export * from "./streamDiagnostic";
 export * from "./streamMessages";
 export * from "./transport";
+export * from "./pushableAsyncIterable";
+export * from "./connectVoiceTransport";
 export * from "./pcmVoiceStreamProvider";
 export * from "./useVoiceCore";
 export * from "./voice/types";

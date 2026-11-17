@@ -36,6 +36,24 @@ func TestRuntimeHomeSnapshotEntryResolvesWithoutPinOrSource(t *testing.T) {
 	}
 }
 
+func TestRuntimeHomeEntryPathAtExplicitRootUsesContractEntry(t *testing.T) {
+	isolatedRuntimeHomePin(t)
+	c := validContract(t)
+	snapshot, err := c.RuntimeHomeSnapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := PinRuntimeHomeSnapshot(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	got, err := RuntimeHomeEntryPathAtRoot(root, HomeKeyRuntimeDB)
+	want := filepath.Join(root, c.doc.RuntimeHome.Entries[HomeKeyRuntimeDB].Path)
+	if err != nil || got != want {
+		t.Fatalf("entry path = %q, %v; want %q", got, err, want)
+	}
+}
+
 func isolatedRuntimeHomePin(t *testing.T) {
 	t.Helper()
 	prior := pinnedRuntimeHome.Swap(nil)

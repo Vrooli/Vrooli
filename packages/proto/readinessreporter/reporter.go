@@ -56,6 +56,8 @@ func (i Identity) validate() error {
 
 type Reporter struct {
 	client          Client
+	resolveBaseURL  func(context.Context) (string, error)
+	httpClient      *http.Client
 	identity        Identity
 	criterionID     string
 	producerBinding string
@@ -64,7 +66,11 @@ type Reporter struct {
 }
 
 type Config struct {
-	BaseURL         string
+	BaseURL string
+	// ResolveBaseURL is called for every report. Use it for locally discovered
+	// peers whose port may change across restarts. BaseURL remains the explicit
+	// fixed-address mode for deployed or otherwise pinned targets.
+	ResolveBaseURL  func(context.Context) (string, error)
 	Token           string
 	Identity        Identity
 	CriterionID     string
@@ -79,8 +85,11 @@ func New(config Config) (*Reporter, error) {
 	config.CriterionID = strings.TrimSpace(config.CriterionID)
 	config.ProducerBinding = strings.TrimSpace(config.ProducerBinding)
 	config.ProducerVersion = strings.TrimSpace(config.ProducerVersion)
-	if config.BaseURL == "" || config.Token == "" || config.CriterionID == "" || config.ProducerBinding == "" || config.ProducerVersion == "" {
-		return nil, errors.New("readiness reporter requires URL, token, criterion, binding, and producer version")
+	if (config.BaseURL == "" && config.ResolveBaseURL == nil) || config.Token == "" || config.CriterionID == "" || config.ProducerBinding == "" || config.ProducerVersion == "" {
+		return nil, errors.New("readiness reporter requires a URL or URL resolver, token, criterion, binding, and producer version")
+	}
+	if config.BaseURL != "" && config.ResolveBaseURL != nil {
+		return nil, errors.New("readiness reporter requires either a fixed URL or a URL resolver")
 	}
 	if err := config.Identity.validate(); err != nil {
 		return nil, err
@@ -91,19 +100,35 @@ func New(config Config) (*Reporter, error) {
 	}
 	copy := *client
 	copy.Transport = bearerTransport{base: client.Transport, token: config.Token}
-	return &Reporter{
-		client:          readinessconnect.NewReadinessServiceClient(&copy, config.BaseURL),
+	reporter := &Reporter{
+		httpClient:      &copy,
+		resolveBaseURL:  config.ResolveBaseURL,
 		identity:        config.Identity,
 		criterionID:     config.CriterionID,
 		producerBinding: config.ProducerBinding,
 		producerVersion: config.ProducerVersion,
-	}, nil
+	}
+	if config.ResolveBaseURL == nil {
+		reporter.client = readinessconnect.NewReadinessServiceClient(&copy, config.BaseURL)
+	}
+	return reporter, nil
 }
 
 // NewFromEnv returns nil when the owner integration is not enabled. Once the
 // token is present, all identity fields are mandatory and configuration errors
 // are returned rather than disabling the callback silently.
 func NewFromEnv(prefix, baseURL, criterionID, producerBinding, producerVersion string) (*Reporter, error) {
+	return newFromEnv(prefix, baseURL, nil, criterionID, producerBinding, producerVersion)
+}
+
+// NewFromEnvResolver is the locally discovered counterpart to NewFromEnv.
+// It resolves the peer on every report, so the Reporter survives target
+// restarts without capturing a stale address at construction time.
+func NewFromEnvResolver(prefix string, resolve func(context.Context) (string, error), criterionID, producerBinding, producerVersion string) (*Reporter, error) {
+	return newFromEnv(prefix, "", resolve, criterionID, producerBinding, producerVersion)
+}
+
+func newFromEnv(prefix, baseURL string, resolve func(context.Context) (string, error), criterionID, producerBinding, producerVersion string) (*Reporter, error) {
 	prefix = strings.TrimRight(strings.TrimSpace(prefix), "_")
 	token := os.Getenv(prefix + "_TOKEN")
 	if strings.TrimSpace(token) == "" {
@@ -121,8 +146,9 @@ func NewFromEnv(prefix, baseURL, criterionID, producerBinding, producerVersion s
 		}
 	}
 	return New(Config{
-		BaseURL: baseURL,
-		Token:   token,
+		BaseURL:        baseURL,
+		ResolveBaseURL: resolve,
+		Token:          token,
 		Identity: Identity{
 			Scenario: strings.TrimSpace(os.Getenv(prefix + "_SCENARIO")), ProfileID: strings.TrimSpace(os.Getenv(prefix + "_PROFILE_ID")),
 			CandidateCommit: strings.TrimSpace(os.Getenv(prefix + "_CANDIDATE_COMMIT")), ArtifactDigest: strings.TrimSpace(os.Getenv(prefix + "_ARTIFACT_DIGEST")),
@@ -190,7 +216,19 @@ func (r *Reporter) ReportStatus(ctx context.Context, scenario, status, detail, e
 	if observedAt.IsZero() || strings.TrimSpace(evidenceReference) == "" {
 		return errors.New("status evidence requires observation time and reference")
 	}
-	_, err := r.client.ReportEvidence(ctx, connect.NewRequest(&readinessv1.ReportEvidenceRequest{
+	client := r.client
+	if r.resolveBaseURL != nil {
+		baseURL, err := r.resolveBaseURL(ctx)
+		if err != nil {
+			return fmt.Errorf("resolve deployment-manager: %w", err)
+		}
+		baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+		if baseURL == "" {
+			return errors.New("resolve deployment-manager: empty URL")
+		}
+		client = readinessconnect.NewReadinessServiceClient(r.httpClient, baseURL)
+	}
+	_, err := client.ReportEvidence(ctx, connect.NewRequest(&readinessv1.ReportEvidenceRequest{
 		Scenario: strings.TrimSpace(scenario), ProfileId: r.identity.ProfileID, CandidateCommit: r.identity.CandidateCommit, ArtifactDigest: r.identity.ArtifactDigest,
 		Targets: append([]string(nil), r.identity.Targets...), Channel: r.identity.Channel, PolicyVersion: r.identity.PolicyVersion,
 		CriterionId: r.criterionID, ProducerBinding: r.producerBinding, ProducerVersion: r.producerVersion, Status: strings.TrimSpace(status),

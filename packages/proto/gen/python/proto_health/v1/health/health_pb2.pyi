@@ -19,7 +19,7 @@ class DependencyStatus(_message.Message):
     def __init__(self, connected: _Optional[bool] = ..., latency_ms: _Optional[float] = ..., error: _Optional[str] = ..., database: _Optional[str] = ...) -> None: ...
 
 class Response(_message.Message):
-    __slots__ = ("status", "service", "timestamp", "readiness", "version", "uptime_seconds", "dependencies", "build_identity")
+    __slots__ = ("status", "service", "timestamp", "readiness", "version", "uptime_seconds", "dependencies", "build_identity", "runtime_release_id", "runtime_release_operation_id", "start_operation_id")
     class DependenciesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -35,6 +35,9 @@ class Response(_message.Message):
     UPTIME_SECONDS_FIELD_NUMBER: _ClassVar[int]
     DEPENDENCIES_FIELD_NUMBER: _ClassVar[int]
     BUILD_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_RELEASE_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_RELEASE_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    START_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
     status: str
     service: str
     timestamp: str
@@ -43,4 +46,7 @@ class Response(_message.Message):
     uptime_seconds: float
     dependencies: _containers.MessageMap[str, DependencyStatus]
     build_identity: str
-    def __init__(self, status: _Optional[str] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., uptime_seconds: _Optional[float] = ..., dependencies: _Optional[_Mapping[str, DependencyStatus]] = ..., build_identity: _Optional[str] = ...) -> None: ...
+    runtime_release_id: str
+    runtime_release_operation_id: str
+    start_operation_id: str
+    def __init__(self, status: _Optional[str] = ..., service: _Optional[str] = ..., timestamp: _Optional[str] = ..., readiness: _Optional[bool] = ..., version: _Optional[str] = ..., uptime_seconds: _Optional[float] = ..., dependencies: _Optional[_Mapping[str, DependencyStatus]] = ..., build_identity: _Optional[str] = ..., runtime_release_id: _Optional[str] = ..., runtime_release_operation_id: _Optional[str] = ..., start_operation_id: _Optional[str] = ...) -> None: ...

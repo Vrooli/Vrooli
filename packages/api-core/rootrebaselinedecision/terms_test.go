@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestDigestCanonicalV1(t *testing.T) {
-	terms := Terms{RequesterRef: "r", Deadline: "2030-01-01T00:00:00Z", CandidateSHA: "c", ServingSHA: "s", WatchdogSHA: "w", CandidateContract: "cc", ServingContract: "sc", Changes: []string{"change"}}
+func TestDigestCanonicalV2(t *testing.T) {
+	terms := Terms{Version: 2, Operation: "contract_change", RequesterRef: "r", Deadline: "2030-01-01T00:00:00Z", CandidateSHA: "c", ServingSHA: "s", WatchdogSHA: "w", CandidateContract: "cc", ServingContract: "sc", Changes: []string{"change"}}
 	digest, err := Digest(terms)
-	if err != nil || digest != "baa04f75d61696f99077158b023d1abdf76ca7ae05705198cc550a7b5e5e3cca" {
+	if err != nil || digest != "aaf074026b7af48fdbd507fceb9e9ee2755745beb4d85439f5f75ecc41334272" {
 		t.Fatalf("digest %q: %v", digest, err)
 	}
 	terms.WatchdogSHA = "other"

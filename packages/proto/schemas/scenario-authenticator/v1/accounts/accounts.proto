@@ -50,6 +50,8 @@ service AccountsService {
   // identical message (anti-enumeration). A locked account yields
   // PERMISSION_DENIED.
   rpc Login(LoginRequest) returns (LoginResponse);
+  // Verify a fresh credential for a single relying-party decision without a session.
+  rpc VerifyDecision(VerifyDecisionRequest) returns (VerifyDecisionResponse);
 
   // ChangePassword verifies the current password, stores a new Argon2id hash,
   // and revokes every live session for the authenticated account.
@@ -180,6 +182,17 @@ message RegisterRequest {
 message RegisterResponse {
   Account account = 1;
   TokenPair tokens = 2;
+}
+
+message VerifyDecisionRequest {
+  LoginRequest credentials = 1;
+  // SHA-256 of the relying party's canonical decision tuple.
+  string decision_digest = 2;
+}
+message VerifyDecisionResponse {
+  string proof = 1;
+  bool mfa_required = 2;
+  string mfa_challenge = 3;
 }
 
 message LoginRequest {

@@ -1,38 +1,3 @@
-export const STREAM_PROTOCOL_VERSION = 2;
-export const ATV2_MAGIC = "ATV2";
-/** 4-byte magic + sequence + start/end sample cursors + SHA-256 digest. */
-export const V2_AUDIO_HEADER_BYTES = 60;
-
-export interface AudioFrame {
-  sequence: bigint;
-  startSample: bigint;
-  endSample: bigint;
-  audio: ArrayBufferView;
-  sha256: ArrayBufferView;
-}
-
-/** Encodes the single browser-to-server v2 binary frame shape: ATV2 + cursor + PCM. */
-export function encodeAudioFrame(frame: AudioFrame): ArrayBuffer {
-  if (frame.endSample < frame.startSample || frame.audio.byteLength === 0) {
-    throw new Error("audio frame must contain a non-empty non-negative sample range");
-  }
-  const bytes = new Uint8Array(frame.audio.buffer, frame.audio.byteOffset, frame.audio.byteLength);
-  const digest = new Uint8Array(frame.sha256.buffer, frame.sha256.byteOffset, frame.sha256.byteLength);
-  if (digest.byteLength !== 32) throw new Error("audio frame requires a SHA-256 digest");
-  const output = new ArrayBuffer(V2_AUDIO_HEADER_BYTES + bytes.byteLength);
-  const view = new DataView(output);
-  view.setUint8(0, 0x41);
-  view.setUint8(1, 0x54);
-  view.setUint8(2, 0x56);
-  view.setUint8(3, 0x32);
-  view.setBigUint64(4, frame.sequence, false);
-  view.setBigInt64(12, frame.startSample, false);
-  view.setBigInt64(20, frame.endSample, false);
-  new Uint8Array(output, 28, 32).set(digest);
-  new Uint8Array(output, V2_AUDIO_HEADER_BYTES).set(bytes);
-  return output;
-}
-
 /** SHA-256 for chunk identity. The protocol fails visibly if unavailable. */
 export async function digestAudio(audio: ArrayBuffer): Promise<ArrayBuffer> {
   if (globalThis.crypto?.subtle) {

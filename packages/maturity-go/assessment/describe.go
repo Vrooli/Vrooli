@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"sort"
 	"strings"
 	"time"
 
@@ -95,6 +96,72 @@ func LoadProviderDescription(scenarioDir string) (*ProviderDescription, error) {
 		return nil, fmt.Errorf("resolve scenario dir %s: %w", scenarioDir, err)
 	}
 	path := filepath.Join(cleanScenarioDir, filepath.FromSlash(TestGenieDescriptorRelPath))
+	return providerDescriptionFromDescriptor(scenarioDir, path, spec)
+}
+
+// LoadProviderDescriptions reads every descriptor-backed maturity phase for a
+// provider. The canonical descriptor remains the primary description; named
+// sibling descriptors add explicit phases to the same serving process.
+func LoadProviderDescriptions(scenarioDir string) ([]*ProviderDescription, error) {
+	cleanScenarioDir, err := filepath.Abs(scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario dir %s: %w", scenarioDir, err)
+	}
+	paths, err := filepath.Glob(filepath.Join(cleanScenarioDir, ".vrooli", "test-genie*.json"))
+	if err != nil {
+		return nil, fmt.Errorf("list Test Genie descriptors: %w", err)
+	}
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no Test Genie descriptors found for %s", cleanScenarioDir)
+	}
+	canonical := filepath.Join(cleanScenarioDir, filepath.FromSlash(TestGenieDescriptorRelPath))
+	sort.SliceStable(paths, func(i, j int) bool {
+		leftCanonical, rightCanonical := paths[i] == canonical, paths[j] == canonical
+		if leftCanonical != rightCanonical {
+			return leftCanonical
+		}
+		return paths[i] < paths[j]
+	})
+	var descriptions []*ProviderDescription
+	seen := map[string]struct{}{}
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		var descriptor struct {
+			Scenario string          `json:"scenario"`
+			Phase    string          `json:"phase"`
+			Maturity json.RawMessage `json:"maturity"`
+		}
+		if err := json.Unmarshal(raw, &descriptor); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		phase := strings.TrimSpace(descriptor.Phase)
+		if phase == "" || len(descriptor.Maturity) == 0 || string(descriptor.Maturity) == "null" {
+			continue
+		}
+		if _, exists := seen[phase]; exists {
+			return nil, fmt.Errorf("multiple provider descriptors declare phase %q", phase)
+		}
+		seen[phase] = struct{}{}
+		spec, err := LoadSpecForPhase(cleanScenarioDir, phase)
+		if err != nil {
+			return nil, err
+		}
+		description, err := providerDescriptionFromDescriptor(cleanScenarioDir, path, spec)
+		if err != nil {
+			return nil, err
+		}
+		descriptions = append(descriptions, description)
+	}
+	if len(descriptions) == 0 {
+		return nil, fmt.Errorf("no Test Genie maturity phases found for %s", cleanScenarioDir)
+	}
+	return descriptions, nil
+}
+
+func providerDescriptionFromDescriptor(scenarioDir, path string, spec *Spec) (*ProviderDescription, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
@@ -103,7 +170,6 @@ func LoadProviderDescription(scenarioDir string) (*ProviderDescription, error) {
 	if err := json.Unmarshal(raw, &descriptor); err != nil {
 		return nil, fmt.Errorf("parse %s: %w", path, err)
 	}
-
 	contract := strings.TrimSpace(descriptor.Validation.Contract)
 	if contract == "" {
 		contract = DefaultContract
@@ -235,23 +301,49 @@ func (d *ProviderDescription) ToProto() *scenariovalidationv1.DescribeProviderRe
 // already treat as "fall back to the legacy readiness probe". That makes
 // adopting this RPC a per-provider decision rather than a fleet-wide flag day.
 type Describer struct {
-	response *scenariovalidationv1.DescribeProviderResponse
+	response  *scenariovalidationv1.DescribeProviderResponse
+	responses map[string]*scenariovalidationv1.DescribeProviderResponse
 }
 
 // NewDescriber builds a Describer from already-resolved provider facts.
 func NewDescriber(description ProviderDescription) Describer {
-	return Describer{response: description.ToProto()}
+	response := description.ToProto()
+	responses := map[string]*scenariovalidationv1.DescribeProviderResponse{}
+	if response != nil && strings.TrimSpace(response.GetPhase()) != "" {
+		responses[response.GetPhase()] = response
+	}
+	return Describer{response: response, responses: responses}
+}
+
+// WithPhases adds provider-owned phase identities. Each entry retains its own
+// maturity spec version and descriptor capabilities.
+func (d Describer) WithPhases(descriptions ...*ProviderDescription) Describer {
+	if d.responses == nil {
+		d.responses = map[string]*scenariovalidationv1.DescribeProviderResponse{}
+	}
+	for _, description := range descriptions {
+		response := description.ToProto()
+		if response == nil || strings.TrimSpace(response.GetPhase()) == "" {
+			continue
+		}
+		d.responses[response.GetPhase()] = response
+		if d.response == nil {
+			d.response = response
+		}
+	}
+	return d
 }
 
 // LoadDescriber resolves the provider's description from its descriptor and
 // returns a ready Describer. Providers that already call LoadSpecFromScenario
 // can swap to this and drop a redundant read.
 func LoadDescriber(scenarioDir string) (Describer, error) {
-	description, err := LoadProviderDescription(scenarioDir)
+	descriptions, err := LoadProviderDescriptions(scenarioDir)
 	if err != nil {
 		return Describer{}, err
 	}
-	return Describer{response: description.ToProto()}, nil
+	describer := NewDescriber(*descriptions[0])
+	return describer.WithPhases(descriptions[1:]...), nil
 }
 
 // WithFixes reports whether the provider implements PreviewFix/ApplyFix. Only
@@ -265,7 +357,16 @@ func (d Describer) WithFixes(supported bool) Describer {
 		cloned.Capabilities = &scenariovalidationv1.ProviderCapabilities{}
 	}
 	cloned.Capabilities.SupportsFixes = supported
-	return Describer{response: cloned}
+	updated := Describer{response: cloned, responses: map[string]*scenariovalidationv1.DescribeProviderResponse{}}
+	for phase, response := range d.responses {
+		copy, _ := proto.Clone(response).(*scenariovalidationv1.DescribeProviderResponse)
+		if copy.GetCapabilities() == nil {
+			copy.Capabilities = &scenariovalidationv1.ProviderCapabilities{}
+		}
+		copy.Capabilities.SupportsFixes = supported
+		updated.responses[phase] = copy
+	}
+	return updated
 }
 
 // Configured reports whether this Describer will answer rather than return
@@ -277,7 +378,7 @@ func (d Describer) Configured() bool { return d.response != nil }
 // RPC — so it stays O(1) no matter how large the scenario being tested is.
 func (d Describer) DescribeProvider(
 	_ context.Context,
-	_ *connect.Request[scenariovalidationv1.DescribeProviderRequest],
+	req *connect.Request[scenariovalidationv1.DescribeProviderRequest],
 ) (*connect.Response[scenariovalidationv1.DescribeProviderResponse], error) {
 	if d.response == nil {
 		return nil, connect.NewError(
@@ -285,7 +386,21 @@ func (d Describer) DescribeProvider(
 			errors.New("provider has not adopted DescribeProvider"),
 		)
 	}
-	cloned, ok := proto.Clone(d.response).(*scenariovalidationv1.DescribeProviderResponse)
+	response := d.response
+	phase := ""
+	if req != nil && req.Msg != nil {
+		phase = strings.TrimSpace(req.Msg.GetPhase())
+	}
+	if phase != "" {
+		response = d.responses[phase]
+		if response == nil {
+			// Retain the provider identity and contract while clearing phase
+			// identity. Readiness then reports a precise identity mismatch.
+			response = proto.Clone(d.response).(*scenariovalidationv1.DescribeProviderResponse)
+			response.Phase = ""
+		}
+	}
+	cloned, ok := proto.Clone(response).(*scenariovalidationv1.DescribeProviderResponse)
 	if !ok {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("clone provider description"))
 	}
@@ -330,6 +445,7 @@ func (s describedServer) ValidateTarget(
 		Scenario:         target.GetId(),
 		Path:             target.GetRoot(),
 		IncludeExecution: req.Msg.GetIncludeExecution(),
+		Phase:            req.Msg.GetPhase(),
 	}))
 	if err != nil {
 		return nil, err

@@ -376,6 +376,36 @@ class PutAttachmentBlobResponse(_message.Message):
     existed: bool
     def __init__(self, sha256: _Optional[str] = ..., size_bytes: _Optional[int] = ..., existed: _Optional[bool] = ...) -> None: ...
 
+class AnswerRootWithPasswordRequest(_message.Message):
+    __slots__ = ("ask_id", "revision_count", "answer", "email", "password", "mfa_challenge", "totp_code", "recovery_code")
+    ASK_ID_FIELD_NUMBER: _ClassVar[int]
+    REVISION_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ANSWER_FIELD_NUMBER: _ClassVar[int]
+    EMAIL_FIELD_NUMBER: _ClassVar[int]
+    PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
+    TOTP_CODE_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_CODE_FIELD_NUMBER: _ClassVar[int]
+    ask_id: str
+    revision_count: int
+    answer: str
+    email: str
+    password: str
+    mfa_challenge: str
+    totp_code: str
+    recovery_code: str
+    def __init__(self, ask_id: _Optional[str] = ..., revision_count: _Optional[int] = ..., answer: _Optional[str] = ..., email: _Optional[str] = ..., password: _Optional[str] = ..., mfa_challenge: _Optional[str] = ..., totp_code: _Optional[str] = ..., recovery_code: _Optional[str] = ...) -> None: ...
+
+class AnswerRootWithPasswordResponse(_message.Message):
+    __slots__ = ("mfa_required", "mfa_challenge", "answered_at")
+    MFA_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
+    ANSWERED_AT_FIELD_NUMBER: _ClassVar[int]
+    mfa_required: bool
+    mfa_challenge: str
+    answered_at: str
+    def __init__(self, mfa_required: _Optional[bool] = ..., mfa_challenge: _Optional[str] = ..., answered_at: _Optional[str] = ...) -> None: ...
+
 class AnswerRequest(_message.Message):
     __slots__ = ("ask_id", "answer", "note", "responses", "attachment_notes", "changes", "images")
     ASK_ID_FIELD_NUMBER: _ClassVar[int]

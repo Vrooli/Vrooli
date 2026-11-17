@@ -21,7 +21,7 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { Router, type Request, type Response } from 'express'
-import { createPortResolver } from './embedded.js'
+import { createPortResolutionResolver, type PortResolution, type PortResolutionFailure } from './embedded.js'
 import { APP_NOTIFICATIONS_WORKER_SOURCE } from './app-notifications-worker.js'
 import type { AppNotificationsOptions } from '../shared/types.js'
 
@@ -45,6 +45,9 @@ const FORWARDED_HEADERS = [
   'x-vrooli-test-mode',
 ]
 const MAX_BODY_BYTES = 64 * 1024
+const MAX_RESPONSE_BYTES = 1024 * 1024
+
+class UpstreamResponseTooLargeError extends Error {}
 
 /** True when the scenario's notifications manifest sets "appDelivery": true. */
 export function appDeliveryDeclared(manifestPath: string): boolean {
@@ -70,15 +73,17 @@ export function resolveAppNotifications(
   return { ...options, scenario: options.scenario ?? serviceName }
 }
 
-function hubBaseResolver(options: AppNotificationsOptions): () => string | null {
+type HubPortLookup = (scenario: string, portKey: string) => PortResolution
+
+function hubBaseResolver(options: AppNotificationsOptions, lookup?: HubPortLookup): () => { base: string | null; resolution?: PortResolution } {
   if (options.hubBaseUrl) {
     const base = options.hubBaseUrl.replace(/\/+$/, '')
-    return () => base
+    return () => ({ base })
   }
-  const resolvePort = createPortResolver(30_000, 'API_PORT')
+  const resolvePort = lookup ?? createPortResolutionResolver(2_000, 'API_PORT')
   return () => {
-    const port = resolvePort('notification-hub')
-    return port ? `http://127.0.0.1:${port}` : null
+    const resolution = resolvePort('notification-hub', 'API_PORT')
+    return { base: resolution.port ? `http://127.0.0.1:${resolution.port}` : null, resolution }
   }
 }
 
@@ -98,20 +103,57 @@ async function readBody(req: Request): Promise<Buffer> {
   return Buffer.concat(chunks)
 }
 
+async function readUpstreamBody(res: globalThis.Response): Promise<Buffer> {
+  const contentLength = res.headers.get('content-length')
+  if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_RESPONSE_BYTES) {
+    throw new UpstreamResponseTooLargeError('upstream response is too large')
+  }
+  if (!res.body) return Buffer.alloc(0)
+  const reader = res.body.getReader()
+  const chunks: Buffer[] = []
+  let size = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      size += value.byteLength
+      if (size > MAX_RESPONSE_BYTES) {
+        await reader.cancel()
+        throw new UpstreamResponseTooLargeError('upstream response is too large')
+      }
+      chunks.push(Buffer.from(value))
+    }
+  } finally {
+    reader.releaseLock()
+  }
+  return Buffer.concat(chunks, size)
+}
+
 /**
  * Router mounted at /vrooli-notify by createScenarioServer when app
  * notifications are enabled.
  */
-export function createAppNotificationsRouter(options: AppNotificationsOptions & { scenario: string }): Router {
+export function createAppNotificationsRouter(options: AppNotificationsOptions & { scenario: string }, portLookup?: HubPortLookup): Router {
   const router = Router()
-  const resolveHub = hubBaseResolver(options)
+  const resolveHub = hubBaseResolver(options, portLookup)
   const timeoutMs = options.timeoutMs ?? 15_000
   const scenario = options.scenario
 
   async function forward(req: Request, res: Response, targetPath: string, body?: Buffer) {
-    const base = resolveHub()
+    const resolved = resolveHub()
+    const base = resolved.base
     if (!base) {
-      res.status(503).json({ code: 'unavailable', message: 'Notification Hub is not running' })
+      const failure: PortResolutionFailure = resolved.resolution?.port === null
+        ? resolved.resolution
+        : { port: null, reason: 'not-found' }
+      const reason = failure.reason
+      const messages = {
+        'invalid-target': 'Notification Hub target is invalid',
+        'runtime-required': 'Desktop runtime discovery is required for Notification Hub',
+        'not-found': 'Notification Hub address was not found',
+        'cli-failed': 'Notification Hub address lookup failed',
+      } satisfies Record<PortResolutionFailure['reason'], string>
+      res.status(503).json({ code: 'unavailable', reason, detail: failure.detail, message: messages[reason] })
       return
     }
     const headers: Record<string, string> = {}
@@ -127,13 +169,18 @@ export function createAppNotificationsRouter(options: AppNotificationsOptions & 
         body: body && body.length > 0 ? new Uint8Array(body) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
       })
+      const responseBody = await readUpstreamBody(upstream)
       res.status(upstream.status)
       const contentType = upstream.headers.get('content-type')
       if (contentType) res.setHeader('Content-Type', contentType)
       res.setHeader('Cache-Control', 'no-store')
-      res.send(Buffer.from(await upstream.arrayBuffer()))
-    } catch {
-      res.status(503).json({ code: 'unavailable', message: 'Notification Hub did not answer' })
+      res.send(responseBody)
+    } catch (error) {
+      if (!res.headersSent && error instanceof UpstreamResponseTooLargeError) {
+        res.status(502).json({ code: 'invalid_response', message: 'Notification Hub returned an oversized response' })
+        return
+      }
+      if (!res.headersSent) res.status(503).json({ code: 'unavailable', message: 'Notification Hub did not answer' })
     }
   }
 

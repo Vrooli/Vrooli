@@ -12,14 +12,17 @@ import (
 	"unicode/utf8"
 )
 
-// Terms is serialized in this field order for the v1 canonical digest. Changing
+// Terms is serialized in this field order for the v2 canonical digest. Changing
 // fields, order, JSON names, or serialization requires a new protocol version.
 type Terms struct {
+	Version           int      `json:"version"`
+	Operation         string   `json:"operation"`
 	RequesterRef      string   `json:"requester_ref"`
 	Deadline          string   `json:"deadline"`
 	CandidateSHA      string   `json:"candidate_sha256"`
 	ServingSHA        string   `json:"serving_sha256"`
 	WatchdogSHA       string   `json:"watchdog_sha256"`
+	BundleSHA         string   `json:"bundle_sha256"`
 	CandidateContract string   `json:"candidate_contract_sha256"`
 	ServingContract   string   `json:"serving_contract_sha256"`
 	Changes           []string `json:"changes"`

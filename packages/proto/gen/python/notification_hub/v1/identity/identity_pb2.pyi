@@ -5,24 +5,34 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class LoginRequest(_message.Message):
-    __slots__ = ("email", "password")
+    __slots__ = ("email", "password", "mfa_challenge", "totp_code", "recovery_code")
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
+    TOTP_CODE_FIELD_NUMBER: _ClassVar[int]
+    RECOVERY_CODE_FIELD_NUMBER: _ClassVar[int]
     email: str
     password: str
-    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ...) -> None: ...
+    mfa_challenge: str
+    totp_code: str
+    recovery_code: str
+    def __init__(self, email: _Optional[str] = ..., password: _Optional[str] = ..., mfa_challenge: _Optional[str] = ..., totp_code: _Optional[str] = ..., recovery_code: _Optional[str] = ...) -> None: ...
 
 class LoginResponse(_message.Message):
-    __slots__ = ("token", "refresh_token", "email", "user_id")
+    __slots__ = ("token", "refresh_token", "email", "user_id", "mfa_required", "mfa_challenge")
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     REFRESH_TOKEN_FIELD_NUMBER: _ClassVar[int]
     EMAIL_FIELD_NUMBER: _ClassVar[int]
     USER_ID_FIELD_NUMBER: _ClassVar[int]
+    MFA_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
     token: str
     refresh_token: str
     email: str
     user_id: str
-    def __init__(self, token: _Optional[str] = ..., refresh_token: _Optional[str] = ..., email: _Optional[str] = ..., user_id: _Optional[str] = ...) -> None: ...
+    mfa_required: bool
+    mfa_challenge: str
+    def __init__(self, token: _Optional[str] = ..., refresh_token: _Optional[str] = ..., email: _Optional[str] = ..., user_id: _Optional[str] = ..., mfa_required: _Optional[bool] = ..., mfa_challenge: _Optional[str] = ...) -> None: ...
 
 class GetSessionRequest(_message.Message):
     __slots__ = ()

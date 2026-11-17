@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FakeVoiceTransport as FakeWebSocket, type FakeVoiceConnection, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
 import { MemoryTurnJournalStore, TurnJournal } from "./turnJournal";
 import { MAX_RETAINED_TURN_AUDIO_BYTES, PCM_WIRE_BATCH_SAMPLES, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 import { readStreamDiagnosticTelemetry } from "./streamDiagnostic";
@@ -11,25 +12,6 @@ type FakeTrack = {
   onunmute: (() => void) | null;
   stop: ReturnType<typeof vi.fn>;
 };
-
-class FakeWebSocket {
-  static OPEN = 1;
-  static CLOSED = 3;
-  static CONNECTING = 0;
-  static instances: FakeWebSocket[] = [];
-  static autoOpen = true;
-  readyState = FakeWebSocket.OPEN;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((event: { data: string }) => void) | null = null;
-  send = vi.fn();
-  close = vi.fn(() => { this.readyState = FakeWebSocket.CLOSED; });
-
-  constructor(readonly url: string) {
-    FakeWebSocket.instances.push(this);
-    if (FakeWebSocket.autoOpen) queueMicrotask(() => this.onopen?.());
-  }
-}
 
 function makeStream(): { stream: MediaStream; track: FakeTrack } {
   const track: FakeTrack = {
@@ -49,19 +31,6 @@ async function settle(): Promise<void> {
 
 async function settleLong(): Promise<void> {
   for (let index = 0; index < 128; index += 1) await Promise.resolve();
-}
-
-type WireInterval = { sequence: number; startSample: number; endSample: number };
-
-function decodeWireInterval(value: unknown): WireInterval | null {
-  if (!(value instanceof ArrayBuffer) || value.byteLength < 60) return null;
-  const view = new DataView(value);
-  if (new TextDecoder().decode(new Uint8Array(value, 0, 4)) !== "ATV2") return null;
-  return {
-    sequence: Number(view.getBigUint64(4, false)),
-    startSample: Number(view.getBigInt64(12, false)),
-    endSample: Number(view.getBigInt64(20, false)),
-  };
 }
 
 const BASELINE_FRAME_SECONDS = 60;
@@ -91,6 +60,7 @@ describe("shared PCM long-session recovery harness", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    stubCryptoWithoutSubtle();
     FakeWebSocket.instances = [];
     FakeWebSocket.autoOpen = true;
     streams = [makeStream(), makeStream(), makeStream()];
@@ -99,13 +69,10 @@ describe("shared PCM long-session recovery harness", () => {
     status = vi.fn();
     result = vi.fn();
     transcribeRetained = vi.fn(async () => "recovered");
-    (globalThis as unknown as { WebSocket: typeof FakeWebSocket }).WebSocket = FakeWebSocket;
+
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: {
-        buildStreamUrl: () => "ws://voice.test/stream?protocol_version=2",
-        transcribeRetained,
-      },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -118,6 +85,7 @@ describe("shared PCM long-session recovery harness", () => {
 
   afterEach(() => {
     provider.dispose();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
@@ -150,7 +118,6 @@ describe("shared PCM long-session recovery harness", () => {
     expect(FakeWebSocket.instances).toHaveLength(1);
 
     await vi.advanceTimersByTimeAsync(4_000);
-    expect(FakeWebSocket.instances[0]?.send).toHaveBeenCalledWith(JSON.stringify({ type: "keepalive" }));
 
     await provider.start();
     await settle();
@@ -209,10 +176,7 @@ describe("shared PCM long-session recovery harness", () => {
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
       maxRetainedTurnAudioBytes: PCM_WIRE_BATCH_SAMPLES * 2,
-      transport: {
-        buildStreamUrl: () => "ws://voice.test/stream?protocol_version=2",
-        transcribeRetained,
-      },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -257,11 +221,7 @@ describe("shared PCM long-session recovery harness", () => {
     }));
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: {
-        buildStreamUrl: () => "ws://voice.test/stream?protocol_version=2",
-        transcribeRetained,
-        transcribeRetainedWithIdentity,
-      },
+      transport: new FakeWebSocket(transcribeRetained, transcribeRetainedWithIdentity),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -321,10 +281,7 @@ describe("shared PCM long-session recovery harness", () => {
     const store = new MemoryTurnJournalStore();
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: {
-        buildStreamUrl: () => "ws://voice.test/stream?protocol_version=2",
-        transcribeRetained,
-      },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -610,10 +567,7 @@ describe("shared PCM long-session recovery harness", () => {
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
       maxRetainedTurnAudioBytes: 512,
-      transport: {
-        buildStreamUrl: () => "ws://voice.test/stream?protocol_version=2",
-        transcribeRetained,
-      },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -636,9 +590,8 @@ describe("shared PCM long-session recovery harness", () => {
     await provider.start();
     await settleLong();
     const socket = FakeWebSocket.instances[0]!;
-    socket.send.mockImplementation((value: unknown) => {
-      if (!(value instanceof ArrayBuffer)) return;
-      const sequence = Number(new DataView(value).getBigUint64(4, false));
+    socket.sendAudio.mockImplementation((value) => {
+      const sequence = Number(value.sequence);
       queueMicrotask(() => socket.onmessage?.({ data: JSON.stringify({ type: "status", code: "processed_acknowledgement", text: "processed", processedSequence: sequence }) }));
     });
     const frame = new Float32Array(BASELINE_FRAME_SAMPLES).fill(0.25);
@@ -653,8 +606,11 @@ describe("shared PCM long-session recovery harness", () => {
     await internals.writes;
     const journal = (provider as unknown as { journal: TurnJournal | null }).journal;
     const snapshot = journal?.read();
-    const sentFrames = socket.send.mock.calls.filter(([value]) => value instanceof ArrayBuffer);
-    const wireIntervals = sentFrames.map(([value]) => decodeWireInterval(value)).filter((interval): interval is WireInterval => interval !== null);
+    const wireIntervals = socket.sendAudio.mock.calls.map(([value]) => ({
+      sequence: Number(value.sequence),
+      startSample: Number(value.startSample),
+      endSample: Number(value.endSample),
+    }));
     const expectedIntervalCount = BASELINE_SIMULATED_SECONDS * 16_000 / PCM_WIRE_BATCH_SAMPLES;
     const intervalAccounting = wireIntervals.length === expectedIntervalCount && wireIntervals.every((interval, index) => (
       interval.sequence === index
@@ -662,13 +618,13 @@ describe("shared PCM long-session recovery harness", () => {
       && interval.endSample === (index + 1) * PCM_WIRE_BATCH_SAMPLES
     ));
     const wallClockMs = performance.now() - startedAt;
-    const wireRate = sentFrames.length / BASELINE_SIMULATED_SECONDS;
+    const wireRate = wireIntervals.length / BASELINE_SIMULATED_SECONDS;
     const retainedBytes = snapshot?.retainedBytes ?? Number.POSITIVE_INFINITY;
     expect(intervalAccounting).toBe(true);
     expect(wireIntervals).toHaveLength(expectedIntervalCount);
     expect(wallClockMs).toBeLessThan(60_000);
     expect(retainedBytes).toBeLessThanOrEqual(2 * PCM_WIRE_BATCH_SAMPLES * 2);
-    expect(sentFrames.length).toBe(BASELINE_SIMULATED_SECONDS * 16_000 / PCM_WIRE_BATCH_SAMPLES);
+    expect(wireIntervals.length).toBe(BASELINE_SIMULATED_SECONDS * 16_000 / PCM_WIRE_BATCH_SAMPLES);
     expect(wireRate).toBeLessThanOrEqual(15);
     const telemetry = readStreamDiagnosticTelemetry()?.latest;
     expect(telemetry?.capturedSamples).toBe(BASELINE_SIMULATED_SECONDS * 16_000);

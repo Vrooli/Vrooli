@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 /**
  * Tests for server/app-notifications.ts: the /vrooli-notify routes a scenario
  * web server mounts when its notifications.json opts into app delivery.
@@ -85,6 +87,24 @@ describe('appDeliveryDeclared / resolveAppNotifications', () => {
 })
 
 describe('createAppNotificationsRouter', () => {
+  it('uses an explicit hubBaseUrl without consulting dynamic address discovery', async () => {
+    const hub = await startHub()
+    let resolutions = 0
+    const app = express()
+    app.use('/vrooli-notify', createAppNotificationsRouter(
+      { scenario: 'web-console', hubBaseUrl: `${hub.base}/` },
+      () => {
+        resolutions += 1
+        return { port: null, reason: 'not-found' }
+      },
+    ))
+    const base = `http://127.0.0.1:${await listen(http.createServer(app))}`
+
+    const response = await fetch(`${base}/vrooli-notify/catalog`)
+    expect(response.status).toBe(200)
+    expect(resolutions).toBe(0)
+  })
+
   it('serves the shared push worker as JavaScript', async () => {
     const hub = await startHub()
     const base = await startScenarioServer(hub.base)
@@ -145,6 +165,53 @@ describe('createAppNotificationsRouter', () => {
     const base = await startScenarioServer('http://127.0.0.1:1')
     const res = await fetch(`${base}/vrooli-notify/rpc/ConfirmApp`, { method: 'POST', body: '{}' })
     expect(res.status).toBe(503)
+  })
+
+  it('bounds bytes read from an upstream Hub response', async () => {
+    const oversizedHub = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' })
+      res.end(JSON.stringify({ value: 'x'.repeat(1024 * 1024 + 1) }))
+    })
+    const hubPort = await listen(oversizedHub)
+    const base = await startScenarioServer(`http://127.0.0.1:${hubPort}`)
+    const response = await fetch(`${base}/vrooli-notify/catalog`)
+
+    expect(response.status).toBe(502)
+    expect(await response.json()).toMatchObject({ code: 'invalid_response' })
+  })
+
+  it('bounds a stalled upstream response and reports Hub unavailability', async () => {
+    const slowHub = http.createServer(() => {})
+    const hubPort = await listen(slowHub)
+    const app = express()
+    app.use('/vrooli-notify', createAppNotificationsRouter({
+      scenario: 'web-console',
+      hubBaseUrl: `http://127.0.0.1:${hubPort}`,
+      timeoutMs: 10,
+    }))
+    const base = `http://127.0.0.1:${await listen(http.createServer(app))}`
+    const response = await fetch(`${base}/vrooli-notify/catalog`)
+
+    expect(response.status).toBe(503)
+    expect(await response.json()).toMatchObject({ code: 'unavailable' })
+  })
+
+  it('reports failed address discovery without claiming the Hub is stopped', async () => {
+    const previous = process.env.VROOLI_DESKTOP_MODE
+    process.env.VROOLI_DESKTOP_MODE = 'true'
+    try {
+      const app = express()
+      app.use('/vrooli-notify', createAppNotificationsRouter({ scenario: 'web-console' }, () => ({
+        port: null, reason: 'runtime-required', detail: 'fixture: IPC unavailable',
+      })))
+      const base = `http://127.0.0.1:${await listen(http.createServer(app))}`
+      const res = await fetch(`${base}/vrooli-notify/catalog`)
+      expect(res.status).toBe(503)
+      expect(await res.json()).toMatchObject({ reason: 'runtime-required', message: 'Desktop runtime discovery is required for Notification Hub' })
+    } finally {
+      if (previous === undefined) delete process.env.VROOLI_DESKTOP_MODE
+      else process.env.VROOLI_DESKTOP_MODE = previous
+    }
   })
 })
 

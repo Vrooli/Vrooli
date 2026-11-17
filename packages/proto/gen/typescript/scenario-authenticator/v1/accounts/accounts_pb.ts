@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file scenario-authenticator/v1/accounts/accounts.proto.
  */
 export const file_scenario_authenticator_v1_accounts_accounts: GenFile = /*@__PURE__*/
-  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzL2FjY291bnRzLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cyKsAQoHQWNjb3VudBIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIWCg5lbWFpbF92ZXJpZmllZBgGIAEoCBIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYCCADKAkihwEKCVRva2VuUGFpchIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRI7ChdhY2Nlc3NfdG9rZW5fZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIYXVkaWVuY2UYBCABKAkiZQoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJEg0KBXJlYWxtGAQgASgJEhAKCHJlc291cmNlGAUgASgJIp0BChBSZWdpc3RlclJlc3BvbnNlEkMKB2FjY291bnQYASABKAsyMi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5BY2NvdW50EkQKBnRva2VucxgCIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpciKRAQoMTG9naW5SZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEg0KBXJlYWxtGAMgASgJEhEKCXRvdHBfY29kZRgEIAEoCRIVCg1yZWNvdmVyeV9jb2RlGAUgASgJEhUKDW1mYV9jaGFsbGVuZ2UYBiABKAkSEAoIcmVzb3VyY2UYByABKAkixwEKDUxvZ2luUmVzcG9uc2USQwoHYWNjb3VudBgBIAEoCzIyLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkFjY291bnQSRAoGdG9rZW5zGAIgASgLMjQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVG9rZW5QYWlyEhQKDG1mYV9yZXF1aXJlZBgDIAEoCBIVCg1tZmFfY2hhbGxlbmdlGAQgASgJIl0KFUNoYW5nZVBhc3N3b3JkUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSGAoQY3VycmVudF9wYXNzd29yZBgCIAEoCRIUCgxuZXdfcGFzc3dvcmQYAyABKAkiMgoWQ2hhbmdlUGFzc3dvcmRSZXNwb25zZRIYChByZXZva2VkX3Nlc3Npb25zGAEgASgDIjkKDlJlZnJlc2hSZXF1ZXN0EhUKDXJlZnJlc2hfdG9rZW4YASABKAkSEAoIcmVzb3VyY2UYAiABKAkiVwoPUmVmcmVzaFJlc3BvbnNlEkQKBnRva2VucxgBIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpciIlCg1Mb2dvdXRSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSIQCg5Mb2dvdXRSZXNwb25zZSInCg9WYWxpZGF0ZVJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJIrEBChBWYWxpZGF0ZVJlc3BvbnNlEg0KBXZhbGlkGAEgASgIEg8KB3VzZXJfaWQYAiABKAkSDQoFZW1haWwYAyABKAkSDQoFcm9sZXMYBCADKAkSDQoFcmVhbG0YBSABKAkSLgoKZXhwaXJlc19hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASDgoGc2NvcGVzGAcgAygJEhAKCGF1ZGllbmNlGAggASgJIk4KEUdyYW50U2NvcGVSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkiTwoSUmV2b2tlU2NvcGVSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkSDQoFc2NvcGUYAyABKAkiPwoRTGlzdFNjb3Blc1JlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhQKDHByaW5jaXBhbF9pZBgCIAEoCSI1Cg1TY29wZVJlc3BvbnNlEhQKDHByaW5jaXBhbF9pZBgBIAEoCRIOCgZzY29wZXMYAiADKAkiOgoSTGlzdFNjb3Blc1Jlc3BvbnNlEhQKDHByaW5jaXBhbF9pZBgBIAEoCRIOCgZzY29wZXMYAiADKAkiTAoPU2V0Um9sZXNSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkSDQoFcm9sZXMYAyADKAkigQEKGUxpbmtNYWNoaW5lQWNjb3VudFJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhIKCm1hY2hpbmVfaWQYAiABKAkSFwoPbG9jYWxfcHJpbmNpcGFsGAMgASgJEg0KBXJlYWxtGAQgASgJEhIKCmlzX2RlZmF1bHQYBSABKAgirwEKGkxpbmtNYWNoaW5lQWNjb3VudFJlc3BvbnNlEhIKCm1hY2hpbmVfaWQYASABKAkSFwoPbG9jYWxfcHJpbmNpcGFsGAIgASgJEhIKCmFjY291bnRfaWQYAyABKAkSDQoFcmVhbG0YBCABKAkSEgoKaXNfZGVmYXVsdBgFIAEoCBItCglsaW5rZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wInYKG1Jldm9rZU1hY2hpbmVBY2NvdW50UmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSEgoKbWFjaGluZV9pZBgCIAEoCRIXCg9sb2NhbF9wcmluY2lwYWwYAyABKAkSFAoMcHJpbmNpcGFsX2lkGAQgASgJIjUKHFJldm9rZU1hY2hpbmVBY2NvdW50UmVzcG9uc2USFQoNcmV2b2tlZF9jb3VudBgBIAEoAyJHCh9FeGNoYW5nZU1hY2hpbmVQcmluY2lwYWxSZXF1ZXN0EhIKCm1hY2hpbmVfaWQYASABKAkSEAoIcmVzb3VyY2UYAiABKAkiPgoWSXNzdWVCcmVha0dsYXNzUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSDgoGc2NvcGVzGAIgAygJIkEKF0lzc3VlQnJlYWtHbGFzc1Jlc3BvbnNlEhIKCmNyZWRlbnRpYWwYASABKAkSEgoKZXhwaXJlc19hdBgCIAEoAyJCChxJc3N1ZVNlcnZpY2VQcmluY2lwYWxSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIMCgRuYW1lGAIgASgJIrUBCh1Jc3N1ZVNlcnZpY2VQcmluY2lwYWxSZXNwb25zZRIMCgRuYW1lGAEgASgJEhAKCGF1ZGllbmNlGAIgASgJEg4KBnNjb3BlcxgDIAMoCRIbChNjcmVkZW50aWFsX2lkZW50aXR5GAQgASgJEhgKEGNyZWRlbnRpYWxfZmllbGQYBSABKAkSLQoJaXNzdWVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI2CiBFeGNoYW5nZVNlcnZpY2VDcmVkZW50aWFsUmVxdWVzdBISCgpjcmVkZW50aWFsGAEgASgJIqkBCiFFeGNoYW5nZVNlcnZpY2VDcmVkZW50aWFsUmVzcG9uc2USFAoMYWNjZXNzX3Rva2VuGAEgASgJEjsKF2FjY2Vzc190b2tlbl9leHBpcmVzX2F0GAIgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghhdWRpZW5jZRgDIAEoCRIPCgdzdWJqZWN0GAQgASgJEg4KBnNjb3BlcxgFIAMoCSJdChxNaW50U2Vzc2lvbkRlbGVnYXRpb25SZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIVCg13Y19zZXNzaW9uX2lkGAIgASgJEhAKCHJlc291cmNlGAMgASgJImkKHU1pbnRTZXNzaW9uRGVsZWdhdGlvblJlc3BvbnNlEhgKEGRlbGVnYXRpb25fdG9rZW4YASABKAkSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAy6hMKD0FjY291bnRzU2VydmljZRKDAQoIUmVnaXN0ZXISOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlcXVlc3QaOy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWdpc3RlclJlc3BvbnNlEnoKBUxvZ2luEjcudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9naW5SZXNwb25zZRKVAQoOQ2hhbmdlUGFzc3dvcmQSQC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlcXVlc3QaQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlEoABCgdSZWZyZXNoEjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVmcmVzaFJlcXVlc3QaOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVzcG9uc2USfQoGTG9nb3V0EjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ291dFJlc3BvbnNlEoMBCghWYWxpZGF0ZRI6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVxdWVzdBo7LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVzcG9uc2UShAEKCkdyYW50U2NvcGUSPC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5HcmFudFNjb3BlUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlNjb3BlUmVzcG9uc2UShgEKC1Jldm9rZVNjb3BlEj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmV2b2tlU2NvcGVSZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2NvcGVSZXNwb25zZRKJAQoKTGlzdFNjb3BlcxI8LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxpc3RTY29wZXNSZXF1ZXN0Gj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlzdFNjb3Blc1Jlc3BvbnNlEnoKCFNldFJvbGVzEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2V0Um9sZXNSZXF1ZXN0GjIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuQWNjb3VudBKhAQoSTGlua01hY2hpbmVBY2NvdW50EkQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlua01hY2hpbmVBY2NvdW50UmVxdWVzdBpFLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxpbmtNYWNoaW5lQWNjb3VudFJlc3BvbnNlEqcBChRSZXZva2VNYWNoaW5lQWNjb3VudBJGLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJldm9rZU1hY2hpbmVBY2NvdW50UmVxdWVzdBpHLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJldm9rZU1hY2hpbmVBY2NvdW50UmVzcG9uc2USoAEKGEV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbBJKLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbFJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlc3BvbnNlEpgBCg9Jc3N1ZUJyZWFrR2xhc3MSQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZUJyZWFrR2xhc3NSZXF1ZXN0GkIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuSXNzdWVCcmVha0dsYXNzUmVzcG9uc2USqgEKFUlzc3VlU2VydmljZVByaW5jaXBhbBJHLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLklzc3VlU2VydmljZVByaW5jaXBhbFJlcXVlc3QaSC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZVNlcnZpY2VQcmluY2lwYWxSZXNwb25zZRK2AQoZRXhjaGFuZ2VTZXJ2aWNlQ3JlZGVudGlhbBJLLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkV4Y2hhbmdlU2VydmljZUNyZWRlbnRpYWxSZXF1ZXN0GkwudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuRXhjaGFuZ2VTZXJ2aWNlQ3JlZGVudGlhbFJlc3BvbnNlEqoBChVNaW50U2Vzc2lvbkRlbGVnYXRpb24SRy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5NaW50U2Vzc2lvbkRlbGVnYXRpb25SZXF1ZXN0GkgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTWludFNlc3Npb25EZWxlZ2F0aW9uUmVzcG9uc2VCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzO2FjY291bnRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("CjFzY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzL2FjY291bnRzLnByb3RvEil2cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cyKsAQoHQWNjb3VudBIKCgJpZBgBIAEoCRINCgVlbWFpbBgCIAEoCRIQCgh1c2VybmFtZRgDIAEoCRINCgVyb2xlcxgEIAMoCRINCgVyZWFsbRgFIAEoCRIWCg5lbWFpbF92ZXJpZmllZBgGIAEoCBIuCgpjcmVhdGVkX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzY29wZXMYCCADKAkihwEKCVRva2VuUGFpchIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNcmVmcmVzaF90b2tlbhgCIAEoCRI7ChdhY2Nlc3NfdG9rZW5fZXhwaXJlc19hdBgDIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIYXVkaWVuY2UYBCABKAkiZQoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhAKCHVzZXJuYW1lGAMgASgJEg0KBXJlYWxtGAQgASgJEhAKCHJlc291cmNlGAUgASgJIp0BChBSZWdpc3RlclJlc3BvbnNlEkMKB2FjY291bnQYASABKAsyMi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5BY2NvdW50EkQKBnRva2VucxgCIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpciJ+ChVWZXJpZnlEZWNpc2lvblJlcXVlc3QSTAoLY3JlZGVudGlhbHMYASABKAsyNy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlcXVlc3QSFwoPZGVjaXNpb25fZGlnZXN0GAIgASgJIlQKFlZlcmlmeURlY2lzaW9uUmVzcG9uc2USDQoFcHJvb2YYASABKAkSFAoMbWZhX3JlcXVpcmVkGAIgASgIEhUKDW1mYV9jaGFsbGVuZ2UYAyABKAkikQEKDExvZ2luUmVxdWVzdBINCgVlbWFpbBgBIAEoCRIQCghwYXNzd29yZBgCIAEoCRINCgVyZWFsbRgDIAEoCRIRCgl0b3RwX2NvZGUYBCABKAkSFQoNcmVjb3ZlcnlfY29kZRgFIAEoCRIVCg1tZmFfY2hhbGxlbmdlGAYgASgJEhAKCHJlc291cmNlGAcgASgJIscBCg1Mb2dpblJlc3BvbnNlEkMKB2FjY291bnQYASABKAsyMi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5BY2NvdW50EkQKBnRva2VucxgCIAEoCzI0LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlRva2VuUGFpchIUCgxtZmFfcmVxdWlyZWQYAyABKAgSFQoNbWZhX2NoYWxsZW5nZRgEIAEoCSJdChVDaGFuZ2VQYXNzd29yZFJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhgKEGN1cnJlbnRfcGFzc3dvcmQYAiABKAkSFAoMbmV3X3Bhc3N3b3JkGAMgASgJIjIKFkNoYW5nZVBhc3N3b3JkUmVzcG9uc2USGAoQcmV2b2tlZF9zZXNzaW9ucxgBIAEoAyI5Cg5SZWZyZXNoUmVxdWVzdBIVCg1yZWZyZXNoX3Rva2VuGAEgASgJEhAKCHJlc291cmNlGAIgASgJIlcKD1JlZnJlc2hSZXNwb25zZRJECgZ0b2tlbnMYASABKAsyNC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Ub2tlblBhaXIiJQoNTG9nb3V0UmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkiEAoOTG9nb3V0UmVzcG9uc2UiJwoPVmFsaWRhdGVSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCSKxAQoQVmFsaWRhdGVSZXNwb25zZRINCgV2YWxpZBgBIAEoCBIPCgd1c2VyX2lkGAIgASgJEg0KBWVtYWlsGAMgASgJEg0KBXJvbGVzGAQgAygJEg0KBXJlYWxtGAUgASgJEi4KCmV4cGlyZXNfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNjb3BlcxgHIAMoCRIQCghhdWRpZW5jZRgIIAEoCSJOChFHcmFudFNjb3BlUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFAoMcHJpbmNpcGFsX2lkGAIgASgJEg0KBXNjb3BlGAMgASgJIk8KElJldm9rZVNjb3BlUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFAoMcHJpbmNpcGFsX2lkGAIgASgJEg0KBXNjb3BlGAMgASgJIj8KEUxpc3RTY29wZXNSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRIUCgxwcmluY2lwYWxfaWQYAiABKAkiNQoNU2NvcGVSZXNwb25zZRIUCgxwcmluY2lwYWxfaWQYASABKAkSDgoGc2NvcGVzGAIgAygJIjoKEkxpc3RTY29wZXNSZXNwb25zZRIUCgxwcmluY2lwYWxfaWQYASABKAkSDgoGc2NvcGVzGAIgAygJIkwKD1NldFJvbGVzUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFAoMcHJpbmNpcGFsX2lkGAIgASgJEg0KBXJvbGVzGAMgAygJIoEBChlMaW5rTWFjaGluZUFjY291bnRSZXF1ZXN0EhQKDGFjY2Vzc190b2tlbhgBIAEoCRISCgptYWNoaW5lX2lkGAIgASgJEhcKD2xvY2FsX3ByaW5jaXBhbBgDIAEoCRINCgVyZWFsbRgEIAEoCRISCgppc19kZWZhdWx0GAUgASgIIq8BChpMaW5rTWFjaGluZUFjY291bnRSZXNwb25zZRISCgptYWNoaW5lX2lkGAEgASgJEhcKD2xvY2FsX3ByaW5jaXBhbBgCIAEoCRISCgphY2NvdW50X2lkGAMgASgJEg0KBXJlYWxtGAQgASgJEhIKCmlzX2RlZmF1bHQYBSABKAgSLQoJbGlua2VkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCJ2ChtSZXZva2VNYWNoaW5lQWNjb3VudFJlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEhIKCm1hY2hpbmVfaWQYAiABKAkSFwoPbG9jYWxfcHJpbmNpcGFsGAMgASgJEhQKDHByaW5jaXBhbF9pZBgEIAEoCSI1ChxSZXZva2VNYWNoaW5lQWNjb3VudFJlc3BvbnNlEhUKDXJldm9rZWRfY291bnQYASABKAMiRwofRXhjaGFuZ2VNYWNoaW5lUHJpbmNpcGFsUmVxdWVzdBISCgptYWNoaW5lX2lkGAEgASgJEhAKCHJlc291cmNlGAIgASgJIj4KFklzc3VlQnJlYWtHbGFzc1JlcXVlc3QSFAoMYWNjZXNzX3Rva2VuGAEgASgJEg4KBnNjb3BlcxgCIAMoCSJBChdJc3N1ZUJyZWFrR2xhc3NSZXNwb25zZRISCgpjcmVkZW50aWFsGAEgASgJEhIKCmV4cGlyZXNfYXQYAiABKAMiQgocSXNzdWVTZXJ2aWNlUHJpbmNpcGFsUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSDAoEbmFtZRgCIAEoCSK1AQodSXNzdWVTZXJ2aWNlUHJpbmNpcGFsUmVzcG9uc2USDAoEbmFtZRgBIAEoCRIQCghhdWRpZW5jZRgCIAEoCRIOCgZzY29wZXMYAyADKAkSGwoTY3JlZGVudGlhbF9pZGVudGl0eRgEIAEoCRIYChBjcmVkZW50aWFsX2ZpZWxkGAUgASgJEi0KCWlzc3VlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAiNgogRXhjaGFuZ2VTZXJ2aWNlQ3JlZGVudGlhbFJlcXVlc3QSEgoKY3JlZGVudGlhbBgBIAEoCSKpAQohRXhjaGFuZ2VTZXJ2aWNlQ3JlZGVudGlhbFJlc3BvbnNlEhQKDGFjY2Vzc190b2tlbhgBIAEoCRI7ChdhY2Nlc3NfdG9rZW5fZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoIYXVkaWVuY2UYAyABKAkSDwoHc3ViamVjdBgEIAEoCRIOCgZzY29wZXMYBSADKAkiXQocTWludFNlc3Npb25EZWxlZ2F0aW9uUmVxdWVzdBIUCgxhY2Nlc3NfdG9rZW4YASABKAkSFQoNd2Nfc2Vzc2lvbl9pZBgCIAEoCRIQCghyZXNvdXJjZRgDIAEoCSJpCh1NaW50U2Vzc2lvbkRlbGVnYXRpb25SZXNwb25zZRIYChBkZWxlZ2F0aW9uX3Rva2VuGAEgASgJEi4KCmV4cGlyZXNfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wMoIVCg9BY2NvdW50c1NlcnZpY2USgwEKCFJlZ2lzdGVyEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVnaXN0ZXJSZXF1ZXN0GjsudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVnaXN0ZXJSZXNwb25zZRJ6CgVMb2dpbhI3LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ2luUmVzcG9uc2USlQEKDlZlcmlmeURlY2lzaW9uEkAudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVmVyaWZ5RGVjaXNpb25SZXF1ZXN0GkEudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuVmVyaWZ5RGVjaXNpb25SZXNwb25zZRKVAQoOQ2hhbmdlUGFzc3dvcmQSQC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlcXVlc3QaQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5DaGFuZ2VQYXNzd29yZFJlc3BvbnNlEoABCgdSZWZyZXNoEjkudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmVmcmVzaFJlcXVlc3QaOi52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5SZWZyZXNoUmVzcG9uc2USfQoGTG9nb3V0EjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTG9nb3V0UmVxdWVzdBo5LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxvZ291dFJlc3BvbnNlEoMBCghWYWxpZGF0ZRI6LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVxdWVzdBo7LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlZhbGlkYXRlUmVzcG9uc2UShAEKCkdyYW50U2NvcGUSPC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5HcmFudFNjb3BlUmVxdWVzdBo4LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlNjb3BlUmVzcG9uc2UShgEKC1Jldm9rZVNjb3BlEj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuUmV2b2tlU2NvcGVSZXF1ZXN0GjgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2NvcGVSZXNwb25zZRKJAQoKTGlzdFNjb3BlcxI8LnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxpc3RTY29wZXNSZXF1ZXN0Gj0udnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlzdFNjb3Blc1Jlc3BvbnNlEnoKCFNldFJvbGVzEjoudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuU2V0Um9sZXNSZXF1ZXN0GjIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuQWNjb3VudBKhAQoSTGlua01hY2hpbmVBY2NvdW50EkQudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTGlua01hY2hpbmVBY2NvdW50UmVxdWVzdBpFLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkxpbmtNYWNoaW5lQWNjb3VudFJlc3BvbnNlEqcBChRSZXZva2VNYWNoaW5lQWNjb3VudBJGLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJldm9rZU1hY2hpbmVBY2NvdW50UmVxdWVzdBpHLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLlJldm9rZU1hY2hpbmVBY2NvdW50UmVzcG9uc2USoAEKGEV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbBJKLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkV4Y2hhbmdlTWFjaGluZVByaW5jaXBhbFJlcXVlc3QaOC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Mb2dpblJlc3BvbnNlEpgBCg9Jc3N1ZUJyZWFrR2xhc3MSQS52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZUJyZWFrR2xhc3NSZXF1ZXN0GkIudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuSXNzdWVCcmVha0dsYXNzUmVzcG9uc2USqgEKFUlzc3VlU2VydmljZVByaW5jaXBhbBJHLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLklzc3VlU2VydmljZVByaW5jaXBhbFJlcXVlc3QaSC52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5Jc3N1ZVNlcnZpY2VQcmluY2lwYWxSZXNwb25zZRK2AQoZRXhjaGFuZ2VTZXJ2aWNlQ3JlZGVudGlhbBJLLnZyb29saS5zY2VuYXJpb19hdXRoZW50aWNhdG9yLnYxLmFjY291bnRzLkV4Y2hhbmdlU2VydmljZUNyZWRlbnRpYWxSZXF1ZXN0GkwudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuRXhjaGFuZ2VTZXJ2aWNlQ3JlZGVudGlhbFJlc3BvbnNlEqoBChVNaW50U2Vzc2lvbkRlbGVnYXRpb24SRy52cm9vbGkuc2NlbmFyaW9fYXV0aGVudGljYXRvci52MS5hY2NvdW50cy5NaW50U2Vzc2lvbkRlbGVnYXRpb25SZXF1ZXN0GkgudnJvb2xpLnNjZW5hcmlvX2F1dGhlbnRpY2F0b3IudjEuYWNjb3VudHMuTWludFNlc3Npb25EZWxlZ2F0aW9uUmVzcG9uc2VCX1pdZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9zY2VuYXJpby1hdXRoZW50aWNhdG9yL3YxL2FjY291bnRzO2FjY291bnRzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * Account is the wire shape for a single account resource. Never carries a
@@ -195,6 +195,57 @@ export const RegisterResponseSchema: GenMessage<RegisterResponse> = /*@__PURE__*
   messageDesc(file_scenario_authenticator_v1_accounts_accounts, 3);
 
 /**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest
+ */
+export type VerifyDecisionRequest = Message<"vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest"> & {
+  /**
+   * @generated from field: vrooli.scenario_authenticator.v1.accounts.LoginRequest credentials = 1;
+   */
+  credentials?: LoginRequest | undefined;
+
+  /**
+   * SHA-256 of the relying party's canonical decision tuple.
+   *
+   * @generated from field: string decision_digest = 2;
+   */
+  decisionDigest: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest.
+ * Use `create(VerifyDecisionRequestSchema)` to create a new message.
+ */
+export const VerifyDecisionRequestSchema: GenMessage<VerifyDecisionRequest> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 4);
+
+/**
+ * @generated from message vrooli.scenario_authenticator.v1.accounts.VerifyDecisionResponse
+ */
+export type VerifyDecisionResponse = Message<"vrooli.scenario_authenticator.v1.accounts.VerifyDecisionResponse"> & {
+  /**
+   * @generated from field: string proof = 1;
+   */
+  proof: string;
+
+  /**
+   * @generated from field: bool mfa_required = 2;
+   */
+  mfaRequired: boolean;
+
+  /**
+   * @generated from field: string mfa_challenge = 3;
+   */
+  mfaChallenge: string;
+};
+
+/**
+ * Describes the message vrooli.scenario_authenticator.v1.accounts.VerifyDecisionResponse.
+ * Use `create(VerifyDecisionResponseSchema)` to create a new message.
+ */
+export const VerifyDecisionResponseSchema: GenMessage<VerifyDecisionResponse> = /*@__PURE__*/
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 5);
+
+/**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LoginRequest
  */
 export type LoginRequest = Message<"vrooli.scenario_authenticator.v1.accounts.LoginRequest"> & {
@@ -246,7 +297,7 @@ export type LoginRequest = Message<"vrooli.scenario_authenticator.v1.accounts.Lo
  * Use `create(LoginRequestSchema)` to create a new message.
  */
 export const LoginRequestSchema: GenMessage<LoginRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 4);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 6);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LoginResponse
@@ -278,7 +329,7 @@ export type LoginResponse = Message<"vrooli.scenario_authenticator.v1.accounts.L
  * Use `create(LoginResponseSchema)` to create a new message.
  */
 export const LoginResponseSchema: GenMessage<LoginResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 5);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 7);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
@@ -307,7 +358,7 @@ export type ChangePasswordRequest = Message<"vrooli.scenario_authenticator.v1.ac
  * Use `create(ChangePasswordRequestSchema)` to create a new message.
  */
 export const ChangePasswordRequestSchema: GenMessage<ChangePasswordRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 6);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 8);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
@@ -324,7 +375,7 @@ export type ChangePasswordResponse = Message<"vrooli.scenario_authenticator.v1.a
  * Use `create(ChangePasswordResponseSchema)` to create a new message.
  */
 export const ChangePasswordResponseSchema: GenMessage<ChangePasswordResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 7);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 9);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RefreshRequest
@@ -349,7 +400,7 @@ export type RefreshRequest = Message<"vrooli.scenario_authenticator.v1.accounts.
  * Use `create(RefreshRequestSchema)` to create a new message.
  */
 export const RefreshRequestSchema: GenMessage<RefreshRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 8);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 10);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RefreshResponse
@@ -366,7 +417,7 @@ export type RefreshResponse = Message<"vrooli.scenario_authenticator.v1.accounts
  * Use `create(RefreshResponseSchema)` to create a new message.
  */
 export const RefreshResponseSchema: GenMessage<RefreshResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 9);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 11);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LogoutRequest
@@ -385,7 +436,7 @@ export type LogoutRequest = Message<"vrooli.scenario_authenticator.v1.accounts.L
  * Use `create(LogoutRequestSchema)` to create a new message.
  */
 export const LogoutRequestSchema: GenMessage<LogoutRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 10);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 12);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LogoutResponse
@@ -398,7 +449,7 @@ export type LogoutResponse = Message<"vrooli.scenario_authenticator.v1.accounts.
  * Use `create(LogoutResponseSchema)` to create a new message.
  */
 export const LogoutResponseSchema: GenMessage<LogoutResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 11);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 13);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ValidateRequest
@@ -415,7 +466,7 @@ export type ValidateRequest = Message<"vrooli.scenario_authenticator.v1.accounts
  * Use `create(ValidateRequestSchema)` to create a new message.
  */
 export const ValidateRequestSchema: GenMessage<ValidateRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 12);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 14);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ValidateResponse
@@ -478,7 +529,7 @@ export type ValidateResponse = Message<"vrooli.scenario_authenticator.v1.account
  * Use `create(ValidateResponseSchema)` to create a new message.
  */
 export const ValidateResponseSchema: GenMessage<ValidateResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 13);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 15);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
@@ -505,7 +556,7 @@ export type GrantScopeRequest = Message<"vrooli.scenario_authenticator.v1.accoun
  * Use `create(GrantScopeRequestSchema)` to create a new message.
  */
 export const GrantScopeRequestSchema: GenMessage<GrantScopeRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 14);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 16);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
@@ -532,7 +583,7 @@ export type RevokeScopeRequest = Message<"vrooli.scenario_authenticator.v1.accou
  * Use `create(RevokeScopeRequestSchema)` to create a new message.
  */
 export const RevokeScopeRequestSchema: GenMessage<RevokeScopeRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 15);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 17);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
@@ -554,7 +605,7 @@ export type ListScopesRequest = Message<"vrooli.scenario_authenticator.v1.accoun
  * Use `create(ListScopesRequestSchema)` to create a new message.
  */
 export const ListScopesRequestSchema: GenMessage<ListScopesRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 16);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 18);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ScopeResponse
@@ -576,7 +627,7 @@ export type ScopeResponse = Message<"vrooli.scenario_authenticator.v1.accounts.S
  * Use `create(ScopeResponseSchema)` to create a new message.
  */
 export const ScopeResponseSchema: GenMessage<ScopeResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 17);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 19);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
@@ -598,7 +649,7 @@ export type ListScopesResponse = Message<"vrooli.scenario_authenticator.v1.accou
  * Use `create(ListScopesResponseSchema)` to create a new message.
  */
 export const ListScopesResponseSchema: GenMessage<ListScopesResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 18);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 20);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
@@ -625,7 +676,7 @@ export type SetRolesRequest = Message<"vrooli.scenario_authenticator.v1.accounts
  * Use `create(SetRolesRequestSchema)` to create a new message.
  */
 export const SetRolesRequestSchema: GenMessage<SetRolesRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 19);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 21);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
@@ -662,7 +713,7 @@ export type LinkMachineAccountRequest = Message<"vrooli.scenario_authenticator.v
  * Use `create(LinkMachineAccountRequestSchema)` to create a new message.
  */
 export const LinkMachineAccountRequestSchema: GenMessage<LinkMachineAccountRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 20);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 22);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
@@ -704,7 +755,7 @@ export type LinkMachineAccountResponse = Message<"vrooli.scenario_authenticator.
  * Use `create(LinkMachineAccountResponseSchema)` to create a new message.
  */
 export const LinkMachineAccountResponseSchema: GenMessage<LinkMachineAccountResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 21);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 23);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
@@ -736,7 +787,7 @@ export type RevokeMachineAccountRequest = Message<"vrooli.scenario_authenticator
  * Use `create(RevokeMachineAccountRequestSchema)` to create a new message.
  */
 export const RevokeMachineAccountRequestSchema: GenMessage<RevokeMachineAccountRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 22);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 24);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
@@ -753,7 +804,7 @@ export type RevokeMachineAccountResponse = Message<"vrooli.scenario_authenticato
  * Use `create(RevokeMachineAccountResponseSchema)` to create a new message.
  */
 export const RevokeMachineAccountResponseSchema: GenMessage<RevokeMachineAccountResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 23);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 25);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
@@ -779,7 +830,7 @@ export type ExchangeMachinePrincipalRequest = Message<"vrooli.scenario_authentic
  * Use `create(ExchangeMachinePrincipalRequestSchema)` to create a new message.
  */
 export const ExchangeMachinePrincipalRequestSchema: GenMessage<ExchangeMachinePrincipalRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 24);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 26);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
@@ -801,7 +852,7 @@ export type IssueBreakGlassRequest = Message<"vrooli.scenario_authenticator.v1.a
  * Use `create(IssueBreakGlassRequestSchema)` to create a new message.
  */
 export const IssueBreakGlassRequestSchema: GenMessage<IssueBreakGlassRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 25);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 27);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
@@ -823,7 +874,7 @@ export type IssueBreakGlassResponse = Message<"vrooli.scenario_authenticator.v1.
  * Use `create(IssueBreakGlassResponseSchema)` to create a new message.
  */
 export const IssueBreakGlassResponseSchema: GenMessage<IssueBreakGlassResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 26);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 28);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
@@ -849,7 +900,7 @@ export type IssueServicePrincipalRequest = Message<"vrooli.scenario_authenticato
  * Use `create(IssueServicePrincipalRequestSchema)` to create a new message.
  */
 export const IssueServicePrincipalRequestSchema: GenMessage<IssueServicePrincipalRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 27);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 29);
 
 /**
  * IssueServicePrincipalResponse describes where the credential was stored. It
@@ -894,7 +945,7 @@ export type IssueServicePrincipalResponse = Message<"vrooli.scenario_authenticat
  * Use `create(IssueServicePrincipalResponseSchema)` to create a new message.
  */
 export const IssueServicePrincipalResponseSchema: GenMessage<IssueServicePrincipalResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 28);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 30);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
@@ -911,7 +962,7 @@ export type ExchangeServiceCredentialRequest = Message<"vrooli.scenario_authenti
  * Use `create(ExchangeServiceCredentialRequestSchema)` to create a new message.
  */
 export const ExchangeServiceCredentialRequestSchema: GenMessage<ExchangeServiceCredentialRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 29);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 31);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
@@ -948,7 +999,7 @@ export type ExchangeServiceCredentialResponse = Message<"vrooli.scenario_authent
  * Use `create(ExchangeServiceCredentialResponseSchema)` to create a new message.
  */
 export const ExchangeServiceCredentialResponseSchema: GenMessage<ExchangeServiceCredentialResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 30);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 32);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
@@ -988,7 +1039,7 @@ export type MintSessionDelegationRequest = Message<"vrooli.scenario_authenticato
  * Use `create(MintSessionDelegationRequestSchema)` to create a new message.
  */
 export const MintSessionDelegationRequestSchema: GenMessage<MintSessionDelegationRequest> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 31);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 33);
 
 /**
  * @generated from message vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
@@ -1016,7 +1067,7 @@ export type MintSessionDelegationResponse = Message<"vrooli.scenario_authenticat
  * Use `create(MintSessionDelegationResponseSchema)` to create a new message.
  */
 export const MintSessionDelegationResponseSchema: GenMessage<MintSessionDelegationResponse> = /*@__PURE__*/
-  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 32);
+  messageDesc(file_scenario_authenticator_v1_accounts_accounts, 34);
 
 /**
  * @generated from service vrooli.scenario_authenticator.v1.accounts.AccountsService
@@ -1047,6 +1098,16 @@ export const AccountsService: GenService<{
     methodKind: "unary";
     input: typeof LoginRequestSchema;
     output: typeof LoginResponseSchema;
+  },
+  /**
+   * Verify a fresh credential for a single relying-party decision without a session.
+   *
+   * @generated from rpc vrooli.scenario_authenticator.v1.accounts.AccountsService.VerifyDecision
+   */
+  verifyDecision: {
+    methodKind: "unary";
+    input: typeof VerifyDecisionRequestSchema;
+    output: typeof VerifyDecisionResponseSchema;
   },
   /**
    * ChangePassword verifies the current password, stores a new Argon2id hash,

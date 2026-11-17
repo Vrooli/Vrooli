@@ -281,9 +281,9 @@ type validationResponseOptions struct {
 // ValidationResponseOption customizes BuildValidationResponse.
 type ValidationResponseOption func(*validationResponseOptions)
 
-// WithValidationStatus supplies an additional provider state such as DEGRADED,
-// ERROR, or SKIPPED that maturity findings cannot express. A PASSED override
-// cannot mask ERROR or BLOCKER findings.
+// WithValidationStatus supplies an additional provider state such as
+// NOT_EVALUATED, DEGRADED, ERROR, or SKIPPED that maturity findings cannot
+// express. A PASSED override cannot mask ERROR or BLOCKER findings.
 func WithValidationStatus(status scenariovalidationv1.ValidationStatus) ValidationResponseOption {
 	return func(opts *validationResponseOptions) {
 		opts.status = status
@@ -1048,6 +1048,21 @@ func DeriveValidationStatus(a *commonv1.MaturityAssessment) scenariovalidationv1
 		}
 	}
 	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED
+}
+
+// ObservedValidationStatus resolves provider evidence precedence without
+// manufacturing a pass when there is no explicit provider observation. A
+// concrete defect wins over unevaluated evidence; otherwise unevaluated wins
+// over an absent result. Providers can leave UNSPECIFIED for the common
+// assessment builder to derive its normal all-clear status.
+func ObservedValidationStatus(hasFailure, hasNotEvaluated bool) scenariovalidationv1.ValidationStatus {
+	if hasFailure {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED
+	}
+	if hasNotEvaluated {
+		return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED
+	}
+	return scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED
 }
 
 // AssessmentToArchitectureFindings converts the shared assessment projection

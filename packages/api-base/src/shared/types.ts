@@ -517,6 +517,8 @@ export interface ServerTemplateOptions extends LifecycleGuardConfig {
   configBuilder?: (env: Record<string, string | undefined>) => ScenarioConfig
   /** Custom route setup */
   setupRoutes?: (app: any) => void
+  /** Register ingress middleware before API and Connect proxies. */
+  setupBeforeProxy?: (app: any) => void
   /** Inject proxy metadata into HTML */
   proxyMetadata?: ProxyInfo
   /** Inject scenario config into HTML */

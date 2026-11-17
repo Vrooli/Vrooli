@@ -11,6 +11,7 @@ import (
 )
 
 type wakeRequestKey struct{}
+type wakeAlreadyAttemptedKey struct{}
 
 type wakeRoundTripper struct {
 	Base        http.RoundTripper
@@ -24,7 +25,7 @@ func (t wakeRoundTripper) RoundTrip(request *http.Request) (*http.Response, erro
 		base = http.DefaultTransport
 	}
 	response, err := base.RoundTrip(request)
-	if err == nil || t.Wake == nil || request.Context().Value(wakeRequestKey{}) != true || !isRefusedUpstreamConnection(err) {
+	if err == nil || t.Wake == nil || request.Context().Value(wakeRequestKey{}) != true || request.Context().Value(wakeAlreadyAttemptedKey{}) == true || !isRefusedUpstreamConnection(err) {
 		return response, err
 	}
 	wakeParent := request.Context()
@@ -61,5 +62,11 @@ func (t wakeRoundTripper) RoundTrip(request *http.Request) (*http.Response, erro
 
 func isRefusedUpstreamConnection(err error) bool {
 	var opErr *net.OpError
-	return errors.As(err, &opErr) && errors.Is(err, syscall.ECONNREFUSED)
+	if !errors.As(err, &opErr) {
+		return false
+	}
+	// An unloaded resource removes its bridge socket entirely, so Unix dialing
+	// reports ENOENT instead of ECONNREFUSED. Both mean the governed owner may
+	// need to recreate the private backend path before retrying demand.
+	return errors.Is(err, syscall.ECONNREFUSED) || (opErr.Net == "unix" && errors.Is(err, syscall.ENOENT))
 }

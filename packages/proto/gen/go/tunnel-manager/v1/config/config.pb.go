@@ -1260,13 +1260,17 @@ type BootstrapCloudflareRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Write-only operator token. It is accepted only over the local operator
 	// authorization boundary and is never logged or returned.
-	ApiToken      string `protobuf:"bytes,1,opt,name=api_token,json=apiToken,proto3" json:"api_token,omitempty"`
-	AccountId     string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
-	TunnelId      string `protobuf:"bytes,3,opt,name=tunnel_id,json=tunnelId,proto3" json:"tunnel_id,omitempty"`
-	TunnelName    string `protobuf:"bytes,4,opt,name=tunnel_name,json=tunnelName,proto3" json:"tunnel_name,omitempty"`
-	DryRun        bool   `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ApiToken   string `protobuf:"bytes,1,opt,name=api_token,json=apiToken,proto3" json:"api_token,omitempty"`
+	AccountId  string `protobuf:"bytes,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	TunnelId   string `protobuf:"bytes,3,opt,name=tunnel_id,json=tunnelId,proto3" json:"tunnel_id,omitempty"`
+	TunnelName string `protobuf:"bytes,4,opt,name=tunnel_name,json=tunnelName,proto3" json:"tunnel_name,omitempty"`
+	DryRun     bool   `protobuf:"varint,5,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	// Refresh only the configured connector using the authority-held API token.
+	UseStoredApiToken bool `protobuf:"varint,6,opt,name=use_stored_api_token,json=useStoredApiToken,proto3" json:"use_stored_api_token,omitempty"`
+	// Rotate the configured tunnel secret before refreshing its connector token.
+	RotateConnectorToken bool `protobuf:"varint,7,opt,name=rotate_connector_token,json=rotateConnectorToken,proto3" json:"rotate_connector_token,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *BootstrapCloudflareRequest) Reset() {
@@ -1330,6 +1334,20 @@ func (x *BootstrapCloudflareRequest) GetTunnelName() string {
 func (x *BootstrapCloudflareRequest) GetDryRun() bool {
 	if x != nil {
 		return x.DryRun
+	}
+	return false
+}
+
+func (x *BootstrapCloudflareRequest) GetUseStoredApiToken() bool {
+	if x != nil {
+		return x.UseStoredApiToken
+	}
+	return false
+}
+
+func (x *BootstrapCloudflareRequest) GetRotateConnectorToken() bool {
+	if x != nil {
+		return x.RotateConnectorToken
 	}
 	return false
 }
@@ -3487,7 +3505,7 @@ const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"\x06checks\x18\x01 \x03(\v20.vrooli.tunnel_manager.v1.config.CredentialCheckR\x06checks\x12\x14\n" +
 	"\x05ready\x18\x02 \x01(\bR\x05ready\x12Y\n" +
 	"\fcapabilities\x18\x03 \x03(\v25.vrooli.tunnel_manager.v1.config.CredentialCapabilityR\fcapabilities\x12\"\n" +
-	"\rall_checks_ok\x18\x04 \x01(\bR\vallChecksOk\"\xaf\x01\n" +
+	"\rall_checks_ok\x18\x04 \x01(\bR\vallChecksOk\"\x96\x02\n" +
 	"\x1aBootstrapCloudflareRequest\x12\x1b\n" +
 	"\tapi_token\x18\x01 \x01(\tR\bapiToken\x12\x1d\n" +
 	"\n" +
@@ -3495,7 +3513,9 @@ const file_tunnel_manager_v1_config_config_proto_rawDesc = "" +
 	"\ttunnel_id\x18\x03 \x01(\tR\btunnelId\x12\x1f\n" +
 	"\vtunnel_name\x18\x04 \x01(\tR\n" +
 	"tunnelName\x12\x17\n" +
-	"\adry_run\x18\x05 \x01(\bR\x06dryRun\"\xa7\x01\n" +
+	"\adry_run\x18\x05 \x01(\bR\x06dryRun\x12/\n" +
+	"\x14use_stored_api_token\x18\x06 \x01(\bR\x11useStoredApiToken\x124\n" +
+	"\x16rotate_connector_token\x18\a \x01(\bR\x14rotateConnectorToken\"\xa7\x01\n" +
 	"\x1bBootstrapCloudflareResponse\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x1b\n" +

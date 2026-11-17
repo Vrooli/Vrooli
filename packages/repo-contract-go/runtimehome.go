@@ -59,6 +59,25 @@ func RuntimeHomeEntryPath(home, key string) (string, error) {
 	return entry.AbsPath, nil
 }
 
+// RuntimeHomeEntryPathAtRoot resolves a contract entry under an explicitly
+// configured runtime-home root. This is the root-shaped counterpart to
+// RuntimeHomeEntryPath, whose first argument is the OS user home directory.
+func RuntimeHomeEntryPathAtRoot(runtimeHome, key string) (string, error) {
+	contract, err := loadRuntimeHomeContract()
+	if err != nil {
+		return "", err
+	}
+	root, err := filepath.Abs(strings.TrimSpace(runtimeHome))
+	if err != nil {
+		return "", err
+	}
+	spec, ok := contract.doc.RuntimeHome.Entries[strings.TrimSpace(key)]
+	if !ok {
+		return "", &Error{Kind: ErrNotFound, Message: "runtime-home entry not found", Details: key}
+	}
+	return resolveHomeEntry(root, strings.TrimSpace(key), spec).AbsPath, nil
+}
+
 // RuntimeHomeEntries resolves one consistent batch from the immutable native
 // pin, when present, or the active source authority. It does not alter source
 // discovery and never exposes the pinned Contract for mutation.

@@ -66,3 +66,22 @@ func TestSessionModuleStoresRefreshTokenWithoutReturningIt(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, body)
 	}
 }
+
+func TestSessionModuleRemoveRunsCleanupAfterCredentialDeletion(t *testing.T) {
+	client := &sessionClient{value: "refresh"}
+	module := NewSessionModule(client, "vrooli/account", "refresh-token")
+	called := false
+	module.OnDelete = func(context.Context) error {
+		called = true
+		if client.value != "" {
+			t.Fatal("cleanup ran before the refresh credential was deleted")
+		}
+		return nil
+	}
+	if err := module.Remove(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("cleanup callback was not called")
+	}
+}

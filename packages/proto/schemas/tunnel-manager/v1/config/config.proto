@@ -287,6 +287,10 @@ message BootstrapCloudflareRequest {
   string tunnel_id = 3;
   string tunnel_name = 4;
   bool dry_run = 5;
+  // Refresh only the configured connector using the authority-held API token.
+  bool use_stored_api_token = 6;
+  // Rotate the configured tunnel secret before refreshing its connector token.
+  bool rotate_connector_token = 7;
 }
 
 message BootstrapCloudflareResponse {

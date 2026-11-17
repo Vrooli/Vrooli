@@ -117,7 +117,7 @@ func TestBuildMaturityListReportIncludesCapabilitySummariesAndFocus(t *testing.T
 	report := BuildMaturityListReport(&commonv1.MaturityAssessment{
 		Scenario: "demo",
 		Provider: "ui-health",
-		Phase:    "ui-health",
+		Phase:    "experience",
 		Local: &commonv1.LocalMaturityAssessment{
 			CurrentLevel:         "L0",
 			NextLevel:            "L1",
@@ -202,7 +202,7 @@ func TestBuildMaturityListReportCountsCapabilityDebt(t *testing.T) {
 	report := BuildMaturityListReport(&commonv1.MaturityAssessment{
 		Scenario: "demo",
 		Provider: "ui-health",
-		Phase:    "ui-health",
+		Phase:    "experience",
 		Local: &commonv1.LocalMaturityAssessment{
 			CurrentLevel: "L1",
 			Levels:       []*commonv1.LocalMaturityLevel{{Id: "L0"}, {Id: "L1"}},
@@ -246,7 +246,7 @@ func TestBuildMaturityListReportDoesNotCallDebtCleanMaximum(t *testing.T) {
 	report := BuildMaturityListReport(&commonv1.MaturityAssessment{
 		Scenario: "demo",
 		Provider: "ui-health",
-		Phase:    "ui-health",
+		Phase:    "experience",
 		Local: &commonv1.LocalMaturityAssessment{
 			CurrentLevel: "L5",
 			Levels:       []*commonv1.LocalMaturityLevel{{Id: "L5"}},

@@ -37,7 +37,7 @@ func AcquireScoped(ctx context.Context, request Request) (*Scope, error) {
 	}
 	lease, verdict, err := broker.AcquireResources(ctx, request)
 	if err != nil || verdict.Kind != "grant" || lease == nil {
-		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		cleanup, cancel := detachedCleanupContext(ctx, 10*time.Second)
 		defer cancel()
 		if lease != nil {
 			err = errors.Join(err, lease.Release(cleanup))
@@ -124,7 +124,7 @@ func (s *Scope) Release(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.stopRenewLocked()
-	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	cleanup, cancel := detachedCleanupContext(ctx, 10*time.Second)
 	defer cancel()
 	if s.lease != nil {
 		if err := s.lease.Release(cleanup); err != nil {
@@ -139,4 +139,15 @@ func (s *Scope) Release(ctx context.Context) error {
 		s.close = nil
 	}
 	return nil
+}
+
+// detachedCleanupContext ignores caller cancellation but retains an earlier
+// caller deadline. Cleanup can finish after a canceled job, while an enclosing
+// owner timeout still bounds how long the shared broker operation may run.
+func detachedCleanupContext(ctx context.Context, max time.Duration) (context.Context, context.CancelFunc) {
+	deadline := time.Now().Add(max)
+	if callerDeadline, ok := ctx.Deadline(); ok && callerDeadline.Before(deadline) {
+		deadline = callerDeadline
+	}
+	return context.WithDeadline(context.Background(), deadline)
 }

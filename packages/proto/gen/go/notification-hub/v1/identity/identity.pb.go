@@ -25,6 +25,9 @@ type LoginRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Email         string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
 	Password      string                 `protobuf:"bytes,2,opt,name=password,proto3" json:"password,omitempty"`
+	MfaChallenge  string                 `protobuf:"bytes,3,opt,name=mfa_challenge,json=mfaChallenge,proto3" json:"mfa_challenge,omitempty"`
+	TotpCode      string                 `protobuf:"bytes,4,opt,name=totp_code,json=totpCode,proto3" json:"totp_code,omitempty"`
+	RecoveryCode  string                 `protobuf:"bytes,5,opt,name=recovery_code,json=recoveryCode,proto3" json:"recovery_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,6 +76,27 @@ func (x *LoginRequest) GetPassword() string {
 	return ""
 }
 
+func (x *LoginRequest) GetMfaChallenge() string {
+	if x != nil {
+		return x.MfaChallenge
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetTotpCode() string {
+	if x != nil {
+		return x.TotpCode
+	}
+	return ""
+}
+
+func (x *LoginRequest) GetRecoveryCode() string {
+	if x != nil {
+		return x.RecoveryCode
+	}
+	return ""
+}
+
 type LoginResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Empty for browser sessions; the cookie carries the session.
@@ -80,6 +104,8 @@ type LoginResponse struct {
 	RefreshToken  string `protobuf:"bytes,2,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	Email         string `protobuf:"bytes,3,opt,name=email,proto3" json:"email,omitempty"`
 	UserId        string `protobuf:"bytes,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	MfaRequired   bool   `protobuf:"varint,5,opt,name=mfa_required,json=mfaRequired,proto3" json:"mfa_required,omitempty"`
+	MfaChallenge  string `protobuf:"bytes,6,opt,name=mfa_challenge,json=mfaChallenge,proto3" json:"mfa_challenge,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -138,6 +164,20 @@ func (x *LoginResponse) GetEmail() string {
 func (x *LoginResponse) GetUserId() string {
 	if x != nil {
 		return x.UserId
+	}
+	return ""
+}
+
+func (x *LoginResponse) GetMfaRequired() bool {
+	if x != nil {
+		return x.MfaRequired
+	}
+	return false
+}
+
+func (x *LoginResponse) GetMfaChallenge() string {
+	if x != nil {
+		return x.MfaChallenge
 	}
 	return ""
 }
@@ -314,15 +354,20 @@ var File_notification_hub_v1_identity_identity_proto protoreflect.FileDescriptor
 
 const file_notification_hub_v1_identity_identity_proto_rawDesc = "" +
 	"\n" +
-	"+notification-hub/v1/identity/identity.proto\x12#vrooli.notification_hub.v1.identity\"@\n" +
+	"+notification-hub/v1/identity/identity.proto\x12#vrooli.notification_hub.v1.identity\"\xa7\x01\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
-	"\bpassword\x18\x02 \x01(\tR\bpassword\"y\n" +
+	"\bpassword\x18\x02 \x01(\tR\bpassword\x12#\n" +
+	"\rmfa_challenge\x18\x03 \x01(\tR\fmfaChallenge\x12\x1b\n" +
+	"\ttotp_code\x18\x04 \x01(\tR\btotpCode\x12#\n" +
+	"\rrecovery_code\x18\x05 \x01(\tR\frecoveryCode\"\xc1\x01\n" +
 	"\rLoginResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12#\n" +
 	"\rrefresh_token\x18\x02 \x01(\tR\frefreshToken\x12\x14\n" +
 	"\x05email\x18\x03 \x01(\tR\x05email\x12\x17\n" +
-	"\auser_id\x18\x04 \x01(\tR\x06userId\"\x13\n" +
+	"\auser_id\x18\x04 \x01(\tR\x06userId\x12!\n" +
+	"\fmfa_required\x18\x05 \x01(\bR\vmfaRequired\x12#\n" +
+	"\rmfa_challenge\x18\x06 \x01(\tR\fmfaChallenge\"\x13\n" +
 	"\x11GetSessionRequest\"a\n" +
 	"\x12GetSessionResponse\x12\x1b\n" +
 	"\tsigned_in\x18\x01 \x01(\bR\bsignedIn\x12\x18\n" +

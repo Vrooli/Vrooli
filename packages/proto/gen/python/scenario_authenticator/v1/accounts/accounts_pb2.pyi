@@ -63,6 +63,24 @@ class RegisterResponse(_message.Message):
     tokens: TokenPair
     def __init__(self, account: _Optional[_Union[Account, _Mapping]] = ..., tokens: _Optional[_Union[TokenPair, _Mapping]] = ...) -> None: ...
 
+class VerifyDecisionRequest(_message.Message):
+    __slots__ = ("credentials", "decision_digest")
+    CREDENTIALS_FIELD_NUMBER: _ClassVar[int]
+    DECISION_DIGEST_FIELD_NUMBER: _ClassVar[int]
+    credentials: LoginRequest
+    decision_digest: str
+    def __init__(self, credentials: _Optional[_Union[LoginRequest, _Mapping]] = ..., decision_digest: _Optional[str] = ...) -> None: ...
+
+class VerifyDecisionResponse(_message.Message):
+    __slots__ = ("proof", "mfa_required", "mfa_challenge")
+    PROOF_FIELD_NUMBER: _ClassVar[int]
+    MFA_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    MFA_CHALLENGE_FIELD_NUMBER: _ClassVar[int]
+    proof: str
+    mfa_required: bool
+    mfa_challenge: str
+    def __init__(self, proof: _Optional[str] = ..., mfa_required: _Optional[bool] = ..., mfa_challenge: _Optional[str] = ...) -> None: ...
+
 class LoginRequest(_message.Message):
     __slots__ = ("email", "password", "realm", "totp_code", "recovery_code", "mfa_challenge", "resource")
     EMAIL_FIELD_NUMBER: _ClassVar[int]

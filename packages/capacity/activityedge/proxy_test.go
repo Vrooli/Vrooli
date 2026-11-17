@@ -20,6 +20,69 @@ import (
 	"time"
 )
 
+func TestActivityEdgeUsesPrivateUnixUpstream(t *testing.T) {
+	socket := t.TempDir() + "/upstream.sock"
+	ln, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte("private-backend"))
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	h := New("ollama", "127.0.0.1:0", "unix://"+socket, nil)
+	proxy, _, err := h.serverWithTracker("127.0.0.1:0", "unix://"+socket, time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	proxy.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "http://edge/api/tags", nil))
+	if recorder.Code != http.StatusAccepted || recorder.Body.String() != "private-backend" {
+		t.Fatalf("Unix upstream response = %d %q", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestActivityEdgeUnixUpstreamWakesAndRetriesWhenBackendReturns(t *testing.T) {
+	dir, err := os.MkdirTemp("/tmp", "activity-wake-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	socket := dir + "/upstream.sock"
+	h := New("whisper", "127.0.0.1:0", "unix://"+socket+"?host=127.0.0.1%3A18090", MatchPaths([]string{http.MethodPost}, "/asr"))
+	wakeCalls := 0
+	var backend *http.Server
+	h.Wake = func(context.Context) error {
+		wakeCalls++
+		ln, listenErr := net.Listen("unix", socket)
+		if listenErr != nil {
+			return listenErr
+		}
+		backend = &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusAccepted)
+			_, _ = w.Write([]byte("awake"))
+		})}
+		go func() { _ = backend.Serve(ln) }()
+		return nil
+	}
+	proxy, _, err := h.serverWithTracker("127.0.0.1:0", "unix://"+socket+"?host=127.0.0.1%3A18090", time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if backend != nil {
+			_ = backend.Close()
+		}
+	})
+	recorder := httptest.NewRecorder()
+	proxy.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "http://edge/asr", strings.NewReader("audio")))
+	if wakeCalls != 1 || recorder.Code != http.StatusAccepted || recorder.Body.String() != "awake" {
+		t.Fatalf("wake/retry = calls:%d response:%d %q", wakeCalls, recorder.Code, recorder.Body.String())
+	}
+}
+
 func TestIsTranscription(t *testing.T) {
 	cases := []struct {
 		method, path string
@@ -614,25 +677,162 @@ func TestWhisperDetectLanguageIsAdaptedButNotCapacityDemand(t *testing.T) {
 	}
 }
 
-func TestWhisperWakeUsesOrdinaryResourceStartOwner(t *testing.T) {
-	h, err := ForResource("whisper")
+func TestMissionResidencyResourcesWakeThroughTheirLifecycleOwner(t *testing.T) {
+	for _, resource := range []string{"whisper", "reranker", "ollama", "kyutai-stt"} {
+		t.Run(resource, func(t *testing.T) {
+			h, err := ForResource(resource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var gotName string
+			var gotArgs []string
+			h.Exec = func(_ context.Context, name string, args ...string) ([]byte, error) {
+				gotName, gotArgs = name, append([]string(nil), args...)
+				return nil, nil
+			}
+			if h.Wake == nil {
+				t.Fatal("production edge has no governed wake callback")
+			}
+			if err := h.Wake(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if gotName != "vrooli" || strings.Join(gotArgs, " ") != "resource start "+resource {
+				t.Fatalf("wake owner command = %q %v", gotName, gotArgs)
+			}
+		})
+	}
+}
+
+func TestMissionResidencyEdgesSeparateWorkFromHealthAndProbeRequests(t *testing.T) {
+	for _, tc := range []struct {
+		resource, probeMethod, probePath string
+	}{
+		{resource: "whisper", probeMethod: http.MethodPost, probePath: "/detect-language"},
+		{resource: "reranker", probeMethod: http.MethodGet, probePath: "/rerank"},
+		{resource: "ollama", probeMethod: http.MethodGet, probePath: "/api/tags"},
+		{resource: "kyutai-stt", probeMethod: http.MethodGet, probePath: "/health"},
+	} {
+		t.Run(tc.resource, func(t *testing.T) {
+			h, err := ForResource(tc.resource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			work := httptest.NewRequest(resourceSpecs[tc.resource].methods[0], resourceSpecs[tc.resource].paths[0], nil)
+			if !h.isWork(work) {
+				t.Fatalf("registered work request %s %s did not count as demand", work.Method, work.URL.Path)
+			}
+			probe := httptest.NewRequest(tc.probeMethod, tc.probePath, nil)
+			if h.isWork(probe) {
+				t.Fatalf("probe %s %s incorrectly counted as demand", probe.Method, probe.URL.Path)
+			}
+		})
+	}
+}
+
+func TestResourceWakeDoesNotStartAfterCancellation(t *testing.T) {
+	h, err := ForResource("reranker")
 	if err != nil {
 		t.Fatal(err)
 	}
-	var gotName string
-	var gotArgs []string
-	h.Exec = func(_ context.Context, name string, args ...string) ([]byte, error) {
-		gotName, gotArgs = name, append([]string(nil), args...)
+	calls := 0
+	h.Exec = func(context.Context, string, ...string) ([]byte, error) {
+		calls++
 		return nil, nil
 	}
-	if h.Wake == nil {
-		t.Fatal("Whisper production edge has no governed wake callback")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := h.Wake(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Wake() error = %v, want context.Canceled", err)
 	}
-	if err := h.Wake(context.Background()); err != nil {
-		t.Fatal(err)
+	if calls != 0 {
+		t.Fatalf("lifecycle owner calls = %d, want 0 after cancellation", calls)
 	}
-	if gotName != "vrooli" || strings.Join(gotArgs, " ") != "resource start whisper" {
-		t.Fatalf("wake owner command = %q %v", gotName, gotArgs)
+}
+
+func TestMissionResidencyEdgesWakeDuringDrainThroughResourceLifecycle(t *testing.T) {
+	for _, resource := range []string{"whisper", "reranker", "ollama", "kyutai-stt"} {
+		t.Run(resource, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, "served after wake")
+			}))
+			defer upstream.Close()
+
+			h, err := ForResource(resource)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h.Stdout, h.Stderr = io.Discard, io.Discard
+			var starts int
+			h.Exec = func(_ context.Context, _ string, args ...string) ([]byte, error) {
+				if len(args) >= 3 && args[0] == "resource" && args[1] == "start" && args[2] == resource {
+					starts++
+					h.Resume() // Simulate the lifecycle owner reopening after recovery.
+				}
+				return []byte(`{}`), nil
+			}
+			srv, err := h.server("127.0.0.1:0", strings.TrimPrefix(upstream.URL, "http://"), time.Millisecond)
+			if err != nil {
+				t.Fatal(err)
+			}
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			serveDone := make(chan struct{})
+			go func() {
+				defer close(serveDone)
+				_ = srv.Serve(listener)
+			}()
+			defer func() {
+				_ = srv.Close()
+				<-serveDone
+			}()
+
+			if err := h.Drain(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			spec := resourceSpecs[resource]
+			var requestBody io.Reader
+			contentType := ""
+			if resource == "whisper" {
+				var body bytes.Buffer
+				form := multipart.NewWriter(&body)
+				part, err := form.CreateFormFile("audio_file", "sample.wav")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err := io.WriteString(part, "audio"); err != nil {
+					t.Fatal(err)
+				}
+				if err := form.Close(); err != nil {
+					t.Fatal(err)
+				}
+				requestBody = &body
+				contentType = form.FormDataContentType()
+			}
+			request, err := http.NewRequest(spec.methods[0], "http://"+listener.Addr().String()+spec.paths[0], requestBody)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if contentType != "" {
+				request.Header.Set("Content-Type", contentType)
+			}
+			response, err := http.DefaultClient.Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != http.StatusOK || string(body) != "served after wake" {
+				t.Fatalf("response = %d %q, want 200 from recovered upstream", response.StatusCode, body)
+			}
+			if starts != 1 {
+				t.Fatalf("resource start calls = %d, want 1", starts)
+			}
+		})
 	}
 }
 

@@ -466,3 +466,41 @@ func TestGuardedRetainedConvergenceDryRunHasNoEffects(t *testing.T) {
 		t.Fatal("guarded dry-run reached manager effects")
 	}
 }
+
+func TestConvergenceFencesIncompleteRebaseline(t *testing.T) {
+	for _, state := range []string{"incomplete", "invalid", "complete"} {
+		t.Run(state, func(t *testing.T) {
+			home := t.TempDir()
+			fake := &fakeHost{show: activeShow()}
+			seams(t, home, fake)
+			path := filepath.Join(home, ".vrooli", "state", "root-rebaseline", "progress.json")
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
+			data := []byte(`{"version":1,"candidate_sha256":"` + strings.Repeat("a", 64) + `","watchdog_sha256":"` + strings.Repeat("b", 64) + `","complete":` + strconv.FormatBool(state == "complete") + `}`)
+			if state == "invalid" {
+				data = []byte("broken")
+			}
+			if err := os.WriteFile(path, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			opts := ConvergeOptions{OS: "linux", Home: home, Root: filepath.Join(home, "source"), Restart: true}
+			_, err := Converge(context.Background(), opts)
+			if state == "complete" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), "rebaseline progress") && !strings.Contains(err.Error(), "rebaseline is incomplete") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(fake.runs) != 0 || len(fake.installs) != 0 || len(fake.commands) != 0 {
+				t.Fatal("host effects crossed incomplete transition")
+			}
+			if _, err := ConvergeRebaseline(context.Background(), opts); err != nil {
+				t.Fatalf("transition owner bypass: %v", err)
+			}
+		})
+	}
+}

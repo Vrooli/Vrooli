@@ -1,4 +1,4 @@
-package binaryfetch
+package main
 
 import (
 	"bytes"
@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/vrooli/binaryfetch"
 )
 
 // AcquisitionSchemaPath is the committed generated fragment consumed by tool
@@ -14,7 +16,7 @@ import (
 const AcquisitionSchemaPath = ".vrooli/schemas/acquisition.schema.json"
 
 // AcquisitionSchema returns the JSON Schema generated for Acquisition. Keep
-// this function next to the owning Go types: consumers do not maintain a
+// this generator coupled to the owning Go types: consumers do not maintain a
 // second hand-written field list.
 func AcquisitionSchema() map[string]any {
 	return map[string]any{
@@ -93,8 +95,8 @@ func AcquisitionSchema() map[string]any {
 }
 
 func knownFactNames() []string {
-	names := make([]string, 0, len(KnownFactNames))
-	for name := range KnownFactNames {
+	names := make([]string, 0, len(binaryfetch.KnownFactNames))
+	for name := range binaryfetch.KnownFactNames {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -140,7 +142,7 @@ func ValidateAcquisitionSchema(root string) error {
 		return fmt.Errorf("read acquisition schema %s: %w", path, err)
 	}
 	if !bytes.Equal(got, want) {
-		return fmt.Errorf("acquisition schema is stale at %s; regenerate it with binaryfetch.SyncAcquisitionSchema", path)
+		return fmt.Errorf("acquisition schema is stale at %s; regenerate it with the acquisition-schema command", path)
 	}
 	return nil
 }

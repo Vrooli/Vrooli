@@ -28,6 +28,9 @@ func TestBrowserURLForHostMatchesAPIBase(t *testing.T) {
 		{"two-label domain falls back", "example.com", "my-scenario", 9000, "http://localhost:9000"},
 		{"single word host falls back", "myhost", "my-scenario", 9000, "http://localhost:9000"},
 		{"port stripped before analysis", "app.example.com:8080", "my-scenario", 9000, "https://my-scenario.example.com"},
+		{"private IPv4 retains host", "192.168.1.20:3000", "my-scenario", 9000, "http://192.168.1.20:9000"},
+		{"private IPv6 retains host", "[fd12::20]:3000", "my-scenario", 9000, "http://[fd12::20]:9000"},
+		{"IPv6 loopback stays local", "[::1]:3000", "my-scenario", 9000, "http://localhost:9000"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

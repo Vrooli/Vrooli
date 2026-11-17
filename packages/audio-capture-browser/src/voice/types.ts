@@ -10,9 +10,6 @@ export const WHISPER_FAILED_SENTINEL = "__WHISPER_FAILED__";
 /** 48kbps balances Whisper accuracy with minimal bandwidth (~6KB/s on localhost). */
 export const AUDIO_BITRATE = 48_000;
 
-/** How often MediaRecorder sends audio chunks to the WebSocket (ms). */
-export const STREAM_CHUNK_INTERVAL_MS = 250;
-
 /** Compute final transcription timeout: max(10s, 2x duration), capped at 60s. */
 export function computeFinalTimeout(recordingDurationMs: number): number {
   return Math.min(60_000, Math.max(10_000, recordingDurationMs * 2));

@@ -46,7 +46,7 @@ func validSpec() Spec {
 func validMultiCapabilitySpec() Spec {
 	return Spec{
 		Provider: "ui-health",
-		Phase:    "ui-health",
+		Phase:    "experience",
 		Version:  "1",
 		Capabilities: []CapabilitySpec{
 			{
@@ -1019,6 +1019,26 @@ func TestBuildValidationResponseCanOverrideDerivedStatus(t *testing.T) {
 	}
 }
 
+func TestBuildValidationResponseNeverPromotesNotEvaluated(t *testing.T) {
+	assessment, err := BuildProtoAssessment(BuildInput{Scenario: "demo", Spec: validSpec()})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment returned error: %v", err)
+	}
+	got, err := BuildValidationResponse(
+		"demo",
+		assessment,
+		nil,
+		nil,
+		WithValidationStatus(scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED),
+	)
+	if err != nil {
+		t.Fatalf("BuildValidationResponse returned error: %v", err)
+	}
+	if got.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED {
+		t.Fatalf("status = %v, want NOT_EVALUATED", got.GetStatus())
+	}
+}
+
 func TestDeriveValidationStatusPassesWithNoErrorSeverity(t *testing.T) {
 	assessment, err := BuildProtoAssessment(BuildInput{Scenario: "demo", Spec: validSpec()})
 	if err != nil {
@@ -1027,6 +1047,26 @@ func TestDeriveValidationStatusPassesWithNoErrorSeverity(t *testing.T) {
 	assessment.FindingsBySeverity["FINDING_SEVERITY_WARNING"] = 2
 	if got := DeriveValidationStatus(assessment); got != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
 		t.Fatalf("status = %v, want PASSED", got)
+	}
+}
+
+func TestObservedValidationStatusPreservesEvidencePrecedence(t *testing.T) {
+	tests := []struct {
+		name         string
+		failure      bool
+		notEvaluated bool
+		want         scenariovalidationv1.ValidationStatus
+	}{
+		{name: "defect outranks missing evaluation", failure: true, notEvaluated: true, want: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED},
+		{name: "missing evaluation is explicit", notEvaluated: true, want: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_NOT_EVALUATED},
+		{name: "no provider evidence defers to assessment", want: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ObservedValidationStatus(test.failure, test.notEvaluated); got != test.want {
+				t.Fatalf("ObservedValidationStatus(%t, %t) = %s, want %s", test.failure, test.notEvaluated, got, test.want)
+			}
+		})
 	}
 }
 

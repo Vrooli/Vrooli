@@ -58,7 +58,7 @@ func TestResolveScenarioPortFallsBackToLiveWhenShadowNotRunning(t *testing.T) {
 		target := args[2]
 		targets = append(targets, target)
 		if target == "swarm-manager@shadow" {
-			return []byte("scenario not running"), errors.New("exit status 1")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("exit status 1")
 		}
 		return []byte("20002\n"), nil
 	}
@@ -111,7 +111,7 @@ func TestResolveScenarioPortVariantDependencyNeverFallsBackToLive(t *testing.T) 
 		target := args[2]
 		targets = append(targets, target)
 		if target == "vrooli-bridge@presentation" {
-			return []byte("scenario not running"), errors.New("exit status 1")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("exit status 1")
 		}
 		return []byte("20002\n"), nil
 	}

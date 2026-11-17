@@ -101,9 +101,11 @@ func RuntimeLightingDisable() []string { return []string{"runtime", "lighting", 
 func RuntimeLightingSetup(source, version, digest, policy string) []string {
 	return runtimeLightingSelection("setup", source, version, digest, policy)
 }
+
 func RuntimeLightingEnable(source, version, digest, policy string) []string {
 	return runtimeLightingSelection("enable", source, version, digest, policy)
 }
+
 func runtimeLightingSelection(action, source, version, digest, policy string) []string {
 	return []string{"runtime", "lighting", action, "--source", source, "--version", version, "--sha256", digest, "--device-policy-id", policy, "--json"}
 }
@@ -116,9 +118,26 @@ func RuntimeLightingPermissionPlan(ids []string) []string {
 	}
 	return append(argv, "--json")
 }
+
 func RuntimeLightingPermissionApply(planID string) []string {
 	return []string{"runtime", "lighting", "permissions", "apply", "--plan-id", planID, "--sudo-mode", "error", "--json"}
 }
+
 func RuntimeLightingPermissionRollback(planID string) []string {
 	return []string{"runtime", "lighting", "permissions", "rollback", "--plan-id", planID, "--sudo-mode", "error", "--json"}
+}
+
+// NativeLightingQuiesce stops only the existing private lighting reconciler.
+func NativeLightingQuiesce() []string { return []string{"__vrooli-native-lighting-quiesce"} }
+
+// RuntimeLightingPrepare explicitly provisions headless native ownership.
+func RuntimeLightingPrepare() []string { return []string{"runtime", "lighting", "prepare", "--json"} }
+
+// NativeOperatorSupervisorRun starts the sole actual-operator lease supervisor
+// inside the installed machine service. It accepts no caller args or source.
+func NativeOperatorSupervisorRun() []string { return []string{"__vrooli-native-operator-supervisor"} }
+
+// NativeOpenRGBSoftwareAcquire admits only the pinned OpenRGB SDA gateway.
+func NativeOpenRGBSoftwareAcquire() []string {
+	return []string{"__vrooli-native-openrgb-software-acquire"}
 }

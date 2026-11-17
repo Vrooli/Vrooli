@@ -44,7 +44,7 @@ const INITIAL_STATE: VoiceInputState = {
 
 function isStreamingProvider(provider: TranscriptionProvider | null): provider is PcmVoiceStreamProvider {
   return provider instanceof PcmVoiceStreamProvider ||
-    (provider !== null && typeof (provider as PcmVoiceStreamProvider).sendSegmentBoundary === "function");
+    (provider !== null && typeof (provider as PcmVoiceStreamProvider).isStreamConnected === "function");
 }
 
 /**
@@ -581,40 +581,18 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           if (vadRef.current.state !== prevState) {
             console.debug("[voice] VAD:", prevState, "→", vadRef.current.state,
               "rms=" + rms.toFixed(3), "speechThresh=" + vadRef.current.speechThreshold.toFixed(3));
-            // Notify backend of speech state changes so it can skip
-            // partial transcription during silence (prevents Whisper hallucinations).
-            const provider = providerRef.current;
-            if (provider && "sendVadState" in provider) {
-              const sp = provider as PcmVoiceStreamProvider;
-              if (vadRef.current.state === "speechDetected") {
-                sp.sendVadState(true);
-              } else if (vadRef.current.state === "watchingSilence" || vadRef.current.state === "waitingForSpeech") {
-                sp.sendVadState(false);
-              }
-            }
           }
           if (result === "segment-boundary") {
-            // In persistent mode: trigger segment-final transcription
-            const provider = providerRef.current;
-            if (provider && "sendSegmentBoundary" in provider) {
-              (provider as PcmVoiceStreamProvider).sendSegmentBoundary();
-              const silenceDuration = Date.now() - vadRef.current.silenceStart;
-              console.info("[voice] Segment boundary sent to backend, silenceDuration=%dms, segmentSilenceMs=%d",
-                silenceDuration, vadRef.current.segmentSilenceMs);
-            }
+            // Client VAD drives local turn timing. Server segmentation and
+            // silence handling remain owned by the Connect stream strategy.
           } else if (result === "stop") {
             const srcTracks = stream.getTracks();
             const srcAlive = srcTracks.every((t) => t.readyState === "live");
             const srcMuted = srcTracks.some((t) => t.muted);
             console.info(`[voice] S${sessionCountRef.current} VAD client-stop: silenceElapsed=${vadNow - vadRef.current.silenceStart}ms, timeout=${vadSilenceTimeoutRef.current}ms, rms=${rms.toFixed(4)}, speechThresh=${vadRef.current.speechThreshold.toFixed(4)}, silenceThresh=${vadRef.current.silenceThreshold.toFixed(4)}, trackAlive=${srcAlive}, trackMuted=${srcMuted}, ctx=${ctx.state}`);
-            // Persistent mode: treat as one final segment boundary then reset.
-            // One-shot mode is handled below via decideAutoStop — keeps the
-            // server-VAD SSOT precedence centralised.
+            // Persistent mode resets its local VAD window after each silence
+            // boundary. Server segmentation is driven by the active strategy.
             if (persistentModeRef.current) {
-              const provider = providerRef.current;
-              if (provider && "sendSegmentBoundary" in provider) {
-                (provider as PcmVoiceStreamProvider).sendSegmentBoundary();
-              }
               vadRef.current.state = "waitingForSpeech";
               vadRef.current.recordingStart = vadNow;
               vadRef.current.segmentBoundaryEmitted = false;
@@ -927,7 +905,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
     let bgRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
     // Warm the streaming transport immediately. This creates no microphone
-    // lease and sends no audio; it only opens the provider's control socket so
+    // lease and sends no audio; it only opens the provider's Connect stream so
     // a slow capability probe cannot sit between the user's press and the
     // first streaming batch. The probe below still decides whether the host
     // advertises streaming and remains the source of capability truth.
@@ -949,7 +927,7 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
           capCheckResolvedRef.current = true;
           console.info("[voice] Backend confirmed: whisper, streaming=%s", streamingAvailableRef.current);
 
-          // Pre-connect the WebSocket so it's ready when the user presses
+          // Pre-connect the bidi stream so it's ready when the user presses
           // the mic button, eliminating 10-100ms of connection latency.
           // DOC: docs/internal/VOICE-LATENCY.md#websocket-pre-connection
           if (streamingAvailableRef.current) {
@@ -1180,9 +1158,9 @@ export function useVoiceCore(opts: UseVoiceCoreOptions) {
       if ("language" in provider) provider.language = langCode;
 	  // The capability probe is intentionally asynchronous. If the user presses
 	  // the control before it has completed, admit the stream transport here so
-	  // the first voiced batch does not pay the WebSocket handshake. The provider
+	  // the first voiced batch does not pay the Connect stream setup. The provider
 	  // preserves this identity through start(), which makes the preconnect a
-	  // real handoff rather than an orphaned socket.
+	  // real handoff rather than an orphaned stream.
 	  if (isStreamingProvider(provider)) provider.preConnect(langCode);
 
       // Wire up segment-final handler for persistent mode

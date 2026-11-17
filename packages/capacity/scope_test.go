@@ -85,6 +85,33 @@ func TestScopeSuccessfulReleaseDoesNotCancelConsumer(t *testing.T) {
 	}
 }
 
+func TestScopeReleaseDetachesCancellationAndRetainsEarlierDeadline(t *testing.T) {
+	callerCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	wantDeadline, _ := callerCtx.Deadline()
+	cancel()
+	lease := &scopeLease{
+		heartbeat: func(context.Context) error { return nil },
+		release: func(ctx context.Context) error {
+			gotDeadline, ok := ctx.Deadline()
+			if !ok {
+				return errors.New("release omitted deadline")
+			}
+			if gotDeadline.After(wantDeadline) {
+				return errors.New("release extended caller deadline")
+			}
+			if err := ctx.Err(); err != nil {
+				return errors.New("release inherited caller cancellation")
+			}
+			return nil
+		},
+	}
+	s := Maintain(callerCtx, lease)
+	if err := s.Release(callerCtx); err != nil {
+		t.Fatalf("detached bounded release: %v", err)
+	}
+}
+
 func TestScopeCanStopRenewalWhileRetainingClaimForVerifiedCleanup(t *testing.T) {
 	var heartbeats atomic.Int32
 	lease := &scopeLease{

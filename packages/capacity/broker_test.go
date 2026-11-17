@@ -1194,3 +1194,59 @@ func admissionLockPath(t *testing.T, path string) string {
 	}
 	return lock
 }
+
+// TestBrokerChargesConcurrentOperationBudgetsAboveObservedHostLoad replays the
+// 2026-11-12 image-tools burst: four CPU Stable Diffusion jobs, each declaring
+// 4 cores and 8 GiB, arrived within seconds on a 32-core host already at load
+// 22 with 26 of 61 GiB available. Host sensing (load average, MemAvailable) had
+// not yet observed any job's use, so each admission must still be charged for
+// the operation budgets granted before it. The burst may run only what fits;
+// the rest must be refused without error so the owner queues and retries.
+func TestBrokerChargesConcurrentOperationBudgetsAboveObservedHostLoad(t *testing.T) {
+	ctx := context.Background()
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(t.TempDir(), "capacity.db")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	const gib = int64(1) << 30
+	host := &countingSource{
+		cores:  32,
+		load:   hostinventory.Load{Load1: 22},
+		memory: hostinventory.Memory{TotalBytes: uint64(61 * gib), AvailableBytes: uint64(26 * gib)},
+	}
+	broker := NewBrokerWithSource(store, host)
+	request := func(job int) Request {
+		return Request{OwnerID: fmt.Sprintf("image-tools:job-%d:sd", job), RAMBytes: 8 * gib, CPUMilli: 4_000, Priority: "batch", NoReclaim: true}
+	}
+
+	var leases []RenewableLease
+	for job := 1; job <= 4; job++ {
+		lease, verdict, err := broker.AcquireResources(ctx, request(job))
+		if err != nil {
+			t.Fatalf("job %d: refusal must be a verdict, not an error: %v", job, err)
+		}
+		if lease != nil {
+			leases = append(leases, lease)
+			continue
+		}
+		if verdict.Kind == internalcapacity.VerdictGrant {
+			t.Fatalf("job %d: grant verdict without a lease", job)
+		}
+	}
+	// 22 observed cores + 2 x 4 claimed = 30 of 32; a third job needs 34.
+	if len(leases) != 2 {
+		t.Fatalf("burst admitted %d CPU diffusion jobs, want 2 (observed load 22/32 leaves room for two 4-core budgets)", len(leases))
+	}
+
+	// Releasing one admitted job makes room for exactly one queued job.
+	if err := leases[0].Release(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if lease, verdict, err := broker.AcquireResources(ctx, request(5)); err != nil || lease == nil {
+		t.Fatalf("queued job was not admitted after a release: verdict=%+v err=%v", verdict, err)
+	}
+	if lease, verdict, err := broker.AcquireResources(ctx, request(6)); err != nil || lease != nil {
+		t.Fatalf("second queued job admitted beyond capacity: verdict=%+v err=%v", verdict, err)
+	}
+}

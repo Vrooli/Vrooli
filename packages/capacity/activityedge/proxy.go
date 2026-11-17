@@ -202,17 +202,18 @@ func ForResource(resource string) (*Handlers, error) {
 		h.Reject = MatchPaths([]string{http.MethodPost}, "/api/pull")
 		h.RejectMessage = "direct Ollama model pulls are unsupported on the public edge; use resource-ollama ensure for shared disk admission"
 	}
-	if name == "whisper" {
-		// Wake through the ordinary resource lifecycle owner. That command owns
-		// current admission and placement recovery; the edge never starts the
-		// server or bypasses the resource's lifecycle gates itself.
-		h.Wake = func(ctx context.Context) error {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			_, err := h.Exec(ctx, "vrooli", "resource", "start", name)
+	// Recover through the ordinary resource lifecycle owner for every edge that
+	// observes an accelerated workload. A stopped or draining upstream must not
+	// leave the shared broker edge unable to wake that resource merely because it
+	// is not Whisper. The control plane still owns admission, placement recovery,
+	// and transition reconciliation; this edge never starts a model server or
+	// bypasses those lifecycle gates itself.
+	h.Wake = func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
 			return err
 		}
+		_, err := h.Exec(ctx, "vrooli", "resource", "start", name)
+		return err
 	}
 	return h, nil
 }
@@ -373,14 +374,41 @@ func (h *Handlers) serverWithTracker(listen, upstream string, debounce time.Dura
 }
 
 func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.Duration, native bool) (*http.Server, *tracker, error) {
-	target, err := url.Parse("http://" + strings.TrimPrefix(upstream, "http://"))
+	unixUpstream := strings.HasPrefix(upstream, "unix://")
+	var target *url.URL
+	var err error
+	if unixUpstream {
+		privateURL, parseErr := url.Parse(upstream)
+		if parseErr != nil {
+			return nil, nil, fmt.Errorf("parse Unix activity upstream: %w", parseErr)
+		}
+		socketPath := privateURL.Path
+		if !strings.HasPrefix(socketPath, "/") {
+			return nil, nil, fmt.Errorf("Unix activity upstream must use an absolute socket path")
+		}
+		targetHost := privateURL.Query().Get("host")
+		if targetHost == "" {
+			targetHost = "activity-upstream"
+		}
+		target = &url.URL{Scheme: "http", Host: targetHost}
+	} else {
+		target, err = url.Parse("http://" + strings.TrimPrefix(upstream, "http://"))
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse upstream %q: %w", upstream, err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if unixUpstream {
+		privateURL, _ := url.Parse(upstream)
+		socketPath := privateURL.Path
+		transport.DialContext = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
+		}
+	}
 	if h.Wake != nil {
 		proxy.Transport = wakeRoundTripper{
-			Base: http.DefaultTransport, Wake: h.Wake,
+			Base: transport, Wake: h.Wake,
 			WakeContext: func(parent context.Context) (context.Context, func(), bool) {
 				h.trackerMu.Lock()
 				tr := h.tracker
@@ -391,6 +419,8 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 				return tr.beginWake(parent)
 			},
 		}
+	} else {
+		proxy.Transport = transport
 	}
 	// FlushInterval -1 streams responses (and SSE/chunked) through immediately
 	// rather than buffering — transparency for any streaming transcription.
@@ -434,6 +464,15 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 			}
 			defer tr.end()
 			r = r.WithContext(context.WithValue(r.Context(), wakeRequestKey{}, true))
+			if unixUpstream {
+				woke, wakeErr := h.ensurePrivateUpstream(r.Context(), strings.TrimPrefix(strings.SplitN(upstream, "?", 2)[0], "unix://"))
+				if wakeErr != nil {
+					http.Error(w, "private resource bridge wake failed", http.StatusServiceUnavailable)
+					return
+				} else if woke {
+					r = r.WithContext(context.WithValue(r.Context(), wakeAlreadyAttemptedKey{}, true))
+				}
+			}
 		}
 		if native && isNativeWhisperRequest(r) {
 			adapted, err := adaptNativeRequest(r)
@@ -453,6 +492,24 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 		proxy.ServeHTTP(w, r)
 	})
 	return &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ActivityReadHeaderTimeout()}, tr, nil
+}
+
+func (h *Handlers) ensurePrivateUpstream(ctx context.Context, socketPath string) (bool, error) {
+	h.wakeMu.Lock()
+	defer h.wakeMu.Unlock()
+	conn, err := (&net.Dialer{Timeout: 150 * time.Millisecond}).DialContext(ctx, "unix", socketPath)
+	if conn != nil {
+		_ = conn.Close()
+	}
+	if err == nil || !isRefusedUpstreamConnection(err) || h.Wake == nil {
+		return false, nil
+	}
+	wakeCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if err := h.Wake(wakeCtx); err != nil {
+		return true, err
+	}
+	return true, nil
 }
 
 func (h *Handlers) recoverDrainedDemand(parent context.Context) error {
@@ -953,16 +1010,25 @@ func (t *tracker) drain(ctx context.Context) error {
 		t.idleTimer = nil
 	}
 	var reportSequence uint64
+	emitIdle := false
 	if t.active && t.inflight == 0 {
 		t.active = false
 		t.sequence++
-		reportSequence = t.sequence
+		emitIdle = true
 	}
+	// The debounce callback may already have changed active=false and queued
+	// its idle report before drain acquired the lock. In that case drain must
+	// still wait for that sequence to reach the broker before the owner proceeds
+	// with unload/transition work. Capturing the latest sequence handles both
+	// the timer-won and drain-won orderings.
+	reportSequence = t.sequence
 	t.mu.Unlock()
 	if reportSequence == 0 {
 		return nil
 	}
-	go t.report(reportSequence, activityIdle)
+	if emitIdle {
+		go t.report(reportSequence, activityIdle)
+	}
 	return t.waitForReport(ctx, reportSequence)
 }
 

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FakeVoiceTransport as Socket, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
 import { IndexedDBTurnJournalStore, TurnJournal, type JournalSnapshot, type TurnJournalStore } from "./turnJournal";
 import { MAX_RETAINED_TURN_AUDIO_BYTES, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
 
@@ -15,32 +16,18 @@ class DeferredStore implements TurnJournalStore {
   load = async () => undefined;
   remove = async () => {};
 }
-class Socket {
-  static OPEN = 1;
-  static CONNECTING = 0;
-  static CLOSED = 3;
-  static instances: Socket[] = [];
-  readyState = Socket.CONNECTING;
-  onopen: (() => void) | null = null;
-  onmessage: ((event: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
-  send = vi.fn();
-  close = vi.fn(() => { this.readyState = Socket.CLOSED; });
-  constructor(_url: string) { Socket.instances.push(this); }
-  open() { this.readyState = Socket.OPEN; this.onopen?.(); }
-}
 async function settle() { for (let i = 0; i < 128; i++) await Promise.resolve(); }
 
 describe("selected journal acceptance", () => {
   let provider: PcmVoiceStreamProvider | undefined;
   let frame!: (samples: Float32Array, rate: number) => void;
-  beforeEach(() => { vi.useFakeTimers(); Socket.instances = []; vi.stubGlobal("WebSocket", Socket); });
+  beforeEach(() => { vi.useFakeTimers(); stubCryptoWithoutSubtle(); Socket.instances = []; Socket.autoOpen = false; });
   afterEach(() => { provider?.dispose(); provider = undefined; vi.unstubAllGlobals(); vi.useRealTimers(); });
   async function start(store: DeferredStore, durability: "persistent" | "memory" = "persistent") {
     const journal = new TurnJournal(store, "acceptance", 0n, MAX_RETAINED_TURN_AUDIO_BYTES, durability);
     provider = new PcmVoiceStreamProvider({
       getUserMedia: async () => ({ getTracks: () => [{ readyState: "live", stop: vi.fn() }] }) as unknown as MediaStream,
-      transport: { buildStreamUrl: () => "ws://fixture/voice", transcribeRetained: async () => "" },
+      transport: new Socket(),
       captureFactory: (_stream, onFrame) => { frame = onFrame; return { stop: vi.fn() }; },
       journalFactory: () => journal, wireBatchSamples: 2,
     });
@@ -69,8 +56,8 @@ describe("selected journal acceptance", () => {
     expect(socket.send).not.toHaveBeenCalled();
     store.pending.resolve(); await settle();
     expect(socket.send.mock.calls).toHaveLength(2);
-    expect(socket.send.mock.calls[0]![0]).toBeInstanceOf(ArrayBuffer);
-    expect(socket.send.mock.calls[1]![0]).toBe(JSON.stringify({ type: "done" }));
+    expect(socket.send.mock.calls[0]![0]).toMatchObject({ sequence: 0n, startSample: 0n, endSample: 2n });
+    expect(socket.send.mock.calls[1]![0]).toEqual({ type: "end" });
   });
   it("explicit memory mode also waits for acceptance and sends exactly once", async () => {
     const store = new DeferredStore(); const { socket } = await start(store, "memory"); socket.open();
@@ -122,7 +109,7 @@ describe("selected journal acceptance", () => {
     expect(socket.send).not.toHaveBeenCalled();
     store.pending.resolve(); await settle();
     expect(socket.send.mock.calls).toHaveLength(2);
-    expect(socket.send.mock.calls[1]![0]).toBe(JSON.stringify({ type: "done" }));
+    expect(socket.send.mock.calls[1]![0]).toEqual({ type: "end" });
   });
   it("a queued acknowledgement and old socket callback cannot compact the next turn", async () => {
     const store = new DeferredStore(); const { socket, journal } = await start(store); socket.open();

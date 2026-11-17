@@ -10,12 +10,15 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestLookupPeerRecordAcceptsEnvironmentPortSpelling(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	peers := filepath.Join(home, ".vrooli", "peers")
+	t.Setenv("VROOLI_HOME", filepath.Join(home, "runtime-home"))
+	peers := filepath.Join(os.Getenv("VROOLI_HOME"), "peers")
 	if err := os.MkdirAll(peers, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +45,8 @@ func TestLookupPeerRecordAcceptsEnvironmentPortSpelling(t *testing.T) {
 func TestLookupPeerRecordSelectsOnlyPublishedPortCapabilities(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	peers := filepath.Join(home, ".vrooli", "peers")
+	t.Setenv("VROOLI_HOME", filepath.Join(home, "runtime-home"))
+	peers := filepath.Join(os.Getenv("VROOLI_HOME"), "peers")
 	if err := os.MkdirAll(peers, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +69,8 @@ func TestLookupPeerRecordSelectsOnlyPublishedPortCapabilities(t *testing.T) {
 func TestLookupPeerRecordTreatsExplicitEmptyProvidesAsNoCapabilities(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	peers := filepath.Join(home, ".vrooli", "peers")
+	t.Setenv("VROOLI_HOME", filepath.Join(home, "runtime-home"))
+	peers := filepath.Join(os.Getenv("VROOLI_HOME"), "peers")
 	if err := os.MkdirAll(peers, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +95,8 @@ func TestLookupPeerRecordTreatsExplicitEmptyProvidesAsNoCapabilities(t *testing.
 func TestLookupPeerRecordSeparatesLiveAndShadowInstances(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	peers := filepath.Join(home, ".vrooli", "peers")
+	t.Setenv("VROOLI_HOME", filepath.Join(home, "runtime-home"))
+	peers := filepath.Join(os.Getenv("VROOLI_HOME"), "peers")
 	if err := os.MkdirAll(peers, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +133,8 @@ func TestLookupPeerRecordSeparatesLiveAndShadowInstances(t *testing.T) {
 func TestMisfiledShadowPeerFallsThroughToLiveRegistry(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	peers := filepath.Join(home, ".vrooli", "peers")
+	t.Setenv("VROOLI_HOME", filepath.Join(home, "runtime-home"))
+	peers := filepath.Join(os.Getenv("VROOLI_HOME"), "peers")
 	if err := os.MkdirAll(peers, 0o700); err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +196,11 @@ func TestLookupPeerRecordRejectsCrossPlatformPathSeparators(t *testing.T) {
 func TestLookupRuntimeRegistryAcceptsEnvironmentPortSpelling(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
-	dbPath := filepath.Join(home, ".vrooli", "state", "runtime.db")
+	t.Setenv("VROOLI_HOME", filepath.Join(home, "runtime-home"))
+	dbPath, err := repocontract.RuntimeHomeEntryPathAtRoot(os.Getenv("VROOLI_HOME"), repocontract.HomeKeyRuntimeDB)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -322,7 +333,7 @@ func TestFailedLookupUsesNegativeMaxAge(t *testing.T) {
 	calls := 0
 	defer SetPortLookupRunner(func(context.Context, string, string) ScenarioPortOutcome {
 		calls++
-		return ScenarioPortOutcome{Output: "not running", Err: errors.New("exit status 1")}
+		return ScenarioPortOutcome{Output: `{"error_code":"scenario_not_running"}`, Err: &ScenarioPortError{Code: ScenarioPortCodeNotRunning}}
 	})()
 
 	base := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
@@ -346,6 +357,104 @@ func TestFailedLookupUsesNegativeMaxAge(t *testing.T) {
 	LookupScenarioPort(context.Background(), "stopped", "API_PORT", policy)
 	if calls != 2 {
 		t.Fatalf("calls=%d, want 2 after the negative window expired", calls)
+	}
+}
+
+func TestDefaultNegativeMaxAgeIsHalfSecond(t *testing.T) {
+	if DefaultPortCachePolicy.NegativeMaxAge != 500*time.Millisecond {
+		t.Fatalf("default negative max age=%s, want 500ms", DefaultPortCachePolicy.NegativeMaxAge)
+	}
+}
+
+func TestDefaultPortPolicyRefreshesAfterPortDrift(t *testing.T) {
+	oldPeer, oldRegistry := peerRecordLookupFn, runtimeRegistryLookupFn
+	t.Cleanup(func() {
+		peerRecordLookupFn, runtimeRegistryLookupFn = oldPeer, oldRegistry
+		resetPortDetectorCache()
+	})
+	base := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	now := base
+	SetPortCacheNowForTest(func() time.Time { return now })
+	t.Cleanup(func() { SetPortCacheNowForTest(nil) })
+	lookupCount := 0
+	peerRecordLookupFn = func(_, _ string) ScenarioPortOutcome {
+		lookupCount++
+		if lookupCount == 1 {
+			return ScenarioPortOutcome{Port: "19001"}
+		}
+		return ScenarioPortOutcome{Port: "19002"}
+	}
+	runtimeRegistryLookupFn = func(context.Context, string, string) ScenarioPortOutcome {
+		t.Fatal("runtime registry called after peer hit")
+		return ScenarioPortOutcome{}
+	}
+	resetPortDetectorCache()
+
+	if DefaultPortCachePolicy.MaxAge != 2*time.Second {
+		t.Fatalf("default positive max age=%s, want 2s", DefaultPortCachePolicy.MaxAge)
+	}
+	if got := LookupScenarioPort(context.Background(), "bridge-target", "API_PORT", DefaultPortCachePolicy); got.Port != "19001" {
+		t.Fatalf("initial port=%q, want 19001", got.Port)
+	}
+	now = base.Add(3 * time.Second)
+	if got := LookupScenarioPort(context.Background(), "bridge-target", "API_PORT", DefaultPortCachePolicy); got.Port != "19002" {
+		t.Fatalf("port after lifecycle restart=%q, want 19002", got.Port)
+	}
+	if lookupCount != 2 {
+		t.Fatalf("peer lookups=%d, want 2 after positive cache expiry", lookupCount)
+	}
+}
+
+func TestTransientLookupFailureIsNotNegativeCached(t *testing.T) {
+	oldPeer, oldRegistry, oldRunner := peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner
+	defer func() {
+		peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner = oldPeer, oldRegistry, oldRunner
+		resetPortDetectorCache()
+	}()
+	peerRecordLookupFn = func(_, _ string) ScenarioPortOutcome { return ScenarioPortOutcome{Err: os.ErrNotExist} }
+	runtimeRegistryLookupFn = func(context.Context, string, string) ScenarioPortOutcome {
+		return ScenarioPortOutcome{Err: os.ErrNotExist}
+	}
+	calls := 0
+	portLookupRunner = func(context.Context, string, string) ScenarioPortOutcome {
+		calls++
+		return ScenarioPortOutcome{Output: "permission denied", Err: errors.New("permission denied")}
+	}
+	resetPortDetectorCache()
+	policy := PortCachePolicy{MaxAge: time.Hour, NegativeMaxAge: time.Hour}
+	for i := 0; i < 2; i++ {
+		out := LookupScenarioPort(context.Background(), "transient", "API_PORT", policy)
+		if out.Resolved() {
+			t.Fatal("transient error unexpectedly resolved")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2: transient failures must not be cached", calls)
+	}
+}
+
+func TestDesktopRuntimeFailureIsNotNegativeCached(t *testing.T) {
+	t.Setenv("VROOLI_DESKTOP_MODE", "true")
+	oldDesktop := desktopPortLookupFn
+	defer func() {
+		desktopPortLookupFn = oldDesktop
+		resetPortDetectorCache()
+	}()
+	calls := 0
+	desktopPortLookupFn = func(context.Context, string, string) ScenarioPortOutcome {
+		calls++
+		return ScenarioPortOutcome{Output: "no running runtime ports found: IPC unavailable", Err: errors.New("IPC unavailable")}
+	}
+	resetPortDetectorCache()
+	policy := PortCachePolicy{MaxAge: time.Hour, NegativeMaxAge: time.Hour}
+	for i := 0; i < 2; i++ {
+		out := LookupScenarioPort(context.Background(), "desktop-target", "API_PORT", policy)
+		if out.Resolved() {
+			t.Fatal("runtime IPC error unexpectedly resolved")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2: desktop IPC failures must not be cached", calls)
 	}
 }
 

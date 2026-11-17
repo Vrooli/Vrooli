@@ -22,11 +22,13 @@ type hubStub struct {
 	agent    string
 	agentOp  string
 	testMode string
+	request  *conversationv1.GetAskRequest
 	ask      *conversationv1.Ask
 	err      error
 }
 
 func (h *hubStub) GetAsk(_ context.Context, req *connect.Request[conversationv1.GetAskRequest]) (*connect.Response[conversationv1.GetAskResponse], error) {
+	h.request = req.Msg
 	h.auth = req.Header().Get("Authorization")
 	h.testMode = req.Header().Get("X-Vrooli-Test-Mode")
 	h.agent = req.Header().Get(cliutil.HeaderAgentIdentityToken)
@@ -35,6 +37,27 @@ func (h *hubStub) GetAsk(_ context.Context, req *connect.Request[conversationv1.
 		return nil, h.err
 	}
 	return connect.NewResponse(&conversationv1.GetAskResponse{Ask: h.ask}), nil
+}
+
+func TestReadAskBySubjectKeyUsesTheExactKeyAndReturnsRecurrence(t *testing.T) {
+	stub := &hubStub{ask: &conversationv1.Ask{
+		Id: "ask-1", SubjectKey: "usage-mode:auto-save-rule:claude",
+		Recurrence: &conversationv1.SubjectRecurrence{Count: 2, Dates: []string{"2026-11-15", "2026-11-16"}, PreviousAnswers: []*conversationv1.HistoricalAnswer{{Answer: "auto_save", Note: "Keep it automatic.", AnsweredAt: "2026-11-15T10:00:00Z"}}},
+	}}
+	got, err := newReaderFixture(t, stub).ReadAskBySubjectKey(context.Background(), " usage-mode:auto-save-rule:claude ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stub.request.GetSubjectKey() != "usage-mode:auto-save-rule:claude" || stub.request.GetAskId() != "" {
+		t.Fatalf("request = %+v, want exact subject key only", stub.request)
+	}
+	if got.ID != "ask-1" || got.Recurrence.Count != 2 || len(got.Recurrence.Dates) != 2 || len(got.Recurrence.PreviousAnswers) != 1 || got.Recurrence.PreviousAnswers[0].Note != "Keep it automatic." {
+		t.Fatalf("ask recurrence = %+v", got.Recurrence)
+	}
+	wrongSubject := &hubStub{ask: &conversationv1.Ask{Id: "ask-2", SubjectKey: "another-subject"}}
+	if _, err := newReaderFixture(t, wrongSubject).ReadAskBySubjectKey(context.Background(), "usage-mode:auto-save-rule:claude"); !errors.Is(err, ErrAskNotFound) {
+		t.Fatalf("mismatched subject response = %v, want ErrAskNotFound", err)
+	}
 }
 
 func TestReadAskUsesTestPoolOnlyWhenExplicitlyEnabled(t *testing.T) {
@@ -124,6 +147,9 @@ func TestReadAskClassifiesWhyItCouldNotRead(t *testing.T) {
 	}
 	if _, err := (*Reader)(nil).ReadAsk(ctx, "a"); err == nil {
 		t.Fatal("a nil reader refuses")
+	}
+	if _, err := (*Reader)(nil).ReadAskBySubjectKey(ctx, "key"); err == nil {
+		t.Fatal("a nil reader refuses a subject key")
 	}
 }
 

@@ -27,6 +27,6 @@ func TestCommittedMeterInventoryMatchesDeclarations(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(actual, expected) {
-		t.Fatalf("committed meter inventory is stale; run go run ./cmd/meter-inventory\nwant:\n%s\ngot:\n%s", expected, actual)
+		t.Fatalf("committed meter inventory is stale; run go run ./packages/monetization-go/cmd/meter-inventory\nwant:\n%s\ngot:\n%s", expected, actual)
 	}
 }

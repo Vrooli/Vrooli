@@ -56,6 +56,61 @@ func LoadSpecFromScenario(scenarioDir string) (*Spec, error) {
 	return spec, nil
 }
 
+// LoadSpecForPhase resolves a maturity spec from the provider descriptor for
+// the requested Test Genie phase. The canonical descriptor remains the
+// fallback used by LoadSpecFromScenario; additional phase descriptors use the
+// same schema and identity checks.
+func LoadSpecForPhase(scenarioDir, phase string) (*Spec, error) {
+	phase = strings.TrimSpace(phase)
+	if phase == "" {
+		return LoadSpecFromScenario(scenarioDir)
+	}
+	cleanScenarioDir, err := filepath.Abs(scenarioDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve scenario dir %s: %w", scenarioDir, err)
+	}
+	legacyPath := filepath.Join(cleanScenarioDir, filepath.FromSlash(MaturitySpecRelPath))
+	if _, err := os.Stat(legacyPath); err == nil {
+		return nil, fmt.Errorf("retired maturity spec still exists at %s; move the maturity block into %s", legacyPath, TestGenieDescriptorRelPath)
+	}
+	paths, err := filepath.Glob(filepath.Join(cleanScenarioDir, ".vrooli", "test-genie*.json"))
+	if err != nil {
+		return nil, fmt.Errorf("list Test Genie descriptors: %w", err)
+	}
+	scenario := filepath.Base(cleanScenarioDir)
+	var found *Spec
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("read %s: %w", path, err)
+		}
+		var descriptor testGenieDescriptor
+		if err := json.Unmarshal(raw, &descriptor); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", path, err)
+		}
+		if descriptor.Phase != phase {
+			continue
+		}
+		if len(descriptor.Maturity) == 0 || string(descriptor.Maturity) == "null" {
+			continue
+		}
+		if descriptor.Scenario != scenario {
+			return nil, fmt.Errorf("descriptor scenario %q must match directory %q", descriptor.Scenario, scenario)
+		}
+		if found != nil {
+			return nil, fmt.Errorf("multiple Test Genie descriptors declare phase %q", phase)
+		}
+		found, err = ParseEmbeddedSpec(descriptor.Maturity, descriptor.Scenario, descriptor.Phase)
+		if err != nil {
+			return nil, fmt.Errorf("parse maturity block in %s: %w", path, err)
+		}
+	}
+	if found == nil {
+		return nil, fmt.Errorf("no Test Genie maturity descriptor declares phase %q for %s", phase, scenario)
+	}
+	return found, nil
+}
+
 // ParseEmbeddedSpec parses a Test Genie descriptor's embedded maturity block.
 // The descriptor owns provider and phase identity, so this helper stamps those
 // values into the maturity spec while rejecting stale duplicated identity when

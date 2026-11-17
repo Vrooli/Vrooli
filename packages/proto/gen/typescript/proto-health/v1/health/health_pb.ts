@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file proto-health/v1/health/health.proto.
  */
 export const file_proto_health_v1_health_health: GenFile = /*@__PURE__*/
-  fileDesc("CiNwcm90by1oZWFsdGgvdjEvaGVhbHRoL2hlYWx0aC5wcm90bxIddnJvb2xpLnByb3RvX2hlYWx0aC52MS5oZWFsdGgiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSLJAgoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEk8KDGRlcGVuZGVuY2llcxgHIAMoCzI5LnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EhYKDmJ1aWxkX2lkZW50aXR5GAggASgJGmQKEURlcGVuZGVuY2llc0VudHJ5EgsKA2tleRgBIAEoCRI+CgV2YWx1ZRgCIAEoCzIvLnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLkRlcGVuZGVuY3lTdGF0dXM6AjgBQlFaT2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vcHJvdG8taGVhbHRoL3YxL2hlYWx0aDtoZWFsdGhfdjFiBnByb3RvMw");
+  fileDesc("CiNwcm90by1oZWFsdGgvdjEvaGVhbHRoL2hlYWx0aC5wcm90bxIddnJvb2xpLnByb3RvX2hlYWx0aC52MS5oZWFsdGgiWgoQRGVwZW5kZW5jeVN0YXR1cxIRCgljb25uZWN0ZWQYASABKAgSEgoKbGF0ZW5jeV9tcxgCIAEoARINCgVlcnJvchgDIAEoCRIQCghkYXRhYmFzZRgEIAEoCSKnAwoIUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEg8KB3NlcnZpY2UYAiABKAkSEQoJdGltZXN0YW1wGAMgASgJEhEKCXJlYWRpbmVzcxgEIAEoCBIPCgd2ZXJzaW9uGAUgASgJEhYKDnVwdGltZV9zZWNvbmRzGAYgASgBEk8KDGRlcGVuZGVuY2llcxgHIAMoCzI5LnZyb29saS5wcm90b19oZWFsdGgudjEuaGVhbHRoLlJlc3BvbnNlLkRlcGVuZGVuY2llc0VudHJ5EhYKDmJ1aWxkX2lkZW50aXR5GAggASgJEhoKEnJ1bnRpbWVfcmVsZWFzZV9pZBgJIAEoCRIkChxydW50aW1lX3JlbGVhc2Vfb3BlcmF0aW9uX2lkGAogASgJEhoKEnN0YXJ0X29wZXJhdGlvbl9pZBgLIAEoCRpkChFEZXBlbmRlbmNpZXNFbnRyeRILCgNrZXkYASABKAkSPgoFdmFsdWUYAiABKAsyLy52cm9vbGkucHJvdG9faGVhbHRoLnYxLmhlYWx0aC5EZXBlbmRlbmN5U3RhdHVzOgI4AUJRWk9naXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3Byb3RvLWhlYWx0aC92MS9oZWFsdGg7aGVhbHRoX3YxYgZwcm90bzM");
 
 /**
  * DependencyStatus is reported per dependency from the /health endpoint.
@@ -125,6 +125,25 @@ export type Response = Message<"vrooli.proto_health.v1.health.Response"> & {
    * @generated from field: string build_identity = 8;
    */
   buildIdentity: string;
+
+  /**
+   * Runtime release identity and lifecycle operation IDs are echoed from the
+   * instance environment so the control plane can prove this endpoint belongs
+   * to the current start, not only to matching source bytes.
+   *
+   * @generated from field: string runtime_release_id = 9;
+   */
+  runtimeReleaseId: string;
+
+  /**
+   * @generated from field: string runtime_release_operation_id = 10;
+   */
+  runtimeReleaseOperationId: string;
+
+  /**
+   * @generated from field: string start_operation_id = 11;
+   */
+  startOperationId: string;
 };
 
 /**

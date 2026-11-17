@@ -30,7 +30,18 @@ type DiskJobRequest struct {
 	ProcessStart string        `json:"processStart,omitempty"`
 	Paths        []DiskJobPath `json:"paths"`
 	FloorBytes   int64         `json:"floorBytes"`
+	// Class is empty for an ordinary job or DiskJobClassMetadata for one that
+	// writes only a small lockfile or manifest (see internal/capacity).
+	Class string `json:"class,omitempty"`
 }
+
+// DiskJobClassMetadata declares a job that writes only small metadata: at most
+// 64 MiB in total, admitted against a floor that still refuses a host that is
+// truly out of space but is not held to the install-sized floor.
+const DiskJobClassMetadata = internalcapacity.DiskJobClassMetadata
+
+// DiskJobMetadataMaxPeakBytes is the most a metadata job may declare in total.
+const DiskJobMetadataMaxPeakBytes = internalcapacity.DiskJobMetadataMaxPeakBytes
 
 // DiskJobCredential is the private capability plus producer identity serialized
 // by `vrooli capacity disk-reserve` into a 0600 lease file.
@@ -135,16 +146,38 @@ type DiskJobAdmitter interface {
 	ReserveDiskJob(context.Context, DiskJobRequest) (DiskJobLease, error)
 }
 
+// DiskJobReattacher transfers an owner's active reservation after the previous
+// producer identity has exited. Reattachment preserves the reservation and
+// rotates the lease capability to the current producer process.
+type DiskJobReattacher interface {
+	ReattachDiskJob(context.Context, string, string, string) (DiskJobLease, error)
+}
+
 // ReserveDiskJob atomically admits one complete job across its write paths.
 func (b *Broker) ReserveDiskJob(ctx context.Context, request DiskJobRequest) (DiskJobLease, error) {
 	if b == nil || b.store == nil {
 		return nil, errors.New("capacity broker is unavailable")
 	}
-	in := internalcapacity.DiskJobRequest{OwnerID: request.OwnerID, JobID: request.JobID, ProcessID: request.ProcessID, ProcessStart: request.ProcessStart, FloorBytes: request.FloorBytes}
+	in := internalcapacity.DiskJobRequest{OwnerID: request.OwnerID, JobID: request.JobID, ProcessID: request.ProcessID, ProcessStart: request.ProcessStart, FloorBytes: request.FloorBytes, Class: request.Class}
 	for _, p := range request.Paths {
 		in.Paths = append(in.Paths, internalcapacity.DiskJobPath{Path: p.Path, Role: p.Role, PeakBytes: p.PeakBytes, DockerContainer: p.DockerContainer, DockerDestination: p.DockerDestination, DockerUpperDir: p.DockerUpperDir, DockerRootDir: p.DockerRootDir})
 	}
 	r, capability, err := b.store.ReserveDiskJob(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return &diskJobLease{store: b.store, capability: capability, processID: r.ProcessID, processStart: r.ProcessStart, reservation: fromInternalDiskJobReceipt(r)}, nil
+}
+
+// ReattachDiskJob resumes an active reservation for the exact owner and stable
+// job ID after capacity independently confirms the prior producer is gone.
+// The reservation remains active; callers must recover their operation state
+// before extending or completing the lease.
+func (b *Broker) ReattachDiskJob(ctx context.Context, ownerID, jobID, leaseID string) (DiskJobLease, error) {
+	if b == nil || b.store == nil {
+		return nil, errors.New("capacity broker is unavailable")
+	}
+	r, capability, err := b.store.ReattachDiskJob(ctx, ownerID, jobID, leaseID)
 	if err != nil {
 		return nil, err
 	}

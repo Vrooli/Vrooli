@@ -1,4 +1,4 @@
-import { STREAM_PROTOCOL_VERSION } from "./protocol";
+const STREAM_PROTOCOL_VERSION = 2;
 import type { DurabilityLevel } from "./turnJournal";
 
 /**

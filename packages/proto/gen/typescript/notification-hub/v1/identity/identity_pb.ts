@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file notification-hub/v1/identity/identity.proto.
  */
 export const file_notification_hub_v1_identity_identity: GenFile = /*@__PURE__*/
-  fileDesc("Citub3RpZmljYXRpb24taHViL3YxL2lkZW50aXR5L2lkZW50aXR5LnByb3RvEiN2cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5pZGVudGl0eSIvCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiVQoNTG9naW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAIgASgJEg0KBWVtYWlsGAMgASgJEg8KB3VzZXJfaWQYBCABKAkiEwoRR2V0U2Vzc2lvblJlcXVlc3QiRwoSR2V0U2Vzc2lvblJlc3BvbnNlEhEKCXNpZ25lZF9pbhgBIAEoCBIPCgdzdWJqZWN0GAIgASgJEg0KBWVtYWlsGAMgASgJIg8KDUxvZ291dFJlcXVlc3QiEAoOTG9nb3V0UmVzcG9uc2Uy8wIKD0lkZW50aXR5U2VydmljZRJuCgVMb2dpbhIxLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkxvZ2luUmVxdWVzdBoyLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkxvZ2luUmVzcG9uc2USfQoKR2V0U2Vzc2lvbhI2LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkdldFNlc3Npb25SZXF1ZXN0GjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuaWRlbnRpdHkuR2V0U2Vzc2lvblJlc3BvbnNlEnEKBkxvZ291dBIyLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkxvZ291dFJlcXVlc3QaMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5pZGVudGl0eS5Mb2dvdXRSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25vdGlmaWNhdGlvbi1odWIvdjEvaWRlbnRpdHk7aWRlbnRpdHlfdjFiBnByb3RvMw");
+  fileDesc("Citub3RpZmljYXRpb24taHViL3YxL2lkZW50aXR5L2lkZW50aXR5LnByb3RvEiN2cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5pZGVudGl0eSJwCgxMb2dpblJlcXVlc3QSDQoFZW1haWwYASABKAkSEAoIcGFzc3dvcmQYAiABKAkSFQoNbWZhX2NoYWxsZW5nZRgDIAEoCRIRCgl0b3RwX2NvZGUYBCABKAkSFQoNcmVjb3ZlcnlfY29kZRgFIAEoCSKCAQoNTG9naW5SZXNwb25zZRINCgV0b2tlbhgBIAEoCRIVCg1yZWZyZXNoX3Rva2VuGAIgASgJEg0KBWVtYWlsGAMgASgJEg8KB3VzZXJfaWQYBCABKAkSFAoMbWZhX3JlcXVpcmVkGAUgASgIEhUKDW1mYV9jaGFsbGVuZ2UYBiABKAkiEwoRR2V0U2Vzc2lvblJlcXVlc3QiRwoSR2V0U2Vzc2lvblJlc3BvbnNlEhEKCXNpZ25lZF9pbhgBIAEoCBIPCgdzdWJqZWN0GAIgASgJEg0KBWVtYWlsGAMgASgJIg8KDUxvZ291dFJlcXVlc3QiEAoOTG9nb3V0UmVzcG9uc2Uy8wIKD0lkZW50aXR5U2VydmljZRJuCgVMb2dpbhIxLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkxvZ2luUmVxdWVzdBoyLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkxvZ2luUmVzcG9uc2USfQoKR2V0U2Vzc2lvbhI2LnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkdldFNlc3Npb25SZXF1ZXN0GjcudnJvb2xpLm5vdGlmaWNhdGlvbl9odWIudjEuaWRlbnRpdHkuR2V0U2Vzc2lvblJlc3BvbnNlEnEKBkxvZ291dBIyLnZyb29saS5ub3RpZmljYXRpb25faHViLnYxLmlkZW50aXR5LkxvZ291dFJlcXVlc3QaMy52cm9vbGkubm90aWZpY2F0aW9uX2h1Yi52MS5pZGVudGl0eS5Mb2dvdXRSZXNwb25zZUJZWldnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL25vdGlmaWNhdGlvbi1odWIvdjEvaWRlbnRpdHk7aWRlbnRpdHlfdjFiBnByb3RvMw");
 
 /**
  * @generated from message vrooli.notification_hub.v1.identity.LoginRequest
@@ -25,6 +25,21 @@ export type LoginRequest = Message<"vrooli.notification_hub.v1.identity.LoginReq
    * @generated from field: string password = 2;
    */
   password: string;
+
+  /**
+   * @generated from field: string mfa_challenge = 3;
+   */
+  mfaChallenge: string;
+
+  /**
+   * @generated from field: string totp_code = 4;
+   */
+  totpCode: string;
+
+  /**
+   * @generated from field: string recovery_code = 5;
+   */
+  recoveryCode: string;
 };
 
 /**
@@ -59,6 +74,16 @@ export type LoginResponse = Message<"vrooli.notification_hub.v1.identity.LoginRe
    * @generated from field: string user_id = 4;
    */
   userId: string;
+
+  /**
+   * @generated from field: bool mfa_required = 5;
+   */
+  mfaRequired: boolean;
+
+  /**
+   * @generated from field: string mfa_challenge = 6;
+   */
+  mfaChallenge: string;
 };
 
 /**

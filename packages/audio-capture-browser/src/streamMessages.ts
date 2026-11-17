@@ -45,7 +45,7 @@ export interface StreamMessageHandlers {
 }
 
 /**
- * Parses and dispatches the shared v2 WebSocket vocabulary. Segment identities
+ * Parses and dispatches the shared v2 stream vocabulary. Segment identities
  * are de-duplicated here so every host gets identical reconnect semantics.
  * Malformed frames are ignored: they must not change capture or journal state.
  */
@@ -56,6 +56,11 @@ export function dispatchStreamMessage(raw: unknown, handlers: StreamMessageHandl
   } catch {
     return;
   }
+  dispatchStreamEvent(message, handlers, deliveredSegmentIDs);
+}
+
+/** Dispatches an already-decoded stream event from Connect or another typed transport. */
+export function dispatchStreamEvent(message: StreamMessage, handlers: StreamMessageHandlers, deliveredSegmentIDs: Set<string>): void {
   switch (message.type) {
     case "status":
       handlers.onStatus(

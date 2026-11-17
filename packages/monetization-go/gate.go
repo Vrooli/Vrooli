@@ -28,6 +28,12 @@ const (
 	ReasonLeaseUnavailable = "lease_unavailable"
 	// ReasonLeaseExpired identifies a cached lease whose signed validity window ended.
 	ReasonLeaseExpired = "lease_expired"
+	// ReasonMeterUndeclared identifies a meter absent from the committed inventory or app declaration.
+	ReasonMeterUndeclared = "meter_undeclared"
+	// ReasonMeterRequiresAuthority identifies a Class A meter queried through an offline-only path.
+	ReasonMeterRequiresAuthority = "meter_requires_authority"
+	// ReasonMeterInventoryUnavailable identifies invalid embedded declaration data.
+	ReasonMeterInventoryUnavailable = "meter_inventory_unavailable"
 )
 
 // Decision is the complete result of a paid-surface check. Its fields are
@@ -50,6 +56,7 @@ type Gate struct {
 	Entitlements *entitlementclient.Client
 	Session      *credentialclient.ConsumerSessionResolver
 	BundleKey    string
+	AppKey       string
 	UpgradePath  string
 }
 
@@ -58,6 +65,15 @@ type Gate struct {
 // same issuer as the session resolver.
 func NewGate(entitlements *entitlementclient.Client, session *credentialclient.ConsumerSessionResolver, bundleKey string) *Gate {
 	return &Gate{Entitlements: entitlements, Session: session, BundleKey: strings.TrimSpace(bundleKey), UpgradePath: "/settings/subscription"}
+}
+
+// NewGateForApp constructs a gate bound to a declared app key. Meter checks
+// then require the meter to be present in the generated inventory for this app
+// and bundle.
+func NewGateForApp(entitlements *entitlementclient.Client, session *credentialclient.ConsumerSessionResolver, bundleKey, appKey string) *Gate {
+	gate := NewGate(entitlements, session, bundleKey)
+	gate.AppKey = strings.TrimSpace(appKey)
+	return gate
 }
 
 // Lease resolves a lease for identity. A still-valid cached lease is returned
@@ -82,22 +98,25 @@ func (g *Gate) Feature(ctx context.Context, identity, feature string, minPlanRan
 		return fallbackDecision(err, g.upgradePath())
 	}
 	decision := StatusDecision(payload, g.upgradePath())
-	return FeatureDecision(payload, feature, minPlanRank, decision)
+	return FeatureDecisionForApp(payload, g.appKey(), feature, minPlanRank, decision)
 }
 
 // Meter evaluates a declared limit and returns the server-authoritative value.
 // Class A callers must still execute the operation through LPBS; this method
 // is only a local UX decision and cannot reserve or spend credits.
 func (g *Gate) Meter(ctx context.Context, identity, limitKey string) Decision {
+	if decision, denied := g.meterDeclaration(limitKey, false); denied {
+		return decision
+	}
 	payload, err := g.Lease(ctx, identity)
 	if err != nil {
 		return fallbackDecision(err, g.upgradePath())
 	}
-	decision := StatusDecision(payload, g.upgradePath())
+	decision := StatusDecisionForApp(payload, g.appKey(), g.upgradePath())
 	if !decision.Allowed {
 		return decision
 	}
-	decision.Limit, decision.LimitFound = Limit(payload, limitKey, g.BundleKey)
+	decision.Limit, decision.LimitFound = LimitForApp(payload, g.appKey(), limitKey, g.BundleKey)
 	if !decision.LimitFound {
 		decision.Allowed = false
 		decision.Reason = ReasonFeatureMissing
@@ -118,7 +137,7 @@ func (g *Gate) CachedFeatureAt(identity, feature string, minPlanRank int32, now 
 		return fallbackDecision(err, g.upgradePath())
 	}
 	decision := StatusDecision(payload, g.upgradePath())
-	return FeatureDecision(payload, feature, minPlanRank, decision)
+	return FeatureDecisionForApp(payload, g.appKey(), feature, minPlanRank, decision)
 }
 
 // CachedMeter evaluates a local Class B limit without touching the network.
@@ -128,20 +147,41 @@ func (g *Gate) CachedMeter(identity, limitKey string) Decision {
 
 // CachedMeterAt is the deterministic offline limit decision boundary.
 func (g *Gate) CachedMeterAt(identity, limitKey string, now time.Time) Decision {
+	if decision, denied := g.meterDeclaration(limitKey, true); denied {
+		return decision
+	}
 	payload, err := g.cachedLeaseAt(identity, now)
 	if err != nil {
 		return fallbackDecision(err, g.upgradePath())
 	}
-	decision := StatusDecision(payload, g.upgradePath())
+	decision := StatusDecisionForApp(payload, g.appKey(), g.upgradePath())
 	if !decision.Allowed {
 		return decision
 	}
-	decision.Limit, decision.LimitFound = Limit(payload, limitKey, g.BundleKey)
+	decision.Limit, decision.LimitFound = LimitForApp(payload, g.appKey(), limitKey, g.BundleKey)
 	if !decision.LimitFound {
 		decision.Allowed = false
 		decision.Reason = ReasonFeatureMissing
 	}
 	return decision
+}
+
+func (g *Gate) meterDeclaration(limitKey string, offline bool) (Decision, bool) {
+	upgradePath := g.upgradePath()
+	if g == nil {
+		return fallbackDecision(entitlementclient.ErrLeaseUnavailable, upgradePath), true
+	}
+	meter, ok, err := findCommittedMeter(limitKey, g.BundleKey, g.AppKey)
+	if err != nil {
+		return Decision{Reason: ReasonMeterInventoryUnavailable, UpgradePath: upgradePath}, true
+	}
+	if !ok {
+		return Decision{Reason: ReasonMeterUndeclared, UpgradePath: upgradePath}, true
+	}
+	if offline && meter.Class != "B" {
+		return Decision{Reason: ReasonMeterRequiresAuthority, UpgradePath: upgradePath}, true
+	}
+	return Decision{}, false
 }
 
 func (g *Gate) cachedLeaseAt(identity string, now time.Time) (entitlementclient.Payload, error) {
@@ -175,6 +215,12 @@ func StatusDecision(payload entitlementclient.Payload, upgradePath string) Decis
 // inbound request middleware) can use this without performing a second
 // authority lookup.
 func FeatureDecision(payload entitlementclient.Payload, feature string, minPlanRank int32, decision Decision) Decision {
+	if len(payload.AppEntitlements) > 0 {
+		decision.Allowed = false
+		decision.Reason = ReasonFeatureMissing
+		decision.Warning = false
+		return decision
+	}
 	if !decision.Allowed {
 		return decision
 	}
@@ -192,9 +238,84 @@ func FeatureDecision(payload entitlementclient.Payload, feature string, minPlanR
 	return decision
 }
 
+// FeatureDecisionForApp applies the signed effective grant for exactly one
+// app. Once app-scoped records are present, legacy global features and rank
+// are ignored so a single-app offer cannot unlock sibling apps.
+func FeatureDecisionForApp(payload entitlementclient.Payload, appKey, feature string, minPlanRank int32, decision Decision) Decision {
+	grant, scoped := appEntitlement(payload, appKey)
+	if !scoped {
+		return FeatureDecision(payload, feature, minPlanRank, decision)
+	}
+	decision = appStatusDecision(payload, grant, decision.UpgradePath)
+	if !decision.Allowed {
+		return decision
+	}
+	if strings.TrimSpace(feature) != "" && !containsValue(grant.Features, feature) {
+		decision.Allowed = false
+		decision.Reason = ReasonFeatureMissing
+		decision.Warning = false
+		return decision
+	}
+	if minPlanRank > 0 && grant.PlanRank < minPlanRank {
+		decision.Allowed = false
+		decision.Reason = ReasonRankInsufficient
+		decision.Warning = false
+	}
+	return decision
+}
+
+// StatusDecisionForApp uses the app's effective signed status when the lease
+// contains scoped grants; legacy leases retain their original global status.
+func StatusDecisionForApp(payload entitlementclient.Payload, appKey, upgradePath string) Decision {
+	grant, scoped := appEntitlement(payload, appKey)
+	if !scoped {
+		return StatusDecision(payload, upgradePath)
+	}
+	return appStatusDecision(payload, grant, upgradePath)
+}
+
+func appStatusDecision(payload entitlementclient.Payload, grant entitlementclient.AppEntitlement, upgradePath string) Decision {
+	decision := Decision{Lease: payload, UpgradePath: upgradePath}
+	if strings.TrimSpace(grant.AppKey) == "" {
+		decision.Reason = ReasonFeatureMissing
+		return decision
+	}
+	switch strings.ToLower(strings.TrimSpace(grant.Status)) {
+	case "active", "trialing":
+		decision.Allowed = true
+		decision.Reason = ReasonAllowed
+	case "past_due":
+		decision.Allowed = true
+		decision.Warning = true
+		decision.Reason = ReasonPastDue
+	default:
+		decision.Reason = ReasonSubscriptionInactive
+	}
+	return decision
+}
+
+func appEntitlement(payload entitlementclient.Payload, appKey string) (entitlementclient.AppEntitlement, bool) {
+	if len(payload.AppEntitlements) == 0 {
+		return entitlementclient.AppEntitlement{}, false
+	}
+	appKey = strings.TrimSpace(appKey)
+	if appKey == "" {
+		return entitlementclient.AppEntitlement{}, true
+	}
+	for _, grant := range payload.AppEntitlements {
+		if grant.AppKey == appKey {
+			return grant, true
+		}
+	}
+	return entitlementclient.AppEntitlement{}, true
+}
+
 // HasFeature checks a feature in a lease that entitlementclient has already
 // verified. It does not authenticate or authorize a cost-bearing operation.
 func HasFeature(payload entitlementclient.Payload, feature string) bool {
+	if len(payload.AppEntitlements) > 0 {
+		return false
+	}
 	feature = strings.TrimSpace(feature)
 	for _, candidate := range payload.Features {
 		if candidate == feature {
@@ -202,6 +323,16 @@ func HasFeature(payload entitlementclient.Payload, feature string) bool {
 		}
 	}
 	return false
+}
+
+// HasFeatureForApp scopes a feature to one app when app grants exist. Empty
+// app identity fails closed for scoped leases.
+func HasFeatureForApp(payload entitlementclient.Payload, appKey, feature string) bool {
+	grant, scoped := appEntitlement(payload, appKey)
+	if !scoped {
+		return HasFeature(payload, feature)
+	}
+	return grant.AppKey != "" && containsValue(grant.Features, feature)
 }
 
 // AtLeastRank compares a requested plan rank with the verified lease rank.
@@ -214,6 +345,9 @@ func AtLeastRank(payload entitlementclient.Payload, rank int32) bool {
 // Limit returns a bundle-matching limit from a verified lease. A missing limit
 // is returned as found=false rather than guessed from local configuration.
 func Limit(payload entitlementclient.Payload, key, bundle string) (int64, bool) {
+	if len(payload.AppEntitlements) > 0 {
+		return 0, false
+	}
 	for _, limit := range payload.Limits {
 		if limit.Key == key && (limit.BundleKey == "" || limit.BundleKey == bundle) {
 			return limit.Value, true
@@ -222,11 +356,46 @@ func Limit(payload entitlementclient.Payload, key, bundle string) (int64, bool) 
 	return 0, false
 }
 
+// LimitForApp scopes meter limits to the exact app grant when the lease is
+// app-scoped. The legacy bundle-only format remains readable during migration.
+func LimitForApp(payload entitlementclient.Payload, appKey, key, bundle string) (int64, bool) {
+	grant, scoped := appEntitlement(payload, appKey)
+	if !scoped {
+		return Limit(payload, key, bundle)
+	}
+	if grant.AppKey == "" {
+		return 0, false
+	}
+	for _, limit := range grant.Limits {
+		if limit.Key == key && (limit.BundleKey == "" || limit.BundleKey == bundle) {
+			return limit.Value, true
+		}
+	}
+	return 0, false
+}
+
+func containsValue(values []string, wanted string) bool {
+	wanted = strings.TrimSpace(wanted)
+	for _, value := range values {
+		if strings.TrimSpace(value) == wanted {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *Gate) upgradePath() string {
 	if g == nil || strings.TrimSpace(g.UpgradePath) == "" {
 		return "/settings/subscription"
 	}
 	return g.UpgradePath
+}
+
+func (g *Gate) appKey() string {
+	if g == nil {
+		return ""
+	}
+	return g.AppKey
 }
 
 func fallbackDecision(err error, upgradePath string) Decision {

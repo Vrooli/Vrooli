@@ -3,6 +3,7 @@ package monetization
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -20,6 +21,7 @@ type SessionModule struct {
 	Client   credentialclient.Client
 	Identity string
 	Field    string
+	OnDelete func(context.Context) error
 }
 
 func NewSessionModule(client credentialclient.Client, identity, field string) *SessionModule {
@@ -69,15 +71,27 @@ func (m *SessionModule) Delete(w http.ResponseWriter, r *http.Request) {
 	if !sessionOriginOK(w, r) {
 		return
 	}
-	if m == nil || m.Client == nil {
-		http.Error(w, "credential authority unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	if err := m.Client.Delete(r.Context(), m.Identity, m.Field); err != nil {
+	if err := m.Remove(r.Context()); err != nil {
 		http.Error(w, "subscription session could not be removed", http.StatusBadGateway)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// Remove deletes the durable refresh credential without writing an HTTP
+// response. Callers can clear process-local entitlement caches before
+// acknowledging sign-out.
+func (m *SessionModule) Remove(ctx context.Context) error {
+	if m == nil || m.Client == nil {
+		return errors.New("credential authority unavailable")
+	}
+	if err := m.Client.Delete(ctx, m.Identity, m.Field); err != nil {
+		return err
+	}
+	if m.OnDelete != nil {
+		return m.OnDelete(ctx)
+	}
+	return nil
 }
 
 func sessionOriginOK(w http.ResponseWriter, r *http.Request) bool {
@@ -102,29 +116,4 @@ func writeSessionJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
-}
-
-// ConsumerSession is the shared paid-surface session adapter. It keeps the
-// refresh credential in credential authority and exposes only the short-lived
-// access token needed by LPBS and entitlementclient.
-type ConsumerSession struct {
-	Resolver  *credentialclient.ConsumerSessionResolver
-	Authority string
-}
-
-func NewConsumerSession(resolver *credentialclient.ConsumerSessionResolver, authority string) *ConsumerSession {
-	return &ConsumerSession{Resolver: resolver, Authority: strings.TrimRight(strings.TrimSpace(authority), "/")}
-}
-
-func (s *ConsumerSession) Resolve(ctx context.Context) (credentialclient.ConsumerAccess, error) {
-	if s == nil || s.Resolver == nil {
-		return credentialclient.ConsumerAccess{}, credentialclient.ErrCredentialAuthorityUnavailable
-	}
-	return s.Resolver.ResolveAt(ctx, s.Authority)
-}
-
-func (s *ConsumerSession) Clear() {
-	if s != nil && s.Resolver != nil {
-		s.Resolver.Clear()
-	}
 }

@@ -1929,7 +1929,10 @@ type ScenarioPortSingle struct {
 	// Resolved port number; 0 when unresolved.
 	Port int32 `protobuf:"varint,5,opt,name=port,proto3" json:"port,omitempty"`
 	// Error detail; empty on success.
-	Error         string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	Error string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	// Machine-readable failure class. Known values include "scenario_not_running"
+	// and "port_not_found"; unknown failures and successes leave it empty.
+	ErrorCode     string `protobuf:"bytes,7,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2006,6 +2009,13 @@ func (x *ScenarioPortSingle) GetError() string {
 	return ""
 }
 
+func (x *ScenarioPortSingle) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
+	}
+	return ""
+}
+
 // ScenarioPortList is the bare payload of `vrooli scenario ports <name> --json`
 // (cliout.WriteJSON of PortListOutput, no envelope wrapper key).
 type ScenarioPortList struct {
@@ -2019,7 +2029,10 @@ type ScenarioPortList struct {
 	// Extra port metadata keyed by name; empty when none.
 	Metadata map[string]int32 `protobuf:"bytes,4,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	// Error detail; empty on success.
-	Error         string `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	Error string `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
+	// Machine-readable failure class; "scenario_not_running" identifies a
+	// stopped scenario. Unknown failures and successes leave it empty.
+	ErrorCode     string `protobuf:"bytes,6,opt,name=error_code,json=errorCode,proto3" json:"error_code,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2085,6 +2098,13 @@ func (x *ScenarioPortList) GetMetadata() map[string]int32 {
 func (x *ScenarioPortList) GetError() string {
 	if x != nil {
 		return x.Error
+	}
+	return ""
+}
+
+func (x *ScenarioPortList) GetErrorCode() string {
+	if x != nil {
+		return x.ErrorCode
 	}
 	return ""
 }
@@ -3295,20 +3315,24 @@ const file_cli_v1_scenario_status_proto_rawDesc = "" +
 	" \x01(\x05R\x04port\x12\x1d\n" +
 	"\n" +
 	"started_at\x18\v \x01(\tR\tstartedAt\x12\x16\n" +
-	"\x06status\x18\f \x01(\tR\x06status\"\xa5\x01\n" +
+	"\x06status\x18\f \x01(\tR\x06status\"\xc4\x01\n" +
 	"\x12ScenarioPortSingle\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x12\x1b\n" +
 	"\tport_name\x18\x03 \x01(\tR\bportName\x12\x12\n" +
 	"\x04step\x18\x04 \x01(\tR\x04step\x12\x12\n" +
 	"\x04port\x18\x05 \x01(\x05R\x04port\x12\x14\n" +
-	"\x05error\x18\x06 \x01(\tR\x05error\"\x99\x02\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\a \x01(\tR\terrorCode\"\xb8\x02\n" +
 	"\x10ScenarioPortList\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1a\n" +
 	"\bscenario\x18\x02 \x01(\tR\bscenario\x121\n" +
 	"\x05ports\x18\x03 \x03(\v2\x1b.vrooli.cli.v1.ScenarioPortR\x05ports\x12I\n" +
 	"\bmetadata\x18\x04 \x03(\v2-.vrooli.cli.v1.ScenarioPortList.MetadataEntryR\bmetadata\x12\x14\n" +
-	"\x05error\x18\x05 \x01(\tR\x05error\x1a;\n" +
+	"\x05error\x18\x05 \x01(\tR\x05error\x12\x1d\n" +
+	"\n" +
+	"error_code\x18\x06 \x01(\tR\terrorCode\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\xb2\x01\n" +

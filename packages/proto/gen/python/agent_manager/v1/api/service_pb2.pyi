@@ -1591,6 +1591,14 @@ class GetRolePolicyCatalogResponse(_message.Message):
     catalog: RolePolicyCatalog
     def __init__(self, status: _Optional[_Union[RolePolicyStatus, _Mapping]] = ..., catalog: _Optional[_Union[RolePolicyCatalog, _Mapping]] = ...) -> None: ...
 
+class AuthorizationApprovalPending(_message.Message):
+    __slots__ = ("subject", "detail")
+    SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    subject: str
+    detail: str
+    def __init__(self, subject: _Optional[str] = ..., detail: _Optional[str] = ...) -> None: ...
+
 class ValidateRolePolicyCatalogRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...

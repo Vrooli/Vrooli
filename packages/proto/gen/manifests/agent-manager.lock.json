@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "scenario": "agent-manager",
-  "input_digest": "sha256:e94c56c07d3c7c6a53e3dae29611de9e0212dc8654a9144355eac7a8bb0c670a",
+  "input_digest": "sha256:d41d7f86210d5f0c4bbd2f15fcef6ca30ac70347fea8e4f671e39a14f7c1b3eb",
   "input_files": [
     "schemas/agent-manager/v1/api/service.proto",
     "schemas/agent-manager/v1/domain/conversation_search.proto",
@@ -35,8 +35,8 @@
     }
   },
   "outputs": {
-    "gen/go/agent-manager/v1/api/apiconnect/service.connect.go": "sha256:568b2bc1c709424ea8366a9717b1e9bc3fd120efc0c3d7f56043fe1e237b5cda",
-    "gen/go/agent-manager/v1/api/service.pb.go": "sha256:65d657e9a3e0fe14dcf7398eb3fc9c6a929a0389fdf6e411fcd5a4692ab66c3a",
+    "gen/go/agent-manager/v1/api/apiconnect/service.connect.go": "sha256:5f2a9466f9646c3b82e6c3dbbc67bf4d69a6317354e9778af0ed93919964f78b",
+    "gen/go/agent-manager/v1/api/service.pb.go": "sha256:0e84af2cb7ef41e9df9a08588c39ee5c46ab2c05e0e5f589f387b5f9889d8ba8",
     "gen/go/agent-manager/v1/domain/conversation_search.pb.go": "sha256:88e8267d0f2b6567d4695fc5310891a8aceb00d1474c011d3b215ba8e45fbd85",
     "gen/go/agent-manager/v1/domain/domainconnect/conversation_search.connect.go": "sha256:fc439811bf9c02d687922d63daf561461530368ff438c6833c2cc60afcedf4d8",
     "gen/go/agent-manager/v1/domain/domainconnect/episode.connect.go": "sha256:61843aded3dbcb2b01457a19e7c84b2897c06918dfc3efd505506eda01a391a8",
@@ -55,8 +55,8 @@
     "gen/go/agent-manager/v1/measures/measures_v1connect/measures.connect.go": "sha256:e5c7fd7c12c259428548ad13bce6ada5e2aed39f593d5836cb9e6d111d1fc454",
     "gen/python/agent_manager/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/agent_manager/v1/api/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/python/agent_manager/v1/api/service_pb2.py": "sha256:1c235310332ecad3cb6078709771467493b2d5ad33c3bd9b75a3c1cd15087e60",
-    "gen/python/agent_manager/v1/api/service_pb2.pyi": "sha256:67a840f3cfa54a00c504610023ecd9ea2ca1db514769762608b4523d5bb4d24c",
+    "gen/python/agent_manager/v1/api/service_pb2.py": "sha256:329b30954ed7c2e1229095b90601b58cdd2b4dbb536253e57f205265d87f7533",
+    "gen/python/agent_manager/v1/api/service_pb2.pyi": "sha256:dedc59a589d4e5f861633fbf54335a0cc09a6c36258048a68a8aeb68c9edecc8",
     "gen/python/agent_manager/v1/domain/conversation_search_pb2.py": "sha256:f27ee683e16c0b04bfb85f354e0eefe2ab9cd97f745770bb09554ec9c538e63f",
     "gen/python/agent_manager/v1/domain/conversation_search_pb2.pyi": "sha256:c273b632719bb1f1573710c5b1526b394afaffe27c854054f5d401eb5f06fa9f",
     "gen/python/agent_manager/v1/domain/effort_pb2.py": "sha256:d75c2527a79f9d9942335b178fdff3925581c1383229467d2dbb95d2c2e2d6e5",
@@ -84,7 +84,7 @@
     "gen/python/agent_manager/v1/measures/measures_pb2.pyi": "sha256:a1585cdcaef8ea47f9871261badf48cbdd452ed42b298f200b22ac5365d38a5b",
     "gen/python/agent_manager/v1/measures/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "gen/python/agent_manager/v1/py.typed": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "gen/typescript/agent-manager/v1/api/service_pb.ts": "sha256:303cb61d3b8896f608ad0c5b4b0e3a88722464b022d377383ce467f3696cf060",
+    "gen/typescript/agent-manager/v1/api/service_pb.ts": "sha256:4f8102146f6fc356162acec6bd9cd1ada426d2242407e0af4848d29eb7c0f820",
     "gen/typescript/agent-manager/v1/domain/conversation_search_pb.ts": "sha256:5566ebd3591183f1c2f5b42828592d58e0b75c9073bdc0aa2828cd17434803df",
     "gen/typescript/agent-manager/v1/domain/effort_pb.ts": "sha256:ec64aef52df7fdbe0beb238123a354d8bef60b48a8a315cb7f69ad7923ceb9ad",
     "gen/typescript/agent-manager/v1/domain/episode_pb.ts": "sha256:6d147f26327584a9df146f53478137c8d56abdbdde8a1bcca11248cc6a8fc81d",

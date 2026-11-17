@@ -369,6 +369,21 @@ type ConvergeResult struct {
 // explicit reinstall requests a fresh executable. The setup safeguard remains
 // idempotent when the unit definition is already current.
 func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, error) {
+	return converge(ctx, options, false, false)
+}
+
+// ConvergeRebaseline is used by the owner holding the transition lock.
+func ConvergeRebaseline(ctx context.Context, options ConvergeOptions) (ConvergeResult, error) {
+	return converge(ctx, options, true, false)
+}
+
+// ConvergeRebaselineLocked requires the caller to retain the binary install
+// lock until the supervisor lease has been verified.
+func ConvergeRebaselineLocked(ctx context.Context, options ConvergeOptions) (ConvergeResult, error) {
+	return converge(ctx, options, true, true)
+}
+
+func converge(ctx context.Context, options ConvergeOptions, rebaseline, installLocked bool) (ConvergeResult, error) {
 	if options.Ensure.DryRun && (options.ExpectedExecutableSHA != "" || options.ExpectedCurrentDefinitionSHA != "" || options.RetainedDefinitionSHA != "") {
 		return ConvergeResult{}, fmt.Errorf("guarded retained-definition restoration does not execute dry-run requests")
 	}
@@ -380,11 +395,25 @@ func Converge(ctx context.Context, options ConvergeOptions) (ConvergeResult, err
 		return ConvergeResult{}, fmt.Errorf("render runtime supervisor unit: %w", err)
 	}
 	result := ConvergeResult{Rendered: rendered}
-	release, err := acquireInstallLockFn(ctx, rendered.Executable)
-	if err != nil {
-		return result, fmt.Errorf("lock root supervisor convergence: %w", err)
+	release := func() {}
+	if !installLocked {
+		release, err = acquireInstallLockFn(ctx, rendered.Executable)
+		if err != nil {
+			return result, fmt.Errorf("lock root supervisor convergence: %w", err)
+		}
 	}
 	defer release()
+	if !rebaseline {
+		if err := buildinfo.GuardRebaselineTransition(ctx, options.Home); err != nil {
+			return result, err
+		}
+		if err := buildinfo.GuardRebaselineCompletion(options.Home); err != nil {
+			return result, err
+		}
+		if err := buildinfo.GuardPreparedBundle(options.Home, ""); err != nil {
+			return result, err
+		}
+	}
 	if err := guardRootActivationFn(ctx, options.Home); err != nil {
 		return result, err
 	}

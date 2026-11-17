@@ -406,9 +406,16 @@ Environment overrides:
 
 ## Scenario Discovery
 
-`api-core/discovery` resolves scenario ports at runtime by invoking the Vrooli CLI
-every call (no caching). This avoids hard-coded or stale ports when scenarios
-restart on new allocations.
+`api-core/discovery` resolves local scenario ports through lifecycle peer
+records and the runtime registry before using the Vrooli CLI as a recovery
+path. Lookups are coalesced and cached briefly; transport failures invalidate
+the address, and short negative caching limits repeated work for stopped
+targets. This keeps normal local calls off the process-launch path while
+allowing a restarted scenario's new port to be discovered promptly.
+
+This is local service discovery. A deployed service address is configured
+explicitly with a target-aware `Resolver` or `StaticBaseURL`; a local loopback
+port is never treated as a deployment service-discovery mechanism.
 
 Use this resolver for scenario API to scenario API communication. Do not pass
 peer scenario API bases through Agent Manager or Swarm Manager runner

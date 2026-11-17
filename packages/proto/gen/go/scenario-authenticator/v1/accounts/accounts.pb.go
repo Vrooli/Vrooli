@@ -339,6 +339,119 @@ func (x *RegisterResponse) GetTokens() *TokenPair {
 	return nil
 }
 
+type VerifyDecisionRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Credentials *LoginRequest          `protobuf:"bytes,1,opt,name=credentials,proto3" json:"credentials,omitempty"`
+	// SHA-256 of the relying party's canonical decision tuple.
+	DecisionDigest string `protobuf:"bytes,2,opt,name=decision_digest,json=decisionDigest,proto3" json:"decision_digest,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *VerifyDecisionRequest) Reset() {
+	*x = VerifyDecisionRequest{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyDecisionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyDecisionRequest) ProtoMessage() {}
+
+func (x *VerifyDecisionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyDecisionRequest.ProtoReflect.Descriptor instead.
+func (*VerifyDecisionRequest) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *VerifyDecisionRequest) GetCredentials() *LoginRequest {
+	if x != nil {
+		return x.Credentials
+	}
+	return nil
+}
+
+func (x *VerifyDecisionRequest) GetDecisionDigest() string {
+	if x != nil {
+		return x.DecisionDigest
+	}
+	return ""
+}
+
+type VerifyDecisionResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Proof         string                 `protobuf:"bytes,1,opt,name=proof,proto3" json:"proof,omitempty"`
+	MfaRequired   bool                   `protobuf:"varint,2,opt,name=mfa_required,json=mfaRequired,proto3" json:"mfa_required,omitempty"`
+	MfaChallenge  string                 `protobuf:"bytes,3,opt,name=mfa_challenge,json=mfaChallenge,proto3" json:"mfa_challenge,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VerifyDecisionResponse) Reset() {
+	*x = VerifyDecisionResponse{}
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VerifyDecisionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VerifyDecisionResponse) ProtoMessage() {}
+
+func (x *VerifyDecisionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VerifyDecisionResponse.ProtoReflect.Descriptor instead.
+func (*VerifyDecisionResponse) Descriptor() ([]byte, []int) {
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *VerifyDecisionResponse) GetProof() string {
+	if x != nil {
+		return x.Proof
+	}
+	return ""
+}
+
+func (x *VerifyDecisionResponse) GetMfaRequired() bool {
+	if x != nil {
+		return x.MfaRequired
+	}
+	return false
+}
+
+func (x *VerifyDecisionResponse) GetMfaChallenge() string {
+	if x != nil {
+		return x.MfaChallenge
+	}
+	return ""
+}
+
 type LoginRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Email    string                 `protobuf:"bytes,1,opt,name=email,proto3" json:"email,omitempty"`
@@ -358,7 +471,7 @@ type LoginRequest struct {
 
 func (x *LoginRequest) Reset() {
 	*x = LoginRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[4]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -370,7 +483,7 @@ func (x *LoginRequest) String() string {
 func (*LoginRequest) ProtoMessage() {}
 
 func (x *LoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[4]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -383,7 +496,7 @@ func (x *LoginRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginRequest.ProtoReflect.Descriptor instead.
 func (*LoginRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{4}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *LoginRequest) GetEmail() string {
@@ -447,7 +560,7 @@ type LoginResponse struct {
 
 func (x *LoginResponse) Reset() {
 	*x = LoginResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[5]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -459,7 +572,7 @@ func (x *LoginResponse) String() string {
 func (*LoginResponse) ProtoMessage() {}
 
 func (x *LoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[5]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -472,7 +585,7 @@ func (x *LoginResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LoginResponse.ProtoReflect.Descriptor instead.
 func (*LoginResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{5}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *LoginResponse) GetAccount() *Account {
@@ -515,7 +628,7 @@ type ChangePasswordRequest struct {
 
 func (x *ChangePasswordRequest) Reset() {
 	*x = ChangePasswordRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[6]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -527,7 +640,7 @@ func (x *ChangePasswordRequest) String() string {
 func (*ChangePasswordRequest) ProtoMessage() {}
 
 func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[6]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -540,7 +653,7 @@ func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
 func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{6}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ChangePasswordRequest) GetAccessToken() string {
@@ -573,7 +686,7 @@ type ChangePasswordResponse struct {
 
 func (x *ChangePasswordResponse) Reset() {
 	*x = ChangePasswordResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[7]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -585,7 +698,7 @@ func (x *ChangePasswordResponse) String() string {
 func (*ChangePasswordResponse) ProtoMessage() {}
 
 func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[7]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -598,7 +711,7 @@ func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangePasswordResponse.ProtoReflect.Descriptor instead.
 func (*ChangePasswordResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{7}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ChangePasswordResponse) GetRevokedSessions() int64 {
@@ -620,7 +733,7 @@ type RefreshRequest struct {
 
 func (x *RefreshRequest) Reset() {
 	*x = RefreshRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[8]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -632,7 +745,7 @@ func (x *RefreshRequest) String() string {
 func (*RefreshRequest) ProtoMessage() {}
 
 func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[8]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -645,7 +758,7 @@ func (x *RefreshRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshRequest.ProtoReflect.Descriptor instead.
 func (*RefreshRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{8}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RefreshRequest) GetRefreshToken() string {
@@ -671,7 +784,7 @@ type RefreshResponse struct {
 
 func (x *RefreshResponse) Reset() {
 	*x = RefreshResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[9]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +796,7 @@ func (x *RefreshResponse) String() string {
 func (*RefreshResponse) ProtoMessage() {}
 
 func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[9]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +809,7 @@ func (x *RefreshResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RefreshResponse.ProtoReflect.Descriptor instead.
 func (*RefreshResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{9}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RefreshResponse) GetTokens() *TokenPair {
@@ -716,7 +829,7 @@ type LogoutRequest struct {
 
 func (x *LogoutRequest) Reset() {
 	*x = LogoutRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[10]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -728,7 +841,7 @@ func (x *LogoutRequest) String() string {
 func (*LogoutRequest) ProtoMessage() {}
 
 func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[10]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -741,7 +854,7 @@ func (x *LogoutRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutRequest.ProtoReflect.Descriptor instead.
 func (*LogoutRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{10}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *LogoutRequest) GetAccessToken() string {
@@ -759,7 +872,7 @@ type LogoutResponse struct {
 
 func (x *LogoutResponse) Reset() {
 	*x = LogoutResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[11]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -771,7 +884,7 @@ func (x *LogoutResponse) String() string {
 func (*LogoutResponse) ProtoMessage() {}
 
 func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[11]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -784,7 +897,7 @@ func (x *LogoutResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LogoutResponse.ProtoReflect.Descriptor instead.
 func (*LogoutResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{11}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{13}
 }
 
 type ValidateRequest struct {
@@ -796,7 +909,7 @@ type ValidateRequest struct {
 
 func (x *ValidateRequest) Reset() {
 	*x = ValidateRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[12]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +921,7 @@ func (x *ValidateRequest) String() string {
 func (*ValidateRequest) ProtoMessage() {}
 
 func (x *ValidateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[12]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +934,7 @@ func (x *ValidateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateRequest.ProtoReflect.Descriptor instead.
 func (*ValidateRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{12}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ValidateRequest) GetAccessToken() string {
@@ -853,7 +966,7 @@ type ValidateResponse struct {
 
 func (x *ValidateResponse) Reset() {
 	*x = ValidateResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[13]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -865,7 +978,7 @@ func (x *ValidateResponse) String() string {
 func (*ValidateResponse) ProtoMessage() {}
 
 func (x *ValidateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[13]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -878,7 +991,7 @@ func (x *ValidateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateResponse.ProtoReflect.Descriptor instead.
 func (*ValidateResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{13}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ValidateResponse) GetValid() bool {
@@ -948,7 +1061,7 @@ type GrantScopeRequest struct {
 
 func (x *GrantScopeRequest) Reset() {
 	*x = GrantScopeRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[14]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -960,7 +1073,7 @@ func (x *GrantScopeRequest) String() string {
 func (*GrantScopeRequest) ProtoMessage() {}
 
 func (x *GrantScopeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[14]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -973,7 +1086,7 @@ func (x *GrantScopeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GrantScopeRequest.ProtoReflect.Descriptor instead.
 func (*GrantScopeRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{14}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GrantScopeRequest) GetAccessToken() string {
@@ -1008,7 +1121,7 @@ type RevokeScopeRequest struct {
 
 func (x *RevokeScopeRequest) Reset() {
 	*x = RevokeScopeRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[15]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1020,7 +1133,7 @@ func (x *RevokeScopeRequest) String() string {
 func (*RevokeScopeRequest) ProtoMessage() {}
 
 func (x *RevokeScopeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[15]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1033,7 +1146,7 @@ func (x *RevokeScopeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeScopeRequest.ProtoReflect.Descriptor instead.
 func (*RevokeScopeRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{15}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *RevokeScopeRequest) GetAccessToken() string {
@@ -1067,7 +1180,7 @@ type ListScopesRequest struct {
 
 func (x *ListScopesRequest) Reset() {
 	*x = ListScopesRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[16]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1079,7 +1192,7 @@ func (x *ListScopesRequest) String() string {
 func (*ListScopesRequest) ProtoMessage() {}
 
 func (x *ListScopesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[16]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1092,7 +1205,7 @@ func (x *ListScopesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListScopesRequest.ProtoReflect.Descriptor instead.
 func (*ListScopesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{16}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListScopesRequest) GetAccessToken() string {
@@ -1119,7 +1232,7 @@ type ScopeResponse struct {
 
 func (x *ScopeResponse) Reset() {
 	*x = ScopeResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[17]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1131,7 +1244,7 @@ func (x *ScopeResponse) String() string {
 func (*ScopeResponse) ProtoMessage() {}
 
 func (x *ScopeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[17]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1257,7 @@ func (x *ScopeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScopeResponse.ProtoReflect.Descriptor instead.
 func (*ScopeResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{17}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ScopeResponse) GetPrincipalId() string {
@@ -1171,7 +1284,7 @@ type ListScopesResponse struct {
 
 func (x *ListScopesResponse) Reset() {
 	*x = ListScopesResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[18]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1183,7 +1296,7 @@ func (x *ListScopesResponse) String() string {
 func (*ListScopesResponse) ProtoMessage() {}
 
 func (x *ListScopesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[18]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1196,7 +1309,7 @@ func (x *ListScopesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListScopesResponse.ProtoReflect.Descriptor instead.
 func (*ListScopesResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{18}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListScopesResponse) GetPrincipalId() string {
@@ -1224,7 +1337,7 @@ type SetRolesRequest struct {
 
 func (x *SetRolesRequest) Reset() {
 	*x = SetRolesRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1236,7 +1349,7 @@ func (x *SetRolesRequest) String() string {
 func (*SetRolesRequest) ProtoMessage() {}
 
 func (x *SetRolesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[19]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1249,7 +1362,7 @@ func (x *SetRolesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRolesRequest.ProtoReflect.Descriptor instead.
 func (*SetRolesRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{19}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SetRolesRequest) GetAccessToken() string {
@@ -1286,7 +1399,7 @@ type LinkMachineAccountRequest struct {
 
 func (x *LinkMachineAccountRequest) Reset() {
 	*x = LinkMachineAccountRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +1411,7 @@ func (x *LinkMachineAccountRequest) String() string {
 func (*LinkMachineAccountRequest) ProtoMessage() {}
 
 func (x *LinkMachineAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[20]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +1424,7 @@ func (x *LinkMachineAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkMachineAccountRequest.ProtoReflect.Descriptor instead.
 func (*LinkMachineAccountRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{20}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *LinkMachineAccountRequest) GetAccessToken() string {
@@ -1363,7 +1476,7 @@ type LinkMachineAccountResponse struct {
 
 func (x *LinkMachineAccountResponse) Reset() {
 	*x = LinkMachineAccountResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1375,7 +1488,7 @@ func (x *LinkMachineAccountResponse) String() string {
 func (*LinkMachineAccountResponse) ProtoMessage() {}
 
 func (x *LinkMachineAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[21]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1388,7 +1501,7 @@ func (x *LinkMachineAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkMachineAccountResponse.ProtoReflect.Descriptor instead.
 func (*LinkMachineAccountResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{21}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *LinkMachineAccountResponse) GetMachineId() string {
@@ -1445,7 +1558,7 @@ type RevokeMachineAccountRequest struct {
 
 func (x *RevokeMachineAccountRequest) Reset() {
 	*x = RevokeMachineAccountRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1457,7 +1570,7 @@ func (x *RevokeMachineAccountRequest) String() string {
 func (*RevokeMachineAccountRequest) ProtoMessage() {}
 
 func (x *RevokeMachineAccountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[22]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1470,7 +1583,7 @@ func (x *RevokeMachineAccountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeMachineAccountRequest.ProtoReflect.Descriptor instead.
 func (*RevokeMachineAccountRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{22}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *RevokeMachineAccountRequest) GetAccessToken() string {
@@ -1510,7 +1623,7 @@ type RevokeMachineAccountResponse struct {
 
 func (x *RevokeMachineAccountResponse) Reset() {
 	*x = RevokeMachineAccountResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1522,7 +1635,7 @@ func (x *RevokeMachineAccountResponse) String() string {
 func (*RevokeMachineAccountResponse) ProtoMessage() {}
 
 func (x *RevokeMachineAccountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[23]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1535,7 +1648,7 @@ func (x *RevokeMachineAccountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeMachineAccountResponse.ProtoReflect.Descriptor instead.
 func (*RevokeMachineAccountResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{23}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *RevokeMachineAccountResponse) GetRevokedCount() int64 {
@@ -1558,7 +1671,7 @@ type ExchangeMachinePrincipalRequest struct {
 
 func (x *ExchangeMachinePrincipalRequest) Reset() {
 	*x = ExchangeMachinePrincipalRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[24]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1570,7 +1683,7 @@ func (x *ExchangeMachinePrincipalRequest) String() string {
 func (*ExchangeMachinePrincipalRequest) ProtoMessage() {}
 
 func (x *ExchangeMachinePrincipalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[24]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1583,7 +1696,7 @@ func (x *ExchangeMachinePrincipalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExchangeMachinePrincipalRequest.ProtoReflect.Descriptor instead.
 func (*ExchangeMachinePrincipalRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{24}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ExchangeMachinePrincipalRequest) GetMachineId() string {
@@ -1610,7 +1723,7 @@ type IssueBreakGlassRequest struct {
 
 func (x *IssueBreakGlassRequest) Reset() {
 	*x = IssueBreakGlassRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[25]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1622,7 +1735,7 @@ func (x *IssueBreakGlassRequest) String() string {
 func (*IssueBreakGlassRequest) ProtoMessage() {}
 
 func (x *IssueBreakGlassRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[25]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1635,7 +1748,7 @@ func (x *IssueBreakGlassRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueBreakGlassRequest.ProtoReflect.Descriptor instead.
 func (*IssueBreakGlassRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{25}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *IssueBreakGlassRequest) GetAccessToken() string {
@@ -1662,7 +1775,7 @@ type IssueBreakGlassResponse struct {
 
 func (x *IssueBreakGlassResponse) Reset() {
 	*x = IssueBreakGlassResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[26]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1674,7 +1787,7 @@ func (x *IssueBreakGlassResponse) String() string {
 func (*IssueBreakGlassResponse) ProtoMessage() {}
 
 func (x *IssueBreakGlassResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[26]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1687,7 +1800,7 @@ func (x *IssueBreakGlassResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueBreakGlassResponse.ProtoReflect.Descriptor instead.
 func (*IssueBreakGlassResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{26}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *IssueBreakGlassResponse) GetCredential() string {
@@ -1716,7 +1829,7 @@ type IssueServicePrincipalRequest struct {
 
 func (x *IssueServicePrincipalRequest) Reset() {
 	*x = IssueServicePrincipalRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[27]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1728,7 +1841,7 @@ func (x *IssueServicePrincipalRequest) String() string {
 func (*IssueServicePrincipalRequest) ProtoMessage() {}
 
 func (x *IssueServicePrincipalRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[27]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1741,7 +1854,7 @@ func (x *IssueServicePrincipalRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueServicePrincipalRequest.ProtoReflect.Descriptor instead.
 func (*IssueServicePrincipalRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{27}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *IssueServicePrincipalRequest) GetAccessToken() string {
@@ -1774,7 +1887,7 @@ type IssueServicePrincipalResponse struct {
 
 func (x *IssueServicePrincipalResponse) Reset() {
 	*x = IssueServicePrincipalResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[28]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1786,7 +1899,7 @@ func (x *IssueServicePrincipalResponse) String() string {
 func (*IssueServicePrincipalResponse) ProtoMessage() {}
 
 func (x *IssueServicePrincipalResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[28]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1799,7 +1912,7 @@ func (x *IssueServicePrincipalResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IssueServicePrincipalResponse.ProtoReflect.Descriptor instead.
 func (*IssueServicePrincipalResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{28}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *IssueServicePrincipalResponse) GetName() string {
@@ -1853,7 +1966,7 @@ type ExchangeServiceCredentialRequest struct {
 
 func (x *ExchangeServiceCredentialRequest) Reset() {
 	*x = ExchangeServiceCredentialRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[29]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1865,7 +1978,7 @@ func (x *ExchangeServiceCredentialRequest) String() string {
 func (*ExchangeServiceCredentialRequest) ProtoMessage() {}
 
 func (x *ExchangeServiceCredentialRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[29]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1878,7 +1991,7 @@ func (x *ExchangeServiceCredentialRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExchangeServiceCredentialRequest.ProtoReflect.Descriptor instead.
 func (*ExchangeServiceCredentialRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{29}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ExchangeServiceCredentialRequest) GetCredential() string {
@@ -1901,7 +2014,7 @@ type ExchangeServiceCredentialResponse struct {
 
 func (x *ExchangeServiceCredentialResponse) Reset() {
 	*x = ExchangeServiceCredentialResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[30]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1913,7 +2026,7 @@ func (x *ExchangeServiceCredentialResponse) String() string {
 func (*ExchangeServiceCredentialResponse) ProtoMessage() {}
 
 func (x *ExchangeServiceCredentialResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[30]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1926,7 +2039,7 @@ func (x *ExchangeServiceCredentialResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ExchangeServiceCredentialResponse.ProtoReflect.Descriptor instead.
 func (*ExchangeServiceCredentialResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{30}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ExchangeServiceCredentialResponse) GetAccessToken() string {
@@ -1985,7 +2098,7 @@ type MintSessionDelegationRequest struct {
 
 func (x *MintSessionDelegationRequest) Reset() {
 	*x = MintSessionDelegationRequest{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[31]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1997,7 +2110,7 @@ func (x *MintSessionDelegationRequest) String() string {
 func (*MintSessionDelegationRequest) ProtoMessage() {}
 
 func (x *MintSessionDelegationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[31]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2010,7 +2123,7 @@ func (x *MintSessionDelegationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MintSessionDelegationRequest.ProtoReflect.Descriptor instead.
 func (*MintSessionDelegationRequest) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{31}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *MintSessionDelegationRequest) GetAccessToken() string {
@@ -2048,7 +2161,7 @@ type MintSessionDelegationResponse struct {
 
 func (x *MintSessionDelegationResponse) Reset() {
 	*x = MintSessionDelegationResponse{}
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[32]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2060,7 +2173,7 @@ func (x *MintSessionDelegationResponse) String() string {
 func (*MintSessionDelegationResponse) ProtoMessage() {}
 
 func (x *MintSessionDelegationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[32]
+	mi := &file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2073,7 +2186,7 @@ func (x *MintSessionDelegationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MintSessionDelegationResponse.ProtoReflect.Descriptor instead.
 func (*MintSessionDelegationResponse) Descriptor() ([]byte, []int) {
-	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{32}
+	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *MintSessionDelegationResponse) GetDelegationToken() string {
@@ -2118,7 +2231,14 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\bresource\x18\x05 \x01(\tR\bresource\"\xae\x01\n" +
 	"\x10RegisterResponse\x12L\n" +
 	"\aaccount\x18\x01 \x01(\v22.vrooli.scenario_authenticator.v1.accounts.AccountR\aaccount\x12L\n" +
-	"\x06tokens\x18\x02 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"\xd9\x01\n" +
+	"\x06tokens\x18\x02 \x01(\v24.vrooli.scenario_authenticator.v1.accounts.TokenPairR\x06tokens\"\x9b\x01\n" +
+	"\x15VerifyDecisionRequest\x12Y\n" +
+	"\vcredentials\x18\x01 \x01(\v27.vrooli.scenario_authenticator.v1.accounts.LoginRequestR\vcredentials\x12'\n" +
+	"\x0fdecision_digest\x18\x02 \x01(\tR\x0edecisionDigest\"v\n" +
+	"\x16VerifyDecisionResponse\x12\x14\n" +
+	"\x05proof\x18\x01 \x01(\tR\x05proof\x12!\n" +
+	"\fmfa_required\x18\x02 \x01(\bR\vmfaRequired\x12#\n" +
+	"\rmfa_challenge\x18\x03 \x01(\tR\fmfaChallenge\"\xd9\x01\n" +
 	"\fLoginRequest\x12\x14\n" +
 	"\x05email\x18\x01 \x01(\tR\x05email\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\x12\x14\n" +
@@ -2245,10 +2365,11 @@ const file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc = "" +
 	"\x1dMintSessionDelegationResponse\x12)\n" +
 	"\x10delegation_token\x18\x01 \x01(\tR\x0fdelegationToken\x129\n" +
 	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt2\xea\x13\n" +
+	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt2\x82\x15\n" +
 	"\x0fAccountsService\x12\x83\x01\n" +
 	"\bRegister\x12:.vrooli.scenario_authenticator.v1.accounts.RegisterRequest\x1a;.vrooli.scenario_authenticator.v1.accounts.RegisterResponse\x12z\n" +
 	"\x05Login\x127.vrooli.scenario_authenticator.v1.accounts.LoginRequest\x1a8.vrooli.scenario_authenticator.v1.accounts.LoginResponse\x12\x95\x01\n" +
+	"\x0eVerifyDecision\x12@.vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest\x1aA.vrooli.scenario_authenticator.v1.accounts.VerifyDecisionResponse\x12\x95\x01\n" +
 	"\x0eChangePassword\x12@.vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest\x1aA.vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse\x12\x80\x01\n" +
 	"\aRefresh\x129.vrooli.scenario_authenticator.v1.accounts.RefreshRequest\x1a:.vrooli.scenario_authenticator.v1.accounts.RefreshResponse\x12}\n" +
 	"\x06Logout\x128.vrooli.scenario_authenticator.v1.accounts.LogoutRequest\x1a9.vrooli.scenario_authenticator.v1.accounts.LogoutResponse\x12\x83\x01\n" +
@@ -2279,95 +2400,100 @@ func file_scenario_authenticator_v1_accounts_accounts_proto_rawDescGZIP() []byte
 	return file_scenario_authenticator_v1_accounts_accounts_proto_rawDescData
 }
 
-var file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
+var file_scenario_authenticator_v1_accounts_accounts_proto_msgTypes = make([]protoimpl.MessageInfo, 35)
 var file_scenario_authenticator_v1_accounts_accounts_proto_goTypes = []any{
 	(*Account)(nil),                           // 0: vrooli.scenario_authenticator.v1.accounts.Account
 	(*TokenPair)(nil),                         // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair
 	(*RegisterRequest)(nil),                   // 2: vrooli.scenario_authenticator.v1.accounts.RegisterRequest
 	(*RegisterResponse)(nil),                  // 3: vrooli.scenario_authenticator.v1.accounts.RegisterResponse
-	(*LoginRequest)(nil),                      // 4: vrooli.scenario_authenticator.v1.accounts.LoginRequest
-	(*LoginResponse)(nil),                     // 5: vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	(*ChangePasswordRequest)(nil),             // 6: vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
-	(*ChangePasswordResponse)(nil),            // 7: vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
-	(*RefreshRequest)(nil),                    // 8: vrooli.scenario_authenticator.v1.accounts.RefreshRequest
-	(*RefreshResponse)(nil),                   // 9: vrooli.scenario_authenticator.v1.accounts.RefreshResponse
-	(*LogoutRequest)(nil),                     // 10: vrooli.scenario_authenticator.v1.accounts.LogoutRequest
-	(*LogoutResponse)(nil),                    // 11: vrooli.scenario_authenticator.v1.accounts.LogoutResponse
-	(*ValidateRequest)(nil),                   // 12: vrooli.scenario_authenticator.v1.accounts.ValidateRequest
-	(*ValidateResponse)(nil),                  // 13: vrooli.scenario_authenticator.v1.accounts.ValidateResponse
-	(*GrantScopeRequest)(nil),                 // 14: vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
-	(*RevokeScopeRequest)(nil),                // 15: vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
-	(*ListScopesRequest)(nil),                 // 16: vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
-	(*ScopeResponse)(nil),                     // 17: vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	(*ListScopesResponse)(nil),                // 18: vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
-	(*SetRolesRequest)(nil),                   // 19: vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
-	(*LinkMachineAccountRequest)(nil),         // 20: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
-	(*LinkMachineAccountResponse)(nil),        // 21: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
-	(*RevokeMachineAccountRequest)(nil),       // 22: vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
-	(*RevokeMachineAccountResponse)(nil),      // 23: vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
-	(*ExchangeMachinePrincipalRequest)(nil),   // 24: vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
-	(*IssueBreakGlassRequest)(nil),            // 25: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
-	(*IssueBreakGlassResponse)(nil),           // 26: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
-	(*IssueServicePrincipalRequest)(nil),      // 27: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
-	(*IssueServicePrincipalResponse)(nil),     // 28: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
-	(*ExchangeServiceCredentialRequest)(nil),  // 29: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
-	(*ExchangeServiceCredentialResponse)(nil), // 30: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
-	(*MintSessionDelegationRequest)(nil),      // 31: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
-	(*MintSessionDelegationResponse)(nil),     // 32: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
-	(*timestamppb.Timestamp)(nil),             // 33: google.protobuf.Timestamp
+	(*VerifyDecisionRequest)(nil),             // 4: vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest
+	(*VerifyDecisionResponse)(nil),            // 5: vrooli.scenario_authenticator.v1.accounts.VerifyDecisionResponse
+	(*LoginRequest)(nil),                      // 6: vrooli.scenario_authenticator.v1.accounts.LoginRequest
+	(*LoginResponse)(nil),                     // 7: vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	(*ChangePasswordRequest)(nil),             // 8: vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
+	(*ChangePasswordResponse)(nil),            // 9: vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
+	(*RefreshRequest)(nil),                    // 10: vrooli.scenario_authenticator.v1.accounts.RefreshRequest
+	(*RefreshResponse)(nil),                   // 11: vrooli.scenario_authenticator.v1.accounts.RefreshResponse
+	(*LogoutRequest)(nil),                     // 12: vrooli.scenario_authenticator.v1.accounts.LogoutRequest
+	(*LogoutResponse)(nil),                    // 13: vrooli.scenario_authenticator.v1.accounts.LogoutResponse
+	(*ValidateRequest)(nil),                   // 14: vrooli.scenario_authenticator.v1.accounts.ValidateRequest
+	(*ValidateResponse)(nil),                  // 15: vrooli.scenario_authenticator.v1.accounts.ValidateResponse
+	(*GrantScopeRequest)(nil),                 // 16: vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
+	(*RevokeScopeRequest)(nil),                // 17: vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
+	(*ListScopesRequest)(nil),                 // 18: vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
+	(*ScopeResponse)(nil),                     // 19: vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	(*ListScopesResponse)(nil),                // 20: vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
+	(*SetRolesRequest)(nil),                   // 21: vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
+	(*LinkMachineAccountRequest)(nil),         // 22: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
+	(*LinkMachineAccountResponse)(nil),        // 23: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
+	(*RevokeMachineAccountRequest)(nil),       // 24: vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
+	(*RevokeMachineAccountResponse)(nil),      // 25: vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
+	(*ExchangeMachinePrincipalRequest)(nil),   // 26: vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
+	(*IssueBreakGlassRequest)(nil),            // 27: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
+	(*IssueBreakGlassResponse)(nil),           // 28: vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
+	(*IssueServicePrincipalRequest)(nil),      // 29: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
+	(*IssueServicePrincipalResponse)(nil),     // 30: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
+	(*ExchangeServiceCredentialRequest)(nil),  // 31: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
+	(*ExchangeServiceCredentialResponse)(nil), // 32: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
+	(*MintSessionDelegationRequest)(nil),      // 33: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
+	(*MintSessionDelegationResponse)(nil),     // 34: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
+	(*timestamppb.Timestamp)(nil),             // 35: google.protobuf.Timestamp
 }
 var file_scenario_authenticator_v1_accounts_accounts_proto_depIdxs = []int32{
-	33, // 0: vrooli.scenario_authenticator.v1.accounts.Account.created_at:type_name -> google.protobuf.Timestamp
-	33, // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	35, // 0: vrooli.scenario_authenticator.v1.accounts.Account.created_at:type_name -> google.protobuf.Timestamp
+	35, // 1: vrooli.scenario_authenticator.v1.accounts.TokenPair.access_token_expires_at:type_name -> google.protobuf.Timestamp
 	0,  // 2: vrooli.scenario_authenticator.v1.accounts.RegisterResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
 	1,  // 3: vrooli.scenario_authenticator.v1.accounts.RegisterResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
-	0,  // 4: vrooli.scenario_authenticator.v1.accounts.LoginResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
-	1,  // 5: vrooli.scenario_authenticator.v1.accounts.LoginResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
-	1,  // 6: vrooli.scenario_authenticator.v1.accounts.RefreshResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
-	33, // 7: vrooli.scenario_authenticator.v1.accounts.ValidateResponse.expires_at:type_name -> google.protobuf.Timestamp
-	33, // 8: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.linked_at:type_name -> google.protobuf.Timestamp
-	33, // 9: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse.issued_at:type_name -> google.protobuf.Timestamp
-	33, // 10: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
-	33, // 11: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 12: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
-	4,  // 13: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
-	6,  // 14: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:input_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
-	8,  // 15: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:input_type -> vrooli.scenario_authenticator.v1.accounts.RefreshRequest
-	10, // 16: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:input_type -> vrooli.scenario_authenticator.v1.accounts.LogoutRequest
-	12, // 17: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:input_type -> vrooli.scenario_authenticator.v1.accounts.ValidateRequest
-	14, // 18: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:input_type -> vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
-	15, // 19: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
-	16, // 20: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:input_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
-	19, // 21: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:input_type -> vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
-	20, // 22: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
-	22, // 23: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
-	24, // 24: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
-	25, // 25: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
-	27, // 26: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
-	29, // 27: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
-	31, // 28: vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation:input_type -> vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
-	3,  // 29: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
-	5,  // 30: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	7,  // 31: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:output_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
-	9,  // 32: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
-	11, // 33: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
-	13, // 34: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:output_type -> vrooli.scenario_authenticator.v1.accounts.ValidateResponse
-	17, // 35: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	17, // 36: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
-	18, // 37: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:output_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
-	0,  // 38: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:output_type -> vrooli.scenario_authenticator.v1.accounts.Account
-	21, // 39: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
-	23, // 40: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
-	5,  // 41: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
-	26, // 42: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
-	28, // 43: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
-	30, // 44: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:output_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
-	32, // 45: vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation:output_type -> vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
-	29, // [29:46] is the sub-list for method output_type
-	12, // [12:29] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	6,  // 4: vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest.credentials:type_name -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
+	0,  // 5: vrooli.scenario_authenticator.v1.accounts.LoginResponse.account:type_name -> vrooli.scenario_authenticator.v1.accounts.Account
+	1,  // 6: vrooli.scenario_authenticator.v1.accounts.LoginResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
+	1,  // 7: vrooli.scenario_authenticator.v1.accounts.RefreshResponse.tokens:type_name -> vrooli.scenario_authenticator.v1.accounts.TokenPair
+	35, // 8: vrooli.scenario_authenticator.v1.accounts.ValidateResponse.expires_at:type_name -> google.protobuf.Timestamp
+	35, // 9: vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse.linked_at:type_name -> google.protobuf.Timestamp
+	35, // 10: vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse.issued_at:type_name -> google.protobuf.Timestamp
+	35, // 11: vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse.access_token_expires_at:type_name -> google.protobuf.Timestamp
+	35, // 12: vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 13: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:input_type -> vrooli.scenario_authenticator.v1.accounts.RegisterRequest
+	6,  // 14: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:input_type -> vrooli.scenario_authenticator.v1.accounts.LoginRequest
+	4,  // 15: vrooli.scenario_authenticator.v1.accounts.AccountsService.VerifyDecision:input_type -> vrooli.scenario_authenticator.v1.accounts.VerifyDecisionRequest
+	8,  // 16: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:input_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordRequest
+	10, // 17: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:input_type -> vrooli.scenario_authenticator.v1.accounts.RefreshRequest
+	12, // 18: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:input_type -> vrooli.scenario_authenticator.v1.accounts.LogoutRequest
+	14, // 19: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:input_type -> vrooli.scenario_authenticator.v1.accounts.ValidateRequest
+	16, // 20: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:input_type -> vrooli.scenario_authenticator.v1.accounts.GrantScopeRequest
+	17, // 21: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeScopeRequest
+	18, // 22: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:input_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesRequest
+	21, // 23: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:input_type -> vrooli.scenario_authenticator.v1.accounts.SetRolesRequest
+	22, // 24: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountRequest
+	24, // 25: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:input_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountRequest
+	26, // 26: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeMachinePrincipalRequest
+	27, // 27: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassRequest
+	29, // 28: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:input_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalRequest
+	31, // 29: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:input_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialRequest
+	33, // 30: vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation:input_type -> vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationRequest
+	3,  // 31: vrooli.scenario_authenticator.v1.accounts.AccountsService.Register:output_type -> vrooli.scenario_authenticator.v1.accounts.RegisterResponse
+	7,  // 32: vrooli.scenario_authenticator.v1.accounts.AccountsService.Login:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	5,  // 33: vrooli.scenario_authenticator.v1.accounts.AccountsService.VerifyDecision:output_type -> vrooli.scenario_authenticator.v1.accounts.VerifyDecisionResponse
+	9,  // 34: vrooli.scenario_authenticator.v1.accounts.AccountsService.ChangePassword:output_type -> vrooli.scenario_authenticator.v1.accounts.ChangePasswordResponse
+	11, // 35: vrooli.scenario_authenticator.v1.accounts.AccountsService.Refresh:output_type -> vrooli.scenario_authenticator.v1.accounts.RefreshResponse
+	13, // 36: vrooli.scenario_authenticator.v1.accounts.AccountsService.Logout:output_type -> vrooli.scenario_authenticator.v1.accounts.LogoutResponse
+	15, // 37: vrooli.scenario_authenticator.v1.accounts.AccountsService.Validate:output_type -> vrooli.scenario_authenticator.v1.accounts.ValidateResponse
+	19, // 38: vrooli.scenario_authenticator.v1.accounts.AccountsService.GrantScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	19, // 39: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeScope:output_type -> vrooli.scenario_authenticator.v1.accounts.ScopeResponse
+	20, // 40: vrooli.scenario_authenticator.v1.accounts.AccountsService.ListScopes:output_type -> vrooli.scenario_authenticator.v1.accounts.ListScopesResponse
+	0,  // 41: vrooli.scenario_authenticator.v1.accounts.AccountsService.SetRoles:output_type -> vrooli.scenario_authenticator.v1.accounts.Account
+	23, // 42: vrooli.scenario_authenticator.v1.accounts.AccountsService.LinkMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.LinkMachineAccountResponse
+	25, // 43: vrooli.scenario_authenticator.v1.accounts.AccountsService.RevokeMachineAccount:output_type -> vrooli.scenario_authenticator.v1.accounts.RevokeMachineAccountResponse
+	7,  // 44: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeMachinePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.LoginResponse
+	28, // 45: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueBreakGlass:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueBreakGlassResponse
+	30, // 46: vrooli.scenario_authenticator.v1.accounts.AccountsService.IssueServicePrincipal:output_type -> vrooli.scenario_authenticator.v1.accounts.IssueServicePrincipalResponse
+	32, // 47: vrooli.scenario_authenticator.v1.accounts.AccountsService.ExchangeServiceCredential:output_type -> vrooli.scenario_authenticator.v1.accounts.ExchangeServiceCredentialResponse
+	34, // 48: vrooli.scenario_authenticator.v1.accounts.AccountsService.MintSessionDelegation:output_type -> vrooli.scenario_authenticator.v1.accounts.MintSessionDelegationResponse
+	31, // [31:49] is the sub-list for method output_type
+	13, // [13:31] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_scenario_authenticator_v1_accounts_accounts_proto_init() }
@@ -2381,7 +2507,7 @@ func file_scenario_authenticator_v1_accounts_accounts_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc), len(file_scenario_authenticator_v1_accounts_accounts_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   33,
+			NumMessages:   35,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

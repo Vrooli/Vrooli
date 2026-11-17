@@ -32,6 +32,41 @@ func TestSanitizePortOutput(t *testing.T) {
 	}
 }
 
+func TestParseScenarioPortCommandOutputUsesErrorCode(t *testing.T) {
+	tests := []struct {
+		name           string
+		input          string
+		wantPort       string
+		wantNotRunning bool
+	}{
+		{name: "success", input: `{"success":true,"port":15422}`, wantPort: "15422"},
+		{name: "confirmed stopped", input: `{"success":false,"error":"stopped","error_code":"scenario_not_running"}`, wantNotRunning: true},
+		{name: "legacy response without code", input: `{"success":false,"error":"scenario is not running"}`},
+		{name: "noncanonical code alias", input: `{"success":false,"error":"scenario is not running","code":"scenario_not_running"}`},
+		{name: "transient response code", input: `{"success":false,"error":"temporary failure","error_code":"runtime_error"}`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			out := parseScenarioPortCommandOutput(tc.input)
+			if out.Port != tc.wantPort {
+				t.Fatalf("port=%q, want %q", out.Port, tc.wantPort)
+			}
+			if got := IsScenarioPortNotRunning(out.Err); got != tc.wantNotRunning {
+				t.Fatalf("IsScenarioPortNotRunning=%t, want %t (err=%v)", got, tc.wantNotRunning, out.Err)
+			}
+			if tc.name != "success" && out.Err == nil {
+				t.Fatal("unsuccessful response should remain an error")
+			}
+		})
+	}
+	if failure := scenarioPortFailureFromJSON(`{"success":false,"error_code":"scenario_not_running","error":"stopped"}`); failure == nil || failure.Code != ScenarioPortCodeNotRunning {
+		t.Fatalf("structured CLI boundary failure=%#v, want scenario_not_running", failure)
+	}
+	if failure := scenarioPortFailureFromJSON(`{"success":false,"code":"scenario_not_running","error":"stopped"}`); failure != nil {
+		t.Fatalf("noncanonical code alias classified as stopped target: %#v", failure)
+	}
+}
+
 func BenchmarkLookupScenarioPortPeerRecord(b *testing.B) {
 	oldPeer, oldRegistry, oldRunner := peerRecordLookupFn, runtimeRegistryLookupFn, portLookupRunner
 	b.Cleanup(func() {

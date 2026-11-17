@@ -19,6 +19,7 @@ const (
 	maxGuardModeTTL    = 7 * 24 * time.Hour
 	maxGuardModeAudits = 10000
 	restoreLockWait    = 500 * time.Millisecond
+	answerLockWait     = 5 * time.Second
 )
 
 type GuardMode struct {
@@ -49,6 +50,15 @@ type GuardModeAudit struct {
 type guardModeState struct {
 	SchemaVersion int                   `json:"schema_version"`
 	Active        map[CheckID]GuardMode `json:"active"`
+	// ConsumedAnswers is permanent replay protection for verified Hub answers.
+	// Answer IDs are retained after mode expiry, disable, and audit compaction.
+	ConsumedAnswers map[string]AnswerConsumption `json:"consumed_answers,omitempty"`
+}
+
+type AnswerConsumption struct {
+	Check      CheckID   `json:"check"`
+	ExpiresAt  time.Time `json:"expires_at"`
+	ConsumedAt time.Time `json:"consumed_at"`
 }
 
 // Store owns temporary check relaxations and their bounded JSONL audit.
@@ -56,6 +66,8 @@ type guardModeState struct {
 type Store struct {
 	Dir string
 	Now func() time.Time
+	// writeState is an injectable persistence seam for failure-ordering tests.
+	writeState func(guardModeState) error
 }
 
 func NewStore(dir string) *Store {
@@ -87,15 +99,53 @@ func (s *Store) SetLogOnly(check CheckID, expiresAt time.Time, reason, actor str
 	return s.setLogOnly(check, expiresAt, reason, actor, "")
 }
 
-// SetLogOnlyFromAnswer records the stable Notification Hub answer ID that
-// authorized a steward-applied mode. Callers must first read the exact
-// answered structural ask and validate its requested check and expiry.
+// SetLogOnlyFromAnswer atomically consumes a stable Notification Hub answer
+// ID with one bounded mode interval. Callers must first read the exact
+// answered structural ask and validate its requested check and human identity.
 func (s *Store) SetLogOnlyFromAnswer(check CheckID, expiresAt time.Time, reason, actor, answerID string) error {
 	answerID = strings.TrimSpace(answerID)
 	if answerID == "" {
 		return errors.New("Notification Hub answer ID is required")
 	}
-	return s.setLogOnly(check, expiresAt, reason, actor, answerID)
+	if s == nil || strings.TrimSpace(s.Dir) == "" {
+		return errors.New("guard mode directory is required")
+	}
+	if !validLoosenableCheck(check) {
+		return fmt.Errorf("check %q cannot be put in log-only mode", check)
+	}
+	now := s.now()
+	expiresAt = expiresAt.UTC()
+	if !expiresAt.After(now) || expiresAt.After(now.Add(24*time.Hour)) {
+		return errors.New("answer-authorized expiry must be after now and within 24 hours")
+	}
+	reason, actor = strings.TrimSpace(reason), strings.TrimSpace(actor)
+	if reason == "" || actor == "" {
+		return errors.New("reason and actor are required for an audited log-only mode")
+	}
+	mode := GuardMode{Check: check, Mode: "log_only", EnabledAt: now, ExpiresAt: expiresAt, Actor: actor, Reason: reason, AuthorizationID: answerID}
+	mutate := func(state *guardModeState) error {
+		if _, used := state.ConsumedAnswers[answerID]; used {
+			return fmt.Errorf("Notification Hub answer %q was already consumed", answerID)
+		}
+		// The synced journal record is the durable claim. If the state rename
+		// fails or the process crashes before it, loadLocked restores the
+		// consumed tombstone; retry is refused rather than extending the mode.
+		if err := s.appendAuditLocked(GuardModeAudit{At: now, Action: "answer_consumed", Check: check,
+			ExpiresAt: expiresAt, Actor: actor, Reason: reason, AuthorizationID: answerID}); err != nil {
+			return err
+		}
+		state.ConsumedAnswers[answerID] = AnswerConsumption{Check: check, ExpiresAt: expiresAt, ConsumedAt: now}
+		state.Active[check] = mode
+		return nil
+	}
+	deadline := time.Now().Add(answerLockWait)
+	for {
+		err := s.update(mutate)
+		if !errors.Is(err, ErrStoreBusy) || !time.Now().Before(deadline) {
+			return err
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
 }
 
 func (s *Store) setLogOnly(check CheckID, expiresAt time.Time, reason, actor, authorizationID string) error {
@@ -183,6 +233,9 @@ func (s *Store) RecordSuppressedAction(check CheckID, eventID string, original A
 	if s == nil || strings.TrimSpace(s.Dir) == "" {
 		return GuardMode{}, false, errors.New("guard mode directory is required")
 	}
+	if !validLoosenableCheck(check) {
+		return GuardMode{}, false, fmt.Errorf("check %q cannot suppress enforcement", check)
+	}
 	var mode GuardMode
 	var active bool
 	err := s.update(func(state *guardModeState) error {
@@ -267,26 +320,32 @@ func (s *Store) update(mutate func(*guardModeState) error) error {
 	if err := mutate(&state); err != nil {
 		return err
 	}
+	if s.writeState != nil {
+		return s.writeState(state)
+	}
 	return s.writeLocked(state)
 }
 
 func (s *Store) loadLocked() (guardModeState, error) {
 	data, err := os.ReadFile(filepath.Join(s.Dir, guardModeStateFile))
-	if errors.Is(err, os.ErrNotExist) {
-		return guardModeState{SchemaVersion: 1, Active: map[CheckID]GuardMode{}}, nil
-	}
-	if err != nil {
-		return guardModeState{}, err
-	}
 	var state guardModeState
-	if err := json.Unmarshal(data, &state); err != nil {
-		return guardModeState{}, fmt.Errorf("parse guard mode state: %w", err)
+	if errors.Is(err, os.ErrNotExist) {
+		state = guardModeState{SchemaVersion: 2, Active: map[CheckID]GuardMode{}, ConsumedAnswers: map[string]AnswerConsumption{}}
+	} else if err != nil {
+		return guardModeState{}, err
+	} else {
+		if err := json.Unmarshal(data, &state); err != nil {
+			return guardModeState{}, fmt.Errorf("parse guard mode state: %w", err)
+		}
 	}
-	if state.SchemaVersion != 1 || state.Active == nil {
+	if (state.SchemaVersion != 1 && state.SchemaVersion != 2) || state.Active == nil {
 		return guardModeState{}, errors.New("guard mode state has unsupported schema or missing active map")
 	}
+	if state.ConsumedAnswers == nil {
+		state.ConsumedAnswers = map[string]AnswerConsumption{}
+	}
 	for check, mode := range state.Active {
-		if !validLoosenableCheck(check) || mode.Check != check || mode.Mode != "log_only" || mode.ExpiresAt.IsZero() {
+		if !validStoredCheck(check) || mode.Check != check || mode.Mode != "log_only" || mode.ExpiresAt.IsZero() {
 			return guardModeState{}, fmt.Errorf("invalid active guard mode for %q", check)
 		}
 	}
@@ -297,15 +356,29 @@ func (s *Store) loadLocked() (guardModeState, error) {
 	if err != nil {
 		return guardModeState{}, err
 	}
+	// Recover answer claims that were synced to the journal before a crash or
+	// failed atomic state replacement. Such an answer is burned but does not
+	// recreate a mode that was never committed to state.
+	for _, entry := range audit {
+		if (entry.Action == "answer_consumed" || entry.Action == "enabled") && entry.AuthorizationID != "" {
+			state.ConsumedAnswers[entry.AuthorizationID] = AnswerConsumption{Check: entry.Check, ExpiresAt: entry.ExpiresAt, ConsumedAt: entry.At}
+		}
+	}
 	for check, mode := range state.Active {
 		journaled := false
 		for i := len(audit) - 1; i >= 0; i-- {
 			entry := audit[i]
 			switch {
-			case entry.Action == "enabled" && entry.Check == check:
+			case (entry.Action == "enabled" || entry.Action == "answer_consumed") && entry.Check == check:
 				journaled = true
 				if !sameGuardModeAudit(entry, mode) {
-					delete(state.Active, check)
+					if entry.Action == "enabled" || entry.AuthorizationID == mode.AuthorizationID {
+						delete(state.Active, check)
+					}
+				}
+				if entry.Action == "answer_consumed" && entry.AuthorizationID != mode.AuthorizationID {
+					journaled = false
+					continue
 				}
 				i = -1
 			case (entry.Action == "disabled" || entry.Action == "expired") && entry.Check == check:
@@ -339,16 +412,46 @@ func containsRisk(checks []CheckID, check CheckID) bool {
 }
 
 func (s *Store) writeLocked(state guardModeState) error {
+	state.SchemaVersion = 2
+	if state.ConsumedAnswers == nil {
+		state.ConsumedAnswers = map[string]AnswerConsumption{}
+	}
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return err
 	}
 	tmp := filepath.Join(s.Dir, fmt.Sprintf(".%s.%d.tmp", guardModeStateFile, time.Now().UnixNano()))
-	if err := os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+	file, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(append(data, '\n')); err != nil {
+		_ = file.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		_ = os.Remove(tmp)
+		return err
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(tmp)
 		return err
 	}
 	if err := os.Rename(tmp, filepath.Join(s.Dir, guardModeStateFile)); err != nil {
 		_ = os.Remove(tmp)
+		return err
+	}
+	dir, err := os.Open(s.Dir)
+	if err != nil {
+		return err
+	}
+	if err := dir.Sync(); err != nil {
+		_ = dir.Close()
+		return err
+	}
+	if err := dir.Close(); err != nil {
 		return err
 	}
 	return nil
@@ -388,7 +491,15 @@ func (s *Store) compactAuditLocked() error {
 	activeEnables := map[CheckID]int{}
 	for i, entry := range entries {
 		switch entry.Action {
+		case "answer_consumed":
+			// This is a permanent one-use tombstone, including failed commits.
+			// It must survive compaction even if state is later damaged.
+			continue
 		case "enabled":
+			if entry.AuthorizationID != "" {
+				// Retain G11-era answer-backed enables during migration.
+				continue
+			}
 			activeEnables[entry.Check] = i
 		case "disabled", "expired":
 			delete(activeEnables, entry.Check)
@@ -412,7 +523,7 @@ func (s *Store) compactAuditLocked() error {
 		return fmt.Errorf("create compacted guard audit: %w", err)
 	}
 	for i, entry := range entries {
-		if !keep[i] {
+		if !keep[i] && entry.Action != "answer_consumed" && !(entry.Action == "enabled" && entry.AuthorizationID != "") {
 			continue
 		}
 		data, err := json.Marshal(entry)
@@ -466,10 +577,31 @@ func (s *Store) readAuditLocked() ([]GuardModeAudit, error) {
 }
 
 func validLoosenableCheck(check CheckID) bool {
-	switch check {
-	case RiskInspection, RiskFrozenReproduce, RiskDependencyAdd, RiskDependencyUpgrade, RiskDependencyRemove, RiskLifecycle, RiskPublish, RiskOpaque, RiskUnknown:
-		return true
-	default:
+	// New modes must target an owner-issued, provider-namespaced evaluator ID.
+	// The former RiskClass strings remain readable from disk for migration and
+	// expiry/audit, but cannot be enabled, disabled, or used for suppression.
+	if strings.TrimSpace(check) != check || strings.ContainsAny(check, " \t\r\n") {
 		return false
 	}
+	parts := strings.SplitN(check, ":", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return false
+	}
+	for _, r := range parts[0] + parts[1] {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("._/-", r)) {
+			return false
+		}
+	}
+	switch CheckID(check) {
+	case RiskInspection, RiskFrozenReproduce, RiskDependencyAdd, RiskDependencyUpgrade, RiskDependencyRemove, RiskLifecycle, RiskPublish, RiskOpaque, RiskUnknown:
+		return false
+	}
+	return true
+}
+
+// validStoredCheck keeps historical RiskClass records readable so they can
+// expire or be cleared by the hard-stop tripwire. They remain invalid for
+// enable, disable, and suppression operations.
+func validStoredCheck(check CheckID) bool {
+	return validLoosenableCheck(check) || check == RiskInspection || check == RiskFrozenReproduce || check == RiskDependencyAdd || check == RiskDependencyUpgrade || check == RiskDependencyRemove || check == RiskLifecycle || check == RiskPublish || check == RiskOpaque || check == RiskUnknown
 }

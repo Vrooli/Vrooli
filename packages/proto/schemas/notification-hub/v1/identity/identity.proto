@@ -38,6 +38,9 @@ service IdentityService {
 message LoginRequest {
   string email = 1;
   string password = 2;
+  string mfa_challenge = 3;
+  string totp_code = 4;
+  string recovery_code = 5;
 }
 message LoginResponse {
   // Empty for browser sessions; the cookie carries the session.
@@ -45,6 +48,8 @@ message LoginResponse {
   string refresh_token = 2;
   string email = 3;
   string user_id = 4;
+  bool mfa_required = 5;
+  string mfa_challenge = 6;
 }
 message GetSessionRequest {}
 message GetSessionResponse {

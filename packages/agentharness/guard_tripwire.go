@@ -17,42 +17,6 @@ func (r Runtime) guardModeStore() *GuardModeStore {
 	return NewGuardModeStore(r.Store.Dir)
 }
 
-func (r Runtime) applyLogOnly(event ToolEvent, risk RiskClass, now time.Time, decision *Decision) {
-	store := r.guardModeStore()
-	if store == nil {
-		return
-	}
-	original := decision.Action
-	var mode GuardMode
-	var active bool
-	var err error
-	if original == ActionAllow {
-		modes, readErr := store.Active(now)
-		err = readErr
-		for _, candidate := range modes {
-			if candidate.Check == risk {
-				mode, active = candidate, true
-				break
-			}
-		}
-	} else {
-		mode, active, err = store.RecordSuppressedAction(risk, event.EventID, original, now)
-	}
-	if err != nil {
-		decision.Degraded = true
-		decision.Evidence = append(decision.Evidence, Evidence{Code: "CHECK_MODES_UNAVAILABLE", Message: "temporary check mode could not be confirmed and normal enforcement remains active", Source: "policy-runtime", Severity: "error"})
-		return
-	}
-	if !active {
-		return
-	}
-	if original != ActionAllow {
-		decision.Action = ActionAllow
-		decision.Reason = "check is in audited log-only mode until " + mode.ExpiresAt.UTC().Format(time.RFC3339) + "; original action was " + string(original)
-	}
-	decision.Evidence = append(decision.Evidence, Evidence{Code: "CHECK_LOG_ONLY", Message: "enforcement was observed but not applied under a temporary, audited check mode", Source: "policy-runtime", Facts: map[string]string{"check": string(risk), "mode": mode.Mode, "expires_at": mode.ExpiresAt.UTC().Format(time.RFC3339), "original_action": string(original), "event_id": event.EventID}, Severity: "warning"})
-}
-
 func (r Runtime) hardStopDecision(event ToolEvent, risk RiskClass, hardStop HardStopClass, now time.Time) (Decision, error) {
 	return r.hardStopDecisionValue(event, risk, hardStop, now), nil
 }
@@ -118,6 +82,17 @@ func hardStopForEvent(event ToolEvent) HardStopClass {
 		}
 		return ""
 	}
+	if unquotedHereDocHasExpansion(event) {
+		// Unquoted here-documents perform parameter, command and arithmetic
+		// expansion before the receiving command runs. Treat this as opaque
+		// executable content; never let the literal-file exception skip it.
+		return HardStopUnknownEffect
+	}
+	if hasOpaqueScriptExecution(event) {
+		// The hook event contains the launcher and path, not the code's effects.
+		// Refuse to classify a file-backed interpreter run from argv keywords.
+		return HardStopUnknownEffect
+	}
 	if isNetworkRedirection(event) {
 		return HardStopOutsideMessage
 	}
@@ -148,7 +123,8 @@ func hardStopForEvent(event ToolEvent) HardStopClass {
 		activeEffect && (hasSensitiveResource(tokens) && secretOperation || hasQualifiedCall(tokens, "password", "secret", "secrets", "credential", "credentials", "api_key", "private_key", "access_token", "refresh_token") && secretOperation) {
 		return HardStopSecret
 	}
-	if activeEffect && (hasHookToken(tokens, "payment", "payments", "purchase", "purchases", "checkout", "billing", "invoice", "charge", "charges", "refund", "refunds", "money-transfer", "wire-transfer", "buy-now", "stripe.charge", "stripe.payment_intents.create", "stripe.paymentintents.create") || hasQualifiedCall(tokens, "paymentintents.create", "payment_intents.create", "paymentintents.confirm", "payment_intents.confirm", "charges.create", "charges.update")) {
+	checkoutPayment := hasHookToken(tokens, "checkout") && hasHookToken(tokens, "stripe", "paypal", "square", "shopify", "woocommerce", "payment", "payments", "purchase", "purchases", "billing", "charge", "charges", "invoice", "refund", "refunds")
+	if activeEffect && (hasHookToken(tokens, "payment", "payments", "purchase", "purchases", "billing", "invoice", "charge", "charges", "refund", "refunds", "money-transfer", "wire-transfer", "buy-now", "stripe.charge", "stripe.payment_intents.create", "stripe.paymentintents.create") || checkoutPayment || hasQualifiedCall(tokens, "paymentintents.create", "payment_intents.create", "paymentintents.confirm", "payment_intents.confirm", "charges.create", "charges.update")) {
 		return HardStopMoney
 	}
 	transport := hasHookToken(tokens, "slack", "discord", "telegram", "whatsapp", "email", "smtp", "webhook", "sendgrid", "mailgun", "sendmail", "mutt")
@@ -762,6 +738,7 @@ func literalHereDocFileWrite(event ToolEvent) (string, string, bool) {
 	if delimiter == "" {
 		return "", "", false
 	}
+	quotedDelimiter := strings.HasPrefix(delimFields[0], "'") || strings.HasPrefix(delimFields[0], `"`)
 	lines := strings.Split(event.Shell[newline+1:], "\n")
 	for index, line := range lines {
 		if line != delimiter {
@@ -772,9 +749,119 @@ func literalHereDocFileWrite(event ToolEvent) (string, string, bool) {
 				return "", "", false
 			}
 		}
+		if !quotedDelimiter && hereDocHasExpansion(lines[:index]) {
+			return "", "", false
+		}
 		return header, target, true
 	}
 	return "", "", false
+}
+
+func unquotedHereDocHasExpansion(event ToolEvent) bool {
+	toolTokens := hookEventTokens(ToolEvent{Tool: event.Tool})
+	if !hasHookToken(toolTokens, "shell", "bash", "sh", "zsh") {
+		return false
+	}
+	newline := strings.IndexByte(event.Shell, '\n')
+	if newline < 0 {
+		return false
+	}
+	header := event.Shell[:newline]
+	if !strings.Contains(header, "<<") || !strings.Contains(header, ">") || strings.ContainsAny(header, ";|&`$()") {
+		return false
+	}
+	fields := strings.Fields(header)
+	if len(fields) == 0 || !strings.EqualFold(filepath.Base(strings.Trim(fields[0], "'\"")), "cat") {
+		return false
+	}
+	marker := strings.Index(header, "<<") + 2
+	delimFields := strings.Fields(strings.TrimSpace(header[marker:]))
+	if len(delimFields) == 0 || strings.HasPrefix(delimFields[0], "'") || strings.HasPrefix(delimFields[0], `"`) {
+		return false
+	}
+	delimiter := strings.Trim(delimFields[0], "'\"")
+	if delimiter == "" {
+		return false
+	}
+	for _, line := range strings.Split(event.Shell[newline+1:], "\n") {
+		if line == delimiter {
+			return false
+		}
+		if hasUnescapedExpansion(line) {
+			return true
+		}
+	}
+	return false
+}
+
+func hereDocHasExpansion(lines []string) bool {
+	for _, line := range lines {
+		if hasUnescapedExpansion(line) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasUnescapedExpansion(line string) bool {
+	escaped := false
+	for _, char := range line {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if char == '\\' {
+			escaped = true
+			continue
+		}
+		if char == '$' || char == '`' {
+			return true
+		}
+	}
+	return false
+}
+
+func hasOpaqueScriptExecution(event ToolEvent) bool {
+	return hasOpaqueScriptExecutionDepth(event, 0)
+}
+
+func hasOpaqueScriptExecutionDepth(event ToolEvent, depth int) bool {
+	if depth >= 4 {
+		return false
+	}
+	tool := strings.ToLower(filepath.Base(strings.Trim(event.Tool, "'\"")))
+	if !hasHookToken([]string{tool}, "shell", "bash", "sh", "zsh") {
+		return false
+	}
+	for _, command := range splitShellCommands(event.Shell) {
+		if nested := nestedShellScriptFromCommand(command); nested != "" && hasOpaqueScriptExecutionDepth(ToolEvent{Tool: "shell", Shell: nested}, depth+1) {
+			return true
+		}
+		fields := shellWords(command)
+		for index, field := range fields {
+			base := strings.ToLower(filepath.Base(strings.Trim(field, "'\"")))
+			if !hasHookToken([]string{base}, "python", "python2", "python3", "node", "deno", "ruby", "perl", "pwsh", "powershell", "bash", "sh", "zsh") {
+				continue
+			}
+			for _, arg := range fields[index+1:] {
+				if arg == "-n" || arg == "--check" {
+					break
+				}
+				if arg == "-c" || arg == "-e" || arg == "--eval" || arg == "-Command" || arg == "--command" {
+					break
+				}
+				if !strings.HasPrefix(arg, "-") {
+					return true
+				}
+			}
+		}
+	}
+	for _, nested := range shellSubstitutionScripts(event.Shell) {
+		if hasOpaqueScriptExecutionDepth(ToolEvent{Tool: "shell", Shell: nested}, depth+1) {
+			return true
+		}
+	}
+	return false
 }
 
 func heredocOutputTarget(fields []string) (string, bool) {

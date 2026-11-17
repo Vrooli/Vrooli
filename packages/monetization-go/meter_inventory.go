@@ -1,11 +1,23 @@
 package monetization
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
+	"sync"
+)
+
+//go:embed meter-inventory.json
+var committedMeterInventory []byte
+
+var (
+	committedInventoryOnce sync.Once
+	committedInventory     MeterInventory
+	committedInventoryErr  error
 )
 
 // MeterInventory is the generated vocabulary consumed by release-ladder
@@ -21,6 +33,56 @@ type MeterSummary struct {
 	DeclaredBy []string `json:"declared_by"`
 	BundleKeys []string `json:"bundle_keys"`
 	Byok       bool     `json:"byok,omitempty"`
+}
+
+// CommittedMeterInventory returns the generated inventory embedded into this
+// build. Callers receive a copy so runtime validation cannot mutate it.
+func CommittedMeterInventory() (MeterInventory, error) {
+	committedInventoryOnce.Do(func() {
+		committedInventoryErr = json.Unmarshal(committedMeterInventory, &committedInventory)
+	})
+	if committedInventoryErr != nil {
+		return MeterInventory{}, fmt.Errorf("decode committed meter inventory: %w", committedInventoryErr)
+	}
+	copy := MeterInventory{Source: committedInventory.Source, Meters: make([]MeterSummary, len(committedInventory.Meters))}
+	for index, meter := range committedInventory.Meters {
+		copy.Meters[index] = meter
+		copy.Meters[index].DeclaredBy = append([]string(nil), meter.DeclaredBy...)
+		copy.Meters[index].BundleKeys = append([]string(nil), meter.BundleKeys...)
+	}
+	return copy, nil
+}
+
+func findCommittedMeter(key, bundle, app string) (MeterSummary, bool, error) {
+	inventory, err := CommittedMeterInventory()
+	if err != nil {
+		return MeterSummary{}, false, err
+	}
+	key = strings.TrimSpace(key)
+	bundle = strings.TrimSpace(bundle)
+	app = strings.TrimSpace(app)
+	if key == "" || bundle == "" || app == "" {
+		return MeterSummary{}, false, nil
+	}
+	for _, meter := range inventory.Meters {
+		if meter.LimitKey != key || !contains(meter.BundleKeys, bundle) {
+			continue
+		}
+		if app != "" && !contains(meter.DeclaredBy, app) {
+			return MeterSummary{}, false, nil
+		}
+		return meter, true, nil
+	}
+	return MeterSummary{}, false, nil
+}
+
+func contains(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
+		}
+	}
+	return false
 }
 
 type monetizationDeclaration struct {

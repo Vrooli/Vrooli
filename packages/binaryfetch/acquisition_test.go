@@ -3,8 +3,6 @@ package binaryfetch
 import (
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -147,13 +145,6 @@ func TestAcquisitionSchemaAndValidationAcceptTarXZ(t *testing.T) {
 	if err := step.Validate(); err != nil {
 		t.Fatalf("tar.xz composed step rejected: %v", err)
 	}
-	data, err := RenderAcquisitionSchema()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(data), `"tar.xz"`) {
-		t.Fatal("generated acquisition schema omits tar.xz")
-	}
 }
 
 func TestAcquisitionExplainNamesRejectedCandidates(t *testing.T) {
@@ -163,32 +154,6 @@ func TestAcquisitionExplainNamesRejectedCandidates(t *testing.T) {
 	}}).Explain(Facts{"os": "linux", "arch": "amd64"})
 	if explanation.Selected != 1 || explanation.Candidates[0].Reason == "" || !explanation.Candidates[1].Selected {
 		t.Fatalf("unexpected explanation: %#v", explanation)
-	}
-}
-
-func TestAcquisitionSchemaDrift(t *testing.T) {
-	root := filepath.Join("..", "..")
-	if err := ValidateAcquisitionSchema(root); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestAcquisitionSchemaDriftDetectsChangedFragment(t *testing.T) {
-	root := t.TempDir()
-	if err := SyncAcquisitionSchema(root); err != nil {
-		t.Fatalf("SyncAcquisitionSchema: %v", err)
-	}
-	path := filepath.Join(root, filepath.FromSlash(AcquisitionSchemaPath))
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read generated schema: %v", err)
-	}
-	data = []byte(strings.Replace(string(data), `"title": "Declared artifact acquisition"`, `"title": "tampered"`, 1))
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		t.Fatalf("tamper generated schema: %v", err)
-	}
-	if err := ValidateAcquisitionSchema(root); err == nil || !strings.Contains(err.Error(), "acquisition schema is stale") {
-		t.Fatalf("ValidateAcquisitionSchema after tamper = %v, want stale-schema error", err)
 	}
 }
 

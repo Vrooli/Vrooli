@@ -15,6 +15,8 @@ service ConversationsService {
   // nothing. Same authentication as Ask.
   rpc CheckAsk(CheckAskRequest) returns (CheckAskResponse);
   rpc Answer(AnswerRequest) returns (AnswerResponse);
+  // Fresh owner authentication and the exact root decision are submitted together.
+  rpc AnswerRootWithPassword(AnswerRootWithPasswordRequest) returns (AnswerRootWithPasswordResponse);
   // MarkRead closes a status update without recording a decision answer.
   rpc MarkRead(MarkReadRequest) returns (MarkReadResponse);
   rpc Wait(WaitRequest) returns (WaitResponse);
@@ -410,6 +412,22 @@ message PutAttachmentBlobResponse {
   int64 size_bytes = 2;
   // True when the Hub already held these bytes.
   bool existed = 3;
+}
+
+message AnswerRootWithPasswordRequest {
+  string ask_id = 1;
+  int32 revision_count = 2;
+  string answer = 3;
+  string email = 4;
+  string password = 5;
+  string mfa_challenge = 6;
+  string totp_code = 7;
+  string recovery_code = 8;
+}
+message AnswerRootWithPasswordResponse {
+  bool mfa_required = 1;
+  string mfa_challenge = 2;
+  string answered_at = 3;
 }
 
 message AnswerRequest {

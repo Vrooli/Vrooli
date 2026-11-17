@@ -3,6 +3,7 @@ package cliutil
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,13 +26,16 @@ var (
 	sqliteLookPathFn        = exec.LookPath
 	sqliteExecCommandFn     = exec.CommandContext
 	peerRecordLookupFn      = lookupPeerRecord
+	peerOwnerPIDAliveFn     = isPIDRunning
 	runtimeRegistryLookupFn = lookupRuntimeRegistry
+	desktopPortLookupFn     = lookupDesktopPort
 )
 
 // DOC: docs/reference/port-resolution.md
 // Port lookup uses the lifecycle peer record and runtime registry before
 // falling back to the vrooli CLI. The shared cache prevents repeated work for
-// long-lived callers while retaining a short retry window for startup.
+// long-lived callers while retaining a short retry window for confirmed
+// stopped targets. Transient lookup failures are never cached.
 //
 // This cache is the process-wide owner of the fallback command. api-core's
 // discovery.Resolver uses the same ladder and cache, so local authorities are
@@ -78,25 +82,25 @@ func PortLookupStats() PortLookupCounters {
 // portLookupTimeout bounds a lookup whose caller supplied no deadline.
 const portLookupTimeout = 5 * time.Second
 
-// Default staleness tolerances for callers that express no preference. A
-// resolved port is stable for the lifetime of a running scenario, so it may be
-// held a while. An unresolved one is re-checked promptly because it usually
-// means the scenario is still starting.
+// Default staleness tolerances for callers that express no preference. Keep
+// successful addresses fresh across lifecycle restarts for every direct
+// cliutil consumer; callers that need another tolerance must opt into it.
+// Confirmed stopped targets use a short retry window; other failures are
+// retried immediately.
 const (
-	defaultPortMaxAge         = 60 * time.Second
-	defaultPortNegativeMaxAge = 3 * time.Second
+	defaultPortMaxAge         = 2 * time.Second
+	defaultPortNegativeMaxAge = 500 * time.Millisecond
 )
 
 // PortCachePolicy states how stale a cached lookup a caller is willing to
-// accept. Freshness is a property of the caller, not of the entry: a resolver
-// that must notice a restarted scenario within seconds and a CLI helper that
-// can hold an address for a minute share the same underlying process, but
-// neither imposes its tolerance on the other. This is what lets one cache serve
-// both without either giving up its guarantee.
+// accept. Freshness is a property of the caller. The default is two seconds to
+// match the shared Go and Node scenario resolvers; callers may opt into a
+// different bound when their contract requires it.
 type PortCachePolicy struct {
 	// MaxAge bounds reuse of a successful lookup. Zero disables reuse.
 	MaxAge time.Duration
-	// NegativeMaxAge bounds reuse of a failed lookup. Zero disables reuse.
+	// NegativeMaxAge bounds reuse of a confirmed stopped-target lookup. Other
+	// failures are never cached. Zero disables negative reuse.
 	NegativeMaxAge time.Duration
 }
 
@@ -113,6 +117,29 @@ type ScenarioPortOutcome struct {
 	Port   string
 	Output string
 	Err    error
+}
+
+const ScenarioPortCodeNotRunning = "scenario_not_running"
+
+// ScenarioPortError carries the CLI's machine-readable port failure class.
+type ScenarioPortError struct {
+	Code    string
+	Message string
+}
+
+func (e *ScenarioPortError) Error() string {
+	if e == nil {
+		return "scenario port lookup failed"
+	}
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.Code
+}
+
+func IsScenarioPortNotRunning(err error) bool {
+	var target *ScenarioPortError
+	return errors.As(err, &target) && target.Code == ScenarioPortCodeNotRunning
 }
 
 // Resolved reports whether the lookup produced a usable port.
@@ -181,8 +208,8 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 	}
 
 	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
-		outcome := lookupDesktopPort(ctx, target, portVar)
-		if ctx.Err() == nil {
+		outcome := desktopPortLookupFn(ctx, target, portVar)
+		if ctx.Err() == nil && outcome.Resolved() {
 			entry.outcome, entry.resolved = outcome, portCacheNow()
 		}
 		return outcome
@@ -223,8 +250,16 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 		return outcome
 	}
 
-	entry.outcome, entry.resolved = outcome, portCacheNow()
+	if outcome.Resolved() || scenarioNotRunningOutcome(outcome) {
+		entry.outcome, entry.resolved = outcome, portCacheNow()
+	} else {
+		entry.resolved = time.Time{}
+	}
 	return outcome
+}
+
+func scenarioNotRunningOutcome(outcome ScenarioPortOutcome) bool {
+	return IsScenarioPortNotRunning(outcome.Err)
 }
 
 func portLookupStatsPath() string {
@@ -285,11 +320,7 @@ func readPortLookupStats(path string) (PortLookupCounters, bool) {
 // the lifecycle-owned registry remains read-only and the subprocess is only
 // reached after the cheap peer-record miss.
 func lookupRuntimeRegistry(ctx context.Context, target, portVar string) ScenarioPortOutcome {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ScenarioPortOutcome{Err: err}
-	}
-	dbPath, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyRuntimeDB)
+	dbPath, err := runtimeHomeEntryPath(repocontract.HomeKeyRuntimeDB)
 	if err != nil {
 		return ScenarioPortOutcome{Err: err}
 	}
@@ -329,11 +360,7 @@ func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
 	}
 	requestedVariant = normalizeVariant(requestedVariant)
 	target = InstanceSlug(requestedScenario, requestedVariant)
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ScenarioPortOutcome{Err: err}
-	}
-	root, err := repocontract.VrooliUserRoot(home)
+	root, err := runtimeHomePath()
 	if err != nil {
 		return ScenarioPortOutcome{Err: err}
 	}
@@ -354,17 +381,42 @@ func lookupPeerRecord(target, portVar string) ScenarioPortOutcome {
 		return ScenarioPortOutcome{Err: err}
 	}
 	recordVariant := normalizeVariant(record.Instance) // Empty is the pre-variant live record shape.
-	if record.SchemaVersion != 1 || record.Scenario != requestedScenario || recordVariant != requestedVariant || !isPIDRunning(record.OwnerPID) {
+	if record.SchemaVersion != 1 || record.Scenario != requestedScenario || recordVariant != requestedVariant || !peerOwnerPIDAliveFn(record.OwnerPID) {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 	port, ok := record.Ports[normalizePortClaimKey(portVar)]
-	if !ok || port <= 0 {
+	if !ok || port < 1 || port > 65535 {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 	if record.Provides != nil && !slices.Contains(record.Provides, normalizePortClaimKey(portVar)) {
 		return ScenarioPortOutcome{Err: os.ErrNotExist}
 	}
 	return ScenarioPortOutcome{Port: strconv.Itoa(port)}
+}
+
+// runtimeHomePath resolves the same runtime-home authority for peer records
+// and the runtime registry. VROOLI_HOME is the explicit runtime-home override;
+// otherwise the repo-contract default is resolved from the OS user home.
+func runtimeHomePath() (string, error) {
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_HOME")); configured != "" {
+		return filepath.Clean(configured), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.VrooliUserRoot(home)
+}
+
+func runtimeHomeEntryPath(key string) (string, error) {
+	if configured := strings.TrimSpace(os.Getenv("VROOLI_HOME")); configured != "" {
+		return repocontract.RuntimeHomeEntryPathAtRoot(configured, key)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return repocontract.RuntimeHomeEntryPath(home, key)
 }
 
 // normalizePortClaimKey maps the public environment spelling to the claim
@@ -425,9 +477,45 @@ func runScenarioPortCommand(ctx context.Context, target, portVar string) Scenari
 	res := runVrooliFn(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: cliinvoke.ScenarioPortJSON(target, portVar)})
 	text := strings.TrimSpace(string(res.Combined()))
 	if err := res.Error(); err != nil {
+		if failure := scenarioPortFailureFromJSON(text); failure != nil {
+			return ScenarioPortOutcome{Output: text, Err: failure}
+		}
 		return ScenarioPortOutcome{Output: text, Err: err}
 	}
+	return parseScenarioPortCommandOutput(text)
+}
+
+func parseScenarioPortCommandOutput(text string) ScenarioPortOutcome {
+	var payload struct {
+		Success   *bool  `json:"success"`
+		Port      int    `json:"port"`
+		Error     string `json:"error"`
+		ErrorCode string `json:"error_code"`
+	}
+	if json.Unmarshal([]byte(text), &payload) == nil && payload.Success != nil {
+		if *payload.Success && payload.Port > 0 && payload.Port <= 65535 {
+			return ScenarioPortOutcome{Port: strconv.Itoa(payload.Port), Output: text}
+		}
+		if payload.ErrorCode == ScenarioPortCodeNotRunning {
+			return ScenarioPortOutcome{Output: text, Err: &ScenarioPortError{Code: payload.ErrorCode, Message: payload.Error}}
+		}
+		return ScenarioPortOutcome{Output: text, Err: errors.New("CLI returned an unsuccessful scenario port response")}
+	}
 	return ScenarioPortOutcome{Port: sanitizePortOutput(text), Output: text}
+}
+
+func scenarioPortFailureFromJSON(text string) *ScenarioPortError {
+	var payload struct {
+		ErrorCode string `json:"error_code"`
+		Error     string `json:"error"`
+	}
+	if json.Unmarshal([]byte(text), &payload) != nil {
+		return nil
+	}
+	if payload.ErrorCode != ScenarioPortCodeNotRunning {
+		return nil
+	}
+	return &ScenarioPortError{Code: payload.ErrorCode, Message: payload.Error}
 }
 
 // boundedLookupContext honors a caller's deadline when it has one and otherwise

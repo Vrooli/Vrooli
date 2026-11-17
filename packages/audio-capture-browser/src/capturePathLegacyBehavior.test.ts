@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FakeVoiceTransport as FakeWebSocket, type FakeVoiceConnection, stubCryptoWithoutSubtle } from "./fakeVoiceTransport.test";
 import { forgetUnfinishedSession, loadUnfinishedSession } from "./sessionIdentity";
 import { MemoryTurnJournalStore, TurnJournal, type JournalRecord } from "./turnJournal";
 import { fallbackDelayMs, PcmVoiceStreamProvider } from "./pcmVoiceStreamProvider";
@@ -18,28 +19,6 @@ type FakeTrack = {
   onunmute: (() => void) | null;
   stop: ReturnType<typeof vi.fn>;
 };
-
-class FakeWebSocket {
-  static OPEN = 1;
-  static CLOSED = 3;
-  static CONNECTING = 0;
-  static instances: FakeWebSocket[] = [];
-  static autoOpen = true;
-  readyState = FakeWebSocket.CONNECTING;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((event: { data: string }) => void) | null = null;
-  send = vi.fn();
-  close = vi.fn(() => { this.readyState = FakeWebSocket.CLOSED; });
-
-  constructor(readonly url: string) {
-    FakeWebSocket.instances.push(this);
-    if (FakeWebSocket.autoOpen) queueMicrotask(() => {
-      this.readyState = FakeWebSocket.OPEN;
-      this.onopen?.();
-    });
-  }
-}
 
 function makeStream(): { stream: MediaStream; track: FakeTrack } {
   const track: FakeTrack = {
@@ -78,19 +57,17 @@ describe("ported capture-path behavior", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
+    stubCryptoWithoutSubtle();
     FakeWebSocket.instances = [];
     FakeWebSocket.autoOpen = true;
     streams = [makeStream(), makeStream(), makeStream()];
     captureOnFrame = null;
     getUserMedia = vi.fn(async () => streams.shift()!.stream);
     transcribeRetained = vi.fn(async () => "recovered");
-    (globalThis as unknown as { WebSocket: typeof FakeWebSocket }).WebSocket = FakeWebSocket;
+
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: {
-        buildStreamUrl: () => "ws://voice.test/stream",
-        transcribeRetained,
-      },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -102,10 +79,11 @@ describe("ported capture-path behavior", () => {
   afterEach(() => {
     provider.dispose();
     forgetUnfinishedSession();
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  async function start(): Promise<FakeWebSocket> {
+  async function start(): Promise<FakeVoiceConnection> {
     await provider.start();
     await settle();
     return FakeWebSocket.instances.at(-1)!;
@@ -122,7 +100,7 @@ describe("ported capture-path behavior", () => {
     const store = new FailOnceJournalStore();
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: { buildStreamUrl: () => "ws://voice.test/stream", transcribeRetained },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -152,7 +130,7 @@ describe("ported capture-path behavior", () => {
     const store = new FailOnceJournalStore();
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: { buildStreamUrl: () => "ws://voice.test/stream", transcribeRetained },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: vi.fn() };
@@ -172,7 +150,7 @@ describe("ported capture-path behavior", () => {
 
     pushFrame(1_600);
     await vi.waitFor(() => {
-      expect(socket.send.mock.calls.filter(([payload]) => payload instanceof ArrayBuffer).length).toBe(2);
+      expect(socket.send.mock.calls.filter(([payload]) => typeof payload === "object" && payload !== null && "sequence" in payload).length).toBe(2);
     });
   });
 
@@ -198,20 +176,18 @@ describe("ported capture-path behavior", () => {
     expect(uncommittedRemainder({ committedText: "committed words", latestPartial: "committed words" })).toBeNull();
   });
 
-  it("sends versioned PCM frames in capture order", async () => {
+  it("sends typed PCM chunks in capture order", async () => {
     const socket = await start();
     pushFrame(128);
     pushFrame(64);
     await vi.advanceTimersByTimeAsync(100);
     await vi.waitFor(() => {
-      const sentFrames = socket.send.mock.calls.filter(([payload]) => payload instanceof ArrayBuffer);
+      const sentFrames = socket.send.mock.calls.filter(([payload]) => typeof payload === "object" && payload !== null && "sequence" in payload);
       expect(sentFrames).toHaveLength(1);
     });
 
-    const frames = socket.send.mock.calls.map(([payload]) => payload).filter((payload): payload is ArrayBuffer => payload instanceof ArrayBuffer);
-    expect(frames).toHaveLength(1);
-    expect(new TextDecoder().decode(new Uint8Array(frames[0]).slice(0, 4))).toBe("ATV2");
-    expect(new DataView(frames[0]).getBigUint64(4, false)).toBe(0n);
+    expect(socket.sendAudio).toHaveBeenCalledOnce();
+    expect(socket.sendAudio.mock.calls[0]![0]).toMatchObject({ sequence: 0n, startSample: 0n, endSample: 192n });
   });
 
   it("flushes buffered PCM before done when the socket opens after stop", async () => {
@@ -224,10 +200,10 @@ describe("ported capture-path behavior", () => {
 
     socket.readyState = FakeWebSocket.OPEN;
     socket.onopen?.();
-    await vi.waitFor(() => expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: "done" })));
+    await vi.waitFor(() => expect(socket.send).toHaveBeenCalledWith({ type: "end" }));
     const payloads = socket.send.mock.calls.map(([payload]) => payload);
-    expect(payloads[0]).toBeInstanceOf(ArrayBuffer);
-    expect(payloads.at(-1)).toBe(JSON.stringify({ type: "done" }));
+    expect(payloads[0]).toMatchObject({ sequence: 0n });
+    expect(payloads.at(-1)).toEqual({ type: "end" });
   });
 
   it("replays journaled frames after reconnect without changing their identity", async () => {
@@ -235,15 +211,15 @@ describe("ported capture-path behavior", () => {
     pushFrame();
     await vi.advanceTimersByTimeAsync(100);
     await settle();
-    const original = first.send.mock.calls.find(([payload]) => payload instanceof ArrayBuffer)?.[0] as ArrayBuffer;
+    const original = first.send.mock.calls.find(([payload]) => typeof payload === "object" && payload !== null && "sequence" in payload)?.[0];
 
     first.readyState = FakeWebSocket.CLOSED;
     first.onclose?.();
     await vi.advanceTimersByTimeAsync(1_000);
     await settle();
     const second = FakeWebSocket.instances.at(-1)!;
-    const replay = second.send.mock.calls.find(([payload]) => payload instanceof ArrayBuffer)?.[0] as ArrayBuffer;
-    expect(new Uint8Array(replay)).toEqual(new Uint8Array(original));
+    const replay = second.send.mock.calls.find(([payload]) => typeof payload === "object" && payload !== null && "sequence" in payload)?.[0];
+    expect(replay).toEqual(original);
   });
 
   it("compacts acknowledged journal coverage on reconnect", async () => {
@@ -259,9 +235,9 @@ describe("ported capture-path behavior", () => {
     await vi.advanceTimersByTimeAsync(1_000);
     await settle();
     const second = FakeWebSocket.instances.at(-1)!;
-    const replay = second.send.mock.calls.find(([payload]) => payload instanceof ArrayBuffer)?.[0] as ArrayBuffer;
-    expect(new DataView(replay).getBigUint64(4, false)).toBe(1n);
-    expect(second.send.mock.calls.filter(([payload]) => payload instanceof ArrayBuffer)).toHaveLength(1);
+    const replay = second.send.mock.calls.find(([payload]) => typeof payload === "object" && payload !== null && "sequence" in payload)?.[0];
+    expect(replay).toMatchObject({ sequence: 1n });
+    expect(second.send.mock.calls.filter(([payload]) => typeof payload === "object" && payload !== null && "sequence" in payload)).toHaveLength(1);
   });
 
   it("retains the journal and fails visibly when coverage is incomplete", async () => {
@@ -326,7 +302,7 @@ describe("ported capture-path behavior", () => {
     provider.dispose();
     provider = new PcmVoiceStreamProvider({
       getUserMedia,
-      transport: { buildStreamUrl: () => "ws://voice.test/stream", transcribeRetained },
+      transport: new FakeWebSocket(transcribeRetained),
       captureFactory: async (_stream, onFrame) => {
         captureOnFrame = onFrame;
         return { stop: captureStop };

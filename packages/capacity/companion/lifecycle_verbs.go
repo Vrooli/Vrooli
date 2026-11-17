@@ -3,6 +3,7 @@ package companion
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -39,6 +40,7 @@ type LifecycleStep struct {
 type LifecycleVerbsConfig struct {
 	Resource string
 	Steps    []LifecycleStep
+	Stdout   io.Writer
 	// Exec runs the control-plane command. nil shells the on-PATH vrooli.
 	Exec func(ctx context.Context, env []string, name string, args ...string) error
 	// Apply optionally handles a step after validation. It is used when a
@@ -72,7 +74,19 @@ func LifecycleCapacityCommands(cfg LifecycleVerbsConfig) cliapp.SubcommandGroup 
 	}
 	apply := StepsFromLabels(labels, applyStep)
 
-	verbs := Verbs{Resource: cfg.Resource, Degrade: apply}
+	preview := func(_ context.Context, label string) error {
+		step, ok := byLabel[label]
+		if !ok {
+			return fmt.Errorf("%w %q (declared steps: %s)", ErrUnknownStep, label, strings.Join(labels, ", "))
+		}
+		out := cfg.Stdout
+		if out == nil {
+			out = os.Stdout
+		}
+		fmt.Fprintf(out, "%s capacity dry-run:\n  target rung: %s\n  control-plane action: vrooli resource %s %s\n  environment: %s\n  effect: %s\n", cfg.Resource, label, step.Action, cfg.Resource, strings.Join(step.Env, ", "), step.Description)
+		return nil
+	}
+	verbs := Verbs{Resource: cfg.Resource, Degrade: apply, Preview: preview, Stdout: cfg.Stdout}
 	usage := fmt.Sprintf("resource-%s capacity degrade --to <%s>", cfg.Resource, strings.Join(labels, "|"))
 	return cliapp.SubcommandGroup{
 		Name:        "capacity",

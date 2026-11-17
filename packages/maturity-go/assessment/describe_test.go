@@ -171,6 +171,48 @@ func TestDescriberAnswersFromLoadedFacts(t *testing.T) {
 	}
 }
 
+func TestDescriberResolvesRequestedPhaseFromSiblingDescriptor(t *testing.T) {
+	dir := writeDescriptor(t, "search-hub", "search-hub", map[string]any{"contract": "scenario-validation/v1"})
+	canonical := filepath.Join(dir, ".vrooli", "test-genie.json")
+	raw, err := os.ReadFile(canonical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var descriptor map[string]any
+	if err := json.Unmarshal(raw, &descriptor); err != nil {
+		t.Fatal(err)
+	}
+	descriptor["phase"] = "model-eval"
+	maturity := descriptor["maturity"].(map[string]any)
+	maturity["version"] = "3.0.0"
+	auxRaw, err := json.Marshal(descriptor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".vrooli", "test-genie-model-eval.json"), auxRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	d, err := LoadDescriber(dir)
+	if err != nil {
+		t.Fatalf("LoadDescriber: %v", err)
+	}
+	resp, err := d.DescribeProvider(context.Background(), connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{Phase: "model-eval"}))
+	if err != nil {
+		t.Fatalf("DescribeProvider(model-eval): %v", err)
+	}
+	if resp.Msg.GetPhase() != "model-eval" || resp.Msg.GetSpecVersion() != "3.0.0" {
+		t.Fatalf("requested phase description = phase %q version %q", resp.Msg.GetPhase(), resp.Msg.GetSpecVersion())
+	}
+	unknown, err := d.DescribeProvider(context.Background(), connect.NewRequest(&scenariovalidationv1.DescribeProviderRequest{Phase: "unknown"}))
+	if err != nil {
+		t.Fatalf("DescribeProvider(unknown): %v", err)
+	}
+	if unknown.Msg.GetPhase() != "" {
+		t.Fatalf("unsupported phase reported as %q", unknown.Msg.GetPhase())
+	}
+}
+
 // The response must be immutable across calls: it is resolved once and shared,
 // so a consumer mutating what it receives must not corrupt later responses.
 func TestDescribeProviderReturnsIndependentCopies(t *testing.T) {

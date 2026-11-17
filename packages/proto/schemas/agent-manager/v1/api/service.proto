@@ -168,6 +168,14 @@ service AgentManagerService {
     };
   }
 
+  // EnsureProfile resolves a profile by key, creating it when absent.
+  rpc EnsureProfile(EnsureProfileRequest) returns (EnsureProfileResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/profiles/ensure"
+      body: "*"
+    };
+  }
+
   // ValidateWorkflow validates and canonicalizes one workflow without writes.
   rpc ValidateWorkflow(ValidateWorkflowRequest) returns (ValidateWorkflowResponse);
 
@@ -276,6 +284,11 @@ service AgentManagerService {
     };
   }
 
+  // GetTask retrieves one task by ID.
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse) {
+    option (google.api.http) = {get: "/api/v1/tasks/{task_id}"};
+  }
+
   // ==========================================================================
   // RUNS
   // ==========================================================================
@@ -298,6 +311,29 @@ service AgentManagerService {
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
+  }
+
+  // GetRunByTag retrieves the run identified by its caller-assigned tag.
+  rpc GetRunByTag(GetRunByTagRequest) returns (GetRunByTagResponse) {
+    option (google.api.http) = {get: "/api/v1/runs/tag/{tag}"};
+  }
+
+  // StopRun applies the existing owner authorization policy to one run.
+  rpc StopRun(StopRunRequest) returns (StopRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/stop"};
+  }
+
+  // StopRunByTag applies the existing owner authorization policy to a tagged run.
+  rpc StopRunByTag(StopRunByTagRequest) returns (StopRunByTagResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/tag/{tag}/stop"};
+  }
+
+  // StopAllRuns applies the existing global-stop authorization policy.
+  rpc StopAllRuns(StopAllRunsRequest) returns (StopAllRunsResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/stop-all"
+      body: "*"
+    };
   }
 
   // GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -353,6 +389,11 @@ service AgentManagerService {
 
   // ProbeRunner sends a test request to verify runner connectivity.
   rpc ProbeRunner(ProbeRunnerRequest) returns (ProbeRunnerResponse);
+
+  // GetRunnerStatus reports the available execution runners.
+  rpc GetRunnerStatus(GetRunnerStatusRequest) returns (GetRunnerStatusResponse) {
+    option (google.api.http) = {get: "/api/v1/runners"};
+  }
 
   // GetRolePolicyStatus returns activation state and the latest diagnostic.
   rpc GetRolePolicyStatus(GetRolePolicyStatusRequest) returns (GetRolePolicyStatusResponse);
@@ -1901,6 +1942,15 @@ message GetRolePolicyCatalogRequest {}
 message GetRolePolicyCatalogResponse {
   RolePolicyStatus status = 1;
   RolePolicyCatalog catalog = 2;
+}
+
+// AuthorizationApprovalPending is returned as a Connect error detail when a
+// verified service caller's operation requires operator approval. Callers
+// must treat this as definitive (the operation was not started) and retry
+// only after approval.
+message AuthorizationApprovalPending {
+  string subject = 1;
+  string detail = 2;
 }
 
 message ValidateRolePolicyCatalogRequest {}

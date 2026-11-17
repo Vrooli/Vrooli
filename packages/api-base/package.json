@@ -16,6 +16,14 @@
       "import": "./dist/server/index.js",
       "types": "./dist/server/index.d.ts"
     },
+    "./notifications": {
+      "import": "./dist/client/notification-preferences.js",
+      "types": "./dist/client/notification-preferences.d.ts"
+    },
+    "./notifications/react": {
+      "import": "./dist/client/notification-preferences-react.js",
+      "types": "./dist/client/notification-preferences-react.d.ts"
+    },
     "./types": {
       "import": "./dist/shared/types.js",
       "types": "./dist/shared/types.d.ts"

@@ -5,8 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"github.com/vrooli/binaryfetch"
 )
 
 func main() {
@@ -19,9 +17,9 @@ func main() {
 	}
 	var err error
 	if *check {
-		err = binaryfetch.ValidateAcquisitionSchema(*root)
+		err = ValidateAcquisitionSchema(*root)
 	} else {
-		err = binaryfetch.SyncAcquisitionSchema(*root)
+		err = SyncAcquisitionSchema(*root)
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

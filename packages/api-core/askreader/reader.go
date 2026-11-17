@@ -53,6 +53,23 @@ type Ask struct {
 	// one text.
 	Responses     []Response
 	AnswerSummary string
+	// Recurrence is the Hub's exact source-and-subject history. Count includes
+	// this ask; previous answers exclude it.
+	Recurrence SubjectRecurrence
+}
+
+// SubjectRecurrence is the Hub's history for one exact source and subject key.
+type SubjectRecurrence struct {
+	Count           int
+	Dates           []string
+	PreviousAnswers []HistoricalAnswer
+}
+
+// HistoricalAnswer is a prior answer on the same source and subject key.
+type HistoricalAnswer struct {
+	Answer     string
+	Note       string
+	AnsweredAt string
 }
 
 // Response is the operator's answer to one form question of the ask.
@@ -149,6 +166,20 @@ func (r *Reader) ReadAsk(ctx context.Context, askID string) (Ask, error) {
 	if r == nil || r.tokens == nil || askID == "" {
 		return Ask{}, fmt.Errorf("%w: no ask to read", ErrAskNotFound)
 	}
+	return r.readAsk(ctx, &conversationv1.GetAskRequest{AskId: askID}, askID, "")
+}
+
+// ReadAskBySubjectKey reads the current ask for an exact event-sourced subject
+// raised by this reader's source. The Hub enforces that source boundary.
+func (r *Reader) ReadAskBySubjectKey(ctx context.Context, subjectKey string) (Ask, error) {
+	subjectKey = strings.TrimSpace(subjectKey)
+	if r == nil || r.tokens == nil || subjectKey == "" {
+		return Ask{}, fmt.Errorf("%w: no subject key to read", ErrAskNotFound)
+	}
+	return r.readAsk(ctx, &conversationv1.GetAskRequest{SubjectKey: subjectKey}, "", subjectKey)
+}
+
+func (r *Reader) readAsk(ctx context.Context, request *conversationv1.GetAskRequest, expectedID, expectedSubjectKey string) (Ask, error) {
 	// The read is the scenario's own, under its ask-reader token. When it runs
 	// inside a request an agent run made, that run's identity must not ride
 	// along: the Hub resolves an agent identity first and would then show only
@@ -166,12 +197,12 @@ func (r *Reader) ReadAsk(ctx context.Context, askID string) (Ask, error) {
 		return Ask{}, fmt.Errorf("%w: find notification-hub: %v", ErrHubUnavailable, err)
 	}
 	client := conversationconnect.NewConversationsServiceClient(r.http, strings.TrimRight(base, "/"))
-	request := connect.NewRequest(&conversationv1.GetAskRequest{AskId: askID})
-	request.Header().Set("Authorization", "Bearer "+token)
+	req := connect.NewRequest(request)
+	req.Header().Set("Authorization", "Bearer "+token)
 	if r.testMode {
-		request.Header().Set("X-Vrooli-Test-Mode", "1")
+		req.Header().Set("X-Vrooli-Test-Mode", "1")
 	}
-	response, err := client.GetAsk(ctx, request)
+	response, err := client.GetAsk(ctx, req)
 	if err != nil {
 		if connect.CodeOf(err) == connect.CodeNotFound {
 			return Ask{}, fmt.Errorf("%w: %v", ErrAskNotFound, err)
@@ -179,8 +210,11 @@ func (r *Reader) ReadAsk(ctx context.Context, askID string) (Ask, error) {
 		return Ask{}, fmt.Errorf("%w: %v", ErrHubUnavailable, err)
 	}
 	ask := response.Msg.GetAsk()
-	if ask.GetId() != askID {
-		return Ask{}, fmt.Errorf("%w: the Hub answered for ask %q, not %q", ErrAskNotFound, ask.GetId(), askID)
+	if expectedID != "" && ask.GetId() != expectedID {
+		return Ask{}, fmt.Errorf("%w: the Hub answered for ask %q, not %q", ErrAskNotFound, ask.GetId(), expectedID)
+	}
+	if expectedSubjectKey != "" && ask.GetSubjectKey() != expectedSubjectKey {
+		return Ask{}, fmt.Errorf("%w: the Hub answered for subject %q, not the requested subject", ErrAskNotFound, ask.GetSubjectKey())
 	}
 	return AskFromProto(ask), nil
 }
@@ -195,6 +229,13 @@ func AskFromProto(ask *conversationv1.Ask) Ask {
 		SupersededByAskID: ask.GetSupersededByAskId(), Correlation: maps.Clone(ask.GetCorrelation()),
 	}
 	out.AnswerSummary = ask.GetAnswerSummary()
+	if recurrence := ask.GetRecurrence(); recurrence != nil {
+		out.Recurrence.Count = int(recurrence.GetCount())
+		out.Recurrence.Dates = slices.Clone(recurrence.GetDates())
+		for _, previous := range recurrence.GetPreviousAnswers() {
+			out.Recurrence.PreviousAnswers = append(out.Recurrence.PreviousAnswers, HistoricalAnswer{Answer: previous.GetAnswer(), Note: previous.GetNote(), AnsweredAt: previous.GetAnsweredAt()})
+		}
+	}
 	for _, response := range ask.GetResponses() {
 		read := Response{QuestionID: response.GetQuestionId(), Selected: slices.Clone(response.GetSelected()), Text: response.GetText()}
 		for _, verdict := range response.GetSections() {

@@ -1,3 +1,5 @@
+import type { StreamMessage } from "./streamMessages";
+
 export interface VoiceProviderIdentity {
   readonly providerId?: string;
   readonly modelId?: string;
@@ -8,8 +10,44 @@ export interface RetainedTranscription {
   readonly providerIdentity?: VoiceProviderIdentity;
 }
 
+export interface VoiceStreamStart {
+  readonly language: string;
+  readonly sessionId: string;
+  readonly resumeToken: string;
+  readonly protocolVersion: 2;
+  readonly generation: bigint;
+  readonly inputFormat: "pcm_s16le";
+  readonly sampleRateHz: number;
+  readonly skipSpeakerVerification?: boolean;
+  readonly initialPrompt?: string;
+}
+
+export interface VoiceAudioChunk {
+  readonly sequence: bigint;
+  readonly startSample: bigint;
+  readonly endSample: bigint;
+  readonly audio: Uint8Array;
+  readonly sha256: Uint8Array;
+}
+
+export interface VoiceStreamConnection {
+  /** True while the underlying Connect bidi stream can accept requests. */
+  isOpen(): boolean;
+  sendAudio(chunk: VoiceAudioChunk): void;
+  /** Sends the protocol's terminal StreamEnd request and closes request input. */
+  end(): void;
+  /** Cancels this stream. The server session remains resumable by identity. */
+  close(): void;
+}
+
+export interface VoiceStreamHandlers {
+  onReady(): void;
+  onEvent(event: StreamMessage): void;
+  onClose(error?: unknown): void;
+}
+
 export interface VoiceTransport {
-  buildStreamUrl(language: string, sessionId: string, resumeToken: string): string;
+  openStream(start: VoiceStreamStart, handlers: VoiceStreamHandlers): VoiceStreamConnection;
   transcribeRetained(blob: Blob, language: string): Promise<string>;
   /** Optional metadata-preserving form used by diagnostics and recovery UI. */
   transcribeRetainedWithIdentity?(blob: Blob, language: string): Promise<RetainedTranscription>;

@@ -34,6 +34,13 @@ func (r Runtime) now() time.Time {
 }
 
 func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
+	started := time.Now()
+	decision, err := r.evaluate(event)
+	decision.EvaluationDurationMS = time.Since(started).Milliseconds()
+	return decision, err
+}
+
+func (r Runtime) evaluate(event ToolEvent) (Decision, error) {
 	now := r.now()
 	if err := event.Normalize(now); err != nil {
 		return Decision{}, err
@@ -57,13 +64,11 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 	}
 	if r.Store == nil {
 		decision := fallbackDecision(profile, event, risk, "snapshot bundle store is not configured")
-		r.applyLogOnly(event, risk, now, &decision)
 		return decision, nil
 	}
 	bundle, err := r.Store.Load()
 	if err != nil {
 		decision := fallbackDecision(profile, event, risk, "snapshot bundle unavailable: "+err.Error())
-		r.applyLogOnly(event, risk, now, &decision)
 		return decision, nil
 	}
 	decisions := make([]Decision, 0, len(bundle.Snapshots))
@@ -72,16 +77,41 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 		if !scopeMatches(snapshot.Scope, event, risk) {
 			continue
 		}
-		decisions = append(decisions, evaluateSnapshot(profile, snapshot, event, risk, now))
+		providerDecision := evaluateSnapshot(profile, snapshot, event, risk, now)
+		r.applyEvaluatorLogOnly(event, now, &providerDecision)
+		decisions = append(decisions, providerDecision)
 	}
 	if len(decisions) == 0 {
 		decision := fallbackDecision(profile, event, risk, "no provider snapshot covers this event")
-		r.applyLogOnly(event, risk, now, &decision)
 		return decision, nil
 	}
-	decision := combineDecisions(decisions)
-	r.applyLogOnly(event, risk, now, &decision)
-	return decision, nil
+	return combineDecisions(decisions), nil
+}
+
+// applyEvaluatorLogOnly applies a temporary mode to one provider's decision
+// before provider decisions are combined. Decisions without a current,
+// provider-owned evaluator ID cannot be suppressed.
+func (r Runtime) applyEvaluatorLogOnly(event ToolEvent, now time.Time, decision *Decision) {
+	if decision == nil || decision.Action == ActionAllow || !evaluatorIDOwnedBy(decision.EvaluatorID, decision.ProviderID) {
+		return
+	}
+	store := r.guardModeStore()
+	if store == nil {
+		return
+	}
+	mode, active, err := store.RecordSuppressedAction(RiskClass(decision.EvaluatorID), event.EventID, decision.Action, now)
+	if err != nil {
+		decision.Degraded = true
+		decision.Evidence = append(decision.Evidence, Evidence{Code: "CHECK_MODES_UNAVAILABLE", Message: "temporary check mode could not be confirmed and normal enforcement remains active", Source: "policy-runtime", Severity: "error"})
+		return
+	}
+	if !active {
+		return
+	}
+	original := decision.Action
+	decision.Action = ActionAllow
+	decision.Reason = "check is in audited log-only mode until " + mode.ExpiresAt.UTC().Format(time.RFC3339) + "; original action was " + string(original)
+	decision.Evidence = append(decision.Evidence, Evidence{Code: "CHECK_LOG_ONLY", Message: "enforcement was observed but not applied under a temporary, audited check mode", Source: "policy-runtime", Facts: map[string]string{"check": decision.EvaluatorID, "mode": mode.Mode, "expires_at": mode.ExpiresAt.UTC().Format(time.RFC3339), "original_action": string(original), "event_id": event.EventID}, Severity: "warning"})
 }
 
 // evaluateRemoval decides a deletion from the floor plus the path rules of
@@ -224,6 +254,9 @@ func evaluateSnapshot(profile RolloutProfile, snapshot ProviderSnapshot, event T
 	}
 	rule := matchingRule(snapshot.Rules, risk)
 	if rule != nil {
+		if evaluatorIDOwnedBy(rule.EvaluatorID, snapshot.ProviderID) {
+			decision.EvaluatorID = rule.EvaluatorID
+		}
 		decision.Action = rule.Action
 		decision.Reason = rule.Reason
 		decision.Replacement = append([]string(nil), rule.Replacement...)

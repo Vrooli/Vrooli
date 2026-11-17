@@ -121,13 +121,45 @@ func TestResolveScenarioPortStructuredNoRuntimePortsIsNotRunning(t *testing.T) {
 
 	resolver := NewResolver(ResolverConfig{
 		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return []byte(`{"success":false,"scenario":"my-scenario","port_name":"API_PORT","port":0,"error":"no running runtime ports found for scenario \\\"my-scenario\\\""}`), nil
+			return []byte(`{"success":false,"scenario":"my-scenario","port_name":"API_PORT","port":0,"error":"no running runtime ports found","error_code":"scenario_not_running"}`), nil
 		},
 	})
 
 	_, err := resolver.ResolveScenarioPort(context.Background(), "my-scenario", "API_PORT")
 	if !IsScenarioNotRunning(err) {
 		t.Fatalf("expected structured no-runtime-ports output to classify as stopped, got %v", err)
+	}
+}
+
+func TestLegacyUncodedMissingResponseIsUnclassifiedAndNotCached(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+		calls++
+		return []byte(`{"success":false,"error":"no running runtime ports found"}`), nil
+	}})
+	for i := 0; i < 2; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "legacy-target"); err == nil || IsScenarioNotRunning(err) {
+			t.Fatalf("legacy response error=%v, want unclassified failure", err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2 because legacy response has no structured missing-target code", calls)
+	}
+}
+
+func TestNoncanonicalCodeAliasIsNotTreatedAsStoppedTarget(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+		calls++
+		return []byte(`{"success":false,"code":"scenario_not_running","error":"scenario is not running"}`), nil
+	}})
+	for i := 0; i < 2; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "legacy-target"); err == nil || IsScenarioNotRunning(err) {
+			t.Fatalf("code alias response error=%v, want unclassified failure", err)
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2 because `code` is not the canonical error_code field", calls)
 	}
 }
 
@@ -156,7 +188,7 @@ func TestResolveScenarioPortNotRunning(t *testing.T) {
 
 	resolver := NewResolver(ResolverConfig{
 		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return []byte("scenario not running"), errors.New("exit 1")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("exit 1")
 		},
 	})
 
@@ -172,7 +204,7 @@ func TestResolveScenarioPortNoRuntimePortsIsNotRunning(t *testing.T) {
 
 	resolver := NewResolver(ResolverConfig{
 		CommandRunner: func(ctx context.Context, name string, args ...string) ([]byte, error) {
-			return []byte("Runtime error: no running runtime ports found for scenario \"my-scenario\""), errors.New("exit status 1")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"no running runtime ports found"}`), errors.New("exit status 1")
 		},
 	})
 
@@ -223,6 +255,18 @@ func TestResolveScenarioURLForNodeUsesOneTargetAwareShape(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "http://bridge:18000/api/v1/targets/node-123/scenarios/system-monitor"
+	if got != want {
+		t.Fatalf("URL = %q, want %q", got, want)
+	}
+}
+
+func TestResolveScenarioURLForNodeUsesNodeReachEscaping(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{RemoteBaseURL: "http://bridge:18000/"})
+	got, err := resolver.ResolveScenarioURLForTarget(context.Background(), "scenario/name", "API_PORT", Target{NodeID: "node/id"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "http://bridge:18000/api/v1/targets/node%2Fid/scenarios/scenario%2Fname"
 	if got != want {
 		t.Fatalf("URL = %q, want %q", got, want)
 	}
@@ -327,6 +371,17 @@ func TestStaticResolverBypassesCLI(t *testing.T) {
 	}
 	if cliCalled {
 		t.Fatal("CLI should not be called in static mode")
+	}
+}
+
+func TestStaticResolverPreservesDeploymentBasePath(t *testing.T) {
+	resolver := NewResolver(ResolverConfig{StaticBaseURL: "https://services.example.net/v2/runtime"})
+	got, err := resolver.ResolveScenarioURLDefault(context.Background(), "any-scenario")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "https://services.example.net/v2/runtime" {
+		t.Fatalf("static deployment URL = %q, want configured base path preserved", got)
 	}
 }
 
@@ -558,7 +613,7 @@ func TestFailedLookupIsNegativeCached(t *testing.T) {
 		Now:              func() time.Time { return now },
 		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
 			calls++
-			return []byte("scenario is not running"), errors.New("exit status 1")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario is not running"}`), errors.New("exit status 1")
 		},
 	})
 
@@ -606,6 +661,27 @@ func TestTimeoutIsNotCached(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("calls=%d, want 2: a cached timeout would deny an unrelated caller", calls)
+	}
+}
+
+func TestTransientCommandFailureIsNotNegativeCached(t *testing.T) {
+	calls := 0
+	resolver := NewResolver(ResolverConfig{
+		CacheTTL:         time.Minute,
+		NegativeCacheTTL: time.Minute,
+		CommandRunner: func(context.Context, string, ...string) ([]byte, error) {
+			calls++
+			return []byte("permission denied"), errors.New("permission denied")
+		},
+	})
+
+	for i := 0; i < 2; i++ {
+		if _, err := resolver.ResolveScenarioPortDefault(context.Background(), "transient"); err == nil {
+			t.Fatal("expected a command failure")
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("calls=%d, want 2: transient command failures must not be cached", calls)
 	}
 }
 
@@ -677,7 +753,7 @@ func TestResolveScenarioURLWithDemandCanStartStoppedTarget(t *testing.T) {
 	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
 		calls++
 		if calls == 1 {
-			return []byte("scenario not running"), errors.New("stopped")
+			return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("stopped")
 		}
 		return []byte("18181"), nil
 	}})
@@ -699,7 +775,7 @@ func TestResolveScenarioURLWithDemandCanStartStoppedTarget(t *testing.T) {
 
 func TestResolveScenarioURLWithDemandReleasesWhenStartupFails(t *testing.T) {
 	resolver := NewResolver(ResolverConfig{CommandRunner: func(_ context.Context, _ string, _ ...string) ([]byte, error) {
-		return []byte("scenario not running"), errors.New("stopped")
+		return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("stopped")
 	}})
 	leaseClient := &demandClientFixture{}
 	_, _, err := resolver.ResolveScenarioURLWithDemand(context.Background(), "search-hub", DemandOptions{

@@ -115,10 +115,15 @@ func BrowserURLForHost(requestHost, scenarioSlug string, uiPort int) string {
 	if _, loopback := loopbackHosts[hostname]; loopback {
 		return localURL
 	}
-	// A LAN client cannot reach the API host through its own localhost. Keep
-	// the private address used to reach this host and resolve the owner's UI port.
-	if ip := net.ParseIP(hostname); ip != nil && ip.IsPrivate() {
-		return "http://" + net.JoinHostPort(hostname, strconv.Itoa(uiPort))
+	if ip := net.ParseIP(hostname); ip != nil {
+		if ip.IsLoopback() {
+			return localURL
+		}
+		// A LAN client cannot reach the API host through its own localhost. Keep
+		// the private address used to reach this host and resolve the owner's UI port.
+		if ip.IsPrivate() {
+			return "http://" + net.JoinHostPort(hostname, strconv.Itoa(uiPort))
+		}
 	}
 	labels := strings.Split(hostname, ".")
 	if len(labels) < 3 {

@@ -226,18 +226,22 @@ class VerifyCredentialsResponse(_message.Message):
     def __init__(self, checks: _Optional[_Iterable[_Union[CredentialCheck, _Mapping]]] = ..., ready: _Optional[bool] = ..., capabilities: _Optional[_Iterable[_Union[CredentialCapability, _Mapping]]] = ..., all_checks_ok: _Optional[bool] = ...) -> None: ...
 
 class BootstrapCloudflareRequest(_message.Message):
-    __slots__ = ("api_token", "account_id", "tunnel_id", "tunnel_name", "dry_run")
+    __slots__ = ("api_token", "account_id", "tunnel_id", "tunnel_name", "dry_run", "use_stored_api_token", "rotate_connector_token")
     API_TOKEN_FIELD_NUMBER: _ClassVar[int]
     ACCOUNT_ID_FIELD_NUMBER: _ClassVar[int]
     TUNNEL_ID_FIELD_NUMBER: _ClassVar[int]
     TUNNEL_NAME_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    USE_STORED_API_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    ROTATE_CONNECTOR_TOKEN_FIELD_NUMBER: _ClassVar[int]
     api_token: str
     account_id: str
     tunnel_id: str
     tunnel_name: str
     dry_run: bool
-    def __init__(self, api_token: _Optional[str] = ..., account_id: _Optional[str] = ..., tunnel_id: _Optional[str] = ..., tunnel_name: _Optional[str] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    use_stored_api_token: bool
+    rotate_connector_token: bool
+    def __init__(self, api_token: _Optional[str] = ..., account_id: _Optional[str] = ..., tunnel_id: _Optional[str] = ..., tunnel_name: _Optional[str] = ..., dry_run: _Optional[bool] = ..., use_stored_api_token: _Optional[bool] = ..., rotate_connector_token: _Optional[bool] = ...) -> None: ...
 
 class BootstrapCloudflareResponse(_message.Message):
     __slots__ = ("account_id", "tunnel_id", "adopted", "created", "written")

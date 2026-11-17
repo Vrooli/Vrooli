@@ -123,8 +123,14 @@ type Response struct {
 	// reject a healthy HTTP responder that belongs to an older source
 	// revision. Empty when unset (pre-VROOLI_BUILD_IDENTITY processes).
 	BuildIdentity string `protobuf:"bytes,8,opt,name=build_identity,json=buildIdentity,proto3" json:"build_identity,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Runtime release identity and lifecycle operation IDs are echoed from the
+	// instance environment so the control plane can prove this endpoint belongs
+	// to the current start, not only to matching source bytes.
+	RuntimeReleaseId          string `protobuf:"bytes,9,opt,name=runtime_release_id,json=runtimeReleaseId,proto3" json:"runtime_release_id,omitempty"`
+	RuntimeReleaseOperationId string `protobuf:"bytes,10,opt,name=runtime_release_operation_id,json=runtimeReleaseOperationId,proto3" json:"runtime_release_operation_id,omitempty"`
+	StartOperationId          string `protobuf:"bytes,11,opt,name=start_operation_id,json=startOperationId,proto3" json:"start_operation_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *Response) Reset() {
@@ -213,6 +219,27 @@ func (x *Response) GetBuildIdentity() string {
 	return ""
 }
 
+func (x *Response) GetRuntimeReleaseId() string {
+	if x != nil {
+		return x.RuntimeReleaseId
+	}
+	return ""
+}
+
+func (x *Response) GetRuntimeReleaseOperationId() string {
+	if x != nil {
+		return x.RuntimeReleaseOperationId
+	}
+	return ""
+}
+
+func (x *Response) GetStartOperationId() string {
+	if x != nil {
+		return x.StartOperationId
+	}
+	return ""
+}
+
 var File_proto_health_v1_health_health_proto protoreflect.FileDescriptor
 
 const file_proto_health_v1_health_health_proto_rawDesc = "" +
@@ -223,7 +250,7 @@ const file_proto_health_v1_health_health_proto_rawDesc = "" +
 	"\n" +
 	"latency_ms\x18\x02 \x01(\x01R\tlatencyMs\x12\x14\n" +
 	"\x05error\x18\x03 \x01(\tR\x05error\x12\x1a\n" +
-	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"\xb1\x03\n" +
+	"\bdatabase\x18\x04 \x01(\tR\bdatabase\"\xce\x04\n" +
 	"\bResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\aservice\x18\x02 \x01(\tR\aservice\x12\x1c\n" +
@@ -232,7 +259,11 @@ const file_proto_health_v1_health_health_proto_rawDesc = "" +
 	"\aversion\x18\x05 \x01(\tR\aversion\x12%\n" +
 	"\x0euptime_seconds\x18\x06 \x01(\x01R\ruptimeSeconds\x12]\n" +
 	"\fdependencies\x18\a \x03(\v29.vrooli.proto_health.v1.health.Response.DependenciesEntryR\fdependencies\x12%\n" +
-	"\x0ebuild_identity\x18\b \x01(\tR\rbuildIdentity\x1ap\n" +
+	"\x0ebuild_identity\x18\b \x01(\tR\rbuildIdentity\x12,\n" +
+	"\x12runtime_release_id\x18\t \x01(\tR\x10runtimeReleaseId\x12?\n" +
+	"\x1cruntime_release_operation_id\x18\n" +
+	" \x01(\tR\x19runtimeReleaseOperationId\x12,\n" +
+	"\x12start_operation_id\x18\v \x01(\tR\x10startOperationId\x1ap\n" +
 	"\x11DependenciesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12E\n" +
 	"\x05value\x18\x02 \x01(\v2/.vrooli.proto_health.v1.health.DependencyStatusR\x05value:\x028\x01BQZOgithub.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health;health_v1b\x06proto3"

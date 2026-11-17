@@ -50,8 +50,6 @@ type scenarioCLI struct {
 	config       *cliConfig
 }
 
-var userHomeDir = os.UserHomeDir
-
 func ResolveExecutable(root, home, name string) (string, error) {
 	return ResolveExecutableContext(context.Background(), root, home, name)
 }
@@ -243,22 +241,6 @@ func installScenarioCLI(ctx context.Context, root, home string, item scenarioCLI
 	})
 }
 
-// scenarioFreshnessSpec returns the canonical freshness contract used by both
-// cli-installer (at install time) and cli-core's runtime StaleChecker. Both
-// must evaluate the same spec to avoid perpetual reinstall loops.
-func scenarioFreshnessSpec(item scenarioCLI) (cliutil.FreshnessSpec, error) {
-	var customInputs []string
-	if item.config != nil && item.config.Freshness != nil {
-		customInputs = item.config.Freshness.Inputs
-	}
-	switch item.config.Adapter.Kind {
-	case "go_module":
-		return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.scenarioPath, item.modulePath, item.binaryName, customInputs), nil
-	default:
-		return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.config.Adapter.Kind)
-	}
-}
-
 func cliInstallerDir(root, modulePath string) (string, error) {
 	for _, base := range []string{root, filepath.Clean(modulePath)} {
 		dir := filepath.Clean(base)
@@ -275,34 +257,6 @@ func cliInstallerDir(root, modulePath string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("locate cli installer for module %s", modulePath)
-}
-
-func installDir(home string) (string, error) {
-	home = strings.TrimSpace(home)
-	if home == "" {
-		resolved, err := userHomeDir()
-		if err != nil {
-			return "", err
-		}
-		home = resolved
-	}
-	return repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
-}
-
-func installedBinaryPath(home, binaryName string) (string, error) {
-	dir, err := installDir(home)
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, strings.TrimSpace(binaryName)), nil
-}
-
-func installMetadataPath(home string, item scenarioCLI) (string, error) {
-	binPath, err := installedBinaryPath(home, item.binaryName)
-	if err != nil {
-		return "", err
-	}
-	return binPath + ".build.meta", nil
 }
 
 func readInstallMetadata(home string, item scenarioCLI) (installMetadata, bool, error) {
@@ -338,14 +292,6 @@ func writeInstallMetadata(home string, item scenarioCLI, meta installMetadata) e
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
-}
-
-func computeScenarioCLIFingerprint(item scenarioCLI) (string, error) {
-	spec, err := scenarioFreshnessSpec(item)
-	if err != nil {
-		return "", err
-	}
-	return cliutil.ComputeFreshnessFingerprint(spec)
 }
 
 func requireFile(path string) error {
