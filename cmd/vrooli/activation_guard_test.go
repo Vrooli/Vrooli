@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
@@ -44,5 +47,32 @@ func TestUnstampedEntrypointStillChecksUnresolvedActivationState(t *testing.T) {
 	}
 	if err := guardRootActivationEntrypoint(false); err == nil {
 		t.Fatal("unstamped development CLI bypassed the root activation fence")
+	}
+}
+
+type nativeGuardStoreFixture struct {
+	actual  string
+	current bool
+	native  bool
+}
+
+func (f *nativeGuardStoreFixture) GuardEntrypoint(_ context.Context, sha, _, _ string, native bool) error {
+	f.actual = sha
+	f.native = native
+	return nil
+}
+func (f *nativeGuardStoreFixture) GuardCurrentEntrypoint(context.Context, string, string, bool) error {
+	f.current = true
+	return errors.New("generic mapped image unsupported")
+}
+func TestNativeSystemActivationUsesVerifiedImageEvidenceWithoutGenericReprobe(t *testing.T) {
+	f := &nativeGuardStoreFixture{}
+	sha := strings.Repeat("a", 64)
+	if err := guardRootActivationStore(context.Background(), f, sha, true); err != nil || f.actual != sha || !f.native || f.current {
+		t.Fatalf("verified native digest discarded %+v %v", f, err)
+	}
+	f = &nativeGuardStoreFixture{}
+	if err := guardRootActivationStore(context.Background(), f, "", false); err == nil || !f.current {
+		t.Fatal("ordinary entrypoint bypassed actual mapped image evidence")
 	}
 }

@@ -28,7 +28,6 @@ import (
 
 const (
 	literalResourceArtifactsDir            = "dir"
-	literalResourceArtifactsWindows        = "windows"
 	literalResourceArtifactsPrebuilt       = "prebuilt_artifact"
 	literalResourceArtifactsManagedService = "managed-service"
 )
@@ -125,7 +124,7 @@ func stageToolArtifacts(ctx context.Context, root, outDir string) error {
 		if manifest.Bundling != "vendorable" || manifest.Acquisition == nil {
 			continue
 		}
-		for _, platform := range []resourcedeployment.Platform{{OS: "linux", Arch: "amd64"}, {OS: "linux", Arch: "arm64"}, {OS: "macos", Arch: "amd64"}, {OS: "macos", Arch: "arm64"}, {OS: literalResourceArtifactsWindows, Arch: "amd64"}} {
+		for _, platform := range []resourcedeployment.Platform{{OS: resourcedeployment.OSLinux, Arch: resourcedeployment.ArchAMD64}, {OS: resourcedeployment.OSLinux, Arch: resourcedeployment.ArchARM64}, {OS: resourcedeployment.OSMacOS, Arch: resourcedeployment.ArchAMD64}, {OS: resourcedeployment.OSMacOS, Arch: resourcedeployment.ArchARM64}, {OS: resourcedeployment.OSWindows, Arch: resourcedeployment.ArchAMD64}} {
 			factsOS := artifactOS(platform.OS)
 			target, err := manifest.Acquisition.Resolve(binaryfetch.Facts{"os": factsOS, "arch": platform.Arch})
 			if err != nil {
@@ -709,7 +708,7 @@ func releaseArtifactPlatform(name string) (string, string) {
 		return "", ""
 	}
 	osName, arch := parts[len(parts)-2], parts[len(parts)-1]
-	if osName != "linux" && osName != "darwin" && osName != literalResourceArtifactsWindows {
+	if osName != "linux" && osName != "darwin" && osName != resourcedeployment.OSWindows {
 		return "", ""
 	}
 	return osName, arch
@@ -738,9 +737,9 @@ func resourceArtifactBuildTargets(manifest resourceArtifactManifest) ([]resource
 		return nil, fmt.Errorf("bundled resource artifacts require prebuilt distribution and Go module adapter")
 	}
 	var targets []resourceBuildTarget
-	for _, platform := range []string{"linux", "macos", literalResourceArtifactsWindows} {
+	for _, platform := range []string{"linux", "macos", resourcedeployment.OSWindows} {
 		target, found := manifest.Deployment.Target("desktop", platform, "")
-		if !found || target.Support == "unsupported" || !strings.HasPrefix(target.Mode, "bundled-") {
+		if !found || target.Support == resourcedeployment.TargetUnsupported || !strings.HasPrefix(target.Mode, "bundled-") {
 			continue
 		}
 		for _, arch := range target.Architectures {
@@ -1031,17 +1030,17 @@ func flattenComposePrefix(root, prefix string) error {
 
 func uvPlatform(platform resourcedeployment.Platform) string {
 	switch platform.OS {
-	case "linux":
-		if platform.Arch == "arm64" {
+	case resourcedeployment.OSLinux:
+		if platform.Arch == resourcedeployment.ArchARM64 {
 			return "aarch64-unknown-linux-gnu"
 		}
 		return "x86_64-unknown-linux-gnu"
-	case "macos":
-		if platform.Arch == "arm64" {
+	case resourcedeployment.OSMacOS:
+		if platform.Arch == resourcedeployment.ArchARM64 {
 			return "aarch64-apple-darwin"
 		}
 		return "x86_64-apple-darwin"
-	case literalResourceArtifactsWindows:
+	case resourcedeployment.OSWindows:
 		return "x86_64-pc-windows-msvc"
 	default:
 		return platform.OS + "-" + platform.Arch
@@ -1113,7 +1112,7 @@ func artifactOS(platform string) string {
 
 func toolArtifactName(name string, platform resourcedeployment.Platform) string {
 	suffix := ""
-	if platform.OS == literalResourceArtifactsWindows {
+	if platform.OS == resourcedeployment.OSWindows {
 		suffix = ".exe"
 	}
 	return fmt.Sprintf("tool_%s_%s_%s%s", name, artifactOS(platform.OS), platform.Arch, suffix)

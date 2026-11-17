@@ -396,7 +396,7 @@ func addLiveWorkloadFindings(o *output, thresholds thresholdSource) {
 	root, rootErr := resolveWatchdogRoot()
 	posture := workloadowner.VrooliOnly
 	if rootErr == nil {
-		if state, stateErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Load(context.Background()); stateErr == nil && state.HostWorkloadPosture == string(workloadowner.WholeHost) {
+		if state, stateErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Load(context.Background()); stateErr == nil && state.HostWorkloadPosture == operatorstate.HostWorkloadPostureWholeHost {
 			posture = workloadowner.WholeHost
 		}
 	}

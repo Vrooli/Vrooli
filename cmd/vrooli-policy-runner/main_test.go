@@ -5,6 +5,9 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	agentharness "github.com/vrooli/agentharness"
 )
 
 func TestReadEventNormalizesNativePayload(t *testing.T) {
@@ -14,6 +17,28 @@ func TestReadEventNormalizesNativePayload(t *testing.T) {
 	}
 	if event.Runner != "codex" || event.Tool != "shell" || event.Shell != "pnpm add example" {
 		t.Fatalf("normalized event = %+v", event)
+	}
+}
+
+func TestPolicyRunnerGuardModesAreReadOnly(t *testing.T) {
+	dir := t.TempDir()
+	var output bytes.Buffer
+	if err := run([]string{"guard-mode", "enable", "--snapshot-dir", dir}, strings.NewReader(""), &output, &output); err == nil || !strings.Contains(err.Error(), "read-only") {
+		t.Fatalf("enable result = %v, want read-only refusal", err)
+	}
+	output.Reset()
+	if err := run([]string{"guard-mode", "list", "--snapshot-dir", dir}, strings.NewReader(""), &output, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `"active"`) {
+		t.Fatalf("list result = %s", output.String())
+	}
+	output.Reset()
+	if err := run([]string{"guard-mode", "audit", "--snapshot-dir", dir}, strings.NewReader(""), &output, &output); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `"entries"`) {
+		t.Fatalf("audit result = %s", output.String())
 	}
 }
 
@@ -53,8 +78,8 @@ func TestHookVerdictFollowsTheCallingHarness(t *testing.T) {
 	}{
 		{"codex deny blocks with exit 2 and a stderr reason", "codex", deny, 2, false, "Blocked by Vrooli agent policy: / is a filesystem root"},
 		{"codex allow is silent", "codex", allow, 0, false, ""},
-		{"opencode deny keeps the stable deny class", "opencode", deny, 20, true, ""},
-		{"grok deny keeps the stable deny class", "grok", deny, 20, true, ""},
+		{"opencode deny keeps the stable deny class", "opencode", deny, 20, true, "evaluator audit receipt unavailable"},
+		{"grok deny keeps the stable deny class", "grok", deny, 20, true, "evaluator audit receipt unavailable"},
 		{"opencode allow reports the decision", "opencode", allow, 0, true, ""},
 	}
 	for _, tc := range cases {
@@ -75,6 +100,47 @@ func TestHookVerdictFollowsTheCallingHarness(t *testing.T) {
 				t.Fatalf("stderr = %q, want %q", stderr.String(), tc.wantStderr)
 			}
 		})
+	}
+}
+
+func TestHookRefusalCarriesOnlyProviderOwnedEvaluatorIdentity(t *testing.T) {
+	decision := agentharness.Decision{Action: agentharness.ActionDeny, ProviderID: "scenario-dependency-analyzer", EvaluatorID: "scenario-dependency-analyzer:dependency-addition", Reason: "route dependency mutation"}
+	var stdout, stderr bytes.Buffer
+	err := answerHook("codex", decision, &stdout, &stderr)
+	var denied exitError
+	if !errors.As(err, &denied) || denied.code != codexDenyExit || strings.Contains(stderr.String(), "vrooli_guard_check") || strings.Contains(stdout.String(), "vrooli_guard_check") {
+		t.Fatalf("hook refusal unexpectedly used transcript identity bridge: err=%v stdout=%q stderr=%q", err, stdout.String(), stderr.String())
+	}
+	decision.EvaluatorID = "other-provider:dependency-addition"
+	stdout.Reset()
+	stderr.Reset()
+	err = answerHook("claude-code", decision, &stdout, &stderr)
+	if err == nil || strings.Contains(stdout.String(), "vrooli_guard_check") {
+		t.Fatalf("foreign evaluator identity was surfaced: err=%v stdout=%q", err, stdout.String())
+	}
+}
+
+func TestHookCommandRefusalCarriesEvaluatorIdentityFromSnapshot(t *testing.T) {
+	now := time.Now().UTC()
+	dir := t.TempDir()
+	store := agentharness.NewBundleStore(dir)
+	snapshot := agentharness.ProviderSnapshot{
+		ProviderID: "scenario-dependency-analyzer", Version: "test",
+		Capabilities: []agentharness.ProviderCapability{{ID: "dependency-policy", IdealPosture: "deny unapproved package mutation", DeclaredMaturity: agentharness.MaturityEnforcing, SupportsAnalysis: true, SupportsEnforce: true}},
+		Health:       agentharness.ProviderHealth{State: agentharness.HealthHealthy, CheckedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour)},
+		Readiness:    agentharness.ProviderReadiness{State: "ready", RollbackPlan: "test only"},
+		Evidence:     agentharness.EvidenceClean, CapturedAt: now.Add(-time.Minute), ExpiresAt: now.Add(time.Hour),
+		Rules: []agentharness.PolicyRule{{EvaluatorID: "scenario-dependency-analyzer:dependency-addition", Risk: agentharness.RiskDependencyAdd, Action: agentharness.ActionDeny, Reason: "unapproved package mutation"}},
+	}
+	if err := store.PublishProvider(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	input := `{"tool_name":"pnpm","cwd":"/repo","arguments":["add","example"]}`
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"hook", "--runner", "codex", "--profile", "enforcing", "--snapshot-dir", dir}, strings.NewReader(input), &stdout, &stderr)
+	var denied exitError
+	if !errors.As(err, &denied) || denied.code != codexDenyExit || strings.Contains(stderr.String(), "vrooli_guard_check") {
+		t.Fatalf("real hook boundary changed denial semantics or exposed a marker: err=%v stdout=%q stderr=%q", err, stdout.String(), stderr.String())
 	}
 }
 

@@ -47,6 +47,13 @@ func main() {
 	// The macOS session ceiling re-execs through this binary as an rlimit
 	// shim before anything else runs (platform-go/rlimitexec).
 	rlimitexec.MaybeRun(os.Args)
+	if handled, code := runNativeSystemBrokerCommand(os.Args[1:], os.Stderr); handled {
+		os.Exit(code)
+	}
+
+	if handled, code := runOpenRGBNativeCapsule(os.Args[1:], os.Stderr); handled {
+		os.Exit(code)
+	}
 	if handled, code := writeStandaloneVersion(os.Args[1:], os.Stdout, os.Stderr); handled {
 		os.Exit(code)
 	}
@@ -54,6 +61,9 @@ func main() {
 		os.Exit(code)
 	}
 	if handled, code := writeNativeSupervisorDefinition(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	if handled, code := runGuardModeCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
 		os.Exit(code)
 	}
 	if handled, code := runRootUpdateReadCommand(os.Args[1:], os.Stdout, os.Stderr); handled {

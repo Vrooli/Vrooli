@@ -29,9 +29,15 @@ func main() {
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (err error) {
 	if len(args) == 0 {
-		return errors.New("usage: vrooli-policy-runner hook|model-hook|status|snapshot|canary|diagnose")
+		return errors.New("usage: vrooli-policy-runner hook|model-hook|status|snapshot|canary|diagnose|created-paths|guard-mode")
 	}
 	command := args[0]
+	if command == "guard-mode" {
+		return runGuardMode(args[1:], stdout, stderr)
+	}
+	if command == "created-paths" {
+		return runCreatedPaths(args[1:], stdout)
+	}
 	if command == "hook" {
 		// A hook is a guard, never a dependency: a crash here must not read as
 		// a verdict (a Go panic exits 2, which Codex treats as "block").
@@ -80,6 +86,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (err error) {
 		}
 		if command == "canary" {
 			return writeJSON(stdout, decision)
+		}
+		if decision.Action == agentharness.ActionDeny && validEvaluatorReference(decision.ProviderID, decision.EvaluatorID) {
+			if err := persistEvaluatorReceipt(event, *runner, decision, currentReceiptEnv, nil, time.Now().UTC()); err != nil {
+				// Never alter the enforcement result or leak credentials, endpoint
+				// details, or evaluator context into a persisted transcript.
+				fmt.Fprintln(stderr, "vrooli-policy-runner hook: evaluator audit receipt unavailable; owner friction remains unknown")
+			}
 		}
 		return answerHook(*runner, decision, stdout, stderr)
 	case "status", "diagnose":
@@ -163,7 +176,7 @@ func readEvent(reader io.Reader, runner string) (agentharness.ToolEvent, error) 
 			event.Target = firstString(input, "file_path", "path")
 		}
 	}
-	for _, key := range []string{"permission_mode", "shell_dialect", "session_id"} {
+	for _, key := range []string{"permission_mode", "shell_dialect", "session_id", "transcript_path"} {
 		if value := firstString(raw, key); value != "" {
 			if event.Context == nil {
 				event.Context = map[string]string{}

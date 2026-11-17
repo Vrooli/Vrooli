@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/coreactivation"
+	"github.com/vrooli/vrooli/internal/rootmetrics"
 	supervisor "github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor"
 )
 
@@ -172,6 +173,9 @@ func runCoreActivationCommand(args []string, stdout, stderr io.Writer) (bool, in
 			record, _, err = engine.Recover(ctx)
 		}
 	}
+	// Record only a terminal outcome returned after the activation lock was released.
+	// These records are observations, never an input to recovery.
+	observeActivationOutcome(home, record, err)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "root update operation remains unresolved:", err)
 		return true, 1
@@ -198,4 +202,14 @@ func boundedRefusalReason(reason string) string {
 		cut = limit
 	}
 	return reason[:cut] + "\n  - (further changes omitted; run `vrooli version --state-manifest` on both images to compare them in full)"
+}
+
+// observeActivationOutcome is called only after the engine releases its lock.
+func observeActivationOutcome(home string, record coreactivation.Record, err error) {
+	if err != nil || !record.Terminal() {
+		return
+	}
+	observation := rootmetrics.Begin(home, "activation_observation")
+	observation.Operation(record.ID)
+	observation.Event("terminal", string(record.Phase))
 }
