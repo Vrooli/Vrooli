@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/agentscope"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -45,6 +46,8 @@ const DefaultIdleAfter = 7 * 24 * time.Hour
 // Session is one agent session as the host holds it.
 type Session struct {
 	SessionID     string
+	LeaseStatus   string
+	BindingID     string
 	Harness       string
 	Agent         string
 	Tree          string
@@ -109,6 +112,9 @@ type HostFacts interface {
 	TTYActivity(tty string) (time.Time, error)
 	// ProcessMemory is a process's resident and swapped bytes.
 	ProcessMemory(pid int) (rss, swap int64, err error)
+	// ScopeOccupancy reports memory.current and memory.swap.current for the
+	// exact agent-session cgroup when the platform exposes it.
+	ScopeOccupancy(scopeUnit string) (platformgo.Occupancy, error)
 }
 
 // OwnerStore persists owners on leases. A nil store reads without writing.
@@ -166,6 +172,7 @@ func (r Reconciler) Sessions(ctx context.Context, leases []scenarioruntime.Edito
 		entry, isHeld := heldByName[key]
 		session := Session{
 			SessionID: lease.SessionID, Harness: lease.Harness, Agent: lease.Agent, Tree: lease.WorkingDir,
+			LeaseStatus: lease.Status, BindingID: lease.BindingID,
 			Scope: lease.Scope, PID: lease.PID, Claims: lease.Claims, CreatedAt: lease.CreatedAt,
 			LastHeartbeat: lease.LastHeartbeatAt, Leased: true, ScopeHeld: isHeld && censusErr == nil,
 			StartedAt: lease.CreatedAt,
@@ -229,7 +236,7 @@ func leaseKernelState(lease scenarioruntime.EditorLease, entry agentscope.Entry,
 // classify fills the owner, liveness, activity and derived state.
 func (r Reconciler) classify(ctx context.Context, s *Session, memo map[string]Liveness, now time.Time) {
 	pid, members, membersErr := r.evidenceProcess(*s)
-	s.Usage = MeasureUsage(r.Host, members, membersErr)
+	s.Usage = MeasureScopeUsage(r.Host, s.ScopeUnit(), members, membersErr)
 	var fact ProcessFact
 	haveFact := false
 	if r.Host != nil && pid > 0 {

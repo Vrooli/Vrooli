@@ -24,12 +24,10 @@ import (
 type ResourceManifestOption func(*manifestpkg.ResourceManifest)
 
 const (
-	fixtureDriverExternalCLI    = "external-cli"
-	fixtureDriverManagedService = "managed-service"
-	fixtureDigestLength         = 64
-	fixtureReadinessInterval    = 10
-	fixtureLivenessInterval     = 30
-	fixtureHealthTimeout        = 10
+	fixtureDigestLength      = 64
+	fixtureReadinessInterval = 10
+	fixtureLivenessInterval  = 30
+	fixtureHealthTimeout     = 10
 )
 
 type ResourceTemplateVar struct {
@@ -58,18 +56,18 @@ func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.R
 		DisplayName: repocontracttest.DefaultDisplayName(name),
 		Description: fmt.Sprintf("%s fixture", repocontracttest.DefaultDisplayName(name)),
 		CLI:         defaultResourceCLIConfig(name),
-		Driver:      fixtureDriverExternalCLI,
+		Driver:      manifestpkg.DriverExternalCLI,
 		Binary:      "bash",
 		Platforms: manifestpkg.ResourcePlatforms{
-			Linux:   "supported",
-			MacOS:   "supported",
-			Windows: "supported",
+			Linux:   manifestpkg.PlatformSupportSupported,
+			MacOS:   manifestpkg.PlatformSupportSupported,
+			Windows: manifestpkg.PlatformSupportSupported,
 		},
 	}
 	for _, opt := range opts {
 		opt(&manifest)
 	}
-	if manifest.Driver == fixtureDriverManagedService && manifest.ManagedService == nil {
+	if manifest.Driver == manifestpkg.DriverManagedService && manifest.ManagedService == nil {
 		manifest.HealthChecks = []manifestpkg.ResourceHealthCheck{
 			{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "readiness", IntervalSeconds: fixtureReadinessInterval, TimeoutSeconds: fixtureHealthTimeout},
 			{Type: "http", Target: "http://127.0.0.1:1/health", Kind: "liveness", IntervalSeconds: fixtureLivenessInterval, TimeoutSeconds: fixtureHealthTimeout},
@@ -99,7 +97,7 @@ func ResourceTemplate(name string, opts ...ResourceTemplateOption) ResourceTempl
 		Name:        name,
 		DisplayName: repocontracttest.DefaultDisplayName(name),
 		Description: fmt.Sprintf("%s fixture template", repocontracttest.DefaultDisplayName(name)),
-		Driver:      fixtureDriverManagedService,
+		Driver:      manifestpkg.DriverManagedService,
 		RequiredVars: map[string]ResourceTemplateVar{
 			"RESOURCE_NAME": {Flag: "name", Description: "Fixture resource name"},
 		},
@@ -268,10 +266,10 @@ func WriteResourceManifest(t *testing.T, root, name string, manifest manifestpkg
 	if manifest.CLI == nil {
 		manifest.CLI = defaultResourceCLIConfig(name)
 	}
-	if manifest.Driver == fixtureDriverExternalCLI && strings.TrimSpace(manifest.Binary) == "" {
+	if manifest.Driver == manifestpkg.DriverExternalCLI && strings.TrimSpace(manifest.Binary) == "" {
 		manifest.Binary = "bash"
 	}
-	if manifest.Driver == fixtureDriverManagedService && manifest.ManagedService == nil {
+	if manifest.Driver == manifestpkg.DriverManagedService && manifest.ManagedService == nil {
 		manifest.ManagedService = &resourcedeployment.ManagedService{
 			ProviderPolicy: resourcedeployment.ProviderPolicy{
 				TargetDefaults: map[resourcedeployment.ProviderTarget]resourcedeployment.ProviderMode{

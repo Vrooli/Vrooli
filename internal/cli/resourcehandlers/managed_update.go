@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -68,7 +69,7 @@ func resourceUpdateByOwnerHandler[C any](deps rootcli.HandlerDeps[C], readOnly b
 				if e != nil {
 					return e
 				}
-				managed = m.Driver == "managed-service"
+				managed = m.Driver == manifestpkg.DriverManagedService
 			} else if !os.IsNotExist(e) {
 				return e
 			}

@@ -90,6 +90,19 @@ func TestCodecStampCoversEnumsEncodersAndCodecConsultedValues(t *testing.T) {
 	}
 }
 
+func TestCodecStampClassifiesPromotionAndOverrides(t *testing.T) {
+	base := `package fixture
+type Inner struct{}
+func (Inner) MarshalJSON() ([]byte, error) { return nil, nil }
+type Holder struct { Inner }
+`
+	promoted := scanFixture(t, map[string]string{"fixture.go": base})
+	overridden := scanFixture(t, map[string]string{"fixture.go": base + "\nfunc (Holder) MarshalJSON() ([]byte, error) { return []byte(`42`), nil }\n"})
+	if promoted["Holder"] == "" || overridden["Holder"] == "" || promoted["Holder"] == overridden["Holder"] {
+		t.Fatalf("promotion and override must have distinct classifications: %v %v", promoted, overridden)
+	}
+}
+
 func TestBehaviourOnlyEditsKeepTheCodecStamp(t *testing.T) {
 	base := scanFixture(t, map[string]string{"fixture.go": codecFixtureBase})
 	edits := map[string]string{
@@ -247,6 +260,125 @@ func TestCodecStampFollowsTheSamePackageClosure(t *testing.T) {
 			got := scanFixture(t, map[string]string{"fixture.go": strings.Replace(codecClosureFixture, tc.old, tc.new, 1)})
 			if got[tc.changed] == base[tc.changed] {
 				t.Fatalf("%s did not change the %s stamp", name, tc.changed)
+			}
+		})
+	}
+}
+
+func TestCodecRejectsUnboundForeignValues(t *testing.T) {
+	for _, expression := range []string{"foreign.Value", "foreign.Encode"} {
+		t.Run(expression, func(t *testing.T) {
+			root := t.TempDir()
+			source := `package fixture
+import foreign "example.test/foreign"
+type Stored struct{}
+func (Stored) MarshalJSON() ([]byte, error) { _ = ` + expression + `; return nil, nil }
+`
+			writeTestFile(t, root, "fixture.go", source)
+			for _, foreign := range []string{"one", "two"} {
+				writeTestFile(t, root, "foreign.go.txt", foreign)
+				_, violations, err := scanCodecPackage(root, ".")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(violations) != 1 || !strings.HasPrefix(violations[0], "codec-cross-package@") {
+					t.Fatalf("foreign %s: want qualification refusal, got %v", foreign, violations)
+				}
+			}
+		})
+	}
+}
+
+func TestCodecBindsForeignTypesAndStandardLibraryValue(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.test/app\n\ngo 1.25\n")
+	writeTestFile(t, root, "fixture.go", `package fixture
+import "time"
+import foreign "example.test/app/foreign"
+type Stored struct { Item foreign.Type }
+func (s Stored) MarshalJSON() ([]byte, error) { _ = time.RFC3339; var v foreign.Type; _ = v; _, _ = any(v).(foreign.Type); _ = foreign.Type("x"); return nil, nil }
+`)
+	scan := func(source string) string {
+		t.Helper()
+		writeTestFile(t, root, "foreign/type.go", source)
+		digests, violations, err := scanCodecPackage(root, ".")
+		if err != nil || len(violations) != 0 {
+			t.Fatalf("foreign type not bound: %v %v", violations, err)
+		}
+		return digests["Stored"]
+	}
+	base := `package foreign
+ type Type string
+ func (t Type) MarshalJSON() ([]byte,error) { return []byte(t),nil }
+ `
+	digest := scan(base)
+	if digest == scan(strings.Replace(base, "type Type string", "type Type []byte", 1)) {
+		t.Fatal("foreign type shape change omitted")
+	}
+	if digest == scan(strings.Replace(base, "return []byte(t),nil", "return []byte{},nil", 1)) {
+		t.Fatal("foreign codec method change omitted")
+	}
+}
+
+func TestCodecRejectsForeignArrayLengthValue(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "fixture.go", `package fixture
+import foreign "example.test/foreign"
+type Stored struct { Data [foreign.Size]byte }
+func (s Stored) MarshalJSON() ([]byte, error) { return s.Data[:], nil }
+`)
+	_, violations, err := scanCodecPackage(root, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(violations) == 0 {
+		t.Fatal("foreign array size qualified")
+	}
+}
+
+func TestCodecRejectsDotImportAndNonBasenamePackage(t *testing.T) {
+	for name, src := range map[string]string{
+		"dot": `package fixture
+import . "example.test/foreign"
+type Stored struct{}
+func (Stored) MarshalJSON() ([]byte,error) { return []byte(Value), nil }`,
+		"package-name": `package fixture
+import "example.test/yaml.v3"
+type Stored struct{}
+func (Stored) MarshalJSON() ([]byte,error) { return []byte(yaml.Value), nil }`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTestFile(t, root, "fixture.go", src)
+			_, violations, err := scanCodecPackage(root, ".")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(violations) == 0 {
+				t.Fatal("unbound import qualified")
+			}
+		})
+	}
+}
+
+func TestCodecForeignAssertionsAndConversionsRemainUnqualified(t *testing.T) {
+	for name, body := range map[string]string{
+		"assertion":  `_, _ = input.(foreign.Type)`,
+		"conversion": `_ = foreign.Type(input)`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := t.TempDir()
+			writeTestFile(t, root, "fixture.go", `package fixture
+import foreign "example.test/foreign"
+type Stored struct { Input any }
+func (s Stored) MarshalJSON() ([]byte, error) { input := s.Input; `+body+`; return nil, nil }
+`)
+			_, violations, err := scanCodecPackage(root, ".")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(violations) == 0 {
+				t.Fatal("unbound foreign type dependency qualified")
 			}
 		})
 	}

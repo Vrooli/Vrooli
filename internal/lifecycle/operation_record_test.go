@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"io"
 	"runtime"
 	"strings"
@@ -33,6 +34,76 @@ func stepStatuses(op scenarioruntime.StartOperation) map[string]string {
 		out[step.Name] = step.Status
 	}
 	return out
+}
+
+func TestRuntimeIdentityStepPersistsExactServingProvenance(t *testing.T) {
+	rec := &startOperationRecorder{op: scenarioruntime.StartOperation{}}
+	evidence := map[string]string{
+		"runtime_instance_id":       "browser-live-4",
+		"selected_release_id":       "release-current",
+		"served_release_id":         "release-current",
+		"expected_build_identity":   "sha256:release-current",
+		"served_build_identity":     "sha256:release-current",
+		"served_start_operation_id": "start-42",
+	}
+	at := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	rec.completeStepWithEvidence(scenarioruntime.StartStepRuntimeIdentity, at, evidence)
+	var durable scenarioruntime.StartOperation
+	durable.WithSteps(rec.steps)
+	steps := durable.Steps()
+	if len(steps) != 1 || steps[0].Name != scenarioruntime.StartStepRuntimeIdentity || steps[0].Status != scenarioruntime.StartStepDone {
+		t.Fatalf("runtime identity receipt steps = %+v", steps)
+	}
+	for key, want := range evidence {
+		if got := steps[0].Evidence[key]; got != want {
+			t.Errorf("evidence[%q] = %q, want %q", key, got, want)
+		}
+	}
+}
+
+func TestFailedRuntimeIdentityStepPersistsExactRollbackReceipt(t *testing.T) {
+	at := time.Date(2026, 11, 16, 12, 5, 0, 0, time.UTC)
+	rec := &startOperationRecorder{steps: []scenarioruntime.StartOperationStep{{
+		Name: scenarioruntime.StartStepRuntimeIdentity, Status: scenarioruntime.StartStepRunning, StartedAt: at,
+		Evidence: map[string]string{"selected_release_id": "candidate"},
+	}}}
+	rec.failRuntimeIdentityStep(at.Add(time.Second), true, "prior", "start-rollback", "")
+	var durable scenarioruntime.StartOperation
+	durable.WithSteps(rec.steps)
+	steps := durable.Steps()
+	if len(steps) != 1 || steps[0].Status != scenarioruntime.StartStepFailed {
+		t.Fatalf("failed identity receipt = %+v", steps)
+	}
+	if got := steps[0].Evidence["selected_release_id"]; got != "candidate" {
+		t.Fatalf("candidate evidence = %q, want candidate", got)
+	}
+	if got := steps[0].Evidence["rollback_attempted"]; got != "true" {
+		t.Fatalf("rollback attempted = %q, want true", got)
+	}
+	if got := steps[0].Evidence["rollback_release_id"]; got != "prior" {
+		t.Fatalf("rollback release = %q, want prior", got)
+	}
+	if got := steps[0].Evidence["rollback_operation_id"]; got != "start-rollback" {
+		t.Fatalf("rollback operation = %q, want exact operation", got)
+	}
+}
+
+func TestDependencyStartGetsIndependentOperationAndFenceOwnership(t *testing.T) {
+	parentRecorder := &startOperationRecorder{op: scenarioruntime.StartOperation{OperationID: "parent-start"}}
+	parentFence := &providerFence{operationID: "parent-fence"}
+	prior := &scenarioruntime.StartOperation{OperationID: "prior-parent"}
+	opts := clearDependencyOperationOwnership(StartOptions{
+		Operation: lifecycleOperationRestart, startRecorder: parentRecorder,
+		lifecycleOperationID: "parent-start", providerFenceOperationID: "parent-fence",
+		providerFence: parentFence, priorStartOperation: prior,
+		priorStartOperationErr: errors.New("parent snapshot error"),
+	})
+	if opts.Operation != lifecycleOperationRestart {
+		t.Fatalf("dependency operation kind = %q, want inherited restart semantics", opts.Operation)
+	}
+	if opts.startRecorder != nil || opts.lifecycleOperationID != "" || opts.providerFenceOperationID != "" || opts.providerFence != nil || opts.priorStartOperation != nil || opts.priorStartOperationErr != nil {
+		t.Fatalf("dependency inherited parent operation ownership: %+v", opts)
+	}
 }
 
 // TestStartWritesOperationRecord proves a real successful start leaves a
@@ -289,6 +360,20 @@ func TestEvaluateStartOperationSurfacesInitiatorPID(t *testing.T) {
 	}
 }
 
+func TestEvaluateStartOperationSurfacesProviderFenceIdentity(t *testing.T) {
+	now := time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC)
+	op := runningOperationFixture(now.Add(-time.Minute))
+	op.FenceOperationID = "restart-instance-1"
+
+	view := EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
+	if view.FenceOperationID != op.FenceOperationID {
+		t.Fatalf("provider fence identity = %q, want %q", view.FenceOperationID, op.FenceOperationID)
+	}
+	if !strings.Contains(view.InFlightSummary(), "provider fence restart-instance-1") {
+		t.Fatalf("in-flight summary = %q, want linked provider fence", view.InFlightSummary())
+	}
+}
+
 func TestInFlightSummaryReportsRunningOperationOnly(t *testing.T) {
 	now := time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC)
 	alive := func(int) bool { return true }
@@ -338,13 +423,17 @@ func TestInFlightSummaryReportsRunningOperationOnly(t *testing.T) {
 func TestEvaluateStartOperationClassifiesLiveStall(t *testing.T) {
 	now := time.Date(2026, 7, 1, 12, 1, 0, 0, time.UTC)
 	op := runningOperationFixture(now.Add(-10 * time.Minute))
+	op.CurrentStep = startStepProviderFence
 	op.UpdatedAt = now.Add(-tuning.SetupProgressStaleThreshold())
 	view := EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
 	if !view.Stalled {
 		t.Fatal("live operation without recent progress was not classified as stalled")
 	}
-	if !strings.Contains(view.StallReason, "no lifecycle progress") {
+	if !strings.Contains(view.StallReason, "no lifecycle progress") || !strings.Contains(view.StallReason, "provider_fence") {
 		t.Fatalf("stall reason = %q", view.StallReason)
+	}
+	if view.ETAKnown || view.RecommendedNextCheckSeconds != recommendedNextCheckUnknown {
+		t.Fatalf("stalled owner reported a misleading ETA/check interval: %+v", view)
 	}
 	if !strings.Contains(view.InFlightSummary(), "stalled:") {
 		t.Fatalf("summary = %q, want stalled detail", view.InFlightSummary())
@@ -354,6 +443,22 @@ func TestEvaluateStartOperationClassifiesLiveStall(t *testing.T) {
 	view = EvaluateStartOperation(op, func(int) bool { return true }, now, nil)
 	if view.Stalled {
 		t.Fatal("recently updated operation was classified as stalled")
+	}
+
+	// A legacy restart can have no stage recorded at all. Even with complete
+	// phase history, elapsed time must not be presented as a fresh ETA once the
+	// live owner has made no progress for the stall threshold.
+	legacy := runningOperationFixture(now.Add(-10 * time.Minute))
+	legacy.Operation = "restart"
+	legacy.UpdatedAt = now.Add(-tuning.SetupProgressStaleThreshold())
+	view = EvaluateStartOperation(legacy, func(int) bool { return true }, now, map[string]time.Duration{
+		startStepSetup: time.Minute, startStepDevelop: time.Minute, startStepHealth: time.Minute,
+	})
+	if !view.Stalled || view.ETAKnown || view.ETASeconds != 0 || view.RecommendedNextCheckSeconds != recommendedNextCheckUnknown {
+		t.Fatalf("legacy no-stage stall reported an ETA: %+v", view)
+	}
+	if !strings.Contains(view.StallReason, "no current stage recorded") {
+		t.Fatalf("legacy stall reason lacks stage evidence: %q", view.StallReason)
 	}
 }
 

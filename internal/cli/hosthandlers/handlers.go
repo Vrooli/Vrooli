@@ -38,7 +38,7 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "kernel-memory", "service", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair", "wireless"}
+var hostCommandNames = []string{"cron", "inventory", "kernel-memory", "service", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair", "wireless", "go-cache"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
@@ -147,6 +147,8 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 					return runRendererCacheRepair(runCtx, ctx)
 				case "wireless":
 					return runHostWireless(runCtx, ctx)
+				case "go-cache":
+					return runHostGoCache(runCtx, ctx)
 				case "install":
 					return runHostInstall(runCtx, ctx)
 				case "safeguard":
@@ -376,13 +378,20 @@ func runHostVolume(runCtx cliapp.RunContext, parent *rootcli.CommandContext) err
 		actionName = strings.ToLower(strings.TrimSpace(parsed.Arg(0)))
 	}
 	if actionName == "" || parsed.NArg() > 1 {
-		return rootcli.UsageErrorf("host volume", "an action is required (capabilities, inspect, check, smart, repair, unmount, or mount-rw)")
+		return rootcli.UsageErrorf("host volume", "an action is required (capabilities, receipts, inspect, check, smart, repair, unmount, mount-rw, or lease)")
+	}
+	if actionName == "receipts" {
+		receipts, err := volumeremediation.ReadReceipts()
+		if err != nil {
+			return err
+		}
+		return cliout.WriteJSONValue(runCtx.Stdout(), receipts)
 	}
 	if actionName == "capabilities" {
 		if parent.Globals.JSON || runCtx.JSON() {
 			return cliout.WriteJSONValue(runCtx.Stdout(), volumeremediation.AdvertisedCapabilities())
 		}
-		return cliout.WriteSection(runCtx.Stdout(), cliout.Section{Rows: [][]string{{volumeremediation.ContractVersion, "inspect,check,smart,repair,unmount,mount-rw"}}})
+		return cliout.WriteSection(runCtx.Stdout(), cliout.Section{Rows: [][]string{{volumeremediation.ContractVersion, "inspect,check,smart,repair,unmount,mount-rw,lease"}}})
 	}
 	if actionName == "smart" {
 		if strings.TrimSpace(*device) == "" || strings.TrimSpace(*serial) == "" {
@@ -409,9 +418,49 @@ func runHostVolume(runCtx cliapp.RunContext, parent *rootcli.CommandContext) err
 		}
 		return nil
 	}
+	if actionName == "lease" {
+		if strings.TrimSpace(*uuid) == "" && strings.TrimSpace(*serial) == "" {
+			return rootcli.UsageErrorf("host volume", "lease requires --uuid or --serial as a stable identity")
+		}
+		leaseCtx := parent.OperationContext()
+		service := volumeremediation.New(volumeremediation.Options{})
+		device := volumeremediation.Device{Path: strings.TrimSpace(*device), Filesystem: strings.TrimSpace(*filesystem), UUID: strings.TrimSpace(*uuid), Serial: strings.TrimSpace(*serial)}
+		observed, inspectErr := service.Inspect(leaseCtx, device)
+		if inspectErr != nil {
+			return inspectErr
+		}
+		if device.Filesystem == "" {
+			device.Filesystem = observed.Device.Filesystem
+		}
+		if device.UUID == "" {
+			device.UUID = observed.Device.UUID
+		}
+		if device.Serial == "" {
+			device.Serial = observed.Device.Serial
+		}
+		release, err := volumeremediation.AcquireOperationLease(leaseCtx, device, func(ctx context.Context, path string) (volumeremediation.State, error) {
+			return service.Inspect(ctx, volumeremediation.Device{Path: path})
+		})
+		if err != nil {
+			return err
+		}
+		defer release()
+		if parent.Globals.JSON || runCtx.JSON() {
+			// This is a streaming readiness handshake consumed by DBM. Keep it
+			// compact and on one line; the general JSON renderer pretty-prints
+			// objects, which makes a first-line protocol reader reject "{".
+			if err := json.NewEncoder(runCtx.Stdout()).Encode(map[string]string{"status": "leased", "device": device.Path}); err != nil {
+				return err
+			}
+		} else {
+			_, _ = fmt.Fprintf(runCtx.Stdout(), "Volume lease held for %s; cancel this process to release it.\n", device.Path)
+		}
+		<-leaseCtx.Done()
+		return nil
+	}
 	action, ok := hostVolumeActions[actionName]
 	if !ok {
-		return rootcli.UsageErrorf("host volume", "unknown action %q (want capabilities, inspect, check, smart, repair, unmount, or mount-rw)", actionName)
+		return rootcli.UsageErrorf("host volume", "unknown action %q (want capabilities, receipts, inspect, check, smart, repair, unmount, mount-rw, or lease)", actionName)
 	}
 	if strings.TrimSpace(*device) == "" {
 		return rootcli.UsageErrorf("host volume", "--device is required")

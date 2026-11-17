@@ -59,18 +59,20 @@ func truncateInitiatorText(value string) string {
 
 // Step states within a start operation.
 const (
-	StartStepRunning = "running"
-	StartStepDone    = "done"
-	StartStepFailed  = "failed"
+	StartStepRuntimeIdentity = "runtime_identity"
+	StartStepRunning         = "running"
+	StartStepDone            = "done"
+	StartStepFailed          = "failed"
 )
 
 // StartOperationStep is one recorded step of a start operation, serialized
 // into the record's steps_json in execution order.
 type StartOperationStep struct {
-	Name      string     `json:"name"`
-	Status    string     `json:"status"`
-	StartedAt time.Time  `json:"started_at"`
-	EndedAt   *time.Time `json:"ended_at,omitempty"`
+	Name      string            `json:"name"`
+	Status    string            `json:"status"`
+	StartedAt time.Time         `json:"started_at"`
+	EndedAt   *time.Time        `json:"ended_at,omitempty"`
+	Evidence  map[string]string `json:"evidence,omitempty"`
 }
 
 // StartOperation is the durable record of one start/restart invocation.
@@ -174,6 +176,9 @@ type StartOperationRepository interface {
 	// attempt only when it failed or was abandoned. Unlinked preparation
 	// failures must not erase the durable owner of an already closed fence.
 	GetStartOperationFenceRecoveryOwner(ctx context.Context, scenario, variant string) (StartOperation, error)
+	// GetStartOperationFenceOwner finds the exact attempt linked to one provider
+	// fence. Callers must still verify terminal state and scenario identity.
+	GetStartOperationFenceOwner(ctx context.Context, scenario, variant, fenceOperationID string) (StartOperation, error)
 	// MarkStartOperationAbandoned transitions a running record to abandoned
 	// (dead initiator or explicit Ctrl-C handoff).
 	MarkStartOperationAbandoned(ctx context.Context, operationID string, reason string) (StartOperation, error)
@@ -391,6 +396,18 @@ ORDER BY rowid DESC LIMIT 1`, scenario, variant, StartOperationStatusRunning)
 		return StartOperation{}, ErrNotFound
 	}
 	return op, nil
+}
+
+func (s *SQLiteStore) GetStartOperationFenceOwner(ctx context.Context, scenario, variant, fenceOperationID string) (StartOperation, error) {
+	row := s.db.QueryRowContext(ctx, `
+SELECT operation_id, fence_operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+       initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
+       started_at, updated_at, finished_at, current_step, dependency_current,
+       dependency_index, dependency_total, steps_json
+FROM runtime_start_operations
+WHERE scenario = ? AND variant = ? AND fence_operation_id = ?
+	ORDER BY rowid DESC LIMIT 1`, scenario, (InstanceKey{Scenario: scenario, Variant: variant}).Normalize().Variant, strings.TrimSpace(fenceOperationID))
+	return scanStartOperation(row)
 }
 
 func (s *SQLiteStore) MarkStartOperationAbandoned(ctx context.Context, operationID string, reason string) (StartOperation, error) {

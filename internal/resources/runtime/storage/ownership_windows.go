@@ -10,3 +10,5 @@ import "io/fs"
 func requireFileInfoOwnedByCurrentUser(string, fs.FileInfo, bool) error { return nil }
 
 func restoreCreatedStorageOwnership([]string) error { return nil }
+
+func RepairRootOwnedFileForInvokingUser(string) (bool, error) { return false, nil }

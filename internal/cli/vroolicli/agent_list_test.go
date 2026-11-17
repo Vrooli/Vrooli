@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/agentscope"
 	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // [REQ:STORM-002] vrooli agent list shows every live session with its tree,
@@ -124,6 +125,72 @@ func TestAgentListMarksALeaseNamingNoLiveScope(t *testing.T) {
 	}
 }
 
+func TestExactAgentSessionInspectionKeepsTerminalLeaseVisible(t *testing.T) {
+	ctx := context.Background()
+	home := t.TempDir()
+	now := time.Date(2026, 11, 15, 12, 0, 0, 0, time.UTC)
+	clock := testenv.NewClock(now)
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, Clock: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lease, err := store.CreateEditorLease(ctx, scenarioruntime.EditorLease{
+		SessionID: "legacy-codex-session", Harness: "codex", Agent: "codex", PID: 4242,
+		HostBootID: "boot-old", Scope: "vrooli-agent-codex-legacy-codex-session",
+		Owner: scenarioruntime.EditorLeaseOwner{Kind: agentsession.KindScenarioInstance, Ref: "inst-old"},
+	}, time.Minute)
+	if err != nil {
+		store.Close()
+		t.Fatal(err)
+	}
+	expired, err := store.ExpireStaleEditorLeases(ctx, now.Add(2*time.Minute), scenarioruntime.StartingLeaseGuard{
+		PIDRunning: func(int) bool { return false }, CurrentBootID: "boot-old",
+	})
+	if err != nil || len(expired) != 1 || expired[0].SessionID != lease.SessionID {
+		store.Close()
+		t.Fatalf("expire fixture lease = %+v, %v", expired, err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	leases, err := exactAgentSession(home, lease.SessionID)
+	if err != nil || len(leases) != 1 || leases[0].Status != scenarioruntime.EditorLeaseExpired {
+		t.Fatalf("exact historical lease = %+v, %v", leases, err)
+	}
+	var out bytes.Buffer
+	if err := renderAgentListFiltered(ctx, &out, func() ([]scenarioruntime.EditorLease, error) { return leases, nil }, agentsession.Reconciler{
+		Census: func() ([]agentscope.Entry, error) { return []agentscope.Entry{{Name: "vrooli-agent-other.scope"}}, nil },
+		Alive:  func(int) bool { return false }, Frozen: frozenUnknown, Now: fixedClock(time.Now().UTC()),
+	}, true, lease.SessionID); err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Sessions []map[string]any `json:"sessions"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Sessions) != 1 {
+		t.Fatalf("exact history inspection = %s", out.String())
+	}
+	row := doc.Sessions[0]
+	if row["lease_status"] != scenarioruntime.EditorLeaseExpired || row["scope_held"] != false || row["kernel_state"] != agentsession.StateGhost || row["reapable"] != false {
+		t.Fatalf("historical lease was hidden or treated as safely absent: %v", row)
+	}
+}
+
+func TestFilterAgentScopeCensusKeepsOnlyExactHistoricalScope(t *testing.T) {
+	entries := []agentscope.Entry{
+		{Name: "vrooli-agent-target.scope", Tasks: 0},
+		{Name: "vrooli-agent-unrelated.scope", Tasks: 12},
+	}
+	got := filterAgentScopeCensus(entries, "vrooli-agent-target.scope")
+	if len(got) != 1 || got[0].Name != "vrooli-agent-target.scope" {
+		t.Fatalf("exact scope census = %+v", got)
+	}
+}
+
 // A census that cannot run must never make a session look healthy.
 func TestAgentListReportsUndeterminedWhenTheKernelCannotBeRead(t *testing.T) {
 	now := time.Now().UTC()
@@ -202,5 +269,73 @@ func TestAgentListJSONCarriesUsageAndReapVerdict(t *testing.T) {
 	if s := doc.Summary; s.Sessions != 2 || s.Reapable != 1 || s.MemoryUnknown != 2 || s.SwapUnknown != 2 || s.MemoryBytes != 0 ||
 		s.ByOwnerKind[agentsession.KindDesktopApp][agentsession.StateOrphaned] != 1 {
 		t.Fatalf("summary = %+v", s)
+	}
+}
+
+func TestAgentSessionRowNamesMemoryMeasurementSources(t *testing.T) {
+	rss, swap := int64(1024), int64(256)
+	row := agentSessionRow(agentsession.Session{Usage: agentsession.ScopeUsage{
+		MemoryBytes: &rss, MemoryStatus: agentsession.UsageMeasured, MemorySource: agentsession.UsageSourceCgroupV2,
+		SwapBytes: &swap, SwapStatus: agentsession.UsageMeasured, SwapSource: agentsession.UsageSourceProcSum,
+	}}, time.Now())
+	if row.MemorySource != agentsession.UsageSourceCgroupV2 || row.SwapSource != agentsession.UsageSourceProcSum {
+		t.Fatalf("row sources = %q / %q", row.MemorySource, row.SwapSource)
+	}
+}
+
+func TestUsageTextShowsMeasuredSource(t *testing.T) {
+	bytes := int64(1024)
+	if got := usageText(&bytes, agentsession.UsageMeasured, agentsession.UsageSourceCgroupV2); got != "1.0 KiB (cgroup-v2)" {
+		t.Fatalf("usageText() = %q", got)
+	}
+	if got := usageText(nil, agentsession.UsageUnavailable, ""); got != agentsession.UsageUnavailable {
+		t.Fatalf("unknown usageText() = %q", got)
+	}
+	if got := usageText(&bytes, agentsession.UsagePartial, agentsession.UsageSourceProcSum); got != "partial 1.0 KiB (proc-sum)" {
+		t.Fatalf("partial usageText() = %q", got)
+	}
+}
+
+func TestAgentListSummaryKeepsMemoryTotalsSeparatedBySource(t *testing.T) {
+	cgroupRAM, procRAM := int64(100), int64(200)
+	procSwap, cgroupSwap := int64(30), int64(40)
+	summary := AgentListSummary{MemoryBytesBySource: map[string]int64{}, SwapBytesBySource: map[string]int64{}}
+	summary.add(AgentSessionRow{
+		MemoryBytes: &cgroupRAM, MemoryStatus: agentsession.UsageMeasured, MemorySource: agentsession.UsageSourceCgroupV2,
+		SwapBytes: &procSwap, SwapStatus: agentsession.UsageMeasured, SwapSource: agentsession.UsageSourceProcSum,
+	})
+	summary.add(AgentSessionRow{
+		MemoryBytes: &procRAM, MemoryStatus: agentsession.UsageMeasured, MemorySource: agentsession.UsageSourceProcSum,
+		SwapBytes: &cgroupSwap, SwapStatus: agentsession.UsageMeasured, SwapSource: agentsession.UsageSourceCgroupV2,
+	})
+	if summary.MemoryBytes != cgroupRAM+procRAM || summary.SwapBytes != procSwap+cgroupSwap ||
+		summary.MemoryBytesBySource[agentsession.UsageSourceCgroupV2] != cgroupRAM ||
+		summary.MemoryBytesBySource[agentsession.UsageSourceProcSum] != procRAM ||
+		summary.SwapBytesBySource[agentsession.UsageSourceProcSum] != procSwap ||
+		summary.SwapBytesBySource[agentsession.UsageSourceCgroupV2] != cgroupSwap {
+		t.Fatalf("source-separated summary = %+v", summary)
+	}
+}
+
+func TestAgentListSummarySeparatesPartialFromCompleteTotals(t *testing.T) {
+	completeRAM, partialRAM := int64(100), int64(30)
+	completeSwap, partialSwap := int64(50), int64(20)
+	summary := AgentListSummary{}
+	summary.add(AgentSessionRow{
+		MemoryBytes: &completeRAM, MemoryStatus: agentsession.UsageMeasured, MemorySource: agentsession.UsageSourceCgroupV2,
+		SwapBytes: &completeSwap, SwapStatus: agentsession.UsageMeasured, SwapSource: agentsession.UsageSourceCgroupV2,
+	})
+	summary.add(AgentSessionRow{
+		MemoryBytes: &partialRAM, MemoryStatus: agentsession.UsagePartial, MemorySource: agentsession.UsageSourceProcSum,
+		SwapBytes: &partialSwap, SwapStatus: agentsession.UsagePartial, SwapSource: agentsession.UsageSourceProcSum,
+	})
+	summary.add(AgentSessionRow{})
+	if summary.MemoryBytes != completeRAM || summary.SwapBytes != completeSwap ||
+		summary.MemoryPartial != 1 || summary.MemoryPartialBytes != partialRAM ||
+		summary.SwapPartial != 1 || summary.SwapPartialBytes != partialSwap ||
+		summary.MemoryUnknown != 1 || summary.SwapUnknown != 1 ||
+		summary.MemoryBytesBySource[agentsession.UsageSourceCgroupV2] != completeRAM ||
+		summary.MemoryPartialBySource[agentsession.UsageSourceProcSum] != partialRAM {
+		t.Fatalf("partial/complete summary = %+v", summary)
 	}
 }

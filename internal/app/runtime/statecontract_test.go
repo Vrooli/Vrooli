@@ -4,10 +4,29 @@ import (
 	"strings"
 	"testing"
 
+	platform "github.com/vrooli/platform-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/statecontract"
 )
+
+func TestForeignLauncherBindingHasAnOwnerFact(t *testing.T) {
+	const binding = "github.com/vrooli/vrooli/internal/resources.ManagedUpdateRuntime.NativeLauncherProfile|github.com/vrooli/platform-go.NativeLauncherProfileOpenRGB"
+	if statecontract.StoredForeignValueFacts[binding].Value != platform.NativeLauncherProfileOpenRGB || resources.PersistentState().Facts["native_launcher_publication_profile"] != platform.NativeLauncherProfileOpenRGB {
+		t.Fatal("launcher selector must remain covered by the resource owner's compiled fact")
+	}
+	withRepositoryCodecStamp(t)
+	owners := nativePersistenceOwners()
+	for i := range owners {
+		if owners[i].Name == "resources" {
+			delete(owners[i].Facts, "native_launcher_publication_profile")
+		}
+	}
+	if _, err := statecontract.Compute(owners); err == nil || !strings.Contains(err.Error(), "foreign stored value binding") {
+		t.Fatalf("missing owner fact did not prevent qualification: %v", err)
+	}
+}
 
 // withRepositoryCodecStamp stamps the test process exactly as a governed
 // builder stamps an executable built from this checkout.
@@ -40,6 +59,19 @@ func TestNativePersistenceOwnersQualifyWithTheGovernedStamp(t *testing.T) {
 		t.Fatalf("manifest owners = %d, declared = %d", len(manifest.Owners), len(nativePersistenceOwners()))
 	}
 	for _, owner := range manifest.Owners {
+		if owner.Owner == "capacity" {
+			if _, ok := owner.Types["github.com/vrooli/vrooli/internal/capacity.ResidencyTransitionRecord"]; !ok {
+				t.Fatal("capacity contract omits persisted residency transition records")
+			}
+			if _, ok := owner.Types["github.com/vrooli/vrooli/internal/capacity.PlacementQualification"]; !ok {
+				t.Fatal("capacity contract omits persisted placement qualifications")
+			}
+		}
+		if owner.Owner == "secure-store" {
+			if _, ok := owner.Types["github.com/vrooli/vrooli/internal/securestore.CopyStatus"]; !ok {
+				t.Fatal("secure-store contract omits persisted copy receipt")
+			}
+		}
 		if owner.Owner == "native-operation-identities" {
 			if _, failed := owner.Facts["operation_intent_sample_error"]; failed {
 				t.Fatal("native operation identity sample no longer validates; fix the sample spec")

@@ -20,26 +20,31 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-func TestWhisperActivityEdgeHasStablePrivateControlOwner(t *testing.T) {
-	c := ResourceCompanion{Name: "activity-edge", Command: "resource-whisper", Args: []string{"activity-edge", "--native"}}
-	got := companionLaunchArgs("whisper", c, "/runtime/processes/resources/whisper", 4321)
-	want := []string{"activity-edge", "--native", "--control-socket", "/runtime/processes/resources/whisper/activity-edge.control.sock"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("Whisper activity-edge args=%v, want %v", got, want)
+func TestMissionResidencyActivityEdgesHaveStablePrivateControlOwners(t *testing.T) {
+	for _, resource := range []string{"whisper", "reranker", "ollama", "kyutai-stt"} {
+		t.Run(resource, func(t *testing.T) {
+			companion := ResourceCompanion{Name: "activity-edge", Args: []string{"activity-edge"}}
+			if resource == "whisper" {
+				companion.Args = append(companion.Args, "--native")
+			}
+			dir := "/runtime/processes/resources/" + resource
+			got := companionLaunchArgs(resource, companion, dir, 4321)
+			want := append([]string(nil), companion.Args...)
+			want = append(want, "--control-socket", dir+"/activity-edge.control.sock")
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("activity-edge args=%v, want %v", got, want)
+			}
+			if !hasStableActivityEdge(resource) {
+				t.Fatalf("hasStableActivityEdge(%q)=false, want true", resource)
+			}
+		})
 	}
-	other := companionLaunchArgs("reranker", ResourceCompanion{Name: "activity-edge", Args: []string{"activity-edge"}}, "/tmp", 4321)
+	other := companionLaunchArgs("kokoro", ResourceCompanion{Name: "activity-edge", Args: []string{"activity-edge"}}, "/tmp", 4321)
 	if !reflect.DeepEqual(other, []string{"activity-edge", "--parent-pid", "4321"}) {
-		t.Fatalf("non-Whisper companion args=%v", other)
+		t.Fatalf("non-residency companion args=%v", other)
 	}
-	ollama := companionLaunchArgs("ollama", ResourceCompanion{Name: "activity-edge", Args: []string{"activity-edge"}}, "/runtime/processes/resources/ollama", 4321)
-	wantOllama := []string{"activity-edge", "--control-socket", "/runtime/processes/resources/ollama/activity-edge.control.sock"}
-	if !reflect.DeepEqual(ollama, wantOllama) {
-		t.Fatalf("Ollama activity-edge args=%v, want %v", ollama, wantOllama)
-	}
-	for resource, want := range map[string]bool{"whisper": true, "ollama": true, "reranker": false} {
-		if got := hasStableActivityEdge(resource); got != want {
-			t.Errorf("hasStableActivityEdge(%q)=%t, want %t", resource, got, want)
-		}
+	if hasStableActivityEdge("kokoro") {
+		t.Fatal("kokoro unexpectedly has the residency control owner")
 	}
 }
 
@@ -334,7 +339,7 @@ func TestCompanionStopWaitsForPortReleaseBeforeDiscardingOwnership(t *testing.T)
 		t.Fatal(err)
 	}
 	address = strings.TrimSpace(address)
-	if err := os.WriteFile(filepath.Join(dir, "edge.pid"), []byte(strconv.Itoa(cmd.Process.Pid)), 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "edge.pid"), []byte(strconv.Itoa(cmd.Process.Pid)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := stopCompanion("fixture", ResourceCompanion{Name: "edge"}); err != nil {

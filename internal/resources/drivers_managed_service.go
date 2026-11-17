@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"runtime"
@@ -20,17 +21,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/lightingruntime"
+	"github.com/vrooli/vrooli/internal/process"
+	activitynetwork "github.com/vrooli/vrooli/internal/resources/activitynetwork"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
+	resourceenv "github.com/vrooli/vrooli/internal/resources/env"
 	"github.com/vrooli/vrooli/internal/securestore"
 	valuehelpers "github.com/vrooli/vrooli/internal/values"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
@@ -318,21 +325,20 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 	if manifest.Name == openRGBResourceName && (action == brokerTransportStart || action == brokerTransportRestart) {
 		return runOpenRGBNativeResourceAction(ctx, controller, action, args)
 	}
-	if manifest.Name == openRGBResourceName && action == brokerTransportStop && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-		if len(args) != 0 {
-			return errors.New("OpenRGB native stop accepts no process or launch overrides")
-		}
+	if requiresOpenRGBNativeStop(manifest.Name, action) {
 		if err := requireOpenRGBNativeOperatorAuthority(); err != nil {
 			return err
 		}
 		if err := controller.ValidateOpenRGBNativeResourceStorage(ctx); err != nil {
 			return err
 		}
-		owner, err := lightingruntime.NewController(controller.Home, lightingruntime.Owners{Resource: NewOpenRGBHeadless(controller, controller.OpenRGBDevicePolicyVerifier()), Scenario: openRGBNativeStopScenario{quiesce: controller.openRGBPublicOwners().quiesce}})
+		resource := NewOpenRGBHeadless(controller, controller.OpenRGBDevicePolicyVerifier())
+		quiesce := controller.openRGBPublicOwners().quiesce
+		owner, err := lightingruntime.NewController(controller.Home, lightingruntime.Owners{Resource: resource, Scenario: openRGBNativeStopScenario{quiesce: quiesce}})
 		if err != nil {
 			return err
 		}
-		return owner.Disable(ctx)
+		return runOpenRGBNativeStop(ctx, args, owner, resource.StopOpenRGB, quiesce)
 	}
 
 	if manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer {
@@ -457,6 +463,8 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 	}
 }
 
+var managedSharedStoreForHost = defaultManagedSharedSecureStore
+
 // runUserHosted owns shared lifecycle mechanics while a resource registration
 // owns its bootstrap protocol and management material.
 func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer, args ...string) error {
@@ -470,7 +478,7 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 	if !ok {
 		return fmt.Errorf("user-hosted bootstrap adapter is not registered for %s", manifest.Name)
 	}
-	host, err := OpenUserResourceHost(defaultManagedSharedSecureStore(), "local-user")
+	host, err := OpenUserResourceHost(managedSharedStoreForHost(), "local-user")
 	if err != nil {
 		return err
 	}
@@ -508,15 +516,21 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 		if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
 			return fmt.Errorf("prepare managed-service restart: %w", err)
 		}
+		releaseConnector, err := prepareCloudflareConnectorRestart(ctx, manifest)
+		if err != nil {
+			return err
+		}
+		defer releaseConnector()
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
-		err := stopManagedService(stopCtx, manifest, supervisor)
+		err = stopManagedService(stopCtx, manifest, supervisor)
 		cancel()
 		if err != nil {
 			return err
 		}
-		if err := d.startPrivate(ctx, controller, manifest, supervisor); err != nil {
+		if err := d.startPrivateWithConnectorLock(ctx, controller, manifest, supervisor, true); err != nil {
 			return err
 		}
+		releaseConnector()
 	case brokerTransportStop, driversDockerUninstall, driversCliLogs:
 		return d.runPrivate(ctx, controller, item, manifest, action, stdout, args...)
 	default:
@@ -642,7 +656,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
+		startManagedServiceCompanions(manifest, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
@@ -671,10 +685,15 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
 			return fmt.Errorf("prepare managed-service restart: %w", err)
 		}
+		releaseConnector, err := prepareCloudflareConnectorRestart(ctx, manifest)
+		if err != nil {
+			return err
+		}
+		defer releaseConnector()
 		stableActivityEdge := hasStableActivityEdge(manifest.Name)
 		var whisperTransition *whisperResidencyTransition
 		if stableActivityEdge {
-			if err := controlResourceActivityEdge(ctx, manifest.Name, "drain"); err != nil {
+			if err := drainActivityEdgeForRestart(ctx, manifest, managedServiceParentPID(supervisor)); err != nil {
 				return fmt.Errorf("drain %s activity edge before placement restart: %w", manifest.Name, err)
 			}
 			if manifest.Name == "whisper" && strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_GPU")), "off") {
@@ -688,21 +707,22 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 			stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		}
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
-		err := stopManagedService(stopCtx, manifest, supervisor)
+		err = stopManagedService(stopCtx, manifest, supervisor)
 		cancel()
 		if err != nil {
 			return err
 		}
-		if err := d.startPrivate(ctx, controller, manifest, supervisor); err != nil {
+		if err := d.startPrivateWithConnectorLock(ctx, controller, manifest, supervisor, true); err != nil {
 			return err
 		}
+		releaseConnector()
 		if err := d.bootstrapPrivate(ctx, manifest, supervisor); err != nil {
 			return err
 		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		startCompanions(manifest.Name, manifest.Companions, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
+		startManagedServiceCompanions(manifest, manifest.Orchestration.RecoveryAttempts, os.Stderr, managedServiceParentPID(supervisor))
 		if err := waitForManagedServiceHealth(ctx, controller, manifest); err != nil {
 			return err
 		}
@@ -737,7 +757,7 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 			return stopWhisperForCapacityUnload(ctx, controller, manifest, supervisor)
 		}
 		if hasStableActivityEdge(manifest.Name) {
-			if err := controlResourceActivityEdge(ctx, manifest.Name, "drain"); err != nil {
+			if err := drainActivityEdgeForRestart(ctx, manifest, managedServiceParentPID(supervisor)); err != nil {
 				return fmt.Errorf("drain %s activity edge before stop: %w", manifest.Name, err)
 			}
 		}
@@ -802,19 +822,45 @@ func managedServiceParentPID(supervisor *ManagedServiceSupervisor) int {
 }
 
 func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {
+	return d.startPrivateWithConnectorLock(ctx, controller, manifest, supervisor, false)
+}
+
+func (d managedServiceDriver) startPrivateWithConnectorLock(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, connectorLockHeld bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	if manifest.Name == openRGBResourceName {
 		return ErrOpenRGBPreExecWitnessUnavailable
 	}
-	// Reconcile ownership before any port preflight. A service already running
-	// under this supervisor is an idempotent successful start; probing its port
-	// first incorrectly rejects that healthy owned process as a conflict.
-	if _, running, err := supervisor.Status(); err != nil {
+	// Reconcile ownership before any port preflight. A live owner is idempotent
+	// unless its recorded launch predates a newly declared private activity
+	// network; that narrower legacy case is migrated through the owner lifecycle
+	// below instead of being reused with an incompatible management boundary.
+	if state, running, err := supervisor.Status(); err != nil {
 		return fmt.Errorf("reconcile managed-service ownership before start: %w", err)
 	} else if running {
-		return nil
+		if manifest.ActivityNetwork == nil || runtime.GOOS != "linux" {
+			return nil
+		}
+		launchKind, inspectErr := managedServiceActivityNetworkLaunch(ctx, controller, manifest, state)
+		if inspectErr != nil {
+			return fmt.Errorf("inspect %s activity-network owner before start: %w", manifest.Name, inspectErr)
+		}
+		if launchKind == activityNetworkLaunchRootlessKit {
+			return nil
+		}
+		if launchKind != activityNetworkLaunchLegacyDirect {
+			return fmt.Errorf("%s live owner has an unsupported activity-network launch contract", manifest.Name)
+		}
+		if err := verifyManagedServiceDataGroupAvailability(ctx, manifest); err != nil {
+			return err
+		}
+		if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
+			return fmt.Errorf("prepare RootlessKit replacement before legacy migration: %w", err)
+		}
+		if err := migrateLegacyActivityNetworkOwner(ctx, controller, manifest, supervisor, state); err != nil {
+			return err
+		}
 	}
 	if err := verifyManagedServiceDataGroupAvailability(ctx, manifest); err != nil {
 		return err
@@ -829,10 +875,139 @@ func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Cont
 	if err != nil {
 		return err
 	}
-	if err := d.startPrivateAt(ctx, controller, manifest, supervisor, path); err != nil {
+	if err := d.startPrivateAtWithConnectorLock(ctx, controller, manifest, supervisor, path, connectorLockHeld); err != nil {
 		return err
 	}
 	retainManagedServiceArtifactsAfterActivation(ctx, controller, manifest, supervisor)
+	return nil
+}
+
+// managedServiceActivityNetworkLaunch classifies a supervisor-verified live
+// process against the manifest's current launcher contract. Supervisor.Status
+// has already established the recorded incarnation and ownership token; this
+// function adds exact executable/argv and RootlessKit-child proof.
+func managedServiceActivityNetworkLaunch(ctx context.Context, controller *Controller, manifest ResourceManifest, state ManagedServiceState) (activityNetworkLaunchKind, error) {
+	rootlesskit, err := exec.LookPath("rootlesskit")
+	if err != nil {
+		return activityNetworkLaunchUnknown, fmt.Errorf("resolve RootlessKit launcher: %w", err)
+	}
+	if !filepath.IsAbs(rootlesskit) {
+		rootlesskit, err = filepath.Abs(rootlesskit)
+		if err != nil {
+			return activityNetworkLaunchUnknown, err
+		}
+	}
+	executable, err := platform.ProcessExecutablePath(state.PID)
+	if err != nil {
+		return activityNetworkLaunchUnknown, fmt.Errorf("read managed-service launcher executable: %w", err)
+	}
+	commandLine, err := platform.ProcessCommandLine(state.PID)
+	if err != nil {
+		return activityNetworkLaunchUnknown, fmt.Errorf("read managed-service launcher argv: %w", err)
+	}
+	artifact, err := managedServiceArtifactForLaunch(ctx, controller, manifest, state.ArtifactPath)
+	if err != nil {
+		return activityNetworkLaunchUnknown, fmt.Errorf("resolve recorded service artifact launch path: %w", err)
+	}
+	servicePath, err := artifact.LaunchPath(state.ArtifactPath)
+	if err != nil {
+		return activityNetworkLaunchUnknown, err
+	}
+	serviceArgs := manifest.ManagedService.ArgumentsFor(runtime.GOOS, runtime.GOARCH)
+	backendArgs, err := managedServiceBackendArguments(ctx, manifest)
+	if err != nil {
+		return activityNetworkLaunchUnknown, fmt.Errorf("resolve managed-service backend arguments: %w", err)
+	}
+	serviceArgs = append(serviceArgs, backendArgs...)
+	for _, arg := range serviceArgs {
+		if strings.Contains(arg, "${") {
+			return activityNetworkLaunchUnknown, fmt.Errorf("activity-network launcher argv contains an environment template; exact owner classification is unavailable")
+		}
+	}
+	stateDir := filepath.Join(os.TempDir(), "vra-"+manifest.Name)
+	rootlessArgs, err := activitynetwork.RootlessKitArgs(activitynetwork.Config{
+		StateDir: stateDir, ChildCommand: append([]string{servicePath}, serviceArgs...), UID: os.Getuid(), GID: os.Getgid(),
+	})
+	if err != nil {
+		return activityNetworkLaunchUnknown, fmt.Errorf("resolve declared RootlessKit launch arguments: %w", err)
+	}
+	var childPID, childParentPID int
+	var childExecutable, childCommandLine string
+	if filepath.Clean(strings.TrimSuffix(executable, " (deleted)")) == filepath.Clean(rootlesskit) {
+		childPID, err = activitynetwork.ReadChildPID(stateDir)
+		if err != nil {
+			return activityNetworkLaunchUnknown, err
+		}
+		childParentPID = cliutil.ProcessParent(childPID)
+		childExecutable, err = platform.ProcessExecutablePath(childPID)
+		if err != nil {
+			return activityNetworkLaunchUnknown, fmt.Errorf("read RootlessKit child executable: %w", err)
+		}
+		childCommandLine, err = platform.ProcessCommandLine(childPID)
+		if err != nil {
+			return activityNetworkLaunchUnknown, fmt.Errorf("read RootlessKit child argv: %w", err)
+		}
+	}
+	return classifyActivityNetworkLaunch(activityNetworkLaunchFacts{
+		PID: state.PID, Executable: executable, CommandLine: commandLine,
+		RootlessKitPath: rootlesskit, RootlessKitArgs: rootlessArgs,
+		ArtifactPath: servicePath, StateDir: stateDir,
+		ChildPID: childPID, ChildParentPID: childParentPID,
+		ChildExecutable: childExecutable, ChildCommandLine: childCommandLine, ChildArgs: serviceArgs,
+		LegacyServiceArg: serviceArgs,
+	})
+}
+
+func migrateLegacyActivityNetworkOwner(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, state ManagedServiceState) error {
+	return migrateLegacyActivityNetworkOwnerWith(
+		func() error {
+			current, running, err := supervisor.Status()
+			if err != nil || !running || !sameManagedServiceOwner(state, current) {
+				return fmt.Errorf("legacy managed-service owner changed before migration: running=%t err=%v", running, err)
+			}
+			kind, err := managedServiceActivityNetworkLaunch(ctx, controller, manifest, current)
+			if err != nil || kind != activityNetworkLaunchLegacyDirect {
+				return fmt.Errorf("legacy launch contract changed before migration: kind=%d err=%v", kind, err)
+			}
+			if err := drainActivityEdgeForRestart(ctx, manifest, state.PID); err != nil {
+				return err
+			}
+			current, running, err = supervisor.Status()
+			if err != nil || !running || !sameManagedServiceOwner(state, current) {
+				return fmt.Errorf("legacy managed-service owner changed after edge drain: running=%t err=%v", running, err)
+			}
+			return nil
+		},
+		func() error {
+			stopCtx, cancel := managedServiceStopContext(ctx, manifest)
+			defer cancel()
+			if err := stopManagedService(stopCtx, manifest, supervisor); err != nil {
+				return err
+			}
+			current, running, err := supervisor.Status()
+			if err != nil || running || current.InstanceID != state.InstanceID {
+				return fmt.Errorf("verified legacy owner did not stop cleanly: running=%t instance=%q err=%v", running, current.InstanceID, err)
+			}
+			return nil
+		},
+	)
+}
+
+func sameManagedServiceOwner(expected, actual ManagedServiceState) bool {
+	return expected.PID == actual.PID && expected.Incarnation == actual.Incarnation &&
+		expected.InstanceID == actual.InstanceID && expected.OwnershipTokenHash == actual.OwnershipTokenHash
+}
+
+func migrateLegacyActivityNetworkOwnerWith(drainEdge, stopBackend func() error) error {
+	if drainEdge == nil || stopBackend == nil {
+		return fmt.Errorf("legacy activity-network migration requires edge drain and backend stop owners")
+	}
+	if err := drainEdge(); err != nil {
+		return fmt.Errorf("drain activity edge before legacy launch migration: %w", err)
+	}
+	if err := stopBackend(); err != nil {
+		return fmt.Errorf("stop verified legacy owner before RootlessKit migration: %w", err)
+	}
 	return nil
 }
 
@@ -841,6 +1016,16 @@ func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Cont
 // configuration, credentials, bootstrap state or model data.
 func managedServiceRuntimeEnvironment(ctx context.Context, controller *Controller, manifest ResourceManifest, path string, artifact resourcedeployment.ServiceArtifact) ([]string, error) {
 	env := resourceEnvForResource(controller.Root, controller.Home, manifest.Name)
+	// Managed services receive credentials only from Credential Authority.
+	// Resolve them here, at the supervised-child boundary, so config rendering
+	// and the child process use the same authoritative value.
+	credentials, err := resourceenv.ResolveCredentialValues(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("resolve managed-service credentials: %w", err)
+	}
+	for key, value := range credentials.Values {
+		env = valuehelpers.SetEnv(env, key, value)
+	}
 	if manifest.ManagedService != nil && strings.TrimSpace(manifest.ManagedService.RunAsUser) != "" {
 		env = valuehelpers.SetEnv(env, "VROOLI_MANAGED_SERVICE_RUN_AS_USER", strings.TrimSpace(manifest.ManagedService.RunAsUser))
 	}
@@ -862,8 +1047,9 @@ func managedServiceRuntimeEnvironment(ctx context.Context, controller *Controlle
 		env = valuehelpers.SetEnv(env, key, value)
 	}
 	for _, port := range manifest.Ports {
-		if port.Host > 0 {
-			env = valuehelpers.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", port.Host))
+		portValue := manifestpkg.RuntimePortValue(manifest, port)
+		if portValue > 0 {
+			env = valuehelpers.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", portValue))
 		}
 	}
 	for key, value := range manifest.ManagedService.Environment {
@@ -887,6 +1073,10 @@ func managedServiceRuntimeEnvironment(ctx context.Context, controller *Controlle
 }
 
 func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, path string) error {
+	return d.startPrivateAtWithConnectorLock(ctx, controller, manifest, supervisor, path, false)
+}
+
+func (d managedServiceDriver) startPrivateAtWithConnectorLock(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor, path string, connectorLockHeld bool) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -913,6 +1103,13 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	if err := writeManagedServiceConfig(controller, manifest, env); err != nil {
 		return err
 	}
+	if !connectorLockHeld {
+		releaseConnector, err := acquireCloudflareConnectorLaunchLock(ctx, manifest)
+		if err != nil {
+			return fmt.Errorf("acquire cloudflare connector launch lock: %w", err)
+		}
+		defer releaseConnector()
+	}
 	credentialFiles, err := materializeManagedServiceCredentialFiles(manifest, env)
 	if err != nil {
 		return err
@@ -933,6 +1130,11 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		return err
 	}
 	arguments = append(arguments, renderManagedServiceValues(backendArguments, env)...)
+	launchPath, err := artifact.LaunchPath(path)
+	if err != nil {
+		cleanupCredentials()
+		return err
+	}
 	if manifest.ManagedService.UpdatePolicy != nil && runtime.GOOS == "linux" {
 		supervisor.verifyPlacement = func(pid int) error {
 			scope, err := platform.ProcessScope(pid)
@@ -945,11 +1147,87 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 			return nil
 		}
 	}
-	_, err = supervisor.StartContext(ctx, path, artifact, arguments, env, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
+	if manifest.ActivityNetwork != nil && runtime.GOOS == "linux" {
+		launcher, launcherArgs, wrappedEnv, err := privateActivityNetworkLaunch(manifest, launchPath, arguments, env)
+		if err != nil {
+			cleanupCredentials()
+			return err
+		}
+		_, err = supervisor.StartContextWithLauncher(ctx, path, artifact, launcher, launcherArgs, wrappedEnv, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
+	} else {
+		_, err = supervisor.StartContext(ctx, path, artifact, arguments, env, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
+	}
 	if err != nil {
 		cleanupCredentials()
 	}
 	return err
+}
+
+func privateActivityNetworkLaunch(manifest ResourceManifest, servicePath string, serviceArgs, env []string) (string, []string, []string, error) {
+	if manifest.ActivityNetwork == nil || manifest.ManagedService == nil || manifest.ManagedService.RunAsUser != "" {
+		return "", nil, nil, fmt.Errorf("%s has no compatible private activity network launch contract", manifest.Name)
+	}
+	if _, err := exec.LookPath("slirp4netns"); err != nil {
+		return "", nil, nil, fmt.Errorf("%s private activity network requires slirp4netns: %w", manifest.Name, err)
+	}
+	rootlesskit, err := exec.LookPath("rootlesskit")
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("%s private activity network requires rootlesskit: %w", manifest.Name, err)
+	}
+	if !filepath.IsAbs(rootlesskit) {
+		rootlesskit, err = filepath.Abs(rootlesskit)
+		if err != nil {
+			return "", nil, nil, err
+		}
+	}
+	stateDir := filepath.Join(os.TempDir(), "vra-"+manifest.Name)
+	if err := prepareActivityNetworkStateDir(stateDir); err != nil {
+		return "", nil, nil, err
+	}
+	resourceStateDir := strings.TrimSpace(managedServiceEnvValues(env)["RESOURCE_STATE_DIR"])
+	if !filepath.IsAbs(resourceStateDir) {
+		return "", nil, nil, fmt.Errorf("%s activity network requires an absolute RESOURCE_STATE_DIR", manifest.Name)
+	}
+	helperDir := filepath.Join(resourceStateDir, "activity-network-helpers")
+	uid, gid := os.Getuid(), os.Getgid()
+	if err := activitynetwork.PrepareSingleIDMapHelpers(helperDir, uid, gid); err != nil {
+		return "", nil, nil, err
+	}
+	child := append([]string{servicePath}, serviceArgs...)
+	args, err := activitynetwork.RootlessKitArgs(activitynetwork.Config{
+		StateDir: stateDir, PublishEdge: false,
+		ChildCommand: child, UID: uid, GID: gid,
+	})
+	if err != nil {
+		return "", nil, nil, err
+	}
+	basePath := strings.TrimSpace(managedServiceEnvValues(env)["PATH"])
+	if basePath == "" {
+		basePath = os.Getenv("PATH")
+	}
+	pathValue := helperDir + string(os.PathListSeparator) + basePath
+	wrappedEnv := valuehelpers.SetEnv(env, "PATH", pathValue)
+	return rootlesskit, args, wrappedEnv, nil
+}
+
+func prepareActivityNetworkStateDir(path string) error {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return fmt.Errorf("activity network state directory must be an absolute clean path")
+	}
+	if err := os.MkdirAll(path, 0o700); err != nil {
+		return fmt.Errorf("create private activity network state directory: %w", err)
+	}
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("activity network state path is not a private directory")
+	}
+	if err := os.Chmod(path, 0o700); err != nil {
+		return err
+	}
+	return nil
 }
 
 // materializeManagedServiceCredentialFiles is the only managed-service path
@@ -957,6 +1235,9 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 // runtime file, never to env or argv, and replaces files atomically so a stale
 // token cannot be observed halfway through a restart.
 func materializeManagedServiceCredentialFiles(manifest ResourceManifest, env []string) ([]string, error) {
+	if err := guardCloudflareConnectorRotation(manifest); err != nil {
+		return nil, err
+	}
 	if manifest.ManagedService == nil || len(manifest.ManagedService.CredentialFiles) == 0 {
 		return nil, nil
 	}
@@ -1230,8 +1511,15 @@ func verifyManagedDiscoveredVersion(ctx context.Context, path, version string) e
 // manifest health endpoint. The child is still verified by its ownership token
 // after health succeeds, so this preflight is never the sole identity proof.
 func ensureManagedServicePortsAvailable(manifest ResourceManifest) error {
+	return ensureManagedServicePortsAvailableWithEdgeOwner(manifest, stableActivityEdgeOwnsPort)
+}
+
+func ensureManagedServicePortsAvailableWithEdgeOwner(manifest ResourceManifest, edgeOwnsPort func(ResourceManifest) bool) error {
 	for _, port := range manifest.Ports {
 		if port.Host <= 0 {
+			continue
+		}
+		if manifest.ActivityNetwork != nil && port.Name == manifest.ActivityNetwork.EdgePortName && edgeOwnsPort != nil && edgeOwnsPort(manifest) {
 			continue
 		}
 		listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port.Host)))
@@ -1243,6 +1531,37 @@ func ensureManagedServicePortsAvailable(manifest ResourceManifest) error {
 		}
 	}
 	return nil
+}
+
+func stableActivityEdgeOwnsPort(manifest ResourceManifest) bool {
+	if manifest.ActivityNetwork == nil || !hasStableActivityEdge(manifest.Name) {
+		return false
+	}
+	var edge *ResourceCompanion
+	for i := range manifest.Companions {
+		if manifest.Companions[i].Name == manifestpkg.ActivityEdgeCompanionName && manifest.Companions[i].Required {
+			edge = &manifest.Companions[i]
+			break
+		}
+	}
+	if edge == nil {
+		return false
+	}
+	dir, err := resolveCompanionDir(manifest.Name)
+	if err != nil {
+		return false
+	}
+	pid, ok := readCompanionPID(filepath.Join(dir, "activity-edge.pid"))
+	if !ok || !process.IsPIDRunning(pid) || !sameNetworkNamespace(pid, os.Getpid()) {
+		return false
+	}
+	bin, err := exec.LookPath(edge.Command)
+	if err != nil || !activityEdgeProcessOwned(pid, bin, filepath.Join(dir, "activity-edge.control.sock"), edge.Args) {
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return activityedge.ControlSocketReady(ctx, filepath.Join(dir, "activity-edge.control.sock")) == nil
 }
 
 func verifyManagedServiceRunning(supervisor *ManagedServiceSupervisor) error {
@@ -1265,6 +1584,14 @@ func writeManagedServiceConfig(controller *Controller, manifest ResourceManifest
 		return err
 	}
 	values := managedServiceEnvValues(env)
+	// Keep CA references in the private config as environment references. The
+	// supervised child receives the resolved value, while the config file must
+	// never become a second persistent copy of a private key or API secret.
+	for _, descriptor := range manifest.Credentials.Descriptors {
+		if envName := strings.TrimSpace(descriptor.Env); envName != "" {
+			delete(values, envName)
+		}
+	}
 	root := values["RESOURCE_CONFIG_DIR"]
 	if root == "" {
 		return fmt.Errorf("managed-service config requires RESOURCE_CONFIG_DIR")

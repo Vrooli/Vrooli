@@ -128,7 +128,33 @@ func (a *OpenRGBHeadless) EnsureOpenRGB(ctx context.Context, selection lightingr
 	} else if err := validateOpenRGBNativeRuntimeAuthority(runtime.GOOS, runtime.GOARCH, func() (platform.ProcessSecurityContext, error) { return platform.ProcessSecurity(os.Getpid()) }); err != nil {
 		return lightingruntime.Backend{}, err
 	}
+	if err := a.restorePreparedSource(ctx, selection); err != nil {
+		return lightingruntime.Backend{}, err
+	}
 	return a.nativeOpenRGBLifecycle(ctx, selection, false)
+}
+
+// restorePreparedSource repairs the resource-source projection only when an
+// enabled lighting intent retains a matching, qualified setup receipt. The
+// receipt is the prior explicit operator choice; missing or mismatched proof
+// continues to fail closed at inspectSetupSelection.
+func (a *OpenRGBHeadless) restorePreparedSource(ctx context.Context, selection lightingruntime.Selection) error {
+	intentOwner, err := lightingruntime.NewController(a.controller.Home, lightingruntime.Owners{})
+	if err != nil {
+		return err
+	}
+	intent, err := intentOwner.Current()
+	if err != nil {
+		return err
+	}
+	if intent.Phase != lightingruntime.Enabled || intent.Selection == nil || *intent.Selection != selection {
+		return nil
+	}
+	prepared := intent.Preparation
+	if prepared == nil || !prepared.Qualified || prepared.Selection != selection {
+		return nil
+	}
+	return a.controller.RestoreManagedServiceSource(ctx, openRGBResourceName, prepared.Source, prepared.Selection.Version, prepared.Selection.SHA256)
 }
 
 func (a *OpenRGBHeadless) nativeOpenRGBLifecycle(ctx context.Context, selection lightingruntime.Selection, restart bool) (lightingruntime.Backend, error) {
@@ -143,6 +169,7 @@ func (a *OpenRGBHeadless) nativeOpenRGBLifecycle(ctx context.Context, selection 
 	})
 	return backend, err
 }
+
 func (a *OpenRGBHeadless) nativeOpenRGBLocked(ctx context.Context, selection lightingruntime.Selection, restart bool) (lightingruntime.Backend, error) {
 	if err := ensureManagedUpdateLifecycleAvailable(openRGBResourceName, brokerTransportStart); err != nil {
 		return lightingruntime.Backend{}, err
@@ -397,6 +424,7 @@ func (a *OpenRGBHeadless) ensureOwned(ctx context.Context, launch openRGBHeadles
 	}
 	return a.startOpenRGBInitialLocked(ctx, launch, supervisor)
 }
+
 func (a *OpenRGBHeadless) startOpenRGBInitialLocked(ctx context.Context, launch openRGBHeadlessLaunch, supervisor *ManagedServiceSupervisor) (lightingruntime.Backend, error) {
 	var backend lightingruntime.Backend
 	err := a.controller.withResourceCapacity(ctx, openRGBResourceName, brokerTransportStart, func(ctx context.Context) error {
@@ -495,6 +523,17 @@ func probeOpenRGBHeadlessSDK(ctx context.Context, ready ResourceHealthCheck) err
 }
 
 func (a *OpenRGBHeadless) DisableOpenRGB(ctx context.Context) error {
+	return a.stopOpenRGB(ctx, true)
+}
+
+// StopOpenRGB retires the serving backend while preserving explicit resource
+// enablement. Lighting intent is serialized and its scenario binding quiesced
+// by the caller before this owner-level process retirement.
+func (a *OpenRGBHeadless) StopOpenRGB(ctx context.Context) error {
+	return a.stopOpenRGB(ctx, false)
+}
+
+func (a *OpenRGBHeadless) stopOpenRGB(ctx context.Context, disable bool) error {
 	if a == nil || a.controller == nil {
 		return errors.New("OpenRGB headless resource controller is unavailable")
 	}
@@ -507,8 +546,10 @@ func (a *OpenRGBHeadless) DisableOpenRGB(ctx context.Context) error {
 		return err
 	}
 	return withOpenRGBDisableLock(ctx, func() error {
-		if err := a.persistDisabled(ctx); err != nil {
-			return err
+		if disable {
+			if err := a.persistDisabled(ctx); err != nil {
+				return err
+			}
 		}
 		return completeOpenRGBDisableCleanup(
 			func() error { return a.controller.retireOpenRGBUpdatesForDisable(ctx) },

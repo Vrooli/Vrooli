@@ -618,6 +618,202 @@ func TestProvisionSharedPackageReportsMissingDeclaredOutput(t *testing.T) {
 	}
 }
 
+func TestProvisionSharedPackageRejectsSourceChangedDuringBuild(t *testing.T) {
+	home := t.TempDir()
+	root := t.TempDir()
+	source := filepath.Join(root, "source.ts")
+	if err := os.WriteFile(source, []byte("before"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dependency := sharedPackageDependency{
+		Name: "@vrooli/example",
+		Root: root,
+		Build: []packagegov.CommandSpec{{
+			Name:    "build",
+			Run:     []string{"sh", "-c", `mkdir -p dist; printf candidate > dist/index.js; printf after > source.ts`},
+			Outputs: []string{"dist/**"},
+		}},
+	}
+	var log bytes.Buffer
+	err := provisionSharedPackageWithOptions(dependency, &log, &log, sharedPackageProvisionOptions{Home: home})
+	var provisioningErr *SharedPackageProvisioningError
+	if !errors.As(err, &provisioningErr) {
+		t.Fatalf("error = %v, want SharedPackageProvisioningError", err)
+	}
+	if provisioningErr.Code != "source-changed-during-build" {
+		t.Fatalf("error code = %q, want source-changed-during-build: %v", provisioningErr.Code, err)
+	}
+	if !strings.Contains(err.Error(), "Retry after package edits settle") {
+		t.Fatalf("error = %v, want actionable retry message", err)
+	}
+	if !strings.Contains(err.Error(), "1 changed: source.ts (modified)") {
+		t.Fatalf("error = %v, want it to name the file that changed", err)
+	}
+	if !strings.Contains(log.String(), `event=source-changed`) || !strings.Contains(log.String(), `changed="1 changed: source.ts (modified)"`) {
+		t.Fatalf("lifecycle log lacks the source-change event naming the file:\n%s", log.String())
+	}
+	fresh, freshnessErr := sharedPackageOutputsFresh(home, root, "build", []string{"dist/**"})
+	if freshnessErr != nil {
+		t.Fatal(freshnessErr)
+	}
+	if fresh {
+		t.Fatal("outputs built while sources changed must not be marked fresh")
+	}
+}
+
+func TestSourceSnapshotNamesWhatChanged(t *testing.T) {
+	root := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	snapshot := func() sharedPackageSourceSnapshot {
+		t.Helper()
+		got, err := sharedPackageSourceSnapshotWithHome("", root, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got
+	}
+	write("kept.ts", "same")
+	write("edited.ts", "before")
+	write("gone.ts", "x")
+	before := snapshot()
+
+	if got := snapshot().changedSince(before); len(got) != 0 {
+		t.Fatalf("nothing changed, got %v", got)
+	}
+	write("edited.ts", "after")
+	write("new.ts", "n")
+	if err := os.Remove(filepath.Join(root, "gone.ts")); err != nil {
+		t.Fatal(err)
+	}
+	got := snapshot().changedSince(before)
+	want := []string{"edited.ts (modified)", "gone.ts (removed)", "new.ts (added)"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("changed = %v, want %v", got, want)
+	}
+	if digest, _ := sharedPackageSourceDigest(root, nil); digest != snapshot().Digest {
+		t.Fatal("the snapshot digest must equal the plain digest so existing freshness stamps stay valid")
+	}
+}
+
+func TestSummarizeChangedFilesNamesTheFirstFewAndCountsTheRest(t *testing.T) {
+	var changed []string
+	for _, name := range []string{"a", "b", "c", "d", "e", "f", "g"} {
+		changed = append(changed, name+".ts (modified)")
+	}
+	got := summarizeChangedFiles(changed)
+	if got != "7 changed: a.ts (modified), b.ts (modified), c.ts (modified), d.ts (modified), e.ts (modified), and 2 more" {
+		t.Fatalf("summary = %q", got)
+	}
+	if got := summarizeChangedFiles(nil); !strings.Contains(got, "no file differs by content") {
+		t.Fatalf("an empty change list must still explain itself: %q", got)
+	}
+}
+
+// A build that materializes a manifest over the package root's own
+// package.json (the React Component Library publishes its exports map there)
+// reads it as an input and rewrites it as an output. Declaring it an output
+// keeps that rewrite from reading as a concurrent source edit, while a real edit
+// to another file during the same build is still refused.
+func TestProvisionSharedPackageAcceptsADeclaredMaterializedManifest(t *testing.T) {
+	home, root := t.TempDir(), t.TempDir()
+	for name, content := range map[string]string{"package.json": `{"exports":{}}`, "source.ts": "before"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	outputs := []string{"dist/**", "package.json"}
+	dependency := func(script string) sharedPackageDependency {
+		return sharedPackageDependency{Name: "@vrooli/example", Root: root, Build: []packagegov.CommandSpec{{
+			Name: "build", Run: []string{"sh", "-c", script}, Outputs: outputs,
+		}}}
+	}
+	var log bytes.Buffer
+
+	err := provisionSharedPackageWithOptions(dependency(`mkdir -p dist; printf candidate > dist/index.js; printf '{"exports":{"./a":"./dist/a.js"}}' > package.json`), &log, &log, sharedPackageProvisionOptions{Home: home})
+	if err != nil {
+		t.Fatalf("a build rewriting its declared package.json was refused: %v\n%s", err, log.String())
+	}
+	if fresh, err := sharedPackageOutputsFresh(home, root, "build", outputs); err != nil || !fresh {
+		t.Fatalf("fresh = %v, %v; the build's own package.json rewrite must not make its outputs stale", fresh, err)
+	}
+	// Declaring it as the build's output must not hide it from other commands:
+	// an install command that does not list it still sees a package.json edit.
+	installOutputs := []string{"node_modules/.modules.yaml"}
+	installBefore, err := sharedPackageSourceDigestWithHome(home, root, installOutputs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"dependencies":{"x":"1"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if installAfter, err := sharedPackageSourceDigestWithHome(home, root, installOutputs); err != nil || installAfter == installBefore {
+		t.Fatalf("install digest unchanged by a package.json edit (err %v)", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "package.json"), []byte(`{"exports":{"./a":"./dist/a.js"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(root, "source.ts"), []byte("edited"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err = provisionSharedPackageWithOptions(dependency(`printf changed > source.ts; printf '{"exports":{"./b":"./dist/b.js"}}' > package.json`), &log, &log, sharedPackageProvisionOptions{Home: home, Context: context.Background()})
+	var provisioningErr *SharedPackageProvisioningError
+	if !errors.As(err, &provisioningErr) || provisioningErr.Code != "source-changed-during-build" {
+		t.Fatalf("a real source edit during the build must still be refused: %v", err)
+	}
+}
+
+// A step that declares an artifact selection publishes and selects an artifact as
+// its own output (protogen generate, the component library build). The
+// selection moving while it ran is its doing, not a concurrent edit: the first
+// build after a proto change used to be refused with "1 changed: artifact
+// selection" and pass only on the retry.
+func TestProvisionSharedPackageAcceptsTheSelectionItsOwnBuildMoved(t *testing.T) {
+	home, root, store := t.TempDir(), t.TempDir(), t.TempDir()
+	t.Setenv("VROOLI_RCL_ARTIFACT_ROOT", store)
+	if err := os.WriteFile(filepath.Join(store, "current.json"), []byte(`{"id":"before"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "source.ts"), []byte("v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outputs := []string{"dist/**"}
+	dependency := func(script string) sharedPackageDependency {
+		return sharedPackageDependency{Name: "@vrooli/example", Root: root, Build: []packagegov.CommandSpec{{
+			Name: "build", Run: []string{"sh", "-c", script}, Outputs: outputs, ArtifactSelection: "@vrooli/example",
+		}}}
+	}
+	selectNew := `printf '{"id":"after"}' > ` + filepath.Join(store, "current.json")
+	var log bytes.Buffer
+
+	err := provisionSharedPackageWithOptions(dependency(`mkdir -p dist; printf built > dist/index.js; `+selectNew), &log, &log, sharedPackageProvisionOptions{Home: home})
+	if err != nil {
+		t.Fatalf("a build that selected its own artifact was refused: %v\n%s", err, log.String())
+	}
+	if !strings.Contains(log.String(), "event=selection-moved") {
+		t.Fatalf("the log must record that the build moved the selection:\n%s", log.String())
+	}
+	if fresh, err := sharedPackageOutputsFresh(home, root, "build", outputs, nil, nil, []string{"@vrooli/example"}); err != nil || !fresh {
+		t.Fatalf("fresh = %v, %v; freshness must be recorded against the selection the build made, or every build repeats", fresh, err)
+	}
+
+	// The same selection move with a source edit in the window is still refused,
+	// and names the file.
+	if err := os.WriteFile(filepath.Join(root, "source.ts"), []byte("v2"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err = provisionSharedPackageWithOptions(dependency(`printf edited > source.ts; printf '{"id":"third"}' > `+filepath.Join(store, "current.json")), &log, &log, sharedPackageProvisionOptions{Home: home, Context: context.Background()})
+	var provisioningErr *SharedPackageProvisioningError
+	if !errors.As(err, &provisioningErr) || provisioningErr.Code != "source-changed-during-build" || !strings.Contains(err.Error(), "source.ts (modified)") {
+		t.Fatalf("a source edit during the build must still be refused, naming the file: %v", err)
+	}
+}
+
 func TestProvisionSelectedProtoArtifactDoesNotRunMutableSourceGeneration(t *testing.T) {
 	home := t.TempDir()
 	packageRoot := t.TempDir()
@@ -695,7 +891,7 @@ func TestProvisionSourceOnlySharedPackageIsNoop(t *testing.T) {
 func TestProvisionSharedPackageSerializesCommandsAcrossConsumers(t *testing.T) {
 	home := t.TempDir()
 	root := t.TempDir()
-	countFile := filepath.Join(root, "invocations")
+	countFile := filepath.Join(t.TempDir(), "invocations")
 	dependency := sharedPackageDependency{
 		Name: "@vrooli/example",
 		Root: root,
@@ -779,6 +975,60 @@ func TestSharedPackageOutputsFreshDetectsDeletedOutput(t *testing.T) {
 	}
 	if fresh {
 		t.Fatal("a deleted output must invalidate freshness so it can be regenerated")
+	}
+}
+
+func TestSharedPackageConsumedDigestRejectsFutureStampVersion(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	patterns := []string{"dist/**"}
+	writeSharedPackageFixture(t, root, "source\n", "output\n")
+	command := packagegov.CommandSpec{Name: "build", Outputs: patterns}
+	if err := recordSharedPackageStamp(home, sharedPackageDependency{Name: "example", Root: root}, command); err != nil {
+		t.Fatal(err)
+	}
+	path, err := sharedPackageStampPath(home, root, command.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var future map[string]any
+	if err := json.Unmarshal(data, &future); err != nil {
+		t.Fatal(err)
+	}
+	future["version"] = sharedPackageStampVersion + 1
+	future["output_content_digest"] = "future-incompatible-digest"
+	data, err = json.Marshal(future)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deps := &hostProbeDeps{userHomeDir: func() (string, error) { return home, nil }}
+	got, err := sharedPackageConsumedDigest(root, command.Name, patterns, deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := declaredOutputFiles(root, patterns)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := sharedPackageOutputsContentDigest(root, sharedPackageConsumedOutputFiles(root, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Fatalf("future stamp trusted: got %q, want recomputed %q", got, want)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(after, data) {
+		t.Fatal("future stamp was overwritten")
 	}
 }
 
@@ -883,8 +1133,8 @@ func TestProtoConsumedDigestIgnoresCompatibilityMarkerButTracksGeneratedBytes(t 
 	if err := json.Unmarshal(upgradedStamp, &upgradedFields); err != nil {
 		t.Fatal(err)
 	}
-	if got := upgradedFields["output_content_digest_version"]; got != float64(2) {
-		t.Fatalf("upgraded output content digest version = %v, want %d", got, 2)
+	if got := upgradedFields["output_content_digest_version"]; got != float64(sharedPackageOutputContentDigestVersion) {
+		t.Fatalf("upgraded output content digest version = %v, want %d", got, sharedPackageOutputContentDigestVersion)
 	}
 
 	if err := os.WriteFile(activePath, []byte(`{"artifact_id":"two"}`), 0o644); err != nil {
@@ -932,5 +1182,36 @@ func TestProtoConsumedDigestIgnoresCompatibilityMarkerButTracksGeneratedBytes(t 
 	}
 	if fresh {
 		t.Fatal("missing compatibility marker must still invalidate the generator output set")
+	}
+}
+
+func TestSharedPackageConsumedDigestTracksChangedOutputPatterns(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	writeSharedPackageFixture(t, root, "source\n", "output\n")
+	extra := filepath.Join(root, "extra.txt")
+	if err := os.WriteFile(extra, []byte("additional output"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	command := packagegov.CommandSpec{Name: "build", Outputs: []string{"dist/**"}}
+	if err := recordSharedPackageStamp(home, sharedPackageDependency{Name: "example", Root: root}, command); err != nil {
+		t.Fatal(err)
+	}
+	deps := &hostProbeDeps{userHomeDir: func() (string, error) { return home, nil }}
+	for _, patterns := range [][]string{{"dist/**", "extra.txt"}, {"dist/**"}, {"dist/**", "extra.txt"}} {
+		got, err := sharedPackageConsumedDigest(root, command.Name, patterns, deps)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files, err := declaredOutputFiles(root, patterns)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := sharedPackageOutputsContentDigest(root, sharedPackageConsumedOutputFiles(root, files))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != want {
+			t.Fatalf("patterns %v: got %q, want %q", patterns, got, want)
+		}
 	}
 }

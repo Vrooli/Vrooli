@@ -21,7 +21,7 @@ func TestExecutorScopeRejectsIncompleteAndOversizedInput(t *testing.T) {
 }
 
 func TestExecutorScopeWireCapacityRetainsAllManagedHistory(t *testing.T) {
-	for _, count := range []int{6000, maintenance.ExecutorScopeMaxReferences} {
+	for _, count := range []int{6000, maintenance.ExecutorScopeBatchSize*2 + 9} {
 		t.Run(fmt.Sprint(count), func(t *testing.T) {
 			request := maintenance.ExecutorScopeRequest{Executors: make([]maintenance.ExecutorScopeRef, count)}
 			report := maintenance.ExecutorScopeReport{SchemaVersion: "executor-scope-v1", Complete: true, Executors: make([]maintenance.ExecutorScopeEvidence, count)}
@@ -56,7 +56,7 @@ func TestExecutorScopeWireCapacityRetainsAllManagedHistory(t *testing.T) {
 	}
 }
 
-func TestExecutorScopeWireRefusesOverflowOrExpiredProofWithoutPartialJSON(t *testing.T) {
+func TestExecutorScopeWireRefusesOverflowAndCompleteExpiredProof(t *testing.T) {
 	for _, expired := range []bool{false, true} {
 		t.Run(fmt.Sprint(expired), func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
@@ -72,5 +72,29 @@ func TestExecutorScopeWireRefusesOverflowOrExpiredProofWithoutPartialJSON(t *tes
 				t.Fatalf("unusable proof emitted: err=%v bytes=%d", err, out.Len())
 			}
 		})
+	}
+}
+
+func TestExecutorScopeWirePreservesIncompleteReportAfterDeadline(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	cancel()
+	report := maintenance.ExecutorScopeReport{
+		SchemaVersion: "executor-scope-v1",
+		Complete:      false,
+		Executors: []maintenance.ExecutorScopeEvidence{{
+			RunID: "run-1", State: "unknown", PIDs: []int{}, Reasons: []string{"scope observation deadline or cancellation"},
+		}},
+	}
+	var out bytes.Buffer
+	if err := writeExecutorScopeReport(ctx, &out, report); err != nil {
+		t.Fatalf("incomplete report lost after deadline: %v", err)
+	}
+	var actual maintenance.ExecutorScopeReport
+	if err := json.Unmarshal(out.Bytes(), &actual); err != nil {
+		t.Fatalf("incomplete report is not structured JSON: %v", err)
+	}
+	if actual.Complete || len(actual.Executors) != 1 || actual.Executors[0].State != "unknown" {
+		t.Fatalf("deadline report overstated coverage: %+v", actual)
 	}
 }

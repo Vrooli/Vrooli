@@ -29,6 +29,11 @@ type RuntimeProbeReceipt struct {
 	Error          string                         `json:"error,omitempty"`
 }
 
+const (
+	runtimeProbeStatusFailed = "failed"
+	runtimeProbeStatusPassed = "passed"
+)
+
 var pythonImportName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$`)
 
 // ProbeManagedRuntime uses the installed resource's launch environment, never
@@ -120,7 +125,7 @@ func (c *Controller) ProbeManagedRuntime(ctx context.Context, name string, impor
 	defer func() {
 		receipt.ElapsedMS = time.Since(started).Milliseconds()
 		if resultErr != nil {
-			receipt.Status = "failed"
+			receipt.Status = runtimeProbeStatusFailed
 			receipt.Error = resultErr.Error()
 		}
 		resultErr = errors.Join(resultErr, writeRuntimeProbeJSON(filepath.Join(output, "result.json"), receipt))
@@ -154,7 +159,7 @@ func (c *Controller) ProbeManagedRuntime(ctx context.Context, name string, impor
 	if !observation.ExitKnown || observation.Populated || observation.ExecMainCode != 1 || observation.ExecMainStatus != 0 || observation.Result != "success" {
 		return receipt, fmt.Errorf("runtime import probe did not exit successfully: result=%s code=%d status=%d", observation.Result, observation.ExecMainCode, observation.ExecMainStatus)
 	}
-	receipt.Status = "passed"
+	receipt.Status = runtimeProbeStatusPassed
 	return receipt, nil
 }
 

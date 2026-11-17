@@ -6,6 +6,13 @@ import (
 	"fmt"
 )
 
+const (
+	addPlacementGenerationSQL   = `ALTER TABLE capacity_placement_qualifications ADD COLUMN claim_generation INTEGER NOT NULL DEFAULT 0`
+	placementGenerationIndexSQL = `CREATE INDEX IF NOT EXISTS idx_capacity_placement_claim_generation_rung ON capacity_placement_qualifications(claim_id, claim_generation, rung, sampled_at DESC)`
+	addReservedPeakSQL          = `ALTER TABLE capacity_disk_job_path_samples ADD COLUMN reserved_peak_bytes INTEGER NOT NULL DEFAULT 1 CHECK (reserved_peak_bytes > 0)`
+	addExceededPeakSQL          = `ALTER TABLE capacity_disk_job_path_samples ADD COLUMN exceeded_reserved_peak INTEGER NOT NULL DEFAULT 1 CHECK (exceeded_reserved_peak IN (0,1))`
+)
+
 const schemaSQL = `
 CREATE TABLE IF NOT EXISTS capacity_claims (
   claim_id TEXT PRIMARY KEY,
@@ -172,6 +179,25 @@ CREATE TABLE IF NOT EXISTS capacity_residency_transition_events (
 );
 CREATE INDEX IF NOT EXISTS idx_capacity_residency_events_transition
   ON capacity_residency_transition_events(transition_id, event_id);
+
+-- Content-addressed, immutable links from a serving role/rung to the exact
+-- quality run artifact used to qualify it. Failed measurements are retained;
+-- planners only consume passing, fresh receipts.
+CREATE TABLE IF NOT EXISTS capacity_placement_qualifications (
+  receipt_id TEXT PRIMARY KEY,
+  claim_id TEXT NOT NULL,
+  claim_generation INTEGER NOT NULL CHECK (claim_generation > 0),
+  role TEXT NOT NULL,
+  model_digest TEXT NOT NULL,
+  rung TEXT NOT NULL,
+  device TEXT NOT NULL,
+  suite_digest TEXT NOT NULL,
+  sampled_at TEXT NOT NULL,
+  qualification_json TEXT NOT NULL,
+  recorded_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_capacity_placement_role_sampled
+  ON capacity_placement_qualifications(role, sampled_at DESC);
 `
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
@@ -188,7 +214,10 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 		if _, err := s.db.ExecContext(ctx, schemaSQL); err != nil {
 			return fmt.Errorf("ensure capacity ledger schema: %w", err)
 		}
-		return ensureDiskJobPathSampleColumns(ctx, s.db)
+		if err := ensureDiskJobPathSampleColumns(ctx, s.db); err != nil {
+			return err
+		}
+		return ensurePlacementQualificationColumns(ctx, s.db)
 	}
 	if current != 0 {
 		return fmt.Errorf("capacity ledger schema_version %d -> %d requires greenfield rebuild or an operator-run temporary conversion script", current, SchemaVersion)
@@ -206,8 +235,45 @@ func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	if err := ensureDiskJobPathSampleColumns(ctx, s.db); err != nil {
 		return err
 	}
+	if err := ensurePlacementQualificationColumns(ctx, s.db); err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, fmt.Sprintf(`PRAGMA user_version = %d`, SchemaVersion)); err != nil {
 		return fmt.Errorf("stamp capacity ledger schema version: %w", err)
+	}
+	return nil
+}
+
+func ensurePlacementQualificationColumns(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `PRAGMA table_info(capacity_placement_qualifications)`)
+	if err != nil {
+		return fmt.Errorf("inspect placement qualification schema: %w", err)
+	}
+	defer rows.Close()
+	hasGeneration := false
+	for rows.Next() {
+		var cid, notNull, primaryKey int
+		var name, columnType string
+		var defaultValue any
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultValue, &primaryKey); err != nil {
+			return err
+		}
+		if name == "claim_generation" {
+			hasGeneration = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if !hasGeneration {
+		// Any receipts from the pre-generation development schema receive zero,
+		// which fails planner identity matching and cannot be mistaken as current.
+		if _, err := db.ExecContext(ctx, addPlacementGenerationSQL); err != nil {
+			return fmt.Errorf("add placement receipt generation identity: %w", err)
+		}
+	}
+	if _, err := db.ExecContext(ctx, placementGenerationIndexSQL); err != nil {
+		return fmt.Errorf("ensure placement claim-generation index: %w", err)
 	}
 	return nil
 }
@@ -237,12 +303,12 @@ func ensureDiskJobPathSampleColumns(ctx context.Context, db *sql.DB) error {
 	}
 	rows.Close()
 	if !columns["reserved_peak_bytes"] {
-		if _, err := db.ExecContext(ctx, `ALTER TABLE capacity_disk_job_path_samples ADD COLUMN reserved_peak_bytes INTEGER NOT NULL DEFAULT 1 CHECK (reserved_peak_bytes > 0)`); err != nil {
+		if _, err := db.ExecContext(ctx, addReservedPeakSQL); err != nil {
 			return fmt.Errorf("add disk path sample reserved peak: %w", err)
 		}
 	}
 	if !columns["exceeded_reserved_peak"] {
-		if _, err := db.ExecContext(ctx, `ALTER TABLE capacity_disk_job_path_samples ADD COLUMN exceeded_reserved_peak INTEGER NOT NULL DEFAULT 1 CHECK (exceeded_reserved_peak IN (0,1))`); err != nil {
+		if _, err := db.ExecContext(ctx, addExceededPeakSQL); err != nil {
 			return fmt.Errorf("add disk path sample overrun marker: %w", err)
 		}
 	}

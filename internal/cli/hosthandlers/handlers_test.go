@@ -10,11 +10,33 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	blenderrenderer "github.com/vrooli/vrooli/internal/tools/blender-renderer"
+	"github.com/vrooli/vrooli/internal/volumeremediation"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
 )
 
 type testContext struct {
 	out bytes.Buffer
+}
+
+func TestHostVolumeReceiptsExportsOwnerRowsAsJSON(t *testing.T) {
+	t.Setenv("VROOLI_HOME", t.TempDir())
+	req := volumeremediation.Request{Action: volumeremediation.ActionInspect, Device: volumeremediation.Device{Filesystem: "ntfs3", UUID: "private-uuid", Serial: "private-serial"}}
+	res := volumeremediation.Result{Action: req.Action, Device: req.Device, Status: volumeremediation.StatusVerified}
+	if err := volumeremediation.RecordReceipt(req, res, nil, false); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	runCtx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema:      cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "action"}}},
+		Positionals: map[string]string{"action": "receipts"}, JSON: true, Stdout: &output,
+	})
+	parent := &rootcli.CommandContext{Context: context.Background(), Globals: rootcli.GlobalOptions{JSON: true}}
+	if err := runHostVolume(runCtx, parent); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `"capability": "volume_identity"`) || strings.Contains(output.String(), "private-serial") || strings.Contains(output.String(), "private-uuid") {
+		t.Fatalf("unexpected exported receipt payload: %s", output.String())
+	}
 }
 
 func TestRendererCacheRepairRequiresExactTargetAndReportsDryRun(t *testing.T) {

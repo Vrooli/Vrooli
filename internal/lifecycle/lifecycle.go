@@ -49,6 +49,7 @@ import (
 )
 
 const (
+	lifecycleOperationStart       = "start"
 	lifecycleOperationRestart     = "restart"
 	runtimeEnvironmentDevelopment = "development"
 	runtimeEnvironmentProduction  = "production"
@@ -228,9 +229,10 @@ type hostProbeDeps struct {
 	// nodeVersion returns the host Node.js major version (e.g. "20"), empty when
 	// node is absent. Keyed into the ui-bundle digest because Vite/esbuild output
 	// can differ across Node majors from identical source. Tests inject.
-	nodeVersion   func() string
-	pythonVersion func() string
-	uvVersion     func() string
+	nodeVersion      func() string
+	nodeVersionExact bool
+	pythonVersion    func() string
+	uvVersion        func() string
 	// recognizeArtifact is the OS artifact-recognition seam: given a stat'd path
 	// and its FileInfo, it reports capability-flagged evidence of whether the path
 	// is a runnable compiled build artifact (exec bit on Unix, executable
@@ -294,6 +296,15 @@ func hostProbeDepsForCache(cache *hostProbeCache) hostProbeDeps {
 		recognizeArtifact:  recognizeArtifact,
 		volumeCaseEvidence: hostVolumeCaseEvidence,
 	}
+}
+
+func (r *Runner) scenarioHostProbeDeps(item scenario.Scenario) hostProbeDeps {
+	deps := r.hostProbeDeps()
+	if version := strings.TrimSpace(item.Manifest.Runtime.Node.Version); version != "" {
+		deps.nodeVersion = func() string { return version }
+		deps.nodeVersionExact = true
+	}
+	return deps
 }
 
 // defaultGoListJSON runs the Go toolchain's dependency lister for the package in
@@ -415,12 +426,20 @@ type PhaseOptions struct {
 }
 
 type Result struct {
-	Scenario           scenario.Scenario
-	AllocatedPorts     map[string]int
-	Health             string
-	FailedDependencies []string
-	FailedResources    []string
-	AlreadyRunning     bool
+	Scenario                        scenario.Scenario
+	AllocatedPorts                  map[string]int
+	Health                          string
+	RuntimeInstanceID               string
+	RuntimeReleaseID                string
+	RuntimeReleaseOperationID       string
+	RuntimeBuildIdentity            string
+	HealthBuildIdentity             string
+	HealthRuntimeReleaseID          string
+	HealthRuntimeReleaseOperationID string
+	HealthStartOperationID          string
+	FailedDependencies              []string
+	FailedResources                 []string
+	AlreadyRunning                  bool
 	// CredentialGaps names the declared credentials that did not resolve for
 	// this start. The scenario still ran; these are the resources that cannot
 	// do their job until an operator acts.
@@ -685,6 +704,23 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	var restartStopStartedAt time.Time
 	var recorder *startOperationRecorder
 	var detachRecorder func()
+	var providerFencePreparedForRestart bool
+	var restartStopCompleted bool
+	var retainedSelectionUpdated bool
+	defer func() {
+		// If an emergency replacement fails before the old process is stopped,
+		// restore its process-local admission fence so a failed restart cannot
+		// strand a healthy instance returning 503. Once stop completes, the
+		// fence belongs to the replacement protocol and must remain in force.
+		if returnErr != nil && opts.ForceLifecycle && providerFencePreparedForRestart && !restartStopCompleted {
+			rollbackCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			resumeErr := opts.providerFence.resume(rollbackCtx)
+			cancel()
+			if resumeErr != nil {
+				returnErr = errors.Join(returnErr, fmt.Errorf("reopen provider admission after pre-stop restart failure: %w", resumeErr))
+			}
+		}
+	}()
 	attachRecorder := func(candidate *startOperationRecorder) {
 		recorder = candidate
 		if candidate == nil {
@@ -696,11 +732,34 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	}
 	defer func() {
 		if recorder != nil {
+			rollbackReleaseID, rollbackOperationID, rollbackError := "", "", ""
+			rollbackAttempted := returnErr != nil && retainedSelectionUpdated && opts.RetainedReleaseID != "" && opts.RetainedReleaseID != "source" &&
+				opts.ExpectedRetainedReleaseID != "" && opts.ExpectedRetainedReleaseID != "source" &&
+				opts.RetainedReleaseID != opts.ExpectedRetainedReleaseID
+			if rollbackAttempted {
+				rollbackCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				rollbackSelection, rollbackErr := r.runtimeReleaseStore().RollbackPrevious(
+					rollbackCtx, name, opts.Variant, opts.RetainedReleaseID, opts.lifecycleOperationID+"-rollback",
+				)
+				cancel()
+				if rollbackErr == nil {
+					rollbackReleaseID, rollbackOperationID = rollbackSelection.ReleaseID, rollbackSelection.OperationID
+				} else {
+					rollbackError = rollbackErr.Error()
+				}
+				if rollbackErr != nil {
+					returnErr = errors.Join(returnErr, fmt.Errorf("restore previous retained runtime selection after failed replacement: %w", rollbackErr))
+				}
+			}
 			// Preparation and fence failures happen before startWithState can
 			// publish its terminal event. They are failed attempts, not lost
-			// initiators; attachers must receive the actual failure.
+			// initiators; attachers must receive the actual failure and recovery result.
 			if returnErr != nil && !recorder.op.IsTerminal() {
-				r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: returnErr})
+				r.publish(ProgressEvent{
+					Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: returnErr,
+					RollbackSelectionReleaseID: rollbackReleaseID, RollbackSelectionOperationID: rollbackOperationID,
+					RollbackSelectionError: rollbackError, RollbackSelectionAttempted: rollbackAttempted,
+				})
 			}
 			recorder.close()
 		}
@@ -717,6 +776,7 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		if err := r.selectRequestedRuntime(name, opts); err != nil {
 			return Result{}, err
 		}
+		retainedSelectionUpdated = true
 	}
 	if opts.stopFirst && name != "agent-manager" {
 		item, err = r.loadScenario(name, opts.CustomPath)
@@ -747,17 +807,24 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		// serving process untouched; a successful drain keeps provider admission
 		// closed through replacement and is resumed only after the new instance
 		// is healthy.
-		opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.providerFenceOperationID, opts.priorStartOperation, opts.priorStartOperationErr)
+		linkFence := func(fenceID string) error {
+			if recorder == nil {
+				return fmt.Errorf("provider fence for %q requires a durable start-operation link", name)
+			}
+			return recorder.linkProviderFence(fenceID)
+		}
+		fenceStartedAt := r.runtimeDeps().now()
+		recorder.beginAndFlushStep(startStepProviderFence, fenceStartedAt)
+		opts.providerFence, err = r.prepareProviderFenceWithLink(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.providerFenceOperationID, opts.priorStartOperation, opts.priorStartOperationErr, linkFence)
 		if err != nil {
 			return Result{}, err
 		}
+		recorder.completeAndFlushStep(startStepProviderFence, r.runtimeDeps().now())
+		providerFencePreparedForRestart = opts.providerFence != nil
 		if opts.providerFence != nil {
 			opts.providerFenceOperationID = opts.providerFence.operationID
 			if recorder == nil {
 				return Result{}, fmt.Errorf("provider fence for %q requires a durable start-operation link", name)
-			}
-			if err := recorder.linkProviderFence(opts.providerFence.operationID); err != nil {
-				return Result{}, fmt.Errorf("link provider fence for %q to start operation: %w", name, err)
 			}
 			recorder.setProviderFence(opts.providerFence)
 		}
@@ -767,6 +834,7 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		}); err != nil {
 			return Result{}, err
 		}
+		restartStopCompleted = true
 		if recorder != nil {
 			recorder.markCompletedStep(startStepStop, restartStopStartedAt, r.runtimeDeps().now())
 		}
@@ -819,7 +887,12 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		if cleanupErr := r.releaseStartSessionDemand(opts.Context, session); cleanupErr != nil {
 			err = errors.Join(err, fmt.Errorf("release dependency demand after failed start: %w", cleanupErr))
 		}
-		r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
+		// When a durable recorder exists the enclosing defer first applies any
+		// exact retained-selection rollback, then publishes the terminal failure
+		// with its rollback result. Without a recorder preserve the event path.
+		if recorder == nil {
+			r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: err})
+		}
 		r.logError("Scenario start failed", err, logx.AttrScenario, name)
 		return Result{}, err
 	}
@@ -832,7 +905,13 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	if !result.AlreadyRunning {
 		// The reuse fast-path publishes its own AlreadyRunning completion
 		// (with the "is already running" line) inside startScenario.
-		r.publish(ProgressEvent{Kind: EventOperationCompleted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Verdict: result.Health})
+		r.publish(ProgressEvent{
+			Kind: EventOperationCompleted, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Verdict: result.Health,
+			RuntimeInstanceID: result.RuntimeInstanceID, RuntimeReleaseID: result.RuntimeReleaseID,
+			RuntimeReleaseOperationID: result.RuntimeReleaseOperationID, RuntimeBuildIdentity: result.RuntimeBuildIdentity,
+			HealthBuildIdentity: result.HealthBuildIdentity, HealthRuntimeReleaseID: result.HealthRuntimeReleaseID,
+			HealthRuntimeReleaseOperationID: result.HealthRuntimeReleaseOperationID, HealthStartOperationID: result.HealthStartOperationID,
+		})
 	}
 	r.logInfo("Scenario start completed",
 		logx.AttrScenario, name,
@@ -980,17 +1059,23 @@ func (r *Runner) startScenario(item scenario.Scenario, opts StartOptions, sessio
 			}
 		}
 		if opts.providerFence == nil {
-			opts.providerFence, err = r.prepareProviderFence(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.providerFenceOperationID, opts.priorStartOperation, opts.priorStartOperationErr)
+			linkFence := func(fenceID string) error {
+				if opts.startRecorder == nil {
+					return fmt.Errorf("provider fence for %q requires a durable start-operation link", item.Slug)
+				}
+				return opts.startRecorder.linkProviderFence(fenceID)
+			}
+			fenceStartedAt := r.runtimeDeps().now()
+			opts.startRecorder.beginAndFlushStep(startStepProviderFence, fenceStartedAt)
+			opts.providerFence, err = r.prepareProviderFenceWithLink(opts.Context, item, opts.ForceLifecycle, opts.LifecycleOverrideReason, opts.providerFenceOperationID, opts.priorStartOperation, opts.priorStartOperationErr, linkFence)
 			if err != nil {
 				return Result{}, err
 			}
+			opts.startRecorder.completeAndFlushStep(startStepProviderFence, r.runtimeDeps().now())
 			if opts.providerFence != nil {
 				opts.providerFenceOperationID = opts.providerFence.operationID
 				if opts.startRecorder == nil {
 					return Result{}, fmt.Errorf("provider fence for %q requires a durable start-operation link", item.Slug)
-				}
-				if err := opts.startRecorder.linkProviderFence(opts.providerFence.operationID); err != nil {
-					return Result{}, fmt.Errorf("persist provider fence recovery link for %q: %w", item.Slug, err)
 				}
 				opts.startRecorder.setProviderFence(opts.providerFence)
 			}
@@ -1062,10 +1147,16 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 	}()
 
-	runtimeSession, err = r.beginRuntimeRegistryStart(ctx, item, opts.DemandManaged)
+	runtimeSession, err = r.beginRuntimeRegistryStart(ctx, item, opts.DemandManaged, opts.lifecycleOperationID)
 	if err != nil {
 		return Result{}, err
 	}
+	r.publish(ProgressEvent{
+		Kind: EventRuntimeIdentitySelected, Scenario: item.Slug,
+		RuntimeInstanceID: runtimeSession.instance.InstanceID, RuntimeReleaseID: runtimeSession.instance.RuntimeReleaseID,
+		RuntimeReleaseOperationID: runtimeSession.instance.RuntimeReleaseOperationID,
+		RuntimeBuildIdentity:      runtimeSession.instance.BuildIdentity,
+	})
 
 	if _, covered := opts.hostRequirementsPreflighted[item.Path]; !covered {
 		if err := r.enforceScenarioHostRequirements(item); err != nil {
@@ -1095,7 +1186,7 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	}
 
 	if setupNeeded {
-		if err := r.admitVariantBuild(ctx, item); err != nil {
+		if err := r.admitVariantBuild(ctx, item, forceSetup); err != nil {
 			return Result{}, err
 		}
 		r.publish(ProgressEvent{Kind: EventPhaseStarted, Scenario: item.Slug, Phase: "setup"})
@@ -1105,7 +1196,8 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 		}
 		if err := runtimeSession.keepLeaseAlive(ctx, r.leaseRenewalWarning(item, "setup"), func() error {
 			_, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), opts.Operation, "setup"), func(logWriter, childWriter io.Writer) error {
-				_, err := r.executePhaseDetailed(ctx, item, "setup", env.EnvVars, logWriter, childWriter, forceSetup)
+				// This start's own registry instance is not another occupant of the scenario.
+				_, err := r.executePhaseDetailed(withOwnedInstances(ctx, runtimeSession.instance.InstanceID), item, "setup", env.EnvVars, logWriter, childWriter, forceSetup)
 				return err
 			})
 			return err
@@ -1184,12 +1276,20 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	r.printCredentialGapSummary(env)
 
 	result = Result{
-		Scenario:           item,
-		AllocatedPorts:     env.AllocatedPorts,
-		Health:             healthStatus,
-		FailedDependencies: failedDeps,
-		FailedResources:    failedResources,
-		CredentialGaps:     env.CredentialGaps,
+		Scenario:                        item,
+		AllocatedPorts:                  env.AllocatedPorts,
+		Health:                          healthStatus,
+		RuntimeInstanceID:               runtimeSession.instance.InstanceID,
+		RuntimeReleaseID:                runtimeSession.instance.RuntimeReleaseID,
+		RuntimeReleaseOperationID:       runtimeSession.instance.RuntimeReleaseOperationID,
+		RuntimeBuildIdentity:            runtimeSession.instance.BuildIdentity,
+		HealthBuildIdentity:             healthSnapshot.BuildIdentity,
+		HealthRuntimeReleaseID:          healthSnapshot.RuntimeReleaseID,
+		HealthRuntimeReleaseOperationID: healthSnapshot.RuntimeReleaseOperationID,
+		HealthStartOperationID:          healthSnapshot.StartOperationID,
+		FailedDependencies:              failedDeps,
+		FailedResources:                 failedResources,
+		CredentialGaps:                  env.CredentialGaps,
 	}
 	cleanupOnError = false
 	return result, nil
@@ -1268,6 +1368,27 @@ func (r *Runner) logCredentialGaps(slug string, env ports.Environment) {
 	r.logInfo("Scenario started with optional credentials unavailable", args...)
 }
 
+// logRefusedCallerEnvironment records, by name only, the security-relevant
+// variables in the caller's environment that the scenario's processes will not
+// inherit (scenario_env.go). A restart from an agent shell carrying an auth
+// mode or identity token is therefore visible in the lifecycle log.
+func (r *Runner) logRefusedCallerEnvironment(slug string) {
+	names := droppedSecurityEnvNames(os.Environ())
+	if len(names) == 0 {
+		return
+	}
+	args := []any{logx.AttrScenario, slug, "refused_security_env", strings.Join(names, ",")}
+	for _, name := range names {
+		// Agent identity and session markers are routinely present in an agent
+		// shell; an authentication setting there is a misconfiguration signal.
+		if strings.HasPrefix(name, "VROOLI_AUTH_") || strings.HasPrefix(name, "VROOLI_CLOUDFLARE_ACCESS_") {
+			r.logWarn("Caller authentication settings ignored; scenario uses its declared configuration", args...)
+			return
+		}
+	}
+	r.logInfo("Caller environment not inherited by scenario processes", args...)
+}
+
 func credentialGapCounts(gaps []resourceenv.MissingCredential) (required, optional int) {
 	for _, gap := range gaps {
 		if gap.Required {
@@ -1297,15 +1418,18 @@ func (r *Runner) prepareScenarioEnvironmentWithCleanup(ctx context.Context, item
 		return ports.Environment{}, err
 	}
 	r.logCredentialGaps(item.Slug, env)
+	r.logRefusedCallerEnvironment(item.Slug)
 
 	return env, nil
 }
 
 // applyManifestAuthentication is the control-plane binding between a
 // scenario's non-secret authentication declaration and the environment seen
-// by its managed processes. Operator environment values are available for
-// resolving placeholders, while manifest/runtime values take precedence over
-// inherited values so a declaration cannot be silently overridden.
+// by its managed processes. The mode is the manifest default
+// (ResolveAuthMode); placeholders resolve from the lifecycle environment and
+// the owning control plane's binding. The caller's environment is never
+// consulted, so a shell that exports VROOLI_AUTH_MODE or a Cloudflare audience
+// cannot change how a restarted scenario authenticates.
 func (r *Runner) applyManifestAuthentication(ctx context.Context, item scenario.Scenario, env map[string]string) error {
 	if item.Manifest.Authentication == nil {
 		return nil
@@ -1317,23 +1441,20 @@ func (r *Runner) applyManifestAuthentication(ctx context.Context, item scenario.
 			return fmt.Errorf("scenario %s authentication profile requires enabled scenario-authenticator dependency", item.Slug)
 		}
 	}
-	resolved := make(map[string]string, len(os.Environ())+len(env))
-	for _, entry := range os.Environ() {
-		key, value, ok := strings.Cut(entry, "=")
-		if ok {
-			resolved[key] = value
-		}
+	resolution := ResolveAuthMode(profile)
+	personalLocalRisk, err := CheckPersonalLocal(profile, resolution.Mode)
+	if err != nil {
+		return fmt.Errorf("scenario %s: %w", item.Slug, err)
 	}
+	resolved := make(map[string]string, len(env)+1)
 	for key, value := range env {
 		resolved[key] = value
 	}
+	mode := resolution.Mode
+	resolved[authModeEnv] = mode
 	var resolvedRecoveryURL string
 	if r.AuthBindings != nil {
 		name := strings.ToLower(strings.TrimSpace(profile.Profile))
-		mode := strings.TrimSpace(resolved["VROOLI_AUTH_MODE"])
-		if mode == "" {
-			mode = strings.TrimSpace(profile.DefaultMode)
-		}
 		usesCloudflare := name == "cloudflare_access" || (name == "hybrid" && (mode == "" || mode == "shared_provider"))
 		if usesCloudflare {
 			binding, err := r.AuthBindings.ResolveAuthenticationBinding(ctx, item)
@@ -1355,8 +1476,15 @@ func (r *Runner) applyManifestAuthentication(ctx context.Context, item scenario.
 	if resolvedRecoveryURL != "" && strings.TrimSpace(item.Manifest.Authentication.RecoveryURL) == "" {
 		authEnv["VROOLI_AUTH_RECOVERY_URL"] = resolvedRecoveryURL
 	}
+	if mode != "" {
+		authEnv[authModeSourceEnv] = resolution.Source
+	}
 	for key, value := range authEnv {
 		env[key] = value
+	}
+	r.logInfo("Scenario authentication mode resolved", logx.AttrScenario, item.Slug, "auth_mode", mode, "auth_mode_source", resolution.Source)
+	if personalLocalRisk != "" {
+		r.logWarn("Scenario runs in personal_local authentication mode", logx.AttrScenario, item.Slug, "risk", personalLocalRisk)
 	}
 	return nil
 }
@@ -1782,7 +1910,7 @@ func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {
 // bundle that the live instance is serving. RunSetupIfStopped applies the same
 // rule to a standalone setup. An engaged shadow is admitted because its serving
 // instance is routed to the restore-point copy.
-func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario) error {
+func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario, forceSetup ...bool) error {
 	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
 	if key.IsLive() {
 		return nil
@@ -1809,10 +1937,11 @@ func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario) 
 		return fmt.Errorf("admit %s build: %w", key.Slug(), err)
 	}
 	var sharing []string
+	force := len(forceSetup) > 0 && forceSetup[0]
 	for _, instance := range instances {
 		other := scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}.Normalize()
 		if other.Variant != key.Variant {
-			if isolatedVariantBuild(item, instance.WorkingDir) {
+			if isolatedVariantBuild(item, instance.WorkingDir, other.Variant, r.Root, force) {
 				continue
 			}
 			sharing = append(sharing, other.Slug())
@@ -1827,11 +1956,13 @@ func (r *Runner) admitVariantBuild(ctx context.Context, item scenario.Scenario) 
 		key.Slug(), strings.Join(sharing, ", "), item.Slug, key.Slug())
 }
 
-// An explicit --path can supply an independent component tree. Only admit
-// declarative builds confined to that tree; legacy setup scripts and unknown
-// serving roots retain the existing shared-output refusal. Resolve symlinks on
-// existing parents too: a not-yet-built artifact can still escape via its dir.
-func isolatedVariantBuild(item scenario.Scenario, servingRoot string) bool {
+// An explicit --path can supply an independent component tree. A shared source
+// tree is also safe when every component declares staged, variant-specific
+// outputs and package installs are already fresh. Legacy setup scripts, forced
+// installs, escaping targets, and unknown serving roots retain the refusal.
+// Resolve symlinks on existing parents because a missing artifact can still
+// escape through its existing parent directory.
+func isolatedVariantBuild(item scenario.Scenario, servingRoot, servingVariant, repoRoot string, forceSetup bool) bool {
 	if len(item.Manifest.Components) == 0 || strings.TrimSpace(servingRoot) == "" {
 		return false
 	}
@@ -1843,7 +1974,27 @@ func isolatedVariantBuild(item scenario.Scenario, servingRoot string) bool {
 		return false
 	}
 	serving, err := filepath.EvalSymlinks(servingRoot)
-	if err != nil || pathUnderRoot(root, serving) || pathUnderRoot(serving, root) {
+	if err != nil {
+		return false
+	}
+	if root == serving {
+		if !variantOutputsAreDistinct(item, servingVariant) || forceSetup {
+			return false
+		}
+		deps := defaultHostProbeDeps()
+		for _, component := range item.Manifest.Components {
+			spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
+			if !ok || len(spec.Install) == 0 {
+				continue
+			}
+			needed, _, installErr := installNeeded(repoRoot, item.SourcePath(), component, spec, &deps)
+			if installErr != nil || needed {
+				return false
+			}
+		}
+		return true
+	}
+	if pathUnderRoot(root, serving) || pathUnderRoot(serving, root) {
 		return false
 	}
 	confined := func(path string) bool {
@@ -1881,12 +2032,57 @@ func isolatedVariantBuild(item scenario.Scenario, servingRoot string) bool {
 		if !confined(dir) || !confined(filepath.Join(dir, "node_modules")) {
 			return false
 		}
-		targets, err := componentBuildTargets(name, root, item.Slug, component, spec, "")
+		targets, err := componentBuildTargets(name, root, item.Slug, component, spec, "", item.Variant)
 		if err != nil {
 			return false
 		}
 		for _, target := range targets {
 			if !confined(target.Output) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func variantOutputsAreDistinct(item scenario.Scenario, servingVariant string) bool {
+	candidateVariant := componentVariantOutputLabel([]string{item.Variant})
+	servingVariant = componentVariantOutputLabel([]string{servingVariant})
+	if candidateVariant == servingVariant || !safeComponentVariant(candidateVariant) || !safeComponentVariant(servingVariant) {
+		return false
+	}
+	if len(item.Manifest.Components) == 0 {
+		return false
+	}
+	for name, component := range item.Manifest.Components {
+		if strings.TrimSpace(component.Build.Kind) == "" {
+			continue
+		}
+		spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
+		if !ok || spec.Reserved || !spec.StagedOutput {
+			return false
+		}
+		declared := []string{component.Build.Output}
+		for _, extra := range component.Build.Outputs {
+			declared = append(declared, extra.Output)
+		}
+		for _, output := range declared {
+			if !strings.Contains(output, "{variant}") {
+				return false
+			}
+		}
+		candidateTargets, err := componentBuildTargets(name, item.SourcePath(), item.Slug, component, spec, runtimeGOOS(), candidateVariant)
+		if err != nil {
+			return false
+		}
+		servingTargets, err := componentBuildTargets(name, item.SourcePath(), item.Slug, component, spec, runtimeGOOS(), servingVariant)
+		if err != nil || len(candidateTargets) != len(servingTargets) {
+			return false
+		}
+		for index := range candidateTargets {
+			candidateOutput := componentPublishTarget(candidateTargets[index].Output, spec.StageDirectory)
+			servingOutput := componentPublishTarget(servingTargets[index].Output, spec.StageDirectory)
+			if pathUnderRoot(candidateOutput, servingOutput) || pathUnderRoot(servingOutput, candidateOutput) {
 				return false
 			}
 		}

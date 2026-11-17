@@ -44,6 +44,9 @@ type Config struct {
 	// MinimumDiskFloorBytes overrides the production 120 GiB post-peak floor.
 	// Tests may set it to zero to avoid host-capacity assumptions.
 	MinimumDiskFloorBytes *int64
+	// MetadataDiskFloorBytes overrides the production floor for metadata-class
+	// disk jobs (DiskJobClassMetadata). Tests may set it to zero.
+	MetadataDiskFloorBytes *int64
 }
 
 // SQLiteStore is the capacity claim ledger backed by SQLite (modernc, pure-Go).
@@ -54,8 +57,10 @@ type SQLiteStore struct {
 	clock            clock.Clock
 	dbPath           string
 	diskFloorMinimum int64
-	admissionOnce    sync.Once
-	admissionGate    chan struct{}
+	// diskMetadataFloor is the post-peak floor of a metadata-class disk job.
+	diskMetadataFloor int64
+	admissionOnce     sync.Once
+	admissionGate     chan struct{}
 }
 
 // DefaultDBPath resolves the capacity ledger SQLite path. It lives beside the
@@ -157,7 +162,15 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 		}
 		diskFloorMinimum = *cfg.MinimumDiskFloorBytes
 	}
-	store := &SQLiteStore{db: db, clock: clk, dbPath: dbPath, diskFloorMinimum: diskFloorMinimum}
+	diskMetadataFloor := DiskJobMetadataFloorBytes
+	if cfg.MetadataDiskFloorBytes != nil {
+		if !testing.Testing() && *cfg.MetadataDiskFloorBytes < DiskJobMetadataFloorBytes {
+			db.Close()
+			return nil, fmt.Errorf("capacity ledger metadata disk floor cannot be lowered below %d bytes outside tests", DiskJobMetadataFloorBytes)
+		}
+		diskMetadataFloor = *cfg.MetadataDiskFloorBytes
+	}
+	store := &SQLiteStore{db: db, clock: clk, dbPath: dbPath, diskFloorMinimum: diskFloorMinimum, diskMetadataFloor: diskMetadataFloor}
 	if !readOnly {
 		if err := store.ensureSchema(ctx); err != nil {
 			db.Close()
@@ -906,40 +919,6 @@ func (s *SQLiteStore) GetPolicy(ctx context.Context) (Policy, error) {
 	return policy, nil
 }
 
-// SetPolicyKey validates and persists a single policy key, returning the
-// resulting effective policy.
-func (s *SQLiteStore) SetPolicyKey(ctx context.Context, key, value string) (Policy, error) {
-	current, err := s.GetPolicy(ctx)
-	if err != nil {
-		return Policy{}, err
-	}
-	next, err := current.withKey(key, value)
-	if err != nil {
-		return Policy{}, err
-	}
-	// Re-derive the canonical stored value from the validated policy so a value
-	// like "60s" round-trips consistently.
-	stored, err := next.Get(key)
-	if err != nil {
-		return Policy{}, err
-	}
-	now := s.now()
-	err = s.withRetryableTx(ctx, func(tx *sql.Tx) error {
-		_, execErr := tx.ExecContext(ctx, `
-INSERT INTO capacity_policy (key, value, updated_at) VALUES (?, ?, ?)
-ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-			key, stored, formatTime(now))
-		if execErr != nil {
-			return fmt.Errorf("set capacity policy %s: %w", key, execErr)
-		}
-		return nil
-	})
-	if err != nil {
-		return Policy{}, err
-	}
-	return next, nil
-}
-
 // sweepCursorKey is the reserved capacity_policy row holding the last
 // resident-claim sweep time (§8.6). It is NOT a tunable lever: withKey rejects
 // it as unknown, so GetPolicy skips it and `policy get` never lists it. Storing
@@ -966,21 +945,6 @@ func (s *SQLiteStore) LastSweepAt(ctx context.Context) (time.Time, bool, error) 
 		return time.Time{}, false, nil
 	}
 	return t.UTC(), true, nil
-}
-
-// RecordSweepAt stamps the time of the most recent sweep so the opportunistic
-// callers can debounce to policy.SweepInterval.
-func (s *SQLiteStore) RecordSweepAt(ctx context.Context, at time.Time) error {
-	return s.withRetryableTx(ctx, func(tx *sql.Tx) error {
-		_, execErr := tx.ExecContext(ctx, `
-INSERT INTO capacity_policy (key, value, updated_at) VALUES (?, ?, ?)
-ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-			sweepCursorKey, formatTime(at.UTC()), formatTime(s.now()))
-		if execErr != nil {
-			return fmt.Errorf("record capacity sweep cursor: %w", execErr)
-		}
-		return nil
-	})
 }
 
 // --- transaction + scan helpers (mirror scenarioruntime) ---
@@ -1191,7 +1155,11 @@ func unmarshalProfile(s string) (*DegradeProfile, error) {
 }
 
 func buildDSN(path string) string {
-	return "file:" + url.PathEscape(path) + "?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
+	// Capacity writers read before they update claims. In WAL mode, a deferred
+	// transaction can lose its snapshot upgrade with SQLITE_BUSY_SNAPSHOT, which
+	// bypasses busy_timeout. Reserve the writer at BEGIN so competing processes
+	// queue under the existing timeout instead.
+	return "file:" + url.PathEscape(path) + "?_txlock=immediate&_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
 }
 
 func buildReadOnlyDSN(path string) string {
@@ -1230,10 +1198,8 @@ func boolToInt(b bool) int {
 	return 0
 }
 
-var (
-	formatTime         = storagetime.FormatUTC
-	formatOptionalTime = storagetime.FormatOptionalUTC
-)
+func formatTime(t time.Time) string       { return storagetime.FormatUTC(t) }
+func formatOptionalTime(t *time.Time) any { return storagetime.FormatOptionalUTC(t) }
 
 func parseOptionalTime(v sql.NullString) (*time.Time, error) {
 	if !v.Valid || strings.TrimSpace(v.String) == "" {

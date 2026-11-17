@@ -167,6 +167,24 @@ func TestHTTPMockCLICommandsAreStdinBoundedAndHaveNoFreeFormFields(t *testing.T)
 	}
 }
 
+func TestParseHTTPMockRouteHitsRequiresSandboxAndOwnerRuntimeID(t *testing.T) {
+	args := []string{"--sandbox-id", testN8NSandboxID, "--companion-runtime-id", "n8n-httpmock:" + testN8NSandboxID + ":" + strings.Repeat("a", 64), "--json"}
+	request, err := ParseN8NRuntimeRequest(N8NRuntimeCompanionRouteHits, args)
+	if err != nil || request.SandboxID != testN8NSandboxID || request.CompanionRuntimeID == "" || !request.JSON {
+		t.Fatalf("route-hit request = %+v, %v", request, err)
+	}
+	for _, forbidden := range [][]string{
+		{"--sandbox-id", testN8NSandboxID},
+		{"--companion-runtime-id", request.CompanionRuntimeID},
+		append(append([]string{}, args...), "--container", "foreign"),
+		append(append([]string{}, args...), "--path", "/tmp/hits.json"),
+	} {
+		if _, err := ParseN8NRuntimeRequest(N8NRuntimeCompanionRouteHits, forbidden); err == nil {
+			t.Errorf("accepted invalid or free-form route-hit arguments: %#v", forbidden)
+		}
+	}
+}
+
 func TestReadN8NHTTPMockInputIsBounded(t *testing.T) {
 	if _, err := ReadN8NHTTPMockInput(strings.NewReader("")); err == nil {
 		t.Fatal("empty config was accepted")
@@ -178,5 +196,34 @@ func TestReadN8NHTTPMockInputIsBounded(t *testing.T) {
 	}
 	if _, err := ReadN8NHTTPMockInput(bytes.NewReader(append(max, 'x'))); err == nil {
 		t.Fatal("oversized config was accepted")
+	}
+}
+
+func TestVirtualAPICommandsRequireBoundedOwnerInputs(t *testing.T) {
+	start, err := ParseN8NRuntimeRequest(N8NRuntimeVirtualAPIStart, []string{"--sandbox-id", testN8NSandboxID, "--contract-stdin", "--json"})
+	if err != nil || start.SandboxID != testN8NSandboxID || !start.JSON {
+		t.Fatalf("start parse=%+v err=%v", start, err)
+	}
+	if _, err := ParseN8NRuntimeRequest(N8NRuntimeVirtualAPIStart, []string{"--sandbox-id", testN8NSandboxID, "--contract", "x"}); err == nil {
+		t.Fatal("accepted non-stdin contract")
+	}
+	for _, action := range []N8NRuntimeCommandID{N8NRuntimeVirtualAPIStop, N8NRuntimeVirtualAPIHits} {
+		if _, err := ParseN8NRuntimeRequest(action, []string{"--sandbox-id", testN8NSandboxID, "--companion-runtime-id", "owner", "--json"}); err != nil {
+			t.Fatalf("%s parse: %v", action, err)
+		}
+		if _, err := ParseN8NRuntimeRequest(action, []string{"--sandbox-id", testN8NSandboxID, "--json"}); err == nil {
+			t.Fatalf("%s accepted missing runtime ID", action)
+		}
+	}
+	if _, err := ReadN8NVirtualAPIInput(strings.NewReader("")); err == nil {
+		t.Fatal("accepted empty contract")
+	}
+	max := bytes.Repeat([]byte("x"), 2<<20)
+	got, err := ReadN8NVirtualAPIInput(bytes.NewReader(max))
+	if err != nil || len(got) != len(max) {
+		t.Fatalf("max contract len=%d err=%v", len(got), err)
+	}
+	if _, err := ReadN8NVirtualAPIInput(bytes.NewReader(append(max, 'x'))); err == nil {
+		t.Fatal("accepted oversized contract")
 	}
 }

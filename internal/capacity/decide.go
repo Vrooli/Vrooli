@@ -55,19 +55,15 @@ func Decide(req CapacityRequest, snapshot hostinventory.Snapshot, ledger []Capac
 		}
 	}
 
-	// effectiveUsed is the more conservative of observed usage and the sum of
-	// outstanding ledger commitments on this resource — so two simultaneous
-	// grants before either materializes don't both think the space is free.
+	// Attributable commitments overlap observed usage once they load, so they
+	// count as max(observed, committed). Unattributed budgets (see
+	// chargedAboveObserved) stay above the measured baseline until release:
+	// max() alone lets every grant in a burst spend the same observed headroom.
 	committed := sumActiveAmounts(req, ledger)
-	// A pending RAM reservation has not been attributed to measured residents.
-	// Keep its complete budget above the measured baseline; max(usage, ledger)
-	// alone lets two not-yet-started operations spend the same free memory.
 	var pending int64
-	if req.ResourceKind == ResourceKindRAM {
-		for _, c := range ledger {
-			if c.ResourceKind == ResourceKindRAM && c.Status == StatusReserved {
-				pending = addCapacityBytes(pending, c.AmountBytes)
-			}
+	for _, c := range ledger {
+		if IsActiveClaimStatus(c.Status) && c.ResourceKind == req.ResourceKind && chargedAboveObserved(c) {
+			pending = addCapacityBytes(pending, c.AmountBytes)
 		}
 	}
 	effectiveUsed := observedUsed
@@ -300,12 +296,30 @@ func sumActiveAmounts(req CapacityRequest, ledger []CapacityClaim) int64 {
 		if req.ResourceKind == ResourceKindVRAM && !sameGPU(req.GPUIndex, c.GPUIndex) {
 			continue
 		}
-		if req.ResourceKind == ResourceKindRAM && c.Status == StatusReserved {
-			continue // Pending overhead is added above observed residents in Decide.
+		if chargedAboveObserved(c) {
+			continue // Pending overhead is added above observed usage in Decide.
 		}
 		sum = addCapacityBytes(sum, c.AmountBytes)
 	}
 	return sum
+}
+
+// chargedAboveObserved reports whether a claim's budget must be added on top of
+// observed host usage instead of overlapping it. Host RAM (MemAvailable) and
+// CPU (load average) are host-wide aggregates with no per-claim attribution,
+// and the snapshot may predate the grant, so measurement cannot show how much
+// of an operation's budget has materialized. That covers explicit RAM
+// operation reservations and every operation RAM/CPU claim. VRAM accounting
+// keeps the overlap; it is admitted per device through the GPU path.
+func chargedAboveObserved(c CapacityClaim) bool {
+	switch c.ResourceKind {
+	case ResourceKindRAM:
+		return c.Status == StatusReserved || c.OwnerKind == OwnerKindOp
+	case ResourceKindCPU:
+		return c.OwnerKind == OwnerKindOp
+	default:
+		return false
+	}
 }
 
 func addCapacityBytes(a, b int64) int64 {

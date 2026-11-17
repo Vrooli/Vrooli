@@ -63,6 +63,35 @@ func TestDiscoverReturnsTypedMissingInputsAndMetadataOnlyCandidates(t *testing.T
 	}
 }
 
+func TestEscrowContractRequiresOperatorSinkAndKeepsReceiptsAddressOnly(t *testing.T) {
+	descriptor := NewProvider(t.TempDir(), t.TempDir()).Descriptor()
+	if descriptor.ID != CapabilityID || !descriptor.Policy.RequiresConfirmation || !descriptor.Evidence.SecretFree {
+		t.Fatalf("unsafe escrow contract: %+v", descriptor)
+	}
+	inputs := map[string]operatorcapability.InputDescriptor{}
+	for _, input := range descriptor.Inputs {
+		inputs[input.ID] = input
+	}
+	if sink, ok := inputs["sink"]; !ok || !sink.Required || sink.Kind != operatorcapability.KindPath {
+		t.Fatalf("operator-selected sink input = %+v, want required path input", sink)
+	}
+	if passphrase, ok := inputs["recovery_passphrase"]; !ok || !passphrase.Required || passphrase.Kind != operatorcapability.KindSecret {
+		t.Fatalf("recovery passphrase input = %+v, want required secret input", passphrase)
+	}
+
+	configured := []credentialauthority.RecoveryEntry{
+		{Identity: "vrooli/kopia/remote-a", Field: "repository-passphrase"},
+		{Identity: "vrooli/kopia/remote-b", Field: "repository-passphrase"},
+	}
+	if !coversAll(configured, configured) || coversAll(configured[:1], configured) {
+		t.Fatal("coverage must include every configured credential address")
+	}
+	coverage := strings.Join(recoveryCoverage(configured), ",")
+	if strings.Contains(coverage, "secret-value") || !strings.Contains(coverage, "vrooli/kopia/remote-a:repository-passphrase") {
+		t.Fatalf("coverage should expose address metadata only: %q", coverage)
+	}
+}
+
 func TestStoreProviderVerificationReturnsFreshContextBoundEvidence(t *testing.T) {
 	provider := NewProvider(t.TempDir(), t.TempDir())
 	provider.now = func() time.Time { return time.Date(2026, 9, 11, 12, 0, 0, 0, time.UTC) }

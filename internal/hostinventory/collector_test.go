@@ -32,10 +32,10 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 			},
 			Outputs: map[string][]byte{
 				"nvidia-smi --query-gpu=index,name,uuid,driver_version,utilization.gpu,utilization.memory,memory.total,memory.used,temperature.gpu,fan.speed,power.draw,power.limit,clocks.sm,clocks.mem --format=csv,noheader,nounits": []byte("0, NVIDIA RTX 4090, GPU-abc, 555.42, 35, 20, 24564, 4096, 65, 40, 180, 450, 2100, 10000\n"),
-				"nvidia-smi --query-gpu=index,compute_cap --format=csv,noheader,nounits":                              []byte("0, 8.9\n"),
-				"nvidia-smi --query-gpu=index,pci.bus_id --format=csv,noheader,nounits":                               []byte("0, 00000000:01:00.0\n"),
-				"nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits": []byte("1234, python, 2048, GPU-abc\n"),
-				"docker info": []byte("Runtimes: io.containerd.runc.v2 nvidia runc\n"),
+				"nvidia-smi --query-gpu=index,compute_cap --format=csv,noheader,nounits": []byte("0, 8.9\n"),
+				"nvidia-smi --query-gpu=index,pci.bus_id --format=csv,noheader,nounits":  []byte("0, 00000000:01:00.0\n"),
+				"nvidia-smi pmon -s m -c 1": []byte("# gpu pid type fb ccpm command\n0 1234 C 2048 - /opt/models/python\n0 2222 G 128 - /usr/lib/xorg/Xorg\n"),
+				"docker info":               []byte("Runtimes: io.containerd.runc.v2 nvidia runc\n"),
 			},
 		},
 		Files: fakeFileReader{
@@ -73,7 +73,7 @@ func TestCollectLinuxSnapshot(t *testing.T) {
 	if got.GPUs[0].CUDAComputeCapability != acceleratorTestCUDACompute {
 		t.Fatalf("gpu compute capability = %q", got.GPUs[0].CUDAComputeCapability)
 	}
-	if len(got.GPUProcesses) != 1 || got.GPUProcesses[0].PID != 1234 || got.GPUProcesses[0].GPUIndex != 0 {
+	if len(got.GPUProcesses) != 2 || got.GPUProcesses[0].PID != 1234 || got.GPUProcesses[0].GPUIndex != 0 || got.GPUProcesses[1].PID != 2222 || got.ProbeStatuses["nvidia_gpu_processes"] != "ok" {
 		t.Fatalf("gpu processes = %#v", got.GPUProcesses)
 	}
 	if !got.HasDockerAddressableNvidiaGPU() {
@@ -440,6 +440,43 @@ func TestParseNvidiaComputeAppsCSV(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].PID != 123 || got[0].GPUUUID != "GPU-1" || got[0].UsedBytes != 2048*1024*1024 {
 		t.Fatalf("processes = %#v", got)
+	}
+}
+
+func TestParseNvidiaPmonMemoryIncludesComputeAndGraphics(t *testing.T) {
+	input := "# gpu pid type fb ccpm command\n0 1234 C 2048 - /opt/models/python\n0 2222 G 128 - /usr/lib/xorg/Xorg\n0 - - - - -\n"
+	got, warnings, err := ParseNvidiaPmonMemory(input)
+	if err != nil {
+		t.Fatalf("ParseNvidiaPmonMemory() error = %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("warnings = %#v", warnings)
+	}
+	if len(got) != 2 || got[0].PID != 1234 || got[0].UsedBytes != 2048*1024*1024 || got[1].PID != 2222 || got[1].UsedBytes != 128*1024*1024 {
+		t.Fatalf("process inventory = %#v", got)
+	}
+}
+
+func TestParseNvidiaPmonMemoryHandlesProtectedColumnAndUnknownMemory(t *testing.T) {
+	input := "# gpu pid type fb ccpm command\n0 17 C 64 8 model-worker\n0 18 G - - xorg\n"
+	got, warnings, err := ParseNvidiaPmonMemory(input)
+	if err != nil {
+		t.Fatalf("ParseNvidiaPmonMemory() error = %v", err)
+	}
+	if len(got) != 1 || got[0].UsedBytes != 72*1024*1024 {
+		t.Fatalf("process inventory = %#v", got)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "pid 18") {
+		t.Fatalf("warnings = %#v", warnings)
+	}
+}
+
+func TestParseNvidiaPmonMemoryRejectsMissingCoverageHeader(t *testing.T) {
+	if _, _, err := ParseNvidiaPmonMemory("0 17 C 64 8 worker\n"); err == nil {
+		t.Fatal("missing header was treated as a complete inventory")
+	}
+	if rows, warnings, err := ParseNvidiaPmonMemory("# gpu pid type fb ccpm command\nNo running processes found\n"); err != nil || len(rows) != 0 || len(warnings) != 0 {
+		t.Fatalf("empty process sample = rows %v warnings %v err %v", rows, warnings, err)
 	}
 }
 

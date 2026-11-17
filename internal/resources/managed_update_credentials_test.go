@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
 func updateCredentialTestStore(t *testing.T, u ManagedServiceUpdate) (*managedUpdateCredentialStore, *string, *int) {
@@ -32,6 +33,14 @@ func updateCredentialTestStore(t *testing.T, u ManagedServiceUpdate) (*managedUp
 }
 
 func TestManagedUpdateCredentialsRemainPinnedAcrossAuthorityRotationAndRoleCopies(t *testing.T) {
+	authority := withCredentialStore(t, &memorySecureStore{values: map[string]string{}})
+	identity, err := credentialauthority.ParseIdentity("vrooli/tunnel-manager")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := authority.Put(identity, "cloudflare-connector-token", "private-operation-fixture"); err != nil {
+		t.Fatal(err)
+	}
 	u := updateTestInitial(t)
 	s, value, calls := updateCredentialTestStore(t, u)
 	snapshot, err := s.Prepare(context.Background(), u)
@@ -69,6 +78,16 @@ func TestManagedUpdateCredentialsRemainPinnedAcrossAuthorityRotationAndRoleCopie
 		if err != nil || string(data) != "private-operation-fixture\n" {
 			t.Fatal("role did not receive operation-pinned credential")
 		}
+	}
+	if err := authority.Put(identity, "cloudflare-connector-token", "new-authority-token"); err != nil {
+		t.Fatal(err)
+	}
+	invocation, err := renderManagedUpdateInvocation(u.Target, r, u.ID, "candidate", "role-private-token")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := materializeManagedUpdateInvocation(u, u.Target, invocation); err == nil || !strings.Contains(err.Error(), "snapshot is stale") {
+		t.Fatalf("stale connector snapshot accepted: %v", err)
 	}
 }
 

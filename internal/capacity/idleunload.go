@@ -55,7 +55,7 @@ func idleUnloadAction(c CapacityClaim) (EscalationAction, bool) {
 		return EscalationAction{}, false
 	}
 	for _, step := range c.DegradeProfile.Steps {
-		if step.Label != "unloaded" {
+		if step.Label != ResidencyBackendUnloaded {
 			continue
 		}
 		if !c.DegradeProfile.Model.Complete() || c.AmountBytes < step.AmountBytes {

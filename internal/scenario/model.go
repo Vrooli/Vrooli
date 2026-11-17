@@ -70,8 +70,9 @@ type Scenario struct {
 	// RetainedReleaseID and RetainedBuildIdentity are populated only by the
 	// lifecycle's verified artifact resolver. They are runtime descriptors,
 	// not authored manifest settings or claims that data was rolled back.
-	RetainedReleaseID     string
-	RetainedBuildIdentity string
+	RetainedReleaseID                string
+	RetainedBuildIdentity            string
+	RetainedSelectionOperationID     string
 }
 
 // SourcePath returns the directory this instance builds and runs from: its
@@ -94,6 +95,7 @@ type ServiceManifest struct {
 	Components      map[string]Component                   `json:"components,omitempty"`
 	BuildIdentity   BuildIdentityPolicy                    `json:"build_identity,omitempty,omitzero"`
 	Lifecycle       Lifecycle                              `json:"lifecycle,omitempty,omitzero"`
+	Runtime         ScenarioRuntime                        `json:"runtime,omitempty,omitzero"`
 	Health          *HealthConfig                          `json:"health,omitempty"`
 	Dependencies    Dependencies                           `json:"dependencies,omitempty"`
 	Credentials     credentialspec.Declaration             `json:"credentials,omitempty"`
@@ -108,6 +110,21 @@ type ServiceManifest struct {
 	// ships. Absent means the scenario declares no branding; brand-manager apply
 	// and the declared-icon-targets rule then skip it.
 	Branding *Branding `json:"branding,omitempty"`
+}
+
+// ScenarioRuntime declares language runtimes used by lifecycle-managed
+// components. Empty selectors inherit the host development toolchain.
+type ScenarioRuntime struct {
+	Kind               string      `json:"kind,omitempty"`
+	AutoRestartDefault *bool       `json:"auto_restart_default,omitempty"`
+	Node               NodeRuntime `json:"node,omitempty,omitzero"`
+}
+
+// NodeRuntime pins an exact Node.js release for this scenario's lifecycle
+// commands. The lifecycle resolves the release from its checksum-pinned
+// supported catalog and shares the resulting installation across scenarios.
+type NodeRuntime struct {
+	Version string `json:"version,omitempty"`
 }
 
 // BuildIdentityPolicy declares runtime documentation that is served as part of

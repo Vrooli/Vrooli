@@ -49,6 +49,12 @@ func (app *Service) RunSupervisor(operationCtx context.Context, home string, opt
 
 	cfg := runtimesupervisor.EnvConfig()
 	cfg.HomeDir = home
+	// Capacity maintenance needs the source root for owner-declared resource
+	// claim specs. Root resolution is best-effort here: an unavailable source
+	// tree must not prevent the supervisor from maintaining its fleet leases.
+	if root, err := app.resolveRoot(); err == nil {
+		cfg.RootDir = root
+	}
 	cfg.Version = app.Version
 	cfg.BuildIdentity = buildinfo.Fingerprint
 	cfg.Takeover = opts.Takeover

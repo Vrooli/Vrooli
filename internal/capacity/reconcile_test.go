@@ -135,6 +135,16 @@ func TestMeasureClaimResidencyRequiresFreshExactOwnershipOrProvenAbsence(t *test
 		t.Fatalf("fresh complete absence sample=%+v err=%v", zero, err)
 	}
 
+	// Exact owner evidence remains usable when the same complete pmon snapshot
+	// also contains named desktop processes with no capacity claim. Those
+	// processes stay unclaimed in reconciliation, but cannot be Whisper.
+	desktopOnly := snapshot
+	desktopOnly.GPUProcesses = []hostinventory.GPUProcess{{GPUIndex: 0, PID: 43, ProcessName: "Xorg", UsedBytes: 2048}}
+	zero, err = MeasureClaimResidency(ctx, []CapacityClaim{claim}, claim, desktopOnly, fakeAttributor{}, now)
+	if err != nil || zero.Bytes != 0 {
+		t.Fatalf("named unrelated desktop process blocked exact owner absence=%+v err=%v", zero, err)
+	}
+
 	for label, mutate := range map[string]func(*hostinventory.Snapshot){
 		"failed process probe": func(s *hostinventory.Snapshot) { s.ProbeStatuses["nvidia_gpu_processes"] = "failed" },
 		"stale provenance": func(s *hostinventory.Snapshot) {
@@ -180,6 +190,12 @@ func TestNormalizeProcessOwnerRecognizesNativeOllamaWorker(t *testing.T) {
 func TestNormalizeProcessOwnerRecognizesNativeRerankerWorker(t *testing.T) {
 	if got := NormalizeProcessOwner("/home/user/.vrooli/artifacts/reranker/1.7.4/reranker_linux_amd64"); got != "reranker" {
 		t.Fatalf("NormalizeProcessOwner(reranker artifact) = %q, want reranker", got)
+	}
+}
+
+func TestNormalizeProcessOwnerRecognizesNativeWhisperWorker(t *testing.T) {
+	if got := NormalizeProcessOwner("/home/user/.vrooli/artifacts/whisper/1.9.2/app/build/bin/whisper-server"); got != "whisper" {
+		t.Fatalf("NormalizeProcessOwner(whisper-server artifact) = %q, want whisper", got)
 	}
 }
 

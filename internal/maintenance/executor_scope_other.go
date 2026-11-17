@@ -7,3 +7,5 @@ import "fmt"
 func readScopeIdentity(processTableEntry) (scopeIdentity, error) {
 	return scopeIdentity{}, fmt.Errorf("complete executor identity inspection is unsupported on this host")
 }
+
+func executorHomeIdentityInScope(processTableEntry) bool { return true }

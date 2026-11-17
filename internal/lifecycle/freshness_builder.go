@@ -13,7 +13,11 @@ import (
 // builderFreshnessContext derives freshness artifacts from one registry row.
 // The row supplies the file inputs, closure resolver, key resolver, and output
 // contract. Builder-specific freshness verdict functions must not be added.
-func builderFreshnessContext(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, spec BuilderSpec, deps hostProbeDeps) ([]artifactFreshness, error) {
+func builderFreshnessContext(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, spec BuilderSpec, deps hostProbeDeps, variants ...string) ([]artifactFreshness, error) {
+	return builderFreshnessContextWithRequiredClosure(ctx, appRoot, repoRoot, scenarioName, componentName, component, spec, deps, false, variants...)
+}
+
+func builderFreshnessContextWithRequiredClosure(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, spec BuilderSpec, deps hostProbeDeps, requireClosure bool, variants ...string) ([]artifactFreshness, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -25,12 +29,12 @@ func builderFreshnessContext(ctx context.Context, appRoot, repoRoot, scenarioNam
 	if strings.TrimSpace(component.Build.Dir) == "" {
 		return nil, fmt.Errorf("component %q build.dir is required", componentName)
 	}
-	targets, err := componentBuildTargets(componentName, appRoot, scenarioName, component, spec, runtimeGOOS())
+	targets, err := componentBuildTargets(componentName, appRoot, scenarioName, component, spec, runtimeGOOS(), variants...)
 	if err != nil {
 		return nil, err
 	}
 
-	inputs, err := builderFreshnessInputs(ctx, root, buildDir, spec, component, deps)
+	inputs, err := builderFreshnessInputsWithRequiredClosure(ctx, root, buildDir, spec, component, deps, requireClosure)
 	if err != nil {
 		return nil, err
 	}
@@ -77,9 +81,19 @@ func builderFreshnessContext(ctx context.Context, appRoot, repoRoot, scenarioNam
 }
 
 func builderFreshnessInputs(ctx context.Context, root, buildDir string, spec BuilderSpec, component scenario.Component, deps hostProbeDeps) ([]string, error) {
+	return builderFreshnessInputsWithRequiredClosure(ctx, root, buildDir, spec, component, deps, false)
+}
+
+func builderFreshnessInputsWithRequiredClosure(ctx context.Context, root, buildDir string, spec BuilderSpec, component scenario.Component, deps hostProbeDeps, requireClosure bool) ([]string, error) {
 	if spec.ClosureResolver == closureResolverGoList {
 		if inputs, ok := goListFreshnessInputsContext(ctx, buildDir, root, deps); ok {
 			return inputs, nil
+		}
+		if requireClosure {
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
+			return nil, fmt.Errorf("import closure unavailable; validation inputs are incomplete")
 		}
 		return binariesFreshnessFallbackInputsContext(ctx, buildDir, root)
 	}

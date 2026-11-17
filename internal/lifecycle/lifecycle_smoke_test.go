@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 func TestRunnerStartStopRestart(t *testing.T) {
@@ -307,6 +308,58 @@ func TestRunnerStartStartsRequiredDependencies(t *testing.T) {
 		if len(process.LiveRecords(records)) != 1 {
 			t.Fatalf("expected %s to be running, records=%#v", name, records)
 		}
+	}
+}
+
+func TestNestedStaleDependencyRestartOwnsFenceAndPreservesParentProgress(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		testkitgo.SkipPlatform(t, "lifecycle process management currently targets linux")
+	}
+	root, home := t.TempDir(), t.TempDir()
+	t.Setenv("VROOLI_HOME", home)
+	writeLifecycleFixture(t, root, "beta")
+	alpha := lifecycleFixtureManifest("alpha")
+	alpha.Dependencies.Scenarios = map[string]scenario.Dependency{"beta": {Required: true}}
+	writeLifecycleFixtureManifest(t, root, alpha)
+	runner, err := NewRunner(root, home, io.Discard, io.Discard)
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+	cleanupRunner(t, runner, "beta", StopOptions{})
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha): %v", err)
+	}
+	initialChild := latestStartOperation(t, home, "beta")
+
+	// ForceSetup makes both the consumer and its running dependency stale. The
+	// required dependency's default restart_when_stale policy replaces beta
+	// while it still serves its lifecycle maintenance provider.
+	if _, err := runner.Start("alpha", StartOptions{ForceSetup: true}); err != nil {
+		t.Fatalf("Start(alpha, ForceSetup): %v", err)
+	}
+	parent := latestStartOperation(t, home, "alpha")
+	child := latestStartOperation(t, home, "beta")
+	if parent.Status != scenarioruntime.StartOperationStatusSucceeded || child.Status != scenarioruntime.StartOperationStatusSucceeded {
+		t.Fatalf("nested start records parent=%+v child=%+v; want both succeeded", parent, child)
+	}
+	if parent.OperationID == child.OperationID {
+		t.Fatalf("parent and dependency operation IDs collide: %q", parent.OperationID)
+	}
+	if child.OperationID == initialChild.OperationID {
+		t.Fatalf("nested dependency replacement reused its prior operation ID %q", child.OperationID)
+	}
+	if parent.FenceOperationID == "" || child.FenceOperationID == "" {
+		t.Fatalf("expected both parent and nested dependency fences linked; parent=%+v child=%+v", parent, child)
+	}
+	if parent.FenceOperationID == child.FenceOperationID || parent.OperationID == parent.FenceOperationID || child.OperationID == child.FenceOperationID {
+		t.Fatalf("operation/fence identities are not independently linked: parent=%q/%q child=%q/%q", parent.OperationID, parent.FenceOperationID, child.OperationID, child.FenceOperationID)
+	}
+	if got := stepStatuses(parent)[startStepDependencies]; got != scenarioruntime.StartStepDone || parent.DependencyCurrent != "" {
+		t.Fatalf("parent dependency progress = status %q current %q; want completed dependency step", got, parent.DependencyCurrent)
+	}
+	if got := stepStatuses(child)[startStepProviderFence]; got != scenarioruntime.StartStepDone {
+		t.Fatalf("child provider fence step = %q, want done (steps=%v)", got, stepStatuses(child))
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -533,18 +534,55 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 			_, _ = fmt.Fprintf(logWriter, "shared package %s: %s outputs are fresh\n", dependency.Name, command.Name)
 			continue
 		}
+		// The package lock excludes other lifecycle builds, but it cannot
+		// exclude an agent editing this shared worktree. Bind this build to the
+		// source digest observed before execution and refuse to stamp its outputs
+		// if the source changes while the command runs.
+		buildSnapshot, err := sharedPackageSourceSnapshotWithHome(options.Home, dependency.Root, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+		buildSourceDigest := buildSnapshot.Digest
+		if err != nil {
+			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "could not snapshot sources before build", Err: err}
+		}
 
 		startedAt := time.Now()
 		_, _ = fmt.Fprintf(logWriter, "shared-package-command event=start package=%q command=%q root=%q pid=%d\n", dependency.Name, commandText, dependency.Root, os.Getpid())
 		evidenceWriter := &sharedPackageRuntimeEvidenceWriter{writer: stdout, logWriter: logWriter, packageName: dependency.Name}
-		err = packagegov.RunCommandsWithOptions(dependency.Root, []packagegov.CommandSpec{command}, evidenceWriter, evidenceWriter, packagegov.CommandOptions{
+		buildErr := packagegov.RunCommandsWithOptions(dependency.Root, []packagegov.CommandSpec{command}, evidenceWriter, evidenceWriter, packagegov.CommandOptions{
 			Env:      options.Env,
 			Stdin:    options.Stdin,
 			Scenario: options.Scenario,
 		})
-		_, _ = fmt.Fprintf(logWriter, "shared-package-command event=end package=%q command=%q root=%q pid=%d duration_ms=%d status=%q\n", dependency.Name, commandText, dependency.Root, os.Getpid(), time.Since(startedAt).Milliseconds(), commandStatus(err))
+		_, _ = fmt.Fprintf(logWriter, "shared-package-command event=end package=%q command=%q root=%q pid=%d duration_ms=%d status=%q\n", dependency.Name, commandText, dependency.Root, os.Getpid(), time.Since(startedAt).Milliseconds(), commandStatus(buildErr))
+		afterSnapshot, err := sharedPackageSourceSnapshotWithHome(options.Home, dependency.Root, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+		afterBuildDigest := afterSnapshot.Digest
 		if err != nil {
-			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "failed", Err: err}
+			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "could not verify sources after build", Err: errors.Join(err, buildErr)}
+		}
+		// A command that declares an artifact selection publishes and selects an
+		// artifact as its own output (protogen generate, the component library
+		// build), so the selection moving while it ran is its doing. The package
+		// lock serializes lifecycle publishers, and the outputs are materialized
+		// from what is now selected. Any change to a source file is still a
+		// concurrent edit and is refused.
+		stampDigest := buildSourceDigest
+		if afterBuildDigest != buildSourceDigest {
+			if command.ArtifactSelection != "" && afterSnapshot.Selection != buildSnapshot.Selection && len(afterSnapshot.changedFilesSince(buildSnapshot)) == 0 {
+				_, _ = fmt.Fprintf(logWriter, "shared-package-command event=selection-moved package=%q command=%q selection=%q action=%q\n", dependency.Name, command.Name, command.ArtifactSelection, "recorded freshness against the artifact the build selected")
+				stampDigest = afterBuildDigest
+			} else {
+				changed := summarizeChangedFiles(afterSnapshot.changedSince(buildSnapshot))
+				_, _ = fmt.Fprintf(logWriter, "shared-package-command event=source-changed package=%q command=%q before_digest=%q after_digest=%q changed=%q action=%q\n", dependency.Name, command.Name, buildSourceDigest, afterBuildDigest, changed, "refused freshness stamp and restart candidate")
+				return &SharedPackageProvisioningError{
+					PackageName: dependency.Name,
+					Command:     commandText,
+					Code:        "source-changed-during-build",
+					Reason:      "shared package source changed while the build was running (" + changed + "); lifecycle refused to mark these outputs current. Retry after package edits settle",
+					Err:         buildErr,
+				}
+			}
+		}
+		if buildErr != nil {
+			return &SharedPackageProvisioningError{PackageName: dependency.Name, Command: commandText, Reason: "failed", Err: buildErr}
 		}
 		files, err := declaredOutputFiles(dependency.Root, command.Outputs)
 		if err != nil {
@@ -558,7 +596,7 @@ func provisionSharedPackageWithOptions(dependency sharedPackageDependency, stdou
 		// the cost is only regenerating again — but it must never be silent,
 		// because a stamp that is never written looks exactly like a cache
 		// that never helps.
-		if err := recordSharedPackageStamp(options.Home, dependency, command); err != nil {
+		if err := recordSharedPackageStampForDigest(options.Home, dependency, command, stampDigest); err != nil {
 			_, _ = fmt.Fprintf(logWriter, "shared package %s: could not record %s freshness stamp: %v\n", dependency.Name, command.Name, err)
 		}
 	}
@@ -820,6 +858,64 @@ func sharedPackageSourceDigest(root string, outputPatterns []string, declared ..
 // filesystem input: it is the immutable runtime pointer that tells lifecycle
 // whether the compatibility facade is behind the selected verified artifact.
 func sharedPackageSourceDigestWithHome(home, root string, outputPatterns []string, declared ...[]string) (string, error) {
+	snapshot, err := sharedPackageSourceSnapshotWithHome(home, root, outputPatterns, declared...)
+	return snapshot.Digest, err
+}
+
+// sharedPackageSourceSnapshot is the digest plus what produced it, so a
+// refusal that says "the source changed" can also say which files changed.
+type sharedPackageSourceSnapshot struct {
+	Digest string
+	// Files maps a root-relative path to the sha256 of its content.
+	Files map[string]string
+	// Selection is the artifact-selection digest, "" when the command has none.
+	Selection string
+}
+
+// changedFilesSince lists the files that differ between an earlier snapshot and
+// this one, in path order, each marked modified, added or removed.
+func (s sharedPackageSourceSnapshot) changedFilesSince(earlier sharedPackageSourceSnapshot) []string {
+	var changed []string
+	for path, hash := range s.Files {
+		switch before, ok := earlier.Files[path]; {
+		case !ok:
+			changed = append(changed, path+" (added)")
+		case before != hash:
+			changed = append(changed, path+" (modified)")
+		}
+	}
+	for path := range earlier.Files {
+		if _, ok := s.Files[path]; !ok {
+			changed = append(changed, path+" (removed)")
+		}
+	}
+	sort.Strings(changed)
+	return changed
+}
+
+// changedSince is changedFilesSince plus the artifact selection when it moved.
+func (s sharedPackageSourceSnapshot) changedSince(earlier sharedPackageSourceSnapshot) []string {
+	changed := s.changedFilesSince(earlier)
+	if s.Selection != earlier.Selection {
+		changed = append(changed, "artifact selection")
+	}
+	return changed
+}
+
+// summarizeChangedFiles names the first few changed entries and counts the rest.
+func summarizeChangedFiles(changed []string) string {
+	const shown = 5
+	if len(changed) == 0 {
+		return "no file differs by content; the digest moved with its inputs"
+	}
+	text := strings.Join(changed[:min(shown, len(changed))], ", ")
+	if len(changed) > shown {
+		text += fmt.Sprintf(", and %d more", len(changed)-shown)
+	}
+	return fmt.Sprintf("%d changed: %s", len(changed), text)
+}
+
+func sharedPackageSourceSnapshotWithHome(home, root string, outputPatterns []string, declared ...[]string) (sharedPackageSourceSnapshot, error) {
 	var inputPatterns, ignorePatterns []string
 	artifactSelection := ""
 	if len(declared) > 0 && len(declared[0]) > 0 {
@@ -832,6 +928,7 @@ func sharedPackageSourceDigestWithHome(home, root string, outputPatterns []strin
 		artifactSelection = declared[2][0]
 	}
 	hash := sha256.New()
+	files := map[string]string{}
 	err := filepath.WalkDir(root, func(filePath string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -855,19 +952,23 @@ func sharedPackageSourceDigestWithHome(home, root string, outputPatterns []strin
 		}
 		_, _ = fmt.Fprintf(hash, "%s\x00%d\x00", filepath.ToSlash(rel), len(data))
 		_, _ = hash.Write(data)
+		sum := sha256.Sum256(data)
+		files[filepath.ToSlash(rel)] = hex.EncodeToString(sum[:8])
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return sharedPackageSourceSnapshot{}, err
 	}
+	selection := ""
 	if artifactSelection != "" {
 		selectionDigest, digestErr := sharedPackageArtifactSelectionDigest(home, artifactSelection)
 		if digestErr != nil {
-			return "", digestErr
+			return sharedPackageSourceSnapshot{}, digestErr
 		}
+		selection = selectionDigest
 		_, _ = fmt.Fprintf(hash, "artifact-selection:%s\x00%s\x00", artifactSelection, selectionDigest)
 	}
-	return fmt.Sprintf("sha256:%x", hash.Sum(nil)), nil
+	return sharedPackageSourceSnapshot{Digest: fmt.Sprintf("sha256:%x", hash.Sum(nil)), Files: files, Selection: selection}, nil
 }
 
 func sharedPackageArtifactSelectionDigest(home, packageName string) (string, error) {
@@ -949,10 +1050,11 @@ type sharedPackageStamp struct {
 	OutputContentDigestVersion int    `json:"output_content_digest_version,omitempty"`
 	// OutputsStatDigest lets consumers validate the full declared output set
 	// with metadata-only probes.
-	OutputsStatDigest string                         `json:"outputs_stat_digest,omitempty"`
-	OutputFiles       []string                       `json:"output_files,omitempty"`
-	OutputDirectories []sharedPackageOutputDirectory `json:"output_directories,omitempty"`
-	RecordedAt        string                         `json:"recorded_at"`
+	OutputsStatDigest    string                         `json:"outputs_stat_digest,omitempty"`
+	OutputPatternsDigest string                         `json:"output_patterns_digest,omitempty"`
+	OutputFiles          []string                       `json:"output_files,omitempty"`
+	OutputDirectories    []sharedPackageOutputDirectory `json:"output_directories,omitempty"`
+	RecordedAt           string                         `json:"recorded_at"`
 }
 
 type sharedPackageOutputDirectory struct {
@@ -1004,16 +1106,20 @@ func readSharedPackageStamp(stampPath string) (sharedPackageStamp, bool, error) 
 // recordSharedPackageStamp captures the current source digest for a command
 // that has just produced its declared outputs.
 func recordSharedPackageStamp(home string, dependency sharedPackageDependency, command packagegov.CommandSpec) error {
+	digest, err := sharedPackageSourceDigestWithHome(home, dependency.Root, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
+	if err != nil {
+		return fmt.Errorf("hash sources: %w", err)
+	}
+	return recordSharedPackageStampForDigest(home, dependency, command, digest)
+}
+
+func recordSharedPackageStampForDigest(home string, dependency sharedPackageDependency, command packagegov.CommandSpec, digest string) error {
 	stampPath, err := sharedPackageStampPath(home, dependency.Root, command.Name)
 	if err != nil {
 		return err
 	}
 	if stampPath == "" {
 		return fmt.Errorf("no runtime home is configured, so freshness cannot be cached")
-	}
-	digest, err := sharedPackageSourceDigestWithHome(home, dependency.Root, command.Outputs, command.Inputs, command.Ignore, []string{command.ArtifactSelection})
-	if err != nil {
-		return fmt.Errorf("hash sources: %w", err)
 	}
 	outputs, err := declaredOutputFiles(dependency.Root, command.Outputs)
 	if err != nil {
@@ -1041,6 +1147,7 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 		outputContentDigest,
 		sharedPackageOutputContentDigestVersion,
 		outputStatDigest,
+		sharedPackageOutputPatternsDigest(command.Outputs),
 		outputFiles,
 		outputDirectories,
 	)
@@ -1050,10 +1157,10 @@ func recordSharedPackageStamp(home string, dependency sharedPackageDependency, c
 // outputs. It is written only after a command succeeds and its outputs are
 // confirmed present.
 func writeSharedPackageStamp(stampPath, packageName, commandName, digest, outputsDigest string) error {
-	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, "", 0, "", nil, nil)
+	return writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, "", 0, "", "", nil, nil)
 }
 
-func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest string, outputContentDigestVersion int, outputsStatDigest string, outputFiles []string, outputDirectories []sharedPackageOutputDirectory) error {
+func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, digest, outputsDigest, outputContentDigest string, outputContentDigestVersion int, outputsStatDigest, outputPatternsDigest string, outputFiles []string, outputDirectories []sharedPackageOutputDirectory) error {
 	if stampPath == "" {
 		return nil
 	}
@@ -1069,6 +1176,7 @@ func writeSharedPackageStampWithSnapshot(stampPath, packageName, commandName, di
 		OutputContentDigest:        outputContentDigest,
 		OutputContentDigestVersion: outputContentDigestVersion,
 		OutputsStatDigest:          outputsStatDigest,
+		OutputPatternsDigest:       outputPatternsDigest,
 		OutputFiles:                outputFiles,
 		OutputDirectories:          outputDirectories,
 		RecordedAt:                 time.Now().UTC().Format(time.RFC3339),
@@ -1157,7 +1265,15 @@ func sharedPackageOutputMatch(root, filePath string, patterns []string) bool {
 	return false
 }
 
-const sharedPackageOutputContentDigestVersion = 2
+// Older readers do not bind snapshots to output patterns. Version 3 makes
+// them recompute rather than consume a snapshot selected by a newer caller.
+const sharedPackageOutputContentDigestVersion = 3
+
+func sharedPackageOutputPatternsDigest(patterns []string) string {
+	data, _ := json.Marshal(patterns)
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("%x", sum)
+}
 
 // sharedPackageConsumedOutputFiles projects declared outputs to consumer bytes.
 // Proto's compatibility marker remains in the generated output set for owner
@@ -1199,7 +1315,8 @@ func sharedPackageConsumedDigest(root, commandName string, patterns []string, de
 			}
 		}
 	}
-	if stamp.OutputContentDigestVersion == sharedPackageOutputContentDigestVersion && stamp.OutputContentDigest != "" && len(stamp.OutputFiles) > 0 && len(stamp.OutputDirectories) > 0 && sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories) {
+	patternsDigest := sharedPackageOutputPatternsDigest(patterns)
+	if stamp.Version == sharedPackageStampVersion && stamp.OutputPatternsDigest == patternsDigest && stamp.OutputContentDigestVersion == sharedPackageOutputContentDigestVersion && stamp.OutputContentDigest != "" && len(stamp.OutputFiles) > 0 && len(stamp.OutputDirectories) > 0 && sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories) {
 		files := make([]string, 0, len(stamp.OutputFiles))
 		valid := true
 		for _, rel := range stamp.OutputFiles {
@@ -1251,11 +1368,11 @@ func sharedPackageConsumedDigest(root, commandName string, patterns []string, de
 	if stampPath != "" && stamp.Version == sharedPackageStampVersion && stamp.Package != "" {
 		if statDigest, statErr := sharedPackageOutputsStatDigest(root, files); statErr == nil {
 			outputFiles, outputDirectories, snapshotErr := sharedPackageOutputSnapshot(root, files)
-			needsRefresh := stamp.OutputContentDigestVersion != sharedPackageOutputContentDigestVersion || stamp.OutputContentDigest == "" ||
+			needsRefresh := stamp.OutputPatternsDigest != patternsDigest || stamp.OutputContentDigestVersion != sharedPackageOutputContentDigestVersion || stamp.OutputContentDigest == "" ||
 				len(stamp.OutputFiles) == 0 || len(stamp.OutputDirectories) == 0 || stamp.OutputsStatDigest != statDigest ||
 				!sharedPackageOutputDirectoriesFresh(root, stamp.OutputDirectories)
 			if snapshotErr == nil && needsRefresh {
-				_ = writeSharedPackageStampWithSnapshot(stampPath, stamp.Package, stamp.Command, stamp.SourceDigest, stamp.OutputsDigest, digest, sharedPackageOutputContentDigestVersion, statDigest, outputFiles, outputDirectories)
+				_ = writeSharedPackageStampWithSnapshot(stampPath, stamp.Package, stamp.Command, stamp.SourceDigest, stamp.OutputsDigest, digest, sharedPackageOutputContentDigestVersion, statDigest, patternsDigest, outputFiles, outputDirectories)
 			}
 		}
 	}

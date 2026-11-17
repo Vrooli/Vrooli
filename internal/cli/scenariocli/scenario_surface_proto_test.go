@@ -198,6 +198,15 @@ func TestScenarioPortJSONContract(t *testing.T) {
 	}
 	isJSONNumber(t, gotSingle["port"], "single.port")
 
+	gotFailure := renderToMap(t, func(w *bytes.Buffer) error {
+		return RenderPortResponse(w, cliout.FormatJSON, PortResponse{
+			Single: &PortSingleOutput{Success: false, Scenario: "alpha", PortName: "API_PORT", Error: "scenario stopped", ErrorCode: "scenario_not_running"},
+		})
+	})
+	if gotFailure["error_code"] != "scenario_not_running" {
+		t.Errorf("port failure error_code: %v", gotFailure["error_code"])
+	}
+
 	gotList := renderToMap(t, func(w *bytes.Buffer) error {
 		return RenderPortResponse(w, cliout.FormatJSON, PortResponse{
 			List: &PortListOutput{

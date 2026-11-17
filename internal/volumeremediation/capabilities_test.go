@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// TestAdvertisedCapabilitiesAreStableAndSafe pins the exact host-volume-v1
+// TestAdvertisedCapabilitiesAreStableAndSafe pins the exact host-volume-v2
 // verb registry. Every verb is either read-only (inspect, check, smart),
 // attachment-only (unmount, mount_read_write), or the single guarded
 // destructive verb (repair, which requires an explicit data-loss
@@ -22,6 +22,7 @@ func TestAdvertisedCapabilitiesAreStableAndSafe(t *testing.T) {
 		string(ActionRepair),
 		string(ActionUnmount),
 		string(ActionMountReadWrite),
+		"lease",
 	}
 	if a.Contract != ContractVersion || !slices.Equal(a.Actions, want) {
 		t.Fatalf("capabilities = %+v, want contract %q actions %v", a, ContractVersion, want)

@@ -76,6 +76,19 @@ func TestParseSetupOptionsStatusSubcommand(t *testing.T) {
 	}
 }
 
+func TestParseSetupScenarioScopedHostRequirements(t *testing.T) {
+	opts, err := ParseSetupOptions([]string{"scenario", "scenario-to-cloud", "--dry-run", "--include-optional", "--sudo-mode", "ask"})
+	if err != nil {
+		t.Fatalf("ParseSetupOptions: %v", err)
+	}
+	if opts.Subcommand != "scenario" || opts.ScenarioName != "scenario-to-cloud" || !opts.DryRun || !opts.IncludeOptional || opts.SudoMode != "ask" {
+		t.Fatalf("unexpected setup scenario options: %+v", opts)
+	}
+	if _, err := ParseSetupOptions([]string{"scenario", "scenario-to-cloud", "--sudo-mode", "root"}); err == nil {
+		t.Fatal("expected invalid sudo mode to be rejected")
+	}
+}
+
 func TestParseSetupBrokerHasNarrowOptions(t *testing.T) {
 	opts, err := ParseSetupOptions([]string{"broker", "--sudo-mode=ask", "--dry-run", "--json"})
 	if err != nil || opts.Subcommand != "broker" || opts.SudoMode != "ask" || !opts.DryRun || !opts.JSON {

@@ -499,7 +499,7 @@ func TestGoClosureTracksIndependentComponentSourceOutsideRepo(t *testing.T) {
 func TestGoClosureExcludesDocsButRetainsEmbeddedAssetsAndNewSources(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "api")
-	for name, contents := range map[string]string{"go.mod": "module example\n", "main.go": "package main\n", "DESIGN.md": "documentation", "assets/message.txt": "one"} {
+	for name, contents := range map[string]string{"go.mod": "module example\n", "main.go": "package main\n", "ordinary_test.go": "package main\n", "DESIGN.md": "documentation", "assets/message_test.go": "one", "assets/payload.log": "\x7fELFasset"} {
 		writeFreshnessBuildInputFile(t, filepath.Join(dir, name), contents)
 	}
 	calls := 0
@@ -511,7 +511,9 @@ func TestGoClosureExcludesDocsButRetainsEmbeddedAssetsAndNewSources(t *testing.T
 		files, _ := filepath.Glob(filepath.Join(dir, "*.go"))
 		names := []string{}
 		for _, file := range files {
-			names = append(names, filepath.Base(file))
+			if !strings.HasSuffix(file, "_test.go") {
+				names = append(names, filepath.Base(file))
+			}
 		}
 		embeds, _ := filepath.Glob(filepath.Join(dir, "assets", "*"))
 		embedded := []string{}
@@ -522,30 +524,48 @@ func TestGoClosureExcludesDocsButRetainsEmbeddedAssetsAndNewSources(t *testing.T
 		return json.Marshal(map[string]any{"Dir": dir, "GoFiles": names, "EmbedFiles": embedded, "EmbedPatterns": []string{"assets/*"}, "Module": map[string]string{"Dir": dir, "GoMod": filepath.Join(dir, "go.mod")}})
 	}
 	resolve := func() cliutil.FreshnessSpec {
-		inputs, ok := goListFreshnessInputs(dir, root, deps)
-		if !ok {
-			t.Fatal("closure unavailable")
+		component := scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"}}
+		artifacts, err := builderFreshnessContext(context.Background(), root, root, "example", "api", component, builderRegistry["go_module"], deps)
+		if err != nil || len(artifacts) != 1 {
+			t.Fatalf("builder freshness artifacts: %v, %v", artifacts, err)
 		}
-		return cliutil.FreshnessSpec{SourceRoot: dir, ContextRoot: root, Inputs: inputs}
+		return artifacts[0].Spec
 	}
 	spec := resolve()
 	manifest, err := cliutil.ComputeFreshnessManifest(spec, "go_module", nil, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "ordinary_test.go"), "package main\n// edited\n")
+	verdict, err := cliutil.EvaluateFreshness(resolve(), manifest, nil)
+	if err != nil || verdict.Stale {
+		t.Fatalf("ordinary test source invalidated build: %+v %v", verdict, err)
+	}
 	writeFreshnessBuildInputFile(t, filepath.Join(dir, "DESIGN.md"), "changed documentation")
 	current := resolve()
-	verdict, err := cliutil.EvaluateFreshness(current, manifest, nil)
+	verdict, err = cliutil.EvaluateFreshness(current, manifest, nil)
 	if err != nil || verdict.Stale {
 		t.Fatalf("uncompiled documentation invalidated build: %+v %v", verdict, err)
 	}
 	if calls != 1 {
 		t.Fatalf("doc edit invalidated dependency cache: calls=%d", calls)
 	}
-	writeFreshnessBuildInputFile(t, filepath.Join(dir, "assets/message.txt"), "two")
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "assets/payload.log"), "\x7fELFchanged")
+	verdict, err = cliutil.EvaluateFreshness(resolve(), manifest, nil)
+	if err != nil || !verdict.Stale {
+		t.Fatalf("output-like binary embedded bytes must invalidate: %+v %v", verdict, err)
+	}
+	writeFreshnessBuildInputFile(t, filepath.Join(dir, "assets/message_test.go"), "two")
 	verdict, err = cliutil.EvaluateFreshness(resolve(), manifest, nil)
 	if err != nil || !verdict.Stale {
 		t.Fatalf("embedded bytes must invalidate: %+v %v", verdict, err)
+	}
+	if err := os.Remove(filepath.Join(dir, "assets/message_test.go")); err != nil {
+		t.Fatal(err)
+	}
+	verdict, err = cliutil.EvaluateFreshness(resolve(), manifest, nil)
+	if err != nil || !verdict.Stale {
+		t.Fatalf("removed embedded asset must invalidate: %+v %v", verdict, err)
 	}
 	// Additions must expand cached file lists even when the import source is unchanged.
 	writeFreshnessBuildInputFile(t, filepath.Join(dir, "assets/new.txt"), "new embedded asset")

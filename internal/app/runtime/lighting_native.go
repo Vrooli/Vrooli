@@ -8,8 +8,6 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 
-	"github.com/vrooli/repo-contract-go/cliinvoke"
-
 	"github.com/vrooli/vrooli/internal/lightingruntime"
 	"github.com/vrooli/vrooli/internal/resources"
 )
@@ -50,11 +48,7 @@ func (app *Service) NewNativeLightingActions(root, home string, ensureStarted fu
 // EnsureNativeLightingScenario uses the supported lifecycle for this sole live
 // owner. It is called by reconciliation, never by status or quiescence.
 func EnsureNativeLightingScenario(ctx context.Context) error {
-	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{})
-	if err != nil {
-		return err
-	}
-	return cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: cliinvoke.ScenarioLifecycle("start", "lighting-control", false)}).Error()
+	return lightingruntime.EnsureNativeScenarioStarted(ctx)
 }
 
 // Ordinary native lifecycle commands may execute operator-owned scenario source.

@@ -175,7 +175,7 @@ func (p Provider) Validate(ctx context.Context, root string) (contractapp.Valida
 	if firstErr != nil {
 		return contractapp.ValidationOutput{}, firstErr
 	}
-	return outputFromResponses(root, responses), nil
+	return outputFromResponses(root, targets, responses), nil
 }
 
 type validationTarget struct {
@@ -210,14 +210,36 @@ func enumerateTargets(root string) []validationTarget {
 	return out
 }
 
-func outputFromResponses(root string, responses []*scenariovalidationv1.ValidateTargetResponse) contractapp.ValidationOutput {
+func outputFromResponses(root string, targets []validationTarget, responses []*scenariovalidationv1.ValidateTargetResponse) contractapp.ValidationOutput {
 	checks := make([]contractapp.CheckResult, 0, len(projectChecks))
 	failures := map[string][]string{}
 	var structuralFindings []contractapp.StructuralFinding
 	success := true
-	for _, response := range responses {
+	var coverageFailures []string
+	if len(responses) != len(targets) {
+		coverageFailures = append(coverageFailures, fmt.Sprintf("received %d response(s) for %d required target(s)", len(responses), len(targets)))
+		success = false
+	}
+	for index, response := range responses {
 		if response == nil {
+			coverageFailures = append(coverageFailures, fmt.Sprintf("required target %d returned no response", index+1))
+			success = false
 			continue
+		}
+		if index >= len(targets) {
+			coverageFailures = append(coverageFailures, fmt.Sprintf("received an unexpected response for target %d", index+1))
+			success = false
+			continue
+		}
+		expected := targets[index]
+		actual := response.GetTarget()
+		if actual == nil || actual.GetKind() != expected.kind || actual.GetId() != expected.id || filepath.Clean(actual.GetRoot()) != filepath.Clean(expected.root) {
+			coverageFailures = append(coverageFailures, fmt.Sprintf("response %d target identity does not match required %s:%s", index+1, expected.kind.String(), expected.id))
+			success = false
+		}
+		if response.GetAssessment() == nil {
+			coverageFailures = append(coverageFailures, fmt.Sprintf("required target %s:%s returned no assessment evidence", expected.kind.String(), expected.id))
+			success = false
 		}
 		if response.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
 			success = false
@@ -251,6 +273,9 @@ func outputFromResponses(root string, responses []*scenariovalidationv1.Validate
 				failures[name] = append(failures[name], message)
 			}
 		}
+	}
+	if len(coverageFailures) > 0 {
+		checks = append(checks, contractapp.CheckResult{Name: "provider_coverage", Passed: false, Message: strings.Join(coverageFailures, "; ")})
 	}
 	for _, check := range projectChecks {
 		messages := failures[check.name]

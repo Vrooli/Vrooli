@@ -22,9 +22,12 @@ import (
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	n8nresource "github.com/vrooli/vrooli/internal/resources/n8n"
+	wordpressresource "github.com/vrooli/vrooli/internal/resources/wordpress"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 var TimeNowForArchiveGC = func() time.Time {
@@ -282,7 +285,7 @@ func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree
 				return err
 			}
 			_, err = fmt.Fprintf(deps.Stdout(ctx), "Selected %s source for %s", choice.Mode, strings.TrimSpace(args[0]))
-			if choice.Mode == "host" {
+			if choice.Mode == operatorstate.ResourceSourceHost {
 				_, _ = fmt.Fprintf(deps.Stdout(ctx), " (%s, version %s, sha256 %s)", choice.Executable, choice.Version, choice.SHA256)
 			}
 			if err == nil {
@@ -292,6 +295,9 @@ func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree
 		},
 		resourcecli.CommandN8N: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceN8NHelp, "resource n8n", buildResourceN8NCommandHandlers(deps), deps.Stdout)
+		},
+		resourcecli.CommandWordPress: func(ctx C, controller *resources.Controller, args []string) error {
+			return runResourceSubcommandSet(ctx, controller, args, showResourceWordPressHelp, "resource wordpress", buildResourceWordPressHandlers(deps), deps.Stdout)
 		},
 	}
 	return commandtree.BindSpecs(resourcecli.CommandSpecs(), handlerMap)
@@ -316,6 +322,7 @@ func buildResourceN8NRuntimeHandlers[C any](deps rootcli.HandlerDeps[C]) map[str
 			}
 			var workflowJSON []byte
 			var httpMockJSON []byte
+			var virtualAPIJSON []byte
 			var webhookEventJSON []byte
 			if action == resourcecli.N8NRuntimeImportWorkflow {
 				var input io.Reader
@@ -333,6 +340,16 @@ func buildResourceN8NRuntimeHandlers[C any](deps rootcli.HandlerDeps[C]) map[str
 					input = deps.Stdin(ctx)
 				}
 				httpMockJSON, err = resourcecli.ReadN8NHTTPMockInput(input)
+				if err != nil {
+					return err
+				}
+			}
+			if action == resourcecli.N8NRuntimeVirtualAPIStart {
+				var input io.Reader
+				if deps.Stdin != nil {
+					input = deps.Stdin(ctx)
+				}
+				virtualAPIJSON, err = resourcecli.ReadN8NVirtualAPIInput(input)
 				if err != nil {
 					return err
 				}
@@ -373,37 +390,204 @@ func buildResourceN8NRuntimeHandlers[C any](deps rootcli.HandlerDeps[C]) map[str
 				response, err = owner.StartHTTPMock(operationCtx, request.SandboxID, httpMockJSON)
 			case resourcecli.N8NRuntimeCompanionStopHTTPMock:
 				response, err = owner.StopHTTPMock(operationCtx, request.SandboxID, request.CompanionRuntimeID)
+			case resourcecli.N8NRuntimeCompanionRouteHits:
+				response, err = owner.ReadHTTPMockRouteHits(operationCtx, request.SandboxID, request.CompanionRuntimeID)
+			case resourcecli.N8NRuntimeVirtualAPIStart:
+				response, err = owner.StartVirtualAPIContract(operationCtx, request.SandboxID, virtualAPIJSON)
+			case resourcecli.N8NRuntimeVirtualAPIStop:
+				response, err = owner.StopVirtualAPI(operationCtx, request.SandboxID, request.CompanionRuntimeID)
+			case resourcecli.N8NRuntimeVirtualAPIHits:
+				response, err = owner.ReadVirtualAPIHits(operationCtx, request.SandboxID, request.CompanionRuntimeID)
 			case resourcecli.N8NRuntimeStop:
 				response, err = owner.Stop(operationCtx, request.SandboxID, request.RuntimeID)
 			case resourcecli.N8NRuntimeImportWorkflow:
 				response, err = owner.ImportSyntheticWorkflow(operationCtx, request.SandboxID, request.RuntimeID, n8nresource.SyntheticWorkflowImport{
 					OperationID: request.OperationID, JSON: workflowJSON, PostgresCompanionRuntimeID: request.PostgresCompanionRuntimeID,
 				})
+				if err != nil {
+					if receipt, ok := response.(n8nresource.WorkflowImportReceipt); ok {
+						err = n8nWorkflowImportFailure(receipt, err)
+					}
+				}
 			case resourcecli.N8NRuntimeExecuteWorkflow:
 				response, err = owner.ExecuteSyntheticWorkflow(operationCtx, request.SandboxID, request.RuntimeID, request.OperationID)
+				if err != nil {
+					if receipt, ok := response.(n8nresource.WorkflowExecutionReceipt); ok {
+						err = n8nWorkflowExecutionFailure(receipt, err)
+					}
+				}
 			case resourcecli.N8NRuntimeExecuteManualWorkflow:
 				response, err = owner.ExecuteSyntheticManualWorkflow(operationCtx, request.SandboxID, request.RuntimeID, request.OperationID)
+				if err != nil {
+					if receipt, ok := response.(n8nresource.ManualWorkflowExecutionReceipt); ok {
+						err = n8nManualExecutionFailure(receipt, err)
+					}
+				}
 			case resourcecli.N8NRuntimeDispatchWebhookEvent:
 				response, err = owner.DispatchSyntheticWebhook(operationCtx, request.SandboxID, request.RuntimeID, request.OperationID, webhookEventJSON)
+				if err != nil {
+					if receipt, ok := response.(n8nresource.SyntheticWebhookReceipt); ok {
+						err = n8nWebhookDispatchFailure(receipt, err)
+					}
+				}
 			default:
 				return fmt.Errorf("unsupported n8n runtime operation %q", action)
 			}
 			if err != nil {
 				return err
 			}
-			if action == resourcecli.N8NRuntimeCompanionStartHTTPMock || action == resourcecli.N8NRuntimeCompanionStopHTTPMock {
+			if action == resourcecli.N8NRuntimeCompanionStartHTTPMock || action == resourcecli.N8NRuntimeCompanionStopHTTPMock || action == resourcecli.N8NRuntimeCompanionRouteHits {
 				encoded, err := json.Marshal(response)
 				if err != nil {
 					return fmt.Errorf("encode n8n HTTP mock response: %w", err)
 				}
-				if len(encoded)+1 > n8nresource.HTTPMockOutputBound() {
-					return fmt.Errorf("n8n HTTP mock response exceeds %d bytes", n8nresource.HTTPMockOutputBound())
+				bound := n8nresource.HTTPMockOutputBound()
+				if action == resourcecli.N8NRuntimeCompanionRouteHits {
+					bound = n8nresource.HTTPMockHitsOutputBound()
+				}
+				if len(encoded)+1 > bound {
+					return fmt.Errorf("n8n HTTP mock response exceeds %d bytes", bound)
+				}
+			}
+			if action == resourcecli.N8NRuntimeVirtualAPIStart || action == resourcecli.N8NRuntimeVirtualAPIStop || action == resourcecli.N8NRuntimeVirtualAPIHits {
+				encoded, err := json.Marshal(response)
+				if err != nil {
+					return fmt.Errorf("encode n8n virtual API response: %w", err)
+				}
+				bound := 1 << 20
+				if len(encoded)+1 > bound {
+					return fmt.Errorf("n8n virtual API response exceeds %d bytes", bound)
 				}
 			}
 			return writeN8NRuntimeResponse(deps.Stdout(ctx), response, request.JSON || format == cliout.FormatJSON)
 		})
 	}
 	return commandtree.BuildHandlerMap(commandtree.BindSpecs(resourcecli.N8NRuntimeCommandSpecs(), items))
+}
+
+var safeN8NManualFailureClasses = map[string]struct{}{
+	"cli-command-unavailable": {}, "database-unavailable": {}, "engine-execution-error": {},
+	"engine-exit-no-diagnostic": {}, "engine-exit-with-result": {}, "execution-permission-denied": {},
+	"execution-result-shape-unsupported": {}, "execution-timeout": {}, "node-api-error": {},
+	"node-execution-error": {}, "node-operation-error": {}, "node-type-unavailable": {},
+	"owner-initialization": {}, "instance-owner-initialization-error": {}, "instance-owner-missing": {},
+	"instance-owner-not-found": {}, "owner-user-not-found": {}, "user-management-uninitialized": {},
+	"runtime-dependency-missing": {}, "task-runner-broker-port-conflict": {},
+	"workflow-invalid": {}, "workflow-not-found": {}, "workflow-project-unavailable": {},
+	"workflow-returned-no-data": {}, "workflow-run-error": {}, "workflow-start-node-unavailable": {},
+	"workflow-state-invalid": {}, "workflow-user-error": {},
+	"server-cli-import-error": {}, "import-diagnostic-exceeded": {}, "workflow-credential-invalid": {},
+}
+
+// n8nManualExecutionFailure carries only the owner's bounded classification and
+// diagnostic digest through the stable CLI error envelope. Raw engine output,
+// workflow values and node messages never cross this boundary.
+func n8nManualExecutionFailure(receipt n8nresource.ManualWorkflowExecutionReceipt, cause error) error {
+	if cause == nil || receipt.Status != "failed" {
+		return cause
+	}
+	hint := ""
+	_, knownClass := safeN8NManualFailureClasses[receipt.FailureClass]
+	validDigest := isLowerSHA256(receipt.FailureDiagnosticSHA256)
+	if !knownClass && !validDigest {
+		// Preserve preflight validation errors when the owner did not produce
+		// an execution classification or diagnostic digest.
+		return cause
+	}
+	if knownClass {
+		hint = "failure_class=" + receipt.FailureClass
+	}
+	if validDigest {
+		if hint == "" {
+			hint = "failure_class=unknown"
+		}
+		hint += " diagnostic_sha256=" + receipt.FailureDiagnosticSHA256
+	}
+	return &vroolierr.Error{
+		Code:     "n8n_manual_execution_failed",
+		Category: rootcli.ErrorCategoryRuntime,
+		Message:  "synthetic Manual Trigger execution failed",
+		Hint:     hint,
+		Err:      nil,
+	}
+}
+
+func n8nWorkflowExecutionFailure(receipt n8nresource.WorkflowExecutionReceipt, cause error) error {
+	if cause == nil || receipt.Status != "failed" {
+		return cause
+	}
+	return n8nExecutionFailureEnvelope("n8n_workflow_execution_failed", "synthetic workflow execution failed", receipt.FailureClass, receipt.FailureDiagnosticSHA256, cause)
+}
+
+var safeN8NWebhookFailureClasses = map[string]struct{}{
+	"tmpfs-prepare-error": {}, "workflow-export-error": {}, "workflow-export-read-error": {},
+	"workflow-export-read-limit": {}, "workflow-route-invalid": {},
+	"webhook-dispatch-error": {}, "workflow-publish-error": {}, "workflow-publish-cli-unavailable": {},
+	"workflow-publish-workflow-missing": {}, "workflow-publish-ownership-rejected": {},
+	"workflow-publish-runtime-error": {}, "workflow-publish-output-limit": {},
+}
+
+func n8nWebhookDispatchFailure(receipt n8nresource.SyntheticWebhookReceipt, cause error) error {
+	if cause == nil || receipt.Status == "completed" || receipt.Status == "completed-with-http-error" {
+		return cause
+	}
+	_, knownClass := safeN8NWebhookFailureClasses[receipt.FailureClass]
+	validDigest := isLowerSHA256(receipt.FailureDiagnosticSHA256)
+	if !knownClass && !validDigest {
+		return cause
+	}
+	hint := ""
+	if knownClass {
+		hint = "failure_class=" + receipt.FailureClass
+	}
+	if validDigest {
+		if hint == "" {
+			hint = "failure_class=unknown"
+		}
+		hint += " diagnostic_sha256=" + receipt.FailureDiagnosticSHA256
+	}
+	return &vroolierr.Error{
+		Code: "n8n_webhook_dispatch_failed", Category: rootcli.ErrorCategoryRuntime,
+		Message: "synthetic Webhook dispatch failed", Hint: hint,
+	}
+}
+
+func n8nExecutionFailureEnvelope(code, message, failureClass, digest string, cause error) error {
+	_, knownClass := safeN8NManualFailureClasses[failureClass]
+	validDigest := isLowerSHA256(digest)
+	if !knownClass && !validDigest {
+		return cause
+	}
+	hint := ""
+	if knownClass {
+		hint = "failure_class=" + failureClass
+	}
+	if validDigest {
+		if hint == "" {
+			hint = "failure_class=unknown"
+		}
+		hint += " diagnostic_sha256=" + digest
+	}
+	return &vroolierr.Error{Code: code, Category: rootcli.ErrorCategoryRuntime, Message: message, Hint: hint}
+}
+
+func n8nWorkflowImportFailure(receipt n8nresource.WorkflowImportReceipt, cause error) error {
+	if cause == nil || !strings.HasPrefix(receipt.Status, "import-failed") {
+		return cause
+	}
+	return n8nExecutionFailureEnvelope("n8n_workflow_import_failed", "synthetic workflow import failed", receipt.FailureClass, receipt.FailureDiagnosticSHA256, cause)
+}
+
+func isLowerSHA256(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func newN8NResourceOwner(controller *resources.Controller) (*n8nresource.Owner, error) {
@@ -443,6 +627,108 @@ func showResourceN8NHelp(w io.Writer) {
 
 func showResourceN8NRuntimeHelp(w io.Writer) {
 	resourcecli.RenderCommandHelp(w, "", "vrooli resource n8n runtime <subcommand> [options]", "n8n Runtime", resourcecli.N8NRuntimeCommandSpecs())
+}
+
+func buildResourceWordPressHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+	items := map[resourcecli.WordPressCommandID]rootcli.ResourceHandler[C]{}
+	for _, spec := range resourcecli.WordPressCommandSpecs() {
+		action := spec.Handler
+		items[action] = resourceCommandWithFormat(deps, func(ctx C, controller *resources.Controller, args []string, format cliout.Format) error {
+			request, err := resourcecli.ParseWordPressRequest(action, args)
+			if err != nil {
+				return err
+			}
+			if action == resourcecli.WordPressGradeGround {
+				groundPath := filepath.Join(controller.Root, "resources", "wordpress", "ground", "levels.json")
+				recipePath := filepath.Join(controller.Root, "resources", "wordpress", "recipes", "recipes.json")
+				ground, err := wordpressresource.LoadGround(groundPath, recipePath)
+				if err != nil {
+					return err
+				}
+				response, err := ground.GradeFixtures(groundPath)
+				if err != nil {
+					return err
+				}
+				return writeN8NRuntimeResponse(deps.Stdout(ctx), response, request.JSON || format == cliout.FormatJSON)
+			}
+			owner, err := newWordPressResourceOwner(controller)
+			if err != nil {
+				return err
+			}
+			opCtx := rootcli.ResolveOperationContext(deps, ctx)
+			var response any
+			switch action {
+			case resourcecli.WordPressAcquire:
+				response, err = owner.AcquireImages(opCtx)
+			case resourcecli.WordPressStart:
+				response, err = owner.Start(opCtx, request.SiteID)
+			case resourcecli.WordPressStop:
+				response, err = owner.Stop(opCtx, request.SiteID)
+			case resourcecli.WordPressReset:
+				response, err = owner.Reset(opCtx, request.SiteID)
+			case resourcecli.WordPressStatus:
+				response, err = owner.Status(opCtx, request.SiteID)
+			case resourcecli.WordPressSnapshot:
+				response, err = owner.Snapshot(opCtx, request.SiteID)
+			case resourcecli.WordPressApplyRecipe:
+				response, err = owner.ApplyRecipe(opCtx, request.SiteID, request.RecipeID, filepath.Join(controller.Root, "resources", "wordpress", "recipes", "recipes.json"))
+			case resourcecli.WordPressInstallDestination:
+				sharedJobs := filepath.Join(controller.Root, "resources", "wordpress", "jobs", "shared")
+				response, err = owner.InstallDeliveryDestination(opCtx, request.SiteID, filepath.Join(sharedJobs, "vrooli-delivery-destination.php"), filepath.Join(sharedJobs, "vrooli-form-event-id.js"))
+			case resourcecli.WordPressVerifyDestination:
+				response, err = owner.VerifyDeliveryDestination(opCtx, request.SiteID)
+			case resourcecli.WordPressVerifyContent:
+				response, err = owner.VerifyCoreContentGround(opCtx, request.SiteID)
+			case resourcecli.WordPressMigrateContent:
+				response, err = owner.MigrateCoreContent(opCtx, request.SourceSiteID, request.TargetSiteID)
+			case resourcecli.WordPressPlanContentMigration:
+				response, err = owner.PlanCoreContentMigration(opCtx, request.SourceSiteID, request.TargetSiteID)
+			case resourcecli.WordPressExportContent:
+				response, err = owner.ExportCoreContentArchive(opCtx, request.SiteID)
+			case resourcecli.WordPressUpdateContentMetric:
+				response, err = owner.UpdateCoreContentMetric(opCtx, request.SiteID, request.ContentSlug, request.ContentMetric)
+			case resourcecli.WordPressSetContentTerm:
+				response, err = owner.SetCoreContentTerm(opCtx, request.SiteID, request.ContentSlug, request.Taxonomy, request.TermName, request.TermPresent)
+			case resourcecli.WordPressAuditCoreContent:
+				response, err = owner.AuditCoreContent(opCtx, request.SiteID)
+			case resourcecli.WordPressVerifyContentAudit:
+				response, err = owner.VerifyCoreContentAuditGround(opCtx, request.SiteID)
+			case resourcecli.WordPressFormWebhook:
+				response, err = owner.ConfigureFormWebhook(opCtx, request.SiteID, request.WebhookEnabled)
+			default:
+				return fmt.Errorf("unsupported WordPress operation %q", action)
+			}
+			if err != nil {
+				return err
+			}
+			return writeN8NRuntimeResponse(deps.Stdout(ctx), response, request.JSON || format == cliout.FormatJSON)
+		})
+	}
+	return commandtree.BuildHandlerMap(commandtree.BindSpecs(resourcecli.WordPressCommandSpecs(), items))
+}
+
+func newWordPressResourceOwner(controller *resources.Controller) (*wordpressresource.Owner, error) {
+	manifestPath := filepath.Join(controller.Root, "resources", "wordpress", "resource.json")
+	manifest, err := controller.LoadManifest(manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	if manifest.Name != "wordpress" || manifest.ManagedService == nil || !manifest.ManagedService.TaskScopedContainer {
+		return nil, fmt.Errorf("WordPress resource manifest does not match the isolated owner contract")
+	}
+	imagesPath := filepath.Join(controller.Root, "resources", "wordpress", "images.json")
+	images, err := wordpressresource.LoadImageSet(imagesPath)
+	if err != nil {
+		return nil, err
+	}
+	if manifest.Runtime.Image != images.Site.Reference {
+		return nil, fmt.Errorf("WordPress resource runtime image does not match the pinned owner profile")
+	}
+	return wordpressresource.NewOwner(controller.Home, images), nil
+}
+
+func showResourceWordPressHelp(w io.Writer) {
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource wordpress <subcommand> [options]", "WordPress Site Workshop", resourcecli.WordPressCommandSpecs())
 }
 
 func resourceCLISyncHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.ResourceHandler[C] {

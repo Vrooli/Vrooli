@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -61,17 +62,19 @@ func writeFreshnessBuildInputFile(t *testing.T, path, contents string) {
 
 func TestFreshnessInputsUsesOwnerEnumerationWithoutStamping(t *testing.T) {
 	root, appPath, binary, source := freshnessTestScene(t)
+	dependency := filepath.Join(root, "shared", "dependency.go")
+	writeFreshnessBuildInputFile(t, dependency, "package shared\n")
 	deps := buildInputDeps(fullGoEnv(), "20")
 	deps.goListJSONContext = nil
 	deps.goListJSON = func(string) ([]byte, error) {
-		return []byte(fmt.Sprintf(`{"Dir":%q,"Module":{"Dir":%q,"GoMod":%q}}`, filepath.Dir(source), filepath.Dir(source), filepath.Join(filepath.Dir(source), "go.mod"))), nil
+		return []byte(fmt.Sprintf(`{"Dir":%q,"Module":{"Dir":%q,"GoMod":%q}} {"Dir":%q,"GoFiles":["dependency.go"],"Module":{"Dir":%q,"GoMod":%q}}`, filepath.Dir(source), filepath.Dir(source), filepath.Join(filepath.Dir(source), "go.mod"), filepath.Dir(dependency), filepath.Dir(source), filepath.Join(filepath.Dir(source), "go.mod"))), nil
 	}
 	r := &Runner{Root: root}
 	report, err := r.freshnessInputs(freshnessTestItem(appPath), deps)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(report.Inputs.Paths, []string{"scenarios/alpha/api/go.mod", "scenarios/alpha/api/main.go"}) {
+	if !reflect.DeepEqual(report.Inputs.Paths, []string{"scenarios/alpha/api/go.mod", "scenarios/alpha/api/main.go", "shared/dependency.go"}) {
 		t.Fatalf("unexpected inputs: %v", report.Inputs.Paths)
 	}
 	if report.Inputs.BuildKeys["api/goos"] != "linux" {
@@ -84,6 +87,38 @@ func TestFreshnessInputsUsesOwnerEnumerationWithoutStamping(t *testing.T) {
 	deps.cache = nil
 	if _, err := r.freshnessInputs(freshnessTestItem(appPath), deps); err == nil {
 		t.Fatal("incomplete import closure must fail closed")
+	}
+}
+
+func TestFreshnessInputsUsesSingleValidatedClosureWithoutDurableCache(t *testing.T) {
+	root, appPath, _, source := freshnessTestScene(t)
+	dependency := filepath.Join(root, "shared", "dependency.go")
+	writeFreshnessBuildInputFile(t, dependency, "package shared\n")
+	deps := buildInputDeps(fullGoEnv(), "20")
+	deps.goListJSONContext = nil
+	deps.readFile = func(path string) ([]byte, error) {
+		if filepath.Base(path) == ".vrooli-closure-go_module.json" {
+			return nil, os.ErrNotExist
+		}
+		return os.ReadFile(path)
+	}
+	calls := 0
+	deps.goListJSON = func(string) ([]byte, error) {
+		calls++
+		if calls > 1 {
+			return nil, fmt.Errorf("transient go list failure")
+		}
+		return []byte(fmt.Sprintf(`{"Dir":%q,"Module":{"Dir":%q,"GoMod":%q}} {"Dir":%q,"GoFiles":["dependency.go"]}`, filepath.Dir(source), filepath.Dir(source), filepath.Join(filepath.Dir(source), "go.mod"), filepath.Dir(dependency))), nil
+	}
+	report, err := (&Runner{Root: root}).freshnessInputs(freshnessTestItem(appPath), deps)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("go list called %d times; want one validated closure", calls)
+	}
+	if !slices.Contains(report.Inputs.Paths, "shared/dependency.go") {
+		t.Fatalf("validated dependency missing from inputs: %v", report.Inputs.Paths)
 	}
 }
 
@@ -313,6 +348,18 @@ func TestUIBuildKeyInputs(t *testing.T) {
 	noNode := buildInputDeps(map[string]string{}, "")
 	if _, ok := uiBuildKeyInputs(noNode)["node_major"]; ok {
 		t.Fatalf("node_major must be omitted when node absent")
+	}
+}
+
+func TestUIBuildKeyInputsUsesExactScenarioNodeVersion(t *testing.T) {
+	deps := buildInputDeps(map[string]string{}, "22.23.5")
+	deps.nodeVersionExact = true
+	keys := uiBuildKeyInputs(deps)
+	if keys["node_version"] != "22.23.5" {
+		t.Fatalf("node_version = %q, want exact selected release", keys["node_version"])
+	}
+	if _, ok := keys["node_major"]; ok {
+		t.Fatalf("explicit scenario Node selection should not use host node_major key: %v", keys)
 	}
 }
 

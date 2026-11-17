@@ -19,6 +19,13 @@ type tidinessProvider struct {
 	client tidinessprovider.Client
 }
 
+// NewTidinessProvider adapts the owner client to Hygiene's provider registry.
+// It lets callers compose the real status and finding contract around a
+// controlled client, while keeping interpretation in the Hygiene owner.
+func NewTidinessProvider(client tidinessprovider.Client) Provider {
+	return tidinessProvider{client: client}
+}
+
 func (p tidinessProvider) ID() string { return tidinessProviderID }
 
 func (p tidinessProvider) Budget() time.Duration { return tidinessProviderBudget }
@@ -34,13 +41,32 @@ func (p tidinessProvider) Run(ctx context.Context, req Request, report *Report) 
 		return nil
 	}
 	passed := strings.EqualFold(result.Status, "VALIDATION_STATUS_PASSED")
-	report.addCheck(tidinessProviderID, passed, severityForTidinessStatus(result.Status), result.Status)
-	if !passed && len(result.Findings) == 0 {
+	statusSeverity := severityForTidinessStatus(result.Status)
+	if !passed && req.RequireTidinessProvider {
+		statusSeverity = SeverityError
+	}
+	report.addCheck(tidinessProviderID, passed, statusSeverity, result.Status)
+	hasBlockingFinding := false
+	for _, finding := range result.Findings {
+		if strings.EqualFold(finding.Severity, "error") || strings.EqualFold(finding.Severity, "critical") || strings.EqualFold(finding.Code, "TIDINESS_BUDGET_EXCEEDED") {
+			hasBlockingFinding = true
+			break
+		}
+	}
+	if !passed && statusSeverity == SeverityError && !hasBlockingFinding {
 		report.addFinding(Finding{
 			Severity:   SeverityError,
 			Code:       "tidiness_validation_failed",
-			Message:    fmt.Sprintf("tidiness provider returned status %s without findings", result.Status),
+			Message:    fmt.Sprintf("tidiness provider returned status %s without blocking findings", result.Status),
 			Why:        "A failed provider response must remain visible to the control-plane gate.",
+			Fixability: FixabilityGuided,
+		})
+	} else if !passed && statusSeverity == SeverityWarning && len(result.Findings) == 0 {
+		report.addFinding(Finding{
+			Severity:   SeverityWarning,
+			Code:       "tidiness_validation_incomplete",
+			Message:    fmt.Sprintf("tidiness provider returned non-passed status %s without findings", result.Status),
+			Why:        "A non-passed provider status must remain visible even when the owner returned no findings.",
 			Fixability: FixabilityGuided,
 		})
 	}
@@ -79,7 +105,10 @@ func severityForTidinessStatus(status string) Severity {
 	if strings.EqualFold(status, "VALIDATION_STATUS_FAILED") || strings.EqualFold(status, "VALIDATION_STATUS_ERROR") {
 		return SeverityError
 	}
-	return SeverityInfo
+	if strings.EqualFold(status, "VALIDATION_STATUS_PASSED") {
+		return SeverityInfo
+	}
+	return SeverityWarning
 }
 
 func nonEmptyLocations(location string) []string {

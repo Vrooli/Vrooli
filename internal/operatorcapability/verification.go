@@ -122,8 +122,10 @@ func (e EvidenceReference) FreshAt(now time.Time) bool {
 type EffectClass string
 
 const (
-	EffectReadOnly     EffectClass = "read_only"
-	EffectBoundedWrite EffectClass = "bounded_write"
+	EvidenceEffectReadOnly                 = "read_only"
+	EvidenceEffectBoundedWrite             = "bounded_write"
+	EffectReadOnly             EffectClass = EvidenceEffectReadOnly
+	EffectBoundedWrite         EffectClass = EvidenceEffectBoundedWrite
 )
 
 type EffectBudget struct {

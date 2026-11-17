@@ -117,7 +117,7 @@ func CopyStoreS3(source, sink, receiptPath string, options S3CopyOptions) (CopyS
 	if err != nil {
 		return CopyStatus{}, err
 	}
-	status := CopyStatus{Path: objectURI, Sink: sink, SinkIdentity: sha256Hex([]byte(sink)), CopiedAt: copiedAt, Generation: generation, Checksum: verified, VerifiedAt: copiedAt, Verification: "readback"}
+	status := CopyStatus{Path: objectURI, Sink: sink, SinkIdentity: sha256Hex([]byte(sink)), CopiedAt: copiedAt, Generation: generation, Checksum: verified, VerifiedAt: copiedAt, Verification: CopyVerificationReadback}
 	if err := writeCopyReceipt(receiptPath, status); err != nil {
 		return CopyStatus{}, err
 	}

@@ -9,12 +9,24 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/lightingbinding"
 	"github.com/vrooli/api-core/runtimediagnostics"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/runtimeprofile"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 var errNoLightingScenario = errors.New("no current Light Desk API launch")
+
+// EnsureNativeScenarioStarted routes startup through the scenario lifecycle
+// owner. Both the runtime supervisor and explicit resource actions use this
+// callback before publishing a native lighting binding.
+func EnsureNativeScenarioStarted(ctx context.Context) error {
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{})
+	if err != nil {
+		return err
+	}
+	return cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: cliinvoke.ScenarioLifecycle("start", "lighting-control", false)}).Error()
+}
 
 type nativeScenarioOwner struct {
 	mu            sync.Mutex
@@ -122,6 +134,7 @@ func validateNativeState(state lightingbinding.State, identity lightingbinding.I
 	}
 	return nil
 }
+
 func sameNativeBinding(a, b *lightingbinding.Binding) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil

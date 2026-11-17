@@ -337,6 +337,9 @@ func (s *managedUpdateCredentialStore) Prepare(ctx context.Context, u ManagedSer
 }
 
 func materializeManagedUpdateCredentials(u ManagedServiceUpdate, c ManagedUpdateContract, invocation managedUpdateInvocation) error {
+	if err := guardCloudflareConnectorRotation(c.Manifest); err != nil {
+		return err
+	}
 	if len(c.Manifest.ManagedService.CredentialFiles) == 0 {
 		return nil
 	}
@@ -366,6 +369,9 @@ func materializeManagedUpdateCredentials(u ManagedServiceUpdate, c ManagedUpdate
 		hash := sha256.Sum256([]byte(declaration.LogicalID + "\x00" + field))
 		value, err := readManagedUpdatePrivateFile(filepath.Join(store.dir, hex.EncodeToString(hash[:])+".value"), 1<<20)
 		if err != nil {
+			return err
+		}
+		if err := verifyCloudflareConnectorSnapshot(declaration.LogicalID, field, value); err != nil {
 			return err
 		}
 		path := filepath.Join(values["RESOURCE_STATE_DIR"], filepath.FromSlash(declaration.Path))

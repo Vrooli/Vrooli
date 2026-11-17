@@ -11,8 +11,9 @@ import (
 // with (also stored in supervisor metadata).
 func PersistentState() statecontract.Owner {
 	return statecontract.Owner{
-		Name:  "process-records",
-		Roots: []reflect.Type{reflect.TypeFor[Record]()},
-		Facts: map[string]any{"incarnation_format_sample": incarnationFormatSample()},
+		Name:        "process-records",
+		WholeSource: true,
+		Roots:       []reflect.Type{reflect.TypeFor[Record]()},
+		Facts:       map[string]any{"incarnation_format_sample": incarnationFormatSample(), "pid_sidecar_name_sample": pidSidecarName("start-api"), "pid_sidecar_contents_sample": string(encodePIDSidecar(42))},
 	}
 }

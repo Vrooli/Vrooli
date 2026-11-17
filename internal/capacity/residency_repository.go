@@ -221,17 +221,47 @@ func rejectUnresolvedResourceTransition(ctx context.Context, tx *sql.Tx, claim C
 	if latest == nil {
 		return nil
 	}
-	if ambiguous || latestState == "started" || !latest.Transition.hasFreshVerifiedObservation(now) {
-		return ErrResidencyResourceTransitionOpen
+	if ambiguous {
+		return fmt.Errorf("%w: resource %q has multiple transitions at %s", ErrResidencyResourceTransitionOpen, claim.OwnerID, latest.Transition.StartedAt.UTC().Format(time.RFC3339Nano))
+	}
+	if latestState == "started" {
+		return fmt.Errorf("%w: transition %q for resource %q is still started on claim %q", ErrResidencyResourceTransitionOpen, latest.Transition.ID, claim.OwnerID, latest.ClaimID)
+	}
+	if !IsActiveClaimStatus(latestClaimStatus) {
+		// The old exact claim is terminal. Its completion receipt may be too old
+		// to prove today's placement, but a newly admitted claim supplies a fresh
+		// measured pre-transition baseline. That new owner sample is the recovery
+		// boundary; stale history must not permanently lock this resource.
+		if latestState != "completed" || latest.Transition.CompletedAt == nil {
+			return fmt.Errorf("%w: terminal claim %q has transition %q in state %q without a completion receipt", ErrResidencyResourceTransitionOpen, latest.ClaimID, latest.Transition.ID, latestState)
+		}
+		if !freshResidencyBaseline(candidate, *latest.Transition.CompletedAt, now) {
+			return fmt.Errorf("%w: terminal claim %q transition %q completed at %s but new claim %q lacks a measured post-completion pre-transition baseline (source=%q verified=%t observed_at=%s started_at=%s now=%s)", ErrResidencyResourceTransitionOpen, latest.ClaimID, latest.Transition.ID, latest.Transition.CompletedAt.UTC().Format(time.RFC3339Nano), claim.ClaimID, candidate.PreFootprint.Source, candidate.PreFootprint.Verified, candidate.PreFootprint.ObservedAt.UTC().Format(time.RFC3339Nano), candidate.StartedAt.UTC().Format(time.RFC3339Nano), now.UTC().Format(time.RFC3339Nano))
+		}
+		return nil
+	}
+	if !latest.Transition.hasFreshVerifiedObservation(now) {
+		return fmt.Errorf("%w: active claim %q transition %q lacks a fresh verified observation", ErrResidencyResourceTransitionOpen, latest.ClaimID, latest.Transition.ID)
 	}
 	if latest.Transition.Desired.Backend == ResidencyBackendUnloaded && latest.Transition.Observed.Known && latest.Transition.Observed.Backend == ResidencyBackendUnloaded {
 		if IsActiveClaimStatus(latestClaimStatus) || !latest.Transition.verifiedUnloadAt(now) {
-			return ErrResidencyResourceTransitionOpen
+			return fmt.Errorf("%w: transition %q reports unloaded while claim %q remains %q or release evidence is stale", ErrResidencyResourceTransitionOpen, latest.Transition.ID, latest.ClaimID, latestClaimStatus)
 		}
 	} else if !latest.Transition.Observed.Known {
-		return ErrResidencyResourceTransitionOpen
+		return fmt.Errorf("%w: transition %q for active claim %q has unknown observed placement", ErrResidencyResourceTransitionOpen, latest.Transition.ID, latest.ClaimID)
 	}
 	return nil
+}
+
+func freshResidencyBaseline(transition ResidencyTransition, previousCompletedAt, now time.Time) bool {
+	footprint := transition.PreFootprint
+	if !footprint.Verified || footprint.Source != FootprintSourceMeasured || footprint.Bytes < 0 || footprint.ObservedAt.IsZero() {
+		return false
+	}
+	if !footprint.ObservedAt.After(previousCompletedAt) || footprint.ObservedAt.After(transition.StartedAt) || footprint.ObservedAt.After(now) {
+		return false
+	}
+	return transition.StartedAt.Sub(footprint.ObservedAt) <= maxResidencyFootprintAge && now.Sub(footprint.ObservedAt) <= maxResidencyFootprintAge
 }
 
 // CompleteResidencyTransition records the owner's result with a revision CAS.
@@ -433,7 +463,19 @@ ORDER BY t.started_at DESC, t.transition_id DESC`, OwnerKindResource, ownerID)
 	if latest == nil {
 		return ResidencyTransitionRecord{}, ErrNotFound
 	}
-	if ambiguous || latestState == "started" || !latest.Transition.hasFreshVerifiedObservation(s.now()) || !latest.Transition.Observed.Known {
+	if ambiguous || latestState == "started" {
+		return *latest, nil
+	}
+	// A completed transition whose verified outcome matched its desired
+	// placement, on a claim that no longer holds capacity, is final history.
+	// Its evidence was fresh when written; it cannot go stale afterwards
+	// because nothing remains to drift. Without this, a verified unload
+	// followed by release locks the owner out of every later start once the
+	// footprint ages past maxResidencyFootprintAge.
+	if !IsActiveClaimStatus(latestClaimStatus) && latest.Transition.EffectsVerified && latest.Transition.Observed.Known && latest.Transition.Observed.Backend == latest.Transition.Desired.Backend {
+		return ResidencyTransitionRecord{}, ErrNotFound
+	}
+	if !latest.Transition.hasFreshVerifiedObservation(s.now()) || !latest.Transition.Observed.Known {
 		return *latest, nil
 	}
 	if latest.Transition.Desired.Backend == ResidencyBackendUnloaded && latest.Transition.Observed.Backend == ResidencyBackendUnloaded && (IsActiveClaimStatus(latestClaimStatus) || !latest.Transition.verifiedUnloadAt(s.now())) {

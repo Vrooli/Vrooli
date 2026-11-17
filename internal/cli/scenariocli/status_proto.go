@@ -61,20 +61,23 @@ func scenarioStatusItem(item StatusItemOutput) *cliv1.ScenarioStatusItem {
 		health = v
 	}
 	return &cliv1.ScenarioStatusItem{
-		Name:           item.Name,
-		DisplayName:    item.DisplayName,
-		Description:    item.Description,
-		Tags:           item.Tags,
-		Status:         item.Status,
-		Processes:      int32(item.Processes),
-		Runtime:        item.Runtime,
-		StartedAt:      renderTimestampPtr(item.StartedAt),
-		Ports:          copyInt32Map(item.Ports),
-		PortBindings:   scenarioPortMessages(item.PortBindings),
-		HealthStatus:   health,
-		HealthError:    item.HealthError,
-		BuildIdentity:  item.BuildIdentity,
-		StartOperation: ScenarioStartOperationMessage(item.StartOperation),
+		Name:                      item.Name,
+		DisplayName:               item.DisplayName,
+		Description:               item.Description,
+		Tags:                      item.Tags,
+		Status:                    item.Status,
+		Processes:                 int32(item.Processes),
+		Runtime:                   item.Runtime,
+		StartedAt:                 renderTimestampPtr(item.StartedAt),
+		Ports:                     copyInt32Map(item.Ports),
+		PortBindings:              scenarioPortMessages(item.PortBindings),
+		HealthStatus:              health,
+		HealthError:               item.HealthError,
+		BuildIdentity:             item.BuildIdentity,
+		RuntimeReleaseId:          item.RuntimeReleaseID,
+		RuntimeReleaseOperationId: item.RuntimeReleaseOperationID,
+		StartOperationId:          item.StartOperationID,
+		StartOperation:            ScenarioStartOperationMessage(item.StartOperation),
 	}
 }
 
@@ -96,6 +99,7 @@ func ScenarioStartOperationMessage(view *lifecycle.StartOperationView) *cliv1.Sc
 			Status:    step.Status,
 			StartedAt: step.StartedAt.Format(time.RFC3339Nano),
 			EndedAt:   ended,
+			Evidence:  copyStringMap(step.Evidence),
 		})
 	}
 	finished := ""
@@ -122,6 +126,7 @@ func ScenarioStartOperationMessage(view *lifecycle.StartOperationView) *cliv1.Sc
 		EtaSeconds:                  int32(view.ETASeconds),
 		RecommendedNextCheckSeconds: int32(view.RecommendedNextCheckSeconds),
 		InitiatorPid:                int32(view.InitiatorPID),
+		FenceOperationId:            view.FenceOperationID,
 	}
 }
 
@@ -265,14 +270,17 @@ func ScenarioEnvValidationResponse(report resources.ScenarioEnvValidationReport)
 // scenarioRuntimeData maps an InfoRuntimeData onto its proto message.
 func scenarioRuntimeData(rt InfoRuntimeData) *cliv1.ScenarioRuntimeData {
 	msg := &cliv1.ScenarioRuntimeData{
-		Status:        rt.Status,
-		Processes:     int32(rt.Processes),
-		Runtime:       rt.Runtime,
-		StartedAt:     renderTimestampPtr(rt.StartedAt),
-		Ports:         copyInt32Map(rt.Ports),
-		ListPorts:     scenarioPortMessages(rt.ListPorts),
-		HealthError:   rt.HealthError,
-		BuildIdentity: rt.BuildIdentity,
+		Status:                    rt.Status,
+		Processes:                 int32(rt.Processes),
+		Runtime:                   rt.Runtime,
+		StartedAt:                 renderTimestampPtr(rt.StartedAt),
+		Ports:                     copyInt32Map(rt.Ports),
+		ListPorts:                 scenarioPortMessages(rt.ListPorts),
+		HealthError:               rt.HealthError,
+		BuildIdentity:             rt.BuildIdentity,
+		RuntimeReleaseId:          rt.RuntimeReleaseID,
+		RuntimeReleaseOperationId: rt.RuntimeReleaseOperationID,
+		StartOperationId:          rt.StartOperationID,
 	}
 	for _, r := range rt.ProcessInfo {
 		msg.ProcessRecords = append(msg.ProcessRecords, scenarioProcessRecord(r))
@@ -328,7 +336,35 @@ func ScenarioStatusSingleResponse(out StatusSingleOutput) *cliv1.ScenarioStatusS
 		Scenario: scenarioStatusItem(out.Scenario),
 		Info:     scenarioInfoData(out.Info),
 		Runtime:  scenarioRuntimeData(out.Runtime),
+
+		Authentication: scenarioAuthenticationStatus(out.Authentication),
 	}
+}
+
+func scenarioAuthenticationStatus(auth *lifecycle.AuthenticationStatus) *cliv1.ScenarioAuthenticationStatus {
+	if auth == nil {
+		return nil
+	}
+	out := &cliv1.ScenarioAuthenticationStatus{
+		Profile:          auth.Profile,
+		SupportedModes:   append([]string(nil), auth.SupportedModes...),
+		ConfiguredMode:   auth.Configured.Mode,
+		ConfiguredSource: auth.Configured.Source,
+		Mismatch:         auth.Mismatch,
+		Risk:             auth.Risk,
+		Refused:          auth.Refused,
+	}
+	for _, proc := range auth.Processes {
+		out.Processes = append(out.Processes, &cliv1.ScenarioProcessAuthentication{
+			Step:      proc.Step,
+			Pid:       int32(proc.PID),
+			Mode:      proc.Mode,
+			Source:    proc.Source,
+			Providers: proc.Providers,
+			Error:     proc.Error,
+		})
+	}
+	return out
 }
 
 // -----------------------------------------------------------------------------
@@ -352,22 +388,24 @@ func ScenarioInfoResponse(out InfoOutput) *cliv1.ScenarioInfoResponse {
 // ScenarioPortSingleResponse maps a PortSingleOutput onto its wire contract.
 func ScenarioPortSingleResponse(out PortSingleOutput) *cliv1.ScenarioPortSingle {
 	return &cliv1.ScenarioPortSingle{
-		Success:  out.Success,
-		Scenario: out.Scenario,
-		PortName: out.PortName,
-		Step:     out.Step,
-		Port:     int32(out.Port),
-		Error:    out.Error,
+		Success:   out.Success,
+		Scenario:  out.Scenario,
+		PortName:  out.PortName,
+		Step:      out.Step,
+		Port:      int32(out.Port),
+		Error:     out.Error,
+		ErrorCode: out.ErrorCode,
 	}
 }
 
 // ScenarioPortListResponse maps a PortListOutput onto its wire contract.
 func ScenarioPortListResponse(out PortListOutput) *cliv1.ScenarioPortList {
 	return &cliv1.ScenarioPortList{
-		Success:  out.Success,
-		Scenario: out.Scenario,
-		Ports:    scenarioPortMessages(out.Ports),
-		Metadata: copyInt32Map(out.Metadata),
-		Error:    out.Error,
+		Success:   out.Success,
+		Scenario:  out.Scenario,
+		Ports:     scenarioPortMessages(out.Ports),
+		Metadata:  copyInt32Map(out.Metadata),
+		Error:     out.Error,
+		ErrorCode: out.ErrorCode,
 	}
 }

@@ -3,6 +3,7 @@ package hostinventory
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -31,6 +32,30 @@ func TestHostFactsReaderWarmCacheAndBootInvalidation(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("boot invalidation calls = %d", calls)
+	}
+}
+
+func TestHostFactsReaderRejectsOtherSchema(t *testing.T) {
+	for _, schema := range []int{hostFactsSchemaVersion - 1, hostFactsSchemaVersion + 1} {
+		t.Run(fmt.Sprint(schema), func(t *testing.T) {
+			now := time.Unix(100, 0)
+			calls := 0
+			r := &hostFactsReader{Path: t.TempDir() + "/facts.json", TTL: map[string]time.Duration{"gpu": time.Hour}, BootID: func() string { return "boot" }, Now: func() time.Time { return now }, Probe: func(context.Context, string) (json.RawMessage, error) {
+				calls++
+				return json.RawMessage(`{"fresh":true}`), nil
+			}}
+			data, err := json.Marshal(hostFactsFile{Schema: schema, BootID: "boot", Entries: map[string]hostFactsFileEntry{"gpu": {FetchedAt: now, Value: json.RawMessage(`{"stale":true}`)}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(r.Path, data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := r.Read(context.Background(), "gpu")
+			if err != nil || calls != 1 || string(got) != `{"fresh":true}` {
+				t.Fatalf("schema %d: value=%s calls=%d err=%v", schema, got, calls, err)
+			}
+		})
 	}
 }
 

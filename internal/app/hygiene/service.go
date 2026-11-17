@@ -28,6 +28,7 @@ type Service struct {
 	PlanReconciler            PlanReconciler
 	DependencyFreshnessRunner DependencyFreshnessRunner
 	StructureProvider         Provider
+	PathAuthorityProvider     Provider
 	TidinessProvider          Provider
 }
 
@@ -49,8 +50,8 @@ func (s Service) Run(req Request) (Report, error) {
 	report := Report{Root: root, Success: true}
 
 	if req.IncludeContract {
-		registry := NewRegistry(s.structureProvider(), s.layoutProvider(), pathAuthorityProvider{root: root})
-		if err := registry.Run(context.Background(), req, &report, structureProviderID, layoutProviderID); err != nil {
+		registry := NewRegistry(s.structureProvider(), s.layoutProvider(), s.pathAuthorityProvider(root))
+		if err := registry.Run(context.Background(), req, &report); err != nil {
 			return Report{}, err
 		}
 	}
@@ -82,6 +83,13 @@ func (s Service) Run(req Request) (Report, error) {
 
 	report.finish(req.FailOn)
 	return report, nil
+}
+
+func (s Service) pathAuthorityProvider(root string) Provider {
+	if s.PathAuthorityProvider != nil {
+		return s.PathAuthorityProvider
+	}
+	return pathAuthorityProvider{root: root}
 }
 
 func (s Service) planProvider() Provider {

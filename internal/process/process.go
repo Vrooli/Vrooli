@@ -228,8 +228,8 @@ func WriteScenarioRecord(home, name, step string, record Record) error {
 		return fmt.Errorf("write %s: %w", recordPath, err)
 	}
 
-	pidPath := filepath.Join(processDir, step+".pid")
-	if err := config.WriteOwnedFile(pidPath, []byte(strconv.Itoa(record.PID)+"\n"), tuning.PermFile); err != nil {
+	pidPath := filepath.Join(processDir, pidSidecarName(step))
+	if err := config.WriteOwnedFile(pidPath, encodePIDSidecar(record.PID), tuning.PermFile); err != nil {
 		return fmt.Errorf("write %s: %w", pidPath, err)
 	}
 	return nil
@@ -255,7 +255,7 @@ func RemoveScenarioRecord(home, name, step string) error {
 
 func removeScenarioRecordLocked(processDir, step string) error {
 	recordPath := filepath.Join(processDir, step+".json")
-	pidPath := filepath.Join(processDir, step+".pid")
+	pidPath := filepath.Join(processDir, pidSidecarName(step))
 
 	if err := os.Remove(recordPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove %s: %w", recordPath, err)

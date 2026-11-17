@@ -232,6 +232,17 @@ func (c *Controller) SetEnabled(name string, enabled bool) error {
 // Host-tool adoption is preflighted before state changes and never modifies the
 // selected executable.
 func (c *Controller) SetManagedServiceSource(ctx context.Context, name, mode string) (operatorstate.ResourceSourceChoice, error) {
+	choice, err := c.managedServiceSourceChoice(ctx, name, mode)
+	if err != nil {
+		return operatorstate.ResourceSourceChoice{}, err
+	}
+	if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
+		return choice, err
+	}
+	return choice, nil
+}
+
+func (c *Controller) managedServiceSourceChoice(ctx context.Context, name, mode string) (operatorstate.ResourceSourceChoice, error) {
 	manifest, err := c.ResourceManifest(name)
 	if err != nil {
 		return operatorstate.ResourceSourceChoice{}, err
@@ -242,11 +253,7 @@ func (c *Controller) SetManagedServiceSource(ctx context.Context, name, mode str
 	}
 	switch mode {
 	case "managed":
-		choice := operatorstate.ResourceSourceChoice{Mode: "managed"}
-		if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
-			return choice, err
-		}
-		return choice, nil
+		return operatorstate.ResourceSourceChoice{Mode: "managed"}, nil
 	case "host":
 
 		var path string
@@ -268,11 +275,7 @@ func (c *Controller) SetManagedServiceSource(ctx context.Context, name, mode str
 			if err != nil {
 				return operatorstate.ResourceSourceChoice{}, err
 			}
-			choice := operatorstate.ResourceSourceChoice{Mode: "host", Executable: path, Version: openRGBAppImageVersion, SHA256: digest}
-			if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
-				return choice, err
-			}
-			return choice, nil
+			return operatorstate.ResourceSourceChoice{Mode: "host", Executable: path, Version: openRGBAppImageVersion, SHA256: digest}, nil
 		}
 
 		cmd := exec.CommandContext(ctx, path, "--version")
@@ -288,14 +291,63 @@ func (c *Controller) SetManagedServiceSource(ctx context.Context, name, mode str
 		if err != nil {
 			return operatorstate.ResourceSourceChoice{}, fmt.Errorf("fingerprint adopted OpenRGB executable: %w", err)
 		}
-		choice := operatorstate.ResourceSourceChoice{Mode: "host", Executable: path, Version: service.HostToolVersion, SHA256: digest}
-		if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
-			return choice, err
-		}
-		return choice, nil
+		return operatorstate.ResourceSourceChoice{Mode: "host", Executable: path, Version: service.HostToolVersion, SHA256: digest}, nil
 	default:
 		return operatorstate.ResourceSourceChoice{}, fmt.Errorf("source must be managed or host")
 	}
+}
+
+// RestoreManagedServiceSource reinstates only the exact source previously
+// qualified by explicit lighting setup. It never overrides a current choice,
+// and host adoption is persisted only after the discovered executable matches
+// the durable version and digest receipt.
+func (c *Controller) RestoreManagedServiceSource(ctx context.Context, name, mode, version, sha256 string) error {
+	state, err := c.operatorStateService().Load(ctx)
+	if err != nil {
+		return err
+	}
+	resource := state.Resources[name]
+	if resource.Source != nil {
+		return nil
+	}
+	if resource.Enabled == nil || !*resource.Enabled {
+		return fmt.Errorf("resource %s is not explicitly enabled", name)
+	}
+	if mode != "managed" && mode != "host" {
+		return fmt.Errorf("resource %s has no recoverable source mode", name)
+	}
+	choice, err := c.managedServiceSourceChoice(ctx, name, mode)
+	if err != nil {
+		return err
+	}
+	if mode == "host" && (choice.Version != version || choice.SHA256 != sha256) {
+		return fmt.Errorf("resource %s host source differs from its previously qualified selection", name)
+	}
+	patch, err := json.Marshal(map[string]any{"resources": map[string]any{name: map[string]any{"source": choice}}})
+	if err != nil {
+		return err
+	}
+	service := c.operatorStateService()
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			state, err = service.Load(ctx)
+			if err != nil {
+				return err
+			}
+			resource = state.Resources[name]
+			if resource.Source != nil {
+				return nil
+			}
+			if resource.Enabled == nil || !*resource.Enabled {
+				return fmt.Errorf("resource %s is not explicitly enabled", name)
+			}
+		}
+		_, err = service.ApplyAtRevision(ctx, operatorstate.Revision(state), patch)
+		if !errors.Is(err, operatorstate.ErrRevisionConflict) {
+			return err
+		}
+	}
+	return fmt.Errorf("restore %s source after concurrent operator-state updates: %w", name, operatorstate.ErrRevisionConflict)
 }
 
 func compatibleHostToolVersion(output, expected string) bool {
@@ -561,8 +613,9 @@ func (c *Controller) commandForResourceContext(ctx context.Context, name string,
 				}), nil
 			}
 			for _, port := range manifest.Ports {
-				if port.Host > 0 {
-					env = values.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", port.Host))
+				portValue := manifestpkg.RuntimePortValue(manifest, port)
+				if portValue > 0 {
+					env = values.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", portValue))
 				}
 			}
 			for key, value := range manifest.ManagedService.Environment {

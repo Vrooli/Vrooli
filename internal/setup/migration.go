@@ -15,6 +15,31 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 )
 
+const (
+	ownershipMigrationVersion             = 2
+	ownershipMigrationBatchEntries uint64 = 1_000_000
+)
+
+var ownershipMigrationClasses = []string{
+	repocontract.HomeKeyBin,
+	repocontract.HomeKeyCache,
+	repocontract.HomeKeyLogs,
+	repocontract.HomeKeyMetrics,
+	repocontract.HomeKeyProcesses,
+	repocontract.HomeKeyBuild,
+	repocontract.HomeKeyTestRuns,
+	repocontract.HomeKeySecretsEnc,
+	// The state class holds the operator-input queue and the scenario state a
+	// scenario process reads and writes as the operator. An elevated setup run
+	// that writes there leaves a root-owned file the onboarding API cannot
+	// open, and the operator meets it as an opaque server error inside the
+	// flow. Migrating it is what keeps one elevated run from making the
+	// in-flow surface unusable.
+	repocontract.HomeKeyState,
+	"backups",
+	"artifacts",
+}
+
 //nolint:gocyclo // ownership migration coordinates discovery, confirmation, mutation, and recovery reporting.
 func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Writer) error {
 	ledger, err := projectstate.LoadMigrationLedger(locator)

@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -19,12 +19,13 @@ import (
 	"github.com/vrooli/vrooli/internal/agentscope"
 	runtimeapp "github.com/vrooli/vrooli/internal/app/runtime"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/coreactivation"
-	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/rootmetrics"
 )
 
-const rootUpdateUsage = "Usage: vrooli runtime update <status|apply CANDIDATE|retry CANDIDATE|enroll|disable|reconcile|rebaseline CANDIDATE> [--json]\nUpdates retain and qualify the serving image, activate under bounded native ownership, and restore independently on failure. Enrollment controls automatic installer/self-rebuild handoff; apply/retry are explicit one-shot requests.\nrebaseline is the operator transition for a candidate that changes the persistent-state contract (no automatic rollback); it needs an interactive terminal. Prefer `make rebaseline`."
+const rootUpdateUsage = "Usage: vrooli runtime update <status|observations|apply CANDIDATE|retry CANDIDATE|enroll|disable|reconcile|rebaseline CANDIDATE [--hub]> [--json]\nUpdates retain and qualify the serving image, activate under bounded native ownership, and restore independently on failure. Enrollment controls automatic installer/self-rebuild handoff; apply/retry are explicit one-shot requests.\nrebaseline crosses a persistent-state contract change without automatic rollback. Use `make rebaseline` in an operator terminal, or --hub for a verified human decision in Notification Hub."
 
 func rootUpdateCommand(args []string) bool {
 	return len(args) >= 2 && args[0] == "runtime" && args[1] == "update"
@@ -46,17 +47,6 @@ func rootUpdateHelpRequested(args []string) bool {
 	return false
 }
 
-func rootUpdateStore(home string) (*coreactivation.Store, error) {
-	if buildinfo.RuntimeHomeSnapshotBase64 == "" {
-		return coreactivation.NewStore(home)
-	}
-	state, err := buildinfo.CompiledRuntimeHomeEntryPath(home, repocontract.HomeKeyState)
-	if err != nil {
-		return nil, err
-	}
-	return coreactivation.NewStoreAt(home, filepath.Join(state, "core-activation"))
-}
-
 // Status/help remain available before the provisional candidate's ordinary
 // command fence. They resolve the compiled state authority without init writes.
 func RunRootUpdateReadCommand(args []string, stdout, stderr io.Writer) (bool, int) {
@@ -67,7 +57,7 @@ func RunRootUpdateReadCommand(args []string, stdout, stderr io.Writer) (bool, in
 		_, _ = fmt.Fprintln(stdout, rootUpdateUsage)
 		return true, 0
 	}
-	if args[2] != "status" {
+	if args[2] != "status" && args[2] != "observations" {
 		return false, 0
 	}
 	if buildinfo.RuntimeHomeSnapshotBase64 != "" {
@@ -85,17 +75,22 @@ func RunRootUpdateReadCommand(args []string, stdout, stderr io.Writer) (bool, in
 		_, _ = fmt.Fprintln(stderr, err)
 		return true, 1
 	}
-	store, err := rootUpdateStore(home)
-	if err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return true, 1
+	if args[2] == "observations" {
+		state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+		if err == nil {
+			var summary rootmetrics.Summary
+			summary, err = rootmetrics.Summarize(filepath.Join(state, "root-rebaseline", "attempts"))
+			if err == nil {
+				err = json.NewEncoder(stdout).Encode(summary)
+			}
+		}
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return true, 1
+		}
+		return true, 0
 	}
-	enrollment, enrolled, err := store.Enrollment()
-	if err != nil {
-		_, _ = fmt.Fprintln(stderr, err)
-		return true, 1
-	}
-	record, exists, err := store.Current()
+	enrollment, enrolled, record, exists, err := readRootUpdateStatus(home)
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return true, 1
@@ -133,6 +128,23 @@ func RunRootUpdateEffectCommand(parent context.Context, args []string, stdout, s
 	}
 	if args[2] == "rebaseline" {
 		return true, runRootRebaseline(parent, args, os.Stdin, stdout, stderr, resolveSourceRoot)
+	}
+	if args[2] == "retire-snapshot" {
+		if len(args) != 4 || !filepath.IsAbs(args[3]) {
+			_, _ = fmt.Fprintln(stderr, "usage: vrooli runtime update retire-snapshot ABSOLUTE_SNAPSHOT")
+			return true, 2
+		}
+		ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+		defer cancel()
+		client, err := newRootDecisionClient(ctx)
+		if err == nil {
+			err = retireSnapshotDecision(ctx, client, args[3])
+		}
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return true, 1
+		}
+		return true, 0
 	}
 	mode := map[string]string{"apply": "--submit-core-update", "retry": "--retry-core-update", "enroll": "--enroll-core-updates", "disable": "--disable-core-updates", "reconcile": "--reconcile-core-updates"}[args[2]]
 	if mode == "" || (args[2] == "apply" || args[2] == "retry") && len(args) != 4 || args[2] != "apply" && args[2] != "retry" && len(args) != 3 {
@@ -176,14 +188,7 @@ func RunRootUpdateEffectCommand(parent context.Context, args []string, stdout, s
 	}
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
-	defer cancel()
-	name, wrapped := hostreqkit.InvokingUserCommand(worker, workerArgs...)
-	cmd := exec.CommandContext(ctx, name, wrapped...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	cmd.WaitDelay = time.Second
-	if err := cmd.Run(); err != nil {
+	if err := runRootUpdateWorker(ctx, worker, workerArgs, stdout, stderr); err != nil {
 		_, _ = fmt.Fprintln(stderr, "Root update did not complete; inspect `vrooli runtime update status --json` for the retained request.")
 		return true, 1
 	}
@@ -195,18 +200,37 @@ func RunRootUpdateEffectCommand(parent context.Context, args []string, stdout, s
 // cannot be the one to cross it. The decision is taken at an interactive
 // terminal and is never implied by flags.
 func runRootRebaseline(parent context.Context, args []string, stdin *os.File, stdout, stderr io.Writer, resolveSourceRoot func() (string, error)) int {
-	if len(args) != 4 {
+	if len(args) == 5 && args[3] == "--capability" && args[4] == "--probe-hub-publication" {
+		_, _ = fmt.Fprintln(stdout, "hub-source-publication-v1")
+		return 0
+	}
+	hubDecision := len(args) == 5 && args[4] == "--hub"
+	prepared := len(args) == 5 && args[4] == "--prepared"
+	if len(args) != 4 && !hubDecision && !prepared {
 		_, _ = fmt.Fprintln(stderr, rootUpdateUsage)
 		return 2
 	}
-	if refuseAgentSession("rebaseline", stderr) {
-		return 1
+	transitionCaller := func() error {
+		if hubDecision {
+			return nil
+		}
+		if refuseAgentSession("rebaseline", stderr) {
+			return fmt.Errorf("root transition requires an operator")
+		}
+		// A pseudo-terminal alone is not an authority boundary.
+		if stdin == nil {
+			return fmt.Errorf("root rebaseline needs an interactive terminal; use `make rebaseline-hub` for a decision in Notification Hub")
+		}
+		if info, err := stdin.Stat(); err != nil || info.Mode()&os.ModeCharDevice == 0 {
+			return fmt.Errorf("root rebaseline needs an interactive terminal; run `make rebaseline` from your own shell, or use `make rebaseline-hub` and review the decision in Notification Hub")
+		}
+		return nil
 	}
-	// The terminal prompt is the operator's confirmation, not an authority
-	// boundary: a same-user process with a pseudo-terminal can answer it.
-	if info, err := stdin.Stat(); err != nil || info.Mode()&os.ModeCharDevice == 0 {
-		_, _ = fmt.Fprintln(stderr, "Root rebaseline needs an interactive terminal; run `make rebaseline` from your own shell.")
-		return 1
+	if !prepared && !hubDecision {
+		if err := transitionCaller(); err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return 1
+		}
 	}
 	home, err := config.HomeDir()
 	if err != nil {
@@ -218,7 +242,14 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
 	}
-	source, err := pinnedRebaselineSource(resolveSourceRoot, candidate)
+	source, recovery, err := retainedRebaselineSource(home, candidate)
+	var verifySnapshotSource func() error
+	if err == nil && !recovery && (prepared || hubDecision) {
+		source, verifySnapshotSource, err = pinnedRuntimeSnapshotSource(home, candidate, resolveSourceRoot)
+	}
+	if err == nil && !recovery && verifySnapshotSource == nil {
+		source, err = pinnedRebaselineSource(resolveSourceRoot, candidate)
+	}
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
@@ -227,13 +258,70 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 	defer stop()
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
+	var bundleSHA, expectedCandidateSHA string
+	if hubDecision || prepared {
+		bundle, err := readPreparedRootBundle(candidate)
+		if err != nil {
+			_, _ = fmt.Fprintln(stderr, err)
+			return 1
+		}
+		bundleSHA = bundle.manifestSHA
+		expectedCandidateSHA = bundle.rootSHA
+	}
+	recoveryOwner, freshLegacyFinishing, err := newPreparedRootRecovery(home, candidate, bundleSHA, hubDecision, recovery)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return 1
+	}
+	pendingPath := recoveryOwner.pendingPath
 	reader := bufio.NewReader(stdin)
-	result, err := runtimeapp.RebaselineRoot(ctx, home, runtimeapp.RebaselineRequest{
-		Candidate: candidate,
-		Source:    source,
-		Progress:  stdout,
+	var afterActivation func(context.Context, runtimeapp.RebaselineRecovery) error
+	var beforeEffects func(context.Context, runtimeapp.RebaselineAdmission) error
+	var prepareRecovery func(context.Context, runtimeapp.RebaselineRecovery) error
+	if hubDecision || prepared {
+		if hubDecision {
+			beforeEffects = recoveryOwner.beforeEffects
+		}
+		prepareRecovery = recoveryOwner.prepare
+		afterActivation = func(ctx context.Context, recovery runtimeapp.RebaselineRecovery) error {
+			return recoveryOwner.afterActivation(ctx, recovery, source)
+		}
+	}
+	if verifySnapshotSource != nil {
+		previous := beforeEffects
+		beforeEffects = func(ctx context.Context, admission runtimeapp.RebaselineAdmission) error {
+			if err := verifySnapshotSource(); err != nil {
+				return err
+			}
+			if previous != nil {
+				return previous(ctx, admission)
+			}
+			return nil
+		}
+	}
+	result, err := rebaselineRootFn(ctx, home, runtimeapp.RebaselineRequest{
+		Candidate:                     candidate,
+		Source:                        source,
+		RequireTransitionCaller:       transitionCaller,
+		Progress:                      stdout,
+		AfterActivation:               afterActivation,
+		BeforeEffects:                 beforeEffects,
+		PrepareRecovery:               prepareRecovery,
+		HubDecision:                   hubDecision,
+		RequireFreshFinishingDecision: freshLegacyFinishing,
+		ExpectedCandidateSHA:          expectedCandidateSHA,
+		BundleSHA:                     bundleSHA,
+		AllowContinuationDecision:     hubDecision,
+		WatchdogSnapshot:              recoveryOwner.watchdogSnapshot(),
 		Confirm: func(plan runtimeapp.RebaselinePlan) (bool, error) {
 			writeRebaselinePlan(stdout, plan)
+			if hubDecision {
+				client, err := rootDecisionClientFactory(ctx)
+				if err != nil {
+					return false, err
+				}
+				return confirmRootViaHub(ctx, client, plan, bundleSHA, pendingPath, stdout)
+			}
 			_, _ = fmt.Fprint(stdout, "Make this build the new baseline? [y/N] ")
 			answer, err := reader.ReadString('\n')
 			if err != nil && answer == "" {
@@ -243,6 +331,11 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 			return answer == "y" || answer == "yes", nil
 		},
 	})
+	if handled, code := installSameContractBundle(err, prepared || hubDecision, home, candidate, bundleSHA, stdout, stderr, func(bundle, bin, manifest string) error {
+		return installPreparedSameContractBundleFn(bundle, bin, manifest, source, verifySnapshotSource)
+	}); handled {
+		return code
+	}
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, err)
 		return 1
@@ -259,10 +352,32 @@ func runRootRebaseline(parent context.Context, args []string, stdin *os.File, st
 	return 0
 }
 
+// installSameContractBundle routes only a qualified same-contract prepared
+// bundle through ordinary activation, which rechecks the live image and manifest.
+func installSameContractBundle(rebaselineErr error, prepared bool, home, candidate, manifest string, stdout, stderr io.Writer, install func(string, string, string) error) (bool, int) {
+	if !prepared || !errors.Is(rebaselineErr, runtimeapp.ErrRebaselineNotRequired) {
+		return false, 0
+	}
+	binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err == nil {
+		_, _ = fmt.Fprintln(stdout, "Persistent-state contract is unchanged; activating the prepared bundle through the normal installer.")
+		err = install(filepath.Dir(candidate), binDir, manifest)
+	}
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "Normal activation of the prepared bundle failed: %v\n", err)
+		return true, 1
+	}
+	_, _ = fmt.Fprintln(stdout, "Prepared bundle installed; no rebaseline was needed.")
+	return true, 0
+}
+
 // Caller observations are replaced in tests.
 var (
-	callerKindFn   = cliutil.DetectCallerKind
-	callerCgroupFn = agentscope.SelfCgroup
+	callerKindFn                        = cliutil.DetectCallerKind
+	callerCgroupFn                      = agentscope.SelfCgroup
+	rootDecisionClientFactory           = newRootDecisionClient
+	rebaselineRootFn                    = runtimeapp.RebaselineRoot
+	installPreparedSameContractBundleFn = cliinstall.InstallPreparedBundleSameContractWithSourceChecked
 )
 
 // refuseAgentSession refuses an operator-only root update verb from a
@@ -281,47 +396,33 @@ func refuseAgentSession(verb string, stderr io.Writer) bool {
 	remedy := "`vrooli runtime update " + verb + "`"
 	if verb == "rebaseline" {
 		remedy = "`make rebaseline`"
+		_, _ = fmt.Fprintf(stderr, "%s is an operator decision and cannot run in terminal mode from a coding-agent session (%s). Ask the operator to run %s, or use `make rebaseline-hub` for a decision in Notification Hub.\n", what, evidence, remedy)
+		return true
 	}
 	_, _ = fmt.Fprintf(stderr, "%s is an operator decision and cannot run from a coding-agent session (%s). Ask the operator to run %s from their own terminal.\n", what, evidence, remedy)
 	return true
 }
 
 func writeRebaselinePlan(out io.Writer, plan runtimeapp.RebaselinePlan) {
-	_, _ = fmt.Fprintln(out, "Root control-plane rebaseline")
+	if plan.Continuation {
+		_, _ = fmt.Fprintln(out, "Continue interrupted root control-plane rebaseline")
+	} else {
+		_, _ = fmt.Fprintln(out, "Root control-plane rebaseline")
+	}
 	_, _ = fmt.Fprintf(out, "  serving:   build %.12s  persistent-state contract %.12s\n", plan.ServingBuild, plan.ServingContract)
 	_, _ = fmt.Fprintf(out, "  candidate: build %.12s  persistent-state contract %.12s\n", plan.CandidateBuild, plan.CandidateContract)
 	_, _ = fmt.Fprintln(out, "  Stored-state changes:")
 	for _, change := range plan.Changes {
 		_, _ = fmt.Fprintf(out, "    - %s\n", change)
 	}
-	_, _ = fmt.Fprintln(out, "  The serving image cannot be relied on to read state the candidate writes, so this transition has no automatic rollback.")
-	_, _ = fmt.Fprintf(out, "  The serving root CLI, watchdog and supervisor unit will be retained in %s.\n", plan.RetainedDir)
-}
-
-// pinnedRebaselineSource is the checkout the command runs from. The candidate
-// must be inside it, and a VROOLI_SOURCE_ROOT/VROOLI_ROOT override must agree,
-// so the watchdog, the supervisor unit and the candidate all come from one
-// checkout.
-func pinnedRebaselineSource(resolveSourceRoot func() (string, error), candidate string) (string, error) {
-	cwdRoot, err := repoRootFromWorkingDirectory()
-	if err != nil {
-		return "", fmt.Errorf("run root rebaseline from the source checkout that built the candidate: %w", err)
+	if plan.Continuation {
+		_, _ = fmt.Fprintln(out, "  Automatic rollback remains unavailable while the interrupted transition is completed.")
+	} else {
+		_, _ = fmt.Fprintln(out, "  The serving image cannot be relied on to read state the candidate writes, so this transition has no automatic rollback.")
 	}
-	cwdRoot = canonicalPath(cwdRoot)
-	if resolved, err := resolveSourceRoot(); err == nil && canonicalPath(resolved) != cwdRoot {
-		return "", fmt.Errorf("the source root override (VROOLI_SOURCE_ROOT or VROOLI_ROOT) names %s, but this command runs from %s; unset it or run from that checkout", resolved, cwdRoot)
+	if plan.RetainedDir != "" {
+		_, _ = fmt.Fprintf(out, "  The serving root CLI, watchdog and supervisor unit will be retained in %s.\n", plan.RetainedDir)
+	} else {
+		_, _ = fmt.Fprintln(out, "  This continues the interrupted transition; inspect the earlier retained baseline for recovery.")
 	}
-	if rel, err := filepath.Rel(cwdRoot, canonicalPath(candidate)); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("the candidate %s was not built in the checkout this command runs from (%s)", candidate, cwdRoot)
-	}
-	return cwdRoot, nil
-}
-
-var repoRootFromWorkingDirectory = repocontract.FindRepoRootFromCWD
-
-func canonicalPath(path string) string {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		return filepath.Clean(resolved)
-	}
-	return filepath.Clean(path)
 }

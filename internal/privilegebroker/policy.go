@@ -34,7 +34,7 @@ func Validate(req Request) error {
 			return fmt.Errorf("local_binding_subject_required")
 		}
 		return nil
-	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect, ActionKernelMemoryInspect:
+	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect, ActionKernelMemoryInspect, ActionKernelMemoryStackSample:
 		if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || hasCloudSubject(req) {
 			return fmt.Errorf("subject_not_allowed")
 		}

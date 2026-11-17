@@ -20,11 +20,19 @@ var CodecStamp string
 // or custom-codec type outside these packages makes the executable unqualified
 // until its package is added here.
 var CodecPackages = []string{
+	"internal/projectstate",
+	"internal/rootdecision",
+	"internal/peerrecord",
+	"packages/api-core/scenariocli",
+	"internal/setup",
+	"internal/setup/assets",
+	"internal/tools/triposr-source",
 	"internal/capacity",
 	"internal/cliinstall",
 	"internal/coreactivation",
 	"internal/credentialspec",
 	"internal/hostreqspec",
+	"internal/hostinventory",
 	"internal/hostwireless",
 	"internal/lightingruntime",
 	"internal/operatorcapability",
@@ -49,9 +57,53 @@ var CodecPackages = []string{
 
 // WholeSources maps each whole-source owner to the repository-relative
 // sources the builder hashes completely (non-test Go files; "dir/prefix*"
-// selects files by name prefix). Comments and layout do not participate;
-// every declaration and function body does.
+// selects files by name prefix; "!path/to/file.go" excludes one exact
+// repository-relative file from a broader directory). Comments and layout do
+// not participate; every declaration and function body does.
 var WholeSources = map[string][]string{
+	"root-rebaseline-progress":     {"internal/rebaselineprogress"},
+	"prepared-root-bundle":         {"internal/cliinstall/companions.go*", "internal/cliinstall/ordinary_bundle_transaction.go*", "internal/cliinstall/rebaseline_bundle.go*", "internal/cli/runtimehandlers/root_update_recovery.go*", "internal/app/runtime/prepared_rebaseline.go*", "internal/buildinfo/prepared_bundle_guard.go*", "internal/buildinfo/root_activation_guard.go*", "internal/buildinfo/source_root_pointer.go*"},
+	"agent-catalogs-asset-policy":  {"internal/buildinfo/statecontract_assets.go*", "internal/statecontract/stamp.go*"},
+	"root-rebaseline-hub-decision": {"internal/rootdecision"},
+	"process-records":              {"internal/process/pid_sidecar.go*"},
+	// Raw cached snapshots carry collector-selected vocabulary and workload
+	// observations. Conservatively cover their producers until the wire
+	// vocabulary and codec are isolated from collection behavior.
+	"host-facts-cache":            {"internal/hostinventory", "internal/workloadowner"},
+	"template-validation-markers": {"internal/templatevalidation/marker.go*"},
+	// Policy keys and their string encodings are stored in SQLite and interpreted
+	// by prior releases; they currently live in function bodies, not named codecs.
+	"capacity":        {"internal/capacity/policy_storage.go*", "internal/storagetime", "packages/capacity/broker.go*", "packages/capacity/disk_job.go*", "internal/app/capacity/service.go*", "internal/app/capacity/placement_capture.go*", "internal/app/capacity/residency.go*"},
+	"companion-state": {"internal/resources/companions.go*"},
+	// Root CLI state used by later invocations and recovery. Whole-source is
+	// conservative until each owner exposes a verified precise format contract.
+	"scenario-cli-install": {"packages/api-core/scenariocli/identity.go*", "packages/cli-core/cliutil", "packages/cli-core/buildinfo", "packages/repo-contract-go"},
+	"tool-installation":    {"internal/tools/pinnedrelease", "internal/tools/hyperframes", "internal/runtime"},
+	"baseline-floor":       {"internal/baselinefloor"},
+	"setup-state":          {"internal/setup/progress.go*", "internal/setup/result.go*", "internal/setup/onboarding.go*", "internal/setup/migration.go*", "internal/config/repair.go*", "internal/onboardinghandoff"},
+	// scenario_locator.go resolves CLI executable paths outside the root
+	// persistence/recovery path; keep the lifecycle cache contract focused on
+	// durable records and readers in the package.
+	"lifecycle-cache":     {"internal/lifecycle", "!internal/lifecycle/scenario_locator.go"},
+	"go-cache":            {"internal/gocache"},
+	"credential-recovery": {"internal/credentialauthority", "internal/credentialescrow", "internal/credentialextension"},
+	"wordpress-state":     {"internal/resources/wordpress"},
+	"release-authority":   {"internal/releaseauthority"},
+	"host-watchdog-state": {"internal/cli/vroolicli/host_watchdog.go*"},
+	"cloud-target":        {"internal/cloudtarget", "packages/cloudrelease"},
+	"peer-records":        {"internal/peerrecord/identity.go*", "packages/cli-core/cliutil/instance.go*"},
+	"project-setup":       {"internal/projectstate/identity.go*", "packages/repo-contract-go/runtimehome.go*", "packages/repo-contract-go/runtimehome_snapshot.go*"},
+	"guard-modes":         {"packages/cli-core/guardmodes"},
+	"retained-runtime":    {"internal/lifecycle/retainedruntime"},
+	"recovery-points":     {"packages/recoverypoint"},
+
+	// The root CLI provisions and later reads encrypted offline authority,
+	// provisioning metadata and credentials. Include the related wire vocabulary:
+	// an older image must be able to open and interpret newly written material.
+	"break-glass": {"packages/api-core/trustposture/breakglass.go*", "packages/proto/privilegedops"},
+	// Registry and harness receipts are read by root recovery and rollback.
+	"kopia-registry":    {"packages/kopiaregistry-go"},
+	"harness-lifecycle": {"packages/harness-lifecycle"},
 	// Wireless codecs recompute content-addressed publication/recovery identity;
 	// native journals interpret retained bytes and own rollback after interruption.
 	// Scope these exact machinery files, excluding ordinary preflight/reporting,
@@ -80,7 +132,7 @@ var WholeSources = map[string][]string{
 	// precise.
 	// The resource storage root layout: where every resource's state lives.
 	"resource-storage": {"internal/resources/runtime/storage", "internal/resources/storage_paths.go*", "internal/resources/openrgb_native_storage*", "internal/resources/openrgb_native_sealed_root*", "internal/resources/openrgb_native_ipc_root.go*"},
-	"secure-store":     {"internal/credentialpolicy", "internal/securestore/sealedfile*", "internal/securestore/encryptedstore*", "internal/securestore/keyprovider*", "internal/securestore/unlock*", "internal/securestore/native_wrap*", "internal/securestore/device_identity*"},
+	"secure-store":     {"internal/credentialpolicy", "internal/securestore/sealedfile*", "internal/securestore/encryptedstore*", "internal/securestore/keyprovider*", "internal/securestore/unlock*", "internal/securestore/native_wrap*", "internal/securestore/device_identity*", "internal/securestore/keyringfile*", "internal/securestore/values.go*"},
 }
 
 // ConstantSources maps each constants-stamped owner to the packages whose
@@ -109,6 +161,12 @@ var ConstantSources = map[string][]string{
 //
 // ConstantSources packages get the same version, layout and literal checks.
 var PreciseSources = map[string][]string{
+	"setup-state":             {"internal/setup"},
+	"scenario-cli-install":    {"packages/api-core/scenariocli"},
+	"project-setup":           {"internal/projectstate"},
+	"peer-records":            {"internal/peerrecord"},
+	"setup-assets":            {"internal/setup/assets"},
+	"triposr-source":          {"internal/tools/triposr-source"},
 	"process-records":         {"internal/process"},
 	"host-session":            {"internal/hostsession"},
 	"agent-sessions":          {"internal/agentsession"},
@@ -166,7 +224,8 @@ type Stamp struct {
 	Layouts map[string]string
 	// Versions are "owner/Const" format-version constants in use.
 	Versions []string
-	// Literals are "importpath.Type.Field@file:line" string literals written
+	// Literals are "importpath.Type.Field@file:line" string literals or
+	// unstamped named values written
 	// to, compared with or switched against a vocabulary field ("*" when the
 	// receiver type is not syntactically known). The executable turns those
 	// whose field is a string field of a declared stored type into

@@ -309,9 +309,78 @@ func TestIndependentBuildRejectsEscapingOutputsAndInstallTrees(t *testing.T) {
 				serving = ""
 			}
 			item := scenario.Scenario{Slug: "alpha", Variant: "presentation", Path: root, Manifest: scenario.ServiceManifest{Components: map[string]scenario.Component{"api": component}}}
-			if isolatedVariantBuild(item, serving) {
+			if isolatedVariantBuild(item, serving, "live", t.TempDir(), false) {
 				t.Fatal("unsafe independent build admitted")
 			}
 		})
+	}
+}
+
+func TestVariantBuildCanUseDistinctOutputsInTheSharedSourceTree(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "api"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, value := range map[string]string{"go.mod": "module alpha\n", "go.sum": ""} {
+		if err := os.WriteFile(filepath.Join(root, "api", name), []byte(value), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	component := scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/bin/{scenario}-{variant}"}}
+	if err := recordInstallDigest(root, root, component, builderRegistry["go_module"]); err != nil {
+		t.Fatal(err)
+	}
+	item := scenario.Scenario{Slug: "alpha", Variant: "shadow", Path: root, Manifest: scenario.ServiceManifest{
+		Components: map[string]scenario.Component{
+			"api": component,
+		},
+	}}
+	if !isolatedVariantBuild(item, root, "live", root, false) {
+		t.Fatal("distinct staged per-variant artifacts were rejected")
+	}
+	if isolatedVariantBuild(item, root, "live", root, true) {
+		t.Fatal("force setup was admitted while another variant serves the shared dependency tree")
+	}
+	if isolatedVariantBuild(item, root, "shadow", root, false) {
+		t.Fatal("variant was admitted with its own outputs as the serving instance")
+	}
+
+	item.Manifest.Components["api"] = scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api"}}
+	if isolatedVariantBuild(item, root, "live", root, false) {
+		t.Fatal("default shared output was admitted alongside a serving variant")
+	}
+}
+
+func TestVariantBuildAdmissionAllowsFreshDependenciesAndDistinctArtifacts(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixture(t, root, "alpha")
+	runner := newLifecycleRunnerForTest(t, root, home, nil)
+	if _, err := runner.Start("alpha", StartOptions{}); err != nil {
+		t.Fatalf("Start(alpha live): %v", err)
+	}
+	cleanupRunner(t, runner, "alpha", StopOptions{})
+
+	sourceRoot := filepath.Join(root, "scenarios", "alpha")
+	apiDir := filepath.Join(sourceRoot, "api")
+	if err := os.MkdirAll(apiDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, value := range map[string]string{"go.mod": "module alpha\n", "go.sum": ""} {
+		if err := os.WriteFile(filepath.Join(apiDir, name), []byte(value), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	component := scenario.Component{Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/bin/{scenario}-{variant}"}}
+	if err := recordInstallDigest(root, sourceRoot, component, builderRegistry["go_module"]); err != nil {
+		t.Fatal(err)
+	}
+	item := scenario.Scenario{Slug: "alpha", Variant: "presentation", Path: sourceRoot, Manifest: scenario.ServiceManifest{
+		Components: map[string]scenario.Component{"api": component},
+	}}
+	if err := runner.admitVariantBuild(context.Background(), item); err != nil {
+		t.Fatalf("distinct variant output was refused: %v", err)
+	}
+	if err := runner.admitVariantBuild(context.Background(), item, true); err == nil {
+		t.Fatal("force setup was admitted while the live variant serves shared build dependencies")
 	}
 }

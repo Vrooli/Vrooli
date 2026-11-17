@@ -158,6 +158,22 @@ func (s *Service) Execute(ctx context.Context, req Request) (Result, error) {
 	if !req.Device.Matches(observed.Device) {
 		return Result{Action: req.Action, Device: req.Device, Status: StatusRefused, Backend: string(backend), State: observed}, ErrDeviceChanged
 	}
+	if req.Action != ActionInspect {
+		release, leaseErr := AcquireOperationLease(ctx, req.Device, s.observer.Observe)
+		if leaseErr != nil {
+			return Result{Action: req.Action, Device: observed.Device, Status: StatusRefused, Backend: string(backend), State: observed}, leaseErr
+		}
+		defer release()
+		// The lease helper re-observes after acquiring. Use a fresh observation
+		// for the action gates as mount state may have changed while queued.
+		observed, err = s.observer.Observe(ctx, req.Device.Path)
+		if err != nil {
+			return Result{Action: req.Action, Device: req.Device, Status: StatusFailed, Backend: string(backend)}, fmt.Errorf("observe device under volume lease: %w", err)
+		}
+		if !req.Device.Matches(observed.Device) {
+			return Result{Action: req.Action, Device: observed.Device, Status: StatusRefused, Backend: string(backend), State: observed}, ErrDeviceChanged
+		}
+	}
 	if isSystemMountpoint(observed.Device.Mountpoint) {
 		return Result{Action: req.Action, Device: observed.Device, Status: StatusRefused, Backend: string(backend), State: observed},
 			ErrRefused{Reason: "refusing to act on a system volume mounted at " + observed.Device.Mountpoint}

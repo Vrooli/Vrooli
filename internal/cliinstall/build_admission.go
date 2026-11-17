@@ -18,6 +18,12 @@ import (
 // estimate. It is provisional for CLI compilation until an owner measures it.
 const cliBuildMemoryReservation = int64(394 << 20)
 const cliBuildCleanupTimeout = 5 * time.Second
+
+// Capacity writes use a 10s SQLite busy timeout and retry lock contention up
+// to five times. Lease cleanup must outlive that retry budget; otherwise a
+// transient writer can still hold the ledger when the shorter CLI context
+// expires, turning an otherwise successful refresh into a failure.
+const cliBuildLeaseCleanupTimeout = 55 * time.Second
 const cliBuildStopGrace = 2 * time.Second
 const cliBuildGroupPollInterval = 25 * time.Millisecond
 
@@ -114,7 +120,7 @@ func withCLIInstallAdmission(ctx context.Context, name string, work func(context
 	if errors.Is(resultErr, errCLIProcessGroupCleanupUnverified) {
 		return errors.Join(resultErr, errors.New("capacity lease was retained because build descendants may still be active"))
 	}
-	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), cliBuildCleanupTimeout)
+	cleanupCtx, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), cliBuildLeaseCleanupTimeout)
 	if releaseErr := lease.Release(cleanupCtx); releaseErr != nil {
 		resultErr = errors.Join(resultErr, fmt.Errorf("release CLI build capacity lease: %w", releaseErr))
 	}
@@ -123,7 +129,7 @@ func withCLIInstallAdmission(ctx context.Context, name string, work func(context
 }
 
 func releaseCLILease(ctx context.Context, lease publiccapacity.Lease) error {
-	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cliBuildCleanupTimeout)
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cliBuildLeaseCleanupTimeout)
 	defer cancel()
 	return lease.Release(cleanupCtx)
 }

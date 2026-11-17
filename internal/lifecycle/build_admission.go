@@ -15,7 +15,12 @@ import (
 	publiccapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
-const buildAdmissionCleanupTimeout = 5 * time.Second
+// Capacity-ledger writes may wait up to ten seconds on another process's
+// SQLite writer. Cleanup must outlive that busy window so a lease release can
+// finish instead of failing solely because its caller deadline is shorter.
+const buildAdmissionCleanupTimeout = 15 * time.Second
+
+const buildAdmissionHeartbeatTimeout = 5 * time.Second
 
 type buildAdmissionBroker interface {
 	Acquire(context.Context, string, int64, int64) (publiccapacity.Lease, publiccapacity.Verdict, error)
@@ -159,7 +164,7 @@ func (r *Runner) withBuildAdmissionSessionAtInterval(ctx context.Context, sessio
 				renewalDone <- nil
 				return
 			case <-ticker.C:
-				heartbeatCtx, cancel := context.WithTimeout(context.WithoutCancel(workCtx), buildAdmissionCleanupTimeout)
+				heartbeatCtx, cancel := context.WithTimeout(context.WithoutCancel(workCtx), buildAdmissionHeartbeatTimeout)
 				heartbeatErr := renewable.Heartbeat(heartbeatCtx)
 				cancel()
 				if heartbeatErr != nil {

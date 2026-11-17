@@ -49,7 +49,10 @@ func writeExecutorScopeReport(ctx context.Context, out io.Writer, report mainten
 	if len(data)+1 > maintenance.ExecutorScopeMaxBytes {
 		return fmt.Errorf("executor-scope output exceeds %d bytes", maintenance.ExecutorScopeMaxBytes)
 	}
-	if err := ctx.Err(); err != nil {
+	// A deadline can leave a useful, explicitly incomplete per-run report. Keep
+	// it structured for callers; only a complete-looking report is refused after
+	// cancellation or deadline expiry.
+	if err := ctx.Err(); err != nil && report.Complete {
 		return err
 	}
 	_, err = out.Write(append(data, '\n'))

@@ -32,6 +32,14 @@ func pathAuthorityFixture(t *testing.T, files map[string]string) string {
 
 const homeRuntimeJoin = "package bad\nvar _ = filepath.Join(home, \".vrooli\")\n"
 
+type passingPathAuthorityProvider struct{}
+
+func (passingPathAuthorityProvider) ID() string { return pathAuthorityProviderID }
+func (passingPathAuthorityProvider) Run(_ context.Context, _ Request, report *Report) error {
+	report.addCheck(pathAuthorityProviderID, true, SeverityInfo, "fixture path authority passed")
+	return nil
+}
+
 func findingCodes(report Report) map[string]Finding {
 	codes := map[string]Finding{}
 	for _, finding := range report.Findings {
@@ -58,6 +66,26 @@ func TestPathAuthorityProviderRejectsHomeRuntimeJoinInAnySourceRoot(t *testing.T
 	want := []string{"internal/thing/bad.go:2", "packages/lib/bad.go:2", "scenarios/demo/api/bad.go:2"}
 	if !ok || strings.Join(finding.Locations, ",") != strings.Join(want, ",") {
 		t.Fatalf("bypass finding = %+v, want locations %v", report.Findings, want)
+	}
+}
+
+func TestServiceRunsRegisteredPathAuthorityProvider(t *testing.T) {
+	root := pathAuthorityFixture(t, map[string]string{
+		"scenarios/demo/api/bad.go": homeRuntimeJoin,
+	})
+	structure := &fakeStructureProvider{}
+	report, err := (Service{Root: root, StructureProvider: structure, PathAuthorityProvider: pathAuthorityProvider{root: root, debt: map[string]int{}}}).Run(Request{
+		IncludeContract: true,
+	})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if structure.calls != 1 {
+		t.Fatalf("Structure Health calls = %d, want 1", structure.calls)
+	}
+	finding, ok := findingCodes(report)["runtime_path_authority_bypass"]
+	if !ok || strings.Join(finding.Locations, ",") != "scenarios/demo/api/bad.go:2" {
+		t.Fatalf("path authority finding = %+v, want source location scenarios/demo/api/bad.go:2", report.Findings)
 	}
 }
 

@@ -96,6 +96,45 @@ func TestIdleUnloadEligibilityTable(t *testing.T) {
 	}
 }
 
+func TestMissionResidencyProfilesProduceIdleYieldActions(t *testing.T) {
+	now := time.Date(2026, time.November, 12, 12, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		resource string
+		toStep   string
+		action   string
+	}{
+		{resource: "whisper", toStep: "unloaded", action: ActionRequestResidencyUnload},
+		{resource: "reranker", toStep: "cpu", action: ActionRequestDegrade},
+		{resource: "ollama", toStep: "cpu", action: ActionRequestDegrade},
+		{resource: "kyutai-stt", toStep: "cpu", action: ActionRequestDegrade},
+	} {
+		t.Run(tc.resource, func(t *testing.T) {
+			spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), tc.resource)
+			if err != nil || !ok {
+				t.Fatalf("LoadResourceClaimSpec(%s) = ok %t err %v", tc.resource, ok, err)
+			}
+			idleAt := now.Add(-16 * time.Minute)
+			claim := CapacityClaim{
+				ClaimID: "clm-" + tc.resource, OwnerKind: "resource", OwnerID: tc.resource,
+				ResourceKind: ResourceKindVRAM, AmountBytes: spec.PreferredBytes, PreferredBytes: spec.PreferredBytes,
+				Priority: PriorityService, Status: StatusGranted, ActivityState: ActivityIdle, Generation: 1,
+				LastActiveAt: &idleAt, IdleUnloadTTL: time.Duration(spec.IdleUnloadTTLSeconds) * time.Second,
+				IdleGrace: time.Duration(spec.IdleGraceSeconds) * time.Second, DegradeProfile: spec.Profile,
+			}
+			if !IdleUnloadEligible(claim, DefaultPolicy(), now) {
+				t.Fatal("mission residency profile is not eligible after its declared idle TTL")
+			}
+			plan := PlanIdleUnload([]CapacityClaim{claim}, DefaultPolicy(), now)
+			if len(plan.Actions) != 1 {
+				t.Fatalf("idle plan actions = %+v, want one owner action", plan.Actions)
+			}
+			if got := plan.Actions[0]; got.ToStep != tc.toStep || got.Action != tc.action {
+				t.Fatalf("idle action = %+v, want %s to %s", got, tc.action, tc.toStep)
+			}
+		})
+	}
+}
+
 // TestIdleUnloadHonorsPolicyDefaultTTL proves a claim without its own TTL uses the
 // policy default_idle_unload_ttl.
 func TestIdleUnloadHonorsPolicyDefaultTTL(t *testing.T) {

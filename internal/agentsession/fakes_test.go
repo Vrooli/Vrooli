@@ -6,18 +6,32 @@ import (
 	"sync"
 	"time"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
 
 // fakeHost is a process table and agent slice for reconciliation tests.
 type fakeHost struct {
-	facts    map[int]ProcessFact
-	envs     map[int]map[string]string
-	names    map[int]string
-	started  map[int]time.Time
-	members  map[string][]int
-	activity map[string]time.Time
-	memory   map[int][2]int64
+	facts        map[int]ProcessFact
+	envs         map[int]map[string]string
+	names        map[int]string
+	started      map[int]time.Time
+	members      map[string][]int
+	activity     map[string]time.Time
+	memory       map[int][2]int64
+	occupancy    map[string]platformgo.Occupancy
+	occupancyErr error
+}
+
+func (h *fakeHost) ScopeOccupancy(unit string) (platformgo.Occupancy, error) {
+	if h.occupancyErr != nil {
+		return platformgo.Occupancy{}, h.occupancyErr
+	}
+	occupancy, ok := h.occupancy[unit]
+	if !ok {
+		return platformgo.Occupancy{}, errors.New("cgroup occupancy unavailable")
+	}
+	return occupancy, nil
 }
 
 func (h *fakeHost) ProcessMemory(pid int) (int64, int64, error) {

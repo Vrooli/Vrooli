@@ -91,6 +91,8 @@ type ProgressEvent struct {
 	DryRun              bool              `json:"dry_run,omitempty"`
 }
 
+const activeSetupRunning = "running"
+
 type activeSetupState struct {
 	Version    string     `json:"version"`
 	RunID      string     `json:"run_id"`
@@ -277,7 +279,7 @@ func (p *progressCoordinator) publish(kind ProgressEventKind) {
 	}
 	ev.PhaseCount = len(setupPhases)
 	p.lastUpdate = ev.At
-	state := activeSetupState{Version: "v1", RunID: p.runID, Status: "running", PID: p.pid, Host: p.host, StartedAt: p.runStarted, UpdatedAt: ev.At, Phase: ev.Phase, PhaseLabel: ev.PhaseLabel, Operation: ev.Operation}
+	state := activeSetupState{Version: "v1", RunID: p.runID, Status: activeSetupRunning, PID: p.pid, Host: p.host, StartedAt: p.runStarted, UpdatedAt: ev.At, Phase: ev.Phase, PhaseLabel: ev.PhaseLabel, Operation: ev.Operation}
 	p.mu.Unlock()
 	p.writeState(state)
 	// Rendering is best effort. A broken diagnostics pipe must never change
@@ -416,7 +418,7 @@ func renderActiveSetupState(w io.Writer, path string, now time.Time) {
 		age = 0
 	}
 	status := state.Status
-	if status == "running" && age > tuning.SetupProgressStaleThreshold() && !processIdentityAlive(state.PID, state.Host) {
+	if status == activeSetupRunning && age > tuning.SetupProgressStaleThreshold() && !processIdentityAlive(state.PID, state.Host) {
 		status = "possibly stale"
 	}
 	_, _ = fmt.Fprintf(w, "[INFO]    Last setup run: %s (%s, updated %s ago)\n", state.RunID, status, formatDuration(age))

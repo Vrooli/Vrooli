@@ -137,7 +137,7 @@ func stopComponentGenerations(ctx context.Context, item scenario.Scenario, compo
 			return fmt.Errorf("component %q has no unique launch record", c.GetName())
 		}
 		record := matches[0]
-		if record.Scenario != item.Slug || record.Generation != c.GetGeneration() || record.Status != "running" || record.Phase == "" || record.ProcessID != fmt.Sprintf("vrooli.%s.%s.%s", record.Phase, recordSlug(item), record.Step) {
+		if record.Scenario != item.Slug || record.Generation != c.GetGeneration() || record.Status != process.RecordStatusRunning || record.Phase == "" || record.ProcessID != fmt.Sprintf("vrooli.%s.%s.%s", record.Phase, recordSlug(item), record.Step) {
 			return fmt.Errorf("component %q launch record does not match requested generation", c.GetName())
 		}
 		h, err := pin(record)

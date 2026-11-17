@@ -21,6 +21,12 @@ type hygieneResponse struct {
 
 //nolint:gocyclo // scope flags are intentionally explicit so mutually exclusive hygiene lanes remain unambiguous.
 func Handler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return handlerWithService(deps, func(root, home string) hygieneapp.Service {
+		return hygieneapp.Service{Root: root, Home: home}
+	})
+}
+
+func handlerWithService[C any](deps rootcli.HandlerDeps[C], buildService func(root, home string) hygieneapp.Service) rootcli.Handler[C] {
 	return rootcli.BindService(deps.Stdout,
 		deps.OutputFormat,
 		func(ctx C, _ cliout.Format) (hygieneService, error) {
@@ -42,7 +48,7 @@ func Handler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 			includePlans := !req.ContractOnly && !req.DriftOnly && !req.TidinessOnly
 			includeDrift := !req.PlansOnly && !req.ContractOnly && !req.NoDrift && !req.TidinessOnly
 			includeFreshness := !req.PlansOnly && !req.ContractOnly && !req.DriftOnly && !req.NoFreshness && !req.TidinessOnly
-			report, err := hygieneapp.Service{Root: service.root, Home: service.home}.Run(hygieneapp.Request{
+			report, err := buildService(service.root, service.home).Run(hygieneapp.Request{
 				FixSafe:                 req.FixSafe,
 				Plans:                   req.Plans,
 				FailOn:                  req.FailOn,
@@ -51,6 +57,8 @@ func Handler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 				IncludeDrift:            includeDrift,
 				IncludeFreshness:        includeFreshness,
 				IncludeTidiness:         req.TidinessOnly || (!req.PlansOnly && !req.ContractOnly && !req.DriftOnly),
+				RequirePlanProvider:     req.PlansOnly,
+				RequireContractProvider: req.ContractOnly,
 				RequireTidinessProvider: req.TidinessOnly,
 			})
 			if err != nil {

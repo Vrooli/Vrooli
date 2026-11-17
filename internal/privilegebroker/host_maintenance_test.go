@@ -13,6 +13,7 @@ import (
 type hostMaintenanceExecutor struct {
 	calls  [][]string
 	failAt int
+	output []byte
 }
 
 func (e *hostMaintenanceExecutor) Run(_ context.Context, name string, args ...string) ([]byte, error) {
@@ -20,7 +21,7 @@ func (e *hostMaintenanceExecutor) Run(_ context.Context, name string, args ...st
 	if len(e.calls) == e.failAt {
 		return nil, errors.New("service failure")
 	}
-	return nil, nil
+	return e.output, nil
 }
 
 func TestHostRecoveryUsesOnlyFixedServicesAndVerifiesActivity(t *testing.T) {
@@ -77,9 +78,44 @@ func TestKernelMemoryIsReadOnlySubjectlessAndPermissionErrorsStayUnavailable(t *
 	}
 }
 
+func TestKernelMemoryStackSampleUsesBoundedFixedArguments(t *testing.T) {
+	exec := &hostMaintenanceExecutor{output: []byte("stack summary\n")}
+	report, err := runKernelMemoryStackSampler(context.Background(), exec, "/test/memleak-bpfcc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := [][]string{{"/test/memleak-bpfcc", "--combined-only", "--sample-rate", "100", "--sort", "size", "--top", "10", "10", "1"}}
+	if !reflect.DeepEqual(exec.calls, want) {
+		t.Fatalf("sampler arguments were not fixed and bounded: %v", exec.calls)
+	}
+	if report.WindowSeconds != 10 || report.SampleEvery != 100 || report.StackLimit != 10 || report.Output != "stack summary" {
+		t.Fatalf("unexpected bounded sample metadata: %+v", report)
+	}
+}
+
+func TestKernelMemoryStackSampleIsSubjectlessAndPropagatesFailure(t *testing.T) {
+	called := false
+	b, err := New(Config{SocketPath: "/unused.sock", AllowedUID: 1000, KernelMemoryStacks: func(context.Context) (hostinventory.KernelMemoryStackReport, error) {
+		called = true
+		return hostinventory.KernelMemoryStackReport{}, errors.New("sampler unavailable")
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := Request{Version: ProtocolVersion, RequestID: "stacks-1", Action: ActionKernelMemoryStackSample}
+	result := b.Execute(context.Background(), req, 1000)
+	if !called || result.Status != "failed" || result.Code != "kernel_memory_stack_sample_unavailable" || result.KernelMemoryStacks != nil {
+		t.Fatalf("sample failure was masked: %+v", result)
+	}
+	req.Service = &ServiceSubject{Unit: "rsyslog", Operation: "restart"}
+	if Validate(req) == nil {
+		t.Fatal("read-only sampling accepted a recovery subject")
+	}
+}
+
 func TestBrokerUpgradeDetectsMissingHostCapabilities(t *testing.T) {
 	missing := missingCapabilities([]string{ActionCapabilitiesInspect})
-	if !strings.Contains(strings.Join(missing, ","), ActionKernelMemoryInspect) || !strings.Contains(strings.Join(missing, ","), ActionServiceRecover) {
+	if !strings.Contains(strings.Join(missing, ","), ActionKernelMemoryInspect) || !strings.Contains(strings.Join(missing, ","), ActionKernelMemoryStackSample) || !strings.Contains(strings.Join(missing, ","), ActionServiceRecover) {
 		t.Fatalf("missing registry drift: %v", missing)
 	}
 	if len(missingCapabilities(capabilities())) != 0 {

@@ -76,10 +76,12 @@ func PersistentState() statecontract.Owner {
 
 // credentialSnapshotMACSample runs the production snapshot digest
 // derivation (item selection, ordering, framing) on fixed in-memory values.
+const sampleResource = "sample"
+
 func credentialSnapshotMACSample() string {
 	first, second := strings.Repeat("a", 64), strings.Repeat("b", 64)
 	values := map[string][]byte{first: []byte("value"), second: []byte("v")}
-	snapshot := ManagedUpdateCredentialSnapshot{SchemaVersion: managedUpdateCredentialSchemaVersion, Resource: "sample", Items: []ManagedUpdateCredentialItem{{LogicalID: "a", Field: "f", FileKey: first}, {LogicalID: "b", Field: "f", FileKey: second}}}
+	snapshot := ManagedUpdateCredentialSnapshot{SchemaVersion: managedUpdateCredentialSchemaVersion, Resource: sampleResource, Items: []ManagedUpdateCredentialItem{{LogicalID: "a", Field: "f", FileKey: first}, {LogicalID: "b", Field: "f", FileKey: second}}}
 	digest, err := credentialSnapshotDigest(make([]byte, 32), snapshot, func(key string) ([]byte, error) { return values[key], nil })
 	if err != nil {
 		return "error: " + err.Error()

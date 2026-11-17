@@ -91,6 +91,18 @@ func TestRepairRefusesWhileTheVolumeIsMounted(t *testing.T) {
 	}
 }
 
+func TestInspectDoesNotRunAnyVolumeCommand(t *testing.T) {
+	runner := &fakeRunner{}
+	svc := linuxService(t, &fakeObserver{state: unmountedDirtyState()}, runner)
+	result, err := svc.Execute(context.Background(), Request{Action: ActionInspect, Device: elementsDevice()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != StatusVerified || len(runner.argv) != 0 {
+		t.Fatalf("inspect status=%q executed commands=%v", result.Status, runner.argv)
+	}
+}
+
 func TestRepairRequiresDataLossAcknowledgement(t *testing.T) {
 	runner := &fakeRunner{}
 	svc := linuxService(t, &fakeObserver{state: unmountedDirtyState()}, runner)

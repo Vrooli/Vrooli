@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/agentsession"
@@ -121,6 +122,13 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	if err != nil {
 		return clipolicy.UsageErrorf("agent authorize", "%s", err.Error())
 	}
+	for _, rule := range requested {
+		for _, target := range rule.Targets {
+			if err := authn.ValidateInteractiveTarget(rule.Policy, target); err != nil {
+				return clipolicy.UsageErrorf("agent authorize", "%s", err.Error())
+			}
+		}
+	}
 	if *approvalBase == "" {
 		return errors.New("set --approval-base (or AGENT_MANAGER_AUTHORIZATION_URL) to the authenticated Agent Manager browser URL; no public Agent Manager origin could be resolved, and tunnel reachability alone is not human proof")
 	}
@@ -145,7 +153,7 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	} else {
 		body["rules"] = requested
 	}
-	if lease.Owner.Kind == "agent-manager-run" {
+	if lease.Owner.Kind == agentsession.KindAgentManagerRun {
 		body["run_id"] = lease.Owner.Ref
 	}
 	addAuthorizationContextFields(body, *reason, *technicalDetails)

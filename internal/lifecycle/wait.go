@@ -176,7 +176,12 @@ func (r *Runner) resolveWaitVerdict(outcome *WaitOutcome, item scenario.Scenario
 		outcome.Error = "scenario is not running"
 		return nil
 	}
-	snapshot := r.observeScenarioHealth(context.Background(), item, registryView.Ports, registryView.Instance.BuildIdentity)
+	snapshot := r.observeScenarioHealth(context.Background(), item, registryView.Ports, map[string]string{
+		buildIdentityEnv:             registryView.Instance.BuildIdentity,
+		runtimeReleaseIDEnv:          registryView.Instance.RuntimeReleaseID,
+		runtimeReleaseOperationIDEnv: registryView.Instance.RuntimeReleaseOperationID,
+		startOperationIDEnv:          registryView.Instance.StartOperationID,
+	})
 	health := snapshot.Status
 	outcome.Ports = registryView.Ports
 	if !healthSnapshotReady(snapshot) {

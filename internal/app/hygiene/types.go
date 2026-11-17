@@ -140,5 +140,7 @@ type Request struct {
 	IncludeDrift            bool
 	IncludeFreshness        bool
 	IncludeTidiness         bool
+	RequirePlanProvider     bool
+	RequireContractProvider bool
 	RequireTidinessProvider bool
 }

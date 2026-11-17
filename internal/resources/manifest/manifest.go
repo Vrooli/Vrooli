@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	manifestExternalCli    = "external-cli"
-	manifestManagedService = "managed-service"
+	DriverExternalCLI    = "external-cli"
+	DriverManagedService = "managed-service"
 )
 
 const (
@@ -34,32 +34,42 @@ const (
 	manifestCloudAPI    = "cloud-api"
 )
 
+const (
+	PlatformSupportSupported    = "supported"
+	ActivityEdgeCompanionName   = "activity-edge"
+	UpstreamBridgeCompanionName = "upstream-bridge"
+)
+
 // Manifest vocabulary the resource state stores and readers branch on.
 const (
-	HealthCheckReadiness = "readiness"
-	HealthCheckLiveness  = "liveness"
-	HealthCheckHTTP      = "http"
-	HealthCheckOpenRGBV6 = "openrgb-sdk-v6"
-	DurableDataDir       = "dir"
-	DurableDataFile      = "file"
-	DurableDataSQLite    = "sqlite"
-	DurableDataJSON      = "json"
-	TunableInteger       = "integer"
-	TunableString        = "string"
-	TunableBoolean       = "boolean"
+	HealthCheckReadiness  = "readiness"
+	HealthCheckLiveness   = "liveness"
+	HealthCheckHTTP       = "http"
+	HealthCheckTCP        = "tcp"
+	HealthCheckPostgreSQL = "postgresql"
+	HealthCheckRedis      = "redis"
+	HealthCheckCommand    = "command"
+	HealthCheckOpenRGBV6  = "openrgb-sdk-v6"
+	DurableDataDir        = "dir"
+	DurableDataFile       = "file"
+	DurableDataSQLite     = "sqlite"
+	DurableDataJSON       = "json"
+	TunableInteger        = "integer"
+	TunableString         = "string"
+	TunableBoolean        = "boolean"
 )
 
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
 
 var AllowedDrivers = []string{
-	manifestExternalCli,
+	DriverExternalCLI,
 	manifestCloudAPI,
 	manifestNativeCli,
-	manifestManagedService,
+	DriverManagedService,
 }
 
 var (
-	AllowedPlatformSupportStates = []string{"supported", "build-verified", "unqualified", "partial", manifestUnsupported}
+	AllowedPlatformSupportStates = []string{PlatformSupportSupported, "build-verified", "unqualified", "partial", manifestUnsupported}
 	AllowedHealthCheckKinds      = []string{HealthCheckReadiness, HealthCheckLiveness}
 )
 
@@ -87,6 +97,7 @@ type ResourceManifest struct {
 	Platforms              ResourcePlatforms                      `json:"platforms,omitempty"`
 	Dependencies           []string                               `json:"dependencies,omitempty"`
 	Ports                  []ResourcePort                         `json:"ports,omitempty"`
+	ActivityNetwork        *ResourceActivityNetwork               `json:"activity_network,omitempty"`
 	HealthChecks           []ResourceHealthCheck                  `json:"health_checks,omitempty"`
 	Install                ResourceInstall                        `json:"install,omitempty"`
 	Runtime                ResourceRuntime                        `json:"runtime,omitempty"`
@@ -290,6 +301,26 @@ type ResourcePort struct {
 	Container int    `json:"container,omitempty"`
 	Host      int    `json:"host,omitempty"`
 	Protocol  string `json:"protocol,omitempty"`
+}
+
+// ResourceActivityNetwork keeps a managed native backend inside an owner
+// private network namespace. The host activity edge reaches it through an
+// owner-authorized Unix socket bridge; no backend TCP port is published. Port
+// fields refer to declared ports so the control plane cannot accept an
+// independently chosen listener or upstream.
+type ResourceActivityNetwork struct {
+	EdgePortName     string `json:"edge_port"`
+	UpstreamPortName string `json:"upstream_port"`
+}
+
+// RuntimePortValue returns the port consumed inside the service process. For
+// an activity-network upstream, Host is intentionally zero because no host
+// socket is published; Container retains the private namespace port.
+func RuntimePortValue(manifest ResourceManifest, port ResourcePort) int {
+	if manifest.ActivityNetwork != nil && strings.TrimSpace(port.Name) == strings.TrimSpace(manifest.ActivityNetwork.UpstreamPortName) {
+		return port.Container
+	}
+	return port.Host
 }
 
 type ResourceHealthCheck struct {
@@ -516,6 +547,9 @@ func validateManifestContract(manifest ResourceManifest) error {
 			return fmt.Errorf("ports must be non-negative")
 		}
 	}
+	if err := validateActivityNetwork(manifest); err != nil {
+		return err
+	}
 	if err := validateDependencySchema(manifest.DependencySchema); err != nil {
 		return err
 	}
@@ -525,12 +559,56 @@ func validateManifestContract(manifest ResourceManifest) error {
 	return validateEnvironmentExports(manifest)
 }
 
+func validateActivityNetwork(manifest ResourceManifest) error {
+	if manifest.ActivityNetwork == nil {
+		return nil
+	}
+	network := manifest.ActivityNetwork
+	if manifest.Driver != DriverManagedService || manifest.ManagedService == nil {
+		return fmt.Errorf("activity_network requires a managed-service resource")
+	}
+	if manifest.Platforms.Linux != PlatformSupportSupported {
+		return fmt.Errorf("activity_network currently requires Linux support")
+	}
+	ports := make(map[string]ResourcePort, len(manifest.Ports))
+	for _, port := range manifest.Ports {
+		if name := strings.TrimSpace(port.Name); name != "" {
+			ports[name] = port
+		}
+	}
+	edge, ok := ports[strings.TrimSpace(network.EdgePortName)]
+	if !ok || edge.Host < 1 {
+		return fmt.Errorf("activity_network.edge_port must name a declared host port")
+	}
+	upstream, ok := ports[strings.TrimSpace(network.UpstreamPortName)]
+	if !ok || upstream.Container < 1 || upstream.Host != 0 {
+		return fmt.Errorf("activity_network.upstream_port must name a declared private upstream port")
+	}
+	hasEdge := false
+	hasBridge := false
+	for _, companion := range manifest.Companions {
+		if companion.Name == ActivityEdgeCompanionName && companion.Required {
+			hasEdge = true
+		}
+		if companion.Name == UpstreamBridgeCompanionName && companion.Required {
+			hasBridge = true
+		}
+	}
+	if !hasEdge {
+		return fmt.Errorf("activity_network requires a required activity-edge companion")
+	}
+	if !hasBridge {
+		return fmt.Errorf("activity_network requires a required upstream-bridge companion")
+	}
+	return nil
+}
+
 func validateManifestFeatures(manifest ResourceManifest) error {
 	if err := validateManagedServiceUpdateReadiness(manifest); err != nil {
 		return err
 	}
 	if group := manifest.Lifecycle.ExclusiveGroup; group != "" {
-		if manifest.Driver != manifestManagedService || !regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`).MatchString(group) {
+		if manifest.Driver != DriverManagedService || !regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`).MatchString(group) {
 			return fmt.Errorf("lifecycle.exclusive_group requires a managed-service and a lowercase group identifier (1..64 characters)")
 		}
 	}
@@ -539,7 +617,7 @@ func validateManifestFeatures(manifest ResourceManifest) error {
 			return fmt.Errorf("validate operator capability %q: %w", capability.CapabilityID, err)
 		}
 	}
-	if manifest.Driver == manifestManagedService {
+	if manifest.Driver == DriverManagedService {
 		if err := validateManagedServiceHealthContract(manifest.HealthChecks, manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer); err != nil {
 			return err
 		}
@@ -597,7 +675,7 @@ func validateManagedServiceHealthContract(checks []ResourceHealthCheck, taskScop
 
 func validateProviderPolicy(manifest ResourceManifest) error {
 	if manifest.ProviderPolicy != nil {
-		if manifest.Driver != manifestExternalCli && manifest.Driver != manifestNativeCli {
+		if manifest.Driver != DriverExternalCLI && manifest.Driver != manifestNativeCli {
 			return fmt.Errorf("provider_policy is only supported by external-cli and native-cli resources")
 		}
 		if _, err := manifest.ProviderPolicy.ResolveProvider(resourcedeployment.ProviderRequest{}); err != nil {
@@ -615,14 +693,14 @@ func validateDriverConfiguration(manifest ResourceManifest) error {
 }
 
 func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidate bool) error {
-	if candidate && manifest.Driver != manifestManagedService {
+	if candidate && manifest.Driver != DriverManagedService {
 		return fmt.Errorf("compose candidate requires managed-service resource")
 	}
 	if err := validateAcquisitionAuthReferences(manifest); err != nil {
 		return err
 	}
 	switch manifest.Driver {
-	case manifestExternalCli, manifestNativeCli:
+	case DriverExternalCLI, manifestNativeCli:
 		if strings.TrimSpace(manifest.Binary) == "" {
 			return fmt.Errorf("binary is required for %s resources", manifest.Driver)
 		}
@@ -630,7 +708,7 @@ func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidat
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
-	case manifestManagedService:
+	case DriverManagedService:
 		return validateManagedServiceForCandidate(manifest, candidate)
 	}
 	if manifest.Acquisition != nil {
@@ -934,10 +1012,10 @@ func validateTargetRequirements(profile, platform string, requirements []string,
 // artifact/host requirements before its individual profile is accepted.
 func deploymentModeAllowedForDriver(driver, mode string) bool {
 	allowed := map[string][]string{
-		"cloud-api":         {"bundled-client", "remote-service"},
-		manifestNativeCli:   {"native-host-tool", "bundled-client", "manual"},
-		manifestExternalCli: {"native-host-tool", "bundled-client", "manual"},
-		"managed-service":   {"bundled-service", "remote-service", "manual"},
+		"cloud-api":       {"bundled-client", "remote-service"},
+		manifestNativeCli: {"native-host-tool", "bundled-client", "manual"},
+		DriverExternalCLI: {"native-host-tool", "bundled-client", "manual"},
+		"managed-service": {"bundled-service", "remote-service", "manual"},
 	}
 	return slices.Contains(allowed[driver], mode)
 }
@@ -951,7 +1029,7 @@ func validateDurableData(driver string, dd *ResourceDurableData) error {
 		return nil
 	}
 	switch strings.TrimSpace(driver) {
-	case manifestExternalCli, manifestNativeCli, manifestManagedService:
+	case DriverExternalCLI, manifestNativeCli, DriverManagedService:
 		// Host-filesystem-bearing drivers may declare durable host data.
 	default:
 		return fmt.Errorf("durable_data is only valid for host-filesystem drivers (external-cli, native-cli, managed-service), not %q", driver)
@@ -1216,11 +1294,11 @@ func validateRuntimeMemoryLimit(value string) error {
 
 func validateHealthCheck(check ResourceHealthCheck) error {
 	switch strings.TrimSpace(check.Type) {
-	case "tcp", "http", "postgresql", "redis", HealthCheckOpenRGBV6:
+	case HealthCheckTCP, HealthCheckHTTP, HealthCheckPostgreSQL, HealthCheckRedis, HealthCheckOpenRGBV6:
 		if strings.TrimSpace(check.Target) == "" {
 			return fmt.Errorf("health check target is required for %s checks", check.Type)
 		}
-	case "command":
+	case HealthCheckCommand:
 		if len(check.Command) == 0 {
 			return fmt.Errorf("health check command is required for command checks")
 		}

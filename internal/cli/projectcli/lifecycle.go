@@ -273,6 +273,19 @@ func ParseSetupOptions(args []string) (projectsetup.Options, error) {
 				return projectsetup.Options{}, clipolicy.UsageErrorf("setup broker", "invalid --sudo-mode %q", mode)
 			}
 			return projectsetup.Options{Subcommand: "broker", DryRun: parsed.HasFlag("--dry-run"), SudoMode: mode, JSON: parsed.HasFlag("--json")}, nil
+		case "scenario":
+			parsed, err := commandtree.ParseArgs("setup scenario", SetupScenarioHelpText(), setupScenarioArgSchema(), rest)
+			if err != nil {
+				return projectsetup.Options{}, err
+			}
+			if len(parsed.Positionals) != 1 {
+				return projectsetup.Options{}, clipolicy.UsageErrorf("setup scenario", "setup scenario requires exactly one scenario name")
+			}
+			mode := parsed.FlagValue("--sudo-mode")
+			if mode != "" && mode != "ask" && mode != "skip" && mode != "error" {
+				return projectsetup.Options{}, clipolicy.UsageErrorf("setup scenario", "invalid --sudo-mode %q", mode)
+			}
+			return projectsetup.Options{Subcommand: "scenario", ScenarioName: strings.TrimSpace(parsed.Positionals[0]), DryRun: parsed.HasFlag("--dry-run"), SudoMode: mode, IncludeOptional: parsed.HasFlag("--include-optional")}, nil
 		}
 	}
 	return parseLifecycleOptions("setup", args, SetupHelpText())
@@ -286,13 +299,31 @@ func extractSetupSubcommand(args []string) (string, []string, bool) {
 			return "", nil, false
 		}
 		switch arg {
-		case lifecycleStatus, "explain", "broker":
+		case lifecycleStatus, "explain", "broker", "scenario":
 			rest := append([]string(nil), args[:i]...)
 			rest = append(rest, args[i+1:]...)
 			return arg, rest, true
 		}
 	}
 	return "", nil, false
+}
+
+func setupScenarioArgSchema() commandtree.ArgSchema {
+	return commandtree.ArgSchema{
+		Positionals: []commandtree.PositionalArg{{Name: "scenario", Required: true}},
+		Options: []commandtree.OptionArg{
+			{Name: "--dry-run", Description: "Preview only the selected scenario's declared host requirements"},
+			{Name: "--include-optional", Description: "Opt in to this scenario's optional declared host requirements"},
+			{Name: "--sudo-mode", ValueName: "mode", Description: "Privilege policy for declared host requirements (ask|skip|error)"},
+		},
+	}
+}
+
+func SetupScenarioHelpText() string {
+	return commandtree.HelpText("", "vrooli setup scenario", "Apply one scenario's declared host requirements and signed setup assets through canonical setup.", commandtree.Help{
+		Usage: "vrooli setup scenario <name> [--dry-run] [--include-optional] [--sudo-mode ask|skip|error]",
+		Notes: []string{"This focused mode excludes project-wide requirements, resources, onboarding, and setup completion side effects. Scenario asset plans are stored in `.vrooli/setup-assets.json` and use the shared bounded setup asset owner."},
+	}, setupScenarioArgSchema())
 }
 
 func setupExplainArgSchema() commandtree.ArgSchema {
@@ -556,6 +587,7 @@ func SetupHelpText() string {
 			"  vrooli setup status            Inspect host requirements without applying changes",
 			"  vrooli setup explain <name>    Show full reasons / notes / declarer for one requirement",
 			"  vrooli setup broker            Install/upgrade only the broker and its saved policy",
+			"  vrooli setup scenario <name>   Apply only one scenario's declared host requirements",
 			"",
 			"Privilege & opt-in flags:",
 			"  By default `vrooli setup` is non-interactive: items requiring privilege are",

@@ -56,6 +56,41 @@ func TestStartOperationFenceRecoveryRetainsOneOwnerBeyondUnlinkedFailures(t *tes
 	}
 }
 
+func TestStartOperationFenceOwnerFindsExactSuccessfulOwnerAcrossLaterUnlinkedStart(t *testing.T) {
+	store, err := NewSQLiteStore(t.Context(), Config{DBPath: t.TempDir() + "/runtime.db"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	owner, err := store.BeginStartOperation(t.Context(), StartOperation{Scenario: "alpha", Variant: "live", Operation: "restart", FenceOperationID: "retained-fence"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner.Status = StartOperationStatusSucceeded
+	if _, err := store.UpdateStartOperation(t.Context(), owner); err != nil {
+		t.Fatal(err)
+	}
+	newer, err := store.BeginStartOperation(t.Context(), StartOperation{Scenario: "alpha", Variant: "live", Operation: "start"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer.Status = StartOperationStatusSucceeded
+	if _, err := store.UpdateStartOperation(t.Context(), newer); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := store.GetStartOperationFenceOwner(t.Context(), "alpha", "live", "retained-fence")
+	if err != nil || got.OperationID != owner.OperationID || got.Status != StartOperationStatusSucceeded {
+		t.Fatalf("exact fence owner = %+v, %v; want successful operation %s", got, err, owner.OperationID)
+	}
+	if _, err := store.GetStartOperationFenceOwner(t.Context(), "alpha", "preview", "retained-fence"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("cross-variant fence owner = %v, want ErrNotFound", err)
+	}
+	if _, err := store.GetStartOperationFenceOwner(t.Context(), "alpha", "live", "other-fence"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("different-fence owner = %v, want ErrNotFound", err)
+	}
+}
+
 func TestLatestStartOperationUsesAdmissionOrderAcrossClockRollback(t *testing.T) {
 	store, err := NewSQLiteStore(t.Context(), Config{DBPath: t.TempDir() + "/runtime.db"})
 	if err != nil {

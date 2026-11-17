@@ -83,3 +83,18 @@ func TestWhisperEdgeRecoveryRequiresExactExecutableAndArgv(t *testing.T) {
 		t.Fatal("unrelated live process passed Whisper activity-edge ownership proof")
 	}
 }
+
+func TestCleanActivityEdgeShutdownRequiresSuccessReceipt(t *testing.T) {
+	if !cleanActivityEdgeShutdown([]byte("activity-edge exit: reason=signal sig=terminated\n")) {
+		t.Fatal("clean signal shutdown receipt was rejected")
+	}
+	for _, log := range [][]byte{
+		[]byte("activity-edge exit: reason=signal sig=terminated shutdown_error=context deadline exceeded\n"),
+		[]byte("activity-edge exit: reason=parent_gone\n"),
+		[]byte(""),
+	} {
+		if cleanActivityEdgeShutdown(log) {
+			t.Fatalf("uncertain shutdown receipt accepted: %q", log)
+		}
+	}
+}

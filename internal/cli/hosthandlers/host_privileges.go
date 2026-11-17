@@ -16,6 +16,23 @@ func runHostKernelMemory(runCtx cliapp.RunContext, parent *rootcli.CommandContex
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("kernel slab diagnostics are not supported on %s", runtime.GOOS)
 	}
+	if runCtx.BoolFlag("sample-stacks") {
+		result, err := privilegebroker.NewClient().Do(parent.OperationContext(), privilegebroker.Request{
+			Version: privilegebroker.ProtocolVersion, RequestID: uuid.NewString(), Action: privilegebroker.ActionKernelMemoryStackSample,
+		})
+		if err != nil || result.Status != "completed" || result.KernelMemoryStacks == nil {
+			return fmt.Errorf("kernel allocation stack sample unavailable (%v; %s): install or upgrade through `vrooli setup --sudo-mode=ask`", err, result.Code)
+		}
+		if parent.Globals.JSON || runCtx.JSON() {
+			return cliout.WriteJSONValue(parent.Stdout, *result.KernelMemoryStacks)
+		}
+		fmt.Fprintf(parent.Stdout, "Kernel allocation stack sample captured at %s (%d s, every %d allocations)\n", result.KernelMemoryStacks.CapturedAt.Format("2006-01-02T15:04:05Z07:00"), result.KernelMemoryStacks.WindowSeconds, result.KernelMemoryStacks.SampleEvery)
+		fmt.Fprintln(parent.Stdout, result.KernelMemoryStacks.Output)
+		if result.KernelMemoryStacks.OutputTruncated {
+			fmt.Fprintln(parent.Stdout, "Output truncated at the broker's 32 KiB safety limit.")
+		}
+		return nil
+	}
 	report, err := hostinventory.ReadKernelMemory()
 	if err != nil {
 		result, brokerErr := privilegebroker.NewClient().Do(parent.OperationContext(), privilegebroker.Request{

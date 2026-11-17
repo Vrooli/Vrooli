@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // KernelMemoryReport contains allocation metadata, never kernel addresses or
@@ -17,6 +18,18 @@ type KernelMemoryReport struct {
 	AllocatedBytes uint64      `json:"allocated_bytes"`
 	CacheCount     int         `json:"cache_count"`
 	Caches         []SlabCache `json:"caches"`
+}
+
+// KernelMemoryStackReport is a bounded, one-shot summary of kernel allocation
+// stacks. Output contains symbol names only; the sampler never requests raw
+// allocation addresses or accepts caller-supplied arguments.
+type KernelMemoryStackReport struct {
+	CapturedAt      time.Time `json:"captured_at"`
+	WindowSeconds   int       `json:"window_seconds"`
+	SampleEvery     int       `json:"sample_every"`
+	StackLimit      int       `json:"stack_limit"`
+	Output          string    `json:"output"`
+	OutputTruncated bool      `json:"output_truncated,omitempty"`
 }
 
 type SlabCache struct {

@@ -159,13 +159,13 @@ func (s *SQLiteStore) CreateInstance(ctx context.Context, in Instance) (Instance
 		}
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_instances (
-  instance_id, scenario, build_identity, variant, generation, scope_path, sandbox_id, status, phase,
+  instance_id, scenario, build_identity, runtime_release_id, runtime_release_operation_id, start_operation_id, variant, generation, scope_path, sandbox_id, status, phase,
   started_at, updated_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at,
   stop_reason, owner_kind, owner_pid, working_dir, host_boot_id, host_session_id,
   supervisor_id, supervised_at, last_reconciled_at, reconciliation_status,
   reconciliation_reason, supervision_policy, schema_version
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			in.InstanceID, in.Scenario, in.BuildIdentity, in.Variant, in.Generation, in.ScopePath, in.SandboxID, in.Status, in.Phase,
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			in.InstanceID, in.Scenario, in.BuildIdentity, in.RuntimeReleaseID, in.RuntimeReleaseOperationID, in.StartOperationID, in.Variant, in.Generation, in.ScopePath, in.SandboxID, in.Status, in.Phase,
 			formatTime(in.StartedAt), formatTime(in.UpdatedAt), formatOptionalTime(in.LastHeartbeatAt),
 			formatOptionalTime(in.HeartbeatDeadlineAt), formatOptionalTime(in.StoppedAt),
 			in.StopReason, in.OwnerKind, optionalIntValue(in.OwnerPID), in.WorkingDir, in.HostBootID, in.HostSessionID,
@@ -742,11 +742,14 @@ func (s *SQLiteStore) UpsertHealthSnapshot(ctx context.Context, snapshot HealthS
 	}
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO runtime_health_snapshots (
-  instance_id, scenario, build_identity, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  instance_id, scenario, build_identity, runtime_release_id, runtime_release_operation_id, start_operation_id, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(instance_id) DO UPDATE SET
   scenario = excluded.scenario,
   build_identity = excluded.build_identity,
+  runtime_release_id = excluded.runtime_release_id,
+  runtime_release_operation_id = excluded.runtime_release_operation_id,
+  start_operation_id = excluded.start_operation_id,
   status = excluded.status,
   readiness = excluded.readiness,
   checked_at = excluded.checked_at,
@@ -754,7 +757,7 @@ ON CONFLICT(instance_id) DO UPDATE SET
   error = excluded.error,
   response_json = excluded.response_json,
   schema_valid = excluded.schema_valid`,
-		snapshot.InstanceID, snapshot.Scenario, snapshot.BuildIdentity, snapshot.Status, optionalBoolValue(snapshot.Readiness),
+		snapshot.InstanceID, snapshot.Scenario, snapshot.BuildIdentity, snapshot.RuntimeReleaseID, snapshot.RuntimeReleaseOperationID, snapshot.StartOperationID, snapshot.Status, optionalBoolValue(snapshot.Readiness),
 		formatOptionalTime(snapshot.CheckedAt), optionalInt64Value(snapshot.LatencyMillis),
 		snapshot.Error, snapshot.ResponseJSON, optionalBoolValue(snapshot.SchemaValid))
 	if err != nil {
@@ -765,7 +768,7 @@ ON CONFLICT(instance_id) DO UPDATE SET
 
 func (s *SQLiteStore) GetHealthSnapshot(ctx context.Context, instanceID string) (HealthSnapshot, error) {
 	return scanHealthSnapshot(s.db.QueryRowContext(ctx, `
-SELECT instance_id, scenario, build_identity, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
+SELECT instance_id, scenario, build_identity, runtime_release_id, runtime_release_operation_id, start_operation_id, status, readiness, checked_at, latency_ms, error, response_json, schema_valid
 FROM runtime_health_snapshots
 WHERE instance_id = ?`, instanceID))
 }

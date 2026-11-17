@@ -31,6 +31,10 @@ type Detail struct {
 	// exists or the runtime registry is unavailable. Populated on the
 	// single-scenario paths (Lookup/Detail), not fleet listings.
 	StartOperation *lifecycle.StartOperationView `json:"start_operation,omitempty"`
+	// Authentication is the configured authentication mode (and its source)
+	// and the mode each running process carries. Nil for scenarios without an
+	// authentication profile and on fleet listings.
+	Authentication *lifecycle.AuthenticationStatus `json:"authentication,omitempty"`
 }
 
 type StartResult struct {
@@ -168,6 +172,10 @@ func (s *Service) Detail(name string) (Detail, error) {
 			HTTPStatus: detailParameterB,
 		}
 	}
+	// Authentication is read for the single-scenario detail only: it reads
+	// each process environment, which port resolution and fleet listings do
+	// not need.
+	detail.Authentication = lifecycle.DescribeAuthentication(detail.Scenario, detail.Details.ProcessInfo)
 	return detail, nil
 }
 
@@ -199,6 +207,7 @@ func (s *Service) DetailAtPath(name, path string) (Detail, error) {
 		detail = Detail{Scenario: item, Runtime: runtime, Details: scenario.DescribeRuntime(item.Manifest, runtime)}
 	}
 	detail.StartOperation = s.startOperationView(ctx, item)
+	detail.Authentication = lifecycle.DescribeAuthentication(item, detail.Details.ProcessInfo)
 	return detail, nil
 }
 

@@ -161,6 +161,23 @@ func TestModelCacheCorruptUsageNeverResetsPinsOrAllowsDeletion(t *testing.T) {
 	}
 }
 
+func TestModelCacheUsageRefusesSymlinkedStateBeforeReading(t *testing.T) {
+	store, _, _ := modelCacheFixture(t)
+	target := filepath.Join(filepath.Dir(store.state), "other.json")
+	if err := os.MkdirAll(filepath.Dir(store.state), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(target, []byte(`{"pinned":false}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, store.state); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.usage(); err == nil || !strings.Contains(err.Error(), "regular owned file") {
+		t.Fatalf("symlinked usage state was followed: %v", err)
+	}
+}
+
 func TestModelCacheGeneratedSupportFilesAreExplicitAndDoNotAdmitOperatorFiles(t *testing.T) {
 	store, _, now := modelCacheFixture(t)
 	entry := store.manifest.Storage.Entries["models"]

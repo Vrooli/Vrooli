@@ -118,6 +118,35 @@ func TestOpenRGBManagedUpdateAndRollbackLaunchesFailClosedBeforeAdmission(t *tes
 	}
 }
 
+func TestOpenRGBHeadlessRestoresMissingManagedSourceFromQualifiedEnabledIntent(t *testing.T) {
+	c, _, selection := openRGBHeadlessFixture(t)
+	if _, err := c.operatorState.Apply(t.Context(), []byte(`{"resources":{"openrgb":{"enabled":true}}}`)); err != nil {
+		t.Fatal(err)
+	}
+	intent, err := lightingruntime.NewController(c.Home, lightingruntime.Owners{Resource: nativeIntentFixtureOwners{}, Scenario: nativeIntentFixtureOwners{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared := &lightingruntime.Preparation{Source: lightingruntime.PreparationManaged, Selection: selection, Qualified: true}
+	if err := intent.PrepareDisabledResult(t.Context(), func() (*lightingruntime.Preparation, error) { return prepared, nil }); err != nil {
+		t.Fatal(err)
+	}
+	if err := intent.Enable(t.Context(), selection); err != nil {
+		t.Fatal(err)
+	}
+	if _, found, err := c.ManagedServiceSource(t.Context(), openRGBResourceName); err != nil || found {
+		t.Fatalf("source before recovery found=%v err=%v", found, err)
+	}
+	owner := NewOpenRGBHeadless(c, func(context.Context, OpenRGBDevicePolicyCheck) error { return nil })
+	if err := owner.restorePreparedSource(t.Context(), selection); err != nil {
+		t.Fatal(err)
+	}
+	choice, found, err := c.ManagedServiceSource(t.Context(), openRGBResourceName)
+	if err != nil || !found || choice.Mode != "managed" {
+		t.Fatalf("restored source=%+v found=%v err=%v", choice, found, err)
+	}
+}
+
 func TestOpenRGBHeadlessInspectsOnlyStagedSelection(t *testing.T) {
 	c, manifest, selection := openRGBHeadlessFixture(t)
 	var checks []OpenRGBDevicePolicyCheck

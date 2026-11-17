@@ -205,6 +205,17 @@ func writeOwnedFileDurableWith(path string, data []byte, perm os.FileMode, write
 	// Visible ancestors may be from an unconfirmed prior write. Resolve both
 	// directory aliases and their physical ancestors; a symlink's parent is
 	// not the directory that persists its target's own entry.
+	return syncOwnedDirectoryChain(parent, syncDir)
+}
+
+// SyncOwnedDirectoryChain confirms a published entry and all physical and
+// logical ancestor entries without acquiring a per-file lock. The caller owns
+// serialization and must have synced the file before its atomic publication.
+func SyncOwnedDirectoryChain(parent string) error {
+	return syncOwnedDirectoryChain(parent, syncOwnedDirectory)
+}
+
+func syncOwnedDirectoryChain(parent string, syncDir func(string) error) error {
 	directories, err := ownedDurableDirectories(parent)
 	if err != nil {
 		return fmt.Errorf("config: commit visible but directory durability unconfirmed: %w", err)

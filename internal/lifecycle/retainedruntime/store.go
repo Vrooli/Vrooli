@@ -56,11 +56,12 @@ type Release struct {
 	Paths                                                                   []string
 }
 type Selection struct {
-	SchemaVersion int    `json:"schema_version"`
-	Scenario      string `json:"scenario"`
-	Variant       string `json:"variant"`
-	ReleaseID     string `json:"release_id"`
-	OperationID   string `json:"operation_id"`
+	SchemaVersion     int    `json:"schema_version"`
+	Scenario          string `json:"scenario"`
+	Variant           string `json:"variant"`
+	ReleaseID         string `json:"release_id"`
+	PreviousReleaseID string `json:"previous_release_id,omitempty"`
+	OperationID       string `json:"operation_id"`
 }
 type closure struct {
 	StateContract string   `json:"state_contract"`
@@ -586,7 +587,10 @@ func (s *Store) ReadSelection(scenario, variant string) (Selection, error) {
 	if e = decode(b, &sel); e != nil {
 		return sel, e
 	}
-	if sel.SchemaVersion != 1 || sel.Scenario != scenario || sel.Variant != variant || (sel.ReleaseID != "" && !ids.MatchString(sel.ReleaseID)) {
+	if sel.SchemaVersion != 1 || sel.Scenario != scenario || sel.Variant != variant ||
+		(sel.ReleaseID != "" && !ids.MatchString(sel.ReleaseID)) ||
+		(sel.PreviousReleaseID != "" && !ids.MatchString(sel.PreviousReleaseID)) ||
+		sel.ReleaseID != "" && sel.ReleaseID == sel.PreviousReleaseID {
 		return Selection{}, fmt.Errorf("invalid selection")
 	}
 	return sel, nil
@@ -627,13 +631,69 @@ func (s *Store) Select(ctx context.Context, scenario, variant, id, expected, ope
 	if e = ctx.Err(); e != nil {
 		return Selection{}, e
 	}
-	sel := Selection{1, scenario, variant, id, operation}
-	b, e := json.Marshal(sel)
-	if e != nil {
-		return Selection{}, e
+	previous := current.ReleaseID
+	if id == current.ReleaseID {
+		previous = current.PreviousReleaseID
 	}
-	if e = config.WriteOwnedFileDurable(filepath.Join(scope, "selection.json"), b, 0600); e != nil {
+	sel := Selection{SchemaVersion: 1, Scenario: scenario, Variant: variant, ReleaseID: id, PreviousReleaseID: previous, OperationID: operation}
+	if e = writeSelection(scope, sel); e != nil {
 		return Selection{}, e
 	}
 	return sel, nil
+}
+
+// RollbackPrevious restores the retained release that was active before the
+// current candidate was selected. Mutable source is never an automatic target.
+// The candidate comparison makes crash recovery safe against a newer operator
+// selection that arrived after the failed replacement.
+func (s *Store) RollbackPrevious(ctx context.Context, scenario, variant, candidateID, operation string) (Selection, error) {
+	selectionMu.Lock()
+	defer selectionMu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return Selection{}, err
+	}
+	if strings.TrimSpace(operation) == "" || candidateID == "" {
+		return Selection{}, fmt.Errorf("candidate and rollback operation ID required")
+	}
+	scope, err := s.scope(scenario, variant)
+	if err != nil {
+		return Selection{}, err
+	}
+	current, err := s.ReadSelection(scenario, variant)
+	if err != nil {
+		return Selection{}, err
+	}
+	if current.ReleaseID != candidateID {
+		return Selection{}, ErrSelectionConflict
+	}
+	if current.PreviousReleaseID == "" {
+		return Selection{}, fmt.Errorf("no retained previous release available for rollback")
+	}
+	if _, err := s.Verify(ctx, scenario, variant, current.PreviousReleaseID); err != nil {
+		return Selection{}, fmt.Errorf("verify previous retained release: %w", err)
+	}
+	for _, path := range []string{s.base, filepath.Dir(scope), scope} {
+		if err = privateDir(path); err != nil {
+			return Selection{}, err
+		}
+	}
+	if err = ctx.Err(); err != nil {
+		return Selection{}, err
+	}
+	selection := Selection{SchemaVersion: 1, Scenario: scenario, Variant: variant, ReleaseID: current.PreviousReleaseID, OperationID: operation}
+	if err = writeSelection(scope, selection); err != nil {
+		return Selection{}, err
+	}
+	return selection, nil
+}
+
+func writeSelection(scope string, selection Selection) error {
+	b, e := json.Marshal(selection)
+	if e != nil {
+		return e
+	}
+	if e = config.WriteOwnedFileDurable(filepath.Join(scope, "selection.json"), b, 0600); e != nil {
+		return e
+	}
+	return nil
 }

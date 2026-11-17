@@ -3,10 +3,11 @@ package lifecycle
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/vrooli/internal/hostsession"
-	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -20,29 +21,37 @@ type componentExitHandle struct {
 	closed         bool
 }
 
-func TestEmergencyCannotBypassManagedExitOrAdmittedWork(t *testing.T) {
-	for _, name := range []string{"managed-component", "managed-reported-drained", "admitted-work"} {
+func TestEmergencyCannotBypassManagedExit(t *testing.T) {
+	for _, name := range []string{"managed-component", "managed-reported-drained"} {
 		t.Run(name, func(t *testing.T) {
 			r, s, events := restartFenceTestRunner(t, "refuse")
 			if name == "managed-component" || name == "managed-reported-drained" {
 				s.components = []*commonv1.LifecycleManagedComponent{{Name: "desktop-helper", Generation: "g"}}
 				s.prepareDrained = name == "managed-reported-drained"
-			} else {
-				s.admitting = 1
 			}
 			fence, err := r.prepareProviderFence(context.Background(), scenario.Scenario{Slug: "alpha", Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}}}, true, "operator emergency", "op", nil, nil)
 			if err == nil || fence != nil {
 				t.Fatalf("emergency returned active fence without safety proof: %v", err)
 			}
 			got := snapshotRestartFenceEvents(s, events)
-			wantWait := "drain"
-			if name != "admitted-work" {
-				wantWait = "quiesce"
-			}
+			wantWait := "quiesce"
 			if len(got) != 2 || got[0] != "prepare" || got[1] != wantWait {
 				t.Fatalf("emergency bypassed owner wait: %v, want [prepare %s]", got, wantWait)
 			}
 		})
+	}
+}
+
+func TestEmergencyMayBypassOnlyAdmittedRequestsWithCompleteInventory(t *testing.T) {
+	r, s, events := restartFenceTestRunner(t, "allow")
+	s.admitting = 1
+	fence, err := r.prepareProviderFence(context.Background(), scenario.Scenario{Slug: "alpha", Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}}}, true, "operator emergency", "op", nil, nil)
+	if err != nil || fence == nil || !fence.active {
+		t.Fatalf("explicit emergency did not accept interrupting admitted requests: fence=%+v err=%v", fence, err)
+	}
+	got := snapshotRestartFenceEvents(s, events)
+	if len(got) != 1 || got[0] != "prepare" {
+		t.Fatalf("emergency lifecycle events = %v, want Prepare only after complete owner inventory", got)
 	}
 }
 

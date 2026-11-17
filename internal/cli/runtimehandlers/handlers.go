@@ -25,13 +25,14 @@ const defaultRecoveryInspectLimit = 50
 var (
 	supervisorCommandNames = []string{"run", "status", "install", "uninstall"}
 	recoveryPolicyNames    = []string{"set", "list"}
-	rootUpdateNames        = []string{"status", "apply", "retry", "enroll", "disable", "reconcile"}
+	rootUpdateNames        = []string{"status", "observations", "apply", "retry", "enroll", "disable", "reconcile"}
 )
 
 const runtimeHelpText = `vrooli runtime - Manage Vrooli runtime control-plane services
 
 Usage:
 	 vrooli runtime executor-scope --json < request.json
+  vrooli runtime instance inspect <instance-id> [--json]
   vrooli runtime lighting <status|setup|enable|disable|devices|permissions> [--json]
   vrooli runtime supervisor run [options]
   vrooli runtime supervisor status [--json]
@@ -62,7 +63,7 @@ Environment:
 // RegisteredCommandPaths returns the child paths bound by the runtime handler.
 func RegisteredCommandPaths() []string {
 	paths := make([]string, 0, len(supervisorCommandNames)+len(recoveryPolicyNames))
-	paths = append(paths, "runtime executor-scope", "runtime lighting status", "runtime lighting setup", "runtime lighting enable", "runtime lighting disable", "runtime lighting devices", "runtime lighting permissions plan", "runtime lighting permissions apply", "runtime lighting permissions rollback")
+	paths = append(paths, "runtime executor-scope", "runtime instance inspect", "runtime lighting status", "runtime lighting setup", "runtime lighting enable", "runtime lighting disable", "runtime lighting devices", "runtime lighting permissions plan", "runtime lighting permissions apply", "runtime lighting permissions rollback")
 	for _, name := range supervisorCommandNames {
 		paths = append(paths, "runtime supervisor "+name)
 	}
@@ -112,6 +113,9 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 					}
 					return app.ExecutorScope(operationCtx, commandCtx.Stdin, commandCtx.Stdout)
 				}
+				if args[0] == "instance" {
+					return runRuntimeInstanceInspect(operationCtx, app, commandCtx, args[1:])
+				}
 				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "runtime/supervisor", runtimeBindings(operationCtx, app, commandCtx, []string{"supervisor"}, supervisorCommandNames))
 				if err != nil {
 					return err
@@ -124,6 +128,27 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 		func(service runtimeService, args []string) (struct{}, error) { return struct{}{}, service.run(args) },
 		func(io.Writer, cliout.Format, struct{}) error { return nil },
 	)
+}
+
+func runRuntimeInstanceInspect(ctx context.Context, app *runtimeapp.Service, command *rootcli.CommandContext, args []string) error {
+	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
+		_, err := fmt.Fprintln(command.Stdout, "Usage: vrooli runtime instance inspect <instance-id> [--json]")
+		return err
+	}
+	if len(args) < 2 || args[0] != "inspect" {
+		return fmt.Errorf("usage: vrooli runtime instance inspect <instance-id> [--json]")
+	}
+	jsonOutput := command.Globals.JSON
+	if len(args) == 3 && args[2] == "--json" {
+		jsonOutput = true
+	} else if len(args) != 2 {
+		return fmt.Errorf("usage: vrooli runtime instance inspect <instance-id> [--json]")
+	}
+	home, err := command.HomeDir()
+	if err != nil {
+		return err
+	}
+	return app.InspectRuntimeInstance(ctx, home, args[1], command.Stdout, jsonOutput)
 }
 
 func runRecoveryManifest(operationCtx context.Context, app *runtimeapp.Service, ctx *rootcli.CommandContext, args []string, stdout, stderr io.Writer) error {

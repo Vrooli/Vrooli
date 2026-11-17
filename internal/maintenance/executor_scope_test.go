@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,13 +20,18 @@ import (
 
 func scopeFixture(t *testing.T, table map[int]processTableEntry, identities map[int]scopeIdentity) {
 	t.Helper()
-	oldTable, oldIdentity, oldBirths, oldListeners := scopeProcessTable, scopeReadIdentity, scopeProcessBirths, scopeListeners
+	oldTable, oldIdentity, oldBinding, oldFact, oldBirths, oldListeners := scopeProcessTable, scopeReadIdentity, scopeReadProcessBinding, scopeReadProcessFact, scopeProcessBirths, scopeListeners
 	oldLeases, oldMembers, oldGone, oldBoot := scopeEditorLeaseBindings, scopeEditorScopeMembers, scopeEditorScopeGone, scopeCurrentBootID
-	oldCgroupPath, oldOccupancy, oldScopeProcesses, oldLeaseBySession := scopeSessionCgroupPath, scopeEditorScopeOccupancy, scopeEditorScopeProcesses, scopeEditorLeaseBySession
+	oldCgroupPath, oldOccupancy, oldScopeProcesses, oldLeaseProvenance, oldLeaseProvenanceBatch := scopeSessionCgroupPath, scopeEditorScopeOccupancy, scopeEditorScopeProcesses, scopeEditorLeaseProvenance, scopeEditorLeaseProvenanceBatch
+	oldScopeProcessesBatch := scopeEditorScopeProcessesBatch
+	oldObservationTimeout := executorScopeObservationTimeout
 	t.Cleanup(func() {
-		scopeProcessTable, scopeReadIdentity, scopeProcessBirths, scopeListeners = oldTable, oldIdentity, oldBirths, oldListeners
+		scopeProcessTable, scopeReadIdentity, scopeReadProcessBinding, scopeReadProcessFact, scopeProcessBirths, scopeListeners = oldTable, oldIdentity, oldBinding, oldFact, oldBirths, oldListeners
 		scopeEditorLeaseBindings, scopeEditorScopeMembers, scopeEditorScopeGone, scopeCurrentBootID = oldLeases, oldMembers, oldGone, oldBoot
-		scopeSessionCgroupPath, scopeEditorScopeOccupancy, scopeEditorScopeProcesses, scopeEditorLeaseBySession = oldCgroupPath, oldOccupancy, oldScopeProcesses, oldLeaseBySession
+		scopeSessionCgroupPath, scopeEditorScopeOccupancy, scopeEditorScopeProcesses, scopeEditorLeaseProvenance = oldCgroupPath, oldOccupancy, oldScopeProcesses, oldLeaseProvenance
+		scopeEditorLeaseProvenanceBatch = oldLeaseProvenanceBatch
+		scopeEditorScopeProcessesBatch = oldScopeProcessesBatch
+		executorScopeObservationTimeout = oldObservationTimeout
 	})
 	scopeProcessTable = func(context.Context) (map[int]processTableEntry, error) { return table, nil }
 	scopeReadIdentity = func(entry processTableEntry) (scopeIdentity, error) { return identities[entry.PID], nil }
@@ -33,20 +39,40 @@ func scopeFixture(t *testing.T, table map[int]processTableEntry, identities map[
 		return map[int]supervision.ProcessInfo{}, nil
 	}
 	scopeEditorLeaseBindings = func(context.Context, string, []string) ([]scenarioruntime.EditorLease, error) { return nil, nil }
-	scopeEditorLeaseBySession = func(ctx context.Context, home, sessionID string) (scenarioruntime.EditorLease, error) {
-		leases, err := scopeEditorLeaseBindings(ctx, home, []string{sessionID})
-		if err != nil {
-			return scenarioruntime.EditorLease{}, err
-		}
-		for _, lease := range leases {
-			if lease.SessionID == sessionID {
-				return lease, nil
+	scopeEditorLeaseProvenance = func(context.Context, string, string) (scenarioruntime.EditorLeaseProvenance, error) {
+		return scenarioruntime.EditorLeaseProvenance{}, scenarioruntime.ErrNotFound
+	}
+	scopeEditorLeaseProvenanceBatch = func(ctx context.Context, home string, ids []string) (map[string]scenarioruntime.EditorLeaseProvenance, map[string]error) {
+		provenance := make(map[string]scenarioruntime.EditorLeaseProvenance, len(ids))
+		failures := map[string]error{}
+		for _, id := range ids {
+			item, err := scopeEditorLeaseProvenance(ctx, home, id)
+			if err != nil {
+				failures[id] = err
+			} else {
+				provenance[id] = item
 			}
 		}
-		return scenarioruntime.EditorLease{}, scenarioruntime.ErrNotFound
+		return provenance, failures
 	}
 	scopeEditorScopeMembers = func(string) ([]int, error) { return nil, nil }
 	scopeEditorScopeGone = func(context.Context, string) (bool, error) { return false, nil }
+	scopeEditorScopeProcessesBatch = func(ctx context.Context, refs []platformgo.ScopeRef) []platformgo.ScopeProcessObservation {
+		observations := make([]platformgo.ScopeProcessObservation, len(refs))
+		for i, ref := range refs {
+			unit := ref.Name
+			if !strings.HasSuffix(unit, ".scope") {
+				unit += ".scope"
+			}
+			gone, err := scopeEditorScopeGone(ctx, unit)
+			if err != nil {
+				observations[i].Err = err
+			} else if !gone {
+				observations[i].PIDs = []int{1}
+			}
+		}
+		return observations
+	}
 	scopeCurrentBootID = func() string { return "boot-current" }
 	scopeListeners = func() network.TCPListenerSnapshot { return network.TCPListenerSnapshot{Known: true} }
 }
@@ -261,17 +287,13 @@ func TestExecutorScopeMissingAttachedLeaderRequiresExactGoneScope(t *testing.T) 
 				scope = "vrooli-agent-claude-code-abc"
 			}
 			lease := scenarioruntime.EditorLease{SessionID: "run-1", PID: 42, HostBootID: boot, Scope: scope, Status: scenarioruntime.EditorLeaseActive, CreatedAt: created}
+			leaseReads := 0
 			scopeEditorLeaseBindings = func(context.Context, string, []string) ([]scenarioruntime.EditorLease, error) {
-				return []scenarioruntime.EditorLease{lease}, nil
-			}
-			scopeEditorLeaseBySession = func(_ context.Context, _ string, sessionID string) (scenarioruntime.EditorLease, error) {
-				if sessionID != lease.SessionID {
-					t.Fatalf("revalidated unexpected session %q", sessionID)
-				}
-				if tc.leaseChanged {
+				leaseReads++
+				if tc.leaseChanged && leaseReads > 1 {
 					lease.PID++
 				}
-				return lease, nil
+				return []scenarioruntime.EditorLease{lease}, nil
 			}
 			scopeEditorScopeGone = func(_ context.Context, unit string) (bool, error) {
 				if unit != "vrooli-agent-claude-code-abc.scope" {
@@ -421,10 +443,6 @@ func TestListScopeEditorLeasesReadsCanonicalRegistryReadOnly(t *testing.T) {
 	if err != nil || len(leases) != 1 || leases[0].SessionID != "run-1" || leases[0].Owner.Ref != "web-console-1" {
 		t.Fatalf("read-only runtime lease listing: leases=%+v err=%v", leases, err)
 	}
-	current, err := getScopeEditorLeaseBySession(t.Context(), home, "run-1")
-	if err != nil || current.SessionID != "run-1" || current.Status != scenarioruntime.EditorLeaseActive || current.PID != 42 {
-		t.Fatalf("read-only exact lease revalidation: lease=%+v err=%v", current, err)
-	}
 }
 
 func TestExecutorScopeHistoricalAndPhysicalEvidence(t *testing.T) {
@@ -494,21 +512,86 @@ func TestExecutorScopePIDReuseRequiresStableBirthAndNoMatchingLabels(t *testing.
 	}
 }
 
-func TestExecutorScopeUnknownIsNotEmptyAndDoesNotExposeSecrets(t *testing.T) {
+func TestExecutorScopeUnrelatedIdentityFailureDoesNotExposeSecretsOrBlockAbsence(t *testing.T) {
 	scopeFixture(t, map[int]processTableEntry{20: {PID: 20, PGID: 20}}, nil)
 	scopeReadIdentity = func(processTableEntry) (scopeIdentity, error) {
 		return scopeIdentity{}, errors.New("SECRET_ENVIRONMENT=value")
 	}
 	report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: []ExecutorScopeRef{{RunID: "run-1", Tag: "current", LegacyTag: "legacy", PID: 10}}})
 	data, _ := json.Marshal(report)
-	if err != nil || report.Complete || report.Executors[0].State != "unknown" || strings.Contains(string(data), "SECRET") {
+	if err != nil || !report.Complete || report.Executors[0].State != "absent" || strings.Contains(string(data), "SECRET") {
 		t.Fatalf("report=%s err=%v", data, err)
+	}
+}
+
+func TestExecutorScopeExactHomeMatchesNormalizedEnvironmentPath(t *testing.T) {
+	const home = "/tmp/exact-codex-home"
+	identityHomes := executorScopeHomePathsFromEnvironment(map[string]string{
+		"CODEX_HOME": home + "/session/..",
+		"GROK_HOME":  "relative/home",
+		"PATH":       "SECRET_VALUE=must-not-be-retained",
+	})
+	if len(identityHomes) != 1 || identityHomes[0] != home {
+		t.Fatalf("retained home paths = %q, want only normalized CODEX_HOME", identityHomes)
+	}
+	scopeFixture(t, map[int]processTableEntry{42: {PID: 42}}, map[int]scopeIdentity{42: {HomePaths: identityHomes}})
+	report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: []ExecutorScopeRef{{
+		RunID: "old-run", Tag: "current", LegacyTag: "legacy", HomePaths: []string{home + "/unused/.."},
+	}}})
+	if err != nil || !report.Complete || len(report.Executors) != 1 || report.Executors[0].State != "present" || len(report.Executors[0].PIDs) != 1 || report.Executors[0].PIDs[0] != 42 {
+		t.Fatalf("exact home evidence = %+v err=%v", report, err)
+	}
+	data, _ := json.Marshal(report)
+	if strings.Contains(string(data), "SECRET_VALUE") {
+		t.Fatalf("report exposed unrelated process environment: %s", data)
+	}
+	prefix, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: []ExecutorScopeRef{{
+		RunID: "other-run", Tag: "current-other", LegacyTag: "legacy-other", HomePaths: []string{home + "-sibling"},
+	}}})
+	if err != nil || !prefix.Complete || prefix.Executors[0].State != "absent" {
+		t.Fatalf("home prefix must not match an adjacent exact path: report=%+v err=%v", prefix, err)
+	}
+}
+
+func TestExecutorScopeExactHomeIdentityDenialIsUnknownButOutsideServiceDenialIsScopedOut(t *testing.T) {
+	const home = "/tmp/old-run/codex"
+	for _, tc := range []struct {
+		name      string
+		entry     processTableEntry
+		wantState string
+		complete  bool
+	}{
+		{name: "unreadable in-scope PID cannot prove absence", entry: processTableEntry{PID: 77, Cgroup: "/user.slice/user-1000.slice/user@1000.service/vrooli.slice/vrooli-agents.slice/run.scope"}, wantState: "unknown", complete: false},
+		{name: "owned native service identity denial is out of home scope", entry: processTableEntry{PID: 78, Cgroup: "/user.slice/user-1000.slice/user@1000.service/app.slice/secret-agent.service"}, wantState: "absent", complete: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			scopeFixture(t, map[int]processTableEntry{tc.entry.PID: tc.entry}, nil)
+			scopeReadIdentity = func(processTableEntry) (scopeIdentity, error) {
+				return scopeIdentity{}, errors.New("SECRET_ENVIRONMENT=value")
+			}
+			report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: []ExecutorScopeRef{{
+				RunID: "old-run", Tag: "current", LegacyTag: "legacy", HomePaths: []string{home},
+			}}})
+			if err != nil || report.Complete != tc.complete || report.Executors[0].State != tc.wantState {
+				t.Fatalf("exact-home inventory = %+v err=%v", report, err)
+			}
+			if !tc.complete && !strings.Contains(strings.Join(report.Executors[0].Reasons, "\n"), "1 unreadable in-scope process identity") {
+				t.Fatalf("unknown home result lacks bounded owner diagnostic: %+v", report.Executors[0])
+			}
+			if !tc.complete && !strings.Contains(strings.Join(report.Executors[0].Reasons, "\n"), fmt.Sprintf("sample_pids=[%d]", tc.entry.PID)) {
+				t.Fatalf("unknown home result does not identify its unreadable process: %+v", report.Executors[0])
+			}
+			data, _ := json.Marshal(report)
+			if strings.Contains(string(data), "SECRET_ENVIRONMENT") {
+				t.Fatalf("report exposed process environment: %s", data)
+			}
+		})
 	}
 }
 
 func TestExecutorScopeBoundsAndMidReadBirth(t *testing.T) {
 	scopeFixture(t, map[int]processTableEntry{}, nil)
-	for _, refs := range [][]ExecutorScopeRef{nil, make([]ExecutorScopeRef, ExecutorScopeMaxReferences+1), {{RunID: "run-1"}}, {{RunID: "run-1", Tag: "tag", LegacyTag: "legacy", PID: -1}}} {
+	for _, refs := range [][]ExecutorScopeRef{nil, {{RunID: "run-1"}}, {{RunID: "run-1", Tag: "tag", LegacyTag: "legacy", PID: -1}}} {
 		if _, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: refs}); err == nil {
 			t.Fatal("invalid request accepted")
 		}
@@ -551,15 +634,15 @@ func TestExecutorScopeIgnoresUnrelatedHostProcessChurn(t *testing.T) {
 
 func TestExecutorScopeBatchSharesOneBoundedObservation(t *testing.T) {
 	scopeFixture(t, map[int]processTableEntry{1: {PID: 1}}, nil)
-	reads := 0
-	scopeReadIdentity = func(processTableEntry) (scopeIdentity, error) { reads++; return scopeIdentity{}, nil }
+	var reads atomic.Int64
+	scopeReadIdentity = func(processTableEntry) (scopeIdentity, error) { reads.Add(1); return scopeIdentity{}, nil }
 	refs := make([]ExecutorScopeRef, 128)
 	for i := range refs {
 		refs[i] = ExecutorScopeRef{RunID: fmt.Sprintf("run-%d", i), Tag: "tag", LegacyTag: "legacy"}
 	}
 	report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: refs})
-	if err != nil || !report.Complete || len(report.Executors) != 128 || reads != 2 {
-		t.Fatalf("reads=%d report=%+v err=%v", reads, report, err)
+	if err != nil || !report.Complete || len(report.Executors) != 128 || reads.Load() != 2 {
+		t.Fatalf("reads=%d report=%+v err=%v", reads.Load(), report, err)
 	}
 }
 
@@ -591,8 +674,11 @@ func TestExecutorScopeManagedHistoryCapacity(t *testing.T) {
 			identities[90000] = scopeIdentity{Tags: []string{refs[count-1].LegacyTag}}
 			table[90001] = processTableEntry{PID: 90001, PGID: refs[count-2].PGID}
 			scopeFixture(t, table, identities)
-			reads := 0
-			scopeReadIdentity = func(entry processTableEntry) (scopeIdentity, error) { reads++; return identities[entry.PID], nil }
+			var reads atomic.Int64
+			scopeReadIdentity = func(entry processTableEntry) (scopeIdentity, error) {
+				reads.Add(1)
+				return identities[entry.PID], nil
+			}
 			started := time.Now()
 			report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: refs})
 			if err != nil || len(report.Executors) != count {
@@ -610,16 +696,43 @@ func TestExecutorScopeManagedHistoryCapacity(t *testing.T) {
 					t.Fatalf("lost history/physical evidence at %d: %+v want=%s", i, evidence, want)
 				}
 			}
-			if report.Complete || reads != 2*len(table) {
-				t.Fatalf("incomplete scope accepted or per-reference scans: complete=%t reads=%d processes=%d", report.Complete, reads, len(table))
+			if report.Complete || reads.Load() != int64(2*len(table)) {
+				t.Fatalf("incomplete scope accepted or identity reads skipped a stable table pass: complete=%t reads=%d processes=%d", report.Complete, reads.Load(), len(table))
 			}
-			t.Logf("%d references / %d host processes / %d identity reads in %s", count, len(table), reads, time.Since(started))
+			t.Logf("%d references / %d host processes / %d identity reads in %s", count, len(table), reads.Load(), time.Since(started))
 		})
 	}
 }
 
+func TestExecutorScopeBoundedParallelIdentityScanCompletesLargeHostSnapshot(t *testing.T) {
+	const processCount = 1200
+	table := make(map[int]processTableEntry, processCount)
+	for pid := 2; pid < processCount+2; pid++ {
+		table[pid] = processTableEntry{PID: pid, PGID: pid}
+	}
+	scopeFixture(t, table, nil)
+	var reads atomic.Int64
+	scopeReadIdentity = func(entry processTableEntry) (scopeIdentity, error) {
+		reads.Add(1)
+		time.Sleep(8 * time.Millisecond)
+		if entry.PID%4 == 0 {
+			return scopeIdentity{}, errors.New("unreadable process environment")
+		}
+		return scopeIdentity{}, nil
+	}
+	report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: []ExecutorScopeRef{{
+		RunID: "historical-run", Tag: "current", LegacyTag: "legacy", PID: processCount + 100, PGID: processCount + 100,
+	}}})
+	if err != nil || !report.Complete || report.Executors[0].State != "absent" {
+		t.Fatalf("large bounded scan exceeded its deadline or lost scoped evidence: complete=%t evidence=%+v err=%v", report.Complete, report.Executors[0], err)
+	}
+	if got, want := reads.Load(), int64(2*processCount); got != want {
+		t.Fatalf("identity reads=%d want two complete bounded passes over %d processes", got, processCount)
+	}
+}
+
 func TestExecutorScopeSharedLabelsBoundResponseWithoutDroppingRuns(t *testing.T) {
-	refs := make([]ExecutorScopeRef, ExecutorScopeMaxReferences)
+	refs := make([]ExecutorScopeRef, ExecutorScopeBatchSize)
 	for i := range refs {
 		refs[i] = ExecutorScopeRef{RunID: fmt.Sprintf("managed-%d", i), Tag: "shared", LegacyTag: "shared"}
 	}
@@ -648,22 +761,52 @@ func TestExecutorScopeSharedLabelsBoundResponseWithoutDroppingRuns(t *testing.T)
 	t.Logf("%d references / 6000 shared-tag processes: %s, %d response bytes, %d PID samples", len(refs), time.Since(start), len(data), samples)
 }
 
+func TestExecutorScopePaginatesReferencesAgainstOneHostSnapshot(t *testing.T) {
+	refs := make([]ExecutorScopeRef, ExecutorScopeBatchSize+1)
+	for i := range refs {
+		id := fmt.Sprintf("managed-%d", i)
+		refs[i] = ExecutorScopeRef{RunID: id, Tag: id, LegacyTag: "legacy-" + id}
+	}
+	scopeFixture(t, map[int]processTableEntry{}, map[int]scopeIdentity{})
+	processTableReads := 0
+	scopeProcessTable = func(context.Context) (map[int]processTableEntry, error) {
+		processTableReads++
+		return map[int]processTableEntry{}, nil
+	}
+	report, err := (&Controller{}).ExecutorScope(t.Context(), ExecutorScopeRequest{Executors: refs})
+	if err != nil || !report.Complete || len(report.Executors) != len(refs) || processTableReads != 1 {
+		t.Fatalf("paged scope lost coverage or repeated host snapshot: count=%d complete=%t snapshots=%d err=%v", len(report.Executors), report.Complete, processTableReads, err)
+	}
+	for i, item := range report.Executors {
+		if item.RunID != refs[i].RunID || item.State != "absent" {
+			t.Fatalf("page boundary lost exact evidence at %d: %+v", i, item)
+		}
+	}
+}
+
 func TestRuntimeScopeAbsentPreservesIndependentExecutor(t *testing.T) {
 	for _, tc := range []struct {
-		name     string
-		entry    processTableEntry
-		identity scopeIdentity
-		listener network.TCPListenerSnapshot
-		wantErr  bool
+		name          string
+		entry         processTableEntry
+		identity      scopeIdentity
+		identityError bool
+		listener      network.TCPListenerSnapshot
+		wantErr       bool
 	}{
-		{"only_independent_executor", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{RunID: "run-1", InstanceID: "old"}, network.TCPListenerSnapshot{Known: true}, false},
-		{"service_identity_survives", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{InstanceID: "old"}, network.TCPListenerSnapshot{Known: true}, true},
-		{"recorded_service_group_survives", processTableEntry{PID: 20, PGID: 10}, scopeIdentity{RunID: "run-1"}, network.TCPListenerSnapshot{Known: true}, true},
-		{"listener_unknown", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{RunID: "run-1"}, network.TCPListenerSnapshot{}, true},
-		{"listener_survives", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{RunID: "run-1"}, network.TCPListenerSnapshot{Known: true, Ports: map[int][]network.SnapshotListener{12345: nil}}, true},
+		{"only_independent_executor", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{RunID: "run-1", InstanceID: "old"}, false, network.TCPListenerSnapshot{Known: true}, false},
+		{"service_identity_survives", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{InstanceID: "old"}, false, network.TCPListenerSnapshot{Known: true}, true},
+		{"recorded_service_group_survives", processTableEntry{PID: 20, PGID: 10}, scopeIdentity{RunID: "run-1"}, false, network.TCPListenerSnapshot{Known: true}, true},
+		{name: "unreadable_identity_keeps_runtime_absence_unknown", entry: processTableEntry{PID: 20, PGID: 20}, identityError: true, listener: network.TCPListenerSnapshot{Known: true}, wantErr: true},
+		{"listener_unknown", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{RunID: "run-1"}, false, network.TCPListenerSnapshot{}, true},
+		{"listener_survives", processTableEntry{PID: 20, PGID: 20}, scopeIdentity{RunID: "run-1"}, false, network.TCPListenerSnapshot{Known: true, Ports: map[int][]network.SnapshotListener{12345: nil}}, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			scopeFixture(t, map[int]processTableEntry{20: tc.entry}, map[int]scopeIdentity{20: tc.identity})
+			if tc.identityError {
+				scopeReadIdentity = func(processTableEntry) (scopeIdentity, error) {
+					return scopeIdentity{}, errors.New("identity unavailable")
+				}
+			}
 			scopeListeners = func() network.TCPListenerSnapshot { return tc.listener }
 			err := (&Controller{}).RequireRuntimeScopeAbsent(t.Context(), RuntimeScopeRef{Scenario: "agent-manager", Variant: "live", InstanceIDs: []string{"old"}, PIDs: []int{10}, PGIDs: []int{10}, Ports: []int{12345}})
 			if (err != nil) != tc.wantErr {

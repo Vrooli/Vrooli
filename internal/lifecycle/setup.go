@@ -118,13 +118,13 @@ func (r *Runner) evaluateSetupVerdictsContext(ctx context.Context, item scenario
 		componentNames = append(componentNames, name)
 	}
 	slices.Sort(componentNames)
-	deps := r.hostProbeDeps()
+	deps := r.scenarioHostProbeDeps(item)
 	for _, name := range componentNames {
 		if err := ctx.Err(); err != nil {
 			return setupVerdicts{}, err
 		}
 		component := item.Manifest.Components[name]
-		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps, item.Variant)
 		if err != nil {
 			return setupVerdicts{}, fmt.Errorf("component %s freshness: %w", name, err)
 		}

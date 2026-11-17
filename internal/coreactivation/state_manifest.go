@@ -45,13 +45,17 @@ func ProbeStateManifest(ctx context.Context, image string) (statecontract.Manife
 // persistent-state contracts, owner by owner. When a manifest is unavailable
 // it says why instead, so a refusal is never reduced to a bare digest pair.
 func ExplainStateContractChange(ctx context.Context, servingImage, candidateImage string) []string {
-	candidate, err := ProbeStateManifest(ctx, candidateImage)
+	return explainStateContractChange(ctx, servingImage, candidateImage, ProbeStateManifest)
+}
+
+func explainStateContractChange(ctx context.Context, servingImage, candidateImage string, probe func(context.Context, string) (statecontract.Manifest, error)) []string {
+	candidate, err := probe(ctx, candidateImage)
 	if err != nil {
 		return []string{"the candidate does not report a per-owner state manifest: " + err.Error()}
 	}
-	serving, err := ProbeStateManifest(ctx, servingImage)
+	serving, err := probe(ctx, servingImage)
 	if err != nil {
-		return []string{fmt.Sprintf("the serving image predates per-owner state manifests (contract format v%d), so the two contracts cannot be compared owner by owner; the first candidate built with this format always differs from it", statecontract.ManifestVersion-1)}
+		return []string{"the serving image's per-owner state manifest is unavailable: " + err.Error()}
 	}
 	changes := statecontract.Diff(serving, candidate)
 	if len(changes) == 0 {

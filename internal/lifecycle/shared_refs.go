@@ -128,7 +128,7 @@ func CaptureExcludePatterns(item scenario.Scenario) []string {
 		component := item.Manifest.Components[name]
 		spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
 		if ok && !spec.Reserved {
-			if targets, err := componentBuildTargets(name, scenarioDir, item.Slug, component, spec, runtimeGOOS()); err == nil {
+			if targets, err := componentBuildTargets(name, scenarioDir, item.Slug, component, spec, runtimeGOOS(), item.Variant); err == nil {
 				for _, target := range targets {
 					if spec.StageDirectory {
 						add(filepath.Dir(target.Output), true)

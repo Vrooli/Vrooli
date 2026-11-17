@@ -9,13 +9,14 @@ import (
 )
 
 const (
-	EditorBindingActive          = "active"
-	EditorBindingSuperseded      = "superseded"
-	EditorBindingTerminal        = "terminal"
-	EditorContainmentIntended    = "intended"
-	EditorContainmentEstablished = "established"
-	EditorContainmentFailed      = "failed"
-	EditorContainmentUnavailable = "unavailable"
+	EditorBindingActive                 = "active"
+	EditorBindingSuperseded             = "superseded"
+	EditorBindingTerminal               = "terminal"
+	EditorContainmentIntended           = "intended"
+	EditorContainmentEstablished        = "established"
+	EditorContainmentFailed             = "failed"
+	EditorContainmentUnavailable        = "unavailable"
+	EditorLeaseProvenanceQueryBatchSize = 128
 )
 
 // EditorLeaseProvenance preserves one launch attempt independently of its session.
@@ -148,6 +149,46 @@ func (s *SQLiteStore) GetEditorLeaseProvenance(ctx context.Context, bindingID st
 	}
 	return b, err
 }
+
+// GetEditorLeaseProvenances reads a bounded set of immutable launch-attempt
+// proofs through one SQL query. Missing IDs are omitted from the result; they
+// are not interpreted as successful containment.
+func (s *SQLiteStore) GetEditorLeaseProvenances(ctx context.Context, bindingIDs []string) (map[string]EditorLeaseProvenance, error) {
+	if len(bindingIDs) > EditorLeaseProvenanceQueryBatchSize {
+		return nil, fmt.Errorf("editor lease provenance query exceeds %d IDs", EditorLeaseProvenanceQueryBatchSize)
+	}
+	if len(bindingIDs) == 0 {
+		return map[string]EditorLeaseProvenance{}, nil
+	}
+	placeholders := make([]string, len(bindingIDs))
+	args := make([]any, len(bindingIDs))
+	for i, id := range bindingIDs {
+		if strings.TrimSpace(id) == "" || id != strings.TrimSpace(id) {
+			return nil, fmt.Errorf("editor lease provenance query requires exact binding IDs")
+		}
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	query := editorProvenanceSelectSQL + ` WHERE binding_id IN (` + strings.Join(placeholders, ",") + `)`
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[string]EditorLeaseProvenance, len(bindingIDs))
+	for rows.Next() {
+		binding, err := scanEditorProvenance(rows)
+		if err != nil {
+			return nil, err
+		}
+		out[binding.BindingID] = binding
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (s *SQLiteStore) ListEditorLeaseProvenance(ctx context.Context, sessionID string) ([]EditorLeaseProvenance, error) {
 	rows, err := s.db.QueryContext(ctx, editorProvenanceSelectSQL+` WHERE session_id=? ORDER BY created_at,binding_id`, sessionID)
 	if err != nil {

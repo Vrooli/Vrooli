@@ -433,6 +433,45 @@ func WriteStatusHuman(w io.Writer, output StatusSingleOutput) {
 			_, _ = fmt.Fprintln(w, line)
 		}
 	}
+	WriteAuthenticationHuman(w, output.Authentication)
+}
+
+// WriteAuthenticationHuman prints the configured authentication mode, where it
+// came from, and the mode each running process actually carries, so a
+// scenario running in a different mode than its configuration is visible.
+func WriteAuthenticationHuman(w io.Writer, auth *lifecycle.AuthenticationStatus) {
+	if auth == nil {
+		return
+	}
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "Authentication: profile=%s mode=%s source=%s\n", auth.Profile, displayAuthValue(auth.Configured.Mode), auth.Configured.Source)
+	for _, proc := range auth.Processes {
+		if proc.Error != "" {
+			_, _ = fmt.Fprintf(w, "  %s pid=%d mode=unobservable (%s)\n", proc.Step, proc.PID, proc.Error)
+			continue
+		}
+		source := proc.Source
+		if source == "" {
+			source = "unrecorded"
+		}
+		_, _ = fmt.Fprintf(w, "  %s pid=%d mode=%s source=%s providers=%s\n", proc.Step, proc.PID, displayAuthValue(proc.Mode), source, displayAuthValue(proc.Providers))
+	}
+	if auth.Mismatch {
+		_, _ = fmt.Fprintf(w, "[WARN]    A running process does not carry the configured authentication mode %s; restart the scenario to apply it.\n", displayAuthValue(auth.Configured.Mode))
+	}
+	if auth.Refused != "" {
+		_, _ = fmt.Fprintf(w, "[ERROR]   The next start refuses this authentication mode: %s\n", auth.Refused)
+	}
+	if auth.Risk != "" {
+		_, _ = fmt.Fprintf(w, "[WARN]    Authentication mode %s: %s.\n", auth.Configured.Mode, auth.Risk)
+	}
+}
+
+func displayAuthValue(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "(none)"
+	}
+	return value
 }
 
 func FormatPortMap(ports map[string]int) string {

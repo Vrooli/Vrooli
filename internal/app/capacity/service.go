@@ -732,6 +732,36 @@ type ListOutput struct {
 	Claims []ClaimView `json:"claims"`
 }
 
+type PlacementTableOutput struct {
+	ObservedAt string                     `json:"observed_at"`
+	Rows       []engine.PlacementTableRow `json:"rows"`
+}
+
+// PlacementTable reports active model claims against persisted, artifact-
+// verified per-role suite receipts. It is read-only and intentionally does not
+// invoke the opportunistic capacity sweep performed by the general list call.
+func (s Service) PlacementTable(ctx context.Context) (PlacementTableOutput, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return PlacementTableOutput{}, err
+	}
+	defer store.Close()
+	claims, err := store.ListClaims(ctx, engine.ClaimFilter{ResourceKind: engine.ResourceKindVRAM, Statuses: engine.ActiveClaimStatuses()})
+	if err != nil {
+		return PlacementTableOutput{}, err
+	}
+	repo, ok := store.(engine.PlacementQualificationRepository)
+	if !ok {
+		return PlacementTableOutput{}, fmt.Errorf("capacity store does not support placement qualifications")
+	}
+	now := s.now()
+	rows, err := engine.ReadPlacementTable(ctx, repo, claims, now, 7*24*time.Hour)
+	if err != nil {
+		return PlacementTableOutput{}, err
+	}
+	return PlacementTableOutput{ObservedAt: now.Format(time.RFC3339Nano), Rows: rows}, nil
+}
+
 // List returns claims, optionally filtered to one owner / active only.
 func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) {
 	store, err := s.openStore(ctx)
@@ -765,9 +795,45 @@ func (s Service) List(ctx context.Context, req ListRequest) (ListOutput, error) 
 	return out, nil
 }
 
-// ReconcileOutput is the reconciliation finding set.
+// ReconcileOutput is the reconciliation finding set plus the exact process
+// census it was derived from. Consumers must use Inventory.Complete rather
+// than interpreting an empty finding set as proof that a device is idle.
 type ReconcileOutput struct {
-	Findings []engine.Finding `json:"findings"`
+	Findings  []engine.Finding `json:"findings"`
+	Inventory ProcessInventory `json:"process_inventory"`
+}
+
+// ProcessInventory preserves sensor health, owner attribution, and device
+// accounting separately. A valid process table alone is not a complete
+// owner-attributed inventory if a process has no owner or device memory is
+// left unexplained.
+type ProcessInventory struct {
+	Status                   string                 `json:"status"`
+	ObservedAt               string                 `json:"observed_at,omitempty"`
+	Complete                 bool                   `json:"complete"`
+	OwnerAttributionComplete bool                   `json:"owner_attribution_complete"`
+	DeviceAccountingComplete bool                   `json:"device_accounting_complete"`
+	Processes                []ObservedGPUProcess   `json:"processes"`
+	Devices                  []GPUProcessAccounting `json:"devices"`
+	Warnings                 []string               `json:"warnings,omitempty"`
+}
+
+type ObservedGPUProcess struct {
+	GPUIndex    int    `json:"gpu_index"`
+	PID         int    `json:"pid"`
+	ProcessName string `json:"process_name"`
+	UsedBytes   uint64 `json:"used_bytes"`
+	OwnerKind   string `json:"owner_kind,omitempty"`
+	OwnerID     string `json:"owner_id"`
+	Attribution string `json:"attribution"`
+}
+
+type GPUProcessAccounting struct {
+	GPUIndex                int    `json:"gpu_index"`
+	DeviceUsedBytes         uint64 `json:"device_used_bytes"`
+	ObservedProcessBytes    uint64 `json:"observed_process_bytes"`
+	UnattributedDeviceBytes int64  `json:"unattributed_device_bytes"`
+	ProcessCount            int    `json:"process_count"`
 }
 
 // Reconcile classifies observed GPU consumers against the ledger.
@@ -785,6 +851,7 @@ func (s Service) Reconcile(ctx context.Context) (ReconcileOutput, error) {
 	if err != nil {
 		return ReconcileOutput{}, fmt.Errorf("capacity sensing unavailable: %w", err)
 	}
+	inventory := buildProcessInventory(ctx, snapshot, s.attributor())
 	// Opportunistic, debounced sweep (§8.6) reusing the snapshot we just took, so
 	// reconcile classifies against presence-refreshed/expired claims rather than a
 	// ledger that still lists a dead resident. Best-effort on a cursor-backed store.
@@ -824,7 +891,71 @@ func (s Service) Reconcile(ctx context.Context) (ReconcileOutput, error) {
 		return ReconcileOutput{}, err
 	}
 	findings = append(findings, declared...)
-	return ReconcileOutput{Findings: findings}, nil
+	return ReconcileOutput{Findings: findings, Inventory: inventory}, nil
+}
+
+func buildProcessInventory(ctx context.Context, snapshot hostinventory.Snapshot, attributor engine.Attributor) ProcessInventory {
+	status := strings.TrimSpace(snapshot.ProbeStatuses["nvidia_gpu_processes"])
+	if status == "" {
+		status = "unknown"
+	}
+	out := ProcessInventory{Status: status, Processes: []ObservedGPUProcess{}, Devices: []GPUProcessAccounting{}}
+	if provenance, ok := snapshot.FieldProvenance["gpu_processes"]; ok && !provenance.ObservedAt.IsZero() {
+		out.ObservedAt = provenance.ObservedAt.UTC().Format(time.RFC3339Nano)
+	}
+	allOwnersKnown := true
+	accounted := map[int]uint64{}
+	processCounts := map[int]int{}
+	for _, process := range snapshot.GPUProcesses {
+		attribution := engine.Attribution{OwnerID: engine.OwnerUnknown}
+		if attributor != nil {
+			attribution = attributor.Attribute(ctx, process.PID)
+		}
+		ownerID := strings.TrimSpace(attribution.OwnerID)
+		method := "control-plane"
+		if ownerID == "" || ownerID == engine.OwnerUnknown {
+			ownerID = engine.NormalizeProcessOwner(process.ProcessName)
+			if ownerID != "" {
+				attribution.OwnerKind = engine.OwnerKindResource
+				method = "process-name"
+			} else {
+				ownerID = engine.OwnerUnknown
+				method = "unattributed"
+			}
+		}
+		if ownerID == engine.OwnerUnknown {
+			allOwnersKnown = false
+		}
+		out.Processes = append(out.Processes, ObservedGPUProcess{
+			GPUIndex: process.GPUIndex, PID: process.PID, ProcessName: process.ProcessName,
+			UsedBytes: process.UsedBytes, OwnerKind: attribution.OwnerKind,
+			OwnerID: ownerID, Attribution: method,
+		})
+		accounted[process.GPUIndex] += process.UsedBytes
+		processCounts[process.GPUIndex]++
+	}
+	deviceAccountingComplete := true
+	for _, gpu := range snapshot.GPUs {
+		observed := accounted[gpu.Index]
+		residual := int64(gpu.VRAMUsedBytes) - int64(observed)
+		if residual != 0 {
+			deviceAccountingComplete = false
+		}
+		out.Devices = append(out.Devices, GPUProcessAccounting{
+			GPUIndex: gpu.Index, DeviceUsedBytes: gpu.VRAMUsedBytes,
+			ObservedProcessBytes: observed, UnattributedDeviceBytes: residual,
+			ProcessCount: processCounts[gpu.Index],
+		})
+	}
+	out.OwnerAttributionComplete = status == "ok" && allOwnersKnown
+	out.DeviceAccountingComplete = status == "ok" && deviceAccountingComplete
+	out.Complete = out.OwnerAttributionComplete && out.DeviceAccountingComplete
+	for _, warning := range snapshot.Warnings {
+		if strings.Contains(strings.ToLower(warning), "pmon") || strings.Contains(strings.ToLower(warning), "gpu process inventory") {
+			out.Warnings = append(out.Warnings, warning)
+		}
+	}
+	return out
 }
 
 // SweepView is the JSON/text projection of one swept claim.

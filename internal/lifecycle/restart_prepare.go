@@ -70,7 +70,7 @@ func (r *Runner) prepareRestartBeforeStop(name string, opts *StartOptions) error
 	if !needed {
 		return nil
 	}
-	if err := r.admitVariantBuild(ctx, item); err != nil {
+	if err := r.admitVariantBuild(ctx, item, force); err != nil {
 		return fmt.Errorf("%w; the running instance was not stopped", err)
 	}
 	r.logInfo("Building replacement artifacts before stopping the running instance",
@@ -98,7 +98,8 @@ func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.
 		operation = "stage"
 	}
 	if _, err := r.runWithLifecycleLog(startLifecycleLogContext(instanceLogName(item), operation, "setup"), func(logWriter, childWriter io.Writer) error {
-		_, execErr := r.executePhaseDetailed(ctx, item, "setup", env, logWriter, childWriter, force)
+		// The running instance is the one this restart is replacing.
+		_, execErr := r.executePhaseDetailed(withOwnedInstances(ctx, view.Instance.InstanceID), item, "setup", env, logWriter, childWriter, force)
 		return execErr
 	}); err != nil {
 		return fmt.Errorf("prepare replacement artifacts for %s: %w", item.Slug, err)

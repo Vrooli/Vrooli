@@ -175,3 +175,35 @@ func TestOrdinaryMutationCannotCrossAnUnresolvedRootOperation(t *testing.T) {
 		t.Fatalf("unsubmitted terminal operation blocked mutation: %v", err)
 	}
 }
+
+func TestVerifiedRetirementBindsNativeObservationToRecord(t *testing.T) {
+	e, r, ref, _ := fixture(t)
+	r.SchemaVersion = recordSchemaVersion
+	r.Phase, r.Fence = Verified, Revoked
+	r.DispatchCommitted = true
+	r.WorkerRef = &ref
+	if err := e.Store.put(&r); err != nil {
+		t.Fatal(err)
+	}
+	if released, err := e.Store.observeVerifiedRetirement(context.Background(), r.ID, func(observed Record) (bool, error) {
+		return observed.ID == r.ID && observed.WorkerRef != nil && *observed.WorkerRef == ref, nil
+	}); err != nil || !released {
+		t.Fatalf("matching retired operation: %v %v", released, err)
+	}
+	if released, err := e.Store.observeVerifiedRetirement(context.Background(), r.ID, func(Record) (bool, error) {
+		current, _, err := e.Store.Current()
+		if err != nil {
+			return false, err
+		}
+		if err := e.Store.put(&current); err != nil {
+			return false, err
+		}
+		return true, nil
+	}); err == nil || released {
+		t.Fatalf("record change crossed retirement observation: %v %v", released, err)
+	}
+	want := errors.New("native observation failed")
+	if _, err := e.Store.observeVerifiedRetirement(context.Background(), r.ID, func(Record) (bool, error) { return false, want }); !errors.Is(err, want) {
+		t.Fatalf("native error was hidden: %v", err)
+	}
+}

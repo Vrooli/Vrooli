@@ -332,33 +332,6 @@ func IsActiveClaimStatus(status string) bool {
 }
 
 // PriorityTierName maps a priority rank to its tier label (best-effort; unknown
-// ranks render as the numeric value).
-func PriorityTierName(priority int) string {
-	switch {
-	case priority >= PriorityInteractive:
-		return policyInteractive
-	case priority >= PriorityService:
-		return policyService
-	default:
-		return policyBatch
-	}
-}
-
-// ParsePriorityTier maps a tier name (or numeric string) to its integer rank.
-// An empty or unknown name defaults to batch (the lowest, safest tier).
-func ParsePriorityTier(name string) int {
-	switch name {
-	case policyInteractive:
-		return PriorityInteractive
-	case policyService:
-		return PriorityService
-	case policyBatch, "":
-		return PriorityBatch
-	default:
-		return PriorityBatch
-	}
-}
-
 // DegradeStep is one rung of an adopter's degradation ladder.
 type DegradeStep struct {
 	Label       string `json:"label"`
@@ -401,6 +374,9 @@ type DegradeApply struct {
 // the claim's floor_bytes. For image-tools the last step is "cpu" (amount 0).
 type DegradeProfile struct {
 	StepsSource string `json:"steps_source,omitempty"`
+	// Role binds suite-backed placement evidence to the exact serving role,
+	// not merely to a resource or model shared by multiple roles.
+	Role string `json:"role,omitempty"`
 	// Model binds residency transitions to the exact model artifact owned by
 	// this claim. It is optional for ordinary capacity-only profiles, but a
 	// residency transition is rejected unless both name and digest are present.

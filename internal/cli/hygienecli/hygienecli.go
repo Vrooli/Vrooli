@@ -1,6 +1,7 @@
 package hygienecli
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"maps"
@@ -26,6 +27,30 @@ type Request struct {
 }
 
 type OutputMode string
+
+const maxHumanReportBytes = 32 << 10
+
+const humanReportTruncatedMessage = "\nOutput truncated; use `vrooli hygiene --json` for complete machine evidence.\n"
+
+type boundedHumanBuffer struct {
+	buffer    bytes.Buffer
+	truncated bool
+}
+
+func (b *boundedHumanBuffer) Write(p []byte) (int, error) {
+	limit := maxHumanReportBytes - len(humanReportTruncatedMessage)
+	remaining := limit - b.buffer.Len()
+	if remaining <= 0 {
+		b.truncated = true
+		return len(p), nil
+	}
+	if len(p) > remaining {
+		_, _ = b.buffer.Write(p[:remaining])
+		b.truncated = true
+		return len(p), nil
+	}
+	return b.buffer.Write(p)
+}
 
 const (
 	OutputModeDefault OutputMode = ""
@@ -124,76 +149,93 @@ func ParseRequest(args []string) (Request, error) {
 //nolint:gocyclo // hygiene output has distinct human, JSON, and mode-specific rendering contracts.
 func Render(w io.Writer, format cliout.Format, report hygieneapp.Report, mode OutputMode) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteProtoJSON(w, HygieneReportMessage(report)) }, func(w io.Writer) error {
-		if mode == OutputModeNext {
-			renderNextSteps(w, report, false)
-			return nil
+		var rendered boundedHumanBuffer
+		if err := renderHuman(&rendered, report, mode); err != nil {
+			return err
 		}
-		status := "passed"
-		if !report.Success {
-			status = "failed"
-		}
-		_, _ = fmt.Fprintf(w, "Status: hygiene %s\n", status)
-		_, _ = fmt.Fprintf(w, "Root: %s\n", report.Root)
-		_, _ = fmt.Fprintf(w, "Blocking issues: %d\n", report.BlockingFailures)
-		_, _ = fmt.Fprintf(w, "Warnings: %d\n", report.Warnings)
-		renderFindings(w, report)
-		if report.SharedDrift != nil {
-			renderDriftSummary(w, report.SharedDrift, mode)
-		}
-		if len(report.PlanCandidates) > 0 {
-			renderPlanSummary(w, report.PlanCandidates, mode)
-		}
-		if mode == OutputModeDetails && len(report.Checks) > 0 {
-			_, _ = fmt.Fprintln(w, "\nChecks:")
-			for _, check := range report.Checks {
-				state := "ok"
-				if !check.Passed {
-					state = "failed"
-				}
-				_, _ = fmt.Fprintf(w, "- %s: %s (%s)\n", check.Name, state, check.Message)
+		output := rendered.buffer.Bytes()
+		if rendered.truncated {
+			end := bytes.LastIndexByte(output, '\n')
+			if end < 0 {
+				end = len(output)
 			}
+			output = append(bytes.Clone(output[:end]), []byte(humanReportTruncatedMessage)...)
 		}
-		if len(report.FixesApplied) > 0 {
-			_, _ = fmt.Fprintln(w, "\nFixes applied:")
-			for _, fix := range report.FixesApplied {
-				_, _ = fmt.Fprintf(w, "- %s %s -> %s\n", planFixActionLabel(fix.Action), fix.Source, fix.Plan.Path)
-			}
-		}
-		if len(report.PlanReconcileOutcomes) > 0 {
-			_, _ = fmt.Fprintln(w, "\nPlan reconcile results:")
-			for _, outcome := range report.PlanReconcileOutcomes {
-				target := outcome.Plan.Path
-				if target == "" {
-					target = outcome.Mirror.Path
-				}
-				if target == "" {
-					target = outcome.Source
-				}
-				line := fmt.Sprintf("- %s %s", planFixActionLabel(outcome.Action), outcome.Source)
-				if target != "" && target != outcome.Source {
-					line += " -> " + target
-				}
-				if outcome.Mirror.Status != "" {
-					line += " [" + outcome.Mirror.Status + "]"
-				}
-				if outcome.SourceUntouched {
-					line += " (source untouched)"
-				}
-				if outcome.Error != "" {
-					line += ": " + outcome.Error
-				}
-				_, _ = fmt.Fprintln(w, line)
-			}
-		}
-		if len(report.ConfigFixes) > 0 {
-			_, _ = fmt.Fprintln(w, "\nConfig fixes applied:")
-			for _, fix := range report.ConfigFixes {
-				_, _ = fmt.Fprintf(w, "- %s\n", fix)
-			}
-		}
-		renderNextSteps(w, report, true)
-		return nil
+		_, err := w.Write(output)
+		return err
 	})
+}
+
+func renderHuman(w io.Writer, report hygieneapp.Report, mode OutputMode) error {
+	if mode == OutputModeNext {
+		renderNextSteps(w, report, false)
+		return nil
+	}
+	status := "passed"
+	if !report.Success {
+		status = "failed"
+	}
+	_, _ = fmt.Fprintf(w, "Status: hygiene %s\n", status)
+	_, _ = fmt.Fprintf(w, "Root: %s\n", report.Root)
+	_, _ = fmt.Fprintf(w, "Blocking issues: %d\n", report.BlockingFailures)
+	_, _ = fmt.Fprintf(w, "Warnings: %d\n", report.Warnings)
+	renderFindings(w, report)
+	if report.SharedDrift != nil {
+		renderDriftSummary(w, report.SharedDrift, mode)
+	}
+	if len(report.PlanCandidates) > 0 {
+		renderPlanSummary(w, report.PlanCandidates, mode)
+	}
+	if mode == OutputModeDetails && len(report.Checks) > 0 {
+		_, _ = fmt.Fprintln(w, "\nChecks:")
+		for _, check := range report.Checks {
+			state := "ok"
+			if !check.Passed {
+				state = "failed"
+			}
+			_, _ = fmt.Fprintf(w, "- %s: %s (%s)\n", check.Name, state, check.Message)
+		}
+	}
+	if len(report.FixesApplied) > 0 {
+		_, _ = fmt.Fprintln(w, "\nFixes applied:")
+		for _, fix := range report.FixesApplied {
+			_, _ = fmt.Fprintf(w, "- %s %s -> %s\n", planFixActionLabel(fix.Action), fix.Source, fix.Plan.Path)
+		}
+	}
+	if len(report.PlanReconcileOutcomes) > 0 {
+		_, _ = fmt.Fprintln(w, "\nPlan reconcile results:")
+		for _, outcome := range report.PlanReconcileOutcomes {
+			target := outcome.Plan.Path
+			if target == "" {
+				target = outcome.Mirror.Path
+			}
+			if target == "" {
+				target = outcome.Source
+			}
+			line := fmt.Sprintf("- %s %s", planFixActionLabel(outcome.Action), outcome.Source)
+			if target != "" && target != outcome.Source {
+				line += " -> " + target
+			}
+			if outcome.Mirror.Status != "" {
+				line += " [" + outcome.Mirror.Status + "]"
+			}
+			if outcome.SourceUntouched {
+				line += " (source untouched)"
+			}
+			if outcome.Error != "" {
+				line += ": " + outcome.Error
+			}
+			_, _ = fmt.Fprintln(w, line)
+		}
+	}
+	if len(report.ConfigFixes) > 0 {
+		_, _ = fmt.Fprintln(w, "\nConfig fixes applied:")
+		for _, fix := range report.ConfigFixes {
+			_, _ = fmt.Fprintf(w, "- %s\n", fix)
+		}
+	}
+	renderNextSteps(w, report, true)
+	return nil
 }
 
 func renderFindings(w io.Writer, report hygieneapp.Report) {

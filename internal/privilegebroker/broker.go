@@ -27,15 +27,16 @@ const (
 
 // Config is deliberately small: setup owns all filesystem and systemd policy.
 type Config struct {
-	SocketPath        string
-	AllowedUID        uint32
-	SocketGID         int
-	AuditPath         string
-	Executor          Executor
-	RuntimeHomeRepair func(context.Context, RuntimeHomeSubject) Result
-	TemporaryActivity func(context.Context, uint32) (storageactivity.Snapshot, error)
-	LocalAdmission    *LocalAdmissionManager
-	KernelMemory      func() (hostinventory.KernelMemoryReport, error)
+	SocketPath         string
+	AllowedUID         uint32
+	SocketGID          int
+	AuditPath          string
+	Executor           Executor
+	RuntimeHomeRepair  func(context.Context, RuntimeHomeSubject) Result
+	TemporaryActivity  func(context.Context, uint32) (storageactivity.Snapshot, error)
+	LocalAdmission     *LocalAdmissionManager
+	KernelMemory       func() (hostinventory.KernelMemoryReport, error)
+	KernelMemoryStacks func(context.Context) (hostinventory.KernelMemoryStackReport, error)
 }
 
 // Executor is the narrow test seam. Implementations receive only broker-built
@@ -61,6 +62,11 @@ func New(config Config) (*Broker, error) {
 	}
 	if config.KernelMemory == nil {
 		config.KernelMemory = hostinventory.ReadKernelMemory
+	}
+	if config.KernelMemoryStacks == nil {
+		config.KernelMemoryStacks = func(ctx context.Context) (hostinventory.KernelMemoryStackReport, error) {
+			return sampleKernelMemoryStacks(ctx, config.Executor)
+		}
 	}
 	if config.LocalAdmission != nil && config.LocalAdmission.Policy.UID != config.AllowedUID {
 		return nil, fmt.Errorf("local admission policy caller does not match broker caller")
@@ -162,6 +168,16 @@ func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 			return result
 		}
 		return Result{Status: "completed", KernelMemory: &report}
+	case ActionKernelMemoryStackSample:
+		operation, cancel := context.WithTimeout(ctx, kernelMemoryStackSampleTimeout)
+		defer cancel()
+		report, err := b.config.KernelMemoryStacks(operation)
+		if err != nil {
+			result := NewFailure(req.RequestID, req.Action, "kernel_memory_stack_sample_unavailable")
+			result.Evidence.Detail = err.Error()
+			return result
+		}
+		return Result{Status: "completed", KernelMemoryStacks: &report}
 	case ActionServiceRecover:
 		return executeServiceRecovery(ctx, b.config.Executor, req)
 	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:

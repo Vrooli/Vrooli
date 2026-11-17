@@ -104,6 +104,15 @@ func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			capacitycli.RenderList,
 		),
+		capacitycli.CommandPlacement: rootcli.BindService(deps.Stdout, deps.OutputFormat, serviceFactory,
+			func(ctx C, args []string) (struct{}, error) {
+				return struct{}{}, capacitycli.ParsePlacementRequest(args)
+			},
+			func(service capacityapp.Service, _ struct{}) (capacityapp.PlacementTableOutput, error) {
+				return service.PlacementTable(context.Background())
+			},
+			capacitycli.RenderPlacementTable,
+		),
 		capacitycli.CommandReconcile: rootcli.BindService(deps.Stdout, deps.OutputFormat, serviceFactory,
 			func(ctx C, args []string) (struct{}, error) {
 				_, err := capacitycli.ParseListRequest(nil) // reconcile takes only --json; parse args for help/validation

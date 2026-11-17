@@ -3,6 +3,7 @@ package maintenance
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -102,6 +103,62 @@ func TestSweepCapacityClaimsSensingDownNoExpiry(t *testing.T) {
 	}
 	if got.Status != capacity.StatusGranted {
 		t.Errorf("status = %q, want granted (sensing-down must not expire)", got.Status)
+	}
+}
+
+type fixedOwnerMaintAttributor string
+
+func (a fixedOwnerMaintAttributor) Attribute(context.Context, int) capacity.Attribution {
+	return capacity.Attribution{OwnerID: string(a)}
+}
+
+func TestReconcileCapacityUsesSourceRootForAdoptionAndFailsClosedWithoutIt(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		hasRoot    bool
+		wantClaims int
+	}{
+		{name: "declared owner with root is adopted", hasRoot: true, wantClaims: 1},
+		{name: "empty root leaves unclaimed owner untouched", hasRoot: false, wantClaims: 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			now := time.Now().UTC()
+			db := filepath.Join(t.TempDir(), "capacity.db")
+			root := ""
+			if tc.hasRoot {
+				root = t.TempDir()
+				manifest := filepath.Join(root, "resources", "fixture", "resource.json")
+				if err := os.MkdirAll(filepath.Dir(manifest), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				content := `{"acceleration":{"claim":{"resource_kind":"vram","default_preferred_bytes":1073741824,"floor_bytes":0,"default_priority":"service","confidence":"estimated","idle_unload_ttl_seconds":900}}}`
+				if err := os.WriteFile(manifest, []byte(content), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			snapshot := hostinventory.Snapshot{GPUProcesses: []hostinventory.GPUProcess{{GPUIndex: 0, PID: 4242, UsedBytes: 1 << 30}}}
+			withCapacitySweepSeams(t, db, snapshot, nil, fixedOwnerMaintAttributor("fixture"), now)
+
+			if _, err := NewController(root, t.TempDir()).ReconcileCapacity(ctx); err != nil {
+				t.Fatalf("ReconcileCapacity() error = %v", err)
+			}
+			store, err := capacity.NewSQLiteStore(ctx, capacity.Config{DBPath: db})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer store.Close()
+			claims, err := store.ListClaims(ctx, capacity.ClaimFilter{Statuses: capacity.ActiveClaimStatuses()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(claims) != tc.wantClaims {
+				t.Fatalf("active claims = %d, want %d: %+v", len(claims), tc.wantClaims, claims)
+			}
+			if tc.wantClaims == 1 && (claims[0].OwnerID != "fixture" || claims[0].IdleUnloadTTL != 15*time.Minute) {
+				t.Fatalf("adopted claim = %+v, want owner fixture with declared 15m idle TTL", claims[0])
+			}
+		})
 	}
 }
 
@@ -284,7 +341,7 @@ func TestCapacityMaintenanceReportsActualOutcomes(t *testing.T) {
 						return nil
 					})
 				}
-				report, err := NewController(t.TempDir(), t.TempDir()).sweepCapacityClaims(ctx)
+				report, err := NewController(t.TempDir(), t.TempDir()).ReconcileCapacity(ctx)
 				if err != nil {
 					t.Fatal(err)
 				}

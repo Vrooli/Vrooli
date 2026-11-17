@@ -90,8 +90,8 @@ func TestPeerRecordRejectsForeignLiveOwnerAndCleansStaleOwner(t *testing.T) {
 	if err := Write(home, Record{Scenario: "owned", OwnerPID: cmd.Process.Pid, Ports: map[string]int{"api": 12345}}); err != nil {
 		t.Fatal(err)
 	}
-	if err := Write(home, Record{Scenario: "owned", OwnerPID: os.Getpid(), Ports: map[string]int{"api": 12346}}); err == nil {
-		t.Fatal("Write replaced another live owner")
+	if err := Write(home, Record{Scenario: "owned", OwnerPID: os.Getpid(), Ports: map[string]int{"api": 12346}}); !errors.Is(err, ErrLiveOwnerConflict) {
+		t.Fatalf("Write error = %v, want ErrLiveOwnerConflict", err)
 	}
 	if err := Remove(home, "owned", os.Getpid()); err == nil {
 		t.Fatal("Remove deleted another live owner's record")

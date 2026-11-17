@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
@@ -114,26 +115,35 @@ func TestServiceListUsesWorkspaceScope(t *testing.T) {
 	}
 }
 
-func TestClassifyPlanManagerStatusUsesConnectErrorCode(t *testing.T) {
+func TestClassifyPlanManagerConnectErrorUsesGeneratedStatusCode(t *testing.T) {
 	tests := []struct {
-		name   string
-		status int
-		body   string
-		want   error
+		name string
+		code connect.Code
+		want error
 	}{
-		{name: "not found", status: 400, body: `{"code":"not_found","message":"missing"}`, want: ErrPlanManagerNotFound},
-		{name: "invalid", status: 500, body: `{"code":"invalid_argument","message":"bad"}`, want: ErrPlanManagerInvalid},
-		{name: "conflict", status: 500, body: `{"code":"already_exists","message":"dup"}`, want: ErrPlanManagerConflict},
-		{name: "unavailable", status: 503, body: `{"code":"unavailable","message":"down"}`, want: ErrPlanManagerUnavailable},
-		{name: "timeout", status: 504, body: `{"code":"deadline_exceeded","message":"slow"}`, want: ErrPlanManagerTimeout},
+		{name: "not found", code: connect.CodeNotFound, want: ErrPlanManagerNotFound},
+		{name: "invalid", code: connect.CodeInvalidArgument, want: ErrPlanManagerInvalid},
+		{name: "conflict", code: connect.CodeAlreadyExists, want: ErrPlanManagerConflict},
+		{name: "unavailable", code: connect.CodeUnavailable, want: ErrPlanManagerUnavailable},
+		{name: "timeout", code: connect.CodeDeadlineExceeded, want: ErrPlanManagerTimeout},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := classifyPlanManagerStatus("http://plan-manager", tt.status, tt.body)
+			err := classifyPlanManagerConnectError(connect.NewError(tt.code, errors.New("owner response")))
 			if !errors.Is(err, tt.want) {
-				t.Fatalf("classifyPlanManagerStatus() = %v, want %v", err, tt.want)
+				t.Fatalf("classifyPlanManagerConnectError() = %v, want %v", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestClassifyPlanManagerConnectErrorPreservesCancellation(t *testing.T) {
+	err := classifyPlanManagerConnectError(connect.NewError(connect.CodeCanceled, context.Canceled))
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("classified cancellation = %v, want errors.Is(context.Canceled)", err)
+	}
+	if !errors.Is(err, ErrPlanManagerConnectError) {
+		t.Fatalf("classified cancellation = %v, want generic connect classification", err)
 	}
 }
 

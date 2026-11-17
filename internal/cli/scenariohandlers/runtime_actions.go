@@ -243,6 +243,8 @@ func toCLIStatusResponse(resp scenarioapp.StatusResponse) StatusResponse {
 			Scenario: toCLIStatusItem(resp.Single.Scenario),
 			Info:     toCLIInfoOutput(scenarioapp.InfoOutput{Scenario: resp.Single.Info}).Scenario,
 			Runtime:  toCLIInfoOutput(scenarioapp.InfoOutput{Runtime: resp.Single.Runtime}).Runtime,
+
+			Authentication: resp.Single.Authentication,
 		}
 		return out
 	}

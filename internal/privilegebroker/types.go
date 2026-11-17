@@ -44,6 +44,7 @@ const (
 	ActionTemporaryActivityObserve = "storage.temporary-activity.observe"
 	ActionCapabilitiesInspect      = "broker.capabilities.inspect"
 	ActionKernelMemoryInspect      = "host.kernel-memory.inspect"
+	ActionKernelMemoryStackSample  = "host.kernel-memory.sample-stacks"
 	ActionServiceRecover           = "host.service.recover"
 
 	// Cloud target actions replace the shell strings scenario-to-cloud used to
@@ -161,17 +162,18 @@ type Subject struct {
 }
 
 type Result struct {
-	Version           string                            `json:"version"`
-	RequestID         string                            `json:"request_id,omitempty"`
-	Action            string                            `json:"action,omitempty"`
-	Status            string                            `json:"status"`
-	Code              string                            `json:"code,omitempty"`
-	Changed           bool                              `json:"changed,omitempty"`
-	Evidence          Evidence                          `json:"evidence,omitempty"`
-	TemporaryActivity *storageactivity.Snapshot         `json:"temporary_activity,omitempty"`
-	Capabilities      []string                          `json:"capabilities,omitempty"`
-	LocalAdmission    *LocalAdmissionReport             `json:"local_admission,omitempty"`
-	KernelMemory      *hostinventory.KernelMemoryReport `json:"kernel_memory,omitempty"`
+	Version            string                                 `json:"version"`
+	RequestID          string                                 `json:"request_id,omitempty"`
+	Action             string                                 `json:"action,omitempty"`
+	Status             string                                 `json:"status"`
+	Code               string                                 `json:"code,omitempty"`
+	Changed            bool                                   `json:"changed,omitempty"`
+	Evidence           Evidence                               `json:"evidence,omitempty"`
+	TemporaryActivity  *storageactivity.Snapshot              `json:"temporary_activity,omitempty"`
+	Capabilities       []string                               `json:"capabilities,omitempty"`
+	LocalAdmission     *LocalAdmissionReport                  `json:"local_admission,omitempty"`
+	KernelMemory       *hostinventory.KernelMemoryReport      `json:"kernel_memory,omitempty"`
+	KernelMemoryStacks *hostinventory.KernelMemoryStackReport `json:"kernel_memory_stacks,omitempty"`
 }
 
 type Evidence struct {

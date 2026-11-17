@@ -67,6 +67,12 @@ type EntryRef struct {
 	Key     string `json:"key"`
 }
 
+// CopyVerificationReadback identifies verification of the copied bytes.
+const CopyVerificationReadback = "readback"
+
+// CopyScheduleReady identifies a functioning copy schedule.
+const CopyScheduleReady = "ready"
+
 // CopyStatus is non-secret freshness metadata for the encrypted root copy.
 type CopyStatus struct {
 	Path          string    `json:"path"`

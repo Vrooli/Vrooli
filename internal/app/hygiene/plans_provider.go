@@ -66,7 +66,7 @@ func (p plansProvider) Run(ctx context.Context, req Request, report *Report) err
 		if reason == "" {
 			reason = "plan-manager reconciler is not configured"
 		}
-		p.runStaticFallback(report, reason)
+		p.runStaticFallback(report, req.RequirePlanProvider, reason)
 		return nil
 	}
 	runReq := PlanReconcileRequest{
@@ -81,7 +81,7 @@ func (p plansProvider) Run(ctx context.Context, req Request, report *Report) err
 	reconcile, err := p.reconciler.ReconcilePlans(ctx, runReq)
 	if err != nil {
 		if planManagerDegraded(err) {
-			p.runStaticFallback(report, err.Error())
+			p.runStaticFallback(report, req.RequirePlanProvider, err.Error())
 			return nil
 		}
 		p.reportCanonicalFailure(report, err)
@@ -227,7 +227,7 @@ func (p plansProvider) applyReconcile(report *Report, _ Request, reconcile PlanR
 	}
 }
 
-func (p plansProvider) runStaticFallback(report *Report, reason string) {
+func (p plansProvider) runStaticFallback(report *Report, required bool, reason string) {
 	candidates, err := DetectPlanCandidates(p.root)
 	if err != nil {
 		report.addCheck("plan_candidates", false, SeverityError, err.Error())
@@ -254,9 +254,15 @@ func (p plansProvider) runStaticFallback(report *Report, reason string) {
 		Command:    "vrooli scenario start plan-manager && vrooli hygiene --plans-only",
 		Fixability: FixabilityGuided,
 	}
+	severity := SeverityWarning
+	code := "plan_candidates"
+	if required {
+		severity = SeverityError
+		code = "plan_manager_unavailable"
+	}
 	report.addFinding(Finding{
-		Severity:   SeverityWarning,
-		Code:       "plan_candidates",
+		Severity:   severity,
+		Code:       code,
 		Message:    message,
 		Why:        "Static hygiene can spot likely misplaced plan files, but only Plan Manager can verify canonical mirrors, already-imported sources, duplicates, and parse failures. " + reason,
 		Fixability: FixabilityGuided,
@@ -271,7 +277,7 @@ func (p plansProvider) runStaticFallback(report *Report, reason string) {
 		},
 	})
 	report.Actions = append(report.Actions, action)
-	report.addCheck("plan_candidates", true, SeverityWarning, message)
+	report.addCheck("plan_manager_reconcile", false, severity, message)
 }
 
 func planFixFromReconcile(item PlanReconcileItem) PlanFix {

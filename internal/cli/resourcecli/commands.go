@@ -50,6 +50,7 @@ const (
 	CommandAcceleration          CommandID = "acceleration"
 	CommandSource                CommandID = "source"
 	CommandN8N                   CommandID = "n8n"
+	CommandWordPress             CommandID = "wordpress"
 )
 
 const (
@@ -62,6 +63,10 @@ const (
 	N8NRuntimeCompanionStop          N8NRuntimeCommandID = "companion-stop"
 	N8NRuntimeCompanionStartHTTPMock N8NRuntimeCommandID = "companion-start-http-mock"
 	N8NRuntimeCompanionStopHTTPMock  N8NRuntimeCommandID = "companion-stop-http-mock"
+	N8NRuntimeCompanionRouteHits     N8NRuntimeCommandID = "companion-route-hits"
+	N8NRuntimeVirtualAPIStart        N8NRuntimeCommandID = "virtual-api-start"
+	N8NRuntimeVirtualAPIStop         N8NRuntimeCommandID = "virtual-api-stop"
+	N8NRuntimeVirtualAPIHits         N8NRuntimeCommandID = "virtual-api-hits"
 	N8NRuntimeStop                   N8NRuntimeCommandID = "stop"
 	N8NRuntimeImportWorkflow         N8NRuntimeCommandID = "import-workflow"
 	N8NRuntimeExecuteWorkflow        N8NRuntimeCommandID = "execute-workflow"
@@ -212,6 +217,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandAcceleration), Summary: "Inspect accelerator declaration, readiness and placement", Handler: CommandAcceleration},
 		{Name: string(CommandSource), Summary: "Select an explicit managed-service source", Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "resource", Required: true}, {Name: "managed|host", Required: true}}}, Handler: CommandSource},
 		{Name: string(CommandN8N), Summary: "Manage task-scoped n8n rehearsal runtimes", Handler: CommandN8N},
+		{Name: string(CommandWordPress), Summary: "Manage isolated WordPress sites and recipes", Handler: CommandWordPress},
 	}
 }
 
@@ -226,6 +232,10 @@ func N8NRuntimeCommandSpecs() []commandtree.Spec[N8NRuntimeCommandID] {
 		{Name: string(N8NRuntimeCompanionStop), Summary: "Stop and remove only the owned synthetic Postgres companion", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued companion runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionStop},
 		{Name: string(N8NRuntimeCompanionStartHTTPMock), Summary: "Start exact synthetic HTTP fixtures on the private task network", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--config-stdin", Description: "Read the bounded HTTP mock config from stdin"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionStartHTTPMock},
 		{Name: string(N8NRuntimeCompanionStopHTTPMock), Summary: "Stop only the owned synthetic HTTP mock companion", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued HTTP mock runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionStopHTTPMock},
+		{Name: string(N8NRuntimeCompanionRouteHits), Summary: "Read exact route-hit counts from the owned synthetic HTTP mock", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued HTTP mock runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionRouteHits},
+		{Name: string(N8NRuntimeVirtualAPIStart), Summary: "Start exact HTTPS API fixtures for one Sandbox task", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--contract-stdin", Description: "Read the bounded virtual API contract from stdin"}, commandtree.JSONOption()}}, Handler: N8NRuntimeVirtualAPIStart},
+		{Name: string(N8NRuntimeVirtualAPIStop), Summary: "Stop and remove the owned task virtual API companion", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued companion runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeVirtualAPIStop},
+		{Name: string(N8NRuntimeVirtualAPIHits), Summary: "Read content-free route counters from the owned virtual API", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued companion runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeVirtualAPIHits},
 		{Name: string(N8NRuntimeStop), Summary: "Stop and clean up one task-scoped n8n runtime", Args: taskRuntimeArgs(false), Handler: N8NRuntimeStop},
 		{Name: string(N8NRuntimeImportWorkflow), Summary: "Import one sanitized synthetic workflow from bounded stdin", Args: workflowRuntimeArgs(true), Handler: N8NRuntimeImportWorkflow},
 		{Name: string(N8NRuntimeExecuteWorkflow), Summary: "Execute the owner-derived synthetic workflow for an operation ID", Args: workflowRuntimeArgs(false), Handler: N8NRuntimeExecuteWorkflow},

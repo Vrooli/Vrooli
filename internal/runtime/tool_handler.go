@@ -420,7 +420,7 @@ func (h toolHandler) recordFetchedArtifacts(binDir, command string, dirLayout bo
 	}
 	entries := []cliinstall.InstallEntry{{
 		Scope: cliinstall.ScopeRuntime, Kind: cliinstall.EntryBinary,
-		Path: filepath.Join(binDir, command), Prefix: binDir,
+		Path: localFetchCommandPath(binDir, command), Prefix: binDir,
 	}}
 	if dirLayout {
 		optDir, err := userLocalOptDir(h.manifest.Name)
@@ -483,8 +483,9 @@ func (h toolHandler) applyFetch(host hostreqkit.Host, status hostreqkit.ItemStat
 		return latest, nil
 	}
 
+	assetName := fetchedAssetName(binName, target.IsDir(), isWindowsPlatform())
 	spec := binaryfetch.Target{
-		Name:    binName,
+		Name:    assetName,
 		URL:     target.URL,
 		SHA256:  target.SHA256,
 		Archive: target.Archive,
@@ -707,11 +708,33 @@ func resolveFetchCommand(candidates []string) (string, bool) {
 }
 
 func localFetchCommandPath(binDir, command string) string {
+	return localFetchCommandPathForOS(binDir, command, currentPlatformOS())
+}
+
+func localFetchCommandPathForOS(binDir, command, goos string) string {
 	path := filepath.Join(binDir, command)
-	if hostreqspec.PlatformFromGOOS(currentPlatformOS()) == hostreqspec.PlatformWindows {
+	if hostreqspec.PlatformFromGOOS(goos) == hostreqspec.PlatformWindows {
+		if strings.HasSuffix(strings.ToLower(command), ".exe") {
+			return path
+		}
+		exePath := path + ".exe"
+		if info, err := os.Stat(exePath); err == nil && !info.IsDir() {
+			return exePath
+		}
 		return path + ".bat"
 	}
 	return path
+}
+
+func isWindowsPlatform() bool {
+	return hostreqspec.PlatformFromGOOS(currentPlatformOS()) == hostreqspec.PlatformWindows
+}
+
+func fetchedAssetName(command string, dirLayout, windows bool) string {
+	if windows && !dirLayout && !strings.HasSuffix(strings.ToLower(command), ".exe") {
+		return command + ".exe"
+	}
+	return command
 }
 
 // versionSatisfied enforces the optional exact release pin in a generic tool

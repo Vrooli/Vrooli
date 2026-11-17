@@ -106,6 +106,9 @@ type RecoveryLaunchRequest struct {
 }
 
 type Config struct {
+	// RootDir is the source repository root used by capacity maintenance to
+	// discover resource-declared claim specs during recurring resident scans.
+	RootDir              string
 	HomeDir              string
 	DBPath               string
 	SupervisorID         string
@@ -351,6 +354,15 @@ func (s *Service) Tick(ctx context.Context) (TickReport, error) {
 		}
 		demandFailures = len(demandReport.Failed)
 		s.logf("demand lease reconciliation stopped=%d failed=%d", demandStopped, demandFailures)
+	}
+	// Capacity residency also needs an always-on owner. Keeping this beside
+	// demand reconciliation makes declared idle-unload TTLs effective without
+	// waiting for an unrelated cleanup/start operation. Failures are isolated
+	// from the supervisor heartbeat just like demand-reconciliation failures.
+	if capacityReport, capacityErr := (maintenance.NewController(s.cfg.RootDir, s.cfg.HomeDir)).ReconcileCapacity(ctx); capacityErr != nil {
+		s.logf("capacity residency reconciliation degraded this tick: %v", capacityErr)
+	} else if len(capacityReport.Stopped) > 0 || len(capacityReport.Failed) > 0 {
+		s.logf("capacity residency stopped=%d failed=%d", len(capacityReport.Stopped), len(capacityReport.Failed))
 	}
 	// Editor-session expiry uses the same deadline-plus-proof-of-death rule as
 	// operator cleanup. This retires only bookkeeping for owners proven gone;

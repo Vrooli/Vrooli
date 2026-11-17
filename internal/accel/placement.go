@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
+	"github.com/vrooli/vrooli/internal/process"
 )
 
 const (
@@ -217,6 +221,13 @@ type Verifier struct {
 	Sleep func(ctx context.Context, d time.Duration) error
 	// Now stamps the observation independently from any owner transition time.
 	Now func() time.Time
+	// ProcessMaps reads one exact process's mapped libraries and devices. It is
+	// used only as corroboration for Vulkan, whose device use is not represented
+	// by CUDA compute accounting. Nil reads the bounded host proc maps file.
+	ProcessMaps func(pid int) (string, error)
+	// ProcessIdentity pins a process around the maps read so PID reuse cannot
+	// turn stale evidence into a placement result. Nil uses the host incarnation.
+	ProcessIdentity func(pid int) (string, error)
 }
 
 func (v Verifier) now() time.Time {
@@ -392,7 +403,7 @@ func (v Verifier) observeHostProcess(ctx context.Context, process HostProcess, d
 	case BackendMetal:
 		return observeMetalProcess(snapshot, process)
 	case BackendVulkan:
-		return observeVulkanProcess(snapshot, process)
+		return v.observeVulkanProcess(snapshot, process)
 	}
 	return "", AccessUnknown, fmt.Sprintf("backend %s has no host-process evidence source", declared), nil
 }
@@ -450,14 +461,75 @@ func observeROCmProcess(snapshot hostinventory.Snapshot, process HostProcess) (B
 // observeVulkanProcess reports what can be read without a Vulkan loader call.
 // Presence of an ICD manifest says a driver could serve Vulkan; it does not say
 // this process opened it, so the honest answer is unknown.
-func observeVulkanProcess(snapshot hostinventory.Snapshot, process HostProcess) (Backend, AccessState, string, error) {
+func (v Verifier) observeVulkanProcess(snapshot hostinventory.Snapshot, process HostProcess) (Backend, AccessState, string, error) {
 	if len(snapshot.VulkanICDs) == 0 {
 		return BackendCPU, AccessUnknown, "the host has no Vulkan installable client driver manifest", nil
+	}
+	if status := snapshot.ProbeStatuses["nvidia_gpu_processes"]; status != "ok" {
+		return "", AccessUnknown, fmt.Sprintf("NVIDIA process attribution is %s; Vulkan placement for pid %d is unknown", statusOrUnavailable(status), process.PID), nil
+	}
+	row, ok := matchComputeProcess(snapshot, process)
+	if ok {
+		maps, mapErr := v.readVulkanProcessMaps(row.PID)
+		if mapErr != nil {
+			return "", AccessUnknown, fmt.Sprintf("NVIDIA attributes %s to the resource, but Vulkan process mappings are unavailable: %v", describeComputeRow(row), mapErr), nil
+		}
+		if hasVulkanDeviceMappings(maps) {
+			return BackendVulkan, AccessOK, fmt.Sprintf("NVIDIA attributes %s to the resource and its exact process maps libggml-vulkan plus an NVIDIA device", describeComputeRow(row)), nil
+		}
+		return "", AccessUnknown, fmt.Sprintf("NVIDIA attributes %s to the resource, but its process maps do not prove Vulkan device use", describeComputeRow(row)), nil
 	}
 	if len(snapshot.GPUProcesses) == 0 {
 		return "", AccessUnknown, noWorkloadReason(process), nil
 	}
-	return "", AccessUnknown, fmt.Sprintf("the host has %d Vulkan ICD manifests, but per-process Vulkan attribution is not readable from the host", len(snapshot.VulkanICDs)), nil
+	return "", AccessUnknown, fmt.Sprintf("the host has %d Vulkan ICD manifests, but no NVIDIA process row matches the supervised resource", len(snapshot.VulkanICDs)), nil
+}
+
+func (v Verifier) readVulkanProcessMaps(pid int) (string, error) {
+	identity := func(pid int) (string, error) { return process.Incarnation(pid) }
+	if v.ProcessIdentity != nil {
+		identity = v.ProcessIdentity
+	}
+	before, err := identity(pid)
+	if err != nil {
+		return "", fmt.Errorf("read process incarnation before maps: %w", err)
+	}
+	if before == "" {
+		return "", errors.New("process incarnation before maps is empty")
+	}
+	readMaps := func(pid int) (string, error) {
+		f, err := os.Open("/proc/" + strconv.Itoa(pid) + "/maps")
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		data, err := io.ReadAll(io.LimitReader(f, 4<<20))
+		return string(data), err
+	}
+	if v.ProcessMaps != nil {
+		readMaps = v.ProcessMaps
+	}
+	maps, err := readMaps(pid)
+	if err != nil {
+		return "", err
+	}
+	after, err := identity(pid)
+	if err != nil || after != before {
+		return "", errors.New("process incarnation changed while reading maps")
+	}
+	return maps, nil
+}
+
+func hasVulkanDeviceMappings(maps string) bool {
+	text := strings.ToLower(maps)
+	return strings.Contains(text, "libggml-vulkan") && (strings.Contains(text, "/dev/nvidia") || strings.Contains(text, "nvidiactl"))
+}
+
+func statusOrUnavailable(status string) string {
+	if strings.TrimSpace(status) == "" {
+		return "unavailable"
+	}
+	return status
 }
 
 func noWorkloadReason(process HostProcess) string {

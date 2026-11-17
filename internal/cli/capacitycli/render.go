@@ -73,9 +73,40 @@ func RenderList(w io.Writer, format cliout.Format, resp capacityapp.ListOutput) 
 	})
 }
 
+func RenderPlacementTable(w io.Writer, format cliout.Format, resp capacityapp.PlacementTableOutput) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		_, _ = fmt.Fprintf(w, "placement evidence observed at %s\n", resp.ObservedAt)
+		rows := make([][]string, 0, len(resp.Rows))
+		for _, row := range resp.Rows {
+			current := "unknown"
+			if row.CurrentClaimRung {
+				current = "current"
+			}
+			rows = append(rows, []string{
+				row.Role, row.Model.Name, row.Model.Digest, row.Rung, row.Device,
+				fmt.Sprintf("p95=%.1fms", row.P95LatencyMS), "measured-vram=" + humanBytes(row.MeasuredVRAMBytes),
+				"claim=" + humanBytes(row.CurrentClaimAmountBytes), "claim-rung=" + current,
+				row.EvidenceStatus, row.Suite, row.RunID,
+			})
+		}
+		return cliout.WriteSection(w, cliout.Section{Empty: cliout.EmptyLabel("placement qualifications"), Rows: rows})
+	})
+}
+
 // RenderReconcile renders reconciliation findings.
 func RenderReconcile(w io.Writer, format cliout.Format, resp capacityapp.ReconcileOutput) error {
 	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, resp) }, func(w io.Writer) error {
+		inventory := resp.Inventory
+		_, _ = fmt.Fprintf(w, "process inventory: status=%s complete=%t owners=%t device_accounting=%t observed=%s\n", inventory.Status, inventory.Complete, inventory.OwnerAttributionComplete, inventory.DeviceAccountingComplete, inventory.ObservedAt)
+		for _, device := range inventory.Devices {
+			_, _ = fmt.Fprintf(w, "  gpu %d: used=%s process_total=%s residual=%s processes=%d\n", device.GPUIndex, humanBytes(int64(device.DeviceUsedBytes)), humanBytes(int64(device.ObservedProcessBytes)), humanSignedBytes(device.UnattributedDeviceBytes), device.ProcessCount)
+		}
+		for _, process := range inventory.Processes {
+			_, _ = fmt.Fprintf(w, "  gpu %d pid=%d owner=%s/%s via=%s memory=%s process=%s\n", process.GPUIndex, process.PID, process.OwnerKind, process.OwnerID, process.Attribution, humanBytes(int64(process.UsedBytes)), process.ProcessName)
+		}
+		for _, warning := range inventory.Warnings {
+			_, _ = fmt.Fprintf(w, "  ⚠ inventory: %s\n", warning)
+		}
 		rows := make([][]string, 0, len(resp.Findings))
 		for _, f := range resp.Findings {
 			marker := " "
@@ -97,6 +128,13 @@ func RenderReconcile(w io.Writer, format cliout.Format, resp capacityapp.Reconci
 		}
 		return cliout.WriteSection(w, cliout.Section{Empty: "no GPU consumers above tracking threshold", Rows: rows})
 	})
+}
+
+func humanSignedBytes(value int64) string {
+	if value < 0 {
+		return "-" + humanBytes(-value)
+	}
+	return humanBytes(value)
 }
 
 // RenderSweep renders the presence-driven sweep result.

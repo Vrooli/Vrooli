@@ -26,4 +26,7 @@ func TestRegistryReportsProviderBudgetOverrunAsWarning(t *testing.T) {
 	if report.Findings[0].Code != "hygiene_provider_budget" {
 		t.Fatalf("finding = %#v", report.Findings[0])
 	}
+	if len(report.Checks) != 1 || report.Checks[0].Passed || report.Checks[0].Severity != SeverityWarning {
+		t.Fatalf("budget check = %#v, want an explicitly failed warning check", report.Checks)
+	}
 }

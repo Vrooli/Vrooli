@@ -1,8 +1,10 @@
 package lifecycle
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -166,22 +168,32 @@ func TestDependencyRestartReason(t *testing.T) {
 	}
 }
 
-// binariesFreshness keeps the focused fingerprint tests at the artifact seam;
-// production setup authority comes exclusively from components[].build.
+// binariesFreshness exercises the same component contract used to stamp and
+// evaluate production artifacts. The legacy check only selects target names.
 func (r *Runner) binariesFreshness(item scenario.Scenario, check scenario.ConditionCheck) (bool, string, error) {
 	deps := defaultHostProbeDeps()
-	artifacts, err := binariesFreshnessArtifacts(item.Path, r.Root, check, deps)
-	if err != nil {
-		return false, "", err
-	}
-	for _, artifact := range artifacts {
-		verdict, err := r.evaluateArtifactFreshness(artifact, deps)
+	matched := 0
+	for _, component := range item.Manifest.Components {
+		artifacts, err := componentFreshnessArtifacts(item.Path, r.Root, component, deps)
 		if err != nil {
 			return false, "", err
 		}
-		if verdict.Stale {
-			return true, verdict.HumanReason, nil
+		for _, artifact := range artifacts {
+			if !slices.Contains(check.Targets, artifact.Target) {
+				continue
+			}
+			matched++
+			verdict, err := r.evaluateArtifactFreshness(artifact, deps)
+			if err != nil {
+				return false, "", err
+			}
+			if verdict.Stale {
+				return true, verdict.HumanReason, nil
+			}
 		}
+	}
+	if matched != len(check.Targets) {
+		return false, "", fmt.Errorf("matched %d of %d freshness targets", matched, len(check.Targets))
 	}
 	return false, "", nil
 }

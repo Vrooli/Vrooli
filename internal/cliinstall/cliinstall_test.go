@@ -18,6 +18,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/artifactlease"
 	"github.com/vrooli/vrooli/internal/artifactledger"
+	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -27,6 +28,69 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
+
+func TestAtomicInstallRefusesConcurrentRebaseline(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("SUDO_USER", "")
+	bin := filepath.Join(home, ".vrooli", "bin")
+	if err := os.MkdirAll(bin, 0700); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(bin, "vrooli")
+	source := filepath.Join(t.TempDir(), "candidate")
+	if err := os.WriteFile(destination, []byte("prior"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(source, []byte("candidate"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	lock := filepath.Join(home, ".vrooli", "state", "root-rebaseline", "transition.lock")
+	release, err := artifactlock.AcquireWithPathContext(context.Background(), "root-rebaseline:"+home, func(string) (string, error) { return lock, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	err = AtomicInstall(source, destination)
+	if err == nil || !strings.Contains(err.Error(), "rebaseline transition") {
+		t.Fatalf("ordinary install was not blocked by transition: %v", err)
+	}
+	if data, err := os.ReadFile(destination); err != nil || string(data) != "prior" {
+		t.Fatalf("serving image changed: %q %v", data, err)
+	}
+}
+
+func TestRebaselineLockedInstallDoesNotReacquireBinaryLock(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "vrooli")
+	if err := os.WriteFile(dst, []byte("fixture"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	release, err := buildinfo.AcquireBinaryInstallLock(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- AtomicInstallRebaselineLocked(dst, dst, strings.Repeat("0", 64)) }()
+	select {
+	case <-done:
+		release()
+	case <-time.After(2 * time.Second):
+		release()
+		<-done
+		t.Fatal("rebaseline install tried to reacquire its owner's lock")
+	}
+}
+
+func TestRebaselineLockedDirectInstallDoesNotRequireMetricsAttempt(t *testing.T) {
+	dst := filepath.Join(t.TempDir(), "helper")
+	if err := os.WriteFile(dst, []byte("fixture"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := AtomicInstallRebaselineLocked(dst, dst, strings.Repeat("0", 64)); err != nil {
+		t.Fatalf("direct rebaseline install with metrics disabled: %v", err)
+	}
+}
 
 // mustManager constructs a Manager and fails the test on error. NewManager now
 // resolves the install dir from the runtime_home contract, which can error.

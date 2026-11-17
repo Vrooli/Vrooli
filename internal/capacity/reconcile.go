@@ -120,15 +120,39 @@ func observeClaimUsage(ctx context.Context, claims []CapacityClaim, snapshot hos
 		}
 		if len(ids) == 0 {
 			reason = "process ownership is unknown"
-			for _, c := range claims {
-				if claimRefreshable(c) && sameGPU(c.GPUIndex, &proc.GPUIndex) {
-					result.uncertain[c.ClaimID] = reason
+			if processIdentityCouldHideOwner(proc) {
+				for _, c := range claims {
+					if claimRefreshable(c) && sameGPU(c.GPUIndex, &proc.GPUIndex) {
+						result.uncertain[c.ClaimID] = reason
+					}
 				}
 			}
 		}
 		result.unbound = append(result.unbound, unboundProcess{proc: proc, attr: a, reason: reason})
 	}
 	return result
+}
+
+// processIdentityCouldHideOwner identifies unattributed executables whose
+// name is too generic to exclude them from any resource claim. Named desktop,
+// shell, and agent processes remain unclaimed findings, but they do not make
+// a separate resource's exact process footprint unknowable.
+func processIdentityCouldHideOwner(proc hostinventory.GPUProcess) bool {
+	name := strings.ToLower(strings.TrimSpace(proc.ProcessName))
+	if name == "" {
+		return true
+	}
+	if space := strings.IndexAny(name, " \t"); space >= 0 {
+		name = name[:space]
+	}
+	name = strings.TrimSuffix(name, ".exe")
+	switch name {
+	case "python", "python3", "python3.10", "python3.11", "python3.12", "python3.13",
+		"node", "nodejs", "java", "javaw", "dotnet", "ruby", "perl", "php", "bash", "sh":
+		return true
+	default:
+		return false
+	}
 }
 
 // ClaimResidencySample is a fresh process-attributed GPU observation for one
@@ -149,8 +173,8 @@ func MeasureClaimResidency(ctx context.Context, cohort []CapacityClaim, target C
 	if target.ClaimID == "" || target.OwnerKind != OwnerKindResource || target.ResourceKind != ResourceKindVRAM || target.Generation <= 0 {
 		return ClaimResidencySample{}, fmt.Errorf("residency sampling requires an exact resource VRAM claim")
 	}
-	if !gpuProcessAbsenceVerified(snapshot, target, now) {
-		return ClaimResidencySample{}, fmt.Errorf("GPU process inventory is incomplete, stale, or predates the claim boundary")
+	if problem := gpuProcessAbsenceProblem(snapshot, target, now); problem != "" {
+		return ClaimResidencySample{}, fmt.Errorf("GPU process inventory cannot verify claim absence: %s", problem)
 	}
 	count := 0
 	for _, claim := range cohort {

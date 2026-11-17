@@ -13,7 +13,12 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 )
 
-const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+const (
+	buildIdentityEnv                = "VROOLI_BUILD_IDENTITY"
+	runtimeReleaseIDEnv             = "VROOLI_RUNTIME_RELEASE_ID"
+	runtimeReleaseOperationIDEnv    = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
+	startOperationIDEnv             = "VROOLI_START_OPERATION_ID"
+)
 
 var buildIdentityIgnoredDirectories = map[string]struct{}{
 	".git": {}, ".vrooli": {}, ".cache": {}, "data": {},
@@ -263,7 +268,7 @@ func scenarioGeneratedOutputs(item scenario.Scenario) (generatedOutputSet, error
 		if !ok || spec.Reserved {
 			continue
 		}
-		targets, err := componentBuildTargets(name, scenarioRoot, scenarioName, component, spec, "")
+		targets, err := componentBuildTargets(name, scenarioRoot, scenarioName, component, spec, "", item.Variant)
 		if err != nil {
 			return nil, fmt.Errorf("derive generated output for component %q: %w", name, err)
 		}

@@ -456,30 +456,57 @@ func (c Collector) collectNvidiaGPUProcesses(ctx context.Context, snap *Snapshot
 	snap.GPUProcesses = nil
 	delete(snap.FieldProvenance, "gpu_processes")
 	snap.ProbeStatuses["nvidia_gpu_processes"] = "failed"
-	out, err := c.Commands.Run(ctx, "nvidia-smi", "--query-compute-apps=pid,process_name,used_memory,gpu_uuid", "--format=csv,noheader,nounits")
+	args := []string{"pmon", "-s", "m", "-c", "1"}
+	if c.GOOS != "linux" {
+		// NVIDIA's process monitor covers compute and graphics processes on
+		// supported Linux GPUs. Keep a best-effort compute-only view elsewhere,
+		// but never label it complete because graphics consumers are omitted.
+		args = []string{"--query-compute-apps=pid,process_name,used_memory,gpu_uuid", "--format=csv,noheader,nounits"}
+	}
+	out, err := c.Commands.Run(ctx, "nvidia-smi", args...)
 	if err != nil && strings.Contains(string(out), "No running processes found") {
-		out, err = nil, nil
+		if c.GOOS == "linux" {
+			out = []byte("# gpu pid type fb ccpm command\nNo running processes found\n")
+		} else {
+			out = nil
+		}
+		err = nil
 	}
 	if err != nil {
-		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi query compute apps: %v", err))
+		snap.Warnings = append(snap.Warnings, fmt.Sprintf("nvidia-smi GPU process inventory: %v", err))
 		snap.ProbeStatuses["nvidia_gpu_processes"] = scenarioruntime.StatusFailed
 		return
 	}
-	processes, warnings, err := ParseNvidiaComputeAppsCSV(string(out))
+	processObservedAt := observedAt
+	if c.Clock != nil {
+		// The process query can finish long after collection began. Residency
+		// transitions compare this witness with claim heartbeats, so timestamp
+		// the process snapshot when its probe completed instead of reusing the
+		// host inventory's earlier start time.
+		processObservedAt = c.Clock.Now()
+	}
+	var processes []GPUProcess
+	var warnings []string
+	if c.GOOS == "linux" {
+		processes, warnings, err = ParseNvidiaPmonMemory(string(out))
+	} else {
+		processes, warnings, err = ParseNvidiaComputeAppsCSV(string(out))
+		warnings = append(warnings, "compute-only process inventory omits graphics consumers")
+	}
 	if err != nil {
 		snap.Warnings = append(snap.Warnings, err.Error())
 		snap.ProbeStatuses["nvidia_gpu_processes"] = scenarioruntime.StatusFailed
 		return
 	}
-	indexByUUID := map[string]int{}
-	for _, gpu := range snap.GPUs {
-		if gpu.UUID != "" {
-			indexByUUID[gpu.UUID] = gpu.Index
+	if c.GOOS == "linux" {
+		knownGPU := map[int]bool{}
+		for _, gpu := range snap.GPUs {
+			knownGPU[gpu.Index] = true
 		}
-	}
-	for i := range processes {
-		if index, ok := indexByUUID[processes[i].GPUUUID]; ok {
-			processes[i].GPUIndex = index
+		for _, process := range processes {
+			if !knownGPU[process.GPUIndex] {
+				warnings = append(warnings, fmt.Sprintf("pmon process pid %d references unknown gpu index %d", process.PID, process.GPUIndex))
+			}
 		}
 	}
 	snap.GPUProcesses = append(snap.GPUProcesses, processes...)
@@ -491,9 +518,9 @@ func (c Collector) collectNvidiaGPUProcesses(ctx context.Context, snap *Snapshot
 	snap.FieldProvenance["gpu_processes"] = Provenance{
 		SourceKind: SourceKindCommand,
 		Source:     "nvidia-smi",
-		ObservedAt: observedAt,
-		Confidence: "medium",
-		Command:    "nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits",
+		ObservedAt: processObservedAt,
+		Confidence: "high",
+		Command:    "nvidia-smi " + strings.Join(args, " "),
 	}
 }
 

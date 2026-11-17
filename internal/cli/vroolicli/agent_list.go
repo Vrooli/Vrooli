@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/agentscope"
 	"github.com/vrooli/vrooli/internal/agentsession"
 	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
@@ -21,35 +22,39 @@ import (
 
 // AgentSessionRow is one live session as `vrooli agent list` shows it.
 type AgentSessionRow struct {
-	Session   string   `json:"session"`
-	Harness   string   `json:"harness"`
-	Agent     string   `json:"agent"`
-	Tree      string   `json:"tree"`
-	Scope     string   `json:"scope"`
-	PID       int      `json:"pid"`
-	Age       string   `json:"age"`
-	Claims    []string `json:"claims,omitempty"`
-	Frozen    string   `json:"frozen"`
-	Heartbeat string   `json:"last_heartbeat"`
+	Session     string   `json:"session"`
+	LeaseStatus string   `json:"lease_status,omitempty"`
+	BindingID   string   `json:"binding_id,omitempty"`
+	Harness     string   `json:"harness"`
+	Agent       string   `json:"agent"`
+	Tree        string   `json:"tree"`
+	Scope       string   `json:"scope"`
+	PID         int      `json:"pid"`
+	Age         string   `json:"age"`
+	Claims      []string `json:"claims,omitempty"`
+	Frozen      string   `json:"frozen"`
+	Heartbeat   string   `json:"last_heartbeat"`
 	// State is derived: live, idle or orphaned on top of what the kernel
 	// agreed to (ghost, agentless, unrecorded, undetermined).
 	State string `json:"state"`
 	// KernelState is the kernel's answer before owner and activity.
 	KernelState string `json:"kernel_state"`
+	ScopeHeld   bool   `json:"scope_held"`
 	// Owner is what the session belongs to and whether it is still there.
 	Owner AgentOwnerView `json:"owner"`
 	// LastActivity is the newest heartbeat or terminal input/output seen.
 	LastActivity string `json:"last_activity,omitempty"`
 	// Tasks is what a scope holds when no lease names it.
 	Tasks int64 `json:"tasks,omitempty"`
-	// MemoryBytes and SwapBytes are the sums of the session's processes'
-	// VmRSS and VmSwap, measured by the same code the reap plan uses. They
-	// are null, never 0, when MemoryStatus/SwapStatus is not measured or
-	// partial (unsupported, unavailable); UsageDetail says why.
+	// MemoryBytes and SwapBytes prefer exact cgroup v2 charged-byte readings,
+	// then fall back to per-process VmRSS/VmSwap sums. Source distinguishes
+	// exact cgroup totals from process sums that can double-count shared pages.
 	MemoryBytes  *int64 `json:"memory_bytes"`
 	MemoryStatus string `json:"memory_status"`
+	MemorySource string `json:"memory_source,omitempty"`
 	SwapBytes    *int64 `json:"swap_bytes"`
 	SwapStatus   string `json:"swap_status"`
+	SwapSource   string `json:"swap_source,omitempty"`
 	UsageDetail  string `json:"usage_detail,omitempty"`
 	// Reapable and ReapReason are the reap policy's verdict on this row
 	// (agentsession.ReapDecision with the default --older-than), so an
@@ -58,19 +63,30 @@ type AgentSessionRow struct {
 	ReapReason string `json:"reap_reason"`
 }
 
-// AgentListSummary totals the list. A figure is summed only over rows whose
-// figure is known; *_unknown counts the rows left out, so a total is never a
-// silent undercount.
+// AgentListSummary separates complete readings, partial process sums, and
+// unavailable rows so the scalar complete totals never hide a partial read.
 type AgentListSummary struct {
-	ByOwnerKind         map[string]map[string]int `json:"by_owner_kind"`
-	Sessions            int                       `json:"sessions"`
-	MemoryBytes         int64                     `json:"memory_bytes"`
-	MemoryUnknown       int                       `json:"memory_unknown"`
-	SwapBytes           int64                     `json:"swap_bytes"`
-	SwapUnknown         int                       `json:"swap_unknown"`
-	Reapable            int                       `json:"reapable"`
-	ReapableMemoryBytes int64                     `json:"reapable_memory_bytes"`
-	ReapableSwapBytes   int64                     `json:"reapable_swap_bytes"`
+	ByOwnerKind map[string]map[string]int `json:"by_owner_kind"`
+	Sessions    int                       `json:"sessions"`
+	// Complete scalar totals mix source bases; use by-source maps to
+	// distinguish cgroup charged RAM from per-process sums when both exist.
+	MemoryBytes                int64            `json:"memory_bytes"`
+	MemoryBytesBySource        map[string]int64 `json:"memory_bytes_by_source"`
+	MemoryPartial              int              `json:"memory_partial"`
+	MemoryPartialBytes         int64            `json:"memory_partial_bytes"`
+	MemoryPartialBySource      map[string]int64 `json:"memory_partial_bytes_by_source"`
+	MemoryUnknown              int              `json:"memory_unknown"`
+	SwapBytes                  int64            `json:"swap_bytes"`
+	SwapBytesBySource          map[string]int64 `json:"swap_bytes_by_source"`
+	SwapPartial                int              `json:"swap_partial"`
+	SwapPartialBytes           int64            `json:"swap_partial_bytes"`
+	SwapPartialBySource        map[string]int64 `json:"swap_partial_bytes_by_source"`
+	SwapUnknown                int              `json:"swap_unknown"`
+	Reapable                   int              `json:"reapable"`
+	ReapableMemoryBytes        int64            `json:"reapable_memory_bytes"`
+	ReapableMemoryPartialBytes int64            `json:"reapable_memory_partial_bytes"`
+	ReapableSwapBytes          int64            `json:"reapable_swap_bytes"`
+	ReapableSwapPartialBytes   int64            `json:"reapable_swap_partial_bytes"`
 }
 
 // AgentOwnerView is the owner block of a row.
@@ -99,6 +115,7 @@ func (app *App) runAgentList(ctx *AppContext, args []string) error {
 	fs.SetOutput(ctx.Stderr)
 	jsonOut := fs.Bool("json", false, "emit JSON")
 	idleAfter := fs.Duration("idle-after", tuning.AgentSessionIdleAfter(), "report a live session idle after this long with no heartbeat or terminal activity")
+	sessionID := fs.String("session-id", "", "inspect one exact lease, including expired records, without mutation")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -112,12 +129,67 @@ func (app *App) runAgentList(ctx *AppContext, args []string) error {
 	if err != nil {
 		return err
 	}
-	lister := func() ([]scenarioruntime.EditorLease, error) {
-		return maintenance.NewController(ctx.Root, home).ListAgentSessions()
+	var lister agentSessionLister
+	var reconciler agentsession.Reconciler
+	var closeStore func()
+	if strings.TrimSpace(*sessionID) != "" {
+		leases, err := exactAgentSession(home, *sessionID)
+		if err != nil {
+			return err
+		}
+		lister = func() ([]scenarioruntime.EditorLease, error) { return leases, nil }
+		// Exact historical inspection must remain read-only: no owner backfill
+		// is performed while resolving an expired or legacy lease.
+		reconciler = agentsession.LiveReconciler(home, nil, *idleAfter)
+		if len(leases) == 1 {
+			scopeUnit := (agentsession.Session{Scope: leases[0].Scope}).ScopeUnit()
+			reconciler.Census = exactAgentScopeCensus(scopeUnit)
+		}
+		closeStore = func() {}
+	} else {
+		lister = func() ([]scenarioruntime.EditorLease, error) {
+			return maintenance.NewController(ctx.Root, home).ListAgentSessions()
+		}
+		reconciler, closeStore = liveAgentReconciler(home, *idleAfter)
 	}
-	reconciler, closeStore := liveAgentReconciler(home, *idleAfter)
 	defer closeStore()
-	return renderAgentList(context.Background(), ctx.Stdout, lister, reconciler, *jsonOut || ctx.Globals.JSON)
+	return renderAgentListFiltered(context.Background(), ctx.Stdout, lister, reconciler, *jsonOut || ctx.Globals.JSON, *sessionID)
+}
+
+func exactAgentSession(home, sessionID string) ([]scenarioruntime.EditorLease, error) {
+	store, err := scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{HomeDir: home, ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("open runtime registry read-only: %w", err)
+	}
+	defer store.Close()
+	lease, err := store.GetEditorLease(context.Background(), sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("read exact agent session %s: %w", sessionID, err)
+	}
+	return []scenarioruntime.EditorLease{lease}, nil
+}
+
+func exactAgentScopeCensus(scopeUnit string) func() ([]agentscope.Entry, error) {
+	return func() ([]agentscope.Entry, error) {
+		if scopeUnit == "" {
+			return nil, nil
+		}
+		entries, err := agentsession.LiveCensus()
+		if err != nil {
+			return nil, err
+		}
+		return filterAgentScopeCensus(entries, scopeUnit), nil
+	}
+}
+
+func filterAgentScopeCensus(entries []agentscope.Entry, scopeUnit string) []agentscope.Entry {
+	filtered := make([]agentscope.Entry, 0, 1)
+	for _, entry := range entries {
+		if entry.Name == scopeUnit {
+			filtered = append(filtered, entry)
+		}
+	}
+	return filtered
 }
 
 // liveAgentReconciler binds the reconciliation to this host: the kernel
@@ -149,6 +221,10 @@ func liveAgentReconciler(home string, idleAfter time.Duration) (agentsession.Rec
 // owner is still there, and a scope the kernel holds that no lease names is
 // shown rather than hidden.
 func renderAgentList(ctx context.Context, w io.Writer, lister agentSessionLister, reconciler agentsession.Reconciler, asJSON bool) error {
+	return renderAgentListFiltered(ctx, w, lister, reconciler, asJSON, "")
+}
+
+func renderAgentListFiltered(ctx context.Context, w io.Writer, lister agentSessionLister, reconciler agentsession.Reconciler, asJSON bool, onlySessionID string) error {
 	if w == nil {
 		w = io.Discard
 	}
@@ -157,12 +233,25 @@ func renderAgentList(ctx context.Context, w io.Writer, lister agentSessionLister
 		return fmt.Errorf("list agent sessions: %w", err)
 	}
 	sessions := reconciler.Sessions(ctx, leases)
+	if onlySessionID != "" {
+		filtered := sessions[:0]
+		for _, session := range sessions {
+			if session.SessionID == onlySessionID {
+				filtered = append(filtered, session)
+			}
+		}
+		sessions = filtered
+	}
 	now := time.Now().UTC()
 	if reconciler.Now != nil {
 		now = reconciler.Now().UTC()
 	}
 	rows := make([]AgentSessionRow, 0, len(sessions))
-	summary := AgentListSummary{ByOwnerKind: agentsession.CountByOwnerKind(sessions), Sessions: len(sessions)}
+	summary := AgentListSummary{
+		ByOwnerKind: agentsession.CountByOwnerKind(sessions), Sessions: len(sessions),
+		MemoryBytesBySource: map[string]int64{}, MemoryPartialBySource: map[string]int64{},
+		SwapBytesBySource: map[string]int64{}, SwapPartialBySource: map[string]int64{},
+	}
 	for _, session := range sessions {
 		row := agentSessionRow(session, now)
 		row.Reapable, row.ReapReason = agentsession.ReapDecision(session, agentsession.ReapPolicy{}, now)
@@ -182,29 +271,71 @@ func renderAgentList(ctx context.Context, w io.Writer, lister agentSessionLister
 		if row.Owner.Ref != "" {
 			owner += ":" + shortRef(row.Owner.Ref)
 		}
-		table = append(table, []string{row.Session, row.Agent, row.State, owner, row.Owner.Liveness, row.Tree, row.Scope, fmt.Sprint(row.PID), row.Age, strings.Join(row.Claims, ","), row.Frozen})
+		table = append(table, []string{row.Session, row.LeaseStatus, row.Agent, row.State, owner, row.Owner.Liveness, row.Tree, row.Scope, fmt.Sprint(row.PID), row.Age, usageText(row.MemoryBytes, row.MemoryStatus, row.MemorySource), usageText(row.SwapBytes, row.SwapStatus, row.SwapSource), strings.Join(row.Claims, ","), row.Frozen})
 	}
-	return cliout.RenderTable(w, []string{"Session", "Agent", "State", "Owner", "Owner State", "Tree", "Scope", "PID", "Age", "Claims", "Frozen"}, table)
+	return cliout.RenderTable(w, []string{"Session", "Lease", "Agent", "State", "Owner", "Owner State", "Tree", "Scope", "PID", "Age", "RAM (source)", "Swap (source)", "Claims", "Frozen"}, table)
+}
+
+func usageText(n *int64, status, source string) string {
+	value := optionalBytes(n, status)
+	if source == "" {
+		return value
+	}
+	return value + " (" + source + ")"
 }
 
 func (s *AgentListSummary) add(row AgentSessionRow) {
-	if row.MemoryBytes != nil {
-		s.MemoryBytes += *row.MemoryBytes
-	} else {
+	if row.MemoryBytes == nil || (row.MemoryStatus != agentsession.UsageMeasured && row.MemoryStatus != agentsession.UsagePartial) {
 		s.MemoryUnknown++
-	}
-	if row.SwapBytes != nil {
-		s.SwapBytes += *row.SwapBytes
+	} else if row.MemoryStatus == agentsession.UsagePartial {
+		s.MemoryPartial++
+		s.MemoryPartialBytes += *row.MemoryBytes
+		if row.MemorySource != "" {
+			if s.MemoryPartialBySource == nil {
+				s.MemoryPartialBySource = map[string]int64{}
+			}
+			s.MemoryPartialBySource[row.MemorySource] += *row.MemoryBytes
+		}
 	} else {
+		s.MemoryBytes += *row.MemoryBytes
+		if row.MemorySource != "" {
+			if s.MemoryBytesBySource == nil {
+				s.MemoryBytesBySource = map[string]int64{}
+			}
+			s.MemoryBytesBySource[row.MemorySource] += *row.MemoryBytes
+		}
+	}
+	if row.SwapBytes == nil || (row.SwapStatus != agentsession.UsageMeasured && row.SwapStatus != agentsession.UsagePartial) {
 		s.SwapUnknown++
+	} else if row.SwapStatus == agentsession.UsagePartial {
+		s.SwapPartial++
+		s.SwapPartialBytes += *row.SwapBytes
+		if row.SwapSource != "" {
+			if s.SwapPartialBySource == nil {
+				s.SwapPartialBySource = map[string]int64{}
+			}
+			s.SwapPartialBySource[row.SwapSource] += *row.SwapBytes
+		}
+	} else {
+		s.SwapBytes += *row.SwapBytes
+		if row.SwapSource != "" {
+			if s.SwapBytesBySource == nil {
+				s.SwapBytesBySource = map[string]int64{}
+			}
+			s.SwapBytesBySource[row.SwapSource] += *row.SwapBytes
+		}
 	}
 	if row.Reapable {
 		s.Reapable++
-		if row.MemoryBytes != nil {
+		if row.MemoryBytes != nil && row.MemoryStatus == agentsession.UsageMeasured {
 			s.ReapableMemoryBytes += *row.MemoryBytes
+		} else if row.MemoryBytes != nil && row.MemoryStatus == agentsession.UsagePartial {
+			s.ReapableMemoryPartialBytes += *row.MemoryBytes
 		}
-		if row.SwapBytes != nil {
+		if row.SwapBytes != nil && row.SwapStatus == agentsession.UsageMeasured {
 			s.ReapableSwapBytes += *row.SwapBytes
+		} else if row.SwapBytes != nil && row.SwapStatus == agentsession.UsagePartial {
+			s.ReapableSwapPartialBytes += *row.SwapBytes
 		}
 	}
 }
@@ -212,8 +343,11 @@ func (s *AgentListSummary) add(row AgentSessionRow) {
 func agentSessionRow(session agentsession.Session, now time.Time) AgentSessionRow {
 	row := AgentSessionRow{
 		MemoryBytes: session.Usage.MemoryBytes, MemoryStatus: session.Usage.MemoryStatus,
-		SwapBytes: session.Usage.SwapBytes, SwapStatus: session.Usage.SwapStatus, UsageDetail: session.Usage.Detail,
+		MemorySource: session.Usage.MemorySource,
+		SwapBytes:    session.Usage.SwapBytes, SwapStatus: session.Usage.SwapStatus,
+		SwapSource: session.Usage.SwapSource, UsageDetail: session.Usage.Detail,
 		Session: session.SessionID, Harness: session.Harness, Agent: session.Agent, Tree: session.Tree, Scope: session.Scope,
+		LeaseStatus: session.LeaseStatus, BindingID: session.BindingID, ScopeHeld: session.ScopeHeld,
 		PID: session.PID, Claims: session.Claims, Frozen: session.Frozen, State: session.State, KernelState: session.KernelState,
 		Tasks: session.Tasks,
 		Owner: AgentOwnerView{

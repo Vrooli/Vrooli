@@ -13,6 +13,7 @@ import (
 	deployment "github.com/vrooli/vrooli/packages/resource-deployment"
 
 	"github.com/vrooli/vrooli/internal/lightingruntime"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/setup"
 )
@@ -74,13 +75,13 @@ func (a LightingActions) Status(ctx context.Context) (*setupv1.LightingRuntimeSt
 			Source:  setupv1.InstallationSource_INSTALLATION_SOURCE_MANAGED,
 			Version: pinned.Version, Sha256: pinned.Sha256, DevicePolicyId: pinned.DevicePolicyId,
 		}
-		if source.Mode == "host" {
+		if source.Mode == operatorstate.ResourceSourceHost {
 			result.Selection.Source = setupv1.InstallationSource_INSTALLATION_SOURCE_EXISTING
 			result.Selection.Version, result.Selection.Sha256 = source.Version, source.SHA256
 		}
 	}
 	if prepared := status.Intent.Preparation; prepared != nil && found {
-		sourceMatches := prepared.Source == lightingruntime.PreparationManaged && source.Mode == "managed" && prepared.Selection.Version == pinned.Version && prepared.Selection.SHA256 == pinned.Sha256 || prepared.Source == lightingruntime.PreparationExisting && source.Mode == "host" && prepared.Selection.Version == source.Version && prepared.Selection.SHA256 == source.SHA256
+		sourceMatches := prepared.Source == lightingruntime.PreparationManaged && source.Mode == operatorstate.ResourceSourceManaged && prepared.Selection.Version == pinned.Version && prepared.Selection.SHA256 == pinned.Sha256 || prepared.Source == lightingruntime.PreparationExisting && source.Mode == operatorstate.ResourceSourceHost && prepared.Selection.Version == source.Version && prepared.Selection.SHA256 == source.SHA256
 		if sourceMatches {
 			result.SetupVerified = prepared.Qualified && prepared.Selection.DevicePolicyID == pinned.DevicePolicyId && (access.PolicyID == "" || prepared.Selection.DevicePolicyID == access.PolicyID)
 			if status.Intent.Phase == lightingruntime.Disabled {
@@ -286,9 +287,9 @@ func (a LightingActions) Enable(ctx context.Context, requested *setupv1.Lighting
 		if err != nil {
 			return err
 		}
-		wantSource := "managed"
+		wantSource := operatorstate.ResourceSourceManaged
 		if requested.Source == setupv1.InstallationSource_INSTALLATION_SOURCE_EXISTING {
-			wantSource = "host"
+			wantSource = operatorstate.ResourceSourceHost
 		}
 		if !found || choice.Mode != wantSource {
 			return errors.New("complete explicit setup for the selected installation before enabling lighting")

@@ -10,6 +10,7 @@ const (
 	maxAttributionIDLength = 12
 	ownerOllama            = "ollama"
 	ownerReranker          = "reranker"
+	ownerWhisper           = "whisper"
 )
 
 // Attribution maps an observed PID to the owner (container/scenario/resource)
@@ -34,6 +35,8 @@ func NormalizeProcessOwner(processName string) string {
 	switch base {
 	case ownerOllama, "llama-server":
 		return ownerOllama
+	case "whisper-server":
+		return ownerWhisper
 	default:
 		if strings.HasPrefix(base, ownerReranker+"_") || base == ownerReranker {
 			return ownerReranker

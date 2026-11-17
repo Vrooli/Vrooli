@@ -247,6 +247,118 @@ func ParseNvidiaComputeAppsCSV(input string) ([]GPUProcess, []string, error) {
 	return processes, warnings, nil
 }
 
+// ParseNvidiaPmonMemory parses one `nvidia-smi pmon -s m -c 1` sample. Unlike
+// --query-compute-apps, pmon reports compute and graphics processes. The
+// header is used to find columns because NVIDIA may add protected-memory or
+// other metric columns between driver releases.
+func ParseNvidiaPmonMemory(input string) ([]GPUProcess, []string, error) {
+	trimmed := strings.TrimSpace(input)
+	if trimmed == "" {
+		return nil, nil, fmt.Errorf("parse nvidia-smi pmon: empty output")
+	}
+	if strings.Contains(trimmed, "No running processes found") {
+		return nil, nil, nil
+	}
+
+	var header []string
+	var rows []string
+	for _, line := range strings.Split(trimmed, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "+") || strings.HasPrefix(line, "|") {
+			continue
+		}
+		if strings.HasPrefix(line, "#") {
+			fields := strings.Fields(strings.TrimSpace(strings.TrimPrefix(line, "#")))
+			if len(fields) > 0 && strings.EqualFold(fields[0], "gpu") {
+				header = make([]string, len(fields))
+				for i := range fields {
+					header[i] = strings.ToLower(fields[i])
+				}
+			}
+			continue
+		}
+		rows = append(rows, line)
+	}
+	if len(header) == 0 {
+		return nil, nil, fmt.Errorf("parse nvidia-smi pmon: process header not found")
+	}
+	column := func(name string) int {
+		for i, value := range header {
+			if value == name {
+				return i
+			}
+		}
+		return -1
+	}
+	gpuCol, pidCol, typeCol, fbCol, commandCol := column("gpu"), column("pid"), column("type"), column("fb"), column("command")
+	ccpmCol := column("ccpm")
+	if gpuCol < 0 || pidCol < 0 || typeCol < 0 || fbCol < 0 || commandCol < 0 {
+		return nil, nil, fmt.Errorf("parse nvidia-smi pmon: required gpu/pid/type/fb/command columns missing from %q", strings.Join(header, " "))
+	}
+
+	var processes []GPUProcess
+	var warnings []string
+	for _, row := range rows {
+		fields := strings.Fields(row)
+		if len(fields) <= commandCol || gpuCol >= len(fields) || pidCol >= len(fields) || typeCol >= len(fields) || fbCol >= len(fields) {
+			warnings = append(warnings, fmt.Sprintf("unexpected pmon process row %q", row))
+			continue
+		}
+		pidText := fields[pidCol]
+		if pidText == "-" {
+			// pmon emits a dash-only row when a GPU had no process for a sample.
+			continue
+		}
+		gpuIndex, err := strconv.Atoi(fields[gpuCol])
+		if err != nil || gpuIndex < 0 {
+			warnings = append(warnings, fmt.Sprintf("invalid pmon gpu index %q", fields[gpuCol]))
+			continue
+		}
+		pid, err := strconv.Atoi(pidText)
+		if err != nil || pid <= 0 {
+			warnings = append(warnings, fmt.Sprintf("invalid pmon pid %q", pidText))
+			continue
+		}
+		if fields[typeCol] == "-" {
+			warnings = append(warnings, fmt.Sprintf("missing pmon process type for pid %d", pid))
+		}
+		if fields[fbCol] == "-" || strings.EqualFold(fields[fbCol], "N/A") {
+			warnings = append(warnings, fmt.Sprintf("unknown pmon framebuffer memory for pid %d", pid))
+			continue
+		}
+		usedMB, err := parseNvidiaUintMB(fields[fbCol])
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("invalid pmon framebuffer memory for pid %d: %v", pid, err))
+			continue
+		}
+		if ccpmCol >= 0 {
+			if ccpmCol >= len(fields) {
+				warnings = append(warnings, fmt.Sprintf("missing pmon protected memory for pid %d", pid))
+				continue
+			}
+			if fields[ccpmCol] != "-" && !strings.EqualFold(fields[ccpmCol], "N/A") {
+				ccpmMB, parseErr := parseNvidiaUintMB(fields[ccpmCol])
+				if parseErr != nil {
+					warnings = append(warnings, fmt.Sprintf("invalid pmon protected memory for pid %d: %v", pid, parseErr))
+					continue
+				}
+				usedMB += ccpmMB
+			}
+		}
+		nameParts := fields[commandCol:]
+		name := strings.TrimSpace(strings.Join(nameParts, " "))
+		if name == "" || name == "-" {
+			warnings = append(warnings, fmt.Sprintf("missing pmon process name for pid %d", pid))
+			continue
+		}
+		processes = append(processes, GPUProcess{
+			GPUIndex: gpuIndex, PID: pid, ProcessName: name,
+			UsedBytes: usedMB * 1024 * parsersParameterB,
+		})
+	}
+	return processes, warnings, nil
+}
+
 func ParseWindowsTotalPhysicalMemory(input string) (uint64, error) {
 	for _, line := range strings.Split(input, "\n") {
 		line = strings.TrimSpace(line)

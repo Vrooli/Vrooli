@@ -13,24 +13,40 @@ import (
 )
 
 var syntheticManualNodeAllowlist = map[string]struct{}{
-	"n8n-nodes-base.manualTrigger": {},
-	"n8n-nodes-base.set":           {},
-	"n8n-nodes-base.splitOut":      {},
-	"n8n-nodes-base.if":            {},
-	"n8n-nodes-base.switch":        {},
-	"n8n-nodes-base.merge":         {},
-	"n8n-nodes-base.noOp":          {},
-	"n8n-nodes-base.httpRequest":   {},
-	"n8n-nodes-base.postgres":      {},
+	"n8n-nodes-base.manualTrigger":   {},
+	"n8n-nodes-base.set":             {},
+	"n8n-nodes-base.splitOut":        {},
+	"n8n-nodes-base.if":              {},
+	"n8n-nodes-base.switch":          {},
+	"n8n-nodes-base.merge":           {},
+	"n8n-nodes-base.noOp":            {},
+	"n8n-nodes-base.aggregate":       {},
+	"n8n-nodes-base.sort":            {},
+	"n8n-nodes-base.filter":          {},
+	"n8n-nodes-base.summarize":       {},
+	"n8n-nodes-base.htmlExtract":     {},
+	"n8n-nodes-base.extractFromFile": {},
+	"n8n-nodes-base.httpRequest":     {},
+	"n8n-nodes-base.postgres":        {},
+}
+
+var syntheticManualPureNodeTypes = map[string]struct{}{
+	"n8n-nodes-base.set": {}, "n8n-nodes-base.splitOut": {}, "n8n-nodes-base.if": {},
+	"n8n-nodes-base.switch": {}, "n8n-nodes-base.merge": {}, "n8n-nodes-base.noOp": {},
+	"n8n-nodes-base.aggregate": {}, "n8n-nodes-base.sort": {}, "n8n-nodes-base.filter": {},
+	"n8n-nodes-base.summarize": {}, "n8n-nodes-base.htmlExtract": {}, "n8n-nodes-base.extractFromFile": {},
 }
 
 type ManualWorkflowExecutionReceipt struct {
-	SandboxID       string                    `json:"sandboxId"`
-	RuntimeID       string                    `json:"runtimeId"`
-	OperationID     string                    `json:"operationId"`
-	Status          string                    `json:"status"`
-	Evidence        WorkflowExecutionEvidence `json:"evidence,omitempty"`
-	CleanupRequired bool                      `json:"cleanupRequired,omitempty"`
+	SandboxID               string                    `json:"sandboxId"`
+	RuntimeID               string                    `json:"runtimeId"`
+	OperationID             string                    `json:"operationId"`
+	Status                  string                    `json:"status"`
+	FailureClass            string                    `json:"failureClass,omitempty"`
+	FailureDiagnosticSHA256 string                    `json:"failureDiagnosticSha256,omitempty"`
+	FailureDiagnosticBytes  int                       `json:"failureDiagnosticBytes,omitempty"`
+	Evidence                WorkflowExecutionEvidence `json:"evidence,omitempty"`
+	CleanupRequired         bool                      `json:"cleanupRequired,omitempty"`
 }
 
 type exportedSyntheticManualWorkflow struct {
@@ -98,6 +114,9 @@ func (o *Owner) ExecuteSyntheticManualWorkflow(ctx context.Context, sandboxID, r
 	}
 	execution, err := o.ExecuteSyntheticWorkflow(ctx, canonical, runtimeID, operationID)
 	if err != nil {
+		receipt.FailureClass = execution.FailureClass
+		receipt.FailureDiagnosticSHA256 = execution.FailureDiagnosticSHA256
+		receipt.FailureDiagnosticBytes = execution.FailureDiagnosticBytes
 		return receipt, errors.New("synthetic Manual Trigger execution failed")
 	}
 	receipt.Status = execution.Status
@@ -195,6 +214,11 @@ func validateExportedSyntheticManualWorkflow(data []byte, expectedWorkflowID str
 		if node.Disabled {
 			continue
 		}
+		if _, pure := syntheticManualPureNodeTypes[node.Type]; pure {
+			if err := validateSyntheticPureNodeParameters(node.Parameters); err != nil {
+				return err
+			}
+		}
 		if node.Type == "n8n-nodes-base.manualTrigger" {
 			manualTriggerCount++
 		}
@@ -211,6 +235,20 @@ func validateExportedSyntheticManualWorkflow(data []byte, expectedWorkflowID str
 	}
 	if manualTriggerCount != 1 {
 		return fmt.Errorf("workflow must contain exactly one enabled built-in Manual Trigger; found %d", manualTriggerCount)
+	}
+	return nil
+}
+
+func validateSyntheticPureNodeParameters(parameters map[string]any) error {
+	if parameters == nil {
+		return errors.New("pure built-in node parameters must be a JSON object")
+	}
+	encoded, err := json.Marshal(parameters)
+	if err != nil || len(encoded) > 512<<10 {
+		return errors.New("pure built-in node parameters exceed the bounded JSON profile")
+	}
+	if err := rejectSensitiveWorkflowFields(parameters); err != nil {
+		return errors.New("pure built-in node parameters contain a sensitive field")
 	}
 	return nil
 }

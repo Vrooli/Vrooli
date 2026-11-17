@@ -2,12 +2,47 @@ package hygienecli
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
 	hygieneapp "github.com/vrooli/vrooli/internal/app/hygiene"
 	"github.com/vrooli/vrooli/internal/cliout"
 )
+
+func TestRenderBoundsHumanOutputAndPreservesMachineEvidence(t *testing.T) {
+	report := hygieneapp.Report{Root: "/repo", Success: false}
+	for i := 0; i < 1200; i++ {
+		report.Findings = append(report.Findings, hygieneapp.Finding{
+			Severity: hygieneapp.SeverityWarning,
+			Code:     fmt.Sprintf("fixture_%04d", i),
+			Message:  strings.Repeat("diagnostic detail ", 12),
+		})
+	}
+	var human bytes.Buffer
+	if err := Render(&human, cliout.FormatHuman, report, OutputModeDefault); err != nil {
+		t.Fatal(err)
+	}
+	if human.Len() > maxHumanReportBytes || !strings.Contains(human.String(), "Output truncated; use `vrooli hygiene --json`") {
+		t.Fatalf("human output is %d bytes and must be bounded with a continuation hint", human.Len())
+	}
+	var machine bytes.Buffer
+	if err := Render(&machine, cliout.FormatJSON, report, OutputModeDefault); err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Findings []struct {
+			Code string `json:"code"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal(machine.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if len(decoded.Findings) != len(report.Findings) || decoded.Findings[len(decoded.Findings)-1].Code != "fixture_1199" {
+		t.Fatalf("machine evidence findings = %d / last=%q, want %d / fixture_1199", len(decoded.Findings), decoded.Findings[len(decoded.Findings)-1].Code, len(report.Findings))
+	}
+}
 
 func TestParseRequestSupportsDetailAndScopeFlags(t *testing.T) {
 	req, err := ParseRequest([]string{"--details", "--plans-only", "--fail-on", "warning"})

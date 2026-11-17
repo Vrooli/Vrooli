@@ -151,12 +151,11 @@ func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
 		t.Fatalf("read Makefile: %v", err)
 	}
 	makefileContents := string(makefileData)
-	if !strings.Contains(makefileContents, "install: prepare-install") {
+	if !strings.Contains(makefileContents, "install: ##") {
 		t.Fatalf("Makefile missing install target contract")
 	}
-	if !strings.Contains(makefileContents, "INSTALL_DIR = $(HOME)/.vrooli/bin") &&
-		!strings.Contains(makefileContents, "INSTALL_DIR := $(HOME)/.vrooli/bin") {
-		t.Fatalf("Makefile missing canonical install dir")
+	if !strings.Contains(makefileContents, "--install-bundle-owned") {
+		t.Fatal("Makefile must resolve the canonical invoking-user destination through the installer")
 	}
 }
 

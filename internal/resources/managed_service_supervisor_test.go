@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -75,6 +76,36 @@ func TestManagedServiceSupervisorStartsVerifiedArtifactAndStops(t *testing.T) {
 	}
 	if err := supervisor.Stop(ctx); err != nil {
 		t.Fatalf("stop restarted service: %v", err)
+	}
+}
+
+func TestManagedServiceSupervisorKeepsArtifactIdentityThroughLauncher(t *testing.T) {
+	if runtime.GOOS != "linux" || testing.Short() {
+		t.Skip("uses the Linux managed launcher contract")
+	}
+	dir := t.TempDir()
+	artifactPath := os.Args[0]
+	body, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(body)
+	artifact := resourcedeployment.ServiceArtifact{Path: "fixture", Version: "1.0.0", SHA256: fmt.Sprintf("%x", sum)}
+	supervisor := newManagedServiceSupervisor(filepath.Join(dir, "state.json"), filepath.Join(dir, "service.log"))
+	state, err := supervisor.StartContextWithLauncher(context.Background(), artifactPath, artifact, "/usr/bin/env", []string{artifactPath, "-test.run=TestManagedServiceFixtureProcess", "--"}, append(os.Environ(), "VROOLI_MANAGED_SERVICE_FIXTURE=1"), dir, nil)
+	if err != nil {
+		t.Fatalf("StartContextWithLauncher() error = %v", err)
+	}
+	if state.ArtifactPath != artifactPath || state.ArtifactSHA256 != fmt.Sprintf("%x", sum) {
+		t.Fatalf("wrapped service identity = %+v, want original verified artifact", state)
+	}
+	if _, running, err := supervisor.Status(); err != nil || !running {
+		t.Fatalf("wrapped service Status() = running=%t err=%v", running, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := supervisor.Stop(ctx); err != nil {
+		t.Fatalf("stop wrapped service: %v", err)
 	}
 }
 

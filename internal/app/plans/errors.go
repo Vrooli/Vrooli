@@ -6,13 +6,13 @@ import (
 )
 
 var (
-	ErrPlanManagerUnavailable = errors.New("plan-manager unavailable")
-	ErrPlanManagerTimeout     = errors.New("plan-manager timeout")
-	ErrPlanManagerHTTPStatus  = errors.New("plan-manager http status")
-	ErrPlanManagerNotFound    = errors.New("plan-manager not found")
-	ErrPlanManagerInvalid     = errors.New("plan-manager invalid request")
-	ErrPlanManagerConflict    = errors.New("plan-manager conflict")
-	ErrPlanManagerServer      = errors.New("plan-manager server error")
+	ErrPlanManagerUnavailable  = errors.New("plan-manager unavailable")
+	ErrPlanManagerTimeout      = errors.New("plan-manager timeout")
+	ErrPlanManagerConnectError = errors.New("plan-manager connect error")
+	ErrPlanManagerNotFound     = errors.New("plan-manager not found")
+	ErrPlanManagerInvalid      = errors.New("plan-manager invalid request")
+	ErrPlanManagerConflict     = errors.New("plan-manager conflict")
+	ErrPlanManagerServer       = errors.New("plan-manager server error")
 )
 
 func shouldUseMirrorFallback(err error) bool {

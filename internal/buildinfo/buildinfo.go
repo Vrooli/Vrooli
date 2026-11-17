@@ -341,12 +341,8 @@ func ResolveSourceRoot() (string, error) {
 	}
 
 	if home, homeErr := homeDirFn(); homeErr == nil {
-		pointer := repocontract.SourceRootPointerPath(home)
-		if contents, readErr := os.ReadFile(pointer); readErr == nil {
-			candidate := filepath.Clean(strings.TrimSpace(string(contents)))
-			if root, ok := findModuleRoot(candidate); ok && root == candidate {
-				return root, nil
-			}
+		if root, ok := readSourceRootPointer(home); ok {
+			return root, nil
 		}
 
 		// Local development installs historically did not write the source
@@ -473,6 +469,9 @@ func CurrentFingerprintReport() (FingerprintReport, error) {
 	}, targets...)
 }
 
+// ManagedWatchdogVersion identifies the source fingerprint used by watchdog admission.
+func ManagedWatchdogVersion(fingerprint string) string { return "managed:" + fingerprint }
+
 // FingerprintTargetsForExecutable returns the canonical source targets used to
 // decide whether a project-level binary is fresh. Build and distribution tools
 // must use this function rather than maintaining a second target list, otherwise
@@ -488,6 +487,10 @@ func FingerprintTargetsForExecutable(executableName string) []string {
 		return []string{"cmd/vrooli-watchdog", "internal", "packages", "go.mod", "go.sum"}
 	case "vrooli-atomic-install":
 		return []string{"cmd/vrooli-atomic-install", "internal", "packages", "go.mod", "go.sum"}
+	case "vrooli-gocacheprog":
+		// The helper links only the build-cache protocol and the standard
+		// library, so only those sources can make it stale.
+		return []string{"cmd/vrooli-gocacheprog", "internal/gocache", "go.mod", "go.sum"}
 	default:
 		return nil
 	}
@@ -609,7 +612,7 @@ func replaceManagedFile(source, destination string) error {
 // `vrooli` invocations on a stale tree) cannot race on `go build -o
 // <executable>`. The install is atomic via a temp file and replacement, so an
 // in-flight exec on the executable always sees a complete binary.
-func RebuildAndReexec(argv []string) error {
+func RebuildAndReexec(argv []string) (resultErr error) {
 	root, err := ResolveSourceRoot()
 	if err != nil {
 		return err
@@ -619,6 +622,20 @@ func RebuildAndReexec(argv []string) error {
 	if err != nil {
 		return fmt.Errorf("resolve executable: %w", err)
 	}
+	attempt := beginRebuildObservation(executable)
+	attempt.Async()
+	finished := false
+	defer func() {
+		if !finished {
+			if resultErr != nil {
+				attempt.Event("terminal", "failed")
+			} else {
+				attempt.Event("terminal", "skipped")
+			}
+		}
+		attempt.Flush()
+	}()
+	attempt.Event("self_rebuild", "started")
 
 	buildTarget, err := buildTargetForExecutable(executable)
 	if err != nil {
@@ -658,6 +675,10 @@ func RebuildAndReexec(argv []string) error {
 	// If either signal proves freshness, skip the rebuild and exec straight into
 	// the installed binary.
 	if strings.TrimSpace(Fingerprint) == currentFingerprint || SidecarMatches(executable, currentFingerprint) {
+		attempt.Event("terminal", "skipped")
+		finished = true
+		release()
+		attempt.Flush()
 		execArgs := append([]string{executable}, argv...)
 		return execFn(executable, execArgs, values.SetEnv(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
 	}
@@ -712,13 +733,18 @@ func RebuildAndReexec(argv []string) error {
 		// Waiting for it while holding this lock would deadlock its worker.
 		release()
 		defer os.Remove(tempPath)
+		attempt.Event("route", "coordinator")
 		if err := RequestRootUpdate(context.Background(), tempPath, root); err != nil {
 			return err
 		}
+		attempt.Event("terminal", "delegated")
+		finished = true
+		attempt.Flush()
 		_ = WriteSidecarFingerprint(executable, currentFingerprint)
 		execArgs := append([]string{executable}, argv...)
 		return execFn(executable, execArgs, values.SetEnv(os.Environ(), RebuildLoopEnvVar, currentFingerprint))
 	}
+	attempt.Event("direct_route", "")
 	if err := PreserveRootBinaryFallback(executable); err != nil {
 		_ = os.Remove(tempPath)
 		return fmt.Errorf("retain root fallback before self-rebuild publication: %w", err)
@@ -730,10 +756,15 @@ func RebuildAndReexec(argv []string) error {
 	if err := os.Remove(tempPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("remove rebuild output %s: %w", tempPath, err)
 	}
+	attempt.Event("published", "")
+	attempt.Event("terminal", "succeeded")
+	finished = true
 	// Sidecar is a strict optimization for sibling processes whose embedded
 	// symbol still reflects the pre-rebuild fingerprint. Failures are
 	// non-fatal: the embedded-fingerprint compare remains authoritative.
 	_ = WriteSidecarFingerprint(executable, currentFingerprint)
+	release()
+	attempt.Flush()
 
 	execArgs := append([]string{executable}, argv...)
 	return execFn(executable, execArgs, values.SetEnv(os.Environ(), RebuildLoopEnvVar, currentFingerprint))

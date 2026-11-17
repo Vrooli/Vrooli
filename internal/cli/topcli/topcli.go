@@ -19,6 +19,7 @@ const (
 	CommandRestore                CommandID = "restore"
 	CommandAgent                  CommandID = "agent"
 	CommandScenario               CommandID = "scenario"
+	CommandUX                     CommandID = "ux"
 	CommandPackage                CommandID = "package"
 	CommandResource               CommandID = "resource"
 	CommandRuntime                CommandID = "runtime"
@@ -67,6 +68,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandRestore), Group: "Lifecycle Commands", Summary: "Run the project restore lifecycle when defined", Handler: CommandRestore, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandAgent), Group: "Interactive Commands", Summary: "Launch an allowlisted coding-agent CLI", Handler: CommandAgent, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: nil}},
 		{Name: string(CommandScenario), Group: "Scenario Management", Summary: "Manage scenarios from their source locations", Handler: CommandScenario, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ScenarioCanRunWithoutRoot}},
+		{Name: string(CommandUX), Group: "UX Evidence", Summary: "Find the implemented UX capture entry point", Handler: CommandUX, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: false, CanRunWithoutRoot: func([]string) bool { return true }}, Help: commandtree.Help{Description: "Capture a running local scenario, public page, or local HTML file into a versioned UX bundle. No critique, compare, propose, check, or correction command is exposed here.\n\nStart with `react-component-library page capture --scenario image-tools`: one bundle with verified pixels for phone and desktop in light and dark, an editable frozen page per view, an outline, and a capture ID with source and build. `react-component-library page render proposal.html` renders an edited frozen page. Browser Automation Studio does the browsing; `browser-automation-studio ux-capture --help` and `git-control-tower ux-capture --help` are its single-view routes."}},
 		{Name: string(CommandPackage), Group: "Package Governance", Summary: "Manage governed shared packages", Handler: CommandPackage, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandResource), Group: "Resource Management", Summary: "Manage local resources and dependency services", Handler: CommandResource, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
 		{Name: string(CommandRuntime), Group: "Runtime Management", Summary: "Manage the scenario runtime supervisor", Handler: CommandRuntime, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: ListOrHelpWithoutRoot}},
@@ -94,6 +96,17 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandLifecycle), Group: "Maintenance Commands", Summary: "Internal lifecycle command plumbing", Handler: CommandLifecycle, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandCLIRefresh), Group: "Internal Commands", Summary: "Refresh one manager-declared CLI", Handler: CommandCLIRefresh, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: false}, Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "kind", Required: true}, {Name: "name", Required: true}, {Name: "running executable", Required: true}}}},
 	}
+}
+
+// UXHelpText keeps `vrooli ux`'s no-argument front door aligned with the
+// generated `vrooli ux --help` output.
+func UXHelpText() string {
+	for _, spec := range CommandSpecs() {
+		if spec.Handler == CommandUX {
+			return commandtree.SpecHelpText("", "vrooli ux", spec)
+		}
+	}
+	return "vrooli ux\n\nCapture through `git-control-tower ux-capture --help`."
 }
 
 func HelpOnlyWithoutRoot(args []string) bool {

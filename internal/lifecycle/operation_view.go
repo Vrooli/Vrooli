@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -23,9 +24,13 @@ const (
 // start operation of an instance.
 type StartOperationView struct {
 	OperationID string `json:"operation_id"`
-	Scenario    string `json:"scenario"`
-	Variant     string `json:"variant,omitempty"`
-	Operation   string `json:"operation"`
+	// FenceOperationID links this start attempt to the provider-owned
+	// lifecycle fence it prepared. It may differ from OperationID when a
+	// retry attaches to a fence created by an earlier attempt.
+	FenceOperationID string `json:"fence_operation_id,omitempty"`
+	Scenario         string `json:"scenario"`
+	Variant          string `json:"variant,omitempty"`
+	Operation        string `json:"operation"`
 	// Status is running|succeeded|failed|abandoned. A stored "running" whose
 	// initiator PID is dead is reported abandoned.
 	Status string `json:"status"`
@@ -102,6 +107,9 @@ func (v StartOperationView) InFlightSummary() string {
 	if v.InitiatorPID > 0 {
 		line += fmt.Sprintf(" (pid %d)", v.InitiatorPID)
 	}
+	if v.FenceOperationID != "" {
+		line += fmt.Sprintf(", provider fence %s", v.FenceOperationID)
+	}
 	switch {
 	case v.DependencyCurrent != "":
 		line += fmt.Sprintf(" — dependency %s (%d/%d)", v.DependencyCurrent, v.DependencyIndex, v.DependencyTotal)
@@ -141,6 +149,7 @@ const (
 func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func(int) bool, now time.Time, estimates map[string]time.Duration) StartOperationView {
 	view := StartOperationView{
 		OperationID:       op.OperationID,
+		FenceOperationID:  op.FenceOperationID,
 		Scenario:          op.Scenario,
 		Variant:           op.Variant,
 		Operation:         op.Operation,
@@ -184,7 +193,20 @@ func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func
 	if view.Status == scenarioruntime.StartOperationStatusRunning &&
 		!op.UpdatedAt.IsZero() && now.Sub(op.UpdatedAt) >= tuning.SetupProgressStaleThreshold() {
 		view.Stalled = true
-		view.StallReason = fmt.Sprintf("no lifecycle progress for %s", tuning.SetupProgressStaleThreshold())
+		stage := strings.TrimSpace(op.CurrentStep)
+		if stage == "" {
+			stage = "no current stage recorded"
+		}
+		view.StallReason = fmt.Sprintf("no lifecycle progress for %s; %s", tuning.SetupProgressStaleThreshold(), stage)
+	}
+	if view.Stalled {
+		// A stale live owner has no trustworthy finish estimate. Do not leave a
+		// short ETA on a multi-hour stuck operation merely because no phase has
+		// been durably recorded yet.
+		view.ETAKnown = false
+		view.ETASeconds = 0
+		view.RecommendedNextCheckSeconds = recommendedNextCheckUnknown
+		return view
 	}
 
 	remaining, known := estimateRemaining(view.Steps, op, now, estimates)
@@ -215,6 +237,11 @@ func EvaluateStartOperation(op scenarioruntime.StartOperation, isPIDRunning func
 //     the operation is a restart (setup is forced); a operationViewStart that has not
 //     entered setup may skip it, so it is excluded rather than guessed.
 func estimateRemaining(steps []scenarioruntime.StartOperationStep, op scenarioruntime.StartOperation, now time.Time, estimates map[string]time.Duration) (time.Duration, bool) {
+	// Provider drain is an owner-controlled wait whose remaining duration is
+	// not inferable from phase history.
+	if op.CurrentStep == startStepProviderFence {
+		return 0, false
+	}
 	stepState := map[string]scenarioruntime.StartOperationStep{}
 	for _, step := range steps {
 		stepState[step.Name] = step

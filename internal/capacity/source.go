@@ -26,7 +26,14 @@ type HostInventorySource struct{}
 
 // Snapshot collects a live host inventory snapshot.
 func (HostInventorySource) Snapshot(ctx context.Context) (hostinventory.Snapshot, error) {
-	return hostinventory.Collect(ctx)
+	snapshot, err := hostinventory.Collect(ctx)
+	if err != nil {
+		return hostinventory.Snapshot{}, err
+	}
+	// Shared host inventory is cached, while GPU process occupancy is the
+	// admission and residency freshness signal. Reuse the stable host facts but
+	// refresh that dynamic process sample before capacity decisions.
+	return hostinventory.SystemCollector().RefreshNvidiaGPUProcesses(ctx, snapshot)
 }
 
 // StaticSource is a CapacitySource returning a fixed snapshot (tests, and the

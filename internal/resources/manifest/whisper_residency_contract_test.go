@@ -54,7 +54,7 @@ func TestWhisperUnloadRungKeepsStableWakeOwner(t *testing.T) {
 	}
 	wakeBoundary := false
 	for _, companion := range doc.Companions {
-		if companion.Name == "activity-edge" && companion.Required {
+		if companion.Name == manifest.ActivityEdgeCompanionName && companion.Required {
 			wakeBoundary = true
 		}
 	}

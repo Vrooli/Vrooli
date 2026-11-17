@@ -2,8 +2,10 @@ package lifecycle
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -192,6 +194,66 @@ func TestBuildAdmissionCallbackFailureReleasesWithIndependentContext(t *testing.
 	if lease.releases.Load() != 1 || broker.closed.Load() != 1 {
 		t.Fatalf("release/close = %d/%d; want 1/1", lease.releases.Load(), broker.closed.Load())
 	}
+}
+
+func TestBuildAdmissionReleaseWaitsForCapacitySQLiteWriter(t *testing.T) {
+	ctx := context.Background()
+	ledgerPath := filepath.Join(t.TempDir(), "capacity.db")
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: ledgerPath})
+	if err != nil {
+		t.Fatalf("open capacity ledger: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	claim, err := store.CreateClaim(ctx, internalcapacity.CapacityClaim{
+		OwnerKind: internalcapacity.OwnerKindOp, OwnerID: "scenario:run:build-api",
+		ResourceKind: internalcapacity.ResourceKindRAM, AmountBytes: 1, PreferredBytes: 1,
+	}, time.Minute)
+	if err != nil {
+		t.Fatalf("create capacity claim: %v", err)
+	}
+
+	blocker, err := sql.Open("sqlite", "file:"+url.PathEscape(store.DBPath())+"?_txlock=immediate&_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)")
+	if err != nil {
+		t.Fatalf("open competing capacity connection: %v", err)
+	}
+	blocker.SetMaxOpenConns(1)
+	t.Cleanup(func() { _ = blocker.Close() })
+	blockTx, err := blocker.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatalf("begin competing writer transaction: %v", err)
+	}
+	t.Cleanup(func() { _ = blockTx.Rollback() })
+
+	lease := &sqliteBackedBuildAdmissionLease{store: store, claimID: claim.ClaimID, releaseStarted: make(chan struct{})}
+	broker := &buildAdmissionFakeBroker{lease: lease, verdict: publiccapacity.Verdict{Kind: internalcapacity.VerdictGrant}}
+	runner := &Runner{Home: t.TempDir(), buildAdmissionFactory: func(context.Context, string) (buildAdmissionBroker, error) { return broker, nil }}
+	lockWait := 6 * time.Second
+	go func() {
+		<-lease.releaseStarted
+		time.Sleep(lockWait)
+		_ = blockTx.Rollback()
+	}()
+	releasedAt := time.Now()
+	if _, err := runner.withBuildAdmission(ctx, "scenario", "api", "run", 1, func(context.Context) (int, error) { return 1, nil }); err != nil {
+		t.Fatalf("build admission: %v", err)
+	}
+	if waited := time.Since(releasedAt); waited < lockWait {
+		t.Fatalf("lease release returned after %s; expected it to wait for the competing writer", waited)
+	}
+}
+
+type sqliteBackedBuildAdmissionLease struct {
+	store          *internalcapacity.SQLiteStore
+	claimID        string
+	releaseStarted chan struct{}
+}
+
+func (*sqliteBackedBuildAdmissionLease) Heartbeat(context.Context) error { return nil }
+
+func (l *sqliteBackedBuildAdmissionLease) Release(ctx context.Context) error {
+	close(l.releaseStarted)
+	_, err := l.store.ReleaseClaim(ctx, l.claimID)
+	return err
 }
 
 func TestBuildAdmissionRejectsUnknownEstimateWithoutOpeningBroker(t *testing.T) {

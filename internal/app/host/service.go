@@ -163,7 +163,7 @@ func (Service) CollectWorkloads(ctx context.Context, opts WorkloadOptions) (work
 		if err != nil {
 			return workloadowner.LiveReport{}, fmt.Errorf("load host workload posture: %w", err)
 		}
-		if state.HostWorkloadPosture == string(workloadowner.WholeHost) {
+		if state.HostWorkloadPosture == operatorstate.HostWorkloadPostureWholeHost {
 			posture = workloadowner.WholeHost
 		}
 	}

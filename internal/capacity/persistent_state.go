@@ -16,7 +16,8 @@ func PersistentState() statecontract.Owner {
 	return statecontract.Owner{
 		Name:           "capacity",
 		StampConstants: true,
-		Roots:          []reflect.Type{reflect.TypeFor[CapacityClaim]()},
+		WholeSource:    true,
+		Roots:          []reflect.Type{reflect.TypeFor[CapacityClaim](), reflect.TypeFor[ResidencyTransitionRecord](), reflect.TypeFor[PlacementQualification]()},
 		Facts: map[string]any{
 			"SchemaVersion":           SchemaVersion,
 			"timestamp_format_sample": storagetime.FormatUTC(time.Unix(1, 2)),

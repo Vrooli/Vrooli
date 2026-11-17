@@ -1298,6 +1298,42 @@ func TestRunnerStartContinuesWithTryStartResourceDependency(t *testing.T) {
 	}
 }
 
+func TestRunnerStartBestEffortAllowsRecoveryWhenRequiredResourceLaunchFails(t *testing.T) {
+	for _, bestEffort := range []bool{false, true} {
+		t.Run(fmt.Sprintf("best_effort_%t", bestEffort), func(t *testing.T) {
+			root, home := t.TempDir(), t.TempDir()
+			writeLifecycleFixtureManifest(t, root, testscenario.ScenarioServiceManifest(
+				"alpha", testscenario.WithDependencies(scenario.Dependencies{
+					Resources: map[string]scenario.Dependency{
+						"cloudflared": {Enabled: true, Required: true, StartupPolicy: scenario.DependencyStartupPolicyMustStart},
+					},
+				}),
+			))
+			runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+				deps.resourceStatus = func(name string, _ bool) (resourcecontrol.Status, error) {
+					return resourcecontrol.Status{Resource: resources.Resource{Name: name}, StatusCode: resourcecontrol.StatusCodeUnavailable}, nil
+				}
+				deps.runResource = func(string, []string, io.Writer, io.Writer) error {
+					return errors.New("connector rotation is pending")
+				}
+			})
+			result, err := runner.Start("alpha", StartOptions{BestEffort: bestEffort})
+			if !bestEffort {
+				if err == nil || !strings.Contains(err.Error(), "connector rotation is pending") {
+					t.Fatalf("normal start should reject the failed required resource: %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("recovery start: %v", err)
+			}
+			if len(result.FailedResources) != 1 || result.FailedResources[0] != "cloudflared" {
+				t.Fatalf("failed resources = %v, want cloudflared", result.FailedResources)
+			}
+		})
+	}
+}
+
 func TestRunnerStartRollsBackBackgroundProcessRecordsAndLocksOnHealthFailure(t *testing.T) {
 	root := t.TempDir()
 	home := t.TempDir()

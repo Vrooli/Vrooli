@@ -2,6 +2,7 @@ package buildinfo
 
 import (
 	"bufio"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -57,8 +58,29 @@ func PersistentStateCodecStamp(root string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("persistent-state whole-source owner %s: %w", owner, err)
 		}
+		if owner == "acquisition" {
+			generator, err := acquisitionGeneratorDigest(root)
+			if err != nil {
+				return "", fmt.Errorf("persistent-state acquisition generator: %w", err)
+			}
+			sum := sha256.Sum256([]byte(digest + ":" + generator))
+			digest = fmt.Sprintf("%x", sum[:16])
+		}
+		if owner == "capacity" {
+			writers, err := capacitySQLWriterDigest(root)
+			if err != nil {
+				return "", fmt.Errorf("persistent-state capacity SQL writers: %w", err)
+			}
+			sum := sha256.Sum256([]byte(digest + ":" + writers))
+			digest = fmt.Sprintf("%x", sum[:16])
+		}
 		sources[owner] = digest
 	}
+	assetDigest, err := harnessStateContractAssetDigest(root)
+	if err != nil {
+		return "", fmt.Errorf("persistent-state agent-catalogs asset: %w", err)
+	}
+	sources["agent-catalog-assets"] = assetDigest
 	consts := make(map[string]string, len(statecontract.ConstantSources))
 	values := map[string]string{}
 	layouts := map[string]string{}
@@ -94,6 +116,20 @@ func PersistentStateCodecStamp(root string) (string, error) {
 			return "", err
 		}
 	}
+	// Callers can write or interpret an owner's stored values too. Include
+	// their resolved uses in the executable's qualification, not just the
+	// development test: an untested build must not silently omit them.
+	var ownerDirs []string
+	for _, inventory := range []map[string][]string{statecontract.ConstantSources, statecontract.PreciseSources} {
+		for _, dirs := range inventory {
+			ownerDirs = append(ownerDirs, dirs...)
+		}
+	}
+	callerLiterals, err := StoredFieldLiteralCandidates(root, ownerDirs, "internal", "cmd", "packages/resource-deployment", "packages/binaryfetch", "packages/platform-go")
+	if err != nil {
+		return "", fmt.Errorf("persistent-state caller vocabulary: %w", err)
+	}
+	literals = append(literals, callerLiterals...)
 	return statecontract.EncodeStamp(statecontract.Stamp{Packages: packages, Entries: entries, Sources: sources, Consts: consts, Values: values, Layouts: layouts, Versions: versions, Literals: compactStrings(sortedCopy(literals)), Violations: compactStrings(sortedCopy(violations))})
 }
 

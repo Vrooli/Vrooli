@@ -552,6 +552,31 @@ func TestLoadServiceManifestToleratesUnknownFields(t *testing.T) {
 	}
 }
 
+func TestLoadServiceManifestReadsExactNodeRuntimeSelection(t *testing.T) {
+	root := t.TempDir()
+	servicePath := filepath.Join(root, "service.json")
+	if err := os.WriteFile(servicePath, []byte(`{
+		"version":"1.0.0",
+		"service":{"name":"node-runtime-fixture"},
+		"runtime":{"kind":"long_running","auto_restart_default":false,"node":{"version":"22.23.5"}}
+	}`), 0o644); err != nil {
+		t.Fatalf("write service manifest: %v", err)
+	}
+	manifest, err := LoadServiceManifest(servicePath)
+	if err != nil {
+		t.Fatalf("LoadServiceManifest: %v", err)
+	}
+	if got := manifest.Runtime.Node.Version; got != "22.23.5" {
+		t.Fatalf("runtime.node.version = %q, want exact pinned release", got)
+	}
+	if manifest.Runtime.Kind != "long_running" {
+		t.Fatalf("runtime.kind = %q, want existing runtime field preserved", manifest.Runtime.Kind)
+	}
+	if manifest.Runtime.AutoRestartDefault == nil || *manifest.Runtime.AutoRestartDefault {
+		t.Fatalf("runtime.auto_restart_default = %v, want explicit false preserved", manifest.Runtime.AutoRestartDefault)
+	}
+}
+
 func TestAuthenticationProfileRuntimeEnvironmentResolvesOperatorIdentifiers(t *testing.T) {
 	profile := AuthenticationProfile{
 		Profile:    "hybrid",

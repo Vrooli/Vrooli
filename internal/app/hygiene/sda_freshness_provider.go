@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -41,9 +42,11 @@ type sdaFreshnessReport struct {
 
 type sdaFreshnessSummary struct {
 	Checked       int `json:"checked"`
+	Clean         int `json:"clean"`
 	Stale         int `json:"stale"`
 	Errors        int `json:"errors"`
 	NeedsDownload int `json:"needs_download"`
+	Skipped       int `json:"skipped"`
 }
 
 type sdaFreshnessSurface struct {
@@ -97,9 +100,70 @@ func (commandDependencyFreshnessRunner) CheckDependencyFreshness(ctx context.Con
 		}
 		return sdaFreshnessReport{}, fmt.Errorf("%s", detail)
 	}
+	return parseSDAFreshnessReport(root, out)
+}
+
+func parseSDAFreshnessReport(requestedRoot string, data []byte) (sdaFreshnessReport, error) {
 	var freshness sdaFreshnessReport
-	if err := json.Unmarshal(out, &freshness); err != nil {
+	if err := json.Unmarshal(data, &freshness); err != nil {
 		return sdaFreshnessReport{}, fmt.Errorf("parse SDA freshness JSON: %v", err)
+	}
+	wantRoot, wantErr := filepath.Abs(filepath.Clean(requestedRoot))
+	gotRoot, gotErr := filepath.Abs(filepath.Clean(freshness.Root))
+	rootsMatch := wantErr == nil && gotErr == nil && filepath.Clean(wantRoot) == filepath.Clean(gotRoot)
+	if runtime.GOOS == "windows" {
+		rootsMatch = wantErr == nil && gotErr == nil && strings.EqualFold(filepath.Clean(wantRoot), filepath.Clean(gotRoot))
+	}
+	if freshness.Root == "" || requestedRoot == "" || !rootsMatch {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness root mismatch: requested %q, received %q", requestedRoot, freshness.Root)
+	}
+	if freshness.Mode != "touched" {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness mode mismatch: requested touched, received %q", freshness.Mode)
+	}
+	summary := freshness.Summary
+	if summary.Checked < 0 || summary.Clean < 0 || summary.Stale < 0 || summary.Errors < 0 || summary.Skipped < 0 || summary.NeedsDownload < 0 {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness summary contains negative counts")
+	}
+	if summary.Checked != len(freshness.Surfaces) {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness surface evidence is incomplete: checked %d, received %d surfaces", summary.Checked, len(freshness.Surfaces))
+	}
+	classified := sdaFreshnessSummary{}
+	seenSurfaces := make(map[string]struct{}, len(freshness.Surfaces))
+	for _, surface := range freshness.Surfaces {
+		if strings.TrimSpace(surface.Scenario) == "" || strings.TrimSpace(surface.Surface) == "" || strings.TrimSpace(surface.GoModPath) == "" {
+			return sdaFreshnessReport{}, fmt.Errorf("SDA freshness surface is missing its scenario, surface, or go.mod identity")
+		}
+		if _, exists := seenSurfaces[surface.GoModPath]; exists {
+			return sdaFreshnessReport{}, fmt.Errorf("SDA freshness report repeats surface %q", surface.GoModPath)
+		}
+		seenSurfaces[surface.GoModPath] = struct{}{}
+		switch surface.Status {
+		case "clean":
+			classified.Clean++
+		case "stale":
+			classified.Stale++
+		case "error":
+			classified.Errors++
+		case "needs_download":
+			classified.NeedsDownload++
+		case "skipped":
+			classified.Skipped++
+		default:
+			return sdaFreshnessReport{}, fmt.Errorf("SDA freshness surface has unknown status %q", surface.Status)
+		}
+	}
+	if classified.Clean != summary.Clean || classified.Stale != summary.Stale || classified.Errors != summary.Errors || classified.NeedsDownload != summary.NeedsDownload || classified.Skipped != summary.Skipped {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness surface statuses do not match summary counts")
+	}
+	classifiedTotal := summary.Clean + summary.Stale + summary.Errors + summary.NeedsDownload + summary.Skipped
+	if summary.Checked != classifiedTotal {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness summary is incomplete: checked %d, classified %d", summary.Checked, classifiedTotal)
+	}
+	if freshness.Clean && (summary.Stale > 0 || summary.Errors > 0 || summary.NeedsDownload > 0 || summary.Skipped > 0) {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness reports clean with %d stale, %d errored, %d download-required, and %d skipped surfaces", summary.Stale, summary.Errors, summary.NeedsDownload, summary.Skipped)
+	}
+	if !freshness.Clean && summary.Stale+summary.Errors+summary.NeedsDownload+summary.Skipped == 0 {
+		return sdaFreshnessReport{}, fmt.Errorf("SDA freshness is not clean but reports no stale or errored surfaces")
 	}
 	return freshness, nil
 }
@@ -134,12 +198,14 @@ func (p sdaFreshnessProvider) apply(report *Report, freshness sdaFreshnessReport
 		message := "SDA reports no stale dependency surfaces"
 		if freshness.Summary.Checked == 0 {
 			message = "SDA reports no touched dependency surfaces"
+		} else if freshness.Summary.NeedsDownload > 0 {
+			message = "SDA reports no stale dependency surfaces after required cold-cache downloads"
 		}
 		report.addCheck("dependency_freshness", true, SeverityInfo, message)
 		return
 	}
 
-	message := fmt.Sprintf("SDA reports %d stale and %d errored dependency surface(s)", freshness.Summary.Stale, freshness.Summary.Errors)
+	message := fmt.Sprintf("SDA cannot qualify dependency freshness: %d stale, %d errored, %d cold-cache, and %d skipped surface(s)", freshness.Summary.Stale, freshness.Summary.Errors, freshness.Summary.NeedsDownload, freshness.Summary.Skipped)
 	report.addCheck("dependency_freshness", false, SeverityError, message)
 	actions := make([]Action, 0, len(freshness.NextActions))
 	for _, next := range freshness.NextActions {
@@ -166,7 +232,7 @@ func (p sdaFreshnessProvider) apply(report *Report, freshness sdaFreshnessReport
 		Severity:    SeverityError,
 		Code:        "dependency_freshness",
 		Message:     message,
-		Why:         "Stale dependency metadata causes scenario starts and tests to fail after in-repo packages change.",
+		Why:         "Required dependency freshness coverage cannot pass when surfaces are stale, errored, skipped, or unqualified by a cold cache.",
 		Locations:   freshnessLocations(freshness),
 		Fixability:  dependencyFreshnessFixability(freshness),
 		NextActions: actions,

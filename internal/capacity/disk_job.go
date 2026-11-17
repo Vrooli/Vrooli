@@ -29,6 +29,22 @@ type DiskJobPath struct {
 	DockerRootDir     bool   `json:"docker_root_dir,omitempty"`
 }
 
+const (
+	// DiskJobClassMetadata declares a job that writes only small metadata
+	// (a lockfile, a manifest): its declared peak may not exceed
+	// DiskJobMetadataMaxPeakBytes, and it is admitted against
+	// DiskJobMetadataFloorBytes instead of the install-sized floor. It never
+	// lowers the floor any other job is held to.
+	DiskJobClassMetadata = "metadata"
+	// DiskJobMetadataMaxPeakBytes bounds the total declared peak of a metadata job.
+	DiskJobMetadataMaxPeakBytes int64 = 64 << 20
+	// DiskJobMetadataFloorBytes is the free space a metadata job must leave. It
+	// is far above any plausible metadata write, so a host that is truly out of
+	// space still refuses, while a host that is merely inside the install floor
+	// does not stop a lockfile from being published.
+	DiskJobMetadataFloorBytes int64 = 8 << 30
+)
+
 // DiskJobRequest atomically reserves every filesystem touched by one job.
 type DiskJobRequest struct {
 	OwnerID      string        `json:"owner_id"`
@@ -37,6 +53,9 @@ type DiskJobRequest struct {
 	ProcessStart string        `json:"process_start,omitempty"`
 	Paths        []DiskJobPath `json:"paths"`
 	FloorBytes   int64         `json:"floor_bytes"`
+	// Class is empty for an ordinary job (install-sized floor) or
+	// DiskJobClassMetadata.
+	Class string `json:"class,omitempty"`
 }
 
 type DiskJobFilesystem struct {
@@ -136,13 +155,43 @@ type diskJobPath struct {
 	peak             int64
 }
 
+// metadataJob reports whether a job's stored floor marks it as metadata class:
+// an ordinary job's floor is always raised to the install-sized minimum.
+func (s *SQLiteStore) metadataJob(floor int64) bool { return floor < s.diskFloorMinimum }
+
+// jobFloor is the floor a job is held to: its own, raised to the strongest
+// floor any other active reservation promised. A metadata job is held to its own
+// floor only. The others' floors protect headroom for their bulk writes, and a
+// bounded metadata write must not be refused for a promise it cannot meaningfully
+// break; its peak still counts in every other job's admission.
+func (s *SQLiteStore) jobFloor(own, others int64) int64 {
+	if s.metadataJob(own) {
+		return own
+	}
+	return maxInt64(own, others)
+}
+
 // ReserveDiskJob atomically measures and reserves all declared paths. The
 // returned capability must remain private to the owning job process.
 func (s *SQLiteStore) ReserveDiskJob(ctx context.Context, req DiskJobRequest) (DiskJobReceipt, string, error) {
 	if s == nil || s.db == nil || strings.TrimSpace(req.OwnerID) == "" || strings.TrimSpace(req.JobID) == "" || len(req.Paths) == 0 || req.FloorBytes < 0 {
 		return DiskJobReceipt{}, "", fmt.Errorf("%w: owner, job, paths, and nonnegative floor are required", ErrInvalidClaim)
 	}
-	req.FloorBytes = maxInt64(req.FloorBytes, s.diskFloorMinimum)
+	switch req.Class {
+	case "":
+		req.FloorBytes = maxInt64(req.FloorBytes, s.diskFloorMinimum)
+	case DiskJobClassMetadata:
+		var declared int64
+		for _, p := range req.Paths {
+			if p.PeakBytes <= 0 || declared > DiskJobMetadataMaxPeakBytes-p.PeakBytes {
+				return DiskJobReceipt{}, "", fmt.Errorf("%w: a metadata disk job may declare at most %d bytes in total", ErrInvalidClaim, DiskJobMetadataMaxPeakBytes)
+			}
+			declared += p.PeakBytes
+		}
+		req.FloorBytes = maxInt64(req.FloorBytes, s.diskMetadataFloor)
+	default:
+		return DiskJobReceipt{}, "", fmt.Errorf("%w: unknown disk job class %q", ErrInvalidClaim, req.Class)
+	}
 	unlock, err := s.LockAdmission(ctx)
 	if err != nil {
 		return DiskJobReceipt{}, "", fmt.Errorf("lock disk job admission: %w", err)
@@ -194,6 +243,9 @@ func (s *SQLiteStore) ReserveDiskJob(ctx context.Context, req DiskJobRequest) (D
 			}
 			reserved := oldReserved + jobReserved
 			floor := maxInt64(req.FloorBytes, maxInt64(globalFloor, jobsFloor))
+			if req.Class == DiskJobClassMetadata {
+				floor = req.FloorBytes
+			}
 			if reserved > math.MaxInt64-fs.peak || reserved+fs.peak > math.MaxInt64-floor || fs.free < reserved+fs.peak+floor {
 				return fmt.Errorf("%w: filesystem %s has %d bytes free, %d bytes reserved, request peak %d, required floor %d", ErrDiskAdmissionDenied, fs.id, fs.free, reserved, fs.peak, floor)
 			}
@@ -324,7 +376,16 @@ func (s *SQLiteStore) SampleDiskJobPath(ctx context.Context, id, capability stri
 				if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(f.peak_bytes),0),COALESCE(MAX(j.floor_bytes),0) FROM capacity_disk_job_filesystems f JOIN capacity_disk_jobs j USING(job_lease_id) WHERE f.filesystem_id=? AND j.status='active' AND j.job_lease_id<>?`, fsid, id).Scan(&otherJobs, &jobsFloor); err != nil {
 					return err
 				}
-				floor = maxInt64(floor, maxInt64(globalFloor, jobsFloor))
+				if s.metadataJob(floor) {
+					var held int64
+					if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(peak_bytes),0) FROM capacity_disk_job_paths WHERE job_lease_id=?`, id).Scan(&held); err != nil {
+						return err
+					}
+					if held-oldPeak+largerPeakBytes > DiskJobMetadataMaxPeakBytes {
+						return fmt.Errorf("%w: a metadata disk job cannot grow beyond %d bytes; reserve an ordinary job instead", ErrDiskAdmissionDenied, DiskJobMetadataMaxPeakBytes)
+					}
+				}
+				floor = s.jobFloor(floor, maxInt64(globalFloor, jobsFloor))
 				if otherLegacy > math.MaxInt64-otherJobs || otherLegacy+otherJobs > math.MaxInt64-currentPathPeak || otherLegacy+otherJobs+currentPathPeak > math.MaxInt64-floor || free < otherLegacy+otherJobs+currentPathPeak+floor {
 					return fmt.Errorf("%w: measured path extension on %s would violate reserved peaks or %d-byte floor", ErrDiskAdmissionDenied, fsid, floor)
 				}
@@ -495,6 +556,18 @@ func (s *SQLiteStore) ExtendDiskJob(ctx context.Context, id, capability string, 
 		if err != nil {
 			return err
 		}
+		if s.metadataJob(jobFloor) {
+			var held int64
+			if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(peak_bytes),0) FROM capacity_disk_job_paths WHERE job_lease_id=?`, id).Scan(&held); err != nil {
+				return err
+			}
+			for _, p := range newPaths {
+				held += p.peak
+			}
+			if held > DiskJobMetadataMaxPeakBytes {
+				return fmt.Errorf("%w: a metadata disk job cannot grow beyond %d bytes; reserve an ordinary job instead", ErrDiskAdmissionDenied, DiskJobMetadataMaxPeakBytes)
+			}
+		}
 		for _, p := range newPaths {
 			var prior int64
 			err := tx.QueryRowContext(ctx, `SELECT peak_bytes FROM capacity_disk_job_paths WHERE job_lease_id=? AND canonical_path=?`, id, p.path).Scan(&prior)
@@ -517,15 +590,16 @@ func (s *SQLiteStore) ExtendDiskJob(ctx context.Context, id, capability string, 
 				return err
 			}
 			floor = maxInt64(floor, jobFloor)
-			var activeFloor int64
+			var activeFloor, othersFloor int64
 			if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(floor_bytes),0) FROM capacity_disk_reservations WHERE filesystem_id=? AND status='active'`, fs.id).Scan(&activeFloor); err != nil {
 				return err
 			}
-			floor = maxInt64(floor, activeFloor)
+			othersFloor = activeFloor
 			if err := tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(j.floor_bytes),0) FROM capacity_disk_job_filesystems f JOIN capacity_disk_jobs j USING(job_lease_id) WHERE f.filesystem_id=? AND j.status='active' AND j.job_lease_id<>?`, fs.id, id).Scan(&activeFloor); err != nil {
 				return err
 			}
-			floor = maxInt64(floor, activeFloor)
+			othersFloor = maxInt64(othersFloor, activeFloor)
+			floor = s.jobFloor(floor, othersFloor)
 			if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(peak_bytes),0) FROM capacity_disk_job_paths WHERE job_lease_id=? AND filesystem_id=?`, id, fs.id).Scan(&oldPeak); err != nil {
 				return err
 			}
@@ -559,6 +633,72 @@ func (s *SQLiteStore) ExtendDiskJob(ctx context.Context, id, capability string, 
 	}
 	receipt, err = s.GetDiskJob(ctx, id)
 	return receipt, err
+}
+
+// ReattachDiskJob transfers an active reservation to the current process after
+// the previous producer identity has exited. It preserves the reservation and
+// all path samples; callers must use the exact owner and stable job identity.
+// The old capability is rotated and can no longer mutate the lease.
+func (s *SQLiteStore) ReattachDiskJob(ctx context.Context, ownerID, jobID, id string) (DiskJobReceipt, string, error) {
+	ownerID, jobID, id = strings.TrimSpace(ownerID), strings.TrimSpace(jobID), strings.TrimSpace(id)
+	if s == nil || s.db == nil || ownerID == "" || jobID == "" || id == "" {
+		return DiskJobReceipt{}, "", errors.New("disk job reattachment requires owner, job, and lease identity")
+	}
+	processID := os.Getpid()
+	processStart, err := processStartIdentity(processID)
+	if err != nil {
+		return DiskJobReceipt{}, "", fmt.Errorf("identify current disk job producer: %w", err)
+	}
+	if !processIdentityMatches(processID, processStart) {
+		return DiskJobReceipt{}, "", errors.New("current disk job producer identity is not live")
+	}
+	capability, err := newDiskJobCapability()
+	if err != nil {
+		return DiskJobReceipt{}, "", err
+	}
+	capHash := sha256.Sum256([]byte(capability))
+	unlock, err := s.LockAdmission(ctx)
+	if err != nil {
+		return DiskJobReceipt{}, "", err
+	}
+	defer unlock()
+	now := s.now()
+	err = s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		var storedOwner, storedJob, oldStart, status string
+		var oldPID int
+		if err := tx.QueryRowContext(ctx, `SELECT owner_id,job_id,process_id,process_start,status FROM capacity_disk_jobs WHERE job_lease_id=?`, id).Scan(&storedOwner, &storedJob, &oldPID, &oldStart, &status); err != nil {
+			return err
+		}
+		if storedOwner != ownerID || storedJob != jobID {
+			return fmt.Errorf("disk job lease does not match owner and stable job identity")
+		}
+		if status != "active" {
+			return fmt.Errorf("disk job %s is not active", id)
+		}
+		if processIdentityMatches(oldPID, oldStart) {
+			return fmt.Errorf("disk job process %d is still running with the recorded identity", oldPID)
+		}
+		res, err := tx.ExecContext(ctx, `UPDATE capacity_disk_jobs SET process_id=?,process_start=?,capability_hash=?,updated_at=?,last_heartbeat_at=?,heartbeat_deadline_at=? WHERE job_lease_id=? AND owner_id=? AND job_id=? AND status='active' AND process_id=? AND process_start=?`, processID, processStart, hex.EncodeToString(capHash[:]), formatTime(now), formatTime(now), formatTime(now.Add(diskReservationTTL)), id, ownerID, jobID, oldPID, oldStart)
+		if err != nil {
+			return err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if n != 1 {
+			return fmt.Errorf("disk job %s changed during reattachment", id)
+		}
+		return nil
+	})
+	if err != nil {
+		return DiskJobReceipt{}, "", err
+	}
+	receipt, err := s.GetDiskJob(ctx, id)
+	if err != nil {
+		return DiskJobReceipt{}, "", err
+	}
+	return receipt, capability, nil
 }
 
 func (s *SQLiteStore) mutateDiskJob(ctx context.Context, id, capability string, processID int, processStart string, fn func(*sql.Tx, time.Time) error) error {
@@ -884,7 +1024,7 @@ func (s *SQLiteStore) ObserveDiskJob(ctx context.Context, id, capability string,
 			return out, fmt.Errorf("reservation overflow on filesystem %s", fsid)
 		}
 		other := legacy + otherJobs
-		floor = maxInt64(floor, maxInt64(legacyFloor, jobsFloor))
+		floor = s.jobFloor(floor, maxInt64(legacyFloor, jobsFloor))
 		additional := int64(0)
 		if other <= math.MaxInt64-f.PeakBytes && other+f.PeakBytes <= math.MaxInt64-floor {
 			remaining := free - (other + f.PeakBytes + floor)

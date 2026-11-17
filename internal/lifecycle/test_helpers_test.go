@@ -163,7 +163,7 @@ func (s *maintenance) Resume(_ context.Context, r *connect.Request[commonv1.Life
 func main() {
  mux := http.NewServeMux()
  mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-  _, _ = fmt.Fprintf(w, "{\"status\":\"healthy\",\"service\":\"fixture\",\"timestamp\":\"2026-05-08T12:00:00Z\",\"readiness\":true,\"build_identity\":\"%s\"}", os.Getenv("VROOLI_BUILD_IDENTITY"))
+  _, _ = fmt.Fprintf(w, "{\"status\":\"healthy\",\"service\":\"fixture\",\"timestamp\":\"2026-05-08T12:00:00Z\",\"readiness\":true,\"build_identity\":\"%s\",\"runtime_release_id\":\"%s\",\"runtime_release_operation_id\":\"%s\",\"start_operation_id\":\"%s\"}", os.Getenv("VROOLI_BUILD_IDENTITY"), os.Getenv("VROOLI_RUNTIME_RELEASE_ID"), os.Getenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID"), os.Getenv("VROOLI_START_OPERATION_ID"))
  })
  _, handler := commonv1connect.NewLifecycleMaintenanceServiceHandler(newMaintenance())
  mux.Handle("/common.v1.LifecycleMaintenanceService/", handler)

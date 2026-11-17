@@ -118,6 +118,100 @@ func TestHTTPMockRoutesDistinguishCanonicalQueriesAndRejectEquivalentDuplicates(
 	}
 }
 
+func TestHTTPMockRouteHitEvidenceIsPersistedAndContainsOnlyExactRouteAggregates(t *testing.T) {
+	for _, required := range []string{
+		`/tmp/vrooli-http-mock-hits.json`,
+		`fs.renameSync(hitsPath+".tmp",hitsPath)`,
+		`hit.count<2147483647`,
+		`const key=req.method+" "+host+" "+requestPath+"?"+requestQuery`,
+	} {
+		if !strings.Contains(syntheticHTTPMockServerProgram+syntheticHTTPMockHitsReaderProgram, required) {
+			t.Errorf("fixed mock evidence path is missing %q", required)
+		}
+	}
+	if strings.Contains(syntheticHTTPMockServerProgram, `JSON.stringify({version:1,routes:hits,body`) || strings.Contains(syntheticHTTPMockServerProgram, `req.on("data"`) && strings.Contains(syntheticHTTPMockServerProgram, `body:`) {
+		t.Fatal("HTTP mock evidence appears to retain request content")
+	}
+	if !strings.Contains(syntheticHTTPMockServerProgram, `hitsPath+".failed"`) || !strings.Contains(syntheticHTTPMockHitsReaderProgram, `.failed"))process.exit(1)`) {
+		t.Fatal("HTTP mock evidence read does not fail closed on persistence errors")
+	}
+}
+
+func TestVerifyOrphanedHTTPMockAllowsOnlyDisconnectedUnpublishedContainer(t *testing.T) {
+	var orphan containerInspect
+	runtimeID := "n8n-httpmock:" + httpMockSandboxID + ":" + strings.Repeat("a", 64)
+	data := httpMockContainerJSON(httpMockSandboxID, runtimeID, strings.Repeat("a", 64), "api.synthetic.invalid", false)
+	if err := json.Unmarshal(data[1:len(data)-1], &orphan); err != nil {
+		t.Fatal(err)
+	}
+	orphan.NetworkSettings.Networks = map[string]struct {
+		Aliases []string `json:"Aliases"`
+	}{}
+	orphan.NetworkSettings.Ports = map[string][]struct {
+		HostIP   string `json:"HostIp"`
+		HostPort string `json:"HostPort"`
+	}{}
+	if err := verifyOrphanedHTTPMock(orphan); err != nil {
+		t.Fatalf("disconnected unpublished owned container rejected: %v", err)
+	}
+	orphan.NetworkSettings.Networks["foreign-egress"] = struct {
+		Aliases []string `json:"Aliases"`
+	}{Aliases: []string{"api.synthetic.invalid"}}
+	if err := verifyOrphanedHTTPMock(orphan); err == nil {
+		t.Fatal("orphan cleanup accepted a network-attached container")
+	}
+	delete(orphan.NetworkSettings.Networks, "foreign-egress")
+	orphan.NetworkSettings.Ports["18080/tcp"] = []struct {
+		HostIP   string `json:"HostIp"`
+		HostPort string `json:"HostPort"`
+	}{{HostIP: "0.0.0.0", HostPort: "18080"}}
+	if err := verifyOrphanedHTTPMock(orphan); err == nil {
+		t.Fatal("orphan cleanup accepted a host-published container")
+	}
+}
+
+func TestStopHTTPMockRemovesVerifiedNetworklessOrphan(t *testing.T) {
+	digest := strings.Repeat("a", 64)
+	runtimeID := httpMockRuntimeIDFor(httpMockSandboxID, digest)
+	data := httpMockContainerJSON(httpMockSandboxID, runtimeID, digest, "api.synthetic.invalid", true)
+	var inspected []containerInspect
+	if err := json.Unmarshal(data, &inspected); err != nil || len(inspected) != 1 {
+		t.Fatalf("decode owned HTTP mock fixture: len=%d err=%v", len(inspected), err)
+	}
+	inspected[0].NetworkSettings.Networks = map[string]struct {
+		Aliases []string `json:"Aliases"`
+	}{}
+	var stopped, removed bool
+	runner := &fakeRunner{}
+	runner.call = func(_ context.Context, args ...string) ([]byte, error) {
+		if len(args) >= 3 && args[0] == "container" && args[1] == "inspect" {
+			if removed {
+				return nil, errors.New("No such container")
+			}
+			inspected[0].State.Running = !stopped
+			encoded, err := json.Marshal(inspected)
+			return encoded, err
+		}
+		if len(args) >= 2 && args[0] == "network" && args[1] == "inspect" {
+			return nil, errors.New("No such network")
+		}
+		if len(args) > 0 && args[0] == "stop" {
+			stopped = true
+			return nil, nil
+		}
+		if len(args) > 0 && args[0] == "rm" && containsArg(args, "--volumes") {
+			removed = true
+			return nil, nil
+		}
+		return nil, fmt.Errorf("unexpected command: %v", args)
+	}
+	owner := &Owner{Runner: runner, Image: ImageRef}
+	receipt, err := owner.StopHTTPMock(context.Background(), httpMockSandboxID, runtimeID)
+	if err != nil || receipt.Status != "stopped" || !stopped || !removed {
+		t.Fatalf("networkless owned orphan not cleaned: receipt=%+v stopped=%t removed=%t err=%v", receipt, stopped, removed, err)
+	}
+}
+
 func TestParseHTTPMockConfigRejectsOversizeDuplicateKeysAndUnknownFields(t *testing.T) {
 	if _, _, _, err := parseHTTPMockConfig([]byte(`{"name":"a","name":"b"}`)); err == nil {
 		t.Fatal("duplicate JSON keys were accepted")

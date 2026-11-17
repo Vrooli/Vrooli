@@ -211,7 +211,7 @@ func (a *API) Verify(ctx context.Context, request operatorcapability.Verificatio
 			},
 			ObservedAt:  current.ApprovedAt.UTC(),
 			ExpiresAt:   now.Add(24 * time.Hour),
-			EffectClass: string(operatorcapability.EffectReadOnly),
+			EffectClass: operatorcapability.EvidenceEffectReadOnly,
 			Verified:    true,
 		})
 	}

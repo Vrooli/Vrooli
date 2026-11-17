@@ -77,7 +77,7 @@ func TestResidencyTransitionPersistsReplaysCASAndGatesRelease(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetResidencyTransition() after reopen error = %v", err)
 	}
-	if replayed.Revision != 1 || replayed.ClaimID != claim.ClaimID || !replayed.Transition.StartedAt.Equal(start) {
+	if replayed.Revision != 1 || replayed.ClaimID != claim.ClaimID || !replayed.Transition.StartedAt.Equal(start) || replayed.Transition.Desired.Backend != ResidencyBackendUnloaded {
 		t.Fatalf("replayed start = %+v, want durable revision, claim and time", replayed)
 	}
 
@@ -109,6 +109,11 @@ func TestResidencyTransitionPersistsReplaysCASAndGatesRelease(t *testing.T) {
 	if _, err := store.GetUnresolvedResidencyTransitionForOwner(ctx, "whisper"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("owner lookup after verified release = %v, want ErrNotFound", err)
 	}
+	store.clock = residencyAgedClock{at: now.Add(maxResidencyFootprintAge + time.Hour)}
+	if _, err := store.GetUnresolvedResidencyTransitionForOwner(ctx, "whisper"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("owner lookup after verified release once evidence aged = %v, want ErrNotFound", err)
+	}
+	store.clock = residencyAgedClock{at: now}
 	if _, err := store.ReleaseClaimAfterResidency(ctx, claim.OwnerID, claim.ClaimID, claim.Generation, transition.ID, finished.Revision, transition.Model); !errors.Is(err, ErrStaleGeneration) {
 		t.Fatalf("replayed release error = %v, want stale generation", err)
 	}
@@ -1009,24 +1014,25 @@ func TestResidencyRecoversHistoricalTerminalClaimWithExactFreshUnload(t *testing
 	if err != nil || len(events) != 2 || events[1].EventKind != "recovered" || events[1].Record.Revision != recovered.Revision {
 		t.Fatalf("terminal recovery audit events=%+v err=%v", events, err)
 	}
+	time.Sleep(5 * time.Millisecond)
 	newClaim, err := store.CreateClaim(ctx, residencyTestClaim("whisper", 100, residencyTestModel), time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
 	next := transition
 	next.ID = "after-terminal-recovery"
-	next.StartedAt = now.Add(time.Millisecond)
+	next.StartedAt = time.Now().UTC()
 	next.CompletedAt = nil
 	next.Observed = ResidencyPlacement{}
 	next.Footprint = ResidencyFootprint{}
 	next.EffectsVerified = false
-	next.PreFootprint = ResidencyFootprint{Bytes: 100, Source: FootprintSourceMeasured, ObservedAt: next.StartedAt.Add(-time.Millisecond), Verified: true}
+	next.PreFootprint = ResidencyFootprint{Bytes: 100, Source: FootprintSourceMeasured, ObservedAt: now.Add(time.Millisecond), Verified: true}
 	if _, err := store.BeginResidencyTransition(ctx, newClaim.ClaimID, newClaim.Generation, next); err != nil {
 		t.Fatalf("fresh exact terminal unload should clear resource lock: %v", err)
 	}
 }
 
-func TestResidencyTerminalUnknownRecoveryRemainsLocked(t *testing.T) {
+func TestResidencyTerminalUnknownRequiresFreshCurrentClaimBaseline(t *testing.T) {
 	ctx := context.Background()
 	zeroFloor := int64(0)
 	store, err := NewSQLiteStore(ctx, Config{DBPath: filepath.Join(t.TempDir(), "capacity.db"), MinimumDiskFloorBytes: &zeroFloor})
@@ -1066,15 +1072,15 @@ func TestResidencyTerminalUnknownRecoveryRemainsLocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	next := transition
-	next.ID = "must-remain-blocked"
-	next.StartedAt = observedAt.Add(time.Second)
-	next.PreFootprint = ResidencyFootprint{Bytes: 100, Source: FootprintSourceMeasured, ObservedAt: observedAt, Verified: true}
+	next.ID = "fresh-measurement-resolves-terminal-unknown"
+	next.StartedAt = time.Now().UTC()
+	next.PreFootprint = ResidencyFootprint{Bytes: 100, Source: FootprintSourceMeasured, ObservedAt: next.StartedAt.Add(-time.Millisecond), Verified: true}
 	next.CompletedAt = nil
 	next.Observed = ResidencyPlacement{}
 	next.Footprint = ResidencyFootprint{}
 	next.EffectsVerified = false
 	if _, err := store.BeginResidencyTransition(ctx, newClaim.ClaimID, newClaim.Generation, next); !errors.Is(err, ErrResidencyResourceTransitionOpen) {
-		t.Fatalf("unknown terminal state allowed replacement transition: %v", err)
+		t.Fatalf("fresh measurement must not clear terminal unknown transition: %v", err)
 	}
 }
 
@@ -1106,3 +1112,7 @@ func TestResidencySerializesDifferentModelsAcrossClaims(t *testing.T) {
 		t.Fatalf("distinct model transition bypassed physical-resource lock: %v", err)
 	}
 }
+
+type residencyAgedClock struct{ at time.Time }
+
+func (c residencyAgedClock) Now() time.Time { return c.at }

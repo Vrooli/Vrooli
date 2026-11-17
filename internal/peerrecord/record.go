@@ -16,13 +16,16 @@ import (
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
-	"github.com/vrooli/cli-core/cliutil"
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/process"
-	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
+
+// ErrLiveOwnerConflict indicates that another live process already owns the
+// same peer record target. Callers may choose a non-peer fallback, but must
+// never replace or remove that owner's record.
+var ErrLiveOwnerConflict = errors.New("peer record has a live owner")
 
 const SchemaVersion = 1
 
@@ -49,13 +52,6 @@ type Record struct {
 	StartedAt     time.Time          `json:"started_at"`
 	Ports         map[string]int     `json:"ports"`
 	AuthTokenPath string             `json:"auth_token_path"`
-}
-
-func Path(home, name string) string {
-	if node, scenario, variant, err := cliutil.SplitAddress(name); err == nil && node == "" {
-		name = cliutil.InstanceSlug(scenario, variant)
-	}
-	return filepath.Join(home, repocontractmeta.ProjectConfigDir, "peers", name+".json")
 }
 
 func Write(home string, record Record) error {
@@ -92,7 +88,7 @@ func Write(home string, record Record) error {
 			return fmt.Errorf("refuse to replace peer record %s without an owner PID", target)
 		}
 		if platform.IsPIDRunning(existing.OwnerPID) && existing.OwnerPID != record.OwnerPID {
-			return fmt.Errorf("peer record %s is owned by live process %d", target, existing.OwnerPID)
+			return fmt.Errorf("%w: peer record %s is owned by live process %d", ErrLiveOwnerConflict, target, existing.OwnerPID)
 		}
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return fmt.Errorf("refuse to replace invalid peer record %s: %w", target, readErr)
@@ -100,7 +96,7 @@ func Write(home string, record Record) error {
 	if record.Ports == nil {
 		record.Ports = map[string]int{}
 	}
-	dir := filepath.Join(home, repocontractmeta.ProjectConfigDir, "peers")
+	dir := peerDir(home)
 	if err := os.MkdirAll(dir, tuning.PermPrivateDir); err != nil {
 		return fmt.Errorf("create peer directory: %w", err)
 	}
@@ -178,7 +174,7 @@ func Remove(home, name string, ownerPIDs ...int) error {
 }
 
 func acquireRecordLock(home, target string) (func(), error) {
-	dir := filepath.Join(home, repocontractmeta.ProjectConfigDir, "peers")
+	dir := peerDir(home)
 	if err := os.MkdirAll(dir, tuning.PermPrivateDir); err != nil {
 		return nil, fmt.Errorf("create peer directory: %w", err)
 	}
@@ -220,48 +216,4 @@ func containsPID(pids []int, target int) bool {
 		}
 	}
 	return false
-}
-
-func targetAddress(address string) (slug, scenario, variant string, err error) {
-	node, scenario, variant, err := cliutil.SplitAddress(address)
-	if err != nil {
-		return "", "", "", err
-	}
-	if node != "" {
-		return "", "", "", fmt.Errorf("peer record target must be local")
-	}
-	if cliutil.BareScenarioName(scenario) != scenario {
-		return "", "", "", fmt.Errorf("peer record target has an invalid scenario name")
-	}
-	if strings.ContainsAny(scenario, `/\\`) || strings.ContainsAny(variant, `/\\`) {
-		return "", "", "", fmt.Errorf("peer record target contains a path separator")
-	}
-	// Peer record identity is the supplied address/record identity, not the
-	// caller's routing preference. ResolveVariant would let ambient shadow
-	// configuration or a CLI override redirect a publisher's live record.
-	if variant == "" {
-		variant = cliutil.DefaultVariant
-	}
-	slug = cliutil.InstanceSlug(scenario, variant)
-	_, variant = cliutil.SplitInstance(slug)
-	if variant == "" {
-		variant = cliutil.DefaultVariant
-	}
-	return slug, scenario, variant, nil
-}
-
-func recordTarget(scenario, instance string) (slug, normalizedScenario, normalizedInstance string, err error) {
-	scenario = strings.TrimSpace(scenario)
-	if scenario == "" || cliutil.BareScenarioName(scenario) != scenario {
-		return "", "", "", fmt.Errorf("record scenario must be a bare scenario name")
-	}
-	instance = strings.TrimSpace(instance)
-	if strings.ContainsAny(scenario, `/\\`) || strings.ContainsAny(instance, `/\\`) {
-		return "", "", "", fmt.Errorf("record identity contains a path separator")
-	}
-	address := scenario
-	if instance != "" {
-		address += "@" + instance
-	}
-	return targetAddress(address)
 }

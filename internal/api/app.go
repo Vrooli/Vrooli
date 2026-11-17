@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -234,6 +235,12 @@ func (a *App) Router() http.Handler {
 	r := mux.NewRouter()
 	controlPath, controlHandler := cliv1connect.NewScenarioControlPlaneServiceHandler(&scenarioControlPlaneHandler{app: a})
 	connectx.RegisterServices(r, connectx.ServiceMount{Path: controlPath, Handler: controlHandler})
+	var runOllamaResourceCLI func(string, []string, io.Writer, io.Writer) error
+	if a.Resources != nil {
+		runOllamaResourceCLI = a.Resources.RunResourceCLI
+	}
+	ollamaPath, ollamaHandler := cliv1connect.NewOllamaOptimizationServiceHandler(&ollamaOptimizationServiceHandler{runResourceCLI: runOllamaResourceCLI})
+	connectx.RegisterServices(r, connectx.ServiceMount{Path: ollamaPath, Handler: ollamaHandler})
 	r.HandleFunc("/health", a.HealthCheck).Methods("GET")
 	r.HandleFunc("/metrics/processes", a.ProcessMetricsHandler).Methods("GET")
 	r.HandleFunc("/apps", a.ListApps).Methods("GET")

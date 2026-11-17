@@ -2,6 +2,7 @@ package capacity
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -214,10 +215,37 @@ func completeGPUProcessProbe(snapshot hostinventory.Snapshot) bool {
 // also the maximum accepted absence-observation age (30s by default); changing
 // policy sweep cadence cannot silently expand this safety bound.
 func gpuProcessAbsenceVerified(snapshot hostinventory.Snapshot, claim CapacityClaim, now time.Time) bool {
+	return gpuProcessAbsenceProblem(snapshot, claim, now) == ""
+}
+
+func gpuProcessAbsenceProblem(snapshot hostinventory.Snapshot, claim CapacityClaim, now time.Time) string {
 	if !completeGPUProcessProbe(snapshot) {
-		return false
+		return fmt.Sprintf("process probe is not complete (gpu=%q processes=%q)", snapshot.ProbeStatuses["nvidia_gpu"], snapshot.ProbeStatuses["nvidia_gpu_processes"])
 	}
-	return (AbsenceProof{Generation: claim.Generation, ObservedAt: snapshot.FieldProvenance["gpu_processes"].ObservedAt}).validFor(claim, now)
+	proof := AbsenceProof{Generation: claim.Generation, ObservedAt: snapshot.FieldProvenance["gpu_processes"].ObservedAt}
+	observed := proof.ObservedAt
+	if proof.Generation <= 0 || observed.IsZero() {
+		return "process observation or claim generation is missing"
+	}
+	if observed.After(now) {
+		return fmt.Sprintf("process observation %s is later than measurement clock %s", observed.UTC().Format(time.RFC3339Nano), now.UTC().Format(time.RFC3339Nano))
+	}
+	if now.Sub(observed) > DefaultHeartbeatTTL {
+		return fmt.Sprintf("process observation age %s exceeds heartbeat TTL %s", now.Sub(observed).Round(time.Millisecond), DefaultHeartbeatTTL)
+	}
+	boundary := claim.CreatedAt
+	if claim.UpdatedAt.After(boundary) {
+		boundary = claim.UpdatedAt
+	}
+	for _, at := range []*time.Time{claim.LastHeartbeatAt, claim.LastActiveAt} {
+		if at != nil && at.After(boundary) {
+			boundary = *at
+		}
+	}
+	if observed.Before(boundary) {
+		return fmt.Sprintf("process observation %s predates claim boundary %s", observed.UTC().Format(time.RFC3339Nano), boundary.UTC().Format(time.RFC3339Nano))
+	}
+	return ""
 }
 
 func (proof AbsenceProof) validFor(claim CapacityClaim, now time.Time) bool {

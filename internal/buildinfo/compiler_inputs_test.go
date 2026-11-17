@@ -2,15 +2,64 @@ package buildinfo
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
+
+type deniedEmbedFS struct{}
+
+func (deniedEmbedFS) Open(string) (fs.File, error) { return nil, fs.ErrPermission }
+
+type deniedStatFS struct{}
+type deniedStatFile struct{}
+
+func (deniedStatFS) Open(string) (fs.File, error) { return deniedStatFile{}, nil }
+func (deniedStatFile) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
+func (deniedStatFile) Read([]byte) (int, error)   { return 0, fs.ErrPermission }
+func (deniedStatFile) Close() error               { return nil }
+
+func TestEmbedGlobCapturesSuppressedIOErrors(t *testing.T) {
+	for _, pattern := range []string{"literal", "assets/*"} {
+		filesystem := &embedGlobFS{FS: deniedEmbedFS{}}
+		_, err := fs.Glob(filesystem, pattern)
+		if err != nil || !errors.Is(filesystem.readErr, fs.ErrPermission) {
+			t.Fatalf("%s: glob error %v, recorded error %v", pattern, err, filesystem.readErr)
+		}
+	}
+	filesystem := &embedGlobFS{FS: deniedStatFS{}}
+	_, err := fs.Glob(filesystem, "literal")
+	if err != nil || !errors.Is(filesystem.readErr, fs.ErrPermission) {
+		t.Fatalf("stat error suppressed: glob %v, recorded %v", err, filesystem.readErr)
+	}
+}
+
+func TestFingerprintIgnoresTestsUnlessEmbedded(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "main.go", "package main\nimport _ \"embed\"\n//go:embed asset_test.go\nvar asset string\n")
+	writeTestFile(t, root, "asset_test.go", "package fixture\n")
+	writeTestFile(t, root, "unrelated_test.go", "package fixture\n")
+	before, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, root, "unrelated_test.go", "package fixture\nvar changed = true\n")
+	after, err := ComputeSourceFingerprint(root)
+	if err != nil || before != after {
+		t.Fatalf("test-only edit changed fingerprint: %v", err)
+	}
+	writeTestFile(t, root, "asset_test.go", "package fixture\nvar embedded = true\n")
+	after, err = ComputeSourceFingerprint(root)
+	if err != nil || before == after {
+		t.Fatalf("embedded test file was not fingerprinted: %v", err)
+	}
+}
 
 func TestRootFingerprintExcludesProtoOwnerWorkTreesButKeepsPublishedAndHiddenSource(t *testing.T) {
 	root := t.TempDir()
@@ -99,8 +148,58 @@ func TestProjectFingerprintIncludesCompilerSourcesAndEmbeddedAssets(t *testing.T
 	if err := os.Remove(filepath.Join(root, "cmd/vrooli/rules.json")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ComputeSourceFingerprint(root); err == nil || !strings.Contains(err.Error(), "matches no files") {
-		t.Fatalf("missing embedded asset was accepted: %v", err)
+	missing, err := ComputeSourceFingerprint(root)
+	if err != nil || missing == previous {
+		t.Fatalf("missing embedded asset did not change fingerprint: %v", err)
+	}
+}
+
+func TestFingerprintAllowsMissingEmbedInInactiveVariant(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.test/fixture\n\ngo 1.25.0\n")
+	writeTestFile(t, root, "main.go", "package fixture\n")
+	writeTestFile(t, root, "variant.go", "//go:build optional_asset\n\npackage fixture\nimport _ \"embed\"\n//go:embed optional.txt\nvar optional string\n")
+	build := func(args ...string) error {
+		cmd := exec.Command("go", append([]string{"build", "-mod=readonly"}, args...)...)
+		cmd.Dir = root
+		cmd.Env = append(os.Environ(), "GOWORK=off", "GOTOOLCHAIN=local", "GOFLAGS=")
+		return cmd.Run()
+	}
+	if err := build("."); err != nil {
+		t.Fatalf("inactive variant: %v", err)
+	}
+	if err := build("-tags=optional_asset", "."); err == nil {
+		t.Fatal("compiler accepted active missing embed")
+	}
+	before, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, root, "optional.txt", "now present")
+	after, err := ComputeSourceFingerprint(root)
+	if err != nil || before == after {
+		t.Fatalf("new embed did not change fingerprint: %v", err)
+	}
+	if err := build("-tags=optional_asset", "."); err != nil {
+		t.Fatalf("active variant with asset: %v", err)
+	}
+}
+
+func TestFingerprintKeepsMatchesWhenEmbedGlobAlsoFindsEmptyDirectory(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "main.go", "package fixture\nimport \"embed\"\n//go:embed assets/*\nvar assets embed.FS\n")
+	writeTestFile(t, root, "assets/data", "one")
+	if err := os.Mkdir(filepath.Join(root, "assets/empty"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	before, err := ComputeSourceFingerprint(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, root, "assets/data", "two")
+	after, err := ComputeSourceFingerprint(root)
+	if err != nil || before == after {
+		t.Fatalf("matched asset was lost: %v", err)
 	}
 }
 
@@ -146,6 +245,7 @@ func TestProjectFingerprintIncludesCanonicalCompileFlagPolicy(t *testing.T) {
 func TestEmbeddedInputsMatchInstalledCompilerDirectoryRules(t *testing.T) {
 	for _, tc := range []struct{ name, pattern, special string }{
 		{"glob empty directory", "assets/*", "empty"},
+		{"glob traverses regular file", "assets/*/*.txt", "mixed"},
 		{"recursive symlink", "assets", "symlink"},
 		{"literal symlink", "assets/link", "symlink"},
 		{"recursive nested module", "assets", "module"},
@@ -163,6 +263,8 @@ func TestEmbeddedInputsMatchInstalledCompilerDirectoryRules(t *testing.T) {
 				if err := os.Mkdir(filepath.Join(root, "assets/empty"), 0o755); err != nil {
 					t.Fatal(err)
 				}
+			case "mixed":
+				writeTestFile(t, root, "assets/nested/data.txt", "compiled")
 			case "symlink":
 				if err := os.Symlink("data.json", filepath.Join(root, "assets/link")); err != nil {
 					t.Fatal(err)

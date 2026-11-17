@@ -32,11 +32,14 @@ type HealthProbe struct {
 }
 
 type HealthProbeInput struct {
-	InstanceID            string
-	Scenario              string
-	HealthConfig          *scenario.HealthConfig
-	Ports                 map[string]int
-	ExpectedBuildIdentity string
+	InstanceID                        string
+	Scenario                          string
+	HealthConfig                      *scenario.HealthConfig
+	Ports                             map[string]int
+	ExpectedBuildIdentity             string
+	ExpectedRuntimeReleaseID          string
+	ExpectedRuntimeReleaseOperationID string
+	ExpectedStartOperationID          string
 }
 
 func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnapshot {
@@ -64,9 +67,12 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 	var responseJSON string
 	var failures []string
 	var buildIdentity string
+	var runtimeReleaseID string
+	var runtimeReleaseOperationID string
+	var startOperationID string
 
 	for _, check := range in.HealthConfig.Checks {
-		result := p.performCheck(ctx, client, check, in.Ports, in.ExpectedBuildIdentity)
+		result := p.performCheck(ctx, client, check, in.Ports, in.ExpectedBuildIdentity, in.ExpectedRuntimeReleaseID, in.ExpectedRuntimeReleaseOperationID, in.ExpectedStartOperationID)
 		if result.responseJSON != "" && responseJSON == "" {
 			responseJSON = result.responseJSON
 		}
@@ -82,6 +88,15 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 		}
 		if result.buildIdentity != "" && buildIdentity == "" {
 			buildIdentity = result.buildIdentity
+		}
+		if runtimeReleaseID == "" {
+			runtimeReleaseID = result.runtimeReleaseID
+		}
+		if runtimeReleaseOperationID == "" {
+			runtimeReleaseOperationID = result.runtimeReleaseOperationID
+		}
+		if startOperationID == "" {
+			startOperationID = result.startOperationID
 		}
 		if result.err == nil {
 			if result.status == apihealth.StatusDegraded {
@@ -115,6 +130,16 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 		criticalFailure = true
 		failures = append(failures, fmt.Sprintf("no standard health endpoint verified expected build identity %q", expected))
 	}
+	for _, check := range []struct{ name, expected, served string }{
+		{"runtime release", in.ExpectedRuntimeReleaseID, runtimeReleaseID},
+		{"runtime release selection operation", in.ExpectedRuntimeReleaseOperationID, runtimeReleaseOperationID},
+		{"start operation", in.ExpectedStartOperationID, startOperationID},
+	} {
+		if expected := strings.TrimSpace(check.expected); expected != "" && check.served != expected {
+			criticalFailure = true
+			failures = append(failures, fmt.Sprintf("%s mismatch: served %q, expected %q", check.name, check.served, expected))
+		}
+	}
 
 	switch {
 	case criticalFailure:
@@ -135,6 +160,9 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 	snapshot.ResponseJSON = responseJSON
 	snapshot.Error = boundString(strings.Join(failures, "; "), healthprobeParameterA)
 	snapshot.BuildIdentity = buildIdentity
+	snapshot.RuntimeReleaseID = runtimeReleaseID
+	snapshot.RuntimeReleaseOperationID = runtimeReleaseOperationID
+	snapshot.StartOperationID = startOperationID
 	if snapshot.Status == HealthStatusDegraded && snapshot.Error == "" {
 		snapshot.Error = "health probe reported degraded without a reason"
 	}
@@ -142,19 +170,22 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 }
 
 type checkProbeResult struct {
-	status         string
-	readiness      *bool
-	schemaValid    *bool
-	responseJSON   string
-	err            error
-	degradedDetail string
-	buildIdentity  string
+	status                    string
+	readiness                 *bool
+	schemaValid               *bool
+	responseJSON              string
+	err                       error
+	degradedDetail            string
+	buildIdentity             string
+	runtimeReleaseID          string
+	runtimeReleaseOperationID string
+	startOperationID          string
 }
 
-func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int, expectedBuildIdentity string) checkProbeResult {
+func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int, expectedBuildIdentity, expectedRuntimeReleaseID, expectedRuntimeReleaseOperationID, expectedStartOperationID string) checkProbeResult {
 	switch strings.TrimSpace(check.Type) {
 	case "", "http":
-		return p.performHTTPCheck(ctx, client, check, ports, expectedBuildIdentity)
+		return p.performHTTPCheck(ctx, client, check, ports, expectedBuildIdentity, expectedRuntimeReleaseID, expectedRuntimeReleaseOperationID, expectedStartOperationID)
 	default:
 		if err := scenario.PerformHealthCheck(check, ports); err != nil {
 			return checkProbeResult{err: err}
@@ -163,7 +194,7 @@ func (p HealthProbe) performCheck(ctx context.Context, client *http.Client, chec
 	}
 }
 
-func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int, expectedBuildIdentity string) checkProbeResult {
+func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, check scenario.HealthCheck, ports map[string]int, expectedBuildIdentity, expectedRuntimeReleaseID, expectedRuntimeReleaseOperationID, expectedStartOperationID string) checkProbeResult {
 	target, err := scenario.ExpandHealthTarget(check.Target, ports)
 	if err != nil {
 		return checkProbeResult{err: err}
@@ -240,6 +271,22 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 			err:           fmt.Errorf("build identity mismatch: served %q, expected %q", decoded.BuildIdentity, expected),
 		}
 	}
+	for _, identity := range []struct{ name, expected, served string }{
+		{"runtime release", expectedRuntimeReleaseID, decoded.RuntimeReleaseID},
+		{"runtime release selection operation", expectedRuntimeReleaseOperationID, decoded.RuntimeReleaseOperationID},
+		{"start operation", expectedStartOperationID, decoded.StartOperationID},
+	} {
+		if expected := strings.TrimSpace(identity.expected); expected != "" && identity.served != expected {
+			return checkProbeResult{
+				status: decoded.Status, readiness: &decoded.Readiness, schemaValid: &valid,
+				responseJSON: responseJSON, buildIdentity: decoded.BuildIdentity,
+				runtimeReleaseID:          decoded.RuntimeReleaseID,
+				runtimeReleaseOperationID: decoded.RuntimeReleaseOperationID,
+				startOperationID:          decoded.StartOperationID,
+				err:                       fmt.Errorf("%s mismatch: served %q, expected %q", identity.name, identity.served, expected),
+			}
+		}
+	}
 	var degradation error
 	if decoded.Status == apihealth.StatusDegraded {
 		if detail := degradedHealthDetail(body); detail != "" {
@@ -247,11 +294,14 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 		}
 	}
 	return checkProbeResult{
-		status:        decoded.Status,
-		readiness:     &decoded.Readiness,
-		schemaValid:   &valid,
-		responseJSON:  responseJSON,
-		buildIdentity: decoded.BuildIdentity,
+		status:                    decoded.Status,
+		readiness:                 &decoded.Readiness,
+		schemaValid:               &valid,
+		responseJSON:              responseJSON,
+		buildIdentity:             decoded.BuildIdentity,
+		runtimeReleaseID:          decoded.RuntimeReleaseID,
+		runtimeReleaseOperationID: decoded.RuntimeReleaseOperationID,
+		startOperationID:          decoded.StartOperationID,
 		degradedDetail: func() string {
 			if degradation == nil {
 				return ""

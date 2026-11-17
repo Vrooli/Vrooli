@@ -153,7 +153,67 @@ func RequestRootUpdate(ctx context.Context, candidate, source string) error {
 	if runErr != nil || receipt.Phase != coreactivation.Verified {
 		return fmt.Errorf("root update %s did not verify (phase=%s, failure=%s); inspect `vrooli runtime update status --json`%s", receipt.ID, receipt.Phase, receipt.FailureClass, diagnostics.suffix())
 	}
-	return nil
+	// Verified is recorded by the worker before its native unit and cgroup
+	// retire. Wait outside publication locks so companion publication does
+	// not race that final process exit.
+	store, err := coreactivation.NewStore(home)
+	if err != nil {
+		return err
+	}
+	retirement, cancelRetirement := context.WithTimeout(ctx, 90*time.Second)
+	defer cancelRetirement()
+	return waitRootUpdateRetirement(retirement, receipt.ID, func() (bool, error) {
+		return store.ObserveVerifiedRetirement(retirement, receipt.ID)
+	}, func() error {
+		release, err := AcquireRebaselineTransition(retirement, home)
+		if err != nil {
+			return err
+		}
+		defer release()
+		current, exists, err := store.Current()
+		if err != nil {
+			return err
+		}
+		if !exists || current.ID != receipt.ID || current.Phase != coreactivation.Verified {
+			return fmt.Errorf("root update changed before native reconciliation")
+		}
+		name, args := hostreqkit.InvokingUserCommand(worker, "--reconcile-core-updates")
+		cmd := exec.CommandContext(retirement, name, args...)
+		cmd.WaitDelay = time.Second
+		var reconciliationDiagnostics rootUpdateTail
+		cmd.Stderr = &reconciliationDiagnostics
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("root update %s verified but native reconciliation failed: %w; resume the retained bundle%s", receipt.ID, err, reconciliationDiagnostics.suffix())
+		}
+		return nil
+	})
+}
+
+func waitRootUpdateRetirement(ctx context.Context, id string, observe func() (bool, error), reconcile func() error) error {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	reconciled := false
+	for {
+		released, err := observe()
+		if err != nil {
+			return err
+		}
+		if released {
+			return nil
+		}
+		if !reconciled {
+			if err := reconcile(); err != nil {
+				return err
+			}
+			reconciled = true
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("root update %s verified but its native worker has not retired: %w; resume the retained bundle", id, ctx.Err())
+		case <-ticker.C:
+		}
+	}
 }
 
 // rootUpdateTail keeps the last 2 KiB of the coordinator's diagnostics, its
@@ -182,8 +242,9 @@ var diagnoseRootRefusalFn = diagnoseRootRefusal
 // often an agent: crossing a stored-format change is the operator's decision.
 func rootRebaselineRemedy(source string) string {
 	return "The serving CLI cannot be relied on to read state this candidate writes, so it cannot activate with automatic rollback.\n" +
-		"Operator decision required: the operator reviews the changes above and runs `make rebaseline` in " + source + " from their own terminal. " +
-		"Agents must not run it; report this refusal to the operator."
+		"Operator decision required: review the changes above, then run `make rebaseline` in " + source + " from your own terminal. " +
+		"Alternatively, run `make rebaseline-hub` there and review the request in Notification Hub as a verified human. " +
+		"Agents must not run the terminal confirmation; report this refusal to the operator."
 }
 
 // diagnoseRootRefusal explains a request that produced no verified

@@ -11,7 +11,10 @@ import (
 )
 
 // PhasePlanning is persisted when lifecycle creates a managed runtime lease.
-const PhasePlanning = "planning"
+const (
+	PhasePlanning = "planning"
+	PhaseSetup    = "setup"
+)
 
 const (
 	// SchemaVersion stamps PRAGMA user_version so an older or unknown database
@@ -19,7 +22,7 @@ const (
 	// shape and schemaMigrations carries additive upgrades for local registries.
 	// A version bump must update both the greenfield schema and its migration
 	// rung; destructive conversions remain operator-owned.
-	SchemaVersion = 16
+	SchemaVersion = 17
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -157,6 +160,13 @@ type Instance struct {
 	// BuildIdentity is the authored source identity the managed process must
 	// serve. Empty preserves compatibility with pre-identity registry rows.
 	BuildIdentity string
+	// RuntimeReleaseID is the exact immutable artifact selected for this
+	// process. It stays empty for mutable source runs.
+	RuntimeReleaseID string
+	// RuntimeReleaseOperationID identifies the CAS selection that routed the
+	// process to RuntimeReleaseID; it is provenance, not new authority.
+	RuntimeReleaseOperationID string
+	StartOperationID          string
 	// Variant names which instance of the scenario this is ("live" for the
 	// canonical primary, "shadow" etc. for alternates). Empty is normalized to
 	// DefaultVariant on create, so pre-variant callers address the live instance.
@@ -263,16 +273,19 @@ type PortClaim struct {
 }
 
 type HealthSnapshot struct {
-	InstanceID    string
-	Scenario      string
-	Status        string
-	Readiness     *bool
-	CheckedAt     *time.Time
-	LatencyMillis *int64
-	Error         string
-	ResponseJSON  string
-	SchemaValid   *bool
-	BuildIdentity string
+	InstanceID                string
+	Scenario                  string
+	Status                    string
+	Readiness                 *bool
+	CheckedAt                 *time.Time
+	LatencyMillis             *int64
+	Error                     string
+	ResponseJSON              string
+	SchemaValid               *bool
+	BuildIdentity             string
+	RuntimeReleaseID          string
+	RuntimeReleaseOperationID string
+	StartOperationID          string
 }
 
 type ProcessRef struct {

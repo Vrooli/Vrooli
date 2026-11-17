@@ -516,6 +516,18 @@ func (c *Controller) ReconcileDemandLeasesAt(ctx context.Context, at time.Time) 
 	return control.StopReport{Stopped: stopped, Failed: failed, Message: control.StopSummary(len(stopped), len(failed))}, nil
 }
 
+// ReconcileCapacity runs the recurring capacity maintenance owner: sample
+// resident claims, refresh or expire only claims supported by fresh GPU
+// evidence, and apply policy-authorized idle unloads through each resource's
+// declared degrade callback. The runtime supervisor calls this on its normal
+// tick so an idle TTL does not depend on an unrelated cleanup command.
+func (c *Controller) ReconcileCapacity(ctx context.Context) (control.StopReport, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return c.sweepCapacityClaims(ctx)
+}
+
 func (c *Controller) CleanStaleLocks() (control.StopReport, error) {
 	ctx := context.Background()
 	stopped := make([]control.ResultItem, 0)

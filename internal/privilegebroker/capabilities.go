@@ -8,7 +8,7 @@ const temporaryObservationTimeout = 30 * time.Second
 func capabilities() []string {
 	return []string{
 		ActionCapabilitiesInspect, ActionTemporaryActivityObserve,
-		ActionKernelMemoryInspect, ActionServiceRecover,
+		ActionKernelMemoryInspect, ActionKernelMemoryStackSample, ActionServiceRecover,
 		ActionBridgeUFWInspect, ActionBridgeUFWAllow, ActionBridgeUFWVerify, ActionBridgeUFWRevoke,
 		ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke,
 		ActionVolumeFilesystemCheck, ActionVolumeFilesystemRepair, ActionVolumeSMARTInspect, ActionRuntimeHomeOwnershipRepair,

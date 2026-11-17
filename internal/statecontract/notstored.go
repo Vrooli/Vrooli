@@ -12,25 +12,30 @@ package statecontract
 // StoredConstants are untyped string constants whose values reach stored
 // state: statuses, kinds, file and directory names, format versions.
 var StoredConstants = map[string][]string{
+	"internal/setup":                         {"ReadinessSourceInProcess", "ReadinessSourceUnavailable", "ReadinessStatusDegraded", "ReadinessStatusMissing", "ReadinessStatusReady", "ReadinessStatusUnsupported", "SelectionSchemaVersion", "SetupCategoryConfigurationPending", "SetupCategoryDegraded", "SetupCategoryInvalidConfiguration", "SetupCategoryPartialState", "SetupCategoryRequiredRequirementBlocked", "SetupCategorySuccess", "SetupCategoryTransientFailure", "SetupCategoryUnsupportedPlatform", "SetupResultVersion", "SetupStatusDegraded", "SetupStatusFailed", "SetupStatusReportVersion", "SetupStatusSuccess", "activeSetupRunning", "defaultEnvironment", "onboardingUrl", "resourcesEnabled", "resourcesNone", "setupCredentialStorePassphrase", "setupDockerTool", "setupNone", "setupOwnerVrooli", "setupStageComplete"},
+	"internal/projectstate":                  {"setupDirName", "migrationLedgerName", "configurationCompletePhase"},
+	"internal/setup/assets":                  {"aptPackageManager"},
+	"internal/rootdecision":                  {"PendingFilename", "WatchdogFilename"},
+	"internal/tools/triposr-source":          {"AdapterVersion", "ArchiveSHA256", "Commit", "ToolName", "sourceProfileFile", "sourceProfileLicense"},
 	"internal/hostreqkit":                    {"OpenRGBLinuxDeviceHIDRaw"},
 	"internal/agentsession":                  {"KindAgentManagerRun", "KindDesktopApp", "KindScenarioInstance", "KindTerminal", "KindUnknown", "KindWebConsoleSession", "OriginProgrammatic", "OriginRemote", "OriginUI", "OriginUnspecified", "RunIDSourceIdentityToken", "RunIDSourceInheritedIdentityToken", "SourceInferred"},
 	"internal/artifactlease":                 {"Schema", "Suffix"},
 	"internal/cliinstall":                    {"installationGoModule", "managerGoModule"},
 	"internal/hostsession":                   {"sessionFile"},
 	"internal/lightingruntime":               {"lightingStateDir", "lightingStateFile", "lightingLockFile", "PreparationManaged", "PreparationExisting"},
-	"internal/operatorcapability":            {"ContractVersion", "DecisionDeclined", "DecisionPending", "EvidenceSchemaVersion"},
-	"internal/operatorstate":                 {"AccelPreferenceAuto", "AccelPreferenceForceCPU", "AccelPreferencePreferGPU", "SchemaPath", "StateFile", "capacityPostureBalanced", "capacityPostureMinimal", "capacityPostureResponsive", "capacityPostureThroughput", "documentVersion", "hostWorkloadPostureVrooliOnly", "hostWorkloadPostureWholeHost", "profileSessionGuided", "profileSessionManual", "trustPostureHosted", "trustPosturePersonal", "trustPostureShared", "updateControlGuard", "updateControlObserve", "updateControlOwn"},
+	"internal/operatorcapability":            {"CandidateStatusReady", "EvidenceEffectReadOnly", "EvidenceEffectBoundedWrite", "ContractVersion", "DecisionDeclined", "DecisionPending", "EvidenceSchemaVersion"},
+	"internal/operatorstate":                 {"ResourceSourceManaged", "ResourceSourceHost", "AccelPreferenceAuto", "AccelPreferenceForceCPU", "AccelPreferencePreferGPU", "SchemaPath", "StateFile", "capacityPostureBalanced", "capacityPostureMinimal", "capacityPostureResponsive", "capacityPostureThroughput", "documentVersion", "hostWorkloadPostureVrooliOnly", "HostWorkloadPostureWholeHost", "profileSessionGuided", "profileSessionManual", "trustPostureHosted", "trustPosturePersonal", "trustPostureShared", "updateControlGuard", "updateControlObserve", "updateControlOwn"},
 	"internal/process":                       {"RecordStatusExitedVerified", "RecordStatusRunning", "launchRefPrefix"},
-	"internal/resources":                     {"openRGBPlatformDarwin", "openRGBPlatformWindows", "ErrorCodeCommandUnavailable", "ErrorCodeOperationFailed", "StatusCodeCommandError", "StatusCodeInvalidStatusPayload", "StatusCodeOK", "StatusCodeTimeout", "StatusCodeUnavailable", "StatusCodeUnsupportedPlatform", "accelBridgeExternalCli", "accelBridgeManagedService", "accelBridgeNativeCli", "blueprintArchivedResourcesPath", "blueprintDirPath", "deprecatedResourcesPath", "driversCliCloudAPI", "installFactsFile", "managedComposeManifestSchemaVersion", "managedServiceAcquisitionDir", "managedServiceAcquisitionFile", "managedServiceHealthy", "managedServiceStateFile", "managedServiceUnhealthy", "managedUpdateCredentialDefaultField", "managedUpdateExecFenceClaimed", "managedUpdateExecFencePrepared", "managedUpdateExecFenceRevoked", "managedUpdateLedgerFile", "managedUpdateRolePrimary", "managedUpdateRoleRestored", "modelCacheEventInstalled", "modelCacheEventStarted", "modelCacheEventStopped", "openRGBServerDefaultHost", "openRGBServerDefaultPort", "openRGBServerLegacy", "openRGBServerLoopback", "openRGBProfilesSettings", "openRGBProfileOpen", "openRGBProfileExit", "openRGBProfileResume", "openRGBProfileSuspend", "openRGBProfileServiceStart", "openRGBProfileServiceStop", "openRGBDisabledProfileJSON", "openRGBHIDSafeMode", "openRGBClientSettings", "openRGBSavedClients", "openRGBServerSettings", "openRGBExportAllControllers", "openRGBDevicePolicyFilename", "openRGBDeviceSetupPendingState", "openRGBDeviceSetupAppliedState", "openRGBDeviceSetupRolledBackState", "openRGBResourceName", "openRGBSealedAppDir", "openRGBSealedEnvelope", "openRGBSealedStagesDir", "openRGBSealedServingProfile", "openRGBMacOrphanFramework", "qualificationObservationRelativePath", "resourceMetadataRootPath", "restoredResourcesDirPath", "userResourceHostID", "vaultBootstrapVault"},
-	"internal/resources/manifest":            {"BackendCPU", "BackendCUDA", "BackendMetal", "BackendROCm", "BackendVulkan", "DegradeVerb", "DurableDataDir", "DurableDataFile", "DurableDataJSON", "DurableDataSQLite", "HealthCheckHTTP", "HealthCheckLiveness", "HealthCheckOpenRGBV6", "HealthCheckReadiness", "RequireNone", "RequirePreferred", "RequireRequired", "TunableBoolean", "TunableInteger", "TunableString", "VerifyContainerDevice", "VerifyNone", "VerifyProcessDevice", "manifestCloudAPI", "manifestExternalCli", "manifestManagedService", "manifestNativeCli", "manifestUnsupported"},
+	"internal/resources":                     {"openRGBPlatformDarwin", "openRGBPlatformWindows", "ErrorCodeCommandUnavailable", "ErrorCodeOperationFailed", "StatusCodeCommandError", "StatusCodeInvalidStatusPayload", "StatusCodeOK", "StatusCodeTimeout", "StatusCodeUnavailable", "StatusCodeUnsupportedPlatform", "accelBridgeExternalCli", "accelBridgeManagedService", "accelBridgeNativeCli", "blueprintArchivedResourcesPath", "blueprintDirPath", "deprecatedResourcesPath", "driversCliCloudAPI", "installFactsFile", "managedComposeManifestSchemaVersion", "managedServiceAcquisitionDir", "managedServiceAcquisitionFile", "managedServiceHealthy", "managedServiceStateFile", "managedServiceUnhealthy", "managedUpdateCredentialDefaultField", "managedUpdateExecFenceClaimed", "managedUpdateExecFencePrepared", "managedUpdateExecFenceRevoked", "managedUpdateLedgerFile", "managedUpdateRolePrimary", "managedUpdateRoleRestored", "modelCacheEventInstalled", "modelCacheEventStarted", "modelCacheEventStopped", "openRGBServerDefaultHost", "openRGBServerDefaultPort", "openRGBServerLegacy", "openRGBServerLoopback", "openRGBProfilesSettings", "openRGBProfileOpen", "openRGBProfileExit", "openRGBProfileResume", "openRGBProfileSuspend", "openRGBProfileServiceStart", "openRGBProfileServiceStop", "openRGBDisabledProfileJSON", "openRGBHIDSafeMode", "openRGBClientSettings", "openRGBSavedClients", "openRGBServerSettings", "openRGBExportAllControllers", "openRGBDevicePolicyFilename", "openRGBDeviceSetupPendingState", "openRGBDeviceSetupAppliedState", "openRGBDeviceSetupRolledBackState", "openRGBResourceName", "openRGBSealedAppDir", "openRGBSealedEnvelope", "openRGBSealedStagesDir", "openRGBSealedServingProfile", "openRGBMacOrphanFramework", "qualificationObservationRelativePath", "resourceMetadataRootPath", "restoredResourcesDirPath", "userResourceHostID", "vaultBootstrapVault", "runtimeProbeStatusFailed", "runtimeProbeStatusPassed"},
+	"internal/resources/manifest":            {"ActivityEdgeCompanionName", "BackendCPU", "BackendCUDA", "BackendMetal", "BackendROCm", "BackendVulkan", "DegradeVerb", "DurableDataDir", "DurableDataFile", "DurableDataJSON", "DurableDataSQLite", "HealthCheckHTTP", "HealthCheckTCP", "HealthCheckPostgreSQL", "HealthCheckRedis", "HealthCheckCommand", "HealthCheckLiveness", "HealthCheckOpenRGBV6", "HealthCheckReadiness", "PlatformSupportSupported", "RequireNone", "RequirePreferred", "RequireRequired", "TunableBoolean", "TunableInteger", "TunableString", "UpstreamBridgeCompanionName", "VerifyContainerDevice", "VerifyNone", "VerifyProcessDevice", "manifestCloudAPI", "DriverExternalCLI", "DriverManagedService", "manifestNativeCli", "manifestUnsupported"},
 	"internal/runtimesupervisor":             {"LogFileName"},
 	"internal/scenario":                      {"CLIArtifactLocationSibling", "CLIDistributionPrebuiltArtifact", "CLIInvokeInstalledCommand", "CLIKindGoModule", "DependencyFreshnessPolicyRebuildOnly", "DependencyFreshnessPolicyRestartWhenStale", "DependencyFreshnessPolicyReuseRunning", "DependencyStartupPolicyIgnore", "DependencyStartupPolicyMustStart", "DependencyStartupPolicyTryStart", "DependencySupervisionPrecedenceRequired", "DependencySupervisionPrecedenceStartupPolicy", "authenticationProfileCloudflareAccess", "authenticationProfileHybrid", "authenticationProfileLocalReadOnly", "authenticationProfileNone", "authenticationProfileScenarioAuthenticator", "scenarioStatusRunning", "scenarioStatusUnhealthy"},
-	"internal/securestore":                   {"BackendNative", "adapterEncryptedFile", "aeadContext", "backendSelectionFile", "credentialCopyLaunchLabel", "credentialCopyTask", "credentialCopyTimer", "hostBoundTPM2Mode", "keyStoreDPAPI", "keyStoreHostKey", "keyStoreKeychain", "keyStorePassphrase", "keyStoreTPM2", "keyringEncryptedMagic", "keyringPlaintextPrefix", "providerHostBound", "providerNativeWrap", "providerPassphrase", "secureStoreFieldSecret", "secureStoreFieldValue", "systemdCredsName", "tpm2PCRPolicy", "unlockCacheDirName", "unlockCacheFileName", "unsafeValueBytes", "valueEncodingPrefix", "vrooliServicePrefix"},
+	"internal/securestore":                   {"CopyScheduleReady", "CopyVerificationReadback", "BackendNative", "adapterEncryptedFile", "aeadContext", "backendSelectionFile", "credentialCopyLaunchLabel", "credentialCopyTask", "credentialCopyTimer", "hostBoundTPM2Mode", "keyStoreDPAPI", "keyStoreHostKey", "keyStoreKeychain", "keyStorePassphrase", "keyStoreTPM2", "keyringEncryptedMagic", "keyringPlaintextPrefix", "providerHostBound", "providerNativeWrap", "providerPassphrase", "secureStoreFieldSecret", "secureStoreFieldValue", "systemdCredsName", "tpm2PCRPolicy", "unlockCacheDirName", "unlockCacheFileName", "unsafeValueBytes", "valueEncodingPrefix", "vrooliServicePrefix"},
 	"internal/setpoint":                      {"CellCPUPressure", "CellCrashLoop", "CellForkRate", "CellMemoryPSI", "CellStrandedMemory", "fallbackDocumentSchemaVersion"},
 	"packages/cli-core/agentcatalog":         {"CodingRolePolicySchemaVersion", "LiveCatalogCurated", "ModelDiscoverySchemaVersion", "ModelSourceClaudeSubscription", "TokenWeightPolicyVersion"},
 	"packages/cli-core/agentcatalog/harness": {"WindowSourceClaudeStatusline", "WindowSourceCodexModelsCache"},
 	"packages/cli-core/usagemode":            {"ArmChallenger", "ArmIncumbent", "ExceptionExplicitModel", "ExceptionFullPower", "KindLearn", "KindSave", "UntilOff", "UntilTime", "UntilWindowReset", "markerFile"},
-	"packages/resource-deployment":           {"ActivationStateActivated", "ExternalManagementForbidden", "ServiceShutdownInterrupt", "ServiceShutdownTerminate", "UpdateStrategyExclusiveStopStart", "UpdateStrategyRollingStateless", "activationCurrentEntry", "activationGenerations", "activationStagingDir", "artifactCacheManifestName", "artifactCacheSchemaVersion", "dataAcquisitionEager", "dataAcquisitionOnDemand", "deploymentLayoutDir", "deploymentLayoutFile", "deploymentTargetUnsupported", "deploymentVerificationChecksum", "deploymentVerificationHostTool", "releaseTrustSchemaVersion"},
+	"packages/resource-deployment":           {"OSLinux", "OSMacOS", "OSWindows", "ArchAMD64", "ArchARM64", "ActivationStateActivated", "ExternalManagementForbidden", "ServiceShutdownInterrupt", "ServiceShutdownTerminate", "UpdateStrategyExclusiveStopStart", "UpdateStrategyRollingStateless", "activationCurrentEntry", "activationGenerations", "activationStagingDir", "artifactCacheManifestName", "artifactCacheSchemaVersion", "dataAcquisitionEager", "dataAcquisitionOnDemand", "deploymentLayoutDir", "deploymentLayoutFile", "TargetUnsupported", "deploymentVerificationChecksum", "deploymentVerificationHostTool", "releaseTrustSchemaVersion"},
 }
 
 // NotStoredConstants are constants that never reach stored state:
@@ -38,11 +43,16 @@ var StoredConstants = map[string][]string{
 // routes, schema paths in the repository, reasons printed rather than
 // recorded, and tunables of ConstantSources packages.
 var NotStoredConstants = map[string][]string{
+	// Scenario, transport and environment selectors and download URL, not persisted.
+	"internal/setup":                {"autohealScenario", "bootRecoveryReadinessRPC", "homebrewInstallURL", "onboardingSkipEnv", "onboardingSlug"},
+	"internal/tools/triposr-source": {"ArchiveRoot", "ArchiveURL", "adapterNotice", "configAdapter"},
+	"internal/setup/assets":         {"planName"},
 	"internal/capacity": {
-		// Current residency release-evidence model and freshness tunable are
-		// in-memory only; no capacity ledger root or writer stores these values.
-		// Reclassify the backend vocabulary when residency persistence is added.
-		"ResidencyBackendCPU", "ResidencyBackendCUDA", "ResidencyBackendMetal", "ResidencyBackendROCm", "ResidencyBackendVulkan", "ResidencyBackendUnloaded", "maxResidencyFootprintAge",
+		// Sampling decay changes a computed numeric observation, not its stored
+		// representation or the vocabulary accepted by the previous release.
+		"halfLifeDecayBase",
+		// The freshness threshold is a runtime decision, not stored vocabulary.
+		"maxResidencyFootprintAge",
 	},
 
 	"internal/hostreqkit": {"openRGBQualifiedDetectorCatalogSHA256"},
@@ -64,10 +74,12 @@ var NotStoredConstants = map[string][]string{
 		"probeKey", "probeService",
 	},
 	"internal/scenarioruntime": {
-		// retention count, not a stored format
-		"DemandAuditRetention",
+		// retention count and bounded provenance query size, not stored formats
+		"DemandAuditRetention", "EditorLeaseProvenanceQueryBatchSize",
 	},
 	"internal/resources": {
+		// In-memory input to the credential MAC sample; its digest is stamped.
+		"sampleResource",
 		// Pinned AppImage closure validation inputs. The durable launch contract
 		// retains the governed envelope; these constants are never serialized.
 		"openRGBAppDirPayload", "openRGBAppDirSHA256", "openRGBAppImageSHA256", "openRGBAppImageVersion", "openRGBPayloadSHA256",
@@ -79,7 +91,7 @@ var NotStoredConstants = map[string][]string{
 		// fleet contract validation vocabulary (checks repository manifests)
 		"fleetContractDir", "fleetContractExternalCLIDriver", "fleetContractUnsupported",
 		// environment names and commands passed to children, not stored
-		"gpuOverrideEnvVar", "managedServiceOwnershipTokenEnv", "managedUpdateExecCommand", "openRGBInitialExecCommand", "modelCacheOwnerCommand",
+		"gpuOverrideEnvVar", "managedServiceOwnershipTokenEnv", "managedUpdateExecCommand", "openRGBInitialExecCommand", "modelCacheOwnerCommand", "activityNetworkJoinedEnv",
 		// retention reasons printed by the artifact retention command
 		"ArtifactRetainActive", "ArtifactRetainInUse", "ArtifactRetainRemove", "ArtifactRetainRollback", "ArtifactRetainRunning", "ArtifactRetainUpdate",
 		// generated schema artifacts in the repository
@@ -94,6 +106,7 @@ var NotStoredConstants = map[string][]string{
 		"StateLive", "StateGhost", "StateAgentless", "StateUnrecorded", "StateUndetermined", "StateOrphaned", "StateIdle",
 		"DecisionStop", "DecisionKeep", "OutcomeWouldStop", "OutcomeOwnerReturns", "OutcomeKept",
 		"UsageMeasured", "UsagePartial", "UsageUnsupported", "UsageUnavailable",
+		"UsageSourceCgroupV2", "UsageSourceProcSum",
 	},
 	"internal/setpoint": {
 		// setpoint document location, environment names and compiled-fallback labels

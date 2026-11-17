@@ -278,6 +278,8 @@ func (s Service) Status(req StatusRequest) (StatusResponse, error) {
 		Scenario: BuildStatusDetail(detail),
 		Info:     BuildInfoData(detail.Scenario),
 		Runtime:  BuildRuntimeDataFromDetail(detail),
+
+		Authentication: detail.Authentication,
 	}
 	return StatusResponse{Single: &output}, nil
 }
@@ -381,10 +383,11 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 			errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
 			if req.JSON {
 				return PortResponse{List: &PortListOutput{
-					Success:  false,
-					Scenario: req.ScenarioName,
-					Ports:    []ListPortOutput{},
-					Error:    errMessage,
+					Success:   false,
+					Scenario:  req.ScenarioName,
+					Ports:     []ListPortOutput{},
+					Error:     errMessage,
+					ErrorCode: "scenario_not_running",
 				}}, nil
 			}
 			return PortResponse{}, errors.New(errMessage)
@@ -404,10 +407,11 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 		errMessage := noRunningRuntimePortsMessage(req.ScenarioName, detail.Details.Status, len(detail.Details.PortBindings))
 		if req.JSON {
 			return PortResponse{Single: &PortSingleOutput{
-				Success:  false,
-				Scenario: req.ScenarioName,
-				PortName: req.PortName,
-				Error:    errMessage,
+				Success:   false,
+				Scenario:  req.ScenarioName,
+				PortName:  req.PortName,
+				Error:     errMessage,
+				ErrorCode: "scenario_not_running",
 			}}, nil
 		}
 		return PortResponse{}, errors.New(errMessage)
@@ -417,10 +421,11 @@ func (s Service) Port(req PortRequest) (PortResponse, error) {
 	if !ok {
 		if req.JSON {
 			return PortResponse{Single: &PortSingleOutput{
-				Success:  false,
-				Scenario: req.ScenarioName,
-				PortName: req.PortName,
-				Error:    fmt.Sprintf("No running port named %s for scenario", req.PortName),
+				Success:   false,
+				Scenario:  req.ScenarioName,
+				PortName:  req.PortName,
+				Error:     fmt.Sprintf("No running port named %s for scenario", req.PortName),
+				ErrorCode: "port_not_found",
 			}}, nil
 		}
 		return PortResponse{}, fmt.Errorf("no running port named %s for scenario %q", req.PortName, req.ScenarioName)

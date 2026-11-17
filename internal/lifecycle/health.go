@@ -30,7 +30,7 @@ func (r *Runner) waitForHealthSnapshot(ctx context.Context, item scenario.Scenar
 	}
 	if health == nil || len(health.Checks) == 0 {
 		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, scenarioruntime.StatusRunning)
-		return scenarioruntime.StatusRunning, r.observeScenarioHealth(ctx, item, nil, ""), nil
+		return scenarioruntime.StatusRunning, r.observeScenarioHealth(ctx, item, nil, nil), nil
 	}
 	ports := healthPortsFromEnv(item.Manifest, env)
 	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, logx.AttrChecks, len(health.Checks), logx.AttrPorts, ports)
@@ -38,7 +38,7 @@ func (r *Runner) waitForHealthSnapshot(ctx context.Context, item scenario.Scenar
 	var lastStatus string
 	var snapshot scenarioruntime.HealthSnapshot
 	err := AwaitContext(ctx, r.awaitClock(), healthAwaitPolicy(health.Timeout, health.Interval), func() (bool, error) {
-		snapshot = r.observeScenarioHealth(ctx, item, ports, env[buildIdentityEnv])
+		snapshot = r.observeScenarioHealth(ctx, item, ports, env)
 		lastStatus = snapshot.Status
 		return lastStatus == scenarioruntime.HealthStatusHealthy && healthSnapshotReady(snapshot), nil
 	})
@@ -59,9 +59,16 @@ func (r *Runner) waitForHealthSnapshot(ctx context.Context, item scenario.Scenar
 	return lastStatus, snapshot, fmt.Errorf("scenario %q failed health/readiness checks: %s", item.Slug, snapshot.Error)
 }
 
-func (r *Runner) observeScenarioHealth(ctx context.Context, item scenario.Scenario, ports map[string]int, expectedBuild string) scenarioruntime.HealthSnapshot {
+func (r *Runner) observeScenarioHealth(ctx context.Context, item scenario.Scenario, ports map[string]int, env map[string]string) scenarioruntime.HealthSnapshot {
+	if env == nil {
+		env = map[string]string{}
+	}
 	return (scenarioruntime.HealthProbe{Clock: healthObservationClock(r.runtimeDeps().now), AllowLegacyHTTP: true}).Probe(ctx, scenarioruntime.HealthProbeInput{
-		Scenario: item.Slug, HealthConfig: item.Manifest.HealthConfig(), Ports: ports, ExpectedBuildIdentity: expectedBuild,
+		Scenario: item.Slug, HealthConfig: item.Manifest.HealthConfig(), Ports: ports,
+		ExpectedBuildIdentity:             env[buildIdentityEnv],
+		ExpectedRuntimeReleaseID:          env[runtimeReleaseIDEnv],
+		ExpectedRuntimeReleaseOperationID: env[runtimeReleaseOperationIDEnv],
+		ExpectedStartOperationID:          env[startOperationIDEnv],
 	})
 }
 
@@ -183,7 +190,12 @@ func (r *Runner) isRegistryRuntimeServingHealthy(item scenario.Scenario, view re
 		// prove served-image identity, but missing identity is not failed health
 		// and must not churn a serving shared dependency. Startup acceptance
 		// separately requires the expected image through waitForHealthSnapshot.
-		snapshot := r.observeScenarioHealth(context.Background(), item, view.Ports, "")
+		snapshot := r.observeScenarioHealth(context.Background(), item, view.Ports, map[string]string{
+			buildIdentityEnv:             view.Instance.BuildIdentity,
+			runtimeReleaseIDEnv:          view.Instance.RuntimeReleaseID,
+			runtimeReleaseOperationIDEnv: view.Instance.RuntimeReleaseOperationID,
+			startOperationIDEnv:          view.Instance.StartOperationID,
+		})
 		healthy = healthSnapshotReady(snapshot) && (snapshot.Status == scenarioruntime.HealthStatusHealthy || snapshot.Status == scenarioruntime.HealthStatusDegraded)
 		return healthy, nil
 	})

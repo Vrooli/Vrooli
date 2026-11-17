@@ -149,7 +149,7 @@ func Capture(ctx context.Context, home string, request Request) (Result, error) 
 func selectRecord(records []process.Record, step string) (process.Record, error) {
 	var matches []process.Record
 	for _, record := range records {
-		if record.Step == step && record.Status != "exited_verified" {
+		if record.Step == step && record.Status != process.RecordStatusExitedVerified {
 			matches = append(matches, record)
 		}
 	}

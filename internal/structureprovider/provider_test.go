@@ -169,3 +169,49 @@ func TestProjectOnlySkipsFleetTargetTraversal(t *testing.T) {
 		t.Fatalf("targets = %#v, want only project target", service.gotTargets)
 	}
 }
+
+func TestOutputFromResponsesRejectsMissingOrMismatchedRequiredEvidence(t *testing.T) {
+	project := validationTarget{kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT, id: TargetID, root: "/repo"}
+	passed := func(target *commonv1.ValidationTarget, assessment *commonv1.MaturityAssessment) *scenariovalidationv1.ValidateTargetResponse {
+		return &scenariovalidationv1.ValidateTargetResponse{Target: target, Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: assessment}
+	}
+	target := &commonv1.ValidationTarget{Kind: project.kind, Id: project.id, Root: project.root}
+	tests := []struct {
+		name      string
+		responses []*scenariovalidationv1.ValidateTargetResponse
+	}{
+		{name: "missing response"},
+		{name: "missing assessment", responses: []*scenariovalidationv1.ValidateTargetResponse{passed(target, nil)}},
+		{name: "mismatched target", responses: []*scenariovalidationv1.ValidateTargetResponse{passed(&commonv1.ValidationTarget{Kind: project.kind, Id: "other", Root: project.root}, &commonv1.MaturityAssessment{})}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			output := outputFromResponses("/repo", []validationTarget{project}, test.responses)
+			if output.Success || output.Report.Success {
+				t.Fatalf("missing or malformed required evidence was reported clean: %+v", output)
+			}
+			found := false
+			for _, check := range output.Report.Checks {
+				if check.Name == "provider_coverage" && !check.Passed && check.Message != "" {
+					found = true
+				}
+			}
+			if !found {
+				t.Fatalf("report lacks a concrete provider_coverage blocker: %+v", output.Report.Checks)
+			}
+		})
+	}
+}
+
+func TestOutputFromResponsesAcceptsCompleteRequiredEvidence(t *testing.T) {
+	target := validationTarget{kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_PROJECT, id: TargetID, root: "/repo"}
+	response := &scenariovalidationv1.ValidateTargetResponse{
+		Target:     &commonv1.ValidationTarget{Kind: target.kind, Id: target.id, Root: target.root},
+		Status:     scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
+		Assessment: &commonv1.MaturityAssessment{},
+	}
+	output := outputFromResponses("/repo", []validationTarget{target}, []*scenariovalidationv1.ValidateTargetResponse{response})
+	if !output.Success || !output.Report.Success {
+		t.Fatalf("complete passed evidence should remain clean: %+v", output)
+	}
+}

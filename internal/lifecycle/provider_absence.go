@@ -26,7 +26,7 @@ func providerKnownAbsent(item scenario.Scenario, instance scenarioruntime.Instan
 	// narrower than general stale-instance recovery.
 	if instance.Status == scenarioruntime.StatusStarting {
 		if instance.OwnerKind != scenarioruntime.OwnerKindLifecycle || instance.OwnerPID == nil || *instance.OwnerPID <= 0 || alive == nil || alive(*instance.OwnerPID) ||
-			(instance.Phase != scenarioruntime.PhasePlanning && instance.Phase != "setup") || len(refs) != 0 || hasAuthoredSetupExec(item.Manifest) {
+			(instance.Phase != scenarioruntime.PhasePlanning && instance.Phase != scenarioruntime.PhaseSetup) || len(refs) != 0 || hasAuthoredSetupExec(item.Manifest) {
 			return false
 		}
 		return apiClaimsKnownUnbound(item, claims, listening)

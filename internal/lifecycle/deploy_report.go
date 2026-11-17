@@ -195,7 +195,8 @@ func (r *Runner) deployReportWithSources(ctx context.Context, candidate, serving
 		Generation:      source.generation,
 		ProtoArtifactID: source.protoArtifactID,
 	}
-	deps := r.hostProbeDeps()
+	servingDeps := r.scenarioHostProbeDeps(serving)
+	candidateDeps := r.scenarioHostProbeDeps(candidate)
 	scenarioDir := relUnder(r.Root, candidate.Path)
 	executables, procOK := deployRunningExecutables()
 
@@ -209,7 +210,7 @@ func (r *Runner) deployReportWithSources(ctx context.Context, candidate, serving
 			return DeployReport{}, err
 		}
 		component := candidate.Manifest.Components[name]
-		baselineArtifacts, err := componentFreshnessArtifactsContextWithName(ctx, serving.SourcePath(), r.Root, candidate.Slug, name, component, deps)
+		baselineArtifacts, err := componentFreshnessArtifactsContextWithName(ctx, serving.SourcePath(), r.Root, candidate.Slug, name, component, servingDeps, serving.Variant)
 		if err != nil {
 			return DeployReport{}, fmt.Errorf("component %s serving baseline: %w", name, err)
 		}
@@ -218,7 +219,7 @@ func (r *Runner) deployReportWithSources(ctx context.Context, candidate, serving
 		// repeating input discovery (including Go dependency closure resolution).
 		candidateArtifacts := baselineArtifacts
 		if serving.SourcePath() != candidate.SourcePath() {
-			candidateArtifacts, err = componentFreshnessArtifactsContextWithName(ctx, candidate.SourcePath(), r.Root, candidate.Slug, name, component, deps)
+			candidateArtifacts, err = componentFreshnessArtifactsContextWithName(ctx, candidate.SourcePath(), r.Root, candidate.Slug, name, component, candidateDeps, candidate.Variant)
 			if err != nil {
 				return DeployReport{}, fmt.Errorf("component %s candidate inputs: %w", name, err)
 			}

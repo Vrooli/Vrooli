@@ -183,6 +183,36 @@ type promotedCodecHolder struct {
 	ownCodecType
 }
 
+type overridingCodecHolder struct {
+	ownCodecType
+}
+
+func (overridingCodecHolder) MarshalJSON() ([]byte, error) { return []byte(`{"override":true}`), nil }
+
+func TestEmbeddingCodecOverrideParticipatesInContract(t *testing.T) {
+	owner := Owner{Name: "fixture", Roots: []reflect.Type{reflect.TypeFor[overridingCodecHolder]()}}
+	stamp := func(override string) string {
+		return testStamp(t, map[string]string{
+			thisPackage + ".ownCodecType":          strings.Repeat("a", 32),
+			thisPackage + ".overridingCodecHolder": strings.Repeat(override, 32),
+		})
+	}
+	before, err := compute([]Owner{owner}, stamp("b"), "go1.26.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, err := compute([]Owner{owner}, stamp("c"), "go1.26.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before.Contract == after.Contract {
+		t.Fatal("an overridden encoder changed without changing the contract")
+	}
+	if _, err := compute([]Owner{owner}, testStamp(t, map[string]string{thisPackage + ".ownCodecType": strings.Repeat("a", 32)}), "go1.26.1"); err == nil {
+		t.Fatal("an omitted override classification qualified")
+	}
+}
+
 func TestCustomCodecsFailClosedWithoutAStampEntry(t *testing.T) {
 	owner := Owner{Name: "fixture", Roots: []reflect.Type{reflect.TypeFor[ownCodecType]()}}
 	if _, err := compute([]Owner{owner}, testStamp(t, nil), "go1.26.1"); err == nil || !strings.Contains(err.Error(), "custom codec the build stamp does not cover") {
@@ -193,8 +223,9 @@ func TestCustomCodecsFailClosedWithoutAStampEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	holder := Owner{Name: "fixture", Roots: []reflect.Type{reflect.TypeFor[promotedCodecHolder]()}}
-	if _, err := compute([]Owner{holder}, stamped, "go1.26.1"); err != nil {
-		t.Fatalf("a promoted codec required its own entry on the embedding type: %v", err)
+	classified := testStamp(t, map[string]string{thisPackage + ".ownCodecType": strings.Repeat("a", 32), thisPackage + ".promotedCodecHolder": strings.Repeat("b", 32)})
+	if _, err := compute([]Owner{holder}, classified, "go1.26.1"); err != nil {
+		t.Fatalf("a classified promoted codec did not qualify: %v", err)
 	}
 	if _, err := compute([]Owner{holder}, testStamp(t, nil), "go1.26.1"); err == nil {
 		t.Fatal("the embedded codec type escaped coverage through promotion")
@@ -575,6 +606,12 @@ func TestManagedUpdateLedgerConstantsAreStored(t *testing.T) {
 	if contains(NotStoredConstants["internal/resources"], "openRGBResourceName") {
 		t.Error("openRGBResourceName is incorrectly classified as not stored")
 	}
+	if !contains(StoredConstants["internal/setup"], "activeSetupRunning") || contains(NotStoredConstants["internal/setup"], "activeSetupRunning") {
+		t.Error("activeSetupRunning must be stored: setup serializes it and later reads it")
+	}
+	if !contains(NotStoredConstants["internal/resources"], "sampleResource") || contains(StoredConstants["internal/resources"], "sampleResource") {
+		t.Error("sampleResource must be classified as an in-memory digest sample input")
+	}
 	for constant, reachability := range map[string]string{
 		"openRGBSealedServingProfile": "the durable serving metadata filename and stage layout",
 		"openRGBMacOrphanFramework":   "omit[].path in the recipe embedded in durable serving metadata",
@@ -623,11 +660,22 @@ func TestLiteralsInStoredStringFieldsMakeTheExecutableIneligible(t *testing.T) {
 	} {
 		err := qualify(literal)
 		location := literal[strings.Index(literal, "@")+1:]
-		if err == nil || !strings.Contains(err.Error(), location+": a stored vocabulary value is written as a string literal") {
+		if err == nil || !strings.Contains(err.Error(), location+": a stored vocabulary value uses a string literal") {
 			t.Fatalf("%s qualified or was not explained: %v", literal, err)
 		}
 	}
 	if got := LiteralViolations([]Owner{owner}, []string{thisPackage + ".storedV1.Skip@internal/x/f.go:8"}); len(got) != 0 {
 		t.Fatalf("a field the codec skips was treated as stored: %v", got)
+	}
+}
+
+func TestForeignBindingRequiresItsCompiledOwnerFact(t *testing.T) {
+	stamp, err := EncodeStamp(Stamp{Packages: []string{thisPackage}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner := Owner{Name: "resources", Roots: []reflect.Type{reflect.TypeFor[storedV1]()}}
+	if _, err := compute([]Owner{owner}, stamp, "go1.26.1"); err == nil || !strings.Contains(err.Error(), "foreign stored value binding") {
+		t.Fatalf("missing compiled fact qualified: %v", err)
 	}
 }

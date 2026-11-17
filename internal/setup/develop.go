@@ -33,6 +33,9 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("provision generated packages: %w", err)
 	}
 	buildDir := filepath.Join(config.RepoConfigDir(root), "build")
+	if outputDir := strings.TrimSpace(os.Getenv("VROOLI_BUILD_DIR")); outputDir != "" {
+		buildDir = outputDir
+	}
 	if err := os.MkdirAll(buildDir, tuning.PermDir); err != nil {
 		return err
 	}
@@ -50,37 +53,65 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 	}
 	defer os.RemoveAll(stageDir)
 
+	buildEnv, err := freezeGoBuildEnvironment(root, stageDir)
+	if err != nil {
+		return fmt.Errorf("capture Go build environment: %w", err)
+	}
+
+	goFlags := []string{"-trimpath"}
+	if policy, policyErr := buildflags.Load(root); policyErr == nil && len(policy.For("develop")) > 0 {
+		goFlags = policy.For("develop")
+	}
+	if err := rejectUnsupportedGoFlags(goFlags); err != nil {
+		return err
+	}
+
 	type buildStep struct {
 		name  string
 		build func(string) error
 	}
 	steps := []buildStep{
 		{name: "vrooli-api", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, stdout, stderr)
+			return buildProjectBinary(root, output, "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
 		}},
 		{name: "vrooli", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, stdout, stderr)
+			return buildProjectBinary(root, output, "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+		}},
+		{name: "vrooli-watchdog", build: func(output string) error {
+			return buildProjectBinary(root, output, "./cmd/vrooli-watchdog", buildinfo.FingerprintTargetsForExecutable("vrooli-watchdog"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
 		}},
 		{name: "vrooli-atomic-install", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-atomic-install", buildinfo.FingerprintTargetsForExecutable("vrooli-atomic-install"), gitCommit, buildTime, stdout, stderr)
+			return buildProjectBinary(root, output, "./cmd/vrooli-atomic-install", buildinfo.FingerprintTargetsForExecutable("vrooli-atomic-install"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
 		}},
 		{name: "vrooli-agent-launcher", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, stdout, stderr)
+			return buildProjectBinary(root, output, "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+		}},
+		{name: "vrooli-gocacheprog", build: func(output string) error {
+			return buildProjectBinary(root, output, "./cmd/vrooli-gocacheprog", buildinfo.FingerprintTargetsForExecutable("vrooli-gocacheprog"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
 		}},
 		{name: "vrooli-policy-runner", build: func(output string) error {
-			return buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), output, stdout, stderr)
+			return buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), output, buildEnv.nested, buildEnv.goCommand, stdout, stderr)
 		}},
 	}
 
-	var buildErrors []error
-	for _, step := range steps {
-		stagedPath := filepath.Join(stageDir, step.name)
-		if err := step.build(stagedPath); err != nil {
-			buildErrors = append(buildErrors, fmt.Errorf("build %s: %w", step.name, err))
+	err = withStableBuildInputs(root, func() error {
+		var buildErrors []error
+		for _, step := range steps {
+			stagedPath := filepath.Join(stageDir, step.name)
+			if err := step.build(stagedPath); err != nil {
+				buildErrors = append(buildErrors, fmt.Errorf("build %s: %w", step.name, err))
+			}
 		}
-	}
-	if err := errors.Join(buildErrors...); err != nil {
-		return fmt.Errorf("project build failed; existing binaries were left untouched:\n%w", err)
+		if err := errors.Join(buildErrors...); err != nil {
+			return fmt.Errorf("project build failed; existing binaries were left untouched:\n%w", err)
+		}
+		if err := buildEnv.verifyWorkspaces(); err != nil {
+			return err
+		}
+		return buildEnv.verifyNoVendor()
+	})
+	if err != nil {
+		return err
 	}
 
 	for _, step := range steps {
@@ -89,6 +120,38 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 		if err := platform.AtomicReplace(stagedPath, finalPath); err != nil {
 			return fmt.Errorf("publish built %s: %w", step.name, err)
 		}
+	}
+	return nil
+}
+
+// These are the seven command roots and all of their in-repository module
+// replacements. Excluding unrelated scenarios avoids treating their test
+// fixtures as build inputs to the control plane.
+var buildCohortSourcePaths = []string{
+	"cmd/vrooli", "cmd/vrooli-watchdog", "cmd/vrooli-api", "cmd/vrooli-atomic-install", "cmd/vrooli-agent-launcher", "cmd/vrooli-gocacheprog", "cmd/vrooli-policy-runner",
+	"internal", "cli", "packages", "scenarios/scenario-to-desktop/runtime", "go.mod", "go.sum",
+}
+
+func buildCohortFingerprint(root string) (string, error) {
+	return buildinfo.ComputeSourceFingerprintForPaths(root, buildCohortSourcePaths...)
+}
+
+// withStableBuildInputs refuses to publish a cohort when compiler inputs changed
+// while its images were built. Each image retains its own precise fingerprint.
+func withStableBuildInputs(root string, build func() error) error {
+	before, err := buildCohortFingerprint(root)
+	if err != nil {
+		return fmt.Errorf("fingerprint build inputs: %w", err)
+	}
+	if err := build(); err != nil {
+		return err
+	}
+	after, err := buildCohortFingerprint(root)
+	if err != nil {
+		return fmt.Errorf("recheck build inputs: %w", err)
+	}
+	if before != after {
+		return errors.New("project build inputs changed during compilation; existing binaries were left untouched, retry the build")
 	}
 	return nil
 }
@@ -209,7 +272,7 @@ func developHealthTimeout(spec apiLaunchSpec) time.Duration {
 	return tuning.SetupOperationTimeout()
 }
 
-func buildProjectBinary(root, outputPath, target string, fingerprintPaths []string, gitCommit, buildTime string, stdout, stderr io.Writer) error {
+func buildProjectBinary(root, outputPath, target string, fingerprintPaths []string, gitCommit, buildTime string, env []string, goCommand string, goFlags []string, stdout, stderr io.Writer) error {
 	fingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, fingerprintPaths...)
 	if err != nil {
 		return err
@@ -234,14 +297,12 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 		return err
 	}
 	ldflags += " " + stateFlag
-
-	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0"})
-	goFlags := []string{"-trimpath"}
-	if policy, policyErr := buildflags.Load(root); policyErr == nil && len(policy.For("develop")) > 0 {
-		goFlags = policy.For("develop")
+	if target == "./cmd/vrooli-watchdog" {
+		ldflags += " -X main.buildVersion=" + buildinfo.ManagedWatchdogVersion(fingerprint)
 	}
+
 	return shell.Run(shell.Spec{
-		Name:   "go",
+		Name:   goCommand,
 		Args:   append(append([]string{"build"}, goFlags...), "-ldflags", ldflags, "-o", outputPath, target),
 		Dir:    root,
 		Env:    env,
@@ -260,10 +321,9 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 // cannot be built with `go build ./cmd/...` from the repo root, so it builds
 // from its own directory and does not receive the main module's buildinfo
 // ldflags (those -X symbols do not exist in this module).
-func buildNestedModuleBinary(moduleDir, outputPath string, stdout, stderr io.Writer) error {
-	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0"})
+func buildNestedModuleBinary(moduleDir, outputPath string, env []string, goCommand string, stdout, stderr io.Writer) error {
 	return shell.Run(shell.Spec{
-		Name:   "go",
+		Name:   goCommand,
 		Args:   []string{"build", "-trimpath", "-o", outputPath, "."},
 		Dir:    moduleDir,
 		Env:    env,

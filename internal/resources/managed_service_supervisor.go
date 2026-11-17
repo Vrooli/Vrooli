@@ -219,12 +219,35 @@ func (s *ManagedServiceSupervisor) Start(artifactPath string, artifact resourced
 // StartContext preserves the supervisor ownership contract while honoring
 // acquisition cancellation through final verification and immediately at spawn.
 func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPath string, artifact resourcedeployment.ServiceArtifact, args, env []string, workingDir string, limits *resourcedeployment.ProcessLimits) (ManagedServiceState, error) {
+	launchPath, err := artifact.LaunchPath(artifactPath)
+	if err != nil {
+		return ManagedServiceState{}, err
+	}
+	return s.StartContextWithLauncher(ctx, artifactPath, artifact, launchPath, args, env, workingDir, limits)
+}
+
+// StartContextWithLauncher supervises a verified managed-service artifact
+// through a resource-owner supplied launcher such as a private network
+// namespace. The recorded artifact identity remains the service artifact;
+// launcherPath is only the process boundary around that exact command.
+func (s *ManagedServiceSupervisor) StartContextWithLauncher(ctx context.Context, artifactPath string, artifact resourcedeployment.ServiceArtifact, launcherPath string, launcherArgs, env []string, workingDir string, limits *resourcedeployment.ProcessLimits) (ManagedServiceState, error) {
 	if err := artifact.VerifyFileContext(ctx, artifactPath); err != nil {
 		return ManagedServiceState{}, err
+	}
+	if !filepath.IsAbs(launcherPath) || strings.TrimSpace(launcherPath) == "" {
+		return ManagedServiceState{}, errors.New("managed-service launcher must be an absolute executable path")
+	}
+	for _, arg := range launcherArgs {
+		if strings.ContainsRune(arg, '\x00') {
+			return ManagedServiceState{}, errors.New("managed-service launcher arguments contain a NUL byte")
+		}
 	}
 	launchPath, err := artifact.LaunchPath(artifactPath)
 	if err != nil {
 		return ManagedServiceState{}, err
+	}
+	if strings.TrimSpace(managedServiceEnvValues(env)["VROOLI_MANAGED_SERVICE_RUN_AS_USER"]) != "" && launcherPath != launchPath {
+		return ManagedServiceState{}, errors.New("managed-service launcher cannot wrap a run-as-user service")
 	}
 	existing, running, err := s.Status()
 	if err != nil {
@@ -258,9 +281,9 @@ func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPat
 	if err != nil {
 		return ManagedServiceState{}, err
 	}
-	cmd := shell.NewCommand(launchPath, args...)
+	cmd := shell.NewCommand(launcherPath, launcherArgs...)
 	if userName := strings.TrimSpace(managedServiceEnvValues(env)["VROOLI_MANAGED_SERVICE_RUN_AS_USER"]); userName != "" && os.Geteuid() == 0 {
-		cmd = managedServiceRunAsCommand("runuser", userName, launchPath, args, env)
+		cmd = managedServiceRunAsCommand("runuser", userName, launcherPath, launcherArgs, env)
 	}
 	cmd.Env = values.SetEnv(detachedResourceEnvironment(env), managedServiceOwnershipTokenEnv, ownershipToken)
 	if strings.EqualFold(strings.TrimSpace(artifact.Layout), "dir") {

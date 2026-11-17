@@ -332,6 +332,36 @@ func TestApplyFetch_SuccessViaStubFetcher(t *testing.T) {
 	}
 }
 
+func TestFetchedAssetNameAddsWindowsExecutableSuffixOnlyForRawFiles(t *testing.T) {
+	if got := fetchedAssetName("pnpm", false, true); got != "pnpm.exe" {
+		t.Fatalf("raw Windows asset name = %q, want pnpm.exe", got)
+	}
+	if got := fetchedAssetName("node", true, true); got != "node" {
+		t.Fatalf("directory launcher name = %q, want node", got)
+	}
+	if got := fetchedAssetName("pnpm.exe", false, true); got != "pnpm.exe" {
+		t.Fatalf("already suffixed Windows asset name = %q, want pnpm.exe", got)
+	}
+}
+
+func TestLocalFetchCommandPathForWindowsPrefersExecutableThenBatchLauncher(t *testing.T) {
+	binDir := t.TempDir()
+	launcher := filepath.Join(binDir, "pnpm.bat")
+	if err := os.WriteFile(launcher, []byte("@echo off\r\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := localFetchCommandPathForOS(binDir, "pnpm", "windows"); got != launcher {
+		t.Fatalf("Windows launcher path = %q, want %q", got, launcher)
+	}
+	exe := filepath.Join(binDir, "pnpm.exe")
+	if err := os.WriteFile(exe, []byte("executable"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if got := localFetchCommandPathForOS(binDir, "pnpm", "windows"); got != exe {
+		t.Fatalf("Windows executable path = %q, want %q", got, exe)
+	}
+}
+
 func TestApplyFetch_FetchFailureIsFailed(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "amd64"})
 	withArch(t, "amd64")

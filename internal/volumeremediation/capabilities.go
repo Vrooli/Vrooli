@@ -4,7 +4,7 @@ package volumeremediation
 // `vrooli host volume capabilities`. Callers use this read-only probe to
 // detect an older installed control-plane binary before requesting a volume
 // operation.
-const ContractVersion = "host-volume-v1"
+const ContractVersion = "host-volume-v2"
 
 // CapabilitySMARTInspect advertises the read-only whole-disk SMART probe. It is
 // not an Action: the privilege broker verifies the disk serial and runs
@@ -31,6 +31,7 @@ func AdvertisedCapabilities() Capabilities {
 			string(ActionRepair),
 			string(ActionUnmount),
 			string(ActionMountReadWrite),
+			"lease",
 		},
 	}
 }

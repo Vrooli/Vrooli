@@ -19,12 +19,13 @@ const enrollmentWitness = "vrooli-root-update-enrollment-v1\n"
 // Enrollment is operator configuration, not an authorization grant or proof
 // of update safety. Every update still qualifies its retained native inputs.
 type Enrollment struct {
-	SchemaVersion   int    `json:"schema_version"`
-	Home            string `json:"home"`
-	Executable      string `json:"executable"`
-	UnitName        string `json:"unit_name"`
-	Enabled         bool   `json:"enabled"`
-	UpdatedUnixNano int64  `json:"updated_unix_nano"`
+	SchemaVersion    int    `json:"schema_version"`
+	Home             string `json:"home"`
+	Executable       string `json:"executable"`
+	UnitName         string `json:"unit_name"`
+	Enabled          bool   `json:"enabled"`
+	RebaselinePaused bool   `json:"rebaseline_paused,omitempty"`
+	UpdatedUnixNano  int64  `json:"updated_unix_nano"`
 }
 
 func (s *Store) Enrollment() (Enrollment, bool, error) {
@@ -58,7 +59,7 @@ func (s *Store) Enrollment() (Enrollment, bool, error) {
 		return enrollment, false, err
 	}
 	unit, _ := platform.CoreUnitByID(platform.CoreUnitRuntimeSupervisor)
-	if enrollment.SchemaVersion != enrollmentSchemaVersion || enrollment.Home != s.home || enrollment.Executable != filepath.Join(bin, "vrooli") || enrollment.UnitName != unit.Systemd || enrollment.UpdatedUnixNano <= 0 {
+	if enrollment.SchemaVersion != enrollmentSchemaVersion || enrollment.Home != s.home || enrollment.Executable != filepath.Join(bin, "vrooli") || enrollment.UnitName != unit.Systemd || enrollment.UpdatedUnixNano <= 0 || (enrollment.Enabled && enrollment.RebaselinePaused) {
 		return enrollment, false, ErrConflict
 	}
 	return enrollment, true, nil
@@ -68,7 +69,23 @@ func (s *Store) Enrollment() (Enrollment, bool, error) {
 // lock. qualify must retain its install lock until the returned release runs;
 // enabling must prove current native recovery readiness under that lock.
 func (s *Store) ConfigureEnrollment(ctx context.Context, enabled bool, qualify func(context.Context) (func(), error)) (Enrollment, error) {
-	if qualify == nil {
+	return s.configureEnrollment(ctx, enabled, false, nil, qualify)
+}
+
+// CompareAndConfigureEnrollment changes only the exact observed record. The pause
+// intent is stored atomically with the disabled policy so recovery survives a crash.
+func (s *Store) CompareAndConfigureEnrollment(ctx context.Context, expected Enrollment, enabled, paused bool, qualify func(context.Context) (func(), error)) (Enrollment, bool, error) {
+	e, err := s.configureEnrollment(ctx, enabled, paused, &expected, qualify)
+	if errors.Is(err, errEnrollmentChanged) {
+		return Enrollment{}, false, nil
+	}
+	return e, err == nil, err
+}
+
+var errEnrollmentChanged = errors.New("enrollment changed")
+
+func (s *Store) configureEnrollment(ctx context.Context, enabled, paused bool, expected *Enrollment, qualify func(context.Context) (func(), error)) (Enrollment, error) {
+	if qualify == nil || (enabled && paused) {
 		return Enrollment{}, ErrConflict
 	}
 	release, err := s.lock(ctx)
@@ -76,8 +93,12 @@ func (s *Store) ConfigureEnrollment(ctx context.Context, enabled bool, qualify f
 		return Enrollment{}, err
 	}
 	defer release()
-	if _, _, err := s.Enrollment(); err != nil {
+	current, exists, err := s.Enrollment()
+	if err != nil {
 		return Enrollment{}, err
+	}
+	if expected != nil && (!exists || current != *expected) {
+		return Enrollment{}, errEnrollmentChanged
 	}
 	if err := s.GuardOrdinaryMutation(ctx); err != nil {
 		return Enrollment{}, err
@@ -96,6 +117,13 @@ func (s *Store) ConfigureEnrollment(ctx context.Context, enabled bool, qualify f
 	}
 	unit, _ := platform.CoreUnitByID(platform.CoreUnitRuntimeSupervisor)
 	e := Enrollment{SchemaVersion: enrollmentSchemaVersion, Home: s.home, Executable: filepath.Join(bin, "vrooli"), UnitName: unit.Systemd, Enabled: enabled, UpdatedUnixNano: time.Now().UnixNano()}
+	if e.UpdatedUnixNano <= current.UpdatedUnixNano {
+		if current.UpdatedUnixNano == int64(^uint64(0)>>1) {
+			return Enrollment{}, ErrConflict
+		}
+		e.UpdatedUnixNano = current.UpdatedUnixNano + 1
+	}
+	e.RebaselinePaused = paused
 	data, err := json.Marshal(e)
 	if err != nil {
 		return Enrollment{}, err

@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"context"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/logx"
@@ -20,11 +21,12 @@ import (
 
 // Step names recorded on a start operation, in execution order.
 const (
-	startStepStop         = "stop"
-	startStepDependencies = "dependencies"
-	startStepSetup        = "setup"
-	startStepDevelop      = "develop"
-	startStepHealth       = "health"
+	startStepStop          = "stop"
+	startStepDependencies  = "dependencies"
+	startStepSetup         = "setup"
+	startStepDevelop       = "develop"
+	startStepHealth        = "health"
+	startStepProviderFence = "provider_fence"
 )
 
 type startOperationRecorder struct {
@@ -142,6 +144,11 @@ func (rec *startOperationRecorder) linkProviderFence(operationID string) error {
 		return err
 	}
 	rec.op.FenceOperationID = operationID
+	rec.runner.logInfo("Provider lifecycle fence linked to start operation",
+		logx.AttrScenario, rec.op.Scenario,
+		"start_operation_id", rec.op.OperationID,
+		"provider_fence_operation_id", operationID,
+	)
 	return nil
 }
 
@@ -157,6 +164,12 @@ func (rec *startOperationRecorder) close() {
 		rec.done = nil
 	}
 	if rec.store == nil {
+		// A failed progress write disables the recorder and drops its handle
+		// (flush) after Publish already moved the in-memory record forward, so
+		// the stored record can still say "running" while this operation is
+		// over. A retry started right away would refuse to recover a fence whose
+		// owner looks live. Settle the stored record through a fresh handle.
+		rec.settleWithFreshHandle()
 		return
 	}
 	if !rec.op.IsTerminal() {
@@ -166,6 +179,29 @@ func (rec *startOperationRecorder) close() {
 	}
 	_ = rec.store.Close()
 	rec.store = nil
+}
+
+// settleWithFreshHandle writes the operation's final state when the recorder's
+// own registry handle is already gone: the in-memory terminal record if there is
+// one, otherwise an abandoned marker. Both writes only change a record that is
+// still running, so ErrNotFound means it already settled (the cancellation
+// watcher, a takeover, or an earlier successful flush), which is the outcome
+// wanted.
+func (rec *startOperationRecorder) settleWithFreshHandle() {
+	store, err := rec.runner.runtimeDeps().runtimeRegistry(context.Background(), rec.runner.Home)
+	if err != nil {
+		rec.runner.logDebug("Settle start-operation record failed", "error", err.Error())
+		return
+	}
+	defer func() { _ = store.Close() }()
+	if rec.op.IsTerminal() {
+		_, err = store.UpdateStartOperation(context.Background(), rec.op)
+	} else {
+		_, err = store.MarkStartOperationAbandoned(context.Background(), rec.op.OperationID, "initiator exited before completion")
+	}
+	if err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		rec.runner.logDebug("Settle start-operation record failed", "error", err.Error())
+	}
 }
 
 //nolint:gocyclo // operation publishing maps event, phase, terminal, and persistence states to one record.
@@ -225,6 +261,20 @@ func (rec *startOperationRecorder) Publish(ev ProgressEvent) {
 		if d, ok := rec.completeStep(startStepHealth, ev.At, scenarioruntime.StartStepDone); ok {
 			rec.recordDuration(startStepHealth, d)
 		}
+		identity := map[string]string{
+			"runtime_instance_id":                   ev.RuntimeInstanceID,
+			"selected_release_id":                   ev.RuntimeReleaseID,
+			"release_selection_operation_id":        ev.RuntimeReleaseOperationID,
+			"expected_build_identity":               ev.RuntimeBuildIdentity,
+			"served_build_identity":                 ev.HealthBuildIdentity,
+			"served_release_id":                     ev.HealthRuntimeReleaseID,
+			"served_release_selection_operation_id": ev.HealthRuntimeReleaseOperationID,
+			"served_start_operation_id":             ev.HealthStartOperationID,
+			"health_verdict":                        ev.Verdict,
+		}
+		if ev.RuntimeInstanceID != "" {
+			rec.completeStepWithEvidence(scenarioruntime.StartStepRuntimeIdentity, ev.At, identity)
+		}
 		rec.op.Status = scenarioruntime.StartOperationStatusSucceeded
 		rec.op.Verdict = ev.Verdict
 		rec.op.CurrentStep = ""
@@ -236,16 +286,104 @@ func (rec *startOperationRecorder) Publish(ev ProgressEvent) {
 			return
 		}
 		rec.failRunningSteps(ev.At)
+		rec.failRuntimeIdentityStep(ev.At, ev.RollbackSelectionAttempted, ev.RollbackSelectionReleaseID, ev.RollbackSelectionOperationID, ev.RollbackSelectionError)
 		rec.op.Status = scenarioruntime.StartOperationStatusFailed
 		if ev.Err != nil {
 			rec.op.Error = ev.Err.Error()
 		}
 		at := ev.At.UTC()
 		rec.op.FinishedAt = &at
+	case EventRuntimeIdentitySelected:
+		if ev.Scenario != rec.scenario {
+			return
+		}
+		rec.beginRuntimeIdentityStep(ev)
 	default:
 		return
 	}
 	rec.flush()
+}
+
+func (rec *startOperationRecorder) beginRuntimeIdentityStep(ev ProgressEvent) {
+	if rec == nil {
+		return
+	}
+	evidence := map[string]string{
+		"runtime_instance_id":            ev.RuntimeInstanceID,
+		"selected_release_id":            ev.RuntimeReleaseID,
+		"release_selection_operation_id": ev.RuntimeReleaseOperationID,
+		"expected_build_identity":        ev.RuntimeBuildIdentity,
+		"start_operation_id":             rec.op.OperationID,
+	}
+	for i := range rec.steps {
+		if rec.steps[i].Name == scenarioruntime.StartStepRuntimeIdentity {
+			rec.steps[i].Evidence = evidence
+			rec.op.WithSteps(rec.steps)
+			rec.flush()
+			return
+		}
+	}
+	at := ev.At.UTC()
+	rec.steps = append(rec.steps, scenarioruntime.StartOperationStep{
+		Name: scenarioruntime.StartStepRuntimeIdentity, Status: scenarioruntime.StartStepRunning, StartedAt: at, Evidence: evidence,
+	})
+	rec.op.CurrentStep = scenarioruntime.StartStepRuntimeIdentity
+	rec.flush()
+}
+
+func (rec *startOperationRecorder) failRuntimeIdentityStep(at time.Time, rollbackAttempted bool, rollbackReleaseID, rollbackOperationID, rollbackErr string) {
+	if rec == nil {
+		return
+	}
+	for i := range rec.steps {
+		if rec.steps[i].Name != scenarioruntime.StartStepRuntimeIdentity {
+			continue
+		}
+		if rec.steps[i].Evidence == nil {
+			rec.steps[i].Evidence = map[string]string{}
+		}
+		rec.steps[i].Evidence["rollback_attempted"] = strconv.FormatBool(rollbackAttempted)
+		if rollbackAttempted {
+			rec.steps[i].Evidence["rollback_release_id"] = rollbackReleaseID
+			rec.steps[i].Evidence["rollback_operation_id"] = rollbackOperationID
+			rec.steps[i].Evidence["rollback_error"] = rollbackErr
+		}
+		ended := at.UTC()
+		rec.steps[i].Status = scenarioruntime.StartStepFailed
+		rec.steps[i].EndedAt = &ended
+		rec.op.WithSteps(rec.steps)
+		return
+	}
+}
+
+func (rec *startOperationRecorder) completeStepWithEvidence(name string, at time.Time, evidence map[string]string) {
+	if rec == nil {
+		return
+	}
+	at = at.UTC()
+	for i := range rec.steps {
+		if rec.steps[i].Name == name {
+			for key, value := range evidence {
+				if value == "" {
+					delete(evidence, key)
+				}
+			}
+			for key, value := range rec.steps[i].Evidence {
+				if _, ok := evidence[key]; !ok {
+					evidence[key] = value
+				}
+			}
+			rec.steps[i].Status = scenarioruntime.StartStepDone
+			rec.steps[i].EndedAt = &at
+			rec.steps[i].Evidence = evidence
+			rec.op.WithSteps(rec.steps)
+			return
+		}
+	}
+	rec.steps = append(rec.steps, scenarioruntime.StartOperationStep{
+		Name: name, Status: scenarioruntime.StartStepDone, StartedAt: at, EndedAt: &at, Evidence: evidence,
+	})
+	rec.op.WithSteps(rec.steps)
 }
 
 // beginStep appends a running step (idempotent while it is already running)
@@ -282,6 +420,24 @@ func (rec *startOperationRecorder) markCompletedStep(name string, started, ended
 		StartedAt: started, EndedAt: &ended,
 	})
 	rec.op.WithSteps(rec.steps)
+}
+
+func (rec *startOperationRecorder) beginAndFlushStep(name string, at time.Time) {
+	if rec == nil || rec.store == nil {
+		return
+	}
+	rec.beginStep(name, at)
+	rec.flush()
+}
+
+func (rec *startOperationRecorder) completeAndFlushStep(name string, at time.Time) {
+	if rec == nil || rec.store == nil {
+		return
+	}
+	if _, ok := rec.completeStep(name, at, scenarioruntime.StartStepDone); !ok {
+		return
+	}
+	rec.flush()
 }
 
 // completeStep transitions a running step to the given terminal status and

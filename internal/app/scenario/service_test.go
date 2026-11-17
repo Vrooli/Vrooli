@@ -173,6 +173,9 @@ func TestPortRejectsSpecificPortWhenRuntimeIsNotRunning(t *testing.T) {
 	if !strings.Contains(resp.Single.Error, "registry") || !strings.Contains(resp.Single.Error, "starting") {
 		t.Fatalf("response error = %q, want stale registry context", resp.Single.Error)
 	}
+	if resp.Single.ErrorCode != "scenario_not_running" {
+		t.Fatalf("response error_code = %q, want scenario_not_running", resp.Single.ErrorCode)
+	}
 }
 
 func TestPortResolvesSpecificPortFromRuntimeDetails(t *testing.T) {

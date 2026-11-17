@@ -28,8 +28,14 @@ under its lock. Neither `--force` nor lifecycle override flags bypass verificati
 An ordinary start or restart with neither selection flag keeps durable selection.
 Source CLI preparation is skipped when that lifecycle-owned selection is retained.
 
-This is explicit operator-selected recovery. It does not add automatic rollback,
-recovery after caller death, destructive retention, or a public setup-skip flag.
+Selection records the previously selected retained release. If replacement fails,
+the lifecycle owner restores that exact verified release only when the previous
+selection was another retained release and the candidate is still current. It
+never falls back automatically to mutable source. The failed start remains failed;
+the restored pointer lets the next ordinary start use the known retained release.
+This does not restart it inside the failed operation or prove recovery after a
+controller crash between the failure and pointer write. It adds no destructive
+retention or public setup-skip flag.
 
 ## Qualification and limits
 
@@ -44,8 +50,9 @@ backup. Capture excludes mutable state, credentials, environment files and
 repository metadata. Service policy is retained as a normalized JSON digest only,
 not copied configuration. Selection requires that digest and the current state
 contract to match. A selection pointer is intent, not a running/healthy receipt.
-A failed preflight may leave the selected intent pending; an ordinary subsequent
-start re-verifies it. No automatic retry or fallback is started.
+A failed preflight restores a previous retained selection when one is verified;
+without one, the failed selection stays visible for explicit recovery. Rollback
+does not retry or start a process.
 
 The supported launch subset is component executables or pinned Node script entry
 points. Output, working directory and entry paths must stay in retained storage.
@@ -76,8 +83,13 @@ unknown physical executors safe to stop.
 
 Runtime health identity uses `sha256:<release-id>` for retained bytes. The build
 identity of the process observed at capture is provenance only; it is not asserted
-as the origin of today's on-disk files. Existing runtime events bind the retained
-ID to the new instance/generation, without a registry schema upgrade.
+as the origin of today's on-disk files. At launch the lifecycle owner binds the
+immutable release ID, selection operation ID, and exact start operation ID to the
+new instance. Its health gate compares the response to those launch-time values;
+the durable instance and health snapshot retain what actually served. Status and
+the start-operation receipt report that process identity, even if a later CAS
+selection moves the pointer while the old process is still running. A matching
+healthy response from an older process therefore cannot validate the new launch.
 
 The expected-release guard compares current content selection under the scenario
 lock. It is not an intent-revision or ABA-proof history comparison. Published

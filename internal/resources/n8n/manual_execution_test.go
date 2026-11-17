@@ -53,6 +53,27 @@ func TestValidateManualWorkflowAllowsOnlyOnePinnedManualTrigger(t *testing.T) {
 	}
 }
 
+func TestValidateManualWorkflowAllowsOnlyDeterministicPureBuiltIns(t *testing.T) {
+	id := workflowIDFor(testSandboxID, runtimeIDFor(testSandboxID), uuid.MustParse(workflowOperationID))
+	for _, nodeType := range []string{
+		"n8n-nodes-base.set", "n8n-nodes-base.if", "n8n-nodes-base.switch",
+		"n8n-nodes-base.merge", "n8n-nodes-base.aggregate", "n8n-nodes-base.sort",
+		"n8n-nodes-base.filter", "n8n-nodes-base.summarize", "n8n-nodes-base.htmlExtract",
+		"n8n-nodes-base.extractFromFile",
+	} {
+		t.Run(nodeType, func(t *testing.T) {
+			workflow := `[{"id":"` + id + `","active":false,"nodes":[{"type":"n8n-nodes-base.manualTrigger","disabled":false,"parameters":{}},{"type":"` + nodeType + `","disabled":false,"parameters":{"options":{}}}]}]`
+			if err := validateExportedSyntheticManualWorkflow([]byte(workflow), id); err != nil {
+				t.Fatalf("pure built-in node was rejected: %v", err)
+			}
+		})
+	}
+	malformed := `[{"id":"` + id + `","active":false,"nodes":[{"type":"n8n-nodes-base.manualTrigger","disabled":false,"parameters":{}},{"type":"n8n-nodes-base.aggregate","disabled":false,"parameters":null}]}]`
+	if err := validateExportedSyntheticManualWorkflow([]byte(malformed), id); err == nil {
+		t.Fatal("pure built-in with non-object parameters was accepted")
+	}
+}
+
 func TestExecuteSyntheticManualWorkflowUsesFixedCLIAndRedactedReceipt(t *testing.T) {
 	runner := ownedRuntimeRunner(t, runtimeIDFor(testSandboxID))
 	baseCall := runner.call

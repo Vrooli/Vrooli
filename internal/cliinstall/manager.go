@@ -19,6 +19,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
+	"github.com/vrooli/vrooli/internal/rootmetrics"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -118,33 +119,227 @@ type DiscoveryReport struct {
 // The temporary-file, fsync, rename sequence preserves the last runnable
 // binary if power is lost during installation. This retains the 2026-05-07
 // incident history: a direct install left a zero-filled executable in PATH.
-func AtomicInstall(src, dst string) error { return atomicInstall(src, dst, "") }
+func AtomicInstall(src, dst string) error {
+	if err := rejectCanonicalCompanion(dst); err != nil {
+		return err
+	}
+	return atomicInstall(src, dst, "", atomicInstallOptions{})
+}
+
+func rejectCanonicalCompanion(dst string) error {
+	found := false
+	for _, name := range companionNames {
+		if filepath.Base(dst) == name {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil
+	}
+	home, err := config.HomeDir()
+	if err != nil {
+		return err
+	}
+	bin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		return err
+	}
+	parent := filepath.Clean(filepath.Dir(dst))
+	if parent != filepath.Clean(bin) {
+		resolved, e := filepath.EvalSymlinks(parent)
+		canonical, c := filepath.EvalSymlinks(bin)
+		if e == nil && c == nil && resolved == canonical {
+			parent = filepath.Clean(bin)
+		}
+	}
+	if parent == filepath.Clean(bin) {
+		return fmt.Errorf("canonical companions require bundle publication")
+	}
+	return nil
+}
+
+// AtomicInstallVerifiedSource publishes the exact expected companion bytes.
+// The root executable has its own activation owner and cannot use this path.
+func AtomicInstallVerifiedSource(src, dst, expected string) error {
+	home, err := config.HomeDir()
+	if err != nil {
+		return err
+	}
+	bin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		return err
+	}
+	parent := filepath.Clean(filepath.Dir(dst))
+	if parent != filepath.Clean(bin) {
+		resolved, e := filepath.EvalSymlinks(parent)
+		canonical, c := filepath.EvalSymlinks(bin)
+		if e == nil && c == nil && resolved == canonical {
+			parent = filepath.Clean(bin)
+		}
+	}
+	if parent == filepath.Clean(bin) {
+		release, err := buildinfo.AcquireRootBundleWorkflow(context.Background(), home)
+		if err != nil {
+			return err
+		}
+		defer release()
+		root := filepath.Join(bin, "vrooli")
+		lock, err := buildinfo.AcquireBinaryInstallLock(root)
+		if err != nil {
+			return err
+		}
+		defer lock()
+		if err := buildinfo.GuardRootActivation(context.Background(), root); err != nil {
+			return err
+		}
+	}
+	return atomicInstallVerifiedSource(src, dst, expected)
+}
+
+func atomicInstallVerifiedSource(src, dst, expected string) error {
+	if !rootCLIBuildIdentity.MatchString(expected) {
+		return fmt.Errorf("exact expected source SHA-256 required")
+	}
+	if filepath.Base(dst) == "vrooli" || filepath.Base(dst) == "vrooli.exe" {
+		return fmt.Errorf("root executable requires the activation owner")
+	}
+	release, err := buildinfo.AcquireBinaryInstallLock(dst)
+	if err != nil {
+		return err
+	}
+	defer release()
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, rootCLIImageLimit+1))
+	if err != nil {
+		return err
+	}
+	if len(data) == 0 || int64(len(data)) > rootCLIImageLimit {
+		return fmt.Errorf("source image is empty or exceeds size limit")
+	}
+	sum := sha256.Sum256(data)
+	if hex.EncodeToString(sum[:]) != expected {
+		return fmt.Errorf("source image differs from the prepared SHA-256; refused install")
+	}
+	return config.WriteOwnedFileDurable(dst, data, 0755)
+}
 
 // AtomicInstallExpected is guarded manual restoration. The current comparison
 // shares the publication lock; an already-restored source is idempotent.
 // Automatic enrollment remains the activation owner's separate admission path.
 func AtomicInstallExpected(src, dst, expectedCurrentSHA string) error {
+	if err := rejectCanonicalCompanion(dst); err != nil {
+		return err
+	}
 	if !rootCLIBuildIdentity.MatchString(expectedCurrentSHA) {
 		return fmt.Errorf("exact expected installed SHA-256 required")
 	}
-	return atomicInstall(src, dst, expectedCurrentSHA)
+	return atomicInstall(src, dst, expectedCurrentSHA, atomicInstallOptions{})
 }
-func atomicInstall(src, dst, expectedCurrentSHA string) error {
+
+// AtomicInstallRebaseline is for the transition owner, which already holds
+// the rebaseline lock. It retains the expected-image and activation guards.
+func AtomicInstallRebaseline(src, dst, expectedCurrentSHA string) error {
+	if !rootCLIBuildIdentity.MatchString(expectedCurrentSHA) {
+		return fmt.Errorf("exact expected installed SHA-256 required")
+	}
+	return atomicInstall(src, dst, expectedCurrentSHA, atomicInstallOptions{purpose: atomicInstallRebaseline})
+}
+
+// AtomicInstallRebaselineLocked requires the caller to retain the install
+// lock through subsequent watchdog publication and supervisor verification.
+func AtomicInstallRebaselineLocked(src, dst, expectedCurrentSHA string) error {
+	if !rootCLIBuildIdentity.MatchString(expectedCurrentSHA) {
+		return fmt.Errorf("exact expected installed SHA-256 required")
+	}
+	return atomicInstall(src, dst, expectedCurrentSHA, atomicInstallOptions{purpose: atomicInstallRebaseline, lock: atomicInstallLockHeld})
+}
+
+type atomicInstallPurpose uint8
+
+const (
+	atomicInstallOrdinary atomicInstallPurpose = iota
+	atomicInstallRebaseline
+	atomicInstallPrepared
+)
+
+type atomicInstallLock uint8
+
+const (
+	atomicInstallAcquireLock atomicInstallLock = iota
+	atomicInstallLockHeld
+)
+
+type atomicInstallOptions struct {
+	purpose    atomicInstallPurpose
+	lock       atomicInstallLock
+	sourceRoot string
+}
+
+func (options atomicInstallOptions) activationGuard(src string) func(context.Context, string) error {
+	switch options.purpose {
+	case atomicInstallRebaseline:
+		return buildinfo.GuardRootActivationOperation
+	case atomicInstallPrepared:
+		return func(ctx context.Context, target string) error {
+			return buildinfo.GuardRootActivationForPrepared(ctx, target, src)
+		}
+	default:
+		return buildinfo.GuardRootActivation
+	}
+}
+
+func atomicInstall(src, dst, expectedCurrentSHA string, options atomicInstallOptions) (resultErr error) {
+	var attempt *rootmetrics.Attempt
+	delegated := false
+	if options.purpose != atomicInstallRebaseline {
+		attempt = buildinfo.BeginDirectRootInstall(dst)
+		attempt.Async()
+		defer func() {
+			switch {
+			case resultErr != nil:
+				attempt.Event("terminal", "failed")
+			case delegated:
+				attempt.Event("terminal", "delegated")
+			default:
+				attempt.Event("terminal", "succeeded")
+			}
+			attempt.Flush()
+		}()
+	}
+	recordEvent := func(name, value string) {
+		if attempt != nil {
+			attempt.Event(name, value)
+		}
+	}
 	if enrolled, err := buildinfo.EnrolledRootUpdate(dst); err != nil {
 		return err
 	} else if enrolled {
 		if expectedCurrentSHA != "" {
 			return fmt.Errorf("guarded manual root restoration requires automatic enrollment disabled")
 		}
-		root, err := buildinfo.ResolveSourceRoot()
-		if err != nil {
-			return err
+		root := options.sourceRoot
+		if root == "" {
+			root, err = buildinfo.ResolveSourceRoot()
+			if err != nil {
+				return err
+			}
 		}
+		recordEvent("route", "coordinator")
+		delegated = true
 		return buildinfo.RequestRootUpdate(context.Background(), src, root)
 	}
-	release, err := buildinfo.AcquireBinaryInstallLock(dst)
-	if err != nil {
-		return fmt.Errorf("lock binary install %s: %w", dst, err)
+	release := func() {}
+	if options.lock != atomicInstallLockHeld {
+		var err error
+		release, err = buildinfo.AcquireBinaryInstallLock(dst)
+		if err != nil {
+			return fmt.Errorf("lock binary install %s: %w", dst, err)
+		}
 	}
 	defer release()
 	if enrolled, err := buildinfo.EnrolledRootUpdate(dst); err != nil {
@@ -154,15 +349,21 @@ func atomicInstall(src, dst, expectedCurrentSHA string) error {
 			return fmt.Errorf("guarded manual root restoration requires automatic enrollment disabled")
 		}
 		release()
-		root, err := buildinfo.ResolveSourceRoot()
-		if err != nil {
-			return err
+		root := options.sourceRoot
+		if root == "" {
+			root, err = buildinfo.ResolveSourceRoot()
+			if err != nil {
+				return err
+			}
 		}
+		recordEvent("route", "coordinator")
+		delegated = true
 		return buildinfo.RequestRootUpdate(context.Background(), src, root)
 	}
+	recordEvent("direct_route", "")
 	rootImage := filepath.Base(dst) == "vrooli" || filepath.Base(dst) == "vrooli.exe"
 	if rootImage {
-		if err := buildinfo.GuardRootActivation(context.Background(), dst); err != nil {
+		if err := options.activationGuard(src)(context.Background(), dst); err != nil {
 			return err
 		}
 	}
@@ -193,7 +394,7 @@ func atomicInstall(src, dst, expectedCurrentSHA string) error {
 		}
 	}
 	if filepath.Base(dst) == "vrooli" || filepath.Base(dst) == "vrooli.exe" {
-		if err := buildinfo.GuardRootActivation(context.Background(), dst); err != nil {
+		if err := options.activationGuard(src)(context.Background(), dst); err != nil {
 			return err
 		}
 		return installRootCLICandidate(src, dst)

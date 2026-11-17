@@ -125,6 +125,13 @@ estimate into a measured peak. Manifest seeds do not count as measurements.
 Previously contaminated measured rows cannot be reconstructed from this table;
 an explicit owner reset/rebuild needs original evidence and is not automatic.
 
+Host RAM and CPU sensing (MemAvailable, load average) has no per-claim
+attribution and may predate a grant. `Decide` therefore charges explicit RAM
+operation reservations and every operation RAM/CPU claim in full above observed
+usage. Only attributable claims overlap it as max(observed, committed).
+Otherwise each grant in a burst spends the same observed headroom. This is
+conservative: a long-running operation's materialized use is counted twice.
+
 Outstanding design gaps are identity-aware overlap between physical usage and
 pending reservations, parent/resource versus operation reservation semantics,
 stable process binding for generic operations, cross-process admission

@@ -88,7 +88,6 @@ var builderRegistry = map[string]BuilderSpec{
 	"go_module": {
 		Kind:                   "go_module",
 		Inputs:                 []string{"**/*.go", "go.mod", "go.sum"},
-		SkipSuffixes:           []string{"_test.go"},
 		KeyResolver:            "go_env",
 		DigestKeys:             []string{"toolchain", "goos", "goarch", "cgo_enabled", "goamd64", "goarm", "goflags"},
 		ClosureResolver:        closureResolverGoList,
@@ -128,8 +127,10 @@ var builderRegistry = map[string]BuilderSpec{
 		InstallInputs:            []string{"package.json", "pnpm-lock.yaml"},
 		InstallStateFile:         "node_modules/.modules.yaml",
 		MemoryReservationBytes:   pnpmMemoryReservation,
-		Build:                    []string{"pnpm", "run", "build"},
-		ProfileBuild:             []string{"pnpm", "run", "build:profile"},
+		StagedOutput:             true,
+		StageDirectory:           true,
+		Build:                    []string{"pnpm", "run", "build", "--", "--output-dir", "{output}"},
+		ProfileBuild:             []string{"pnpm", "run", "build:profile", "--", "--output-dir", "{output}"},
 		FollowsWorkspaceFileDeps: true,
 	},
 	"python_uv": {
@@ -281,7 +282,14 @@ func RegisteredBuilderKinds() []string {
 // invoking a shell. {{bin.<component>}} resolves through build.output (or the
 // builder default); {{ext}} is .exe on Windows.
 func ResolveComponentArgv(argv []string, scenarioRoot, scenarioName string, components map[string]scenario.Component) ([]string, error) {
-	return resolveComponentArgvForOS(argv, scenarioRoot, scenarioName, components, runtime.GOOS)
+	return resolveComponentArgvForOS(argv, scenarioRoot, scenarioName, components, runtime.GOOS, "live")
+}
+
+// ResolveComponentArgvForVariant resolves the build artifacts selected for one
+// scenario instance. Manifests can use {variant} in build outputs to keep
+// artifacts for simultaneously serving variants from replacing one another.
+func ResolveComponentArgvForVariant(argv []string, scenarioRoot, scenarioName, variant string, components map[string]scenario.Component) ([]string, error) {
+	return resolveComponentArgvForOS(argv, scenarioRoot, scenarioName, components, runtime.GOOS, variant)
 }
 
 func componentWorkingDir(root, cwd string) (string, error) {
@@ -300,10 +308,11 @@ func componentWorkingDir(root, cwd string) (string, error) {
 	return target, nil
 }
 
-func resolveComponentArgvForOS(argv []string, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string) ([]string, error) {
+func resolveComponentArgvForOS(argv []string, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string, variants ...string) ([]string, error) {
+	variant := componentVariantOutputLabel(variants)
 	out := make([]string, len(argv))
 	for index, value := range argv {
-		resolved, err := resolveComponentValue(value, scenarioRoot, scenarioName, components, goos)
+		resolved, err := resolveComponentValue(value, scenarioRoot, scenarioName, components, goos, variant)
 		if err != nil {
 			return nil, fmt.Errorf("argv[%d]: %w", index, err)
 		}
@@ -312,7 +321,7 @@ func resolveComponentArgvForOS(argv []string, scenarioRoot, scenarioName string,
 	return out, nil
 }
 
-func resolveComponentValue(value, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string) (string, error) {
+func resolveComponentValue(value, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos, variant string) (string, error) {
 	ext := ""
 	if strings.EqualFold(strings.TrimSpace(goos), string(hostreqspec.PlatformWindows)) {
 		ext = ".exe"
@@ -329,7 +338,7 @@ func resolveComponentValue(value, scenarioRoot, scenarioName string, components 
 		}
 		end := start + endOffset + componentPlaceholderEnd
 		name := strings.TrimSpace(value[start+len("{{bin.") : start+endOffset])
-		artifact, err := componentArtifact(name, scenarioRoot, scenarioName, components, goos)
+		artifact, err := componentArtifact(name, scenarioRoot, scenarioName, components, goos, variant)
 		if err != nil {
 			return "", err
 		}
@@ -337,7 +346,7 @@ func resolveComponentValue(value, scenarioRoot, scenarioName string, components 
 	}
 }
 
-func componentArtifact(name, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos string) (string, error) {
+func componentArtifact(name, scenarioRoot, scenarioName string, components map[string]scenario.Component, goos, variant string) (string, error) {
 	component, ok := components[name]
 	if !ok {
 		return "", fmt.Errorf("component %q does not exist", name)
@@ -349,16 +358,20 @@ func componentArtifact(name, scenarioRoot, scenarioName string, components map[s
 	if !ok || spec.Reserved {
 		return "", fmt.Errorf("component %q has no resolvable builder kind %q", name, component.Build.Kind)
 	}
-	return componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, component.Build.Output, goos)
+	return componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, component.Build.Output, goos, variant)
 }
 
-func componentArtifactWithOutput(name, scenarioRoot, scenarioName string, component scenario.Component, spec BuilderSpec, declaredOutput, goos string) (string, error) {
+func componentArtifactWithOutput(name, scenarioRoot, scenarioName string, component scenario.Component, spec BuilderSpec, declaredOutput, goos string, variants ...string) (string, error) {
 	output := strings.TrimSpace(declaredOutput)
 	if output == "" {
 		output = spec.DefaultOutput
 	}
 	if output == "" {
 		return "", fmt.Errorf("component %q build output is required", name)
+	}
+	variant := componentVariantOutputLabel(variants)
+	if strings.Contains(output, "{variant}") && !safeComponentVariant(variant) {
+		return "", fmt.Errorf("component %q build output uses {variant} but instance variant %q is not a safe path label", name, variant)
 	}
 	ext := ""
 	if strings.EqualFold(strings.TrimSpace(goos), string(hostreqspec.PlatformWindows)) {
@@ -368,6 +381,7 @@ func componentArtifactWithOutput(name, scenarioRoot, scenarioName string, compon
 		"{dir}", strings.TrimSpace(component.Build.Dir),
 		"{scenario}", strings.TrimSpace(scenarioName),
 		"{component}", name,
+		"{variant}", variant,
 		"{{ext}}", ext,
 	).Replace(output)
 	if filepath.IsAbs(output) {
@@ -385,11 +399,11 @@ type componentBuildTarget struct {
 // explicitly declared secondary artifacts. Keeping this expansion here makes
 // run.argv resolution, setup builds, and freshness use the same artifact
 // contract instead of each inferring outputs independently.
-func componentBuildTargets(name, scenarioRoot, scenarioName string, component scenario.Component, spec BuilderSpec, goos string) ([]componentBuildTarget, error) {
+func componentBuildTargets(name, scenarioRoot, scenarioName string, component scenario.Component, spec BuilderSpec, goos string, variants ...string) ([]componentBuildTarget, error) {
 	if strings.TrimSpace(spec.Kind) == "" || spec.Reserved {
 		return nil, fmt.Errorf("component %q has no resolvable builder kind %q", name, component.Build.Kind)
 	}
-	primary, err := componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, component.Build.Output, goos)
+	primary, err := componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, component.Build.Output, goos, variants...)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +416,7 @@ func componentBuildTargets(name, scenarioRoot, scenarioName string, component sc
 		if strings.TrimSpace(extra.Output) == "" {
 			return nil, fmt.Errorf("component %q build.outputs[%d].output is required", name, index)
 		}
-		extraOutput, err := componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, extra.Output, goos)
+		extraOutput, err := componentArtifactWithOutput(name, scenarioRoot, scenarioName, component, spec, extra.Output, goos, variants...)
 		if err != nil {
 			return nil, fmt.Errorf("component %q build.outputs[%d]: %w", name, index, err)
 		}
@@ -415,20 +429,39 @@ func componentBuildTargets(name, scenarioRoot, scenarioName string, component sc
 	return targets, nil
 }
 
-func componentFreshnessArtifacts(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
-	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
-	if !ok || spec.Reserved {
-		return nil, fmt.Errorf("build kind %q has no freshness implementation", component.Build.Kind)
+func componentVariantOutputLabel(variants []string) string {
+	if len(variants) == 0 || strings.TrimSpace(variants[0]) == "" || strings.EqualFold(strings.TrimSpace(variants[0]), "default") {
+		return "live"
 	}
-	return builderFreshnessContext(context.Background(), appRoot, repoRoot, filepath.Base(appRoot), "component", component, spec, deps)
+	return strings.TrimSpace(variants[0])
 }
 
-func componentFreshnessArtifactsContextWithName(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+func safeComponentVariant(variant string) bool {
+	if variant == "" || variant == "." || variant == ".." {
+		return false
+	}
+	for _, char := range variant {
+		if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+func componentFreshnessArtifacts(appRoot, repoRoot string, component scenario.Component, deps hostProbeDeps) ([]artifactFreshness, error) {
+	return componentFreshnessArtifactsContextWithName(context.Background(), appRoot, repoRoot, filepath.Base(appRoot), "component", component, deps)
+}
+
+func componentFreshnessArtifactsContextWithName(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, deps hostProbeDeps, variants ...string) ([]artifactFreshness, error) {
+	return componentFreshnessArtifactsWithRequiredClosure(ctx, appRoot, repoRoot, scenarioName, componentName, component, deps, false, variants...)
+}
+
+func componentFreshnessArtifactsWithRequiredClosure(ctx context.Context, appRoot, repoRoot, scenarioName, componentName string, component scenario.Component, deps hostProbeDeps, requireClosure bool, variants ...string) ([]artifactFreshness, error) {
 	spec, ok := builderRegistry[strings.TrimSpace(component.Build.Kind)]
 	if !ok || spec.Reserved {
 		return nil, fmt.Errorf("build kind %q has no freshness implementation", component.Build.Kind)
 	}
-	return builderFreshnessContext(ctx, appRoot, repoRoot, scenarioName, componentName, component, spec, deps)
+	return builderFreshnessContextWithRequiredClosure(ctx, appRoot, repoRoot, scenarioName, componentName, component, spec, deps, requireClosure, variants...)
 }
 
 func cloneStringMap(in map[string]string) map[string]string {

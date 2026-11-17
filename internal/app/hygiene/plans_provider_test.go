@@ -283,6 +283,25 @@ func TestPlansProviderWarnsWhenPlanManagerUnavailableWithoutCandidates(t *testin
 	}
 }
 
+func TestPlansOnlyRequiresPlanManagerCoverage(t *testing.T) {
+	root := t.TempDir()
+	runGit(t, root, "init")
+	reconciler := &fakePlanReconciler{err: plansapp.ErrPlanManagerUnavailable}
+	report, err := (Service{Root: root, Home: root, PlanReconciler: reconciler}).Run(Request{
+		IncludePlans:        true,
+		RequirePlanProvider: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Success || report.BlockingFailures != 1 || len(report.Findings) != 1 || report.Findings[0].Code != "plan_manager_unavailable" || report.Findings[0].Severity != SeverityError {
+		t.Fatalf("required plan coverage report = %+v", report)
+	}
+	if len(report.Checks) != 1 || report.Checks[0].Passed || report.Checks[0].Severity != SeverityError {
+		t.Fatalf("plan coverage check = %+v", report.Checks)
+	}
+}
+
 func TestPlansProviderReportsCanonicalPlanManagerFailure(t *testing.T) {
 	root := t.TempDir()
 	runGit(t, root, "init")

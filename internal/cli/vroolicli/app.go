@@ -740,10 +740,18 @@ func topLevelHandlerDefinitions() map[topcli.CommandID]rootcli.Handler[*AppConte
 		topcli.CommandScenario: func(ctx *AppContext, args []string) error {
 			return scenariohandlers.RootHandler(commandStdout, func(ctx *AppContext) io.Writer { return ctx.Stderr }, func(ctx *AppContext) rootcli.GlobalOptions { return ctx.Globals }, ctx.app.Registry().ScenarioHandler, ctx.app.Registry().SuggestScenario)(ctx, args)
 		},
+		topcli.CommandUX: func(ctx *AppContext, args []string) error {
+			if len(args) != 0 && !commandtree.WantsHelp(args) {
+				return rootcli.UsageErrorf("ux", "UX capture is implemented by `git-control-tower ux-capture`; run `git-control-tower ux-capture --help` for options")
+			}
+			_, err := fmt.Fprintln(commandStdout(ctx), topcli.UXHelpText())
+			return err
+		},
 		topcli.CommandPackage: topLevelPackageHandler(),
 		topcli.CommandResource: resourcehandlers.RootHandler(rootcli.HandlerDeps[*AppContext]{
 			Stdout:           commandStdout,
 			Stderr:           func(ctx *AppContext) io.Writer { return ctx.Stderr },
+			Stdin:            func(ctx *AppContext) io.Reader { return ctx.Stdin },
 			Globals:          func(ctx *AppContext) rootcli.GlobalOptions { return ctx.Globals },
 			OperationContext: func(ctx *AppContext) context.Context { return ctx.OperationContext() },
 			OutputFormat:     projectOutputFormat,

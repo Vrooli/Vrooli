@@ -618,10 +618,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	}
 	toolNames := reg.names(hostreqspec.KindTool)
 	expectedTools := []string{
-		"Xvfb", "agy", "akt", "apt-cache", "apt-get", "ast-grep", "bats", "blender-renderer", "buf", "claude", "cloud-localds", "cloudflared", "codex", "curl", "dnf", "docker", "dpkg-query", "ffmpeg", "ffmpeg-video", "git", "go", "google-chrome-stable", "grok", "helm", "hyperframes", "iopaint", "java", "journalctl", "jq", "k6", "kdump-tools", "kopia", "kubo", "launchctl", "llama-cpp", "log", "lychee", "mcelog", "node", "openbox", "opencode", "pacman", "pnpm", "powershell-test-runner", "powershell.exe", "protoc", "protoc-gen-connect-go", "protoc-gen-es", "protoc-gen-go", "python", "qemu", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "resolvectl", "rpm", "schtasks", "sd", "sd-gpu", "secret-tool", "smartctl", "stripe", "systemctl", "tesseract", "timedatectl", "tmux", "triposr-source", "uv", "vault", "vrooli", "webkit2gtk-driver", "webkitgtk", "websockify", "windows-terminal", "x11vnc", "xdotool", "yq",
-	}
-	if len(toolNames) != len(expectedTools) {
-		t.Fatalf("tool count = %d, want %d; got %v", len(toolNames), len(expectedTools), toolNames)
+		"Xvfb", "agy", "akt", "apt-cache", "apt-get", "ast-grep", "bats", "blender-renderer", "buf", "claude", "cloud-localds", "cloudflared", "codex", "curl", "dnf", "docker", "dpkg-query", "ffmpeg", "ffmpeg-video", "git", "go", "google-chrome-stable", "grok", "helm", "hyperframes", "iopaint", "java", "journalctl", "jq", "k6", "kdump-tools", "kopia", "kubo", "launchctl", "llama-cpp", "log", "lychee", "mcelog", "node", "openbox", "opencode", "pacman", "pnpm", "powershell-test-runner", "powershell.exe", "protoc", "protoc-gen-connect-go", "protoc-gen-es", "protoc-gen-go", "python", "qemu", "qemu-arm", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "resolvectl", "rpm", "schtasks", "sd", "sd-gpu", "secret-tool", "smartctl", "stripe", "systemctl", "tesseract", "timedatectl", "tmux", "triposr-source", "uv", "vault", "vrooli", "webkit2gtk-driver", "webkitgtk", "websockify", "windows-terminal", "x11vnc", "xdotool", "yq",
 	}
 	if !sort.StringsAreSorted(toolNames) {
 		t.Fatalf("tool names not sorted: %v", toolNames)

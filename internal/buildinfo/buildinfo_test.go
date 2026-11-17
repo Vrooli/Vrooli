@@ -2,6 +2,7 @@
 package buildinfo
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -864,6 +865,23 @@ func TestRebuildAndReexecDetectsLoop(t *testing.T) {
 	}
 }
 
+type testRebuildObservation struct {
+	events  []string
+	flushed bool
+	onFlush func()
+}
+
+func (*testRebuildObservation) Async() {}
+func (a *testRebuildObservation) Event(stage, reason string) {
+	a.events = append(a.events, stage+"/"+reason)
+}
+func (a *testRebuildObservation) Flush() {
+	a.flushed = true
+	if a.onFlush != nil {
+		a.onFlush()
+	}
+}
+
 func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	home := useTestRebuildHome(t)
 	originalFingerprint := Fingerprint
@@ -873,6 +891,9 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	originalExecFn := execFn
 	originalNowFunc := nowFunc
 	originalExecutablePathFn := executablePathFn
+	originalObservation := beginRebuildObservation
+	observation := &testRebuildObservation{}
+	beginRebuildObservation = func(string) rebuildObservation { return observation }
 	t.Cleanup(func() {
 		Fingerprint = originalFingerprint
 		GitCommit = originalGitCommit
@@ -881,6 +902,7 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 		execFn = originalExecFn
 		nowFunc = originalNowFunc
 		executablePathFn = originalExecutablePathFn
+		beginRebuildObservation = originalObservation
 	})
 
 	root := t.TempDir()
@@ -890,9 +912,24 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	writeTestFile(t, root, "cmd/vrooli/main.go", "package main\n")
 	writeTestFile(t, root, "internal/buildinfo/buildinfo.go", "package buildinfo\n")
 
-	binDir := t.TempDir()
+	binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(binDir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	fakeExecutable := filepath.Join(binDir, "vrooli")
 	executablePathFn = func() (string, error) { return fakeExecutable, nil }
+	observation.onFlush = func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		release, err := AcquireBinaryInstallLockContext(ctx, fakeExecutable)
+		if err != nil {
+			t.Fatalf("observation flushed while install lock held: %v", err)
+		}
+		release()
+	}
 
 	t.Setenv(SourceRootEnvVar, root)
 	t.Setenv(FingerprintPathsEnvVar, "cmd/vrooli,internal")
@@ -928,6 +965,9 @@ func TestRebuildAndReexecBuildsAndExecsCurrentBinary(t *testing.T) {
 	var gotExecArgv []string
 	var gotExecEnv []string
 	execFn = func(argv0 string, argv []string, envv []string) error {
+		if !observation.flushed || len(observation.events) == 0 || observation.events[len(observation.events)-1] != "terminal/succeeded" {
+			t.Fatalf("publication observation not flushed before exec: %+v", observation)
+		}
 		gotExecArgv0 = argv0
 		gotExecArgv = append([]string(nil), argv...)
 		gotExecEnv = append([]string(nil), envv...)
@@ -1067,11 +1107,25 @@ func TestRebuildAndReexecFallsBackToGitCommandWhenCommitUnknown(t *testing.T) {
 }
 
 func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
-	useTestRebuildHome(t)
+	home := useTestRebuildHome(t)
 	originalGoBuildFn := goBuildFn
+	originalExecutable := executablePathFn
+	originalObservation := beginRebuildObservation
+	observation := &testRebuildObservation{}
+	beginRebuildObservation = func(string) rebuildObservation { return observation }
 	t.Cleanup(func() {
 		goBuildFn = originalGoBuildFn
+		executablePathFn = originalExecutable
+		beginRebuildObservation = originalObservation
 	})
+	bin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(bin, 0700); err != nil {
+		t.Fatal(err)
+	}
+	executablePathFn = func() (string, error) { return filepath.Join(bin, "vrooli"), nil }
 
 	root := t.TempDir()
 	repocontracttest.WriteRepoContract(t, root, "scenarios")
@@ -1090,6 +1144,9 @@ func TestRebuildAndReexecReturnsBuildFailure(t *testing.T) {
 
 	if err := RebuildAndReexec([]string{"scenario", "list"}); err == nil || !strings.Contains(err.Error(), "rebuild ./cmd/vrooli") {
 		t.Fatalf("RebuildAndReexec error = %v", err)
+	}
+	if !observation.flushed || len(observation.events) < 2 || observation.events[0] != "self_rebuild/started" || observation.events[len(observation.events)-1] != "terminal/failed" {
+		t.Fatalf("missing rebuild failure observation: %+v", observation)
 	}
 }
 

@@ -25,6 +25,8 @@ const (
 	EventOperationCompleted ProgressEventKind = "operation_completed"
 	// EventOperationFailed marks a terminal failure at Step.
 	EventOperationFailed ProgressEventKind = "operation_failed"
+	// EventRuntimeIdentitySelected records the candidate before setup/launch.
+	EventRuntimeIdentitySelected ProgressEventKind = "runtime_identity_selected"
 	// EventStopStarted marks the beginning of a stop (standalone or the
 	// leading step of a restart).
 	EventStopStarted ProgressEventKind = "stop_started"
@@ -58,20 +60,32 @@ const (
 // PARENT scenario being started and Dependency names the dep. At is stamped
 // from the runner's injected clock at publish time.
 type ProgressEvent struct {
-	At             time.Time
-	Kind           ProgressEventKind
-	Scenario       string
-	Operation      string // start|restart|stop (top-level verb)
-	Phase          string // setup|develop for phase events
-	Dependency     string // scenario-dependency or resource name
-	Reason         string // human reason for a (re)start decision
-	Policy         string // freshness policy for stale-policy events
-	Verdict        string // health verdict for completion events
-	AlreadyRunning bool
-	AfterLockWait  bool
-	Index          int // 1-based dependency position (dependency events)
-	Total          int // dependency count (dependency events)
-	Err            error
+	At                              time.Time
+	Kind                            ProgressEventKind
+	Scenario                        string
+	Operation                       string // start|restart|stop (top-level verb)
+	Phase                           string // setup|develop for phase events
+	Dependency                      string // scenario-dependency or resource name
+	Reason                          string // human reason for a (re)start decision
+	Policy                          string // freshness policy for stale-policy events
+	Verdict                         string // health verdict for completion events
+	AlreadyRunning                  bool
+	AfterLockWait                   bool
+	Index                           int // 1-based dependency position (dependency events)
+	Total                           int // dependency count (dependency events)
+	Err                             error
+	RuntimeInstanceID               string
+	RuntimeReleaseID                string
+	RuntimeReleaseOperationID       string
+	RuntimeBuildIdentity            string
+	HealthBuildIdentity             string
+	HealthRuntimeReleaseID          string
+	HealthRuntimeReleaseOperationID string
+	HealthStartOperationID          string
+	RollbackSelectionReleaseID      string
+	RollbackSelectionOperationID    string
+	RollbackSelectionError          string
+	RollbackSelectionAttempted      bool
 }
 
 // ProgressSink consumes lifecycle progress events. Implementations must be

@@ -36,9 +36,16 @@ type restartFenceTestService struct {
 	port               int
 	components         []*commonv1.LifecycleManagedComponent
 	admitting          int32
+	remaining          int32
+	work               []*commonv1.LifecycleWorkItem
+	statusBlockers     []*commonv1.LifecycleBlocker
 	prepareDrained     bool
 	statusDrained      bool
 	requiresQuiescence bool
+	providerInstanceID string
+	fencePersistence   commonv1.LifecycleFencePersistence
+	drainStarted       chan struct{}
+	releaseDrain       chan struct{}
 }
 
 func (s *restartFenceTestService) record(event string) {
@@ -68,7 +75,7 @@ func (s *restartFenceTestService) Prepare(_ context.Context, req *connect.Reques
 	}
 	mode := strings.TrimPrefix(s.drainMode, "emergency-")
 	s.mu.Unlock()
-	provider, instanceID, operationID := "alpha", "provider-instance", req.Msg.GetOperationId()
+	provider, instanceID, operationID := "alpha", s.providerInstance(), req.Msg.GetOperationId()
 	closed := true
 	if mode == "prepare-operation" {
 		operationID = "different-operation"
@@ -84,8 +91,10 @@ func (s *restartFenceTestService) Prepare(_ context.Context, req *connect.Reques
 	return connect.NewResponse(&commonv1.LifecyclePrepareResponse{Standing: &commonv1.LifecycleStanding{
 		Provider: provider, ProviderInstanceId: instanceID, OperationId: operationID,
 		FenceToken: "fence-7", Revision: 7, AdmissionClosed: closed, InventoryComplete: true,
+		FencePersistence:  s.providerFencePersistence(),
 		ManagedComponents: s.components, Admitting: s.admitting,
-		Drained: s.prepareDrained, ComponentStopReady: s.prepareDrained,
+		Remaining: s.remaining,
+		Drained:   s.prepareDrained, ComponentStopReady: s.prepareDrained,
 		QuiescencePending: closed && s.requiresQuiescence,
 	}}), nil
 }
@@ -205,14 +214,34 @@ func (s *restartFenceTestService) Status(context.Context, *connect.Request[commo
 	if strings.HasPrefix(mode, "overrideable-") {
 		blockers = []*commonv1.LifecycleBlocker{{Code: "operator_review", Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_OVERRIDEABLE}}
 	}
+	if s.statusBlockers != nil {
+		blockers = s.statusBlockers
+	}
 	return connect.NewResponse(&commonv1.LifecycleStatusResponse{Standing: &commonv1.LifecycleStanding{
 		ManagedComponents: s.components, Admitting: s.admitting,
-		Blockers: blockers,
-		Drained:  s.statusDrained, ComponentStopReady: s.statusDrained,
-		Provider: "alpha", ProviderInstanceId: "provider-instance", OperationId: s.opID,
+		Remaining: s.remaining,
+		Work:      s.work,
+		Blockers:  blockers,
+		Drained:   s.statusDrained, ComponentStopReady: s.statusDrained,
+		Provider: "alpha", ProviderInstanceId: s.providerInstance(), OperationId: s.opID,
 		FenceToken: "fence-7", Revision: 7, AdmissionClosed: s.closed, InventoryComplete: true,
+		FencePersistence:  s.providerFencePersistence(),
 		QuiescencePending: s.closed && s.requiresQuiescence,
 	}}), nil
+}
+
+func (s *restartFenceTestService) providerInstance() string {
+	if s.providerInstanceID != "" {
+		return s.providerInstanceID
+	}
+	return "provider-instance"
+}
+
+func (s *restartFenceTestService) providerFencePersistence() commonv1.LifecycleFencePersistence {
+	if s.fencePersistence != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED {
+		return s.fencePersistence
+	}
+	return commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE
 }
 
 func TestEmergencyRestartRefusesNegativeAdmittingWithOverrideableBlocker(t *testing.T) {
@@ -263,11 +292,26 @@ func (s *restartFenceTestService) Drain(ctx context.Context, req *connect.Reques
 	} else {
 		s.record("drain")
 	}
+	// A real provider bounds its own wait by the request timeout.
+	if timeout := req.Msg.GetTimeout(); timeout != nil && timeout.AsDuration() > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, timeout.AsDuration())
+		defer cancel()
+	}
 	s.mu.Lock()
 	mode := strings.TrimPrefix(s.drainMode, "emergency-")
 	opID := s.opID
 	requiresQuiescence := s.requiresQuiescence
+	drainStarted, releaseDrain := s.drainStarted, s.releaseDrain
 	s.mu.Unlock()
+	if drainStarted != nil {
+		close(drainStarted)
+		select {
+		case <-releaseDrain:
+		case <-ctx.Done():
+			return nil, connect.NewError(connect.CodeDeadlineExceeded, ctx.Err())
+		}
+	}
 	if req.Msg.GetOperationId() != opID || req.Msg.GetFenceToken() != "fence-7" || req.Msg.GetRevision() != 7 {
 		return nil, connect.NewError(connect.CodeAborted, errors.New("unexpected drain identity"))
 	}
@@ -275,6 +319,7 @@ func (s *restartFenceTestService) Drain(ctx context.Context, req *connect.Reques
 		return connect.NewResponse(&commonv1.LifecycleDrainResponse{Standing: &commonv1.LifecycleStanding{
 			Provider: "alpha", ProviderInstanceId: "provider-instance", OperationId: opID,
 			FenceToken: "fence-7", Revision: 7, AdmissionClosed: true, InventoryComplete: true,
+			FencePersistence:   commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE,
 			ComponentStopReady: true, QuiescencePending: false,
 		}}), nil
 	}
@@ -294,6 +339,7 @@ func (s *restartFenceTestService) Drain(ctx context.Context, req *connect.Reques
 	standing := &commonv1.LifecycleStanding{
 		Provider: "alpha", ProviderInstanceId: "provider-instance", OperationId: s.opID,
 		FenceToken: "fence-7", Revision: 7, AdmissionClosed: true, InventoryComplete: true, Drained: true,
+		FencePersistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE,
 	}
 	switch mode {
 	case "drain-admitted":
@@ -343,6 +389,15 @@ func (s *restartFenceTestService) Resume(_ context.Context, req *connect.Request
 
 type restartFenceProgressSink struct {
 	service *restartFenceTestService
+}
+
+type failingFenceLinkRuntimeStore struct {
+	scenarioRuntimeStore
+	err error
+}
+
+func (s failingFenceLinkRuntimeStore) SetStartOperationFenceOperationID(context.Context, string, string) error {
+	return s.err
 }
 
 func (s restartFenceProgressSink) Publish(event ProgressEvent) {
@@ -450,6 +505,149 @@ func TestRestartDrainsBeforeStopAndResumesSameFenceAfterStart(t *testing.T) {
 	}
 }
 
+func TestRestartPersistsFenceOwnerBeforeBlockedDrain(t *testing.T) {
+	runner, service, _ := restartFenceTestRunner(t, "allow")
+	service.drainStarted = make(chan struct{})
+	service.releaseDrain = make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(service.releaseDrain) })
+	done := make(chan error, 1)
+	go func() {
+		_, err := runner.RestartContext(t.Context(), "alpha", StartOptions{})
+		done <- err
+	}()
+	select {
+	case <-service.drainStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("restart did not reach Drain")
+	}
+	op := latestStartOperation(t, runner.Home, "alpha")
+	if op.FenceOperationID != service.operationID() {
+		t.Fatalf("running start operation fence link = %q, want %q while Drain is blocked", op.FenceOperationID, service.operationID())
+	}
+	if op.CurrentStep != startStepProviderFence {
+		t.Fatalf("running start operation step = %q, want %q while Drain is blocked", op.CurrentStep, startStepProviderFence)
+	}
+	view := EvaluateStartOperation(op, func(int) bool { return true }, time.Now(), nil)
+	if view.FenceOperationID != service.operationID() || view.ETAKnown {
+		t.Fatalf("in-flight fence view = %+v, want linked fence and unknown ETA", view)
+	}
+	releaseOnce.Do(func() { close(service.releaseDrain) })
+	if err := <-done; err != nil {
+		t.Fatalf("RestartContext() after releasing Drain: %v", err)
+	}
+}
+
+func TestProviderFenceLinkFailureStopsBeforeDrain(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	wantErr := errors.New("registry link unavailable")
+	_, err := runner.prepareProviderFenceWithLink(t.Context(), scenario.Scenario{
+		Slug: "alpha", Variant: "live",
+		Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}},
+	}, false, "", "operation-1", nil, nil, func(string) error { return wantErr })
+	if err == nil || !errors.Is(err, wantErr) {
+		t.Fatalf("prepareProviderFenceWithLink() error = %v, want link failure", err)
+	}
+	if got := snapshotRestartFenceEvents(service, events); strings.Join(got, ",") != "prepare" {
+		t.Fatalf("provider events = %v, want Prepare only when durable link fails", got)
+	}
+}
+
+func TestEmergencyRestartRecoversExactSuccessfulFenceOwnerAcrossUnlinkedStart(t *testing.T) {
+	runner, service, _ := restartFenceTestRunner(t, "allow")
+	service.mu.Lock()
+	service.opID = "retained-fence"
+	service.closed = true
+	service.statusDrained = true
+	service.prepareDrained = true
+	service.mu.Unlock()
+
+	store, err := runner.runtimeDeps().runtimeRegistry(t.Context(), runner.Home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationRestart, FenceOperationID: "retained-fence",
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	owner.Status = scenarioruntime.StartOperationStatusSucceeded
+	if _, err := store.UpdateStartOperation(t.Context(), owner); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	newer, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: "start",
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	newer.Status = scenarioruntime.StartOperationStatusSucceeded
+	if _, err := store.UpdateStartOperation(t.Context(), newer); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	latest, err := store.GetLatestStartOperation(t.Context(), "alpha", "live")
+	if closeErr := store.Close(); err != nil || closeErr != nil {
+		t.Fatalf("load latest attempt: %v (close %v)", err, closeErr)
+	}
+
+	var linked string
+	fence, err := runner.prepareProviderFenceWithLink(t.Context(), scenario.Scenario{
+		Slug: "alpha", Variant: "live",
+		Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}},
+	}, true, "verified durable fence owner retained across process-local provider transition", "", &latest, nil, func(id string) error {
+		linked = id
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("prepare exact retained fence recovery: %v", err)
+	}
+	if fence == nil || fence.recoveryFenceOperationID != "retained-fence" || linked != "retained-fence" {
+		t.Fatalf("recovery fence = %+v, linked=%q; want exact retained fence owner", fence, linked)
+	}
+}
+
+func TestRestartFenceLinkFailureLeavesOriginalOwnerServing(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	wantErr := errors.New("registry link unavailable")
+	originalRegistry := runner.runtimeDeps().runtimeRegistry
+	runner.deps.runtimeRegistry = func(ctx context.Context, home string) (scenarioRuntimeStore, error) {
+		store, err := originalRegistry(ctx, home)
+		if err != nil {
+			return nil, err
+		}
+		return failingFenceLinkRuntimeStore{scenarioRuntimeStore: store, err: wantErr}, nil
+	}
+	runner.WithProgressSink(restartFenceProgressSink{service: service})
+	_, err := runner.RestartContext(t.Context(), "alpha", StartOptions{})
+	if err == nil || !strings.Contains(err.Error(), wantErr.Error()) {
+		t.Fatalf("RestartContext() error = %v, want durable fence-link failure", err)
+	}
+	if got := strings.Join(snapshotRestartFenceEvents(service, events), ","); got != "prepare" {
+		t.Fatalf("provider/process events = %s, want Prepare only before Drain and Stop", got)
+	}
+	store, err := originalRegistry(context.Background(), runner.Home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	instances, err := store.ListInstances(context.Background(), scenarioruntime.InstanceFilter{Scenario: "alpha", Statuses: scenarioruntime.ActiveInstanceStatuses()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(instances) != 1 || instances[0].Status != scenarioruntime.StatusRunning {
+		t.Fatalf("runtime after link failure = %+v, want original serving instance", instances)
+	}
+	op := latestStartOperation(t, runner.Home, "alpha")
+	if !op.IsTerminal() || op.Status != scenarioruntime.StartOperationStatusFailed || op.FenceOperationID != "" {
+		t.Fatalf("failed owner operation = %+v, want failed attempt with no fabricated fence link", op)
+	}
+}
+
 func TestRestartWaitsForAdmittedWorkBeyondProbeTimeout(t *testing.T) {
 	runner, service, events := restartFenceTestRunner(t, "slow")
 	runner.WithProgressSink(restartFenceProgressSink{service: service})
@@ -540,6 +738,331 @@ func TestPrepareProviderFenceRefusesUnlinkedClosedFence(t *testing.T) {
 	}
 	if got := snapshotRestartFenceEvents(service, events); len(got) != 0 {
 		t.Fatalf("unlinked closed fence caused provider mutation calls: %v", got)
+	}
+}
+
+func TestPrepareProviderFenceFindsExactStartOwnerBehindDivergentLatestAttempt(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	service.mu.Lock()
+	service.opID = "retained-fence"
+	service.closed, service.statusDrained, service.prepareDrained = true, true, true
+	service.mu.Unlock()
+
+	store, err := runner.runtimeDeps().runtimeRegistry(t.Context(), runner.Home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationStart, FenceOperationID: "retained-fence",
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	owner.Status = scenarioruntime.StartOperationStatusFailed
+	if _, err := store.UpdateStartOperation(t.Context(), owner); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	latest, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationRestart,
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	latest.Status = scenarioruntime.StartOperationStatusFailed
+	if _, err := store.UpdateStartOperation(t.Context(), latest); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	prior, err := runner.latestStartOperationSnapshot(t.Context(), "alpha", "live")
+	if err != nil || prior == nil || prior.FenceOperationID != "retained-fence" || prior.Operation != lifecycleOperationStart {
+		t.Fatalf("retained prior owner = %+v, %v; want exact linked start owner behind the newer unlinked attempt", prior, err)
+	}
+	var linked string
+	fence, err := runner.prepareProviderFenceWithLink(t.Context(), scenario.Scenario{
+		Slug: "alpha", Variant: "live",
+		Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}},
+	}, false, "", "", prior, nil, func(id string) error { linked = id; return nil })
+	if err != nil {
+		t.Fatalf("recover exact retained start owner: %v", err)
+	}
+	if fence == nil || fence.operationID != "retained-fence" || linked != "retained-fence" {
+		t.Fatalf("fence=%+v link=%q; want exact retained owner", fence, linked)
+	}
+	if got := strings.Join(snapshotRestartFenceEvents(service, events), ","); got != "prepare" {
+		t.Fatalf("provider lifecycle events = %s, want one exact Prepare", got)
+	}
+}
+
+func TestPrepareProviderFenceAdoptsOnlyCurrentGenerationProcessLocalFence(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	view, err := runner.lookupRegistryRuntime(t.Context(), scenario.Scenario{Slug: "alpha", Variant: "live"})
+	if err != nil || !view.Authoritative {
+		t.Fatalf("runtime view = %+v, %v; want current authoritative fixture", view, err)
+	}
+	fenceID := "restart-" + view.Instance.InstanceID
+	service.mu.Lock()
+	service.providerInstanceID = view.Instance.InstanceID
+	service.fencePersistence = commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL
+	service.opID, service.closed = fenceID, true
+	service.statusDrained, service.prepareDrained = true, true
+	service.mu.Unlock()
+
+	store, err := runner.runtimeDeps().runtimeRegistry(t.Context(), runner.Home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldOwner, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationStart,
+		FenceOperationID: "restart-old-provider-generation",
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	oldOwner.Status = scenarioruntime.StartOperationStatusFailed
+	if _, err := store.UpdateStartOperation(t.Context(), oldOwner); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	interrupted, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationRestart,
+	})
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	interrupted.Status = scenarioruntime.StartOperationStatusFailed
+	if _, err := store.UpdateStartOperation(t.Context(), interrupted); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	prior, err := runner.latestStartOperationSnapshot(t.Context(), "alpha", "live")
+	if err != nil || prior == nil || prior.FenceOperationID == fenceID {
+		t.Fatalf("prior operation = %+v, %v; want the divergent old generation link", prior, err)
+	}
+	recorder, err := runner.beginStartOperationRecord("alpha", StartOptions{Context: t.Context(), Variant: "live", Operation: lifecycleOperationRestart})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer recorder.close()
+	fence, err := runner.prepareProviderFenceWithLink(t.Context(), scenario.Scenario{
+		Slug: "alpha", Variant: "live",
+		Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}},
+	}, false, "", "", prior, nil, recorder.linkProviderFence)
+	if err != nil {
+		t.Fatalf("adopt current generation process-local fence: %v", err)
+	}
+	if fence == nil || fence.operationID != fenceID || recorder.op.FenceOperationID != fenceID {
+		t.Fatalf("fence=%+v recorded link=%q; want new attempt linked to %q", fence, recorder.op.FenceOperationID, fenceID)
+	}
+	if got := strings.Join(snapshotRestartFenceEvents(service, events), ","); got != "prepare" {
+		t.Fatalf("provider lifecycle events = %s, want Prepare before any drain/stop", got)
+	}
+}
+
+func TestPrepareProviderFenceRefusesAmbiguousProcessLocalFenceOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		persistence     commonv1.LifecycleFencePersistence
+		providerMatches bool
+		priorStatus     string
+	}{
+		{name: "durable fence without retained owner", persistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE, providerMatches: true, priorStatus: scenarioruntime.StartOperationStatusFailed},
+		{name: "wrong provider generation", persistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL, providerMatches: false, priorStatus: scenarioruntime.StartOperationStatusFailed},
+		{name: "concurrent active attempt", persistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL, providerMatches: true, priorStatus: scenarioruntime.StartOperationStatusRunning},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner, service, events := restartFenceTestRunner(t, "allow")
+			view, err := runner.lookupRegistryRuntime(t.Context(), scenario.Scenario{Slug: "alpha", Variant: "live"})
+			if err != nil || !view.Authoritative {
+				t.Fatalf("runtime view = %+v, %v", view, err)
+			}
+			fenceID := "restart-" + view.Instance.InstanceID
+			service.mu.Lock()
+			service.providerInstanceID = view.Instance.InstanceID
+			if !tc.providerMatches {
+				service.providerInstanceID = "other-generation"
+			}
+			service.fencePersistence = tc.persistence
+			service.opID, service.closed = fenceID, true
+			service.mu.Unlock()
+			prior := &scenarioruntime.StartOperation{
+				Scenario: "alpha", Variant: "live", Operation: lifecycleOperationRestart,
+				Status: tc.priorStatus, FenceOperationID: "restart-previous-generation",
+			}
+			links := 0
+			_, err = runner.prepareProviderFenceWithLink(t.Context(), scenario.Scenario{
+				Slug: "alpha", Variant: "live",
+				Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}},
+			}, false, "", "", prior, nil, func(string) error { links++; return nil })
+			if err == nil || !strings.Contains(err.Error(), "without an exact retained start-operation owner") {
+				t.Fatalf("prepare error = %v; want fail-closed ambiguous ownership", err)
+			}
+			if links != 0 {
+				t.Fatalf("link callback count = %d; want no ownership claim", links)
+			}
+			if got := snapshotRestartFenceEvents(service, events); len(got) != 0 {
+				t.Fatalf("provider lifecycle events = %v; want no Prepare or Drain", got)
+			}
+		})
+	}
+}
+
+func TestForceRecoveryRequiresTerminalExactOwnerForUnlinkedDerivedFence(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	service.mu.Lock()
+	service.opID = "restart-provider-instance"
+	service.closed = true
+	service.mu.Unlock()
+	item := scenario.Scenario{Slug: "alpha", Variant: "live", Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}}}
+	running := &scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationRestart,
+		Status: scenarioruntime.StartOperationStatusRunning,
+	}
+	_, err := runner.prepareProviderFence(context.Background(), item, true, "test stale-process override", "", running, nil)
+	if err == nil || !strings.Contains(err.Error(), "without an exact retained start-operation owner") {
+		t.Fatalf("force recovery error = %v, want refusal while exact owner is still running", err)
+	}
+	if got := snapshotRestartFenceEvents(service, events); len(got) != 0 {
+		t.Fatalf("running-owner recovery calls = %v, want read-only refusal", got)
+	}
+}
+
+func TestForceRestartRecoversTerminalUnlinkedFenceAndSkipsStaleRemainingWork(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	runner.WithProgressSink(restartFenceProgressSink{service: service})
+	service.mu.Lock()
+	service.opID = "restart-provider-instance"
+	service.closed = true
+	service.remaining = 1
+	service.mu.Unlock()
+	store := openWaitTestStore(t, runner.Home)
+	prior, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{
+		Scenario: "alpha", Variant: "live", Operation: lifecycleOperationRestart, StartedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		t.Fatalf("seed prior restart: %v", err)
+	}
+	prior, err = store.MarkStartOperationAbandoned(t.Context(), prior.OperationID, "legacy restart interrupted before fence link")
+	if err != nil {
+		t.Fatalf("abandon prior restart: %v", err)
+	}
+	if !prior.IsTerminal() || prior.FenceOperationID != "" {
+		t.Fatalf("prior operation = %+v, want terminal unlinked restart", prior)
+	}
+	latest, latestErr := runner.latestStartOperationSnapshot(t.Context(), "alpha", "live")
+	if latestErr != nil || latest == nil || latest.OperationID != prior.OperationID {
+		t.Fatalf("latest recovery owner = %+v, err=%v; want seeded terminal operation %q", latest, latestErr, prior.OperationID)
+	}
+	result, err := runner.RestartContext(t.Context(), "alpha", StartOptions{
+		ForceLifecycle: true, LifecycleOverrideReason: "verified PID reuse: tracked PID 123 exited before Chrome renderer reuse",
+	})
+	if err != nil {
+		t.Fatalf("force restart recovery: %v", err)
+	}
+	if result.Scenario.Slug != "alpha" {
+		t.Fatalf("restart result = %+v", result)
+	}
+	operation := latestStartOperation(t, runner.Home, "alpha")
+	if operation.Status != scenarioruntime.StartOperationStatusSucceeded || operation.FenceOperationID != "restart-provider-instance" {
+		t.Fatalf("recovered operation = %+v, want successful operation linked to exact retained fence", operation)
+	}
+	if got := strings.Join(snapshotRestartFenceEvents(service, events), ","); got != "prepare,stop,resume" {
+		t.Fatalf("recovery events = %s, want exact Prepare, Stop, Resume and no stale-work Drain", got)
+	}
+}
+
+func TestForceRestartDoesNotBypassCombinedAdmittingAndRemainingCounts(t *testing.T) {
+	runner, service, events := restartFenceTestRunner(t, "allow")
+	runner.WithProgressSink(restartFenceProgressSink{service: service})
+	service.remaining = 1
+	service.admitting = 1
+	if _, err := runner.RestartContext(t.Context(), "alpha", StartOptions{
+		ForceLifecycle: true, LifecycleOverrideReason: "test explicit risk acceptance",
+	}); err != nil {
+		t.Fatalf("restart after normal drain: %v", err)
+	}
+	if got := strings.Join(snapshotRestartFenceEvents(service, events), ","); got != "prepare,drain,stop,resume" {
+		t.Fatalf("combined work counts were bypassed: events=%s, want Drain before Stop", got)
+	}
+}
+
+// A handler that never returns holds the provider's drain forever. A restart
+// that carries the operator's explicit risk acceptance must give up after the
+// bounded wait, record what was stuck and why it proceeded, and replace the
+// provider through the normal stop path. A normal restart keeps refusing.
+func TestForceRestartGivesUpOnStuckWorkAfterBoundedDrain(t *testing.T) {
+	previous := emergencyDrainTimeout
+	emergencyDrainTimeout = 150 * time.Millisecond
+	t.Cleanup(func() { emergencyDrainTimeout = previous })
+
+	var logs bytes.Buffer
+	runner, service, events := restartFenceTestRunner(t, "timeout")
+	runner.Logger = slog.New(slog.NewTextHandler(&logs, nil))
+	runner.WithProgressSink(restartFenceProgressSink{service: service})
+	service.admitting = 2
+	service.remaining = 2 // a provider that counts admitted requests in remaining too
+	service.work = []*commonv1.LifecycleWorkItem{{Id: "POST /api/v1/catalog/run", Kind: "http_request", Status: "running 9m57s since 2026-11-14T00:11:30Z"}}
+
+	if _, err := runner.RestartContext(t.Context(), "alpha", StartOptions{
+		ForceLifecycle: true, LifecycleOverrideReason: "abandoned fence, hung handler",
+	}); err != nil {
+		t.Fatalf("force restart with stuck work: %v", err)
+	}
+	if got := strings.Join(snapshotRestartFenceEvents(service, events), ","); got != "prepare,drain,stop,resume" {
+		t.Fatalf("events = %s, want a bounded Drain followed by the normal Stop and Resume", got)
+	}
+	for _, want := range []string{"gave up on stuck work", "abandoned fence, hung handler", "POST /api/v1/catalog/run", "http_request", "admitting=2"} {
+		if !strings.Contains(logs.String(), want) {
+			t.Fatalf("lifecycle log does not record %q:\n%s", want, logs.String())
+		}
+	}
+}
+
+func TestNormalRestartKeepsWaitingOnStuckWorkAndForceNeverWaivesBlockers(t *testing.T) {
+	previous := emergencyDrainTimeout
+	emergencyDrainTimeout = 100 * time.Millisecond
+	t.Cleanup(func() { emergencyDrainTimeout = previous })
+
+	for _, tc := range []struct {
+		name     string
+		force    bool
+		blockers []*commonv1.LifecycleBlocker
+	}{
+		{name: "normal restart", force: false},
+		{name: "force with a blocking blocker", force: true, blockers: []*commonv1.LifecycleBlocker{{Code: "owner-job", Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_BLOCKING}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			runner, service, events := restartFenceTestRunner(t, "timeout")
+			runner.WithProgressSink(restartFenceProgressSink{service: service})
+			service.admitting, service.remaining = 1, 1
+			service.statusBlockers = tc.blockers
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			opts := StartOptions{ForceLifecycle: tc.force}
+			if tc.force {
+				opts.LifecycleOverrideReason = "operator risk acceptance"
+			}
+			if _, err := runner.RestartContext(ctx, "alpha", opts); err == nil {
+				t.Fatal("restart replaced a provider that still had stuck work")
+			}
+			for _, event := range snapshotRestartFenceEvents(service, events) {
+				if event == "stop" {
+					t.Fatalf("events include stop; the provider must stay serving: %v", snapshotRestartFenceEvents(service, events))
+				}
+			}
+		})
 	}
 }
 

@@ -29,6 +29,8 @@ func (s *durableFenceService) Resume(_ context.Context, r *connect.Request[commo
 		return nil, connect.NewError(connect.CodeAborted, nil)
 	}
 	next.AdmissionClosed = false
+	next.OperationId = ""
+	next.FenceToken = ""
 	next.Phase = commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_RESUMED
 	next.Revision++
 	return connect.NewResponse(&commonv1.LifecycleResumeResponse{Standing: next}), nil
@@ -48,6 +50,13 @@ func TestProviderFenceResumesOnlyExactDurableOperationAfterReplacement(t *testin
 		}},
 		{name: "known process local predecessor", edit: func(_ *commonv1.LifecycleStanding, f *providerFence) {
 			f.persistence = commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL
+		}},
+		{name: "durable predecessor cannot be dropped by open process local successor", want: false, edit: func(s *commonv1.LifecycleStanding, f *providerFence) {
+			s.AdmissionClosed = false
+			s.OperationId = ""
+			s.FenceToken = ""
+			s.FencePersistence = commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL
+			f.persistence = commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE
 		}},
 		{name: "unknown predecessor persistence", edit: func(_ *commonv1.LifecycleStanding, f *providerFence) {
 			f.persistence = commonv1.LifecycleFencePersistence(99)
@@ -93,5 +102,35 @@ func TestProviderFenceResumesOnlyExactDurableOperationAfterReplacement(t *testin
 				t.Fatal("refused proof replayed a token or relinquished ownership")
 			}
 		})
+	}
+}
+
+func TestProviderFenceRecoversExactPriorDurableOwnerAfterProviderTransition(t *testing.T) {
+	standing := &commonv1.LifecycleStanding{
+		Provider: "workspace-sandbox", Scenario: "workspace-sandbox", ProviderInstanceId: "replacement",
+		OperationId: "prior-durable-fence", FenceToken: "7", Revision: 7,
+		Interlock: "scenario-lock-v1", AdmissionClosed: true, InventoryComplete: true, Drained: true,
+		FencePersistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE,
+	}
+	service := &durableFenceService{standing: standing}
+	_, handler := commonconnect.NewLifecycleMaintenanceServiceHandler(service)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client, err := apilifecycle.NewClient(server.Client(), server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fence := &providerFence{
+		client: client, scenario: "workspace-sandbox", providerInstanceID: "process-local-predecessor",
+		operationID: "intermediary-process-local-fence", token: "1", revision: 1,
+		interlock:                apilifecycle.ProtocolVersion,
+		persistence:              commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL,
+		recoveryFenceOperationID: "prior-durable-fence", recoveryReason: "verified owner-linked transition", active: true,
+	}
+	if err := fence.resume(t.Context()); err != nil {
+		t.Fatalf("resume exact prior durable owner: %v", err)
+	}
+	if fence.active || service.resumes.Load() != 1 {
+		t.Fatalf("recovery active=%t resume_calls=%d; want relinquished after one exact CAS", fence.active, service.resumes.Load())
 	}
 }

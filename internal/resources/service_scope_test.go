@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"os"
@@ -72,6 +73,78 @@ func TestCompanionRecoveryRequiresExactCommandAndCurrentParent(t *testing.T) {
 				t.Fatalf("identity match=%t, want %t", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestStableActivityEdgeRecoveryUsesSocketLaunchContractAcrossBackendIncarnations(t *testing.T) {
+	bin := "/operator/bin/resource-ollama"
+	dir := "/runtime/processes/resources/ollama"
+	c := ResourceCompanion{Name: "activity-edge", Command: "resource-ollama", Args: []string{"activity-edge"}}
+	scope := "/sys/fs/cgroup/user.slice/vrooli-services.slice/" + resourceServiceScopeName("ollama", "companion-activity-edge") + ".scope"
+	socket := filepath.Join(dir, "activity-edge.control.sock")
+	command := bin + " activity-edge --control-socket " + socket
+	readyCalled := false
+	ready := func(_ context.Context, gotSocket string) error {
+		readyCalled = true
+		if gotSocket != socket {
+			t.Fatalf("readiness checked socket %q, want %q", gotSocket, socket)
+		}
+		return nil
+	}
+	// The activity edge is stable across backend replacements; its launch argv
+	// intentionally carries the control socket, not the backend's current PID.
+	if err := validateExistingCompanionIdentity("ollama", c, dir, 2294948, scope, scope, bin, bin, command, ready); err != nil {
+		t.Fatalf("adopt stable edge after backend incarnation change: %v", err)
+	}
+	if !readyCalled {
+		t.Fatal("stable edge was adopted without checking control socket readiness")
+	}
+}
+
+func TestStableActivityEdgeRecoveryRejectsMismatchedIdentityAndReadiness(t *testing.T) {
+	bin := "/operator/bin/resource-ollama"
+	dir := "/runtime/processes/resources/ollama"
+	c := ResourceCompanion{Name: "activity-edge", Command: "resource-ollama", Args: []string{"activity-edge"}}
+	scope := "/sys/fs/cgroup/user.slice/vrooli-services.slice/" + resourceServiceScopeName("ollama", "companion-activity-edge") + ".scope"
+	socket := filepath.Join(dir, "activity-edge.control.sock")
+	for _, tc := range []struct {
+		name, actualScope, executable, command string
+		ready                                  func(context.Context, string) error
+	}{
+		{name: "wrong scope", actualScope: "/other.scope", executable: bin, command: bin + " activity-edge --control-socket " + socket},
+		{name: "wrong executable", actualScope: scope, executable: "/other/resource-ollama", command: bin + " activity-edge --control-socket " + socket},
+		{name: "wrong socket", actualScope: scope, executable: bin, command: bin + " activity-edge --control-socket /tmp/other.sock"},
+		{name: "legacy parent argv", actualScope: scope, executable: bin, command: bin + " activity-edge --parent-pid 1411181"},
+		{name: "extra argv", actualScope: scope, executable: bin, command: bin + " activity-edge --control-socket " + socket + " --other"},
+		{name: "not ready", actualScope: scope, executable: bin, command: bin + " activity-edge --control-socket " + socket, ready: func(context.Context, string) error { return fmt.Errorf("not ready") }},
+		{name: "readiness unavailable", actualScope: scope, executable: bin, command: bin + " activity-edge --control-socket " + socket},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateExistingCompanionIdentity("ollama", c, dir, 2294948, scope, tc.actualScope, bin, tc.executable, tc.command, tc.ready); err == nil {
+				t.Fatal("invalid stable edge identity/readiness was accepted")
+			}
+		})
+	}
+}
+
+func TestCompanionScopeRecoveryRequiresOneValidOwnerAndRetirementRemovesPID(t *testing.T) {
+	if pid, err := uniqueCompanionScopePID(nil); err != nil || pid != 0 {
+		t.Fatalf("empty scope inventory = %d, %v", pid, err)
+	}
+	if pid, err := uniqueCompanionScopePID([]int{41}); err != nil || pid != 41 {
+		t.Fatalf("unique scope inventory = %d, %v", pid, err)
+	}
+	if _, err := uniqueCompanionScopePID([]int{41, 42}); err == nil {
+		t.Fatal("multiple scoped processes must not authorize recovery")
+	}
+	if _, err := uniqueCompanionScopePID([]int{1}); err == nil {
+		t.Fatal("invalid scoped PID must not authorize recovery")
+	}
+	if companionPIDAbsentFromScope([]int{41, 52}, 41) {
+		t.Fatal("retired legacy PID still in scope inventory was treated as gone")
+	}
+	if !companionPIDAbsentFromScope([]int{52}, 41) {
+		t.Fatal("retired PID absent from scope inventory was treated as present")
 	}
 }
 

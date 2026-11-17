@@ -21,6 +21,7 @@ func PersistentState() statecontract.Owner {
 			reflect.TypeFor[passphraseParams](),
 			reflect.TypeFor[BackendSelection](),
 			reflect.TypeFor[CopyConfig](),
+			reflect.TypeFor[CopyStatus](),
 		},
 		Facts: map[string]any{
 			"sealedFormatVersion":     sealedFormatVersion,

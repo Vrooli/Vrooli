@@ -22,7 +22,17 @@ func (Service) ExecuteVolume(ctx context.Context, request volumeremediation.Requ
 	if err := fillHostVolumeDeviceFacts(ctx, service, &request); err != nil {
 		return volumeremediation.Result{}, err
 	}
-	return service.Execute(ctx, request)
+	result, execErr := service.Execute(ctx, request)
+	// The production app path is a native owner invocation. Receipt recording
+	// deliberately occurs after the result exists, including refusals and tool
+	// failures, so the matrix sees the latest outcome rather than a fixture.
+	if receiptErr := volumeremediation.RecordReceipt(request, result, execErr, !request.DryRun); receiptErr != nil {
+		if execErr != nil {
+			return result, fmt.Errorf("%w (also failed to persist volume receipt: %v)", execErr, receiptErr)
+		}
+		return result, fmt.Errorf("persist volume receipt: %w", receiptErr)
+	}
+	return result, execErr
 }
 
 // fillHostVolumeDeviceFacts backfills the device facts the operator did not

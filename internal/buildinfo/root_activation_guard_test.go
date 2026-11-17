@@ -9,8 +9,85 @@ import (
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/coreactivation"
+	"github.com/vrooli/vrooli/internal/rebaselineprogress"
 )
+
+func TestRootInstallGuardRejectsInterruptedRebaseline(t *testing.T) {
+	home := useTestRebuildHome(t)
+	bin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(state, "root-rebaseline", "progress.json")
+	p := rebaselineprogress.Progress{Version: 1, Candidate: strings.Repeat("a", 64), Watchdog: strings.Repeat("b", 64)}
+	if err := rebaselineprogress.Write(path, p); err != nil {
+		t.Fatal(err)
+	}
+	if err := GuardRootActivation(context.Background(), filepath.Join(bin, "vrooli")); err == nil || !strings.Contains(err.Error(), "rebaseline is incomplete") {
+		t.Fatalf("incomplete transition allowed: %v", err)
+	}
+	p.Complete = true
+	if err := rebaselineprogress.Write(path, p); err != nil {
+		t.Fatal(err)
+	}
+	if err := GuardRootActivation(context.Background(), filepath.Join(bin, "vrooli")); err != nil {
+		t.Fatalf("completed transition blocked: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("invalid"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := GuardRootActivation(context.Background(), filepath.Join(bin, "vrooli")); err == nil {
+		t.Fatal("invalid transition evidence allowed")
+	}
+}
+
+func TestInterruptedRebaselineReportsExactRecoveryModeAndPath(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "owner's home")
+	state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(state, "root-rebaseline", "progress.json")
+	for _, mode := range []string{"prepared", "hub"} {
+		p := rebaselineprogress.Progress{Version: 1, Candidate: strings.Repeat("a", 64), Watchdog: strings.Repeat("b", 64), Bundle: strings.Repeat("c", 64), Mode: mode}
+		if err := rebaselineprogress.Write(path, p); err != nil {
+			t.Fatal(err)
+		}
+		err := GuardRebaselineCompletion(home)
+		if err == nil || !strings.Contains(err.Error(), "owner'\\''s home") || !strings.Contains(err.Error(), "--"+mode) || !strings.Contains(err.Error(), strings.Repeat("c", 64)) {
+			t.Fatalf("unsafe or incomplete recovery guidance: %v", err)
+		}
+	}
+}
+
+func TestRootInstallGuardRejectsConcurrentRebaseline(t *testing.T) {
+	home := useTestRebuildHome(t)
+	bin, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := artifactlock.AcquireWithPathContext(context.Background(), "root-rebaseline:"+home, func(string) (string, error) { return filepath.Join(state, "root-rebaseline", "transition.lock"), nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := GuardRootActivation(context.Background(), filepath.Join(bin, "vrooli")); err == nil {
+		t.Fatal("ordinary install crossed active rebaseline")
+	}
+	release()
+	if err := GuardRootActivation(context.Background(), filepath.Join(bin, "vrooli")); err != nil {
+		t.Fatalf("ordinary install remained blocked after transition: %v", err)
+	}
+}
 
 func TestRootInstallGuardRejectsUnknownOperationStateAndPreservesScratchInstalls(t *testing.T) {
 	home := useTestRebuildHome(t)

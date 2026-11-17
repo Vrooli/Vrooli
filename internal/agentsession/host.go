@@ -24,10 +24,36 @@ import (
 const probeTimeout = 5 * time.Second
 
 // hostFacts is the live HostFacts.
-type hostFacts struct {
-	once      sync.Once
-	slicePath string
-	sliceErr  error
+type hostFacts struct{}
+
+type scopeSlicePathCache struct {
+	mu      sync.Mutex
+	path    string
+	resolve func() (string, error)
+}
+
+func (c *scopeSlicePathCache) get() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.path != "" {
+		return c.path, nil
+	}
+	path, err := c.resolve()
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(path, "/") || strings.TrimSpace(path) != path {
+		return "", fmt.Errorf("agentsession: user manager returned an invalid agent slice cgroup path")
+	}
+	c.path = strings.TrimRight(path, "/")
+	if c.path == "" {
+		return "", fmt.Errorf("agentsession: user manager returned an empty agent slice cgroup path")
+	}
+	return c.path, nil
+}
+
+var agentSlicePath = &scopeSlicePathCache{
+	resolve: func() (string, error) { return platformgo.SliceCgroup(agentscope.Slice) },
 }
 
 // NewHostFacts reads this host. Off Linux the process readers report
@@ -48,10 +74,21 @@ func (h *hostFacts) TTYActivity(tty string) (time.Time, error) { return ttyActiv
 
 func (h *hostFacts) ProcessMemory(pid int) (int64, int64, error) { return processMemory(pid) }
 
+func (h *hostFacts) ScopeOccupancy(scopeUnit string) (platformgo.Occupancy, error) {
+	ref, err := h.scopeRef(scopeUnit)
+	if err != nil {
+		return platformgo.Occupancy{}, err
+	}
+	return platformgo.ScopeOccupancy(ref)
+}
+
 // ScopeCgroupPath resolves one canonical agent session unit under the
 // current user's Vrooli agent slice. It is used to compare the kernel-observed
 // process cgroup with the exact unit whose membership was queried.
 func ScopeCgroupPath(scopeUnit string) (string, error) {
+	if err := validateSessionScopeUnit(scopeUnit); err != nil {
+		return "", err
+	}
 	host := &hostFacts{}
 	ref, err := host.scopeRef(scopeUnit)
 	if err != nil {
@@ -68,23 +105,36 @@ func (h *hostFacts) ScopeMembers(scopeUnit string) ([]int, error) {
 	return platformgo.ScopeProcesses(ref)
 }
 
-// scopeRef resolves a session scope unit to its platform ref under the agent
-// slice. The slice path is asked of the user manager once per process.
+// scopeRef resolves a session scope unit to its platform ref under the cached
+// user-manager agent slice.
 func (h *hostFacts) scopeRef(scopeUnit string) (platformgo.ScopeRef, error) {
-	h.once.Do(func() { h.slicePath, h.sliceErr = platformgo.SliceCgroup(agentscope.Slice) })
-	if h.sliceErr != nil {
-		return platformgo.ScopeRef{}, h.sliceErr
+	if err := validateSessionScopeUnit(scopeUnit); err != nil {
+		return platformgo.ScopeRef{}, err
 	}
-	return scopeRefUnder(h.slicePath, scopeUnit)
+	slicePath, err := agentSlicePath.get()
+	if err != nil {
+		return platformgo.ScopeRef{}, err
+	}
+	return scopeRefUnder(slicePath, scopeUnit)
 }
 
 func scopeRefUnder(slicePath, scopeUnit string) (platformgo.ScopeRef, error) {
-	if !agentscope.IsSessionScope(scopeUnit) || strings.ContainsAny(scopeUnit, "/\\") {
-		return platformgo.ScopeRef{}, fmt.Errorf("agentsession: %q is not an agent session scope unit", scopeUnit)
+	if err := validateSessionScopeUnit(scopeUnit); err != nil {
+		return platformgo.ScopeRef{}, err
+	}
+	if !strings.HasPrefix(slicePath, "/") || strings.TrimSpace(slicePath) != slicePath {
+		return platformgo.ScopeRef{}, fmt.Errorf("agentsession: invalid agent slice cgroup path")
 	}
 	ref := agentscope.Ref(strings.TrimRight(slicePath, "/") + "/" + scopeUnit)
 	ref.Name = strings.TrimSuffix(scopeUnit, agentscope.ScopeSuffix)
 	return ref, nil
+}
+
+func validateSessionScopeUnit(scopeUnit string) error {
+	if !agentscope.IsSessionScope(scopeUnit) || strings.ContainsAny(scopeUnit, "/\\") {
+		return fmt.Errorf("agentsession: %q is not an agent session scope unit", scopeUnit)
+	}
+	return nil
 }
 
 // PlatformStopper stops a session through platform-go's containment seam:

@@ -23,18 +23,25 @@ type structureProvider struct {
 	client structureprovider.Client
 }
 
+// NewStructureProvider adapts the Structure Health owner client into Hygiene's
+// provider registry. Interpretation stays in Hygiene while transport and
+// validation authority remain injectable at the owner boundary.
+func NewStructureProvider(root string, client structureprovider.Client) Provider {
+	return structureProvider{root: root, client: client}
+}
+
 func (p structureProvider) ID() string { return structureProviderID }
 
 func (p structureProvider) Budget() time.Duration { return structureProviderBudget }
 
-func (p structureProvider) Run(ctx context.Context, _ Request, report *Report) error {
+func (p structureProvider) Run(ctx context.Context, req Request, report *Report) error {
 	if p.client == nil {
-		p.reportUnavailable(report, fmt.Sprintf("%v: client is not configured", structureprovider.ErrUnavailable))
+		p.reportUnavailable(report, req.RequireContractProvider, fmt.Sprintf("%v: client is not configured", structureprovider.ErrUnavailable))
 		return nil
 	}
 	output, err := p.client.Validate(ctx, p.root)
 	if err != nil {
-		p.reportUnavailable(report, err.Error())
+		p.reportUnavailable(report, req.RequireContractProvider, err.Error())
 		return nil
 	}
 	report.Contract = output
@@ -88,7 +95,11 @@ func (p structureProvider) Run(ctx context.Context, _ Request, report *Report) e
 // those providers must still run and their fixes must still apply. The warning
 // remains visible in the summary, while --fail-on error only fails on actual
 // structural findings.
-func (p structureProvider) reportUnavailable(report *Report, reason string) {
+func (p structureProvider) reportUnavailable(report *Report, required bool, reason string) {
+	severity := SeverityWarning
+	if required {
+		severity = SeverityError
+	}
 	message := fmt.Sprintf("structure-health contract unguarded: provider unavailable: %s", reason)
 	action := Action{
 		Code:       "inspect_structure_health",
@@ -96,9 +107,9 @@ func (p structureProvider) reportUnavailable(report *Report, reason string) {
 		Command:    "vrooli contract validate --json",
 		Fixability: FixabilityGuided,
 	}
-	report.addCheck("repo_contract", false, SeverityWarning, message)
+	report.addCheck("repo_contract", false, severity, message)
 	report.addFinding(Finding{
-		Severity:    SeverityWarning,
+		Severity:    severity,
 		Code:        "repo_contract_unguarded",
 		Message:     message,
 		Why:         "Structure Health owns repository structural validation; root hygiene only aggregates the provider result.",

@@ -98,6 +98,11 @@ func compute(owners []Owner, stamp, goVersion string) (Manifest, error) {
 	}
 	seen := map[string]bool{}
 	for _, owner := range owners {
+		for binding, fact := range StoredForeignValueFacts {
+			if fact.Owner == owner.Name && owner.Facts[fact.Fact] != fact.Value {
+				return manifest, fmt.Errorf("foreign stored value binding %s lacks matching owner fact %s", binding, fact.Fact)
+			}
+		}
 		if !ownerNamePattern.MatchString(owner.Name) || seen[owner.Name] {
 			return manifest, fmt.Errorf("persistence owner name %q is invalid or duplicated", owner.Name)
 		}
@@ -358,6 +363,15 @@ func (w *shapeWalker) ref(t reflect.Type) string {
 			w.fail(err)
 		}
 		shape.Codec = codec
+	} else if !standardLibrary(t.PkgPath()) && hasCodecMethod(t) {
+		// A method on an embedding type can override a promoted codec. The
+		// reflection method set cannot distinguish those cases. The scanner
+		// classifies embedding types even when their methods are only promoted.
+		codec, err := w.codecs.lookup(t, true)
+		if err != nil {
+			w.fail(err)
+		}
+		shape.Codec = codec
 	}
 	w.types[key] = shape
 	return key
@@ -455,6 +469,18 @@ func ownCodec(t reflect.Type) bool {
 	return false
 }
 
+func hasCodecMethod(t reflect.Type) bool {
+	for _, method := range codecMethods {
+		if _, ok := t.MethodByName(method); ok {
+			return true
+		}
+		if _, ok := reflect.PointerTo(t).MethodByName(method); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func promotedMethod(t reflect.Type, method string) bool {
 	if t.Kind() != reflect.Struct {
 		return false
@@ -508,8 +534,8 @@ func digestJSON(value any) string {
 
 var violationKinds = map[string]string{
 	"version-value":       "a format version field is written or compared with something other than a named package constant",
-	"codec-cross-package": "a custom codec calls into another module package the stamp cannot follow",
-	"stored-literal":      "a stored vocabulary value is written as a string literal instead of a named constant of its owner",
+	"codec-cross-package": "a custom codec references another module package the stamp cannot follow",
+	"stored-literal":      "a stored vocabulary value uses a string literal or an unstamped named value",
 }
 
 // DescribeViolations renders stamp violations ("kind@file:line") as text.

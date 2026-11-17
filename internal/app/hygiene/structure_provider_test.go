@@ -33,7 +33,7 @@ func (f *fakeStructureProvider) Run(_ context.Context, _ Request, report *Report
 
 func TestServiceContractSurfaceDelegatesOnce(t *testing.T) {
 	fake := &fakeStructureProvider{}
-	report, err := (Service{Root: "/repo", StructureProvider: fake}).Run(Request{
+	report, err := (Service{Root: "/repo", StructureProvider: fake, PathAuthorityProvider: passingPathAuthorityProvider{}}).Run(Request{
 		IncludeContract: true,
 		FailOn:          SeverityError,
 	})
@@ -93,11 +93,28 @@ func TestStructureProviderUnavailableStillRunsLaterProviders(t *testing.T) {
 
 func TestServiceDoesNotConvertUnavailableProviderToPass(t *testing.T) {
 	fake := &fakeStructureProvider{err: errors.Join(structureprovider.ErrUnavailable, errors.New("offline"))}
-	_, err := (Service{Root: "/repo", StructureProvider: fake}).Run(Request{
+	_, err := (Service{Root: "/repo", StructureProvider: fake, PathAuthorityProvider: passingPathAuthorityProvider{}}).Run(Request{
 		IncludeContract: true,
 		FailOn:          SeverityError,
 	})
 	if !errors.Is(err, structureprovider.ErrUnavailable) {
 		t.Fatalf("error = %v, want unavailable error", err)
+	}
+}
+
+func TestRequiredStructureProviderUnavailableBlocksContractOnly(t *testing.T) {
+	report, err := (Service{
+		Root:                  "/repo",
+		PathAuthorityProvider: passingPathAuthorityProvider{},
+		StructureProvider: structureProvider{
+			root:   "/repo",
+			client: fakeStructureClient{err: structureprovider.ErrUnavailable},
+		},
+	}).Run(Request{IncludeContract: true, RequireContractProvider: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Success || report.BlockingFailures != 1 || len(report.Findings) != 1 || report.Findings[0].Code != "repo_contract_unguarded" || report.Findings[0].Severity != SeverityError {
+		t.Fatalf("required unavailable contract report = %+v", report)
 	}
 }

@@ -44,3 +44,37 @@ func (s *Store) GuardOrdinaryMutation(ctx context.Context) error {
 	}
 	return nil
 }
+
+// ObserveVerifiedRetirement binds native absence to the exact verified record
+// and rejects a concurrent replacement or revision of that record.
+func (s *Store) ObserveVerifiedRetirement(ctx context.Context, id string) (bool, error) {
+	return s.observeVerifiedRetirement(ctx, id, func(r Record) (bool, error) {
+		if r.WorkerRef == nil {
+			return platform.OwnedOperationIntentAbsent(ctx, r.WorkerIntent)
+		}
+		boot, _, _ := strings.Cut(r.PriorIncarnation, ":")
+		return platform.OwnedOperationReleasedForIncarnation(ctx, *r.WorkerRef, boot+":"+r.WorkerRef.RootStartTime)
+	})
+}
+
+func (s *Store) observeVerifiedRetirement(ctx context.Context, id string, observe func(Record) (bool, error)) (bool, error) {
+	r, exists, err := s.Current()
+	if err != nil {
+		return false, err
+	}
+	if !exists || r.ID != id || r.Phase != Verified || !r.DispatchCommitted {
+		return false, fmt.Errorf("root update identity or verified state changed before native retirement")
+	}
+	released, err := observe(r)
+	if err != nil || !released {
+		return false, err
+	}
+	after, exists, err := s.Current()
+	if err != nil {
+		return false, err
+	}
+	if !exists || after.ID != r.ID || after.Revision != r.Revision || after.Phase != Verified {
+		return false, fmt.Errorf("root update identity or verified state changed during native retirement check")
+	}
+	return true, nil
+}

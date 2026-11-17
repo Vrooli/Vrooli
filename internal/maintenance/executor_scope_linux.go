@@ -62,6 +62,7 @@ func readScopeIdentity(entry processTableEntry) (scopeIdentity, error) {
 	identity.Scenario = env[runtimeScenarioEnv]
 	identity.Variant = env[runtimeVariantEnv]
 	identity.InstanceID = env[runtimeInstanceEnv]
+	identity.HomePaths = executorScopeHomePathsFromEnvironment(env)
 	identity.TagLabels = map[string]string{}
 	for key, value := range env {
 		if strings.HasSuffix(key, "AGENT_TAG") && value != "" {
@@ -84,4 +85,36 @@ func outsideManagedExecutionScope(entry processTableEntry) bool {
 		return true
 	}
 	return strings.HasSuffix(leaf, ".service") && !strings.HasPrefix(leaf, "user@")
+}
+
+// executorHomeIdentityInScope is intentionally conservative. A denied read
+// can be ignored only when the process table positively places it in a native
+// service/init scope, which is outside Agent Manager's run-scoped harness
+// homes. Missing cgroup identity stays in scope and cannot prove absence.
+func executorHomeIdentityInScope(entry processTableEntry) bool {
+	if isDockerWorkloadScope(entry.Cgroup) {
+		return false
+	}
+	return !outsideManagedExecutionScope(entry)
+}
+
+// isDockerWorkloadScope accepts only the kernel's exact systemd cgroup form
+// for a Docker workload. These are non-native processes and are outside the
+// requested native Codex-home inventory. A missing, malformed, or nested
+// cgroup is not enough to exclude a process from that inventory.
+func isDockerWorkloadScope(cgroup string) bool {
+	const prefix = "/workload.slice/docker-"
+	if !strings.HasPrefix(cgroup, prefix) || !strings.HasSuffix(cgroup, ".scope") {
+		return false
+	}
+	id := strings.TrimSuffix(strings.TrimPrefix(cgroup, prefix), ".scope")
+	if len(id) != 64 {
+		return false
+	}
+	for _, r := range id {
+		if !(r >= '0' && r <= '9') && !(r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
 }

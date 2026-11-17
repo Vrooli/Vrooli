@@ -2,6 +2,7 @@ package buildinfo
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"go/scanner"
 	"go/token"
@@ -12,14 +13,55 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"unicode"
 
 	"golang.org/x/mod/module"
 )
 
+// Missing matches can be valid for an inactive build-tagged source. The Go
+// compiler remains responsible for rejecting them when that source is active.
+var errUnmatchedEmbed = errors.New("embed pattern has no usable matches")
+
+// fs.Glob intentionally discards directory read errors. That is unsafe for a
+// fingerprint: an unreadable directory cannot be treated as an empty match.
+type embedGlobFS struct {
+	fs.FS
+	readErr error
+}
+
+func (f *embedGlobFS) Open(name string) (fs.File, error) {
+	file, err := f.FS.Open(name)
+	f.recordError(err)
+	return file, err
+}
+
+func (f *embedGlobFS) recordError(err error) {
+	if err != nil && !errors.Is(err, fs.ErrNotExist) && !errors.Is(err, syscall.ENOTDIR) && f.readErr == nil {
+		f.readErr = err
+	}
+}
+
+func (f *embedGlobFS) Stat(name string) (fs.FileInfo, error) {
+	info, err := fs.Stat(f.FS, name)
+	f.recordError(err)
+	return info, err
+}
+
+func (f *embedGlobFS) ReadDir(name string) ([]fs.DirEntry, error) {
+	entries, err := fs.ReadDir(f.FS, name)
+	f.recordError(err)
+	return entries, err
+}
+
 // IsGoBuildSource identifies compiler inputs that can change a Go package's
 // compiled file set. Keep the root stamp and scenario closure cache aligned.
 func IsGoBuildSource(name string) bool {
+	// go build excludes test files. Assets with this suffix that are embedded
+	// by production code are still collected by completeCompilerInputs.
+	if strings.HasSuffix(filepath.Base(name), "_test.go") {
+		return false
+	}
 	switch filepath.Ext(name) {
 	case ".go", ".c", ".cc", ".cpp", ".cxx", ".m", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".for", ".f90", ".s", ".S", ".sx", ".swig", ".swigcxx", ".syso":
 		return true
@@ -48,7 +90,7 @@ func completeCompilerInputs(root string, entries []fingerprintEntry) ([]fingerpr
 		}
 		for _, pattern := range patterns {
 			files, err := embeddedFiles(filepath.Dir(source), pattern)
-			if err != nil {
+			if err != nil && !errors.Is(err, errUnmatchedEmbed) {
 				return nil, fmt.Errorf("resolve embedded input in %s: %w", entry.rel, err)
 			}
 			for _, file := range files {
@@ -131,11 +173,16 @@ func embeddedFiles(dir, pattern string) ([]string, error) {
 	if _, err := path.Match(pattern, ""); err != nil {
 		return nil, err
 	}
-	matches, err := fs.Glob(os.DirFS(dir), pattern)
+	filesystem := &embedGlobFS{FS: os.DirFS(dir)}
+	matches, err := fs.Glob(filesystem, pattern)
 	if err != nil {
 		return nil, err
 	}
+	if filesystem.readErr != nil {
+		return nil, fmt.Errorf("read embed glob directory: %w", filesystem.readErr)
+	}
 	var files []string
+	var unmatched error
 	for _, match := range matches {
 		matchedPath := filepath.Join(dir, filepath.FromSlash(match))
 		for current := matchedPath; current != dir; current = filepath.Dir(current) {
@@ -209,13 +256,13 @@ func embeddedFiles(dir, pattern string) ([]string, error) {
 			return nil, err
 		}
 		if matchedFiles == 0 {
-			return nil, fmt.Errorf("embed pattern %q matches an empty directory %q", pattern, match)
+			unmatched = fmt.Errorf("%w: embed pattern %q matches an empty directory %q", errUnmatchedEmbed, pattern, match)
 		}
 	}
 	if len(files) == 0 {
-		return nil, fmt.Errorf("embed pattern %q matches no files", pattern)
+		return nil, fmt.Errorf("%w: embed pattern %q matches no files", errUnmatchedEmbed, pattern)
 	}
-	return files, nil
+	return files, unmatched
 }
 
 func invalidEmbedName(name string) bool {

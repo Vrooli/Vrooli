@@ -8,6 +8,7 @@ import (
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
 	capacityengine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 func TestFreshWhisperVRAMSampleRequiresExactCurrentZeroVRAMClaim(t *testing.T) {
@@ -62,6 +63,31 @@ func TestFreshWhisperVRAMSampleRequiresExactCurrentZeroVRAMClaim(t *testing.T) {
 	}
 }
 
+func TestWhisperCPUInvocationRequiresExactDeclaredArgumentSequence(t *testing.T) {
+	argv := []string{
+		"/usr/bin/rootlesskit", "--state-dir", "/tmp/vra-whisper", "--",
+		"/artifact/whisper-server", "-m", "/model/ggml-medium.bin", "--no-gpu",
+	}
+	if !containsExactArgumentSequence(argv, []string{"--no-gpu"}) {
+		t.Fatal("exact CPU-only launch argument was not recognized")
+	}
+	for _, tc := range []struct {
+		name     string
+		argv     []string
+		expected []string
+	}{
+		{name: "argument substring", argv: []string{"/server", "--no-gpu-extra"}, expected: []string{"--no-gpu"}},
+		{name: "missing argument", argv: []string{"/server", "--suppress-nst"}, expected: []string{"--no-gpu"}},
+		{name: "empty declaration", argv: []string{"/server", "--no-gpu"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if containsExactArgumentSequence(tc.argv, tc.expected) {
+				t.Fatal("unproven CPU launch args were accepted")
+			}
+		})
+	}
+}
+
 func TestBeginWhisperCPUTransitionPersistsAgainstExactResourceClaim(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
@@ -74,7 +100,7 @@ func TestBeginWhisperCPUTransitionPersistsAgainstExactResourceClaim(t *testing.T
 		t.Fatal(err)
 	}
 	model := capacityengine.ModelIdentity{Name: "ggml-medium.bin", Digest: "sha256:medium"}
-	observedAt := time.Now().UTC().Add(-time.Second)
+	observedAt := time.Now().UTC().Add(-time.Hour)
 	gpu := 0
 	claim, err := store.CreateClaim(ctx, capacityengine.CapacityClaim{
 		OwnerKind: capacityengine.OwnerKindResource, OwnerID: "whisper", ResourceKind: capacityengine.ResourceKindVRAM, GPUIndex: &gpu,
@@ -89,8 +115,10 @@ func TestBeginWhisperCPUTransitionPersistsAgainstExactResourceClaim(t *testing.T
 		t.Fatal(err)
 	}
 	service := capacityapp.Service{
-		OpenStore:  open,
-		Source:     capacityengine.StaticSource{},
+		OpenStore: open,
+		Source: whisperRecoverySource{processes: []hostinventory.GPUProcess{{
+			GPUIndex: 0, PID: 42, ProcessName: "whisper-server", UsedBytes: 768 << 20,
+		}}},
 		Attributor: residencyTestAttributor{},
 	}
 	manifest := ResourceManifest{Name: "whisper", Acceleration: &AccelerationSpec{Claim: &capacityengine.ResourceClaimSpec{Profile: &capacityengine.DegradeProfile{Model: model}}}}
@@ -102,7 +130,7 @@ func TestBeginWhisperCPUTransitionPersistsAgainstExactResourceClaim(t *testing.T
 		t.Fatalf("started transition lost exact claim/model/placement binding: %+v", transition)
 	}
 	got, err := service.ResidencyGet(ctx, transition.started.Transition.ID)
-	if err != nil || got.Revision != 1 || got.Transition.PreFootprint.Bytes != 1<<30 {
+	if err != nil || got.Revision != 1 || got.Transition.PreFootprint.Bytes != 768<<20 || !got.Transition.PreFootprint.ObservedAt.After(observedAt) {
 		t.Fatalf("durable begin replay = %+v, %v", got, err)
 	}
 }

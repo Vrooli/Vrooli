@@ -131,6 +131,38 @@ func TestSDAFreshnessProviderMarksStaleOnlyReportAutomatic(t *testing.T) {
 	}
 }
 
+func TestSDAFreshnessProviderKeepsColdCacheUnqualified(t *testing.T) {
+	root := t.TempDir()
+	report := Report{Root: root, Success: true}
+	provider := sdaFreshnessProvider{
+		root: root,
+		runner: stubDependencyFreshnessRunner{report: sdaFreshnessReport{
+			Clean: false,
+			Root:  root,
+			Mode:  "touched",
+			Summary: sdaFreshnessSummary{
+				Checked: 1, NeedsDownload: 1,
+			},
+			Surfaces: []sdaFreshnessSurface{{
+				Scenario: "demo", Surface: "api", GoModPath: "scenarios/demo/api/go.mod", Status: "needs_download",
+			}},
+		}},
+	}
+	if err := provider.Run(context.Background(), Request{}, &report); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	check := findCheck(t, report, dependencyFreshnessProviderID)
+	if check.Passed || check.Severity != SeverityError {
+		t.Fatalf("dependency freshness check = %+v, want blocking incomplete coverage", check)
+	}
+	if report.SharedDrift == nil || report.SharedDrift.Clean {
+		t.Fatalf("shared drift = %#v, want cold-cache validation to remain unqualified", report.SharedDrift)
+	}
+	if len(report.Findings) != 1 || report.Findings[0].Code != "dependency_freshness" {
+		t.Fatalf("findings = %#v, want one dependency-freshness blocker", report.Findings)
+	}
+}
+
 func TestSDAFreshnessProviderReportsUnavailableWithoutInterpretingDrift(t *testing.T) {
 	root := t.TempDir()
 	report := Report{Root: root, Success: true}
@@ -153,6 +185,76 @@ func TestSDAFreshnessProviderReportsUnavailableWithoutInterpretingDrift(t *testi
 	finding := findFinding(t, report, "dependency_freshness_provider")
 	if finding.NextActions[0].Command != "scenario-dependency-analyzer freshness --touched --json" {
 		t.Fatalf("next action = %#v, want SDA inspection command", finding.NextActions)
+	}
+}
+
+func TestParseSDAFreshnessReportRequiresMatchingCompleteTouchedCoverage(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want bool
+	}{
+		{
+			name: "complete matching root",
+			json: `{"root":"/repo","mode":"touched","clean":false,"summary":{"checked":2,"clean":1,"stale":1,"errors":0,"needs_download":0,"skipped":0},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"clean"},{"scenario":"demo","surface":"cli","go_mod_path":"scenarios/demo/cli/go.mod","status":"stale"}]}`,
+			want: true,
+		},
+		{
+			name: "complete cold-cache report",
+			json: `{"root":"/repo","mode":"touched","clean":false,"summary":{"checked":1,"clean":0,"stale":0,"errors":0,"needs_download":1,"skipped":0},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"needs_download"}]}`,
+			want: true,
+		},
+		{
+			name: "different checkout",
+			json: `{"root":"/other","mode":"touched","clean":true,"summary":{"checked":0,"clean":0},"surfaces":[]}`,
+		},
+		{
+			name: "missing root identity",
+			json: `{"mode":"touched","clean":true,"summary":{"checked":0}}`,
+		},
+		{
+			name: "wrong coverage mode",
+			json: `{"root":"/repo","mode":"all","clean":true,"summary":{"checked":0},"surfaces":[]}`,
+		},
+		{
+			name: "checked surface omitted from evidence",
+			json: `{"root":"/repo","mode":"touched","clean":true,"summary":{"checked":1,"clean":1},"surfaces":[]}`,
+		},
+		{
+			name: "clean contradicts stale count",
+			json: `{"root":"/repo","mode":"touched","clean":true,"summary":{"checked":1,"clean":0,"stale":1},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"stale"}]}`,
+		},
+		{
+			name: "dirty without a blocker",
+			json: `{"root":"/repo","mode":"touched","clean":false,"summary":{"checked":1,"clean":1},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"clean"}]}`,
+		},
+		{
+			name: "unknown surface status",
+			json: `{"root":"/repo","mode":"touched","clean":false,"summary":{"checked":1,"skipped":1},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"future"}]}`,
+		},
+		{
+			name: "surface statuses contradict summary",
+			json: `{"root":"/repo","mode":"touched","clean":true,"summary":{"checked":1,"clean":1},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"stale"}]}`,
+		},
+		{
+			name: "surface identity missing",
+			json: `{"root":"/repo","mode":"touched","clean":true,"summary":{"checked":1,"clean":1},"surfaces":[{"status":"clean"}]}`,
+		},
+		{
+			name: "surface identity duplicated",
+			json: `{"root":"/repo","mode":"touched","clean":true,"summary":{"checked":2,"clean":2},"surfaces":[{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"clean"},{"scenario":"demo","surface":"api","go_mod_path":"scenarios/demo/api/go.mod","status":"clean"}]}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseSDAFreshnessReport("/repo", []byte(tt.json))
+			if tt.want && err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			if !tt.want && err == nil {
+				t.Fatalf("parse accepted malformed report: %+v", got)
+			}
+		})
 	}
 }
 

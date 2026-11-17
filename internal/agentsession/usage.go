@@ -3,6 +3,7 @@ package agentsession
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	platformgo "github.com/vrooli/platform-go"
 )
@@ -11,8 +12,8 @@ import (
 const (
 	// UsageMeasured is a sum over every member process.
 	UsageMeasured = "measured"
-	// UsagePartial is a sum over the members that could be read; some
-	// exited or were unreadable mid-read, so the figure is a lower bound.
+	// UsagePartial is a process sum with one or more unreadable members; it
+	// is incomplete and must not be treated as a cgroup total.
 	UsagePartial = "partial"
 	// UsageUnsupported is a platform with no per-process reader.
 	UsageUnsupported = "unsupported"
@@ -24,19 +25,27 @@ const (
 // ScopeUsage is what a session's processes hold. MemoryBytes and SwapBytes
 // are nil unless their status is measured or partial.
 type ScopeUsage struct {
-	// MemoryBytes is the sum of the members' resident set sizes (VmRSS on
-	// Linux). Shared pages are counted once per process, so the sum can
-	// exceed the scope's own memory charge.
+	// MemoryBytes is cgroup charged RAM when available, including file cache
+	// and some kernel charges; the fallback is a per-process VmRSS sum that
+	// can double-count shared pages.
 	MemoryBytes  *int64
 	MemoryStatus string
-	// SwapBytes is the sum of the members' swapped-out memory (VmSwap).
+	MemorySource string
+	// SwapBytes is cgroup swap charge when available; the fallback is a sum
+	// of member VmSwap readings.
 	SwapBytes  *int64
 	SwapStatus string
+	SwapSource string
 	// Detail says why a status is not measured.
 	Detail string
 	// Processes is how many members were read.
 	Processes int
 }
+
+const (
+	UsageSourceCgroupV2 = "cgroup-v2"
+	UsageSourceProcSum  = "proc-sum"
+)
 
 // unknownUsage is a usage nothing could be read for.
 func unknownUsage(status, detail string) ScopeUsage {
@@ -77,9 +86,52 @@ func MeasureUsage(host HostFacts, members []int, membersErr error) ScopeUsage {
 	}
 	status, detail := UsageMeasured, ""
 	if unreadable > 0 {
-		status, detail = UsagePartial, fmt.Sprintf("%d of %d member process(es) unreadable; figures are a lower bound", unreadable, len(members))
+		status, detail = UsagePartial, fmt.Sprintf("process sum incomplete: %d of %d member process(es) unreadable", unreadable, len(members))
 	}
-	return ScopeUsage{MemoryBytes: &rss, MemoryStatus: status, SwapBytes: &swap, SwapStatus: status, Detail: detail, Processes: read}
+	return ScopeUsage{MemoryBytes: &rss, MemoryStatus: status, MemorySource: UsageSourceProcSum, SwapBytes: &swap, SwapStatus: status, SwapSource: UsageSourceProcSum, Detail: detail, Processes: read}
+}
+
+// MeasureScopeUsage prefers cgroup v2 charged RAM (including file cache and
+// some kernel charges) and swap. It falls back independently to process
+// VmRSS/VmSwap sums when a cgroup counter is unavailable; those sums can
+// double-count shared pages and are labeled accordingly.
+func MeasureScopeUsage(host HostFacts, scopeUnit string, members []int, membersErr error) ScopeUsage {
+	usage := MeasureUsage(host, members, membersErr)
+	if host == nil || scopeUnit == "" {
+		return usage
+	}
+	occupancy, err := host.ScopeOccupancy(scopeUnit)
+	if err != nil {
+		appendUsageDetail(&usage, "cgroup occupancy unavailable: "+err.Error())
+		return usage
+	}
+	if occupancy.MemoryBytes >= 0 {
+		value := occupancy.MemoryBytes
+		usage.MemoryBytes = &value
+		usage.MemoryStatus = UsageMeasured
+		usage.MemorySource = UsageSourceCgroupV2
+	} else if usage.MemoryBytes == nil {
+		usage.MemoryStatus = UsageUnavailable
+		appendUsageDetail(&usage, "cgroup memory.current is unavailable")
+	}
+	if occupancy.SwapBytes >= 0 {
+		value := occupancy.SwapBytes
+		usage.SwapBytes = &value
+		usage.SwapStatus = UsageMeasured
+		usage.SwapSource = UsageSourceCgroupV2
+	} else if usage.SwapBytes == nil {
+		usage.SwapStatus = UsageUnavailable
+		appendUsageDetail(&usage, "cgroup memory.swap.current is unavailable")
+	}
+	return usage
+}
+
+func appendUsageDetail(usage *ScopeUsage, detail string) {
+	if usage.Detail == "" {
+		usage.Detail = detail
+		return
+	}
+	usage.Detail = strings.TrimSpace(usage.Detail + "; " + detail)
 }
 
 // orUnknown renders an optional figure for an audit row, where -1 means

@@ -19,6 +19,7 @@ type N8NRuntimeRequest struct {
 	ServiceVersion             string
 	Database                   string
 	HTTPMockConfigJSON         []byte
+	VirtualAPIContractJSON     []byte
 	OperationID                uuid.UUID
 	JSON                       bool
 }
@@ -82,6 +83,18 @@ func ParseN8NRuntimeRequest(action N8NRuntimeCommandID, args []string) (N8NRunti
 		if request.SandboxID == "" || request.CompanionRuntimeID == "" {
 			return N8NRuntimeRequest{}, fmt.Errorf("--sandbox-id and --companion-runtime-id are required")
 		}
+	case N8NRuntimeCompanionRouteHits:
+		if request.SandboxID == "" || request.CompanionRuntimeID == "" {
+			return N8NRuntimeRequest{}, fmt.Errorf("--sandbox-id and --companion-runtime-id are required")
+		}
+	case N8NRuntimeVirtualAPIStart:
+		if request.SandboxID == "" || !parsed.HasFlag("--contract-stdin") {
+			return N8NRuntimeRequest{}, fmt.Errorf("--sandbox-id and --contract-stdin are required")
+		}
+	case N8NRuntimeVirtualAPIStop, N8NRuntimeVirtualAPIHits:
+		if request.SandboxID == "" || request.CompanionRuntimeID == "" {
+			return N8NRuntimeRequest{}, fmt.Errorf("--sandbox-id and --companion-runtime-id are required")
+		}
 	case N8NRuntimeImportWorkflow, N8NRuntimeExecuteWorkflow, N8NRuntimeExecuteManualWorkflow:
 		if request.SandboxID == "" || request.RuntimeID == "" || parsed.FlagValue("--operation-id") == "" {
 			return N8NRuntimeRequest{}, fmt.Errorf("--sandbox-id, --runtime-id and --operation-id are required")
@@ -102,6 +115,21 @@ func ParseN8NRuntimeRequest(action N8NRuntimeCommandID, args []string) (N8NRunti
 		request.OperationID = operationID
 	}
 	return request, nil
+}
+
+// ReadN8NVirtualAPIInput reads one bounded task virtual API contract from stdin.
+func ReadN8NVirtualAPIInput(input io.Reader) ([]byte, error) {
+	if input == nil {
+		return nil, fmt.Errorf("virtual API requires JSON contract on stdin")
+	}
+	data, err := io.ReadAll(io.LimitReader(input, 2<<20+1))
+	if err != nil {
+		return nil, fmt.Errorf("read virtual API contract from stdin: %w", err)
+	}
+	if len(data) == 0 || len(data) > 2<<20 {
+		return nil, fmt.Errorf("virtual API contract must contain 1..2 MiB")
+	}
+	return data, nil
 }
 
 // ReadN8NWebhookEventInput reads one bounded synthetic JSON event from stdin.

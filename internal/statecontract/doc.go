@@ -26,8 +26,8 @@
 //   - the Go toolchain release (major.minor) binds encoding/json behaviour.
 //
 // The builder checks those sources when it stamps (format versions written
-// only through declared constants, stored vocabulary written, compared and
-// switched on only through named constants, no cross-module codec calls); a
+// only through declared constants, recognizable stored vocabulary uses, and
+// codec dependency coverage); a
 // failed check makes the executable unqualified, with the reason in its
 // refusal. Stored-vocabulary candidates are kept only when their field is a
 // string field of a declared envelope (LiteralViolations).
@@ -37,8 +37,24 @@
 // that alters what the prior release reads changes the owner's digest, and
 // Diff names the owner and the stored type, field, constant or fact.
 //
-// The contract cannot see a function body that starts writing a new value
-// into an unchanged field through a variable or a function result, or a
-// literal on a field whose readers it cannot resolve. Such a change must bump
-// the owner's declared format version.
+// Runtime evolution tests inspect the root CLI and watchdog dependency
+// closures for versioned envelopes and recognizable durable-write calls. It
+// unions the host closure with Linux, macOS and Windows amd64/arm64 closures
+// with cgo disabled; a cgo-only dependency on another platform is not covered.
+// Calls in precise and constants-stamped packages have a per-call reviewed
+// inventory; a new site fails until classified against an owner or a concrete
+// non-state reason. Whole-source owners conservatively change their contract
+// for any selected source change, including behavior unrelated to stored data.
+// The audit is a development guard, not a proof: it cannot discover arbitrary
+// write helpers, external writers, dynamically selected destinations, or a
+// changed value passed through an already-classified call. A renamed or
+// reordered call may require review even when its behavior is unchanged.
+// Site identifiers include receiver type, function, callee and ordinal;
+// duplicate identifiers fail the audit.
+//
+// Vocabulary qualification uses bounded source inference, not complete Go
+// type or data-flow analysis. Some variable, function-result, generic,
+// interface, dynamic or unresolved field uses can escape it. Changes that
+// alter stored values beyond its coverage must bump the owner's declared
+// format version.
 package statecontract

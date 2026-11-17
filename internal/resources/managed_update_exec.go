@@ -94,7 +94,7 @@ func (c *Controller) RunManagedUpdateExec(ctx context.Context, resource, request
 	if err != nil {
 		return err
 	}
-	p, _, err := managedUpdateAdmittedRole(u, instance)
+	p, contract, err := managedUpdateAdmittedRole(u, instance)
 	if err != nil {
 		return err
 	}
@@ -106,6 +106,11 @@ func (c *Controller) RunManagedUpdateExec(ctx context.Context, resource, request
 	if err != nil {
 		return err
 	}
+	releaseConnector, err := acquireCloudflareConnectorLaunchLock(ctx, contract.Manifest)
+	if err != nil {
+		return fmt.Errorf("acquire cloudflare connector launch lock: %w", err)
+	}
+	defer releaseConnector()
 	return executeManagedUpdateRole(ctx, u, instance, managedUpdateExecOwner{
 		lookup: platform.LookupOwnedService, claim: f.Claim, selfImage: platform.OpenProcessExecutable,
 		incarnation: process.Incarnation, replace: platform.ReplaceProcessImage,

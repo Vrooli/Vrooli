@@ -115,7 +115,7 @@ func CopyStoreWithPolicy(source, sink, receiptPath string, policy CopyPolicy) (C
 	if err != nil {
 		return CopyStatus{}, err
 	}
-	status := CopyStatus{Path: destination, Sink: sink, SinkIdentity: stableSinkIdentity(sink), CopiedAt: time.Now().UTC(), Generation: generation, Checksum: verified, VerifiedAt: time.Now().UTC(), Verification: "readback"}
+	status := CopyStatus{Path: destination, Sink: sink, SinkIdentity: stableSinkIdentity(sink), CopiedAt: time.Now().UTC(), Generation: generation, Checksum: verified, VerifiedAt: time.Now().UTC(), Verification: CopyVerificationReadback}
 	if err := writeCopyReceipt(receiptPath, status); err != nil {
 		return CopyStatus{}, err
 	}

@@ -31,6 +31,8 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/network"
+	nodert "github.com/vrooli/vrooli/internal/nodejsruntime"
+	"github.com/vrooli/vrooli/internal/packagegov"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
@@ -40,12 +42,13 @@ import (
 )
 
 const (
-	phasesTrue = "true"
+	phasesTrue         = "true"
+	nodeRuntimePathEnv = "VROOLI_INTERNAL_NODE_RUNTIME_PATH"
 )
 
 const (
 	phasesDevelop = "develop"
-	phasesSetup   = "setup"
+	phasesSetup   = scenarioruntime.PhaseSetup
 )
 
 const (
@@ -196,17 +199,9 @@ func (r *Runner) SetupAdmissionBlockers(name, exceptVariant string) ([]string, e
 // exceptVariant when it is non-empty. Stopped-only setup is admitted only when this
 // is empty.
 func (r *Runner) activeInstanceKeys(ctx context.Context, slug, exceptVariant string) ([]string, error) {
-	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	instances, err := r.activeInstances(ctx, slug)
 	if err != nil {
-		return nil, fmt.Errorf("admit stopped-only setup for %q: %w", slug, err)
-	}
-	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
-		Scenario: slug,
-		Statuses: append(scenarioruntime.ActiveInstanceStatuses(), scenarioruntime.StatusStopping),
-	})
-	_ = store.Close()
-	if err != nil {
-		return nil, fmt.Errorf("admit stopped-only setup for %q: %w", slug, err)
+		return nil, err
 	}
 	var keys []string
 	for _, instance := range instances {
@@ -220,6 +215,24 @@ func (r *Runner) activeInstanceKeys(ctx context.Context, slug, exceptVariant str
 		keys = append(keys, instance.Scenario+"@"+variant)
 	}
 	return keys, nil
+}
+
+// activeInstances lists the registry's starting, running and stopping
+// instances of slug. A registry that cannot be read is an error, never "none".
+func (r *Runner) activeInstances(ctx context.Context, slug string) ([]scenarioruntime.Instance, error) {
+	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return nil, fmt.Errorf("admit stopped-only setup for %q: %w", slug, err)
+	}
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+		Scenario: slug,
+		Statuses: append(scenarioruntime.ActiveInstanceStatuses(), scenarioruntime.StatusStopping),
+	})
+	_ = store.Close()
+	if err != nil {
+		return nil, fmt.Errorf("admit stopped-only setup for %q: %w", slug, err)
+	}
+	return instances, nil
 }
 
 func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, stoppedOnly bool) (PhaseResult, error) {
@@ -394,6 +407,17 @@ func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenari
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if version := strings.TrimSpace(item.Manifest.Runtime.Node.Version); version != "" && item.RetainedReleaseID == "" && phaseName != "stop" {
+		binDir, err := (nodert.RuntimeManager{Home: r.Home}).Ensure(ctx, version)
+		if err != nil {
+			return PhaseResult{}, fmt.Errorf("resolve scenario Node.js %s runtime: %w", version, err)
+		}
+		env = cloneStringMap(env)
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env[nodeRuntimePathEnv] = binDir
 	}
 	if childWriter == nil {
 		childWriter = logWriter
@@ -878,7 +902,7 @@ func (w lockedWriter) Write(p []byte) (int, error) {
 //nolint:gocyclo // component construction handles the manifest declared phase/component combinations.
 func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenario.Scenario, env map[string]string, writer io.Writer, forceSetup bool, verdicts map[string]artifactVerdict, admissionSession *buildAdmissionSession) (int, error) {
 	executed := 0
-	deps := r.hostProbeDeps()
+	deps := r.scenarioHostProbeDeps(item)
 	registry := BuilderRegistry()
 	buildMode := BuildModeForEnv(env, os.Getenv)
 	for _, name := range orderedComponentNames(item.Manifest.Components) {
@@ -894,7 +918,7 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 		if !exists || spec.Reserved {
 			return executed, fmt.Errorf("component %s has no executable builder %q", name, component.Build.Kind)
 		}
-		targets, targetErr := componentBuildTargets(name, item.SourcePath(), item.Slug, component, spec, runtimeGOOS())
+		targets, targetErr := componentBuildTargets(name, item.SourcePath(), item.Slug, component, spec, runtimeGOOS(), item.Variant)
 		if targetErr != nil {
 			return executed, targetErr
 		}
@@ -1064,12 +1088,13 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 }
 
 func (r *Runner) componentIsFresh(ctx context.Context, item scenario.Scenario, name string, component scenario.Component) (bool, error) {
-	artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, r.hostProbeDeps())
+	deps := r.scenarioHostProbeDeps(item)
+	artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps, item.Variant)
 	if err != nil {
 		return false, err
 	}
 	for _, artifact := range artifacts {
-		verdict, err := r.evaluateArtifactFreshnessContext(ctx, artifact, r.hostProbeDeps())
+		verdict, err := r.evaluateArtifactFreshnessContext(ctx, artifact, deps)
 		if err != nil {
 			return false, err
 		}
@@ -1442,11 +1467,35 @@ func lastLogLine(path string) string {
 }
 
 func (r *Runner) runForegroundStep(ctx context.Context, item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string, logWriter io.Writer) error {
+	// runErr is what the step's own command and preparation returned; a repair
+	// that set node_modules aside settles on it when the function returns.
+	var runErr error
 	stepEnv := lifecycleStepEnv(phase, env)
 
 	declared, _, err := declaredCommandForStep(item, step, stepEnv)
 	if err != nil {
 		return err
+	}
+	// A pnpm step follows the store node_modules is already linked against.
+	// Setup runs with CI=true, under which a different store makes pnpm
+	// silently recreate the whole node_modules.
+	guardedEnv, storeNote, err := packagegov.GuardPnpmStore(ctx, declared.Argv, declared.Dir, declared.Env)
+	var mismatch *packagegov.PnpmStoreMismatchError
+	if errors.As(err, &mismatch) {
+		settle, repairErr := r.setAsideStaleModules(ctx, item, phase, mismatch, logWriter)
+		if repairErr != nil {
+			return errors.Join(err, repairErr)
+		}
+		defer func() { settle(runErr == nil) }()
+		guardedEnv, storeNote, err = packagegov.GuardPnpmStore(ctx, declared.Argv, declared.Dir, declared.Env)
+	}
+	if err != nil {
+		runErr = err
+		return err
+	}
+	declared.Env = guardedEnv
+	if storeNote != "" {
+		fmt.Fprintf(logWriter, "lifecycle: %s\n", storeNote)
 	}
 	cmd := shell.NewCommandContext(ctx, declared.Argv[0], declared.Argv[1:]...)
 	cmd.Dir = declared.Dir
@@ -1455,9 +1504,11 @@ func (r *Runner) runForegroundStep(ctx context.Context, item scenario.Scenario, 
 	cmd.Stdout = logWriter
 	cmd.Stderr = logWriter
 	if err := platform.ConfigureCommand(cmd, platform.ProcessOptions{}); err != nil {
+		runErr = err
 		return err
 	}
-	return cmd.Run()
+	runErr = cmd.Run()
+	return runErr
 }
 
 type declaredStepCommand struct {
@@ -1477,7 +1528,7 @@ func componentForStep(manifest scenario.ServiceManifest, stepName string) (strin
 func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, baseEnv []string) (declaredStepCommand, bool, error) {
 	_, component, isComponent := componentForStep(item.Manifest, step.Name)
 	if isComponent {
-		argv, err := ResolveComponentArgv(component.Run.Argv, item.SourcePath(), item.Slug, item.Manifest.Components)
+		argv, err := ResolveComponentArgvForVariant(component.Run.Argv, item.SourcePath(), item.Slug, item.Variant, item.Manifest.Components)
 		if err != nil {
 			return declaredStepCommand{}, false, err
 		}
@@ -1576,21 +1627,39 @@ func envSliceMap(values []string) map[string]string {
 	return out
 }
 
-// lifecycleStepEnv makes setup safe for server-owned execution. Setup may
-// invoke package managers and other tools that
-// prompt when they detect stale state; a lifecycle request has no interactive
-// stdin to answer such prompts, so fail deterministically instead.
+// lifecycleStepEnv assembles a scenario step's environment from the documented
+// host pass-through set (scenario_env.go) and the lifecycle overlay. The
+// caller's other variables, including any authentication setting, credential,
+// or agent identity, never reach the step.
+//
+// It also makes setup safe for server-owned execution. Setup may invoke
+// package managers and other tools that prompt when they detect stale state; a
+// lifecycle request has no interactive stdin to answer such prompts, so fail
+// deterministically instead.
 func lifecycleStepEnv(phase string, overrides map[string]string) []string {
+	return lifecycleStepEnvFrom(os.Environ(), phase, overrides)
+}
+
+func lifecycleStepEnvFrom(caller []string, phase string, overrides map[string]string) []string {
 	overlay := make(envkit.Env, 0, len(overrides))
+	nodeBinDir := ""
 	for key, value := range overrides {
+		if key == nodeRuntimePathEnv {
+			nodeBinDir = value
+			continue
+		}
 		overlay = append(overlay, key+"="+value)
 	}
-	stepEnv := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, overlay)
+	inherited, _ := scenarioInheritedEnv(caller)
+	stepEnv := envkit.WithOverlay(envkit.Env(inherited), envkit.ForeignScenario, overlay)
 	stepEnv = values.SetEnv(stepEnv, "PATH", hostreqkit.AugmentUserToolPath(
 		values.EnvValue(stepEnv, "HOME"),
 		values.EnvValue(stepEnv, "PATH"),
 		values.EnvValue(stepEnv, "LOCALAPPDATA"),
 	))
+	if strings.TrimSpace(nodeBinDir) != "" {
+		stepEnv = values.SetEnv(stepEnv, "PATH", nodeBinDir+string(os.PathListSeparator)+values.EnvValue(stepEnv, "PATH"))
+	}
 	stepEnv = values.SetEnv(stepEnv, "LIFECYCLE_PHASE", phase)
 	stepEnv = values.SetEnv(stepEnv, "VROOLI_LIFECYCLE_MANAGED", phasesTrue)
 	if tempDir := governedGoTempDir(stepEnv); tempDir != "" {

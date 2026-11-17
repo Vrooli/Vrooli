@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	valuespkg "github.com/vrooli/vrooli/internal/values"
 )
@@ -263,7 +264,7 @@ func (s resolverState) addResources(home, selector string) error {
 				// same binary to a required host tool makes `resource install`
 				// self-block before the acquisition route can run. Other explicit
 				// host requirements remain governed by the normal resolver.
-				if manifest.Driver == "external-cli" && manifest.Acquisition != nil && name == strings.TrimSpace(manifest.Binary) {
+				if manifest.Driver == manifestpkg.DriverExternalCLI && manifest.Acquisition != nil && name == strings.TrimSpace(manifest.Binary) {
 					continue
 				}
 				reason := fmt.Sprintf("resource %s desktop target requires %s", item.Name, name)

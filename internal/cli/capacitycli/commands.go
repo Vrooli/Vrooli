@@ -43,6 +43,7 @@ const (
 	CommandDiskObserve      CommandID = "disk-observe"
 	CommandDiskSample       CommandID = "disk-sample"
 	CommandResidency        CommandID = "residency"
+	CommandPlacement        CommandID = "placement"
 )
 
 const (
@@ -141,6 +142,10 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options: []commandtree.OptionArg{{Name: "--owner", ValueName: "id", Description: "Filter to one owner id"}, {Name: "--active", Description: "Only active (reserved/granted/degraded) claims"}, {Name: "--all", Description: "Include terminal history (default shows live claims)"}, commandtree.JSONOption()},
 			},
 			Handler: CommandList,
+		},
+		{
+			Name: string(CommandPlacement), Summary: "Report per-role placement measurements and evidence gaps", Group: groupObserve,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption()}}, Handler: CommandPlacement,
 		},
 		{
 			Name:    string(CommandReconcile),
@@ -414,6 +419,11 @@ func ParseListRequest(args []string) (capacityapp.ListRequest, error) {
 		ActiveOnly: parsed.HasFlag("--active"),
 		AllHistory: parsed.HasFlag("--all"),
 	}, nil
+}
+
+func ParsePlacementRequest(args []string) error {
+	_, err := parse(CommandPlacement, "vrooli capacity placement", args)
+	return err
 }
 
 // ParseSweepRequest validates `vrooli capacity sweep` (only --json/help).

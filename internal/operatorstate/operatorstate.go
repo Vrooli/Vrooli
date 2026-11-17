@@ -31,7 +31,7 @@ const (
 	StateFile                     = "operator-state.json"
 	DefaultDraftRetention         = 30 * 24 * time.Hour
 	hostWorkloadPostureVrooliOnly = "vrooli_only"
-	hostWorkloadPostureWholeHost  = "whole_host"
+	HostWorkloadPostureWholeHost  = "whole_host"
 	capacityPostureBalanced       = "balanced"
 	capacityPostureResponsive     = "responsive"
 	capacityPostureThroughput     = "throughput"
@@ -61,6 +61,12 @@ type EnabledChoice struct {
 	// empty unless that resource exposes a source choice; it never implies opt-in.
 	Source *ResourceSourceChoice `json:"source,omitempty"`
 }
+
+// Resource source modes are persisted in the operator configuration.
+const (
+	ResourceSourceManaged = "managed"
+	ResourceSourceHost    = "host"
+)
 
 type ResourceSourceChoice struct {
 	Mode       string `json:"mode"`
@@ -977,7 +983,7 @@ func (s *Service) validate(merged []byte, doc Document) error {
 	if doc.TrustPosture != "" && doc.TrustPosture != trustPosturePersonal && doc.TrustPosture != trustPostureShared && doc.TrustPosture != trustPostureHosted {
 		return errors.New("operator state validation failed at /trust_posture: must be personal, shared, or hosted")
 	}
-	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != hostWorkloadPostureWholeHost && doc.HostWorkloadPosture != hostWorkloadPostureVrooliOnly {
+	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != HostWorkloadPostureWholeHost && doc.HostWorkloadPosture != hostWorkloadPostureVrooliOnly {
 		return errors.New("operator state validation failed at /host_workload_posture: must be whole_host or vrooli_only")
 	}
 	if doc.CapacityPosture != "" && doc.CapacityPosture != capacityPostureResponsive && doc.CapacityPosture != capacityPostureBalanced && doc.CapacityPosture != capacityPostureThroughput && doc.CapacityPosture != capacityPostureMinimal {

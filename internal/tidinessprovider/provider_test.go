@@ -20,9 +20,10 @@ import (
 
 type fakeValidationService struct {
 	scenariovalidationconnect.UnimplementedScenarioValidationServiceHandler
-	mu      sync.Mutex
-	target  *commonv1.ValidationTarget
-	exclude []string
+	mu       sync.Mutex
+	target   *commonv1.ValidationTarget
+	exclude  []string
+	response *scenariovalidationv1.ValidateTargetResponse
 }
 
 type demandStub struct {
@@ -53,6 +54,9 @@ func (f *fakeValidationService) ValidateTarget(_ context.Context, req *connect.R
 	f.target = req.Msg.GetTarget()
 	f.exclude = append([]string(nil), req.Msg.GetExclude()...)
 	f.mu.Unlock()
+	if f.response != nil {
+		return connect.NewResponse(f.response), nil
+	}
 	native, err := anypb.New(&validationv1.TidinessScanResponse{
 		Status: "passed",
 		Findings: []*validationv1.TidinessFinding{{
@@ -68,6 +72,7 @@ func (f *fakeValidationService) ValidateTarget(_ context.Context, req *connect.R
 		Target:       req.Msg.GetTarget(),
 		Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED,
 		NativeDetail: native,
+		Assessment:   &commonv1.MaturityAssessment{},
 	}), nil
 }
 
@@ -106,6 +111,90 @@ func TestValidateReturnsExplicitUnavailableError(t *testing.T) {
 	_, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return "", context.Canceled }}).Validate(context.Background(), "/repo")
 	if err == nil || !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("error = %v, want ErrUnavailable", err)
+	}
+}
+
+func TestValidateRejectsIncompleteTargetCoverage(t *testing.T) {
+	native, err := anypb.New(&validationv1.TidinessScanResponse{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	validTarget := &commonv1.ValidationTarget{
+		Kind: commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE,
+		Id:   TargetID,
+		Root: TargetRoot,
+	}
+	tests := []struct {
+		name     string
+		response *scenariovalidationv1.ValidateTargetResponse
+	}{
+		{
+			name: "mismatched target",
+			response: &scenariovalidationv1.ValidateTargetResponse{
+				Target: &commonv1.ValidationTarget{Kind: validTarget.Kind, Id: "wrong", Root: validTarget.Root},
+				Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, NativeDetail: native, Assessment: &commonv1.MaturityAssessment{},
+			},
+		},
+		{
+			name: "missing assessment evidence",
+			response: &scenariovalidationv1.ValidateTargetResponse{
+				Target: validTarget, Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, NativeDetail: native,
+			},
+		},
+		{
+			name: "missing canonical native detail",
+			response: &scenariovalidationv1.ValidateTargetResponse{
+				Target: validTarget, Status: scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED, Assessment: &commonv1.MaturityAssessment{},
+			},
+		},
+		{
+			name: "unspecified status",
+			response: &scenariovalidationv1.ValidateTargetResponse{
+				Target: validTarget, NativeDetail: native, Assessment: &commonv1.MaturityAssessment{},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			service := &fakeValidationService{response: test.response}
+			_, handler := scenariovalidationconnect.NewScenarioValidationServiceHandler(service)
+			server := httptest.NewServer(handler)
+			defer server.Close()
+			_, err := (Provider{ResolveURL: func(context.Context, string) (string, error) { return server.URL, nil }, Demand: &demandStub{}}).Validate(context.Background(), "/repo")
+			if !errors.Is(err, ErrUnavailable) {
+				t.Fatalf("Validate error = %v, want explicit incomplete coverage", err)
+			}
+		})
+	}
+}
+
+func TestResultFromResponsePrefersCanonicalNativeFindingOverAssessmentDuplicate(t *testing.T) {
+	native, err := anypb.New(&validationv1.TidinessScanResponse{
+		Findings: []*validationv1.TidinessFinding{{
+			RuleId: "long-file", Severity: "warning", FilePath: "api/scan.go", LineNumber: 12,
+			Description: "canonical source description", RecommendedRemediation: "canonical fix",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := &scenariovalidationv1.ValidateTargetResponse{
+		Status:       scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_FAILED,
+		NativeDetail: native,
+		Assessment: &commonv1.MaturityAssessment{Findings: []*commonv1.AssessmentFinding{
+			{Code: "long-file", Severity: "FINDING_SEVERITY_WARNING", Location: "api/scan.go:12", Message: "derived assessment description"},
+			{Code: "other-rule", Severity: "FINDING_SEVERITY_ERROR", Location: "api/other.go:4", Message: "assessment-only evidence"},
+		}},
+	}
+	got := resultFromResponse(response)
+	if len(got.Findings) != 2 {
+		t.Fatalf("findings = %+v, want one canonical finding plus one assessment-only finding", got.Findings)
+	}
+	if got.Findings[0].Location != "api/scan.go:12" || got.Findings[0].Message != "canonical source description" {
+		t.Fatalf("canonical source was not preserved: %+v", got.Findings[0])
+	}
+	if got.Findings[1].Code != "other-rule" {
+		t.Fatalf("assessment-only evidence was dropped: %+v", got.Findings)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	n8nresource "github.com/vrooli/vrooli/internal/resources/n8n"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
+	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
 type testContext struct {
@@ -93,6 +95,54 @@ func TestN8NHTTPMockStartReadsOnlyBoundedStdinBeforeOwnerLookup(t *testing.T) {
 	}
 }
 
+func TestN8NVirtualAPIStartReadsOnlyBoundedStdinBeforeOwnerLookup(t *testing.T) {
+	for name, input := range map[string]io.Reader{
+		"empty":     bytes.NewReader(nil),
+		"too large": bytes.NewReader(bytes.Repeat([]byte("x"), (2<<20)+1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, stdin: input}
+			handlers := buildResourceN8NRuntimeHandlers(rootcli.HandlerDeps[testContext]{
+				Stdout: func(c testContext) io.Writer { return c.stdout }, Stdin: func(c testContext) io.Reader { return c.stdin },
+				OutputFormat: func(testContext) (cliout.Format, error) { return cliout.FormatHuman, nil },
+			})
+			handler := handlers[string(resourcecli.N8NRuntimeVirtualAPIStart)]
+			if handler == nil {
+				t.Fatal("virtual API start handler was not registered")
+			}
+			err := handler(ctx, nil, []string{"--sandbox-id", "5e33a6f0-b1bf-4f5d-9315-95ba60d9e025", "--contract-stdin"})
+			if err == nil {
+				t.Fatal("expected stdin boundary error")
+			}
+		})
+	}
+}
+
+func TestN8NHTTPMockRouteHitsHandlerDispatchesToOwnerValidation(t *testing.T) {
+	_, file, _, ok := goruntime.Caller(0)
+	if !ok {
+		t.Fatal("could not locate handler test source")
+	}
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../../.."))
+	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	handlers := buildResourceN8NRuntimeHandlers(rootcli.HandlerDeps[testContext]{
+		Stdout:       func(c testContext) io.Writer { return c.stdout },
+		OutputFormat: func(testContext) (cliout.Format, error) { return cliout.FormatJSON, nil },
+	})
+	handler := handlers[string(resourcecli.N8NRuntimeCompanionRouteHits)]
+	if handler == nil {
+		t.Fatal("companion-route-hits handler was not registered")
+	}
+	args := []string{"--sandbox-id", "not-a-uuid", "--companion-runtime-id", "owner-issued", "--json"}
+	err := handler(ctx, resources.NewController(root, t.TempDir()), args)
+	if err == nil || !strings.Contains(err.Error(), "UUID") {
+		t.Fatalf("route-hit handler did not dispatch into owner sandbox validation: %v", err)
+	}
+	if ctx.stdout.Len() != 0 {
+		t.Fatalf("invalid route-hit request wrote a response: %s", ctx.stdout.String())
+	}
+}
+
 func TestN8NWebhookDispatchReadsOnlyBoundedStdinBeforeOwnerLookup(t *testing.T) {
 	for name, input := range map[string]io.Reader{
 		"empty":     bytes.NewReader(nil),
@@ -135,6 +185,106 @@ func TestN8NManualExecutionHandlerRejectsCallerWorkflowIDBeforeOwnerLookup(t *te
 	}
 	if err := handler(ctx, nil, args); err == nil || !strings.Contains(err.Error(), "workflow-id") {
 		t.Fatalf("handler accepted free-form workflow identity before owner lookup: %v", err)
+	}
+}
+
+func TestN8NManualExecutionFailureKeepsOnlyAllowlistedDiagnostics(t *testing.T) {
+	cause := errors.New("raw engine output private-value-99")
+	hash := strings.Repeat("a", 64)
+	for _, tc := range []struct {
+		name     string
+		class    string
+		digest   string
+		wantHint string
+	}{
+		{name: "known class and digest", class: "engine-execution-error", digest: hash, wantHint: "failure_class=engine-execution-error diagnostic_sha256=" + hash},
+		{name: "unknown class omitted", class: "private-value-99", digest: hash, wantHint: "failure_class=unknown diagnostic_sha256=" + hash},
+		{name: "invalid digest omitted", class: "node-api-error", digest: "private-value-99", wantHint: "failure_class=node-api-error"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := n8nManualExecutionFailure(n8nresource.ManualWorkflowExecutionReceipt{Status: "failed", FailureClass: tc.class, FailureDiagnosticSHA256: tc.digest}, cause)
+			var typed *vroolierr.Error
+			if !errors.As(err, &typed) || typed.Code != "n8n_manual_execution_failed" || typed.Category != rootcli.ErrorCategoryRuntime || typed.Message != "synthetic Manual Trigger execution failed" || typed.Hint != tc.wantHint {
+				t.Fatalf("failed execution was not translated to the stable content-free error contract: typed=%+v err=%v", typed, err)
+			}
+			if strings.Contains(err.Error(), "private-value-99") {
+				t.Fatalf("raw engine diagnostic escaped the safe envelope: %v", err)
+			}
+		})
+	}
+	if got := n8nManualExecutionFailure(n8nresource.ManualWorkflowExecutionReceipt{Status: "completed"}, cause); got != cause {
+		t.Fatalf("non-failure receipt should retain the original control flow error: %v", got)
+	}
+	if got := n8nManualExecutionFailure(n8nresource.ManualWorkflowExecutionReceipt{Status: "failed"}, cause); got != cause {
+		t.Fatalf("preflight failure without execution diagnostics should preserve its existing error: %v", got)
+	}
+}
+
+func TestN8NWorkflowExecutionFailureKeepsOnlyAllowlistedDiagnostics(t *testing.T) {
+	cause := errors.New("raw engine output private-value-99")
+	digest := strings.Repeat("d", 64)
+	err := n8nWorkflowExecutionFailure(n8nresource.WorkflowExecutionReceipt{Status: "failed", FailureClass: "engine-execution-error", FailureDiagnosticSHA256: digest}, cause)
+	var typed *vroolierr.Error
+	if !errors.As(err, &typed) || typed.Code != "n8n_workflow_execution_failed" || typed.Category != rootcli.ErrorCategoryRuntime || typed.Message != "synthetic workflow execution failed" || typed.Hint != "failure_class=engine-execution-error diagnostic_sha256="+digest {
+		t.Fatalf("workflow failure was not translated to the content-free contract: typed=%+v err=%v", typed, err)
+	}
+	if strings.Contains(err.Error(), "private-value-99") {
+		t.Fatalf("raw engine output escaped the safe envelope: %v", err)
+	}
+	if got := n8nWorkflowExecutionFailure(n8nresource.WorkflowExecutionReceipt{Status: "completed"}, cause); got != cause {
+		t.Fatalf("completed receipt should preserve existing control flow error: %v", got)
+	}
+	if got := n8nWorkflowExecutionFailure(n8nresource.WorkflowExecutionReceipt{Status: "failed", FailureClass: "unknown-private"}, cause); got != cause {
+		t.Fatalf("unclassified receipt without digest should preserve original error: %v", got)
+	}
+}
+
+func TestN8NWorkflowImportFailureKeepsOnlyAllowlistedDiagnostics(t *testing.T) {
+	cause := errors.New("raw importer output secret-value")
+	digest := strings.Repeat("f", 64)
+	err := n8nWorkflowImportFailure(n8nresource.WorkflowImportReceipt{Status: "import-failed", FailureClass: "server-cli-import-error", FailureDiagnosticSHA256: digest}, cause)
+	var typed *vroolierr.Error
+	if !errors.As(err, &typed) || typed.Code != "n8n_workflow_import_failed" || typed.Category != rootcli.ErrorCategoryRuntime || typed.Message != "synthetic workflow import failed" || typed.Hint != "failure_class=server-cli-import-error diagnostic_sha256="+digest {
+		t.Fatalf("workflow import failure was not translated to content-free contract: typed=%+v err=%v", typed, err)
+	}
+	if strings.Contains(err.Error(), "secret-value") {
+		t.Fatalf("raw importer output escaped safe envelope: %v", err)
+	}
+	if got := n8nWorkflowImportFailure(n8nresource.WorkflowImportReceipt{Status: "imported-inactive"}, cause); got != cause {
+		t.Fatalf("success receipt should preserve existing control flow: %v", got)
+	}
+}
+
+func TestN8NWebhookDispatchFailureKeepsOnlyAllowlistedDiagnostics(t *testing.T) {
+	cause := errors.New("raw runtime output private-value-99")
+	digest := strings.Repeat("b", 64)
+	for _, tc := range []struct {
+		name     string
+		class    string
+		sha      string
+		wantHint string
+	}{
+		{name: "publish class and hash", class: "workflow-publish-error", sha: digest, wantHint: "failure_class=workflow-publish-error diagnostic_sha256=" + digest},
+		{name: "dispatch class only", class: "webhook-dispatch-error", wantHint: "failure_class=webhook-dispatch-error"},
+		{name: "unknown class with hash", class: "private-value-99", sha: digest, wantHint: "failure_class=unknown diagnostic_sha256=" + digest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			receipt := n8nresource.SyntheticWebhookReceipt{Status: "dispatch-failed", FailureClass: tc.class, FailureDiagnosticSHA256: tc.sha}
+			err := n8nWebhookDispatchFailure(receipt, cause)
+			var typed *vroolierr.Error
+			if !errors.As(err, &typed) || typed.Code != "n8n_webhook_dispatch_failed" || typed.Category != rootcli.ErrorCategoryRuntime || typed.Message != "synthetic Webhook dispatch failed" || typed.Hint != tc.wantHint {
+				t.Fatalf("webhook failure was not translated to the stable content-free contract: typed=%+v err=%v", typed, err)
+			}
+			if strings.Contains(err.Error(), "private-value-99") || strings.Contains(err.Error(), "raw runtime output") {
+				t.Fatalf("raw runtime diagnostics escaped the safe envelope: %v", err)
+			}
+		})
+	}
+	if got := n8nWebhookDispatchFailure(n8nresource.SyntheticWebhookReceipt{Status: "completed"}, cause); got != cause {
+		t.Fatalf("completed receipt should preserve existing control flow: %v", got)
+	}
+	if got := n8nWebhookDispatchFailure(n8nresource.SyntheticWebhookReceipt{Status: "dispatch-failed"}, cause); got != cause {
+		t.Fatalf("preflight failure without owner diagnostics should preserve the original error: %v", got)
 	}
 }
 

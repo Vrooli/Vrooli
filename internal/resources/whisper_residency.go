@@ -5,10 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/accel"
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
 	capacityengine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/process"
 )
 
 func recoverWhisperOpenResidency(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) error {
@@ -53,7 +57,7 @@ func recoverWhisperOpenResidencyWithService(ctx context.Context, controller *Con
 		return fmt.Errorf("observe Whisper managed-service state for recovery: %w", statusErr)
 	}
 	if running {
-		placement, placementErr := observePlacement(ctx, controller, manifest)
+		placement, placementErr := observeWhisperResidencyPlacement(ctx, controller, manifest, supervisor)
 		if placementErr != nil {
 			return fmt.Errorf("observe Whisper placement for recovery: %w", placementErr)
 		}
@@ -176,12 +180,16 @@ func beginWhisperResidencyTransition(ctx context.Context, controller *Controller
 	if claim.OwnerID != manifest.Name || claim.OwnerKind != capacityengine.OwnerKindResource || claim.ResourceKind != capacityengine.ResourceKindVRAM || claim.Generation <= 0 || claim.Protected || claim.ActivityState != capacityengine.ActivityIdle {
 		return nil, fmt.Errorf("Whisper capacity claim is not an idle, unprotected resource VRAM claim")
 	}
-	if claim.ObservedAt == nil || claim.ObservedBytes < 0 {
-		return nil, fmt.Errorf("Whisper CPU transition requires measured pre-transition VRAM evidence")
+	observation, err := service.ResidencyObserveClaim(ctx, claim.ClaimID)
+	if err != nil {
+		return nil, fmt.Errorf("measure fresh pre-transition Whisper VRAM: %w", err)
 	}
-	observedAt, err := time.Parse(time.RFC3339, *claim.ObservedAt)
-	if err != nil || observedAt.After(time.Now().UTC()) || time.Since(observedAt) > 2*time.Minute {
-		return nil, fmt.Errorf("Whisper pre-transition VRAM evidence is missing, future-dated, or stale")
+	if observation.Claim.ClaimID != claim.ClaimID || observation.Claim.Generation != claim.Generation || observation.Bytes < 0 {
+		return nil, fmt.Errorf("fresh Whisper VRAM evidence does not match the exact active claim")
+	}
+	observedAt := observation.ObservedAt.UTC()
+	if observedAt.IsZero() || observedAt.After(time.Now().UTC()) || time.Since(observedAt) > 2*time.Minute {
+		return nil, fmt.Errorf("fresh Whisper VRAM evidence is missing, future-dated, or stale")
 	}
 	startedAt := time.Now().UTC()
 	transition := capacityengine.ResidencyTransition{
@@ -192,7 +200,7 @@ func beginWhisperResidencyTransition(ctx context.Context, controller *Controller
 		// cannot establish narrower broker-pressure provenance.
 		Reason:       reason,
 		StartedAt:    startedAt,
-		PreFootprint: capacityengine.ResidencyFootprint{Bytes: claim.ObservedBytes, Source: capacityengine.FootprintSourceMeasured, ObservedAt: observedAt, Verified: true},
+		PreFootprint: capacityengine.ResidencyFootprint{Bytes: observation.Bytes, Source: capacityengine.FootprintSourceMeasured, ObservedAt: observedAt, Verified: true},
 	}
 	req := capacityapp.ResidencyRequest{OwnerID: manifest.Name, ClaimID: claim.ClaimID, ClaimGeneration: claim.Generation, Transition: transition}
 	started, err := service.ResidencyBegin(ctx, req)
@@ -211,7 +219,7 @@ func (t *whisperResidencyTransition) completeCPU(ctx context.Context, controller
 	transition.Footprint = capacityengine.ResidencyFootprint{ObservedAt: completedAt}
 	_, running, statusErr := supervisor.Status()
 	if statusErr == nil && running {
-		placement, placementErr := observePlacement(ctx, controller, manifest)
+		placement, placementErr := observeWhisperResidencyPlacement(ctx, controller, manifest, supervisor)
 		observation, sampleErr := t.service.ResidencyObserveClaim(ctx, t.request.ClaimID)
 		if placementErr == nil && placement != nil {
 			transition.Observed = placement.ObservedResidencyPlacement()
@@ -305,6 +313,73 @@ func (t *whisperResidencyTransition) completeUnload(ctx context.Context, supervi
 
 func whisperCPUTransitionVerified(placement capacityengine.ResidencyPlacement, footprint capacityengine.ResidencyFootprint) bool {
 	return placement.Known && placement.Backend == capacityengine.ResidencyBackendCPU && footprint.Verified && footprint.Source == capacityengine.FootprintSourceMeasured && footprint.Bytes == 0
+}
+
+// observeWhisperResidencyPlacement supplements accelerator telemetry when the
+// managed service was explicitly launched with its declared CPU-only argv.
+// This is needed because a CPU backend has no device-open event for generic
+// placement probes to inspect. The exact supervised PID and incarnation are
+// checked on both sides of argv collection; a fresh owner-attributed zero-VRAM
+// sample remains a separate requirement before a CPU transition is complete.
+func observeWhisperResidencyPlacement(ctx context.Context, controller *Controller, manifest ResourceManifest, supervisor *ManagedServiceSupervisor) (*accel.Placement, error) {
+	placement, placementErr := observePlacement(ctx, controller, manifest)
+	if supervisor == nil {
+		return placement, placementErr
+	}
+	state, running, statusErr := supervisor.Status()
+	if statusErr != nil {
+		return placement, errors.Join(placementErr, fmt.Errorf("verify supervised Whisper launch for CPU placement: %w", statusErr))
+	}
+	if !running || !whisperCPUInvocationObserved(manifest, state) {
+		return placement, placementErr
+	}
+	if placement == nil {
+		placement = &accel.Placement{}
+	}
+	placement.Observed = accel.BackendCPU
+	placement.State = accel.StateOK
+	if placement.Declared != "" && placement.Declared != accel.BackendCPU {
+		placement.State = accel.StateDrift
+	}
+	placement.ObservedAt = time.Now().UTC()
+	placement.Reason = "exact supervised Whisper incarnation was launched with the declared CPU-only backend arguments"
+	return placement, nil
+}
+
+func whisperCPUInvocationObserved(manifest ResourceManifest, state ManagedServiceState) bool {
+	if state.PID <= 0 || state.Incarnation == "" {
+		return false
+	}
+	declaration := manifest.EffectiveAcceleration()
+	if declaration == nil {
+		return false
+	}
+	cpu, ok := declaration.Config(string(accel.BackendCPU))
+	if !ok || len(cpu.Arguments) == 0 {
+		return false
+	}
+	before, err := process.Incarnation(state.PID)
+	if err != nil || before != state.Incarnation {
+		return false
+	}
+	args, err := platform.ProcessArguments(state.PID)
+	if err != nil || !containsExactArgumentSequence(args, cpu.Arguments) {
+		return false
+	}
+	after, err := process.Incarnation(state.PID)
+	return err == nil && after == before && after == state.Incarnation
+}
+
+func containsExactArgumentSequence(args, expected []string) bool {
+	if len(args) == 0 || len(expected) == 0 || len(expected) > len(args) {
+		return false
+	}
+	for i := 0; i+len(expected) <= len(args); i++ {
+		if slices.Equal(args[i:i+len(expected)], expected) {
+			return true
+		}
+	}
+	return false
 }
 
 func freshWhisperVRAMSample(observation capacityapp.ResidencyObservation, claimID string, generation int64, startedAt, now time.Time) (int64, time.Time, bool) {

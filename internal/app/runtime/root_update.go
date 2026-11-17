@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"runtime"
@@ -42,10 +43,22 @@ type RootUpdateRequest struct {
 }
 
 func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateRequest) (coreactivation.Record, error) {
+	attempt := beginRootAttempt(home, "install")
+	attempt.Attempt.Async()
+	outcome := "failed"
+	defer func() { attempt.finish(ctx, outcome) }()
 	source, candidate, explicitRetry := request.Source, request.Candidate, request.ExplicitRetry
 	var result coreactivation.Record
 	if ctx == nil || runtime.GOOS != "linux" || !filepath.IsAbs(source) || filepath.Clean(source) != source || !filepath.IsAbs(candidate) || filepath.Clean(candidate) != candidate {
 		return result, coreactivation.ErrConflict
+	}
+	releaseTransition, err := buildinfo.AcquireRebaselineTransition(ctx, home)
+	if err != nil {
+		return result, err
+	}
+	defer releaseTransition()
+	if err := buildinfo.GuardRebaselineCompletion(home); err != nil {
+		return result, err
 	}
 	store, err := coreactivation.NewStore(home)
 	if err != nil {
@@ -66,6 +79,9 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 			return err
 		}
 		defer releaseRoot()
+		if err := buildinfo.GuardPreparedBundle(home, candidate); err != nil {
+			return err
+		}
 		if err := store.GuardOrdinaryMutation(ctx); err != nil {
 			return err
 		}
@@ -83,7 +99,19 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 		if err != nil {
 			return err
 		}
+		attempt.identities(priorIdentity.GetPersistentStateContractSha256(), candidateIdentity.GetPersistentStateContractSha256())
 		if err := coreactivation.QualifyRollbackIdentities(priorIdentity, candidateIdentity); err != nil {
+			reason := "qualification_failed"
+			if errors.Is(err, coreactivation.ErrStateContractChanged) {
+				reason = "state_contract_changed"
+			}
+			if errors.Is(err, coreactivation.ErrUnqualifiedStateContract) {
+				reason = "unqualified_contract"
+			}
+			if reason == "state_contract_changed" {
+				attempt.attributeLater(layout.Executable, candidate)
+			}
+			attempt.event("admission_refused", reason)
 			return coreactivation.ExplainRollbackRefusal(ctx, err, layout.Executable, candidate)
 		}
 		worker, err := coreactivation.InstalledWatchdogPath(home)
@@ -123,6 +151,7 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 		if err != nil {
 			return err
 		}
+		attempt.Attempt.CandidateImage(digests.Candidate)
 		result = coreactivation.Record{ID: id, Home: home, SourceRoot: source, Automatic: request.RequireEnrollment, CandidateSHA: digests.Candidate, PriorSHA: digests.Prior, WorkerSHA: digests.Worker, LayoutSHA: digests.Layout, CandidateUnitSHA: digests.CandidateUnit, PriorUnitSHA: digests.PriorUnit, CandidateBuild: candidateIdentity.GetBuildIdentity(), PriorBuild: priorIdentity.GetBuildIdentity(), CandidateStateContract: candidateIdentity.GetPersistentStateContractSha256(), PriorStateContract: priorIdentity.GetPersistentStateContractSha256(), PriorPID: native.PID, PriorIncarnation: incarnation, PriorNativeInvocation: native.InvocationID, NativeOverridesDigest: overrides}
 		assets := coreactivation.Assets{Store: store}
 		frozen, err := assets.Image(ctx, result, "candidate")
@@ -157,6 +186,7 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 		engine := coreactivation.Engine{Store: store, Effects: supervisor.ActivationEffects{Store: store}}
 		admitted, beginErr := engine.Begin(ctx, result, explicitRetry)
 		if beginErr != nil {
+			attempt.event("admission_refused", "begin_failed")
 			// A rejected retry can return the retained terminal receipt. Do not
 			// advertise this preparation's unadmitted identity as an operation.
 			if admitted.ID != "" {
@@ -167,14 +197,24 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 			}
 			return beginErr
 		}
+		attempt.Attempt.Operation(admitted.ID)
+		attempt.event("admission_approved", "")
 		result = admitted
 		_, err = engine.Dispatch(ctx, result.ID, spec)
+		if err != nil {
+			attempt.event("dispatch", "failed")
+		} else {
+			attempt.event("dispatch", "accepted")
+		}
 		current, exists, readErr := store.Current()
 		if readErr == nil && exists && current.ID == result.ID {
 			result = current
 		}
 		return err
 	})
+	if err == nil {
+		outcome = "dispatched"
+	}
 	return result, err
 }
 
@@ -194,6 +234,9 @@ func WaitRootUpdate(ctx context.Context, home, id string) (coreactivation.Record
 			return r, coreactivation.ErrConflict
 		}
 		if r.Terminal() {
+			observed := beginRootAttempt(home, "activation_observation")
+			observed.Attempt.Operation(r.ID)
+			observed.event("terminal", string(r.Phase))
 			if r.Phase != coreactivation.Verified {
 				return r, fmt.Errorf("root update %s ended %s (%s)", r.ID, r.Phase, r.FailureClass)
 			}
@@ -210,6 +253,18 @@ func WaitRootUpdate(ctx context.Context, home, id string) (coreactivation.Record
 }
 
 func ConfigureRootUpdates(ctx context.Context, home string, enabled bool) (coreactivation.Enrollment, error) {
+	release, err := buildinfo.AcquireRebaselineTransition(ctx, home)
+	if err != nil {
+		return coreactivation.Enrollment{}, err
+	}
+	defer release()
+	if err := buildinfo.GuardPreparedBundle(home, ""); err != nil {
+		return coreactivation.Enrollment{}, err
+	}
+	return configureRootUpdates(ctx, home, enabled, false, nil)
+}
+
+func configureRootUpdates(ctx context.Context, home string, enabled, paused bool, expected *coreactivation.Enrollment) (coreactivation.Enrollment, error) {
 	if ctx == nil || runtime.GOOS != "linux" {
 		return coreactivation.Enrollment{}, coreactivation.ErrConflict
 	}
@@ -222,7 +277,7 @@ func ConfigureRootUpdates(ctx context.Context, home string, enabled bool) (corea
 		return coreactivation.Enrollment{}, err
 	}
 	defer releaseWatchdog()
-	return store.ConfigureEnrollment(ctx, enabled, func(ctx context.Context) (func(), error) {
+	qualify := func(ctx context.Context) (func(), error) {
 		layout, err := rootUpdateLayout(home)
 		if err != nil {
 			return nil, err
@@ -272,5 +327,18 @@ func ConfigureRootUpdates(ctx context.Context, home string, enabled bool) (corea
 			}
 		}
 		return release, nil
-	})
+	}
+	if expected == nil {
+		return store.ConfigureEnrollment(ctx, enabled, qualify)
+	}
+	result, changed, err := store.CompareAndConfigureEnrollment(ctx, *expected, enabled, paused, qualify)
+	if err != nil {
+		return result, err
+	}
+	if !changed {
+		return result, errEnrollmentSuperseded
+	}
+	return result, nil
 }
+
+var errEnrollmentSuperseded = errors.New("enrollment was changed concurrently")

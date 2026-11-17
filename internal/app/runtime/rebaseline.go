@@ -2,22 +2,21 @@ package runtimeapp
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
-	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/vrooli/internal/artifactlock"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/coreactivation"
+	"github.com/vrooli/vrooli/internal/rebaselineprogress"
 	watchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
 	supervisor "github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
@@ -50,13 +49,16 @@ import (
 // is a fresh, confirmed transition; once it serves, a rerun only finishes
 // steps 5-8, each of which is idempotent and verified against live state.
 
-const (
-	rebaselineReceiptSchemaVersion = 1
-	rebaselinePauseSchemaVersion   = 1
-)
+// ErrRebaselineNotRequired signals that ordinary activation can safely handle
+// the qualified candidate. The caller must use the normal installer.
+var ErrRebaselineNotRequired = errors.New("candidate keeps the serving persistent-state contract")
 
 // RebaselinePlan is what the operator confirms.
 type RebaselinePlan struct {
+	Continuation      bool
+	ServingSHA        string
+	CandidateSHA      string
+	WatchdogSHA       string
 	ServingBuild      string
 	ServingContract   string
 	CandidateBuild    string
@@ -75,6 +77,31 @@ type RebaselineRequest struct {
 	// cross the contract change again and is not asked.
 	Confirm  func(RebaselinePlan) (bool, error)
 	Progress io.Writer
+	// RequireTransitionCaller gates all transition and recovery paths after the
+	// ordinary same-contract install case has been ruled out.
+	RequireTransitionCaller func() error
+	// AfterActivation runs while the exact serving root remains fenced. It is
+	// intended for bundle companions that must follow this root atomically.
+	AfterActivation func(context.Context, RebaselineRecovery) error
+	// BeforeEffects verifies external authority for the exact requalified images,
+	// including recovery paths that do not ask for a new confirmation.
+	BeforeEffects func(context.Context, RebaselineAdmission) error
+	// PrepareRecovery binds additional authority data to the durable bundle.
+	PrepareRecovery func(context.Context, RebaselineRecovery) error
+	// HubDecision selects authenticated Hub recovery; it grants no authority.
+	HubDecision bool
+	// RequireFreshFinishingDecision is used for legacy progress without a
+	// recorded authority mode and no existing Hub decision locator.
+	RequireFreshFinishingDecision bool
+	// WatchdogSnapshot retains the qualified worker across Hub resumptions.
+	WatchdogSnapshot string
+	// ExpectedCandidateSHA binds a prepared bundle's root to its manifest.
+	ExpectedCandidateSHA string
+	// BundleSHA binds progress evidence to the exact prepared bundle, when present.
+	BundleSHA string
+	// AllowContinuationDecision requests a fresh decision when a paused
+	// transition is continued with a different same-contract candidate.
+	AllowContinuationDecision bool
 }
 
 // RebaselineResult identifies the established baseline.
@@ -86,52 +113,43 @@ type RebaselineResult struct {
 	Finished    bool
 }
 
-// rebaselineReceipt is audit evidence retained beside the prior images. It is
-// never read back as authority.
-type rebaselineReceipt struct {
-	SchemaVersion     int      `json:"schema_version"`
-	ID                string   `json:"id"`
-	CreatedUnixNano   int64    `json:"created_unix_nano"`
-	Source            string   `json:"source"`
-	ServingSHA        string   `json:"serving_sha256"`
-	ServingBuild      string   `json:"serving_build_identity"`
-	ServingContract   string   `json:"serving_state_contract"`
-	WatchdogSHA       string   `json:"watchdog_sha256,omitempty"`
-	UnitSHA           string   `json:"supervisor_unit_sha256,omitempty"`
-	CandidateSHA      string   `json:"candidate_sha256"`
-	CandidateBuild    string   `json:"candidate_build_identity"`
-	CandidateContract string   `json:"candidate_state_contract"`
-	Changes           []string `json:"changes"`
+// RebaselineAdmission is the immutable identity of the images qualified for
+// one transition. Recovery callbacks receive it explicitly instead of relying
+// on another callback having populated shared state first.
+type RebaselineAdmission struct {
+	CandidateSHA string
+	WatchdogSHA  string
 }
 
-// rebaselinePause records that a rebaseline paused enrollment. It is in
-// effect only while the enrollment record is exactly the one that pause wrote
-// (same update time, still disabled): an operator who enables or disables
-// enrollment afterwards supersedes it. The next successful rebaseline of any
-// qualified candidate restores enrollment through enrollment's own
-// qualification and clears it.
-type rebaselinePause struct {
-	SchemaVersion             int    `json:"schema_version"`
-	PausedUnixNano            int64  `json:"paused_unix_nano"`
-	EnrollmentUpdatedUnixNano int64  `json:"enrollment_updated_unix_nano"`
-	PriorServingSHA           string `json:"prior_serving_sha256"`
+// RebaselineRecovery binds admitted images to the retained bundle used to
+// finish a prepared transition after interruption.
+type RebaselineRecovery struct {
+	Admission RebaselineAdmission
+	BundleDir string
 }
 
 type rebaselineEffects struct {
-	guard           func(context.Context, string) error
-	validateRole    func(string) error
-	imageDigest     func(context.Context, string) (string, error)
-	probeIdentity   func(context.Context, string) (*cliv1.CliVersion, error)
-	explain         func(context.Context, string, string) []string
-	buildWatchdog   func(root, output string) error
-	probeWorker     func(context.Context, string, *cliv1.CliVersion) error
-	enrollment      func(string) (coreactivation.Enrollment, bool, error)
-	configure       func(context.Context, string, bool) error
-	installRoot     func(string, string) error
-	publishWatchdog func(ctx context.Context, home, image, digest string) error
-	converge        func(context.Context, string, string, string) error
-	waitServing     func(context.Context, string, string, string) error
-	now             func() time.Time
+	newAttempt        func(string, string) *rootAttempt
+	guard             func(context.Context, string) error
+	guardLocked       func(context.Context, string) error
+	lockRoot          func(context.Context, string) (func(), error)
+	lockWatchdog      func(context.Context, string) (func(), error)
+	validateRole      func(string) error
+	imageDigest       func(context.Context, string) (string, error)
+	probeIdentity     func(context.Context, string) (*cliv1.CliVersion, error)
+	explain           func(context.Context, string, string) []string
+	buildWatchdog     func(root, output string) error
+	selectWatchdog    func(string, string, *rebaselineprogress.Progress, string, string) (string, string, error)
+	probeWorker       func(context.Context, string, *cliv1.CliVersion) error
+	enrollment        func(string) (coreactivation.Enrollment, bool, error)
+	compareEnrollment func(context.Context, string, coreactivation.Enrollment, bool, bool) error
+	installRoot       func(string, string, string) error
+	publishWatchdog   func(ctx context.Context, home, image, digest string) error
+	converge          func(context.Context, string, string, string) error
+	waitServing       func(context.Context, string, string, string) error
+	retainBundle      func(string, string, string) (string, error)
+	removeBundle      func(string, string) error
+	now               func() time.Time
 }
 
 // RebaselineRoot runs the governed operator transition on this host.
@@ -143,19 +161,39 @@ func RebaselineRoot(ctx context.Context, home string, request RebaselineRequest)
 }
 
 func defaultRebaselineEffects() rebaselineEffects {
+	retainBundle, removeBundle := preparedBundleRecoveryOperations()
 	return rebaselineEffects{
 		guard: func(ctx context.Context, home string) error {
 			store, err := coreactivation.NewStore(home)
 			if err != nil {
 				return err
 			}
+			layout, err := rootUpdateLayout(home)
+			if err != nil {
+				return err
+			}
+			release, err := buildinfo.AcquireBinaryInstallLockContext(ctx, layout.Executable)
+			if err != nil {
+				return err
+			}
+			defer release()
 			return store.GuardOrdinaryMutation(ctx)
 		},
-		validateRole:  coreactivation.ValidateRootExecutableRole,
-		imageDigest:   coreactivation.ImageDigest,
-		probeIdentity: coreactivation.ProbeRootIdentity,
-		explain:       coreactivation.ExplainStateContractChange,
-		buildWatchdog: watchdog.BuildImage,
+		guardLocked: func(ctx context.Context, home string) error {
+			store, err := coreactivation.NewStore(home)
+			if err != nil {
+				return err
+			}
+			return store.GuardOrdinaryMutation(ctx)
+		},
+		lockRoot:       buildinfo.AcquireBinaryInstallLockContext,
+		lockWatchdog:   watchdog.AcquirePublicationLock,
+		validateRole:   coreactivation.ValidateRootExecutableRole,
+		imageDigest:    coreactivation.ImageDigest,
+		probeIdentity:  coreactivation.ProbeRootIdentity,
+		explain:        coreactivation.ExplainStateContractChange,
+		buildWatchdog:  watchdog.BuildImage,
+		selectWatchdog: selectPreparedRebaselineWatchdog,
 		probeWorker: func(ctx context.Context, image string, root *cliv1.CliVersion) error {
 			_, err := coreactivation.ProbeWorkerIdentity(ctx, image, root)
 			return err
@@ -167,14 +205,16 @@ func defaultRebaselineEffects() rebaselineEffects {
 			}
 			return store.Enrollment()
 		},
-		configure: func(ctx context.Context, home string, enabled bool) error {
-			_, err := ConfigureRootUpdates(ctx, home, enabled)
+		compareEnrollment: func(ctx context.Context, home string, expected coreactivation.Enrollment, enabled, paused bool) error {
+			_, err := configureRootUpdates(ctx, home, enabled, paused, &expected)
 			return err
 		},
-		installRoot:     cliinstall.AtomicInstall,
-		publishWatchdog: watchdog.PublishImage,
+		installRoot:     cliinstall.AtomicInstallRebaselineLocked,
+		retainBundle:    retainBundle,
+		removeBundle:    removeBundle,
+		publishWatchdog: watchdog.PublishRebaselineImageLocked,
 		converge: func(ctx context.Context, home, source, executable string) error {
-			_, err := supervisor.Converge(ctx, supervisor.ConvergeOptions{OS: runtime.GOOS, Home: home, Root: source, Executable: executable, Restart: true})
+			_, err := supervisor.ConvergeRebaselineLocked(ctx, supervisor.ConvergeOptions{OS: runtime.GOOS, Home: home, Root: source, Executable: executable, Restart: true})
 			return err
 		},
 		waitServing: supervisor.WaitServing,
@@ -184,8 +224,41 @@ func defaultRebaselineEffects() rebaselineEffects {
 
 func (e rebaselineEffects) run(ctx context.Context, home string, request RebaselineRequest) (RebaselineResult, error) {
 	var result RebaselineResult
+	originalCandidate := request.Candidate
+	newAttempt := e.newAttempt
+	if newAttempt == nil {
+		newAttempt = beginRootAttempt
+	}
+	attempt := newAttempt(home, "rebaseline")
+	attempt.candidateFallback = originalCandidate
+	attempt.Attempt.Async()
+	outcome := "failed"
+	defer func() { attempt.finish(ctx, outcome) }()
 	if ctx == nil || request.Confirm == nil || !filepath.IsAbs(request.Candidate) || filepath.Clean(request.Candidate) != request.Candidate || !filepath.IsAbs(request.Source) || filepath.Clean(request.Source) != request.Source {
+		outcome = "invalid_request"
 		return result, fmt.Errorf("root rebaseline requires a context, an operator confirmation and canonical candidate/source paths")
+	}
+	if request.HubDecision && request.BeforeEffects == nil {
+		return result, fmt.Errorf("Hub recovery requires authenticated authority verification")
+	}
+	if request.HubDecision && request.BundleSHA != "" && request.PrepareRecovery == nil {
+		return result, fmt.Errorf("Hub recovery requires a durable authority locator")
+	}
+	confirm := request.Confirm
+	request.Confirm = func(plan RebaselinePlan) (bool, error) {
+		attempt.identities(plan.ServingContract, plan.CandidateContract)
+		attempt.event("confirmation", "started")
+		ok, err := confirm(plan)
+		switch {
+		case err != nil:
+			attempt.event("confirmation", "failed")
+		case ok:
+			attempt.event("confirmation", "confirmed")
+		default:
+			outcome = "declined"
+			attempt.event("confirmation", "declined")
+		}
+		return ok, err
 	}
 	progress := request.Progress
 	if progress == nil {
@@ -195,12 +268,24 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if err != nil {
 		return result, err
 	}
-	stateDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	statePaths, err := preparedRebaselineStatePathsForHome(home)
 	if err != nil {
 		return result, err
 	}
-	transitions := filepath.Join(stateDir, "root-rebaseline")
-	pausePath := filepath.Join(transitions, "pause.json")
+	transitions := statePaths.transitions
+	releaseBundle, err := buildinfo.AcquireRootBundleWorkflow(ctx, home)
+	if err != nil {
+		return result, fmt.Errorf("lock root bundle workflow: %w", err)
+	}
+	defer releaseBundle()
+	if err := buildinfo.GuardPreparedBundle(home, ""); err != nil {
+		return result, err
+	}
+	release, err := artifactlock.AcquireWithPathContext(ctx, "root-rebaseline:"+home, func(string) (string, error) { return statePaths.lock, nil })
+	if err != nil {
+		return result, fmt.Errorf("lock root rebaseline: %w", err)
+	}
+	defer release()
 	if err := e.guard(ctx, home); err != nil {
 		return result, err
 	}
@@ -212,11 +297,20 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if err != nil {
 		return result, fmt.Errorf("observe candidate root CLI: %w", err)
 	}
-	work, err := os.MkdirTemp(transitionsDir(transitions), "work-")
+	if request.ExpectedCandidateSHA != "" && candidateSHA != request.ExpectedCandidateSHA {
+		return result, fmt.Errorf("candidate root differs from prepared bundle: expected %s, observed %s", request.ExpectedCandidateSHA, candidateSHA)
+	}
+	if _, err := config.EnsureOwnedDir(transitions); err != nil {
+		return result, fmt.Errorf("prepare private rebaseline directory: %w", err)
+	}
+	work, err := os.MkdirTemp(transitions, "work-")
 	if err != nil {
 		return result, err
 	}
 	defer os.RemoveAll(work)
+	if err := config.ChownToInvokingUser(work); err != nil {
+		return result, fmt.Errorf("own private rebaseline directory: %w", err)
+	}
 	stagedCandidate := filepath.Join(work, "vrooli")
 	copiedSHA, err := retainRebaselineFile(request.Candidate, stagedCandidate)
 	if err != nil {
@@ -233,7 +327,7 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	// Every refusal from here on reports the live enrollment state, so no
 	// message promises automatic rollback while enrollment is paused.
 	refuse := func(err error) (RebaselineResult, error) {
-		return result, fmt.Errorf("%w\n%s", err, e.enrollmentState(home, pausePath))
+		return result, fmt.Errorf("%w\n%s", err, e.enrollmentState(home))
 	}
 	if err := e.validateRole(request.Candidate); err != nil {
 		return refuse(fmt.Errorf("candidate is not a governed root CLI image: %w", err))
@@ -248,111 +342,65 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
 		return refuse(err)
 	}
-	finishing := servingSHA == candidateSHA
-	// Build the watchdog from the same checkout as the candidate and qualify
-	// the pair before anything changes. The exact qualified bytes, bound by
-	// digest, are published after the root; the live tree is not consulted
-	// again.
-	stagedWatchdog := filepath.Join(work, "vrooli-watchdog")
-	if err := e.buildWatchdog(request.Source, stagedWatchdog); err != nil {
-		return refuse(fmt.Errorf("build the watchdog for this candidate: %w", err))
-	}
-	if err := e.probeWorker(ctx, stagedWatchdog, candidate); err != nil {
-		return refuse(fmt.Errorf("the watchdog built from %s does not match the candidate's contract (rebuild the candidate from the same checkout): %w", request.Source, err))
-	}
-	watchdogSHA, err := e.imageDigest(ctx, stagedWatchdog)
-	if err != nil {
-		return refuse(err)
-	}
-	retained := ""
-	switch {
-	case finishing:
-		_, _ = fmt.Fprintln(progress, "The candidate already serves; finishing its rebaseline.")
-	case e.pauseInEffect(home, pausePath):
-		// An unfinished rebaseline paused enrollment and installed another
-		// build. A candidate with the serving contract continues it without
-		// crossing a contract change; a different contract is a new,
-		// confirmed transition.
-		retained, err = e.qualifyAndRetain(ctx, home, layout, transitions, request, servingSHA, candidateSHA, candidate, true)
-	default:
-		retained, err = e.qualifyAndRetain(ctx, home, layout, transitions, request, servingSHA, candidateSHA, candidate, false)
-	}
-	if err != nil {
-		return refuse(err)
-	}
-	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
-		return refuse(err)
-	}
-	fail := func(step string, cause error) (RebaselineResult, error) {
+	fail := func(step string, cause error, recoveryBundle, retained string, hubLocatorBound, recoveryProgressWritten bool) error {
 		where := ""
 		if retained != "" {
 			where = fmt.Sprintf("The prior baseline is retained in %s (receipt.json lists its checksums). ", retained)
 		}
-		return result, fmt.Errorf("root rebaseline stopped at %q: %w\n%s%s Fix the cause and rerun `make rebaseline`; it re-qualifies from the installed images", step, cause, where, e.enrollmentState(home, pausePath))
+		run := preparedRebaselineResumeCommand(request, originalCandidate, recoveryBundle, hubLocatorBound, recoveryProgressWritten)
+		return fmt.Errorf("root rebaseline stopped at %q: %w\n%s%s Fix the cause and rerun `%s`; it re-qualifies from the installed images", step, cause, where, e.enrollmentState(home), run)
 	}
-	steps := []struct {
-		name string
-		run  func() error
-	}{
-		{"pause automatic root updates", func() error {
-			if finishing {
-				return nil
-			}
-			return e.pause(ctx, home, pausePath, servingSHA)
-		}},
-		{"install the candidate root CLI", func() error {
-			if finishing {
-				return nil
-			}
-			if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
-				return err
-			}
-			if err := e.installRoot(request.Candidate, layout.Executable); err != nil {
-				return err
-			}
-			installed, err := e.imageDigest(ctx, layout.Executable)
-			if err != nil {
-				return fmt.Errorf("verify installed root CLI digest: %w", err)
-			}
-			if installed != candidateSHA {
-				return fmt.Errorf("installed root CLI is not the qualified candidate image: expected SHA-256 %s, observed %s", candidateSHA, installed)
-			}
-			return nil
-		}},
-		{"publish the watchdog built for this candidate", func() error {
-			return e.publishWatchdog(ctx, home, stagedWatchdog, watchdogSHA)
-		}},
-		{"restart the runtime supervisor on the new image", func() error {
-			quick, cancel := context.WithTimeout(ctx, 3*time.Second)
-			defer cancel()
-			if e.waitServing(quick, home, candidateSHA, candidate.GetBuildIdentity()) == nil {
-				return nil // already serving the candidate with a fresh lease
-			}
-			return e.converge(ctx, home, request.Source, layout.Executable)
-		}},
-		{"verify the serving image and a fresh supervisor lease", func() error {
-			verify, cancel := context.WithTimeout(ctx, 3*time.Minute)
-			defer cancel()
-			return e.waitServing(verify, home, candidateSHA, candidate.GetBuildIdentity())
-		}},
-		{"restore automatic root updates", func() error {
-			return e.restore(ctx, home, pausePath, progress)
-		}},
+	result, err = runPreparedRebaseline(preparedRebaselineRunInput{
+		ctx: ctx, effects: e, home: home,
+		paths: preparedRebaselinePaths{
+			work: work, originalCandidate: originalCandidate,
+		},
+		layout: layout, request: request, candidate: candidate, candidateSHA: candidateSHA, servingSHA: servingSHA,
+		attempt: attempt, progress: progress,
+		telemetry: preparedRebaselineTelemetry{
+			attemptEvent:    attempt.event,
+			progressMessage: func(message string) { _, _ = fmt.Fprintln(progress, message) },
+			stepMessage:     func(name string) { _, _ = fmt.Fprintf(progress, "-> %s\n", name) },
+			retirementWarn: func(err error) {
+				_, _ = fmt.Fprintf(progress, "Warning: completed recovery bundle could not be retired: %v\n", err)
+			},
+			retentionCompleted: func(retained string) {
+				attempt.serving = filepath.Join(retained, "vrooli")
+				attempt.event("retention", "completed")
+			},
+		},
+		refuse: func(err error) error { _, wrapped := refuse(err); return wrapped },
+		fail:   fail,
+	})
+	if err != nil {
+		return result, err
 	}
-	for _, step := range steps {
-		_, _ = fmt.Fprintf(progress, "-> %s\n", step.name)
-		if err := ctx.Err(); err != nil {
-			return fail(step.name, err)
-		}
-		if err := step.run(); err != nil {
-			return fail(step.name, err)
-		}
+	if result.RetainedDir != "" {
+		// The verified installed candidate is available after private staging
+		// cleanup; manifest identity checks still reject a later replacement.
+		attempt.candidate = layout.Executable
 	}
-	if enrollment, exists, err := e.enrollment(home); err == nil {
-		result.Enrolled = exists && enrollment.Enabled
-	}
-	result.Build, result.Contract, result.RetainedDir, result.Finished = candidate.GetBuildIdentity(), candidate.GetPersistentStateContractSha256(), retained, finishing
+	outcome = "completed"
 	return result, nil
+}
+
+func preparedRebaselineResumeCommand(request RebaselineRequest, originalCandidate, recoveryBundle string, hubLocatorBound, recoveryProgressWritten bool) string {
+	if request.HubDecision {
+		if recoveryBundle != "" && hubLocatorBound && recoveryProgressWritten {
+			candidate := "'" + strings.ReplaceAll(filepath.Join(recoveryBundle, "vrooli"), "'", "'\\''") + "'"
+			return fmt.Sprintf("%s runtime update rebaseline %s --hub", candidate, candidate)
+		}
+		return fmt.Sprintf("HUB_SNAPSHOT='%s' make rebaseline-hub-resume", strings.ReplaceAll(filepath.Dir(originalCandidate), "'", "'\\''"))
+	}
+	if request.AfterActivation == nil {
+		return "make rebaseline"
+	}
+	candidatePath := originalCandidate
+	if recoveryBundle != "" && recoveryProgressWritten {
+		candidatePath = filepath.Join(recoveryBundle, "vrooli")
+	}
+	candidate := "'" + strings.ReplaceAll(candidatePath, "'", "'\\''") + "'"
+	return fmt.Sprintf("%s runtime update rebaseline %s --prepared", candidate, candidate)
 }
 
 func (e rebaselineEffects) verifyPrivateCandidate(ctx context.Context, path, expected string) error {
@@ -366,202 +414,18 @@ func (e rebaselineEffects) verifyPrivateCandidate(ctx context.Context, path, exp
 	return nil
 }
 
-func transitionsDir(path string) string {
-	if _, err := config.EnsureOwnedDir(path); err != nil {
-		return os.TempDir()
-	}
-	return path
-}
-
-// qualifyAndRetain qualifies the actual images, obtains the operator
-// decision and retains the prior baseline. Nothing on the serving path
-// changes before it returns.
-func (e rebaselineEffects) qualifyAndRetain(ctx context.Context, home string, layout coreactivation.Layout, transitions string, request RebaselineRequest, servingSHA, candidateSHA string, candidate *cliv1.CliVersion, continuing bool) (string, error) {
-	serving, err := e.probeIdentity(ctx, layout.Executable)
-	if err != nil {
-		return "", fmt.Errorf("serving root CLI identity: %w", err)
-	}
-	qualification := coreactivation.QualifyRollbackIdentities(serving, candidate)
-	if qualification == nil && continuing {
-		// Same contract as the unfinished rebaseline's installed build: no
-		// contract change is crossed, so the operator is not asked again.
-		return "", nil
-	}
-	if qualification == nil {
-		if enrollment, exists, err := e.enrollment(home); err == nil && exists && enrollment.Enabled {
-			return "", fmt.Errorf("the candidate keeps the serving persistent-state contract; activate it with `make install`, which keeps automatic rollback")
-		}
-		return "", fmt.Errorf("the candidate keeps the serving persistent-state contract; `make install` installs it directly because automatic root updates are not enrolled")
-	}
-	if !errors.Is(qualification, coreactivation.ErrStateContractChanged) {
-		return "", fmt.Errorf("root rebaseline only crosses persistent-state contract changes: %w", coreactivation.ExplainRollbackRefusal(ctx, qualification, layout.Executable, request.Candidate))
-	}
-	var token [8]byte
-	if _, err := rand.Read(token[:]); err != nil {
-		return "", err
-	}
-	now := e.now()
-	receipt := rebaselineReceipt{
-		SchemaVersion: rebaselineReceiptSchemaVersion, ID: now.UTC().Format("20060102T150405Z") + "-" + hex.EncodeToString(token[:]),
-		CreatedUnixNano: now.UnixNano(), Source: request.Source,
-		ServingSHA: servingSHA, ServingBuild: serving.GetBuildIdentity(), ServingContract: serving.GetPersistentStateContractSha256(),
-		CandidateSHA: candidateSHA, CandidateBuild: candidate.GetBuildIdentity(), CandidateContract: candidate.GetPersistentStateContractSha256(),
-		Changes: e.explain(ctx, layout.Executable, request.Candidate),
-	}
-	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
-		return "", err
-	}
-	dir := filepath.Join(transitions, receipt.ID)
-	confirmed, err := request.Confirm(RebaselinePlan{ServingBuild: receipt.ServingBuild, ServingContract: receipt.ServingContract, CandidateBuild: receipt.CandidateBuild, CandidateContract: receipt.CandidateContract, Changes: receipt.Changes, RetainedDir: dir})
-	if err != nil {
-		return "", err
-	}
-	if !confirmed {
-		return "", fmt.Errorf("root rebaseline cancelled; nothing was changed")
-	}
-	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
-		return "", err
-	}
-	if _, err := config.EnsureOwnedDir(dir); err != nil {
-		return "", err
-	}
-	if err := os.Chmod(dir, 0o700); err != nil {
-		return "", err
-	}
-	retained, err := retainRebaselineFile(layout.Executable, filepath.Join(dir, "vrooli"))
-	if err != nil || retained != servingSHA {
-		return "", fmt.Errorf("retain serving root CLI: %w", errors.Join(err, errors.New("retained bytes must match the observed serving image")))
-	}
-	if worker, err := coreactivation.InstalledWatchdogPath(home); err == nil {
-		if receipt.WatchdogSHA, err = retainRebaselineFile(worker, filepath.Join(dir, "vrooli-watchdog")); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("retain serving watchdog: %w", err)
-		}
-	}
-	if receipt.UnitSHA, err = retainRebaselineFile(layout.UnitPath, filepath.Join(dir, layout.UnitName)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("retain supervisor unit: %w", err)
-	}
-	data, err := json.MarshalIndent(receipt, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return dir, config.WriteOwnedFileDurable(filepath.Join(dir, "receipt.json"), append(data, '\n'), 0o600)
-}
-
-// pause disables enrollment when it is enabled now and records the
-// enrollment record its disable wrote. A pause already in effect from an
-// unfinished rebaseline is kept; a stale marker is cleared.
-func (e rebaselineEffects) pause(ctx context.Context, home, path, servingSHA string) error {
-	enrollment, exists, err := e.enrollment(home)
-	if err != nil {
-		return err
-	}
-	if !exists || !enrollment.Enabled {
-		if !e.pauseInEffect(home, path) {
-			_ = os.Remove(path)
-		}
-		return nil
-	}
-	if err := e.configure(ctx, home, false); err != nil {
-		return err
-	}
-	paused, exists, err := e.enrollment(home)
-	if err != nil || !exists || paused.Enabled {
-		return fmt.Errorf("enrollment was not paused: %w", errors.Join(err, errors.New("the enrollment record does not show a disabled policy")))
-	}
-	data, err := json.Marshal(rebaselinePause{SchemaVersion: rebaselinePauseSchemaVersion, PausedUnixNano: e.now().UnixNano(), EnrollmentUpdatedUnixNano: paused.UpdatedUnixNano, PriorServingSHA: servingSHA})
-	if err != nil {
-		return err
-	}
-	return config.WriteOwnedFileDurable(path, append(data, '\n'), 0o600)
-}
-
-// pauseInEffect reports whether a rebaseline's pause is still the current
-// enrollment decision: the record is exactly the disabled one it wrote.
-func (e rebaselineEffects) pauseInEffect(home, path string) bool {
-	data, err := os.ReadFile(path)
-	if err != nil || len(data) > 4096 {
-		return false
-	}
-	var marker rebaselinePause
-	if json.Unmarshal(data, &marker) != nil || marker.SchemaVersion != rebaselinePauseSchemaVersion || marker.EnrollmentUpdatedUnixNano <= 0 {
-		return false
-	}
-	enrollment, exists, err := e.enrollment(home)
-	return err == nil && exists && !enrollment.Enabled && enrollment.UpdatedUnixNano == marker.EnrollmentUpdatedUnixNano
-}
-
-// restore re-enables enrollment when a rebaseline's pause is still in effect;
-// enrollment's own qualification decides whether it may. A superseded marker
-// is cleared and the operator's later decision stands.
-func (e rebaselineEffects) restore(ctx context.Context, home, path string, progress io.Writer) error {
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if !e.pauseInEffect(home, path) {
-		_, _ = fmt.Fprintln(progress, "   enrollment was changed after the rebaseline paused it; leaving it as the operator set it")
-		return removeIfPresent(path)
-	}
-	if err := e.configure(ctx, home, true); err != nil {
-		return err
-	}
-	return removeIfPresent(path)
-}
-
-func removeIfPresent(path string) error {
-	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
-}
-
 // enrollmentState is the live enrollment sentence every stop or refusal ends
 // with.
-func (e rebaselineEffects) enrollmentState(home, path string) string {
+func (e rebaselineEffects) enrollmentState(home string) string {
 	enrollment, exists, err := e.enrollment(home)
 	switch {
 	case err != nil:
 		return "Automatic root update enrollment could not be read: " + err.Error() + "."
 	case exists && enrollment.Enabled:
 		return "Automatic root updates are enabled."
-	case e.pauseInEffect(home, path):
-		return "Automatic root updates are paused by an unfinished rebaseline; `make install` installs directly, without automatic rollback, until a rebaseline completes."
+	case e.pauseInEffect(home):
+		return "Automatic root updates are paused by an unfinished rebaseline; resume the prepared rebaseline before installing another bundle."
 	default:
 		return "Automatic root updates are not enrolled."
 	}
-}
-
-// retainRebaselineFile streams a bounded regular file into a private candidate
-// or retained baseline and returns the digest of the bytes durably written.
-func retainRebaselineFile(source, destination string) (string, error) {
-	const limit = 1 << 30
-	info, err := os.Lstat(source)
-	if err != nil {
-		return "", err
-	}
-	if !info.Mode().IsRegular() || info.Size() > limit {
-		return "", fmt.Errorf("%s is not a bounded regular file", source)
-	}
-	in, err := os.Open(source)
-	if err != nil {
-		return "", err
-	}
-	defer in.Close()
-	opened, err := in.Stat()
-	if err != nil || !os.SameFile(info, opened) {
-		return "", fmt.Errorf("%s changed while opening", source)
-	}
-	var digest string
-	err = config.WriteOwnedFileDurableStream(destination, 0o700, func(out io.Writer) error {
-		hash := sha256.New()
-		n, err := io.Copy(io.MultiWriter(out, hash), io.LimitReader(in, limit+1))
-		if err != nil {
-			return err
-		}
-		if n > limit {
-			return fmt.Errorf("%s exceeded the copy bound", source)
-		}
-		digest = hex.EncodeToString(hash.Sum(nil))
-		return nil
-	})
-	return digest, err
 }

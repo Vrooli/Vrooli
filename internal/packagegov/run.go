@@ -1,6 +1,7 @@
 package packagegov
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -60,18 +61,32 @@ func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stde
 		if len(run) == 0 {
 			continue
 		}
+		ctx := options.Context
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		commandEnv, note, guardErr := GuardPnpmStore(ctx, run, workdir, env)
+		if guardErr != nil {
+			return guardErr
+		}
+		if note != "" {
+			if _, err := fmt.Fprintf(stderr, "packagegov: %s\n", note); err != nil {
+				return err
+			}
+		}
+		stderrTail := &bytes.Buffer{} // both streams: pnpm reports its refusal on either
 		spec := shell.Spec{
 			Context: options.Context,
 			Name:    run[0],
 			Args:    append([]string(nil), run[1:]...),
 			Dir:     workdir,
-			Env:     env,
+			Env:     commandEnv,
 			Stdin:   stdin,
-			Stdout:  stdout,
-			Stderr:  stderr,
+			Stdout:  io.MultiWriter(stdout, &limitedTail{buf: stderrTail, limit: 8 << 10}),
+			Stderr:  io.MultiWriter(stderr, &limitedTail{buf: stderrTail, limit: 8 << 10}),
 		}
 		if err := shell.Run(spec); err != nil {
-			return err
+			return ExplainPnpmPurgeAbort(err, stderrTail.String(), workdir)
 		}
 	}
 	return nil
@@ -109,4 +124,21 @@ func MatchDependents(dependents []Dependent, target string) []Dependent {
 		}
 	}
 	return filtered
+}
+
+// limitedTail keeps the first limit bytes written to it; pnpm names its refusal
+// near the top of its output.
+type limitedTail struct {
+	buf   *bytes.Buffer
+	limit int
+}
+
+func (t *limitedTail) Write(p []byte) (int, error) {
+	if room := t.limit - t.buf.Len(); room > 0 {
+		if len(p) < room {
+			room = len(p)
+		}
+		t.buf.Write(p[:room])
+	}
+	return len(p), nil
 }

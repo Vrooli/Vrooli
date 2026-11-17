@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/vrooli/internal/resources"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
+	setupassets "github.com/vrooli/vrooli/internal/setup/assets"
 	"github.com/vrooli/vrooli/internal/shell"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
@@ -81,8 +82,13 @@ type Options struct {
 	// auto classification; the CLI parser supplies the explicit five modes.
 	Onboarding onboardinghandoff.Mode
 	// Subcommand selects an alternate setup mode. Empty string runs the
-	// default apply flow. Recognized values: "status", "explain", "broker".
+	// default apply flow. Recognized values: "status", "explain", "broker",
+	// and "scenario".
 	Subcommand string
+	// ScenarioName selects the focused `vrooli setup scenario <name>` mode.
+	// It applies only that scenario's declared host requirements and skips
+	// project bootstrap, onboarding, resources, and unrelated root requirements.
+	ScenarioName string
 	// Phase selects which declared safeguard phase `setup status` inspects.
 	// Empty means "setup" (everything setup would converge). "readiness"
 	// runs Inspect for the safeguards that declare it: the boot-path
@@ -241,6 +247,9 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if opts.Subcommand == "broker" {
 		return s.runSetupBroker(root, opts, stdout, stderr)
 	}
+	if opts.Subcommand == "scenario" {
+		return s.runScenarioHostSetup(root, home, opts, stdout, stderr)
+	}
 	if opts.Selection == nil && strings.TrimSpace(opts.SelectionB64) != "" {
 		selection, decodeErr := DecodeSelectionB64(opts.SelectionB64)
 		if decodeErr != nil {
@@ -321,6 +330,88 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	onboardingResult = completion.onboardingResult
 	readinessVerdict = completion.readinessVerdict
 	return err
+}
+
+func (s *setupService) runScenarioHostSetup(root, home string, opts Options, stdout, stderr io.Writer) error {
+	name := strings.TrimSpace(opts.ScenarioName)
+	if name == "" {
+		return fmt.Errorf("setup scenario requires a scenario name")
+	}
+	resolution, err := s.deps.resolveHostRequirements(root, home, hostreq.ResolveOptions{
+		ExcludeRoot: true, Environment: "minimal", When: "setup", Resources: setupNone,
+		Scenarios: name, Platform: hostreqspec.CurrentPlatform(),
+	})
+	if err != nil {
+		return fmt.Errorf("resolve host requirements for scenario %q: %w", name, err)
+	}
+	if len(resolution.Tools)+len(resolution.Safeguards) == 0 {
+		return fmt.Errorf("scenario %q declares no setup host requirements", name)
+	}
+	assetPlan, assetPlanPath, hasAssetPlan, err := setupassets.LoadScenarioPlan(root, name)
+	if err != nil {
+		return err
+	}
+	var assetBaseline setupassets.Inspection
+	opts.Environment, opts.Resources, opts.Scenarios = "minimal", setupNone, name
+	ensure := vrooliruntime.EnsureOptions{
+		Environment: "minimal", SudoMode: opts.SudoMode, DryRun: opts.DryRun,
+		AutoInstall: true, IncludeOptional: opts.IncludeOptional, Stdout: stdout, Stderr: stderr,
+	}
+	if opts.DryRun {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Previewing only scenario %q host requirements; no project bootstrap or unrelated requirements are included.\n", name)
+	} else {
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Applying only scenario %q host requirements.\n", name)
+	}
+	if hasAssetPlan {
+		// The scenario-owned asset plan pins the host tool package list too.
+		// Inspect it before any package apply so changed declarations fail closed.
+		previewOptions := ensure
+		previewOptions.DryRun = true
+		preview, previewErr := s.deps.ensureRequirements(previewOptions, resolution)
+		previewRender := opts
+		previewRender.DryRun = true
+		renderSetupRequirementResult(stdout, previewRender, preview)
+		if previewErr != nil {
+			return fmt.Errorf("preview A2 host tools: %w", previewErr)
+		}
+		if err := setupassets.ValidateToolPreview(assetPlan, preview); err != nil {
+			return err
+		}
+		assetPreview, inspectErr := setupassets.Inspect(context.Background(), root, assetPlan, assetPlanPath)
+		if inspectErr != nil {
+			return inspectErr
+		}
+		assetBaseline = assetPreview
+		inspectionBytes, _ := json.MarshalIndent(assetPreview, "", "  ")
+		_, _ = fmt.Fprintf(stdout, "[INFO]    Scenario asset plan (review only):\n%s\n", inspectionBytes)
+		if len(assetPreview.Stops) > 0 {
+			return fmt.Errorf("asset plan stop condition: %s", strings.Join(assetPreview.Stops, "; "))
+		}
+		if err := setupassets.ValidateInitialHeadroom(assetPlan, assetPreview); err != nil {
+			return err
+		}
+		if opts.DryRun {
+			_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run complete; no host changes or image downloads were made.")
+			return nil
+		}
+	}
+	report, err := s.deps.ensureRequirements(ensure, resolution)
+	renderSetupRequirementResult(stdout, opts, report)
+	if err != nil {
+		return fmt.Errorf("apply host requirements for scenario %q: %w", name, err)
+	}
+	if hasAssetPlan {
+		// The first capacity snapshot is intentionally taken before package
+		// installation; asset apply compares that baseline with live capacity
+		// again after packages and verified staging have consumed disk.
+		if err := setupassets.ApplyScenarioPlan(root, name, opts.SudoMode, assetBaseline, stdout, stderr); err != nil {
+			return fmt.Errorf("apply declared scenario assets: %w", err)
+		}
+	}
+	if opts.DryRun {
+		_, _ = fmt.Fprintln(stdout, "[INFO]    Dry-run complete; no host changes were made.")
+	}
+	return nil
 }
 
 type setupFlow struct {
@@ -630,31 +721,6 @@ func finalizeSetupResultConfiguration(result SetupResult, home, root string, run
 		}
 	}
 	return result
-}
-
-const (
-	ownershipMigrationVersion             = 2
-	ownershipMigrationBatchEntries uint64 = 1_000_000
-)
-
-var ownershipMigrationClasses = []string{
-	repocontract.HomeKeyBin,
-	repocontract.HomeKeyCache,
-	repocontract.HomeKeyLogs,
-	repocontract.HomeKeyMetrics,
-	repocontract.HomeKeyProcesses,
-	repocontract.HomeKeyBuild,
-	repocontract.HomeKeyTestRuns,
-	repocontract.HomeKeySecretsEnc,
-	// The state class holds the operator-input queue and the scenario state a
-	// scenario process reads and writes as the operator. An elevated setup run
-	// that writes there leaves a root-owned file the onboarding API cannot
-	// open, and the operator meets it as an opaque server error inside the
-	// flow. Migrating it is what keeps one elevated run from making the
-	// in-flow surface unusable.
-	repocontract.HomeKeyState,
-	"backups",
-	"artifacts",
 }
 
 func installSelectedCLIs(manager cliInstallManager, resourceSelector, scenarioSelector string, onOperation ...func(string)) error {

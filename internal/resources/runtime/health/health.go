@@ -132,7 +132,7 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 	defer cancel()
 
 	switch check.Type {
-	case "tcp":
+	case manifestpkg.HealthCheckTCP:
 		target := renderTarget(check.Target, cfg.Env)
 		conn, err := (&net.Dialer{}).DialContext(checkCtx, "tcp", target)
 		if err != nil {
@@ -140,13 +140,13 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 		}
 		_ = conn.Close()
 		return Result{Healthy: true, Message: "healthy"}, nil
-	case "openrgb-sdk-v6":
+	case manifestpkg.HealthCheckOpenRGBV6:
 		return runOpenRGBSDKV6Readiness(checkCtx, renderTarget(check.Target, cfg.Env))
-	case "postgresql":
+	case manifestpkg.HealthCheckPostgreSQL:
 		return runPostgreSQLReadiness(checkCtx, renderTarget(check.Target, cfg.Env), cfg.Env), nil
-	case "redis":
+	case manifestpkg.HealthCheckRedis:
 		return runRedisReadiness(checkCtx, renderTarget(check.Target, cfg.Env)), nil
-	case "http":
+	case manifestpkg.HealthCheckHTTP:
 		target := renderTarget(check.Target, cfg.Env)
 		client := cfg.HTTPClient
 		if client == nil {
@@ -172,7 +172,7 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 			return Result{Healthy: true, Message: "healthy"}, nil
 		}
 		return Result{Message: fmt.Sprintf("http check returned %d", resp.StatusCode)}, nil
-	case "command":
+	case manifestpkg.HealthCheckCommand:
 		if len(check.Command) == 0 {
 			return Result{}, fmt.Errorf("command health check requires a command")
 		}

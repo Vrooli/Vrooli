@@ -13,22 +13,22 @@ import (
 )
 
 func TestNvidiaProcessObservationReplacesPreviousRowsAndQualifiesAbsence(t *testing.T) {
-	const command = "nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits"
+	const command = "nvidia-smi pmon -s m -c 1"
 	for _, test := range []struct {
 		name, output, wantStatus string
 		err                      error
 		wantRows                 int
 	}{
-		{name: "new-process", output: "42, python, 214, GPU-test\n", wantStatus: "ok", wantRows: 1},
-		{name: "complete-empty", wantStatus: "ok"},
+		{name: "new-process", output: "# gpu pid type fb ccpm command\n0 42 C 214 - python\n", wantStatus: "ok", wantRows: 1},
+		{name: "complete-empty", output: "# gpu pid type fb ccpm command\n", wantStatus: "ok"},
 		{name: "empty-nonzero-tool-convention", output: "No running processes found", err: errors.New("exit status 1"), wantStatus: "ok"},
 		{name: "failure", err: errors.New("permission denied"), wantStatus: "failed"},
-		{name: "partial", output: "42, python, 214, GPU-test\nbad, unknown, 1, GPU-test\n", wantStatus: "incomplete", wantRows: 1},
+		{name: "partial", output: "# gpu pid type fb ccpm command\n42 C 214 - python\n0 bad C 1 - broken\n", wantStatus: "incomplete"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			now := time.Date(2026, 10, 16, 20, 0, 0, 0, time.UTC)
 			commands := &shelltest.Fake{Outputs: map[string][]byte{command: []byte(test.output)}, Errors: map[string]error{command: test.err}}
-			collector := Collector{Commands: commands}
+			collector := Collector{Commands: commands, GOOS: "linux"}
 			snapshot := Snapshot{GPUs: []GPU{{Index: 0, UUID: "GPU-test"}}, GPUProcesses: []GPUProcess{{PID: 10, UsedBytes: 100}}, ProbeStatuses: map[string]string{"nvidia_gpu_processes": "ok"}, FieldProvenance: map[string]Provenance{}}
 			collector.collectNvidiaGPUProcesses(context.Background(), &snapshot, now)
 			if len(snapshot.GPUProcesses) != test.wantRows || snapshot.ProbeStatuses["nvidia_gpu_processes"] != test.wantStatus {
@@ -47,13 +47,26 @@ func TestNvidiaProcessObservationReplacesPreviousRowsAndQualifiesAbsence(t *test
 	}
 }
 
+func TestNvidiaProcessObservationUsesProbeCompletionTime(t *testing.T) {
+	const command = "nvidia-smi pmon -s m -c 1"
+	started := time.Date(2026, 10, 16, 20, 0, 0, 0, time.UTC)
+	completed := started.Add(2 * time.Second)
+	commands := &shelltest.Fake{Outputs: map[string][]byte{command: []byte("# gpu pid type fb ccpm command\n0 42 C 214 - python\n")}}
+	collector := Collector{Commands: commands, Clock: testenv.NewClock(completed), GOOS: "linux"}
+	snapshot := Snapshot{GPUs: []GPU{{Index: 0, UUID: "GPU-test"}}, ProbeStatuses: map[string]string{}, FieldProvenance: map[string]Provenance{}}
+	collector.collectNvidiaGPUProcesses(context.Background(), &snapshot, started)
+	if got := snapshot.FieldProvenance["gpu_processes"].ObservedAt; !got.Equal(completed) {
+		t.Fatalf("GPU process observation time = %s, want probe completion %s", got, completed)
+	}
+}
+
 func TestRefreshNvidiaGPUProcessesReusesStableFactsWithoutMutatingCachedSnapshot(t *testing.T) {
-	const query = "nvidia-smi --query-compute-apps=pid,process_name,used_memory,gpu_uuid --format=csv,noheader,nounits"
+	const query = "nvidia-smi pmon -s m -c 1"
 	now := time.Date(2026, 10, 16, 20, 0, 0, 0, time.UTC)
 	cached := Snapshot{GPUs: []GPU{{Index: 3, UUID: "GPU-current", Name: "stable identity"}}, RuntimeTools: map[string]Tool{ToolNvidiaSMI: {Present: true}}, GPUProcesses: []GPUProcess{{PID: 10, UsedBytes: 100}}, ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"}, FieldProvenance: map[string]Provenance{"gpu_processes": {ObservedAt: now.Add(-time.Minute)}}, Warnings: []string{"retained static warning"}}
 	before, _ := json.Marshal(cached)
-	commands := &shelltest.Fake{Outputs: map[string][]byte{query: []byte("42, python, 214, GPU-current\n")}}
-	got, err := (Collector{Commands: commands, Clock: testenv.NewClock(now)}).RefreshNvidiaGPUProcesses(context.Background(), cached)
+	commands := &shelltest.Fake{Outputs: map[string][]byte{query: []byte("# gpu pid type fb ccpm command\n3 42 C 214 - python\n")}}
+	got, err := (Collector{Commands: commands, Clock: testenv.NewClock(now), GOOS: "linux"}).RefreshNvidiaGPUProcesses(context.Background(), cached)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -133,6 +133,9 @@ type Lifecycle struct {
 	Recovery string `json:"recovery,omitempty"`
 }
 
+// CandidateStatusReady identifies a candidate ready for use.
+const CandidateStatusReady = "ready"
+
 type Candidate struct {
 	ID                    string            `json:"id"`
 	Kind                  string            `json:"kind"`
@@ -777,7 +780,7 @@ func (e EvidenceReference) Validate() error {
 	if e.EffectsUsed < 0 {
 		return errors.New("evidence effects_used cannot be negative")
 	}
-	if e.EffectClass != "" && e.EffectClass != string(EffectReadOnly) && e.EffectClass != string(EffectBoundedWrite) {
+	if e.EffectClass != "" && e.EffectClass != EvidenceEffectReadOnly && e.EffectClass != EvidenceEffectBoundedWrite {
 		return fmt.Errorf("unsupported evidence effect class %q", e.EffectClass)
 	}
 	for _, value := range append(append([]string{}, e.ArtifactRefs...), e.Limitations...) {

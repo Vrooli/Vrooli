@@ -226,17 +226,32 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 	}
 	resp := RefreshResponse{PackageName: item.Name, Impacts: impacts}
 	runtime := refreshRuntime{owner: s, item: item, noRestart: noRestart}
+	resp.Items, err = runtime.propagate(actions, req.DryRun)
+	return resp, err
+}
+
+// propagate applies each consumer action independently. One consumer that
+// cannot be refreshed (for example a node_modules linked against a pnpm store
+// that cannot be reused) must not block the consumers after it, and the
+// consumers that were refreshed must still be reported. Failures are joined
+// into one error that names every consumer and says which ones succeeded.
+func (r *refreshRuntime) propagate(actions []packagegov.RefreshAction, dryRun bool) ([]RefreshItem, error) {
+	items := make([]RefreshItem, 0, len(actions))
+	var failures []string
+	var refreshed []string
 	for _, action := range actions {
 		status := "planned"
-		if !req.DryRun {
+		if !dryRun {
 			var err error
-			status, err = runtime.execute(action)
+			status, err = r.execute(action)
 			if err != nil {
-				return RefreshResponse{}, err
+				status = "failed"
+				failures = append(failures, fmt.Sprintf("%s: %v", action.ConsumerName, err))
+			} else {
+				refreshed = append(refreshed, action.ConsumerName)
 			}
 		}
-
-		resp.Items = append(resp.Items, RefreshItem{
+		items = append(items, RefreshItem{
 			Consumer: action.ConsumerName,
 			Class:    action.ConsumerClass,
 			Classes:  append([]packagegov.ConsumerClass(nil), action.ConsumerClasses...),
@@ -244,8 +259,18 @@ func (s Service) Refresh(req RefreshRequest) (RefreshResponse, error) {
 			Status:   status,
 		})
 	}
+	if len(failures) == 0 {
+		return items, nil
+	}
+	return items, fmt.Errorf("%d of %d consumers could not be refreshed (refreshed: %s):\n  %s",
+		len(failures), len(actions), listOrNone(refreshed), strings.Join(failures, "\n  "))
+}
 
-	return resp, nil
+func listOrNone(names []string) string {
+	if len(names) == 0 {
+		return "none"
+	}
+	return strings.Join(names, ", ")
 }
 
 type refreshRuntime struct {

@@ -169,19 +169,22 @@ func scenarioStatus(detail orchestrator.Detail) (string, string, *time.Time) {
 }
 
 type StatusItemOutput struct {
-	Name          string           `json:"name"`
-	DisplayName   string           `json:"display_name,omitempty"`
-	Description   string           `json:"description,omitempty"`
-	Tags          []string         `json:"tags"`
-	Status        string           `json:"status"`
-	Processes     int              `json:"processes"`
-	Runtime       string           `json:"runtime"`
-	StartedAt     *time.Time       `json:"started_at,omitempty"`
-	Ports         map[string]int   `json:"ports"`
-	PortBindings  []ListPortOutput `json:"port_bindings,omitempty"`
-	Health        any              `json:"health_status"`
-	HealthError   string           `json:"health_error,omitempty"`
-	BuildIdentity string           `json:"build_identity,omitempty"`
+	Name                      string           `json:"name"`
+	DisplayName               string           `json:"display_name,omitempty"`
+	Description               string           `json:"description,omitempty"`
+	Tags                      []string         `json:"tags"`
+	Status                    string           `json:"status"`
+	Processes                 int              `json:"processes"`
+	Runtime                   string           `json:"runtime"`
+	StartedAt                 *time.Time       `json:"started_at,omitempty"`
+	Ports                     map[string]int   `json:"ports"`
+	PortBindings              []ListPortOutput `json:"port_bindings,omitempty"`
+	Health                    any              `json:"health_status"`
+	HealthError               string           `json:"health_error,omitempty"`
+	BuildIdentity             string           `json:"build_identity,omitempty"`
+	RuntimeReleaseID          string           `json:"runtime_release_id,omitempty"`
+	RuntimeReleaseOperationID string           `json:"runtime_release_operation_id,omitempty"`
+	StartOperationID          string           `json:"start_operation_id,omitempty"`
 	// StartOperation is the latest start/restart operation record (in-flight
 	// progress with ETA + recommended_next_check_seconds, or the last
 	// terminal outcome); nil when never started or the registry is
@@ -221,15 +224,18 @@ type InfoScenarioData struct {
 }
 
 type InfoRuntimeData struct {
-	Status        string           `json:"status"`
-	Processes     int              `json:"processes"`
-	Runtime       string           `json:"runtime"`
-	StartedAt     *time.Time       `json:"started_at,omitempty"`
-	Ports         map[string]int   `json:"ports"`
-	ProcessInfo   []process.Record `json:"process_records"`
-	ListPorts     []ListPortOutput `json:"list_ports"`
-	HealthError   string           `json:"health_error,omitempty"`
-	BuildIdentity string           `json:"build_identity,omitempty"`
+	Status                    string           `json:"status"`
+	Processes                 int              `json:"processes"`
+	Runtime                   string           `json:"runtime"`
+	StartedAt                 *time.Time       `json:"started_at,omitempty"`
+	Ports                     map[string]int   `json:"ports"`
+	ProcessInfo               []process.Record `json:"process_records"`
+	ListPorts                 []ListPortOutput `json:"list_ports"`
+	HealthError               string           `json:"health_error,omitempty"`
+	BuildIdentity             string           `json:"build_identity,omitempty"`
+	RuntimeReleaseID          string           `json:"runtime_release_id,omitempty"`
+	RuntimeReleaseOperationID string           `json:"runtime_release_operation_id,omitempty"`
+	StartOperationID          string           `json:"start_operation_id,omitempty"`
 }
 
 type StatusSingleOutput struct {
@@ -237,6 +243,9 @@ type StatusSingleOutput struct {
 	Scenario StatusItemOutput `json:"scenario"`
 	Info     InfoScenarioData `json:"info"`
 	Runtime  InfoRuntimeData  `json:"runtime"`
+	// Authentication is the configured mode, its source, and each running
+	// process's observed mode; nil without an authentication profile.
+	Authentication *lifecycle.AuthenticationStatus `json:"authentication,omitempty"`
 }
 
 type LifecycleItemOutput struct {
@@ -290,20 +299,22 @@ type StatusResponse struct {
 }
 
 type PortSingleOutput struct {
-	Success  bool   `json:"success"`
-	Scenario string `json:"scenario"`
-	PortName string `json:"port_name"`
-	Step     string `json:"step,omitempty"`
-	Port     int    `json:"port,omitempty"`
-	Error    string `json:"error,omitempty"`
+	Success   bool   `json:"success"`
+	Scenario  string `json:"scenario"`
+	PortName  string `json:"port_name"`
+	Step      string `json:"step,omitempty"`
+	Port      int    `json:"port,omitempty"`
+	Error     string `json:"error,omitempty"`
+	ErrorCode string `json:"error_code,omitempty"`
 }
 
 type PortListOutput struct {
-	Success  bool             `json:"success"`
-	Scenario string           `json:"scenario"`
-	Ports    []ListPortOutput `json:"ports"`
-	Metadata map[string]int   `json:"metadata,omitempty"`
-	Error    string           `json:"error,omitempty"`
+	Success   bool             `json:"success"`
+	Scenario  string           `json:"scenario"`
+	Ports     []ListPortOutput `json:"ports"`
+	Metadata  map[string]int   `json:"metadata,omitempty"`
+	Error     string           `json:"error,omitempty"`
+	ErrorCode string           `json:"error_code,omitempty"`
 }
 
 type PortResponse struct {
@@ -345,20 +356,23 @@ func BuildStatusDetail(detail orchestrator.Detail) StatusItemOutput {
 		}
 	}
 	return StatusItemOutput{
-		Name:           detail.Scenario.Slug,
-		DisplayName:    detail.Scenario.Manifest.Service.DisplayName,
-		Description:    detail.Scenario.Manifest.Service.Description,
-		Tags:           CopyStrings(detail.Scenario.Manifest.Service.Tags),
-		Status:         status,
-		Processes:      detail.Details.Processes,
-		Runtime:        detail.Details.Runtime,
-		StartedAt:      detail.Details.StartedAt,
-		Ports:          CopyIntMap(detail.Details.Ports),
-		PortBindings:   RuntimePortOutputs(detail.Details.PortBindings),
-		Health:         health,
-		HealthError:    healthError,
-		BuildIdentity:  detail.Details.BuildIdentity,
-		StartOperation: detail.StartOperation,
+		Name:                      detail.Scenario.Slug,
+		DisplayName:               detail.Scenario.Manifest.Service.DisplayName,
+		Description:               detail.Scenario.Manifest.Service.Description,
+		Tags:                      CopyStrings(detail.Scenario.Manifest.Service.Tags),
+		Status:                    status,
+		Processes:                 detail.Details.Processes,
+		Runtime:                   detail.Details.Runtime,
+		StartedAt:                 detail.Details.StartedAt,
+		Ports:                     CopyIntMap(detail.Details.Ports),
+		PortBindings:              RuntimePortOutputs(detail.Details.PortBindings),
+		Health:                    health,
+		HealthError:               healthError,
+		BuildIdentity:             detail.Details.BuildIdentity,
+		RuntimeReleaseID:          detail.Details.RuntimeReleaseID,
+		RuntimeReleaseOperationID: detail.Details.RuntimeReleaseOperationID,
+		StartOperationID:          detail.Details.StartOperationID,
+		StartOperation:            detail.StartOperation,
 		// The single-status surface uses health_error for the same reason; the
 		// explicit list fields below keep the list projection machine-readable.
 		StartFailureReason: startFailureReason,
@@ -398,15 +412,18 @@ func BuildRuntimeDataFromDetail(detail orchestrator.Detail) InfoRuntimeData {
 
 func BuildRuntimeDataFromDetails(details scenariomodel.RuntimeDetails) InfoRuntimeData {
 	return InfoRuntimeData{
-		Status:        details.Status,
-		Processes:     details.Processes,
-		Runtime:       details.Runtime,
-		StartedAt:     details.StartedAt,
-		Ports:         CopyIntMap(details.Ports),
-		ProcessInfo:   CopyProcessRecords(details.ProcessInfo),
-		ListPorts:     RuntimePortOutputs(details.PortBindings),
-		HealthError:   details.HealthError,
-		BuildIdentity: details.BuildIdentity,
+		Status:                    details.Status,
+		Processes:                 details.Processes,
+		Runtime:                   details.Runtime,
+		StartedAt:                 details.StartedAt,
+		Ports:                     CopyIntMap(details.Ports),
+		ProcessInfo:               CopyProcessRecords(details.ProcessInfo),
+		ListPorts:                 RuntimePortOutputs(details.PortBindings),
+		HealthError:               details.HealthError,
+		BuildIdentity:             details.BuildIdentity,
+		RuntimeReleaseID:          details.RuntimeReleaseID,
+		RuntimeReleaseOperationID: details.RuntimeReleaseOperationID,
+		StartOperationID:          details.StartOperationID,
 	}
 }
 

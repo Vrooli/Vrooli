@@ -247,3 +247,48 @@ func TestTestPreflightsGeneratedPackageBeforeTestGenie(t *testing.T) {
 		t.Fatalf("generated marker missing: %v", err)
 	}
 }
+
+type stoppedScenarioRuntime struct{ fakeScenarioRuntime }
+
+func (stoppedScenarioRuntime) Lookup(name string) (orchestrator.Detail, bool, error) {
+	return orchestrator.Detail{Scenario: scenariomodel.Scenario{Slug: name}}, true, nil
+}
+
+type failingSetupRunner struct {
+	variantScenarioRunner
+	failFor string
+	setups  []string
+}
+
+func (f *failingSetupRunner) RunSetupIfStopped(name string, opts lifecycle.PhaseOptions) (lifecycle.PhaseResult, error) {
+	f.setups = append(f.setups, name)
+	if name == f.failFor {
+		return lifecycle.PhaseResult{}, os.ErrPermission
+	}
+	return lifecycle.PhaseResult{Scenario: name, Phase: "setup", Status: lifecycle.PhaseExecutionCompleted}, nil
+}
+
+// One consumer whose setup fails must not stop the consumers after it from
+// being refreshed, and the error must say which were refreshed and which not.
+func TestRefreshPropagatesToEveryConsumerAndNamesTheFailures(t *testing.T) {
+	runner := &failingSetupRunner{failFor: "asset-studio"}
+	rt := &refreshRuntime{item: packagegov.Package{Name: "alpha"}, service: &stoppedScenarioRuntime{}, runner: runner}
+	var actions []packagegov.RefreshAction
+	for _, name := range []string{"ai-chatbot-manager", "asset-studio", "web-console"} {
+		actions = append(actions, packagegov.RefreshAction{ConsumerName: name, Action: packagegov.RefreshActionScenarioSetup})
+	}
+
+	items, err := rt.propagate(actions, false)
+
+	if got := strings.Join(runner.setups, ","); got != "ai-chatbot-manager,asset-studio,web-console" {
+		t.Fatalf("setups attempted = %s; a failed consumer blocked the ones after it", got)
+	}
+	if err == nil || !strings.Contains(err.Error(), "1 of 3") ||
+		!strings.Contains(err.Error(), "refreshed: ai-chatbot-manager, web-console") ||
+		!strings.Contains(err.Error(), "asset-studio:") {
+		t.Fatalf("error = %v; want it to name the refreshed and the failed consumers", err)
+	}
+	if len(items) != 3 || items[1].Status != "failed" || items[2].Status != packageSetupOnly {
+		t.Fatalf("items = %+v", items)
+	}
+}

@@ -14,6 +14,7 @@ type nativeIntentFixtureOwners struct{}
 func (nativeIntentFixtureOwners) VerifyLightingSetup(context.Context, lightingruntime.Selection) error {
 	return nil
 }
+
 func (nativeIntentFixtureOwners) EnsureOpenRGB(context.Context, lightingruntime.Selection) (lightingruntime.Backend, error) {
 	return lightingruntime.Backend{}, nil
 }
@@ -37,13 +38,13 @@ func TestNativeOpenRGBResourceOperationSerializesBeforeDisableFence(t *testing.T
 	entered, release := make(chan struct{}), make(chan struct{})
 	done := make(chan error, 1)
 	go func() {
-		done <- withOpenRGBNativeClientIntent(context.Background(), home, func(got lightingruntime.Selection) error {
-			if got != selected {
-				return errors.New("selection changed")
+		done <- control.WithResourceUpdate(context.Background(), func(intent lightingruntime.Intent) (*lightingruntime.Selection, error) {
+			if intent.Phase != lightingruntime.Enabled || intent.Selection == nil || *intent.Selection != selected {
+				return nil, errors.New("selection changed")
 			}
 			close(entered)
 			<-release
-			return nil
+			return &selected, nil
 		})
 	}()
 	<-entered
@@ -74,10 +75,17 @@ func TestNativeOpenRGBResourceOperationSerializesBeforeDisableFence(t *testing.T
 		t.Fatal(err)
 	}
 	called := false
-	if err = withOpenRGBNativeClientIntent(t.Context(), home, func(lightingruntime.Selection) error { called = true; return nil }); err == nil || called {
-		t.Fatal("RPC admitted after durable disable fence")
+	if err = control.WithResourceUpdate(t.Context(), func(intent lightingruntime.Intent) (*lightingruntime.Selection, error) {
+		called = true
+		if intent.Phase != lightingruntime.Disabled {
+			return nil, errors.New("disabled intent changed")
+		}
+		return nil, nil
+	}); err != nil || !called {
+		t.Fatalf("disabled resource action was not safely serialized: called=%v err=%v", called, err)
 	}
 }
+
 func TestNativeOpenRGBInitialClaimRejectsNewDisableOrSelection(t *testing.T) {
 	a := openRGBInitialAttempt{Contract: ManagedUpdateContract{Artifact: ManagedServiceArtifact{Version: "1.1", SHA256: updateTestDigest("artifact")}}, Policy: openRGBExecPolicy{ID: updateTestDigest("policy")}}
 	selected := lightingruntime.Selection{Version: a.Contract.Artifact.Version, SHA256: a.Contract.Artifact.SHA256, DevicePolicyID: a.Policy.ID}

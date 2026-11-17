@@ -14,6 +14,7 @@ directory listing as a hierarchy.
 | Credentials | `credentialpolicy`, `credentialauthority`, `credentialspec`, `credentialinventory`, `credentialescrow`, `credentials`, `securestore` | policy → authority → specification → inventory → escrow → secure store and repair operations |
 | Scenarios | `scenario`, `scenarioruntime`, `peerrecord`, `lifecycle`, `shell` | model → runtime and peer coordinates → lifecycle and execution |
 | Operator state and capability | `operatorcapability`, `operatorstate` | capability and input contract → durable state |
+| Shared Go build cache | `gocache`, `app/gocache`, `cli/hosthandlers` (`vrooli host go-cache`), `cmd/vrooli-gocacheprog` | protocol (GOCACHEPROG helper, session pins, go-command audit, owner reclaim) → owner service → CLI and helper entry points |
 
 The adjacent `gpuaccess`, `accel`, and
 `deployability` packages provide capability observations and resolution. The

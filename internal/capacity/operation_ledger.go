@@ -58,7 +58,8 @@ func VerifyOperationRAM(ctx context.Context, opts OperationReservationOptions, m
 		return err
 	}
 	defer store.Close()
-	claims, err := store.ListClaims(ctx, ClaimFilter{OwnerKind: OwnerKindOp, OwnerID: opts.OwnerID, ResourceKind: ResourceKindRAM, Statuses: ActiveClaimStatuses()})
+	var claims []CapacityClaim
+	claims, err = store.ListClaims(ctx, ClaimFilter{OwnerKind: OwnerKindOp, OwnerID: opts.OwnerID, ResourceKind: ResourceKindRAM, Statuses: ActiveClaimStatuses()})
 	if err != nil {
 		return err
 	}

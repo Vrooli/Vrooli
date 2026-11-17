@@ -72,7 +72,7 @@ func (r Registry) Run(ctx context.Context, req Request, report *Report, ids ...s
 		}
 		if hasBudget && budgeted.Budget() > 0 && time.Since(started) > budgeted.Budget() {
 			elapsed := time.Since(started).Round(time.Millisecond)
-			report.addCheck("hygiene_provider_budget_"+id, true, SeverityWarning, fmt.Sprintf("Hygiene provider %s exceeded its %s budget (%s)", id, budgeted.Budget(), elapsed))
+			report.addCheck("hygiene_provider_budget_"+id, false, SeverityWarning, fmt.Sprintf("Hygiene provider %s exceeded its %s budget (%s)", id, budgeted.Budget(), elapsed))
 			report.addFinding(Finding{Severity: SeverityWarning, Code: "hygiene_provider_budget", Message: fmt.Sprintf("Provider %s exceeded its declared %s budget; measured %s", id, budgeted.Budget(), elapsed), Why: "Hygiene lane budgets keep slow providers observable without turning timing drift into a commit failure."})
 			if providerCtx.Err() == context.DeadlineExceeded {
 				err = nil

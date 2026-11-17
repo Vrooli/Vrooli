@@ -6,9 +6,13 @@ package n8n
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +20,7 @@ import (
 	"net/http"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -37,13 +42,16 @@ const (
 	readinessTimeout               = 90 * time.Second
 	containerStopWait              = 10
 	// MaxSyntheticWorkflowBytes is also enforced by the control-plane stdin boundary.
-	MaxSyntheticWorkflowBytes  = 10 << 20
-	maxSyntheticWorkflowJSON   = MaxSyntheticWorkflowBytes
-	maxWorkflowExecutionOut    = 16 << 20
-	maxCredentialImportOutput  = 256 << 10
-	syntheticWorkflowRunTTL    = 5 * time.Minute
-	maxSyntheticCredentialJSON = 1 << 20
-	stageWorkflowFileProgram   = `const fs=require("fs");const p=process.argv[1];const flags=fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_TRUNC|fs.constants.O_NOFOLLOW;const fd=fs.openSync(p,flags,0o600);process.stdin.on("data",b=>{for(let o=0;o<b.length;)o+=fs.writeSync(fd,b,o,b.length-o)});process.stdin.on("error",()=>{try{fs.closeSync(fd)}catch{};process.exitCode=1});process.stdin.on("end",()=>fs.closeSync(fd));`
+	MaxSyntheticWorkflowBytes      = 10 << 20
+	maxSyntheticWorkflowJSON       = MaxSyntheticWorkflowBytes
+	maxWorkflowExecutionOut        = 16 << 20
+	maxCredentialImportOutput      = 256 << 10
+	maxSyntheticOwnerIdentityBytes = 512
+	syntheticOwnerIdentityPath     = "/tmp/.vrooli-owner-identity.json"
+	syntheticWorkflowRunTTL        = 5 * time.Minute
+	maxSyntheticCredentialJSON     = 1 << 20
+	stageWorkflowFileProgram       = `const fs=require("fs");const p=process.argv[1];const flags=fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_TRUNC|fs.constants.O_NOFOLLOW;const fd=fs.openSync(p,flags,0o600);process.stdin.on("data",b=>{for(let o=0;o<b.length;)o+=fs.writeSync(fd,b,o,b.length-o)});process.stdin.on("error",()=>{try{fs.closeSync(fd)}catch{};process.exitCode=1});process.stdin.on("end",()=>fs.closeSync(fd));`
+	n8nHealthProbeProgram          = `const http=require("node:http");const request=http.get("http://127.0.0.1:5678/healthz",response=>{response.resume();if(response.statusCode!==200){console.error("n8n health probe returned "+response.statusCode);process.exitCode=1}});request.setTimeout(3000,()=>request.destroy(new Error("n8n health probe timed out")));request.on("error",error=>{console.error(error.message);process.exitCode=1})`
 )
 
 const (
@@ -54,6 +62,7 @@ const (
 	labelSandboxOwner      = "com.vrooli.workspace-sandbox.sandbox-id"
 	labelSandboxRunID      = "com.vrooli.workspace-sandbox.runtime-id"
 	labelSandboxDecl       = "com.vrooli.workspace-sandbox.companion-declared"
+	labelTaskCAFingerprint = "com.vrooli.task-trust-ca-sha256"
 	labelCompanionResource = "com.vrooli.resource-companion"
 	privateNetworkName     = "bridge"
 )
@@ -77,6 +86,10 @@ type quietCommandRunner interface {
 	RunQuiet(context.Context, ...string) ([]byte, error)
 	RunInputQuiet(context.Context, []byte, ...string) ([]byte, error)
 	RunStdoutLimitQuiet(context.Context, int, ...string) ([]byte, bool, error)
+}
+
+type quietDiagnosticCommandRunner interface {
+	RunStdoutStderrLimitQuiet(context.Context, int, int, ...string) ([]byte, []byte, bool, error)
 }
 
 type execRunner struct{}
@@ -107,6 +120,18 @@ func (execRunner) RunStdoutLimitQuiet(ctx context.Context, limit int, args ...st
 		return nil, stdout.exceeded, fmt.Errorf("docker %s failed: %w", strings.Join(args, " "), err)
 	}
 	return stdout.buffer.Bytes(), stdout.exceeded, nil
+}
+
+func (execRunner) RunStdoutStderrLimitQuiet(ctx context.Context, stdoutLimit, stderrLimit int, args ...string) ([]byte, []byte, bool, error) {
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	stdout, stderr := &limitedCapture{limit: stdoutLimit}, &limitedCapture{limit: stderrLimit}
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	if err := cmd.Run(); err != nil {
+		// stderr stays inside the owner boundary. The caller receives only a
+		// bounded classification, never workflow output or engine diagnostics.
+		return stdout.buffer.Bytes(), stderr.buffer.Bytes(), stdout.exceeded || stderr.exceeded, fmt.Errorf("docker %s failed: %w", strings.Join(args, " "), err)
+	}
+	return stdout.buffer.Bytes(), nil, stdout.exceeded || stderr.exceeded, nil
 }
 
 type limitedCapture struct {
@@ -266,6 +291,7 @@ type Runtime struct {
 	SandboxID   string `json:"sandboxId"`
 	RuntimeID   string `json:"runtimeId"`
 	Endpoint    string `json:"endpoint"`
+	AccessMode  string `json:"accessMode"`
 	Alias       string `json:"networkAlias"`
 	Status      string `json:"status"`
 	HealthError string `json:"healthError,omitempty"`
@@ -296,22 +322,29 @@ type SyntheticWorkflowImport struct {
 }
 
 type WorkflowImportReceipt struct {
-	SandboxID       string `json:"sandboxId"`
-	RuntimeID       string `json:"runtimeId"`
-	OperationID     string `json:"operationId"`
-	WorkflowID      string `json:"workflowId"`
-	Status          string `json:"status"`
-	CredentialCount int    `json:"credentialCount,omitempty"`
-	InputRetained   bool   `json:"inputRetained,omitempty"`
+	SandboxID               string `json:"sandboxId"`
+	RuntimeID               string `json:"runtimeId"`
+	OperationID             string `json:"operationId"`
+	WorkflowID              string `json:"workflowId"`
+	Status                  string `json:"status"`
+	FailureClass            string `json:"failureClass,omitempty"`
+	FailureDiagnosticSHA256 string `json:"failureDiagnosticSha256,omitempty"`
+	FailureDiagnosticBytes  int    `json:"failureDiagnosticBytes,omitempty"`
+	CredentialCount         int    `json:"credentialCount,omitempty"`
+	InputRetained           bool   `json:"inputRetained,omitempty"`
 }
 
 type WorkflowExecutionReceipt struct {
-	SandboxID   string                    `json:"sandboxId"`
-	RuntimeID   string                    `json:"runtimeId"`
-	OperationID string                    `json:"operationId"`
-	WorkflowID  string                    `json:"workflowId"`
-	Status      string                    `json:"status"`
-	Evidence    WorkflowExecutionEvidence `json:"evidence"`
+	SandboxID               string                    `json:"sandboxId"`
+	RuntimeID               string                    `json:"runtimeId"`
+	OperationID             string                    `json:"operationId"`
+	WorkflowID              string                    `json:"workflowId"`
+	Status                  string                    `json:"status"`
+	FailureClass            string                    `json:"failureClass,omitempty"`
+	FailureDiagnosticSHA256 string                    `json:"failureDiagnosticSha256,omitempty"`
+	FailureDiagnosticBytes  int                       `json:"failureDiagnosticBytes,omitempty"`
+	FailureResultShape      string                    `json:"failureResultShape,omitempty"`
+	Evidence                WorkflowExecutionEvidence `json:"evidence"`
 }
 
 // WorkflowExecutionEvidence contains only content-free execution measurements.
@@ -323,6 +356,7 @@ type WorkflowExecutionEvidence struct {
 	ExecutionCount           int    `json:"executionCount"`
 	FailedNodeExecutionCount int    `json:"failedNodeExecutionCount"`
 	ItemCount                int    `json:"itemCount"`
+	NodeOutputItemCounts     []int  `json:"nodeOutputItemCounts,omitempty"`
 }
 
 func (o *Owner) runner() CommandRunner {
@@ -467,6 +501,39 @@ func (o *Owner) pullWithLease(ctx context.Context, lease DiskLease) error {
 }
 
 func (o *Owner) Start(ctx context.Context, sandboxID string) (Runtime, error) {
+	return o.start(ctx, sandboxID, nil, "")
+}
+
+// StartWithTaskTrust starts n8n with a task-scoped public CA already trusted by
+// Node before the server starts. The CA is public data generated by an
+// owner-managed companion; arbitrary roots and live TLS-disable settings are
+// rejected. A running runtime cannot change its trust policy in place.
+func (o *Owner) StartWithTaskTrust(ctx context.Context, sandboxID string, caPEM []byte) (Runtime, error) {
+	canonicalCA, fingerprint, err := validateTaskTrustCA(caPEM)
+	if err != nil {
+		return Runtime{}, err
+	}
+	return o.start(ctx, sandboxID, canonicalCA, fingerprint)
+}
+
+func validateTaskTrustCA(caPEM []byte) ([]byte, string, error) {
+	if len(caPEM) == 0 || len(caPEM) > 8*1024 {
+		return nil, "", errors.New("task trust CA must contain 1..8192 PEM bytes")
+	}
+	block, rest := pem.Decode(caPEM)
+	if block == nil || block.Type != "CERTIFICATE" || len(bytes.TrimSpace(rest)) != 0 {
+		return nil, "", errors.New("task trust input must contain one PEM certificate")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil || !cert.IsCA || cert.KeyUsage&x509.KeyUsageCertSign == 0 {
+		return nil, "", errors.New("task trust certificate is not a signing CA")
+	}
+	canonical := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+	hash := sha256.Sum256(canonical)
+	return canonical, hex.EncodeToString(hash[:]), nil
+}
+
+func (o *Owner) start(ctx context.Context, sandboxID string, taskCA []byte, taskCAFingerprint string) (Runtime, error) {
 	canonical, err := normalizeSandboxID(sandboxID)
 	if err != nil {
 		return Runtime{}, err
@@ -487,6 +554,9 @@ func (o *Owner) Start(ctx context.Context, sandboxID string) (Runtime, error) {
 		if err := verifyN8nLabels(existing.Config.Labels, canonical, runtimeID, "container"); err != nil {
 			return Runtime{}, err
 		}
+		if taskCAFingerprint != "" && existing.Config.Labels[labelTaskCAFingerprint] != taskCAFingerprint {
+			return Runtime{}, errors.New("task-owned n8n runtime has a different trust CA; stop and recreate it")
+		}
 		if !existing.State.Running {
 			if _, err := o.runner().Run(ctx, "start", containerName); err != nil {
 				return Runtime{}, fmt.Errorf("restart task-owned n8n container: %w", err)
@@ -496,7 +566,7 @@ func (o *Owner) Start(ctx context.Context, sandboxID string) (Runtime, error) {
 		if err != nil {
 			return Runtime{}, err
 		}
-		if err := o.waitReady(ctx, result.Endpoint); err != nil {
+		if err := o.waitRuntimeReady(ctx, containerName, result); err != nil {
 			return Runtime{}, err
 		}
 		result.Status = "running"
@@ -538,31 +608,131 @@ func (o *Owner) Start(ctx context.Context, sandboxID string) (Runtime, error) {
 		"--env", "N8N_PROTOCOL=http",
 		"--env", "N8N_EDITOR_BASE_URL=" + endpoint + "/",
 		"--env", "WEBHOOK_URL=http://" + alias + ":5678/",
-		"--env", "N8N_USER_FOLDER=/home/node/.n8n",
+		"--env", "N8N_USER_FOLDER=/home/node",
+		"--env", "DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite",
 		"--env", "N8N_DEFAULT_BINARY_DATA_MODE=filesystem",
 		"--env", "N8N_DIAGNOSTICS_ENABLED=false",
 		"--env", "N8N_PERSONALIZATION_ENABLED=false",
 		"--env", "N8N_VERSION_NOTIFICATIONS_ENABLED=false",
 		"--env", "N8N_USE_WORKFLOW_PUBLICATION_SERVICE=true",
+		// The server and the owner-mediated `n8n execute` CLI coexist in one
+		// runtime. Each process starts its own task broker; an ephemeral port
+		// prevents the CLI broker from colliding with the long-lived server.
+		"--env", "N8N_RUNNERS_BROKER_PORT=0",
 		"--env", "N8N_TEMPLATES_ENABLED=false",
 		"--env", "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true",
 		"--env", "N8N_BLOCK_FILE_ACCESS_TO_N8N_FILES=true",
 		"--env", "N8N_BLOCK_ENV_ACCESS_IN_NODE=true",
 		"--env", "GENERIC_TIMEZONE=UTC",
 		"--env", "TZ=UTC",
-		o.image(),
+	}
+	if len(taskCA) > 0 {
+		args = append(args,
+			"--label", labelTaskCAFingerprint+"="+taskCAFingerprint,
+			"--env", "NODE_EXTRA_CA_CERTS=/tmp/vrooli-task-trust-ca.pem",
+			"--env", "VROOLI_TASK_TRUST_CA_B64="+base64.StdEncoding.EncodeToString(taskCA),
+			"--entrypoint", "/bin/sh",
+			o.image(),
+			"-c", "umask 077; printf '%s' \"$VROOLI_TASK_TRUST_CA_B64\" | base64 -d > /tmp/vrooli-task-trust-ca.pem || exit 70; unset VROOLI_TASK_TRUST_CA_B64; exec /docker-entrypoint.sh start",
+		)
+	} else {
+		args = append(args, o.image())
 	}
 	if _, err := o.runner().Run(ctx, args...); err != nil {
 		cleanupErr := o.cleanupAfterStartFailure(context.Background(), containerName, networkName, canonical, runtimeID)
 		return Runtime{}, errors.Join(fmt.Errorf("create task-owned n8n container: %w", err), cleanupErr)
 	}
-	result := Runtime{SandboxID: canonical, RuntimeID: runtimeID, Endpoint: endpoint, Alias: alias, Status: "starting"}
-	if err := o.waitReady(ctx, endpoint); err != nil {
+	container, found, err := o.inspectContainer(ctx, containerName)
+	if err != nil || !found {
+		if err == nil {
+			err = fmt.Errorf("task-owned n8n container disappeared during startup")
+		}
+		_, cleanupErr := o.Stop(context.Background(), canonical, runtimeID)
+		return Runtime{}, errors.Join(err, cleanupErr)
+	}
+	result, err := o.runtimeFromContainer(ctx, canonical, runtimeID, container)
+	if err != nil {
+		_, cleanupErr := o.Stop(context.Background(), canonical, runtimeID)
+		return Runtime{}, errors.Join(err, cleanupErr)
+	}
+	result.Status = "starting"
+	if err := o.waitRuntimeReady(ctx, containerName, result); err != nil {
+		_, cleanupErr := o.Stop(context.Background(), canonical, runtimeID)
+		return Runtime{}, errors.Join(err, cleanupErr)
+	}
+	if err := initializeSyntheticOwner(ctx, o.runner(), containerName, canonical, runtimeID); err != nil {
 		_, cleanupErr := o.Stop(context.Background(), canonical, runtimeID)
 		return Runtime{}, errors.Join(err, cleanupErr)
 	}
 	result.Status = "running"
 	return result, nil
+}
+
+const initializeSyntheticOwnerProgram = `let input='';for await (const chunk of process.stdin) input+=chunk;const response=await fetch('http://127.0.0.1:5678/rest/owner/setup',{method:'POST',headers:{'content-type':'application/json'},body:input});if(!response.ok){process.stdout.write(String(response.status));process.exitCode=1;}else{const owner=await response.json();const id=owner&&owner.id;if(typeof id!=='string'||! /^[A-Za-z0-9_-]{1,128}$/.test(id)){process.exitCode=2;}else{const fs=require('node:fs/promises');const identity={sandboxId:process.argv[1],runtimeId:process.argv[2],ownerId:id};await fs.writeFile('/tmp/.vrooli-owner-identity.json',JSON.stringify(identity),{mode:0o600,flag:'wx'});process.stdout.write(String(response.status));}}`
+
+const readSyntheticOwnerIdentityProgram = `const fs=require('node:fs');try{process.stdout.write(fs.readFileSync('/tmp/.vrooli-owner-identity.json','utf8'));}catch(error){if(error.code==='ENOENT')process.stdout.write('__missing__');else process.exitCode=1;}`
+
+// initializeSyntheticOwner uses the local first-owner endpoint from inside a
+// new task container. A one-use password is sent only through stdin to the
+// loopback service and then discarded; the owner account has no external
+// identity or usable persistent credential.
+func initializeSyntheticOwner(ctx context.Context, runner CommandRunner, containerName, sandboxID, runtimeID string) error {
+	quiet, ok := runner.(quietCommandRunner)
+	if !ok {
+		return fmt.Errorf("runtime command runner cannot safely initialize the synthetic owner")
+	}
+	secret := make([]byte, 30)
+	if _, err := rand.Read(secret); err != nil {
+		return fmt.Errorf("prepare ephemeral synthetic owner password")
+	}
+	password := make([]byte, 3+base64.RawURLEncoding.EncodedLen(len(secret)))
+	copy(password, "Aa7")
+	base64.RawURLEncoding.Encode(password[3:], secret)
+	clear(secret)
+	defer clear(password)
+	payload := append([]byte(`{"email":"owner@synthetic.invalid","firstName":"Synthetic","lastName":"Rehearsal","password":"`), password...)
+	payload = append(payload, '"', '}', '\n')
+	defer clear(payload)
+	output, err := quiet.RunInputQuiet(ctx, payload, "exec", "--interactive", "--user", "node", containerName, "node", "-e", initializeSyntheticOwnerProgram, sandboxID, runtimeID)
+	if err != nil {
+		return fmt.Errorf("initialize synthetic n8n owner through task-local setup endpoint")
+	}
+	status, err := strconv.Atoi(strings.TrimSpace(string(output)))
+	if err != nil || status < http.StatusOK || status >= http.StatusMultipleChoices {
+		return fmt.Errorf("initialize synthetic n8n owner returned an invalid task-local setup status")
+	}
+	return nil
+}
+
+func syntheticOwnerID(ctx context.Context, runner quietCommandRunner, containerName, sandboxID, runtimeID string) (string, error) {
+	output, exceeded, err := runner.RunStdoutLimitQuiet(ctx, maxSyntheticOwnerIdentityBytes, "exec", "--user", "node", containerName, "node", "-e", readSyntheticOwnerIdentityProgram)
+	if err != nil || exceeded || len(output) > maxSyntheticOwnerIdentityBytes {
+		return "", errors.New("could not read bounded synthetic task owner identity")
+	}
+	if string(output) == "__missing__" {
+		return "", errors.New("synthetic task owner identity is missing")
+	}
+	var identity struct {
+		SandboxID string `json:"sandboxId"`
+		RuntimeID string `json:"runtimeId"`
+		OwnerID   string `json:"ownerId"`
+	}
+	if err := json.Unmarshal(output, &identity); err != nil || identity.SandboxID != sandboxID || identity.RuntimeID != runtimeID || !validSyntheticOwnerID(identity.OwnerID) {
+		return "", errors.New("synthetic task owner identity is malformed or belongs to another task")
+	}
+	return identity.OwnerID, nil
+}
+
+func validSyntheticOwnerID(value string) bool {
+	if len(value) < 1 || len(value) > 128 {
+		return false
+	}
+	for _, char := range value {
+		if !(char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || char == '_' || char == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 func (o *Owner) Status(ctx context.Context, sandboxID string) (Runtime, error) {
@@ -598,7 +768,7 @@ func (o *Owner) Status(ctx context.Context, sandboxID string) (Runtime, error) {
 		result.Status = "stopped"
 		return result, nil
 	}
-	if err := o.probeReady(ctx, result.Endpoint); err != nil {
+	if err := o.probeRuntimeReady(ctx, containerName, result); err != nil {
 		result.Status = "unhealthy"
 		result.HealthError = err.Error()
 		return result, nil
@@ -642,6 +812,10 @@ func (o *Owner) ImportSyntheticWorkflow(ctx context.Context, sandboxID, runtimeI
 	if !ok {
 		return WorkflowImportReceipt{}, fmt.Errorf("runtime command runner cannot guarantee workflow output redaction")
 	}
+	ownerID, err := syntheticOwnerID(ctx, runner, containerName, canonical, runtimeID)
+	if err != nil {
+		return WorkflowImportReceipt{}, err
+	}
 	path := "/tmp/.vrooli-workflow-" + workflowID + ".json"
 	receipt := WorkflowImportReceipt{SandboxID: canonical, RuntimeID: runtimeID, OperationID: request.OperationID.String(), WorkflowID: workflowID, Status: "importing", CredentialCount: len(credentials)}
 	if len(credentials) > 0 {
@@ -658,7 +832,11 @@ func (o *Owner) ImportSyntheticWorkflow(ctx context.Context, sandboxID, runtimeI
 			}
 			return receipt, errors.Join(fmt.Errorf("stage synthetic credentials for workflow %s: %w", workflowID, err), cleanupErr)
 		}
-		credentialOutput, outputExceeded, err := runner.RunStdoutLimitQuiet(ctx, maxCredentialImportOutput, "exec", "--user", "node", containerName, "n8n", "import:credentials", "--input="+credentialPath)
+		credentialArgs := []string{"exec", "--user", "node", containerName, "n8n", "import:credentials", "--input=" + credentialPath}
+		if ownerID != "" {
+			credentialArgs = append(credentialArgs, "--userId="+ownerID)
+		}
+		credentialOutput, outputExceeded, err := runner.RunStdoutLimitQuiet(ctx, maxCredentialImportOutput, credentialArgs...)
 		cleanupErr := removeWorkflowInput(ctx, runner, containerName, credentialPath)
 		if err != nil || outputExceeded || !strings.Contains(string(credentialOutput), fmt.Sprintf("Successfully imported %d credential", len(credentials))) || strings.Contains(string(credentialOutput), "Skipped ") {
 			receipt.Status = "credential-import-failed"
@@ -680,13 +858,32 @@ func (o *Owner) ImportSyntheticWorkflow(ctx context.Context, sandboxID, runtimeI
 		}
 		return receipt, errors.Join(fmt.Errorf("stage synthetic workflow %s in task tmpfs: %w", workflowID, err), cleanupErr)
 	}
-	if _, err := runner.RunQuiet(ctx, "exec", "--user", "node", containerName, "n8n", "import:workflow", "--input="+path, "--activeState=false"); err != nil {
+	importArgs := []string{"exec", "--user", "node", containerName, "n8n", "import:workflow", "--input=" + path, "--activeState=false"}
+	if ownerID != "" {
+		importArgs = append(importArgs, "--userId="+ownerID)
+	}
+	var importStdout, importStderr []byte
+	var outputExceeded bool
+	var importErr error
+	if diagnosticRunner, ok := o.runner().(quietDiagnosticCommandRunner); ok {
+		importStdout, importStderr, outputExceeded, importErr = diagnosticRunner.RunStdoutStderrLimitQuiet(ctx, 32<<10, 8<<10, importArgs...)
+	} else {
+		_, importErr = runner.RunQuiet(ctx, importArgs...)
+	}
+	if importErr != nil || outputExceeded {
 		cleanupErr := removeWorkflowInput(ctx, runner, containerName, path)
 		receipt.Status = "import-failed"
 		if cleanupErr != nil {
 			receipt.Status, receipt.InputRetained = "import-failed-cleanup-required", true
 		}
-		return receipt, errors.Join(fmt.Errorf("import synthetic workflow %s through n8n Server CLI: %w", workflowID, err), cleanupErr)
+		failureClass, diagnosticSHA256 := classifySyntheticWorkflowImportFailure(importStdout, importStderr)
+		if outputExceeded {
+			failureClass = "import-diagnostic-exceeded"
+		}
+		receipt.FailureClass = failureClass
+		receipt.FailureDiagnosticSHA256 = diagnosticSHA256
+		receipt.FailureDiagnosticBytes = len(importStdout) + len(importStderr)
+		return receipt, errors.Join(fmt.Errorf("import synthetic workflow through n8n Server CLI failed (failureClass=%s diagnosticSha256=%s)", failureClass, diagnosticSHA256), cleanupErr)
 	}
 	if err := removeWorkflowInput(ctx, runner, containerName, path); err != nil {
 		receipt.Status, receipt.InputRetained = "imported-input-retained", true
@@ -728,9 +925,33 @@ func (o *Owner) ExecuteSyntheticWorkflow(ctx context.Context, sandboxID, runtime
 	workflowID := workflowIDFor(canonical, runtimeID, operationID)
 	runCtx, cancel := context.WithTimeout(ctx, syntheticWorkflowRunTTL)
 	defer cancel()
-	output, outputExceeded, err := runner.RunStdoutLimitQuiet(runCtx, maxWorkflowExecutionOut, "exec", "--user", "node", containerName, "n8n", "execute", "--id", workflowID, "--rawOutput")
 	receipt := WorkflowExecutionReceipt{SandboxID: canonical, RuntimeID: runtimeID, OperationID: operationID.String(), WorkflowID: workflowID, Status: "failed"}
-	if err != nil {
+	var output []byte
+	var failureOutput []byte
+	var failureStderr []byte
+	var outputExceeded bool
+	var runErr error
+	if diagnosticRunner, ok := runner.(quietDiagnosticCommandRunner); ok {
+		var stderr []byte
+		output, stderr, outputExceeded, runErr = diagnosticRunner.RunStdoutStderrLimitQuiet(runCtx, maxWorkflowExecutionOut, 8192, "exec", "--user", "node", containerName, "n8n", "execute", "--id", workflowID, "--rawOutput")
+		failureStderr = stderr
+		failureOutput = append(stderr, output...)
+	} else {
+		output, outputExceeded, runErr = runner.RunStdoutLimitQuiet(runCtx, maxWorkflowExecutionOut, "exec", "--user", "node", containerName, "n8n", "execute", "--id", workflowID, "--rawOutput")
+		failureOutput = output
+	}
+	if runErr != nil {
+		// n8n's CLI exits nonzero for a workflow whose nodes failed. When it
+		// still returned its bounded raw-output envelope, retain only aggregate
+		// execution evidence so a controlled fault can be recorded and repaired.
+		if recordNonzeroExecutionOutput(&receipt, output) || len(failureStderr) > 0 && recordNonzeroExecutionOutput(&receipt, failureStderr) {
+			return receipt, nil
+		}
+		receipt.FailureClass = classifyWorkflowExecutionFailure(failureOutput)
+		if len(failureOutput) > 0 {
+			receipt.FailureDiagnosticSHA256 = fmt.Sprintf("%x", sha256.Sum256(failureOutput))
+			receipt.FailureDiagnosticBytes = len(failureOutput)
+		}
 		return receipt, fmt.Errorf("synthetic workflow execution failed")
 	}
 	if outputExceeded || len(output) > maxWorkflowExecutionOut {
@@ -738,18 +959,65 @@ func (o *Owner) ExecuteSyntheticWorkflow(ctx context.Context, sandboxID, runtime
 	}
 	evidence, err := summarizeWorkflowExecution(output)
 	if err != nil {
+		receipt.FailureClass = "execution-result-shape-unsupported"
+		receipt.FailureDiagnosticSHA256 = fmt.Sprintf("%x", sha256.Sum256(output))
+		receipt.FailureDiagnosticBytes = len(output)
+		receipt.FailureResultShape = workflowExecutionResultShape(output)
 		return receipt, fmt.Errorf("synthetic workflow %s returned an unsupported result shape", workflowID)
 	}
 	receipt.Status = "completed"
 	if evidence.FailedNodeExecutionCount > 0 {
 		receipt.Status = "completed-with-node-errors"
+		receipt.FailureClass = "workflow-run-error"
 	}
 	receipt.Evidence = evidence
 	return receipt, nil
 }
 
+// workflowExecutionResultShape emits only a bounded schema category. It never
+// returns JSON keys, node names, error text, or workflow output values.
+func workflowExecutionResultShape(output []byte) string {
+	if extracted := extractWorkflowExecutionJSON(output); len(extracted) > 0 && !bytes.Equal(extracted, output) {
+		return "json-envelope-after-cli-prefix"
+	} else if len(extracted) > 0 {
+		output = extracted
+	}
+	var root map[string]json.RawMessage
+	if err := json.Unmarshal(output, &root); err != nil {
+		return "invalid-json"
+	}
+	if root == nil {
+		return "json-root-not-object"
+	}
+	var data map[string]json.RawMessage
+	if raw, ok := root["data"]; !ok {
+		return "data-missing"
+	} else if json.Unmarshal(raw, &data) != nil || data == nil {
+		return "data-not-object"
+	}
+	var resultData map[string]json.RawMessage
+	if raw, ok := data["resultData"]; !ok {
+		return "result-data-missing"
+	} else if json.Unmarshal(raw, &resultData) != nil || resultData == nil {
+		return "result-data-not-object"
+	}
+	raw, hasRunData := resultData["runData"]
+	if !hasRunData {
+		return "run-data-missing"
+	}
+	var runData map[string]json.RawMessage
+	if json.Unmarshal(raw, &runData) != nil || runData == nil {
+		return "run-data-not-object"
+	}
+	return "run-data-object"
+}
+
 func summarizeWorkflowExecution(output []byte) (WorkflowExecutionEvidence, error) {
-	if len(output) == 0 || !json.Valid(output) {
+	if len(output) == 0 {
+		return WorkflowExecutionEvidence{}, errors.New("invalid execution JSON")
+	}
+	output = extractWorkflowExecutionJSON(output)
+	if len(output) == 0 {
 		return WorkflowExecutionEvidence{}, errors.New("invalid execution JSON")
 	}
 	var envelope struct {
@@ -764,11 +1032,12 @@ func summarizeWorkflowExecution(output []byte) (WorkflowExecutionEvidence, error
 			} `json:"resultData"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(output, &envelope); err != nil || envelope.Data.ResultData.RunData == nil || len(envelope.Data.ResultData.Error) > 0 && string(envelope.Data.ResultData.Error) != "null" {
+	if err := json.Unmarshal(output, &envelope); err != nil {
 		return WorkflowExecutionEvidence{}, errors.New("missing n8n runData")
 	}
 	evidence := WorkflowExecutionEvidence{OutputSHA256: fmt.Sprintf("%x", sha256.Sum256(output)), OutputBytes: len(output), NodeCount: len(envelope.Data.ResultData.RunData)}
 	for _, executions := range envelope.Data.ResultData.RunData {
+		nodeItems := 0
 		for _, execution := range executions {
 			evidence.ExecutionCount++
 			if len(execution.Error) > 0 && string(execution.Error) != "null" || execution.ExecutionStatus == "error" || execution.ExecutionStatus == "crashed" {
@@ -777,11 +1046,170 @@ func summarizeWorkflowExecution(output []byte) (WorkflowExecutionEvidence, error
 			for _, outputPorts := range execution.Data {
 				for _, outputItems := range outputPorts {
 					evidence.ItemCount += len(outputItems)
+					nodeItems += len(outputItems)
 				}
 			}
 		}
+		evidence.NodeOutputItemCounts = append(evidence.NodeOutputItemCounts, nodeItems)
+	}
+	sort.Ints(evidence.NodeOutputItemCounts)
+	workflowFailed := len(envelope.Data.ResultData.Error) > 0 && string(envelope.Data.ResultData.Error) != "null"
+	if envelope.Data.ResultData.RunData == nil && !workflowFailed {
+		return WorkflowExecutionEvidence{}, errors.New("missing n8n runData")
+	}
+	if workflowFailed && evidence.FailedNodeExecutionCount == 0 {
+		// A workflow-level failure can occur before n8n records a node envelope.
+		// Preserve the failure as one aggregate execution without exposing the
+		// engine's error, node name, or partial output.
+		evidence.ExecutionCount++
+		evidence.FailedNodeExecutionCount++
 	}
 	return evidence, nil
+}
+
+// extractWorkflowExecutionJSON accepts raw JSON or one complete JSON object
+// preceded by CLI log text. It rejects trailing bytes and does not expose or
+// retain the surrounding log text. The summarizer still validates the n8n
+// execution envelope before issuing evidence.
+func extractWorkflowExecutionJSON(output []byte) []byte {
+	if json.Valid(output) {
+		return output
+	}
+	for offset, b := range output {
+		if b != '{' {
+			continue
+		}
+		candidate := output[offset:]
+		decoder := json.NewDecoder(bytes.NewReader(candidate))
+		var value json.RawMessage
+		if decoder.Decode(&value) != nil || len(value) == 0 || !json.Valid(value) {
+			continue
+		}
+		if len(bytes.TrimSpace(candidate[decoder.InputOffset():])) != 0 {
+			continue
+		}
+		return value
+	}
+	return nil
+}
+
+func classifyWorkflowExecutionFailure(stderr []byte) string {
+	if payload := extractWorkflowExecutionJSON(stderr); len(payload) > 0 {
+		if class := classifyWorkflowJSONFailure(payload); class != "engine-execution-error" {
+			return class
+		}
+	}
+	message := strings.ToLower(string(stderr))
+	switch {
+	case len(message) == 0:
+		return "engine-exit-no-diagnostic"
+	case strings.Contains(message, "could not find workflow"), strings.Contains(message, "workflow not found"), strings.Contains(message, "no workflow with id"), strings.Contains(message, "workflow with the id") && strings.Contains(message, "does not exist"), strings.Contains(message, "workflow with id") && strings.Contains(message, "does not exist"):
+		return "workflow-not-found"
+	case strings.Contains(message, "user management is not initialized"):
+		return "user-management-uninitialized"
+	case strings.Contains(message, "instance owner") && strings.Contains(message, "not found"), strings.Contains(message, "owner") && strings.Contains(message, "not found"):
+		return "instance-owner-not-found"
+	case strings.Contains(message, "user") && strings.Contains(message, "not found"):
+		return "owner-user-not-found"
+	case strings.Contains(message, "no owner"):
+		return "instance-owner-missing"
+	case strings.Contains(message, "instance owner"):
+		return "instance-owner-initialization-error"
+	case strings.Contains(message, "database") && (strings.Contains(message, "connect") || strings.Contains(message, "locked")):
+		return "database-unavailable"
+	case strings.Contains(message, "not authorized"), strings.Contains(message, "unauthorized"):
+		return "execution-permission-denied"
+	case strings.Contains(message, "eaddrinuse"), strings.Contains(message, "address already in use"):
+		return "task-runner-broker-port-conflict"
+	case strings.Contains(message, "project") && (strings.Contains(message, "not found") || strings.Contains(message, "not assigned") || strings.Contains(message, "not accessible")):
+		return "workflow-project-unavailable"
+	case strings.Contains(message, "unknown command"), strings.Contains(message, "command not found"):
+		return "cli-command-unavailable"
+	case strings.Contains(message, "cannot find module"), strings.Contains(message, "module not found"):
+		return "runtime-dependency-missing"
+	case strings.Contains(message, "workflow is inactive"), strings.Contains(message, "workflow is not active"):
+		return "workflow-state-invalid"
+	case strings.Contains(message, "workflow did not return any data"):
+		return "workflow-returned-no-data"
+	case strings.Contains(message, "trigger") && (strings.Contains(message, "not found") || strings.Contains(message, "no trigger") || strings.Contains(message, "cannot start")):
+		return "workflow-start-node-unavailable"
+	case strings.Contains(message, "workflow") && strings.Contains(message, "invalid"):
+		return "workflow-invalid"
+	case strings.Contains(message, "unknown node"), strings.Contains(message, "node type") && strings.Contains(message, "not found"):
+		return "node-type-unavailable"
+	case strings.Contains(message, "timeout"), strings.Contains(message, "timed out"):
+		return "execution-timeout"
+	default:
+		return classifyWorkflowJSONFailure(stderr)
+	}
+}
+
+func classifyWorkflowJSONFailure(diagnostic []byte) string {
+	var envelope struct {
+		Data struct {
+			ResultData struct {
+				Error json.RawMessage `json:"error"`
+			} `json:"resultData"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(diagnostic, &envelope); err != nil || len(envelope.Data.ResultData.Error) == 0 || string(envelope.Data.ResultData.Error) == "null" {
+		return "engine-execution-error"
+	}
+	var errorType struct {
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(envelope.Data.ResultData.Error, &errorType); err != nil {
+		return "workflow-run-error"
+	}
+	switch strings.ToLower(strings.TrimSpace(errorType.Name + " " + errorType.Type)) {
+	case "nodeoperationerror", "nodeoperationerror nodeoperationerror":
+		return "node-operation-error"
+	case "nodeapierror", "nodeapierror nodeapierror":
+		return "node-api-error"
+	case "workflowerror", "workflowerror workflowerror":
+		return "workflow-run-error"
+	case "usererror", "usererror usererror":
+		return "workflow-user-error"
+	default:
+		return "workflow-run-error"
+	}
+}
+
+func classifySyntheticWorkflowImportFailure(stdout, stderr []byte) (failureClass, diagnosticSHA256 string) {
+	diagnostic := append(append([]byte(nil), stderr...), stdout...)
+	if len(diagnostic) == 0 {
+		return "server-cli-import-error", ""
+	}
+	lower := strings.ToLower(string(diagnostic))
+	switch {
+	case strings.Contains(lower, "no node type found"), strings.Contains(lower, "unknown node type"), strings.Contains(lower, "node type is not known"):
+		failureClass = "node-type-unavailable"
+	case strings.Contains(lower, "invalid workflow"), strings.Contains(lower, "workflow is invalid"), strings.Contains(lower, "workflow validation"):
+		failureClass = "workflow-invalid"
+	case strings.Contains(lower, "credential"):
+		failureClass = "workflow-credential-invalid"
+	case strings.Contains(lower, "database"), strings.Contains(lower, "sqlite"), strings.Contains(lower, "postgres"):
+		failureClass = "database-unavailable"
+	default:
+		failureClass = "server-cli-import-error"
+	}
+	return failureClass, fmt.Sprintf("%x", sha256.Sum256(diagnostic))
+}
+
+func recordNonzeroExecutionOutput(receipt *WorkflowExecutionReceipt, output []byte) bool {
+	evidence, err := summarizeWorkflowExecution(output)
+	if err != nil {
+		return false
+	}
+	receipt.Evidence = evidence
+	if evidence.FailedNodeExecutionCount == 0 {
+		receipt.FailureClass = "engine-exit-with-result"
+		return false
+	}
+	receipt.Status = "completed-with-node-errors"
+	receipt.FailureClass = "node-execution-error"
+	return true
 }
 
 func (o *Owner) ownedRunningContainer(ctx context.Context, sandboxID, runtimeID string) (canonical, containerName string, err error) {
@@ -881,6 +1309,14 @@ func prepareSyntheticWorkflow(input []byte, workflowID, sandboxID, runtimeID, po
 	if err := json.Unmarshal(input, &workflow); err != nil || workflow == nil {
 		return nil, nil, fmt.Errorf("synthetic workflow must be one JSON object")
 	}
+	// Node groups are editor layout metadata and do not affect execution. Accept
+	// the field for public n8n exports, reject secret-shaped values, then strip it.
+	if nodeGroups, exists := workflow["nodeGroups"]; exists {
+		if err := rejectSensitiveWorkflowFields(map[string]any{"nodeGroups": nodeGroups}); err != nil {
+			return nil, nil, err
+		}
+		delete(workflow, "nodeGroups")
+	}
 	allowed := map[string]bool{"name": true, "nodes": true, "connections": true, "settings": true, "id": true, "active": true, "versionId": true, "versionCounter": true, "triggerCount": true, "createdAt": true, "updatedAt": true, "tags": true, "meta": true}
 	for key := range workflow {
 		if !allowed[key] {
@@ -972,7 +1408,8 @@ func prepareSyntheticWorkflow(input []byte, workflowID, sandboxID, runtimeID, po
 			}
 		}
 		if nodeType, ok := nodeObject["type"].(string); ok {
-			if requiredType := syntheticCredentialTypeForNode(nodeType); requiredType != "" {
+			parameters, _ := nodeObject["parameters"].(map[string]any)
+			if requiredType := syntheticCredentialTypeForNode(nodeType, parameters); requiredType != "" {
 				refs, _ := nodeObject["credentials"].(map[string]any)
 				if refs == nil {
 					refs = map[string]any{}
@@ -1020,10 +1457,15 @@ func prepareSyntheticWorkflow(input []byte, workflowID, sandboxID, runtimeID, po
 		if err := rejectSensitiveWorkflowFields(settings); err != nil {
 			return nil, nil, err
 		}
-		allowedSettings := map[string]bool{"executionOrder": true, "timezone": true, "saveDataErrorExecution": true, "saveDataSuccessExecution": true, "saveManualExecutions": true, "saveExecutionProgress": true, "executionTimeout": true, "callerPolicy": true, "availableInMCP": true}
+		allowedSettings := map[string]bool{"executionOrder": true, "timezone": true, "binaryMode": true, "saveDataErrorExecution": true, "saveDataSuccessExecution": true, "saveManualExecutions": true, "saveExecutionProgress": true, "executionTimeout": true, "callerPolicy": true, "availableInMCP": true}
 		for key := range settings {
 			if !allowedSettings[key] {
 				return nil, nil, fmt.Errorf("synthetic workflow contains unsupported settings field %q", key)
+			}
+		}
+		if binaryMode, exists := settings["binaryMode"]; exists {
+			if binaryMode != "separate" && binaryMode != "combined" {
+				return nil, nil, fmt.Errorf("synthetic workflow binaryMode must be separate or combined")
 			}
 		}
 	}
@@ -1055,6 +1497,38 @@ type syntheticCredentialFactory func(sandboxID, companionRuntimeID string) (map[
 func syntheticCredentialProfile(credentialType string) (syntheticCredentialFactory, bool) {
 	const inertSyntheticValue = "vrooli-synthetic-no-egress"
 	switch credentialType {
+	case "gmailOAuth2":
+		return func(string, string) (map[string]any, error) {
+			return syntheticGoogleOAuthProfile(inertSyntheticValue, "https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send"), nil
+		}, true
+	case "googleSheetsOAuth2Api", "googleSheetsTriggerOAuth2Api":
+		return func(string, string) (map[string]any, error) {
+			return syntheticGoogleOAuthProfile(inertSyntheticValue, "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata"), nil
+		}, true
+	case "gitlabApi":
+		return func(string, string) (map[string]any, error) {
+			return map[string]any{"server": "https://gitlab.invalid", "accessToken": inertSyntheticValue}, nil
+		}, true
+	case "gitlabOAuth2Api":
+		return func(string, string) (map[string]any, error) {
+			return syntheticGenericOAuthProfile(inertSyntheticValue, "https://gitlab.invalid/oauth/authorize", "https://gitlab.invalid/oauth/token", "api"), nil
+		}, true
+	case "n8nApi":
+		return func(string, string) (map[string]any, error) {
+			return map[string]any{"apiKey": inertSyntheticValue, "baseUrl": "https://n8n.invalid/api/v1"}, nil
+		}, true
+	case "slackApi":
+		return func(string, string) (map[string]any, error) {
+			return map[string]any{"accessToken": inertSyntheticValue, "signatureSecret": inertSyntheticValue, "url": "https://slack.invalid"}, nil
+		}, true
+	case "telegramApi":
+		return func(string, string) (map[string]any, error) {
+			return map[string]any{"accessToken": inertSyntheticValue, "baseUrl": "https://telegram.invalid"}, nil
+		}, true
+	case "discordWebhookApi":
+		return func(string, string) (map[string]any, error) {
+			return map[string]any{"webhookUri": "https://discord.invalid/api/webhooks/vrooli/synthetic"}, nil
+		}, true
 	case "githubApi":
 		return func(string, string) (map[string]any, error) {
 			return map[string]any{"server": "https://api.github.com", "user": "synthetic", "accessToken": inertSyntheticValue}, nil
@@ -1099,14 +1573,50 @@ func syntheticCredentialProfile(credentialType string) (syntheticCredentialFacto
 	}
 }
 
-func syntheticCredentialTypeForNode(nodeType string) string {
+func syntheticCredentialTypeForNode(nodeType string, parameters map[string]any) string {
 	switch nodeType {
+	case "n8n-nodes-base.gmail":
+		return "gmailOAuth2"
+	case "n8n-nodes-base.googleSheets":
+		return "googleSheetsOAuth2Api"
+	case "n8n-nodes-base.googleSheetsTrigger":
+		return "googleSheetsTriggerOAuth2Api"
+	case "n8n-nodes-base.gitlab":
+		if authentication, _ := parameters["authentication"].(string); authentication == "oAuth2" {
+			return "gitlabOAuth2Api"
+		}
+		return "gitlabApi"
+	case "n8n-nodes-base.n8n":
+		return "n8nApi"
+	case "n8n-nodes-base.notion":
+		return "notionApi"
+	case "n8n-nodes-base.slack":
+		return "slackApi"
+	case "n8n-nodes-base.telegram":
+		return "telegramApi"
+	case "n8n-nodes-base.discord":
+		if authentication, _ := parameters["authentication"].(string); authentication == "webhook" {
+			return "discordWebhookApi"
+		}
+		return ""
 	case "@n8n/n8n-nodes-langchain.lmChatOpenAi", "@n8n/n8n-nodes-langchain.embeddingsOpenAi":
 		return "openAiApi"
 	case "@n8n/n8n-nodes-langchain.vectorStorePinecone":
 		return "pineconeApi"
 	default:
 		return ""
+	}
+}
+
+func syntheticGoogleOAuthProfile(inertValue, scope string) map[string]any {
+	return syntheticGenericOAuthProfile(inertValue, "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token", scope)
+}
+
+func syntheticGenericOAuthProfile(inertValue, authURL, tokenURL, scope string) map[string]any {
+	return map[string]any{
+		"grantType": "authorizationCode", "authUrl": authURL, "accessTokenUrl": tokenURL,
+		"clientId": inertValue, "clientSecret": inertValue, "scope": scope, "authentication": "body",
+		"oauthTokenData": map[string]any{"access_token": inertValue, "refresh_token": inertValue, "token_type": "Bearer", "expires_in": 3600},
 	}
 }
 
@@ -1559,8 +2069,10 @@ type containerInspect struct {
 		Labels map[string]string `json:"Labels"`
 	} `json:"Config"`
 	State struct {
-		Running bool   `json:"Running"`
-		Status  string `json:"Status"`
+		Running   bool   `json:"Running"`
+		Status    string `json:"Status"`
+		OOMKilled bool   `json:"OOMKilled"`
+		ExitCode  int    `json:"ExitCode"`
 	} `json:"State"`
 	NetworkSettings struct {
 		Ports map[string][]struct {
@@ -1571,6 +2083,12 @@ type containerInspect struct {
 			Aliases []string `json:"Aliases"`
 		} `json:"Networks"`
 	} `json:"NetworkSettings"`
+	HostConfig struct {
+		PortBindings map[string][]struct {
+			HostIP   string `json:"HostIp"`
+			HostPort string `json:"HostPort"`
+		} `json:"PortBindings"`
+	} `json:"HostConfig"`
 }
 
 type networkInspect struct {
@@ -1657,8 +2175,15 @@ func (o *Owner) runtimeFromContainer(ctx context.Context, sandboxID, runtimeID s
 		return Runtime{}, err
 	}
 	_, networkName := objectNames(sandboxID)
-	portBindings := container.NetworkSettings.Ports["5678/tcp"]
-	for _, binding := range portBindings {
+	network, attached := container.NetworkSettings.Networks[networkName]
+	if !attached || len(container.NetworkSettings.Networks) != 1 {
+		return Runtime{}, fmt.Errorf("n8n runtime has an unexpected network attachment")
+	}
+	alias := n8nAlias(sandboxID)
+	if !contains(network.Aliases, alias) {
+		return Runtime{}, fmt.Errorf("n8n private network alias is missing")
+	}
+	for _, binding := range container.NetworkSettings.Ports["5678/tcp"] {
 		if binding.HostIP != "127.0.0.1" {
 			return Runtime{}, fmt.Errorf("n8n host port is not bound to loopback")
 		}
@@ -1667,17 +2192,21 @@ func (o *Owner) runtimeFromContainer(ctx context.Context, sandboxID, runtimeID s
 			return Runtime{}, fmt.Errorf("n8n host port is invalid")
 		}
 		endpoint := "http://127.0.0.1:" + binding.HostPort
-		network := container.NetworkSettings.Networks[networkName]
-		if len(container.NetworkSettings.Networks) != 1 {
-			return Runtime{}, fmt.Errorf("n8n runtime has an unexpected network attachment")
-		}
-		alias := n8nAlias(sandboxID)
-		if !contains(network.Aliases, alias) {
-			return Runtime{}, fmt.Errorf("n8n private network alias is missing")
-		}
-		return Runtime{SandboxID: sandboxID, RuntimeID: runtimeID, Endpoint: endpoint, Alias: alias, Status: "running"}, nil
+		return Runtime{SandboxID: sandboxID, RuntimeID: runtimeID, Endpoint: endpoint, AccessMode: "host-loopback", Alias: alias, Status: "running"}, nil
 	}
-	return Runtime{}, fmt.Errorf("n8n loopback host port is unavailable")
+	// Internal bridge networks can preserve Docker's requested loopback port in
+	// HostConfig while omitting an active mapping from NetworkSettings. Keep the
+	// runtime private and let this owner use `docker exec` for health and work.
+	for _, binding := range container.HostConfig.PortBindings["5678/tcp"] {
+		if binding.HostIP != "127.0.0.1" {
+			return Runtime{}, fmt.Errorf("n8n configured host port is not bound to loopback")
+		}
+		port, err := strconv.Atoi(binding.HostPort)
+		if err != nil || port < 1 || port > 65535 {
+			return Runtime{}, fmt.Errorf("n8n configured host port is invalid")
+		}
+	}
+	return Runtime{SandboxID: sandboxID, RuntimeID: runtimeID, AccessMode: "owner-cli", Alias: alias, Status: "running"}, nil
 }
 
 func (o *Owner) waitReady(ctx context.Context, endpoint string) error {
@@ -1705,6 +2234,47 @@ func (o *Owner) waitReady(ctx context.Context, endpoint string) error {
 		case <-timer.C:
 		}
 	}
+}
+
+func (o *Owner) waitRuntimeReady(ctx context.Context, containerName string, runtime Runtime) error {
+	deadlineCtx, cancel := context.WithTimeout(ctx, readinessTimeout)
+	defer cancel()
+	interval := o.PollEvery
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	var lastProbeErr error
+	for {
+		if err := o.probeRuntimeReady(deadlineCtx, containerName, runtime); err == nil {
+			return nil
+		} else {
+			lastProbeErr = err
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-deadlineCtx.Done():
+			timer.Stop()
+			if lastProbeErr != nil {
+				return fmt.Errorf("n8n runtime failed readiness in %s mode: %w (last probe: %v)", runtime.AccessMode, deadlineCtx.Err(), lastProbeErr)
+			}
+			return fmt.Errorf("n8n runtime failed readiness in %s mode: %w", runtime.AccessMode, deadlineCtx.Err())
+		case <-timer.C:
+		}
+	}
+}
+
+func (o *Owner) probeRuntimeReady(ctx context.Context, containerName string, runtime Runtime) error {
+	if runtime.AccessMode == "owner-cli" {
+		_, err := o.runner().Run(ctx, "exec", "--user", "node", containerName, "node", "-e", n8nHealthProbeProgram)
+		if err != nil {
+			return fmt.Errorf("probe n8n health inside task container: %w", err)
+		}
+		return nil
+	}
+	if strings.TrimSpace(runtime.Endpoint) == "" {
+		return fmt.Errorf("n8n runtime has no health endpoint")
+	}
+	return o.probeReady(ctx, runtime.Endpoint)
 }
 
 func (o *Owner) probeReady(ctx context.Context, endpoint string) error {

@@ -40,12 +40,13 @@ type scenarioRuntimeStore interface {
 }
 
 type runtimeRegistrySession struct {
-	enabled        bool
-	store          scenarioRuntimeStore
-	instance       scenarioruntime.Instance
-	claims         map[string]scenarioruntime.PortClaim
-	version        string
-	diagnosticsDir string
+	enabled          bool
+	store            scenarioRuntimeStore
+	instance         scenarioruntime.Instance
+	claims           map[string]scenarioruntime.PortClaim
+	version          string
+	diagnosticsDir   string
+	startOperationID string
 }
 
 type runtimeRegistryStopSession struct {
@@ -73,7 +74,7 @@ func disabledRuntimeRegistrySession() runtimeRegistrySession {
 	return runtimeRegistrySession{}
 }
 
-func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Scenario, demandManaged bool) (runtimeRegistrySession, error) {
+func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Scenario, demandManaged bool, startOperationID string) (runtimeRegistrySession, error) {
 	diagnosticsDir, err := runtimeprofile.Directory(r.Home)
 	if err != nil {
 		return runtimeRegistrySession{}, fmt.Errorf("resolve runtime diagnostics directory: %w", err)
@@ -103,19 +104,26 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		_ = store.Close()
 		return runtimeRegistrySession{}, fmt.Errorf("compute scenario build identity: %w", err)
 	}
+	if item.RetainedReleaseID != "" && (!validRetainedReleaseIdentity(item.RetainedReleaseID, buildIdentity)) {
+		_ = store.Close()
+		return runtimeRegistrySession{}, fmt.Errorf("retained runtime identity disagrees with selected release %q", item.RetainedReleaseID)
+	}
 	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
-		Scenario:          item.Slug,
-		BuildIdentity:     buildIdentity,
-		Variant:           item.Variant,
-		Status:            scenarioruntime.StatusStarting,
-		Phase:             scenarioruntime.PhasePlanning,
-		ScopePath:         r.Root,
-		OwnerKind:         scenarioruntime.OwnerKindLifecycle,
-		SupervisionPolicy: policy,
-		OwnerPID:          &ownerPID,
-		WorkingDir:        sourceDir,
-		HostBootID:        host.BootID,
-		HostSessionID:     host.SessionID,
+		Scenario:                  item.Slug,
+		BuildIdentity:             buildIdentity,
+		RuntimeReleaseID:          item.RetainedReleaseID,
+		RuntimeReleaseOperationID: item.RetainedSelectionOperationID,
+		StartOperationID:          startOperationID,
+		Variant:                   item.Variant,
+		Status:                    scenarioruntime.StatusStarting,
+		Phase:                     scenarioruntime.PhasePlanning,
+		ScopePath:                 r.Root,
+		OwnerKind:                 scenarioruntime.OwnerKindLifecycle,
+		SupervisionPolicy:         policy,
+		OwnerPID:                  &ownerPID,
+		WorkingDir:                sourceDir,
+		HostBootID:                host.BootID,
+		HostSessionID:             host.SessionID,
 	}, scenarioruntime.DefaultHeartbeatTTL)
 	if err != nil {
 		_ = store.Close()
@@ -125,7 +133,9 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		details, _ := json.Marshal(map[string]any{
 			"release_id": item.RetainedReleaseID, "generation": instance.Generation,
 			"build_identity": buildIdentity, "runtime_dir": sourceDir,
-			"canonical_data_origin": item.Path,
+			"release_selection_operation_id": item.RetainedSelectionOperationID,
+			"start_operation_id":             startOperationID,
+			"canonical_data_origin":          item.Path,
 		})
 		if _, err := store.RecordEvent(ctx, scenarioruntime.Event{
 			InstanceID: instance.InstanceID, Scenario: item.Slug,
@@ -139,12 +149,13 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		}
 	}
 	return runtimeRegistrySession{
-		enabled:        true,
-		store:          store,
-		instance:       instance,
-		claims:         map[string]scenarioruntime.PortClaim{},
-		version:        item.Manifest.Version,
-		diagnosticsDir: diagnosticsDir,
+		enabled:          true,
+		store:            store,
+		instance:         instance,
+		claims:           map[string]scenarioruntime.PortClaim{},
+		version:          item.Manifest.Version,
+		diagnosticsDir:   diagnosticsDir,
+		startOperationID: startOperationID,
 	}, nil
 }
 
@@ -406,6 +417,13 @@ func (s runtimeRegistrySession) injectEnv(env map[string]string) {
 	if s.instance.BuildIdentity != "" {
 		env[buildIdentityEnv] = s.instance.BuildIdentity
 	}
+	if s.instance.RuntimeReleaseID != "" {
+		env[runtimeReleaseIDEnv] = s.instance.RuntimeReleaseID
+		env[runtimeReleaseOperationIDEnv] = s.instance.RuntimeReleaseOperationID
+	}
+	if s.instance.StartOperationID != "" {
+		env[startOperationIDEnv] = s.instance.StartOperationID
+	}
 }
 
 func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.Scenario, snapshot scenarioruntime.HealthSnapshot) error {
@@ -423,7 +441,23 @@ func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.
 		!buildIdentityMatches(s.instance.BuildIdentity, snapshot.BuildIdentity) {
 		return fmt.Errorf("scenario %q served build identity %q, expected %q", item.Slug, snapshot.BuildIdentity, s.instance.BuildIdentity)
 	}
+	if health := item.Manifest.HealthConfig(); health != nil && len(health.Checks) > 0 &&
+		s.instance.RuntimeReleaseID != "" && snapshot.RuntimeReleaseID != s.instance.RuntimeReleaseID {
+		return fmt.Errorf("scenario %q served runtime release %q, expected %q", item.Slug, snapshot.RuntimeReleaseID, s.instance.RuntimeReleaseID)
+	}
+	if health := item.Manifest.HealthConfig(); health != nil && len(health.Checks) > 0 &&
+		s.instance.RuntimeReleaseOperationID != "" && snapshot.RuntimeReleaseOperationID != s.instance.RuntimeReleaseOperationID {
+		return fmt.Errorf("scenario %q reported runtime release selection operation %q, expected %q", item.Slug, snapshot.RuntimeReleaseOperationID, s.instance.RuntimeReleaseOperationID)
+	}
+	if health := item.Manifest.HealthConfig(); health != nil && len(health.Checks) > 0 &&
+		s.instance.StartOperationID != "" && snapshot.StartOperationID != s.instance.StartOperationID {
+		return fmt.Errorf("scenario %q reported start operation %q, expected %q", item.Slug, snapshot.StartOperationID, s.instance.StartOperationID)
+	}
 	return nil
+}
+
+func validRetainedReleaseIdentity(releaseID, buildIdentity string) bool {
+	return strings.TrimSpace(releaseID) != "" && buildIdentity == "sha256:"+releaseID
 }
 
 func (s *runtimeRegistrySession) bindPorts(ctx context.Context) error {

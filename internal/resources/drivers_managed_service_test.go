@@ -20,12 +20,85 @@ import (
 	"time"
 
 	"github.com/vrooli/binaryfetch"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 	vaultbootstrap "github.com/vrooli/vrooli/packages/vaultbootstrap-go"
 )
+
+func TestManagedServicePreflightAcceptsOnlyAnOwnerProvenStableEdge(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	edgePort := listener.Addr().(*net.TCPAddr).Port
+	manifest := ResourceManifest{
+		Name:            "whisper",
+		ActivityNetwork: &manifestpkg.ResourceActivityNetwork{EdgePortName: "http", UpstreamPortName: "upstream"},
+		Ports:           []ResourcePort{{Name: "http", Host: edgePort}},
+	}
+	called := 0
+	if err := ensureManagedServicePortsAvailableWithEdgeOwner(manifest, func(got ResourceManifest) bool {
+		called++
+		return got.Name == "whisper" && got.ActivityNetwork.EdgePortName == "http"
+	}); err != nil {
+		t.Fatalf("owner-proven stable edge was treated as a conflicting backend port: %v", err)
+	}
+	if called != 1 {
+		t.Fatalf("edge ownership verifier called %d times, want once", called)
+	}
+	if err := ensureManagedServicePortsAvailableWithEdgeOwner(manifest, func(ResourceManifest) bool { return false }); err == nil {
+		t.Fatal("port preflight accepted an occupied activity edge without owner proof")
+	}
+}
+
+func TestLegacyActivityNetworkMigrationDrainsBeforeStoppingBackend(t *testing.T) {
+	var order []string
+	err := migrateLegacyActivityNetworkOwnerWith(
+		func() error { order = append(order, "drain-edge"); return nil },
+		func() error { order = append(order, "stop-backend"); return nil },
+	)
+	if err != nil {
+		t.Fatalf("migration = %v", err)
+	}
+	if got := strings.Join(order, ","); got != "drain-edge,stop-backend" {
+		t.Fatalf("migration order = %q", got)
+	}
+}
+
+func TestLegacyActivityNetworkMigrationPreservesBackendWhenDrainIsUncertain(t *testing.T) {
+	var backendStopped bool
+	err := migrateLegacyActivityNetworkOwnerWith(
+		func() error { return errors.New("edge shutdown did not report clean completion") },
+		func() error { backendStopped = true; return nil },
+	)
+	if err == nil || backendStopped {
+		t.Fatalf("migration err=%v backendStopped=%t; want fail closed before backend stop", err, backendStopped)
+	}
+}
+
+func TestMissingActivityEdgeControlSocketRequiresVerifiedLegacyRetirement(t *testing.T) {
+	var retired bool
+	err := drainActivityEdgeForRestartWith(
+		func() error { return os.ErrNotExist },
+		func() error { retired = true; return nil },
+	)
+	if err != nil || !retired {
+		t.Fatalf("drain fallback err=%v retired=%t", err, retired)
+	}
+
+	retired = false
+	err = drainActivityEdgeForRestartWith(
+		func() error { return errors.New("control socket permission denied") },
+		func() error { retired = true; return nil },
+	)
+	if err == nil || retired {
+		t.Fatalf("non-ENOENT err=%v retired=%t; fallback must be limited to a missing socket", err, retired)
+	}
+}
 
 func TestManagedServiceDriverRunsVerifiedPrivateLifecycle(t *testing.T) {
 	if testing.Short() {

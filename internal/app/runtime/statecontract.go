@@ -3,6 +3,7 @@ package runtimeapp
 import (
 	"reflect"
 
+	sharedscenariocli "github.com/vrooli/api-core/scenariocli"
 	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/usagemode"
@@ -15,22 +16,30 @@ import (
 	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/coreactivation"
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/hostwireless"
 	"github.com/vrooli/vrooli/internal/lightingruntime"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/peerrecord"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/projectstate"
+	"github.com/vrooli/vrooli/internal/rebaselineprogress"
 	"github.com/vrooli/vrooli/internal/recovery"
 	"github.com/vrooli/vrooli/internal/resources"
 	resourcemanifest "github.com/vrooli/vrooli/internal/resources/manifest"
+	"github.com/vrooli/vrooli/internal/rootdecision"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	watchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/securestore"
 	"github.com/vrooli/vrooli/internal/setpoint"
+	"github.com/vrooli/vrooli/internal/setup"
+	"github.com/vrooli/vrooli/internal/setup/assets"
 	"github.com/vrooli/vrooli/internal/statecontract"
+	triposrsource "github.com/vrooli/vrooli/internal/tools/triposr-source"
 )
 
 // NativePersistentStateContract is the root and watchdog executables'
@@ -49,7 +58,15 @@ func NativePersistentStateManifest() (statecontract.Manifest, error) {
 // native root control plane writes. A new persistence owner on that path
 // must add its declaration here.
 func nativePersistenceOwners() []statecontract.Owner {
-	return []statecontract.Owner{
+	return append(rootCLIStateOwners(), []statecontract.Owner{
+		{Name: "root-rebaseline-progress", WholeSource: true, Roots: []reflect.Type{reflect.TypeFor[rebaselineprogress.Progress]()}, Facts: map[string]any{"Version": 1}},
+		{Name: "scenario-cli-install", WholeSource: true, Roots: sharedscenariocli.PersistentTypes()},
+		rootdecision.PersistentState(),
+		setup.PersistentState(),
+		projectstate.PersistentState(),
+		peerrecord.PersistentState(),
+		assets.PersistentState(),
+		triposrsource.PersistentState(),
 		scenarioruntime.PersistentState(),
 		capacity.PersistentState(),
 		process.PersistentState(),
@@ -75,7 +92,14 @@ func nativePersistenceOwners() []statecontract.Owner {
 		scenario.PersistentState(),
 		resourceStorage(),
 		securestore.PersistentState(),
-	}
+		hostinventory.PersistentState(),
+		{Name: "agent-catalog-assets", WholeSource: true},
+		{Name: "agent-catalogs-asset-policy", WholeSource: true},
+		{Name: "template-validation-markers", WholeSource: true},
+		{Name: "break-glass", WholeSource: true},
+		{Name: "kopia-registry", WholeSource: true},
+		{Name: "harness-lifecycle", WholeSource: true},
+	}...)
 }
 
 // resourceStorage declares the resource storage root layout (the
@@ -108,6 +132,7 @@ func agentCatalogs() statecontract.Owner {
 			reflect.TypeFor[agentcatalog.ModelResolution](),
 			reflect.TypeFor[harness.ModelWindowRecord](),
 			reflect.TypeFor[usagemode.File](),
+			reflect.TypeFor[usagemode.LaunchMarker](),
 		},
 		Facts: map[string]any{
 			"CodingRolePolicySchemaVersion":  agentcatalog.CodingRolePolicySchemaVersion,
@@ -130,4 +155,16 @@ func nativeOperationIdentities() statecontract.Owner {
 		Roots:       platform.NativeOwnedPersistentTypes(),
 		Facts:       platform.NativeOwnedPersistentFacts(),
 	}
+}
+
+// rootCLIStateOwners covers root-only stores that survive activation and are
+// read by later commands or by recovery. Whole-source captures private types
+// and codecs until their owners can expose a more precise format contract.
+func rootCLIStateOwners() []statecontract.Owner {
+	names := []string{"prepared-root-bundle", "companion-state", "tool-installation", "baseline-floor", "lifecycle-cache", "go-cache", "credential-recovery", "wordpress-state", "release-authority", "host-watchdog-state", "cloud-target", "guard-modes", "retained-runtime", "recovery-points"}
+	owners := make([]statecontract.Owner, 0, len(names))
+	for _, name := range names {
+		owners = append(owners, statecontract.Owner{Name: name, WholeSource: true})
+	}
+	return owners
 }

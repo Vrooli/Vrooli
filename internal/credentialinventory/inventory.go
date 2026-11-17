@@ -22,6 +22,7 @@ import (
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/securestore"
+	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
 type Result struct {
@@ -360,7 +361,18 @@ func CollectWithOptions(root string, options CollectionOptions) (Result, error) 
 		}
 	}
 	for _, entry := range options.LiveKopiaRepositoryEntries() {
-		if err := add(entry.LogicalID, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Label: "Kopia repository passphrase (repository " + entry.Repository + ")", Required: true}}}); err != nil {
+		label := "Kopia repository credential (repository " + entry.Repository + ")"
+		switch entry.Field {
+		case kopiaregistry.PassphraseField:
+			label = "Kopia repository passphrase (repository " + entry.Repository + ")"
+		case kopiaregistry.S3AccessKeyIDField:
+			label = "Kopia S3 access key (repository " + entry.Repository + ")"
+		case kopiaregistry.S3SecretAccessKeyField:
+			label = "Kopia S3 secret key (repository " + entry.Repository + ")"
+		case kopiaregistry.SFTPPrivateKeyField:
+			label = "Kopia SFTP private key (repository " + entry.Repository + ")"
+		}
+		if err := add(entry.LogicalID, credentialspec.Declaration{Descriptors: []credentialspec.Descriptor{{LogicalID: entry.LogicalID, Field: entry.Field, Label: label, Required: true}}}); err != nil {
 			return Result{}, err
 		}
 	}

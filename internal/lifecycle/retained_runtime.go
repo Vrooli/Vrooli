@@ -196,6 +196,7 @@ func (r *Runner) retainedSourceLayout(item scenario.Scenario) (scenario.Scenario
 			}
 			item.Manifest, item.SourceDir = manifest, ""
 			item.RetainedReleaseID, item.RetainedBuildIdentity = "", ""
+			item.RetainedSelectionOperationID = ""
 		}
 		return item, false, nil
 	}
@@ -213,6 +214,7 @@ func (r *Runner) retainedSourceLayout(item scenario.Scenario) (scenario.Scenario
 		return item, false, err
 	}
 	item, err = r.bindRetainedRuntime(item, release)
+	item.RetainedSelectionOperationID = selection.OperationID
 	return item, true, err
 }
 
@@ -293,7 +295,7 @@ func (r *Runner) bindRetainedRuntime(item scenario.Scenario, release retainedrun
 		if !ok || spec.Reserved {
 			return item, fmt.Errorf("component %s has unsupported runtime artifact builder", name)
 		}
-		targets, e := componentBuildTargets(name, item.SourcePath(), item.Slug, c, spec, runtimeGOOS())
+		targets, e := componentBuildTargets(name, item.SourcePath(), item.Slug, c, spec, runtimeGOOS(), item.Variant)
 		if e != nil {
 			return item, e
 		}

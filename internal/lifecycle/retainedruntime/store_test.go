@@ -183,6 +183,7 @@ func TestSelectionCASDurabilityAndPrivateDirectories(t *testing.T) {
 		}
 	}
 }
+
 func TestSelectionRejectsSymlinks(t *testing.T) {
 	s, spec := fixture(t)
 	r := capture(t, s, spec)

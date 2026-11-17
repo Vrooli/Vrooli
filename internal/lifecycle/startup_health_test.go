@@ -64,6 +64,29 @@ func TestStartupHealthCannotAcceptDegradedButNotReady(t *testing.T) {
 	}
 }
 
+func TestStartupHealthRejectsPriorReleaseResponder(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(apihealth.Response{
+			Status: apihealth.StatusHealthy, Service: "browser", Timestamp: time.Now().Format(time.RFC3339), Readiness: true,
+			BuildIdentity: "sha256:release-new", RuntimeReleaseID: "release-old",
+			RuntimeReleaseOperationID: "select-old", StartOperationID: "start-old",
+		})
+	}))
+	defer server.Close()
+	runner := &Runner{deps: lifecycleDeps{now: time.Now, sleep: func(time.Duration) {}}}
+	env := map[string]string{
+		buildIdentityEnv:             "sha256:release-new",
+		runtimeReleaseIDEnv:          "release-new",
+		runtimeReleaseOperationIDEnv: "select-new",
+		startOperationIDEnv:          "start-new",
+	}
+	if _, snapshot, err := runner.waitForHealthSnapshot(t.Context(), startupHealthItem(server.URL), env); err == nil {
+		t.Fatalf("stale release health accepted: %+v", snapshot)
+	} else if snapshot.RuntimeReleaseID != "release-old" || snapshot.StartOperationID != "start-old" {
+		t.Fatalf("failure discarded actual responder identity: %+v", snapshot)
+	}
+}
+
 func TestStartupHealthCancellationCannotBecomeDegradedSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_ = json.NewEncoder(w).Encode(apihealth.Response{Status: apihealth.StatusDegraded, Service: "alpha", Timestamp: time.Now().Format(time.RFC3339), Readiness: true})

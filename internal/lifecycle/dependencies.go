@@ -361,6 +361,13 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	// renewed while the consumer instance is active and released when it stops.
 	// Explicit/core/manual starts retain their stronger supervision policy.
 	dependencyOpts.DemandManaged = true
+	// A recursive dependency start is a separate lifecycle operation. The
+	// parent's recorder owns only the parent's durable progress and provider
+	// fence link; inheriting it here makes the dependency's fence compete for
+	// the parent's write-once recovery link. Keep the operation kind (restart
+	// is intentionally inherited for restart-driven dependency replacement),
+	// but give the dependency its own identity and recovery context.
+	dependencyOpts = clearDependencyOperationOwnership(dependencyOpts)
 
 	dependencyReadyForReuse := func() (bool, error) {
 		view, err := r.lookupRegistryRuntime(ctx, dependencyItem)
@@ -441,7 +448,7 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 		}
 		return "", leaseErr
 	}
-	_, depErr := r.startScenario(dependencyItem, dependencyOpts, session.withContext(ctx))
+	_, depErr := r.startDependencyScenario(dependencyItem, dependencyOpts, session.withContext(ctx))
 	if err := depErr; err != nil {
 		_ = r.releaseDependencyDemandIfCandidate(ctx, session, item, leaseID, "dependency start failed")
 		_ = r.releaseNewStartSessionDemand(ctx, session, beforeLeases, "dependency start failed")
@@ -459,6 +466,67 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	session.recordDependencyLease(consumerID, leaseID)
 	session.markReady(dependencyName)
 	return "", nil
+}
+
+// startDependencyScenario owns the durable record for one recursive scenario
+// start. Recursive starts enter at startScenario rather than startLocked, so
+// they must establish the same operation identity, recovery snapshot, progress
+// sink, and terminal receipt explicitly here.
+func (r *Runner) startDependencyScenario(item scenario.Scenario, opts StartOptions, session *startSession) (result Result, returnErr error) {
+	prior, priorErr := r.latestStartOperationSnapshot(ctxOrBackground(opts.Context), item.Slug, opts.Variant)
+	opts.priorStartOperation = prior
+	opts.priorStartOperationErr = priorErr
+	recorder, err := r.beginStartOperationRecord(item.Slug, opts)
+	if err != nil {
+		return Result{}, err
+	}
+	var detach func()
+	if recorder != nil {
+		opts.startRecorder = recorder
+		opts.lifecycleOperationID = recorder.operationID()
+		detach = r.attachSink(recorder)
+		defer func() {
+			if returnErr != nil && !recorder.op.IsTerminal() {
+				r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: item.Slug, Operation: defaultIfEmpty(opts.Operation, "start"), Err: returnErr})
+			}
+			recorder.close()
+			if detach != nil {
+				detach()
+			}
+		}()
+	}
+	r.publish(ProgressEvent{Kind: EventOperationStarted, Scenario: item.Slug, Operation: defaultIfEmpty(opts.Operation, "start")})
+	result, returnErr = r.startScenario(item, opts, session)
+	if returnErr != nil {
+		return Result{}, returnErr
+	}
+	// startScenario may have negotiated and linked a fence while replacing a
+	// stale provider. startLocked normally resumes it after the healthy start;
+	// recursive dependency starts bypass that wrapper and must finish the same
+	// protocol here before publishing completion.
+	if recorder != nil {
+		if err := recorder.providerFence.resume(opts.Context); err != nil {
+			return Result{}, fmt.Errorf("resume lifecycle fence for dependency %q: %w", item.Slug, err)
+		}
+	}
+	if result.AlreadyRunning {
+		return result, nil
+	}
+	r.publish(ProgressEvent{Kind: EventOperationCompleted, Scenario: item.Slug, Operation: defaultIfEmpty(opts.Operation, "start"), Verdict: result.Health,
+		RuntimeInstanceID: result.RuntimeInstanceID, RuntimeReleaseID: result.RuntimeReleaseID, RuntimeReleaseOperationID: result.RuntimeReleaseOperationID,
+		RuntimeBuildIdentity: result.RuntimeBuildIdentity, HealthBuildIdentity: result.HealthBuildIdentity, HealthRuntimeReleaseID: result.HealthRuntimeReleaseID,
+		HealthRuntimeReleaseOperationID: result.HealthRuntimeReleaseOperationID, HealthStartOperationID: result.HealthStartOperationID})
+	return result, nil
+}
+
+func clearDependencyOperationOwnership(opts StartOptions) StartOptions {
+	opts.startRecorder = nil
+	opts.lifecycleOperationID = ""
+	opts.providerFenceOperationID = ""
+	opts.providerFence = nil
+	opts.priorStartOperation = nil
+	opts.priorStartOperationErr = nil
+	return opts
 }
 
 func buildConcurrencyBudget(available int64, reservations []int64) int {

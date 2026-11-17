@@ -6,8 +6,8 @@ import (
 	kopiaregistry "github.com/vrooli/vrooli/packages/kopiaregistry-go"
 )
 
-// KopiaRepositoryEntry names one repository passphrase in the credential
-// authority. It carries no passphrase value.
+// KopiaRepositoryEntry names one repository credential in the credential
+// authority. It carries no credential value.
 type KopiaRepositoryEntry struct {
 	Repository string `json:"repository"`
 	LogicalID  string `json:"logical_id"`
@@ -15,7 +15,8 @@ type KopiaRepositoryEntry struct {
 }
 
 // KopiaRepositoryEntries reads the non-secret registry and returns one
-// recoverable credential address per registered repository.
+// recoverable credential address for every field required to reopen each
+// registered S3 or SFTP repository.
 func KopiaRepositoryEntries(registryPath string) ([]KopiaRepositoryEntry, error) {
 	entries, err := kopiaregistry.New(registryPath).Load()
 	if err != nil {
@@ -35,6 +36,16 @@ func KopiaRepositoryEntries(registryPath string) ([]KopiaRepositoryEntry, error)
 			LogicalID:  string(identity),
 			Field:      kopiaregistry.PassphraseField,
 		})
+		fields := []string(nil)
+		switch entry.Backend {
+		case kopiaregistry.BackendS3:
+			fields = []string{kopiaregistry.S3AccessKeyIDField, kopiaregistry.S3SecretAccessKeyField}
+		case kopiaregistry.BackendSFTP:
+			fields = []string{kopiaregistry.SFTPPrivateKeyField}
+		}
+		for _, field := range fields {
+			out = append(out, KopiaRepositoryEntry{Repository: entry.Name, LogicalID: string(identity), Field: field})
+		}
 	}
 	return out, nil
 }

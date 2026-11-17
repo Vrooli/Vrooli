@@ -109,6 +109,22 @@ func (s *modelCacheStore) content() string {
 
 func (s *modelCacheStore) usage() (ModelCacheUsage, error) {
 	var usage ModelCacheUsage
+	info, err := os.Lstat(s.state)
+	if os.IsNotExist(err) {
+		return usage, nil
+	}
+	if err != nil {
+		return usage, err
+	}
+	if !info.Mode().IsRegular() {
+		return usage, fmt.Errorf("model-cache usage state is not a regular owned file")
+	}
+	// Repair legacy root-owned state only when this exact owner path is invoked
+	// through sudo. The helper is a no-op for ordinary calls and confines its
+	// ownership change to the invoking user's runtime home.
+	if _, err := runtimestorage.RepairRootOwnedFileForInvokingUser(s.state); err != nil {
+		return usage, fmt.Errorf("repair model-cache usage ownership: %w", err)
+	}
 	data, err := os.ReadFile(s.state)
 	if os.IsNotExist(err) {
 		return usage, nil

@@ -2,11 +2,13 @@ package buildinfo
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/coreactivation"
@@ -61,7 +63,7 @@ func TestIndependentRootUpdateHandoffRequiresOneVerifiedReceipt(t *testing.T) {
 	for _, tc := range []struct {
 		name, output, exit, want string
 	}{
-		{"verified", `{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","phase":"verified","failure_class":""}`, "0", ""},
+		{"verified receipt without owner state", `{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","phase":"verified","failure_class":""}`, "0", "identity or verified state changed"},
 		{"accepted is not verified", `{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","phase":"prepared","failure_class":""}`, "0", "did not verify"},
 		{"restored is failed", `{"id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","phase":"failed_restored","failure_class":"worker_lost"}`, "1", "worker_lost"},
 		{"no receipt is unresolved, not refused", "", "1", "outcome is unresolved: the installed coordinator returned no receipt; inspect `vrooli runtime update status --json`\ncoordinator: private-child-diagnostic"},
@@ -97,6 +99,28 @@ func TestIndependentRootUpdateHandoffRequiresOneVerifiedReceipt(t *testing.T) {
 	}
 }
 
+func TestRootUpdateWaitsForNativeRetirement(t *testing.T) {
+	observations := 0
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	reconciliations := 0
+	if err := waitRootUpdateRetirement(ctx, "fixture", func() (bool, error) { observations++; return observations >= 3, nil }, func() error { reconciliations++; return nil }); err != nil || observations != 3 || reconciliations != 1 {
+		t.Fatalf("delayed retirement: observations=%d err=%v", observations, err)
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), 150*time.Millisecond)
+	defer cancel()
+	if err := waitRootUpdateRetirement(ctx, "fixture", func() (bool, error) { return false, nil }, func() error { return nil }); !errors.Is(err, context.DeadlineExceeded) || !strings.Contains(err.Error(), "resume the retained bundle") {
+		t.Fatalf("unretired worker did not preserve recovery: %v", err)
+	}
+	want := errors.New("identity changed")
+	if err := waitRootUpdateRetirement(context.Background(), "fixture", func() (bool, error) { return false, want }, func() error { t.Fatal("reconciled after observation error"); return nil }); !errors.Is(err, want) {
+		t.Fatalf("observation failure ignored: %v", err)
+	}
+	if err := waitRootUpdateRetirement(context.Background(), "fixture", func() (bool, error) { return false, nil }, func() error { return want }); !errors.Is(err, want) {
+		t.Fatalf("reconciliation failure ignored: %v", err)
+	}
+}
+
 func TestRootRefusalWithoutAReasonIsDiagnosedLocally(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("shell fixture")
@@ -119,7 +143,7 @@ func TestRootRefusalWithoutAReasonIsDiagnosedLocally(t *testing.T) {
 		}
 	}
 	err = diagnoseRootRefusal(home, candidate, "/source", "", "")
-	for _, want := range []string{"candidate changes the persistent-state contract", "serving cccccccccccc, candidate dddddddddddd", "per-owner state manifest", "Operator decision required", "make rebaseline", "/source", "Agents must not run it"} {
+	for _, want := range []string{"candidate changes the persistent-state contract", "serving cccccccccccc, candidate dddddddddddd", "per-owner state manifest", "Operator decision required", "make rebaseline", "make rebaseline-hub", "verified human", "/source", "Agents must not run the terminal confirmation"} {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Fatalf("state-contract refusal does not say %q: %v", want, err)
 		}

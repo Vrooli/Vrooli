@@ -237,6 +237,29 @@ func TestBuilderRegistryMatchesServiceSchema(t *testing.T) {
 	}
 }
 
+func TestServiceSchemaDeclaresExactNodeRuntimeSelector(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", ".vrooli", "schemas", "service.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema struct {
+		Properties map[string]struct {
+			Properties map[string]struct {
+				Properties map[string]struct {
+					Pattern string `json:"pattern"`
+				} `json:"properties"`
+			} `json:"properties"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatal(err)
+	}
+	versionPattern := schema.Properties["runtime"].Properties["node"].Properties["version"].Pattern
+	if versionPattern != `^\d+\.\d+\.\d+$` {
+		t.Fatalf("runtime.node.version pattern = %q, want exact x.y.z", versionPattern)
+	}
+}
+
 func TestBuilderDigestKeysAreEmitted(t *testing.T) {
 	deps := hostProbeDeps{
 		getenv: func(name string) string {
@@ -434,6 +457,30 @@ func TestComponentBuildTargetsIncludesDeclaredSecondaryArtifacts(t *testing.T) {
 	}
 }
 
+func TestVariantComponentArtifactsResolveDistinctDeclaredPaths(t *testing.T) {
+	components := map[string]scenario.Component{
+		"api": {Build: scenario.ComponentBuild{Kind: "go_module", Dir: "api", Output: "api/bin/{scenario}-{variant}"}},
+	}
+	for _, tc := range []struct {
+		variant string
+		want    string
+	}{
+		{variant: "live", want: "/repo/scenarios/demo/api/bin/demo-live"},
+		{variant: "shadow", want: "/repo/scenarios/demo/api/bin/demo-shadow"},
+	} {
+		argv, err := ResolveComponentArgvForVariant([]string{"{{bin.api}}"}, "/repo/scenarios/demo", "demo", tc.variant, components)
+		if err != nil {
+			t.Fatalf("ResolveComponentArgvForVariant(%s): %v", tc.variant, err)
+		}
+		if len(argv) != 1 || argv[0] != tc.want {
+			t.Fatalf("variant %s argv = %v, want %q", tc.variant, argv, tc.want)
+		}
+	}
+	if _, err := ResolveComponentArgvForVariant([]string{"{{bin.api}}"}, "/repo/scenarios/demo", "demo", "../live", components); err == nil {
+		t.Fatal("unsafe variant escaped its declared artifact directory")
+	}
+}
+
 func TestGoModuleFreshnessIncludesDeclaredSecondaryArtifacts(t *testing.T) {
 	root := t.TempDir()
 	component := scenario.Component{Build: scenario.ComponentBuild{
@@ -495,9 +542,6 @@ func TestDeclaredCommandForComponentOwnsArgvEnvironmentAndPort(t *testing.T) {
 }
 
 func TestApplyManifestAuthenticationBindsHybridProfileToManagedEnvironment(t *testing.T) {
-	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN", "https://team.example.test")
-	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_AUDIENCE", "gct-audience")
-
 	item := scenario.Scenario{
 		Slug: "git-control-tower",
 		Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
@@ -509,7 +553,12 @@ func TestApplyManifestAuthenticationBindsHybridProfileToManagedEnvironment(t *te
 			Owner:           "tunnel-manager",
 		}},
 	}
-	env := map[string]string{}
+	// Placeholders resolve from the lifecycle environment (declared and
+	// resolved values), never from the caller's shell.
+	env := map[string]string{
+		"VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN": "https://team.example.test",
+		"VROOLI_CLOUDFLARE_ACCESS_AUDIENCE":    "gct-audience",
+	}
 	if err := applyManifestAuthentication(item, env); err != nil {
 		t.Fatalf("applyManifestAuthentication: %v", err)
 	}
@@ -522,9 +571,6 @@ func TestApplyManifestAuthenticationBindsHybridProfileToManagedEnvironment(t *te
 }
 
 func TestApplyManifestAuthenticationFailsClosedWhenOperatorBindingIsMissing(t *testing.T) {
-	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN", "")
-	t.Setenv("VROOLI_CLOUDFLARE_ACCESS_AUDIENCE", "")
-
 	item := scenario.Scenario{
 		Slug: "git-control-tower",
 		Manifest: scenario.ServiceManifest{Authentication: &scenario.AuthenticationProfile{
@@ -534,8 +580,8 @@ func TestApplyManifestAuthenticationFailsClosedWhenOperatorBindingIsMissing(t *t
 			Owner:      "tunnel-manager",
 		}},
 	}
-	if err := applyManifestAuthentication(item, map[string]string{}); err == nil || !strings.Contains(err.Error(), "resolved empty team_domain or audience") {
-		t.Fatalf("applyManifestAuthentication error = %v, want resolved-empty identifier error", err)
+	if err := applyManifestAuthentication(item, map[string]string{}); err == nil || !strings.Contains(err.Error(), "unresolved placeholder VROOLI_CLOUDFLARE_ACCESS_TEAM_DOMAIN") {
+		t.Fatalf("applyManifestAuthentication error = %v, want unresolved identifier error", err)
 	}
 }
 
@@ -706,7 +752,7 @@ func TestCreateComponentRuntimeDirectories(t *testing.T) {
 // cmd.exe rather than a POSIX shell.
 func TestBuildArgvSelectsProfileChannel(t *testing.T) {
 	registry := BuilderRegistry()
-	for _, kind := range []string{"pnpm_vite", "node_bundle"} {
+	for _, kind := range []string{"pnpm_vite"} {
 		spec := registry[kind]
 		if got, want := spec.BuildArgv(""), []string{"pnpm", "run", "build"}; !reflect.DeepEqual(got, want) {
 			t.Fatalf("%s default channel = %v, want %v", kind, got, want)
@@ -714,6 +760,13 @@ func TestBuildArgvSelectsProfileChannel(t *testing.T) {
 		if got, want := spec.BuildArgv("profile"), []string{"pnpm", "run", "build:profile"}; !reflect.DeepEqual(got, want) {
 			t.Fatalf("%s profile channel = %v, want %v", kind, got, want)
 		}
+	}
+	nodeSpec := registry["node_bundle"]
+	if got, want := nodeSpec.BuildArgv(""), []string{"pnpm", "run", "build", "--", "--output-dir", "{output}"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("node_bundle default channel = %v, want staged output contract %v", got, want)
+	}
+	if got, want := nodeSpec.BuildArgv("profile"), []string{"pnpm", "run", "build:profile", "--", "--output-dir", "{output}"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("node_bundle profile channel = %v, want staged output contract %v", got, want)
 	}
 	// A builder with no declared profile channel keeps its default argv.
 	goSpec := registry["go_module"]

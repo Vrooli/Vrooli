@@ -324,3 +324,46 @@ func TestMeasuredDedicatedVRAMStillFundsAdmissionAndUpshift(t *testing.T) {
 		})
 	}
 }
+
+// Operation claims have no per-claim attribution in host-wide RAM or CPU
+// sensing, so measured usage cannot show how much of a granted budget has
+// materialized. Each grant must be charged above the observed baseline;
+// max(observed, committed) let every request in a burst spend the same
+// observed headroom. Resident claims keep the max() overlap.
+func TestDecideChargesOperationBudgetsAboveObservedUsage(t *testing.T) {
+	now := time.Date(2026, 11, 12, 22, 22, 18, 0, time.UTC)
+	host := hostinventory.Snapshot{
+		CPU:    hostinventory.CPU{Cores: 32},
+		Load:   hostinventory.Load{Load1: 22},
+		Memory: hostinventory.Memory{TotalBytes: uint64(61 * gib), AvailableBytes: uint64(26 * gib)},
+	}
+	op := func(kind string, amount int64) CapacityClaim {
+		return CapacityClaim{ClaimID: "clm-" + kind, OwnerKind: OwnerKindOp, OwnerID: "image-tools:job:" + kind, ResourceKind: kind, AmountBytes: amount, Status: StatusGranted, Priority: PriorityBatch, ActivityState: ActivityActive}
+	}
+	request := func(kind string, amount int64) CapacityRequest {
+		return CapacityRequest{OwnerKind: OwnerKindOp, OwnerID: "image-tools:next", ResourceKind: kind, PreferredBytes: amount, FloorBytes: amount, Priority: PriorityBatch, NoReclaim: true}
+	}
+	cases := []struct {
+		name   string
+		req    CapacityRequest
+		ledger []CapacityClaim
+		want   string
+	}{
+		// 22 observed cores + 8 granted = 30; 4 more exceeds 32.
+		{"cpu", request(ResourceKindCPU, 4_000), []CapacityClaim{op(ResourceKindCPU, 4_000), op(ResourceKindCPU, 4_000)}, VerdictDeny},
+		{"cpu fits", request(ResourceKindCPU, 4_000), []CapacityClaim{op(ResourceKindCPU, 4_000)}, VerdictGrant},
+		// 35 GiB observed + 24 GiB granted = 59; 8 more exceeds 61.
+		{"ram", request(ResourceKindRAM, 8*gib), []CapacityClaim{op(ResourceKindRAM, 8*gib), op(ResourceKindRAM, 8*gib), op(ResourceKindRAM, 8*gib)}, VerdictDeny},
+		{"ram fits", request(ResourceKindRAM, 8*gib), []CapacityClaim{op(ResourceKindRAM, 8*gib), op(ResourceKindRAM, 8*gib)}, VerdictGrant},
+		// A resident service claim is reflected in measured usage once loaded.
+		{"resident overlap", request(ResourceKindRAM, 8*gib), []CapacityClaim{{ClaimID: "clm-resident", OwnerKind: OwnerKindResource, OwnerID: "ollama", ResourceKind: ResourceKindRAM, AmountBytes: 20 * gib, Status: StatusGranted, Priority: PriorityService, ActivityState: ActivityActive}}, VerdictGrant},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := Decide(tc.req, host, tc.ledger, DefaultPolicy(), now)
+			if v.Kind != tc.want {
+				t.Fatalf("kind = %q, want %q (%s)", v.Kind, tc.want, v.Reason)
+			}
+		})
+	}
+}

@@ -42,36 +42,94 @@ type AgentReapRow struct {
 	// ones `vrooli agent list` reports; null with a status when unknown.
 	MemoryBytes  *int64 `json:"memory_bytes"`
 	MemoryStatus string `json:"memory_status"`
+	MemorySource string `json:"memory_source,omitempty"`
 	SwapBytes    *int64 `json:"swap_bytes"`
 	SwapStatus   string `json:"swap_status"`
+	SwapSource   string `json:"swap_source,omitempty"`
 	Tasks        int64  `json:"tasks"`
 	AuditID      string `json:"audit_id,omitempty"`
 }
 
 // AgentReapReport is the command's JSON document.
 type AgentReapReport struct {
-	DryRun    bool                      `json:"dry_run"`
-	OlderThan string                    `json:"older_than"`
-	Sessions  int                       `json:"sessions_seen"`
-	Summary   map[string]map[string]int `json:"summary"`
-	Stop      int                       `json:"stop"`
-	Kept      int                       `json:"kept"`
-	Freed     AgentReapTotals           `json:"memory"`
-	Rows      []AgentReapRow            `json:"orphaned"`
+	DryRun        bool                      `json:"dry_run"`
+	OlderThan     string                    `json:"older_than"`
+	Sessions      int                       `json:"sessions_seen"`
+	Summary       map[string]map[string]int `json:"summary"`
+	Stop          int                       `json:"stop"`
+	Kept          int                       `json:"kept"`
+	MemoryMeaning string                    `json:"memory_meaning"`
+	Freed         AgentReapTotals           `json:"memory"`
+	Rows          []AgentReapRow            `json:"orphaned"`
 }
 
-// AgentReapTotals adds up what the stopped (or, in a dry run, eligible)
-// sessions hold.
+// AgentReapTotals records pre-action scope usage estimates. It is not a
+// measured host-wide post-stop RAM or swap delta.
 type AgentReapTotals struct {
-	MemoryBytes int64 `json:"memory_bytes"`
-	SwapBytes   int64 `json:"swap_bytes"`
-	Tasks       int64 `json:"tasks"`
+	MemoryBytes                int64            `json:"memory_bytes"`
+	MemoryBytesBySource        map[string]int64 `json:"memory_bytes_by_source"`
+	MemoryPartial              int              `json:"memory_partial"`
+	MemoryPartialBytes         int64            `json:"memory_partial_bytes"`
+	MemoryPartialBytesBySource map[string]int64 `json:"memory_partial_bytes_by_source"`
+	MemoryUnknown              int              `json:"memory_unknown"`
+	SwapBytes                  int64            `json:"swap_bytes"`
+	SwapBytesBySource          map[string]int64 `json:"swap_bytes_by_source"`
+	SwapPartial                int              `json:"swap_partial"`
+	SwapPartialBytes           int64            `json:"swap_partial_bytes"`
+	SwapPartialBytesBySource   map[string]int64 `json:"swap_partial_bytes_by_source"`
+	SwapUnknown                int              `json:"swap_unknown"`
+	Tasks                      int64            `json:"tasks"`
+}
+
+func (totals *AgentReapTotals) add(row AgentReapRow) {
+	if row.MemoryBytes == nil || (row.MemoryStatus != agentsession.UsageMeasured && row.MemoryStatus != agentsession.UsagePartial) {
+		totals.MemoryUnknown++
+	} else if row.MemoryStatus == agentsession.UsagePartial {
+		totals.MemoryPartial++
+		totals.MemoryPartialBytes += *row.MemoryBytes
+		if row.MemorySource != "" {
+			if totals.MemoryPartialBytesBySource == nil {
+				totals.MemoryPartialBytesBySource = map[string]int64{}
+			}
+			totals.MemoryPartialBytesBySource[row.MemorySource] += *row.MemoryBytes
+		}
+	} else {
+		totals.MemoryBytes += *row.MemoryBytes
+		if row.MemorySource != "" {
+			if totals.MemoryBytesBySource == nil {
+				totals.MemoryBytesBySource = map[string]int64{}
+			}
+			totals.MemoryBytesBySource[row.MemorySource] += *row.MemoryBytes
+		}
+	}
+	if row.SwapBytes == nil || (row.SwapStatus != agentsession.UsageMeasured && row.SwapStatus != agentsession.UsagePartial) {
+		totals.SwapUnknown++
+	} else if row.SwapStatus == agentsession.UsagePartial {
+		totals.SwapPartial++
+		totals.SwapPartialBytes += *row.SwapBytes
+		if row.SwapSource != "" {
+			if totals.SwapPartialBytesBySource == nil {
+				totals.SwapPartialBytesBySource = map[string]int64{}
+			}
+			totals.SwapPartialBytesBySource[row.SwapSource] += *row.SwapBytes
+		}
+	} else {
+		totals.SwapBytes += *row.SwapBytes
+		if row.SwapSource != "" {
+			if totals.SwapBytesBySource == nil {
+				totals.SwapBytesBySource = map[string]int64{}
+			}
+			totals.SwapBytesBySource[row.SwapSource] += *row.SwapBytes
+		}
+	}
+	totals.Tasks += max(row.Tasks, 0)
 }
 
 func (app *App) runAgentReap(ctx *AppContext, args []string) error {
 	fs := commandtree.NewFlagSet("vrooli agent reap")
 	fs.SetOutput(ctx.Stderr)
 	orphaned := fs.Bool("orphaned", false, "stop sessions whose owner is confirmed gone (required: the only reap this command performs)")
+	exactScope := fs.String("exact-scope", "", "select exactly one owner-gone systemd scope; --dry-run prints its proof-bound operator authorization target")
 	olderThan := fs.Duration("older-than", agentsession.DefaultReapOlderThan, "only stop sessions at least this old")
 	dryRun := fs.Bool("dry-run", false, "list what would be stopped, with evidence, and stop nothing")
 	jsonOut := fs.Bool("json", false, "emit JSON")
@@ -86,6 +144,9 @@ func (app *App) runAgentReap(ctx *AppContext, args []string) error {
 	}
 	if !*orphaned {
 		return clipolicy.UsageErrorf("agent reap", "--orphaned is required: reap stops only sessions whose owner is confirmed gone")
+	}
+	if *exactScope != "" && strings.TrimSpace(*exactScope) != *exactScope {
+		return clipolicy.UsageErrorf("agent reap", "--exact-scope must be the exact scope unit with no surrounding whitespace")
 	}
 	if *olderThan < 0 {
 		return clipolicy.UsageErrorf("agent reap", "--older-than must not be negative")
@@ -109,7 +170,145 @@ func (app *App) runAgentReap(ctx *AppContext, args []string) error {
 	if store, ok := reconciler.Store.(agentsession.AuditSink); ok {
 		executor.Audit = store
 	}
+	if *exactScope != "" {
+		return runExactAgentReapWith(ctx.OperationContext(), ctx.Stdout, lister, reconciler, *exactScope, *dryRun, *jsonOut || ctx.Globals.JSON, agentsession.NewExactScopeFacts(), agentsession.NewAgentGrantApprovalVerifier(), agentsession.NewPlatformStopper())
+	}
 	return runAgentReapWith(context.Background(), ctx.Stdout, lister, reconciler, executor, agentsession.ReapPolicy{OlderThan: *olderThan}, *dryRun, *jsonOut || ctx.Globals.JSON)
+}
+
+type exactAgentReapReport struct {
+	DryRun               bool           `json:"dry_run"`
+	Scope                string         `json:"scope"`
+	Owner                AgentOwnerView `json:"owner"`
+	ProofDigest          string         `json:"proof_digest"`
+	AuthorizationTarget  string         `json:"authorization_target"`
+	AuthorizationCommand string         `json:"authorization_command,omitempty"`
+	MemoryBytes          *int64         `json:"pre_action_memory_bytes"`
+	MemoryStatus         string         `json:"memory_status"`
+	MemorySource         string         `json:"memory_source,omitempty"`
+	SwapBytes            *int64         `json:"pre_action_swap_bytes"`
+	SwapStatus           string         `json:"swap_status"`
+	SwapSource           string         `json:"swap_source,omitempty"`
+	DecisionID           string         `json:"decision_id,omitempty"`
+	ApprovedBy           string         `json:"approved_by,omitempty"`
+	AuditID              string         `json:"audit_id,omitempty"`
+	Outcome              string         `json:"outcome"`
+	ReclaimedBytes       int64          `json:"measured_reclaimed_bytes"`
+	MemoryMeaning        string         `json:"memory_meaning"`
+}
+
+func runExactAgentReapWith(ctx context.Context, w io.Writer, lister agentSessionLister, reconciler agentsession.Reconciler, exactScope string, dryRun, asJSON bool, facts agentsession.ExactScopeFacts, verifier agentsession.ApprovalVerifier, stopper agentsession.Stopper) error {
+	if w == nil {
+		w = io.Discard
+	}
+	leases, err := lister()
+	if err != nil {
+		return fmt.Errorf("list agent sessions: %w", err)
+	}
+	sessions := reconciler.Sessions(ctx, leases)
+	var selected *agentsession.Session
+	for i := range sessions {
+		if sessions[i].Scope != exactScope {
+			continue
+		}
+		if selected != nil {
+			return errors.New("exact reap: target scope matched multiple session observations")
+		}
+		selected = &sessions[i]
+	}
+	if selected == nil {
+		return fmt.Errorf("exact reap: no current session observation for %s", exactScope)
+	}
+	proof, err := agentsession.CaptureExactReapProof(*selected, exactScope, facts)
+	if err != nil {
+		return err
+	}
+	target := agentsession.ExactReapAuthorizationTarget(proof)
+	if target == "" {
+		return errors.New("exact reap: could not build a proof-bound authorization target")
+	}
+	now := time.Now().UTC()
+	if reconciler.Now != nil {
+		now = reconciler.Now().UTC()
+	}
+	row := agentSessionRow(*selected, now)
+	decisionCommand := "vrooli agent authorize \"$VROOLI_AGENT_SESSION\" --policy agent-session-reaping --target " + target
+	usage := selected.Usage
+	report := exactAgentReapReport{
+		DryRun: dryRun, Scope: exactScope, Owner: row.Owner, ProofDigest: proof.Digest,
+		AuthorizationTarget: target, MemoryBytes: usage.MemoryBytes, MemoryStatus: usage.MemoryStatus,
+		MemorySource: usage.MemorySource, SwapBytes: usage.SwapBytes, SwapStatus: usage.SwapStatus,
+		SwapSource: usage.SwapSource, Outcome: "approval-required", MemoryMeaning: "pre-action exact-scope estimate; host-wide post-action delta is not measured",
+	}
+	if dryRun {
+		report.AuthorizationCommand = decisionCommand
+	} else {
+		audit, ok := reconciler.Store.(agentsession.AuditSink)
+		if !ok {
+			return errors.New("exact reap: persistent audit sink unavailable; refusing to stop without a durable receipt")
+		}
+		refresh := func(refreshCtx context.Context, scope string) (agentsession.Session, error) {
+			currentLeases, err := lister()
+			if err != nil {
+				return agentsession.Session{}, err
+			}
+			current := reconciler.Sessions(refreshCtx, currentLeases)
+			var found *agentsession.Session
+			for i := range current {
+				if current[i].Scope != scope {
+					continue
+				}
+				if found != nil {
+					return agentsession.Session{}, errors.New("exact scope matched multiple refreshed observations")
+				}
+				found = &current[i]
+			}
+			if found == nil {
+				return agentsession.Session{}, errors.New("exact scope disappeared during owner revalidation")
+			}
+			return *found, nil
+		}
+		approval, err := agentsession.ExecuteExactReap(ctx, proof, facts, verifier, refresh, stopper)
+		if err != nil {
+			return err
+		}
+		report.DecisionID, report.ApprovedBy = approval.DecisionID, approval.ApprovedBy
+		report.Outcome = agentsession.OutcomeStopped
+		// Reapable estimates are never reported as bytes reclaimed. A measured
+		// whole-host post-action sample is a separate observation not yet wired.
+		ownerEvidence := selected.Owner.LeaseOwner().EvidenceJSON
+		auditDetail := fmt.Sprintf("%s; approval %s; proof sha256 %s", selected.Liveness.Detail, approval.DecisionID, proof.Digest)
+		recorded, auditErr := audit.RecordAgentSessionReap(ctx, scenarioruntime.AgentSessionReap{
+			SessionID: selected.SessionID, Scope: proof.Target, OwnerKind: selected.Owner.Kind,
+			OwnerRef: selected.Owner.Ref, OwnerEvidenceJSON: ownerEvidence,
+			LivenessDetail: auditDetail,
+			MemoryBytes:    usageBytes(usage.MemoryBytes), SwapBytes: usageBytes(usage.SwapBytes),
+			Tasks: max(selected.Tasks, 0), Outcome: agentsession.OutcomeStopped,
+			Initiator: "vrooli agent reap --exact-scope", CreatedAt: time.Now().UTC(),
+		})
+		if auditErr != nil {
+			return fmt.Errorf("exact scope stopped but audit was not recorded: %w", auditErr)
+		}
+		report.AuditID = recorded.ReapID
+	}
+	if asJSON {
+		return cliout.WriteJSON(w, report)
+	}
+	if err := cliout.RenderTable(w, []string{"Exact scope", "Owner", "Outcome", "RAM estimate", "Swap estimate", "Authorization target", "Proof SHA-256"}, [][]string{{report.Scope, report.Owner.Kind + ":" + shortRef(report.Owner.Ref), report.Outcome, usageText(report.MemoryBytes, report.MemoryStatus, report.MemorySource), usageText(report.SwapBytes, report.SwapStatus, report.SwapSource), report.AuthorizationTarget, report.ProofDigest}}); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(w, "pre-action scope estimate only; measured reclaimed bytes: %d\n", report.ReclaimedBytes)
+	if report.AuthorizationCommand != "" {
+		_, _ = fmt.Fprintf(w, "after reviewing this exact target, request operator approval with:\n%s\n", report.AuthorizationCommand)
+	}
+	return nil
+}
+
+func usageBytes(value *int64) int64 {
+	if value == nil {
+		return -1
+	}
+	return *value
 }
 
 // runAgentReapWith is the testable body: reconcile, plan, execute, render.
@@ -133,7 +332,11 @@ func runAgentReapWith(ctx context.Context, w io.Writer, lister agentSessionListe
 	if olderThan <= 0 {
 		olderThan = agentsession.DefaultReapOlderThan
 	}
-	report := AgentReapReport{DryRun: dryRun, OlderThan: olderThan.String(), Sessions: len(sessions), Summary: agentsession.CountByOwnerKind(sessions), Rows: make([]AgentReapRow, 0, len(results))}
+	report := AgentReapReport{
+		DryRun: dryRun, OlderThan: olderThan.String(), Sessions: len(sessions), Summary: agentsession.CountByOwnerKind(sessions), Rows: make([]AgentReapRow, 0, len(results)),
+		MemoryMeaning: "pre-action usage for selected scopes; not a measured host-wide post-action delta",
+		Freed:         AgentReapTotals{MemoryBytesBySource: map[string]int64{}, SwapBytesBySource: map[string]int64{}},
+	}
 	var failed int
 	for _, result := range results {
 		session := result.Candidate.Session
@@ -141,7 +344,9 @@ func runAgentReapWith(ctx context.Context, w io.Writer, lister agentSessionListe
 			Session: session.SessionID, Agent: session.Agent, Scope: session.Scope, Decision: result.Candidate.Decision,
 			Reason: result.Candidate.Reason, Outcome: result.Outcome, Error: result.Error, AuditID: result.AuditID,
 			MemoryBytes: result.Usage.MemoryBytes, MemoryStatus: result.Usage.MemoryStatus,
-			SwapBytes: result.Usage.SwapBytes, SwapStatus: result.Usage.SwapStatus, Tasks: session.Tasks,
+			MemorySource: result.Usage.MemorySource,
+			SwapBytes:    result.Usage.SwapBytes, SwapStatus: result.Usage.SwapStatus,
+			SwapSource: result.Usage.SwapSource, Tasks: session.Tasks,
 			Owner: agentSessionRow(session, now).Owner,
 		}
 		if !session.StartedAt.IsZero() {
@@ -153,13 +358,7 @@ func runAgentReapWith(ctx context.Context, w io.Writer, lister agentSessionListe
 			report.Kept++
 		case agentsession.OutcomeWouldStop, agentsession.OutcomeStopped:
 			report.Stop++
-			if row.MemoryBytes != nil {
-				report.Freed.MemoryBytes += *row.MemoryBytes
-			}
-			if row.SwapBytes != nil {
-				report.Freed.SwapBytes += *row.SwapBytes
-			}
-			report.Freed.Tasks += max(row.Tasks, 0)
+			report.Freed.add(row)
 		default:
 			failed++
 		}
@@ -197,10 +396,13 @@ func renderAgentReap(w io.Writer, report AgentReapReport) {
 		if row.Error != "" {
 			detail = row.Error
 		}
-		table = append(table, []string{row.Session, row.Scope, owner, row.Age, row.Outcome, optionalBytes(row.MemoryBytes, row.MemoryStatus), optionalBytes(row.SwapBytes, row.SwapStatus), detail})
+		table = append(table, []string{row.Session, row.Scope, owner, row.Age, row.Outcome, usageText(row.MemoryBytes, row.MemoryStatus, row.MemorySource), usageText(row.SwapBytes, row.SwapStatus, row.SwapSource), detail})
 	}
-	_ = cliout.RenderTable(w, []string{"Session", "Scope", "Owner", "Age", "Outcome", "Memory", "Swap", "Evidence"}, table)
-	_, _ = fmt.Fprintf(w, "memory %s, swap %s, %d tasks held by sessions %s\n", humanBytes(report.Freed.MemoryBytes), humanBytes(report.Freed.SwapBytes), report.Freed.Tasks, verb)
+	_ = cliout.RenderTable(w, []string{"Session", "Scope", "Owner", "Age", "Outcome", "RAM (source)", "Swap (source)", "Evidence"}, table)
+	_, _ = fmt.Fprintf(w, "selected-scope pre-action usage estimate: RAM %s, swap %s, %d tasks; this is not a measured host-wide post-action delta (%s)\n", humanBytes(report.Freed.MemoryBytes), humanBytes(report.Freed.SwapBytes), report.Freed.Tasks, verb)
+	if report.Freed.MemoryPartial > 0 || report.Freed.SwapPartial > 0 || report.Freed.MemoryUnknown > 0 || report.Freed.SwapUnknown > 0 {
+		_, _ = fmt.Fprintf(w, "partial readings: RAM %d scopes/%s, swap %d scopes/%s; unknown: RAM %d, swap %d\n", report.Freed.MemoryPartial, humanBytes(report.Freed.MemoryPartialBytes), report.Freed.SwapPartial, humanBytes(report.Freed.SwapPartialBytes), report.Freed.MemoryUnknown, report.Freed.SwapUnknown)
+	}
 }
 
 // optionalBytes renders a figure, or its status when it is unknown.
@@ -209,7 +411,7 @@ func optionalBytes(n *int64, status string) string {
 		return status
 	}
 	if status == agentsession.UsagePartial {
-		return ">=" + humanBytes(*n)
+		return "partial " + humanBytes(*n)
 	}
 	return humanBytes(*n)
 }

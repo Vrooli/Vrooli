@@ -124,11 +124,31 @@ func (p Provider) Validate(ctx context.Context, root string) (Result, error) {
 	if response == nil || response.Msg == nil {
 		return Result{}, fmt.Errorf("%w: %s returned an empty validation response", ErrUnavailable, ScenarioName)
 	}
+	if !matchesValidationTarget(response.Msg.GetTarget()) {
+		return Result{}, fmt.Errorf("%w: %s returned a mismatched validation target", ErrUnavailable, ScenarioName)
+	}
+	if response.Msg.GetStatus() == scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_UNSPECIFIED {
+		return Result{}, fmt.Errorf("%w: %s returned an unspecified validation status", ErrUnavailable, ScenarioName)
+	}
+	if response.Msg.GetAssessment() == nil {
+		return Result{}, fmt.Errorf("%w: %s omitted derived assessment evidence", ErrUnavailable, ScenarioName)
+	}
+	if unmarshalNative(response.Msg.GetNativeDetail()) == nil {
+		return Result{}, fmt.Errorf("%w: %s omitted canonical native detail", ErrUnavailable, ScenarioName)
+	}
 	return resultFromResponse(response.Msg), nil
+}
+
+func matchesValidationTarget(target *commonv1.ValidationTarget) bool {
+	return target != nil &&
+		target.GetKind() == commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_CONTROL_PLANE &&
+		target.GetId() == TargetID &&
+		target.GetRoot() == TargetRoot
 }
 
 func resultFromResponse(response *scenariovalidationv1.ValidateTargetResponse) Result {
 	result := Result{Status: response.GetStatus().String()}
+	canonicalFindings := map[string]struct{}{}
 	if native := unmarshalNative(response.GetNativeDetail()); native != nil {
 		for _, finding := range append(native.GetFindings(), native.GetViolations()...) {
 			if finding == nil {
@@ -138,10 +158,15 @@ func resultFromResponse(response *scenariovalidationv1.ValidateTargetResponse) R
 			if code == "" {
 				code = finding.GetCategory()
 			}
+			location := finding.GetFilePath()
+			if location != "" && finding.GetLineNumber() > 0 {
+				location = fmt.Sprintf("%s:%d", location, finding.GetLineNumber())
+			}
+			canonicalFindings[findingIdentity(code, location)] = struct{}{}
 			appendUniqueFinding(&result, Finding{
 				Code:        code,
 				Severity:    finding.GetSeverity(),
-				Location:    finding.GetFilePath(),
+				Location:    location,
 				Message:     finding.GetDescription(),
 				Remediation: values.FirstNonEmpty(finding.GetRemediation(), finding.GetRecommendedRemediation()),
 			})
@@ -152,16 +177,25 @@ func resultFromResponse(response *scenariovalidationv1.ValidateTargetResponse) R
 			if finding == nil {
 				continue
 			}
+			code := finding.GetCode()
+			location := finding.GetLocation()
+			if _, canonical := canonicalFindings[findingIdentity(code, location)]; canonical {
+				continue
+			}
 			appendUniqueFinding(&result, Finding{
-				Code:        finding.GetCode(),
+				Code:        code,
 				Severity:    finding.GetSeverity(),
-				Location:    finding.GetLocation(),
+				Location:    location,
 				Message:     finding.GetMessage(),
 				Remediation: finding.GetRemediation(),
 			})
 		}
 	}
 	return result
+}
+
+func findingIdentity(code, location string) string {
+	return strings.TrimSpace(code) + "\x00" + strings.TrimSpace(location)
 }
 
 func appendUniqueFinding(result *Result, finding Finding) {

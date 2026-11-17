@@ -118,6 +118,32 @@ func TestBinariesFreshnessManifestAuthoritative(t *testing.T) {
 	}
 }
 
+func TestBinariesFreshnessRejectsOtherCheckType(t *testing.T) {
+	repoRoot, appPath, binPath, _ := freshnessTestScene(t)
+	r := &Runner{Root: repoRoot}
+	item := freshnessTestItem(appPath)
+	artifacts, err := componentFreshnessArtifacts(appPath, repoRoot, item.Manifest.Components["api"], defaultHostProbeDeps())
+	if err != nil || len(artifacts) != 1 {
+		t.Fatalf("freshness artifacts: %v", err)
+	}
+	if err := r.stampArtifactFreshness(artifacts[0]); err != nil {
+		t.Fatal(err)
+	}
+	path := cliutil.FreshnessManifestPath(binPath)
+	manifest, ok, err := cliutil.ReadFreshnessManifest(path)
+	if err != nil || !ok {
+		t.Fatalf("read manifest: ok=%v err=%v", ok, err)
+	}
+	manifest.CheckType = "ui-bundle"
+	if err := cliutil.WriteFreshnessManifest(path, manifest); err != nil {
+		t.Fatal(err)
+	}
+	verdict, err := r.evaluateArtifactFreshness(artifacts[0], defaultHostProbeDeps())
+	if err != nil || !verdict.Stale || verdict.Cause != "manifest check type mismatch" {
+		t.Fatalf("wrong check type verdict = %+v, error = %v", verdict, err)
+	}
+}
+
 func TestBinariesFreshnessUnrelatedScenarioEditStaysFresh(t *testing.T) {
 	repoRoot, appPath, _, _ := freshnessTestScene(t)
 	r := &Runner{Root: repoRoot}

@@ -265,6 +265,61 @@ func TestVerifyPlacementReportsUndeterminedForVulkanWithoutResidentWorkload(t *t
 	}
 }
 
+func TestVerifyPlacementAttributesVulkanOnlyWithExactNvidiaAndMapsEvidence(t *testing.T) {
+	snapshot := hostWithCUDA()
+	snapshot.VulkanICDs = []string{"/usr/share/vulkan/icd.d/nvidia_icd.json"}
+	snapshot.ProbeStatuses["nvidia_gpu_processes"] = "ok"
+	snapshot.GPUProcesses = []hostinventory.GPUProcess{{GPUIndex: 0, PID: 817210, ProcessName: "/artifacts/whisper/whisper-server", UsedBytes: 1864 << 20}}
+	verifier := verifierFor(snapshot, nil)
+	verifier.ProcessIdentity = func(int) (string, error) { return "pid-incarnation", nil }
+	verifier.ProcessMaps = func(pid int) (string, error) {
+		if pid != 817210 {
+			t.Fatalf("maps PID=%d, want NVIDIA process PID 817210", pid)
+		}
+		return "libggml-vulkan.so.0.16.0 /dev/nvidia0 /dev/nvidiactl", nil
+	}
+	placement, err := verifier.VerifyPlacement(context.Background(), "whisper", accel.HostProcess{
+		PID: 817145, Serving: true, ExecutablePrefix: "/artifacts/whisper",
+	}, accel.BackendVulkan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if placement.State != accel.StateOK || placement.Observed != accel.BackendVulkan || !strings.Contains(placement.Reason, "libggml-vulkan") {
+		t.Fatalf("placement=%+v, want verified resource-owned Vulkan process", placement)
+	}
+}
+
+func TestVerifyPlacementKeepsVulkanUnknownWithoutBothOwnerAndDeviceProof(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		processes []hostinventory.GPUProcess
+		maps      string
+	}{
+		{name: "unrelated NVIDIA workload", processes: []hostinventory.GPUProcess{{PID: 55, ProcessName: "/opt/browser/chrome", UsedBytes: 1 << 20}}, maps: "libggml-vulkan /dev/nvidia0"},
+		{name: "resource mapped Vulkan without NVIDIA allocation", processes: []hostinventory.GPUProcess{{PID: 817210, ProcessName: "/artifacts/whisper/whisper-server", UsedBytes: 1 << 20}}, maps: "libggml-vulkan /dev/dri/renderD128"},
+		{name: "resource GPU allocation without Vulkan mapping", processes: []hostinventory.GPUProcess{{PID: 817210, ProcessName: "/artifacts/whisper/whisper-server", UsedBytes: 1 << 20}}, maps: "libggml-cuda.so /dev/nvidia0"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			snapshot := hostWithCUDA()
+			snapshot.VulkanICDs = []string{"/usr/share/vulkan/icd.d/nvidia_icd.json"}
+			snapshot.ProbeStatuses["nvidia_gpu_processes"] = "ok"
+			snapshot.GPUProcesses = tc.processes
+			verifier := verifierFor(snapshot, nil)
+			verifier.ProcessIdentity = func(int) (string, error) { return "same", nil }
+			verifier.ProcessMaps = func(int) (string, error) { return tc.maps, nil }
+			placement, err := verifier.VerifyPlacement(context.Background(), "whisper", accel.HostProcess{
+				PID: 817145, Serving: true, ExecutablePrefix: "/artifacts/whisper",
+			}, accel.BackendVulkan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if placement.State != accel.StateUndetermined || placement.Observed != "" {
+				t.Fatalf("placement=%+v; incomplete evidence must remain unknown", placement)
+			}
+		})
+	}
+}
+
 // Scenario: a metal target on linux is unknown with a named reason.
 func TestVerifyPlacementReportsMetalUnsupportedOffDarwin(t *testing.T) {
 	if runtime.GOOS == "darwin" {

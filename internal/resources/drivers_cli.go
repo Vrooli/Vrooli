@@ -446,7 +446,7 @@ func uninstallNativeCLI(controller *Controller, manifest ResourceManifest) error
 	// scenario CLIs. A malformed or future manifest must never turn resource
 	// uninstall into a root-control-plane removal.
 	switch filepath.Base(cleanBinary) {
-	case "vrooli", "vrooli-api", "vrooli-agent-launcher", "vrooli-policy-runner":
+	case "vrooli", "vrooli-api", "vrooli-agent-launcher", "vrooli-policy-runner", "vrooli-gocacheprog":
 		return fmt.Errorf("refuse to uninstall protected control-plane CLI %q", filepath.Base(cleanBinary))
 	}
 	ledger, err := artifactledger.New(controller.Home)

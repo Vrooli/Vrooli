@@ -28,6 +28,7 @@ const (
 	maxSyntheticHTTPMockQueryBytes  = 2 << 10
 	syntheticHTTPMockPort           = 18080
 	maxHTTPMockOutputBytes          = 32 << 10
+	maxHTTPMockHitsOutputBytes      = 1 << 20
 	httpMockNamePattern             = `^[a-z][a-z0-9-]{0,31}$`
 	httpMockVersionPattern          = `^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][A-Za-z0-9.-]+)?$`
 )
@@ -77,13 +78,33 @@ type HTTPMockStopReceipt struct {
 	Status             string `json:"status"`
 }
 
+// HTTPMockRouteHit contains only the static route identity and aggregate count.
+// Request bodies, headers, and values are never retained by the mock server.
+type HTTPMockRouteHit struct {
+	Host   string `json:"host"`
+	Method string `json:"method"`
+	Path   string `json:"path"`
+	Query  string `json:"query,omitempty"`
+	Count  uint64 `json:"count"`
+}
+
+type HTTPMockHitsReceipt struct {
+	SandboxID          string             `json:"sandboxId"`
+	CompanionRuntimeID string             `json:"companionRuntimeId"`
+	Status             string             `json:"status"`
+	TotalHits          uint64             `json:"totalHits"`
+	Routes             []HTTPMockRouteHit `json:"routes"`
+}
+
 const stageHTTPMockProgram = `const fs=require("fs");const p=process.argv[1];const flags=fs.constants.O_WRONLY|fs.constants.O_CREAT|fs.constants.O_TRUNC|fs.constants.O_NOFOLLOW;const fd=fs.openSync(p,flags,0o600);process.stdin.on("data",b=>{for(let o=0;o<b.length;)o+=fs.writeSync(fd,b,o,b.length-o)});process.stdin.on("error",()=>{try{fs.closeSync(fd)}catch{};process.exitCode=1});process.stdin.on("end",()=>fs.closeSync(fd));`
 
 // This server has no network client, resolver override, proxy support, or
 // forwarding code. It responds only to exact fixture matches and fails closed.
 const canonicalHTTPMockQueryProgram = `function canonicalQuery(raw){if(Buffer.byteLength(raw,"utf8")>2048||raw.includes(";"))return null;if(raw==="")return "";const values=new Map();function decode(part){if(/%(?![0-9a-fA-F]{2})/.test(part))throw Error("bad escape");return decodeURIComponent(part.replace(/\+/g," "))}function encode(value){return encodeURIComponent(value).replace(/[!'()*]/g,c=>"%"+c.charCodeAt(0).toString(16).toUpperCase()).replace(/%20/g,"+")}function sensitive(key){const normalized=key.toLowerCase().replace(/[_\-.]/g,"");return ["password","passwd","secret","token","authorization","cookie","apikey","clientsecret","privatekey"].some(marker=>normalized.includes(marker))}try{for(const pair of raw.split("&")){if(pair==="")continue;const index=pair.indexOf("=");const key=decode(index<0?pair:pair.slice(0,index));const value=decode(index<0?"":pair.slice(index+1));if(!/^[A-Za-z0-9_.~-]{1,128}$/.test(key)||sensitive(key)||Buffer.byteLength(value,"utf8")>512||/[\x00\r\n]/.test(value)||/\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,})\b/i.test(value))return null;const emails=value.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/ig)||[];if(emails.some(email=>!email.toLowerCase().endsWith(".invalid"))||values.has(key))return null;values.set(key,value)}}catch{return null}if(values.size===0||values.size>32)return null;const canonical=[...values].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0).map(([key,value])=>encode(key)+"="+encode(value)).join("&");return Buffer.byteLength(canonical,"utf8")<=2048?canonical:null}`
 
-const syntheticHTTPMockServerTemplate = `const fs=require("fs"),http=require("http");${canonicalHTTPMockQueryProgram};const cfg=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const routes=new Map();for(const f of cfg.fixtures)routes.set(f.method+" "+f.host+" "+f.path+"?"+(f.query||""),f);const server=http.createServer((req,res)=>{if(req.method==="GET"&&req.url==="/__vrooli_health"){res.statusCode=204;return res.end()}const host=String(req.headers.host||"").toLowerCase().replace(/:\d+$/,"");const target=String(req.url||"");if(target.includes("#")){req.resume();res.statusCode=404;return res.end("not found")}const queryIndex=target.indexOf("?");const requestPath=queryIndex<0?target:target.slice(0,queryIndex);const requestQuery=queryIndex<0?"":canonicalQuery(target.slice(queryIndex+1));if(requestQuery===null){req.resume();res.statusCode=404;return res.end("not found")}const fixture=routes.get(req.method+" "+host+" "+requestPath+"?"+requestQuery);if(!fixture){req.resume();res.statusCode=404;res.setHeader("content-type","text/plain");return res.end("no synthetic fixture")}let size=0,tooLarge=false,responded=false;req.on("data",chunk=>{size+=chunk.length;if(size>65536&&!responded){responded=true;tooLarge=true;res.statusCode=413;res.end("request too large");req.resume()}});req.on("end",()=>{if(responded)return;if(tooLarge){res.statusCode=413;return res.end("request too large")}res.statusCode=fixture.status;res.setHeader("content-type",fixture.contentType);res.setHeader("cache-control","no-store");res.setHeader("x-content-type-options","nosniff");res.end(req.method==="HEAD"?"":fixture.body)})});server.listen(18080,"0.0.0.0");`
+const syntheticHTTPMockServerTemplate = `const fs=require("fs"),http=require("http");${canonicalHTTPMockQueryProgram};const cfg=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const hitsPath="/tmp/vrooli-http-mock-hits.json";const routes=new Map();const hits=[];for(const f of cfg.fixtures){const key=f.method+" "+f.host+" "+f.path+"?"+(f.query||"");routes.set(key,f);hits.push({host:f.host,method:f.method,path:f.path,query:f.query||"",count:0})}let writeChain=Promise.resolve();function persistHits(){const json=JSON.stringify({version:1,routes:hits});writeChain=writeChain.then(()=>{fs.writeFileSync(hitsPath+".tmp",json,{mode:0o600});fs.renameSync(hitsPath+".tmp",hitsPath)}).catch(()=>{try{fs.writeFileSync(hitsPath+".failed","failed",{mode:0o600})}catch{}});return writeChain}const server=http.createServer((req,res)=>{if(req.method==="GET"&&req.url==="/__vrooli_health"){res.statusCode=204;return res.end()}const host=String(req.headers.host||"").toLowerCase().replace(/:\d+$/,"");const target=String(req.url||"");if(target.includes("#")){req.resume();res.statusCode=404;return res.end("not found")}const queryIndex=target.indexOf("?");const requestPath=queryIndex<0?target:target.slice(0,queryIndex);const requestQuery=queryIndex<0?"":canonicalQuery(target.slice(queryIndex+1));if(requestQuery===null){req.resume();res.statusCode=404;return res.end("not found")}const key=req.method+" "+host+" "+requestPath+"?"+requestQuery;const fixture=routes.get(key);if(!fixture){req.resume();res.statusCode=404;res.setHeader("content-type","text/plain");return res.end("no synthetic fixture")}const hit=hits.find(item=>item.method+" "+item.host+" "+item.path+"?"+item.query===key);if(hit&&hit.count<2147483647)hit.count++;persistHits();let size=0,tooLarge=false,responded=false;req.on("data",chunk=>{size+=chunk.length;if(size>65536&&!responded){responded=true;tooLarge=true;res.statusCode=413;res.end("request too large");req.resume()}});req.on("end",()=>{if(responded)return;if(tooLarge){res.statusCode=413;return res.end("request too large")}res.statusCode=fixture.status;res.setHeader("content-type",fixture.contentType);res.setHeader("cache-control","no-store");res.setHeader("x-content-type-options","nosniff");res.end(req.method==="HEAD"?"":fixture.body)})});persistHits();server.listen(18080,"0.0.0.0");`
+
+const syntheticHTTPMockHitsReaderProgram = `const fs=require("fs");if(fs.existsSync("/tmp/vrooli-http-mock-hits.json.failed"))process.exit(1);process.stdout.write(fs.readFileSync("/tmp/vrooli-http-mock-hits.json"))`
 
 var syntheticHTTPMockServerProgram = strings.ReplaceAll(syntheticHTTPMockServerTemplate, "${canonicalHTTPMockQueryProgram}", canonicalHTTPMockQueryProgram)
 
@@ -509,6 +530,74 @@ func (o *Owner) launchHTTPMockServer(ctx context.Context, containerID, configPat
 	return nil
 }
 
+// ReadHTTPMockRouteHits returns bounded aggregate evidence from the task-owned
+// mock. It verifies the exact container and private network before reading the
+// fixed tmpfs receipt, and never returns request content.
+func (o *Owner) ReadHTTPMockRouteHits(ctx context.Context, sandboxID, runtimeID string) (HTTPMockHitsReceipt, error) {
+	canonical, err := normalizeSandboxID(sandboxID)
+	if err != nil {
+		return HTTPMockHitsReceipt{}, err
+	}
+	if !httpMockRuntimePattern(canonical, runtimeID) {
+		return HTTPMockHitsReceipt{}, ErrForeignObject
+	}
+	container, found, err := o.inspectContainer(ctx, httpMockContainerName(canonical))
+	if err != nil {
+		return HTTPMockHitsReceipt{}, err
+	}
+	if !found || !container.State.Running {
+		return HTTPMockHitsReceipt{}, errors.New("owned HTTP mock is not running")
+	}
+	if err := verifyHTTPMockContainerIdentity(container, canonical, runtimeID); err != nil {
+		return HTTPMockHitsReceipt{}, err
+	}
+	if err := o.verifyHTTPMockNetworks(ctx, canonical, container, parseHTTPMockAliases(container.Config.Labels[labelHTTPMockAliases])); err != nil {
+		return HTTPMockHitsReceipt{}, err
+	}
+	quiet, ok := o.runner().(quietCommandRunner)
+	if !ok {
+		return HTTPMockHitsReceipt{}, errors.New("Docker runner does not support bounded HTTP mock evidence reads")
+	}
+	data, exceeded, err := quiet.RunStdoutLimitQuiet(ctx, maxHTTPMockHitsOutputBytes, "exec", container.ID, "node", "-e", syntheticHTTPMockHitsReaderProgram)
+	if err != nil || exceeded {
+		return HTTPMockHitsReceipt{}, errors.New("could not read bounded HTTP mock route-hit evidence")
+	}
+	var document struct {
+		Version int                `json:"version"`
+		Routes  []HTTPMockRouteHit `json:"routes"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&document); err != nil || document.Version != 1 || len(document.Routes) == 0 || len(document.Routes) > maxSyntheticHTTPMockFixtures {
+		return HTTPMockHitsReceipt{}, errors.New("HTTP mock route-hit evidence is malformed")
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return HTTPMockHitsReceipt{}, errors.New("HTTP mock route-hit evidence contains trailing data")
+	}
+	seen := make(map[string]struct{}, len(document.Routes))
+	var total uint64
+	for i := range document.Routes {
+		route := &document.Routes[i]
+		if len(route.Host) > 253 || !httpMockHostPattern.MatchString(route.Host) || !validHTTPMockMethod(route.Method) || !validHTTPMockPath(route.Path) || route.Path == "/__vrooli_health" || route.Count > 2147483647 {
+			return HTTPMockHitsReceipt{}, errors.New("HTTP mock route-hit evidence contains an invalid route")
+		}
+		query, err := normalizeHTTPMockQuery(route.Query)
+		if err != nil || query != route.Query {
+			return HTTPMockHitsReceipt{}, errors.New("HTTP mock route-hit evidence contains an invalid query")
+		}
+		key := route.Method + " " + route.Host + " " + route.Path + "?" + route.Query
+		if _, exists := seen[key]; exists {
+			return HTTPMockHitsReceipt{}, errors.New("HTTP mock route-hit evidence contains duplicate routes")
+		}
+		seen[key] = struct{}{}
+		if ^uint64(0)-total < route.Count {
+			return HTTPMockHitsReceipt{}, errors.New("HTTP mock route-hit total overflowed")
+		}
+		total += route.Count
+	}
+	return HTTPMockHitsReceipt{SandboxID: canonical, CompanionRuntimeID: runtimeID, Status: "available", TotalHits: total, Routes: document.Routes}, nil
+}
+
 func (o *Owner) StopHTTPMock(ctx context.Context, sandboxID, runtimeID string) (HTTPMockStopReceipt, error) {
 	canonical, err := normalizeSandboxID(sandboxID)
 	if err != nil {
@@ -527,7 +616,14 @@ func (o *Owner) StopHTTPMock(ctx context.Context, sandboxID, runtimeID string) (
 	}
 	aliases := parseHTTPMockAliases(container.Config.Labels[labelHTTPMockAliases])
 	if err := o.verifyHTTPMockNetworks(ctx, canonical, container, aliases); err != nil {
-		return HTTPMockStopReceipt{}, err
+		// Sandbox teardown can remove the private task network before its
+		// companion stop callback runs. In that case the already-verified
+		// container may be removed only if Docker confirms it has no network
+		// attachments and publishes no host ports. Never use this recovery for
+		// a container still attached to any network.
+		if orphanErr := verifyOrphanedHTTPMock(container); orphanErr != nil {
+			return HTTPMockStopReceipt{}, err
+		}
 	}
 	if container.State.Running {
 		if _, err := o.runner().Run(ctx, "stop", "--time", "5", container.ID); err != nil {
@@ -542,12 +638,26 @@ func (o *Owner) StopHTTPMock(ctx context.Context, sandboxID, runtimeID string) (
 		return HTTPMockStopReceipt{}, err
 	}
 	if err := o.verifyHTTPMockNetworks(ctx, canonical, container, aliases); err != nil {
-		return HTTPMockStopReceipt{}, err
+		if orphanErr := verifyOrphanedHTTPMock(container); orphanErr != nil {
+			return HTTPMockStopReceipt{}, err
+		}
 	}
 	if _, err := o.runner().Run(ctx, "rm", "--volumes", container.ID); err != nil && !isNotFound(err) {
 		return HTTPMockStopReceipt{}, fmt.Errorf("remove owned HTTP mock: %w", err)
 	}
 	return HTTPMockStopReceipt{SandboxID: canonical, CompanionRuntimeID: runtimeID, Status: "stopped"}, nil
+}
+
+func verifyOrphanedHTTPMock(container containerInspect) error {
+	if len(container.NetworkSettings.Networks) != 0 {
+		return errors.New("orphaned HTTP mock still has a network attachment")
+	}
+	for _, bindings := range container.NetworkSettings.Ports {
+		if len(bindings) > 0 {
+			return errors.New("orphaned HTTP mock unexpectedly publishes a host port")
+		}
+	}
+	return nil
 }
 
 const (
@@ -774,3 +884,6 @@ func validActualHTTPMockAliases(expected, actual []string, containerAlias string
 }
 
 func HTTPMockOutputBound() int { return maxHTTPMockOutputBytes }
+
+// HTTPMockHitsOutputBound is the CLI JSON bound for route-hit receipts.
+func HTTPMockHitsOutputBound() int { return maxHTTPMockHitsOutputBytes }

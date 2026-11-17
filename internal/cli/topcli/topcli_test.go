@@ -32,3 +32,19 @@ func TestRenderMainHelpUsesPlainLabelsAndIncludesContract(t *testing.T) {
 		}
 	}
 }
+
+func TestUXHelpDescribesOnlyImplementedCaptureRoute(t *testing.T) {
+	text := UXHelpText()
+	for _, want := range []string{
+		"react-component-library page capture",
+		"react-component-library page render",
+		"git-control-tower ux-capture --help",
+		"browser-automation-studio ux-capture --help",
+		"Capture a running local scenario",
+		"No critique, compare, propose, check, or correction command is exposed",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("UX help is missing %q: %s", want, text)
+		}
+	}
+}

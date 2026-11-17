@@ -7,6 +7,7 @@
 package resources
 
 import (
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	platform "github.com/vrooli/platform-go"
 )
@@ -86,20 +88,56 @@ func existingResourceCompanion(resource string, c ResourceCompanion, bin string,
 	if err != nil {
 		return 0, fmt.Errorf("inspect existing companion scope: %w", err)
 	}
+	pid, uniqueErr := uniqueCompanionScopePID(pids)
+	if uniqueErr != nil {
+		return 0, uniqueErr
+	}
+	if pid == 0 {
+		return 0, nil
+	}
+	actualScope, scopeErr := platform.ProcessScope(pid)
+	executable, exeErr := platform.ProcessExecutablePath(pid)
+	command, commandErr := platform.ProcessCommandLine(pid)
+	dir, dirErr := companionDir(resource)
+	if scopeErr != nil || exeErr != nil || commandErr != nil || dirErr != nil {
+		return 0, fmt.Errorf("existing companion scope process identity does not match the current service")
+	}
+	if err := validateExistingCompanionIdentity(resource, c, dir, parentPID, scope, actualScope, bin, executable, command, activityEdgeControlSocketReady); err != nil {
+		return 0, err
+	}
+	return pid, nil
+}
+
+func uniqueCompanionScopePID(pids []int) (int, error) {
 	if len(pids) > 1 {
 		return 0, fmt.Errorf("companion scope has %d processes; refusing ambiguous recovery or duplicate launch", len(pids))
 	}
 	if len(pids) == 0 {
 		return 0, nil
 	}
-	pid := pids[0]
-	actualScope, scopeErr := platform.ProcessScope(pid)
-	executable, exeErr := platform.ProcessExecutablePath(pid)
-	command, commandErr := platform.ProcessCommandLine(pid)
-	if scopeErr != nil || exeErr != nil || commandErr != nil || actualScope != scope || !companionCommandMatches(bin, c.Args, parentPID, executable, command) {
-		return 0, fmt.Errorf("existing companion scope process identity does not match the current service")
+	if pids[0] <= 1 {
+		return 0, fmt.Errorf("companion scope contains an invalid process identity")
 	}
-	return pid, nil
+	return pids[0], nil
+}
+
+func validateExistingCompanionIdentity(resource string, c ResourceCompanion, dir string, parentPID int, expectedScope, actualScope, bin, executable, command string, ready func(context.Context, string) error) error {
+	args := companionLaunchArgs(resource, c, dir, parentPID)
+	if !companionProcessIdentityMatches(expectedScope, actualScope, bin, args, executable, command) {
+		return fmt.Errorf("existing companion scope process identity does not match the current service")
+	}
+	if hasStableActivityEdge(resource) && c.Name == "activity-edge" {
+		if ready == nil {
+			return fmt.Errorf("%s activity edge control socket readiness check is unavailable", resource)
+		}
+		readyCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		err := ready(readyCtx, filepath.Join(dir, "activity-edge.control.sock"))
+		cancel()
+		if err != nil {
+			return fmt.Errorf("existing %s activity edge control socket is not ready: %w", resource, err)
+		}
+	}
+	return nil
 }
 
 // A stopped companion's scope may already have been removed by the service
@@ -113,12 +151,49 @@ func companionScopeProcesses(ref platform.ScopeRef) ([]int, error) {
 }
 
 func companionCommandMatches(bin string, args []string, parentPID int, executable, command string) bool {
+	expected := append(append([]string{}, args...), "--parent-pid", strconv.Itoa(parentPID))
+	return companionProcessIdentityMatches("", "", bin, expected, executable, command)
+}
+
+// verifyCompanionPIDAbsentFromScope closes the gap between observing a dead
+// PID and allowing the backend owner to be replaced. Cgroup inventory can
+// retain a zombie/ghost entry after /proc no longer reports a running process;
+// that state is not proof that a companion scope is clear.
+func verifyCompanionPIDAbsentFromScope(resource, component string, parentPID, pid int) error {
+	parentScope, err := platform.ProcessScope(parentPID)
+	if err != nil {
+		return fmt.Errorf("inspect companion parent scope: %w", err)
+	}
+	if parentScope == "" || filepath.Base(parentScope) != resourceServiceScopeName(resource, "service")+".scope" || filepath.Base(filepath.Dir(parentScope)) != platform.ServicesSlice {
+		return fmt.Errorf("cannot verify %s companion scope from the current service scope", resource)
+	}
+	name := resourceServiceScopeName(resource, "companion-"+component) + ".scope"
+	ref := platform.ScopeRef{Kind: platform.ScopeKindCgroup, Name: name, Path: filepath.Join(filepath.Dir(parentScope), name)}
+	pids, err := companionScopeProcesses(ref)
+	if err != nil {
+		return fmt.Errorf("inspect retired companion scope: %w", err)
+	}
+	if !companionPIDAbsentFromScope(pids, pid) {
+		return fmt.Errorf("retired companion PID %d remains listed in its canonical scope", pid)
+	}
+	return nil
+}
+
+func companionPIDAbsentFromScope(pids []int, pid int) bool {
+	for _, scopedPID := range pids {
+		if scopedPID == pid {
+			return false
+		}
+	}
+	return true
+}
+
+func companionProcessIdentityMatches(expectedScope, actualScope, bin string, expected []string, executable, command string) bool {
 	// Atomic CLI replacement leaves the old live executable marked deleted.
 	// Its exact owned location remains valid; a same-name binary elsewhere does not.
-	if filepath.Clean(strings.TrimSuffix(executable, " (deleted)")) != filepath.Clean(bin) {
+	if (expectedScope != "" && actualScope != expectedScope) || filepath.Clean(strings.TrimSuffix(executable, " (deleted)")) != filepath.Clean(bin) {
 		return false
 	}
-	expected := append(append([]string{}, args...), "--parent-pid", strconv.Itoa(parentPID))
 	// ProcessCommandLine projects argv as space-separated text. Refuse recovery
 	// when that projection cannot distinguish argument boundaries.
 	for _, arg := range expected {

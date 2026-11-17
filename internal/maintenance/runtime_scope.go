@@ -27,9 +27,12 @@ func (c *Controller) RequireRuntimeScopeAbsent(parent context.Context, ref Runti
 	}
 	ctx, cancel := context.WithTimeout(parent, 4*time.Second)
 	defer cancel()
-	entries, identities, err := observeScopeProcesses(ctx)
+	entries, identities, identityErrors, err := observeScopeProcesses(ctx)
 	if err != nil {
 		return err
+	}
+	if len(identityErrors) > 0 {
+		return fmt.Errorf("managed runtime process identity inventory is incomplete")
 	}
 	for pid, entry := range entries {
 		if strings.HasPrefix(entry.State, "Z") {

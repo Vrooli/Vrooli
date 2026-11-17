@@ -210,6 +210,22 @@ func installInputsDigest(repoRoot, root string, component scenario.Component, sp
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].path < files[j].path })
 	hash := sha256.New()
+	// Bind the sidecar to the install operation as well as its input bytes.
+	// The prefix intentionally makes records from older readers miss: they
+	// cannot know whether a newer builder changed the install semantics.
+	contract, err := json.Marshal(struct {
+		Version                  int
+		Install                  []string
+		InstallInputs            []string
+		InstallStateFile         string
+		Environment              map[string]string
+		FollowsWorkspaceFileDeps bool
+	}{1, spec.Install, spec.InstallInputs, spec.InstallStateFile, spec.Environment, spec.FollowsWorkspaceFileDeps})
+	if err != nil {
+		return "", err
+	}
+	_, _ = fmt.Fprintf(hash, "install-contract:%d:", len(contract))
+	_, _ = hash.Write(contract)
 	for _, file := range files {
 		if strings.HasPrefix(file.path, "missing:") {
 			_, _ = fmt.Fprintf(hash, "%s\x00missing\x00", file.path)
@@ -298,7 +314,7 @@ func (r *Runner) FreshnessInputsByNameContext(ctx context.Context, name, customP
 	if err != nil {
 		return FreshnessReport{}, err
 	}
-	return r.freshnessInputsContext(ctx, item, r.hostProbeDeps())
+	return r.freshnessInputsContext(ctx, item, r.scenarioHostProbeDeps(item))
 }
 
 func (r *Runner) freshnessInputs(item scenario.Scenario, deps hostProbeDeps) (FreshnessReport, error) {
@@ -312,17 +328,9 @@ func (r *Runner) freshnessInputsContext(ctx context.Context, item scenario.Scena
 		if err := ctx.Err(); err != nil {
 			return FreshnessReport{}, err
 		}
-		// Build freshness may conservatively fall back while deciding whether to
-		// rebuild. Reusable validation evidence requires a proven import closure.
-		if spec, ok := builderRegistry[component.Build.Kind]; ok && spec.ClosureResolver == closureResolverGoList {
-			if _, complete := goListFreshnessInputsContext(ctx, resolveCheckPath(item.SourcePath(), component.Build.Dir), r.Root, deps); !complete {
-				if err := ctx.Err(); err != nil {
-					return FreshnessReport{}, err
-				}
-				return FreshnessReport{}, fmt.Errorf("component %s import closure unavailable; validation inputs are incomplete", name)
-			}
-		}
-		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
+		// Validation evidence must use the very closure it proves complete;
+		// ordinary build freshness may still use its conservative fallback.
+		artifacts, err := componentFreshnessArtifactsWithRequiredClosure(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps, true, item.Variant)
 		if err != nil {
 			return FreshnessReport{}, fmt.Errorf("component %s inputs: %w", name, err)
 		}
@@ -395,7 +403,7 @@ func (r *Runner) FreshnessReportContext(ctx context.Context, item scenario.Scena
 		return FreshnessReport{}, err
 	}
 	report := FreshnessReport{Scenario: item.Slug}
-	deps := r.hostProbeDeps()
+	deps := r.scenarioHostProbeDeps(item)
 
 	componentNames := make([]string, 0, len(item.Manifest.Components))
 	for name := range item.Manifest.Components {
@@ -407,7 +415,7 @@ func (r *Runner) FreshnessReportContext(ctx context.Context, item scenario.Scena
 			return FreshnessReport{}, err
 		}
 		component := item.Manifest.Components[name]
-		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps)
+		artifacts, err := componentFreshnessArtifactsContextWithName(ctx, item.SourcePath(), r.Root, item.Slug, name, component, deps, item.Variant)
 		if err != nil {
 			return FreshnessReport{}, fmt.Errorf("component %s freshness: %w", name, err)
 		}
@@ -463,11 +471,11 @@ func (r *Runner) stampComponentFreshness(item scenario.Scenario, name string) er
 	if !ok {
 		return nil
 	}
-	return r.stampComponentFreshnessWithDeps(item, name, component, r.hostProbeDeps())
+	return r.stampComponentFreshnessWithDeps(item, name, component, r.scenarioHostProbeDeps(item))
 }
 
 func (r *Runner) stampComponentFreshnessWithDeps(item scenario.Scenario, name string, component scenario.Component, deps hostProbeDeps) error {
-	artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.SourcePath(), r.Root, item.Slug, name, component, deps)
+	artifacts, err := componentFreshnessArtifactsContextWithName(context.Background(), item.SourcePath(), r.Root, item.Slug, name, component, deps, item.Variant)
 	if err != nil {
 		return fmt.Errorf("component %s freshness stamp spec: %w", name, err)
 	}
@@ -526,7 +534,7 @@ func binariesFreshnessArtifactsContext(ctx context.Context, appRoot, repoRoot st
 				ContextRoot:     root,
 				Inputs:          inputs,
 				SkipFiles:       []string{filepath.Base(artifact)},
-				SkipSuffixes:    []string{"_test.go", cliutil.FreshnessManifestSuffix},
+				SkipSuffixes:    []string{cliutil.FreshnessManifestSuffix},
 				CaseInsensitive: deps.volumeCaseInsensitive(artifact),
 			},
 		})
@@ -1002,6 +1010,11 @@ func (r *Runner) evaluateArtifactFreshnessContext(ctx context.Context, art artif
 		ok = false
 	}
 	if ok {
+		// A manifest for a different artifact kind cannot establish that this
+		// artifact was built under its current freshness contract.
+		if manifest.CheckType != art.CheckType {
+			return artifactVerdict{Target: art.Target, Stale: true, Cause: "manifest check type mismatch", File: art.ManifestPath, HumanReason: fmt.Sprintf("%s stale (manifest check type mismatch)", art.Target)}, nil
+		}
 		if err := ctx.Err(); err != nil {
 			return artifactVerdict{}, err
 		}
@@ -1065,8 +1078,12 @@ func uiBuildKeyInputs(deps hostProbeDeps) map[string]string {
 		keyInputs["node_env"] = value
 	}
 	if deps.nodeVersion != nil {
-		if major := strings.TrimSpace(deps.nodeVersion()); major != "" {
-			keyInputs["node_major"] = major
+		if version := strings.TrimSpace(deps.nodeVersion()); version != "" {
+			key := "node_major"
+			if deps.nodeVersionExact {
+				key = "node_version"
+			}
+			keyInputs[key] = version
 		}
 	}
 	if mode := NormalizeBuildMode(deps.getenv(BuildModeEnvVar)); mode != "" {

@@ -96,6 +96,64 @@ func TestTreasuryWalletDynamicCredentialsAreIncludedInRecovery(t *testing.T) {
 	}
 }
 
+func TestKopiaS3AndSFTPCredentialsAreIncludedInRecovery(t *testing.T) {
+	identity, err := credentialauthority.ParseIdentity("vrooli/kopia/offsite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := testenv.NewCredentialStore(securestore.ErrNotFound)
+	authority, err := credentialauthority.NewAuthority(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtures := map[string]string{
+		"repository-passphrase": "TEST-only repository passphrase",
+		"s3-access-key-id":      "TEST-only access key",
+		"s3-secret-access-key":  "TEST-only secret key",
+		"sftp-private-key":      "TEST-only SSH private key",
+	}
+	for field, value := range fixtures {
+		if err := authority.Put(identity, field, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	previous := credentialauthority.DefaultAuthority
+	credentialauthority.DefaultAuthority = func() (*credentialauthority.Authority, error) { return authority, nil }
+	t.Cleanup(func() { credentialauthority.DefaultAuthority = previous })
+	root := t.TempDir()
+	writeFixtureFile(t, filepath.Join(root, ".vrooli", "service.json"), map[string]any{})
+	result, err := CollectWithOptions(root, CollectionOptions{
+		LiveKopiaRepositoryEntries: func() []resources.KopiaRepositoryEntry {
+			return []resources.KopiaRepositoryEntry{
+				{Repository: "offsite", LogicalID: string(identity), Field: "repository-passphrase"},
+				{Repository: "offsite", LogicalID: string(identity), Field: "s3-access-key-id"},
+				{Repository: "offsite", LogicalID: string(identity), Field: "s3-secret-access-key"},
+				{Repository: "offsite", LogicalID: string(identity), Field: "sftp-private-key"},
+			}
+		},
+		LiveVaultUnsealKeyEntries: func() []resources.VaultUnsealKeyEntry { return nil },
+		ManagedSystemEntries:      func(string) []SystemEntry { return nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entries) != len(fixtures) || len(result.Rows) != len(fixtures) {
+		t.Fatalf("recovery inventory has %d entries and %d rows, want %d", len(result.Entries), len(result.Rows), len(fixtures))
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for field, value := range fixtures {
+		if !containsRecoveryAddress(result.Entries, string(identity)+":"+field) {
+			t.Errorf("recovery inventory omitted %s", field)
+		}
+		if strings.Contains(string(encoded), value) {
+			t.Errorf("recovery inventory exposed value for %s", field)
+		}
+	}
+}
+
 func TestTreasuryWalletInventoryRejectsAdjacentMalformedAndUnrelatedReferences(t *testing.T) {
 	valid := "vrooli/treasury/wallets/" + strings.Repeat("a", 32) + "/" + strings.Repeat("b", 32)
 	for name, logicalID := range map[string]string{

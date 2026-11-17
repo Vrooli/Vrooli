@@ -235,6 +235,41 @@ func TestRealWhisperHasRequiredCapacitySpec(t *testing.T) {
 	}
 }
 
+func TestMissionResidencyResourcesDeclareIdleYieldRungs(t *testing.T) {
+	for _, tc := range []struct {
+		resource string
+		floor    string
+	}{
+		{resource: "whisper", floor: "unloaded"},
+		{resource: "reranker", floor: "cpu"},
+		{resource: "ollama", floor: "cpu"},
+		{resource: "kyutai-stt", floor: "cpu"},
+	} {
+		t.Run(tc.resource, func(t *testing.T) {
+			spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), tc.resource)
+			if err != nil || !ok {
+				t.Fatalf("LoadResourceClaimSpec(%s) = ok %v err %v", tc.resource, ok, err)
+			}
+			if !spec.YieldWhenIdle || spec.IdleGraceSeconds != 900 || spec.IdleUnloadTTLSeconds != 900 {
+				t.Fatalf("idle policy = yield %t, grace %d, unload %d; want yield/900/900", spec.YieldWhenIdle, spec.IdleGraceSeconds, spec.IdleUnloadTTLSeconds)
+			}
+			if spec.Profile == nil || len(spec.Profile.Steps) == 0 {
+				t.Fatalf("profile = %+v, want a reclaimable residency rung", spec.Profile)
+			}
+			foundFloor := false
+			for _, step := range spec.Profile.Steps {
+				if step.Label == tc.floor && step.AmountBytes == 0 {
+					foundFloor = true
+					break
+				}
+			}
+			if !foundFloor {
+				t.Fatalf("profile = %+v, want %s/0 idle-yield rung", spec.Profile, tc.floor)
+			}
+		})
+	}
+}
+
 func TestRealKyutaiCapacitySpecYieldsWhenIdle(t *testing.T) {
 	spec, ok, err := LoadResourceClaimSpec(findAdmissionRepoRoot(t), "kyutai-stt")
 	if err != nil || !ok {
@@ -490,7 +525,8 @@ func TestAdmitResourceUsesFreshMemoryPSI(t *testing.T) {
 			root := t.TempDir()
 			writeResourceManifest(t, root, "ram-fixture", `{"acceleration":{"claim":{"resource_kind":"ram","default_preferred_bytes":10,"floor_bytes":10}}}`)
 			open, clk := admitTestStore(t)
-			out, err := AdmitResource(context.Background(), AdmitOptions{Root: root, ResourceName: "ram-fixture", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory,
+			out, err := AdmitResource(context.Background(), AdmitOptions{
+				Root: root, ResourceName: "ram-fixture", OpenStore: open, Clock: clk, EnforceEnv: EnforceAdvisory,
 				Source:         StaticSource{Inventory: hostinventory.Snapshot{Memory: hostinventory.Memory{TotalBytes: 100, AvailableBytes: tc.available}, Swap: hostinventory.Swap{TotalBytes: 100, FreeBytes: tc.free}}},
 				MemoryPressure: func() hostpressure.Reading { return tc.reading },
 			})

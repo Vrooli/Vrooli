@@ -80,6 +80,32 @@ func TestServiceClaimGrantAndList(t *testing.T) {
 	}
 }
 
+func TestPlacementTableIsReadOnlyAndReportsUnmappedLiveClaims(t *testing.T) {
+	ctx := context.Background()
+	svc := testService(t, gpuSnapshot(16, 4), nil)
+	store, err := svc.openStore(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claim, err := store.CreateClaim(ctx, engine.CapacityClaim{
+		ClaimID: "unqualified", OwnerID: "ollama", ResourceKind: engine.ResourceKindVRAM,
+		AmountBytes: gib(2), PreferredBytes: gib(4), FloorBytes: gib(1), Status: engine.StatusGranted,
+	}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	out, err := svc.PlacementTable(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Rows) != 1 || out.Rows[0].ClaimID != claim.ClaimID || out.Rows[0].Role != "unmapped:ollama" || out.Rows[0].EvidenceStatus != engine.PlacementEvidenceMissing {
+		t.Fatalf("unqualified live claim should appear as an explicit evidence gap: %+v", out)
+	}
+}
+
 func TestDiskReservationListExposesLegacyAdmissionRows(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
@@ -314,6 +340,46 @@ func TestServiceReconcileNamesUnclaimedConsumers(t *testing.T) {
 	}
 	if out.Findings[0].OwnerID != "whisper" {
 		t.Errorf("owner = %q, want whisper", out.Findings[0].OwnerID)
+	}
+}
+
+func TestProcessInventoryRequiresSensorOwnerAndDeviceAccounting(t *testing.T) {
+	base := hostinventory.Snapshot{
+		GPUs:            []hostinventory.GPU{{Index: 0, Name: "Test", VRAMBytes: 8 << 30, VRAMUsedBytes: 1024}},
+		GPUProcesses:    []hostinventory.GPUProcess{{GPUIndex: 0, PID: 17, ProcessName: "/opt/artifacts/whisper/bin/python", UsedBytes: 1024}},
+		ProbeStatuses:   map[string]string{"nvidia_gpu_processes": "ok"},
+		FieldProvenance: map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)}},
+	}
+	owner := stubAttributor{17: engine.Attribution{OwnerKind: engine.OwnerKindResource, OwnerID: "whisper"}}
+	complete := buildProcessInventory(context.Background(), base, owner)
+	if !complete.Complete || !complete.OwnerAttributionComplete || !complete.DeviceAccountingComplete {
+		t.Fatalf("complete inventory = %+v", complete)
+	}
+	if len(complete.Processes) != 1 || complete.Processes[0].OwnerID != "whisper" || complete.Devices[0].UnattributedDeviceBytes != 0 {
+		t.Fatalf("owner/accounting rows = %+v", complete)
+	}
+
+	unknownOwnerSnapshot := base
+	unknownOwnerSnapshot.GPUProcesses = append([]hostinventory.GPUProcess(nil), base.GPUProcesses...)
+	unknownOwnerSnapshot.GPUProcesses[0].ProcessName = "python"
+	unattributed := buildProcessInventory(context.Background(), unknownOwnerSnapshot, stubAttributor{})
+	if unattributed.Complete || unattributed.OwnerAttributionComplete || unattributed.Processes[0].Attribution != "unattributed" {
+		t.Fatalf("unknown process owner was accepted: %+v", unattributed)
+	}
+
+	residualSnapshot := base
+	residualSnapshot.GPUs = append([]hostinventory.GPU(nil), base.GPUs...)
+	residualSnapshot.GPUs[0].VRAMUsedBytes = 2048
+	residual := buildProcessInventory(context.Background(), residualSnapshot, owner)
+	if residual.Complete || !residual.OwnerAttributionComplete || residual.DeviceAccountingComplete || residual.Devices[0].UnattributedDeviceBytes != 1024 {
+		t.Fatalf("unattributed device bytes were hidden: %+v", residual)
+	}
+
+	incompleteSnapshot := base
+	incompleteSnapshot.ProbeStatuses = map[string]string{"nvidia_gpu_processes": "incomplete"}
+	incomplete := buildProcessInventory(context.Background(), incompleteSnapshot, owner)
+	if incomplete.Complete || incomplete.OwnerAttributionComplete || incomplete.Status != "incomplete" {
+		t.Fatalf("incomplete sensor result was accepted: %+v", incomplete)
 	}
 }
 

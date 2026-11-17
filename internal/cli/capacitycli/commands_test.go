@@ -19,6 +19,28 @@ func TestParseDiskReservationsRequest(t *testing.T) {
 	}
 }
 
+func TestParsePlacementRequestAndRenderTable(t *testing.T) {
+	if err := ParsePlacementRequest([]string{"--json"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := ParsePlacementRequest([]string{"--unexpected"}); err == nil {
+		t.Fatal("unknown placement option should be rejected")
+	}
+	var output bytes.Buffer
+	err := RenderPlacementTable(&output, "", capacityapp.PlacementTableOutput{
+		ObservedAt: "2026-11-16T03:14:00Z",
+		Rows:       []engine.PlacementTableRow{{Role: "chat.default", Model: engine.ModelIdentity{Name: "qwen", Digest: "sha256:abc"}, Rung: "small", Device: engine.ResidencyBackendCUDA, P95LatencyMS: 120, MeasuredVRAMBytes: 2 * (1 << 30), EvidenceStatus: engine.PlacementEvidenceQualified, Suite: "gateway-chat", RunID: "run-1"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"chat.default", "qwen", "small", "cuda", "p95=120.0ms", "2.00 GiB", "qualified", "run-1"} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("placement table lacks %q: %s", want, output.String())
+		}
+	}
+}
+
 func TestParseDiskListRequestCurrentObservation(t *testing.T) {
 	got, err := ParseDiskListRequest([]string{"--observe", "--json"})
 	if err != nil {
@@ -182,6 +204,26 @@ func TestCPUClaimRenderingUsesMillicoresInsteadOfBytes(t *testing.T) {
 					t.Fatalf("CPU quantity must show its actual unit: %s", &b)
 				}
 			})
+		}
+	}
+}
+
+func TestRenderReconcileShowsInventoryCompletenessAndResidual(t *testing.T) {
+	var output bytes.Buffer
+	err := RenderReconcile(&output, "", capacityapp.ReconcileOutput{
+		Inventory: capacityapp.ProcessInventory{
+			Status: "ok", Complete: false, OwnerAttributionComplete: true,
+			DeviceAccountingComplete: false,
+			Processes:                []capacityapp.ObservedGPUProcess{{GPUIndex: 0, PID: 12, ProcessName: "Xorg", OwnerKind: "resource", OwnerID: "desktop", Attribution: "control-plane", UsedBytes: 64 << 20}},
+			Devices:                  []capacityapp.GPUProcessAccounting{{GPUIndex: 0, DeviceUsedBytes: 128 << 20, ObservedProcessBytes: 64 << 20, UnattributedDeviceBytes: 64 << 20, ProcessCount: 1}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"status=ok complete=false owners=true device_accounting=false", "residual=64.00 MiB", "owner=resource/desktop", "pid=12"} {
+		if !strings.Contains(output.String(), want) {
+			t.Fatalf("rendered output missing %q: %s", want, output.String())
 		}
 	}
 }

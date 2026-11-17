@@ -22,16 +22,24 @@ import (
 // closure of the given package patterns.
 func goPackageDirs(t *testing.T, root string, patterns ...string) map[string]string {
 	t.Helper()
-	cmd := exec.Command("go", append([]string{"list", "-deps", "-f", "{{if not .Standard}}{{.ImportPath}}\t{{.Dir}}{{end}}"}, patterns...)...)
-	cmd.Dir = root
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("go list: %v", err)
-	}
 	dirs := map[string]string{}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if importPath, dir, ok := strings.Cut(line, "\t"); ok && strings.HasPrefix(importPath, "github.com/vrooli/") {
-			dirs[importPath] = dir
+	// Include supported native targets as well as the host, because go list's
+	// default closure omits imports behind other platform build constraints.
+	targets := []struct{ os, arch string }{{"", ""}, {"linux", "amd64"}, {"linux", "arm64"}, {"darwin", "amd64"}, {"darwin", "arm64"}, {"windows", "amd64"}, {"windows", "arm64"}}
+	for _, target := range targets {
+		cmd := exec.Command("go", append([]string{"list", "-deps", "-f", "{{if not .Standard}}{{.ImportPath}}\t{{.Dir}}{{end}}"}, patterns...)...)
+		cmd.Dir = root
+		if target.os != "" {
+			cmd.Env = append(os.Environ(), "GOOS="+target.os, "GOARCH="+target.arch, "CGO_ENABLED=0")
+		}
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("go list %s/%s: %v: %s", target.os, target.arch, err, out)
+		}
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if importPath, dir, ok := strings.Cut(line, "\t"); ok && strings.HasPrefix(importPath, "github.com/vrooli/") {
+				dirs[importPath] = dir
+			}
 		}
 	}
 	return dirs
@@ -41,9 +49,18 @@ func goPackageDirs(t *testing.T, root string, patterns ...string) map[string]str
 // control-plane state the native supervisor writes. Keys are type keys or
 // prefixes ending in "/" or ".".
 var versionedEnvelopeExemptions = map[string]string{
-	"github.com/vrooli/vrooli/internal/hostreqkit.ToolManifest":      "source-owned tool.json declaration loaded by host requirements; never written as runtime state (durable OpenRGB permission records are resource-owned)",
-	"github.com/vrooli/vrooli/internal/hostreqkit.SafeguardManifest": "source-owned safeguard.json declaration loaded by host requirements; never written as runtime state",
-	"github.com/vrooli/vrooli/internal/hostreqkit.ItemStatus":        "in-memory inspection/application response, whose version is observed tool version rather than a persistence envelope; never read back as control-plane state",
+	"github.com/vrooli/vrooli/internal/setup.SetupStatusReport":        "setup status JSON is a live command response, never written as cross-activation state",
+	"github.com/vrooli/vrooli/internal/hostinventory.KernelInfo":       "integrity observation; version is the observed kernel version, not a stored envelope",
+	"github.com/vrooli/vrooli/internal/hostinventory.RuntimeToolInfo":  "integrity observation; version is the observed tool version, not a stored envelope",
+	"github.com/vrooli/vrooli/internal/hostinventory.PackageInfo":      "integrity observation; version is the observed package version, not a stored envelope",
+	"github.com/vrooli/vrooli/internal/hostinventory.PackageCandidate": "integrity observation; version is the observed package version, not a stored envelope",
+
+	"github.com/vrooli/vrooli/internal/setup/assets.Plan":                               "source-owned setup plan input, read only; persisted image manifest and receipt are declared",
+	"github.com/vrooli/vrooli/internal/tools/blender-renderer.PythonCacheRepairReceipt": "write-only quarantine audit receipt; no runtime reader consumes it",
+	"github.com/vrooli/vrooli/internal/rootmetrics.rootAttemptRecord":                   "versioned forensic observations; no activation, authorization or recovery code reads them",
+	"github.com/vrooli/vrooli/internal/hostreqkit.ToolManifest":                         "source-owned tool.json declaration loaded by host requirements; never written as runtime state (durable OpenRGB permission records are resource-owned)",
+	"github.com/vrooli/vrooli/internal/hostreqkit.SafeguardManifest":                    "source-owned safeguard.json declaration loaded by host requirements; never written as runtime state",
+	"github.com/vrooli/vrooli/internal/hostreqkit.ItemStatus":                           "in-memory inspection/application response, whose version is observed tool version rather than a persistence envelope; never read back as control-plane state",
 
 	"github.com/vrooli/vrooli/internal/setpoint.Document":                       "source-owned setpoint document read from the repository, never written",
 	"github.com/vrooli/vrooli/packages/resource-deployment.ReleaseManifest":     "release-owned metadata read from a published release directory",
@@ -56,6 +73,7 @@ var versionedEnvelopeExemptions = map[string]string{
 	"github.com/vrooli/vrooli/internal/resources.ArtifactRetentionPlan":         "artifact retention plan printed by the retention command and never stored",
 	"github.com/vrooli/vrooli/internal/resources.ManagedServiceUpdateAdmission": "update admission options supplied by the caller; the stored update records its target separately",
 	"github.com/vrooli/vrooli/internal/scenario.ServiceManifest":                "service.json declaration read from a scenario directory and never written by the control plane; only its CLI contract types are stored, inside resource state",
+	"github.com/vrooli/vrooli/internal/scenario.NodeRuntime":                    "Node version selector nested in the source-owned service.json declaration; not persisted by the control plane",
 	"github.com/vrooli/vrooli/internal/scenario.ServiceMetadata":                "service.json declaration read from a scenario directory and never written by the control plane; only its CLI contract types are stored, inside resource state",
 	"github.com/vrooli/vrooli/internal/scenario.Lifecycle":                      "service.json declaration read from a scenario directory and never written by the control plane; only its CLI contract types are stored, inside resource state",
 	"github.com/vrooli/vrooli/internal/scenario.Dependency":                     "service.json declaration read from a scenario directory and never written by the control plane; only its CLI contract types are stored, inside resource state",
@@ -78,10 +96,9 @@ func exemptEnvelope(key string) bool {
 }
 
 // A struct with a schema_version or format_version JSON field is, by this
-// codebase's convention, a stored envelope. Every one in the native
-// supervisor's and watchdog's import closure (the code that runs during an
-// activation window) must be reachable from a declared owner root or exempted
-// with a reason. Inside declared owner packages any *version* key counts.
+// codebase's convention, a stored envelope. Every one in the root CLI and
+// watchdog dependency closures must be declared, covered by a whole-source
+// owner, or exempted with a reason. Inside owner packages any *version* key counts.
 func TestPersistenceOwnersDeclareEveryVersionedEnvelope(t *testing.T) {
 	root := withRepositoryCodecStamp(t)
 	manifest, err := NativePersistentStateManifest()
@@ -100,7 +117,18 @@ func TestPersistenceOwnersDeclareEveryVersionedEnvelope(t *testing.T) {
 			ownerPackages[r.PkgPath()] = true
 		}
 	}
-	for importPath, dir := range goPackageDirs(t, root, "./internal/runtimesupervisor", "./cmd/vrooli-watchdog") {
+	wholeDirs := map[string]bool{}
+	for _, dirs := range statecontract.WholeSources {
+		for _, dir := range dirs {
+			if !strings.Contains(dir, "*") {
+				wholeDirs[filepath.Join(root, filepath.FromSlash(dir))] = true
+			}
+		}
+	}
+	for importPath, dir := range goPackageDirs(t, root, "./cmd/vrooli", "./cmd/vrooli-watchdog") {
+		if wholeDirs[dir] {
+			continue
+		}
 		for _, name := range versionedStructs(t, dir, ownerPackages[importPath]) {
 			key := importPath + "." + name
 			if !declared[key] && !exemptEnvelope(key) {
@@ -116,32 +144,46 @@ func TestPersistenceOwnersDeclareEveryVersionedEnvelope(t *testing.T) {
 // new writer entering the native closure fails this test instead of passing
 // silently. Moving one into the inventory removes it here.
 var unauditedWriters = map[string]string{
-	"github.com/vrooli/vrooli/internal/runtimeprofile": "Capture publishes caller-requested binary pprof forensic output using a temporary file and exclusive hard link; no control-plane reader reloads it across activation and Result is returned rather than persisted",
+	"github.com/vrooli/vrooli/internal/cli/runtimehandlers":           "root_updates.go copies the rootdecision locator into retained recovery state; prepared-root-bundle covers the copy and paths, root-rebaseline-hub-decision covers the record codec",
+	"github.com/vrooli/vrooli/internal/cli/scenariocli":               "wait-attempts cache records recent wait timestamps solely for a diagnostic warning; unreadable entries are ignored",
+	"github.com/vrooli/vrooli/internal/packagegov":                    "detachFile copies and replaces existing governed package files without changing their content or format",
+	"github.com/vrooli/api-core/trustposture":                         "breakglass.go is a whole-source owner; posture.go has no persistent writer",
+	"github.com/vrooli/vrooli/internal/tools/blender-renderer":        "writes quarantine audit receipts; no runtime reader consumes them",
+	"github.com/vrooli/vrooli/internal/cli/vroolicli":                 "host_watchdog.go is covered by the host-watchdog-state whole-source owner",
+	"github.com/vrooli/vrooli/internal/shell/shelltest":               "test fixture script writer, no production runtime state",
+	"github.com/vrooli/platform-go/rlimitexec":                        "syscall.Exec replaces the current process; it writes no durable state",
+	"github.com/vrooli/vrooli/internal/cli/metrics":                   "append-only CLI usage metrics and README, no control-plane reader consumes them",
+	"github.com/vrooli/vrooli/internal/volumeremediation":             "append-only remediation receipts for audit, not reloaded to execute remediation",
+	"github.com/vrooli/vrooli/internal/cli/capacityhandlers":          "exports caller-requested reports to an exclusive output file; capacity owner holds the ledger",
+	"github.com/vrooli/vrooli/internal/app/credentials":               "exports caller-requested credential recovery data; its format belongs to credential-recovery owner",
+	"github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims": "installs generated executable shims; installation is converged on each application",
+	"github.com/vrooli/vrooli/internal/safeguards/path-hygiene":       "writes host shell configuration, which is separately interpreted by the shell",
+	"github.com/vrooli/vrooli/internal/deployability":                 "updates source-owned capability manifests and generated source declarations",
+
+	"github.com/vrooli/vrooli/internal/rootmetrics":               "best-effort, versioned forensic observations only; no activation, authorization or recovery reader consumes them",
+	"github.com/vrooli/vrooli/internal/runtimeprofile":            "Capture publishes caller-requested binary pprof forensic output using a temporary file and exclusive hard link; no control-plane reader reloads it across activation and Result is returned rather than persisted",
+	"github.com/vrooli/vrooli/packages/capacity/companion":        "Exec invokes capacity and lifecycle commands; the capacity owner persists the ledger, and this package writes no local files",
+	"github.com/vrooli/vrooli/packages/capacity/activityedge":     "Exec invokes resource start; its sockets are process-lifetime IPC and resource lifecycle state belongs to the resources owner",
+	"github.com/vrooli/vrooli/internal/resources/activitynetwork": "owner-specific RootlessKit helper executables are regenerated before each launch; child PID state belongs to the live external process, not a cross-activation serialized record",
 
 	"github.com/vrooli/api-core/database":                             "shared database helpers; callers own their schemas",
 	"github.com/vrooli/api-core/retention":                            "scenario retention helpers; not written by the root supervisor's own stores",
 	"github.com/vrooli/api-core/scopecatalog":                         "scope catalog cache; unaudited",
 	"github.com/vrooli/api-core/storage":                              "write helpers; callers own the stored formats",
-	"github.com/vrooli/api-core/trustposture":                         "trust posture envelope; unaudited",
 	"github.com/vrooli/cli-core/cliapp":                               "CLI framework files; unaudited",
-	"github.com/vrooli/cli-core/cliutil":                              "CLI utility caches; unaudited",
 	"github.com/vrooli/platform-go":                                   "native operation, service and containment identities are a whole-source owner; other platform files write host configuration",
 	"github.com/vrooli/vrooli/internal/app/runtime":                   "rebaseline audit receipt (never read back) and pause marker; a rebaseline of another version that cannot read the marker treats the pause as not in effect and leaves enrollment disabled for the operator, never re-enabling on a guess",
 	"github.com/vrooli/vrooli/cmd/vrooli-watchdog":                    "pressure report and probe caches written by the watchdog executable itself",
 	"github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor": "native supervisor unit definition (host configuration converged by its owner)",
 	"github.com/vrooli/vrooli/internal/buildinfo":                     "build outputs and rebuild sidecars; not read across an activation",
 	"github.com/vrooli/vrooli/internal/config":                        "write helpers; callers own the stored formats",
-	"github.com/vrooli/vrooli/internal/credentialauthority":           "recovery bundles, manifests and receipts written and read only by explicit operator recovery commands, never during an activation; the credential store it fronts is the secure-store owner",
-	"github.com/vrooli/vrooli/internal/hostinventory":                 "host inventory cache; unaudited",
 	"github.com/vrooli/vrooli/internal/privilegebroker":               "requests, local admissions and the audit log are the protocol of the separately installed broker daemon, which root activation neither swaps nor rolls back; its installer writes the unit and binary as host configuration",
 	"github.com/vrooli/vrooli/internal/artifactledger":                "append-only removal receipts that name their schema; no binary reads them back (operator forensic evidence)",
 	"github.com/vrooli/vrooli/internal/shell":                         "opens the null device for child stdio; writes nothing durable",
 	"github.com/vrooli/vrooli/internal/hostreqkit":                    "temporary scripts in the OS temp directory for one privileged request; not durable state",
 	"github.com/vrooli/api-core/operatorsession":                      "operator-session enrollment shared with every scenario API binary, which update independently of root activation; its format is already a cross-version contract with them",
 	"github.com/vrooli/api-core/filerouting":                          "test-mode throwaway roots for scenario file storage; not control-plane state",
-	"github.com/vrooli/vrooli/internal/templatevalidation":            "template validation run markers; unaudited",
-	"github.com/vrooli/vrooli/packages/harness-lifecycle":             "coding-agent harness copies; unaudited",
-	"github.com/vrooli/vrooli/packages/kopiaregistry-go":              "backup registry; unaudited",
+	"github.com/vrooli/vrooli/internal/templatevalidation":            "marker.go is covered by the template-validation-markers owner",
 	"github.com/vrooli/vrooli/packages/proto/genmanifest":             "proto generation manifest, written only by the proto generation owner",
 	"github.com/vrooli/vrooli/packages/proto/protogen":                "proto generation receipts and leases, written only by the proto generation owner",
 }
@@ -174,7 +216,7 @@ func TestNativePathWritersAreOwnedOrListed(t *testing.T) {
 			}
 		}
 	}
-	for importPath, dir := range goPackageDirs(t, root, "./internal/runtimesupervisor", "./cmd/vrooli-watchdog") {
+	for importPath, dir := range goPackageDirs(t, root, "./cmd/vrooli", "./cmd/vrooli-watchdog") {
 		if ownedDirs[dir] && unauditedWriters[importPath] != "" {
 			t.Errorf("%s is a persistence owner but is still listed as an unaudited writer", importPath)
 		}

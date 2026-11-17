@@ -2,6 +2,7 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,7 +14,25 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
+
+// emergencyDrainTimeout bounds how long a force-lifecycle restart waits for
+// admitted requests and owner work to finish. The operator has already accepted
+// that in-flight work may be interrupted, so a handler that never returns must
+// not hold the replacement forever; a normal restart keeps waiting for the
+// operation's own context.
+var emergencyDrainTimeout = 60 * time.Second
+
+func (r *Runner) startOperationFenceOwner(ctx context.Context, scenario, variant, fenceOperationID string) (scenarioruntime.StartOperation, error) {
+	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return scenarioruntime.StartOperation{}, err
+	}
+	owner, readErr := store.GetStartOperationFenceOwner(ctx, scenario, variant, fenceOperationID)
+	closeErr := store.Close()
+	return owner, errors.Join(readErr, closeErr)
+}
 
 type providerFence struct {
 	client             *apilifecycle.Client
@@ -24,13 +43,27 @@ type providerFence struct {
 	revision           int64
 	interlock          string
 	persistence        commonv1.LifecycleFencePersistence
-	active             bool
+	// recoveryFenceOperationID names a prior terminal attempt's linked durable
+	// fence that may surface after a provider implementation transition. It is
+	// used only with explicit lifecycle risk acceptance and an exact drained
+	// durable proof from the replacement provider.
+	recoveryFenceOperationID string
+	recoveryReason           string
+	recoveryLog              func(string, int64)
+	active                   bool
 }
 
 // prepareProviderFence negotiates the standard scenario-owned lifecycle
 // protocol. A live provider without the protocol stays serving: process
 // ownership alone cannot close its ingress or prove owner quiescence.
 func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenario, emergency bool, overrideReason, operationID string, prior *scenarioruntime.StartOperation, priorReadErr error) (*providerFence, error) {
+	return r.prepareProviderFenceWithLink(ctx, item, emergency, overrideReason, operationID, prior, priorReadErr, nil)
+}
+
+// prepareProviderFenceWithLink records the durable owner as soon as Prepare
+// has validated the closed fence identity. Drain may be an unbounded,
+// server-owned wait; recovery must be attributable even while it is pending.
+func (r *Runner) prepareProviderFenceWithLink(ctx context.Context, item scenario.Scenario, emergency bool, overrideReason, operationID string, prior *scenarioruntime.StartOperation, priorReadErr error, link func(string) error) (*providerFence, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -116,17 +149,58 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 				return nil, fmt.Errorf("lifecycle provider %q has closed fence %q; refusing different operation %q", item.Slug, standing.GetOperationId(), requested)
 			}
 			if strings.TrimSpace(operationID) == "" {
+				exactOwnerFound := prior != nil && prior.FenceOperationID == standing.GetOperationId()
+				// The latest attempt can be a successful, unlinked start (for
+				// example, a recovery start after a failed replacement). Resolve
+				// ownership by the provider's exact closed fence before considering
+				// the latest attempt. This keeps a retained successful owner visible
+				// without treating a different fence's success as authority.
+				if !exactOwnerFound {
+					owner, ownerErr := r.startOperationFenceOwner(ctx, item.Slug, item.Variant, standing.GetOperationId())
+					if ownerErr == nil {
+						if owner.Scenario != item.Slug || owner.Variant != (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize().Variant || (owner.Operation != lifecycleOperationRestart && owner.Operation != "start") || !owner.IsTerminal() {
+							return nil, fmt.Errorf("lifecycle provider %q fence %q has a nonterminal or mismatched retained owner", item.Slug, standing.GetOperationId())
+						}
+						prior = &owner
+						exactOwnerFound = true
+					} else if !errors.Is(ownerErr, scenarioruntime.ErrNotFound) {
+						return nil, fmt.Errorf("read exact lifecycle fence owner for %q fence %q: %w", item.Slug, standing.GetOperationId(), ownerErr)
+					}
+				}
 				switch {
-				case standing.GetOperationId() == derivedOperationID:
-					// The serving instance itself names a retryable pre-stop fence.
+				case emergency && priorReadErr == nil &&
+					prior != nil && prior.Scenario == item.Slug && prior.Variant == (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize().Variant &&
+					prior.Operation == lifecycleOperationRestart && prior.IsTerminal() && prior.FenceOperationID == "":
+					// Explicit recovery may adopt an unlinked fence only when the
+					// exact scenario's prior restart is terminal. The caller already
+					// holds the scenario lock; Prepare below must echo the provider's
+					// exact operation/token/revision, then link this attempt before
+					// any stop/replacement effect.
 				case priorReadErr != nil:
 					return nil, fmt.Errorf("lifecycle provider %q has closed fence %q and its start-operation owner could not be read: %w", item.Slug, standing.GetOperationId(), priorReadErr)
-				case prior != nil && prior.Scenario == item.Slug && prior.Variant == item.Variant && prior.FenceOperationID == standing.GetOperationId() && (prior.Status == scenarioruntime.StartOperationStatusFailed || prior.Status == scenarioruntime.StartOperationStatusAbandoned):
-					// A failed replacement may have registered a new provider instance.
-					// Only the exact fence linked from its retained terminal attempt is
-					// eligible for recovery.
+				case prior != nil && prior.Scenario == item.Slug && prior.Variant == (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize().Variant && (prior.Operation == lifecycleOperationRestart || prior.Operation == lifecycleOperationStart) && prior.FenceOperationID == standing.GetOperationId() && prior.IsTerminal() && (prior.Status == scenarioruntime.StartOperationStatusFailed || prior.Status == scenarioruntime.StartOperationStatusAbandoned):
+					// A failed replacement may have registered a new provider
+					// instance. Only the exact linked terminal attempt can recover.
+				case emergency && prior != nil && prior.Scenario == item.Slug && prior.Variant == (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize().Variant && (prior.Operation == lifecycleOperationRestart || prior.Operation == lifecycleOperationStart) && prior.FenceOperationID == standing.GetOperationId() && prior.IsTerminal():
+					// Exact operation-to-fence linkage is the owner proof,
+					// including a succeeded attempt whose durable fence survived a
+					// provider implementation transition.
+				case link != nil && !exactOwnerFound && priorReadErr == nil && (prior == nil || prior.IsTerminal()) &&
+					standing.GetFencePersistence() == commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL &&
+					standing.GetProviderInstanceId() == instanceID && standing.GetOperationId() == derivedOperationID:
+					// The current process-local provider generation is itself the
+					// owner of this fence. Adopt it only when its reported instance
+					// matches the registered serving instance and its fence ID is the
+					// deterministic ID for that generation. The current attempt is
+					// linked immediately after Prepare echoes this exact identity and
+					// before Drain or Stop. Durable or cross-generation fences still
+					// require their retained operation owner.
 				default:
-					return nil, fmt.Errorf("lifecycle provider %q has closed fence %q without an exact retained start-operation owner; refusing recovery", item.Slug, standing.GetOperationId())
+					owner := "none"
+					if prior != nil {
+						owner = fmt.Sprintf("scenario=%s variant=%s operation=%s status=%s fence=%s", prior.Scenario, prior.Variant, prior.Operation, prior.Status, prior.FenceOperationID)
+					}
+					return nil, fmt.Errorf("lifecycle provider %q has closed fence %q without an exact retained start-operation owner; refusing recovery (derived=%s emergency=%t prior_read_error=%t owner %s)", item.Slug, standing.GetOperationId(), derivedOperationID, emergency, priorReadErr != nil, owner)
 				}
 				operationID = standing.GetOperationId()
 			}
@@ -135,6 +209,12 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 	}
 	if strings.TrimSpace(operationID) == "" {
 		operationID = derivedOperationID
+	}
+	recoveryFenceOperationID := ""
+	if emergency && priorReadErr == nil && prior != nil && prior.Scenario == item.Slug &&
+		prior.Variant == (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize().Variant &&
+		prior.IsTerminal() && prior.FenceOperationID != "" {
+		recoveryFenceOperationID = prior.FenceOperationID
 	}
 	reason := "control-plane scenario replacement"
 	if emergency {
@@ -181,6 +261,53 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 			return nil, err
 		}
 	}
+	if link != nil {
+		if err := link(operationID); err != nil {
+			return nil, fmt.Errorf("persist provider fence recovery link for %q before drain: %w", item.Slug, err)
+		}
+	}
+	newFence := func(standing *commonv1.LifecycleStanding) *providerFence {
+		return &providerFence{
+			client: client, scenario: item.Slug, providerInstanceID: standing.GetProviderInstanceId(),
+			operationID: operationID, token: standing.GetFenceToken(), revision: standing.GetRevision(), active: true,
+			interlock: standing.GetInterlock(), persistence: standing.GetFencePersistence(),
+			recoveryFenceOperationID: recoveryFenceOperationID, recoveryReason: strings.TrimSpace(overrideReason),
+			recoveryLog: func(operationID string, revision int64) {
+				r.logWarn("Recovered retained durable lifecycle fence after provider implementation transition",
+					logx.AttrScenario, item.Slug,
+					"prior_durable_fence_operation_id", operationID,
+					"revision", revision,
+					"lifecycle_override_reason", strings.TrimSpace(overrideReason),
+				)
+			},
+		}
+	}
+	// Explicit force-lifecycle acceptance may bypass a complete, simple
+	// provider inventory when exactly one kind of work remains: admitted
+	// requests, or tracked processes with no admitted requests. Never combine
+	// the two counters in a bypass, and never skip component or pending-owner
+	// quiescence. The process case is needed to recover stale PID inventory
+	// after PID reuse; process identity must still be respected by the provider
+	// when it next evaluates its tracker.
+	bypassAdmittedRequests := standing.GetAdmitting() > 0 && standing.GetRemaining() == 0
+	bypassTrackedWork := standing.GetAdmitting() == 0 && standing.GetRemaining() > 0
+	if emergency && !standing.GetDrained() && standing.GetAdmissionClosed() &&
+		standing.GetInventoryComplete() && (bypassAdmittedRequests || bypassTrackedWork) &&
+		!standing.GetQuiescencePending() && len(standing.GetManagedComponents()) == 0 &&
+		emergencyBlockersAreOverrideable(standing) {
+		risk := "in-flight requests may be interrupted by process replacement"
+		if bypassTrackedWork {
+			risk = "tracked process work may be interrupted by process replacement"
+		}
+		r.logWarn("Lifecycle drain bypassed by explicit operator risk acceptance",
+			logx.AttrScenario, item.Slug,
+			"lifecycle_override_reason", strings.TrimSpace(overrideReason),
+			"admitting", standing.GetAdmitting(),
+			"remaining", standing.GetRemaining(),
+			"risk", risk,
+		)
+		return newFence(standing), nil
+	}
 	// A completed exact retained fence may already contain this control plane's
 	// successful completion. Reuse only the same provider/fence/generation set;
 	// a tombstone or a newly asserted drained Prepare cannot create that proof.
@@ -211,8 +338,23 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 				return nil, fmt.Errorf("stop managed components for %q: %w", item.Slug, stopErr)
 			}
 		}
-		drain, drainErr := drainClient.Drain(ctx, &commonv1.LifecycleDrainRequest{OperationId: operationID, FenceToken: standing.GetFenceToken(), Revision: standing.GetRevision(), ComponentExits: components})
+		drainRequest := &commonv1.LifecycleDrainRequest{OperationId: operationID, FenceToken: standing.GetFenceToken(), Revision: standing.GetRevision(), ComponentExits: components}
+		drainCtx := ctx
+		if emergency {
+			// The provider enforces the bound and names what is still running;
+			// the local deadline only backstops a provider that ignores it.
+			drainRequest.Timeout = durationpb.New(emergencyDrainTimeout)
+			var cancelDrain context.CancelFunc
+			drainCtx, cancelDrain = context.WithTimeout(ctx, emergencyDrainTimeout+10*time.Second)
+			defer cancelDrain()
+		}
+		drain, drainErr := drainClient.Drain(drainCtx, drainRequest)
 		if drainErr != nil {
+			if emergency && ctx.Err() == nil && (connect.CodeOf(drainErr) == connect.CodeDeadlineExceeded || errors.Is(drainErr, context.DeadlineExceeded)) {
+				if fence := r.acceptStuckDrain(ctx, client, newFence, item.Slug, overrideReason, operationID, standing, drainErr); fence != nil {
+					return fence, nil
+				}
+			}
 			return nil, fmt.Errorf("drain lifecycle fence for %q (operation %s): %w", item.Slug, operationID, drainErr)
 		}
 		if err := apilifecycle.ValidateStanding(drain.GetStanding()); err != nil {
@@ -224,11 +366,74 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 		}
 		standing = drained
 	}
-	return &providerFence{
-		client: client, scenario: item.Slug, providerInstanceID: standing.GetProviderInstanceId(),
-		operationID: operationID, token: standing.GetFenceToken(), revision: standing.GetRevision(), active: true,
-		interlock: standing.GetInterlock(), persistence: standing.GetFencePersistence(),
-	}, nil
+	return newFence(standing), nil
+}
+
+// acceptStuckDrain decides whether a force-lifecycle restart may replace a
+// provider whose bounded drain expired. The operator accepted interrupting
+// in-flight requests and detached owner work, so work that never finishes is not
+// allowed to hold the replacement forever. Nothing else is waived: the fence
+// identity must still match, admission must be closed, the inventory complete,
+// no component may await quiescence, and every blocker must be overrideable.
+// The stuck work is logged with the override reason so the interruption is
+// attributable. A nil result means the drain failure stands.
+func (r *Runner) acceptStuckDrain(ctx context.Context, client *apilifecycle.Client, newFence func(*commonv1.LifecycleStanding) *providerFence, slug, overrideReason, operationID string, prepared *commonv1.LifecycleStanding, drainErr error) *providerFence {
+	statusCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	response, err := client.Status(statusCtx, &commonv1.LifecycleStatusRequest{OperationId: operationID, FenceToken: prepared.GetFenceToken(), Revision: prepared.GetRevision()})
+	if err != nil || response == nil || response.GetStanding() == nil {
+		return nil
+	}
+	standing := response.GetStanding()
+	if validateStatusStanding(slug, standing) != nil ||
+		standing.GetOperationId() != operationID || standing.GetFenceToken() != prepared.GetFenceToken() || standing.GetRevision() != prepared.GetRevision() ||
+		standing.GetProviderInstanceId() != prepared.GetProviderInstanceId() ||
+		!standing.GetAdmissionClosed() || !standing.GetInventoryComplete() || standing.GetQuiescencePending() ||
+		len(standing.GetManagedComponents()) > 0 || !emergencyBlockersAreOverrideable(standing) {
+		return nil
+	}
+	r.logWarn("Lifecycle drain gave up on stuck work by explicit operator risk acceptance",
+		logx.AttrScenario, slug,
+		"lifecycle_override_reason", strings.TrimSpace(overrideReason),
+		"drain_timeout", emergencyDrainTimeout.String(),
+		"admitting", standing.GetAdmitting(),
+		"remaining", standing.GetRemaining(),
+		"stuck_work", describeStuckWork(standing),
+		"drain_error", drainErr.Error(),
+		"risk", "in-flight requests or owner work are interrupted by process replacement",
+	)
+	return newFence(standing)
+}
+
+// describeStuckWork names the work a provider still reports, longest-listed
+// first as the provider ordered it, so a lifecycle log shows what was cut off.
+func describeStuckWork(standing *commonv1.LifecycleStanding) string {
+	const limit = 16
+	items := standing.GetWork()
+	parts := make([]string, 0, limit+1)
+	for i, item := range items {
+		if i == limit {
+			parts = append(parts, fmt.Sprintf("and %d more", len(items)-limit))
+			break
+		}
+		parts = append(parts, fmt.Sprintf("%s [%s] %s", item.GetId(), item.GetKind(), item.GetStatus()))
+	}
+	if len(parts) == 0 {
+		return "provider listed no work items"
+	}
+	return strings.Join(parts, "; ")
+}
+
+func emergencyBlockersAreOverrideable(standing *commonv1.LifecycleStanding) bool {
+	if standing == nil {
+		return false
+	}
+	for _, blocker := range standing.GetBlockers() {
+		if blocker == nil || blocker.GetDisposition() != commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_OVERRIDEABLE {
+			return false
+		}
+	}
+	return true
 }
 
 func (r *Runner) logProviderFenceOverride(scenario, reason, detail string) {
@@ -398,6 +603,9 @@ func (f *providerFence) resume(ctx context.Context) error {
 	}
 	if standing.GetProviderInstanceId() != f.providerInstanceID {
 		if !standing.GetAdmissionClosed() {
+			if f.persistence == commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE {
+				return fmt.Errorf("replacement lifecycle provider %q opened without resuming durable fence %q", f.scenario, f.operationID)
+			}
 			// A process-local provider starts open. Its predecessor's token must
 			// never be replayed against the replacement.
 			f.active = false
@@ -408,6 +616,26 @@ func (f *providerFence) resume(ctx context.Context) error {
 		// must prove the same drained operation. An unspecified predecessor can
 		// be upgraded by that explicit durable proof; a known process-local
 		// predecessor cannot. None of these safety facts creates authorization.
+		if f.recoveryFenceOperationID != "" && f.recoveryFenceOperationID == standing.GetOperationId() &&
+			f.recoveryReason != "" && standing.GetFencePersistence() == commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE &&
+			standing.GetDrained() && !standing.GetQuiescencePending() && standing.GetAdmitting() == 0 && standing.GetRemaining() == 0 && len(standing.GetBlockers()) == 0 {
+			if f.recoveryLog != nil {
+				f.recoveryLog(standing.GetOperationId(), standing.GetRevision())
+			}
+			resumed, err := f.client.Resume(ctx, &commonv1.LifecycleResumeRequest{OperationId: standing.GetOperationId(), FenceToken: standing.GetFenceToken(), Revision: standing.GetRevision()})
+			if err != nil {
+				return fmt.Errorf("resume retained durable provider fence %q: %w", standing.GetOperationId(), err)
+			}
+			opened := resumed.GetStanding()
+			if err := validateStatusStanding(f.scenario, opened); err != nil {
+				return err
+			}
+			if opened.GetProviderInstanceId() != standing.GetProviderInstanceId() || opened.GetAdmissionClosed() || opened.GetOperationId() != "" {
+				return fmt.Errorf("replacement lifecycle provider %q did not confirm durable fence recovery", f.scenario)
+			}
+			f.active = false
+			return nil
+		}
 		if (f.persistence != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED && f.persistence != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE) ||
 			standing.GetFencePersistence() != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE ||
 			f.interlock == "" || standing.GetInterlock() != f.interlock ||

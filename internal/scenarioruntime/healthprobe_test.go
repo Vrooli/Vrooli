@@ -100,6 +100,40 @@ func TestHealthProbeRejectsHealthyResponseFromOlderBuild(t *testing.T) {
 	}
 }
 
+func TestHealthProbeRejectsStaleRetainedReleaseAndStartOperation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(apihealth.Response{
+			Status: apihealth.StatusHealthy, Service: "browser-api",
+			Timestamp: "2026-05-08T12:00:00Z", Readiness: true,
+			BuildIdentity: "sha256:release-current", RuntimeReleaseID: "release-old",
+			RuntimeReleaseOperationID: "selection-7", StartOperationID: "start-old",
+		})
+	}))
+	defer server.Close()
+
+	snapshot := HealthProbe{}.Probe(context.Background(), HealthProbeInput{
+		InstanceID: "browser-live-4", Scenario: "browser",
+		ExpectedBuildIdentity:             "sha256:release-current",
+		ExpectedRuntimeReleaseID:          "release-current",
+		ExpectedRuntimeReleaseOperationID: "selection-8",
+		ExpectedStartOperationID:          "start-current",
+		HealthConfig: &scenario.HealthConfig{Checks: []scenario.HealthCheck{{
+			Name: "api", Type: "http", Target: server.URL, Critical: true,
+		}}},
+	})
+	if snapshot.Status != HealthStatusUnhealthy {
+		t.Fatalf("status = %q, want unhealthy", snapshot.Status)
+	}
+	for _, want := range []string{"runtime release mismatch", "runtime release selection operation mismatch", "start operation mismatch"} {
+		if !strings.Contains(snapshot.Error, want) {
+			t.Errorf("error %q does not contain %q", snapshot.Error, want)
+		}
+	}
+	if snapshot.RuntimeReleaseID != "release-old" || snapshot.StartOperationID != "start-old" {
+		t.Fatalf("snapshot identity = release %q/start %q, want the actual stale responder identity", snapshot.RuntimeReleaseID, snapshot.StartOperationID)
+	}
+}
+
 func TestHealthProbePreservesDegradedStatusWithProviderDetail(t *testing.T) {
 	clk := testenv.NewClock(time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC))
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

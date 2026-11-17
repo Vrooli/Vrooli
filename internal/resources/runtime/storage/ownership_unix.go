@@ -18,7 +18,67 @@ var currentEUID = os.Geteuid
 var (
 	invokingUserIDs     = hostreqkit.InvokingUserIDs
 	invokingUserHomeDir = hostreqkit.InvokingUserHomeDir
+	chownStoragePath    = os.Lchown
 )
+
+// RepairRootOwnedFileForInvokingUser repairs one known resource-owner file
+// left root-owned by a legacy sudo invocation. It is a no-op outside root-via-
+// sudo, refuses symlinks and non-root owners, and confines the target to the
+// invoking user's home.
+func RepairRootOwnedFileForInvokingUser(path string) (bool, error) {
+	uid, gid, sudoed := invokingUserIDs()
+	if !sudoed || currentEUID() != 0 {
+		return false, nil
+	}
+	home, err := invokingUserHomeDir()
+	if err != nil {
+		return false, &Error{Kind: ErrResolve, Message: "resolve invoking user home for file ownership repair", Err: err}
+	}
+	absolute, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return false, &Error{Kind: ErrResolve, Message: "resolve owner file path", Details: path, Err: err}
+	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+	if err != nil {
+		return false, &Error{Kind: ErrResolve, Message: "resolve owner file parent", Details: filepath.Dir(absolute), Err: err}
+	}
+	absPath := filepath.Join(parent, filepath.Base(absolute))
+	if !withinStorageHome(absPath, home) {
+		return false, &Error{Kind: ErrOwnership, Message: "refuse to repair resource owner file outside invoking user home", Details: absPath}
+	}
+	info, err := os.Lstat(absPath)
+	if err != nil {
+		return false, err
+	}
+	if !info.Mode().IsRegular() {
+		return false, &Error{Kind: ErrOwnership, Message: "refuse to repair non-regular resource owner file", Details: absPath}
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return false, &Error{Kind: ErrOwnership, Message: "inspect resource owner file identity", Details: absPath, Err: fmt.Errorf("filesystem did not provide POSIX ownership metadata")}
+	}
+	if stat.Uid == uint32(uid) {
+		return false, nil
+	}
+	if stat.Uid != 0 {
+		return false, &Error{Kind: ErrOwnership, Message: "refuse to reassign resource owner file not owned by root", Details: fmt.Sprintf("%s (owner uid %d)", absPath, stat.Uid)}
+	}
+	if err := chownStoragePath(absPath, uid, gid); err != nil {
+		return false, &Error{Kind: ErrOwnership, Message: "restore invoking user ownership for resource owner file", Details: absPath, Err: err}
+	}
+	updated, err := os.Lstat(absPath)
+	if err != nil || !os.SameFile(info, updated) {
+		if err == nil {
+			err = fmt.Errorf("owner file identity changed during repair")
+		}
+		return false, &Error{Kind: ErrOwnership, Message: "verify repaired resource owner file", Details: absPath, Err: err}
+	}
+	updatedStat, ok := updated.Sys().(*syscall.Stat_t)
+	if !ok || updatedStat.Uid != uint32(uid) {
+		return false, &Error{Kind: ErrOwnership, Message: "repaired resource owner file has unexpected owner", Details: absPath}
+	}
+	return true, nil
+}
 
 func requireFileInfoOwnedByCurrentUser(path string, info fs.FileInfo, allowRootManagement bool) error {
 	stat, ok := info.Sys().(*syscall.Stat_t)
