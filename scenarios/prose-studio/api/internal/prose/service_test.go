@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/textmetrics"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	_ "modernc.org/sqlite"
 )
 
@@ -303,6 +304,53 @@ func TestSemanticProfileRecordsLexicalFallbackWhenGatewayCannotEmbed(t *testing.
 	require.Contains(t, out.Round.MeasurementBasis, "lexical")
 	require.Contains(t, out.Round.MeasurementFallback, "embedding_unavailable")
 	require.NotEmpty(t, out.Round.LexicalSetMeasurements)
+}
+
+type recordingSemanticGateway struct {
+	*fakeGateway
+	embedRequests []EmbeddingRequest
+}
+
+func (g *recordingSemanticGateway) Embed(_ context.Context, request EmbeddingRequest) (EmbeddingResponse, error) {
+	g.embedRequests = append(g.embedRequests, request)
+	first, second := make([]float64, minimumEmbeddingDimension), make([]float64, minimumEmbeddingDimension)
+	first[0], second[1] = 1, 1
+	return EmbeddingResponse{
+		Dimension: minimumEmbeddingDimension,
+		Vectors:   [][]float64{first, second},
+		Provider:  "fixture-local", Model: "fixture-embedding",
+	}, nil
+}
+
+func TestSemanticProfileUsesSourcedConfidentialLocalEmbeddingContract(t *testing.T) {
+	s, _ := newTestService(t)
+	semanticGateway := &recordingSemanticGateway{fakeGateway: &fakeGateway{}}
+	s.gateway = semanticGateway
+	ctx := context.Background()
+	require.NoError(t, func() error {
+		_, err := s.CreateProfile(ctx, Profile{Key: "semantic", MeasurementTiers: []string{"deterministic_and_semantic"}, Sampler: Sampler{Kind: samplerVSStandard, K: 2}, Budget: Budget{MaxOutputTokens: 100}})
+		return err
+	}())
+	_, err := s.Generate(ctx, GenerateRequest{ProfileKey: "semantic", Query: "private editorial subject"})
+	require.NoError(t, err)
+	require.Len(t, semanticGateway.embedRequests, 1)
+	request := semanticGateway.embedRequests[0]
+	require.Equal(t, "embedding.default", request.Role)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, request.Profile)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, request.PrivacyClass)
+	require.Equal(t, prosePrivacySource, request.PrivacyProvenance)
+}
+
+func TestSemanticDocumentMeasurementUsesSourcedConfidentialLocalEmbeddingContract(t *testing.T) {
+	semanticGateway := &recordingSemanticGateway{fakeGateway: &fakeGateway{}}
+	s := &Service{gateway: semanticGateway}
+	_, _, err := s.semanticSectionRepetition(context.Background(), []string{"private section one", "private section two"})
+	require.NoError(t, err)
+	require.Len(t, semanticGateway.embedRequests, 1)
+	request := semanticGateway.embedRequests[0]
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, request.Profile)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, request.PrivacyClass)
+	require.Equal(t, prosePrivacySource, request.PrivacyProvenance)
 }
 
 func TestConformanceSeparatesAntiPatternAndPreferredSpansAndHonoursComparator(t *testing.T) {

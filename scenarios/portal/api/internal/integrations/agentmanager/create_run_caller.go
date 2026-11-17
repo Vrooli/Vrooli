@@ -51,3 +51,22 @@ func redactCreateCaller(ctx context.Context, text string) string {
 	}
 	return text
 }
+
+type redactedCreateCallerError struct {
+	message string
+	cause   error
+}
+
+func (e redactedCreateCallerError) Error() string { return e.message }
+func (e redactedCreateCallerError) Unwrap() error { return e.cause }
+
+func redactCreateCallerError(ctx context.Context, err error) error {
+	if err == nil {
+		return nil
+	}
+	message := redactCreateCaller(ctx, err.Error())
+	if message == err.Error() {
+		return err
+	}
+	return redactedCreateCallerError{message: message, cause: err}
+}

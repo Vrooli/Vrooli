@@ -19,7 +19,6 @@ architecture keeps those two promises honest by isolating a pure
 scheduling kernel from every side effect and routing every mutation
 through a single authoritative command surface.
 
-## Purpose Of This Document
 
 This document owns:
 

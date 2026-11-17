@@ -13,7 +13,8 @@ export function useDialogFocusTrap(
     if (!dialog) return undefined;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusable = () => Array.from(dialog.querySelectorAll<HTMLElement>(focusableSelector));
-    focusable()[0]?.focus();
+    const preferredInitialFocus = dialog.querySelector<HTMLElement>("[data-dialog-initial-focus]");
+    (preferredInitialFocus?.matches(focusableSelector) ? preferredInitialFocus : focusable()[0])?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();

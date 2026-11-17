@@ -97,7 +97,6 @@ implementation, root credential, permanent ADB route or VPN lives in Portal.
 This document records durable decisions and tradeoffs future agents
 should not accidentally relitigate.
 
-## Purpose Of This Document
 
 Use this document when a choice:
 

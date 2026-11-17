@@ -14,7 +14,6 @@ const app = createScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'portal',
-  corsOrigins: '*',
   setupRoutes(expressApp) {
     expressApp.use(applicationProxy.router)
     expressApp.use((req, res, next) => {

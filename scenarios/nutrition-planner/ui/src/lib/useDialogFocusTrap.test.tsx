@@ -20,6 +20,11 @@ function FocusableDialog({ onClose }: { onClose: () => void }) {
   return <><svg ref={previousSvg} tabIndex={0} aria-label="previous focus" /><div role="dialog"><button type="button">First action</button><button type="button">Last action</button></div></>;
 }
 
+function PreferredInitialFocusDialog() {
+  useDialogFocusTrap(true, vi.fn());
+  return <div role="dialog"><button type="button">Dismiss</button><button type="button" data-dialog-initial-focus>First task</button></div>;
+}
+
 function MissingDialog() {
   useDialogFocusTrap(true, vi.fn(), "#missing-dialog");
   return <p>Dialog has not mounted</p>;
@@ -48,6 +53,11 @@ describe("useDialogFocusTrap", () => {
     expect(first).toHaveFocus();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("focuses a marked task control before a secondary dialog close action", () => {
+    renderWithProviders(<PreferredInitialFocusDialog />);
+    expect(screen.getByRole("button", { name: "First task" })).toHaveFocus();
   });
 
   it("tolerates an open state before its dialog element is mounted", () => {

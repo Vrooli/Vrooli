@@ -7,6 +7,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	messagev1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message"
 	messageconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/message/message_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared"
@@ -50,7 +51,7 @@ func (h *handlers) send(ctx cliapp.RunContext) error {
 		Content:          ctx.Positional("text"),
 		Model:            ctx.Flag("model"),
 		WebSearchEnabled: ctx.BoolFlag("web-search"),
-		SelectedSkillIds: splitCSV(ctx.Flag("skill-ids")),
+		SelectedSkillIds: cliutil.ParseCSV(ctx.Flag("skill-ids")),
 	}
 	resp, err := h.client.SendMessage(context.Background(), connect.NewRequest(req))
 	if err != nil {
@@ -111,7 +112,7 @@ func (h *handlers) stream(ctx cliapp.RunContext) error {
 		FromMessageId:    ctx.Flag("from"),
 		Model:            ctx.Flag("model"),
 		WebSearchEnabled: ctx.BoolFlag("web-search"),
-		SelectedSkillIds: splitCSV(ctx.Flag("skill-ids")),
+		SelectedSkillIds: cliutil.ParseCSV(ctx.Flag("skill-ids")),
 		Mode:             parseChatMode(ctx.Flag("mode")),
 	}
 	stream, err := h.client.StreamCompletion(context.Background(), connect.NewRequest(req))
@@ -159,21 +160,6 @@ func parseChatMode(value string) sharedv1.ChatMode {
 	default:
 		return sharedv1.ChatMode_CHAT_MODE_UNSPECIFIED
 	}
-}
-
-func splitCSV(value string) []string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
 }
 
 func formatMessage(m *messagev1.Message) string {

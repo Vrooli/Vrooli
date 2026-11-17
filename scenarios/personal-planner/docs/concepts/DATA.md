@@ -1,6 +1,5 @@
 # Data — Personal Planner
 
-## Purpose Of This Document
 
 This document is the canonical map of what data Personal Planner stores,
 which domain owns each table, how temporal and effort values are typed,

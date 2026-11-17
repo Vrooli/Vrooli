@@ -95,3 +95,20 @@ func TestAutomatedFixStoreEnableCustom(t *testing.T) {
 		t.Fatalf("expected model %s, got %s", normalizeAgentModel(model), cfg.Model)
 	}
 }
+
+func TestSanitizeConfigNormalizesNonNegativeBounds(t *testing.T) {
+	cfg := sanitizeConfig(AutomatedFixConfig{
+		Strategy:       defaultAutomatedFixStrategy,
+		LoopDelay:      -1,
+		TimeoutSeconds: -1,
+		MaxFixes:       -1,
+	})
+	if cfg.LoopDelay != defaultLoopDelaySeconds || cfg.TimeoutSeconds != defaultTimeoutSeconds || cfg.MaxFixes != defaultMaxFixes {
+		t.Fatalf("negative settings should use defaults: loop=%d timeout=%d max=%d", cfg.LoopDelay, cfg.TimeoutSeconds, cfg.MaxFixes)
+	}
+
+	cfg.LoopDelay = 0
+	if got := sanitizeConfig(cfg).LoopDelay; got != 0 {
+		t.Fatalf("zero loop delay should be preserved, got %d", got)
+	}
+}

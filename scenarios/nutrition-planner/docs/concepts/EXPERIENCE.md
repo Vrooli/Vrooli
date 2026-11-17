@@ -1,6 +1,5 @@
 # Experience Design
 
-## Purpose Of This Document
 
 Record the experience decision for Nooch (`nutrition-planner`) after the v2.0
 redesign: what people will compare it to, which surface matters most, how each

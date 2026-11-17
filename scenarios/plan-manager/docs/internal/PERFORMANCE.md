@@ -3,7 +3,6 @@
 This document records performance budgets, current measurements, known
 constraints, and the regression procedure for plan-manager.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

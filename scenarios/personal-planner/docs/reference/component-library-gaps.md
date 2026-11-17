@@ -1,6 +1,5 @@
 # Component Library Gaps
 
-## Purpose Of This Document
 
 Record what Personal Planner needed from `react-component-library`
 and could not link as-is. Every ejection and every missing asset is a debt the

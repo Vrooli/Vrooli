@@ -12,7 +12,10 @@ func TestProjectReceiptPersistsTypedProviderChildIdentity(t *testing.T) {
 		ReceiptId: "receipt-1",
 		Children:  []*validationv1.ChildOperation{{ChildId: "child-1"}},
 	}
-	projected := projectReceipt(ValidationOperation{}, receipt, "2026-09-06T00:00:00Z")
+	projected, err := projectReceipt(ValidationOperation{Status: OperationQueued}, receipt, "2026-09-06T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(projected.Children) != 1 {
 		t.Fatalf("children = %d, want 1", len(projected.Children))
 	}
@@ -32,7 +35,10 @@ func TestProjectReceiptDistinguishesDriftFromAssertionFailure(t *testing.T) {
 		{validationv1.ValidationReasonCode_VALIDATION_REASON_CODE_REQUIRED_EVIDENCE_FAILED, VerdictFail},
 	} {
 		r := &validationv1.ValidationReceipt{ReceiptId: "receipt", State: validationv1.ReceiptState_RECEIPT_STATE_FAILED, ReasonCode: tc.reason}
-		got := projectReceipt(ValidationOperation{}, r, "2026-09-06T00:00:00Z")
+		got, err := projectReceipt(ValidationOperation{Status: OperationQueued}, r, "2026-09-06T00:00:00Z")
+		if err != nil {
+			t.Fatal(err)
+		}
 		if got.Result.Verdict != tc.want {
 			t.Fatalf("reason %v: got %v want %v", tc.reason, got.Result.Verdict, tc.want)
 		}
@@ -48,8 +54,19 @@ func TestProjectReceiptPreservesExistingChildIdentity(t *testing.T) {
 		Children:  []*validationv1.ChildOperation{{ChildId: "child-1"}},
 	}
 	existing := ValidationCheck{Kind: ValidationCheckScenarioDiff, SemanticKey: "scenario-diff:plan-manager:baseline"}
-	projected := projectReceipt(ValidationOperation{Children: []ValidationChild{{ID: "child-1", Check: existing}}}, receipt, "2026-09-06T00:00:00Z")
+	projected, err := projectReceipt(ValidationOperation{Status: OperationQueued, Children: []ValidationChild{{ID: "child-1", Check: existing}}}, receipt, "2026-09-06T00:00:00Z")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !reflect.DeepEqual(projected.Children[0].Check, existing) {
 		t.Fatalf("check = %#v, want existing identity %#v", projected.Children[0].Check, existing)
+	}
+}
+
+func TestProjectReceiptRejectsStatusRegression(t *testing.T) {
+	receipt := &validationv1.ValidationReceipt{ReceiptId: "receipt-1", State: validationv1.ReceiptState_RECEIPT_STATE_QUEUED}
+	_, err := projectReceipt(ValidationOperation{ID: "op-1", Status: OperationRunning}, receipt, "2026-09-06T00:00:00Z")
+	if err == nil {
+		t.Fatal("expected stale queued receipt to be rejected after operation entered running")
 	}
 }

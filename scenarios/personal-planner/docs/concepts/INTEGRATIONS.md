@@ -1,6 +1,5 @@
 # Integrations — Personal Planner
 
-## Purpose Of This Document
 
 This document is the canonical dependency contract for Personal Planner:
 which Vrooli resources it uses, which scenarios it depends on, which

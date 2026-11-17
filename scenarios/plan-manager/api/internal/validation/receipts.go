@@ -98,7 +98,10 @@ func (s *service) startReceiptValidation(ctx context.Context, request Validation
 	projection.Children = nil
 	projection.ProducerWaitArgv = []string{"test-genie", "validation", "wait", "--wait-id", "plan-manager-" + projection.ID, projection.ID, "--json"}
 	projection.SyncArgv = []string{"plan-manager", "validate", "sync", projection.ID}
-	projection = projectReceipt(projection, receipt, s.now())
+	projection, err = projectReceipt(projection, receipt, s.now())
+	if err != nil {
+		return ValidationOperation{}, false, err
+	}
 	stored, created, err := s.operations.CreateOperation(ctx, projection)
 	if err != nil {
 		return ValidationOperation{}, false, err
@@ -140,9 +143,9 @@ func receiptIdempotencyKey(request ValidationTicketRequest) string {
 	return "plan-manager:" + uuid.NewString()
 }
 
-func projectReceipt(operation ValidationOperation, receipt *validationv1.ValidationReceipt, now string) ValidationOperation {
+func projectReceipt(operation ValidationOperation, receipt *validationv1.ValidationReceipt, now string) (ValidationOperation, error) {
 	if receipt == nil {
-		return operation
+		return operation, nil
 	}
 	operation.ID = receipt.GetReceiptId()
 	operation.QueueReason = receipt.GetDetail()
@@ -179,8 +182,10 @@ func projectReceipt(operation ValidationOperation, receipt *validationv1.Validat
 		}
 		operation.Children = append(operation.Children, ValidationChild{ID: child.GetChildId(), Check: check, ExternalID: child.GetOperationId(), Status: status, Verdict: verdict, Detail: child.GetDetail(), Oracle: check.Oracle})
 	}
+	var nextStatus OperationStatus
 	if receiptTerminal(receipt.GetState()) {
-		operation.Status, operation.TerminalAt, operation.QueueReason = OperationTerminal, now, ""
+		nextStatus = OperationTerminal
+		operation.TerminalAt, operation.QueueReason = now, ""
 		verdict := VerdictUnknown
 		if receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED {
 			verdict = VerdictPass
@@ -199,11 +204,14 @@ func projectReceipt(operation ValidationOperation, receipt *validationv1.Validat
 		}
 		operation.Result = &Result{ID: operation.ID + ":result", PlanID: operation.PlanID, PhaseID: operation.PhaseID, Verdict: verdict, Staleness: staleness, Detail: receipt.GetDetail(), RanAt: now, ExecutionID: operation.ExecutionID, OperationID: operation.ID, ScopeGeneration: operation.ScopeGeneration, FullInventory: operation.FullInventory, RequiredMembers: append([]string(nil), operation.RequiredMembers...), SelectedMembers: append([]string(nil), operation.SelectedMembers...)}
 	} else if receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_RUNNING || receipt.GetState() == validationv1.ReceiptState_RECEIPT_STATE_ATTACHED {
-		operation.Status = OperationRunning
+		nextStatus = OperationRunning
 	} else {
-		operation.Status = OperationQueued
+		nextStatus = OperationQueued
 	}
-	return operation
+	if err := operation.TransitionStatus(nextStatus); err != nil {
+		return ValidationOperation{}, err
+	}
+	return operation, nil
 }
 
 func receiptTerminal(state validationv1.ReceiptState) bool {

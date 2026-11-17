@@ -3,7 +3,6 @@
 This document is the canonical dependency contract for resources,
 other scenarios, and third-party services used by the scenario.
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -30,7 +29,7 @@ embedded in the Portal API and is not a separately managed resource.
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | `search-hub` | optional | Brief recall producer. | Connect `RoutingService.Query`; timeout, error, missing service, and weak results yield a persisted withheld verdict. |
-| `agent-manager` | optional | Runs Portal agent chats after a brief is built. | Agent admission and event stream; unavailable manager leaves ordinary LLM chat usable. |
+| `agent-manager` | optional | Runs Portal agent chats after a brief is built. | Generated Connect calls reconcile the declared profile, create a task and run, find the exact admission tag, read run state, and stop a run. Creation requires Portal's verified human `agent-manager:write` proof; typed approval-pending details mean the operation did not start. Events use Agent Manager's `GET /api/v1/ws` WebSocket because the owner has no streaming RPC; `TestWebSocketURLConvertsHTTPBase`, `TestDecodeWebSocketLineMapsRunEvents`, and `TestStreamCancellationInterruptsSilentRead` cover URL mapping, decoding, and cancellation. Multipart `POST /api/v1/attachments/upload` remains REST because the owner exposes no RPC for opaque binary upload; `TestUploadAttachmentKeepsMultipartRESTOnlyForBinaryUpload` checks the payload and route. An unavailable manager leaves ordinary LLM chat usable. |
 | `prompt-manager` | optional | Resolves selected operator skills for LLM prompts and owns published skill guidance. | Skill resolution failure omits optional skill context; it does not bypass brief gating. |
 | `audio-tools` | optional | Voice input/output for the Portal shell. | Voice failure leaves typed chat and brief flows usable. |
 | `compute-manager` | optional | Optional compute/model capability discovery for future operator surfaces. | Missing capability is reported as unavailable; briefs do not execute or provision compute. |
@@ -52,7 +51,7 @@ embedded in the Portal API and is not a separately managed resource.
 |---|---|---|---|
 | SQLite | `PingContext` error | `/health` returns unhealthy dependency status. | health handler tests |
 | search-hub | query timeout, error, or low confidence | Persist `WITHHELD_BUDGET`, `WITHHELD_DEGRADED`, or `WITHHELD_LOW_CONFIDENCE`; never inject partial context. | `packages/agentbrief-go` gate tests and Portal brief service tests |
-| agent-manager | admission or stream unavailable | Preserve the user message and report the agent run failure; LLM and inspector remain available. | agentchat service tests |
+| agent-manager | Connect admission/state/stop error or WebSocket stream unavailable | Preserve the user message and report the agent run failure; approval pending is definitive and is never treated as accepted; LLM and inspector remain available. | agent-manager Connect client and WebSocket event-source tests |
 | prompt-manager | skill lookup unavailable | Omit optional skill context and keep the Portal prompt and brief contract available. | integration registry tests |
 | audio-tools | provider unavailable or timeout | Keep typed chat and workspace controls available; report voice input/output unavailable. | integration registry tests |
 | compute-manager | readiness query unavailable | Omit compute-node surfaces and report readiness unavailable. | integration registry tests |

@@ -28,12 +28,11 @@ export function TodayCaptureLink({ onClick }: { onClick: () => void }) {
   return <Button type="button" variant="ghost" className="capture-link" icon={<FilePlus2 size={16} aria-hidden="true" />} onClick={onClick}>Capture task</Button>;
 }
 
-export function TodayCaptureForm({ title, description, minutes, source, pending, error, onTitleChange, onDescriptionChange, onMinutesChange, onSourceChange, onSubmit }: {
+export function TodayCaptureForm({ title, description, minutes, source, error, onTitleChange, onDescriptionChange, onMinutesChange, onSourceChange, onSubmit }: {
   title: string;
   description: string;
   minutes: string;
   source: string;
-  pending: boolean;
   error: boolean;
   onTitleChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
@@ -41,7 +40,7 @@ export function TodayCaptureForm({ title, description, minutes, source, pending,
   onSourceChange: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  return <form className="capture-panel" onSubmit={onSubmit}>
+  return <form id="today-capture-form" className="capture-panel" onSubmit={onSubmit}>
     <FormField label="Task title" required control={<Input autoFocus aria-label="Task title" value={title} onChange={(event) => onTitleChange(event.target.value)} required />} />
     <FormField label="Why it matters" optionalLabel="(optional)" control={<Textarea aria-label="Why it matters (optional)" value={description} onChange={(event) => onDescriptionChange(event.target.value)} rows={2} />} />
     <div className="capture-fields">
@@ -49,7 +48,7 @@ export function TodayCaptureForm({ title, description, minutes, source, pending,
       <FormField label="Source" optionalLabel="(optional)" control={<Input aria-label="Source (optional)" value={source} onChange={(event) => onSourceChange(event.target.value)} />} />
     </div>
     {error && <p role="alert">That task did not save. Nothing was assumed.</p>}
-    <Button type="submit" className="primary-action" disabled={pending || !title.trim()} pending={pending} pendingLabel="Saving…">Save task</Button>
+    <button type="submit" hidden aria-hidden="true" />
   </form>;
 }
 

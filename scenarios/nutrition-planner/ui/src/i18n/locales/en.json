@@ -3,6 +3,20 @@
   "app": {
     "title": "Nutrition Planner"
   },
+  "actions": {
+    "swapLabel": "Swap actions",
+    "replacementLabel": "Replacement actions",
+    "weekSwapLabel": "Week swap actions",
+    "confirmSwap": "Confirm swap",
+    "applyChanges": "Apply reviewed changes",
+    "chooseAnother": "Choose another meal",
+    "cancel": "Cancel",
+    "confirmReplacement": "Confirm replacement",
+    "applying": "Applying…",
+    "keepMeal": "Keep current meal",
+    "preview": "Preview swap",
+    "keepPlan": "Keep current plan"
+  },
   "layout": {
     "navigationLabel": "Primary navigation",
     "mobileNavigationLabel": "Mobile navigation",

@@ -1,6 +1,5 @@
 # Observability — Personal Planner
 
-## Purpose Of This Document
 
 This document defines the health, log, and metric signals Personal Planner
 should expose, and the product-success signals that tell us the tool is

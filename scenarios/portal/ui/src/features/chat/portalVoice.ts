@@ -17,12 +17,22 @@ import {
   playRecordingStartCue,
   playRecordingStopCue,
   registerVoiceTransport,
+  type StreamMessage,
+  type VoiceTransport,
+  type VoiceConnectCodec,
+  openConnectVoiceStream,
   type AudioFeatures,
   type TranscriptionProvider,
   type VoiceCoreServices,
   type VoiceCapabilityProbe,
   type WakeWordEngine,
 } from "@vrooli/audio-capture-browser";
+import { create } from "@bufbuild/protobuf";
+import {
+  TranscribeStreamRequestSchema,
+  type TranscribeStreamRequest,
+  type TranscribeStreamEvent,
+} from "@vrooli/proto-types/audio-tools/v1/stt/stt_pb";
 
 import { API_BASE } from "../../api/client";
 
@@ -95,18 +105,94 @@ export function createPortalSpeechRuntime(baseURL = configuredAudioToolsURL): Po
 
 export const portalSpeech = createPortalSpeechRuntime();
 
-function wsBase(baseURL: string): string {
-  if (baseURL.startsWith("https://")) return `wss://${baseURL.slice("https://".length)}`;
-  if (baseURL.startsWith("http://")) return `ws://${baseURL.slice("http://".length)}`;
-  return baseURL;
+interface SegmentOrdinalState {
+  byID: Map<string, number>;
+  next: number;
 }
 
-function streamURL(baseURL: string, language: string, sessionID: string, resumeToken: string): string {
-  const params = new URLSearchParams({ format: "pcm_s16le", protocol_version: "2" });
-  if (language) params.set("language", language);
-  if (sessionID) params.set("session_id", sessionID);
-  if (resumeToken) params.set("resume_token", resumeToken);
-  return `${wsBase(baseURL).replace(/\/$/, "")}/api/v1/voice/stream?${params.toString()}`;
+function connectEventMessage(event: TranscribeStreamEvent, ordinal: SegmentOrdinalState): StreamMessage | null {
+  switch (event.event.case) {
+    case "partial": return { type: "partial", text: event.event.value.text };
+    case "segment": {
+      const segment = event.event.value;
+      const segmentId = segment.segmentId || `${segment.startSample}:${segment.endSample}`;
+      let segmentIndex = ordinal.byID.get(segmentId);
+      if (segmentIndex === undefined) {
+        segmentIndex = ordinal.next++;
+        ordinal.byID.set(segmentId, segmentIndex);
+      }
+      return { type: "segment-final", text: segment.text, segmentId, segmentIndex, speakerPolicy: segment.speakerPolicy };
+    }
+    case "speakerRejection": return {
+      type: "segment-rejected", score: event.event.value.score, threshold: event.event.value.threshold,
+      segmentIndex: ordinal.next,
+    };
+    case "error": return { type: "error", code: event.event.value.code, text: event.event.value.message };
+    case "vadState": return {
+      type: "vad-state", voiced: event.event.value.voiced,
+      silenceElapsedMs: Number(event.event.value.silenceElapsedMs),
+      silenceTimeoutMs: Number(event.event.value.silenceTimeoutMs),
+      tickSeq: Number(event.event.value.tickSeq), silenceTimedOut: event.event.value.silenceTimedOut,
+    };
+    case "acknowledgement": {
+      const processedSequence = event.event.value.processedSequence;
+      return {
+        type: "status", code: "processed_acknowledgement",
+        ...(processedSequence >= 0n && processedSequence <= BigInt(Number.MAX_SAFE_INTEGER)
+          ? { processedSequence: Number(processedSequence) }
+          : {}),
+      };
+    }
+    case "sessionStatus": return {
+      type: "status", code: `session_${event.event.value.state}`,
+      text: event.event.value.recoveryGuidance,
+    };
+    case "done": return {
+      type: "final", text: event.event.value.finalText,
+      providerId: event.event.value.providerId, modelId: event.event.value.modelId,
+    };
+    case "wakeWord": return null;
+    default: return null;
+  }
+}
+
+function createConnectVoiceTransport(client: ReturnType<typeof createAudioToolsClients>["stt"]): Pick<VoiceTransport, "openStream"> {
+  const segmentOrdinals = new Map<string, SegmentOrdinalState>();
+  const codec: VoiceConnectCodec<TranscribeStreamRequest, TranscribeStreamEvent> = {
+    start: (start) => create(TranscribeStreamRequestSchema, { payload: { case: "start", value: {
+      language: start.language,
+      initialPrompt: start.initialPrompt ?? "",
+      skipSpeakerVerification: start.skipSpeakerVerification ?? false,
+      inputFormat: AudioFormat.PCM_S16LE,
+      inputSampleRateHz: start.sampleRateHz,
+      protocolVersion: start.protocolVersion,
+      sessionId: start.sessionId,
+      generation: start.generation,
+      resumeToken: start.resumeToken,
+    } } }),
+    audio: (chunk) => create(TranscribeStreamRequestSchema, { payload: { case: "audioChunk", value: {
+      audio: chunk.audio,
+      sequence: chunk.sequence,
+      startSample: chunk.startSample,
+      endSample: chunk.endSample,
+      sha256: chunk.sha256,
+    } } }),
+    end: () => create(TranscribeStreamRequestSchema, { payload: { case: "end", value: {} } }),
+    isStart: (request) => request.payload.case === "start",
+    event: (event, start) => {
+      const ordinalKey = `${start.sessionId}:${start.generation}`;
+      const ordinal = segmentOrdinals.get(ordinalKey) ?? { byID: new Map<string, number>(), next: 0 };
+      segmentOrdinals.set(ordinalKey, ordinal);
+      const message = connectEventMessage(event, ordinal);
+      if (event.event.case === "done") segmentOrdinals.delete(ordinalKey);
+      return message;
+    },
+  };
+  return {
+    openStream(start, handlers) {
+      return openConnectVoiceStream(client, codec, start, handlers);
+    },
+  };
 }
 
 class AudioToolsBatchProvider implements TranscriptionProvider {
@@ -179,7 +265,7 @@ export function createPortalVoiceServices(baseURL = configuredAudioToolsURL): Po
   const enabled = baseURL.length > 0;
   const clients = createAudioToolsClients(baseURL || API_BASE);
   registerVoiceTransport({
-    buildStreamUrl: (language, sessionID, resumeToken) => streamURL(baseURL || API_BASE, language, sessionID, resumeToken),
+    ...createConnectVoiceTransport(clients.stt),
     transcribeRetained: async (blob, language) => {
       const response = await clients.stt.transcribe({
         audio: new Uint8Array(await blob.arrayBuffer()),

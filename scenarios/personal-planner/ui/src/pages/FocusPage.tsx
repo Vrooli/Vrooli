@@ -10,6 +10,9 @@ import { ObservatoryScene } from "../components/ObservatoryScene";
 import { PlannerDialog as Dialog } from "../components/PlannerDialog";
 import { useBreakpoint } from "../hooks/useBreakpoint";
 import { DesktopFocusStartGuidance, MobileFocusStartGuidance } from "../components/FocusStartGuidance";
+import { overlayActions, submitForm } from "../lib/overlayActions";
+import { useTranslation } from "../i18n";
+import { strings } from "../consts/strings";
 
 import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, recordPauseReason, resumeFocus, saveSessionNote, startFocus, type Actual, type FocusSession, type PauseEvent } from "../api/focus";
 import { fetchWorkItems } from "../api/work";
@@ -27,6 +30,7 @@ function activeSeconds(session: FocusSession, now: number): number {
 }
 
 export function FocusPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { isMobile } = useBreakpoint();
   const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -104,6 +108,14 @@ export function FocusPage() {
   const overtime = targetSeconds > 0 && elapsed > targetSeconds;
   const timerSeconds = targetSeconds > 0 ? Math.abs(targetSeconds - elapsed) : elapsed;
   const breakRemaining = breakUntil ? Math.max(0, breakUntil - now) : 0;
+  const recordActualAction = { id: "record-actual", label: actualMutation.isPending ? t(strings.overlay.saving) : t(strings.overlay.recordActual), onSelect: submitForm("focus-actual-form"), disabled: actualMutation.isPending, primary: false as const, testId: "focus-record-actual" };
+  const actualsDialogActions = editingActual
+    ? overlayActions(
+      { id: "save-correction", label: correctionMutation.isPending ? t(strings.overlay.saving) : t(strings.overlay.saveCorrection), onSelect: submitForm("focus-actual-correction-form"), disabled: correctionMutation.isPending, primary: true, testId: "focus-save-correction" },
+      { id: "cancel-correction", label: t(strings.overlay.cancelCorrection), onSelect: () => setEditingActual(null), testId: "focus-cancel-correction" },
+      recordActualAction,
+    )
+    : overlayActions({ ...recordActualAction, primary: true });
 
   useEffect(() => {
     if (!overtime) {
@@ -168,21 +180,21 @@ export function FocusPage() {
         <div><span className="card-kicker">HONEST CATCH-UP</span><h2 id="actuals-launch-heading">Need to account for earlier work?</h2><p>Keep remembered time separate from the live timer and label it as approximate.</p></div>
         <Button type="button" variant="secondary" onClick={() => setActualsOpen(true)}>Open actuals ledger</Button>
       </section>}
-      <Dialog open={actualsOpen} title="Actuals ledger" description="Record remembered time as an approximation. Corrections stay visible instead of rewriting history." onClose={() => { setActualsOpen(false); setEditingActual(null); }} closeLabel="Close actuals ledger" contentClassName="actuals-dialog">
+      <Dialog open={actualsOpen} title="Actuals ledger" description="Record remembered time as an approximation. Corrections stay visible instead of rewriting history." onClose={() => { setActualsOpen(false); setEditingActual(null); }} closeLabel="Close actuals ledger" contentClassName="actuals-dialog" actions={actualsDialogActions}>
       <section className="actuals-card" aria-label="Actuals ledger entries">
         <div className="actuals-heading"><div><span className="card-kicker">HONEST CATCH-UP</span><h2 id="actuals-heading">Record time you already spent</h2></div><span className="actuals-date">{actualDate}</span></div>
         <p className="actuals-intro">A rough memory is useful when it stays labeled as a report, not a fabricated timer interval.</p>
-        <form className="actual-form" onSubmit={(event) => { event.preventDefault(); actualMutation.mutate(); }}>
+        <form id="focus-actual-form" className="actual-form" onSubmit={(event) => { event.preventDefault(); actualMutation.mutate(); }}>
           <FormField label="What did you work on?" required control={<Input aria-label="What did you work on?" value={actualTitle} onChange={(event) => setActualTitle(event.target.value)} placeholder="e.g. Review the launch brief" />} />
           <FormField label="Minutes" required control={<Input aria-label="Minutes" type="number" min="1" step="1" value={actualMinutes} onChange={(event) => setActualMinutes(event.target.value)} />} />
           <FormField className="actual-note-field" label="Context (optional)" control={<Input aria-label="Context (optional)" value={actualNote} onChange={(event) => setActualNote(event.target.value)} placeholder="Approximate, interrupted, or complete" />} />
-          <Button className="quiet-action" variant="secondary" type="submit" disabled={actualMutation.isPending} pending={actualMutation.isPending} pendingLabel="Saving…">Record actual</Button>
+          <button type="submit" hidden aria-hidden="true" />
         </form>
         {actualMutation.isError && <p className="actual-error" role="alert">That actual did not save. Nothing was assumed.</p>}
         {actuals.isError && <p className="actual-error" role="alert">Recorded actuals are unavailable right now.</p>}
         {corrections.isError && <p className="actual-error" role="alert">Correction history is unavailable right now; the current actuals remain intact.</p>}
         {actuals.data && actuals.data.length > 0 && <div className="actual-list" aria-label="Recorded actual activity">{actuals.data.map((actual) => { const history = corrections.data?.filter((correction) => correction.actualId === actual.id) ?? []; return <article className="actual-row" key={actual.id}><div><strong>{actual.title}</strong><span>{Number(actual.reportedMinutes)} min · {actual.certainty === "timed_observed" ? "observed" : "approximate"}</span>{actual.note && <small>{actual.note}</small>}{history.length > 0 && <details><summary>{history.length} correction{history.length === 1 ? "" : "s"} preserved</summary><ul>{history.map((correction) => <li key={correction.id}>{Number(correction.previousMinutes)} → {Number(correction.newMinutes)} min{correction.reason ? ` · ${correction.reason}` : ""}</li>)}</ul></details>}</div><Button type="button" className="quiet-action" variant="secondary" onClick={() => { setEditingActual(actual); setCorrectionMinutes(String(actual.reportedMinutes)); setCorrectionNote(actual.note); }}>Correct</Button></article>; })}</div>}
-        {editingActual && <form className="actual-correction" onSubmit={(event) => { event.preventDefault(); correctionMutation.mutate(); }}><strong>Correct “{editingActual.title}”</strong><FormField label="Minutes" required control={<Input aria-label="Minutes" type="number" min="1" value={correctionMinutes} onChange={(event) => setCorrectionMinutes(event.target.value)} />} /><FormField label="Why did it change?" required control={<Input aria-label="Why did it change?" value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} />} /><div className="focus-actions"><Button className="primary-action" type="submit" disabled={correctionMutation.isPending} pending={correctionMutation.isPending} pendingLabel="Saving…">Save correction</Button><Button className="quiet-action" variant="secondary" type="button" onClick={() => setEditingActual(null)}>Cancel</Button></div></form>}
+        {editingActual && <form id="focus-actual-correction-form" className="actual-correction" onSubmit={(event) => { event.preventDefault(); correctionMutation.mutate(); }}><strong>Correct “{editingActual.title}”</strong><FormField label="Minutes" required control={<Input aria-label="Minutes" type="number" min="1" value={correctionMinutes} onChange={(event) => setCorrectionMinutes(event.target.value)} />} /><FormField label="Why did it change?" required control={<Input aria-label="Why did it change?" value={correctionNote} onChange={(event) => setCorrectionNote(event.target.value)} />} /><button type="submit" hidden aria-hidden="true" /></form>}
       </section>
       </Dialog>
     </section></ObservatoryScene>

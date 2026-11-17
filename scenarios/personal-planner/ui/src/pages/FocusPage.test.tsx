@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { correctActual, endFocus, fetchActualCorrections, fetchActuals, fetchCurrentFocus, pauseFocus, recordManualActual, resumeFocus, saveSessionNote, startFocus, type Actual } from "../api/focus";
 import { fetchWorkItems } from "../api/work";
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
 import { renderWithProviders } from "../test-utils";
 import { FocusPage } from "./FocusPage";
 
@@ -136,10 +137,12 @@ describe("FocusPage", () => {
     renderWithProviders(<FocusPage />);
     expect(screen.queryByLabelText("What did you work on?")).not.toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Open actuals ledger" }));
+    const dialog = screen.getByTestId("overlays.responsive-dialog");
+    expect(dialog.querySelector("[data-rcl-overlay-action-bar]")?.parentElement).toBe(dialog.querySelector("footer"));
     expect(await screen.findByText("1 correction preserved")).toBeInTheDocument();
     await user.type(await screen.findByLabelText("What did you work on?"), "Review launch brief");
     await user.type(screen.getByLabelText("Minutes"), "45");
-    await user.click(screen.getByRole("button", { name: "Record actual" }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.recordActual }));
     expect(recordManualActual).toHaveBeenCalledWith(expect.objectContaining({ title: "Review launch brief", reportedMinutes: 45 }));
     await user.click(await screen.findByRole("button", { name: "Correct" }));
     const correctionInput = screen.getAllByLabelText("Minutes")[1];
@@ -147,7 +150,8 @@ describe("FocusPage", () => {
     await user.clear(correctionInput);
     await user.type(correctionInput, "30");
     await user.type(screen.getByLabelText("Why did it change?"), "Removed interruption");
-    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(within(dialog).getByTestId("focus-cancel-correction")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: strings.overlay.saveCorrection }));
     expect(correctActual).toHaveBeenCalledWith(actual, expect.objectContaining({ reportedMinutes: 30 }));
   });
 });

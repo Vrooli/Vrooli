@@ -74,7 +74,6 @@ startScenarioServer({
   apiPort,
   distDir: './dist',
   serviceName: 'plan-manager',
-  corsOrigins: '*',
   setupRoutes(app) {
     app.use(securityMiddleware)
 

@@ -38,6 +38,9 @@ func (r *sqliteRepository) Create(ctx context.Context, p Persona) (Persona, erro
 	if p.Status == "" {
 		p.Status = StatusActive
 	}
+	if p.Status != StatusActive {
+		return Persona{}, fmt.Errorf("insert persona: %w (creation requires active state, got %q)", ErrInvalidTransition, p.Status)
+	}
 	_, err := r.db.ExecContext(ctx, `INSERT INTO personas (id, kind, legal_subject_id, legal_subject_name, legal_basis_type, display_name, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, p.ID, p.Kind, p.LegalBasis.SubjectID, p.LegalBasis.SubjectName, p.LegalBasis.BasisType, p.DisplayName, p.Status, p.CreatedAt.Format(timeFormat))
 	if err != nil {
 		return Persona{}, fmt.Errorf("insert persona: %w", err)
@@ -98,6 +101,9 @@ func (r *sqliteRepository) List(ctx context.Context, includeArchived bool, limit
 }
 
 func (r *sqliteRepository) Archive(ctx context.Context, id string) (Persona, error) {
+	if err := TransitionStatus(StatusActive, StatusArchived); err != nil {
+		return Persona{}, err
+	}
 	at := r.clock.Now().UTC()
 	result, err := r.db.ExecContext(ctx, `UPDATE personas SET status = 'archived', archived_at = ? WHERE id = ? AND status = 'active'`, at.Format(timeFormat), id)
 	if err != nil {
@@ -137,6 +143,9 @@ func scanPersona(row rowScanner) (Persona, error) {
 	}
 	p.Kind = Kind(kind)
 	p.Status = Status(status)
+	if !p.Status.Valid() {
+		return Persona{}, fmt.Errorf("%w: invalid persisted persona status %q", ErrInvalidTransition, status)
+	}
 	p.CreatedAt, _ = time.Parse(timeFormat, created)
 	if archived.Valid && archived.String != "" {
 		at, err := time.Parse(timeFormat, archived.String)

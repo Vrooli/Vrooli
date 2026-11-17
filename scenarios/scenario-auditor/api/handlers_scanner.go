@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +13,10 @@ import (
 	"sync"
 	"time"
 
+	"scenario-auditor/scanners"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"scenario-auditor/scanners"
 )
 
 // RealScanLogger implements the scanners.Logger interface
@@ -51,9 +51,8 @@ func (l *RealScanLogger) Debug(msg string, args ...any) {
 }
 
 var (
-	errSecurityScanCancelled = errors.New("security scan cancelled")
-	errSecurityScanNotFound  = errors.New("security scan not found")
-	errSecurityScanFinished  = errors.New("security scan already finished")
+	errSecurityScanNotFound = errors.New("security scan not found")
+	errSecurityScanFinished = errors.New("security scan already finished")
 )
 
 type securityScanRequest struct {
@@ -765,99 +764,6 @@ func storeScanResults(result *scanners.AggregatedScanResult, scenarioName string
 	if err != nil {
 		logger.Error("Failed to record scan history", err)
 	}
-}
-
-// enhancedGetVulnerabilitiesHandler returns vulnerabilities (real ones if scans have been performed)
-func enhancedGetVulnerabilitiesHandler(w http.ResponseWriter, r *http.Request) {
-	scenario := r.URL.Query().Get("scenario")
-
-	w.Header().Set("Content-Type", "application/json")
-
-	vulnerabilities := []map[string]any{}
-
-	// If we have a database, try to get real vulnerabilities
-	if db != nil {
-		query := `
-			SELECT 
-				vs.id, vs.severity, vs.category, vs.title, vs.description,
-				vs.file_path, vs.line_number, vs.code_snippet, vs.recommendation,
-				vs.status, vs.created_at, s.name as scenario_name
-			FROM vulnerability_scans vs
-			JOIN scenarios s ON vs.scenario_id = s.id
-			WHERE vs.status = 'open'
-		`
-		args := []any{}
-
-		if scenario != "" && scenario != "all" {
-			query += " AND s.name = $1"
-			args = append(args, scenario)
-		}
-
-		query += " ORDER BY vs.created_at DESC LIMIT 100"
-
-		rows, err := db.Query(query, args...)
-		if err == nil {
-			defer rows.Close()
-
-			for rows.Next() {
-				var vuln struct {
-					ID             string
-					Severity       string
-					Category       string
-					Title          string
-					Description    string
-					FilePath       string
-					LineNumber     int
-					CodeSnippet    sql.NullString
-					Recommendation string
-					Status         string
-					CreatedAt      time.Time
-					ScenarioName   string
-				}
-
-				if err := rows.Scan(&vuln.ID, &vuln.Severity, &vuln.Category,
-					&vuln.Title, &vuln.Description, &vuln.FilePath, &vuln.LineNumber,
-					&vuln.CodeSnippet, &vuln.Recommendation, &vuln.Status,
-					&vuln.CreatedAt, &vuln.ScenarioName); err != nil {
-					continue
-				}
-
-				v := map[string]any{
-					"id":             vuln.ID,
-					"scenario_name":  vuln.ScenarioName,
-					"type":           vuln.Category,
-					"severity":       strings.ToLower(vuln.Severity),
-					"title":          vuln.Title,
-					"description":    vuln.Description,
-					"file_path":      vuln.FilePath,
-					"line_number":    vuln.LineNumber,
-					"recommendation": vuln.Recommendation,
-					"status":         vuln.Status,
-					"discovered_at":  vuln.CreatedAt.Format(time.RFC3339),
-				}
-
-				if vuln.CodeSnippet.Valid {
-					v["code_snippet"] = vuln.CodeSnippet.String
-				}
-
-				vulnerabilities = append(vulnerabilities, v)
-			}
-		}
-	}
-
-	// Return response
-	response := map[string]any{
-		"vulnerabilities": vulnerabilities,
-		"count":           len(vulnerabilities),
-		"timestamp":       time.Now().Format(time.RFC3339),
-	}
-
-	// Add a note if no real scans have been performed
-	if len(vulnerabilities) == 0 {
-		response["note"] = "No vulnerabilities found. Run a security scan to detect real vulnerabilities."
-	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
 // validateRulesBeforeScan runs pre-flight tests on all rules to identify unstable ones

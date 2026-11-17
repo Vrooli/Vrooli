@@ -120,6 +120,28 @@
       }
     }
   },
+  "overlay": {
+    "preview": "معاينة",
+    "refresh": "تحديث",
+    "previewBacklog": "معاينة المهام التالية",
+    "refreshBacklog": "تحديث قائمة المهام",
+    "accept": "قبول {{time}}",
+    "retryApply": "إعادة المحاولة",
+    "checking": "جارٍ التحقق…",
+    "placing": "جارٍ التخطيط…",
+    "saving": "جارٍ الحفظ…",
+    "capturing": "جارٍ التسجيل…",
+    "saveTask": "حفظ المهمة",
+    "captureTask": "تسجيل مهمة",
+    "creating": "جارٍ الإنشاء…",
+    "createGoal": "إنشاء هدف",
+    "recordActual": "تسجيل الوقت الفعلي",
+    "saveCorrection": "حفظ التصحيح",
+    "cancelCorrection": "إلغاء التصحيح",
+    "remembering": "جارٍ التسجيل…",
+    "saveEstimate": "حفظ التقدير",
+    "addRoutine": "إضافة روتين"
+  },
   "health": {
     "title": "حالة API",
     "loading": "جارٍ التحقق من حالة API…",

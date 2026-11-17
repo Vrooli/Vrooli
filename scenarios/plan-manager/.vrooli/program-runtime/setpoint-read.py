@@ -3,17 +3,13 @@ import json
 inputs = program.inputs()
 envelope = {"program":"plan-manager.setpoint-read","version":"1","status":"ok","phase":"validate","inputs":{},"signals":{"rows":[]},"errors":[],"evidence":[]}
 handles = {}
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class":klass,"detail":str(detail)[:160],"where":where})
-    return "report"
 def row(name, reading, target=None, in_band=None, reason=None):
     envelope["signals"]["rows"].append({"row":name,"reading":reading,"target":target,"in_band":in_band,"unavailable":reason is not None,"reason":reason})
 
 
 def step_validate():
     if not isinstance(inputs, dict) or set(inputs)-{"from","to","operation","context_key"} or any(not isinstance(v,str) or len(v)>256 for v in inputs.values()):
-        return fail("failed","invalid_input","Use bounded string comparison selectors","validate")
+        return program.fail("failed","invalid_input","Use bounded string comparison selectors","validate", detail_limit=160)
     envelope["inputs"] = dict(inputs)
     return "collect"
 def guarded(name, call):
@@ -72,4 +68,4 @@ while state:
         state=STATES[state]()
     except Exception as exc:
         if state=="report": raise
-        state=fail("failed","kernel_runtime",str(exc),state)
+        state=program.fail("failed","kernel_runtime",str(exc),state, detail_limit=160)

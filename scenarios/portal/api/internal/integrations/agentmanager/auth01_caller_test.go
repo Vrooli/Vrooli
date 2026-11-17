@@ -2,14 +2,18 @@ package agentmanager
 
 import (
 	"context"
-	"encoding/json"
-	"github.com/vrooli/api-core/identity"
-	"io"
+	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
+
+	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/identity"
+	api "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	"google.golang.org/protobuf/proto"
 )
 
 func auth01Caller(ctx context.Context, edit func(*identity.Principal), runOffered bool) context.Context {
@@ -19,85 +23,95 @@ func auth01Caller(ctx context.Context, edit func(*identity.Principal), runOffere
 	}
 	return WithVerifiedCreateCaller(ctx, "fixture-owner", p, runOffered)
 }
+
 func TestAuth01PortalRejectsBeforeAnyOwnerEffect(t *testing.T) {
 	calls := 0
 	server := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }))
 	defer server.Close()
 	contexts := []context.Context{context.Background(), auth01Caller(context.Background(), nil, true)}
-	for _, edit := range []func(*identity.Principal){func(p *identity.Principal) { p.Verified = false }, func(p *identity.Principal) { p.Kind = identity.ActorAgent }, func(p *identity.Principal) { p.Subject = "" }, func(p *identity.Principal) { p.Scopes = nil }, func(p *identity.Principal) { p.ExpiresAt = time.Now().Add(-time.Second) }} {
+	for _, edit := range []func(*identity.Principal){
+		func(p *identity.Principal) { p.Verified = false },
+		func(p *identity.Principal) { p.Kind = identity.ActorAgent },
+		func(p *identity.Principal) { p.Subject = "" },
+		func(p *identity.Principal) { p.Scopes = nil },
+		func(p *identity.Principal) { p.ExpiresAt = time.Now().Add(-time.Second) },
+	} {
 		contexts = append(contexts, auth01Caller(context.Background(), edit, false))
 	}
 	for _, ctx := range contexts {
-		_, err := NewHTTPClient(server.URL, server.Client()).Start(ctx, StartInput{AdmissionID: ownedRunID, Prompt: "fixture"})
-		if err != ErrCreateCaller || calls != 0 {
-			t.Fatalf("refusal %v calls%d", err, calls)
-		}
-	}
-}
-func TestAuth01PortalHumanProofOnlyOnCreateRun(t *testing.T) {
-	calls := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if r.Header.Get("X-Agent-Identity-Token") != "" {
-			t.Error("unexpected run proof")
-		}
-		if r.URL.Path == "/api/v1/runs" {
-			if r.Header.Get("Authorization") != "Bearer fixture-owner" {
-				t.Error("human proof lost")
-			}
-			var payload map[string]any
-			_ = json.NewDecoder(r.Body).Decode(&payload)
-			if payload["parent_run_id"] != "fixture-parent" {
-				t.Error("explicit parent lost")
-			}
-			encoded, _ := json.Marshal(payload)
-			if strings.Contains(string(encoded), "fixture-owner") {
-				t.Error("credential persisted")
-			}
-			_, _ = io.WriteString(w, `{"run":{"id":"fixture-run"}}`)
-			return
-		}
-		if r.Header.Get("Authorization") != "" {
-			t.Error("CreateRun proof widened to sibling")
-		}
-		switch r.URL.Path {
-		case "/api/v1/profiles/reconcile-scenario":
-			_, _ = io.WriteString(w, `{"results":[{"profile_key":"portal/agent-chat","profile_id":"fixture-profile"}]}`)
-		case "/api/v1/tasks":
-			_, _ = io.WriteString(w, `{"task":{"id":"fixture-task"}}`)
-		default:
-			t.Errorf("unexpected%s", r.URL.Path)
-		}
-	}))
-	defer server.Close()
-	_, err := NewHTTPClient(server.URL, server.Client()).Start(auth01Caller(context.Background(), nil, false), StartInput{AdmissionID: ownedRunID, Prompt: "fixture", ParentRunID: "fixture-parent"})
-	if err != nil || calls != 3 {
-		t.Fatalf("positive %v calls%d", err, calls)
-	}
-}
-func TestAuth01PortalRefusalAndRedirectAreNotRetriedOrLeaked(t *testing.T) {
-	for _, code := range []int{http.StatusForbidden, http.StatusTemporaryRedirect} {
-		calls := 0
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			calls++
-			w.Header().Set("Location", "/leak")
-			w.WriteHeader(code)
-			_, _ = io.WriteString(w, "fixture-owner")
-		}))
-		c := NewHTTPClient(server.URL, server.Client())
-		_, err := c.createRun(auth01Caller(context.Background(), nil, false), "fixture-task", StartInput{AdmissionID: ownedRunID, Prompt: "fixture"})
-		server.Close()
-		if err == nil || strings.Contains(err.Error(), "fixture-owner") || calls != 1 {
-			t.Fatalf("refusal/redirect %v calls%d", err, calls)
+		_, err := NewConnectClient(server.URL, server.Client()).Start(ctx, StartInput{AdmissionID: ownedRunID, Prompt: "fixture"})
+		if !errors.Is(err, ErrCreateCaller) || calls != 0 {
+			t.Fatalf("refusal %v calls=%d", err, calls)
 		}
 	}
 }
 
-func TestAuth01PortalPreservesExistingWildcardCapabilities(t *testing.T) {
-	for _, scope := range []string{"agent-manager:write", "agent-manager:*", "*:write", "*"} {
-		ctx := auth01Caller(context.Background(), func(p *identity.Principal) { p.Scopes = []string{scope} }, false)
-		if err := RequireCreateCaller(ctx); err != nil {
-			t.Fatalf("existing capability %s refused: %v", scope, err)
-		}
+func TestAuth01ConnectCarriesHumanProofOnlyOnCreateRun(t *testing.T) {
+	fixture := &portalAgentManagerFixture{}
+	client := servePortalAgentManager(t, fixture)
+	parent := "123e4567-e89b-12d3-a456-426614174003"
+	_, err := client.Start(auth01Caller(context.Background(), nil, false), StartInput{AdmissionID: ownedRunID, Prompt: "fixture", ParentRunID: parent})
+	require.NoError(t, err)
+	require.Equal(t, 1, fixture.profileCalls)
+	require.Equal(t, 1, fixture.taskCalls)
+	require.Equal(t, 1, fixture.createCalls)
+	require.Equal(t, "", fixture.taskAuth)
+	require.Equal(t, "Bearer fixture-owner", fixture.createAuth)
+	require.Equal(t, parent, fixture.gotCreate.GetParentRunId())
+	body, err := proto.Marshal(fixture.gotCreate)
+	require.NoError(t, err)
+	require.NotContains(t, string(body), "fixture-owner")
+}
+
+func TestApprovalPendingDetailBecomesDefinitiveTypedError(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		operation string
+	}{
+		{"task", "task"},
+		{"run", "run"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := &portalAgentManagerFixture{}
+			pending := &api.AuthorizationApprovalPending{Subject: "service:portal", Detail: "operator approval for fixture-owner required"}
+			detail, err := connect.NewErrorDetail(pending)
+			require.NoError(t, err)
+			rpcErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("approval pending"))
+			rpcErr.AddDetail(detail)
+			if tc.operation == "task" {
+				fixture.createTaskErr = rpcErr
+			} else {
+				fixture.createErr = rpcErr
+			}
+			client := servePortalAgentManager(t, fixture)
+			_, err = client.Start(auth01Caller(context.Background(), nil, false), StartInput{AdmissionID: ownedRunID, Prompt: "fixture"})
+			var approval *AuthorizationApprovalPendingError
+			require.ErrorAs(t, err, &approval)
+			require.Equal(t, "service:portal", approval.Subject)
+			require.Equal(t, "operator approval for [redacted] required", approval.Detail)
+			require.Contains(t, approval.Error(), "operation was not started")
+			require.NotContains(t, approval.Error(), "retry")
+		})
 	}
+}
+
+func TestConnectDoesNotFollowCreateRunRedirect(t *testing.T) {
+	calls := 0
+	fixture := &portalAgentManagerFixture{}
+	path, generated := apiconnect.NewAgentManagerServiceHandler(fixture)
+	mux := http.NewServeMux()
+	mux.Handle(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == apiconnect.AgentManagerServiceCreateRunProcedure {
+			calls++
+			w.Header().Set("Location", "/leak")
+			w.WriteHeader(http.StatusTemporaryRedirect)
+			return
+		}
+		generated.ServeHTTP(w, r)
+	}))
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	_, err := NewConnectClient(server.URL, server.Client()).Start(auth01Caller(context.Background(), nil, false), StartInput{AdmissionID: ownedRunID, Prompt: "fixture"})
+	require.Error(t, err)
+	require.Equal(t, 1, calls)
 }

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
 import { Link, useSearchParams } from "react-router-dom";
 import { applyPlan, generatePlan, getPlan, previewSwap, type PlanDraft } from "../../api/planning";
 import { getProfile } from "../../api/profile";
@@ -30,6 +33,7 @@ function exploreSlotPath(date: string, slot: string, revision: bigint, expectedR
 function groceriesPath(fromDate: string, toDate: string) { return `/groceries?${new URLSearchParams({ fromDate, toDate }).toString()}`; }
 
 export function WeekPage() {
+  const { t } = useTranslation();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedView = searchParams.get("view");
   const requestedAgenda = searchParams.get("range");
@@ -492,10 +496,14 @@ export function WeekPage() {
               ) : <p className="mt-3 text-sm text-app-muted-foreground">This preview changes one meal slot and no shopping lines.</p>}
             </>
           )}
-          <div className="mt-4 flex gap-2">
-            <button type="button" className="min-h-11 rounded bg-app-primary px-4 font-medium text-app-primary-foreground" onClick={() => void (swapPreview ? applySwap() : makeSwapPreview())} disabled={!replacementId}>{swapPreview ? (swapNeedsImpactReview ? "Apply reviewed changes" : "Confirm swap") : "Preview swap"}</button>
-            <button type="button" className="min-h-11 rounded border bg-app-surface px-4" onClick={() => { setSwapDate(""); setSwapSlotName(""); setSwapPreview(undefined); }}>{swapPreview ? "Keep current plan" : "Cancel"}</button>
-          </div>
+          <OverlayActionBar
+            className="mt-4"
+            label={t(strings.actions.weekSwapLabel)}
+            actions={[
+              { id: "preview-or-apply-swap", label: swapPreview ? (swapNeedsImpactReview ? t(strings.actions.applyChanges) : t(strings.actions.confirmSwap)) : t(strings.actions.preview), onSelect: () => void (swapPreview ? applySwap() : makeSwapPreview()), disabled: !replacementId, primary: true },
+              { id: "cancel-or-keep-plan", label: swapPreview ? t(strings.actions.keepPlan) : t(strings.actions.cancel), onSelect: () => { setSwapDate(""); setSwapSlotName(""); setSwapPreview(undefined); } },
+            ]}
+          />
         </div>
       )}
       {error && state === "ready" && <p role="alert" className="rounded border border-app-danger bg-app-surface-muted p-4 text-app-danger">{error}</p>}

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { OverlayActionBar } from "@vrooli/react-component-library/OverlayActionBar/1";
+import { strings } from "../../consts/strings";
+import { useTranslation } from "../../i18n";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { applyPlan, exploreRecipes, getPlan, previewSwap, type ExploreRecipe, type PlanDraft } from "../../api/planning";
 import { ensureWorkspace } from "../../api/workspace";
@@ -15,6 +18,7 @@ function refreshedSlotHref(date: string, slot: string, revision: bigint, recipeI
 }
 
 export function ExplorePage() {
+  const { t } = useTranslation();
   const { resolved } = useTheme();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -173,7 +177,11 @@ export function ExplorePage() {
         {swapReview.preview.shoppingChanges.length > 0 && <section aria-label="Shopping impact"><h3>Shopping changes</h3><ul>{swapReview.preview.shoppingChanges.map((change) => <li key={change.key}>{change.after?.label ?? change.before?.label ?? change.key}: need {change.before?.need ?? "unknown"} → {change.after?.need ?? "unknown"}; stock and cost remain {change.after?.stock ?? change.before?.stock ?? "unknown"} / {change.after?.price ?? change.before?.price ?? "unknown"}.</li>)}</ul></section>}
         {swapReview.preview.relatedOccurrences.length > 0 && <section aria-label="Related planned meals"><h3>Related occurrences to review</h3><ul>{swapReview.preview.relatedOccurrences.map((item) => <li key={`${item.date}:${item.slotName}`}>{item.date} · {item.slotName}: {item.recipeName}, revision {item.recipeRevision}{item.locked ? " · locked" : ""}. This occurrence is not changed by the preview.</li>)}</ul></section>}
         {swapReview.preview.preparedBatchImpacts.length > 0 && <section aria-label="Prepared meal impact"><h3>Prepared portions</h3><ul>{swapReview.preview.preparedBatchImpacts.map((item) => <li key={item.batchId}>{item.recipeName}: {item.available} {item.unit} prepared; review before replacing.</li>)}</ul></section>}
-        <div><button type="button" disabled={Boolean(savingRecipe)} onClick={() => void confirmReplacement()}>{savingRecipe ? "Applying…" : "Confirm replacement"}</button><button type="button" disabled={Boolean(savingRecipe)} onClick={() => setSwapReview(undefined)}>Keep current meal</button></div></section>}
+        <OverlayActionBar className="explore-review-actions" label={t(strings.actions.replacementLabel)} actions={[
+          { id: "confirm-replacement", label: savingRecipe ? t(strings.actions.applying) : t(strings.actions.confirmReplacement), onSelect: () => void confirmReplacement(), disabled: Boolean(savingRecipe), primary: true },
+          { id: "keep-current-meal", label: t(strings.actions.keepMeal), onSelect: () => setSwapReview(undefined), disabled: Boolean(savingRecipe) },
+        ]} />
+      </section>}
       {!profileConfigured && <p className="explore-state is-warning">Setup is not applied yet. These saved meals are checked only against the evidence on each recipe; they do not reflect food rules you have not entered.</p>}
       <div className="explore-tools"><label htmlFor="explore-search">Search eligible saved meals<input id="explore-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search: meal or ingredient" /></label><span>Results reflect saved recipe evidence</span></div>
       {candidates.length === 0 ? <div className="explore-state"><h2>{savedRecipeCount === 0 ? "No saved meals to explore yet" : "No saved meals fit yet"}</h2><p>{savedRecipeCount === 0 ? "Explore only uses recipes saved in this workspace. Add a meal to your collection before planning." : "These saved meals did not pass every required rule. Review the blocking evidence before planning."}</p>{blockingReasons.length > 0 && <ul aria-label="Why saved meals were excluded">{blockingReasons.map((reason) => <li key={`${reason.code}:${reason.rule}:${reason.reference}`}>{reason.message}{reason.rule ? ` · ${reason.rule}` : ""}</li>)}</ul>}<Link to="/meals">Review saved meals</Link></div>

@@ -1,6 +1,5 @@
 # Experience Design
 
-## Purpose Of This Document
 
 This document records the UI decision for Personal Planner: the product
 people will compare it to, the one surface that matters most and its

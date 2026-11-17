@@ -1,180 +1,147 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 )
 
 type agentManagerClient struct {
-	httpClient *http.Client
-	jsonOpts   protojson.MarshalOptions
+	httpClient      *http.Client
+	baseURLResolver func(context.Context) (string, error)
 }
 
 func newAgentManagerClient(timeout time.Duration) *agentManagerClient {
-	return &agentManagerClient{
-		httpClient: &http.Client{Timeout: timeout},
-		jsonOpts: protojson.MarshalOptions{
-			UseProtoNames: false,
-		},
-	}
+	return &agentManagerClient{httpClient: &http.Client{Timeout: timeout}}
 }
 
 func (c *agentManagerClient) EnsureProfile(ctx context.Context, req *apipb.EnsureProfileRequest) (*apipb.EnsureProfileResponse, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal ensure profile request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/profiles/ensure", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	resp, err := client.EnsureProfile(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager ensure profile: %w", err)
 	}
+	return resp.Msg, nil
+}
 
-	var result apipb.EnsureProfileResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+func (c *agentManagerClient) ReconcileScenarioProfiles(ctx context.Context, scenario string) (*apipb.ReconcileScenarioProfilesResponse, error) {
+	client, err := c.connectClient(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return &result, nil
+	resp, err := client.ReconcileScenarioProfiles(ctx, connect.NewRequest(&apipb.ReconcileScenarioProfilesRequest{Scenario: scenario}))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager reconcile scenario profiles: %w", err)
+	}
+	return resp.Msg, nil
 }
 
 func (c *agentManagerClient) CreateTask(ctx context.Context, task *domainpb.Task) (*domainpb.Task, error) {
-	body, err := c.jsonOpts.Marshal(&apipb.CreateTaskRequest{Task: task})
-	if err != nil {
-		return nil, fmt.Errorf("marshal create task request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/tasks", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	resp, err := client.CreateTask(ctx, connect.NewRequest(&apipb.CreateTaskRequest{Task: task}))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager create task: %w", err)
 	}
-
-	var result apipb.CreateTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Task, nil
+	return resp.Msg.GetTask(), nil
 }
 
 func (c *agentManagerClient) GetTask(ctx context.Context, taskID string) (*domainpb.Task, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/tasks/%s", taskID), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := client.GetTask(ctx, connect.NewRequest(&apipb.GetTaskRequest{TaskId: taskID}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get task: %w", err)
 	}
+	return resp.Msg.GetTask(), nil
+}
 
-	var result apipb.GetTaskResponse
-	if err := c.parseResponse(resp, &result); err != nil {
+func (c *agentManagerClient) GetProfile(ctx context.Context, profileID string) (*domainpb.AgentProfile, error) {
+	client, err := c.connectClient(ctx)
+	if err != nil {
 		return nil, err
 	}
-	return result.Task, nil
+	resp, err := client.GetProfile(ctx, connect.NewRequest(&apipb.GetProfileRequest{ProfileId: profileID}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get profile: %w", err)
+	}
+	return resp.Msg.GetProfile(), nil
 }
 
 func (c *agentManagerClient) CreateRun(ctx context.Context, req *apipb.CreateRunRequest) (*domainpb.Run, error) {
-	body, err := c.jsonOpts.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal create run request: %w", err)
-	}
-
-	resp, err := c.doRequest(ctx, http.MethodPost, "/api/v1/runs", body)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, c.parseError(resp)
+	resp, err := client.CreateRun(ctx, connect.NewRequest(req))
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager create run: %w", err)
 	}
-
-	var result apipb.CreateRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return resp.Msg.GetRun(), nil
 }
 
 func (c *agentManagerClient) GetRun(ctx context.Context, runID string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/runs/%s", runID), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := client.GetRun(ctx, connect.NewRequest(&apipb.GetRunRequest{RunId: runID}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run: %w", err)
 	}
-
-	var result apipb.GetRunResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return resp.Msg.GetRun(), nil
 }
 
 func (c *agentManagerClient) GetRunByTag(ctx context.Context, tag string) (*domainpb.Run, error) {
-	resp, err := c.doRequest(ctx, http.MethodGet, fmt.Sprintf("/api/v1/runs/tag/%s", tag), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	resp, err := client.GetRunByTag(ctx, connect.NewRequest(&apipb.GetRunByTagRequest{Tag: tag}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil, nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, c.parseError(resp)
+	if err != nil {
+		return nil, fmt.Errorf("agent-manager get run by tag: %w", err)
 	}
-
-	var result apipb.GetRunByTagResponse
-	if err := c.parseResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return result.Run, nil
+	return resp.Msg.GetRun(), nil
 }
 
 func (c *agentManagerClient) StopRunByTag(ctx context.Context, tag string) error {
-	resp, err := c.doRequest(ctx, http.MethodPost, fmt.Sprintf("/api/v1/runs/tag/%s/stop", tag), nil)
+	client, err := c.connectClient(ctx)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
+	_, err = client.StopRunByTag(ctx, connect.NewRequest(&apipb.StopRunByTagRequest{Tag: tag}))
+	if connect.CodeOf(err) == connect.CodeNotFound {
 		return nil
 	}
-	if resp.StatusCode != http.StatusOK {
-		return c.parseError(resp)
+	if err != nil {
+		return fmt.Errorf("agent-manager stop run by tag: %w", err)
 	}
 	return nil
 }
@@ -203,30 +170,10 @@ func (c *agentManagerClient) WaitForRun(ctx context.Context, runID string, pollI
 	}
 }
 
-func (c *agentManagerClient) doRequest(ctx context.Context, method, path string, body []byte) (*http.Response, error) {
-	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
-	}
-
-	baseURL, err := c.resolveBaseURL(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, baseURL+path, bodyReader)
-	if err != nil {
-		return nil, fmt.Errorf("create agent-manager request: %w", err)
-	}
-	req.Header.Set("Accept", "application/json")
-	if body != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	return c.httpClient.Do(req)
-}
-
 func (c *agentManagerClient) resolveBaseURL(ctx context.Context) (string, error) {
+	if c.baseURLResolver != nil {
+		return c.baseURLResolver(ctx)
+	}
 	baseURL, err := discovery.ResolveScenarioURLDefault(ctx, "agent-manager")
 	if err != nil {
 		return "", fmt.Errorf("resolve agent-manager url: %w", err)
@@ -234,32 +181,10 @@ func (c *agentManagerClient) resolveBaseURL(ctx context.Context) (string, error)
 	return baseURL, nil
 }
 
-func (c *agentManagerClient) parseResponse(resp *http.Response, msg proto.Message) error {
-	body, err := io.ReadAll(resp.Body)
+func (c *agentManagerClient) connectClient(ctx context.Context) (apiconnect.AgentManagerServiceClient, error) {
+	baseURL, err := c.resolveBaseURL(ctx)
 	if err != nil {
-		return fmt.Errorf("read agent-manager response: %w", err)
+		return nil, err
 	}
-
-	opts := protojson.UnmarshalOptions{DiscardUnknown: true}
-	if err := opts.Unmarshal(body, msg); err != nil {
-		return fmt.Errorf("unmarshal agent-manager response: %w", err)
-	}
-	return nil
-}
-
-func (c *agentManagerClient) parseError(resp *http.Response) error {
-	body, _ := io.ReadAll(resp.Body)
-	var errResp struct {
-		Error   string `json:"error"`
-		Message string `json:"message"`
-	}
-	if err := json.Unmarshal(body, &errResp); err == nil {
-		switch {
-		case errResp.Error != "":
-			return fmt.Errorf("agent-manager error: %s", errResp.Error)
-		case errResp.Message != "":
-			return fmt.Errorf("agent-manager error: %s", errResp.Message)
-		}
-	}
-	return fmt.Errorf("agent-manager error: status %d, body: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	return apiconnect.NewAgentManagerServiceClient(c.httpClient, strings.TrimRight(baseURL, "/")), nil
 }

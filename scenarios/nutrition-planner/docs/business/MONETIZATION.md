@@ -10,7 +10,6 @@ product, vegan-first but multi-diet by design. The originating reason to
 build it is personal usefulness, not revenue; monetization is an option
 the architecture keeps open, not a requirement the product is built on.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

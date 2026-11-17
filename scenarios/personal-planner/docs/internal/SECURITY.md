@@ -4,7 +4,6 @@ This document records the scenario's security and privacy posture.
 Update it before adding auth, user data, external APIs, payment flows,
 secrets, or sensitive business data.
 
-## Purpose Of This Document
 
 This is the security and privacy contract for Personal Planner. It exists
 to answer, for reviewers and future agents:

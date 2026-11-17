@@ -38,7 +38,6 @@ from the manual path. Resume review is a deterministic evidence and role-term
 check, never a claim that the truth of a statement has been verified. The UI
 keeps external application submission under the operator's control.
 
-## Purpose Of This Document
 
 This document keeps ownership, source paths, and surface responsibilities
 explicit as the governed prose capability grows.

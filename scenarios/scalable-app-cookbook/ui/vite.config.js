@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sourceLibraryResolver } from "../../../packages/react-component-library/tooling/resolve-specifier.mjs";
 
 // The port default lives here rather than in the npm scripts: package scripts
 // run through cmd.exe on Windows, which cannot expand ${UI_PORT:-3301}.
@@ -7,7 +8,7 @@ const UI_PORT = parseInt(process.env.UI_PORT) || 3301
 
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [sourceLibraryResolver({ devOnly: true }), react()],
   server: {
     port: UI_PORT,
     host: true,

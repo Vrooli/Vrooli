@@ -152,6 +152,16 @@
     }
   },
   "dependencies": {
+    "resources": {
+      "openrouter": {
+        "type": "openrouter",
+        "enabled": true,
+        "required": false,
+        "description": "Bring-your-own-key hosted chat completions. The lifecycle injects OPENROUTER_API_KEY from the credential store; Portal never reads it from the shell that started it.",
+        "startup_policy": "try_start",
+        "degraded_behavior": "Portal keeps agent and local chat available and reports the OpenRouter integration as not configured until the credential is provisioned."
+      }
+    },
     "scenarios": {
       "search-hub": {
         "type": "scenario",

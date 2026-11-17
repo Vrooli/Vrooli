@@ -7,7 +7,6 @@ The working product name is **Nooch** (formerly Daily; decision D-042). Scenario
 The **local single-user tier is the primary and only active deployment**.
 Every other tier is a future capability, not a commitment.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

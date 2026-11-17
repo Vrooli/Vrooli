@@ -335,15 +335,15 @@ func (s *AutomatedFixStore) applyInputLocked(enabled bool, input AutomatedFixCon
 	strategy := sanitizeStrategy(input.Strategy, s.config.Strategy)
 	loopDelay := s.config.LoopDelay
 	if input.LoopDelay != nil {
-		loopDelay = sanitizeLoopDelay(*input.LoopDelay, s.config.LoopDelay)
+		loopDelay = sanitizeNonNegativeInt(*input.LoopDelay, s.config.LoopDelay)
 	}
 	timeout := s.config.TimeoutSeconds
 	if input.TimeoutSeconds != nil {
-		timeout = sanitizeTimeout(*input.TimeoutSeconds, s.config.TimeoutSeconds)
+		timeout = sanitizeNonNegativeInt(*input.TimeoutSeconds, s.config.TimeoutSeconds)
 	}
 	maxFixes := s.config.MaxFixes
 	if input.MaxFixes != nil {
-		maxFixes = sanitizeMaxFixes(*input.MaxFixes, s.config.MaxFixes)
+		maxFixes = sanitizeNonNegativeInt(*input.MaxFixes, s.config.MaxFixes)
 	}
 	model := sanitizeAutomationModel(input.Model, s.config.Model)
 
@@ -377,9 +377,9 @@ func sanitizeConfig(cfg AutomatedFixConfig) AutomatedFixConfig {
 			cfg.TimeoutSeconds = defaultTimeoutSeconds
 		}
 	}
-	cfg.LoopDelay = sanitizeLoopDelay(cfg.LoopDelay, defaultLoopDelaySeconds)
-	cfg.TimeoutSeconds = sanitizeTimeout(cfg.TimeoutSeconds, defaultTimeoutSeconds)
-	cfg.MaxFixes = sanitizeMaxFixes(cfg.MaxFixes, defaultMaxFixes)
+	cfg.LoopDelay = sanitizeNonNegativeInt(cfg.LoopDelay, defaultLoopDelaySeconds)
+	cfg.TimeoutSeconds = sanitizeNonNegativeInt(cfg.TimeoutSeconds, defaultTimeoutSeconds)
+	cfg.MaxFixes = sanitizeNonNegativeInt(cfg.MaxFixes, defaultMaxFixes)
 	cfg.Model = sanitizeAutomationModel(cfg.Model, openRouterModel())
 	return cfg
 }
@@ -446,24 +446,7 @@ func sanitizeStrategy(value, fallback string) string {
 	}
 }
 
-func sanitizeLoopDelay(value, fallback int) int {
-	if value < 0 {
-		return fallback
-	}
-	if value == 0 {
-		return 0
-	}
-	return value
-}
-
-func sanitizeTimeout(value, fallback int) int {
-	if value < 0 {
-		return fallback
-	}
-	return value
-}
-
-func sanitizeMaxFixes(value, fallback int) int {
+func sanitizeNonNegativeInt(value, fallback int) int {
 	if value < 0 {
 		return fallback
 	}

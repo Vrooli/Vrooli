@@ -5,7 +5,6 @@ scenario is an internal capability, the go-to-market motion is
 internal-first; external GTM is deferred until there is evidence of
 external demand.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

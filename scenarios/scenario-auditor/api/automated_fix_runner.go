@@ -312,8 +312,8 @@ func newAutomatedFixJob(options AutomatedFixJobOptions) (*automatedFixJob, error
 		id:                fmt.Sprintf("auto-%s", uuid.NewString()),
 		scenario:          options.Scenario,
 		strategy:          sanitizeStrategy(options.Strategy, defaultAutomatedFixStrategy),
-		activeTypes:       copyStringsMapKeys(typeAllow),
-		activeSeverities:  copyStringsMapKeys(severityAllow),
+		activeTypes:       sortedKeys(typeAllow),
+		activeSeverities:  sortedKeys(severityAllow),
 		loopDelay:         time.Duration(options.LoopDelaySeconds) * time.Second,
 		maxFixes:          options.MaxFixes,
 		status:            "pending",
@@ -343,15 +343,6 @@ func newAutomatedFixJob(options AutomatedFixJobOptions) (*automatedFixJob, error
 }
 
 var automatedFixRunner = newAutomatedFixRunner()
-
-func copyStringsMapKeys(set map[string]struct{}) []string {
-	keys := make([]string, 0, len(set))
-	for key := range set {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
 
 func (job *automatedFixJob) Cancel() error {
 	job.mu.Lock()

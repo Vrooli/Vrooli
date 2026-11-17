@@ -75,6 +75,92 @@ func TestCandidateRevisionPreviewsAndAppliesInPlace(t *testing.T) {
 	require.Equal(t, updated.ContentHash, replayPlan.ContentHash)
 }
 
+func TestCandidateRevisionStateGraph(t *testing.T) {
+	valid := map[plans.CandidateRevisionState][]plans.CandidateRevisionState{
+		plans.CandidateRevisionPending: {plans.CandidateRevisionApplied, plans.CandidateRevisionDiscarded, plans.CandidateRevisionExpired},
+	}
+	states := []plans.CandidateRevisionState{
+		plans.CandidateRevisionPending, plans.CandidateRevisionApplied,
+		plans.CandidateRevisionDiscarded, plans.CandidateRevisionExpired,
+	}
+	for _, from := range states {
+		for _, to := range states {
+			want := false
+			for _, allowed := range valid[from] {
+				want = want || allowed == to
+			}
+			require.Equal(t, want, from.CanTransitionTo(to), "%s -> %s", from, to)
+		}
+	}
+}
+
+func TestCandidateRevisionStoreRejectsTerminalRewrite(t *testing.T) {
+	svc, db := newCandidateService(t)
+	ctx := context.Background()
+	base, err := svc.Create(ctx, candidateReadyPlan())
+	require.NoError(t, err)
+	candidate, err := svc.CreateCandidate(ctx, plans.CandidateRevision{
+		PlanID: base.ID, ExpectedBaseContentHash: base.ContentHash,
+		ProposalProvenance: "workshop:state-guard", CandidatePlan: base,
+	})
+	require.NoError(t, err)
+	repo := plans.NewSQLiteRepository(db, nil)
+
+	terminal := candidate
+	terminal.State = plans.CandidateRevisionDiscarded
+	terminal.DiscardReason = "operator declined candidate"
+	require.NoError(t, repo.SaveCandidate(ctx, terminal))
+
+	resurrection := terminal
+	resurrection.State = plans.CandidateRevisionApplied
+	err = repo.SaveCandidate(ctx, resurrection)
+	var stateErr plans.ErrCandidateState
+	require.ErrorAs(t, err, &stateErr)
+	require.Equal(t, plans.CandidateRevisionDiscarded, stateErr.State)
+	require.Equal(t, plans.CandidateRevisionApplied, stateErr.Next)
+
+	unknownTarget := terminal
+	unknownTarget.State = "unknown"
+	err = repo.SaveCandidate(ctx, unknownTarget)
+	require.ErrorAs(t, err, &stateErr)
+	require.Equal(t, plans.CandidateRevisionPending, stateErr.State)
+	require.Equal(t, plans.CandidateRevisionState("unknown"), stateErr.Next)
+
+	stored, found, err := repo.GetCandidate(ctx, candidate.ID)
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, plans.CandidateRevisionDiscarded, stored.State)
+	require.Equal(t, "operator declined candidate", stored.DiscardReason)
+}
+
+func TestCandidateApplyCommitsPlanAndLifecycleTogether(t *testing.T) {
+	svc, db := newCandidateService(t)
+	ctx := context.Background()
+	base, err := svc.Create(ctx, candidateReadyPlan())
+	require.NoError(t, err)
+	next := base
+	next.Purpose = "This candidate must not partially apply."
+	candidate, err := svc.CreateCandidate(ctx, plans.CandidateRevision{
+		PlanID: base.ID, ExpectedBaseContentHash: base.ContentHash,
+		ProposalProvenance: "workshop:atomic-apply", CandidatePlan: next,
+	})
+	require.NoError(t, err)
+	_, err = db.Exec(`CREATE TRIGGER reject_candidate_applied BEFORE UPDATE ON candidate_revisions
+WHEN NEW.state='applied' BEGIN SELECT RAISE(ABORT, 'injected lifecycle save failure'); END`)
+	require.NoError(t, err)
+
+	_, _, _, err = svc.ApplyCandidate(ctx, candidate.ID, base.ContentHash, true)
+	require.ErrorContains(t, err, "injected lifecycle save failure")
+
+	storedPlan, err := svc.Get(ctx, base.ID, plans.WorkspaceScope{ID: base.WorkspaceID, Root: base.WorkspaceRoot})
+	require.NoError(t, err)
+	require.Equal(t, base.ContentHash, storedPlan.ContentHash)
+	require.Equal(t, base.Purpose, storedPlan.Purpose)
+	storedCandidate, err := svc.GetCandidate(ctx, candidate.ID)
+	require.NoError(t, err)
+	require.Equal(t, plans.CandidateRevisionPending, storedCandidate.State)
+}
+
 func TestCandidateRevisionRejectsStaleBaseAndActiveExecution(t *testing.T) {
 	svc, d := newCandidateService(t)
 	ctx := context.Background()

@@ -88,6 +88,7 @@ describe("PlanPage", () => {
     const dialog = screen.getByRole("dialog", { name: "Plot work on today’s chart" });
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByTestId("forms.select")).toHaveTextContent("Draft");
+    expect(dialog.querySelector("[data-rcl-overlay-action-bar]")?.parentElement).toBe(dialog.querySelector("footer"));
   });
 
   it("keeps estimate calibration behind the mobile More sheet", async () => {
@@ -112,7 +113,7 @@ describe("PlanPage", () => {
     expect(remainingMinutes).toHaveValue(60);
     await user.clear(remainingMinutes);
     await user.type(remainingMinutes, "30");
-    await user.click(within(dialog).getByRole("button", { name: "Save estimate" }));
+    await user.click(within(dialog).getByRole("button", { name: strings.overlay.saveEstimate }));
     await waitFor(() => expect(updateWorkEstimate).toHaveBeenCalledWith(expect.objectContaining({ id: "work-2", remainingMinutes: 30 })));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Update the estimate" })).not.toBeInTheDocument());
     await user.click(screen.getByRole("button", { name: "More planning views" }));
@@ -359,10 +360,10 @@ describe("PlanPage", () => {
     vi.mocked(applyAllocationProposal).mockRejectedValue(new ConnectError("schedule revision changed", Code.Aborted));
     renderWithProviders(<PlanPage />);
     await user.click(await screen.findByTestId(selectors.planPage.openPlacement));
-    await user.click(screen.getByRole("button", { name: strings.pages.plan.applyRecovery.previewPlacement }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.preview }));
     await user.click(await screen.findByTestId(selectors.planPage.placementApply));
     expect(screen.getByTestId(selectors.planPage.placementProposal)).toHaveTextContent("Requested time is available.");
-    expect(screen.getByRole("button", { name: strings.pages.plan.applyRecovery.refreshProposal })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.overlay.refresh })).toBeInTheDocument();
     await user.keyboard("{Escape}");
     await user.click(screen.getByTestId(selectors.planPage.openPlacement));
     expect(screen.getByTestId(selectors.planPage.placementProposal)).toHaveTextContent("Requested time is available.");

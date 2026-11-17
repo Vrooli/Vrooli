@@ -50,6 +50,8 @@
   "invariants": [
     "One bounded result envelope is printed exactly once on every path.",
     "The desktop step runs only after the browser owner reports a verified result.",
+    "The browser execution receipt matches the exact requested workflow ID and revision and is completed before desktop replay.",
+    "Execution is admitted asynchronously to obtain its ID before the bounded wait; a wait failure stops that exact execution and reads its durable receipt before any desktop effect.",
     "Each owner receives only its own typed inputs and supplies its own receipt.",
     "No provider fallback changes the target, account, authority, or acceptance contract."
   ],
@@ -59,6 +61,24 @@
       "effect": "write",
       "optional": true,
       "note": "Portal reports unavailable when Browser Automation Studio is not reachable."
+    },
+    {
+      "id": "browser-automation-studio/executions/get",
+      "effect": "read",
+      "optional": true,
+      "note": "Verify the exact workflow ID, immutable revision, and terminal execution receipt before desktop replay."
+    },
+    {
+      "id": "browser-automation-studio/executions/wait-for-execution",
+      "effect": "read",
+      "optional": true,
+      "note": "Join the exact async execution once, bounded to 50 seconds to reserve the 120-second program wall budget for stop and receipt handling."
+    },
+    {
+      "id": "browser-automation-studio/executions/stop",
+      "effect": "write",
+      "optional": true,
+      "note": "On wait failure, stop only the exact execution returned by the admission call and require its durable receipt."
     },
     {
       "id": "device-control/flow/replay",

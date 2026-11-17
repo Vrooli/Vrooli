@@ -24,6 +24,7 @@ type SQLExecutor interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
 }
 
 type sqliteResultStore struct {
@@ -150,7 +151,8 @@ INSERT OR IGNORE INTO validation_operations
   (id, plan_id, phase_id, idempotency_key, status, queued_at, updated_at, payload_json)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 	updateOperationSQL = `
-UPDATE validation_operations SET status = ?, updated_at = ?, payload_json = ? WHERE id = ?`
+UPDATE validation_operations SET status = ?, updated_at = ?, payload_json = ?
+WHERE id = ? AND status = ?`
 	getOperationSQL      = `SELECT payload_json FROM validation_operations WHERE id = ?`
 	getOperationByKeySQL = `
 SELECT payload_json FROM validation_operations
@@ -216,16 +218,41 @@ func (r *sqliteResultStore) SaveOperation(ctx context.Context, op ValidationOper
 	if err := validateStoredOperation(op); err != nil {
 		return err
 	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin validation operation save %q: %w", op.ID, err)
+	}
+	defer tx.Rollback()
+	var storedPayload string
+	if err := tx.QueryRowContext(ctx, getOperationSQL, op.ID).Scan(&storedPayload); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("validation operation %q not found", op.ID)
+		}
+		return fmt.Errorf("read validation operation %q before save: %w", op.ID, err)
+	}
+	var stored ValidationOperation
+	if err := json.Unmarshal([]byte(storedPayload), &stored); err != nil {
+		return fmt.Errorf("decode validation operation %q before save: %w", op.ID, err)
+	}
+	if err := validateStoredOperation(stored); err != nil {
+		return fmt.Errorf("read validation operation %q before save: %w", op.ID, err)
+	}
+	if !stored.Status.CanTransitionTo(op.Status) {
+		return fmt.Errorf("validation operation %q cannot transition from %q to %q", op.ID, stored.Status, op.Status)
+	}
 	payload, err := json.Marshal(op)
 	if err != nil {
 		return fmt.Errorf("marshal validation operation %q: %w", op.ID, err)
 	}
-	result, err := r.db.ExecContext(ctx, updateOperationSQL, string(op.Status), r.now(), string(payload), op.ID)
+	result, err := tx.ExecContext(ctx, updateOperationSQL, string(op.Status), r.now(), string(payload), op.ID, string(stored.Status))
 	if err != nil {
 		return fmt.Errorf("save validation operation %q: %w", op.ID, err)
 	}
 	if rows, _ := result.RowsAffected(); rows != 1 {
-		return fmt.Errorf("validation operation %q not found", op.ID)
+		return fmt.Errorf("validation operation %q changed concurrently while saving", op.ID)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit validation operation %q: %w", op.ID, err)
 	}
 	return nil
 }
@@ -261,6 +288,11 @@ func scanOperation(row *sql.Row) (ValidationOperation, bool, error) {
 func validateStoredOperation(op ValidationOperation) error {
 	if op.SchemaVersion != CurrentOperationSchemaVersion {
 		return fmt.Errorf("validation operation %q uses storage schema v%d; expected v%d (run the documented one-shot storage migration before starting plan-manager)", op.ID, op.SchemaVersion, CurrentOperationSchemaVersion)
+	}
+	switch op.Status {
+	case OperationQueued, OperationRunning, OperationTerminal:
+	default:
+		return fmt.Errorf("validation operation %q has unknown status %q", op.ID, op.Status)
 	}
 	for _, child := range op.Children {
 		if child.Check.SemanticKey == "" {

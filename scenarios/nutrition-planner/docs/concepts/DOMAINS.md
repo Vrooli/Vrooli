@@ -10,7 +10,6 @@ code exists today and the **intended location** where it does not; the `Today` l
 domain's details says which. The current-state evidence comes from the 2026-09-22 audit in
 [`../internal/REDESIGN_PLAN.md` §3](../internal/REDESIGN_PLAN.md#3-current-state-inventory).
 
-## Purpose Of This Document
 
 Use this document to answer:
 
@@ -376,8 +375,8 @@ These are important but must not become product domains:
 
 - `api/internal/server/`, `api/internal/module/`, `api/internal/modules/` — composition and
   registry substrate.
-- `api/internal/database/`, `api/internal/middleware/`, `api/internal/httpx/`,
-  `api/internal/httpc/` — cross-cutting infrastructure.
+- `api/internal/database/`, `api/internal/middleware/`, `api/internal/httpc/` — cross-cutting
+  infrastructure.
 - `api/internal/decimalx/`, `api/internal/money/`, `api/internal/units/` — arithmetic
   substrate.
 - `api/internal/testutil/` — cross-domain test harnesses.

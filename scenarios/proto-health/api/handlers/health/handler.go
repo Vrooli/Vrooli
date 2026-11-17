@@ -31,17 +31,23 @@ type Deps struct {
 func NewHandler(d Deps) http.HandlerFunc {
 	started := time.Now()
 	buildIdentity := os.Getenv("VROOLI_BUILD_IDENTITY")
+	runtimeReleaseID := os.Getenv("VROOLI_RUNTIME_RELEASE_ID")
+	runtimeReleaseOperationID := os.Getenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID")
+	startOperationID := os.Getenv("VROOLI_START_OPERATION_ID")
 	return func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		statusCode := http.StatusOK
 		resp := &healthv1.Response{
-			Status:        "healthy",
-			Service:       d.Service,
-			Timestamp:     now.UTC().Format(time.RFC3339),
-			Readiness:     true,
-			Version:       d.Version,
-			BuildIdentity: buildIdentity,
-			UptimeSeconds: now.Sub(started).Seconds(),
+			Status:                    "healthy",
+			Service:                   d.Service,
+			Timestamp:                 now.UTC().Format(time.RFC3339),
+			Readiness:                 true,
+			Version:                   d.Version,
+			BuildIdentity:             buildIdentity,
+			RuntimeReleaseId:          runtimeReleaseID,
+			RuntimeReleaseOperationId: runtimeReleaseOperationID,
+			StartOperationId:          startOperationID,
+			UptimeSeconds:             now.Sub(started).Seconds(),
 			Dependencies: map[string]*healthv1.DependencyStatus{
 				"database": {Connected: true},
 			},

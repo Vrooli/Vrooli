@@ -49,7 +49,7 @@ func (s *service) CreateCandidate(ctx context.Context, candidate CandidateRevisi
 	if err := validateCandidateExpiry(candidate.ExpiresAt, s.clock.Now()); err != nil {
 		return CandidateRevision{}, err
 	}
-	if err := s.repo.SaveCandidate(ctx, candidate); err != nil {
+	if err := s.repo.CreateCandidate(ctx, candidate); err != nil {
 		return CandidateRevision{}, err
 	}
 	return candidate, nil
@@ -124,15 +124,16 @@ func (s *service) ApplyCandidate(ctx context.Context, id, expectedBaseHash strin
 		return CandidateRevision{}, Plan{}, preview, ErrCandidateExecutionActive{PlanID: candidate.PlanID, ExecutionIDs: active}
 	}
 	next := candidateAuthoredPlan(base, candidate.CandidatePlan)
-	updated, err := s.saveRecomputed(ctx, next)
-	if err != nil {
+	if err := candidate.TransitionTo(CandidateRevisionApplied); err != nil {
 		return CandidateRevision{}, Plan{}, preview, err
 	}
-	candidate.State = CandidateRevisionApplied
 	candidate.AppliedAt = s.now()
-	candidate.AppliedContentHash = updated.ContentHash
 	candidate.UpdatedAt = candidate.AppliedAt
-	if err := s.repo.SaveCandidate(ctx, candidate); err != nil {
+	updated, err := s.saveRecomputedWith(ctx, next, func(repo Repository, updated Plan) error {
+		candidate.AppliedContentHash = updated.ContentHash
+		return repo.SaveCandidate(ctx, candidate)
+	})
+	if err != nil {
 		return CandidateRevision{}, Plan{}, preview, err
 	}
 	return candidate, updated, preview, nil
@@ -148,7 +149,9 @@ func (s *service) DiscardCandidate(ctx context.Context, id, reason string) (Cand
 	if candidate.State != CandidateRevisionPending {
 		return CandidateRevision{}, ErrCandidateState{ID: candidate.ID, State: candidate.State}
 	}
-	candidate.State = CandidateRevisionDiscarded
+	if err := candidate.TransitionTo(CandidateRevisionDiscarded); err != nil {
+		return CandidateRevision{}, err
+	}
 	candidate.DiscardReason = strings.TrimSpace(reason)
 	candidate.UpdatedAt = s.now()
 	if err := s.repo.SaveCandidate(ctx, candidate); err != nil {
@@ -228,7 +231,9 @@ func (s *service) expireCandidateIfNeeded(ctx context.Context, candidate Candida
 	if err != nil || expiresAt.After(s.clock.Now()) {
 		return candidate, nil
 	}
-	candidate.State = CandidateRevisionExpired
+	if err := candidate.TransitionTo(CandidateRevisionExpired); err != nil {
+		return CandidateRevision{}, err
+	}
 	candidate.UpdatedAt = s.now()
 	if err := s.repo.SaveCandidate(ctx, candidate); err != nil {
 		return CandidateRevision{}, err

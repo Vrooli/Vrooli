@@ -74,7 +74,7 @@ func TestTournamentStructures(t *testing.T) {
 	})
 
 	t.Run("TournamentStatusValidation", func(t *testing.T) {
-		validStatuses := []string{"scheduled", "running", "completed", "cancelled"}
+		validStatuses := []TournamentStatus{TournamentScheduled, TournamentRunning, TournamentCompleted, TournamentCancelled}
 
 		for _, status := range validStatuses {
 			tournament := Tournament{
@@ -83,7 +83,7 @@ func TestTournamentStructures(t *testing.T) {
 				Status: status,
 			}
 
-			if tournament.Status != status {
+			if tournament.Status != status || !tournament.Status.Valid() {
 				t.Errorf("Expected status '%s', got '%s'", status, tournament.Status)
 			}
 		}
@@ -479,7 +479,9 @@ func TestTournamentEdgeCases(t *testing.T) {
 		}
 
 		// Simulate cancellation
-		tournament.Status = "cancelled"
+		if err := tournament.TransitionStatus(TournamentCancelled); err != nil {
+			t.Fatal(err)
+		}
 
 		if tournament.Status != "cancelled" {
 			t.Error("Tournament should be cancelled")

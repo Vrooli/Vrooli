@@ -726,8 +726,7 @@ input, textarea, select { font-size: 16px; }
 .goal-create-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: start; }
 .goal-create-heading h2 { margin: .35rem 0 0; color: var(--color-foreground); font: 1.45rem Georgia, serif; font-weight: 400; }
 .goal-create-note { max-inline-size: 13rem; color: var(--color-muted-foreground); font-size: .8rem; line-height: 1.45; text-align: end; }
-.goal-create-footer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .8rem; align-items: end; }
-.goal-create-footer [data-rcl-form-field] { min-inline-size: 0; }
+.goal-create-progress [data-rcl-form-field] { min-inline-size: 0; }
 .goal-form-message { margin: 0; color: var(--color-danger); font-size: .9rem; }
 .goal-create-card > label, .goal-card label { display: grid; gap: .45rem; color: var(--color-muted-foreground); font-size: .85rem; }
 .goal-create-card [data-rcl-form-field] { min-inline-size: 0; }
@@ -748,7 +747,7 @@ input, textarea, select { font-size: 16px; }
 @media (max-width: 48rem) {
   .goal-overview { grid-template-columns: 1fr; gap: 1rem; margin-top: 1.25rem; }
   .goal-overview-stats { justify-content: space-between; gap: .75rem; }
-  .goal-create-heading, .goal-create-footer { grid-template-columns: 1fr; display: grid; }
+  .goal-create-heading { grid-template-columns: 1fr; display: grid; }
   .goal-create-note { max-inline-size: none; text-align: start; }
   .goal-card, .goal-card-main { display: grid; gap: 1rem; }
 .goal-progress { min-width: 0; }

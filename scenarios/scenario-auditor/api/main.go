@@ -30,14 +30,6 @@ import (
 const (
 	apiVersion  = "1.0.0"
 	serviceName = "scenario-auditor"
-
-	// Database limits
-	maxDBConnections   = 25
-	maxIdleConnections = 5
-	connMaxLifetime    = 5 * time.Minute
-
-	// Timeouts
-	httpTimeout = 30 * time.Second
 )
 
 // Logger provides structured logging
@@ -1356,69 +1348,12 @@ func collectAutomationScenarioCandidates(typeAllow map[string]struct{}, severity
 	return result
 }
 
-func containsViolationType(types []string, target string) bool {
-	target = strings.ToLower(strings.TrimSpace(target))
-	for _, value := range types {
-		if strings.ToLower(strings.TrimSpace(value)) == target {
-			return true
-		}
-	}
-	return false
-}
-
-func isSubpath(base, target string) bool {
-	base = filepath.Clean(base)
-	target = filepath.Clean(target)
-	rel, err := filepath.Rel(base, target)
-	if err != nil {
-		return false
-	}
-	if rel == ".." {
-		return false
-	}
-	prefix := ".." + string(os.PathSeparator)
-	if strings.HasPrefix(rel, prefix) {
-		return false
-	}
-	return true
-}
-
 func filterVulnerabilitiesBySeverity(scenario string, allowed map[string]struct{}) []StoredVulnerability {
 	return filterFindingsBySeverity(vulnStore.GetVulnerabilities(scenario), allowed, func(v StoredVulnerability) string { return v.Severity })
 }
 
-func collectVulnerabilityIDs(vulnerabilities []StoredVulnerability) []string {
-	return uniqueFindingIDs(vulnerabilities, func(v StoredVulnerability) string { return v.ID })
-}
-
-func extractVulnerabilitySeverities(vulnerabilities []StoredVulnerability) []string {
-	if len(vulnerabilities) == 0 {
-		return nil
-	}
-	result := make([]string, 0, len(vulnerabilities))
-	for _, vuln := range vulnerabilities {
-		result = append(result, vuln.Severity)
-	}
-	return result
-}
-
 func filterStandardsBySeverity(scenario string, allowed map[string]struct{}) []StandardsViolation {
 	return filterFindingsBySeverity(standardsStore.GetViolations(scenario), allowed, func(v StandardsViolation) string { return v.Severity })
-}
-
-func collectStandardsIDs(violations []StandardsViolation) []string {
-	return uniqueFindingIDs(violations, func(v StandardsViolation) string { return v.ID })
-}
-
-func extractStandardsSeverities(violations []StandardsViolation) []string {
-	if len(violations) == 0 {
-		return nil
-	}
-	result := make([]string, 0, len(violations))
-	for _, violation := range violations {
-		result = append(result, violation.Severity)
-	}
-	return result
 }
 
 func discoverScenariosHandler(w http.ResponseWriter, r *http.Request) {

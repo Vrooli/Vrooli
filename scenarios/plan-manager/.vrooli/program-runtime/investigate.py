@@ -10,10 +10,6 @@ envelope = {
 }
 
 
-def fail(status, klass, detail, where):
-    envelope["status"] = status
-    envelope["errors"].append({"class": klass, "detail": str(detail)[:200], "where": where})
-    return "report"
 
 
 def classify(exc):
@@ -27,16 +23,16 @@ def classify(exc):
 
 def step_validate():
     if not isinstance(inputs, dict):
-        return fail("failed", "invalid_input", "inputs must be an object", "validate")
+        return program.fail("failed", "invalid_input", "inputs must be an object", "validate", detail_limit=200)
     required = ("caller_key", "execution_id", "phase_id", "phase_generation", "question")
     if any(not isinstance(inputs.get(key), str) or not inputs[key].strip() for key in required):
-        return fail("failed", "invalid_input", "caller, execution, phase, generation, and question are required", "validate")
+        return program.fail("failed", "invalid_input", "caller, execution, phase, generation, and question are required", "validate", detail_limit=200)
     run_ids = inputs.get("run_ids")
     if not isinstance(run_ids, list) or not 1 <= len(run_ids) <= 8 or any(not isinstance(value, str) or not value.strip() for value in run_ids):
-        return fail("failed", "invalid_input", "run_ids must contain one to eight explicit values", "validate")
+        return program.fail("failed", "invalid_input", "run_ids must contain one to eight explicit values", "validate", detail_limit=200)
     wait_seconds = int(inputs.get("wait_seconds", 30))
     if wait_seconds < 1 or wait_seconds > 300:
-        return fail("failed", "invalid_input", "wait_seconds must be in [1, 300]", "validate")
+        return program.fail("failed", "invalid_input", "wait_seconds must be in [1, 300]", "validate", detail_limit=200)
     envelope["inputs"] = {key: inputs[key] for key in required}
     envelope["inputs"]["run_ids"] = list(run_ids)
     envelope["inputs"]["brief_ref"] = str(inputs.get("brief_ref", ""))[:256]
@@ -65,9 +61,9 @@ def step_delegate():
         ).head(1)
     except Exception as exc:
         status, klass = classify(exc)
-        return fail(status, klass, klass, "delegate")
+        return program.fail(status, klass, klass, "delegate", detail_limit=200)
     if not result:
-        return fail("failed", "no_output", "nested investigation returned no envelope", "delegate")
+        return program.fail("failed", "no_output", "nested investigation returned no envelope", "delegate", detail_limit=200)
     child = result[0]
     child_signals = child.get("signals") or {}
     pending = bool(child_signals.get("pending")) or child.get("status") == "partial"
@@ -94,4 +90,4 @@ while state:
         if envelope.get("phase") == "report":
             raise
         status, klass = classify(exc)
-        state = fail(status, klass, klass, envelope.get("phase") or state)
+        state = program.fail(status, klass, klass, envelope.get("phase") or state, detail_limit=200)

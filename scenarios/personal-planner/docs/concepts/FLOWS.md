@@ -1,6 +1,5 @@
 # Flows — Personal Planner
 
-## Purpose Of This Document
 
 This document is the canonical map of Personal Planner's user and system
 workflows: their lifecycle states, transitions, retries, cancellation,

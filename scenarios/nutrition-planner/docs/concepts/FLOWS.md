@@ -10,7 +10,6 @@ background jobs, offline replay, or mutually exclusive UI modes.
 The journeys and state machines are **documented intent** at maturity level 1: no
 `*.flow.json` contract, generated model, or replay test exists yet.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

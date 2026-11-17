@@ -1,6 +1,5 @@
 # UI Architecture
 
-## Purpose Of This Document
 
 Describe the canonical layout of the `ui/` source tree for scenarios generated
 from the `react-vite` template, and the **slot taxonomy** that lets external

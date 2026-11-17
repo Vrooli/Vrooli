@@ -5,6 +5,8 @@ import { useLocation } from "react-router-dom";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
+import { strings } from "../../consts/strings";
+import { i18n } from "../../i18n";
 import { localDateString } from "../../lib/dates";
 import type { PlanDraft } from "../../api/planning";
 const generatePlan = vi.hoisted(() => vi.fn());
@@ -80,7 +82,7 @@ it("shows which locked meal needs review and links to that slot's options", asyn
   expect(screen.getByRole("link", { name: "Explore lunch options" })).toHaveAttribute("href", expect.stringContaining("slot=lunch"));
 });
 function CurrentSearch() { const { search } = useLocation(); return <output data-testid="current-search">{search}</output>; }
-describe("WeekPage", () => { beforeEach(() => { vi.clearAllMocks(); listRecipes.mockResolvedValue([]); getPlan.mockImplementation(async (input) => ({ draft: await generatePlan(input), hasPlan: true })); }); it("renders seven explicit dinner rows from the persisted date range", async () => { const user = userEvent.setup(); getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); renderWithProviders(<WeekPage />, { routerEntries: ["/week?range=all"] }); await waitFor(() => expect(screen.getAllByText("No meal has been saved for this date.")).toHaveLength(7)); await user.click(screen.getByRole("button", { name: "Next week" })); await waitFor(() => expect(getPlan).toHaveBeenCalledTimes(2)); expect(generatePlan).not.toHaveBeenCalled(); }); it("links groceries with the exact currently selected week range", async () => { getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); renderWithProviders(<WeekPage />, { routerEntries: ["/week?range=all"] }); const link = await screen.findByRole("link", { name: /Review groceries/ }); const request = getPlan.mock.calls[0]?.[0] as { fromDate: string; toDate: string }; const url = new URL(link.getAttribute("href") ?? "", "http://localhost"); expect(url.pathname).toBe("/groceries"); expect(url.searchParams.get("fromDate")).toBe(request.fromDate); expect(url.searchParams.get("toDate")).toBe(request.toDate); }); it("drafts only after explicit user action when the selected week is empty", async () => { const user = userEvent.setup(); getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); generatePlan.mockResolvedValue({ occurrences: [], unresolved: [{ date: "2026-10-03", code: "no_candidate", message: "No eligible meal" }], currentRevision: 0n }); renderWithProviders(<WeekPage />); await user.click(await screen.findByRole("button", { name: "Plan my week" })); await waitFor(() => expect(generatePlan).toHaveBeenCalledTimes(1)); }); it("supports explicit lock and skip controls", async () => { const user = userEvent.setup(); const date = localDateString(); generatePlan.mockResolvedValue({ occurrences: [{ date, slotName: "dinner", recipeId: "a", recipeName: "A", locked: false, reason: "Known fit" }], unresolved: [], currentRevision: 1n }); applyPlan.mockResolvedValue({ revision: 2n }); renderWithProviders(<WeekPage />); await waitFor(() => expect(screen.getByRole("button", { name: "Lock" })).toBeInTheDocument()); await user.click(screen.getByRole("button", { name: "Lock" })); expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument(); await user.click(screen.getByRole("button", { name: "Skip" })); expect(screen.getByText("Open slot")).toBeInTheDocument(); await user.click(screen.getByRole("button", { name: "Save week" })); expect(applyPlan).toHaveBeenCalled(); }); it("previews and applies a scoped swap", async () => { const user = userEvent.setup(); const date = localDateString(); generatePlan.mockResolvedValue({ occurrences: [{ date, slotName: "dinner", recipeId: "a", recipeName: "A", locked: false, reason: "Known fit" }], unresolved: [], currentRevision: 1n }); listRecipes.mockResolvedValue([{ id: "b", name: "B" }]); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { occurrences: [{ date, slotName: "dinner", recipeId: "b", recipeName: "B", locked: false, reason: "swapped" }], unresolved: [], inputReferences: [], runId: "seed-0", seed: 0, currentRevision: 1n }, changes: [{ date, slotName: "dinner", beforeName: "A", afterName: "B" }], shoppingChanges: [{ key: "ingredient:rice", after: { key: "ingredient:rice", label: "rice", need: "unknown", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: ["b"], checked: false } }] }, affectedDates: [date] }); applyPlan.mockResolvedValue({ revision: 2n }); renderWithProviders(<WeekPage />); await waitFor(() => expect(screen.getByRole("heading", { name: "Your week" })).toBeInTheDocument()); await user.click(screen.getByRole("button", { name: "Swap meal" })); await user.selectOptions(screen.getByLabelText("Replacement meal"), "b"); await user.click(screen.getByRole("button", { name: "Preview swap" })); await waitFor(() => expect(screen.getByText(/A → B/)).toBeInTheDocument()); expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("Added: rice"); expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("Price: unknown"); await user.click(screen.getByRole("button", { name: "Apply reviewed changes" })); await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument()); expect(previewSwap).toHaveBeenCalledWith(expect.objectContaining({ slotName: "dinner" })); expect(applyPlan).toHaveBeenCalled(); }); });
+describe("WeekPage", () => { beforeEach(() => { vi.clearAllMocks(); listRecipes.mockResolvedValue([]); getPlan.mockImplementation(async (input) => ({ draft: await generatePlan(input), hasPlan: true })); }); it("renders seven explicit dinner rows from the persisted date range", async () => { const user = userEvent.setup(); getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); renderWithProviders(<WeekPage />, { routerEntries: ["/week?range=all"] }); await waitFor(() => expect(screen.getAllByText("No meal has been saved for this date.")).toHaveLength(7)); await user.click(screen.getByRole("button", { name: "Next week" })); await waitFor(() => expect(getPlan).toHaveBeenCalledTimes(2)); expect(generatePlan).not.toHaveBeenCalled(); }); it("links groceries with the exact currently selected week range", async () => { getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); renderWithProviders(<WeekPage />, { routerEntries: ["/week?range=all"] }); const link = await screen.findByRole("link", { name: /Review groceries/ }); const request = getPlan.mock.calls[0]?.[0] as { fromDate: string; toDate: string }; const url = new URL(link.getAttribute("href") ?? "", "http://localhost"); expect(url.pathname).toBe("/groceries"); expect(url.searchParams.get("fromDate")).toBe(request.fromDate); expect(url.searchParams.get("toDate")).toBe(request.toDate); }); it("drafts only after explicit user action when the selected week is empty", async () => { const user = userEvent.setup(); getPlan.mockResolvedValue({ draft: { occurrences: [], unresolved: [], currentRevision: 0n }, hasPlan: false }); generatePlan.mockResolvedValue({ occurrences: [], unresolved: [{ date: "2026-10-03", code: "no_candidate", message: "No eligible meal" }], currentRevision: 0n }); renderWithProviders(<WeekPage />); await user.click(await screen.findByRole("button", { name: "Plan my week" })); await waitFor(() => expect(generatePlan).toHaveBeenCalledTimes(1)); }); it("supports explicit lock and skip controls", async () => { const user = userEvent.setup(); const date = localDateString(); generatePlan.mockResolvedValue({ occurrences: [{ date, slotName: "dinner", recipeId: "a", recipeName: "A", locked: false, reason: "Known fit" }], unresolved: [], currentRevision: 1n }); applyPlan.mockResolvedValue({ revision: 2n }); renderWithProviders(<WeekPage />); await waitFor(() => expect(screen.getByRole("button", { name: "Lock" })).toBeInTheDocument()); await user.click(screen.getByRole("button", { name: "Lock" })); expect(screen.getByRole("button", { name: "Unlock" })).toBeInTheDocument(); await user.click(screen.getByRole("button", { name: "Skip" })); expect(screen.getByText("Open slot")).toBeInTheDocument(); await user.click(screen.getByRole("button", { name: "Save week" })); expect(applyPlan).toHaveBeenCalled(); }); it("previews and applies a scoped swap", async () => { const user = userEvent.setup(); const date = localDateString(); generatePlan.mockResolvedValue({ occurrences: [{ date, slotName: "dinner", recipeId: "a", recipeName: "A", locked: false, reason: "Known fit" }], unresolved: [], currentRevision: 1n }); listRecipes.mockResolvedValue([{ id: "b", name: "B" }]); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { occurrences: [{ date, slotName: "dinner", recipeId: "b", recipeName: "B", locked: false, reason: "swapped" }], unresolved: [], inputReferences: [], runId: "seed-0", seed: 0, currentRevision: 1n }, changes: [{ date, slotName: "dinner", beforeName: "A", afterName: "B" }], shoppingChanges: [{ key: "ingredient:rice", after: { key: "ingredient:rice", label: "rice", need: "unknown", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: ["b"], checked: false } }] }, affectedDates: [date] }); applyPlan.mockResolvedValue({ revision: 2n }); renderWithProviders(<WeekPage />); await waitFor(() => expect(screen.getByRole("heading", { name: "Your week" })).toBeInTheDocument()); await user.click(screen.getByRole("button", { name: "Swap meal" })); await user.selectOptions(screen.getByLabelText("Replacement meal"), "b"); await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) })); await waitFor(() => expect(screen.getByText(/A → B/)).toBeInTheDocument()); expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("Added: rice"); expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("Price: unknown"); await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.applyChanges) })); await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument()); expect(previewSwap).toHaveBeenCalledWith(expect.objectContaining({ slotName: "dinner" })); expect(applyPlan).toHaveBeenCalled(); }); });
 
 it("requires reviewing the full-week impact before an explicit replan save", async () => {
   vi.clearAllMocks();
@@ -285,15 +287,15 @@ it("states when a swap does not add or remove shopping lines", async () => {
   const user = userEvent.setup();
   await user.click(await screen.findByRole("button", { name: "Swap meal" }));
   await user.selectOptions(screen.getByLabelText("Replacement meal"), "b");
-  await user.click(screen.getByRole("button", { name: "Preview swap" }));
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) }));
   expect(await screen.findByText("This preview changes one meal slot and no shopping lines.")).toBeInTheDocument();
   expect(screen.getByRole("region", { name: "Current and proposed meals" })).toHaveTextContent("Current");
   expect(screen.getByRole("region", { name: "Current and proposed meals" })).toHaveTextContent("A");
   expect(screen.getByRole("region", { name: "Current and proposed meals" })).toHaveTextContent("B");
   expect(screen.getByRole("region", { name: "Current and proposed meals" })).toHaveTextContent("Not applied");
   expect(screen.queryByRole("region", { name: "Shopping impact" })).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Confirm swap" })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Keep current plan" }));
+  expect(screen.getByRole("button", { name: i18n.t(strings.actions.confirmSwap) })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.keepPlan) }));
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   expect(applyPlan).not.toHaveBeenCalled();
   expect(screen.getByText("A")).toBeInTheDocument();
@@ -308,7 +310,7 @@ it("requires review of unchanged later occurrences of the same recipe", async ()
   const user = userEvent.setup();
   await user.click(await screen.findAllByRole("button", { name: "Swap meal" }).then((buttons) => buttons[0]!));
   await user.selectOptions(screen.getByLabelText("Replacement meal"), "b");
-  await user.click(screen.getByRole("button", { name: "Preview swap" }));
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) }));
   const impact = await screen.findByRole("region", { name: "Shopping impact" });
   expect(impact).toHaveTextContent("Later uses to review");
   expect(impact).toHaveTextContent(`${later} · lunch: A`);
@@ -317,7 +319,7 @@ it("requires review of unchanged later occurrences of the same recipe", async ()
   expect(impact).toHaveTextContent("Prepared portions to review");
   expect(impact).toHaveTextContent("A · revision 3 · batch batch-a: 2 servings available");
   expect(impact).toHaveTextContent("does not allocate or consume a batch");
-  expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: i18n.t(strings.actions.applyChanges) })).toBeInTheDocument();
   expect(applyPlan).not.toHaveBeenCalled();
 });
 it("requires a wide review when only prepared batch portions add an impact", async () => {
@@ -330,11 +332,11 @@ it("requires a wide review when only prepared batch portions add an impact", asy
   const user = userEvent.setup();
   await user.click(await screen.findByRole("button", { name: "Swap meal" }));
   await user.selectOptions(screen.getByLabelText("Replacement meal"), "b");
-  await user.click(screen.getByRole("button", { name: "Preview swap" }));
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) }));
   const impact = await screen.findByRole("region", { name: "Shopping impact" });
   expect(impact).toHaveTextContent("A · revision 2 · batch batch-a: 3 servings available");
-  expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Confirm swap" })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: i18n.t(strings.actions.applyChanges) })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: i18n.t(strings.actions.confirmSwap) })).not.toBeInTheDocument();
   expect(applyPlan).not.toHaveBeenCalled();
 });
 it("reports a stale save for the selected local day instead of claiming the week was saved", async () => {
@@ -446,14 +448,14 @@ it("requires a fresh shopping preview after a stale swap is rebased", async () =
   renderWithProviders(<WeekPage />);
   await user.click(await screen.findByRole("button", { name: "Swap meal" }));
   await user.selectOptions(screen.getByLabelText("Replacement meal"), "new");
-  await user.click(screen.getByRole("button", { name: "Preview swap" }));
-  await user.click(await screen.findByRole("button", { name: "Apply reviewed changes" }));
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) }));
+  await user.click(await screen.findByRole("button", { name: i18n.t(strings.actions.applyChanges) }));
   await user.click(await screen.findByRole("button", { name: "Review latest week" }));
   await user.click(await screen.findByRole("button", { name: "Rebase my changes for review" }));
   await user.click(await screen.findByRole("button", { name: "Refresh swap and shopping review" }));
   expect(await screen.findByRole("region", { name: "Shopping impact" })).toHaveTextContent("Price: unknown");
-  expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Apply reviewed changes" }));
+  expect(screen.getByRole("button", { name: i18n.t(strings.actions.applyChanges) })).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.applyChanges) }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   expect(applyPlan).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: 4n }));
 });
@@ -468,8 +470,8 @@ it("keeps stale swap review available when refreshing impact fails", async () =>
   renderWithProviders(<WeekPage />);
   await user.click(await screen.findByRole("button", { name: "Swap meal" }));
   await user.selectOptions(screen.getByLabelText("Replacement meal"), "new");
-  await user.click(screen.getByRole("button", { name: "Preview swap" }));
-  await user.click(await screen.findByRole("button", { name: "Apply reviewed changes" }));
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) }));
+  await user.click(await screen.findByRole("button", { name: i18n.t(strings.actions.applyChanges) }));
   await user.click(await screen.findByRole("button", { name: "Review latest week" }));
   await user.click(await screen.findByRole("button", { name: "Rebase my changes for review" }));
   await user.click(await screen.findByRole("button", { name: "Refresh swap and shopping review" }));
@@ -487,9 +489,10 @@ it("requires a full impact review when a swap affects another date without chang
   renderWithProviders(<WeekPage />);
   await user.click(await screen.findByRole("button", { name: "Swap meal" }));
   await user.selectOptions(screen.getByLabelText("Replacement meal"), "new");
-  await user.click(screen.getByRole("button", { name: "Preview swap" }));
+  await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.preview) }));
   expect(await screen.findByRole("region", { name: "Shopping impact" })).toHaveTextContent(`dates affected: ${date}, ${nextDate}`);
-  expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
+  expect(screen.getByRole("group", { name: i18n.t(strings.actions.weekSwapLabel) }).querySelectorAll(":scope > button")).toHaveLength(2);
+  expect(screen.getByRole("button", { name: i18n.t(strings.actions.applyChanges) })).toBeInTheDocument();
 });
 it("switches between persisted daily nutrition evidence and unknown weekly time and cost", async () => {
   const date = localDateString(new Date());

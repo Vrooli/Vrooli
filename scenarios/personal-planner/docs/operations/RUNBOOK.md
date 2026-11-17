@@ -1,6 +1,5 @@
 # Runbook — Personal Planner
 
-## Purpose Of This Document
 
 This document is the operator's guide to running, diagnosing, recovering,
 and maintaining Personal Planner. The October 2, 2026 inspection established

@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "../../test-utils";
+import { strings } from "../../consts/strings";
+import { i18n } from "../../i18n";
 import { ExplorePage } from "./ExplorePage";
 
 const exploreRecipes = vi.hoisted(() => vi.fn());
@@ -108,8 +110,10 @@ describe("ExplorePage", () => {
     expect(await screen.findByRole("dialog")).toHaveTextContent("Old soup → Lentil soup");
     expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("need unknown → unknown");
     expect(screen.getByRole("region", { name: "Related planned meals" })).toHaveTextContent("Locked rice, revision 7");
+    const actionGroup = screen.getByRole("group", { name: i18n.t(strings.actions.replacementLabel) });
+    expect(actionGroup.querySelectorAll(":scope > button")).toHaveLength(2);
     expect(applyPlan).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Confirm replacement" }));
+    await user.click(screen.getByRole("button", { name: i18n.t(strings.actions.confirmReplacement) }));
     expect(await screen.findByRole("status")).toHaveTextContent("replaced the meal in dinner on 2026-10-08");
     expect(applyPlan).toHaveBeenCalledWith({ workspaceId: "w1", expectedRevision: 4n, draft: swapDraft });
   });

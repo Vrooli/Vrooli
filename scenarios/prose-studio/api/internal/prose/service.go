@@ -336,8 +336,11 @@ type EmbeddingGateway interface {
 }
 
 type EmbeddingRequest struct {
-	Role  string   `json:"role"`
-	Texts []string `json:"texts"`
+	Role              string                `json:"role"`
+	Texts             []string              `json:"texts"`
+	Profile           sharedv1.Profile      `json:"profile"`
+	PrivacyClass      sharedv1.PrivacyClass `json:"privacy_class"`
+	PrivacyProvenance string                `json:"privacy_provenance"`
 }
 
 type EmbeddingResponse struct {
@@ -359,6 +362,9 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 	}
 	if strings.TrimSpace(req.Query) == "" {
 		return nil, ErrEmptyQuery
+	}
+	if strings.TrimSpace(req.PrivacySource) == "" {
+		return nil, errors.New("Prose Studio inference requires privacy provenance")
 	}
 	// The direct strategy is one draft per call by definition, so a k-slot direct
 	// set is k governed requests. vs_standard is one request that enumerates the
@@ -402,9 +408,6 @@ func (g HTTPGateway) Generate(ctx context.Context, req GatewayRequest) ([]Gatewa
 	privacyClass, err := localityPrivacyClass(req.PrivacyClass)
 	if err != nil {
 		return nil, err
-	}
-	if strings.TrimSpace(req.PrivacySource) == "" {
-		return nil, errors.New("Prose Studio inference requires privacy provenance")
 	}
 	sampling, err := samplingControls(req.TemperatureStance)
 	if err != nil {
@@ -487,12 +490,18 @@ func (g HTTPGateway) Embed(ctx context.Context, req EmbeddingRequest) (Embedding
 	if len(req.Texts) == 0 {
 		return EmbeddingResponse{}, errors.New("embedding texts are required")
 	}
+	if req.Profile != sharedv1.Profile_PROFILE_LOCAL_ONLY || req.PrivacyClass != sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL || strings.TrimSpace(req.PrivacyProvenance) != prosePrivacySource {
+		return EmbeddingResponse{}, errors.New("Prose Studio semantic measurements require a sourced confidential local-only contract")
+	}
 	client := g.Client
 	if client == nil {
 		client = http.DefaultClient
 	}
 	connectClient := inferenceconnect.NewInferenceServiceClient(client, g.BaseURL)
-	resp, err := connectClient.Embed(ctx, connect.NewRequest(&inferencev1.EmbedRequest{Role: req.Role, Texts: req.Texts}))
+	resp, err := connectClient.Embed(ctx, connect.NewRequest(&inferencev1.EmbedRequest{
+		Role: req.Role, Texts: req.Texts, Profile: req.Profile,
+		PrivacyClass: req.PrivacyClass, PrivacyProvenance: req.PrivacyProvenance,
+	}))
 	if err != nil {
 		return EmbeddingResponse{}, fmt.Errorf("ai-gateway embedding request: %w", err)
 	}
@@ -851,7 +860,10 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 	setMeasurements := lexicalSet
 	if profileRequestsSemantic(resolved.Profile) {
 		if embedder, ok := s.gateway.(EmbeddingGateway); ok {
-			embedded, embedErr := embedder.Embed(ctx, EmbeddingRequest{Role: "embedding.default", Texts: texts})
+			embedded, embedErr := embedder.Embed(ctx, EmbeddingRequest{
+				Role: "embedding.default", Texts: texts, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+				PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, PrivacyProvenance: prosePrivacySource,
+			})
 			if embedErr == nil {
 				semanticItems, candidateSet, semanticErr := textmetrics.AnalyzeSetSemantic(texts, embedded.Vectors)
 				if semanticErr == nil {
@@ -2540,7 +2552,10 @@ func (s *Service) semanticSectionRepetition(ctx context.Context, sections []stri
 	if !ok {
 		return 0, "", errors.New("embedding_unavailable: gateway exposes no embedding surface")
 	}
-	embedded, err := embedder.Embed(ctx, EmbeddingRequest{Role: "embedding.default", Texts: sections})
+	embedded, err := embedder.Embed(ctx, EmbeddingRequest{
+		Role: "embedding.default", Texts: sections, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+		PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL, PrivacyProvenance: prosePrivacySource,
+	})
 	if err != nil {
 		return 0, "", fmt.Errorf("embedding_unavailable: %w", err)
 	}

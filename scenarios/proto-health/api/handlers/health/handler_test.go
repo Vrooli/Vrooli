@@ -50,6 +50,10 @@ import (
 // through protojson; when it doesn't yet, MustDecodeJSON is the
 // fallback (but adding the proto first is the right move).
 func TestHealthHandler(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "build-test-123")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_ID", "release-test-123")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID", "selection-test-123")
+	t.Setenv("VROOLI_START_OPERATION_ID", "start-test-123")
 	cases := []struct {
 		name           string
 		pingErr        error
@@ -106,6 +110,10 @@ func TestHealthHandler(t *testing.T) {
 			require.Equal(t, "react-vite-test", got.Service, "response.service")
 			require.Equal(t, "1.0.0", got.Version, "response.version")
 			require.Equal(t, tc.wantReadiness, got.Readiness, "response.readiness")
+			require.Equal(t, "build-test-123", got.BuildIdentity, "response.build_identity")
+			require.Equal(t, "release-test-123", got.RuntimeReleaseId, "response.runtime_release_id")
+			require.Equal(t, "selection-test-123", got.RuntimeReleaseOperationId, "response.runtime_release_operation_id")
+			require.Equal(t, "start-test-123", got.StartOperationId, "response.start_operation_id")
 
 			dep, ok := got.Dependencies["database"]
 			require.True(t, ok, "response.dependencies must include 'database'; got %v", got.Dependencies)

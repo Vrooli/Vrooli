@@ -11,6 +11,7 @@ import { completeWorkItem, createWorkItem, fetchWorkItems, snoozeWorkItem } from
 import { fetchCurrentFocus, pauseFocus, startFocus } from "../api/focus";
 import { OBSERVATORY_SCENERY_EVENT } from "../theme/observatoryAppearance";
 import { fetchReminders, fetchTodaySignals } from "../api/review";
+import { strings } from "../consts/strings";
 
 vi.mock("../api/calendar", () => ({ fetchTodayAllocations: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn(), createWorkItem: vi.fn(), snoozeWorkItem: vi.fn(), completeWorkItem: vi.fn() }));
@@ -131,7 +132,7 @@ describe("Observatory Today", () => {
     expect(screen.getByRole("dialog", { name: "Capture task" })).toBeInTheDocument();
     await user.type(screen.getByLabelText("Task title"), "Write release note");
     await user.type(screen.getByLabelText(/Why it matters/), "Explain the useful workflow");
-    await user.click(screen.getByRole("button", { name: "Save task" }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.saveTask }));
     expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Write release note", description: "Explain the useful workflow" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Capture task" })).not.toBeInTheDocument());
   });
@@ -156,7 +157,7 @@ describe("Observatory Today", () => {
     if (!firstCaptureButton) throw new Error("capture button should be present");
     await user.click(firstCaptureButton);
     await user.type(screen.getByLabelText("Task title"), "Keep the error visible");
-    await user.click(screen.getByRole("button", { name: "Save task" }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.saveTask }));
     await waitFor(() => expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ title: "Keep the error visible" })));
     expect(await screen.findByRole("alert")).toHaveTextContent("That task did not save");
   });

@@ -8,6 +8,9 @@ import { createWorkItem } from "../api/work";
 import { applyAllocationProposal, previewAllocation } from "../api/calendar";
 import { useKeyboardShortcut } from "../hooks/useKeyboardShortcut";
 import { PlannerDialog } from "./PlannerDialog";
+import { overlayActions, submitForm } from "../lib/overlayActions";
+import { useTranslation } from "../i18n";
+import { strings } from "../consts/strings";
 
 export function parseNaturalCapture(value: string) {
   const raw = value.trim();
@@ -47,6 +50,7 @@ export function startMinutesForTime(value: string): number {
 }
 
 export function GlobalCapture() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
@@ -69,12 +73,11 @@ export function GlobalCapture() {
   return <>
     <Button className="global-capture-trigger" type="button" variant="ghost" onClick={openCapture} icon={<Command size={15} aria-hidden="true" />}>Capture <kbd>⌘K</kbd></Button>
     <IconButton className="global-capture-fab" type="button" surface="solid" shape="circle" size="lg" aria-label="Capture task" onClick={openCapture}><NotebookPen size={21} aria-hidden="true" /></IconButton>
-    <PlannerDialog open={open} title="Capture a useful next step" description="Write it as you would say it. For example: lunch with Sam tue 1pm 1h" onClose={() => { setOpen(false); mutation.reset(); }} closeLabel="Close capture" contentClassName="global-capture-dialog">
-      <form onSubmit={(event) => { event.preventDefault(); if (value.trim()) mutation.mutate(); }}>
+    <PlannerDialog open={open} title="Capture a useful next step" description="Write it as you would say it. For example: lunch with Sam tue 1pm 1h" onClose={() => { setOpen(false); mutation.reset(); }} closeLabel="Close capture" contentClassName="global-capture-dialog" actions={overlayActions({ id: "capture-task", label: mutation.isPending ? t(strings.overlay.capturing) : t(strings.overlay.captureTask), onSelect: submitForm("global-capture-form"), primary: true, disabled: !value.trim() || mutation.isPending, testId: "global-capture-submit" })}>
+      <form id="global-capture-form" onSubmit={(event) => { event.preventDefault(); if (value.trim()) mutation.mutate(); }}>
         <label className="global-capture-input"><span>What should become true?</span><Input autoFocus value={value} onChange={(event) => setValue(event.target.value)} placeholder="lunch with Sam tue 1pm 1h" /></label>
         {parsed && <p className="global-capture-preview"><Sparkles size={15} aria-hidden="true" /> {parsed.title}{parsed.minutes ? ` · ${parsed.minutes} min` : " · time estimate not set"}{parsed.time ? ` · ${parsed.time}` : ""}</p>}
         {mutation.isError && <p role="alert">That capture did not save. Your words are still here.</p>}
-        <Button type="submit" variant="primary" disabled={!value.trim() || mutation.isPending} pending={mutation.isPending} pendingLabel="Capturing…">Capture task</Button>
       </form>
     </PlannerDialog>
   </>;

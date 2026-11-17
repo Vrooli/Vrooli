@@ -20,6 +20,7 @@ package validation
 
 import (
 	"context"
+	"fmt"
 
 	planmodel "plan-manager/internal/planmodel"
 )
@@ -32,6 +33,29 @@ const (
 	OperationRunning  OperationStatus = "running"
 	OperationTerminal OperationStatus = "terminal"
 )
+
+// CanTransitionTo keeps durable validation operations moving forward while
+// allowing repeated snapshots to refresh child progress.
+func (s OperationStatus) CanTransitionTo(next OperationStatus) bool {
+	switch s {
+	case OperationQueued:
+		return next == OperationQueued || next == OperationRunning || next == OperationTerminal
+	case OperationRunning:
+		return next == OperationRunning || next == OperationTerminal
+	case OperationTerminal:
+		return next == OperationTerminal
+	default:
+		return false
+	}
+}
+
+func (op *ValidationOperation) TransitionStatus(next OperationStatus) error {
+	if !op.Status.CanTransitionTo(next) {
+		return fmt.Errorf("validation operation %q cannot transition from %q to %q", op.ID, op.Status, next)
+	}
+	op.Status = next
+	return nil
+}
 
 // ChildStatus is the durable lifecycle of one command child.
 type ChildStatus string

@@ -14,7 +14,6 @@ async function start() {
     distDir: path.join(__dirname, 'dist'),
     serviceName: 'scalable-app-cookbook',
     version,
-    corsOrigins: '*',
   })
 
   app.listen(uiPort, () => {

@@ -1,6 +1,5 @@
 # Deployment — Personal Planner
 
-## Purpose Of This Document
 
 This document records where Personal Planner can run, the runtime
 assumptions each tier requires, how the scenario is packaged, and what

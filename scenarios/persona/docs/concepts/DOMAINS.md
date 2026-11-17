@@ -13,7 +13,6 @@ receives things (`channels`), the things it cannot do alone
 (`documents`), the trail it leaves (`journal`), and what it has left
 behind in the world (`accounts`).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -3,6 +3,20 @@
   "app": {
     "title": "Nutrition Planner"
   },
+  "actions": {
+    "swapLabel": "إجراءات الاستبدال",
+    "replacementLabel": "إجراءات الوجبة البديلة",
+    "weekSwapLabel": "إجراءات استبدال الأسبوع",
+    "confirmSwap": "تأكيد الاستبدال",
+    "applyChanges": "تطبيق التعديلات",
+    "chooseAnother": "اختر وجبة أخرى",
+    "cancel": "إلغاء",
+    "confirmReplacement": "تأكيد الوجبة البديلة",
+    "applying": "جارٍ التطبيق…",
+    "keepMeal": "الإبقاء على الوجبة الحالية",
+    "preview": "معاينة الاستبدال",
+    "keepPlan": "الإبقاء على الخطة الحالية"
+  },
   "layout": {
     "navigationLabel": "التنقل الرئيسي",
     "mobileNavigationLabel": "التنقل على الهاتف",

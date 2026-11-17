@@ -3,7 +3,6 @@
 Operational procedures: starting and stopping, responding to incidents,
 backup and restore, and routine maintenance.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

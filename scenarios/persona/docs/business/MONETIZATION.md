@@ -5,7 +5,6 @@ bundle membership, and whether to monetize at all are **operator-curated
 canon** owned by `docs/monetization/`; this file records the shape and
 the reasoning, not the decision.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

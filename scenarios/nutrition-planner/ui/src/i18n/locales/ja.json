@@ -3,6 +3,20 @@
   "app": {
     "title": "Nutrition Planner"
   },
+  "actions": {
+    "swapLabel": "入れ替え操作",
+    "replacementLabel": "置き換え操作",
+    "weekSwapLabel": "週間の入れ替え操作",
+    "confirmSwap": "入れ替えを確定",
+    "applyChanges": "確認した変更を適用",
+    "chooseAnother": "別の食事を選択",
+    "cancel": "キャンセル",
+    "confirmReplacement": "置き換えを確定",
+    "applying": "適用中…",
+    "keepMeal": "現在の食事を維持",
+    "preview": "入れ替えをプレビュー",
+    "keepPlan": "現在のプランを維持"
+  },
   "layout": {
     "navigationLabel": "メインナビゲーション",
     "mobileNavigationLabel": "モバイルナビゲーション",

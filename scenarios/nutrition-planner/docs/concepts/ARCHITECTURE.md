@@ -11,7 +11,6 @@ This document is the scenario's system map for the v2.0 redesign. It states the
 explicitly, **what exists today** (the 2026-09-22 audit). If a concern has a dedicated
 document below, update that document and link it here.
 
-## Purpose Of This Document
 
 This document owns:
 

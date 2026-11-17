@@ -14,7 +14,6 @@ Beauty earns the daily open; honesty earns the trust that survives the
 first overloaded week. Monetization is built on retention produced by that
 pairing — not on locking away basic planning.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

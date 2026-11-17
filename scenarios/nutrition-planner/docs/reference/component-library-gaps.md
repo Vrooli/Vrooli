@@ -1,6 +1,5 @@
 # Component Library Gaps
 
-## Purpose Of This Document
 
 Record what Nutrition Planner needed from `react-component-library` (RCL)
 and could not link as-is. Every ejection and every missing asset is a debt the

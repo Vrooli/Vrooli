@@ -5,7 +5,7 @@
  * exercised in the per-page tests.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { renderWithProviders } from "../test-utils";
@@ -30,6 +30,8 @@ describe("AppShell structure (cimode)", () => {
   it("renders the shell landmarks, the brand, and the main outlet", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "menu-tabs");
+    expect(screen.getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.navigation)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.tabs)).toBeInTheDocument();
     expect(screen.getByTestId(selectors.layout.main)).toBeInTheDocument();
@@ -70,31 +72,29 @@ describe("AppShell structure (cimode)", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("night");
   });
 
-  it("renders every nav item as a desktop link and a phone tab", () => {
+  it("keeps four everyday destinations on the phone bar and the full list in the menu", () => {
     renderShell("/settings");
-    for (const key of [
-      "dashboard",
-      "settings",
-    ] as const) {
+    for (const key of ["dashboard", "plan", "goals", "focus", "review", "settings"] as const) {
       expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
+    }
+    for (const key of ["dashboard", "plan", "focus", "review"] as const) {
       expect(screen.getByTestId(selectors.layout.navTab({ key }))).toBeInTheDocument();
     }
+    expect(screen.queryByTestId(selectors.layout.navTab({ key: "settings" }))).not.toBeInTheDocument();
   });
 
-  it("marks the current route on the desktop link and the phone tab", () => {
+  it("marks the current route on the navigation link", () => {
     renderShell("/settings");
     expect(screen.getByTestId(selectors.layout.navLink({ key: "settings" }))).toHaveAttribute("aria-current", "page");
-    expect(screen.getByTestId(selectors.layout.navTab({ key: "settings" }))).toHaveAttribute("aria-current", "page");
     expect(screen.getByTestId(selectors.layout.navLink({ key: "dashboard" }))).not.toHaveAttribute("aria-current");
   });
 
-  it("navigates through the router when a phone tab is selected", async () => {
+  it("exposes every destination from the phone menu", async () => {
     const user = userEvent.setup();
     renderShell("/");
-    await user.click(screen.getByTestId(selectors.layout.navTab({ key: "settings" })));
-    await waitFor(() => {
-      expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument();
-    });
+    await user.click(screen.getByTestId(`${selectors.layout.shell}-menu`));
+    expect(within(screen.getByTestId(`${selectors.layout.shell}-menu-panel`)).getByTestId(selectors.layout.navLink({ key: "settings" }))).toBeInTheDocument();
+    expect(within(screen.getByTestId(`${selectors.layout.shell}-menu-panel`)).getByTestId(selectors.layout.navLink({ key: "goals" }))).toBeInTheDocument();
   });
 
   it("restores the main scroll position when navigation changes the route", async () => {
@@ -111,7 +111,7 @@ describe("AppShell structure (cimode)", () => {
     if (mainScroller) mainScroller.scrollTop = 64;
     scrollTo.mockClear();
     try {
-      await user.click(screen.getByTestId(selectors.layout.navTab({ key: "settings" })));
+      await user.click(screen.getByTestId(selectors.layout.navTab({ key: "plan" })));
       await waitFor(() => expect(screen.getByTestId(selectors.pages.settings)).toBeInTheDocument());
       expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: "auto" });
       expect(sidebarContent?.scrollTop ?? 0).toBe(0);
@@ -205,6 +205,16 @@ describe("AppShell structure (cimode)", () => {
   });
 
   it("exposes a useful Observatory sidebar resize range", () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("768px"),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
     renderShell();
     const separator = screen.getByRole("separator", { name: /Resize layout\.navigationLabel/i });
     expect(separator).toHaveAttribute("aria-valuemin", "128");

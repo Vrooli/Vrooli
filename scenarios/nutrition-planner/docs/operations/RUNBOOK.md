@@ -7,7 +7,6 @@ The working product name is **Nooch** (formerly Daily; decision D-042). Scenario
 All state lives in one local SQLite database plus the build artifacts; the
 database is **user-owned, private, and non-regenerable**.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

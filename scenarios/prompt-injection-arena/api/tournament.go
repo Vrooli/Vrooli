@@ -14,7 +14,7 @@ type Tournament struct {
 	ID             string                 `json:"id"`
 	Name           string                 `json:"name"`
 	Description    string                 `json:"description"`
-	Status         string                 `json:"status"` // scheduled, running, completed, cancelled
+	Status         TournamentStatus       `json:"status"`
 	ScheduledAt    time.Time              `json:"scheduled_at"`
 	StartedAt      *time.Time             `json:"started_at"`
 	CompletedAt    *time.Time             `json:"completed_at"`
@@ -25,6 +25,54 @@ type Tournament struct {
 	LeaderboardID  string                 `json:"leaderboard_id"`
 	CreatedAt      time.Time              `json:"created_at"`
 	UpdatedAt      time.Time              `json:"updated_at"`
+}
+
+// TournamentStatus is the persisted tournament lifecycle vocabulary.
+type TournamentStatus string
+
+const (
+	TournamentScheduled TournamentStatus = "scheduled"
+	TournamentRunning   TournamentStatus = "running"
+	TournamentCompleted TournamentStatus = "completed"
+	TournamentCancelled TournamentStatus = "cancelled"
+)
+
+var errInvalidTournamentTransition = fmt.Errorf("invalid tournament status transition")
+
+var tournamentTransitions = map[TournamentStatus]map[TournamentStatus]struct{}{
+	TournamentScheduled: {TournamentRunning: {}, TournamentCancelled: {}},
+	TournamentRunning:   {TournamentCompleted: {}},
+}
+
+func (status TournamentStatus) Valid() bool {
+	switch status {
+	case TournamentScheduled, TournamentRunning, TournamentCompleted, TournamentCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
+// TransitionStatus is the only owner of a tournament's persisted state edges.
+func (t *Tournament) TransitionStatus(next TournamentStatus) error {
+	if t == nil || !t.Status.Valid() || !next.Valid() {
+		return fmt.Errorf("%w: unknown status %q -> %q", errInvalidTournamentTransition, tournamentStatusOf(t), next)
+	}
+	if t.Status == next {
+		return nil
+	}
+	if _, allowed := tournamentTransitions[t.Status][next]; !allowed {
+		return fmt.Errorf("%w: %q -> %q", errInvalidTournamentTransition, t.Status, next)
+	}
+	t.Status = next
+	return nil
+}
+
+func tournamentStatusOf(t *Tournament) TournamentStatus {
+	if t == nil {
+		return "<nil>"
+	}
+	return t.Status
 }
 
 // TournamentResult represents the outcome of a tournament match
@@ -60,7 +108,7 @@ func CreateTournament(name, description string, scheduledAt time.Time, config ma
 		ID:            uuid.New().String(),
 		Name:          name,
 		Description:   description,
-		Status:        "scheduled",
+		Status:        TournamentScheduled,
 		ScheduledAt:   scheduledAt,
 		Configuration: config,
 		CreatedAt:     time.Now(),
@@ -142,7 +190,7 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 		return fmt.Errorf("tournament not found: %v", err)
 	}
 
-	if tournament.Status != "scheduled" {
+	if tournament.Status != TournamentScheduled {
 		return fmt.Errorf("tournament is not in scheduled status")
 	}
 
@@ -154,12 +202,17 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 	// Update status to running
 	now := time.Now()
 	tournament.StartedAt = &now
-	tournament.Status = "running"
+	if err := tournament.TransitionStatus(TournamentRunning); err != nil {
+		return err
+	}
 
-	updateQuery := `UPDATE tournaments SET status = $1, started_at = $2, updated_at = $3 WHERE id = $4`
-	_, err = ts.db.Exec(updateQuery, tournament.Status, tournament.StartedAt, now, tournament.ID)
+	updateQuery := `UPDATE tournaments SET status = $1, started_at = $2, updated_at = $3 WHERE id = $4 AND status = $5`
+	result, err := ts.db.Exec(updateQuery, tournament.Status, tournament.StartedAt, now, tournament.ID, TournamentScheduled)
 	if err != nil {
 		return fmt.Errorf("failed to update tournament status: %v", err)
+	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil || rows != 1 {
+		return fmt.Errorf("tournament %s was not scheduled when claiming it (rows=%d err=%v)", tournament.ID, rows, rowsErr)
 	}
 
 	// Run tournament matches
@@ -202,13 +255,19 @@ func (ts *TournamentScheduler) RunTournament(tournamentID string) error {
 	// Update tournament status to completed
 	completedAt := time.Now()
 	tournament.CompletedAt = &completedAt
-	tournament.Status = "completed"
+	if err := tournament.TransitionStatus(TournamentCompleted); err != nil {
+		return err
+	}
 	tournament.Results = results
 
-	updateQuery = `UPDATE tournaments SET status = $1, completed_at = $2, updated_at = $3 WHERE id = $4`
-	_, err = ts.db.Exec(updateQuery, tournament.Status, tournament.CompletedAt, time.Now(), tournament.ID)
+	completedAt = time.Now()
+	updateQuery = `UPDATE tournaments SET status = $1, completed_at = $2, updated_at = $3 WHERE id = $4 AND status = $5`
+	result, err = ts.db.Exec(updateQuery, tournament.Status, tournament.CompletedAt, completedAt, tournament.ID, TournamentRunning)
 	if err != nil {
 		return fmt.Errorf("failed to update tournament completion: %v", err)
+	}
+	if rows, rowsErr := result.RowsAffected(); rowsErr != nil || rows != 1 {
+		return fmt.Errorf("tournament %s was not running when completing it (rows=%d err=%v)", tournament.ID, rows, rowsErr)
 	}
 
 	logger.Info("Tournament completed successfully", map[string]interface{}{

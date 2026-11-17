@@ -1,6 +1,5 @@
 # Data — Plan Manager
 
-## Purpose Of This Document
 
 The data ownership and storage map for plan-manager. The *shape* of the records
 lives in [`PLAN-MODEL.md`](PLAN-MODEL.md); this document covers where they live,

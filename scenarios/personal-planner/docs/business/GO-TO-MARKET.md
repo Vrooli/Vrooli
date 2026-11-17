@@ -10,7 +10,6 @@ market, **beauty and honest planning are the story**, and the go-to-market
 must *show* that beauty rather than describe features. The Observatory
 experience is itself the marketing asset.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

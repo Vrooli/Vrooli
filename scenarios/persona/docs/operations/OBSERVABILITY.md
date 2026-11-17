@@ -3,7 +3,6 @@
 What this scenario emits, what should be watched, and what it
 deliberately does not record.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

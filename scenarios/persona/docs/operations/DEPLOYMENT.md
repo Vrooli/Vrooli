@@ -3,7 +3,6 @@
 Canonical deployment contract: where this scenario can run, what it
 needs, how it is packaged, and how a release is rolled back.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

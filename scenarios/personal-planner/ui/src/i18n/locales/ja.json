@@ -120,6 +120,28 @@
       }
     }
   },
+  "overlay": {
+    "preview": "プレビュー",
+    "refresh": "更新",
+    "previewBacklog": "次の3件をプレビュー",
+    "refreshBacklog": "バックログを更新",
+    "accept": "{{time}}で確定",
+    "retryApply": "適用を再試行",
+    "checking": "確認中…",
+    "placing": "配置中…",
+    "saving": "保存中…",
+    "capturing": "記録中…",
+    "saveTask": "タスクを保存",
+    "captureTask": "タスクを記録",
+    "creating": "作成中…",
+    "createGoal": "目標を作成",
+    "recordActual": "実績を記録",
+    "saveCorrection": "修正を保存",
+    "cancelCorrection": "修正を取消",
+    "remembering": "記録中…",
+    "saveEstimate": "見積もりを保存",
+    "addRoutine": "ルーティンを追加"
+  },
   "health": {
     "title": "API ステータス",
     "loading": "API のステータスを確認中…",

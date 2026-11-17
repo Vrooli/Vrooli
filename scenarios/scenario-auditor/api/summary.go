@@ -31,8 +31,6 @@ var severityWeights = map[string]int{
 	"info":     1,
 }
 
-var normalizedSeverities = []string{"critical", "high", "medium", "low", "info"}
-
 type RuleCount struct {
 	RuleID         string `json:"rule_id"`
 	Count          int    `json:"count"`

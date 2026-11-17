@@ -7,6 +7,7 @@ import { renderWithProviders } from "../test-utils";
 import { GoalsPage } from "./GoalsPage";
 import { fetchWorkItems } from "../api/work";
 import { fetchGoalDrifts, fetchGoalVariances } from "../api/review";
+import { strings } from "../consts/strings";
 
 vi.mock("../api/goals", () => ({ createGoal: vi.fn(), fetchGoals: vi.fn(), updateGoalProgress: vi.fn(), updateGoalTargetDate: vi.fn(), fetchGoalTargetDateHistory: vi.fn().mockResolvedValue([]), fetchMilestones: vi.fn(), createMilestone: vi.fn(), completeMilestone: vi.fn() }));
 vi.mock("../api/work", () => ({ fetchWorkItems: vi.fn().mockResolvedValue([]) }));
@@ -83,16 +84,21 @@ describe("GoalsPage", () => {
   });
   it("creates an explicit outcome without treating work time as progress", async () => {
     const user = userEvent.setup();
+    vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
     vi.mocked(fetchGoals).mockResolvedValue([]);
     vi.mocked(fetchMilestones).mockResolvedValue([]);
     vi.mocked(createGoal).mockResolvedValue({ id: "goal-1", title: "Protect mornings", purpose: "Be deliberate", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n } as never);
     renderWithProviders(<GoalsPage />);
     await user.click(await screen.findByRole("button", { name: "+ New goal" }));
+    const dialog = screen.getByTestId("overlays.responsive-dialog");
+    const actionBar = dialog.querySelector("[data-rcl-overlay-action-bar]");
+    expect(actionBar?.parentElement).toBe(dialog.querySelector("footer"));
+    expect(actionBar).toHaveStyle({ display: "flex", flexWrap: "nowrap" });
     await user.type(await screen.findByLabelText("Goal title"), "Protect mornings");
     await user.type(screen.getByLabelText("Purpose"), "Be deliberate");
     await user.click(screen.getByRole("button", { name: "Progress" }));
     await user.click(screen.getByRole("option", { name: "Derive from milestones" }));
-    await user.click(screen.getByRole("button", { name: "Create goal" }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.createGoal }));
     expect(createGoal).toHaveBeenCalledWith({ title: "Protect mornings", purpose: "Be deliberate", progressMethod: "milestones", targetBasisPoints: 10000n, targetDate: "", measure: undefined });
   });
 
@@ -108,7 +114,7 @@ describe("GoalsPage", () => {
     await user.click(screen.getByRole("option", { name: "Recurring monthly currency target" }));
     await user.type(screen.getByLabelText("Target amount in USD"), "1000");
     fireEvent.change(screen.getByLabelText("Measured goal target date"), { target: { value: "2026-12-31" } });
-    await user.click(screen.getByRole("button", { name: "Create goal" }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.createGoal }));
     expect(createGoal).toHaveBeenCalledWith({ title: "Recurring $1,000/month", purpose: "", progressMethod: "manual", targetBasisPoints: 10000n, targetDate: "2026-12-31", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "recurring", period: "month" } });
     cleanup();
     vi.mocked(fetchGoals).mockResolvedValue([{ id: "goal-income", title: "Recurring $1,000/month", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n, targetDate: "2026-12-31", progressState: "unknown", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "recurring", period: "month" } }] as never);
@@ -130,7 +136,7 @@ describe("GoalsPage", () => {
     await user.click(screen.getByRole("option", { name: "One-time currency target" }));
     await user.type(screen.getByLabelText("Target amount in USD"), "1000");
     fireEvent.change(screen.getByLabelText("Measured goal target date"), { target: { value: "2026-11-30" } });
-    await user.click(screen.getByRole("button", { name: "Create goal" }));
+    await user.click(screen.getByRole("button", { name: strings.overlay.createGoal }));
     expect(createGoal).toHaveBeenCalledWith({ title: "First $1,000", purpose: "", progressMethod: "manual", targetBasisPoints: 10000n, targetDate: "2026-11-30", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "one_time", period: "once" } });
     cleanup();
     vi.mocked(fetchGoals).mockResolvedValue([{ id: "goal-one-time", title: "First $1,000", purpose: "", status: "active", progressMethod: "manual", progressBasisPoints: 0n, targetBasisPoints: 10000n, revision: 1n, targetDate: "2026-11-30", progressState: "unknown", measure: { unit: "currency", targetAmountMinor: 100000, currencyCode: "USD", basis: "after_costs_before_tax", recurrence: "one_time", period: "once" } }] as never);

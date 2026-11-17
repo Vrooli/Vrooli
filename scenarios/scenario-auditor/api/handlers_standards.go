@@ -658,64 +658,17 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 		ctx = context.Background()
 	}
 
-	err = filepath.Walk(scanPath, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return nil
-		}
-
-		select {
-		case <-ctx.Done():
-			return errStandardsScanCancelled
-		default:
-		}
-
-		if info.IsDir() {
-			if pathfilter.SkipDir(filepath.Base(path)) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if info.Mode()&os.ModeSymlink != 0 {
-			return nil
-		}
-
-		if info.Size() > maxStandardsFileSizeBytes {
-			logger.Warn("Skipping large file during standards scan", map[string]any{
-				"path": path,
-				"size": info.Size(),
-			})
-			return nil
-		}
-
-		scenarioName, scenarioRelative, targets := classifyFileTargets(path)
-		if len(targets) == 0 {
-			return nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			logger.Error(fmt.Sprintf("Failed to read file %s", path), err)
-			return nil
-		}
-
-		if isBinaryContent(content) {
-			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
-			return nil
-		}
-
-		contentStr := string(content)
-
-		if scenarioName != "" && looksLikeSecurityHeadersMiddleware(contentStr) {
-			securityMiddlewarePresent[scenarioName] = true
+	err = walkStandardsSourceFiles(ctx, scanPath, true, false, func(file standardsSourceFile) error {
+		if file.scenarioName != "" && looksLikeSecurityHeadersMiddleware(file.content) {
+			securityMiddlewarePresent[file.scenarioName] = true
 		}
 
 		if onFile != nil {
-			onFile(scenarioName, scenarioRelative)
+			onFile(file.scenarioName, file.scenarioRelative)
 		}
 
 		filesScanned++
-		rulesForFile := collectRulesForTargets(targets, ruleBuckets)
+		rulesForFile := collectRulesForTargets(file.targets, ruleBuckets)
 
 		for _, rule := range rulesForFile {
 			if !rule.Implementation.Valid {
@@ -728,14 +681,14 @@ func performStandardsCheck(ctx context.Context, target standardsScanTarget, spec
 			default:
 			}
 
-			ruleViolations, execErr := rule.Check(contentStr, path, scenarioName)
+			ruleViolations, execErr := rule.Check(file.content, file.path, file.scenarioName)
 			if execErr != nil {
-				logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, path), execErr)
+				logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, file.path), execErr)
 				continue
 			}
 
 			for _, rv := range ruleViolations {
-				violations = append(violations, convertRuleViolationToStandards(rule, rv, scenarioName, scenarioRelative))
+				violations = append(violations, convertRuleViolationToStandards(rule, rv, file.scenarioName, file.scenarioRelative))
 			}
 		}
 
@@ -827,37 +780,9 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 	filesScanned := 0
 	var violations []StandardsViolation
 
-	err = filepath.Walk(scenarioPath, func(path string, entry os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-
-		if entry.IsDir() {
-			if pathfilter.SkipDir(filepath.Base(path)) {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if entry.Mode()&os.ModeSymlink != 0 {
-			return nil
-		}
-
-		if entry.Size() > maxStandardsFileSizeBytes {
-			logger.Warn("Skipping large file during standards scan", map[string]any{
-				"path": path,
-				"size": entry.Size(),
-			})
-			return nil
-		}
-
-		scn, relative, fileTargets := classifyFileTargets(path)
-		if scn == "" {
-			return nil
-		}
-
+	err = walkStandardsSourceFiles(context.Background(), scenarioPath, false, true, func(file standardsSourceFile) error {
 		runRule := false
-		for _, target := range fileTargets {
+		for _, target := range file.targets {
 			if _, ok := allowedTargets[target]; !ok {
 				continue
 			}
@@ -868,29 +793,15 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 		if !runRule {
 			return nil
 		}
-
-		content, readErr := os.ReadFile(path)
-		if readErr != nil {
-			logger.Error(fmt.Sprintf("Failed to read %s", path), readErr)
-			return nil
-		}
-
-		if isBinaryContent(content) {
-			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
-			return nil
-		}
-
-		contentStr := string(content)
-
 		filesScanned++
-		ruleViolations, execErr := rule.Check(contentStr, path, scenarioName)
+		ruleViolations, execErr := rule.Check(file.content, file.path, scenarioName)
 		if execErr != nil {
-			logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, path), execErr)
+			logger.Error(fmt.Sprintf("Rule %s execution failed on %s", rule.ID, file.path), execErr)
 			return nil
 		}
 
 		for _, rv := range ruleViolations {
-			relativePath := filepath.ToSlash(relative)
+			relativePath := filepath.ToSlash(file.scenarioRelative)
 			violations = append(violations, convertRuleViolationToStandards(rule, rv, scenarioName, relativePath))
 		}
 
@@ -901,6 +812,72 @@ func evaluateRuleOnScenario(rule RuleInfo, scenarioName string) ([]StandardsViol
 	}
 
 	return violations, filesScanned, targets, nil
+}
+
+type standardsSourceFile struct {
+	path             string
+	scenarioName     string
+	scenarioRelative string
+	targets          []string
+	content          string
+}
+
+func walkStandardsSourceFiles(ctx context.Context, root string, ignoreWalkErrors, requireScenario bool, visit func(standardsSourceFile) error) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			if ignoreWalkErrors {
+				return nil
+			}
+			return walkErr
+		}
+
+		select {
+		case <-ctx.Done():
+			return errStandardsScanCancelled
+		default:
+		}
+
+		if info.IsDir() {
+			if pathfilter.SkipDir(filepath.Base(path)) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return nil
+		}
+		if info.Size() > maxStandardsFileSizeBytes {
+			logger.Warn("Skipping large file during standards scan", map[string]any{
+				"path": path,
+				"size": info.Size(),
+			})
+			return nil
+		}
+
+		scenarioName, scenarioRelative, targets := classifyFileTargets(path)
+		if len(targets) == 0 || (requireScenario && scenarioName == "") {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			logger.Error(fmt.Sprintf("Failed to read file %s", path), err)
+			return nil
+		}
+		if isBinaryContent(content) {
+			logger.Warn("Skipping binary file during standards scan", map[string]any{"path": path})
+			return nil
+		}
+		return visit(standardsSourceFile{
+			path:             path,
+			scenarioName:     scenarioName,
+			scenarioRelative: scenarioRelative,
+			targets:          targets,
+			content:          string(content),
+		})
+	})
 }
 
 func buildRuleBuckets(ruleInfos map[string]RuleInfo, specific []string, includeDisabled bool) (map[string][]RuleInfo, map[string]RuleInfo, []string, []string) {

@@ -4,7 +4,6 @@ This document records how the scenario could create revenue or support
 a monetizable Vrooli capability. Keep it honest: an internal-capability
 or `deferred` answer is better than inventing a commercial story.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

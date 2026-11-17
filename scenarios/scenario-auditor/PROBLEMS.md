@@ -758,3 +758,14 @@ If you encounter issues:
 ---
 
 **Last Updated:** 2025-10-11
+
+## Agent Manager boundary status (2026-11-16)
+
+`api/agent_manager_client.go` now uses the generated Agent Manager Connect
+client for `ReconcileScenarioProfiles`, `GetProfile`, `CreateTask`, `CreateRun`,
+and `GetRun`. The remaining REST calls are `EnsureProfile`, `GetTask`,
+`GetRunByTag`, and `StopRunByTag`; the current Agent Manager service has no
+corresponding Connect procedures for those operations. They remain migration
+work until the owner approves a generated procedure or documents a specific
+REST disposition. Focused Connect client coverage lives in
+`api/agent_manager_client_connect_test.go`.

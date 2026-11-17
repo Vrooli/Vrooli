@@ -1,6 +1,5 @@
 # Flows — Plan Manager
 
-## Purpose Of This Document
 
 The workflow and state-transition map for plan-manager. The records these flows
 move through are defined in [`PLAN-MODEL.md`](PLAN-MODEL.md). plan-manager is a

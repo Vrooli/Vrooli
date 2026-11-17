@@ -7,7 +7,6 @@ domain is added, renamed, split, merged, or removed.
 Portal's real domains are listed below. Add to this map when a new product
 capability owns data, proto methods, API behavior, UI state, or CLI commands.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

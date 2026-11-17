@@ -162,6 +162,33 @@ func TestSQLiteOperationStoreRoundTripsPartialChildCheckpoint(t *testing.T) { //
 	require.Empty(t, pending)
 }
 
+func TestSQLiteOperationStoreRejectsStatusRegression(t *testing.T) {
+	store := newOperationStore(t)
+	op := v2Operation(ValidationOperation{ID: "forward-only", PlanID: "plan-1", Status: OperationRunning, Attempt: 1})
+	_, created, err := store.CreateOperation(context.Background(), op)
+	require.NoError(t, err)
+	require.True(t, created)
+
+	regression := op
+	regression.Status = OperationQueued
+	err = store.SaveOperation(context.Background(), regression)
+	require.ErrorContains(t, err, `cannot transition from "running" to "queued"`)
+
+	got, found, err := store.GetOperation(context.Background(), op.ID)
+	require.NoError(t, err)
+	require.True(t, found)
+	require.Equal(t, OperationRunning, got.Status)
+
+	terminal := op
+	terminal.Status = OperationTerminal
+	terminal.TerminalAt = "2026-07-10T12:01:00Z"
+	require.NoError(t, store.SaveOperation(context.Background(), terminal))
+
+	resurrection := terminal
+	resurrection.Status = OperationRunning
+	require.ErrorContains(t, store.SaveOperation(context.Background(), resurrection), `cannot transition from "terminal" to "running"`)
+}
+
 func TestSQLiteTerminalResultStableIDIsReplaySafe(t *testing.T) { // [REQ:PM-VALID-004]
 	store := newOperationStore(t)
 	result := Result{ID: "op-1:result", PlanID: "plan-1", Verdict: VerdictPass, RanAt: "2026-07-10T12:00:00Z"}

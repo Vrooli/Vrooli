@@ -4,7 +4,6 @@ This document is the canonical security and privacy posture for the
 scenario: what it holds, who may reach it, what it refuses, and what is
 still open.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

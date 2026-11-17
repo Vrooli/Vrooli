@@ -25,7 +25,6 @@ otherwise they describe intended structure, not files that already exist. The
 workspace profile and local availability slice are implemented; provider
 projections and broader scheduling policy remain open within that domain.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

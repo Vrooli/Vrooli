@@ -10,7 +10,6 @@ personal food photos, and cooking history. That is private personal data by defa
 storage design treats it that way. This document states the **intended** model (Appendix A
 §12, R21–R22, R25) and, separately, **what exists today** (2026-09-22 audit).
 
-## Purpose Of This Document
 
 Use this document to answer:
 

@@ -531,7 +531,10 @@ func (s *service) GetValidationOperation(ctx context.Context, operationID string
 	}
 	if s.receipts != nil {
 		if receipt, receiptErr := s.receipts.GetValidation(ctx, op.ID); receiptErr == nil {
-			op = projectReceipt(op, receipt, s.now())
+			op, err = projectReceipt(op, receipt, s.now())
+			if err != nil {
+				return ValidationOperation{}, err
+			}
 		}
 	}
 	return op, nil
@@ -559,7 +562,10 @@ func (s *service) SyncValidation(ctx context.Context, operationID string) (Valid
 		if receiptErr != nil {
 			return ValidationOperation{}, receiptErr
 		}
-		op = projectReceipt(op, receipt, s.now())
+		op, err = projectReceipt(op, receipt, s.now())
+		if err != nil {
+			return ValidationOperation{}, err
+		}
 		if err := s.persistReceiptProjection(ctx, &op); err != nil {
 			return ValidationOperation{}, err
 		}

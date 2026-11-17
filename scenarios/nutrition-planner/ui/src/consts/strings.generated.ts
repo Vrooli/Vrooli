@@ -15,6 +15,20 @@ export const strings = {
   app: {
     title: "app.title",
   },
+  actions: {
+    swapLabel: "actions.swapLabel",
+    replacementLabel: "actions.replacementLabel",
+    weekSwapLabel: "actions.weekSwapLabel",
+    confirmSwap: "actions.confirmSwap",
+    applyChanges: "actions.applyChanges",
+    chooseAnother: "actions.chooseAnother",
+    cancel: "actions.cancel",
+    confirmReplacement: "actions.confirmReplacement",
+    applying: "actions.applying",
+    keepMeal: "actions.keepMeal",
+    preview: "actions.preview",
+    keepPlan: "actions.keepPlan",
+  },
   layout: {
     navigationLabel: "layout.navigationLabel",
     mobileNavigationLabel: "layout.mobileNavigationLabel",

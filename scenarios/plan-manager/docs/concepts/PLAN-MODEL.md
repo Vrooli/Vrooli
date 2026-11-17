@@ -8,7 +8,6 @@ the foundation of the whole scenario: because a plan is structured data with
 reverse-engineers — the runtime can hold the procedural knowledge a small/local
 model would otherwise have to carry in its context.
 
-## Purpose Of This Document
 
 Answer, in one place:
 

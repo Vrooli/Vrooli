@@ -11,14 +11,15 @@ import (
 const defaultListLimit = 100
 
 var (
-	ErrMissingID       = errors.New("persona_id is required")
-	ErrNotFound        = errors.New("persona not found")
-	ErrMissingLegal    = errors.New("legal_basis is required")
-	ErrInvalidKind     = errors.New("persona kind must be personal or business")
-	ErrMissingIdentity = errors.New("persona requires at least one kind-specific identifier")
-	ErrInvalidIdentity = errors.New("persona identifier is not valid for its kind")
-	ErrImmutableBasis  = errors.New("legal basis is immutable")
-	ErrAlreadyArchived = errors.New("persona is already archived")
+	ErrMissingID         = errors.New("persona_id is required")
+	ErrNotFound          = errors.New("persona not found")
+	ErrMissingLegal      = errors.New("legal_basis is required")
+	ErrInvalidKind       = errors.New("persona kind must be personal or business")
+	ErrMissingIdentity   = errors.New("persona requires at least one kind-specific identifier")
+	ErrInvalidIdentity   = errors.New("persona identifier is not valid for its kind")
+	ErrImmutableBasis    = errors.New("legal basis is immutable")
+	ErrAlreadyArchived   = errors.New("persona is already archived")
+	ErrInvalidTransition = errors.New("invalid persona status transition")
 )
 
 type Kind string
@@ -141,6 +142,9 @@ func (s *service) Archive(ctx context.Context, id string) (Persona, error) {
 	}
 	if p.Status == StatusArchived {
 		return Persona{}, fmt.Errorf("%w: %s", ErrAlreadyArchived, id)
+	}
+	if err := p.TransitionStatus(StatusArchived); err != nil {
+		return Persona{}, err
 	}
 	return s.repo.Archive(ctx, id)
 }

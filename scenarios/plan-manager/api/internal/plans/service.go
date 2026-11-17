@@ -1041,6 +1041,10 @@ func (s *service) CreateFromTemplate(ctx context.Context, templateID, title, slu
 
 // saveRecomputed recomputes status + content_hash and persists.
 func (s *service) saveRecomputed(ctx context.Context, p Plan) (Plan, error) {
+	return s.saveRecomputedWith(ctx, p, nil)
+}
+
+func (s *service) saveRecomputedWith(ctx context.Context, p Plan, commitExtra func(Repository, Plan) error) (Plan, error) {
 	if p.Status != PlanStatusArchived {
 		p.Status = computePlanStatus(p.Phases)
 	}
@@ -1065,6 +1069,11 @@ func (s *service) saveRecomputed(ctx context.Context, p Plan) (Plan, error) {
 				return err
 			}
 			if err := repo.Save(ctx, match); err != nil {
+				return err
+			}
+		}
+		if commitExtra != nil {
+			if err := commitExtra(repo, p); err != nil {
 				return err
 			}
 		}

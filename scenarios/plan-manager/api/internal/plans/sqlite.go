@@ -138,16 +138,14 @@ SELECT from_plan_id, to_plan_id, kind FROM plan_edges
 WHERE from_plan_id = ? OR to_plan_id = ?
 ORDER BY from_plan_id, to_plan_id, kind`
 
-	upsertCandidateSQL = `
+	insertCandidateSQL = `
 INSERT INTO candidate_revisions (id, plan_id, expected_base_content_hash, proposal_provenance, workspace_id, workspace_root, state, candidate_document, created_at, updated_at, expires_at, applied_at, applied_content_hash, discard_reason)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT(id) DO UPDATE SET
-  state=excluded.state,
-  updated_at=excluded.updated_at,
-  expires_at=excluded.expires_at,
-  applied_at=excluded.applied_at,
-  applied_content_hash=excluded.applied_content_hash,
-  discard_reason=excluded.discard_reason`
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+
+	updateCandidateSQL = `
+UPDATE candidate_revisions
+SET state=?, updated_at=?, expires_at=?, applied_at=?, applied_content_hash=?, discard_reason=?
+WHERE id=? AND state=?`
 
 	getCandidateSQL = `
 SELECT id, plan_id, expected_base_content_hash, proposal_provenance, workspace_id, workspace_root, state, candidate_document, created_at, updated_at, expires_at, applied_at, applied_content_hash, discard_reason
@@ -295,20 +293,52 @@ func (r *sqliteRepository) SaveEdge(ctx context.Context, e PlanEdge) error {
 	return nil
 }
 
-func (r *sqliteRepository) SaveCandidate(ctx context.Context, candidate CandidateRevision) error {
+func (r *sqliteRepository) CreateCandidate(ctx context.Context, candidate CandidateRevision) error {
+	if candidate.State != CandidateRevisionPending {
+		return ErrCandidateState{ID: candidate.ID, State: "", Next: candidate.State}
+	}
 	raw, err := json.Marshal(candidate.CandidatePlan)
 	if err != nil {
 		return fmt.Errorf("marshal candidate revision %q: %w", candidate.ID, err)
 	}
-	if _, err := r.db.ExecContext(ctx, upsertCandidateSQL,
+	if _, err := r.db.ExecContext(ctx, insertCandidateSQL,
 		candidate.ID, candidate.PlanID, candidate.ExpectedBaseContentHash, candidate.ProposalProvenance,
 		candidate.Workspace.ID, candidate.Workspace.Root, string(candidate.State), string(raw),
 		candidate.CreatedAt, candidate.UpdatedAt, candidate.ExpiresAt, candidate.AppliedAt,
 		candidate.AppliedContentHash, candidate.DiscardReason,
 	); err != nil {
-		return fmt.Errorf("upsert candidate revision %q: %w", candidate.ID, err)
+		return fmt.Errorf("create candidate revision %q: %w", candidate.ID, err)
 	}
 	return nil
+}
+
+func (r *sqliteRepository) SaveCandidate(ctx context.Context, candidate CandidateRevision) error {
+	if !CandidateRevisionPending.CanTransitionTo(candidate.State) {
+		return ErrCandidateState{ID: candidate.ID, State: CandidateRevisionPending, Next: candidate.State}
+	}
+	result, err := r.db.ExecContext(ctx, updateCandidateSQL,
+		string(candidate.State), candidate.UpdatedAt, candidate.ExpiresAt, candidate.AppliedAt,
+		candidate.AppliedContentHash, candidate.DiscardReason, candidate.ID, string(CandidateRevisionPending))
+	if err != nil {
+		return fmt.Errorf("transition candidate revision %q: %w", candidate.ID, err)
+	}
+	if rows, err := result.RowsAffected(); err != nil {
+		return fmt.Errorf("check candidate revision %q transition: %w", candidate.ID, err)
+	} else if rows == 1 {
+		return nil
+	}
+	var currentState string
+	if err := r.db.QueryRowContext(ctx, `SELECT state FROM candidate_revisions WHERE id=?`, candidate.ID).Scan(&currentState); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrCandidateNotFound{ID: candidate.ID}
+		}
+		return fmt.Errorf("read candidate revision %q after rejected transition: %w", candidate.ID, err)
+	}
+	current := CandidateRevisionState(currentState)
+	if !current.Valid() {
+		return ErrCandidateState{ID: candidate.ID, State: "unknown", Next: candidate.State}
+	}
+	return ErrCandidateState{ID: candidate.ID, State: current, Next: candidate.State}
 }
 
 func (r *sqliteRepository) GetCandidate(ctx context.Context, id string) (CandidateRevision, bool, error) {
@@ -329,6 +359,9 @@ func (r *sqliteRepository) GetCandidate(ctx context.Context, id string) (Candida
 		return CandidateRevision{}, false, fmt.Errorf("get candidate revision %q: %w", id, err)
 	}
 	candidate.State = CandidateRevisionState(state)
+	if !candidate.State.Valid() {
+		return CandidateRevision{}, false, ErrCandidateState{ID: candidate.ID, State: "unknown", Next: candidate.State}
+	}
 	if err := json.Unmarshal([]byte(document), &candidate.CandidatePlan); err != nil {
 		return CandidateRevision{}, false, fmt.Errorf("unmarshal candidate revision %q: %w", id, err)
 	}

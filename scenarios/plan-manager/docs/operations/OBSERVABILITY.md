@@ -3,7 +3,6 @@
 This document records logs, metrics, telemetry, health checks, and
 business/product signals for plan-manager.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

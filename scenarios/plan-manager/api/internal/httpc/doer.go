@@ -25,7 +25,7 @@ import "net/http"
 // Doer is the canonical outbound HTTP interface. The single-method
 // surface is intentional — handlers depend on what they need (Do)
 // rather than the full *http.Client surface (Get / Post / CloseIdle…),
-// which keeps the FakeDoer surface small and the seam easy to substitute.
+// which keeps the transport seam small and easy to substitute.
 type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }

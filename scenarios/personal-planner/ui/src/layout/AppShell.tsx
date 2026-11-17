@@ -36,9 +36,12 @@ import { GlobalCapture } from "../components/GlobalCapture";
  */
 const SHELL = {
   density: "sidebar",
-  mobileNav: "tabs",
+  // Four everyday destinations stay on the phone bar; goals and settings stay
+  // in the complete menu so the bar keeps comfortable tap targets.
+  mobileNav: "menu-tabs",
   mainMode: "fill",
 } as const;
+const PHONE_TAB_KEYS = new Set(["dashboard", "plan", "focus", "review"]);
 
 export function AppShell() {
   const { t } = useTranslation();
@@ -142,6 +145,7 @@ export function AppShell() {
     href: item.path,
     icon: item.icon,
     current: isNavItemActive(item, pathname),
+    mobile: PHONE_TAB_KEYS.has(item.key),
     testId: selectors.layout.navLink({ key: item.key }),
   }));
 

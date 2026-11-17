@@ -12,7 +12,6 @@ never product scope). The five real domains below — `plans`, `authoring`,
 agent produces while executing a plan. `vrooli scenario detemplate plan-manager`
 removes the fenced example once the real domains are green.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

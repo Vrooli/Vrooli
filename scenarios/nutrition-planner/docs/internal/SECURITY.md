@@ -6,7 +6,6 @@ secrets, or sensitive business data.
 
 The working product name is **Nooch** (formerly Daily; decision D-042). Scenario id is `nutrition-planner`.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

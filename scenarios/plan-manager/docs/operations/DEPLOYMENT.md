@@ -3,7 +3,6 @@
 This document records supported delivery tiers, packaging assumptions,
 runtime dependencies, and deployment readiness for plan-manager.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

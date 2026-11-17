@@ -1,6 +1,5 @@
 # Integrations — Plan Manager
 
-## Purpose Of This Document
 
 The dependency contract for plan-manager: which Vrooli resources and scenarios it
 composes, which third-party services it touches, and how each failure degrades.

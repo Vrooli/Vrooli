@@ -46,11 +46,7 @@ describe("parseNaturalCapture", () => {
     const input = screen.getByPlaceholderText("lunch with Sam tue 1pm 1h");
     await user.type(input, "lunch with Sam tue 1pm 1h");
     expect(screen.getByText(/lunch with Sam · 60 min/)).toBeInTheDocument();
-    const captureButtons = screen.getAllByRole("button", { name: "Capture task" });
-    const captureButton = captureButtons.at(-1);
-    expect(captureButton).toBeDefined();
-    if (!captureButton) throw new Error("capture button should be present");
-    await user.click(captureButton);
+    await user.click(screen.getByTestId("global-capture-submit"));
     await waitFor(() => expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ title: "lunch with Sam", remainingMinutes: 60 })));
   });
 
@@ -80,10 +76,11 @@ describe("parseNaturalCapture", () => {
     renderWithProviders(<GlobalCapture />);
     await user.keyboard("{Meta>}k{/Meta}");
     fireEvent.change(screen.getByPlaceholderText("lunch with Sam tue 1pm 1h"), { target: { value: "think about the launch" } });
-    const submitButton = screen.getAllByRole("button", { name: "Capture task" }).find((button) => button.getAttribute("type") === "submit");
-    expect(submitButton).toBeDefined();
-    if (!submitButton) throw new Error("capture submit button should be present");
-    await user.click(submitButton);
+    const dialog = screen.getByTestId("overlays.responsive-dialog");
+    const actionBar = dialog.querySelector("[data-rcl-overlay-action-bar]");
+    expect(actionBar?.parentElement).toBe(dialog.querySelector("footer"));
+    expect(actionBar).toHaveStyle({ display: "flex", flexWrap: "nowrap" });
+    await user.click(screen.getByTestId("global-capture-submit"));
     await waitFor(() => expect(createWorkItem).toHaveBeenCalledWith(expect.objectContaining({ sourceLabel: "quick capture", remainingMinutes: 0 })));
   });
 });

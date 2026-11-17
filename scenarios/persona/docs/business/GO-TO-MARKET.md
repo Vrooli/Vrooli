@@ -4,7 +4,6 @@ Scenario-specific positioning and launch motion. Portfolio strategy is
 operator-curated canon in `docs/monetization/`; this records how this
 scenario reaches the people it is for.
 
-## Purpose Of This Document
 
 Use this document to answer:
 

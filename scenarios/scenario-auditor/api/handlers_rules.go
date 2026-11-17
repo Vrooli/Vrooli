@@ -322,11 +322,6 @@ func updateRuleHandler(w http.ResponseWriter, r *http.Request) {
 	HTTPError(w, "Rule update not yet implemented", http.StatusNotImplemented, nil)
 }
 
-// deleteRuleHandler deletes a rule (not yet implemented)
-func deleteRuleHandler(w http.ResponseWriter, r *http.Request) {
-	HTTPError(w, "Rule deletion not yet implemented", http.StatusNotImplemented, nil)
-}
-
 // toggleRuleHandler enables/disables a rule
 func toggleRuleHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract rule ID from URL
@@ -469,88 +464,6 @@ func getRuleHandler(w http.ResponseWriter, r *http.Request) {
 // getRuleCategoriesHandler returns just the categories (not yet implemented)
 func getRuleCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	HTTPError(w, "Get categories not yet implemented", http.StatusNotImplemented, nil)
-}
-
-// createRuleWithAIHandler creates a rule using AI assistance
-func createRuleWithAIHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		Category    string `json:"category"`
-		Severity    string `json:"severity"`
-		Motivation  string `json:"motivation"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		HTTPError(w, "Invalid request body", http.StatusBadRequest, err)
-		return
-	}
-
-	categories := re.DefaultCategories()
-	category := strings.TrimSpace(req.Category)
-	if category == "" {
-		category = "api"
-	}
-	if _, ok := categories[category]; !ok {
-		HTTPError(w, fmt.Sprintf("Invalid category: %s", category), http.StatusBadRequest, nil)
-		return
-	}
-
-	severity := strings.ToLower(strings.TrimSpace(req.Severity))
-	switch severity {
-	case "critical", "high", "medium", "low":
-		// accepted
-	case "":
-		severity = "medium"
-	default:
-		HTTPError(w, fmt.Sprintf("Invalid severity: %s", severity), http.StatusBadRequest, nil)
-		return
-	}
-
-	spec := RuleCreationSpec{
-		Name:        req.Name,
-		Description: req.Description,
-		Category:    category,
-		Severity:    severity,
-		Motivation:  req.Motivation,
-	}
-
-	prompt, label, metadata, err := buildRuleCreationPrompt(spec)
-	if err != nil {
-		HTTPError(w, err.Error(), http.StatusBadRequest, err)
-		return
-	}
-
-	label = safeFallback(label, "Create rule")
-	name := fmt.Sprintf("Create %s", safeFallback(spec.Name, metadata["rule_id"]))
-
-	agentInfo, err := agentManager.StartAgent(AgentStartConfig{
-		Label:    label,
-		Name:     name,
-		Action:   agentActionCreateRule,
-		Prompt:   prompt,
-		Model:    openRouterModel(),
-		Metadata: metadata,
-	})
-	if err != nil {
-		HTTPError(w, "Failed to start rule creation agent", http.StatusInternalServerError, err)
-		return
-	}
-
-	logger.Info(fmt.Sprintf("Started rule creation agent %s for %s", agentInfo.ID, metadata["rule_id"]))
-
-	response := map[string]any{
-		"success":  true,
-		"message":  fmt.Sprintf("Rule creation agent started for %s", safeFallback(spec.Name, metadata["rule_id"])),
-		"agent":    agentInfo,
-		"metadata": metadata,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		logger.Error("Failed to encode rule creation response", err)
-		HTTPError(w, "Failed to encode response", http.StatusInternalServerError, err)
-	}
 }
 
 // editRuleWithAIHandler edits a rule using AI assistance

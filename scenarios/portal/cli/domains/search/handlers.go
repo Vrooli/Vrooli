@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	searchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/search"
 	searchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/search/search_v1connect"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/portal/v1/shared"
@@ -29,7 +29,7 @@ func (h *handlers) suggest(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.Suggest(context.Background(), connect.NewRequest(&searchv1.SuggestRequest{
 		Query: ctx.Positional("query"),
-		Types: splitCSV(ctx.Flag("types")),
+		Types: cliutil.ParseCSV(ctx.Flag("types")),
 		Limit: limit,
 		Group: ctx.Flag("group"),
 	}))
@@ -62,21 +62,6 @@ func parseLimit(value string) (int32, error) {
 		return 0, fmt.Errorf("--limit must be an integer: %w", err)
 	}
 	return int32(n), nil
-}
-
-func splitCSV(value string) []string {
-	if strings.TrimSpace(value) == "" {
-		return nil
-	}
-	parts := strings.Split(value, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
 }
 
 func formatHit(hit *sharedv1.SearchHit) string {

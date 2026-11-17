@@ -269,6 +269,27 @@ const (
 	CandidateRevisionExpired   CandidateRevisionState = "expired"
 )
 
+func (s CandidateRevisionState) Valid() bool {
+	switch s {
+	case CandidateRevisionPending, CandidateRevisionApplied, CandidateRevisionDiscarded, CandidateRevisionExpired:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s CandidateRevisionState) CanTransitionTo(next CandidateRevisionState) bool {
+	return s == CandidateRevisionPending && (next == CandidateRevisionApplied || next == CandidateRevisionDiscarded || next == CandidateRevisionExpired)
+}
+
+func (c *CandidateRevision) TransitionTo(next CandidateRevisionState) error {
+	if !c.State.CanTransitionTo(next) {
+		return ErrCandidateState{ID: c.ID, State: c.State, Next: next}
+	}
+	c.State = next
+	return nil
+}
+
 type CandidateFieldChange struct {
 	Field      string
 	BeforeJSON string

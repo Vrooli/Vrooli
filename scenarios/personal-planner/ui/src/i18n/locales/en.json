@@ -120,6 +120,28 @@
       }
     }
   },
+  "overlay": {
+    "preview": "Preview",
+    "refresh": "Refresh",
+    "previewBacklog": "Preview next 3",
+    "refreshBacklog": "Refresh backlog",
+    "accept": "Accept {{time}}",
+    "retryApply": "Retry apply",
+    "checking": "Checking…",
+    "placing": "Placing…",
+    "saving": "Saving…",
+    "capturing": "Capturing…",
+    "saveTask": "Save task",
+    "captureTask": "Capture task",
+    "creating": "Creating…",
+    "createGoal": "Create goal",
+    "recordActual": "Record actual",
+    "saveCorrection": "Save correction",
+    "cancelCorrection": "Cancel correction",
+    "remembering": "Remembering…",
+    "saveEstimate": "Save estimate",
+    "addRoutine": "Add routine"
+  },
   "health": {
     "title": "API Health",
     "loading": "Checking API status…",

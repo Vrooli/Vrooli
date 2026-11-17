@@ -55,7 +55,7 @@ heavier runs when a milestone or certification needs them.
 | --- | --- | --- |
 | Go domain and handler tests | `cd scenarios/nutrition-planner/api && go test ./...` | All pass; fixture arithmetic is exact; handler tests cover auth, revisions, idempotency, and transactions. |
 | UI types and tests | `pnpm -C scenarios/nutrition-planner/ui type-check` and `pnpm -C scenarios/nutrition-planner/ui test` | Zero type errors; interaction semantics are tested. |
-| Scoped Test Genie phases | `vrooli scenario test nutrition-planner --phases <phases>`, then block once on `test-genie runs wait --json nutrition-planner <run-id>` | The named phases pass for the right reasons (structure, unit, lint, business, experience, ui-health, performance, docs, storage, contracts, security as relevant). |
+| Scoped Test Genie phases | `vrooli scenario test nutrition-planner --phases experience`, then block once on `test-genie runs wait --json nutrition-planner <run-id>` | One experience verdict covers the served UI; Test Genie also shows never-run or older-than-last-UI-change as stale. Other non-UI checks remain separately selectable. |
 | Requirements | `vrooli scenario requirements validate nutrition-planner --json` (structure only; it stamps `last_validated_at`) plus the sync that follows a Test Genie run | Statuses are earned by `[REQ:ID]` sync; nothing is hand-set. Auto-sync is off until every validation in a module carries a `ref` (D-037). |
 | Contract | `business-health validate scenario nutrition-planner` | Clean. |
 | Experience contract | `experience-manager spec validate nutrition-planner --json` | Clean; bound test ids exist; machine claims pass in the experience phase. |

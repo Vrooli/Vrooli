@@ -562,19 +562,6 @@ func getJSONHelperFunctions(content string) map[string]bool {
 	return helpers
 }
 
-// checkHeaderOrderViolation detects if w.WriteHeader is called before setting Content-Type
-func checkHeaderOrderViolation(lines []string, headerIdx int) bool {
-	// Look backwards from header line to see if WriteHeader was already called
-	for i := max(0, headerIdx-10); i < headerIdx; i++ {
-		lowerLine := strings.ToLower(lines[i])
-		if strings.Contains(lowerLine, "w.writeheader(") || strings.Contains(lowerLine, "w.write(") {
-			// Found write before header - this is a violation
-			return true
-		}
-	}
-	return false
-}
-
 // containsJSONHelper checks if a line calls any AST-detected JSON helper function
 func containsJSONHelper(lowerLine string, helpers map[string]bool) bool {
 	for helperName := range helpers {

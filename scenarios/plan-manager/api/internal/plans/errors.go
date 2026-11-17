@@ -44,9 +44,13 @@ func (e ErrCandidateNotFound) Error() string {
 type ErrCandidateState struct {
 	ID    string
 	State CandidateRevisionState
+	Next  CandidateRevisionState
 }
 
 func (e ErrCandidateState) Error() string {
+	if e.Next != "" {
+		return fmt.Sprintf("candidate revision %q cannot transition from %s to %s", e.ID, e.State, e.Next)
+	}
 	return fmt.Sprintf("candidate revision %q is %s", e.ID, e.State)
 }
 
