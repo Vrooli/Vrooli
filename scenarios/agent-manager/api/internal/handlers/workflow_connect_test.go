@@ -26,11 +26,12 @@ import (
 
 type workflowConnectStub struct {
 	orchestration.WorkflowService
-	execution   *domain.WorkflowExecution
-	start       orchestration.StartWorkflowExecutionRequest
-	waits       int
-	cancels     []orchestration.WorkflowExecutionOperationRequest
-	cancelByKey []orchestration.WorkflowExecutionCancelByKeyRequest
+	execution     *domain.WorkflowExecution
+	listedRequest orchestration.ListWorkflowExecutionsRequest
+	start         orchestration.StartWorkflowExecutionRequest
+	waits         int
+	cancels       []orchestration.WorkflowExecutionOperationRequest
+	cancelByKey   []orchestration.WorkflowExecutionCancelByKeyRequest
 }
 
 func (s *workflowConnectStub) StartWorkflowExecution(_ context.Context, r orchestration.StartWorkflowExecutionRequest) (*domain.WorkflowExecution, error) {
@@ -49,6 +50,32 @@ func (s *workflowConnectStub) WaitWorkflowExecution(context.Context, uuid.UUID, 
 
 func (s *workflowConnectStub) ListWorkflowExecutionRuns(context.Context, uuid.UUID) ([]*domain.WorkflowNodeAttempt, error) {
 	return nil, nil
+}
+
+func (s *workflowConnectStub) ListWorkflowExecutions(_ context.Context, r orchestration.ListWorkflowExecutionsRequest) ([]*domain.WorkflowExecution, error) {
+	s.listedRequest = r
+	if s.execution == nil {
+		return nil, nil
+	}
+	return []*domain.WorkflowExecution{s.execution}, nil
+}
+
+func TestWorkflowConnectListByIdempotencyKeyForwardsExactFilterBeforePagination(t *testing.T) {
+	id := uuid.New()
+	stub := &workflowConnectStub{execution: &domain.WorkflowExecution{ID: id, Owner: "swarm-manager", WorkflowKey: "swarm-manager/phased-plan-drain", IdempotencyKey: "accepted-start"}}
+	h := NewAgentManagerConnectHandler(&Handler{svc: orchestration.HandlerServices{WorkflowService: stub}})
+	_, handler := apiconnect.NewAgentManagerServiceHandler(h)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client := apiconnect.NewAgentManagerServiceClient(server.Client(), server.URL)
+	response, err := client.ListWorkflowExecutions(context.Background(), connect.NewRequest(&apipb.ListWorkflowExecutionsRequest{
+		Owner: "swarm-manager", WorkflowKey: "swarm-manager/phased-plan-drain", IdempotencyKey: "accepted-start", Limit: 1, Offset: 900,
+	}))
+	require.NoError(t, err)
+	require.Len(t, response.Msg.Executions, 1)
+	require.Equal(t, id.String(), response.Msg.Executions[0].Id)
+	require.Equal(t, "accepted-start", stub.listedRequest.IdempotencyKey)
+	require.Equal(t, 900, stub.listedRequest.Offset)
 }
 
 func (s *workflowConnectStub) CancelWorkflowExecution(_ context.Context, r orchestration.WorkflowExecutionOperationRequest) (*orchestration.WorkflowExecutionOperationResult, error) {

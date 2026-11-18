@@ -333,6 +333,9 @@ func TestSandboxLauncher_StartProcess403ReturnsLaunchBlocked(t *testing.T) {
 	if blocked.Code != "git_verb_blocked" {
 		t.Errorf("blocked.Code = %q; want git_verb_blocked", blocked.Code)
 	}
+	if blocked.EventCode() != "git_verb_blocked" || blocked.DurationMS < 0 {
+		t.Errorf("guard evidence = checkId %q duration %dms; want stable ID and measured non-negative duration", blocked.EventCode(), blocked.DurationMS)
+	}
 	if blocked.Verb != "push" {
 		t.Errorf("blocked.Verb = %q; want push", blocked.Verb)
 	}

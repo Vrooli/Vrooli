@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/durability"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/health"
+	"agent-manager/internal/hookreceipt"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/invocationreadmodel"
 	investigationlearning "agent-manager/internal/learning"
@@ -119,6 +120,7 @@ type Orchestrator struct {
 	// run-bound credential capability before the run is exposed as finished.
 	credentialUseReleaser CredentialUseReleaser
 	treasurySessionKeys   TreasurySessionKeyStore
+	hookReceipts          *hookreceipt.Store
 
 	// Flag validation
 	flagValidator runner.FlagValidator
@@ -478,6 +480,11 @@ func DefaultConfig() OrchestratorConfig {
 
 // Option configures the Orchestrator.
 type Option func(*Orchestrator)
+
+// WithHookReceiptStore installs the durable owner for evaluator receipts.
+func WithHookReceiptStore(store *hookreceipt.Store) Option {
+	return func(o *Orchestrator) { o.hookReceipts = store }
+}
 
 // ReceiptSummaryReader provides only the bounded receipt discriminator needed
 // by RunReport. Receipt payloads remain on the dedicated inspection endpoint.

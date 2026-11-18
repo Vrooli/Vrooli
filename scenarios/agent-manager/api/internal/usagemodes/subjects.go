@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -51,6 +52,8 @@ func subjectKeyForParams(p map[string]string) string {
 	switch p["kind"] {
 	case KindRunsOut:
 		return decisionSubjectKey(KindRunsOut, p["scope"])
+	case KindAutoSaveRule:
+		return decisionSubjectKey(KindAutoSaveRule, p["runner"])
 	case KindEnding, KindUntilOf:
 		return decisionSubjectKey(p["kind"], p["mode_id"])
 	case KindTimed:
@@ -72,6 +75,17 @@ const withdrawUnsent = "withdraw_unsent"
 // raise publishes one keyed decision. A legacy ask for the same id is closed by
 // its event id first, so the operator keeps one open decision, not two.
 func (n *Notifier) raise(ctx context.Context, raiser operatordecision.Raiser, id, floodSubject string, facts operatordecision.Facts, extra map[string]string) error {
+	if facts.TemplateData != nil {
+		encoded, err := json.Marshal(facts.TemplateData)
+		if err != nil {
+			return fmt.Errorf("encode decision template data: %w", err)
+		}
+		var normalized map[string]any
+		if err := json.Unmarshal(encoded, &normalized); err != nil {
+			return fmt.Errorf("normalize decision template data: %w", err)
+		}
+		facts.TemplateData = normalized
+	}
 	key := subjectKeyForParams(facts.Correlation)
 	facts.SubjectKey = key
 	if err := n.retireLegacy(ctx, id, "Replaced by an updated version of this question."); err != nil {

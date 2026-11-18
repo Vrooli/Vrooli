@@ -44,6 +44,7 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
@@ -459,6 +460,24 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 				e.sessionEnv[key] = value
 			}
 		}
+		if e.run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex && e.run.ResolvedConfig.CodexAccountScope == "" {
+			if home := strings.TrimSpace(sessionEnv["CODEX_HOME"]); home != "" {
+				if codex, codexErr := codecs.NewCodex(); codexErr == nil {
+					bindCtx, cancel := context.WithTimeout(execCtx, 8*time.Second)
+					scope, bindErr := codex.ReadLaunchAccountScope(bindCtx, home)
+					cancel()
+					if bindErr == nil && scope != "" {
+						updated := *e.run.ResolvedConfig
+						updated.CodexAccountScope = scope
+						if updater, supportsBinding := e.runs.(repository.RunConfigUpdater); supportsBinding {
+							if ok, updateErr := updater.UpdateResolvedConfig(execCtx, e.run.ID, &updated, e.run.Status); updateErr == nil && ok {
+								e.run.ResolvedConfig = &updated
+							}
+						}
+					}
+				}
+			}
+		}
 		if e.profile != nil && len(e.profile.SkillPack) > 0 {
 			skillsDir, scopeErr := RunnerSkillsDir(e.run.ResolvedConfig.RunnerType, e.sessionEnv)
 			if scopeErr != nil {
@@ -654,6 +673,12 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 		env[phases.AgentManagerStoreOwnerEnv] = e.storeOwnerID
 	}
 	delete(env, treasurySessionKeyEnv)
+	// The evaluator receipt capability must never be placed in the agent's
+	// environment: the workload can read and replay its own environment. Until
+	// an owner-held hook handoff exists, strip even caller-supplied values.
+	delete(env, "VROOLI_AM_HOOK_RECEIPT_URL")
+	delete(env, "VROOLI_AM_HOOK_RECEIPT_TOKEN")
+	delete(env, "VROOLI_AM_HOOK_RECEIPT_INVOCATION_ID")
 	return env
 }
 

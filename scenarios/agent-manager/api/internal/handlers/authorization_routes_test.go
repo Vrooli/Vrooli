@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -326,13 +327,52 @@ func TestLocalIdentityOnlyAttachmentDoesNotRequireAnExistingGrant(t *testing.T) 
 		peer string
 		want int
 	}{{"127.0.0.1:1234", http.StatusNoContent}, {"192.0.2.1:1234", http.StatusForbidden}} {
-		r := httptest.NewRequest(http.MethodPost, "/api/v1/runs/attach", nil)
-		r.RemoteAddr = tc.peer
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, r)
-		if w.Code != tc.want {
-			t.Fatalf("peer %s: %d", tc.peer, w.Code)
+		for _, path := range []string{"/api/v1/runs/attach", apiconnect.AgentManagerServiceAttachRunProcedure} {
+			r := httptest.NewRequest(http.MethodPost, path, nil)
+			r.RemoteAddr = tc.peer
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code != tc.want {
+				t.Fatalf("path %s peer %s: %d", path, tc.peer, w.Code)
+			}
 		}
+	}
+}
+
+func TestConnectDetachRunRequiresMatchingVerifiedSelfIdentity(t *testing.T) {
+	runID := uuid.NewString()
+	for _, tc := range []struct {
+		name       string
+		subject    string
+		verified   bool
+		body       string
+		wantStatus int
+		wantReach  bool
+	}{
+		{name: "matching verified identity", subject: runID, verified: true, body: `{"runId":"` + runID + `","reason":"exited"}`, wantStatus: http.StatusNoContent, wantReach: true},
+		{name: "different run", subject: uuid.NewString(), verified: true, body: `{"runId":"` + runID + `"}`, wantStatus: http.StatusForbidden},
+		{name: "unverified identity", subject: runID, body: `{"runId":"` + runID + `"}`, wantStatus: http.StatusUnauthorized},
+		{name: "missing target", subject: runID, verified: true, body: `{}`, wantStatus: http.StatusForbidden},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			reached := false
+			h := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reached = true
+				body, err := io.ReadAll(r.Body)
+				if err != nil || string(body) != tc.body {
+					t.Errorf("handler body = %q, %v; want restored %q", body, err, tc.body)
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			r := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceDetachRunProcedure, strings.NewReader(tc.body))
+			r.Header.Set("Content-Type", "application/json")
+			r = r.WithContext(identity.WithPrincipal(r.Context(), identity.Principal{Kind: identity.ActorAgent, Subject: tc.subject, Verified: tc.verified}))
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, r)
+			if w.Code != tc.wantStatus || reached != tc.wantReach {
+				t.Fatalf("status=%d reached=%t want status=%d reached=%t body=%s", w.Code, reached, tc.wantStatus, tc.wantReach, w.Body.String())
+			}
+		})
 	}
 }
 
@@ -653,5 +693,23 @@ func TestStopAllAdmitsOnlyAGrantCoveringEveryRun(t *testing.T) {
 	}
 	if got := serve("agent-manager:run/" + uuid.NewString()); got != http.StatusForbidden {
 		t.Fatalf("one-run grant got %d, want 403", got)
+	}
+}
+
+func TestVerifiedAgentCanReachConnectContinueRunLineageGuard(t *testing.T) {
+	reached := false
+	router := mux.NewRouter()
+	router.Handle(apiconnect.AgentManagerServiceContinueRunProcedure, AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached = true
+		w.WriteHeader(http.StatusNoContent)
+	}))).Methods(http.MethodPost)
+	request := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceContinueRunProcedure, nil)
+	request = request.WithContext(identity.WithPrincipal(request.Context(), identity.Principal{
+		Kind: identity.ActorAgent, Subject: uuid.NewString(), Verified: true, Scopes: []string{"agent-manager:write"},
+	}))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || !reached {
+		t.Fatalf("status=%d reached=%t body=%s; expected the existing handler lineage guard to run", response.Code, reached, response.Body.String())
 	}
 }

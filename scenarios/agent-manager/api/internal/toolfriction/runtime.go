@@ -15,12 +15,14 @@ const (
 	RuntimeRework              = "rework"
 	RuntimeSandboxEnvironment  = "sandbox_environment"
 	RuntimeBuilding            = "building"
+	RuntimeGuardCheck          = "guard_check"
 
 	RuntimeResponseStopped    = "stopped"
 	RuntimeResponseWorkaround = "workaround"
 	RuntimeResponseAsked      = "asked"
 	RuntimeResponseSucceeded  = "succeeded"
 	RuntimeResponseUnknown    = "unknown"
+	RuntimeOutcomeBlocked     = "blocked"
 )
 
 // RuntimeSignal is a bounded fact extracted from a run's event stream. It
@@ -31,6 +33,8 @@ type RuntimeSignal struct {
 	Kind          string
 	Check         string
 	CheckID       string
+	EvaluatorID   string
+	ReceiptID     string
 	CommandPath   string
 	Owner         string
 	Outcome       string
@@ -54,6 +58,8 @@ type RuntimeRun struct {
 }
 
 type RuntimeWindow struct {
+	// Since and Until select the run cohort upstream. The current cohort uses a
+	// half-open anchor range; it does not clip run durations to this interval.
 	Since time.Time `json:"since"`
 	Until time.Time `json:"until"`
 }
@@ -92,12 +98,24 @@ type BlockedCheckResponses struct {
 	Unknown    int `json:"unknown"`
 }
 
+type BlockedCheckOutcomes struct {
+	Blocked int `json:"blocked"`
+	Allowed int `json:"allowed"`
+	Unknown int `json:"unknown"`
+}
+
 type BlockedCheck struct {
-	CheckID   string                `json:"checkId"`
-	Check     string                `json:"check"`
-	Runs      int                   `json:"runs"`
-	Responses BlockedCheckResponses `json:"responses"`
-	RunIDs    []string              `json:"runIds"`
+	CheckID                    string                `json:"checkId"`
+	Check                      string                `json:"check"`
+	Runs                       int                   `json:"runs"`
+	Occurrences                int                   `json:"occurrences"`
+	BlockedRunIDs              []string              `json:"blockedRunIds"`
+	Outcomes                   BlockedCheckOutcomes  `json:"outcomes"`
+	Responses                  BlockedCheckResponses `json:"responses"`
+	EnforcementDurationMS      int64                 `json:"enforcementDurationMs"`
+	EnforcementDurationKnown   int                   `json:"enforcementDurationKnown"`
+	EnforcementDurationUnknown int                   `json:"enforcementDurationUnknown"`
+	RunIDs                     []string              `json:"runIds"`
 }
 
 // RuntimeReport is a duration-conserving view of observed run-time. Category
@@ -111,9 +129,10 @@ type RuntimeReport struct {
 	BlockedChecks []BlockedCheck  `json:"blockedChecks"`
 }
 
-// AnalyzeRuntime summarizes one bounded set of Agent Manager and imported
-// runs. Measured operation durations are allocated from their corresponding
-// time-accounting bucket, so category totals never exceed observed run time.
+// AnalyzeRuntime summarizes one already-window-filtered set of Agent Manager
+// and imported runs. A duration is classified only when a measured operation
+// signal supports that category. Other measured run time remains unknown to
+// the friction taxonomy, even when its broad model/tool state is known.
 func AnalyzeRuntime(runs []RuntimeRun, window RuntimeWindow) RuntimeReport {
 	report := RuntimeReport{
 		Window:   window,
@@ -152,35 +171,24 @@ func AnalyzeRuntime(runs []RuntimeRun, window RuntimeWindow) RuntimeReport {
 			report.Coverage.UnknownRuns++
 		}
 
-		if !run.HasTime {
-			report.Totals.UnknownDurationMS += total
-			report.Coverage.UnknownDurationMS += total
-			continue
+		// Category evidence pools are intentionally narrower than total elapsed
+		// time. Model-generating and residual tool time can be measured without
+		// revealing whether the agent was building, investigating, or doing
+		// another kind of work.
+		remainingToolMS := total
+		remainingUnattributedMS := total
+		remainingTotalMS := total
+		if run.HasTime {
+			remainingToolMS = min(total, max(int64(0), run.Time.ToolExecutingMS))
+			remainingUnattributedMS = min(total, max(int64(0), run.Time.UnattributableMS))
+		} else {
+			if len(run.Events) == 0 {
+				report.Totals.UnknownDurationMS += total
+				report.Coverage.UnknownDurationMS += total
+				continue
+			}
 		}
-		unknown := max(int64(0), run.Time.UnattributableMS+run.Time.AwaitingHumanMS+run.Time.IdleWaitingMS)
-		if len(run.Events) == 0 {
-			// A materialized timing row can survive event retention, but without
-			// invocation facts its tool time cannot be split into building,
-			// validation, or infrastructure work.
-			unknown += run.Time.ToolExecutingMS
-		}
-		known := min(total, max(int64(0), run.Time.DurationMS()-unknown))
-		unknown = total - known
-		report.Totals.KnownDurationMS += known
-		report.Totals.UnknownDurationMS += unknown
-		report.Coverage.UnknownDurationMS += unknown
-
-		// Directly measured invocation durations are classified out of tool
-		// execution, and typed sandbox operation time out of unattributed time.
-		// The residual model/tool time is building; idle waits and human handoffs
-		// stay unknown unless a validator call provides a measured duration.
-		remainingToolMS := min(run.Time.ToolExecutingMS, known)
-		remainingUnattributedMS := min(run.Time.UnattributableMS, unknown)
-		if len(run.Events) == 0 {
-			remainingToolMS = 0
-		}
-		classifiedFromUnknown := int64(0)
-		classifiedFromTools := int64(0)
+		classified := int64(0)
 		for _, signal := range sortedSignals(run.Events) {
 			category := runtimeCategory(signal)
 			if category == "" {
@@ -188,25 +196,28 @@ func AnalyzeRuntime(runs []RuntimeRun, window RuntimeWindow) RuntimeReport {
 			}
 			duration := int64(0)
 			if signal.DurationKnown && signal.DurationMS > 0 {
-				switch signal.DurationBasis {
-				case "unattributed":
-					duration = min(signal.DurationMS, remainingUnattributedMS)
-					remainingUnattributedMS -= duration
-					classifiedFromUnknown += duration
-				default:
-					duration = min(signal.DurationMS, remainingToolMS)
-					remainingToolMS -= duration
-					classifiedFromTools += duration
+				if run.HasTime {
+					switch signal.DurationBasis {
+					case "unattributed":
+						duration = min(signal.DurationMS, remainingUnattributedMS)
+						remainingUnattributedMS -= duration
+					default:
+						duration = min(signal.DurationMS, remainingToolMS)
+						remainingToolMS -= duration
+					}
+				} else {
+					duration = min(signal.DurationMS, remainingTotalMS)
 				}
+				duration = min(duration, remainingTotalMS)
+				remainingTotalMS -= duration
+				classified += duration
 			}
 			addRuntimeEvidence(&report.Categories[categoryIndex[category]], categoryRuns, category, run.ID, duration)
 		}
-		building := max(int64(0), known-classifiedFromTools)
-		addRuntimeEvidence(&report.Categories[categoryIndex[RuntimeBuilding]], categoryRuns, RuntimeBuilding, run.ID, building)
-		report.Totals.KnownDurationMS += classifiedFromUnknown
-		report.Totals.UnknownDurationMS -= classifiedFromUnknown
-		report.Coverage.UnknownDurationMS -= classifiedFromUnknown
-
+		remaining := max(int64(0), total-classified)
+		report.Totals.KnownDurationMS += classified
+		report.Totals.UnknownDurationMS += remaining
+		report.Coverage.UnknownDurationMS += remaining
 	}
 	if report.Coverage.RunsObserved == 0 {
 		report.Coverage.State = "unavailable"
@@ -217,6 +228,7 @@ func AnalyzeRuntime(runs []RuntimeRun, window RuntimeWindow) RuntimeReport {
 	}
 	for _, entry := range blocked {
 		sort.Strings(entry.RunIDs)
+		sort.Strings(entry.BlockedRunIDs)
 		report.BlockedChecks = append(report.BlockedChecks, *entry)
 	}
 	sort.Slice(report.BlockedChecks, func(i, j int) bool { return report.BlockedChecks[i].Check < report.BlockedChecks[j].Check })
@@ -241,6 +253,9 @@ func runtimeCategory(signal RuntimeSignal) string {
 		return signal.Kind
 	}
 	if signal.Kind != "invocation" {
+		if signal.Kind == RuntimeGuardCheck && signal.Outcome == RuntimeOutcomeBlocked {
+			return RuntimeStoppedByCheck
+		}
 		return ""
 	}
 	if signal.Retry {
@@ -281,20 +296,48 @@ func addRuntimeEvidence(category *RuntimeLoss, runs map[string]map[string]bool, 
 
 func collectBlockedChecks(groups map[string]*BlockedCheck, run RuntimeRun, coverage *RuntimeCoverage) {
 	type checkEvidence struct {
-		label       string
-		failedAt    time.Time
-		succeededAt time.Time
+		label        string
+		failedAt     time.Time
+		succeededAt  time.Time
+		guardDenials []RuntimeSignal
 	}
 	checks := map[string]*checkEvidence{}
 	for _, signal := range sortedSignals(run.Events) {
+		if signal.Kind == RuntimeGuardCheck {
+			checkID := strings.TrimSpace(signal.CheckID)
+			groupKey := checkID
+			if groupKey == "" {
+				groupKey = "guard:unknown"
+			}
+			check := checks[groupKey]
+			if check == nil {
+				label := strings.TrimSpace(signal.Check)
+				if checkID != "" {
+					label = checkID
+				}
+				if label == "" {
+					label = "guard check (identity unavailable)"
+				}
+				check = &checkEvidence{label: label}
+				checks[groupKey] = check
+			}
+			check.guardDenials = append(check.guardDenials, signal)
+			continue
+		}
 		if signal.Kind != "invocation" || signal.SemanticsKind != "verify" {
 			continue
 		}
 		checkID := signal.CheckID
-		check := checks[checkID]
+		groupKey := checkID
+		if groupKey == "" {
+			// Keep command-level observations together for reporting, but never
+			// promote the display label to an evaluator identity.
+			groupKey = "label:" + signal.Check
+		}
+		check := checks[groupKey]
 		if check == nil {
 			check = &checkEvidence{label: signal.Check}
-			checks[checkID] = check
+			checks[groupKey] = check
 		}
 		switch signal.Outcome {
 		case runsignal.OutcomeFailure:
@@ -303,21 +346,60 @@ func collectBlockedChecks(groups map[string]*BlockedCheck, run RuntimeRun, cover
 			check.succeededAt = signal.At
 		}
 	}
-	for checkID, check := range checks {
-		if check.failedAt.IsZero() {
+	for groupKey, check := range checks {
+		if check.failedAt.IsZero() && len(check.guardDenials) == 0 {
 			continue
 		}
-		entry := groups[checkID]
+		checkID := ""
+		if !strings.HasPrefix(groupKey, "label:") && groupKey != "guard:unknown" {
+			checkID = groupKey
+		}
+		entryKey := groupKey
+		entry := groups[entryKey]
 		if entry == nil {
-			entry = &BlockedCheck{CheckID: checkID, Check: check.label}
-			groups[checkID] = entry
+			entry = &BlockedCheck{CheckID: checkID, Check: check.label, BlockedRunIDs: make([]string, 0)}
+			groups[entryKey] = entry
+		}
+		if len(check.guardDenials) > 0 {
+			if checkID == "" {
+				coverage.UnclassifiedBlockedRuns++
+			}
+			if !containsString(entry.RunIDs, run.ID) {
+				entry.Runs++
+				entry.RunIDs = append(entry.RunIDs, run.ID)
+			}
+			for _, denial := range check.guardDenials {
+				entry.Occurrences++
+				switch denial.Outcome {
+				case RuntimeOutcomeBlocked:
+					entry.Outcomes.Blocked++
+					if !containsString(entry.BlockedRunIDs, run.ID) {
+						entry.BlockedRunIDs = append(entry.BlockedRunIDs, run.ID)
+					}
+				case "allowed":
+					entry.Outcomes.Allowed++
+				default:
+					entry.Outcomes.Unknown++
+				}
+				if denial.DurationKnown {
+					entry.EnforcementDurationKnown++
+					entry.EnforcementDurationMS += max(int64(0), denial.DurationMS)
+				} else {
+					entry.EnforcementDurationUnknown++
+				}
+				response := guardResponseAfter(run, denial.At)
+				incrementResponse(&entry.Responses, response)
+			}
+			continue
 		}
 		entry.Runs++
+		entry.Occurrences++
 		entry.RunIDs = append(entry.RunIDs, run.ID)
 		response := RuntimeResponseUnknown
 		if checkID == "" {
 			coverage.UnclassifiedBlockedRuns++
-		} else if check.succeededAt.After(check.failedAt) {
+		}
+		if check.succeededAt.After(check.failedAt) {
 			response = RuntimeResponseSucceeded
 		} else if run.TerminalClass == "verdict" && run.StopReason == "blocked" {
 			response = RuntimeResponseStopped
@@ -326,19 +408,45 @@ func collectBlockedChecks(groups map[string]*BlockedCheck, run RuntimeRun, cover
 		} else if responseAskedAfter(run.Events, check.failedAt) {
 			response = RuntimeResponseAsked
 		}
-		switch response {
-		case RuntimeResponseStopped:
-			entry.Responses.Stopped++
-		case RuntimeResponseWorkaround:
-			entry.Responses.Workaround++
-		case RuntimeResponseAsked:
-			entry.Responses.Asked++
-		case RuntimeResponseSucceeded:
-			entry.Responses.Succeeded++
-		default:
-			entry.Responses.Unknown++
+		incrementResponse(&entry.Responses, response)
+	}
+}
+
+func guardResponseAfter(run RuntimeRun, at time.Time) string {
+	if run.TerminalClass == "verdict" && run.StopReason == "blocked" {
+		return RuntimeResponseStopped
+	}
+	if responseTextAfter(run.Events, at, "workaround", "bypass", "skip this check") {
+		return RuntimeResponseWorkaround
+	}
+	if responseAskedAfter(run.Events, at) {
+		return RuntimeResponseAsked
+	}
+	return RuntimeResponseUnknown
+}
+
+func incrementResponse(responses *BlockedCheckResponses, response string) {
+	switch response {
+	case RuntimeResponseStopped:
+		responses.Stopped++
+	case RuntimeResponseWorkaround:
+		responses.Workaround++
+	case RuntimeResponseAsked:
+		responses.Asked++
+	case RuntimeResponseSucceeded:
+		responses.Succeeded++
+	default:
+		responses.Unknown++
+	}
+}
+
+func containsString(values []string, value string) bool {
+	for _, candidate := range values {
+		if candidate == value {
+			return true
 		}
 	}
+	return false
 }
 
 func responseTextAfter(events []RuntimeSignal, after time.Time, phrases ...string) bool {

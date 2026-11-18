@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "agent-manager",
   "generator": "v1.0.0",
-  "manifest_hash": "88f9049c74d7e892bbcc53ca652122cb393e1d423a9460af43732a378321e23c",
+  "manifest_hash": "7dc28dba02209fdff222089d623c2b7376877142cf742d55716fc0de4e6a81d3",
   "commands": [
     {
       "path": "conversation context",
@@ -858,7 +858,8 @@
     {
       "path": "usage pace",
       "group": "usage",
-      "command": "pace"
+      "command": "pace",
+      "binding": "."
     },
     {
       "path": "usage parity",
@@ -878,6 +879,12 @@
       "path": "usage reindex",
       "group": "usage",
       "command": "reindex",
+      "binding": "."
+    },
+    {
+      "path": "usage runtime-friction",
+      "group": "usage",
+      "command": "runtime-friction",
       "binding": "."
     },
     {

@@ -3,11 +3,11 @@ package integrations
 import (
 	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
+	"connectrpc.com/connect"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
 
@@ -15,43 +15,31 @@ import (
 // This is used by the reconciliation service to verify agent state after server restarts.
 // On connection failure, re-resolves the agent-manager URL and retries once.
 func (c *AgentManagerClient) CheckAgentStatus(ctx context.Context, runID string) (*domainpb.Run, error) {
-	resp, err := c.doWithRetry(ctx, "GET", "/api/v1/runs/"+runID, nil)
+	result, err := callAgentManager(ctx, c, true, func(callCtx context.Context, client apiconnect.AgentManagerServiceClient) (*apipb.GetRunResponse, error) {
+		resp, err := client.GetRun(callCtx, connect.NewRequest(&apipb.GetRunRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to agent-manager: %w", err)
+		return nil, fmt.Errorf("get run: %w", err)
 	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("agent-manager returned %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result apipb.GetRunResponse
-	if err := protoUnmarshalOpts.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse run response: %w", err)
-	}
-
 	return result.GetRun(), nil
 }
 
 // GetEvents retrieves events for a run, optionally filtered by sequence.
 func (c *AgentManagerClient) GetEvents(ctx context.Context, runID string, afterSequence int64) ([]*TranslatedEvent, error) {
-	path := fmt.Sprintf("/api/v1/runs/%s/events?after_sequence=%d", runID, afterSequence)
-
-	resp, err := c.doWithRetry(ctx, "GET", path, nil)
+	after := afterSequence
+	result, err := callAgentManager(ctx, c, true, func(callCtx context.Context, client apiconnect.AgentManagerServiceClient) (*apipb.GetRunEventsResponse, error) {
+		resp, err := client.GetRunEvents(callCtx, connect.NewRequest(&apipb.GetRunEventsRequest{RunId: runID, AfterSequence: &after}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to agent-manager: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get events failed: %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result apipb.GetRunEventsResponse
-	if err := protoUnmarshalOpts.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse events response: %w", err)
+		return nil, fmt.Errorf("get events: %w", err)
 	}
 
 	// Translate proto events to inbox format
@@ -68,36 +56,30 @@ func (c *AgentManagerClient) GetEvents(ctx context.Context, runID string, afterS
 
 // StopRun stops a running agent run.
 func (c *AgentManagerClient) StopRun(ctx context.Context, runID string) error {
-	resp, err := c.doWithRetry(ctx, "POST", "/api/v1/runs/"+runID+"/stop", nil)
+	_, err := callAgentManager(ctx, c, false, func(callCtx context.Context, client apiconnect.AgentManagerServiceClient) (*apipb.StopRunResponse, error) {
+		resp, err := client.StopRun(callCtx, connect.NewRequest(&apipb.StopRunRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to agent-manager: %w", err)
+		return fmt.Errorf("stop run: %w", err)
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("stop failed: %d: %s", resp.StatusCode, string(respBody))
-	}
-
 	return nil
 }
 
 // GetRunStatus gets the current status of a run.
 func (c *AgentManagerClient) GetRunStatus(ctx context.Context, runID string) (*AgentRunStatus, error) {
-	resp, err := c.doWithRetry(ctx, "GET", "/api/v1/runs/"+runID, nil)
+	result, err := callAgentManager(ctx, c, true, func(callCtx context.Context, client apiconnect.AgentManagerServiceClient) (*apipb.GetRunResponse, error) {
+		resp, err := client.GetRun(callCtx, connect.NewRequest(&apipb.GetRunRequest{RunId: runID}))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to agent-manager: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get status failed: %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result apipb.GetRunResponse
-	if err := protoUnmarshalOpts.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse status response: %w", err)
+		return nil, fmt.Errorf("get run status: %w", err)
 	}
 
 	run := result.GetRun()
@@ -117,22 +99,35 @@ func (c *AgentManagerClient) GetRunStatus(ctx context.Context, runID string) (*A
 
 // ListRuns retrieves a paginated list of runs from agent-manager.
 func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions) (*ListRunsResult, error) {
-	path := buildListRunsPath(opts)
-
-	resp, err := c.doWithRetry(ctx, "GET", path, nil)
+	request := &apipb.ListRunsRequest{}
+	if opts.TagPrefix != "" {
+		request.TagPrefix = &opts.TagPrefix
+	}
+	if opts.Limit > 0 {
+		limit := int32(opts.Limit)
+		request.Limit = &limit
+	}
+	if opts.Offset > 0 {
+		offset := int32(opts.Offset)
+		request.Offset = &offset
+	}
+	if opts.Status != "" {
+		status := domainpb.RunStatus_value["RUN_STATUS_"+strings.ToUpper(opts.Status)]
+		if status == 0 {
+			return nil, fmt.Errorf("unknown run status %q", opts.Status)
+		}
+		value := domainpb.RunStatus(status)
+		request.Status = &value
+	}
+	result, err := callAgentManager(ctx, c, true, func(callCtx context.Context, client apiconnect.AgentManagerServiceClient) (*apipb.ListRunsResponse, error) {
+		resp, err := client.ListRuns(callCtx, connect.NewRequest(request))
+		if err != nil {
+			return nil, err
+		}
+		return resp.Msg, nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to agent-manager: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, _ := io.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("list runs failed: %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var result apipb.ListRunsResponse
-	if err := protoUnmarshalOpts.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse list runs response: %w", err)
+		return nil, fmt.Errorf("list runs: %w", err)
 	}
 
 	runs := make([]AgentRunSummary, 0, len(result.GetRuns()))
@@ -145,25 +140,6 @@ func (c *AgentManagerClient) ListRuns(ctx context.Context, opts ListRunsOptions)
 		Total:   int(result.GetTotal()),
 		HasMore: result.GetHasMore(),
 	}, nil
-}
-
-// buildListRunsPath constructs the query path for listing runs.
-func buildListRunsPath(opts ListRunsOptions) string {
-	path := "/api/v1/runs?"
-	params := make([]string, 0, 4)
-	if opts.Status != "" {
-		params = append(params, "status="+opts.Status)
-	}
-	if opts.TagPrefix != "" {
-		params = append(params, "tag_prefix="+opts.TagPrefix)
-	}
-	if opts.Limit > 0 {
-		params = append(params, fmt.Sprintf("limit=%d", opts.Limit))
-	}
-	if opts.Offset > 0 {
-		params = append(params, fmt.Sprintf("offset=%d", opts.Offset))
-	}
-	return path + strings.Join(params, "&")
 }
 
 // protoRunToSummary converts a proto Run to an AgentRunSummary.

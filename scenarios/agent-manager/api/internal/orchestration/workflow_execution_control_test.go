@@ -101,6 +101,34 @@ func TestWorkflowExecutionControlAndTriageProjections(t *testing.T) {
 	}
 }
 
+func TestWorkflowExecutionLookupByIdempotencyKeyPrecedesPagination(t *testing.T) {
+	ctx := context.Background()
+	o, repos := newRelayOrchestrator(t, newFakeRunLauncher())
+	revision := waitWorkflowDefinition()
+	if err := repos.Workflows.ActivateBatch(ctx, []*domain.WorkflowRevision{revision}); err != nil {
+		t.Fatalf("activate workflow: %v", err)
+	}
+	key := "exact-start-" + uuid.NewString()
+	execution, err := o.StartWorkflowExecution(ctx, StartWorkflowExecutionRequest{
+		Owner: "owner", WorkflowKey: revision.Key, Input: json.RawMessage(`{}`), IdempotencyKey: key,
+	})
+	if err != nil {
+		t.Fatalf("start workflow: %v", err)
+	}
+	// A key lookup is indexed and exact: ordinary list pagination must not hide
+	// an already accepted start, even when the caller's offset exceeds the list.
+	items, err := o.ListWorkflowExecutions(ctx, ListWorkflowExecutionsRequest{
+		Owner: "owner", WorkflowKey: revision.Key, IdempotencyKey: key, Limit: 1, Offset: 900,
+	})
+	if err != nil || len(items) != 1 || items[0].ID != execution.ID {
+		t.Fatalf("exact key lookup items=%+v err=%v", items, err)
+	}
+	items, err = o.ListWorkflowExecutions(ctx, ListWorkflowExecutionsRequest{Owner: "another-owner", IdempotencyKey: key, Limit: 1, Offset: 900})
+	if err != nil || len(items) != 0 {
+		t.Fatalf("foreign owner lookup items=%+v err=%v", items, err)
+	}
+}
+
 func TestCancelWorkflowExecutionByKeyReturnsTerminalStartReceipt(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

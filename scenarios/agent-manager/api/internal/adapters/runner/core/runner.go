@@ -109,6 +109,24 @@ type Runner struct {
 	launched map[uuid.UUID]runner.LaunchedProcess
 }
 
+// withClaudeSourceRunID carries the authoritative orchestration run identity
+// into Claude's inherited statusline process. Caller-provided values cannot
+// override this association.
+func withClaudeSourceRunID(env []string, runnerType domain.RunnerType, runID uuid.UUID) []string {
+	const key = "VROOLI_ANTHROPIC_SOURCE_RUN_ID"
+	if runnerType != domain.RunnerTypeClaudeCode || runID == uuid.Nil {
+		return env
+	}
+	out := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		name, _, _ := strings.Cut(entry, "=")
+		if name != key {
+			out = append(out, entry)
+		}
+	}
+	return append(out, key+"="+runID.String())
+}
+
 // HasChargeSource exposes the construction invariant to architecture tests
 // without leaking the concrete codec through the runner registry interface.
 func (r *Runner) HasChargeSource() bool {
@@ -326,6 +344,7 @@ func (r *Runner) Execute(ctx context.Context, req runner.ExecuteRequest) (*runne
 	args := r.codec.BuildArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
+	env = withClaudeSourceRunID(env, r.codec.Type(), req.RunID)
 	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
 	if err != nil {
 		return nil, fmt.Errorf("resolve model source: %w", err)
@@ -555,6 +574,7 @@ func (r *Runner) Continue(ctx context.Context, req runner.ContinueRequest) (*run
 	args := r.codec.BuildContinueArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(tag, req.Environment)
+	env = withClaudeSourceRunID(env, r.codec.Type(), req.RunID)
 	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
 	if err != nil {
 		return nil, fmt.Errorf("resolve model source: %w", err)
@@ -950,6 +970,7 @@ func (r *Runner) executeWithDurableTranscript(
 	args := r.codec.BuildArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(req.GetTag(), req.Environment)
+	env = withClaudeSourceRunID(env, r.codec.Type(), req.RunID)
 	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
 	if err != nil {
 		return nil, fmt.Errorf("resolve model source: %w", err)
@@ -1016,6 +1037,7 @@ func (r *Runner) continueWithDurableTranscript(
 	args := r.codec.BuildContinueArgs(state, req)
 	prompt := r.codec.BuildPrompt(req.Prompt, req.Attachments)
 	env := r.codec.BuildEnv(tag, req.Environment)
+	env = withClaudeSourceRunID(env, r.codec.Type(), req.RunID)
 	args, env, err := cliutil.ResolveModelSourceEnvironment(string(r.codec.Type()), args, env)
 	if err != nil {
 		return nil, fmt.Errorf("resolve model source: %w", err)

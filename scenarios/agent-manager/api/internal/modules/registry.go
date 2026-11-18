@@ -8,6 +8,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/findings"
+	"agent-manager/internal/hookreceipt"
 	"agent-manager/internal/interventions"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/maintenance"
@@ -21,6 +22,7 @@ import (
 	"agent-manager/internal/runnerhealth"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageforecast"
+	"agent-manager/internal/utilizationhistory"
 	"agent-manager/internal/workflowruntime"
 
 	"github.com/vrooli/api-core/database"
@@ -55,6 +57,7 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(eventlog.Schema),
 		database.SchemaProviderFunc(conversationsearch.Schema),
 		database.SchemaProviderFunc(findings.Schema),
+		database.SchemaProviderFunc(hookreceipt.Schema),
 		database.SchemaProviderFunc(investigation.Schema),
 		database.SchemaProviderFunc(policy.Schema),
 		database.SchemaProviderFunc(permissionpolicy.Schema),
@@ -62,6 +65,7 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(modelhealth.Schema),
 		database.SchemaProviderFunc(runnerhealth.Schema),
 		database.SchemaProviderFunc(usageforecast.Schema),
+		database.SchemaProviderFunc(utilizationhistory.Schema),
 		database.SchemaProviderFunc(supervision.Schema),
 		database.SchemaProviderFunc(maintenance.Schema),
 		database.SchemaProviderFunc(interventions.Schema),

@@ -108,7 +108,7 @@ func TestForecastDetectsEarlyResetsAndClassifiesStatus(t *testing.T) {
 	}
 }
 
-func TestForecastNeverSplitsAWindowOnAPercentDropUnderTheSameReset(t *testing.T) {
+func TestForecastKeepsWindowHistoryButDropsAStalePeakFromTheCurrentReading(t *testing.T) {
 	reset := at("2026-11-04T06:57:00Z")
 	start := reset.Add(-7 * 24 * time.Hour)
 	// A lagging reader reports 0..9% while the window already stood at 20%:
@@ -118,10 +118,10 @@ func TestForecastNeverSplitsAWindowOnAPercentDropUnderTheSameReset(t *testing.T)
 		ramp(start.Add(21*time.Hour), start.Add(30*time.Hour), 0, 9)))
 	windows := Windows(readings)
 	if len(windows) != 1 || windows[0].Max() != 20 || !windows[0].Start.Equal(start) {
-		t.Fatalf("a lower percent under the same reset must not start a window: %d windows", len(windows))
+		t.Fatalf("the lower percent under the same reset must not split retained window history: %d windows", len(windows))
 	}
-	if f := onlyForecast(t, readings, start.Add(30*time.Hour)); f.EarlyReset || f.Previous != nil || f.Used != 20 {
-		t.Fatalf("no early reset expected: early=%v previous=%+v used=%v", f.EarlyReset, f.Previous, f.Used)
+	if f := onlyForecast(t, readings, start.Add(30*time.Hour)); f.EarlyReset || f.Previous != nil || f.Used != 9 {
+		t.Fatalf("current forecast should use the newest fresh provider percentage: early=%v previous=%+v used=%v", f.EarlyReset, f.Previous, f.Used)
 	}
 }
 
@@ -377,6 +377,23 @@ func TestForecastReportsTheLastReadingBesideTheMaximum(t *testing.T) {
 	f := onlyForecast(t, readings, at("2026-10-29T06:50:00Z"))
 	if f.Used != 63 || f.Window.LastPercent != 46 || !f.AsOf.Equal(at("2026-10-29T06:49:00Z")) {
 		t.Fatalf("used=%v last=%v at %v", f.Used, f.Window.LastPercent, f.AsOf)
+	}
+}
+
+func TestCurrentForecastDoesNotCarryAStaleExhaustionAcrossFreshLowerQuotaReading(t *testing.T) {
+	now := at("2026-11-16T19:05:00Z")
+	reset := at("2026-11-18T15:00:00Z")
+	readings := []pricing.QuotaReadingSpan{
+		claudeSpan("seven_day", at("2026-11-14T15:08:42Z"), 100, reset.Unix()),
+		claudeSpan("seven_day", at("2026-11-16T19:02:56Z"), 97, reset.Unix()),
+	}
+
+	got := onlyForecast(t, readings, now)
+	if got.Used != 97 || got.Window.LastPercent != 97 {
+		t.Fatalf("used=%v latest=%v; want fresh provider reading 97%% instead of stale 100%%", got.Used, got.Window.LastPercent)
+	}
+	if got.Reason == "the provider reports the window exhausted" {
+		t.Fatalf("fresh 97%% reading still reports provider exhaustion: %+v", got)
 	}
 }
 

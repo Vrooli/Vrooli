@@ -830,6 +830,10 @@ type RunAdmission struct {
 // RunConfig contains the resolved configuration for a run.
 // This can be loaded from a profile, provided inline, or a combination of both.
 type RunConfig struct {
+	// CodexAccountScope is an owner-written opaque identity bound through the
+	// app-server account/rateLimits/read API while using this run's CODEX_HOME.
+	// Empty means unknown; it is never inferred from the host profile.
+	CodexAccountScope string `json:"codexAccountScope,omitempty"`
 	// Owner-written commission bindings survive pauses and prevent old owners
 	// from joining a newly commissioned delivery effort.
 	DeliveryCommissions map[string]string `json:"deliveryCommissions,omitempty"`

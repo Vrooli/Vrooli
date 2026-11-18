@@ -25,6 +25,9 @@ type Snapshot struct {
 	ObservedExecutingRuns uint32
 	LogicalQueuedRuns     uint32
 	Unknown               []string
+	// PhysicalRunIDs is the complete set of positively observed run IDs when
+	// Complete is true. It is telemetry provenance, not an admission input.
+	PhysicalRunIDs []string
 }
 
 type Reader struct{ observer Observer }
@@ -53,6 +56,7 @@ func (r *Reader) Read(ctx context.Context) Snapshot {
 		return result
 	}
 	result.ObservedExecutingRuns = uint32(inventory.ObservedExecutors)
+	result.PhysicalRunIDs = append([]string(nil), inventory.PhysicalRunIDs...)
 	result.LogicalQueuedRuns = uint32(inventory.LogicalQueuedRuns)
 	if result.ObservedAt.IsZero() {
 		result.addUnknown("physical observation timestamp unavailable")

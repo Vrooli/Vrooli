@@ -21,6 +21,7 @@ import (
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
+	"agent-manager/internal/hookreceipt"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/interventions"
 	"agent-manager/internal/invocationreadmodel"
@@ -181,6 +182,13 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 	if err != nil {
 		return OrchestratorDependencies{}, fmt.Errorf("initialize identity secret: %w", err)
 	}
+	hookReceiptStore := hookreceipt.NewStore(db)
+	receiptCleanupCtx, cancelReceiptCleanup := context.WithTimeout(context.Background(), 5*time.Second)
+	_, receiptCleanupErr := hookReceiptStore.RevokeOutstanding(receiptCleanupCtx)
+	cancelReceiptCleanup()
+	if receiptCleanupErr != nil {
+		return OrchestratorDependencies{}, fmt.Errorf("revoke stale evaluator hook credentials: %w", receiptCleanupErr)
+	}
 	spawnCfg := spawnConfig(levers, orchConfig)
 	spawnDispatcher := spawn.New(spawnCfg)
 	workspaceEnsurer := orchestration.NewCommandWorkspaceSandboxEnsurer(sandboxProvider, levers.Sandbox)
@@ -205,7 +213,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		orchestration.WithTerminator(terminator), orchestration.WithStorageLabel("sqlite"), orchestration.WithRolePolicyState(roleState, roleResolver),
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithLabelGenerator(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
-		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
+		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithHookReceiptStore(hookReceiptStore), orchestration.WithSpawnDispatcher(spawnDispatcher),
 		orchestration.WithTreasurySessionKeyStore(orchestration.NewCredentialAuthorityTreasurySessionKeys()),
 		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithResearchBudgetLedger(researchbudget.Ledger{DB: db}), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithPortOwners(processPortOwners()), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 		orchestration.WithOwnerIdentity(ownerIdentity),

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
 
 	"github.com/google/uuid"
@@ -78,6 +79,29 @@ func TestEmitGenericFailureEvent_FallsBackToInternal(t *testing.T) {
 	data := store.events[0].Data.(*domain.ErrorEventData)
 	if data.Code != string(domain.ErrCodeInternal) {
 		t.Errorf("Code = %q, want INTERNAL for bare error", data.Code)
+	}
+}
+
+func TestEmitGenericFailureEvent_PersistsAuthoritativeGuardEvidence(t *testing.T) {
+	store := &filterableEventStore{}
+	deps := Deps{Events: store}
+	runID := uuid.New()
+	denial := &sandbox.LaunchBlocked{Code: "git_verb_blocked", DurationMS: 17}
+	EmitGenericFailureEvent(context.Background(), deps, runID, &domain.RunnerError{Operation: "execute", Cause: denial})
+
+	if len(store.events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(store.events))
+	}
+	data := store.events[0].Data.(*domain.ErrorEventData)
+	if data.Code != "git_verb_blocked" {
+		t.Fatalf("error code = %q, want source evaluator ID preserved through RunnerError", data.Code)
+	}
+	guard, ok := data.Details["guardCheck"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("guard check details = %#v", data.Details["guardCheck"])
+	}
+	if guard["source"] != "workspace-sandbox-http-403" || guard["checkId"] != "git_verb_blocked" || guard["outcome"] != "blocked" || guard["durationMs"] != int64(17) || guard["durationKnown"] != true {
+		t.Fatalf("guard evidence = %#v", guard)
 	}
 }
 

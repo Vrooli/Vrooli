@@ -17,7 +17,7 @@ func TestDecisionSubscriptionReconcilesChangedPortAndDisabledRow(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method {
 				case http.MethodGet:
-					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": 42, "name": "agent-manager-decision-answers", "event_pattern": askResolvedEventPattern, "delivery_target": "http://127.0.0.1:1111/answers", "enabled": enabled}})
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": 42, "name": "agent-manager-decision-answers", "owner_scenario": "agent-manager", "event_pattern": askResolvedEventPattern, "delivery_type": "webhook", "delivery_target": "http://127.0.0.1:1111/answers", "enabled": enabled}})
 				case http.MethodPut:
 					if r.URL.Path != "/api/v1/subscriptions/42" {
 						t.Errorf("wrong row: %s", r.URL.Path)

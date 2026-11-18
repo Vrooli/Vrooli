@@ -56,13 +56,26 @@ func TestUsageRunOutUsesTemplateAndOtherDecisionsKeepPages(t *testing.T) {
 		t.Fatalf("run-out decision must publish template data without producer HTML: %+v", p)
 	}
 	data := p["template_data"].(map[string]any)
-	mode := data["mode"].(map[string]any)
-	if mode["runner"] != "codex" || mode["until"] != "weekly-reset" {
-		t.Errorf("template mode = %+v", mode)
+	window := data["window"].(map[string]any)
+	if window["reset"] != f.Window.ResetAt.UTC().Format(time.RFC3339) {
+		t.Errorf("template window reset = %v", window["reset"])
 	}
-	forecast := data["forecast"].(map[string]any)
-	if forecast["used_percent"] != float64(81) || forecast["status"] != "will_exhaust" || forecast["reason"] != f.Reason {
-		t.Errorf("template forecast = %+v", forecast)
+	if window["source"].(map[string]any)["status"] != "real" {
+		t.Errorf("template window source = %+v", window["source"])
+	}
+	readings := window["readings"].([]any)
+	if len(readings) == 0 || readings[len(readings)-1].(map[string]any)["used"] != float64(81) {
+		t.Errorf("template readings do not include the real last observation: %+v", readings)
+	}
+	var status string
+	for _, raw := range data["technical"].([]any) {
+		item := raw.(map[string]any)
+		if item["label"] == "Forecast status" {
+			status = item["value"].(string)
+		}
+	}
+	if status != f.Status+": "+f.Reason {
+		t.Errorf("technical forecast status = %q", status)
 	}
 	if q := coldFacts(rec.decisions()[0]).Question; !strings.Contains(q, "Your Codex weekly allowance") || !strings.Contains(q, "46 hours before it resets") {
 		t.Errorf("run-out question = %q", q)

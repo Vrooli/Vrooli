@@ -1220,7 +1220,8 @@ func AsDomainError(err error) DomainError {
 	if err == nil {
 		return NewInternalError("nil error", nil)
 	}
-	if de, ok := err.(DomainError); ok {
+	var de DomainError
+	if errors.As(err, &de) {
 		return de
 	}
 	return NewInternalError("internal error", err)

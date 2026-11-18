@@ -28,8 +28,11 @@ const DecisionEventType = "agent_manager.usage_mode.decision_requested.v1"
 // Decision kinds (Correlation["kind"]).
 const (
 	KindRunsOut = "runs-out"
-	KindEnding  = "ending"
-	KindUntilOf = "until-off"
+	// KindAutoSaveRule asks whether future run-out warnings should enable the
+	// standing rule while a low-power mode is already covering the current one.
+	KindAutoSaveRule = "auto-save-rule"
+	KindEnding       = "ending"
+	KindUntilOf      = "until-off"
 	// KindTimed asks to start a fixed-length mode on one runner (a requested ask, e.g. a validation).
 	KindTimed = "timed-start"
 )
@@ -412,6 +415,12 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 	for _, mode := range n.Modes.listAt(now) {
 		if usagemode.NormalizeRunner(mode.Scope.Runner) == runner || mode.Scope.Runner == "" {
 			if mode.Scope.Role == "" && mode.Scope.Profile == "" {
+				// The current low-power mode already addresses this forecast. Do
+				// not send a duplicate "start now" decision; offer only the
+				// distinct future standing-rule choice when no rule exists.
+				if n.load().AutoSave[runner] == nil {
+					return n.offerAutoSaveRule(ctx, f, projected, now, runner, mode)
+				}
 				return nil
 			}
 		}
@@ -472,6 +481,82 @@ func (n *Notifier) offerExhaust(ctx context.Context, f usageforecast.Forecast, p
 	return n.save()
 }
 
+// offerAutoSaveRule asks about future projected run-outs while an active mode
+// already covers the current forecast. It never starts or changes a mode.
+func (n *Notifier) offerAutoSaveRule(ctx context.Context, f usageforecast.Forecast, projected, now time.Time, runner string, mode usagemode.Mode) error {
+	w := f.Window
+	if w == nil || f.Projected == nil {
+		return nil
+	}
+	id := operatordecision.CorrelationID("uma", mode.ID, w.Scope())
+	if n.alreadyAsked(id, now) {
+		return nil
+	}
+	who := runnerTitle(runner)
+	reset := w.ResetAt.UTC()
+	until := reset
+	if mode.ExpiresAt != nil && mode.ExpiresAt.Before(until) {
+		until = mode.ExpiresAt.UTC()
+	}
+	window := map[string]any{
+		"source": map[string]any{"status": "real", "label": "Agent Manager quota forecast", "asOf": f.AsOf.UTC().Format(time.RFC3339), "note": "Observed provider quota readings. The current low-power mode is already active; this decision changes only future automatic behavior."},
+		"start":  w.Start.UTC().Format(time.RFC3339), "reset": reset.Format(time.RFC3339), "now": f.Anchor.UTC().Format(time.RFC3339),
+		"readings": readingsFor(w, f), "safePace": true,
+		"lowPower": []map[string]any{{"from": f.Anchor.UTC().Format(time.RFC3339), "to": until.Format(time.RFC3339), "label": "Current mode already active"}},
+	}
+	segments := []map[string]any{{"from": f.Anchor.UTC().Format(time.RFC3339), "to": until.Format(time.RFC3339), "mode": "low"}}
+	options := []map[string]any{
+		{"key": AnswerAutoSave, "title": "Enable automatic low power for future run-outs", "short": "A · Enable rule", "recommended": true, "pill": map[string]any{"text": "Future windows", "tone": "good"}, "bullets": []string{"Does not start or change a mode now.", "For future projected run-outs, switch new work to the lower-cost model until reset.", "You receive a notice each time; turn the rule off any time."}, "segments": segments},
+		{"key": AnswerNotNow, "title": "Leave automatic low power off", "short": "B · Leave off", "pill": map[string]any{"text": "No rule", "tone": "info"}, "bullets": []string{"The current low-power mode continues until its scheduled end.", "Future run-out warnings will ask before starting a mode.", "No automatic rule is created."}, "segments": segments},
+	}
+	modelSummary := "The lower-cost model mapping could not be read from resource policy."
+	modelMap := n.tierMap(ctx, runner)
+	if len(modelMap) > 0 {
+		models := make([]string, 0, len(modelMap))
+		for model := range modelMap {
+			models = append(models, model)
+		}
+		sort.Strings(models)
+		pairs := make([]string, 0, len(models))
+		for _, model := range models {
+			pairs = append(pairs, model+" → "+modelMap[model])
+		}
+		modelSummary = strings.Join(pairs, "; ")
+	}
+	facts := operatordecision.Facts{
+		Subject:     fmt.Sprintf("Set up future automatic low power for %s?", who),
+		Question:    fmt.Sprintf("%s is already in low-power mode through %s. Should future projected run-outs switch to low power automatically?", who, usageforecast.Stamp(until)),
+		BigPicture:  "The current low-power mode already covers this forecast, so this choice will not start or change a mode now. Enabling the rule applies low power automatically only on future projected run-outs and sends a notice each time. You can turn the rule off from the Usage page.",
+		Options:     []operatordecision.Option{{Key: AnswerAutoSave, Label: "Enable automatic low power for future run-outs"}, {Key: AnswerNotNow, Label: "Leave automatic low power off; ask me next time"}},
+		Recommended: AnswerAutoSave, RecommendationReason: "Low power already covers the current forecast; the rule affects future run-out windows and remains reversible.",
+		Reversible: true, Urgency: "normal", ContextURL: n.link(ctx, "?window="+usageforecast.WindowRef(w)),
+		Correlation: map[string]string{"kind": KindAutoSaveRule, "decision_id": id, "runner": runner},
+		SubjectKey:  subjectFor(KindAutoSaveRule, runner), TemplateName: "usage-mode",
+		TemplateData: map[string]any{
+			"meta":           map[string]any{"title": "Make low power automatic for future run-outs?", "producer": "Agent Manager · model usage", "sentAt": now.UTC().Format(time.RFC3339), "timezone": usageforecast.DigestLocation().String(), "notice": "The current low-power mode is already active. This choice does not start or change a mode now; it changes only future run-out warnings."},
+			"recommendation": map[string]any{"option": AnswerAutoSave, "headline": "Keep today’s mode as it is; choose whether future run-outs start low power automatically.", "why": fmt.Sprintf("The current mode is active through %s. The provider forecast is based on observed quota readings; savings from lower-cost models are not measured.", usageforecast.Stamp(until))},
+			"window":         window, "options": options,
+			"cause":      map[string]any{"title": "Why this question exists", "text": fmt.Sprintf("A real provider forecast projects this allowance to run out about %s, while %s is already in low-power mode through %s. This decision sets only the future standing rule.", usageforecast.Stamp(projected), who, usageforecast.Stamp(until))},
+			"recurrence": map[string]any{"stop": "Enabling automatic low power replaces future questions with a notice."},
+			"noAnswer":   map[string]any{"text": "Nothing changes. The current low-power mode stays as it is, and future run-out warnings remain decisions."},
+			"technical":  []map[string]string{{"label": "Runner", "value": runner}, {"label": "Current mode", "value": mode.ID + " · until " + until.Format(time.RFC3339)}, {"label": "Quota window", "value": fmt.Sprintf("%s · %s · %d minutes", w.Provider, w.Window, w.WindowMinutes)}, {"label": "Forecast status", "value": f.Status + ": " + f.Reason}, {"label": "Lower-cost model mapping", "value": modelSummary}, {"label": "Current rule", "value": "off"}},
+		},
+	}
+	return n.raise(ctx, n.raiser(), id, subjectFor(KindAutoSaveRule, runner), facts, map[string]string{"runner": runner, "mode_id": mode.ID})
+}
+
+func readingsFor(w *usageforecast.Window, f usageforecast.Forecast) []map[string]any {
+	series := w.Series()
+	readings := make([]map[string]any, 0, len(series))
+	for _, point := range series {
+		readings = append(readings, map[string]any{"t": point.At.UTC().Format(time.RFC3339), "used": point.Percent})
+	}
+	if len(readings) == 0 && w.HasPercent && !w.LastAt.IsZero() {
+		readings = append(readings, map[string]any{"t": w.LastAt.UTC().Format(time.RFC3339), "used": f.Used})
+	}
+	return readings
+}
+
 func usageModeTemplateData(f usageforecast.Forecast, projected time.Time, runner, until string, modelMap map[string]string) map[string]any {
 	w := f.Window
 	series := w.Series()
@@ -501,7 +586,7 @@ func usageModeTemplateData(f usageforecast.Forecast, projected time.Time, runner
 	now := f.Anchor
 	window := map[string]any{
 		"source": map[string]any{"status": "real", "label": "Agent Manager quota forecast", "asOf": f.AsOf.UTC().Format(time.RFC3339), "note": "Observed provider quota readings. Low-power savings are not measured and are not projected."},
-		"start": w.Start.UTC().Format(time.RFC3339), "reset": w.ResetAt.UTC().Format(time.RFC3339),
+		"start":  w.Start.UTC().Format(time.RFC3339), "reset": w.ResetAt.UTC().Format(time.RFC3339),
 		"now": now.UTC().Format(time.RFC3339), "readings": readings, "safePace": true,
 	}
 	if paceNow != nil {
@@ -531,15 +616,15 @@ func usageModeTemplateData(f usageforecast.Forecast, projected time.Time, runner
 	}
 	return map[string]any{
 		"meta": map[string]any{
-			"title": "Use lower-cost models until the allowance resets?",
+			"title":    "Use lower-cost models until the allowance resets?",
 			"producer": "Agent Manager · model usage", "sentAt": now.UTC().Format(time.RFC3339),
 			"timezone": usageforecast.DigestLocation().String(),
-			"notice": "The provider forecast is measured. Savings from lower-cost models have not been measured, so no low-power run-out number is shown.",
+			"notice":   "The provider forecast is measured. Savings from lower-cost models have not been measured, so no low-power run-out number is shown.",
 		},
 		"recommendation": map[string]any{
-			"option": AnswerAutoSave,
+			"option":   AnswerAutoSave,
 			"headline": "Use lower-cost models now and make this switch automatic for future run-out warnings.",
-			"why": fmt.Sprintf("The usual-model forecast reaches exhaustion about %s before the provider resets. The effect of the lower-cost model mapping is not measured yet.", usageforecast.Stamp(projected)),
+			"why":      fmt.Sprintf("The usual-model forecast reaches exhaustion about %s before the provider resets. The effect of the lower-cost model mapping is not measured yet.", usageforecast.Stamp(projected)),
 		},
 		"window": window,
 		"options": []map[string]any{
@@ -550,7 +635,7 @@ func usageModeTemplateData(f usageforecast.Forecast, projected time.Time, runner
 		},
 		"cause": map[string]any{
 			"title": "Why this question exists",
-			"text": fmt.Sprintf("The provider's recorded quota readings project that the usual models will use this allowance by %s, before its reset. The model policy maps each usual model to a lower-cost option, but the savings from those swaps are not measured yet.", usageforecast.Stamp(projected)),
+			"text":  fmt.Sprintf("The provider's recorded quota readings project that the usual models will use this allowance by %s, before its reset. The model policy maps each usual model to a lower-cost option, but the savings from those swaps are not measured yet.", usageforecast.Stamp(projected)),
 		},
 		"recurrence": map[string]any{"stop": "Automatic low power replaces future questions with a notice."},
 		"noAnswer": map[string]any{
@@ -683,6 +768,15 @@ func (n *Notifier) Apply(ctx context.Context, res operatordecision.DecisionResol
 		return finish(operatordecision.PendingStateRejected, "refused: the answer carries no verified human")
 	}
 	switch {
+	case kind == KindAutoSaveRule && answer == AnswerAutoSave:
+		runner, err := autoSaveRunner(params["runner"])
+		if err != nil {
+			return finish(operatordecision.PendingStateRejected, "rule not enabled: "+err.Error())
+		}
+		n.setAutoSave(runner, true, by)
+		return finish(operatordecision.PendingStateApproved, "enabled the future auto-save rule for "+runner+"; the current mode was not changed")
+	case kind == KindAutoSaveRule && answer == AnswerNotNow:
+		return finish(operatordecision.PendingStateRejected, "left the auto-save rule off")
 	case kind == KindRoleDefault && answer == AnswerApprove:
 		// Approval is recorded; the change itself is the operator's to apply.
 		return finish(operatordecision.PendingStateApproved, fmt.Sprintf("approved by %s: make %s the default for %s. Not applied: Agent Manager does not edit resource files. Apply this change:\n%s",
@@ -890,6 +984,19 @@ func (n *Notifier) Flush(ctx context.Context, forecasts []usageforecast.Forecast
 	for _, f := range forecasts {
 		if f.Window == nil {
 			continue
+		}
+		if f.Status == usageforecast.StatusWillExhaust && f.Projected != nil {
+			runner := providerRunner(f.Window.Provider)
+			if runner != "" && st.AutoSave[runner] == nil {
+				for _, mode := range n.Modes.listAt(now) {
+					if (usagemode.NormalizeRunner(mode.Scope.Runner) == runner || mode.Scope.Runner == "") && mode.Scope.Role == "" && mode.Scope.Profile == "" {
+						if err := n.offerAutoSaveRule(ctx, f, *f.Projected, now, runner, mode); err != nil {
+							errs = append(errs, fmt.Errorf("future auto-save rule decision %s: %w", runner, err))
+						}
+						break
+					}
+				}
+			}
 		}
 		o := st.Offers[f.Window.Scope()]
 		if o == nil {

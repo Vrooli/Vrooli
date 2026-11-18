@@ -545,8 +545,8 @@
           ]
         },
         "code.fallback": {
-          "model": "gpt-6.1-sol",
-          "canonical_model": "codex/gpt-6.1-sol",
+          "model": "gpt-6.2-sol",
+          "canonical_model": "codex/gpt-6.2-sol",
           "description": "Explicit fallback after a recorded native or managed harness failure; Agent Manager requires VROOLI_MODEL_FALLBACK_REASON at admission.",
           "capabilities": [
             "code",
@@ -555,7 +555,7 @@
           ],
           "models": [
             {
-              "model": "gpt-6.1-sol",
+              "model": "gpt-6.2-sol",
               "source": "codex-subscription",
               "effort": "medium"
             }
@@ -763,6 +763,8 @@
       },
       "excluded_models": [
         "gpt-6-astra",
+        "gpt-6.2-astra",
+        "gpt-6.1-sol",
         "gpt-6-sol",
         "gpt-5.5",
         "gpt-5.6-luna",
@@ -772,7 +774,7 @@
         "gpt-reserve"
       ],
       "restricted_models": {
-        "gpt-6.1-sol": [
+        "gpt-6.2-sol": [
           "code.fallback"
         ]
       },
@@ -813,6 +815,14 @@
           "canonical_model": "codex/gpt-6.1-sol",
           "provider": "codex"
         },
+        "gpt-6.2-astra": {
+          "canonical_model": "codex/gpt-6.2-astra",
+          "provider": "codex"
+        },
+        "gpt-6.2-sol": {
+          "canonical_model": "codex/gpt-6.2-sol",
+          "provider": "codex"
+        },
         "gpt-6.1-terra": {
           "canonical_model": "codex/gpt-6.1-terra",
           "provider": "codex"
@@ -824,7 +834,7 @@
       },
       "usage_tiers": {
         "model_map": {
-          "gpt-6.1-sol": "gpt-6-luna",
+          "gpt-6.2-sol": "gpt-6-luna",
           "gpt-6.1-terra": "gpt-6-luna"
         },
         "session_model": "gpt-6-luna",
@@ -836,11 +846,11 @@
         ]
       },
       "interactive_default": {
-        "model": "gpt-6.1-sol",
+        "model": "gpt-6.2-sol",
         "effort": "high"
       },
       "provenance": {
-        "source": "policy refresh by local user matthalloran8 (no agent signal) from codex-cli 0.167.0 codex debug models; earlier: Operator policy 2026-10-27: GPT-6.1 Terra capable default, live-discovered GPT-6 Luna research, GPT-6.1 Sol only explicit recorded failure fallback. Live Codex 0.162.1 catalog verified before migration; discovery, updates and launches share the PATH resolver. No automatic provider fallback.",
+        "source": "Operator-directed update 2026-11-17: use GPT-6.2 Sol as the direct replacement for GPT-6.1 Sol; keep Sol restricted to code.fallback and make it the interactive default. GPT-6.2 Astra replaces the excluded GPT-6 Astra. Availability was reported by the operator; live discovery could not run because the local capacity admission lock is on a read-only filesystem. Prior verified catalog: codex-cli 0.167.0. No automatic provider fallback.",
         "observed_at": "2026-11-11"
       },
       "billing": {

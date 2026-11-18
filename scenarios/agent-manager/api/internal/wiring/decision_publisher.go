@@ -1,13 +1,8 @@
 package wiring
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"net/http"
-	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
@@ -50,31 +45,17 @@ func (p rediscoveringDecisionPublisher) ReconcileDecisionDelivery(ctx context.Co
 	if err != nil {
 		return err
 	}
-	base = strings.TrimRight(base, "/")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner=notification-hub", nil)
+	client, err := eventbus.NewSubscriptionClient(base, nil)
 	if err != nil {
 		return err
 	}
-	response, err := http.DefaultClient.Do(req)
+	subscriptions, err := client.ListSubscriptions(ctx, "notification-hub")
 	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("list Hub subscriptions: %s", response.Status)
-	}
-	var subscriptions []struct {
-		ID      int64  `json:"id"`
-		Name    string `json:"name"`
-		Enabled bool   `json:"enabled"`
-		Pattern string `json:"event_pattern"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&subscriptions); err != nil {
 		return err
 	}
 	var id int64
 	for _, sub := range subscriptions {
-		if sub.Name == "notification-hub-decisions" && sub.Enabled && sub.Pattern == "**.decision_requested.v1" {
+		if sub.Name == "notification-hub-decisions" && sub.Enabled && sub.EventPattern == "**.decision_requested.v1" {
 			if id != 0 {
 				return errors.New("multiple Hub decision subscriptions")
 			}
@@ -84,24 +65,7 @@ func (p rediscoveringDecisionPublisher) ReconcileDecisionDelivery(ctx context.Co
 	if id == 0 {
 		return errors.New("Hub decision subscription unavailable")
 	}
-	body, err := json.Marshal(map[string]string{"event_id": eventID})
-	if err != nil {
-		return err
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/api/v1/subscriptions/%d/deliveries/reconcile", base, id), bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	response, err = http.DefaultClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("reconcile Hub decision delivery: %s", response.Status)
-	}
-	return nil
+	return client.ReconcileDelivery(ctx, id, eventID)
 }
 
 func newDecisionPublisher() rediscoveringDecisionPublisher {

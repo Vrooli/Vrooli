@@ -53,7 +53,7 @@ Method: every REST route registered by `api/internal/handlers` and `api/internal
 | `GET /api/v1/runners` | GetRunnerStatus (RPC deleted from proto) | REST | - | test-genie api/agentmanager/client.go | Keep: REST is the single transport |
 | `GET /api/v1/runs` | ListRuns (impl) | REST (RPC lacks parent_run_id; follow-up) | hooks/useApiRuns.ts | knowledge-observatory, meta-optimization-manager, prompt-manager | Keep (UI and outside callers) |
 | `POST /api/v1/runs` | CreateRun (still an Unimplemented stub, see step 2) | REST | hooks/useApiRuns.ts | agent-inbox, dev-toolchain-validator, git-control-tower, knowledge-observatory, portal, prompt-manager, scenario-auditor, scenario-to-cloud/desktop, swarm-manager, switchboard | Keep: RPC is a stub, REST is the working transport |
-| `POST /api/v1/runs/attach` | AttachRun (RPC deleted from proto) | REST | - | packages/cli-core cliutil/agentlauncher.go; agent launchers | Keep: REST is the single transport |
+| `POST /api/v1/runs/attach` | AttachRun (restored as generated unary RPC in E04) | REST | - | packages/cli-core cliutil/agentlauncher.go; agent launchers | CLI remains REST pending governed Connect dependency admission; retain compatibility route |
 | `POST /api/v1/runs/stop-all` | StopAllRuns (RPC deleted from proto) | REST | - | system-monitor, test-genie | Keep: REST is the single transport |
 | `GET /api/v1/runs/tag/{tag}` | GetRunByTag (RPC deleted from proto) | REST | - | scenario-auditor | Keep: REST is the single transport |
 | `POST /api/v1/runs/tag/{tag}/stop` | StopRunByTag (RPC deleted from proto) | REST | - | scenario-auditor | Keep: REST is the single transport |
@@ -87,6 +87,67 @@ Method: every REST route registered by `api/internal/handlers` and `api/internal
 
 `findings`, `health`, `import/*`, `investigation-settings*`, `orchestration-settings*`, `identity/*`, `storage/*`, `attachments/upload`, `uploads/*`, `validate-path`, `investigations/{id}/result`, `investigations/{id}/learning-retry`, `runs/{id}/{durability,episodes,invocation-facts,ledger,messages-friction,observed-receipts,await-result,park,wake,partial-approve,sandbox-sync,messages/{event_id}/delete}`, `runs/{cohorts,episode-trend,import-*,backfill-*,investigation-apply,invocation-facts/replay,resume-from-failed,wake-by-key,external/tombstone}`. Nothing to consolidate; their callers are unchanged.
 
+## Current handler reconciliation (2026-11-16, E04 refresh)
+
+The route decisions above were written against an earlier Agent Manager API
+revision. A source audit of the current `service.proto`, generated service
+descriptor, `internal/wiring/routes.go`, and all handler source files found 100
+declared RPCs and 99 matching `AgentManagerConnectHandler` methods; the Health
+procedure is separately mounted through `api-core/recovery.ConnectHealth` in
+`main.go`, for 100 production Connect handlers total.
+Consequently, the earlier statements that the following RPCs are stubs are
+stale: `ListProfiles`, `GetProfile`, `ReconcileScenarioProfiles`, `CreateTask`,
+`CreateRun`, `GetRun`, `GetRunReport`, and `GetRunEvents`. The generated service
+handler is mounted by the production router. `CreateTask` and `CreateRun` reuse
+the REST authorization/orchestration boundary; run listing, profile reads,
+profile reconciliation, run reads, reports, and event pages have typed
+Connect adapters. Existing cross-scenario callers of these procedures should
+move to the generated client after caller-specific auth and behavior parity is
+verified.
+
+E04 restored eleven RPC procedures for already shipped REST operations after
+caller inventory showed active consumers: `EnsureProfile`, `GetTask`,
+`GetRunByTag`, `StopRun`, `StopRunByTag`, `StopAllRuns`, and `GetRunnerStatus`.
+Their Connect adapters reuse the existing REST handlers to preserve owner
+behavior while callers move. A second source audit found live consumers of
+`GetRunDiff`, `ApproveRun`, and `RejectRun`, which had been removed after an
+incomplete caller inventory; their typed procedures now reuse the existing
+diff/approval/rejection handlers. A live ContinueRun caller exposed another
+stale gap: the operation is unary and already has generated domain request and
+response messages, so the Agent Manager service now exposes it through the
+same handler path with its lineage, idempotency, attachment, and lifecycle
+checks intact. The Agent Manager service contract also adds
+`AuthorizationApprovalPending` as a Connect error detail for verified-service
+standing-grant decisions on CreateTask/CreateRun. Those two Connect procedures
+return FailedPrecondition with that detail; REST callers retain the existing
+202 JSON response. Tests cover the typed detail and REST status behavior.
+
+The current service still embeds `UnimplementedAgentManagerServiceHandler` as a
+forward-compatibility default, but no currently declared RPC is unimplemented:
+99 service methods are on `AgentManagerConnectHandler`, and Health is mounted
+through `recovery.ConnectHealth`.
+
+This reconciliation does not convert all remaining REST routes into exceptions
+or authorize their removal. Several profile/task/run mutations still lack a
+matching RPC and need a current caller inventory and narrow owner disposition.
+`GetRunEvents` does have a Connect procedure and handler, so its compatibility
+REST route is not evidence that the RPC is missing. This refresh also adds
+`SyncRunFromSandbox` for Workspace Sandbox's bounded unary approval-result
+notification; its adapter delegates to the existing REST owner handler so the
+run route, lifecycle guard, and validation remain authoritative. Update this
+inventory as those callers migrate and keep the REST route while any production
+UI, CLI, or scenario caller still depends on it.
+
+`AttachRun` and `DetachRun` were also added as generated unary procedures using
+their pre-existing typed messages because `packages/cli-core/cliutil/agentlauncher.go`
+is a live caller. Attach remains loopback-only and accepts human-owner delegation
+and Web Console session identifiers only as verified transport headers; detach
+retains the run-bound identity check. The Connect handlers and auth fences pass
+hermetic owner tests. The CLI caller remains on REST until its governed module
+dependency admission succeeds; SDA's CLI refresh fails before preview with
+missing `protovalidate` and `genproto` checksums, so no CLI migration or module
+edit is claimed.
+
 
 ## Step 2: UI moved to the typed client; 12 more REST routes deleted
 
@@ -113,7 +174,7 @@ Still REST in the UI (no RPC twin, or outside callers keep the route): `profiles
 
 Before deleting, every non-generated file in every scenario and package was searched for the RPC name as a Connect path, `AgentManagerService<Name>Procedure`, and a typed-client call, and every Go module that imports the generated client was built (`go vet ./...`, which compiles tests) after regeneration.
 
-Deleted (22), no reference outside `scenarios/agent-manager`: ApproveRun, AttachRun, CancelTask, CreateProfile, DeleteProfile, DeleteRun, DeleteTask, DetachRun, EnsureProfile, GetRunByTag, GetRunDiff, GetRunnerStatus, GetTask, ListTasks, QuiesceScenario, RecoverRun, RejectRun, StopAllRuns, StopRun, StopRunByTag, UpdateProfile, UpdateTask. Their REST twins stay the single transport. (QuiesceScenario/RecoverRun: REST stays for the HTTP-bound run-initiated guards.)
+Historical deletion at this inventory's original pass (22), with current E04 restorations noted here: ApproveRun, AttachRun, CancelTask, CreateProfile, DeleteProfile, DeleteRun, DeleteTask, DetachRun, EnsureProfile, GetRunByTag, GetRunDiff, GetRunnerStatus, GetTask, ListTasks, QuiesceScenario, RecoverRun, RejectRun, StopAllRuns, StopRun, StopRunByTag, UpdateProfile, UpdateTask. E04 restored `ApproveRun`, `AttachRun`, `DetachRun`, `EnsureProfile`, `GetRunByTag`, `GetRunDiff`, `GetRunnerStatus`, `GetTask`, `RejectRun`, `StopAllRuns`, `StopRun`, and `StopRunByTag` when live consumers were found. The current generated descriptor and handler reconciliation above is authoritative. (QuiesceScenario/RecoverRun: REST stays for the HTTP-bound run-initiated guards.)
 
 Kept because a search found a live reference, and **implemented** instead of deleted (an RPC that answers `Unimplemented` forever is debt):
 

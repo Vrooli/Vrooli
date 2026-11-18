@@ -500,6 +500,7 @@ func runRuntimeMounts(env map[string]string) []WritableMount {
 // startProcess POSTs /processes and returns the PID.
 func (l *SandboxLauncher) startProcess(ctx context.Context, body startProcessBody) (int, error) {
 	endpoint := fmt.Sprintf("/api/v1/sandboxes/%s/processes", l.sandboxID)
+	startedAt := time.Now()
 	resp, err := l.provider.doRequest(ctx, "POST", endpoint, body)
 	if err != nil {
 		return 0, err
@@ -514,7 +515,7 @@ func (l *SandboxLauncher) startProcess(ctx context.Context, body startProcessBod
 			Message string `json:"message"`
 		}
 		_ = json.NewDecoder(resp.Body).Decode(&denial)
-		return 0, &LaunchBlocked{Code: denial.Error, Verb: denial.Verb, Message: denial.Message}
+		return 0, &LaunchBlocked{Code: denial.Error, Verb: denial.Verb, Message: denial.Message, DurationMS: time.Since(startedAt).Milliseconds()}
 	}
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		buf, _ := io.ReadAll(resp.Body)
@@ -580,6 +581,27 @@ type LaunchBlocked struct {
 	Verb string
 	// Message is operator-friendly text suitable for a tool.blocked event.
 	Message string
+	// DurationMS is the measured Workspace Sandbox request time that returned
+	// the structured denial. It does not claim to measure agent rework or wait.
+	DurationMS int64
+}
+
+// EventCode exposes the source's stable evaluator code to the durable run failure
+// event boundary. A command or display label is never used as this identity.
+func (b *LaunchBlocked) EventCode() string {
+	if b == nil {
+		return ""
+	}
+	return b.Code
+}
+
+// GuardCheckEvidence returns only the structured denial identity and measured
+// enforcement request duration. Callers may persist this bounded evidence.
+func (b *LaunchBlocked) GuardCheckEvidence() (string, int64) {
+	if b == nil {
+		return "", 0
+	}
+	return b.Code, b.DurationMS
 }
 
 func (b *LaunchBlocked) Error() string {

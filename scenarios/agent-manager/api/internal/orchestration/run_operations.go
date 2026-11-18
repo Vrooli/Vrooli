@@ -638,6 +638,16 @@ func (o *Orchestrator) observeQuotaEvent(ctx context.Context, evt *domain.RunEve
 	if observation == nil {
 		return
 	}
+	// Only the durable owner-written launch binding is authoritative. Imported
+	// and recovery events without that binding stay unscoped.
+	if o.runs != nil {
+		if run, err := o.runs.Get(ctx, evt.RunID); err == nil && run != nil && run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex {
+			observation.AccountScope = run.ResolvedConfig.CodexAccountScope
+			if observation.AccountScope != "" {
+				observation.ID = pricing.QuotaObservationID(observation)
+			}
+		}
+	}
 	if !retained {
 		observation.EvidenceRef = "agent-manager://runs/" + evt.RunID.String()
 	}

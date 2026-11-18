@@ -23,8 +23,12 @@ type Inventory struct {
 	Remaining         *int               `json:"remaining"`
 	Work              []WorkRef          `json:"work"`
 	Executors         []ExecutorEvidence `json:"executors"`
-	Unknown           []string           `json:"unknown"`
-	ControlPlaneGap   string             `json:"controlPlaneGap"`
+	// PhysicalRunIDs retains every positively observed run identity for owner
+	// telemetry. Executors is a bounded display sample and must not be used as
+	// a complete activity history.
+	PhysicalRunIDs  []string `json:"-"`
+	Unknown         []string `json:"unknown"`
+	ControlPlaneGap string   `json:"controlPlaneGap"`
 }
 
 type WorkRef struct {
@@ -246,6 +250,9 @@ func (r *InventoryReader) observe(parent context.Context, activity bool) (Invent
 			if item.Alive {
 				if activity {
 					state.ObservedExecutors++
+					if ref.Kind == "run" {
+						state.PhysicalRunIDs = append(state.PhysicalRunIDs, ref.ID)
+					}
 				}
 				if !logicalRefs[ref.ID] {
 					count++

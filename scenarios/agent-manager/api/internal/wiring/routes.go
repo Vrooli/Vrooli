@@ -22,6 +22,7 @@ import (
 	"agent-manager/internal/findings"
 	"agent-manager/internal/handlers"
 	healthstore "agent-manager/internal/health"
+	"agent-manager/internal/hookreceipt"
 	"agent-manager/internal/httpmw"
 	"agent-manager/internal/interventions"
 	"agent-manager/internal/investigation"
@@ -45,6 +46,7 @@ import (
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/transcriptindex"
 	"agent-manager/internal/usagepace"
+	"agent-manager/internal/utilizationhistory"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
@@ -68,7 +70,9 @@ import (
 // registration. Keeping this composition data in wiring prevents the entry
 // point from acquiring presentation or business logic.
 type RouteDependencies struct {
+	LifecycleContext         context.Context
 	RuntimeActivityReader    handlers.RuntimeActivityReader
+	UtilizationHistory       *utilizationhistory.Repository
 	Recovery                 *maintenance.Recovery
 	CapabilityRegistry       *capabilities.Registry
 	DB                       *database.DB
@@ -233,6 +237,10 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	handler.SetWebSocketHub(deps.WebSocketHub)
 	router.HandleFunc("/api/v1/runtime/activity", handler.GetRuntimeActivity).Methods(http.MethodGet)
 	router.HandleFunc("/api/v1/runtime/friction", handler.RuntimeFriction).Methods(http.MethodGet)
+	if deps.DB != nil && deps.Orchestrator != nil {
+		hookReceiptHandler := handlers.HookReceiptHandler{Store: hookreceipt.NewStore(deps.DB), Runs: deps.Orchestrator}
+		router.HandleFunc(handlers.HookReceiptPath, hookReceiptHandler.Receive).Methods(http.MethodPost)
+	}
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
 	connectHandler.SetManagedTeamReader(promptmanager.NewHTTPClient())
 	exactVerifier := deps.ExactVerifier
@@ -318,8 +326,8 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		router.Handle(handlers.DecisionEventWebhookPath, recoveringEventsWebhook(getSecret, func(string) http.Handler {
 			return decisionWebhook
 		})).Methods(http.MethodPost)
-		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
-			go retryEventSubscriptions(context.Background(), 30*time.Second,
+		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" && deps.LifecycleContext != nil {
+			go retryEventSubscriptions(deps.LifecycleContext, 30*time.Second,
 				func(ctx context.Context) error {
 					err := ReconcileProgramRuntimeSubscription(ctx, "http://127.0.0.1:"+port+handlers.ProgramEventWebhookPath)
 					if err != nil {
@@ -372,7 +380,11 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	handler.RegisterRoutes(router)
 	if deps.Orchestrator != nil {
 		quotaSource, _ := deps.PricingRepository.(pricing.QuotaReadingSource)
-		usagepace.NewHandler(quotaSource, deps.Orchestrator).RegisterRoutes(router)
+		paceHandler := usagepace.NewHandler(quotaSource, deps.Orchestrator, deps.RuntimeActivityReader)
+		if deps.UtilizationHistory != nil {
+			paceHandler = usagepace.NewHandler(quotaSource, deps.Orchestrator, deps.RuntimeActivityReader, deps.UtilizationHistory)
+		}
+		paceHandler.RegisterRoutes(router)
 	}
 
 	routesLog := obs.Component("routes")

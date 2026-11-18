@@ -115,9 +115,16 @@ func setupTestHandlerWithRunner(t *testing.T, mock *runner.MockRunner) (*Handler
 }
 
 func setupTestHandlerWithRunnerAndRepos(t *testing.T, mock *runner.MockRunner) (*Handler, *mux.Router, *database.Repositories, event.Store) {
+	return setupTestHandlerWithRunnerAndReposOverride(t, mock, nil)
+}
+
+func setupTestHandlerWithRunnerAndReposOverride(t *testing.T, mock *runner.MockRunner, beforeOrchestrator func(*database.Repositories)) (*Handler, *mux.Router, *database.Repositories, event.Store) {
 	t.Helper()
 	repos, eventStore, cleanup := testutil.SetupTestRepos(t)
 	t.Cleanup(cleanup)
+	if beforeOrchestrator != nil {
+		beforeOrchestrator(repos)
+	}
 
 	// Create runner registry with mock runner
 	registry := runner.NewRegistry()

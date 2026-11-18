@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	corestorage "github.com/vrooli/api-core/storage"
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 )
@@ -73,15 +74,30 @@ func ClaudeStatuslineSamplesPath(cfg corestorage.ResolverConfig) (string, error)
 }
 
 type claudeStatuslineSample struct {
-	ObservedAt time.Time               `json:"observed_at"`
-	SessionID  string                  `json:"session_id"`
-	FiveHour   *claudeStatuslineWindow `json:"five_hour"`
-	SevenDay   *claudeStatuslineWindow `json:"seven_day"`
+	ObservedAt   time.Time               `json:"observed_at"`
+	AccountScope string                  `json:"account_scope"`
+	SessionID    string                  `json:"session_id"`
+	SourceRunID  string                  `json:"source_run_id"`
+	FiveHour     *claudeStatuslineWindow `json:"five_hour"`
+	SevenDay     *claudeStatuslineWindow `json:"seven_day"`
 }
 
 type claudeStatuslineWindow struct {
 	UsedPercentage *float64 `json:"used_percentage"`
 	ResetsAt       int64    `json:"resets_at"`
+}
+
+func validClaudeAccountScope(scope string) bool {
+	const prefix = "anthropic:sha256:"
+	if len(scope) != len(prefix)+64 || !strings.HasPrefix(scope, prefix) {
+		return false
+	}
+	for _, c := range scope[len(prefix):] {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // ClaudeStatuslineReader ingests new statusline samples into quota
@@ -194,6 +210,14 @@ func (r *ClaudeStatuslineReader) ingestFrom(ctx context.Context, path string, of
 
 func claudeStatuslineObservations(sample claudeStatuslineSample, path string, now time.Time) []*QuotaObservation {
 	var out []*QuotaObservation
+	accountScope := sample.AccountScope
+	if !validClaudeAccountScope(accountScope) {
+		accountScope = ""
+	}
+	sourceRunID := ""
+	if parsed, err := uuid.Parse(sample.SourceRunID); err == nil && parsed != uuid.Nil {
+		sourceRunID = parsed.String()
+	}
 	for _, w := range []struct {
 		pool   string
 		window *claudeStatuslineWindow
@@ -216,14 +240,16 @@ func claudeStatuslineObservations(sample claudeStatuslineSample, path string, no
 		}
 		o := &QuotaObservation{
 			Provider:      "anthropic",
+			AccountScope:  accountScope,
 			Pool:          w.pool,
 			Window:        fmt.Sprintf("%dm", minutes),
 			ObservedAt:    sample.ObservedAt.UTC(),
 			Standing:      standing,
 			UsedPercent:   &percent,
 			WindowMinutes: &minutes,
+			SourceRunID:   sourceRunID,
 			Provenance:    ClaudeStatuslineProvenance,
-			Uncertainty:   "account scope is the Claude Code login that rendered the status line; consumed amount and ceiling are unavailable",
+			Uncertainty:   "consumed amount and ceiling are unavailable",
 			EvidenceRef:   "file://" + path + "#session=" + sample.SessionID,
 		}
 		if w.window.ResetsAt > 0 {

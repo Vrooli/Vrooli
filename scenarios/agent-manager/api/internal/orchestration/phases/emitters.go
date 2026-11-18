@@ -16,6 +16,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
@@ -52,7 +53,35 @@ func EmitGenericFailureEvent(ctx context.Context, deps Deps, runID uuid.UUID, er
 		}
 	}
 	evt := domain.NewErrorEvent(runID, string(code), err.Error(), retryable)
+	if evidence, ok := guardCheckEvidence(err); ok {
+		if data, ok := evt.Data.(*domain.ErrorEventData); ok {
+			data.Details = map[string]interface{}{"guardCheck": map[string]interface{}{
+				"source":        "workspace-sandbox-http-403",
+				"checkId":       evidence.checkID,
+				"outcome":       "blocked",
+				"durationMs":    evidence.durationMS,
+				"durationKnown": true,
+			}}
+		}
+	}
 	publishEvent(ctx, deps, runID, evt)
+}
+
+type guardCheckFact struct {
+	checkID    string
+	durationMS int64
+}
+
+func guardCheckEvidence(err error) (guardCheckFact, bool) {
+	for cur := err; cur != nil; cur = errors.Unwrap(cur) {
+		if source, ok := cur.(interface{ GuardCheckEvidence() (string, int64) }); ok {
+			checkID, durationMS := source.GuardCheckEvidence()
+			if strings.TrimSpace(checkID) != "" && durationMS >= 0 {
+				return guardCheckFact{checkID: strings.TrimSpace(checkID), durationMS: durationMS}, true
+			}
+		}
+	}
+	return guardCheckFact{}, false
 }
 
 // EmitStatusTransition publishes the terminal status selected by orchestration
@@ -161,6 +190,11 @@ func errorCode(err error) string {
 	for cur := err; cur != nil; cur = errors.Unwrap(cur) {
 		if c, ok := cur.(interface{ Code() string }); ok {
 			if code := c.Code(); code != "" {
+				return code
+			}
+		}
+		if c, ok := cur.(interface{ EventCode() string }); ok {
+			if code := c.EventCode(); code != "" {
 				return code
 			}
 		}

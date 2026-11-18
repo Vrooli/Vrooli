@@ -43,6 +43,7 @@ import (
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageforecast"
 	"agent-manager/internal/usagemodes"
+	"agent-manager/internal/utilizationhistory"
 	"agent-manager/internal/wiring"
 
 	gorillaHandlers "github.com/gorilla/handlers"
@@ -88,12 +89,16 @@ func (h *searchControlTokens) get(providerID string) string {
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
+	eventsCtx                context.Context
+	cancelEvents             context.CancelFunc
 	configurationRoot        string
 	terminalEvents           *wiring.TerminalEvents
 	recovery                 *maintenance.Recovery
 	maintenance              *maintenance.Handler
 	lifecycleService         *maintenance.LifecycleService
 	runtimeActivity          *runtimeactivity.Reader
+	utilizationSampler       *utilizationhistory.Sampler
+	utilizationHistory       *utilizationhistory.Repository
 	capabilityRegistry       *capabilities.Registry
 	db                       *database.DB
 	fileRoots                *filerouting.RoutedRoots
@@ -301,7 +306,9 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 	// After the Transcript Indexer evicts recall it reclaims the dead FTS index
 	// space through the search domain's own optimize.
 	deps.TranscriptImporter.SetAfterEviction(conversationRepository.OptimizeIndex)
+	eventsCtx, cancelEvents := context.WithCancel(context.Background())
 	srv := &Server{
+		eventsCtx: eventsCtx, cancelEvents: cancelEvents,
 		configurationRoot:  repoRoot,
 		terminalEvents:     deps.TerminalEvents,
 		recovery:           maintenance.NewRecovery(),
@@ -336,6 +343,8 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 	}
 	inventory := wiring.NewMaintenanceInventory(db)
 	srv.runtimeActivity = runtimeactivity.New(inventory)
+	srv.utilizationHistory = utilizationhistory.NewRepository(db)
+	srv.utilizationSampler = utilizationhistory.NewSampler(srv.runtimeActivity, db, srv.utilizationHistory, time.Minute)
 	srv.lifecycleService, err = maintenance.NewLifecycleService(gate, func(ctx context.Context) (maintenance.Inventory, error) {
 		state, observeErr := inventory.Observe(ctx)
 		if recovery := srv.recovery.Snapshot(); !recovery.Readiness {
@@ -490,6 +499,9 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 		if s.supervisionScheduler != nil {
 			s.supervisionScheduler.Start(ctx)
 		}
+		if s.utilizationSampler != nil {
+			go s.utilizationSampler.Start(ctx)
+		}
 		if s.conversationIndexer != nil {
 			s.conversationIndexer.Start(ctx)
 		}
@@ -550,7 +562,9 @@ func (s *Server) setupRoutes() {
 		StorageHealth:            s.storageHealthHandler(),
 		LifecycleService:         s.lifecycleService,
 		RuntimeActivityReader:    s.runtimeActivity,
+		UtilizationHistory:       s.utilizationHistory,
 		DecisionEffects:          s.decisionEffects(),
+		LifecycleContext:         s.eventsCtx,
 	})
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAsk).Methods(http.MethodPost)
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAskState).Methods(http.MethodGet)
@@ -582,6 +596,9 @@ func (s *Server) startTerminalEvents(ctx context.Context) error {
 }
 
 func (s *Server) Cleanup() error {
+	if s.cancelEvents != nil {
+		s.cancelEvents()
+	}
 	if s.wsHub != nil {
 		s.wsHub.Close()
 	}

@@ -251,11 +251,12 @@ func (h *AgentManagerConnectHandler) ListWorkflowExecutions(ctx context.Context,
 		status = ""
 	}
 	items, err := h.h.svc.ListWorkflowExecutions(ctx, orchestration.ListWorkflowExecutionsRequest{
-		Owner:       req.Msg.Owner,
-		WorkflowKey: req.Msg.WorkflowKey,
-		Status:      domain.WorkflowExecutionStatus(status),
-		Limit:       int(req.Msg.Limit),
-		Offset:      int(req.Msg.Offset),
+		Owner:          req.Msg.Owner,
+		WorkflowKey:    req.Msg.WorkflowKey,
+		IdempotencyKey: req.Msg.IdempotencyKey,
+		Status:         domain.WorkflowExecutionStatus(status),
+		Limit:          int(req.Msg.Limit),
+		Offset:         int(req.Msg.Offset),
 	})
 	if err != nil {
 		return nil, workflowConnectError(err)

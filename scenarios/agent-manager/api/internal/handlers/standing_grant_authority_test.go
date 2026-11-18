@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,8 +15,12 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
+	"google.golang.org/protobuf/proto"
 )
 
 // memStandingGrants is an in-memory StandingGrantRepository for middleware tests.
@@ -203,6 +208,75 @@ func TestServiceWithoutStandingGrantAsksForApproval(t *testing.T) {
 	}
 	if len(raiser.raised) != 1 || raiser.raised[0].Subject != "prompt-manager" || raiser.raised[0].Operation != "run.create" {
 		t.Fatalf("expected one raised authorization ask for the subject, got %+v", raiser.raised)
+	}
+}
+
+func TestServiceWithoutStandingGrantGetsTypedConnectApprovalDetail(t *testing.T) {
+	path := apiconnect.AgentManagerServiceCreateRunProcedure
+	response := serviceChainResponse(t, &memStandingGrants{}, fakeUsage{}, &fakeRaiser{}, path)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("Connect approval error status=%d body=%s", response.Code, response.Body.String())
+	}
+	var envelope struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+		Details []struct {
+			Type  string `json:"type"`
+			Value string `json:"value"`
+		} `json:"details"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode Connect error: %v", err)
+	}
+	if envelope.Code != "failed_precondition" || envelope.Message != "approval pending" || len(envelope.Details) != 1 {
+		t.Fatalf("unexpected Connect approval envelope: %+v", envelope)
+	}
+	if envelope.Details[0].Type != "type.googleapis.com/agent_manager.v1.AuthorizationApprovalPending" {
+		t.Fatalf("unexpected Connect detail type: %s", envelope.Details[0].Type)
+	}
+	encoded, err := base64.StdEncoding.DecodeString(envelope.Details[0].Value)
+	if err != nil {
+		t.Fatalf("decode detail payload: %v", err)
+	}
+	detail := &apipb.AuthorizationApprovalPending{}
+	if err := proto.Unmarshal(encoded, detail); err != nil {
+		t.Fatalf("unmarshal typed detail: %v", err)
+	}
+	if detail.GetSubject() != "prompt-manager" || detail.GetDetail() == "" {
+		t.Fatalf("unexpected approval detail: %+v", detail)
+	}
+}
+
+func TestGeneratedConnectClientDecodesTypedApprovalDetail(t *testing.T) {
+	authority := NewStandingGrantAuthority(&memStandingGrants{}, fakeUsage{}, nil)
+	chain := StandingGrantMiddleware(authority, &fakeRaiser{})(AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p := identity.Principal{Kind: identity.ActorService, Subject: "prompt-manager", Verified: true, Scopes: []string{"agent-manager:write"}}
+		chain.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), p)))
+	}))
+	t.Cleanup(server.Close)
+	client := apiconnect.NewAgentManagerServiceClient(server.Client(), server.URL)
+	_, err := client.CreateRun(context.Background(), connect.NewRequest(&apipb.CreateRunRequest{}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("CreateRun error code=%s error=%v", connect.CodeOf(err), err)
+	}
+	connectErr := new(connect.Error)
+	if !errors.As(err, &connectErr) {
+		t.Fatalf("expected Connect error, got %T: %v", err, err)
+	}
+	details := connectErr.Details()
+	if len(details) != 1 {
+		t.Fatalf("Connect error has %d details, want one", len(details))
+	}
+	decoded, err := details[0].Value()
+	if err != nil {
+		t.Fatalf("decode approval error detail: %v", err)
+	}
+	detail, ok := decoded.(*apipb.AuthorizationApprovalPending)
+	if !ok || detail.GetSubject() != "prompt-manager" || detail.GetDetail() == "" {
+		t.Fatalf("unexpected decoded approval detail: %#v", decoded)
 	}
 }
 

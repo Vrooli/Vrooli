@@ -2,7 +2,10 @@ package orchestration
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,9 +15,23 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/fixtures"
+	"agent-manager/internal/pricing"
+	"agent-manager/internal/runtimeactivity"
+	"agent-manager/internal/usagepace"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 )
+
+type paceAdmissionReadings []pricing.QuotaReadingSpan
+
+func (p paceAdmissionReadings) QuotaReadingSpans(context.Context, string, time.Time) ([]pricing.QuotaReadingSpan, error) {
+	return p, nil
+}
+
+type paceAdmissionActivity struct{ snapshot runtimeactivity.Snapshot }
+
+func (p paceAdmissionActivity) Read(context.Context) runtimeactivity.Snapshot { return p.snapshot }
 
 func TestPurgeDataDryRunThenDeletesMatchingDurableRecords(t *testing.T) {
 	ctx := context.Background()
@@ -118,6 +135,56 @@ func TestUsagePaceSelectionChangesLiveAdmissionCeiling(t *testing.T) {
 	}
 	if got := settingsStore.Get().UsagePace.BaseMaxConcurrentRuns; got != 10 {
 		t.Fatalf("persisted baseline = %d, want original configured ceiling 10", got)
+	}
+}
+
+func TestQuotaForecastWithoutHistoricalUtilizationCannotRaiseRunAdmissionCeiling(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	settingsStore, err := agentconfig.NewOrchestrationSettingsStore(filepath.Join(t.TempDir(), "orchestration.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs,
+		WithConfig(OrchestratorConfig{DefaultTimeout: time.Minute, MaxConcurrentRuns: 10}),
+		WithOrchestrationSettings(settingsStore),
+	)
+	now := time.Now().UTC().Truncate(time.Minute)
+	reset, windowMinutes := now.Add(7*24*time.Hour), int64(7*24*60)
+	firstPercent, lastPercent := 1.0, 2.0
+	spans := paceAdmissionReadings{
+		{Provider: "codex", Pool: "weekly", Window: "weekly", WindowMinutes: &windowMinutes, ResetAt: &reset, UsedPercent: &firstPercent, FirstAt: now.Add(-4 * time.Hour), LastAt: now.Add(-4 * time.Hour), Samples: 1},
+		{Provider: "codex", Pool: "weekly", Window: "weekly", WindowMinutes: &windowMinutes, ResetAt: &reset, UsedPercent: &lastPercent, FirstAt: now.Add(-2 * time.Hour), LastAt: now.Add(-2 * time.Hour), Samples: 1},
+	}
+	active := uint32(2)
+	reader := paceAdmissionActivity{snapshot: runtimeactivity.Snapshot{ObservedAt: now, Complete: true, ExecutingRuns: &active, ObservedExecutingRuns: active}}
+	pace := usagepace.NewHandler(spans, o, reader)
+	router := mux.NewRouter()
+	pace.RegisterRoutes(router)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodPut, usagepace.APIPath, strings.NewReader(`{"selected_tier":"use_by_wednesday"}`)))
+	if response.Code != http.StatusConflict {
+		t.Fatalf("selection without historical utilization status=%d body=%s", response.Code, response.Body.String())
+	}
+	if o.config.MaxConcurrentRuns != 10 || settingsStore.Get().UsagePace.SelectedTier != "" {
+		t.Fatalf("unavailable estimate changed admission settings: live=%d settings=%+v", o.config.MaxConcurrentRuns, settingsStore.Get())
+	}
+	task := fixtures.NewTask(t)
+	if err := repos.Tasks.Create(ctx, task); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < o.config.MaxConcurrentRuns; i++ {
+		run := fixtures.NewRun(t, task.ID, uuid.Nil, fixtures.WithRunStatus(domain.RunStatusRunning))
+		if err := repos.Runs.Create(ctx, run); err != nil {
+			t.Fatalf("create active run %d: %v", i, err)
+		}
+	}
+	flow := &createRunFlow{o: o}
+	err = flow.admitCapacity(ctx)
+	capacity, ok := err.(*domain.CapacityExceededError)
+	if !ok || capacity.Maximum != o.config.MaxConcurrentRuns {
+		t.Fatalf("admission at retained baseline returned %v, want CapacityExceeded maximum %d", err, o.config.MaxConcurrentRuns)
 	}
 }
 

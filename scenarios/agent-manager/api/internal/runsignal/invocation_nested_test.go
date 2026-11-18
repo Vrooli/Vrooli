@@ -105,6 +105,22 @@ func TestExecWithoutNestedResultsKeepsUnattributableOutcomesUnknown(t *testing.T
 	}
 }
 
+func TestNativeHookTranscriptMarkerDoesNotBecomeEvaluatorIdentity(t *testing.T) {
+	run := uuid.New()
+	call := domain.NewToolCallEvent(run, "Bash", "guard-call", map[string]any{"command": "scenario-dependency-analyzer deps install example"})
+	result := domain.NewToolResultEvent(run, "Bash", "guard-call", "", errors.New("PreToolUse: hook error: Blocked [vrooli_guard_check=scenario-dependency-analyzer:dependency-addition][vrooli_guard_duration_ms=37]"))
+	facts := DeriveInvocationFacts([]*domain.RunEvent{call, result})
+	if len(facts) != 1 || facts[0].Outcome != OutcomeRefused || facts[0].CheckID != "" || facts[0].CheckDurationMS != nil {
+		t.Fatalf("mutable transcript marker became evaluator evidence: %+v", facts)
+	}
+
+	result.Data.(*domain.ToolResultEventData).Error = "PreToolUse: hook error: Blocked [vrooli_guard_check=dependency-addition][vrooli_guard_duration_ms=37]"
+	facts = DeriveInvocationFacts([]*domain.RunEvent{call, result})
+	if facts[0].CheckID != "" {
+		t.Fatalf("unqualified display text became evaluator identity: %+v", facts[0])
+	}
+}
+
 // A nested result with no exec call before it (a transcript tail) is still
 // a command with an outcome.
 func TestOrphanNestedCommandIsItsOwnFact(t *testing.T) {

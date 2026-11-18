@@ -8,6 +8,7 @@ package usageattribution
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"agent-manager/internal/domain"
@@ -195,4 +196,30 @@ func ProviderFor(runner string) string {
 		return "anthropic"
 	}
 	return ""
+}
+
+// ProviderForConfiguredRun attributes a run only when its saved launch
+// configuration identifies a quota provider. OpenCode is a multi-provider
+// client, so its harness name alone is not enough to attribute quota use.
+// OpenCode model IDs with an explicit provider prefix are safe evidence; an
+// absent, unknown, or proxy provider remains unmapped.
+func ProviderForConfiguredRun(runner, model string) string {
+	if provider := ProviderFor(runner); provider != "" {
+		return provider
+	}
+	if runner != string(domain.RunnerTypeOpenCode) {
+		return ""
+	}
+	provider, _, ok := strings.Cut(strings.TrimSpace(model), "/")
+	if !ok {
+		return ""
+	}
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "openai":
+		return "openai"
+	case "anthropic":
+		return "anthropic"
+	default:
+		return ""
+	}
 }

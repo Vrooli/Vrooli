@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,6 +84,82 @@ func TestClaudeStatuslineReaderSkipsWindowsWhoseResetHadPassed(t *testing.T) {
 	seven, _ := store.ListQuotaObservations(t.Context(), "anthropic", "seven_day", "10080m", 10)
 	if len(five) != 1 || *five[0].UsedPercent != 63 || five[0].ResetAt.Unix() != 1793268600 || len(seven) != 1 || *seven[0].UsedPercent != 23 {
 		t.Fatalf("five_hour=%+v seven_day=%+v", five, seven)
+	}
+}
+
+func TestClaudeStatuslineReaderCarriesOnlyOpaqueForwardAccountScope(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quota-samples.ndjson")
+	const scope = "anthropic:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	appendFile(t, path,
+		`{"observed_at":"2026-10-29T06:41:11Z","session_id":"legacy","five_hour":{"used_percentage":63,"resets_at":1793268600}}`+"\n"+
+			`{"observed_at":"2026-10-29T06:42:11Z","account_scope":"`+scope+`","session_id":"live","five_hour":{"used_percentage":64,"resets_at":1793268600}}`+"\n")
+	store := NewMemoryRepository()
+	reader := &ClaudeStatuslineReader{Path: path, Store: store, Now: func() time.Time { return time.Date(2026, 10, 29, 6, 43, 0, 0, time.UTC) }}
+	if got, err := reader.Ingest(t.Context()); err != nil || got != 2 {
+		t.Fatalf("ingested %d (%v), want both old unknown and new bound samples", got, err)
+	}
+	rows, err := store.ListQuotaObservations(t.Context(), "anthropic", "five_hour", "300m", 10)
+	if err != nil || len(rows) != 2 {
+		t.Fatalf("rows=%+v err=%v", rows, err)
+	}
+	if rows[0].AccountScope != scope || rows[1].AccountScope != "" {
+		t.Fatalf("forward binding must retain scoped new evidence and unknown legacy evidence: %+v", rows)
+	}
+}
+
+func TestClaudeStatuslineReaderCarriesValidForwardSourceRunAndLeavesLegacyUnknown(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quota-samples.ndjson")
+	const runID = "123e4567-e89b-12d3-a456-426614174000"
+	appendFile(t, path,
+		`{"observed_at":"2026-10-29T06:41:11Z","five_hour":{"used_percentage":63,"resets_at":1793268600}}`+"\n"+
+			`{"observed_at":"2026-10-29T06:42:11Z","source_run_id":"`+runID+`","five_hour":{"used_percentage":64,"resets_at":1793268600}}`+"\n"+
+			`{"observed_at":"2026-10-29T06:43:11Z","source_run_id":"not-a-uuid","five_hour":{"used_percentage":65,"resets_at":1793268600}}`+"\n")
+	store := NewMemoryRepository()
+	reader := &ClaudeStatuslineReader{Path: path, Store: store, Now: func() time.Time { return time.Date(2026, 10, 29, 6, 44, 0, 0, time.UTC) }}
+	if got, err := reader.Ingest(t.Context()); err != nil || got != 3 {
+		t.Fatalf("ingested %d (%v), want three forward readings", got, err)
+	}
+	rows, err := store.ListQuotaObservations(t.Context(), "anthropic", "five_hour", "300m", 10)
+	if err != nil || len(rows) != 3 {
+		t.Fatalf("rows=%d err=%v, want 3", len(rows), err)
+	}
+	if rows[0].SourceRunID != "" || rows[1].SourceRunID != runID || rows[2].SourceRunID != "" {
+		t.Fatalf("source run association must be forward and UUID-validated: %+v", rows)
+	}
+	for _, row := range rows {
+		if row.Used != nil || row.Limit != nil || row.Uncertainty != "consumed amount and ceiling are unavailable" {
+			t.Fatalf("percent-only statusline evidence must remain incomplete: %+v", row)
+		}
+	}
+}
+
+func TestClaudeStatuslineReaderRejectsMalformedAccountScopeAsUnknown(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "quota-samples.ndjson")
+	malformed := []string{
+		"org-12345678-90ab-cdef-1234-567890abcdef",
+		"anthropic:sha256:" + strings.Repeat("a", 63),
+		"anthropic:sha256:" + strings.Repeat("A", 64),
+		"anthropic:sha256:" + strings.Repeat("a", 65),
+		"other:sha256:" + strings.Repeat("a", 64),
+	}
+	for i, scope := range malformed {
+		observed := time.Date(2026, 10, 29, 7, i, 0, 0, time.UTC)
+		line := fmt.Sprintf(`{"observed_at":%q,"account_scope":%q,"five_hour":{"used_percentage":63,"resets_at":1793268600}}`, observed.Format(time.RFC3339), scope)
+		appendFile(t, path, line+"\n")
+	}
+	store := NewMemoryRepository()
+	reader := &ClaudeStatuslineReader{Path: path, Store: store, Now: func() time.Time { return time.Date(2026, 10, 29, 8, 0, 0, 0, time.UTC) }}
+	if got, err := reader.Ingest(t.Context()); err != nil || got != len(malformed) {
+		t.Fatalf("ingested %d (%v), want %d malformed-but-usable readings", got, err, len(malformed))
+	}
+	rows, err := store.ListQuotaObservations(t.Context(), "anthropic", "five_hour", "300m", 10)
+	if err != nil || len(rows) != len(malformed) {
+		t.Fatalf("rows=%d err=%v, want %d", len(rows), err, len(malformed))
+	}
+	for i, row := range rows {
+		if row.AccountScope != "" {
+			t.Fatalf("malformed account scope %d was accepted", i)
+		}
 	}
 }
 

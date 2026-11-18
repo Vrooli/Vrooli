@@ -4902,6 +4902,62 @@
       "description": "Provider subscription usage from the provider's own quota readings",
       "commands": [
         {
+          "name": "pace",
+          "description": "Read quota-based slot forecasts or change the run admission ceiling",
+          "positionals": [
+            {
+              "name": "action",
+              "description": "status (default) or set"
+            }
+          ],
+          "flags": [
+            {
+              "name": "tier",
+              "description": "baseline, at_reset, use_by_thursday, use_by_wednesday or extra_allowance"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "runtime-friction",
+          "description": "Read measured runtime loss categories and blocked verification command responses",
+          "flags": [
+            {
+              "name": "since",
+              "description": "RFC 3339 start of the report window (default: 7 days ago)"
+            },
+            {
+              "name": "until",
+              "description": "RFC 3339 end of the report window (default: now)"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "architecture": {
+            "primitive": "operational"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "forecast",
           "description": "Will each subscription window run out before its reset?",
           "flags": [

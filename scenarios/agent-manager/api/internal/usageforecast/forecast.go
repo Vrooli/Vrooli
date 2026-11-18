@@ -83,9 +83,10 @@ type Window struct {
 	Samples    int64
 	// LastPercent is the used percent of the newest reading; it is lower
 	// than Max when the newest reader lags (F-ORCH-3).
-	LastPercent float64
-	points      []Point
-	readings    []interval
+	LastPercent  float64
+	points       []Point
+	observations []Point
+	readings     []interval
 }
 
 // Scope names the provider, pool and window length.
@@ -203,6 +204,7 @@ func (w *Window) add(span pricing.QuotaReadingSpan) {
 		return
 	}
 	w.HasPercent = true
+	w.observations = append(w.observations, Point{At: span.LastAt, Percent: *span.UsedPercent})
 	if percent := *span.UsedPercent; percent > w.Max() {
 		w.points = append(w.points, Point{At: span.FirstAt, Percent: percent})
 	}
@@ -755,6 +757,7 @@ func Current(spans []pricing.QuotaReadingSpan, now time.Time) []Forecast {
 		if current.dead(now) {
 			continue
 		}
+		current = currentFreshWindow(current, now)
 		f := Project(current, windows[:len(windows)-1], now)
 		for i := len(windows) - 2; i >= 0; i-- {
 			if prev := windows[i]; prev.Max() > 0 || !prev.HasPercent {
@@ -770,6 +773,41 @@ func Current(spans []pricing.QuotaReadingSpan, now time.Time) []Forecast {
 		out = append(out, f)
 	}
 	return out
+}
+
+// currentFreshWindow keeps the historical maximum for completed windows and
+// calibration, but reconstructs the active window from fresh observations.
+// Concurrent sessions can cache different quota percentages. Taking the
+// maximum of every observation forever lets an old 100% cache override a
+// newer provider reading below 100%, so the active projection uses the
+// conservative maximum among observations still within the freshness window.
+func currentFreshWindow(w *Window, now time.Time) *Window {
+	if w == nil || len(w.observations) == 0 || w.LastAt.Before(now.Add(-StaleAfter)) || w.LastAt.After(now) {
+		return w
+	}
+	cutoff := now.Add(-StaleAfter)
+	var freshMax float64
+	var freshAt time.Time
+	for _, p := range w.observations {
+		if !p.At.Before(cutoff) && !p.At.After(now) {
+			if freshAt.IsZero() || p.Percent > freshMax || (p.Percent == freshMax && p.At.After(freshAt)) {
+				freshMax, freshAt = p.Percent, p.At
+			}
+		}
+	}
+	if freshAt.IsZero() || w.Max() <= freshMax {
+		return w
+	}
+	copy := *w
+	copy.points = make([]Point, 0, len(w.points)+1)
+	for _, p := range w.points {
+		if p.Percent <= freshMax {
+			copy.points = append(copy.points, p)
+		}
+	}
+	copy.points = append(copy.points, Point{At: freshAt, Percent: freshMax})
+	sort.SliceStable(copy.points, func(i, j int) bool { return copy.points[i].At.Before(copy.points[j].At) })
+	return &copy
 }
 
 // ActivitySource reports when a provider last had work that could spend its

@@ -215,10 +215,13 @@ func TestOperatorMutationSurfacesRenderNeutralResponses(t *testing.T) {
 	if err := app.cmdMaintenance([]string{"purge", "--pattern=drill", "--targets=profiles,tasks,runs", "--dry-run"}); err != nil {
 		t.Fatal(err)
 	}
-	for _, args := range [][]string{{"plan", "--scenario=agent-manager"}, {"reconcile-scenario", "--scenario=agent-manager", "--dry-run"}} {
+	for _, args := range [][]string{{"plan", "--scenario=agent-manager"}} {
 		if err := app.cmdDeclarations(args); err != nil {
 			t.Fatalf("declarations %v: %v", args, err)
 		}
+	}
+	if err := app.cmdDeclarations([]string{"reconcile-scenario", "--scenario=agent-manager", "--dry-run"}); err == nil || !strings.Contains(err.Error(), "reconciliation requires --local-owner") {
+		t.Fatalf("unauthenticated declaration reconciliation error = %v, want local-owner guard", err)
 	}
 }
 
@@ -444,11 +447,14 @@ func TestConfigurationAndRunnerCommandsValidateAndUseServiceContracts(t *testing
 		}
 	}
 	for _, args := range [][]string{
-		{"reconcile-scenario", "--scenario=agent-manager", "--dry-run", "--json"}, {"plan", "--scenario=agent-manager", "--json"},
+		{"plan", "--scenario=agent-manager", "--json"},
 	} {
 		if err := app.cmdDeclarations(args); err != nil {
 			t.Fatalf("declarations %v: %v", args, err)
 		}
+	}
+	if err := app.cmdDeclarations([]string{"reconcile-scenario", "--scenario=agent-manager", "--dry-run", "--json"}); err == nil || !strings.Contains(err.Error(), "reconciliation requires --local-owner") {
+		t.Fatalf("unauthenticated declaration reconciliation error = %v, want local-owner guard", err)
 	}
 
 	for _, call := range []func([]string) error{app.cmdRunner, app.cmdPolicy, app.cmdPermissionPolicy, app.cmdSettings, app.cmdMaintenance, app.cmdDeclarations} {

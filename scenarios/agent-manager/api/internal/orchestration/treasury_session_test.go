@@ -93,6 +93,22 @@ func TestMergedEnvVarsProtectsTreasurySessionKeyFromCustomEnv(t *testing.T) {
 	}
 }
 
+func TestMergedEnvVarsNeverExposesEvaluatorReceiptCapability(t *testing.T) {
+	run := &domain.Run{RunMode: domain.RunModeInPlace}
+	custom := map[string]string{
+		"VROOLI_AM_HOOK_RECEIPT_URL":           "http://127.0.0.1:1234/api/v1/runtime/hook-receipts",
+		"VROOLI_AM_HOOK_RECEIPT_TOKEN":         "caller-chosen-capability",
+		"VROOLI_AM_HOOK_RECEIPT_INVOCATION_ID": "caller-chosen-invocation",
+	}
+	executor := &RunExecutor{run: run, customEnv: custom}
+	env := executor.MergedEnvVars()
+	for key := range custom {
+		if env[key] != "" {
+			t.Fatalf("workload environment exposes evaluator receipt value for %s", key)
+		}
+	}
+}
+
 func TestRunExecutorInjectsOnlyVerifiedTreasuryRunKey(t *testing.T) {
 	secret := []byte("treasury-session-test-secret")
 	runID := uuid.New()

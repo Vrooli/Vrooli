@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/usageforecast"
 
 	"github.com/vrooli/api-core/operatordecision"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 const operatorSubject = "operator@example.com"
@@ -216,6 +217,88 @@ func TestAutoSaveNeedsAVerifiedHumanAndTurnsOffCleanly(t *testing.T) {
 	_ = n2.WillExhaust(ctx, f, projected, t0)
 	if len(rec2.decisions()) != 1 || len(n2.Modes.List()) != 0 {
 		t.Fatal("without a rule a projected run-out must be asked, not started")
+	}
+}
+
+func TestActiveModeDecisionEnablesFutureRuleWithoutStartingAnotherMode(t *testing.T) {
+	n, rec, c := newNotifier(t)
+	ctx := context.Background()
+	active, err := n.Modes.Start(ctx, StartRequest{Preset: PresetOneTierDown, Runner: "codex", Until: "weekly-reset", StartedBy: operatorSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := exhaustForecast(active.Mode.ExpiresAt.UTC())
+	if errs := n.Flush(ctx, []usageforecast.Forecast{f}, c.t); len(errs) != 0 {
+		t.Fatalf("forecast flush errors: %v", errs)
+	}
+	decisions := rec.decisions()
+	if len(decisions) != 1 {
+		t.Fatalf("active low-power mode should raise one future-rule decision, got %d", len(decisions))
+	}
+	d := decisions[0]
+	payload := d.Payload
+	if _, err := structpb.NewStruct(payload); err != nil {
+		t.Fatalf("decision payload is not publishable as a Hub event: %v", err)
+	}
+	correlation := payload["correlation"].(map[string]any)
+	if correlation["kind"] != KindAutoSaveRule {
+		t.Fatalf("decision kind = %v, want future-rule-only", correlation["kind"])
+	}
+	data := payload["template_data"].(map[string]any)
+	if data["meta"].(map[string]any)["notice"] == "" || !strings.Contains(data["meta"].(map[string]any)["notice"].(string), "does not start or change") {
+		t.Fatalf("page does not explain future-only effect: %+v", data["meta"])
+	}
+	options := data["options"].([]any)
+	if len(options) != 2 || options[0].(map[string]any)["key"] != AnswerAutoSave || options[1].(map[string]any)["key"] != AnswerNotNow || options[0].(map[string]any)["projection"] != nil {
+		t.Fatalf("future-rule options must not imply a current projection or start: %+v", options)
+	}
+	window := data["window"].(map[string]any)
+	if window["source"].(map[string]any)["status"] != "real" || len(window["readings"].([]any)) != 1 {
+		t.Fatalf("real quota source and reading missing: %+v", window)
+	}
+	if _, err := n.Apply(ctx, answer(d, AnswerAutoSave, operatorSubject, "answered", false)); err != nil {
+		t.Fatal(err)
+	}
+	if got := n.Modes.List(); len(got) != 1 || got[0].ID != active.Mode.ID {
+		t.Fatalf("future-only answer changed active modes: %+v", got)
+	}
+	rules := n.AutoSaveRules()
+	if len(rules) != 1 || rules[0].Runner != "codex" || rules[0].By != operatorSubject || rules[0].Starts != 0 {
+		t.Fatalf("future rule was not recorded without an immediate start: %+v", rules)
+	}
+
+	if _, _, err := n.Modes.End([]string{active.Mode.ID}, false); err != nil {
+		t.Fatal(err)
+	}
+	later := active.Mode.ExpiresAt.Add(time.Minute)
+	next := exhaustForecast(later.Add(7 * 24 * time.Hour))
+	projected := later.Add(time.Hour)
+	next.Projected = &projected
+	if err := n.WillExhaust(ctx, next, projected, later); err != nil {
+		t.Fatal(err)
+	}
+	autoModes := n.Modes.List()
+	if len(autoModes) != 1 || autoModes[0].StartedBy != AutoSaveStarter {
+		t.Fatalf("future rule did not start low power on a later projected run-out: %+v", autoModes)
+	}
+}
+
+func TestFutureAutoSaveRuleAnswerRequiresVerifiedHuman(t *testing.T) {
+	n, rec, c := newNotifier(t)
+	active, err := n.Modes.Start(context.Background(), StartRequest{Preset: PresetOneTierDown, Runner: "codex", Until: "weekly-reset", StartedBy: operatorSubject})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := exhaustForecast(active.Mode.ExpiresAt.UTC())
+	if err := n.WillExhaust(context.Background(), f, *f.Projected, c.t); err != nil {
+		t.Fatal(err)
+	}
+	res := answer(rec.decisions()[0], AnswerAutoSave, "", "answered", false)
+	if _, err := n.Apply(context.Background(), res); err != nil {
+		t.Fatal(err)
+	}
+	if len(n.AutoSaveRules()) != 0 || len(n.Modes.List()) != 1 {
+		t.Fatal("unverified answer enabled a future rule or changed the active mode")
 	}
 }
 

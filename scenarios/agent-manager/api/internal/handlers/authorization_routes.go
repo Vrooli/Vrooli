@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -20,6 +21,7 @@ import (
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/provenance"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
@@ -63,10 +65,43 @@ func serviceNeedsApproval(w http.ResponseWriter, r *http.Request, subject string
 		writeServiceAdmissionRefusal(w, http.StatusForbidden, "approval_raise_failed")
 		return
 	}
+	if isConnectRunCreationProcedure(r.URL.Path) {
+		writeConnectApprovalPending(w, subject)
+		return
+	}
 	writeJSON(w, http.StatusAccepted, map[string]string{
 		"status":  "approval_pending",
 		"subject": subject,
 		"detail":  "operator approval requested; the operation proceeds once approved",
+	})
+}
+
+func isConnectRunCreationProcedure(path string) bool {
+	return path == apiconnect.AgentManagerServiceCreateTaskProcedure || path == apiconnect.AgentManagerServiceCreateRunProcedure
+}
+
+// writeConnectApprovalPending preserves the REST 202 contract while giving
+// generated Connect callers a definitive, typed error they can safely map to
+// their existing approval-pending outcome.
+func writeConnectApprovalPending(w http.ResponseWriter, subject string) {
+	detail := &apipb.AuthorizationApprovalPending{
+		Subject: subject,
+		Detail:  "operator approval requested; the operation proceeds once approved",
+	}
+	encoded, err := proto.Marshal(detail)
+	if err != nil {
+		http.Error(w, "failed_precondition: approval pending", http.StatusBadRequest)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"code":    "failed_precondition",
+		"message": "approval pending",
+		"details": []map[string]string{{
+			"type":  "type.googleapis.com/agent_manager.v1.AuthorizationApprovalPending",
+			"value": base64.StdEncoding.EncodeToString(encoded),
+		}},
 	})
 }
 
@@ -135,6 +170,27 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		p, ok := identity.PrincipalFromContext(r.Context())
+		if r.Method == http.MethodPost && r.URL.Path == HookReceiptPath && ok && p.Kind == identity.ActorAgent && p.IsVerified() {
+			verified := provenance.FromContext(r.Context())
+			if verified.IsVerifiedAgent() && verified.RunID == strings.TrimSpace(p.Subject) && provenance.ForwardedIdentityToken(r.Context()) != "" {
+				// This append-only receipt route is run self-evidence, not a global
+				// management operation. The handler still requires the one-use
+				// owner-held launch credential and exact run/session binding.
+				next.ServeHTTP(w, r)
+				return
+			}
+			http.Error(w, "verified current run identity required", http.StatusForbidden)
+			return
+		}
+		if r.Method == http.MethodPost && r.URL.Path == apiconnect.AgentManagerServiceDetachRunProcedure && ok && p.Kind == identity.ActorAgent {
+			runID, valid := connectDetachRunID(r)
+			if !p.IsVerified() || p.Subject == "" || strings.Contains(p.Subject, "/") || !valid || runID != p.Subject {
+				http.Error(w, "current verified self identity required", http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
 		// The declarations plan handler always forces DryRun, regardless of the
 		// request body. Permit a verified agent to use this exact read/validation
 		// route without opening the mutating reconciliation endpoint or global
@@ -370,7 +426,7 @@ func isGitControlTowerWorkflowStart(r *http.Request) (bool, string) {
 		return false, "body_too_large"
 	}
 	var request apipb.StartWorkflowExecutionRequest
-	if err := unmarshalWorkflowStartRequest(r.Header.Get("Content-Type"), data, &request); err != nil {
+	if err := unmarshalConnectProtoRequest(r.Header.Get("Content-Type"), data, &request); err != nil {
 		return false, "invalid_workflow_start_encoding"
 	}
 	if request.GetOwner() != "git-control-tower" {
@@ -411,7 +467,7 @@ func isGitControlTowerWorkflowCancelByKey(r *http.Request) bool {
 	}
 }
 
-func unmarshalWorkflowStartRequest(contentType string, data []byte, request *apipb.StartWorkflowExecutionRequest) error {
+func unmarshalConnectProtoRequest(contentType string, data []byte, request proto.Message) error {
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err == nil {
 		switch mediaType {
@@ -431,6 +487,12 @@ func unmarshalWorkflowStartRequest(contentType string, data []byte, request *api
 }
 
 func agentOperationRoute(r *http.Request, interactive bool) bool {
+	if r.URL.Path == apiconnect.AgentManagerServiceContinueRunProcedure {
+		// ContinueRun has a generated unary route as well as the legacy REST route.
+		// Admission only lets a verified agent reach the handler; the existing
+		// lineage/self-operation checks remain the authority for its target.
+		return true
+	}
 	if r.Method == http.MethodDelete {
 		// Run and task deletion each have target-specific policy checks in their
 		// handlers. Other DELETE routes remain outside agent management.
@@ -561,9 +623,33 @@ var signedEventWebhookRoute = map[string]bool{
 // continuity (see AgentOperationMiddleware for the full G2 contract). None carry
 // launch or attribution coupling.
 var localLoopbackOnlyRoute = map[string]bool{
-	"/api/v1/runs/attach":             true,
-	"/api/v1/runs/import-transcript":  true,
-	"/api/v1/runs/external/tombstone": true,
+	"/api/v1/runs/attach":                            true,
+	apiconnect.AgentManagerServiceAttachRunProcedure: true,
+	"/api/v1/runs/import-transcript":                 true,
+	"/api/v1/runs/external/tombstone":                true,
+}
+
+// connectDetachRunID reads only enough of the generated request to apply the
+// same self-target fence as the legacy REST path, then restores the body for
+// Connect's decoder. The owner re-verifies the run-bound identity token.
+func connectDetachRunID(r *http.Request) (string, bool) {
+	if r == nil || r.Body == nil {
+		return "", false
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, 16<<10))
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	if err != nil || len(data) == 0 || len(data) >= 16<<10 {
+		return "", false
+	}
+	var request apipb.DetachRunRequest
+	if err := unmarshalConnectProtoRequest(r.Header.Get("Content-Type"), data, &request); err != nil {
+		return "", false
+	}
+	runID := strings.TrimSpace(request.GetRunId())
+	if _, err := uuid.Parse(runID); err != nil {
+		return "", false
+	}
+	return runID, true
 }
 
 // Reviewed POST read routes from the current owner contract. Connect RPCs and

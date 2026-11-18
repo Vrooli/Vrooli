@@ -783,6 +783,9 @@ func (h *AgentManagerConnectHandler) ListProfiles(ctx context.Context, req *conn
 // CreateTask is the task leg of run creation. It shares the REST handler's
 // caller authorization and storage path (authorizeTaskCreate, createTask).
 func (h *AgentManagerConnectHandler) CreateTask(ctx context.Context, req *connect.Request[api.CreateTaskRequest]) (*connect.Response[api.CreateTaskResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
 	trustedCreator, err := h.h.authorizeTaskCreate(ctx, req.Header().Get(cliutil.HeaderAgentIdentityToken))
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
@@ -802,6 +805,9 @@ func (h *AgentManagerConnectHandler) CreateTask(ctx context.Context, req *connec
 // read request headers, so the Connect procedure carries the caller's headers
 // and context into that one implementation instead of restating the guards.
 func (h *AgentManagerConnectHandler) CreateRun(ctx context.Context, req *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error) {
+	if req == nil || req.Msg == nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
+	}
 	response := &api.CreateRunResponse{}
 	if err := callRESTHandler(ctx, req.Header(), req.Peer().Addr, h.h.CreateRun, req.Msg, response); err != nil {
 		return nil, err

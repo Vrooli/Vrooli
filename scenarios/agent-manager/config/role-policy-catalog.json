@@ -150,7 +150,7 @@
       ]
     },
     "code.fallback": {
-      "description": "GPT-6.1 Sol only after a recorded native or managed harness failure.",
+      "description": "GPT-6.2 Sol only after a recorded native or managed harness failure.",
       "intent": "fallback",
       "orderingReason": "Explicit role; no automatic fallback.",
       "candidates": [

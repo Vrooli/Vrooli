@@ -103,12 +103,13 @@ func TestRunsOutOfferIsReversibleWithNoDefaultAndOnePerWindow(t *testing.T) {
 	if window["source"].(map[string]any)["status"] != "real" || window["reset"] != f.Window.ResetAt.UTC().Format(time.RFC3339) {
 		t.Fatalf("template data did not identify the observed quota window: %+v", window)
 	}
-	readings := window["readings"].([]map[string]any)
-	if len(readings) == 0 || readings[len(readings)-1]["used"] != float64(81) {
+	readings := window["readings"].([]any)
+	if len(readings) == 0 || readings[len(readings)-1].(map[string]any)["used"] != float64(81) {
 		t.Fatalf("template data did not carry the real usage reading: %+v", readings)
 	}
-	options := templateData["options"].([]map[string]any)
+	options := templateData["options"].([]any)
 	for _, option := range options {
+		option := option.(map[string]any)
 		if option["key"] == AnswerNotNow || option["key"] == AnswerRemind {
 			projection := option["projection"].(map[string]any)
 			if projection["runOut"] != f.Projected.UTC().Format(time.RFC3339) {
@@ -119,7 +120,7 @@ func TestRunsOutOfferIsReversibleWithNoDefaultAndOnePerWindow(t *testing.T) {
 			t.Fatalf("unmeasured low-power savings must not have a numeric projection: %+v", option)
 		}
 	}
-	if templateData["technical"].([]map[string]string)[2]["value"] != f.Status+": "+f.Reason {
+	if templateData["technical"].([]any)[2].(map[string]any)["value"] != f.Status+": "+f.Reason {
 		t.Fatalf("template data lost forecast status/reason: %+v", templateData["technical"])
 	}
 	keys := []string{}

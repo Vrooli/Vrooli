@@ -1,9 +1,8 @@
-// Package usagepace turns provider quota forecasts into admission slot
-// forecasts for explicit operator run-out targets.
+// Package usagepace exposes provider quota targets and enables admission tiers
+// only when utilization evidence supports a trustworthy ceiling.
 package usagepace
 
 import (
-	"math"
 	"sort"
 	"time"
 
@@ -15,11 +14,10 @@ const (
 	TierUseByThursday  = "use_by_thursday"
 	TierUseByWednesday = "use_by_wednesday"
 	TierExtraAllowance = "extra_allowance"
-	MaxSlots           = 9999
 )
 
 // Tier is one precomputed operator pace choice. Slots is nil when the current
-// provider readings cannot support an honest slot estimate.
+// quota and utilization evidence cannot support an honest slot estimate.
 type Tier struct {
 	ID                     string      `json:"id"`
 	Label                  string      `json:"label"`
@@ -33,23 +31,49 @@ type Tier struct {
 	SourceScopes           []string    `json:"source_scopes,omitempty"`
 	SourceObservedAt       *time.Time  `json:"source_observed_at,omitempty"`
 	ScopeSlots             []ScopeSlot `json:"scope_slots,omitempty"`
+	ObservedExecutingRuns  *uint32     `json:"observed_executing_runs,omitempty"`
+	UtilizationObservedAt  *time.Time  `json:"utilization_observed_at,omitempty"`
+	UtilizationComplete    bool        `json:"utilization_complete"`
 }
 
 // ScopeSlot identifies the quota window that contributes a tier's global
-// admission ceiling.
+// admission ceiling when sufficient utilization evidence is available.
 type ScopeSlot struct {
 	Scope           string    `json:"scope"`
+	Provider        string    `json:"provider"`
+	Pool            string    `json:"pool"`
+	Window          string    `json:"window"`
+	AccountScope    string    `json:"account_scope,omitempty"`
 	AvailableSlots  int       `json:"available_slots"`
 	ProjectedRunOut time.Time `json:"projected_run_out_at"`
 	ResetAt         time.Time `json:"reset_at"`
+	RunIDs          []string  `json:"run_ids"`
+	QuotaStart      time.Time `json:"quota_window_start"`
+	QuotaEnd        time.Time `json:"quota_window_end"`
+	SampleStart     time.Time `json:"utilization_sample_start"`
+	SampleEnd       time.Time `json:"utilization_sample_end"`
+	SampleCount     int       `json:"utilization_sample_count"`
+	RunSeconds      float64   `json:"measured_run_seconds"`
+	BurnPercent     float64   `json:"measured_quota_burn_percent"`
+	ScopeEvidence   string    `json:"scope_evidence"`
 }
 
-// Forecast returns real slot projections for the supported pace tiers. It
-// uses the current quota forecast's projected run-out under the existing
-// admission ceiling as the observed-rate baseline. If any observed primary
-// scope is stale, unknown, or missing a projected run-out, this returns an
-// unavailable result rather than inventing a capacity number.
-func Forecast(forecasts []usageforecast.Forecast, baselineSlots int, now time.Time) []Tier {
+// Utilization is a point-in-time physical execution observation. It is useful
+// provenance but cannot normalize quota burn accumulated over a historical
+// window; that requires coextensive, per-provider utilization history.
+type Utilization struct {
+	ExecutingRuns uint32
+	ObservedAt    time.Time
+	Complete      bool
+}
+
+// Forecast returns supported pace targets and explicit availability. Provider
+// quota forecasts are account-wide; the available utilization source is only a
+// current physical-execution snapshot, not history matched to the quota burn
+// interval. Therefore it cannot support a per-run slot ceiling, and tiers stay
+// unavailable until such evidence exists. The at-reset target uses the latest
+// active reset, so a short quota window does not replace a longer horizon.
+func Forecast(forecasts []usageforecast.Forecast, utilization Utilization, now time.Time) []Tier {
 	now = now.UTC()
 	valid := make([]usageforecast.Forecast, 0, len(forecasts))
 	for _, f := range forecasts {
@@ -65,82 +89,72 @@ func Forecast(forecasts []usageforecast.Forecast, baselineSlots int, now time.Ti
 	types := []struct {
 		id, label string
 	}{
-		{TierReset, "Last until quota resets"},
+		{TierReset, "Last through the final active quota reset"},
 		{TierUseByThursday, "Use by Thursday"},
 		{TierUseByWednesday, "Use by Wednesday"},
 		{TierExtraAllowance, "Use extra allowance"},
 	}
 	result := make([]Tier, 0, len(types))
 	for _, tier := range types {
-		row := Tier{ID: tier.id, Label: tier.label, Status: "unavailable"}
+		row := Tier{ID: tier.id, Label: tier.label, Status: "unavailable", UtilizationComplete: utilization.Complete}
+		if utilization.ExecutingRuns > 0 {
+			observed := utilization.ExecutingRuns
+			row.ObservedExecutingRuns = &observed
+		}
+		if !utilization.ObservedAt.IsZero() {
+			observed := utilization.ObservedAt.UTC()
+			row.UtilizationObservedAt = &observed
+		}
 		if tier.id == TierExtraAllowance {
 			row.Reason = "provider quota readings do not identify a separate extra-allowance budget"
 			result = append(result, row)
 			continue
 		}
-		if baselineSlots < 1 || len(valid) == 0 {
+		targetAt := targetForDay(tier.id, now, usageforecast.DigestLocation())
+		if targetAt.IsZero() {
+			for _, f := range valid {
+				if targetAt.IsZero() || f.Window.ResetAt.After(targetAt) {
+					targetAt = f.Window.ResetAt
+				}
+			}
+		}
+		if !targetAt.IsZero() {
+			row.TargetRunOutAt = &targetAt
+			row.TargetRunOutSeconds = int64(targetAt.Sub(now).Seconds())
+		}
+		if len(valid) == 0 {
 			row.Reason = "no fresh provider quota forecast is available to estimate slots"
 			result = append(result, row)
 			continue
 		}
-		minSlots := MaxSlots
-		complete := true
-		var targetAt time.Time
+		quotaComplete := true
 		for _, f := range valid {
-			if f.Projected == nil || !f.Projected.After(now) || f.Status == usageforecast.StatusUnknown || f.Status == usageforecast.StatusIdle {
-				complete = false
-				break
-			}
-			target := f.Window.ResetAt
-			if tierTarget := targetForDay(tier.id, now, usageforecast.DigestLocation()); !tierTarget.IsZero() && tierTarget.Before(target) {
-				target = tierTarget
-			}
-			targetSeconds := int64(target.Sub(now).Seconds())
-			if targetSeconds < 1 {
-				complete = false
-				break
-			}
-			currentSeconds := f.Projected.Sub(now).Seconds()
-			// The same quota budget is expected to be consumed over the target
-			// interval. Scaling current admitted slots by observed/target burn
-			// preserves the measured provider rate as the only source of capacity.
-			slots := int(math.Round(float64(baselineSlots) * currentSeconds / float64(targetSeconds)))
-			if slots < 1 {
-				slots = 1
-			}
-			if slots > MaxSlots {
-				slots = MaxSlots
-			}
-			if slots < minSlots {
-				minSlots = slots
-			}
+			// Record each active quota window before evaluating it. If a later
+			// window blocks the tier, the response must identify that actual
+			// blocker as well as any earlier windows that passed. Otherwise a
+			// weekly exhaustion can be reported as if the five-hour window were
+			// the only source considered.
 			row.SourceScopes = append(row.SourceScopes, f.Window.Scope())
-			row.ScopeSlots = append(row.ScopeSlots, ScopeSlot{
-				Scope:           f.Window.Scope(),
-				AvailableSlots:  slots,
-				ProjectedRunOut: *f.Projected,
-				ResetAt:         f.Window.ResetAt,
-			})
 			if row.SourceObservedAt == nil || f.AsOf.After(*row.SourceObservedAt) {
 				observed := f.AsOf
 				row.SourceObservedAt = &observed
 			}
-			if targetAt.IsZero() || target.Before(targetAt) {
-				targetAt = target
+			if f.Projected == nil || f.Status == usageforecast.StatusUnknown || f.Status == usageforecast.StatusIdle {
+				quotaComplete = false
+				row.Reason = f.Window.Scope() + ": one or more quota windows lack a fresh, usable forecast"
+				break
+			}
+			if f.Used >= 100 {
+				quotaComplete = false
+				row.Reason = f.Window.Scope() + ": quota window is exhausted before reset"
+				break
 			}
 		}
-		if !complete {
-			row.Reason = "one or more current provider quota windows lack a fresh projected run-out"
+		if !quotaComplete {
 			result = append(result, row)
 			continue
 		}
-		row.Status = "available"
-		row.Basis = "relative estimate from provider-reported quota forecasts; assumes quota burn scales linearly with admitted concurrent runs"
-		row.Basis = "relative estimate from the provider-reported quota forecast; assumes quota burn scales linearly with admitted concurrent runs"
-		row.TargetRunOutAt = &targetAt
-		row.TargetRunOutSeconds = int64(targetAt.Sub(now).Seconds())
-		row.AvailableSlots = &minSlots
-		row.EffectiveMaxConcurrent = &minSlots
+		row.Reason = "quota burn is account-wide, while physical utilization is only a point-in-time snapshot; no coextensive per-provider utilization history supports a trustworthy slot ceiling"
 		result = append(result, row)
 	}
 	return result

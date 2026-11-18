@@ -1,15 +1,12 @@
 package wiring
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"strings"
+	"errors"
 	"time"
 
 	"github.com/vrooli/api-core/discovery"
+	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/operatordecision"
 )
 
@@ -53,99 +50,34 @@ func reconcileEventSubscription(ctx context.Context, name, pattern, target strin
 }
 
 func reconcileEventSubscriptionAt(ctx context.Context, base, name, pattern, target string) error {
-	base = strings.TrimRight(base, "/")
-	client := &http.Client{Timeout: 10 * time.Second}
-	var existing []struct {
-		ID             int64  `json:"id"`
-		Name           string `json:"name"`
-		EventPattern   string `json:"event_pattern"`
-		DeliveryTarget string `json:"delivery_target"`
-		Enabled        bool   `json:"enabled"`
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner=agent-manager", nil)
+	client, err := eventbus.NewSubscriptionClient(base, nil)
 	if err != nil {
 		return err
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("list event subscriptions returned %s", resp.Status)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&existing); err != nil {
-		return err
-	}
-	payload := map[string]any{"name": name, "owner_scenario": "agent-manager", "event_pattern": pattern, "delivery_type": "webhook", "delivery_target": target, "enabled": true}
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	for _, item := range existing {
-		if item.Name == name && item.Enabled && item.DeliveryTarget == target && item.EventPattern == pattern {
-			return nil
-		}
-	}
-	for _, item := range existing {
-		// The named subscription belongs to this integration even when the
-		// scenario port changed or the row was disabled. Never overwrite a
-		// different subscription merely because its target matches.
-		if item.Name == name {
-			return putSubscription(ctx, client, base, item.ID, body)
-		}
-	}
-	req, err = http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/subscriptions", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err = client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("create event subscription returned %s", resp.Status)
-	}
-	return nil
+	return client.EnsureNamedSubscription(ctx, eventbus.Subscription{
+		Name: name, OwnerScenario: "agent-manager", EventPattern: pattern,
+		DeliveryType: "webhook", DeliveryTarget: target, Enabled: true,
+	})
 }
 
 // retryEventSubscriptions keeps subscriptions reconciled after startup as
 // well as after an Events restart or a removed/disabled subscription.
 func retryEventSubscriptions(ctx context.Context, interval time.Duration, checks ...func(context.Context) error) {
-	for len(checks) > 0 {
+	if len(checks) == 0 {
+		return
+	}
+	eventbus.RunSubscriptionReconciler(ctx, eventbus.SubscriptionReconcilerConfig{
+		Interval: interval, AttemptTimeout: 15 * time.Second, Attempts: 1,
+	}, func(ctx context.Context) error {
+		var errs []error
 		for _, check := range checks {
-			if ctx.Err() != nil {
-				return
+			if err := ctx.Err(); err != nil {
+				return err
 			}
-			attempt, cancel := context.WithTimeout(ctx, 15*time.Second)
-			_ = check(attempt)
-			cancel()
+			if err := check(ctx); err != nil {
+				errs = append(errs, err)
+			}
 		}
-		timer := time.NewTimer(interval)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return
-		case <-timer.C:
-		}
-	}
-}
-
-func putSubscription(ctx context.Context, client *http.Client, base string, id int64, body []byte) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/api/v1/subscriptions/%d", base, id), bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 {
-		return fmt.Errorf("update event subscription returned %s", resp.Status)
-	}
-	return nil
+		return errors.Join(errs...)
+	}, nil)
 }

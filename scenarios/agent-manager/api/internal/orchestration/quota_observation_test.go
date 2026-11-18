@@ -23,6 +23,7 @@ import (
 
 	"agent-manager/internal/domain"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -115,7 +116,38 @@ func TestEveryLiveSinkPathRecordsProviderQuotaObservations(t *testing.T) {
 			if row.Used != nil || row.Limit != nil {
 				t.Fatalf("observation attributed unreported amount = %+v", row)
 			}
+			if row.AccountScope != "" {
+				t.Fatalf("unbound run quota event received inferred account scope: %q", row.AccountScope)
+			}
 		})
+	}
+}
+
+func TestQuotaObservationUsesOnlyPersistedLaunchAccountBinding(t *testing.T) {
+	repos, events, run := tokenCapFixture(t, "gpt-6-luna")
+	quota := &recordingQuotaObservationStore{}
+	o := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events), WithQuotaObservationStore(quota))
+	frame := codexQuotaEvent(t, run.ID, 42)
+	o.observeQuotaEvent(t.Context(), frame, true)
+	if len(quota.rows) != 1 || quota.rows[0].AccountScope != "" {
+		t.Fatalf("historical/unbound observation scope = %+v, want unknown", quota.rows)
+	}
+	cfg := *run.ResolvedConfig
+	cfg.CodexAccountScope = "codex:opaque-test-digest"
+	updater, ok := repos.Runs.(repository.RunConfigUpdater)
+	if !ok {
+		t.Fatal("run repository lacks status-guarded config updater")
+	}
+	updated, err := updater.UpdateResolvedConfig(t.Context(), run.ID, &cfg, run.Status)
+	if err != nil || !updated {
+		t.Fatalf("persist launch binding: updated=%v err=%v", updated, err)
+	}
+	o.observeQuotaEvent(t.Context(), codexQuotaEvent(t, run.ID, 43), true)
+	if len(quota.rows) != 2 || quota.rows[1].AccountScope != cfg.CodexAccountScope {
+		t.Fatalf("forward observation scope = %+v, want persisted launch binding", quota.rows)
+	}
+	if quota.rows[1].ID != pricing.QuotaObservationID(&quota.rows[1]) || quota.rows[1].ID == quota.rows[0].ID {
+		t.Fatalf("scoped observation ID = %q, want identity derived from account scope and distinct from unknown history", quota.rows[1].ID)
 	}
 }
 

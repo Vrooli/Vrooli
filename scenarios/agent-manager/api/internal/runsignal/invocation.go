@@ -16,6 +16,7 @@ import (
 
 // InvocationFactVersion is pinned into every derivation so a rebuild can be
 // compared honestly when classifier behavior evolves.
+// v35 carries provider-issued evaluator IDs and measured evaluation time from native-hook refusals.
 // v32 gives a command's output to the segment that holds its duration: its
 // printed bytes and its result tokens (what its nested result says it could
 // show, capped by its exec_command max_output_tokens; the script's own unit
@@ -47,7 +48,7 @@ import (
 // v20 derives every token quantity from the one usage account
 // (AccountUsage). v17 apportions per-call token quantities across the
 // segments of a compound command, so a SUM over facts reconciles to the run.
-const InvocationFactVersion = "invocation-fact.v33"
+const InvocationFactVersion = "invocation-fact.v35"
 
 // Outcome vocabulary of an InvocationFact.
 const (
@@ -87,6 +88,8 @@ type InvocationFact struct {
 	Executable                  string                `json:"executable,omitempty"`
 	Wrapper                     string                `json:"wrapper,omitempty"`
 	CommandPath                 string                `json:"commandPath,omitempty"`
+	CheckID                     string                `json:"checkId,omitempty"`
+	CheckDurationMS             *int64                `json:"checkDurationMs,omitempty"`
 	ProgramID                   string                `json:"programId,omitempty"`
 	SkillID                     string                `json:"skillId,omitempty"`
 	Ownership                   string                `json:"ownership"`
@@ -242,6 +245,9 @@ func (p *callPlan) facts(event *domain.RunEvent, history *retryHistory) []Invoca
 				fact.DurationMS = outcome.DurationMS
 			}
 			fact.Outcome = unitOutcome(outcome, unit, tokens)
+			if fact.Outcome == OutcomeRefused && holds {
+				fact.CheckID, fact.CheckDurationMS = guardCheckEvidence(outcome)
+			}
 			if fact.Outcome == OutcomeFailure {
 				fact.FailureSignature, fact.SignatureTruncated = failureSignature(outcome)
 			}
@@ -438,6 +444,13 @@ func harnessRefused(data *domain.ToolResultEventData) bool {
 		text = strings.TrimSpace(data.Output)
 	}
 	return strings.HasPrefix(text, "<tool_use_error>Blocked") || strings.HasPrefix(text, "PreToolUse:") && strings.Contains(text, "hook error")
+}
+
+// guardCheckEvidence intentionally rejects transcript text as evaluator
+// provenance. Hook stderr is persisted in mutable/importable transcript data;
+// only a future authenticated evaluator receipt may populate this identity.
+func guardCheckEvidence(data *domain.ToolResultEventData) (string, *int64) {
+	return "", nil
 }
 
 func failureSignature(data *domain.ToolResultEventData) (string, bool) {

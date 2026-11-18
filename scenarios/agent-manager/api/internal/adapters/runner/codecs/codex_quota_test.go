@@ -2,8 +2,11 @@ package codecs
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -51,6 +54,44 @@ done
 	_, err = NewCodexForTestWithBinary(path).ReadLiveQuota(short)
 	if err == nil || time.Since(start) > 3*time.Second {
 		t.Fatalf("deadline err=%v elapsed=%s", err, time.Since(start))
+	}
+}
+
+func TestCodexLaunchAccountScopeUsesExplicitRunHomeAndNeverReturnsIdentity(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "codex")
+	logPath := filepath.Join(t.TempDir(), "home.log")
+	script := fmt.Sprintf(`#!/bin/sh
+echo "$CODEX_HOME" > %q
+while IFS= read -r line; do
+ case "$line" in
+  *'"method":"initialize"'*) echo '{"id":1,"result":{}}' ;;
+  *'"method":"account/rateLimits/read"'*) echo '{"id":2,"result":{"accountId":"private-account-id","rateLimits":{}}}' ;;
+ esac
+done
+`, logPath)
+	if err := os.WriteFile(path, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	runHome := filepath.Join(t.TempDir(), "run-codex")
+	t.Setenv("CODEX_HOME", filepath.Join(t.TempDir(), "ambient"))
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	scope, err := NewCodexForTestWithBinary(path).ReadLaunchAccountScope(ctx, runHome)
+	if err != nil {
+		t.Fatal("launch scope read failed")
+	}
+	if scope == "" || scope == "private-account-id" || strings.Contains(scope, "private-account-id") {
+		t.Fatalf("scope exposed or omitted opaque identity: %q", scope)
+	}
+	gotHome, err := os.ReadFile(logPath)
+	if err != nil || strings.TrimSpace(string(gotHome)) != runHome {
+		t.Fatalf("app-server CODEX_HOME = %q, err=%v; want exact run home", gotHome, err)
+	}
+	body, _ := json.Marshal(struct {
+		Scope string `json:"scope"`
+	}{scope})
+	if strings.Contains(string(body), "private-account-id") {
+		t.Fatalf("serialized binding exposed account ID: %s", body)
 	}
 }
 
