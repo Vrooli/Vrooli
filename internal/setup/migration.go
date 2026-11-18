@@ -41,7 +41,10 @@ var ownershipMigrationClasses = []string{
 }
 
 //nolint:gocyclo // ownership migration coordinates discovery, confirmation, mutation, and recovery reporting.
-func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Writer) error {
+func runOwnershipMigration(ctx context.Context, locator projectstate.Locator, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	ledger, err := projectstate.LoadMigrationLedger(locator)
 	if err != nil {
 		return err
@@ -119,7 +122,7 @@ func runOwnershipMigration(locator projectstate.Locator, stdout, stderr io.Write
 				Deadline:    deadline,
 				ResumeAfter: record.Cursors[class],
 			}
-			result, repairErr := service.Repair(context.Background(), request)
+			result, repairErr := service.Repair(ctx, request)
 			if repairErr != nil {
 				record.Status = projectstate.MigrationFailed
 				record.LastError = repairErr.Error()

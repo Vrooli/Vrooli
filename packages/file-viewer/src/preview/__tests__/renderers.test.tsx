@@ -352,6 +352,19 @@ describe("HTML text preview", () => {
     expect(screen.getByRole("combobox", { name: strings.viewer.htmlZoom })).toHaveValue("fit");
   });
 
+  it("initializes the isolated document fragment before the author's router and keeps it as text", () => {
+    const anchor = 'review-2"></script><script id="unexpected">&';
+    render(<CodePreview model={model({ kind: "code", resolvedPath: "/tmp/report.html" })} anchor={anchor}
+      text={text('<script id="router">document.title = location.hash</script>', "code")} onError={() => {}} {...navProps} />);
+    const frame = screen.getByTitle(strings.viewer.htmlPreview);
+    const doc = new DOMParser().parseFromString(frame.getAttribute("srcdoc") ?? "", "text/html");
+    expect(frame).toHaveAttribute("sandbox", "allow-scripts");
+    expect(doc.scripts[0]?.dataset.fragment).toBe(anchor);
+    expect(doc.scripts[0]?.textContent).toContain("about:srcdoc#");
+    expect(doc.getElementById("router")).not.toBeNull();
+    expect(doc.getElementById("unexpected")).toBeNull();
+  });
+
   it("keeps line-linked and truncated HTML in source view initially", () => {
     const Renderer = CodePreview;
     render(<Renderer model={model({ kind: "text", basename: "report.htm", resolvedPath: "/tmp/report.htm", line: 1 })} text={{ ...text("<h1>Report</h1>", "text"), truncated: true }} onError={() => {}} {...navProps} />);

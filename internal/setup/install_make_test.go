@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,8 +54,9 @@ func TestInstallPreparationQualifiesBeforeBuildUnderParallelMake(t *testing.T) {
 				rootAction := "install:bundle"
 				if target == "rebaseline" {
 					rootAction = "candidate:rebaseline"
+					want = append(want, "prepare:bundle")
 				}
-				want = append(want, "prepare:bundle", rootAction)
+				want = append(want, rootAction)
 			}
 			if !reflect.DeepEqual(events, want) {
 				t.Fatalf("%s events = %v, want %v\n%s", target, events, want, output)
@@ -133,56 +133,19 @@ func TestInstallSnapshotCleanupAndPrune(t *testing.T) {
 			t.Fatalf("expected %s failure: %s", failure, out)
 		}
 	}
-	matches, err := filepath.Glob(filepath.Join(f.root, "snapshots", "install-bundle.*"))
+	matches, err := filepath.Glob(filepath.Join(f.root, "snapshots", "cohort.*"))
 	if err != nil || len(matches) != 0 {
-		t.Fatalf("failed install left snapshots %v: %v", matches, err)
-	}
-	stale := filepath.Join(f.root, "snapshots", "install-bundle.abcdefgh")
-	active := filepath.Join(f.root, "snapshots", "install-bundle.ijklmnop")
-	for _, path := range []string{stale, active} {
-		if err := os.MkdirAll(path, 0700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(path, ".lease"), nil, 0600); err != nil {
-			t.Fatal(err)
-		}
-		old := time.Now().Add(-25 * time.Hour)
-		if err := os.Chtimes(path, old, old); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// Hold a lease as an interrupted parent with a still-running child would.
-	lease := exec.Command("flock", "-x", filepath.Join(active, ".lease"), "sh", "-c", "echo ready; cat")
-	stdin, err := lease.StdinPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	stdout, err := lease.StdoutPipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := lease.Start(); err != nil {
-		t.Fatal(err)
-	}
-	defer func() { stdin.Close(); lease.Wait() }()
-	var ready [6]byte
-	if _, err := io.ReadFull(stdout, ready[:]); err != nil {
-		t.Fatal(err)
-	}
-	old := time.Now().Add(-25 * time.Hour)
-	if err := os.Chtimes(active, old, old); err != nil {
-		t.Fatal(err)
+		t.Fatalf("failed install left build cohorts %v: %v", matches, err)
 	}
 	cmd := exec.Command("make", "--no-print-directory", "install-snapshot-prune", "BUNDLE_PUBLISHER="+filepath.Join(f.bin, "publisher"))
 	cmd.Dir = f.root
+	cmd.Env = append(os.Environ(), "TEST_EVENTS="+filepath.Join(f.root, "events"))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("prune: %v %s", err, out)
 	}
-	if _, err := os.Stat(stale); !os.IsNotExist(err) {
-		t.Fatalf("stale snapshot retained: %v", err)
-	}
-	if _, err := os.Stat(active); err != nil {
-		t.Fatalf("active snapshot removed: %v", err)
+	events, err := os.ReadFile(filepath.Join(f.root, "events"))
+	if err != nil || !strings.Contains(string(events), "prune:install") {
+		t.Fatalf("Makefile did not delegate install-snapshot pruning: %q, %v", events, err)
 	}
 }
 
@@ -196,21 +159,19 @@ func TestHubPruneUsesCurrentSourceToRetirePendingDecision(t *testing.T) {
 		t.Fatal(err)
 	}
 	retirer := filepath.Join(f.bin, "retirer")
-	if err := os.WriteFile(retirer, []byte("#!/bin/sh\n[ \"$*\" = \"runtime update retire-snapshot $PWD/snapshots/rebaseline-hub.abcdefgh\" ]\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	old := time.Now().Add(-25 * time.Hour)
-	if err := os.Chtimes(snapshot, old, old); err != nil {
+	if err := os.WriteFile(retirer, []byte("#!/bin/sh\n[ \"$*\" = \"runtime update retire-snapshot $PWD/snapshots/rebaseline-hub.abcdefgh\" ]\nprintf 'retired\\n' >> \"$TEST_EVENTS\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command("make", "--no-print-directory", "rebaseline-hub-prune", "BUNDLE_PUBLISHER="+filepath.Join(f.bin, "publisher"), "VROOLI="+retirer)
 	cmd.Dir = f.root
+	cmd.Env = append(os.Environ(), "TEST_EVENTS="+filepath.Join(f.root, "events"))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("prune: %v\n%s", err, out)
 	}
-	if _, err := os.Stat(snapshot); !os.IsNotExist(err) {
-		t.Fatalf("retired snapshot still exists: %v", err)
+	events, err := os.ReadFile(filepath.Join(f.root, "events"))
+	if err != nil || !strings.Contains(string(events), "retired") {
+		t.Fatalf("Makefile did not invoke current-source retirement: %q, %v", events, err)
 	}
 }
 
@@ -276,7 +237,20 @@ esac
 	publisher := write("publisher", `#!/bin/sh
 case "$1" in
   --snapshot-root) printf '%s\n' "$PWD/snapshots";;
+  --snapshot-lock-exec) shift 3; exec "$@";;
+  --snapshot-lease-exec) shift 4; exec "$@";;
   --publish-source-owned) printf 'publish-source\n' >> "$TEST_EVENTS";;
+  --prune-hub-snapshots)
+    root=$2; current=$(cat "$3" 2>/dev/null || true); retire=$6
+    for snapshot in "$root"/rebaseline-hub.*; do
+      [ -d "$snapshot" ] && [ -e "$snapshot/.ready" ] || continue
+      [ "$snapshot" != "$current" ] || continue
+      old=$(find "$snapshot" -maxdepth 0 -mmin +1440 -print -quit)
+      [ -n "$old" ] || continue
+      "$retire" runtime update retire-snapshot "$snapshot"
+      rm -rf -- "$snapshot"
+    done
+    ;;
   *) exit 91;;
 esac
 `)
@@ -286,7 +260,7 @@ esac
 	if err := os.MkdirAll(portablePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"cat", "flock", "shasum", "touch"} {
+	for _, name := range []string{"cat", "flock", "grep", "make", "shasum", "touch"} {
 		resolved, err := exec.LookPath(name)
 		if err != nil {
 			t.Fatalf("required recipe utility %s: %v", name, err)
@@ -329,6 +303,7 @@ esac
 type installMakeFixture struct {
 	root          string
 	bin           string
+	home          string
 	sourcePointer string
 }
 
@@ -342,6 +317,13 @@ func newInstallMakeFixture(t *testing.T) installMakeFixture {
 	}
 	fixture := installMakeFixture{root: t.TempDir()}
 	fixture.bin = filepath.Join(fixture.root, "test-bin")
+	// The Makefile asks the runtime home whether an interrupted transition is
+	// pending. A test must never read the developer's real home for that, or
+	// the result depends on the machine running it.
+	fixture.home = filepath.Join(fixture.root, "home")
+	if err := os.MkdirAll(fixture.home, 0o755); err != nil {
+		t.Fatal(err)
+	}
 	fixture.sourcePointer = filepath.Join(fixture.root, "source-root")
 	write := func(path, body string, mode os.FileMode) {
 		t.Helper()
@@ -378,9 +360,19 @@ esac
 `, 0o700)
 	write(filepath.Join(fixture.bin, "publisher"), `#!/bin/sh
 set -eu
-[ "$1" = --snapshot-root ]
-mkdir -p "$PWD/snapshots"
-printf '%s\n' "$PWD/snapshots"
+case "$1" in
+  --snapshot-root)
+    mkdir -p "$PWD/snapshots"
+    printf '%s\n' "$PWD/snapshots"
+    ;;
+  --prune-install-snapshots)
+    printf 'prune:install\n' >> "$TEST_EVENTS"
+    ;;
+  --prune-hub-snapshots)
+    "$6" runtime update retire-snapshot "$2/rebaseline-hub.abcdefgh"
+    ;;
+  *) echo "unexpected publisher invocation: $*" >&2; exit 91;;
+esac
 `, 0o700)
 	write(filepath.Join(fixture.bin, "build-candidates"), `#!/bin/sh
 set -eu
@@ -422,6 +414,20 @@ case "$1" in
   [ "$TEST_FAILURE" != root-action ]
   printf '%s\n' "$4" > "$TEST_SOURCE_POINTER"
   ;;
+--install-project-bundle)
+  if [ -z "$3" ] || [ -z "$4" ]; then
+    printf 'install:owned-bundle\n' >> "$TEST_EVENTS"
+  else
+    printf 'install:bundle\n' >> "$TEST_EVENTS"
+  fi
+  [ "$TEST_FAILURE" != interrupt ] || kill -TERM $$
+  [ "$TEST_FAILURE" != root-action ]
+  if [ -n "${TEST_GENERATION:-}" ]; then
+    [ "$(cat "$2/generation")" = "$TEST_GENERATION" ] || exit 91
+    printf '%s\n' "$TEST_GENERATION" >> "$TEST_BARRIER/snapshots"
+  fi
+  if [ -n "$4" ]; then printf '%s\n' "$5" > "$4"; fi
+  ;;
 --install-bundle)
   printf 'install:bundle\n' >> "$TEST_EVENTS"
   [ "$TEST_FAILURE" != interrupt ] || kill -TERM $$
@@ -448,7 +454,7 @@ func (f installMakeFixture) run(target, failure string) ([]string, string, error
 		"BUNDLE_PUBLISHER="+filepath.Join(f.bin, "publisher"),
 		"INSTALL_DIR="+filepath.Join(f.root, "installed"), "SOURCE_ROOT_POINTER="+f.sourcePointer)
 	cmd.Dir = f.root
-	cmd.Env = append(os.Environ(), "PATH="+f.bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	cmd.Env = append(os.Environ(), "HOME="+f.home, "PATH="+f.bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"TEST_EVENTS="+filepath.Join(f.root, "events"), "TEST_FAILURE="+failure, "TEST_SOURCE_POINTER="+f.sourcePointer,
 		"MAKEFLAGS=", "MFLAGS=")
 	output, err := cmd.CombinedOutput()
@@ -476,7 +482,7 @@ func TestConcurrentInstallBuildCohorts(t *testing.T) {
 			run := func(id string, die bool) *exec.Cmd {
 				cmd := exec.Command("make", "--no-print-directory", "install", "VROOLI="+filepath.Join(f.bin, "build-candidates"), "BUNDLE_PUBLISHER="+filepath.Join(f.bin, "publisher"), "INSTALL_DIR="+filepath.Join(f.root, "installed"), "SOURCE_ROOT_POINTER="+f.sourcePointer)
 				cmd.Dir = f.root
-				cmd.Env = append(os.Environ(), "PATH="+f.bin+string(os.PathListSeparator)+os.Getenv("PATH"), "TEST_EVENTS="+filepath.Join(f.root, "events"), "TEST_FAILURE=", "TEST_SOURCE_POINTER="+f.sourcePointer, "TEST_GENERATION="+id, "TEST_BARRIER="+barrier, fmt.Sprintf("TEST_CRASH=%s", map[bool]string{true: "yes", false: "no"}[die]), "MAKEFLAGS=", "MFLAGS=")
+				cmd.Env = append(os.Environ(), "HOME="+f.home, "PATH="+f.bin+string(os.PathListSeparator)+os.Getenv("PATH"), "TEST_EVENTS="+filepath.Join(f.root, "events"), "TEST_FAILURE=", "TEST_SOURCE_POINTER="+f.sourcePointer, "TEST_GENERATION="+id, "TEST_BARRIER="+barrier, fmt.Sprintf("TEST_CRASH=%s", map[bool]string{true: "yes", false: "no"}[die]), "MAKEFLAGS=", "MFLAGS=")
 				return cmd
 			}
 			a, b := run("a", crash), run("b", false)
@@ -509,7 +515,7 @@ func TestMakeInstallUsesRuntimeOwnedDestinationByDefault(t *testing.T) {
 	f := newInstallMakeFixture(t)
 	cmd := exec.Command("make", "--no-print-directory", "install", "VROOLI="+filepath.Join(f.bin, "build-candidates"), "BUNDLE_PUBLISHER="+filepath.Join(f.bin, "publisher"))
 	cmd.Dir = f.root
-	cmd.Env = append(os.Environ(), "PATH="+f.bin+string(os.PathListSeparator)+os.Getenv("PATH"), "TEST_EVENTS="+filepath.Join(f.root, "events"), "TEST_FAILURE=", "TEST_SOURCE_POINTER="+f.sourcePointer, "HOME="+filepath.Join(f.root, "fake-root"), "SUDO_USER=nobody", "MAKEFLAGS=", "MFLAGS=")
+	cmd.Env = append(os.Environ(), "HOME="+f.home, "PATH="+f.bin+string(os.PathListSeparator)+os.Getenv("PATH"), "TEST_EVENTS="+filepath.Join(f.root, "events"), "TEST_FAILURE=", "TEST_SOURCE_POINTER="+f.sourcePointer, "HOME="+filepath.Join(f.root, "fake-root"), "SUDO_USER=nobody", "MAKEFLAGS=", "MFLAGS=")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("install: %v\n%s", err, out)

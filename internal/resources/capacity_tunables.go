@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/vrooli/vrooli/internal/operatorstate"
 )
 
 type effectiveCapacityTunable struct {
@@ -30,7 +28,7 @@ func (c *Controller) withEffectiveCapacity(status Status) (Status, error) {
 	if len(declared) == 0 {
 		return status, nil
 	}
-	doc, err := operatorstate.New(operatorstate.Config{RepoRoot: c.Root}).Load(context.Background())
+	doc, err := c.operatorStateService().Load(context.Background())
 	if err != nil {
 		return status, fmt.Errorf("load operator state for capacity tunables: %w", err)
 	}

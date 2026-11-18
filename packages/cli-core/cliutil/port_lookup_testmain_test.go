@@ -2,7 +2,6 @@ package cliutil
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -20,7 +19,6 @@ func TestMain(m *testing.M) {
 		_ = os.Unsetenv(key)
 	}
 	_ = os.Setenv("TMPDIR", dir)
-	_ = os.Setenv(portLookupStatsFileEnv, filepath.Join(dir, "stats.log"))
 	code := m.Run()
 	_ = os.RemoveAll(dir)
 	os.Exit(code)

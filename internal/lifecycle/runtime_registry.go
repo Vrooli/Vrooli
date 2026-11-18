@@ -58,6 +58,16 @@ type runtimeRegistryStopSession struct {
 	// older lifecycle process has removed them while the child remains alive.
 	processRecords []process.Record
 	processRefIDs  []string
+	// claimedPorts snapshots the ports this instance owned before stop began.
+	// They are the authority for reclaiming a listener that outlived its
+	// tracked process record, including dynamically allocated ports that are
+	// not present in the manifest's fixed-port set.
+	claimedPorts map[int]struct{}
+	// claimListenerPIDs records the listener observed on each claimed port
+	// before stop. A process that lost its VROOLI_* environment can no longer
+	// prove ownership, but a PID still listening on the port it was observed
+	// holding is direct evidence that it is the orphan this stop must clear.
+	claimListenerPIDs map[int][]int
 }
 
 func (s runtimeRegistryStopSession) peerOwnerPIDs() []int {
@@ -205,6 +215,25 @@ func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName, var
 	}
 	processRecords := make([]process.Record, 0)
 	processRefIDs := make([]string, 0)
+	claimedPorts := make(map[int]struct{})
+	claimListenerPIDs := make(map[int][]int)
+	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+		Scenario: scenarioName,
+		Variant:  filter.Variant,
+		Statuses: scenarioruntime.ActivePortClaimStatuses(),
+	})
+	if err != nil {
+		_ = store.Close()
+		return runtimeRegistryStopSession{}, fmt.Errorf("list runtime port claims for %s@%s: %w", scenarioName, filter.Variant, err)
+	}
+	for _, claim := range claims {
+		if claim.Port > 0 {
+			claimedPorts[claim.Port] = struct{}{}
+		}
+		if claim.Port > 0 && claim.ListenerPID != nil && *claim.ListenerPID > 0 {
+			claimListenerPIDs[claim.Port] = append(claimListenerPIDs[claim.Port], *claim.ListenerPID)
+		}
+	}
 	for _, instance := range allInstances {
 		refs, listErr := store.ListProcessRefs(ctx, instance.InstanceID)
 		if listErr != nil {
@@ -248,7 +277,7 @@ func (r *Runner) beginRuntimeRegistryStop(ctx context.Context, scenarioName, var
 			processRefIDs = append(processRefIDs, ref.RefID)
 		}
 	}
-	return runtimeRegistryStopSession{enabled: true, store: store, instances: instances, processRecords: processRecords, processRefIDs: processRefIDs}, nil
+	return runtimeRegistryStopSession{enabled: true, store: store, instances: instances, processRecords: processRecords, processRefIDs: processRefIDs, claimedPorts: claimedPorts, claimListenerPIDs: claimListenerPIDs}, nil
 }
 
 func filterWithoutStatuses(filter scenarioruntime.InstanceFilter) scenarioruntime.InstanceFilter {

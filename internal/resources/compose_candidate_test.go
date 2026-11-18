@@ -342,7 +342,7 @@ func TestComposeCandidatePublicManifestGuardAndBootstrap(t *testing.T) {
 			prior := composeCandidateResolveTarget
 			t.Cleanup(func() { composeCandidateResolveTarget = prior })
 			resolved := 0
-			composeCandidateResolveTarget = func(ctx context.Context, loaded ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
+			composeCandidateResolveTarget = func(_ *Controller, ctx context.Context, loaded ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
 				resolved++
 				if loaded.Name != m.Name {
 					t.Fatal("wrong parsed manifest", loaded.Name)

@@ -172,47 +172,63 @@ func claimSnapshotLeaseFileUnderRootUsing(root, snapshot string, probe func(stri
 // PruneInstallSnapshots removes only old ordinary bundles. Leased bundles
 // survive; markerless stale directories can be removed because publication
 // holds the root lock and writes its lease before writing any images.
+// PruneInstallSnapshots removes abandoned installation snapshots and the
+// working copies a root transition prepares. Both share one snapshot root and
+// one retention rule: a directory is only removed when it is older than the
+// retention window and no process holds its lease.
+//
+// A transition's `rebaseline-bundle.*` working copy is removed by its own make
+// target on success and on failure. One left behind is therefore abandoned by
+// construction once it is older than the retention window; the durable prepared
+// bundle lives under `prepared-bundles/<digest>`, not here.
 func PruneInstallSnapshots(root string, now time.Time) error {
 	return WithSnapshotLock(root, func() error {
-		entries, err := os.ReadDir(root)
-		if err != nil {
+		if err := pruneSnapshotsWithPrefix(root, now, "install-bundle."); err != nil {
 			return err
 		}
-		for _, entry := range entries {
-			if !entry.IsDir() || !snapshotName(entry.Name(), "install-bundle.") {
-				continue
-			}
-			candidate := filepath.Join(root, entry.Name())
-			info, err := entry.Info()
-			if err != nil || now.Sub(info.ModTime()) <= snapshotRetention {
-				continue
-			}
-			// Make holds the root lock from directory creation until .lease is
-			// durable. A stale markerless bundle therefore predates this protocol
-			// or was abandoned before the marker write and is safe to remove.
-			if _, err := os.Stat(filepath.Join(candidate, ".lease")); errors.Is(err, os.ErrNotExist) {
-				state, probeErr := inspectSnapshotLeaseJob(root, candidate)
-				allowed, policyErr := snapshotLeasePruneAllowed(state, probeErr)
-				if policyErr != nil {
-					return fmt.Errorf("inspect install snapshot job %q: %w", candidate, policyErr)
-				}
-				if !allowed {
-					continue
-				}
-				if err := os.RemoveAll(candidate); err != nil {
-					return fmt.Errorf("prune markerless install snapshot %q: %w", candidate, err)
-				}
-				continue
-			} else if err != nil {
-				return err
-			}
-			_, err = tryWithSnapshotLeaseFileUnderRoot(root, candidate, func(*os.File) error { return os.RemoveAll(candidate) })
-			if err != nil {
-				return fmt.Errorf("prune install snapshot %q: %w", candidate, err)
-			}
-		}
-		return nil
+		return pruneSnapshotsWithPrefix(root, now, "rebaseline-bundle.")
 	})
+}
+
+func pruneSnapshotsWithPrefix(root string, now time.Time, prefix string) error {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || !snapshotName(entry.Name(), prefix) {
+			continue
+		}
+		candidate := filepath.Join(root, entry.Name())
+		info, err := entry.Info()
+		if err != nil || now.Sub(info.ModTime()) <= snapshotRetention {
+			continue
+		}
+		// Make holds the root lock from directory creation until .lease is
+		// durable. A stale markerless bundle therefore predates this protocol
+		// or was abandoned before the marker write and is safe to remove.
+		if _, err := os.Stat(filepath.Join(candidate, ".lease")); errors.Is(err, os.ErrNotExist) {
+			state, probeErr := inspectSnapshotLeaseJob(root, candidate)
+			allowed, policyErr := snapshotLeasePruneAllowed(state, probeErr)
+			if policyErr != nil {
+				return fmt.Errorf("inspect %s snapshot job %q: %w", prefix, candidate, policyErr)
+			}
+			if !allowed {
+				continue
+			}
+			if err := os.RemoveAll(candidate); err != nil {
+				return fmt.Errorf("prune markerless %s snapshot %q: %w", prefix, candidate, err)
+			}
+			continue
+		} else if err != nil {
+			return err
+		}
+		_, err = tryWithSnapshotLeaseFileUnderRoot(root, candidate, func(*os.File) error { return os.RemoveAll(candidate) })
+		if err != nil {
+			return fmt.Errorf("prune %s snapshot %q: %w", prefix, candidate, err)
+		}
+	}
+	return nil
 }
 
 type snapshotJobState uint8

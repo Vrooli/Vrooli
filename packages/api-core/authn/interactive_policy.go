@@ -67,6 +67,13 @@ var interactivePolicies = []struct {
 	// Agents need a separate read rule for the derived wallet while their
 	// spend rule remains bound to one authorization ID.
 	{"treasury-wallet-reading", Policy{[]string{"treasury:read"}, []string{"treasury.read"}, []string{"treasury"}}},
+	// root-state-transition is a standing, operator-approved authority for a
+	// recoverable root control-plane transition: the candidate image replaces
+	// the serving one and the prior image stays installed for rollback. It
+	// never covers irreversible or externally visible effects, which remain
+	// operator decisions, and the runtime still refuses a transition whose
+	// compensating controls (state snapshot, retention, receipt) are absent.
+	{"root-state-transition", Policy{[]string{"root-state:transition"}, []string{"root-state.transition"}, []string{"root-state"}}},
 }
 
 // ValidateInteractiveTarget enforces policy-specific target shapes at the
@@ -233,8 +240,17 @@ func RequestAuthority(err error) string {
 // approves it in the browser, and the session uses it on its next request).
 // The approval origin is included when this process is configured with it;
 // otherwise `vrooli agent authorize` resolves it itself.
+//
+// The agent session is written as a literal when this process knows it. The
+// operator copies this command into their own shell, where VROOLI_AGENT_SESSION
+// is not exported, so an unexpanded variable would produce a command that
+// cannot run.
 func AuthorizationRequestCommand(policy, target string) string {
-	command := `vrooli agent authorize "$VROOLI_AGENT_SESSION" --policy ` + shellWord(policy) + " --target " + shellWord(target)
+	selector := `"$VROOLI_AGENT_SESSION"`
+	if session := strings.TrimSpace(os.Getenv("VROOLI_AGENT_SESSION")); session != "" {
+		selector = shellWord(session)
+	}
+	command := `vrooli agent authorize ` + selector + ` --policy ` + shellWord(policy) + " --target " + shellWord(target)
 	if origin := configuredApprovalOrigin(); origin != "" {
 		command += " --approval-base " + shellWord(origin)
 	}

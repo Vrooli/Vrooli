@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 func testService(t *testing.T) (*Service, string) {
@@ -398,5 +400,20 @@ func TestOnlyOperatorStatePackageWritesTheOperatorState(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "storage.WriteFileAtomic") {
 		t.Fatal("operatorstate package does not contain the atomic writer")
+	}
+}
+
+func TestConfigForOperatorUsesNativeLogicalHomePolicy(t *testing.T) {
+	cfg := ConfigForOperator("/project", "/operator-home")
+	if cfg.RepoRoot != "/project" {
+		t.Fatalf("RepoRoot = %q, want /project", cfg.RepoRoot)
+	}
+	wantHome := ""
+	platform := hostreqspec.Platform(hostreqspec.CurrentPlatform())
+	if platform == hostreqspec.PlatformMacOS || platform == hostreqspec.PlatformWindows {
+		wantHome = "/operator-home"
+	}
+	if cfg.LogicalOperatorHome != wantHome {
+		t.Fatalf("LogicalOperatorHome = %q, want %q for %s", cfg.LogicalOperatorHome, wantHome, platform)
 	}
 }

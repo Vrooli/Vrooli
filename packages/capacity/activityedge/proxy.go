@@ -359,8 +359,7 @@ func (h *Handlers) parentGone(pid int) bool {
 	if h.ParentAlive != nil {
 		return !h.ParentAlive(pid)
 	}
-	err := syscall.Kill(pid, 0)
-	return err != nil && err != syscall.EPERM
+	return !processAlive(pid)
 }
 
 // server builds the transparent reverse proxy + the /asr bracketing handler.

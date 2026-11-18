@@ -343,10 +343,6 @@ func TestGetEnhancedProcessMetricsUsesMaintenanceSnapshot(t *testing.T) {
 	if metrics["zombie_processes"] != 1 || metrics["orphan_processes"] != 2 {
 		t.Fatalf("metrics = %#v", metrics)
 	}
-	portLookup, ok := metrics["port_lookup"].(map[string]int64)
-	if !ok || portLookup["evaluations"] < 0 || portLookup["peer_hits"] < 0 || portLookup["registry_hits"] < 0 || portLookup["cli_hits"] < 0 {
-		t.Fatalf("port lookup metrics = %#v", metrics["port_lookup"])
-	}
 }
 
 // TestHealthCheckWarningStaysReachable pins the health-semantics contract: a

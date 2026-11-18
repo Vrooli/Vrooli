@@ -28,23 +28,36 @@ type closureCache struct {
 	Toolchain    string   `json:"toolchain"`
 }
 
-// goListCacheKey identifies a dependency-closure query by the module files and
-// local Go source content that can change its result. It deliberately excludes
-// artifact mtimes and unrelated repository files, so a warm freshness gate
-// reuses the closure until the module contract or source import graph changes.
-func goListCacheKey(dir string, deps hostProbeDeps) string {
-	h := sha256.New()
-	for _, name := range []string{"go.mod", "go.sum"} {
-		path := filepath.Join(dir, name)
-		data, err := deps.readFile(path)
-		if err != nil {
-			fmt.Fprintf(h, "%s:error:%v\n", name, err)
-			continue
-		}
-		fmt.Fprintf(h, "%s:%x\n", name, sha256.Sum256(data))
+type sourceFingerprint struct {
+	digest string
+	err    error
+}
+
+type closureFingerprinter struct {
+	readFile func(string) ([]byte, error)
+	files    map[string]sourceFingerprint
+}
+
+func newClosureFingerprinter(deps hostProbeDeps) *closureFingerprinter {
+	readFile := deps.readFile
+	if readFile == nil {
+		readFile = os.ReadFile
 	}
-	fmt.Fprintf(h, "source:%s\n", closureSourceDigest(dir, deps))
-	return filepath.Clean(dir) + "\x00" + fmt.Sprintf("%x", h.Sum(nil))
+	return &closureFingerprinter{readFile: readFile, files: make(map[string]sourceFingerprint)}
+}
+
+func (f *closureFingerprinter) digest(path string) (string, error) {
+	path = filepath.Clean(path)
+	if cached, ok := f.files[path]; ok {
+		return cached.digest, cached.err
+	}
+	data, err := f.readFile(path)
+	result := sourceFingerprint{err: err}
+	if err == nil {
+		result.digest = fmt.Sprintf("%x", sha256.Sum256(data))
+	}
+	f.files[path] = result
+	return result.digest, result.err
 }
 
 func closureCachePath(dir string) string {
@@ -53,18 +66,16 @@ func closureCachePath(dir string) string {
 
 func closureCacheKey(dir, repoRoot, toolchain string, inputs []string, deps hostProbeDeps) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "component:%s\nrepository:%s\nsource:%s\n", filepath.Clean(dir), filepath.Clean(repoRoot), closureSourceDigest(dir, deps))
+	fingerprints := newClosureFingerprinter(deps)
+	sourceDigest, sourceTreeComplete := closureSourceDigest(dir, fingerprints, deps)
+	fmt.Fprintf(h, "component:%s\nrepository:%s\nsource:%s\n", filepath.Clean(dir), filepath.Clean(repoRoot), sourceDigest)
 	addFile := func(label, path string) {
-		read := deps.readFile
-		if read == nil {
-			read = os.ReadFile
-		}
-		data, err := read(path)
+		digest, err := fingerprints.digest(path)
 		if err != nil {
 			fmt.Fprintf(h, "%s:error:%v\n", label, err)
 			return
 		}
-		fmt.Fprintf(h, "%s:%x\n", label, sha256.Sum256(data))
+		fmt.Fprintf(h, "%s:%s\n", label, digest)
 	}
 	addFile("go.mod", filepath.Join(dir, "go.mod"))
 	addFile("go.sum", filepath.Join(dir, "go.sum"))
@@ -86,7 +97,13 @@ func closureCacheKey(dir, repoRoot, toolchain string, inputs []string, deps host
 			continue
 		}
 		if info.IsDir() {
-			fmt.Fprintf(h, "package:%s:%s\n", clean, goPackageSourceDigest(path, deps))
+			if sourceTreeComplete && pathUnderRoot(filepath.Clean(dir), path) {
+				// The component digest covers compiler sources under its module root,
+				// including this package directory. A second walk adds no freshness.
+				fmt.Fprintf(h, "module-package:%s\n", clean)
+				continue
+			}
+			fmt.Fprintf(h, "package:%s:%s\n", clean, goPackageSourceDigest(path, fingerprints, deps))
 			continue
 		}
 		addFile("input:"+clean, path)
@@ -98,11 +115,7 @@ func closureCacheKey(dir, repoRoot, toolchain string, inputs []string, deps host
 // goPackageSourceDigest fingerprints build-source files in the resolved package
 // directory. Walking descendants of a local replace (especially the repo
 // root) makes an unrelated scenario edit invalidate every consumer's closure.
-func goPackageSourceDigest(root string, deps hostProbeDeps) string {
-	readFile := deps.readFile
-	if readFile == nil {
-		readFile = os.ReadFile
-	}
+func goPackageSourceDigest(root string, fingerprints *closureFingerprinter, deps hostProbeDeps) string {
 	walkDir := deps.walkDir
 	if walkDir == nil {
 		walkDir = filepath.WalkDir
@@ -123,12 +136,12 @@ func goPackageSourceDigest(root string, deps hostProbeDeps) string {
 		if !isGoBuildSource(name) || strings.HasSuffix(name, "_test.go") {
 			return nil
 		}
-		data, err := readFile(path)
+		digest, err := fingerprints.digest(path)
 		if err != nil {
 			records = append(records, fmt.Sprintf("read-error:%s:%v", filepath.ToSlash(path), err))
 			return nil
 		}
-		records = append(records, fmt.Sprintf("%s:%x", name, sha256.Sum256(data)))
+		records = append(records, fmt.Sprintf("%s:%s", name, digest))
 		return nil
 	})
 	if err != nil {
@@ -142,24 +155,22 @@ func goPackageSourceDigest(root string, deps hostProbeDeps) string {
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
 
-// closureSourceDigest fingerprints the non-test Go source that can change a
-// module's package import closure. Module files alone are insufficient: moving
-// an import between two internal packages leaves go.mod/go.sum unchanged but
-// must invalidate a durable closure cache. The digest is content-based so a
-// source edit that preserves timestamps still invalidates the cache.
-func closureSourceDigest(root string, deps hostProbeDeps) string {
-	readFile := deps.readFile
-	if readFile == nil {
-		readFile = os.ReadFile
-	}
+// closureSourceDigest fingerprints compiler source under one component module.
+// Besides Go files that can change the import closure, non-test compiler inputs
+// must invalidate freshness when added, removed, or changed. Module files alone
+// are insufficient: moving an import between internal packages leaves
+// go.mod/go.sum unchanged. The digest is content-based, independent of mtimes.
+func closureSourceDigest(root string, fingerprints *closureFingerprinter, deps hostProbeDeps) (string, bool) {
 	walkDir := deps.walkDir
 	if walkDir == nil {
 		walkDir = filepath.WalkDir
 	}
 
 	records := []string{}
+	complete := true
 	err := walkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
+			complete = false
 			records = append(records, fmt.Sprintf("walk-error:%s:%v", filepath.ToSlash(path), walkErr))
 			return nil
 		}
@@ -170,10 +181,10 @@ func closureSourceDigest(root string, deps hostProbeDeps) string {
 			return nil
 		}
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+		if !isGoBuildSource(name) {
 			return nil
 		}
-		data, err := readFile(path)
+		digest, err := fingerprints.digest(path)
 		if err != nil {
 			records = append(records, fmt.Sprintf("read-error:%s:%v", filepath.ToSlash(path), err))
 			return nil
@@ -183,10 +194,11 @@ func closureSourceDigest(root string, deps hostProbeDeps) string {
 			records = append(records, fmt.Sprintf("rel-error:%s:%v", filepath.ToSlash(path), err))
 			return nil
 		}
-		records = append(records, fmt.Sprintf("%s:%x", filepath.ToSlash(relative), sha256.Sum256(data)))
+		records = append(records, fmt.Sprintf("%s:%s", filepath.ToSlash(relative), digest))
 		return nil
 	})
 	if err != nil {
+		complete = false
 		records = append(records, fmt.Sprintf("walk-error:%s:%v", filepath.ToSlash(root), err))
 	}
 	sort.Strings(records)
@@ -194,7 +206,7 @@ func closureSourceDigest(root string, deps hostProbeDeps) string {
 	for _, record := range records {
 		fmt.Fprintln(h, record)
 	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return fmt.Sprintf("%x", h.Sum(nil)), complete
 }
 
 func readClosureCache(path, toolchain string, read func(string) ([]byte, error)) (closureCache, bool) {

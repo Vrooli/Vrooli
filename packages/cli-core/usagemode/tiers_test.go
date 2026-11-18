@@ -167,7 +167,7 @@ func TestOverrideModelOnlyLowers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := codex.OverrideModel("gpt-6.1-sol"); err == nil {
+	if _, err := codex.OverrideModel("gpt-6.2-sol"); err == nil {
 		t.Fatal("codex override to an unranked higher model was accepted")
 	}
 }

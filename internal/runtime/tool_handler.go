@@ -358,9 +358,13 @@ func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemSt
 		status.Notes = append(status.Notes, "automatic install unavailable on this host")
 		return status, nil
 	}
-	command, args, err := hostreqkit.InstallCommand(host, status.PackageName, opts.SudoMode)
+	var command string
+	var args []string
+	var err error
 	if opts.DryRun {
 		command, args, err = hostreqkit.InstallCommandPreview(host, status.PackageName)
+	} else {
+		command, args, err = hostreqkit.InstallCommand(host, status.PackageName, opts.SudoMode)
 	}
 	if err != nil {
 		status.Notes = append(status.Notes, err.Error())

@@ -36,6 +36,7 @@ func TestRequireOperationRefusalCarriesTheExactRequest(t *testing.T) {
 		{"exact session reap", "agent-session:reap", "agent-session.reap", "agent-session:reap/vrooli-agent-abc123.scope/proof/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", "agent-session-reaping"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("VROOLI_AGENT_SESSION", "")
 			_, err := RequireOperation(agentWithoutGrant(tc.capability), tc.capability, tc.operation, tc.target)
 			if !errors.Is(err, ErrOperation) {
 				t.Fatalf("refusal must still satisfy errors.Is(ErrOperation): %v", err)
@@ -83,6 +84,7 @@ func TestAgentSessionReapingTargetIsExactAndProofBound(t *testing.T) {
 }
 
 func TestRefusalCommandNamesTheConfiguredApprovalOriginAndQuotesWildcards(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_SESSION", "")
 	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "https://agent-manager.example.test/")
 	command := NewOperationRefusal("swarm.bookkeeping", "swarm-manager:*").Command()
 	want := `vrooli agent authorize "$VROOLI_AGENT_SESSION" --policy swarm-bookkeeping --target 'swarm-manager:*' --approval-base https://agent-manager.example.test --reason "<why>"`
@@ -230,5 +232,20 @@ func TestAuthorizationDocPolicyTableMatchesCatalogue(t *testing.T) {
 	}
 	for name := range documented {
 		t.Errorf("AUTHORIZATION.md documents policy %s, which the catalogue does not have", name)
+	}
+}
+
+// The operator copies the request command into their own shell, where
+// VROOLI_AGENT_SESSION is not exported. The command must therefore name the
+// live session literally, or it fails with "session or run required".
+func TestRefusalCommandNamesTheLiveSessionLiterally(t *testing.T) {
+	t.Setenv("VROOLI_AGENT_SESSION", "vrooli-agent-opencode-abc123")
+	t.Setenv("AGENT_MANAGER_AUTHORIZATION_URL", "")
+	command := NewOperationRefusal("swarm.bookkeeping", "swarm-manager:*").Command()
+	if strings.Contains(command, "VROOLI_AGENT_SESSION") {
+		t.Fatalf("command still depends on an unexported variable: %q", command)
+	}
+	if !strings.Contains(command, "vrooli-agent-opencode-abc123") {
+		t.Fatalf("command does not name the live session: %q", command)
 	}
 }

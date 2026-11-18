@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -113,11 +112,7 @@ func TestDiskJobBrokerIntegratesAliasContentionExtensionAndGrowthReceipt(t *test
 	if err := os.Symlink(target, alias); err != nil {
 		t.Fatal(err)
 	}
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(root, &stat); err != nil {
-		t.Fatal(err)
-	}
-	free := int64(stat.Bavail) * int64(stat.Bsize)
+	free := freeDiskBytesForTest(t, root)
 	firstPeak := free * 3 / 5
 	zeroFloor := int64(0)
 	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(root, "capacity.db"), MinimumDiskFloorBytes: &zeroFloor})

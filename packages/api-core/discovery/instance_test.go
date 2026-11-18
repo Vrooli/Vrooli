@@ -76,6 +76,45 @@ func TestResolveScenarioPortFallsBackToLiveWhenShadowNotRunning(t *testing.T) {
 	}
 }
 
+func TestResolveScenarioPortDoesNotFallbackFromExplicitShadowByDefault(t *testing.T) {
+	t.Setenv(cliutil.EnvInstanceVariant, "live")
+	t.Setenv(cliutil.EnvVariantDependencies, "")
+	t.Setenv(cliutil.EnvShadowScenarios, "")
+	var targets []string
+	runner := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		target := args[2]
+		targets = append(targets, target)
+		return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("exit status 1")
+	}
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner})
+	_, err := resolver.ResolveScenarioPort(context.Background(), "swarm-manager@shadow", "API_PORT")
+	var discoveryErr *Error
+	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrScenarioNotRunning {
+		t.Fatalf("expected explicit-shadow stopped error, got %v", err)
+	}
+	if len(targets) != 1 || targets[0] != "swarm-manager@shadow" {
+		t.Fatalf("explicit shadow targets = %v, want only shadow target", targets)
+	}
+}
+
+func TestResolveScenarioPortDoesNotFallbackFromExplicitNamedVariant(t *testing.T) {
+	var targets []string
+	runner := func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		target := args[2]
+		targets = append(targets, target)
+		return []byte(`{"success":false,"error_code":"scenario_not_running","error":"scenario not running"}`), errors.New("exit status 1")
+	}
+	resolver := NewResolver(ResolverConfig{CommandRunner: runner})
+	_, err := resolver.ResolveScenarioPort(context.Background(), "swarm-manager@presentation", "API_PORT")
+	var discoveryErr *Error
+	if !errors.As(err, &discoveryErr) || discoveryErr.Kind != ErrScenarioNotRunning {
+		t.Fatalf("expected explicit-variant stopped error, got %v", err)
+	}
+	if len(targets) != 1 || targets[0] != "swarm-manager@presentation" {
+		t.Fatalf("explicit variant targets = %v, want only presentation target", targets)
+	}
+}
+
 func TestResolveScenarioPortShadowOtherErrorDoesNotFallBack(t *testing.T) {
 	t.Setenv(cliutil.EnvShadowScenarios, "swarm-manager")
 

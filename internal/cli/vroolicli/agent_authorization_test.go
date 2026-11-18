@@ -2,6 +2,7 @@ package vroolicli
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/agentsession"
@@ -111,5 +112,23 @@ func TestAuthorizationContextFieldsAreOptionalAndRequesterSupplied(t *testing.T)
 	addAuthorizationContextFields(withoutContext, "  \t", "")
 	if len(withoutContext) != 1 {
 		t.Fatalf("blank optional context changed the request: %#v", withoutContext)
+	}
+}
+
+// A policy this build knows but the approval service rejects means the service
+// is older, not that the command is wrong. The error must say that, because the
+// operator cannot tell the two apart from "unknown reviewed policy".
+func TestApprovalServiceLagIsReportedAsARestartNotABadCommand(t *testing.T) {
+	rules := []authorizationRule{{Policy: "root-state-transition", Targets: []string{"root-state:transition/h/home"}}}
+	lag := errors.New("api error (400): validation error on policy: unknown reviewed policy")
+	if got := unknownToApprovalService(lag, rules); got != "root-state-transition" {
+		t.Fatalf("known policy rejected by the service = %q", got)
+	}
+	if got := unknownToApprovalService(errors.New("connection refused"), rules); got != "" {
+		t.Fatalf("a transport failure was reported as catalogue lag: %q", got)
+	}
+	unknown := []authorizationRule{{Policy: "not-a-policy"}}
+	if got := unknownToApprovalService(lag, unknown); got != "" {
+		t.Fatalf("a policy this build does not know was reported as catalogue lag: %q", got)
 	}
 }

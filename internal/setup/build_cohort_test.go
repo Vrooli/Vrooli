@@ -1,69 +1,83 @@
 package setup
 
 import (
-	"encoding/json"
-	repocontracttest "github.com/vrooli/repo-contract-go/repocontracttest"
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/internal/buildinfo"
 )
 
-func TestBuildCohortRejectsInputChange(t *testing.T) {
-	root := t.TempDir()
-	source := filepath.Join(root, "internal", "main.go")
-	if err := os.MkdirAll(filepath.Dir(source), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(source, []byte("package main\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	err := withStableBuildInputs(root, func() error { return os.WriteFile(source, []byte("package main\nvar changed = true\n"), 0600) })
-	if err == nil || !strings.Contains(err.Error(), "inputs changed") {
-		t.Fatalf("expected input drift refusal, got %v", err)
-	}
-	if err := withStableBuildInputs(root, func() error { return nil }); err != nil {
-		t.Fatalf("stable build: %v", err)
+func gitFixture(t *testing.T, root string, args ...string) {
+	t.Helper()
+	command := exec.Command("git", args...)
+	command.Dir = root
+	command.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@example.invalid",
+		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@example.invalid",
+	)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, output)
 	}
 }
 
-func TestBuildCohortAllowsUnrelatedTestEdit(t *testing.T) {
-	root := t.TempDir()
-	path := filepath.Join(root, "packages", "unrelated", "example_test.go")
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+func writeSource(t *testing.T, root, name, content string) {
+	t.Helper()
+	path := filepath.Join(root, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("package unrelated\n"), 0600); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
-	}
-	if err := withStableBuildInputs(root, func() error {
-		return os.WriteFile(path, []byte("package unrelated\nvar changed = true\n"), 0600)
-	}); err != nil {
-		t.Fatalf("test-only edit interrupted build: %v", err)
 	}
 }
 
-func TestBuildCohortRejectsRuntimeHomeChange(t *testing.T) {
+// A build compiles the snapshot, not the live checkout. An agent editing the
+// shared worktree mid-build cannot change what the artifact contains, so the
+// artifact and its fingerprint always describe one moment.
+func TestBuildFromSnapshotIgnoresConcurrentEdits(t *testing.T) {
 	root := t.TempDir()
-	repocontracttest.WriteRepoContract(t, root, "scenarios")
-	path := filepath.Join(root, ".vrooli", "repo-contract.json")
-	err := withStableBuildInputs(root, func() error {
-		data, err := os.ReadFile(path)
+	gitFixture(t, root, "init", "--quiet", "--initial-branch=main")
+	writeSource(t, root, "go.mod", "module example.invalid/fixture\n\ngo 1.25\n")
+	writeSource(t, root, "internal/main.go", "package internal\n\nconst Value = 1\n")
+	gitFixture(t, root, "add", "-A")
+	gitFixture(t, root, "commit", "--quiet", "-m", "fixture")
+
+	var compiled string
+	var compiledFingerprint string
+	err := buildFromSnapshot(context.Background(), root, []string{"internal", "go.mod"}, func(buildRoot string) error {
+		data, err := os.ReadFile(filepath.Join(buildRoot, "internal", "main.go"))
 		if err != nil {
 			return err
 		}
-		var doc map[string]any
-		if err = json.Unmarshal(data, &doc); err != nil {
-			return err
-		}
-		doc["runtime_home"].(map[string]any)["entries"].(map[string]any)["runtime_db"].(map[string]any)["path"] = "state/registry-v2.db"
-		data, err = json.Marshal(doc)
+		compiled = string(data)
+		compiledFingerprint, err = buildinfo.ComputeSourceFingerprintForPaths(buildRoot, "internal", "go.mod")
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(path, data, 0600)
+		// A concurrent agent edits the shared checkout while the build runs.
+		return os.WriteFile(filepath.Join(root, "internal", "main.go"), []byte("package internal\n\nconst Value = 2\n"), 0o644)
 	})
-	if err == nil || !strings.Contains(err.Error(), "inputs changed") {
-		t.Fatalf("runtime-home drift: %v", err)
+	if err != nil {
+		t.Fatalf("build from snapshot: %v", err)
+	}
+	if !strings.Contains(compiled, "Value = 1") {
+		t.Fatalf("the build saw a concurrent edit instead of the snapshot: %q", compiled)
+	}
+	if compiledFingerprint == "" {
+		t.Fatal("the build has no fingerprint")
+	}
+
+	// The live checkout has moved on, so the artifact is stale relative to it,
+	// but the artifact itself is coherent.
+	liveFingerprint, err := buildinfo.ComputeSourceFingerprintForPaths(root, "internal", "go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if liveFingerprint == compiledFingerprint {
+		t.Fatal("the checkout fingerprint did not move after a real edit")
 	}
 }

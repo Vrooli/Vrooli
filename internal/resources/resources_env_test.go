@@ -1,9 +1,15 @@
 package resources
 
 import (
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
+	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/scenario"
+	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 )
 
 func TestResourceEnvForResourceIncludesCanonicalStorageVariables(t *testing.T) {
@@ -54,5 +60,33 @@ func TestManagedResourceCLIReceivesProviderRuntimeContext(t *testing.T) {
 	artifact := values["VROOLI_MANAGED_SERVICE_ARTIFACT"]
 	if !strings.HasPrefix(artifact, filepath.Join(store, "vault", "1.17.6")+string(filepath.Separator)) {
 		t.Fatalf("managed artifact = %q, want signed artifact store path", artifact)
+	}
+}
+
+func TestEnabledResourceNamesUsesControllerOperatorStateService(t *testing.T) {
+	fixture := testkitgo.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	testscenario.WriteProjectService(t, fixture.Root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"redis": {Enabled: true},
+		}}),
+	))
+	statePath := filepath.Join(t.TempDir(), operatorstate.StateFile)
+	state := operatorstate.New(operatorstate.Config{
+		RepoRoot:  fixture.Root,
+		StatePath: func(context.Context) (string, error) { return statePath, nil },
+	})
+	if _, err := state.Apply(context.Background(), []byte(`{"resources":{"redis":{"enabled":false}}}`)); err != nil {
+		t.Fatalf("seed operator choice: %v", err)
+	}
+	controller := NewController(fixture.Root, t.TempDir())
+	controller.operatorState = state
+
+	names, err := controller.EnabledResourceNames()
+	if err != nil {
+		t.Fatalf("EnabledResourceNames: %v", err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("enabled names = %v, want operator-disabled redis omitted", names)
 	}
 }

@@ -257,8 +257,14 @@ func TestApplyHybrid_MissingReleaseTargetUsesHostPackage(t *testing.T) {
 	withFacts(t, hostreqspec.CapabilityFacts{Arch: "arm64"})
 	withArch(t, "arm64")
 	withUserBin(t)
+	previousElevationFacts := hostreqkit.ElevationFactsFn
+	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
+		t.Fatal("dry-run evaluated host elevation")
+		return hostreqkit.ElevationFacts{}
+	}
+	t.Cleanup(func() { hostreqkit.ElevationFactsFn = previousElevationFacts })
 	h := toolHandler{manifest: hybridReleaseManifest("hybrid-package-apply")}
-	host := hostreqkit.Host{OS: "darwin", PackageManager: "brew"}
+	host := hostreqkit.Host{OS: "linux", PackageManager: "apt"}
 	status := h.Inspect(host, resolved("hybrid-package-apply"))
 
 	applied, err := h.Apply(host, status, hostreqkit.EnsureOptions{DryRun: true})
@@ -268,7 +274,7 @@ func TestApplyHybrid_MissingReleaseTargetUsesHostPackage(t *testing.T) {
 	if applied.ExecutionState != hostreqkit.ExecutionWouldInstall {
 		t.Fatalf("state = %q (notes %v), want would_install", applied.ExecutionState, applied.Notes)
 	}
-	if !notesContain(applied.Notes, "brew install homebrew-hybrid-package-apply") {
+	if !notesContain(applied.Notes, "apt-get install -y distro-hybrid-package-apply") {
 		t.Fatalf("package install command missing from notes: %v", applied.Notes)
 	}
 }

@@ -45,6 +45,9 @@ type Spec struct {
 	// precedence over the legacy URL/NPM fields and is checksum-verified.
 	Acquisition  *binaryfetch.Acquisition
 	ResourceName string
+	// Channel selects one declared acquisition channel. Empty is the default
+	// channel and preserves the pre-channel layout.
+	Channel string
 	// UpstreamSourceKind and UpstreamSourceID identify the published release
 	// channel `update` resolves. Empty defaults to npm and the package named by
 	// the acquisition contract.
@@ -334,7 +337,7 @@ func installNPMWithDeps(ctx context.Context, spec Spec, packageRef string, platf
 		}
 		return fmt.Errorf("invalid governed install receipt: %w", err)
 	}
-	prefix, err := npmInstallPrefix(home, spec.ResourceName, packageRef[strings.LastIndex(packageRef, "@")+1:], platform)
+	prefix, err := npmInstallPrefix(home, spec.ResourceName, spec.Channel, packageRef[strings.LastIndex(packageRef, "@")+1:], platform)
 	if err != nil {
 		return err
 	}
@@ -349,22 +352,38 @@ func installNPMWithDeps(ctx context.Context, spec Spec, packageRef string, platf
 	return nil
 }
 
-// NPMInstallPrefix places each exact harness version in its resource-owned
-// data tree, isolated from the previously selected prefix and other tools.
+// NPMInstallPrefix places each exact default-channel harness version in its
+// resource-owned data tree, isolated from the previously selected prefix and
+// other tools.
 func NPMInstallPrefix(home, resource, version string) (string, error) {
-	return npmInstallPrefix(home, resource, version, defaultPlatformDeps())
+	return npmInstallPrefix(home, resource, "", version, defaultPlatformDeps())
 }
 
-func npmInstallPrefix(home, resource, version string, platform platformDeps) (string, error) {
+// NPMInstallPrefixForChannel places a version from one declared channel. The
+// default channel keeps the historical layout; every other channel gets its own
+// root so two release lines can coexist without receipt or rollback ambiguity.
+func NPMInstallPrefixForChannel(home, resource, channel, version string) (string, error) {
+	return npmInstallPrefix(home, resource, channel, version, defaultPlatformDeps())
+}
+
+func npmInstallPrefix(home, resource, channel, version string, platform platformDeps) (string, error) {
 	if version == "" || filepath.Base(version) != version || version == "." || version == ".." {
 		return "", fmt.Errorf("invalid harness version")
+	}
+	channel = strings.TrimSpace(channel)
+	if channel != "" && (filepath.Base(channel) != channel || channel == "." || channel == "..") {
+		return "", fmt.Errorf("invalid harness channel")
 	}
 	dataDir, err := platform.withDefaults().resourceDataDir(home, resource)
 	if err != nil {
 		return "", err
 	}
 	platform = platform.withDefaults()
-	return filepath.Join(dataDir, "cli", version+"-"+platform.goos+"-"+platform.goarch), nil
+	root := filepath.Join(dataDir, "cli")
+	if channel != "" {
+		root = filepath.Join(root, channel)
+	}
+	return filepath.Join(root, version+"-"+platform.goos+"-"+platform.goarch), nil
 }
 
 // NPMInstallArgs is the exact script-disabled harness command shared with SDA.

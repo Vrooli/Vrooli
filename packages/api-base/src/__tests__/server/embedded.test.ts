@@ -483,75 +483,37 @@ describe('createPortResolver', () => {
 // ──────────────────────────────────────────────────────────────────────
 
 describe('resolveExternalUrl', () => {
-  it('returns localhost URL when host is localhost', () => {
-    const req = mockRequest({ headers: { host: 'localhost:3000' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('http://localhost:9000')
+  it('matches the shared Go/TypeScript conformance fixture', () => {
+    const fixtureCandidates = [
+      path.resolve(process.cwd(), '../api-core/discovery/testdata/external-url-cases.json'),
+      path.resolve(process.cwd(), 'packages/api-core/discovery/testdata/external-url-cases.json'),
+    ]
+    const fixturePath = fixtureCandidates.find((candidate) => fs.existsSync(candidate))
+    if (!fixturePath) throw new Error(`shared external URL fixture not found from ${process.cwd()}`)
+    const cases = JSON.parse(fs.readFileSync(fixturePath, 'utf8')) as Array<{
+      name: string
+      host: string
+      forwardedHost?: string
+      scenario: string
+      port: number
+      want: string
+    }>
+
+    for (const testCase of cases) {
+      const req = mockRequest({ headers: {
+        ...(testCase.host ? { host: testCase.host } : {}),
+        ...(testCase.forwardedHost ? { 'x-forwarded-host': testCase.forwardedHost } : {}),
+      } })
+      expect(resolveExternalUrl(req, testCase.scenario, String(testCase.port)), testCase.name).toBe(testCase.want)
+    }
   })
 
-  it('returns localhost URL when host is 127.0.0.1', () => {
-    const req = mockRequest({ headers: { host: '127.0.0.1:3000' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('http://localhost:9000')
-  })
-
-  it('handles bracketed IPv6 loopback addresses', () => {
-    const req = mockRequest({ headers: { host: '[::1]:3000' } })
-    expect(resolveExternalUrl(req, 'my-scenario', '9000')).toBe('http://localhost:9000')
-  })
-
-  it('uses the private LAN address for private IPv4 and IPv6 hosts', () => {
-    expect(resolveExternalUrl(mockRequest({ headers: { host: '192.168.1.20:3000' } }), 'my-scenario', '9000'))
-      .toBe('http://192.168.1.20:9000')
-    expect(resolveExternalUrl(mockRequest({ headers: { host: '[fd12::20]:3000' } }), 'my-scenario', '9000'))
-      .toBe('http://[fd12::20]:9000')
-  })
-
-  it('uses the first forwarded host when a proxy supplies browser context', () => {
-    const req = mockRequest({ headers: { host: '127.0.0.1:3000', 'x-forwarded-host': 'web-console.example.com, proxy.internal' } })
+  it('uses the first forwarded header value like Go HTTP Header.Get', () => {
+    const req = mockRequest({ headers: {
+      host: 'fallback.internal.example.com',
+      'x-forwarded-host': ['web-console.example.com', 'other.example.com'],
+    } })
     expect(resolveExternalUrl(req, 'my-scenario', '9000')).toBe('https://my-scenario.example.com')
-  })
-
-  it('returns localhost URL when host is 0.0.0.0', () => {
-    const req = mockRequest({ headers: { host: '0.0.0.0:3000' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('http://localhost:9000')
-  })
-
-  it('returns localhost URL when host header is missing', () => {
-    const req = mockRequest({ headers: {} })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('http://localhost:9000')
-  })
-
-  it('swaps first subdomain for tunnel URLs with 3+ domain parts', () => {
-    const req = mockRequest({ headers: { host: 'git-control-tower.example.com' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('https://my-scenario.example.com')
-  })
-
-  it('swaps subdomain for deep domain names', () => {
-    const req = mockRequest({ headers: { host: 'app.staging.example.com' } })
-    const url = resolveExternalUrl(req, 'test-app', '9000')
-    expect(url).toBe('https://test-app.staging.example.com')
-  })
-
-  it('falls back to localhost for two-part domain names', () => {
-    const req = mockRequest({ headers: { host: 'example.com' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('http://localhost:9000')
-  })
-
-  it('falls back to localhost for single-word hosts', () => {
-    const req = mockRequest({ headers: { host: 'myhost' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('http://localhost:9000')
-  })
-
-  it('strips port from host header before domain analysis', () => {
-    const req = mockRequest({ headers: { host: 'app.example.com:8080' } })
-    const url = resolveExternalUrl(req, 'my-scenario', '9000')
-    expect(url).toBe('https://my-scenario.example.com')
   })
 })
 

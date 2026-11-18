@@ -1,6 +1,10 @@
 package capabilityapp
 
-import "github.com/vrooli/vrooli/internal/operatorcapability"
+import (
+	"io"
+
+	"github.com/vrooli/vrooli/internal/operatorcapability"
+)
 
 // LedgerOptions selects the capability ledger readout.
 type LedgerOptions struct {
@@ -13,6 +17,7 @@ type LedgerOptions struct {
 type ConformanceOptions struct {
 	DeclarationsOnly bool
 	JSON             bool
+	Progress         io.Writer
 }
 
 // WorkflowOptions selects a capability catalog/status/preview/apply request.

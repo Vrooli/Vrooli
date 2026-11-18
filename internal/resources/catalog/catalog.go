@@ -250,6 +250,16 @@ func (s *Service) disabledDependencyConsumers(resourceName string) []DependencyC
 }
 
 func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
+	return s.readConfigEntries(nil)
+}
+
+// ReadConfigEntriesWithState uses the caller's already-loaded operator state
+// while resolving project and scenario resource defaults.
+func (s *Service) ReadConfigEntriesWithState(state operatorstate.Document) (map[string]ConfigEntry, error) {
+	return s.readConfigEntries(&state)
+}
+
+func (s *Service) readConfigEntries(state *operatorstate.Document) (map[string]ConfigEntry, error) {
 	configPath := filepath.Join(s.Root, filepath.FromSlash(ResourceConfigPath))
 	manifest, err := scenario.LoadServiceManifest(configPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -277,9 +287,12 @@ func (s *Service) ReadConfigEntries() (map[string]ConfigEntry, error) {
 	// The project manifest supplies defaults. Per-install operator choices are
 	// authoritative once present, so resource enable/disable changes are
 	// visible to every catalog consumer, including `vrooli resource status`.
-	state, err := operatorstate.New(operatorstate.Config{RepoRoot: s.Root}).Effective(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("read operator state: %w", err)
+	if state == nil {
+		loaded, err := operatorstate.New(operatorstate.Config{RepoRoot: s.Root}).Effective(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("read operator state: %w", err)
+		}
+		state = &loaded
 	}
 	for name, choice := range state.Resources {
 		if choice.Enabled == nil {

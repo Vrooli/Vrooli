@@ -1,13 +1,15 @@
 package setup
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/dockerhost"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/resources"
+	resourcecatalog "github.com/vrooli/vrooli/internal/resources/catalog"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -16,6 +18,14 @@ const (
 	resourcesNone    = "none"
 )
 
+// resourceSelection keeps the planned groups with their names so later setup
+// phases can reuse the catalog snapshot that produced them.
+type resourceSelection struct {
+	names    []string
+	required []string
+	optional []string
+}
+
 func (s *setupService) maybeInstallResources(root, home string, opts Options, stdout, stderr io.Writer, onOperation ...func(string)) ([]string, error) {
 	operation := func(label string) {}
 	if len(onOperation) > 0 && onOperation[0] != nil {
@@ -23,39 +33,49 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 	}
 	selection := strings.TrimSpace(opts.Resources)
 	if selection == "" {
-		selection = resourcesEnabled
+		resolved, err := defaultSetupResourceSelection(opts.Context, root, home)
+		if err != nil {
+			return nil, err
+		}
+		opts.resolvedResources = &resolved
+		selection = strings.Join(resolved.names, ",")
+		if selection == "" {
+			selection = resourcesNone
+		}
 	}
 	if selection == resourcesNone {
 		return nil, nil
 	}
 
 	controller := s.deps.resourceController(root, home)
+	var names, requiredNames, optionalNames []string
 	if selection == resourcesEnabled {
-		names, err := enabledResourceNames(root)
+		var err error
+		names, err = enabledResourceNames(root, home)
 		if err != nil {
 			return nil, err
 		}
-		requiredNames, optionalNames, err := partitionResourceNames(root, home, names)
+		requiredNames, optionalNames, err = partitionResourceNames(root, names)
 		if err != nil {
 			return nil, err
 		}
-		if err := preflightDockerResources(root, home, requiredNames, opts); err != nil {
+	} else if opts.resolvedResources != nil {
+		names = opts.resolvedResources.names
+		requiredNames = opts.resolvedResources.required
+		optionalNames = opts.resolvedResources.optional
+	} else {
+		for _, raw := range strings.Split(selection, ",") {
+			name := strings.TrimSpace(raw)
+			if name == "" {
+				continue
+			}
+			names = append(names, name)
+		}
+		var err error
+		requiredNames, optionalNames, err = partitionResourceNames(root, names)
+		if err != nil {
 			return nil, err
 		}
-		return installSelectedResources(controller, names, optionalNames, stdout, stderr, operation, root, home)
-	}
-
-	names := []string{}
-	for _, raw := range strings.Split(selection, ",") {
-		name := strings.TrimSpace(raw)
-		if name == "" {
-			continue
-		}
-		names = append(names, name)
-	}
-	requiredNames, optionalNames, err := partitionResourceNames(root, home, names)
-	if err != nil {
-		return nil, err
 	}
 	if err := preflightDockerResources(root, home, requiredNames, opts); err != nil {
 		return nil, err
@@ -63,20 +83,62 @@ func (s *setupService) maybeInstallResources(root, home string, opts Options, st
 	return installSelectedResources(controller, names, optionalNames, stdout, stderr, operation, root, home)
 }
 
-func partitionResourceNames(root, home string, names []string) (required, optional []string, err error) {
-	config := resources.NewController(root, home)
-	for _, name := range names {
-		isRequired, err := config.ResourceRequired(name)
-		if err != nil {
-			return nil, nil, fmt.Errorf("read resource requirement %s: %w", name, err)
+// defaultSetupResourceSelection keeps raw setup focused on enabled resources
+// that the project marks required. Optional capabilities remain available
+// through explicit resource selection or `--resources=enabled`.
+func defaultSetupResourceSelection(ctx context.Context, root, home string) (resourceSelection, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return resourceSelection{}, err
+	}
+	state, err := operatorstate.New(operatorstate.ConfigForOperator(root, home)).Load(ctx)
+	if err != nil {
+		return resourceSelection{}, fmt.Errorf("read existing operator resource choices: %w", err)
+	}
+	entries, err := resourcecatalog.New(root).ReadConfigEntriesWithState(state)
+	if err != nil {
+		return resourceSelection{}, fmt.Errorf("read resource choices: %w", err)
+	}
+	// Only resources explicitly enabled in operator state count as optional
+	// selections. An absent choice retains the lightweight required-only default;
+	// a stored false remains an explicit opt-out.
+	selection := resourceSelection{names: make([]string, 0, len(entries))}
+	for name, entry := range entries {
+		choice, hasChoice := state.Resources[name]
+		if hasChoice && choice.Enabled != nil {
+			if !*choice.Enabled {
+				continue
+			}
+		} else if !entry.Enabled || !entry.Required {
+			continue
 		}
-		if isRequired {
+		selection.names = append(selection.names, name)
+	}
+	slices.Sort(selection.names)
+	selection.required, selection.optional = partitionResourceEntries(entries, selection.names)
+	return selection, nil
+}
+
+func partitionResourceNames(root string, names []string) (required, optional []string, err error) {
+	entries, err := resourcecatalog.New(root).ReadConfigEntries()
+	if err != nil {
+		return nil, nil, fmt.Errorf("read resource requirements: %w", err)
+	}
+	required, optional = partitionResourceEntries(entries, names)
+	return required, optional, nil
+}
+
+func partitionResourceEntries(entries map[string]resourcecatalog.ConfigEntry, names []string) (required, optional []string) {
+	for _, name := range names {
+		if entries[name].Required {
 			required = append(required, name)
 		} else {
 			optional = append(optional, name)
 		}
 	}
-	return required, optional, nil
+	return required, optional
 }
 
 func installSelectedResources(controller resourceRunner, names, optionalNames []string, stdout, stderr io.Writer, operation func(string), root, home string) ([]string, error) {
@@ -110,7 +172,7 @@ func installSelectedResources(controller resourceRunner, names, optionalNames []
 	return degraded, nil
 }
 
-func preflightDockerResources(root, home string, names []string, setupOpts ...Options) error {
+func preflightDockerResources(root, home string, names []string, opts Options) error {
 	if len(names) == 0 {
 		return nil
 	}
@@ -129,29 +191,14 @@ func preflightDockerResources(root, home string, names []string, setupOpts ...Op
 	if len(needsDocker) == 0 {
 		return nil
 	}
-	if len(setupOpts) == 0 {
-		// Keep the narrow helper seam used by callers that only want to inspect
-		// readiness. The setup apply path below supplies Options and performs
-		// the provider ladder's repair/provisioning step.
-		health := inspectDockerHealthFn()
-		if health.InfoOK {
-			return nil
-		}
-		detail := strings.TrimSpace(health.Detail)
-		if detail == "" {
-			detail = "Docker daemon is not reachable"
-		}
-		return fmt.Errorf("selected resources require Docker (%s), but Docker is not healthy: %s", strings.Join(needsDocker, ", "), dockerhost.DiagnosticLine(detail))
-	}
-	applyOpts := setupOpts[0]
 	status, err := ensureContainerRuntimeFn("docker", vrooliruntime.EnsureOptions{
-		Environment: applyOpts.Environment, SudoMode: applyOpts.SudoMode, DryRun: applyOpts.DryRun,
-		AutoInstall: true, IncludeOptional: applyOpts.IncludeOptional, MaintenanceWindow: applyOpts.MaintenanceWindow,
+		Context: opts.Context, Environment: opts.Environment, SudoMode: opts.SudoMode, DryRun: opts.DryRun,
+		AutoInstall: true, IncludeOptional: opts.IncludeOptional, MaintenanceWindow: opts.MaintenanceWindow,
 	})
 	if err != nil {
 		return fmt.Errorf("selected resources require Docker (%s), but container-runtime setup failed: %w", strings.Join(needsDocker, ", "), err)
 	}
-	if status.Installed || applyOpts.DryRun {
+	if status.Installed || opts.DryRun {
 		return nil
 	}
 	detail := "container runtime is not ready"
@@ -165,11 +212,7 @@ type resourceRunner interface {
 	Run(name string, args []string, stdout, stderr io.Writer) error
 }
 
-func enabledResourceNames(root string) ([]string, error) {
-	home, err := config.HomeDir()
-	if err != nil {
-		return nil, err
-	}
+func enabledResourceNames(root, home string) ([]string, error) {
 	return resources.NewController(root, home).EnabledResourceNames()
 }
 

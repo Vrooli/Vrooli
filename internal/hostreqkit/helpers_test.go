@@ -1,19 +1,40 @@
 package hostreqkit
 
 import (
+	"context"
 	"errors"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
-	"github.com/vrooli/vrooli/internal/shell/shelltest"
 )
 
 const (
 	helperTestSudoPath = "/usr/bin/sudo"
 	helperTestMutated  = "mutated"
 )
+
+func TestRunCommandsHonorContext(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	opts := EnsureOptions{Context: ctx}
+
+	for name, run := range map[string]func() error{
+		"inherited stdin": func() error { return RunCommandFn(executable, nil, opts) },
+		"provided stdin":  func() error { return RunCommandInputFn(executable, nil, "private input", opts) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := run(); !errors.Is(err, context.Canceled) {
+				t.Fatalf("command error = %v, want context cancellation", err)
+			}
+		})
+	}
+}
 
 func stubLookups(t *testing.T) func() {
 	t.Helper()
@@ -119,6 +140,21 @@ func TestUnsupportedRequirementStatusSkipsBlankNote(t *testing.T) {
 	status := UnsupportedRequirementStatus(req, "   ")
 	if len(status.Notes) != 0 {
 		t.Fatalf("expected no notes for blank note, got %v", status.Notes)
+	}
+}
+
+func TestFailureStatusCopiesNotesAndAppendsCause(t *testing.T) {
+	status := ItemStatus{ExecutionState: ExecutionPending, Notes: []string{"inspect"}}
+	got := FailureStatus(status, errors.New("apply failed"))
+	if got.ExecutionState != ExecutionFailed {
+		t.Fatalf("ExecutionState = %q, want failed", got.ExecutionState)
+	}
+	if strings.Join(got.Notes, "|") != "inspect|apply failed" {
+		t.Fatalf("Notes = %v, want prior notes and cause", got.Notes)
+	}
+	got.Notes[0] = helperTestMutated
+	if status.Notes[0] != "inspect" {
+		t.Fatalf("FailureStatus mutated input notes: %v", status.Notes)
 	}
 }
 
@@ -378,6 +414,79 @@ func TestRunPrivilegedCommandAppliesSudo(t *testing.T) {
 	}
 }
 
+type setupPackageInstallerStub struct {
+	manager     string
+	packageName string
+	calls       int
+}
+
+func (s *setupPackageInstallerStub) InstallPackage(manager, packageName string) error {
+	s.manager, s.packageName = manager, packageName
+	s.calls++
+	return nil
+}
+
+func (*setupPackageInstallerStub) InstallAptRepository(string, []byte, string) error { return nil }
+
+func (*setupPackageInstallerStub) InstallOnboardingApplyGrant([]string, []string) error {
+	return nil
+}
+
+func (*setupPackageInstallerStub) InstallAppArmorProfile(string) error { return nil }
+
+func TestRunPackageInstallUsesSetupSessionOnlyForSudoCommand(t *testing.T) {
+	installer := &setupPackageInstallerStub{}
+	runCalls := 0
+	original := RunCommandFn
+	RunCommandFn = func(string, []string, EnsureOptions) error { runCalls++; return nil }
+	t.Cleanup(func() { RunCommandFn = original })
+	opts := EnsureOptions{SetupPrivilegeSession: installer}
+	request := InstallProvenanceRequest{PackageManager: "apt", PackageName: "git"}
+	if err := runPackageInstallCommand("sudo", []string{"apt-get", "install", "-y", "git"}, opts, request); err != nil {
+		t.Fatal(err)
+	}
+	if installer.calls != 1 || installer.manager != "apt" || installer.packageName != "git" || runCalls != 0 {
+		t.Fatalf("setup session routing: installer=%+v runCalls=%d", installer, runCalls)
+	}
+	if err := runPackageInstallCommand("apt-get", []string{"install", "-y", "git"}, opts, request); err != nil {
+		t.Fatal(err)
+	}
+	if installer.calls != 1 || runCalls != 1 {
+		t.Fatalf("nonprivileged command unexpectedly used setup session: installer=%+v runCalls=%d", installer, runCalls)
+	}
+}
+
+func TestRunInstallCommandCannotBypassSetupSessionWithoutProvenance(t *testing.T) {
+	installer := &setupPackageInstallerStub{}
+	originalRecord, originalProbe, originalRun := RecordPackageInstallFn, ProbePackageStateFn, RunCommandFn
+	RecordPackageInstallFn = nil
+	ProbePackageStateFn = func(string, string) (PackageObservation, string, error) {
+		return PackageAbsent, "", nil
+	}
+	runCalls := 0
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		runCalls++
+		return nil
+	}
+	t.Cleanup(func() {
+		RecordPackageInstallFn, ProbePackageStateFn, RunCommandFn = originalRecord, originalProbe, originalRun
+	})
+	opts := EnsureOptions{SetupPrivilegeSession: installer}
+	args := []string{"apt-get", "install", "-y", "git"}
+	for _, call := range []func() error{
+		func() error { return RunInstallCommand("sudo", args, opts) },
+		func() error { return RunInstallCommandWithProvenance("sudo", args, opts, InstallProvenanceRequest{}) },
+	} {
+		err := call()
+		if err == nil || !strings.Contains(err.Error(), "provenance recorder is unavailable") {
+			t.Fatalf("missing provenance error = %v", err)
+		}
+	}
+	if installer.calls != 2 || installer.manager != "apt-get" || installer.packageName != "git" || runCalls != 0 {
+		t.Fatalf("install escaped session: installer=%+v runCalls=%d", installer, runCalls)
+	}
+}
+
 func TestRunPrivilegedCommandWithSudoError(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -407,7 +516,7 @@ func TestEnsureManagedDirDryRunSkips(t *testing.T) {
 		return nil
 	}
 
-	err := EnsureManagedDir("/etc/test.d", "ask", EnsureOptions{DryRun: true})
+	err := EnsureManagedDir("/etc/test.d", EnsureOptions{SudoMode: "ask", DryRun: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -435,7 +544,7 @@ func TestEnsureManagedDirRunsMkdir(t *testing.T) {
 		return nil
 	}
 
-	err := EnsureManagedDir("/etc/sysctl.d", "ask", EnsureOptions{})
+	err := EnsureManagedDir("/etc/sysctl.d", EnsureOptions{SudoMode: "ask"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +566,7 @@ func TestEnsureManagedDirMkdirFailure(t *testing.T) {
 		return os.ErrPermission
 	}
 
-	err := EnsureManagedDir("/etc/test.d", "ask", EnsureOptions{})
+	err := EnsureManagedDir("/etc/test.d", EnsureOptions{SudoMode: "ask"})
 	if err == nil {
 		t.Fatal("expected error from mkdir failure")
 	}
@@ -465,37 +574,41 @@ func TestEnsureManagedDirMkdirFailure(t *testing.T) {
 
 func TestInstallManagedContentDryRunSkips(t *testing.T) {
 	assertManagedInstallDryRunSkips(t, func(opts EnsureOptions) error {
-		return InstallManagedContent("/etc/test.conf", "content", "ask", opts)
+		return InstallManagedContent("/etc/test.conf", "content", opts)
 	})
 }
 
-func TestInstallManagedContentWritesAndInstalls(t *testing.T) {
-	restore := stubLookups(t)
-	defer restore()
+func TestInstallManagedFileUsesExplicitModes(t *testing.T) {
+	for _, tc := range []struct {
+		name, path, mode string
+		install          func(string, string, EnsureOptions) error
+	}{
+		{"content", "/etc/test.conf", "644", InstallManagedContent},
+		{"executable", "/usr/local/bin/foo", "755", InstallManagedExecutable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := stubLookups(t)
+			defer restore()
+			LookPathFn = func(name string) (string, error) {
+				if name == helpersSudo {
+					return helperTestSudoPath, nil
+				}
+				return "", os.ErrNotExist
+			}
+			var gotArgs []string
+			RunCommandFn = func(_ string, args []string, _ EnsureOptions) error {
+				gotArgs = args
+				return nil
+			}
 
-	LookPathFn = func(name string) (string, error) {
-		if name == helpersSudo {
-			return helperTestSudoPath, nil
-		}
-		return "", os.ErrNotExist
-	}
-
-	var gotArgs []string
-	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
-		gotArgs = args
-		return nil
-	}
-
-	err := InstallManagedContent("/etc/test.conf", "hello world", "ask", EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	joined := strings.Join(gotArgs, " ")
-	if !strings.Contains(joined, "install -m 644") {
-		t.Fatalf("args = %q, want install -m 644", joined)
-	}
-	if !strings.Contains(joined, "/etc/test.conf") {
-		t.Fatalf("args = %q, want target path /etc/test.conf", joined)
+			if err := tc.install(tc.path, "managed contents", EnsureOptions{SudoMode: "ask"}); err != nil {
+				t.Fatal(err)
+			}
+			joined := strings.Join(gotArgs, " ")
+			if !strings.Contains(joined, "install -m "+tc.mode) || !strings.Contains(joined, tc.path) {
+				t.Fatalf("install args = %q, want mode %s and target %s", joined, tc.mode, tc.path)
+			}
+		})
 	}
 }
 
@@ -508,47 +621,15 @@ func TestInstallManagedContentCommandFailure(t *testing.T) {
 		return os.ErrPermission
 	}
 
-	err := InstallManagedContent("/etc/test.conf", "content", "ask", EnsureOptions{})
+	err := InstallManagedContent("/etc/test.conf", "content", EnsureOptions{SudoMode: "ask"})
 	if err == nil {
 		t.Fatal("expected error from install failure")
 	}
 }
 
-func TestInstallManagedExecutableUsesMode0755(t *testing.T) {
-	// Mode 0755 is the only intended difference from InstallManagedContent.
-	// Lock it in so a future refactor doesn't silently flip the bit.
-	restore := stubLookups(t)
-	defer restore()
-
-	LookPathFn = func(name string) (string, error) {
-		if name == helpersSudo {
-			return helperTestSudoPath, nil
-		}
-		return "", os.ErrNotExist
-	}
-
-	var gotArgs []string
-	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
-		gotArgs = args
-		return nil
-	}
-
-	err := InstallManagedExecutable("/usr/local/bin/foo", shelltest.POSIXShebang()+"echo hi\n", "ask", EnsureOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	joined := strings.Join(gotArgs, " ")
-	if !strings.Contains(joined, "install -m 755") {
-		t.Fatalf("args = %q, want install -m 755", joined)
-	}
-	if !strings.Contains(joined, "/usr/local/bin/foo") {
-		t.Fatalf("args = %q, want target path /usr/local/bin/foo", joined)
-	}
-}
-
 func TestInstallManagedExecutableDryRunSkips(t *testing.T) {
 	assertManagedInstallDryRunSkips(t, func(opts EnsureOptions) error {
-		return InstallManagedExecutable("/usr/local/bin/foo", "content", "ask", opts)
+		return InstallManagedExecutable("/usr/local/bin/foo", "content", opts)
 	})
 }
 
@@ -674,7 +755,7 @@ func TestInstallManagedContentTempFileFailure(t *testing.T) {
 		return "", errors.New("disk full")
 	}
 
-	err := InstallManagedContent("/etc/test.conf", "content", "ask", EnsureOptions{})
+	err := InstallManagedContent("/etc/test.conf", "content", EnsureOptions{SudoMode: "ask"})
 	if err == nil || !strings.Contains(err.Error(), "disk full") {
 		t.Fatalf("expected disk full error, got %v", err)
 	}

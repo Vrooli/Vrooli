@@ -273,7 +273,7 @@ func diagnoseRootRefusal(home, candidate, source, reason, diagnostics string) er
 	if servingErr != nil || candidateErr != nil {
 		return refused()
 	}
-	qualification := coreactivation.QualifyRollbackIdentities(servingIdentity, candidateIdentity)
+	qualification := coreactivation.QualifyRollbackImages(probe, servingIdentity, candidateIdentity, serving, candidate)
 	if qualification == nil {
 		return refused()
 	}

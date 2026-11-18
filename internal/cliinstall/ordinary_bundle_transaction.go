@@ -145,7 +145,7 @@ func installPreparedBundleSameContractWithSourceChecked(sourceDir, binDir, manif
 			if err != nil {
 				return "", err
 			}
-			if err := coreactivation.QualifyRollbackIdentities(serving, candidate); err != nil {
+			if err := coreactivation.QualifyRollbackImages(context.Background(), serving, candidate, root, privateRoot); err != nil {
 				return "", fmt.Errorf("serving root changed or is incompatible with prepared candidate: %w", err)
 			}
 			return digest, nil
@@ -315,7 +315,7 @@ func qualifyOrdinaryBundle(home, source, bin, manifestSHA string, requireIdentit
 	if err != nil {
 		return "", fmt.Errorf("qualify candidate root: %w", err)
 	}
-	if err := coreactivation.QualifyRollbackIdentities(serving, candidate); err != nil {
+	if err := coreactivation.QualifyRollbackImages(context.Background(), serving, candidate, root, candidatePath); err != nil {
 		return "", fmt.Errorf("ordinary bundle requires a compatible serving contract; use rebaseline: %w", err)
 	}
 	return prior, nil

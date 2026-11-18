@@ -30,7 +30,7 @@ func TestDesktopSessionManifestDispatchValidatesSelectors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var output bytes.Buffer
 			ctx := &rootcli.CommandContext{Stdout: &output, Stderr: &output}
-			group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(ctx, hostCommandNames))
+			group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(ctx))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -59,7 +59,7 @@ export interface PreviewRendererProps {
    * is mounted outside a viewer.
    */
   source?: PreviewSource;
-  /** A heading to scroll to (GitHub-style slug); honoured by the Markdown and Word readers. */
+  /** A heading in Markdown or Word, or a URL fragment in HTML. */
   anchor?: string;
   /** Pick mode: rows carry a checkbox and file rows toggle instead of opening. */
   selection?: DirectorySelection;

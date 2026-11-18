@@ -15,13 +15,25 @@ import (
 // and desktop consumers. Authority belongs to the caller; filesystem ownership,
 // dependency admission, receipts and rollback stay with the existing owners.
 func ManageHarness(ctx context.Context, root, resource, action, actor, cleanupPlanID string) (HarnessActionResult, error) {
+	return ManageHarnessWithChannel(ctx, root, resource, "", action, actor, cleanupPlanID)
+}
+
+// ManageHarnessWithChannel is the channel-aware lifecycle boundary used by the
+// update command. An empty channel follows the installed major, so a host that
+// has already moved to a non-default line is never silently downgraded by a
+// plain `update`.
+func ManageHarnessWithChannel(ctx context.Context, root, resource, channel, action, actor, cleanupPlanID string) (HarnessActionResult, error) {
 	deps := defaultHarnessDeps()
 	deps.record = recordHarnessArtifact
-	return manageHarness(ctx, root, resource, action, actor, cleanupPlanID, deps)
+	return manageHarnessWithChannel(ctx, root, resource, channel, action, actor, cleanupPlanID, deps)
 }
 
 func manageHarness(ctx context.Context, root, resource, action, actor, cleanupPlanID string, deps harnessDeps) (HarnessActionResult, error) {
-	h, err := LoadHarness(root, resource)
+	return manageHarnessWithChannel(ctx, root, resource, "", action, actor, cleanupPlanID, deps)
+}
+
+func manageHarnessWithChannel(ctx context.Context, root, resource, channel, action, actor, cleanupPlanID string, deps harnessDeps) (HarnessActionResult, error) {
+	h, err := resolveHarnessForAction(ctx, root, resource, channel, deps)
 	if err != nil {
 		return HarnessActionResult{}, err
 	}
@@ -72,6 +84,45 @@ func manageHarness(ctx context.Context, root, resource, action, actor, cleanupPl
 	default:
 		return runHarnessAction(ctx, h, action, deps), nil
 	}
+}
+
+// resolveHarnessForAction selects the declared channel. An explicit channel is
+// authoritative. Without one, the installed major decides: a V2 host stays on
+// its channel so a plain `update` cannot downgrade it.
+func resolveHarnessForAction(ctx context.Context, root, resource, channel string, deps harnessDeps) (Harness, error) {
+	if channel != "" {
+		return LoadHarnessChannel(root, resource, channel)
+	}
+	h, err := LoadHarness(root, resource)
+	if err != nil {
+		return Harness{}, err
+	}
+	selected, _ := h.selectedCopy(deps)
+	if selected == "" {
+		return h, nil
+	}
+	version := deps.version
+	if version == nil {
+		version = func(ctx context.Context, path string) (string, error) {
+			return installedVersion(ctx, path, deps.platform)
+		}
+	}
+	raw, err := version(ctx, selected)
+	if err != nil {
+		return h, nil
+	}
+	major, ok := MajorVersion(raw)
+	if !ok || major < 2 {
+		return h, nil
+	}
+	selectedChannel, err := ChannelForMajor(root, resource, major)
+	if err != nil {
+		// The installed copy may be unmanaged or newer than every declared
+		// channel. Reporting the default channel keeps the failure visible
+		// without inventing a release line.
+		return h, nil
+	}
+	return LoadHarnessChannel(root, resource, selectedChannel)
 }
 
 func recordHarnessArtifact(home, resource, path string, directory bool) error {

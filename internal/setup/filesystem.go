@@ -20,13 +20,7 @@ import (
 	"github.com/vrooli/vrooli/internal/projectstate"
 )
 
-const (
-	filesystemParameterA = 100_000
-)
-
-const (
-	filesystemParameterB = 4
-)
+const filesystemRepairMaxEntries = 100_000
 
 func ensureProjectFilesystem(root, home string) error {
 	locator, err := projectstate.NewLocator(home, root)
@@ -45,7 +39,7 @@ func ensureProjectFilesystem(root, home string) error {
 	// Operator-home paths: resolve names from the runtime_home authority and
 	// route every create through the owned-write seam so a sudo'd setup never
 	// leaves root-owned dirs in the operator's home.
-	homeDirs := make([]string, 0, filesystemParameterB)
+	homeDirs := make([]string, 0, 4)
 	for _, key := range []string{repocontract.HomeKeyBin, repocontract.HomeKeyLogs, repocontract.HomeKeyProcesses} {
 		dir, err := repocontract.RuntimeHomeEntryPath(home, key)
 		if err != nil {
@@ -62,7 +56,10 @@ func ensureProjectFilesystem(root, home string) error {
 	return nil
 }
 
-func ensureProjectFilesystemWithRecovery(root, home string) error {
+func ensureProjectFilesystemWithRecovery(ctx context.Context, root, home string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if err := ensureProjectFilesystem(root, home); err == nil {
 		return nil
 	} else {
@@ -80,12 +77,12 @@ func ensureProjectFilesystemWithRecovery(root, home string) error {
 		}
 		uid, gid := config.RepairIdentity()
 		service := config.RepairService{ResolveRoot: func(string) (string, error) { return managedRoot, nil }}
-		result, repairErr := service.Repair(context.Background(), config.RepairRequest{
+		result, repairErr := service.Repair(ctx, config.RepairRequest{
 			Scope:       config.RepairScope{RootClass: class, RootPath: target},
 			ExpectedUID: uid,
 			ExpectedGID: gid,
 			Apply:       true,
-			MaxEntries:  filesystemParameterA,
+			MaxEntries:  filesystemRepairMaxEntries,
 			Deadline:    time.Now().Add(tuning.SetupOperationTimeout()),
 		})
 		if repairErr != nil || result.Failed > 0 || result.Status == config.RepairPartial {
@@ -105,9 +102,6 @@ func permissionErrorPath(err error) (string, bool) {
 	var pathErr *os.PathError
 	if errors.As(err, &pathErr) && (errors.Is(pathErr.Err, os.ErrPermission) || strings.Contains(strings.ToLower(pathErr.Error()), "permission")) {
 		return pathErr.Path, true
-	}
-	if strings.Contains(strings.ToLower(err.Error()), "permission denied") {
-		return "", false
 	}
 	return "", false
 }

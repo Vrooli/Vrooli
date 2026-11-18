@@ -52,6 +52,7 @@ func AcquisitionSchema() map[string]any {
 						"executable":      map[string]any{"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
 						"package":         map[string]any{"type": "string", "minLength": 1},
 						"version":         map[string]any{"type": "string", "minLength": 1},
+						"channel":         map[string]any{"type": "string", "minLength": 1, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
 						"runtime_env":     map[string]any{"type": "object", "additionalProperties": map[string]any{"type": "string"}},
 						"unsupported":     map[string]any{"type": "string", "minLength": 1},
 						"compose": map[string]any{

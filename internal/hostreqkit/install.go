@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	platformgo "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
@@ -22,9 +23,7 @@ var RunningAsRootFn = func() bool {
 	return os.Geteuid() == 0
 }
 
-// ElevationFacts is the small typed seam consumed by WithSudo. The default
-// implementation is platform-neutral; runtime and tests can replace it with
-// a richer host-inventory-backed observation.
+// ElevationFacts is the typed native observation consumed by WithSudo.
 type ElevationFacts struct {
 	Platform   string
 	Elevated   bool
@@ -32,8 +31,14 @@ type ElevationFacts struct {
 	Mechanism  string
 }
 
-var ElevationFactsFn = func() ElevationFacts {
+var ElevationFactsFn = currentElevationFacts
+
+func currentElevationFacts() ElevationFacts {
 	platform := hostreqspec.CurrentPlatform()
+	if platform == string(hostreqspec.PlatformWindows) {
+		elevated, err := platformgo.CurrentProcessElevated()
+		return windowsElevationFacts(elevated, err)
+	}
 	if RunningAsRootFn() {
 		return ElevationFacts{Platform: platform, Elevated: true, CanElevate: true, Mechanism: "root"}
 	}
@@ -41,6 +46,17 @@ var ElevationFactsFn = func() ElevationFacts {
 		return ElevationFacts{Platform: platform, CanElevate: true, Mechanism: "sudo"}
 	}
 	return ElevationFacts{Platform: platform, Mechanism: "none"}
+}
+
+func windowsElevationFacts(elevated bool, err error) ElevationFacts {
+	switch {
+	case err != nil:
+		return ElevationFacts{Platform: string(hostreqspec.PlatformWindows), Mechanism: "windows-token-unknown"}
+	case elevated:
+		return ElevationFacts{Platform: string(hostreqspec.PlatformWindows), Elevated: true, CanElevate: true, Mechanism: "windows-token"}
+	default:
+		return ElevationFacts{Platform: string(hostreqspec.PlatformWindows), Mechanism: "windows-uac"}
+	}
 }
 
 // ErrSudoSkipped marks privileged commands that were refused because the
@@ -69,16 +85,47 @@ func IsSudoSkipped(err error) bool {
 }
 
 func InstallCommand(host Host, packageName, sudoMode string) (string, []string, error) {
+	command, args, err := packageInstallCommand(host, packageName)
+	if err != nil {
+		return "", nil, err
+	}
+	if hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && command != helpersBrew {
+		return WithSudo(sudoMode, command, args)
+	}
+	return command, args, nil
+}
+
+// InstallCommandPreview returns the command shape without evaluating
+// elevation. Dry-run is an inspection operation and must not require sudo;
+// real execution always goes through InstallCommand and WithSudo.
+func InstallCommandPreview(host Host, packageName string) (string, []string, error) {
+	return packageInstallCommand(host, packageName)
+}
+
+func packageInstallCommand(host Host, packageName string) (string, []string, error) {
 	switch hostreqspec.PlatformFromGOOS(host.OS) {
 	case hostreqspec.PlatformLinux:
-		return LinuxInstallCommand(host, packageName, sudoMode)
-	case hostreqspec.PlatformMacOS:
 		switch strings.TrimSpace(host.PackageManager) {
+		case helpersApt, helpersAptGet:
+			return helpersAptGet, []string{"install", "-y", packageName}, nil
+		case helpersDnf:
+			return helpersDnf, []string{"install", "-y", packageName}, nil
+		case installYum:
+			return installYum, []string{"install", "-y", packageName}, nil
+		case helpersPacman:
+			return helpersPacman, []string{"-S", "--noconfirm", packageName}, nil
+		case helpersApk:
+			return helpersApk, []string{"add", packageName}, nil
 		case helpersBrew:
 			return helpersBrew, []string{"install", packageName}, nil
 		default:
-			return "", nil, fmt.Errorf("automatic install is unavailable without Homebrew")
+			return "", nil, fmt.Errorf("automatic install is unavailable without a supported package manager")
 		}
+	case hostreqspec.PlatformMacOS:
+		if strings.TrimSpace(host.PackageManager) == helpersBrew {
+			return helpersBrew, []string{"install", packageName}, nil
+		}
+		return "", nil, fmt.Errorf("automatic install is unavailable without Homebrew")
 	case hostreqspec.PlatformWindows:
 		switch strings.TrimSpace(host.PackageManager) {
 		case helpersWinget:
@@ -92,63 +139,6 @@ func InstallCommand(host Host, packageName, sudoMode string) (string, []string, 
 		}
 	default:
 		return "", nil, fmt.Errorf("automatic install is unsupported on %s", defaultOS(host.OS))
-	}
-}
-
-// InstallCommandPreview returns the command shape without evaluating
-// elevation. Dry-run is an inspection operation and must not require sudo;
-// real execution always goes through InstallCommand and WithSudo.
-func InstallCommandPreview(host Host, packageName string) (string, []string, error) {
-	switch hostreqspec.PlatformFromGOOS(host.OS) {
-	case hostreqspec.PlatformLinux:
-		switch strings.TrimSpace(host.PackageManager) {
-		case helpersApt, helpersAptGet:
-			return helpersAptGet, []string{"install", "-y", packageName}, nil
-		case helpersDnf:
-			return helpersDnf, []string{"install", "-y", packageName}, nil
-		case installYum:
-			return installYum, []string{"install", "-y", packageName}, nil
-		case "pacman":
-			return "pacman", []string{"-S", "--noconfirm", packageName}, nil
-		case helpersApk:
-			return helpersApk, []string{"add", packageName}, nil
-		case helpersBrew:
-			return helpersBrew, []string{"install", packageName}, nil
-		}
-	case hostreqspec.PlatformMacOS:
-		if strings.TrimSpace(host.PackageManager) == helpersBrew {
-			return helpersBrew, []string{"install", packageName}, nil
-		}
-	case hostreqspec.PlatformWindows:
-		switch strings.TrimSpace(host.PackageManager) {
-		case helpersWinget:
-			return helpersWinget, []string{"install", "--id", packageName, "--accept-package-agreements", "--accept-source-agreements"}, nil
-		case installChoco:
-			return installChoco, []string{"install", packageName, "-y"}, nil
-		case "scoop":
-			return "scoop", []string{"install", packageName}, nil
-		}
-	}
-	return "", nil, fmt.Errorf("automatic install is unavailable without a supported package manager")
-}
-
-func LinuxInstallCommand(host Host, packageName, sudoMode string) (string, []string, error) {
-	manager := strings.TrimSpace(host.PackageManager)
-	switch manager {
-	case helpersApt, helpersAptGet:
-		return WithSudo(sudoMode, "apt-get", []string{"install", "-y", packageName})
-	case helpersDnf:
-		return WithSudo(sudoMode, helpersDnf, []string{"install", "-y", packageName})
-	case installYum:
-		return WithSudo(sudoMode, installYum, []string{"install", "-y", packageName})
-	case helpersPacman:
-		return WithSudo(sudoMode, helpersPacman, []string{"-S", "--noconfirm", packageName})
-	case helpersApk:
-		return WithSudo(sudoMode, helpersApk, []string{"add", packageName})
-	case helpersBrew:
-		return helpersBrew, []string{"install", packageName}, nil
-	default:
-		return "", nil, fmt.Errorf("automatic install is unavailable without a supported package manager")
 	}
 }
 

@@ -3,28 +3,13 @@ package setup
 
 import (
 	"errors"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
-
-// fakeFileInfo satisfies os.FileInfo for the vrooliLauncherStatFn stub. Only
-// the existence (non-nil err) check matters; field values are placeholders.
-type fakeFileInfo struct{}
-
-func (fakeFileInfo) Name() string       { return "vrooli" }
-func (fakeFileInfo) Size() int64        { return 0 }
-func (fakeFileInfo) Mode() os.FileMode  { return 0o755 }
-func (fakeFileInfo) ModTime() time.Time { return time.Time{} }
-func (fakeFileInfo) IsDir() bool        { return false }
-func (fakeFileInfo) Sys() any           { return nil }
 
 func sampleMixedReport() vrooliruntime.Report {
 	prov := []hostreqspec.Provenance{{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"}}
@@ -136,14 +121,6 @@ func TestRenderGroupedAllPresentCollapses(t *testing.T) {
 }
 
 func TestRenderGroupedSplitsByBlockingReason(t *testing.T) {
-	// Stub the launcher seam so action-block hints use the bare
-	// `sudo vrooli setup` form (the steady state once the shim is
-	// installed). Otherwise the tests would see the test binary's
-	// own absolute path under /tmp/go-build*.
-	origStat := vrooliLauncherStatFn
-	defer func() { vrooliLauncherStatFn = origStat }()
-	vrooliLauncherStatFn = func() (os.FileInfo, error) { return fakeFileInfo{}, nil }
-
 	prov := []hostreqspec.Provenance{{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"}}
 	report := vrooliruntime.Report{
 		Environment: "development",
@@ -189,13 +166,13 @@ func TestRenderGroupedSplitsByBlockingReason(t *testing.T) {
 	// The privilege action names the in-flow command. `sudo vrooli setup` was
 	// never the in-flow answer: it leaves the whole run as root and is outside
 	// the setup-and-onboarding flow the operator is being guided through.
-	if !strings.Contains(out, "vrooli setup --sudo-mode=ask") {
+	if !strings.Contains(out, "setup --sudo-mode=ask") {
 		t.Fatalf("action block missing the in-flow privilege command:\n%s", out)
 	}
 	if strings.Contains(out, "sudo vrooli setup") {
 		t.Fatalf("action block still instructs an out-of-flow sudo invocation:\n%s", out)
 	}
-	if !strings.Contains(out, "vrooli setup --include-optional") {
+	if !strings.Contains(out, "setup --include-optional") {
 		t.Fatalf("action block missing include-optional command:\n%s", out)
 	}
 	// The privilege group has the kdump-tools item, NOT the generic Failed group.
@@ -241,69 +218,12 @@ func TestRenderVerboseModeKeepsBlocks(t *testing.T) {
 	}
 }
 
-func TestVrooliInvocationReturnsBareWhenLauncherPresent(t *testing.T) {
-	origStat := vrooliLauncherStatFn
+func TestActionBlockUsesCurrentExecutable(t *testing.T) {
 	origExe := vrooliExecutableFn
-	defer func() {
-		vrooliLauncherStatFn = origStat
-		vrooliExecutableFn = origExe
-	}()
-	vrooliLauncherStatFn = func() (os.FileInfo, error) { return fakeFileInfo{}, nil }
-	exePath := filepath.Join(t.TempDir(), ".vrooli", "bin", "vrooli")
-	vrooliExecutableFn = func() (string, error) { return exePath, nil }
-
-	if got := vrooliInvocation(); got != "vrooli" {
-		t.Fatalf("vrooliInvocation = %q, want bare 'vrooli' when launcher is present", got)
-	}
-}
-
-func TestVrooliInvocationFallsBackToAbsolutePathWhenLauncherMissing(t *testing.T) {
-	origStat := vrooliLauncherStatFn
-	origExe := vrooliExecutableFn
-	defer func() {
-		vrooliLauncherStatFn = origStat
-		vrooliExecutableFn = origExe
-	}()
-	vrooliLauncherStatFn = func() (os.FileInfo, error) { return nil, fs.ErrNotExist }
-	exePath := filepath.Join(t.TempDir(), ".vrooli", "bin", "vrooli")
-	vrooliExecutableFn = func() (string, error) { return exePath, nil }
-
-	if got := vrooliInvocation(); got != exePath {
-		t.Fatalf("vrooliInvocation = %q, want absolute path fallback", got)
-	}
-}
-
-func TestVrooliInvocationDegradesGracefullyWhenExecutableLookupFails(t *testing.T) {
-	// If both the shim is missing AND os.Executable() fails, the bare name
-	// is the least-bad fallback. The operator gets the same "command not
-	// found" they had before — no regression — and the hint stays readable.
-	origStat := vrooliLauncherStatFn
-	origExe := vrooliExecutableFn
-	defer func() {
-		vrooliLauncherStatFn = origStat
-		vrooliExecutableFn = origExe
-	}()
-	vrooliLauncherStatFn = func() (os.FileInfo, error) { return nil, fs.ErrNotExist }
-	vrooliExecutableFn = func() (string, error) { return "", errors.New("os.Executable failed") }
-
-	if got := vrooliInvocation(); got != "vrooli" {
-		t.Fatalf("vrooliInvocation = %q, want bare 'vrooli' fallback", got)
-	}
-}
-
-func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
-	// Integration: render a report with sudo + optional groups, with the
-	// shim absent. Action block should suggest the absolute path; the
-	// "Needs sudo" header should match.
-	origStat := vrooliLauncherStatFn
-	origExe := vrooliExecutableFn
-	defer func() {
-		vrooliLauncherStatFn = origStat
-		vrooliExecutableFn = origExe
-	}()
-	vrooliLauncherStatFn = func() (os.FileInfo, error) { return nil, fs.ErrNotExist }
-	exePath := filepath.Join(t.TempDir(), ".vrooli", "bin", "vrooli")
-	vrooliExecutableFn = func() (string, error) { return exePath, nil }
+	defer func() { vrooliExecutableFn = origExe }()
+	exePath := "/opt/vrooli/bin/vrooli"
+	lookups := 0
+	vrooliExecutableFn = func() (string, error) { lookups++; return exePath, nil }
 
 	prov := []hostreqspec.Provenance{{Kind: "root", Name: "vrooli", Source: ".vrooli/service.json"}}
 	report := vrooliruntime.Report{
@@ -332,12 +252,36 @@ func TestActionBlockUsesAbsolutePathWhenLauncherMissing(t *testing.T) {
 	renderGrouped(&sb, report)
 	out := sb.String()
 
-	// Before the launcher shim exists the bare name does not resolve, so the
-	// in-flow command still has to be spelled with the absolute path.
 	if !strings.Contains(out, exePath+" setup --sudo-mode=ask") {
-		t.Fatalf("action block should contain the absolute-path privilege command:\n%s", out)
+		t.Fatalf("action block should contain the current executable path:\n%s", out)
 	}
 	if !strings.Contains(out, exePath+" setup --include-optional") {
-		t.Fatalf("action block should contain absolute-path include-optional command:\n%s", out)
+		t.Fatalf("action block should contain the current executable path:\n%s", out)
+	}
+	if !strings.Contains(out, "Needs privilege — re-run with `"+exePath+" setup --sudo-mode=ask`") {
+		t.Fatalf("privilege group should use the current executable path:\n%s", out)
+	}
+	if lookups != 1 {
+		t.Fatalf("executable lookups = %d, want one per rendered report", lookups)
+	}
+}
+
+func TestVrooliInvocationFallsBackWhenExecutableLookupFails(t *testing.T) {
+	origExe := vrooliExecutableFn
+	defer func() { vrooliExecutableFn = origExe }()
+	for _, result := range []struct {
+		name string
+		exe  string
+		err  error
+	}{
+		{name: "error", err: errors.New("lookup failed")},
+		{name: "empty path"},
+	} {
+		t.Run(result.name, func(t *testing.T) {
+			vrooliExecutableFn = func() (string, error) { return result.exe, result.err }
+			if got := vrooliInvocation(); got != setupOwnerVrooli {
+				t.Fatalf("vrooliInvocation = %q, want fallback %q", got, setupOwnerVrooli)
+			}
+		})
 	}
 }

@@ -51,16 +51,13 @@ func ApplyStatus(status ItemStatus) (ItemStatus, bool) {
 	}
 }
 
-// ApplyTool runs an installer's common status and error handling for tools
-// whose installer does not need host details after inspection.
-func ApplyTool(status ItemStatus, opts EnsureOptions, apply func(ItemStatus, EnsureOptions) (ItemStatus, error)) (ItemStatus, error) {
-	if status, done := ApplyStatus(status); done {
-		return status, nil
+// FailureStatus returns a failed item status and appends the cause to its
+// notes without modifying the input status' shared slice storage.
+func FailureStatus(status ItemStatus, cause error) ItemStatus {
+	status.ExecutionState = ExecutionFailed
+	status.Notes = append([]string(nil), status.Notes...)
+	if cause != nil {
+		status.Notes = append(status.Notes, cause.Error())
 	}
-	result, err := apply(status, opts)
-	if err != nil {
-		result.ExecutionState = ExecutionFailed
-		result.Notes = append(result.Notes, err.Error())
-	}
-	return result, nil
+	return status
 }

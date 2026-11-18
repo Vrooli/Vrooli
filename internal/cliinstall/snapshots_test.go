@@ -328,3 +328,20 @@ func assertExists(t *testing.T, path string, exists bool) {
 		t.Errorf("expected %q to be pruned; stat error=%v", path, err)
 	}
 }
+
+// A refused transition leaves its working copy behind. The prune must remove it
+// once it is old, and must keep a fresh one that another run may still be using.
+func TestPruneInstallSnapshotsAlsoRemovesAbandonedTransitionBundles(t *testing.T) {
+	root := t.TempDir()
+	stale := makeSnapshot(t, root, "rebaseline-bundle", "stale001", "")
+	fresh := makeSnapshot(t, root, "rebaseline-bundle", "fresh001", "")
+	old := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := PruneInstallSnapshots(root, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	assertExists(t, stale, false)
+	assertExists(t, fresh, true)
+}

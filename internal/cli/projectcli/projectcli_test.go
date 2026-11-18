@@ -40,6 +40,27 @@ func TestParseSetupOptionsAcceptsFlags(t *testing.T) {
 	}
 }
 
+func TestSetupHelpDescribesCurrentPrivilegeBoundaries(t *testing.T) {
+	help := SetupHelpText()
+	for _, want := range []string{
+		"Linux uses a lazy",
+		"typed session",
+		"other safeguards may",
+		"one password prompt is not assured",
+		"macOS retains per-operation sudo",
+		"Windows requires Administrator",
+	} {
+		if !strings.Contains(help, want) {
+			t.Errorf("setup help missing %q", want)
+		}
+	}
+	for _, stale := range []string{"in-process", "whole", "outside the onboarding flow"} {
+		if strings.Contains(help, stale) {
+			t.Errorf("setup help contains stale privilege claim %q", stale)
+		}
+	}
+}
+
 func TestParseDevelopOptionsAcceptsAPIOnlyRestart(t *testing.T) {
 	opts, err := ParseDevelopOptions([]string{"--restart-api", "--resources", "none", "--scenarios", "none"})
 	if err != nil {

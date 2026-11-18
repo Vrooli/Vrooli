@@ -32,7 +32,7 @@ type composeArtifactFunc func(context.Context, binaryfetch.AcquisitionTarget, st
 
 const maxComposeCandidateManifestBytes = 1 << 20
 
-var composeCandidateResolveTarget = managedServiceAcquisitionTargetWithFacts
+var composeCandidateResolveTarget = (*Controller).managedServiceAcquisitionTargetWithFacts
 
 type candidateManifestBuffer struct{ bytes.Buffer }
 
@@ -69,7 +69,7 @@ func (c *Controller) ComposeCandidate(ctx context.Context, name, output string) 
 	if manifest.Name != name {
 		return empty, errors.New("compose-candidate resource identity does not match manifest")
 	}
-	target, _, err := composeCandidateResolveTarget(ctx, manifest)
+	target, _, err := composeCandidateResolveTarget(c, ctx, manifest)
 	if err != nil {
 		return empty, err
 	}

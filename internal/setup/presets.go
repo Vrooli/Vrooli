@@ -9,6 +9,7 @@ import (
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 const SelectionSchemaVersion = "v1"
@@ -127,7 +128,6 @@ func ExpandPreset(name, target string) (*setupv1.Selection, error) {
 }
 
 func clonePreset(preset Preset) Preset {
-	selection := *preset.Selection
-	selection.Scenarios = append([]string(nil), preset.Selection.Scenarios...)
-	return Preset{Name: preset.Name, Description: preset.Description, Environment: preset.Environment, Selection: &selection}
+	selection := proto.Clone(preset.Selection).(*setupv1.Selection)
+	return Preset{Name: preset.Name, Description: preset.Description, Environment: preset.Environment, Selection: selection}
 }

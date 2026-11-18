@@ -17,7 +17,7 @@ var edgeAllowedPorts = map[int]struct{}{80: {}, 443: {}}
 
 func validateEdge(req Request) error {
 	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Process != nil || req.Caddy != nil {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.Edge == nil {
 		return fmt.Errorf("edge_subject_required")
@@ -36,7 +36,7 @@ func EdgeUFWArgs(req Request) ([]string, error) {
 		return nil, err
 	}
 	if req.Action != ActionEdgeUFWAllow {
-		return nil, fmt.Errorf("action_not_allowed")
+		return nil, errActionNotAllowed
 	}
 	return []string{"allow", strconv.Itoa(req.Edge.Port) + "/tcp", "comment", EdgeRuleComment}, nil
 }

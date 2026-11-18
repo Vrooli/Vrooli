@@ -146,6 +146,7 @@ func TestPersistenceOwnersDeclareEveryVersionedEnvelope(t *testing.T) {
 var unauditedWriters = map[string]string{
 	"github.com/vrooli/vrooli/internal/cli/runtimehandlers":           "root_updates.go copies the rootdecision locator into retained recovery state; prepared-root-bundle covers the copy and paths, root-rebaseline-hub-decision covers the record codec",
 	"github.com/vrooli/vrooli/internal/cli/scenariocli":               "wait-attempts cache records recent wait timestamps solely for a diagnostic warning; unreadable entries are ignored",
+	"github.com/vrooli/vrooli/internal/clifreshness":                  "writes the published command-surface digest, its temporary file and a build lock inside the repository build directory; the binary and runtime state are owned elsewhere",
 	"github.com/vrooli/vrooli/internal/packagegov":                    "detachFile copies and replaces existing governed package files without changing their content or format",
 	"github.com/vrooli/api-core/trustposture":                         "breakglass.go is a whole-source owner; posture.go has no persistent writer",
 	"github.com/vrooli/vrooli/internal/tools/blender-renderer":        "writes quarantine audit receipts; no runtime reader consumes them",
@@ -176,6 +177,7 @@ var unauditedWriters = map[string]string{
 	"github.com/vrooli/vrooli/cmd/vrooli-watchdog":                    "pressure report and probe caches written by the watchdog executable itself",
 	"github.com/vrooli/vrooli/internal/safeguards/runtime-supervisor": "native supervisor unit definition (host configuration converged by its owner)",
 	"github.com/vrooli/vrooli/internal/buildinfo":                     "build outputs and rebuild sidecars; not read across an activation",
+	"github.com/vrooli/vrooli/internal/buildsnapshot":                 "temporary compiler-input scratch for one build; it reads the checkout, owns no durable state, and deletes the copy after publishing",
 	"github.com/vrooli/vrooli/internal/config":                        "write helpers; callers own the stored formats",
 	"github.com/vrooli/vrooli/internal/privilegebroker":               "requests, local admissions and the audit log are the protocol of the separately installed broker daemon, which root activation neither swaps nor rolls back; its installer writes the unit and binary as host configuration",
 	"github.com/vrooli/vrooli/internal/artifactledger":                "append-only removal receipts that name their schema; no binary reads them back (operator forensic evidence)",

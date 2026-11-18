@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFileViewerText } from "../i18n/context.js";
 import { strings } from "../i18n/strings.js";
+import { splitHtmlFileReference } from "../lib/fileReferences.js";
 import { archiveStatusKey } from "../preview/archiveData.js";
 import { DEFAULT_ARCHIVE_VIEW, type ArchiveView } from "../preview/types.js";
 import {
@@ -33,7 +34,7 @@ export interface OpenPreviewOptions {
   /**
    * A heading to scroll to once the document is open, by GitHub-style slug
    * (`plan`, `plan-1` for a second "Plan"). Applies to Markdown and Word
-   * documents; other kinds ignore it.
+   * documents, or a URL fragment for an HTML preview.
    */
   anchor?: string;
 }
@@ -104,15 +105,14 @@ export function useFilePreviewController(source: PreviewSource) {
     async (
       path: string,
       stack: PreviewFrame[],
-      context?: PreviewSourceContext,
-      listOptions?: { sort: DirectorySort; showHidden: boolean; },
-      archiveSource?: ArchiveSource,
-      archiveView?: ArchiveView,
-      // When set, the open is part of a "browse to locate a relative path"
-      // session: every directory that lands is probed for relPath and the
-      // search banner stays visible until the file is opened or search cleared.
-      searchCtx?: { relPath: string } | null,
-      anchor?: string,
+      { context, listOptions, archiveSource, archiveView, searchCtx, anchor }: {
+        context?: PreviewSourceContext;
+        listOptions?: { sort: DirectorySort; showHidden: boolean };
+        archiveSource?: ArchiveSource;
+        archiveView?: ArchiveView;
+        searchCtx?: { relPath: string } | null;
+        anchor?: string;
+      } = {},
     ) => {
       requestAbortRef.current?.abort();
       const request = new AbortController();
@@ -153,7 +153,7 @@ export function useFilePreviewController(source: PreviewSource) {
               apply((s) => ({ ...s, status: "error", error: t(strings.viewer.openFailed) }));
               return;
             }
-            void load(base.resolvedPath, [], undefined, listOptions, undefined, undefined, { relPath: outcome.inputPath });
+            void load(base.resolvedPath, [], { listOptions, searchCtx: { relPath: outcome.inputPath }, anchor });
             return;
           }
           if (outcome.outcome === "ambiguous") {
@@ -228,7 +228,10 @@ export function useFilePreviewController(source: PreviewSource) {
   // optionally scrolled to a heading.
   // It clears any navigation history: the new target is the new root.
   const openPreview = useCallback(
-    (path: string, source?: PreviewSourceContext, options?: OpenPreviewOptions) => load(path, [], source, undefined, undefined, undefined, undefined, options?.anchor),
+    (path: string, source?: PreviewSourceContext, options?: OpenPreviewOptions) => {
+      const target = source === "message_link" ? splitHtmlFileReference(path) : { path };
+      return load(target.path, [], { context: source, anchor: options?.anchor ?? target.anchor });
+    },
     [load],
   );
 
@@ -241,18 +244,18 @@ export function useFilePreviewController(source: PreviewSource) {
       const stack = frame ? [...current.stack, frame].slice(-MAX_STACK_DEPTH) : current.stack;
       // Stay in search mode while browsing so each new directory is re-probed.
       const searchCtx = current.search ? { relPath: current.search.relPath } : null;
-      void load(path, stack, undefined, undefined, undefined, undefined, searchCtx);
+      void load(path, stack, { searchCtx, anchor: searchCtx ? current.anchor : undefined });
     },
     [load],
   );
 
   // chooseCandidate opens one of the ambiguous matches the picker offered.
-  const chooseCandidate = useCallback((path: string) => { void load(path, []); }, [load]);
+  const chooseCandidate = useCallback((path: string) => { void load(path, [], { anchor: stateRef.current.anchor }); }, [load]);
 
   // openFoundMatch opens the file located during a folder-browse search.
   const openFoundMatch = useCallback(() => {
     const found = stateRef.current.search?.foundPath;
-    if (found) void load(found, []);
+    if (found) void load(found, [], { anchor: stateRef.current.anchor });
   }, [load]);
 
   // cancelSearch keeps the folder browser open but dismisses the locate banner.
@@ -268,7 +271,7 @@ export function useFilePreviewController(source: PreviewSource) {
     const stack = current.stack.slice(0, -1);
 
     if (isExpired(previous.model)) {
-      void load(previous.requestedPath, stack, undefined, listOptionsOf(previous.listing), previous.archiveSource, previous.archiveView);
+      void load(previous.requestedPath, stack, { ...previous, listOptions: listOptionsOf(previous.listing) });
       return;
     }
 
@@ -280,6 +283,7 @@ export function useFilePreviewController(source: PreviewSource) {
       status: "ready",
       open: true,
       requestedPath: previous.requestedPath,
+      anchor: previous.anchor,
       model: previous.model,
       text: previous.text,
       listing: previous.listing,
@@ -364,7 +368,7 @@ export function useFilePreviewController(source: PreviewSource) {
   const reopen = useCallback(() => {
     const current = stateRef.current;
     if (!current.requestedPath) return;
-    void load(current.requestedPath, current.stack, undefined, listOptionsOf(current.listing), current.archiveSource, current.archiveView);
+    void load(current.requestedPath, current.stack, { ...current, listOptions: listOptionsOf(current.listing) });
   }, [load]);
 
 
@@ -377,7 +381,9 @@ export function useFilePreviewController(source: PreviewSource) {
   const navigateArchiveEntry = useCallback((entry: { id: string; name: string; }) => {
     const current = stateRef.current, frame = frameFrom(current);
     if (!frame || !current.model || !current.archive) return;
-    void load(`${current.model.resolvedPath}!/${entry.name}`, [...current.stack, frame].slice(-MAX_STACK_DEPTH), undefined, undefined, { previewId: current.model.previewId, entryId: entry.id });
+    void load(`${current.model.resolvedPath}!/${entry.name}`, [...current.stack, frame].slice(-MAX_STACK_DEPTH), {
+      archiveSource: { previewId: current.model.previewId, entryId: entry.id },
+    });
   }, [load]);
   const setArchiveView = useCallback((view: Partial<ArchiveView>) => {
     apply(current => current.archiveView ? { ...current, archiveView: { ...current.archiveView, ...view } } : current);
@@ -420,6 +426,7 @@ function frameFrom(state: PreviewState): PreviewFrame | null {
   if (state.status !== "ready" && state.status !== "unsupported" && !(state.status === "loadingListing" && state.listing)) return null;
   return {
     requestedPath: state.requestedPath,
+    anchor: state.anchor,
     model: state.model,
     text: state.text,
     listing: state.listing,

@@ -5,16 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/shell"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 // ConformanceTarget binds an authored platform claim to the Go module that
@@ -49,7 +52,13 @@ func (w conformanceWarning) Error() string { return w.message }
 // DiscoverConformanceTargets finds every platform claim whose implementation
 // is Go-backed. It intentionally discovers modules rather than maintaining a
 // hand-written list of packages.
-func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
+func DiscoverConformanceTargets(ctx context.Context, root string) ([]ConformanceTarget, error) {
+	if ctx == nil {
+		return nil, errors.New("conformance context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	contract, err := repocontract.LoadDefault(root)
 	if err != nil {
 		return nil, err
@@ -62,12 +71,18 @@ func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
 	var targets []ConformanceTarget
 	seenModules := map[string]struct{}{}
 	for _, target := range concrete {
+		if target.Kind == repocontract.TargetKindDocs || target.Kind == repocontract.TargetKindTeam {
+			continue
+		}
 		targetRoot := filepath.Join(root, filepath.FromSlash(target.Root))
 		if err := filepath.WalkDir(targetRoot, func(path string, entry os.DirEntry, walkErr error) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if walkErr != nil {
 				return walkErr
 			}
-			if entry.IsDir() && (entry.Name() == "node_modules" || entry.Name() == "vendor") {
+			if entry.IsDir() && (entry.Name() == "node_modules" || entry.Name() == "vendor" || (path != targetRoot && strings.EqualFold(entry.Name(), "docs"))) {
 				return filepath.SkipDir
 			}
 			if target.Kind == repocontract.TargetKindProject && path != targetRoot && entry.IsDir() {
@@ -82,14 +97,7 @@ func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
 				return nil
 			}
 			seenModules[key] = struct{}{}
-			for _, targetPlatform := range []struct{ hostOS, architecture string }{
-				{hostOS: string(hostreqspec.PlatformLinux), architecture: "amd64"},
-				{hostOS: string(hostreqspec.PlatformLinux), architecture: "arm64"},
-				{hostOS: "macos", architecture: "amd64"},
-				{hostOS: "macos", architecture: "arm64"},
-				{hostOS: string(hostreqspec.PlatformWindows), architecture: "amd64"},
-				{hostOS: string(hostreqspec.PlatformWindows), architecture: "arm64"},
-			} {
+			for _, targetPlatform := range conformancePlatforms {
 				targets = append(targets, ConformanceTarget{
 					ManifestPath: conformanceManifest(root, target, module),
 					OS:           HostOS(targetPlatform.hostOS),
@@ -103,13 +111,25 @@ func DiscoverConformanceTargets(root string) ([]ConformanceTarget, error) {
 		}
 	}
 	sort.Slice(targets, func(i, j int) bool { return targetKey(targets[i]) < targetKey(targets[j]) })
-	return dedupeTargets(targets), nil
+	return targets, nil
+}
+
+var conformancePlatforms = [...]struct{ hostOS, architecture string }{
+	{hostOS: string(hostreqspec.PlatformLinux), architecture: "amd64"},
+	{hostOS: string(hostreqspec.PlatformLinux), architecture: "arm64"},
+	{hostOS: string(hostreqspec.PlatformMacOS), architecture: "amd64"},
+	{hostOS: string(hostreqspec.PlatformMacOS), architecture: "arm64"},
+	{hostOS: string(hostreqspec.PlatformWindows), architecture: "amd64"},
+	{hostOS: string(hostreqspec.PlatformWindows), architecture: "arm64"},
 }
 
 // CheckRepository cross-compiles each discovered module/OS pair once and
 // fans failures back out to every manifest making that claim.
-func CheckRepository(ctx context.Context, root string) (ConformanceReport, error) {
-	targets, err := DiscoverConformanceTargets(root)
+func CheckRepository(ctx context.Context, root string, progress io.Writer) (ConformanceReport, error) {
+	if ctx == nil {
+		return ConformanceReport{}, errors.New("conformance context is nil")
+	}
+	targets, err := DiscoverConformanceTargets(ctx, root)
 	if err != nil {
 		return ConformanceReport{}, err
 	}
@@ -120,7 +140,7 @@ func CheckRepository(ctx context.Context, root string) (ConformanceReport, error
 	}
 	jobs := make(chan ConformanceTarget)
 	results := make(chan result, len(targets))
-	workers := 8
+	workers := tuning.BuildWidth()
 	if len(targets) < workers {
 		workers = len(targets)
 	}
@@ -139,22 +159,61 @@ func CheckRepository(ctx context.Context, root string) (ConformanceReport, error
 	}
 	go func() {
 		for _, target := range targets {
-			jobs <- target
+			select {
+			case jobs <- target:
+			case <-ctx.Done():
+				close(jobs)
+				return
+			}
 		}
 		close(jobs)
+	}()
+	go func() {
 		wg.Wait()
 		close(results)
 	}()
-	for item := range results {
-		if item.err != nil {
-			finding := ConformanceFinding{ManifestPath: item.target.ManifestPath, OS: item.target.OS, Architecture: item.target.Architecture, CodeRoot: item.target.CodeRoot, Message: item.err.Error()}
-			var warning conformanceWarning
-			if errors.As(item.err, &warning) {
-				report.Warnings = append(report.Warnings, finding)
-			} else {
-				report.Findings = append(report.Findings, finding)
+	modules := make(map[string]struct{})
+	for _, target := range targets {
+		modules[target.CodeRoot] = struct{}{}
+	}
+	if progress != nil {
+		_, _ = fmt.Fprintf(progress, "conformance: checking %d modules across %d target cells\n", len(modules), len(targets))
+	}
+	startedAt := time.Now()
+	var tick <-chan time.Time
+	if progress != nil {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		tick = ticker.C
+	}
+	progressStep := max(1, (len(targets)+9)/10)
+	completed := 0
+loop:
+	for {
+		select {
+		case item, ok := <-results:
+			if !ok {
+				break loop
 			}
+			completed++
+			if progress != nil && (completed%progressStep == 0 || completed == len(targets)) {
+				_, _ = fmt.Fprintf(progress, "conformance: checked %d/%d target cells\n", completed, len(targets))
+			}
+			if item.err != nil {
+				finding := ConformanceFinding{ManifestPath: item.target.ManifestPath, OS: item.target.OS, Architecture: item.target.Architecture, CodeRoot: item.target.CodeRoot, Message: item.err.Error()}
+				var warning conformanceWarning
+				if errors.As(item.err, &warning) {
+					report.Warnings = append(report.Warnings, finding)
+				} else {
+					report.Findings = append(report.Findings, finding)
+				}
+			}
+		case <-tick:
+			_, _ = fmt.Fprintf(progress, "conformance: still running after %s; checked %d/%d target cells\n", time.Since(startedAt).Round(time.Second), completed, len(targets))
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return report, err
 	}
 	sort.Slice(report.Findings, func(i, j int) bool {
 		return report.Findings[i].ManifestPath+string(report.Findings[i].OS) < report.Findings[j].ManifestPath+string(report.Findings[j].OS)
@@ -192,7 +251,10 @@ func crossCompile(ctx context.Context, module string, hostOS HostOS, architectur
 	}
 	cmd := shell.NewCommandContext(ctx, "go", "vet", "./...")
 	cmd.Dir = module
-	cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOOS=" + goos, "GOARCH=" + arch})
+	cmd.Env = envkit.Toolchain(
+		envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"GOWORK=off", "GOOS=" + goos, "GOARCH=" + arch}),
+		envkit.ToolchainOptions{Width: 1},
+	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		message := fmt.Sprintf("GOOS=%s GOARCH=%s: %v: %s", goos, arch, err, strings.TrimSpace(string(out)))
@@ -252,17 +314,4 @@ func relativePath(root, path string) string {
 
 func targetKey(t ConformanceTarget) string {
 	return t.ManifestPath + "\x00" + string(t.OS) + "\x00" + t.Architecture + "\x00" + t.CodeRoot
-}
-
-func dedupeTargets(in []ConformanceTarget) []ConformanceTarget {
-	out := in[:0]
-	seen := map[string]bool{}
-	for _, target := range in {
-		key := targetKey(target)
-		if !seen[key] {
-			seen[key] = true
-			out = append(out, target)
-		}
-	}
-	return out
 }

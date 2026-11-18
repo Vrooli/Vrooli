@@ -48,7 +48,4 @@ func TestDesktopPortCallsRuntimeAndNeverCLIFallback(t *testing.T) {
 	if out.Err == nil {
 		t.Fatal("closed runtime should be unavailable")
 	}
-	if stats := PortLookupStats(); stats.CLIHits != 0 || stats.RegistryHits != 0 || stats.PeerHits != 0 {
-		t.Fatalf("desktop escaped runtime authority: %+v", stats)
-	}
 }

@@ -114,7 +114,7 @@ func installDesktopRelease(ctx context.Context, h Harness, version string, deps 
 	if err != nil || len(checksum) != 64 || !strings.HasPrefix(release.Dist.Integrity, "sha512-") {
 		return fmt.Errorf("native artifact requires published SHA-512 integrity")
 	}
-	prefix, err := npmInstallPrefix(h.Home, h.Resource, version, deps.platform)
+	prefix, err := npmInstallPrefix(h.Home, h.Resource, h.Channel, version, deps.platform)
 	if err != nil {
 		return err
 	}

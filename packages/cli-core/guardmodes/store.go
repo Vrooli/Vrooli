@@ -138,14 +138,7 @@ func (s *Store) SetLogOnlyFromAnswer(check CheckID, expiresAt time.Time, reason,
 		state.Active[check] = mode
 		return nil
 	}
-	deadline := time.Now().Add(answerLockWait)
-	for {
-		err := s.update(mutate)
-		if !errors.Is(err, ErrStoreBusy) || !time.Now().Before(deadline) {
-			return err
-		}
-		time.Sleep(2 * time.Millisecond)
-	}
+	return s.updateWithBusyRetry(answerLockWait, mutate)
 }
 
 func (s *Store) setLogOnly(check CheckID, expiresAt time.Time, reason, actor, authorizationID string) error {
@@ -280,25 +273,31 @@ func (s *Store) RestoreAll(hardStop HardStop, eventID string, now time.Time) ([]
 	if s == nil || strings.TrimSpace(s.Dir) == "" {
 		return nil, errors.New("guard mode directory is required")
 	}
-	deadline := time.Now().Add(restoreLockWait)
-	for {
-		var restored []CheckID
-		err := s.update(func(state *guardModeState) error {
-			if len(state.Active) == 0 {
-				return nil
-			}
-			for check := range state.Active {
-				restored = append(restored, check)
-			}
-			sort.Slice(restored, func(i, j int) bool { return restored[i] < restored[j] })
-			if err := s.appendAuditLocked(GuardModeAudit{At: now.UTC(), Action: "restored", HardStop: hardStop, EventID: eventID, RestoredChecks: restored}); err != nil {
-				return err
-			}
-			state.Active = map[CheckID]GuardMode{}
+	var restored []CheckID
+	err := s.updateWithBusyRetry(restoreLockWait, func(state *guardModeState) error {
+		restored = nil
+		if len(state.Active) == 0 {
 			return nil
-		})
+		}
+		for check := range state.Active {
+			restored = append(restored, check)
+		}
+		sort.Slice(restored, func(i, j int) bool { return restored[i] < restored[j] })
+		if err := s.appendAuditLocked(GuardModeAudit{At: now.UTC(), Action: "restored", HardStop: hardStop, EventID: eventID, RestoredChecks: restored}); err != nil {
+			return err
+		}
+		state.Active = map[CheckID]GuardMode{}
+		return nil
+	})
+	return restored, err
+}
+
+func (s *Store) updateWithBusyRetry(timeout time.Duration, mutate func(*guardModeState) error) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		err := s.update(mutate)
 		if !errors.Is(err, ErrStoreBusy) || !time.Now().Before(deadline) {
-			return restored, err
+			return err
 		}
 		time.Sleep(2 * time.Millisecond)
 	}

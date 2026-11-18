@@ -23,6 +23,7 @@ import (
 	"github.com/vrooli/api-core/storage"
 	"github.com/vrooli/platform-go"
 	capacityengine "github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 )
 
@@ -350,6 +351,17 @@ func (d Document) EffectiveUpdateControl() string {
 	default:
 		return updateControlObserve
 	}
+}
+
+// ConfigForOperator binds state to the invoking operator's logical home on
+// platforms where setup may run under a different process identity.
+func ConfigForOperator(repoRoot, logicalHome string) Config {
+	cfg := Config{RepoRoot: repoRoot}
+	platform := hostreqspec.Platform(hostreqspec.CurrentPlatform())
+	if platform == hostreqspec.PlatformMacOS || platform == hostreqspec.PlatformWindows {
+		cfg.LogicalOperatorHome = logicalHome
+	}
+	return cfg
 }
 
 type Config struct {

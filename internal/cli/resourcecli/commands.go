@@ -190,6 +190,8 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 					{Name: "--version", ValueName: "version", Description: "Exact staged managed-service release for prepare"},
 					{Name: "--sha256", ValueName: "digest", Description: "Exact staged managed-service checksum for prepare"},
 					{Name: "--retry", Description: "Explicit managed-service retry with a new request after a failed release"},
+					{Name: "--channel", ValueName: "name", Description: "Coding agents: declared release channel to manage (for example v2). Empty follows the installed major."},
+					{Name: "--major", ValueName: "version", Description: "Coding agents: select the declared channel carrying this major version"},
 					commandtree.JSONOption(),
 				},
 			},
@@ -200,7 +202,11 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Summary: "Report a resource's update state and eligibility (read-only)",
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
-				Options:     []commandtree.OptionArg{commandtree.JSONOption()},
+				Options: []commandtree.OptionArg{
+					{Name: "--channel", ValueName: "name", Description: "Declared release channel to inspect (for example v2). Empty follows the installed major."},
+					{Name: "--major", ValueName: "version", Description: "Select the declared channel carrying this major version"},
+					commandtree.JSONOption(),
+				},
 			},
 			Handler: CommandUpdateCheck,
 		},

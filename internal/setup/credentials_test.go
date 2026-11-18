@@ -3,15 +3,20 @@ package setup
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
 	"testing"
 
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/securestore"
 )
 
 type credentialStoreCall struct {
+	ctx   context.Context
 	args  []string
 	input string
 }
@@ -24,7 +29,7 @@ func stubCredentialStore(t *testing.T, reply func(call credentialStoreCall, stdo
 	previousRun, previousExecutable := runCredentialStoreFn, credentialStoreExecutableFn
 	credentialStoreExecutableFn = func() (string, error) { return "/usr/local/bin/vrooli", nil }
 	runCredentialStoreFn = func(_ string, args []string, input string, opts hostreqkit.EnsureOptions) error {
-		*calls = append(*calls, credentialStoreCall{args: append([]string(nil), args...), input: input})
+		*calls = append(*calls, credentialStoreCall{ctx: opts.Context, args: append([]string(nil), args...), input: input})
 		if reply == nil {
 			return nil
 		}
@@ -37,6 +42,46 @@ func stubCredentialStore(t *testing.T, reply func(call credentialStoreCall, stdo
 }
 
 func verbOf(call credentialStoreCall) string { return strings.Join(call.args, " ") }
+
+func TestNativeCredentialDiagnosisUsesOperatorResultForElevatedSetup(t *testing.T) {
+	previousDoctor, previousRoot := runCredentialDoctorFn, hostreqkit.RunningAsRootFn
+	t.Cleanup(func() {
+		runCredentialDoctorFn, hostreqkit.RunningAsRootFn = previousDoctor, previousRoot
+	})
+	hostreqkit.RunningAsRootFn = func() bool { return true }
+	want := securestore.Diagnosis{Platform: "linux", Adapter: "secret-service", Condition: "available", WriteCondition: "ready"}
+	runCredentialDoctorFn = func(context.Context, string) ([]byte, error) {
+		payload, err := json.Marshal(struct {
+			Provider securestore.Diagnosis `json:"provider"`
+		}{Provider: want})
+		return payload, err
+	}
+
+	if got := nativeCredentialDiagnosis(context.Background(), "/fixture/vrooli"); got != want {
+		t.Fatalf("nativeCredentialDiagnosis() = %+v, want invoking-user result %+v", got, want)
+	}
+}
+
+func TestNativeCredentialDiagnosisDoesNotProbeRootAfterOperatorSessionFailure(t *testing.T) {
+	previousDoctor, previousRoot := runCredentialDoctorFn, hostreqkit.RunningAsRootFn
+	t.Cleanup(func() {
+		runCredentialDoctorFn, hostreqkit.RunningAsRootFn = previousDoctor, previousRoot
+	})
+	hostreqkit.RunningAsRootFn = func() bool { return true }
+	calls := 0
+	runCredentialDoctorFn = func(context.Context, string) ([]byte, error) {
+		calls++
+		return nil, fmt.Errorf("operator session unavailable")
+	}
+
+	got := nativeCredentialDiagnosis(context.Background(), "/fixture/vrooli")
+	if calls != 1 {
+		t.Fatalf("operator doctor calls = %d, want one", calls)
+	}
+	if got.Condition != "unavailable" || got.WriteCondition != "unavailable" || !strings.Contains(got.Explanation, "operator-session") {
+		t.Fatalf("diagnosis = %+v, want unavailable without a root-account fallback", got)
+	}
+}
 
 // The operator-supplied passphrase is the path almost every install actually
 // takes, through setup's stdin flag or through onboarding. Returning from it
@@ -51,7 +96,9 @@ func TestPassphrasePathConvergesOnUnattendedAccess(t *testing.T) {
 	})
 
 	var out bytes.Buffer
-	if err := initializeEncryptedBackendWithPassphrase(&out, "the operator passphrase", true); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := initializeEncryptedBackendWithPassphrase(ctx, &out, "the operator passphrase", true); err != nil {
 		t.Fatalf("initializeEncryptedBackendWithPassphrase: %v", err)
 	}
 
@@ -68,6 +115,9 @@ func TestPassphrasePathConvergesOnUnattendedAccess(t *testing.T) {
 	// locked, the wrap cannot be added without opening it first.
 	if (*calls)[1].input != "the operator passphrase" {
 		t.Fatalf("convergence input = %q, want the operator passphrase", (*calls)[1].input)
+	}
+	if (*calls)[0].ctx != ctx || (*calls)[1].ctx != ctx {
+		t.Fatal("credential commands did not receive the setup operation context")
 	}
 	if !strings.Contains(out.String(), "Unattended credential access: enabled") {
 		t.Fatalf("setup output = %q, want it to report that this host no longer needs a passphrase", out.String())
@@ -88,7 +138,7 @@ func TestBlockedUnattendedAccessIsReportedAndNotFatal(t *testing.T) {
 	})
 
 	var out bytes.Buffer
-	if err := initializeEncryptedBackendWithPassphrase(&out, "the operator passphrase", true); err != nil {
+	if err := initializeEncryptedBackendWithPassphrase(context.Background(), &out, "the operator passphrase", true); err != nil {
 		t.Fatalf("a host that cannot hold an unattended wrap failed setup: %v", err)
 	}
 	rendered := out.String()
@@ -97,6 +147,20 @@ func TestBlockedUnattendedAccessIsReportedAndNotFatal(t *testing.T) {
 	}
 	if !strings.Contains(rendered, "systemd-creds is not installed") {
 		t.Fatalf("setup output = %q, want it to carry the reason", rendered)
+	}
+}
+
+func TestCredentialSetupStopsBeforeLaunchingWhenContextIsCanceled(t *testing.T) {
+	calls := stubCredentialStore(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := initializeEncryptedBackendWithPassphrase(ctx, io.Discard, "passphrase", true)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("initializeEncryptedBackendWithPassphrase error = %v, want cancellation", err)
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("credential commands = %v, want none after cancellation", *calls)
 	}
 }
 
@@ -111,7 +175,7 @@ func TestAlreadyUnattendedHostIsReportedAsUnchanged(t *testing.T) {
 	})
 
 	var out bytes.Buffer
-	if err := initializeEncryptedBackendWithPassphrase(&out, "passphrase", true); err != nil {
+	if err := initializeEncryptedBackendWithPassphrase(context.Background(), &out, "passphrase", true); err != nil {
 		t.Fatalf("initializeEncryptedBackendWithPassphrase: %v", err)
 	}
 	if !strings.Contains(out.String(), "already enabled via the native-wrap wrap") {

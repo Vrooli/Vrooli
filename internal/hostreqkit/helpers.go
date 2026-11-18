@@ -74,42 +74,15 @@ var (
 	}
 
 	RunCommandFn = func(name string, args []string, opts EnsureOptions) error {
-		tail := shell.NewStderrTail(helpersParameterA)
-		stderr := io.MultiWriter(writerOrDiscard(opts.Stderr), tail)
-		err := shell.Run(shell.Spec{
-			Name:   name,
-			Args:   args,
-			Stdout: writerOrDiscard(opts.Stdout),
-			Stderr: stderr,
-			Stdin:  os.Stdin,
-		})
-		if err != nil {
-			if captured := strings.TrimSpace(tail.String()); captured != "" {
-				return fmt.Errorf("%w: %s", err, captured)
-			}
-		}
-		return err
+		return runCommand(name, args, os.Stdin, opts)
 	}
 
 	// RunCommandInputFn is the stdin-bearing counterpart used for Vrooli-owned
 	// operator flows that must drop back to the invoking user without putting a
-	// secret in argv or a temporary file.
+	// secret in argv or a temporary file. Both command paths share stderr
+	// capture and propagate opts.Context.
 	RunCommandInputFn = func(name string, args []string, input string, opts EnsureOptions) error {
-		tail := shell.NewStderrTail(helpersParameterA)
-		stderr := io.MultiWriter(writerOrDiscard(opts.Stderr), tail)
-		err := shell.Run(shell.Spec{
-			Name:   name,
-			Args:   args,
-			Stdout: writerOrDiscard(opts.Stdout),
-			Stderr: stderr,
-			Stdin:  strings.NewReader(input),
-		})
-		if err != nil {
-			if captured := strings.TrimSpace(tail.String()); captured != "" {
-				return fmt.Errorf("%w: %s", err, captured)
-			}
-		}
-		return err
+		return runCommand(name, args, strings.NewReader(input), opts)
 	}
 
 	// WriteTempFileFn writes content to a temporary file and returns
@@ -132,6 +105,24 @@ var (
 		return path, nil
 	}
 )
+
+func runCommand(name string, args []string, stdin io.Reader, opts EnsureOptions) error {
+	tail := shell.NewStderrTail(helpersParameterA)
+	err := shell.Run(shell.Spec{
+		Context: opts.Context,
+		Name:    name,
+		Args:    args,
+		Stdout:  writerOrDiscard(opts.Stdout),
+		Stderr:  io.MultiWriter(writerOrDiscard(opts.Stderr), tail),
+		Stdin:   stdin,
+	})
+	if err != nil {
+		if captured := strings.TrimSpace(tail.String()); captured != "" {
+			return fmt.Errorf("%w: %s", err, captured)
+		}
+	}
+	return err
+}
 
 func BaseStatus(requirement hostreqspec.ResolvedRequirement) ItemStatus {
 	return ItemStatus{
@@ -417,6 +408,13 @@ func writerOrDiscard(w io.Writer) io.Writer {
 }
 
 func RunInstallCommand(command string, args []string, opts EnsureOptions) error {
+	if opts.SetupPrivilegeSession != nil && command == helpersSudo {
+		request, ok := inferredPackageInstall(command, args)
+		if !ok {
+			return fmt.Errorf("setup privilege session cannot route an unrecognized package install")
+		}
+		return RunInstallCommandWithProvenance(command, args, opts, request)
+	}
 	if request, ok := inferredPackageInstall(command, args); ok && RecordPackageInstallFn != nil {
 		return RunInstallCommandWithProvenance(command, args, opts, request)
 	}
@@ -521,7 +519,21 @@ var ProbePackageStateFn = probePackageState
 
 func RunInstallCommandWithProvenance(command string, args []string, opts EnsureOptions, request InstallProvenanceRequest) error {
 	if strings.TrimSpace(request.PackageManager) == "" || strings.TrimSpace(request.PackageName) == "" {
-		return RunCommandFn(command, args, opts)
+		if opts.SetupPrivilegeSession != nil && command == helpersSudo {
+			actual, ok := inferredPackageInstall(command, args)
+			if !ok {
+				return fmt.Errorf("setup privilege session cannot infer package identity from the install command")
+			}
+			if request.PackageManager != "" && canonicalPackageManager(request.PackageManager) != canonicalPackageManager(actual.PackageManager) {
+				return fmt.Errorf("setup privilege package manager does not match the install command")
+			}
+			if request.PackageName != "" && strings.TrimSpace(request.PackageName) != actual.PackageName {
+				return fmt.Errorf("setup privilege package name does not match the install command")
+			}
+			request.PackageManager, request.PackageName = actual.PackageManager, actual.PackageName
+		} else {
+			return RunCommandFn(command, args, opts)
+		}
 	}
 	observed, versionBefore, probeErr := ProbePackageStateFn(request.PackageManager, request.PackageName)
 	if probeErr != nil {
@@ -531,7 +543,7 @@ func RunInstallCommandWithProvenance(command string, args []string, opts EnsureO
 		observed = PackageUnknown
 		versionBefore = ""
 	}
-	if err := RunCommandFn(command, args, opts); err != nil {
+	if err := runPackageInstallCommand(command, args, opts, request); err != nil {
 		return err
 	}
 	versionAfter := ""
@@ -558,6 +570,25 @@ func RunInstallCommandWithProvenance(command string, args []string, opts EnsureO
 		return fmt.Errorf("install succeeded but package provenance could not be recorded: %w", err)
 	}
 	return nil
+}
+
+func runPackageInstallCommand(command string, args []string, opts EnsureOptions, request InstallProvenanceRequest) error {
+	if opts.SetupPrivilegeSession != nil && command == helpersSudo {
+		actual, ok := inferredPackageInstall(command, args)
+		if !ok || actual.PackageName != strings.TrimSpace(request.PackageName) || canonicalPackageManager(actual.PackageManager) != canonicalPackageManager(request.PackageManager) {
+			return fmt.Errorf("setup privilege package request does not match the selected install command")
+		}
+		return opts.SetupPrivilegeSession.InstallPackage(request.PackageManager, request.PackageName)
+	}
+	return RunCommandFn(command, args, opts)
+}
+
+func canonicalPackageManager(manager string) string {
+	manager = strings.ToLower(strings.TrimSpace(manager))
+	if manager == helpersApt {
+		return helpersAptGet
+	}
+	return manager
 }
 
 func RunPackageInstallCommand(command string, args []string, opts EnsureOptions, manager, packageName, versionCommand string, versionArgs []string) error {
@@ -653,45 +684,38 @@ func FileContentMatches(path, want string) bool {
 	return string(content) == want
 }
 
-func EnsureManagedDir(path, sudoMode string, opts EnsureOptions) error {
+func EnsureManagedDir(path string, opts EnsureOptions) error {
 	if opts.DryRun {
 		return nil
 	}
-	return RunPrivilegedCommand(sudoMode, "mkdir", []string{"-p", path}, opts)
+	return RunPrivilegedCommand(opts.SudoMode, "mkdir", []string{"-p", path}, opts)
 }
 
-func InstallManagedContent(path, content, sudoMode string, opts EnsureOptions) error {
+const (
+	managedContentMode    = "644"
+	managedExecutableMode = "755"
+)
+
+// InstallManagedContent writes managed data with mode 0644.
+func InstallManagedContent(path, content string, opts EnsureOptions) error {
+	return installManagedFile(path, content, managedContentMode, opts)
+}
+
+// InstallManagedExecutable writes managed content with mode 0755.
+func InstallManagedExecutable(path, content string, opts EnsureOptions) error {
+	return installManagedFile(path, content, managedExecutableMode, opts)
+}
+
+func installManagedFile(path, content, mode string, opts EnsureOptions) error {
 	if opts.DryRun {
 		return nil
 	}
 	tempPath, err := WriteTempFileFn(content)
 	if err != nil {
-		return fmt.Errorf("prepare managed content for %s: %w", path, err)
+		return fmt.Errorf("prepare managed file for %s: %w", path, err)
 	}
 	defer os.Remove(tempPath)
-	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "644", tempPath, path}, opts)
-}
-
-// InstallManagedExecutable is the executable-bit sibling of
-// InstallManagedContent. The only difference is the install mode (755 vs
-// 644) — they're separate functions, not a single mode-parameterised one,
-// so the call site is explicit about whether the file being written is data
-// or an executable. Reading
-// `InstallManagedExecutable("/usr/local/bin/vrooli", shim, ...)` makes the
-// intent unmistakable; a stray mode int does not.
-//
-// Use this for shell shims, hook scripts, or any other file the operator (or
-// other tools) will exec. Use InstallManagedContent for config / data files.
-func InstallManagedExecutable(path, content, sudoMode string, opts EnsureOptions) error {
-	if opts.DryRun {
-		return nil
-	}
-	tempPath, err := WriteTempFileFn(content)
-	if err != nil {
-		return fmt.Errorf("prepare managed executable for %s: %w", path, err)
-	}
-	defer os.Remove(tempPath)
-	return RunPrivilegedCommand(sudoMode, "install", []string{"-m", "755", tempPath, path}, opts)
+	return RunPrivilegedCommand(opts.SudoMode, "install", []string{"-m", mode, tempPath, path}, opts)
 }
 
 // RunVerificationCheck runs the post-action verification defined in a manifest

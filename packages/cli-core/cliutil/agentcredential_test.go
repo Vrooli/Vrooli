@@ -5,7 +5,6 @@ package cliutil
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,18 +81,6 @@ func TestDynamicCredentialAdoptionAndRefusalDoNotChangeEnvironment(t *testing.T)
 	}
 }
 
-func credentialRoleTestToken(meta map[string]string) string {
-	return credentialRoleTestTokenForRun("a7b11e9a-3263-4c93-9e87-3d462d1963b3", meta)
-}
-
-func credentialRoleTestTokenForRun(runID string, meta map[string]string) string {
-	claims, _ := json.Marshal(map[string]any{
-		"run_id": runID, "iat": time.Now().Unix(),
-		"exp": time.Now().Add(time.Hour).Unix(), "meta": meta,
-	})
-	return base64.RawURLEncoding.EncodeToString(claims) + "." + base64.RawURLEncoding.EncodeToString(make([]byte, 32))
-}
-
 func TestProcessBindingRefusesPIDReuseAndAnotherSession(t *testing.T) {
 	root, err := ObserveProcessBinding(os.Getpid())
 	if err != nil {
@@ -126,10 +113,6 @@ func TestAmbientIdentityIsNotSentToRemoteDestinations(t *testing.T) {
 		t.Fatal("ambient identity left the local scenario transport")
 	}
 }
-
-type credentialRedirectTransport func(*http.Request) (*http.Response, error)
-
-func (f credentialRedirectTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestRedirectCannotCarryAgentIdentityToAnExternalHost(t *testing.T) {
 	seen := false

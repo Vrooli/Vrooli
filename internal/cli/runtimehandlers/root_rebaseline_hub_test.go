@@ -480,3 +480,21 @@ func TestFinishingRequiresHubConsumedApprovalNotLocalLocator(t *testing.T) {
 		t.Fatal("changed watchdog authorized")
 	}
 }
+
+func TestVerifyRootDecisionAcceptsEquivalentDeadlineForms(t *testing.T) {
+	now := time.Now().UTC()
+	terms := rootDecisionTerms{RequesterRef: "req", Deadline: now.Add(time.Hour).Truncate(time.Second).Format(time.RFC3339)}
+	got := rootDecisionLookup{
+		AskID: "ask", RequesterRef: "req", Digest: "digest", State: "answered", Answer: "approve",
+		IdentityKind: "verified_human", IdentitySource: "cloudflare_access",
+		Deadline:   now.Add(time.Hour).Truncate(time.Second).Format(time.RFC3339Nano),
+		AnsweredAt: now.Add(-time.Minute).Format(time.RFC3339Nano),
+	}
+	if ok, err := verifyRootDecision(got, "ask", terms, "digest", now); !ok || err != nil {
+		t.Fatalf("equivalent deadline forms rejected: ok=%v err=%v", ok, err)
+	}
+	got.Deadline = now.Add(2 * time.Hour).Format(time.RFC3339Nano)
+	if ok, err := verifyRootDecision(got, "ask", terms, "digest", now); ok || err == nil {
+		t.Fatal("a different deadline must still be rejected")
+	}
+}

@@ -2,33 +2,23 @@ package workspacesandboxuserns
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/apparmorprofiles"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
 const (
-	profileName = "vrooli-workspace-sandbox"
-	profilePath = "/etc/apparmor.d/" + profileName
+	profileName = apparmorprofiles.WorkspaceSandboxName
 )
 
-const profileContent = `# Managed by Vrooli -- do not edit manually
-abi <abi/4.0>,
-include <tunables/global>
+var workspaceProfile, _ = apparmorprofiles.Lookup(string(apparmorprofiles.WorkspaceSandboxUserns))
 
-profile vrooli-workspace-sandbox flags=(unconfined) {
-  # Ubuntu's restricted-unprivileged-userns policy only grants full
-  # userns behavior to named profiles that explicitly opt in. The launcher
-  # enters this profile for workspace-sandbox API startup only; this is
-  # narrower than disabling AppArmor's global restriction.
-  userns,
+const profileID = string(apparmorprofiles.WorkspaceSandboxUserns)
 
-  include if exists <local/vrooli-workspace-sandbox>
-}
-`
+var profilePath, profileContent = workspaceProfile.Path, workspaceProfile.Content
 
 type handler struct {
 	manifest hostreqkit.SafeguardManifest
@@ -115,20 +105,22 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if err := hostreqkit.EnsureManagedDir("/etc/apparmor.d", opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-	if err := hostreqkit.InstallManagedContent(profilePath, profileContent, opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, parser, []string{"-r", profilePath}, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "profile written but apparmor_parser failed: "+err.Error())
-		return status, nil
+	if opts.SetupPrivilegeSession != nil {
+		if err := opts.SetupPrivilegeSession.InstallAppArmorProfile(profileID); err != nil {
+			return hostreqkit.FailureStatus(status, err), nil
+		}
+	} else {
+		if err := hostreqkit.EnsureManagedDir(apparmorprofiles.ProfileDirectory, opts); err != nil {
+			return hostreqkit.FailureStatus(status, err), nil
+		}
+		if err := hostreqkit.InstallManagedContent(profilePath, profileContent, opts); err != nil {
+			return hostreqkit.FailureStatus(status, err), nil
+		}
+		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, parser, []string{"-r", profilePath}, opts); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "profile written but apparmor_parser failed: "+err.Error())
+			return status, nil
+		}
 	}
 	if !appArmorProfileSucceeds() {
 		status.ExecutionState = hostreqkit.ExecutionFailed
@@ -143,15 +135,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 }
 
 func appArmorParserCommand() (string, bool) {
-	if parser, ok := hostreqkit.ResolveCommand([]string{"apparmor_parser"}); ok {
-		return parser, true
-	}
-	for _, candidate := range []string{"/usr/sbin/apparmor_parser", "/sbin/apparmor_parser"} {
-		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
-			return candidate, true
-		}
-	}
-	return "", false
+	return hostreqkit.ResolveCommand(apparmorprofiles.ParserCandidates())
 }
 
 func appArmorProfileSucceeds() bool {

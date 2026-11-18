@@ -200,24 +200,16 @@ func (item InstallableCLI) FreshnessSpec() (cliutil.FreshnessSpec, error) {
 	if item.CLI.Freshness != nil {
 		customInputs = item.CLI.Freshness.Inputs
 	}
-	switch item.Kind {
-	case KindScenario:
-		switch item.CLI.Adapter.Kind {
-		case installationGoModule:
-			return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.ScenarioPath, item.ModulePath, item.BinaryName, customInputs), nil
-		default:
-			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
-		}
-	case KindResource:
-		switch item.CLI.Adapter.Kind {
-		case installationGoModule:
-			return cliutil.CanonicalResourceGoModuleFreshnessSpec(item.ResourcePath, item.ModulePath, item.BinaryName, customInputs), nil
-		default:
-			return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
-		}
-	default:
+	if item.Kind != KindScenario && item.Kind != KindResource {
 		return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported installable CLI kind %q", item.Kind)
 	}
+	if item.CLI.Adapter.Kind != installationGoModule {
+		return cliutil.FreshnessSpec{}, fmt.Errorf("unsupported %s CLI adapter kind %q", item.Kind, item.CLI.Adapter.Kind)
+	}
+	if item.Kind == KindScenario {
+		return cliutil.CanonicalScenarioGoModuleFreshnessSpec(item.ScenarioPath, item.ModulePath, item.BinaryName, customInputs), nil
+	}
+	return cliutil.CanonicalResourceGoModuleFreshnessSpec(item.ResourcePath, item.ModulePath, item.BinaryName, customInputs), nil
 }
 
 func (m *Manager) enabledResourceNames() ([]string, error) {
@@ -248,30 +240,16 @@ type GoInstaller struct{}
 
 func (GoInstaller) Install(ctx context.Context, item InstallableCLI, installDir string) error {
 	switch item.Kind {
-	case KindScenario:
+	case KindScenario, KindResource:
 		if item.CLI == nil {
-			return errors.New("scenario CLI manifest is required")
+			return fmt.Errorf("%s CLI manifest is required", item.Kind)
 		}
-		switch item.CLI.Adapter.Kind {
-		case installationGoModule:
-			return withCLIInstallAdmission(ctx, string(item.Kind)+"-"+item.Name, func(buildCtx context.Context) error {
-				return runGoModuleInstaller(buildCtx, item, installDir)
-			})
-		default:
-			return fmt.Errorf("unsupported scenario CLI adapter kind %q", item.CLI.Adapter.Kind)
+		if item.CLI.Adapter.Kind != installationGoModule {
+			return fmt.Errorf("unsupported %s CLI adapter kind %q", item.Kind, item.CLI.Adapter.Kind)
 		}
-	case KindResource:
-		if item.CLI == nil {
-			return errors.New("resource CLI manifest is required")
-		}
-		switch item.CLI.Adapter.Kind {
-		case installationGoModule:
-			return withCLIInstallAdmission(ctx, string(item.Kind)+"-"+item.Name, func(buildCtx context.Context) error {
-				return runGoModuleInstaller(buildCtx, item, installDir)
-			})
-		default:
-			return fmt.Errorf("unsupported resource CLI adapter kind %q", item.CLI.Adapter.Kind)
-		}
+		return withCLIInstallAdmission(ctx, string(item.Kind)+"-"+item.Name, func(buildCtx context.Context) error {
+			return runGoModuleInstaller(buildCtx, item, installDir)
+		})
 	default:
 		return fmt.Errorf("unsupported installable CLI kind %q", item.Kind)
 	}

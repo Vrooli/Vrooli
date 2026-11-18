@@ -3,6 +3,7 @@ package setup
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,9 +12,9 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/cliinstall"
-	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
@@ -26,6 +27,7 @@ import (
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 	"github.com/vrooli/vrooli/internal/scenario"
 	setupassets "github.com/vrooli/vrooli/internal/setup/assets"
+	"github.com/vrooli/vrooli/internal/setupprivilege"
 	"github.com/vrooli/vrooli/internal/shell"
 	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/setup/v1"
 )
@@ -42,7 +44,6 @@ const (
 )
 
 var (
-	inspectDockerHealthFn    = dockerhost.InspectHealth
 	ensureContainerRuntimeFn = vrooliruntime.EnsureTool
 )
 
@@ -53,7 +54,9 @@ var (
 )
 
 type Options struct {
-	DryRun bool
+	// Context carries CLI cancellation through host requirement and privileged setup work.
+	Context context.Context
+	DryRun  bool
 	// BootstrapOnly applies host requirements needed to make the native Vrooli
 	// CLI build possible, then returns before credential, resource, and
 	// completion side effects. It is used only by cross-platform bootstrap
@@ -65,11 +68,13 @@ type Options struct {
 	// written to the setup result.
 	CredentialPassphraseStdin bool
 	SudoMode                  string
+	setupPrivilegeSession     privilegebroker.SetupPrivilegeSession
 	// MaintenanceWindow acknowledges that a setup safeguard may interrupt
 	// an active graphical or remote-desktop session.
 	MaintenanceWindow bool
 	Environment       string
 	Resources         string
+	resolvedResources *resourceSelection
 	Scenarios         string
 	RestartAPI        bool
 	Yes               string
@@ -133,6 +138,7 @@ type setupDeps struct {
 	inspectRequirements         func(environment string, resolution hostreq.Resolution) (vrooliruntime.Report, error)
 	ensureRequirements          func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error)
 	ensureBootstrapTools        func(home string, opts vrooliruntime.EnsureOptions) error
+	elevationFacts              func() hostreqkit.ElevationFacts
 	newPortsManager             func(root, home string) (*ports.Manager, error)
 	startProjectAPI             func(root string, spec apiLaunchSpec, stdout, stderr io.Writer) error
 	stopProjectAPI              func(port int) []int
@@ -145,12 +151,12 @@ type setupDeps struct {
 	onboardingPortCommandRunner func(ctx context.Context, name string, args ...string) ([]byte, error)
 	openOnboardingURL           func(url string) error
 	onboardingCLIExecutable     func() (string, error)
-	runOnboardingCLI            func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error
+	runOnboardingCLI            func(context.Context, string, string, io.Reader, io.Writer, io.Writer) error
 	detectPresentation          func(context.Context) hostinventory.Capability
 	resourceController          func(root, home string) resourceRunner
 	installPrivilegeBroker      func(context.Context, string, Options, io.Writer, io.Writer) (privilegebroker.SetupStatus, error)
 	inspectPrivilegeBroker      func() privilegebroker.SetupStatus
-	configureCredentialBackend  func(io.Writer, io.Writer) error
+	configureCredentialBackend  func(context.Context, io.Writer, io.Writer, string) error
 	discoverCapabilities        func(context.Context, string, string) ([]operatorcapability.Status, error)
 	// bootRecoveryStatus reads the autoheal API's boot-recovery projection
 	// for `setup status`; nil means the live fetch.
@@ -159,6 +165,10 @@ type setupDeps struct {
 
 type setupService struct {
 	deps setupDeps
+}
+
+func runOnboardingCLICommand(ctx context.Context, executable, root string, stdin io.Reader, stdout, stderr io.Writer) error {
+	return shell.CommandWithDefaults(shell.Spec{Context: ctx, Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr}).Run()
 }
 
 func defaultSetupDeps(repoRoots ...string) setupDeps {
@@ -179,6 +189,7 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 		inspectRequirements:     vrooliruntime.InspectRequirements,
 		ensureRequirements:      vrooliruntime.EnsureRequirements,
 		ensureBootstrapTools:    ensureBootstrapHostTools,
+		elevationFacts:          hostreqkit.ElevationFactsFn,
 		newPortsManager: func(root, home string) (*ports.Manager, error) {
 			return ports.NewManager(root, home)
 		},
@@ -196,39 +207,38 @@ func defaultSetupDeps(repoRoots ...string) setupDeps {
 		openOnboardingURL: func(url string) error {
 			return shell.OpenURL(shell.LookPath, func(spec shell.Spec) error { return shell.CommandWithDefaults(spec).Run() }, url)
 		},
-		onboardingCLIExecutable: func() (string, error) { return exec.LookPath("vrooli-onboarding") },
-		runOnboardingCLI: func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error {
-			return shell.CommandWithDefaults(shell.Spec{Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr}).Run()
-		},
-		detectPresentation: hostinventory.Detect,
+		onboardingCLIExecutable: func() (string, error) { return exec.LookPath(onboardingSlug) },
+		runOnboardingCLI:        runOnboardingCLICommand,
+		detectPresentation:      hostinventory.Detect,
 		resourceController: func(root, home string) resourceRunner {
 			return resources.NewController(root, home)
 		},
 		installPrivilegeBroker: func(ctx context.Context, executable string, opts Options, stdout, stderr io.Writer) (privilegebroker.SetupStatus, error) {
-			return privilegebroker.DefaultInstallerForRepo(executable, repoRoot).InstallForSetup(ctx, opts.SudoMode, stdout, stderr)
+			installer := privilegebroker.DefaultInstallerForRepo(executable, repoRoot)
+			installer.SetupSession = opts.setupPrivilegeSession
+			return installer.InstallForSetup(ctx, opts.SudoMode, stdout, stderr)
 		},
-		inspectPrivilegeBroker: privilegebroker.Inspect,
-		configureCredentialBackend: func(stdout, stderr io.Writer) error {
-			return configureCredentialBackend(stdout, stderr)
-		},
-		discoverCapabilities: DiscoverCapabilities,
+		inspectPrivilegeBroker:     privilegebroker.Inspect,
+		configureCredentialBackend: configureCredentialBackend,
+		discoverCapabilities:       DiscoverCapabilities,
 	}
 }
 
 func newSetupService(deps setupDeps) *setupService {
+	if deps.elevationFacts == nil {
+		deps.elevationFacts = hostreqkit.ElevationFactsFn
+	}
 	if deps.configureCredentialBackend == nil {
-		deps.configureCredentialBackend = func(io.Writer, io.Writer) error { return nil }
+		deps.configureCredentialBackend = func(context.Context, io.Writer, io.Writer, string) error { return nil }
 	}
 	if deps.discoverCapabilities == nil {
 		deps.discoverCapabilities = func(context.Context, string, string) ([]operatorcapability.Status, error) { return nil, nil }
 	}
 	if deps.onboardingCLIExecutable == nil {
-		deps.onboardingCLIExecutable = func() (string, error) { return exec.LookPath("vrooli-onboarding") }
+		deps.onboardingCLIExecutable = func() (string, error) { return exec.LookPath(onboardingSlug) }
 	}
 	if deps.runOnboardingCLI == nil {
-		deps.runOnboardingCLI = func(executable, root string, stdin io.Reader, stdout, stderr io.Writer) error {
-			return shell.CommandWithDefaults(shell.Spec{Name: executable, Args: []string{"wizard", "run", "--interactive"}, Dir: root, Stdin: stdin, Stdout: stdout, Stderr: stderr}).Run()
-		}
+		deps.runOnboardingCLI = runOnboardingCLICommand
 	}
 	if deps.detectPresentation == nil {
 		deps.detectPresentation = hostinventory.Detect
@@ -244,6 +254,9 @@ func RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writ
 }
 
 func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdout, stderr io.Writer) (err error) {
+	if opts.Context == nil {
+		opts.Context = context.Background()
+	}
 	if opts.Subcommand == "broker" {
 		return s.runSetupBroker(root, opts, stdout, stderr)
 	}
@@ -276,6 +289,17 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 			}
 		}
 	}
+	if strings.TrimSpace(opts.Resources) == "" {
+		defaultResources, selectionErr := defaultSetupResourceSelection(opts.Context, root, home)
+		if selectionErr != nil {
+			return fmt.Errorf("resolve default setup resources: %w", selectionErr)
+		}
+		opts.resolvedResources = &defaultResources
+		opts.Resources = strings.Join(defaultResources.names, ",")
+		if opts.Resources == "" {
+			opts.Resources = setupNone
+		}
+	}
 	var terminalReport vrooliruntime.Report
 	var terminalReportErr error
 	var degradedResources []string
@@ -300,6 +324,9 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 			err = writeErr
 		}
 	}()
+	if err := opts.Context.Err(); err != nil {
+		return err
+	}
 	switch opts.Subcommand {
 	case "status":
 		return s.runSetupStatus(root, home, opts, stdout)
@@ -319,7 +346,11 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 	if err != nil {
 		return err
 	}
-	report, stop, err := flow.applyRequirements(resolved)
+	closer, _ := resolved.ensure.SetupPrivilegeSession.(interface{ Close() error })
+	report, stop, err := flow.applyRequirements(&resolved)
+	if closer != nil {
+		err = errors.Join(err, closer.Close())
+	}
 	terminalReport = report
 	resolved.report = report
 	if err != nil || stop {
@@ -333,6 +364,9 @@ func (s *setupService) RunSetupWithOptions(root, home string, opts Options, stdo
 }
 
 func (s *setupService) runScenarioHostSetup(root, home string, opts Options, stdout, stderr io.Writer) error {
+	if err := opts.Context.Err(); err != nil {
+		return err
+	}
 	name := strings.TrimSpace(opts.ScenarioName)
 	if name == "" {
 		return fmt.Errorf("setup scenario requires a scenario name")
@@ -354,7 +388,7 @@ func (s *setupService) runScenarioHostSetup(root, home string, opts Options, std
 	var assetBaseline setupassets.Inspection
 	opts.Environment, opts.Resources, opts.Scenarios = "minimal", setupNone, name
 	ensure := vrooliruntime.EnsureOptions{
-		Environment: "minimal", SudoMode: opts.SudoMode, DryRun: opts.DryRun,
+		Context: opts.Context, Environment: "minimal", SudoMode: opts.SudoMode, DryRun: opts.DryRun,
 		AutoInstall: true, IncludeOptional: opts.IncludeOptional, Stdout: stdout, Stderr: stderr,
 	}
 	if opts.DryRun {
@@ -377,7 +411,7 @@ func (s *setupService) runScenarioHostSetup(root, home string, opts Options, std
 		if err := setupassets.ValidateToolPreview(assetPlan, preview); err != nil {
 			return err
 		}
-		assetPreview, inspectErr := setupassets.Inspect(context.Background(), root, assetPlan, assetPlanPath)
+		assetPreview, inspectErr := setupassets.Inspect(opts.Context, root, assetPlan, assetPlanPath)
 		if inspectErr != nil {
 			return inspectErr
 		}
@@ -404,7 +438,7 @@ func (s *setupService) runScenarioHostSetup(root, home string, opts Options, std
 		// The first capacity snapshot is intentionally taken before package
 		// installation; asset apply compares that baseline with live capacity
 		// again after packages and verified staging have consumed disk.
-		if err := setupassets.ApplyScenarioPlan(root, name, opts.SudoMode, assetBaseline, stdout, stderr); err != nil {
+		if err := setupassets.ApplyScenarioPlan(opts.Context, root, name, opts.SudoMode, assetBaseline, stdout, stderr); err != nil {
 			return fmt.Errorf("apply declared scenario assets: %w", err)
 		}
 	}
@@ -429,6 +463,7 @@ type resolvedSetup struct {
 	executable   string
 	ensure       vrooliruntime.EnsureOptions
 	report       vrooliruntime.Report
+	brokerStatus *privilegebroker.SetupStatus
 }
 
 type setupCompletion struct {
@@ -438,6 +473,9 @@ type setupCompletion struct {
 }
 
 func (f setupFlow) prepareProject() error {
+	if err := f.opts.Context.Err(); err != nil {
+		return err
+	}
 	f.progress.StartPhase(PhaseValidation)
 	if err := f.service.deps.currentHost().ValidateSetup(); err != nil {
 		return err
@@ -452,14 +490,14 @@ func (f setupFlow) prepareProject() error {
 		return nil
 	}
 	f.progress.StartPhase(PhaseFilesystem)
-	if err := ensureProjectFilesystemWithRecovery(f.root, f.home); err != nil {
+	if err := ensureProjectFilesystemWithRecovery(f.opts.Context, f.root, f.home); err != nil {
 		return err
 	}
 	locator, err := projectstate.NewLocator(f.home, f.root)
 	if err != nil {
 		return err
 	}
-	if err := runOwnershipMigration(locator, f.stdout, f.stderr); err != nil {
+	if err := runOwnershipMigration(f.opts.Context, locator, f.stdout, f.stderr); err != nil {
 		return err
 	}
 	f.progress.CompletePhase()
@@ -467,9 +505,15 @@ func (f setupFlow) prepareProject() error {
 }
 
 func (f setupFlow) resolveRequirements() (resolvedSetup, error) {
+	if err := f.opts.Context.Err(); err != nil {
+		return resolvedSetup{}, err
+	}
 	f.progress.StartPhase(PhaseResolution)
 	requirements, err := f.service.deps.resolveHostRequirements(f.root, f.home, hostreq.ResolveOptions{Environment: f.opts.Environment, When: "setup", Resources: f.opts.Resources, Scenarios: f.opts.Scenarios, Platform: hostreqspec.CurrentPlatform()})
 	if err != nil {
+		return resolvedSetup{}, err
+	}
+	if err := f.opts.Context.Err(); err != nil {
 		return resolvedSetup{}, err
 	}
 	f.progress.CompletePhase()
@@ -484,10 +528,20 @@ func (f setupFlow) resolveRequirements() (resolvedSetup, error) {
 	if !f.opts.BootstrapOnly {
 		requirements = addOnboardingApplyPrivilegeRequirement(requirements, executable)
 	}
-	return resolvedSetup{requirements: requirements, executable: executable, ensure: vrooliruntime.EnsureOptions{Environment: f.opts.Environment, SudoMode: f.opts.SudoMode, DryRun: f.opts.DryRun, AutoInstall: true, IncludeOptional: f.opts.IncludeOptional, MaintenanceWindow: f.opts.MaintenanceWindow, Stdout: f.stdout, Stderr: f.stderr, OnOperation: f.progress.Operation}}, nil
+	ensure := vrooliruntime.EnsureOptions{Context: f.opts.Context, Environment: f.opts.Environment, SudoMode: f.opts.SudoMode, DryRun: f.opts.DryRun, AutoInstall: true, IncludeOptional: f.opts.IncludeOptional, MaintenanceWindow: f.opts.MaintenanceWindow, Stdout: f.stdout, Stderr: f.stderr, OnOperation: f.progress.Operation}
+	if shouldCreateSetupPrivilegeSession(f.opts.SudoMode, f.service.deps.elevationFacts()) {
+		session := setupprivilege.NewSession(f.opts.Context, executable, f.stdout, f.stderr)
+		ensure.SetupPrivilegeSession = session
+	}
+	return resolvedSetup{requirements: requirements, executable: executable, ensure: ensure}, nil
 }
 
-func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Report, bool, error) {
+func shouldCreateSetupPrivilegeSession(sudoMode string, elevation hostreqkit.ElevationFacts) bool {
+	return strings.EqualFold(strings.TrimSpace(sudoMode), "ask") &&
+		elevation.Platform == string(hostreqspec.PlatformLinux) && !elevation.Elevated
+}
+
+func (f setupFlow) applyRequirements(resolved *resolvedSetup) (vrooliruntime.Report, bool, error) {
 	if !f.opts.DryRun {
 		f.progress.StartPhase(PhaseBootstrap)
 		f.progress.Operation("Checking bootstrap tools (git, go)")
@@ -495,14 +549,23 @@ func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Repo
 		if err := f.service.deps.ensureBootstrapTools(f.home, resolved.ensure); err != nil {
 			return vrooliruntime.Report{}, false, err
 		}
+		if err := f.opts.Context.Err(); err != nil {
+			return vrooliruntime.Report{}, false, err
+		}
 		f.progress.CompletePhase()
 		// The remote deployment owner uses the privilege broker to apply the
 		// remaining host requirements. Install it as soon as the native CLI is
 		// available so a first setup cannot deadlock behind a later safeguard
 		// that needs source or services delivered by the deployment itself.
-		if _, err := f.service.deps.installPrivilegeBroker(context.Background(), resolved.executable, f.opts, f.stdout, f.stderr); err != nil {
+		brokerOptions := f.opts
+		if session, ok := resolved.ensure.SetupPrivilegeSession.(privilegebroker.SetupPrivilegeSession); ok {
+			brokerOptions.setupPrivilegeSession = session
+		}
+		status, err := f.service.deps.installPrivilegeBroker(f.opts.Context, resolved.executable, brokerOptions, f.stdout, f.stderr)
+		if err != nil {
 			return vrooliruntime.Report{}, false, fmt.Errorf("install privilege broker before host requirements: %w", err)
 		}
+		resolved.brokerStatus = &status
 	}
 	f.progress.StartPhase(PhaseRequirements)
 	f.progress.Operation("Applying selected host requirements")
@@ -522,6 +585,9 @@ func (f setupFlow) applyRequirements(resolved resolvedSetup) (vrooliruntime.Repo
 
 func (f setupFlow) completeSetup(resolved resolvedSetup) (setupCompletion, error) {
 	var completion setupCompletion
+	if err := f.opts.Context.Err(); err != nil {
+		return completion, err
+	}
 	if f.opts.BootstrapOnly {
 		_, _ = fmt.Fprintln(f.stdout, "[INFO]    Bootstrap-only setup applied host requirements; native CLI finalization is still required")
 		return completion, nil
@@ -533,7 +599,7 @@ func (f setupFlow) completeSetup(resolved resolvedSetup) (setupCompletion, error
 		return completion, fmt.Errorf("provision generated packages: %w", err)
 	}
 	f.progress.CompletePhase()
-	if err := f.configureCredentialsAndBroker(resolved.executable); err != nil {
+	if err := f.configureCredentialsAndReportBroker(resolved.brokerStatus); err != nil {
 		return completion, err
 	}
 	degraded, err := f.reconcileResourcesAndCLI()
@@ -558,36 +624,35 @@ func (f setupFlow) completeSetup(resolved resolvedSetup) (setupCompletion, error
 	return completion, nil
 }
 
-func (f setupFlow) configureCredentialsAndBroker(executable string) error {
+func (f setupFlow) configureCredentialsAndReportBroker(brokerStatus *privilegebroker.SetupStatus) error {
 	f.progress.StartPhase(PhaseCredentials)
 	f.progress.Operation("Configuring the credential backend")
 	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Configuring the credential backend...")
+	passphrase := ""
 	if f.opts.CredentialPassphraseStdin {
-		passphrase, err := readCredentialPassphraseStdin()
+		var err error
+		passphrase, err = readCredentialPassphraseStdin()
 		if err != nil {
 			return err
 		}
-		if err := configureCredentialBackendWithPassphrase(f.stdout, f.stderr, passphrase); err != nil {
-			return err
-		}
-	} else if err := f.service.deps.configureCredentialBackend(f.stdout, f.stderr); err != nil {
+	}
+	if err := f.service.deps.configureCredentialBackend(f.opts.Context, f.stdout, f.stderr, passphrase); err != nil {
 		return err
 	}
 	f.progress.CompletePhase()
 	f.progress.StartPhase(PhaseCredentialCapabilities)
 	f.progress.Operation("Discovering operator capabilities")
-	if err := discoverAndQueueCapabilities(context.Background(), f.service.deps.discoverCapabilities, f.root, f.home, f.stdout); err != nil {
+	if err := discoverAndQueueCapabilities(f.opts.Context, f.service.deps.discoverCapabilities, f.root, f.home, f.stdout); err != nil {
 		return err
 	}
 	f.progress.CompletePhase()
 	f.progress.StartPhase(PhasePrivilegeBroker)
-	f.progress.Operation("Installing the privilege broker")
-	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Installing the privilege broker...")
-	status, err := f.service.deps.installPrivilegeBroker(context.Background(), executable, f.opts, f.stdout, f.stderr)
-	if err != nil {
-		return err
+	f.progress.Operation("Reporting privilege broker status")
+	_, _ = fmt.Fprintln(f.stdout, "[INFO]    Reporting privilege broker status...")
+	if brokerStatus == nil {
+		return fmt.Errorf("privilege broker status missing after setup installation phase")
 	}
-	renderPrivilegeBrokerStatus(f.stdout, status)
+	renderPrivilegeBrokerStatus(f.stdout, *brokerStatus)
 	f.progress.CompletePhase()
 	return nil
 }
@@ -654,17 +719,14 @@ func renderSetupReadinessVerdict(stdout io.Writer, verdict SetupReadiness, marke
 	case verdict.Source == ReadinessSourceUnavailable:
 		_, _ = fmt.Fprintf(stdout, "[WARN]    Setup finished; configuration could not be verified: %s\n", verdict.Reason)
 	case !markerPresent:
-		// Configuration is pending by definition here, so the readiness
-		// remediation must not be printed: its ready/degraded wording asserts
-		// that configuration is complete, which directly contradicts the line
-		// above and is how a run ended with "remains pending" immediately
-		// followed by "configuration are complete".
+		// Without the marker, normal remediation can claim completion even
+		// though configuration is pending.
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Bootstrap setup completed; configuration remains pending until onboarding reports completion.")
+		action := "Finish configuration in onboarding"
 		if len(verdict.Blockers) > 0 {
-			_, _ = fmt.Fprintf(stdout, "[ACTION]  Unresolved: %s. Finish configuration in onboarding: `vrooli-onboarding wizard run --interactive`\n", strings.Join(verdict.Blockers, ", "))
-			return
+			action = fmt.Sprintf("Unresolved: %s. %s", strings.Join(verdict.Blockers, ", "), action)
 		}
-		_, _ = fmt.Fprintln(stdout, "[ACTION]  Finish configuration in onboarding: `vrooli-onboarding wizard run --interactive`")
+		_, _ = fmt.Fprintf(stdout, "[ACTION]  %s: `%s wizard run --interactive`\n", action, onboardingSlug)
 		return
 	case verdict.Status == ReadinessStatusReady:
 		_, _ = fmt.Fprintln(stdout, "[INFO]    Setup completed; configuration verified ready.")
@@ -700,14 +762,13 @@ func finalizeSetupResultConfiguration(result SetupResult, home, root string, run
 			result.Remediation = "Setup and onboarding configuration are complete."
 			return result
 		}
+		result.Remediation = readinessRemediation(*verdict)
 		if verdict.Status == ReadinessStatusMissing || verdict.Status == ReadinessStatusUnsupported {
 			result.Category = SetupCategoryConfigurationPending
 			result.ConfigurationPending = true
-			result.Remediation = readinessRemediation(*verdict)
-			return result
+		} else {
+			result.Category = SetupCategorySuccess
 		}
-		result.Category = SetupCategorySuccess
-		result.Remediation = readinessRemediation(*verdict)
 		return result
 	}
 	if result.Status == SetupStatusSuccess || result.Status == SetupStatusDegraded {

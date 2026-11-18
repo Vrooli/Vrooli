@@ -253,11 +253,41 @@ func ResolveShadowTarget(name string) string {
 	return InstanceSlug(base, ResolveVariant(name))
 }
 
+// IsExplicitInstanceSelection reports whether an address suffix or per-scenario
+// --instance override selected this variant. An ambient shadow selection is
+// not explicit and may use the bounded shadow-to-live fallback policy.
+func IsExplicitInstanceSelection(name string) bool {
+	base, variant := SplitInstance(name)
+	if variant != "" {
+		return true
+	}
+	_, ok := instanceOverride(base)
+	return ok
+}
+
 // IsNonLiveTarget reports whether a resolved target addresses a non-live variant
 // (i.e. carries an "@variant" suffix other than live).
 func IsNonLiveTarget(target string) bool {
 	_, variant := SplitInstance(target)
 	return normalizeVariant(variant) != DefaultVariant
+}
+
+// ShouldFallbackToLiveInstance is the shared policy for ambient-shadow port
+// discovery. A live retry is safe only when the selected @shadow target is
+// explicitly confirmed stopped and the caller does not require a same-variant
+// dependency. Explicit custom variants, transient failures, and unclassified
+// failures stay on the requested target.
+func ShouldFallbackToLiveInstance(target string, confirmedNotRunning bool) bool {
+	_, variant := SplitInstance(target)
+	return confirmedNotRunning && normalizeVariant(variant) == ShadowVariant && !IsVariantDependency(BareScenarioName(target))
+}
+
+// ShouldAutomaticallyFallbackToLiveInstance applies the default ambient
+// shadow policy. Explicit address suffixes and --instance overrides remain
+// pinned; callers that offer an explicit fallback opt-in can use the safety
+// predicate directly after checking that option.
+func ShouldAutomaticallyFallbackToLiveInstance(requestedTarget, target string, confirmedNotRunning bool) bool {
+	return !IsExplicitInstanceSelection(requestedTarget) && ShouldFallbackToLiveInstance(target, confirmedNotRunning)
 }
 
 var shadowFallbackWarned sync.Map

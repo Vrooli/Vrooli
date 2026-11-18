@@ -1,106 +1,8 @@
-// Package vroolilauncher installs a small POSIX shell shim at
-// /usr/local/bin/vrooli that forwards every invocation to the real Vrooli
-// binary in the calling user's ~/.vrooli/bin directory.
-//
-// # Why this exists
-//
-// `make install` writes Vrooli's binaries to ~/.vrooli/bin. That directory
-// is on the developer's interactive PATH, so plain `vrooli ...` works. But
-// sudo enforces a locked-down `secure_path` ("/usr/local/sbin:/usr/local/bin:
-// /usr/sbin:/usr/bin:/sbin:/bin" on Ubuntu and most other distros, similar
-// on macOS) that does not include any user home directory. The result:
-//
-//	$ sudo vrooli setup
-//	sudo: vrooli: command not found
-//
-// That breaks the `sudo vrooli setup` workflow that the setup output's
-// "Needs sudo" action block points operators at. We need *something* in
-// sudo's PATH that resolves to the real binary.
-//
-// # Why a shim — and not an alternative
-//
-// Three alternatives were considered and rejected:
-//
-//  1. Move the real binary into /usr/local/bin. Cleanest filesystem layout
-//     and matches how mainstream distributed CLIs (gh, kubectl, terraform,
-//     docker, aws) ship. Rejected because it makes every `make install`
-//     require root — which is the dev loop, run dozens of times per hour
-//     during development, and run *unattended* by coding agents (Claude
-//     Code, Codex) that cannot reliably escalate to sudo. Forcing root on
-//     each rebuild would block agent-driven iteration outright.
-//
-//  2. Drop /etc/sudoers.d/vrooli with a `Defaults secure_path` extension
-//     that includes ~/.vrooli/bin. Rejected because it modifies system
-//     security policy for one tool, security-conscious admins reject it
-//     during review, and no major CLI ships this pattern.
-//
-//  3. Document `sudo $(which vrooli) ...` in the action block and leave
-//     install paths alone. Rejected because it's a workaround dressed up as
-//     a fix; users hit it every fresh install, the absolute path is ugly,
-//     and the suggestion only works because the operator happens to have
-//     vrooli on their non-sudo PATH.
-//
-// What works is a tiny shim — a 5-line POSIX shell script in /usr/local/bin
-// that execs the real binary in ~/.vrooli/bin. This is the same pattern
-// pyenv, rbenv, nvm-exec, and volta use for the same reason: a binary that
-// rewrites frequently during development must stay in user-writable space,
-// but still needs to be reachable from sudo and other constrained PATH
-// contexts. Subsequent `make install` runs only rewrite ~/.vrooli/bin/vrooli;
-// the shim itself never needs to be touched again.
-//
-// # Why a shell shim, not a symlink
-//
-// A symlink at /usr/local/bin/vrooli would point at one specific user's
-// ~/.vrooli/bin/vrooli — fine for a single-developer machine, broken on
-// multi-user hosts where two users each install Vrooli. The shim instead
-// resolves $SUDO_USER (set by sudo) or $USER (otherwise) at exec time and
-// looks up that user's home directory in /etc/passwd. Each user's
-// `sudo vrooli` then runs *their* binary.
-//
-// # Why /usr/local/bin
-//
-// /usr/local/bin is the POSIX-blessed location for locally installed
-// software. Sudo's default secure_path includes it on every Linux
-// distribution and on macOS. Other candidates (/usr/bin, /opt/local/bin)
-// are reserved for distribution packages or specific package managers; we
-// avoid them.
-//
-// # Cross-platform scope
-//
-// Linux and macOS share the same shim — both honor /etc/passwd for local
-// account home-directory lookups, both have /usr/local/bin in sudo's
-// secure_path, and POSIX shell is present out of the box. Windows uses a
-// fundamentally different elevation model (UAC, no sudo, no secure_path),
-// so the handler reports ExecutionUnsupported there and a separate
-// platform-specific design will need to land if `sudo vrooli`-equivalent
-// is ever needed on Windows.
-//
-// # Bootstrap chicken-and-egg
-//
-// On a fresh install the shim does not yet exist, so `sudo vrooli setup`
-// cannot install it (the binary is not on sudo's PATH). The setup output's
-// action block detects this case and emits the absolute path
-// (`sudo /home/user/.vrooli/bin/vrooli setup`) until the shim is in place.
-// After the first sudo'd setup run installs the shim, the action block
-// reverts to the bare `sudo vrooli ...` form.
-//
-// # Self-promotion to "required" when running as root
-//
-// The manifest declares this safeguard as `required: false` so that
-// agents and operators who don't care about `sudo vrooli` are not blocked
-// at setup time — they see it in the Optional group and can ignore it.
-//
-// However, when the operator HAS escalated privileges (Geteuid()==0,
-// typically because they ran `sudo vrooli setup`), the most useful thing
-// we can do is install the shim — they've already paid the sudo cost,
-// and skipping the install just to honor "optional" would force them to
-// remember `--include-optional` on top. So Inspect promotes the
-// requirement to required when running as root: the runtime then applies
-// it as part of the normal required-pass, no extra flag needed.
-//
-// This keeps the framework gate simple (Required vs IncludeOptional is
-// the only switch the runtime knows about) and lets the handler express
-// situational policy without a new framework concept.
+// Package vroolilauncher manages the optional POSIX command shim at
+// /usr/local/bin/vrooli. The shim resolves the invoking user's executable
+// under ~/.vrooli/bin, allowing commands such as `sudo vrooli host wireless`
+// when sudo's PATH cannot see the user's home directory. Its installation
+// path and content are owned here; platform support is Linux and macOS.
 package vroolilauncher
 
 import (
@@ -108,11 +10,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-// LauncherPath is the install location of the shim. /usr/local/bin is
-// in sudo's default secure_path on every Linux distribution and on macOS.
-// Exported because the action-block fallback in
-// internal/setup/requirements_report.go probes the same path to decide
-// whether `sudo vrooli ...` will work.
+// LauncherPath is the managed shim location.
 const LauncherPath = "/usr/local/bin/vrooli"
 
 // shimContent is the POSIX shell script written to LauncherPath. The header
@@ -249,7 +147,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	// the call returns ErrSudoSkipped, which the runtime's apply loop
 	// detects and tags as BlockingNeedsSudo so the renderer routes the
 	// item into the "Needs sudo" group with an actionable hint.
-	if err := hostreqkit.InstallManagedExecutable(LauncherPath, shimContent, opts.SudoMode, opts); err != nil {
+	if err := hostreqkit.InstallManagedExecutable(LauncherPath, shimContent, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "install launcher shim failed: "+err.Error())
 		return status, nil

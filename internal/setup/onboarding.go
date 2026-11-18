@@ -40,6 +40,9 @@ type onboardingPreferences struct {
 }
 
 func (s *setupService) runOnboardingHandoff(root, home string, opts Options, stdout, stderr io.Writer) (*OnboardingResult, error) {
+	if err := opts.Context.Err(); err != nil {
+		return nil, err
+	}
 	if configurationAlreadyComplete(home, root) || !onboardingScenarioExists(root) {
 		return nil, nil
 	}
@@ -59,7 +62,7 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 		return &OnboardingResult{Decision: string(mode), Reason: "onboarding disabled by operator", PresentationKind: string(hostinventory.KindUnknown)}, nil
 	}
 
-	capability := s.deps.detectPresentation(context.Background())
+	capability := s.deps.detectPresentation(opts.Context)
 	decision, decisionErr := onboardinghandoff.Decide(capability, mode, shell.WriterSupportsStreaming(os.Stdin))
 	result := &OnboardingResult{Decision: decisionAction(decision.Action), Reason: decision.Reason, PresentationKind: string(capability.Kind), ResumeCommand: decision.ResumeCommand}
 	if decisionErr != nil {
@@ -70,11 +73,14 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 	if err != nil {
 		return result, err
 	}
-	if err := startOnboardingScenarioFn(root, executable); err != nil {
+	if err := startOnboardingScenarioFn(opts.Context, root, executable); err != nil {
 		result.Reason = "could not start onboarding: " + err.Error()
 		return result, err
 	}
-	url, resolveErr := s.resolveOnboardingURL(executable)
+	url, resolveErr := s.resolveOnboardingURL(opts.Context, executable)
+	if err := opts.Context.Err(); err != nil {
+		return result, err
+	}
 	result.URL = url
 	if resolveErr != nil {
 		result.Decision = onboardingUrl
@@ -104,7 +110,7 @@ func (s *setupService) runOnboardingHandoff(root, home string, opts Options, std
 		if cliErr != nil {
 			return result, cliErr
 		}
-		if cliErr = s.deps.runOnboardingCLI(cliExecutable, root, os.Stdin, stdout, stderr); cliErr != nil {
+		if cliErr = s.deps.runOnboardingCLI(opts.Context, cliExecutable, root, os.Stdin, stdout, stderr); cliErr != nil {
 			result.Reason = "interactive onboarding exited with an error: " + cliErr.Error()
 			return result, cliErr
 		}
@@ -208,33 +214,40 @@ func saveOnboardingPreferences(path string, doc map[string]json.RawMessage, pref
 	return os.WriteFile(path, data, tuning.PermFile)
 }
 
-func startOnboardingScenario(root, executable string) error {
+func startOnboardingScenario(ctx context.Context, root, executable string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if invokingUIDFn() != 0 || strings.TrimSpace(os.Getenv("SUDO_USER")) == "" {
 		return shell.LaunchDetachedScenario(executable, root, nil, os.Environ(), "start", onboardingSlug)
 	}
-	return launchOnboardingAsOperatorFn(root, executable)
+	return launchOnboardingAsOperatorFn(ctx, root, executable)
 }
 
-func launchOnboardingAsOperator(root, executable string) error {
+func launchOnboardingAsOperator(ctx context.Context, root, executable string) error {
 	devNull, err := os.OpenFile(os.DevNull, os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}
 	defer devNull.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), tuning.SetupOperationTimeout())
+	operationCtx, cancel := context.WithTimeout(ctx, tuning.SetupOperationTimeout())
 	defer cancel()
-	return platform.RunAsInvokingUserInSession(ctx, executable,
+	return platform.RunAsInvokingUserInSession(operationCtx, executable,
 		[]string{"scenario", "start", onboardingSlug},
 		platform.IdentityCommandOptions{Dir: root, Stdin: devNull, Stdout: devNull, Stderr: devNull})
 }
 
-func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
-	deadline := s.deps.now().Add(tuning.SetupOperationTimeout())
+func (s *setupService) resolveOnboardingURL(ctx context.Context, executable string) (string, error) {
+	operationCtx, cancel := context.WithTimeout(ctx, tuning.SetupOperationTimeout())
+	defer cancel()
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), tuning.HealthCheckTimeout())
-		output, err := s.deps.onboardingPortCommandRunner(ctx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
-		cancel()
+		if err := operationCtx.Err(); err != nil {
+			return "", err
+		}
+		probeCtx, stopProbe := context.WithTimeout(operationCtx, tuning.HealthCheckTimeout())
+		output, err := s.deps.onboardingPortCommandRunner(probeCtx, executable, "scenario", "port", onboardingSlug, "UI_PORT")
+		stopProbe()
 		text := strings.TrimSpace(string(output))
 		if err == nil {
 			port, parseErr := strconv.Atoi(text)
@@ -242,13 +255,21 @@ func (s *setupService) resolveOnboardingURL(executable string) (string, error) {
 				return fmt.Sprintf("http://127.0.0.1:%d", port), nil
 			}
 		}
-		if s.deps.now().After(deadline) {
+		if err := ctx.Err(); err != nil {
+			return "", err
+		}
+		if err := operationCtx.Err(); err != nil {
 			if text == "" {
 				text = "port could not be resolved before timeout"
 			}
 			return "", fmt.Errorf("onboarding UI not ready: %s", text)
 		}
-		time.Sleep(tuning.SetupProgressPollInterval())
+		timer := time.NewTimer(tuning.SetupProgressPollInterval())
+		select {
+		case <-operationCtx.Done():
+			timer.Stop()
+		case <-timer.C:
+		}
 	}
 }
 

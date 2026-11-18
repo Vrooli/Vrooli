@@ -219,9 +219,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 	fail := func(err error) (hostreqkit.ItemStatus, error) {
 		status.Applied = false
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	// A live reservation gap does not authorize unrelated swap, Docker/GPU,
 	// sysctl or login-setting effects when those definitions already match.
@@ -270,10 +268,10 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 func applyStaticFiles(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error {
 	if host.SupportsSysctl {
-		if err := hostreqkit.EnsureManagedDir(filepath.Dir(sysctlPath), opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.EnsureManagedDir(filepath.Dir(sysctlPath), opts); err != nil {
 			return fmt.Errorf("create sysctl dir: %w", err)
 		}
-		if err := hostreqkit.InstallManagedContent(sysctlPath, sysctlContent, opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.InstallManagedContent(sysctlPath, sysctlContent, opts); err != nil {
 			return fmt.Errorf("install sysctl config: %w", err)
 		}
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"--system"}, opts); err != nil {
@@ -282,7 +280,7 @@ func applyStaticFiles(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error
 	}
 	if host.SupportsSystemd {
 		for _, dir := range []string{systemdDir, logindDir} {
-			if err := hostreqkit.EnsureManagedDir(dir, opts.SudoMode, opts); err != nil {
+			if err := hostreqkit.EnsureManagedDir(dir, opts); err != nil {
 				return fmt.Errorf("create dir %s: %w", dir, err)
 			}
 		}
@@ -293,7 +291,7 @@ func applyStaticFiles(host hostreqkit.Host, opts hostreqkit.EnsureOptions) error
 			{systemdPath, unitContent},
 			{logindPath, logindContent},
 		} {
-			if err := hostreqkit.InstallManagedContent(file.path, file.content, opts.SudoMode, opts); err != nil {
+			if err := hostreqkit.InstallManagedContent(file.path, file.content, opts); err != nil {
 				return fmt.Errorf("install %s: %w", file.path, err)
 			}
 		}
@@ -315,7 +313,7 @@ func applyDesktopProtection(host hostreqkit.Host, opts hostreqkit.EnsureOptions)
 	}
 
 	// 3. Workload slice
-	if err := hostreqkit.InstallManagedContent(workloadSlicePath, workloadSliceContent(), opts.SudoMode, opts); err != nil {
+	if err := hostreqkit.InstallManagedContent(workloadSlicePath, workloadSliceContent(), opts); err != nil {
 		return fmt.Errorf("install workload slice: %w", err)
 	}
 
@@ -543,7 +541,7 @@ func ensureSwap(alloc memoryAllocation, opts hostreqkit.EnsureOptions) error {
 	}
 	if !persisted {
 		fstabLine := swapFile + " none swap sw 0 0\n"
-		if err := hostreqkit.InstallManagedContent("/etc/fstab.vrooli-swap", fstabLine, opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.InstallManagedContent("/etc/fstab.vrooli-swap", fstabLine, opts); err != nil {
 			return fmt.Errorf("prepare swap startup configuration: %w", err)
 		}
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sh", []string{"-c", "cat /etc/fstab.vrooli-swap >> /etc/fstab && rm -f /etc/fstab.vrooli-swap"}, opts); err != nil {

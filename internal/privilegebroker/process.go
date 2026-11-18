@@ -15,7 +15,7 @@ var (
 
 func validateProcess(req Request) error {
 	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Edge != nil || req.Caddy != nil {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.Process == nil {
 		return fmt.Errorf("process_subject_required")
@@ -38,7 +38,7 @@ func ProcessStopArgs(req Request) (string, []string, error) {
 		return "", nil, err
 	}
 	if req.Action != ActionProcessStopScoped {
-		return "", nil, fmt.Errorf("action_not_allowed")
+		return "", nil, errActionNotAllowed
 	}
 	return "vrooli", []string{"scenario", "stop", req.Process.Scenario, "--json"}, nil
 }

@@ -38,13 +38,35 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "kernel-memory", "service", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair", "wireless", "go-cache"}
+type hostCommandBinding struct {
+	name string
+	run  func(cliapp.RunContext, *rootcli.CommandContext) error
+}
+
+var hostCommands = [...]hostCommandBinding{
+	{"cron", runHostCron},
+	{"inventory", runHostInventory},
+	{"kernel-memory", runHostKernelMemory},
+	{"service", runHostServiceRecovery},
+	{"desktop-session", runDesktopSession},
+	{"install", runHostInstall},
+	{"safeguard", runHostSafeguard},
+	{"reboot", runHostReboot},
+	{"volume", runHostVolume},
+	{"storage", runHostStorage},
+	{"hyperframes", runHyperframes},
+	{"renderer-profile", runRendererProfile},
+	{"triposr-source", runTripoSRSourceProfile},
+	{"renderer-cache-repair", runRendererCacheRepair},
+	{"wireless", runHostWireless},
+	{"go-cache", runHostGoCache},
+}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
-	paths := make([]string, 0, len(hostCommandNames)+1)
-	for _, name := range hostCommandNames {
-		paths = append(paths, "host "+name)
+	paths := make([]string, 0, len(hostCommands)+1)
+	for _, command := range hostCommands {
+		paths = append(paths, "host "+command.name)
 	}
 	return append(paths, "workload list")
 }
@@ -56,7 +78,7 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 		func(ctx C, _ cliout.Format) (hostService, error) {
 			commandCtx := &rootcli.CommandContext{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx), Context: rootcli.ResolveOperationContext(deps, ctx)}
 			return hostService{run: func(args []string) error {
-				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(commandCtx, hostCommandNames))
+				group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", hostBindings(commandCtx))
 				if err != nil {
 					return err
 				}
@@ -120,49 +142,13 @@ func runWorkload(ctx *rootcli.CommandContext, args []string) error {
 	return cliout.WriteSection(ctx.Stdout, cliout.Section{Rows: rows})
 }
 
-func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(cliapp.RunContext) error {
-	bindings := make(map[string]func(cliapp.RunContext) error, len(names))
-	for _, name := range names {
-		command := name
-		bindings[name] = func(command string) func(cliapp.RunContext) error {
-			return func(runCtx cliapp.RunContext) error {
-				switch command {
-				case "cron":
-					return runHostCron(runCtx, ctx)
-				case "inventory":
-					return runHostInventory(runCtx, ctx)
-				case "kernel-memory":
-					return runHostKernelMemory(runCtx, ctx)
-				case "service":
-					return runHostServiceRecovery(runCtx, ctx)
-				case "desktop-session":
-					return runDesktopSession(runCtx, ctx)
-				case "hyperframes":
-					return runHyperframes(runCtx, ctx)
-				case "renderer-profile":
-					return runRendererProfile(runCtx, ctx)
-				case "triposr-source":
-					return runTripoSRSourceProfile(runCtx, ctx)
-				case "renderer-cache-repair":
-					return runRendererCacheRepair(runCtx, ctx)
-				case "wireless":
-					return runHostWireless(runCtx, ctx)
-				case "go-cache":
-					return runHostGoCache(runCtx, ctx)
-				case "install":
-					return runHostInstall(runCtx, ctx)
-				case "safeguard":
-					return runHostSafeguard(runCtx, ctx)
-				case "reboot":
-					return runHostReboot(runCtx, ctx)
-				case "storage":
-					return runHostStorage(runCtx, ctx)
-				case "volume":
-					return runHostVolume(runCtx, ctx)
-				}
-				return fmt.Errorf("host command %q has no handler", command)
-			}
-		}(command)
+func hostBindings(ctx *rootcli.CommandContext) map[string]func(cliapp.RunContext) error {
+	bindings := make(map[string]func(cliapp.RunContext) error, len(hostCommands))
+	for _, command := range hostCommands {
+		run := command.run
+		bindings[command.name] = func(runCtx cliapp.RunContext) error {
+			return run(runCtx, ctx)
+		}
 	}
 	return bindings
 }

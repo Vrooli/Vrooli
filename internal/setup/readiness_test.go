@@ -218,16 +218,17 @@ func markerHome(t *testing.T, root string) string {
 
 func TestRenderSetupReadinessVerdictNeverPrintsAnUnconditionalSuccess(t *testing.T) {
 	cases := []struct {
-		name    string
-		verdict SetupReadiness
-		marker  bool
-		want    string
+		name       string
+		verdict    SetupReadiness
+		marker     bool
+		want       string
+		wantAction string
 	}{
-		{"ready", SetupReadiness{Status: ReadinessStatusReady, Source: ReadinessSourceInProcess}, true, "configuration verified ready"},
-		{"degraded", SetupReadiness{Status: ReadinessStatusDegraded, Source: ReadinessSourceInProcess}, true, "optional items unresolved"},
-		{"missing", SetupReadiness{Status: ReadinessStatusMissing, Blockers: []string{"vrooli/x:y"}, Source: ReadinessSourceInProcess}, true, "configuration is not verified"},
-		{"unavailable", SetupReadiness{Status: ReadinessStatusUnsupported, Source: ReadinessSourceUnavailable, Reason: "inventory unreachable"}, true, "could not be verified"},
-		{"no marker", SetupReadiness{Status: ReadinessStatusReady, Source: ReadinessSourceInProcess}, false, "configuration remains pending"},
+		{"ready", SetupReadiness{Status: ReadinessStatusReady, Source: ReadinessSourceInProcess}, true, "configuration verified ready", ""},
+		{"degraded", SetupReadiness{Status: ReadinessStatusDegraded, Source: ReadinessSourceInProcess}, true, "optional items unresolved", ""},
+		{"missing", SetupReadiness{Status: ReadinessStatusMissing, Blockers: []string{"vrooli/x:y"}, Source: ReadinessSourceInProcess}, true, "configuration is not verified", ""},
+		{"unavailable", SetupReadiness{Status: ReadinessStatusUnsupported, Source: ReadinessSourceUnavailable, Reason: "inventory unreachable"}, true, "could not be verified", ""},
+		{"no marker", SetupReadiness{Status: ReadinessStatusReady, Source: ReadinessSourceInProcess}, false, "configuration remains pending", "[ACTION]  Finish configuration in onboarding: `vrooli-onboarding wizard run --interactive`"},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -235,6 +236,9 @@ func TestRenderSetupReadinessVerdictNeverPrintsAnUnconditionalSuccess(t *testing
 			renderSetupReadinessVerdict(&out, testCase.verdict, testCase.marker)
 			if !strings.Contains(out.String(), testCase.want) {
 				t.Fatalf("output = %q, want it to contain %q", out.String(), testCase.want)
+			}
+			if testCase.wantAction != "" && !strings.Contains(out.String(), testCase.wantAction) {
+				t.Fatalf("output = %q, want action %q", out.String(), testCase.wantAction)
 			}
 			if strings.Contains(out.String(), "Setup completed successfully.") {
 				t.Fatalf("output still carries the unconditional success line: %q", out.String())
@@ -268,8 +272,9 @@ func TestPendingConfigurationNeverClaimsCompletion(t *testing.T) {
 			if strings.Contains(rendered, "configuration are complete") {
 				t.Fatalf("pending configuration claimed completion: %q", rendered)
 			}
-			if !strings.Contains(rendered, "vrooli-onboarding wizard run") {
-				t.Fatalf("pending configuration must name the command that finishes it, got %q", rendered)
+			wantAction := "[ACTION]  Unresolved: onboarding_apply_privileges. Finish configuration in onboarding: `vrooli-onboarding wizard run --interactive`"
+			if !strings.Contains(rendered, wantAction) {
+				t.Fatalf("pending configuration action = %q, want %q", rendered, wantAction)
 			}
 		})
 	}

@@ -77,7 +77,10 @@ var WholeSources = map[string][]string{
 	"companion-state": {"internal/resources/companions.go*"},
 	// Root CLI state used by later invocations and recovery. Whole-source is
 	// conservative until each owner exposes a verified precise format contract.
-	"scenario-cli-install": {"packages/api-core/scenariocli/identity.go*", "packages/cli-core/cliutil", "packages/cli-core/buildinfo", "packages/repo-contract-go"},
+	// Launch lifecycle is behavior, not stored state. Freshness and installer
+	// helpers stay covered; the agent launcher is excluded so a launch-contract
+	// change does not force a root persistent-state rebaseline.
+	"scenario-cli-install": {"packages/api-core/scenariocli/identity.go*", "packages/cli-core/cliutil", "!packages/cli-core/cliutil/agentlauncher.go", "packages/cli-core/buildinfo", "packages/repo-contract-go"},
 	"tool-installation":    {"internal/tools/pinnedrelease", "internal/tools/hyperframes", "internal/runtime"},
 	"baseline-floor":       {"internal/baselinefloor"},
 	"setup-state":          {"internal/setup/progress.go*", "internal/setup/result.go*", "internal/setup/onboarding.go*", "internal/setup/migration.go*", "internal/config/repair.go*", "internal/onboardinghandoff"},

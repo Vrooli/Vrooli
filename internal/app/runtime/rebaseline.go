@@ -50,8 +50,9 @@ import (
 // steps 5-8, each of which is idempotent and verified against live state.
 
 // ErrRebaselineNotRequired signals that ordinary activation can safely handle
-// the qualified candidate. The caller must use the normal installer.
-var ErrRebaselineNotRequired = errors.New("candidate keeps the serving persistent-state contract")
+// the qualified candidate: the serving image can read what it writes, so
+// automatic rollback remains valid.
+var ErrRebaselineNotRequired = errors.New("candidate is compatible with the serving persistent state")
 
 // RebaselinePlan is what the operator confirms.
 type RebaselinePlan struct {

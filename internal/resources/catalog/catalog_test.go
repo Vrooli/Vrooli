@@ -162,4 +162,14 @@ func TestReadConfigEntriesToleratesUnknownServiceManifestFields(t *testing.T) {
 	if got := entries["redis"]; !got.Enabled || !got.Required || got.Description != "Cache responses" {
 		t.Fatalf("redis config = %+v", got)
 	}
+	disabled := false
+	withState, err := New(fixture.Root).ReadConfigEntriesWithState(operatorstate.Document{
+		Resources: map[string]operatorstate.EnabledChoice{"redis": {Enabled: &disabled}},
+	})
+	if err != nil {
+		t.Fatalf("ReadConfigEntriesWithState: %v", err)
+	}
+	if got := withState["redis"]; got.Enabled || !got.Required || got.Description != "Cache responses" {
+		t.Fatalf("redis config with operator choice = %+v", got)
+	}
 }

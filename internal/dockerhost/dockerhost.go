@@ -166,10 +166,10 @@ func SanitizeDaemonConfig(path string, opts ConfigOptions, ensureOpts hostreqkit
 		return result, fmt.Errorf("marshal docker config: %w", err)
 	}
 	content := string(output) + "\n"
-	if err := hostreqkit.EnsureManagedDir(filepath.Dir(path), ensureOpts.SudoMode, ensureOpts); err != nil {
+	if err := hostreqkit.EnsureManagedDir(filepath.Dir(path), ensureOpts); err != nil {
 		return result, fmt.Errorf("create docker config dir: %w", err)
 	}
-	if err := hostreqkit.InstallManagedContent(path, content, ensureOpts.SudoMode, ensureOpts); err != nil {
+	if err := hostreqkit.InstallManagedContent(path, content, ensureOpts); err != nil {
 		return result, fmt.Errorf("install docker daemon.json: %w", err)
 	}
 	if !ensureOpts.DryRun {

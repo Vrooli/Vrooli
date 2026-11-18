@@ -50,11 +50,14 @@ type Host struct {
 }
 
 type EnsureOptions struct {
-	Context     context.Context
-	Environment string
-	SudoMode    string
-	DryRun      bool
-	AutoInstall bool
+	Context context.Context
+	// SetupPrivilegeSession is present only during the main setup flow. It
+	// routes selected Linux setup operations through the same typed sudo worker.
+	SetupPrivilegeSession SetupPrivilegeSession
+	Environment           string
+	SudoMode              string
+	DryRun                bool
+	AutoInstall           bool
 	// IncludeOptional tells the runtime to also call Apply on optional
 	// (Required=false) items that come back Pending from Inspect. By default
 	// optionals are skipped — their Pending state is shown to the operator
@@ -70,6 +73,22 @@ type EnsureOptions struct {
 	// observational only; callback failures or panics must never affect host
 	// requirement semantics.
 	OnOperation func(string)
+}
+
+type SetupPrivilegeSession interface {
+	InstallPackage(manager, packageName string) error
+	InstallAptRepository(repository string, keyData []byte, sourceLine string) error
+	InstallOnboardingApplyGrant(tools, safeguards []string) error
+	InstallAppArmorProfile(profileID string) error
+}
+
+// HostHardeningPolicy contains the closed operator choices accepted by setup's
+// privileged host-hardening operation. Paths and rendered content stay owned
+// by the safeguard.
+type HostHardeningPolicy struct {
+	OopsPolicy       string `json:"oops_policy"`
+	SoftlockupPolicy string `json:"softlockup_policy"`
+	HungTaskTimeout  int    `json:"hung_task_timeout_secs"`
 }
 
 // BlockingReason categorises *why* an item is not yet satisfied. It is

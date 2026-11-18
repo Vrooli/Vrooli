@@ -101,6 +101,15 @@ type Receipt struct {
 	GrowthLimitBytes       uint64        `json:"growth_limit_bytes"`
 }
 
+type verifiedChecksumMetadata struct {
+	checksums       map[string]string
+	fingerprint     string
+	checksumSHA256  string
+	signatureSHA256 string
+}
+
+type checksumFetcher func(context.Context, Plan) (verifiedChecksumMetadata, error)
+
 type Inspection struct {
 	PlanPath             string      `json:"plan_path"`
 	HostTools            []ToolPlan  `json:"host_tools"`
@@ -121,6 +130,10 @@ type Inspection struct {
 	Effects              []string    `json:"effects"`
 	Stops                []string    `json:"stop_conditions"`
 	AlreadyReady         bool        `json:"already_ready"`
+	// Verified checksum proof is kept in-process and excluded from preview JSON.
+	verifiedChecksumFingerprint string `json:"-"`
+	verifiedChecksumSHA256      string `json:"-"`
+	verifiedSignatureSHA256     string `json:"-"`
 }
 
 type ImagePlan struct {
@@ -247,17 +260,17 @@ func (p Plan) Validate() error {
 	return nil
 }
 
-func InspectScenarioPlan(root, scenarioName string) (Inspection, bool, error) {
+func InspectScenarioPlan(ctx context.Context, root, scenarioName string) (Inspection, bool, error) {
 	plan, path, found, err := LoadScenarioPlan(root, scenarioName)
 	if err != nil || !found {
 		return Inspection{}, found, err
 	}
-	inspection, err := Inspect(context.Background(), root, plan, path)
+	inspection, err := Inspect(ctx, root, plan, path)
 	return inspection, true, err
 }
 
-func PreviewScenarioPlan(root, scenarioName string, stdout io.Writer) error {
-	inspection, found, err := InspectScenarioPlan(root, scenarioName)
+func PreviewScenarioPlan(ctx context.Context, root, scenarioName string, stdout io.Writer) error {
+	inspection, found, err := InspectScenarioPlan(ctx, root, scenarioName)
 	if err != nil || !found {
 		return err
 	}
@@ -269,7 +282,7 @@ func PreviewScenarioPlan(root, scenarioName string, stdout io.Writer) error {
 	return nil
 }
 
-func ApplyScenarioPlan(root, scenarioName, sudoMode string, baseline Inspection, stdout, stderr io.Writer) error {
+func ApplyScenarioPlan(ctx context.Context, root, scenarioName, sudoMode string, baseline Inspection, stdout, stderr io.Writer) error {
 	plan, path, found, err := LoadScenarioPlan(root, scenarioName)
 	if err != nil || !found {
 		return err
@@ -279,7 +292,7 @@ func ApplyScenarioPlan(root, scenarioName, sudoMode string, baseline Inspection,
 		return fmt.Errorf("acquire scenario asset setup lock: %w", err)
 	}
 	defer release()
-	inspection, err := Inspect(context.Background(), root, plan, path)
+	inspection, err := Inspect(ctx, root, plan, path)
 	if err != nil {
 		return err
 	}
@@ -313,7 +326,7 @@ func ApplyScenarioPlan(root, scenarioName, sudoMode string, baseline Inspection,
 			}
 		}
 	}
-	return apply(context.Background(), root, plan, path, sudoMode, baseline, inspection, packageGrowth, stdout, stderr)
+	return apply(ctx, root, plan, path, sudoMode, baseline, inspection, packageGrowth, stdout, stderr)
 }
 
 func measurePackageGrowth(plan Plan, baseline, current Inspection) (uint64, uint64, error) {
@@ -356,6 +369,10 @@ func positiveDelta(before, after uint64) uint64 {
 }
 
 func Inspect(ctx context.Context, root string, plan Plan, planPath string) (Inspection, error) {
+	return inspect(ctx, root, plan, planPath, fetchAndVerifySums)
+}
+
+func inspect(ctx context.Context, root string, plan Plan, planPath string, fetchSums checksumFetcher) (Inspection, error) {
 	inspection := Inspection{
 		PlanPath: planPath, HostTools: append([]ToolPlan(nil), plan.HostTools...), Destination: plan.OutputDirectory,
 		ChecksumSignature: "verify SHA256SUMS.gpg with gpgv and Canonical Ubuntu cloud-image keyring",
@@ -455,14 +472,21 @@ func Inspect(ctx context.Context, root string, plan Plan, planPath string) (Insp
 		inspection.Images = append(inspection.Images, entry)
 	}
 	if !allPresent {
-		if checksum, signature, _, _, sigErr := fetchAndVerifySums(ctx, plan); sigErr != nil {
+		if verified, sigErr := fetchSums(ctx, plan); sigErr != nil {
 			inspection.Stops = append(inspection.Stops, "signed Canonical checksum metadata verification failed: "+sigErr.Error())
 		} else {
-			inspection.ChecksumSignature = "verified by gpgv; signing fingerprint " + signature
+			inspection.ChecksumSignature = "verified by gpgv; signing fingerprint " + verified.fingerprint
+			checksumsMatchPlan := true
 			for _, image := range plan.Images {
-				if got := checksum[image.FileName]; !strings.EqualFold(got, image.SHA256) {
+				if got := verified.checksums[image.FileName]; !strings.EqualFold(got, image.SHA256) {
 					inspection.Stops = append(inspection.Stops, "signed SHA256SUMS does not contain the pinned digest for "+image.FileName)
+					checksumsMatchPlan = false
 				}
+			}
+			if checksumsMatchPlan {
+				inspection.verifiedChecksumFingerprint = verified.fingerprint
+				inspection.verifiedChecksumSHA256 = verified.checksumSHA256
+				inspection.verifiedSignatureSHA256 = verified.signatureSHA256
 			}
 		}
 	}
@@ -561,22 +585,22 @@ func secureClient() *http.Client {
 	}}
 }
 
-func fetchAndVerifySums(ctx context.Context, plan Plan) (map[string]string, string, string, string, error) {
+func fetchAndVerifySums(ctx context.Context, plan Plan) (verifiedChecksumMetadata, error) {
 	tmp, err := os.MkdirTemp("", "vrooli-setup-assets-metadata-")
 	if err != nil {
-		return nil, "", "", "", err
+		return verifiedChecksumMetadata{}, err
 	}
 	defer os.RemoveAll(tmp)
 	sumsPath, sigPath := filepath.Join(tmp, "SHA256SUMS"), filepath.Join(tmp, "SHA256SUMS.gpg")
 	if err := downloadBounded(ctx, plan.ChecksumURL, sumsPath, 1<<20); err != nil {
-		return nil, "", "", "", err
+		return verifiedChecksumMetadata{}, err
 	}
 	if err := downloadBounded(ctx, plan.SignatureURL, sigPath, 64<<10); err != nil {
-		return nil, "", "", "", err
+		return verifiedChecksumMetadata{}, err
 	}
 	out, err := exec.CommandContext(ctx, "gpgv", "--status-fd=1", "--keyring", plan.KeyringPath, sigPath, sumsPath).CombinedOutput()
 	if err != nil {
-		return nil, "", "", "", fmt.Errorf("gpgv: %s: %w", strings.TrimSpace(string(out)), err)
+		return verifiedChecksumMetadata{}, fmt.Errorf("gpgv: %s: %w", strings.TrimSpace(string(out)), err)
 	}
 	fingerprint := ""
 	for _, line := range strings.Split(string(out), "\n") {
@@ -587,15 +611,15 @@ func fetchAndVerifySums(ctx context.Context, plan Plan) (map[string]string, stri
 		}
 	}
 	if fingerprint == "" {
-		return nil, "", "", "", fmt.Errorf("gpgv returned success without a VALIDSIG fingerprint")
+		return verifiedChecksumMetadata{}, fmt.Errorf("gpgv returned success without a VALIDSIG fingerprint")
 	}
 	data, err := os.ReadFile(sumsPath)
 	if err != nil {
-		return nil, "", "", "", err
+		return verifiedChecksumMetadata{}, err
 	}
 	signatureData, err := os.ReadFile(sigPath)
 	if err != nil {
-		return nil, "", "", "", err
+		return verifiedChecksumMetadata{}, err
 	}
 	sumDigest := sha256.Sum256(data)
 	sigDigest := sha256.Sum256(signatureData)
@@ -608,7 +632,10 @@ func fetchAndVerifySums(ctx context.Context, plan Plan) (map[string]string, stri
 		name := strings.TrimPrefix(fields[len(fields)-1], "*")
 		checksums[filepath.Base(name)] = strings.ToLower(fields[0])
 	}
-	return checksums, fingerprint, hex.EncodeToString(sumDigest[:]), hex.EncodeToString(sigDigest[:]), nil
+	return verifiedChecksumMetadata{
+		checksums: checksums, fingerprint: fingerprint,
+		checksumSHA256: hex.EncodeToString(sumDigest[:]), signatureSHA256: hex.EncodeToString(sigDigest[:]),
+	}, nil
 }
 
 func downloadBounded(ctx context.Context, source, destination string, max uint64) error {
@@ -758,26 +785,29 @@ func manifestMatches(plan Plan, manifest ImageManifest) bool {
 }
 
 func apply(ctx context.Context, root string, plan Plan, planPath, sudoMode string, baseline, initial Inspection, packageGrowth uint64, stdout, stderr io.Writer) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if initial.verifiedChecksumFingerprint == "" {
+		return fmt.Errorf("signed checksum metadata was not verified during inspection")
+	}
 	stage, err := os.MkdirTemp("", "vrooli-setup-assets-")
 	if err != nil {
 		return fmt.Errorf("create verified asset staging directory: %w", err)
 	}
 	defer os.RemoveAll(stage)
-	checksums, fingerprint, checksumDigest, signatureDigest, err := fetchAndVerifySums(ctx, plan)
-	if err != nil {
-		return fmt.Errorf("verify signed Canonical SHA256SUMS: %w", err)
-	}
-	for _, image := range plan.Images {
-		if got := checksums[image.FileName]; !strings.EqualFold(got, image.SHA256) {
-			return fmt.Errorf("signed SHA256SUMS expected %s for %s, got %s", image.SHA256, image.FileName, got)
-		}
-	}
 	imageRecords := make([]ImageRecord, 0, len(plan.Images))
 	var stagedBytes uint64
 	for _, image := range plan.Images {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		destination := filepath.Join(plan.OutputDirectory, image.FileName)
 		if _, err := os.Stat(destination); err == nil {
 			digest, hashErr := fileSHA256(destination)
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if hashErr != nil || !strings.EqualFold(digest, image.SHA256) {
 				return fmt.Errorf("destination exists with a non-pinned digest; refusing to replace %s", destination)
 			}
@@ -804,14 +834,14 @@ func apply(ctx context.Context, root string, plan Plan, planPath, sudoMode strin
 		if err != nil {
 			return err
 		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if !strings.EqualFold(digest, image.SHA256) {
 			return fmt.Errorf("image %s SHA-256 mismatch: expected %s, got %s", image.FileName, image.SHA256, digest)
 		}
 		stagedBytes += uint64(info.Size())
 		imageRecords = append(imageRecords, ImageRecord{Path: destination, SHA256: image.SHA256, OS: image.OS, Arch: image.Arch, SourceURL: image.SourceURL, RecordedAt: time.Now().UTC().Format(time.RFC3339Nano)})
-	}
-	if stagedBytes == 0 && initial.AlreadyReady {
-		return nil
 	}
 	// Downloads and final copies coexist until verification and durable receipts
 	// complete. Recheck actual free capacity after staging, on the destination
@@ -891,13 +921,16 @@ func apply(ctx context.Context, root string, plan Plan, planPath, sudoMode strin
 	if peakGrowth > plan.MaximumGrowthBytes {
 		return fmt.Errorf("stop: observed A2 peak growth %d exceeds cap %d", peakGrowth, plan.MaximumGrowthBytes)
 	}
-	receipt := Receipt{Version: imageReceiptVersion, Plan: planPath, RecordedAt: time.Now().UTC().Format(time.RFC3339Nano), ChecksumSignature: "gpgv-validsig:" + fingerprint, ChecksumURL: plan.ChecksumURL, ChecksumFileSHA256: checksumDigest, SignatureFileSHA256: signatureDigest, Images: imageRecords, HostTools: plan.HostTools, DestinationFilesystem: plan.OutputDirectory, DestinationDevice: baseline.DestinationDevice, StagingDevice: baseline.StagingDevice, FreeBytesBefore: baseline.DestinationFreeBytes, FreeBytesAfterImages: freeAfter, StagingFreeBytesBefore: baseline.StagingFreeBytes, HostToolGrowthBytes: packageGrowth, ImageStagingBytes: stagedBytes, ImageFinalBytes: stagedBytes, PeakGrowthBytes: peakGrowth, ReserveBytes: plan.MinimumFreeBytes, GrowthLimitBytes: plan.MaximumGrowthBytes}
+	receipt := Receipt{Version: imageReceiptVersion, Plan: planPath, RecordedAt: time.Now().UTC().Format(time.RFC3339Nano), ChecksumSignature: "gpgv-validsig:" + initial.verifiedChecksumFingerprint, ChecksumURL: plan.ChecksumURL, ChecksumFileSHA256: initial.verifiedChecksumSHA256, SignatureFileSHA256: initial.verifiedSignatureSHA256, Images: imageRecords, HostTools: plan.HostTools, DestinationFilesystem: plan.OutputDirectory, DestinationDevice: baseline.DestinationDevice, StagingDevice: baseline.StagingDevice, FreeBytesBefore: baseline.DestinationFreeBytes, FreeBytesAfterImages: freeAfter, StagingFreeBytesBefore: baseline.StagingFreeBytes, HostToolGrowthBytes: packageGrowth, ImageStagingBytes: stagedBytes, ImageFinalBytes: stagedBytes, PeakGrowthBytes: peakGrowth, ReserveBytes: plan.MinimumFreeBytes, GrowthLimitBytes: plan.MaximumGrowthBytes}
 	receiptBytes, err := json.MarshalIndent(receipt, "", "  ")
 	if err != nil {
 		return err
 	}
 	if err := writePrivilegedAtomic(ctx, sudoMode, plan.ReceiptPath, receiptBytes, stdout, stderr); err != nil {
 		return fmt.Errorf("write durable image receipt: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	manifest := ImageManifest{SchemaVersion: imageManifestSchemaVersion, Note: "Canonical signed cloud images, pinned by SHA-256 for the scenario-to-cloud QEMU proving ground.", Images: imageRecords}
 	manifestPath := filepath.Join(root, plan.ImageManifest)

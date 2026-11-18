@@ -166,13 +166,13 @@ func ensureDesktopReservation(alloc memoryAllocation, opts hostreqkit.EnsureOpti
 			if err != nil || current != t.content {
 				return fmt.Errorf("reservation definition changed before write at %s: %w", t.path, errors.Join(err, errors.New("reservation plan is stale")))
 			}
-			if err := hostreqkit.EnsureManagedDir(filepath.Dir(t.path), opts.SudoMode, opts); err != nil {
+			if err := hostreqkit.EnsureManagedDir(filepath.Dir(t.path), opts); err != nil {
 				return fmt.Errorf("create reservation directory: %w", err)
 			}
 			if err := hostreqkit.ValidateManagedFilePath(t.path, reservationLstat); err != nil {
 				return err
 			}
-			writeErr := hostreqkit.InstallManagedContent(t.path, t.content, opts.SudoMode, opts)
+			writeErr := hostreqkit.InstallManagedContent(t.path, t.content, opts)
 			// Resolve lost acknowledgements by exact owner bytes, not by replay.
 			if !hostreqkit.FileContentMatches(t.path, t.content) {
 				return fmt.Errorf("reservation definition not verified at %s: %w", t.path, errors.Join(writeErr, errors.New("persistent readback mismatch")))

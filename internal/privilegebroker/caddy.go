@@ -19,7 +19,7 @@ var caddySubjectPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$
 
 func validateCaddy(req Request) error {
 	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Edge != nil || req.Process != nil {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.Caddy == nil {
 		return fmt.Errorf("caddy_subject_required")
@@ -44,7 +44,7 @@ func CaddyArgs(req Request) (string, []string, error) {
 	case ActionEdgeCaddyReload:
 		return "systemctl", []string{"reload", "caddy"}, nil
 	default:
-		return "", nil, fmt.Errorf("action_not_allowed")
+		return "", nil, errActionNotAllowed
 	}
 }
 

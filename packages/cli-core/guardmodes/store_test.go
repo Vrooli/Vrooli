@@ -80,7 +80,9 @@ func TestSetLogOnlyFromAnswerConsumesOnceAcrossRestartAndExpiry(t *testing.T) {
 	if err := store.SetLogOnlyFromAnswer(testEvaluatorID, now.Add(24*time.Hour), "approved", "steward", "answer-once"); err != nil {
 		t.Fatal(err)
 	}
-	if err := NewStore(dir).SetLogOnlyFromAnswer(testEvaluatorID, now.Add(24*time.Hour), "approved", "steward", "answer-once"); err == nil || !strings.Contains(err.Error(), "already consumed") {
+	restarted := NewStore(dir)
+	restarted.Now = func() time.Time { return now }
+	if err := restarted.SetLogOnlyFromAnswer(testEvaluatorID, now.Add(24*time.Hour), "approved", "steward", "answer-once"); err == nil || !strings.Contains(err.Error(), "already consumed") {
 		t.Fatalf("restart replay error = %v, want consumed answer", err)
 	}
 	active, err := store.Active(now)

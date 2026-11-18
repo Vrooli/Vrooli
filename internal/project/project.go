@@ -22,6 +22,7 @@ import (
 	"github.com/vrooli/vrooli/internal/privilegebroker"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
 	"github.com/vrooli/vrooli/internal/resources"
+	"github.com/vrooli/vrooli/internal/rootstatus"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -323,6 +324,12 @@ func (c *Controller) DoctorWithOptions(options DoctorOptions) (DoctorReport, err
 		return DoctorReport{}, err
 	}
 	checks = append(checks, installChecks...)
+
+	// Root control-plane state, in the same list so one command answers both
+	// "is my toolchain healthy" and "does the control plane need me".
+	for _, check := range rootstatus.Checks(context.Background(), c.Home) {
+		checks = append(checks, DoctorCheck{Name: check.Name, Status: check.Status, Message: check.Message})
+	}
 
 	return DoctorReport{Checks: checks}, nil
 }

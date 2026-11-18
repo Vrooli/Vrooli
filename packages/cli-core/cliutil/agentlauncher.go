@@ -123,6 +123,11 @@ type AgentLaunchRequest struct {
 	Stdout io.Writer
 	Stderr io.Writer
 
+	// FinalizeArgs adapts the final argv/environment after model source and
+	// usage-mode resolution. It exists for harness launch-contract translations
+	// that must not live in the generic launcher. A nil hook is a no-op.
+	FinalizeArgs func(agent, path string, args, environment []string) ([]string, []string)
+
 	// Test seams keep fallback behavior deterministic without starting a real
 	// coding agent or requiring a running Agent Manager.
 	LookPath              func(string) (string, error)
@@ -344,6 +349,9 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 		} else {
 			request.Args, environment = ApplyUsageMode(request.Agent, request.Args, environment)
 		}
+	}
+	if command == "" && request.FinalizeArgs != nil {
+		request.Args, environment = request.FinalizeArgs(request.Agent, path, request.Args, environment)
 	}
 
 	// A later launcher stage inherits the session the first one opened. It

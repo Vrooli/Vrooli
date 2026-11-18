@@ -48,7 +48,7 @@ function escapeHtmlAttribute(value: string): string {
 // Fetching the HTML through srcDoc avoids a second document navigation through
 // an Access/tunnel boundary. The base still points at the session-bound runtime
 // route, so relative CSS, JS, images, and child pages resolve normally.
-function htmlPreviewDocument(content: string, runtimeHref?: string): string {
+function htmlPreviewDocument(content: string, runtimeHref?: string, anchor?: string): string {
   let baseHref = "about:srcdoc";
   let runtimeOrigin = "";
   if (runtimeHref) {
@@ -64,7 +64,12 @@ function htmlPreviewDocument(content: string, runtimeHref?: string): string {
   const resourceOrigin = runtimeOrigin || "about:srcdoc";
   const framePolicy = runtimeOrigin ? runtimeOrigin : "'none'";
   const documentPolicy = `default-src 'none'; script-src 'unsafe-inline' ${runtimeOrigin}; style-src 'unsafe-inline' ${runtimeOrigin}; img-src ${resourceOrigin} data: blob:; font-src ${resourceOrigin} data:; media-src ${resourceOrigin} data: blob:; base-uri ${resourceOrigin}; connect-src 'none'; form-action 'none'; frame-src ${framePolicy}; navigate-to ${framePolicy}; object-src 'none'`;
-  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${documentPolicy}"><base href="${escapeHtmlAttribute(baseHref)}"><meta name="referrer" content="no-referrer">${htmlPreviewPinchScript()}${htmlPreviewLinksScript()}${content}`;
+  // Set the opaque frame's own URL before authored scripts read location.hash.
+  // The absolute srcdoc URL avoids resolving the fragment against the runtime base.
+  const fragmentScript = anchor
+    ? `<script data-fragment="${escapeHtmlAttribute(anchor)}">location.replace("about:srcdoc#" + document.currentScript.dataset.fragment)</script>`
+    : "";
+  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${documentPolicy}"><base href="${escapeHtmlAttribute(baseHref)}"><meta name="referrer" content="no-referrer">${fragmentScript}${htmlPreviewPinchScript()}${htmlPreviewLinksScript()}${content}`;
 }
 
 const HTML_VIEWPORTS = [
@@ -190,7 +195,7 @@ function HtmlPreview(props: PreviewRendererProps) {
               title={t(strings.viewer.htmlPreview, { name: model.basename })}
               sandbox="allow-scripts"
               referrerPolicy="no-referrer"
-              srcDoc={htmlPreviewDocument(content, previewSource?.capabilities.htmlRuntime ? model.runtimeHref : undefined)}
+              srcDoc={htmlPreviewDocument(content, previewSource?.capabilities.htmlRuntime ? model.runtimeHref : undefined, props.anchor)}
               className="absolute left-0 top-0 max-w-none origin-top-left border-0 bg-white [color-scheme:light]"
               style={{ willChange: "transform", width: viewportWidth || "100%", height: stageSize.height ? stageSize.height / scale : "100%", transform: `scale(${String(scale)})` }}
             />

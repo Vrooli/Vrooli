@@ -193,63 +193,11 @@ func ComputeSourceFingerprint(rootDir string) (string, error) {
 // ComputeSourceFingerprintReport returns a fingerprint plus details about the
 // source set that participated in the calculation.
 func ComputeSourceFingerprintReport(rootDir string, options FingerprintOptions, relPaths ...string) (FingerprintReport, error) {
-	rootDir = strings.TrimSpace(rootDir)
-	if rootDir == "" {
-		return FingerprintReport{}, errors.New("root directory is required")
-	}
-	absoluteRoot, err := filepath.Abs(filepath.Clean(rootDir))
-	if err != nil {
-		return FingerprintReport{}, fmt.Errorf("resolve root directory: %w", err)
-	}
-
-	targets := normalizeTargets(relPaths)
-	if len(targets) == 0 {
-		targets = []string{"."}
-	}
-
-	report := FingerprintReport{
-		Root:    absoluteRoot,
-		Targets: append([]string(nil), targets...),
-	}
-	entries := make([]fingerprintEntry, 0)
-	for _, target := range targets {
-		base, err := resolveTargetPath(absoluteRoot, target)
-		if err != nil {
-			return FingerprintReport{}, err
-		}
-		info, err := os.Stat(base)
-		if err != nil {
-			if os.IsNotExist(err) {
-				report.MissingTargets = append(report.MissingTargets, target)
-				continue
-			}
-			return FingerprintReport{}, fmt.Errorf("stat %s: %w", target, err)
-		}
-
-		if info.IsDir() {
-			if err := collectFingerprintEntries(absoluteRoot, base, &entries); err != nil {
-				return FingerprintReport{}, err
-			}
-			continue
-		}
-
-		if !fingerprintSourceFile(info.Name()) {
-			continue
-		}
-		entry, err := fingerprintFile(absoluteRoot, base)
-		if err != nil {
-			return FingerprintReport{}, err
-		}
-		entries = append(entries, entry)
-	}
-
-	if options.RequireExistingTargets && len(report.MissingTargets) > 0 {
-		return FingerprintReport{}, MissingTargetsError{Targets: append([]string(nil), report.MissingTargets...)}
-	}
-	entries, err = completeCompilerInputs(absoluteRoot, entries)
+	report, entries, err := collectFingerprintReport(rootDir, options, relPaths...)
 	if err != nil {
 		return FingerprintReport{}, err
 	}
+	absoluteRoot := report.Root
 
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].rel < entries[j].rel
@@ -316,6 +264,99 @@ func ComputeSourceFingerprintForPaths(rootDir string, relPaths ...string) (strin
 		return "", err
 	}
 	return report.Fingerprint, nil
+}
+
+// CompilerInputPaths returns the sorted paths, relative to rootDir, of every
+// file that participates in a fingerprint for the given targets: non-test Go
+// sources, the embed targets those sources name, module files, and the repo
+// contract that carries the runtime-home and build-flag authority.
+//
+// This is the build snapshot's file set. Because a snapshot is captured from
+// exactly these paths, the snapshot and the live tree fingerprint identically
+// by construction, and a snapshot can never silently omit a compiler input.
+func CompilerInputPaths(rootDir string, relPaths ...string) ([]string, error) {
+	report, entries, err := collectFingerprintReport(rootDir, FingerprintOptions{}, relPaths...)
+	if err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(entries)+1)
+	for _, entry := range entries {
+		paths = append(paths, entry.rel)
+	}
+	contractPath := repocontractmeta.ContractPath(report.Root)
+	if _, err := os.Lstat(contractPath); err == nil {
+		relative, relErr := filepath.Rel(report.Root, contractPath)
+		if relErr != nil {
+			return nil, fmt.Errorf("locate repo contract: %w", relErr)
+		}
+		paths = append(paths, filepath.ToSlash(relative))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("inspect repo contract: %w", err)
+	}
+	sort.Strings(paths)
+	return slices.Compact(paths), nil
+}
+
+// collectFingerprintReport gathers the fingerprint inputs without hashing them.
+func collectFingerprintReport(rootDir string, options FingerprintOptions, relPaths ...string) (FingerprintReport, []fingerprintEntry, error) {
+	rootDir = strings.TrimSpace(rootDir)
+	if rootDir == "" {
+		return FingerprintReport{}, nil, errors.New("root directory is required")
+	}
+	absoluteRoot, err := filepath.Abs(filepath.Clean(rootDir))
+	if err != nil {
+		return FingerprintReport{}, nil, fmt.Errorf("resolve root directory: %w", err)
+	}
+
+	targets := normalizeTargets(relPaths)
+	if len(targets) == 0 {
+		targets = []string{"."}
+	}
+
+	report := FingerprintReport{
+		Root:    absoluteRoot,
+		Targets: append([]string(nil), targets...),
+	}
+	entries := make([]fingerprintEntry, 0)
+	for _, target := range targets {
+		base, err := resolveTargetPath(absoluteRoot, target)
+		if err != nil {
+			return FingerprintReport{}, nil, err
+		}
+		info, err := os.Stat(base)
+		if err != nil {
+			if os.IsNotExist(err) {
+				report.MissingTargets = append(report.MissingTargets, target)
+				continue
+			}
+			return FingerprintReport{}, nil, fmt.Errorf("stat %s: %w", target, err)
+		}
+
+		if info.IsDir() {
+			if err := collectFingerprintEntries(absoluteRoot, base, &entries); err != nil {
+				return FingerprintReport{}, nil, err
+			}
+			continue
+		}
+
+		if !fingerprintSourceFile(info.Name()) {
+			continue
+		}
+		entry, err := fingerprintFile(absoluteRoot, base)
+		if err != nil {
+			return FingerprintReport{}, nil, err
+		}
+		entries = append(entries, entry)
+	}
+
+	if options.RequireExistingTargets && len(report.MissingTargets) > 0 {
+		return FingerprintReport{}, nil, MissingTargetsError{Targets: append([]string(nil), report.MissingTargets...)}
+	}
+	entries, err = completeCompilerInputs(absoluteRoot, entries)
+	if err != nil {
+		return FingerprintReport{}, nil, err
+	}
+	return report, entries, nil
 }
 
 // ResolveSourceRoot returns the repository root used for source fingerprinting.

@@ -995,6 +995,13 @@ func TestParentGoneIsDetected(t *testing.T) {
 	}
 }
 
+func TestParentGoneDetectsCurrentProcess(t *testing.T) {
+	h := &Handlers{}
+	if h.parentGone(os.Getpid()) {
+		t.Fatal("current process was reported gone")
+	}
+}
+
 func snapshot(mu *sync.Mutex, states *[]string) []string {
 	mu.Lock()
 	defer mu.Unlock()

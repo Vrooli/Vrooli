@@ -4,7 +4,7 @@ import "testing"
 
 func TestTokenWeightPolicyPreservesThresholdsAndUnknowns(t *testing.T) {
 	weights := DefaultTokenWeights()
-	for model, want := range map[string]float64{"gpt-6.1-sol": 10, "gpt-6.1-terra": 5, "gpt-6-luna": 1, "gpt-5.6-sol": 10} {
+	for model, want := range map[string]float64{"gpt-6.1-sol": 10, "gpt-6.2-sol": 10, "gpt-6.1-terra": 5, "gpt-6-luna": 1, "gpt-5.6-sol": 10} {
 		got, known := TokenWeight(model, weights)
 		if !known || got != want {
 			t.Fatalf("%s: %g %v", model, got, known)

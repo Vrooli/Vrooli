@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -170,6 +171,31 @@ func TestDetectScenarioRuntimeStatusReadsStoppedLifecycleState(t *testing.T) {
 	}
 }
 
+func TestDetectScenarioRuntimeStatusDoesNotSubstituteLiveAfterShadowFailure(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv(EnvShadowScenarios, "swarm-manager")
+	originalLookPath, originalUserHome, originalExec := lookPathFn, userHomeFn, runVrooliFn
+	t.Cleanup(func() {
+		lookPathFn = originalLookPath
+		userHomeFn = originalUserHome
+		runVrooliFn = originalExec
+	})
+	userHomeFn = func() (string, error) { return t.TempDir(), nil }
+	lookPathFn = func(string) (string, error) { return "/custom/vrooli", nil }
+	var targets []string
+	runVrooliFn = func(_ context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
+		targets = append(targets, inv.Args[2])
+		return cliinvoke.Result{Class: cliinvoke.Lifecycle, ExitCode: 1, Err: errors.New("temporary CLI failure")}
+	}
+
+	if got := DetectScenarioRuntimeStatus("swarm-manager")(); got != "" {
+		t.Fatalf("status = %q after shadow failure, want unknown", got)
+	}
+	if !reflect.DeepEqual(targets, []string{"swarm-manager@shadow"}) {
+		t.Fatalf("status targets = %v, want only shadow target", targets)
+	}
+}
+
 func TestRuntimeStatusFromJSONFallsBackToRuntime(t *testing.T) {
 	if got := runtimeStatusFromJSON(`{"runtime":{"status":"running"}}`); got != "running" {
 		t.Fatalf("status = %q, want running", got)
@@ -250,37 +276,22 @@ func TestDetectPortFromVrooliRoutesToShadowWhenShadowed(t *testing.T) {
 
 func TestDetectPortFromVrooliFallsBackToLiveWhenShadowMissing(t *testing.T) {
 	clearInstanceOverrides(t)
+	t.Setenv("VROOLI_HOME", filepath.Join(t.TempDir(), "runtime"))
 	t.Setenv(EnvShadowScenarios, "swarm-manager")
+	t.Setenv(EnvVariantDependencies, "")
+	t.Setenv(EnvInstanceVariant, "live")
 	// Fresh warn-dedup so the fallback is exercisable.
-	shadowFallbackWarned.Delete("swarm-manager")
-
-	originalLookPath := lookPathFn
-	resetPortDetectorCache()
-	originalExec := runVrooliFn
-	originalPeer, originalRegistry := peerRecordLookupFn, runtimeRegistryLookupFn
-	t.Cleanup(func() {
-		lookPathFn = originalLookPath
-		runVrooliFn = originalExec
-		peerRecordLookupFn, runtimeRegistryLookupFn = originalPeer, originalRegistry
-		resetPortDetectorCache()
-	})
-	peerRecordLookupFn = func(string, string) ScenarioPortOutcome { return ScenarioPortOutcome{Err: os.ErrNotExist} }
-	runtimeRegistryLookupFn = func(context.Context, string, string) ScenarioPortOutcome {
-		return ScenarioPortOutcome{Err: os.ErrNotExist}
-	}
-	lookPathFn = func(string) (string, error) { return "vrooli", nil }
+	ResetShadowFallbackWarning("swarm-manager")
 
 	var targets []string
-	runVrooliFn = func(ctx context.Context, inv cliinvoke.Invocation) cliinvoke.Result {
-		args := inv.Args
-		target := args[len(args)-3]
+	restore := SetPortLookupRunner(func(_ context.Context, target, _ string) ScenarioPortOutcome {
 		targets = append(targets, target)
 		if target == "swarm-manager@shadow" {
-			// Simulate "not found": non-zero exit yields empty port.
-			return cliinvoke.Result{Class: cliinvoke.Lifecycle, ExitCode: 1, Err: errors.New("exit status 1")}
+			return ScenarioPortOutcome{Err: &ScenarioPortError{Code: ScenarioPortCodeNotRunning}}
 		}
-		return cliinvoke.Result{Stdout: []byte("{\"port\":20002}\n")}
-	}
+		return ScenarioPortOutcome{Port: "20002"}
+	})
+	t.Cleanup(restore)
 
 	port := DetectPortFromVrooli("swarm-manager", "API_PORT")()
 	if len(targets) != 2 || targets[0] != "swarm-manager@shadow" || targets[1] != "swarm-manager" {
@@ -288,5 +299,89 @@ func TestDetectPortFromVrooliFallsBackToLiveWhenShadowMissing(t *testing.T) {
 	}
 	if port != "20002" {
 		t.Fatalf("expected live fallback port 20002, got %q", port)
+	}
+}
+
+func TestDetectPortFromVrooliDoesNotFallbackOnTransientShadowFailure(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv("VROOLI_HOME", filepath.Join(t.TempDir(), "runtime"))
+	t.Setenv(EnvShadowScenarios, "swarm-manager")
+	t.Setenv(EnvVariantDependencies, "")
+	t.Setenv(EnvInstanceVariant, "live")
+	var targets []string
+	restore := SetPortLookupRunner(func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		targets = append(targets, target)
+		return ScenarioPortOutcome{Err: errors.New("runtime registry unavailable")}
+	})
+	t.Cleanup(restore)
+
+	if port := DetectPortFromVrooli("swarm-manager", "API_PORT")(); port != "" {
+		t.Fatalf("transient shadow failure returned port %q", port)
+	}
+	if len(targets) != 1 || targets[0] != "swarm-manager@shadow" {
+		t.Fatalf("transient failure targets = %v, want only shadow target", targets)
+	}
+}
+
+func TestDetectPortFromVrooliDoesNotFallbackForVariantDependency(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv("VROOLI_HOME", filepath.Join(t.TempDir(), "runtime"))
+	t.Setenv(EnvShadowScenarios, "")
+	t.Setenv(EnvInstanceVariant, "presentation")
+	t.Setenv(EnvVariantDependencies, "swarm-manager")
+	var targets []string
+	restore := SetPortLookupRunner(func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		targets = append(targets, target)
+		return ScenarioPortOutcome{Err: &ScenarioPortError{Code: ScenarioPortCodeNotRunning}}
+	})
+	t.Cleanup(restore)
+
+	if port := DetectPortFromVrooli("swarm-manager", "API_PORT")(); port != "" {
+		t.Fatalf("missing variant dependency returned port %q", port)
+	}
+	if len(targets) != 1 || targets[0] != "swarm-manager@presentation" {
+		t.Fatalf("variant dependency targets = %v, want only presentation target", targets)
+	}
+}
+
+func TestDetectPortFromVrooliPreservesExplicitNamedVariant(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv("VROOLI_HOME", filepath.Join(t.TempDir(), "runtime"))
+	t.Setenv(EnvShadowScenarios, "")
+	t.Setenv(EnvInstanceVariant, "live")
+	t.Setenv(EnvVariantDependencies, "")
+	var targets []string
+	restore := SetPortLookupRunner(func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		targets = append(targets, target)
+		return ScenarioPortOutcome{Err: &ScenarioPortError{Code: ScenarioPortCodeNotRunning}}
+	})
+	t.Cleanup(restore)
+
+	if port := DetectPortFromVrooli("swarm-manager@presentation", "API_PORT")(); port != "" {
+		t.Fatalf("missing explicit variant returned port %q", port)
+	}
+	if len(targets) != 1 || targets[0] != "swarm-manager@presentation" {
+		t.Fatalf("explicit variant targets = %v, want only presentation target", targets)
+	}
+}
+
+func TestDetectPortFromVrooliDoesNotFallbackFromExplicitShadow(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv("VROOLI_HOME", filepath.Join(t.TempDir(), "runtime"))
+	t.Setenv(EnvShadowScenarios, "")
+	t.Setenv(EnvInstanceVariant, "live")
+	t.Setenv(EnvVariantDependencies, "")
+	var targets []string
+	restore := SetPortLookupRunner(func(_ context.Context, target, _ string) ScenarioPortOutcome {
+		targets = append(targets, target)
+		return ScenarioPortOutcome{Err: &ScenarioPortError{Code: ScenarioPortCodeNotRunning}}
+	})
+	t.Cleanup(restore)
+
+	if port := DetectPortFromVrooli("swarm-manager@shadow", "API_PORT")(); port != "" {
+		t.Fatalf("missing explicit shadow returned port %q", port)
+	}
+	if len(targets) != 1 || targets[0] != "swarm-manager@shadow" {
+		t.Fatalf("explicit shadow targets = %v, want only shadow target", targets)
 	}
 }

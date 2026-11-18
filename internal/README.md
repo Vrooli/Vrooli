@@ -11,6 +11,7 @@ directory listing as a hierarchy.
 | Family | Packages | Read in this order |
 | --- | --- | --- |
 | Host requirements and host state | `hostreqspec`, `hostreqkit`, `hostreq`, `hostsession`, `hostinventory`, `hostpressure`, `lifecycle`, `runtime` | specification → shared inspection/apply kit → requirement resolution → session → inventory → pressure → lifecycle/runtime |
+| Setup and privilege | `setup`, `setupprivilege`, `privilegebroker` | setup orchestration → short-lived typed setup elevation session → persistent capability broker |
 | Credentials | `credentialpolicy`, `credentialauthority`, `credentialspec`, `credentialinventory`, `credentialescrow`, `credentials`, `securestore` | policy → authority → specification → inventory → escrow → secure store and repair operations |
 | Scenarios | `scenario`, `scenarioruntime`, `peerrecord`, `lifecycle`, `shell` | model → runtime and peer coordinates → lifecycle and execution |
 | Operator state and capability | `operatorcapability`, `operatorstate` | capability and input contract → durable state |
@@ -35,13 +36,10 @@ internal/cli/<family>handlers handler wiring and command behavior
 
 Thirteen command families share the same outer boundary shape: an application
 package owns transport-free orchestration, a `<family>cli` package owns command
-types and rendering, and a `<family>handlers` package binds root context. The
-canonical rootcli entry points are `BindService` for service-backed commands
-and `BindResourceCommand` when a resource controller must be injected. A
-structural census currently finds five private wrappers around those entry
-points and 43 calls to the wrappers. They are visible, ratcheted debt rather
-than a second unmeasured convention; reducing that population remains follow-up
-work. The families are
+types and rendering, and a `<family>handlers` package binds root context. Use
+`rootcli.BindService` for service-backed commands and `BindResourceCommand`
+when a resource controller must be injected. The canonical-seam inventory
+keeps private binding dialects out of this boundary. The families are
 authentication, capability, capacity, contract, credentials, host, hygiene,
 package, project, recovery, resource, runtime, and scenario.
 
@@ -49,9 +47,8 @@ Manifest-backed families keep their manifest loader inside the service passed
 to `BindService`; this preserves the manifest as the command contract without
 creating a second dispatcher. Resource commands use the sibling canonical
 `BindResourceCommand` entry point when a resource controller must be injected.
-Do not add another package-local wrapper: bind directly through one of those
-two entry points, or reduce an existing wrapper and lower both structural
-census fields when its measured population falls.
+Do not add another package-local wrapper; bind directly through one of those
+two entry points.
 
 ## App-layer responsibility
 

@@ -146,7 +146,7 @@ func (h Harness) installFromManifest(ctx context.Context, deps harnessDeps) erro
 		lock()
 		return err
 	}
-	prefix, err := npmInstallPrefix(h.Home, h.Resource, release.Version, deps.platform)
+	prefix, err := npmInstallPrefix(h.Home, h.Resource, h.Channel, release.Version, deps.platform)
 	if err != nil {
 		lock()
 		return err

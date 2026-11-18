@@ -68,7 +68,7 @@ func (app *Service) Conformance(ctx context.Context, root string, out io.Writer,
 		report = deployability.ConformanceReport{Findings: findings}
 		err = checkErr
 	} else {
-		report, err = deployability.CheckRepository(ctx, root)
+		report, err = deployability.CheckRepository(ctx, root, opts.Progress)
 	}
 	if err != nil {
 		return fmt.Errorf("capability conformance: %w", err)

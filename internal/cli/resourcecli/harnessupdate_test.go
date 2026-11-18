@@ -75,3 +75,24 @@ func TestHarnessUpdateJSONCarriesTheReportOnFailure(t *testing.T) {
 		t.Fatalf("envelope = %+v", envelope)
 	}
 }
+
+func TestParseUpdateChannelSelection(t *testing.T) {
+	req, err := ParseUpdateRequest([]string{"opencode", "--channel", "v2"})
+	if err != nil || req.Channel != "v2" || req.Major != 0 {
+		t.Fatalf("req=%+v err=%v", req, err)
+	}
+	req, err = ParseUpdateRequest([]string{"opencode", "--major", "2"})
+	if err != nil || req.Channel != "" || req.Major != 2 {
+		t.Fatalf("req=%+v err=%v", req, err)
+	}
+	if _, err := ParseUpdateRequest([]string{"opencode", "--channel", "v2", "--major", "2"}); err == nil {
+		t.Fatal("--channel and --major must not be combined")
+	}
+	if _, err := ParseUpdateRequest([]string{"opencode", "--major", "two"}); err == nil {
+		t.Fatal("--major must be numeric")
+	}
+	check, err := ParseUpdateCheckRequest([]string{"opencode", "--channel", "v2"})
+	if err != nil || check.Channel != "v2" || check.Action != CheckAction {
+		t.Fatalf("check=%+v err=%v", check, err)
+	}
+}

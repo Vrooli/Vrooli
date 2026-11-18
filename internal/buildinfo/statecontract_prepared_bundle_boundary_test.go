@@ -38,6 +38,10 @@ func TestRootUpdateHandlerDoesNotAccessPreparedRecoveryState(t *testing.T) {
 		"github.com/vrooli/vrooli/internal/buildinfo", "github.com/vrooli/vrooli/internal/cliinstall",
 		"github.com/vrooli/vrooli/internal/config", "github.com/vrooli/vrooli/internal/coreactivation",
 		"github.com/vrooli/vrooli/internal/rootmetrics",
+		// The forced-transition path names its authority and delegates the
+		// snapshot/receipt work to the runtime package; the handler still owns
+		// no durable-state reads or writes itself.
+		"github.com/vrooli/vrooli/internal/rootauthority",
 	} {
 		allowedImports[importPath] = true
 	}
@@ -471,6 +475,12 @@ func TestRootUpdateHandlerSamePackageCallGraphIsAudited(t *testing.T) {
 		"runRootRebaseline":                   "root_updates.go",
 		"runRootUpdateWorker":                 "root_update_worker.go",
 		"writeRebaselinePlan":                 "root_updates.go",
+		// Forced transitions: the seams are declared here so tests can pin the
+		// authority decision and the snapshot boundary; the durable work lives
+		// in internal/app/runtime.
+		"verifyRootTransitionAuthorityFn": "root_updates.go",
+		"prepareForceControlsFn":          "root_updates.go",
+		"restoreForceControlsFn":          "root_updates.go",
 	}
 	seen := map[string]bool{}
 	ast.Inspect(command, func(node ast.Node) bool {

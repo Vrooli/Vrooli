@@ -198,6 +198,33 @@ func TestApplyInstallsLoadsAndValidatesProfile(t *testing.T) {
 	}
 }
 
+type profileSessionStub struct{ ids []string }
+
+func (*profileSessionStub) InstallPackage(string, string) error                  { return nil }
+func (*profileSessionStub) InstallAptRepository(string, []byte, string) error    { return nil }
+func (*profileSessionStub) InstallOnboardingApplyGrant([]string, []string) error { return nil }
+func (s *profileSessionStub) InstallAppArmorProfile(id string) error {
+	s.ids = append(s.ids, id)
+	return nil
+}
+
+func TestApplyUsesSetupSessionWithoutStandaloneMutationCommands(t *testing.T) {
+	restore := restoreHostreq(t)
+	defer restore()
+	hostreqkit.LookPathFn = func(name string) (string, error) { return "/usr/bin/" + name, nil }
+	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return nil, nil }
+	session := &profileSessionStub{}
+	hostreqkit.WriteTempFileFn = func(string) (string, error) { t.Fatal("session route staged profile"); return "", nil }
+	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error {
+		t.Fatal("session route launched a separate privileged command")
+		return nil
+	}
+	status, err := newTestHandler().Apply(linuxHost(), hostreqkit.ItemStatus{SupportClass: hostreqkit.SupportSupported}, hostreqkit.EnsureOptions{SetupPrivilegeSession: session})
+	if err != nil || status.ExecutionState != hostreqkit.ExecutionApplied || !reflect.DeepEqual(session.ids, []string{profileID}) {
+		t.Fatalf("status=%+v ids=%v err=%v", status, session.ids, err)
+	}
+}
+
 func TestApplyFailsWithoutAaExec(t *testing.T) {
 	restore := restoreHostreq(t)
 	defer restore()

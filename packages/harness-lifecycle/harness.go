@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
@@ -34,6 +35,9 @@ type Harness struct {
 	// authored against. It never selects what is installed.
 	ReviewedVersion string
 	Acquisition     *binaryfetch.Acquisition
+	// Channel is the declared release line being managed. Empty is the default
+	// channel and keeps the historical install/rollback layout.
+	Channel string
 	// Package is the npm package, empty for a harness released by manifest.
 	Package string
 	// Executable is the entry point relative to a version prefix.
@@ -82,9 +86,16 @@ func harnessManifestBase(resource string) string {
 	return ""
 }
 
-// LoadHarness reads one coding-agent resource from its manifest under root.
+// LoadHarness reads one coding-agent resource from its default channel.
 func LoadHarness(root, resource string) (Harness, error) {
 	return loadHarness(root, resource, defaultHarnessLoadDeps())
+}
+
+// LoadHarnessChannel reads one coding-agent resource from a declared channel.
+// An unknown or absent channel is an error; callers must not silently fall back
+// to the default release line during a major upgrade.
+func LoadHarnessChannel(root, resource, channel string) (Harness, error) {
+	return loadHarnessWithChannel(root, resource, channel, defaultHarnessLoadDeps())
 }
 
 // harnessLoadDeps isolates manifest and host-home lookups used while deriving
@@ -106,6 +117,10 @@ func defaultHarnessLoadDeps() harnessLoadDeps {
 }
 
 func loadHarness(root, resource string, deps harnessLoadDeps) (Harness, error) {
+	return loadHarnessWithChannel(root, resource, "", deps)
+}
+
+func loadHarnessWithChannel(root, resource, channel string, deps harnessLoadDeps) (Harness, error) {
 	platform := defaultPlatformDeps()
 	if deps.goos == "" {
 		deps.goos = platform.goos
@@ -126,16 +141,25 @@ func loadHarness(root, resource string, deps harnessLoadDeps) (Harness, error) {
 	if err != nil {
 		return Harness{}, err
 	}
+	channel = strings.TrimSpace(channel)
 	harness := Harness{
 		Resource: resource, Binary: binary, Home: home, BinDir: filepath.Join(home, ".local", "bin"),
-		Acquisition: manifest.Acquisition, ManifestBase: harnessManifestBase(resource),
+		Acquisition: manifest.Acquisition, ManifestBase: harnessManifestBase(resource), Channel: channel,
 		DelegatePath: harnessDelegate(resource, home), InstallerPaths: harnessInstallerPaths(resource, home),
 		ReviewedVersion: reviewedVersion(path),
 	}
+	if channel != "" && manifest.Acquisition == nil {
+		return Harness{}, fmt.Errorf("resource %s declares no acquisition channels", resource)
+	}
 	if manifest.Acquisition != nil {
-		target, err := manifest.Acquisition.Resolve(binaryfetch.Facts{"os": deps.goos, "arch": deps.goarch})
+		target, err := manifest.Acquisition.ResolveForChannel(binaryfetch.Facts{"os": deps.goos, "arch": deps.goarch}, channel)
 		if err == nil && target.Unsupported == "" {
 			harness.Package = target.Package
+			if channel != "" && target.Version != "" {
+				// The default pin documents the default line's review baseline;
+				// another channel carries its own pinned baseline in its target.
+				harness.ReviewedVersion = target.Version
+			}
 			if harness.Package != "" {
 				harness.Executable = target.BinPath
 				if harness.ReviewedVersion == "" {
@@ -144,6 +168,8 @@ func loadHarness(root, resource string, deps harnessLoadDeps) (Harness, error) {
 			} else {
 				harness.ArchiveEntry = target.BinPath
 			}
+		} else if channel != "" {
+			return Harness{}, fmt.Errorf("resource %s has no %q channel for %s/%s", resource, channel, deps.goos, deps.goarch)
 		}
 	}
 	if set, err := harnesscatalog.Load(root); err == nil {
@@ -161,6 +187,46 @@ func loadHarness(root, resource string, deps harnessLoadDeps) (Harness, error) {
 		}
 	}
 	return harness, nil
+}
+
+// MajorVersion returns the numeric major of a semver string.
+func MajorVersion(version string) (int, bool) {
+	version = upstreamcheck.ExtractSemver(strings.TrimSpace(version))
+	if version == "" {
+		return 0, false
+	}
+	head, _, _ := strings.Cut(version, ".")
+	major, err := strconv.Atoi(head)
+	if err != nil || major <= 0 {
+		return 0, false
+	}
+	return major, true
+}
+
+// ChannelForMajor returns the declared channel that carries a given major. An
+// empty result means the default channel; an error means no channel declares
+// that major.
+func ChannelForMajor(root, resource string, major int) (string, error) {
+	h, err := LoadHarness(root, resource)
+	if err != nil {
+		return "", err
+	}
+	if h.Acquisition == nil {
+		return "", fmt.Errorf("resource %s declares no acquisition channels", resource)
+	}
+	if major == 1 {
+		return "", nil
+	}
+	for _, target := range h.Acquisition.Targets {
+		channel := strings.TrimSpace(target.Channel)
+		if channel == "" {
+			continue
+		}
+		if got, ok := MajorVersion(target.Version); ok && got == major {
+			return channel, nil
+		}
+	}
+	return "", fmt.Errorf("resource %s has no channel for major %d", resource, major)
 }
 
 // reviewedVersion reads upstream_cli.version_pinned, the policy baseline Manage
@@ -185,7 +251,7 @@ func reviewedVersion(path string) string {
 func (h Harness) linkPath() string { return filepath.Join(h.BinDir, h.Binary) }
 
 func (h Harness) versionsRoot() (string, error) {
-	prefix, err := NPMInstallPrefix(h.Home, h.Resource, "0")
+	prefix, err := NPMInstallPrefixForChannel(h.Home, h.Resource, h.Channel, "0")
 	if err != nil {
 		return "", err
 	}
@@ -193,7 +259,7 @@ func (h Harness) versionsRoot() (string, error) {
 }
 
 func (h Harness) spec() Spec {
-	return Spec{ResourceName: h.Resource, Binary: h.Binary, BinDir: h.BinDir, Acquisition: h.Acquisition}
+	return Spec{ResourceName: h.Resource, Binary: h.Binary, BinDir: h.BinDir, Acquisition: h.Acquisition, Channel: h.Channel}
 }
 
 // managedInstall is one complete version prefix.
@@ -289,9 +355,56 @@ const (
 // linkState describes the path the harness is meant to be selected from.
 type linkState struct {
 	Kind    linkKind
+	Channel string
 	Version string
 	Prefix  string
 	Target  string
+}
+
+// channelRoot is one declared install root. The default channel is always
+// present; additional roots come from manifest targets so a major upgrade can
+// recognize the link it is replacing.
+type channelRoot struct {
+	Channel string
+	Root    string
+}
+
+func (h Harness) versionsRoots() ([]channelRoot, error) {
+	seen := map[string]struct{}{}
+	var roots []channelRoot
+	add := func(channel string) error {
+		prefix, err := NPMInstallPrefixForChannel(h.Home, h.Resource, channel, "0")
+		if err != nil {
+			return err
+		}
+		root := filepath.Dir(prefix)
+		if _, ok := seen[root]; ok {
+			return nil
+		}
+		seen[root] = struct{}{}
+		roots = append(roots, channelRoot{Channel: channel, Root: root})
+		return nil
+	}
+	if err := add(""); err != nil {
+		return nil, err
+	}
+	if h.Acquisition != nil {
+		for _, target := range h.Acquisition.Targets {
+			channel := strings.TrimSpace(target.Channel)
+			if channel == "" {
+				continue
+			}
+			if err := add(channel); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if h.Channel != "" {
+		if err := add(h.Channel); err != nil {
+			return nil, err
+		}
+	}
+	return roots, nil
 }
 
 func (h Harness) readLink() (linkState, error) {
@@ -314,18 +427,23 @@ func (h Harness) readLink() (linkState, error) {
 	if !filepath.IsAbs(target) {
 		target = filepath.Join(filepath.Dir(path), target)
 	}
-	root, err := h.versionsRoot()
+	roots, err := h.versionsRoots()
 	if err != nil {
 		return linkState{}, err
 	}
-	relative, err := filepath.Rel(root, filepath.Clean(target))
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
-		return state, nil
-	}
 	suffix := "-" + runtime.GOOS + "-" + runtime.GOARCH
-	directory := strings.Split(relative, string(filepath.Separator))[0]
-	if version := strings.TrimSuffix(directory, suffix); version != directory && upstreamcheck.ExtractSemver(version) == version {
-		state.Kind, state.Version, state.Prefix = linkManaged, version, filepath.Join(root, directory)
+	for _, candidate := range roots {
+		relative, err := filepath.Rel(candidate.Root, filepath.Clean(target))
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			continue
+		}
+		directory := strings.Split(relative, string(filepath.Separator))[0]
+		version := strings.TrimSuffix(directory, suffix)
+		if version == directory || upstreamcheck.ExtractSemver(version) != version {
+			continue
+		}
+		state.Kind, state.Channel, state.Version, state.Prefix = linkManaged, candidate.Channel, version, filepath.Join(candidate.Root, directory)
+		return state, nil
 	}
 	return state, nil
 }

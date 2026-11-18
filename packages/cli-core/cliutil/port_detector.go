@@ -44,40 +44,8 @@ var (
 	portCacheMu sync.Mutex
 	portCache   = map[string]*portCacheEntry{}
 
-	portCacheNow    = time.Now
-	portLookupStats PortLookupCounters
+	portCacheNow = time.Now
 )
-
-const portLookupStatsFileEnv = "VROOLI_PORT_LOOKUP_STATS_FILE"
-
-// PortLookupCounters counts uncached evaluations by the rung that answered
-// them. The lifecycle uses this as an inexpensive proof that normal callers
-// are served by peer records rather than spawning the CLI fallback.
-type PortLookupCounters struct {
-	Evaluations  int64
-	PeerHits     int64
-	RegistryHits int64
-	CLIHits      int64
-}
-
-// PortLookupStats returns a snapshot of the process-wide uncached ladder
-// evaluations. Cache hits are intentionally excluded from the denominator.
-func PortLookupStats() PortLookupCounters {
-	portCacheMu.Lock()
-	local := portLookupStats
-	portCacheMu.Unlock()
-
-	// Lookup callers run in several lifecycle and agent processes. When the
-	// shared counter path is configured, read the append-only rung log so the
-	// diagnostic surface observes the whole start cycle rather than only the
-	// process serving that surface.
-	if path := portLookupStatsPath(); path != "" {
-		if aggregate, ok := readPortLookupStats(path); ok {
-			return aggregate
-		}
-	}
-	return local
-}
 
 // portLookupTimeout bounds a lookup whose caller supplied no deadline.
 const portLookupTimeout = 5 * time.Second
@@ -102,6 +70,10 @@ type PortCachePolicy struct {
 	// NegativeMaxAge bounds reuse of a confirmed stopped-target lookup. Other
 	// failures are never cached. Zero disables negative reuse.
 	NegativeMaxAge time.Duration
+	// OnCacheLookup observes this call's shared-cache decision. It receives true
+	// for a reusable entry and false when the lookup must evaluate authorities.
+	// It is called synchronously after the per-key gate and at most once.
+	OnCacheLookup func(hit bool)
 }
 
 // DefaultPortCachePolicy is used by the CLI-facing detectors.
@@ -148,9 +120,9 @@ func (o ScenarioPortOutcome) Resolved() bool {
 }
 
 type portCacheEntry struct {
-	mu       sync.Mutex
-	outcome  ScenarioPortOutcome
-	resolved time.Time
+	lookupGate chan struct{}
+	outcome    ScenarioPortOutcome
+	resolved   time.Time
 }
 
 // resetPortDetectorCache drops every memoized lookup. Tests use it so a
@@ -159,10 +131,6 @@ func resetPortDetectorCache() {
 	portCacheMu.Lock()
 	defer portCacheMu.Unlock()
 	portCache = map[string]*portCacheEntry{}
-	portLookupStats = PortLookupCounters{}
-	if path := portLookupStatsPath(); path != "" {
-		_ = os.Truncate(path, 0)
-	}
 }
 
 // SetPortCacheNowForTest overrides the cache clock so tests can advance time
@@ -181,7 +149,7 @@ func portCacheEntryFor(key string) *portCacheEntry {
 	defer portCacheMu.Unlock()
 	entry, ok := portCache[key]
 	if !ok {
-		entry = &portCacheEntry{}
+		entry = &portCacheEntry{lookupGate: make(chan struct{}, 1)}
 		portCache[key] = entry
 	}
 	return entry
@@ -189,13 +157,28 @@ func portCacheEntryFor(key string) *portCacheEntry {
 
 // LookupScenarioPort resolves <target>'s <portVar> through three rungs: the
 // lifecycle peer record, the runtime registry, and finally `vrooli scenario
-// port`. Each rung is attempted only when the preceding rung misses. Results
-// are cached per policy window and concurrent callers for one key share one
-// evaluation.
+// port`. Each rung is attempted only when the preceding rung misses. One
+// caller deadline (or the default five-second bound when absent) covers the
+// registry and CLI rungs, including a wait for another caller's in-flight
+// evaluation. Results are cached per policy window and concurrent callers for
+// one key share one evaluation.
 func LookupScenarioPort(ctx context.Context, target, portVar string, policy PortCachePolicy) ScenarioPortOutcome {
+	lookupCtx, cancel := boundedLookupContext(ctx)
+	defer cancel()
+	if err := lookupCtx.Err(); err != nil {
+		return ScenarioPortOutcome{Err: err}
+	}
+
 	entry := portCacheEntryFor(target + "\x00" + portVar)
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
+	select {
+	case entry.lookupGate <- struct{}{}:
+		defer func() { <-entry.lookupGate }()
+		if err := lookupCtx.Err(); err != nil {
+			return ScenarioPortOutcome{Err: err}
+		}
+	case <-lookupCtx.Done():
+		return ScenarioPortOutcome{Err: lookupCtx.Err()}
+	}
 
 	if !entry.resolved.IsZero() {
 		maxAge := policy.MaxAge
@@ -203,115 +186,97 @@ func LookupScenarioPort(ctx context.Context, target, portVar string, policy Port
 			maxAge = policy.NegativeMaxAge
 		}
 		if maxAge > 0 && portCacheNow().Sub(entry.resolved) < maxAge {
-			return entry.outcome
+			if policy.OnCacheLookup != nil {
+				policy.OnCacheLookup(true)
+			}
+			return outcomeAfterLookupContext(entry.outcome, lookupCtx)
 		}
 	}
-
+	if err := lookupCtx.Err(); err != nil {
+		return ScenarioPortOutcome{Err: err}
+	}
+	if policy.OnCacheLookup != nil {
+		policy.OnCacheLookup(false)
+	}
 	if os.Getenv("VROOLI_DESKTOP_MODE") == "true" {
-		outcome := desktopPortLookupFn(ctx, target, portVar)
-		if ctx.Err() == nil && outcome.Resolved() {
+		outcome := desktopPortLookupFn(lookupCtx, target, portVar)
+		outcome = outcomeAfterLookupContext(outcome, lookupCtx)
+		if lookupCtx.Err() == nil && outcome.Resolved() {
 			entry.outcome, entry.resolved = outcome, portCacheNow()
+		}
+		if err := lookupCtx.Err(); err != nil {
+			entry.outcome, entry.resolved = ScenarioPortOutcome{}, time.Time{}
+			return outcomeAfterLookupContext(outcome, lookupCtx)
 		}
 		return outcome
 	}
 
 	outcome := peerRecordLookupFn(target, portVar)
-	portCacheMu.Lock()
-	portLookupStats.Evaluations++
-	appendPortLookupEvent("evaluation")
-	if outcome.Resolved() {
-		portLookupStats.PeerHits++
-		appendPortLookupEvent("peer")
-	}
-	portCacheMu.Unlock()
 	if !outcome.Resolved() {
-		outcome = runtimeRegistryLookupFn(ctx, target, portVar)
-		portCacheMu.Lock()
-		if outcome.Resolved() {
-			portLookupStats.RegistryHits++
-			appendPortLookupEvent("registry")
+		if err := lookupCtx.Err(); err != nil {
+			return outcomeAfterLookupContext(outcome, lookupCtx)
 		}
-		portCacheMu.Unlock()
 	}
 	if !outcome.Resolved() {
-		outcome = portLookupRunner(ctx, target, portVar)
-		portCacheMu.Lock()
-		if outcome.Resolved() {
-			portLookupStats.CLIHits++
-			appendPortLookupEvent("cli")
-		}
-		portCacheMu.Unlock()
+		outcome = runtimeRegistryLookupFn(lookupCtx, target, portVar)
 	}
+	if !outcome.Resolved() && lookupCtx.Err() == nil {
+		outcome = portLookupRunner(lookupCtx, target, portVar)
+	}
+	outcome = outcomeAfterLookupContext(outcome, lookupCtx)
 
 	// A cancelled or expired context describes the caller's deadline, not the
 	// target's state. Caching it would let one caller's cancellation deny an
 	// unrelated caller for the whole negative window.
-	if ctx.Err() != nil {
+	if lookupCtx.Err() != nil {
 		return outcome
 	}
-
 	if outcome.Resolved() || scenarioNotRunningOutcome(outcome) {
 		entry.outcome, entry.resolved = outcome, portCacheNow()
 	} else {
 		entry.resolved = time.Time{}
+	}
+	if err := lookupCtx.Err(); err != nil {
+		entry.outcome, entry.resolved = ScenarioPortOutcome{}, time.Time{}
+		return outcomeAfterLookupContext(outcome, lookupCtx)
+	}
+	return outcome
+}
+
+// InvalidateScenarioPortCache clears one target/port outcome after acquiring
+// the same per-key gate used by lookups. The caller deadline also bounds time
+// waiting for an in-flight lookup, so a startup recovery cannot hang here.
+func InvalidateScenarioPortCache(ctx context.Context, target, portVar string) error {
+	lookupCtx, cancel := boundedLookupContext(ctx)
+	defer cancel()
+	if err := lookupCtx.Err(); err != nil {
+		return err
+	}
+	entry := portCacheEntryFor(target + "\x00" + portVar)
+	select {
+	case entry.lookupGate <- struct{}{}:
+		defer func() { <-entry.lookupGate }()
+	case <-lookupCtx.Done():
+		return lookupCtx.Err()
+	}
+	if err := lookupCtx.Err(); err != nil {
+		return err
+	}
+	entry.outcome = ScenarioPortOutcome{}
+	entry.resolved = time.Time{}
+	return nil
+}
+
+func outcomeAfterLookupContext(outcome ScenarioPortOutcome, ctx context.Context) ScenarioPortOutcome {
+	if err := ctx.Err(); err != nil {
+		outcome.Port = ""
+		outcome.Err = err
 	}
 	return outcome
 }
 
 func scenarioNotRunningOutcome(outcome ScenarioPortOutcome) bool {
 	return IsScenarioPortNotRunning(outcome.Err)
-}
-
-func portLookupStatsPath() string {
-	if path := strings.TrimSpace(os.Getenv(portLookupStatsFileEnv)); path != "" {
-		return path
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	root, err := repocontract.VrooliUserRoot(home)
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(root, "state", "port-lookup-stats.log")
-}
-
-func appendPortLookupEvent(event string) {
-	path := portLookupStatsPath()
-	if path == "" {
-		return
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return
-	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
-	if err != nil {
-		return
-	}
-	_, _ = file.WriteString(event + "\n")
-	_ = file.Close()
-}
-
-func readPortLookupStats(path string) (PortLookupCounters, bool) {
-	payload, err := os.ReadFile(path)
-	if err != nil {
-		return PortLookupCounters{}, false
-	}
-	var stats PortLookupCounters
-	for _, event := range strings.Split(string(payload), "\n") {
-		switch strings.TrimSpace(event) {
-		case "evaluation":
-			stats.Evaluations++
-		case "peer":
-			stats.PeerHits++
-		case "registry":
-			stats.RegistryHits++
-		case "cli":
-			stats.CLIHits++
-		}
-	}
-	return stats, true
 }
 
 // lookupRuntimeRegistry is the second local authority after peer records.
@@ -471,9 +436,6 @@ func resolveVrooliBinary() string {
 // runScenarioPortCommand is the sole place this repository shells out after
 // peer-record and runtime-registry discovery miss.
 func runScenarioPortCommand(ctx context.Context, target, portVar string) ScenarioPortOutcome {
-	ctx, cancel := boundedLookupContext(ctx)
-	defer cancel()
-
 	res := runVrooliFn(ctx, cliinvoke.Invocation{Binary: resolveVrooliBinary(), Args: cliinvoke.ScenarioPortJSON(target, portVar)})
 	text := strings.TrimSpace(string(res.Combined()))
 	if err := res.Error(); err != nil {
@@ -532,38 +494,30 @@ func boundedLookupContext(ctx context.Context) (context.Context, context.CancelF
 // scenario. The detector is instance-aware: it resolves the shadow-aware target
 // (explicit --instance override or ambient VROOLI_SHADOW_SCENARIOS) at call time,
 // so when the named scenario is shadowed the lookup addresses "<name>@shadow".
-// If that non-live lookup yields nothing, it warns once and falls back to the
-// live instance — never silent. For an unshadowed scenario the target is the
-// bare name and behavior is unchanged.
+// An ambient shadow selection may fall back to live only after a typed
+// scenario_not_running result. Explicit instance selections, transient and
+// unclassified errors, and variant dependencies stay pinned. For an
+// unshadowed scenario the target is the bare name and behavior is unchanged.
 func DetectPortFromVrooli(scenarioName, portVar string) func() string {
 	return func() string {
 		target := ResolveShadowTarget(scenarioName)
-		port := detectPortForTarget(target, portVar)
-		if port == "" && IsNonLiveTarget(target) {
+		outcome := LookupScenarioPort(context.Background(), target, portVar, DefaultPortCachePolicy)
+		if ShouldAutomaticallyFallbackToLiveInstance(scenarioName, target, IsScenarioPortNotRunning(outcome.Err)) {
 			WarnShadowFallback(scenarioName)
-			port = detectPortForTarget(BareScenarioName(scenarioName), portVar)
+			outcome = LookupScenarioPort(context.Background(), BareScenarioName(scenarioName), portVar, DefaultPortCachePolicy)
 		}
-		return port
+		return outcome.Port
 	}
 }
 
-func detectPortForTarget(target, portVar string) string {
-	return LookupScenarioPort(context.Background(), target, portVar, DefaultPortCachePolicy).Port
-}
-
-// DetectScenarioRuntimeStatus returns a detector for Vrooli's lifecycle state.
-// Unlike a port lookup, the status command distinguishes an intentionally
-// stopped scenario from an unknown or merely unconfigured local API. Failures
-// intentionally return "" so callers can retain conservative generic guidance.
+// DetectScenarioRuntimeStatus returns the lifecycle state for the selected
+// scenario instance. Status is already meaningful for a stopped scenario, so
+// an empty/error result must stay scoped to that target instead of silently
+// substituting the live instance.
 func DetectScenarioRuntimeStatus(scenarioName string) func() string {
 	return func() string {
 		target := ResolveShadowTarget(scenarioName)
-		status := detectRuntimeStatusForTarget(target)
-		if status == "" && IsNonLiveTarget(target) {
-			WarnShadowFallback(scenarioName)
-			status = detectRuntimeStatusForTarget(BareScenarioName(scenarioName))
-		}
-		return status
+		return detectRuntimeStatusForTarget(target)
 	}
 }
 

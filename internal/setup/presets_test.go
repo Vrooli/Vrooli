@@ -64,6 +64,16 @@ func TestPresetsExpandToTargetedSelections(t *testing.T) {
 	}
 }
 
+func TestClonePresetDeepClonesSelection(t *testing.T) {
+	original := Preset{Selection: &setupv1.Selection{Scenarios: []string{"web"}, OptionalResources: []string{"redis"}}}
+	cloned := clonePreset(original)
+	cloned.Selection.Scenarios[0] = "worker"
+	cloned.Selection.OptionalResources[0] = "postgres"
+	if original.Selection.Scenarios[0] != "web" || original.Selection.OptionalResources[0] != "redis" {
+		t.Fatalf("mutating cloned selection changed original: %+v", original.Selection)
+	}
+}
+
 func TestExpandPresetRejectsUnknownName(t *testing.T) {
 	if _, err := ExpandPreset("staging", "local"); err == nil {
 		t.Fatal("unknown preset was accepted")

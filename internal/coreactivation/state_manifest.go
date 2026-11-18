@@ -81,5 +81,8 @@ func ExplainRollbackRefusal(ctx context.Context, err error, servingImage, candid
 	if !errors.Is(err, ErrStateContractChanged) {
 		return err
 	}
+	if changes := ExplainStateFormatChange(ctx, servingImage, candidateImage); len(changes) > 0 {
+		return fmt.Errorf("%w:\n  - %s", err, strings.Join(changes, "\n  - "))
+	}
 	return fmt.Errorf("%w:\n  - %s", err, strings.Join(ExplainStateContractChange(ctx, servingImage, candidateImage), "\n  - "))
 }

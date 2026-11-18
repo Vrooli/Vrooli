@@ -3,6 +3,7 @@ package resourcecli
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
@@ -22,6 +23,8 @@ type UpdateRequest struct {
 	Action        string
 	OnBehalfOf    string
 	CleanupPlanID string
+	Channel       string
+	Major         int
 }
 
 // ParseUpdateRequest maps the operator-facing flags to one action.
@@ -39,7 +42,17 @@ func ParseUpdateRequest(args []string) (UpdateRequest, error) {
 			return UpdateRequest{}, fmt.Errorf("%s: %s applies only to managed-service updates", command, flag)
 		}
 	}
-	req := UpdateRequest{Name: parsed.Positionals[0], Action: agentinstall.ActionUpdate, OnBehalfOf: parsed.FlagValue("--on-behalf-of"), CleanupPlanID: parsed.FlagValue("--cleanup-plan")}
+	req := UpdateRequest{Name: parsed.Positionals[0], Action: agentinstall.ActionUpdate, OnBehalfOf: parsed.FlagValue("--on-behalf-of"), CleanupPlanID: parsed.FlagValue("--cleanup-plan"), Channel: strings.TrimSpace(parsed.FlagValue("--channel"))}
+	if parsed.HasFlag("--major") {
+		if req.Channel != "" {
+			return UpdateRequest{}, fmt.Errorf("%s: --channel and --major cannot be combined", command)
+		}
+		major, err := strconv.Atoi(strings.TrimSpace(parsed.FlagValue("--major")))
+		if err != nil || major <= 0 {
+			return UpdateRequest{}, fmt.Errorf("%s: --major must be a positive integer", command)
+		}
+		req.Major = major
+	}
 	if parsed.HasFlag("--check") && parsed.HasFlag("--action") {
 		return UpdateRequest{}, fmt.Errorf("%s: --check and --action cannot be combined", command)
 	}
@@ -69,7 +82,18 @@ func ParseUpdateCheckRequest(args []string) (UpdateRequest, error) {
 	if len(parsed.Positionals) != 1 {
 		return UpdateRequest{}, fmt.Errorf("%s requires exactly one coding-agent resource name", command)
 	}
-	return UpdateRequest{Name: parsed.Positionals[0], Action: CheckAction}, nil
+	req := UpdateRequest{Name: parsed.Positionals[0], Action: CheckAction, Channel: strings.TrimSpace(parsed.FlagValue("--channel"))}
+	if parsed.HasFlag("--major") {
+		if req.Channel != "" {
+			return UpdateRequest{}, fmt.Errorf("%s: --channel and --major cannot be combined", command)
+		}
+		major, err := strconv.Atoi(strings.TrimSpace(parsed.FlagValue("--major")))
+		if err != nil || major <= 0 {
+			return UpdateRequest{}, fmt.Errorf("%s: --major must be a positive integer", command)
+		}
+		req.Major = major
+	}
+	return req, nil
 }
 
 // WriteHarnessUpdate renders an observation or action outcome. JSON is the

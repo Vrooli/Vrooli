@@ -88,7 +88,7 @@ func (c *rootDecisionClient) post(ctx context.Context, path string, body any, re
 	return nil
 }
 func verifyRootDecision(got rootDecisionLookup, askID string, terms rootDecisionTerms, digest string, now time.Time) (bool, error) {
-	if got.AskID != askID || askID == "" || got.RequesterRef != terms.RequesterRef || got.Digest != digest || got.Deadline != terms.Deadline {
+	if got.AskID != askID || askID == "" || got.RequesterRef != terms.RequesterRef || got.Digest != digest || !sameDecisionDeadline(got.Deadline, terms.Deadline) {
 		return false, fmt.Errorf("notification-hub decision identity does not match the qualified transition")
 	}
 	deadline, err := time.Parse(time.RFC3339, terms.Deadline)
@@ -113,6 +113,19 @@ func verifyRootDecision(got rootDecisionLookup, askID string, terms rootDecision
 		return false, fmt.Errorf("notification-hub answer time is invalid")
 	}
 	return true, nil
+}
+
+// sameDecisionDeadline accepts the same instant written in either RFC3339
+// seconds (the terms producer) or RFC3339Nano (the Hub's stored ask). Comparing
+// the strings directly refused a perfectly valid decision whenever the Hub
+// preserved fractional seconds.
+func sameDecisionDeadline(hub, terms string) bool {
+	hubTime, hubErr := time.Parse(time.RFC3339Nano, strings.TrimSpace(hub))
+	termTime, termErr := time.Parse(time.RFC3339Nano, strings.TrimSpace(terms))
+	if hubErr != nil || termErr != nil {
+		return strings.TrimSpace(hub) == strings.TrimSpace(terms)
+	}
+	return hubTime.Equal(termTime)
 }
 
 // The local record is a locator, never authority. The Hub consumes each verified
@@ -147,7 +160,7 @@ func confirmRootViaHub(ctx context.Context, c *rootDecisionClient, plan runtimea
 			return false, err
 		}
 		if err == nil {
-			if prior.AskID == "" || prior.RequesterRef != terms.RequesterRef || prior.Digest != priorDigest || prior.Deadline != terms.Deadline {
+			if prior.AskID == "" || prior.RequesterRef != terms.RequesterRef || prior.Digest != priorDigest || !sameDecisionDeadline(prior.Deadline, terms.Deadline) {
 				return false, fmt.Errorf("notification-hub decision identity does not match the qualified transition")
 			}
 			if prior.ConsumedAt != "" {

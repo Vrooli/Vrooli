@@ -18,6 +18,7 @@ import (
 // tool manifest; only the repository-specific values belong to the caller.
 type AptRepoInstaller struct {
 	Manifest             ToolManifest
+	Repository           string
 	AptPackage           string
 	KeyringPath          string
 	SourcePath           string
@@ -29,6 +30,19 @@ type AptRepoInstaller struct {
 	BrewDryRunNote       string
 	WingetDryRunNote     string
 	UnsupportedApplyNote string
+}
+
+func (i AptRepoInstaller) packageForHost(host Host) (string, string) {
+	switch platform := hostreqspec.PlatformFromGOOS(host.OS); {
+	case platform == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
+		return host.PackageManager, i.AptPackage
+	case platform == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
+		return helpersBrew, i.Manifest.Packages[helpersBrew]
+	case platform == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
+		return helpersWinget, i.Manifest.Packages[helpersWinget]
+	default:
+		return "", ""
+	}
 }
 
 // Inspect returns the common tool status for an apt-repository-backed tool.
@@ -43,19 +57,13 @@ func (i AptRepoInstaller) Inspect(host Host, requirement hostreqspec.ResolvedReq
 		return status
 	}
 
-	switch {
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
-		status.PackageName = i.AptPackage
-		status.InstallSupported = true
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
-		status.PackageName = i.Manifest.Packages["brew"]
-		status.InstallSupported = true
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
-		status.PackageName = i.Manifest.Packages["winget"]
-		status.InstallSupported = status.PackageName != ""
-	default:
+	manager, packageName := i.packageForHost(host)
+	if manager == "" {
 		status.SupportClass = SupportUnsupported
 		status.ExecutionState = ExecutionUnsupported
+	} else {
+		status.PackageName = packageName
+		status.InstallSupported = manager != helpersWinget || packageName != ""
 	}
 
 	if status.Installed {
@@ -76,15 +84,15 @@ func (i AptRepoInstaller) Apply(host Host, status ItemStatus, opts EnsureOptions
 		return status, nil
 	}
 
-	switch {
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
+	manager, packageName := i.packageForHost(host)
+	switch manager {
+	case helpersApt, helpersAptGet:
 		if err := i.installLinux(host, opts); err != nil {
 			return status, err
 		}
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
-		packageName := status.PackageName
-		if packageName == "" {
-			packageName = i.Manifest.Packages["brew"]
+	case helpersBrew:
+		if status.PackageName != "" {
+			packageName = status.PackageName
 		}
 		command, args, err := InstallCommand(host, packageName, opts.SudoMode)
 		if err != nil {
@@ -93,10 +101,9 @@ func (i AptRepoInstaller) Apply(host Host, status ItemStatus, opts EnsureOptions
 		if err := RunInstallCommand(command, args, opts); err != nil {
 			return status, err
 		}
-	case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
-		packageName := status.PackageName
-		if packageName == "" {
-			packageName = i.Manifest.Packages["winget"]
+	case helpersWinget:
+		if status.PackageName != "" {
+			packageName = status.PackageName
 		}
 		command, args, err := InstallCommand(host, packageName, opts.SudoMode)
 		if err != nil {
@@ -129,13 +136,14 @@ func (i AptRepoInstaller) ApplyWithNotes(host Host, status ItemStatus, opts Ensu
 	}
 	if opts.DryRun {
 		status.ExecutionState = ExecutionWouldInstall
-		switch {
-		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformLinux && (host.PackageManager == helpersApt || host.PackageManager == helpersAptGet):
+		manager, packageName := i.packageForHost(host)
+		switch manager {
+		case helpersApt, helpersAptGet:
 			status.Notes = append(status.Notes, i.AptDryRunNotes...)
-		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformMacOS && host.PackageManager == helpersBrew:
-			status.Notes = append(status.Notes, i.BrewDryRunNote+" "+i.Manifest.Packages["brew"])
-		case hostreqspec.PlatformFromGOOS(host.OS) == hostreqspec.PlatformWindows && host.PackageManager == helpersWinget:
-			status.Notes = append(status.Notes, i.WingetDryRunNote+" "+i.Manifest.Packages["winget"])
+		case helpersBrew:
+			status.Notes = append(status.Notes, i.BrewDryRunNote+" "+packageName)
+		case helpersWinget:
+			status.Notes = append(status.Notes, i.WingetDryRunNote+" "+packageName)
 		default:
 			status.SupportClass = SupportUnsupported
 			status.ExecutionState = ExecutionUnsupported
@@ -159,6 +167,13 @@ func (i AptRepoInstaller) installLinux(host Host, opts EnsureOptions) error {
 	keyData, err := i.downloadKey()
 	if err != nil {
 		return err
+	}
+	line := ""
+	if i.SourceLine != nil {
+		line = i.SourceLine(host)
+	}
+	if opts.SetupPrivilegeSession != nil && strings.TrimSpace(i.Repository) == "" {
+		return fmt.Errorf("APT repository is not supported by the setup privilege session")
 	}
 	keyFile, err := os.CreateTemp("", "vrooli-apt-key-*")
 	if err != nil {
@@ -199,15 +214,30 @@ func (i AptRepoInstaller) installLinux(host Host, opts EnsureOptions) error {
 		}
 	}
 
+	if opts.SetupPrivilegeSession != nil {
+		keyringData, err := os.ReadFile(installKeyPath)
+		if err != nil {
+			return fmt.Errorf("read prepared apt keyring: %w", err)
+		}
+		if err := opts.SetupPrivilegeSession.InstallAptRepository(i.Repository, keyringData, strings.TrimSpace(line)); err != nil {
+			return err
+		}
+		command, args, err := InstallCommand(host, i.AptPackage, opts.SudoMode)
+		if err != nil {
+			return err
+		}
+		request, ok := inferredPackageInstall(command, args)
+		if !ok {
+			return fmt.Errorf("setup APT package command is not a supported package install")
+		}
+		return RunInstallCommandWithProvenance(command, args, opts, request)
+	}
+
 	sourceFile, err := os.CreateTemp("", "vrooli-apt-source-*.list")
 	if err != nil {
 		return fmt.Errorf("create apt source temp file: %w", err)
 	}
 	sourceTempPath := sourceFile.Name()
-	line := ""
-	if i.SourceLine != nil {
-		line = i.SourceLine(host)
-	}
 	if _, err := sourceFile.WriteString(line + "\n"); err != nil {
 		_ = sourceFile.Close()
 		return fmt.Errorf("write apt source temp file: %w", err)
@@ -511,10 +541,10 @@ func (a SysctlApplier) Apply(status ItemStatus, opts EnsureOptions) (ItemStatus,
 		status.Notes = append(status.Notes, a.DryRunNote)
 		return status, nil
 	}
-	if err := EnsureManagedDir(filepath.Dir(a.ConfigPath), opts.SudoMode, opts); err != nil {
+	if err := EnsureManagedDir(filepath.Dir(a.ConfigPath), opts); err != nil {
 		return status, err
 	}
-	if err := InstallManagedContent(a.ConfigPath, a.ConfigContent(), opts.SudoMode, opts); err != nil {
+	if err := InstallManagedContent(a.ConfigPath, a.ConfigContent(), opts); err != nil {
 		return status, err
 	}
 	if err := RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"--system"}, opts); err != nil {

@@ -1039,7 +1039,7 @@ func managedServiceRuntimeEnvironment(ctx context.Context, controller *Controlle
 		artifactRoot = path
 	}
 	env = valuehelpers.SetEnv(env, "RESOURCE_ARTIFACT_DIR", artifactRoot)
-	acquisitionEnv, err := acquisitionTargetRuntimeEnv(ctx, manifest, artifactRoot)
+	acquisitionEnv, err := acquisitionTargetRuntimeEnv(ctx, controller, manifest, artifactRoot)
 	if err != nil {
 		return nil, err
 	}

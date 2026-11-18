@@ -77,7 +77,7 @@ func IsLoaded(name string) bool {
 // modprobe.d file is not created and OptionsFileChanged stays false. We never
 // delete an existing options file; a future "remove" helper can handle that
 // when we need it.
-func EnsureLoadAtBoot(name string, options map[string]string, sudoMode string, opts hostreqkit.EnsureOptions) (Outcome, error) {
+func EnsureLoadAtBoot(name string, options map[string]string, opts hostreqkit.EnsureOptions) (Outcome, error) {
 	if strings.TrimSpace(name) == "" {
 		return Outcome{}, fmt.Errorf("modules: empty module name")
 	}
@@ -89,10 +89,10 @@ func EnsureLoadAtBoot(name string, options map[string]string, sudoMode string, o
 	if !hostreqkit.FileContentMatches(loadPath, loadContent) {
 		outcome.LoadFileChanged = true
 		if !opts.DryRun {
-			if err := hostreqkit.EnsureManagedDir(LoadConfDir, sudoMode, opts); err != nil {
+			if err := hostreqkit.EnsureManagedDir(LoadConfDir, opts); err != nil {
 				return Outcome{}, fmt.Errorf("ensure %s: %w", LoadConfDir, err)
 			}
-			if err := hostreqkit.InstallManagedContent(loadPath, loadContent, sudoMode, opts); err != nil {
+			if err := hostreqkit.InstallManagedContent(loadPath, loadContent, opts); err != nil {
 				return Outcome{}, fmt.Errorf("install %s: %w", loadPath, err)
 			}
 		}
@@ -104,10 +104,10 @@ func EnsureLoadAtBoot(name string, options map[string]string, sudoMode string, o
 		if !hostreqkit.FileContentMatches(optPath, optContent) {
 			outcome.OptionsFileChanged = true
 			if !opts.DryRun {
-				if err := hostreqkit.EnsureManagedDir(ModprobeConfDir, sudoMode, opts); err != nil {
+				if err := hostreqkit.EnsureManagedDir(ModprobeConfDir, opts); err != nil {
 					return Outcome{}, fmt.Errorf("ensure %s: %w", ModprobeConfDir, err)
 				}
-				if err := hostreqkit.InstallManagedContent(optPath, optContent, sudoMode, opts); err != nil {
+				if err := hostreqkit.InstallManagedContent(optPath, optContent, opts); err != nil {
 					return Outcome{}, fmt.Errorf("install %s: %w", optPath, err)
 				}
 			}
@@ -121,7 +121,7 @@ func EnsureLoadAtBoot(name string, options map[string]string, sudoMode string, o
 // kernel. The options-as-args form (`modprobe <name> k=v k=v`) is required
 // because some modules (notably netconsole) only honor options at load time.
 // No-op under DryRun.
-func Modprobe(name string, options map[string]string, sudoMode string, opts hostreqkit.EnsureOptions) error {
+func Modprobe(name string, options map[string]string, opts hostreqkit.EnsureOptions) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("modules: empty module name")
 	}
@@ -132,7 +132,7 @@ func Modprobe(name string, options map[string]string, sudoMode string, opts host
 	for _, k := range slices.Sorted(maps.Keys(options)) {
 		args = append(args, fmt.Sprintf("%s=%s", k, options[k]))
 	}
-	return hostreqkit.RunPrivilegedCommand(sudoMode, "modprobe", args, opts)
+	return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "modprobe", args, opts)
 }
 
 // LoadFilePath returns the canonical path of the at-boot autoload file for

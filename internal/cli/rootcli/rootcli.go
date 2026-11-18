@@ -350,8 +350,6 @@ type ResourceHandler[C any] func(ctx C, controller *resources.Controller, args [
 type Registry[C any] struct {
 	topLevelTable []commandtree.Spec[Handler[C]]
 	scenarioTable []commandtree.Spec[Handler[C]]
-	topHandlers   map[string]Handler[C]
-	scenarioMap   map[string]Handler[C]
 	topSpecs      map[string]commandtree.Spec[Handler[C]]
 	scenarioSpecs map[string]commandtree.Spec[Handler[C]]
 }
@@ -365,8 +363,6 @@ func NewRegistry[C any](
 	registry.topLevelTable = buildTopLevelCommandTable(topLevelHandlers, func(args []string) bool {
 		return registry.ScenarioCanRunWithoutRoot(args)
 	})
-	registry.topHandlers = commandtree.BuildHandlerMap(registry.topLevelTable)
-	registry.scenarioMap = commandtree.BuildHandlerMap(registry.scenarioTable)
 	registry.topSpecs = commandtree.BuildSpecMap(registry.topLevelTable)
 	registry.scenarioSpecs = commandtree.BuildSpecMap(registry.scenarioTable)
 	return registry
@@ -394,13 +390,13 @@ func buildScenarioCommandTable[C any](handlers map[scenariocli.CommandID]Handler
 }
 
 func (r *Registry[C]) TopLevelHandler(name string) (Handler[C], bool) {
-	handler, ok := r.topHandlers[commandtree.NormalizeName(name)]
-	return handler, ok
+	spec, ok := r.topSpecs[commandtree.NormalizeName(name)]
+	return spec.Handler, ok
 }
 
 func (r *Registry[C]) ScenarioHandler(name string) (Handler[C], bool) {
-	handler, ok := r.scenarioMap[commandtree.NormalizeName(name)]
-	return handler, ok
+	spec, ok := r.scenarioSpecs[commandtree.NormalizeName(name)]
+	return spec.Handler, ok
 }
 
 func (r *Registry[C]) TopLevelNames() []string {
@@ -871,5 +867,5 @@ func RunSubcommandSpecs[C any](
 		commandtree.WriteHelp(stdout(ctx), commandtree.SpecHelpText("", commandPath, spec))
 		return nil
 	}
-	return commandtree.BuildHandlerMap(specs)[name](ctx, args[1:])
+	return spec.Handler(ctx, args[1:])
 }

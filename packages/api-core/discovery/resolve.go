@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/vrooli/api-core/demand"
@@ -92,21 +93,72 @@ type Resolver struct {
 	host          string
 	scheme        string
 	staticBaseURL string // When set, bypasses CLI discovery
+	staticBaseErr error
 	remoteBaseURL string
 	cacheTTL      time.Duration
 	negativeTTL   time.Duration
 	sharedLookup  bool
+	customClock   bool
 	now           func() time.Time
 	cacheMu       sync.Mutex
 	cache         map[string]*cachedPort
-	cacheHits     int64
-	cacheMisses   int64
 }
 
-// cachedPort holds one key's resolution plus the lock that serializes lookups
-// for that key. err is non-nil for a cached negative result.
+type resolverCacheObservationKey struct{}
+type resolverCacheSampleKey struct{}
+
+type resolverCacheSample struct{ once sync.Once }
+
+// ResolverCacheObservation counts one cache decision per API Resolver
+// operation performed with a context returned by ObserveResolverCache. The
+// default production Resolver uses cliutil's shared cache; injected resolvers
+// report their private cache. Counters are safe for concurrent fan-out and
+// isolated from unrelated requests.
+type ResolverCacheObservation struct {
+	hits   atomic.Int64
+	misses atomic.Int64
+}
+
+// ObserveResolverCache attaches query-scoped cache accounting to ctx. On the
+// default production path, a miss means local discovery authorities will be
+// evaluated; it does not imply that a CLI process will be launched.
+func ObserveResolverCache(ctx context.Context) (context.Context, *ResolverCacheObservation) {
+	observation := &ResolverCacheObservation{}
+	return context.WithValue(ctx, resolverCacheObservationKey{}, observation), observation
+}
+
+// Snapshot returns the counts recorded so far for this observation.
+func (o *ResolverCacheObservation) Snapshot() (hits, misses int64) {
+	if o == nil {
+		return 0, 0
+	}
+	return o.hits.Load(), o.misses.Load()
+}
+
+func observeResolverCache(ctx context.Context, hit bool) {
+	observation, _ := ctx.Value(resolverCacheObservationKey{}).(*ResolverCacheObservation)
+	if observation == nil {
+		return
+	}
+	if hit {
+		observation.hits.Add(1)
+	} else {
+		observation.misses.Add(1)
+	}
+}
+
+func beginResolverCacheSample(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(resolverCacheObservationKey{}).(*ResolverCacheObservation); !ok {
+		return ctx
+	}
+	return context.WithValue(ctx, resolverCacheSampleKey{}, &resolverCacheSample{})
+}
+
+// cachedPort holds one key's resolution and serializes lookups without
+// preventing waiters from honoring their own contexts. err is non-nil for a
+// cached negative result.
 type cachedPort struct {
-	mu         sync.Mutex
+	lookupGate chan struct{}
 	port       int
 	err        *Error
 	resolvedAt time.Time
@@ -131,6 +183,7 @@ const (
 	ErrScenarioNotRunning ErrorKind = "scenario_not_running"
 	ErrTimeout            ErrorKind = "timeout"
 	ErrInvalidPort        ErrorKind = "invalid_port"
+	ErrInvalidBaseURL     ErrorKind = "invalid_base_url"
 	ErrCommandFailed      ErrorKind = "command_failed"
 )
 
@@ -211,12 +264,21 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 	if now == nil {
 		now = time.Now
 	}
+	staticBaseURL := strings.TrimSpace(cfg.StaticBaseURL)
+	var staticBaseErr error
+	if staticBaseURL != "" {
+		staticBaseURL, staticBaseErr = cliutil.NormalizeScenarioAPIBaseURL(staticBaseURL)
+		if staticBaseErr != nil {
+			staticBaseURL = strings.TrimSpace(cfg.StaticBaseURL)
+		}
+	}
 	return &Resolver{
 		vrooliPath:    vrooliPath,
 		runner:        runner,
 		host:          host,
 		scheme:        scheme,
-		staticBaseURL: strings.TrimRight(cfg.StaticBaseURL, "/"),
+		staticBaseURL: staticBaseURL,
+		staticBaseErr: staticBaseErr,
 		remoteBaseURL: strings.TrimRight(cfg.RemoteBaseURL, "/"),
 		cacheTTL:      cacheTTL,
 		negativeTTL:   negativeTTL,
@@ -224,6 +286,7 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		// runner or binary path is an explicit request for this resolver's own
 		// execution path.
 		sharedLookup: cfg.CommandRunner == nil && cfg.VrooliPath == "",
+		customClock:  cfg.Now != nil,
 		now:          now,
 		cache:        make(map[string]*cachedPort),
 	}
@@ -244,6 +307,19 @@ func NewStaticResolver(baseURL string) *Resolver {
 	})
 }
 
+// NewResolverWithOptionalStaticOverride uses a configured base URL for default
+// local resolution when it is non-empty, then falls back to the process-wide
+// local discovery resolver. Bind the result to one logical scenario target.
+// Explicit non-local Bridge targets remain Bridge-routed and bypass this static
+// URL override.
+func NewResolverWithOptionalStaticOverride(baseURL string) *Resolver {
+	baseURL = strings.TrimSpace(baseURL)
+	if baseURL != "" {
+		return NewStaticResolver(baseURL)
+	}
+	return DefaultResolver()
+}
+
 // ResolveScenarioPort resolves a scenario's port through the local discovery
 // ladder: lifecycle peer record, runtime registry, then the control-plane CLI.
 //
@@ -258,6 +334,9 @@ func NewStaticResolver(baseURL string) *Resolver {
 func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKey string) (int, error) {
 	// Static mode: extract port from the configured URL
 	if r.staticBaseURL != "" {
+		if r.staticBaseErr != nil {
+			return 0, r.invalidStaticBaseError(scenarioSlug, portKey)
+		}
 		return r.extractPortFromStaticURL(scenarioSlug, portKey)
 	}
 
@@ -272,18 +351,35 @@ func (r *Resolver) ResolveScenarioPort(ctx context.Context, scenarioSlug, portKe
 	if portKey == "" {
 		portKey = defaultPortKey
 	}
+	if r.sharedLookup && !r.customClock {
+		ctx = beginResolverCacheSample(ctx)
+		port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+		}
+		if derr != nil {
+			return 0, derr
+		}
+		return port, nil
+	}
 	cacheKey := scenarioSlug + "\x00" + portKey
 	return r.resolvePortCached(ctx, scenarioSlug, portKey, cacheKey)
 }
 
 // resolvePortCached collapses concurrent lookups for one key onto a single
 // ladder evaluation and reuses successful results and confirmed stopped-target
-// results for their respective TTLs.
-// Holding the per-key lock across the lookup is deliberate: a burst of N
-// callers for one scenario must cost one ladder evaluation, not N.
+// results for their respective TTLs. The per-key gate preserves that sharing
+// while allowing each waiter to honor its own context.
 func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey, cacheKey string) (int, error) {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+	}
 	if r.cacheTTL < 0 {
+		observeResolverCache(ctx, false)
 		port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+		}
 		if derr != nil {
 			return 0, derr
 		}
@@ -291,8 +387,15 @@ func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey,
 	}
 
 	entry := r.entryFor(cacheKey)
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
+	select {
+	case entry.lookupGate <- struct{}{}:
+		defer func() { <-entry.lookupGate }()
+	case <-ctx.Done():
+		return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctx.Err()}
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: err}
+	}
 
 	if !entry.resolvedAt.IsZero() {
 		ttl := r.cacheTTL
@@ -300,58 +403,68 @@ func (r *Resolver) resolvePortCached(ctx context.Context, scenarioSlug, portKey,
 			ttl = r.negativeTTL
 		}
 		if r.now().Sub(entry.resolvedAt) < ttl {
-			r.countHit()
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+			}
+			observeResolverCache(ctx, true)
 			if entry.err != nil {
 				return 0, entry.err
 			}
 			return entry.port, nil
 		}
 	}
-	r.countMiss()
+	observeResolverCache(ctx, false)
 
 	port, derr := r.lookupPortWithFallback(ctx, scenarioSlug, portKey)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		entry.port, entry.err, entry.resolvedAt = 0, nil, time.Time{}
+		return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+	}
 
 	if derr != nil {
 		entry.port, entry.err, entry.resolvedAt = 0, nil, time.Time{}
 		if derr.Kind == ErrScenarioNotRunning && r.negativeTTL > 0 {
 			entry.err, entry.resolvedAt = derr, r.now()
 		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			entry.port, entry.err, entry.resolvedAt = 0, nil, time.Time{}
+			return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+		}
 		return 0, derr
 	}
 
 	entry.port, entry.err, entry.resolvedAt = port, nil, r.now()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		entry.port, entry.err, entry.resolvedAt = 0, nil, time.Time{}
+		return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+	}
 	return port, nil
 }
 
 // lookupPortWithFallback performs instance routing (Case B): when the target
 // scenario is ambiently shadowed (VROOLI_SHADOW_SCENARIOS), address its
-// "@shadow" record. If that non-live lookup reports the scenario isn't running
-// — the engagement may have been torn down — warn once and fall back to the
-// live instance. Never silent.
+// "@shadow" record. Ambient shadow selection may fall back on a typed
+// not-running result; explicit selections and same-variant dependencies stay
+// pinned. Transient failures never fall back, and a live fallback is warned.
 func (r *Resolver) lookupPortWithFallback(ctx context.Context, scenarioSlug, portKey string) (int, *Error) {
 	target := cliutil.ResolveShadowTarget(scenarioSlug)
 	port, derr := r.lookupPortViaLadder(ctx, scenarioSlug, target, portKey)
-	if derr == nil || !cliutil.IsNonLiveTarget(target) || derr.Kind != ErrScenarioNotRunning {
+	if derr == nil {
 		return port, derr
 	}
-	// A dependency this instance follows at its own variant never falls back.
-	// The list exists so a non-live instance cannot answer with live data, and
-	// a fallback would deliver exactly that — on a presentation instance, into
-	// a recording.
-	if cliutil.IsVariantDependency(scenarioSlug) {
-		return 0, &Error{
-			Kind:     derr.Kind,
-			Scenario: derr.Scenario,
-			PortKey:  derr.PortKey,
-			Command:  derr.Command,
-			Node:     derr.Node,
-			Output: fmt.Sprintf("%s is resolved at this instance's own variant %q and is not running; start it or remove it from %s (no live fallback)",
-				cliutil.BareScenarioName(scenarioSlug), cliutil.OwnVariant(), cliutil.EnvVariantDependencies),
-			Err: derr.Err,
+	if !cliutil.ShouldAutomaticallyFallbackToLiveInstance(scenarioSlug, target, derr.Kind == ErrScenarioNotRunning) {
+		if derr.Kind == ErrScenarioNotRunning && cliutil.IsNonLiveTarget(target) && cliutil.IsVariantDependency(scenarioSlug) {
+			derr.Output = fmt.Sprintf("%s is resolved at this instance's own variant %q and is not running; start it or remove it from %s (no live fallback)",
+				cliutil.BareScenarioName(scenarioSlug), cliutil.OwnVariant(), cliutil.EnvVariantDependencies)
 		}
+		return 0, derr
+	}
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return 0, &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
 	}
 	cliutil.WarnShadowFallback(scenarioSlug)
-	return r.lookupPortViaLadder(ctx, scenarioSlug, scenarioSlug, portKey)
+	liveTarget := cliutil.BareScenarioName(scenarioSlug)
+	return r.lookupPortViaLadder(ctx, liveTarget, liveTarget, portKey)
 }
 
 func (r *Resolver) entryFor(key string) *cachedPort {
@@ -359,42 +472,44 @@ func (r *Resolver) entryFor(key string) *cachedPort {
 	defer r.cacheMu.Unlock()
 	entry, ok := r.cache[key]
 	if !ok {
-		entry = &cachedPort{}
+		entry = &cachedPort{lookupGate: make(chan struct{}, 1)}
 		r.cache[key] = entry
 	}
 	return entry
 }
 
-func (r *Resolver) invalidateScenarioCache(scenarioSlug, portKey string) {
+func (r *Resolver) invalidateScenarioCache(ctx context.Context, scenarioSlug, portKey string) error {
 	if r.cacheTTL < 0 {
-		return
+		return nil
+	}
+	if r.sharedLookup {
+		target := cliutil.ResolveShadowTarget(scenarioSlug)
+		targets := []string{target}
+		if cliutil.ShouldAutomaticallyFallbackToLiveInstance(scenarioSlug, target, true) {
+			targets = append(targets, cliutil.BareScenarioName(scenarioSlug))
+		}
+		for _, cacheTarget := range targets {
+			if err := cliutil.InvalidateScenarioPortCache(ctx, cacheTarget, portKey); err != nil {
+				return &Error{Kind: ErrTimeout, Scenario: cacheTarget, PortKey: portKey, Err: err}
+			}
+		}
+		if !r.customClock {
+			return nil
+		}
 	}
 	entry := r.entryFor(scenarioSlug + "\x00" + portKey)
-	entry.mu.Lock()
+	select {
+	case entry.lookupGate <- struct{}{}:
+	case <-ctx.Done():
+		return &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctx.Err()}
+	}
+	defer func() { <-entry.lookupGate }()
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return &Error{Kind: ErrTimeout, Scenario: scenarioSlug, PortKey: portKey, Err: ctxErr}
+	}
 	entry.resolvedAt = time.Time{}
 	entry.err = nil
-	entry.mu.Unlock()
-}
-
-func (r *Resolver) countHit() {
-	r.cacheMu.Lock()
-	r.cacheHits++
-	r.cacheMu.Unlock()
-}
-
-func (r *Resolver) countMiss() {
-	r.cacheMu.Lock()
-	r.cacheMisses++
-	r.cacheMu.Unlock()
-}
-
-// CacheStats returns cumulative successful cache lookups and misses. The
-// counters are resolver-local: callers can take a before/after sample around
-// one operation without exposing cache contents or corpus data.
-func (r *Resolver) CacheStats() (hits, misses int64) {
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-	return r.cacheHits, r.cacheMisses
+	return nil
 }
 
 // lookupPortViaLadder evaluates the local authorities and the control-plane
@@ -416,10 +531,16 @@ func (r *Resolver) CacheStats() (hits, misses int64) {
 // and the execution error.
 func (r *Resolver) runLookup(ctx context.Context, target, portKey string) (portText, output string, err error) {
 	if r.sharedLookup {
-		outcome := cliutil.LookupScenarioPort(ctx, target, portKey, cliutil.PortCachePolicy{
+		policy := cliutil.PortCachePolicy{
 			MaxAge:         nonNegative(r.cacheTTL),
 			NegativeMaxAge: nonNegative(r.negativeTTL),
-		})
+		}
+		if sample, _ := ctx.Value(resolverCacheSampleKey{}).(*resolverCacheSample); sample != nil {
+			policy.OnCacheLookup = func(hit bool) {
+				sample.once.Do(func() { observeResolverCache(ctx, hit) })
+			}
+		}
+		outcome := cliutil.LookupScenarioPort(ctx, target, portKey, policy)
 		return outcome.Port, outcome.Output, outcome.Err
 	}
 	raw, runErr := r.runner(ctx, r.vrooliPath, "scenario", "port", target, portKey)
@@ -435,7 +556,13 @@ func nonNegative(d time.Duration) time.Duration {
 }
 
 func (r *Resolver) lookupPortViaLadder(ctx context.Context, reportSlug, target, portKey string) (int, *Error) {
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return 0, &Error{Kind: ErrTimeout, Scenario: reportSlug, PortKey: portKey, Err: ctxErr}
+	}
 	portText, text, err := r.runLookup(ctx, target, portKey)
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		return 0, &Error{Kind: ErrTimeout, Scenario: reportSlug, PortKey: portKey, Output: text, Err: ctxErr}
+	}
 	if cliutil.IsScenarioPortNotRunning(err) || cliPortErrorCode(text) == cliutil.ScenarioPortCodeNotRunning {
 		return 0, &Error{Kind: ErrScenarioNotRunning, Scenario: reportSlug, PortKey: portKey, Output: text, Err: err}
 	}
@@ -551,6 +678,9 @@ func (r *Resolver) resolveScenarioURL(ctx context.Context, scenarioSlug, portKey
 	resolved.target = target
 	// Static mode: return the configured URL directly
 	if r.staticBaseURL != "" && resolved.target.NodeID == "" {
+		if r.staticBaseErr != nil {
+			return "", r.invalidStaticBaseError(scenarioSlug, portKey)
+		}
 		return r.staticBaseURL, nil
 	}
 	if resolved.target.NodeID != "" {
@@ -562,6 +692,16 @@ func (r *Resolver) resolveScenarioURL(ctx context.Context, scenarioSlug, portKey
 		return "", err
 	}
 	return fmt.Sprintf("%s://%s:%d", r.scheme, r.host, port), nil
+}
+
+func (r *Resolver) invalidStaticBaseError(scenarioSlug, portKey string) *Error {
+	return &Error{
+		Kind:     ErrInvalidBaseURL,
+		Scenario: scenarioSlug,
+		PortKey:  portKey,
+		Output:   r.staticBaseURL,
+		Err:      r.staticBaseErr,
+	}
 }
 
 func (r *Resolver) resolveRemoteScenarioURL(ctx context.Context, scenarioSlug, nodeID string) (string, error) {
@@ -634,7 +774,12 @@ func (r *Resolver) ResolveScenarioURLWithDemand(ctx context.Context, scenarioSlu
 			_, _ = options.Client.Release(releaseCtx, lease.LeaseID, "demand startup failed")
 			return "", demand.Lease{}, err
 		}
-		r.invalidateScenarioCache(lookupSlug, defaultPortKey)
+		if err := r.invalidateScenarioCache(ctx, lookupSlug, defaultPortKey); err != nil {
+			releaseCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, _ = options.Client.Release(releaseCtx, lease.LeaseID, "demand startup invalidation failed")
+			return "", demand.Lease{}, err
+		}
 		url, err = r.ResolveScenarioURLDefault(ctx, lookupSlug)
 		if err != nil {
 			releaseCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

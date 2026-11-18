@@ -99,9 +99,7 @@ func DetermineAPIBase(opts APIBaseOptions) string {
 // diagnostics. The generic port variable remains deliberately out of scope;
 // only scenario-specific port variables are considered below.
 func ResolveAPIBase(opts APIBaseOptions) APIBaseResolution {
-	trim := func(val string) string {
-		return strings.TrimRight(strings.TrimSpace(val), "/")
-	}
+	trim := normalizeAPIBase
 	resolve := func(base, source, key string) APIBaseResolution {
 		result := APIBaseResolution{Base: base, Source: source, SourceKey: key}
 		if opts.PortDetector != nil {
@@ -137,6 +135,21 @@ func ResolveAPIBase(opts APIBaseOptions) APIBaseResolution {
 		}
 	}
 	return resolve(trim(opts.DefaultBase), "default", "")
+}
+
+func normalizeAPIBase(value string) string {
+	value = strings.TrimSpace(value)
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return strings.TrimRight(value, "/")
+	}
+	escapedPath := strings.TrimRight(parsed.EscapedPath(), "/")
+	if escapedPath == "" {
+		parsed.Path, parsed.RawPath = "", ""
+	} else if decoded, err := url.PathUnescape(escapedPath); err == nil {
+		parsed.Path, parsed.RawPath = decoded, escapedPath
+	}
+	return parsed.String()
 }
 
 // APIBaseOverrideWarning explains when a generic base variable silently wins

@@ -314,6 +314,13 @@ func (h Harness) installRelease(ctx context.Context, version string, deps harnes
 	if h.ManifestBase != "" {
 		return h.installFromManifest(ctx, deps)
 	}
+	if h.Channel != "" && h.ReviewedVersion != "" {
+		want, wantOK := MajorVersion(h.ReviewedVersion)
+		got, gotOK := MajorVersion(version)
+		if wantOK && gotOK && want != got {
+			return fmt.Errorf("channel %s is pinned to major %d; refusing %s", h.Channel, want, version)
+		}
+	}
 	gate := deps.gate(ctx, h, version, deps.platform)
 	if !gate.Reachable {
 		return fmt.Errorf("the Dependency Analyzer is not answering")
@@ -390,7 +397,7 @@ func (h Harness) moveApproval(ctx context.Context, version string, deps harnessD
 }
 
 func (h Harness) savePreviousApproval(version string, previous approvalRecord) error {
-	prefix, err := NPMInstallPrefix(h.Home, h.Resource, version)
+	prefix, err := NPMInstallPrefixForChannel(h.Home, h.Resource, h.Channel, version)
 	if err != nil {
 		return err
 	}
@@ -405,7 +412,7 @@ func (h Harness) savePreviousApproval(version string, previous approvalRecord) e
 // record still names the version being left: anything else is a later decision
 // this must not overwrite. It returns a sentence for the operator.
 func (h Harness) restorePreviousApproval(ctx context.Context, leaving string, deps harnessDeps) string {
-	prefix, err := NPMInstallPrefix(h.Home, h.Resource, leaving)
+	prefix, err := NPMInstallPrefixForChannel(h.Home, h.Resource, h.Channel, leaving)
 	if err != nil {
 		return ""
 	}

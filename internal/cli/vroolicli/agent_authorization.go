@@ -159,6 +159,9 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	addAuthorizationContextFields(body, *reason, *technicalDetails)
 	data, err := authorizationRequest(client, http.MethodPost, base+"/api/v1/authorizations/requests", body)
 	if err != nil {
+		if policy := unknownToApprovalService(err, requested); policy != "" {
+			return fmt.Errorf("%w\nthe running Agent Manager does not know the %q policy: it is running a revision older than this checkout's reviewed-policy catalogue. Restart it (`vrooli scenario restart agent-manager`) so it can review this policy, or run the transition from an operator terminal with `make rebaseline`.", err, policy)
+		}
 		return err
 	}
 	var grant struct {
@@ -196,6 +199,22 @@ func resolveApprovalBase(parent context.Context) string {
 		return ""
 	}
 	return strings.TrimRight(u.String(), "/")
+}
+
+// unknownToApprovalService names the requested policy that the approval service
+// rejected even though this build's catalogue knows it. That asymmetry means the
+// service is running an older revision, which is a restartable condition rather
+// than a bad command.
+func unknownToApprovalService(err error, rules []authorizationRule) string {
+	if err == nil || !strings.Contains(err.Error(), "unknown reviewed policy") {
+		return ""
+	}
+	for _, rule := range rules {
+		if _, known := authn.InteractivePolicy(rule.Policy); known {
+			return rule.Policy
+		}
+	}
+	return ""
 }
 
 func verifiedLaunchWebConsoleSessionID(lease scenarioruntime.EditorLease) string {

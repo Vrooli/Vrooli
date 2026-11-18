@@ -67,7 +67,7 @@ func (c *Controller) stageManagedServiceArtifact(ctx context.Context, manifest R
 	if err != nil {
 		return ManagedServiceArtifact{}, err
 	}
-	target, err := managedServiceAcquisitionTarget(ctx, manifest)
+	target, err := c.managedServiceAcquisitionTarget(ctx, manifest)
 	if err != nil {
 		return ManagedServiceArtifact{}, err
 	}

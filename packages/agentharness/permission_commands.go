@@ -429,6 +429,27 @@ func (h *PermissionHandlers) DriftCheck(args []string) error {
 	return errors.New("drift detected")
 }
 
+func semverMajor(version string) string {
+	for _, field := range strings.Fields(version) {
+		field = strings.TrimPrefix(field, "v")
+		head, _, ok := strings.Cut(field, ".")
+		if !ok || head == "" {
+			continue
+		}
+		digits := true
+		for _, r := range head {
+			if r < '0' || r > '9' {
+				digits = false
+				break
+			}
+		}
+		if digits {
+			return head
+		}
+	}
+	return ""
+}
+
 // Doctor reports the provider version and lets the native package append
 // provider-specific enforcement notes.
 func (h *PermissionHandlers) Doctor(args []string) error {
@@ -454,7 +475,12 @@ func (h *PermissionHandlers) Doctor(args []string) error {
 	}
 	if strings.TrimSpace(*pinned) != "" {
 		if got != "" && !strings.Contains(got, *pinned) {
-			fmt.Fprintf(h.cfg.Stderr, "warn: pinned %q not found in installed %q — schema may have drifted\n", *pinned, got)
+			installedMajor, pinnedMajor := semverMajor(got), semverMajor(*pinned)
+			if installedMajor != "" && pinnedMajor != "" && installedMajor != pinnedMajor {
+				fmt.Fprintf(h.cfg.Stdout, "note: installed major %s differs from the default pinned baseline major %s — expected for a non-default release channel; verify that channel's policy\n", installedMajor, pinnedMajor)
+			} else {
+				fmt.Fprintf(h.cfg.Stderr, "warn: pinned %q not found in installed %q — schema may have drifted\n", *pinned, got)
+			}
 		} else if got != "" || h.cfg.VersionLabel == "resource-antigravity" {
 			fmt.Fprintf(h.cfg.Stdout, "pinned %q matches installed\n", *pinned)
 		}

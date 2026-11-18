@@ -209,7 +209,6 @@ func summarizeSMART(out []byte, expectedDevice, expectedSerial string) (string, 
 		}
 		return "", errors.New("SMART evidence summary exceeds broker limit")
 	}
-	return "", errors.New("SMART evidence summary could not be bounded")
 }
 
 func smartctlLocalTime(raw json.RawMessage) string {

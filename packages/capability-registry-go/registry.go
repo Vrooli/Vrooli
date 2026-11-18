@@ -12,6 +12,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -288,6 +289,12 @@ type Checker interface {
 	Check(context.Context) (Status, string)
 }
 
+// ScenarioTargetChecker exposes the scenario slug a checker observes. The
+// registry uses it to reject wiring a capability to the wrong scenario.
+type ScenarioTargetChecker interface {
+	ScenarioSlug() string
+}
+
 type ResultChecker interface {
 	CheckResult(context.Context) CheckResult
 }
@@ -393,20 +400,20 @@ func NewWithClock(defs []Def, checkers map[string]Checker, cacheTTL time.Duratio
 	if now == nil {
 		now = time.Now
 	}
-	return &Registry{defs: append([]Def(nil), defs...), checkers: checkers, cacheTTL: cacheTTL, now: now}
+	return &Registry{defs: append([]Def(nil), defs...), checkers: cloneCheckers(checkers), cacheTTL: cacheTTL, now: now}
 }
 
 func (r *Registry) SetLivenessCheckers(checkers map[string]Checker) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.livenessCheckers = checkers
+	r.livenessCheckers = cloneCheckers(checkers)
 }
 
 func (r *Registry) Validate() error {
 	if r == nil {
 		return fmt.Errorf("registry is nil")
 	}
-	seen := make(map[string]struct{}, len(r.defs))
+	seen := make(map[string]Def, len(r.defs))
 	for i, def := range r.defs {
 		if def.ID == "" {
 			return fmt.Errorf("definition %d has no id", i)
@@ -423,10 +430,15 @@ func (r *Registry) Validate() error {
 		if _, duplicate := seen[def.ID]; duplicate {
 			return fmt.Errorf("definition %q is duplicated", def.ID)
 		}
-		seen[def.ID] = struct{}{}
+		seen[def.ID] = def
 		checker, ok := r.checkers[def.ID]
 		if !ok || isNil(checker) {
 			return fmt.Errorf("definition %q has no reachability checker", def.ID)
+		}
+		if def.DependencyKind == DependencyScenario {
+			if targeted, ok := checker.(ScenarioTargetChecker); ok && strings.TrimSpace(targeted.ScenarioSlug()) != def.DependencySlug {
+				return fmt.Errorf("definition %q targets scenario %q but its checker targets %q", def.ID, def.DependencySlug, strings.TrimSpace(targeted.ScenarioSlug()))
+			}
 		}
 		if resultChecker, ok := checker.(ResultChecker); ok && isNil(resultChecker) {
 			return fmt.Errorf("definition %q has a nil checker", def.ID)
@@ -435,6 +447,26 @@ func (r *Registry) Validate() error {
 	for id, checker := range r.checkers {
 		if isNil(checker) {
 			return fmt.Errorf("checker %q is nil", id)
+		}
+		if _, declared := seen[id]; !declared {
+			return fmt.Errorf("checker %q has no capability definition", id)
+		}
+	}
+	r.mu.RLock()
+	livenessCheckers := cloneCheckers(r.livenessCheckers)
+	r.mu.RUnlock()
+	for id, checker := range livenessCheckers {
+		if isNil(checker) {
+			return fmt.Errorf("liveness checker %q is nil", id)
+		}
+		def, declared := seen[id]
+		if !declared {
+			return fmt.Errorf("liveness checker %q has no capability definition", id)
+		}
+		if def.DependencyKind == DependencyScenario {
+			if targeted, ok := checker.(ScenarioTargetChecker); ok && strings.TrimSpace(targeted.ScenarioSlug()) != def.DependencySlug {
+				return fmt.Errorf("definition %q targets scenario %q but its liveness checker targets %q", id, def.DependencySlug, strings.TrimSpace(targeted.ScenarioSlug()))
+			}
 		}
 	}
 	return nil

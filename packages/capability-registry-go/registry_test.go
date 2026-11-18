@@ -57,6 +57,68 @@ func TestValidateAcceptsControlPlane(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsScenarioCheckerTargetMismatch(t *testing.T) {
+	registry := New(
+		[]Def{{ID: "audio", Description: "audio", DependencyKind: DependencyScenario, DependencySlug: "audio-tools"}},
+		map[string]Checker{"audio": ScenarioStatusChecker{Scenario: "other-scenario"}},
+		0,
+	)
+	if err := registry.Validate(); err == nil || !strings.Contains(err.Error(), "checker targets") {
+		t.Fatalf("mismatched checker validation error = %v", err)
+	}
+}
+
+func TestValidateAcceptsMatchingScenarioCheckerTarget(t *testing.T) {
+	registry := New(
+		[]Def{{ID: "audio", Description: "audio", DependencyKind: DependencyScenario, DependencySlug: "audio-tools"}},
+		map[string]Checker{"audio": ScenarioStatusChecker{Scenario: " audio-tools "}},
+		0,
+	)
+	if err := registry.Validate(); err != nil {
+		t.Fatalf("matching checker validation error = %v", err)
+	}
+}
+
+func TestValidateRejectsLivenessCheckerTargetMismatch(t *testing.T) {
+	registry := New(
+		[]Def{{ID: "audio", Description: "audio", DependencyKind: DependencyScenario, DependencySlug: "audio-tools"}},
+		map[string]Checker{"audio": ScenarioStatusChecker{Scenario: "audio-tools"}},
+		0,
+	)
+	registry.SetLivenessCheckers(map[string]Checker{"audio": ScenarioStatusChecker{Scenario: "other-scenario"}})
+	if err := registry.Validate(); err == nil || !strings.Contains(err.Error(), "liveness checker targets") {
+		t.Fatalf("mismatched liveness checker validation error = %v", err)
+	}
+}
+
+func TestValidateAcceptsPartialLivenessCheckerMap(t *testing.T) {
+	registry := New(
+		[]Def{
+			{ID: "audio", Description: "audio", DependencyKind: DependencyScenario, DependencySlug: "audio-tools"},
+			{ID: "gateway", Description: "gateway", DependencyKind: DependencyScenario, DependencySlug: "ai-gateway"},
+		},
+		map[string]Checker{
+			"audio":   ScenarioStatusChecker{Scenario: "audio-tools"},
+			"gateway": ScenarioStatusChecker{Scenario: "ai-gateway"},
+		},
+		0,
+	)
+	registry.SetLivenessCheckers(map[string]Checker{"audio": ScenarioStatusChecker{Scenario: "audio-tools"}})
+	if err := registry.Validate(); err != nil {
+		t.Fatalf("partial matching liveness map rejected: %v", err)
+	}
+}
+
+func TestValidateRejectsLivenessCheckerWithoutDefinition(t *testing.T) {
+	registry := New(nil, nil, 0)
+	registry.SetLivenessCheckers(map[string]Checker{
+		"orphan": checkerFunc(func(context.Context) (Status, string) { return StatusAvailable, "healthy" }),
+	})
+	if err := registry.Validate(); err == nil || !strings.Contains(err.Error(), "liveness checker") {
+		t.Fatalf("orphan liveness checker validation error = %v", err)
+	}
+}
+
 func TestValidateOverlaysRejectUnknownAndIllegalActions(t *testing.T) {
 	defs := []Def{{DependencySlug: "postgres", DependencyKind: DependencyResource}}
 	if err := ValidateOverlays(defs, map[string]Overlay{"missing": {}}); err == nil {
@@ -161,6 +223,51 @@ func TestValidateRequiresReachabilityChecker(t *testing.T) {
 	reg := New([]Def{{ID: "audio-tools", Description: "speech", DependencyKind: DependencyScenario, DependencySlug: "audio-tools"}}, nil, 0)
 	if err := reg.Validate(); err == nil || !strings.Contains(err.Error(), "reachability checker") {
 		t.Fatalf("Validate() error = %v, want missing reachability checker", err)
+	}
+}
+
+func TestValidateRejectsCheckerWithoutDefinition(t *testing.T) {
+	reg := New(nil, map[string]Checker{
+		"orphan": checkerFunc(func(context.Context) (Status, string) { return StatusAvailable, "healthy" }),
+	}, 0)
+	if err := reg.Validate(); err == nil || !strings.Contains(err.Error(), "no capability definition") {
+		t.Fatalf("Validate() error = %v, want orphan checker rejection", err)
+	}
+}
+
+func TestRegistryOwnsCheckerMapSnapshot(t *testing.T) {
+	calls := 0
+	checkers := map[string]Checker{
+		"provider": checkerFunc(func(context.Context) (Status, string) {
+			calls++
+			return StatusAvailable, "healthy"
+		}),
+	}
+	reg := New([]Def{{ID: "provider", Name: "Provider", Description: "provider", DependencyKind: DependencyScenario, DependencySlug: "provider"}}, checkers, 0)
+	delete(checkers, "provider")
+
+	if err := reg.Validate(); err != nil {
+		t.Fatalf("registry changed after caller mutated checker map: %v", err)
+	}
+	states := reg.Resolve(context.Background())
+	if len(states) != 1 || states[0].Status != StatusAvailable || calls != 1 {
+		t.Fatalf("resolved state = %+v, checker calls = %d", states, calls)
+	}
+}
+
+func TestSetLivenessCheckersOwnsMapSnapshot(t *testing.T) {
+	reg := New([]Def{{ID: "provider", Name: "Provider", Description: "provider", DependencyKind: DependencyScenario, DependencySlug: "provider"}}, map[string]Checker{
+		"provider": checkerFunc(func(context.Context) (Status, string) { return StatusUnavailable, "full" }),
+	}, time.Minute)
+	liveness := map[string]Checker{
+		"provider": checkerFunc(func(context.Context) (Status, string) { return StatusAvailable, "reachable" }),
+	}
+	reg.SetLivenessCheckers(liveness)
+	delete(liveness, "provider")
+
+	states := reg.ResolveLiveness(context.Background())
+	if len(states) != 1 || states[0].Status != StatusAvailable || states[0].Message != "reachable" {
+		t.Fatalf("liveness states = %+v", states)
 	}
 }
 

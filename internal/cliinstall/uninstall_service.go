@@ -391,6 +391,10 @@ func removeHostPackage(entry InstallEntry) error {
 		command, args = manager, []string{"-Rns", "--noconfirm", packageName}
 	case "winget":
 		command, args = manager, []string{"uninstall", "--id", packageName, "--exact", "--silent"}
+	case "apk":
+		command, args = manager, []string{"del", packageName}
+	case "scoop":
+		command, args = manager, []string{"uninstall", packageName}
 	default:
 		return fmt.Errorf("remove package %q: unsupported package manager %q", packageName, manager)
 	}

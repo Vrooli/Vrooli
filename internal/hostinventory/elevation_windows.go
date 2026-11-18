@@ -2,15 +2,14 @@
 
 package hostinventory
 
-import "golang.org/x/sys/windows"
+import platformgo "github.com/vrooli/platform-go"
 
 func currentElevation() ElevationCapability {
-	token, err := windows.OpenCurrentProcessToken()
+	elevated, err := platformgo.CurrentProcessElevated()
 	if err != nil {
 		return ElevationCapability{Mechanism: "windows-token-unknown"}
 	}
-	defer token.Close()
-	if token.IsElevated() {
+	if elevated {
 		return ElevationCapability{Elevated: true, CanElevate: true, Mechanism: "windows-token"}
 	}
 	return ElevationCapability{Mechanism: "windows-uac"}

@@ -214,13 +214,13 @@ export function resolveExternalUrl(
   scenarioName: string,
   resolvedPort: string,
 ): string {
-  const forwardedHost = req.headers['x-forwarded-host']
-  const hostHeader = (Array.isArray(forwardedHost) ? forwardedHost[0] : forwardedHost)?.split(',')[0]?.trim() || req.headers.host || ''
+  scenarioName = scenarioName.trim()
+  const hostHeader = firstForwardedHost(req.headers['x-forwarded-host']) || req.headers.host || ''
   const hostname = hostWithoutPort(hostHeader)
   const isLocal = hostname === 'localhost' || hostname === '0.0.0.0' || (net.isIP(hostname) === 4 && isIPInRanges(hostname, ['127.0.0.0/8'])) ||
     (net.isIP(hostname) === 6 && isIPInRanges(hostname, ['::1/128']))
 
-  if (isLocal) {
+  if (isLocal || scenarioName === '') {
     return `http://localhost:${resolvedPort}`
   }
 
@@ -247,6 +247,11 @@ function hostWithoutPort(value: string): string {
   }
   const firstColon = host.indexOf(':')
   return firstColon >= 0 && firstColon === host.lastIndexOf(':') ? host.slice(0, firstColon) : host
+}
+
+function firstForwardedHost(value: string | string[] | undefined): string {
+  const header = Array.isArray(value) ? value[0] : value
+  return header?.split(',').map((candidate) => candidate.trim()).find(Boolean) || ''
 }
 
 function isIPInRanges(address: string, ranges: string[]): boolean {

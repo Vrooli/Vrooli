@@ -105,7 +105,7 @@ func (e rebaselineEffects) qualifyAndRetain(ctx context.Context, home string, la
 	if err != nil {
 		return "", fmt.Errorf("serving root CLI identity: %w", err)
 	}
-	qualification := coreactivation.QualifyRollbackIdentities(serving, candidate)
+	qualification := coreactivation.QualifyRollbackImages(ctx, serving, candidate, layout.Executable, request.Candidate)
 	if qualification == nil && continuing {
 		if request.AllowContinuationDecision {
 			ok, err := request.Confirm(RebaselinePlan{Continuation: true, ServingSHA: servingSHA, CandidateSHA: candidateSHA, WatchdogSHA: watchdogSHA, ServingBuild: serving.GetBuildIdentity(), ServingContract: serving.GetPersistentStateContractSha256(), CandidateBuild: candidate.GetBuildIdentity(), CandidateContract: candidate.GetPersistentStateContractSha256(), Changes: []string{"Continue the interrupted rebaseline with this rebuilt root; its persistent-state contract is unchanged."}})
@@ -536,7 +536,7 @@ func preparePreparedRebaselinePlan(input preparedRebaselineRunInput) (preparedRe
 		if probeErr != nil {
 			return plan, refuse(fmt.Errorf("serving root CLI identity: %w", probeErr))
 		}
-		if coreactivation.QualifyRollbackIdentities(serving, candidate) == nil {
+		if coreactivation.QualifyRollbackImages(ctx, serving, candidate, layout.Executable, originalCandidate) == nil {
 			if exists && enrollment.Enabled {
 				return plan, refuse(fmt.Errorf("%w; activate it with `make install`, which keeps automatic rollback", ErrRebaselineNotRequired))
 			}

@@ -699,30 +699,6 @@ func goListFreshnessInputsContext(ctx context.Context, binaryDir, repoRoot strin
 	return inputs, true
 }
 
-func cachedGoListJSONContext(ctx context.Context, dir string, deps hostProbeDeps) ([]byte, error) {
-	if deps.cache == nil {
-		return runGoListJSONContext(ctx, dir, deps)
-	}
-	key := goListCacheKey(dir, deps)
-	deps.cache.mu.Lock()
-	if raw, ok := deps.cache.goList[key]; ok {
-		deps.cache.mu.Unlock()
-		return append([]byte(nil), raw...), nil
-	}
-	deps.cache.mu.Unlock()
-	raw, err := runGoListJSONContext(ctx, dir, deps)
-	if err != nil {
-		return nil, err
-	}
-	deps.cache.mu.Lock()
-	if deps.cache.goList == nil {
-		deps.cache.goList = make(map[string][]byte)
-	}
-	deps.cache.goList[key] = append([]byte(nil), raw...)
-	deps.cache.mu.Unlock()
-	return raw, nil
-}
-
 func runGoListJSONContext(ctx context.Context, dir string, deps hostProbeDeps) ([]byte, error) {
 	if deps.goListJSONContext != nil {
 		return deps.goListJSONContext(ctx, dir)

@@ -63,7 +63,7 @@ func TestRunSetupStatusPrintsGroupedAndDoesNotMutate(t *testing.T) {
 		return vrooliruntime.Report{}, nil
 	}
 	svc.deps.inspectPrivilegeBroker = func() privilegebroker.SetupStatus {
-		return privilegebroker.SetupStatus{Supported: true, Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask`"}
+		return privilegebroker.SetupStatus{Supported: true, Reason: "setup was not elevated", Recovery: "Re-run `" + privilegebroker.SetupRecoveryCommand + "`"}
 	}
 	svc.deps.bootRecoveryStatus = func(context.Context) (BootRecoveryStatus, error) {
 		return BootRecoveryStatus{}, errors.New("dial tcp 127.0.0.1:0: connection refused")

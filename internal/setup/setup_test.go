@@ -17,11 +17,13 @@ import (
 	"time"
 
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
-	"github.com/vrooli/vrooli/internal/dockerhost"
 	"github.com/vrooli/vrooli/internal/hostreq"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	hostreqspec "github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/onboardinghandoff"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
+	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 	"github.com/vrooli/vrooli/internal/projectstate"
 	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
@@ -154,13 +156,16 @@ func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
 	if !strings.Contains(makefileContents, "install: ##") {
 		t.Fatalf("Makefile missing install target contract")
 	}
-	if !strings.Contains(makefileContents, "--install-bundle-owned") {
-		t.Fatal("Makefile must resolve the canonical invoking-user destination through the installer")
+	if !strings.Contains(makefileContents, "--install-project-bundle") {
+		t.Fatal("Makefile must route project installation through the atomic bundle owner")
 	}
 }
 
 func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	svc := stubSetupDeps(t)
+	svc.deps.elevationFacts = func() hostreqkit.ElevationFacts {
+		return hostreqkit.ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true, Mechanism: "root"}
+	}
 
 	root := t.TempDir()
 	home := t.TempDir()
@@ -176,6 +181,15 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	}
 
 	sequence := []string{}
+	brokerInstallCalls := 0
+	svc.deps.installPrivilegeBroker = func(_ context.Context, _ string, opts Options, _, _ io.Writer) (privilegebroker.SetupStatus, error) {
+		brokerInstallCalls++
+		if opts.setupPrivilegeSession != nil {
+			t.Fatal("already-elevated setup must not create a sudo session")
+		}
+		sequence = append(sequence, "broker")
+		return privilegebroker.SetupStatus{Supported: true, Available: true}, nil
+	}
 	svc.deps.ensureBootstrapTools = func(gotHome string, opts vrooliruntime.EnsureOptions) error {
 		sequence = append(sequence, "bootstrap")
 		if gotHome != home {
@@ -192,6 +206,9 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 		}
 		if !opts.AutoInstall {
 			t.Fatal("expected AutoInstall to remain enabled during setup execution")
+		}
+		if opts.SetupPrivilegeSession != nil {
+			t.Fatal("already-elevated setup must apply requirements directly")
 		}
 		return vrooliruntime.Report{Environment: opts.Environment}, nil
 	}
@@ -216,7 +233,7 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	}
 
 	stdout := &strings.Builder{}
-	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none"}, stdout, io.Discard); err != nil {
+	if err := svc.RunSetupWithOptions(root, home, Options{Resources: "none", SudoMode: "ask"}, stdout, io.Discard); err != nil {
 		t.Fatalf("RunSetupWithOptions: %v", err)
 	}
 	for _, expected := range []string{
@@ -240,8 +257,11 @@ func TestRunSetupUsesNativeRuntimeAndMarksComplete(t *testing.T) {
 	if runtimeCalls != 1 {
 		t.Fatalf("ensureRequirements calls = %d, want 1", runtimeCalls)
 	}
-	if got := strings.Join(sequence, ","); got != "bootstrap,requirements" {
-		t.Fatalf("setup order = %q, want bootstrap,requirements", got)
+	if brokerInstallCalls != 1 {
+		t.Fatalf("privilege broker install calls = %d, want one setup-scoped install", brokerInstallCalls)
+	}
+	if got := strings.Join(sequence, ","); got != "bootstrap,broker,requirements" {
+		t.Fatalf("setup order = %q, want bootstrap,broker,requirements", got)
 	}
 	if !markCompleteCalled {
 		t.Fatal("expected markCompleteFn to be called")
@@ -305,7 +325,7 @@ func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
 	svc.deps.discoverCapabilities = func(context.Context, string, string) ([]operatorcapability.Status, error) {
 		return nil, nil
 	}
-	svc.deps.configureCredentialBackend = func(stdout, stderr io.Writer) error {
+	svc.deps.configureCredentialBackend = func(context.Context, io.Writer, io.Writer, string) error {
 		return operatorcapability.Enqueue(operatorcapability.Request{
 			ID:       "credential-store-passphrase",
 			Kind:     operatorcapability.KindSecret,
@@ -338,6 +358,49 @@ func TestRunSetupWritesConfigurationPendingResultForQueuedInput(t *testing.T) {
 	}
 	if len(queue.Requests) != 1 || queue.Requests[0].ID != "credential-store-passphrase" {
 		t.Fatalf("operator-input queue = %#v, want one credential-store request", queue.Requests)
+	}
+}
+
+func TestSetupPassphraseUsesSharedCredentialBackendDependency(t *testing.T) {
+	testenv.SetIdentityEnv(t, map[string]string{"HOME": t.TempDir()})
+	if err := operatorcapability.Replace(nil); err != nil {
+		t.Fatalf("clear operator-input queue: %v", err)
+	}
+	t.Cleanup(func() { _ = operatorcapability.Replace(nil) })
+
+	stdin, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.WriteString(writer, "test passphrase\n"); err != nil {
+		t.Fatal(err)
+	}
+	_ = writer.Close()
+	previousStdin := os.Stdin
+	os.Stdin = stdin
+	t.Cleanup(func() { os.Stdin = previousStdin; _ = stdin.Close() })
+
+	var received string
+	service := stubSetupDeps(t)
+	service.deps.configureCredentialBackend = func(_ context.Context, _, _ io.Writer, passphrase string) error {
+		received = passphrase
+		return nil
+	}
+	service.deps.discoverCapabilities = func(context.Context, string, string) ([]operatorcapability.Status, error) {
+		return nil, nil
+	}
+	flow := setupFlow{
+		service:  service,
+		opts:     Options{Context: context.Background(), CredentialPassphraseStdin: true},
+		stdout:   io.Discard,
+		stderr:   io.Discard,
+		progress: newProgressCoordinator(io.Discard, progressOptions{}),
+	}
+	if err := flow.configureCredentialsAndReportBroker(&privilegebroker.SetupStatus{Available: true}); err != nil {
+		t.Fatalf("configureCredentialsAndReportBroker: %v", err)
+	}
+	if received != "test passphrase" {
+		t.Fatalf("credential backend passphrase = %q, want supplied stdin value", received)
 	}
 }
 
@@ -750,6 +813,37 @@ func TestRunSetupSelectionHandoffSuppliesResolverSelectors(t *testing.T) {
 	}
 }
 
+func TestRunSetupCleanDefaultResolvesOnlyRequiredResources(t *testing.T) {
+	testenv.IsolateStorage(t)
+	root := t.TempDir()
+	home := testenv.RuntimeHome(t)
+	projectScenario := writeProjectFixtureWithServiceManifest(t, root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"optional-a": {Enabled: true},
+			"required-a": {Enabled: true, Required: true},
+		}}),
+	))
+
+	svc := stubSetupDeps(t)
+	svc.deps.currentHost = func() vrooliruntime.Host { return vrooliruntime.Host{SupportsSetup: true, SupportsDevelop: true} }
+	svc.deps.loadProject = func(string) (scenario.Scenario, error) { return projectScenario, nil }
+	var captured hostreq.ResolveOptions
+	svc.deps.resolveHostRequirements = func(root, home string, opts hostreq.ResolveOptions) (hostreq.Resolution, error) {
+		captured = opts
+		return hostreq.Resolution{}, nil
+	}
+	svc.deps.ensureRequirements = func(opts vrooliruntime.EnsureOptions, resolution hostreq.Resolution) (vrooliruntime.Report, error) {
+		return vrooliruntime.Report{Environment: opts.Environment}, nil
+	}
+
+	if err := svc.RunSetupWithOptions(root, home, Options{DryRun: true}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("RunSetupWithOptions: %v", err)
+	}
+	if captured.Resources != "required-a" {
+		t.Fatalf("default resource selector = %q, want required-a", captured.Resources)
+	}
+}
+
 func TestRunSetupDryRunPrintsSingleGroupedResult(t *testing.T) {
 	svc := stubSetupDeps(t)
 
@@ -1032,28 +1126,28 @@ func TestDockerIsDemandedOnlyBySelectedContainerResources(t *testing.T) {
 		t.Fatalf("container fixture driver = %q", manifest.Driver)
 	}
 
-	originalInspect := inspectDockerHealthFn
-	t.Cleanup(func() { inspectDockerHealthFn = originalInspect })
-	inspections := 0
-	inspectDockerHealthFn = func() dockerhost.Health {
-		inspections++
-		return dockerhost.Health{Detail: "daemon unavailable"}
+	originalEnsure := ensureContainerRuntimeFn
+	t.Cleanup(func() { ensureContainerRuntimeFn = originalEnsure })
+	ensures := 0
+	ensureContainerRuntimeFn = func(string, vrooliruntime.EnsureOptions) (vrooliruntime.ItemStatus, error) {
+		ensures++
+		return vrooliruntime.ItemStatus{}, errors.New("daemon unavailable")
 	}
-	if err := preflightDockerResources(root, home, nil); err != nil {
+	if err := preflightDockerResources(root, home, nil, Options{}); err != nil {
 		t.Fatalf("empty selection: %v", err)
 	}
-	if err := preflightDockerResources(root, home, []string{"native"}); err != nil {
+	if err := preflightDockerResources(root, home, []string{"native"}, Options{}); err != nil {
 		t.Fatalf("native resource: %v", err)
 	}
-	if inspections != 0 {
-		t.Fatalf("Docker inspected %d times without a container resource", inspections)
+	if ensures != 0 {
+		t.Fatalf("container runtime ensured %d times without a container resource", ensures)
 	}
-	err = preflightDockerResources(root, home, []string{"containerized"})
+	err = preflightDockerResources(root, home, []string{"containerized"}, Options{})
 	if err == nil || !strings.Contains(err.Error(), "selected resources require Docker (containerized)") {
 		t.Fatalf("container resource error = %v", err)
 	}
-	if inspections != 1 {
-		t.Fatalf("Docker inspections = %d, want 1", inspections)
+	if ensures != 1 {
+		t.Fatalf("container runtime ensures = %d, want 1", ensures)
 	}
 }
 
@@ -1089,6 +1183,93 @@ func TestMaybeInstallResourcesContinuesAfterOptionalFailure(t *testing.T) {
 	}
 	if !reflect.DeepEqual(calls, []string{"optional-a", "required-a"}) {
 		t.Fatalf("resource calls = %#v, want both resources", calls)
+	}
+}
+
+func TestDefaultSetupDefersEnabledOptionalResources(t *testing.T) {
+	testenv.IsolateStorage(t)
+	root := t.TempDir()
+	home := testenv.RuntimeHome(t)
+	t.Setenv("HOME", home)
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"optional-a": {Enabled: true},
+			"required-a": {Enabled: true, Required: true},
+		}}),
+	))
+
+	var calls []string
+	svc := stubSetupDeps(t)
+	svc.deps.resourceController = func(root, home string) resourceRunner {
+		return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+			calls = append(calls, name)
+			return nil
+		})
+	}
+
+	if _, err := svc.maybeInstallResources(root, home, Options{}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("default resource setup: %v", err)
+	}
+	if !reflect.DeepEqual(calls, []string{"required-a"}) {
+		t.Fatalf("default setup installed %v, want required resources only", calls)
+	}
+	state, err := operatorstate.New(operatorstate.Config{RepoRoot: root}).Load(context.Background())
+	if err != nil {
+		t.Fatalf("read operator state after clean default: %v", err)
+	}
+	if len(state.Resources) != 0 {
+		t.Fatalf("clean default materialized resource defaults into operator state: %#v", state.Resources)
+	}
+
+	calls = nil
+	if _, err := svc.maybeInstallResources(root, home, Options{Resources: resourcesEnabled}, io.Discard, io.Discard); err != nil {
+		t.Fatalf("explicit enabled resource setup: %v", err)
+	}
+	if !slices.Contains(calls, "optional-a") || !slices.Contains(calls, "required-a") {
+		t.Fatalf("explicit enabled setup installed %v, want both fixture resources", calls)
+	}
+}
+
+func TestDefaultSetupIncludesOnlyExplicitOptionalResourceChoices(t *testing.T) {
+	testenv.IsolateStorage(t)
+	root := t.TempDir()
+	home := testenv.RuntimeHome(t)
+	t.Setenv("HOME", home)
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	testscenario.WriteProjectService(t, root, testscenario.ProjectServiceManifest(
+		testscenario.WithDependencies(scenario.Dependencies{Resources: map[string]scenario.Dependency{
+			"default-optional":    {Enabled: true},
+			"explicit-optional":   {Enabled: true},
+			"disabled-optional":   {Enabled: true},
+			"required-by-default": {Enabled: true, Required: true},
+		}}),
+	))
+
+	controller := resources.NewController(root, home)
+	if err := controller.SetEnabled("explicit-optional", true); err != nil {
+		t.Fatalf("enable explicit optional resource: %v", err)
+	}
+	if err := controller.SetEnabled("disabled-optional", false); err != nil {
+		t.Fatalf("disable optional resource: %v", err)
+	}
+
+	want := []string{"explicit-optional", "required-by-default"}
+	svc := stubSetupDeps(t)
+	for attempt := 1; attempt <= 2; attempt++ {
+		var calls []string
+		svc.deps.resourceController = func(root, home string) resourceRunner {
+			return resourceRunnerFunc(func(name string, args []string, stdout, stderr io.Writer) error {
+				calls = append(calls, name)
+				return nil
+			})
+		}
+		if _, err := svc.maybeInstallResources(root, home, Options{}, io.Discard, io.Discard); err != nil {
+			t.Fatalf("default setup attempt %d: %v", attempt, err)
+		}
+		if !reflect.DeepEqual(calls, want) {
+			t.Fatalf("default setup attempt %d installed %v, want %v", attempt, calls, want)
+		}
 	}
 }
 
@@ -1548,7 +1729,7 @@ func stubSetupDeps(t *testing.T) *setupService {
 	// These tests exercise setup orchestration with isolated temporary homes;
 	// credential backend readiness is covered by the securestore tests and is
 	// deliberately not allowed to probe the developer's real keyring here.
-	deps.configureCredentialBackend = func(io.Writer, io.Writer) error { return nil }
+	deps.configureCredentialBackend = func(context.Context, io.Writer, io.Writer, string) error { return nil }
 	// Setup orchestration fixtures must never install real resources or probe
 	// operator capability owners. Individual boundary tests replace these seams.
 	deps.resourceController = func(string, string) resourceRunner {

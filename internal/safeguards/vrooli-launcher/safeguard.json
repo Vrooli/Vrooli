@@ -23,7 +23,7 @@
     },
     "rationale": "The launcher is an explicitly verified host installation artifact."
   },
-  "description": "Install a POSIX shim at /usr/local/bin/vrooli so `sudo vrooli` works. See package doc for design rationale.",
+  "description": "Install an optional POSIX shim for elevated `vrooli` commands.",
   "handler": "vrooli_launcher",
   "risk": "low",
   "verificationCheck": {

@@ -208,12 +208,13 @@ the portal to the host's tree, so a wrapper `div` with swipe handlers sees them 
 draggable part is the drawer's own grabber).
 
 Open a document at a heading with `controller.openPreview(path, context?, { anchor: "plan-1" })`.
-Anchors are GitHub-style slugs: headings are lower-cased, punctuation dropped, spaces
-become `-`, and repeats are numbered in document order (`plan`, `plan-1`, `plan-2`), the
-same numbering `#fragment` links inside Markdown use. Markdown and Word documents scroll
-to and focus the heading; other kinds ignore it. The anchor is `controller.state.anchor`
-and clears when the user navigates elsewhere. (Rendered heading elements carry
-per-viewer generated ids, not the slug, so two viewers on a page never collide.)
+Markdown and Word readers scroll to and focus a heading by its GitHub-style slug.
+They lowercase the heading, drop punctuation, replace spaces with `-` and number
+repeated headings in document order (`plan`, `plan-1`, `plan-2`).
+HTML previews apply the fragment to the sandboxed document's URL so browser
+anchors and the document's own routing work. A message link such as
+`report.html#project-O5` supplies the fragment directly. Encode a literal
+filename hash as `%23`. Back and Retry retain the requested fragment.
 
 Also exported for hosts that compose their own chrome (Web Console's attach-from-host
 picker does): `PreviewBreadcrumbs`, `DirectoryPreview`, `DirectorySelection`,

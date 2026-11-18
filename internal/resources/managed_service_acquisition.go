@@ -21,7 +21,6 @@ import (
 	"github.com/vrooli/envkit-go"
 	_ "github.com/vrooli/vrooli/internal/artifactcodecs" // register the caller-owned tar.zst archive decoder
 	"github.com/vrooli/vrooli/internal/artifactlock"
-	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/operatorstate"
@@ -39,8 +38,8 @@ const (
 // managedServiceAcquisitionTarget resolves the same ordered, fact-predicated
 // contract used by explain. There is no resource-specific source switch here:
 // the manifest is the sole source of the selected target.
-func managedServiceAcquisitionTarget(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, error) {
-	target, _, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
+func (c *Controller) managedServiceAcquisitionTarget(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, error) {
+	target, _, err := c.managedServiceAcquisitionTargetWithFacts(ctx, manifest)
 	return target, err
 }
 
@@ -49,8 +48,8 @@ func managedServiceAcquisitionTarget(ctx context.Context, manifest ResourceManif
 // install record and the drift message need them, and re-collecting would risk
 // comparing a target against a different observation than the one that produced
 // it.
-func managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
-	return managedServiceAcquisitionTargetWithFactSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, collectManagedServiceAcquisitionFacts)
+func (c *Controller) managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
+	return managedServiceAcquisitionTargetWithFactSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, c.collectManagedServiceAcquisitionFacts)
 }
 
 func managedServiceAcquisitionTargetWithFactSource(ctx context.Context, manifest ResourceManifest, hostOS, hostArch string, genericFacts func(context.Context) (binaryfetch.Facts, error)) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
@@ -85,21 +84,19 @@ func managedServiceAcquisitionFactsWithSource(ctx context.Context, manifest Reso
 	return genericFacts(ctx)
 }
 
-func collectManagedServiceAcquisitionFacts(ctx context.Context) (binaryfetch.Facts, error) {
+func (c *Controller) collectManagedServiceAcquisitionFacts(ctx context.Context) (binaryfetch.Facts, error) {
 	// Preserve Linux and other-resource accelerator/preference observations.
 	snapshot, err := hostinventory.CollectGPUFacts(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts()), nil
+	return c.acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts()), nil
 }
 
-func acquisitionFactsWithOperatorPreference(ctx context.Context, facts binaryfetch.Facts) binaryfetch.Facts {
+func (c *Controller) acquisitionFactsWithOperatorPreference(ctx context.Context, facts binaryfetch.Facts) binaryfetch.Facts {
 	preference := operatorstate.AccelPreferenceAuto
-	if root, err := buildinfo.ResolveSourceRoot(); err == nil {
-		if state, loadErr := operatorstate.New(operatorstate.Config{RepoRoot: root}).Effective(ctx); loadErr == nil {
-			preference = state.EffectiveAccelPreference()
-		}
+	if state, err := c.operatorStateService().Effective(ctx); err == nil {
+		preference = state.EffectiveAccelPreference()
 	}
 	return withOperatorAccelPreference(facts, preference)
 }
@@ -208,7 +205,7 @@ func ensureManagedServiceAcquiredArtifact(ctx context.Context, controller *Contr
 	if err != nil {
 		return err
 	}
-	target, err := managedServiceAcquisitionTarget(ctx, manifest)
+	target, err := controller.managedServiceAcquisitionTarget(ctx, manifest)
 	if err != nil {
 		return err
 	}
@@ -234,7 +231,7 @@ func ensureManagedServiceAcquiredArtifact(ctx context.Context, controller *Contr
 	pending := managedServiceArtifactPendingPath(path)
 	if err := verifyManagedServiceTargetArtifact(ctx, path, artifact, target); err == nil {
 		_ = os.RemoveAll(pending) // a staged copy of the installed bytes is redundant
-		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+		controller.recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	if err := ctx.Err(); err != nil {
@@ -256,7 +253,7 @@ func ensureManagedServiceAcquiredArtifact(ctx context.Context, controller *Contr
 		if err := replaceManagedServiceArtifact(pending, path); err != nil {
 			return fmt.Errorf("apply staged %s artifact: %w", manifest.Name, err)
 		}
-		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+		controller.recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	if err := verifyManagedServiceProvenance(ctx, manifest.ManagedService.Acquisition.Provenance); err != nil {
@@ -349,7 +346,7 @@ func ensureManagedServiceAcquiredArtifact(ctx context.Context, controller *Contr
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	_ = os.RemoveAll(pending) // superseded by the bytes just installed
-	recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+	controller.recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 	return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 }
 
@@ -448,8 +445,8 @@ func replaceManagedServiceArtifact(candidate, destination string) error {
 // recordManagedServiceInstallFacts writes the sidecar that makes a later
 // mismatch explainable. It is best-effort: the artifact is already staged and
 // verified, and a missing record only costs the better diagnosis later.
-func recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceManifest, path string, target binaryfetch.AcquisitionTarget, artifact resourcedeployment.ServiceArtifact) {
-	facts, err := managedServiceAcquisitionFactsWithSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, collectManagedServiceAcquisitionFacts)
+func (c *Controller) recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceManifest, path string, target binaryfetch.AcquisitionTarget, artifact resourcedeployment.ServiceArtifact) {
+	facts, err := managedServiceAcquisitionFactsWithSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, c.collectManagedServiceAcquisitionFacts)
 	if err != nil {
 		return
 	}
@@ -790,7 +787,7 @@ func acquireManagedServiceDataArtifacts(ctx context.Context, controller *Control
 	if err != nil {
 		return fmt.Errorf("collect host facts for %s data artifacts: %w", manifest.Name, err)
 	}
-	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
+	facts := controller.acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
 	for _, declaration := range declarations {
 		target, err := declaration.Acquisition.Resolve(facts)
 		if err != nil {
@@ -971,7 +968,7 @@ func managedServiceArtifactForLaunch(ctx context.Context, controller *Controller
 	if manifest.ManagedService.Acquisition == nil {
 		return managedServiceArtifactForTarget(manifest, binaryfetch.AcquisitionTarget{})
 	}
-	target, facts, err := managedServiceAcquisitionTargetWithFacts(ctx, manifest)
+	target, facts, err := controller.managedServiceAcquisitionTargetWithFacts(ctx, manifest)
 	if err != nil {
 		return resourcedeployment.ServiceArtifact{}, err
 	}
@@ -1047,11 +1044,11 @@ func managedServiceArtifactVersionsRoot(controller *Controller, manifest Resourc
 	return filepath.Join(root, manifest.Name), nil
 }
 
-func acquisitionTargetRuntimeEnv(ctx context.Context, manifest ResourceManifest, artifactRoot string) (map[string]string, error) {
+func acquisitionTargetRuntimeEnv(ctx context.Context, controller *Controller, manifest ResourceManifest, artifactRoot string) (map[string]string, error) {
 	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
 		return nil, nil
 	}
-	target, err := managedServiceAcquisitionTarget(ctx, manifest)
+	target, err := controller.managedServiceAcquisitionTarget(ctx, manifest)
 	if err != nil {
 		return nil, err
 	}

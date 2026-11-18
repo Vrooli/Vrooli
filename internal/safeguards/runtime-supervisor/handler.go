@@ -306,9 +306,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 	home, root, err := homeAndRoot()
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	if opts.DryRun {
 		status.ExecutionState = hostreqkit.ExecutionWouldApply

@@ -1,9 +1,7 @@
 package privilegebroker
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -28,6 +26,10 @@ const (
 	serviceName       = "vrooli-privilege-broker.service"
 	servicePath       = "/etc/systemd/system/" + serviceName
 	installedBinary   = "/usr/local/lib/vrooli/vrooli-privilege-broker"
+	// SetupRecoveryCommand is the supported in-flow privilege recovery command.
+	SetupRecoveryCommand = "vrooli setup --sudo-mode=ask"
+	// SetupBrokerRecoveryCommand is the focused broker install/upgrade command.
+	SetupBrokerRecoveryCommand = "vrooli setup broker --sudo-mode=ask"
 )
 
 // SocketPath resolves the broker endpoint from the platform runtime directory.
@@ -48,20 +50,24 @@ type SetupStatus struct {
 	MissingCapabilities []string `json:"missing_capabilities,omitempty"`
 }
 
+// SetupPrivilegeSession is the main setup flow's persistent authorization
+// boundary. It is intentionally narrower than the broker's general API.
+type SetupPrivilegeSession interface {
+	InstallPrivilegeBroker(context.Context, string) (SetupStatus, error)
+}
+
 type Installer struct {
-	Executable string
-	RepoRoot   string
-	Run        func(context.Context, string, ...string) ([]byte, error)
-	Copy       func(string, string) error
-	// SetupRun executes only the setup-owned elevation child, preserving the
-	// operator's terminal on stderr. It is a controlled installation test seam.
-	SetupRun     func(context.Context, string, []string, io.Writer, io.Writer) error
+	Executable   string
+	RepoRoot     string
+	Run          func(context.Context, string, ...string) ([]byte, error)
+	Copy         func(string, string) error
+	SetupSession SetupPrivilegeSession
 	effectiveUID func() int
 }
 
 // InstallForSetup honors the project setup consent boundary. The parent stays
-// in the owner's session; only this fixed installation child becomes root.
-func (i Installer) InstallForSetup(ctx context.Context, mode string, stdout, stderr io.Writer) (SetupStatus, error) {
+// in the owner's session; only the typed setup worker elevates.
+func (i Installer) InstallForSetup(ctx context.Context, mode string, _, _ io.Writer) (SetupStatus, error) {
 	identity := i.effectiveUID
 	if identity == nil {
 		identity = os.Geteuid
@@ -69,28 +75,21 @@ func (i Installer) InstallForSetup(ctx context.Context, mode string, stdout, std
 	if runtime.GOOS != "linux" || identity() == 0 {
 		return i.Install(ctx)
 	}
-	if strings.TrimSpace(mode) == "" || mode == "skip" {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" || mode == "skip" {
 		return Inspect(), nil
 	}
-	command, args, err := hostreqkit.WithSudo(mode, i.Executable, []string{"__privilege-broker", "install", "--repo-root", i.RepoRoot})
-	if err != nil {
+	if mode != "ask" {
+		_, _, err := hostreqkit.WithSudo(mode, i.Executable, nil)
+		if err == nil {
+			return SetupStatus{}, fmt.Errorf("broker installation requires setup elevation consent")
+		}
 		return SetupStatus{}, err
 	}
-	run := i.SetupRun
-	if run == nil {
-		run = func(ctx context.Context, name string, args []string, out, errOut io.Writer) error {
-			return shell.CommandWithDefaults(shell.Spec{Context: ctx, Name: name, Args: args, Stdout: out, Stderr: errOut, Stdin: os.Stdin}).Run()
-		}
+	if i.SetupSession == nil {
+		return SetupStatus{}, fmt.Errorf("broker installation requires a setup privilege session")
 	}
-	var output bytes.Buffer
-	if err := run(ctx, command, args, &output, stderr); err != nil {
-		return SetupStatus{}, fmt.Errorf("setup privilege broker installation: %w", err)
-	}
-	var status SetupStatus
-	if err := json.Unmarshal(output.Bytes(), &status); err != nil || !status.Available {
-		return SetupStatus{}, fmt.Errorf("setup privilege broker installation did not verify availability")
-	}
-	return status, nil
+	return i.SetupSession.InstallPrivilegeBroker(ctx, i.RepoRoot)
 }
 
 func DefaultInstaller(executable string) Installer {
@@ -107,14 +106,14 @@ func DefaultInstallerForRepo(executable, repoRoot string) Installer {
 
 func (i Installer) Install(ctx context.Context) (SetupStatus, error) {
 	if runtime.GOOS != string(hostreqspec.PlatformLinux) {
-		return SetupStatus{Supported: false, SocketPath: SocketPath(), Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: "Use a supported Linux host, then re-run `vrooli setup --sudo-mode=ask`."}, nil
+		return SetupStatus{Supported: false, SocketPath: SocketPath(), Reason: "privilege broker is currently supported only on Linux with systemd", Recovery: fmt.Sprintf("Use a supported Linux host, then re-run `%s`.", SetupRecoveryCommand)}, nil
 	}
 	if os.Geteuid() != 0 {
-		return SetupStatus{Supported: true, SocketPath: SocketPath(), Reason: "setup was not elevated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install the privilege broker."}, nil
+		return SetupStatus{Supported: true, SocketPath: SocketPath(), Reason: "setup was not elevated", Recovery: fmt.Sprintf("Re-run `%s` to install the privilege broker.", SetupRecoveryCommand)}, nil
 	}
 	uid, gid, err := invokingIdentity()
 	if err != nil {
-		return SetupStatus{Supported: true, SocketPath: SocketPath(), Reason: err.Error(), Recovery: "Re-run `vrooli setup --sudo-mode=ask` from the owner account that will run Vrooli."}, nil
+		return SetupStatus{Supported: true, SocketPath: SocketPath(), Reason: err.Error(), Recovery: fmt.Sprintf("Re-run `%s` from the owner account that will run Vrooli.", SetupRecoveryCommand)}, nil
 	}
 	runtimeRoot, err := installedRuntimeHomeRoot(i.RepoRoot, uint32(uid))
 	if err != nil {
@@ -165,17 +164,17 @@ func Inspect() SetupStatus {
 	client.Timeout = tuning.PrivilegeBrokerUnlockTimeout()
 	result, err := client.Do(context.Background(), Request{Version: ProtocolVersion, RequestID: "setup-inspect", Action: ActionCapabilitiesInspect})
 	if err != nil {
-		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker socket is unavailable", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to install or repair the privilege broker."}
+		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker socket is unavailable", Recovery: fmt.Sprintf("Re-run `%s` to install or repair the privilege broker.", SetupRecoveryCommand)}
 	}
 	if result.Status != "completed" || len(result.Capabilities) == 0 {
-		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker capability registry is unavailable or outdated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to upgrade the privilege broker."}
+		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker capability registry is unavailable or outdated", Recovery: fmt.Sprintf("Re-run `%s` to upgrade the privilege broker.", SetupRecoveryCommand)}
 	}
 	status := SetupStatus{Available: true, Supported: true, SocketPath: socket, Capabilities: result.Capabilities}
 	status.MissingCapabilities = missingCapabilities(result.Capabilities)
 	status.UpgradeRequired = len(status.MissingCapabilities) > 0
 	if status.UpgradeRequired {
 		status.Reason = "installed broker is missing current control-plane capabilities"
-		status.Recovery = "Run `vrooli setup broker --sudo-mode=ask` to upgrade the setup-managed broker."
+		status.Recovery = fmt.Sprintf("Run `%s` to upgrade the setup-managed broker.", SetupBrokerRecoveryCommand)
 	}
 	return status
 }

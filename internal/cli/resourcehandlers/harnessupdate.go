@@ -1,8 +1,15 @@
 package resourcehandlers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -51,5 +58,61 @@ func resourceUpdateHandler[C any](deps rootcli.HandlerDeps[C], parse func([]stri
 }
 
 func runHarnessUpdate(ctx context.Context, root string, req resourcecli.UpdateRequest) (agentinstall.HarnessActionResult, error) {
-	return agentinstall.ManageHarness(ctx, root, req.Name, req.Action, cliutil.ResolveCallerActor(req.OnBehalfOf), req.CleanupPlanID)
+	channel := req.Channel
+	if req.Major > 0 {
+		resolved, err := agentinstall.ChannelForMajor(root, req.Name, req.Major)
+		if err != nil {
+			return agentinstall.HarnessActionResult{Action: req.Action, Message: err.Error()}, nil
+		}
+		channel = resolved
+	}
+	result, err := agentinstall.ManageHarnessWithChannel(ctx, root, req.Name, channel, req.Action, cliutil.ResolveCallerActor(req.OnBehalfOf), req.CleanupPlanID)
+	if err != nil || !result.Success {
+		return result, err
+	}
+	if req.Action == agentinstall.ActionUpdate || req.Action == agentinstall.ActionInstall {
+		if warning := reconcileAfterHarnessUpdate(ctx, root, req.Name); warning != "" {
+			result.Success = false
+			result.Message = strings.TrimSpace(result.Message + " " + warning)
+		}
+	}
+	return result, nil
+}
+
+// reconcileAfterHarnessUpdate runs the resource's idempotent ensure step after
+// a successful install/update. The binary is already selected; ensure is what
+// projects config, credentials, and the major-appropriate policy plugin. A
+// failure is surfaced as a failed command rather than hidden, because leaving
+// the previous major's plugin in place would misrepresent enforcement.
+func reconcileAfterHarnessUpdate(ctx context.Context, root, name string) string {
+	data, err := os.ReadFile(filepath.Join(root, "resources", name, "resource.json"))
+	if err != nil {
+		return ""
+	}
+	var manifest struct {
+		Capabilities struct {
+			SupportsEnsure bool `json:"supports_ensure"`
+		} `json:"capabilities"`
+		CLI struct {
+			Command string `json:"command"`
+		} `json:"cli"`
+	}
+	if json.Unmarshal(data, &manifest) != nil || !manifest.Capabilities.SupportsEnsure {
+		return ""
+	}
+	command := strings.TrimSpace(manifest.CLI.Command)
+	if command == "" {
+		return ""
+	}
+	path, err := exec.LookPath(command)
+	if err != nil {
+		return fmt.Sprintf("Updated, but %s is not on PATH; configuration and policy-plugin reconciliation did not run.", command)
+	}
+	var output bytes.Buffer
+	cmd := exec.CommandContext(ctx, path, "ensure")
+	cmd.Stdout, cmd.Stderr = &output, &output
+	if err := cmd.Run(); err != nil {
+		return fmt.Sprintf("Updated, but %s ensure failed: %v: %s", command, err, strings.TrimSpace(output.String()))
+	}
+	return ""
 }

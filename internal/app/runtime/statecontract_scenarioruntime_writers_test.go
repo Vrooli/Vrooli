@@ -88,5 +88,6 @@ func init() {
 		"supervisor.go:(*SQLiteStore).ReleaseSupervision:tx.ExecContext#1":                         "update runtime_instances; registry schemaSQL fact",
 		"supervisor.go:(*SQLiteStore).StopSupervisorSession:tx.ExecContext#1":                      "update runtime_supervisor_sessions; registry schemaSQL fact",
 		"supervisor.go:(*SQLiteStore).UpdateInstanceReconciliation:tx.ExecContext#1":               "update runtime_instances; registry schemaSQL fact",
+		"snapshot.go:SnapshotDatabase:db.ExecContext#1":                                            "VACUUM INTO a caller-named new file for the pre-transition snapshot; the live registry store is never the destination",
 	}
 }

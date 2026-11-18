@@ -2,6 +2,7 @@ package deployability
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,17 +35,22 @@ func TestDiscoverConformanceTargetsCoversAuthoredClaimsWithoutCountPinning(t *te
 	writeConformanceFile(t, root, "go.mod", "module fixture\n\ngo 1.23\n")
 	writeConformanceFile(t, root, "internal/tools/honest/tool.json", `{ "platforms": ["linux"] }`)
 	writeConformanceFile(t, root, "internal/safeguards/control/safeguard.json", `{ "platforms": ["linux", "windows"] }`)
-	targets, err := DiscoverConformanceTargets(root)
+	writeConformanceFile(t, root, "scenarios/example/.vrooli/service.json", `{}`)
+	writeConformanceFile(t, root, "scenarios/example/api/go.mod", "module runtime\n\ngo 1.23\n")
+	writeConformanceFile(t, root, "scenarios/example/docs/evidence/go.mod", "module archived-docs\n\ngo 1.23\n")
+	writeConformanceFile(t, root, "docs/go.mod", "module documentation-fixtures\n\ngo 1.23\n")
+	writeConformanceFile(t, root, "docs/research/manifest.json", `{ "contract": { "team": "research" } }`)
+	writeConformanceFile(t, root, "docs/research/go.mod", "module team-documentation-fixtures\n\ngo 1.23\n")
+	targets, err := DiscoverConformanceTargets(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(targets) != 6 {
-		t.Fatalf("discovered %d targets, want the six declared OS/architecture cells; %+v", len(targets), targets)
-	}
+	modules := map[string]int{}
 	for _, target := range targets {
-		if target.CodeRoot != "." {
-			t.Errorf("target rooted at %q, want repository module root", target.CodeRoot)
-		}
+		modules[target.CodeRoot]++
+	}
+	if len(modules) != 2 || modules["."] != 6 || modules[filepath.Join("scenarios", "example", "api")] != 6 {
+		t.Fatalf("discovered module cells %v; want repository and scenario API modules, six cells each", modules)
 	}
 }
 
@@ -55,7 +61,8 @@ func TestCheckRepositoryNamesCompilerFailureByManifestAndOS(t *testing.T) {
 	writeConformanceFile(t, root, "internal/safeguards/linux-only/safeguard.json", `{ "platforms": ["windows"] }`)
 	writeConformanceFile(t, root, "internal/safeguards/linux-only/linux_only.go", "//go:build linux\n\npackage linuxonly\n\nvar undefinedOnWindows = 1\n")
 	writeConformanceFile(t, root, "internal/safeguards/linux-only/platform.go", "package linuxonly\n\nvar _ = undefinedOnWindows\n")
-	report, err := CheckRepository(context.Background(), root)
+	var progress strings.Builder
+	report, err := CheckRepository(context.Background(), root, &progress)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +79,17 @@ func TestCheckRepositoryNamesCompilerFailureByManifestAndOS(t *testing.T) {
 		if !strings.Contains(finding.Message, "GOOS=") {
 			t.Fatalf("finding does not include compiler target: %q", finding.Message)
 		}
+	}
+	if !strings.Contains(progress.String(), "checking 1 modules across 6 target cells") || !strings.Contains(progress.String(), "checked 6/6 target cells") {
+		t.Fatalf("progress did not report bounded start and completion: %q", progress.String())
+	}
+}
+
+func TestCheckRepositoryStopsBeforeDiscoveryWhenCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := CheckRepository(ctx, t.TempDir(), nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("CheckRepository error = %v, want context canceled", err)
 	}
 }
 

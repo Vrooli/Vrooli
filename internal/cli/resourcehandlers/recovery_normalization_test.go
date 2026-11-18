@@ -83,12 +83,12 @@ func TestRecoveryResourceNormalizationBoundary(t *testing.T) {
 							args = append(args, target)
 						}
 						exit := runner.Run(args, ctx.stdout, ctx.stderr)
-						if agent {
+						if agent && operation == "stop-all" {
 							if exit == 0 || controllers != 0 || effects != 0 || !strings.Contains(ctx.stderr.String(), clipolicy.CodeDestructiveVrooliMaintenanceBlocked) {
 								t.Fatalf("resource spelling bypass: exit=%d controllers=%d fakeEffects=%d stderr=%s", exit, controllers, effects, ctx.stderr.String())
 							}
 						} else if exit != 0 || controllers != 1 || effects != 1 {
-							t.Fatalf("operator grammar changed: exit=%d controllers=%d fakeEffects=%d stderr=%s", exit, controllers, effects, ctx.stderr.String())
+							t.Fatalf("resource grammar changed: exit=%d controllers=%d fakeEffects=%d stderr=%s", exit, controllers, effects, ctx.stderr.String())
 						}
 					})
 				}

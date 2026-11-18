@@ -1,6 +1,7 @@
 package privilegebroker
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -8,6 +9,11 @@ import (
 )
 
 const policyFilesystemFixer = "ntfsfix"
+
+var (
+	errSubjectNotAllowed = errors.New("subject_not_allowed")
+	errActionNotAllowed  = errors.New("action_not_allowed")
+)
 
 // Validate rejects every request shape outside the immutable v1 registry.
 func Validate(req Request) error {
@@ -18,13 +24,13 @@ func Validate(req Request) error {
 		return fmt.Errorf("invalid_request_id")
 	}
 	if req.LocalAdmission != nil && req.Action != ActionLocalAdmissionInspect && req.Action != ActionLocalAdmissionEnsure && req.Action != ActionLocalAdmissionRevoke {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.SMART != nil && req.Action != ActionVolumeSMARTInspect {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.Service != nil && req.Action != ActionServiceRecover {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	switch req.Action {
 	case ActionServiceRecover:
@@ -36,7 +42,7 @@ func Validate(req Request) error {
 		return nil
 	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect, ActionKernelMemoryInspect, ActionKernelMemoryStackSample:
 		if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || hasCloudSubject(req) {
-			return fmt.Errorf("subject_not_allowed")
+			return errSubjectNotAllowed
 		}
 		return nil
 	case ActionBridgeUFWInspect, ActionBridgeUFWAllow, ActionBridgeUFWVerify, ActionBridgeUFWRevoke:
@@ -58,7 +64,7 @@ func Validate(req Request) error {
 	case ActionEdgeCaddyValidate, ActionEdgeCaddyReload:
 		return validateCaddy(req)
 	default:
-		return fmt.Errorf("action_not_allowed")
+		return errActionNotAllowed
 	}
 }
 
@@ -95,7 +101,7 @@ func hasCloudSubject(req Request) bool {
 
 func validateStorageAction(req Request) error {
 	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || hasCloudSubject(req) {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	switch req.Action {
 	case ActionLogRotateForce:
@@ -148,7 +154,7 @@ func validateRuntimeHome(req Request) error {
 // exactly its own shape, never a union of both.
 func validateBridge(req Request) error {
 	if req.Volume != nil || req.RuntimeHome != nil || hasCloudSubject(req) {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.Subject.Scenario != BridgeScenario {
 		return fmt.Errorf("scenario_not_allowed")
@@ -185,7 +191,7 @@ func validateVolume(req Request) error {
 		return fmt.Errorf("volume_subject_required")
 	}
 	if req.Subject != (Subject{}) || req.RuntimeHome != nil || hasCloudSubject(req) {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	device := strings.TrimSpace(req.Volume.Device)
 	if device == "" || strings.Contains(device, "..") || !volumeDevicePattern.MatchString(device) {
@@ -257,6 +263,6 @@ func UFWArgs(req Request) ([]string, error) {
 	case ActionBridgeUFWRevoke:
 		return append([]string{"delete", "allow"}, base...), nil
 	default:
-		return nil, fmt.Errorf("action_not_allowed")
+		return nil, errActionNotAllowed
 	}
 }

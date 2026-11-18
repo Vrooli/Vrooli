@@ -2,40 +2,40 @@ package discovery
 
 import (
 	"context"
+	_ "embed"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
-// TestBrowserURLForHostMatchesAPIBase pins this resolver to the same answers
-// packages/api-base/src/server/embedded.ts gives. The cases are transcribed
-// from that package's own suite so a divergence fails here rather than showing
-// up as a link that works in one scenario and 404s in another.
+//go:embed testdata/external-url-cases.json
+var externalURLCasesJSON []byte
+
+// TestBrowserURLForHostMatchesAPIBase uses the same conformance fixture as
+// packages/api-base so cross-language behavior cannot drift through copied cases.
 func TestBrowserURLForHostMatchesAPIBase(t *testing.T) {
 	cases := []struct {
-		name     string
-		host     string
-		scenario string
-		port     int
-		want     string
-	}{
-		{"localhost with port", "localhost:3000", "my-scenario", 9000, "http://localhost:9000"},
-		{"loopback address", "127.0.0.1:3000", "my-scenario", 9000, "http://localhost:9000"},
-		{"unspecified address", "0.0.0.0:3000", "my-scenario", 9000, "http://localhost:9000"},
-		{"missing host", "", "my-scenario", 9000, "http://localhost:9000"},
-		{"tunnel swaps first label", "git-control-tower.example.com", "my-scenario", 9000, "https://my-scenario.example.com"},
-		{"deep domain swaps first label", "app.staging.example.com", "test-app", 9000, "https://test-app.staging.example.com"},
-		{"two-label domain falls back", "example.com", "my-scenario", 9000, "http://localhost:9000"},
-		{"single word host falls back", "myhost", "my-scenario", 9000, "http://localhost:9000"},
-		{"port stripped before analysis", "app.example.com:8080", "my-scenario", 9000, "https://my-scenario.example.com"},
-		{"private IPv4 retains host", "192.168.1.20:3000", "my-scenario", 9000, "http://192.168.1.20:9000"},
-		{"private IPv6 retains host", "[fd12::20]:3000", "my-scenario", 9000, "http://[fd12::20]:9000"},
-		{"IPv6 loopback stays local", "[::1]:3000", "my-scenario", 9000, "http://localhost:9000"},
+		Name          string `json:"name"`
+		Host          string `json:"host"`
+		ForwardedHost string `json:"forwardedHost"`
+		Scenario      string `json:"scenario"`
+		Port          int    `json:"port"`
+		Want          string `json:"want"`
+	}{}
+	if err := json.Unmarshal(externalURLCasesJSON, &cases); err != nil {
+		t.Fatalf("decode cross-language URL fixture: %v", err)
 	}
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := BrowserURLForHost(tc.host, tc.scenario, tc.port); got != tc.want {
-				t.Fatalf("BrowserURLForHost(%q, %q, %d) = %q, want %q", tc.host, tc.scenario, tc.port, got, tc.want)
+		t.Run(tc.Name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "http://fallback.invalid/", nil)
+			request.Host = tc.Host
+			if tc.ForwardedHost != "" {
+				request.Header.Set("X-Forwarded-Host", tc.ForwardedHost)
+			}
+			host := ExternalHost(request)
+			if got := BrowserURLForHost(host, tc.Scenario, tc.Port); got != tc.Want {
+				t.Fatalf("BrowserURLForHost(%q, %q, %d) = %q, want %q", host, tc.Scenario, tc.Port, got, tc.Want)
 			}
 		})
 	}
@@ -49,34 +49,12 @@ func TestBrowserURLForHostHandlesIPv6(t *testing.T) {
 	}
 }
 
-// TestBrowserURLForHostWithoutScenarioStaysLocal keeps an empty slug from
-// producing "https://.example.com".
-func TestBrowserURLForHostWithoutScenarioStaysLocal(t *testing.T) {
-	if got := BrowserURLForHost("app.example.com", "", 9000); got != "http://localhost:9000" {
-		t.Fatalf("empty scenario slug = %q, want the localhost URL", got)
-	}
-}
-
-func TestExternalHostPrefersTheForwardedValue(t *testing.T) {
+func TestExternalHostUsesFirstForwardedHeaderValue(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:16382/", nil)
-	request.Header.Set("X-Forwarded-Host", "web-console.example.com")
-	if got := ExternalHost(request); got != "web-console.example.com" {
-		t.Fatalf("ExternalHost = %q, want the forwarded host", got)
-	}
-}
-
-func TestExternalHostReadsTheFirstForwardedHop(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:16382/", nil)
-	request.Header.Set("X-Forwarded-Host", "web-console.example.com, inner.proxy")
-	if got := ExternalHost(request); got != "web-console.example.com" {
-		t.Fatalf("ExternalHost = %q, want the first forwarded hop", got)
-	}
-}
-
-func TestExternalHostFallsBackToRequestHost(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "http://web-console.example.com/", nil)
-	if got := ExternalHost(request); got != "web-console.example.com" {
-		t.Fatalf("ExternalHost = %q, want the request host", got)
+	request.Header.Add("X-Forwarded-Host", "first.example.com")
+	request.Header.Add("X-Forwarded-Host", "second.example.com")
+	if got := ExternalHost(request); got != "first.example.com" {
+		t.Fatalf("ExternalHost = %q, want the first forwarded header value", got)
 	}
 }
 

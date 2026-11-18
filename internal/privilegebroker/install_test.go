@@ -2,7 +2,6 @@ package privilegebroker
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"io"
@@ -23,44 +22,40 @@ func TestSetupBrokerInstallationHonorsElevationConsent(t *testing.T) {
 		return hostreqkit.ElevationFacts{Platform: "linux", CanElevate: true}
 	}
 	t.Setenv("VROOLI_PRIVILEGE_BROKER_SOCKET", filepath.Join(t.TempDir(), "absent.sock"))
-	calls := 0
-	installer := Installer{Executable: "/reviewed/vrooli", RepoRoot: "/project", effectiveUID: func() int { return 1000 }, SetupRun: func(_ context.Context, command string, args []string, out, _ io.Writer) error {
-		calls++
-		if command != "sudo" || strings.Join(args, " ") != "/reviewed/vrooli __privilege-broker install --repo-root /project" {
-			t.Fatalf("unexpected elevation: %s %v", command, args)
-		}
-		return json.NewEncoder(out).Encode(SetupStatus{Available: true, Supported: true, Capabilities: capabilities()})
-	}}
-	status, err := installer.InstallForSetup(context.Background(), "skip", io.Discard, io.Discard)
-	if err != nil || status.Available || calls != 0 || !strings.Contains(status.Recovery, "vrooli setup --sudo-mode=ask") {
-		t.Fatalf("ordinary setup=%+v err=%v calls=%d", status, err, calls)
+	session := &setupSessionStub{}
+	installer := Installer{RepoRoot: "/project", effectiveUID: func() int { return 1000 }, SetupSession: session}
+	install := func(mode string) (SetupStatus, error) {
+		return installer.InstallForSetup(context.Background(), mode, io.Discard, io.Discard)
 	}
-	status, err = installer.InstallForSetup(context.Background(), "ask", io.Discard, io.Discard)
-	if err != nil || !status.Available || calls != 1 {
-		t.Fatalf("consented setup=%+v err=%v calls=%d", status, err, calls)
+	status, err := install("skip")
+	if err != nil || status.Available || !strings.Contains(status.Recovery, SetupRecoveryCommand) {
+		t.Fatalf("skip status=%+v err=%v", status, err)
 	}
-	_, err = installer.InstallForSetup(context.Background(), "error", io.Discard, io.Discard)
-	if !errors.Is(err, hostreqkit.ErrSudoUnavailable) || calls != 1 {
-		t.Fatalf("error policy: err=%v calls=%d", err, calls)
+	if _, err := install("error"); !errors.Is(err, hostreqkit.ErrSudoUnavailable) {
+		t.Fatalf("error mode: %v", err)
+	}
+	if _, err := install("invalid"); err == nil || session.calls != 0 {
+		t.Fatalf("unconsented session calls=%d err=%v", session.calls, err)
+	}
+	status, err = install("ask")
+	if err != nil || !status.Available || session.calls != 1 || session.root != "/project" {
+		t.Fatalf("status=%+v err=%v session=%+v", status, err, session)
+	}
+	installer.SetupSession = nil
+	if status, err := install("ask"); err == nil || status.Available {
+		t.Fatalf("missing session status=%+v err=%v", status, err)
 	}
 }
 
-func TestSetupBrokerDoesNotClaimAvailabilityAfterInstallationFailure(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("Linux broker")
-	}
-	original := hostreqkit.ElevationFactsFn
-	t.Cleanup(func() { hostreqkit.ElevationFactsFn = original })
-	hostreqkit.ElevationFactsFn = func() hostreqkit.ElevationFacts {
-		return hostreqkit.ElevationFacts{Platform: "linux", CanElevate: true}
-	}
-	installer := Installer{Executable: "/reviewed/vrooli", effectiveUID: func() int { return 1000 }, SetupRun: func(_ context.Context, _ string, _ []string, out, _ io.Writer) error {
-		_, _ = io.WriteString(out, `{ "available": false }`)
-		return nil
-	}}
-	if _, err := installer.InstallForSetup(context.Background(), "ask", io.Discard, io.Discard); err == nil {
-		t.Fatal("failed installation was reported available")
-	}
+type setupSessionStub struct {
+	root  string
+	calls int
+}
+
+func (s *setupSessionStub) InstallPrivilegeBroker(_ context.Context, root string) (SetupStatus, error) {
+	s.root = root
+	s.calls++
+	return SetupStatus{Available: true, Supported: true, Capabilities: capabilities()}, nil
 }
 
 func TestSystemdUnitRunsOnlyInternalBrokerWithExplicitCallerIdentity(t *testing.T) {

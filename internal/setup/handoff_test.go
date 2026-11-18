@@ -4,6 +4,7 @@ package setup
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -30,7 +31,7 @@ func withFakeOnboardingStart(t *testing.T) *int {
 	t.Helper()
 	previous := startOnboardingScenarioFn
 	calls := 0
-	startOnboardingScenarioFn = func(string, string) error {
+	startOnboardingScenarioFn = func(context.Context, string, string) error {
 		calls++
 		return nil
 	}
@@ -49,7 +50,7 @@ func TestOnboardingHandoffRemoteShellDoesNotOpenBrowser(t *testing.T) {
 	svc.deps.openOnboardingURL = func(string) error { opened = true; return nil }
 
 	stdout := &bytes.Buffer{}
-	result, err := svc.runOnboardingHandoff(root, home, Options{}, stdout, io.Discard)
+	result, err := svc.runOnboardingHandoff(root, home, Options{Context: context.Background()}, stdout, io.Discard)
 	if err != nil {
 		t.Fatalf("runOnboardingHandoff: %v", err)
 	}
@@ -80,7 +81,7 @@ func TestOnboardingHandoffLocalGraphicalUsesBrowserInAutoMode(t *testing.T) {
 		return nil
 	}
 
-	result, err := svc.runOnboardingHandoff(root, home, Options{}, io.Discard, io.Discard)
+	result, err := svc.runOnboardingHandoff(root, home, Options{Context: context.Background()}, io.Discard, io.Discard)
 	if err != nil {
 		t.Fatalf("runOnboardingHandoff: %v", err)
 	}
@@ -99,7 +100,7 @@ func TestOnboardingHandoffBrowserFailureFallsBackToURL(t *testing.T) {
 	svc.deps.openOnboardingURL = func(string) error { return context.DeadlineExceeded }
 	stdout := &bytes.Buffer{}
 
-	result, err := svc.runOnboardingHandoff(root, home, Options{}, stdout, io.Discard)
+	result, err := svc.runOnboardingHandoff(root, home, Options{Context: context.Background()}, stdout, io.Discard)
 	if err != nil {
 		t.Fatalf("runOnboardingHandoff: %v", err)
 	}
@@ -125,7 +126,7 @@ func TestOnboardingHandoffEveryPresentationKindHasResumePath(t *testing.T) {
 		t.Run(string(kind), func(t *testing.T) {
 			svc, root, home := prepareHandoffFixture(t, hostinventory.Capability{Kind: kind, Reason: "test capability"})
 			withFakeOnboardingStart(t)
-			result, err := svc.runOnboardingHandoff(root, home, Options{Onboarding: onboardinghandoff.ModeURL}, io.Discard, io.Discard)
+			result, err := svc.runOnboardingHandoff(root, home, Options{Context: context.Background(), Onboarding: onboardinghandoff.ModeURL}, io.Discard, io.Discard)
 			if err != nil {
 				t.Fatalf("runOnboardingHandoff: %v", err)
 			}
@@ -145,16 +146,35 @@ func TestStartOnboardingScenarioDoesNotUseOperatorSessionWhenUnprivileged(t *tes
 	})
 	invokingUIDFn = func() int { return 1000 }
 	operatorLaunches := 0
-	launchOnboardingAsOperatorFn = func(string, string) error {
+	launchOnboardingAsOperatorFn = func(context.Context, string, string) error {
 		operatorLaunches++
 		return nil
 	}
 	testenv.SetSudoUser(t, "operator")
 
-	if err := startOnboardingScenario(t.TempDir(), "/bin/true"); err != nil {
+	if err := startOnboardingScenario(context.Background(), t.TempDir(), "/bin/true"); err != nil {
 		t.Fatalf("startOnboardingScenario: %v", err)
 	}
 	if operatorLaunches != 0 {
 		t.Fatalf("operator-session launches = %d, want 0", operatorLaunches)
+	}
+}
+
+func TestResolveOnboardingURLStopsWhenSetupIsCanceled(t *testing.T) {
+	svc, _, _ := prepareHandoffFixture(t, hostinventory.Capability{Kind: hostinventory.KindRemoteShell})
+	ctx, cancel := context.WithCancel(context.Background())
+	calls := 0
+	svc.deps.onboardingPortCommandRunner = func(got context.Context, _ string, _ ...string) ([]byte, error) {
+		calls++
+		cancel()
+		return nil, got.Err()
+	}
+
+	_, err := svc.resolveOnboardingURL(ctx, "/bin/true")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("resolveOnboardingURL error = %v, want cancellation", err)
+	}
+	if calls != 1 {
+		t.Fatalf("port probes = %d, want one before cancellation", calls)
 	}
 }

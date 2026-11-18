@@ -12,7 +12,6 @@ import (
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
-	vroolilauncher "github.com/vrooli/vrooli/internal/safeguards/vrooli-launcher"
 	valuespkg "github.com/vrooli/vrooli/internal/values"
 )
 
@@ -20,48 +19,11 @@ const (
 	requirementsReportParameterA = 200
 )
 
-// vrooliLauncherStatFn / vrooliExecutableFn are test seams for vrooliInvocation.
-// Production maps them to os.Stat(LauncherPath) / os.Executable. Tests
-// override to simulate "shim present", "shim missing", or "executable
-// lookup failed" without touching the real filesystem.
-var (
-	vrooliLauncherStatFn = func() (os.FileInfo, error) { return os.Stat(vroolilauncher.LauncherPath) }
-	vrooliExecutableFn   = os.Executable
-)
+var vrooliExecutableFn = os.Executable
 
-// vrooliInvocation returns the command string the action block should
-// suggest when telling the operator how to re-run the CLI under sudo or
-// in any other constrained-PATH context.
-//
-// Bootstrap chicken-and-egg: on a fresh install the launcher shim at
-// /usr/local/bin/vrooli does not exist yet — sudo's secure_path does not
-// include ~/.vrooli/bin (where `make install` writes the real binary), so
-// a bare `sudo vrooli ...` fails with "command not found". The action
-// block needs to emit a command that actually works, so:
-//
-//   - If the launcher shim exists at /usr/local/bin/vrooli, return the
-//     bare name "vrooli". After the first sudo'd `--include-optional`
-//     run installs the shim, this is the steady state.
-//   - Otherwise, return the absolute path of the running binary
-//     (os.Executable). `sudo /home/user/.vrooli/bin/vrooli ...` works
-//     regardless of secure_path because sudo only consults PATH when the
-//     argument is a bare name.
-//
-// We deliberately do NOT shell out to `sudo -n env` to discover the real
-// secure_path — that would either prompt for a password or look like a
-// lie when sudo is unavailable. A static check of the shim's well-known
-// location is enough: the vrooli_launcher safeguard
-// (internal/safeguards/vrooli-launcher) is the authoritative installer;
-// if it reports AlreadyPresent the file is at LauncherPath, period.
-//
-// If os.Executable itself fails (vanishingly rare — unsupported platform
-// or deleted binary), fall back to the bare "vrooli" name. Worst case the
-// operator gets the same "command not found" they had before, which is
-// no worse than the status quo and keeps the hint readable.
+// vrooliInvocation returns the current executable so remediation commands
+// keep working when the CLI is not on PATH.
 func vrooliInvocation() string {
-	if _, err := vrooliLauncherStatFn(); err == nil {
-		return setupOwnerVrooli
-	}
 	exe, err := vrooliExecutableFn()
 	if err != nil || strings.TrimSpace(exe) == "" {
 		return setupOwnerVrooli
@@ -137,8 +99,9 @@ func renderGrouped(w io.Writer, report vrooliruntime.Report) {
 	items := appendRequirementItems(nil, report.Tools)
 	items = appendRequirementItems(items, report.Safeguards)
 	groups := groupItemsByOutcome(items)
+	cmd := vrooliInvocation()
 
-	renderActionBlock(w, groups)
+	renderActionBlock(w, groups, cmd)
 
 	if len(groups.Failed) > 0 {
 		_, _ = fmt.Fprintf(w, "Failed (%d):\n", len(groups.Failed))
@@ -148,10 +111,8 @@ func renderGrouped(w io.Writer, report vrooliruntime.Report) {
 	}
 
 	if len(groups.NeedsSudo) > 0 {
-		// Use vrooliInvocation here too so the group header matches the action
-		// block. The in-flow command is the one named: it prompts in-process
-		// and leaves the rest of the run unelevated.
-		_, _ = fmt.Fprintf(w, "Needs privilege — re-run with `%s setup --sudo-mode=ask` (%d):\n", vrooliInvocation(), len(groups.NeedsSudo))
+		// The in-flow command prompts here and leaves the rest of setup unelevated.
+		_, _ = fmt.Fprintf(w, "Needs privilege — re-run with `%s setup --sudo-mode=ask` (%d):\n", cmd, len(groups.NeedsSudo))
 		for _, item := range groups.NeedsSudo {
 			renderGroupedItem(w, "✗", item, true)
 		}
@@ -166,7 +127,7 @@ func renderGrouped(w io.Writer, report vrooliruntime.Report) {
 
 	if len(groups.Optional) > 0 {
 		_, _ = fmt.Fprintf(w, "Optional — opt in with `%s setup --include-optional` (%d): %s\n",
-			vrooliInvocation(), len(groups.Optional), itemNames(groups.Optional))
+			cmd, len(groups.Optional), itemNames(groups.Optional))
 	}
 
 	if len(groups.Applied) > 0 {
@@ -201,18 +162,12 @@ func renderGrouped(w io.Writer, report vrooliruntime.Report) {
 // operator should run to clear the actionable groups. It is the headline UX
 // win of the grouped renderer: tells the user what to do without making them
 // scan the whole report. Suppressed when nothing is actionable.
-func renderActionBlock(w io.Writer, groups outcomeGroups) {
+func renderActionBlock(w io.Writer, groups outcomeGroups, cmd string) {
 	type action struct {
 		hint    string
 		command string
 	}
 	var actions []action
-
-	// vrooliInvocation resolves to the bare name "vrooli" once the
-	// launcher shim is installed; otherwise it returns the absolute path so
-	// `sudo <abs-path> ...` works without the shim. See vrooliInvocation's
-	// doc comment for the bootstrap rationale.
-	cmd := vrooliInvocation()
 
 	if needsSudo := len(groups.NeedsSudo); needsSudo > 0 {
 		actions = append(actions, action{

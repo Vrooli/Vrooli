@@ -90,7 +90,7 @@ func HasCmdlineParam(cfgPath, param string) (present bool, value string, err err
 //
 // Under EnsureOptions.DryRun, returns the Outcome that *would* result without
 // touching disk or invoking commands.
-func AddCmdlineParams(cfgPath string, edits []CmdlineEdit, sudoMode string, opts hostreqkit.EnsureOptions) (Outcome, error) {
+func AddCmdlineParams(cfgPath string, edits []CmdlineEdit, opts hostreqkit.EnsureOptions) (Outcome, error) {
 	if cfgPath == "" {
 		cfgPath = DefaultConfigPath
 	}
@@ -128,11 +128,11 @@ func AddCmdlineParams(cfgPath string, edits []CmdlineEdit, sudoMode string, opts
 		return Outcome{}, fmt.Errorf("grub: refusing to write invalid config: %s", reason)
 	}
 
-	if err := writeBackup(cfgPath, original, backupPath, sudoMode, opts); err != nil {
+	if err := writeBackup(cfgPath, original, backupPath, opts); err != nil {
 		return Outcome{}, fmt.Errorf("backup %s: %w", cfgPath, err)
 	}
 
-	if err := hostreqkit.InstallManagedContent(cfgPath, newContent, sudoMode, opts); err != nil {
+	if err := hostreqkit.InstallManagedContent(cfgPath, newContent, opts); err != nil {
 		return Outcome{}, fmt.Errorf("install new %s: %w", cfgPath, err)
 	}
 
@@ -145,8 +145,8 @@ func AddCmdlineParams(cfgPath string, edits []CmdlineEdit, sudoMode string, opts
 // hand the in-memory bytes through the same temp-file + install pipeline used
 // for the new content, guaranteeing the snapshot we capture matches what we
 // just read.
-func writeBackup(cfgPath, originalContent, backupPath, sudoMode string, opts hostreqkit.EnsureOptions) error {
-	return hostreqkit.InstallManagedContent(backupPath, originalContent, sudoMode, opts)
+func writeBackup(cfgPath, originalContent, backupPath string, opts hostreqkit.EnsureOptions) error {
+	return hostreqkit.InstallManagedContent(backupPath, originalContent, opts)
 }
 
 // cmdlineToken is one space-separated GRUB_CMDLINE_LINUX entry. HasValue is

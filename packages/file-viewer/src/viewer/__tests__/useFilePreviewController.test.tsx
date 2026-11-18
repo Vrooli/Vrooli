@@ -97,13 +97,28 @@ beforeEach(() => {
 });
 
 describe("useFilePreviewController", () => {
+  it("opens both report links on the same file, preserving literal path hashes and line links", async () => {
+    mockResolve.mockResolvedValue(resolved(model()));
+    const { result } = renderHook(() => useFilePreviewController(source("s")));
+    for (const anchor of ["review-2", "project-O5", "project-O5"]) {
+      await act(async () => { await result.current.openPreview(`/tmp/report%23draft.html#${anchor}`, "message_link"); });
+      expect(mockResolve).toHaveBeenLastCalledWith("/tmp/report%23draft.html", "message_link");
+      expect(result.current.state).toMatchObject({ status: "ready", anchor });
+    }
+    for (const literal of ["/tmp/report.html%23draft", "/tmp/report.html:3", "/tmp/note#draft.txt"]) {
+      await act(async () => { await result.current.openPreview(literal, "message_link"); });
+      expect(mockResolve).toHaveBeenLastCalledWith(literal, "message_link");
+      expect(result.current.state.anchor).toBeUndefined();
+    }
+  });
+
   it("keeps HTML in history when a clicked file hits closed lifecycle admission and can retry", async () => {
     const report = model({ previewId: "report", resolvedPath: "/research/REVIEW.html", basename: "REVIEW.html" });
     const content = { resolvedPath: report.resolvedPath, kind: "code", mimeType: "text/html", content: '<a href="script.md">Script</a>', truncated: false };
     mockResolve.mockResolvedValueOnce(resolved(report));
     mockGetText.mockResolvedValueOnce(content);
     const { result } = renderHook(() => useFilePreviewController(source("s")));
-    await act(async () => { await result.current.openPreview(report.resolvedPath); });
+    await act(async () => { await result.current.openPreview(`${report.resolvedPath}#sources`, "message_link"); });
     mockResolve.mockRejectedValueOnce(new Error("service unavailable: lifecycle admission closed"));
     act(() => { result.current.navigateTo("/research/script.md"); });
     await waitFor(() => { expect(result.current.state.status).toBe("error"); });
@@ -116,6 +131,7 @@ describe("useFilePreviewController", () => {
     expect(result.current.state.model?.kind).toBe("markdown");
     act(() => { result.current.navigateBack(); });
     expect(result.current.state.model?.previewId).toBe("report");
+    expect(result.current.state.anchor).toBe("sources");
     expect(result.current.state.text?.content).toBe(content.content);
   });
   it("walks resolving → loadingText → ready for text kinds", async () => {

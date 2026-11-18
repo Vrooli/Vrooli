@@ -126,9 +126,12 @@ type AcquisitionTarget struct {
 	// Executable is the host command adopted by kind=none. It is deliberately
 	// explicit: a managed service may reuse a separately governed host tool,
 	// but it may not discover an arbitrary running process or binary.
-	Executable  string            `json:"executable,omitempty"`
-	Package     string            `json:"package,omitempty"`
-	Version     string            `json:"version,omitempty"`
+	Executable string `json:"executable,omitempty"`
+	Package    string `json:"package,omitempty"`
+	Version    string `json:"version,omitempty"`
+	// Channel names an alternate release line for the same command. Empty is the
+	// default channel, so a manifest with no channels keeps its existing meaning.
+	Channel     string            `json:"channel,omitempty"`
 	RuntimeEnv  map[string]string `json:"runtime_env,omitempty"`
 	Unsupported string            `json:"unsupported,omitempty"`
 	Compose     []ComposeStep     `json:"compose,omitempty"`
@@ -194,6 +197,16 @@ func (a Acquisition) validate(candidate bool) error {
 	for index, target := range a.Targets {
 		if err := validateTargetPredicate(target.When); err != nil {
 			return fmt.Errorf("acquisition target %d: %w", index, err)
+		}
+		if channel := strings.TrimSpace(target.Channel); channel != "" {
+			if channel != target.Channel {
+				return fmt.Errorf("acquisition target %d: channel must not carry surrounding whitespace", index)
+			}
+			for _, r := range channel {
+				if !(r == '-' || r == '_' || r == '.' || (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')) {
+					return fmt.Errorf("acquisition target %d: channel %q is invalid", index, channel)
+				}
+			}
 		}
 		unsupported := strings.TrimSpace(target.Unsupported)
 		if unsupported != "" {
@@ -400,7 +413,46 @@ type ResolutionExplanation struct {
 // UnsupportedError so callers cannot silently fall through to a less precise
 // declaration.
 func (a Acquisition) Resolve(facts Facts) (AcquisitionTarget, error) {
+	return a.ResolveForChannel(facts, "")
+}
+
+// ResolveForChannel returns the first target whose predicate matches facts on
+// the requested channel. An empty channel selects only default-channel targets,
+// so adding a new channel never changes an existing install's resolution.
+func (a Acquisition) ResolveForChannel(facts Facts, channel string) (AcquisitionTarget, error) {
+	want := strings.TrimSpace(channel)
 	for _, target := range a.Targets {
+		if strings.TrimSpace(target.Channel) != want {
+			continue
+		}
+		matched, err := predicateMatches(target.When, facts)
+		if err != nil {
+			return AcquisitionTarget{}, err
+		}
+		if !matched {
+			continue
+		}
+		if reason := strings.TrimSpace(target.Unsupported); reason != "" {
+			return target, &UnsupportedError{Reason: reason}
+		}
+		return target, nil
+	}
+	return AcquisitionTarget{}, &NoMatchingTargetError{}
+}
+
+// ResolveForPackage returns the first target for a package whose predicate
+// matches facts. Dependency Analyzer receives a package name, not a channel, so
+// this is how it recovers the channel (and therefore the version prefix) that
+// the manifest declared for that package.
+func (a Acquisition) ResolveForPackage(facts Facts, packageName string) (AcquisitionTarget, error) {
+	want := strings.TrimSpace(packageName)
+	if want == "" {
+		return AcquisitionTarget{}, &NoMatchingTargetError{}
+	}
+	for _, target := range a.Targets {
+		if strings.TrimSpace(target.Package) != want {
+			continue
+		}
 		matched, err := predicateMatches(target.When, facts)
 		if err != nil {
 			return AcquisitionTarget{}, err
@@ -421,6 +473,10 @@ func (a Acquisition) Resolve(facts Facts) (AcquisitionTarget, error) {
 func (a Acquisition) Explain(facts Facts) ResolutionExplanation {
 	result := ResolutionExplanation{Facts: cloneFacts(facts), Selected: -1}
 	for i, target := range a.Targets {
+		if strings.TrimSpace(target.Channel) != "" {
+			result.Candidates = append(result.Candidates, CandidateExplanation{Index: i, When: cloneFacts(target.When), Reason: "channel " + strings.TrimSpace(target.Channel)})
+			continue
+		}
 		matched, err := predicateMatches(target.When, facts)
 		candidate := CandidateExplanation{Index: i, When: cloneFacts(target.When), Matched: matched}
 		switch {

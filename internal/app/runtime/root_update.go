@@ -100,7 +100,7 @@ func SubmitRootUpdate(ctx context.Context, home string, request RootUpdateReques
 			return err
 		}
 		attempt.identities(priorIdentity.GetPersistentStateContractSha256(), candidateIdentity.GetPersistentStateContractSha256())
-		if err := coreactivation.QualifyRollbackIdentities(priorIdentity, candidateIdentity); err != nil {
+		if err := coreactivation.QualifyRollbackImages(ctx, priorIdentity, candidateIdentity, layout.Executable, candidate); err != nil {
 			reason := "qualification_failed"
 			if errors.Is(err, coreactivation.ErrStateContractChanged) {
 				reason = "state_contract_changed"

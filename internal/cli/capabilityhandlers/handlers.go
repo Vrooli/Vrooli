@@ -123,7 +123,7 @@ func runLegacyCapability(operationCtx context.Context, app *capabilityapp.Servic
 		if err != nil {
 			return err
 		}
-		return app.Conformance(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.ConformanceOptions{DeclarationsOnly: declarationsOnly, JSON: ctx.Globals.JSON || jsonOutput})
+		return app.Conformance(operationCtx, ctx.Root, ctx.Stdout, capabilityapp.ConformanceOptions{DeclarationsOnly: declarationsOnly, JSON: ctx.Globals.JSON || jsonOutput, Progress: ctx.Stderr})
 	case "auth-conformance":
 		jsonOutput, _, err := parseConformanceArgs(args[1:])
 		if err != nil {

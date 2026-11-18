@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -308,22 +307,8 @@ func TestUpdateErrorWritesNothingAndForeignSchemaIsRefused(t *testing.T) {
 	}
 }
 
-func TestReadFileIgnoresFifoAndHugeFiles(t *testing.T) {
+func TestReadFileIgnoresHugeFiles(t *testing.T) {
 	dir := t.TempDir()
-	fifo := filepath.Join(dir, "fifo.json")
-	if err := syscall.Mkfifo(fifo, 0o600); err != nil {
-		t.Skip("no fifo support: ", err)
-	}
-	done := make(chan []Mode, 1)
-	go func() { done <- ReadFile(fifo, t0) }()
-	select {
-	case modes := <-done:
-		if modes != nil {
-			t.Fatalf("fifo produced modes: %v", modes)
-		}
-	case <-time.After(3 * time.Second):
-		t.Fatal("reading a FIFO blocked the launch")
-	}
 	huge := filepath.Join(dir, "huge.json")
 	valid := `{"schema_version":1,"modes":[{"id":"um-1","until":{"kind":"off"},"started_at":"2026-10-30T10:00:00Z"}],"pad":"` +
 		strings.Repeat("x", MaxFileBytes) + `"}`

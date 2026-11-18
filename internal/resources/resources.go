@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -70,15 +69,13 @@ type Controller struct {
 	updateCleanupAfter    string
 }
 
+type noReclaimContextKey struct{}
+
 func (c *Controller) operatorStateService() *operatorstate.Service {
 	if c.operatorState != nil {
 		return c.operatorState
 	}
-	cfg := operatorstate.Config{RepoRoot: c.Root}
-	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
-		cfg.LogicalOperatorHome = c.Home
-	}
-	return operatorstate.New(cfg)
+	return operatorstate.New(operatorstate.ConfigForOperator(c.Root, c.Home))
 }
 
 type (
@@ -223,7 +220,7 @@ func (c *Controller) SetEnabled(name string, enabled bool) error {
 	if err != nil {
 		return err
 	}
-	service := operatorstate.New(operatorstate.Config{RepoRoot: c.Root})
+	service := c.operatorStateService()
 	_, err = service.Apply(context.Background(), data)
 	return err
 }
@@ -387,7 +384,11 @@ func (c *Controller) ManagedServiceSource(ctx context.Context, name string) (ope
 }
 
 func (c *Controller) readConfigEntries() (map[string]ConfigEntry, error) {
-	entries, err := catalogpkg.New(c.Root).ReadConfigEntries()
+	state, err := c.operatorStateService().Load(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	entries, err := catalogpkg.New(c.Root).ReadConfigEntriesWithState(state)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +406,7 @@ func (c *Controller) EnabledResourceNames() ([]string, error) {
 	if _, err := c.readConfigEntries(); err != nil {
 		return nil, err
 	}
-	doc, err := operatorstate.New(operatorstate.Config{RepoRoot: c.Root}).Load(context.Background())
+	doc, err := c.operatorStateService().Load(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -438,7 +439,7 @@ func (c *Controller) seedOperatorState(entries map[string]ConfigEntry) error {
 	if len(entries) == 0 {
 		return nil
 	}
-	service := operatorstate.New(operatorstate.Config{RepoRoot: c.Root})
+	service := c.operatorStateService()
 	doc, err := service.Load(context.Background())
 	if err != nil {
 		return err
@@ -566,6 +567,15 @@ func (c *Controller) RunContext(ctx context.Context, name string, args []string,
 		return err
 	}
 	return c.resourceControl().RunContext(ctx, name, args, stdout, stderr)
+}
+
+// RunContextWithNoReclaim applies request-scoped strict admission without
+// copying controller state or changing policy for later operations.
+func (c *Controller) RunContextWithNoReclaim(ctx context.Context, name string, args []string, stdout, stderr io.Writer, noReclaim bool) error {
+	if noReclaim {
+		ctx = context.WithValue(ctx, noReclaimContextKey{}, true)
+	}
+	return c.RunContext(ctx, name, args, stdout, stderr)
 }
 
 func (c *Controller) StartAll(stdout, stderr io.Writer) (internalcontrol.StartReport, error) {
@@ -732,5 +742,6 @@ func (c *Controller) withResourceCapacity(ctx context.Context, name, operation s
 	if admit == nil {
 		admit = capacity.WithResourceAdmission
 	}
-	return admit(ctx, capacity.AdmitOptions{Root: c.Root, ResourceName: name, NoReclaim: c.NoReclaim, Log: os.Stderr}, run)
+	noReclaim, _ := ctx.Value(noReclaimContextKey{}).(bool)
+	return admit(ctx, capacity.AdmitOptions{Root: c.Root, ResourceName: name, NoReclaim: c.NoReclaim || noReclaim, Log: os.Stderr}, run)
 }

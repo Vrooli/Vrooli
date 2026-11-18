@@ -467,6 +467,11 @@ func writeStateContractFixture(t *testing.T, root string) {
 	}
 	for _, patterns := range statecontract.WholeSources {
 		for _, pattern := range patterns {
+			// An exact exclusion must match a selected fixture source too.
+			if strings.HasPrefix(pattern, "!") {
+				writeTestFile(t, root, strings.TrimPrefix(pattern, "!"), "package fixture\n")
+				continue
+			}
 			path := pattern + "/fixture.go"
 			if strings.HasSuffix(pattern, "*") {
 				path = strings.TrimSuffix(pattern, "*") + "_fixture.go"
@@ -726,5 +731,19 @@ func steps(target []other.Step) bool {
 				t.Fatalf("candidates = %v, want the Fence.State literal", got)
 			}
 		})
+	}
+}
+
+func TestScenarioCLIInstallExcludesLaunchOnlyAgentLauncher(t *testing.T) {
+	root, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	patterns := statecontract.WholeSources["scenario-cli-install"]
+	if !slices.Contains(patterns, "!packages/cli-core/cliutil/agentlauncher.go") {
+		t.Fatal("scenario-cli-install must exclude the launch-only agent launcher file")
+	}
+	if _, err := wholeSourceDigest(root, patterns); err != nil {
+		t.Fatalf("whole-source exclusion is invalid: %v", err)
 	}
 }

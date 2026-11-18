@@ -34,3 +34,24 @@ A missing liveness checker yields `unknown`; it never falls back to an expensive
 readiness checker. Both tiers execute checks outside the registry mutex, so a
 blocked readiness refresh cannot serialize liveness behind model work. Keep
 separate bounded clients where liveness and readiness call the same provider.
+Checkers that implement `ScenarioTargetChecker` declare the scenario they
+observe; `Registry.Validate` rejects a mismatch with the dependency slug.
+The checker map must also match the definition IDs exactly: validation rejects
+both declared capabilities without checkers and orphan checkers without a
+capability definition. The registry copies checker maps when constructed and
+when liveness checkers are set, so later caller map mutation cannot change
+validation or in-flight resolution. The optional liveness-checker map may be a
+subset of definitions; validation rejects orphan entries and checks scenario
+target parity for entries that declare a target.
+
+`ScenarioStatusChecker` is the shared bounded checker for local,
+Vrooli-managed scenario dependencies whose status contract is the control-plane
+`vrooli scenario status <slug> --json` command. It uses the caller context, a
+default timeout equal to the registry's liveness-check budget, and an injectable
+`CommandRunner`; scenario modules only declare the target slug. Use a
+scenario-specific checker when the peer requires protocol health or when the
+consumer is packaged, remote, or deployed without the local control-plane CLI.
+Lifecycle status reports that the scenario is running; it does not prove the
+peer's API is reachable. For deployed targets, resolve a configured static or
+Bridge address through the owning discovery path and probe the peer's health
+contract, keeping target addressing with the consumer.

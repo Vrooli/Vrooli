@@ -81,8 +81,8 @@ func resourceUpdateByOwnerHandler[C any](deps rootcli.HandlerDeps[C], readOnly b
 			}
 			return resourceUpdateHandler(deps, parse)(ctx, controller, args)
 		}
-		if p.HasFlag("--on-behalf-of") || p.HasFlag("--cleanup-plan") {
-			return rootcli.UsageErrorf("resource update", "harness actor and cleanup flags do not apply to managed-service updates")
+		if p.HasFlag("--on-behalf-of") || p.HasFlag("--cleanup-plan") || p.HasFlag("--channel") || p.HasFlag("--major") {
+			return rootcli.UsageErrorf("resource update", "harness actor, cleanup, and channel flags do not apply to managed-service updates")
 		}
 		action := p.FlagValue("--action")
 		if action == "" {

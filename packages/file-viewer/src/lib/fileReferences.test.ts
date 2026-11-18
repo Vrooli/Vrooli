@@ -10,6 +10,7 @@ describe("fileReferences", () => {
 
   it("detects file-like references", () => {
     expect(looksLikeFileReference("/tmp/file.ts:12")).toBe(true);
+    expect(looksLikeFileReference("report.html#review-2")).toBe(true);
     expect(looksLikeFileReference("docs/plan.md")).toBe(true);
     expect(looksLikeFileReference("https://example.com")).toBe(false);
     expect(looksLikeFileReference("#anchor")).toBe(false);

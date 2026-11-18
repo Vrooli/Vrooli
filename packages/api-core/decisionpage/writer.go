@@ -10,8 +10,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
+
+	"github.com/vrooli/platform-go"
 )
 
 // Job states.
@@ -565,15 +566,7 @@ func writeJSON(path string, v any) error {
 }
 
 func lock(dir string) (func(), error) {
-	f, err := os.OpenFile(filepath.Join(dir, lockFile), os.O_CREATE|os.O_RDWR, 0o644)
-	if err != nil {
-		return nil, err
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		f.Close()
-		return nil, err
-	}
-	return func() { _ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN); f.Close() }, nil
+	return platform.AcquireFileLock(filepath.Join(dir, lockFile))
 }
 
 func summarize(fs []Finding) string {

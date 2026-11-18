@@ -136,8 +136,7 @@ func TestEnsureLoadAtBootWritesBothFiles(t *testing.T) {
 	out, err := EnsureLoadAtBoot(
 		"netconsole",
 		map[string]string{"netconsole": "6666@10.0.0.5:6666"},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("EnsureLoadAtBoot: %v", err)
@@ -174,7 +173,7 @@ func TestEnsureLoadAtBootNilOptionsSkipsModprobeFile(t *testing.T) {
 	cmds, files, restore := stubAll(t)
 	defer restore()
 
-	out, err := EnsureLoadAtBoot("amd64_edac", nil, "ask", hostreqkit.EnsureOptions{})
+	out, err := EnsureLoadAtBoot("amd64_edac", nil, hostreqkit.EnsureOptions{SudoMode: "ask"})
 	if err != nil {
 		t.Fatalf("EnsureLoadAtBoot: %v", err)
 	}
@@ -208,8 +207,7 @@ func TestEnsureLoadAtBootIdempotent(t *testing.T) {
 	out, err := EnsureLoadAtBoot(
 		"netconsole",
 		map[string]string{"netconsole": "x"},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("EnsureLoadAtBoot: %v", err)
@@ -229,8 +227,7 @@ func TestEnsureLoadAtBootDryRunWritesNothing(t *testing.T) {
 	out, err := EnsureLoadAtBoot(
 		"netconsole",
 		map[string]string{"netconsole": "x"},
-		"ask",
-		hostreqkit.EnsureOptions{DryRun: true},
+		hostreqkit.EnsureOptions{SudoMode: "ask", DryRun: true},
 	)
 	if err != nil {
 		t.Fatalf("EnsureLoadAtBoot: %v", err)
@@ -253,8 +250,7 @@ func TestEnsureLoadAtBootOnlyOptionsChanged(t *testing.T) {
 	out, err := EnsureLoadAtBoot(
 		"netconsole",
 		map[string]string{"netconsole": "x"},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("EnsureLoadAtBoot: %v", err)
@@ -279,7 +275,7 @@ func TestEnsureLoadAtBootOnlyOptionsChanged(t *testing.T) {
 func TestEnsureLoadAtBootRejectsEmptyName(t *testing.T) {
 	_, _, restore := stubAll(t)
 	defer restore()
-	if _, err := EnsureLoadAtBoot("", nil, "ask", hostreqkit.EnsureOptions{}); err == nil {
+	if _, err := EnsureLoadAtBoot("", nil, hostreqkit.EnsureOptions{SudoMode: "ask"}); err == nil {
 		t.Error("expected error for empty name")
 	}
 }
@@ -293,7 +289,7 @@ func TestEnsureLoadAtBootInstallFailureSurfacesError(t *testing.T) {
 		}
 		return nil
 	}
-	_, err := EnsureLoadAtBoot("netconsole", nil, "ask", hostreqkit.EnsureOptions{})
+	_, err := EnsureLoadAtBoot("netconsole", nil, hostreqkit.EnsureOptions{SudoMode: "ask"})
 	if err == nil {
 		t.Fatal("expected error from install failure")
 	}
@@ -319,7 +315,7 @@ func TestModprobePassesOptionsAsKVArgs(t *testing.T) {
 	cmds, _, restore := stubAll(t)
 	defer restore()
 
-	err := Modprobe("netconsole", map[string]string{"netconsole": "x"}, "ask", hostreqkit.EnsureOptions{})
+	err := Modprobe("netconsole", map[string]string{"netconsole": "x"}, hostreqkit.EnsureOptions{SudoMode: "ask"})
 	if err != nil {
 		t.Fatalf("Modprobe: %v", err)
 	}
@@ -348,7 +344,7 @@ func TestModprobeNoOptions(t *testing.T) {
 	cmds, _, restore := stubAll(t)
 	defer restore()
 
-	if err := Modprobe("amd64_edac", nil, "ask", hostreqkit.EnsureOptions{}); err != nil {
+	if err := Modprobe("amd64_edac", nil, hostreqkit.EnsureOptions{SudoMode: "ask"}); err != nil {
 		t.Fatalf("Modprobe: %v", err)
 	}
 	for _, c := range *cmds {
@@ -370,7 +366,7 @@ func TestModprobeDryRunIsNoOp(t *testing.T) {
 	cmds, _, restore := stubAll(t)
 	defer restore()
 
-	if err := Modprobe("netconsole", nil, "ask", hostreqkit.EnsureOptions{DryRun: true}); err != nil {
+	if err := Modprobe("netconsole", nil, hostreqkit.EnsureOptions{SudoMode: "ask", DryRun: true}); err != nil {
 		t.Fatalf("Modprobe: %v", err)
 	}
 	if len(*cmds) != 0 {
@@ -381,7 +377,7 @@ func TestModprobeDryRunIsNoOp(t *testing.T) {
 func TestModprobeRejectsEmptyName(t *testing.T) {
 	_, _, restore := stubAll(t)
 	defer restore()
-	if err := Modprobe("", nil, "ask", hostreqkit.EnsureOptions{}); err == nil {
+	if err := Modprobe("", nil, hostreqkit.EnsureOptions{SudoMode: "ask"}); err == nil {
 		t.Error("expected error for empty name")
 	}
 }

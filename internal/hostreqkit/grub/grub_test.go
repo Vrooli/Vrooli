@@ -233,8 +233,7 @@ GRUB_TIMEOUT=5
 	out, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "crashkernel", Value: "512M-:256M"}},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
@@ -282,8 +281,7 @@ func TestAddCmdlineParamsReplacesExistingValue(t *testing.T) {
 	out, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "crashkernel", Value: "512M-:256M"}},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
@@ -308,8 +306,7 @@ func TestAddCmdlineParamsIdempotent(t *testing.T) {
 	out, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "crashkernel", Value: "512M-:256M"}},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
@@ -340,8 +337,7 @@ func TestAddCmdlineParamsMixedNewAndExisting(t *testing.T) {
 			{Param: "ramoops.mem_address", Value: "0x70000000"},
 			{Param: "ramoops.ecc", Value: "1"},
 		},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
@@ -365,8 +361,7 @@ func TestAddCmdlineParamsDryRunWritesNothing(t *testing.T) {
 	out, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "crashkernel", Value: "auto"}},
-		"ask",
-		hostreqkit.EnsureOptions{DryRun: true},
+		hostreqkit.EnsureOptions{SudoMode: "ask", DryRun: true},
 	)
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
@@ -396,8 +391,7 @@ func TestAddCmdlineParamsValidationFailureBlocksWrite(t *testing.T) {
 	_, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "crashkernel", Value: "auto"}},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err == nil {
 		t.Fatal("expected error from validation failure")
@@ -432,8 +426,7 @@ func TestAddCmdlineParamsBackupFailureAbortsBeforeWrite(t *testing.T) {
 	_, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "crashkernel", Value: "auto"}},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err == nil {
 		t.Fatal("expected error from backup failure")
@@ -451,8 +444,7 @@ func TestAddCmdlineParamsRejectsEmptyParam(t *testing.T) {
 	_, err := AddCmdlineParams(
 		"/etc/default/grub",
 		[]CmdlineEdit{{Param: "  ", Value: "x"}},
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err == nil {
 		t.Fatal("expected error for empty Param")
@@ -467,8 +459,7 @@ func TestAddCmdlineParamsNoEditsIsNoOp(t *testing.T) {
 	out, err := AddCmdlineParams(
 		"/etc/default/grub",
 		nil,
-		"ask",
-		hostreqkit.EnsureOptions{},
+		hostreqkit.EnsureOptions{SudoMode: "ask"},
 	)
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
@@ -491,7 +482,7 @@ func TestAddCmdlineParamsDefaultsConfigPath(t *testing.T) {
 		return []byte(`GRUB_CMDLINE_LINUX="quiet"` + "\n"), nil
 	}
 
-	_, err := AddCmdlineParams("", []CmdlineEdit{{Param: "x", Value: "1"}}, "ask", hostreqkit.EnsureOptions{})
+	_, err := AddCmdlineParams("", []CmdlineEdit{{Param: "x", Value: "1"}}, hostreqkit.EnsureOptions{SudoMode: "ask"})
 	if err != nil {
 		t.Fatalf("AddCmdlineParams: %v", err)
 	}

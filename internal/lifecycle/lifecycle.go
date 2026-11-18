@@ -257,7 +257,6 @@ type hostProbeCache struct {
 	goEnvOK              bool
 	nodeVersion          string
 	nodeVersionOK        bool
-	goList               map[string][]byte
 	sharedPackageDigests map[string]string
 }
 
@@ -1605,14 +1604,35 @@ func (r *Runner) cleanupScenarioRuntimeWithRegistryContext(ctx context.Context, 
 		_ = process.RemoveScenarioRecord(r.Home, slug, step)
 	}
 
-	portsToCheck := make(map[int]struct{})
+	fixedPorts := make(map[int]struct{})
 	if includeManifestFixedPorts {
 		if item, loadErr := r.loadScenario(name, customPath); loadErr == nil {
-			portsToCheck = liveFixedPorts(item.Manifest, key)
+			fixedPorts = liveFixedPorts(item.Manifest, key)
 		}
 	}
+	portsToCheck := make(map[int]struct{}, len(fixedPorts)+len(runtimeStop.claimedPorts))
+	for port := range fixedPorts {
+		portsToCheck[port] = struct{}{}
+	}
+	// A scenario's dynamically allocated ports are as much a part of its
+	// teardown contract as its fixed ports. Without this, a listener that
+	// outlived its tracked process record (for example a child launched
+	// outside the current record generation, or a process whose PID changed
+	// after a crash) can keep serving on the instance's assigned API port while
+	// stop reports success. The next start then reuses the deterministic port
+	// and fails at start-api with "port already in use".
+	for port := range runtimeStop.claimedPorts {
+		portsToCheck[port] = struct{}{}
+	}
 
-	if err := r.killOrphansOnPortsContext(ctx, portsToCheck); err != nil {
+	// Fixed ports retain their historical aggressive cleanup: policy reserves
+	// them for the live instance. Dynamically claimed ports use claim evidence
+	// so an unrelated process that later bound the same numeric port is not
+	// silently killed.
+	if err := r.killOrphansOnPortsContext(ctx, fixedPorts); err != nil {
+		return err
+	}
+	if err := r.killClaimedPortOrphansContext(ctx, runtimeStop.claimedPorts, runtimeStop.claimListenerPIDs, key); err != nil {
 		return err
 	}
 
@@ -1892,6 +1912,67 @@ func (r *Runner) killOrphansOnPortsContext(ctx context.Context, portsToCheck map
 		pidsToKill = append(pidsToKill, pids...)
 	}
 	return r.terminatePIDs(ctx, pidsToKill)
+}
+
+// killClaimedPortOrphansContext clears a listener that is still holding a port
+// this instance claimed when stop began. A claimed port is stronger evidence
+// than a process record: the registry observed the listener there while the
+// instance was live, and the claim is released only after teardown. Killing is
+// limited to (a) listeners still carrying this exact scenario+variant
+// identity, and (b) the specific PID the claim observed on that port. A
+// managed listener owned by another scenario is never touched, even when it
+// occupies the same numeric port after a crash.
+func (r *Runner) killClaimedPortOrphansContext(ctx context.Context, portsToCheck map[int]struct{}, claimListenerPIDs map[int][]int, key scenarioruntime.InstanceKey) error {
+	if len(portsToCheck) == 0 {
+		return nil
+	}
+	key = key.Normalize()
+	deps := r.runtimeDeps()
+	targets := make(map[int]struct{})
+	for port := range portsToCheck {
+		inspection := deps.inspectPort(port)
+		if !inspection.Inspection.Available {
+			continue
+		}
+		known := make(map[int]struct{}, len(claimListenerPIDs[port]))
+		for _, pid := range claimListenerPIDs[port] {
+			if pid > 0 {
+				known[pid] = struct{}{}
+			}
+		}
+		for _, listener := range inspection.Listeners {
+			_, observedOnClaim := known[listener.PID]
+			env, envErr := deps.readProcessEnv(listener.PID)
+			if envErr == nil {
+				if strings.EqualFold(strings.TrimSpace(env["VROOLI_LIFECYCLE_MANAGED"]), "true") {
+					listenerKey := scenarioruntime.InstanceKey{
+						Scenario: strings.TrimSpace(env["VROOLI_SCENARIO"]),
+						Variant:  strings.TrimSpace(env[scenarioruntime.EnvVariant]),
+					}.Normalize()
+					if listenerKey != key {
+						// Never reach across a scenario or variant boundary.
+						continue
+					}
+					targets[listener.PID] = struct{}{}
+					continue
+				}
+			}
+			if observedOnClaim {
+				// The process no longer carries a managed environment, but it
+				// is the exact PID the claim observed listening on the port it
+				// was assigned. That is this instance's orphan.
+				targets[listener.PID] = struct{}{}
+			}
+		}
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	pids := make([]int, 0, len(targets))
+	for pid := range targets {
+		pids = append(pids, pid)
+	}
+	return r.terminatePIDs(ctx, pids)
 }
 
 func (r *Runner) cleanupFixedPortOrphans(item scenario.Scenario) error {

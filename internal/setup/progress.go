@@ -53,7 +53,7 @@ var setupPhases = []phaseInfo{
 	{PhaseGeneratedPackages, "Generate packages"},
 	{PhaseCredentials, "Configure credentials"},
 	{PhaseCredentialCapabilities, "Discover capabilities"},
-	{PhasePrivilegeBroker, "Install privilege broker"},
+	{PhasePrivilegeBroker, "Report privilege broker status"},
 	{PhaseGit, "Configure Git"},
 	{PhaseResources, "Reconcile resources"},
 	{PhaseCLI, "Synchronize resource CLIs"},

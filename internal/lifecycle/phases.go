@@ -1120,6 +1120,50 @@ func (r *Runner) startTrackedProcess(item scenario.Scenario, phase string, step 
 	return r.startTrackedProcessContext(context.Background(), item, phase, step, env)
 }
 
+// reclaimSameInstanceListener terminates a listener on a component port only
+// when its environment positively identifies it as this exact scenario and
+// variant. It is the start-side half of the restart contract: ports.ensurePortBindable
+// admits this case so a restart can proceed, and this function makes that
+// admission true by clearing the previous incarnation's process. A listener
+// that belongs to another scenario or variant is never signalled.
+func (r *Runner) reclaimSameInstanceListener(ctx context.Context, item scenario.Scenario, port int) error {
+	deps := r.runtimeDeps()
+	inspection := deps.inspectPort(port)
+	if !inspection.Inspection.Available || len(inspection.Listeners) == 0 {
+		return nil
+	}
+	key := scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}.Normalize()
+	targets := make([]int, 0, len(inspection.Listeners))
+	for _, listener := range inspection.Listeners {
+		if listener.PID <= 0 {
+			continue
+		}
+		env, err := deps.readProcessEnv(listener.PID)
+		if err != nil {
+			continue
+		}
+		if !strings.EqualFold(strings.TrimSpace(env["VROOLI_LIFECYCLE_MANAGED"]), "true") {
+			continue
+		}
+		listenerKey := scenarioruntime.InstanceKey{
+			Scenario: strings.TrimSpace(env["VROOLI_SCENARIO"]),
+			Variant:  strings.TrimSpace(env[scenarioruntime.EnvVariant]),
+		}.Normalize()
+		if listenerKey == key {
+			targets = append(targets, listener.PID)
+		}
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	r.logWarn("Reclaiming previous instance listener before component start",
+		"scenario", key.Slug(),
+		"port", port,
+		"pids", targets,
+	)
+	return r.terminatePIDs(ctx, targets)
+}
+
 func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.Scenario, phase string, step scenario.PhaseStep, env map[string]string) error {
 	// Record/log directories are keyed by the instance record slug so two
 	// variants running the same step (e.g. phasesDevelop) never overwrite each
@@ -1174,6 +1218,15 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 	}
 	port := declared.Port
 	if port > 0 {
+		// The allocator deliberately treats a listener that still identifies as
+		// this exact instance as a restart-in-progress rather than a foreign
+		// conflict. Complete that contract here: a listener that outlived its
+		// tracked process record must be reclaimed before the new component
+		// starts. Otherwise allocation succeeds and this check fails the start
+		// with a port conflict the stop path should already have cleared.
+		if err := r.reclaimSameInstanceListener(ctx, item, port); err != nil {
+			return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+		}
 		if inspection := r.runtimeDeps().inspectPort(port); len(inspection.Listeners) > 0 {
 			return newPhaseStepError(item.Slug, phase, step.Name, logFile, portConflictError(port, inspection))
 		}

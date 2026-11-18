@@ -41,6 +41,7 @@ export interface PreviewFrame {
   archiveView?: ArchiveView;
   archiveSource?: ArchiveSource;
   requestedPath: string;
+  anchor?: string;
   model: PreviewModel;
   text: PreviewTextContent | null;
   listing: PreviewListing | null;

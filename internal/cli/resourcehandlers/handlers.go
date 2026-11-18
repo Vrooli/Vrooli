@@ -1231,8 +1231,6 @@ func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action str
 		if err := operationCtx.Err(); err != nil {
 			return err
 		}
-		operation := *controller
-		operation.NoReclaim = operation.NoReclaim || req.NoReclaim
 		operationArgs := []string{action}
 		if action == "logs" && req.TailLines > 0 {
 			operationArgs = append(operationArgs, "--tail", strconv.Itoa(req.TailLines))
@@ -1240,12 +1238,12 @@ func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action str
 		if action == "uninstall" {
 			return uninstallThenDisable(req.Name,
 				func() error {
-					return operation.RunContext(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx))
+					return controller.RunContextWithNoReclaim(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx), req.NoReclaim)
 				},
 				func() error { return controller.SetEnabled(req.Name, false) },
 			)
 		}
-		return operation.RunContext(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx))
+		return controller.RunContextWithNoReclaim(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx), req.NoReclaim)
 	}
 }
 

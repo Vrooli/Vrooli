@@ -26,7 +26,7 @@ func dispatchWirelessFixture(t *testing.T, s wirelessServices, args ...string) (
 	var out bytes.Buffer
 	parent := &rootcli.CommandContext{Context: context.Background(), Stdout: &out, Stderr: &out}
 	parent.Globals.JSON = true
-	bindings := hostBindings(parent, hostCommandNames)
+	bindings := hostBindings(parent)
 	bindings["wireless"] = func(run cliapp.RunContext) error { return runHostWirelessWithServices(run, parent, s) }
 	group, err := cliapp.LoadFromManifest(climanifest.Bytes(), "host", bindings)
 	if err != nil {

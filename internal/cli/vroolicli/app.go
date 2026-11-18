@@ -487,6 +487,7 @@ func (app *App) runTopLevelSetup(ctx *AppContext, opts projectsetup.Options) err
 	if ctx.Globals.Verbose {
 		opts.Verbose = true
 	}
+	opts.Context = ctx.OperationContext()
 	opts.JSON = ctx.Globals.JSON
 	return app.RunProjectSetupFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }
@@ -507,6 +508,7 @@ func (app *App) runTopLevelDevelop(ctx *AppContext, opts projectsetup.Options) e
 	if ctx.Globals.Verbose {
 		opts.Verbose = true
 	}
+	opts.Context = ctx.OperationContext()
 	return app.RunProjectDevelopFn(ctx.Root, home, opts, ctx.Stdout, ctx.Stderr)
 }
 

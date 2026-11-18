@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -116,7 +117,7 @@ func TestFreshnessReportByNameContextReturnsWhenAlreadyCanceled(t *testing.T) {
 	}
 }
 
-func TestGoListFreshnessInputs_CachesByModuleAndSourceFiles(t *testing.T) {
+func TestClosureCache_HitSkipsGoList(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -128,59 +129,14 @@ func TestGoListFreshnessInputs_CachesByModuleAndSourceFiles(t *testing.T) {
 	if err := os.WriteFile(sourcePath, []byte("package main\n\nfunc main() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	calls := 0
-	deps := hostProbeDeps{
-		cache:    &hostProbeCache{},
-		lookPath: func(string) (string, error) { return goExecutablePath, nil },
-		readFile: os.ReadFile,
-		goListJSON: func(string) ([]byte, error) {
-			calls++
-			return []byte(goListFixture), nil
-		},
-	}
-	// Exercise the cache adapter directly so the test is independent of the
-	// repository-root filtering in goListFreshnessInputs.
-	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
-		t.Fatal(err)
-	}
-	if calls != 1 {
-		t.Fatalf("go list calls = %d, want one cached call", calls)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example/v2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
-		t.Fatal(err)
-	}
-	if calls != 2 {
-		t.Fatalf("go list calls after go.mod change = %d, want two", calls)
-	}
-	if err := os.WriteFile(sourcePath, []byte("package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"changed\") }\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := cachedGoListJSONContext(context.TODO(), dir, deps); err != nil {
-		t.Fatal(err)
-	}
-	if calls != 3 {
-		t.Fatalf("go list calls after source change = %d, want three", calls)
-	}
-}
-
-func TestClosureCache_HitSkipsGoList(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte("sum-v1\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	payload := []byte(fmt.Sprintf("{\"Dir\":%q,\"Module\":{\"Dir\":%q,\"GoMod\":%q}}\n", dir, dir, filepath.Join(dir, "go.mod")))
 	calls := 0
+	reads := make(map[string]int)
 	deps := hostProbeDeps{
-		readFile: os.ReadFile,
+		readFile: func(path string) ([]byte, error) {
+			reads[filepath.Clean(path)]++
+			return os.ReadFile(path)
+		},
 		lookPath: func(string) (string, error) { return goExecutablePath, nil },
 		goListJSON: func(string) ([]byte, error) {
 			calls++
@@ -190,8 +146,12 @@ func TestClosureCache_HitSkipsGoList(t *testing.T) {
 	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
 		t.Fatal("first closure lookup did not succeed")
 	}
+	reads[filepath.Clean(sourcePath)] = 0
 	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
 		t.Fatal("cached closure lookup did not succeed")
+	}
+	if reads[filepath.Clean(sourcePath)] != 1 {
+		t.Fatalf("warm cache read main.go %d times, want once", reads[filepath.Clean(sourcePath)])
 	}
 	if calls != 1 {
 		t.Fatalf("go list calls = %d, want one durable-cache miss", calls)
@@ -251,7 +211,14 @@ func TestClosureCache_MissOnSourceImportChange(t *testing.T) {
 	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
 		t.Fatal("initial closure lookup did not succeed")
 	}
+	info, err := os.Stat(mainPath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(mainPath, []byte("package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"changed\") }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(mainPath, info.ModTime(), info.ModTime()); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := goListFreshnessInputs(dir, dir, deps); !ok {
@@ -259,6 +226,84 @@ func TestClosureCache_MissOnSourceImportChange(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("go list calls after source import change = %d, want two", calls)
+	}
+}
+
+func TestClosureCache_ModuleDigestCoversNestedCompilerSources(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "demo", "api")
+	nested := filepath.Join(dir, "internal", "worker")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for path, data := range map[string]string{
+		filepath.Join(dir, "go.mod"):       "module example\n",
+		filepath.Join(dir, "main.go"):      "package main\n",
+		filepath.Join(nested, "worker.go"): "package worker\n",
+	} {
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deps := hostProbeDeps{readFile: os.ReadFile, walkDir: filepath.WalkDir}
+	inputs := []string{"scenarios/demo/api", "scenarios/demo/api/internal/worker"}
+	key := func() string { return closureCacheKey(dir, root, "go version test", inputs, deps) }
+	base := key()
+	if err := os.WriteFile(filepath.Join(nested, "worker.go"), []byte("package worker\nfunc changed() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	goChanged := key()
+	if goChanged == base {
+		t.Fatal("nested Go compiler source change did not invalidate the module digest")
+	}
+	if err := os.WriteFile(filepath.Join(nested, "worker.c"), []byte("int changed(void) { return 1; }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cAdded := key()
+	if cAdded == goChanged {
+		t.Fatal("new nested C compiler source did not invalidate the module digest")
+	}
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("documentation only"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := key(); got != cAdded {
+		t.Fatal("non-compiler documentation changed the module digest")
+	}
+}
+
+func TestClosureCache_IncompleteModuleWalkKeepsPackageFallback(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "scenarios", "demo", "api")
+	nested := filepath.Join(dir, "internal", "worker")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for path, data := range map[string]string{
+		filepath.Join(dir, "go.mod"):       "module example\n",
+		filepath.Join(dir, "main.go"):      "package main\n",
+		filepath.Join(nested, "worker.go"): "package worker\n",
+	} {
+		if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	deps := hostProbeDeps{
+		readFile: os.ReadFile,
+		walkDir: func(walkRoot string, fn fs.WalkDirFunc) error {
+			if filepath.Clean(walkRoot) == filepath.Clean(dir) {
+				return errors.New("injected component walk failure")
+			}
+			return filepath.WalkDir(walkRoot, fn)
+		},
+	}
+	inputs := []string{"scenarios/demo/api", "scenarios/demo/api/internal/worker"}
+	key := func() string { return closureCacheKey(dir, root, "go version test", inputs, deps) }
+	before := key()
+	if err := os.WriteFile(filepath.Join(nested, "worker.go"), []byte("package worker\nfunc changed() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if key() == before {
+		t.Fatal("package-level fallback did not preserve nested source invalidation")
 	}
 }
 

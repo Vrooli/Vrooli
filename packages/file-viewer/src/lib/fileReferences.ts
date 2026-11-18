@@ -39,12 +39,20 @@ export function looksLikeFileReference(href: string): boolean {
 }
 
 function hasFileLikeShape(value: string): boolean {
-  const withoutLine = value.replace(/:\d+$/, "");
+  const withoutLine = splitHtmlFileReference(value).path.replace(/:\d+$/, "");
   return (
     withoutLine.includes("/") ||
     withoutLine.includes("\\") ||
     /\.[a-z0-9]+$/i.test(withoutLine)
   );
+}
+
+/** Only a literal # after an HTML filename introduces a document fragment.
+ * Leave percent escapes intact for the file resolver and browser respectively. */
+export function splitHtmlFileReference(href: string): { path: string; anchor?: string } {
+  const hash = href.indexOf("#");
+  if (hash < 0 || !/\.html?$/i.test(href.slice(0, hash))) return { path: href };
+  return { path: href.slice(0, hash), anchor: href.slice(hash + 1) };
 }
 
 // ---------------------------------------------------------------------------

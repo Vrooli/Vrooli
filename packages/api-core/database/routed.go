@@ -79,6 +79,7 @@ type RoutedDB struct {
 	mu                 sync.RWMutex
 	primary            *sql.DB
 	test               *sql.DB
+	closed             bool
 	lease              leaseState
 	cfg                Config
 	primaryFingerprint string
@@ -772,11 +773,23 @@ func (r *RoutedDB) ClearTestPool(leaseID string) error {
 
 // Close closes both the primary and (if present) the test pool. The first
 // error encountered is returned; both pools are always attempted.
+//
+// Close deliberately keeps the primary *sql.DB handle instead of clearing it.
+// sql.DB is safe to use concurrently with Close and returns a "database is
+// closed" error from operations that race the close, whereas a nil handle
+// panics inside the database/sql internals. Shutdown code routinely has
+// best-effort persistence goroutines still finishing when the pool closes; a
+// closed handle turns that race into a logged error instead of a process-wide
+// segmentation fault.
 func (r *RoutedDB) Close() error {
 	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return nil
+	}
+	r.closed = true
 	primary := r.primary
 	test := r.test
-	r.primary = nil
 	r.test = nil
 	r.lease = leaseState{}
 	r.mu.Unlock()

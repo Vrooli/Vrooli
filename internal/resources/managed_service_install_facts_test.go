@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vrooli/binaryfetch"
+	"github.com/vrooli/vrooli/internal/operatorstate"
 	testresource "github.com/vrooli/vrooli/internal/resources/resourcestest"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
@@ -181,6 +182,25 @@ func TestWithOperatorAccelPreferenceCopiesFactsAndAddsPreference(t *testing.T) {
 	got["os"] = "changed"
 	if original["os"] != "linux" {
 		t.Fatal("fact enrichment mutated the caller's map")
+	}
+}
+
+func TestAcquisitionPreferenceUsesControllerOperatorState(t *testing.T) {
+	root := projectRootForResourcesTest(t)
+	statePath := filepath.Join(t.TempDir(), operatorstate.StateFile)
+	state := operatorstate.New(operatorstate.Config{
+		RepoRoot:  root,
+		StatePath: func(context.Context) (string, error) { return statePath, nil },
+	})
+	if _, err := state.Apply(context.Background(), []byte(`{"accel_preference":"force_cpu"}`)); err != nil {
+		t.Fatalf("set operator preference: %v", err)
+	}
+	controller := NewController(root, t.TempDir())
+	controller.operatorState = state
+
+	facts := controller.acquisitionFactsWithOperatorPreference(context.Background(), binaryfetch.Facts{"os": "linux"})
+	if got := facts[binaryfetch.FactOperatorAccelPreference]; got != operatorstate.AccelPreferenceForceCPU {
+		t.Fatalf("operator preference fact = %v, want %q", got, operatorstate.AccelPreferenceForceCPU)
 	}
 }
 

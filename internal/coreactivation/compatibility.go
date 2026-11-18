@@ -23,7 +23,21 @@ var ErrUnqualifiedStateContract = errors.New("image has no qualified persistent-
 // QualifyRollbackIdentities compares metadata from the actual retained images.
 // A runtime-home digest is a separate layout constraint, never a substitute for
 // persistence compatibility. Unstamped images remain ineligible.
+//
+// This is the identity fallback. Admission prefers QualifyRollbackImages, which
+// asks the directional question when both images publish versioned formats.
 func QualifyRollbackIdentities(prior, candidate *cliv1.CliVersion) error {
+	if err := qualifyRollbackMetadata(prior, candidate); err != nil {
+		return err
+	}
+	return qualifyRollbackIdentity(prior, candidate)
+}
+
+// qualifyRollbackMetadata rejects images that carry no qualified build or
+// layout metadata. Persistent state is deliberately not part of this check: it
+// is answered by the versioned manifests when both images report one, and only
+// the fallback path needs the older identity digest.
+func qualifyRollbackMetadata(prior, candidate *cliv1.CliVersion) error {
 	if prior == nil || candidate == nil {
 		return fmt.Errorf("%w: retained executable identities are required", ErrConflict)
 	}
@@ -35,12 +49,23 @@ func QualifyRollbackIdentities(prior, candidate *cliv1.CliVersion) error {
 		if !digestPattern.MatchString(identity.GetRuntimeHomeContractSha256()) || !digestPattern.MatchString(identity.GetBuildIdentity()) {
 			return fmt.Errorf("%w: %s image lacks qualified build or layout metadata (unstamped or ungoverned build)", ErrConflict, side.role)
 		}
-		if !digestPattern.MatchString(identity.GetPersistentStateContractSha256()) {
-			return fmt.Errorf("%w: %w: the %s image", ErrConflict, ErrUnqualifiedStateContract, side.role)
-		}
 	}
 	if prior.GetRuntimeHomeContractSha256() != candidate.GetRuntimeHomeContractSha256() {
 		return fmt.Errorf("%w: candidate changes the runtime-home layout contract", ErrConflict)
+	}
+	return nil
+}
+
+// qualifyRollbackIdentity requires the per-owner contract digests to be present
+// and equal. It is the fallback for images that predate the versioned manifest.
+func qualifyRollbackIdentity(prior, candidate *cliv1.CliVersion) error {
+	for _, side := range []struct {
+		role     string
+		identity *cliv1.CliVersion
+	}{{"serving", prior}, {"candidate", candidate}} {
+		if !digestPattern.MatchString(side.identity.GetPersistentStateContractSha256()) {
+			return fmt.Errorf("%w: %w: the %s image", ErrConflict, ErrUnqualifiedStateContract, side.role)
+		}
 	}
 	if prior.GetPersistentStateContractSha256() != candidate.GetPersistentStateContractSha256() {
 		return fmt.Errorf("%w: %w (serving %.12s, candidate %.12s)", ErrConflict, ErrStateContractChanged, prior.GetPersistentStateContractSha256(), candidate.GetPersistentStateContractSha256())
@@ -73,7 +98,7 @@ func (a Assets) QualifyFrozenCompatibility(ctx context.Context, r Record) error 
 		}
 		identities = append(identities, identity)
 	}
-	if err := QualifyRollbackIdentities(identities[0], identities[1]); err != nil {
+	if err := QualifyRollbackImages(ctx, identities[0], identities[1], paths[0], paths[1]); err != nil {
 		return ExplainRollbackRefusal(ctx, err, paths[0], paths[1])
 	}
 	if identities[0].GetBuildIdentity() != r.PriorBuild || identities[1].GetBuildIdentity() != r.CandidateBuild || identities[0].GetPersistentStateContractSha256() != r.PriorStateContract || identities[1].GetPersistentStateContractSha256() != r.CandidateStateContract {

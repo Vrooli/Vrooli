@@ -190,6 +190,60 @@ func TestResolveShadowTargetAndNonLive(t *testing.T) {
 	}
 }
 
+func TestShouldFallbackToLiveInstanceIsLimitedToConfirmedShadowTargets(t *testing.T) {
+	t.Setenv(EnvInstanceVariant, "live")
+	t.Setenv(EnvVariantDependencies, "")
+	tests := []struct {
+		name                string
+		target              string
+		confirmedNotRunning bool
+		want                bool
+	}{
+		{name: "confirmed shadow", target: "peer@shadow", confirmedNotRunning: true, want: true},
+		{name: "transient shadow failure", target: "peer@shadow"},
+		{name: "explicit named variant", target: "peer@presentation", confirmedNotRunning: true},
+		{name: "explicit live", target: "peer", confirmedNotRunning: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := ShouldFallbackToLiveInstance(test.target, test.confirmedNotRunning); got != test.want {
+				t.Fatalf("ShouldFallbackToLiveInstance(%q, %t) = %t, want %t", test.target, test.confirmedNotRunning, got, test.want)
+			}
+		})
+	}
+
+	t.Setenv(EnvInstanceVariant, "presentation")
+	t.Setenv(EnvVariantDependencies, "peer")
+	if ShouldFallbackToLiveInstance("peer@shadow", true) {
+		t.Fatal("same-variant dependency permitted fallback to live")
+	}
+}
+
+func TestIsExplicitInstanceSelectionDistinguishesAmbientShadow(t *testing.T) {
+	clearInstanceOverrides(t)
+	t.Setenv(EnvShadowScenarios, "peer")
+	target := ResolveShadowTarget("peer")
+	if IsExplicitInstanceSelection("peer") {
+		t.Fatal("ambient shadow was classified as explicit")
+	}
+	if !ShouldAutomaticallyFallbackToLiveInstance("peer", target, true) {
+		t.Fatal("ambiently selected stopped shadow did not permit automatic fallback")
+	}
+	if !IsExplicitInstanceSelection("peer@shadow") || !IsExplicitInstanceSelection("peer@presentation") {
+		t.Fatal("address suffix was not classified as explicit")
+	}
+	if ShouldAutomaticallyFallbackToLiveInstance("peer@shadow", "peer@shadow", true) {
+		t.Fatal("explicit @shadow target permitted automatic fallback")
+	}
+	SetInstanceOverride("peer", "shadow")
+	if !IsExplicitInstanceSelection("peer") {
+		t.Fatal("per-scenario instance override was not classified as explicit")
+	}
+	if ShouldAutomaticallyFallbackToLiveInstance("peer", ResolveShadowTarget("peer"), true) {
+		t.Fatal("explicit --instance override permitted automatic fallback")
+	}
+}
+
 // TestVariantDependencyRoutingFollowsOwnVariant covers the presentation case:
 // a listed dependency is addressed at this instance's own variant, an unlisted
 // one stays live, and a live instance never follows the list at all.

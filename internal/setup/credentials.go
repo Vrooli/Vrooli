@@ -24,7 +24,7 @@ var (
 // command path. The platform seam restores the invoking user's native session
 // (launchd on macOS, the user bus on Linux) before touching a keyring.
 func runCredentialStoreAsOperator(name string, args []string, input string, opts hostreqkit.EnsureOptions) error {
-	return platform.RunAsInvokingUserInSessionWithInput(context.Background(), name, args, []byte(input), platform.IdentityCommandOptions{
+	return platform.RunAsInvokingUserInSessionWithInput(opts.Context, name, args, []byte(input), platform.IdentityCommandOptions{
 		Stdout: opts.Stdout,
 		Stderr: opts.Stderr,
 	})
@@ -41,18 +41,21 @@ func runCredentialStoreAsOperator(name string, args []string, input string, opts
 // acceptable is silence, which is what shipped before: the operator could not
 // tell an unattended host from one that would stop at a prompt on the next
 // reboot until the reboot happened.
-func ensureUnattendedCredentialAccess(executable, passphrase string, stdout io.Writer) {
+func ensureUnattendedCredentialAccess(ctx context.Context, executable, passphrase string, stdout io.Writer) error {
 	var output bytes.Buffer
 	runErr := runCredentialStoreFn(executable,
 		[]string{"credentials", "store", "rewrap", "--format", "json"}, passphrase,
-		commandOptions(&output, io.Discard))
+		commandOptions(ctx, &output, io.Discard))
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	var status securestore.UnattendedStatus
 	if err := json.Unmarshal(bytes.TrimSpace(output.Bytes()), &status); err != nil {
 		_, _ = fmt.Fprintf(stdout, "[WARN]    Unattended credential access: could not be evaluated on this host\n")
 		if runErr != nil {
 			_, _ = fmt.Fprintf(stdout, "[WARN]    Reason: %s\n", runErr.Error())
 		}
-		return
+		return nil
 	}
 	switch {
 	case status.Enabled && status.Added:
@@ -70,20 +73,23 @@ func ensureUnattendedCredentialAccess(executable, passphrase string, stdout io.W
 			_, _ = fmt.Fprintf(stdout, "[WARN]    Reason: %s\n", status.Blocked)
 		}
 	}
+	return nil
 }
 
-func configureCredentialBackend(stdout, stderr io.Writer) error {
-	return configureCredentialBackendWithPassphrase(stdout, stderr, "")
-}
-
-func configureCredentialBackendWithPassphrase(stdout, stderr io.Writer, passphrase string) error {
+func configureCredentialBackend(ctx context.Context, stdout, stderr io.Writer, passphrase string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	executable, err := credentialStoreExecutableFn()
 	if err != nil {
 		return fmt.Errorf("resolve Vrooli executable for credential diagnosis: %w", err)
 	}
-	status, err := securestore.EnsureSetupBackendWithNativeDiagnosis(nativeCredentialDiagnosis(executable))
+	status, err := securestore.EnsureSetupBackendWithNativeDiagnosis(nativeCredentialDiagnosis(ctx, executable))
 	if err != nil {
 		return fmt.Errorf("configure credential backend: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if status.Ready {
 		_, _ = fmt.Fprintf(stdout, "[INFO]    Credential backend selected: %s (write-ready)\n", status.SelectedBackend)
@@ -101,9 +107,9 @@ func configureCredentialBackendWithPassphrase(stdout, stderr io.Writer, passphra
 			if describeErr != nil {
 				return fmt.Errorf("inspect encrypted credential store: %w", describeErr)
 			}
-			return initializeEncryptedBackendWithPassphrase(stdout, passphrase, description.Initialized)
+			return initializeEncryptedBackendWithPassphrase(ctx, stdout, passphrase, description.Initialized)
 		}
-		if err := initializeEncryptedBackend(stdout, stderr); err != nil {
+		if err := initializeEncryptedBackend(ctx, stdout, stderr); err != nil {
 			return err
 		}
 		// Initialization and any unlock happened inside the operator's user
@@ -123,14 +129,14 @@ func configureCredentialBackendWithPassphrase(stdout, stderr io.Writer, passphra
 	return nil
 }
 
-func runCredentialDoctorAsOperator(executable string) ([]byte, error) {
-	return platform.RunAsInvokingUserInSessionOutput(context.Background(), "env", []string{
+func runCredentialDoctorAsOperator(ctx context.Context, executable string) ([]byte, error) {
+	return platform.RunAsInvokingUserInSessionOutput(ctx, "env", []string{
 		"VROOLI_CREDENTIAL_BACKEND=native", executable, "credentials", "doctor", "--check-writes", "--format", "json",
 	}, platform.IdentityCommandOptions{Stderr: io.Discard})
 }
 
-func nativeCredentialDiagnosis(executable string) securestore.Diagnosis {
-	output, err := runCredentialDoctorFn(executable)
+func nativeCredentialDiagnosis(ctx context.Context, executable string) securestore.Diagnosis {
+	output, err := runCredentialDoctorFn(ctx, executable)
 	if err == nil {
 		var response struct {
 			Provider securestore.Diagnosis `json:"provider"`
@@ -149,7 +155,10 @@ func nativeCredentialDiagnosis(executable string) securestore.Diagnosis {
 	return securestore.Diagnosis{Platform: "unknown", Adapter: "native", Condition: "unavailable", WriteCondition: "unavailable", Explanation: "operator-session native probe failed; run onboarding in the invoking user's session"}
 }
 
-func initializeEncryptedBackendWithPassphrase(stdout io.Writer, passphrase string, initialized bool) error {
+func initializeEncryptedBackendWithPassphrase(ctx context.Context, stdout io.Writer, passphrase string, initialized bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	executable, err := credentialStoreExecutableFn()
 	if err != nil {
 		return fmt.Errorf("resolve Vrooli executable for credential-store setup: %w", err)
@@ -158,15 +167,14 @@ func initializeEncryptedBackendWithPassphrase(stdout io.Writer, passphrase strin
 	if initialized {
 		command = []string{"credentials", "store", "unlock"}
 	}
-	if err := runCredentialStoreFn(executable, command, passphrase, commandOptions(stdout, io.Discard)); err != nil {
+	if err := runCredentialStoreFn(executable, command, passphrase, commandOptions(ctx, stdout, io.Discard)); err != nil {
 		return fmt.Errorf("initialize or unlock encrypted credential store: %w", err)
 	}
 	_, _ = fmt.Fprintln(stdout, "[INFO]    Credential backend selected: encrypted-file (write-ready)")
-	ensureUnattendedCredentialAccess(executable, passphrase, stdout)
-	return nil
+	return ensureUnattendedCredentialAccess(ctx, executable, passphrase, stdout)
 }
 
-func initializeEncryptedBackend(stdout, stderr io.Writer) error {
+func initializeEncryptedBackend(ctx context.Context, stdout, stderr io.Writer) error {
 	description, err := securestore.DescribeStore()
 	if err != nil {
 		return fmt.Errorf("inspect encrypted credential store: %w", err)
@@ -182,9 +190,10 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 		// use, which would create a store that only root can open.
 		if initErr := runCredentialStoreFn(executable,
 			[]string{"credentials", "store", "init", "--format", "json"}, "",
-			commandOptions(io.Discard, io.Discard)); initErr == nil {
-			ensureUnattendedCredentialAccess(executable, "", stdout)
-			return nil
+			commandOptions(ctx, io.Discard, io.Discard)); initErr == nil {
+			return ensureUnattendedCredentialAccess(ctx, executable, "", stdout)
+		} else if ctx.Err() != nil {
+			return ctx.Err()
 		}
 	} else {
 		// A store can already exist but still need an unlock. Ask the actual
@@ -194,12 +203,16 @@ func initializeEncryptedBackend(stdout, stderr io.Writer) error {
 		var output bytes.Buffer
 		if statusErr := runCredentialStoreFn(executable,
 			[]string{"credentials", "store", "status", "--format", "json"}, "",
-			commandOptions(&output, io.Discard)); statusErr == nil {
+			commandOptions(ctx, &output, io.Discard)); statusErr == nil {
 			if decodeErr := json.Unmarshal(output.Bytes(), &current); decodeErr == nil && current.Unlocked {
-				ensureUnattendedCredentialAccess(executable, "", stdout)
-				return nil
+				return ensureUnattendedCredentialAccess(ctx, executable, "", stdout)
 			}
+		} else if ctx.Err() != nil {
+			return ctx.Err()
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	// Setup is Phase A and is deliberately non-interactive. The request is
@@ -238,6 +251,6 @@ func enqueueCredentialStoreInput(initialized bool, stdout io.Writer) error {
 	return nil
 }
 
-func commandOptions(stdout, stderr io.Writer) hostreqkit.EnsureOptions {
-	return hostreqkit.EnsureOptions{Stdout: stdout, Stderr: stderr}
+func commandOptions(ctx context.Context, stdout, stderr io.Writer) hostreqkit.EnsureOptions {
+	return hostreqkit.EnsureOptions{Context: ctx, Stdout: stdout, Stderr: stderr}
 }

@@ -155,6 +155,29 @@ func TestInstallCommandEmptyOS(t *testing.T) {
 	}
 }
 
+func TestInstallCommandPreviewMatchesExecution(t *testing.T) {
+	previous := ElevationFactsFn
+	ElevationFactsFn = func() ElevationFacts {
+		return ElevationFacts{Platform: "linux", Elevated: true, CanElevate: true}
+	}
+	t.Cleanup(func() { ElevationFactsFn = previous })
+
+	for _, host := range []Host{
+		{OS: "linux", PackageManager: "apt"},
+		{OS: "linux", PackageManager: "pacman"},
+		{OS: "darwin", PackageManager: "brew"},
+		{OS: "windows", PackageManager: "winget"},
+		{OS: "windows", PackageManager: "choco"},
+		{OS: "windows", PackageManager: "scoop"},
+	} {
+		previewCommand, previewArgs, previewErr := InstallCommandPreview(host, "testpkg")
+		command, args, err := InstallCommand(host, "testpkg", "ask")
+		if err != nil || previewErr != nil || command != previewCommand || strings.Join(args, " ") != strings.Join(previewArgs, " ") {
+			t.Errorf("host=%+v preview=(%q %v, %v), install=(%q %v, %v)", host, previewCommand, previewArgs, previewErr, command, args, err)
+		}
+	}
+}
+
 func TestWithSudoAskMode(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -302,6 +325,26 @@ func TestWithSudoWindowsRequiresManualElevation(t *testing.T) {
 	}
 }
 
+func TestWindowsElevationFactsFailClosed(t *testing.T) {
+	tests := []struct {
+		name     string
+		elevated bool
+		err      error
+		want     ElevationFacts
+	}{
+		{name: "elevated token", elevated: true, want: ElevationFacts{Platform: "windows", Elevated: true, CanElevate: true, Mechanism: "windows-token"}},
+		{name: "standard token", want: ElevationFacts{Platform: "windows", Mechanism: "windows-uac"}},
+		{name: "token unavailable", err: errors.New("token query failed"), want: ElevationFacts{Platform: "windows", Mechanism: "windows-token-unknown"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := windowsElevationFacts(tt.elevated, tt.err); got != tt.want {
+				t.Fatalf("windowsElevationFacts() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestWithSudoElevationMatrixNeverFailsOpen(t *testing.T) {
 	restore := stubLookups(t)
 	defer restore()
@@ -320,6 +363,7 @@ func TestWithSudoElevationMatrixNeverFailsOpen(t *testing.T) {
 		{name: "linux no elevation", facts: ElevationFacts{Platform: "linux", Mechanism: "none"}, mode: "ask", wantErr: ErrElevationUnavailable},
 		{name: "darwin no elevation", facts: ElevationFacts{Platform: "darwin", Mechanism: "none"}, mode: "ask", wantErr: ErrElevationUnavailable},
 		{name: "windows uac", facts: ElevationFacts{Platform: "windows", Mechanism: "windows-uac"}, mode: "ask", wantErr: ErrElevationRequired},
+		{name: "windows elevated token", facts: ElevationFacts{Platform: "windows", Elevated: true, CanElevate: true, Mechanism: "windows-token"}, mode: "ask", wantCmd: "apt-get"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -463,6 +507,110 @@ func TestAptRepoInstallerInspectPlatforms(t *testing.T) {
 				t.Fatalf("InstallSupported = %t, want %t", status.InstallSupported, test.wantInstall)
 			}
 		})
+	}
+}
+
+type aptRepositorySetupSessionStub struct {
+	repository string
+	key        []byte
+	source     string
+	packages   []string
+	repoErr    error
+}
+
+func (s *aptRepositorySetupSessionStub) InstallPackage(manager, packageName string) error {
+	s.packages = append(s.packages, manager+":"+packageName)
+	return nil
+}
+
+func (s *aptRepositorySetupSessionStub) InstallAptRepository(repository string, key []byte, source string) error {
+	s.repository, s.key, s.source = repository, append([]byte(nil), key...), source
+	return s.repoErr
+}
+
+func (*aptRepositorySetupSessionStub) InstallOnboardingApplyGrant([]string, []string) error {
+	return nil
+}
+
+func (*aptRepositorySetupSessionStub) InstallAppArmorProfile(string) error { return nil }
+
+func TestAptRepoInstallerUsesSetupSessionForRepositoryAndPackage(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	LookPathFn = func(name string) (string, error) {
+		if name == "vault" {
+			return "/usr/bin/vault", nil
+		}
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
+		}
+		return "", os.ErrNotExist
+	}
+	originalRecord, originalProbe, originalRun := RecordPackageInstallFn, ProbePackageStateFn, RunCommandFn
+	RecordPackageInstallFn = func(PackageInstallRecord) error { return nil }
+	ProbePackageStateFn = func(string, string) (PackageObservation, string, error) {
+		return PackageAbsent, "", nil
+	}
+	RunCommandFn = func(string, []string, EnsureOptions) error {
+		t.Fatal("setup APT installation escaped the shared session")
+		return nil
+	}
+	t.Cleanup(func() {
+		RecordPackageInstallFn, ProbePackageStateFn, RunCommandFn = originalRecord, originalProbe, originalRun
+	})
+
+	session := &aptRepositorySetupSessionStub{}
+	installer := AptRepoInstaller{
+		Manifest:   ToolManifest{Name: "vault", Commands: []string{"vault"}},
+		Repository: "hashicorp",
+		AptPackage: "vault", KeyringPath: "/usr/share/keyrings/hashicorp-archive-keyring.gpg",
+		SourcePath: "/etc/apt/sources.list.d/hashicorp.list", BinaryKey: true,
+		DownloadKey: func() ([]byte, error) { return []byte("test-key"), nil },
+		SourceLine: func(Host) string {
+			return "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg arch=amd64] https://apt.releases.hashicorp.com jammy main"
+		},
+	}
+	status := ItemStatus{SupportClass: SupportSupported}
+	result, err := installer.Apply(Host{OS: "linux", PackageManager: "apt"}, status, EnsureOptions{SudoMode: "ask", SetupPrivilegeSession: session})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Installed || session.repository != "hashicorp" || string(session.key) != "test-key" || session.source != "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg arch=amd64] https://apt.releases.hashicorp.com jammy main" {
+		t.Fatalf("repository operation = %+v, result = %+v", session, result)
+	}
+	if strings.Join(session.packages, ",") != "apt-get:vault" {
+		t.Fatalf("package operations = %v", session.packages)
+	}
+}
+
+func TestAptRepoInstallerDoesNotInstallPackageAfterRepositoryFailure(t *testing.T) {
+	restore := stubLookups(t)
+	defer restore()
+	LookPathFn = func(name string) (string, error) {
+		if name == helpersSudo {
+			return hostreqkitInstallTestSudoPath, nil
+		}
+		return "", os.ErrNotExist
+	}
+	session := &aptRepositorySetupSessionStub{repoErr: errors.New("index update failed")}
+	installer := AptRepoInstaller{
+		Manifest: ToolManifest{Name: "vault", Commands: []string{"vault"}}, Repository: "hashicorp",
+		AptPackage: "vault", KeyringPath: "/usr/share/keyrings/hashicorp-archive-keyring.gpg",
+		SourcePath: "/etc/apt/sources.list.d/hashicorp.list", BinaryKey: true,
+		DownloadKey: func() ([]byte, error) { return []byte("test-key"), nil },
+		SourceLine: func(Host) string {
+			return "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg arch=amd64] https://apt.releases.hashicorp.com jammy main"
+		},
+	}
+	result, err := installer.ApplyWithNotes(Host{OS: "linux", PackageManager: "apt"}, ItemStatus{SupportClass: SupportSupported, Applied: true, Notes: []string{"inspection detail"}}, EnsureOptions{SudoMode: "ask", SetupPrivilegeSession: session})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.ExecutionState != ExecutionFailed || !result.Applied || strings.Join(result.Notes, "\n") != "inspection detail\nindex update failed" {
+		t.Fatalf("repository failure status = %+v", result)
+	}
+	if len(session.packages) != 0 {
+		t.Fatalf("package install ran after repository failure: %v", session.packages)
 	}
 }
 

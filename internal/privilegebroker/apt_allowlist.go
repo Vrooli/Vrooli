@@ -23,7 +23,7 @@ func aptAllowed(name string) bool {
 
 func validateApt(req Request) error {
 	if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil {
-		return fmt.Errorf("subject_not_allowed")
+		return errSubjectNotAllowed
 	}
 	if req.Apt == nil || len(req.Apt.Packages) == 0 {
 		return fmt.Errorf("apt_package_list_required")
@@ -45,7 +45,7 @@ func AptArgs(req Request) (update, install []string, err error) {
 		return nil, nil, err
 	}
 	if req.Action != ActionAptPackagesEnsure {
-		return nil, nil, fmt.Errorf("action_not_allowed")
+		return nil, nil, errActionNotAllowed
 	}
 	seen := map[string]struct{}{}
 	names := make([]string, 0, len(req.Apt.Packages))

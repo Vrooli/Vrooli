@@ -2,6 +2,7 @@ package setup
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +22,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/buildflags"
 	"github.com/vrooli/vrooli/internal/buildinfo"
+	"github.com/vrooli/vrooli/internal/buildsnapshot"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/network"
@@ -53,48 +56,60 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 	}
 	defer os.RemoveAll(stageDir)
 
-	buildEnv, err := freezeGoBuildEnvironment(root, stageDir)
-	if err != nil {
-		return fmt.Errorf("capture Go build environment: %w", err)
-	}
+	// Compile from an immutable capture of the compiler inputs so a concurrent
+	// edit cannot split the artifact from its fingerprint, schema descriptor or
+	// provenance record. This replaces the old scan-compile-rescan guard.
+	_, _ = fmt.Fprintf(stdout, "Building from a snapshot of the compiler inputs (HEAD %s).\n", shortCommit(gitCommit))
+	return buildFromSnapshot(context.Background(), root, buildCohortSourcePaths, func(buildRoot string) error {
+		buildEnv, err := freezeGoBuildEnvironment(buildRoot, stageDir)
+		if err != nil {
+			return fmt.Errorf("capture Go build environment: %w", err)
+		}
 
-	goFlags := []string{"-trimpath"}
-	if policy, policyErr := buildflags.Load(root); policyErr == nil && len(policy.For("develop")) > 0 {
-		goFlags = policy.For("develop")
-	}
-	if err := rejectUnsupportedGoFlags(goFlags); err != nil {
-		return err
-	}
+		goFlags := []string{"-trimpath"}
+		if policy, policyErr := buildflags.Load(buildRoot); policyErr == nil && len(policy.For("develop")) > 0 {
+			goFlags = policy.For("develop")
+		}
+		if err := rejectUnsupportedGoFlags(goFlags); err != nil {
+			return err
+		}
+		// The snapshot is a temporary worktree (its .git is a file, not a
+		// directory), so Go's VCS discovery would walk outside it and stamp
+		// whatever repository it happened to find. Provenance comes from the
+		// injected fingerprint and commit instead. Distribution builds already
+		// pin the same flag.
+		if !slices.Contains(goFlags, "-buildvcs=false") {
+			goFlags = append(goFlags, "-buildvcs=false")
+		}
 
-	type buildStep struct {
-		name  string
-		build func(string) error
-	}
-	steps := []buildStep{
-		{name: "vrooli-api", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
-		}},
-		{name: "vrooli", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
-		}},
-		{name: "vrooli-watchdog", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-watchdog", buildinfo.FingerprintTargetsForExecutable("vrooli-watchdog"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
-		}},
-		{name: "vrooli-atomic-install", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-atomic-install", buildinfo.FingerprintTargetsForExecutable("vrooli-atomic-install"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
-		}},
-		{name: "vrooli-agent-launcher", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
-		}},
-		{name: "vrooli-gocacheprog", build: func(output string) error {
-			return buildProjectBinary(root, output, "./cmd/vrooli-gocacheprog", buildinfo.FingerprintTargetsForExecutable("vrooli-gocacheprog"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
-		}},
-		{name: "vrooli-policy-runner", build: func(output string) error {
-			return buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), output, buildEnv.nested, buildEnv.goCommand, stdout, stderr)
-		}},
-	}
+		type buildStep struct {
+			name  string
+			build func(string) error
+		}
+		steps := []buildStep{
+			{name: "vrooli-api", build: func(output string) error {
+				return buildProjectBinary(buildRoot, output, "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+			}},
+			{name: "vrooli", build: func(output string) error {
+				return buildProjectBinary(buildRoot, output, "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+			}},
+			{name: "vrooli-watchdog", build: func(output string) error {
+				return buildProjectBinary(buildRoot, output, "./cmd/vrooli-watchdog", buildinfo.FingerprintTargetsForExecutable("vrooli-watchdog"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+			}},
+			{name: "vrooli-atomic-install", build: func(output string) error {
+				return buildProjectBinary(buildRoot, output, "./cmd/vrooli-atomic-install", buildinfo.FingerprintTargetsForExecutable("vrooli-atomic-install"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+			}},
+			{name: "vrooli-agent-launcher", build: func(output string) error {
+				return buildProjectBinary(buildRoot, output, "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+			}},
+			{name: "vrooli-gocacheprog", build: func(output string) error {
+				return buildProjectBinary(buildRoot, output, "./cmd/vrooli-gocacheprog", buildinfo.FingerprintTargetsForExecutable("vrooli-gocacheprog"), gitCommit, buildTime, buildEnv.root, buildEnv.goCommand, goFlags, stdout, stderr)
+			}},
+			{name: "vrooli-policy-runner", build: func(output string) error {
+				return buildNestedModuleBinary(filepath.Join(buildRoot, "cmd", "vrooli-policy-runner"), output, buildEnv.nested, buildEnv.goCommand, stdout, stderr)
+			}},
+		}
 
-	err = withStableBuildInputs(root, func() error {
 		var buildErrors []error
 		for _, step := range steps {
 			stagedPath := filepath.Join(stageDir, step.name)
@@ -108,20 +123,39 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 		if err := buildEnv.verifyWorkspaces(); err != nil {
 			return err
 		}
-		return buildEnv.verifyNoVendor()
+		if err := buildEnv.verifyNoVendor(); err != nil {
+			return err
+		}
+
+		for _, step := range steps {
+			stagedPath := filepath.Join(stageDir, step.name)
+			finalPath := filepath.Join(buildDir, step.name)
+			if err := platform.AtomicReplace(stagedPath, finalPath); err != nil {
+				return fmt.Errorf("publish built %s: %w", step.name, err)
+			}
+		}
+		return nil
 	})
+}
+
+// buildFromSnapshot runs build against an immutable capture of root's compiler
+// inputs. The live checkout is read once, for the snapshot: everything the
+// build compiles and everything the artifact records then describe the same
+// moment, however many agents edit the checkout meanwhile.
+func buildFromSnapshot(ctx context.Context, root string, targets []string, build func(buildRoot string) error) error {
+	snapshot, err := buildsnapshot.Create(ctx, buildsnapshot.Options{Root: root, Targets: targets})
 	if err != nil {
 		return err
 	}
+	defer func() { _ = snapshot.Remove(context.WithoutCancel(ctx)) }()
+	return build(snapshot.Dir)
+}
 
-	for _, step := range steps {
-		stagedPath := filepath.Join(stageDir, step.name)
-		finalPath := filepath.Join(buildDir, step.name)
-		if err := platform.AtomicReplace(stagedPath, finalPath); err != nil {
-			return fmt.Errorf("publish built %s: %w", step.name, err)
-		}
+func shortCommit(commit string) string {
+	if len(commit) > 12 {
+		return commit[:12]
 	}
-	return nil
+	return commit
 }
 
 // These are the seven command roots and all of their in-repository module
@@ -132,35 +166,14 @@ var buildCohortSourcePaths = []string{
 	"internal", "cli", "packages", "scenarios/scenario-to-desktop/runtime", "go.mod", "go.sum",
 }
 
-func buildCohortFingerprint(root string) (string, error) {
-	return buildinfo.ComputeSourceFingerprintForPaths(root, buildCohortSourcePaths...)
-}
-
-// withStableBuildInputs refuses to publish a cohort when compiler inputs changed
-// while its images were built. Each image retains its own precise fingerprint.
-func withStableBuildInputs(root string, build func() error) error {
-	before, err := buildCohortFingerprint(root)
-	if err != nil {
-		return fmt.Errorf("fingerprint build inputs: %w", err)
-	}
-	if err := build(); err != nil {
-		return err
-	}
-	after, err := buildCohortFingerprint(root)
-	if err != nil {
-		return fmt.Errorf("recheck build inputs: %w", err)
-	}
-	if before != after {
-		return errors.New("project build inputs changed during compilation; existing binaries were left untouched, retry the build")
-	}
-	return nil
-}
-
 func RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
 	return newSetupService(defaultSetupDeps(root)).RunDevelopWithOptions(root, home, opts, stdout, stderr)
 }
 
 func (s *setupService) RunDevelopWithOptions(root, home string, opts Options, stdout, stderr io.Writer) error {
+	if opts.Context == nil {
+		opts.Context = context.Background()
+	}
 	if err := s.deps.currentHost().ValidateDevelop(); err != nil {
 		return err
 	}
@@ -322,9 +335,12 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 // from its own directory and does not receive the main module's buildinfo
 // ldflags (those -X symbols do not exist in this module).
 func buildNestedModuleBinary(moduleDir, outputPath string, env []string, goCommand string, stdout, stderr io.Writer) error {
+	// -buildvcs=false: this module is often built inside a snapshot worktree,
+	// whose .git is a file. Go's VCS discovery would then walk out of the tree
+	// and stamp an unrelated repository, or fail outright.
 	return shell.Run(shell.Spec{
 		Name:   goCommand,
-		Args:   []string{"build", "-trimpath", "-o", outputPath, "."},
+		Args:   []string{"build", "-trimpath", "-buildvcs=false", "-o", outputPath, "."},
 		Dir:    moduleDir,
 		Env:    env,
 		Stdout: stdout,

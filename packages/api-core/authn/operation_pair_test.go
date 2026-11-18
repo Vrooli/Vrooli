@@ -21,7 +21,7 @@ type pairedVerifier struct {
 	valid bool
 }
 
-func (pairedVerifier) Verify(string) (*cliutil.VerifyResult, error) {
+func (*pairedVerifier) Verify(string) (*cliutil.VerifyResult, error) {
 	return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "baseline-run", Subject: "owner", Scopes: []string{"prompt-manager:read"}, ExpiresAt: time.Now().Add(time.Hour).Unix()}}, nil
 }
 
