@@ -188,6 +188,18 @@
       "publishedAt": "2026-11-07T14:28:02Z"
     },
     {
+      "libraryId": "react-component-library:AppNotificationSettings",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-16T20:42:53Z"
+    },
+    {
+      "libraryId": "react-component-library:AppNotificationSettings",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-18T15:05:52Z"
+    },
+    {
       "libraryId": "react-component-library:AppShell",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -276,6 +288,18 @@
       "version": "2.1.5",
       "draftVersion": "2.1.5-draft.1",
       "publishedAt": "2026-11-14T15:51:42Z"
+    },
+    {
+      "libraryId": "react-component-library:AppShell",
+      "version": "2.1.6",
+      "draftVersion": "2.1.6-draft.1",
+      "publishedAt": "2026-11-17T02:08:15Z"
+    },
+    {
+      "libraryId": "react-component-library:AppShell",
+      "version": "2.1.7",
+      "draftVersion": "2.1.7-draft.1",
+      "publishedAt": "2026-11-17T02:10:32Z"
     },
     {
       "libraryId": "react-component-library:ApprovalPrompt",

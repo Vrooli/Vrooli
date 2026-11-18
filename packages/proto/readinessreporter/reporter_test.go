@@ -4,11 +4,11 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
-	"github.com/stretchr/testify/require"
 	readinessv1 "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness"
 	readinessconnect "github.com/vrooli/vrooli/packages/proto/gen/go/deployment-manager/v1/readiness/readinessv1connect"
 )
@@ -54,20 +54,25 @@ func TestReporterResolvesCurrentDeploymentManagerForEachReport(t *testing.T) {
 		Token: "readiness-token", Identity: readinessIdentity(), CriterionID: "catalog-ready",
 		ProducerBinding: "offer-desk.catalog", ProducerVersion: "offer-desk",
 	})
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	report := func() error {
 		return reporter.ReportStatus(context.Background(), "offer-desk", "passed", "catalog reconciled", "offer-desk:readiness", time.Now().UTC())
 	}
-	require.NoError(t, report())
+	if err := report(); err != nil {
+		t.Fatal(err)
+	}
 	first.Close()
 	currentURL = second.URL
-	require.NoError(t, report(), "a peer restart must not leave the reporter pinned to its original address")
+	if err := report(); err != nil {
+		t.Fatalf("a peer restart must not leave the reporter pinned to its original address: %v", err)
+	}
 
-	require.Equal(t, 2, resolveCalls)
-	require.Equal(t, 1, firstStub.calls)
-	require.Equal(t, 1, secondStub.calls)
-	require.Equal(t, "Bearer readiness-token", secondStub.auth)
+	if resolveCalls != 2 || firstStub.calls != 1 || secondStub.calls != 1 || secondStub.auth != "Bearer readiness-token" {
+		t.Fatalf("resolve calls=%d first calls=%d second calls=%d second auth=%q", resolveCalls, firstStub.calls, secondStub.calls, secondStub.auth)
+	}
 }
 
 func TestReporterKeepsFixedBaseURLModeForPinnedDeployments(t *testing.T) {
@@ -76,20 +81,29 @@ func TestReporterKeepsFixedBaseURLModeForPinnedDeployments(t *testing.T) {
 		BaseURL: server.URL, Token: "readiness-token", Identity: readinessIdentity(), CriterionID: "catalog-ready",
 		ProducerBinding: "offer-desk.catalog", ProducerVersion: "offer-desk",
 	})
-	require.NoError(t, err)
-	require.NoError(t, reporter.ReportStatus(context.Background(), "offer-desk", "passed", "ready", "fixed-address", time.Now().UTC()))
-	require.Equal(t, 1, stub.calls)
-	require.Equal(t, "Bearer readiness-token", stub.auth)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := reporter.ReportStatus(context.Background(), "offer-desk", "passed", "ready", "fixed-address", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if stub.calls != 1 || stub.auth != "Bearer readiness-token" {
+		t.Fatalf("calls=%d auth=%q", stub.calls, stub.auth)
+	}
 }
 
 func TestReporterRequiresExactlyOneAddressMode(t *testing.T) {
 	base := Config{Token: "token", Identity: readinessIdentity(), CriterionID: "criterion", ProducerBinding: "binding", ProducerVersion: "producer"}
 	_, err := New(base)
-	require.ErrorContains(t, err, "requires URL")
+	if err == nil || !strings.Contains(err.Error(), "requires a URL") {
+		t.Fatalf("error = %v; want missing address error", err)
+	}
 	base.BaseURL = "http://127.0.0.1:1"
 	base.ResolveBaseURL = func(context.Context) (string, error) { return "http://127.0.0.1:2", nil }
 	_, err = New(base)
-	require.ErrorContains(t, err, "either a fixed URL or a URL resolver")
+	if err == nil || !strings.Contains(err.Error(), "either a fixed URL or a URL resolver") {
+		t.Fatalf("error = %v; want mutually exclusive address modes", err)
+	}
 }
 
 func TestReporterRejectsEmptyResolvedAddress(t *testing.T) {
@@ -98,7 +112,11 @@ func TestReporterRejectsEmptyResolvedAddress(t *testing.T) {
 		Token:          "token", Identity: readinessIdentity(), CriterionID: "criterion", ProducerBinding: "binding", ProducerVersion: "producer",
 		HTTPClient: &http.Client{},
 	})
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = reporter.ReportStatus(context.Background(), "offer-desk", "passed", "ready", "ref", time.Now().UTC())
-	require.ErrorContains(t, err, "empty URL")
+	if err == nil || !strings.Contains(err.Error(), "empty URL") {
+		t.Fatalf("error = %v; want empty URL error", err)
+	}
 }

@@ -83,7 +83,7 @@ function coldReleaseTestFolders(): string[] {
 }
 
 function testDraftOverrides(mode: string): Record<string, string> {
-  if (mode !== "test") return {};
+  if (mode !== "test" && mode !== "library") return {};
   const raw = process.env.RCL_TEST_DRAFT_OVERRIDES?.trim();
   if (!raw) return {};
   return Object.fromEntries(raw.split(",").map((entry) => {

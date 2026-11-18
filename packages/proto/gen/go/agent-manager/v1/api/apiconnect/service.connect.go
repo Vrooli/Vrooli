@@ -229,12 +229,27 @@ const (
 	// AgentManagerServiceCreateRunProcedure is the fully-qualified name of the AgentManagerService's
 	// CreateRun RPC.
 	AgentManagerServiceCreateRunProcedure = "/agent_manager.v1.AgentManagerService/CreateRun"
+	// AgentManagerServiceAttachRunProcedure is the fully-qualified name of the AgentManagerService's
+	// AttachRun RPC.
+	AgentManagerServiceAttachRunProcedure = "/agent_manager.v1.AgentManagerService/AttachRun"
+	// AgentManagerServiceDetachRunProcedure is the fully-qualified name of the AgentManagerService's
+	// DetachRun RPC.
+	AgentManagerServiceDetachRunProcedure = "/agent_manager.v1.AgentManagerService/DetachRun"
 	// AgentManagerServiceGetRuntimeActivityProcedure is the fully-qualified name of the
 	// AgentManagerService's GetRuntimeActivity RPC.
 	AgentManagerServiceGetRuntimeActivityProcedure = "/agent_manager.v1.AgentManagerService/GetRuntimeActivity"
 	// AgentManagerServiceGetRunProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRun RPC.
 	AgentManagerServiceGetRunProcedure = "/agent_manager.v1.AgentManagerService/GetRun"
+	// AgentManagerServiceGetRunDiffProcedure is the fully-qualified name of the AgentManagerService's
+	// GetRunDiff RPC.
+	AgentManagerServiceGetRunDiffProcedure = "/agent_manager.v1.AgentManagerService/GetRunDiff"
+	// AgentManagerServiceApproveRunProcedure is the fully-qualified name of the AgentManagerService's
+	// ApproveRun RPC.
+	AgentManagerServiceApproveRunProcedure = "/agent_manager.v1.AgentManagerService/ApproveRun"
+	// AgentManagerServiceRejectRunProcedure is the fully-qualified name of the AgentManagerService's
+	// RejectRun RPC.
+	AgentManagerServiceRejectRunProcedure = "/agent_manager.v1.AgentManagerService/RejectRun"
 	// AgentManagerServiceGetRunByTagProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRunByTag RPC.
 	AgentManagerServiceGetRunByTagProcedure = "/agent_manager.v1.AgentManagerService/GetRunByTag"
@@ -244,6 +259,12 @@ const (
 	// AgentManagerServiceStopRunByTagProcedure is the fully-qualified name of the AgentManagerService's
 	// StopRunByTag RPC.
 	AgentManagerServiceStopRunByTagProcedure = "/agent_manager.v1.AgentManagerService/StopRunByTag"
+	// AgentManagerServiceSyncRunFromSandboxProcedure is the fully-qualified name of the
+	// AgentManagerService's SyncRunFromSandbox RPC.
+	AgentManagerServiceSyncRunFromSandboxProcedure = "/agent_manager.v1.AgentManagerService/SyncRunFromSandbox"
+	// AgentManagerServiceContinueRunProcedure is the fully-qualified name of the AgentManagerService's
+	// ContinueRun RPC.
+	AgentManagerServiceContinueRunProcedure = "/agent_manager.v1.AgentManagerService/ContinueRun"
 	// AgentManagerServiceStopAllRunsProcedure is the fully-qualified name of the AgentManagerService's
 	// StopAllRuns RPC.
 	AgentManagerServiceStopAllRunsProcedure = "/agent_manager.v1.AgentManagerService/StopAllRuns"
@@ -413,18 +434,39 @@ type AgentManagerServiceClient interface {
 	GetTask(context.Context, *connect.Request[api.GetTaskRequest]) (*connect.Response[api.GetTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
+	// AttachRun creates the zero-scope identity for a locally launched harness.
+	// It is admitted only from the same host. Optional human-owner and Web
+	// Console session delegation remain transport metadata, verified by the
+	// owner; neither is accepted from request fields.
+	AttachRun(context.Context, *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error)
+	// DetachRun closes an attached run. A run identity may only detach its own
+	// run; an operator may use the existing owner authorization path.
+	DetachRun(context.Context, *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error)
 	// GetRuntimeActivity reads current physical execution evidence. It does not
 	// grant maintenance or lifecycle authority and does not count logical roster
 	// rows as executing work.
 	GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	// GetRunDiff returns verified change evidence for one run.
+	GetRunDiff(context.Context, *connect.Request[api.GetRunDiffRequest]) (*connect.Response[api.GetRunDiffResponse], error)
+	// ApproveRun applies the existing owner approval policy to one run.
+	ApproveRun(context.Context, *connect.Request[api.ApproveRunRequest]) (*connect.Response[api.ApproveRunResponse], error)
+	// RejectRun applies the existing owner rejection policy to one run.
+	RejectRun(context.Context, *connect.Request[api.RejectRunRequest]) (*connect.Response[api.RejectRunResponse], error)
 	// GetRunByTag retrieves the run identified by its caller-assigned tag.
 	GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error)
 	// StopRun applies the existing owner authorization policy to one run.
 	StopRun(context.Context, *connect.Request[api.StopRunRequest]) (*connect.Response[api.StopRunResponse], error)
 	// StopRunByTag applies the existing owner authorization policy to a tagged run.
 	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
+	// SyncRunFromSandbox records the final workspace-sandbox approval result
+	// for a run. The handler preserves the sandbox owner's existing lifecycle
+	// guard and validation contract.
+	SyncRunFromSandbox(context.Context, *connect.Request[api.SyncRunFromSandboxRequest]) (*connect.Response[api.SyncRunFromSandboxResponse], error)
+	// ContinueRun resumes an existing run using the owner's established
+	// idempotency, lineage, attachment, and lifecycle authorization checks.
+	ContinueRun(context.Context, *connect.Request[domain.ContinueRunRequest]) (*connect.Response[domain.ContinueRunResponse], error)
 	// StopAllRuns applies the existing global-stop authorization policy.
 	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -887,6 +929,18 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("CreateRun")),
 			connect.WithClientOptions(opts...),
 		),
+		attachRun: connect.NewClient[api.AttachRunRequest, api.AttachRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceAttachRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("AttachRun")),
+			connect.WithClientOptions(opts...),
+		),
+		detachRun: connect.NewClient[api.DetachRunRequest, api.DetachRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceDetachRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("DetachRun")),
+			connect.WithClientOptions(opts...),
+		),
 		getRuntimeActivity: connect.NewClient[api.GetRuntimeActivityRequest, api.GetRuntimeActivityResponse](
 			httpClient,
 			baseURL+AgentManagerServiceGetRuntimeActivityProcedure,
@@ -897,6 +951,24 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceGetRunProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("GetRun")),
+			connect.WithClientOptions(opts...),
+		),
+		getRunDiff: connect.NewClient[api.GetRunDiffRequest, api.GetRunDiffResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetRunDiffProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRunDiff")),
+			connect.WithClientOptions(opts...),
+		),
+		approveRun: connect.NewClient[api.ApproveRunRequest, api.ApproveRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceApproveRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ApproveRun")),
+			connect.WithClientOptions(opts...),
+		),
+		rejectRun: connect.NewClient[api.RejectRunRequest, api.RejectRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceRejectRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("RejectRun")),
 			connect.WithClientOptions(opts...),
 		),
 		getRunByTag: connect.NewClient[api.GetRunByTagRequest, api.GetRunByTagResponse](
@@ -915,6 +987,18 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			httpClient,
 			baseURL+AgentManagerServiceStopRunByTagProcedure,
 			connect.WithSchema(agentManagerServiceMethods.ByName("StopRunByTag")),
+			connect.WithClientOptions(opts...),
+		),
+		syncRunFromSandbox: connect.NewClient[api.SyncRunFromSandboxRequest, api.SyncRunFromSandboxResponse](
+			httpClient,
+			baseURL+AgentManagerServiceSyncRunFromSandboxProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("SyncRunFromSandbox")),
+			connect.WithClientOptions(opts...),
+		),
+		continueRun: connect.NewClient[domain.ContinueRunRequest, domain.ContinueRunResponse](
+			httpClient,
+			baseURL+AgentManagerServiceContinueRunProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("ContinueRun")),
 			connect.WithClientOptions(opts...),
 		),
 		stopAllRuns: connect.NewClient[api.StopAllRunsRequest, api.StopAllRunsResponse](
@@ -1125,11 +1209,18 @@ type agentManagerServiceClient struct {
 	createTask                       *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
 	getTask                          *connect.Client[api.GetTaskRequest, api.GetTaskResponse]
 	createRun                        *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	attachRun                        *connect.Client[api.AttachRunRequest, api.AttachRunResponse]
+	detachRun                        *connect.Client[api.DetachRunRequest, api.DetachRunResponse]
 	getRuntimeActivity               *connect.Client[api.GetRuntimeActivityRequest, api.GetRuntimeActivityResponse]
 	getRun                           *connect.Client[api.GetRunRequest, api.GetRunResponse]
+	getRunDiff                       *connect.Client[api.GetRunDiffRequest, api.GetRunDiffResponse]
+	approveRun                       *connect.Client[api.ApproveRunRequest, api.ApproveRunResponse]
+	rejectRun                        *connect.Client[api.RejectRunRequest, api.RejectRunResponse]
 	getRunByTag                      *connect.Client[api.GetRunByTagRequest, api.GetRunByTagResponse]
 	stopRun                          *connect.Client[api.StopRunRequest, api.StopRunResponse]
 	stopRunByTag                     *connect.Client[api.StopRunByTagRequest, api.StopRunByTagResponse]
+	syncRunFromSandbox               *connect.Client[api.SyncRunFromSandboxRequest, api.SyncRunFromSandboxResponse]
+	continueRun                      *connect.Client[domain.ContinueRunRequest, domain.ContinueRunResponse]
 	stopAllRuns                      *connect.Client[api.StopAllRunsRequest, api.StopAllRunsResponse]
 	getRunReport                     *connect.Client[api.GetRunReportRequest, api.RunReport]
 	getRunAccounting                 *connect.Client[api.GetRunAccountingRequest, api.RunAccounting]
@@ -1483,6 +1574,16 @@ func (c *agentManagerServiceClient) CreateRun(ctx context.Context, req *connect.
 	return c.createRun.CallUnary(ctx, req)
 }
 
+// AttachRun calls agent_manager.v1.AgentManagerService.AttachRun.
+func (c *agentManagerServiceClient) AttachRun(ctx context.Context, req *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error) {
+	return c.attachRun.CallUnary(ctx, req)
+}
+
+// DetachRun calls agent_manager.v1.AgentManagerService.DetachRun.
+func (c *agentManagerServiceClient) DetachRun(ctx context.Context, req *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error) {
+	return c.detachRun.CallUnary(ctx, req)
+}
+
 // GetRuntimeActivity calls agent_manager.v1.AgentManagerService.GetRuntimeActivity.
 func (c *agentManagerServiceClient) GetRuntimeActivity(ctx context.Context, req *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error) {
 	return c.getRuntimeActivity.CallUnary(ctx, req)
@@ -1491,6 +1592,21 @@ func (c *agentManagerServiceClient) GetRuntimeActivity(ctx context.Context, req 
 // GetRun calls agent_manager.v1.AgentManagerService.GetRun.
 func (c *agentManagerServiceClient) GetRun(ctx context.Context, req *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return c.getRun.CallUnary(ctx, req)
+}
+
+// GetRunDiff calls agent_manager.v1.AgentManagerService.GetRunDiff.
+func (c *agentManagerServiceClient) GetRunDiff(ctx context.Context, req *connect.Request[api.GetRunDiffRequest]) (*connect.Response[api.GetRunDiffResponse], error) {
+	return c.getRunDiff.CallUnary(ctx, req)
+}
+
+// ApproveRun calls agent_manager.v1.AgentManagerService.ApproveRun.
+func (c *agentManagerServiceClient) ApproveRun(ctx context.Context, req *connect.Request[api.ApproveRunRequest]) (*connect.Response[api.ApproveRunResponse], error) {
+	return c.approveRun.CallUnary(ctx, req)
+}
+
+// RejectRun calls agent_manager.v1.AgentManagerService.RejectRun.
+func (c *agentManagerServiceClient) RejectRun(ctx context.Context, req *connect.Request[api.RejectRunRequest]) (*connect.Response[api.RejectRunResponse], error) {
+	return c.rejectRun.CallUnary(ctx, req)
 }
 
 // GetRunByTag calls agent_manager.v1.AgentManagerService.GetRunByTag.
@@ -1506,6 +1622,16 @@ func (c *agentManagerServiceClient) StopRun(ctx context.Context, req *connect.Re
 // StopRunByTag calls agent_manager.v1.AgentManagerService.StopRunByTag.
 func (c *agentManagerServiceClient) StopRunByTag(ctx context.Context, req *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error) {
 	return c.stopRunByTag.CallUnary(ctx, req)
+}
+
+// SyncRunFromSandbox calls agent_manager.v1.AgentManagerService.SyncRunFromSandbox.
+func (c *agentManagerServiceClient) SyncRunFromSandbox(ctx context.Context, req *connect.Request[api.SyncRunFromSandboxRequest]) (*connect.Response[api.SyncRunFromSandboxResponse], error) {
+	return c.syncRunFromSandbox.CallUnary(ctx, req)
+}
+
+// ContinueRun calls agent_manager.v1.AgentManagerService.ContinueRun.
+func (c *agentManagerServiceClient) ContinueRun(ctx context.Context, req *connect.Request[domain.ContinueRunRequest]) (*connect.Response[domain.ContinueRunResponse], error) {
+	return c.continueRun.CallUnary(ctx, req)
 }
 
 // StopAllRuns calls agent_manager.v1.AgentManagerService.StopAllRuns.
@@ -1724,18 +1850,39 @@ type AgentManagerServiceHandler interface {
 	GetTask(context.Context, *connect.Request[api.GetTaskRequest]) (*connect.Response[api.GetTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
+	// AttachRun creates the zero-scope identity for a locally launched harness.
+	// It is admitted only from the same host. Optional human-owner and Web
+	// Console session delegation remain transport metadata, verified by the
+	// owner; neither is accepted from request fields.
+	AttachRun(context.Context, *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error)
+	// DetachRun closes an attached run. A run identity may only detach its own
+	// run; an operator may use the existing owner authorization path.
+	DetachRun(context.Context, *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error)
 	// GetRuntimeActivity reads current physical execution evidence. It does not
 	// grant maintenance or lifecycle authority and does not count logical roster
 	// rows as executing work.
 	GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
+	// GetRunDiff returns verified change evidence for one run.
+	GetRunDiff(context.Context, *connect.Request[api.GetRunDiffRequest]) (*connect.Response[api.GetRunDiffResponse], error)
+	// ApproveRun applies the existing owner approval policy to one run.
+	ApproveRun(context.Context, *connect.Request[api.ApproveRunRequest]) (*connect.Response[api.ApproveRunResponse], error)
+	// RejectRun applies the existing owner rejection policy to one run.
+	RejectRun(context.Context, *connect.Request[api.RejectRunRequest]) (*connect.Response[api.RejectRunResponse], error)
 	// GetRunByTag retrieves the run identified by its caller-assigned tag.
 	GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error)
 	// StopRun applies the existing owner authorization policy to one run.
 	StopRun(context.Context, *connect.Request[api.StopRunRequest]) (*connect.Response[api.StopRunResponse], error)
 	// StopRunByTag applies the existing owner authorization policy to a tagged run.
 	StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error)
+	// SyncRunFromSandbox records the final workspace-sandbox approval result
+	// for a run. The handler preserves the sandbox owner's existing lifecycle
+	// guard and validation contract.
+	SyncRunFromSandbox(context.Context, *connect.Request[api.SyncRunFromSandboxRequest]) (*connect.Response[api.SyncRunFromSandboxResponse], error)
+	// ContinueRun resumes an existing run using the owner's established
+	// idempotency, lineage, attachment, and lifecycle authorization checks.
+	ContinueRun(context.Context, *connect.Request[domain.ContinueRunRequest]) (*connect.Response[domain.ContinueRunResponse], error)
 	// StopAllRuns applies the existing global-stop authorization policy.
 	StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -2194,6 +2341,18 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("CreateRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceAttachRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceAttachRunProcedure,
+		svc.AttachRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("AttachRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceDetachRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceDetachRunProcedure,
+		svc.DetachRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("DetachRun")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceGetRuntimeActivityHandler := connect.NewUnaryHandler(
 		AgentManagerServiceGetRuntimeActivityProcedure,
 		svc.GetRuntimeActivity,
@@ -2204,6 +2363,24 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceGetRunProcedure,
 		svc.GetRun,
 		connect.WithSchema(agentManagerServiceMethods.ByName("GetRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceGetRunDiffHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRunDiffProcedure,
+		svc.GetRunDiff,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRunDiff")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceApproveRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceApproveRunProcedure,
+		svc.ApproveRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ApproveRun")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceRejectRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceRejectRunProcedure,
+		svc.RejectRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("RejectRun")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceGetRunByTagHandler := connect.NewUnaryHandler(
@@ -2222,6 +2399,18 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		AgentManagerServiceStopRunByTagProcedure,
 		svc.StopRunByTag,
 		connect.WithSchema(agentManagerServiceMethods.ByName("StopRunByTag")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceSyncRunFromSandboxHandler := connect.NewUnaryHandler(
+		AgentManagerServiceSyncRunFromSandboxProcedure,
+		svc.SyncRunFromSandbox,
+		connect.WithSchema(agentManagerServiceMethods.ByName("SyncRunFromSandbox")),
+		connect.WithHandlerOptions(opts...),
+	)
+	agentManagerServiceContinueRunHandler := connect.NewUnaryHandler(
+		AgentManagerServiceContinueRunProcedure,
+		svc.ContinueRun,
+		connect.WithSchema(agentManagerServiceMethods.ByName("ContinueRun")),
 		connect.WithHandlerOptions(opts...),
 	)
 	agentManagerServiceStopAllRunsHandler := connect.NewUnaryHandler(
@@ -2494,16 +2683,30 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceGetTaskHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateRunProcedure:
 			agentManagerServiceCreateRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceAttachRunProcedure:
+			agentManagerServiceAttachRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceDetachRunProcedure:
+			agentManagerServiceDetachRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRuntimeActivityProcedure:
 			agentManagerServiceGetRuntimeActivityHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunProcedure:
 			agentManagerServiceGetRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRunDiffProcedure:
+			agentManagerServiceGetRunDiffHandler.ServeHTTP(w, r)
+		case AgentManagerServiceApproveRunProcedure:
+			agentManagerServiceApproveRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceRejectRunProcedure:
+			agentManagerServiceRejectRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunByTagProcedure:
 			agentManagerServiceGetRunByTagHandler.ServeHTTP(w, r)
 		case AgentManagerServiceStopRunProcedure:
 			agentManagerServiceStopRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceStopRunByTagProcedure:
 			agentManagerServiceStopRunByTagHandler.ServeHTTP(w, r)
+		case AgentManagerServiceSyncRunFromSandboxProcedure:
+			agentManagerServiceSyncRunFromSandboxHandler.ServeHTTP(w, r)
+		case AgentManagerServiceContinueRunProcedure:
+			agentManagerServiceContinueRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceStopAllRunsProcedure:
 			agentManagerServiceStopAllRunsHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunReportProcedure:
@@ -2819,12 +3022,32 @@ func (UnimplementedAgentManagerServiceHandler) CreateRun(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateRun is not implemented"))
 }
 
+func (UnimplementedAgentManagerServiceHandler) AttachRun(context.Context, *connect.Request[api.AttachRunRequest]) (*connect.Response[api.AttachRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.AttachRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) DetachRun(context.Context, *connect.Request[api.DetachRunRequest]) (*connect.Response[api.DetachRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.DetachRun is not implemented"))
+}
+
 func (UnimplementedAgentManagerServiceHandler) GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRuntimeActivity is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetRunDiff(context.Context, *connect.Request[api.GetRunDiffRequest]) (*connect.Response[api.GetRunDiffResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRunDiff is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ApproveRun(context.Context, *connect.Request[api.ApproveRunRequest]) (*connect.Response[api.ApproveRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ApproveRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) RejectRun(context.Context, *connect.Request[api.RejectRunRequest]) (*connect.Response[api.RejectRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.RejectRun is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRunByTag(context.Context, *connect.Request[api.GetRunByTagRequest]) (*connect.Response[api.GetRunByTagResponse], error) {
@@ -2837,6 +3060,14 @@ func (UnimplementedAgentManagerServiceHandler) StopRun(context.Context, *connect
 
 func (UnimplementedAgentManagerServiceHandler) StopRunByTag(context.Context, *connect.Request[api.StopRunByTagRequest]) (*connect.Response[api.StopRunByTagResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.StopRunByTag is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) SyncRunFromSandbox(context.Context, *connect.Request[api.SyncRunFromSandboxRequest]) (*connect.Response[api.SyncRunFromSandboxResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.SyncRunFromSandbox is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) ContinueRun(context.Context, *connect.Request[domain.ContinueRunRequest]) (*connect.Response[domain.ContinueRunResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.ContinueRun is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) StopAllRuns(context.Context, *connect.Request[api.StopAllRunsRequest]) (*connect.Response[api.StopAllRunsResponse], error) {

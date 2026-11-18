@@ -301,6 +301,20 @@ service AgentManagerService {
     };
   }
 
+  // AttachRun creates the zero-scope identity for a locally launched harness.
+  // It is admitted only from the same host. Optional human-owner and Web
+  // Console session delegation remain transport metadata, verified by the
+  // owner; neither is accepted from request fields.
+  rpc AttachRun(AttachRunRequest) returns (AttachRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/attach" body: "*"};
+  }
+
+  // DetachRun closes an attached run. A run identity may only detach its own
+  // run; an operator may use the existing owner authorization path.
+  rpc DetachRun(DetachRunRequest) returns (DetachRunResponse) {
+    option (google.api.http) = {post: "/api/v1/runs/{run_id}/detach" body: "*"};
+  }
+
   // GetRuntimeActivity reads current physical execution evidence. It does not
   // grant maintenance or lifecycle authority and does not count logical roster
   // rows as executing work.
@@ -311,6 +325,27 @@ service AgentManagerService {
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
+  }
+
+  // GetRunDiff returns verified change evidence for one run.
+  rpc GetRunDiff(GetRunDiffRequest) returns (GetRunDiffResponse) {
+    option (google.api.http) = {get: "/api/v1/runs/{run_id}/diff"};
+  }
+
+  // ApproveRun applies the existing owner approval policy to one run.
+  rpc ApproveRun(ApproveRunRequest) returns (ApproveRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/approve"
+      body: "*"
+    };
+  }
+
+  // RejectRun applies the existing owner rejection policy to one run.
+  rpc RejectRun(RejectRunRequest) returns (RejectRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/reject"
+      body: "*"
+    };
   }
 
   // GetRunByTag retrieves the run identified by its caller-assigned tag.
@@ -326,6 +361,25 @@ service AgentManagerService {
   // StopRunByTag applies the existing owner authorization policy to a tagged run.
   rpc StopRunByTag(StopRunByTagRequest) returns (StopRunByTagResponse) {
     option (google.api.http) = {post: "/api/v1/runs/tag/{tag}/stop"};
+  }
+
+  // SyncRunFromSandbox records the final workspace-sandbox approval result
+  // for a run. The handler preserves the sandbox owner's existing lifecycle
+  // guard and validation contract.
+  rpc SyncRunFromSandbox(SyncRunFromSandboxRequest) returns (SyncRunFromSandboxResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/sandbox-sync"
+      body: "*"
+    };
+  }
+
+  // ContinueRun resumes an existing run using the owner's established
+  // idempotency, lineage, attachment, and lifecycle authorization checks.
+  rpc ContinueRun(.agent_manager.v1.ContinueRunRequest) returns (.agent_manager.v1.ContinueRunResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/runs/{run_id}/continue"
+      body: "*"
+    };
   }
 
   // StopAllRuns applies the existing global-stop authorization policy.
@@ -767,6 +821,9 @@ message ListWorkflowExecutionsRequest {
     lte: 200
   }];
   int32 offset = 5 [(buf.validate.field).int32.gte = 0];
+  // Exact idempotency-key lookup for a previously accepted start. Applied
+  // before limit/offset so a matching execution is not hidden by pagination.
+  string idempotency_key = 6 [(buf.validate.field).string.max_len = 255];
 }
 
 message ListWorkflowExecutionsResponse {
@@ -1582,6 +1639,28 @@ message StopRunByTagResponse {
 
   // Updated run after stopping, including hydrated action flags.
   Run run = 3;
+}
+
+// SyncRunFromSandboxRequest records the workspace-sandbox result associated
+// with the exact run in the route.
+message SyncRunFromSandboxRequest {
+  string run_id = 1 [(buf.validate.field).string.uuid = true];
+  optional string sandbox_id = 2 [(buf.validate.field).string.uuid = true];
+  string status = 3 [(buf.validate.field).string.min_len = 1];
+  string actor = 4;
+  string reason = 5;
+  int32 applied = 6;
+  int32 remaining = 7;
+  bool is_partial = 8;
+  string commit_hash = 9;
+}
+
+// SyncRunFromSandboxResponse reports the owner state after synchronization.
+message SyncRunFromSandboxResponse {
+  string status = 1;
+  string run_id = 2;
+  string run_status = 3;
+  string approval_state = 4;
 }
 
 // StopAllRunsRequest stops multiple runs.

@@ -1,19 +1,17 @@
 package workflows
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
+	"github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -52,14 +50,14 @@ func (d *AgentManagerDispatcher) Start(ctx context.Context, in StartInput) (Disp
 	if err != nil {
 		return DispatchResult{}, err
 	}
-	var started apipb.WorkflowExecutionResponse
-	if err := d.post(ctx, base, "/api/v1/workflow-executions", &apipb.StartWorkflowExecutionRequest{Owner: "react-component-library", WorkflowKey: workflowKey, Input: input, IdempotencyKey: in.IdempotencyKey}, &started); err != nil {
+	started, err := d.connectClient(base).StartWorkflowExecution(ctx, connect.NewRequest(&apipb.StartWorkflowExecutionRequest{Owner: "react-component-library", WorkflowKey: workflowKey, Input: input, IdempotencyKey: in.IdempotencyKey}))
+	if err != nil {
 		return DispatchResult{}, err
 	}
-	if started.Execution == nil || started.Execution.Id == "" {
+	if started.Msg.Execution == nil || started.Msg.Execution.Id == "" {
 		return DispatchResult{}, fmt.Errorf("agent-manager workflow response missing execution id")
 	}
-	return DispatchResult{ExecutionID: started.Execution.Id, Status: statusFromWorkflow(started.Execution.Status)}, nil
+	return DispatchResult{ExecutionID: started.Msg.Execution.Id, Status: statusFromWorkflow(started.Msg.Execution.Status)}, nil
 }
 
 // workflowInput is intentionally kind-specific. The two declared workflows
@@ -103,28 +101,28 @@ func (d *AgentManagerDispatcher) Wait(ctx context.Context, executionID string) (
 	if err != nil {
 		return DispatchResult{ExecutionID: executionID}, err
 	}
-	var waited apipb.WaitWorkflowExecutionResponse
-	if err := d.post(ctx, base, "/api/v1/workflow-executions/"+executionID+"/wait", &apipb.WaitWorkflowExecutionRequest{ExecutionId: executionID}, &waited); err != nil {
+	waited, err := d.connectClient(base).WaitWorkflowExecution(ctx, connect.NewRequest(&apipb.WaitWorkflowExecutionRequest{ExecutionId: executionID}))
+	if err != nil {
 		return DispatchResult{ExecutionID: executionID}, err
 	}
-	if waited.Execution == nil {
+	if waited.Msg.Execution == nil {
 		return DispatchResult{ExecutionID: executionID}, fmt.Errorf("agent-manager wait response missing execution")
 	}
-	result := DispatchResult{ExecutionID: executionID, Status: statusFromWorkflow(waited.Execution.Status)}
-	if !waited.TimedOut && waited.Execution.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
-		var output apipb.WorkflowExecutionResponse
-		if err := d.get(ctx, base, "/api/v1/workflow-executions/"+executionID+"/result?explicitly_authorized=true", &output); err != nil {
+	result := DispatchResult{ExecutionID: executionID, Status: statusFromWorkflow(waited.Msg.Execution.Status)}
+	if !waited.Msg.TimedOut && waited.Msg.Execution.Status == domainpb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_SUCCEEDED {
+		output, err := d.connectClient(base).GetWorkflowExecutionResult(ctx, connect.NewRequest(&apipb.GetWorkflowExecutionResultRequest{ExecutionId: executionID, ExplicitlyAuthorized: true}))
+		if err != nil {
 			return result, err
 		}
-		result.Status, result.Error = projectAssistantResult(output.Execution, result.Status)
-		result.Summary = workflowSummary(output.Execution)
+		result.Status, result.Error = projectAssistantResult(output.Msg.Execution, result.Status)
+		result.Summary = workflowSummary(output.Msg.Execution)
 	}
 	if result.Status == StatusFailed {
 		// Preserve a typed assistant outcome (for example, blocked validation)
 		// when the orchestration envelope itself completed without a terminal
 		// reason. The catalog must not turn that outcome back into a blank error.
 		if result.Error == "" {
-			result.Error = waited.Execution.TerminalReason.String()
+			result.Error = waited.Msg.Execution.TerminalReason.String()
 		}
 	}
 	return result, nil
@@ -138,18 +136,18 @@ func (d *AgentManagerDispatcher) Refresh(ctx context.Context, executionID string
 	if err != nil {
 		return DispatchResult{ExecutionID: executionID}, err
 	}
-	var output apipb.WorkflowExecutionResponse
-	if err := d.get(ctx, base, "/api/v1/workflow-executions/"+executionID+"/result?explicitly_authorized=true", &output); err != nil {
+	output, err := d.connectClient(base).GetWorkflowExecutionResult(ctx, connect.NewRequest(&apipb.GetWorkflowExecutionResultRequest{ExecutionId: executionID, ExplicitlyAuthorized: true}))
+	if err != nil {
 		return DispatchResult{ExecutionID: executionID}, err
 	}
-	if output.Execution == nil {
+	if output.Msg.Execution == nil {
 		return DispatchResult{ExecutionID: executionID}, fmt.Errorf("agent-manager refresh response missing execution")
 	}
-	status, resultError := projectAssistantResult(output.Execution, statusFromWorkflow(output.Execution.Status))
+	status, resultError := projectAssistantResult(output.Msg.Execution, statusFromWorkflow(output.Msg.Execution.Status))
 	return DispatchResult{
 		ExecutionID: executionID,
 		Status:      status,
-		Summary:     workflowSummary(output.Execution),
+		Summary:     workflowSummary(output.Msg.Execution),
 		Error:       resultError,
 	}, nil
 }
@@ -159,14 +157,14 @@ func (d *AgentManagerDispatcher) Stop(ctx context.Context, executionID string) (
 	if err != nil {
 		return RunSnapshot{}, err
 	}
-	var out apipb.WorkflowExecutionOperationResponse
-	if err := d.post(ctx, base, "/api/v1/workflow-executions/"+executionID+"/cancel", &apipb.WorkflowExecutionOperationRequest{ExecutionId: executionID, IdempotencyKey: "rcl-cancel/" + executionID, Reason: "cancelled from react-component-library"}, &out); err != nil {
+	out, err := d.connectClient(base).CancelWorkflowExecution(ctx, connect.NewRequest(&apipb.WorkflowExecutionOperationRequest{ExecutionId: executionID, IdempotencyKey: "rcl-cancel/" + executionID, Reason: "cancelled from react-component-library"}))
+	if err != nil {
 		return RunSnapshot{}, err
 	}
-	if out.Execution == nil {
+	if out.Msg.Execution == nil {
 		return RunSnapshot{}, fmt.Errorf("agent-manager cancel response missing execution")
 	}
-	return RunSnapshot{Status: statusFromWorkflow(out.Execution.Status), Error: out.Execution.TerminalReason.String()}, nil
+	return RunSnapshot{Status: statusFromWorkflow(out.Msg.Execution.Status), Error: out.Msg.Execution.TerminalReason.String()}, nil
 }
 
 func workflowSummary(execution *domainpb.WorkflowExecution) string {
@@ -224,49 +222,11 @@ func (d *AgentManagerDispatcher) baseURL(ctx context.Context) (string, error) {
 	return strings.TrimRight(base, "/"), nil
 }
 
-func (d *AgentManagerDispatcher) post(ctx context.Context, base, path string, in, out proto.Message) error {
-	return d.request(ctx, http.MethodPost, base, path, in, out)
-}
-
-func (d *AgentManagerDispatcher) get(ctx context.Context, base, path string, out proto.Message) error {
-	return d.request(ctx, http.MethodGet, base, path, nil, out)
-}
-
-func (d *AgentManagerDispatcher) request(ctx context.Context, method, base, path string, in, out proto.Message) error {
+func (d *AgentManagerDispatcher) connectClient(base string) apiconnect.AgentManagerServiceClient {
 	if d.Client == nil {
 		d.Client = newAgentManagerHTTPClient()
 	}
-	var body io.Reader
-	if in != nil {
-		encoded, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(in)
-		if err != nil {
-			return err
-		}
-		body = bytes.NewReader(encoded)
-	}
-	req, err := http.NewRequestWithContext(ctx, method, base+path, body)
-	if err != nil {
-		return err
-	}
-	if in != nil {
-		req.Header.Set("Content-Type", "application/json")
-	}
-	response, err := d.Client.Do(req)
-	if err != nil {
-		return fmt.Errorf("agent-manager request: %w", err)
-	}
-	defer response.Body.Close()
-	raw, err := io.ReadAll(response.Body)
-	if err != nil {
-		return fmt.Errorf("read agent-manager response: %w", err)
-	}
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("agent-manager status %d: %s", response.StatusCode, string(raw))
-	}
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, out); err != nil {
-		return fmt.Errorf("decode agent-manager response: %w", err)
-	}
-	return nil
+	return apiconnect.NewAgentManagerServiceClient(d.Client, base)
 }
 
 func statusFromWorkflow(s domainpb.WorkflowExecutionStatus) Status {

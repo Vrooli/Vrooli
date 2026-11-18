@@ -94,6 +94,30 @@
       "sha256": "35ec51454474b182f6500831e3e46ef531f3adb2038f54ca82434c9892fb2f9f"
     },
     {
+      "path": "components/AppNotificationSettings/versions/1.0.5/AppNotificationSettings.tsx",
+      "sha256": "c3d111f0799475055b895c53f873df7184cf2d1e3c1ac9c4ca2ed101b376113b"
+    },
+    {
+      "path": "components/AppNotificationSettings/versions/1.0.5/appNotificationStrings.ts",
+      "sha256": "e72e7dc3aeafd75e1d44ec81d0edee8e81cd05e8d5409bb63c20d898b8c6cf1b"
+    },
+    {
+      "path": "components/AppNotificationSettings/versions/1.0.5/story.tsx",
+      "sha256": "35ec51454474b182f6500831e3e46ef531f3adb2038f54ca82434c9892fb2f9f"
+    },
+    {
+      "path": "components/AppNotificationSettings/versions/1.0.6/AppNotificationSettings.tsx",
+      "sha256": "7f8f7b72ed705cb5e12419e698f378023491a519ce7b17d5c82e6a15dbc07d9d"
+    },
+    {
+      "path": "components/AppNotificationSettings/versions/1.0.6/appNotificationStrings.ts",
+      "sha256": "e72e7dc3aeafd75e1d44ec81d0edee8e81cd05e8d5409bb63c20d898b8c6cf1b"
+    },
+    {
+      "path": "components/AppNotificationSettings/versions/1.0.6/story.tsx",
+      "sha256": "f7f30c9ca8c8f1cf4ea7ad7204c13d97db3533caaafbfd67b51dc74d8e3b2932"
+    },
+    {
       "path": "components/AppShell/versions/1.0.7/AppShell.strings.ts",
       "sha256": "9b710bd0e0fe0e2aa205ff8963c17e8cdaee6fa2a7fbefb29188f5a1cc303b97"
     },
@@ -164,6 +188,30 @@
     {
       "path": "components/AppShell/versions/2.1.5/story.tsx",
       "sha256": "35b9ef7249c27471dc52df6868ad8fa4e83135b7097fed2184418564f6f6b3bf"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.6/AppShell.strings.ts",
+      "sha256": "7c1eb6f42df67f208fcd8c7ccde3d81e39dcafea41015922bc4ec62219f06066"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.6/AppShell.tsx",
+      "sha256": "ea7be88635180d729273e1a6b01ddd484828f8bf8fcf1c3078e8272889cd1376"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.6/story.tsx",
+      "sha256": "20d956f9e5b3240c6542e8a862902c64fa4c35d5f0c8aa6cbca389142847c78a"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.7/AppShell.strings.ts",
+      "sha256": "7c1eb6f42df67f208fcd8c7ccde3d81e39dcafea41015922bc4ec62219f06066"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.7/AppShell.tsx",
+      "sha256": "f9479a53a111546ca71b699ed5dfe643eda4ca921632a6f00fa5889c9acb0c4a"
+    },
+    {
+      "path": "components/AppShell/versions/2.1.7/story.tsx",
+      "sha256": "20d956f9e5b3240c6542e8a862902c64fa4c35d5f0c8aa6cbca389142847c78a"
     },
     {
       "path": "components/ApprovalPrompt/versions/1.2.0/ApprovalPrompt.strings.ts",

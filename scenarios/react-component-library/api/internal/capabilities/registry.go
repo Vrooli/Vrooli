@@ -5,7 +5,6 @@ package capabilities
 import (
 	"context"
 	"net/http"
-	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -176,32 +175,9 @@ func ReconcileDeclaredWithStatuses(declarations map[string][]string, statuses ma
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]Checker{
-		"agent-manager":      ScenarioChecker{Slug: "agent-manager"},
-		"experience-manager": ScenarioChecker{Slug: "experience-manager"},
-		"ui-health":          ScenarioChecker{Slug: "ui-health"},
-		"code-facts":         ScenarioChecker{Slug: "code-facts"},
+		"agent-manager":      capabilityregistry.ScenarioStatusChecker{Scenario: "agent-manager"},
+		"experience-manager": capabilityregistry.ScenarioStatusChecker{Scenario: "experience-manager"},
+		"ui-health":          capabilityregistry.ScenarioStatusChecker{Scenario: "ui-health"},
+		"code-facts":         capabilityregistry.ScenarioStatusChecker{Scenario: "code-facts"},
 	}, 30*time.Second)
-}
-
-// ScenarioChecker asks the control plane for lifecycle status rather than
-// reaching into another scenario's private API.
-type ScenarioChecker struct{ Slug string }
-
-func (c ScenarioChecker) Check(ctx context.Context) (Status, string) {
-	slug := strings.TrimSpace(c.Slug)
-	if slug == "" {
-		return StatusUnavailable, "scenario slug is not configured; use the start action"
-	}
-	if _, err := exec.LookPath("vrooli"); err != nil {
-		return StatusUnavailable, "vrooli control-plane executable is unavailable; use the start action"
-	}
-	out, err := exec.CommandContext(ctx, "vrooli", "scenario", "status", slug, "--json").Output()
-	if err != nil {
-		return StatusUnavailable, "scenario status unavailable; use the start action"
-	}
-	body := strings.ToLower(string(out))
-	if strings.Contains(body, `"healthy"`) || strings.Contains(body, `"running"`) {
-		return StatusAvailable, "scenario is healthy"
-	}
-	return StatusUnavailable, "scenario is installed but stopped; use the start action"
 }

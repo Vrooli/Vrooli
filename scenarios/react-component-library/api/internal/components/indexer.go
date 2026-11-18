@@ -284,7 +284,7 @@ func (idx *Indexer) Run(ctx context.Context) (IndexResult, error) {
 		result.Warnings = append(result.Warnings, in.Warnings...)
 		in.ReleaseAttestations = releaseAttestations
 		keepLibraryIDs[in.Manifest.LibraryID] = struct{}{}
-		comp, upsertErr, observeErr := idx.upsertManifest(ctx, path, in)
+		_, upsertErr, observeErr := idx.upsertManifest(ctx, path, in)
 		if upsertErr != nil {
 			result.Errors = append(result.Errors, upsertErr)
 			return nil

@@ -207,7 +207,6 @@ func TestPageStoryCaptureUsesConcreteStoryRoute(t *testing.T) {
 }
 
 func TestNewBASCaptureExecutorUsesSelectedRuntimeAndExplicitOverrides(t *testing.T) {
-	t.Setenv("VROOLI_PORT_LOOKUP_STATS_FILE", filepath.Join(t.TempDir(), "lookup-stats.jsonl"))
 	t.Setenv("RCL_BAS_API_URL", "")
 	t.Setenv("RCL_UI_BASE_URL", "http://rcl-ui.test")
 	t.Setenv("BAS_API_URL", "")
@@ -232,7 +231,6 @@ func TestNewBASCaptureExecutorUsesSelectedRuntimeAndExplicitOverrides(t *testing
 }
 
 func TestNewBASCaptureExecutorDoesNotGuessPortForMissingSelectedRuntime(t *testing.T) {
-	t.Setenv("VROOLI_PORT_LOOKUP_STATS_FILE", filepath.Join(t.TempDir(), "lookup-stats.jsonl"))
 	t.Setenv("RCL_BAS_API_URL", "")
 	t.Setenv("RCL_UI_BASE_URL", "http://rcl-ui.test")
 	t.Setenv("BAS_API_URL", "")
@@ -250,7 +248,6 @@ func TestNewBASCaptureExecutorDoesNotGuessPortForMissingSelectedRuntime(t *testi
 }
 
 func TestBASCaptureExecutorRecoversWhenSelectedRuntimeBecomesAvailable(t *testing.T) {
-	t.Setenv("VROOLI_PORT_LOOKUP_STATS_FILE", filepath.Join(t.TempDir(), "lookup-stats.jsonl"))
 	t.Setenv("RCL_BAS_API_URL", "")
 	t.Setenv("RCL_UI_BASE_URL", "http://rcl-ui.test")
 	t.Setenv("BAS_API_URL", "")

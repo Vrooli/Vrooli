@@ -435,18 +435,20 @@ class WaitWorkflowExecutionResponse(_message.Message):
     def __init__(self, execution: _Optional[_Union[_workflow_pb2.WorkflowExecution, _Mapping]] = ..., timed_out: _Optional[bool] = ...) -> None: ...
 
 class ListWorkflowExecutionsRequest(_message.Message):
-    __slots__ = ("owner", "workflow_key", "status", "limit", "offset")
+    __slots__ = ("owner", "workflow_key", "status", "limit", "offset", "idempotency_key")
     OWNER_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_KEY_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     LIMIT_FIELD_NUMBER: _ClassVar[int]
     OFFSET_FIELD_NUMBER: _ClassVar[int]
+    IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     owner: str
     workflow_key: str
     status: _workflow_pb2.WorkflowExecutionStatus
     limit: int
     offset: int
-    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., status: _Optional[_Union[_workflow_pb2.WorkflowExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ...) -> None: ...
+    idempotency_key: str
+    def __init__(self, owner: _Optional[str] = ..., workflow_key: _Optional[str] = ..., status: _Optional[_Union[_workflow_pb2.WorkflowExecutionStatus, str]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., idempotency_key: _Optional[str] = ...) -> None: ...
 
 class ListWorkflowExecutionsResponse(_message.Message):
     __slots__ = ("executions",)
@@ -1231,6 +1233,40 @@ class StopRunByTagResponse(_message.Message):
     tag: str
     run: _run_pb2.Run
     def __init__(self, status: _Optional[str] = ..., tag: _Optional[str] = ..., run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ...) -> None: ...
+
+class SyncRunFromSandboxRequest(_message.Message):
+    __slots__ = ("run_id", "sandbox_id", "status", "actor", "reason", "applied", "remaining", "is_partial", "commit_hash")
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    SANDBOX_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    APPLIED_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_FIELD_NUMBER: _ClassVar[int]
+    IS_PARTIAL_FIELD_NUMBER: _ClassVar[int]
+    COMMIT_HASH_FIELD_NUMBER: _ClassVar[int]
+    run_id: str
+    sandbox_id: str
+    status: str
+    actor: str
+    reason: str
+    applied: int
+    remaining: int
+    is_partial: bool
+    commit_hash: str
+    def __init__(self, run_id: _Optional[str] = ..., sandbox_id: _Optional[str] = ..., status: _Optional[str] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ..., applied: _Optional[int] = ..., remaining: _Optional[int] = ..., is_partial: _Optional[bool] = ..., commit_hash: _Optional[str] = ...) -> None: ...
+
+class SyncRunFromSandboxResponse(_message.Message):
+    __slots__ = ("status", "run_id", "run_status", "approval_state")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    RUN_STATUS_FIELD_NUMBER: _ClassVar[int]
+    APPROVAL_STATE_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    run_id: str
+    run_status: str
+    approval_state: str
+    def __init__(self, status: _Optional[str] = ..., run_id: _Optional[str] = ..., run_status: _Optional[str] = ..., approval_state: _Optional[str] = ...) -> None: ...
 
 class StopAllRunsRequest(_message.Message):
     __slots__ = ("tag_prefix", "force")

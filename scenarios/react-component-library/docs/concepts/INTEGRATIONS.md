@@ -20,7 +20,7 @@ Use this document to answer:
 |---|---|---|---|---|---|
 | SQLite | embedded storage | yes | API, notes reference | resolved by `api-core/storage` from the scenario id | API reports unhealthy if unreachable. |
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario should be started through lifecycle commands. |
-| Agent Manager | scenario | no | Assisted extraction and adoption workflows | `.vrooli/service.json`, `/api/v1/capabilities/describe` | Assisted workflows remain unavailable; direct catalog and adoption APIs remain available. |
+| Agent Manager | scenario | no | Assisted extraction and adoption workflows | `.vrooli/service.json`, capability availability probe, generated Connect `StartWorkflowExecution`, `WaitWorkflowExecution`, `GetWorkflowExecutionResult`, and `CancelWorkflowExecution` | Assisted workflows remain unavailable; direct catalog and adoption APIs remain available. |
 
 ## Vrooli Resources
 
@@ -36,7 +36,7 @@ requires them.
 
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
-| Agent Manager | optional | Provides server-side execution for attributable assisted extraction and adoption workflows. | `/api/v1/capabilities/describe`; `vrooli scenario start agent-manager --json` |
+| Agent Manager | optional | Provides server-side execution for attributable assisted extraction and adoption workflows. | Generated `agent_manager.v1.AgentManagerService` Connect procedures listed above; `vrooli scenario start agent-manager --json` |
 
 ## Third-Party Services
 

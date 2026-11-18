@@ -81,6 +81,7 @@
     "./AppNotificationSettings/1.0.1": {"types": "./dist/exports/AppNotificationSettings/1.0.1.d.ts", "import": "./dist/exports/AppNotificationSettings/1.0.1.js"},
     "./AppNotificationSettings/1.0.4": {"types": "./dist/exports/AppNotificationSettings/1.0.4.d.ts", "import": "./dist/exports/AppNotificationSettings/1.0.4.js"},
     "./AppNotificationSettings/1.0.5": {"types": "./dist/exports/AppNotificationSettings/1.0.5.d.ts", "import": "./dist/exports/AppNotificationSettings/1.0.5.js"},
+    "./AppNotificationSettings/1.0.6": {"types": "./dist/exports/AppNotificationSettings/1.0.6.d.ts", "import": "./dist/exports/AppNotificationSettings/1.0.6.js"},
     "./AppShell": {"types": "./dist/exports/AppShell.d.ts", "import": "./dist/exports/AppShell.js"},
     "./AppShell/1": {"types": "./dist/exports/AppShell/1.d.ts", "import": "./dist/exports/AppShell/1.js"},
     "./AppShell/1.0.7": {"types": "./dist/exports/AppShell/1.0.7.d.ts", "import": "./dist/exports/AppShell/1.0.7.js"},

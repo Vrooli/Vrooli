@@ -165,11 +165,17 @@ for (const kindEntry of await readdir(sourceRoot, { withFileTypes: true })) {
     }
   }
 }
-// Dependencies are discovered from package.json. Only the workspace package
-// keeps an explicit override because it is intentionally linked outside this
-// package's node_modules tree.
+// Dependencies are discovered from package.json. Workspace packages linked
+// outside this package's node_modules tree keep explicit overrides.
 const packageDependencyPaths = derivePackageDependencyPaths(packageRoot, packageManifest, {
   "@vrooli/audio-capture-browser": [join(packageRoot, "..", "audio-capture-browser", "dist", "index.d.ts")],
+  "@vrooli/api-base": [join(packageRoot, "..", "api-base", "dist", "index.d.ts")],
+  "@vrooli/api-base/notifications": [
+    join(packageRoot, "..", "api-base", "dist", "client", "notification-preferences.d.ts"),
+  ],
+  "@vrooli/api-base/notifications/react": [
+    join(packageRoot, "..", "api-base", "dist", "client", "notification-preferences-react.d.ts"),
+  ],
 });
 const selfPaths = Object.fromEntries(Object.entries(exportResolutions).map(([subpath, resolution]) => [
   `@vrooli/react-component-library/${subpath.slice(2)}`,
