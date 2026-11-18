@@ -280,14 +280,14 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		// At-boot persistence: write /etc/modules-load.d entry. Failure here
 		// is recoverable (we can still load the module live), so we record
 		// the error and continue rather than aborting.
-		if _, err := modules.EnsureLoadAtBoot(c.ModuleName, nil, opts.SudoMode, opts); err != nil {
+		if _, err := modules.EnsureLoadAtBoot(c.ModuleName, nil, opts); err != nil {
 			status.Notes = append(status.Notes,
 				fmt.Sprintf("at-boot persistence for %s failed: %s (continuing with live load)", c.ModuleName, err))
 		}
 
 		// Live load.
 		if !modules.IsLoaded(c.ModuleName) {
-			if err := modules.Modprobe(c.ModuleName, nil, opts.SudoMode, opts); err != nil {
+			if err := modules.Modprobe(c.ModuleName, nil, opts); err != nil {
 				status.Notes = append(status.Notes,
 					fmt.Sprintf("modprobe %s failed: %s", c.ModuleName, err))
 				tried = append(tried, c.ModuleName+" (failed)")

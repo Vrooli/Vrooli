@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"fmt"
 	"io"
@@ -15,13 +16,16 @@ import (
 	"github.com/vrooli/vrooli/internal/cli/vroolicli"
 	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessioncontain"
 	"github.com/vrooli/vrooli/internal/cli/vroolicli/sessionlease"
+	"github.com/vrooli/vrooli/internal/clifreshness"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/lifecycle"
 	"github.com/vrooli/vrooli/internal/privilegebroker"
 	codingagentshims "github.com/vrooli/vrooli/internal/safeguards/coding-agent-shims"
+	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
 	projectsetup "github.com/vrooli/vrooli/internal/setup"
+	"github.com/vrooli/vrooli/internal/setupprivilege"
 	"github.com/vrooli/vrooli/internal/shell"
 )
 
@@ -44,6 +48,17 @@ var (
 type globalOptions = rootcli.GlobalOptions
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "__setup-privilege-session" {
+		if len(os.Args) != 2 {
+			fmt.Fprintln(os.Stderr, "setup privilege session takes no arguments")
+			os.Exit(2)
+		}
+		if err := setupprivilege.RunWorker(os.Stdin, os.Stdout, setupprivilege.RunSystemPackageInstall, setupprivilege.RunSystemAptRepository, setupprivilege.RunSystemBrokerInstall, setupprivilege.RunSystemOnboardingApplyGrant, setupprivilege.RunSystemAppArmorProfile, hosthardening.ApplySetupPolicy, setupprivilege.RunSystemObservabilityInstall); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	// The macOS session ceiling re-execs through this binary as an rlimit
 	// shim before anything else runs (platform-go/rlimitexec).
 	rlimitexec.MaybeRun(os.Args)
@@ -64,6 +79,12 @@ func main() {
 		os.Exit(code)
 	}
 	if handled, code := runGuardModeCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	// Every remaining path is a real command, including the root-update reads
+	// below. Serving one from a build older than the checkout is the friction
+	// this guard removes; internal capability probes above stay untouched.
+	if code, refreshed := clifreshness.MaybeReexec(context.Background(), refreshRoot(), os.Args[1:], os.Stderr); refreshed {
 		os.Exit(code)
 	}
 	if handled, code := runRootUpdateReadCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
@@ -101,6 +122,17 @@ func main() {
 	reassertCodingAgentShims()
 	installEngagementResolver(os.Stderr)
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+// refreshRoot is the checkout whose command contract decides whether this build
+// can serve the invocation. An unresolvable checkout simply means the CLI runs
+// as built.
+func refreshRoot() string {
+	root, err := resolveSourceRootFn()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(root)
 }
 
 // recoverUserToolPath makes managed per-user tool installs visible to every

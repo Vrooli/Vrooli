@@ -163,6 +163,8 @@
               "ui/src/test-utils/renderWithProviders.tsx"
             ],
             "required_scripts": [
+              "lint",
+              "lint:usage-contracts",
               "test",
               "test:coverage"
             ],

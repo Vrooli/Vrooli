@@ -553,7 +553,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 	// 1. Preserve the distribution stanza once, then install the bounded one.
 	if _, err := hostreqkit.ReadFileFn(stanzaBackupPath); err != nil && !strings.Contains(current, managedMarker) {
-		if err := hostreqkit.EnsureManagedDir(stanzaBackupDir, opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.EnsureManagedDir(stanzaBackupDir, opts); err != nil {
 			return fail("create backup directory", err)
 		}
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "cp", []string{stanzaPath, stanzaBackupPath}, opts); err != nil {
@@ -561,7 +561,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		}
 	}
 	if current != desired {
-		if err := hostreqkit.InstallManagedContent(stanzaPath, desired, opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.InstallManagedContent(stanzaPath, desired, opts); err != nil {
 			return fail("install bounded logrotate stanza", err)
 		}
 		status.Notes = append(status.Notes, fmt.Sprintf("logrotate stanza bounded at maxsize %s", s.MaxSize))
@@ -569,10 +569,10 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 	// 2. Run logrotate hourly so the bound is enforced within the hour.
 	if !hostreqkit.FileContentMatches(timerDropInPath, timerDropInContent()) {
-		if err := hostreqkit.EnsureManagedDir(timerDropInDir, opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.EnsureManagedDir(timerDropInDir, opts); err != nil {
 			return fail("create timer drop-in directory", err)
 		}
-		if err := hostreqkit.InstallManagedContent(timerDropInPath, timerDropInContent(), opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.InstallManagedContent(timerDropInPath, timerDropInContent(), opts); err != nil {
 			return fail("install hourly logrotate timer", err)
 		}
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"daemon-reload"}, opts); err != nil {
@@ -596,7 +596,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	// incident in progress. Keep its last megabyte as evidence, then truncate.
 	// rsyslog opens its files O_APPEND, so writes resume at the new end.
 	for _, o := range over {
-		if err := hostreqkit.EnsureManagedDir(tailDir, opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.EnsureManagedDir(tailDir, opts); err != nil {
 			return fail("create evidence directory", err)
 		}
 		tail, err := readTailFn(o.Path, tailBytes)
@@ -610,7 +610,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 			verb = "removed"
 		}
 		header := fmt.Sprintf("# log_volume_bounds %s %s at %s; it was %d bytes. Last %d bytes follow.\n", verb, o.Path, stamp, o.Bytes, len(tail))
-		if err := hostreqkit.InstallManagedContent(evidence, header+string(tail), opts.SudoMode, opts); err != nil {
+		if err := hostreqkit.InstallManagedContent(evidence, header+string(tail), opts); err != nil {
 			return fail("preserve tail of "+o.Path, err)
 		}
 		if o.Rotated {
@@ -677,7 +677,7 @@ func (h handler) applyRateLimit(s settings, opts hostreqkit.EnsureOptions) error
 	case rsyslogModeModule:
 		target, desired, previous, hadPrevious = rsyslogConfPath, renderRsyslogConf(baselineRsyslogConf(current), s), current, true
 		if _, err := hostreqkit.ReadFileFn(rsyslogConfBackupPath); err != nil && !strings.Contains(current, managedMarker) {
-			if err := hostreqkit.EnsureManagedDir(stanzaBackupDir, opts.SudoMode, opts); err != nil {
+			if err := hostreqkit.EnsureManagedDir(stanzaBackupDir, opts); err != nil {
 				return &stepError{"create backup directory", err}
 			}
 			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "cp", []string{rsyslogConfPath, rsyslogConfBackupPath}, opts); err != nil {
@@ -693,13 +693,13 @@ func (h handler) applyRateLimit(s settings, opts hostreqkit.EnsureOptions) error
 		return nil
 	}
 
-	if err := hostreqkit.InstallManagedContent(target, desired, opts.SudoMode, opts); err != nil {
+	if err := hostreqkit.InstallManagedContent(target, desired, opts); err != nil {
 		return &stepError{"install rsyslog rate limit in " + target, err}
 	}
 	if _, err := hostreqkit.LookPathFn("rsyslogd"); err == nil {
 		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "rsyslogd", []string{"-N1"}, opts); err != nil {
 			if hadPrevious {
-				_ = hostreqkit.InstallManagedContent(target, previous, opts.SudoMode, opts)
+				_ = hostreqkit.InstallManagedContent(target, previous, opts)
 			} else {
 				_ = hostreqkit.RunPrivilegedCommand(opts.SudoMode, "rm", []string{"-f", target}, opts)
 			}

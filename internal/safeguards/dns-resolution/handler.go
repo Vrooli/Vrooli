@@ -92,16 +92,12 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if err := hostreqkit.EnsureManagedDir(resolvedConfigDir, opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+	if err := hostreqkit.EnsureManagedDir(resolvedConfigDir, opts); err != nil {
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 
-	if err := hostreqkit.InstallManagedContent(resolvedConfigPath, resolvedContent, opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+	if err := hostreqkit.InstallManagedContent(resolvedConfigPath, resolvedContent, opts); err != nil {
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 
 	// Restart systemd-resolved to pick up the new config.

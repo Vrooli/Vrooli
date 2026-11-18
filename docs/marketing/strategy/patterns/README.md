@@ -22,7 +22,7 @@ These get a third home: `strategies/`. Each strategy file is its own entity, sco
 
 ## Write rules
 
-Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
+Canon edits follow the [Marketing PoR editing contract](../../governance/editing.md); the work-item routes below remain specific to each pattern.
 
 - `ai-ugc-personas.md` — `brand-guideline-update` work type.
 - `hook-library.md` — `hook-candidate-promotion` work type (producer proposes; operator approves).

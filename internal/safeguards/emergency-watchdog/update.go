@@ -21,6 +21,7 @@ import (
 	platform "github.com/vrooli/platform-go"
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/coreactivation"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -109,13 +110,27 @@ type watchdogSource struct {
 	root     string
 	prebuilt string
 	// digest binds a prebuilt image to the bytes its caller probed.
-	digest string
+	digest     string
+	rebaseline bool
 }
 
 func guardRootUpdateMutation(ctx context.Context, home string) error {
 	if runtime.GOOS != "linux" {
 		return nil
 	}
+	if err := buildinfo.GuardRebaselineTransition(ctx, home); err != nil {
+		return err
+	}
+	if err := buildinfo.GuardRebaselineCompletion(home); err != nil {
+		return err
+	}
+	if err := buildinfo.GuardPreparedBundle(home, ""); err != nil {
+		return err
+	}
+	return guardRootActivationOperation(ctx, home)
+}
+
+func guardRootActivationOperation(ctx context.Context, home string) error {
 	store, err := coreactivation.NewStore(home)
 	if err != nil {
 		return err
@@ -128,7 +143,11 @@ func updateWatchdogBinaryLocked(ctx context.Context, p paths, source watchdogSou
 	if err := guardBaselineRestoration(p); err != nil {
 		return err
 	}
-	if err := guardRootUpdateMutation(ctx, p.Home); err != nil {
+	guard := guardRootUpdateMutation
+	if source.rebaseline {
+		guard = guardRootActivationOperation
+	}
+	if err := guard(ctx, p.Home); err != nil {
 		return err
 	}
 	previous, err := readWatchdogUpdateReceipt(p)

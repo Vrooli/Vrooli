@@ -48,6 +48,8 @@ The classifier returns a recommendation; the member's drain procedure picks one 
 
 The following destination front-matter shapes are owned by this taxonomy. Members on **any** team that write to these prefixes adopt the schema declared here.
 
+For `competitor-observation` and `channel-scan`, the body must include `## Observation` and `## Implication`.
+
 ### audience-scan
 ```yaml
 ---
@@ -73,7 +75,7 @@ source: <url-or-null>
 date_observed: <YYYY-MM-DD>
 ---
 ```
-Body must include: `## Observation`, `## Implication`.
+Uses the shared body contract above.
 
 ### hook
 ```yaml
@@ -123,7 +125,7 @@ source: <url-or-null>
 date_observed: <YYYY-MM-DD>
 ---
 ```
-Body must include: `## Observation`, `## Implication`.
+Uses the shared body contract above.
 
 ### format-scan
 ```yaml

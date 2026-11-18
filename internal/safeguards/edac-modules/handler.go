@@ -182,14 +182,14 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if _, err := modules.EnsureLoadAtBoot(mod, nil, opts.SudoMode, opts); err != nil {
+	if _, err := modules.EnsureLoadAtBoot(mod, nil, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, fmt.Sprintf("ensure at-boot load failed: %s", err))
 		return status, nil
 	}
 
 	if !modules.IsLoaded(mod) {
-		if err := modules.Modprobe(mod, nil, opts.SudoMode, opts); err != nil {
+		if err := modules.Modprobe(mod, nil, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, fmt.Sprintf("modprobe %s failed: %s", mod, err))
 			return status, nil

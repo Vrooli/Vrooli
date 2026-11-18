@@ -20,19 +20,30 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"{{SCENARIO_ID}}/internal/modules"
 
 	gen "github.com/vrooli/api-core/endpoints/gen"
 )
 
-func main() {
-	output := flag.String("output", "../.vrooli/endpoints.json", "path to write the generated endpoints.json")
-	manifest := flag.String("manifest", "../cli/manifest.json", "path to the scenario cli manifest")
-	flag.Parse()
+var exitProcess = os.Exit
 
-	if err := gen.Generate(modules.AllEndpoints(), *manifest, *output); err != nil {
-		fmt.Fprintf(os.Stderr, "gen-endpoints: %v\n", err)
-		os.Exit(1)
+func main() {
+	exitProcess(run(os.Args[1:], os.Stderr))
+}
+
+func run(args []string, stderr io.Writer) int {
+	flags := flag.NewFlagSet("gen-endpoints", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	output := flags.String("output", "../.vrooli/endpoints.json", "path to write the generated endpoints.json")
+	manifest := flags.String("manifest", "../cli/manifest.json", "path to the scenario cli manifest")
+	if err := flags.Parse(args); err != nil {
+		return 2
 	}
+	if err := gen.Generate(modules.AllEndpoints(), *manifest, *output); err != nil {
+		fmt.Fprintf(stderr, "gen-endpoints: %v\n", err)
+		return 1
+	}
+	return 0
 }

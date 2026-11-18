@@ -115,6 +115,32 @@ func TestApplyInstallsLoadsAndValidates(t *testing.T) {
 	}
 }
 
+type profileSessionStub struct{ ids []string }
+
+func (*profileSessionStub) InstallPackage(string, string) error                  { return nil }
+func (*profileSessionStub) InstallAptRepository(string, []byte, string) error    { return nil }
+func (*profileSessionStub) InstallOnboardingApplyGrant([]string, []string) error { return nil }
+func (s *profileSessionStub) InstallAppArmorProfile(id string) error {
+	s.ids = append(s.ids, id)
+	return nil
+}
+
+func TestApplyUsesSetupSessionWithoutStagingOrPrivilegedCommands(t *testing.T) {
+	fakeHost(t)
+	status := inspect()
+	hostreqkit.CombinedOutputFn = func(string, ...string) ([]byte, error) { return nil, nil }
+	session := &profileSessionStub{}
+	hostreqkit.WriteTempFileFn = func(string) (string, error) { t.Fatal("session route staged profile"); return "", nil }
+	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error {
+		t.Fatal("session route launched a separate privileged command")
+		return nil
+	}
+	status = apply(status, hostreqkit.EnsureOptions{SetupPrivilegeSession: session, SudoMode: "ask"})
+	if !status.Applied || !reflect.DeepEqual(session.ids, []string{profileID}) {
+		t.Fatalf("status=%+v ids=%v", status, session.ids)
+	}
+}
+
 func TestApplyFailureBoundaries(t *testing.T) {
 	for _, name := range []string{"dry-run", "custom-binary", "missing-binary", "root", "no-restriction", "foreign-profile", "write-failure", "load-failure", "probe-failure"} {
 		t.Run(name, func(t *testing.T) {

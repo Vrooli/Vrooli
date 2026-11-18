@@ -170,9 +170,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 	root, err := resolveRootFn()
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	loop := loopPath(root, host.OS)
 	// Rebuild when the engine's manifest says the binary is stale, and also
@@ -207,9 +205,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 	artifact, path, name, err := nativeArtifact(host.OS, root, home)
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	definition := artifact.Primary().Content
 	if opts.DryRun {
@@ -229,9 +225,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	if err := installAsInvokingUser(path, definition, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	if err := enableScheduler(host.OS, name, path, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed

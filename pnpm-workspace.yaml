@@ -18,7 +18,7 @@ packages:
 autoInstallPeers: false
 link-workspace-packages: false
 shared-workspace-lockfile: false
-packageManager: pnpm@10.19.0
+packageManager: pnpm@10.34.9
 minimumReleaseAge: 10080
 public-hoist-pattern:
   - "*eslint*"

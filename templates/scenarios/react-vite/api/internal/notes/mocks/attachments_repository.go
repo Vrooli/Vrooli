@@ -19,7 +19,8 @@ import (
 // tests can drive the validation + delegation surface without standing
 // up the on-disk schema.
 type FakeAttachmentsRepository struct {
-	mu sync.Mutex
+	mu  sync.Mutex
+	Now func() time.Time
 
 	// Attachments records each successful insert in arrival order.
 	// ListAttachmentKeys filters by NoteID so a single fake serves
@@ -48,7 +49,11 @@ func (f *FakeAttachmentsRepository) CreateAttachment(ctx context.Context, a note
 	defer f.mu.Unlock()
 
 	if a.UploadedAt.IsZero() {
-		a.UploadedAt = time.Now().UTC()
+		now := f.Now
+		if now == nil {
+			now = func() time.Time { return time.Unix(0, 0).UTC() }
+		}
+		a.UploadedAt = now().UTC()
 	}
 	f.Attachments = append(f.Attachments, a)
 	return a, nil

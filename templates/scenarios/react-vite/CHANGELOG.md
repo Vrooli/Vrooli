@@ -76,6 +76,27 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 7.0.0 — 2026-11-14
+
+Generated UI servers are same-origin by default. A page the operator visits can
+no longer read or change scenario data through `localhost` or the tunnel.
+
+### Breaking
+- `ui/server.js` no longer passes `corsOrigins: '*'`. API Base removed the
+  option and refuses it at startup, because wildcard CORS let any site read
+  scenario data, and CORS never stopped cross-site simple-request writes. The
+  server now applies a Fetch Metadata + CORS origin policy: same-origin pages,
+  the tunnel, Web Console's `/_local` proxy, CLIs and services work unchanged,
+  and cross-origin browser requests are refused with 403.
+
+### Migration (for agents updating older scenarios)
+- [ ] Delete the `corsOrigins` line from `ui/server.js`. Confirm the scenario
+      restarts healthy and its UI loads and saves through the tunnel.
+- [ ] If a real cross-origin client calls the UI server, such as a browser
+      extension or opaque-origin sandbox frames importing server resources,
+      declare it with `allowedOrigins` (exact origins) or `publicPaths`
+      (uncredentialed GET/HEAD). See `packages/api-base/SECURITY.md`.
+
 ## 6.0.1 — 2026-11-07
 
 Generated Go modules start converged on their import closure.

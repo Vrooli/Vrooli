@@ -48,6 +48,7 @@
 package hosthardening
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -87,6 +88,56 @@ type policy struct {
 	OopsPolicy       string
 	SoftlockupPolicy string
 	HungTaskTimeout  int
+}
+
+// ValidatePolicy closes the operator choices accepted at setup's elevated
+// boundary. Keep validation and rendering in this safeguard's policy owner.
+func ValidatePolicy(p hostreqkit.HostHardeningPolicy) error {
+	if p.OopsPolicy != oopsPolicyPanicAndDump && p.OopsPolicy != oopsPolicyLogAndContinue {
+		return fmt.Errorf("unsupported oops policy %q", p.OopsPolicy)
+	}
+	if p.SoftlockupPolicy != softlockupPolicyPanic && p.SoftlockupPolicy != softlockupPolicyWarn {
+		return fmt.Errorf("unsupported softlockup policy %q", p.SoftlockupPolicy)
+	}
+	if p.HungTaskTimeout < 0 {
+		return fmt.Errorf("hung task timeout must not be negative")
+	}
+	return nil
+}
+
+// ApplySetupPolicy runs the fixed host-hardening sequence from the typed setup
+// worker. It rechecks prerequisites at the mutation boundary.
+func ApplySetupPolicy(ctx context.Context, requested hostreqkit.HostHardeningPolicy) error {
+	if err := ValidatePolicy(requested); err != nil {
+		return err
+	}
+	p := policy{OopsPolicy: requested.OopsPolicy, SoftlockupPolicy: requested.SoftlockupPolicy, HungTaskTimeout: requested.HungTaskTimeout}
+	if p.OopsPolicy == oopsPolicyPanicAndDump && !kdumpArmed() {
+		return fmt.Errorf("oops policy requires an armed crash kernel (%s)", kexecCrashLoadedPath)
+	}
+	return applyPolicy(hostreqkit.EnsureOptions{Context: ctx}, p)
+}
+
+func applyPolicy(opts hostreqkit.EnsureOptions, p policy) error {
+	if err := hostreqkit.EnsureManagedDir("/etc/sysctl.d", opts); err != nil {
+		return err
+	}
+	if err := hostreqkit.InstallManagedContent(sysctlPath, buildSysctlContent(p), opts); err != nil {
+		return err
+	}
+	if err := hostreqkit.EnsureManagedDir(journaldDir, opts); err != nil {
+		return err
+	}
+	if err := hostreqkit.InstallManagedContent(journaldPath, buildJournaldContent(), opts); err != nil {
+		return err
+	}
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"--system"}, opts); err != nil {
+		return fmt.Errorf("files written but `sysctl --system` failed: %w", err)
+	}
+	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"restart", "systemd-journald"}, opts); err != nil {
+		return fmt.Errorf("files written and sysctls applied, but `systemctl restart systemd-journald` failed: %w", err)
+	}
+	return nil
 }
 
 // resolvePolicy reads declared config, falling back to the manifest defaults.
@@ -263,45 +314,25 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	if err := hostreqkit.EnsureManagedDir("/etc/sysctl.d", opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-	if err := hostreqkit.InstallManagedContent(sysctlPath, buildSysctlContent(resolvePolicy(status.Config)), opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-
-	if err := hostreqkit.EnsureManagedDir(journaldDir, opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
-	if err := hostreqkit.InstallManagedContent(journaldPath, buildJournaldContent(), opts.SudoMode, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
+	resolved := resolvePolicy(status.Config)
+	if session, ok := opts.SetupPrivilegeSession.(interface {
+		ApplyHostHardening(hostreqkit.HostHardeningPolicy) error
+	}); ok {
+		err := session.ApplyHostHardening(hostreqkit.HostHardeningPolicy{
+			OopsPolicy: resolved.OopsPolicy, SoftlockupPolicy: resolved.SoftlockupPolicy,
+			HungTaskTimeout: resolved.HungTaskTimeout,
+		})
+		if err != nil {
+			return hostreqkit.FailureStatus(status, err), nil
+		}
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionApplied
+		status.Notes = append(status.Notes, "host hardening sysctls applied and journald rate-limit active")
 		return status, nil
 	}
 
-	// Apply sysctls live. `sysctl --system` re-reads every drop-in including
-	// any conflicting ones; this is what we want — it surfaces conflicts via
-	// non-zero exit and matches what `systemd-sysctl` would do at boot.
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "sysctl", []string{"--system"}, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "files written but `sysctl --system` failed: "+err.Error())
-		return status, nil
-	}
-
-	// Restart journald so the rate-limit drop-in takes effect immediately.
-	// Restart (not reload) is required — journald reloads its own config on
-	// SIGHUP, but RateLimit changes specifically require a restart.
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl",
-		[]string{"restart", "systemd-journald"}, opts); err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, "files written and sysctls applied, but `systemctl restart systemd-journald` failed: "+err.Error())
-		return status, nil
+	if err := applyPolicy(opts, resolved); err != nil {
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 
 	status.Applied = true

@@ -9,7 +9,7 @@
     "go",
     "cli"
   ],
-  "version": "6.0.1",
+  "version": "7.0.0",
   "startDocument": "docs/START-HERE.md",
   "design": {
     "adapter": "react-vite-tailwind",
@@ -388,7 +388,8 @@
           "description": "Regenerate proto artifacts (Go + TypeScript + Python)",
           "argv": [
             "make",
-            "generate"
+            "generate",
+            "SCENARIO={{SCENARIO_ID}}"
           ],
           "cwd": "packages/proto"
         }

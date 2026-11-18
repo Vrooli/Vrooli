@@ -25,7 +25,7 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
 
 func (h handler) installer() hostreqkit.AptRepoInstaller {
 	return hostreqkit.AptRepoInstaller{
-		Manifest: h.manifest, AptPackage: "vault", KeyringPath: aptKeyringPath,
+		Manifest: h.manifest, Repository: "hashicorp", AptPackage: "vault", KeyringPath: aptKeyringPath,
 		SourcePath: aptSourcePath, KeyURL: "https://apt.releases.hashicorp.com/gpg",
 		SourceLine:     func(hostreqkit.Host) string { return aptSourceLine(hostreqkit.Host{}) },
 		DownloadKey:    KeyDownloadFn,

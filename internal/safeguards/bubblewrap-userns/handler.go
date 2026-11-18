@@ -7,23 +7,16 @@ import (
 	"os"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/apparmorprofiles"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 )
 
-const profilePath = "/etc/apparmor.d/vrooli-bubblewrap"
+var bubblewrapProfile, _ = apparmorprofiles.Lookup(string(apparmorprofiles.BubblewrapUserns))
 
-const profileContent = `# Managed by Vrooli -- do not edit manually
-abi <abi/4.0>,
-include <tunables/global>
+const profileID = string(apparmorprofiles.BubblewrapUserns)
 
-# Opt in only the distribution bubblewrap executable. Do not disable the
-# host's restricted-unprivileged-userns setting or broaden the service profile.
-profile vrooli-bubblewrap /{,usr/}bin/bwrap flags=(unconfined) {
-  userns,
-  include if exists <local/vrooli-bubblewrap>
-}
-`
+var profilePath, profileContent = bubblewrapProfile.Path, bubblewrapProfile.Content
 
 type handler struct{ manifest hostreqkit.SafeguardManifest }
 
@@ -64,9 +57,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 	fail := func(err error) (hostreqkit.ItemStatus, error) {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	// Recheck the target before granting host permissions; never attach a
 	// profile to an arbitrary PATH executable or repair non-AppArmor failures.
@@ -77,7 +68,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	if err != nil || strings.TrimSpace(string(restriction)) != "1" {
 		return fail(fmt.Errorf("bubblewrap failed without the restricted AppArmor userns policy; no host policy changed"))
 	}
-	parser, ok := hostreqkit.ResolveCommand([]string{"apparmor_parser", "/usr/sbin/apparmor_parser", "/sbin/apparmor_parser"})
+	parser, ok := hostreqkit.ResolveCommand(apparmorprofiles.ParserCandidates())
 	if !ok {
 		return fail(fmt.Errorf("apparmor_parser is required to load %s", profilePath))
 	}
@@ -91,11 +82,17 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.Notes = append(status.Notes, "would install/load "+profilePath+"; global AppArmor restrictions remain enabled")
 		return status, nil
 	}
-	if err := hostreqkit.InstallManagedContent(profilePath, profileContent, opts.SudoMode, opts); err != nil {
-		return fail(err)
-	}
-	if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, parser, []string{"-r", profilePath}, opts); err != nil {
-		return fail(fmt.Errorf("profile written but not loaded: %w", err))
+	if opts.SetupPrivilegeSession != nil {
+		if err := opts.SetupPrivilegeSession.InstallAppArmorProfile(profileID); err != nil {
+			return fail(err)
+		}
+	} else {
+		if err := hostreqkit.InstallManagedContent(profilePath, profileContent, opts); err != nil {
+			return fail(err)
+		}
+		if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, parser, []string{"-r", profilePath}, opts); err != nil {
+			return fail(fmt.Errorf("profile written but not loaded: %w", err))
+		}
 	}
 	if err := probe(); err != nil {
 		return fail(fmt.Errorf("profile loaded but unprivileged namespace validation failed: %w", err))

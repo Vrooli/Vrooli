@@ -333,10 +333,10 @@ func applyPersistence(status hostreqkit.ItemStatus, opts hostreqkit.EnsureOption
 		status.Notes = append(status.Notes, "dry-run: would install "+persistenceDropIn+", then reload and restart "+persistencedUnit)
 		return status, nil
 	}
-	if err := hostreqkit.EnsureManagedDir(persistenceDropInDir, opts.SudoMode, opts); err != nil {
+	if err := hostreqkit.EnsureManagedDir(persistenceDropInDir, opts); err != nil {
 		return failPersistence(status, err)
 	}
-	if err := hostreqkit.InstallManagedContent(persistenceDropIn, persistenceContent, opts.SudoMode, opts); err != nil {
+	if err := hostreqkit.InstallManagedContent(persistenceDropIn, persistenceContent, opts); err != nil {
 		return failPersistence(status, err)
 	}
 	for _, args := range [][]string{

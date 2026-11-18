@@ -132,6 +132,11 @@ __test/cache/
 
 # Generated bundles
 platforms/
+# Landing Page Business Suite maintains an Electron wrapper in this conventional
+# scenario location. Keep source visible while its local ignore rules exclude
+# dependencies and build output.
+!scenarios/landing-page-business-suite/platforms/
+!scenarios/landing-page-business-suite/platforms/**
 # Root-level tool output is never repository source. Scenario and package
 # coverage remains governed by their own artifact roots.
 /coverage/
@@ -340,6 +345,9 @@ backups/
 
 .eslintcache
 package-lock.json
+# This scenario's Electron wrapper uses npm; keep its lockfile for repeatable
+# desktop builds despite the repository-wide package-lock ignore rule.
+!scenarios/landing-page-business-suite/platforms/electron/package-lock.json
 *dump.rdb
 *nohup.out
 
@@ -586,6 +594,8 @@ cmd/vrooli-policy-runner/vrooli-policy-runner.exe
 scenarios/**/coverage.out
 scenarios/**/smart_scanner_test.go.backup
 scenarios/**/test-output.log
+# UX capture bundles contain local page material and remain private, ephemeral evidence.
+/scenarios/browser-automation-studio/data/captures/ux/
 # Signing keyrings hold private key material and are never repository state.
 # Managed keys live in the credential authority; only public anchors belong here.
 scenarios/**/signing/gnupg/
@@ -604,35 +614,12 @@ scenarios/**/signing/*.key
 /scenarios/*/docs/internal/goal/receipts/**/*epoch-check*.json
 /scenarios/*/docs/internal/goal/receipts/**/*.stdout
 
-# Delivery-team homes relocated to the central work root (.vrooli/work/delivery/<team-id>/).
-# Durable intent, feedback, source maps and acceptance references are tracked.
-# Native working state, captures and operational status snapshots are local.
-/.vrooli/work/delivery/*/STATUS.md
-/.vrooli/work/delivery/*/LOG.md
-/.vrooli/work/delivery/*/evidence/
-/.vrooli/work/delivery/*/archive/**/STATUS.md
-/.vrooli/work/delivery/*/.migration-*
-/.vrooli/work/delivery/*/.delivery-outcome-*
-/.vrooli/work/delivery/*/**/bytes/
-/.vrooli/work/delivery/*/evidence/**/preimage/
-/.vrooli/work/delivery/*/evidence/**/*.patch
-/.vrooli/work/delivery/*/**/epoch-ledger-prewrite/
-/.vrooli/work/delivery/*/receipts/**/*epoch-check*.txt
-/.vrooli/work/delivery/*/receipts/**/*epoch-check*.json
-/.vrooli/work/delivery/*/receipts/**/*.stdout
-# Operational receipts and imported visual bundles remain with their runtime owner.
-# Keep product intent, source/acceptance maps and authored briefs eligible for Git.
-/.vrooli/work/delivery/*/receipts/
-/.vrooli/work/delivery/*/materials/
-/.vrooli/work/delivery/*/**/visual-originals/
-/.vrooli/work/delivery/**/*.png
-/.vrooli/work/delivery/**/*.jpg
-/.vrooli/work/delivery/**/*.pdf
-/.vrooli/work/delivery/**/*.zip
-/.vrooli/work/delivery/**/*.ttf
-/.vrooli/work/delivery/**/*.woff2
-/.vrooli/work/delivery/**/*.stderr
-/.vrooli/work/delivery/**/*.jsonl
+# Agent working state is private by default. Existing tracked documents remain
+# tracked; keep the shared workspace entry points available for new checkouts.
+/.vrooli/work/**
+!/.vrooli/work/README.md
+!/.vrooli/work/delivery/
+!/.vrooli/work/delivery/README.md
 
 # scenario-to-desktop's Go target package is source code, not a build target.
 !/scenarios/scenario-to-desktop/api/target/
@@ -643,15 +630,6 @@ scenarios/**/signing/*.key
 # See docs/internal/research-experimentation/README.md for the current entry point.
 /docs/internal/delivery-operations
 /docs/internal/delivery-reliability-research
-/.vrooli/work/delivery/vega-redesign-delivery
-/.vrooli/work/delivery/notification-hub-delivery
-/.vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign
-/.vrooli/work/delivery/experience-quality-delivery
-/.vrooli/work/delivery/browser-automation-studio-delivery
-/.vrooli/work/delivery/nooch-delivery
-/.vrooli/work/delivery/personal-planner-delivery
-/.vrooli/work/delivery/external-knowledge-delivery
-/.vrooli/work/delivery/marketing-i16-delivery
 /output/pdf/vega-atlas-source
 
 # --- Private operator material (added 2026-11-11 after an exposure audit) ---
@@ -660,15 +638,15 @@ scenarios/**/signing/*.key
 # Copy of the operator's research home used as a test fixture (holds client details and private
 # Drive links). Replace it with a synthetic fixture before any test depends on it being committed.
 /scenarios/research-desk/api/internal/home/testdata/research/
-# Working evidence with home-network details, captures and verbatim operator dictation
-/.vrooli/work/live-lighting-*
-/.vrooli/work/reviews/
-/.vrooli/work/infrastructure-optimization-*/
-/.vrooli/work/delivery/host-hardware-lighting/
-/.vrooli/work/delivery/agent-connect*/
-/.vrooli/work/research-desk/OPERATOR-WORDS.md
 # Evidence bundles and effort artifacts (private Drive links, operator email in logs)
 /.vrooli/evidence/
 /.vrooli/plan-artifacts/
+# LPBS screenshot/video capture batches were emitted at repository-root when
+# evidence scripts ran outside the scenario directory. Retained release captures
+# are kept under the scenario's own .vrooli/artifacts/.
+/.vrooli/artifacts/lpbs-*/
+# Marker-backed deep template-validation run workspaces. Retained runs remain on
+# disk for debugging, but generated scenario copies and manifests are not source.
+/.vrooli/template-validation/
 # Operator working notes
 /docs/internal/standing-team-route-investigation-*/

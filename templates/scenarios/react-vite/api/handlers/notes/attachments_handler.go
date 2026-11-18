@@ -71,22 +71,23 @@ type attachmentsHandler struct {
 }
 
 func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request) {
+	errorLogger := httpx.ErrorLogFunc(h.deps.Logger.Printf)
 	uploadState := notesflow.InitialAttachmentUploadState()
 	noteID := mux.Vars(r)["id"]
 	r.Body = http.MaxBytesReader(w, r.Body, maxMultipartFormBytes)
 	if err := r.ParseMultipartForm(maxMultipartFormBytes); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "invalid multipart upload")
+		httpx.WriteError(w, errorLogger, http.StatusBadRequest, httpx.CodeInvalidRequest, "invalid multipart upload")
 		return
 	}
 
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "file field is required")
+		httpx.WriteError(w, errorLogger, http.StatusBadRequest, httpx.CodeInvalidRequest, "file field is required")
 		return
 	}
 	defer file.Close()
 	if header.Size <= 0 {
-		httpx.WriteError(w, http.StatusBadRequest, httpx.CodeInvalidRequest, "file is empty")
+		httpx.WriteError(w, errorLogger, http.StatusBadRequest, httpx.CodeInvalidRequest, "file is empty")
 		return
 	}
 
@@ -98,13 +99,13 @@ func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request
 	if err := h.deps.Store.Put(r.Context(), key, io.LimitReader(file, maxMultipartFormBytes), mime); err != nil {
 		_, _ = notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadFail)
 		h.deps.Logger.Printf("notes.Attachments.Put(%q): %v", key, err)
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "store attachment failed")
+		httpx.WriteError(w, errorLogger, http.StatusInternalServerError, httpx.CodeInternal, "store attachment failed")
 		return
 	}
 	uploadState, err = notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadStoreBytes)
 	if err != nil {
 		h.deps.Logger.Printf("notes.Attachments.workflow(%q): %v", key, err)
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "invalid attachment upload state")
+		httpx.WriteError(w, errorLogger, http.StatusInternalServerError, httpx.CodeInternal, "invalid attachment upload state")
 		return
 	}
 
@@ -121,16 +122,16 @@ func (h *attachmentsHandler) handleUpload(w http.ResponseWriter, r *http.Request
 		if status == http.StatusInternalServerError {
 			h.deps.Logger.Printf("notes.Attachments.Create(%q): %v", key, err)
 		}
-		httpx.WriteError(w, status, code, err.Error())
+		httpx.WriteError(w, errorLogger, status, code, err.Error())
 		return
 	}
 	if _, err := notesflow.TransitionAttachmentUpload(uploadState, notesflow.AttachmentUploadRecordMetadata); err != nil {
 		h.deps.Logger.Printf("notes.Attachments.workflow(%q): %v", key, err)
-		httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "invalid attachment upload state")
+		httpx.WriteError(w, errorLogger, http.StatusInternalServerError, httpx.CodeInternal, "invalid attachment upload state")
 		return
 	}
 
-	httpx.WriteProto(w, http.StatusCreated, &notesv1.UploadAttachmentResponse{Attachment: attachmentToProto(created)})
+	httpx.WriteProto(w, errorLogger, http.StatusCreated, &notesv1.UploadAttachmentResponse{Attachment: attachmentToProto(created)})
 }
 
 func attachmentKey(noteID, name string) string {

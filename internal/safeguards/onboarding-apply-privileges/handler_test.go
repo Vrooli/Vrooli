@@ -10,6 +10,23 @@ import (
 	"github.com/vrooli/vrooli/internal/testenv"
 )
 
+type setupGrantSessionStub struct {
+	tools      []string
+	safeguards []string
+	calls      int
+}
+
+func (*setupGrantSessionStub) InstallPackage(string, string) error               { return nil }
+func (*setupGrantSessionStub) InstallAptRepository(string, []byte, string) error { return nil }
+func (*setupGrantSessionStub) InstallAppArmorProfile(string) error               { return nil }
+
+func (s *setupGrantSessionStub) InstallOnboardingApplyGrant(tools, safeguards []string) error {
+	s.tools = append([]string(nil), tools...)
+	s.safeguards = append([]string(nil), safeguards...)
+	s.calls++
+	return nil
+}
+
 func TestPolicyContainsOnlyLiteralSelectedCommands(t *testing.T) {
 	content, err := policyContent("operator", ConfigForRequirements("/usr/local/bin/vrooli", []string{"git", "qemu"}, []string{"clock"}))
 	if err != nil {
@@ -66,6 +83,40 @@ func TestDarwinGrantUsesSameValidatedLiteralPolicy(t *testing.T) {
 	}
 	if len(calls) != 3 || !strings.Contains(strings.Join(calls, "\n"), "visudo -c -f") {
 		t.Fatalf("unexpected darwin command sequence: %v", calls)
+	}
+}
+
+func TestLinuxSetupGrantUsesSharedTypedPrivilegeSession(t *testing.T) {
+	testenv.AsCurrentUser(t, "operator")
+	oldRead, oldWrite, oldRun := hostreqkit.ReadFileFn, hostreqkit.WriteTempFileFn, hostreqkit.RunCommandFn
+	t.Cleanup(func() {
+		hostreqkit.ReadFileFn = oldRead
+		hostreqkit.WriteTempFileFn = oldWrite
+		hostreqkit.RunCommandFn = oldRun
+	})
+	hostreqkit.ReadFileFn = func(string) ([]byte, error) { return nil, os.ErrNotExist }
+	hostreqkit.WriteTempFileFn = func(string) (string, error) {
+		t.Fatal("setup session path should not stage a user-owned temporary sudoers file")
+		return "", nil
+	}
+	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error {
+		t.Fatal("setup session path should not launch separate sudo commands")
+		return nil
+	}
+	req := hostreqspec.ResolvedRequirement{
+		Name: "onboarding_apply_privileges", Kind: hostreqspec.KindSafeguard, Required: true,
+		Config: ConfigForRequirements("/usr/local/bin/vrooli", []string{"git"}, []string{"clock"}),
+	}
+	host := hostreqkit.Host{OS: "linux"}
+	h := NewHandler(hostreqkit.SafeguardManifest{Name: req.Name})
+	status := h.Inspect(host, req)
+	session := &setupGrantSessionStub{}
+	got, err := h.Apply(host, status, hostreqkit.EnsureOptions{SudoMode: "ask", SetupPrivilegeSession: session})
+	if err != nil || !got.Applied || got.ExecutionState != hostreqkit.ExecutionApplied {
+		t.Fatalf("setup grant apply = %+v, err=%v", got, err)
+	}
+	if session.calls != 1 || strings.Join(session.tools, ",") != "git" || strings.Join(session.safeguards, ",") != "clock" {
+		t.Fatalf("typed grant request = %+v, want only selected command names", session)
 	}
 }
 

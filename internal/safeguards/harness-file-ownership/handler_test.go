@@ -30,9 +30,9 @@ func newFixture(t *testing.T, owned []string) (h hostreqkit.Handler, commands *[
 
 func linuxHost() hostreqkit.Host { return hostreqkit.Host{OS: "linux"} }
 
-func TestRootOwnedFileIsPendingThenHandedBackWithoutFollowingLinks(t *testing.T) {
-	path := filepath.Join(os.TempDir(), "agy")
-	h, commands := newFixture(t, []string{path})
+func TestRootOwnedFilesAreHandedBackInOneCommandWithoutFollowingLinks(t *testing.T) {
+	paths := []string{filepath.Join(os.TempDir(), "agy"), filepath.Join(os.TempDir(), "claude")}
+	h, commands := newFixture(t, paths)
 	status := h.Inspect(linuxHost(), hostreqspec.ResolvedRequirement{Name: "harness_file_ownership", Kind: hostreqspec.KindSafeguard})
 	if status.Applied {
 		t.Fatalf("a root-owned file must leave the safeguard unapplied: %+v", status)
@@ -41,7 +41,8 @@ func TestRootOwnedFileIsPendingThenHandedBackWithoutFollowingLinks(t *testing.T)
 	if err != nil || !applied.Applied || applied.ExecutionState != hostreqkit.ExecutionApplied {
 		t.Fatalf("Apply() = %+v, %v", applied, err)
 	}
-	want := fmt.Sprint([][]string{{"chown", "-h", "1000:1001", path}})
+	wantCommand := append([]string{"chown", "-h", "1000:1001"}, paths...)
+	want := fmt.Sprint([][]string{wantCommand})
 	if got := fmt.Sprint(*commands); got != want {
 		t.Fatalf("commands = %s, want %s", got, want)
 	}
@@ -55,6 +56,18 @@ func TestNothingRootOwnedIsAlreadyPresentAndRunsNothing(t *testing.T) {
 	}
 	if _, err := h.Apply(linuxHost(), status, hostreqkit.EnsureOptions{}); err != nil || len(*commands) != 0 {
 		t.Fatalf("Apply ran %v, err %v", *commands, err)
+	}
+}
+
+func TestApplyAfterFilesWereRepairedNeedsNoInvokingUser(t *testing.T) {
+	h, commands := newFixture(t, []string{"/home/x/.local/bin/agy"})
+	status := h.Inspect(linuxHost(), hostreqspec.ResolvedRequirement{Name: "harness_file_ownership", Kind: hostreqspec.KindSafeguard})
+	rootOwnedList = func(string) ([]string, error) { return nil, nil }
+	invokingIDs = func() (int, int) { return 0, 0 }
+
+	got, err := h.Apply(linuxHost(), status, hostreqkit.EnsureOptions{})
+	if err != nil || !got.Applied || got.ExecutionState != hostreqkit.ExecutionAlreadyPresent || len(*commands) != 0 {
+		t.Fatalf("Apply after concurrent repair = %+v, %v, commands %v", got, err, *commands)
 	}
 }
 

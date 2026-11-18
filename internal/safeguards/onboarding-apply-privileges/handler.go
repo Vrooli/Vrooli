@@ -77,18 +77,41 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
 		return status, nil
 	}
-	content, err := policyContent(hostreqkit.InvokingUser(), status.Config)
-	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
-	}
 	if opts.DryRun {
+		if _, err := policyContent(hostreqkit.InvokingUser(), status.Config); err != nil {
+			return hostreqkit.FailureStatus(status, err), nil
+		}
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
 		status.Notes = append(status.Notes, "dry-run: would install "+grantPath)
 		return status, nil
 	}
-	if err := hostreqkit.EnsureManagedDir("/etc/sudoers.d", opts.SudoMode, opts); err != nil {
+	if opts.SetupPrivilegeSession != nil {
+		tools, err := configTokens(status.Config["tools"])
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "read selected tools for onboarding grant: "+err.Error())
+			return status, nil
+		}
+		safeguards, err := configTokens(status.Config["safeguards"])
+		if err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "read selected safeguards for onboarding grant: "+err.Error())
+			return status, nil
+		}
+		if err := opts.SetupPrivilegeSession.InstallOnboardingApplyGrant(tools, safeguards); err != nil {
+			status.ExecutionState = hostreqkit.ExecutionFailed
+			status.Notes = append(status.Notes, "install onboarding apply grant: "+err.Error())
+			return status, nil
+		}
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionApplied
+		return status, nil
+	}
+	content, err := policyContent(hostreqkit.InvokingUser(), status.Config)
+	if err != nil {
+		return hostreqkit.FailureStatus(status, err), nil
+	}
+	if err := hostreqkit.EnsureManagedDir("/etc/sudoers.d", opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "prepare sudoers directory: "+err.Error())
 		return status, nil
@@ -124,6 +147,17 @@ func ConfigForRequirements(executable string, tools, safeguards []string) map[st
 		"tools":      append([]string(nil), tools...),
 		"safeguards": append([]string(nil), safeguards...),
 	}
+}
+
+// PolicyContentForCurrentProcess builds the selected grant from the current
+// executable and invoking identity. The setup privilege worker calls it so the
+// grant is generated at the elevated boundary, not supplied by its caller.
+func PolicyContentForCurrentProcess(tools, safeguards []string) (string, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("resolve current Vrooli executable: %w", err)
+	}
+	return policyContent(hostreqkit.InvokingUser(), ConfigForRequirements(executable, tools, safeguards))
 }
 
 func policyContent(user string, config map[string]any) (string, error) {

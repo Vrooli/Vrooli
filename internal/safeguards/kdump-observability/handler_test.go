@@ -28,6 +28,7 @@ func req() hostreqspec.ResolvedRequirement {
 // Retaining zero dumps would delete the evidence for the crash that just
 // happened, so a nonsensical declared value falls back rather than being obeyed.
 func TestRetainVmcoresRejectsUnsafeValues(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
 	for _, tc := range []struct {
 		name   string
 		config map[string]any
@@ -37,6 +38,7 @@ func TestRetainVmcoresRejectsUnsafeValues(t *testing.T) {
 		{"absent key", map[string]any{}, defaultRetainVmcores},
 		{"zero", map[string]any{"retain_vmcores": float64(0)}, defaultRetainVmcores},
 		{"negative", map[string]any{"retain_vmcores": float64(-3)}, defaultRetainVmcores},
+		{"overflowing retention", map[string]any{"retain_vmcores": maxInt}, defaultRetainVmcores},
 		{"wrong type", map[string]any{"retain_vmcores": "many"}, defaultRetainVmcores},
 		{"json number", map[string]any{"retain_vmcores": float64(5)}, 5},
 		{"int", map[string]any{"retain_vmcores": 4}, 4},

@@ -9,9 +9,10 @@ tree into `packages/proto/schemas/<your-scenario>/`, substituting
 and file content. The `proto/` folder does **not** appear inside the
 generated scenario.
 
-After relocation, the generator runs `make generate` in
-`packages/proto/` so the scenario's `api/`, `ui/`, and `cli/` can
-import generated Go and TypeScript types immediately.
+After relocation, the generator runs `make generate SCENARIO=<scenario-id>`
+in `packages/proto/` so only this scenario's generated Go, TypeScript, and
+Python artifacts are refreshed. The scenario id comes from the generation
+request through Template Manager's `{{SCENARIO_ID}}` hook token.
 
 ## What's here
 

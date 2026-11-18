@@ -1,6 +1,7 @@
 package pathhygiene
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -115,15 +116,15 @@ func (h handler) plan(home string) ([]target, error) {
 	anyExists := false
 	for _, name := range startupFiles {
 		path := filepath.Join(home, name)
-		if _, err := statFn(path); err != nil {
+		data, err := readFileFn(path)
+		if errors.Is(err, os.ErrNotExist) {
 			targets = append(targets, target{path: path})
 			continue
 		}
-		anyExists = true
-		data, err := readFileFn(path)
 		if err != nil {
 			return nil, fmt.Errorf("read %s: %w", path, err)
 		}
+		anyExists = true
 		content := string(data)
 		rewritten, findings := Rewrite(content)
 		targets = append(targets, target{
@@ -235,9 +236,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 	targets, err := h.plan(home)
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	pending := pendingTargets(targets)
 

@@ -22,6 +22,9 @@ func writeStandaloneVersion(args []string, stdout, stderr io.Writer) (bool, int)
 	if len(args) == 2 && (args[0] == "version" || args[0] == "--version") && args[1] == "--state-manifest" {
 		return writeStateManifest(stdout, stderr)
 	}
+	if len(args) == 2 && (args[0] == "version" || args[0] == "--version") && args[1] == "--state-format" {
+		return writeStateFormat(stdout, stderr)
+	}
 	query, jsonOut := false, false
 	if len(args) == 1 {
 		query = args[0] == "version" || args[0] == "--version"
@@ -48,6 +51,25 @@ func writeStateManifest(stdout, stderr io.Writer) (bool, int) {
 	manifest, err := runtimeapp.NativePersistentStateManifest()
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "persistent-state contract is unqualified:", err)
+		return true, 1
+	}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, err)
+		return true, 1
+	}
+	if _, err := stdout.Write(append(data, '\n')); err != nil {
+		return true, 1
+	}
+	return true, 0
+}
+
+// writeStateFormat prints this executable's versioned compatibility manifest.
+// Admission prefers it over the identity manifest when both images report one.
+func writeStateFormat(stdout, stderr io.Writer) (bool, int) {
+	manifest, err := runtimeapp.NativeStateFormatManifest()
+	if err != nil {
+		_, _ = fmt.Fprintln(stderr, "persistent-state format is unqualified:", err)
 		return true, 1
 	}
 	data, err := json.Marshal(manifest)

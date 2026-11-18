@@ -132,9 +132,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 	launcher, aliases, err := resolvePaths()
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	if !launcherBuilt(launcher) {
 		status.ExecutionState = hostreqkit.ExecutionFailed
@@ -143,9 +141,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	}
 	shimDir, err := ShimDir()
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 
 	// Applying is not skipped when Inspect said the aliases were present: apply

@@ -652,10 +652,12 @@
           "flags": [
             {
               "name": "runtime-release",
+              "local_only": true,
               "description": "Select a verified retained runtime ID or source"
             },
             {
               "name": "expected-runtime-release",
+              "local_only": true,
               "description": "Required current runtime selection ID or source"
             },
             {
@@ -1118,6 +1120,20 @@
         {
           "name": "scenario",
           "description": "Root command entry: scenario.",
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "ux",
+          "description": "Root command entry: ux.",
           "binding": {
             "kind": "local"
           },
@@ -3103,6 +3119,29 @@
           "description": "Explicit governed Light Desk setup and desired runtime state.",
           "commands": [
             {
+              "name": "prepare",
+              "description": "Provision native headless lighting ownership and its sealed system supervisor; does not enable or scan devices.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit typed JSON.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "prepare"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
               "name": "status",
               "description": "Status the selected lighting runtime.",
               "flags": [
@@ -3865,6 +3904,13 @@
         {
           "name": "kernel-memory",
           "description": "Read bounded kernel slab allocation through the setup-managed privilege broker.",
+          "flags": [
+            {
+              "name": "sample-stacks",
+              "bool": true,
+              "description": "Run a one-shot, 10-second sampled kernel allocation stack summary (requires the setup-managed broker and memleak-bpfcc)."
+            }
+          ],
           "binding": {
             "kind": "local",
             "handler": "kernel-memory"
@@ -4077,7 +4123,7 @@
             {
               "name": "action",
               "required": true,
-              "description": "capabilities, inspect, check, smart, repair, unmount, or mount-rw"
+              "description": "capabilities, inspect, check, smart, repair, unmount, mount-rw, or lease"
             }
           ],
           "flags": [
@@ -4322,6 +4368,53 @@
           "binding": {
             "kind": "local",
             "handler": "wireless"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "process:spawn"
+            ]
+          }
+        },
+        {
+          "name": "go-cache",
+          "description": "Operate the shared Go build-cache protocol: status, owner-budgeted plan and reclaim that never removes an output a live build holds, and activation of the GOCACHEPROG helper.",
+          "positionals": [
+            {
+              "name": "action",
+              "required": true,
+              "description": "status, plan, reclaim, activate, or deactivate"
+            }
+          ],
+          "flags": [
+            {
+              "name": "cache",
+              "description": "GOCACHE directory to operate on; defaults to this user's build cache."
+            },
+            {
+              "name": "fresh",
+              "description": "Rescan the store instead of continuing a recent plan.",
+              "bool": true
+            },
+            {
+              "name": "token",
+              "description": "Plan token that binds reclaim to one plan and store; without it reclaim plans afresh."
+            },
+            {
+              "name": "max-bytes",
+              "description": "Upper bound on the bytes one reclaim frees."
+            },
+            {
+              "name": "time-budget",
+              "description": "Stop reclaim cleanly after this duration, for example 40s."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "go-cache"
           },
           "governance": {
             "effect": "write",

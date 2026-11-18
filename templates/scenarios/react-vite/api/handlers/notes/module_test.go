@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/blobstore"
 	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/storage/storagetest"
 
 	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 
@@ -39,6 +40,25 @@ func TestModule_Shape(t *testing.T) {
 	require.Same(t, &notes.Endpoints[0], &m.Endpoints[0],
 		"Module.Endpoints must reference the package-level Endpoints slice")
 	require.Len(t, notes.Endpoints, 5, "notes ships list, create, get, count, attach")
+}
+
+func TestModule_ProductionDefaultStore(t *testing.T) {
+	storagetest.IsolateStorage(t)
+	// Construction resolves the domain's default attachment path but does not
+	// create files; handlers only touch the filesystem when an attachment is
+	// written. A nil DB is safe here because this test checks module wiring,
+	// not repository operations.
+	m := notes.Module(nil, schedule.System(), log.New(io.Discard, "", 0))
+
+	require.Equal(t, "notes", m.Name)
+	require.NotNil(t, m.Mount)
+	require.Same(t, &notes.Endpoints[0], &m.Endpoints[0])
+}
+
+func TestSchema_ReturnsNotesAndAttachmentsDDL(t *testing.T) {
+	schema := notes.Schema()
+	require.Contains(t, schema, "CREATE TABLE IF NOT EXISTS notes")
+	require.Contains(t, schema, "CREATE TABLE IF NOT EXISTS attachments")
 }
 
 func TestModule_RoutesAreReachable(t *testing.T) {

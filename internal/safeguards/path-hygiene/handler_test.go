@@ -77,6 +77,60 @@ func TestInspectReportsAppliedOnceTheBlockIsCurrent(t *testing.T) {
 	}
 }
 
+func TestInspectPropagatesStartupFileReadErrors(t *testing.T) {
+	home := withHome(t, "/usr/bin", map[string]string{".bashrc": legacyFixture})
+	path := filepath.Join(home, ".bashrc")
+	origRead, origStat := readFileFn, statFn
+	readFileFn = func(got string) ([]byte, error) {
+		if got == path {
+			return nil, os.ErrPermission
+		}
+		return origRead(got)
+	}
+	statFn = func(string) (os.FileInfo, error) {
+		t.Fatal("planning should read each startup file once instead of stat then read")
+		return nil, nil
+	}
+	t.Cleanup(func() { readFileFn, statFn = origRead, origStat })
+
+	status := newHandler().Inspect(linuxHost(), req(false))
+	if status.ExecutionState != hostreqkit.ExecutionFailed {
+		t.Fatalf("ExecutionState = %q, want failed; notes=%v", status.ExecutionState, status.Notes)
+	}
+	if !notesContain(status, "permission denied") {
+		t.Fatalf("read error was not reported: %v", status.Notes)
+	}
+}
+
+func TestInspectDoesNotTreatStartupDirectoryAsMissing(t *testing.T) {
+	home := withHome(t, "/usr/bin", nil)
+	if err := os.Mkdir(filepath.Join(home, ".bashrc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	status := newHandler().Inspect(linuxHost(), req(false))
+	if status.ExecutionState != hostreqkit.ExecutionFailed {
+		t.Fatalf("directory read was treated as missing: state=%q notes=%v", status.ExecutionState, status.Notes)
+	}
+}
+
+func TestInspectReadsStartupFileThroughSymlink(t *testing.T) {
+	home := withHome(t, "/usr/bin", nil)
+	target := filepath.Join(home, "shell-startup")
+	link := filepath.Join(home, ".bashrc")
+	if err := os.WriteFile(target, []byte(legacyFixture), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	status := newHandler().Inspect(linuxHost(), req(false))
+	if status.ExecutionState != hostreqkit.ExecutionPending || !notesContain(status, "unguarded Vrooli PATH line") {
+		t.Fatalf("symlink target was not inspected: state=%q notes=%v", status.ExecutionState, status.Notes)
+	}
+}
+
 func TestApplyRewritesFilesAndIsIdempotent(t *testing.T) {
 	home := withHome(t, "/usr/bin", map[string]string{
 		".bashrc":  legacyFixture,

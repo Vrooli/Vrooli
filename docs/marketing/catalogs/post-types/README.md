@@ -131,7 +131,7 @@ For multi-frame and persona-actor content (image slideshows, video formats), see
 
 ## Write rules
 
-Same as the rest of `path:docs/marketing/`: agents never write directly; operator-curated via approved decisions.
+Canon edits follow the [Marketing PoR editing contract](../../governance/editing.md); the post-type activation rules below add type-specific constraints.
 
 - **New post-type proposals** come through the `post-type-proposal` work type, owned by `producer`. The proposal must include:
   1. The strategic canon content (purpose, audience, conversion goal, asset requirements, contrarian failure modes) — this is what authors the v0 doc.

@@ -99,19 +99,24 @@ func (h handler) Apply(_ hostreqkit.Host, status hostreqkit.ItemStatus, opts hos
 		status.Notes = append(status.Notes, "would change ownership of: "+strings.Join(trees, ", "))
 		return status, nil
 	}
+	if len(trees) == 0 {
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+		return status, nil
+	}
 	uid, gid := invokingIDs()
 	if uid == 0 {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "refusing to hand files to root: no invoking user is known; run through sudo from your own account")
 		return status, nil
 	}
-	for _, tree := range trees {
-		// -h changes a symlink itself, so a link can never redirect the chown.
-		if err := runPrivileged(opts.SudoMode, "chown", []string{"-hR", fmt.Sprintf("%d:%d", uid, gid), tree}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, fmt.Sprintf("chown %s failed: %v", tree, err))
-			return status, nil
-		}
+	// -hR changes each tree recursively without following symlinks.
+	args := []string{"-hR", fmt.Sprintf("%d:%d", uid, gid)}
+	args = append(args, trees...)
+	if err := runPrivileged(opts.SudoMode, "chown", args, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, fmt.Sprintf("chown generated trees failed: %v", err))
+		return status, nil
 	}
 	status.Applied = true
 	status.ExecutionState = hostreqkit.ExecutionApplied

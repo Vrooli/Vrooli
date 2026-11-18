@@ -29,24 +29,22 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/safeguards/observabilityinstall"
 )
 
 const kdumpLinux = string(hostreqspec.PlatformLinux)
 
 const (
-	observabilityGroup = "vrooli-observability"
-	exportRoot         = "/var/lib/vrooli/host-observability"
-	crashExportDir     = exportRoot + "/crashdumps"
-	crashSourceDir     = "/var/crash"
-	collectorPath      = "/usr/local/libexec/vrooli/kdump-collector"
-	libexecDir         = "/usr/local/libexec/vrooli"
-	servicePath        = "/etc/systemd/system/vrooli-kdump-collector.service"
-	timerPath          = "/etc/systemd/system/vrooli-kdump-collector.timer"
-	serviceName        = "vrooli-kdump-collector.service"
-	timerName          = "vrooli-kdump-collector.timer"
+	exportRoot     = observabilityinstall.ExportRoot
+	crashExportDir = observabilityinstall.KdumpExportDir
+	crashSourceDir = "/var/crash"
+	collectorPath  = observabilityinstall.KdumpCollectorPath
+	servicePath    = observabilityinstall.KdumpServicePath
+	timerPath      = observabilityinstall.KdumpTimerPath
+	serviceName    = observabilityinstall.KdumpServiceName
+	timerName      = observabilityinstall.KdumpTimerName
 
 	// defaultRetainVmcores matches the manifest default. It is duplicated here
 	// so the handler behaves correctly with no resolved config; the invariant
@@ -81,7 +79,7 @@ func retainVmcores(config map[string]any) int {
 	default:
 		return defaultRetainVmcores
 	}
-	if value < 1 {
+	if observabilityinstall.ValidateRetention(value) != nil {
 		return defaultRetainVmcores
 	}
 	return value
@@ -155,66 +153,12 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
 		status.Notes = append(status.Notes,
 			fmt.Sprintf("dry-run: would create group %s, add %s, install the collector service/timer, prepare %s, and retain the newest %d vmcore directories",
-				observabilityGroup, user, crashExportDir, retain))
+				observabilityinstall.Group, user, crashExportDir, retain))
 		return status, nil
 	}
 
-	steps := []struct {
-		name string
-		fn   func() error
-	}{
-		{"create observability group", func() error {
-			if groupExists() {
-				return nil
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "groupadd", []string{"--system", observabilityGroup}, opts)
-		}},
-		{"add user to observability group", func() error {
-			if userInGroup(user) {
-				return nil
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "usermod", []string{"-aG", observabilityGroup, user}, opts)
-		}},
-		{"create managed directories", func() error {
-			for _, dir := range []string{libexecDir, exportRoot, crashExportDir} {
-				if err := hostreqkit.EnsureManagedDir(dir, opts.SudoMode, opts); err != nil {
-					return err
-				}
-			}
-			return nil
-		}},
-		{"set export permissions", func() error {
-			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chown", []string{"root:" + observabilityGroup, exportRoot, crashExportDir}, opts); err != nil {
-				return err
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"750", exportRoot, crashExportDir}, opts)
-		}},
-		{"install collector", func() error {
-			return hostreqkit.InstallManagedExecutable(collectorPath, collectorContent(retain), opts.SudoMode, opts)
-		}},
-		{"install systemd units", func() error {
-			if err := hostreqkit.InstallManagedContent(servicePath, serviceContent(), opts.SudoMode, opts); err != nil {
-				return err
-			}
-			return hostreqkit.InstallManagedContent(timerPath, timerContent(), opts.SudoMode, opts)
-		}},
-		{"enable collector timer", func() error {
-			if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
-				return err
-			}
-			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"enable", "--now", timerName}, opts); err != nil {
-				return err
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"start", serviceName}, opts)
-		}},
-	}
-
-	for _, step := range steps {
-		if err := step.fn(); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, step.name+" failed: "+err.Error())
-			return status, nil
-		}
+	if err := observabilityinstall.ApplyForSetup(observabilityinstall.Kdump, user, observabilityinstall.Content{Collector: collectorContent(retain), Service: serviceContent(), Timer: timerContent()}, retain, opts); err != nil {
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 
 	status.Applied = true
@@ -224,19 +168,30 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	return status, nil
 }
 
+// ApplyForSetupPrivilegeWorker runs the fixed kdump install sequence inside
+// the setup worker after it has verified the invoking user and retention.
+func ApplyForSetupPrivilegeWorker(ctx context.Context, user string, retention int) error {
+	if err := observabilityinstall.ValidateSetupRequest(observabilityinstall.Kdump, retention); err != nil {
+		return err
+	}
+	return observabilityinstall.Apply(observabilityinstall.Kdump, user, observabilityinstall.Content{
+		Collector: collectorContent(retention), Service: serviceContent(), Timer: timerContent(),
+	}, hostreqkit.EnsureOptions{Context: ctx, SudoMode: "ask"})
+}
+
 func targetUser() string {
 	return strings.TrimSpace(hostreqkit.InvokingUser())
 }
 
 func pendingState(user string, retain int) []string {
 	var pending []string
-	if !groupExists() {
-		pending = append(pending, "group "+observabilityGroup+" missing")
+	if !observabilityinstall.GroupExists() {
+		pending = append(pending, "group "+observabilityinstall.Group+" missing")
 	}
 	if user == "" {
 		pending = append(pending, "target user unknown")
-	} else if !userInGroup(user) {
-		pending = append(pending, user+" not in "+observabilityGroup)
+	} else if !observabilityinstall.UserInGroup(user) {
+		pending = append(pending, user+" not in "+observabilityinstall.Group)
 	}
 	if !dirModeGroupOK(exportRoot) {
 		pending = append(pending, exportRoot+" permissions need update")
@@ -259,34 +214,13 @@ func pendingState(user string, retain int) []string {
 	return pending
 }
 
-func groupExists() bool {
-	out, err := hostreqkit.CombinedOutputFn("getent", "group", observabilityGroup)
-	return err == nil && strings.TrimSpace(string(out)) != ""
-}
-
-func userInGroup(user string) bool {
-	if user == "" {
-		return false
-	}
-	out, err := hostreqkit.CombinedOutputFn("id", "-nG", user)
-	if err != nil {
-		return false
-	}
-	for _, group := range strings.Fields(string(out)) {
-		if group == observabilityGroup {
-			return true
-		}
-	}
-	return false
-}
-
 func dirModeGroupOK(dir string) bool {
 	out, err := hostreqkit.CombinedOutputFn("stat", "-c", "%a %G", dir)
 	if err != nil {
 		return false
 	}
 	fields := strings.Fields(strings.TrimSpace(string(out)))
-	return len(fields) == 2 && fields[0] == "750" && fields[1] == observabilityGroup
+	return len(fields) == 2 && fields[0] == "750" && fields[1] == observabilityinstall.Group
 }
 
 func timerActive() bool {
@@ -310,7 +244,7 @@ set -eu
 
 src="` + crashSourceDir + `"
 dst="` + crashExportDir + `"
-group="` + observabilityGroup + `"
+group="` + observabilityinstall.Group + `"
 retain=` + strconv.Itoa(retain) + `
 manifest="$dst/manifest.json"
 tail_lines=2000

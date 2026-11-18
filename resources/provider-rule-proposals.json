@@ -1,0 +1,629 @@
+{
+  "description": "Unwired supplier research records. No credentials, trust, approvals or prices. Move each record into its resource model-policy provider terms when wired; never duplicate it.",
+  "records": [
+    {
+      "supplier": "nanogpt",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "pay_as_you_go",
+            "access_tier": "1a",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "allowed"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          },
+          {
+            "plan": "subscription",
+            "access_tier": "barred",
+            "use_classes": {
+              "harness_access": "forbidden",
+              "in_app": "forbidden",
+              "bounded_feature": "forbidden"
+            },
+            "reason": "Research separates promotional/subscription terms from permitted commercial plans."
+          }
+        ],
+        "evidence": {
+          "url": "https://nano-gpt.com/legal/terms-of-service",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "router-one",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "1a",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "allowed"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://router.one/terms",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "kilo",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "1b",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "silent"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://kilo.ai/terms",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "inferray",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "pay_as_you_go",
+            "access_tier": "1a",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "allowed"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          },
+          {
+            "plan": "subscription",
+            "access_tier": "barred",
+            "use_classes": {
+              "harness_access": "forbidden",
+              "in_app": "forbidden",
+              "bounded_feature": "forbidden"
+            },
+            "reason": "Research separates promotional/subscription terms from permitted commercial plans."
+          }
+        ],
+        "evidence": {
+          "url": "https://inferray.com/terms",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "indierouter",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "2",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://indierouter.ai/partners",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "apmix",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "3",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          },
+          {
+            "plan": "subscription",
+            "access_tier": "barred",
+            "use_classes": {
+              "harness_access": "forbidden",
+              "in_app": "forbidden",
+              "bounded_feature": "forbidden"
+            },
+            "reason": "Research separates promotional/subscription terms from permitted commercial plans."
+          }
+        ],
+        "evidence": {
+          "url": "https://apmix.ai/business/terms",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "allgate",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "3",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://allgate.ai/partners",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "nexusapi",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "3",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://nexusapi.org/affiliate",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "kovar",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://doc.kovar.ai/docs",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "apinex",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "2",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://apinex.bond/resell",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "relaymodels",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "3",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://relaymodels.com/reselling",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "uuapi",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://uuapi.net",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "opengonka",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "unknown",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "unverified"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://opengonka.com",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "llm-api",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://llmapi.ai/white-label/",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "featherless",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://featherless.ai/terms",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "groq",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://console.groq.com/docs/legal/services-agreement",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "openai",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://openai.com/policies/services-agreement/",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    },
+    {
+      "supplier": "anthropic",
+      "terms": {
+        "plan_rules": [
+          {
+            "plan": "reseller",
+            "access_tier": "4",
+            "use_classes": {
+              "own_account": "unverified",
+              "bounded_feature": "unverified",
+              "in_app": "unverified",
+              "harness_access": "needs_written_approval"
+            },
+            "conditions": [
+              "Model-specific downstream terms must allow the use",
+              "Customer-code trust is a separate operator decision"
+            ],
+            "reason": "Frozen 2026-10-31 R15 research lead; not independently reverified or approved for production."
+          }
+        ],
+        "evidence": {
+          "url": "https://www.anthropic.com/legal/commercial-terms",
+          "read_at": "2026-10-31"
+        },
+        "review": {
+          "status": "proposed"
+        },
+        "effective_from": "2026-10-31",
+        "on_expiry": "deny"
+      },
+      "models": {},
+      "hosted_routes": []
+    }
+  ]
+}

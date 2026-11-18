@@ -133,7 +133,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 
 	options := map[string]string{ModuleName: target}
 
-	if _, err := modules.EnsureLoadAtBoot(ModuleName, options, opts.SudoMode, opts); err != nil {
+	if _, err := modules.EnsureLoadAtBoot(ModuleName, options, opts); err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, fmt.Sprintf("ensure at-boot load failed: %s", err))
 		return status, nil
@@ -143,7 +143,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	// loaded netconsole module fails with "module already loaded" — this is
 	// acceptable; we only Modprobe when not yet loaded.
 	if !modules.IsLoaded(ModuleName) {
-		if err := modules.Modprobe(ModuleName, options, opts.SudoMode, opts); err != nil {
+		if err := modules.Modprobe(ModuleName, options, opts); err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, fmt.Sprintf("modprobe netconsole failed: %s", err))
 			return status, nil

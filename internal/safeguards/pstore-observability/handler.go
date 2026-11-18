@@ -15,27 +15,23 @@ import (
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
-	"github.com/vrooli/vrooli/internal/daemonreload"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/safeguards/observabilityinstall"
 )
 
 const (
 	minimumMountInfoFields = 3
-)
 
-const (
-	observabilityGroup = "vrooli-observability"
-	exportRoot         = "/var/lib/vrooli/host-observability"
-	pstoreExportDir    = exportRoot + "/pstore"
-	pstoreSourceDir    = "/sys/fs/pstore"
-	manifestFilename   = "manifest.json"
-	collectorPath      = "/usr/local/libexec/vrooli/pstore-collector"
-	libexecDir         = "/usr/local/libexec/vrooli"
-	servicePath        = "/etc/systemd/system/vrooli-pstore-collector.service"
-	timerPath          = "/etc/systemd/system/vrooli-pstore-collector.timer"
-	serviceName        = "vrooli-pstore-collector.service"
-	timerName          = "vrooli-pstore-collector.timer"
+	exportRoot       = observabilityinstall.ExportRoot
+	pstoreExportDir  = observabilityinstall.PstoreExportDir
+	pstoreSourceDir  = "/sys/fs/pstore"
+	manifestFilename = "manifest.json"
+	collectorPath    = observabilityinstall.PstoreCollectorPath
+	servicePath      = observabilityinstall.PstoreServicePath
+	timerPath        = observabilityinstall.PstoreTimerPath
+	serviceName      = observabilityinstall.PstoreServiceName
+	timerName        = observabilityinstall.PstoreTimerName
 )
 
 type handler struct {
@@ -119,66 +115,12 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		status.ExecutionState = hostreqkit.ExecutionWouldApply
 		status.Notes = append(status.Notes,
 			fmt.Sprintf("dry-run: would create group %s, add %s, install collector service/timer, and prepare %s",
-				observabilityGroup, user, pstoreExportDir))
+				observabilityinstall.Group, user, pstoreExportDir))
 		return status, nil
 	}
 
-	steps := []struct {
-		name string
-		fn   func() error
-	}{
-		{"create observability group", func() error {
-			if groupExists() {
-				return nil
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "groupadd", []string{"--system", observabilityGroup}, opts)
-		}},
-		{"add user to observability group", func() error {
-			if userInGroup(user) {
-				return nil
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "usermod", []string{"-aG", observabilityGroup, user}, opts)
-		}},
-		{"create managed directories", func() error {
-			for _, dir := range []string{libexecDir, exportRoot, pstoreExportDir} {
-				if err := hostreqkit.EnsureManagedDir(dir, opts.SudoMode, opts); err != nil {
-					return err
-				}
-			}
-			return nil
-		}},
-		{"set export permissions", func() error {
-			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chown", []string{"root:" + observabilityGroup, exportRoot, pstoreExportDir}, opts); err != nil {
-				return err
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "chmod", []string{"750", exportRoot, pstoreExportDir}, opts)
-		}},
-		{"install collector", func() error {
-			return hostreqkit.InstallManagedExecutable(collectorPath, collectorContent(), opts.SudoMode, opts)
-		}},
-		{"install systemd units", func() error {
-			if err := hostreqkit.InstallManagedContent(servicePath, serviceContent(), opts.SudoMode, opts); err != nil {
-				return err
-			}
-			return hostreqkit.InstallManagedContent(timerPath, timerContent(), opts.SudoMode, opts)
-		}},
-		{"enable collector timer", func() error {
-			if _, err := daemonreload.Reload(context.Background(), daemonreload.CurrentRoot(), opts); err != nil {
-				return err
-			}
-			if err := hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"enable", "--now", timerName}, opts); err != nil {
-				return err
-			}
-			return hostreqkit.RunPrivilegedCommand(opts.SudoMode, "systemctl", []string{"start", serviceName}, opts)
-		}},
-	}
-
-	for _, step := range steps {
-		if err := step.fn(); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, step.name+" failed: "+err.Error())
-			return status, nil
-		}
+	if err := observabilityinstall.ApplyForSetup(observabilityinstall.Pstore, user, observabilityinstall.Content{Collector: collectorContent(), Service: serviceContent(), Timer: timerContent()}, 0, opts); err != nil {
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 
 	status.Applied = true
@@ -188,19 +130,27 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	return status, nil
 }
 
+// ApplyForSetupPrivilegeWorker runs the fixed pstore install sequence inside
+// the setup worker after it has verified the invoking user.
+func ApplyForSetupPrivilegeWorker(ctx context.Context, user string) error {
+	return observabilityinstall.Apply(observabilityinstall.Pstore, user, observabilityinstall.Content{
+		Collector: collectorContent(), Service: serviceContent(), Timer: timerContent(),
+	}, hostreqkit.EnsureOptions{Context: ctx, SudoMode: "ask"})
+}
+
 func targetUser() string {
 	return strings.TrimSpace(hostreqkit.InvokingUser())
 }
 
 func pendingState(user string) []string {
 	var pending []string
-	if !groupExists() {
-		pending = append(pending, "group "+observabilityGroup+" missing")
+	if !observabilityinstall.GroupExists() {
+		pending = append(pending, "group "+observabilityinstall.Group+" missing")
 	}
 	if user == "" {
 		pending = append(pending, "target user unknown")
-	} else if !userInGroup(user) {
-		pending = append(pending, user+" not in "+observabilityGroup)
+	} else if !observabilityinstall.UserInGroup(user) {
+		pending = append(pending, user+" not in "+observabilityinstall.Group)
 	}
 	if !dirModeGroupOK(exportRoot) {
 		pending = append(pending, exportRoot+" permissions need update")
@@ -223,27 +173,6 @@ func pendingState(user string) []string {
 	return pending
 }
 
-func groupExists() bool {
-	out, err := hostreqkit.CombinedOutputFn("getent", "group", observabilityGroup)
-	return err == nil && strings.TrimSpace(string(out)) != ""
-}
-
-func userInGroup(user string) bool {
-	if user == "" {
-		return false
-	}
-	out, err := hostreqkit.CombinedOutputFn("id", "-nG", user)
-	if err != nil {
-		return false
-	}
-	for _, group := range strings.Fields(string(out)) {
-		if group == observabilityGroup {
-			return true
-		}
-	}
-	return false
-}
-
 func dirModeGroupOK(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
@@ -257,7 +186,7 @@ func dirModeGroupOK(path string) bool {
 }
 
 func groupGID() (uint32, bool) {
-	out, err := hostreqkit.CombinedOutputFn("getent", "group", observabilityGroup)
+	out, err := hostreqkit.CombinedOutputFn("getent", "group", observabilityinstall.Group)
 	if err != nil {
 		return 0, false
 	}
@@ -296,7 +225,7 @@ set -eu
 
 src="` + pstoreSourceDir + `"
 dst="` + pstoreExportDir + `"
-group="` + observabilityGroup + `"
+group="` + observabilityinstall.Group + `"
 manifest="$dst/` + manifestFilename + `"
 
 install -d -o root -g "$group" -m 750 "$dst"

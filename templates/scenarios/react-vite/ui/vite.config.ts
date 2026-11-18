@@ -1,6 +1,21 @@
 import { defineConfig, type UserConfig } from "vite";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import react from "@vitejs/plugin-react";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+
+const rootDir = dirname(fileURLToPath(import.meta.url));
+
+async function developmentRclPlugins(command: string) {
+  // Generated scenario UIs sit three directories below the repository root.
+  // The template itself has no repository package link, so its own unit suite
+  // can load this config without pretending to be a consumer scenario.
+  const resolverPath = resolve(rootDir, "../../../packages/react-component-library/tooling/resolve-specifier.mjs");
+  if (command !== "serve" || !existsSync(resolverPath)) return [];
+  const { sourceLibraryResolver } = await import(pathToFileURL(resolverPath).href);
+  return [sourceLibraryResolver({ devOnly: true })];
+}
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -24,12 +39,12 @@ import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
 //              The lifecycle builder selects the `build:profile` script for
 //              that channel, so the selection is argv the whole way down and
 //              carries no shell conditional.
-export default defineConfig(({ mode }): UserConfig => {
+export default defineConfig(async ({ mode, command }): Promise<UserConfig> => {
   const isProfile = mode === "profile";
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react(), stringsCodegen()],
+    plugins: [react(), ...(await developmentRclPlugins(command)), stringsCodegen()],
     resolve: {
       // @vrooli/api-base pins its own React, router, query, i18n, and Testing
       // Library packages. One instance of each must serve both this UI and

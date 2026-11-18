@@ -1,6 +1,7 @@
 package hosthardening
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -24,6 +25,41 @@ func hostHardeningTestHandler() hostreqkit.Handler {
 }
 
 var linuxReq = hostHardeningLinuxReq
+
+func TestValidatePolicy(t *testing.T) {
+	valid := hostreqkit.HostHardeningPolicy{OopsPolicy: oopsPolicyLogAndContinue, SoftlockupPolicy: softlockupPolicyWarn, HungTaskTimeout: 30}
+	if err := ValidatePolicy(valid); err != nil {
+		t.Fatalf("valid policy rejected: %v", err)
+	}
+	for name, policy := range map[string]hostreqkit.HostHardeningPolicy{
+		"oops":       {OopsPolicy: "other", SoftlockupPolicy: softlockupPolicyWarn, HungTaskTimeout: 30},
+		"softlockup": {OopsPolicy: oopsPolicyLogAndContinue, SoftlockupPolicy: "other", HungTaskTimeout: 30},
+		"timeout":    {OopsPolicy: oopsPolicyLogAndContinue, SoftlockupPolicy: softlockupPolicyWarn, HungTaskTimeout: -1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := ValidatePolicy(policy); err == nil {
+				t.Fatal("invalid policy accepted")
+			}
+		})
+	}
+}
+
+func TestApplySetupPolicyRechecksCrashKernelBeforeMutation(t *testing.T) {
+	oldArmed, oldRun := kdumpArmed, hostreqkit.RunCommandFn
+	kdumpArmed = func() bool { return false }
+	commands := 0
+	hostreqkit.RunCommandFn = func(string, []string, hostreqkit.EnsureOptions) error { commands++; return nil }
+	t.Cleanup(func() { kdumpArmed, hostreqkit.RunCommandFn = oldArmed, oldRun })
+	err := ApplySetupPolicy(context.Background(), hostreqkit.HostHardeningPolicy{
+		OopsPolicy: oopsPolicyPanicAndDump, SoftlockupPolicy: softlockupPolicyWarn, HungTaskTimeout: 30,
+	})
+	if err == nil {
+		t.Fatal("expected missing crash kernel to block setup policy")
+	}
+	if commands != 0 {
+		t.Fatalf("ran %d privileged commands before prerequisite check", commands)
+	}
+}
 
 func hostHardeningLinuxReq() hostreqspec.ResolvedRequirement {
 	return hostreqspec.ResolvedRequirement{

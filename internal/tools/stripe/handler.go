@@ -27,7 +27,7 @@ func (h handler) Kind() hostreqspec.Kind { return hostreqspec.KindTool }
 
 func (h handler) installer() hostreqkit.AptRepoInstaller {
 	return hostreqkit.AptRepoInstaller{
-		Manifest: h.manifest, AptPackage: "stripe", KeyringPath: aptKeyringPath,
+		Manifest: h.manifest, Repository: "stripe", AptPackage: "stripe", KeyringPath: aptKeyringPath,
 		SourcePath: aptSourcePath, KeyURL: aptKeyURL,
 		SourceLine:     func(hostreqkit.Host) string { return aptSourceLine },
 		DownloadKey:    KeyDownloadFn,

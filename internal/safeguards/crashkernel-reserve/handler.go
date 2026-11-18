@@ -123,7 +123,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 	edits := []grub.CmdlineEdit{{Param: paramName, Value: target}}
 
 	if opts.DryRun {
-		out, err := grub.AddCmdlineParams(grub.DefaultConfigPath, edits, opts.SudoMode, opts)
+		out, err := grub.AddCmdlineParams(grub.DefaultConfigPath, edits, opts)
 		if err != nil {
 			status.ExecutionState = hostreqkit.ExecutionFailed
 			status.Notes = append(status.Notes, fmt.Sprintf("dry-run grub edit: %s", err))
@@ -140,7 +140,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		return status, nil
 	}
 
-	out, err := grub.AddCmdlineParams(grub.DefaultConfigPath, edits, opts.SudoMode, opts)
+	out, err := grub.AddCmdlineParams(grub.DefaultConfigPath, edits, opts)
 	if err != nil {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, fmt.Sprintf("grub edit failed: %s", err))

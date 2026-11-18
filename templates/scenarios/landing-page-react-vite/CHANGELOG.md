@@ -4,6 +4,23 @@ All notable changes to the `landing-page-react-vite` template are documented her
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this template aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-11-14
+
+### Breaking
+
+- `ui/server.js` no longer passes `corsOrigins: '*'`. API Base removed the
+  option and refuses it at startup. UI servers are same-origin by default under
+  a Fetch Metadata + CORS origin policy, and cross-origin browser requests are
+  refused with 403. Public visitors load the landing page same-origin, so
+  nothing else changes.
+
+### Migration
+
+- [ ] Delete the `corsOrigins` line from `ui/server.js`, restart, and confirm
+      the public page and admin flows still load and save.
+- [ ] Declare any real cross-origin client with `allowedOrigins` or
+      `publicPaths`. See `packages/api-base/SECURITY.md`.
+
 ## [2.1.1] - 2026-11-07
 
 ### Changed

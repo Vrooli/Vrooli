@@ -95,11 +95,12 @@ func launchWithRecovery(runner string, args []string, self string) (err error) {
 	}()
 
 	return cliutil.LaunchCodingAgent(context.Background(), cliutil.AgentLaunchRequest{
-		Agent:  runner,
-		Args:   args,
-		Stdin:  os.Stdin,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Agent:        runner,
+		Args:         args,
+		FinalizeArgs: adaptOpenCodeInteractive,
+		Stdin:        os.Stdin,
+		Stdout:       os.Stdout,
+		Stderr:       os.Stderr,
 		LookPathInEnvironment: func(binary string, environment []string) (string, error) {
 			return cliutil.ResolveAgentBinaryExcludingInEnvironment(binary, self, environment)
 		},
@@ -125,6 +126,7 @@ func execUnattributed(runner string, args []string, self string) error {
 		return &cliutil.AgentLaunchError{Agent: runner, Err: err}
 	}
 	args, childEnvironment = cliutil.ApplyUsageMode(runner, args, childEnvironment)
+	args, childEnvironment = adaptOpenCodeInteractive(runner, path, args, childEnvironment)
 	return cliutil.ExecAgentInDir(path, binary, args, childEnvironment, workingDir)
 }
 
@@ -190,6 +192,7 @@ func run(args []string) error {
 		TaskID:                *task,
 		RequireNativeIdentity: *requireIdentity,
 		Args:                  remaining,
+		FinalizeArgs:          adaptOpenCodeInteractive,
 		Stdin:                 os.Stdin,
 		Stdout:                os.Stdout,
 		Stderr:                os.Stderr,

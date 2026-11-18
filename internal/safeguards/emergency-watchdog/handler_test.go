@@ -185,7 +185,7 @@ func TestPendingStateReportsStaleBinary(t *testing.T) {
 		t.Fatalf("stale binary not reported: %v", pendingState(p, settings{}))
 	}
 	want, err := expectedWatchdogVersion(root)
-	if err != nil || !strings.HasPrefix(want, watchdogVersionPrefix) {
+	if err != nil || !strings.HasPrefix(want, "managed:") {
 		t.Fatalf("expected version = %q, %v", want, err)
 	}
 	installedWatchdogVersion = func(string) string { return want }

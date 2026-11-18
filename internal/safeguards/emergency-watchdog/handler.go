@@ -128,8 +128,6 @@ var homeDir = func() (string, error) {
 
 var resolveWatchdogRootFn = repocontract.ResolveRepoRoot
 
-const watchdogVersionPrefix = "managed:"
-
 // expectedWatchdogVersion is the version string a binary built from this
 // checkout carries.
 func expectedWatchdogVersion(root string) (string, error) {
@@ -137,7 +135,7 @@ func expectedWatchdogVersion(root string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("fingerprint watchdog sources: %w", err)
 	}
-	return watchdogVersionPrefix + fingerprint, nil
+	return buildinfo.ManagedWatchdogVersion(fingerprint), nil
 }
 
 // installedWatchdogVersion asks the installed binary for its stamp; "" when
@@ -350,9 +348,7 @@ func (h handler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts 
 		recordVerdict(&status, *verdict)
 	}
 	if err != nil {
-		status.ExecutionState = hostreqkit.ExecutionFailed
-		status.Notes = append(status.Notes, err.Error())
-		return status, nil
+		return hostreqkit.FailureStatus(status, err), nil
 	}
 	status.Applied = true
 	status.ExecutionState = hostreqkit.ExecutionApplied
@@ -387,13 +383,28 @@ func BuildImage(root, output string) error {
 // restoration as the safeguard's apply path. The live source tree is not
 // consulted. It is idempotent when that image is already current.
 func PublishImage(ctx context.Context, home, image, digest string) error {
+	return publishImage(ctx, home, image, digest, false, false)
+}
+
+// PublishRebaselineImage is used by the owner holding the transition lock.
+func PublishRebaselineImage(ctx context.Context, home, image, digest string) error {
+	return publishImage(ctx, home, image, digest, true, false)
+}
+
+// PublishRebaselineImageLocked requires the caller to hold the watchdog
+// publication lock through verification of the new root supervisor.
+func PublishRebaselineImageLocked(ctx context.Context, home, image, digest string) error {
+	return publishImage(ctx, home, image, digest, true, true)
+}
+
+func publishImage(ctx context.Context, home, image, digest string, rebaseline, publicationLocked bool) error {
 	if ctx == nil || strings.TrimSpace(home) == "" || !filepath.IsAbs(image) {
 		return fmt.Errorf("watchdog publication requires a context, the invoking user's home and an image")
 	}
 	if hostreqspec.CurrentPlatform() != string(hostreqspec.PlatformLinux) {
 		return fmt.Errorf("watchdog publication is supported only for the Linux user scheduler")
 	}
-	_, err := installLinux(ctx, resolvePaths(home), watchdogSource{prebuilt: image, digest: digest}, hostreqkit.EnsureOptions{})
+	_, err := installLinuxWithLock(ctx, resolvePaths(home), watchdogSource{prebuilt: image, digest: digest, rebaseline: rebaseline}, hostreqkit.EnsureOptions{}, publicationLocked)
 	return err
 }
 
@@ -402,9 +413,17 @@ func PublishImage(ctx context.Context, home, image, digest string) error {
 // systemd whether it would load the result, and only then touch the unit
 // directory: a rejected render must never replace a working unit.
 func installLinux(ctx context.Context, p paths, source watchdogSource, opts hostreqkit.EnsureOptions) (*platformgo.Verdict, error) {
-	release, err := AcquirePublicationLock(ctx, p.Home)
-	if err != nil {
-		return nil, fmt.Errorf("lock watchdog publication failed")
+	return installLinuxWithLock(ctx, p, source, opts, false)
+}
+
+func installLinuxWithLock(ctx context.Context, p paths, source watchdogSource, opts hostreqkit.EnsureOptions, publicationLocked bool) (*platformgo.Verdict, error) {
+	release := func() {}
+	if !publicationLocked {
+		var err error
+		release, err = AcquirePublicationLock(ctx, p.Home)
+		if err != nil {
+			return nil, fmt.Errorf("lock watchdog publication failed")
+		}
 	}
 	defer release()
 	if err := updateWatchdogBinaryLocked(ctx, p, source); err != nil {

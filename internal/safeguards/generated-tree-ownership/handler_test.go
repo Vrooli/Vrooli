@@ -31,9 +31,9 @@ func inspect(h hostreqkit.Handler) hostreqkit.ItemStatus {
 	return h.Inspect(hostreqkit.Host{OS: "linux"}, hostreqspec.ResolvedRequirement{Name: "generated_tree_ownership", Kind: hostreqspec.KindSafeguard})
 }
 
-func TestRootOwnedTreeIsPendingThenHandedBackRecursively(t *testing.T) {
-	tree := "/repo/packages/proto/gen.previous"
-	h, commands := newFixture(t, []string{tree})
+func TestRootOwnedTreesAreHandedBackRecursivelyInOneCommand(t *testing.T) {
+	trees := []string{"/repo/packages/proto/gen.previous", "/repo/packages/proto/.proto-compatibility-123"}
+	h, commands := newFixture(t, trees)
 	status := inspect(h)
 	if status.Applied {
 		t.Fatalf("a root-owned tree must leave the safeguard unapplied: %+v", status)
@@ -42,7 +42,8 @@ func TestRootOwnedTreeIsPendingThenHandedBackRecursively(t *testing.T) {
 	if err != nil || !applied.Applied || applied.ExecutionState != hostreqkit.ExecutionApplied {
 		t.Fatalf("Apply() = %+v, %v", applied, err)
 	}
-	want := fmt.Sprint([][]string{{"chown", "-hR", "1000:1001", tree}})
+	wantCommand := append([]string{"chown", "-hR", "1000:1001"}, trees...)
+	want := fmt.Sprint([][]string{wantCommand})
 	if got := fmt.Sprint(*commands); got != want {
 		t.Fatalf("commands = %s, want %s", got, want)
 	}
@@ -56,6 +57,18 @@ func TestNothingRootOwnedRunsNothing(t *testing.T) {
 	}
 	if _, err := h.Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{}); err != nil || len(*commands) != 0 {
 		t.Fatalf("Apply ran %v, err %v", *commands, err)
+	}
+}
+
+func TestApplyAfterTreesWereRepairedNeedsNoInvokingUser(t *testing.T) {
+	h, commands := newFixture(t, []string{"/repo/packages/proto/gen"})
+	status := inspect(h)
+	rootOwned = func(string) ([]string, error) { return nil, nil }
+	invokingIDs = func() (int, int) { return 0, 0 }
+
+	got, err := h.Apply(hostreqkit.Host{OS: "linux"}, status, hostreqkit.EnsureOptions{})
+	if err != nil || !got.Applied || got.ExecutionState != hostreqkit.ExecutionAlreadyPresent || len(*commands) != 0 {
+		t.Fatalf("Apply after concurrent repair = %+v, %v, commands %v", got, err, *commands)
 	}
 }
 

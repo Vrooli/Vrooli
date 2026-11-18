@@ -97,19 +97,24 @@ func (h handler) Apply(_ hostreqkit.Host, status hostreqkit.ItemStatus, opts hos
 		status.Notes = append(status.Notes, "would change ownership of: "+describe(owned))
 		return status, nil
 	}
+	if len(owned) == 0 {
+		status.Applied = true
+		status.ExecutionState = hostreqkit.ExecutionAlreadyPresent
+		return status, nil
+	}
 	uid, gid := invokingIDs()
 	if uid == 0 {
 		status.ExecutionState = hostreqkit.ExecutionFailed
 		status.Notes = append(status.Notes, "refusing to hand files to root: no invoking user is known; run through sudo from your own account")
 		return status, nil
 	}
-	for _, path := range owned {
-		// -h changes a symlink itself, so a link can never redirect the chown.
-		if err := runPrivileged(opts.SudoMode, "chown", []string{"-h", fmt.Sprintf("%d:%d", uid, gid), path}, opts); err != nil {
-			status.ExecutionState = hostreqkit.ExecutionFailed
-			status.Notes = append(status.Notes, fmt.Sprintf("chown %s failed: %v", path, err))
-			return status, nil
-		}
+	// -h changes symlinks themselves, so links cannot redirect the chown.
+	args := []string{"-h", fmt.Sprintf("%d:%d", uid, gid)}
+	args = append(args, owned...)
+	if err := runPrivileged(opts.SudoMode, "chown", args, opts); err != nil {
+		status.ExecutionState = hostreqkit.ExecutionFailed
+		status.Notes = append(status.Notes, fmt.Sprintf("chown coding-agent files failed: %v", err))
+		return status, nil
 	}
 	status.Applied = true
 	status.ExecutionState = hostreqkit.ExecutionApplied

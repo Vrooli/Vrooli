@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1107,6 +1108,44 @@ func TestRetainedBaselineRefusesRotatingInputAndForeignBackup(t *testing.T) {
 				t.Fatal("unsafe previous slot accepted")
 			}
 			requireWatchdogBytes(t, p.Binary, "candidate")
+		})
+	}
+}
+
+func TestWatchdogPublicationFencesIncompleteRebaseline(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux watchdog")
+	}
+	for _, state := range []string{"incomplete", "invalid", "complete"} {
+		t.Run(state, func(t *testing.T) {
+			p, _ := setupWatchdogUpdateTest(t)
+			path := filepath.Join(p.Home, ".vrooli", "state", "root-rebaseline", "progress.json")
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
+			data := []byte(`{"version":1,"candidate_sha256":"` + strings.Repeat("a", 64) + `","watchdog_sha256":"` + strings.Repeat("b", 64) + `","complete":` + fmt.Sprint(state == "complete") + `}`)
+			if state == "invalid" {
+				data = []byte("broken")
+			}
+			if err := os.WriteFile(path, data, 0600); err != nil {
+				t.Fatal(err)
+			}
+			err := updateWatchdogBinary(p)
+			if state == "complete" {
+				if err != nil {
+					t.Fatal(err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), "rebaseline progress") && !strings.Contains(err.Error(), "rebaseline is incomplete") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			requireWatchdogBytes(t, p.Binary, "prior")
+			// The transition owner may proceed past the completion fence to qualify its image.
+			err = updateWatchdogBinaryLocked(context.Background(), p, watchdogSource{rebaseline: true, prebuilt: "invalid"})
+			if err == nil || !strings.Contains(err.Error(), "prebuilt watchdog") {
+				t.Fatalf("rebaseline bypass: %v", err)
+			}
 		})
 	}
 }

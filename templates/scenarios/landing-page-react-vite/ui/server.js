@@ -216,7 +216,6 @@ const app = createScenarioServer({
   distDir: './dist',
   serviceName: '{{SCENARIO_ID}}',
   version: '1.0.0',
-  corsOrigins: '*',
   setupRoutes: (expressApp) => {
     // Middleware to inject base tag and SEO meta tags into HTML responses
     expressApp.use((req, res, next) => {

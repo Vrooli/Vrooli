@@ -48,10 +48,7 @@ prompt-manager team knowledge-add marketing-crew \
   --source="<original-url-if-known>"
 ```
 
-- `--caller-note` identifies the source context (e.g. `vision-walk`, `producer`, `operator`). Knowledge entries are attributed automatically by runtime context; do not pass `--by` to `knowledge-add`.
-- `--source` carries the original URL when available.
-
-Each entry must preserve: source URL when available, raw operator note, confidence / honesty flags, and a proposed next method (or a reason no follow-up is warranted). Signal-type lives in the topic, not the content.
+Follow the shared [inbox entry contract](../../../agent-system/INTAKE_PIPELINE.md#adding-to-the-inbox) for source fields, attribution, and signal-type placement.
 
 ### Routing inbox entries
 
@@ -124,7 +121,7 @@ Do not collapse these into one permanent mega-skill. A router may classify and c
 
 ## Evidence Rules
 
-- Never fabricate engagement, revenue, conversion, audience-size, or pricing facts.
+- Apply the shared [evidence rules](../../../agent-system/INTAKE_PIPELINE.md#evidence-rules) for evidence integrity and source confidence.
 - One source is an observation, not canon.
 - Three converging scans can justify a decision when the sources are meaningfully independent.
 - Single-snapshot data must be labeled `light-interpretation`.

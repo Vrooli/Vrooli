@@ -13,7 +13,6 @@
 package httpx
 
 import (
-	"log"
 	"net/http"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -40,6 +39,19 @@ const (
 	CodeInternal = "internal"
 )
 
+// ErrorLogger receives serialization failures at this HTTP boundary. The
+// caller owns the logger so tests and production can choose their sink.
+type ErrorLogger interface {
+	Errorf(format string, args ...any)
+}
+
+// ErrorLogFunc adapts a function-valued logger to ErrorLogger.
+type ErrorLogFunc func(format string, args ...any)
+
+func (f ErrorLogFunc) Errorf(format string, args ...any) {
+	f(format, args...)
+}
+
 // WriteError serialises a proto-typed ErrorEnvelope as the response
 // body and sets the status code. Content-Type is set to application/json
 // because protojson.Marshal returns canonical JSON, not protobuf binary.
@@ -49,30 +61,14 @@ const (
 // notes.ErrNoteNotFound, notes.ErrInvalidNote) to (status, code,
 // message) tuples is the handler's responsibility — this writer just
 // emits.
-//
-// # Why no logger seam here
-//
-// WriteError is a package-level function called from every handler;
-// threading a *log.Logger through every callsite would impose seam
-// overhead for a branch that cannot fire in practice (the marshal
-// failure below is unreachable for the ErrorEnvelope shape — no
-// oneofs, no recursion, no Any, no large payloads). The fallback
-// uses the global log package by intent, gated by a comment so a
-// scenario adding a new envelope shape remembers to revisit if the
-// new shape introduces a real failure mode. If that day comes, the
-// right move is to thread the logger; do not silently drop the log.
-func WriteError(w http.ResponseWriter, status int, code, message string) {
+func WriteError(w http.ResponseWriter, logger ErrorLogger, status int, code, message string) {
 	envelope := &errorsv1.ErrorEnvelope{
 		Code:    code,
 		Message: message,
 	}
 	body, err := protojson.Marshal(envelope)
 	if err != nil {
-		// Unreachable for the current ErrorEnvelope shape (see header
-		// comment). If a future shape change makes this firable, the
-		// scenario MUST thread a logger through WriteError instead of
-		// keeping this global-log fallback.
-		log.Printf("httpx.WriteError: protojson marshal failed: %v", err)
+		logger.Errorf("httpx.WriteError: protojson marshal failed: %v", err)
 		body = []byte(`{"code":"internal","message":"error envelope marshal failed"}`)
 		status = http.StatusInternalServerError
 	}
@@ -83,11 +79,11 @@ func WriteError(w http.ResponseWriter, status int, code, message string) {
 
 // WriteProto serialises msg as proto JSON for REST endpoints whose response
 // metadata is still proto-typed. Connect-RPC handlers do not use this helper.
-func WriteProto(w http.ResponseWriter, status int, msg proto.Message) {
+func WriteProto(w http.ResponseWriter, logger ErrorLogger, status int, msg proto.Message) {
 	body, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(msg)
 	if err != nil {
-		log.Printf("httpx.WriteProto: protojson marshal failed: %v", err)
-		WriteError(w, http.StatusInternalServerError, CodeInternal, "response marshal failed")
+		logger.Errorf("httpx.WriteProto: protojson marshal failed: %v", err)
+		WriteError(w, logger, http.StatusInternalServerError, CodeInternal, "response marshal failed")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

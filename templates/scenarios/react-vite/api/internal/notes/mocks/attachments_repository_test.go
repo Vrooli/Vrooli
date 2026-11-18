@@ -12,18 +12,30 @@ import (
 )
 
 func TestFakeAttachmentsRepository_CreateBackfillsUploadedAt(t *testing.T) {
-	var f FakeAttachmentsRepository
+	want := time.Date(2026, 5, 2, 8, 9, 10, 11, time.FixedZone("source", -4*60*60))
+	f := FakeAttachmentsRepository{Now: func() time.Time { return want }}
 	got, err := f.CreateAttachment(context.Background(), notes.Attachment{
 		Key:    "notes/a/file.txt",
 		NoteID: "a",
 	})
 	require.NoError(t, err)
-	require.False(t, got.UploadedAt.IsZero(),
-		"CreateAttachment must backfill UploadedAt when caller leaves it zero, mirroring the sqlite repository")
+	require.Equal(t, want.UTC(), got.UploadedAt,
+		"CreateAttachment must use its injected clock when it backfills UploadedAt")
 	require.Equal(t, time.UTC, got.UploadedAt.Location(),
 		"backfilled timestamp must be UTC for wire parity with the sqlite repository")
 	require.Equal(t, int64(1), f.CreateCalls.Load())
 	require.Len(t, f.Attachments, 1)
+}
+
+func TestFakeAttachmentsRepository_DefaultClockIsDeterministic(t *testing.T) {
+	var f FakeAttachmentsRepository
+	got, err := f.CreateAttachment(context.Background(), notes.Attachment{
+		Key:    "notes/a/default-clock.txt",
+		NoteID: "a",
+	})
+	require.NoError(t, err)
+	require.Equal(t, time.Unix(0, 0).UTC(), got.UploadedAt,
+		"test fake without an injected clock must use a deterministic UTC timestamp")
 }
 
 func TestFakeAttachmentsRepository_CreateRespectsCallerTimestamp(t *testing.T) {

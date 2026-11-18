@@ -1,8 +1,9 @@
 import {
   createBrowserRouter,
-  createMemoryRouter,
+  MemoryRouter,
   RouterProvider,
   type RouteObject,
+  useRoutes,
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
@@ -50,14 +51,21 @@ export function AppRouter() {
 }
 
 /**
- * Test helper: render the same routes against an in-memory router with a
- * specific starting URL. Only used by `routes.test.tsx`.
+ * Test helper: render the same routes against a declarative memory router.
+ * The data router constructs Fetch `Request` objects during navigation, but
+ * Vitest's JSDOM AbortSignal is not a Node Fetch AbortSignal. These tests
+ * exercise route matching and links; browser integration covers AppRouter.
  */
+function TestRouteSwitch() {
+  return useRoutes(routes);
+}
+
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
   return (
     <ThemeProvider>
-      <RouterProvider router={router} future={routerProviderFuture} />
+      <MemoryRouter initialEntries={initialEntries} future={dataRouterFuture}>
+        <TestRouteSwitch />
+      </MemoryRouter>
     </ThemeProvider>
   );
 }
