@@ -97,6 +97,7 @@ func statusLabel(s drillsv1.DrillStatus) string {
 		return "unspecified"
 	}
 }
+
 func format(d *drillsv1.RecoveryDrill) string {
 	if d == nil {
 		return "(nil)"

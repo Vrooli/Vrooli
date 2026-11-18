@@ -83,8 +83,10 @@ type Effects interface {
 	Drill(context.Context, string, string, string, string, string) (DrillReceipt, error)
 	SwitchBindings(context.Context, string, string, string, []string, string) error
 }
-type Clock interface{ Now() time.Time }
-type systemClock struct{}
+type (
+	Clock       interface{ Now() time.Time }
+	systemClock struct{}
+)
 
 func (systemClock) Now() time.Time { return time.Now() }
 
@@ -260,16 +262,19 @@ func (s *Service) Resume(ctx context.Context, id string) (Migration, error) {
 	}
 	return m, nil
 }
+
 func (s *Service) save(ctx context.Context, m *Migration) error {
 	m.UpdatedAt = s.clock.Now().UTC()
 	return s.store.Put(ctx, *m)
 }
+
 func validCapacityProof(proof CapacityProof, planID, oldDestinationID, destinationID string, targets []string, now time.Time) bool {
 	return proof.PlanID == planID && proof.OldDestinationID == oldDestinationID && proof.DestinationID == destinationID && equal(canonical(proof.TargetIDs), canonical(targets)) && proof.AvailableBytes > 0 && proof.RequiredBytes > 0 &&
 		proof.AvailableBytes >= proof.RequiredBytes && strings.TrimSpace(proof.DeviceIdentity) != "" &&
 		strings.TrimSpace(proof.CredentialAuthority) != "" && strings.TrimSpace(proof.Receipt) != "" &&
 		!proof.MeasuredAt.IsZero() && !proof.MeasuredAt.After(now) && proof.ExpiresAt.After(now) && proof.ExpiresAt.After(proof.MeasuredAt)
 }
+
 func allVerified(m Migration) bool {
 	if len(m.Items) != RequiredTargetCount {
 		return false
@@ -281,10 +286,12 @@ func allVerified(m Migration) bool {
 	}
 	return true
 }
+
 func key(id, operation, target string) string {
 	sum := sha256.Sum256([]byte(id + "\x00" + operation + "\x00" + target))
 	return "db4-" + hex.EncodeToString(sum[:])
 }
+
 func canonical(xs []string) []string {
 	out := append([]string(nil), xs...)
 	for i := range out {
@@ -293,6 +300,7 @@ func canonical(xs []string) []string {
 	sort.Strings(out)
 	return out
 }
+
 func unique(xs []string) bool {
 	for i, x := range xs {
 		if x == "" || (i > 0 && x == xs[i-1]) {
@@ -301,6 +309,7 @@ func unique(xs []string) bool {
 	}
 	return true
 }
+
 func equal(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -354,6 +363,7 @@ func (f *FileStore) Get(ctx context.Context, id string) (Migration, bool, error)
 	}
 	return m, true, nil
 }
+
 func (f *FileStore) Put(ctx context.Context, m Migration) error {
 	if err := ctx.Err(); err != nil {
 		return err

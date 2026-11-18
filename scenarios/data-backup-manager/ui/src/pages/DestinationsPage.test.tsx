@@ -9,6 +9,7 @@ import { strings } from "../consts/strings";
 vi.mock("../api/destinations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/destinations")>()),
   listDestinations: vi.fn(),
+  getDestinationUsage: vi.fn(),
   createDestination: vi.fn(),
   updateDestination: vi.fn(),
   deleteDestination: vi.fn(),
@@ -34,6 +35,12 @@ const dest = {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.listDestinations).mockResolvedValue([dest] as never);
+  vi.mocked(api.getDestinationUsage).mockResolvedValue({
+    usageBytes: dest.usageBytes,
+    capBytes: dest.capBytes,
+    usageState: dest.usageState,
+    capPolicy: dest.capPolicy,
+  } as never);
   vi.mocked(api.createDestination).mockResolvedValue({ id: "d2" } as never);
   vi.mocked(api.deleteDestination).mockResolvedValue(undefined);
 });
@@ -45,6 +52,22 @@ describe("DestinationsPage", () => {
     renderWithProviders(<DestinationsPage />);
     const row = await screen.findByTestId(selectors.destinations.row({ id: "d1" }));
     expect(row).toHaveTextContent("vrooli/kopia/d1:repository-passphrase");
+  });
+
+  it("uses live repository usage instead of the stale catalog value", async () => {
+    vi.mocked(api.listDestinations).mockResolvedValue([
+      { ...dest, usageBytes: 0n, usageState: UsageState.UNSPECIFIED },
+    ] as never);
+    vi.mocked(api.getDestinationUsage).mockResolvedValue({
+      usageBytes: 10n * 1024n ** 3n,
+      capBytes: 100n * 1024n ** 3n,
+      usageState: UsageState.WITHIN,
+      capPolicy: CapPolicy.ALERT_BLOCK,
+    } as never);
+    renderWithProviders(<DestinationsPage />);
+    await screen.findByTestId(selectors.destinations.row({ id: "d1" }));
+    expect(await screen.findByRole("progressbar", { name: /within/i })).toBeInTheDocument();
+    expect(api.getDestinationUsage).toHaveBeenCalledWith("d1");
   });
 
   it("requires name and location before creating", async () => {

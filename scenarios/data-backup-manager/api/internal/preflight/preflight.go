@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/capacity"
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/failures"
@@ -24,7 +25,23 @@ import (
 type (
 	Plan struct {
 		TargetIDs, DestinationIDs []string
-		RetentionCopies           int
+		// RetainedSnapshots is the maximum snapshots the plan's retention policy
+		// can keep. It is a count, never a byte multiplier.
+		RetainedSnapshots int
+		// FirstCopy is true when at least one selected target has no successful
+		// snapshot on the destination. The first copy pays the full logical cost.
+		FirstCopy bool
+		// MeasuredIncrementalBytes is the last successful run's physical repo
+		// growth. Zero means no usable history and the estimate is forecast-only.
+		MeasuredIncrementalBytes int64
+		MeasuredDedupRatio       float64
+		ReserveBytes             int64
+		CapacityPolicy           capacity.Policy
+		// DegradedDestinations names destinations where every selected target has
+		// a separate verified copy. Only those may admit a write while the native
+		// filesystem state is unobservable.
+		DegradedDestinations map[string]bool
+		AllowWriteProbe      bool
 	}
 	Target struct {
 		ID      string
@@ -48,7 +65,10 @@ type (
 
 type DestinationLookup interface {
 	DestinationForRun(context.Context, string) (Destination, error)
-	WithResolvedDestination(context.Context, string, func(Destination) error) error
+	// WithResolvedDestinationForRead resolves a destination for repository
+	// probes. Preflight is read-only: it must not demand write-ready filesystem
+	// state, or a mounted-but-unknown volume can never be inspected.
+	WithResolvedDestinationForRead(context.Context, string, func(Destination) error) error
 }
 
 type Input struct {
@@ -76,6 +96,10 @@ type Result struct {
 	Incidents           []failures.Cause
 	BlockedDestinations map[string]failures.Cause
 	BlockedTargets      map[string]failures.Cause
+	// DegradedDestinations is the write-policy decision preflight computed. The
+	// executor must pass it to the write gate so preflight and the write agree;
+	// re-deriving it at the write boundary was a second, divergent truth.
+	DegradedDestinations map[string]bool
 }
 
 func (r Result) Summary() string {
@@ -100,7 +124,15 @@ func Check(ctx context.Context, in Input) Result {
 	if in.Clock != nil {
 		now = in.Clock.Now().UTC()
 	}
-	r := Result{CheckedAt: now, Ready: true, BlockedDestinations: map[string]failures.Cause{}, BlockedTargets: map[string]failures.Cause{}}
+	r := Result{
+		CheckedAt: now, Ready: true,
+		BlockedDestinations:  map[string]failures.Cause{},
+		BlockedTargets:       map[string]failures.Cause{},
+		DegradedDestinations: map[string]bool{},
+	}
+	for id, allowed := range in.Plan.DegradedDestinations {
+		r.DegradedDestinations[id] = allowed
+	}
 	if len(in.Plan.DestinationIDs) == 0 {
 		r.add(failures.Cause{Code: failures.DestinationMissing, Category: failures.CategoryDestination, Scope: failures.ScopePlan, Message: "plan has no destination", NextAction: "configure at least one approved destination"})
 	}
@@ -176,7 +208,7 @@ func Check(ctx context.Context, in Input) Result {
 			r.add(failures.Cause{Code: "destination_ephemeral", Category: failures.CategoryDestination, Scope: failures.ScopeDestination, DestinationID: id, TargetIDs: append([]string(nil), in.Plan.TargetIDs...), Message: "backup destination uses temporary storage; durable protection is unavailable", NextAction: "select a permanent destination; preserve existing repository bytes and credentials"})
 			continue
 		}
-		gateErr := in.Destinations.WithResolvedDestination(ctx, id, func(current Destination) error {
+		gateErr := in.Destinations.WithResolvedDestinationForRead(ctx, id, func(current Destination) error {
 			if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
 				return fmt.Errorf("destination identity changed during preflight")
 			}
@@ -193,18 +225,6 @@ func Check(ctx context.Context, in Input) Result {
 				}
 				cause.TargetIDs = append([]string(nil), in.Plan.TargetIDs...)
 				r.add(cause)
-			} else if _, err := in.Engine.SnapshotList(ctx, current.Name, ""); err != nil {
-				// A successful repository status only proves that Kopia can open
-				// the repository and its credential. Enumerating manifests catches
-				// missing or unreadable snapshot metadata before we capture sources
-				// or attempt a new write into a damaged repository.
-				r.add(failures.Cause{
-					Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
-					Scope: failures.ScopeDestination, DestinationID: id,
-					TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
-					Message:    "repository snapshot metadata could not be enumerated",
-					NextAction: "preserve repository bytes and credentials; inspect repository integrity before retrying",
-				})
 			} else if _, err := in.Engine.RepoStats(ctx, current.Name); err != nil {
 				// Capacity and retention safety depend on a complete repository usage
 				// read. A passing status and snapshot list do not prove that Kopia can
@@ -225,6 +245,20 @@ func Check(ctx context.Context, in Input) Result {
 					Message:    message,
 					NextAction: next,
 				})
+			} else if _, err := in.Engine.SnapshotList(ctx, current.Name, ""); err != nil {
+				// A repository status proves Kopia can open the repository and its
+				// credential. Enumerating manifests catches missing or unreadable
+				// snapshot metadata before we capture sources or attempt a new write
+				// into a damaged repository. The engine bounds the inventory by
+				// bytes, not by an arbitrary manifest count, so a repository with
+				// hundreds of legitimate snapshots remains enumerable.
+				r.add(failures.Cause{
+					Code: failures.RepositoryInvalid, Category: failures.CategoryRepository,
+					Scope: failures.ScopeDestination, DestinationID: id,
+					TargetIDs:  append([]string(nil), in.Plan.TargetIDs...),
+					Message:    "repository snapshot metadata could not be enumerated",
+					NextAction: "preserve repository bytes and credentials; inspect repository integrity before retrying",
+				})
 			}
 			return nil
 		})
@@ -242,9 +276,18 @@ func Check(ctx context.Context, in Input) Result {
 				readinessInput.ExpectedDevice = *dest.DeviceIdentity
 			}
 			if capacityEstimateComplete {
-				readinessInput.SelectedTargetBytes = selectedTargetBytes
-				readinessInput.RetentionCopies = in.Plan.RetentionCopies
+				readinessInput.Capacity = capacity.Input{
+					LogicalSourceBytes:       selectedTargetBytes,
+					RetainedSnapshots:        in.Plan.RetainedSnapshots,
+					FirstCopy:                in.Plan.FirstCopy,
+					MeasuredIncrementalBytes: in.Plan.MeasuredIncrementalBytes,
+					MeasuredDedupRatio:       in.Plan.MeasuredDedupRatio,
+					ReserveBytes:             in.Plan.ReserveBytes,
+					Policy:                   in.Plan.CapacityPolicy,
+				}
 			}
+			readinessInput.AllowDegraded = in.Plan.DegradedDestinations[id]
+			readinessInput.AllowWriteProbe = in.Plan.AllowWriteProbe
 			report, err := in.Readiness.Analyze(ctx, readinessInput)
 			if err != nil {
 				cause := failures.Classify(err)
@@ -365,14 +408,22 @@ func readinessFailure(report destinationreadiness.Report) failures.Cause {
 			cause.Code = failures.DestinationUnmounted
 			cause.Message = "destination is not mounted or its path is absent"
 			cause.NextAction = "inspect and repair the destination with native operating-system tools, then recheck identity"
+		case "write_probe":
+			cause.Code = failures.DestinationWriteProbe
+			cause.Message = check.Message
+			if check.NextAction != "" {
+				cause.NextAction = check.NextAction
+			}
 		case "directory_inaccessible":
 			cause.Message = "destination directory is inaccessible"
 			cause.NextAction = "restore directory access and re-run destination readiness"
 		case "capacity":
 			cause.Code = failures.DestinationCapacity
 			cause.Category = failures.CategoryCapacity
-			cause.Message = "destination free space is below the complete selected source estimate and retention requirement"
-			cause.NextAction = "free destination space or select a suitable destination before enabling backup writes"
+			cause.Message = check.Message
+			if check.NextAction != "" {
+				cause.NextAction = check.NextAction
+			}
 		}
 		return cause
 	}

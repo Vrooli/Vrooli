@@ -42,8 +42,10 @@ func (a backupHistory) LatestRun(ctx context.Context, planID string) (destinatio
 		return destinationsH.RunRecord{}, false, err
 	}
 	r := runs[0]
-	rec := destinationsH.RunRecord{ID: r.ID, Status: string(r.Status), StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
-		Retry: r.Trigger == runsint.TriggerRetry}
+	rec := destinationsH.RunRecord{
+		ID: r.ID, Status: string(r.Status), StartedAt: r.StartedAt, FinishedAt: r.FinishedAt,
+		Retry: r.Trigger == runsint.TriggerRetry,
+	}
 	switch r.Status {
 	case runsint.RunCompleted, runsint.RunPartialFailed, runsint.RunFailed:
 		rec.Terminal = true

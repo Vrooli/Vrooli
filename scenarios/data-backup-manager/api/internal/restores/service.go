@@ -447,7 +447,7 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 // withResolvedDestination makes the repository locator current immediately
 // before a Kopia read and holds DBM's destination lock through that operation.
 func (s *service) withResolvedDestination(ctx context.Context, job RestoreJob, use func(string) error) error {
-	return s.deps.Destinations.WithResolvedDestination(ctx, job.DestinationID, func(current DestinationForRestore) error {
+	return s.deps.Destinations.WithResolvedDestinationForRead(ctx, job.DestinationID, func(current DestinationForRestore) error {
 		if current.ID != job.DestinationID || current.Name != job.DestName {
 			return fmt.Errorf("destination identity changed before repository use")
 		}

@@ -34,6 +34,7 @@ func (f *fakeService) Preview(context.Context, string, string, string) (d.Previe
 func (f *fakeService) Run(context.Context, string, string, string, string, bool) (d.Drill, error) {
 	return f.drill, f.err
 }
+
 func (f *fakeService) RunMigrationSnapshot(context.Context, string, string, string, string, string) (d.Drill, error) {
 	return f.drill, f.err
 }
@@ -42,6 +43,7 @@ func (f *fakeService) Retire(context.Context, string, string) (d.Drill, error) {
 func (f *fakeService) List(context.Context, string, string, int) ([]d.Drill, error) {
 	return f.list, f.err
 }
+
 func (f *fakeService) ListPage(context.Context, string, string, int, string) (d.DrillPage, error) {
 	if f.page.Drills != nil || f.page.NextPageToken != "" {
 		return f.page, f.err

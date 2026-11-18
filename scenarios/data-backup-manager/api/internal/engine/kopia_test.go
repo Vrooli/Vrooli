@@ -144,6 +144,33 @@ func TestBrowseSnapshotRejectsOversizedManifestAndPreservesEntryType(t *testing.
 	})
 }
 
+func TestSnapshotListByTagsBuildsCrossHostTagFilter(t *testing.T) {
+	runner := &damageRunner{out: []byte(`[]`)}
+	_, err := (&KopiaCLI{Runner: runner}).SnapshotListByTags(context.Background(), "repo", []string{"dbm.owner:agent-manager", "dbm.name:data"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"snapshot", "list", "--repo", "repo", "--all", "--tags", "dbm.owner:agent-manager", "--tags", "dbm.name:data", "--json"}
+	if !reflect.DeepEqual(runner.args, want) {
+		t.Fatalf("args = %#v, want %#v", runner.args, want)
+	}
+}
+
+func TestSnapshotListParsesKopiaObjectTags(t *testing.T) {
+	runner := &damageRunner{out: []byte(`[{"id":"s","source":{"host":"h","userName":"u","path":"/p"},"tags":{"tag:dbm.owner":"agent-manager","tag:dbm.name":"data"},"stats":{"totalSize":1,"fileCount":1,"dirCount":1},"rootEntry":{"summ":{"symlinks":0}}}]`)}
+	rows, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want one", len(rows))
+	}
+	want := []string{"dbm.name:data", "dbm.owner:agent-manager"}
+	if len(rows[0].Tags) != len(want) || rows[0].Tags[0] != want[0] || rows[0].Tags[1] != want[1] {
+		t.Fatalf("tags = %v, want %v", rows[0].Tags, want)
+	}
+}
+
 func TestSnapshotListParsesAggregateEntryCounts(t *testing.T) {
 	runner := &damageRunner{out: []byte(`[{"id":"snap","source":{"host":"h","userName":"u","path":"/p"},"stats":{"totalSize":8,"fileCount":2,"dirCount":3},"rootEntry":{"summ":{"symlinks":4}}}]`)}
 	cli := &KopiaCLI{Runner: runner}
@@ -158,16 +185,20 @@ func TestSnapshotListParsesAggregateEntryCounts(t *testing.T) {
 
 func TestSnapshotListBoundsInventoryAndRequiresStatsTotalSize(t *testing.T) {
 	t.Run("oversized inventory bytes", func(t *testing.T) {
-		runner := &damageRunner{out: []byte(strings.Repeat(" ", 2<<20+1))}
+		runner := &damageRunner{out: []byte(strings.Repeat(" ", 32<<20+1))}
 		if _, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "/target"); err == nil {
 			t.Fatal("oversized snapshot inventory must refuse")
 		}
 	})
-	t.Run("too many snapshots", func(t *testing.T) {
+	t.Run("large valid inventories are enumerable", func(t *testing.T) {
 		one := `{"id":"s","stats":{"totalSize":1,"fileCount":1,"dirCount":1},"rootEntry":{"summ":{"symlinks":0}}}`
-		runner := &damageRunner{out: []byte("[" + strings.TrimSuffix(strings.Repeat(one+",", 129), ",") + "]")}
-		if _, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "/target"); err == nil {
-			t.Fatal("snapshot count overflow must refuse")
+		runner := &damageRunner{out: []byte("[" + strings.TrimSuffix(strings.Repeat(one+",", 300), ",") + "]")}
+		rows, err := (&KopiaCLI{Runner: runner}).SnapshotList(context.Background(), "repo", "/target")
+		if err != nil {
+			t.Fatalf("large valid inventory was refused: %v", err)
+		}
+		if len(rows) != 300 {
+			t.Fatalf("rows = %d, want 300", len(rows))
 		}
 	})
 	t.Run("missing total size despite compatibility field", func(t *testing.T) {
@@ -283,9 +314,11 @@ func TestRepoRestoreTempBindsCanonicalRepositoryAndExactSourceAndTarget(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantArgs := []string{"repo", "restore-from-temp", "--name", "elements", "--repository-path", repoPath,
+	wantArgs := []string{
+		"repo", "restore-from-temp", "--name", "elements", "--repository-path", repoPath,
 		"--relative-temp-path", rel, "--temp-sha256", hash,
-		"--confirm-restore", "restore-temp:elements:" + repoPath + ":" + rel + ":" + hash, "--json"}
+		"--confirm-restore", "restore-temp:elements:" + repoPath + ":" + rel + ":" + hash, "--json",
+	}
 	if !reflect.DeepEqual(runner.args, wantArgs) || got.RelativePath != rel || !got.SourcePreserved || got.TargetReplaced || !got.Committed {
 		t.Fatalf("temp restore args/result = %#v / %+v", runner.args, got)
 	}

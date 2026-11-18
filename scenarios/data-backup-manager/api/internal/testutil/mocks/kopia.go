@@ -23,19 +23,20 @@ type FakeKopiaEngine struct {
 	mu sync.Mutex
 
 	// Programmable behavior. Leave nil to use the default.
-	RepoCreateFn      func(ctx context.Context, spec engine.RepoSpec) error
-	RepoConnectFn     func(ctx context.Context, spec engine.RepoSpec) error
-	RepoRebindFn      func(ctx context.Context, repo, absolutePath string) error
-	RepoStatusFn      func(ctx context.Context, repo string) (engine.RepoStatus, error)
-	PassphraseRefFn   func(repo string) string
-	RepoStatsFn       func(ctx context.Context, repo string) (engine.RepoStats, error)
-	RepoDeleteFn      func(ctx context.Context, repo string) error
-	SnapshotCreateFn  func(ctx context.Context, repo, path string, meta engine.SnapshotMetadata) (engine.Snapshot, error)
-	SnapshotListFn    func(ctx context.Context, repo, path string) ([]engine.Snapshot, error)
-	SnapshotRestoreFn func(ctx context.Context, repo, snapshotID, target string) error
-	SnapshotVerifyFn  func(ctx context.Context, repo, snapshotID string, verifyPercent int) error
-	BrowseSnapshotFn  func(ctx context.Context, repo, snapshotID, path string) ([]engine.SnapshotEntry, error)
-	ApplyRetentionFn  func(ctx context.Context, repo, source string, policy engine.RetentionPolicy) (int, error)
+	RepoCreateFn         func(ctx context.Context, spec engine.RepoSpec) error
+	RepoConnectFn        func(ctx context.Context, spec engine.RepoSpec) error
+	RepoRebindFn         func(ctx context.Context, repo, absolutePath string) error
+	RepoStatusFn         func(ctx context.Context, repo string) (engine.RepoStatus, error)
+	PassphraseRefFn      func(repo string) string
+	RepoStatsFn          func(ctx context.Context, repo string) (engine.RepoStats, error)
+	RepoDeleteFn         func(ctx context.Context, repo string) error
+	SnapshotCreateFn     func(ctx context.Context, repo, path string, meta engine.SnapshotMetadata) (engine.Snapshot, error)
+	SnapshotListFn       func(ctx context.Context, repo, path string) ([]engine.Snapshot, error)
+	SnapshotListByTagsFn func(ctx context.Context, repo string, tags []string) ([]engine.Snapshot, error)
+	SnapshotRestoreFn    func(ctx context.Context, repo, snapshotID, target string) error
+	SnapshotVerifyFn     func(ctx context.Context, repo, snapshotID string, verifyPercent int) error
+	BrowseSnapshotFn     func(ctx context.Context, repo, snapshotID, path string) ([]engine.SnapshotEntry, error)
+	ApplyRetentionFn     func(ctx context.Context, repo, source string, policy engine.RetentionPolicy) (int, error)
 
 	// Recorded state.
 	Calls         []string
@@ -141,6 +142,19 @@ func (f *FakeKopiaEngine) SnapshotList(ctx context.Context, repo, path string) (
 	f.record("SnapshotList(%s,%s)", repo, path)
 	if f.SnapshotListFn != nil {
 		return f.SnapshotListFn(ctx, repo, path)
+	}
+	return nil, nil
+}
+
+func (f *FakeKopiaEngine) SnapshotListByTags(ctx context.Context, repo string, tags []string) ([]engine.Snapshot, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.record("SnapshotListByTags(%s,%v)", repo, tags)
+	if f.SnapshotListByTagsFn != nil {
+		return f.SnapshotListByTagsFn(ctx, repo, tags)
+	}
+	if f.SnapshotListFn != nil {
+		return f.SnapshotListFn(ctx, repo, "")
 	}
 	return nil, nil
 }

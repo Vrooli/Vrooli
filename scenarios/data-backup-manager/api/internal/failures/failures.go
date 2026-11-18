@@ -39,11 +39,14 @@ const (
 	DestinationWrongDevice  Code = "destination_wrong_device"
 	DestinationInaccessible Code = "destination_inaccessible"
 	DestinationCapacity     Code = "destination_capacity"
+	DestinationWriteProbe   Code = "destination_write_probe"
 	CredentialMissing       Code = "credential_missing"    // #nosec G101 -- public failure vocabulary, not a credential.
 	CredentialUnreadable    Code = "credential_unreadable" // #nosec G101 -- public failure vocabulary, not a credential.
 	RepositoryInvalid       Code = "repository_invalid"
 	SourceMissing           Code = "source_missing"
+	SourceUnreadable        Code = "source_unreadable"
 	SourceUnsupported       Code = "source_unsupported"
+	SourceCaptureFailed     Code = "source_capture_failed"
 	UnsupportedPlatform     Code = "unsupported_platform"
 	Transient               Code = "transient"
 	RetentionFailed         Code = "retention_failed"
@@ -87,6 +90,49 @@ func (c Cause) Error() string {
 	return fmt.Sprintf("%s: %s", c.Code, c.Message)
 }
 
+// ClassifyCapture classifies a source-capture error. Unlike Classify it must
+// never collapse an unrecognised failure into "backup operation failed": a
+// capture error already identifies the failing target, and the bounded detail
+// is what lets an operator fix the source instead of guessing.
+func ClassifyCapture(err error) Cause {
+	if err == nil {
+		return Cause{}
+	}
+	c := Classify(err)
+	if c.Code != Unknown {
+		return c
+	}
+	text := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(text, "permission denied"), strings.Contains(text, "operation not permitted"):
+		c.Code, c.Category, c.Scope = SourceUnreadable, CategorySource, ScopeTarget
+		c.Message = "source tree could not be read: " + BoundedDetail(err)
+		c.NextAction = "grant read access to the full source tree, or deregister the target"
+	default:
+		c.Code, c.Category, c.Scope = SourceCaptureFailed, CategorySource, ScopeTarget
+		c.Message = "source capture failed: " + BoundedDetail(err)
+		c.NextAction = "resolve the reported source error, then retry the plan"
+	}
+	return c
+}
+
+// boundedDetailLimit caps raw error text carried into persisted evidence.
+const boundedDetailLimit = 240
+
+// BoundedDetail renders one bounded line from an error for operator evidence.
+// It deliberately keeps no secret: callers only pass errors whose text is
+// already operator-safe (paths and syscall messages, never credentials).
+func BoundedDetail(err error) string {
+	if err == nil {
+		return ""
+	}
+	text := strings.Join(strings.Fields(err.Error()), " ")
+	if len(text) > boundedDetailLimit {
+		return text[:boundedDetailLimit] + "…"
+	}
+	return text
+}
+
 // Classify converts errors from resource adapters into the stable vocabulary.
 // Matching is deliberately conservative and only uses lower-cased, bounded
 // error text; callers should replace Message with a redacted operator message.
@@ -126,6 +172,7 @@ func Classify(err error) Cause {
 	case strings.Contains(text, "no capturer"), strings.Contains(text, "unsupported source"):
 		c.Code, c.Category, c.Scope = SourceUnsupported, CategorySource, ScopeTarget
 		c.Message, c.NextAction = "source kind is not available on this platform", "use a supported source adapter or mark this target partial"
+
 	case strings.Contains(text, "stat "), strings.Contains(text, "lstat "), strings.Contains(text, "source") && strings.Contains(text, "not found"):
 		c.Code, c.Category, c.Scope = SourceMissing, CategorySource, ScopeTarget
 		c.Message, c.NextAction = "source path is missing or inaccessible", "restore the source path or deregister the stale target"

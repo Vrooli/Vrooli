@@ -303,7 +303,7 @@ func snapshotTime(snaps []engine.Snapshot, snapshotID string) time.Time {
 }
 
 func (s *service) withResolvedDestination(ctx context.Context, job AuditJob, use func(string) error) error {
-	return s.deps.Destinations.WithResolvedDestination(ctx, job.Audit.DestinationID, func(current DestinationForAudit) error {
+	return s.deps.Destinations.WithResolvedDestinationForRead(ctx, job.Audit.DestinationID, func(current DestinationForAudit) error {
 		if current.ID != job.Audit.DestinationID || current.Name != job.DestName {
 			return fmt.Errorf("destination identity changed before repository use")
 		}

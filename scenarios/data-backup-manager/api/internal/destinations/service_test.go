@@ -70,6 +70,10 @@ func (p *mutableDestinationProbe) InspectDevice(context.Context, destinationread
 	return p.inspection, nil
 }
 
+func (p *mutableDestinationProbe) WriteProbe(context.Context, string) (destinationreadiness.WriteProbeResult, error) {
+	return destinationreadiness.WriteProbeResult{Ran: true, Passed: true}, nil
+}
+
 func testVolumeLeaseOption() destinations.Option {
 	return destinations.WithVolumeOperationLease(&testVolumeOperationLease{})
 }
@@ -82,9 +86,17 @@ func (g fixedReadinessReport) Analyze(context.Context, destinationreadiness.Anal
 	return g.report, nil
 }
 
+func (g fixedReadinessReport) WriteProbe(context.Context, string) (destinationreadiness.WriteProbeResult, error) {
+	return destinationreadiness.WriteProbeResult{Ran: true, Passed: true}, nil
+}
+
 type sequenceReadinessReports struct {
 	reports []destinationreadiness.Report
 	calls   int
+}
+
+func (g *sequenceReadinessReports) WriteProbe(context.Context, string) (destinationreadiness.WriteProbeResult, error) {
+	return destinationreadiness.WriteProbeResult{Ran: true, Passed: true}, nil
 }
 
 func (g *sequenceReadinessReports) Analyze(context.Context, destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
@@ -116,6 +128,10 @@ func (p fixedDestinationProbe) Analyze(context.Context, destinationreadiness.Ana
 
 func (p fixedDestinationProbe) InspectDevice(context.Context, destinationreadiness.DeviceIdentity) (destinationreadiness.Inspection, error) {
 	return p.inspection, nil
+}
+
+func (p fixedDestinationProbe) WriteProbe(context.Context, string) (destinationreadiness.WriteProbeResult, error) {
+	return destinationreadiness.WriteProbeResult{Ran: true, Passed: true, Bytes: 4096}, nil
 }
 
 func TestResolveForUseRebindsBoundDestinationAfterMountRelocation(t *testing.T) {
@@ -210,6 +226,16 @@ func TestResolveForUseRebindsBoundDestinationAfterMountRelocation(t *testing.T) 
 	}
 	if len(eng.Calls) != 0 {
 		t.Fatalf("resolver touched resource-kopia before readiness passed: %v", eng.Calls)
+	}
+	// Reads do not need write-ready filesystem evidence: snapshots and usage
+	// must remain inspectable on a mounted-but-unknown volume.
+	if err := blockedSvc.WithResolvedDestinationForRead(ctx, d.ID, func(current destinations.Destination) error {
+		if current.Location != bundleRoot || current.RepositoryLocation != repoPath {
+			t.Fatalf("read-resolved paths = %q / %q", current.Location, current.RepositoryLocation)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("read-only resolution rejected a mounted volume with unknown filesystem state: %v", err)
 	}
 	lease := &testVolumeOperationLease{}
 	eng.RepoRebindFn = func(context.Context, string, string) error {
@@ -481,6 +507,53 @@ func TestImportFilesystemDestinationRejectsRepositoryAnchorMismatchBeforeConnect
 	}
 	if len(eng.Calls) != 0 {
 		t.Fatalf("identity mismatch reached resource-kopia: %v", eng.Calls)
+	}
+}
+
+func TestResolveForUseAllowsANestedBundleWithItsOwnRepository(t *testing.T) {
+	// A drive-wide bundle and a scope bundle beneath it are two legitimate
+	// destinations. Only their repository paths must be distinct. Comparing
+	// bundle roots treated intended nesting as a collision and blocked writes.
+	ctx := context.Background()
+	mount := t.TempDir()
+	identity := destinationreadiness.DeviceIdentity{DevicePath: "/dev/test1", Mountpoint: mount, Filesystem: "ntfs", UUID: "fixture-uuid", Serial: "fixture-serial"}
+	outerRel := "vrooli-backups"
+	innerRel := filepath.Join("vrooli-backups", "free-disk-root")
+	outerBundle := filepath.Join(mount, outerRel)
+	innerBundle := filepath.Join(mount, innerRel)
+	outerRepo := destinations.RepositoryPathFor(outerBundle, "outer")
+	innerRepo := destinations.RepositoryPathFor(innerBundle, "inner")
+	for _, dir := range []string{outerBundle, innerBundle, outerRepo, innerRepo} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for repoPath, uniqueID := range map[string]string{outerRepo: "outer-repository", innerRepo: "inner-repository"} {
+		if err := os.WriteFile(filepath.Join(repoPath, "kopia.repository.f"), []byte(`{"uniqueID":"`+uniqueID+`"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writer := &destinations.FSBundleWriter{}
+	if err := writer.WriteMetadata(ctx, destinations.BundleMetadata{
+		DestinationID: "inner", Name: "inner", Backend: string(destinations.BackendFilesystem),
+		BundleRoot: innerBundle, RelativePath: innerRel, RepositoryPath: innerRepo,
+		SecretRef: "vrooli/kopia/inner:repository-passphrase", EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	repo := mocks.NewFakeRepository()
+	for _, d := range []destinations.Destination{
+		{ID: "outer", Name: "outer", BackendKind: destinations.BackendFilesystem, Location: outerBundle, RepositoryLocation: outerRepo, RelativePath: outerRel, DeviceIdentity: &identity, EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256"},
+		{ID: "inner", Name: "inner", BackendKind: destinations.BackendFilesystem, Location: innerBundle, RepositoryLocation: innerRepo, RelativePath: innerRel, DeviceIdentity: &identity, SecretRef: "vrooli/kopia/inner:repository-passphrase", EncryptionAlgorithm: "AES256-GCM-HMAC-SHA256"},
+	} {
+		if _, err := repo.Create(ctx, d); err != nil {
+			t.Fatal(err)
+		}
+	}
+	probe := fixedDestinationProbe{inspection: destinationreadiness.Inspection{Identity: identity, Mounted: true, LocationExists: true, LocationIsDirectory: true, FilesystemState: sysmounts.FilesystemStateClean}}
+	svc := destinations.NewService(repo, &enginemocks.FakeKopiaEngine{}, writer, t.TempDir(), destinations.WithReadinessGate(probe), testVolumeLeaseOption())
+	if _, err := svc.ResolveForUse(ctx, "inner"); err != nil {
+		t.Fatalf("nested bundle with a distinct repository should resolve: %v", err)
 	}
 }
 

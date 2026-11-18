@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -18,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"database/sql"
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 	_ "modernc.org/sqlite"
@@ -55,6 +55,7 @@ func TestReadLeasePinsNewestGenerationAcrossTreasuryUse(t *testing.T) {
 		t.Fatal(err)
 	}
 	now := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	store.Now = func() time.Time { return now }
 	service := ReadLeaseService{Catalog: snapshotCatalogStub{state: SnapshotState{ID: "snap-newest", TargetID: "target", Generation: 7}}, Store: store, Now: func() time.Time { return now }, TTL: time.Minute}
 	lease, err := service.Acquire(ctx, "lease-1", "treasury-wallet-recovery-wallet", "dest", "snap-newest")
 	if err != nil {

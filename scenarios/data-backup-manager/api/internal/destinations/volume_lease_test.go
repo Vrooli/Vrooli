@@ -53,6 +53,31 @@ func TestHostVolumeOperationLeaseWaitsForHandshakeAndTerminatesOnRelease(t *test
 	}
 }
 
+func TestHostVolumeOperationLeaseTimesOutWhenTheControlPlaneNeverAnswers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture uses a POSIX executable")
+	}
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "vrooli")
+	// Produce no readiness line: a hung control plane. It must not freeze the
+	// caller forever.
+	if err := os.WriteFile(binary, []byte("#!/bin/sh\nexec sleep 30\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	lease := HostVolumeOperationLease{Binary: binary, ReadyTimeout: 150 * time.Millisecond}
+	started := time.Now()
+	_, err := lease.Acquire(context.Background(), destinationreadiness.DeviceIdentity{DevicePath: "/dev/fixture", UUID: "fixture-uuid"})
+	if err == nil {
+		t.Fatal("Acquire should fail when the lease handshake never arrives")
+	}
+	if !strings.Contains(err.Error(), "did not become ready") {
+		t.Fatalf("error = %v, want a bounded readiness timeout", err)
+	}
+	if elapsed := time.Since(started); elapsed > 3*time.Second {
+		t.Fatalf("Acquire took %s, want it bounded near the configured timeout", elapsed)
+	}
+}
+
 func TestHostVolumeOperationLeaseRejectsInvalidIdentityOrHandshake(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("fixture uses a POSIX executable")

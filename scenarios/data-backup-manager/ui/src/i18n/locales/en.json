@@ -150,7 +150,7 @@
     "attention_one": "{{count}} target needs attention",
     "overdue": "{{count}} overdue or failed",
     "unverified": "{{count}} not yet verified",
-    "readinessLabel": "API",
+    "readinessLabel": "Status",
     "serviceLabel": "Service"
   },
   "overview": {
@@ -170,6 +170,7 @@
     "setupCtaPlans": "Create a plan",
     "usageOfCap": "{{used}} of {{cap}}",
     "usageUncapped": "{{used}} used",
+    "usageUnavailable": "Repository usage is unavailable — the drive or repository could not be read.",
     "metricsHeading": "Backup economics",
     "metricsDedup": "{{physical}} on disk · {{ratio}}× dedup",
     "metricsDedupApprox": "approximate",
@@ -307,6 +308,16 @@
     "tierCriticalSecondary": "Critical secondary",
     "keepLatest": "Keep latest",
     "keepLatestHint": "How many snapshots to retain per target. 0 keeps all.",
+    "retentionLegend": "Age based retention",
+    "keepBucket": "Keep {{bucket}}",
+    "retentionHelp": "Keep the newest snapshots above, plus the configured number from each time bucket. Zero disables that bucket.",
+    "buckets": {
+      "hourly": "Hourly",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "annual": "Annual"
+    },
     "enabled": "Enabled",
     "targets": "Targets",
     "destinations": "Destinations",

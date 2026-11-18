@@ -292,7 +292,7 @@ func TestRun_RechecksDestinationAtSerializedSnapshotBoundary(t *testing.T) {
 	lookupCalls := 0
 	dests := &runsmocks.FakeDestinationLookup{DestinationFn: func(id string) (runs.DestinationForRun, error) {
 		lookupCalls++
-		if lookupCalls == 4 {
+		if lookupCalls == 5 {
 			return runs.DestinationForRun{}, errors.New("volume became unready before snapshot")
 		}
 		return runs.DestinationForRun{ID: id, Name: "nightly", BackendKind: "filesystem"}, nil
@@ -324,8 +324,8 @@ func TestRun_RechecksDestinationAtSerializedSnapshotBoundary(t *testing.T) {
 			t.Fatalf("snapshot was created after final destination resolution failed: %v", eng.Calls)
 		}
 	}
-	if lookupCalls != 5 {
-		t.Fatalf("destination lookup calls = %d, want preflight, baseline, unit, final write gate, post-run measurement", lookupCalls)
+	if lookupCalls != 6 {
+		t.Fatalf("destination lookup calls = %d, want preflight topology, baseline, unit, final write gate, post-run measurement", lookupCalls)
 	}
 }
 

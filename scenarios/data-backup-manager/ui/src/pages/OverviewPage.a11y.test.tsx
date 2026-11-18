@@ -16,6 +16,7 @@ vi.mock("../api/targets", async (importOriginal) => ({
 vi.mock("../api/destinations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/destinations")>()),
   listDestinations: vi.fn(),
+  getDestinationUsage: vi.fn(),
 }));
 vi.mock("../api/runs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/runs")>()),
@@ -43,9 +44,15 @@ const ts = timestampFromDate(now);
 
 beforeEach(() => {
   vi.mocked(healthApi.fetchHealth).mockResolvedValue({
-    status: "ok",
+    status: "healthy",
     service: "data-backup-manager",
-    readiness: "ready",
+    readiness: true,
+  } as never);
+  vi.mocked(destinationsApi.getDestinationUsage).mockResolvedValue({
+    usageBytes: 10n,
+    capBytes: 100n,
+    usageState: UsageState.WITHIN,
+    capPolicy: CapPolicy.ALERT_BLOCK,
   } as never);
   vi.mocked(targetsApi.listTargets).mockResolvedValue([
     { id: "t1", owner: "prompt-manager", name: "store", sourceKind: SourceKind.FILESYSTEM, locator: "store" },
@@ -120,7 +127,7 @@ describe("OverviewPage a11y", () => {
       timeout: 5000,
     });
     await waitFor(() =>
-      expect(screen.getByTestId(selectors.overview.posture)).toHaveTextContent("ready"),
+      expect(screen.getByTestId(selectors.overview.posture)).toHaveTextContent("healthy"),
     );
     await waitFor(() => expect(screen.queryByTestId(selectors.async.loading)).not.toBeInTheDocument());
     await expectNoA11yViolations(container);

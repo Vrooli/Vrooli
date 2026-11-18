@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 )
@@ -17,7 +15,7 @@ const (
 // for ask-resolution deliveries. An empty result means the decision webhook
 // must remain unmounted; it is never acceptable to receive unsigned approvals.
 func resolveEventsWebhookSecret() (string, error) {
-	if explicit := strings.TrimSpace(os.Getenv("VROOLI_EVENTS_WEBHOOK_SECRET")); explicit != "" {
+	if explicit, ok := lookupEnvTrimmed("VROOLI_EVENTS_WEBHOOK_SECRET"); ok {
 		return explicit, nil
 	}
 	identity, err := credentialauthority.ParseIdentity(dbmEventsWebhookIdentity)

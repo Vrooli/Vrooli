@@ -6,9 +6,10 @@ package effectguard
 import (
 	"context"
 	"errors"
-	"github.com/vrooli/api-core/database"
 	"net/http"
 	"testing"
+
+	"github.com/vrooli/api-core/database"
 )
 
 func Check(ctx context.Context) error {

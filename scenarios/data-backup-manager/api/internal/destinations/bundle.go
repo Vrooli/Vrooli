@@ -278,7 +278,10 @@ func (w *FSBundleWriter) ValidateRelocation(_ context.Context, meta BundleMetada
 	if err := json.Unmarshal(manifestBytes, &existing); err != nil {
 		return fmt.Errorf("decode destination manifest for path validation: %w", err)
 	}
-	if existing.Kind != "vrooli.data-backup-manager.destination" || existing.Producer != "data-backup-manager" || existing.DestinationID != meta.DestinationID || existing.DestinationName != meta.Name || existing.Backend != meta.Backend || existing.RelativePath != meta.RelativePath {
+	// Legacy bundles predate the relative-path field. An empty value is not a
+	// mismatch when the stable destination identity, name, and backend agree;
+	// the repository identity/locator checks below still prove the same bundle.
+	if existing.Kind != "vrooli.data-backup-manager.destination" || existing.Producer != "data-backup-manager" || existing.DestinationID != meta.DestinationID || existing.DestinationName != meta.Name || existing.Backend != meta.Backend || (existing.RelativePath != "" && existing.RelativePath != meta.RelativePath) {
 		return fmt.Errorf("destination manifest identity or relative locator differs")
 	}
 	uniqueID, err := repositoryUniqueID(meta.RepositoryPath)

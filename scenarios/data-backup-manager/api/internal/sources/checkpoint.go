@@ -68,7 +68,7 @@ func captureCheckpoint(ctx context.Context, spec CaptureSpec, inspect Checkpoint
 		return Artifact{}, err
 	}
 	root := filepath.Join(stage, "workspace")
-	if err = os.Mkdir(root, 0700); err != nil {
+	if err = os.Mkdir(root, 0o700); err != nil {
 		return Artifact{}, err
 	}
 	tree := filepath.Join(root, "tree")
@@ -90,7 +90,7 @@ func captureCheckpoint(ctx context.Context, spec CaptureSpec, inspect Checkpoint
 	if err != nil {
 		return Artifact{}, err
 	}
-	f, err := os.OpenFile(filepath.Join(root, "manifest.json"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filepath.Join(root, "manifest.json"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
 		return Artifact{}, err
 	}

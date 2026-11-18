@@ -41,6 +41,14 @@ func (s *stubReadiness) Analyze(context.Context, destinationreadiness.AnalyzeInp
 	return s.report, s.err
 }
 
+func (s *stubReadiness) WriteProbe(context.Context, string) (destinationreadiness.WriteProbeResult, error) {
+	return destinationreadiness.WriteProbeResult{}, nil
+}
+
+func (s recoveryBindingReadiness) WriteProbe(context.Context, string) (destinationreadiness.WriteProbeResult, error) {
+	return destinationreadiness.WriteProbeResult{}, nil
+}
+
 func failingDriverReport() destinationreadiness.Report {
 	return destinationreadiness.Report{
 		OverallSeverity: destinationreadiness.SeverityFail,

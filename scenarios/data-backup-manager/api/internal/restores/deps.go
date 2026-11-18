@@ -42,4 +42,9 @@ type DestinationLookup interface {
 	// WithResolvedDestination revalidates the destination immediately before
 	// repository use and serializes the Kopia operation with other DBM work.
 	WithResolvedDestination(ctx context.Context, destinationID string, use func(DestinationForRestore) error) error
+	// WithResolvedDestinationForRead is the read-only resolution used by
+	// restore/verify. It proves identity, mount, and repository readability
+	// without requiring a writable or clean filesystem; a verify reads from the
+	// destination and writes only to scratch.
+	WithResolvedDestinationForRead(ctx context.Context, destinationID string, use func(DestinationForRestore) error) error
 }

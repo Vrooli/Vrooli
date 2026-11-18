@@ -10,9 +10,17 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 )
+
+// DefaultLeaseReadyTimeout bounds how long DBM waits for the control plane's
+// readiness handshake before giving up on the lease. Without it, a hung
+// `vrooli host volume lease` freezes an entire backup run indefinitely with a
+// stopped heartbeat and no operator-visible failure. The bound applies only to
+// the handshake; an acquired lease stays held for the whole operation.
+const DefaultLeaseReadyTimeout = 30 * time.Second
 
 // VolumeOperationLease holds the host owner's cooperative lock for a strong
 // volume identity. DBM keeps the returned release function alive across its
@@ -25,7 +33,15 @@ type VolumeOperationLease interface {
 // It fails closed if that command cannot prove the requested identity and
 // return its readiness handshake.
 type HostVolumeOperationLease struct {
-	Binary string
+	Binary       string
+	ReadyTimeout time.Duration
+}
+
+func (l HostVolumeOperationLease) readyTimeout() time.Duration {
+	if l.ReadyTimeout > 0 {
+		return l.ReadyTimeout
+	}
+	return DefaultLeaseReadyTimeout
 }
 
 var _ VolumeOperationLease = HostVolumeOperationLease{}
@@ -57,6 +73,7 @@ func (l HostVolumeOperationLease) Acquire(ctx context.Context, identity destinat
 	}
 
 	cmd := exec.CommandContext(ctx, binary, args...)
+	configureLeaseProcess(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("open host volume lease readiness stream: %w", err)
@@ -67,27 +84,48 @@ func (l HostVolumeOperationLease) Acquire(ctx context.Context, identity destinat
 		return nil, fmt.Errorf("start host volume lease: %w", err)
 	}
 	reader := bufio.NewReader(stdout)
-	line, readErr := reader.ReadString('\n')
+	// Read the handshake in a goroutine so a hung control plane cannot block
+	// forever. The command itself is NOT tied to this timer: once the handshake
+	// arrives, the lease process must stay alive to keep the lease held, and it
+	// is ended by the caller's release or by the parent context.
+	type handshake struct {
+		line string
+		err  error
+	}
+	done := make(chan handshake, 1)
+	go func() {
+		line, err := reader.ReadString('\n')
+		done <- handshake{line: line, err: err}
+	}()
+	var line string
+	var readErr error
+	select {
+	case result := <-done:
+		line, readErr = result.line, result.err
+	case <-time.After(l.readyTimeout()):
+		killLeaseProcess(cmd)
+		return nil, fmt.Errorf("host volume lease did not become ready within %s; the control plane lease owner did not answer", l.readyTimeout())
+	case <-ctx.Done():
+		killLeaseProcess(cmd)
+		return nil, fmt.Errorf("host volume lease canceled before ready: %w", ctx.Err())
+	}
 	if readErr != nil {
-		_ = cmd.Process.Kill()
-		waitErr := cmd.Wait()
-		return nil, fmt.Errorf("host volume lease did not become ready: %s", leaseCommandError(line, readErr, waitErr, stderr.String()))
+		killLeaseProcess(cmd)
+		return nil, fmt.Errorf("host volume lease did not become ready: %s", leaseCommandError(line, readErr, nil, stderr.String()))
 	}
 	var ready struct {
 		Status string `json:"status"`
 		Device string `json:"device"`
 	}
 	if err := json.Unmarshal([]byte(line), &ready); err != nil || ready.Status != "leased" || ready.Device != identity.DevicePath {
-		_ = cmd.Process.Kill()
-		waitErr := cmd.Wait()
-		return nil, fmt.Errorf("host volume lease returned an invalid readiness record: %s", leaseCommandError(line, err, waitErr, stderr.String()))
+		killLeaseProcess(cmd)
+		return nil, fmt.Errorf("host volume lease returned an invalid readiness record: %s", leaseCommandError(line, err, nil, stderr.String()))
 	}
 
 	var once sync.Once
 	return func() {
 		once.Do(func() {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
+			killLeaseProcess(cmd)
 		})
 	}, nil
 }

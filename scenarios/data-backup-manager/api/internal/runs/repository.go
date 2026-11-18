@@ -86,6 +86,13 @@ type PlanSuccessReader interface {
 	PlanSuccess(ctx context.Context, planID string) (PlanSuccess, error)
 }
 
+// PhysicalHistoryReader is an optional additive read seam. Preflight uses the
+// last successful run's measured physical growth as the capacity model's
+// incremental estimate; a repository without the seam stays conservative.
+type PhysicalHistoryReader interface {
+	LastSuccessfulPhysicalBytes(ctx context.Context, planID string) (int64, bool, error)
+}
+
 // StatsWindowReader is implemented by a repository that can bound the run-stats
 // window in attempts (scheduled and manual runs) instead of in rows, so
 // automatic retries do not crowd real attempts out of it.

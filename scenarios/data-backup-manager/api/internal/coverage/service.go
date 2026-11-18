@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
-var ErrSensitiveReviewRequired = errors.New("sensitive targets can only be registered through a verified Notification Hub review")
-var ErrNoSensitiveSuggestions = errors.New("there are no current sensitive coverage suggestions to review")
+var (
+	ErrSensitiveReviewRequired = errors.New("sensitive targets can only be registered through a verified Notification Hub review")
+	ErrNoSensitiveSuggestions  = errors.New("there are no current sensitive coverage suggestions to review")
+)
 
 // Service is the application surface the coverage handler depends on. It holds
 // no durable state; every method derives from the composed seams.

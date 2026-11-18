@@ -15,6 +15,19 @@ import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 
+/**
+ * Static key references for the GFS bucket labels. The strings lint rule only
+ * sees literal `strings.x.y` accessors, so a dynamic `strings.plans.buckets[key]`
+ * would leave every leaf unused from its point of view.
+ */
+const BUCKET_STRINGS = {
+  hourly: strings.plans.buckets.hourly,
+  daily: strings.plans.buckets.daily,
+  weekly: strings.plans.buckets.weekly,
+  monthly: strings.plans.buckets.monthly,
+  annual: strings.plans.buckets.annual,
+} as const;
+
 interface CheckOption {
   id: string;
   label: string;
@@ -171,13 +184,14 @@ export function PlanFormDialog({
         </Field>
 
         <fieldset className="grid grid-cols-2 gap-2 rounded-control border border-app-border p-3">
-          <legend className="px-1 text-sm font-medium">Age based retention</legend>
-          {([['hourly', 'Hourly'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['monthly', 'Monthly'], ['annual', 'Annual']] as const).map(([key, label]) => (
-            <label key={key} className="flex flex-col gap-1 text-xs text-app-muted-foreground">Keep {label}
+          <legend className="px-1 text-sm font-medium">{t(strings.plans.retentionLegend)}</legend>
+          {(["hourly", "daily", "weekly", "monthly", "annual"] as const).map((key) => (
+            <label key={key} className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+              {t(strings.plans.keepBucket, { bucket: t(BUCKET_STRINGS[key]) })}
               <Input type="number" min={0} value={gfs[key]} onChange={(e) => setGfs((prev) => ({ ...prev, [key]: e.target.value }))} />
             </label>
           ))}
-          <p className="col-span-2 text-xs text-app-muted-foreground">Keep the newest snapshots above, plus the configured number from each time bucket. Zero disables that bucket.</p>
+          <p className="col-span-2 text-xs text-app-muted-foreground">{t(strings.plans.retentionHelp)}</p>
         </fieldset>
 
         {bySelector ? (

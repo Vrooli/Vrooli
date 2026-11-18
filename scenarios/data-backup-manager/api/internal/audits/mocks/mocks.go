@@ -60,6 +60,10 @@ func (f *FakeDestinationLookup) WithResolvedDestination(ctx context.Context, des
 	return use(d)
 }
 
+func (f *FakeDestinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(audits.DestinationForAudit) error) error {
+	return f.WithResolvedDestination(ctx, destID, use)
+}
+
 // SyncExecutor runs each submitted audit job inline and to completion on the
 // caller's goroutine, so a service test can request an audit and immediately
 // observe the terminal record without polling. It mirrors the production async

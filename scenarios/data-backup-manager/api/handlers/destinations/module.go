@@ -111,7 +111,9 @@ func ModuleWithBackupRecoveryLifecycle(lifecycle context.Context, db *database.R
 	readinessSvc := destinationreadiness.NewService(
 		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
 		destinationreadiness.NewLocalPreparer(),
-	).WithRemediator(destinationreadiness.NewControlPlaneRemediator()).WithMountedCheckEvidence(recoveryStore)
+	).WithRemediator(destinationreadiness.NewControlPlaneRemediator()).
+		WithMountedCheckEvidence(recoveryStore).
+		WithWriteProber(destinationreadiness.NewFileWriteProber())
 	// The same readiness service both reports to the operator and gates
 	// creation, so the advice shown and the rule enforced can never disagree.
 	svc := internaldestinations.NewService(

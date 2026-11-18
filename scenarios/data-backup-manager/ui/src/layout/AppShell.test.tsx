@@ -50,6 +50,7 @@ describe("AppShell structure (cimode)", () => {
   it("renders the canonical nav links in both sidebar and bottom nav", async () => {
     renderShell();
     await screen.findByTestId(selectors.layout.sidebarLink({ key: "overview" }));
+    const phoneTabs = new Set(["overview", "plans", "runs", "restores"]);
     for (const key of [
       "overview",
       "targets",
@@ -60,7 +61,10 @@ describe("AppShell structure (cimode)", () => {
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.sidebarLink({ key }))).toBeInTheDocument();
-      expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
+      // Only the narrow-viewport primary tabs render a bottom-nav duplicate.
+      if (phoneTabs.has(key)) {
+        expect(screen.getByTestId(`${selectors.layout.sidebarLink({ key })}-tab`)).toBeInTheDocument();
+      }
     }
   });
 });

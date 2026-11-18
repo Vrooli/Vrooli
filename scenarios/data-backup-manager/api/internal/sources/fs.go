@@ -152,7 +152,7 @@ func copyTreeContext(ctx context.Context, src, dst string) (int64, error) {
 		return 0, err
 	}
 	defer in.Close()
-	if err = os.MkdirAll(dst, 0700); err != nil {
+	if err = os.MkdirAll(dst, 0o700); err != nil {
 		return 0, err
 	}
 	out, err := os.OpenRoot(dst)
@@ -180,7 +180,7 @@ func copyTreeContext(ctx context.Context, src, dst string) (int64, error) {
 		switch {
 		case meta.IsDir():
 			if path != "." {
-				if e = out.Mkdir(path, 0700); e != nil {
+				if e = out.Mkdir(path, 0o700); e != nil {
 					return e
 				}
 			}
@@ -206,7 +206,7 @@ func copyTreeContext(ctx context.Context, src, dst string) (int64, error) {
 				f.Close()
 				return fmt.Errorf("source changed during copy")
 			}
-			dest, e := out.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			dest, e := out.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 			if e != nil {
 				f.Close()
 				return e

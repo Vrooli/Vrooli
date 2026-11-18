@@ -10,17 +10,17 @@ import (
 // [REQ:DBM-WORKSPACE-FIDELITY] Synthetic files only; no engine or service.
 func TestFilesystemRestorePreservesModesAndRefusesOverwrite(t *testing.T) {
 	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "restored")
-	if err := os.Mkdir(filepath.Join(src, "empty"), 0700); err != nil {
+	if err := os.Mkdir(filepath.Join(src, "empty"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(src, "run"), []byte("synthetic"), 0751); err != nil {
+	if err := os.WriteFile(filepath.Join(src, "run"), []byte("synthetic"), 0o751); err != nil {
 		t.Fatal(err)
 	}
 	c := newFilesystemCapturer()
 	if err := c.Restore(context.Background(), RestoreSpec{ArtifactPath: src, Target: dst}); err != nil {
 		t.Fatal(err)
 	}
-	for p, mode := range map[string]os.FileMode{"run": 0751, "empty": 0700} {
+	for p, mode := range map[string]os.FileMode{"run": 0o751, "empty": 0o700} {
 		info, err := os.Stat(filepath.Join(dst, p))
 		if err != nil || info.Mode().Perm() != mode {
 			t.Fatalf("%s mode lost: %v %v", p, info, err)

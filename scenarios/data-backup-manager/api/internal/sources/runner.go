@@ -2,9 +2,10 @@ package sources
 
 import (
 	"context"
-	"data-backup-manager/internal/effectguard"
 	"fmt"
 	"os/exec"
+
+	"data-backup-manager/internal/effectguard"
 )
 
 // CommandRunner is the process-exec boundary for source resource CLIs.

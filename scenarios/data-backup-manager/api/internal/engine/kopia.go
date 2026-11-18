@@ -26,6 +26,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -273,6 +274,10 @@ type KopiaEngine interface {
 	SnapshotCreate(ctx context.Context, repo, path string, meta SnapshotMetadata) (Snapshot, error)
 	// SnapshotList lists snapshots in a repository, optionally for one path.
 	SnapshotList(ctx context.Context, repo, path string) ([]Snapshot, error)
+	// SnapshotListByTags lists snapshots matching every key:value tag across
+	// hosts. It is the stable identity path for DBM-owned snapshots; callers
+	// that need legacy snapshots without tags fall back to SnapshotList.
+	SnapshotListByTags(ctx context.Context, repo string, tags []string) ([]Snapshot, error)
 	// SnapshotRestore restores a snapshot's contents into target.
 	SnapshotRestore(ctx context.Context, repo, snapshotID, target string) error
 	// SnapshotVerify verifies a snapshot's restorability; verifyPercent in
@@ -529,8 +534,10 @@ func (k *KopiaCLI) RepoStats(ctx context.Context, repo string) (RepoStats, error
 	}, nil
 }
 
-var kopiaDamageTempName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f\.tmp(?:\.[0-9a-f]{8,64})?$`)
-var kopiaDamageBlobName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f$`)
+var (
+	kopiaDamageTempName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f\.tmp(?:\.[0-9a-f]{8,64})?$`)
+	kopiaDamageBlobName = regexp.MustCompile(`^[0-9a-z]+(?:-[0-9a-z]+)*\.f$`)
+)
 
 func expectedDamageClass(relativePath string) string {
 	name := path.Base(relativePath)
@@ -782,9 +789,11 @@ func (k *KopiaCLI) RepoRestoreTemp(ctx context.Context, repo, repositoryPath, re
 		result.SHA256 != checksum || result.Bytes <= 0 || !result.SourcePreserved || result.TargetReplaced || !result.Committed {
 		return RepoTempBlobRestore{}, fmt.Errorf("repo temp restore %q returned incomplete or unsafe result", repo)
 	}
-	return RepoTempBlobRestore{Repository: result.Repository, RelativePath: result.RelativePath, Source: result.Source,
+	return RepoTempBlobRestore{
+		Repository: result.Repository, RelativePath: result.RelativePath, Source: result.Source,
 		Target: result.Target, SHA256: result.SHA256, Bytes: result.Bytes, SourcePreserved: result.SourcePreserved,
-		TargetReplaced: result.TargetReplaced, Replay: result.Replay, Committed: result.Committed}, nil
+		TargetReplaced: result.TargetReplaced, Replay: result.Replay, Committed: result.Committed,
+	}, nil
 }
 
 func validOrphanQBlobID(value string) bool {
@@ -847,7 +856,30 @@ func (k *KopiaCLI) SnapshotList(ctx context.Context, repo, path string) ([]Snaps
 	if path != "" {
 		args = append(args, "--path", path)
 	}
-	const maxSnapshotListBytes = 2 << 20
+	return k.snapshotList(ctx, repo, args)
+}
+
+// SnapshotListByTags is the bounded, identity-first inventory. Kopia's tag
+// filter is evaluated over manifest metadata, so it avoids transferring a
+// repository-wide inventory for every target read.
+func (k *KopiaCLI) SnapshotListByTags(ctx context.Context, repo string, tags []string) ([]Snapshot, error) {
+	args := []string{"snapshot", "list", "--repo", repo, "--all"}
+	for _, tag := range tags {
+		if strings.TrimSpace(tag) == "" {
+			continue
+		}
+		args = append(args, "--tags", tag)
+	}
+	args = append(args, "--json")
+	return k.snapshotList(ctx, repo, args)
+}
+
+func (k *KopiaCLI) snapshotList(ctx context.Context, repo string, args []string) ([]Snapshot, error) {
+	// Snapshot inventories are bounded so one malformed repository cannot
+	// exhaust the API's memory. The bound is deliberately on bytes, not on the
+	// number of manifests: a large but valid repository (hundreds of sources,
+	// several retained snapshots each) must remain enumerable.
+	const maxSnapshotListBytes = 32 << 20
 	var out []byte
 	var err error
 	if limited, ok := k.Runner.(interface {
@@ -867,17 +899,9 @@ func (k *KopiaCLI) SnapshotList(ctx context.Context, repo, path string) ([]Snaps
 	if err := json.Unmarshal(out, &manifests); err != nil {
 		return nil, fmt.Errorf("snapshot list repo=%q: parse json: %w", repo, err)
 	}
-	if len(manifests) > 128 {
-		return nil, fmt.Errorf("snapshot list exceeded 128-snapshot limit")
-	}
 	snaps := make([]Snapshot, 0, len(manifests))
 	for _, m := range manifests {
-		var tags []string
-		if raw, ok := m["tags"]; ok {
-			_ = json.Unmarshal(raw, &tags)
-		} else if raw, ok := m["Tags"]; ok {
-			_ = json.Unmarshal(raw, &tags)
-		}
+		tags := snapshotTags(m)
 		snaps = append(snaps, Snapshot{
 			ID:             firstString(m, "id", "ID"),
 			Source:         snapshotSource(m),
@@ -1080,6 +1104,35 @@ func snapshotRootCount(m map[string]json.RawMessage, keys ...string) int64 {
 
 // snapshotSource renders a manifest's source block as kopia's canonical
 // user@host:/path identity, or "" when the manifest omits any part of it.
+// snapshotTags normalizes Kopia's tag representation to sorted key:value
+// strings. Kopia writes tags as a JSON object with a "tag:" key prefix
+// ({"tag:dbm.owner":"agent-manager"}); older fixtures and tests may use an
+// array. The previous array-only decoder silently produced no tags, which made
+// every tagged snapshot look unattributed.
+func snapshotTags(m map[string]json.RawMessage) []string {
+	raw, ok := m["tags"]
+	if !ok {
+		raw, ok = m["Tags"]
+	}
+	if !ok || len(raw) == 0 {
+		return nil
+	}
+	var object map[string]string
+	if err := json.Unmarshal(raw, &object); err == nil && len(object) > 0 {
+		tags := make([]string, 0, len(object))
+		for key, value := range object {
+			tags = append(tags, strings.TrimPrefix(key, "tag:")+":"+value)
+		}
+		sort.Strings(tags)
+		return tags
+	}
+	var array []string
+	if err := json.Unmarshal(raw, &array); err == nil {
+		return array
+	}
+	return nil
+}
+
 func snapshotSource(m map[string]json.RawMessage) string {
 	raw, ok := m["source"]
 	if !ok {

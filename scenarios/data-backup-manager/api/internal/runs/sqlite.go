@@ -455,6 +455,30 @@ func (s *sqliteRepository) TargetDestinationStatuses(ctx context.Context, target
 	return out, nil
 }
 
+// LastSuccessfulPhysicalBytes returns the newest terminal run that both
+// succeeded (fully or partially) and measured positive physical growth. It is
+// the empirical increment for the capacity model; a zero result with ok=false
+// means there is no usable history, not that the next run writes zero bytes.
+func (s *sqliteRepository) LastSuccessfulPhysicalBytes(ctx context.Context, planID string) (int64, bool, error) {
+	if strings.TrimSpace(planID) == "" {
+		return 0, false, nil
+	}
+	var physical int64
+	err := s.db.QueryRowContext(ctx,
+		`SELECT physical_bytes FROM runs
+		 WHERE plan_id = ? AND status IN (?, ?) AND physical_bytes > 0
+		 ORDER BY finished_at DESC, id DESC LIMIT 1`,
+		planID, string(RunCompleted), string(RunPartialFailed),
+	).Scan(&physical)
+	if err == sql.ErrNoRows {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, fmt.Errorf("last successful physical bytes for plan %q: %w", planID, err)
+	}
+	return physical, true, nil
+}
+
 func (s *sqliteRepository) outcomesFor(ctx context.Context, runID string) ([]TargetOutcome, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT target_id, destination_id, status, snapshot_id, bytes, error, failure_code, failure_category, warning, started_at, finished_at

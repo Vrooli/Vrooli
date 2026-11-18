@@ -41,4 +41,7 @@ type DestinationForAudit struct {
 type DestinationLookup interface {
 	DestinationForAudit(ctx context.Context, destinationID string) (DestinationForAudit, error)
 	WithResolvedDestination(ctx context.Context, destinationID string, use func(DestinationForAudit) error) error
+	// WithResolvedDestinationForRead is the read-only resolution an audit uses:
+	// it reads a snapshot and writes only to its own scratch area.
+	WithResolvedDestinationForRead(ctx context.Context, destinationID string, use func(DestinationForAudit) error) error
 }

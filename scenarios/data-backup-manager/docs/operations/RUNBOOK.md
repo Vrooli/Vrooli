@@ -135,7 +135,7 @@ creation is guarded (see below), running `coverage accept-defaults` before
 ### Default plans: "registered" means backed up
 
 A plan can name its targets by rule instead of by list. `--target-selector
-registered` means every registered target, minus `--exclude-targets`, evaluated
+registered` means every registered target, minus `--excluded-target-ids`, evaluated
 every time the plan is read (runs, the scheduler, coverage, health). A target an
 owner declares is registered by the standing rule's sweep (secrets included, under
 the operator's answer to Hub ask c0d25f0a) and is in the plan on its next run with
@@ -197,7 +197,7 @@ a few also have their own baseline-safety plan):
 | vrooli / agent-worktree | 2.8 GiB | `~/Vrooli/.vrooli/work` |
 
 To bring one in, remove its id from the plan's exclusions with
-`plans update --id <local plan id> --exclude-targets <remaining ids>`; check
+`plans update --id <local plan id> --excluded-target-ids <remaining ids>`; check
 `df /` first. `coverage report` lists registered targets bound to no enabled plan.
 
 ### Destination onboarding

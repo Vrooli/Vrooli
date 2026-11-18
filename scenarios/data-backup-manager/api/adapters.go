@@ -154,11 +154,14 @@ func (a drillDestinationReadiness) ReadyForDrill(ctx context.Context, destinatio
 	if err != nil {
 		return false, "", err
 	}
-	if report.OverallSeverity != readinessint.SeverityFail && report.OverallSeverity != readinessint.SeverityUnknown {
+	// A drill reads the snapshot and writes only to scratch, so an unknown
+	// native filesystem-dirty state does not block it. A known failure
+	// (unmounted, read-only, dirty/needs-check) still does.
+	if report.OverallSeverity != readinessint.SeverityFail {
 		return true, "", nil
 	}
 	for _, check := range report.Checks {
-		if check.Severity == readinessint.SeverityFail || check.Severity == readinessint.SeverityUnknown {
+		if check.Severity == readinessint.SeverityFail {
 			return false, check.Message, nil
 		}
 	}
@@ -403,7 +406,10 @@ func (a targetLookup) ActiveTargetIDs(ctx context.Context) ([]string, error) {
 type destinationLookup struct{ svc destint.Service }
 
 func (a destinationLookup) DestinationForRun(ctx context.Context, destID string) (runsint.DestinationForRun, error) {
-	d, err := a.svc.ResolveForUse(ctx, destID)
+	// Planning reads catalog identity; it must not require write-ready state or
+	// perform a metadata repair. The write gate re-resolves strictly (or admits
+	// a probe-backed degraded write) immediately before the snapshot.
+	d, err := a.svc.GetDestination(ctx, destID)
 	if err != nil {
 		return runsint.DestinationForRun{}, err
 	}
@@ -417,10 +423,23 @@ func (a destinationLookup) DestinationForRun(ctx context.Context, destID string)
 }
 
 func (a destinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(runsint.DestinationForRun) error) error {
+	return a.WithResolvedDestinationForWrite(ctx, destID, false, use)
+}
+
+func (a destinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(runsint.DestinationForRun) error) error {
 	if use == nil {
 		return nil
 	}
-	return a.svc.WithResolvedDestination(ctx, destID, func(d destint.Destination) error {
+	return a.svc.WithResolvedDestinationForRead(ctx, destID, func(d destint.Destination) error {
+		return use(runsint.DestinationForRun{ID: d.ID, Name: d.Name, BackendKind: string(d.BackendKind), Location: d.Location, DeviceIdentity: d.DeviceIdentity})
+	})
+}
+
+func (a destinationLookup) WithResolvedDestinationForWrite(ctx context.Context, destID string, allowDegraded bool, use func(runsint.DestinationForRun) error) error {
+	if use == nil {
+		return nil
+	}
+	return a.svc.WithResolvedDestinationForWrite(ctx, destID, allowDegraded, func(d destint.Destination) error {
 		return use(runsint.DestinationForRun{ID: d.ID, Name: d.Name, BackendKind: string(d.BackendKind), Location: d.Location, DeviceIdentity: d.DeviceIdentity})
 	})
 }
@@ -444,7 +463,10 @@ func (a restoreTargetLookup) TargetForRestore(ctx context.Context, targetID stri
 type restoreDestinationLookup struct{ svc destint.Service }
 
 func (a restoreDestinationLookup) DestinationForRestore(ctx context.Context, destID string) (restoresint.DestinationForRestore, error) {
-	d, err := a.svc.ResolveForUse(ctx, destID)
+	// A restore/verify reads the snapshot from the destination and writes only
+	// to a caller-supplied target or scratch. Planning reads catalog identity;
+	// the read gate proves access immediately before the Kopia operation.
+	d, err := a.svc.GetDestination(ctx, destID)
 	if err != nil {
 		return restoresint.DestinationForRestore{}, err
 	}
@@ -452,10 +474,14 @@ func (a restoreDestinationLookup) DestinationForRestore(ctx context.Context, des
 }
 
 func (a restoreDestinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(restoresint.DestinationForRestore) error) error {
+	return a.WithResolvedDestinationForRead(ctx, destID, use)
+}
+
+func (a restoreDestinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(restoresint.DestinationForRestore) error) error {
 	if use == nil {
 		return nil
 	}
-	return a.svc.WithResolvedDestination(ctx, destID, func(d destint.Destination) error {
+	return a.svc.WithResolvedDestinationForRead(ctx, destID, func(d destint.Destination) error {
 		return use(restoresint.DestinationForRestore{ID: d.ID, Name: d.Name})
 	})
 }
@@ -475,7 +501,7 @@ func (a auditTargetLookup) TargetForAudit(ctx context.Context, targetID string) 
 type auditDestinationLookup struct{ svc destint.Service }
 
 func (a auditDestinationLookup) DestinationForAudit(ctx context.Context, destID string) (auditsint.DestinationForAudit, error) {
-	d, err := a.svc.ResolveForUse(ctx, destID)
+	d, err := a.svc.GetDestination(ctx, destID)
 	if err != nil {
 		return auditsint.DestinationForAudit{}, err
 	}
@@ -483,10 +509,14 @@ func (a auditDestinationLookup) DestinationForAudit(ctx context.Context, destID 
 }
 
 func (a auditDestinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(auditsint.DestinationForAudit) error) error {
+	return a.WithResolvedDestinationForRead(ctx, destID, use)
+}
+
+func (a auditDestinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(auditsint.DestinationForAudit) error) error {
 	if use == nil {
 		return nil
 	}
-	return a.svc.WithResolvedDestination(ctx, destID, func(d destint.Destination) error {
+	return a.svc.WithResolvedDestinationForRead(ctx, destID, func(d destint.Destination) error {
 		return use(auditsint.DestinationForAudit{ID: d.ID, Name: d.Name})
 	})
 }
@@ -1348,7 +1378,11 @@ func (a backupPosture) OverdueOrFailed(ctx context.Context) (bool, string, error
 				checked[id] = true
 				destinationName := id
 				resolved := false
-				err := a.destinations.WithResolvedDestination(ctx, id, func(destination destint.Destination) error {
+				// Health proves repository *connectivity*, which is a read. Using
+				// the write gate here reported a mounted destination with an
+				// unobservable native filesystem state as "unavailable" even though
+				// its snapshots were readable.
+				err := a.destinations.WithResolvedDestinationForRead(ctx, id, func(destination destint.Destination) error {
 					if destination.ID != id {
 						return fmt.Errorf("destination identity changed")
 					}

@@ -10,11 +10,13 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-const attestPath = "/api/wallet-recovery/attest"
-const finishPath = "/api/wallet-recovery/reservation/finish"
-const readLeaseAcquirePath = "/api/wallet-recovery/read-lease/acquire"
-const readLeaseRenewPath = "/api/wallet-recovery/read-lease/renew"
-const readLeaseReleasePath = "/api/wallet-recovery/read-lease/release"
+const (
+	attestPath           = "/api/wallet-recovery/attest"
+	finishPath           = "/api/wallet-recovery/reservation/finish"
+	readLeaseAcquirePath = "/api/wallet-recovery/read-lease/acquire"
+	readLeaseRenewPath   = "/api/wallet-recovery/read-lease/renew"
+	readLeaseReleasePath = "/api/wallet-recovery/read-lease/release"
+)
 
 type handlers struct {
 	core   *cliapp.ScenarioApp
@@ -32,18 +34,23 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 func (h *handlers) attest(ctx cliapp.RunContext) error {
 	return h.post(ctx, attestPath, map[string]string{"reservation_id": ctx.Flag("reservation-id"), "target_id": ctx.Flag("target-id"), "destination_id": ctx.Flag("destination-id")}, "request wallet recovery attestation")
 }
+
 func (h *handlers) finish(ctx cliapp.RunContext) error {
 	return h.post(ctx, finishPath, map[string]string{"reservation_id": ctx.Flag("reservation-id"), "target_id": ctx.Flag("target-id"), "state": ctx.Flag("state")}, "finalize wallet recovery reservation")
 }
+
 func (h *handlers) readLeaseAcquire(ctx cliapp.RunContext) error {
 	return h.post(ctx, readLeaseAcquirePath, map[string]string{"lease_id": ctx.Flag("lease-id"), "target_name": ctx.Flag("target-name"), "destination_id": ctx.Flag("destination-id"), "snapshot_id": ctx.Flag("snapshot-id")}, "acquire wallet recovery read lease")
 }
+
 func (h *handlers) readLeaseRenew(ctx cliapp.RunContext) error {
 	return h.post(ctx, readLeaseRenewPath, map[string]string{"lease_id": ctx.Flag("lease-id"), "target_id": ctx.Flag("target-id")}, "renew wallet recovery read lease")
 }
+
 func (h *handlers) readLeaseRelease(ctx cliapp.RunContext) error {
 	return h.post(ctx, readLeaseReleasePath, map[string]string{"lease_id": ctx.Flag("lease-id"), "target_id": ctx.Flag("target-id")}, "release wallet recovery read lease")
 }
+
 func (h *handlers) post(ctx cliapp.RunContext, path string, payload any, op string) error {
 	body, err := json.Marshal(payload)
 	if err != nil {

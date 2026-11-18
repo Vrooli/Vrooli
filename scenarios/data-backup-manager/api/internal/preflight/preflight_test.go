@@ -37,7 +37,7 @@ func (l destLookup) DestinationForRun(_ context.Context, id string) (Destination
 	return d, nil
 }
 
-func (l destLookup) WithResolvedDestination(_ context.Context, id string, use func(Destination) error) error {
+func (l destLookup) WithResolvedDestinationForRead(_ context.Context, id string, use func(Destination) error) error {
 	if l.withResolvedErr != nil {
 		return l.withResolvedErr
 	}
@@ -88,6 +88,7 @@ func (e *engineFake) PassphraseRef(string) string { return "secret-ref" }
 func (e *engineFake) RepoStats(context.Context, string) (engine.RepoStats, error) {
 	return engine.RepoStats{}, e.statsErr
 }
+
 func (e *engineFake) RepoDamageScan(context.Context, string) (engine.RepoDamageScan, error) {
 	e.damageCalls++
 	return e.damageScan, nil
@@ -98,6 +99,11 @@ func (e *engineFake) SnapshotCreate(context.Context, string, string, engine.Snap
 }
 
 func (e *engineFake) SnapshotList(context.Context, string, string) ([]engine.Snapshot, error) {
+	e.listCalls++
+	return nil, e.listErr
+}
+
+func (e *engineFake) SnapshotListByTags(context.Context, string, []string) ([]engine.Snapshot, error) {
 	e.listCalls++
 	return nil, e.listErr
 }
@@ -189,6 +195,83 @@ func TestCheckIncludesKopiaOwnerDamageClassificationWhenUsageFails(t *testing.T)
 	}
 	if r.Incidents[0].Message != "Kopia classified unreadable repository entries: 1 repository_blob io_error" || eng.damageCalls != 1 {
 		t.Fatalf("preflight did not surface one owner-classified damage result: incident=%+v scanCalls=%d", r.Incidents[0], eng.damageCalls)
+	}
+}
+
+func TestCheckCarriesTheDegradedWritePolicyToTheExecutor(t *testing.T) {
+	// Preflight owns the redundancy decision; the executor must consume the
+	// same decision instead of re-deriving it at the write boundary.
+	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
+	r := Check(context.Background(), Input{
+		Plan: Plan{
+			TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"},
+			DegradedDestinations: map[string]bool{"d1": true},
+		},
+		Targets: targetLookup{targets: map[string]Target{
+			"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "/source"},
+		}},
+		Destinations: destLookup{destinations: map[string]Destination{
+			"d1": {ID: "d1", Name: "external", BackendKind: "filesystem", Location: "/mnt/external"},
+		}},
+		Engine: &engineFake{}, Sources: registry,
+		Readiness: readinessFake{report: destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityPass}},
+	})
+	if !r.DegradedDestinations["d1"] {
+		t.Fatalf("result degraded destinations = %+v, want the plan's decision carried through", r.DegradedDestinations)
+	}
+}
+
+func TestCheckAllowsDegradedReadinessWhenPolicyAndProbeAllowIt(t *testing.T) {
+	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
+	r := Check(context.Background(), Input{
+		Plan: Plan{TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"}, DegradedDestinations: map[string]bool{"d1": true}},
+		Targets: targetLookup{targets: map[string]Target{
+			"t1": {ID: "t1", Kind: sources.KindFilesystem},
+		}},
+		Destinations: destLookup{destinations: map[string]Destination{
+			"d1": {ID: "d1", Name: "external", BackendKind: "filesystem", Location: "/mnt/external"},
+		}},
+		Engine: &engineFake{}, Sources: registry,
+		Readiness: readinessFake{report: destinationreadiness.Report{
+			OverallSeverity: destinationreadiness.SeverityWarning,
+			Checks: []destinationreadiness.CheckResult{{
+				Code: "filesystem_state", Severity: destinationreadiness.SeverityWarning,
+				Message: "filesystem state is unobservable; a bounded write probe passed and another verified copy exists",
+			}},
+		}},
+	})
+	if !r.Ready || r.Blocked {
+		t.Fatalf("preflight posture = ready=%v blocked=%v, want degraded readiness admitted", r.Ready, r.Blocked)
+	}
+	if len(r.Incidents) != 0 {
+		t.Fatalf("incidents = %+v, want none for a degraded-but-allowed destination", r.Incidents)
+	}
+}
+
+func TestCheckAttributesFailedWriteProbeToTheDestination(t *testing.T) {
+	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
+	r := Check(context.Background(), Input{
+		Plan: Plan{TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"}},
+		Targets: targetLookup{targets: map[string]Target{
+			"t1": {ID: "t1", Kind: sources.KindFilesystem},
+		}},
+		Destinations: destLookup{destinations: map[string]Destination{
+			"d1": {ID: "d1", Name: "external", BackendKind: "filesystem", Location: "/mnt/external"},
+		}},
+		Engine: &engineFake{}, Sources: registry,
+		Readiness: readinessFake{report: destinationreadiness.Report{
+			OverallSeverity: destinationreadiness.SeverityFail,
+			Checks: []destinationreadiness.CheckResult{{
+				Code: "write_probe", Severity: destinationreadiness.SeverityFail,
+				Message: "bounded write probe failed: EIO", NextAction: "restore writable, error-free access",
+			}},
+		}},
+	})
+	if r.Ready || !r.Blocked {
+		t.Fatalf("preflight posture = ready=%v blocked=%v", r.Ready, r.Blocked)
+	}
+	if len(r.Incidents) != 1 || r.Incidents[0].Code != failures.DestinationWriteProbe {
+		t.Fatalf("incidents = %+v, want destination_write_probe", r.Incidents)
 	}
 }
 
@@ -331,9 +414,10 @@ type capacityAwareReadiness struct {
 
 func (c *capacityAwareReadiness) Analyze(_ context.Context, in destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error) {
 	c.got = in
-	if in.SelectedTargetBytes == 0 {
+	if in.Capacity.LogicalSourceBytes == 0 {
 		return destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityUnknown, Checks: []destinationreadiness.CheckResult{{
-			Code: "capacity", Severity: destinationreadiness.SeverityUnknown, Message: "target size not selected; capacity fit is unknown"}}}, nil
+			Code: "capacity", Severity: destinationreadiness.SeverityUnknown, Message: "target size not selected; capacity fit is unknown",
+		}}}, nil
 	}
 	return destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityPass}, nil
 }
@@ -383,7 +467,7 @@ func TestCheckBlocksOnlyTheUnreadableTargetNotTheDestination(t *testing.T) {
 	if _, blocked := r.BlockedTargets["good"]; blocked {
 		t.Fatalf("a readable target was blocked: %+v", r.Incidents)
 	}
-	if readiness.got.SelectedTargetBytes == 0 {
+	if readiness.got.Capacity.LogicalSourceBytes == 0 {
 		t.Fatal("capacity must be judged over the targets that will actually be written")
 	}
 	for _, in := range r.Incidents {

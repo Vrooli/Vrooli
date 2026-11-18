@@ -149,7 +149,7 @@
     "attention": "{{count}} 件のターゲットに対応が必要です",
     "overdue": "{{count}} 件が期限超過または失敗",
     "unverified": "{{count}} 件が未検証",
-    "readinessLabel": "API",
+    "readinessLabel": "状態",
     "serviceLabel": "サービス"
   },
   "overview": {
@@ -169,6 +169,7 @@
     "setupCtaPlans": "プランを作成",
     "usageOfCap": "{{cap}} 中 {{used}}",
     "usageUncapped": "{{used}} 使用中",
+    "usageUnavailable": "リポジトリの使用量を取得できません — ドライブまたはリポジトリを読み取れませんでした。",
     "metricsHeading": "バックアップ効率",
     "metricsDedup": "ディスク上 {{physical}} · {{ratio}}× 重複排除",
     "metricsDedupApprox": "概算",
@@ -306,6 +307,16 @@
     "tierCriticalSecondary": "クリティカルセカンダリ",
     "keepLatest": "最新を保持",
     "keepLatestHint": "ターゲットごとに保持するスナップショット数。0 はすべて保持。",
+    "retentionLegend": "期間別の保持",
+    "keepBucket": "{{bucket}}を保持",
+    "retentionHelp": "上記の最新スナップショットに加え、各期間バケットから設定した数を保持します。0 にするとそのバケットは無効になります。",
+    "buckets": {
+      "hourly": "毎時",
+      "daily": "毎日",
+      "weekly": "毎週",
+      "monthly": "毎月",
+      "annual": "毎年"
+    },
     "enabled": "有効",
     "targets": "ターゲット",
     "destinations": "保存先",

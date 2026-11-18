@@ -209,7 +209,7 @@
           "name": "snapshots",
           "description": "List immutable snapshots for a stable DBM owner/name identity, newest first",
           "flags": [
-            {"name": "id", "required": true, "description": "Connected DBM destination id"},
+            {"name": "destination-id", "required": true, "description": "Connected DBM destination id"},
             {"name": "owner", "required": true, "description": "Stable target owner"},
             {"name": "name", "required": true, "description": "Stable target name"}
           ],
@@ -741,7 +741,7 @@
               "description": "Rule instead of a list: 'registered' = every registered target, evaluated on every run so a newly registered target is backed up without editing the plan"
             },
             {
-              "name": "exclude-targets",
+              "name": "excluded-target-ids",
               "description": "With --target-selector: comma-separated target ids to keep out of the plan"
             },
             {
@@ -856,7 +856,7 @@
               "description": "'registered' to select every registered target by rule; 'none' to go back to an explicit list"
             },
             {
-              "name": "exclude-targets",
+              "name": "excluded-target-ids",
               "description": "With a target selector: comma-separated target ids to keep out (replaces existing)"
             },
             {

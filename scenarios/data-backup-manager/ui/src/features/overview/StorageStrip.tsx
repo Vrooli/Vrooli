@@ -1,12 +1,11 @@
 import { HardDrive } from "lucide-react";
 
-import { UsageBar } from "../../components/ui/usage-bar";
-import { StatusChip } from "../../components/ui/status-chip";
 import { AsyncSection } from "../../components/AsyncSection";
 import { EmptyState } from "../../components/EmptyState";
+import { DestinationUsageChip, DestinationUsageMeter } from "../destinations/DestinationUsage";
 import { useDestinations } from "../../hooks/useDestinations";
-import { backendSlug, capPolicySlug, usageMeta } from "../../lib/status";
-import { BACKEND_STRINGS, CAP_POLICY_STRINGS, USAGE_STRINGS } from "../../consts/statusStrings";
+import { backendSlug, capPolicySlug } from "../../lib/status";
+import { BACKEND_STRINGS, CAP_POLICY_STRINGS } from "../../consts/statusStrings";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -38,29 +37,26 @@ export function StorageStrip() {
         }
       >
         <ul className="grid gap-3 sm:grid-cols-2">
-          {destinations.map((d) => {
-            const usage = usageMeta(d.usageState);
-            return (
-              <li
-                key={d.id}
-                className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-app-foreground">{d.name}</p>
-                    <p className="truncate text-xs text-app-muted-foreground">
-                      {t(BACKEND_STRINGS[backendSlug(d.backendKind)])}
-                    </p>
-                  </div>
-                  <StatusChip tone={usage.tone} labelKey={USAGE_STRINGS[usage.slug]} />
+          {destinations.map((d) => (
+            <li
+              key={d.id}
+              className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-app-foreground">{d.name}</p>
+                  <p className="truncate text-xs text-app-muted-foreground">
+                    {t(BACKEND_STRINGS[backendSlug(d.backendKind)])}
+                  </p>
                 </div>
-                <UsageBar usageBytes={d.usageBytes} capBytes={d.capBytes} usageState={d.usageState} />
-                <p className="text-xs text-app-muted-foreground">
-                  {t(CAP_POLICY_STRINGS[capPolicySlug(d.capPolicy)])}
-                </p>
-              </li>
-            );
-          })}
+                <DestinationUsageChip destination={d} />
+              </div>
+              <DestinationUsageMeter destination={d} />
+              <p className="text-xs text-app-muted-foreground">
+                {t(CAP_POLICY_STRINGS[capPolicySlug(d.capPolicy)])}
+              </p>
+            </li>
+          ))}
         </ul>
       </AsyncSection>
     </section>

@@ -49,6 +49,7 @@ func (f *fakeEffects) ProveCapacity(_ context.Context, planID, oldDestinationID,
 	}
 	return p, nil
 }
+
 func (f *fakeEffects) Capture(_ context.Context, p, t, d, k string) (CaptureReceipt, error) {
 	f.calls = append(f.calls, "capture:"+t)
 	f.captureCount++
@@ -57,6 +58,7 @@ func (f *fakeEffects) Capture(_ context.Context, p, t, d, k string) (CaptureRece
 	}
 	return CaptureReceipt{TargetID: t, DestinationID: d, SnapshotID: "snap-" + t, Bytes: 100, Verified: true}, nil
 }
+
 func (f *fakeEffects) Drill(_ context.Context, _, t, d, s, k string) (DrillReceipt, error) {
 	f.calls = append(f.calls, "drill:"+t)
 	if t == f.failDrill {
@@ -68,11 +70,13 @@ func (f *fakeEffects) Drill(_ context.Context, _, t, d, s, k string) (DrillRecei
 	}
 	return DrillReceipt{TargetID: t, DestinationID: d, SnapshotID: s, RestoreID: "restore-" + t, ScratchReceiptID: "scratch-restore-" + t, Verified: true}, nil
 }
+
 func (f *fakeEffects) SwitchBindings(_ context.Context, p, o, n string, targets []string, k string) error {
 	f.calls = append(f.calls, "switch")
 	f.switched = true
 	return nil
 }
+
 func newFixture() (*Service, *fakeStore, *fakeEffects, []string) {
 	now := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
 	st := &fakeStore{rows: map[string]Migration{}}
@@ -83,6 +87,7 @@ func newFixture() (*Service, *fakeStore, *fakeEffects, []string) {
 	}
 	return New(st, fx, fakeClock{now}), st, fx, targets
 }
+
 func TestMigrationCapturesAndDrillsExact14BeforeSwitch(t *testing.T) {
 	svc, st, fx, targets := newFixture()
 	m, err := svc.Begin(context.Background(), "migration-1", "plan-1", "old-repo", "new-repo", targets)
@@ -112,6 +117,7 @@ func TestMigrationCapturesAndDrillsExact14BeforeSwitch(t *testing.T) {
 		t.Fatal("old repository identity not retained")
 	}
 }
+
 func TestMigrationNeverSwitchesUntilAllScratchDrillsVerify(t *testing.T) {
 	svc, _, fx, targets := newFixture()
 	fx.failDrill = targets[7]
@@ -168,6 +174,7 @@ func TestMigrationReprovesCapacityBeforeSwitch(t *testing.T) {
 		t.Fatalf("final capacity failure must preserve the old plan binding: stage=%s switched=%v proofs=%d err=%v", got.Stage, fx.switched, fx.capacityCalls, err)
 	}
 }
+
 func TestMigrationRejectsUnknownInsufficientAndExpiredCapacity(t *testing.T) {
 	for _, mutate := range []func(*CapacityProof){func(p *CapacityProof) { p.AvailableBytes = p.RequiredBytes - 1 }, func(p *CapacityProof) { p.Receipt = "" }, func(p *CapacityProof) { p.ExpiresAt = p.MeasuredAt }} {
 		svc, _, fx, targets := newFixture()
@@ -192,6 +199,7 @@ func TestMigrationRejectsCapacityProofForDifferentTargetSet(t *testing.T) {
 		t.Fatalf("capacity proof for different target set admitted effects: %+v err=%v", got, err)
 	}
 }
+
 func TestMigrationRequiresExactly14UniqueExplicitTargets(t *testing.T) {
 	svc, _, _, targets := newFixture()
 	for _, set := range [][]string{targets[:13], append(append([]string{}, targets[:13]...), targets[0]), append(append([]string{}, targets[:13]...), "")} {
@@ -200,6 +208,7 @@ func TestMigrationRequiresExactly14UniqueExplicitTargets(t *testing.T) {
 		}
 	}
 }
+
 func TestMigrationFileStorePersistsAndRejectsPathTraversal(t *testing.T) {
 	root := t.TempDir()
 	store := &FileStore{Root: root}

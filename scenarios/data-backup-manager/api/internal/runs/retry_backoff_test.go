@@ -26,7 +26,8 @@ func blockedService(t *testing.T) (runs.Service, *scheduletest.FakeClock) {
 		Repo:  runs.NewSQLiteRepository(newRunsDB(t), clock),
 		Plans: &runsmocks.FakePlanLookup{Plans: map[string]runs.PlanForRun{plan.ID: plan}},
 		Targets: &runsmocks.FakeTargetLookup{Targets: map[string]runs.TargetForRun{
-			"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"}}},
+			"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "a"},
+		}},
 		Destinations: &runsmocks.FakeDestinationLookup{
 			Destinations: map[string]runs.DestinationForRun{"dst-1": {ID: "dst-1", Name: "nightly"}},
 			BlockFn:      func(string, int64) (bool, string, error) { return true, "over cap", nil },

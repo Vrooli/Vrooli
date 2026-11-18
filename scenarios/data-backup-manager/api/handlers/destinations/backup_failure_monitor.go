@@ -273,7 +273,10 @@ func (w *BackupFailureWorker) handleFailing(ctx context.Context, dest destinatio
 		// Repository evidence can trigger retry, repair planning, or a decision.
 		// Do not classify it using resource-kopia's potentially stale connection
 		// after a failed path re-resolution (for example NTFS UNKNOWN/EIO).
-		err := w.dests.WithResolvedDestination(ctx, dest.ID, func(current destinations.Destination) error {
+		// Diagnosis is read-only. Requiring write-ready filesystem state here
+		// deferred diagnosis for every mounted-but-unknown volume, so failures
+		// on those drives were never classified.
+		err := w.dests.WithResolvedDestinationForRead(ctx, dest.ID, func(current destinations.Destination) error {
 			if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
 				return fmt.Errorf("destination identity changed before backup-failure diagnosis")
 			}

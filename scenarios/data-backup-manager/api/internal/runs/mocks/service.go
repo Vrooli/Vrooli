@@ -87,4 +87,6 @@ func (f *FakeService) GetRunStats(_ context.Context, _ string) (runs.RunStats, e
 
 func (f *FakeService) Reconcile(context.Context) error { return nil }
 
+func (f *FakeService) SweepStaleStaging(context.Context) (int, error) { return 0, nil }
+
 func (f *FakeService) Shutdown(context.Context) error { return nil }

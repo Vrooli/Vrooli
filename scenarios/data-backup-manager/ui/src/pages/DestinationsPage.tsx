@@ -6,13 +6,12 @@ import { EmptyState } from "../components/EmptyState";
 import { AsyncSection } from "../components/AsyncSection";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Button } from "../components/ui/button";
-import { StatusChip } from "../components/ui/status-chip";
-import { UsageBar } from "../components/ui/usage-bar";
 import { DestinationFormDialog } from "../features/destinations/DestinationFormDialog";
+import { DestinationUsageChip, DestinationUsageMeter } from "../features/destinations/DestinationUsage";
 import { useDeleteDestination, useDestinations } from "../hooks/useDestinations";
 import type { Destination } from "../api/destinations";
-import { backendSlug, capPolicySlug, usageMeta } from "../lib/status";
-import { BACKEND_STRINGS, CAP_POLICY_STRINGS, USAGE_STRINGS } from "../consts/statusStrings";
+import { backendSlug, capPolicySlug } from "../lib/status";
+import { BACKEND_STRINGS, CAP_POLICY_STRINGS } from "../consts/statusStrings";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
@@ -87,7 +86,6 @@ export function DestinationsPage() {
       >
         <ul data-testid={selectors.destinations.list} className="grid gap-3 sm:grid-cols-2">
           {destinations.map((d) => {
-            const usage = usageMeta(d.usageState);
             return (
               <li
                 key={d.id}
@@ -101,11 +99,11 @@ export function DestinationsPage() {
                       {t(BACKEND_STRINGS[backendSlug(d.backendKind)])}
                     </p>
                   </div>
-                  <StatusChip tone={usage.tone} labelKey={USAGE_STRINGS[usage.slug]} />
+                  <DestinationUsageChip destination={d} />
                 </div>
 
                 <p className="truncate font-mono text-xs text-app-muted-foreground">{d.location}</p>
-                <UsageBar usageBytes={d.usageBytes} capBytes={d.capBytes} usageState={d.usageState} />
+                <DestinationUsageMeter destination={d} />
 
                 <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-xs">
                   {d.repositoryLocation && d.repositoryLocation !== d.location && (

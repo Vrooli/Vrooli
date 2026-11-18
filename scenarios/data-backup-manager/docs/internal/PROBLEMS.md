@@ -980,6 +980,116 @@ all 14 targets. The filesystem repair did not resolve this object-level I/O
 failure; a separate authorized-host diagnosis is still needed before another
 repository mutation or backup write.
 
+## 2026-11-18 — snapshot identity, capacity, and degraded readability (code fixed; live proof pending)
+
+**Symptom (was):** `destinations snapshots` returned “unidentifiable or
+mismatched snapshot” for targets that had snapshots; runs preflight reported
+`repository_invalid` for a 218-target local plan; a 218-target plan failed every
+target on capacity while an incremental run added only ~1.85 GB; and a
+mounted-but-unknown Elements volume could not even be read for snapshots or
+usage.
+
+**Root causes:** (1) a 128-manifest cap in `KopiaCLI.SnapshotList` rejected
+valid repositories with 269 snapshots; (2) Kopia writes tags as a
+`tag:`-prefixed JSON object, but the engine decoded only arrays, so every
+tagged snapshot looked unattributed; (3) `retentionCopies` summed every GFS tier
+and multiplied the full source estimate; (4) `WithResolvedDestination` required
+write-ready filesystem evidence for read-only operations.
+
+**Resolution:** byte-bounded snapshot inventory with normalized tags; tag-first
+identity with a legacy source-suffix fallback; `internal/capacity` admission
+model; `WithResolvedDestinationForRead`; explicit `WriteVerdict` plus a bounded
+write probe. See `DECISIONS.md` 2026-11-18 and `INVARIANTS.md`.
+
+**Live proof:** run `1f3fc427-3d46-49c9-b10f-aa048af744bd` completed with
+snapshot `55e9da76f6efc57ff7ad33c653e0f65c`; drill
+`f5a31874-0aac-4943-bc10-b82712ffba2d` restored it to scratch and reached
+`DRILL_STATUS_VERIFIED` (restore `fb6643cf-d17b-435a-9c68-4c0f77ae4d22`).
+External snapshot listing and usage return live values in ~6s. The 218-target
+local plan preflights with only the known `adguard-home` permission denial.
+
+**Resolved since:** the 218-target local run completed 213/218 (4 real
+permission/path failures, 1 blocked); Elements usage reads 397.6 GB; a
+degraded write to the Elements drive succeeded for all 17
+`free-disk-root-migration` targets. The UI mounts the library design tokens, so
+the sidebar no longer collapses.
+
+Test Genie `20261118-195708-2653aa5f` passed unit, contracts, and storage
+(warnings only) after the storage declarations and CLI binding fixes.
+
+**Still open:** a restore/drill from a *new* Elements snapshot (the verified
+drill used the existing 12 Nov private-data snapshot); credential-bundle
+completeness; the host-level EIO objects that make Kopia's own `blob stats`
+fail on `elements-local` (DBM's exception-backed direct scan covers usage); and
+the broader "Am I safe?" protection-console redesign. The control-plane lease
+should also make its holder die with its parent, and `vrooli scenario restart`
+still hits the build-capacity residency-fence timeout. The 6 private-data
+targets other than `operator/private` still have no independent copy, so their
+Elements writes remain correctly blocked until a second device or off-host
+destination exists.
+
+**Deployment friction (control plane, not DBM):** on 2026-11-18 a normal
+`vrooli scenario restart` and the setup phase of `vrooli scenario start` failed
+at `release component api build capacity lease: read claim residency transition
+fence: context deadline exceeded`. The artifact was built and fresh; a
+stop/start with `--best-effort` after setup freshness succeeded. The owner is
+the control-plane capacity/lifecycle lease path, not this scenario.
+
+### 2026-11-18 — host-volume lease can orphan its holder and block every write
+
+**Symptom:** an Elements write run froze in `capturing` with a stopped
+heartbeat and no operator-visible failure. `lslocks` showed
+`~/.vrooli/state/locks/artifact-host-volume-operation-*.lock` held forever by a
+`vrooli host volume lease` process whose parent was gone. Every later lease
+waited on that flock, so no DBM write could start.
+
+**Root cause:** DBM runs the `vrooli` entry point, which may spawn the workspace
+build binary as a child. DBM killed only the process it started (the shim), so
+the child that actually held the exclusive flock survived. The lease handshake
+was also unbounded, so a hung control plane froze the run indefinitely instead
+of failing it.
+
+**Resolution (DBM side):** the lease command runs in its own process group and
+release/cancel kills the whole group (`lease_process_unix.go`); the readiness
+handshake is bounded at 30s (`DefaultLeaseReadyTimeout`). A lease failure now
+surfaces its bounded cause instead of "destination readiness changed".
+
+**Still open (control plane):** the holder should also die with its parent on an
+abnormal DBM exit (for example `PR_SET_PDEATHSIG` in the lease action) and the
+lease action should not fork a child that outlives the process DBM supervises.
+Until then, a killed or crashed DBM can leave one orphan holding the flock;
+`lslocks` plus killing that PID clears it.
+
+### 2026-11-18 — nested destination bundles were reported as a collision
+
+**Symptom:** every write to `free-disk-root` and `protected-private-data` failed
+with `repository_invalid` even though reads and repository probes succeeded.
+The bundles live under the `elements-local` bundle root, so the locator-collision
+check treated the ancestor relationship as a conflict.
+
+**Root cause:** the collision check compared *bundle roots* with containment
+(`diskPathsOverlap`) instead of comparing repository paths and exact bundle
+identity.
+
+**Resolution:** compare repository paths for overlap and bundle roots for
+equality only; nested bundles with distinct repositories are legitimate. A
+regression test covers both the nested case and the shared-bundle case.
+
+### 2026-11-18 — stale backup exception blocked all Elements usage
+
+**Symptom:** `destinations usage` for `elements-local` always failed with
+`1 unreadable repository entry is not covered by an approved exception (first:
+s/084/...)`, even though the exception file listed that exact path.
+
+**Root cause:** the approved temp-file path had since become a readable empty
+directory. `repohealth.Evaluate` classified any shape change as `Blocking`, so a
+stale approval gated every usage read forever.
+
+**Resolution:** a shape change to a readable directory is reported as `Stale`
+(not a blocker) because the scan traverses and measures it; a link or special
+file still blocks. Elements usage now returns 397,583,865,403 bytes. Revoking a
+stale exception still has no CLI; the approval remains in the store harmlessly.
+
 ## Work ladder
 
 - Rung: W3

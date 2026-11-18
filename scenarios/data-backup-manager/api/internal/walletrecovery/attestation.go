@@ -9,9 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vrooli/api-core/receiptsigning"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/receiptsigning"
 )
 
 var ErrNotConfigured = errors.New("wallet recovery attestation signer is not configured")

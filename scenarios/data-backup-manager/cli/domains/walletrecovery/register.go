@@ -2,6 +2,7 @@ package walletrecovery
 
 import (
 	"fmt"
+
 	"github.com/vrooli/cli-core/cliapp"
 )
 

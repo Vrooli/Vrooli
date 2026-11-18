@@ -23,6 +23,7 @@ vi.mock("../api/targets", async (importOriginal) => ({
 vi.mock("../api/destinations", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/destinations")>()),
   listDestinations: vi.fn(),
+  getDestinationUsage: vi.fn(),
 }));
 vi.mock("../api/runs", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../api/runs")>()),
@@ -50,9 +51,15 @@ const recently = new Date(Date.now() - 60 * 60 * 1000);
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(healthApi.fetchHealth).mockResolvedValue({
-    status: "ok",
+    status: "healthy",
     service: "data-backup-manager",
-    readiness: "ready",
+    readiness: true,
+  } as never);
+  vi.mocked(destinationsApi.getDestinationUsage).mockResolvedValue({
+    usageBytes: 10n * 1024n ** 3n,
+    capBytes: 100n * 1024n ** 3n,
+    usageState: UsageState.WITHIN,
+    capPolicy: CapPolicy.ALERT_BLOCK,
   } as never);
   vi.mocked(targetsApi.listTargets).mockResolvedValue([
     { id: "t1", owner: "prompt-manager", name: "store", sourceKind: SourceKind.FILESYSTEM, locator: "store" },

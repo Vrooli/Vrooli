@@ -23,7 +23,11 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// Snapshot inventory and repository usage walk Kopia metadata and can take
+	// longer than the default 30s client timeout on a large or removable
+	// repository. Three minutes matches the run-trigger client and keeps the
+	// read path from surfacing a transport timeout as a repository failure.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 3*time.Minute)
 	return &handlers{
 		core:   core,
 		client: destinationsconnect.NewDestinationsServiceClient(httpClient, baseURL),
@@ -167,7 +171,7 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 
 func (h *handlers) snapshots(ctx cliapp.RunContext) error {
 	resp, err := h.client.ListTargetSnapshots(context.Background(), connect.NewRequest(&destinationsv1.ListTargetSnapshotsRequest{
-		DestinationId: ctx.Flag("id"), Owner: ctx.Flag("owner"), Name: ctx.Flag("name"),
+		DestinationId: ctx.Flag("destination-id"), Owner: ctx.Flag("owner"), Name: ctx.Flag("name"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("list destination target snapshots", err, nil)

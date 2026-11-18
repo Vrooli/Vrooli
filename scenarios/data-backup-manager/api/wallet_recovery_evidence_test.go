@@ -17,6 +17,8 @@ import (
 	"data-backup-manager/internal/sources"
 	"data-backup-manager/internal/targets"
 	"data-backup-manager/internal/walletrecovery"
+
+	"github.com/vrooli/api-core/databasetest"
 )
 
 const evidenceTestTombstone = `{"version":1,"epoch":2,"wallet_id":"wallet","network":"eip155:84532","address":"0xold","public_key":"pub","successor_wallet_id":"successor","revoked_at":"2026-11-16T06:00:00Z","signature":"sig"}`
@@ -35,16 +37,34 @@ type walletEvidencePlans struct{ plan plans.Plan }
 
 func (f walletEvidencePlans) Get(context.Context, string) (plans.Plan, error) { return f.plan, nil }
 
-type walletEvidenceTargets struct{ target targets.Target }
-
-func (f walletEvidenceTargets) Get(context.Context, string) (targets.Target, error) {
-	return f.target, nil
+// walletEvidenceTargets reuses the shared in-memory SliceRepo for Get and
+// adds the owner-filtered list the recovery snapshot catalog needs.
+type walletEvidenceTargets struct {
+	*databasetest.SliceRepo[targets.Target]
 }
-func (f walletEvidenceTargets) List(_ context.Context, owner string, _ int) ([]targets.Target, error) {
-	if f.target.Owner != owner {
-		return nil, nil
+
+func newWalletEvidenceTargets(target targets.Target) walletEvidenceTargets {
+	repo := databasetest.NewSliceRepo(
+		func(t targets.Target) string { return t.ID },
+		func(t *targets.Target, id string) { t.ID = id },
+		func(id string) error { return errors.New("target " + id + " not found") },
+	)
+	repo.Items = []targets.Target{target}
+	return walletEvidenceTargets{SliceRepo: repo}
+}
+
+func (f walletEvidenceTargets) List(_ context.Context, owner string, limit int) ([]targets.Target, error) {
+	var out []targets.Target
+	for _, target := range f.Items {
+		if target.Owner != owner {
+			continue
+		}
+		out = append(out, target)
+		if limit > 0 && len(out) >= limit {
+			break
+		}
 	}
-	return []targets.Target{f.target}, nil
+	return out, nil
 }
 
 type walletEvidenceDestinations struct {
@@ -57,6 +77,7 @@ type walletEvidenceDestinations struct {
 func (f *walletEvidenceDestinations) GetDestination(context.Context, string) (destinations.Destination, error) {
 	return f.destination, nil
 }
+
 func (f *walletEvidenceDestinations) ListTargetSnapshots(context.Context, string, string, string) ([]engine.Snapshot, error) {
 	f.reads++
 	if f.reads > 1 && f.second != nil {
@@ -66,7 +87,7 @@ func (f *walletEvidenceDestinations) ListTargetSnapshots(context.Context, string
 }
 
 func TestDBMWalletRecoverySnapshotCatalogBracketsNewestWithGeneration(t *testing.T) {
-	target := walletEvidenceTargets{target: targets.Target{ID: "target", Owner: "treasury", Name: "treasury-wallet-recovery-wallet", SourceKind: sources.KindFilesystem}}
+	target := newWalletEvidenceTargets(targets.Target{ID: "target", Owner: "treasury", Name: "treasury-wallet-recovery-wallet", SourceKind: sources.KindFilesystem})
 	destination := &walletEvidenceDestinations{
 		destination: destinations.Destination{ID: "dest", BackendKind: destinations.BackendS3},
 		snapshots: []engine.Snapshot{
@@ -104,6 +125,7 @@ func (f *walletEvidenceEngine) SnapshotVerify(context.Context, string, string, i
 	f.calls++
 	return nil
 }
+
 func (f *walletEvidenceEngine) SnapshotRestore(_ context.Context, _, _, target string) error {
 	f.calls++
 	return os.WriteFile(filepath.Join(target, "revocation.json"), []byte(evidenceTestTombstone), 0o600)
@@ -146,7 +168,7 @@ func validWalletRecoveryEvidenceReader(t *testing.T) (dbmWalletRecoveryEvidenceR
 		Runs:         walletEvidenceRuns{run: runs.Run{ID: runID, PlanID: planID, Trigger: runs.TriggerManual, Status: runs.RunCompleted, Outcomes: []runs.TargetOutcome{{TargetID: targetID, DestinationID: destinationID, Status: runs.OutcomeSucceeded, SnapshotID: snapshotID}}}},
 		Restores:     walletEvidenceRestores{rows: []restores.Restore{{ID: "restore", TargetID: targetID, DestinationID: destinationID, SnapshotID: snapshotID, Mode: restores.ModeVerify, Status: restores.RestoreVerified, Checksum: checksum, FinishedAt: now}}},
 		Plans:        walletEvidencePlans{plan: plans.Plan{ID: planID, TargetIDs: []string{targetID}, DestinationIDs: []string{destinationID}}},
-		Targets:      walletEvidenceTargets{target: targets.Target{ID: targetID, Owner: "treasury", Name: "treasury-wallet-recovery-wallet", SourceKind: sources.KindFilesystem}},
+		Targets:      newWalletEvidenceTargets(targets.Target{ID: targetID, Owner: "treasury", Name: "treasury-wallet-recovery-wallet", SourceKind: sources.KindFilesystem}),
 		Destinations: dest, Engine: engineReader, Generation: &walletEvidenceGeneration{values: []int64{4, 4}},
 	}
 	return reader, dest, engineReader
@@ -155,7 +177,7 @@ func validWalletRecoveryEvidenceReader(t *testing.T) (dbmWalletRecoveryEvidenceR
 func TestDBMWalletRecoveryEvidenceRejectsMismatchedCatalogIDsAndChecksum(t *testing.T) {
 	t.Run("target id mismatch", func(t *testing.T) {
 		reader, _, kopia := validWalletRecoveryEvidenceReader(t)
-		reader.Targets = walletEvidenceTargets{target: targets.Target{ID: "other", Owner: "treasury", Name: "treasury-wallet-recovery-wallet", SourceKind: sources.KindFilesystem}}
+		reader.Targets = newWalletEvidenceTargets(targets.Target{ID: "other", Owner: "treasury", Name: "treasury-wallet-recovery-wallet", SourceKind: sources.KindFilesystem})
 		if _, err := reader.ReadWalletRecoveryEvidence(context.Background(), "req", "target", "destination"); err == nil {
 			t.Fatal("mismatched target ID must refuse")
 		}

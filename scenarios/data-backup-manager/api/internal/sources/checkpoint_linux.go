@@ -4,9 +4,10 @@ package sources
 
 import (
 	"fmt"
-	"golang.org/x/sys/unix"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 // The first fidelity profile is intentionally narrow. Reject attributes we

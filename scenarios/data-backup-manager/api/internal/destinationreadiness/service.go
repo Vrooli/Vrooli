@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/capacity"
 	"data-backup-manager/internal/sysmounts"
 )
 
@@ -40,6 +41,13 @@ type MountedCheckEvidenceReader interface {
 	HasCurrentMountedCheck(context.Context, string, DeviceIdentity, string) (bool, error)
 }
 
+// WriteProber performs a bounded write/read/fsync probe under the destination.
+// It is a seam so readiness tests never touch a real filesystem and so a
+// platform can supply a stronger probe without changing the verdict logic.
+type WriteProber interface {
+	Probe(ctx context.Context, location string) (WriteProbeResult, error)
+}
+
 // Service owns readiness rules and preparation safety gates.
 type Service struct {
 	inspector       Inspector
@@ -47,6 +55,7 @@ type Service struct {
 	preparer        Preparer
 	remediator      Remediator
 	mountedChecks   MountedCheckEvidenceReader
+	writeProber     WriteProber
 	// The API shares one Service instance across requests. Journal-scoped gates
 	// prevent stale concurrent requests from replaying the same host action
 	// without serializing independent volume recoveries.
@@ -73,6 +82,22 @@ func (s *Service) WithRemediator(remediator Remediator) *Service {
 func (s *Service) WithMountedCheckEvidence(reader MountedCheckEvidenceReader) *Service {
 	s.mountedChecks = reader
 	return s
+}
+
+// WithWriteProber attaches the bounded write-probe implementation used only
+// when a caller explicitly opts in.
+func (s *Service) WithWriteProber(prober WriteProber) *Service {
+	s.writeProber = prober
+	return s
+}
+
+// WriteProbe runs the configured bounded write probe. A service with no prober
+// reports a not-run probe rather than pretending it passed.
+func (s *Service) WriteProbe(ctx context.Context, location string) (WriteProbeResult, error) {
+	if s == nil || s.writeProber == nil {
+		return WriteProbeResult{}, nil
+	}
+	return s.writeProber.Probe(ctx, location)
 }
 
 // InspectDevice observes a registered volume by its stable identity rather
@@ -105,7 +130,15 @@ func (s *Service) Analyze(ctx context.Context, in AnalyzeInput) (Report, error) 
 			return Report{}, fmt.Errorf("load mounted filesystem check evidence: %w", err)
 		}
 	}
-	return buildReport(location, inspection, in, verifiedOfflineCheck), nil
+	probe := WriteProbeResult{}
+	if in.AllowWriteProbe && s.writeProber != nil && inspection.LocationExists && inspection.LocationIsDirectory && inspection.Mounted && !inspection.ReadOnly && !inspection.DeviceWriteProtected {
+		observed, probeErr := s.writeProber.Probe(ctx, location)
+		if probeErr != nil {
+			observed = WriteProbeResult{Ran: true, Error: probeErr.Error()}
+		}
+		probe = observed
+	}
+	return buildReport(location, inspection, in, verifiedOfflineCheck, probe), nil
 }
 
 // ObserveCapacity reads the same registered location through the readiness
@@ -120,12 +153,17 @@ func (s *Service) ObserveCapacity(ctx context.Context, in AnalyzeInput) (Capacit
 	if s == nil || s.inspector == nil {
 		return CapacityObservation{}, ErrInvalidReadiness{Field: "inspector", Reason: "required"}
 	}
-	copies := in.RetentionCopies
-	if copies < 1 {
-		return CapacityObservation{}, ErrInvalidReadiness{Field: "retention_copies", Reason: "an exact positive bounded retention count is required"}
+	capacityInput := capacityInputFor(in)
+	if capacityInput.LogicalSourceBytes <= 0 {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "capacity", Reason: "an exact positive target estimate is required"}
 	}
-	if in.SelectedTargetBytes <= 0 || in.SelectedTargetBytes > int64(^uint64(0)>>1)/int64(copies) {
-		return CapacityObservation{}, ErrInvalidReadiness{Field: "capacity", Reason: "an exact positive target estimate within integer bounds is required"}
+	// A capacity proof is a migration gate, not a routine admission. Prove the
+	// full retention forecast so a switch cannot land on a destination that
+	// only fits the next incremental write.
+	capacityInput.Policy = capacity.PolicyStrict
+	estimate := capacity.EstimateRequired(capacityInput)
+	if estimate.Confidence == capacity.Unknown {
+		return CapacityObservation{}, ErrInvalidReadiness{Field: "capacity", Reason: "capacity admission is unknown"}
 	}
 	inspection, err := s.inspector.Inspect(ctx, location)
 	if err != nil {
@@ -139,7 +177,8 @@ func (s *Service) ObserveCapacity(ctx context.Context, in AnalyzeInput) (Capacit
 	}
 	checked := in
 	checked.Location = location
-	report := buildReport(location, inspection, checked, false)
+	checked.Capacity = capacityInput
+	report := buildReport(location, inspection, checked, false, WriteProbeResult{})
 	// Mixed-use roots can legitimately carry unrelated files, so capacity proof
 	// does not reject the root_non_empty warning. It does require the location,
 	// current mount state, directory inspection, suitability, and exact capacity
@@ -416,21 +455,31 @@ func (s *Service) identityStillMatches(plan Plan, inspection Inspection) bool {
 	return plan.Identity.Matches(inspection.Identity)
 }
 
-func buildReport(location string, inspection Inspection, in AnalyzeInput, verifiedOfflineCheck bool) Report {
+func buildReport(location string, inspection Inspection, in AnalyzeInput, verifiedOfflineCheck bool, probe WriteProbeResult) Report {
 	subdir := strings.TrimSpace(in.ProposedSubdir)
 	if subdir == "" {
 		subdir = "vrooli-backups"
 	}
 	recLocation := filepath.Join(location, subdir)
+	capacityEstimate := capacity.EstimateRequired(capacityInputFor(in))
+	verdict, verdictReason := EvaluateWriteVerdict(WriteVerdictInput{
+		Mounted:              inspection.Mounted,
+		ReadOnly:             inspection.ReadOnly,
+		DeviceWriteProtected: inspection.DeviceWriteProtected,
+		FilesystemState:      inspection.FilesystemState,
+		OfflineCheckVerified: verifiedOfflineCheck,
+		Probe:                probe,
+		AllowDegraded:        in.AllowDegraded,
+	})
 	checks := []CheckResult{
 		checkLocation(inspection),
 		checkMountedReadWrite(inspection),
-		checkFilesystemState(inspection, verifiedOfflineCheck),
+		checkFilesystemState(inspection, verifiedOfflineCheck, probe, in.AllowDegraded),
 		checkDirectoryEvidence(inspection),
 		checkSeparateRoot(location, in.ProtectedPaths),
 		checkExisting(location, recLocation, in.ExistingDestinations),
 		checkFilesystem(inspection.Identity.Filesystem, inspection.MountDriver, in.CrossPlatformRequired),
-		checkCapacity(inspection.FreeBytes, in.SelectedTargetBytes, in.RetentionCopies),
+		checkCapacity(inspection.FreeBytes, capacityEstimate),
 		checkRootNonEmpty(inspection),
 		checkInstallerMedia(inspection),
 		checkSubdir(location, recLocation),
@@ -461,6 +510,10 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput, verifi
 		OfflineCheckVerified:           verifiedOfflineCheck,
 		DeviceWriteProtected:           inspection.DeviceWriteProtected,
 		Mounted:                        inspection.Mounted,
+		Capacity:                       capacityEstimate,
+		WriteVerdict:                   verdict,
+		WriteVerdictReason:             verdictReason,
+		WriteProbe:                     probe,
 	}
 }
 
@@ -532,23 +585,51 @@ func readOnlyRepairStep(i Inspection) string {
 	}
 }
 
-func checkFilesystemState(i Inspection, verifiedOfflineCheck bool) CheckResult {
+func checkFilesystemState(i Inspection, verifiedOfflineCheck bool, probe WriteProbeResult, allowDegraded bool) CheckResult {
 	evidence := ""
 	if i.StateEvidence != "" {
 		evidence = " (evidence: " + i.StateEvidence + ")"
 	}
-	switch i.FilesystemState {
-	case sysmounts.FilesystemStateDirty:
-		return CheckResult{Code: "destination_dirty", Severity: SeverityFail, Message: "filesystem reports a dirty state" + evidence, NextAction: "check and repair the filesystem, then remount and re-run readiness"}
-	case sysmounts.FilesystemStateNeedsCheck:
-		return CheckResult{Code: "destination_dirty", Severity: SeverityFail, Message: "filesystem reports that a check is required" + evidence, NextAction: "check and repair the filesystem, then remount and re-run readiness"}
-	case sysmounts.FilesystemStateClean:
-		return CheckResult{Code: "filesystem_state", Severity: SeverityPass, Message: "filesystem reports a clean state" + evidence}
-	default:
-		if verifiedOfflineCheck {
-			return CheckResult{Code: "filesystem_state", Severity: SeverityPass, Message: "offline consistency check passed for the current read/write mount episode"}
+	if probe.Ran && !probe.Passed {
+		return CheckResult{
+			Code:       "write_probe",
+			Severity:   SeverityFail,
+			Message:    "bounded write probe failed: " + strings.TrimSpace(probe.Error),
+			NextAction: "restore writable, error-free access to the destination before retrying; do not treat a failed probe as a filesystem repair case",
 		}
-		return CheckResult{Code: "filesystem_state", Severity: SeverityUnknown, Message: "filesystem dirty/needs-check state is not exposed on this host" + evidence}
+	}
+	verdict, reason := EvaluateWriteVerdict(WriteVerdictInput{
+		Mounted:              i.Mounted,
+		ReadOnly:             i.ReadOnly,
+		DeviceWriteProtected: i.DeviceWriteProtected,
+		FilesystemState:      i.FilesystemState,
+		OfflineCheckVerified: verifiedOfflineCheck,
+		Probe:                probe,
+		AllowDegraded:        allowDegraded,
+	})
+	switch verdict {
+	case WriteReady:
+		return CheckResult{Code: "filesystem_state", Severity: SeverityPass, Message: reason + evidence}
+	case WriteDegraded:
+		return CheckResult{
+			Code:       "filesystem_state",
+			Severity:   SeverityWarning,
+			Message:    reason + evidence,
+			NextAction: "keep another verified copy, monitor the write probe, and run an offline consistency check when the drive can be quiesced",
+		}
+	case WriteBlocked:
+		code := "filesystem_state"
+		if i.FilesystemState == sysmounts.FilesystemStateDirty || i.FilesystemState == sysmounts.FilesystemStateNeedsCheck {
+			code = "destination_dirty"
+		}
+		return CheckResult{
+			Code:       code,
+			Severity:   SeverityFail,
+			Message:    reason + evidence,
+			NextAction: "check and repair the filesystem under explicit confirmation, or restore writable access, then re-run readiness",
+		}
+	default:
+		return CheckResult{Code: "filesystem_state", Severity: SeverityUnknown, Message: reason + evidence}
 	}
 }
 
@@ -690,24 +771,58 @@ func checkFilesystem(fs, driver string, crossPlatform bool) CheckResult {
 	}
 }
 
-func checkCapacity(freeBytes, targetBytes int64, copies int) CheckResult {
-	if targetBytes <= 0 {
-		return CheckResult{Code: "capacity", Severity: SeverityUnknown, Message: "target size not selected; capacity fit is unknown"}
+func checkCapacity(freeBytes int64, estimate capacity.Estimate) CheckResult {
+	if estimate.Confidence == capacity.Unknown {
+		return CheckResult{Code: "capacity", Severity: SeverityUnknown, Message: estimate.Basis}
 	}
-	if copies <= 0 {
-		return CheckResult{Code: "capacity", Severity: SeverityWarning, Message: "retention policy is unbounded; current source-size fit does not bound future repository growth"}
+	decision := estimate.Decide(freeBytes)
+	if !decision.Allowed {
+		return CheckResult{
+			Code:       "capacity",
+			Severity:   SeverityFail,
+			Message:    decision.Reason,
+			NextAction: "free destination space, reduce retention, or select a destination with enough headroom before enabling backup writes",
+		}
 	}
-	if int64(copies) > int64(^uint64(0)>>1)/targetBytes {
-		return CheckResult{Code: "capacity", Severity: SeverityUnknown, Message: "retention capacity estimate overflows; capacity fit is unknown"}
+	if decision.Warning {
+		return CheckResult{
+			Code:       "capacity",
+			Severity:   SeverityWarning,
+			Message:    decision.Reason,
+			NextAction: "monitor repository growth and retention; the next write fits but the retention forecast exceeds free space",
+		}
 	}
-	required := targetBytes * int64(copies)
-	if freeBytes < required {
-		return CheckResult{Code: "capacity", Severity: SeverityFail, Message: "free space is below selected target estimate"}
+	return CheckResult{
+		Code:     "capacity",
+		Severity: SeverityPass,
+		Message:  "free space covers the immediate write and the retention forecast (" + estimate.Basis + ")",
 	}
-	if freeBytes < required+required/10 {
-		return CheckResult{Code: "capacity", Severity: SeverityWarning, Message: "free space is close to selected target estimate"}
+}
+
+// capacityInputFor maps the public readiness surface onto the one capacity
+// model. The public API still carries SelectedTargetBytes/RetentionCopies; they
+// are treated as a conservative first copy, not multiplied by every tier.
+func capacityInputFor(in AnalyzeInput) capacity.Input {
+	if in.Capacity.LogicalSourceBytes > 0 {
+		mapped := in.Capacity
+		if mapped.RetainedSnapshots < 1 {
+			mapped.RetainedSnapshots = max(in.RetentionCopies, 1)
+		}
+		if mapped.Policy == "" {
+			mapped.Policy = capacity.PolicyAdvisory
+		}
+		if mapped.ReserveBytes == 0 {
+			mapped.ReserveBytes = capacity.DefaultReserveBytes
+		}
+		return mapped
 	}
-	return CheckResult{Code: "capacity", Severity: SeverityPass, Message: "free space fits selected target estimate"}
+	return capacity.Input{
+		LogicalSourceBytes: in.SelectedTargetBytes,
+		RetainedSnapshots:  max(in.RetentionCopies, 1),
+		FirstCopy:          true,
+		Policy:             capacity.PolicyStrict,
+		ReserveBytes:       -1,
+	}
 }
 
 func checkRootNonEmpty(i Inspection) CheckResult {

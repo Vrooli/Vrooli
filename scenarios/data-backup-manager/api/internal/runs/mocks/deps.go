@@ -38,6 +38,14 @@ func (f *FakeTargetLookup) TargetForRun(_ context.Context, targetID string) (run
 	if !ok {
 		return runs.TargetForRun{}, &notFound{"target", targetID}
 	}
+	// Real targets always carry a stable owner/name; tests that only care about
+	// capture behavior should not accidentally exercise an identity failure.
+	if t.Owner == "" {
+		t.Owner = t.ID
+	}
+	if t.Name == "" {
+		t.Name = "data"
+	}
 	return t, nil
 }
 
@@ -62,6 +70,8 @@ type FakeDestinationLookup struct {
 	BlockFn        func(destID string, pendingBytes int64) (bool, string, error)
 	DestinationFn  func(destID string) (runs.DestinationForRun, error)
 	WithResolvedFn func(context.Context, string, func(runs.DestinationForRun) error) error
+	// WriteAllowDegraded records the policy each write gate received.
+	WriteAllowDegraded map[string]bool
 }
 
 func (f *FakeDestinationLookup) DestinationForRun(_ context.Context, destID string) (runs.DestinationForRun, error) {
@@ -90,6 +100,22 @@ func (f *FakeDestinationLookup) WithResolvedDestination(ctx context.Context, des
 		return nil
 	}
 	return use(d)
+}
+
+// WithResolvedDestinationForRead shares the write fake's resolution: tests care
+// about the callback contract, not the filesystem state.
+func (f *FakeDestinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(runs.DestinationForRun) error) error {
+	return f.WithResolvedDestination(ctx, destID, use)
+}
+
+// WithResolvedDestinationForWrite records the degraded decision so tests can
+// assert that the caller only permits it with an independent copy.
+func (f *FakeDestinationLookup) WithResolvedDestinationForWrite(ctx context.Context, destID string, allowDegraded bool, use func(runs.DestinationForRun) error) error {
+	if f.WriteAllowDegraded == nil {
+		f.WriteAllowDegraded = map[string]bool{}
+	}
+	f.WriteAllowDegraded[destID] = allowDegraded
+	return f.WithResolvedDestination(ctx, destID, use)
 }
 
 func (f *FakeDestinationLookup) WouldBlock(_ context.Context, destID string, pendingBytes int64) (bool, string, error) {

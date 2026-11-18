@@ -55,6 +55,17 @@ type MutationGate interface {
 type SQLiteReservations struct {
 	DB    *sql.DB
 	Lease time.Duration
+	// Now is optional and exists so callers and tests share one clock instead
+	// of mixing a lease service's injected time with the wall clock. Nil means
+	// time.Now.
+	Now func() time.Time
+}
+
+func (s SQLiteReservations) nowUTC() time.Time {
+	if s.Now != nil {
+		return s.Now().UTC()
+	}
+	return time.Now().UTC()
 }
 
 func (s SQLiteReservations) EnsureSchema(ctx context.Context) error {
@@ -287,9 +298,11 @@ func (s SQLiteReservations) Reserve(ctx context.Context, r Reservation, now time
 func (s SQLiteReservations) Release(ctx context.Context, requestID, targetID string) error {
 	return s.finish(ctx, requestID, targetID, "released")
 }
+
 func (s SQLiteReservations) Commit(ctx context.Context, requestID, targetID string) error {
 	return s.finish(ctx, requestID, targetID, "commit_pending")
 }
+
 func (s SQLiteReservations) finish(ctx context.Context, requestID, targetID, state string) error {
 	if s.DB == nil {
 		return errors.New("wallet recovery reservation database is required")
@@ -310,7 +323,7 @@ func (s SQLiteReservations) finish(ctx context.Context, requestID, targetID, sta
 		if err != nil {
 			return errors.New("reservation expiry is corrupt")
 		}
-		if !until.After(time.Now().UTC()) {
+		if !until.After(s.nowUTC()) {
 			return errors.New("reservation expired before commit pin")
 		}
 		_, err = s.DB.ExecContext(ctx, `UPDATE dbm_wallet_recovery_reservations SET state='commit_pending' WHERE request_id=? AND target_id=? AND state='reserved'`, requestID, targetID)
@@ -367,18 +380,19 @@ func (s SQLiteReservations) BeginMutation(ctx context.Context, targetID, destina
 		if state != "reserved" && state != "commit_pending" && state != "read_reserved" && state != "released" {
 			return nil, fmt.Errorf("unknown reservation state %q; failing closed", state)
 		}
-		if state == "commit_pending" || (state == "reserved" || state == "read_reserved") && until.After(time.Now().UTC()) {
+		if state == "commit_pending" || (state == "reserved" || state == "read_reserved") && until.After(s.nowUTC()) {
 			return nil, ErrReserved
 		}
 	}
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, err
 	}
-	id := fmt.Sprintf("%d", time.Now().UnixNano())
+	now := s.nowUTC()
+	id := fmt.Sprintf("%d", now.UnixNano())
 	if _, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_snapshot_generation(target_id,destination_id,generation) VALUES(?,?,1) ON CONFLICT(target_id,destination_id) DO UPDATE SET generation=generation+1`, targetID, destinationID); err != nil {
 		return nil, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_snapshot_mutations(target_id,destination_id,mutation_id,started_at) VALUES(?,?,?,?)`, targetID, destinationID, id, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err = tx.ExecContext(ctx, `INSERT INTO dbm_wallet_snapshot_mutations(target_id,destination_id,mutation_id,started_at) VALUES(?,?,?,?)`, targetID, destinationID, id, now.Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, err
 	}

@@ -52,6 +52,10 @@ func (f *FakeDestinationLookup) WithResolvedDestination(ctx context.Context, des
 	return use(d)
 }
 
+func (f *FakeDestinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(restores.DestinationForRestore) error) error {
+	return f.WithResolvedDestination(ctx, destID, use)
+}
+
 // Compile-time guarantees.
 var (
 	_ restores.TargetLookup      = (*FakeTargetLookup)(nil)

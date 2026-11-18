@@ -221,10 +221,16 @@ type Verdict struct {
 	// and read failure.
 	Excused []Entry
 	// Blocking are unreadable entries no exception covers, plus any excepted
-	// path whose shape changed.
+	// path that now holds a link or special file, where the scan cannot prove
+	// the bytes are accounted for.
 	Blocking []Entry
 	// Dormant are exceptions whose path is no longer unreadable.
 	Dormant []Exception
+	// Stale are exceptions whose path now holds a readable directory. The
+	// original temporary file is gone, and the scan traverses and measures the
+	// directory, so nothing is hidden. It is not a blocker, but the exception
+	// should be revoked because its approval no longer describes the path.
+	Stale []Exception
 }
 
 // Evaluate applies exceptions to a scan. An exception covers an entry only when
@@ -255,12 +261,18 @@ func Evaluate(fsys FS, root string, unreadable []Entry, exceptions []Exception) 
 		}
 		info, err := fsys.Lstat(filepath.Join(root, filepath.FromSlash(ex.RelPath)))
 		switch {
+		case err == nil && info.IsDir():
+			// The temporary file is gone and the name now holds a readable
+			// directory. The scan traverses it, so no bytes are hidden; blocking
+			// all usage forever on a stale approval is disproportionate. Report it
+			// as stale so the exception can be revoked, but do not gate on it.
+			v.Stale = append(v.Stale, ex)
 		case err == nil && !info.Mode().IsRegular():
-			// The excepted name now holds something else. The approval was for an
-			// unreadable temporary file, not for this.
+			// A link or special file can point somewhere the scan did not walk.
+			// The approval was for an unreadable temporary file, not for this.
 			v.Blocking = append(v.Blocking, Entry{
 				RelPath: ex.RelPath, Class: ClassOther, BlobKind: ex.BlobKind, Problem: ProblemOther,
-				Detail: "an approved path now holds a " + shapeName(info.Mode()) + " instead of a temporary file",
+				Detail: "an approved path now holds a " + shapeName(info.Mode()) + " the scan cannot account for instead of a temporary file",
 			})
 		default:
 			v.Dormant = append(v.Dormant, ex)

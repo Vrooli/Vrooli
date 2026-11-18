@@ -49,7 +49,7 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Name:              ctx.Flag("name"),
 		TargetIds:         targetIDs,
 		TargetSelector:    selectorFlag(ctx.Flag("target-selector")),
-		ExcludedTargetIds: parseCommaSeparated(ctx.Flag("exclude-targets")),
+		ExcludedTargetIds: parseCommaSeparated(ctx.Flag("excluded-target-ids")),
 		DestinationIds:    destIDs,
 		Schedule:          ctx.Flag("schedule"),
 		Retention:         retention,
@@ -268,8 +268,8 @@ func mergeUpdate(ctx cliapp.RunContext, p *plansv1.Plan) (*plansv1.UpdatePlanReq
 	if ctx.FlagProvided("target-selector") {
 		req.TargetSelector = selectorFlag(ctx.Flag("target-selector"))
 	}
-	if ctx.FlagProvided("exclude-targets") {
-		req.ExcludedTargetIds = parseCommaSeparated(ctx.Flag("exclude-targets"))
+	if ctx.FlagProvided("excluded-target-ids") {
+		req.ExcludedTargetIds = parseCommaSeparated(ctx.Flag("excluded-target-ids"))
 	}
 	if ctx.FlagProvided("destinations") {
 		req.DestinationIds = parseCommaSeparated(ctx.Flag("destinations"))

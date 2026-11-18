@@ -41,6 +41,12 @@ export function useDestinationUsage(id: string | undefined) {
     queryKey: queryKeys.destinationUsage(id ?? ""),
     queryFn: () => getDestinationUsage(id ?? ""),
     enabled: Boolean(id),
+    // Usage is a repository scan on the server (slow on removable media). The
+    // server caches it briefly too; a per-mount stale window stops the Overview
+    // and Destinations pages from re-scanning the same drive on every
+    // navigation while still refreshing within a normal operator session.
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 

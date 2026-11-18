@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"data-backup-manager/internal/capacity"
 	"data-backup-manager/internal/sysmounts"
 )
 
@@ -269,6 +270,35 @@ type CheckResult struct {
 }
 
 // Report is the readiness result returned by Analyze.
+// WriteVerdict is the explicit write-safety state machine. It separates
+// "the drive is mounted and writable" from "the filesystem was proven clean".
+// The native filesystem state remains truthful alongside it.
+type WriteVerdict string
+
+const (
+	// WriteReady means the destination is mounted writable and either the
+	// native state is clean or an offline check is bound to the mount episode.
+	WriteReady WriteVerdict = "ready"
+	// WriteDegraded means the destination is mounted writable and a bounded
+	// write probe passed, but the native filesystem state is unobservable and
+	// another verified copy exists. It is not a clean verdict.
+	WriteDegraded WriteVerdict = "degraded"
+	// WriteBlocked means a known condition prevents a safe write.
+	WriteBlocked WriteVerdict = "blocked"
+	// WriteUnknown means the destination could not be proven safe or degraded.
+	WriteUnknown WriteVerdict = "unknown"
+)
+
+// WriteProbeResult is the bounded write/read/fsync evidence behind a degraded
+// verdict. Ran=false is distinct from Passed=false: not probing is not failure.
+type WriteProbeResult struct {
+	Ran     bool
+	Passed  bool
+	Bytes   int64
+	Latency time.Duration
+	Error   string
+}
+
 type Report struct {
 	Location                       string
 	OverallSeverity                CheckSeverity
@@ -292,6 +322,17 @@ type Report struct {
 	OfflineCheckVerified bool
 	DeviceWriteProtected bool
 	Mounted              bool
+	// Capacity is the admission estimate behind the capacity check. It is
+	// evidence, not a verdict: consumers should read OverallSeverity for the
+	// gate and this field for the numbers and their confidence.
+	Capacity capacity.Estimate
+	// WriteVerdict and WriteVerdictReason make the write-safety decision
+	// explicit instead of leaving it implicit in check severities.
+	WriteVerdict       WriteVerdict
+	WriteVerdictReason string
+	// WriteProbe is the bounded write/read/fsync evidence, when a caller opted
+	// into a probe. Read-only readiness leaves it unrun.
+	WriteProbe WriteProbeResult
 }
 
 // CapacityObservation is a read-only, point-in-time capacity receipt bound to
@@ -317,6 +358,19 @@ type AnalyzeInput struct {
 	ProtectedPaths        []string
 	ExistingDestinations  []string
 	CrossPlatformRequired bool
+	// Capacity carries the admission model. Internal callers set it directly.
+	// When it is empty, SelectedTargetBytes and RetentionCopies are mapped as a
+	// conservative first copy for the public readiness API.
+	Capacity capacity.Input
+	// AllowDegraded permits a write when the native filesystem state is
+	// unobservable but a bounded write probe and repository read succeed and a
+	// separate verified copy exists. It never turns the native unknown state
+	// into a clean verdict.
+	AllowDegraded bool
+	// AllowWriteProbe opts into the bounded write/read/fsync probe. Read-only
+	// readiness callers leave it false so inspecting a destination never writes
+	// to it.
+	AllowWriteProbe bool
 }
 
 // PlanInput requests a non-mutating preparation plan.

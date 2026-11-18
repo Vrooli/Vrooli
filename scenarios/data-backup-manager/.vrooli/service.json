@@ -99,6 +99,42 @@
         "max_bytes": "1MiB",
         "rationale": "A single small JSON file of timestamps."
       }
+    },
+    "sensitive-coverage-decisions": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "sensitive-coverage-decisions",
+      "regenerable": false,
+      "rationale": "Durable verified-human decisions about whether a sensitive target is deliberately excluded from backup. Required to prove a sensitive path was not silently dropped.",
+      "budget": {
+        "max_bytes": "16MiB",
+        "rationale": "Measured at 13202 bytes on 2026-11-18; one small record per sensitive decision."
+      }
+    },
+    "sensitive-coverage-policy": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "sensitive-coverage-policy",
+      "regenerable": false,
+      "rationale": "The standing sensitive-coverage rule and its revocation record, so re-registration and revocation survive restarts.",
+      "budget": {
+        "max_bytes": "1MiB",
+        "rationale": "A single small JSON policy document."
+      }
+    },
+    "fresh-repository-migrations": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "fresh-repository-migrations",
+      "regenerable": false,
+      "rationale": "Crash-resumable state for moving a destination to a fresh repository so an interrupted migration can be inspected rather than guessed.",
+      "budget": {
+        "max_bytes": "16MiB",
+        "rationale": "One small journal per migration attempt."
+      }
     }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

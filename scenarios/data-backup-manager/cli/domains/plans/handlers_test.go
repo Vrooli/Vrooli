@@ -116,7 +116,7 @@ func TestCreatePlanCommand(t *testing.T) {
 		{Name: "name"},
 		{Name: "targets"},
 		{Name: "target-selector"},
-		{Name: "exclude-targets"},
+		{Name: "excluded-target-ids"},
 		{Name: "destinations"},
 		{Name: "schedule"},
 		{Name: "keep-latest"},
@@ -187,7 +187,7 @@ func updateSchema() cliapp.ArgSchema {
 		{Name: "name"},
 		{Name: "targets"},
 		{Name: "target-selector"},
-		{Name: "exclude-targets"},
+		{Name: "excluded-target-ids"},
 		{Name: "destinations"},
 		{Name: "schedule"},
 		{Name: "keep-latest"},
@@ -274,8 +274,10 @@ func TestUpdatePlanAppliesSuppliedFields(t *testing.T) {
 // and its exclusions through unchanged; if they sent the resolved list instead,
 // the plan would silently freeze into today's targets.
 func TestSelectorPlanSurvivesUpdateAndAddDestination(t *testing.T) {
-	current := &plansv1.Plan{Id: "plan-1", Name: "declared targets", TargetSelector: "registered", ExcludedTargetIds: []string{"big"},
-		TargetIds: []string{"a", "b"}, DestinationIds: []string{"dst-1"}, Enabled: true}
+	current := &plansv1.Plan{
+		Id: "plan-1", Name: "declared targets", TargetSelector: "registered", ExcludedTargetIds: []string{"big"},
+		TargetIds: []string{"a", "b"}, DestinationIds: []string{"dst-1"}, Enabled: true,
+	}
 	stub := &stubPlansService{current: current, plans: []*plansv1.Plan{current}}
 	mux := http.NewServeMux()
 	path, h := plansconnect.NewPlansServiceHandler(stub)

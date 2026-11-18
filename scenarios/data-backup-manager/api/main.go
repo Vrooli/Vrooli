@@ -250,7 +250,7 @@ func run(ctx context.Context) error {
 	planReadiness := destinationreadiness.NewService(
 		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
 		destinationreadiness.NewLocalPreparer(),
-	)
+	).WithWriteProber(destinationreadiness.NewFileWriteProber())
 	destSvc := destint.NewService(
 		destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot,
 		destint.WithReadinessGate(planReadiness),
@@ -303,7 +303,8 @@ func run(ctx context.Context) error {
 		Suggestions: coverageSuggestions{svc: discoverySvc},
 		Targets:     coverageTargetCatalog{svc: targetsSvc},
 	})
-	criticalDestinationPolicy := planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness, hostID: strings.TrimSpace(os.Getenv("VROOLI_HOST_ID"))}
+	hostID, _ := lookupEnvTrimmed("VROOLI_HOST_ID")
+	criticalDestinationPolicy := planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, readiness: planReadiness, hostID: hostID}
 	plansSvc := plansint.NewServiceWithPolicies(
 		plansint.NewSQLiteRepository(db, clk),
 		planCoverageGuard{svc: guardCoverage},
@@ -371,6 +372,11 @@ func run(ctx context.Context) error {
 		cancelExec()
 		_ = db.Close()
 		return fmt.Errorf("run reconciliation failed: %w", err)
+	}
+	// Remove staging left by an interrupted process: it can hold a full source
+	// copy and is never needed once its run is terminal.
+	if _, err := runsSvc.SweepStaleStaging(ctx); err != nil {
+		logger.Printf("staging sweep failed (non-fatal): %v", err)
 	}
 
 	// Restore + verify gate: restore a target to a location, or test-restore to

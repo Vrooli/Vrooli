@@ -317,6 +317,42 @@ func TestFSBundleWriter_AnchorsLegacyRepositoryOnlyAtOriginalPath(t *testing.T) 
 	}
 }
 
+func TestFSBundleWriter_AcceptsLegacyManifestWithoutRelativePath(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	repoPath := destinations.RepositoryPathFor(root, "elements-local")
+	w := &destinations.FSBundleWriter{}
+	if err := w.PrepareRepository(ctx, root, repoPath); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoMarker(t, repoPath)
+	meta := newMeta(root, repoPath)
+	if err := w.WriteMetadata(ctx, meta); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(root, destinations.BundleManifestFile)
+	contents, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(contents, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	delete(manifest, "relative_path")
+	delete(manifest, "repository_unique_id")
+	contents, err = json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(manifestPath, append(contents, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.ValidateRelocation(ctx, meta); err != nil {
+		t.Fatalf("legacy manifest without relative_path should be readable at its unchanged path: %v", err)
+	}
+}
+
 func TestFSBundleWriter_RebindRetryConvergesAfterPartialMetadataWrite(t *testing.T) {
 	ctx := context.Background()
 	w := &destinations.FSBundleWriter{}

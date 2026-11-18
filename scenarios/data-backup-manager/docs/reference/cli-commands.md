@@ -265,7 +265,7 @@ Bind targets to destinations with a schedule and retention.
 data-backup-manager plans create --name nightly --targets target-id --destinations destination-id --schedule "24h" --keep-latest 7
 # Membership by rule: every registered target (minus exclusions), evaluated on every read
 data-backup-manager plans create --name declared-targets --target-selector registered --destinations destination-id --schedule "24h"
-data-backup-manager plans update --id plan-id --exclude-targets target-id,target-id
+data-backup-manager plans update --id plan-id --excluded-target-ids target-id,target-id
 data-backup-manager plans list
 data-backup-manager plans get plan-id
 data-backup-manager plans update --id plan-id --keep-latest 7

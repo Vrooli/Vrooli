@@ -15,14 +15,14 @@ func checkpointFixture(t *testing.T) (string, string) {
 	src := t.TempDir()
 	for p, body := range map[string]string{".git/index": "synthetic index bytes", ".git/HEAD": "ref: refs/heads/example\n", "working": "unstaged fixture", "untracked": "untracked fixture", ".ignored": "ignored fixture"} {
 		path := filepath.Join(src, p)
-		if e := os.MkdirAll(filepath.Dir(path), 0700); e != nil {
+		if e := os.MkdirAll(filepath.Dir(path), 0o700); e != nil {
 			t.Fatal(e)
 		}
-		if e := os.WriteFile(path, []byte(body), 0751); e != nil {
+		if e := os.WriteFile(path, []byte(body), 0o751); e != nil {
 			t.Fatal(e)
 		}
 	}
-	if e := os.Mkdir(filepath.Join(src, "empty"), 0710); e != nil {
+	if e := os.Mkdir(filepath.Join(src, "empty"), 0o710); e != nil {
 		t.Fatal(e)
 	}
 	if e := os.Symlink("missing", filepath.Join(src, "link")); e != nil {
@@ -59,7 +59,7 @@ func TestCheckpointRoundTripAndTamper(t *testing.T) {
 	if e != nil || !reflect.DeepEqual(original, after) {
 		t.Fatal("source changed")
 	}
-	if e = os.Chmod(filepath.Join(a.Path, "tree", "working"), 0600); e != nil {
+	if e = os.Chmod(filepath.Join(a.Path, "tree", "working"), 0o600); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = VerifyCheckpoint(ctx, a.Path); e == nil {
@@ -96,7 +96,7 @@ func TestCheckpointRejectsMovementAndUnsafeRoots(t *testing.T) {
 
 func TestCheckpointRejectsExternalGitAndExtraEntries(t *testing.T) {
 	src := t.TempDir()
-	if e := os.WriteFile(filepath.Join(src, ".git"), []byte("gitdir: /outside"), 0600); e != nil {
+	if e := os.WriteFile(filepath.Join(src, ".git"), []byte("gitdir: /outside"), 0o600); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := InspectCheckpoint(context.Background(), src); e == nil {
@@ -107,7 +107,7 @@ func TestCheckpointRejectsExternalGitAndExtraEntries(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = os.Mkdir(filepath.Join(a.Path, "tree", "extra-empty"), 0700); e != nil {
+	if e = os.Mkdir(filepath.Join(a.Path, "tree", "extra-empty"), 0o700); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = VerifyCheckpoint(context.Background(), a.Path); e == nil {
@@ -132,7 +132,7 @@ func TestCheckpointRefusesUnsupportedMetadataAndDestination(t *testing.T) {
 	}
 	dst := t.TempDir()
 	sentinel := filepath.Join(dst, "existing")
-	if e = os.WriteFile(sentinel, []byte("preserve"), 0600); e != nil {
+	if e = os.WriteFile(sentinel, []byte("preserve"), 0o600); e != nil {
 		t.Fatal(e)
 	}
 	if e = (&checkpointCapturer{}).Restore(context.Background(), RestoreSpec{ArtifactPath: a.Path, Target: dst}); e == nil {

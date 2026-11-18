@@ -43,8 +43,19 @@ type Service interface {
 	ResolveForUse(ctx context.Context, id string) (Destination, error)
 	// WithResolvedDestination holds this API process's per-destination
 	// serialization lock through one immediate repository operation after
-	// re-resolving its path.
+	// re-resolving its path. It requires write-ready filesystem evidence.
 	WithResolvedDestination(ctx context.Context, id string, use func(Destination) error) error
+	// WithResolvedDestinationForRead re-resolves a destination for a read-only
+	// repository operation. It proves device identity, mount, bundle identity and
+	// repository readability, but does not require a clean/writable filesystem.
+	// Reading snapshots or usage from a dirty volume is safe; writing is not.
+	WithResolvedDestinationForRead(ctx context.Context, id string, use func(Destination) error) error
+	// WithResolvedDestinationForWrite is the write gate. allowDegraded admits a
+	// write on a mounted destination whose native filesystem state is
+	// unobservable, but only when a bounded write probe passes. The caller owns
+	// the redundancy policy: it must set allowDegraded only after proving an
+	// independent copy for every target that will write.
+	WithResolvedDestinationForWrite(ctx context.Context, id string, allowDegraded bool, use func(Destination) error) error
 
 	// ListDestinations returns up to pageSize destinations ordered by name.
 	// pageSize <= 0 uses the default.
@@ -96,6 +107,9 @@ type UsageReport struct {
 // how preflight declares its own view of the same service.
 type ReadinessGate interface {
 	Analyze(ctx context.Context, in destinationreadiness.AnalyzeInput) (destinationreadiness.Report, error)
+	// WriteProbe runs the bounded write/read/fsync probe. It is only called when
+	// the caller has opted into a degraded write.
+	WriteProbe(ctx context.Context, location string) (destinationreadiness.WriteProbeResult, error)
 }
 
 type recoveryIdentityInspector interface {
@@ -214,13 +228,20 @@ func (s *service) ResolveForUse(ctx context.Context, id string) (Destination, er
 	var resolved Destination
 	err = s.withVolumeOperationLease(ctx, id, func() error {
 		var resolveErr error
-		resolved, resolveErr = s.resolveForUse(ctx, id)
+		resolved, resolveErr = s.resolveForUse(ctx, id, false)
 		return resolveErr
 	})
 	return resolved, err
 }
 
 func (s *service) WithResolvedDestination(ctx context.Context, id string, use func(Destination) error) error {
+	// The legacy write entry point is strict: it never admits an unobservable
+	// filesystem state. Callers that have proven redundancy use
+	// WithResolvedDestinationForWrite with allowDegraded.
+	return s.WithResolvedDestinationForWrite(ctx, id, false, use)
+}
+
+func (s *service) WithResolvedDestinationForWrite(ctx context.Context, id string, allowDegraded bool, use func(Destination) error) error {
 	if use == nil {
 		return ErrInvalidDestination{Field: "operation", Reason: "required"}
 	}
@@ -230,12 +251,28 @@ func (s *service) WithResolvedDestination(ctx context.Context, id string, use fu
 	}
 	defer release()
 	return s.withVolumeOperationLease(ctx, id, func() error {
-		d, resolveErr := s.resolveForUse(ctx, id)
+		d, resolveErr := s.resolveForUse(ctx, id, allowDegraded)
 		if resolveErr != nil {
 			return resolveErr
 		}
 		return use(d)
 	})
+}
+
+func (s *service) WithResolvedDestinationForRead(ctx context.Context, id string, use func(Destination) error) error {
+	if use == nil {
+		return ErrInvalidDestination{Field: "operation", Reason: "required"}
+	}
+	// Reads do not take the exclusive write lock or the host volume operation
+	// lease. Those exist to serialize writers and to keep an unmount/repair from
+	// racing a write; holding them for a snapshot or usage read lets one slow
+	// writer or recovery probe block every read on the drive. A concurrent
+	// rebind can make a read fail; it is retried after the next resolution.
+	d, err := s.resolveForRead(ctx, id)
+	if err != nil {
+		return err
+	}
+	return use(d)
 }
 
 func (s *service) withVolumeOperationLease(ctx context.Context, id string, use func() error) error {
@@ -268,7 +305,77 @@ func (s *service) withVolumeOperationLease(ctx context.Context, id string, use f
 	return use()
 }
 
-func (s *service) resolveForUse(ctx context.Context, id string) (Destination, error) {
+// resolveForRead proves everything a read needs — stable identity, mount,
+// bundle ownership, contained repository path, and a working repository
+// connection — without demanding a clean or writable filesystem. A dirty NTFS
+// volume cannot safely accept writes, but its snapshots are still readable.
+func (s *service) resolveForRead(ctx context.Context, id string) (Destination, error) {
+	d, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return Destination{}, err
+	}
+	if d.BackendKind != BackendFilesystem || d.DeviceIdentity == nil || !d.DeviceIdentity.StrongIdentity() || strings.TrimSpace(d.RelativePath) == "" {
+		return d, nil // Explicit legacy filesystem paths and S3 keep their established behavior.
+	}
+	if s.readiness == nil || s.bundle == nil {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "filesystem destination recovery is unavailable"}
+	}
+	inspector, ok := s.readiness.(recoveryIdentityInspector)
+	if !ok {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "stable device inspection is unavailable"}
+	}
+	observed, err := inspector.InspectDevice(ctx, *d.DeviceIdentity)
+	if err != nil {
+		return Destination{}, fmt.Errorf("re-observe destination volume: %w", err)
+	}
+	if !d.DeviceIdentity.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() || !observed.Mounted {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "destination volume identity or mount is not proven for read access"}
+	}
+	mountRoot := filepath.Clean(observed.Identity.Mountpoint)
+	if !filepath.IsAbs(mountRoot) || mountRoot == string(filepath.Separator) {
+		return Destination{}, ErrInvalidDestination{Field: "mountpoint", Reason: "verified volume has no safe non-root mountpoint"}
+	}
+	bundleRoot, err := destinationreadiness.ResolveRelativePath(mountRoot, d.RelativePath)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: err.Error()}
+	}
+	_, resolvedBundle, err := resolveContainedPath(mountRoot, bundleRoot)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "destination bundle resolves outside its mounted volume: " + err.Error()}
+	}
+	repoPath := RepositoryPathFor(bundleRoot, d.Name)
+	_, resolvedRepo, err := resolveContainedPath(bundleRoot, repoPath)
+	if err != nil {
+		return Destination{}, ErrInvalidDestination{Field: "repository_path", Reason: "repository resolves outside its destination bundle: " + err.Error()}
+	}
+	meta := BundleMetadata{
+		DestinationID: d.ID, Name: d.Name, Backend: string(d.BackendKind),
+		BundleRoot: resolvedBundle, RelativePath: d.RelativePath, RepositoryPath: resolvedRepo,
+		EncryptionAlgorithm: d.EncryptionAlgorithm, SecretRef: d.SecretRef, CreatedAt: d.CreatedAt,
+	}
+	if err := s.bundle.ValidateRelocation(ctx, meta); err != nil {
+		return Destination{}, fmt.Errorf("validate read-only destination bundle: %w", err)
+	}
+	if _, err := repositoryUniqueID(resolvedRepo); err != nil {
+		return Destination{}, fmt.Errorf("existing repository marker is unavailable: %w", err)
+	}
+	if err := s.eng.RepoRebind(ctx, d.Name, resolvedRepo); err != nil {
+		return Destination{}, fmt.Errorf("rebind resource-kopia repository path for read: %w", err)
+	}
+	status, err := s.eng.RepoStatus(ctx, d.Name)
+	if err != nil {
+		return Destination{}, fmt.Errorf("verify read-only repository connection: %w", err)
+	}
+	if !status.Connected || strings.TrimSpace(status.EncryptionAlgorithm) == "" {
+		return Destination{}, ErrInvalidDestination{Field: "repository", Reason: "read-only repository connection or encryption was not verified"}
+	}
+	d.Location, d.RepositoryLocation = resolvedBundle, resolvedRepo
+	d.DeviceIdentity = &observed.Identity
+	d.DeviceIdentityObservedAt = time.Now().UTC()
+	return d, nil
+}
+
+func (s *service) resolveForUse(ctx context.Context, id string, allowDegraded bool) (Destination, error) {
 	d, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return Destination{}, err
@@ -290,18 +397,29 @@ func (s *service) resolveForUse(ctx context.Context, id string) (Destination, er
 	if err != nil {
 		return Destination{}, fmt.Errorf("re-observe destination volume: %w", err)
 	}
-	filesystemReady := observed.FilesystemState == sysmounts.FilesystemStateClean
-	if !filesystemReady && observed.FilesystemState == sysmounts.FilesystemStateUnknown {
-		report, readinessErr := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{
-			DestinationID: d.ID, ExpectedDevice: *d.DeviceIdentity, Location: d.Location,
-		})
-		if readinessErr != nil {
-			return Destination{}, fmt.Errorf("verify filesystem health evidence for mounted destination: %w", readinessErr)
+	// One write verdict for every writer. The legacy ad-hoc check here used to
+	// disagree with preflight: preflight could admit a degraded write while this
+	// gate silently re-blocked it. `allowDegraded` is the caller's redundancy
+	// proof; the write probe is the physical proof.
+	probe := destinationreadiness.WriteProbeResult{}
+	if allowDegraded && observed.LocationExists && observed.LocationIsDirectory && observed.Mounted && !observed.ReadOnly && !observed.DeviceWriteProtected {
+		observedProbe, probeErr := s.readiness.WriteProbe(ctx, d.Location)
+		if probeErr != nil {
+			observedProbe = destinationreadiness.WriteProbeResult{Ran: true, Error: probeErr.Error()}
 		}
-		filesystemReady = report.OfflineCheckVerified && report.OverallSeverity != destinationreadiness.SeverityFail && report.OverallSeverity != destinationreadiness.SeverityUnknown
+		probe = observedProbe
 	}
-	if !d.DeviceIdentity.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() || !observed.Mounted || observed.ReadOnly || observed.DeviceWriteProtected || !filesystemReady {
-		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "destination volume identity, mount, writable state, or filesystem health is not proven ready"}
+	verdict, verdictReason := destinationreadiness.EvaluateWriteVerdict(destinationreadiness.WriteVerdictInput{
+		Mounted:              observed.Mounted,
+		ReadOnly:             observed.ReadOnly,
+		DeviceWriteProtected: observed.DeviceWriteProtected,
+		FilesystemState:      observed.FilesystemState,
+		Probe:                probe,
+		AllowDegraded:        allowDegraded,
+	})
+	filesystemReady := verdict == destinationreadiness.WriteReady || verdict == destinationreadiness.WriteDegraded
+	if !d.DeviceIdentity.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() || !filesystemReady {
+		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "destination volume identity, mount, writable state, or filesystem health is not proven ready: " + verdictReason}
 	}
 	mountRoot := filepath.Clean(observed.Identity.Mountpoint)
 	if !filepath.IsAbs(mountRoot) || mountRoot == string(filepath.Separator) {
@@ -315,7 +433,10 @@ func (s *service) resolveForUse(ctx context.Context, id string) (Destination, er
 	if err != nil {
 		return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "destination bundle resolves outside its mounted volume: " + err.Error()}
 	}
-	readiness, err := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{Location: bundleRoot})
+	readiness, err := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{
+		DestinationID: d.ID, ExpectedDevice: *d.DeviceIdentity, Location: bundleRoot,
+		AllowDegraded: allowDegraded, AllowWriteProbe: allowDegraded,
+	})
 	if err != nil {
 		return Destination{}, fmt.Errorf("analyze relocated destination readiness: %w", err)
 	}
@@ -324,8 +445,14 @@ func (s *service) resolveForUse(ctx context.Context, id string) (Destination, er
 	}
 	for _, check := range readiness.Checks {
 		switch check.Code {
-		case "destination_present", "destination_missing", "destination_inaccessible", "directory_inaccessible", "mounted_read_write", "filesystem_state", "destination_dirty", "filesystem_suitability":
+		case "destination_present", "destination_missing", "destination_inaccessible", "directory_inaccessible", "mounted_read_write", "filesystem_state", "destination_dirty", "filesystem_suitability", "write_probe":
+			// filesystem_suitability is advisory. A degraded filesystem_state is
+			// the explicit, probe-backed degraded verdict and is admitted only when
+			// the caller proved redundancy.
 			if check.Code == "filesystem_suitability" && check.Severity == destinationreadiness.SeverityWarning {
+				continue
+			}
+			if check.Code == "filesystem_state" && allowDegraded && check.Severity == destinationreadiness.SeverityWarning {
 				continue
 			}
 			if check.Severity != destinationreadiness.SeverityPass {
@@ -346,26 +473,34 @@ func (s *service) resolveForUse(ctx context.Context, id string) (Destination, er
 		return Destination{}, fmt.Errorf("check destination locator collisions: %w", err)
 	}
 	for _, other := range dests {
-		if other.ID == d.ID {
+		if other.ID == d.ID || other.BackendKind != BackendFilesystem {
 			continue
 		}
-		claimsSamePath := false
-		if other.BackendKind == BackendFilesystem {
-			for _, candidate := range []string{other.Location, other.RepositoryLocation} {
-				if resolvedOther, evalErr := filepath.EvalSymlinks(candidate); evalErr == nil && diskPathsOverlap(resolvedBundle, resolvedOther) {
-					claimsSamePath = true
-				}
-			}
-			if other.DeviceIdentity != nil && other.DeviceIdentity.MatchesDevice(observed.Identity) {
-				otherRoot, resolveErr := destinationreadiness.ResolveRelativePath(mountRoot, other.RelativePath)
-				if resolveErr == nil {
-					otherResolved, evalErr := filepath.EvalSymlinks(otherRoot)
-					claimsSamePath = claimsSamePath || (evalErr == nil && diskPathsOverlap(resolvedBundle, otherResolved))
-				}
+		// Two destinations may not share one bundle root (one manifest cannot
+		// describe both), and their repository paths may not overlap. A bundle
+		// nested *inside* another destination's bundle root is legitimate — for
+		// example a per-scope repository under a drive-wide bundle — so bundle
+		// roots are compared for equality, not containment.
+		otherBundle := other.Location
+		if other.DeviceIdentity != nil && other.DeviceIdentity.MatchesDevice(observed.Identity) && strings.TrimSpace(other.RelativePath) != "" {
+			if otherRoot, resolveErr := destinationreadiness.ResolveRelativePath(mountRoot, other.RelativePath); resolveErr == nil {
+				otherBundle = otherRoot
 			}
 		}
-		if claimsSamePath {
-			return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "another destination already claims the resolved bundle or repository path"}
+		if otherBundle != "" && sameResolvedPath(resolvedBundle, otherBundle) {
+			return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "another destination already claims this bundle path"}
+		}
+		candidates := []string{other.RepositoryLocation}
+		if strings.TrimSpace(other.RelativePath) != "" && otherBundle != "" {
+			candidates = append(candidates, RepositoryPathFor(otherBundle, other.Name))
+		}
+		for _, candidate := range candidates {
+			if strings.TrimSpace(candidate) == "" {
+				continue
+			}
+			if resolvedOther, evalErr := filepath.EvalSymlinks(candidate); evalErr == nil && diskPathsOverlap(resolvedRepo, resolvedOther) {
+				return Destination{}, ErrInvalidDestination{Field: "repository_path", Reason: "another destination already claims the resolved repository path"}
+			}
 		}
 	}
 	meta := BundleMetadata{DestinationID: d.ID, Name: d.Name, Backend: string(d.BackendKind), BundleRoot: bundleRoot, RelativePath: d.RelativePath, RepositoryPath: repoPath, EncryptionAlgorithm: d.EncryptionAlgorithm, SecretRef: d.SecretRef, CreatedAt: d.CreatedAt}
@@ -396,6 +531,20 @@ func (s *service) resolveForUse(ctx context.Context, id string) (Destination, er
 
 func diskPathsOverlap(a, b string) bool {
 	return pathContains(a, b) || pathContains(b, a)
+}
+
+// sameResolvedPath reports whether two paths name the same directory. It
+// resolves symlinks when possible and compares case-insensitively so a
+// case-insensitive volume (NTFS, APFS default) cannot hide a duplicate bundle
+// behind different capitalization.
+func sameResolvedPath(a, b string) bool {
+	resolve := func(p string) string {
+		if resolved, err := filepath.EvalSymlinks(p); err == nil {
+			return filepath.Clean(resolved)
+		}
+		return filepath.Clean(p)
+	}
+	return strings.EqualFold(resolve(a), resolve(b))
 }
 
 func pathContains(root, child string) bool {
@@ -1042,6 +1191,48 @@ func (s *service) GetDestination(ctx context.Context, id string) (Destination, e
 	return s.repo.GetByID(ctx, id)
 }
 
+// snapshotMatchesTarget accepts both snapshot identity generations:
+//   - current: dbm.owner/dbm.name tags (Kopia stores them as tag:dbm.* keys,
+//     normalized by the engine);
+//   - legacy: the target is the suffix of Kopia's source path, e.g.
+//     "user@host:/…/dbm:/agent-manager/data".
+//
+// A present tag that names another target rejects the snapshot, so a
+// misattributed snapshot is never returned for the wrong target. The source
+// suffix is only consulted when the corresponding tag is absent.
+func snapshotMatchesTarget(snapshot engine.Snapshot, owner, name string) bool {
+	if strings.TrimSpace(snapshot.ID) == "" {
+		return false
+	}
+	if _, err := time.Parse(time.RFC3339Nano, snapshot.StartTime); err != nil {
+		return false
+	}
+	tagOwner, tagName := "", ""
+	for _, tag := range snapshot.Tags {
+		switch {
+		case strings.HasPrefix(tag, "dbm.owner:"):
+			tagOwner = strings.TrimPrefix(tag, "dbm.owner:")
+		case strings.HasPrefix(tag, "dbm.name:"):
+			tagName = strings.TrimPrefix(tag, "dbm.name:")
+		}
+	}
+	if tagOwner != "" && tagOwner != owner {
+		return false
+	}
+	if tagName != "" && tagName != name {
+		return false
+	}
+	if tagOwner == owner && tagName == name {
+		return true
+	}
+	if snapshot.Source == "dbm://"+owner+"/"+name {
+		return true
+	}
+	// A partially tagged snapshot still needs the legacy source suffix to
+	// identify the target; tags alone are not evidence for a missing half.
+	return strings.HasSuffix(snapshot.Source, ":/"+owner+"/"+name)
+}
+
 func (s *service) ListDestinations(ctx context.Context, pageSize int) ([]Destination, error) {
 	if pageSize <= 0 {
 		pageSize = defaultListLimit
@@ -1055,9 +1246,17 @@ func (s *service) ListTargetSnapshots(ctx context.Context, destinationID, owner,
 		return nil, ErrInvalidDestination{Field: "snapshot identity", Reason: "destination, owner and name are required stable DBM identifiers"}
 	}
 	var snapshots []engine.Snapshot
-	err := s.WithResolvedDestination(ctx, destinationID, func(d Destination) error {
+	err := s.WithResolvedDestinationForRead(ctx, destinationID, func(d Destination) error {
 		var listErr error
-		snapshots, listErr = s.eng.SnapshotList(ctx, d.Name, "dbm://"+owner+"/"+name)
+		snapshots, listErr = s.eng.SnapshotListByTags(ctx, d.Name, []string{
+			"dbm.owner:" + owner, "dbm.name:" + name,
+		})
+		if listErr == nil && len(snapshots) == 0 {
+			// Legacy snapshots predate the DBM tags and exist only in the source
+			// path suffix. Pay for the repository-wide inventory only when the
+			// tag-filtered path proves there is nothing newer to show.
+			snapshots, listErr = s.eng.SnapshotList(ctx, d.Name, "")
+		}
 		return listErr
 	})
 	if err != nil {
@@ -1065,19 +1264,12 @@ func (s *service) ListTargetSnapshots(ctx context.Context, destinationID, owner,
 	}
 	filtered := make([]engine.Snapshot, 0, len(snapshots))
 	for _, snapshot := range snapshots {
-		if strings.TrimSpace(snapshot.ID) == "" || snapshot.Source != "dbm://"+owner+"/"+name {
-			return nil, fmt.Errorf("snapshot listing returned an unidentifiable or mismatched snapshot")
-		}
-		ownerTag, nameTag := false, false
-		for _, tag := range snapshot.Tags {
-			ownerTag = ownerTag || tag == "dbm.owner:"+owner
-			nameTag = nameTag || tag == "dbm.name:"+name
-		}
-		if !ownerTag || !nameTag {
-			return nil, fmt.Errorf("snapshot %q is missing exact DBM owner/name tags", snapshot.ID)
-		}
-		if _, parseErr := time.Parse(time.RFC3339Nano, snapshot.StartTime); parseErr != nil {
-			return nil, fmt.Errorf("snapshot %q has an invalid start time", snapshot.ID)
+		// The engine may return a repository-wide inventory. Unrelated snapshots
+		// are expected, not an integrity failure: selecting the exact target is
+		// this function's job. New snapshots carry dbm.owner/dbm.name tags; older
+		// snapshots carry the target as the source path suffix ":/owner/name".
+		if !snapshotMatchesTarget(snapshot, owner, name) {
+			continue
 		}
 		filtered = append(filtered, snapshot)
 	}
@@ -1242,7 +1434,7 @@ func (s *service) DeleteDestination(ctx context.Context, id string, deleteReposi
 func (s *service) GetDestinationUsage(ctx context.Context, id string) (UsageReport, error) {
 	var d Destination
 	var stats engine.RepoStats
-	err := s.WithResolvedDestination(ctx, id, func(current Destination) error {
+	err := s.WithResolvedDestinationForRead(ctx, id, func(current Destination) error {
 		d = current
 		var statsErr error
 		stats, statsErr = s.eng.RepoStats(ctx, current.Name)
@@ -1263,7 +1455,7 @@ func (s *service) GetDestinationUsage(ctx context.Context, id string) (UsageRepo
 func (s *service) WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (bool, string, error) {
 	var blocked bool
 	var reason string
-	err := s.WithResolvedDestination(ctx, destinationID, func(d Destination) error {
+	err := s.WithResolvedDestinationForRead(ctx, destinationID, func(d Destination) error {
 		if d.CapBytes == 0 || d.CapPolicy == CapPolicyAlertOnly {
 			return nil
 		}

@@ -58,6 +58,9 @@ type Service interface {
 	// marking them failed. Called once at startup before serving traffic so no
 	// run can wedge in a non-terminal state across a restart.
 	Reconcile(ctx context.Context) error
+	// SweepStaleStaging removes abandoned per-run capture directories older
+	// than StaleStagingAge. Called once at startup after Reconcile.
+	SweepStaleStaging(ctx context.Context) (int, error)
 	// Shutdown drains the background executor, bounded by ctx.
 	Shutdown(ctx context.Context) error
 }
@@ -531,7 +534,7 @@ func (s *service) measureRepoSizes(ctx context.Context, destIDs []string) map[st
 	for _, destID := range destIDs {
 		var destinationName string
 		var stats engine.RepoStats
-		err := s.deps.Destinations.WithResolvedDestination(ctx, destID, func(dest DestinationForRun) error {
+		err := s.deps.Destinations.WithResolvedDestinationForRead(ctx, destID, func(dest DestinationForRun) error {
 			if dest.ID != destID {
 				return errors.New("destination identity changed")
 			}
@@ -681,6 +684,49 @@ func (s *service) Reconcile(ctx context.Context) error {
 	return nil
 }
 
+// StaleStagingAge is the age after which an abandoned per-run staging directory
+// is removed at startup. A run that old can no longer be live; every in-process
+// run is reconciled to terminal before this sweep runs.
+const StaleStagingAge = 24 * time.Hour
+
+// SweepStaleStaging removes per-run capture directories left behind by an
+// interrupted process. Staging can hold a full copy of a source, so an
+// abandoned directory is both wasted space and unnecessary retained data.
+// Only directories older than StaleStagingAge are touched.
+func (s *service) SweepStaleStaging(ctx context.Context) (int, error) {
+	base, err := s.stagingBase(ctx)
+	if err != nil || base == "" {
+		return 0, err
+	}
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("sweep staging: %w", err)
+	}
+	cutoff := s.deps.Clock.Now().UTC().Add(-StaleStagingAge)
+	removed := 0
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "dbm-run-") {
+			continue
+		}
+		info, infoErr := entry.Info()
+		if infoErr != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(base, entry.Name())); err != nil {
+			s.logf("sweep stale staging %s: %v", entry.Name(), err)
+			continue
+		}
+		removed++
+	}
+	if removed > 0 {
+		s.logf("removed %d abandoned staging director(ies) older than %s", removed, StaleStagingAge)
+	}
+	return removed, nil
+}
+
 // Shutdown drains the background executor, bounded by ctx.
 func (s *service) Shutdown(ctx context.Context) error {
 	return s.executor.Shutdown(ctx)
@@ -742,7 +788,7 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 
 	artifact, err := capturer.Capture(ctx, sources.CaptureSpec{Locator: target.Locator, StageDir: stageDir})
 	if err != nil {
-		cause := failures.Classify(err)
+		cause := failures.ClassifyCapture(err)
 		out.FailureCode, out.FailureCategory = cause.Code, cause.Category
 		return finish(OutcomeFailed, cause.Message)
 	}
@@ -762,7 +808,7 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 	var snap engine.Snapshot
 	enteredWrite := false
 	var destinationGateErr error
-	err = s.deps.Destinations.WithResolvedDestination(ctx, destID, func(current DestinationForRun) error {
+	err = s.deps.Destinations.WithResolvedDestinationForWrite(ctx, destID, pf.DegradedDestinations[destID], func(current DestinationForRun) error {
 		enteredWrite = true
 		if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
 			destinationGateErr = errors.New("destination identity or backend changed after capture")
@@ -776,9 +822,22 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 		return createErr
 	})
 	if err != nil {
-		if destinationGateErr != nil || !enteredWrite {
+		if destinationGateErr != nil {
 			out.FailureCode, out.FailureCategory = failures.DestinationInaccessible, failures.CategoryDestination
-			return finish(OutcomeFailed, "destination readiness or identity changed immediately before snapshot creation")
+			return finish(OutcomeFailed, "destination identity or backend changed between capture and snapshot creation")
+		}
+		if !enteredWrite {
+			// The write gate failed before the callback ran: identity, mount,
+			// filesystem verdict, bounded write probe, or the host volume lease.
+			// Surface the real cause instead of blaming a readiness change that
+			// may not have happened.
+			cause := failures.Classify(err)
+			if cause.Code == failures.Unknown {
+				cause.Code, cause.Category = failures.DestinationInaccessible, failures.CategoryDestination
+				cause.Message = "destination write gate failed before snapshot creation: " + failures.BoundedDetail(err)
+			}
+			out.FailureCode, out.FailureCategory = cause.Code, cause.Category
+			return finish(OutcomeFailed, cause.Message)
 		}
 		cause := failures.Classify(err)
 		out.FailureCode, out.FailureCategory = cause.Code, cause.Category
@@ -790,7 +849,7 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 	// is a loud outcome warning (and a partial_failed run), never silent.
 	policy := engine.RetentionPolicy{KeepLatest: plan.KeepLatest, KeepHourly: plan.KeepHourly, KeepDaily: plan.KeepDaily, KeepWeekly: plan.KeepWeekly, KeepMonthly: plan.KeepMonthly, KeepAnnual: plan.KeepAnnual}
 	if policy.KeepLatest+policy.KeepHourly+policy.KeepDaily+policy.KeepWeekly+policy.KeepMonthly+policy.KeepAnnual > 0 {
-		out.Warning = s.enforceRetention(ctx, runID, dest, snap.Source, policy)
+		out.Warning = s.enforceRetention(ctx, runID, dest, pf.DegradedDestinations[destID], snap.Source, policy)
 	}
 	return finish(OutcomeSucceeded, "")
 }
@@ -802,14 +861,17 @@ const maxRetentionDetail = 400
 // returns "" only when the source provably holds at most keepLatest snapshots.
 // It acts on the source kopia recorded, not the captured path: the override
 // source makes those differ, and a policy on the path governs nothing.
-func (s *service) enforceRetention(ctx context.Context, runID string, destination DestinationForRun, source string, policy engine.RetentionPolicy) string {
+func (s *service) enforceRetention(ctx context.Context, runID string, destination DestinationForRun, allowDegraded bool, source string, policy engine.RetentionPolicy) string {
 	if strings.TrimSpace(source) == "" {
 		return "retention_failed: kopia did not report the snapshot source, so retention was not applied"
 	}
 	var remaining int
 	var destinationErr error
 	enteredRetention := false
-	err := s.deps.Destinations.WithResolvedDestination(ctx, destination.ID, func(current DestinationForRun) error {
+	// Retention deletes from the same repository the snapshot just went to. It
+	// must use the same write policy, or a degraded destination accepts the
+	// snapshot and then refuses to prune it.
+	err := s.deps.Destinations.WithResolvedDestinationForWrite(ctx, destination.ID, allowDegraded, func(current DestinationForRun) error {
 		if current.ID != destination.ID || current.Name != destination.Name || current.BackendKind != destination.BackendKind {
 			destinationErr = errors.New("destination identity or backend changed before retention")
 			return destinationErr
@@ -942,15 +1004,27 @@ func (s *service) BrowseSnapshot(ctx context.Context, destinationID, snapshotID,
 	return entries, err
 }
 
-// stagingDir creates a per-run staging directory and returns a cleanup func.
-func (s *service) stagingDir(ctx context.Context, runID string) (string, func() error, error) {
-	base := s.deps.StagingRoot
-	if base == "" && s.deps.RoutedRoots != nil {
+// stagingBase resolves the parent directory for per-run staging. It is shared
+// by staging creation and the startup sweep so both always agree.
+func (s *service) stagingBase(ctx context.Context) (string, error) {
+	if s.deps.StagingRoot != "" {
+		return s.deps.StagingRoot, nil
+	}
+	if s.deps.RoutedRoots != nil {
 		dataRoot, err := s.deps.RoutedRoots.Pick(ctx, storage.ClassData)
 		if err != nil {
-			return "", func() error { return nil }, fmt.Errorf("staging root: %w", err)
+			return "", fmt.Errorf("staging root: %w", err)
 		}
-		base = filepath.Join(dataRoot, "staging")
+		return filepath.Join(dataRoot, "staging"), nil
+	}
+	return os.TempDir(), nil
+}
+
+// stagingDir creates a per-run staging directory and returns a cleanup func.
+func (s *service) stagingDir(ctx context.Context, runID string) (string, func() error, error) {
+	base, err := s.stagingBase(ctx)
+	if err != nil {
+		return "", func() error { return nil }, err
 	}
 	if base == "" {
 		base = os.TempDir()

@@ -70,24 +70,31 @@ type drillSchedulerService struct {
 func (s *drillSchedulerService) Preview(context.Context, string, string, string) (drills.Preview, error) {
 	return drills.Preview{}, nil
 }
+
 func (s *drillSchedulerService) Run(context.Context, string, string, string, string, bool) (drills.Drill, error) {
 	return drills.Drill{}, nil
 }
+
 func (s *drillSchedulerService) RunMigrationSnapshot(context.Context, string, string, string, string, string) (drills.Drill, error) {
 	return drills.Drill{}, nil
 }
+
 func (s *drillSchedulerService) Get(context.Context, string) (drills.Drill, error) {
 	return drills.Drill{}, nil
 }
+
 func (s *drillSchedulerService) Retire(context.Context, string, string) (drills.Drill, error) {
 	return drills.Drill{}, nil
 }
+
 func (s *drillSchedulerService) List(context.Context, string, string, int) ([]drills.Drill, error) {
 	return nil, nil
 }
+
 func (s *drillSchedulerService) ListPage(context.Context, string, string, int, string) (drills.DrillPage, error) {
 	return drills.DrillPage{}, nil
 }
+
 func (s *drillSchedulerService) RunDue(context.Context) error {
 	s.runDueCalls <- struct{}{}
 	return nil

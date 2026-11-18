@@ -219,12 +219,15 @@ func TestEvaluateHonoursAnExceptionOnlyForTheExactPathAndFailureKind(t *testing.
 	}
 }
 
-func TestEvaluateBlocksWhenAnApprovedPathChangesShape(t *testing.T) {
+func TestEvaluateReportsAnApprovedDirectoryAsStaleNotBlocking(t *testing.T) {
+	// A readable directory at an approved temp-file path is measured by the
+	// scan, so it hides no bytes. Blocking all usage on the stale approval would
+	// strand the destination forever; report it for revocation instead.
 	f := newFakeFS(readable)
 	f.set(tempRel1, fakeNode{dir: true})
 	v := Evaluate(f, root, nil, []Exception{approved(tempRel1)})
-	if len(v.Blocking) != 1 || !strings.Contains(v.Blocking[0].Detail, "directory") {
-		t.Fatalf("an approved path that became a directory must block: %+v", v)
+	if len(v.Stale) != 1 || len(v.Blocking) != 0 {
+		t.Fatalf("an approved path that became a readable directory should be stale, not blocking: %+v", v)
 	}
 }
 

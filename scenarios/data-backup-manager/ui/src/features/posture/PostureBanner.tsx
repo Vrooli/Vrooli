@@ -7,9 +7,7 @@ import { queryKeys } from "../../hooks/keys";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
-import { tsToDate } from "../../lib/proto";
-import { isOlderThan } from "../../lib/format";
-import { STALE_VERIFY_MS } from "../../lib/status";
+import { summarizePosture } from "./posture";
 
 /**
  * The Overview's headline band. Composes liveness (the REST /health readiness)
@@ -28,16 +26,7 @@ export function PostureBanner() {
   const status = useTargetStatus();
 
   const statuses = status.data ?? [];
-  const now = new Date();
-
-  const overdue = statuses.filter((s) => s.overdue).length;
-
-  const unverified = statuses.filter((s) =>
-    isOlderThan(tsToDate(s.lastVerifiedAt), STALE_VERIFY_MS, now),
-  ).length;
-
-  const attention = overdue + unverified;
-  const allClear = statuses.length > 0 && attention === 0;
+  const { attention, overdue, unverified, allClear } = summarizePosture(statuses);
   const Icon = allClear ? CheckCircle2 : ShieldAlert;
   const tone = allClear ? "text-app-success" : "text-app-warning";
 
@@ -72,7 +61,7 @@ export function PostureBanner() {
         <div className="flex flex-col">
           <dt className="text-app-muted-foreground">{t(strings.posture.readinessLabel)}</dt>
           <dd className="font-medium text-app-foreground">
-            {health.isError ? t(strings.posture.error) : (health.data?.readiness ?? "—")}
+            {health.isError ? t(strings.posture.error) : (health.data?.status || "—")}
           </dd>
         </div>
         <div className="flex flex-col">

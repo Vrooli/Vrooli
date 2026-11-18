@@ -41,6 +41,10 @@ func (l *changesWhileQueued) WithResolvedDestination(ctx context.Context, id str
 	return use(destination)
 }
 
+func (l *changesWhileQueued) WithResolvedDestinationForRead(ctx context.Context, id string, use func(restores.DestinationForRestore) error) error {
+	return l.WithResolvedDestination(ctx, id, use)
+}
+
 type changesBeforeUse struct{}
 
 func (changesBeforeUse) DestinationForRestore(_ context.Context, id string) (restores.DestinationForRestore, error) {
@@ -49,6 +53,10 @@ func (changesBeforeUse) DestinationForRestore(_ context.Context, id string) (res
 
 func (changesBeforeUse) WithResolvedDestination(context.Context, string, func(restores.DestinationForRestore) error) error {
 	return fmt.Errorf("volume readiness changed immediately before repository use")
+}
+
+func (c changesBeforeUse) WithResolvedDestinationForRead(ctx context.Context, id string, use func(restores.DestinationForRestore) error) error {
+	return c.WithResolvedDestination(ctx, id, use)
 }
 
 func TestVerifyTargetRechecksDestinationBeforeQueuedRepositoryUse(t *testing.T) {

@@ -110,6 +110,14 @@ func (f *FakeService) WithResolvedDestination(ctx context.Context, id string, us
 	return use(d)
 }
 
+func (f *FakeService) WithResolvedDestinationForRead(ctx context.Context, id string, use func(destinations.Destination) error) error {
+	return f.WithResolvedDestination(ctx, id, use)
+}
+
+func (f *FakeService) WithResolvedDestinationForWrite(ctx context.Context, id string, _ bool, use func(destinations.Destination) error) error {
+	return f.WithResolvedDestination(ctx, id, use)
+}
+
 func (f *FakeService) ListDestinations(_ context.Context, _ int) ([]destinations.Destination, error) {
 	if f.ListErr != nil {
 		return nil, f.ListErr
