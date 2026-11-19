@@ -76,5 +76,26 @@
     "confidence": "low",
     "source": "estimated",
     "weight": 1
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "CogVideo is a GPU-backed managed service reached through the control plane; no desktop bundle contract is defined."
+        }
+      }
+    }
   }
 }

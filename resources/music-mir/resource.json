@@ -187,6 +187,10 @@
         "reacquisition": {
         "command": "vrooli resource acquisition data music-mir --group subroformer-4stem",
           "evidence": "resource.json#/managed_service/data_artifacts contains model revisions and SHA-256 values"
+        },
+        "relocation": {
+          "key": "RESOURCE_DATA_DIR",
+          "scope": "process-tree"
         }
       },
       "outputs": {
@@ -240,5 +244,26 @@
       "interval_seconds": 30,
       "timeout_seconds": 10
     }
-  ]
+  ],
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "Music-Mir is a resource-owned managed service reached through the control plane; no desktop bundle contract is defined."
+        }
+      }
+    }
+  }
 }
