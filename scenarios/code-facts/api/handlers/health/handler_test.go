@@ -2,6 +2,7 @@ package health_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,6 +21,39 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+func TestHealthHandlerReportsLifecycleIdentity(t *testing.T) {
+	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:fixture")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_ID", "release-1")
+	t.Setenv("VROOLI_RUNTIME_RELEASE_OPERATION_ID", "select-1")
+	t.Setenv("VROOLI_START_OPERATION_ID", "start-1")
+
+	h := health.NewHandler(health.Deps{Pinger: &databasetest.FakePinger{}, Service: "code-facts"})
+	mod := module.Module{
+		Name: "health",
+		Mount: func(r *mux.Router) {
+			r.HandleFunc("/health", h).Methods(http.MethodGet)
+		},
+	}
+	live := httpx.NewLiveServer(t, httpx.HandlerProviderFunc(func() http.Handler {
+		return apihttp.NewModuleRouter([]module.Module{mod}, apihttp.SecurityHeaders)
+	}))
+
+	resp, body := live.Do(t, http.MethodGet, "/health", nil)
+	apihttptest.AssertStatus(t, resp, http.StatusOK)
+
+	var got struct {
+		BuildIdentity             string `json:"build_identity"`
+		RuntimeReleaseID          string `json:"runtime_release_id"`
+		RuntimeReleaseOperationID string `json:"runtime_release_operation_id"`
+		StartOperationID          string `json:"start_operation_id"`
+	}
+	require.NoError(t, json.Unmarshal(body, &got))
+	require.Equal(t, "sha256:fixture", got.BuildIdentity)
+	require.Equal(t, "release-1", got.RuntimeReleaseID)
+	require.Equal(t, "select-1", got.RuntimeReleaseOperationID)
+	require.Equal(t, "start-1", got.StartOperationID)
+}
 
 // TestHealthHandler exercises the production /health endpoint through
 // the full middleware stack — exactly as a real HTTP client would hit

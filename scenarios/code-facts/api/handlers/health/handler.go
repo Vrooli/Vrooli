@@ -19,20 +19,28 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 )
 
-// buildIdentityEnv is the environment variable the lifecycle sets to
-// the authored-source digest so the health probe can verify the
-// running binary serves the expected revision.
-const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
+// The lifecycle sets these environment variables so the health probe can
+// verify the running process serves the expected authored source and belongs
+// to the start operation that launched it.
+const (
+	buildIdentityEnv             = "VROOLI_BUILD_IDENTITY"
+	runtimeReleaseIDEnv          = "VROOLI_RUNTIME_RELEASE_ID"
+	runtimeReleaseOperationIDEnv = "VROOLI_RUNTIME_RELEASE_OPERATION_ID"
+	startOperationIDEnv          = "VROOLI_START_OPERATION_ID"
+)
 
 // Deps wires the seams the health handler needs. Service and Version
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger        apidb.Pinger
-	Service       string
-	Version       string
-	BuildIdentity string
-	CacheMetrics  func(context.Context) (map[string]any, error)
+	Pinger                    apidb.Pinger
+	Service                   string
+	Version                   string
+	BuildIdentity             string
+	RuntimeReleaseID          string
+	RuntimeReleaseOperationID string
+	StartOperationID          string
+	CacheMetrics              func(context.Context) (map[string]any, error)
 }
 
 // NewHandler returns a handler that reports overall health, service
@@ -47,16 +55,31 @@ func NewHandler(d Deps) http.HandlerFunc {
 		if identity == "" {
 			identity = os.Getenv(buildIdentityEnv)
 		}
+		runtimeReleaseID := d.RuntimeReleaseID
+		if runtimeReleaseID == "" {
+			runtimeReleaseID = os.Getenv(runtimeReleaseIDEnv)
+		}
+		runtimeReleaseOperationID := d.RuntimeReleaseOperationID
+		if runtimeReleaseOperationID == "" {
+			runtimeReleaseOperationID = os.Getenv(runtimeReleaseOperationIDEnv)
+		}
+		startOperationID := d.StartOperationID
+		if startOperationID == "" {
+			startOperationID = os.Getenv(startOperationIDEnv)
+		}
 		resp := healthResponse{
-			Status:        "healthy",
-			Service:       d.Service,
-			Timestamp:     now.UTC().Format(time.RFC3339),
-			Readiness:     true,
-			Version:       d.Version,
-			BuildIdentity: identity,
-			UptimeSeconds: now.Sub(startedAt).Seconds(),
-			Dependencies:  map[string]dependencyStatus{},
-			Metrics:       runtimeMetrics(startedAt, now),
+			Status:                    "healthy",
+			Service:                   d.Service,
+			Timestamp:                 now.UTC().Format(time.RFC3339),
+			Readiness:                 true,
+			Version:                   d.Version,
+			BuildIdentity:             identity,
+			RuntimeReleaseID:          runtimeReleaseID,
+			RuntimeReleaseOperationID: runtimeReleaseOperationID,
+			StartOperationID:          startOperationID,
+			UptimeSeconds:             now.Sub(startedAt).Seconds(),
+			Dependencies:              map[string]dependencyStatus{},
+			Metrics:                   runtimeMetrics(startedAt, now),
 		}
 		start := time.Now()
 		err := d.Pinger.PingContext(r.Context())
@@ -90,17 +113,20 @@ func NewHandler(d Deps) http.HandlerFunc {
 }
 
 type healthResponse struct {
-	Status        string                      `json:"status"`
-	Service       string                      `json:"service"`
-	Timestamp     string                      `json:"timestamp"`
-	Readiness     bool                        `json:"readiness"`
-	Version       string                      `json:"version,omitempty"`
-	BuildIdentity string                      `json:"build_identity,omitempty"`
-	UptimeSeconds float64                     `json:"uptime_seconds,omitempty"`
-	Dependencies  map[string]dependencyStatus `json:"dependencies,omitempty"`
-	Metrics       map[string]any              `json:"metrics,omitempty"`
-	LastIndexedAt string                      `json:"last_indexed_at,omitempty"`
-	IndexedCount  int64                       `json:"indexed_count,omitempty"`
+	Status                    string                      `json:"status"`
+	Service                   string                      `json:"service"`
+	Timestamp                 string                      `json:"timestamp"`
+	Readiness                 bool                        `json:"readiness"`
+	Version                   string                      `json:"version,omitempty"`
+	BuildIdentity             string                      `json:"build_identity,omitempty"`
+	RuntimeReleaseID          string                      `json:"runtime_release_id,omitempty"`
+	RuntimeReleaseOperationID string                      `json:"runtime_release_operation_id,omitempty"`
+	StartOperationID          string                      `json:"start_operation_id,omitempty"`
+	UptimeSeconds             float64                     `json:"uptime_seconds,omitempty"`
+	Dependencies              map[string]dependencyStatus `json:"dependencies,omitempty"`
+	Metrics                   map[string]any              `json:"metrics,omitempty"`
+	LastIndexedAt             string                      `json:"last_indexed_at,omitempty"`
+	IndexedCount              int64                       `json:"indexed_count,omitempty"`
 }
 
 type dependencyStatus struct {
