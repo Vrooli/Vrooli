@@ -21,6 +21,7 @@ import {
   type SizePreset,
 } from "./createCatalog";
 import { capabilityPresentation, familyIcon, isPanelOperation } from "./capabilityCatalog";
+import type { InpaintOpParams } from "./opParams.generated";
 import { ModelPickerButton } from "../models/ModelPickerButton";
 import { MaskBrush } from "./MaskBrush";
 import { MODE_LABEL } from "./modeLabels";
@@ -187,7 +188,7 @@ export function CreatePanel({
         inpaint_crop_to_mask: true,
         inpaint_context_pixels:
           Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
-      };
+      } satisfies InpaintOpParams;
     }
     if (operation === "text_to_image" && poseSource) {
       out.adapters = [

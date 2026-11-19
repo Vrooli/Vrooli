@@ -23,6 +23,8 @@ func main() {
 	cliOut := flag.String("cli-out", "../cli/domains/ai/commands.generated.go", "output path for the generated Go AI CLI command table")
 	opsOut := flag.String("ops-out", "../cli/domains/ops/commands.generated.go", "output path for the generated Go deterministic CLI command table")
 	opspecsOut := flag.String("opspecs-out", "../ui/src/features/workspace/opSpecs.generated.ts", "output path for the generated deterministic parameter forms")
+	paramTypesOut := flag.String("paramtypes-out", "internal/opparams/params.generated.go", "output path for the generated typed operation parameter views")
+	paramTypesTSOut := flag.String("paramtypes-ts-out", "../ui/src/features/workspace/opParams.generated.ts", "output path for the generated TypeScript operation parameter types")
 	wireOut := flag.String("wire-out", "internal/wireops/bindings.generated.go", "output path for the generated deterministic wire-parameter bindings")
 	flag.Parse()
 
@@ -67,6 +69,20 @@ func main() {
 		os.Exit(1)
 	}
 	write(*opspecsOut, opspecsRendered, "ops parameter forms")
+
+	paramTypesRendered, err := capability.RenderParamTypes()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gen-capability: %v\n", err)
+		os.Exit(1)
+	}
+	write(*paramTypesOut, paramTypesRendered, "typed operation params")
+
+	paramTypesTSRendered, err := capability.RenderParamTypesTS()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gen-capability: %v\n", err)
+		os.Exit(1)
+	}
+	write(*paramTypesTSOut, paramTypesTSRendered, "ts operation param types")
 
 	wireRendered, err := wireops.RenderBindings()
 	if err != nil {

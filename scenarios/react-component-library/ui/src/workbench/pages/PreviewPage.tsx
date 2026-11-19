@@ -17,7 +17,13 @@ export function PreviewPage() {
   const bundle = useComponentBundle(id);
   const [device, setDevice] = useState<Device>(() => {
     const requested = searchParams.get("device");
-    return requested === "desktop" || requested === "tablet" || requested === "phone" ? requested : "desktop";
+    if (requested === "desktop" || requested === "tablet" || requested === "phone") return requested;
+    // Opening a share link on a phone should show the phone composition, not a
+    // 1180px frame clamped into a narrow column.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
+      return "phone";
+    }
+    return "desktop";
   });
   const [copied, setCopied] = useState(false);
 

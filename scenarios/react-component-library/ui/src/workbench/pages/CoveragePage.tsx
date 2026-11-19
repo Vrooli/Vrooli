@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { pluralDefault } from "../plural";
 import { Link } from "react-router-dom";
 import { ArrowUpRight, CircleAlert, RefreshCw } from "lucide-react";
 
@@ -206,7 +207,11 @@ export function CoveragePage() {
             <PanelHead
               title={t("workbench.coverage.matrix", { defaultValue: "Maturity by domain" })}
               meta={t("workbench.coverage.matrixMeta", {
-                defaultValue: "{{count}} assets · {{bands}} bands",
+                defaultValue: pluralDefault(
+                  report?.rows.length ?? 0,
+                  "{{count}} asset · {{bands}} bands",
+                  "{{count}} assets · {{bands}} bands",
+                ),
                 count: report?.rows.length ?? 0,
                 bands: BANDS.length,
               })}

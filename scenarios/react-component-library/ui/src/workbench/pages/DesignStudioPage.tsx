@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { pluralDefault } from "../plural";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowDown,
@@ -9,9 +10,11 @@ import {
   Copy,
   Eye,
   FilePlus2,
+  Layers,
   Monitor,
   Plus,
   RotateCcw,
+  SlidersHorizontal,
   Smartphone,
   Sparkles,
   Tablet,
@@ -21,12 +24,7 @@ import {
 
 import { useTranslation } from "../../i18n";
 import { appRoutes } from "../../routes";
-import {
-  formatRelative,
-  useComponentBundle,
-  useDesignPages,
-  useDesignScenarios,
-} from "../data";
+import { formatRelative, useComponentBundle, useDesignPages, useDesignScenarios } from "../data";
 import { FixtureFrame } from "../component/FixtureFrame";
 import { TemplateRenderer } from "../templates/TemplateRenderer";
 import { DEFAULT_TEMPLATE } from "../templates/library";
@@ -79,7 +77,14 @@ type Device = "desktop" | "tablet" | "phone";
 type InspectorTab = "props" | "theme" | "contract" | "compare";
 
 const DEVICE_WIDTH: Record<Device, number> = { desktop: 1180, tablet: 834, phone: 390 };
-const CONTAINERS = new Set<TemplateNode["type"]>(["page", "stack", "row", "grid", "card", "surface"]);
+const CONTAINERS = new Set<TemplateNode["type"]>([
+  "page",
+  "stack",
+  "row",
+  "grid",
+  "card",
+  "surface",
+]);
 const DEVICE_HEIGHT: Record<Device, number> = { desktop: 760, tablet: 900, phone: 760 };
 
 interface Revision {
@@ -145,7 +150,11 @@ interface AddableNode {
 }
 
 const ADDABLE: AddableNode[] = [
-  { type: "text", label: "Text", props: { text: "New line of copy", variant: "body", tone: "muted" } },
+  {
+    type: "text",
+    label: "Text",
+    props: { text: "New line of copy", variant: "body", tone: "muted" },
+  },
   { type: "text", label: "Heading", props: { text: "A stronger headline", variant: "display" } },
   { type: "card", label: "Card", props: { pad: 18, elevated: true } },
   { type: "stack", label: "Stack", props: { gap: 14 } },
@@ -181,12 +190,14 @@ export function DesignStudioPage() {
   const [templateId, setTemplateId] = useState(searchParams.get("template") ?? DEFAULT_TEMPLATE.id);
   const [device, setDevice] = useState<Device>(() => {
     const requested = searchParams.get("device");
-    if (requested === "desktop" || requested === "tablet" || requested === "phone") return requested;
+    if (requested === "desktop" || requested === "tablet" || requested === "phone")
+      return requested;
     return readWorkbenchPreferences().defaultDevice;
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("props");
   const [presenting, setPresenting] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<"layers" | "inspector" | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const locals = useLocalTemplates();
@@ -209,7 +220,9 @@ export function DesignStudioPage() {
 
   useEffect(() => {
     if (!scenario && scenarios.data && scenarios.data.length > 0) {
-      const preferred = scenarios.data.find((entry) => entry.scenario === "react-component-library");
+      const preferred = scenarios.data.find(
+        (entry) => entry.scenario === "react-component-library",
+      );
       const first = scenarios.data[0];
       if (first) setScenario(preferred?.scenario ?? first.scenario);
     }
@@ -221,7 +234,10 @@ export function DesignStudioPage() {
   }, [page, pages.data]);
 
   const rows = useMemo(() => layerRows(spec), [spec]);
-  const selected = useMemo(() => rows.find((row) => row.node.id === selectedId)?.node, [rows, selectedId]);
+  const selected = useMemo(
+    () => rows.find((row) => row.node.id === selectedId)?.node,
+    [rows, selectedId],
+  );
   const componentId = searchParams.get("component") ?? "";
   const storyId = searchParams.get("story") ?? "";
   const currentPage = pages.data?.find((entry) => entry.page === page);
@@ -246,11 +262,15 @@ export function DesignStudioPage() {
         id: "route",
         label: t("workbench.studio.checkRoute", { defaultValue: "Page route is declared" }),
         verdict: currentPage?.route ? "pass" : "unmeasured",
-        detail: currentPage?.route ?? t("workbench.studio.noPage", { defaultValue: "No design page selected" }),
+        detail:
+          currentPage?.route ??
+          t("workbench.studio.noPage", { defaultValue: "No design page selected" }),
       },
       {
         id: "slot",
-        label: t("workbench.studio.checkSlot", { defaultValue: "Composition declares a component slot" }),
+        label: t("workbench.studio.checkSlot", {
+          defaultValue: "Composition declares a component slot",
+        }),
         verdict: slots > 0 ? "pass" : "warn",
         detail: componentId
           ? placement
@@ -262,7 +282,10 @@ export function DesignStudioPage() {
             : t("workbench.studio.slotInFlow", {
                 defaultValue: "Live component sits in the designed slot",
               })
-          : t("workbench.studio.slotCount", { defaultValue: "{{count}} slots", count: slots }),
+          : t("workbench.studio.slotCount", {
+              defaultValue: pluralDefault(slots, "{{count}} slot", "{{count}} slots"),
+              count: slots,
+            }),
       },
       {
         id: "primary",
@@ -276,13 +299,17 @@ export function DesignStudioPage() {
       },
       {
         id: "hierarchy",
-        label: t("workbench.studio.checkHierarchy", { defaultValue: "Display, title and body hierarchy exists" }),
+        label: t("workbench.studio.checkHierarchy", {
+          defaultValue: "Display, title and body hierarchy exists",
+        }),
         verdict: displays > 0 && titles > 0 && bodies > 0 ? "pass" : "warn",
         detail: `${displays} display · ${titles} title · ${bodies} body`,
       },
       {
         id: "evidence",
-        label: t("workbench.studio.checkEvidence", { defaultValue: "Component evidence is attached" }),
+        label: t("workbench.studio.checkEvidence", {
+          defaultValue: "Component evidence is attached",
+        }),
         verdict: componentId ? "pass" : "unmeasured",
         detail: componentId
           ? t("workbench.studio.evidenceAttached", { defaultValue: "Live component attached" })
@@ -452,10 +479,31 @@ export function DesignStudioPage() {
   }, [height, spec, width]);
 
   return (
-    <div className="wb-studio" data-experience-surface="design-overview">
+    <div
+      className={mobilePanel ? `wb-studio is-mobile-${mobilePanel}` : "wb-studio"}
+      data-experience-surface="design-overview"
+    >
+      {mobilePanel ? (
+        <button
+          type="button"
+          className="wb-studio-backdrop"
+          aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
+          onClick={() => setMobilePanel(null)}
+        />
+      ) : null}
       <aside className="wb-studio-left">
+        <button
+          type="button"
+          className="wb-studio-sheet-close"
+          aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
+          onClick={() => setMobilePanel(null)}
+        >
+          <X aria-hidden size={15} />
+        </button>
         <div className="wb-studio-section">
-          <span className="wb-caption">{t("workbench.studio.scenario", { defaultValue: "Scenario" })}</span>
+          <span className="wb-caption">
+            {t("workbench.studio.scenario", { defaultValue: "Scenario" })}
+          </span>
           {scenarios.isLoading ? <Skeleton height={34} /> : null}
           {scenarios.isError ? (
             <Banner tone="amber" icon={<CircleAlert aria-hidden size={14} />}>
@@ -480,7 +528,9 @@ export function DesignStudioPage() {
         </div>
 
         <div className="wb-studio-section">
-          <span className="wb-caption">{t("workbench.studio.pages", { defaultValue: "Pages" })}</span>
+          <span className="wb-caption">
+            {t("workbench.studio.pages", { defaultValue: "Pages" })}
+          </span>
           {pages.isLoading ? <Skeleton height={80} /> : null}
           <div className="wb-page-list">
             {(pages.data ?? []).map((entry) => (
@@ -495,7 +545,15 @@ export function DesignStudioPage() {
                 }}
               >
                 <ChevronRight aria-hidden size={12} />
-                <span style={{ minWidth: 0, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span
+                  style={{
+                    minWidth: 0,
+                    flex: 1,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {entry.title || entry.page}
                 </span>
                 <span className="wb-count">{entry.regionCount}</span>
@@ -503,14 +561,18 @@ export function DesignStudioPage() {
             ))}
             {(pages.data ?? []).length === 0 && !pages.isLoading ? (
               <p className="wb-muted-2 wb-small">
-                {t("workbench.studio.noPages", { defaultValue: "No declared pages for this scenario." })}
+                {t("workbench.studio.noPages", {
+                  defaultValue: "No declared pages for this scenario.",
+                })}
               </p>
             ) : null}
           </div>
         </div>
 
         <div className="wb-studio-section" style={{ flex: 1 }}>
-          <span className="wb-caption">{t("workbench.studio.layers", { defaultValue: "Layers" })}</span>
+          <span className="wb-caption">
+            {t("workbench.studio.layers", { defaultValue: "Layers" })}
+          </span>
           <div className="wb-page-list">
             {rows.map((row) => (
               <button
@@ -518,10 +580,26 @@ export function DesignStudioPage() {
                 type="button"
                 className="wb-layer"
                 aria-current={selectedId === row.node.id ? "true" : undefined}
-                onClick={() => setSelectedId(row.node.id)}
+                onClick={() => {
+                  setSelectedId(row.node.id);
+                  // On a phone the tree and inspector are separate sheets.
+                  // Selecting a layer is a request to edit it, so hand the
+                  // person straight to its properties.
+                  if (mobilePanel === "layers") setMobilePanel("inspector");
+                }}
               >
-                <span className="wb-layer-depth" style={{ "--depth": row.depth } as CSSProperties} />
-                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span
+                  className="wb-layer-depth"
+                  style={{ "--depth": row.depth } as CSSProperties}
+                />
+                <span
+                  style={{
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {layerLabel(row.node)}
                 </span>
                 <span className="wb-layer-type">{row.node.type}</span>
@@ -531,7 +609,9 @@ export function DesignStudioPage() {
         </div>
 
         <div className="wb-studio-section">
-          <span className="wb-caption">{t("workbench.studio.template", { defaultValue: "Template" })}</span>
+          <span className="wb-caption">
+            {t("workbench.studio.template", { defaultValue: "Template" })}
+          </span>
           <Select
             aria-label={t("workbench.studio.template", { defaultValue: "Template" })}
             value={template.id}
@@ -575,7 +655,8 @@ export function DesignStudioPage() {
             <h1>{template.name}</h1>
             <small>
               {scenario ?? t("workbench.studio.noScenario", { defaultValue: "no scenario" })} ·{" "}
-              {currentPage?.page ?? t("workbench.studio.workingDraft", { defaultValue: "working draft" })}
+              {currentPage?.page ??
+                t("workbench.studio.workingDraft", { defaultValue: "working draft" })}
             </small>
           </div>
           <div className="wb-row" style={{ flexWrap: "wrap" }}>
@@ -599,8 +680,33 @@ export function DesignStudioPage() {
           </div>
         </div>
 
+        <div className="wb-studio-mobilebar">
+          <button
+            type="button"
+            className="wb-btn ghost sm"
+            onClick={() => setMobilePanel("layers")}
+          >
+            <Layers aria-hidden size={13} />
+            {t("workbench.studio.layers", { defaultValue: "Layers" })}
+          </button>
+          <button
+            type="button"
+            className="wb-btn ghost sm"
+            onClick={() => setMobilePanel("inspector")}
+          >
+            <SlidersHorizontal aria-hidden size={13} />
+            {selected
+              ? t("workbench.studio.inspect", { defaultValue: "Inspect" })
+              : t("workbench.studio.openInspector", { defaultValue: "Inspect page" })}
+          </button>
+        </div>
+
         <div className="wb-brief">
-          <Sparkles aria-hidden size={14} style={{ color: "var(--wb-signal)", flex: "none", marginTop: 2 }} />
+          <Sparkles
+            aria-hidden
+            size={14}
+            style={{ color: "var(--wb-signal)", flex: "none", marginTop: 2 }}
+          />
           <span>
             <b>{t("workbench.studio.brief", { defaultValue: "Brief" })}:</b>{" "}
             {t("workbench.studio.briefBody", {
@@ -620,11 +726,12 @@ export function DesignStudioPage() {
 
         <div className="wb-artboard-area" ref={areaRef}>
           <div className="wb-artboard-bar">
+            <span>{`${template.name} · ${device} · ${width}px · ${Math.round(fit * 100)}%`}</span>
             <span>
-              {`${template.name} · ${device} · ${width}px · ${Math.round(fit * 100)}%`}
-            </span>
-            <span>
-              {t("workbench.studio.revision", { defaultValue: "Revision {{hash}}", hash: hashSpec(spec) })}
+              {t("workbench.studio.revision", {
+                defaultValue: "Revision {{hash}}",
+                hash: hashSpec(spec),
+              })}
             </span>
           </div>
           <div style={{ width: width * fit, height: contentHeight * fit, margin: "0 auto" }}>
@@ -670,7 +777,11 @@ export function DesignStudioPage() {
         <div className="wb-studio-foot">
           <span>
             {t("workbench.studio.localDraft", {
-              defaultValue: "Local draft · single user · {{count}} revisions",
+              defaultValue: pluralDefault(
+                revisions.length,
+                "Local draft · single user · {{count}} revision",
+                "Local draft · single user · {{count}} revisions",
+              ),
               count: revisions.length,
             })}
           </span>
@@ -687,12 +798,24 @@ export function DesignStudioPage() {
       </div>
 
       <aside className="wb-studio-right">
+        <button
+          type="button"
+          className="wb-studio-sheet-close"
+          aria-label={t("workbench.studio.closePanel", { defaultValue: "Close panel" })}
+          onClick={() => setMobilePanel(null)}
+        >
+          <X aria-hidden size={15} />
+        </button>
         <div className="wb-inspector-section">
           <span className="wb-caption">
             {t("workbench.studio.selection", { defaultValue: "Selection" })}
           </span>
           <div className="wb-row-between">
-            <b className="wb-small">{selected ? layerLabel(selected) : t("workbench.studio.nothing", { defaultValue: "Nothing selected" })}</b>
+            <b className="wb-small">
+              {selected
+                ? layerLabel(selected)
+                : t("workbench.studio.nothing", { defaultValue: "Nothing selected" })}
+            </b>
             {selected ? <span className="wb-tag">{selected.type}</span> : null}
           </div>
           {selected ? (
@@ -774,7 +897,9 @@ export function DesignStudioPage() {
                   <WbButton
                     variant="ghost"
                     size="sm"
-                    aria-label={t("workbench.studio.duplicateLayer", { defaultValue: "Duplicate layer" })}
+                    aria-label={t("workbench.studio.duplicateLayer", {
+                      defaultValue: "Duplicate layer",
+                    })}
                     onClick={() => {
                       const next = duplicateNode(spec, selected.id);
                       setSpec(next);
@@ -856,11 +981,7 @@ export function DesignStudioPage() {
           ) : null}
 
           {inspectorTab === "theme" ? (
-            <ThemePanel
-              template={template}
-              onChange={updateTemplate}
-              onSaveAs={saveAsTemplate}
-            />
+            <ThemePanel template={template} onChange={updateTemplate} onSaveAs={saveAsTemplate} />
           ) : null}
 
           {inspectorTab === "contract" ? (
@@ -910,23 +1031,47 @@ export function DesignStudioPage() {
 
           {inspectorTab === "compare" ? (
             <div className="wb-stack tight">
-              <span className="wb-caption">{t("workbench.studio.baseline", { defaultValue: "Baseline vs draft" })}</span>
+              <span className="wb-caption">
+                {t("workbench.studio.baseline", { defaultValue: "Baseline vs draft" })}
+              </span>
               <div className="wb-compare">
                 <div>
-                  <span className="wb-tag">{t("workbench.studio.baseline", { defaultValue: "Baseline" })}</span>
-                  <div style={{ marginTop: 6, height: 120, overflow: "hidden", borderRadius: 6, border: "1px solid var(--wb-line)" }}>
+                  <span className="wb-tag">
+                    {t("workbench.studio.baseline", { defaultValue: "Baseline" })}
+                  </span>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      height: 120,
+                      overflow: "hidden",
+                      borderRadius: 6,
+                      border: "1px solid var(--wb-line)",
+                    }}
+                  >
                     <TemplateRenderer template={template} spec={template.spec} mode="thumb" />
                   </div>
                 </div>
                 <div>
-                  <span className="wb-tag">{t("workbench.studio.draft", { defaultValue: "Draft" })}</span>
-                  <div style={{ marginTop: 6, height: 120, overflow: "hidden", borderRadius: 6, border: "1px solid var(--wb-line)" }}>
+                  <span className="wb-tag">
+                    {t("workbench.studio.draft", { defaultValue: "Draft" })}
+                  </span>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      height: 120,
+                      overflow: "hidden",
+                      borderRadius: 6,
+                      border: "1px solid var(--wb-line)",
+                    }}
+                  >
                     <TemplateRenderer template={template} spec={spec} mode="thumb" />
                   </div>
                 </div>
               </div>
               <div className="wb-divider" />
-              <span className="wb-caption">{t("workbench.studio.history", { defaultValue: "Revisions" })}</span>
+              <span className="wb-caption">
+                {t("workbench.studio.history", { defaultValue: "Revisions" })}
+              </span>
               {revisions.length === 0 ? (
                 <p className="wb-muted-2 wb-small">
                   {t("workbench.studio.noHistory", { defaultValue: "No accepted revisions yet." })}
@@ -941,7 +1086,9 @@ export function DesignStudioPage() {
                     onClick={() => setSpec(revision.spec)}
                   >
                     <span className="wb-mono wb-small">{revision.hash}</span>
-                    <span className="wb-small wb-muted-2">{formatRelative(new Date(revision.at))}</span>
+                    <span className="wb-small wb-muted-2">
+                      {formatRelative(new Date(revision.at))}
+                    </span>
                   </button>
                 ))
               )}
@@ -950,12 +1097,21 @@ export function DesignStudioPage() {
         </div>
 
         <div className="wb-inspector-section">
-          <span className="wb-caption">{t("workbench.studio.actions", { defaultValue: "Actions" })}</span>
+          <span className="wb-caption">
+            {t("workbench.studio.actions", { defaultValue: "Actions" })}
+          </span>
           <div className="wb-stack tight">
             <WbButton
               variant="primary"
               size="md"
-              onClick={() => save(spec, t("workbench.studio.accepted", { defaultValue: "Composition accepted as a local revision." }))}
+              onClick={() =>
+                save(
+                  spec,
+                  t("workbench.studio.accepted", {
+                    defaultValue: "Composition accepted as a local revision.",
+                  }),
+                )
+              }
             >
               <Check aria-hidden size={13} />
               {t("workbench.studio.accept", { defaultValue: "Accept composition" })}
@@ -987,11 +1143,26 @@ export function DesignStudioPage() {
           }}
         >
           <div style={{ position: "absolute", top: 16, right: 16 }}>
-            <button type="button" className="wb-iconbtn" aria-label={t("workbench.studio.closePresent", { defaultValue: "Close presentation" })} onClick={() => setPresenting(false)}>
+            <button
+              type="button"
+              className="wb-iconbtn"
+              aria-label={t("workbench.studio.closePresent", {
+                defaultValue: "Close presentation",
+              })}
+              onClick={() => setPresenting(false)}
+            >
               <X aria-hidden size={16} />
             </button>
           </div>
-          <div style={{ width, maxHeight: "92dvh", overflow: "auto", borderRadius: 10, boxShadow: "0 40px 120px rgba(0,0,0,.6)" }}>
+          <div
+            style={{
+              width,
+              maxHeight: "92dvh",
+              overflow: "auto",
+              borderRadius: 10,
+              boxShadow: "0 40px 120px rgba(0,0,0,.6)",
+            }}
+          >
             <TemplateRenderer
               template={template}
               spec={spec}
@@ -1035,9 +1206,13 @@ function StudioSlot({
       </span>
     );
   }
-  const story =
-    bundle.data.stories.find((entry) => entry.id === storyId) ?? bundle.data.stories[0];
-  if (!story) return <span className="tpl-slot-hint">{t("workbench.studio.slotNoStory", { defaultValue: "No story" })}</span>;
+  const story = bundle.data.stories.find((entry) => entry.id === storyId) ?? bundle.data.stories[0];
+  if (!story)
+    return (
+      <span className="tpl-slot-hint">
+        {t("workbench.studio.slotNoStory", { defaultValue: "No story" })}
+      </span>
+    );
   return (
     <FixtureFrame
       assetId={componentId}
@@ -1066,7 +1241,10 @@ function ThemePanel({
   return (
     <div className="wb-stack tight">
       <Field label={t("workbench.studio.name", { defaultValue: "Name" })}>
-        <TextInput value={template.name} onChange={(event) => onChange({ name: event.target.value })} />
+        <TextInput
+          value={template.name}
+          onChange={(event) => onChange({ name: event.target.value })}
+        />
       </Field>
       <Field label={t("workbench.studio.tagline", { defaultValue: "Tagline" })}>
         <TextInput
@@ -1081,7 +1259,9 @@ function ThemePanel({
         />
       </Field>
       <div className="wb-field">
-        <span className="wb-label">{t("workbench.studio.palette", { defaultValue: "Palette" })}</span>
+        <span className="wb-label">
+          {t("workbench.studio.palette", { defaultValue: "Palette" })}
+        </span>
         <div className="wb-swatches">
           {TEMPLATE_PALETTES.map((entry) => {
             const selected = entry.palette.bg === template.palette.bg;
@@ -1127,7 +1307,9 @@ function ThemePanel({
         </Field>
       </div>
       <div className="wb-field">
-        <span className="wb-label">{t("workbench.studio.display", { defaultValue: "Display type" })}</span>
+        <span className="wb-label">
+          {t("workbench.studio.display", { defaultValue: "Display type" })}
+        </span>
         <Segmented
           label={t("workbench.studio.display", { defaultValue: "Display type" })}
           value={template.display}
@@ -1176,7 +1358,17 @@ function NodeInspector({
     typeof props[key] === "number" ? props[key] : fallback;
   const has = (key: string): boolean => key in props;
   const isButton = selectedNode.type === "button";
-  const textVariants = ["display", "title", "subtitle", "body", "label", "caption", "eyebrow", "mono", "price"];
+  const textVariants = [
+    "display",
+    "title",
+    "subtitle",
+    "body",
+    "label",
+    "caption",
+    "eyebrow",
+    "mono",
+    "price",
+  ];
 
   return (
     <div className="wb-stack tight">
@@ -1184,7 +1376,10 @@ function NodeInspector({
 
       {has("text") ? (
         <Field label={t("workbench.studio.text", { defaultValue: "Text" })}>
-          <TextInput value={stringValue("text")} onChange={(event) => onChange("text", event.target.value)} />
+          <TextInput
+            value={stringValue("text")}
+            onChange={(event) => onChange("text", event.target.value)}
+          />
         </Field>
       ) : null}
 
@@ -1199,29 +1394,44 @@ function NodeInspector({
 
       {has("name") ? (
         <Field label={t("workbench.studio.name", { defaultValue: "Name" })}>
-          <TextInput value={stringValue("name")} onChange={(event) => onChange("name", event.target.value)} />
+          <TextInput
+            value={stringValue("name")}
+            onChange={(event) => onChange("name", event.target.value)}
+          />
         </Field>
       ) : null}
 
       {has("label") ? (
         <Field label={t("workbench.studio.label", { defaultValue: "Label" })}>
-          <TextInput value={stringValue("label")} onChange={(event) => onChange("label", event.target.value)} />
+          <TextInput
+            value={stringValue("label")}
+            onChange={(event) => onChange("label", event.target.value)}
+          />
         </Field>
       ) : null}
 
       {has("hint") ? (
         <Field label={t("workbench.studio.hint", { defaultValue: "Slot hint" })}>
-          <TextInput value={stringValue("hint")} onChange={(event) => onChange("hint", event.target.value)} />
+          <TextInput
+            value={stringValue("hint")}
+            onChange={(event) => onChange("hint", event.target.value)}
+          />
         </Field>
       ) : null}
 
       {selectedNode.type === "stat" ? (
         <>
           <Field label={t("workbench.studio.value", { defaultValue: "Value" })}>
-            <TextInput value={stringValue("value")} onChange={(event) => onChange("value", event.target.value)} />
+            <TextInput
+              value={stringValue("value")}
+              onChange={(event) => onChange("value", event.target.value)}
+            />
           </Field>
           <Field label={t("workbench.studio.detail", { defaultValue: "Detail" })}>
-            <TextInput value={stringValue("detail")} onChange={(event) => onChange("detail", event.target.value)} />
+            <TextInput
+              value={stringValue("detail")}
+              onChange={(event) => onChange("detail", event.target.value)}
+            />
           </Field>
         </>
       ) : null}
@@ -1233,14 +1443,19 @@ function NodeInspector({
             min={0}
             max={100}
             value={numberValue("value")}
-            onChange={(event) => onChange("value", Math.max(0, Math.min(100, Number(event.target.value))))}
+            onChange={(event) =>
+              onChange("value", Math.max(0, Math.min(100, Number(event.target.value))))
+            }
           />
         </Field>
       ) : null}
 
       {has("variant") ? (
         <Field label={t("workbench.studio.variant", { defaultValue: "Variant" })}>
-          <Select value={stringValue("variant")} onChange={(event) => onChange("variant", event.target.value)}>
+          <Select
+            value={stringValue("variant")}
+            onChange={(event) => onChange("variant", event.target.value)}
+          >
             {(isButton ? ["primary", "secondary", "ghost"] : textVariants).map((value) => (
               <option key={value} value={value}>
                 {value}
@@ -1252,19 +1467,27 @@ function NodeInspector({
 
       {has("tone") ? (
         <Field label={t("workbench.studio.tone", { defaultValue: "Tone" })}>
-          <Select value={stringValue("tone")} onChange={(event) => onChange("tone", event.target.value)}>
-            {["ink", "muted", "accent", "secondary", "green", "amber", "red", "ice"].map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
+          <Select
+            value={stringValue("tone")}
+            onChange={(event) => onChange("tone", event.target.value)}
+          >
+            {["ink", "muted", "accent", "secondary", "green", "amber", "red", "ice"].map(
+              (value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ),
+            )}
           </Select>
         </Field>
       ) : null}
 
       {has("shape") ? (
         <Field label={t("workbench.studio.shape", { defaultValue: "Art shape" })}>
-          <Select value={stringValue("shape")} onChange={(event) => onChange("shape", event.target.value)}>
+          <Select
+            value={stringValue("shape")}
+            onChange={(event) => onChange("shape", event.target.value)}
+          >
             {["none", "orb", "vase", "arch", "rings", "wave", "grid", "portrait"].map((value) => (
               <option key={value} value={value}>
                 {value}
@@ -1276,7 +1499,10 @@ function NodeInspector({
 
       {has("align") ? (
         <Field label={t("workbench.studio.align", { defaultValue: "Align" })}>
-          <Select value={stringValue("align")} onChange={(event) => onChange("align", event.target.value)}>
+          <Select
+            value={stringValue("align")}
+            onChange={(event) => onChange("align", event.target.value)}
+          >
             {["left", "center", "right", "start", "end"].map((value) => (
               <option key={value} value={value}>
                 {value}
@@ -1303,7 +1529,9 @@ function NodeInspector({
             min={1}
             max={6}
             value={numberValue("cols", 1)}
-            onChange={(event) => onChange("cols", Math.max(1, Math.min(6, Number(event.target.value))))}
+            onChange={(event) =>
+              onChange("cols", Math.max(1, Math.min(6, Number(event.target.value))))
+            }
           />
         </Field>
       ) : null}
@@ -1330,7 +1558,9 @@ function NodeInspector({
 
       {has("elevated") ? (
         <div className="wb-row-between">
-          <span className="wb-label">{t("workbench.studio.elevated", { defaultValue: "Elevated" })}</span>
+          <span className="wb-label">
+            {t("workbench.studio.elevated", { defaultValue: "Elevated" })}
+          </span>
           <Toggle
             checked={Boolean(props.elevated)}
             onChange={(next) => onChange("elevated", next)}

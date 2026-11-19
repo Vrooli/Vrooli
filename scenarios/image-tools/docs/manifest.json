@@ -556,7 +556,11 @@
             "hot-loading"
           ],
           "maturity": "active",
-          "completion": "required"
+          "completion": "required",
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ]
         },
         {
           "path": "concepts/COMPOSITION.md",
@@ -573,7 +577,11 @@
             "operation-catalog"
           ],
           "maturity": "active",
-          "completion": "required"
+          "completion": "required",
+          "requiredBy": [
+            "oriented",
+            "implemented"
+          ]
         }
       ]
     },
@@ -1543,7 +1551,10 @@
             "extension-substrate"
           ],
           "maturity": "active",
-          "completion": "required"
+          "completion": "required",
+          "requiredBy": [
+            "implemented"
+          ]
         },
         {
           "path": "internal/MATURATION-PLAN.md",
@@ -1560,7 +1571,10 @@
             "package-boundaries"
           ],
           "maturity": "active",
-          "completion": "required"
+          "completion": "required",
+          "requiredBy": [
+            "implemented"
+          ]
         }
       ]
     }

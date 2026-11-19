@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { pluralDefault } from "../plural";
 import { Link } from "react-router-dom";
 import { ArrowRight, ArrowUpRight, CircleAlert, Copy, Filter, Inbox } from "lucide-react";
 
@@ -111,7 +112,14 @@ export function ReviewPage() {
       ) : null}
 
       <div className="wb-kpis">
-        <Kpi label={t("workbench.review.kpiOpen", { defaultValue: "Open findings" })} value={findings.length} detail={t("workbench.review.kpiOpenDetail", { defaultValue: "Across {{count}} assets", count: stats.affectedAssets })} />
+        <Kpi label={t("workbench.review.kpiOpen", { defaultValue: "Open findings" })} value={findings.length} detail={t("workbench.review.kpiOpenDetail", {
+          defaultValue: pluralDefault(
+            stats.affectedAssets,
+            "Across {{count}} asset",
+            "Across {{count}} assets",
+          ),
+          count: stats.affectedAssets,
+        })} />
         <Kpi label={t("workbench.review.kpiBlocking", { defaultValue: "Blocking" })} value={stats.blocking} tone="red" detail={t("workbench.review.kpiBlockingDetail", { defaultValue: "Blocks a release" })} />
         <Kpi label={t("workbench.review.kpiWarning", { defaultValue: "Needs a decision" })} value={stats.warning} tone="amber" detail={t("workbench.review.kpiWarningDetail", { defaultValue: "Advisory gate failures" })} />
         <Kpi label={t("workbench.review.kpiUnmeasured", { defaultValue: "Unmeasured" })} value={unmeasured.length} tone="signal" detail={t("workbench.review.kpiUnmeasuredDetail", { defaultValue: "No achieved rung" })} />
@@ -176,8 +184,11 @@ export function ReviewPage() {
             {findings.length > 60 ? (
               <p className="wb-muted-2 wb-small" style={{ padding: "0 14px 12px" }}>
                 {t("workbench.review.truncated", {
-                  defaultValue:
+                  defaultValue: pluralDefault(
+                    findings.length,
+                    "Showing the first 30 findings per column. {{count}} finding is in the current report.",
                     "Showing the first 30 findings per column. {{count}} findings are in the current report.",
+                  ),
                   count: findings.length,
                 })}
               </p>

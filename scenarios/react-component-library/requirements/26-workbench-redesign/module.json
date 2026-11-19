@@ -114,7 +114,7 @@
     },
     {
       "id": "WRD-006",
-      "title": "The Asset data drawer preserves all seven current asset surfaces",
+      "title": "The Asset data drawer preserves all six current asset surfaces",
       "status": "complete",
       "prd_ref": "OT-P0-014",
       "category": "experience",
@@ -130,6 +130,11 @@
           "type": "automated",
           "status": "complete",
           "notes": "Drawer opens from the component metadata row and by `?tab=`; the six preserved surfaces are implemented. Per-tab screenshot comparison is not captured because the governed capture service is unavailable."
+        },
+        {
+          "type": "automated",
+          "status": "complete",
+          "notes": "Source tab hosts governed editing over the authoring RPCs: released versions are read-only, drafts are edited with the read digest, the focused check runs against the saved draft, and publish repeats the check. `ui/src/workbench/component/SourceWorkbench.test.tsx` covers begin, save, check and publish; `pnpm exec tsc --noEmit`, ESLint and the 93-file UI suite pass."
         }
       ]
     },
@@ -339,7 +344,7 @@
         {
           "type": "automated",
           "status": "in_progress",
-          "notes": "390/320 exercise found and fixed Home row and Components tab overflow; mobile navigation present. Full phone journeys, focus order, reduced motion, forced colors and permission states are not yet captured."
+          "notes": "All eleven routes were swept in Chromium at 1440, 390 and 320: no document overflow, no page errors. Fixed during this pass: the share preview and in-context stage used max-content grid tracks, so a 1180px frame ignored `max-width:100%` and clipped on phones; in-context now defaults to the phone frame under 640px; the design studio exposes its layer tree and inspector as bottom sheets under 980px; and the 320px source-path row no longer sets document width. Adding, editing, duplicating, removing and accepting a revision were exercised at 390/320. Full keyboard focus-order certification, reduced-motion/forced-colors capture and permission states remain open."
         }
       ]
     },

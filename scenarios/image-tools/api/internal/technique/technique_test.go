@@ -191,7 +191,7 @@ func TestArgBuilders(t *testing.T) {
 				r.Model.Source.Assets = []models.Asset{{Filename: "model.onnx", Kind: models.ArtifactONNX}}
 				return r
 			}()),
-			want: []string{"-m", "image_tools_sidecar.geometry", "--model", "/models/m1/model.onnx", "--image", "/in.png", "--out", "/out.png", "--model-id", "m1", "--support-roi", `{"x":0,"y":0.8,"width":1,"height":0.2}`},
+			want: []string{"-m", "image_tools_sidecar.geometry", "--model", "/models/m1/model.onnx", "--image", "/in.png", "--out", "/out.png", "--model-id", "m1", "--support-roi", `{"height":0.2,"width":1,"x":0,"y":0.8}`},
 		},
 		{
 			name: "onnx deblur sidecar dispatch",

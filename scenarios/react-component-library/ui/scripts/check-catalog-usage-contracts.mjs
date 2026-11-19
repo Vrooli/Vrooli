@@ -270,6 +270,10 @@ for (const entry of fs
   if (!fs.existsSync(metadataPath)) continue;
   try {
     const metadata = readJSON(metadataPath);
+    // A draft-only asset has no published latest, so it has no usage contract
+    // to audit yet. Treating it as an inspection failure made a working draft
+    // look like corpus debt and changed the eligible count.
+    if (!string(metadata.latest)) continue;
     const source = sourceFor(componentDir, metadata);
     const shapes = propShapes(source);
     if (!shapes.length) continue;

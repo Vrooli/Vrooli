@@ -69,7 +69,7 @@
       ]
     },
     {
-      "id": "default",
+      "id": "scenario",
       "name": "Default",
       "role": "anatomy",
       "route": "/design/react-component-library",
@@ -130,7 +130,7 @@
       ]
     },
     {
-      "id": "default",
+      "id": "page",
       "name": "Default",
       "role": "anatomy",
       "route": "/design/react-component-library/catalog-workspace",
@@ -191,7 +191,7 @@
       ]
     },
     {
-      "id": "default",
+      "id": "legacy-alias",
       "name": "Default",
       "role": "anatomy",
       "route": "/sketch/react-component-library/catalog-workspace",

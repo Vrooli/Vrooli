@@ -506,3 +506,12 @@ grows the real box, not a pseudo-element hit slop: slop overlaps neighbouring hi
 `position: relative` against consumers that position controls themselves, and is invisible to the box measurement
 that layout and accessibility audits use. `denseTapTarget` is the explicit, auditable opt-out and matches
 `IconButton`. See `docs/reference/sizing-contract.md#touch-floor`.
+
+## 2026-11-19 — Workbench implementation decisions
+
+- **Coverage is a persisted projection, not a request-time computation.** The full gate corpus takes minutes. `reportCache` now persists the last report, serves stale while one background refresh runs, coalesces concurrent cold callers, and returns an explicit `preparing` error in two seconds. The Coverage page polls and never renders zero while waiting. Cache path: `~/.vrooli/data/vrooli/react-component-library/coverage-report-v1.json`.
+- **Batch catalog reads use one load.** `ResolveRuleSetFor` and `RuleSetDigests` resolve every asset from one catalog/definition load. The previous per-asset resolver made evidence recomputation quadratic.
+- **The live component is a layer, not flow content.** In-context and the studio render the slot as a floating layer with `min()`-clamped coordinates, so dragging/resizing never reflows the authored page and cannot leave the device width.
+- **Templates are authored data plus a browser-local shelf.** Built-in templates are immutable in code; duplicates and new templates live in `localStorage` under `rcl.workbench.templates.v1` until promoted through the asset flow.
+- **Source editing is draft-bound and governed.** The Source drawer reads immutable releases and hosts a locally bundled Monaco editor over the authoring RPCs: begin draft, save with `expected_sha256`, run the focused check, publish through the check. It never writes a released version or bypasses validation. See `PROBLEMS.md` and `SourceWorkbench.test.tsx`.
+- **Preview images resolve by manifest category.** Assets outside `components/` no longer 404.

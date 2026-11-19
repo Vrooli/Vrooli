@@ -19,7 +19,7 @@ func TestPublishedPageStorySchemaRequiresConcreteRoute(t *testing.T) {
 	require.NoError(t, compiler.AddResource("story.json", bytes.NewReader(raw)))
 	schema, err := compiler.Compile("story.json")
 	require.NoError(t, err)
-	raw, err = os.ReadFile("../../../ui/src/pages/CoveragePage.story.json")
+	raw, err = os.ReadFile("../../../ui/src/workbench/pages/CoveragePage.story.json")
 	require.NoError(t, err)
 	var contract map[string]any
 	require.NoError(t, json.Unmarshal(raw, &contract))

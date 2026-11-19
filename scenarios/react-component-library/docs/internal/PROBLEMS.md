@@ -927,10 +927,49 @@ as such in `docs/concepts/WORKBENCH-REDESIGN.md`.
   the conflict remains open.
 - `AppNotificationSettings@1.0.6` emits library-owned utility classes
   (`grid`, `gap-space-md`, `text-sm`, `divide-y`, …), which the live utility
-  allowlist rejects.
+  allowlist rejects. Its latest release also has no `usage-contract.json`, so
+  the usage-contract gate reports it as uncontracted.
+- `AppShell@2.1.7` carries a usage contract whose `componentId`/version still
+  names an older release. Changing either would mutate a released artifact, so
+  the repair is a new governed release, not an edit.
+- A draft-only asset is no longer counted as usage-contract debt: the checker
+  skips manifests without `latest` instead of reporting an inspection failure.
 - Five released directories have no publish/backfill provenance:
   BottomSheet 1.3.7, Dialog 1.3.10, DrawerShell 1.1.9, FullPageDrawer 1.5.2 and
   OverlayActionBar 1.0.0.
 
 These are pre-existing corpus findings, not redesign regressions. They are
 visible in Review and Coverage.
+
+### Resolved — in-browser source editing targets a draft, not a release
+
+The first Nocturne pass retired the legacy Monaco editor and printed the
+governed commands instead. That removed a real capability: viewing an asset's
+source is not the same as being able to fix it. The Source drawer now hosts a
+locally bundled, lazily loaded Monaco editor over the same authoring RPCs the
+CLI uses.
+
+The boundary is the draft, not the browser. A released version stays read-only.
+`BeginComponentVersion` opens a mutable draft, `UpdateComponentContent` writes
+one artifact with the digest from the read (`expected_sha256`), a conflict is
+surfaced with a reload action instead of overwriting concurrent work,
+`CheckComponentVersion` re-indexes that manifest and reports stage verdicts,
+and `PublishComponentVersion` repeats the check, compiles the preview and only
+then promotes the draft. A browser save therefore cannot rewrite a published
+release, skip validation or lose provenance. `OT-P0-002` is satisfied through
+this path; `SourceWorkbench.test.tsx` covers begin, save, check and publish.
+
+Monaco is supplied from the scenario bundle (editor and TypeScript workers),
+not a CDN, so the editor works offline and behind tunnels. It is loaded on the
+first edit, keeping the session's ordinary page load unchanged.
+
+### Fixed — the Versions drawer read the wrong service
+
+The workbench asked `VersionsService.ListVersions` for a library id. That
+service addresses the version ledger by its own ids and returned an empty page,
+so every asset rendered "Versions 0" and the diff selectors were empty. The
+drawer now uses `ComponentsService.ListComponentVersions`, sorts semver
+descending, distinguishes released, draft and indexed rows, and reads the
+selected immutable version's own source through `GetComponentVersionContent`.
+Verified on Button 2.2.14 (8 versions; selecting 2.2.9 shows its own SHA and
+`@version 2.2.9`).

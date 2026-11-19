@@ -99,6 +99,12 @@ export function ComponentPage() {
   const [device, setDevice] = useState<Device>(() => {
     const requested = searchParams.get("device");
     if (requested === "desktop" || requested === "tablet" || requested === "phone") return requested;
+    // A desktop frame cannot be inspected on a phone without panning a clipped
+    // surface. Default to the frame that matches the viewport; the device
+    // switcher still lets a person choose a wider frame deliberately.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches) {
+      return "phone";
+    }
     return readWorkbenchPreferences().defaultDevice;
   });
   const [positions, setPositions] = useState<Record<string, FixturePosition>>(() => readPositions(id));

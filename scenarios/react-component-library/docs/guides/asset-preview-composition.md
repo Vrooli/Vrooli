@@ -270,7 +270,7 @@ The contract parser and compatibility model live in
 version checks live in `api/internal/preview/frame.go` and
 `api/internal/preview/service.go`. The frame candidate API is implemented by
 `api/handlers/components/connect_handler.go`, and the component preview surface
-is implemented by `ui/src/features/components/ComponentEditorController.tsx`
+is implemented by the Component workspace and the Asset data drawer in `ui/src/workbench/`
 and `PreviewStorySheet.tsx`. Keep this guide aligned with those seams when the
 wire contract or catalog format changes.
 

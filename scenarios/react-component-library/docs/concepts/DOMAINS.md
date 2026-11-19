@@ -8,16 +8,16 @@ This document maps the product capability boundaries for the scenario.
 
 | Domain | Purpose | Primary Archetype | Owns Data | Surfaces | Source Paths |
 |---|---|---|---|---|---|
-| components | Index Git-tracked component and hook manifests, versions, dependency pins, catalog metrics, and catalog conformance automation. | catalog | `components`, `component_asset_dependencies`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/features/`, `catalog build --check`, `api/handlers/catalog/`, `api/internal/componenttests/` |
+| components | Index Git-tracked component and hook manifests, versions, dependency pins, catalog metrics, and catalog conformance automation. | catalog | `components`, `component_asset_dependencies`, manifest files, version source paths | API, CLI, UI | `api/internal/components/`, `api/handlers/components/`, `cli/domains/components/`, `ui/src/workbench/`, `catalog build --check`, `api/handlers/catalog/`, `api/internal/componenttests/` |
 | catalog graph | Project desired-state catalog relationships, rung structure, reconciliation, and host port obligations. | projection | Catalog asset files and domain order; no graph table | API, CLI, UI | `api/internal/assetrung/`, `api/internal/assetgraph/`, `api/internal/graphreconcile/`, `api/internal/portcontract/`, `api/handlers/catalog/` |
 | inventory | Scan a scenario's UI inventory to supply adoption recommendations. | analyzer | Derived scan results only; no durable product data | API | `api/handlers/inventory/`, `packages/api-core/uimanifest/` |
-| versions | Browse and diff indexed component release artifacts. | catalog | `component_versions` release snapshots | API, CLI, UI | `api/internal/versions/`, `api/handlers/versions/`, `cli/domains/versions/`, `ui/src/features/versions/` |
-| adoptions | Link a version-pinned package dependency into target scenarios, install adopter obligations, and track explicit ejections. | workflow | `adoption_records`, target dependency and registry files, reasoned ejected source | API, CLI, UI | `api/internal/adoptions/`, `api/handlers/adoptions/`, `cli/domains/adoptions/`, `ui/src/features/adoptions/` |
+| versions | Browse and diff indexed component release artifacts. | catalog | `component_versions` release snapshots | API, CLI, UI | `api/internal/versions/`, `api/handlers/versions/`, `cli/domains/versions/`, `ui/src/workbench/component/AssetDataDrawer.tsx` |
+| adoptions | Link a version-pinned package dependency into target scenarios, install adopter obligations, and track explicit ejections. | workflow | `adoption_records`, target dependency and registry files, reasoned ejected source | API, CLI, UI | `api/internal/adoptions/`, `api/handlers/adoptions/`, `cli/domains/adoptions/`, `ui/src/workbench/pages/CreatePage.tsx` |
 | deps | Validate component `@deps` declarations against target scenarios. | validator | Dependency declaration rows | API, UI support | `api/internal/deps/`, `api/handlers/deps/`, `ui/src/api/deps.ts` |
-| preview | Bundle component source for iframe preview. | workbench | No durable product data | API, UI | `api/internal/preview/`, `api/handlers/preview/`, `ui/src/features/components/` |
-| themes | Resolve built-in and scenario-derived theme tokens. | resolver | Built-in theme rows | API, UI | `api/internal/themes/`, `api/handlers/themes/`, `ui/src/features/components/` |
+| preview | Bundle component source for iframe preview. | workbench | No durable product data | API, UI | `api/internal/preview/`, `api/handlers/preview/`, `ui/src/workbench/component/` |
+| themes | Resolve built-in and scenario-derived theme tokens. | resolver | Built-in theme rows | API, UI | `api/internal/themes/`, `api/handlers/themes/`, `ui/src/workbench/` |
 | workflows | Persist and observe assisted extraction/adoption tasks; Agent Manager is execution evidence only. | workflow | `assisted_workflows` | API, CLI, UI | `api/internal/workflows/`, `api/handlers/workflows/`, `cli/domains/workflows/`, `ui/src/components/ActiveWorkMenu.tsx` |
-| health | Report runtime readiness. | health | No product data | API, CLI, UI | `api/handlers/health/`, `ui/src/features/health/` |
+| health | Report runtime readiness. | health | No product data | API, CLI, UI | `api/handlers/health/`, `ui/src/workbench/pages/CapabilitiesPage.tsx` |
 
 ## Domain Notes
 

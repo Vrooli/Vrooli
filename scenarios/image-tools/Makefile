@@ -436,12 +436,14 @@ endpoints: ## Regenerate .vrooli/endpoints.json from API modules (validated agai
 backends-doc: ## Regenerate the generated host-tool matrix in docs/reference/backends.md from providerSpecs()
 	@cd api && UPDATE_BACKENDS_DOC=1 go test ./internal/ai/ -run TestBackendsDocHostToolMatrixUpToDate -count=1 >/dev/null && echo "backends.md host-tool matrix regenerated"
 
-capability-gen: ## Regenerate the UI capability catalog and CLI command tables from the manifests + proto
+capability-gen: ## Regenerate the UI catalog, CLI tables, parameter forms, and typed params from the manifests + proto
 	@cd api && go run ./cmd/gen-capability \
 		-out ../ui/src/features/workspace/capabilityCatalog.generated.ts \
 		-cli-out ../cli/domains/ai/commands.generated.go \
 		-ops-out ../cli/domains/ops/commands.generated.go \
 		-opspecs-out ../ui/src/features/workspace/opSpecs.generated.ts \
+		-paramtypes-out internal/opparams/params.generated.go \
+		-paramtypes-ts-out ../ui/src/features/workspace/opParams.generated.ts \
 		-wire-out internal/wireops/bindings.generated.go
 
 run: start

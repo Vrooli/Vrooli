@@ -6,7 +6,7 @@
     {
       "id": "IMG-P1-015",
       "title": "Responsible-Use Deployment Gate",
-      "status": "implemented",
+      "status": "complete",
       "prd_ref": "OT-P1-015",
       "category": "feature",
       "description": "Harm protection is a set of CONFIGURABLE controls, not a capability allowlist. No image capability is blocked at the code layer: identity/appearance edits (face transfer, clothing/hair/makeup changes) are ordinary operations. A public/monetized deployment defaults to content scan on, provenance/attribution marking on (>= real-person edits), a published Acceptable-Use Policy, consent affirmation + logging on identity-altering ops, and abuse rate-limiting. Each control is independently overridable (IMAGE_TOOLS_REQUIRE_CONSENT, IMAGE_TOOLS_NSFW_SCAN, IMAGE_TOOLS_REQUIRE_PROVENANCE, IMAGE_TOOLS_RATE_LIMIT_PER_MIN); local defaults are permissive. The only non-configurable refusal is sexual content involving minors, and it is enforced rather than asserted: the public tier requires a reviewer, refuses image output when none is configured, fails closed on a reviewer error, and the engine deletes any refused output before the job fails. The reviewer is operator-supplied (IMAGE_TOOLS_MINOR_SAFETY_CMD) because no bundled model answers the age question. Built in api/internal/safety (tier preset + per-control overrides + op-weight table + consent log + rate limiter) and enforced on the AI submit edge (handlers/ai); discovery via SafetyService.GetPolicy uses the same resolved policy. Naturalize is low-weight; identity/body/clothing/appearance edits are high-weight.",

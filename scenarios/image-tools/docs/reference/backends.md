@@ -331,7 +331,7 @@ renews it every one-third of its ten-minute TTL with the generation guard, and
 stops when renewal fails. Cleanup releases with a separate bounded context even
 when the job was canceled. A GPU-only model cannot be relabeled as CPU fallback.
 The stable-diffusion.cpp CPU route pins both `--backend cpu` and
-`--params-backend cpu`: [upstream backend selection](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/backend.md)
+`--params-backend cpu`: [upstream backend selection](https://github.com/leejet/stable-diffusion.cpp/blob/master/docs/guides/backend.md)
 distinguishes runtime compute from parameter residency. CPU offloading alone
 does not prove CPU execution.
 

@@ -1,9 +1,9 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { CoverageReport, CoverageRow } from "@vrooli/proto-types/react-component-library/v1/catalog/catalog_pb";
-import { AssetKind, type Component } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
-import type { Version } from "@vrooli/proto-types/react-component-library/v1/versions/versions_pb";
+import { AssetKind, type Component, type ComponentVersion } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
 import {
+  componentsClient,
   getCatalogAsset,
   getComponentExperience,
   listCatalogAssets,
@@ -22,10 +22,9 @@ import {
   type ListNextWorkResponse,
 } from "../api/catalog";
 import { listComponentTestReports, type ComponentTestReport } from "../api/componentTests";
-import { versionsClient } from "../api/versions";
 import { API_BASE, boundedFetch } from "../api/client";
 
-export type { CatalogAsset, Component, ComponentExperience, ComponentStory, ComponentTestReport, CoverageReport, CoverageRow, Version };
+export type { CatalogAsset, Component, ComponentExperience, ComponentStory, ComponentTestReport, ComponentVersion, CoverageReport, CoverageRow };
 
 export const wbKeys = {
   catalog: ["wb", "catalog"] as const,
@@ -181,7 +180,7 @@ export interface WorkbenchStory {
 
 export interface ComponentBundle {
   asset: CatalogAsset;
-  versions: Version[];
+  versions: ComponentVersion[];
   stories: WorkbenchStory[];
   experience?: ComponentExperience;
   testReports: ComponentTestReport[];
@@ -235,7 +234,10 @@ export function useComponentBundle(id: string): UseQueryResult<ComponentBundle> 
       if (!asset) throw new Error("Component not found");
 
       const [versions, stories, experience, tests] = await Promise.allSettled([
-        versionsClient.listVersions({ componentId: id, limit: 0 }),
+        // ComponentsService owns the indexed release list for a library id.
+        // VersionsService addresses the version ledger by its own ids and
+        // returned an empty page here, which is why Versions rendered "0".
+        componentsClient.listComponentVersions({ componentId: id, limit: 0 }),
         listComponentStories({ componentId: id, limit: 200 }),
         getComponentExperience(id),
         listComponentTestReports({ componentId: id, limit: 3 }),
@@ -254,7 +256,12 @@ export function useComponentBundle(id: string): UseQueryResult<ComponentBundle> 
 
       return {
         asset,
-        versions: versions.status === "fulfilled" ? versions.value.versions : [],
+        versions:
+          versions.status === "fulfilled"
+            ? [...versions.value.versions].sort((left, right) =>
+                right.version.localeCompare(left.version, undefined, { numeric: true }),
+              )
+            : [],
         stories: flatStories,
         experience: experience.status === "fulfilled" ? experience.value : undefined,
         testReports: tests.status === "fulfilled" ? tests.value : [],

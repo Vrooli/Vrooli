@@ -25,7 +25,9 @@
 
 .wb-home-search:focus-within {
   border-color: var(--wb-signal);
-  box-shadow: 0 0 0 3px rgba(255, 179, 92, 0.12), 0 12px 40px rgba(0, 0, 0, 0.28);
+  box-shadow:
+    0 0 0 3px rgba(255, 179, 92, 0.12),
+    0 12px 40px rgba(0, 0, 0, 0.28);
 }
 
 .wb-home-search input {
@@ -448,7 +450,9 @@
   border: 1px solid var(--wb-line);
   border-radius: 12px;
   background: linear-gradient(180deg, #17131b, #100d13);
-  transition: border-color 160ms ease, transform 160ms ease;
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease;
 }
 
 .wb-asset-card:hover {
@@ -463,9 +467,7 @@
   place-items: center;
   overflow: hidden;
   border-bottom: 1px solid var(--wb-line);
-  background:
-    radial-gradient(180px 90px at 50% 15%, #251e22, #100d12),
-    #100d12;
+  background: radial-gradient(180px 90px at 50% 15%, #251e22, #100d12), #100d12;
 }
 
 .wb-asset-thumb img {
@@ -731,7 +733,9 @@
   background: var(--wb-panel);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
   cursor: grab;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 .wb-fixture:active {
@@ -740,7 +744,9 @@
 
 .wb-fixture[data-selected="true"] {
   border-color: var(--wb-signal);
-  box-shadow: 0 0 0 1px var(--wb-signal), 0 18px 48px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 0 0 1px var(--wb-signal),
+    0 18px 48px rgba(0, 0, 0, 0.4);
 }
 
 .wb-fixture-head {
@@ -888,8 +894,149 @@
   gap: 14px;
 }
 
+/* ── Governed source surface ──────────────────────────────────────────────── */
+
+.wb-source {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.wb-source-head,
+.wb-source-filebar,
+.wb-source-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Long version paths are one unbroken token. Without this the meta row set the
+   document scroll width on a 320px phone. */
+.wb-source-meta {
+  min-width: 0;
+  flex: 1 1 220px;
+  overflow-wrap: anywhere;
+}
+
+.wb-source-filebar {
+  justify-content: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--wb-line);
+  border-radius: 9px;
+  background: #0d0b12;
+}
+
+.wb-source-filebar > span {
+  flex: 1;
+  min-width: 0;
+}
+
+.wb-source-filebar .wb-select {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding-left: 0;
+}
+
+.wb-source-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wb-source-code {
+  max-height: 320px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--wb-line);
+  border-radius: 8px;
+  background: #0b0a0f;
+  color: var(--wb-ink-2);
+  font: 11px/1.6 var(--wb-mono);
+  white-space: pre;
+  tab-size: 2;
+}
+
+.wb-source-editor {
+  overflow: hidden;
+  border: 1px solid var(--wb-line-2);
+  border-radius: 9px;
+  background: #0b0a0f;
+}
+
+.wb-source-actions {
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: 2px;
+}
+
+.wb-source-publish {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(143, 216, 255, 0.24);
+  border-radius: 10px;
+  background: rgba(143, 216, 255, 0.05);
+}
+
+.wb-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wb-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(43, 37, 49, 0.7);
+}
+
+.wb-checklist li:last-child {
+  border-bottom: 0;
+}
+
+.wb-checkdot {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 1px;
+  border-radius: 50%;
+}
+
+.wb-checkdot.is-pass {
+  background: rgba(123, 214, 160, 0.16);
+  color: var(--wb-green, #7bd6a0);
+}
+
+.wb-checkdot.is-fail {
+  background: rgba(255, 122, 122, 0.16);
+  color: var(--wb-red, #ff7a7a);
+}
+
+@media (max-width: 640px) {
+  .wb-source-code {
+    max-height: 240px;
+  }
+}
+
 .wb-context-stage {
   display: grid;
+  /* Same max-content track issue as the share surface: a 1180px frame kept
+     the track wide, so `max-width: 100%` on the device never clamped and a
+     phone showed a clipped desktop page. */
+  grid-template-columns: minmax(0, 1fr);
   place-items: start center;
   min-height: 100%;
   max-width: 100%;
@@ -1009,6 +1156,12 @@
 .wb-studio-right {
   border-right: 0;
   border-left: 1px solid var(--wb-line);
+}
+
+.wb-studio-mobilebar,
+.wb-studio-sheet-close,
+.wb-studio-backdrop {
+  display: none;
 }
 
 .wb-studio-center {
@@ -1300,6 +1453,17 @@
   align-items: start;
 }
 
+/* Grid children default to `min-width: auto`, so one long mono string can
+ * widen a one-column phone layout past the viewport. Every page grid opts its
+ * children into shrinkable tracks. */
+.wb-review-layout > *,
+.wb-coverage-layout > *,
+.wb-activity-layout > *,
+.wb-home-grid > *,
+.wb-create-layout > * {
+  min-width: 0;
+}
+
 .wb-board {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1370,11 +1534,17 @@
   position: sticky;
   top: 74px;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
+  min-width: 0;
   padding: 16px;
   border: 1px solid var(--wb-line);
   border-radius: var(--wb-r);
   background: var(--wb-panel);
+}
+
+.wb-selected > * {
+  min-width: 0;
 }
 
 .wb-selected h2 {
@@ -1388,6 +1558,7 @@
 
 .wb-evidence {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
 
@@ -1395,6 +1566,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 8px 10px;
   border: 1px solid var(--wb-line);
   border-radius: 8px;
@@ -1530,6 +1702,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   padding: 9px 14px;
   border-bottom: 1px solid var(--wb-line);
   font-size: 12px;
@@ -1549,8 +1722,12 @@
 }
 
 .wb-nextwork-row small {
+  min-width: 0;
+  overflow: hidden;
   color: var(--wb-muted-2);
   font: 9px/1.4 var(--wb-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wb-nextwork-rank {
@@ -1570,6 +1747,12 @@
 
 .wb-trail {
   display: grid;
+  min-width: 0;
+}
+
+/* Day groups are grid items; a long asset id must not widen the track. */
+.wb-trail > div {
+  min-width: 0;
 }
 
 .wb-day {
@@ -1586,6 +1769,7 @@
   display: flex;
   align-items: flex-start;
   gap: 11px;
+  min-width: 0;
   padding: 11px 16px;
   border-bottom: 1px solid var(--wb-line);
 }
@@ -1891,6 +2075,10 @@
 
 .wb-preview-stage {
   display: grid;
+  /* A grid track defaults to max-content, so a 1180px share frame widened the
+     track and overflowed a phone viewport even though the frame capped itself
+     at 100%. The explicit minmax(0, 1fr) track lets max-width clamp. */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   min-height: calc(100dvh - 52px);
   padding: 24px;
@@ -1957,10 +2145,82 @@
 
   .wb-studio {
     grid-template-columns: minmax(0, 1fr);
+    position: relative;
   }
 
   .wb-studio-left {
     display: none;
+  }
+
+  /* A phone cannot host three columns, but it must still author. The layer
+     tree and inspector become bottom sheets instead of disappearing. */
+  .wb-studio-mobilebar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--wb-line);
+    background: rgba(20, 18, 25, 0.7);
+  }
+
+  .wb-studio-sheet-close {
+    display: inline-flex;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--wb-line-2);
+    border-radius: 9px;
+    background: var(--wb-panel);
+    color: var(--wb-ink-2);
+    cursor: pointer;
+  }
+
+  .wb-studio-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 65;
+    border: 0;
+    padding: 0;
+    background: rgba(5, 4, 8, 0.62);
+    cursor: pointer;
+  }
+
+  .wb-studio.is-mobile-layers .wb-studio-left,
+  .wb-studio.is-mobile-inspector .wb-studio-right {
+    display: flex;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 70;
+    flex-direction: column;
+    height: auto;
+    max-height: 78dvh;
+    overflow: auto;
+    border: 1px solid var(--wb-line-2);
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+    background: var(--wb-panel);
+    box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.55);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .wb-studio.is-mobile-layers .wb-studio-left {
+    border-right: 0;
+  }
+
+  .wb-studio.is-mobile-inspector .wb-studio-right {
+    border-left: 0;
+  }
+
+  .wb-studio.is-mobile-layers .wb-studio-left > .wb-studio-section:first-of-type,
+  .wb-studio.is-mobile-inspector .wb-studio-right > .wb-inspector-section:first-of-type {
+    padding-right: 48px;
   }
 
   .wb-selected {

@@ -15,6 +15,12 @@ export const API_TIMEOUT_MS = 5_000;
  * never succeed, so the page reported "unavailable" against a healthy API. */
 export const SLOW_API_TIMEOUT_MS = 60_000;
 
+/** A component draft check compiles stories and the preview harness, and a
+ * publish repeats the check before swapping files. Both legitimately outlast
+ * the interactive deadline, so authoring gets its own longer bound instead of
+ * inheriting five seconds and reporting a timeout against a healthy API. */
+export const AUTHORING_TIMEOUT_MS = 180_000;
+
 /** All Connect requests share a bounded lifetime so a dead API becomes an
  * actionable error state instead of an infinite loading state. The bound is a
  * parameter because it is a floor on responsiveness, not a statement about how
@@ -56,6 +62,14 @@ export const transport = createScenarioConnectTransport({ baseUrl: API_BASE, fet
 export const slowTransport = createScenarioConnectTransport({
   baseUrl: API_BASE,
   fetch: createBoundedFetch(SLOW_API_TIMEOUT_MS),
+});
+
+/** Transport for component authoring (begin draft, save, check, publish).
+ * Writes are still optimistic-concurrency guarded; this only removes the
+ * interactive deadline from work that compiles a bundle. */
+export const authoringTransport = createScenarioConnectTransport({
+  baseUrl: API_BASE,
+  fetch: createBoundedFetch(AUTHORING_TIMEOUT_MS),
 });
 
 /**

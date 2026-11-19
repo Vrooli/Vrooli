@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
+import { pluralDefault } from "../plural";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Boxes,
@@ -308,7 +309,11 @@ export function ComponentsPage() {
                   : t("workbench.components.supportAssets", { defaultValue: "Support assets" })
             }
             meta={t("workbench.components.resultMeta", {
-              defaultValue: "{{count}} results · sorted by {{sort}}",
+              defaultValue: pluralDefault(
+                filtered.length,
+                "{{count}} result · sorted by {{sort}}",
+                "{{count}} results · sorted by {{sort}}",
+              ),
               count: filtered.length,
               sort,
             })}

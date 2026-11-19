@@ -14,7 +14,7 @@ The implementation now lives in `ui/src/workbench/`: the shell, eleven page surf
 
 | Surface | What changed | How it was exercised |
 |---|---|---|
-| Shell | Nocturne rail, top bar, command palette, mobile bottom navigation | served at 1440, 390 and 320; no horizontal overflow on Home, Components, Component or Design |
+| Shell | Nocturne rail, top bar, command palette, mobile bottom navigation | served at 1440, 390 and 320; no horizontal overflow on any of the eleven routes |
 | Home | launchpad with real continuation, health, findings, recent/new assets and template entry | served against the live catalog and coverage projections |
 | Components | kind tabs, search, domain/status filters, list/gallery/tree, preview-failure fallback | real 275-asset catalog; preview 404s now resolve through the manifest category |
 | Component | Fixtures canvas and In context; drag/resize the live slot; props overrides; evidence | fixture drag persisted; prop override applied to the real harness; in-context drag and resize persisted; reset restored the authored slot |
@@ -32,15 +32,17 @@ The implementation now lives in `ui/src/workbench/`: the shell, eleven page surf
 
 - `pnpm build` (experience route guard, library pins, token census, selector manifest, string registry, usage-contract types, Vite build): pass.
 - `pnpm run catalog:check` (token check, export map, strict catalog TypeScript, catalog ESLint): pass.
-- UI unit suite: 91 files / 444 tests pass.
+- UI unit suite: 93 files / 459 tests pass.
 - Go `handlers/preview`, `handlers/catalog`, `internal/catalogcoverage`: pass.
-- Browser sweep: every route, desktop and 390/320 phone; no page errors; the only console noise is the explicit `503` while coverage prepares.
+- Browser sweep: every route at 1440, 390 and 320; no horizontal document overflow, no page errors. The only console noise is two honest `404`s for asset previews that have no captured image (`TimeMention`, `RunLadder`), which the gallery renders as “Preview pending”.
+- Governed source editor exercised in Chromium: opened a draft, appended and saved through `UpdateComponentContent` with the read digest, ran `UpdateComponentContent` → `CheckComponentVersion` to a passing draft, then restored the exact original bytes (SHA matched) and re-checked. No console errors. Monaco is served from the scenario bundle; the editor chunk is fetched only on first edit.
+- Phone authoring: Source opens at 390/320 with a working Monaco surface, no overflow. Design studio at 390/320 exposes the layer tree and inspector as bottom sheets, and adding, editing, duplicating, removing and accepting a revision all worked. In-context defaults to the phone frame on a narrow viewport and the slot drag/resize stayed inside the frame.
 - Coverage cold path: the first full gate pass is minutes, so the API now persists its report (`~/.vrooli/data/vrooli/react-component-library/coverage-report-v1.json`), serves stale while refreshing, coalesces cold callers and returns an explicit “being prepared” state. The coverage page polls and never renders zero while waiting.
 
 ### Still blocked
 
 - **Governed page/component captures** — `page capture` and `preview capture` return `503 lifecycle admission closed` from the capture service on this host. Pixel, accessibility-tree and console evidence for the new pages is therefore not fresh; the browser sweep above is diagnostic, not governed evidence.
-- **Full phone certification** — 390 and 320 layouts were exercised for overflow and navigation, not for every state and gesture. Phase 5 remains open until those journeys are captured.
+- **Full phone certification** — all eleven routes were exercised at 390 and 320 for overflow and navigation; the source editor, studio sheets and in-context drag/resize were exercised directly. Keyboard focus order, reduced-motion/forced-colors and governed captures for every state and gesture remain open.
 - **Pre-existing corpus findings** — five releases have no provenance record, `AppNotificationSettings@1.0.6` still carries library-owned utility classes, and the published `CommandCenterShell@1.0.5` type omits the `metrics[].id` its contract now requires. Coverage surfaces them as findings; they are not redesign regressions.
 - **Activity durability** — Activity remains an index-derived projection. A durable event store is still required before claiming human attribution.
 
@@ -279,13 +281,15 @@ The drawer tabs and their preserved content:
 | Drawer tab | Current source | Required content |
 |---|---|---|
 | Overview | Overview tab | library ID, slot, category, tags, source hash, design affinities, shared assets |
-| Source | Files tab | version-scoped source, copy/download, story files |
+| Source | Files tab | version-scoped read-only source; begin/open a draft, edit any version artifact in locally bundled Monaco, save with an optimistic-concurrency guard, run the focused version check, and publish through it |
 | Versions | Versions tab | version list, current/latest, diff selectors, capture links |
 | Experience | Experience tab | claims, state scope, tier, freshness, capture link |
 | Tests | Tests tab | verdict, screenshot, accessibility tree, computed styles, layout, console, performance |
 | Relationships | Relationships tab | dependency direction, closure rungs, direct/transitive consumers |
 
 The drawer must deep-link (for example `/assets/:id?tab=versions`). The current query contract already supports `tab`; preserve it or map it deliberately.
+
+**Source editing is governed, not a direct file save.** A released version is read-only. Beginning a draft calls `BeginComponentVersion`; editing writes one artifact through `UpdateComponentContent` with the digest captured by the read (`expected_sha256`), so a concurrent change surfaces as a conflict instead of an overwrite. `CheckComponentVersion` re-indexes just that manifest and returns stage verdicts, and `PublishComponentVersion` repeats the check, compiles the preview, and only then promotes the draft. Unsaved buffers are stashed in `sessionStorage` per asset + version + file, so switching versions or leaving the page does not silently lose edits. Monaco is bundled locally (worker + TypeScript language service) and fetched lazily on the first edit, so the editor adds no cost to ordinary browsing and no CDN dependency.
 
 ## Nocturne design system
 

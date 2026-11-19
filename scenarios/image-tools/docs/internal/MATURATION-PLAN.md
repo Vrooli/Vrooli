@@ -53,7 +53,7 @@ about how much future work it unblocks.
 |---|---|---|---|---|---|
 | D1 | Seven hand-synced surfaces per operation | high (velocity) | `CAPABILITY-MANIFEST.md` §problem | manifest + codegen | **done:** manifests cover all 71 ops; the UI catalog, the AI command table, the deterministic command table, the deterministic *parameter forms*, and the wire binding are all generated + drift-gated. The deterministic table and forms are derived from the `OpParams` descriptor, so a parameter is reachable as a flag and as an Inspector control the moment it exists on the wire, and a form field that the wire lacks fails generation |
 | D2 | Requirement ledger is false | high (trust) | 9 dead refs; 47 false `failing`; `PROBLEMS.md` 2026-06-18 | delete dead refs, re-derive status from real runs | **done 2026-07-05:** 47 re-derived, 5 remapped (recipes/presets→Looks, byok→gateway), 4 removed; zero refs to missing paths |
-| D3 | Typed→untyped param bridge | high (correctness) | `handlers/ai/params.go` `map[string]string`; `handlers/ops/params.go` switch | `Struct` + schema; generated binding | **done:** AI (`op_params` + schema) and deterministic (`internal/wireops` generated from `OpParams`) both bridge by data, not by hand. Remaining polish: generated Go/TS param *types* from the schema |
+| D3 | Typed→untyped param bridge | high (correctness) | `handlers/ai/params.go` `map[string]string`; `handlers/ops/params.go` switch | `Struct` + schema; generated binding | **done:** AI (`op_params` + schema), deterministic (`internal/wireops` generated from `OpParams`), and the typed boundary all bridge by data. `internal/opparams` is generated from each operation's `params_schema` (Go structs + fail-closed decoders) and the UI gets the TypeScript mirror; the technique and builtin argument builders read the typed views instead of parsing strings by hand. The persisted job payload stays a string map on purpose — it is the stable cross-restart contract, so the hand-parsing is what was deleted, not the wire format |
 | D4 | Provider quirks selected by string match | medium | `RegisterProviders` name branches | spec fields (`warm_sidecar`, `gpu_probe`, `progress_scan`) | **done 2026-07-05:** no `s.name ==` in registration |
 | D5 | `ai/` mixes one execution state machine with two separable concerns | medium (comprehension) | engine + providers + capacity + gateway + warm sidecar | extract by concern; keep the coupled core intact | package sizes + import graph | **done 2026-11-19:** `internal/aigateway` owns the remote AI Gateway provider, its execution-evidence format, and cost parsing; `internal/capacity` owns the GPU/RAM/CPU/disk ledger (and is now imported directly by the CPU scheduler, not through `ai`). The remaining `ai` package is one admission→execution state machine: `execProvider` embeds `backendProcess`, and warm-model residency shares the lease group, so splitting it further would export internals rather than create a boundary. Non-test size 4.8k→4.0k (the earlier 9.5k figure counted tests) |
 | D6 | Duplicated perceptual hash | medium | `analysis/duplicate.go` + `diff/metrics.go` | **done** → `internal/percepthash` | single implementation; parity tests |
@@ -119,13 +119,13 @@ Add as the plan lands:
 
 | Gate | Catches | Status |
 |---|---|---|
-| `TestManifestsCoverVocabulary` | a vocabulary op with no manifest | **landed** |
+| `TestManifestsAreTheOperationSet` | a vocabulary op with no manifest | **landed** |
 | `TestManifestBackendsExistInModelSeed` | a typo'd or retired backend | **landed** |
 | `TestManifestConsentWeightIsAuthoritative` | a second consent table drifting from the manifest | **landed** |
-| `TestUICatalogCoversManifest` | the silent-drift hole (op renders as a raw name) | Phase 1b |
+| `TestGeneratedUICatalogIsUpToDate` | the silent-drift hole (op renders as a raw name) | **landed** |
 | `TestDeterministicWireCoverage` | a deterministic op with no typed params, or a generated/exception mismatch | **landed** |
 | `TestGeneratedOpsCLICommandsUpToDate` | a param added to `ops.proto` that never reached the CLI | **landed** |
-| `TestManifestParamsRoundTrip` | schema params lost or mistyped on the wire | Phase 2 |
+| `TestOpParamsValidateAndThread` | schema params lost or mistyped on the wire | **landed** |
 | `dupl -t 60` budget in CI | reintroduced duplication | proposed |
 | `make coverage-floors` | thin packages, including adapters/preparation | **enforced** |
 
@@ -164,19 +164,27 @@ that touches zero `.proto` files.
 ### Phase 3 — composition
 
 See [`COMPOSITION.md`](../concepts/COMPOSITION.md). **Landed:** typed ports +
-`scenario` on `LookStep`, lane derivation, and chain validation (unknown op,
-non-executable op, lane mismatch, unknown/mismatched port, image-after-text).
-**Remaining:** the linear-chain DAG model and the screenshot-cleanup proof.
+`scenario` on `LookStep`, lane derivation, chain validation (unknown op,
+non-executable op, lane mismatch, unknown/mismatched port, image-after-text), and
+the seeded `screenshot-cleanup` Look that runs the chain headlessly.
 
-**Exit:** a mistyped chain fails before queueing (done); the cleanup workflow runs
-headless (remaining).
+The chain is intentionally linear: each step consumes the previous output or the
+workflow source. A DAG (fan-out/fan-in) is a different execution contract with
+partial-failure semantics, not a cleanup of this one, so it is named in
+COMPOSITION.md as a limitation rather than counted as debt.
+
+**Exit:** a mistyped chain fails before queueing, and the cleanup workflow runs
+headless — both met.
 
 ### Phase 4 — fleet interop
 
 **Publish done (2026-07-06):** `common.v1.MediaOperation` +
 `CatalogService/GetOperationCatalog` serve the manifest projection over a versioned
-contract. Remaining: the consumer side — a peer step (e.g. caption → audio) that
-consumes one image output, owned by the workflow surface.
+contract, so a workflow builder can read Image Tools' operations without importing
+the scenario. The consumer side (a peer step such as caption → audio) belongs to
+the workflow surface of the scenario that owns the peer operation; Image Tools
+must not grow a dependency on audio-tools to prove it. Peer adoption is therefore
+a consumer decision, not an open Image Tools task.
 
 **Exit:** an audio or video step consumes an image output without either scenario
 importing the other.
@@ -222,13 +230,13 @@ question — see SECURITY.md. D13 (one operation declaration set) is closed: the
 manifest set is the declaration, `internal/ops` owns execution only, and both the
 AI and analysis catalogs are projections of it.
 
-**Only open polish:** D3's generated Go/TS parameter *types* from `params_schema`.
-The public contract is already typed and validated (proto at the wire,
-`paramschema` at the edge, generated deterministic binding), and the remaining
-untyped hop is inside the server between the validated map and each backend's
-argv builder. Replacing it means codegen plus a technique-spine rewrite, which is
-a separate validated slice rather than a cleanup rider; the manifest-schema path
-is complete and load-bearing without it.
+**No open debt items remain.** D3 closed with generated typed parameter views:
+`api/internal/opparams/params.generated.go` is rendered from each operation's
+`params_schema`, and the technique/builtin argument builders read those types
+instead of parsing the persisted string map by hand. The string map stays as the
+stable cross-restart job contract; every reader now goes through a generated
+decoder that fails closed on a value the schema no longer explains, so a schema
+edit and its readers cannot drift silently.
 
 ## Cross-references
 

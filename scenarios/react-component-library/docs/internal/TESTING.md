@@ -37,9 +37,11 @@ Only the specific current-behavior claims mapped below are asserted as checked. 
 | Fixtures drag by pointer and keyboard without activating the specimen | `ui/src/workbench/data.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx`; served browser sweep |
 | In-context move/resize persists per component and template and resets to the authored slot | `ui/src/workbench/templates/spec.test.ts`; `ui/src/workbench/templates/TemplateRenderer.test.tsx`; served browser sweep |
 | The studio edits text, layers and template presentation, and browser-local templates round-trip | `ui/src/workbench/templates/local.test.ts`; `ui/src/workbench/templates/spec.test.ts`; served browser sweep |
+| A browser edit is draft-bound, digest-guarded, checked and published through the authoring RPCs | `ui/src/workbench/component/SourceWorkbench.test.tsx`; Chromium save/check/restore sweep in `WORKBENCH-REDESIGN.md` |
+| Phones can reach the studio layer tree and inspector | `ui/src/workbench/pages.css` bottom-sheet rules; 390/320 Chromium interaction sweep |
 | A cold coverage pass is persisted, coalesced, and reported as preparing instead of timing out | `api/handlers/catalog/report_cache_test.go`; `docs/internal/PROBLEMS.md` (2026-11-19) |
 | Design ranks declared pages and retains access to empty scenarios | `ui/src/workbench/pages/DesignStudioPage.story.json`; `ui/src/workbench/data.test.ts` |
-| Preview source errors expose a retry control | PreviewPopoutPage page story; `ui/src/features/components/ComponentEditor.test.tsx` |
+| Preview source errors expose a retry control | `ui/src/workbench/pages/PreviewPage.story.json`; Asset data drawer source query |
 | Settings, capability readiness and unknown-asset boundaries render | Their source-adjacent page stories |
 | Package boundary and pinned exports survive compilation | `packages/react-component-library/tooling/build-boundary.test.mjs`; `ui/scripts/library-pins-check.mjs` |
 | Wrong/unresolved ui-health routes are not replaced with root captures | `scenarios/ui-health/cli/domains/capture` package tests |
@@ -99,9 +101,9 @@ The workbench's own focused tests are:
 - `ui/src/workbench/templates/spec.test.ts` — template shelf integrity, spec operations, slot placement, layer move/duplicate.
 - `ui/src/workbench/templates/TemplateRenderer.test.tsx` — every template renders a page root, slot and selection state; placed slots float above the page and respond to keyboard move/resize.
 - `ui/src/workbench/templates/local.test.ts` — browser-local template persistence, duplication, blank starter and malformed-storage recovery.
-- `ui/src/workbench/preferences.test.ts` — browser-local workbench preferences.
+- `ui/src/workbench/component/SourceWorkbench.test.tsx` — begin draft, digest-guarded save, focused check and publish over the authoring RPCs.
+- `ui/src/workbench/preferences.test.ts` — browser-local workbench preferences, round-trip and document application.
 - `api/handlers/catalog/report_cache_test.go` — persisted coverage, stale-while-refresh, single-flight cold compute and the preparing state.
-- `ui/src/workbench/preferences.test.ts` — local preference round-trip and document application.
 - `ui/src/App.test.tsx` — route resolution and one-shell continuity.
 
 Page stories under `ui/src/workbench/pages/*.story.json` are the executable route contracts. The ordinary suite owner is `vrooli scenario test react-component-library --phases <relevant-phases>`. For a background run, block once with `test-genie runs wait --json react-component-library <run-id>`. Do not poll or confuse canceling a local tool with aborting the server-owned run.

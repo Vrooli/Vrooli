@@ -15,6 +15,7 @@
 package technique
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"image-tools/internal/adapters"
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
+	"image-tools/internal/opparams"
 )
 
 // ArgBuilder assembles the argv (after the program name) for one technique from a
@@ -381,15 +383,19 @@ func DiffusersInpaint(req backends.Request, modelDir string) ([]string, error) {
 	if revision := strings.TrimSpace(req.Model.Source.Repo.Revision); revision != "" {
 		args = append(args, "--model-revision", revision)
 	}
-	if StrParam(req, "inpaint_crop_to_mask") == "true" {
+	inpaint, err := opparams.DecodeInpaintParams(req.Params)
+	if err != nil {
+		return nil, err
+	}
+	if inpaint.CropToMask != nil && *inpaint.CropToMask {
 		args = append(args, "--crop-to-mask")
-		if context := IntParam(req, "inpaint_context_pixels", 0); context > 0 {
-			args = append(args, "--crop-context-pixels", strconv.Itoa(context))
+		if inpaint.ContextPixels != nil && *inpaint.ContextPixels > 0 {
+			args = append(args, "--crop-context-pixels", strconv.Itoa(*inpaint.ContextPixels))
 		}
-		if edge := IntParam(req, "inpaint_max_edge_px", 0); edge > 0 {
-			args = append(args, "--crop-max-edge-px", strconv.Itoa(edge))
+		if inpaint.MaxEdgePx != nil && *inpaint.MaxEdgePx > 0 {
+			args = append(args, "--crop-max-edge-px", strconv.Itoa(*inpaint.MaxEdgePx))
 		}
-		if StrParam(req, "inpaint_neutralize_masked_pixels") == "true" {
+		if inpaint.NeutralizeMaskedPixels != nil && *inpaint.NeutralizeMaskedPixels {
 			args = append(args, "--neutralize-masked-pixels")
 		}
 	}
@@ -736,19 +742,43 @@ func OnnxSidecar(req backends.Request, modelDir string) ([]string, error) {
 			return nil, err
 		}
 		args = append(args, "--mask", mask)
-		if params := req.Params["background_repair"]; params != "" {
-			args = append(args, "--params", params)
+		removal, err := opparams.DecodeObjectRemovalParams(req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if removal.BackgroundRepair != nil {
+			raw, err := json.Marshal(removal.BackgroundRepair)
+			if err != nil {
+				return nil, fmt.Errorf("object_removal: encode background_repair: %w", err)
+			}
+			args = append(args, "--params", string(raw))
 		}
 	}
 	if req.Operation == "segment" {
-		if prompt := req.Params["segmentation"]; prompt != "" {
-			args = append(args, "--prompts", prompt)
+		seg, err := opparams.DecodeSegmentParams(req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if seg.Segmentation != nil {
+			raw, err := json.Marshal(seg.Segmentation)
+			if err != nil {
+				return nil, fmt.Errorf("segment: encode prompts: %w", err)
+			}
+			args = append(args, "--prompts", string(raw))
 		}
 	}
 	if req.Operation == "scene_geometry" {
 		args = append(args, "--model-id", req.Model.ID)
-		if roi := req.Params["support_roi"]; roi != "" {
-			args = append(args, "--support-roi", roi)
+		geom, err := opparams.DecodeSceneGeometryParams(req.Params)
+		if err != nil {
+			return nil, err
+		}
+		if geom.SupportRoi != nil {
+			raw, err := json.Marshal(geom.SupportRoi)
+			if err != nil {
+				return nil, fmt.Errorf("scene_geometry: encode support_roi: %w", err)
+			}
+			args = append(args, "--support-roi", string(raw))
 		}
 	}
 	return args, nil
@@ -793,8 +823,16 @@ func SAM2Sidecar(req backends.Request, modelDir string) ([]string, error) {
 		device = "cuda"
 	}
 	args := []string{"-m", "image_tools_sidecar.sam2", "--model", modelDir, "--image", in, "--out", req.Output.LocalPath, "--device", device}
-	if prompt := req.Params["segmentation"]; prompt != "" {
-		args = append(args, "--prompts", prompt)
+	seg, err := opparams.DecodeSegmentParams(req.Params)
+	if err != nil {
+		return nil, err
+	}
+	if seg.Segmentation != nil {
+		raw, err := json.Marshal(seg.Segmentation)
+		if err != nil {
+			return nil, fmt.Errorf("segment: encode prompts: %w", err)
+		}
+		args = append(args, "--prompts", string(raw))
 	}
 	return args, nil
 }
@@ -814,7 +852,14 @@ func TripoSRSidecar(req backends.Request, modelDir string) ([]string, error) {
 	if req.GPU {
 		device = "cuda"
 	}
-	resolution := IntParam(req, "mesh_resolution", 256)
+	object, err := opparams.DecodeImageToObjectParams(req.Params)
+	if err != nil {
+		return nil, err
+	}
+	resolution := 256
+	if object.MeshResolution != nil {
+		resolution = *object.MeshResolution
+	}
 	if resolution != 128 && resolution != 256 {
 		return nil, fmt.Errorf("image_to_object mesh resolution must be 128 or 256")
 	}

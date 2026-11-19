@@ -5,15 +5,17 @@
 >   duplication extracted, orphan tables dropped through a versioned migration,
 >   and the requirements ledger re-derived. See `MATURATION-PLAN.md`.
 > - **Phase 1 (manifest for existing ops):** done. `api/internal/capability`
->   declares **71 operations** (23 AI, 5 analysis, 38 compute, 5 forward-declared)
->   and is load-bearing: consent weights, discovery, the UI catalog, the AI and
+>   declares every operation the scenario exposes (the AI, analysis, compute, and
+>   forward-declared engines) and is load-bearing: consent weights, discovery, the UI catalog, the AI and
 >   deterministic CLI tables, the deterministic parameter forms, and the wire
 >   binding are all generated from it (`make capability-gen`) and drift-gated.
 > - **Phase 2 (params contract):** done. `AIParams.op_params` + `params_schema`
 >   replace the flat fields and hand validators; `internal/wireops` generates the
->   deterministic bridge from `OpParams`. **Remaining:** generate typed Go/TS
->   param structs from the schema so the last hop into a backend request stops
->   being `map[string]string`.
+>   deterministic bridge from `OpParams`; and `internal/opparams` generates the
+>   typed Go/TS parameter views from `params_schema`, so the argument builders
+>   read typed fields instead of parsing a string map by hand. The persisted job
+>   payload deliberately stays a string map: it is the stable cross-restart
+>   contract, and the generated decoder is the single place that revives it.
 > - **Phases 3–4:** done — typed ports + `scenario` on a Look step, and a
 >   versioned `common.v1` media-operation contract published over one RPC.
 >
@@ -29,7 +31,7 @@ now is one manifest row (plus a provider/technique row for a new backend).
 
 | # | Surface | File | Current size |
 |---|---|---|---|
-| 1 | Operation vocabulary | `api/internal/capability/manifests.seed.json` (was `internal/operations`, deleted) | 71 records |
+| 1 | Operation vocabulary | `api/internal/capability/manifests.seed.json` (was `internal/operations`, deleted) | one record per operation |
 | 2 | Proto params | `packages/proto/schemas/image-tools/v1/ai/ai.proto` (`AIParams`) | flat struct, one field group per op |
 | 3 | Typed→untyped bridge | `api/internal/wireops` (generated) | derived from `OpParams`; AI uses `op_params` + schema |
 | 4 | Per-op validators | `api/handlers/ai/params.go` (`validate*`) | one function per param-bearing op, each also rejecting *other* ops' params |
@@ -125,6 +127,7 @@ manifest references a model; it does not duplicate model facts.
 |---|---|---|
 | UI capability catalog | `presentation` + `id` | `TestGeneratedUICatalogIsUpToDate` |
 | Deterministic parameter forms | `presentation.fields`, cross-checked against `OpParams` | `TestGeneratedOpSpecsIsUpToDate` + `TestEveryDeclaredFormFieldExistsOnTheWire` |
+| Typed operation parameters (Go + TS) | `params_schema` | `TestGeneratedParamTypesAreUpToDate` + `TestGeneratedParamTypesTSAreUpToDate` + `TestParamTypeCoverage` |
 | AI CLI command table | `id` + `cli` | `TestGeneratedCLICommandsUpToDate` |
 | Deterministic CLI command table | `OpParams` descriptor | `TestGeneratedOpsCLICommandsUpToDate` |
 | Deterministic wire binding | `OpParams` descriptor | `TestGeneratedBindingsAreUpToDate` |
@@ -132,8 +135,8 @@ manifest references a model; it does not duplicate model facts.
 | Operation discovery (`ListAIOperations`, `ListOperations`) | manifest set | `TestEnginesAgreeWithManifests` |
 | Consent-weight table | `consent_weight` | `TestConsentWeightsCoverEveryAIOp` |
 
-The **typed param structs (Go + TS)** row is the one not yet generated; it is
-tracked in `MATURATION-PLAN.md` D3 and `CAPABILITY-MANIFEST.md` Phase 2.
+Every row above is generated and drift-gated. Nothing in this table is
+hand-synced.
 
 `json-schema-to-go`/`json-schema-to-typescript` style codegen is already the
 pattern used by `ui/scripts/gen-strings.mjs` and `cmd/gen-endpoints`; this is the
@@ -175,9 +178,10 @@ Why this is still proto-first:
 - Validation and typed decoding are **generated**, so type safety returns at the
   technique boundary instead of being lost to `map[string]string`.
 
-`paramsMap` and the `validate*` family are deleted in Phase 2. Until then, new
-operations should add a schema-shaped field only if the phase gate slips;
-otherwise use the shared knobs.
+The per-op `validate*` family is gone. `paramsMap` survives only as the bridge
+for the operation-independent knobs (`prompt`, `width`, `seed`, …) that are typed
+fields on `AIParams`; everything operation-specific travels through `op_params`
+and is read through `internal/opparams`.
 
 ## Provider data-ization
 
@@ -201,27 +205,29 @@ back into the spec table so there is one source.
 
 | Test | Guards | Status |
 |---|---|---|
-| `TestOpVocabularyConformance` | every model/provider/Look/analysis reference resolves to the vocabulary | exists |
-| `TestConsentWeightsCoverEveryAIOp` | every AI op has a declared consent weight | exists |
-| `TestBackendsDocHostToolMatrixUpToDate` | generated backends doc matches provider data | exists |
-| `TestManifestsCoverVocabulary` | every vocabulary op has exactly one manifest | **landed** |
+| `TestManifestsAreTheOperationSet` | every operation has exactly one manifest, and no manifest lacks a runner | **landed** |
+| `TestSeedDoctorCatalogIsInstallable` | every seeded model's operations resolve to a manifest with a resolvable provider | **landed** |
+| `TestValidateRejectsUnknownOperation` | a Look step naming an unknown operation is rejected before queueing | **landed** |
+| `TestConsentWeightsCoverEveryAIOp` | every AI op has a declared consent weight | **landed** |
+| `TestBackendsDocHostToolMatrixUpToDate` | generated backends doc matches provider data | **landed** |
 | `TestManifestBackendsExistInModelSeed` | every declared backend is backed by a seed model for that op | **landed** |
 | `TestManifestRequirementClassMatchesMechanism` | compute/infer/fetch agree with the requirement facts | **landed** |
-| `TestManifestIOMatchesVocabularyContract` | declared ports match `requires_image`/`requires_mask`/`prompt_driven` | **landed** |
+| `TestManifestPortsAreDeclared` | declared ports match `requires_image`/`requires_mask`/`prompt_driven` | **landed** |
 | `TestManifestConsentWeightIsAuthoritative` | `internal/safety` reads the manifest, not a second table | **landed** |
-| `TestSeedOrderIsStable` | each registry's seed order is stable | **landed** |
-| `TestDeterministicManifestsAreInProcess` | deterministic ops declare no backend/requirement | **landed** |
-| `TestGeneratedUICatalogIsUpToDate` | the committed TS catalog matches the seed | **landed** |
-| `TestGeneratedCLICommandsUpToDate` | the committed CLI table matches the seed | **landed** |
-| `TestUICatalogCoversManifest` | generated catalogs cover every manifest op | Phase 1b |
-| `TestCLISurfaceCoversManifest` | every manifest op has a CLI command | Phase 1b |
-| `TestOpParamsValidateAndThread` | schema-valid `op_params` reach the backend request | **landed** |
+| `TestSeedOrderMatchesRunnerOrder` | each registry's seed order is stable | **landed** |
+| `TestComputeManifestsAreInProcess` | deterministic ops declare no backend/requirement | **landed** |
+| `TestGeneratedUICatalogIsUpToDate` | the committed TS catalog matches the seed and covers every manifest operation | **landed** |
+| `TestGeneratedCLICommandsUpToDate` + `TestGeneratedOpsCLICommandsUpToDate` | the committed AI and deterministic command tables match their sources | **landed** |
+| `TestGeneratedOpSpecsIsUpToDate` + `TestEveryDeclaredFormFieldExistsOnTheWire` | the deterministic forms match the manifest and the wire | **landed** |
+| `TestGeneratedParamTypesAreUpToDate` + `TestGeneratedParamTypesTSAreUpToDate` | the typed parameter views match the schemas | **landed** |
+| `TestParamTypeCoverage` | every schema property reaches a generated typed field | **landed** |
+| `TestOpParamsValidateAndThread` | schema-valid `op_params` reach the backend request and a mistyped one fails | **landed** |
 | `TestOpParamsRejectedWhenNoSchema` | an operation without a schema refuses extra params | **landed** |
-| `TestManifestParamsRoundTrip` | the remaining typed param messages migrate to schemas | Phase 2b |
 
-The landed tests already close the most dangerous hole: a backend typo, a missing
-manifest, and a divergent consent table now fail the build instead of surfacing as
-a silent degradation at runtime. The remaining two holes are the CLI/UI surfaces.
+The landed tests close the holes this substrate was created for: a backend typo, a
+missing manifest, a divergent consent table, and a stale CLI/UI/parameter surface
+all fail the build instead of surfacing as a silent degradation at runtime. No
+hand-synced per-operation surface remains.
 
 ## Migration phases
 
@@ -255,7 +261,7 @@ lower than the 2026-07-04 baseline.
 - [x] Generate the deterministic parameter forms from `presentation.fields`, cross-checked against `OpParams`
 
 **Gate (1b):** generated CLI/UI behavior is indistinguishable from today;
-`TestUICatalogCoversManifest` and `TestCLISurfaceCoversManifest` pass.
+`TestGeneratedUICatalogIsUpToDate` and the generated CLI tables pass.
 
 ### Phase 2 — params contract
 
@@ -266,7 +272,7 @@ lower than the 2026-07-04 baseline.
 - [x] Migrate `inpaint` and `image_to_object`; delete their hand validators and `paramsMap` branches
 - [x] Express the inpaint relational rule as schema `requiresTrue`
 - [x] Migrate `background_repair`, `segmentation`, `scene_geometry` (shape-preserving)
-- [ ] **Remaining:** generate Go/TS param types from schemas so the technique boundary is typed (today the wire is typed and the schema validates; the last hop into a backend request is still `map[string]string`)
+- [x] Generate Go/TS param types from schemas (`internal/opparams`) so the argument builders read typed fields instead of a hand-parsed string map
 
 **Gate (2b):** the typed sub-messages are gone; a new op adds knobs with **zero**
 `.proto` edits; CLI `--op-params` and the UI use the generated contract.

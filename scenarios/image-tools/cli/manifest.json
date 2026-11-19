@@ -238,10 +238,7 @@
             {
               "name": "force-cpu",
               "bool": true,
-              "description": "Resolve only CPU-capable models and show the CPU execution path",
-              "bind": {
-                "field": "force_cpu"
-              }
+              "description": "Resolve only CPU-capable models and show the CPU execution path"
             }
           ],
           "binding": {
@@ -928,7 +925,11 @@
             },
             {
               "name": "params",
-              "description": "AIParams JSON"
+              "description": "AIParams JSON",
+              "bind": {
+                "field": "params",
+                "kind": "json_inline"
+              }
             }
           ],
           "binding": {
@@ -1535,16 +1536,6 @@
       "service": "JobsService",
       "method": "WatchJob",
       "reason": "Server-streaming progress RPC. Exposed via the hand-appended `jobs watch` command (register.go) because cli-manifest/v1 bindings model unary connect-rpc calls only."
-    },
-    {
-      "service": "AnalysisService",
-      "method": "Analyze",
-      "reason": "Analysis execution rides the REST multipart edge (POST /api/v1/analysis/{operation}); image bytes can't ride a Connect call, so the per-op commands (probe, ocr, nsfw) are hand-appended in cli/domains/analyze/register.go."
-    },
-    {
-      "service": "SelectionService",
-      "method": "Segment",
-      "reason": "Smart-select execution rides the REST multipart edge (POST /api/v1/selection/segment); image bytes can't ride a Connect call, so the segment command is hand-appended in cli/domains/selection/register.go."
     },
     {
       "service": "ModelsService",

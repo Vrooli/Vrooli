@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { submitAI } from "../../api/ai";
 import { blobUrl } from "../../api/client";
 import { jobsClient, JobState, type Job } from "../../api/jobs";
+import type { SegmentOpParams } from "../workspace/opParams.generated";
 
 export interface MaskPoint { x: number; y: number; negative: boolean }
 export interface ObjectMaskClient {
@@ -81,7 +82,7 @@ export function useObjectMask(image: File, client: ObjectMaskClient = liveClient
             segmentation: {
               points: points.map((p) => ({ x: p.x, y: p.y, negative: p.negative })),
             },
-          },
+          } satisfies SegmentOpParams,
           modelOverride: model,
         },
         { image, operationId },

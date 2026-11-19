@@ -1342,6 +1342,14 @@ button.wb-chip[aria-pressed="true"] {
   .wb-actions .wb-btn {
     flex: 1;
   }
+
+  /* Five labelled destinations at 320px overflowed when each label kept its
+     natural width. Equal-flex items shrink the labels instead of the page. */
+  .wb-mobile-nav a {
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 4px 2px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

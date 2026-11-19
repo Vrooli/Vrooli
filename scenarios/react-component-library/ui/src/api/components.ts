@@ -6,7 +6,7 @@ import {
   type ResolveLibraryImportResponse,
 } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 
-import { transport } from "./client";
+import { transport, authoringTransport } from "./client";
 import type { ClaimMeasurement } from "@vrooli/proto-types/experience-manager/v1/contract/contract_pb";
 
 export const DesignAffinity = {
@@ -43,6 +43,10 @@ export interface ValidateStyleFitResponse {
 }
 
 const baseComponentsClient = createClient(ComponentsService, transport);
+
+/** Mutating authoring calls share a longer deadline because checks compile
+ * the story harness. Reads stay on the interactive transport. */
+const authoringComponentsClient = createClient(ComponentsService, authoringTransport);
 
 export const componentsClient = baseComponentsClient as typeof baseComponentsClient & {
   validateStyleFit(input: ValidateStyleFitRequest): Promise<ValidateStyleFitResponse>;
@@ -253,4 +257,140 @@ export async function resolveLibraryImport(input: {
     specifier: input.specifier,
     fromPath: input.fromPath ?? "",
   });
+}
+
+/* ── Component authoring ───────────────────────────────────────────────────
+ *
+ * These calls are the browser half of the same governed loop the CLI uses:
+ * begin a mutable draft, write one artifact with an optimistic-concurrency
+ * guard, run the focused check, then publish through the check again. The
+ * server rejects writes when no draft is active, so a browser save can never
+ * mutate a released version.
+ */
+
+export interface BeginComponentDraftInput {
+  /** Stable libraryId or catalog UUID. */
+  component: string;
+  /** major | minor | patch. Ignored when `version` names a release. */
+  bump?: string;
+  version?: string;
+}
+
+export interface BeginComponentDraftResult {
+  component: Component;
+  version: string;
+  sourcePath: string;
+  artifactPaths: string[];
+  previewPath: string;
+}
+
+export interface ComponentVersionCheckResult {
+  component: Component;
+  version: string;
+  passed: boolean;
+  checks: Array<{
+    stage: string;
+    verdict: string;
+    message: string;
+    remediation: string;
+  }>;
+  previewPath: string;
+}
+
+export interface PublishComponentDraftInput {
+  component: string;
+  draftVersion: string;
+  version?: string;
+  changelogMd?: string;
+  acknowledgeParityWaiver?: boolean;
+}
+
+export interface PublishComponentDraftResult {
+  component: Component;
+  version: string;
+  sourcePath: string;
+  artifactPaths: string[];
+  previewPath: string;
+}
+
+export async function beginComponentDraft(
+  input: BeginComponentDraftInput,
+): Promise<BeginComponentDraftResult> {
+  const response = await authoringComponentsClient.beginComponentVersion({
+    component: input.component,
+    bump: input.bump ?? "",
+    version: input.version ?? "",
+  });
+  if (!response.component) throw new Error("begin draft returned no component");
+  return {
+    component: response.component,
+    version: response.version?.version ?? "",
+    sourcePath: response.sourcePath,
+    artifactPaths: response.artifactPaths,
+    previewPath: response.previewPath,
+  };
+}
+
+export interface UpdateComponentContentInput {
+  /** Stable libraryId or catalog UUID of the draft owner. */
+  id: string;
+  content: string;
+  /** Empty = no guard. Always pass the digest returned by the read. */
+  expectedSha256?: string;
+  /** Empty = component entry file; otherwise a companion in the same folder. */
+  path?: string;
+}
+
+export async function updateComponentContent(
+  input: UpdateComponentContentInput,
+): Promise<{ sha256: string; sourcePath: string }> {
+  return authoringComponentsClient.updateComponentContent({
+    id: input.id,
+    content: input.content,
+    expectedSha256: input.expectedSha256 ?? "",
+    path: input.path ?? "",
+  });
+}
+
+export async function checkComponentVersion(input: {
+  component: string;
+  version: string;
+}): Promise<ComponentVersionCheckResult> {
+  const response = await authoringComponentsClient.checkComponentVersion({
+    component: input.component,
+    version: input.version,
+  });
+  if (!response.component) throw new Error("version check returned no component");
+  return {
+    component: response.component,
+    version: response.version,
+    passed: response.passed,
+    checks: response.checks.map((check) => ({
+      stage: check.stage,
+      verdict: check.verdict,
+      message: check.message,
+      remediation: check.remediation,
+    })),
+    previewPath: response.previewPath,
+  };
+}
+
+export async function publishComponentDraft(
+  input: PublishComponentDraftInput,
+): Promise<PublishComponentDraftResult> {
+  const response = await authoringComponentsClient.publishComponentVersion({
+    component: input.component,
+    draftVersion: input.draftVersion,
+    version: input.version ?? "",
+    changelogMd: input.changelogMd ?? "",
+    acknowledgeParityWaiver: input.acknowledgeParityWaiver ?? false,
+  });
+  if (!response.component) throw new Error("publish returned no component");
+  return {
+    component: response.component,
+    version: response.version?.version ?? "",
+    sourcePath: response.sourcePath,
+    artifactPaths: response.artifactPaths,
+    previewPath: response.previewPath,
+  };
 }

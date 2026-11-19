@@ -49,6 +49,36 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-11-19 — CLI manifest is not the whole runtime command surface
+
+**Symptom:** Test Genie's `contracts` phase reports num[sot]:78 commands the
+binary exposes that `cli/manifest.json` does not declare (`ai background-replace`,
+`ops resize`, …), plus `cli.discovery_coverage_low`. The manifest is documented as
+the CLI SSOT, so command discovery/governance under-reports the real surface.
+
+**Root cause:** `cli-manifest/v1` binds only `connect-rpc` and `local` handlers.
+The per-operation AI and deterministic commands execute over the REST multipart
+edge (image bytes cannot ride a Connect call), so `register.go` appends them from
+the generated tables after `LoadFromManifest`. They are generated and
+drift-gated, but they are not representable in the manifest, and the manifest
+cannot describe them without a handler per operation.
+
+**Workaround:** The generated tables are the SSOT for those commands, and the
+`contracts` failure is scoped to discovery/governance reporting. Nothing is
+unreachable from the CLI.
+
+**Real fix:** Extend `cli-manifest/v1` with a binding kind for a generated
+handler family (for example `local` + a handler key that dispatches by command
+name), then render the per-operation command entries into the manifest from the
+same capability/proto data that renders the Go tables. That makes the manifest
+the literal SSOT instead of a second declaration.
+
+**Owner:** cli-core + image-tools.
+
+**Refs:** `cli/manifest.json`, `cli/domains/{ai,ops}/register.go`,
+`cli/domains/{ai,ops}/commands.generated.go`,
+`scenarios/cli-health/api/internal/services/manifestvalidation`.
+
 ### 2026-10-21 — Hybrid scene preparation and inference lifetime
 
 Operator direction: support scene-only, photographed-device and geometry-first

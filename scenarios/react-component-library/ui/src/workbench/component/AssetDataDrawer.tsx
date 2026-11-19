@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { pluralDefault } from "../plural";
 import { CircleAlert, FileCode2, GitBranch, Play, RotateCw } from "lucide-react";
 
-import { componentsClient } from "../../api/components";
+import { ComponentVersionStatus } from "@vrooli/proto-types/react-component-library/v1/components/components_pb";
 import { getAssetRelationships } from "../../api/catalogGraph";
 import { runComponentTest } from "../../api/componentTests";
 import { useTranslation } from "../../i18n";
@@ -13,6 +14,7 @@ import {
   type ComponentBundle,
 } from "../data";
 import { Banner, Chip, Empty, Skeleton, Tabs, WbButton } from "../primitives";
+import { SourceWorkbench } from "./SourceWorkbench";
 
 export type DrawerTab = "overview" | "source" | "versions" | "experience" | "tests" | "relationships";
 
@@ -64,7 +66,9 @@ export function AssetDataDrawer({
       </div>
       <div className="wb-drawer-body">
         {tab === "overview" ? <OverviewTab bundle={bundle} /> : null}
-        {tab === "source" ? <SourceTab bundle={bundle} version={selectedVersion?.version ?? version} /> : null}
+        {tab === "source" ? (
+          <SourceTab bundle={bundle} version={selectedVersion?.version ?? version} onVersion={onVersion} />
+        ) : null}
         {tab === "versions" ? (
           <VersionsTab bundle={bundle} selected={selectedVersion?.version ?? version} onSelect={onVersion} />
         ) : null}
@@ -168,65 +172,16 @@ function OverviewTab({ bundle }: { bundle: ComponentBundle }) {
   );
 }
 
-function SourceTab({ bundle, version }: { bundle: ComponentBundle; version: string }) {
-  const { t } = useTranslation();
-  const source = useQuery({
-    queryKey: ["wb", "source", bundle.asset.id, version],
-    queryFn: async () => {
-      const response = await componentsClient.getComponentContent({ id: bundle.asset.id, path: "" });
-      return response;
-    },
-    staleTime: 30_000,
-    retry: 0,
-  });
-
-  return (
-    <div className="wb-stack tight">
-      <div className="wb-row-between">
-        <span className="wb-caption">
-          {t("workbench.component.sourceHeading", { defaultValue: "Entry source · {{version}}", version })}
-        </span>
-        {source.data?.sha256 ? <span className="wb-tag">{source.data.sha256.slice(0, 12)}</span> : null}
-      </div>
-      {source.isLoading ? <Skeleton height={120} /> : null}
-      {source.isError ? (
-        <Banner tone="red" icon={<CircleAlert aria-hidden size={15} />}>
-          {t("workbench.component.sourceError", {
-            defaultValue: "The source owner did not return the entry file.",
-          })}
-        </Banner>
-      ) : null}
-      {source.data ? (
-        <>
-          <div className="wb-row-between">
-            <span className="wb-mono wb-small">{source.data.sourcePath}</span>
-            <span className="wb-tag">
-              {t("workbench.component.bytes", {
-                defaultValue: "{{count}} chars",
-                count: source.data.content.length,
-              })}
-            </span>
-          </div>
-          <pre
-            className="wb-mono wb-small"
-            style={{
-              maxHeight: 260,
-              overflow: "auto",
-              margin: 0,
-              padding: 12,
-              border: "1px solid var(--wb-line)",
-              borderRadius: 8,
-              background: "#0b0a0f",
-              color: "var(--wb-ink-2)",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {source.data.content}
-          </pre>
-        </>
-      ) : null}
-    </div>
-  );
+function SourceTab({
+  bundle,
+  version,
+  onVersion,
+}: {
+  bundle: ComponentBundle;
+  version: string;
+  onVersion: (version: string) => void;
+}) {
+  return <SourceWorkbench bundle={bundle} version={version} onVersion={onVersion} />;
 }
 
 function VersionsTab({
@@ -265,14 +220,33 @@ function VersionsTab({
             <b>{row.version}</b>
             <small style={{ display: "block" }}>{row.sourcePath}</small>
           </span>
-          <Chip tone={row.status === "COMPONENT_VERSION_STATUS_RELEASED" ? "green" : "amber"}>
-            {row.status === "COMPONENT_VERSION_STATUS_RELEASED"
+          <Chip
+            tone={
+              row.status === ComponentVersionStatus.RELEASED
+                ? "green"
+                : row.status === ComponentVersionStatus.DRAFT
+                  ? "amber"
+                  : "ice"
+            }
+          >
+            {row.status === ComponentVersionStatus.RELEASED
               ? t("workbench.component.released", { defaultValue: "Released" })
-              : t("workbench.component.draft", { defaultValue: "Draft" })}
+              : row.status === ComponentVersionStatus.DRAFT
+                ? t("workbench.component.draft", { defaultValue: "Draft" })
+                : t("workbench.component.indexed", { defaultValue: "Indexed" })}
           </Chip>
-          <span className="wb-small wb-muted-2">{t("workbench.component.tokenCount", { defaultValue: "{{count}} tokens", count: row.requiredTokens.length })}</span>
           <span className="wb-small wb-muted-2">
-            {formatRelative(timestampToDate(row.createdAt) ?? timestampToDate(row.releasedAt))}
+            {t("workbench.component.fileCount", {
+              defaultValue: pluralDefault(
+                row.files.length,
+                "{{count}} file",
+                "{{count}} files",
+              ),
+              count: row.files.length,
+            })}
+          </span>
+          <span className="wb-small wb-muted-2">
+            {formatRelative(timestampToDate(row.releasedAt) ?? timestampToDate(row.indexedAt))}
           </span>
         </button>
       ))}

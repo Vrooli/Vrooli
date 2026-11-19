@@ -11,6 +11,7 @@ import (
 
 	"image-tools/internal/backends"
 	"image-tools/internal/models"
+	"image-tools/internal/opparams"
 	"image-tools/internal/technique"
 )
 
@@ -144,12 +145,16 @@ func runBuiltin(ctx context.Context, req backends.Request) error {
 		if err != nil {
 			return err
 		}
-		p := DefaultMaskFillParams()
-		if v, err := strconv.Atoi(req.Params["grow_px"]); err == nil && v >= 0 {
-			p.GrowPx = v
+		removal, err := opparams.DecodeObjectRemovalParams(req.Params)
+		if err != nil {
+			return err
 		}
-		if v, err := strconv.Atoi(req.Params["halo_threshold"]); err == nil && v >= 0 {
-			p.HaloThreshold = v
+		p := DefaultMaskFillParams()
+		if removal.GrowPx != nil && *removal.GrowPx >= 0 {
+			p.GrowPx = *removal.GrowPx
+		}
+		if removal.HaloThreshold != nil && *removal.HaloThreshold >= 0 {
+			p.HaloThreshold = *removal.HaloThreshold
 		}
 		out = MaskFill(src, mask, p)
 	default:
