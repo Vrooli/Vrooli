@@ -273,6 +273,7 @@ func TestFSBundleWriter_AnchorsLegacyRepositoryOnlyAtOriginalPath(t *testing.T) 
 		t.Fatal(err)
 	}
 	delete(manifest, "repository_unique_id") // old bundle written before identity anchoring
+	delete(manifest, "relative_path")        // ...and before the locator was recorded
 	contents, err = json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -435,5 +436,67 @@ func TestFSBundleWriter_RejectsRepoAtBundleRoot(t *testing.T) {
 				t.Fatal("expected rejection when bundle root is already a kopia repository")
 			}
 		})
+	}
+}
+
+func TestFSBundleWriterNeverAdoptsAManagedNameWithTheWrongType(t *testing.T) {
+	ctx := context.Background()
+	w := &destinations.FSBundleWriter{}
+	cases := []struct {
+		name  string
+		setup func(root string) error
+	}{
+		{"repositories is a file", func(root string) error {
+			return os.WriteFile(filepath.Join(root, "repositories"), []byte("not a directory"), 0o600)
+		}},
+		{"README is a directory", func(root string) error {
+			return os.MkdirAll(filepath.Join(root, destinations.BundleReadmeFile), 0o700)
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			if err := tc.setup(root); err != nil {
+				t.Fatal(err)
+			}
+			err := w.PrepareRepository(ctx, root, destinations.RepositoryPathFor(root, "repo"))
+			if err == nil {
+				t.Fatal("a managed-name type conflict must be refused")
+			}
+			if !strings.Contains(err.Error(), "bundle root") {
+				t.Fatalf("error should name the bundle-root conflict: %v", err)
+			}
+		})
+	}
+}
+
+func TestFSBundleWriterRefusesARepositoryOutsideItsBundle(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "elsewhere", "repo.kopia")
+	err := (&destinations.FSBundleWriter{}).PrepareRepository(ctx, root, outside)
+	if err == nil {
+		t.Fatal("a repository path outside the bundle must be refused")
+	}
+}
+
+func TestForeignBundleEntriesListsOnlyUnmanagedNames(t *testing.T) {
+	root := t.TempDir()
+	for _, name := range []string{"operator-data", "photo.jpg"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, destinations.BundleManifestFile), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := destinations.ForeignBundleEntries(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The manifest name is managed even when its type is wrong; the guard for
+	// that lives in PrepareRepository.
+	if len(foreign) != 2 || foreign[0] != "operator-data" || foreign[1] != "photo.jpg" {
+		t.Fatalf("foreign entries = %v", foreign)
 	}
 }

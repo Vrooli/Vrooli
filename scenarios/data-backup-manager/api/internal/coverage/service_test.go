@@ -57,6 +57,8 @@ func (f *fakeTargets) Register(_ context.Context, in coverage.RegisterInput) (co
 type fakePlans struct {
 	planned      map[string]struct{}
 	destinations map[string][]string
+	devices      map[string]string
+	warnings     map[string][]string
 }
 
 func (f *fakePlans) PlannedTargetIDs(context.Context) (map[string]struct{}, error) {
@@ -65,6 +67,10 @@ func (f *fakePlans) PlannedTargetIDs(context.Context) (map[string]struct{}, erro
 
 func (f *fakePlans) DestinationIDsByTarget(_ context.Context, targetIDs []string) (map[string][]string, error) {
 	return f.destinations, nil
+}
+
+func (f *fakePlans) DeviceKeysByDestination(_ context.Context, _ []string) (map[string]string, map[string][]string, error) {
+	return f.devices, f.warnings, nil
 }
 
 type fakeRuns struct {
@@ -395,5 +401,61 @@ func TestUnregisteredDefaultTargets_NonSensitiveOnly(t *testing.T) {
 	}
 	if len(recs) != 1 || recs[0].Sensitive {
 		t.Fatalf("only non-sensitive recommendations expected: %+v", recs)
+	}
+}
+
+func TestReport_TwoDevicesAreProtectedAndOneDeviceIsOnlyAWarning(t *testing.T) {
+	ctx := context.Background()
+	now := time.Unix(1700000000, 0).UTC()
+	svc := coverage.NewService(coverage.Deps{
+		Suggestions: &fakeSuggestions{},
+		Targets: &fakeTargets{list: []coverage.CatalogTarget{
+			{ID: "two", Owner: "o", Name: "two"},
+			{ID: "one", Owner: "o", Name: "one"},
+			{ID: "same", Owner: "o", Name: "same"},
+			{ID: "none", Owner: "o", Name: "none"},
+		}},
+		Plans: &fakePlans{
+			planned: map[string]struct{}{"two": {}, "one": {}, "same": {}, "none": {}},
+			destinations: map[string][]string{
+				"two":  {"d1", "d2"},
+				"one":  {"d1"},
+				"same": {"d1", "d3"},
+				"none": {"d1"},
+			},
+			devices: map[string]string{"d1": "serial:A", "d2": "serial:B", "d3": "serial:A"},
+		},
+		Runs: &fakeRuns{
+			success: map[string]time.Time{"two": now, "one": now, "same": now, "none": now},
+			successByDestination: map[string]time.Time{
+				"two\x00d1": now, "two\x00d2": now,
+				"one\x00d1":  now,
+				"same\x00d1": now, "same\x00d3": now,
+			},
+		},
+		Restores: &fakeRestores{},
+	})
+	report, err := svc.Report(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]coverage.RegisteredTarget{}
+	for _, row := range report.Registered {
+		byName[row.Name] = row
+	}
+	if byName["two"].ProtectionLevel != coverage.ProtectionMultiDevice || byName["two"].ProtectionDeviceCount != 2 {
+		t.Fatalf("two distinct devices must be protected: %+v", byName["two"])
+	}
+	if byName["one"].ProtectionLevel != coverage.ProtectionSingleCopy || byName["one"].ProtectionDeviceCount != 1 {
+		t.Fatalf("one device must be a single-copy warning: %+v", byName["one"])
+	}
+	if byName["same"].ProtectionLevel != coverage.ProtectionSingleCopy {
+		t.Fatalf("two destinations on one device must be a single copy: %+v", byName["same"])
+	}
+	if byName["none"].ProtectionLevel != coverage.ProtectionUnprotected {
+		t.Fatalf("no successful copy must be unprotected: %+v", byName["none"])
+	}
+	if report.Summary.ProtectedTargetCount != 1 || report.Summary.SingleCopyTargetCount != 2 || report.Summary.UnprotectedTargetCount != 1 {
+		t.Fatalf("protection summary = %+v", report.Summary)
 	}
 }

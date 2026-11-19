@@ -83,10 +83,10 @@ type DestinationLookup interface {
 	// WithResolvedDestinationForRead resolves a destination for preflight's
 	// read-only repository probes without requiring write-ready state.
 	WithResolvedDestinationForRead(ctx context.Context, destinationID string, use func(DestinationForRun) error) error
-	// WithResolvedDestinationForWrite is the write gate. allowDegraded must be
-	// true only when preflight proved an independent copy for every target that
-	// will write to this destination.
-	WithResolvedDestinationForWrite(ctx context.Context, destinationID string, allowDegraded bool, use func(DestinationForRun) error) error
+	// WithResolvedDestinationForWrite is the write gate. It proves mount,
+	// device identity and a bounded write probe. Copy count never gates a write,
+	// so the caller supplies no redundancy policy.
+	WithResolvedDestinationForWrite(ctx context.Context, destinationID string, use func(DestinationForRun) error) error
 	// WouldBlock reports whether writing pendingBytes to the destination would
 	// exceed its cap under an alert+block policy (never evicts).
 	WouldBlock(ctx context.Context, destinationID string, pendingBytes int64) (blocked bool, reason string, err error)

@@ -27,13 +27,20 @@ type Offers struct {
 
 // OffersFor decides what to offer. repairPlannable is whether the control plane
 // could build an identity-bound unmount/repair/remount plan for this drive.
+//
+// A repair that the platform's tool cannot perform is never offered. On Linux,
+// NTFS repair is a dirty-flag reset: it can re-enable a read-only mount, but it
+// cannot repair a metadata record. Offering it for unreadable metadata promised
+// a fix that never happened and repeatedly told the operator the drive had been
+// repaired.
 func OffersFor(d Diagnosis, repairPlannable bool) Offers {
+	repair := repairPlannable && d.repairCanResolve()
 	switch d.Cause {
 	case CauseLeftoverTempUnreadable:
 		canQuarantine := d.DestinationDevice != nil && d.DestinationDevice.StrongIdentity() && quarantinableTemps(d.Unreadable)
-		return Offers{Accept: true, KopiaQuarantine: canQuarantine, Repair: repairPlannable, Fresh: true}
+		return Offers{Accept: true, KopiaQuarantine: canQuarantine, Repair: repair, Fresh: true}
 	case CauseContentUnreadable, CauseSnapshotsUnlistable, CauseRepositoryUnopenable, CauseUsageUnexplained:
-		return Offers{Repair: repairPlannable, Fresh: true}
+		return Offers{Repair: repair, Fresh: true}
 	case CauseVolumeReadOnly:
 		return Offers{Repair: repairPlannable}
 	default:
@@ -67,6 +74,17 @@ func quarantinableTemps(entries []Entry) bool {
 // an unmounted volume (owned by the existing drive recovery) do not.
 func (o Offers) Askable() bool { return o.Accept || o.KopiaQuarantine || o.Repair || o.Fresh }
 
+// repairCanResolve reports whether this platform's repair tool can plausibly
+// fix the diagnosed cause. Clearing a dirty flag re-enables a read-only mount,
+// but it cannot repair an unreadable metadata record or unreadable saved data —
+// so recommending a repair for that case would promise what the tool cannot do.
+func (d Diagnosis) repairCanResolve() bool {
+	if d.RepairLimitation == "" {
+		return true
+	}
+	return d.Cause == CauseVolumeReadOnly
+}
+
 // Recommended is the option to suggest, with the plain reason.
 func Recommended(d Diagnosis, o Offers) (key, reason string) {
 	switch {
@@ -74,6 +92,14 @@ func Recommended(d Diagnosis, o Offers) (key, reason string) {
 		return OptKopiaQuarantine, fmt.Sprintf("Kopia can move these %d exact unreadable session %s into same-volume quarantine while preserving their bytes; it will not recreate any final blob.", len(d.Unreadable), operatordecision.Plural(len(d.Unreadable), "temp", "temps"))
 	case o.Accept:
 		return OptAccept, fmt.Sprintf("They are unfinished uploads, not saved backup data, and your %d earlier backups still list normally. This restarts protection soonest and changes nothing on the drive.", d.SnapshotCount)
+	case o.Fresh && !d.repairCanResolve():
+		// The only repair the platform offers cannot fix this. Point at the
+		// durable fix instead of repeating a step already known to fail.
+		reason := "A repair cannot fix this: " + d.RepairLimitation + "."
+		if !d.PriorRepairAt.IsZero() {
+			reason = "The repair on " + d.PriorRepairAt.Format("2 Jan") + " could not fix this, because " + d.RepairLimitation + "."
+		}
+		return OptFresh, reason + " A fresh backup set leaves the existing backups read-only and untouched."
 	case o.Repair:
 		return OptRepair, "It is the only fix I can run myself. Unreadable saved data can make a backup impossible to restore, so it should not be ignored."
 	default:
@@ -163,11 +189,14 @@ func offered(d Diagnosis, o Offers) []offeredOption {
 		})
 	}
 	if o.Repair {
-		label := "Take the drive offline and repair it. Backups pause meanwhile; a repair can discard damaged data"
-		if !d.PriorRepairAt.IsZero() && (d.Cause == CauseLeftoverTempUnreadable || d.Cause == CauseContentUnreadable) {
-			label += fmt.Sprintf(", and the repair on %s did not clear this.", d.PriorRepairAt.Format("2 Jan"))
-		} else {
-			label += "."
+		label := "Take the drive offline and repair it. Backups pause meanwhile; a repair can discard damaged data."
+		if d.RepairLimitation != "" {
+			// Only reachable for a read-only mount, which is the one condition
+			// a dirty-flag reset genuinely fixes.
+			label = "Take the drive offline and clear the filesystem dirty state. Backups pause meanwhile. This is the one condition this filesystem's Linux tool can fix; it will not repair damaged metadata."
+		} else if !d.PriorRepairAt.IsZero() && (d.Cause == CauseLeftoverTempUnreadable || d.Cause == CauseContentUnreadable) {
+			label = "Take the drive offline and repair it. Backups pause meanwhile; a repair can discard damaged data" +
+				fmt.Sprintf(", and the repair on %s did not clear this.", d.PriorRepairAt.Format("2 Jan"))
 		}
 		opts = append(opts, offeredOption{
 			key: OptRepair, label: label,
@@ -175,11 +204,13 @@ func offered(d Diagnosis, o Offers) []offeredOption {
 		})
 	}
 	if o.Fresh {
-		opts = append(opts, offeredOption{
-			key:    OptFresh,
-			label:  "Start a fresh backup set on this drive and keep the old one read-only. Uses more space; an agent has to set it up, so this only asks for that.",
-			effect: "Nothing changes yet. The answer records the request, and I then ask you where the new backup set should go.",
-		})
+		label := "Start a fresh backup set and keep the old one read-only. Uses more space; an agent has to set it up, so this only asks for that."
+		effect := "Nothing changes yet. The answer records the request, and I then ask you where the new backup set should go."
+		if d.RepairRemedy != "" {
+			label = "Start a fresh backup set and keep the old one read-only — the durable fix here."
+			effect += " To keep using this drive instead: " + d.RepairRemedy + "."
+		}
+		opts = append(opts, offeredOption{key: OptFresh, label: label, effect: effect})
 	}
 	return append(opts, offeredOption{
 		key: OptLeave, label: "Do nothing for now. Backups stay stopped and I ask again tomorrow.",
@@ -373,6 +404,15 @@ func technicalDetails(d Diagnosis, o Offers) string {
 	b.WriteString("\nHow each option is applied (only after a verified human answer):\n")
 	if o.Accept {
 		b.WriteString("- Skip: records an exception for each exact path above (path, read-failure kind, approver, time). Usage measurement and preflight honour an exception only for that exact path while it stays an unreadable leftover temporary file. Any other unreadable entry, or a changed path, blocks again and asks again. Nothing is deleted, renamed or written in the repository. A backup is then triggered for the plan(s).\n")
+	}
+	if d.RepairLimitation != "" {
+		fmt.Fprintf(&b, "- Repair ceiling on this filesystem: %s.\n", d.RepairLimitation)
+		if d.RepairRemedy != "" {
+			fmt.Fprintf(&b, "  For a real repair: %s.\n", d.RepairRemedy)
+		}
+		if !d.PriorRepairAt.IsZero() {
+			fmt.Fprintf(&b, "  A repair already completed on %s and did not clear this condition.\n", d.PriorRepairAt.Format("2 Jan 2006"))
+		}
 	}
 	if o.Repair {
 		b.WriteString("- Repair: unmount, offline filesystem repair, and read/write remount through the control-plane volume owner, bound to this drive's identity. Refused if a backup is running to this destination. A backup is triggered afterwards.\n")

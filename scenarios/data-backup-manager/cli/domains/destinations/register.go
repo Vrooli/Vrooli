@@ -36,6 +36,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"DestinationsService.StartVolumeRecovery":             h.recoveryStart,
 		"DestinationsService.GetVolumeRecovery":               h.recoveryGet,
 		"DestinationsService.ResumeVolumeRecovery":            h.recoveryResume,
+		"safe-eject":     h.safeEject,
+		"safe-mount":     h.safeMount,
+		"repair-options": h.repairOptions,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

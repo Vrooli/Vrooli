@@ -27,6 +27,7 @@ import (
 	scenariospecint "data-backup-manager/internal/scenariospec"
 	schedint "data-backup-manager/internal/scheduler"
 	sourcesint "data-backup-manager/internal/sources"
+	sysmounts "data-backup-manager/internal/sysmounts"
 	targetsint "data-backup-manager/internal/targets"
 )
 
@@ -252,11 +253,19 @@ func (a planCriticalDestinationPolicy) Validate(ctx context.Context, tier plansi
 // about the selected topology and keeps uncertainty explicit. A clean path is
 // not enough to claim physical independence: when the platform cannot expose
 // a stable volume identity, the plan remains usable but carries a warning.
-func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint.ProtectionTier, targetIDs, destinationIDs []string) (plansint.DestinationRiskReport, error) {
-	report := plansint.DestinationRiskReport{PhysicallyIndependent: true}
+// Assess reports only what observed device identity proves. It is intentionally
+// tier-independent: a two-drive full-primary plan is protected against one
+// drive loss exactly as a critical plan is, and neither is off-host merely
+// because the operator selected it.
+func (a planCriticalDestinationPolicy) Assess(ctx context.Context, _ plansint.ProtectionTier, targetIDs, destinationIDs []string) (plansint.DestinationRiskReport, error) {
 	if len(destinationIDs) == 0 {
 		return plansint.DestinationRiskReport{Warnings: []string{"no destinations selected; physical independence is not proven"}}, nil
 	}
+	// Independent placement needs at least two destinations. One destination is
+	// a single failure domain no matter how healthy it is, so the claim starts
+	// false and is only earned by pairwise evidence below.
+	singleDestination := len(destinationIDs) < 2
+	report := plansint.DestinationRiskReport{PhysicallyIndependent: !singleDestination}
 
 	locations := make([]string, 0, len(destinationIDs))
 	evidence := make([]topology.Evidence, 0, len(destinationIDs))
@@ -269,7 +278,9 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 		if location == "" {
 			report.PhysicallyIndependent = false
 			evidence = append(evidence, topology.Evidence{Endpoint: topology.EndpointUnknown})
-			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no location; physical independence is not proven", id))
+			if !singleDestination {
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no location; physical independence is not proven", id))
+			}
 			continue
 		}
 		locations = append(locations, filepath.Clean(location))
@@ -284,7 +295,9 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 		if a.readiness == nil {
 			report.PhysicallyIndependent = false
 			evidence = append(evidence, observed)
-			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no volume identity inspector; physical independence is not proven", id))
+			if !singleDestination {
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no volume identity inspector; physical independence is not proven", id))
+			}
 			continue
 		}
 		readiness, err := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{
@@ -304,7 +317,7 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 		// volume or assignment, so neither is promoted to physical identity.
 		observed.DeviceID = strings.TrimSpace(readiness.Identity.Serial)
 		evidence = append(evidence, observed)
-		if observed.DeviceID == "" {
+		if observed.DeviceID == "" && !singleDestination {
 			report.PhysicallyIndependent = false
 			report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q has no stable volume identity; physical independence is not proven", id))
 		}
@@ -317,9 +330,16 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 			}
 		} else if readiness.OverallSeverity == readinessint.SeverityWarning {
 			for _, check := range readiness.Checks {
-				if check.Severity == readinessint.SeverityWarning {
-					report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q suitability %s: %s", id, check.Code, check.Message))
+				if check.Severity != readinessint.SeverityWarning {
+					continue
 				}
+				// A probe-backed degraded write is an admission nuance and is
+				// reported by readiness and coverage; repeating it on every plan
+				// turns one fact into a wall of identical warnings.
+				if check.Code == "filesystem_state" {
+					continue
+				}
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q suitability %s: %s", id, check.Code, check.Message))
 			}
 		}
 	}
@@ -335,9 +355,20 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 	for i := range evidence {
 		for j := i + 1; j < len(evidence); j++ {
 			relation := topology.Compare(evidence[i], evidence[j])
-			if relation != topology.RelationIndependent {
-				report.PhysicallyIndependent = false
-				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q topology is %s; independent placement is not proven", destinationIDs[i], destinationIDs[j], relation))
+			if relation == topology.RelationIndependent {
+				continue
+			}
+			report.PhysicallyIndependent = false
+			// Say what the relation actually costs. "Not proven independent"
+			// read like a failure even when two real drives protect each other
+			// from a drive loss; the honest limit is host loss, not data loss.
+			switch relation {
+			case topology.RelationSameDevice:
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q share one storage device; a second copy on the same drive does not survive losing that drive", destinationIDs[i], destinationIDs[j]))
+			case topology.RelationSameHost:
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q are on this host; that protects against losing one drive, but not against losing the host", destinationIDs[i], destinationIDs[j]))
+			default:
+				report.Warnings = append(report.Warnings, fmt.Sprintf("destinations %q and %q placement could not be proven from observed device identity", destinationIDs[i], destinationIDs[j]))
 			}
 		}
 	}
@@ -356,11 +387,6 @@ func (a planCriticalDestinationPolicy) Assess(ctx context.Context, tier plansint
 				report.Warnings = append(report.Warnings, fmt.Sprintf("destination %q overlaps protected target %q", destinationIDs[i], targetID))
 			}
 		}
-	}
-	if tier == plansint.TierFullPrimary && len(report.Warnings) == 0 {
-		// A full-primary plan is not an independence claim against another
-		// tier, but its selected root has passed the same risk checks.
-		report.PhysicallyIndependent = true
 	}
 	return report, nil
 }
@@ -423,7 +449,7 @@ func (a destinationLookup) DestinationForRun(ctx context.Context, destID string)
 }
 
 func (a destinationLookup) WithResolvedDestination(ctx context.Context, destID string, use func(runsint.DestinationForRun) error) error {
-	return a.WithResolvedDestinationForWrite(ctx, destID, false, use)
+	return a.WithResolvedDestinationForWrite(ctx, destID, use)
 }
 
 func (a destinationLookup) WithResolvedDestinationForRead(ctx context.Context, destID string, use func(runsint.DestinationForRun) error) error {
@@ -435,11 +461,11 @@ func (a destinationLookup) WithResolvedDestinationForRead(ctx context.Context, d
 	})
 }
 
-func (a destinationLookup) WithResolvedDestinationForWrite(ctx context.Context, destID string, allowDegraded bool, use func(runsint.DestinationForRun) error) error {
+func (a destinationLookup) WithResolvedDestinationForWrite(ctx context.Context, destID string, use func(runsint.DestinationForRun) error) error {
 	if use == nil {
 		return nil
 	}
-	return a.svc.WithResolvedDestinationForWrite(ctx, destID, allowDegraded, func(d destint.Destination) error {
+	return a.svc.WithResolvedDestinationForWrite(ctx, destID, func(d destint.Destination) error {
 		return use(runsint.DestinationForRun{ID: d.ID, Name: d.Name, BackendKind: string(d.BackendKind), Location: d.Location, DeviceIdentity: d.DeviceIdentity})
 	})
 }
@@ -1024,8 +1050,11 @@ func (a coverageTargetCatalog) Register(ctx context.Context, in coverageint.Regi
 // coveragePlanCatalog adapts plans.Service to coverage.PlanCatalog: it rolls
 // every plan's target membership into the set of planned target ids.
 type coveragePlanCatalog struct {
-	svc      plansint.Service
-	topology plansint.CriticalDestinationReporter
+	svc          plansint.Service
+	destinations destint.Service
+	readiness    interface {
+		Analyze(context.Context, readinessint.AnalyzeInput) (readinessint.Report, error)
+	}
 }
 
 func (a coveragePlanCatalog) PlannedTargetIDs(ctx context.Context) (map[string]struct{}, error) {
@@ -1083,26 +1112,69 @@ func (a coveragePlanCatalog) DestinationIDsByTarget(ctx context.Context, targetI
 	return out, nil
 }
 
-func (a coveragePlanCatalog) PhysicalIndependenceByTarget(ctx context.Context, destinations map[string][]string) (map[string]bool, map[string][]string, error) {
-	proven := make(map[string]bool, len(destinations))
-	warnings := make(map[string][]string, len(destinations))
-	for targetID, destinationIDs := range destinations {
-		if len(destinationIDs) < 2 {
-			warnings[targetID] = []string{"fewer than two enabled destinations are configured"}
-			continue
+// DeviceKeysByDestination supplies the one fact coverage needs for its
+// protection policy: which storage device backs a destination. A persisted
+// serial/UUID is preferred; readiness resolves a legacy destination's current
+// mounted device; a non-filesystem backend is its own remote failure domain.
+func (a coveragePlanCatalog) DeviceKeysByDestination(ctx context.Context, destinationIDs []string) (map[string]string, map[string][]string, error) {
+	keys := make(map[string]string, len(destinationIDs))
+	warnings := make(map[string][]string, len(destinationIDs))
+	if a.destinations == nil {
+		for _, id := range destinationIDs {
+			warnings[id] = []string{"destination identity is unavailable"}
 		}
-		if a.topology == nil {
-			warnings[targetID] = []string{"destination topology evidence is unavailable"}
-			continue
-		}
-		report, err := a.topology.Assess(ctx, plansint.TierCriticalSecondary, []string{targetID}, destinationIDs)
-		if err != nil {
-			return nil, nil, fmt.Errorf("target %q: %w", targetID, err)
-		}
-		proven[targetID] = report.PhysicallyIndependent
-		warnings[targetID] = append([]string(nil), report.Warnings...)
+		return keys, warnings, nil
 	}
-	return proven, warnings, nil
+	for _, id := range destinationIDs {
+		d, err := a.destinations.GetDestination(ctx, id)
+		if err != nil {
+			warnings[id] = append(warnings[id], "destination is unavailable")
+			continue
+		}
+		if d.BackendKind != destint.BackendFilesystem {
+			// A remote backend is a separate failure domain by construction.
+			keys[id] = "remote:" + string(d.BackendKind) + ":" + d.Name
+			continue
+		}
+		// Prefer a fresh observation: catalog rows may carry a volume UUID
+		// without the backing-disk serial, and a UUID is not a physical-device
+		// identity. Two destinations on one disk must produce the same key.
+		key := ""
+		if a.readiness != nil && strings.TrimSpace(d.Location) != "" {
+			report, analyzeErr := a.readiness.Analyze(ctx, readinessint.AnalyzeInput{
+				DestinationID:  d.ID,
+				ExpectedDevice: derefDeviceIdentity(d.DeviceIdentity),
+				Location:       d.Location,
+			})
+			if analyzeErr == nil {
+				key = deviceKeyFromIdentity(&report.Identity)
+			}
+		}
+		if key == "" {
+			key = deviceKeyFromIdentity(d.DeviceIdentity)
+		}
+		if key == "" && strings.TrimSpace(d.Location) != "" {
+			key = sysmounts.DeviceKey(d.Location)
+		}
+		if key == "" {
+			warnings[id] = append(warnings[id], "storage device identity is not proven")
+		}
+		keys[id] = key
+	}
+	return keys, warnings, nil
+}
+
+func deviceKeyFromIdentity(identity *readinessint.DeviceIdentity) string {
+	if identity == nil || !identity.StrongIdentity() {
+		return ""
+	}
+	if serial := strings.TrimSpace(identity.Serial); serial != "" {
+		return "serial:" + serial
+	}
+	if uuid := strings.TrimSpace(identity.UUID); uuid != "" {
+		return "uuid:" + uuid
+	}
+	return ""
 }
 
 // coverageRunStatus adapts runs.Service to coverage.RunStatusSource: the last

@@ -942,6 +942,12 @@ func (f *BackupFailureFlow) retryPlansAfter(ctx context.Context, inc repohealth.
 // filesystem repair and read/write remount through the control-plane owner,
 // bound to the drive's identity and journalled so a crash cannot repeat a repair.
 func (f *BackupFailureFlow) applyRepair(ctx context.Context, ask *operatordecision.PendingAsk, inc repohealth.Incident, res operatordecision.DecisionResolution) error {
+	// Defense in depth for a decision raised before the offer was tightened: a
+	// tool that cannot repair metadata must never run and be reported as a
+	// repair. A read-only mount is the one cause a dirty-flag reset fixes.
+	if inc.Diagnosis.RepairLimitation != "" && inc.Diagnosis.Cause != repohealth.CauseVolumeReadOnly {
+		return f.failApplied(ctx, ask, inc, res, "The only repair this host offers for this filesystem cannot fix this condition, so I did not run it. Nothing was changed.")
+	}
 	dest, err := f.dests.GetDestination(ctx, inc.DestinationID)
 	if err != nil || dest.DeviceIdentity == nil || !dest.DeviceIdentity.StrongIdentity() {
 		return f.failApplied(ctx, ask, inc, res, "I cannot repair this drive: its identity is not recorded strongly enough to act on safely. Nothing was changed.")

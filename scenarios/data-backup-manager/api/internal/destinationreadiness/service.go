@@ -12,6 +12,8 @@ import (
 
 	"data-backup-manager/internal/capacity"
 	"data-backup-manager/internal/sysmounts"
+
+	"github.com/vrooli/vrooli/packages/driveprofile"
 )
 
 // Inspector is the read-only seam for platform/device inspection.
@@ -469,16 +471,16 @@ func buildReport(location string, inspection Inspection, in AnalyzeInput, verifi
 		FilesystemState:      inspection.FilesystemState,
 		OfflineCheckVerified: verifiedOfflineCheck,
 		Probe:                probe,
-		AllowDegraded:        in.AllowDegraded,
 	})
 	checks := []CheckResult{
 		checkLocation(inspection),
 		checkMountedReadWrite(inspection),
-		checkFilesystemState(inspection, verifiedOfflineCheck, probe, in.AllowDegraded),
+		checkFilesystemState(inspection, verifiedOfflineCheck, probe),
 		checkDirectoryEvidence(inspection),
 		checkSeparateRoot(location, in.ProtectedPaths),
 		checkExisting(location, recLocation, in.ExistingDestinations),
 		checkFilesystem(inspection.Identity.Filesystem, inspection.MountDriver, in.CrossPlatformRequired),
+		checkFilesystemRepair(inspection.Identity.Filesystem),
 		checkCapacity(inspection.FreeBytes, capacityEstimate),
 		checkRootNonEmpty(inspection),
 		checkInstallerMedia(inspection),
@@ -585,7 +587,7 @@ func readOnlyRepairStep(i Inspection) string {
 	}
 }
 
-func checkFilesystemState(i Inspection, verifiedOfflineCheck bool, probe WriteProbeResult, allowDegraded bool) CheckResult {
+func checkFilesystemState(i Inspection, verifiedOfflineCheck bool, probe WriteProbeResult) CheckResult {
 	evidence := ""
 	if i.StateEvidence != "" {
 		evidence = " (evidence: " + i.StateEvidence + ")"
@@ -605,7 +607,6 @@ func checkFilesystemState(i Inspection, verifiedOfflineCheck bool, probe WritePr
 		FilesystemState:      i.FilesystemState,
 		OfflineCheckVerified: verifiedOfflineCheck,
 		Probe:                probe,
-		AllowDegraded:        allowDegraded,
 	})
 	switch verdict {
 	case WriteReady:
@@ -615,7 +616,7 @@ func checkFilesystemState(i Inspection, verifiedOfflineCheck bool, probe WritePr
 			Code:       "filesystem_state",
 			Severity:   SeverityWarning,
 			Message:    reason + evidence,
-			NextAction: "keep another verified copy, monitor the write probe, and run an offline consistency check when the drive can be quiesced",
+			NextAction: "backups proceed; add a second storage device for drive-loss protection and run an offline consistency check when the drive can be quiesced",
 		}
 	case WriteBlocked:
 		code := "filesystem_state"
@@ -629,6 +630,17 @@ func checkFilesystemState(i Inspection, verifiedOfflineCheck bool, probe WritePr
 			NextAction: "check and repair the filesystem under explicit confirmation, or restore writable access, then re-run readiness",
 		}
 	default:
+		// When the filesystem profile says the OS cannot expose a state for
+		// this format, say that plainly instead of blaming the host. The verdict
+		// stays truthfully unknown; the explanation is data-driven.
+		if profile, ok := driveprofile.Lookup(i.Identity.Filesystem); ok && profile.StateSignal != driveprofile.StateSignalKernel {
+			return CheckResult{
+				Code:       "filesystem_state",
+				Severity:   SeverityUnknown,
+				Message:    reason + "; " + profile.StateNote + evidence,
+				NextAction: "keep another verified copy, and run an offline check when the drive can be quiesced",
+			}
+		}
 		return CheckResult{Code: "filesystem_state", Severity: SeverityUnknown, Message: reason + evidence}
 	}
 }
@@ -735,39 +747,53 @@ func checkFilesystem(fs, driver string, crossPlatform bool) CheckResult {
 	normalizedFS := strings.ToLower(strings.TrimSpace(fs))
 	_, userspace := userspaceDrivers[normalizedDriver]
 
-	switch normalizedFS {
-	case "ext4":
-		if crossPlatform {
-			return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "ext4 is recommended for Linux-only backups but is not broadly cross-platform"}
+	profile, ok := driveprofile.Lookup(normalizedFS)
+	if !ok {
+		if normalizedFS == "" {
+			return CheckResult{Code: "filesystem_suitability", Severity: SeverityUnknown, Message: "filesystem type is unknown"}
 		}
-		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "ext4 is recommended for Linux backup drives"}
-	case "exfat":
-		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: "exFAT is usable for cross-platform backup drives"}
-	case "ntfs", "ntfs3":
-		// NTFS is never a Pass. Even served by a userspace driver it carries
-		// restore-fidelity caveats, and an unmounted volume gives no driver
-		// evidence at all — the driver it *would* get on mount is unknown, and
-		// on Linux the kernel driver is the automount default.
+		return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "filesystem has not been validated for backup repository use"}
+	}
+
+	// The profile owns the per-platform posture. On Windows, NTFS is native and
+	// a first-class choice; on Linux the same volume is a caution because the
+	// repair ceiling is a dirty-flag reset. Reading that from one table keeps
+	// the two platforms from disagreeing.
+	suitability := profile.SuitabilityOn(runtime.GOOS)
+	platformNote := profile.NoteOn(runtime.GOOS)
+	withNote := func(sentence string) string {
+		if platformNote == "" {
+			return sentence
+		}
+		return sentence + " " + platformNote + "."
+	}
+
+	// On Linux, NTFS is never a Pass. Even served by a userspace driver it
+	// carries restore-fidelity caveats, and an unmounted volume gives no driver
+	// evidence at all.
+	if profile.Family == driveprofile.FamilyNTFS && driveprofile.NormalizeOS(runtime.GOOS) == "linux" {
+		message := "NTFS access and restore fidelity depend on which driver serves the mount, and this volume is not currently mounted through a known-safe one"
 		if userspace {
-			return CheckResult{
-				Code:       "filesystem_suitability",
-				Severity:   SeverityWarning,
-				Message:    "NTFS served by a userspace driver contains faults to the backup process, but restore fidelity still depends on the driver; a native Linux filesystem is preferred",
-				NextAction: "prefer ext4 for a Linux-only backup drive, or exFAT when the drive must stay cross-platform",
-			}
+			message = "NTFS served by a userspace driver contains faults to the backup process, but restore fidelity still depends on the driver; a native Linux filesystem is preferred"
 		}
 		return CheckResult{
 			Code:       "filesystem_suitability",
 			Severity:   SeverityWarning,
-			Message:    "NTFS access and restore fidelity depend on which driver serves the mount, and this volume is not currently mounted through a known-safe one",
-			NextAction: "confirm the mount driver before trusting this destination; on Linux the default in-kernel ntfs3 driver is refused for backup writes",
+			Message:    message,
+			NextAction: profile.NextAction,
 		}
-	case "vfat", "fat32", "msdos":
-		return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "FAT32 has a 4 GiB per-file limit and is not recommended for serious backup repositories"}
-	case "":
-		return CheckResult{Code: "filesystem_suitability", Severity: SeverityUnknown, Message: "filesystem type is unknown"}
+	}
+
+	switch suitability {
+	case driveprofile.Recommended:
+		if crossPlatform && !profile.CrossPlatform {
+			return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: withNote(profile.Summary + " It is not broadly cross-platform.")}
+		}
+		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: withNote(profile.Summary)}
+	case driveprofile.Usable:
+		return CheckResult{Code: "filesystem_suitability", Severity: SeverityPass, Message: withNote(profile.Summary)}
 	default:
-		return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: "filesystem has not been validated for backup repository use"}
+		return CheckResult{Code: "filesystem_suitability", Severity: SeverityWarning, Message: withNote(profile.Summary), NextAction: profile.NextAction}
 	}
 }
 
@@ -954,4 +980,38 @@ func within(child, parent string) bool {
 		return strings.HasPrefix(child, sep)
 	}
 	return strings.HasPrefix(child, parent+sep)
+}
+
+// checkFilesystemRepair answers the one question an operator asks after an
+// unsafe shutdown: can this host make the filesystem whole again? It is
+// separate from suitability because a filesystem can be perfectly usable day to
+// day and still be unrepairable here.
+func checkFilesystemRepair(filesystem string) CheckResult {
+	const code = "filesystem_repair"
+	profile, ok := driveprofile.Lookup(filesystem)
+	if !ok {
+		return CheckResult{
+			Code:       code,
+			Severity:   SeverityUnknown,
+			Message:    "this host has no repair profile for this filesystem, so it cannot claim it can repair it",
+			NextAction: "use a profiled filesystem this host can repair, or accept that an unsafe shutdown may be unrecoverable",
+		}
+	}
+	if profile.RepairIsMetadata {
+		return CheckResult{
+			Code:     code,
+			Severity: SeverityPass,
+			Message:  "this host can check and repair " + profile.Name + " metadata",
+		}
+	}
+	limitation := strings.TrimSpace(profile.RepairLimitation)
+	if limitation == "" {
+		limitation = "this host has no check or repair tool for it"
+	}
+	return CheckResult{
+		Code:       code,
+		Severity:   SeverityWarning,
+		Message:    profile.Name + " cannot be repaired on this host: " + limitation,
+		NextAction: profile.NextAction,
+	}
 }

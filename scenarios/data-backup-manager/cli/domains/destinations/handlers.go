@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -53,6 +54,9 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Location:    ctx.Flag("location"),
 		CapBytes:    capBytes,
 		CapPolicy:   capPolicy,
+		// A filesystem this host cannot repair needs a deliberate acceptance;
+		// otherwise a single unsafe shutdown can strand the drive forever.
+		AcknowledgeUnrepairableFilesystem: ctx.BoolFlag("allow-unrepairable"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("create destination", err, nil)
@@ -73,9 +77,10 @@ func (h *handlers) create(ctx cliapp.RunContext) error {
 		Result:  []string{fmt.Sprintf("Created destination %s.", d.Id)},
 		Changes: changes,
 		NextCommand: []string{
+			fmt.Sprintf("`plans add-destination --destination %s --apply` — bind this drive into every enabled plan at once; omit --apply for a preview", d.Id),
 			fmt.Sprintf("`destinations get %s` — show this destination", d.Id),
-			"`plans create --target-ids <id> --destination-ids " + d.Id + "` — create a backup plan",
-			"`runs trigger --plan-id <plan>` — run a backup now",
+			"`coverage report` — confirm how many targets are now protected by two or more devices",
+			"`runs trigger --plan-id <plan>` — run a backup now instead of waiting for the schedule",
 			"`restores verify --target-id <t> --destination-id " + d.Id + "` — verify a snapshot is restorable",
 		},
 	})
@@ -555,7 +560,10 @@ func formatPreparationExecution(msg *destinationsv1.ExecuteDestinationPreparatio
 // parseBackendKind maps the --backend flag string to the proto BackendKind enum.
 func parseBackendKind(s string) (destinationsv1.BackendKind, error) {
 	switch s {
-	case "filesystem":
+	case "", "filesystem":
+		// A local drive is the overwhelmingly common case; make
+		// `destinations create --name X --location <drive>/vrooli-backups` work
+		// without a mandatory --backend flag.
 		return destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM, nil
 	case "s3":
 		return destinationsv1.BackendKind_BACKEND_KIND_S3, nil
@@ -757,4 +765,201 @@ func emptyDash(s string) string {
 		return "-"
 	}
 	return s
+}
+
+// safeEject flushes every pending write and unmounts a filesystem destination,
+// so an unplug cannot interrupt a write in progress. It is preview-only unless
+// --apply is given, and it is bound to the destination's persisted device
+// identity: a replugged or renumbered disk cannot be ejected by mistake.
+func (h *handlers) safeEject(ctx cliapp.RunContext) error {
+	d, err := h.filesystemDestination(ctx.Flag("id"))
+	if err != nil {
+		return err
+	}
+	plan, err := h.planPreparation(d, destinationsv1.PreparationAction_PREPARATION_ACTION_UNMOUNT)
+	if err != nil {
+		return err
+	}
+	if !plan.Supported {
+		return fmt.Errorf("cannot eject %q safely: %s", d.Name, plan.UnsupportedReason)
+	}
+	if !ctx.BoolFlag("apply") {
+		return cliapp.RenderProtoList(ctx, plan, cliapp.ListReport{
+			Summary:        []string{fmt.Sprintf("Preview: %q would be flushed and unmounted. Nothing has changed yet.", d.Name)},
+			ResultsHeading: "Eject plan",
+			Results:        []string{formatPreparationPlan(plan)},
+			RetrievalHints: []string{
+				"re-run with `--apply` to flush, unmount and release the drive",
+				"`destinations safe-mount --id " + d.Id + " --apply` — mount it again",
+			},
+		})
+	}
+	return h.executePreparation(ctx, plan, fmt.Sprintf("Ejected %q. It is safe to unplug.", d.Name))
+}
+
+// safeMount remounts an ejected filesystem destination at its recorded
+// mountpoint, then points the operator at a readiness check.
+func (h *handlers) safeMount(ctx cliapp.RunContext) error {
+	d, err := h.filesystemDestination(ctx.Flag("id"))
+	if err != nil {
+		return err
+	}
+	if d.DeviceIdentity == nil || strings.TrimSpace(d.DeviceIdentity.Mountpoint) == "" {
+		return fmt.Errorf("destination %q has no recorded mountpoint; mount it with the operating system, then run readiness", d.Id)
+	}
+	plan, err := h.planPreparation(d, destinationsv1.PreparationAction_PREPARATION_ACTION_MOUNT_READ_WRITE)
+	if err != nil {
+		return err
+	}
+	if !plan.Supported {
+		return fmt.Errorf("cannot mount %q safely: %s", d.Name, plan.UnsupportedReason)
+	}
+	if !ctx.BoolFlag("apply") {
+		return cliapp.RenderProtoList(ctx, plan, cliapp.ListReport{
+			Summary:        []string{fmt.Sprintf("Preview: %q would be mounted read/write at %s. Nothing has changed yet.", d.Name, d.DeviceIdentity.Mountpoint)},
+			ResultsHeading: "Mount plan",
+			Results:        []string{formatPreparationPlan(plan)},
+			RetrievalHints: []string{"re-run with `--apply` to mount it"},
+		})
+	}
+	return h.executePreparation(ctx, plan, fmt.Sprintf("Mounted %q. Run `destinations readiness --location %q` before the next backup.", d.Name, d.Location))
+}
+
+func (h *handlers) filesystemDestination(id string) (*destinationsv1.Destination, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return nil, fmt.Errorf("--id is required")
+	}
+	resp, err := h.client.GetDestination(context.Background(), connect.NewRequest(&destinationsv1.GetDestinationRequest{Id: id}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("get destination", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Destination == nil {
+		return nil, fmt.Errorf("server returned no destination")
+	}
+	d := resp.Msg.Destination
+	if d.BackendKind != destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM {
+		return nil, fmt.Errorf("destination %q is a %s backend; only a local filesystem can be ejected or mounted", id, d.BackendKind.String())
+	}
+	if d.DeviceIdentity == nil || strings.TrimSpace(d.DeviceIdentity.Uuid) == "" && strings.TrimSpace(d.DeviceIdentity.Serial) == "" {
+		return nil, fmt.Errorf("destination %q has no stable device identity (UUID or serial), so the drive cannot be acted on safely; re-import or re-bind its identity first", id)
+	}
+	return d, nil
+}
+
+func (h *handlers) planPreparation(d *destinationsv1.Destination, action destinationsv1.PreparationAction) (*destinationsv1.DestinationPreparationPlan, error) {
+	req := &destinationsv1.PlanDestinationPreparationRequest{
+		Location:         d.Location,
+		Action:           action,
+		ExpectedIdentity: d.DeviceIdentity,
+	}
+	resp, err := h.client.PlanDestinationPreparation(context.Background(), connect.NewRequest(req))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("plan destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.Plan == nil {
+		return nil, fmt.Errorf("server returned no preparation plan")
+	}
+	return resp.Msg.Plan, nil
+}
+
+func (h *handlers) executePreparation(ctx cliapp.RunContext, plan *destinationsv1.DestinationPreparationPlan, result string) error {
+	dryRun := false
+	resp, err := h.client.ExecuteDestinationPreparation(context.Background(), connect.NewRequest(&destinationsv1.ExecuteDestinationPreparationRequest{
+		Plan:         plan,
+		Confirmation: plan.ConfirmationPhrase,
+		DryRun:       &dryRun,
+	}))
+	if err != nil {
+		return cliapp.WrapAPIError("execute destination preparation", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return fmt.Errorf("server returned no execution response")
+	}
+	return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{result}})
+}
+
+// repairOptions answers the only question that matters when a drive is damaged:
+// can this host actually repair it, and if not, what is the smallest safe path
+// off it? It is read-only.
+func (h *handlers) repairOptions(ctx cliapp.RunContext) error {
+	d, err := h.filesystemDestination(ctx.Flag("id"))
+	if err != nil {
+		return err
+	}
+	analysis, err := h.client.AnalyzeDestination(context.Background(), connect.NewRequest(&destinationsv1.AnalyzeDestinationRequest{Location: d.Location}))
+	if err != nil {
+		return cliapp.WrapAPIError("analyze destination", err, nil)
+	}
+	if analysis == nil || analysis.Msg == nil || analysis.Msg.Report == nil {
+		return fmt.Errorf("server returned no readiness report")
+	}
+	report := analysis.Msg.Report
+	filesystem := strings.ToLower(strings.TrimSpace(report.Identity.GetFilesystem()))
+
+	// The server owns the repair verdict because the filesystem table lives
+	// there. The CLI only renders it, so the two can never disagree.
+	repair := "unknown"
+	reason := "the readiness report made no repair claim for this filesystem"
+	nextAction := ""
+	for _, check := range report.Checks {
+		if check.Code != "filesystem_repair" {
+			continue
+		}
+		reason = check.Message
+		nextAction = check.NextAction
+		switch check.Severity {
+		case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_PASS:
+			repair = "metadata"
+		case destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING, destinationsv1.ReadinessSeverity_READINESS_SEVERITY_UNKNOWN:
+			repair = "limited"
+		}
+	}
+
+	results := []string{
+		fmt.Sprintf("filesystem=%s repair=%s", filesystem, repair),
+		"reason: " + reason,
+	}
+	if nextAction != "" {
+		results = append(results, "next action: "+nextAction)
+	}
+	hints := []string{}
+	switch repair {
+	case "metadata":
+		hints = append(hints,
+			fmt.Sprintf("`destinations prepare-plan --location %q --action check-filesystem` — verify without writing", d.Location),
+			fmt.Sprintf("`destinations prepare-plan --location %q --action repair-filesystem` — plan the repair, then execute it with its confirmation phrase", d.Location),
+		)
+	case "limited":
+		staging := strings.TrimSpace(ctx.Flag("staging"))
+		results = append(results, "A metadata repair is not possible on this host. The durable fix is to move the repository to a filesystem this host can repair (ext4), which replays its journal and has a real repair tool.")
+		stagingCopy := filepath.Join(staging, "vrooli-backups")
+		device := report.Identity.GetDevicePath()
+		mountpoint := report.Identity.GetMountpoint()
+		serial := ""
+		if value := strings.TrimSpace(report.Identity.GetSerial()); value != "" {
+			serial = " --device-serial " + value
+		}
+		hints = append(hints,
+			"`vrooli scenario stop data-backup-manager` — quiesce writes so the copy is consistent (the CLI needs the API again only at the end)",
+			fmt.Sprintf("`sudo rsync -aH --ignore-errors --info=progress2 %q/ %q/` — safety copy while still mounted; unreadable temp files are skipped", d.Location, stagingCopy),
+			fmt.Sprintf("`sudo umount %q` — flush and detach before formatting", mountpoint),
+			fmt.Sprintf("`sudo mkfs.ext4 -m 1 -L %s %s` — operator-only: DBM never formats a drive", d.Name, device),
+			fmt.Sprintf("`sudo mount %s %q`", device, mountpoint),
+			fmt.Sprintf("`sudo rsync -aH %q/ %q/` — restore the repository to the same bundle path", stagingCopy, d.Location),
+			"`vrooli scenario start data-backup-manager`",
+			fmt.Sprintf("`destinations bind-recovery-identity --id %s --device-uuid \"$(sudo blkid -s UUID -o value %s)\" --device-filesystem ext4 --mountpoint %q%s` — re-bind the reformatted volume; the destination id and plans stay unchanged", d.Id, device, mountpoint, serial),
+			fmt.Sprintf("`destinations readiness --location %q` — confirm the repaired drive before the next backup", d.Location),
+			fmt.Sprintf("`destinations safe-eject --id %s --apply` — use this routine command before any future unplug while DBM is running", d.Id),
+		)
+	}
+	if strings.TrimSpace(ctx.Flag("staging")) == "" && repair != "metadata" {
+		hints = append(hints, "pass `--staging /mnt/<second-drive>` to fill in the copy source and destination paths")
+	}
+	return cliapp.RenderProtoList(ctx, analysis.Msg, cliapp.ListReport{
+		Summary:        []string{fmt.Sprintf("Repair options for %q: %s.", d.Name, repair)},
+		ResultsHeading: "Repair assessment",
+		Results:        results,
+		RetrievalHints: hints,
+	})
 }

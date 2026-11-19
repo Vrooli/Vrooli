@@ -233,6 +233,14 @@ type backupHarness struct {
 
 func newBackupHarness(t *testing.T, unreadable ...string) *backupHarness {
 	t.Helper()
+	return newBackupHarnessWithFilesystem(t, "ntfs", unreadable...)
+}
+
+// newBackupHarnessWithFilesystem lets a test choose a filesystem whose repair
+// tool can actually repair metadata, without changing the default scenario
+// (the Elements NTFS drive) every other test is written against.
+func newBackupHarnessWithFilesystem(t *testing.T, filesystem string, unreadable ...string) *backupHarness {
+	t.Helper()
 	dir := t.TempDir()
 	repoDir := filepath.Join(dir, "repositories", "elements-local.kopia")
 	if err := os.MkdirAll(filepath.Join(repoDir, "p", "bbb"), 0o755); err != nil {
@@ -246,7 +254,7 @@ func newBackupHarness(t *testing.T, unreadable ...string) *backupHarness {
 		h.fs.breakEntry(rel)
 	}
 	identity := destinationreadiness.DeviceIdentity{
-		DevicePath: "/dev/sdz1", Mountpoint: "/media/Elements", Label: "Elements", Filesystem: "ntfs",
+		DevicePath: "/dev/sdz1", Mountpoint: "/media/Elements", Label: "Elements", Filesystem: filesystem,
 		UUID: "uuid-elements", Serial: "serial-elements", TotalBytes: 100,
 	}
 	h.dest = destdomain.Destination{
@@ -838,7 +846,9 @@ func TestBackupFailureAcceptRechecksEachPathBeforeRecordingIt(t *testing.T) {
 }
 
 func TestBackupFailureRepairDelegatesToTheVolumeOwnerAndRefusesWhileABackupRuns(t *testing.T) {
-	h := newBackupHarness(t, tempA)
+	// Use a filesystem whose Linux repair is a real metadata repair; on NTFS the
+	// repair option is deliberately absent, which is asserted separately.
+	h := newBackupHarnessWithFilesystem(t, "ext4", tempA)
 	h.reconcile()
 	inc := h.openIncident()
 
@@ -851,7 +861,7 @@ func TestBackupFailureRepairDelegatesToTheVolumeOwnerAndRefusesWhileABackupRuns(
 		t.Fatalf("state = %s", got.State)
 	}
 
-	h = newBackupHarness(t, tempA)
+	h = newBackupHarnessWithFilesystem(t, "ext4", tempA)
 	h.reconcile()
 	inc = h.openIncident()
 	h.apply(h.resolution(inc, repohealth.OptRepair))
@@ -1077,7 +1087,9 @@ func TestDB4RepositoryDamageChoicesUseOneVerifiedDecisionClassForEIOAndMissingBl
 			if inc.Diagnosis.Cause != tc.cause {
 				t.Fatalf("diagnosis cause = %s, want %s", inc.Diagnosis.Cause, tc.cause)
 			}
-			if !inc.Offers.Repair || !inc.Offers.Fresh || inc.Offers.KopiaQuarantine != tc.wantQuarantine {
+			// On NTFS/Linux the repair tool cannot fix metadata, so repair must
+			// not be offered at all — only the durable fresh-set route remains.
+			if inc.Offers.Repair || !inc.Offers.Fresh || inc.Offers.KopiaQuarantine != tc.wantQuarantine {
 				t.Fatalf("repository repair options = %+v", inc.Offers)
 			}
 			decisionEvents := h.decisions()
@@ -1096,10 +1108,11 @@ func TestDB4RepositoryDamageChoicesUseOneVerifiedDecisionClassForEIOAndMissingBl
 				}
 				keys[fmt.Sprint(option["key"])] = true
 			}
-			for _, key := range []string{repohealth.OptRepair, repohealth.OptFresh} {
-				if !keys[key] {
-					t.Errorf("one decision omitted %q: %v", key, keys)
-				}
+			if !keys[repohealth.OptFresh] {
+				t.Errorf("decision omitted the fresh-set route: %v", keys)
+			}
+			if keys[repohealth.OptRepair] {
+				t.Errorf("decision offered a repair the platform cannot perform: %v", keys)
 			}
 			if keys[repohealth.OptKopiaQuarantine] != tc.wantQuarantine {
 				t.Fatalf("quarantine option=%t, want %t", keys[repohealth.OptKopiaQuarantine], tc.wantQuarantine)
@@ -1502,5 +1515,42 @@ func TestBackupFailureDoesNotAskAgainAfterAnExpiryOnceBackupsWork(t *testing.T) 
 	h.reconcile()
 	if len(h.decisions()) != 1 {
 		t.Fatalf("decision events = %d, want no new question once backups work", len(h.decisions()))
+	}
+}
+
+func TestLeftoverTempSelfHealRecordsAPolicyExceptionWithoutAsking(t *testing.T) {
+	t.Setenv("DBM_AUTO_ACCEPT_LEFTOVER_TEMP", "1")
+	h := newBackupHarness(t, tempA, tempB, tempC)
+	h.reconcile()
+
+	all, err := h.incidents.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, inc := range all {
+		if inc.State.Open() {
+			t.Fatalf("self-heal should not leave an open question: %+v", inc)
+		}
+	}
+	got := h.exceptions()
+	if len(got) != 3 {
+		t.Fatalf("recorded exceptions = %d, want 3", len(got))
+	}
+	for _, ex := range got {
+		if ex.ApprovedBySource != AutoAcceptSource {
+			t.Fatalf("exception source = %q, want %q", ex.ApprovedBySource, AutoAcceptSource)
+		}
+	}
+}
+
+func TestSelfHealDoesNotSwallowUnreadableSnapshotData(t *testing.T) {
+	t.Setenv("DBM_AUTO_ACCEPT_LEFTOVER_TEMP", "1")
+	h := newBackupHarness(t, tempA, blobQ)
+	h.reconcile()
+	if inc := h.openIncident(); inc.Diagnosis.Cause != repohealth.CauseContentUnreadable {
+		t.Fatalf("mixed unreadable data must stay a question, got %q", inc.Diagnosis.Cause)
+	}
+	if got := h.exceptions(); len(got) != 0 {
+		t.Fatalf("no exception may be recorded for snapshot data: %+v", got)
 	}
 }

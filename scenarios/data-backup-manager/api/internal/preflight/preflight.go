@@ -37,11 +37,7 @@ type (
 		MeasuredDedupRatio       float64
 		ReserveBytes             int64
 		CapacityPolicy           capacity.Policy
-		// DegradedDestinations names destinations where every selected target has
-		// a separate verified copy. Only those may admit a write while the native
-		// filesystem state is unobservable.
-		DegradedDestinations map[string]bool
-		AllowWriteProbe      bool
+		AllowWriteProbe          bool
 	}
 	Target struct {
 		ID      string
@@ -96,10 +92,6 @@ type Result struct {
 	Incidents           []failures.Cause
 	BlockedDestinations map[string]failures.Cause
 	BlockedTargets      map[string]failures.Cause
-	// DegradedDestinations is the write-policy decision preflight computed. The
-	// executor must pass it to the write gate so preflight and the write agree;
-	// re-deriving it at the write boundary was a second, divergent truth.
-	DegradedDestinations map[string]bool
 }
 
 func (r Result) Summary() string {
@@ -126,12 +118,8 @@ func Check(ctx context.Context, in Input) Result {
 	}
 	r := Result{
 		CheckedAt: now, Ready: true,
-		BlockedDestinations:  map[string]failures.Cause{},
-		BlockedTargets:       map[string]failures.Cause{},
-		DegradedDestinations: map[string]bool{},
-	}
-	for id, allowed := range in.Plan.DegradedDestinations {
-		r.DegradedDestinations[id] = allowed
+		BlockedDestinations: map[string]failures.Cause{},
+		BlockedTargets:      map[string]failures.Cause{},
 	}
 	if len(in.Plan.DestinationIDs) == 0 {
 		r.add(failures.Cause{Code: failures.DestinationMissing, Category: failures.CategoryDestination, Scope: failures.ScopePlan, Message: "plan has no destination", NextAction: "configure at least one approved destination"})
@@ -286,7 +274,6 @@ func Check(ctx context.Context, in Input) Result {
 					Policy:                   in.Plan.CapacityPolicy,
 				}
 			}
-			readinessInput.AllowDegraded = in.Plan.DegradedDestinations[id]
 			readinessInput.AllowWriteProbe = in.Plan.AllowWriteProbe
 			report, err := in.Readiness.Analyze(ctx, readinessInput)
 			if err != nil {

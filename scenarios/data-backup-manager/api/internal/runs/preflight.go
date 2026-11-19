@@ -52,29 +52,9 @@ func (s *service) runPreflight(ctx context.Context, plan PlanForRun) preflight.R
 	if list, err := s.deps.Repo.TargetDestinationStatuses(ctx, plan.TargetIDs); err == nil {
 		statuses = list
 	}
-	// Degraded-write safety depends on a *different device* already holding a
-	// verified copy, and that copy may live on a destination this plan does not
-	// write to. Resolve the device identity for every destination referenced by
-	// history as well as the plan's own destinations, so the rule reflects the
-	// real failure-domain topology instead of only the plan's narrow set.
-	deviceIDs := make(map[string]bool, len(plan.DestinationIDs))
-	for _, id := range plan.DestinationIDs {
-		deviceIDs[id] = true
-	}
-	for _, status := range statuses {
-		if status.DestinationID != "" {
-			deviceIDs[status.DestinationID] = true
-		}
-	}
-	devices := make(map[string]string, len(deviceIDs))
-	for id := range deviceIDs {
-		if d, err := s.deps.Destinations.DestinationForRun(ctx, id); err == nil {
-			devices[id] = destinationDeviceKey(d)
-		}
-	}
 	var clk schedule.Clock = s.deps.Clock
 	result := preflight.Check(ctx, preflight.Input{
-		Plan:             buildPreflightPlan(plan, history, hasHistory, statuses, devices),
+		Plan:             buildPreflightPlan(plan, history, hasHistory, statuses),
 		Targets:          preflightTargets{lookup: s.deps.Targets},
 		Destinations:     preflightDestinations{lookup: s.deps.Destinations},
 		Engine:           s.deps.Engine,
@@ -119,16 +99,15 @@ func retentionSnapshotCount(plan PlanForRun) int {
 // buildPreflightPlan is the one translation from run history to the capacity
 // model. Keeping it pure makes the first-copy and degraded-readiness rules
 // testable without a live repository.
-func buildPreflightPlan(plan PlanForRun, physicalBytes int64, hasPhysicalHistory bool, statuses []TargetDestinationStatus, devices map[string]string) preflight.Plan {
+func buildPreflightPlan(plan PlanForRun, physicalBytes int64, hasPhysicalHistory bool, statuses []TargetDestinationStatus) preflight.Plan {
 	out := preflight.Plan{
-		TargetIDs:            append([]string(nil), plan.TargetIDs...),
-		DestinationIDs:       append([]string(nil), plan.DestinationIDs...),
-		RetainedSnapshots:    retentionSnapshotCount(plan),
-		FirstCopy:            true,
-		ReserveBytes:         capacity.DefaultReserveBytes,
-		CapacityPolicy:       capacity.PolicyAdvisory,
-		AllowWriteProbe:      true,
-		DegradedDestinations: map[string]bool{},
+		TargetIDs:         append([]string(nil), plan.TargetIDs...),
+		DestinationIDs:    append([]string(nil), plan.DestinationIDs...),
+		RetainedSnapshots: retentionSnapshotCount(plan),
+		FirstCopy:         true,
+		ReserveBytes:      capacity.DefaultReserveBytes,
+		CapacityPolicy:    capacity.PolicyAdvisory,
+		AllowWriteProbe:   true,
 	}
 	if hasPhysicalHistory && physicalBytes > 0 {
 		out.MeasuredIncrementalBytes = physicalBytes
@@ -154,64 +133,7 @@ func buildPreflightPlan(plan PlanForRun, physicalBytes int64, hasPhysicalHistory
 		}
 	}
 
-	// Degraded writes are allowed only when every selected target has a
-	// separate verified copy. That keeps a single-copy destination strict while
-	// letting a redundant destination keep working through an unobservable
-	// filesystem state.
-	for _, destinationID := range plan.DestinationIDs {
-		currentDevice := devices[destinationID]
-		allHaveOther := len(plan.TargetIDs) > 0 && currentDevice != ""
-		for _, targetID := range plan.TargetIDs {
-			hasOther := false
-			for otherID, otherDevice := range devices {
-				if otherID == destinationID {
-					continue
-				}
-				// A second destination on the same device is not a second copy.
-				// Require a different proven device (or a distinct remote backend)
-				// before allowing a degraded write. The other copy may belong to
-				// any plan, not only this one.
-				if otherDevice == "" || otherDevice == currentDevice {
-					continue
-				}
-				if success[targetID+"\x00"+otherID] {
-					hasOther = true
-					break
-				}
-			}
-			if !hasOther {
-				allHaveOther = false
-				break
-			}
-		}
-		out.DegradedDestinations[destinationID] = allHaveOther
-	}
 	return out
-}
-
-// destinationDeviceKey is the failure-domain identity used by the degraded
-// policy. Filesystems need a proven device; a second location on the same
-// device is not an independent copy. A persisted UUID/serial is preferred. A
-// legacy destination without one falls back to the current mounted-filesystem
-// identity, which is enough for a per-run redundancy decision and keeps a real
-// second copy usable instead of permanently blocked.
-//
-// Remote backends are a separate failure domain by construction, though their
-// independence is still not claimed as proven in coverage.
-func destinationDeviceKey(d DestinationForRun) string {
-	if d.BackendKind != "filesystem" {
-		if d.BackendKind == "" {
-			return ""
-		}
-		return "backend:" + d.BackendKind + ":" + d.Name
-	}
-	if d.DeviceIdentity != nil && d.DeviceIdentity.StrongIdentity() {
-		if d.DeviceIdentity.UUID != "" {
-			return "device:" + d.DeviceIdentity.UUID
-		}
-		return "device:" + d.DeviceIdentity.Serial
-	}
-	return runtimeDeviceKey(d.Location)
 }
 
 // lastSuccessfulPhysicalBytes is best-effort evidence. A repository without

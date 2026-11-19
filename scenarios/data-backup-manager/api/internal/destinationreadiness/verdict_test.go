@@ -21,9 +21,10 @@ func TestEvaluateWriteVerdict(t *testing.T) {
 		{name: "probe failed", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateClean, Probe: failed}, want: WriteBlocked},
 		{name: "clean", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateClean, Probe: passed}, want: WriteReady},
 		{name: "dirty wins over probe", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateDirty, Probe: passed}, want: WriteBlocked},
-		{name: "unknown strict", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateUnknown, Probe: passed}, want: WriteUnknown},
-		{name: "unknown degraded without probe", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateUnknown, AllowDegraded: true}, want: WriteUnknown},
-		{name: "unknown degraded with probe", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateUnknown, AllowDegraded: true, Probe: passed}, want: WriteDegraded},
+		// An unobservable state is not evidence of corruption. A passing probe
+		// admits the write with a warning; without a probe there is no evidence.
+		{name: "unknown with probe", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateUnknown, Probe: passed}, want: WriteDegraded},
+		{name: "unknown without probe", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateUnknown}, want: WriteUnknown},
 		{name: "offline check verified", in: WriteVerdictInput{Mounted: true, FilesystemState: sysmounts.FilesystemStateUnknown, OfflineCheckVerified: true}, want: WriteReady},
 	}
 	for _, tc := range cases {

@@ -77,9 +77,9 @@ func (h *handlers) report(ctx cliapp.RunContext) error {
 
 	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("Coverage: %d registered, %d recommended-unregistered, %d sensitive, %d planned, %d backed-up, %d verified; %d destination copies backed-up, %d targets backed-up on every destination, %d targets verified on every destination, %d targets on multiple destinations, %d with proven physical independence.",
+			fmt.Sprintf("Coverage: %d registered, %d recommended-unregistered, %d sensitive, %d planned, %d backed-up, %d verified; %d destination copies backed-up, %d targets backed-up on every destination, %d targets verified on every destination, %d targets on multiple destinations, %d protected by two or more devices.",
 				s.RegisteredCount, s.RecommendedCount, s.SensitiveCount, s.PlannedCount, s.BackedUpCount, s.VerifiedCount,
-				s.DestinationCopyCount, s.AllDestinationBackedUpCount, s.AllDestinationVerifiedCount, s.MultiDestinationTargetCount, s.PhysicallyIndependentTargetCount),
+				s.DestinationCopyCount, s.AllDestinationBackedUpCount, s.AllDestinationVerifiedCount, s.MultiDestinationTargetCount, s.ProtectedTargetCount),
 			coverageStatusLine(s),
 			driveLossLine(s),
 			reacquisitionStatusLine(rep.ReacquirableTargets),
@@ -154,12 +154,12 @@ func coverageStatusLine(s *coveragev1.CoverageSummary) string {
 		return "⚠ Default coverage INCOMPLETE — recommended targets are unregistered. Run `coverage accept-defaults`. " + sensitive
 	case s.HasUnplannedRegisteredTargets:
 		return "Default coverage complete, but some registered targets are bound to no plan. " + sensitive
+	case s.AllDestinationBackedUpCount < s.RegisteredCount:
+		return "Default coverage complete, but some registered targets have no successful copy at every enabled destination. " + sensitive
 	case s.AllDestinationVerifiedCount < s.RegisteredCount:
-		return "Default coverage complete; some enabled target destinations lack a verified scratch restore. Multi-destination counts alone do not prove independence or off-host placement. " + sensitive
-	case s.PhysicallyIndependentTargetCount < s.MultiDestinationTargetCount:
-		return "Every enabled destination has a verified scratch restore, but physical independence is unproven for some multi-destination targets. " + sensitive
+		return "Some enabled target destinations lack a verified scratch restore. A verified restore is what proves the backup is usable. " + sensitive
 	default:
-		return "Default coverage complete; every enabled destination for each registered target has a verified scratch restore and observed physical independence is proven. This does not separately establish off-host placement. " + sensitive
+		return "Every registered target has a successful copy. Single-device copies are a warning, not a failure: add a second storage device for drive-loss protection; off-host placement is a separate, stronger level. " + sensitive
 	}
 }
 
@@ -168,8 +168,11 @@ func coverageStatusLine(s *coveragev1.CoverageSummary) string {
 // destination) survives a deleted or corrupted file; it does not survive losing
 // the drive. Only a target with an independent second copy does.
 func driveLossLine(s *coveragev1.CoverageSummary) string {
-	return fmt.Sprintf("Drive loss: a copy on the same drive as its source protects against deletion and corruption, not against losing that drive. %d of %d registered targets have a proven physically independent second copy.",
-		s.PhysicallyIndependentTargetCount, s.RegisteredCount)
+	// The server classifies every target once. Reporting the same counts keeps
+	// the CLI from re-deriving protection (which previously mis-counted a
+	// target whose second destination had failed but whose first copy was good).
+	return fmt.Sprintf("Drive loss: %d of %d targets are protected by two or more devices; %d have a single-device (or same-device) copy — a warning, not a failure; %d have no successful copy. A second device protects against losing one drive; off-host placement protects against losing this host.",
+		s.ProtectedTargetCount, s.RegisteredCount, s.SingleCopyTargetCount, s.UnprotectedTargetCount)
 }
 
 func nextSteps(s *coveragev1.CoverageSummary) []string {
@@ -182,6 +185,12 @@ func nextSteps(s *coveragev1.CoverageSummary) []string {
 	}
 	if s.HasSensitiveUnreviewed {
 		steps = append(steps, "`coverage review-sensitive` — raise one verified review for sensitive targets")
+	}
+	if s.ProtectedTargetCount < s.RegisteredCount {
+		steps = append(steps,
+			"`destinations create --name second-drive --location /media/<drive>/vrooli-backups` — add another storage device",
+			"`plans add-destination --destination <new-id> --apply` — attach it to every enabled plan at once",
+		)
 	}
 	steps = append(steps, "`plans create --name <n> --targets <ids> --destinations <ids>` — protect targets with a plan")
 	return steps
@@ -345,9 +354,16 @@ func formatRegistered(t *coveragev1.RegisteredTarget) string {
 		line += fmt.Sprintf("\n    destination=%s backed-up=%s verified=%s", destination.DestinationId,
 			formatTimestamp(destination.LastSuccessAt), formatTimestamp(destination.LastVerifiedAt))
 	}
-	topology := "physical-independence=unproven"
-	if t.PhysicalIndependenceProven {
-		topology = "physical-independence=proven"
+	topology := "protection=unknown"
+	switch t.ProtectionLevel {
+	case "multi_device":
+		topology = fmt.Sprintf("protection=two-or-more-devices (%d)", t.ProtectionDeviceCount)
+	case "single_copy":
+		topology = "protection=single-device (warning)"
+	case "unprotected":
+		topology = "protection=none (no successful copy)"
+	case "identity_unknown":
+		topology = "protection=unknown (device identity unproven)"
 	}
 	line += "\n    " + topology
 	if t.Reacquirable {

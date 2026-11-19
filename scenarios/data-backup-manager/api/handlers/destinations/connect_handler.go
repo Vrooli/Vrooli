@@ -46,11 +46,12 @@ func NewConnectHandler(d Deps) *connectHandler {
 
 func (h *connectHandler) CreateDestination(ctx context.Context, req *connect.Request[destinationsv1.CreateDestinationRequest]) (*connect.Response[destinationsv1.CreateDestinationResponse], error) {
 	d, err := h.deps.Service.CreateDestination(ctx, destinations.CreateInput{
-		Name:      req.Msg.Name,
-		Backend:   protoToBackend(req.Msg.BackendKind),
-		Location:  req.Msg.Location,
-		CapBytes:  req.Msg.CapBytes,
-		CapPolicy: protoToCapPolicy(req.Msg.CapPolicy),
+		Name:                              req.Msg.Name,
+		Backend:                           protoToBackend(req.Msg.BackendKind),
+		Location:                          req.Msg.Location,
+		CapBytes:                          req.Msg.CapBytes,
+		CapPolicy:                         protoToCapPolicy(req.Msg.CapPolicy),
+		AcknowledgeUnrepairableFilesystem: req.Msg.AcknowledgeUnrepairableFilesystem,
 	})
 	if err != nil {
 		return nil, h.translate("CreateDestination", err)

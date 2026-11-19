@@ -78,18 +78,19 @@ func (s *service) Report(ctx context.Context) (Report, error) {
 	}
 	destinationsByTarget := map[string][]string{}
 	destinationBindingsKnown := false
-	independentByTarget := map[string]bool{}
-	independenceWarnings := map[string][]string{}
+	deviceKeys := map[string]string{}
+	deviceWarnings := map[string][]string{}
 	if source, ok := s.deps.Plans.(DestinationPlanCatalog); ok {
 		destinationBindingsKnown = true
 		destinationsByTarget, err = source.DestinationIDsByTarget(ctx, ids)
 		if err != nil {
 			return Report{}, fmt.Errorf("read enabled target destination bindings: %w", err)
 		}
-		if topologySource, ok := s.deps.Plans.(DestinationTopologyCatalog); ok {
-			independentByTarget, independenceWarnings, err = topologySource.PhysicalIndependenceByTarget(ctx, destinationsByTarget)
+		if deviceSource, ok := s.deps.Plans.(DestinationDeviceCatalog); ok {
+			deviceIDs := distinctDestinationIDs(destinationsByTarget)
+			deviceKeys, deviceWarnings, err = deviceSource.DeviceKeysByDestination(ctx, deviceIDs)
 			if err != nil {
-				return Report{}, fmt.Errorf("assess target destination topology: %w", err)
+				return Report{}, fmt.Errorf("read destination device identity: %w", err)
 			}
 		}
 	}
@@ -160,8 +161,6 @@ func (s *service) Report(ctx context.Context) (Report, error) {
 			}
 		}
 		destinationIDs := destinationsByTarget[t.ID]
-		row.PhysicalIndependenceProven = independentByTarget[t.ID]
-		row.IndependenceWarnings = append([]string(nil), independenceWarnings[t.ID]...)
 		if destinationBindingsKnown && len(destinationIDs) == 0 {
 			row.IndependenceWarnings = append(row.IndependenceWarnings, "no enabled destination binding exists")
 		}
@@ -189,8 +188,21 @@ func (s *service) Report(ctx context.Context) (Report, error) {
 		if len(destinationIDs) >= 2 {
 			summary.MultiDestinationTargetCount++
 		}
-		if row.PhysicalIndependenceProven {
-			summary.PhysicallyIndependentTargetCount++
+		if destinationBindingsKnown {
+			level, deviceCount, warnings := classifyProtection(row.Destinations, deviceKeys, deviceWarnings)
+			row.ProtectionLevel = level
+			row.ProtectionDeviceCount = deviceCount
+			row.IndependenceWarnings = append(row.IndependenceWarnings, warnings...)
+			switch level {
+			case ProtectionMultiDevice:
+				summary.ProtectedTargetCount++
+			case ProtectionSingleCopy:
+				summary.SingleCopyTargetCount++
+			case ProtectionUnprotected:
+				summary.UnprotectedTargetCount++
+			case ProtectionIdentityUnknown:
+				summary.IdentityUnknownCount++
+			}
 		}
 		if destinationBindingsKnown {
 			if row.AllDestinationsBackedUp {

@@ -39,7 +39,7 @@ func platformVolumeIdentity(ctx context.Context, device string) (VolumeIdentity,
 		// the UUID alone. Ask the backing disk so a plan is bound by two
 		// independent anchors rather than one.
 		if parent := wholeDiskDevice(device); parent != "" {
-			if disk, derr := lsblkIdentity(ctx, parent); derr == nil {
+			if disk, derr := lsblkDiskIdentity(ctx, parent); derr == nil {
 				if id.Serial == "" {
 					id.Serial = disk.Serial
 				}
@@ -53,7 +53,22 @@ func platformVolumeIdentity(ctx context.Context, device string) (VolumeIdentity,
 }
 
 func lsblkIdentity(ctx context.Context, device string) (VolumeIdentity, error) {
-	out, err := runLSBlk(ctx, "-P", "-n", "-o", "LABEL,UUID,MODEL,SERIAL,FSTYPE", device)
+	return lsblkIdentityWithFlags(ctx, device)
+}
+
+// lsblkDiskIdentity reads only the whole-disk row. `lsblk <disk>` also prints
+// the disk's partitions, and a partition row carries an empty MODEL/SERIAL.
+// Reading every row in order let the last partition overwrite the disk's
+// anchors with empty strings, so a partition-backed destination that recorded a
+// serial then failed its identity re-check with "not served by the verified
+// mounted volume" while its UUID still matched.
+func lsblkDiskIdentity(ctx context.Context, device string) (VolumeIdentity, error) {
+	return lsblkIdentityWithFlags(ctx, device, "-d")
+}
+
+func lsblkIdentityWithFlags(ctx context.Context, device string, extra ...string) (VolumeIdentity, error) {
+	args := append(extra, "-P", "-n", "-o", "LABEL,UUID,MODEL,SERIAL,FSTYPE", device)
+	out, err := runLSBlk(ctx, args...)
 	if err != nil {
 		return VolumeIdentity{}, err
 	}

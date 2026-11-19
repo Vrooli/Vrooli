@@ -352,7 +352,7 @@ func (s *service) decorateTopology(ctx context.Context, p Plan) Plan {
 	report, err := reporter.Assess(ctx, p.ProtectionTier, p.TargetIDs, p.DestinationIDs)
 	if err != nil {
 		p.DestinationsPhysicallyIndependent = false
-		p.SharedRiskWarnings = []string{"destination topology assessment unavailable; physical independence is not proven"}
+		p.SharedRiskWarnings = []string{"destination placement could not be assessed; off-host placement is not proven (this says nothing about drive-loss protection)"}
 		return p
 	}
 	p.DestinationsPhysicallyIndependent = report.PhysicallyIndependent

@@ -97,6 +97,61 @@ func TestAddDestinationPreviewsAndAppliesIdempotently(t *testing.T) {
 	}
 }
 
+// A new drive should reach every plan without the operator enumerating ids.
+// Disabled plans are left alone: they protect nothing today.
+func TestAddDestinationDefaultsToEveryEnabledPlan(t *testing.T) {
+	enabledOne := &plansv1.Plan{Id: "p1", Name: "daily", DestinationIds: []string{"local"}, Enabled: true}
+	enabledTwo := &plansv1.Plan{Id: "p2", Name: "weekly", DestinationIds: []string{"local"}, Enabled: true}
+	disabled := &plansv1.Plan{Id: "p3", Name: "paused", DestinationIds: []string{"local"}, Enabled: false}
+	stub := &stubPlansService{plans: []*plansv1.Plan{enabledOne, enabledTwo, disabled}}
+	mux := http.NewServeMux()
+	path, handler := plansconnect.NewPlansServiceHandler(stub)
+	mux.Handle(path, handler)
+	app := testutil.NewTestApp(t, mux)
+	hs := newHandlers(app)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "plans"}, {Name: "destination"}, {Name: "apply", Bool: true}}}
+
+	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"destination": "second-drive"}})
+	if err := hs.addDestination(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.updates) != 0 {
+		t.Fatal("preview mutated a plan")
+	}
+	if !strings.Contains(stdout.String(), "every enabled plan was selected") {
+		t.Fatalf("preview did not say it selected every enabled plan: %s", stdout.String())
+	}
+
+	ctx, _ = cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"destination": "second-drive", "apply": "true"}})
+	if err := hs.addDestination(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(stub.updates) != 2 {
+		t.Fatalf("got %d updates, want two enabled plans", len(stub.updates))
+	}
+	for _, u := range stub.updates {
+		if u.Id == "p3" {
+			t.Fatal("a disabled plan must not be changed")
+		}
+		if len(u.DestinationIds) != 2 || u.DestinationIds[1] != "second-drive" {
+			t.Fatalf("plan %s did not gain the destination: %+v", u.Id, u.DestinationIds)
+		}
+	}
+}
+
+func TestAddDestinationRequiresSomethingToBind(t *testing.T) {
+	stub := &stubPlansService{plans: []*plansv1.Plan{{Id: "p1", Enabled: false}}}
+	mux := http.NewServeMux()
+	path, handler := plansconnect.NewPlansServiceHandler(stub)
+	mux.Handle(path, handler)
+	app := testutil.NewTestApp(t, mux)
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "plans"}, {Name: "destination"}, {Name: "apply", Bool: true}}}
+	ctx, _ := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{Flags: map[string]string{"destination": "second-drive", "apply": "true"}})
+	if err := newHandlers(app).addDestination(ctx); err == nil {
+		t.Fatal("with no enabled plans the command must explain the gap instead of silently doing nothing")
+	}
+}
+
 func (s *stubPlansService) DeletePlan(_ context.Context, _ *connect.Request[plansv1.DeletePlanRequest]) (*connect.Response[plansv1.DeletePlanResponse], error) {
 	return connect.NewResponse(&plansv1.DeletePlanResponse{Removed: true}), nil
 }

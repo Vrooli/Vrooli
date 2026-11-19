@@ -198,33 +198,13 @@ func TestCheckIncludesKopiaOwnerDamageClassificationWhenUsageFails(t *testing.T)
 	}
 }
 
-func TestCheckCarriesTheDegradedWritePolicyToTheExecutor(t *testing.T) {
-	// Preflight owns the redundancy decision; the executor must consume the
-	// same decision instead of re-deriving it at the write boundary.
+// A probe-backed degraded state is a warning, not a block. Preflight carries no
+// separate redundancy policy: the write verdict decides, and copy count is
+// reported by coverage.
+func TestCheckAllowsAProbeBackedDegradedReadiness(t *testing.T) {
 	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
 	r := Check(context.Background(), Input{
-		Plan: Plan{
-			TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"},
-			DegradedDestinations: map[string]bool{"d1": true},
-		},
-		Targets: targetLookup{targets: map[string]Target{
-			"t1": {ID: "t1", Kind: sources.KindFilesystem, Locator: "/source"},
-		}},
-		Destinations: destLookup{destinations: map[string]Destination{
-			"d1": {ID: "d1", Name: "external", BackendKind: "filesystem", Location: "/mnt/external"},
-		}},
-		Engine: &engineFake{}, Sources: registry,
-		Readiness: readinessFake{report: destinationreadiness.Report{OverallSeverity: destinationreadiness.SeverityPass}},
-	})
-	if !r.DegradedDestinations["d1"] {
-		t.Fatalf("result degraded destinations = %+v, want the plan's decision carried through", r.DegradedDestinations)
-	}
-}
-
-func TestCheckAllowsDegradedReadinessWhenPolicyAndProbeAllowIt(t *testing.T) {
-	registry := sources.NewRegistry(&captureFake{kind: sources.KindFilesystem})
-	r := Check(context.Background(), Input{
-		Plan: Plan{TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"}, DegradedDestinations: map[string]bool{"d1": true}},
+		Plan: Plan{TargetIDs: []string{"t1"}, DestinationIDs: []string{"d1"}},
 		Targets: targetLookup{targets: map[string]Target{
 			"t1": {ID: "t1", Kind: sources.KindFilesystem},
 		}},

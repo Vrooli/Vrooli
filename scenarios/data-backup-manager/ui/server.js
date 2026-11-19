@@ -1,5 +1,13 @@
 import { proxyToApi, startScenarioServer } from '@vrooli/api-base/server'
 
+// DBM must never run as root: its API rebuilds shared resource CLIs, and under
+// root those builds fail on git's "dubious ownership" check. Refuse the UI too
+// so a mistaken privileged start is loud on both components.
+if (typeof process.getuid === 'function' && process.getuid() === 0) {
+  console.error('data-backup-manager must not run as root: start it as the owning user')
+  process.exit(1)
+}
+
 const connectRpcPath = /^\/vrooli\.data_backup_manager\.v1\./
 
 function requiredEnv(name) {

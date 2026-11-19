@@ -167,42 +167,22 @@ func (h *handlers) delete(ctx cliapp.RunContext) error {
 
 // addDestination prevalidates the entire selected set, then optionally applies
 // an idempotent membership-only update to each plan. Preview is the default.
+//
+// Omitting --plans targets every enabled plan. That is how a newly attached
+// drive is put to work everywhere in one step, without the operator having to
+// enumerate plan ids (and without missing one).
 func (h *handlers) addDestination(ctx cliapp.RunContext) error {
-	ids := parseCommaSeparated(ctx.Flag("plans"))
 	destination := strings.TrimSpace(ctx.Flag("destination"))
-	if len(ids) == 0 || destination == "" {
-		return fmt.Errorf("--plans and --destination are required")
+	if destination == "" {
+		return fmt.Errorf("--destination is required")
 	}
-	selected := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		if _, exists := selected[id]; exists {
-			return fmt.Errorf("duplicate plan id %q", id)
-		}
-		selected[id] = struct{}{}
-	}
-	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{}))
+	plans, allEnabled, err := h.selectPlans(ctx.Flag("plans"))
 	if err != nil {
-		return cliapp.WrapAPIError("list plans", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no plans response")
-	}
-	byID := make(map[string]*plansv1.Plan, len(resp.Msg.Plans))
-	for _, p := range resp.Msg.Plans {
-		if p != nil {
-			byID[p.Id] = p
-		}
-	}
-	plans := make([]*plansv1.Plan, 0, len(ids))
-	for _, id := range ids {
-		p := byID[id]
-		if p == nil {
-			return fmt.Errorf("plan %q does not exist", id)
-		}
-		plans = append(plans, p)
+		return err
 	}
 	apply := ctx.BoolFlag("apply")
 	changes := make([]string, 0, len(plans))
+	added := 0
 	for _, p := range plans {
 		if containsID(p.DestinationIds, destination) {
 			changes = append(changes, fmt.Sprintf("%s: destination %s already present (unchanged)", p.Id, destination))
@@ -219,17 +199,77 @@ func (h *handlers) addDestination(ctx cliapp.RunContext) error {
 				return cliapp.WrapAPIError(fmt.Sprintf("add destination to plan %q", p.Id), err, nil)
 			}
 		}
+		added++
 		action := "would add"
 		if apply {
 			action = "added"
 		}
 		changes = append(changes, fmt.Sprintf("%s: %s destination %s", p.Id, action, destination))
 	}
-	mode := "Preview only; pass --apply to write these changes."
-	if apply {
-		mode = "Applied membership changes."
+	mode := fmt.Sprintf("Preview only: %d of %d plan(s) would gain destination %s; pass --apply to write these changes.", added, len(plans), destination)
+	if allEnabled {
+		mode += " (no --plans given, so every enabled plan was selected)"
 	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{mode}, ResultsHeading: "Plan destination changes", Results: changes})
+	if apply {
+		mode = fmt.Sprintf("Applied membership changes to %d of %d plan(s).", added, len(plans))
+	}
+	return cliapp.RenderProtoList(ctx, &plansv1.ListPlansResponse{Plans: plans}, cliapp.ListReport{
+		Summary:        []string{mode},
+		ResultsHeading: "Plan destination changes",
+		Results:        changes,
+		RetrievalHints: []string{
+			"`coverage report` — confirm how many targets are now protected by two or more devices",
+			"`runs trigger --plan-id <plan>` — run a backup now instead of waiting for the schedule",
+		},
+	})
+}
+
+// selectPlans resolves --plans. An empty value means every enabled plan; an
+// explicit value must name existing plans and contain no duplicates. The
+// returned flag reports whether the all-enabled default was used.
+func (h *handlers) selectPlans(spec string) ([]*plansv1.Plan, bool, error) {
+	ids := parseCommaSeparated(spec)
+	resp, err := h.client.ListPlans(context.Background(), connect.NewRequest(&plansv1.ListPlansRequest{}))
+	if err != nil {
+		return nil, false, cliapp.WrapAPIError("list plans", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, false, fmt.Errorf("server returned no plans response")
+	}
+	if len(ids) == 0 {
+		var enabled []*plansv1.Plan
+		for _, p := range resp.Msg.Plans {
+			if p != nil && p.Enabled {
+				enabled = append(enabled, p)
+			}
+		}
+		if len(enabled) == 0 {
+			return nil, false, fmt.Errorf("there are no enabled plans to add a destination to; create one with `plans create`")
+		}
+		return enabled, true, nil
+	}
+	selected := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		if _, exists := selected[id]; exists {
+			return nil, false, fmt.Errorf("duplicate plan id %q", id)
+		}
+		selected[id] = struct{}{}
+	}
+	byID := make(map[string]*plansv1.Plan, len(resp.Msg.Plans))
+	for _, p := range resp.Msg.Plans {
+		if p != nil {
+			byID[p.Id] = p
+		}
+	}
+	plans := make([]*plansv1.Plan, 0, len(ids))
+	for _, id := range ids {
+		p := byID[id]
+		if p == nil {
+			return nil, false, fmt.Errorf("plan %q does not exist", id)
+		}
+		plans = append(plans, p)
+	}
+	return plans, false, nil
 }
 
 func containsID(ids []string, wanted string) bool {
@@ -347,12 +387,19 @@ func formatPlan(p *plansv1.Plan) string {
 	if p.Retention != nil {
 		keepLatest = p.Retention.KeepLatest
 	}
-	return fmt.Sprintf("%s — %s [tier=%s targets=%s destinations=%s schedule=%q drill-schedule=%q keep-latest=%d GFS(hourly/daily/weekly/monthly/annual)=%d/%d/%d/%d/%d enabled=%v physically-independent=%v warnings=%s created=%s]",
+	// This flag is the strong claim: the destinations are proven to be in
+	// separate host failure domains. It is not the same as "protected against
+	// losing one drive", which two drives on this host already provide.
+	offHost := "off-host-placement=unproven"
+	if p.DestinationsPhysicallyIndependent {
+		offHost = "off-host-placement=proven"
+	}
+	return fmt.Sprintf("%s — %s [tier=%s targets=%s destinations=%s schedule=%q drill-schedule=%q keep-latest=%d GFS(hourly/daily/weekly/monthly/annual)=%d/%d/%d/%d/%d enabled=%v %s warnings=%s created=%s]",
 		p.Id, p.Name,
 		p.ProtectionTier.String(),
 		describeTargets(p),
 		strings.Join(p.DestinationIds, ","),
-		p.Schedule, p.RecoveryDrillSchedule, keepLatest, p.Retention.GetKeepHourly(), p.Retention.GetKeepDaily(), p.Retention.GetKeepWeekly(), p.Retention.GetKeepMonthly(), p.Retention.GetKeepAnnual(), p.Enabled, p.DestinationsPhysicallyIndependent, strings.Join(p.SharedRiskWarnings, " | "), created)
+		p.Schedule, p.RecoveryDrillSchedule, keepLatest, p.Retention.GetKeepHourly(), p.Retention.GetKeepDaily(), p.Retention.GetKeepWeekly(), p.Retention.GetKeepMonthly(), p.Retention.GetKeepAnnual(), p.Enabled, offHost, strings.Join(p.SharedRiskWarnings, " | "), created)
 }
 
 func protectionTier(value string) plansv1.ProtectionTier {

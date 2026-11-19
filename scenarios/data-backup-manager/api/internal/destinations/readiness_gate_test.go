@@ -223,7 +223,10 @@ func TestCreatePersistsLastObservedDeviceIdentity(t *testing.T) {
 		return nil
 	}
 	svc := destinations.NewService(repo, eng, mocks.NewFakeBundleWriter(), "/protected", destinations.WithReadinessGate(&stubReadiness{report: report}), destinations.WithVolumeOperationLease(lease))
-	d, err := svc.CreateDestination(context.Background(), fsInput())
+	in := fsInput()
+	// This test is about persisted identity, not the repairability gate.
+	in.AcknowledgeUnrepairableFilesystem = true
+	d, err := svc.CreateDestination(context.Background(), in)
 	if err != nil {
 		t.Fatalf("CreateDestination: %v", err)
 	}
@@ -296,5 +299,70 @@ func TestBindRecoveryIdentityRefusesWrongStableDeviceAndUnsafeMountRoot(t *testi
 	})
 	if err == nil {
 		t.Fatal("binding must refuse a host-root mountpoint")
+	}
+}
+
+// A profiled filesystem whose driver exposes no cleanliness signal but which
+// this host can repair (exFAT) is creatable. Refusing it made a usable drive
+// impossible to add; the write gate still decides whether a snapshot may run.
+func TestProfiledRepairableFilesystemWithUnknownStateIsCreatable(t *testing.T) {
+	readiness := &stubReadiness{report: destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityUnknown,
+		Identity:        destinationreadiness.DeviceIdentity{DevicePath: "/dev/test1", Mountpoint: "/media/user/Elements", Filesystem: "exfat", UUID: "fixture-uuid", Serial: "fixture-serial"},
+		Checks: []destinationreadiness.CheckResult{{
+			Code:     "filesystem_state",
+			Severity: destinationreadiness.SeverityUnknown,
+			Message:  "the driver does not expose a cleanliness signal",
+		}},
+	}}
+	svc, bundle := newGatedService(t, readiness)
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err != nil {
+		t.Fatalf("a profiled filesystem with an unobservable state should be creatable: %v", err)
+	}
+	if len(bundle.Prepared) == 0 {
+		t.Fatal("bundle should have been prepared")
+	}
+}
+
+// NTFS on Linux is accepted only when the operator deliberately accepts that
+// this host cannot repair its metadata after an unsafe shutdown.
+func TestNTFSRequiresAnUnrepairableAcknowledgement(t *testing.T) {
+	readiness := &stubReadiness{report: destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityWarning,
+		Identity:        destinationreadiness.DeviceIdentity{DevicePath: "/dev/test1", Mountpoint: "/media/user/Elements", Filesystem: "ntfs", UUID: "fixture-uuid", Serial: "fixture-serial"},
+	}}
+	svc, bundle := newGatedService(t, readiness)
+
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err == nil {
+		t.Fatal("NTFS must be refused without an explicit unrepairable acknowledgement")
+	} else if !strings.Contains(err.Error(), "cannot be repaired on this host") {
+		t.Fatalf("refusal should explain the repair ceiling: %v", err)
+	}
+	if len(bundle.Prepared) != 0 {
+		t.Fatalf("bundle was prepared %d times for a refused filesystem", len(bundle.Prepared))
+	}
+
+	in := fsInput()
+	in.AcknowledgeUnrepairableFilesystem = true
+	if _, err := svc.CreateDestination(context.Background(), in); err != nil {
+		t.Fatalf("an explicit acknowledgement should admit NTFS: %v", err)
+	}
+}
+
+// An unprofiled filesystem stays refused: DBM will not guess at repair
+// behaviour it does not understand.
+func TestUnprofiledFilesystemWithUnknownStateStillRefuses(t *testing.T) {
+	readiness := &stubReadiness{report: destinationreadiness.Report{
+		OverallSeverity: destinationreadiness.SeverityUnknown,
+		Identity:        destinationreadiness.DeviceIdentity{Filesystem: "mysteryfs", UUID: "fixture-uuid"},
+		Checks: []destinationreadiness.CheckResult{{
+			Code:     "filesystem_state",
+			Severity: destinationreadiness.SeverityUnknown,
+			Message:  "unknown",
+		}},
+	}}
+	svc, _ := newGatedService(t, readiness)
+	if _, err := svc.CreateDestination(context.Background(), fsInput()); err == nil {
+		t.Fatal("an unprofiled filesystem must be refused")
 	}
 }

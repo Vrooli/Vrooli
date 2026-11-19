@@ -975,3 +975,48 @@ func TestFreshMigrationIDIsStableAndGenerationScoped(t *testing.T) {
 		t.Fatal("migration journal id must not expose the raw incident identifier")
 	}
 }
+
+// When the platform's repair tool cannot repair this kind of damage, the
+// question must not recommend running it again. It points at the durable fix
+// and says plainly what the tool can and cannot do.
+func TestRecommendationStopsRepeatingARepairThatCannotWork(t *testing.T) {
+	d := presentDiagnosis()
+	d.Cause = CauseContentUnreadable
+	d.Unreadable = append(d.Unreadable, NewEntry(blobRel, errEIO))
+	d.RepairLimitation = "the only repair Linux offers for NTFS clears the dirty flag; it cannot repair a damaged metadata record"
+	d.RepairRemedy = "a Windows chkdsk /f is required for NTFS metadata damage"
+
+	facts := BuildFacts(d, OffersFor(d, true), "i", 1)
+	if facts.Recommended != OptFresh {
+		t.Fatalf("recommended = %s, want the durable migration when repair cannot fix the damage", facts.Recommended)
+	}
+	// The repair option must be absent, not merely demoted: the tool cannot
+	// repair this kind of damage, so offering it would repeat a failed step.
+	for _, o := range facts.Options {
+		if o.Key == OptRepair {
+			t.Fatalf("repair was offered although the only Linux NTFS tool cannot repair metadata: %+v", o)
+		}
+	}
+	// The remedy is carried in the explainer (a per-option effect), not the
+	// 200-byte-bounded label.
+	if !strings.Contains(facts.Explainer, "chkdsk") {
+		t.Errorf("fresh option does not name the real remedy: %q", facts.Explainer)
+	}
+	if !strings.Contains(facts.TechnicalDetails, "Repair ceiling on this filesystem") {
+		t.Errorf("technical details omit the repair ceiling:\n%s", facts.TechnicalDetails)
+	}
+}
+
+// A dirty flag is exactly what a limited repair can clear, so a read-only mount
+// keeps the repair recommendation even on the same filesystem.
+func TestLimitedRepairIsStillRecommendedForAReadOnlyMount(t *testing.T) {
+	d := presentDiagnosis()
+	d.Cause = CauseVolumeReadOnly
+	d.Unreadable = nil
+	d.RepairLimitation = "the only repair Linux offers for NTFS clears the dirty flag; it cannot repair a damaged metadata record"
+
+	facts := BuildFacts(d, OffersFor(d, true), "i", 1)
+	if facts.Recommended != OptRepair {
+		t.Fatalf("recommended = %s, want repair for a read-only mount the dirty-flag reset can fix", facts.Recommended)
+	}
+}

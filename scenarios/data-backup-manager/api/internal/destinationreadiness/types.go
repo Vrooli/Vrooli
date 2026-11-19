@@ -362,11 +362,6 @@ type AnalyzeInput struct {
 	// When it is empty, SelectedTargetBytes and RetentionCopies are mapped as a
 	// conservative first copy for the public readiness API.
 	Capacity capacity.Input
-	// AllowDegraded permits a write when the native filesystem state is
-	// unobservable but a bounded write probe and repository read succeed and a
-	// separate verified copy exists. It never turns the native unknown state
-	// into a clean verdict.
-	AllowDegraded bool
 	// AllowWriteProbe opts into the bounded write/read/fsync probe. Read-only
 	// readiness callers leave it false so inspecting a destination never writes
 	// to it.

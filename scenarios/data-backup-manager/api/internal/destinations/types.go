@@ -143,6 +143,12 @@ type CreateInput struct {
 	// not override a refusal raised against the mount driver: that failure
 	// protects the host, not the backup, and has a cheap remedy.
 	AcknowledgeReadinessFailure bool
+	// AcknowledgeUnrepairableFilesystem admits a filesystem this host has no
+	// metadata repair tool for (for example NTFS on Linux). Without it, creation
+	// is refused: such a destination is safe until the first unsafe shutdown and
+	// unrecoverable after it, so adding one silently would create exactly the
+	// failure this gate exists to prevent.
+	AcknowledgeUnrepairableFilesystem bool
 }
 
 // ImportExistingInput attaches a non-secret descriptor for an already-created

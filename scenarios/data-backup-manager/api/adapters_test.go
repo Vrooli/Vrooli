@@ -60,7 +60,7 @@ func TestPlanCriticalDestinationPolicyAssessReportsSharedRisk(t *testing.T) {
 	require.False(t, report.PhysicallyIndependent)
 	require.Contains(t, strings.Join(report.Warnings, "\n"), "overlapping filesystem root")
 	require.Contains(t, strings.Join(report.Warnings, "\n"), "stable volume identity")
-	require.Contains(t, strings.Join(report.Warnings, "\n"), "topology is unknown")
+	require.Contains(t, strings.Join(report.Warnings, "\n"), "placement could not be proven")
 }
 
 type drillSchedulerService struct {
@@ -117,6 +117,25 @@ func TestStartDrillSchedulerRunsDueWorkAtBootstrap(t *testing.T) {
 	cancel()
 }
 
+// With a single destination, host independence is vacuous. Coverage already
+// says what a single copy does and does not protect against, so the plan must
+// not repeat it as an independence warning.
+func TestPlanCriticalDestinationPolicyDoesNotWarnAboutIndependenceWithOneDestination(t *testing.T) {
+	targetsSvc := &targetmocks.FakeService{GetOut: targets.Target{ID: "target-1", Locator: "/source"}}
+	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{
+		ID: "destination-1", BackendKind: destinations.BackendFilesystem, Location: "/backup",
+	}}
+	policy := planCriticalDestinationPolicy{targets: targetsSvc, destinations: destSvc, hostID: "host-1"}
+
+	report, err := policy.Assess(context.Background(), plans.TierFullPrimary, []string{"target-1"}, []string{"destination-1"})
+	require.NoError(t, err)
+	require.False(t, report.PhysicallyIndependent, "one destination is one failure domain")
+	for _, warning := range report.Warnings {
+		require.NotContains(t, warning, "physical independence")
+		require.NotContains(t, warning, "placement could not be proven")
+	}
+}
+
 func TestPlanCriticalDestinationPolicyUsesObservedHostAndDeviceTopology(t *testing.T) {
 	targetsSvc := &targetmocks.FakeService{GetOut: targets.Target{ID: "target-1", Locator: "/source"}}
 	destSvc := &destmocks.FakeService{GetOut: destinations.Destination{
@@ -130,13 +149,13 @@ func TestPlanCriticalDestinationPolicyUsesObservedHostAndDeviceTopology(t *testi
 	report, err := policy.Assess(context.Background(), plans.TierCriticalSecondary, nil, []string{"destination-a", "destination-b"})
 	require.NoError(t, err)
 	require.False(t, report.PhysicallyIndependent)
-	require.Contains(t, strings.Join(report.Warnings, "\n"), "same_device")
+	require.Contains(t, strings.Join(report.Warnings, "\n"), "share one storage device")
 
 	policy.hostID = ""
 	report, err = policy.Assess(context.Background(), plans.TierCriticalSecondary, nil, []string{"destination-a", "destination-b"})
 	require.NoError(t, err)
 	require.False(t, report.PhysicallyIndependent)
-	require.Contains(t, strings.Join(report.Warnings, "\n"), "unknown")
+	require.Contains(t, strings.Join(report.Warnings, "\n"), "placement could not be proven")
 }
 
 func TestPlanCriticalDestinationPolicyDoesNotInferS3Hosting(t *testing.T) {

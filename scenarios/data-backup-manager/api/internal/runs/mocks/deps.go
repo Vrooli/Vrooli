@@ -70,8 +70,6 @@ type FakeDestinationLookup struct {
 	BlockFn        func(destID string, pendingBytes int64) (bool, string, error)
 	DestinationFn  func(destID string) (runs.DestinationForRun, error)
 	WithResolvedFn func(context.Context, string, func(runs.DestinationForRun) error) error
-	// WriteAllowDegraded records the policy each write gate received.
-	WriteAllowDegraded map[string]bool
 }
 
 func (f *FakeDestinationLookup) DestinationForRun(_ context.Context, destID string) (runs.DestinationForRun, error) {
@@ -108,13 +106,7 @@ func (f *FakeDestinationLookup) WithResolvedDestinationForRead(ctx context.Conte
 	return f.WithResolvedDestination(ctx, destID, use)
 }
 
-// WithResolvedDestinationForWrite records the degraded decision so tests can
-// assert that the caller only permits it with an independent copy.
-func (f *FakeDestinationLookup) WithResolvedDestinationForWrite(ctx context.Context, destID string, allowDegraded bool, use func(runs.DestinationForRun) error) error {
-	if f.WriteAllowDegraded == nil {
-		f.WriteAllowDegraded = map[string]bool{}
-	}
-	f.WriteAllowDegraded[destID] = allowDegraded
+func (f *FakeDestinationLookup) WithResolvedDestinationForWrite(ctx context.Context, destID string, use func(runs.DestinationForRun) error) error {
 	return f.WithResolvedDestination(ctx, destID, use)
 }
 

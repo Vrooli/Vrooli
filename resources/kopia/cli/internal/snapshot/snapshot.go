@@ -80,12 +80,17 @@ func (s Service) Create(ctx context.Context, args []string) error {
 	return s.run(ctx, target, argv)
 }
 
-// List lists snapshots in a repository, optionally filtered by source path.
+// List lists snapshots in a repository, optionally filtered by source path or
+// tag set. Tag filters are the stable DBM identity: a source path changes with
+// the host, staging root, and mountpoint, while dbm.owner/dbm.name tags do not.
 func (s Service) List(ctx context.Context, args []string) error {
 	fs := cmdutil.NewFlagSet("snapshot list")
 	repo := fs.String("repo", "", "Repository name (required)")
 	path := fs.String("path", "", "Optional source path filter")
 	jsonOut := fs.Bool("json", false, "Emit kopia's native JSON")
+	all := fs.Bool("all", false, "Include snapshots from every user and host")
+	var tags cmdutil.RepeatedFlag
+	fs.Var(&tags, "tags", "Optional tag filter in key:value form; repeatable")
 	if err := cmdutil.Parse(fs, args); err != nil {
 		return err
 	}
@@ -96,6 +101,15 @@ func (s Service) List(ctx context.Context, args []string) error {
 	argv := append(target.GlobalArgs(), "snapshot", "list")
 	if strings.TrimSpace(*path) != "" {
 		argv = append(argv, *path)
+	}
+	if *all {
+		argv = append(argv, "--all")
+	}
+	for _, tag := range tags {
+		if !strings.Contains(tag, ":") {
+			return fmt.Errorf("--tags %q must be in key:value form", tag)
+		}
+		argv = append(argv, "--tags", tag)
 	}
 	if *jsonOut {
 		argv = append(argv, "--json")

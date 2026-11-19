@@ -305,9 +305,14 @@ func TestAdoptSensitiveConsentCommandSendsTheAskAndShowsTheVerbatimWords(t *test
 	}
 }
 
-func TestDriveLossLineSaysWhatASameDriveCopyDoesNotProtect(t *testing.T) {
-	line := driveLossLine(&coveragev1.CoverageSummary{RegisteredCount: 244, PhysicallyIndependentTargetCount: 0})
-	for _, want := range []string{"same drive as its source", "deletion and corruption", "not against losing that drive", "0 of 244"} {
+func TestDriveLossLineSeparatesProtectionFromWarningAndFailure(t *testing.T) {
+	line := driveLossLine(&coveragev1.CoverageSummary{
+		RegisteredCount:        244,
+		ProtectedTargetCount:   40,
+		SingleCopyTargetCount:  160,
+		UnprotectedTargetCount: 44,
+	})
+	for _, want := range []string{"40 of 244", "160 have a single-device", "44 have no successful copy", "warning, not a failure", "off-host"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("drive-loss line missing %q: %s", want, line)
 		}

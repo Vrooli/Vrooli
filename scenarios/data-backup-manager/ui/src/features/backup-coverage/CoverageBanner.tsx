@@ -107,8 +107,13 @@ export function CoverageBanner({
           </p>
           <p className="text-xs text-app-muted-foreground">
             {t(strings.coverage.independenceSummary, {
-              multi: summary.multiDestinationTargetCount,
-              independent: summary.physicallyIndependentTargetCount,
+              // The server classifies each target once by distinct storage
+              // device. Re-deriving it here from destination counts used to
+              // mis-bucket a target whose second destination had failed but
+              // whose first copy was still good.
+              protected: summary.protectedTargetCount,
+              single: summary.singleCopyTargetCount,
+              none: summary.unprotectedTargetCount,
             })}
           </p>
         </div>

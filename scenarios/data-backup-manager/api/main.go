@@ -118,7 +118,23 @@ func markDatabaseInitialized(path string) error {
 	return os.WriteFile(marker, []byte("data-backup-manager database initialized\n"), 0o600)
 }
 
+// refuseRoot rejects a root launch. DBM invokes shared resource CLIs (kopia)
+// whose installers rebuild themselves from the repository; under root, git
+// refuses the user's work tree as "dubious ownership" and every repository
+// read and write fails while the volumes themselves are healthy. The control
+// plane can start a scenario through sudo by mistake, so fail loudly at the
+// door instead of failing one target at a time later.
+func refuseRoot(geteuid func() int) error {
+	if geteuid() != 0 {
+		return nil
+	}
+	return fmt.Errorf("data-backup-manager must not run as root: start it as the owning user")
+}
+
 func main() {
+	if err := refuseRoot(os.Geteuid); err != nil {
+		log.Fatalf("%v", err)
+	}
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
 	if preflight.Run(preflight.Config{ScenarioName: "data-backup-manager"}) {
@@ -461,7 +477,7 @@ func run(ctx context.Context) error {
 	coverageSvc := coverageint.NewService(coverageint.Deps{
 		Suggestions: coverageSuggestions{svc: discoverySvc},
 		Targets:     coverageTargetCatalog{svc: targetsSvc},
-		Plans:       coveragePlanCatalog{svc: plansSvc, topology: criticalDestinationPolicy},
+		Plans:       coveragePlanCatalog{svc: plansSvc, destinations: destSvc, readiness: planReadiness},
 		Runs:        coverageRunStatus{svc: runsSvc},
 		Restores:    coverageVerified{svc: restoresSvc},
 	})

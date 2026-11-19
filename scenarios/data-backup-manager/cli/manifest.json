@@ -11,8 +11,13 @@
         {
           "name": "space",
           "description": "Emit this scenario's coverage-space denominator as JSON.",
-          "binding": { "kind": "local" },
-          "governance": { "effect": "read", "run_eligible": true }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true
+          }
         }
       ]
     },
@@ -156,8 +161,7 @@
             },
             {
               "name": "backend",
-              "required": true,
-              "description": "Backend kind: filesystem|sftp|s3",
+              "description": "Backend kind: filesystem|sftp|s3 (default: filesystem)",
               "bind": {
                 "field": "backend_kind"
               }
@@ -174,6 +178,14 @@
             {
               "name": "cap-policy",
               "description": "Over-cap behavior: alert-block|alert-only (default: unspecified)"
+            },
+            {
+              "name": "allow-unrepairable",
+              "bool": true,
+              "description": "Admit a filesystem this host cannot repair (for example NTFS on Linux). Without it, creation is refused because one unsafe shutdown can make the drive unrecoverable.",
+              "bind": {
+                "field": "acknowledge_unrepairable_filesystem"
+              }
             }
           ],
           "binding": {
@@ -193,28 +205,92 @@
           "name": "import-existing",
           "description": "Attach an exact existing repository described by non-secret catalog metadata",
           "flags": [
-            {"name": "id", "required": true, "description": "Stable destination ID from source catalog/bundle"},
-            {"name": "name", "required": true, "description": "Slug-safe Kopia repository name"},
-            {"name": "backend", "required": true, "description": "Existing backend: filesystem|sftp|s3"},
-            {"name": "location", "required": true, "description": "Existing bundle root or non-secret backend URI"},
-            {"name": "created-at", "required": true, "description": "Original destination creation time in RFC3339 format"},
-            {"name": "snapshot-ids", "description": "Optional comma-separated exact snapshot IDs to prove present; import still requires readable history"},
-            {"name": "cap-bytes", "description": "Storage cap in bytes (0 = no cap)"},
-            {"name": "cap-policy", "description": "Over-cap behavior: alert-block|alert-only (default: alert-block)"}
+            {
+              "name": "id",
+              "required": true,
+              "description": "Stable destination ID from source catalog/bundle"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Slug-safe Kopia repository name"
+            },
+            {
+              "name": "backend",
+              "required": true,
+              "description": "Existing backend: filesystem|sftp|s3"
+            },
+            {
+              "name": "location",
+              "required": true,
+              "description": "Existing bundle root or non-secret backend URI"
+            },
+            {
+              "name": "created-at",
+              "required": true,
+              "description": "Original destination creation time in RFC3339 format"
+            },
+            {
+              "name": "snapshot-ids",
+              "description": "Optional comma-separated exact snapshot IDs to prove present; import still requires readable history"
+            },
+            {
+              "name": "cap-bytes",
+              "description": "Storage cap in bytes (0 = no cap)"
+            },
+            {
+              "name": "cap-policy",
+              "description": "Over-cap behavior: alert-block|alert-only (default: alert-block)"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "ImportExistingDestination"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["filesystem:read", "filesystem:write", "network:internal", "admin"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ImportExistingDestination"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal",
+              "admin"
+            ]
+          }
         },
         {
           "name": "snapshots",
           "description": "List immutable snapshots for a stable DBM owner/name identity, newest first",
           "flags": [
-            {"name": "destination-id", "required": true, "description": "Connected DBM destination id"},
-            {"name": "owner", "required": true, "description": "Stable target owner"},
-            {"name": "name", "required": true, "description": "Stable target name"}
+            {
+              "name": "destination-id",
+              "required": true,
+              "description": "Connected DBM destination id"
+            },
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Stable target owner"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Stable target name"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "ListTargetSnapshots"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ListTargetSnapshots"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "get",
@@ -290,14 +366,47 @@
           "name": "bind-recovery-identity",
           "description": "Bind a filesystem destination to a stable volume UUID or serial after read-only host verification",
           "flags": [
-            {"name": "id", "required": true, "description": "Destination id"},
-            {"name": "device-uuid", "description": "Stable filesystem UUID", "local_only": true, "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."},
-            {"name": "device-serial", "description": "Stable backing-disk serial", "local_only": true, "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."},
-            {"name": "device-filesystem", "description": "Expected filesystem type", "local_only": true, "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."},
-            {"name": "mountpoint", "required": true, "description": "Intended volume mount root; destination path must be beneath it"}
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "device-uuid",
+              "description": "Stable filesystem UUID",
+              "local_only": true,
+              "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."
+            },
+            {
+              "name": "device-serial",
+              "description": "Stable backing-disk serial",
+              "local_only": true,
+              "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."
+            },
+            {
+              "name": "device-filesystem",
+              "description": "Expected filesystem type",
+              "local_only": true,
+              "bind_waiver": "The hand-written handler nests this CLI scalar under the typed identity message; the API re-observes and validates the stable identity."
+            },
+            {
+              "name": "mountpoint",
+              "required": true,
+              "description": "Intended volume mount root; destination path must be beneath it"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "BindDestinationRecoveryIdentity"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "BindDestinationRecoveryIdentity"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "delete",
@@ -494,31 +603,183 @@
           "name": "recovery-start",
           "description": "Persist an identity-bound volume recovery journal without changing host state",
           "flags": [
-            {"name": "location", "required": true, "description": "Requested mount root"},
-            {"name": "identity-json", "required": true, "description": "DestinationDeviceIdentity JSON from read-only inspection", "local_only": true, "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON into the typed identity message before invoking the RPC."},
-            {"name": "plans-json", "required": true, "description": "JSON array of separately planned remediation steps", "local_only": true, "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON array into typed plan messages before invoking the RPC."}
+            {
+              "name": "location",
+              "required": true,
+              "description": "Requested mount root"
+            },
+            {
+              "name": "identity-json",
+              "required": true,
+              "description": "DestinationDeviceIdentity JSON from read-only inspection",
+              "local_only": true,
+              "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON into the typed identity message before invoking the RPC."
+            },
+            {
+              "name": "plans-json",
+              "required": true,
+              "description": "JSON array of separately planned remediation steps",
+              "local_only": true,
+              "bind_waiver": "The hand-written recovery handler decodes this CLI-only JSON array into typed plan messages before invoking the RPC."
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "StartVolumeRecovery"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["filesystem:read", "network:internal"]}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "StartVolumeRecovery"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "recovery-get",
           "description": "Inspect a durable volume recovery journal without changing host state",
-          "positionals": [{"name": "id", "required": true, "description": "Recovery journal id"}],
-          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "GetVolumeRecovery"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Recovery journal id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "GetVolumeRecovery"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "recovery-resume",
           "description": "Dry-run or resume a volume recovery journal one confirmed step at a time",
-          "positionals": [{"name": "id", "required": true, "description": "Recovery journal id"}],
-          "flags": [
-            {"name": "confirmations-json", "description": "JSON object mapping step indexes to exact confirmation phrases"},
-            {"name": "dry-run", "description": "Whether to validate only (default: true)"},
-            {"name": "acknowledge-data-loss", "bool": true, "description": "Required when executing a repair step"}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Recovery journal id"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "DestinationsService", "method": "ResumeVolumeRecovery"},
-          "governance": {"effect": "destructive", "run_eligible": false, "requires_confirmation": true, "permissions": ["filesystem:write", "network:internal", "admin"]}
+          "flags": [
+            {
+              "name": "confirmations-json",
+              "description": "JSON object mapping step indexes to exact confirmation phrases"
+            },
+            {
+              "name": "dry-run",
+              "description": "Whether to validate only (default: true)"
+            },
+            {
+              "name": "acknowledge-data-loss",
+              "bool": true,
+              "description": "Required when executing a repair step"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DestinationsService",
+            "method": "ResumeVolumeRecovery"
+          },
+          "governance": {
+            "effect": "destructive",
+            "run_eligible": false,
+            "requires_confirmation": true,
+            "permissions": [
+              "filesystem:write",
+              "network:internal",
+              "admin"
+            ]
+          }
+        },
+        {
+          "name": "safe-eject",
+          "description": "Flush writes and unmount a filesystem destination so it is safe to unplug; preview unless --apply",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Execute the flush and unmount"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "safe-mount",
+          "description": "Mount an ejected filesystem destination at its recorded mountpoint; preview unless --apply",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Execute the mount"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          }
+        },
+        {
+          "name": "repair-options",
+          "description": "Report whether this host can repair the destination's filesystem, and the smallest safe path off it if not",
+          "flags": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Destination id"
+            },
+            {
+              "name": "staging",
+              "description": "Path on a second drive to fill into the migration copy commands"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         }
       ]
     },
@@ -678,7 +939,11 @@
           "name": "adopt-sensitive-consent",
           "description": "Record the operator's own-words answer on a sensitive coverage decision as the standing consent, confirmed with the Hub, and apply it",
           "flags": [
-            { "name": "ask", "required": true, "description": "The Hub ask id whose answer is the consent" }
+            {
+              "name": "ask",
+              "required": true,
+              "description": "The Hub ask id whose answer is the consent"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -697,9 +962,21 @@
           "name": "exclude-sensitive",
           "description": "Keep one item out of the standing rule so it is never added automatically",
           "flags": [
-            { "name": "owner", "required": true, "description": "Owner of the item, as listed by the weekly note or `coverage sensitive-policy`" },
-            { "name": "name", "required": true, "description": "Name of the item" },
-            { "name": "reason", "required": true, "description": "Why it stays out" }
+            {
+              "name": "owner",
+              "required": true,
+              "description": "Owner of the item, as listed by the weekly note or `coverage sensitive-policy`"
+            },
+            {
+              "name": "name",
+              "required": true,
+              "description": "Name of the item"
+            },
+            {
+              "name": "reason",
+              "required": true,
+              "description": "Why it stays out"
+            }
           ],
           "binding": {
             "kind": "connect-rpc",
@@ -760,11 +1037,26 @@
               "name": "keep-latest",
               "description": "Retention: keep at most N latest snapshots (0 = keep all)"
             },
-            { "name": "keep-hourly", "description": "Age-based retention: hourly snapshots (default 24 on new plans)" },
-            { "name": "keep-daily", "description": "Age-based retention: daily snapshots (default 7 on new plans)" },
-            { "name": "keep-weekly", "description": "Age-based retention: weekly snapshots (default 4 on new plans)" },
-            { "name": "keep-monthly", "description": "Age-based retention: monthly snapshots (default 6 on new plans)" },
-            { "name": "keep-annual", "description": "Age-based retention: annual snapshots (default 2 on new plans)" },
+            {
+              "name": "keep-hourly",
+              "description": "Age-based retention: hourly snapshots (default 24 on new plans)"
+            },
+            {
+              "name": "keep-daily",
+              "description": "Age-based retention: daily snapshots (default 7 on new plans)"
+            },
+            {
+              "name": "keep-weekly",
+              "description": "Age-based retention: weekly snapshots (default 4 on new plans)"
+            },
+            {
+              "name": "keep-monthly",
+              "description": "Age-based retention: monthly snapshots (default 6 on new plans)"
+            },
+            {
+              "name": "keep-annual",
+              "description": "Age-based retention: annual snapshots (default 2 on new plans)"
+            },
             {
               "name": "protection-tier",
               "description": "Protection tier: full-primary|critical-primary|critical-secondary (default: full-primary)"
@@ -874,11 +1166,26 @@
               "name": "keep-latest",
               "description": "Retention: keep at most N latest snapshots"
             },
-            { "name": "keep-hourly", "description": "Age-based retention: hourly snapshots" },
-            { "name": "keep-daily", "description": "Age-based retention: daily snapshots" },
-            { "name": "keep-weekly", "description": "Age-based retention: weekly snapshots" },
-            { "name": "keep-monthly", "description": "Age-based retention: monthly snapshots" },
-            { "name": "keep-annual", "description": "Age-based retention: annual snapshots" },
+            {
+              "name": "keep-hourly",
+              "description": "Age-based retention: hourly snapshots"
+            },
+            {
+              "name": "keep-daily",
+              "description": "Age-based retention: daily snapshots"
+            },
+            {
+              "name": "keep-weekly",
+              "description": "Age-based retention: weekly snapshots"
+            },
+            {
+              "name": "keep-monthly",
+              "description": "Age-based retention: monthly snapshots"
+            },
+            {
+              "name": "keep-annual",
+              "description": "Age-based retention: annual snapshots"
+            },
             {
               "name": "enabled",
               "description": "Enable or disable scheduler for this plan"
@@ -912,14 +1219,33 @@
         },
         {
           "name": "add-destination",
-          "description": "Add one destination to selected existing plans; defaults to a non-mutating preview",
+          "description": "Add one destination to existing plans (every enabled plan when --plans is omitted); defaults to a non-mutating preview",
           "flags": [
-            { "name": "plans", "required": true, "description": "Comma-separated existing plan ids" },
-            { "name": "destination", "required": true, "description": "Destination id to add" },
-            { "name": "apply", "bool": true, "description": "Apply the validated changes" }
+            {
+              "name": "plans",
+              "description": "Comma-separated plan ids (default: every enabled plan, which is how a new drive is attached everywhere at once)"
+            },
+            {
+              "name": "destination",
+              "required": true,
+              "description": "Destination id to add"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the validated changes"
+            }
           ],
-          "binding": { "kind": "local" },
-          "governance": { "effect": "write", "run_eligible": true, "permissions": ["network:internal"] }
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "delete",
@@ -1679,8 +2005,8 @@
           }
         }
       ]
-    }
-    ,{
+    },
+    {
       "name": "wallet-recovery",
       "description": "Produce and finalize DBM-owned signed wallet recovery attestations",
       "commands": [
@@ -1688,55 +2014,161 @@
           "name": "attest",
           "description": "Verify the exact newest restored snapshot and return a signed recovery receipt while pinning the target and destination",
           "flags": [
-            {"name":"reservation-id","required":true,"description":"Stable id derived from wallet, successor and destination"},
-            {"name":"target-id","required":true,"description":"DBM target id containing recovery tombstone"},
-            {"name":"destination-id","required":true,"description":"DBM off-host destination id"}
+            {
+              "name": "reservation-id",
+              "required": true,
+              "description": "Stable id derived from wallet, successor and destination"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM target id containing recovery tombstone"
+            },
+            {
+              "name": "destination-id",
+              "required": true,
+              "description": "DBM off-host destination id"
+            }
           ],
-          "binding":{"kind":"local","handler":"WalletRecoveryAttest"},
-          "governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryAttest"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
         },
         {
-          "name":"finish",
-          "description":"Pin the exact receipt for Treasury commit or release the pin after Treasury confirms its outcome",
+          "name": "finish",
+          "description": "Pin the exact receipt for Treasury commit or release the pin after Treasury confirms its outcome",
           "flags": [
-            {"name":"reservation-id","required":true,"description":"Stable wallet recovery reservation id"},
-            {"name":"target-id","required":true,"description":"DBM target id"},
-            {"name":"state","required":true,"description":"commit pins through Treasury commit; release follows Treasury confirmation (commit|release)"}
+            {
+              "name": "reservation-id",
+              "required": true,
+              "description": "Stable wallet recovery reservation id"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM target id"
+            },
+            {
+              "name": "state",
+              "required": true,
+              "description": "commit pins through Treasury commit; release follows Treasury confirmation (commit|release)"
+            }
           ],
-          "binding":{"kind":"local","handler":"WalletRecoveryReservationFinish"},
-          "governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReservationFinish"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
         },
         {
-          "name":"read-lease-acquire",
-          "description":"Acquire a bounded read lock for the exact newest recovery snapshot before Treasury consumes it",
-          "flags":[
-            {"name":"lease-id","required":true,"description":"Unique request identity for this consumer operation"},
-            {"name":"target-name","required":true,"description":"Stable Treasury wallet recovery target name"},
-            {"name":"destination-id","required":true,"description":"DBM off-host destination id"},
-            {"name":"snapshot-id","required":true,"description":"Exact newest snapshot selected by the consumer"}
+          "name": "read-lease-acquire",
+          "description": "Acquire a bounded read lock for the exact newest recovery snapshot before Treasury consumes it",
+          "flags": [
+            {
+              "name": "lease-id",
+              "required": true,
+              "description": "Unique request identity for this consumer operation"
+            },
+            {
+              "name": "target-name",
+              "required": true,
+              "description": "Stable Treasury wallet recovery target name"
+            },
+            {
+              "name": "destination-id",
+              "required": true,
+              "description": "DBM off-host destination id"
+            },
+            {
+              "name": "snapshot-id",
+              "required": true,
+              "description": "Exact newest snapshot selected by the consumer"
+            }
           ],
-          "binding":{"kind":"local","handler":"WalletRecoveryReadLeaseAcquire"},
-          "governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReadLeaseAcquire"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
         },
         {
-          "name":"read-lease-renew",
-          "description":"Renew an unexpired wallet recovery read lock while Treasury consumes its exact snapshot",
-          "flags":[
-            {"name":"lease-id","required":true,"description":"Active read lease identity"},
-            {"name":"target-id","required":true,"description":"DBM recovery target id"}
+          "name": "read-lease-renew",
+          "description": "Renew an unexpired wallet recovery read lock while Treasury consumes its exact snapshot",
+          "flags": [
+            {
+              "name": "lease-id",
+              "required": true,
+              "description": "Active read lease identity"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM recovery target id"
+            }
           ],
-          "binding":{"kind":"local","handler":"WalletRecoveryReadLeaseRenew"},
-          "governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReadLeaseRenew"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
         },
         {
-          "name":"read-lease-release",
-          "description":"Release the wallet recovery read lock after Treasury completes the bound operation",
-          "flags":[
-            {"name":"lease-id","required":true,"description":"Active read lease identity"},
-            {"name":"target-id","required":true,"description":"DBM recovery target id"}
+          "name": "read-lease-release",
+          "description": "Release the wallet recovery read lock after Treasury completes the bound operation",
+          "flags": [
+            {
+              "name": "lease-id",
+              "required": true,
+              "description": "Active read lease identity"
+            },
+            {
+              "name": "target-id",
+              "required": true,
+              "description": "DBM recovery target id"
+            }
           ],
-          "binding":{"kind":"local","handler":"WalletRecoveryReadLeaseRelease"},
-          "governance":{"effect":"write","run_eligible":false,"permissions":["network:internal","admin"]}
+          "binding": {
+            "kind": "local",
+            "handler": "WalletRecoveryReadLeaseRelease"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "admin"
+            ]
+          }
         }
       ]
     }

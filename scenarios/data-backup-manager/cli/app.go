@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"data-backup-manager/cli/domains"
 	"errors"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"data-backup-manager/cli/domains"
 
 	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/cli-core/cliapp"

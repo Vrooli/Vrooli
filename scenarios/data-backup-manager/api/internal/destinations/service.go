@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +15,8 @@ import (
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/sysmounts"
+
+	"github.com/vrooli/vrooli/packages/driveprofile"
 )
 
 // defaultListLimit caps List when the caller passes 0.
@@ -50,12 +53,12 @@ type Service interface {
 	// repository readability, but does not require a clean/writable filesystem.
 	// Reading snapshots or usage from a dirty volume is safe; writing is not.
 	WithResolvedDestinationForRead(ctx context.Context, id string, use func(Destination) error) error
-	// WithResolvedDestinationForWrite is the write gate. allowDegraded admits a
-	// write on a mounted destination whose native filesystem state is
-	// unobservable, but only when a bounded write probe passes. The caller owns
-	// the redundancy policy: it must set allowDegraded only after proving an
-	// independent copy for every target that will write.
-	WithResolvedDestinationForWrite(ctx context.Context, id string, allowDegraded bool, use func(Destination) error) error
+	// WithResolvedDestinationForWrite is the write gate. It runs the bounded
+	// write/read/fsync probe, so an unobservable filesystem state is admitted
+	// with a warning on physical evidence rather than being blocked for lack of
+	// a cleanliness signal. Redundancy is a separate question: how many devices
+	// hold a copy is reported by coverage and never gates a write.
+	WithResolvedDestinationForWrite(ctx context.Context, id string, use func(Destination) error) error
 
 	// ListDestinations returns up to pageSize destinations ordered by name.
 	// pageSize <= 0 uses the default.
@@ -228,20 +231,17 @@ func (s *service) ResolveForUse(ctx context.Context, id string) (Destination, er
 	var resolved Destination
 	err = s.withVolumeOperationLease(ctx, id, func() error {
 		var resolveErr error
-		resolved, resolveErr = s.resolveForUse(ctx, id, false)
+		resolved, resolveErr = s.resolveForUse(ctx, id)
 		return resolveErr
 	})
 	return resolved, err
 }
 
 func (s *service) WithResolvedDestination(ctx context.Context, id string, use func(Destination) error) error {
-	// The legacy write entry point is strict: it never admits an unobservable
-	// filesystem state. Callers that have proven redundancy use
-	// WithResolvedDestinationForWrite with allowDegraded.
-	return s.WithResolvedDestinationForWrite(ctx, id, false, use)
+	return s.WithResolvedDestinationForWrite(ctx, id, use)
 }
 
-func (s *service) WithResolvedDestinationForWrite(ctx context.Context, id string, allowDegraded bool, use func(Destination) error) error {
+func (s *service) WithResolvedDestinationForWrite(ctx context.Context, id string, use func(Destination) error) error {
 	if use == nil {
 		return ErrInvalidDestination{Field: "operation", Reason: "required"}
 	}
@@ -251,7 +251,7 @@ func (s *service) WithResolvedDestinationForWrite(ctx context.Context, id string
 	}
 	defer release()
 	return s.withVolumeOperationLease(ctx, id, func() error {
-		d, resolveErr := s.resolveForUse(ctx, id, allowDegraded)
+		d, resolveErr := s.resolveForUse(ctx, id)
 		if resolveErr != nil {
 			return resolveErr
 		}
@@ -375,7 +375,7 @@ func (s *service) resolveForRead(ctx context.Context, id string) (Destination, e
 	return d, nil
 }
 
-func (s *service) resolveForUse(ctx context.Context, id string, allowDegraded bool) (Destination, error) {
+func (s *service) resolveForUse(ctx context.Context, id string) (Destination, error) {
 	d, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return Destination{}, err
@@ -397,12 +397,11 @@ func (s *service) resolveForUse(ctx context.Context, id string, allowDegraded bo
 	if err != nil {
 		return Destination{}, fmt.Errorf("re-observe destination volume: %w", err)
 	}
-	// One write verdict for every writer. The legacy ad-hoc check here used to
-	// disagree with preflight: preflight could admit a degraded write while this
-	// gate silently re-blocked it. `allowDegraded` is the caller's redundancy
-	// proof; the write probe is the physical proof.
+	// One write verdict for every writer. The write probe is the physical proof:
+	// it is run whenever the mount is plausibly writable, so an unobservable
+	// state is decided on evidence instead of being blocked by default.
 	probe := destinationreadiness.WriteProbeResult{}
-	if allowDegraded && observed.LocationExists && observed.LocationIsDirectory && observed.Mounted && !observed.ReadOnly && !observed.DeviceWriteProtected {
+	if observed.LocationExists && observed.LocationIsDirectory && observed.Mounted && !observed.ReadOnly && !observed.DeviceWriteProtected {
 		observedProbe, probeErr := s.readiness.WriteProbe(ctx, d.Location)
 		if probeErr != nil {
 			observedProbe = destinationreadiness.WriteProbeResult{Ran: true, Error: probeErr.Error()}
@@ -415,7 +414,6 @@ func (s *service) resolveForUse(ctx context.Context, id string, allowDegraded bo
 		DeviceWriteProtected: observed.DeviceWriteProtected,
 		FilesystemState:      observed.FilesystemState,
 		Probe:                probe,
-		AllowDegraded:        allowDegraded,
 	})
 	filesystemReady := verdict == destinationreadiness.WriteReady || verdict == destinationreadiness.WriteDegraded
 	if !d.DeviceIdentity.MatchesDevice(observed.Identity) || !observed.Identity.StrongIdentity() || !filesystemReady {
@@ -435,7 +433,7 @@ func (s *service) resolveForUse(ctx context.Context, id string, allowDegraded bo
 	}
 	readiness, err := s.readiness.Analyze(ctx, destinationreadiness.AnalyzeInput{
 		DestinationID: d.ID, ExpectedDevice: *d.DeviceIdentity, Location: bundleRoot,
-		AllowDegraded: allowDegraded, AllowWriteProbe: allowDegraded,
+		AllowWriteProbe: true,
 	})
 	if err != nil {
 		return Destination{}, fmt.Errorf("analyze relocated destination readiness: %w", err)
@@ -446,13 +444,13 @@ func (s *service) resolveForUse(ctx context.Context, id string, allowDegraded bo
 	for _, check := range readiness.Checks {
 		switch check.Code {
 		case "destination_present", "destination_missing", "destination_inaccessible", "directory_inaccessible", "mounted_read_write", "filesystem_state", "destination_dirty", "filesystem_suitability", "write_probe":
-			// filesystem_suitability is advisory. A degraded filesystem_state is
-			// the explicit, probe-backed degraded verdict and is admitted only when
-			// the caller proved redundancy.
+			// filesystem_suitability and a probe-backed degraded filesystem_state
+			// are advisory warnings, not blocks. Corruption evidence (dirty or
+			// needs-check) is still a Fail and still blocks.
 			if check.Code == "filesystem_suitability" && check.Severity == destinationreadiness.SeverityWarning {
 				continue
 			}
-			if check.Code == "filesystem_state" && allowDegraded && check.Severity == destinationreadiness.SeverityWarning {
+			if check.Code == "filesystem_state" && check.Severity == destinationreadiness.SeverityWarning {
 				continue
 			}
 			if check.Severity != destinationreadiness.SeverityPass {
@@ -589,7 +587,7 @@ func sameStrongDeviceIdentity(expected, observed destinationreadiness.DeviceIden
 // call and can be acknowledged.
 //
 // A service with no readiness gate configured keeps the previous behaviour.
-func (s *service) gateOnReadiness(ctx context.Context, location string, acknowledged bool) (destinationreadiness.Report, error) {
+func (s *service) gateOnReadiness(ctx context.Context, location string, acknowledged, allowUnrepairable bool) (destinationreadiness.Report, error) {
 	if s.readiness == nil {
 		return destinationreadiness.Report{}, nil
 	}
@@ -601,6 +599,10 @@ func (s *service) gateOnReadiness(ctx context.Context, location string, acknowle
 		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: "destination readiness could not be evaluated: " + err.Error()}
 	}
 
+	if reason, blocked := unrepairableFilesystem(report.Identity.Filesystem, allowUnrepairable); blocked {
+		return destinationreadiness.Report{}, ErrInvalidDestination{Field: "filesystem", Reason: reason}
+	}
+
 	for _, check := range report.Checks {
 		if check.Code != "filesystem_suitability" || check.Severity != destinationreadiness.SeverityFail {
 			continue
@@ -609,14 +611,29 @@ func (s *service) gateOnReadiness(ctx context.Context, location string, acknowle
 	}
 	if report.OverallSeverity == destinationreadiness.SeverityUnknown || report.OverallSeverity == "" {
 		// Capacity is intentionally unknown until a plan selects its targets.
+		// A profiled filesystem whose OS/driver does not expose a cleanliness
+		// signal is also acceptable at creation time: the readiness check still
+		// reports it truthfully, and the write gate still requires a passing
+		// probe (plus a second device) before a snapshot is admitted. Refusing
+		// creation would make a perfectly usable exFAT or NTFS drive impossible
+		// to add at all.
 		unknownReadiness := false
 		unknownChecks := 0
 		for _, check := range report.Checks {
-			if check.Severity == destinationreadiness.SeverityUnknown {
-				unknownChecks++
-				if check.Code != "capacity" {
-					unknownReadiness = true
+			if check.Severity != destinationreadiness.SeverityUnknown {
+				continue
+			}
+			unknownChecks++
+			switch check.Code {
+			case "capacity":
+				// Unknown until a plan selects targets.
+			case "filesystem_state":
+				if _, profiled := driveprofile.Lookup(report.Identity.Filesystem); profiled {
+					continue
 				}
+				unknownReadiness = true
+			default:
+				unknownReadiness = true
 			}
 		}
 		if unknownReadiness || unknownChecks == 0 {
@@ -630,8 +647,8 @@ func (s *service) gateOnReadiness(ctx context.Context, location string, acknowle
 	return destinationreadiness.Report{}, ErrInvalidDestination{Field: "location", Reason: readinessRefusalReason(report)}
 }
 
-func (s *service) recheckCreateReadiness(ctx context.Context, location string, expected destinationreadiness.DeviceIdentity, acknowledged bool) error {
-	report, err := s.gateOnReadiness(ctx, location, acknowledged)
+func (s *service) recheckCreateReadiness(ctx context.Context, location string, expected destinationreadiness.DeviceIdentity, acknowledged, allowUnrepairable bool) error {
+	report, err := s.gateOnReadiness(ctx, location, acknowledged, allowUnrepairable)
 	if err != nil {
 		return err
 	}
@@ -727,11 +744,11 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		// not leave a half-provisioned bundle behind on a destination we just
 		// declared unfit.
 		var err error
-		readinessReport, err = s.gateOnReadiness(ctx, location, in.AcknowledgeReadinessFailure)
+		readinessReport, err = s.gateOnReadiness(ctx, location, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem)
 		if err != nil {
 			return Destination{}, err
 		}
-		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, in.AcknowledgeReadinessFailure); err != nil {
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem); err != nil {
 			return Destination{}, err
 		}
 		if readinessReport.Identity.StrongIdentity() {
@@ -778,7 +795,7 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		spec.SFTPKnownHosts = sftp.KnownHosts
 	}
 	if in.Backend == BackendFilesystem {
-		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, in.AcknowledgeReadinessFailure); err != nil {
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem); err != nil {
 			return Destination{}, err
 		}
 	}
@@ -821,7 +838,7 @@ func (s *service) CreateDestination(ctx context.Context, in CreateInput) (Destin
 		return Destination{}, fmt.Errorf("repository %q was created but its confirmed outcome could not be persisted; preserve the pending intent for owner reconciliation: %w", name, err)
 	}
 
-	return s.finishPendingCreate(ctx, saved, in.AcknowledgeReadinessFailure)
+	return s.finishPendingCreate(ctx, saved, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem)
 }
 
 // ImportExistingDestination reconnects an exact existing repository into a
@@ -903,7 +920,7 @@ func (s *service) ImportExistingDestination(ctx context.Context, in ImportExisti
 		if _, resolvedRepository, resolveErr := resolveContainedPath(location, meta.RepositoryPath); resolveErr != nil || filepath.Clean(resolvedRepository) != filepath.Clean(meta.RepositoryPath) {
 			return Destination{}, ErrInvalidDestination{Field: "repository_path", Reason: "existing repository must be a real path contained directly under the verified bundle"}
 		}
-		readinessReport, err := s.gateOnReadiness(ctx, location, false)
+		readinessReport, err := s.gateOnReadiness(ctx, location, false, true)
 		if err != nil {
 			return Destination{}, err
 		}
@@ -915,7 +932,7 @@ func (s *service) ImportExistingDestination(ctx context.Context, in ImportExisti
 		if err != nil || volumeRelativePath == "." || volumeRelativePath == ".." || strings.HasPrefix(volumeRelativePath, ".."+string(filepath.Separator)) || filepath.ToSlash(volumeRelativePath) != filepath.ToSlash(meta.RelativePath) {
 			return Destination{}, ErrInvalidDestination{Field: "relative_path", Reason: "bundle is not at its anchored location under the currently observed volume"}
 		}
-		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, false); err != nil {
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, false, true); err != nil {
 			return Destination{}, err
 		}
 		if s.volumeLease == nil {
@@ -925,7 +942,7 @@ func (s *service) ImportExistingDestination(ctx context.Context, in ImportExisti
 		if err != nil {
 			return Destination{}, fmt.Errorf("acquire host volume operation lease before repository import: %w", err)
 		}
-		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, false); err != nil {
+		if err := s.recheckCreateReadiness(ctx, location, readinessReport.Identity, false, true); err != nil {
 			return Destination{}, err
 		}
 		if err := s.bundle.ValidateRelocation(ctx, meta); err != nil {
@@ -1008,7 +1025,7 @@ func (s *service) ImportExistingDestination(ctx context.Context, in ImportExisti
 	return s.repo.Create(ctx, destination)
 }
 
-func (s *service) finishPendingCreate(ctx context.Context, pending Destination, acknowledged bool) (Destination, error) {
+func (s *service) finishPendingCreate(ctx context.Context, pending Destination, acknowledged, allowUnrepairable bool) (Destination, error) {
 	// RepoStatus proves encryption is on (EncryptionAlgorithm must be non-empty).
 	status, err := s.eng.RepoStatus(ctx, pending.Name)
 	if err != nil {
@@ -1023,7 +1040,7 @@ func (s *service) finishPendingCreate(ctx context.Context, pending Destination, 
 	pending.EncryptionAlgorithm = status.EncryptionAlgorithm
 	if pending.BackendKind == BackendFilesystem {
 		if pending.DeviceIdentity != nil {
-			if err := s.recheckCreateReadiness(ctx, pending.Location, *pending.DeviceIdentity, acknowledged); err != nil {
+			if err := s.recheckCreateReadiness(ctx, pending.Location, *pending.DeviceIdentity, acknowledged, allowUnrepairable); err != nil {
 				return Destination{}, fmt.Errorf("destination %q has a pending create intent; readiness must clear before reconciliation: %w", pending.Name, err)
 			}
 		}
@@ -1068,7 +1085,7 @@ func (s *service) reconcilePendingCreate(ctx context.Context, pending Destinatio
 		if filepath.Clean(pending.Location) != filepath.Clean(requestedLocation) {
 			return Destination{}, ErrInvalidDestination{Field: "location", Reason: "pending destination create path differs; preserve it for explicit reconciliation"}
 		}
-		return s.finishPendingCreate(ctx, pending, in.AcknowledgeReadinessFailure)
+		return s.finishPendingCreate(ctx, pending, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem)
 	}
 	if pending.DeviceIdentity == nil || !pending.DeviceIdentity.StrongIdentity() || pending.RelativePath == "" || s.readiness == nil || s.bundle == nil {
 		return Destination{}, ErrInvalidDestination{Field: "identity", Reason: "pending filesystem destination lacks a complete strong-identity intent; preserve it for explicit reconciliation"}
@@ -1141,7 +1158,7 @@ func (s *service) reconcilePendingCreate(ctx context.Context, pending Destinatio
 			}
 		}
 	}
-	if err := s.recheckCreateReadiness(ctx, bundleRoot, observed.Identity, in.AcknowledgeReadinessFailure); err != nil {
+	if err := s.recheckCreateReadiness(ctx, bundleRoot, observed.Identity, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem); err != nil {
 		return Destination{}, fmt.Errorf("pending destination readiness: %w", err)
 	}
 	// A durable Created state alone does not prove that the repository currently
@@ -1164,7 +1181,7 @@ func (s *service) reconcilePendingCreate(ctx context.Context, pending Destinatio
 	if _, err := s.repo.Update(ctx, pending); err != nil {
 		return Destination{}, fmt.Errorf("persist resolved pending destination path: %w", err)
 	}
-	return s.finishPendingCreate(ctx, pending, in.AcknowledgeReadinessFailure)
+	return s.finishPendingCreate(ctx, pending, in.AcknowledgeReadinessFailure, in.AcknowledgeUnrepairableFilesystem)
 }
 
 // hostname / username best-effort host identity for the manifest. Empty on
@@ -1487,4 +1504,34 @@ func computeUsageState(usageBytes, capBytes int64) UsageState {
 		return UsageStateNear
 	}
 	return UsageStateWithin
+}
+
+// unrepairableFilesystem refuses a filesystem this host has no metadata repair
+// tool for, unless the operator explicitly accepts the risk.
+//
+// The point is not that such a filesystem works badly day to day — NTFS works
+// fine through ntfs-3g. The point is the guarantee after an unsafe shutdown:
+// this host can reset NTFS's dirty flag, but it cannot repair an MFT record, so
+// one interrupted write can leave files permanently unreadable with no local
+// remedy. ext4 replays its journal and has a real repair tool, so it can meet
+// that guarantee.
+func unrepairableFilesystem(filesystem string, acknowledged bool) (string, bool) {
+	if acknowledged {
+		return "", false
+	}
+	if driveprofile.NormalizeOS(runtime.GOOS) != "linux" {
+		return "", false
+	}
+	profile, ok := driveprofile.Lookup(filesystem)
+	if !ok || profile.RepairIsMetadata {
+		return "", false
+	}
+	limitation := strings.TrimSpace(profile.RepairLimitation)
+	if limitation == "" {
+		limitation = "this host has no check or repair tool for it"
+	}
+	return fmt.Sprintf(
+		"%s cannot be repaired on this host: %s. A destination on it is safe until the first unsafe shutdown and unrecoverable after it. Use a filesystem this host can repair (ext4), or pass --allow-unrepairable if you accept that risk",
+		profile.Name, limitation,
+	), true
 }

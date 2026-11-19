@@ -28,14 +28,14 @@ func degradedInspection(id destinationreadiness.DeviceIdentity) destinationreadi
 	}
 }
 
-func TestAnalyzeDegradedWriteRequiresPolicyAndPassedProbe(t *testing.T) {
+func TestAnalyzeDegradedWriteNeedsAPassedProbe(t *testing.T) {
 	id := identity()
 	prober := &fakeProber{result: destinationreadiness.WriteProbeResult{Ran: true, Passed: true, Bytes: 4096}}
 	svc := destinationreadiness.NewService(&fakeInspector{inspection: degradedInspection(id)}, nil).WithWriteProber(prober)
 	report, err := svc.Analyze(context.Background(), destinationreadiness.AnalyzeInput{
 		DestinationID: "dest-a", ExpectedDevice: id, Location: "/media/user/USB/backup",
 		SelectedTargetBytes: 1 << 30, RetentionCopies: 2,
-		AllowWriteProbe: true, AllowDegraded: true,
+		AllowWriteProbe: true,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -54,19 +54,21 @@ func TestAnalyzeDegradedWriteRequiresPolicyAndPassedProbe(t *testing.T) {
 	}
 }
 
-func TestAnalyzeStrictPolicyDoesNotUpgradeUnknownState(t *testing.T) {
+// A read-only readiness check does not write, so it has no probe evidence and
+// the verdict stays truthfully unknown rather than claiming writability.
+func TestAnalyzeWithoutAProbeDoesNotUpgradeUnknownState(t *testing.T) {
 	id := identity()
 	svc := destinationreadiness.NewService(&fakeInspector{inspection: degradedInspection(id)}, nil).
 		WithWriteProber(&fakeProber{result: destinationreadiness.WriteProbeResult{Ran: true, Passed: true}})
 	report, err := svc.Analyze(context.Background(), destinationreadiness.AnalyzeInput{
 		DestinationID: "dest-a", ExpectedDevice: id, Location: "/media/user/USB/backup",
-		SelectedTargetBytes: 1 << 30, RetentionCopies: 2, AllowWriteProbe: true,
+		SelectedTargetBytes: 1 << 30, RetentionCopies: 2,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if report.WriteVerdict != destinationreadiness.WriteUnknown {
-		t.Fatalf("verdict = %q (%s), want unknown under strict policy", report.WriteVerdict, report.WriteVerdictReason)
+		t.Fatalf("verdict = %q (%s), want unknown without a probe", report.WriteVerdict, report.WriteVerdictReason)
 	}
 	if report.OverallSeverity != destinationreadiness.SeverityUnknown {
 		t.Fatalf("overall severity = %q, want unknown", report.OverallSeverity)
@@ -82,7 +84,7 @@ func TestAnalyzeFailedProbeBlocksEvenWithCleanNativeState(t *testing.T) {
 	report, err := svc.Analyze(context.Background(), destinationreadiness.AnalyzeInput{
 		DestinationID: "dest-a", ExpectedDevice: id, Location: "/media/user/USB/backup",
 		SelectedTargetBytes: 1 << 30, RetentionCopies: 2,
-		AllowWriteProbe: true, AllowDegraded: true,
+		AllowWriteProbe: true,
 	})
 	if err != nil {
 		t.Fatal(err)

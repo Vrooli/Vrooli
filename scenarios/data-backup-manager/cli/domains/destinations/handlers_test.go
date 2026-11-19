@@ -24,6 +24,8 @@ type stubDestinationsService struct {
 	gotCreate    *destinationsv1.CreateDestinationRequest
 	gotImport    *destinationsv1.ImportExistingDestinationRequest
 	gotReadiness *destinationsv1.AnalyzeDestinationRequest
+	destination  *destinationsv1.Destination
+	report       *destinationsv1.DestinationReadinessReport
 }
 
 func (s *stubDestinationsService) CreateDestination(_ context.Context, req *connect.Request[destinationsv1.CreateDestinationRequest]) (*connect.Response[destinationsv1.CreateDestinationResponse], error) {
@@ -52,6 +54,9 @@ func (s *stubDestinationsService) ImportExistingDestination(_ context.Context, r
 }
 
 func (s *stubDestinationsService) GetDestination(_ context.Context, req *connect.Request[destinationsv1.GetDestinationRequest]) (*connect.Response[destinationsv1.GetDestinationResponse], error) {
+	if s.destination != nil {
+		return connect.NewResponse(&destinationsv1.GetDestinationResponse{Destination: s.destination}), nil
+	}
 	return connect.NewResponse(&destinationsv1.GetDestinationResponse{
 		Destination: &destinationsv1.Destination{Id: req.Msg.Id},
 	}), nil
@@ -77,6 +82,9 @@ func (s *stubDestinationsService) GetDestinationUsage(_ context.Context, req *co
 
 func (s *stubDestinationsService) AnalyzeDestination(_ context.Context, req *connect.Request[destinationsv1.AnalyzeDestinationRequest]) (*connect.Response[destinationsv1.AnalyzeDestinationResponse], error) {
 	s.gotReadiness = req.Msg
+	if s.report != nil {
+		return connect.NewResponse(&destinationsv1.AnalyzeDestinationResponse{Report: s.report}), nil
+	}
 	return connect.NewResponse(&destinationsv1.AnalyzeDestinationResponse{
 		Report: &destinationsv1.DestinationReadinessReport{
 			Location:                       req.Msg.Location,
@@ -124,7 +132,12 @@ func TestCreateDestinationCommand(t *testing.T) {
 
 	hs := newHandlers(app)
 	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{
-		{Name: "name"}, {Name: "backend"}, {Name: "location"}, {Name: "cap-bytes"}, {Name: "cap-policy"},
+		{Name: "name"},
+		{Name: "backend"},
+		{Name: "location"},
+		{Name: "cap-bytes"},
+		{Name: "cap-policy"},
+		{Name: "allow-unrepairable", Bool: true},
 	}}
 	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
 		Flags: map[string]string{
@@ -246,8 +259,8 @@ func TestParseBackendKind(t *testing.T) {
 	if _, err := parseBackendKind("nope"); err == nil {
 		t.Error("parseBackendKind(\"nope\") should error")
 	}
-	if _, err := parseBackendKind(""); err == nil {
-		t.Error("parseBackendKind(\"\") should require a backend")
+	if got, err := parseBackendKind(""); err != nil || got != destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM {
+		t.Errorf("parseBackendKind(\"\") = %v, %v; want filesystem (the common local-drive default)", got, err)
 	}
 }
 
@@ -302,5 +315,54 @@ func TestReadinessCommand(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "filesystem_suitability") {
 		t.Fatalf("output missing readiness check: %q", stdout.String())
+	}
+}
+
+// A drive this host cannot repair must say so plainly and point at the
+// migration, not at another futile repair attempt.
+func TestRepairOptionsExplainsAnUnrepairableFilesystem(t *testing.T) {
+	stub := &stubDestinationsService{
+		destination: &destinationsv1.Destination{
+			Id: "dst-elements", Name: "elements-local",
+			BackendKind: destinationsv1.BackendKind_BACKEND_KIND_FILESYSTEM,
+			Location:    "/media/user/Elements/vrooli-backups",
+			DeviceIdentity: &destinationsv1.DestinationDeviceIdentity{
+				DevicePath: "/dev/sda1", Mountpoint: "/media/user/Elements",
+				Uuid: "E26A883E6A881189", Filesystem: "ntfs",
+			},
+		},
+		report: &destinationsv1.DestinationReadinessReport{
+			Location: "/media/user/Elements/vrooli-backups",
+			Identity: &destinationsv1.DestinationDeviceIdentity{
+				DevicePath: "/dev/sda1", Mountpoint: "/media/user/Elements", Filesystem: "ntfs",
+			},
+			Checks: []*destinationsv1.DestinationReadinessCheck{{
+				Code:       "filesystem_repair",
+				Severity:   destinationsv1.ReadinessSeverity_READINESS_SEVERITY_WARNING,
+				Message:    "NTFS cannot be repaired on this host: the only repair Linux offers for NTFS clears the dirty flag; it cannot repair a damaged metadata record",
+				NextAction: "prefer ext4 for a Linux-hosted backup drive, or exFAT when the drive must stay cross-platform; a Windows chkdsk /f is required for NTFS metadata damage",
+			}},
+		},
+	}
+	mux := http.NewServeMux()
+	path, h := destinationsconnect.NewDestinationsServiceHandler(stub)
+	mux.Handle(path, h)
+	app := testutil.NewTestApp(t, mux)
+
+	schema := cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "id"}, {Name: "staging"}}}
+	ctx, stdout := cliapptest.NewCapturedRunContext(app, schema, cliapptest.TestRunContextOptions{
+		Flags: map[string]string{"id": "dst-elements", "staging": "/mnt/second"},
+	})
+	if err := newHandlers(app).repairOptions(ctx); err != nil {
+		t.Fatal(err)
+	}
+	out := stdout.String()
+	for _, want := range []string{"repair=limited", "cannot be repaired on this host", "mkfs.ext4", "/mnt/second/vrooli-backups"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("repair options missing %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "prepare-plan") {
+		t.Errorf("an unrepairable filesystem must not suggest an in-place repair:\n%s", out)
 	}
 }

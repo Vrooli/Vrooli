@@ -11,6 +11,8 @@ import (
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
+
+	"github.com/vrooli/vrooli/packages/driveprofile"
 )
 
 // Cause is the diagnosed reason backups to a destination cannot proceed.
@@ -96,6 +98,14 @@ type Diagnosis struct {
 	LastSuccessAt     time.Time `json:"last_success_at,omitempty"`
 	LastSuccessSource string    `json:"last_success_source,omitempty"`
 	PriorRepairAt     time.Time `json:"prior_repair_at,omitempty"`
+	// RepairLimitation is what this platform's repair tool cannot do. Empty
+	// means a real metadata repair. It comes from the shared drive profile so
+	// the question never promises more than the tool can deliver.
+	RepairLimitation string `json:"repair_limitation,omitempty"`
+	// RepairRemedy is the profile's one-line path to a real fix when the
+	// platform's tool cannot do it (for example a Windows chkdsk, or moving the
+	// drive to a filesystem this host can repair).
+	RepairRemedy string `json:"repair_remedy,omitempty"`
 
 	Plans PlanSummary `json:"plans"`
 }
@@ -181,6 +191,14 @@ func Diagnose(ctx context.Context, in DiagnoseInput) (d Diagnosis) {
 		Location: in.Location, RepositoryRoot: in.RepositoryRoot, DestinationDevice: cloneDeviceIdentity(in.DestinationDevice),
 	}
 	d.DriveName = in.DestinationName
+	if in.DestinationDevice != nil {
+		if profile, ok := driveprofile.Lookup(in.DestinationDevice.Filesystem); ok {
+			d.RepairLimitation = profile.RepairLimitation
+			if profile.RepairLimitation != "" {
+				d.RepairRemedy = profile.NextAction
+			}
+		}
+	}
 	if in.Volume != nil {
 		vol, err := in.Volume(ctx)
 		if err != nil {

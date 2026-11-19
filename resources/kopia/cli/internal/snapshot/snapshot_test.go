@@ -72,6 +72,13 @@ func TestSnapshotArgvTranslation(t *testing.T) {
 			want: []string{"--config-file", cfg, "snapshot", "list"},
 		},
 		{
+			name: "list by dbm tags across hosts",
+			run: func(s snapshot.Service) error {
+				return s.List(context.Background(), []string{"--repo", "nightly", "--all", "--tags", "dbm.owner:treasury", "--tags", "dbm.name:wallet", "--json"})
+			},
+			want: []string{"--config-file", cfg, "snapshot", "list", "--all", "--tags", "dbm.owner:treasury", "--tags", "dbm.name:wallet", "--json"},
+		},
+		{
 			name: "restore",
 			run: func(s snapshot.Service) error {
 				return s.Restore(context.Background(), []string{"--repo", "nightly", "--snapshot", "abc123", "--target", "/restore/pg"})

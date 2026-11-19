@@ -158,7 +158,12 @@
   "skills": {
     "usage": {
       "source": "skills/data-backup-manager/SKILL.md"
-    }
+    },
+    "improve": {
+      "source": "skills/data-backup-manager-improve/SKILL.md"
+    },
+    "feature": [],
+    "waivers": {}
   },
   "credentials": {
     "consumers": [

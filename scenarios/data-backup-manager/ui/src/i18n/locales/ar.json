@@ -234,7 +234,7 @@
     "sensitiveReviewPending": "مراجعة Notification Hub {{id}} معلّقة لـ {{count}} هدف. لم تتغير الأهداف.",
     "sensitiveReviewFailed": "تعذّر طلب مراجعة تغطية البيانات الحساسة. لم تتغير الأهداف.",
     "summary": "{{registered}} مسجَّل · {{recommended}} موصى به · {{sensitive}} حسّاس · {{planned}} مخطَّط · {{verified}} مُتحقَّق في كل وجهة مفعّلة",
-    "independenceSummary": "الأهداف ذات الوجهات المتعددة: {{multi}} · الأهداف المستقلة ماديًا: {{independent}}",
+    "independenceSummary": "محمي بجهازين أو أكثر: {{protected}} · نسخ على جهاز واحد (تحذير): {{single}} · لا توجد نسخة ناجحة: {{none}}",
     "incompleteRejected": "تم حظر هذه الخطة لأن التغطية الافتراضية الموصى بها غير مكتملة. سجّل الأهداف الموصى بها، أو تابع بتغطية غير مكتملة.",
     "proceedIncomplete": "المتابعة بتغطية غير مكتملة"
   },

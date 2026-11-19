@@ -71,6 +71,20 @@ type RegisterInput struct {
 	Critical   bool
 }
 
+// ProtectionLevel is the graduated answer to "is this safe?".
+//
+// Two or more distinct storage devices is protected. One device is a warning,
+// not a failure: it protects against deletion and corruption, but not against
+// losing that device. No successful copy is the only issue.
+type ProtectionLevel string
+
+const (
+	ProtectionUnprotected     ProtectionLevel = "unprotected"
+	ProtectionIdentityUnknown ProtectionLevel = "identity_unknown"
+	ProtectionSingleCopy      ProtectionLevel = "single_copy"
+	ProtectionMultiDevice     ProtectionLevel = "multi_device"
+)
+
 // RegisteredTarget annotates a registered target with the coverage states an
 // operator needs to judge whether it is actually protected.
 type RegisteredTarget struct {
@@ -79,12 +93,16 @@ type RegisteredTarget struct {
 	// LastSuccessAt / LastVerifiedAt are the oldest timestamps across all
 	// currently enabled destinations, and are zero if any configured copy
 	// lacks the corresponding receipt.
-	LastSuccessAt              time.Time
-	LastVerifiedAt             time.Time
-	Destinations               []DestinationStatus
-	AllDestinationsBackedUp    bool
-	AllDestinationsVerified    bool
-	PhysicalIndependenceProven bool
+	LastSuccessAt           time.Time
+	LastVerifiedAt          time.Time
+	Destinations            []DestinationStatus
+	AllDestinationsBackedUp bool
+	AllDestinationsVerified bool
+	// ProtectionLevel is the device-graduated verdict; ProtectionDeviceCount is
+	// how many distinct storage devices hold a successful copy. Together they
+	// are the whole answer to "is this safe?", so no consumer re-derives it.
+	ProtectionLevel            ProtectionLevel
+	ProtectionDeviceCount      int
 	IndependenceWarnings       []string
 	Reacquirable               bool
 	ReacquisitionCommand       string
@@ -103,21 +121,27 @@ type DestinationStatus struct {
 
 // Summary is the at-a-glance scorecard the report leads with.
 type Summary struct {
-	RegisteredCount                  int
-	RecommendedCount                 int
-	SensitiveCount                   int
-	PlannedCount                     int
-	BackedUpCount                    int
-	VerifiedCount                    int
-	DestinationCopyCount             int
-	AllDestinationBackedUpCount      int
-	AllDestinationVerifiedCount      int
-	MultiDestinationTargetCount      int
-	PhysicallyIndependentTargetCount int
-	DefaultCoverageComplete          bool
-	HasSensitiveUnreviewed           bool
-	HasUnplannedRegisteredTargets    bool
-	HasUnverifiedTargets             bool
+	RegisteredCount             int
+	RecommendedCount            int
+	SensitiveCount              int
+	PlannedCount                int
+	BackedUpCount               int
+	VerifiedCount               int
+	DestinationCopyCount        int
+	AllDestinationBackedUpCount int
+	AllDestinationVerifiedCount int
+	MultiDestinationTargetCount int
+	// Protection breakdown. Protected (two or more devices) is the only state
+	// that claims device-loss safety; SingleCopy is a warning; Unprotected is
+	// the real issue.
+	ProtectedTargetCount          int
+	SingleCopyTargetCount         int
+	UnprotectedTargetCount        int
+	IdentityUnknownCount          int
+	DefaultCoverageComplete       bool
+	HasSensitiveUnreviewed        bool
+	HasUnplannedRegisteredTargets bool
+	HasUnverifiedTargets          bool
 }
 
 // Report is the full first-backup-readiness picture, derived live.
@@ -210,8 +234,10 @@ type DestinationPlanCatalog interface {
 	DestinationIDsByTarget(ctx context.Context, targetIDs []string) (map[string][]string, error)
 }
 
-type DestinationTopologyCatalog interface {
-	PhysicalIndependenceByTarget(ctx context.Context, destinations map[string][]string) (map[string]bool, map[string][]string, error)
+// DestinationDeviceCatalog resolves a destination to a stable storage-device
+// key. Coverage owns the protection policy; this seam only supplies the fact.
+type DestinationDeviceCatalog interface {
+	DeviceKeysByDestination(ctx context.Context, destinationIDs []string) (map[string]string, map[string][]string, error)
 }
 
 // RunStatusSource reports the last successful backup time per target. Backed by

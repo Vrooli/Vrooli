@@ -3,7 +3,9 @@ package destinations
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -128,8 +130,91 @@ func (w *FSBundleWriter) filePerm() os.FileMode {
 	return 0o600
 }
 
+// managedBundleEntries are the names a DBM bundle owns. Anything else in a
+// folder without a DBM manifest belongs to someone else.
+var managedBundleEntries = map[string]bool{
+	BundleReadmeFile:   true,
+	BundleRecoveryFile: true,
+	BundleManifestFile: true,
+	repoSubdir:         true,
+}
+
+// ForeignBundleEntries lists names in root that DBM does not manage. It is the
+// guard that makes "point DBM at an existing folder" safe: DBM never adopts a
+// folder that already holds unrelated data.
+func ForeignBundleEntries(root string) ([]string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var foreign []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if managedBundleEntries[name] || strings.HasPrefix(name, ".vrooli-") {
+			continue
+		}
+		foreign = append(foreign, name)
+	}
+	return foreign, nil
+}
+
+// ensureBundleAdoptable makes coexistence safe without forbidding it.
+//
+// A drive root may legitimately hold other data; DBM only owns its managed
+// names and repositories/<slug>.kopia, and it never deletes foreign files. The
+// only unsafe case is a managed name already occupied by an incompatible type
+// (for example a directory named README.txt, or a regular file named
+// repositories), because writing would then fail or clobber something DBM does
+// not understand.
+func ensureBundleAdoptable(bundleRoot string) error {
+	info, err := os.Stat(bundleRoot)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("inspect bundle root %q: %w", bundleRoot, err)
+	}
+	if !info.IsDir() {
+		return ErrInvalidDestination{Field: "location", Reason: "bundle root is not a directory"}
+	}
+	managed := map[string]bool{
+		BundleReadmeFile:   false,
+		BundleRecoveryFile: false,
+		BundleManifestFile: false,
+		repoSubdir:         true,
+	}
+	for name, wantDir := range managed {
+		entry, statErr := os.Lstat(filepath.Join(bundleRoot, name))
+		if os.IsNotExist(statErr) {
+			continue
+		}
+		if statErr != nil {
+			return fmt.Errorf("inspect managed bundle entry %q: %w", name, statErr)
+		}
+		if wantDir && !entry.IsDir() {
+			return ErrInvalidDestination{Field: "location", Reason: "bundle root has a non-directory entry named " + name + "; choose a dedicated subdirectory"}
+		}
+		if !wantDir && !entry.Mode().IsRegular() {
+			return ErrInvalidDestination{Field: "location", Reason: "bundle root has a non-regular entry named " + name + "; choose a dedicated subdirectory"}
+		}
+	}
+	return nil
+}
+
 func (w *FSBundleWriter) PrepareRepository(_ context.Context, bundleRoot, repositoryPath string) error {
 	bundleRoot = filepath.Clean(bundleRoot)
+	// The repository must live under this bundle's repositories/ directory. A
+	// caller cannot redirect it elsewhere on the volume.
+	rel, relErr := filepath.Rel(bundleRoot, filepath.Clean(repositoryPath))
+	if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || !strings.HasPrefix(rel, repoSubdir+string(filepath.Separator)) {
+		return ErrInvalidDestination{Field: "repository_path", Reason: "repository path must be a child of the bundle's repositories directory"}
+	}
+	if err := ensureBundleAdoptable(bundleRoot); err != nil {
+		return err
+	}
 	// Refuse to wrap a folder that is itself a kopia repository: a destination
 	// bundle root must be a plain directory, with the repository nested under
 	// repositories/<slug>.kopia.
@@ -232,7 +317,14 @@ func (w *FSBundleWriter) RebindMetadata(_ context.Context, meta BundleMetadata) 
 	if err := json.Unmarshal(manifestBytes, &existing); err != nil {
 		return fmt.Errorf("decode destination manifest for path rebind: %w", err)
 	}
-	if existing.Kind != "vrooli.data-backup-manager.destination" || existing.Producer != "data-backup-manager" || existing.DestinationID != meta.DestinationID || existing.DestinationName != meta.Name || existing.Backend != meta.Backend || existing.RelativePath != meta.RelativePath {
+	if existing.Kind != "vrooli.data-backup-manager.destination" || existing.Producer != "data-backup-manager" || existing.DestinationID != meta.DestinationID || existing.DestinationName != meta.Name || existing.Backend != meta.Backend {
+		return fmt.Errorf("refusing path rebind: destination manifest identity or relative locator differs")
+	}
+	// A bundle written before relative_path was recorded carries an empty field.
+	// It is the same destination when the recorded absolute paths resolve
+	// unchanged and the caller has already proven the mounted volume, so accept
+	// it and stamp the locator below instead of refusing every write forever.
+	if existing.RelativePath != "" && existing.RelativePath != meta.RelativePath {
 		return fmt.Errorf("refusing path rebind: destination manifest identity or relative locator differs")
 	}
 	uniqueID, err := repositoryUniqueID(meta.RepositoryPath)
@@ -504,8 +596,14 @@ func (w *FSBundleWriter) replaceManagedFile(path string, content []byte) error {
 	tmpPath := tmp.Name()
 	defer func() { _ = os.Remove(tmpPath) }()
 	if err := tmp.Chmod(mode); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("set managed metadata permissions: %w", err)
+		// ntfs-3g and vfat expose no Unix mode bits and refuse chmod with
+		// EPERM. The file was created 0600 by os.CreateTemp, so continuing can
+		// only narrow permissions, never widen them; the mode is advisory on
+		// those filesystems rather than enforceable.
+		if !errors.Is(err, fs.ErrPermission) {
+			_ = tmp.Close()
+			return fmt.Errorf("set managed metadata permissions: %w", err)
+		}
 	}
 	if _, err := tmp.Write(content); err != nil {
 		_ = tmp.Close()

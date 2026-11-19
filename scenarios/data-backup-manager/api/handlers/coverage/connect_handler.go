@@ -176,21 +176,24 @@ func reportToProto(r coverage.Report) *coveragev1.CoverageReport {
 
 func summaryToProto(s coverage.Summary) *coveragev1.CoverageSummary {
 	return &coveragev1.CoverageSummary{
-		RegisteredCount:                  int32(s.RegisteredCount),
-		RecommendedCount:                 int32(s.RecommendedCount),
-		SensitiveCount:                   int32(s.SensitiveCount),
-		PlannedCount:                     int32(s.PlannedCount),
-		BackedUpCount:                    int32(s.BackedUpCount),
-		VerifiedCount:                    int32(s.VerifiedCount),
-		DefaultCoverageComplete:          s.DefaultCoverageComplete,
-		HasSensitiveUnreviewed:           s.HasSensitiveUnreviewed,
-		HasUnplannedRegisteredTargets:    s.HasUnplannedRegisteredTargets,
-		HasUnverifiedTargets:             s.HasUnverifiedTargets,
-		DestinationCopyCount:             int32(s.DestinationCopyCount),
-		AllDestinationBackedUpCount:      int32(s.AllDestinationBackedUpCount),
-		AllDestinationVerifiedCount:      int32(s.AllDestinationVerifiedCount),
-		MultiDestinationTargetCount:      int32(s.MultiDestinationTargetCount),
-		PhysicallyIndependentTargetCount: int32(s.PhysicallyIndependentTargetCount),
+		RegisteredCount:               int32(s.RegisteredCount),
+		RecommendedCount:              int32(s.RecommendedCount),
+		SensitiveCount:                int32(s.SensitiveCount),
+		PlannedCount:                  int32(s.PlannedCount),
+		BackedUpCount:                 int32(s.BackedUpCount),
+		VerifiedCount:                 int32(s.VerifiedCount),
+		DefaultCoverageComplete:       s.DefaultCoverageComplete,
+		HasSensitiveUnreviewed:        s.HasSensitiveUnreviewed,
+		HasUnplannedRegisteredTargets: s.HasUnplannedRegisteredTargets,
+		HasUnverifiedTargets:          s.HasUnverifiedTargets,
+		DestinationCopyCount:          int32(s.DestinationCopyCount),
+		AllDestinationBackedUpCount:   int32(s.AllDestinationBackedUpCount),
+		AllDestinationVerifiedCount:   int32(s.AllDestinationVerifiedCount),
+		MultiDestinationTargetCount:   int32(s.MultiDestinationTargetCount),
+		ProtectedTargetCount:          int32(s.ProtectedTargetCount),
+		SingleCopyTargetCount:         int32(s.SingleCopyTargetCount),
+		UnprotectedTargetCount:        int32(s.UnprotectedTargetCount),
+		IdentityUnknownTargetCount:    int32(s.IdentityUnknownCount),
 	}
 }
 
@@ -210,7 +213,8 @@ func registeredToProto(t coverage.RegisteredTarget) *coveragev1.RegisteredTarget
 		ReacquisitionAuthReason:    t.ReacquisitionAuthReason,
 		AllDestinationsBackedUp:    t.AllDestinationsBackedUp,
 		AllDestinationsVerified:    t.AllDestinationsVerified,
-		PhysicalIndependenceProven: t.PhysicalIndependenceProven,
+		ProtectionLevel:            string(t.ProtectionLevel),
+		ProtectionDeviceCount:      int32(t.ProtectionDeviceCount),
 		IndependenceWarnings:       append([]string(nil), t.IndependenceWarnings...),
 	}
 	if !t.LastSuccessAt.IsZero() {

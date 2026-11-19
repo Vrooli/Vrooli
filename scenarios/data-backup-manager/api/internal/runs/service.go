@@ -808,7 +808,7 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 	var snap engine.Snapshot
 	enteredWrite := false
 	var destinationGateErr error
-	err = s.deps.Destinations.WithResolvedDestinationForWrite(ctx, destID, pf.DegradedDestinations[destID], func(current DestinationForRun) error {
+	err = s.deps.Destinations.WithResolvedDestinationForWrite(ctx, destID, func(current DestinationForRun) error {
 		enteredWrite = true
 		if current.ID != dest.ID || current.Name != dest.Name || current.BackendKind != dest.BackendKind {
 			destinationGateErr = errors.New("destination identity or backend changed after capture")
@@ -849,7 +849,7 @@ func (s *service) runOne(ctx context.Context, plan PlanForRun, runID, targetID, 
 	// is a loud outcome warning (and a partial_failed run), never silent.
 	policy := engine.RetentionPolicy{KeepLatest: plan.KeepLatest, KeepHourly: plan.KeepHourly, KeepDaily: plan.KeepDaily, KeepWeekly: plan.KeepWeekly, KeepMonthly: plan.KeepMonthly, KeepAnnual: plan.KeepAnnual}
 	if policy.KeepLatest+policy.KeepHourly+policy.KeepDaily+policy.KeepWeekly+policy.KeepMonthly+policy.KeepAnnual > 0 {
-		out.Warning = s.enforceRetention(ctx, runID, dest, pf.DegradedDestinations[destID], snap.Source, policy)
+		out.Warning = s.enforceRetention(ctx, runID, dest, snap.Source, policy)
 	}
 	return finish(OutcomeSucceeded, "")
 }
@@ -861,17 +861,18 @@ const maxRetentionDetail = 400
 // returns "" only when the source provably holds at most keepLatest snapshots.
 // It acts on the source kopia recorded, not the captured path: the override
 // source makes those differ, and a policy on the path governs nothing.
-func (s *service) enforceRetention(ctx context.Context, runID string, destination DestinationForRun, allowDegraded bool, source string, policy engine.RetentionPolicy) string {
+func (s *service) enforceRetention(ctx context.Context, runID string, destination DestinationForRun, source string, policy engine.RetentionPolicy) string {
 	if strings.TrimSpace(source) == "" {
 		return "retention_failed: kopia did not report the snapshot source, so retention was not applied"
 	}
 	var remaining int
 	var destinationErr error
 	enteredRetention := false
-	// Retention deletes from the same repository the snapshot just went to. It
-	// must use the same write policy, or a degraded destination accepts the
-	// snapshot and then refuses to prune it.
-	err := s.deps.Destinations.WithResolvedDestinationForWrite(ctx, destination.ID, allowDegraded, func(current DestinationForRun) error {
+	// Retention deletes from the same repository the snapshot just went to, so
+	// it goes through the same write gate. Because the gate is one pure verdict
+	// with no caller-supplied policy, a destination that accepted the snapshot
+	// cannot then refuse to prune it.
+	err := s.deps.Destinations.WithResolvedDestinationForWrite(ctx, destination.ID, func(current DestinationForRun) error {
 		if current.ID != destination.ID || current.Name != destination.Name || current.BackendKind != destination.BackendKind {
 			destinationErr = errors.New("destination identity or backend changed before retention")
 			return destinationErr

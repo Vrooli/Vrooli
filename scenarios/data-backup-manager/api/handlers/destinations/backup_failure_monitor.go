@@ -296,6 +296,16 @@ func (w *BackupFailureWorker) handleFailing(ctx context.Context, dest destinatio
 			return nil
 		}
 	}
+	// A leftover session-marker temp file is not saved backup data. When those
+	// are the only blockers, record the policy exception and retry instead of
+	// asking the operator the same question after every interrupted write.
+	if open == nil {
+		if handled, err := w.autoAcceptLeftoverTemps(ctx, dest, diag, planIDs); err != nil {
+			w.logger.Printf("self-heal leftover temps for destination %s: %v", dest.ID, err)
+		} else if handled {
+			return nil
+		}
+	}
 	return w.act(ctx, dest, diag, open, latest.ID, planIDs)
 }
 
@@ -1136,6 +1146,11 @@ func (w *BackupFailureWorker) exceptionNotices(ctx context.Context, dests map[st
 		}
 		var active []repohealth.Exception
 		for _, ex := range recorded {
+			// A policy-accepted leftover is not an operator burden. It is
+			// recorded so backups can run, but it does not become a daily nudge.
+			if ex.ApprovedBySource == AutoAcceptSource {
+				continue
+			}
 			_, statErr := w.usage.Scanner.Filesystem().Lstat(filepath.Join(dest.RepositoryLocation, filepath.FromSlash(ex.RelPath)))
 			if statErr != nil && repohealth.ProblemFor(statErr) == ex.Problem {
 				active = append(active, ex)

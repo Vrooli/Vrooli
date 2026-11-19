@@ -16,9 +16,6 @@ type WriteVerdictInput struct {
 	FilesystemState      sysmounts.FilesystemState
 	OfflineCheckVerified bool
 	Probe                WriteProbeResult
-	// AllowDegraded is true only when another verified copy exists for every
-	// selected target. It never upgrades the native unknown state to clean.
-	AllowDegraded bool
 }
 
 // EvaluateWriteVerdict returns the explicit write verdict and a short reason.
@@ -30,8 +27,8 @@ type WriteVerdictInput struct {
 //  3. A dirty/needs-check native state blocks; only a real check may clear it.
 //  4. Clean native state is ready.
 //  5. Verified offline-check evidence is ready despite an unknown native state.
-//  6. Unknown native state is degraded only with an explicit policy and a
-//     passed probe; otherwise it stays unknown.
+//  6. Unknown native state is degraded (warning) when the bounded probe passed,
+//     and unknown (blocked) when no probe ran.
 func EvaluateWriteVerdict(in WriteVerdictInput) (WriteVerdict, string) {
 	switch {
 	case !in.Mounted:
@@ -56,13 +53,20 @@ func EvaluateWriteVerdict(in WriteVerdictInput) (WriteVerdict, string) {
 	if in.OfflineCheckVerified {
 		return WriteReady, "offline consistency check passed for the current read/write mount episode"
 	}
-	if in.AllowDegraded {
-		if !in.Probe.Ran {
-			return WriteUnknown, "filesystem state is unobservable and no bounded write probe was run"
-		}
-		if in.Probe.Passed {
-			return WriteDegraded, "filesystem state is unobservable; a bounded write probe passed and another verified copy exists"
-		}
+	// An unobservable state is not evidence of corruption. The bounded probe is
+	// the physical proof that this mount can be written, so a passing probe is
+	// enough to admit the write with a warning. Without a probe there is no
+	// evidence either way, and the verdict stays unknown.
+	//
+	// Note what is NOT part of this decision: how many other copies exist. That
+	// is a drive-loss risk, reported by coverage as a single-copy warning. It
+	// must never block a backup, because refusing the write leaves the data with
+	// fewer copies rather than more.
+	if !in.Probe.Ran {
+		return WriteUnknown, "filesystem state is unobservable and no bounded write probe was run"
 	}
-	return WriteUnknown, "filesystem dirty/needs-check state is not exposed on this host"
+	if in.Probe.Passed {
+		return WriteDegraded, "filesystem state is not exposed by this filesystem; a bounded write/read/fsync probe passed"
+	}
+	return WriteUnknown, "filesystem state is unobservable and the bounded write probe did not pass"
 }

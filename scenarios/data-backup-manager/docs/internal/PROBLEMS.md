@@ -1090,6 +1090,176 @@ stale approval gated every usage read forever.
 file still blocks. Elements usage now returns 397,583,865,403 bytes. Revoking a
 stale exception still has no CLI; the approval remains in the store harmlessly.
 
+### 2026-11-18 — protection wording, drive setup, and self-heal policy (round 3)
+
+**Protection.** Coverage now counts distinct storage devices: two or more
+devices with a successful copy is protected, one is a single-copy warning, and
+none is the issue. The live report now shows 21 targets protected by two
+devices (the baseline-safety + free-disk-root pairs) and 197 single-copy
+warnings. A second local drive counts; off-host placement remains a stronger,
+separate level.
+
+**Drive behaviour.** `packages/driveprofile` is the one table for check/repair
+tool, state-signal availability, suitability, and the operator remedy. The
+control plane's `internal/volumeremediation` and DBM readiness both read it.
+Creation accepts a profiled filesystem whose driver exposes no state (NTFS via
+ntfs-3g, exFAT); the write gate still decides admission. `destinations create`
+defaults to filesystem, so a drive is:
+`destinations create --name second-drive --location /media/<drive>/vrooli-backups`.
+
+**Coexistence safety.** DBM may share a drive folder with unrelated data and
+never deletes foreign files. It refuses only a managed name occupied by the
+wrong type. The anomalous `s/084/...f.tmp...` path on the Elements repository
+contains a real 214-byte blob, so it was left untouched; it is classified
+`Stale` and no longer blocks usage.
+
+**Self-heal.** The failure worker records a policy exception for EIO
+`leftover_temp`/session-marker entries and retries without asking
+(`DBM_AUTO_ACCEPT_LEFTOVER_TEMP`, on by default in production, off in tests).
+Snapshot data, manifests, and ambiguous entries still reach the verified
+decision flow. Policy-accepted leftovers do not generate daily notices.
+
+### 2026-11-18 — write admission by evidence, bulk activation, repair ceiling (round 4)
+
+**Over-strict write gate removed.** Preflight blocked a destination whose
+native filesystem state was unobservable, even when it was mounted read/write
+and a bounded write/read/fsync probe passed. That is why six single-copy
+private-data targets kept failing with `destination filesystem readiness is
+unknown` while the drive was demonstrably writable. Copy count is a drive-loss
+risk, not a writability fact, and blocking a write leaves the data with fewer
+copies. The verdict is now: dirty/needs-check, read-only, write-protected, or a
+failed probe blocks; unobservable state with a passing probe is a warning.
+`AllowDegraded`, `DegradedDestinations`, the runs-side device-key rule, and the
+write-gate boolean were deleted.
+
+**One-step drive activation.** `plans add-destination --destination <id>`
+targets every enabled plan when `--plans` is omitted (preview by default,
+`--apply` to write, idempotent). `destinations create` prints that exact
+command. A new drive is therefore two short commands, not an enumeration of
+plan ids.
+
+**Protection on the wire.** Coverage exposes `protection_level` and
+`protection_device_count` per target plus protected/single-copy/unprotected/
+identity-unknown counts. The CLI and UI render those instead of re-deriving
+protection from destination counts, which used to mis-bucket a target whose
+second destination had failed but whose first copy was good.
+`physical_independence_proven` is deprecated and means off-host only.
+
+**Honest repair ceiling.** A diagnosis carries the drive profile's
+`RepairLimitation` and `RepairRemedy`. When the platform's repair cannot resolve
+the diagnosed cause (for example `ntfsfix` against damaged NTFS metadata), the
+question no longer recommends repair again; it recommends a fresh backup set and
+names the real remedy. A read-only mount still recommends repair, because a
+dirty-flag reset does fix that.
+
+**Per-platform profile.** `packages/driveprofile` now carries per-platform
+suitability and notes: NTFS is recommended on Windows (chkdsk), APFS on macOS,
+ext4 is Linux-only. Readiness reads them for `runtime.GOOS`.
+
+**Deliberately not implemented:**
+- **Standing grant for destructive repair.** It would add a new unattended
+  destructive authority, and on this host the only NTFS repair is a dirty-flag
+  reset that cannot fix the actual fault. The correct behavior is the honest
+  ceiling above, not more automation of an ineffective repair. Revisit only if a
+  drive whose repair is a true metadata repair is in use and the operator asks
+  for unattended repair.
+- **Inferred off-host level.** Backend names and URLs are not endpoint identity.
+  Claiming off-host without a real endpoint-identity source would be false, so
+  the field stays false and the docs say why. Add it only with that source.
+
+**Live proof (2026-11-18):**
+- `protected-private-data` (6 targets, Elements NTFS) run
+  `07bcfa91-41af-44e1-bbbc-4b299d4ec134` completed 6/6 with zero incidents and
+  zero warnings. Those targets previously failed at preflight with
+  `destination filesystem readiness is unknown`.
+- Drill `25188dc3-3ace-4f51-8b7c-0f8ea182c34e` reached `DRILL_STATUS_VERIFIED`
+  from snapshot `5321e797f5330cb8fe20de7536f9f4b2`, written by that run — a new
+  Elements snapshot is recoverable, not just listable.
+- `free-disk-root-migration` run `6c7dfd6d-4561-4341-aa1e-a15d63ac7132`
+  completed 17/17 with retention applied and no warnings. The previous run
+  (`31b6d199`) had warned `destination readiness or identity changed before
+  retention; existing snapshots were kept` for all 17 outcomes — the
+  write-accepted/retention-refused split is gone.
+- Health posture dropped from 13 to 7 issues; the remaining ones are unrelated
+  stale last-run failures that clear as their plans next run.
+- `plans add-destination --destination <id>` preview selected 16 of 17 enabled
+  plans without mutating anything, and every plan reports
+  `off-host-placement=unproven` (correct for a single host).
+
+### 2026-11-18 — Elements root cause: one interrupted write burst, never repaired
+
+**Evidence.** The thirteen leftover temp entries were written in one ~10-second
+window: `2026-11-10 05:04:41`–`05:04:50`. Seven are readable (sizes ~21 MB, one
+214 B, one 4.7 KB); six return `EIO` on `lstat`. All are `s/...f.tmp.<random>`
+session markers, i.e. unfinished uploads, not committed blobs. The repository
+still lists 191 snapshots and a drill from a new snapshot verifies. SMART is
+clean, so this is metadata, not media.
+
+**Mechanism.** An interrupted write burst left inconsistent NTFS MFT records.
+Linux's only NTFS "repair" (`ntfsfix -d`) resets the journal and schedules a
+Windows chkdsk that never runs; it cannot repair an MFT record. DBM therefore ran
+a non-repair and reported the drive as repaired, while the records stayed broken.
+This is a product defect, not a recurring hardware fault: the damage happened
+once and was never fixed.
+
+**What changed.** Repair is no longer offered when the platform's tool cannot
+resolve the cause; `applyRepair` refuses the legacy path; creating a new NTFS
+destination requires `--allow-unrepairable`; readiness reports a
+`filesystem_repair` check; `destinations repair-options` prints the exact
+migration; `destinations safe-eject` flushes and unmounts before a copy/unplug.
+
+**Resolution path (this machine, no VM):** `repair-options --staging <second
+drive>` → `rsync` the bundle to staging while mounted → `umount` → `mkfs.ext4`
+the Elements partition → mount → `rsync` back to the same bundle path →
+`bind-recovery-identity` with the new UUID → readiness and a drill. The
+destination id and plan bindings survive because the bundle path is unchanged.
+
+**Space requirement (2026-11-19):** the whole-volume safety copy needs
+**552.2 GiB free on a different device** at the default 17% headroom plus 5 GiB
+(469.0 GiB used). `--headroom-percent 10` lowers that to **520.9 GiB**; the
+minimum accepted is 5%. `repair-drive.sh --auto` prefers staging when a target
+is given; without one it runs the read-only `--in-place-check` probe and prints
+either the exact in-place steps or the blocking reason. The root NVMe has 241.5 GiB free, and the Elements drive
+cannot stage itself, so the repair waits for the second drive. A 640 GB drive is
+comfortable; a 600 GB drive works at 10%; a 512 GB drive is too tight only if
+the copy really is 469 GiB. Apparent-size measurement is blocked by the six EIO
+entries, but they total ~126 MB, so `df used` is the copy size. The volume root also holds two WD installer files outside the DBM
+bundle, so a bundle-only copy would have lost them; the script copies and
+restores the whole mount.
+
+`scenarios/data-backup-manager/.private/scripts/repair-drive.sh` implements that sequence
+as one resumable, safety-gated command. It previews by default, requires one
+typed confirmation, verifies the copy by path/size and (by default) checksum
+before formatting, refuses the system disk and same-disk staging, re-identifies
+the source by serial immediately before `mkfs`, preserves the bundle owner for
+the API user, and keeps the staging copy afterwards. `--self-test` exercises
+copy, verification, restore, corruption detection, the rsync EIO wording, and
+the preview text on a synthetic repository.
+
+**Agent readiness (2026-11-19):** the usage role is rewritten and the improve
+role is authored; both are declared in `.vrooli/service.json`. The repair workflow
+has no governed program yet because it is rare and destructive; the improve board
+records the missing `setpoint-read` program, golden corpus, and usage learning
+scope as setup gaps rather than passing rows. The global `safe-operator-script`
+skill owns the script contract (dry run, confirmation, identity re-read,
+verification, resume, self-test).
+
+**Still open:**
+- The conversion itself is operator-run: DBM never formats a drive, so the
+  one destructive step (`mkfs.ext4`) remains an explicit command.
+- The Elements drive's NTFS MFT-record damage needs Windows `chkdsk /f` or a
+  migration to a filesystem this host can repair (ext4). Linux cannot fix it.
+- The six private-data targets other than `operator/private` still have no
+  independent copy until the second drive is added; that is now a coverage
+  warning for the copies that exist, not a write block.
+- Test Genie's `experience` phase returns `not_evaluated` because its runtime
+  render needs BAS, which the provider reports unavailable. The same result
+  reproduces on `plan-manager`, so it is an environment/provider condition, not
+  a DBM regression; static UI checks still ran (25 warnings, 2 infos).
+- Pre-existing UI template-conformance debt remains (19 components outside
+  `ui/src/components|layout`; 9 of 24 slot directories missing; a few
+  hand-rolled inputs). It is structural, not backup-safety related.
+
 ## Work ladder
 
 - Rung: W3
@@ -1106,3 +1276,190 @@ stale exception still has no CLI; the approval remains in the store harmlessly.
   filesystem readiness is proven. The fix makes the preflight response
   reliable and accurate; it does not bypass that safety gate.
 - Measured: 2026-11-16
+
+### 2026-11-19 — in-place probe result and remount fix
+
+`repair-drive.sh --dry-run` ran the read-only `ntfsresize --info --no-action`
+probe. It reported:
+
+```
+ERROR: Filesystem check failed!
+ERROR: 403 clusters are referenced multiple times.
+```
+
+The NTFS metadata is cross-linked. `ntfsresize` correctly refuses, so the
+in-place conversion is closed for this drive. Linux cannot repair this; a
+Windows `chkdsk /f` is the only in-place repair candidate, and the ext4
+conversion avoids needing it. The staging path is required.
+
+The probe also exposed a remount bug: because it ran as root, udisks mounted
+the volume at `/media/root/Elements` instead of the recorded
+`/media/matthalloran8/Elements`. The probe now unmounts any wrong-path mount
+and mounts explicitly at the recorded path with the original options;
+`repair-drive.sh --remount` recovers a drive already mounted at the wrong path.
+The duplicate `staging FAIL` finding was also removed.
+
+### 2026-11-19 — direct-sudo recovery fixes
+
+A direct `sudo repair-drive.sh --remount` failed with
+`data-backup-manager is not on PATH`. `sudo` resets `PATH` and `HOME`, so the
+scenario CLI and its state disappeared. The script now resolves the invoking
+user from `SUDO_USER`/`SUDO_UID`/`SUDO_GID`, prepends that user's
+`~/.vrooli/bin` to `PATH`, sets `HOME`, and uses absolute CLI paths. The
+`--remount` path also recreates the recorded mountpoint and re-owns its parent
+(`/media/<user>`) to the invoking user, because udisks removes the directory on
+unmount and a root-run probe can leave the parent `root:root 710`, which the DBM
+API cannot traverse.
+
+### 2026-11-19 — the drive was idle because its plans were off, and still cannot take the bulk plan
+
+`elements-local` looked healthy from the cheap probes: `usage` returned 397.6 GB,
+`destinations snapshots` listed 11 snapshots, and readiness passed the directory
+and mount checks. Re-enabling `declared-targets` (248 targets) exposed the real
+state: kopia `blob stats` fails with
+`error reading directory: lstat .../elements-local.kopia/s/f43/64b7506cef44e4fbb3fc66ba7f2d9-sf40366ce03934d79144.f.tmp.8c9d63ca28444838: input/output error`
+— the same shard from the November incident. The repository cannot be fully
+enumerated, so every write is refused as `repository_invalid` and the plan is
+off again. Listing snapshots reads manifests and does not touch that directory,
+which is why the earlier probes looked clean.
+
+Two code bugs surfaced while proving this:
+
+1. `sysmounts.platformVolumeIdentity` asked `lsblk` for the whole disk without
+   `-d`. `lsblk /dev/sda` prints the disk row and then its partition rows, and a
+   partition row carries an empty MODEL/SERIAL. The last row overwrote the
+   disk's anchors, so `elements-local` (the only destination that recorded a
+   serial) failed the write gate with "destination path is not served by the
+   verified mounted volume" while `free-disk-root` (serial `-`) worked. Fixed
+   with `lsblk -d` and a regression test.
+2. `RebindMetadata` required a `relative_path` that bundles written before that
+   field existed do not carry, and `replaceManagedFile` treated ntfs-3g's
+   `chmod ... operation not permitted` as fatal. A legacy bundle at an unchanged
+   path is now stamped instead of refused, and a `chmod` EPERM is skipped
+   because `os.CreateTemp` already created the file 0600 — the mode can only
+   narrow, never widen.
+
+The plan that refreshes `elements-local` therefore stays off until the volume is
+converted to ext4. The two small Elements plans (`protected-private-data`,
+`free-disk-root-migration`, 23 targets) preflight ready and keep working.
+
+### 2026-11-19 — the drive was idle because its plans were off, not because it was broken (superseded)
+
+`elements-local` was readable the whole time (397.6 GB used, snapshots listed,
+`usage` within policy), but the only plans that write to it —
+`declared-targets` (248 targets) and `elements-daily-runtime` (14) — were both
+`enabled=false` after the November repository incident. The drive's other two
+repositories (`protected-private-data`, `free-disk-root`) stayed current because
+their plans were on, which made the drive look healthy while the bulk of the
+catalog had no copy newer than 2026-08-19. Coverage still read 21 protected /
+197 single-copy / 30 unprotected because it counts the copies that exist, not
+whether the plan that refreshes them is on.
+
+`repair-drive.sh --states` (and bare invocation) now prints the drive, free
+space, protection counts, and each bound plan's on/off state. A switched-off
+plan is marked `OFF` only when no enabled plan on that drive covers its targets,
+so a redundant disabled plan does not read as a gap. (The first version of this
+entry said `declared-targets` was re-enabled as a fix; the next entry records
+why that had to be undone.)
+
+### 2026-11-19 — four targets are root-owned files DBM cannot read
+
+DBM runs as the invoking user, so these never back up and stay in health as
+failures:
+
+| target | path | mode |
+|---|---|---|
+| `adguard-home/work` | `~/.local/share/vrooli/resources/adguard-home/data` | `root:root 0700` |
+| `adguard-home/config` | `~/.config/vrooli/resources/adguard-home/AdGuardHome.yaml` | `root:root 0600` |
+| `ollama/credentials` | `~/.local/share/vrooli/resources/ollama/id_ed25519` | `root:root 0600` |
+| `autoheal_recovery_privileges/sudoers` | `/etc/sudoers.d/vrooli-autoheal` | `root:root 0440` |
+| `onboarding_apply_privileges/sudoers` | `/etc/sudoers.d/vrooli-onboarding-apply` | `root:root 0440` |
+
+The first three live inside user-owned trees, so the owning resource wrote them
+as root and a `chown` to the invoking user restores readability. The two
+`sudoers.d` files cannot be user-owned; backing them up needs a control-plane
+privileged read, which does not exist yet. Do not silently exclude them: they
+are hand-authored privilege policy, and a quiet exclusion would report complete
+coverage for state that has no copy.
+
+### 2026-11-19 — rebuild-in-place: three failures the dry run could not show
+
+1. **The mount was busy.** `umount` failed because Nautilus held a directory
+   handle on `/media/matthalloran8/Elements` (`fuser -vm` named it). The script
+   now prints the holders and `nautilus -q` when an unmount fails, and the whole
+   rebuild is resumable, so recovering is a re-run rather than a restart.
+2. **Deleting records before formatting removes the catalog row the next run
+   needs to select the drive.** The delete has to happen while the old volume
+   identity still matches, because the delete gate re-observes the volume and
+   refuses once the UUID changes. The run therefore writes
+   `$STATE_ROOT/rebuild-resume.env` plus the captured destination and plan
+   lists, reconstructs them from the capture when the env file is absent, and
+   tracks `rebuild-removed`/`rebuild-formatted` so a failure after `mkfs` resumes
+   at the destination rebuild instead of trying to format again.
+3. **`plans update` refuses on incomplete default coverage.** Discovery had found
+   `docker/graph_root` and `rasdaemon/event_database`, neither registered, so
+   every re-point failed with `failed_precondition: incomplete default coverage`.
+   The rebuild passes `--allow-incomplete-coverage`; a plain manual re-point
+   needs the same flag.
+
+### 2026-11-19 — a root-run CLI rebuild poisons the user's resource CLIs
+
+Running `data-backup-manager` or `vrooli` under `sudo` let the shared CLI
+installer rebuild `resource-kopia` under root's identity. The binary's baked
+fingerprint then disagreed with what the user's process computed, so every
+repository read failed with:
+
+```
+repair destination bundle path metadata: ... error obtaining VCS status: exit status 128
+go build failed in /home/matthalloran8/Vrooli/resources/kopia/cli
+```
+
+DBM classified those as `repository_invalid`; 77 targets of the 220-target local
+plan failed that way while both the local and the Elements repositories were
+healthy. Rebuilding `resource-kopia` once as the invoking user cleared it.
+`repair-drive.sh` now routes `dbm()` and the scenario start/stop calls through
+`as_user` (`runuser -u $SUDO_USER`), so a root-run repair cannot poison the
+operator's CLI again. The general rule: a privileged script may touch the
+device, but scenario and resource CLIs must run as their owner.
+
+### 2026-11-19 — a root-run DBM is the failure mode behind "repository_invalid"
+
+Running DBM as root has one root cause and four symptoms, and the symptoms all
+look like broken backup infrastructure:
+
+1. `~/.vrooli/secrets.enc.json` was rewritten `root:root 0600`, so kopia could
+   not read any repository passphrase. Every destination reported
+   `repository_invalid` and the local repository looked "unavailable" while its
+   167 GB were intact.
+2. The shared CLI installer rebuilt `resource-kopia` under root, where git
+   refuses the user's work tree ("dubious ownership"), so the rebuild failed
+   with `error obtaining VCS status: exit status 128` on every invocation.
+3. `dbm destinations create` under root created the new ext4 bundles and the
+   kopia registry as root, so the user's process could not traverse them.
+4. The lifecycle's own `ui/.vrooli-displaced-dist` was created root-owned, and
+   `scenarioBuildIdentity` hashed it into the source identity, so the scenario
+   could not start with `open ...: permission denied`.
+
+Fixes: the API refuses to start as root (`refuseRoot`, unit-tested) and the UI
+exits when `getuid()===0`; `repair-drive.sh` runs every scenario/resource CLI
+through `runuser -u $SUDO_USER` and refuses a rebuild when the running API is
+not owned by the invoking user; `scenarioBuildIdentity` skips
+`.vrooli-displaced-*` (control plane); ownership was repaired for the drive
+bundles, the kopia state/cache, the credential store, and the resource trees.
+
+Operational rule: a privileged script may act on the device, but it must never
+start the scenario, its UI, or any resource CLI as root.
+
+### 2026-11-19 — kopia's repo registry is per-user state, not per-repository
+
+Deleting `~/.local/state/vrooli/resources/kopia/registry.json` to escape a
+root-owned copy is not recoverable by reconnecting lazily: `destinations usage`
+for the local destination calls `repo stats`, which requires a registered name.
+Re-register it explicitly:
+
+```
+resource-kopia repo connect --name baseline-safety --backend filesystem \
+  --path ~/.vrooli/baseline-safety/repositories/baseline-safety.kopia
+```
+
+The drive destinations self-heal because their rebind path runs `repo connect`.

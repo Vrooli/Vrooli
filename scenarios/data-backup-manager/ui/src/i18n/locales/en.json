@@ -230,7 +230,7 @@
     "sensitiveReviewPending": "Notification Hub review {{id}} is pending for {{count}} target(s). No targets have changed.",
     "sensitiveReviewFailed": "The sensitive coverage review could not be raised. No targets have changed.",
     "summary": "{{registered}} registered · {{recommended}} recommended · {{sensitive}} sensitive · {{planned}} planned · {{verified}} verified on every enabled destination",
-    "independenceSummary": "Targets with multiple destinations: {{multi}} · physically independent targets: {{independent}}",
+    "independenceSummary": "Protected by two or more devices: {{protected}} · single-device copies (warning): {{single}} · no successful copy: {{none}}",
     "incompleteRejected": "This plan was blocked because recommended default coverage is incomplete. Register the recommended targets, or proceed with incomplete coverage.",
     "proceedIncomplete": "Proceed with incomplete coverage"
   },

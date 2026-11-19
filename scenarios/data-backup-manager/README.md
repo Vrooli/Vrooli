@@ -126,6 +126,24 @@ target is protected. A target is actually protected only after:
 | Configure env vars, ports, CLI config | [`docs/reference/configuration.md`](docs/reference/configuration.md) |
 | Add API endpoints | [`docs/reference/api-endpoints.md`](docs/reference/api-endpoints.md) |
 | Add CLI commands | [`docs/reference/cli-commands.md`](docs/reference/cli-commands.md) |
+| Use DBM as an agent | [`skills/data-backup-manager/SKILL.md`](skills/data-backup-manager/SKILL.md) |
+| Improve DBM's protection and recovery evidence | [`skills/data-backup-manager-improve/SKILL.md`](skills/data-backup-manager-improve/SKILL.md) |
+| Repair or migrate a backup drive | Operator-local `.private/scripts/repair-drive.sh`; generate it with `prompt-manager skill read safe-operator-script` |
+
+## Agent Skills
+
+- **Usage** (`skills/data-backup-manager/SKILL.md`) — the decision tree for
+  registering targets, protecting state, proving restores, and handling a
+  damaged destination. It is declared as the `usage` role in
+  `.vrooli/service.json`.
+- **Improve** (`skills/data-backup-manager-improve/SKILL.md`) — the setpoint,
+  sensors, routes, and anti-gaming rules for raising protection coverage,
+  restore proof, and destination repairability. It is declared as the `improve`
+  role because five scenarios depend on DBM.
+- **Drive repair** (`.private/scripts/repair-drive.sh`, operator-local and not
+  tracked) — a resumable, preview-first filesystem migration for a drive this
+  host cannot repair. Generate it with the global `safe-operator-script` skill;
+  the `.private/` directory is git-ignored.
 
 ## Working Rules
 

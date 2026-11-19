@@ -114,7 +114,7 @@ func (f *FakeService) WithResolvedDestinationForRead(ctx context.Context, id str
 	return f.WithResolvedDestination(ctx, id, use)
 }
 
-func (f *FakeService) WithResolvedDestinationForWrite(ctx context.Context, id string, _ bool, use func(destinations.Destination) error) error {
+func (f *FakeService) WithResolvedDestinationForWrite(ctx context.Context, id string, use func(destinations.Destination) error) error {
 	return f.WithResolvedDestination(ctx, id, use)
 }
 
